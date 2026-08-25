@@ -32,9 +32,11 @@ import {
   type ICostPrefix,
   type IRouteSegment,
   buildBoundaryDraft,
+  buildSparklinePoint,
   buildSparklineSegments,
   calculateMarkerHeight,
   calculateMemoryScale,
+  calculateUsageScale,
   canEditBoundary,
   estimateMax3hMemoryRange,
 } from './route-model';
@@ -45,11 +47,16 @@ interface IApiMemory {
   capacity_bytes: null | number;
   current_bytes: null | number;
   current_usage_ratio: null | number;
+  max_3h_at: null | number;
   max_3h_bytes: null | number;
   max_3h_usage_ratio: null | number;
   missing_points: number;
   observed_at: null | number;
+  sample_coverage_ratio: null | number;
+  total_points: number;
   trend: Array<[null | number, number]>;
+  usage_trend: Array<[null | number, number]>;
+  valid_points: number;
 }
 
 interface IApiNode {
@@ -101,6 +108,11 @@ interface IOverview {
     unmeasured_strategy_count: number;
     valid_strategy_count: number;
   };
+  data_health: {
+    cost_snapshot: 'empty' | 'error' | 'ok';
+    memory_capacity: 'empty' | 'error' | 'ok';
+    memory_used: 'empty' | 'error' | 'ok';
+  };
   routing: {
     max_strategy_id: number;
     routers: Array<{
@@ -137,12 +149,29 @@ const formatBytes = (value: null | number) => {
 
 const formatPercent = (value: null | number) => (value === null ? '--' : `${(value * 100).toFixed(1)}%`);
 const formatInteger = (value: number) => Math.round(value).toLocaleString('zh-CN');
+const formatDateTime = (timestamp: null | number | string) => {
+  if (timestamp === null) return '--';
+  const value = typeof timestamp === 'number' ? timestamp * 1000 : timestamp;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? '--' : date.toLocaleString();
+};
+
+const formatAge = (timestamp: null | number | string, referenceTime: null | number) => {
+  if (timestamp === null || referenceTime === null) return '时间未知';
+  const time = typeof timestamp === 'number' ? timestamp : new Date(timestamp).getTime() / 1000;
+  if (!Number.isFinite(time)) return '时间未知';
+  const seconds = Math.max(0, referenceTime - time);
+  if (seconds < 60) return '刚刚';
+  if (seconds < 3600) return `${Math.floor(seconds / 60)} 分钟前`;
+  return `${(seconds / 3600).toFixed(seconds < 36000 ? 1 : 0)} 小时前`;
+};
 
 @Component
 export default class RedisManagement extends Vue {
   data: IOverview | null = null;
   draft: IBoundaryDraft | null = null;
   loading = false;
+  loadFailed = false;
   draggingBoundary: null | number = null;
 
   created() {
@@ -194,6 +223,14 @@ export default class RedisManagement extends Vue {
     return calculateMemoryScale(this.hotStrategies.map(strategy => strategy.upper_bytes));
   }
 
+  get usageScale() {
+    return calculateUsageScale(
+      this.nodes.flatMap(node =>
+        node.memory.usage_trend.map(([value]) => value).filter(value => value !== null)
+      ) as number[]
+    );
+  }
+
   get draftEvidenceComplete() {
     if (!this.draft) return false;
     const sourceEvidence = this.data?.cost_evidence.nodes.find(item => item.node_id === this.draft.sourceNodeId);
@@ -205,9 +242,9 @@ export default class RedisManagement extends Vue {
   }
 
   get evidenceLabel() {
-    if (this.data?.cost_evidence.status === 'complete') return '成本证据完整';
-    if (this.data?.cost_evidence.status === 'partial') return '成本证据部分可用';
-    return '暂无有效成本证据';
+    if (this.data?.cost_evidence.status === 'complete') return '策略成本覆盖完整';
+    if (this.data?.cost_evidence.status === 'partial') return '策略成本覆盖不完整';
+    return '暂无有效策略成本数据';
   }
 
   get costSnapshotTimeLabel() {
@@ -215,10 +252,23 @@ export default class RedisManagement extends Vue {
     if (!evidenceNodes.length) return '暂无';
     return evidenceNodes
       .map(item => {
-        const snapshotTime = item.snapshot_time ? new Date(item.snapshot_time).toLocaleString() : '暂无';
+        const snapshotTime = formatAge(item.snapshot_time, this.data?.generated_at ?? null);
         return `${this.nodeName(item.node_id)} ${snapshotTime}`;
       })
       .join(' · ');
+  }
+
+  get dataHealthWarnings() {
+    const health = this.data?.data_health;
+    if (!health) return [];
+    const warnings = [];
+    if (health.memory_used === 'error') warnings.push('内存使用指标查询失败');
+    else if (health.memory_used === 'empty') warnings.push('内存使用指标暂无数据');
+    if (health.memory_capacity === 'error') warnings.push('内存容量指标查询失败');
+    else if (health.memory_capacity === 'empty') warnings.push('内存容量指标暂无数据');
+    if (health.cost_snapshot === 'error') warnings.push('策略成本数据读取失败');
+    else if (health.cost_snapshot === 'empty') warnings.push('策略成本数据暂无快照');
+    return warnings;
   }
 
   get futureRoute() {
@@ -259,9 +309,26 @@ export default class RedisManagement extends Vue {
     try {
       this.data = await getRedisManagementOverview({}, { needBiz: false });
       this.draft = null;
+      this.loadFailed = false;
+      return true;
+    } catch (_error) {
+      this.loadFailed = true;
+      return false;
     } finally {
       this.loading = false;
     }
+  }
+
+  handleRefresh() {
+    if (!this.draft) {
+      this.loadOverview();
+      return;
+    }
+    this.$bkInfo({
+      type: 'warning',
+      title: '刷新将取消当前调整预估',
+      confirmFn: () => this.loadOverview(),
+    });
   }
 
   beginBoundaryDrag(event: PointerEvent, boundaryIndex: number) {
@@ -311,12 +378,12 @@ export default class RedisManagement extends Vue {
   }
 
   renderNodeCard(node: IApiNode) {
-    const evidenceTime = node.snapshot?.snapshot_time
-      ? new Date(node.snapshot.snapshot_time).toLocaleString()
-      : '暂无成本证据';
+    const evidenceTime = node.snapshot?.snapshot_time ?? null;
     const routeMatched = node.snapshot?.routing_matches_current;
     const measured = node.snapshot?.coverage?.measured;
     const routeTotal = node.snapshot?.coverage?.route_matched;
+    const peakPoint = buildSparklinePoint(node.memory.usage_trend, node.memory.max_3h_at, 0, this.usageScale);
+    const currentPoint = buildSparklinePoint(node.memory.usage_trend, node.memory.observed_at, 0, this.usageScale);
     return (
       <div class='redis-node-card'>
         <div class='redis-node-card__header'>
@@ -337,36 +404,61 @@ export default class RedisManagement extends Vue {
             <em>{formatPercent(node.memory.current_usage_ratio)}</em>
           </div>
           <div>
-            <span>3 小时最大内存</span>
+            <span>3 小时采样峰值</span>
             <strong>{formatBytes(node.memory.max_3h_bytes)}</strong>
             <em>{formatPercent(node.memory.max_3h_usage_ratio)}</em>
           </div>
+        </div>
+        <div class='redis-node-card__trend-head'>
+          <span>最近 3 小时内存使用趋势</span>
+          <span>统一刻度 0–{formatPercent(this.usageScale)}</span>
         </div>
         <svg
           class='redis-node-card__trend'
           preserveAspectRatio='none'
           viewBox='0 0 180 42'
         >
-          {buildSparklineSegments(node.memory.trend).map((points, index) => (
+          {buildSparklineSegments(node.memory.usage_trend, 0, this.usageScale).map((points, index) => (
             <polyline
               key={index}
               points={points}
               stroke={this.nodeColor(node.id)}
             />
           ))}
+          {peakPoint && (
+            <circle
+              class='redis-node-card__peak-point'
+              cx={peakPoint.x}
+              cy={peakPoint.y}
+              r='2.5'
+            />
+          )}
+          {currentPoint && (
+            <circle
+              class='redis-node-card__current-point'
+              cx={currentPoint.x}
+              cy={currentPoint.y}
+              r='2'
+              stroke={this.nodeColor(node.id)}
+            />
+          )}
         </svg>
         <div class='redis-node-card__foot'>
-          <span>
-            指标时间 {node.memory.observed_at ? new Date(node.memory.observed_at * 1000).toLocaleString() : '--'}
+          <span>指标时间 {formatDateTime(node.memory.observed_at)}</span>
+          <span>峰值时间 {formatDateTime(node.memory.max_3h_at)}</span>
+          <span title={formatDateTime(evidenceTime)}>
+            策略成本更新 {formatAge(evidenceTime, this.data?.generated_at ?? null)}
           </span>
-          <span>成本快照 {evidenceTime}</span>
           {typeof measured === 'number' && typeof routeTotal === 'number' && (
             <span>
-              成本覆盖 {formatInteger(measured)}/{formatInteger(routeTotal)}
+              已估算策略 {formatInteger(measured)}/{formatInteger(routeTotal)}
             </span>
           )}
           {routeMatched === false && <span class='is-warning'>快照路由已变化</span>}
-          {node.memory.missing_points > 0 && <span>{node.memory.missing_points} 个趋势缺口</span>}
+          <span>
+            采样覆盖 {formatInteger(node.memory.valid_points)}/{formatInteger(node.memory.total_points)}（
+            {formatPercent(node.memory.sample_coverage_ratio)}）
+          </span>
         </div>
       </div>
     );
@@ -378,10 +470,10 @@ export default class RedisManagement extends Vue {
     const title = [
       `策略 ${strategy.strategy_id}`,
       strategy.bk_biz_id === null ? '' : `业务 ${strategy.bk_biz_id}`,
-      `series ${formatInteger(strategy.series_upper_bound ?? 0)}`,
+      `时序数量 ${formatInteger(strategy.series_upper_bound ?? 0)}`,
       `预估内存峰值 ${formatBytes(strategy.lower_bytes)}–${formatBytes(strategy.upper_bytes)}`,
       `节点 ${this.nodeName(strategy.snapshot_node_id)}`,
-      strategy.snapshot_time ? `证据时间 ${new Date(strategy.snapshot_time).toLocaleString()}` : '',
+      strategy.snapshot_time ? `策略成本更新 ${formatDateTime(strategy.snapshot_time)}` : '',
     ]
       .filter(Boolean)
       .join('\n');
@@ -396,6 +488,7 @@ export default class RedisManagement extends Vue {
           boundary: 'window',
           placement: 'top',
           allowHTML: false,
+          extCls: 'redis-hot-strategy-tooltip',
         }}
         aria-label={title}
         href={`?bizId=${strategy.bk_biz_id ?? window.cc_biz_id}#/strategy-config/detail/${strategy.strategy_id}`}
@@ -405,6 +498,41 @@ export default class RedisManagement extends Vue {
         {exceeded && <span class='redis-hot-marker__arrow'>↑</span>}
         <span class='redis-hot-marker__point' />
       </a>
+    );
+  }
+
+  renderRouteLivePreview() {
+    if (!this.draft) return null;
+    const target = this.nodeById(this.draft.targetNodeId);
+    const estimated = this.draftHasKnownCost
+      ? estimateMax3hMemoryRange(
+          target?.memory.max_3h_bytes ?? null,
+          this.draft.lowerBytes,
+          this.draft.upperBytes,
+          false
+        )
+      : { lower: null, upper: null };
+    const cost = this.draftHasKnownCost
+      ? `${formatBytes(this.draft.lowerBytes)}–${formatBytes(this.draft.upperBytes)}`
+      : '--';
+    return (
+      <div class='redis-route-live-preview'>
+        <strong>实时预估</strong>
+        <span>
+          {this.nodeName(this.draft.sourceNodeId)} → {this.nodeName(this.draft.targetNodeId)}
+        </span>
+        <span>
+          策略 ID {formatInteger(this.draft.range.from)}–{formatInteger(this.draft.range.to)}
+        </span>
+        <span>已知迁移成本 {cost}</span>
+        <span>
+          目标节点峰值 {this.formatNodeMemoryRange(estimated.lower, estimated.upper, this.draft.targetNodeId)}
+        </span>
+        <span>
+          本次范围已估算 {formatInteger(this.draft.measuredCount)} 条，未估算{' '}
+          {formatInteger(this.draft.unmeasuredCount)} 条
+        </span>
+      </div>
     );
   }
 
@@ -421,7 +549,7 @@ export default class RedisManagement extends Vue {
         <div class='redis-route-context'>
           <span>当前策略范围 1–{formatInteger(this.maxStrategyId)}</span>
           <span>
-            {this.evidenceLabel} · 已识别 {this.data?.cost_evidence.valid_strategy_count ?? 0} 条
+            {this.evidenceLabel} · 已估算 {this.data?.cost_evidence.valid_strategy_count ?? 0} 条
             {(this.data?.cost_evidence.unmeasured_strategy_count ?? 0) > 0 &&
               ` · ${this.data.cost_evidence.unmeasured_strategy_count} 条未计入估算`}
             {(this.data?.cost_evidence.stale_strategy_count ?? 0) > 0 &&
@@ -430,7 +558,7 @@ export default class RedisManagement extends Vue {
               ` · ${this.data.cost_evidence.missing_snapshot_count} 个节点缺少成本证据`}
           </span>
         </div>
-        <div class='redis-route-snapshot'>成本快照时间：{this.costSnapshotTimeLabel}</div>
+        <div class='redis-route-snapshot'>策略成本更新：{this.costSnapshotTimeLabel}</div>
         {this.data?.routing.topology_validation.valid === false && (
           <p class='redis-route-warning'>
             当前路由拓扑存在异常，仅支持查看，暂不能调整边界：
@@ -484,7 +612,7 @@ export default class RedisManagement extends Vue {
                       title={editable ? '拖动边界生成容量草稿' : '当前边界不可调整'}
                       type='button'
                     >
-                      <span class='redis-route-boundary-label'>strategy_id {formatInteger(boundary)}</span>
+                      <span class='redis-route-boundary-label'>策略 ID {formatInteger(boundary)}</span>
                     </button>
                   );
                 })}
@@ -500,6 +628,7 @@ export default class RedisManagement extends Vue {
             <em>新增策略 → {this.futureRoute?.node ? this.nodeName(this.futureRoute.node.id) : '未覆盖'}</em>
           </div>
         </div>
+        {this.renderRouteLivePreview()}
         <div class='redis-route-legend'>
           {this.nodes.map(node => (
             <span key={node.id}>
@@ -525,7 +654,7 @@ export default class RedisManagement extends Vue {
       : '--';
     return (
       <div class='redis-draft-state'>
-        <h4>调整后 3 小时最大内存预估</h4>
+        <h4>3 小时采样峰值预估</h4>
         {[this.draft.sourceNodeId, this.draft.targetNodeId].map(nodeId => {
           const node = this.nodeById(nodeId);
           const isSource = nodeId === this.draft.sourceNodeId;
@@ -549,7 +678,8 @@ export default class RedisManagement extends Vue {
                 </em>
               </strong>
               <span>
-                3 小时最大 {this.formatNodeMemory(node?.memory.max_3h_bytes ?? null, nodeId)} →{' '}
+                3 小时采样峰值 {this.formatNodeMemory(node?.memory.max_3h_bytes ?? null, nodeId)} →{' '}
+                {isSource ? '清理后预计回落至' : '预计上升至'}{' '}
                 {this.formatNodeMemoryRange(estimated.lower, estimated.upper, nodeId)}
               </span>
             </div>
@@ -567,14 +697,14 @@ export default class RedisManagement extends Vue {
     const costSummary = this.draftEvidenceComplete
       ? `预估迁移内存 ${formatBytes(this.draft.lowerBytes)}–${formatBytes(this.draft.upperBytes)}`
       : this.draft.measuredCount > 0
-        ? `当前证据覆盖的迁移内存 ${formatBytes(this.draft.lowerBytes)}–${formatBytes(this.draft.upperBytes)}`
+        ? `已覆盖部分迁移内存 ${formatBytes(this.draft.lowerBytes)}–${formatBytes(this.draft.upperBytes)}`
         : '迁移内存证据不足';
     return (
       <section class='redis-draft-panel'>
         <div class='redis-section-head'>
           <div>
-            <h3>路由调整草稿</h3>
-            <p>草稿不会修改当前路由；同一时间只能调整这一根边界。</p>
+            <h3>调整影响预估</h3>
+            <p>预估不会修改当前路由；同一时间只能调整这一根边界。</p>
           </div>
           <button
             class='bk-button bk-default'
@@ -585,16 +715,21 @@ export default class RedisManagement extends Vue {
           </button>
         </div>
         <div class='redis-draft-summary'>
-          <strong>边界 strategy_id {formatInteger(this.draft.boundary)}</strong>
+          <strong>边界策略 ID {formatInteger(this.draft.boundary)}</strong>
           <span>
             {this.nodeName(this.draft.sourceNodeId)} → {this.nodeName(this.draft.targetNodeId)}
           </span>
           <span>
-            策略范围 {formatInteger(this.draft.range.from)}–{formatInteger(this.draft.range.to)}
+            策略 ID 范围 {formatInteger(this.draft.range.from)}–{formatInteger(this.draft.range.to)}
           </span>
           <span>{costSummary}</span>
+          <span>
+            本次范围已估算 {formatInteger(this.draft.measuredCount)} 条，未估算{' '}
+            {formatInteger(this.draft.unmeasuredCount)} 条
+          </span>
         </div>
         <div class='redis-draft-grid'>{this.renderMemoryChange()}</div>
+        <p class='redis-draft-timing'>路由调整只改变后续访问落点，源节点旧数据随清理周期逐步释放。</p>
         <div class='redis-draft-impact'>
           <span title='迁移范围内策略的 Redis 检测结果在清理周期内可能同时存在的成员数量。它不是策略数、series 数或告警数。'>
             {this.draftEvidenceComplete ? '估算峰值成员' : '当前证据覆盖的峰值成员'}{' '}
@@ -630,15 +765,26 @@ export default class RedisManagement extends Vue {
           <div>
             <h2>Redis 节点管理</h2>
             <p>查看节点容量、策略路由与已知热策略，并生成单次边界调整的容量草稿。</p>
+            {this.data && (
+              <span class='redis-management__generated-at'>
+                页面数据 {formatDateTime(this.data.generated_at)}（
+                {formatAge(this.data.generated_at, Date.now() / 1000)}）
+              </span>
+            )}
           </div>
           <button
             class='bk-button bk-default'
+            disabled={this.loading}
             type='button'
-            onClick={this.loadOverview}
+            onClick={this.handleRefresh}
           >
             刷新
           </button>
         </div>
+        {this.loadFailed && <div class='redis-data-warning'>刷新失败，当前展示仍为上次数据。</div>}
+        {this.dataHealthWarnings.length > 0 && (
+          <div class='redis-data-warning'>{this.dataHealthWarnings.join('；')}，相关数值暂不可用。</div>
+        )}
         {this.data && (
           <div>
             <div class='redis-node-grid'>{this.nodes.map(node => this.renderNodeCard(node))}</div>

@@ -144,6 +144,11 @@ export const calculateMemoryScale = (values: number[]): number => {
 
 export const calculateMarkerHeight = (value: number, scale: number) => (value / scale) * 110;
 
+export const calculateUsageScale = (values: number[]): number => {
+  const maximum = Math.max(0, ...values.filter(value => Number.isFinite(value) && value >= 0));
+  return Math.max(0.1, Math.ceil(maximum * 10) / 10);
+};
+
 export const estimateMax3hMemoryRange = (
   before: null | number,
   costLower: number,
@@ -173,16 +178,52 @@ export const canEditBoundary = (
   return !!left && !!right && enabled.has(left.nodeId) && enabled.has(right.nodeId);
 };
 
-export const buildSparklineSegments = (trend: Array<[null | number, number]>) => {
-  if (trend.length < 2) return [];
+const sparklineBounds = (
+  trend: Array<[null | number, number]>,
+  minimum?: number,
+  maximum?: number
+): null | { maximumTime: number; maximumValue: number; minimumTime: number; minimumValue: number } => {
+  if (trend.length < 2) return null;
   const ordered = [...trend].sort((left, right) => left[1] - right[1]);
   const validValues = ordered.filter(item => item[0] !== null) as Array<[number, number]>;
-  if (validValues.length < 2) return [];
-  const minimumValue = Math.min(...validValues.map(item => item[0]));
-  const maximumValue = Math.max(...validValues.map(item => item[0]));
-  const valueSpan = Math.max(maximumValue - minimumValue, 1);
-  const minimumTime = ordered[0][1];
-  const timeSpan = Math.max(ordered[ordered.length - 1][1] - minimumTime, 1);
+  if (validValues.length < 2) return null;
+  const minimumValue = minimum ?? Math.min(...validValues.map(item => item[0]));
+  const maximumValue = maximum ?? Math.max(...validValues.map(item => item[0]));
+  return {
+    minimumValue,
+    maximumValue: Math.max(maximumValue, minimumValue + Number.EPSILON),
+    minimumTime: ordered[0][1],
+    maximumTime: ordered[ordered.length - 1][1],
+  };
+};
+
+export const buildSparklinePoint = (
+  trend: Array<[null | number, number]>,
+  timestamp: null | number,
+  minimum?: number,
+  maximum?: number
+): null | { x: number; y: number } => {
+  if (timestamp === null) return null;
+  const point = trend.find(item => item[1] === timestamp && item[0] !== null) as [number, number] | undefined;
+  const bounds = sparklineBounds(trend, minimum, maximum);
+  if (!point || !bounds) return null;
+  const valueSpan = bounds.maximumValue - bounds.minimumValue;
+  const timeSpan = Math.max(bounds.maximumTime - bounds.minimumTime, 1);
+  return {
+    x: Number((((timestamp - bounds.minimumTime) / timeSpan) * 180).toFixed(1)),
+    y: Number((38 - ((point[0] - bounds.minimumValue) / valueSpan) * 34).toFixed(1)),
+  };
+};
+
+export const buildSparklineSegments = (trend: Array<[null | number, number]>, minimum?: number, maximum?: number) => {
+  const bounds = sparklineBounds(trend, minimum, maximum);
+  if (!bounds) return [];
+  const ordered = [...trend].sort((left, right) => left[1] - right[1]);
+  const minimumValue = bounds.minimumValue;
+  const maximumValue = bounds.maximumValue;
+  const valueSpan = Math.max(maximumValue - minimumValue, Number.EPSILON);
+  const minimumTime = bounds.minimumTime;
+  const timeSpan = Math.max(bounds.maximumTime - minimumTime, 1);
   const segments: string[][] = [];
   let current: string[] = [];
 
