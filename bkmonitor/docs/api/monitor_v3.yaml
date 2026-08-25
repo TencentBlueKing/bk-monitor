@@ -2256,17 +2256,6 @@
   path: /v2/monitor_v3/query_apm_endpoint/
   method: POST
 
-- api_type: query
-  comp_codename: generic.v2.monitor_v3.monitor_v3_component
-  dest_http_method: GET
-  dest_path: /apm_api/v1/application/query_fields/
-  is_hidden: true
-  label: 查询字段信息
-  label_en: query apm fields
-  name: query_apm_fields
-  path: /v2/monitor_v3/query_apm_fields/
-  method: GET
-
 - api_type: operate
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
   dest_http_method: POST

@@ -13,7 +13,6 @@ from typing import Any
 from apm_web.constants import InstanceDiscoverKeys
 from apm_web.handlers.query.span import SpanQuery
 from apm_web.models import Application
-from bkmonitor.data_source.utils.apm import TraceDatasourceTarget
 from constants.apm import OtlpKey
 
 
@@ -24,16 +23,12 @@ class InstanceHandler:
     def get_span_fields(cls, app: Application) -> list[dict[str, Any]]:
         """获取所有 Resource 类型的 Span 字段。"""
 
-        start_time: int
-        end_time: int
-        start_time, end_time = app.list_retention_time_range()
-        data_source: TraceDatasourceTarget = TraceDatasourceTarget.build(
-            app.bk_biz_id, app.app_name, app.trace_result_table_id
-        )
-        fields_info: dict[str, dict[str, Any]] = SpanQuery([data_source]).query_fields(start_time, end_time)
+        fields_info = SpanQuery.query_fields_by_application(app)
         resource_field_prefix: str = f"{OtlpKey.RESOURCE}."
         field_names: set[str] = {
-            field_name for field_name in fields_info if field_name.startswith(resource_field_prefix)
+            field_name
+            for field_name, field_info in fields_info.items()
+            if field_name.startswith(resource_field_prefix) and field_info["is_searchable"]
         }
         field_names.discard(cls.BK_INSTANCE_ID_FIELD_NAME)
 

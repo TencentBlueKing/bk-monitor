@@ -13,12 +13,14 @@ import json
 import logging
 from collections import defaultdict
 from datetime import UTC, datetime
+from typing import Any
 
 import pytz
 from django.conf import settings
 from django.utils.functional import cached_property
 from django.utils.translation import gettext_lazy as _
 
+from apm_web.handlers.query.span import SpanQuery
 from bkmonitor.utils.time_tools import time_interval_align
 from constants.apm import TelemetryDataType
 from constants.data_source import (
@@ -26,6 +28,7 @@ from constants.data_source import (
     DataSourceLabel,
     DataTypeLabel,
 )
+from constants.otel_query import FieldTypeEnum
 from core.drf_resource import api, resource
 
 logger = logging.getLogger("apm")
@@ -213,22 +216,32 @@ class TraceBackendHandler(TelemetryBackendHandler):
                 datasource_config = {**datasource_config, "es_shards": shards_count}
         return datasource_config
 
-    def storage_field_info(self):
-        # 获取字段信息
-        field_data = api.apm_api.query_fields({"bk_biz_id": self.app.bk_biz_id, "app_name": self.app.app_name})
-        # 获取字段描述信息
-        table_data = api.metadata.get_result_table({"table_id": self.app.trace_result_table_id}).get("field_list", [])
-        field_desc_data = {field_info["field_name"]: field_info["description"] for field_info in table_data}
-        # 构造响应信息
+    def storage_field_info(self) -> list[dict[str, Any]]:
+        """通过 unify-query 获取可搜索的 Span 字段信息。"""
+
+        fields_info = SpanQuery.query_fields_by_application(self.app)
+        searchable_fields_info: dict[str, dict[str, Any]] = {
+            field_name: field_info for field_name, field_info in fields_info.items() if field_info["is_searchable"]
+        }
+        if not searchable_fields_info:
+            return []
+
+        table_data: list[dict[str, Any]] = api.metadata.get_result_table(
+            {"table_id": self.app.trace_result_table_id}
+        ).get("field_list", [])
+        field_desc_data: dict[str, str] = {
+            table_field_info["field_name"]: table_field_info["description"] for table_field_info in table_data
+        }
+
         return [
             {
-                "field_name": key,
-                "ch_field_name": field_desc_data.get(key, ""),
-                "analysis_field": value == "text",
-                "field_type": value,
-                "time_field": value == "date",
+                "field_name": field_name,
+                "ch_field_name": field_desc_data.get(field_name, ""),
+                "analysis_field": field_info["field_type"] == FieldTypeEnum.TEXT.value,
+                "field_type": field_info["field_type"],
+                "time_field": field_info["field_type"] == FieldTypeEnum.DATE.value,
             }
-            for key, value in field_data.items()
+            for field_name, field_info in searchable_fields_info.items()
         ]
 
     @property

@@ -377,24 +377,6 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: query apm endpoint
-  /app/apm/query_apm_fields/:
-    get:
-      operationId: query_apm_fields
-      description: 查询字段信息
-      x-bk-apigateway-resource:
-        isPublic: false
-        allowApplyPermission: true
-        matchSubpath: false
-        backend:
-          name: default
-          method: get
-          path: /apm_api/v1/application/query_fields/
-          matchSubpath: false
-        authConfig:
-          appVerifiedRequired: true
-          userVerifiedRequired: false
-          resourcePermissionRequired: true
-        descriptionEn: query apm fields
   /app/apm/update_apm_metric_fields/:
     post:
       operationId: update_apm_metric_fields

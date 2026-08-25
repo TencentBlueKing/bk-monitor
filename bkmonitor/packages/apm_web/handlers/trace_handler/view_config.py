@@ -26,7 +26,6 @@ from apm_web.handlers.query.span import SpanQuery
 from apm_web.handlers.trace_handler.query import TraceQueryTransformer
 from apm_web.models import Application
 from apm_web.trace.constants import TRACE_FIELD_ALIAS
-from bkmonitor.data_source.utils.apm import TraceDatasourceTarget
 from bkmonitor.utils.request import get_request_username
 from constants.apm import PreCalculateSpecificField, SpanStandardField, PrecalculateStorageConfig
 from constants.otel_query import FIELD_OPERATIONS, OTEL_SPAN_COMMON_FIELD_ALIAS, EnabledStatisticsDimension
@@ -34,6 +33,14 @@ from constants.otel_query import FIELD_OPERATIONS, OTEL_SPAN_COMMON_FIELD_ALIAS,
 
 class TraceFieldsInfoHandler:
     """trace 检索页面不同视角下的所有字段信息"""
+
+    VIEW_FIELD_METADATA_KEYS: tuple[str, ...] = (
+        "field_type",
+        "is_searchable",
+        "is_agg",
+        "is_list",
+        "supported_operations",
+    )
 
     # 预计算对象字段扩展信息
     TRACE_PRE_OBJECTS_FIELDS_EXTEND = {
@@ -66,39 +73,49 @@ class TraceFieldsInfoHandler:
     def span_fields_info(self) -> dict[str, dict[str, Any]]:
         """通过 unify-query 获取 Span 原始表的字段信息。"""
 
-        application: Application = self.application
-        start_time: int
-        end_time: int
-        start_time, end_time = application.list_retention_time_range()
-        data_source: TraceDatasourceTarget = TraceDatasourceTarget.build(
-            application.bk_biz_id, application.app_name, application.trace_result_table_id
-        )
-        return SpanQuery([data_source]).query_fields(start_time, end_time)
+        return SpanQuery.query_fields_by_application(self.application)
+
+    @staticmethod
+    def _build_static_field_info(field_type: str) -> dict[str, Any]:
+        """为非 UQ 来源的 Trace 预计算字段补齐展示元数据。"""
+
+        is_searchable = field_type not in {"object", "nested"}
+        return {
+            "field_type": field_type,
+            "is_searchable": is_searchable,
+            "is_agg": field_type in {dimension.value for dimension in EnabledStatisticsDimension},
+            "is_list": is_searchable,
+            "supported_operations": FIELD_OPERATIONS.get(field_type, []),
+        }
 
     @cached_property
-    def pre_calculate_fields_info(self) -> dict[str, dict]:
+    def pre_calculate_fields_info(self) -> dict[str, dict[str, Any]]:
         """获取预计算字段信息
 
         保持和 span_fields_info 一样的字段类型结构。
         """
 
         # 预计算的所有字段信息
-        pre_storage_dict = {}
+        pre_storage_field_types: dict[str, str] = {}
         for field_info in PrecalculateStorageConfig.TABLE_SCHEMA:
-            pre_storage_dict[field_info["field_name"]] = {"field_type": field_info.get("option", {}).get("es_type", "")}
+            pre_storage_field_types[field_info["field_name"]] = field_info.get("option", {}).get("es_type", "")
 
         # 返回 search_fields 中的字段信息
-        pre_calculate_fields_info = {}
+        pre_calculate_fields_info: dict[str, dict[str, Any]] = {}
         for field_name in PreCalculateSpecificField.search_fields():
             if field_name in self.TRACE_PRE_OBJECTS_FIELDS_EXTEND:
                 for child_field, child_field_info in self.TRACE_PRE_OBJECTS_FIELDS_EXTEND[field_name].items():
-                    pre_calculate_fields_info[f"{field_name}.{child_field}"] = copy.deepcopy(child_field_info)
+                    pre_calculate_fields_info[f"{field_name}.{child_field}"] = self._build_static_field_info(
+                        child_field_info["field_type"]
+                    )
             else:
-                pre_calculate_fields_info[field_name] = pre_storage_dict.get(field_name, {})
+                pre_calculate_fields_info[field_name] = self._build_static_field_info(
+                    pre_storage_field_types.get(field_name, "")
+                )
         return pre_calculate_fields_info
 
     @property
-    def trace_collections_fields_info(self) -> dict[str, dict]:
+    def trace_collections_fields_info(self) -> dict[str, dict[str, Any]]:
         """获取 trace collections 中可能存在的字段
 
         保持和 span_fields_info 一样的字段类型结构。
@@ -106,18 +123,26 @@ class TraceFieldsInfoHandler:
 
         # 获取所有的标准字段名
         field_names = [standard_field.field for standard_field in SpanStandardField.COMMON_STANDARD_FIELDS]
-        standard_fields_info = {}
+        standard_fields_info: dict[str, dict[str, Any]] = {}
         for field_name in field_names:
             if field_name in self.span_fields_info:
-                standard_fields_info[TraceQueryTransformer.to_pre_cal_field(field_name)] = {
-                    "field_type": self.span_fields_info[field_name]["field_type"]
+                trace_field_name = TraceQueryTransformer.to_pre_cal_field(field_name)
+                if trace_field_name == "collections.kind":
+                    standard_fields_info[trace_field_name] = self._build_static_field_info(
+                        EnabledStatisticsDimension.KEYWORD.value
+                    )
+                    continue
+
+                span_field_info = self.span_fields_info[field_name]
+                standard_fields_info[trace_field_name] = {
+                    key: span_field_info[key] for key in self.VIEW_FIELD_METADATA_KEYS
                 }
         return standard_fields_info
 
-    def get_fields_info_by_mode(self, mode: QueryMode) -> dict[str, dict]:
+    def get_fields_info_by_mode(self, mode: QueryMode) -> dict[str, dict[str, Any]]:
         """根据不同的模式返回不同的字段信息"""
 
-        fields_info = {}
+        fields_info: dict[str, dict[str, Any]] = {}
         if mode == QueryMode.TRACE:
             fields_info.update(copy.deepcopy(self.pre_calculate_fields_info))
             fields_info.update(copy.deepcopy(self.trace_collections_fields_info))
@@ -138,43 +163,16 @@ class TraceFieldsHandler:
         self.fields_info_handler = TraceFieldsInfoHandler(self.bk_biz_id, self.app_name)
 
     @cached_property
-    def trace_fields_info(self) -> dict[str, dict]:
+    def trace_fields_info(self) -> dict[str, dict[str, Any]]:
         """获取 trace 视角下可用的字段信息"""
 
         return self.fields_info_handler.get_fields_info_by_mode(QueryMode.TRACE)
 
     @cached_property
-    def span_fields_info(self) -> dict[str, dict]:
+    def span_fields_info(self) -> dict[str, dict[str, Any]]:
         """获取 span 视角下可用的字段信息"""
 
         return self.fields_info_handler.get_fields_info_by_mode(QueryMode.SPAN)
-
-    def is_searched(self, field_type: str) -> bool:
-        """判断字段是否可以被查询"""
-
-        return field_type not in {"object", "nested"}
-
-    def is_dimensions(self, mode: QueryMode, field_name: str, field_type: str) -> bool:
-        """判断字段是否可以用于聚合和获取枚举值"""
-
-        if field_type in [dimension_type.value for dimension_type in EnabledStatisticsDimension]:
-            if mode == QueryMode.TRACE:
-                return field_name not in ["min_start_time", "max_end_time", "root_span_id", "trace_id"]
-            elif mode == QueryMode.SPAN:
-                return field_name not in ["time", "start_time", "end_time", "span_id", "trace_id"]
-            else:
-                return True
-        return False
-
-    def can_displayed(self, field_type: str) -> bool:
-        """判断字段是否可以显示"""
-
-        return field_type not in {"object", "nested"}
-
-    def get_supported_operations(self, field_type: str) -> list[str]:
-        """获取字段支持的运算符"""
-
-        return FIELD_OPERATIONS.get(field_type, [])
 
     def get_field_alias(self, field_name: str) -> str:
         """获取字段别名"""
@@ -184,34 +182,22 @@ class TraceFieldsHandler:
                 return mapping[field_name] or field_name
         return field_name
 
-    def get_field_type(self, mode: QueryMode, field_name: str) -> str:
-        """获取字段类型"""
-        convert_keyword_fields = ["collections.kind"]
-        if mode == QueryMode.TRACE and field_name in convert_keyword_fields:
-            return EnabledStatisticsDimension.KEYWORD.value
-
-        if mode == QueryMode.TRACE:
-            fields_info = self.trace_fields_info
-        else:
-            fields_info = self.span_fields_info
-
-        return fields_info.get(field_name, {}).get("field_type", "")
-
-    def get_fields_info(self, mode: QueryMode, field_names: list[str]) -> list[dict]:
+    def get_fields_info(self, mode: QueryMode, field_names: list[str]) -> list[dict[str, Any]]:
         """获取字段信息"""
 
-        fields = []
+        fields_info = self.trace_fields_info if mode == QueryMode.TRACE else self.span_fields_info
+        fields: list[dict[str, Any]] = []
         for field_name in field_names:
-            field_type = self.get_field_type(mode, field_name)
+            field_info = fields_info[field_name]
             fields.append(
                 dict(
                     name=field_name,
                     alias=self.get_field_alias(field_name),
-                    type=field_type,
-                    is_searched=self.is_searched(field_type),
-                    is_dimensions=self.is_dimensions(mode, field_name, field_type),
-                    can_displayed=self.can_displayed(field_type),
-                    supported_operations=self.get_supported_operations(field_type),
+                    type=field_info["field_type"],
+                    is_searched=field_info["is_searchable"],
+                    is_dimensions=field_info["is_agg"],
+                    can_displayed=field_info["is_list"],
+                    supported_operations=field_info["supported_operations"],
                 )
             )
         return fields
@@ -229,7 +215,7 @@ class TraceFieldsHandler:
             field_names = [
                 field_name
                 for field_name, field_info in self.span_fields_info.items()
-                if field_name.split(".")[0] in SPAN_SORTED_FIELD and self.is_searched(field_info["field_type"])
+                if field_name.split(".")[0] in SPAN_SORTED_FIELD and field_info["is_searchable"]
             ]
             field_names.sort(
                 key=lambda field_name: (
@@ -243,7 +229,7 @@ class TraceFieldsHandler:
             )
         return field_names
 
-    def get_fields_by_mode(self, mode: QueryMode) -> list[dict]:
+    def get_fields_by_mode(self, mode: QueryMode) -> list[dict[str, Any]]:
         """获取 trace / span 视角下可用的字段信息"""
 
         all_fields_names = self.get_all_fields_names_by_mode(mode)

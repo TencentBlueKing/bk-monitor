@@ -8,7 +8,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from bkm_space.utils import bk_biz_id_to_space_uid
 from bkmonitor.data_source.utils.apm import TraceDatasourceTarget
@@ -16,6 +16,9 @@ from bkmonitor.data_source.utils.query import BaseQuery
 from constants.otel_query import FIELD_OPERATIONS, OTEL_SPAN_COMMON_FIELD_ALIAS
 
 from apm_web.trace.constants import TRACE_FIELD_ALIAS
+
+if TYPE_CHECKING:
+    from apm_web.models import Application
 
 
 class SpanQuery(BaseQuery):
@@ -26,6 +29,18 @@ class SpanQuery(BaseQuery):
 
     def __init__(self, data_sources: list[TraceDatasourceTarget]) -> None:
         self.data_sources: list[TraceDatasourceTarget] = data_sources
+
+    @classmethod
+    def query_fields_by_application(cls, application: "Application") -> dict[str, dict[str, Any]]:
+        """按应用的 ES 保留期查询 Span 字段。"""
+
+        start_time, end_time = application.list_retention_time_range()
+        data_source = TraceDatasourceTarget.build(
+            application.bk_biz_id,
+            application.app_name,
+            application.trace_result_table_id,
+        )
+        return cls([data_source]).query_fields(start_time, end_time)
 
     def query_fields(self, start_time: int, end_time: int) -> dict[str, dict[str, Any]]:
         """查询指定时间范围内的 Span 字段。"""

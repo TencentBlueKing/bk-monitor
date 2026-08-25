@@ -391,8 +391,9 @@ class Application(AbstractRecordModel):
             ).values_list("relation_value", flat=True)
         )
 
-    def list_retention_time_range(self):
-        """获取应用的过期时间范围"""
+    def list_retention_time_range(self) -> tuple[int, int]:
+        """获取当前时间往前 ``es_retention`` 天的时间范围。"""
+
         s, e = get_datetime_range(period="day", distance=self.es_retention, rounding=False)
         return int(s.timestamp()), int(e.timestamp())
 
@@ -790,9 +791,7 @@ class Application(AbstractRecordModel):
                 owners=owners,
             )
         except Exception as e:  # pylint: disable=broad-except
-            logger.warning(
-                f"application->({self.application_id}) grant log owners({owners}) failed, reason: {e}"
-            )
+            logger.warning(f"application->({self.application_id}) grant log owners({owners}) failed, reason: {e}")
 
     @property
     def is_create_finished(self):

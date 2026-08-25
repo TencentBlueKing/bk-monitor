@@ -116,6 +116,18 @@ class TestBaseQuery:
         assert result["status"]["is_agg"] is True
         assert result["status"]["is_analyzed"] is True
 
+    def test_query_fields_returns_empty_when_unify_query_fails(self, mocker):
+        """单个结果表查询失败时，字段查询降级为空映射。"""
+        mocker.patch.object(BaseQuery, "_query_info_fields", side_effect=RuntimeError("unify-query unavailable"))
+
+        result = BaseQuery()._query_fields(
+            targets=[("rt1", "space1")],
+            start_time=1717000000,
+            end_time=1717003600,
+        )
+
+        assert result == {}
+
     def test_swap_rt_order_produces_same_boolean_flags(self, mocker):
         """交换两个 RT 的合并顺序，布尔标志位结果应保持一致（OR/AND 语义均满足交换律）。"""
         rt_a_fields = [_make_field(is_agg=True, is_analyzed=False, is_case_sensitive=True)]
