@@ -4538,7 +4538,7 @@ class LinkIssueToTapdResource(Resource):
         }
 
 
-class ListUserTapdWorkspaceResource(Resource):
+class GetUserWorkspaceResource(Resource):
     """查询当前用户有权限的 TAPD 项目列表（冷启动去关联用）
 
     端点：POST /fta/issue/tapd/user_workspace/
@@ -4798,7 +4798,7 @@ class ListUserTapdWorkspaceResource(Resource):
         return items, any_unbound_or_stale
 
 
-class UnbindTapdWorkspaceResource(Resource):
+class UnbindWorkspaceResource(Resource):
     """解除 TAPD 项目与当前业务的关联
 
     仅删除本地 TapdWorkspaceBinding，不在 TAPD 侧撤回应用授权。
@@ -4920,7 +4920,7 @@ class UnbindTapdWorkspaceResource(Resource):
             )
 
 
-class RebindTapdWorkspaceResource(Resource):
+class RebindWorkspaceResource(Resource):
     """重新关联 TAPD 项目与当前业务
 
     删除 tombstone 记录后，创建本地 TapdWorkspaceBinding。
@@ -4968,7 +4968,7 @@ class RebindTapdWorkspaceResource(Resource):
             )["Workspace"]
             workspace_name = ws_info.get("name", "")
         except BKAPIError as e:
-            if ListUserTapdWorkspaceResource._is_tapd_token_invalid_422(e):
+            if GetUserWorkspaceResource._is_tapd_token_invalid_422(e):
                 logger.info("TAPD user token invalid (422) during rebind, clearing token: ws=%s", workspace_id)
                 delete_tapd_token(tenant_id=tenant_id, username=username)
                 # token 失效，返回 403（HTTP 状态码 200），前端按 code=403 自行跳转授权流程
@@ -4978,7 +4978,7 @@ class RebindTapdWorkspaceResource(Resource):
             raise
 
         # 4. 校验应用态授权仍然存在，避免绕过 TAPD 应用安装直接恢复本地 binding
-        app_granted_ids = ListUserTapdWorkspaceResource._fetch_app_granted_ids(bk_biz_id)
+        app_granted_ids = GetUserWorkspaceResource._fetch_app_granted_ids(bk_biz_id)
         if workspace_id not in app_granted_ids:
             exc = CustomException(message="TAPD 项目未完成应用授权，请先完成项目关联授权", code=403)
             exc.status_code = 200
@@ -5004,7 +5004,7 @@ class RebindTapdWorkspaceResource(Resource):
         return {"success": True, "workspace": {"id": workspace_id, "name": binding.tapd_workspace_name}}
 
 
-class RevokeTapdUserAuthResource(Resource):
+class RevokeAuthResource(Resource):
     """撤销 TAPD 用户态授权
 
     仅清除用户级用户态 token（Redis），不清除 TapdWorkspaceBinding。

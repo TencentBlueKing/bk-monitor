@@ -281,13 +281,13 @@ class IssueViewSet(ResourceViewSet):
         # 获取已授权的tapd项目列表
         ResourceRoute("POST", resource.issue.list_tapd_workspace, endpoint="tapd/workspace"),
         # 查询当前用户可见的 TAPD 项目列表（含 install_url）
-        ResourceRoute("POST", resource.issue.list_user_tapd_workspace, endpoint="tapd/user_workspace"),
+        ResourceRoute("POST", resource.issue.get_user_workspace, endpoint="tapd/user_workspace"),
         # 解绑 TAPD 项目（删除本地 binding + 写入 tombstone）
-        ResourceRoute("POST", resource.issue.unbind_tapd_workspace, endpoint="tapd/unbind_workspace"),
+        ResourceRoute("POST", resource.issue.unbind_workspace, endpoint="tapd/unbind_workspace"),
         # 重新关联 TAPD 项目（删除 tombstone + 恢复 binding）
-        ResourceRoute("POST", resource.issue.rebind_tapd_workspace, endpoint="tapd/rebind_workspace"),
+        ResourceRoute("POST", resource.issue.rebind_workspace, endpoint="tapd/rebind_workspace"),
         # 撤销 TAPD 用户态授权（仅清除 token，保留 binding）
-        ResourceRoute("POST", resource.issue.revoke_tapd_user_auth, endpoint="tapd/revoke_auth"),
+        ResourceRoute("POST", resource.issue.revoke_auth, endpoint="tapd/revoke_auth"),
         # 获取 TAPD 单据的字段
         ResourceRoute("POST", resource.issue.get_tapd_fields, endpoint="issue/get_tapd_fields"),
         # 查询已有TAPD单据

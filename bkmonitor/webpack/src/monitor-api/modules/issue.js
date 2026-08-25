@@ -40,10 +40,10 @@ export const listMergeSources = request('GET', 'fta/issue/issue/merge_sources/')
 export const alertIssueEnrich = request('POST', 'fta/issue/issue/alert_enrich/');
 export const issueLogContent = request('POST', 'fta/issue/issue/log_content/');
 export const listTapdWorkspace = request('POST', 'fta/issue/tapd/workspace/');
-export const listUserTapdWorkspace = request('POST', 'fta/issue/tapd/user_workspace/');
-export const unbindTapdWorkspace = request('POST', 'fta/issue/tapd/unbind_workspace/');
-export const rebindTapdWorkspace = request('POST', 'fta/issue/tapd/rebind_workspace/');
-export const revokeTapdUserAuth = request('POST', 'fta/issue/tapd/revoke_auth/');
+export const getUserWorkspace = request('POST', 'fta/issue/tapd/user_workspace/');
+export const unbindWorkspace = request('POST', 'fta/issue/tapd/unbind_workspace/');
+export const rebindWorkspace = request('POST', 'fta/issue/tapd/rebind_workspace/');
+export const revokeAuth = request('POST', 'fta/issue/tapd/revoke_auth/');
 export const getTapdFields = request('POST', 'fta/issue/issue/get_tapd_fields/');
 export const searchTapdItems = request('POST', 'fta/issue/issue/search_tapd_items/');
 export const createTapd = request('POST', 'fta/issue/issue/create_tapd/');
@@ -91,10 +91,10 @@ export default {
   alertIssueEnrich,
   issueLogContent,
   listTapdWorkspace,
-  listUserTapdWorkspace,
-  unbindTapdWorkspace,
-  rebindTapdWorkspace,
-  revokeTapdUserAuth,
+  getUserWorkspace,
+  unbindWorkspace,
+  rebindWorkspace,
+  revokeAuth,
   getTapdFields,
   searchTapdItems,
   createTapd,
