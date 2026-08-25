@@ -176,6 +176,7 @@ export default defineComponent({
     const enableMetaData = ref(false);
     const loading = ref(false);
     const logOriginalLoading = ref(false);
+    const pathExampleLoading = ref(false);
     /**
      * 是否刷新值
      */
@@ -1049,6 +1050,7 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
      */
     const getDataLog = (type: string) => {
       logOriginalLoading.value = type === 'refresh';
+      pathExampleLoading.value = type === 'pathRefresh';
       $http
         .request('source/dataList', {
           params: {
@@ -1076,6 +1078,7 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
         })
         .finally(() => {
           logOriginalLoading.value = false;
+          pathExampleLoading.value = false;
         });
     };
     /**
@@ -1680,7 +1683,10 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
         {enableMetaData.value && (
           <div class='label-form-box'>
             <span class='label-title no-require'>{t('路径样例')}</span>
-            <div class='form-box'>
+            <div
+              class='form-box'
+              v-bkloading={{ isLoading: pathExampleLoading.value }}
+            >
               <div class='url-demo-box'>
                 <bk-input
                   class='input-box'
@@ -1689,7 +1695,10 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
                     pathExample.value = val;
                   }}
                 />
-                <i class='bklog-icon bklog-refresh-icon icons' />
+                <i
+                  class='bklog-icon bklog-refresh-icon icons'
+                  on-click={() => getDataLog('pathRefresh')}
+                />
               </div>
             </div>
           </div>
