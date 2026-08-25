@@ -19,9 +19,12 @@ from alarm_backends.core.cache.key import NOTICE_SHIELD_KEY_LOCK
 from alarm_backends.core.context.utils import get_business_roles
 from alarm_backends.core.control.strategy import Strategy
 from alarm_backends.service.converge.shield.display_manager import DisplayManager
+from alarm_backends.service.converge.shield_conditions import (
+    DIMENSION_CONDITION_CLASSES,
+    PROMQL_EXPRESSION_DIMENSION,
+)
 from bkmonitor.documents.alert import AlertDocument
 from bkmonitor.utils import time_tools
-from bkmonitor.utils.metric_id import build_promql_metric_patterns
 from bkmonitor.utils.range import (
     CONDITION_CLASS_MAP,
     TIME_MATCH_CLASS_MAP,
@@ -46,36 +49,6 @@ class _NeverMatchCondition(Condition):
 
     def is_match(self, data):
         return False
-
-
-class PromqlAwareMetricIdCondition(EqualCondition):
-    """metric_id 维度的匹配条件，在等值匹配之外覆盖 PromQL 策略。
-
-    PromQL 策略的 metric_id 是整段查询表达式（get_metric_id 对 prometheus 数据源直接返回
-    promql），与屏蔽配置里的标准 metric_id 集合交恒为空，导致按指标屏蔽对引用同一底层指标
-    的 PromQL 策略不生效。这里在等值匹配失败后，把配置的标准 metric_id 换算成 PromQL 指标
-    名，再按 token 边界在表达式中搜索；多指标表达式命中任一即视为命中。
-
-    换算或搜索不成立时返回 False，即维持“不屏蔽”，不让屏蔽范围被动扩大。
-    """
-
-    def _is_match(self, data_field):
-        if super()._is_match(data_field):
-            return True
-
-        data_values = [value for value in data_field.to_str_list() if value]
-        if not data_values:
-            return False
-
-        patterns = build_promql_metric_patterns(self.cond_field.to_str_list())
-        if not patterns:
-            return False
-
-        return any(pattern.search(value) for pattern in patterns for value in data_values)
-
-
-# 匹配语义与朴素等值不同的维度键在此登记专用条件类，其余维度键仍走 EqualCondition
-DIMENSION_CONDITION_CLASSES: dict[str, type[EqualCondition]] = {"metric_id": PromqlAwareMetricIdCondition}
 
 
 class ShieldObj:
@@ -516,6 +489,7 @@ class AlertShieldObj(ShieldObj):
         dimension["bk_host_id"] = dimension.get("bk_host_id") or alert.event_document.bk_host_id
         dimension["bk_biz_id"] = alert.event_document.bk_biz_id
         metric_ids = []
+        promql_expressions = []
 
         if alert.strategy_id:
             # 需要判断当前的alert是否有策略ID
@@ -525,17 +499,17 @@ class AlertShieldObj(ShieldObj):
                 raise StrategyNotFound(key=alert.strategy_id)
 
             for query_config in strategy.config["items"][0]["query_configs"]:
-                metric_id = query_config["metric_id"]
-                metric_ids.append(metric_id)
+                metric_ids.append(query_config["metric_id"])
 
                 # PromQL 策略的 metric_id 受 QueryConfig.metric_id 字段长度（128）限制，超长时被
-                # 截断成 promql[:125] + "..."，指标名可能整个落在截断之外。补充未截断的查询表达式
-                # （存在 config JSONField 中，无长度限制），使按指标屏蔽不依赖截断结果。
+                # 截断成 promql[:125] + "..."，指标名可能整个落在截断之外。未截断的表达式存在
+                # config JSONField 中，无长度限制，单独放一个维度键供按指标屏蔽匹配使用。
                 promql = query_config.get("promql")
-                if promql and promql != metric_id:
-                    metric_ids.append(promql)
+                if promql:
+                    promql_expressions.append(promql)
 
         dimension["metric_id"] = metric_ids
+        dimension[PROMQL_EXPRESSION_DIMENSION] = promql_expressions
 
         if "tags.bk_target_ip" in dimension and "ip" not in dimension:
             dimension["ip"] = dimension["tags.bk_target_ip"]
