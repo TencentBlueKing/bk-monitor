@@ -140,8 +140,8 @@ def _reference_batch_id(batches):
 
 
 class TriggerProcessor:
-    # 单次最多原子领取 1000 条，避免热点列表在 Redis Lua 中全量读取和删除。
-    MAX_PROCESS_COUNT = 1000
+    # 普通 Trigger 默认全量处理；需要有限批的调用方显式传入 max_process_count。
+    MAX_PROCESS_COUNT = 0
 
     def __init__(
         self,
