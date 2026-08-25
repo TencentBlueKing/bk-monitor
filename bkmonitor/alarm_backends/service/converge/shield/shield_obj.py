@@ -21,6 +21,7 @@ from alarm_backends.core.control.strategy import Strategy
 from alarm_backends.service.converge.shield.display_manager import DisplayManager
 from bkmonitor.documents.alert import AlertDocument
 from bkmonitor.utils import time_tools
+from bkmonitor.utils.metric_id import build_promql_metric_patterns
 from bkmonitor.utils.range import (
     CONDITION_CLASS_MAP,
     TIME_MATCH_CLASS_MAP,
@@ -45,6 +46,36 @@ class _NeverMatchCondition(Condition):
 
     def is_match(self, data):
         return False
+
+
+class PromqlAwareMetricIdCondition(EqualCondition):
+    """metric_id 维度的匹配条件，在等值匹配之外覆盖 PromQL 策略。
+
+    PromQL 策略的 metric_id 是整段查询表达式（get_metric_id 对 prometheus 数据源直接返回
+    promql），与屏蔽配置里的标准 metric_id 集合交恒为空，导致按指标屏蔽对引用同一底层指标
+    的 PromQL 策略不生效。这里在等值匹配失败后，把配置的标准 metric_id 换算成 PromQL 指标
+    名，再按 token 边界在表达式中搜索；多指标表达式命中任一即视为命中。
+
+    换算或搜索不成立时返回 False，即维持“不屏蔽”，不让屏蔽范围被动扩大。
+    """
+
+    def _is_match(self, data_field):
+        if super()._is_match(data_field):
+            return True
+
+        data_values = [value for value in data_field.to_str_list() if value]
+        if not data_values:
+            return False
+
+        patterns = build_promql_metric_patterns(self.cond_field.to_str_list())
+        if not patterns:
+            return False
+
+        return any(pattern.search(value) for pattern in patterns for value in data_values)
+
+
+# 匹配语义与朴素等值不同的维度键在此登记专用条件类，其余维度键仍走 EqualCondition
+DIMENSION_CONDITION_CLASSES: dict[str, type[EqualCondition]] = {"metric_id": PromqlAwareMetricIdCondition}
 
 
 class ShieldObj:
@@ -186,7 +217,8 @@ class ShieldObj:
 
         for k, v in list(clean_dimension.items()):
             field = load_field_instance(k, v)
-            self.dimension_check.add(EqualCondition(field))
+            condition_class = DIMENSION_CONDITION_CLASSES.get(k, EqualCondition)
+            self.dimension_check.add(condition_class(field))
 
     def _clean_dimension(self):
         """
