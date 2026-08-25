@@ -28,6 +28,7 @@ def test_run_access_data_runs_inline_trigger_after_access_lock(mocker):
     processor = mocker.MagicMock(pull_duration=0.1)
     processor.process.side_effect = lambda: events.append("process")
     processor.run_inline_trigger.side_effect = lambda: events.append("inline")
+    processor.schedule_check_result_opportunity_trim.side_effect = lambda: events.append("schedule")
     task_bucket = mocker.MagicMock()
     task_bucket.acquire.return_value = True
 
@@ -43,8 +44,8 @@ def test_run_access_data_runs_inline_trigger_after_access_lock(mocker):
 
     access_tasks.run_access_data.run("group", 60)
 
-    assert events[:2] == ["process", "inline"]
-    assert events[2:] and set(events[2:]) == {"report"}
+    assert events[:3] == ["process", "inline", "schedule"]
+    assert events[3:] and set(events[3:]) == {"report"}
     task_bucket.release.assert_called_once_with(0)
 
 

@@ -20,13 +20,11 @@ from alarm_backends.core.cache import key as cache_key
 from alarm_backends.core.cache.key import (
     ANOMALY_LIST_KEY,
     ANOMALY_SIGNAL_KEY,
-    TRIGGER_CHECK_RESULT_INFLIGHT_KEY,
     TRIGGER_EVENT_RATE_LIMIT_KEY,
 )
 from alarm_backends.core.control.strategy import Strategy
 from alarm_backends.core.storage.redis_cluster import get_node_by_strategy_id, routed_client
 from alarm_backends.service.trigger.checker import AnomalyChecker
-from bkmonitor.utils.common_utils import uniqid4
 from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from core.errors.alarm_backends import StrategyNotFound
 from core.prometheus import metrics
@@ -44,7 +42,6 @@ end
 
 local records = redis.call('LRANGE', KEYS[1], start_index, -1)
 if #records > 0 then
-    redis.call('HSET', KEYS[2], ARGV[2], ARGV[3])
     redis.call('LTRIM', KEYS[1], 0, -#records - 1)
 end
 return records
@@ -143,8 +140,8 @@ def _reference_batch_id(batches):
 
 
 class TriggerProcessor:
-    # 单次最多原子领取 1000 条，避免热点列表在 Redis Lua 中全量读取和删除。
-    MAX_PROCESS_COUNT = 1000
+    # 普通 Trigger 默认全量处理；需要有限批的调用方显式传入 max_process_count。
+    MAX_PROCESS_COUNT = 0
 
     def __init__(
         self,
@@ -164,12 +161,6 @@ class TriggerProcessor:
             settings.ENABLE_EVENT_INLINE_TRIGGER if concurrent_rate_limit is None else bool(concurrent_rate_limit)
         )
         self.progress_callback = progress_callback
-        self.check_result_inflight_key = TRIGGER_CHECK_RESULT_INFLIGHT_KEY.get_key(
-            strategy_id=self.strategy_id,
-            item_id=self.item_id,
-        )
-        self.check_result_inflight_token = uniqid4()
-        self.check_result_inflight_registered = False
         self.anomaly_points = []
         self.anomaly_records = []
         self.event_records = []
@@ -354,20 +345,13 @@ class TriggerProcessor:
 
     def pull(self):
         # RedisProxy.eval() 会把脚本文本误当成路由 key，因此先按异常列表取得原生客户端。
-        # 两个 key 都在 queue backend 的同一策略路由；Lua 在裁切列表前原子注册 inflight，
-        # 使 Event 内联与 Trigger worker 领取不重叠批次时，CHECK_RESULT 热裁剪也不会误判空闲。
         with routed_client(ANOMALY_LIST_KEY.client, self.anomaly_list_key) as client:
             self.anomaly_points = client.eval(
                 ANOMALY_LIST_PULL_SCRIPT,
-                2,
+                1,
                 self.anomaly_list_key,
-                self.check_result_inflight_key,
                 self.max_process_count,
-                self.check_result_inflight_token,
-                int(time.time()),
             )
-        if self.anomaly_points:
-            self.check_result_inflight_registered = True
         # Redis List 头部是新数据，尾部是旧数据；翻转后保持原有的旧到新批内顺序。
         self.anomaly_points.reverse()
         if self.anomaly_points:
@@ -667,41 +651,23 @@ class TriggerProcessor:
         self.reference_candidates = []
 
     def process(self):
-        try:
-            pulled_count = self.pull()
+        pulled_count = self.pull()
 
-            in_alarm_time, message = self.strategy.in_alarm_time()
-            if not in_alarm_time:
-                logger.info("[trigger] strategy(%s) not in alarm time: %s, skipped", self.strategy_id, message)
-            else:
-                for point in self.anomaly_points:
-                    try:
-                        self.process_point(point)
-                    except Exception as e:
-                        error_message = f"[process error] strategy({self.strategy_id}), item({self.item_id}) reason: {e} \norigin data: {point}"
-                        logger.exception(error_message)
-                    if self.progress_callback is not None:
-                        self.progress_callback()
+        in_alarm_time, message = self.strategy.in_alarm_time()
+        if not in_alarm_time:
+            logger.info("[trigger] strategy(%s) not in alarm time: %s, skipped", self.strategy_id, message)
+        else:
+            for point in self.anomaly_points:
+                try:
+                    self.process_point(point)
+                except Exception as e:
+                    error_message = f"[process error] strategy({self.strategy_id}), item({self.item_id}) reason: {e} \norigin data: {point}"
+                    logger.exception(error_message)
+                if self.progress_callback is not None:
+                    self.progress_callback()
 
-            self.push()
-            return pulled_count
-        finally:
-            self.clear_check_result_inflight()
-
-    def clear_check_result_inflight(self):
-        if not getattr(self, "check_result_inflight_registered", False):
-            return
-        try:
-            TRIGGER_CHECK_RESULT_INFLIGHT_KEY.client.hdel(
-                self.check_result_inflight_key,
-                self.check_result_inflight_token,
-            )
-        except Exception:
-            logger.exception(
-                "clear check result inflight marker failed for strategy(%s) item(%s)",
-                self.strategy_id,
-                self.item_id,
-            )
+        self.push()
+        return pulled_count
 
     def process_point(self, point):
         point = json.loads(point)

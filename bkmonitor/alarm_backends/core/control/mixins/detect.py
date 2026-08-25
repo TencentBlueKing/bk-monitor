@@ -51,7 +51,7 @@ def load_detector_cls(_type) -> type["BasicAlgorithmsCollection"]:
 
 
 class DetectMixin:
-    def detect(self, data_points, collect_check_result_trim_keys=True):
+    def detect(self, data_points):
         if not data_points:
             return []
 
@@ -142,12 +142,7 @@ class DetectMixin:
                         )
                         anomaly_records.append(ap)
 
-            self._update_monitor_d_checkpoint(
-                data_points,
-                anomaly_records,
-                level,
-                collect_check_result_trim_keys=collect_check_result_trim_keys,
-            )
+            self._update_monitor_d_checkpoint(data_points, anomaly_records, level)
 
             for ar in anomaly_records:
                 collection = detected_result_dict.setdefault(ar.data_point.record_id, {})
@@ -173,11 +168,8 @@ class DetectMixin:
         info_collection["anomaly"].update({str(level): anomaly_info})
         return info_collection
 
-    def _update_monitor_d_checkpoint(self, records, anomaly_records, level, collect_check_result_trim_keys=True):
+    def _update_monitor_d_checkpoint(self, records, anomaly_records, level):
         redis_pipeline = None
-        rank_trim_eligible = (
-            collect_check_result_trim_keys and getattr(self, "is_detect_result_rank_trim_eligible", lambda: False)()
-        )
         last_checkpoints = {}
         anomaly_record_ids = {i.data_point.record_id for i in anomaly_records}
         latest_point_with_all = 0
@@ -204,8 +196,6 @@ class DetectMixin:
                 # 1. 缓存数据(检测结果缓存) type:SortedSet
                 kwargs = {name: timestamp}
                 check_result.add_check_result_cache(ttl=strategy_ttl, **kwargs)
-                if rank_trim_eligible:
-                    self.register_check_result_trim_cache_key(check_result.check_result_cache_key)
 
                 # 2. 缓存最后checkpoint type:Hash，先放到内存里，最后再一次性写入redis
                 last_point = last_checkpoints.setdefault(dimensions_md5, 0)

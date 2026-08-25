@@ -12,10 +12,12 @@ require('ts-node/register/transpile-only');
 
 const {
   buildBoundaryDraft,
+  buildSparklinePoint,
   buildSparklineSegments,
   calculateMarkerHeight,
   calculateMemoryScale,
-  estimateMax3hMemoryRange,
+  calculateUsageScale,
+  estimateNormalizedRedistribution,
   canAccessRedisManagement,
   buildRedisManagementForbiddenQuery,
   canEditBoundary,
@@ -121,10 +123,22 @@ test('拖动边界只返回单次调整所需的范围、方向和迁移成本',
   assert.equal('steady' in draft, false);
 });
 
-test('源节点和目标节点使用同一套 3 小时最大内存区间估算', () => {
-  assert.deepEqual(estimateMax3hMemoryRange(4800, 4300, 6400, true), { lower: 0, upper: 500 });
-  assert.deepEqual(estimateMax3hMemoryRange(773, 4300, 6400, false), { lower: 5073, upper: 7173 });
-  assert.deepEqual(estimateMax3hMemoryRange(null, 4300, 6400, false), { lower: null, upper: null });
+test('迁移成本按源节点策略成本占比归一到真实 3 小时峰值', () => {
+  const estimate = estimateNormalizedRedistribution(4900, 730, 80, 100);
+
+  assert.deepEqual(estimate, {
+    movedBytes: 3920,
+    sourceAfter: 980,
+    targetAfter: 4650,
+  });
+  assert.equal(4900 - estimate.sourceAfter, estimate.targetAfter - 730);
+});
+
+test('成本证据无法形成有效占比时不返回虚假的零内存结果', () => {
+  assert.equal(estimateNormalizedRedistribution(4900, 730, 100, 100), null);
+  assert.equal(estimateNormalizedRedistribution(4900, 730, 101, 100), null);
+  assert.equal(estimateNormalizedRedistribution(4900, 730, 80, 0), null);
+  assert.equal(estimateNormalizedRedistribution(null, 730, 80, 100), null);
 });
 
 test('热策略内存刻度根据当前数据上调而不是写死 256 MiB', () => {
@@ -158,6 +172,8 @@ test('趋势折线按真实时间定位并在缺口处分段', () => {
     ]),
     ['0.0,38.0 45.0,15.3', '135.0,26.7 180.0,4.0']
   );
+  assert.equal(calculateUsageScale([0.036, 0.152]), 0.2);
+  assert.deepEqual(buildSparklinePoint([[0.05, 1000], [0.15, 1060]], 1060, 0, 0.2), { x: 180, y: 12.5 });
 });
 
 test('菜单权限同时要求平台管理员和全局管理权限', () => {
@@ -243,8 +259,8 @@ test('成本快照时间在节点卡片和路由区域都有明确标签', () =>
     path.resolve(__dirname, '../src/monitor-pc/pages/redis-management/redis-management.tsx'),
     'utf8'
   );
-  assert.match(source, /成本快照\s*\{evidenceTime\}/);
-  assert.match(source, /成本快照时间/);
+  assert.match(source, /策略成本更新\s*\{formatDateTime\(evidenceTime/);
+  assert.match(source, /策略成本更新：/);
 });
 
 test('热策略图层与路由条之间保留完整点位净空', () => {
@@ -272,14 +288,38 @@ test('拖动后只展示单一且可理解的内存变更预览', () => {
     path.resolve(__dirname, '../src/monitor-pc/pages/redis-management/redis-management.tsx'),
     'utf8'
   );
-  assert.match(source, /调整后 3 小时最大内存预估/);
+  assert.match(source, /3 小时采样峰值预估/);
   assert.match(source, /预计迁出/);
   assert.match(source, /预计迁入/);
+  assert.match(source, /清理后预计回落至/);
+  assert.match(source, /预计上升至/);
+  assert.match(source, /源节点旧数据随清理周期逐步释放/);
+  assert.match(source, /本次范围已估算/);
+  assert.match(source, /this\.draft\.measuredCount/);
+  assert.match(source, /this\.draft\.unmeasuredCount/);
+  assert.match(source, /redis-route-live-preview/);
   const memoryPreview = source.match(/renderMemoryChange\(\)\s*\{([\s\S]*?)\n\s*renderDraft\(\)/)?.[1] ?? '';
-  assert.match(memoryPreview, /3 小时最大/);
-  assert.match(memoryPreview, /estimateMax3hMemoryRange/);
+  assert.match(memoryPreview, /3 小时采样峰值/);
+  assert.match(memoryPreview, /draftMemoryEstimate/);
+  assert.doesNotMatch(memoryPreview, /estimateMax3hMemoryRange/);
   assert.doesNotMatch(memoryPreview, /当前\s|调整后观测/);
   assert.doesNotMatch(source, /切换期|稳定后|不能作为容量安全结论/);
+});
+
+test('节点卡片解释使用趋势、峰值时间与样本覆盖', () => {
+  const source = fs.readFileSync(
+    path.resolve(__dirname, '../src/monitor-pc/pages/redis-management/redis-management.tsx'),
+    'utf8'
+  );
+  assert.match(source, /最近 3 小时内存使用趋势/);
+  assert.match(source, /峰值时间/);
+  assert.match(source, /采样覆盖/);
+  assert.match(source, /usage_trend/);
+  assert.match(source, /max_3h_at/);
+  assert.match(source, /页面数据/);
+  assert.doesNotMatch(source, /formatAge/);
+  assert.match(source, /页面数据 \{formatDateTime\(this\.data\.generated_at\)\}/);
+  assert.match(source, /刷新失败，当前展示仍为上次数据/);
 });
 
 test('Redis 管理菜单具备正式路由翻译', () => {

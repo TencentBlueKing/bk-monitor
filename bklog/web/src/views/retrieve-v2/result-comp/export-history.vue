@@ -299,6 +299,7 @@
   import { formatDate, blobDownload } from '@/common/util';
   import { mapGetters } from 'vuex';
   import { parseTableIdConditions } from '@/store/helper.ts';
+  import { resolveExportHistoryIndexSetId } from '@/views/retrieve-v2/sub-bar/union-to-single';
 
   import { axiosInstance } from '@/api';
   import {
@@ -428,6 +429,13 @@
       isScene() {
         return this.$store.getters.isSceneMode;
       },
+      routerIndexSet() {
+        return resolveExportHistoryIndexSetId({
+          isMonitorComponent: window.__IS_MONITOR_COMPONENT__,
+          queryIndexId: this.$route.query.indexId,
+          storeIndexId: this.$store.state.indexId,
+        });
+      },
     },
     watch: {
       showHistoryExport(val) {
@@ -531,7 +539,7 @@
         const requestConfig = this.isScene || this.isUnionSearch
           ? { data }
           : {
-              params: { index_set_id: window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId },
+              params: { index_set_id: this.routerIndexSet },
               data,
             };
 
@@ -824,14 +832,12 @@
           requestConfig = { data: params };
         } else if (this.isUnionSearch) {
           queryUrl = 'unionSearch/unionExportHistory';
-          params.index_set_id = window.__IS_MONITOR_COMPONENT__
-            ? this.$route.query.indexId : this.$route.params.indexId;
+          params.index_set_id = this.routerIndexSet;
           params.index_set_ids = this.unionIndexList;
           requestConfig = { params };
         } else {
           queryUrl = 'retrieve/getExportHistoryList';
-          params.index_set_id = window.__IS_MONITOR_COMPONENT__
-            ? this.$route.query.indexId : this.$route.params.indexId;
+          params.index_set_id = this.routerIndexSet;
           requestConfig = { params };
         }
 

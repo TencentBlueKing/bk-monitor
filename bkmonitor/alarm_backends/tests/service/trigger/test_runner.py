@@ -161,31 +161,12 @@ def test_trigger_processor_returns_pulled_count(mocker):
     processor.process_point = mocker.MagicMock()
     processor.push = mocker.MagicMock()
     processor.progress_callback = None
-    processor.clear_check_result_inflight = mocker.MagicMock()
 
     pulled_count = processor.process()
 
     assert pulled_count == 2
     assert processor.process_point.call_args_list == [mocker.call("first"), mocker.call("second")]
     processor.push.assert_called_once_with()
-    processor.clear_check_result_inflight.assert_called_once_with()
-
-
-def test_trigger_processor_clears_inflight_when_push_fails(mocker):
-    processor = object.__new__(TriggerProcessor)
-    processor.pull = mocker.MagicMock(return_value=1)
-    processor.strategy = mocker.MagicMock()
-    processor.strategy.in_alarm_time.return_value = (True, None)
-    processor.anomaly_points = ["point"]
-    processor.process_point = mocker.MagicMock()
-    processor.progress_callback = None
-    processor.push = mocker.MagicMock(side_effect=RuntimeError("push failed"))
-    processor.clear_check_result_inflight = mocker.MagicMock()
-
-    with pytest.raises(RuntimeError, match="push failed"):
-        processor.process()
-
-    processor.clear_check_result_inflight.assert_called_once_with()
 
 
 def test_trigger_processor_progress_callback_failure_is_not_swallowed(mocker):
@@ -199,24 +180,24 @@ def test_trigger_processor_progress_callback_failure_is_not_swallowed(mocker):
     processor.process_point = mocker.MagicMock(side_effect=ValueError("point failed"))
     processor.progress_callback = mocker.MagicMock(side_effect=RuntimeError("lease expired"))
     processor.push = mocker.MagicMock()
-    processor.clear_check_result_inflight = mocker.MagicMock()
 
     with pytest.raises(RuntimeError, match="lease expired"):
         processor.process()
 
     processor.progress_callback.assert_called_once_with()
     processor.push.assert_not_called()
-    processor.clear_check_result_inflight.assert_called_once_with()
 
 
-def test_trigger_processor_default_pull_batch_is_bounded():
-    assert TriggerProcessor.MAX_PROCESS_COUNT == 1000
+def test_trigger_processor_default_pull_batch_is_unbounded():
+    assert TriggerProcessor.MAX_PROCESS_COUNT == 0
 
 
-def test_anomaly_list_pull_script_registers_inflight_before_trim():
-    assert trigger_processor.ANOMALY_LIST_PULL_SCRIPT.index("HSET") < trigger_processor.ANOMALY_LIST_PULL_SCRIPT.index(
-        "LTRIM"
-    )
+def test_event_trigger_pull_batch_remains_bounded():
+    assert runner.EVENT_TRIGGER_BATCH_SIZE == 1000
+
+
+def test_anomaly_list_pull_script_does_not_register_trim_inflight():
+    assert "HSET" not in trigger_processor.ANOMALY_LIST_PULL_SCRIPT
 
 
 def test_trigger_processor_pull_returns_actual_count(mocker):
@@ -226,9 +207,6 @@ def test_trigger_processor_pull_returns_actual_count(mocker):
     processor.anomaly_list_key = "anomaly.list.1.2"
     processor.max_process_count = 100
     processor.requeue_on_full = True
-    processor.check_result_inflight_key = "trigger.inflight.1.2"
-    processor.check_result_inflight_token = "token"
-    processor.check_result_inflight_registered = False
 
     mocker.patch.object(trigger_processor, "ANOMALY_LIST_KEY")
     native_client = mocker.MagicMock()
@@ -242,28 +220,10 @@ def test_trigger_processor_pull_returns_actual_count(mocker):
     assert processor.anomaly_points == ["old", "new"]
     native_client.eval.assert_called_once_with(
         trigger_processor.ANOMALY_LIST_PULL_SCRIPT,
-        2,
+        1,
         "anomaly.list.1.2",
-        "trigger.inflight.1.2",
         100,
-        "token",
-        mocker.ANY,
     )
-    assert processor.check_result_inflight_registered is True
-
-
-def test_trigger_processor_clears_only_registered_inflight_token(mocker):
-    processor = object.__new__(TriggerProcessor)
-    processor.strategy_id = "1"
-    processor.item_id = "2"
-    processor.check_result_inflight_key = "trigger.inflight.1.2"
-    processor.check_result_inflight_token = "token"
-    processor.check_result_inflight_registered = True
-    inflight_key = mocker.patch.object(trigger_processor, "TRIGGER_CHECK_RESULT_INFLIGHT_KEY")
-
-    processor.clear_check_result_inflight()
-
-    inflight_key.client.hdel.assert_called_once_with("trigger.inflight.1.2", "token")
 
 
 def test_trigger_processor_empty_pull_keeps_warning_without_requeue(mocker, caplog):
@@ -273,9 +233,6 @@ def test_trigger_processor_empty_pull_keeps_warning_without_requeue(mocker, capl
     processor.anomaly_list_key = "anomaly.list.1.2"
     processor.max_process_count = 100
     processor.requeue_on_full = True
-    processor.check_result_inflight_key = "trigger.inflight.1.2"
-    processor.check_result_inflight_token = "token"
-    processor.check_result_inflight_registered = False
 
     mocker.patch.object(trigger_processor, "ANOMALY_LIST_KEY")
     native_client = mocker.MagicMock()
@@ -288,7 +245,6 @@ def test_trigger_processor_empty_pull_keeps_warning_without_requeue(mocker, capl
         pulled_count = processor.pull()
 
     assert pulled_count == 0
-    assert processor.check_result_inflight_registered is False
     anomaly_signal_key.client.delay.assert_not_called()
     assert "pull 0 record" in caplog.text
 
@@ -300,9 +256,6 @@ def test_trigger_processor_full_batch_requeues_behind_other_signals(mocker):
     processor.anomaly_list_key = "anomaly.list.1.2"
     processor.max_process_count = 2
     processor.requeue_on_full = True
-    processor.check_result_inflight_key = "trigger.inflight.1.2"
-    processor.check_result_inflight_token = "token"
-    processor.check_result_inflight_registered = False
 
     mocker.patch.object(trigger_processor, "ANOMALY_LIST_KEY")
     native_client = mocker.MagicMock()

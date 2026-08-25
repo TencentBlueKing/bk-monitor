@@ -109,6 +109,8 @@ export interface FilterFieldConfig {
   multiple?: boolean;
   /** 是否可搜索 */
   searchable?: boolean;
+  /** 是否允许手输创建不在列表中的值（bk-select allow-create） */
+  allowCreate?: boolean;
   /** placeholder */
   placeholder?: string;
 }

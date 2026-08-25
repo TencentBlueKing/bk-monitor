@@ -790,8 +790,8 @@ def test_list_enabled_detect_profile_is_off_by_default(monkeypatch):
     assert calls["configs"] == 0
 
 
-def test_list_enabled_detect_profile_keeps_legacy_periodic_reference(monkeypatch):
-    """历史公式继续用于成本参考，但必须明确它不是写后裁剪的安全上界。"""
+def test_list_enabled_detect_profile_uses_periodic_reference(monkeypatch):
+    """两小时周期公式继续作为主要容量参考，但不是精确字节上界。"""
     calls = _patch_strategy_cache(
         monkeypatch,
         strategy_ids=[1, 2, 3],
@@ -803,7 +803,7 @@ def test_list_enabled_detect_profile_keeps_legacy_periodic_reference(monkeypatch
     profiles = {item["strategy_id"]: item["detect_profile"] for item in result["strategies"]}
 
     assert profiles[1]["point_required"] == 30
-    assert profiles[1]["model_scope"] == "legacy_periodic_reference"
+    assert profiles[1]["model_scope"] == "periodic_reference"
     assert profiles[1]["is_safe_upper_bound"] is False
     assert profiles[1]["interval"] == 30
     assert profiles[1]["clean_interval_seconds"] == 7200

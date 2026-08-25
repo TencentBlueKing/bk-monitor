@@ -181,25 +181,27 @@ def build_memory_view(
     used_series: list[dict],
     capacity_series: list[dict],
     *,
+    expected_points: int | None = None,
     reference_time: int | None = None,
 ) -> dict[str, Any]:
     node_used_series = [item for item in used_series if item.get("dimensions", {}).get("node") == node_label]
     node_capacity_series = [item for item in capacity_series if item.get("dimensions", {}).get("node") == node_label]
     trend = _merge_datapoints(node_used_series)
-    values = [
-        float(value)
-        for value, _timestamp in trend
+    valid_points = [
+        (float(value), timestamp)
+        for value, timestamp in trend
         if isinstance(value, (int, float)) and not isinstance(value, bool) and isfinite(value)
     ]
     current = _last_number(trend)
-    maximum = max(values) if values else None
+    maximum_point = max(valid_points, key=lambda item: (item[0], item[1])) if valid_points else None
+    maximum = maximum_point[0] if maximum_point else None
+    maximum_at = maximum_point[1] if maximum_point else None
     capacity_by_identity: dict[tuple[tuple[str, str], ...], list[list[Any]]] = {}
     for identity in {_series_identity(item) for item in node_capacity_series}:
         capacity_by_identity[identity] = _merge_datapoints(
             [item for item in node_capacity_series if _series_identity(item) == identity]
         )
 
-    usage_values = []
     current_candidates = []
     for series in node_used_series:
         identity = _series_identity(series)
@@ -212,8 +214,15 @@ def build_memory_view(
                 continue
             capacity = _capacity_at(capacity_points, timestamp)
             current_candidates.append((timestamp, float(value), capacity))
-            if capacity:
-                usage_values.append(float(value) / capacity)
+
+    usage_trend = []
+    for used_value, timestamp in trend:
+        usage_candidates = [
+            value / capacity
+            for candidate_timestamp, value, capacity in current_candidates
+            if candidate_timestamp == timestamp and value == used_value and capacity
+        ]
+        usage_trend.append([max(usage_candidates) if usage_candidates else None, timestamp])
 
     observed_at = next(
         (
@@ -234,16 +243,29 @@ def build_memory_view(
     ]
     current_capacity = min(current_capacity_candidates) if current_capacity_candidates else None
     current_ratio = current / current_capacity if current is not None and current_capacity else None
-    maximum_ratio = max(usage_values) if usage_values else None
+    maximum_capacity_candidates = [
+        capacity
+        for timestamp, value, capacity in current_candidates
+        if timestamp == maximum_at and value == maximum and capacity
+    ]
+    maximum_capacity = min(maximum_capacity_candidates) if maximum_capacity_candidates else None
+    maximum_ratio = maximum / maximum_capacity if maximum is not None and maximum_capacity else None
+    total_points = max(len(trend), expected_points or 0)
+    valid_point_count = len(valid_points)
     return {
         "trend": trend,
+        "usage_trend": usage_trend,
         "current_bytes": current,
         "max_3h_bytes": maximum,
+        "max_3h_at": maximum_at,
         "capacity_bytes": current_capacity,
         "current_usage_ratio": current_ratio,
         "max_3h_usage_ratio": maximum_ratio,
         "observed_at": observed_at,
-        "missing_points": sum(value is None for value, _timestamp in trend),
+        "valid_points": valid_point_count,
+        "total_points": total_points,
+        "sample_coverage_ratio": valid_point_count / total_points if total_points else None,
+        "missing_points": total_points - valid_point_count,
     }
 
 
@@ -392,7 +414,15 @@ def build_cost_evidence(
     }
 
 
-def _query_metric(metric: str, cluster_name: str, start_time: int, end_time: int) -> list[dict[str, Any]]:
+def _query_metric(
+    metric: str,
+    cluster_name: str,
+    start_time: int,
+    end_time: int,
+    *,
+    health: dict[str, str] | None = None,
+    health_key: str | None = None,
+) -> list[dict[str, Any]]:
     promql = f"custom:custom_report_aggate:{metric}{{job={json.dumps(cluster_name)}}}"
     try:
         result = resource.grafana.graph_promql_query(
@@ -404,8 +434,13 @@ def _query_metric(metric: str, cluster_name: str, start_time: int, end_time: int
         )
     except Exception:
         logger.exception("query Redis management metric failed: metric=%s cluster=%s", metric, cluster_name)
+        if health is not None and health_key:
+            health[health_key] = "error"
         return []
-    return result.get("series") or []
+    series = result.get("series") or []
+    if health is not None and health_key:
+        health[health_key] = "ok" if series else "empty"
+    return series
 
 
 def _load_latest_snapshots() -> dict[int, dict[str, Any] | None]:
@@ -438,15 +473,34 @@ class GetRedisManagementOverviewResource(Resource):
         generated_at = int(time())
         routing, node_models = load_routing_observation()
         start_time = generated_at - THREE_HOURS_SECONDS
-        used_series = _query_metric("redis_memory_used_bytes", routing["cluster_name"], start_time, generated_at)
-        capacity_series = _query_metric("redis_memory_max_bytes", routing["cluster_name"], start_time, generated_at)
+        data_health: dict[str, str] = {}
+        used_series = _query_metric(
+            "redis_memory_used_bytes",
+            routing["cluster_name"],
+            start_time,
+            generated_at,
+            health=data_health,
+            health_key="memory_used",
+        )
+        capacity_series = _query_metric(
+            "redis_memory_max_bytes",
+            routing["cluster_name"],
+            start_time,
+            generated_at,
+            health=data_health,
+            health_key="memory_capacity",
+        )
 
         node_model_by_id = {node.id: node for node in node_models}
         try:
             node_snapshots = _load_latest_snapshots()
+            data_health["cost_snapshot"] = (
+                "ok" if any(snapshot is not None for snapshot in node_snapshots.values()) else "empty"
+            )
         except Exception:
             logger.exception("read Redis strategy cost snapshots through monitor-api failed")
             node_snapshots = {}
+            data_health["cost_snapshot"] = "error"
 
         cost_evidence = build_cost_evidence(routing, node_snapshots)
         snapshot_evidence_by_node = {item["node_id"]: item for item in cost_evidence["nodes"]}
@@ -460,6 +514,7 @@ class GetRedisManagementOverviewResource(Resource):
                         str(node_model) if node_model else "",
                         used_series,
                         capacity_series,
+                        expected_points=THREE_HOURS_SECONDS // 60,
                         reference_time=generated_at,
                     ),
                     "snapshot": snapshot_evidence_by_node.get(node["id"]),
@@ -468,6 +523,7 @@ class GetRedisManagementOverviewResource(Resource):
 
         return {
             "generated_at": generated_at,
+            "data_health": data_health,
             "routing": {
                 key: routing[key]
                 for key in (

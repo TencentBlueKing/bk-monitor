@@ -46,7 +46,8 @@ class BuiltinStrategyTemplateRegistry:
     # 1.3.0 - 启用被调平均耗时告警模板
     # 1.3.1 - 下线暂无场景的主调自定义分位耗时告警模板
     # 1.3.2 - 内存高负载 Pod 占比改用本地 PromQL 查询模板
-    BUILTIN_STRATEGY_TEMPLATE_VERSION = "1.3.2"
+    # 1.3.3 - 启用主调自定义分位耗时告警模板
+    BUILTIN_STRATEGY_TEMPLATE_VERSION = "1.3.3"
 
     _BUILTIN_STRATEGY_TEMPLATES: list[type[templates.StrategyTemplateSet]] = templates.BUILTIN_STRATEGY_TEMPLATE
 
