@@ -212,7 +212,48 @@
                 </template>
                 <template v-else>
                   <div v-if="props.row.field_type === 'string'">
+                    <BklogPopover
+                      v-if="isTemplateBound"
+                      :ref="`templateBoundPopover-${props.$index}`"
+                      class="participle-template-bound-popover"
+                      :options="templateBoundPopoverOptions"
+                      trigger="hover"
+                    >
+                      <template #content>
+                        <div class="template-bound-tip-content">
+                          <span>{{ $t('当前清洗配置处于模版绑定状态，无法修改采集配置。如需修改，请点击') }}</span>
+                          <span
+                            class="template-unbind-link"
+                            @click.stop="handleTemplateUnbind(props.$index)"
+                          >
+                            {{ $t('解除绑定') }}
+                          </span>
+                        </div>
+                      </template>
+                      <div
+                        aria-disabled="true"
+                        class="participle-cell-wrap is-template-bound"
+                      >
+                        <div
+                          v-if="props.row.is_analyzed"
+                          style="width: 85%"
+                        >
+                          <div>
+                            {{ props.row.participleState === 'custom' ? props.row.tokenize_on_chars : $t('自然语言分词') }}
+                          </div>
+                          <div>{{ $t('大小写敏感') }}: {{ props.row.is_case_sensitive ? $t('是') : $t('否') }}</div>
+                        </div>
+                        <div
+                          v-else
+                          style="width: 85%"
+                        >
+                          {{ $t('不分词') }}
+                        </div>
+                        <div class="participle-select-icon bk-icon icon-angle-down"></div>
+                      </div>
+                    </BklogPopover>
                     <bk-popconfirm
+                      v-else
                       class="participle-popconfirm"
                       :is-show="isShowParticiple"
                       trigger="click"
@@ -324,8 +365,13 @@
 </template>
 <script>
   import { mapGetters } from 'vuex';
+  import BklogPopover from '@/components/bklog-popover';
+
   export default {
     name: 'SettingTable',
+    components: {
+      BklogPopover,
+    },
     props: {
       isEditJson: {
         type: Boolean,
@@ -379,6 +425,10 @@
         type: Boolean,
         default: false,
       },
+      isTemplateBound: {
+        type: Boolean,
+        default: false,
+      },
       collectorConfigId: {
         type: [Number, String],
         default: '',
@@ -388,6 +438,12 @@
       return {
         isReset: false,
         dialogDate: false,
+        templateBoundPopoverOptions: {
+          placement: 'top',
+          theme: 'dark',
+          appendTo: document.body,
+          offset: [0, 8],
+        },
         curRow: {},
         formData: {
           tableList: [],
@@ -648,6 +704,12 @@
         this.$set(row, 'is_case_sensitive', this.currentIsCaseSensitive);
         this.$set(row, 'tokenize_on_chars', this.currentTokenizeOnChars);
         this.$set(row, 'participleState', this.currentParticipleState);
+      },
+      handleTemplateUnbind(index) {
+        const popoverRef = this.$refs[`templateBoundPopover-${index}`];
+        const popover = Array.isArray(popoverRef) ? popoverRef[0] : popoverRef;
+        popover?.hide();
+        setTimeout(() => this.$emit('unbind-template'), 0);
       },
       handelChangeAnalyzed() {
         if (!this.currentIsAnalyzed) {
@@ -1197,6 +1259,25 @@
         }
       }
 
+      .participle-template-bound-popover {
+        width: 100%;
+
+        .participle-cell-wrap {
+          display: flex;
+          align-items: center;
+          margin-left: 10px;
+
+          &.is-template-bound {
+            color: #979ba5;
+            cursor: not-allowed;
+
+            .participle-select-icon {
+              color: #c4c6cc;
+            }
+          }
+        }
+      }
+
       &.bk-table-border th:first-child {
         .cell {
           padding: 0 15px;
@@ -1257,6 +1338,19 @@
     .participle-btn {
       padding: 0 8px;
       font-size: 12px;
+    }
+  }
+
+  .template-bound-tip-content {
+    width: 260px;
+    padding: 2px 0;
+    font-size: 12px;
+    line-height: 1.6;
+
+    .template-unbind-link {
+      margin-left: 4px;
+      color: #a2c3fa;
+      cursor: pointer;
     }
   }
 </style>
