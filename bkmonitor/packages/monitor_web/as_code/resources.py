@@ -66,6 +66,16 @@ from monitor_web.grafana.utils import get_org_id
 logger = logging.getLogger("monitor_web")
 
 
+def _safe_extractall(zip_ref: zipfile.ZipFile, extract_dir: str) -> None:
+    extract_dir = os.path.realpath(extract_dir)
+    for member in zip_ref.namelist():
+        member_path = os.path.realpath(os.path.join(extract_dir, member))
+        if not member_path.startswith(extract_dir + os.sep) and member_path != extract_dir:
+            logger.warning("Skipping zip member outside destination: %s", member)
+            continue
+        zip_ref.extract(member, extract_dir)
+
+
 class ImportConfigResource(Resource):
     """
     导入Code配置
@@ -550,7 +560,7 @@ class ImportConfigFileResource(Resource):
             # 解压文件
             if file.name.endswith(".zip"):
                 with zipfile.ZipFile(file.file, "r") as zip_file:
-                    zip_file.extractall(temp_path)
+                    _safe_extractall(zip_file, temp_path)
             else:
                 with tarfile.open(fileobj=file.file) as tar:
                     tar.extractall(temp_path, filter='data')
