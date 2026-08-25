@@ -10,6 +10,9 @@ specific language governing permissions and limitations under the License.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
+from typing import Any
+
 # ---------------------------------------------------------------------------
 # SchemaRegistry —— 元数据中心注册表
 #
@@ -52,6 +55,15 @@ from ..schema.definitions import (
     RoleActionBinding,
     RoleDef,
 )
+
+
+def _normalize_snapshot_value(value: Any) -> Any:
+    """将 schema 扩展字段转换为稳定的 JSON 快照值。"""
+    if isinstance(value, Mapping):
+        return {key: _normalize_snapshot_value(item) for key, item in value.items()}
+    if isinstance(value, list | tuple):
+        return [_normalize_snapshot_value(item) for item in value]
+    return value
 
 
 class SchemaRegistry:
@@ -274,7 +286,7 @@ class SchemaRegistry:
                     "name": a.name,
                     "resource_type": a.resource_type,
                     "description": a.description,
-                    "extensions": dict(a.extensions),
+                    "extensions": _normalize_snapshot_value(a.extensions),
                 }
                 for a in self._actions.values()
             },
@@ -284,7 +296,7 @@ class SchemaRegistry:
                     "name": rt.name,
                     "ancestor": rt.ancestor,
                     "description": rt.description,
-                    "extensions": dict(rt.extensions),
+                    "extensions": _normalize_snapshot_value(rt.extensions),
                 }
                 for rt in self._resource_types.values()
             },
@@ -293,7 +305,7 @@ class SchemaRegistry:
                     "id": r.id,
                     "name": r.name,
                     "description": r.description,
-                    "extensions": dict(r.extensions),
+                    "extensions": _normalize_snapshot_value(r.extensions),
                     "actions": [{"action_id": b.action_id, "resource_type": b.resource_type} for b in r.actions],
                 }
                 for r in self._roles.values()

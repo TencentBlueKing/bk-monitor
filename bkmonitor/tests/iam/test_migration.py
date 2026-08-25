@@ -12,12 +12,15 @@ specific language governing permissions and limitations under the License.
 # Schema 快照 + 迁移规划器 + 快照 diff 单元测试
 # ==============================================================================
 
+import json
 import os
 import tempfile
 
 import pytest
+from django.conf import settings
 
 from bkmonitor.iam.iam_engine.core.exceptions import MigrationPreCheckFailed
+from bkmonitor.iam.iam_engine.django.facade import get_framework
 from bkmonitor.iam.iam_engine.migration.diff import diff_snapshots
 from bkmonitor.iam.iam_engine.migration.loader import MigrationLoader
 from bkmonitor.iam.iam_engine.migration.planner import MigrationPlanner
@@ -122,6 +125,53 @@ class TestSnapshotRoundTrip:
         r2.freeze()
         a = r2.get_action("view_business")
         assert dict(a.extensions) == {"v3": {"action_id": "view_business_v2", "version": 1}}
+
+    def test_to_snapshot_normalizes_extension_collections(self):
+        r = SchemaRegistry()
+        r.register_resource_type(
+            ResourceTypeDef(
+                id="space",
+                name="空间",
+                extensions={"v3": {"related_instance_selections": ("space_list",)}},
+            )
+        )
+        r.register_action(
+            ActionDef(
+                id="view_business",
+                name="业务访问",
+                resource_type="space",
+                extensions={"exclude_providers": ("v4",), "v3": {"related_actions": ("view_space",)}},
+            )
+        )
+        r.register_role(
+            RoleDef(
+                id="space_viewer",
+                name="业务查看",
+                extensions={"only_providers": ("v3", "v4")},
+                actions=(RoleActionBinding(action_id="view_business", resource_type="space"),),
+            )
+        )
+        r.freeze()
+
+        snapshot = r.to_snapshot()
+
+        assert snapshot["resource_types"]["space"]["extensions"]["v3"]["related_instance_selections"] == ["space_list"]
+        assert snapshot["actions"]["view_business"]["extensions"] == {
+            "exclude_providers": ["v4"],
+            "v3": {"related_actions": ["view_space"]},
+        }
+        assert snapshot["roles"]["space_viewer"]["extensions"]["only_providers"] == ["v3", "v4"]
+        assert json.loads(json.dumps(snapshot)) == snapshot
+
+
+class TestExistingMigrationSnapshot:
+    def test_initial_snapshot_matches_current_schema(self):
+        directory = os.path.join(settings.BASE_DIR, "bkmonitor/iam/iam_migrations")
+        initial_migration = MigrationLoader(directory).load_all()["0001_init"]
+        current_snapshot = get_framework().schema.to_snapshot()
+
+        assert current_snapshot == initial_migration.target_snapshot
+        assert diff_snapshots(current_snapshot, initial_migration.target_snapshot) == []
 
 
 # ==============================================================================
