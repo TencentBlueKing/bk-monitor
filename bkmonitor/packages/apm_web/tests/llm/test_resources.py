@@ -4,24 +4,86 @@ from apm_web.llm.resources import ListSpansResource
 
 
 class ListSpansResourceTestCase(TestCase):
-    def test_returns_apm_api_response_directly(self):
-        response = {"total": 1, "data": [{"trace_id": "trace-1", "span_id": "span-1"}]}
+    def test_adapts_flattened_standard_span(self):
+        trace_id = "a" * 32
+        response = {
+            "total": 1,
+            "data": [
+                {
+                    "trace_id": trace_id,
+                    "span_id": "b" * 16,
+                    "parent_span_id": "",
+                    "span_name": "chat demo-model",
+                    "start_time": 1,
+                    "end_time": 2,
+                    "elapsed_time": 1,
+                    "status.code": 1,
+                    "resource.service.name": "demo",
+                    "attributes.gen_ai.operation.name": "chat",
+                    "attributes.gen_ai.request.model": "demo-model",
+                    "attributes.vendor.debug": "drop-me",
+                }
+            ],
+        }
 
-        with mock.patch("core.drf_resource.api.apm_api.query_span_list", return_value=response) as query_span_list:
+        with mock.patch("core.drf_resource.api.apm_api.query_span_list", return_value=response):
+            result = ListSpansResource().request(
+                {
+                    "bk_biz_id": 11,
+                    "app_name": "sand_local_dev",
+                    "trace_id": trace_id,
+                }
+            )
+
+        self.assertEqual(result["trace_id"], trace_id)
+        self.assertEqual(result["total"], 1)
+        attributes = result["spans"][0]["attributes"]
+        self.assertEqual(attributes["gen_ai.operation.name"], "chat")
+        self.assertEqual(attributes["gen_ai.request.model"], "demo-model")
+        self.assertNotIn("vendor.debug", attributes)
+
+    def test_adapts_apm_api_response(self):
+        response = {"total": 1, "data": [{"trace_id": "trace-1", "span_id": "span-1"}]}
+        converted_span = {
+            "trace_id": "trace-1",
+            "span_id": "span-1",
+            "attributes": {"gen_ai.operation.name": "chat"},
+        }
+
+        with (
+            mock.patch("core.drf_resource.api.apm_api.query_span_list", return_value=response) as query_span_list,
+            mock.patch(
+                "apm_web.llm.resources.adapt_trace",
+                return_value={"spans": [converted_span]},
+            ) as adapt_trace,
+        ):
             result = ListSpansResource().request(
                 {
                     "bk_biz_id": 11,
                     "app_name": "sand_local_dev",
                     "trace_id": "trace-1",
+                    "sdk_type": "agentlens",
                 }
             )
 
-        self.assertEqual(result, response)
+        self.assertEqual(
+            result,
+            {"trace_id": "trace-1", "total": 1, "spans": [converted_span]},
+        )
+        adapt_trace.assert_called_once_with(
+            response["data"],
+            trace_id="trace-1",
+            app_name="sand_local_dev",
+            sdk_type="agentlens",
+            include_content=True,
+            partial=False,
+        )
         query_span_list.assert_called_once_with(
             {
                 "bk_biz_id": 11,
                 "app_name": "sand_local_dev",
                 "filters": [{"key": "trace_id", "operator": "equal", "value": ["trace-1"]}],
                 "limit": 10000,
+                "exclude_field": ["bk_app_code"],
             }
         )
