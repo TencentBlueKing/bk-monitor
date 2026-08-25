@@ -1097,7 +1097,7 @@ paths:
       tags:
       - 采集项
       x-bk-apigateway-resource:
-        isPublic: false
+        isPublic: true
         allowApplyPermission: true
         matchSubpath: false
         backend:
@@ -1358,7 +1358,7 @@ paths:
       tags:
       - 采集项
       x-bk-apigateway-resource:
-        isPublic: false
+        isPublic: true
         allowApplyPermission: true
         matchSubpath: false
         backend:
@@ -1622,7 +1622,7 @@ paths:
       tags:
       - 采集项
       x-bk-apigateway-resource:
-        isPublic: false
+        isPublic: true
         allowApplyPermission: true
         matchSubpath: false
         backend:
@@ -1739,6 +1739,28 @@ paths:
           name: default
           method: post
           path: /api/v1/databus/collectors/fast_create/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: false
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn:
+  /databus_collectors/{collector_config_id}/update_context/:
+    get:
+      operationId: databus_collector_update_context
+      description: 日志平台-获取采集项更新上下文
+      tags:
+      - 采集项
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: get
+          path: /api/v1/databus/collectors/{collector_config_id}/update_context/
           matchSubpath: false
           timeout: 0
         pluginConfigs: []

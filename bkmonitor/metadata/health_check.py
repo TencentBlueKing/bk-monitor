@@ -35,7 +35,7 @@ from bkm_space.api import Space, SpaceApi
 from bkmonitor.utils.tenant import get_tenant_default_biz_id
 from core.drf_resource import api
 from core.errors.api import BKAPIError
-from metadata.models import BCSClusterInfo, DataSource, DataSourceResultTable, ResultTable
+from metadata.models import BCSClusterInfo, DataIdConfig, DataSource, DataSourceResultTable, ResultTable
 from metadata.models.constants import DataIdCreatedFromSystem
 from metadata.models.data_link.constants import (
     BKBASE_NAMESPACE_BK_LOG,
@@ -47,6 +47,7 @@ from metadata.models.data_link.service import get_data_id_v2
 from metadata.models.data_link.utils import compose_bkdata_data_id_name
 from metadata.models.space.constants import (
     DATA_LABEL_TO_RESULT_TABLE_KEY,
+    EtlConfigs,
     LOG_EVENT_ETL_CONFIGS,
     RESULT_TABLE_DETAIL_KEY,
     SPACE_TO_RESULT_TABLE_KEY,
@@ -147,7 +148,20 @@ def get_data_id_status(bk_tenant_id: str, bk_biz_id: int, bk_data_id: int, with_
     if data_id_status.created_from == DataIdCreatedFromSystem.BKDATA:
         is_base = ds.etl_config in SYSTEM_BASE_DATA_ETL_CONFIGS
         event_type = "metric" if ds.etl_config not in LOG_EVENT_ETL_CONFIGS else "log"
-        namespace = BKBASE_NAMESPACE_BK_LOG if event_type == "log" else BKBASE_NAMESPACE_BK_MONITOR
+        if ds.etl_config == EtlConfigs.BK_CUSTOM_FORMAT.value:
+            namespace = (
+                DataIdConfig.objects.filter(
+                    bk_tenant_id=bk_tenant_id,
+                    bk_data_id=bk_data_id,
+                    namespace__in=[BKBASE_NAMESPACE_BK_MONITOR, BKBASE_NAMESPACE_BK_LOG],
+                )
+                .order_by("namespace")
+                .values_list("namespace", flat=True)
+                .first()
+                or BKBASE_NAMESPACE_BK_MONITOR
+            )
+        else:
+            namespace = BKBASE_NAMESPACE_BK_LOG if event_type == "log" else BKBASE_NAMESPACE_BK_MONITOR
 
         # 组装bkbase数据源名称
         if is_base:  # 如果是基础数据源（1000,1001）,那么沿用固定格式的data_name，会以此name作为bkbase申请时的唯一键

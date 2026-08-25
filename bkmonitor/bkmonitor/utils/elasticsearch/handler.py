@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 
 import copy
 
+
 from luqum.tree import FieldGroup, OrOperation, SearchField, Word
 from luqum.visitor import TreeTransformer
 

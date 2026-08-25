@@ -43,6 +43,7 @@ MCP_SERVER_SUFFIX_TO_PERMISSION_ACTION = {
     "log-query": "using_log_mcp",
     "log-scene-search": "using_log_mcp",
     "log-extract": "using_log_mcp",
+    "log-collection": "using_log_mcp",
     "tracing": "using_apm_mcp",
     "profiling": "using_apm_mcp",
     "profiling-query": "using_apm_mcp",

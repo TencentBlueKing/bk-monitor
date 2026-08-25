@@ -464,6 +464,7 @@ export const useEcharts = ({
   /** 图表id，每次重新请求会修改该值 */
   const chartId = shallowRef(random(8));
   const timeRange = inject('timeRange', DEFAULT_TIME_RANGE);
+  const timezone = inject('timezone', '');
   const timeOffset = inject('timeOffset', []);
   const refreshImmediate = inject('refreshImmediate');
   const { applyPeakMarkPoint, watchHighlightPeak } = useChartViewOption();
@@ -735,6 +736,7 @@ export const useEcharts = ({
   watch(
     [
       () => toValue(timeRange),
+      () => toValue(timezone),
       () => toValue(refreshImmediate),
       () => toValue(panel),
       () => toValue(params),

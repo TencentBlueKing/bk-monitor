@@ -1,0 +1,1000 @@
+paths:
+  /mcp/fast_update_log_collector/:
+    post:
+      operationId: fast_update_log_collector
+      description: >-
+        Update collection-only fields. Never changes cleaning, fields, storage, index-set membership or
+        environment. No confirm parameter. params top-level keys are shallow-merged; conditions, target_nodes,
+        configs and extra_labels are full replacements. Omit fields you do not want to change; explicit
+        empty values such as target_nodes=[] will be written. Do not send masked ****** secrets from get_log_collector.
+        Host cannot change collector_scenario_id; container cannot change bcs_cluster_id. Use returned
+        task_ids with get_log_collector_status. 只改采集配置，不改清洗和存储。嵌套对象整体替换。不要回传打码密码。显式空值会落库。
+      tags:
+      - log_collection_mcp
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - bk_biz_id
+              - collector_config_id
+              properties:
+                bk_biz_id:
+                  type: integer
+                  description: Business ID in BlueKing Monitor. Identifies the business space. 业务ID，用于标识业务空间。
+                collector_config_id:
+                  type: integer
+                  minimum: 1
+                  description: >-
+                    Collector configuration ID. Obtain from list_log_collectors or a create/update response.
+                    采集项 ID，从 list_log_collectors 或创建/更新返回值获取。
+                collector_config_name:
+                  type: string
+                  maxLength: 50
+                  description: Collector display name shown in the console. Max 50 characters. 采集项名称，页面展示用，最长
+                    50 字符。
+                description:
+                  type: string
+                  maxLength: 100
+                  nullable: true
+                  description: >-
+                    Collector remark. Host/Windows max 64 characters; container max 100. 采集项描述。主机/Windows
+                    最长 64 字符，容器最长 100 字符。
+                target_object_type:
+                  type: string
+                  description: >-
+                    CMDB object type for host collectors. HOST (host, default, hidden in UI) or SERVICE
+                    (service instance). 主机采集目标对象类型。HOST 主机（默认，页面不单独展示）或 SERVICE 服务实例。
+                target_node_type:
+                  type: string
+                  description: >-
+                    Target node type; decides which fields each target_nodes item must carry. INSTANCE
+                    = static hosts, each item needs ip + bk_cloud_id or bk_host_id. TOPO = dynamic CMDB
+                    topology, each item needs bk_inst_id + bk_obj_id where bk_obj_id is biz, set or module.
+                    SERVICE_TEMPLATE / SET_TEMPLATE / DYNAMIC_GROUP = each item needs bk_inst_id (the
+                    template or group ID) and bk_obj_id equal to the type name. 采集目标节点类型，决定 target_nodes
+                    每个元素该传哪些字段。
+                target_nodes:
+                  type: array
+                  description: >-
+                    Complete host target list (full replacement on update, not a merge). Field set depends
+                    on target_node_type. 主机采集目标列表，更新时整体替换。每个元素该传的字段由 target_node_type 决定。
+                  items:
+                    type: object
+                    additionalProperties: false
+                    properties:
+                      id:
+                        type: integer
+                        description: >-
+                          Optional service-instance ID. Rarely used by current host collection. 可选服务实例
+                          ID，当前主机采集基本不用。
+                      bk_inst_id:
+                        description: >-
+                          Node / template / dynamic-group ID. Required for TOPO, SERVICE_TEMPLATE, SET_TEMPLATE
+                          and DYNAMIC_GROUP. 节点、模板或动态分组 ID。TOPO / 服务模板 / 集群模板 / 动态分组必填。
+                      bk_obj_id:
+                        type: string
+                        description: >-
+                          CMDB object of the node. TOPO uses biz, set or module; SERVICE_TEMPLATE / SET_TEMPLATE
+                          / DYNAMIC_GROUP use the type name itself. TOPO 传 biz/set/module；模板和动态分组传对应类型名。
+                      bk_host_id:
+                        type: integer
+                        description: >-
+                          Host ID for INSTANCE targets. Can replace ip + bk_cloud_id. INSTANCE 静态主机 ID，可替代
+                          ip + bk_cloud_id。
+                      ip:
+                        type: string
+                        description: >-
+                          Host IP for INSTANCE targets. Used together with bk_cloud_id when bk_host_id
+                          is absent. INSTANCE 静态主机 IP，无 bk_host_id 时与 bk_cloud_id 成对使用。
+                      bk_cloud_id:
+                        type: integer
+                        description: BlueKing cloud-area ID for INSTANCE targets. INSTANCE 静态主机的云区域 ID。
+                      bk_supplier_id:
+                        type: string
+                        description: Optional supplier ID for static hosts. 可选供应商 ID。
+                      bk_biz_id:
+                        type: integer
+                        description: >-
+                          Optional business ID on a target node. Usually inherited from the request. 目标节点上的可选业务
+                          ID，一般沿用请求的 bk_biz_id。
+                params:
+                  type: object
+                  additionalProperties: false
+                  description: >-
+                    Host collection plugin parameters. Top-level keys are shallow-merged on Fast Update;
+                    nested objects such as conditions are replaced as a whole. Do not echo masked secrets
+                    (****** ) from get_log_collector. 主机采集插件参数。Fast Update 顶层键浅合并，conditions 等嵌套对象整体替换。不要回传
+                    get_log_collector 里被打成 ****** 的敏感字段。
+                  properties:
+                    paths:
+                      type: array
+                      items:
+                        type: string
+                      description: >-
+                        Absolute log-file paths. Wildcards allowed, e.g. /var/log/nginx/*.log. Required
+                        for linux row/section and for container_log_config / node_log_config. std_log_config
+                        (stdout) may leave this empty. 日志路径，绝对路径，可用通配符。Linux 行/段日志以及按容器/节点文件采集必填；采集容器标准输出时可为空。
+                    exclude_files:
+                      type: array
+                      items:
+                        type: string
+                      description: >-
+                        Path blacklist. Regular expressions that drop matched files, e.g. .*\.gz. Cannot
+                        be set without paths. 路径黑名单，用正则排除已匹配到的文件，例如 .*\.gz。不能单独指定、必须同时有 paths。
+                    conditions:
+                      type: object
+                      additionalProperties: false
+                      properties:
+                        type:
+                          type: string
+                          enum: &id001
+                          - match
+                          - separator
+                          - none
+                          description: >-
+                            Filter mode. none = off; match = string filter (uses match_type + match_content,
+                            or separator_filters with fieldindex=-1); separator = delimiter filter (requires
+                            separator + separator_filters). 过滤方式。none 不过滤；match 字符串过滤；separator 分隔符过滤。
+                        match_type:
+                          type: string
+                          enum: &id002
+                          - include
+                          - exclude
+                          - eq
+                          - neq
+                          - regex
+                          - nregex
+                          description: >-
+                            String-filter operator when type=match. include/exclude/eq/neq/regex/nregex
+                            = 包含/不包含/等于/不等于/正则匹配/正则不匹配. 字符串过滤操作符，仅 type=match 时使用。
+                        match_content:
+                          type: string
+                          nullable: true
+                          description: String to match when type=match. Max 255 characters. type=match
+                            时的过滤内容，最长 255 字符。
+                        separator:
+                          type: string
+                          nullable: true
+                          description: >-
+                            Delimiter when type=separator. Common values: | (default in UI), comma, backtick,
+                            space, semicolon, tab (\t). Required if separator_filters is set. 分隔符，仅 type=separator
+                            时使用。页面预置 | , ` 空格 ; 制表符。有 separator_filters 时不能为空。
+                        separator_filters:
+                          type: array
+                          items:
+                            type: object
+                            additionalProperties: false
+                            properties:
+                              fieldindex:
+                                type: string
+                                description: >-
+                                  1-based column index after splitting by separator. Use -1 for whole-line
+                                  string match. UI placeholder: 请输入列数. 分隔后的列序号（从 1 起）。-1 表示整行匹配。
+                              word:
+                                type: string
+                                description: >-
+                                  Value to match in that column. Regex operators accept patterns such
+                                  as 18*123. 该列要匹配的值；正则操作符支持正则表达式。
+                              op:
+                                type: string
+                                description: >-
+                                  Column match operator. Accepted: =, !=, eq, neq, include, exclude, regex,
+                                  nregex. Unknown values silently fall back to =. Default =. 列匹配操作符。非法值会静默回退为
+                                  =。
+                              logic_op:
+                                type: string
+                                description: >-
+                                  Join with the next rule. and (default, same group) or or (start a new
+                                  OR group). No standalone UI; generated from filter groups. 与下一条规则的连接。and
+                                  同组，or 新开一组。
+                          description: >-
+                            Delimiter-filter rules. Same-group logic_op=and is ANDed; logic_op=or starts
+                            a new group (OR across groups). 分隔符过滤规则。组内 and、组间 or。
+                      description: >-
+                        Log filter. Only matching lines are kept. Default type=none means no filter. Nested
+                        object is replaced as a whole on update. 日志过滤，仅保留命中规则的日志。默认 type=none 表示不过滤。更新时整体替换。
+                    multiline_pattern:
+                      type: string
+                      description: >-
+                        Start-of-event regular expression. Required when collector_scenario_id=section.
+                        行首正则。段日志（section）必填，用来判断一条多行日志的开头。
+                    multiline_max_lines:
+                      type: integer
+                      maximum: 5000
+                      description: >-
+                        Max lines belonging to one multiline event. Unit: lines. Default 50, range 1-5000.
+                        最多匹配行数，单位行，默认 50，范围 1-5000。
+                    multiline_timeout:
+                      type: integer
+                      maximum: 10
+                      description: >-
+                        Max seconds to wait for more lines of the same event. Unit: seconds. Default 2,
+                        range 1-10. UI tip: prefer 1s, longer values may backlog logs. 最大耗时（秒），默认 2，范围
+                        1-10。建议配 1 秒，过长可能导致日志积压。
+                    tail_files:
+                      type: boolean
+                      description: >-
+                        Collection range. true (default) = only logs written after the task is dispatched;
+                        false = collect the whole existing file. UI label 采集范围: 仅采集下发后的日志 / 采集全量日志. Editable
+                        only when creating. 是否增量采集。true（默认）只采下发后的新日志，false 从文件头采全量。仅新建时可改。
+                    ignore_older:
+                      type: integer
+                      description: >-
+                        Skip files whose last modification time is older than this many seconds. Unit:
+                        seconds. Default 86400 (one day). Not exposed in the web console. 文件扫描忽略时间（秒）。最后修改时间早于该值的文件不会被采集，默认
+                        86400。页面无对应入口。
+                    max_bytes:
+                      type: integer
+                      description: >-
+                        Max bytes of a single log line. Unit: bytes. Default 204800. Not exposed in the
+                        web console. 单行日志最大长度（字节），默认 204800。页面无对应入口。
+                    scan_frequency:
+                      type: integer
+                      minimum: 1
+                      description: >-
+                        File-scan interval. Unit: seconds, minimum 1. Not exposed in the web console.
+                        文件扫描间隔（秒），最小 1。页面无对应入口。
+                    close_inactive:
+                      type: integer
+                      minimum: 1
+                      description: >-
+                        Seconds of inactivity before the file descriptor is closed. Unit: seconds, minimum
+                        1. Not exposed in the web console. FD 关闭间隔（秒），最小 1。页面无对应入口。
+                    harvester_limit:
+                      type: integer
+                      minimum: 1
+                      description: >-
+                        Max number of files harvested at the same time. Minimum 1. Not exposed in the
+                        web console. 同时采集文件数，最小 1。页面无对应入口。
+                    clean_inactive:
+                      type: integer
+                      minimum: 1
+                      description: >-
+                        Seconds after which idle harvest state is cleaned. Unit: seconds, minimum 1. Not
+                        exposed in the web console. 采集进度清理时间（秒），最小 1。页面无对应入口。
+                    winlog_name:
+                      type: array
+                      items:
+                        type: string
+                      description: >-
+                        Windows event-log channels. Common values: Application, Security, System, plus
+                        custom channel names. Required for wineventlog. UI default selects all four. Windows
+                        日志种类，如 Application/Security/System，wineventlog 必填。
+                    winlog_level:
+                      type: array
+                      items:
+                        type: string
+                      description: >-
+                        Windows event levels to keep, e.g. Information, Warning, Error. Empty means no
+                        level filter. Windows 事件级别过滤，空表示不过滤。
+                    winlog_event_id:
+                      type: array
+                      items:
+                        type: string
+                      description: Windows event IDs to keep. Empty means no ID filter. Windows 事件 ID
+                        过滤，空表示不过滤。
+                    winlog_source:
+                      type: array
+                      items:
+                        type: string
+                      description: Windows event sources to keep. Empty means no source filter. Windows
+                        事件来源过滤，空表示不过滤。
+                    winlog_content:
+                      type: array
+                      items:
+                        type: string
+                      description: >-
+                        Windows event-content keywords. Combined with winlog_match_op. Empty means no
+                        content filter. Windows 事件内容过滤，配合 winlog_match_op 使用。
+                    winlog_match_op:
+                      type: string
+                      enum: &id003
+                      - eq
+                      - neq
+                      - include
+                      - exclude
+                      - regex
+                      - nregex
+                      description: >-
+                        Operator for winlog_content. ChoiceField: eq, neq, include, exclude, regex, nregex.
+                        Do not send = or !=; they are rejected. Default in collector binary is = which
+                        maps to eq. Windows 事件内容匹配操作符。只接受 eq/neq/include/exclude/regex/nregex，不要传 = 或
+                        !=。
+                    redis_hosts:
+                      type: array
+                      items:
+                        type: string
+                      description: >-
+                        Redis targets for redis_slowlog collectors, host:port strings. Fast Create cannot
+                        create this scenario; only Fast Update of existing items. Redis 慢日志目标，host:port。MCP
+                        不能新建该场景，只能改存量。
+                    redis_password:
+                      type: string
+                      description: >-
+                        Redis password. get_log_collector masks this as ******. Never send the masked
+                        value back. Redis 密码。详情接口会打码成 ******，回传会把密码写成该字面量。
+                    redis_password_file:
+                      type: string
+                      description: Path to a file that contains the Redis password. Redis 密码文件路径。
+                    extra_labels:
+                      type: array
+                      items:
+                        type: object
+                        additionalProperties: false
+                        required:
+                        - key
+                        - value
+                        properties:
+                          key:
+                            type: string
+                            description: Label key. 标签 key。
+                          operator:
+                            type: string
+                            description: Label operator. Default =. No enum constraint on this field.
+                              标签连接符，默认 =，无枚举硬校验。
+                          value:
+                            type: string
+                            description: Label value. Required when key is set. 标签 value，填写了 key 时不能为空。
+                      description: >-
+                        Extra key/value labels attached to logs. Host UI: 设备元数据; container UI: 附加日志标签.
+                        operator defaults to = and has no ChoiceField. 额外标签。主机场景叫设备元数据，容器场景叫附加日志标签。
+                    extra_template_labels:
+                      type: array
+                      items:
+                        type: object
+                        additionalProperties: false
+                        required:
+                        - key
+                        - value
+                        properties:
+                          key:
+                            type: string
+                            description: Template-label key. 模板标签 key。
+                          value:
+                            description: Template-label value (any JSON). 模板标签 value，可为任意 JSON。
+                      description: >-
+                        Template labels passed to the collector as a list of {key, value}. Not exposed
+                        in the web console. 额外模板标签，页面无对应入口。
+                    syslog_protocol:
+                      type: string
+                      enum: &id004
+                      - tcp
+                      - udp
+                      description: >-
+                        Syslog listen protocol. tcp or udp. Fast Create cannot create syslog collectors.
+                        Syslog 监听协议，tcp 或 udp。MCP 不能新建该场景。
+                    syslog_port:
+                      type: integer
+                      description: Syslog listen port. Syslog 监听端口。
+                    syslog_monitor_host:
+                      type: string
+                      description: IP of the host that listens for syslog. Syslog 监听服务器 IP。
+                    syslog_conditions:
+                      type: array
+                      items:
+                        type: object
+                        additionalProperties: false
+                        properties:
+                          syslog_field:
+                            type: string
+                            enum: &id005
+                            - address
+                            - port
+                            - priority
+                            - facility
+                            - facility_label
+                            - severity
+                            - severity_label
+                            - program
+                            - pid
+                            description: >-
+                              Syslog field to match: address, port, priority, facility, facility_label,
+                              severity, severity_label, program, pid. Syslog 匹配字段。
+                          syslog_content:
+                            type: string
+                            description: Value to match on syslog_field. Syslog 匹配内容。
+                          syslog_op:
+                            type: string
+                            enum: &id006
+                            - eq
+                            - neq
+                            - include
+                            - exclude
+                            - regex
+                            - nregex
+                            description: >-
+                              Syslog match operator. ChoiceField: eq, neq, include (default), exclude,
+                              regex, nregex. Syslog 操作符，默认 include。
+                          syslog_logic_op:
+                            type: string
+                            enum: &id007
+                            - and
+                            - or
+                            description: 'Join with the next syslog rule: and (default) or or. 与下一条 Syslog
+                              规则的连接，默认 and。'
+                      description: Syslog filter rules. Syslog 过滤条件。
+                    kafka_hosts:
+                      type: array
+                      items:
+                        type: string
+                      description: >-
+                        Kafka broker addresses for kafka collectors. Fast Create cannot create this scenario.
+                        Kafka 地址。MCP 不能新建该场景，只能改存量。
+                    kafka_username:
+                      type: string
+                      description: Kafka SASL username. Kafka 用户名。
+                    kafka_password:
+                      type: string
+                      description: >-
+                        Kafka SASL password. get_log_collector masks this as ******. Never send the masked
+                        value back. Kafka 密码。详情接口会打码成 ******，禁止原样回传。
+                    kafka_ssl_params:
+                      type: object
+                      description: Kafka SSL options object (ca, cert, key, etc.). Kafka SSL 配置对象。
+                    kafka_topics:
+                      type: array
+                      items:
+                        type: string
+                      description: Kafka topics to consume. Kafka topic 列表。
+                    kafka_group_id:
+                      type: string
+                      description: Kafka consumer group. Kafka 消费组。
+                    kafka_initial_offset:
+                      type: string
+                      enum: &id008
+                      - oldest
+                      - newest
+                      description: >-
+                        Initial offset when a new consumer group is created. oldest = from the beginning,
+                        newest (default) = latest. 新消费组的初始偏移量。oldest 从最早，newest（默认）从最新。
+                data_encoding:
+                  type: string
+                  description: >-
+                    Log character encoding. Common values: UTF-8 (default), GBK, GB18030, BIG5, ISO8859-1.
+                    Backend accepts 50+ encodings. 日志字符集。常用 UTF-8（默认）/ GBK / GB18030 / BIG5 / ISO8859-1。
+                collector_scenario_id:
+                  type: string
+                  description: >-
+                    Log type / collection scenario. Create supports only row (line file), section (multiline
+                    file) and wineventlog (Windows event). List filter also accepts custom, redis_slowlog,
+                    syslog, kafka, client. On Fast Update this field is allowed only for container collectors.
+                    日志类型。创建仅支持 row 行日志 / section 段日志 / wineventlog Windows 事件；列表过滤还可传 custom、redis_slowlog、syslog、kafka、client。Fast
+                    Update 仅容器采集项可改此字段。
+                configs:
+                  type: array
+                  minItems: 1
+                  description: >-
+                    Container log-config list. Fast Update replaces the entire list; omitted configs are
+                    deleted. Each item requires params and collector_type. Mutually exclusive pairs: namespaces
+                    vs namespaces_exclude, container_name vs container_name_exclude. 容器日志配置列表，更新时整体替换。namespaces
+                    与 namespaces_exclude、container_name 与 container_name_exclude 互斥。
+                  items:
+                    type: object
+                    additionalProperties: false
+                    required:
+                    - params
+                    - collector_type
+                    properties:
+                      namespaces:
+                        type: array
+                        items:
+                          type: string
+                        description: >-
+                          Namespaces to include. Empty list means all namespaces (any_namespace). Mutually
+                          exclusive with namespaces_exclude. Shared clusters cannot leave this empty for
+                          node_log_config. 指定命名空间，空列表表示全部。与 namespaces_exclude 互斥。
+                      namespaces_exclude:
+                        type: array
+                        items:
+                          type: string
+                        description: Namespaces to exclude. Mutually exclusive with namespaces. 排除的命名空间，与
+                          namespaces 互斥。
+                      container:
+                        type: object
+                        additionalProperties: false
+                        properties:
+                          workload_type:
+                            type: string
+                            description: >-
+                              Kubernetes Kind filter. Built-in values: Deployment, StatefulSet, DaemonSet,
+                              Job. FeatureToggle bcs_deployment_type may add more; CronJob is not in the
+                              default list. Empty means any kind. 工作负载类型。内置 Deployment/StatefulSet/DaemonSet/Job，空表示不限。
+                          workload_name:
+                            type: string
+                            description: Workload name filter. Regular expression, matched with re.match.
+                              工作负载名称，支持正则。
+                          container_name:
+                            type: string
+                            description: >-
+                              Included container names, comma-separated exact match (not regex). Mutually
+                              exclusive with container_name_exclude. 包含的容器名，逗号分隔精确匹配，与 container_name_exclude
+                              互斥。
+                          container_name_exclude:
+                            type: string
+                            description: >-
+                              Excluded container names, comma-separated exact match. Mutually exclusive
+                              with container_name. 排除的容器名，逗号分隔精确匹配，与 container_name 互斥。
+                        description: >-
+                          Workload / container-name filter. Leave empty to match all containers in the
+                          selected namespaces. 指定工作负载或容器名；不填表示命中命名空间内全部容器。
+                      label_selector:
+                        type: object
+                        additionalProperties: false
+                        properties:
+                          match_labels:
+                            type: array
+                            items:
+                              type: object
+                              additionalProperties: false
+                              required:
+                              - key
+                              - value
+                              properties:
+                                key:
+                                  type: string
+                                  description: Label key. 标签 key。
+                                operator:
+                                  type: string
+                                  description: Equality operator, default =. Frontend may normalize it
+                                    to In. 等值操作符，默认 =。
+                                value:
+                                  type: string
+                                  description: Label value. 标签 value。
+                            description: >-
+                              Equality labels, rendered as matchLabels {key: value}. operator defaults
+                              to =. 等值标签，下发为 matchLabels 字典。
+                          match_expressions:
+                            type: array
+                            items:
+                              type: object
+                              additionalProperties: false
+                              required:
+                              - key
+                              - value
+                              properties:
+                                key:
+                                  type: string
+                                  description: Expression key. 表达式 key。
+                                operator:
+                                  type: string
+                                  description: >-
+                                    Expression operator: In, NotIn, Exists, DoesNotExist. = is accepted
+                                    as equality. Exists/DoesNotExist ignore value. 表达式操作符 In/NotIn/Exists/DoesNotExist，Exists/DoesNotExist
+                                    不需要 value。
+                                value:
+                                  type: string
+                                  description: Expression value. For In/NotIn, comma-separated multiple
+                                    values. In/NotIn 时为逗号分隔多值。
+                            description: >-
+                              Label expressions. operator: In, NotIn, Exists, DoesNotExist ( = is accepted
+                              as equality). In/NotIn values are comma-separated. 标签表达式。操作符 In/NotIn/Exists/DoesNotExist。
+                        description: Pod label selector. 按 Pod 标签筛选。
+                      annotation_selector:
+                        type: object
+                        additionalProperties: false
+                        properties:
+                          match_annotations:
+                            type: array
+                            items:
+                              type: object
+                              additionalProperties: false
+                              required:
+                              - key
+                              - value
+                              properties:
+                                key:
+                                  type: string
+                                  description: Annotation key. 注解 key。
+                                operator:
+                                  type: string
+                                  description: >-
+                                    Annotation operator: In, NotIn, Exists, DoesNotExist. = is accepted
+                                    as equality. 注解操作符 In/NotIn/Exists/DoesNotExist。
+                                value:
+                                  type: string
+                                  description: Annotation value. For In/NotIn, comma-separated multiple
+                                    values. In/NotIn 时为逗号分隔多值。
+                            description: >-
+                              Annotation expressions. operator: In, NotIn, Exists, DoesNotExist ( = accepted
+                              as equality). 注解表达式。操作符 In/NotIn/Exists/DoesNotExist。
+                        description: Pod annotation selector. 按 Pod 注解筛选。
+                      paths:
+                        type: array
+                        items:
+                          type: string
+                        description: >-
+                          Optional container-level path list. Runtime matching mainly uses configs[].params.paths.
+                          Required for container_log_config / node_log_config in YAML mode; not required
+                          for std_log_config. 容器配置级日志路径，实际匹配主要看 params.paths。标准输出采集不需要。
+                      data_encoding:
+                        type: string
+                        description: >-
+                          Character encoding of this container config. Common values: UTF-8, GBK, GB18030.
+                          该条容器配置的日志字符集。
+                      params:
+                        type: object
+                        additionalProperties: false
+                        properties:
+                          paths:
+                            type: array
+                            items:
+                              type: string
+                            description: >-
+                              Absolute log-file paths. Wildcards allowed, e.g. /var/log/nginx/*.log. Required
+                              for linux row/section and for container_log_config / node_log_config. std_log_config
+                              (stdout) may leave this empty. 日志路径，绝对路径，可用通配符。Linux 行/段日志以及按容器/节点文件采集必填；采集容器标准输出时可为空。
+                          exclude_files:
+                            type: array
+                            items:
+                              type: string
+                            description: >-
+                              Path blacklist. Regular expressions that drop matched files, e.g. .*\.gz.
+                              Cannot be set without paths. 路径黑名单，用正则排除已匹配到的文件，例如 .*\.gz。不能单独指定、必须同时有 paths。
+                          conditions:
+                            type: object
+                            additionalProperties: false
+                            properties:
+                              type:
+                                type: string
+                                enum: *id001
+                                description: >-
+                                  Filter mode. none = off; match = string filter (uses match_type + match_content,
+                                  or separator_filters with fieldindex=-1); separator = delimiter filter
+                                  (requires separator + separator_filters). 过滤方式。none 不过滤；match 字符串过滤；separator
+                                  分隔符过滤。
+                              match_type:
+                                type: string
+                                enum: *id002
+                                description: >-
+                                  String-filter operator when type=match. include/exclude/eq/neq/regex/nregex
+                                  = 包含/不包含/等于/不等于/正则匹配/正则不匹配. 字符串过滤操作符，仅 type=match 时使用。
+                              match_content:
+                                type: string
+                                nullable: true
+                                description: String to match when type=match. Max 255 characters. type=match
+                                  时的过滤内容，最长 255 字符。
+                              separator:
+                                type: string
+                                nullable: true
+                                description: >-
+                                  Delimiter when type=separator. Common values: | (default in UI), comma,
+                                  backtick, space, semicolon, tab (\t). Required if separator_filters
+                                  is set. 分隔符，仅 type=separator 时使用。页面预置 | , ` 空格 ; 制表符。有 separator_filters
+                                  时不能为空。
+                              separator_filters:
+                                type: array
+                                items:
+                                  type: object
+                                  additionalProperties: false
+                                  properties:
+                                    fieldindex:
+                                      type: string
+                                      description: >-
+                                        1-based column index after splitting by separator. Use -1 for
+                                        whole-line string match. UI placeholder: 请输入列数. 分隔后的列序号（从 1 起）。-1
+                                        表示整行匹配。
+                                    word:
+                                      type: string
+                                      description: >-
+                                        Value to match in that column. Regex operators accept patterns
+                                        such as 18*123. 该列要匹配的值；正则操作符支持正则表达式。
+                                    op:
+                                      type: string
+                                      description: >-
+                                        Column match operator. Accepted: =, !=, eq, neq, include, exclude,
+                                        regex, nregex. Unknown values silently fall back to =. Default
+                                        =. 列匹配操作符。非法值会静默回退为 =。
+                                    logic_op:
+                                      type: string
+                                      description: >-
+                                        Join with the next rule. and (default, same group) or or (start
+                                        a new OR group). No standalone UI; generated from filter groups.
+                                        与下一条规则的连接。and 同组，or 新开一组。
+                                description: >-
+                                  Delimiter-filter rules. Same-group logic_op=and is ANDed; logic_op=or
+                                  starts a new group (OR across groups). 分隔符过滤规则。组内 and、组间 or。
+                            description: >-
+                              Log filter. Only matching lines are kept. Default type=none means no filter.
+                              Nested object is replaced as a whole on update. 日志过滤，仅保留命中规则的日志。默认 type=none
+                              表示不过滤。更新时整体替换。
+                          multiline_pattern:
+                            type: string
+                            description: >-
+                              Start-of-event regular expression. Required when collector_scenario_id=section.
+                              行首正则。段日志（section）必填，用来判断一条多行日志的开头。
+                          multiline_max_lines:
+                            type: integer
+                            maximum: 5000
+                            description: >-
+                              Max lines belonging to one multiline event. Unit: lines. Default 50, range
+                              1-5000. 最多匹配行数，单位行，默认 50，范围 1-5000。
+                          multiline_timeout:
+                            type: integer
+                            maximum: 10
+                            description: >-
+                              Max seconds to wait for more lines of the same event. Unit: seconds. Default
+                              2, range 1-10. UI tip: prefer 1s, longer values may backlog logs. 最大耗时（秒），默认
+                              2，范围 1-10。建议配 1 秒，过长可能导致日志积压。
+                          tail_files:
+                            type: boolean
+                            description: >-
+                              Collection range. true (default) = only logs written after the task is dispatched;
+                              false = collect the whole existing file. UI label 采集范围: 仅采集下发后的日志 / 采集全量日志.
+                              Editable only when creating. 是否增量采集。true（默认）只采下发后的新日志，false 从文件头采全量。仅新建时可改。
+                          ignore_older:
+                            type: integer
+                            description: >-
+                              Skip files whose last modification time is older than this many seconds.
+                              Unit: seconds. Default 86400 (one day). Not exposed in the web console.
+                              文件扫描忽略时间（秒）。最后修改时间早于该值的文件不会被采集，默认 86400。页面无对应入口。
+                          max_bytes:
+                            type: integer
+                            description: >-
+                              Max bytes of a single log line. Unit: bytes. Default 204800. Not exposed
+                              in the web console. 单行日志最大长度（字节），默认 204800。页面无对应入口。
+                          scan_frequency:
+                            type: integer
+                            minimum: 1
+                            description: >-
+                              File-scan interval. Unit: seconds, minimum 1. Not exposed in the web console.
+                              文件扫描间隔（秒），最小 1。页面无对应入口。
+                          close_inactive:
+                            type: integer
+                            minimum: 1
+                            description: >-
+                              Seconds of inactivity before the file descriptor is closed. Unit: seconds,
+                              minimum 1. Not exposed in the web console. FD 关闭间隔（秒），最小 1。页面无对应入口。
+                          harvester_limit:
+                            type: integer
+                            minimum: 1
+                            description: >-
+                              Max number of files harvested at the same time. Minimum 1. Not exposed in
+                              the web console. 同时采集文件数，最小 1。页面无对应入口。
+                          clean_inactive:
+                            type: integer
+                            minimum: 1
+                            description: >-
+                              Seconds after which idle harvest state is cleaned. Unit: seconds, minimum
+                              1. Not exposed in the web console. 采集进度清理时间（秒），最小 1。页面无对应入口。
+                          winlog_name:
+                            type: array
+                            items:
+                              type: string
+                            description: >-
+                              Windows event-log channels. Common values: Application, Security, System,
+                              plus custom channel names. Required for wineventlog. UI default selects
+                              all four. Windows 日志种类，如 Application/Security/System，wineventlog 必填。
+                          winlog_level:
+                            type: array
+                            items:
+                              type: string
+                            description: >-
+                              Windows event levels to keep, e.g. Information, Warning, Error. Empty means
+                              no level filter. Windows 事件级别过滤，空表示不过滤。
+                          winlog_event_id:
+                            type: array
+                            items:
+                              type: string
+                            description: Windows event IDs to keep. Empty means no ID filter. Windows
+                              事件 ID 过滤，空表示不过滤。
+                          winlog_source:
+                            type: array
+                            items:
+                              type: string
+                            description: Windows event sources to keep. Empty means no source filter.
+                              Windows 事件来源过滤，空表示不过滤。
+                          winlog_content:
+                            type: array
+                            items:
+                              type: string
+                            description: >-
+                              Windows event-content keywords. Combined with winlog_match_op. Empty means
+                              no content filter. Windows 事件内容过滤，配合 winlog_match_op 使用。
+                          winlog_match_op:
+                            type: string
+                            enum: *id003
+                            description: >-
+                              Operator for winlog_content. ChoiceField: eq, neq, include, exclude, regex,
+                              nregex. Do not send = or !=; they are rejected. Default in collector binary
+                              is = which maps to eq. Windows 事件内容匹配操作符。只接受 eq/neq/include/exclude/regex/nregex，不要传
+                              = 或 !=。
+                          redis_hosts:
+                            type: array
+                            items:
+                              type: string
+                            description: >-
+                              Redis targets for redis_slowlog collectors, host:port strings. Fast Create
+                              cannot create this scenario; only Fast Update of existing items. Redis 慢日志目标，host:port。MCP
+                              不能新建该场景，只能改存量。
+                          redis_password:
+                            type: string
+                            description: >-
+                              Redis password. get_log_collector masks this as ******. Never send the masked
+                              value back. Redis 密码。详情接口会打码成 ******，回传会把密码写成该字面量。
+                          redis_password_file:
+                            type: string
+                            description: Path to a file that contains the Redis password. Redis 密码文件路径。
+                          extra_labels:
+                            type: array
+                            items:
+                              type: object
+                              additionalProperties: false
+                              required:
+                              - key
+                              - value
+                              properties:
+                                key:
+                                  type: string
+                                  description: Label key. 标签 key。
+                                operator:
+                                  type: string
+                                  description: Label operator. Default =. No enum constraint on this field.
+                                    标签连接符，默认 =，无枚举硬校验。
+                                value:
+                                  type: string
+                                  description: Label value. Required when key is set. 标签 value，填写了 key
+                                    时不能为空。
+                            description: >-
+                              Extra key/value labels attached to logs. Host UI: 设备元数据; container UI: 附加日志标签.
+                              operator defaults to = and has no ChoiceField. 额外标签。主机场景叫设备元数据，容器场景叫附加日志标签。
+                          extra_template_labels:
+                            type: array
+                            items:
+                              type: object
+                              additionalProperties: false
+                              required:
+                              - key
+                              - value
+                              properties:
+                                key:
+                                  type: string
+                                  description: Template-label key. 模板标签 key。
+                                value:
+                                  description: Template-label value (any JSON). 模板标签 value，可为任意 JSON。
+                            description: >-
+                              Template labels passed to the collector as a list of {key, value}. Not exposed
+                              in the web console. 额外模板标签，页面无对应入口。
+                          syslog_protocol:
+                            type: string
+                            enum: *id004
+                            description: >-
+                              Syslog listen protocol. tcp or udp. Fast Create cannot create syslog collectors.
+                              Syslog 监听协议，tcp 或 udp。MCP 不能新建该场景。
+                          syslog_port:
+                            type: integer
+                            description: Syslog listen port. Syslog 监听端口。
+                          syslog_monitor_host:
+                            type: string
+                            description: IP of the host that listens for syslog. Syslog 监听服务器 IP。
+                          syslog_conditions:
+                            type: array
+                            items:
+                              type: object
+                              additionalProperties: false
+                              properties:
+                                syslog_field:
+                                  type: string
+                                  enum: *id005
+                                  description: >-
+                                    Syslog field to match: address, port, priority, facility, facility_label,
+                                    severity, severity_label, program, pid. Syslog 匹配字段。
+                                syslog_content:
+                                  type: string
+                                  description: Value to match on syslog_field. Syslog 匹配内容。
+                                syslog_op:
+                                  type: string
+                                  enum: *id006
+                                  description: >-
+                                    Syslog match operator. ChoiceField: eq, neq, include (default), exclude,
+                                    regex, nregex. Syslog 操作符，默认 include。
+                                syslog_logic_op:
+                                  type: string
+                                  enum: *id007
+                                  description: 'Join with the next syslog rule: and (default) or or. 与下一条
+                                    Syslog 规则的连接，默认 and。'
+                            description: Syslog filter rules. Syslog 过滤条件。
+                          kafka_hosts:
+                            type: array
+                            items:
+                              type: string
+                            description: >-
+                              Kafka broker addresses for kafka collectors. Fast Create cannot create this
+                              scenario. Kafka 地址。MCP 不能新建该场景，只能改存量。
+                          kafka_username:
+                            type: string
+                            description: Kafka SASL username. Kafka 用户名。
+                          kafka_password:
+                            type: string
+                            description: >-
+                              Kafka SASL password. get_log_collector masks this as ******. Never send
+                              the masked value back. Kafka 密码。详情接口会打码成 ******，禁止原样回传。
+                          kafka_ssl_params:
+                            type: object
+                            description: Kafka SSL options object (ca, cert, key, etc.). Kafka SSL 配置对象。
+                          kafka_topics:
+                            type: array
+                            items:
+                              type: string
+                            description: Kafka topics to consume. Kafka topic 列表。
+                          kafka_group_id:
+                            type: string
+                            description: Kafka consumer group. Kafka 消费组。
+                          kafka_initial_offset:
+                            type: string
+                            enum: *id008
+                            description: >-
+                              Initial offset when a new consumer group is created. oldest = from the beginning,
+                              newest (default) = latest. 新消费组的初始偏移量。oldest 从最早，newest（默认）从最新。
+                        description: >-
+                          Plugin parameters of this container config. Same shape as host params (paths,
+                          conditions, multiline, ...). Full replacement of the object. 该条容器配置的插件参数，结构与主机
+                          params 相同，整体替换。
+                      collector_type:
+                        type: string
+                        description: >-
+                          Container log source. container_log_config reads files inside the container
+                          and needs params.paths; node_log_config reads files from the node host path;
+                          std_log_config collects container stdout and params.paths may be empty. 容器采集类型：按容器内文件采集
+                          / 按节点路径采集 / 采集容器标准输出。
+                add_pod_label:
+                  type: boolean
+                  description: >-
+                    When true, attach the Pod labels onto each collected log. Default false. UI: 自动添加
+                    Pod 中的 label. 是否自动把 Pod label 附到日志上，默认 false。
+                add_pod_annotation:
+                  type: boolean
+                  description: >-
+                    When true, attach the Pod annotations onto each collected log. Default false. UI:
+                    自动添加 Pod 中的 annotation. 是否自动把 Pod annotation 附到日志上，默认 false。
+                extra_labels:
+                  type: array
+                  description: >-
+                    Extra key/value labels attached to logs. Host UI: 设备元数据; container UI: 附加日志标签. operator
+                    defaults to = and has no ChoiceField. 额外标签。主机场景叫设备元数据，容器场景叫附加日志标签。
+                  items:
+                    type: object
+                    additionalProperties: false
+                    required:
+                    - key
+                    - value
+                    properties:
+                      key:
+                        type: string
+                        description: Label key. 标签 key。
+                      operator:
+                        type: string
+                        description: Label operator. Default =. No enum constraint on this field. 标签连接符，默认
+                          =，无枚举硬校验。
+                      value:
+                        type: string
+                        description: Label value. Required when key is set. 标签 value，填写了 key 时不能为空。
+                yaml_config_enabled:
+                  type: boolean
+                  description: >-
+                    Enable container YAML mode. When true, structured configs are ignored and yaml_config
+                    is parsed as BkLogConfig CR documents. 是否启用容器 YAML 模式。true 时忽略结构化 configs，改解析 yaml_config。
+                yaml_config:
+                  type: string
+                  description: >-
+                    Base64-encoded UTF-8 YAML of one or more BkLogConfig documents (logConfigType, path,
+                    namespaceSelector, labelSelector, ...). Base64 编码的 BkLogConfig YAML。
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        enableWebsocket: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/log_collection_update/fast_update/
+          matchSubpath: false
+          timeout: 30
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: false
+          resourcePermissionRequired: true

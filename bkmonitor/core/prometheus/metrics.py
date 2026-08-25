@@ -261,6 +261,34 @@ TRIGGER_PROCESS_PUSH_DATA_COUNT = Counter(
     labelnames=("strategy_id",),
 )
 
+# alarmd Detect→Trigger Shadow 自监控：旁路对旧链 fail-open，broker 拒绝只在指标和日志可见，
+# 因此发布结果、耗时和已确认条数本身就是能力闭环的一部分。
+# stage/status 都是有界枚举，禁止按 strategy_id、topic、partition 或错误文本展开。
+ALARMD_SHADOW_PUBLISH_COUNT = Counter(
+    name="bkmonitor_alarmd_shadow_publish_count",
+    documentation="alarmd Shadow 发布次数(stage: detect_input/reference; status: success/failed)",
+    labelnames=("stage", "status"),
+)
+
+ALARMD_SHADOW_PUBLISH_RECORD_COUNT = Counter(
+    name="bkmonitor_alarmd_shadow_publish_record_count",
+    documentation="alarmd Shadow 已获 broker 确认的记录条数(stage: detect_input/reference)",
+    labelnames=("stage",),
+)
+
+ALARMD_SHADOW_PUBLISH_TIME = Histogram(
+    name="bkmonitor_alarmd_shadow_publish_time",
+    documentation="alarmd Shadow 异步发布耗时，含等待 broker 确认",
+    labelnames=("stage", "status"),
+    buckets=(0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 30, 60, INF),
+)
+
+ALARMD_SHADOW_ASYNC_JOB_COUNT = Counter(
+    name="bkmonitor_alarmd_shadow_async_job_count",
+    documentation="alarmd Shadow 异步任务次数(status: enqueued/dropped/worker_failed/acked)",
+    labelnames=("stage", "status"),
+)
+
 STRATEGY_ROUTER_CACHE_REFRESH_FAIL = Counter(
     name="bkmonitor_strategy_router_cache_refresh_fail",
     documentation="告警后台 CacheRouter 进程路由缓存刷新失败次数（stale-while-error 保旧快照）",
@@ -824,6 +852,20 @@ CONFIG_MAXMEMORY = Gauge(
     labelnames=("node", "role", "host", "port", "cluster_name"),
 )
 
+# 聚合类型的紧凑编码阈值：成员数越过该阈值后 zset/hash 由 listpack 转为 skiplist/hashtable，
+# 单成员内存开销显著上升且转换不可逆。估算检测态内存成本时必须知道实际阈值，不能假定默认值。
+CONFIG_ZSET_MAX_LISTPACK_ENTRIES = Gauge(
+    name="redis_config_zset_max_listpack_entries",
+    documentation="The value of the zset-max-listpack-entries configuration directive (-1 if unavailable)",
+    labelnames=("node", "role", "host", "port", "cluster_name"),
+)
+
+CONFIG_HASH_MAX_LISTPACK_ENTRIES = Gauge(
+    name="redis_config_hash_max_listpack_entries",
+    documentation="The value of the hash-max-listpack-entries configuration directive (-1 if unavailable)",
+    labelnames=("node", "role", "host", "port", "cluster_name"),
+)
+
 CONNECTIONS_RECEIVED_TOTAL = Gauge(
     name="redis_connections_received_total",
     documentation="Total number of connections accepted by the server",
@@ -944,6 +986,19 @@ EXPORTER_SCRAPE_DURATION_SECONDS_COUNT = Gauge(
     name="redis_exporter_scrape_duration_seconds_count",
     documentation="Durations of scrapes by the exporter",
     labelnames=("node", "role", "host", "port", "cluster_name"),
+)
+
+REDIS_STRATEGY_COST_SNAPSHOT_EXECUTE_COUNT = Counter(
+    name="redis_strategy_cost_snapshot_execute_count",
+    documentation="Redis strategy cost snapshot execution count",
+    labelnames=("cluster_name", "node_id", "status"),
+)
+
+REDIS_STRATEGY_COST_SNAPSHOT_DURATION_SECONDS = Histogram(
+    name="redis_strategy_cost_snapshot_duration_seconds",
+    documentation="Redis strategy cost snapshot execution duration in seconds",
+    labelnames=("cluster_name", "node_id", "status"),
+    buckets=(0.1, 0.5, 1, 2, 5, 10, 15, 20, 30, 60, INF),
 )
 
 EXPORTER_SCRAPES_TOTAL = Gauge(
@@ -1394,6 +1449,12 @@ METADATA_DATA_LINK_ACCESS_TOTAL = Counter(
     name="bkmonitor_metadata_data_link_access_total",
     documentation="监控元数据数据链路接入统计",
     labelnames=("version", "biz_id", "strategy", "status"),
+)
+
+METADATA_DATA_LINK_REFRESH_TOTAL = Counter(
+    name="bkmonitor_metadata_data_link_refresh_total",
+    documentation="监控元数据数据链路组件刷新结果统计",
+    labelnames=("operation",),
 )
 
 API_REQUESTS_TOTAL = Counter(

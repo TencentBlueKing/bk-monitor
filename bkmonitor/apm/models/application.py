@@ -198,6 +198,7 @@ class ApmApplication(AbstractRecordModel):
                     bk_biz_id=self.bk_biz_id,
                     app_name=self.app_name,
                     option=options["is_enabled_log"],
+                    owners=options.get("owners"),
                     **log_storage_config,
                 )
         except Exception as e:  # noqa

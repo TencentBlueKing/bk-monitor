@@ -85,8 +85,22 @@
         }
       }
 
-      .search-input {
+      .search-toolbar {
+        display: flex;
+        align-items: center;
         margin-bottom: 12px;
+
+        .search-input {
+          width: 240px;
+          margin-bottom: 0;
+        }
+
+        .overwrite-checkbox {
+          margin-left: 16px;
+          font-size: 12px;
+          color: #4d4f56;
+          white-space: nowrap;
+        }
       }
 
       .table-relation-header {
@@ -94,6 +108,11 @@
         align-items: center;
         font-size: 12px;
         color: #313238;
+
+        .overwrite-tip {
+          display: inline-flex;
+          align-items: center;
+        }
 
         .icon-hint {
           margin-right: 4px;
@@ -135,31 +154,65 @@
         font-size: 12px;
 
         .no-data {
-          width: 65%;
-          max-width: 65%;
+          flex: 1;
+          min-width: 0;
           overflow: hidden;
           color: #c4c6cc;
         }
 
-        .strategy-name {
-          width: 65%;
-          max-width: 65%;
-          overflow: hidden;
-          text-overflow: ellipsis;
+        .relation-detail-btn {
+          display: inline-flex;
+          flex-shrink: 0;
+          align-items: center;
+          height: 22px;
+          padding: 0 6px;
+          margin-right: 8px;
+          font-size: 12px;
+          line-height: 20px;
           color: #3a84ff;
           white-space: nowrap;
+          cursor: pointer;
+          background: #f0f5ff;
+          border: 1px solid #3a84ff;
+          border-radius: 2px;
 
-          & > span {
-            cursor: pointer;
+          .icon-mc-goto {
+            margin-left: 2px;
+            font-size: 16px;
+          }
+        }
+
+        .relation-strategy-select {
+          display: flex;
+          flex: 1;
+          align-items: center;
+          min-width: 0;
+          max-width: 240px;
+
+          .bk-select {
+            flex: 1;
+            min-width: 0;
+          }
+
+          .relation-count {
+            flex-shrink: 0;
+            margin-left: 8px;
+            color: #979ba5;
           }
         }
 
         .strategy-link {
-          width: 15%;
-          max-width: 15%;
+          flex-shrink: 0;
+          margin-left: 12px;
           overflow: hidden;
           color: #3a84ff;
           cursor: pointer;
+        }
+
+        .diff-btn {
+          width: auto;
+          max-width: none;
+          margin-left: 12px;
         }
       }
       .bk-table-row {

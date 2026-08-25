@@ -95,6 +95,37 @@ test('host row key prefers bk_host_id and falls back to ip plus cloud id', () =>
   assert.equal(createHostListRow(fallbackHost).rowId, '10.0.0.1|3');
 });
 
+test('host row keeps failed process and alarm sections unknown while preserving successful empty results', () => {
+  const host = createHost({ bkCloudId: 0, bkHostId: 101, ip: '10.0.0.1' });
+  const failed = createHostListRow(host, { alarm_count: null, component: null });
+  const empty = createHostListRow(host, { alarm_count: [], component: [] });
+
+  assert.equal(failed.alarm_count, null);
+  assert.equal(failed.component, null);
+  assert.equal(failed.totalAlarmCount, null);
+  assert.deepEqual(empty.alarm_count, []);
+  assert.deepEqual(empty.component, []);
+  assert.equal(empty.totalAlarmCount, 0);
+});
+
+test('raw worker keeps failed process and alarm sections unknown', () => {
+  const worker = createWorkerHarness();
+  worker.send({
+    baseList: [createHost({ bkCloudId: 0, bkHostId: 101, ip: '10.0.0.1' })],
+    type: 'INIT_BASE',
+  });
+  worker.send({
+    metricListMap: { 101: { alarm_count: null, component: null } },
+    type: 'MERGE_METRICS',
+  });
+
+  const computed = worker.send({ params: defaultComputeParams, type: 'COMPUTE' });
+
+  assert.equal(computed.pagedRows[0].alarm_count, null);
+  assert.equal(computed.pagedRows[0].component, null);
+  assert.equal(computed.pagedRows[0].totalAlarmCount, null);
+});
+
 test('worker keeps same-ip hosts in different clouds independently selectable and copyable', () => {
   const worker = createWorkerHarness();
   worker.send({
@@ -118,7 +149,7 @@ test('worker keeps same-ip hosts in different clouds independently selectable an
   );
 });
 
-test('worker clears stale metrics when a later metric response is empty', () => {
+test('worker clears stale metrics and leaves absent sections unknown when a later response is empty', () => {
   const worker = createWorkerHarness();
   worker.send({
     baseList: [createHost({ bkCloudId: 0, bkHostId: 101, ip: '10.0.0.1' })],
@@ -137,7 +168,7 @@ test('worker clears stale metrics when a later metric response is empty', () => 
   worker.send({ metricListMap: {}, type: 'MERGE_METRICS' });
   const after = worker.send({ params: defaultComputeParams, type: 'COMPUTE' });
   assert.equal(after.pagedRows[0].cpu_usage, undefined);
-  assert.equal(after.pagedRows[0].totalAlarmCount, 0);
+  assert.equal(after.pagedRows[0].totalAlarmCount, null);
 });
 
 test('host row merges same-name process badges and preserves abnormal status for tooltip', () => {
@@ -507,6 +538,23 @@ test('a pending across-page selection cannot restore rows cleared by a data refr
   await selection;
 
   assert.deepEqual([...context.selectedRowKeys.value], []);
+  scope.stop();
+});
+
+test('full host list metric request omits bk_host_ids', async () => {
+  getHostInfo = async () => [createHost({ bkCloudId: 0, bkHostId: 101, ip: '10.0.0.1' })];
+  let metricParams;
+  getHostMetricInfo = async params => {
+    metricParams = params;
+    return {};
+  };
+  hostListWorker = createControllerWorker();
+  const { context, scope } = createHostListController();
+  await context.loadData();
+
+  assert.equal(metricParams.bk_host_ids, undefined);
+  assert.ok('start_time' in metricParams);
+  assert.ok('end_time' in metricParams);
   scope.stop();
 });
 

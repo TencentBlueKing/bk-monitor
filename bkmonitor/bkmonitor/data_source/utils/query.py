@@ -30,10 +30,14 @@ class BaseQuery:
     # 查询字段映射
     KEY_REPLACE_FIELDS: dict[str, str] = {}
 
-    # 字段别名映射
+    # 字段别名映射，[{field_name: alias}]
     FIELD_ALIAS_MAP_LIST: list[dict[str, str]] = []
-    # 字段操作符映射
+    # 字段操作符映射，{field_type: operations}
     FIELD_OPERATIONS: dict[str, list[dict[str, Any]]] = {}
+    # 字段单位映射，｛field_name: unit｝
+    FIELD_UNITS: dict[str, str] = {}
+    # 枚举字段选项值映射，{field_name: [{"value": "", "alias": ""}]}
+    ENUM_FIELD_OPTION_VALUES: dict[str, list[dict[str, Any]]] = {}
 
     def _get_q(self, time_field: str | None = None) -> QueryConfigBuilder:
         """构建基础查询配置，指定数据源类型和时间字段。
@@ -229,9 +233,16 @@ class BaseQuery:
             .instant()
             .limit(min(query_limit, self.QUERY_MAX_LIMIT))
         )
-        option_values: dict[str, list[str]] = {field: [] for field in fields}
+        option_values: dict[str, list[str]] = {
+            field: [d["value"] for d in self.ENUM_FIELD_OPTION_VALUES.get(field, [])] for field in fields
+        }
         ThreadPool().map_ignore_exception(
-            self._collect_option_values, [(queries, qs, field, option_values) for field in fields]
+            self._collect_option_values,
+            [
+                (queries, qs, field_name, option_values)
+                for field_name, value_list in option_values.items()
+                if not value_list
+            ],
         )
         return {field: values[:limit] for field, values in option_values.items()}
 
@@ -382,7 +393,22 @@ class BaseQuery:
         :param targets: 结果表 ID 与空间 UID 的元组列表
         :param start_time: 开始时间戳（秒级）
         :param end_time: 结束时间戳（秒级）
-        :return: 字段名到字段详情字典的映射
+        :return: field_name 到字段详情字典的映射，每项包含以下键：
+            - field_name: 实际字段名，用于查询、过滤、聚合
+            - field_alias: 字段别名，无别名时与 field_name 相同
+            - field_type: ES 字段类型，如 keyword、text、long 等；多表类型冲突时为 "conflict"
+            - field_unit: 字段单位（可选，仅在 FIELD_UNITS 中有配置时存在）
+            - origin_field: 原始顶层字段名，嵌套字段时为顶层字段（如 attributes.http.url 对应 attributes）
+            - is_searchable: 是否可搜索（object/nested 类型为 False）
+            - is_agg: 是否支持聚合、分组、排序
+            - is_list: 是否可展示在列表表头中（object/nested 类型为 False）
+            - is_analyzed: 是否经过文本分析器分词（查询层私有键，接口层应忽略）
+            - is_case_sensitive: 是否区分大小写（查询层私有键，接口层应忽略）
+            - wildcard_case_insensitive(bool): 通配符查询是否忽略大小写（查询层私有键，接口层应忽略）
+            - tokenize_on_chars (list): 自定义分词字符列表（查询层私有键，接口层应忽略）
+            - supported_operations: 该字段类型支持的操作符列表
+            - option_values: 字段可选值列表[{"value": "", "alias": ""}]（可选）
+
         """
         param_list: list[tuple[types.TableId, types.SpaceUid, int, int]] = [
             (table_id, space_uid, start_time, end_time) for table_id, space_uid in targets
@@ -391,6 +417,8 @@ class BaseQuery:
         for field_list in ThreadPool().map_ignore_exception(self._query_info_fields, param_list):
             for field_dict in field_list:
                 field_name = field_dict.get("field_name", "")
+                field_dict.pop("alias_name", None)
+                field_dict["field_alias"] = self._resolve_field_alias(field_name)
 
                 current = field_map.get(field_name)
                 if current is None:
@@ -404,13 +432,19 @@ class BaseQuery:
                     field_map[field_name] = self.merge_field_metadata(current, field_dict)
 
                 _field_dict = field_map[field_name]
-                _field_dict["alias_name"] = self._resolve_field_alias(field_name)
+
                 _field_dict["supported_operations"] = self.FIELD_OPERATIONS.get(
                     _field_dict["field_type"],
                     [],
                 )
-                _field_dict["is_searchable"] = _field_dict["field_type"] not in {"object", "nested"}
-
+                _field_dict["is_list"] = _field_dict["is_searchable"] = _field_dict["field_type"] not in {
+                    "object",
+                    "nested",
+                }
+                if field_name in self.FIELD_UNITS:
+                    _field_dict["field_unit"] = self.FIELD_UNITS[field_name]
+                if field_name in self.ENUM_FIELD_OPTION_VALUES:
+                    _field_dict["option_values"] = self.ENUM_FIELD_OPTION_VALUES[field_name]
         return field_map
 
     @classmethod
@@ -420,18 +454,19 @@ class BaseQuery:
         调用 unify_query.query_info_field_map 接口获取指定结果表在给定时间范围内的字段元数据。
 
         :param table_id: 结果表 ID
+        :param space_uid: 空间 UID
         :param start_time: 开始时间戳（秒级）
         :param end_time: 结束时间戳（秒级）
         :return: 字段信息列表，每项为包含以下键的字典：
-            - alias_name: 字段别名，为空表示未配置别名
-            - field_name: 实际字段名，用于查询、过滤、聚合
-            - field_type: ES 字段类型，如 keyword（不分词字符串）、text（分词字符串）等
-            - origin_field: 原始顶层字段名，主要用于嵌套字段（如 attributes.http.url 的原始字段为
-              attributes）；普通字段与 field_name 相同
-            - is_agg: 是否支持聚合、分组、排序
-            - is_analyzed: 是否经过文本分析器分词，keyword 通常为 False，text 通常为 True
-            - is_case_sensitive: 是否区分大小写，True 表示 AppA 与 appa 视为不同值
-            - tokenize_on_chars: 分词使用的分隔字符列表，主要对 text 类型生效，keyword 通常为空
+            - alias_name (str): 字段别名
+            - field_name (str): 字段名称
+            - field_type (str): 字段类型，如 keyword、integer、float 等
+            - origin_field (str): 原始字段名
+            - is_agg (bool): 是否支持聚合
+            - is_analyzed (bool): 是否已分词（全文检索）
+            - is_case_sensitive (bool): 是否大小写敏感
+            - wildcard_case_insensitive (bool): 通配符查询是否忽略大小写
+            - tokenize_on_chars (list): 自定义分词字符列表
         """
         return api.unify_query.query_info_field_map(
             {

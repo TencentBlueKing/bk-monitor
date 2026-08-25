@@ -1,0 +1,310 @@
+paths:
+  /mcp/update_log_collector_clean_config/:
+    post:
+      operationId: update_log_collector_clean_config
+      description: >-
+        Fully replace cleaning, fields, storage and index-set config of one collector. Requires confirm=true.
+        storage_cluster_id, retention, allocation_min_days, storage_replies and es_shards are all required
+        so defaults cannot silently overwrite storage. table_id must equal get_log_collector.index_set.table_id
+        and cannot be renamed. etl_params and fields are full replacements. Does not support clean templates,
+        alias_settings, view_roles, assessment or custom etl_config. 完整替换清洗、字段和存储。存储五参数必填。table_id 不能改名。不支持清洗模板。
+      tags:
+      - log_collection_mcp
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - bk_biz_id
+              - collector_config_id
+              - table_id
+              - etl_config
+              - etl_params
+              - fields
+              - storage_cluster_id
+              - retention
+              - allocation_min_days
+              - storage_replies
+              - es_shards
+              - confirm
+              properties:
+                bk_biz_id:
+                  type: integer
+                  description: Business ID in BlueKing Monitor. Identifies the business space. 业务ID，用于标识业务空间。
+                collector_config_id:
+                  type: integer
+                  minimum: 1
+                  description: >-
+                    Collector configuration ID. Obtain from list_log_collectors or a create/update response.
+                    采集项 ID，从 list_log_collectors 或创建/更新返回值获取。
+                table_id:
+                  type: string
+                  minLength: 1
+                  maxLength: 128
+                  description: >-
+                    Existing result-table English name from get_log_collector.index_set.table_id, without
+                    the business prefix. This tool cannot rename it; a mismatch is rejected. 来自 get_log_collector
+                    的现有结果表英文名，不含业务前缀，不能在此改名。
+                etl_config:
+                  type: string
+                  enum:
+                  - bk_log_text
+                  - bk_log_json
+                  - bk_log_delimiter
+                  - bk_log_regexp
+                  description: >-
+                    Cleaning type. bk_log_text = ingest as-is / 直接入库 (default on Fast Create); bk_log_json
+                    = JSON; bk_log_delimiter = delimiter; bk_log_regexp = regular expression. custom is
+                    not supported. 清洗类型。直接入库 / JSON / 分隔符 / 正则。不支持 custom。
+                etl_params:
+                  type: object
+                  additionalProperties: false
+                  description: >-
+                    Complete cleaning parameters (full replacement). Preview only accepts the extraction-related
+                    keys of the chosen etl_config; retain_original_text and similar persist-only keys
+                    cannot be previewed. 清洗参数，写入时整体替换。预览只接受影响字段提取的键。
+                  properties:
+                    separator_regexp:
+                      type: string
+                      nullable: true
+                      description: >-
+                        Golang regular expression that must match the whole log line. Named groups become
+                        fields. Required for bk_log_regexp. Max 4096 chars on preview. 正则表达式（golang 语法），需匹配日志全文，命名捕获组会成为字段。正则清洗必填。
+                    is_grok:
+                      type: boolean
+                      description: >-
+                        Whether separator_regexp is a Grok expression (%{PATTERN}). Only valid for bk_log_regexp.
+                        UI default true on the new clean page. 是否按 Grok 处理 separator_regexp，仅正则清洗可用。
+                    separator:
+                      type: string
+                      nullable: true
+                      description: >-
+                        Delimiter for bk_log_delimiter. Preset IDs: | , ` space ; \t. Required for delimiter
+                        cleaning. 分隔符，分隔符清洗必填。预置 | , ` 空格 ; 制表符。
+                    retain_original_text:
+                      type: boolean
+                      description: >-
+                        Keep the raw log in the log field (true, default) or discard it (false). UI: 原始日志
+                        保留/丢弃. 是否保留原文到 log 字段，默认 true。
+                    original_text_is_case_sensitive:
+                      type: boolean
+                      description: >-
+                        Case sensitivity of the retained raw text. Default false. Shown only when retain_original_text=true.
+                        原文是否大小写敏感，默认 false。
+                    original_text_tokenize_on_chars:
+                      type: string
+                      nullable: true
+                      description: >-
+                        Custom token characters for the raw text. Empty = natural-language tokenization.
+                        Shown when retain_original_text=true. 原文自定义分词符，空表示自然语言分词。
+                    retain_extra_json:
+                      type: boolean
+                      description: >-
+                        Keep undefined JSON keys under __ext_json. Only for bk_log_json. Default false.
+                        UI: JSON 字段动态新增. 是否把未定义的 JSON 字段收入 __ext_json，仅 JSON 清洗，默认 false。
+                    ext_json_config:
+                      type: object
+                      additionalProperties: false
+                      properties:
+                        expand_depth:
+                          type: integer
+                          nullable: true
+                          enum:
+                          - 1
+                          - 2
+                          - 3
+                          description: >-
+                            How many levels of __ext_json to expand: 1, 2 (default, recommended) or 3.
+                            Deeper = more searchable fields and higher ES field-count risk. 动态字段解析层级，1/2/3，默认
+                            2。
+                      description: >-
+                        How undefined JSON fields are expanded. Requires retain_extra_json=true and etl_config=bk_log_json.
+                        未定义 JSON 字段的展开配置，需先开启 retain_extra_json。
+                    enable_retain_content:
+                      type: boolean
+                      description: >-
+                        Keep logs that failed cleaning. Default true. UI: 失败日志 保留/丢弃. Failed lines can
+                        be filtered by parse-failure flags. 是否保留清洗失败的日志，默认 true。
+                    record_parse_failure:
+                      type: boolean
+                      description: >-
+                        Record a parse-failure flag on failed lines. No standalone UI; submitted equal
+                        to enable_retain_content. Default true. 是否记录清洗失败标记。页面无独立开关，提交时与 enable_retain_content
+                        同值。
+                    path_regexp:
+                      type: string
+                      nullable: true
+                      description: >-
+                        Regular expression that splits the collection path into metadata fields (named
+                        groups). Used with metadata_fields. 采集路径分割正则，命名分组会成为路径元数据字段。
+                    metadata_fields:
+                      type: array
+                      items:
+                        type: object
+                        additionalProperties: false
+                        required:
+                        - field_name
+                        - value
+                        - metadata_type
+                        properties:
+                          field_name:
+                            type: string
+                            description: Metadata field name, usually a named group from path_regexp.
+                              元数据字段名，一般为路径正则的命名分组。
+                          value:
+                            type: string
+                            nullable: true
+                            description: Sample value extracted from the debug path. 路径样例解析出的值。
+                          metadata_type:
+                            type: string
+                            enum:
+                            - path
+                            description: Metadata kind. Only path is supported. 元数据类型，仅支持 path。
+                      description: >-
+                        Path-metadata fields produced by debugging path_regexp against a sample path.
+                        metadata_type is always path. 路径元数据字段，由路径正则调试得到，metadata_type 固定为 path。
+                fields:
+                  type: array
+                  description: >-
+                    Complete cleaning field list (full replacement). Use [] for bk_log_text. Structured
+                    types require at least one non-deleted field and at most one is_time=true field. 清洗字段完整列表，整体替换。直接入库传空数组；结构化清洗至少要有一个有效字段，时间字段最多一个。
+                  items:
+                    type: object
+                    additionalProperties: false
+                    required:
+                    - is_delete
+                    properties:
+                      field_index:
+                        type: integer
+                        nullable: true
+                        description: Field order. Required for bk_log_delimiter (1-based column index).
+                          字段顺序。分隔符清洗必须指定，对应列序号。
+                      field_name:
+                        type: string
+                        nullable: true
+                        description: >-
+                          Field name. Letters, digits and underscore. Required unless is_delete=true.
+                          Must not collide with built-in names unless is_built_in. 字段名。非删除字段必填，且不能与内置字段冲突。
+                      alias_name:
+                        type: string
+                        nullable: true
+                        description: >-
+                          Rename / alias used when the original name conflicts with a built-in field.
+                          UI: 重命名. 字段别名，名称与内置字段冲突时使用。
+                      field_type:
+                        type: string
+                        nullable: true
+                        description: >-
+                          Field type. User-facing values: string (default), int, long, double, object,
+                          nested, flattened (动态对象字段). There is no text option; string + is_analyzed=true
+                          is mapped to ES text. object/nested depend on feature toggles. 字段类型。可选 string/int/long/double/object/nested/flattened。没有
+                          text 选项，分词 string 在 ES 层映射为 text。
+                      description:
+                        type: string
+                        nullable: true
+                        description: >-
+                          Optional field comment. Hidden in the current UI but still accepted by the API.
+                          字段说明，当前页面列已隐藏，接口仍接受。
+                      is_analyzed:
+                        type: boolean
+                        description: >-
+                          Tokenize this field for full-text search. Only string fields can be analyzed;
+                          analyzed fields are not dimensions. Default false. UI: 分词. 是否分词。仅 string 可分词，分词后不能作为维度，默认
+                          false。
+                      is_dimension:
+                        type: boolean
+                        description: >-
+                          Whether the field is a dimension / aggregation key. Frontend default false;
+                          backend serializer default true. Forced true for time fields; forced false when
+                          is_analyzed. 是否维度。时间字段强制 true，分词字段强制 false。
+                      is_time:
+                        type: boolean
+                        description: >-
+                          Mark this field as the log event time. At most one field. When true, option.time_zone
+                          and option.time_format are required. 是否指定为日志时间。最多一个；为 true 时必须在 option 里配时区和时间格式。
+                      is_delete:
+                        type: boolean
+                        description: 'Drop this field (true) or keep it (false). Required. UI: 隐藏/删除.
+                          是否删除该字段，必填。'
+                      is_built_in:
+                        type: boolean
+                        description: >-
+                          Whether this is a platform built-in field. Built-in names cannot be reused as
+                          alias_name / field_name of custom fields. 是否内置字段。
+                      option:
+                        type: object
+                        description: >-
+                          Field options. For is_time=true must contain time_zone (integer -12..12, default
+                          8 = UTC+8) and time_format (yyyy-MM-dd HH:mm:ss, ISO8601, epoch_millis, epoch_second,
+                          epoch_micros, ...). Integer/long time fields only accept epoch_* formats. 字段选项。时间字段必填
+                          time_zone（-12~12，默认 8）和 time_format。
+                      is_case_sensitive:
+                        type: boolean
+                        description: Case sensitivity when the field is analyzed. Default false. 分词时是否大小写敏感，默认
+                          false。
+                      tokenize_on_chars:
+                        type: string
+                        nullable: true
+                        description: >-
+                          Custom token characters for this field. Empty = natural-language tokenization.
+                          该字段的自定义分词符，空表示自然语言分词。
+                      value:
+                        description: >-
+                          Sample value from ETL preview / debug. Optional, not persisted as mapping. 字段样例值，来自清洗预览，不作为
+                          mapping 持久化。
+                storage_cluster_id:
+                  type: integer
+                  minimum: 1
+                  description: >-
+                    Storage cluster ID. Mandatory on the clean-config write so defaults cannot overwrite
+                    the current cluster. This MCP server has no cluster-list tool; copy the current value
+                    from get_log_collector.storage.cluster_id (note: get_log_collector currently omits
+                    allocation_min_days / storage_replies / es_shards). 存储集群 ID，清洗写接口必填。本 MCP 没有集群列表，请从
+                    get_log_collector 抄现值。
+                retention:
+                  type: integer
+                  minimum: 1
+                  description: >-
+                    Retention days (过期时间). Minimum 1. Console default 7. Cannot be smaller than allocation_min_days.
+                    保留天数，最小 1，页面默认 7，不能小于热数据天数。
+                allocation_min_days:
+                  type: integer
+                  minimum: 0
+                  description: >-
+                    Hot-data days before warm allocation. 0 disables hot-warm. Must be <= retention. Only
+                    meaningful on clusters with enable_hot_warm. 热数据天数 / 冷热数据生效天数。0 表示关闭。不能大于过期时间。
+                storage_replies:
+                  type: integer
+                  minimum: 0
+                  description: Elasticsearch replica count. 0 is allowed. Console default 1. ES 副本数，允许
+                    0，页面默认 1。
+                es_shards:
+                  type: integer
+                  minimum: 1
+                  description: Elasticsearch primary shard count. Minimum 1. Console default 3. ES 主分片数，最小
+                    1，页面默认 3。
+                confirm:
+                  type: boolean
+                  enum:
+                  - true
+                  description: Explicit user confirmation for this production write. Must be true. 生产写操作的用户显式确认，必须为
+                    true。
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        enableWebsocket: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/log_collection_clean_config/update_clean_config/
+          matchSubpath: false
+          timeout: 30
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: false
+          resourcePermissionRequired: true

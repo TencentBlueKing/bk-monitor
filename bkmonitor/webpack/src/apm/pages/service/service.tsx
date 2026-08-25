@@ -28,6 +28,7 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import { listApplicationInfo, simpleServiceList } from 'monitor-api/modules/apm_meta';
 import { globalUrlFeatureMap } from 'monitor-common/utils/global-feature-map';
+import { onExternalParams } from 'monitor-common/utils/iframe-bridge';
 import { random } from 'monitor-common/utils/utils';
 import { destroyTimezone } from 'monitor-pc/i18n/dayjs';
 import CommonPage, { type SceneType } from 'monitor-pc/pages/monitor-k8s/components/common-page-new';
@@ -80,6 +81,8 @@ export default class Service extends tsc<object> {
   subName = '';
   appList = [];
   serviceList = [];
+  /** 取消订阅父页面参数联动 */
+  unsubscribeExternalParams: () => void = null;
   // menu list
   menuList: IMenuItem[] = [
     {
@@ -170,12 +173,62 @@ export default class Service extends tsc<object> {
     next();
   }
 
+  mounted() {
+    this.unsubscribeExternalParams = onExternalParams(this.handleExternalParams);
+  }
+
+  beforeDestroy() {
+    this.unsubscribeExternalParams?.();
+  }
+
+  /** 父页面下发参数联动：应用/服务可独立变化，携带服务参数时切换当前服务，与当前一致则忽略 */
+  handleExternalParams(params: Record<string, string>) {
+    const appName = params['filter-app_name'];
+    const serviceName = params['filter-service_name'];
+    const appChanged = !!appName && appName !== this.appName;
+    if (serviceName) {
+      if (!appChanged && serviceName === this.serviceName) return;
+      this.handleNavSelect(
+        {
+          id: serviceName,
+          name: serviceName,
+          app_name: appName || this.appName,
+          service_name: serviceName,
+        },
+        'service'
+      );
+      return;
+    }
+    if (appChanged) {
+      this.applyAppName(appName);
+    }
+  }
+
+  /** 切换应用后当前服务在新应用下未必存在，统一跳回应用页，与导航栏选择行为保持一致 */
+  applyAppName(appName: string) {
+    const { to, from, dashboardId } = this.$route.query;
+    this.appName = appName;
+    const query = {
+      'filter-app_name': appName,
+      dashboardId: dashboardId || this.dashboardId,
+      to,
+      from,
+    };
+    const targetRoute = this.$router.resolve({ name: 'application', query });
+    /** 防止父页面重复下发相同参数导致重复跳转报错 */
+    if (targetRoute.resolved.fullPath !== this.$route.fullPath) {
+      this.$router.push({ name: 'application', query });
+    }
+  }
+
   /** 更新当前路由的信息 */
   async handleUpdateAppName(id, name = '') {
     await this.$nextTick();
     const { query } = this.$route;
     this.appName = (query['filter-app_name'] as string) || '';
+    this.routeList[0].query = { app_name: this.appName };
     this.routeList[1].name = `${this.$tc('应用')}：${this.appName}`;
+    this.routeList[1].query = { 'filter-app_name': this.appName };
     this.routeList[1].selectOption.value = this.appName;
     this.serviceName = (query['filter-service_name'] as string) || '';
     this.routeList[2].name = `${this.$tc('服务')}：${this.serviceName}`;
@@ -217,38 +270,32 @@ export default class Service extends tsc<object> {
     const { to, from, interval, timezone, refreshInterval, dashboardId } = this.$route.query;
     // 选择应用
     if (navId === 'application') {
-      const { id } = this.routeList[1];
-      this.appName = item.id;
-      const targetRoute = this.$router.resolve({
-        name: id,
-        query: { 'filter-app_name': this.appName, dashboardId: dashboardId || this.dashboardId, to, from },
-      });
-      /** 防止出现跳转当前地址导致报错 */
-      if (targetRoute.resolved.fullPath !== this.$route.fullPath) {
-        this.$router.push({
-          name: id,
-          query: { 'filter-app_name': this.appName, dashboardId: dashboardId || this.dashboardId, to, from },
-        });
-      }
+      this.applyAppName(item.id);
     } else {
       this.serviceName = item.id;
-      // const { to, from, interval, timezone, refreshInterval, dashboardId } = this.$route.query;
-      this.$router.replace({
-        name: this.$route.name,
-        query: {
-          to,
-          from,
-          interval,
-          timezone,
-          refreshInterval,
-          dashboardId,
-          'filter-app_name': item.app_name,
-          'filter-service_name': item.service_name,
-          'filter-category': item.category,
-          'filter-kind': item.kind,
-          'filter-predicate_value': item.predicate_value,
-        },
-      });
+      // 父页面参数联动时应用可能一并变化，需刷新服务列表
+      if (item.app_name !== this.appName) {
+        this.appName = item.app_name;
+        this.getServiceList();
+      }
+      const targetQuery = {
+        to,
+        from,
+        interval,
+        timezone,
+        refreshInterval,
+        dashboardId,
+        'filter-app_name': item.app_name,
+        'filter-service_name': item.service_name,
+        'filter-category': item.category,
+        'filter-kind': item.kind,
+        'filter-predicate_value': item.predicate_value,
+      };
+      const targetRoute = this.$router.resolve({ name: this.$route.name, query: targetQuery });
+      /** 防止父页面重复下发相同参数导致重复跳转报错 */
+      if (targetRoute.resolved.fullPath !== this.$route.fullPath) {
+        this.$router.replace({ name: this.$route.name, query: targetQuery });
+      }
       this.viewOptions = {
         filters: {
           app_name: item.app_name,
@@ -322,6 +369,7 @@ export default class Service extends tsc<object> {
               <ApmCommonNavBar
                 slot='nav'
                 needBack={false}
+                needNavList={globalUrlFeatureMap.APM_NAV_LIST}
                 needShadow={true}
                 positionText={this.positionText}
                 routeList={this.routeList}

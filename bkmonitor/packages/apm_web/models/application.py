@@ -481,6 +481,7 @@ class Application(AbstractRecordModel):
             "enabled_metric": enabled_metric,
             "enabled_log": enabled_log,
             "es_storage_config": storage_options,
+            "owners": cls._normalize_owners(owners),
         }
 
         application_info = api.apm_api.create_application(create_params)
@@ -699,8 +700,9 @@ class Application(AbstractRecordModel):
             logger.warning(f"application->({self.application_id}) grant creator action failed, reason: {e}")
 
         # 给应用负责人授权（创建阶段的 owners 就是全量新增，等价于 grant_owners）
+        # 日志采集授权已在创建数据源时通过 create_custom_report(owners) 完成，这里不再重复
         if self.owners:
-            self.grant_owners(self.owners, previous_owners=[])
+            self.grant_owners(self.owners, previous_owners=[], grant_log=False)
 
     @staticmethod
     def _normalize_owners(owners):
@@ -719,7 +721,7 @@ class Application(AbstractRecordModel):
             result.append(user)
         return result
 
-    def grant_owners(self, new_owners, previous_owners=None):
+    def grant_owners(self, new_owners, previous_owners=None, grant_log=True):
         """
         给新增的负责人授权 APM_APPLICATION 权限，并同步授权所属业务查看权限。
 
@@ -727,9 +729,11 @@ class Application(AbstractRecordModel):
         - 仅对 new_owners 相对于 previous_owners 新增的用户调用 IAM `grant_creator_action`；
         - 先授 APM 应用实例权限，再授所属业务（space）创建者权限，保证负责人能进入业务页面；
         - 被移除的用户不做 IAM 权限回收（bk-monitor 侧无回收能力，IAM 侧默认 6 个月有效期到期后自然失效）。
+        - 更新应用且已开启日志时，再给新增负责人授日志采集项/索引集权限；创建场景由 create_custom_report 负责，不再走这里。
 
         :param new_owners: 目标负责人列表（数据库将被更新为该列表）
         :param previous_owners: 更新前的负责人列表；不传则默认取 self.owners
+        :param grant_log: 是否同步给日志采集授权；创建应用传 False，避免与创建数据源重复授权
         """
         normalized_new = self._normalize_owners(new_owners)
         if previous_owners is None:
@@ -740,11 +744,18 @@ class Application(AbstractRecordModel):
         if not to_grant:
             return normalized_new
 
-        permission = Permission()
         app_resource = ResourceEnum.APM_APPLICATION.create_simple_instance(
             self.application_id, {"bk_biz_id": self.bk_biz_id}
         )
         biz_resource = ResourceEnum.BUSINESS.create_simple_instance(self.bk_biz_id)
+        try:
+            # API/后台无 request 时 Permission() 会因缺少 username 直接失败；
+            # 授权对象是 creator，这里用应用创建者初始化即可。
+            permission = Permission(username=self.create_user, bk_tenant_id=self.bk_tenant_id)
+        except Exception as e:  # pylint: disable=broad-except
+            logger.warning(f"application->({self.application_id}) init permission failed, reason: {e}")
+            return normalized_new
+
         for user in to_grant:
             try:
                 permission.grant_creator_action(app_resource, creator=user)
@@ -758,7 +769,30 @@ class Application(AbstractRecordModel):
                     f"application->({self.application_id}) grant owner({user}) "
                     f"view_business(bk_biz_id={self.bk_biz_id}) failed, reason: {e}"
                 )
+
+        if grant_log and self.is_enabled_log:
+            self._grant_log_owners(to_grant)
         return normalized_new
+
+    def _grant_log_owners(self, owners):
+        """应用已有日志数据源时，把新增负责人传给日志平台做采集项/索引集授权。"""
+        if not owners:
+            return
+        try:
+            detail = api.apm_api.detail_application(bk_biz_id=self.bk_biz_id, app_name=self.app_name)
+            collector_config_id = (detail.get("log_config") or {}).get("collector_config_id")
+            if not collector_config_id:
+                return
+            api.log_search.update_custom_report(
+                bk_tenant_id=self.bk_tenant_id,
+                collector_config_id=collector_config_id,
+                collector_config_name=self.app_name,
+                owners=owners,
+            )
+        except Exception as e:  # pylint: disable=broad-except
+            logger.warning(
+                f"application->({self.application_id}) grant log owners({owners}) failed, reason: {e}"
+            )
 
     @property
     def is_create_finished(self):

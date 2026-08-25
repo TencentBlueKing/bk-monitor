@@ -45,11 +45,11 @@
  */
 import { defineComponent, inject, provide, watch } from 'vue';
 
-import type { IWhereItem, EMode } from '../../components/retrieval-filter/typing';
-import type { TimeRangeType } from '../../components/time-range/utils';
+import TraceExplore from './trace-explore';
 import { useTraceExploreStore } from '@/store/modules/explore';
 
-import TraceExplore from './trace-explore';
+import type { EMode, IWhereItem } from '../../components/retrieval-filter/typing';
+import type { TimeRangeType } from '../../components/time-range/utils';
 
 /**
  * TraceExplore 消费的 APM 专属回调接口。
@@ -61,10 +61,10 @@ import TraceExplore from './trace-explore';
 export interface TraceExploreApmHooks {
   /** UI 检索条件（where）变更时回调，将新的条件列表通知宿主 */
   onConditionChange?: (condition: IWhereItem[]) => void;
-  /** 查询语句变更时回调，将新的查询字符串通知宿主 */
-  onQueryStringChange?: (queryString: string) => void;
   /** 筛选模式（UI / 语句）变更时回调，将新的模式通知宿主 */
   onFilterModeChange?: (mode: EMode) => void;
+  /** 查询语句变更时回调，将新的查询字符串通知宿主 */
+  onQueryStringChange?: (queryString: string) => void;
   /** Trace / Span 详情侧边窗关闭时回调，通知宿主清空 slideDetail */
   onSliderClose?: () => void;
 }
@@ -98,6 +98,9 @@ export default defineComponent({
         exploreStore.updateRefreshImmediate(bridgeProps.refreshImmediate as string);
         exploreStore.updateRefreshInterval(Number(bridgeProps.refreshInterval));
         exploreStore.updateTimeRange(bridgeProps.timeRange as TimeRangeType);
+        if (bridgeProps.timezone) {
+          exploreStore.updateTimezone(bridgeProps.timezone as string);
+        }
       },
       {
         immediate: true,

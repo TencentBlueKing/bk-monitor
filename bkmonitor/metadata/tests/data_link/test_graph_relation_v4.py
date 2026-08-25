@@ -6,7 +6,7 @@ import pytest
 from metadata import models
 from metadata.models.constants import DataIdCreatedFromSystem
 from metadata.models.data_link.component_reuse import ExistingComponentContext
-from metadata.models.data_link.constants import DataLinkResourceStatus
+from metadata.models.data_link.constants import DataLinkKind, DataLinkResourceStatus
 from metadata.models.data_link.data_link import DataLink
 from metadata.models.data_link.data_link_configs import (
     DataBusConfig,
@@ -209,6 +209,44 @@ def test_compose_graph_relation_v4_uses_ordinary_components(
         )
         assert graph_databus["spec"]["transforms"] == []
         assert "autoOffsetReset" not in graph_databus["spec"]
+
+
+def test_apply_graph_relation_v4_injects_labels_into_each_databus(mocker, graph_relation_v4_records):
+    ctx = graph_relation_v4_records
+    models.ResultTableOption.objects.create(
+        bk_tenant_id="system",
+        table_id=ctx["table_id"],
+        name=models.ResultTableOption.OPTION_GRAPH_RELATION_V4_DATA_LINK,
+        value=json.dumps({"write_targets": ["vm", "surrealdb"]}),
+        value_type=models.ResultTableOption.TYPE_STRING,
+        creator="system",
+    )
+    mocker.patch.object(DataLink, "merge_existing_component_configs", side_effect=lambda configs: configs)
+    mock_apply = mocker.patch.object(DataLink, "apply_data_link_with_retry", return_value={})
+    mocker.patch("bkmonitor.utils.tenant.get_tenant_default_biz_id", return_value=2)
+
+    ctx["data_link"].apply_data_link(
+        2,
+        ctx["data_source"],
+        ctx["table_id"],
+        ctx["vm_cluster"].cluster_name,
+    )
+
+    configs = mock_apply.call_args.args[0]
+    databuses = [config for config in configs if config["kind"] == DataLinkKind.DATABUS.value]
+    assert len(databuses) == 2
+    expected_labels = {
+        "bk_biz_id": "2",
+        "bk-monitor/space-type": "bkcc",
+        "bk-monitor/data-scene": "relation",
+        "bk-monitor/data-type": "graph",
+    }
+    assert all(databus["metadata"]["labels"] == expected_labels for databus in databuses)
+    assert all(
+        not any(key.startswith("bk-monitor/") for key in config["metadata"]["labels"])
+        for config in configs
+        if config["kind"] != DataLinkKind.DATABUS.value
+    )
 
 
 def test_graph_relation_v4_transfer_consumer_group_only_applies_to_vm(graph_relation_v4_records):

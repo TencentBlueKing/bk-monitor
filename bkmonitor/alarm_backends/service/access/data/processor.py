@@ -35,6 +35,7 @@ from alarm_backends.core.cluster import get_cluster
 from alarm_backends.core.control.checkpoint import Checkpoint
 from alarm_backends.core.control.item import Item
 from alarm_backends.core.control.strategy import Strategy
+from alarm_backends.core.detect_result.trim import check_result_producer
 from alarm_backends.core.storage.redis import Cache
 from alarm_backends.core.storage.redis_cluster import get_node_by_strategy_id
 from alarm_backends.management.hashring import HashRing
@@ -306,6 +307,7 @@ class AccessDataProcess(BaseAccessDataProcess):
         self.strategy_group_key = strategy_group_key
         self.from_timestamp = None
         self.until_timestamp = None
+        self.inline_trigger_items = []
 
         if sub_task_id:
             self.batch_timestamp = int(sub_task_id.split(".")[0])
@@ -314,6 +316,21 @@ class AccessDataProcess(BaseAccessDataProcess):
 
     def __str__(self):
         return f"{self.__class__.__name__}:strategy_group_key({self.strategy_group_key})"
+
+    def run_inline_trigger(self):
+        from alarm_backends.service.trigger.runner import run_trigger_item
+        from core.errors.alarm_backends import LockError
+
+        for strategy_id, item_id in self.inline_trigger_items:
+            try:
+                run_trigger_item(strategy_id, item_id, executor="detect_inline")
+            except LockError:
+                self.publish_anomaly_signals([f"{strategy_id}.{item_id}"])
+                logger.info(
+                    "[access inline trigger] strategy(%s), item(%s) is locked; signal published for trigger worker",
+                    strategy_id,
+                    item_id,
+                )
 
     def _load_items(self) -> list[Item]:
         """加载策略项列表"""
@@ -933,28 +950,35 @@ class AccessDataProcess(BaseAccessDataProcess):
             # 使用 DetectProcess 复用检测逻辑
             # pull_data 支持直接传入数据，不需要从 Redis 拉取
             detect_process.pull_data(item, inputs=data_points)
-            detect_process.handle_data(item)
+            # Access 合并不执行热裁剪，但必须参加 producer 门禁，阻断并发标准 Detect 的热裁剪。
+            with check_result_producer(strategy_id):
+                detect_process.handle_data(item)
 
-            # 二次确认（自动获得）
-            try:
-                detect_process.double_check(item)
-            except Exception:
-                logger.exception("[access-detect-merge] strategy(%s) 二次确认时发生异常，不影响告警主流程", strategy_id)
-
-            # 推送无数据检测数据（如果启用）
-            # 无数据检测需要知道有哪些维度有数据上报，用于判断哪些维度无数据
-            if item.no_data_config.get("is_enabled"):
-                self._push(item, records, output_client, key.NO_DATA_LIST_KEY)
-
-            # 推送降噪数据
-            if valid_records:
+                # 二次确认（自动获得）
                 try:
-                    self._push_noise_data(item, valid_records)
-                except Exception as e:
-                    logger.exception(f"[access-detect-merge] push noise data of strategy({strategy_id}) error: {e}")
+                    detect_process.double_check(item)
+                except Exception:
+                    logger.exception(
+                        "[access-detect-merge] strategy(%s) 二次确认时发生异常，不影响告警主流程", strategy_id
+                    )
 
-            # 推送异常数据（自动获得所有监控指标：延迟统计、大延迟告警、PROCESS_OVER_FLOW 等）
-            detect_process.push_data()
+                # 推送无数据检测数据（如果启用）
+                # 无数据检测需要知道有哪些维度有数据上报，用于判断哪些维度无数据
+                if item.no_data_config.get("is_enabled"):
+                    self._push(item, records, output_client, key.NO_DATA_LIST_KEY)
+
+                # 推送降噪数据
+                if valid_records:
+                    try:
+                        self._push_noise_data(item, valid_records)
+                    except Exception as e:
+                        logger.exception(f"[access-detect-merge] push noise data of strategy({strategy_id}) error: {e}")
+
+                # 推送异常数据（自动获得所有监控指标：延迟统计、大延迟告警、PROCESS_OVER_FLOW 等）
+                detect_process.push_data()
+            self.inline_trigger_items.extend(
+                (strategy_id, inline_item_id) for inline_item_id in detect_process.inline_trigger_items
+            )
             # 上报 detect 模块指标，保持监控连续性
             # 即使合并处理跳过了 detect 异步任务，也需要上报这些指标
             detect_end_time = time.time()
@@ -1126,6 +1150,7 @@ class AccessDataProcess(BaseAccessDataProcess):
                 "result": not exc,
                 "error": str(exc),
                 "process_counts": self.process_counts,
+                "inline_trigger_items": self.inline_trigger_items,
             }
         ]
         wait_start_time = time.time()
@@ -1145,6 +1170,25 @@ class AccessDataProcess(BaseAccessDataProcess):
                     batch_results=[result["sub_task_id"] for result in batch_results],
                 )
             )
+            fallback_signals = [f"{item.strategy.id}.{item.id}" for item in self.items]
+            self.publish_anomaly_signals(fallback_signals)
+            logger.warning(
+                "[access inline trigger] strategy_group_key(%s) batch result timeout; "
+                "published %s fallback signals for trigger worker",
+                self.strategy_group_key,
+                len(fallback_signals),
+            )
+
+        inline_trigger_items = []
+        seen_inline_trigger_items = set()
+        for result in batch_results:
+            for strategy_id, item_id in result.get("inline_trigger_items", []):
+                item = (strategy_id, item_id)
+                if item in seen_inline_trigger_items:
+                    continue
+                seen_inline_trigger_items.add(item)
+                inline_trigger_items.append(item)
+        self.inline_trigger_items = inline_trigger_items
 
         # 记录日志
         self.batch_log(batch_results)
@@ -1336,6 +1380,7 @@ class AccessBatchDataProcess(AccessDataProcess):
                     "result": not exc,  # True 表示成功，False 表示失败
                     "error": str(exc) if exc else "",
                     "process_counts": self.process_counts,  # 处理统计信息
+                    "inline_trigger_items": self.inline_trigger_items,
                 }
             ),
         )

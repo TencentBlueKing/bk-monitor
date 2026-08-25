@@ -125,6 +125,13 @@ class K8sCollectorHandler(CollectorHandler):
         "yaml_config_enabled",
         "yaml_config",
     ]
+    RELEASE_UPDATE_FIELDS = {
+        "collector_scenario_id",
+        "add_pod_label",
+        "add_pod_annotation",
+        "extra_labels",
+        "yaml_config_enabled",
+    }
 
     def _pre_start(self):
         # 如果是容器环境 则创建容器采集配置
@@ -157,7 +164,7 @@ class K8sCollectorHandler(CollectorHandler):
             self.create_container_release(container_config)
         return [config.id for config in container_configs]
 
-    def get_task_status(self, id_list):
+    def get_task_status(self, id_list, read_only=False):
         """
         查询容器采集任务状态
         """
@@ -185,7 +192,7 @@ class K8sCollectorHandler(CollectorHandler):
             ]
         }
 
-    def get_subscription_status(self):
+    def get_subscription_status(self, include_plugin_status=True):
         """
         查看订阅的插件运行状态
         :return:
@@ -297,7 +304,8 @@ class K8sCollectorHandler(CollectorHandler):
         try:
             self.data.save()
         except IntegrityError:
-            logger.warning(f"collector config name duplicate => [{data['collector_config_name']}]")
+            collector_config_name = data.get("collector_config_name", self.data.collector_config_name)
+            logger.warning(f"collector config name duplicate => [{collector_config_name}]")
             raise CollectorConfigNameDuplicateException()
 
         # 更新归属索引集
@@ -332,6 +340,12 @@ class K8sCollectorHandler(CollectorHandler):
 
         if "configs" in data:
             self.compare_config(data_configs=data["configs"], collector_config_id=self.data.collector_config_id)
+        elif self.data.is_active and self.RELEASE_UPDATE_FIELDS.intersection(data):
+            container_configs = ContainerCollectorConfig.objects.filter(
+                collector_config_id=self.data.collector_config_id
+            )
+            for container_config in container_configs:
+                self.create_container_release(container_config)
 
         self.data.task_id_list = list(
             ContainerCollectorConfig.objects.filter(collector_config_id=self.collector_config_id).values_list(
@@ -460,7 +474,7 @@ class K8sCollectorHandler(CollectorHandler):
             container_raw_config = cls.container_config_to_raw_config(ContainerCollectorConfig(**container_config))
             container_raw_config.update(
                 {
-                    "extMeta": {label["key"]: label["value"] for label in extra_labels if label},
+                    "extMeta": {label["key"]: label["value"] for label in (extra_labels or []) if label},
                     "addPodLabel": add_pod_label,
                     "addPodAnnotation": add_pod_annotation,
                 }
@@ -472,13 +486,27 @@ class K8sCollectorHandler(CollectorHandler):
     def fast_update(self, params: dict) -> dict:
         if self.data and not self.data.is_active:
             raise CollectorActiveException()
-        # 补充缺少的清洗配置参数
-        params.setdefault("fields", [])
+        update_clean_config = params.pop("update_clean_config", True)
+        yaml_release_requested = "yaml_config" in params and params.get(
+            "yaml_config_enabled", self.data.yaml_config_enabled
+        )
+        if update_clean_config:
+            # 兼容旧调用方：缺省仍补全清洗字段并同步清洗、存储配置。
+            params.setdefault("fields", [])
         # 更新采集项
         self.update_container_config(params)
-        params["table_id"] = self.data.collector_config_name_en
-        self.create_or_update_clean_config(True, params)
-        return {"collector_config_id": self.data.collector_config_id}
+        if update_clean_config:
+            params["table_id"] = self.data.collector_config_name_en
+            self.create_or_update_clean_config(True, params)
+        return {
+            "collector_config_id": self.data.collector_config_id,
+            "subscription_id": self.data.subscription_id,
+            "task_id_list": (
+                self.data.task_id_list
+                if yaml_release_requested or ({"configs"} | self.RELEASE_UPDATE_FIELDS).intersection(params)
+                else []
+            ),
+        }
 
     def create_container_config(self, data):
         # 使用采集插件补全参数
@@ -1674,7 +1702,14 @@ class K8sCollectorHandler(CollectorHandler):
         if self.data.yaml_config_enabled and container_config.raw_config:
             # 如果开启了yaml模式且有原始配置，则优先使用
             request_params = copy.deepcopy(container_config.raw_config)
-            request_params["dataId"] = self.data.bk_data_id
+            request_params.update(
+                {
+                    "dataId": self.data.bk_data_id,
+                    "extMeta": {label["key"]: label["value"] for label in (self.data.extra_labels or []) if label},
+                    "addPodLabel": self.data.add_pod_label,
+                    "addPodAnnotation": self.data.add_pod_annotation,
+                }
+            )
         else:
             deal_collector_scenario_param(container_config.params)
             request_params = self.collector_container_config_to_raw_config(self.data, container_config)
@@ -1715,7 +1750,8 @@ class K8sCollectorHandler(CollectorHandler):
 
         name = self._generate_bklog_config_name(container_config.id)
         container_config.status = ContainerCollectStatus.PENDING.value
-        container_config.save()
+        container_config.status_detail = _("等待配置删除")
+        container_config.save(update_fields=["status", "status_detail"])
 
         delete_container_release.delay(
             bcs_cluster_id=self.data.bcs_cluster_id,
@@ -1928,7 +1964,7 @@ class K8sCollectorHandler(CollectorHandler):
         raw_config.update(
             {
                 "dataId": collector_config.bk_data_id,
-                "extMeta": {label["key"]: label["value"] for label in collector_config.extra_labels},
+                "extMeta": {label["key"]: label["value"] for label in (collector_config.extra_labels or []) if label},
                 "addPodLabel": collector_config.add_pod_label,
                 "addPodAnnotation": collector_config.add_pod_annotation,
             }

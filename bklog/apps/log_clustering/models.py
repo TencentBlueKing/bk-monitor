@@ -19,8 +19,10 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 
+import copy
 import hashlib
 import json
+from typing import NamedTuple
 
 import arrow
 from django.db import models
@@ -77,6 +79,14 @@ class AiopsSignatureAndPattern(SoftDeleteModel):
         index_together = ["model_id", "signature"]
 
 
+class InheritedRemarkContent(NamedTuple):
+    """当前分组组合解析出的备注来源，无精确记录时备注与负责人可能来自不同祖先。"""
+
+    exact: object = None
+    remark_source: object = None
+    owner_source: object = None
+
+
 class ClusteringRemark(SoftDeleteModel):
     bk_biz_id = models.IntegerField(_("业务id"))
     signature = models.CharField(_("数据指纹"), max_length=256)
@@ -102,6 +112,201 @@ class ClusteringRemark(SoftDeleteModel):
         """
         sorted_groups = sorted(groups.items(), key=lambda x: x[0])
         return hashlib.md5(json.dumps(sorted_groups).encode("utf-8")).hexdigest()
+
+    @staticmethod
+    def _read_candidate_field(candidate, field):
+        """候选备注在展示侧是 values() 出来的字典，在写入侧是模型实例。"""
+        if isinstance(candidate, dict):
+            return candidate.get(field)
+        return getattr(candidate, field, None)
+
+    @classmethod
+    def is_groups_inheritable(cls, remark_groups: dict, group_dict: dict) -> bool:
+        """
+        备注分组键集合是当前分组组合的子集，且公共字段取值一致时，可被当前分组组合继承。
+
+        取值按原值严格比较：键集合等长时该判定与 group_hash 相等完全等价，展示端与写入端定位到的记录才不会分裂。
+        """
+        if not isinstance(remark_groups, dict):
+            return False
+        return all(field in group_dict and value == group_dict[field] for field, value in remark_groups.items())
+
+    @classmethod
+    def is_groups_exact(cls, remark_groups: dict, group_dict: dict) -> bool:
+        """备注分组与当前分组组合完全一致，等价于 group_hash 相等。"""
+        return len(remark_groups or {}) == len(group_dict) and cls.is_groups_inheritable(remark_groups, group_dict)
+
+    @classmethod
+    def _inherit_rank(cls, candidate, remark_groups: dict, group_fields: list, matched_by_signature: bool) -> tuple:
+        """继承候选排序键，越小越优先：命中维度多者优先，其次 signature 命中，同长度再按 group_fields 顺序。"""
+        group_fields = group_fields or []
+        matched_field_orders = sorted(
+            group_fields.index(field) if field in group_fields else len(group_fields) for field in remark_groups
+        )
+        return (
+            -len(remark_groups),
+            0 if matched_by_signature else 1,
+            matched_field_orders,
+            cls._read_candidate_field(candidate, "id") or 0,
+        )
+
+    @classmethod
+    def _matches_signature_or_pattern(cls, candidate, signature: str, origin_pattern: str) -> tuple:
+        """返回候选是否归属当前 Pattern，以及是否由 signature 命中（用于继承排序）。"""
+        matched_by_signature = cls._read_candidate_field(candidate, "signature") == signature
+        matched_by_origin_pattern = bool(origin_pattern) and (
+            cls._read_candidate_field(candidate, "origin_pattern") == origin_pattern
+        )
+        return matched_by_signature or matched_by_origin_pattern, matched_by_signature
+
+    @classmethod
+    def select_exact_remark(cls, candidates, signature: str, origin_pattern: str, group_dict: dict):
+        """
+        定位当前分组组合的精确候选，不要求其有内容。
+
+        用户删光备注后精确记录会变成空记录，此时若不认它，展示端会重新继承祖先内容，删除等于白删。
+        """
+        selected = None
+        for candidate in candidates:
+            matched, __ = cls._matches_signature_or_pattern(candidate, signature, origin_pattern)
+            if not matched:
+                continue
+            if not cls.is_groups_exact(cls._read_candidate_field(candidate, "groups") or {}, group_dict):
+                continue
+            # 并发下可能物化出重复记录，按 id 定序保证展示与写入落到同一条
+            if selected is None or (cls._read_candidate_field(candidate, "id") or 0) < (
+                cls._read_candidate_field(selected, "id") or 0
+            ):
+                selected = candidate
+        return selected
+
+    @classmethod
+    def select_inherited_remark(
+        cls,
+        candidates,
+        signature: str,
+        origin_pattern: str,
+        group_dict: dict,
+        group_fields: list,
+        required_field: str,
+    ):
+        """按子集维度继承规则，挑出 required_field 上有内容的最优祖先候选。"""
+        selected = None
+        selected_rank = None
+        for candidate in candidates:
+            if not cls._read_candidate_field(candidate, required_field):
+                continue
+            matched, matched_by_signature = cls._matches_signature_or_pattern(candidate, signature, origin_pattern)
+            if not matched:
+                continue
+            remark_groups = cls._read_candidate_field(candidate, "groups") or {}
+            if not cls.is_groups_inheritable(remark_groups, group_dict):
+                continue
+            rank = cls._inherit_rank(candidate, remark_groups, group_fields, matched_by_signature)
+            if selected_rank is None or rank < selected_rank:
+                selected, selected_rank = candidate, rank
+        return selected
+
+    @classmethod
+    def resolve_inherited_content(
+        cls,
+        candidates,
+        signature: str,
+        origin_pattern: str,
+        group_dict: dict,
+        group_fields: list,
+        allow_inherit: bool = True,
+    ) -> "InheritedRemarkContent":
+        """
+        解析当前分组组合应使用的备注与负责人来源，展示与写入物化共用该解析器。
+
+        精确记录整条胜出且不要求有内容：否则用户删光备注后祖先内容会重新展示出来，删除等于白删。
+        没有精确记录时备注与负责人各自向上挑最优候选，业务常把默认负责人挂在空维记录、把备注写在中间层，
+        绑定成同一条会丢掉其中一半，而负责人为空会直接挡住该行启用告警。
+        """
+        candidates = list(candidates)
+
+        exact = cls.select_exact_remark(candidates, signature, origin_pattern, group_dict)
+        if exact or not allow_inherit:
+            return InheritedRemarkContent(exact=exact, remark_source=exact, owner_source=exact)
+
+        select_kwargs = {
+            "signature": signature,
+            "origin_pattern": origin_pattern,
+            "group_dict": group_dict,
+            "group_fields": group_fields,
+        }
+        return InheritedRemarkContent(
+            remark_source=cls.select_inherited_remark(candidates, required_field="remark", **select_kwargs),
+            owner_source=cls.select_inherited_remark(candidates, required_field="owners", **select_kwargs),
+        )
+
+    @classmethod
+    def filter_matched_remarks(cls, bk_biz_id: int, signature: str, origin_pattern: str = ""):
+        """同一业务下 signature 或 origin_pattern 命中的全部备注。"""
+        condition = Q(signature=signature)
+        if origin_pattern:
+            condition |= Q(origin_pattern=origin_pattern)
+        return cls.objects.filter(condition).filter(bk_biz_id=bk_biz_id, source_app_code=get_external_app_code())
+
+    @classmethod
+    def get_exact_remark(cls, bk_biz_id: int, signature: str, origin_pattern: str, groups: dict):
+        """定位当前分组组合的精确备注记录。"""
+        # 并发下可能物化出重复记录，按 id 定序保证后续写入始终落到同一条
+        return (
+            cls.filter_matched_remarks(bk_biz_id, signature, origin_pattern)
+            .filter(group_hash=cls.convert_groups_to_groups_hash(groups))
+            .order_by("id")
+            .first()
+        )
+
+    @classmethod
+    def materialize_inherited_remark(
+        cls,
+        bk_biz_id: int,
+        signature: str,
+        origin_pattern: str,
+        groups: dict,
+        group_fields: list,
+        allow_inherit: bool = True,
+    ):
+        """
+        写入前把继承来的内容复制成当前分组组合的独立记录。
+
+        写入一旦建出精确记录，展示端就会优先命中它，继承内容会从该行消失，因此写入前先物化。
+        strategy_id、strategy_enabled、notice_group_id 绑定具体分组组合的策略与告警组，复制后两条记录会指向
+        同一策略互相干扰，因此不参与复制。
+        """
+        exact_remark = cls.get_exact_remark(bk_biz_id, signature, origin_pattern, groups)
+        if exact_remark or not allow_inherit:
+            return exact_remark
+
+        content = cls.resolve_inherited_content(
+            cls.filter_matched_remarks(bk_biz_id, signature, origin_pattern),
+            signature=signature,
+            origin_pattern=origin_pattern,
+            group_dict=groups,
+            group_fields=group_fields,
+        )
+        remark_source, owner_source = content.remark_source, content.owner_source
+        if not remark_source and not owner_source:
+            return None
+
+        remark_obj, __ = cls.objects.get_or_create(
+            bk_biz_id=bk_biz_id,
+            signature=signature,
+            group_hash=cls.convert_groups_to_groups_hash(groups),
+            source_app_code=get_external_app_code(),
+            is_deleted=False,
+            defaults={
+                "origin_pattern": origin_pattern or (remark_source or owner_source).origin_pattern,
+                "groups": groups,
+                # 编辑与删除按 create_time + username + 原文匹配，复制时必须原样保留这些字段
+                "remark": copy.deepcopy(remark_source.remark) if remark_source else [],
+                "owners": list(owner_source.owners or []) if owner_source else [],
+            },
+        )
+        return remark_obj
 
 
 class ClusteringConfig(SoftDeleteModel):

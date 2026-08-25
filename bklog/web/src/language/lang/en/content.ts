@@ -245,6 +245,8 @@ export default {
   腾讯云Cos区域: 'Tencent cloud cos region',
   是否批量开启告警: 'Batch enable alerts?',
   是否批量关闭告警: 'Batch close alerts?',
+  '确认开启告警策略？': 'Confirm to enable the alert strategy?',
+  '确认关闭告警策略？': 'Confirm to disable the alert strategy?',
   可去告警策略编辑: 'Can go to alert policy editor',
   '耗时优化指引 >': 'Optimizing time consumption >',
   最大自定义天数为: 'Maximum custom days is',
@@ -1438,4 +1440,18 @@ export default {
   忽略冲突并继续填入: 'Ignore conflicts and continue filling in',
   未从样例中匹配到有效值: 'No valid value was matched from the examples',
   字段类型不匹配: 'Field type mismatch',
+  仅新创建采集项支持选择采集范围: 'Collection range can only be selected when creating a new collection item',
+  '您当前登录的企业空间是【{current}】，无法访问【{target}】企业空间的资源。请返回登录页或切换企业空间后重试。':
+    'You are currently logged in to enterprise space [{current}] and cannot access resources in enterprise space [{target}]. Please return to the login page or switch enterprise space and try again.',
+  '无法跨企业空间访问该业务（当前登录：{current}，目标：{target}，空间UID: {spaceUid}，业务ID: {bizId}）。请返回登录页或切换企业空间。':
+    'Cannot access this business across enterprise spaces (currently logged in: {current}, target: {target}, space UID: {spaceUid}, business ID: {bizId}). Please return to the login page or switch enterprise space.',
+  返回登录页: 'Return to login page',
+  访问当前企业空间: 'Access current enterprise space',
+  '当前无可用业务信息，请联系管理员申请（空间UID：{spaceUid}，业务ID：{bizId}）':
+    'No available business information. Please contact the administrator to apply (space UID: {spaceUid}, business ID: {bizId})',
+  或者移除业务参数重试: 'Or remove the business parameters and retry',
+  '业务下无采集项，请按照指引完成接入，或联系管理员申请':
+    'No collection items under this business. Please follow the guide to onboard, or contact the administrator to apply',
+  'API无权限，请联系管理员申请': 'No API permission. Please contact the administrator to apply',
+  '无权限，请联系管理员': 'No permission. Please contact the administrator',
 };

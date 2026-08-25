@@ -662,7 +662,7 @@
             additionList.push({
               field: el,
               operator: 'is',
-              value: row.group[index],
+              value: [row.group?.[index] ?? ''],
               isLink,
             });
           });
@@ -670,7 +670,7 @@
         additionList.push({
           field: `__dist_${this.requestData.pattern_level}`,
           operator: 'is',
-          value: row.signature.toString(),
+          value: [row.signature?.toString() ?? ''],
           isLink,
         });
 
@@ -1267,35 +1267,45 @@
         return !this.cacheExpandStr.includes(index);
       },
       changeStrategy(val, row) {
-        this.curEditUniqueVal = {
-          signature: row.signature,
-          origin_pattern: row.origin_pattern,
-          group: row.group,
-          strategy_enabled: val,
-        };
-        this.$http
-          .request('/logClustering/updatePatternStrategy', {
-            params: {
-              index_set_id: window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId,
-            },
-            data: {
-              signature: this.getHoverRowValue.signature,
-              origin_pattern: this.getHoverRowValue.origin_pattern,
-              strategy_enabled: this.getHoverRowValue.strategy_enabled,
-              groups: this.getGroupsValue(row.group),
-            },
-          })
-          .then(res => {
-            if (res.result) {
-              const { strategy_id } = res.data;
-              this.$bkMessage({
-                theme: 'success',
-                message: this.$t('操作成功'),
-              });
-              this.$set(row, 'strategy_id', strategy_id);
-            }
-          })
-          .finally(() => (this.curEditUniqueVal = {}));
+        this.$bkInfo({
+          title: val ? this.$t('确认开启告警策略？') : this.$t('确认关闭告警策略？'),
+          confirmFn: () => {
+            this.curEditUniqueVal = {
+              signature: row.signature,
+              origin_pattern: row.origin_pattern,
+              group: row.group,
+              strategy_enabled: val,
+            };
+            this.$http
+              .request('/logClustering/updatePatternStrategy', {
+                params: {
+                  index_set_id: window.__IS_MONITOR_COMPONENT__
+                    ? this.$route.query.indexId
+                    : this.$route.params.indexId,
+                },
+                data: {
+                  signature: this.getHoverRowValue.signature,
+                  origin_pattern: this.getHoverRowValue.origin_pattern,
+                  strategy_enabled: this.getHoverRowValue.strategy_enabled,
+                  groups: this.getGroupsValue(row.group),
+                },
+              })
+              .then(res => {
+                if (res.result) {
+                  const { strategy_id } = res.data;
+                  this.$bkMessage({
+                    theme: 'success',
+                    message: this.$t('操作成功'),
+                  });
+                  this.$set(row, 'strategy_id', strategy_id);
+                }
+              })
+              .finally(() => (this.curEditUniqueVal = {}));
+          },
+          cancelFn: () => {
+            this.$set(row, 'strategy_enabled', !val);
+          },
+        });
       },
       handleStrategyInfoClick(row) {
         window.open(

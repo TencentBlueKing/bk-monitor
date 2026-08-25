@@ -137,6 +137,11 @@
         td {
           padding-left: 12px;
 
+          .count-link {
+            color: #3a84ff;
+            cursor: pointer;
+          }
+
           .dynamic-column {
             width: 100%;
             overflow: hidden;
@@ -238,6 +243,20 @@
             height: 100%;
             display: flex;
             align-items: center;
+
+            .principal-display {
+              width: 100%;
+              min-height: 32px;
+              padding: 0 8px;
+              border: 0;
+              background: transparent;
+              text-align: left;
+              color: #63656e;
+              cursor: pointer;
+              overflow: hidden;
+              text-overflow: ellipsis;
+              white-space: nowrap;
+            }
 
             .principal-input {
               width: 100%;

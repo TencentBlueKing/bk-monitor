@@ -1064,6 +1064,115 @@ paths:
           userVerifiedRequired: true
           appVerifiedRequired: false
           resourcePermissionRequired: true
+  /mcp/create_alarm_notice_group/:
+    post:
+      operationId: create_alarm_notice_group
+      description: Create a notice group in one business. Use search_alarm_notice_groups first to check for a duplicate name. Provide receivers for a simple static group, or duty_arranges / duty_rules for an explicit schedule. Omitted alert_notice and action_notice default to all-day mail for every severity and action phase. need_duty=true requires duty_rules from the current or public business. Production write requires confirm=true. 在单个业务创建告警组。先用 search_alarm_notice_groups 查重。普通组传 receivers；完整排班传 duty_arranges 或 duty_rules。未传通知配置时默认全天邮件。need_duty=true 时必须提供当前或公共业务的轮值规则。
+      tags:
+      - alert_handling_mcp
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - bk_biz_id
+              - name
+              - confirm
+              properties:
+                bk_biz_id:
+                  type: string
+                  description: Business ID. 业务ID。
+                name:
+                  type: string
+                  description: Notice group name. Must be unique in the business. 告警组名称，业务内唯一。
+                receivers:
+                  type: array
+                  minItems: 1
+                  items:
+                    type: object
+                    required:
+                    - id
+                    - type
+                    properties:
+                      id:
+                        type: string
+                        description: User name or CMDB group id such as bk_biz_maintainer. 用户名或 CMDB 用户组 ID。
+                      type:
+                        type: string
+                        enum:
+                        - user
+                        - group
+                        description: Receiver type. 接收人类型。
+                  description: Simplified receivers. Converted to duty_arranges=[{users}]. Do not send together with duty_arranges. 简化接收人，转换为 duty_arranges；不可与 duty_arranges 同时传。
+                desc:
+                  type: string
+                  description: Notice group description. 告警组描述。
+                timezone:
+                  type: string
+                  default: Asia/Shanghai
+                need_duty:
+                  type: boolean
+                  default: false
+                  description: Whether to enable duty rotation. When true, duty_rules is required. 是否启用轮值；为 true 时必须提供 duty_rules。
+                channels:
+                  type: array
+                  items:
+                    type: string
+                    enum:
+                    - user
+                    - wxwork-bot
+                  description: Notice channels. 通知渠道。
+                alert_notice:
+                  type: array
+                  items:
+                    type: object
+                  description: Alert notice configuration. Defaults to all-day mail for severity 1/2/3. 告警通知配置，默认全天按级别发邮件。
+                action_notice:
+                  type: array
+                  items:
+                    type: object
+                  description: Action notice configuration. Defaults to all-day mail for every phase. 处理通知配置，默认全天按阶段发邮件。
+                duty_arranges:
+                  type: array
+                  items:
+                    type: object
+                  description: Explicit duty schedules. Do not send together with receivers. 显式排班；不可与 receivers 同时传。
+                duty_rules:
+                  type: array
+                  items:
+                    type: string
+                  description: Duty rule IDs from the current or public business. 当前或公共业务的轮值规则ID。
+                duty_notice:
+                  type: object
+                path:
+                  type: string
+                mention_list:
+                  type: array
+                  items:
+                    type: object
+                confirm:
+                  type: boolean
+                  enum:
+                  - true
+                  description: Explicit user confirmation. 用户显式确认，必须为true。
+        required: true
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        enableWebsocket: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/search_alert/create_notice_group/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: false
+          resourcePermissionRequired: true
   /mcp/update_alarm_notice_group/:
     post:
       operationId: update_alarm_notice_group
@@ -1312,6 +1421,258 @@ paths:
           name: default
           method: post
           path: /api/v4/search_alert/update_action_config/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: false
+          resourcePermissionRequired: true
+  /mcp/search_alarm_assign_groups/:
+    post:
+      operationId: search_alarm_assign_groups
+      description: Search alert assign rule groups in one business, including rules, priority, and source. Use group_ids from a previous search to read specific groups before save_alarm_assign_group or delete_alarm_assign_group. This is the discovery step for alert assignment configuration. 查询单个业务的告警分派组，返回规则、优先级和来源。写入或删除前用 group_ids 读取目标组。这是告警分派配置的发现入口。
+      tags:
+      - alert_handling_mcp
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - bk_biz_id
+              properties:
+                bk_biz_id:
+                  type: string
+                  description: Business ID. Required for MCP authentication and business isolation. 业务ID，用于MCP鉴权和业务隔离。
+                group_ids:
+                  type: array
+                  minItems: 1
+                  items:
+                    type: string
+                  description: Assign group IDs to filter. Omit to list all groups in the business. 分派组ID列表，不传则返回业务下全部组。
+        required: true
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        enableWebsocket: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/search_alert/search_assign_groups/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: false
+          resourcePermissionRequired: true
+  /mcp/save_alarm_assign_group/:
+    post:
+      operationId: save_alarm_assign_group
+      description: Create or update one alert assign rule group. Omit assign_group_id to create; pass assign_group_id from search_alarm_assign_groups to update. On update, omitted name/priority/rules are filled from the current group, while a provided rules array fully replaces existing rules (including [] to clear). user_groups must come from search_alarm_notice_groups and belong to the current business. Name and priority must be unique in the business. Datalink builtin groups cannot be edited. Production write requires confirm=true. 创建或更新一个告警分派组。不传 assign_group_id 为创建，传入则为更新。更新时未传的 name/priority/rules 从当前组补齐，传入的 rules 整组替换（空数组表示清空）。user_groups 必须来自当前业务告警组。名称和优先级在业务内唯一。不能修改数据链路内置组。
+      tags:
+      - alert_handling_mcp
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - bk_biz_id
+              - confirm
+              properties:
+                bk_biz_id:
+                  type: string
+                  description: Business ID. 业务ID。
+                assign_group_id:
+                  type: string
+                  description: Existing assign group ID from search_alarm_assign_groups. Omit to create a new group. 已有分派组ID；不传表示新建。
+                name:
+                  type: string
+                  description: Assign group name. Required when creating; unique in the business. 分派组名称，创建时必填，业务内唯一。
+                priority:
+                  type: integer
+                  description: Assign priority. Required when creating; unique in the business. Higher value matches first. 优先级，创建时必填，业务内唯一，数值越大优先匹配。
+                rules:
+                  type: array
+                  items:
+                    type: object
+                    required:
+                    - user_groups
+                    - conditions
+                    properties:
+                      id:
+                        type: string
+                        description: Existing rule ID. Omit to create a new rule; omitted IDs are deleted on update. 已有规则ID；不传表示新建，更新时未出现的ID会被删除。
+                      is_enabled:
+                        type: boolean
+                        default: false
+                        description: Whether this rule is enabled. 规则是否启用。
+                      user_groups:
+                        type: array
+                        minItems: 1
+                        items:
+                          type: string
+                        description: Notice group IDs from search_alarm_notice_groups. 从 search_alarm_notice_groups 获取的告警组ID。
+                      conditions:
+                        type: array
+                        minItems: 1
+                        items:
+                          type: object
+                          required:
+                          - field
+                          - value
+                          properties:
+                            field:
+                              type: string
+                              description: 'Match field. Common values: alert.event_source, alert.scenario, alert.strategy_id, alert.name, alert.metric, labels, is_empty_users, notice_users, dimensions, ip, bk_cloud_id, set, module, host. 匹配字段。'
+                            value:
+                              type: array
+                              items:
+                                type: string
+                              description: Match values. 匹配值列表。
+                            method:
+                              type: string
+                              default: eq
+                              enum:
+                              - eq
+                              - neq
+                              - include
+                              - exclude
+                              - reg
+                              - nreg
+                              - issuperset
+                              description: Match method. 匹配方法。
+                            condition:
+                              type: string
+                              default: ''
+                              enum:
+                              - and
+                              - or
+                              - ''
+                              description: Composite condition with the next clause. 与下一条条件的组合关系。
+                        description: Assign match conditions. At least one condition is required. 分派匹配条件，至少一条。
+                      actions:
+                        type: array
+                        items:
+                          type: object
+                          required:
+                          - action_type
+                          properties:
+                            action_type:
+                              type: string
+                              enum:
+                              - notice
+                              - itsm
+                              description: Assign action type. 分派动作类型。
+                            action_id:
+                              type: string
+                              description: Action config ID. Required for itsm. ITSM 处理套餐ID。
+                            is_enabled:
+                              type: boolean
+                              default: true
+                            upgrade_config:
+                              type: object
+                              properties:
+                                is_enabled:
+                                  type: boolean
+                                  default: false
+                                user_groups:
+                                  type: array
+                                  items:
+                                    type: string
+                                  description: Upgrade notice groups. Must not overlap the rule user_groups. 升级告警组，不能与规则本身的告警组重叠。
+                                upgrade_interval:
+                                  type: integer
+                                  default: 60
+                                  description: Upgrade interval in minutes. 升级间隔（分钟）。
+                      alert_severity:
+                        type: integer
+                        default: 0
+                        enum:
+                        - 0
+                        - 1
+                        - 2
+                        - 3
+                        description: 'Override alert severity. 0 keep, 1 fatal, 2 warning, 3 remind. 告警级别重置：0保持，1致命，2预警，3提醒。'
+                      additional_tags:
+                        type: array
+                        items:
+                          type: object
+                          required:
+                          - key
+                          - value
+                          properties:
+                            key:
+                              type: string
+                            value:
+                              type: string
+                        description: Extra tags appended to matched alerts. 追加到命中告警上的标签。
+                  description: Complete rule list. On update, a provided array fully replaces current rules. 完整规则列表；更新时传入则整组替换。
+                confirm:
+                  type: boolean
+                  enum:
+                  - true
+                  description: Explicit user confirmation. 用户显式确认，必须为true。
+        required: true
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        enableWebsocket: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/search_alert/save_assign_group/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: false
+          resourcePermissionRequired: true
+  /mcp/delete_alarm_assign_group/:
+    post:
+      operationId: delete_alarm_assign_group
+      description: Delete one or more alert assign rule groups in a business. group_ids must come from search_alarm_assign_groups, always as an array, and every ID must belong to the current business. Datalink builtin groups cannot be deleted. Production write requires confirm=true. 删除业务下的一个或多个告警分派组。group_ids 必须来自 search_alarm_assign_groups，即使单个也使用数组，且都必须属于当前业务。不能删除数据链路内置组。
+      tags:
+      - alert_handling_mcp
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - bk_biz_id
+              - group_ids
+              - confirm
+              properties:
+                bk_biz_id:
+                  type: string
+                  description: Business ID. 业务ID。
+                group_ids:
+                  type: array
+                  minItems: 1
+                  items:
+                    type: string
+                  description: Assign group ID list. Always use an array, even for one group. 分派组ID列表，即使单个也使用数组。
+                confirm:
+                  type: boolean
+                  enum:
+                  - true
+                  description: Explicit user confirmation. 用户显式确认，必须为true。
+        required: true
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        enableWebsocket: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/search_alert/delete_assign_group/
           matchSubpath: false
           timeout: 0
         pluginConfigs: []
