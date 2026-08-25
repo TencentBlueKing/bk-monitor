@@ -28,8 +28,8 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import dayjs from 'dayjs';
 import { eventTopN, searchEvent } from 'monitor-api/modules/alert';
-import { xssFilter } from 'monitor-common/utils/xss';
 import EmptyStatus from 'monitor-pc/components/empty-status/empty-status';
+import { getKeyValueTooltip } from 'monitor-pc/pages/text-display-utils';
 import { getEventPaths } from 'monitor-pc/utils/index';
 
 import { commonAlertFieldMap } from '../event';
@@ -227,10 +227,7 @@ export default class RelatedEvents extends tsc<IRelatedEventsProps> {
               <span
                 class='tags-items'
                 v-bk-tooltips={{
-                  content: tags
-                    .map(item => `<span>${xssFilter(item.key)}：${xssFilter(item.value)}</span><br/>`)
-                    .join(''),
-                  allowHTML: true,
+                  ...getKeyValueTooltip(tags),
                 }}
               >
                 {tags.slice(0, 2).map(item => [<span class='tags-item'>{`${item.key}: ${item.value}`}</span>, <br />])}
@@ -476,7 +473,13 @@ export default class RelatedEvents extends tsc<IRelatedEventsProps> {
     this.handleRowLeave();
     this.tablePopover =
       this.tablePopover ||
-      this.$bkPopover(event.target, { content: tip, arrow: true, boundary: 'window', placement: 'top' });
+      this.$bkPopover(event.target, {
+        content: tip,
+        allowHTML: false,
+        arrow: true,
+        boundary: 'window',
+        placement: 'top',
+      });
     this.tablePopover?.show(100);
   }
   // 移出
@@ -491,7 +494,7 @@ export default class RelatedEvents extends tsc<IRelatedEventsProps> {
    * @return {*}
    */
   getChildSlotsComponent(child) {
-    const arrayTip = (arr: Array<string>) => arr?.map(item => `<div>${item}</div>`).join('') || '';
+    const arrayTip = (arr: Array<string>) => arr?.filter(Boolean).join('\n') || '';
     const { bizList } = this.$store.getters;
     const spaceId = bizList.find(item => item.bk_biz_id === child.bk_biz_id)?.space_id || child.bk_biz_id;
     const topItems = [
@@ -541,11 +544,7 @@ export default class RelatedEvents extends tsc<IRelatedEventsProps> {
                 <div
                   class='item-content-kv-tip'
                   v-bk-tooltips={{
-                    content:
-                      child.tags
-                        ?.map(item => `<span>${xssFilter(item.key)}：${xssFilter(item.value)}</span><br/>`)
-                        ?.join('') || '',
-                    allowHTML: true,
+                    ...getKeyValueTooltip(child.tags || []),
                     disabled: (child.tags?.length || 0) <= 4,
                   }}
                 >

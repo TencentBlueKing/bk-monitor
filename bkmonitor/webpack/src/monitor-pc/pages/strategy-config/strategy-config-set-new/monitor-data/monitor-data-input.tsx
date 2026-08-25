@@ -307,17 +307,15 @@ class MericDataInput extends Mixins(metricTipsContentMixin) {
     }
   }
 
-  handleRenderDimensionList(node, ctx, highlightKeyword) {
-    const parentClass = 'bk-selector-node bk-selector-member';
-    const textClass = 'text';
-    const innerHtml = `${highlightKeyword(node.name)}`;
+  handleRenderDimensionList(node) {
     return (
-      <div class={parentClass}>
+      <div class='bk-selector-node bk-selector-member'>
         <span
-          class={textClass}
-          domPropsInnerHTML={innerHtml}
+          class='text'
           onMouseenter={e => this.handleDimensionMouseEnter(e, node)}
-        />
+        >
+          {node.name}
+        </span>
       </div>
     );
   }

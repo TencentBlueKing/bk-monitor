@@ -31,6 +31,7 @@ import { getIntelligentDetectAccessStatus, getIntelligentModel } from 'monitor-a
 
 import { THRESHOLD_METHOD_LIST } from '../../../../../../constant/constant';
 import IntelligentModelsStore, { IntelligentModelsType } from '../../../../../../store/modules/intelligent-models';
+import { splitNumberHighlightFragments } from '../../../../../text-display-utils';
 import { DetectionRuleTypeEnum, type IDetectionTypeRuleData } from '../../../typings';
 import Form from '../form/form';
 import { FormItem, type IFormDataItem } from '../form/utils';
@@ -268,8 +269,7 @@ export default class TimeSeriesForecasting extends tsc<TimeSeriesForecastingProp
       failed: 'error',
     };
     this.tipsData.status = statusMap[resData.status];
-    this.tipsData.message =
-      resData.status_detail?.replace?.(/(([1-9]\d*\.?\d*)|(0\.\d*))/g, '<span class="hl">$1</span>') || '';
+    this.tipsData.message = resData.status_detail || '';
   }
 
   /**
@@ -425,8 +425,20 @@ export default class TimeSeriesForecasting extends tsc<TimeSeriesForecastingProp
             <div
               class='alert-message-number'
               slot='title'
-              domPropsInnerHTML={this.tipsData.message}
-            />
+            >
+              {splitNumberHighlightFragments(this.tipsData.message).map(fragment =>
+                fragment.highlight ? (
+                  <span
+                    key={fragment.start}
+                    class='hl'
+                  >
+                    {fragment.text}
+                  </span>
+                ) : (
+                  fragment.text
+                )
+              )}
+            </div>
           </bk-alert>
         )}
         <Form

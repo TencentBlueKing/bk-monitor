@@ -34,6 +34,11 @@ interface IItemDescription {
   val: string;
 }
 
+interface IKeyValueItem {
+  key: string;
+  value: string;
+}
+
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
@@ -44,6 +49,15 @@ export function getItemDescriptionTooltip(data: IItemDescription[]) {
     allowHTML: false,
     content: data.map(item => item.val).join('\n'),
     extCls: 'strategy-item-description-tooltips',
+  };
+}
+
+/** 获取键值对列表的纯文本提示配置 */
+export function getKeyValueTooltip(data: IKeyValueItem[], extCls = 'event-tags-text-tooltips') {
+  return {
+    allowHTML: false,
+    content: data.map(item => `${item.key}：${item.value}`).join('\n'),
+    extCls,
   };
 }
 
@@ -71,4 +85,43 @@ export function splitHighlightFragments(content: string, searchValue: string): I
       start += text.length;
       return fragment;
     });
+}
+
+/** 将状态文案中的数字拆为可直接渲染的文本片段 */
+export function splitNumberHighlightFragments(content: string): IHighlightFragment[] {
+  if (!content) {
+    return [{ text: '', start: 0, highlight: false }];
+  }
+
+  const pattern = /(([1-9]\d*\.?\d*)|(0\.\d*))/g;
+  const fragments: IHighlightFragment[] = [];
+  let lastIndex = 0;
+  let match: RegExpExecArray | null = pattern.exec(content);
+
+  while (match) {
+    if (match.index > lastIndex) {
+      fragments.push({
+        text: content.slice(lastIndex, match.index),
+        start: lastIndex,
+        highlight: false,
+      });
+    }
+    fragments.push({
+      text: match[0],
+      start: match.index,
+      highlight: true,
+    });
+    lastIndex = match.index + match[0].length;
+    match = pattern.exec(content);
+  }
+
+  if (lastIndex < content.length) {
+    fragments.push({
+      text: content.slice(lastIndex),
+      start: lastIndex,
+      highlight: false,
+    });
+  }
+
+  return fragments.length ? fragments : [{ text: content, start: 0, highlight: false }];
 }
