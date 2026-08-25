@@ -7,7 +7,6 @@ from apps.iam import ActionEnum, ResourceEnum
 from apps.iam.handlers.drf import (
     BusinessActionPermission,
     InstanceActionForDataPermission,
-    ViewBusinessPermission,
     insert_permission_field,
 )
 from apps.log_databus.exceptions import (
@@ -30,6 +29,39 @@ from apps.utils.drf import detail_route, list_route
 from apps.utils.function import ignored
 
 
+class RequireBizActionPermission(BusinessActionPermission):
+    """业务权限失败关闭：缺少或为 0 的 bk_biz_id 不得放行。"""
+
+    def _parse_biz_id(self, value):
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            return 0
+
+    def _is_privileged(self, request):
+        user = getattr(request, "user", None)
+        return bool(user and getattr(user, "is_superuser", False))
+
+    def has_permission(self, request, view):
+        bk_biz_id = self._parse_biz_id(self.fetch_biz_id_by_request(request))
+        if bk_biz_id <= 0:
+            return self._is_privileged(request)
+        self.resources = [ResourceEnum.BUSINESS.create_instance(bk_biz_id)]
+        return super(BusinessActionPermission, self).has_permission(request, view)
+
+    def has_object_permission(self, request, view, obj):
+        bk_biz_id = self._parse_biz_id(getattr(obj, "bk_biz_id", 0))
+        if bk_biz_id <= 0:
+            return self._is_privileged(request)
+        self.resources = [ResourceEnum.BUSINESS.create_instance(bk_biz_id)]
+        return super(BusinessActionPermission, self).has_object_permission(request, view, obj)
+
+
+class RequireBizViewBusinessPermission(RequireBizActionPermission):
+    def __init__(self):
+        super(RequireBizViewBusinessPermission, self).__init__([ActionEnum.VIEW_BUSINESS])
+
+
 class CollectorPluginViewSet(ModelViewSet):
     """
     采集插件
@@ -47,7 +79,7 @@ class CollectorPluginViewSet(ModelViewSet):
                 return []
 
         if self.action == "create":
-            return [BusinessActionPermission([ActionEnum.CREATE_COLLECTION])]
+            return [RequireBizActionPermission([ActionEnum.CREATE_COLLECTION])]
         if self.action in ["update_instance", "instance_etl"]:
             return [
                 InstanceActionForDataPermission(
@@ -57,8 +89,23 @@ class CollectorPluginViewSet(ModelViewSet):
                 )
             ]
         if self.action in ["update", "partial_update", "destroy", "instances"]:
-            return [BusinessActionPermission([ActionEnum.MANAGE_COLLECTION])]
-        return [ViewBusinessPermission()]
+            return [RequireBizActionPermission([ActionEnum.MANAGE_COLLECTION])]
+        return [RequireBizViewBusinessPermission()]
+
+    def get_queryset(self):
+        qs = super(CollectorPluginViewSet, self).get_queryset()
+        if self.action != "list":
+            return qs
+        bk_biz_id = self.request.query_params.get("bk_biz_id")
+        if bk_biz_id in (None, ""):
+            bk_biz_id = self.request.data.get("bk_biz_id")
+        try:
+            bk_biz_id = int(bk_biz_id) if bk_biz_id not in (None, "") else 0
+        except (TypeError, ValueError):
+            return qs.none()
+        if bk_biz_id <= 0:
+            return qs.none()
+        return qs.filter(bk_biz_id=bk_biz_id)
 
     def get_serializer_class(self, *args, **kwargs):
         if self.action in ["create"]:
