@@ -112,6 +112,14 @@ class ApplicationViewSet(ResourceViewSet):
                     self.INSTANCE_ID, [ActionEnum.MANAGE_APM_APPLICATION], ResourceEnum.APM_APPLICATION
                 )
             ]
+        if self.action == "application_info_by_id":
+            return [
+                InstanceActionForDataPermission(
+                    "application_id",
+                    [ActionEnum.VIEW_APM_APPLICATION],
+                    ResourceEnum.APM_APPLICATION,
+                )
+            ]
         if self.action in ["application_info_by_app_name", "service_detail", "simple_service_list"]:
             return [
                 InstanceActionForDataPermission(

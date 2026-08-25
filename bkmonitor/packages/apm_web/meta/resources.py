@@ -114,7 +114,7 @@ from bkmonitor.data_source.utils.apm import TraceDatasourceTarget, TraceQueryGua
 from bkmonitor.share.api_auth_resource import ApiAuthResource
 from bkmonitor.utils import group_by
 from bkmonitor.utils.ip import is_v6
-from bkmonitor.utils.request import get_request_tenant_id
+from bkmonitor.utils.request import get_request, get_request_tenant_id
 from bkmonitor.utils.thread_backend import InheritParentThread, run_threads
 from bkmonitor.utils.user import (
     get_backend_username,
@@ -501,8 +501,12 @@ class ApplicationInfoResource(Resource):
             return data
 
     def perform_request(self, validated_request_data):
+        queryset = Application.objects.filter(application_id=validated_request_data["application_id"])
+        request = get_request(peaceful=True)
+        if request and getattr(request, "biz_id", None):
+            queryset = queryset.filter(bk_biz_id=request.biz_id)
         try:
-            return Application.objects.get(application_id=validated_request_data["application_id"])
+            return queryset.get()
         except Application.DoesNotExist:
             raise ValueError(_("应用不存在"))
 
