@@ -73,4 +73,42 @@ def is_visible_to(entity: _HasExtensions, provider_name: str) -> bool:
     return True
 
 
-__all__ = ["is_visible_to"]
+def is_change_visible_to(change: Any, provider_name: str) -> bool:
+    """判断迁移 Change 对指定 provider 是否可见。
+
+    与 :func:`is_visible_to` 的区别：本函数以 Change 的 payload（``after``
+    优先，``before`` 兜底）中的 ``extensions`` 字段为判定依据，用于 Provider
+    在 ``apply_migration`` 入口对"文件迁移链路"的 Change 做过滤（迁移文件
+    生成阶段是 provider 中立的，可见性过滤下沉到 apply 阶段各自处理）。
+
+    Args:
+        change: schema.diff.Change 实例（这里用 Any 是为了避免循环依赖）。
+        provider_name: Provider 标识（如 ``"v4"``、``"v3"``）。
+
+    Returns:
+        True  —— Change 对该 provider 可见，应参与 apply。
+        False —— Change 对该 provider 隐藏，应从 apply 输入中过滤掉。
+
+    说明：
+        * SYSTEM 类 Change 的 payload 无 extensions 概念，默认返回 True。
+        * CREATE / UPDATE 以 after 为准，DELETE 以 before 为准。
+    """
+    payload = getattr(change, "after", None) or getattr(change, "before", None) or {}
+    if not isinstance(payload, dict):
+        return True
+    ext = payload.get("extensions") or {}
+    if not isinstance(ext, dict):
+        return True
+
+    only = ext.get("only_providers")
+    if only and provider_name not in only:
+        return False
+
+    exclude = ext.get("exclude_providers")
+    if exclude and provider_name in exclude:
+        return False
+
+    return True
+
+
+__all__ = ["is_visible_to", "is_change_visible_to"]

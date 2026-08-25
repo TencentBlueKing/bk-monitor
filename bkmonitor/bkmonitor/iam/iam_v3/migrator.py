@@ -26,6 +26,7 @@ from ..iam_engine.core.exceptions import DestructiveMigrationBlocked, MigrationF
 from ..iam_engine.provider.codec import IdentityCodec
 from ..iam_engine.schema.diff import Change, ChangeType, EntityKind, MigrationPlan, MigrationReport
 from ..iam_engine.schema.definitions import ActionDef, ResourceTypeDef
+from ..iam_engine.schema.visibility import is_change_visible_to, is_visible_to
 from .client import V3Client
 from .config import V3Options
 
@@ -124,6 +125,8 @@ class V3Migrator:
 
         # ---- Resource Types ----
         for rt in self.schema.all_resource_types():
+            if not is_visible_to(rt, self.provider_name):
+                continue
             v3_ext = dict(rt.extensions.get("v3", {}))
             if not v3_ext:
                 continue
@@ -148,6 +151,8 @@ class V3Migrator:
 
         # ---- Actions ----
         for action in self.schema.all_actions():
+            if not is_visible_to(action, self.provider_name):
+                continue
             v3_ext = dict(action.extensions.get("v3", {}))
             if not v3_ext:
                 continue
@@ -199,6 +204,19 @@ class V3Migrator:
         if plan.has_destructive() and not allow_destructive:
             report.skipped_reason = "Destructive changes blocked; set allow_destructive=True"
             return report
+
+        # ---- 可见性过滤：SYSTEM 无 extensions 概念放行；其余按 payload.extensions 判定 ----
+        # 迁移文件生成阶段是 provider 中立的（diff 层只搬运不解释 extensions），
+        # 因此把 only_providers / exclude_providers 的过滤下沉到 apply 阶段。
+        # 目前主要治愈潜在场景（如 only_providers=("v4",)、exclude_providers=("v3",)），
+        # 与 v4 apply 入口过滤保持对称，避免未来增加 v3 排除项时重复踩坑。
+        visible_changes: list[Change] = []
+        for c in plan.changes:
+            if c.kind == EntityKind.SYSTEM or is_change_visible_to(c, self.provider_name):
+                visible_changes.append(c)
+            else:
+                report.skipped.append((c, "not_visible_to_provider"))
+        plan = MigrationPlan(provider_name=self.provider_name, changes=visible_changes)
 
         # ---- SYSTEM reconcile：查远端系统，决定实际操作 ----
         system_changes = [c for c in plan.changes if c.kind == EntityKind.SYSTEM and c.change_type != ChangeType.NOOP]

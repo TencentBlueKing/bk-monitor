@@ -21,7 +21,7 @@ from typing import TYPE_CHECKING
 from ..iam_engine.core.exceptions import MigrationFailed, ProviderUnavailable
 from ..iam_engine.provider.codec import IdentityCodec, NameCodec
 from ..iam_engine.schema.diff import Change, ChangeType, EntityKind, MigrationPlan, MigrationReport
-from ..iam_engine.schema.visibility import is_visible_to
+from ..iam_engine.schema.visibility import is_change_visible_to, is_visible_to
 from .client import V4Client
 
 if TYPE_CHECKING:
@@ -113,6 +113,11 @@ class V4Migrator:
         """应用迁移计划（查远端 + reconcile + 执行）。
 
         入参 plan 可以来自 plan_migration 或迁移文件。
+
+        可见性过滤：迁移文件生成阶段是 provider 中立的（diff 层只搬运不解释
+        extensions），因此在 apply 入口对 Change 做 provider 可见性过滤，把
+        标记 ``exclude_providers=("v4",)`` 或 ``only_providers`` 未包含 v4
+        的实体统一计入 skipped，与 _diff_*(schema entity) 的过滤口径对齐。
         """
         report = MigrationReport(provider_name="v4", started_at=datetime.now(tz=timezone.utc))
 
@@ -122,7 +127,15 @@ class V4Migrator:
             logger.warning("[iam_v4:migration:apply] %s", report.skipped_reason)
             return report
 
-        sorted_changes = self._topology_sort(plan.changes)
+        # ---- 可见性过滤：SYSTEM 无 extensions 概念放行，其余按 payload.extensions 判定 ----
+        visible_changes: list[Change] = []
+        for c in plan.changes:
+            if c.kind == EntityKind.SYSTEM or is_change_visible_to(c, "v4"):
+                visible_changes.append(c)
+            else:
+                report.skipped.append((c, "not_visible_to_provider"))
+
+        sorted_changes = self._topology_sort(visible_changes)
 
         # ---- SYSTEM reconcile：查远端系统，用 _diff_system 决定实际操作 ----
         has_system = self._has_entity_kinds(plan, {EntityKind.SYSTEM})
@@ -573,8 +586,7 @@ class V4Migrator:
     # helpers
     # ================================================================
 
-    @staticmethod
-    def _role_action_items(actions) -> list[dict]:
+    def _role_action_items(self, actions) -> list[dict]:
         """role actions 归一化为 v4 方言格式（id/resource_type_id）。
 
         兼容两种来源：
@@ -583,16 +595,37 @@ class V4Migrator:
 
         平台 roleCreateRequest.Actions 严格校验 ID 字段，业务命名（action_id）
         映射不到 ID 会被拒绝（400 INVALID_ARGUMENT），因此必须归一化。
+
+        可见性防御：过滤掉引用了"对 v4 不可见 action"的绑定（如
+        exclude_providers=("v4",) 的 action）。role 定义即使误引用被 v4 排除
+        的 action，v4 apply 时也不会带上，避免造成"引用不存在实体"的失败。
         """
         items: list[dict] = []
         for a in actions or []:
             if not isinstance(a, dict):
+                continue
+            # 归一化前先取业务 id（迁移文件里 action_id 优先；plan 链路 id 亦为业务 id，
+            # v4 codec 为 IdentityCodec 方言与业务同名，判定不会出错）
+            biz_aid = a.get("action_id") or a.get("id") or ""
+            if biz_aid and not self._is_action_visible(biz_aid):
+                logger.info(
+                    "[iam_v4:migration:role] skip binding to invisible action %s",
+                    biz_aid,
+                )
                 continue
             aid = a.get("id") or a.get("action_id") or ""
             rtid = a.get("resource_type_id") or a.get("resource_type") or ""
             if aid:
                 items.append({"id": aid, "resource_type_id": rtid})
         return items
+
+    def _is_action_visible(self, action_id: str) -> bool:
+        """判断本地 schema 中 action 是否对 v4 可见（找不到则默认可见，保持宽松）。"""
+        try:
+            action = self._schema.get_action(action_id)
+        except Exception:
+            return True
+        return is_visible_to(action, "v4")
 
     @staticmethod
     def _role_action_key(a: dict) -> tuple:
