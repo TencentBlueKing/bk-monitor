@@ -8,6 +8,7 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 from django.test import TestCase
+from rest_framework.exceptions import PermissionDenied
 
 from apps.generic import ModelViewSet
 from apps.iam import ActionEnum
@@ -43,6 +44,13 @@ class TestRequireBizActionPermission(TestCase):
         request = SimpleNamespace(data={}, query_params={}, user=SimpleNamespace(is_superuser=False))
         self.assertFalse(perm.has_permission(request, None))
 
+    def test_update_without_request_biz_defers_to_object_permission(self):
+        perm = RequireBizActionPermission([ActionEnum.CREATE_COLLECTION])
+        request = SimpleNamespace(data={}, query_params={}, user=SimpleNamespace(is_superuser=False))
+        view = SimpleNamespace(action="update")
+        self.assertTrue(perm.has_permission(request, view))
+        self.assertFalse(perm.has_object_permission(request, view, SimpleNamespace(bk_biz_id=0)))
+
     def test_deny_zero_biz_id(self):
         perm = RequireBizActionPermission([ActionEnum.CREATE_COLLECTION])
         request = SimpleNamespace(data={"bk_biz_id": 0}, query_params={}, user=SimpleNamespace(is_superuser=False))
@@ -54,10 +62,55 @@ class TestRequireBizActionPermission(TestCase):
         self.assertFalse(perm.has_permission(request, None))
 
     def test_deny_object_with_zero_biz_id(self):
-        perm = RequireBizActionPermission([ActionEnum.MANAGE_COLLECTION])
+        perm = RequireBizActionPermission([ActionEnum.CREATE_COLLECTION])
         request = SimpleNamespace(data={}, query_params={}, user=SimpleNamespace(is_superuser=False))
         obj = SimpleNamespace(bk_biz_id=0)
         self.assertFalse(perm.has_object_permission(request, None, obj))
+
+    def test_public_object_uses_request_biz_for_instances(self):
+        perm = RequireBizActionPermission(
+            [ActionEnum.CREATE_COLLECTION],
+            allow_public_object_via_request_biz=True,
+        )
+        request = SimpleNamespace(
+            data={"bk_biz_id": 2},
+            query_params={},
+            user=SimpleNamespace(is_superuser=False),
+        )
+        obj = SimpleNamespace(bk_biz_id=0)
+        with patch("apps.iam.handlers.drf.settings") as settings, patch("apps.iam.handlers.drf.Permission") as perm_cls:
+            settings.IGNORE_IAM_PERMISSION = False
+            perm_cls.return_value.is_allowed.return_value = True
+            self.assertTrue(perm.has_object_permission(request, None, obj))
+            self.assertEqual(perm.resources[0].id, "2")
+
+    def test_public_object_instances_deny_without_request_biz(self):
+        perm = RequireBizActionPermission(
+            [ActionEnum.CREATE_COLLECTION],
+            allow_public_object_via_request_biz=True,
+        )
+        request = SimpleNamespace(data={}, query_params={}, user=SimpleNamespace(is_superuser=False))
+        obj = SimpleNamespace(bk_biz_id=0)
+        self.assertFalse(perm.has_object_permission(request, None, obj))
+
+    def test_instances_deny_other_business_plugin(self):
+        perm = RequireBizActionPermission(
+            [ActionEnum.CREATE_COLLECTION],
+            allow_public_object_via_request_biz=True,
+        )
+        request = SimpleNamespace(
+            data={"bk_biz_id": 2},
+            query_params={},
+            user=SimpleNamespace(is_superuser=False),
+        )
+        obj = SimpleNamespace(bk_biz_id=3)
+        self.assertFalse(perm.has_object_permission(request, None, obj))
+
+    def test_superuser_can_update_public_plugin(self):
+        perm = RequireBizActionPermission([ActionEnum.CREATE_COLLECTION])
+        request = SimpleNamespace(data={}, query_params={}, user=SimpleNamespace(is_superuser=True))
+        obj = SimpleNamespace(bk_biz_id=0)
+        self.assertTrue(perm.has_object_permission(request, None, obj))
 
     def test_superuser_can_access_zero_biz_id(self):
         perm = RequireBizActionPermission([ActionEnum.CREATE_COLLECTION])
@@ -132,3 +185,67 @@ class TestCollectorPluginViewSetQueryset(TestCase):
             result = view.get_queryset()
         self.assertEqual(len(result), 1)
         self.assertEqual(result.items[0].bk_biz_id, 2)
+
+    def test_instances_uses_create_collection_on_request_biz(self):
+        view = CollectorPluginViewSet()
+        view.action = "instances"
+        view.request = SimpleNamespace(data={}, query_params={}, user=SimpleNamespace(is_superuser=False))
+        perms = view.get_permissions()
+        self.assertEqual(len(perms), 1)
+        self.assertEqual(perms[0].actions, [ActionEnum.CREATE_COLLECTION])
+        self.assertTrue(perms[0].allow_public_object_via_request_biz)
+
+    def test_update_uses_create_collection_without_public_object_bypass(self):
+        view = CollectorPluginViewSet()
+        view.action = "update"
+        view.request = SimpleNamespace(data={}, query_params={}, user=SimpleNamespace(is_superuser=False))
+        perms = view.get_permissions()
+        self.assertEqual(len(perms), 1)
+        self.assertEqual(perms[0].actions, [ActionEnum.CREATE_COLLECTION])
+        self.assertFalse(perms[0].allow_public_object_via_request_biz)
+
+    def test_retrieve_allows_public_plugin_via_request_biz(self):
+        view = CollectorPluginViewSet()
+        view.action = "retrieve"
+        view.request = SimpleNamespace(data={}, query_params={}, user=SimpleNamespace(is_superuser=False))
+        perms = view.get_permissions()
+        self.assertEqual(len(perms), 1)
+        self.assertEqual(perms[0].actions, [ActionEnum.VIEW_BUSINESS])
+        self.assertTrue(perms[0].allow_public_object_via_request_biz)
+
+    def test_list_then_instances_object_permission_for_global_plugin(self):
+        view = self._list_view({"bk_biz_id": "2"})
+        qs = _QuerySet(
+            [
+                SimpleNamespace(bk_biz_id=0, collector_plugin_id=9),
+                SimpleNamespace(bk_biz_id=2, collector_plugin_id=8),
+            ]
+        )
+        with patch.object(ModelViewSet, "get_queryset", return_value=qs):
+            listed = view.get_queryset()
+        public_plugin = [item for item in listed.items if item.bk_biz_id == 0][0]
+
+        view.action = "instances"
+        view.request = SimpleNamespace(
+            data={"bk_biz_id": 2},
+            query_params={"bk_biz_id": "2"},
+            user=SimpleNamespace(is_superuser=False),
+            authenticators=None,
+            successful_authenticator=None,
+        )
+        with patch("apps.iam.handlers.drf.settings") as settings, patch("apps.iam.handlers.drf.Permission") as perm_cls:
+            settings.IGNORE_IAM_PERMISSION = False
+            perm_cls.return_value.is_allowed.return_value = True
+            view.check_permissions(view.request)
+            view.check_object_permissions(view.request, public_plugin)
+
+        view.action = "update"
+        view.request = SimpleNamespace(
+            data={"bk_biz_id": 2},
+            query_params={"bk_biz_id": "2"},
+            user=SimpleNamespace(is_superuser=False),
+            authenticators=None,
+            successful_authenticator=None,
+        )
+        with self.assertRaises(PermissionDenied):
+            view.check_object_permissions(view.request, public_plugin)

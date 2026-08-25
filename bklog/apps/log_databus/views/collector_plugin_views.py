@@ -30,7 +30,15 @@ from apps.utils.function import ignored
 
 
 class RequireBizActionPermission(BusinessActionPermission):
-    """业务权限失败关闭：缺少或为 0 的 bk_biz_id 不得放行。"""
+    """业务权限失败关闭：缺少或为 0 的 bk_biz_id 不得放行。
+
+    allow_public_object_via_request_biz: 公共插件（bk_biz_id=0）的对象权限改用请求中的目标业务，
+    供 retrieve / instances 使用；更新和删除仍只允许超管。
+    """
+
+    def __init__(self, actions, allow_public_object_via_request_biz=False):
+        self.allow_public_object_via_request_biz = allow_public_object_via_request_biz
+        super(RequireBizActionPermission, self).__init__(actions)
 
     def _parse_biz_id(self, value):
         try:
@@ -45,21 +53,32 @@ class RequireBizActionPermission(BusinessActionPermission):
     def has_permission(self, request, view):
         bk_biz_id = self._parse_biz_id(self.fetch_biz_id_by_request(request))
         if bk_biz_id <= 0:
+            # 更新/删除从 URL 取插件对象，业务 ID 在对象上，延迟到 has_object_permission
+            if getattr(view, "action", None) in ("update", "partial_update", "destroy"):
+                return True
             return self._is_privileged(request)
         self.resources = [ResourceEnum.BUSINESS.create_instance(bk_biz_id)]
         return super(BusinessActionPermission, self).has_permission(request, view)
 
     def has_object_permission(self, request, view, obj):
-        bk_biz_id = self._parse_biz_id(getattr(obj, "bk_biz_id", 0))
-        if bk_biz_id <= 0:
+        obj_biz_id = self._parse_biz_id(getattr(obj, "bk_biz_id", 0))
+        if obj_biz_id <= 0:
+            if self.allow_public_object_via_request_biz:
+                return self.has_permission(request, view)
             return self._is_privileged(request)
-        self.resources = [ResourceEnum.BUSINESS.create_instance(bk_biz_id)]
+        request_biz_id = self._parse_biz_id(self.fetch_biz_id_by_request(request))
+        if request_biz_id and request_biz_id != obj_biz_id:
+            return False
+        self.resources = [ResourceEnum.BUSINESS.create_instance(obj_biz_id)]
         return super(BusinessActionPermission, self).has_object_permission(request, view, obj)
 
 
 class RequireBizViewBusinessPermission(RequireBizActionPermission):
-    def __init__(self):
-        super(RequireBizViewBusinessPermission, self).__init__([ActionEnum.VIEW_BUSINESS])
+    def __init__(self, allow_public_object_via_request_biz=False):
+        super(RequireBizViewBusinessPermission, self).__init__(
+            [ActionEnum.VIEW_BUSINESS],
+            allow_public_object_via_request_biz=allow_public_object_via_request_biz,
+        )
 
 
 class CollectorPluginViewSet(ModelViewSet):
@@ -88,8 +107,17 @@ class CollectorPluginViewSet(ModelViewSet):
                     ResourceEnum.COLLECTION,
                 )
             ]
-        if self.action in ["update", "partial_update", "destroy", "instances"]:
-            return [RequireBizActionPermission([ActionEnum.MANAGE_COLLECTION])]
+        if self.action == "instances":
+            return [
+                RequireBizActionPermission(
+                    [ActionEnum.CREATE_COLLECTION],
+                    allow_public_object_via_request_biz=True,
+                )
+            ]
+        if self.action in ["update", "partial_update", "destroy"]:
+            return [RequireBizActionPermission([ActionEnum.CREATE_COLLECTION])]
+        if self.action == "retrieve":
+            return [RequireBizViewBusinessPermission(allow_public_object_via_request_biz=True)]
         return [RequireBizViewBusinessPermission()]
 
     def _is_privileged_request(self):
