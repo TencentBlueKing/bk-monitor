@@ -75,17 +75,17 @@ class ProfileBaseViewSet(ViewSet):
     INSTANCE_ID = "app_name"
 
     def get_permissions(self):
-        # put auth here, but left empty for debugging
-        if self.action in []:
-            return [
-                InstanceActionForDataPermission(
-                    self.INSTANCE_ID,
-                    [ActionEnum.VIEW_APM_APPLICATION],
-                    ResourceEnum.APM_APPLICATION,
-                    get_instance_id=Application.get_application_id_by_app_name,
-                )
-            ]
-        return []
+        action = (
+            ActionEnum.MANAGE_APM_APPLICATION if self.action == "upload" else ActionEnum.VIEW_APM_APPLICATION
+        )
+        return [
+            InstanceActionForDataPermission(
+                self.INSTANCE_ID,
+                [action],
+                ResourceEnum.APM_APPLICATION,
+                get_instance_id=Application.get_application_id_by_app_name,
+            )
+        ]
 
 
 class ProfileUploadViewSet(ProfileBaseViewSet):
