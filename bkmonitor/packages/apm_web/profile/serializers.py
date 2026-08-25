@@ -11,10 +11,12 @@ specific language governing permissions and limitations under the License.
 import json
 
 from django.http import QueryDict
+from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 
 from apm_web.models import ProfileUploadRecord
 from apm_web.profile.constants import DEFAULT_PROFILE_DATA_TYPE
+from bkmonitor.utils.request import get_request
 
 
 class QueryBaseSerializer(serializers.Serializer):
@@ -33,10 +35,12 @@ class QueryBaseSerializer(serializers.Serializer):
     end_time = serializers.IntegerField(label="结束时间", help_text="请使用 Second", required=False)
 
     def validate(self, attrs):
-        # 当且仅当全局查询时，不需要传递 app_name 和 service_name
-        if not attrs.get("global_query"):
-            if not attrs.get("app_name") or not attrs.get("service_name"):
-                raise serializers.ValidationError("app_name and service_name is required")
+        if attrs.get("global_query"):
+            request = get_request(peaceful=True)
+            if not request or not getattr(request.user, "is_superuser", False):
+                raise serializers.ValidationError(_("global_query is only allowed for superuser"))
+        elif not attrs.get("app_name") or not attrs.get("service_name"):
+            raise serializers.ValidationError("app_name and service_name is required")
 
         if not attrs.get("start") and not attrs.get("start_time"):
             raise serializers.ValidationError("start or start_time is required")

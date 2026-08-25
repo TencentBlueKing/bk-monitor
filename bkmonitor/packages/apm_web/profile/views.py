@@ -64,6 +64,7 @@ from apm_web.tasks import profile_file_upload_and_parse
 from bkmonitor.iam import ActionEnum, ResourceEnum
 from bkmonitor.iam.drf import InstanceActionForDataPermission, ViewBusinessPermission
 from bkmonitor.utils.cache import CacheType, using_cache
+from bkmonitor.utils.request import get_request
 from core.drf_resource import api
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
 from core.errors.api import BKAPIError
@@ -315,6 +316,9 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
         # - global storage, bk_biz_id/space_id level
         # - application storage, application level
         if validated_data["global_query"]:
+            request = get_request(peaceful=True)
+            if not request or not getattr(request.user, "is_superuser", False):
+                raise ValueError(_("global_query is only allowed for superuser"))
             builtin_datasource = api.apm_api.query_builtin_profile_datasource()
             app_name = BUILTIN_APP_NAME
             service_name = app_name
