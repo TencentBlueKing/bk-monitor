@@ -106,6 +106,7 @@ class ApplicationViewSet(ResourceViewSet):
             "nodata_strategy_info",
             "nodata_strategy_enable",
             "nodata_strategy_disable",
+            "modify_metric",
         ]:
             return [
                 InstanceActionForDataPermission(
@@ -121,7 +122,13 @@ class ApplicationViewSet(ResourceViewSet):
                     get_instance_id=Application.get_application_id_by_app_name,
                 )
             ]
-        if self.action in ["apply_strategies_to_services"]:
+        if self.action in [
+            "apply_strategies_to_services",
+            "delete_application",
+            "custom_service_config",
+            "delete_custom_service",
+            "custom_service_match_list",
+        ]:
             return [
                 InstanceActionForDataPermission(
                     "app_name",
