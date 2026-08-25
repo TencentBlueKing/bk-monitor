@@ -25,6 +25,9 @@ class _QuerySet(object):
         return _QuerySet([])
 
     def filter(self, **kwargs):
+        if "bk_biz_id__in" in kwargs:
+            allowed = set(kwargs["bk_biz_id__in"])
+            return _QuerySet([item for item in self.items if item.bk_biz_id in allowed])
         return _QuerySet([item for item in self.items if item.bk_biz_id == kwargs.get("bk_biz_id")])
 
     def __eq__(self, other):
@@ -72,19 +75,58 @@ class TestRequireBizActionPermission(TestCase):
 
 
 class TestCollectorPluginViewSetQueryset(TestCase):
-    def test_list_without_biz_id_returns_empty(self):
+    def _list_view(self, query_params, is_superuser=False):
         view = CollectorPluginViewSet()
         view.action = "list"
-        view.request = SimpleNamespace(query_params={}, data={})
+        view.request = SimpleNamespace(
+            query_params=query_params,
+            data={},
+            user=SimpleNamespace(is_superuser=is_superuser),
+        )
+        return view
+
+    def test_list_without_biz_id_returns_empty(self):
+        view = self._list_view({})
         qs = _QuerySet([SimpleNamespace(bk_biz_id=2), SimpleNamespace(bk_biz_id=0)])
         with patch.object(ModelViewSet, "get_queryset", return_value=qs):
             result = view.get_queryset()
         self.assertEqual(len(result), 0)
 
+    def test_normal_user_list_zero_returns_empty(self):
+        view = self._list_view({"bk_biz_id": "0"})
+        qs = _QuerySet([SimpleNamespace(bk_biz_id=0), SimpleNamespace(bk_biz_id=2)])
+        with patch.object(ModelViewSet, "get_queryset", return_value=qs):
+            result = view.get_queryset()
+        self.assertEqual(len(result), 0)
+
+    def test_superuser_list_zero_returns_global_plugins(self):
+        view = self._list_view({"bk_biz_id": "0"}, is_superuser=True)
+        qs = _QuerySet(
+            [
+                SimpleNamespace(bk_biz_id=0),
+                SimpleNamespace(bk_biz_id=2),
+                SimpleNamespace(bk_biz_id=3),
+            ]
+        )
+        with patch.object(ModelViewSet, "get_queryset", return_value=qs):
+            result = view.get_queryset()
+        self.assertEqual([item.bk_biz_id for item in result.items], [0])
+
+    def test_business_list_includes_global_plugins(self):
+        view = self._list_view({"bk_biz_id": "2"})
+        qs = _QuerySet(
+            [
+                SimpleNamespace(bk_biz_id=0),
+                SimpleNamespace(bk_biz_id=2),
+                SimpleNamespace(bk_biz_id=3),
+            ]
+        )
+        with patch.object(ModelViewSet, "get_queryset", return_value=qs):
+            result = view.get_queryset()
+        self.assertEqual(sorted(item.bk_biz_id for item in result.items), [0, 2])
+
     def test_list_filters_by_biz_id(self):
-        view = CollectorPluginViewSet()
-        view.action = "list"
-        view.request = SimpleNamespace(query_params={"bk_biz_id": "2"}, data={})
+        view = self._list_view({"bk_biz_id": "2"})
         qs = _QuerySet([SimpleNamespace(bk_biz_id=2), SimpleNamespace(bk_biz_id=3)])
         with patch.object(ModelViewSet, "get_queryset", return_value=qs):
             result = view.get_queryset()

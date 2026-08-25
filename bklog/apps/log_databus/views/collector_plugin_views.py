@@ -92,6 +92,10 @@ class CollectorPluginViewSet(ModelViewSet):
             return [RequireBizActionPermission([ActionEnum.MANAGE_COLLECTION])]
         return [RequireBizViewBusinessPermission()]
 
+    def _is_privileged_request(self):
+        user = getattr(self.request, "user", None)
+        return bool(user and getattr(user, "is_superuser", False))
+
     def get_queryset(self):
         qs = super(CollectorPluginViewSet, self).get_queryset()
         if self.action != "list":
@@ -103,9 +107,12 @@ class CollectorPluginViewSet(ModelViewSet):
             bk_biz_id = int(bk_biz_id) if bk_biz_id not in (None, "") else 0
         except (TypeError, ValueError):
             return qs.none()
-        if bk_biz_id <= 0:
-            return qs.none()
-        return qs.filter(bk_biz_id=bk_biz_id)
+        # 业务列表可见公共插件（bk_biz_id=0）；超管显式查询 0 时只返回全局插件。
+        if bk_biz_id > 0:
+            return qs.filter(bk_biz_id__in=[0, bk_biz_id])
+        if self._is_privileged_request():
+            return qs.filter(bk_biz_id=0)
+        return qs.none()
 
     def get_serializer_class(self, *args, **kwargs):
         if self.action in ["create"]:
