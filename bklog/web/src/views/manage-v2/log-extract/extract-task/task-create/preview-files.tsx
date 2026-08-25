@@ -60,6 +60,10 @@ export default defineComponent({
       type: Array,
       required: true,
     },
+    maxCount: {
+      type: Number,
+      default: 0,
+    },
   },
 
   setup(props, { emit, expose }) {
@@ -78,7 +82,8 @@ export default defineComponent({
     const filterKeyword = ref(''); // 节流后的文件过滤关键字
     const selectedFilePathSet = ref(new Set<string>()); // 跨过滤条件保留的已选文件路径
     let isSyncingTableSelection = false;
-    let isSwitchingFilterData = false;
+    // 表格数据整体替换（切换目录、翻页、过滤）期间忽略表格抛出的选中态变化，避免把跨路径已选清掉
+    let isSwitchingTableData = false;
 
     const previewTableRef = ref<any>(null);
 
@@ -99,7 +104,7 @@ export default defineComponent({
     });
 
     const updateFilterKeyword = debounce((val: string) => {
-      isSwitchingFilterData = true;
+      isSwitchingTableData = true;
       filterKeyword.value = String(val ?? '').trim().toLowerCase();
     }, 200);
 
@@ -142,7 +147,7 @@ export default defineComponent({
     const syncTableSelection = async () => {
       await nextTick();
       if (!previewTableRef.value) {
-        isSwitchingFilterData = false;
+        isSwitchingTableData = false;
         return;
       }
 
@@ -155,7 +160,7 @@ export default defineComponent({
       }
       await waitTableSelectionStable();
       isSyncingTableSelection = false;
-      isSwitchingFilterData = false;
+      isSwitchingTableData = false;
     };
 
     // 监听IP列表变化
@@ -180,11 +185,10 @@ export default defineComponent({
         exploreList: explorerList.value.splice(0),
         fileOrPath: path,
       };
-      setSelectedFilePaths([]);
-      emitSelectedFiles();
       if (path === '../' && historyStack.value.length) {
         // 返回上一级
         const cache = historyStack.value.pop();
+        isSwitchingTableData = true;
         explorerList.value = cache.exploreList;
         const { fileOrPath } = historyStack.value.at(-1);
         emit('update:fileOrPath', fileOrPath);
@@ -208,6 +212,7 @@ export default defineComponent({
           },
         })
         .then(res => {
+          isSwitchingTableData = true;
           if (path) {
             // 指定目录搜索
             historyStack.value.push(cacheList);
@@ -332,7 +337,7 @@ export default defineComponent({
 
     // 处理选择变化
     const handleSelect = (selection: any[]) => {
-      if (isSyncingTableSelection || isSwitchingFilterData) {
+      if (isSyncingTableSelection || isSwitchingTableData) {
         return;
       }
 
@@ -354,8 +359,16 @@ export default defineComponent({
         }
       }
 
-      selectedFilePathSet.value = nextSelectedPathSet;
+      const isExceeded = props.maxCount > 0 && nextSelectedPathSet.size > props.maxCount;
+      selectedFilePathSet.value = isExceeded
+        ? new Set(Array.from(nextSelectedPathSet).slice(0, props.maxCount))
+        : nextSelectedPathSet;
       emitSelectedFiles();
+
+      if (isExceeded) {
+        emit('exceed-limit');
+        syncTableSelection();
+      }
     };
 
     watch(
@@ -383,6 +396,7 @@ export default defineComponent({
       <div class='preview-file-content'>
         <div class='flex-box'>
           {/* 预览地址选择框 */}
+          <span class='panel-label'>{t('预览地址')}：</span>
           <bk-select
             style='width: 190px; margin-right: 20px; background-color: #fff'
             clearable={false}

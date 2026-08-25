@@ -28,6 +28,8 @@ import { defineComponent, ref, computed, watch } from 'vue';
 
 import useLocale from '@/hooks/use-locale';
 
+import { validateFilePath } from './file-path-validate';
+
 export default defineComponent({
   name: 'FilesInput',
   props: {
@@ -95,14 +97,7 @@ export default defineComponent({
 
     // 验证路径是否有效
     const validate = (val: string) => {
-      let isAvailable = false;
-      for (const path of props.availablePaths as string[]) {
-        if (val.startsWith(path)) {
-          isAvailable = true;
-          break;
-        }
-      }
-      const isValidated = isAvailable && !/\.\//.test(val);
+      const isValidated = !validateFilePath(val, props.availablePaths as string[]);
       isError.value = !isValidated;
       return isValidated;
     };

@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 
+import { bkMessage } from 'bk-magic-vue';
 import { defineComponent, ref, computed, onMounted, nextTick } from 'vue';
 
 // #if MONITOR_APP !== 'apm' && MONITOR_APP !== 'trace'
@@ -39,6 +40,7 @@ import http from '@/api';
 // #code const LogIpSelector = () => null;
 // #endif
 
+import { MAX_SELECTED_FILES, validateFilePath } from './file-path-validate';
 import FilesInput from './files-input.tsx';
 import PreviewFiles from './preview-files.tsx';
 import TextFilter from './text-filter.tsx';
@@ -63,9 +65,12 @@ export default defineComponent({
     const ipList = ref<any[]>([]); // 下载目标（ip 列表，TOPO/SERVICE_TEMPLATE 时从 strategies 响应获取）
     const targetNodeType = ref<string>('INSTANCE'); // INSTANCE | TOPO | SERVICE_TEMPLATE
     const targetNodes = ref<any[]>([]); // TOPO/SERVICE_TEMPLATE 选中的节点
-    const fileOrPath = ref(''); // 目录
+    const fileOrPath = ref(''); // 当前浏览目录
     const availablePaths = ref<string[]>([]); // 目录可选列表
-    const downloadFiles = ref<any[]>([]); // 下载的文件
+    const downloadFiles = ref<any[]>([]); // 已选列表，跨路径累积
+    const fileSourceTab = ref<'manual' | 'search'>('search'); // 选择日志文件的方式
+    const manualPath = ref(''); // 手动输入的路径
+    const manualPathError = ref(''); // 手动输入的校验提示
     const remark = ref(''); // 备注
     const extractLinks = ref<any[]>([]); // 提取链路
     const link_id = ref<null | number>(null);
@@ -90,6 +95,55 @@ export default defineComponent({
     const isClone = computed(() => {
       return route.name === 'extract-clone' && !!sessionStorage.getItem('cloneData');
     });
+
+    // 后端 preview_directory 仅用于列表展示与预览，多路径场景取已选文件所在的首个目录
+    const previewDirectory = computed(() => {
+      if (fileOrPath.value) {
+        return fileOrPath.value;
+      }
+      const firstFile = String(downloadFiles.value[0] ?? '');
+      const separatorIndex = firstFile.lastIndexOf('/');
+      return separatorIndex > 0 ? firstFile.slice(0, separatorIndex + 1) : firstFile;
+    });
+
+    const notifyExceedLimit = () => {
+      bkMessage({
+        theme: 'warning',
+        message: t('已选列表最多支持{0}个文件', { 0: MAX_SELECTED_FILES }),
+      });
+    };
+
+    // 手动输入路径添加到已选列表
+    const handleAddManualPath = () => {
+      const path = manualPath.value.trim();
+      manualPathError.value = validateFilePath(path, availablePaths.value);
+      if (manualPathError.value) {
+        return;
+      }
+      if (downloadFiles.value.includes(path)) {
+        manualPathError.value = '该路径已在已选列表中';
+        return;
+      }
+      if (downloadFiles.value.length >= MAX_SELECTED_FILES) {
+        notifyExceedLimit();
+        return;
+      }
+      downloadFiles.value = [...downloadFiles.value, path];
+      manualPath.value = '';
+    };
+
+    const handleManualPathInput = (val: string) => {
+      manualPath.value = val;
+      manualPathError.value = '';
+    };
+
+    const handleRemoveSelectedFile = (path: string) => {
+      downloadFiles.value = downloadFiles.value.filter(item => item !== path);
+    };
+
+    const handleClearSelectedFiles = () => {
+      downloadFiles.value = [];
+    };
 
     // ip选择器选中节点，根据 targetNodeType 返回不同结构
     const selectorNodes = computed(() => {
@@ -131,6 +185,7 @@ export default defineComponent({
         }
 
         fileOrPath.value = cloneData.preview_directory; // 克隆目录
+        downloadFiles.value = cloneData.file_path ?? []; // 克隆已选列表，含跨路径文件
         textFilterRef.value?.handleClone(cloneData); // 克隆文本过滤
         remark.value = cloneData.remark; // 克隆备注
         // 获取目录下拉列表和预览地址
@@ -352,7 +407,7 @@ export default defineComponent({
         ip_list: ipList.value,
         target_node_type: targetNodeType.value,
         target_nodes: targetNodes.value,
-        preview_directory: fileOrPath.value,
+        preview_directory: previewDirectory.value,
         preview_ip_list: previewRef.value?.getFindIpList(),
         preview_time_range: previewRef.value?.timeRange,
         preview_start_time: previewRef.value?.timeStringValue[0],
@@ -444,46 +499,139 @@ export default defineComponent({
           </div>
         </div>
 
-        {/* 目录或文件名 */}
+        {/* 选择日志文件 */}
         <div class='row-container'>
           <div class='title'>
-            {t('目录或文件名')}
+            {t('选择日志文件')}
             <span class='required'>*</span>
             <span
               class='bklog-icon bklog-info-fill'
               v-bk-tooltips={`${t('以')}/${t('结尾查询指定目录下内容，否则默认查询该目录及其子目录下所有文件')}`}
             />
           </div>
-          <div class='content'>
-            <FilesInput
-              availablePaths={availablePaths.value}
-              value={fileOrPath.value}
-              {...{
-                on: {
-                  'update:value': (val: string) => (fileOrPath.value = val),
-                  'update:select': handleFilesSelect,
-                },
-              }}
-            />
-          </div>
-        </div>
+          <div class='content log-file-selector'>
+            <div class='selector-main'>
+              <div class='selector-tab'>
+                <div
+                  class={['tab-item', { 'is-active': fileSourceTab.value === 'search' }]}
+                  onClick={() => (fileSourceTab.value = 'search')}
+                >
+                  <i class='bk-icon icon-search' />
+                  <span>{t('从主机检索')}</span>
+                </div>
+                <div
+                  class={['tab-item', { 'is-active': fileSourceTab.value === 'manual' }]}
+                  onClick={() => (fileSourceTab.value = 'manual')}
+                >
+                  <i class='bk-icon icon-edit-line' />
+                  <span>{t('手动输入路径')}</span>
+                </div>
+              </div>
 
-        {/* 预览地址 */}
-        <div class='row-container'>
-          <div class='title'>{t('预览地址')}</div>
-          <PreviewFiles
-            ref={previewRef}
-            downloadFiles={downloadFiles.value}
-            fileOrPath={fileOrPath.value}
-            ipList={ipList.value}
-            ipSelectNewNameList={ipSelectNewNameList.value}
-            {...{
-              on: {
-                'update:downloadFiles': (val: any[]) => (downloadFiles.value = val),
-                'update:fileOrPath': handleFileOrPathUpdate,
-              },
-            }}
-          />
+              {/* 检索面板常驻挂载，切换页签只隐藏，避免丢失预览地址与文件列表状态 */}
+              <div
+                style={{ display: fileSourceTab.value === 'search' ? '' : 'none' }}
+                class='selector-panel'
+              >
+                <FilesInput
+                  availablePaths={availablePaths.value}
+                  value={fileOrPath.value}
+                  {...{
+                    on: {
+                      'update:value': (val: string) => (fileOrPath.value = val),
+                      'update:select': handleFilesSelect,
+                    },
+                  }}
+                />
+                <PreviewFiles
+                  ref={previewRef}
+                  downloadFiles={downloadFiles.value}
+                  fileOrPath={fileOrPath.value}
+                  ipList={ipList.value}
+                  ipSelectNewNameList={ipSelectNewNameList.value}
+                  maxCount={MAX_SELECTED_FILES}
+                  {...{
+                    on: {
+                      'update:downloadFiles': (val: any[]) => (downloadFiles.value = val),
+                      'update:fileOrPath': handleFileOrPathUpdate,
+                      'exceed-limit': notifyExceedLimit,
+                    },
+                  }}
+                />
+              </div>
+
+              <div
+                style={{ display: fileSourceTab.value === 'manual' ? '' : 'none' }}
+                class='selector-panel'
+              >
+                <div class='manual-tips'>
+                  <i class='bklog-icon bklog-info-fill' />
+                  <span>{t('支持手动输入完整的日志文件路径，添加后进入右侧已选列表')}</span>
+                </div>
+                <div class='manual-operate'>
+                  <bk-input
+                    class={manualPathError.value ? 'is-error' : ''}
+                    placeholder={t('请输入完整的日志文件路径，如 /data/logs/app.log')}
+                    value={manualPath.value}
+                    {...{
+                      on: {
+                        change: handleManualPathInput,
+                        enter: handleAddManualPath,
+                      },
+                    }}
+                  />
+                  <bk-button
+                    disabled={!manualPath.value.trim()}
+                    theme='primary'
+                    onClick={handleAddManualPath}
+                  >
+                    {t('添加到已选列表')}
+                  </bk-button>
+                </div>
+                {!!manualPathError.value && <div class='manual-error'>{t(manualPathError.value)}</div>}
+              </div>
+            </div>
+
+            <div class='selected-panel'>
+              <div class='selected-head'>
+                <span class='selected-title'>
+                  {t('已选列表')}
+                  <span class='selected-count'>
+                    ({downloadFiles.value.length}/{MAX_SELECTED_FILES})
+                  </span>
+                </span>
+                <span
+                  class={['clear-all', { 'is-disabled': !downloadFiles.value.length }]}
+                  onClick={handleClearSelectedFiles}
+                >
+                  {t('清空')}
+                </span>
+              </div>
+              <div class='selected-body'>
+                {downloadFiles.value.length ? (
+                  downloadFiles.value.map((path: string) => (
+                    <div
+                      key={path}
+                      class='selected-item'
+                    >
+                      <span
+                        class='item-path'
+                        v-bk-overflow-tips
+                      >
+                        {path}
+                      </span>
+                      <i
+                        class='bk-icon icon-close'
+                        onClick={() => handleRemoveSelectedFile(path)}
+                      />
+                    </div>
+                  ))
+                ) : (
+                  <div class='selected-empty'>{t('暂无已选文件')}</div>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* 文本过滤 */}
