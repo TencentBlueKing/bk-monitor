@@ -24,14 +24,14 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, isRef, onMounted, ref, type PropType } from 'vue';
+import { computed, defineComponent, isRef, nextTick, onMounted, ref, type PropType } from 'vue';
 import TextHighlight from 'vue-text-highlight';
 
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
 // import { BK_LOG_STORAGE } from '@/store/store.type';
 import BkUserSelector from '@blueking/user-selector';
-import { bkMessage } from 'bk-magic-vue';
+import { bkInfoBox, bkMessage } from 'bk-magic-vue';
 import tippy from 'tippy.js';
 
 import ClusterEventPopover from './cluster-popover';
@@ -368,7 +368,14 @@ export default defineComponent({
         });
     };
 
-    const changeStrategy = (enabled: boolean, row: LogPattern) => {
+    const revertStrategySwitcher = (row: LogPattern, enabled: boolean) => {
+      updateTableRowData(row, 'strategy_enabled', enabled);
+      nextTick(() => {
+        updateTableRowData(row, 'strategy_enabled', !enabled);
+      });
+    };
+
+    const requestChangeStrategy = (enabled: boolean, row: LogPattern) => {
       currentRowId.value = row.id;
       $http
         .request('/logClustering/updatePatternStrategy', {
@@ -393,6 +400,15 @@ export default defineComponent({
             updateTableRowData(row, 'strategy_enabled', enabled);
           }
         });
+    };
+
+    const changeStrategy = (enabled: boolean, row: LogPattern) => {
+      currentRowId.value = row.id;
+      bkInfoBox({
+        title: enabled ? t('确认开启告警策略？') : t('确认关闭告警策略？'),
+        confirmFn: () => requestChangeStrategy(enabled, row),
+        cancelFn: () => revertStrategySwitcher(row, enabled),
+      });
     };
 
     const handleStrategyInfoClick = (row) => {
