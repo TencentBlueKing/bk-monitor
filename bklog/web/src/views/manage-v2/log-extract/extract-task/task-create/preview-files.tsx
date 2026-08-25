@@ -33,6 +33,7 @@ import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
 
 import FileDatePicker from './file-date-picker.tsx';
+import { MAX_SELECTED_FILES } from './file-path-validate';
 import http from '@/api';
 
 import './preview-files.scss';
@@ -60,6 +61,10 @@ export default defineComponent({
       type: Array,
       required: true,
     },
+    maxCount: {
+      type: Number,
+      default: MAX_SELECTED_FILES,
+    },
   },
 
   setup(props, { emit, expose }) {
@@ -78,7 +83,10 @@ export default defineComponent({
     const filterKeyword = ref(''); // 节流后的文件过滤关键字
     const selectedFilePathSet = ref(new Set<string>()); // 跨过滤条件保留的已选文件路径
     let isSyncingTableSelection = false;
-    let isSwitchingFilterData = false;
+    // 表格数据整体替换（切换目录、翻页、过滤）期间忽略表格抛出的选中态变化，避免把跨路径已选清掉。
+    // 置位后必须由 syncTableSelection 复位，因此只在数据确实会被替换时才置位
+    let isSwitchingTableData = false;
+    let syncSelectionToken = 0;
 
     const previewTableRef = ref<any>(null);
 
@@ -99,8 +107,14 @@ export default defineComponent({
     });
 
     const updateFilterKeyword = debounce((val: string) => {
-      isSwitchingFilterData = true;
-      filterKeyword.value = String(val ?? '').trim().toLowerCase();
+      const keyword = String(val ?? '').trim().toLowerCase();
+      // 归一化后关键字没变（补空格、改大小写等）时表格数据不会重算，
+      // 此时置位就没有复位时机，会一直吞掉用户后续的勾选
+      if (keyword === filterKeyword.value) {
+        return;
+      }
+      isSwitchingTableData = true;
+      filterKeyword.value = keyword;
     }, 200);
 
     const handleFilterChange = (val: string) => {
@@ -140,9 +154,16 @@ export default defineComponent({
     };
 
     const syncTableSelection = async () => {
+      // 多个来源（数据变化、父组件已选变化、超限截断）可能在同一批任务里发起同步，
+      // 用递增令牌让最后一次发起的同步独占收尾，避免前一次提前把标志位复位
+      syncSelectionToken += 1;
+      const token = syncSelectionToken;
       await nextTick();
+      if (token !== syncSelectionToken) {
+        return;
+      }
       if (!previewTableRef.value) {
-        isSwitchingFilterData = false;
+        isSwitchingTableData = false;
         return;
       }
 
@@ -154,8 +175,11 @@ export default defineComponent({
         }
       }
       await waitTableSelectionStable();
+      if (token !== syncSelectionToken) {
+        return;
+      }
       isSyncingTableSelection = false;
-      isSwitchingFilterData = false;
+      isSwitchingTableData = false;
     };
 
     // 监听IP列表变化
@@ -166,8 +190,7 @@ export default defineComponent({
         if (val.length) {
           previewIp.value.push(getIpListID(val[0]));
         }
-        setSelectedFilePaths([]);
-        emitSelectedFiles();
+        // 已选列表由父组件持有，重新选择服务器时由父组件清空，避免克隆回填被这里清掉
         explorerList.value.splice(0); // 选择服务器后清空表格
         historyStack.value.splice(0); // 选择服务器后清空历史堆栈
       },
@@ -180,14 +203,19 @@ export default defineComponent({
         exploreList: explorerList.value.splice(0),
         fileOrPath: path,
       };
-      setSelectedFilePaths([]);
-      emitSelectedFiles();
       if (path === '../' && historyStack.value.length) {
-        // 返回上一级
+        // 返回上一级：栈顶记录的是当前目录，上一级目录取倒数第二条
+        const parent = historyStack.value.at(-2);
+        if (!parent) {
+          // 没有更上一级的记录，恢复被 splice 清空的列表后结束，
+          // 既不能把 '../' 当成真实路径去请求，也不能置位标志位（此时没有复位时机）
+          explorerList.value = cacheList.exploreList;
+          return;
+        }
         const cache = historyStack.value.pop();
+        isSwitchingTableData = true;
         explorerList.value = cache.exploreList;
-        const { fileOrPath } = historyStack.value.at(-1);
-        emit('update:fileOrPath', fileOrPath);
+        emit('update:fileOrPath', parent.fileOrPath);
         return;
       }
       emit('update:fileOrPath', path);
@@ -208,6 +236,7 @@ export default defineComponent({
           },
         })
         .then(res => {
+          isSwitchingTableData = true;
           if (path) {
             // 指定目录搜索
             historyStack.value.push(cacheList);
@@ -332,7 +361,7 @@ export default defineComponent({
 
     // 处理选择变化
     const handleSelect = (selection: any[]) => {
-      if (isSyncingTableSelection || isSwitchingFilterData) {
+      if (isSyncingTableSelection || isSwitchingTableData) {
         return;
       }
 
@@ -354,8 +383,16 @@ export default defineComponent({
         }
       }
 
-      selectedFilePathSet.value = nextSelectedPathSet;
+      const isExceeded = props.maxCount > 0 && nextSelectedPathSet.size > props.maxCount;
+      selectedFilePathSet.value = isExceeded
+        ? new Set(Array.from(nextSelectedPathSet).slice(0, props.maxCount))
+        : nextSelectedPathSet;
       emitSelectedFiles();
+
+      if (isExceeded) {
+        emit('exceed-limit');
+        syncTableSelection();
+      }
     };
 
     watch(
@@ -383,6 +420,7 @@ export default defineComponent({
       <div class='preview-file-content'>
         <div class='flex-box'>
           {/* 预览地址选择框 */}
+          <span class='panel-label'>{t('预览地址')}：</span>
           <bk-select
             style='width: 190px; margin-right: 20px; background-color: #fff'
             clearable={false}

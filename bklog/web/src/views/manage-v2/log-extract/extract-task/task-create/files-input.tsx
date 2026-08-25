@@ -28,6 +28,8 @@ import { defineComponent, ref, computed, watch } from 'vue';
 
 import useLocale from '@/hooks/use-locale';
 
+import { type ExtractStrategy, validateDirectoryPath } from './file-path-validate';
+
 export default defineComponent({
   name: 'FilesInput',
   props: {
@@ -35,7 +37,7 @@ export default defineComponent({
       type: String,
       required: true,
     },
-    availablePaths: {
+    strategies: {
       type: Array,
       required: true,
     },
@@ -49,16 +51,16 @@ export default defineComponent({
 
     const selectDropdownRef = ref<any>(null);
 
+    const availablePaths = computed(() => (props.strategies as ExtractStrategy[]).map(item => item.file_path));
+
     // 过滤后的文件路径列表
     const filesSearchedPath = computed(() => {
-      return props.availablePaths.filter((item: string) =>
-        item.toLowerCase().includes(searchValue.value.toLowerCase()),
-      );
+      return availablePaths.value.filter(item => item.toLowerCase().includes(searchValue.value.toLowerCase()));
     });
 
     // 监听可用路径变化
     watch(
-      () => props.availablePaths,
+      () => props.strategies,
       () => {
         if (showValue.value) {
           handleChange(showValue.value);
@@ -93,16 +95,9 @@ export default defineComponent({
       selectDropdownRef.value?.hideHandler();
     };
 
-    // 验证路径是否有效
+    // 验证浏览目录是否有效，目录只做前缀匹配，文件类型白名单在选择具体文件时才校验
     const validate = (val: string) => {
-      let isAvailable = false;
-      for (const path of props.availablePaths as string[]) {
-        if (val.startsWith(path)) {
-          isAvailable = true;
-          break;
-        }
-      }
-      const isValidated = isAvailable && !/\.\//.test(val);
+      const isValidated = !validateDirectoryPath(val, props.strategies as ExtractStrategy[]).message;
       isError.value = !isValidated;
       return isValidated;
     };
