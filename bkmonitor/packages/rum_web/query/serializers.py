@@ -8,12 +8,13 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+from typing import Any
 from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 
-
 from rum_web.constants import RumQueryMode
 from constants.apm import OperatorGroupRelation
+from constants.otel_query import EnabledStatisticsDimension
 
 
 class FilterSerializer(serializers.Serializer):
@@ -92,3 +93,46 @@ class RumGenerateQueryStringRequestSerializer(BaseRumRequestSerializer):
     """将过滤条件转换为查询字符串"""
 
     filters = serializers.ListField(label=_("查询条件"), child=QueryStringFilterSerializer(), default=list)
+
+
+class RumFieldsTopKRequestSerializer(BaseRumSearchSerializer):
+    """查询字段 Top-K 值"""
+
+    fields = serializers.ListField(label=_("查询字段列表"), child=serializers.CharField())
+    limit = serializers.IntegerField(label=_("数量限制"), default=5, min_value=1)
+
+
+class RumStatisticsFieldSerializer(serializers.Serializer):
+    field_type = serializers.CharField(label=_("字段类型"))
+    field_name = serializers.CharField(label=_("字段名称"))
+    values = serializers.ListField(label=_("查询过滤条件值列表"), allow_empty=True, default=list)
+
+    def validate(self, attrs):
+        if attrs["field_type"] not in [dimension.value for dimension in EnabledStatisticsDimension]:
+            raise ValueError(_("不支持的字段类型"))
+        return attrs
+
+
+class RumFieldStatisticsInfoRequestSerializer(BaseRumSearchSerializer):
+    """查询字段统计信息"""
+
+    field = RumStatisticsFieldSerializer(label=_("字段"))
+
+
+class RumFieldStatisticsGraphRequestSerializer(BaseRumSearchSerializer):
+    """查询字段统计图表配置"""
+
+    field = RumStatisticsFieldSerializer(label=_("字段"))
+    query_method = serializers.CharField(label=_("查询方法"), required=False)
+    time_alignment = serializers.BooleanField(label=_("是否对齐时间"), default=False)
+
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        attrs = super().validate(attrs)
+        time_alignment: bool = attrs.get("time_alignment", False)
+        attrs["query_method"] = ("query_reference", "query_data")[time_alignment]
+        field = attrs["field"]
+        if field["field_type"] == EnabledStatisticsDimension.KEYWORD.value:
+            return attrs
+        if len(field["values"]) < 4:
+            raise ValueError(_("数值类型查询条件不足"))
+        return attrs

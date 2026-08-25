@@ -8,20 +8,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from enum import Enum
-
 from django.utils.translation import gettext_lazy as _
-
-
-class EnabledStatisticsDimension(Enum):
-    """
-    开启字段分析的维度类型枚举（映射到 Elasticsearch 数据类型）
-    """
-
-    KEYWORD = "keyword"
-    INTEGER = "integer"
-    LONG = "long"
-    DOUBLE = "double"
 
 
 TRACE_FIELD_ALIAS = {

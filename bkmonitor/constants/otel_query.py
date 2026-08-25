@@ -187,3 +187,18 @@ FIELD_OPERATIONS = {
         OperatorEnum.NOT_EXISTS,
     ],
 }
+
+
+class EnabledStatisticsDimension(CachedEnum):
+    """
+    开启字段分析的维度类型枚举（映射到 Elasticsearch 数据类型）
+    """
+
+    KEYWORD = "keyword"
+    INTEGER = "integer"
+    LONG = "long"
+    DOUBLE = "double"
+
+    @classmethod
+    def choices(cls):
+        return [(dimension_type.value, dimension_type.name) for dimension_type in cls]

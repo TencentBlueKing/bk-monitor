@@ -27,7 +27,6 @@ from apm.constants import (
     AggregatedMethod,
     ApmCacheType,
     ConfigTypes,
-    EnabledStatisticsDimension,
     StatisticsProperty,
     VisibleEnum,
 )
@@ -92,6 +91,7 @@ from constants.apm import (
     TraceListQueryMode,
     TraceWaterFallDisplayKey,
 )
+from constants.otel_query import EnabledStatisticsDimension
 from core.drf_resource import Resource, api, resource
 from core.drf_resource.exceptions import CustomException
 from metadata import models
@@ -2440,10 +2440,9 @@ class QueryFieldStatisticsInfoResource(Resource):
         field: dict[str, Any] = validated_data["field"]
         filters: list[dict[str, Any]] = copy.deepcopy(validated_data["filters"])
         if property_name == StatisticsProperty.FIELD_COUNT.value:
-            exclude_empty_operator: str = FilterOperator.NOT_EQUAL
-            if cls._is_number_field(validated_data["field"]):
-                exclude_empty_operator: str = FilterOperator.EXISTS
-
+            exclude_empty_operator: str = (
+                FilterOperator.EXISTS if cls._is_number_field(validated_data["field"]) else FilterOperator.NOT_EQUAL
+            )
             filters.append({"key": field["field_name"], "value": [""], "operator": exclude_empty_operator})
 
         statistics_info[property_name] = proxy.query_field_aggregated_value(
@@ -2458,7 +2457,7 @@ class QueryFieldStatisticsInfoResource(Resource):
 
     @classmethod
     def process_statistics_info(cls, statistics_info: dict[str, Any]) -> dict[str, Any]:
-        processed_statistics_info = {}
+        processed_statistics_info: dict[str, Any] = {}
         # 分类并处理结果
         for statistics_property, value in statistics_info.items():
             value = format_percent(value, 3, 3, 3)

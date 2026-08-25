@@ -8,13 +8,23 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import copy
 from typing import Any
 
+from django.utils.translation import gettext_lazy as _
+
+
+from apm.constants import AggregatedMethod, StatisticsProperty
+from apm.utils.ui_optimizations import HistogramNiceNumberGenerator
 from bkmonitor.data_source.utils import types
-from bkmonitor.data_source.utils.apm import TraceDatasourceTarget
 from bkmonitor.utils.elasticsearch.handler import QueryStringGenerator
 from constants.apm import OperatorGroupRelation
 from constants.otel_query import OperatorEnum
+from bkmonitor.data_source.utils.apm import FilterOperator, TraceDatasourceTarget
+from bkmonitor.utils.common_utils import format_percent
+from bkmonitor.utils.thread_backend import ThreadPool
+from constants.otel_query import EnabledStatisticsDimension
+from core.drf_resource import resource
 from rum_web.handlers.level.base import BaseRumLevelHandler
 from rum_web.handlers.query.span import SpanQuery
 from rum_web.constants import RUM_SEARCH_PAGE_GROUPS, RumSpanType
@@ -93,6 +103,38 @@ class SpanLevelHandler(BaseRumLevelHandler):
     }
     VIEW_CONFIG_IGNORE_KEYS = ["is_case_sensitive", "is_analyzed", "wildcard_case_insensitive", "tokenize_on_chars"]
 
+    #: 数值类型字段集合
+    NUMERIC_FIELD_TYPES = {
+        EnabledStatisticsDimension.INTEGER.value,
+        EnabledStatisticsDimension.LONG.value,
+        EnabledStatisticsDimension.DOUBLE.value,
+    }
+
+    #: 统计属性 -> 聚合方法
+    STATISTICS_PROPERTY_METHOD_MAP: dict[str, str] = {
+        StatisticsProperty.TOTAL_COUNT.value: AggregatedMethod.COUNT.value,
+        StatisticsProperty.FIELD_COUNT.value: AggregatedMethod.COUNT.value,
+        StatisticsProperty.DISTINCT_COUNT.value: AggregatedMethod.DISTINCT.value,
+        StatisticsProperty.AVG.value: AggregatedMethod.AVG.value,
+        StatisticsProperty.MAX.value: AggregatedMethod.MAX.value,
+        StatisticsProperty.MIN.value: AggregatedMethod.MIN.value,
+        StatisticsProperty.MEDIAN.value: AggregatedMethod.CP50.value,
+    }
+
+    BASE_STATISTICS_PROPERTIES: set[str] = {
+        StatisticsProperty.TOTAL_COUNT.value,
+        StatisticsProperty.FIELD_COUNT.value,
+        StatisticsProperty.DISTINCT_COUNT.value,
+    }
+
+    #: 数值型统计属性（用于归类到 value_analysis）
+    NUMERIC_STATISTICS_PROPERTIES: set[str] = {
+        StatisticsProperty.MAX.value,
+        StatisticsProperty.MIN.value,
+        StatisticsProperty.MEDIAN.value,
+        StatisticsProperty.AVG.value,
+    }
+
     def __init__(self, data_sources: list[TraceDatasourceTarget]):
         super().__init__(data_sources)
         self.query = SpanQuery(data_sources)
@@ -163,8 +205,52 @@ class SpanLevelHandler(BaseRumLevelHandler):
         filters: list[types.Filter] | None = None,
         query_string: str = "",
         extra_config: dict[str, Any] | None = None,
-    ) -> list[dict[str, Any]]:
-        raise NotImplementedError
+    ) -> dict[str, Any]:
+        """查询字段 Top-K 值。
+
+        并发计算 total_count（用于比例）、distinct_count（去重数）与 Top-K 桶列表，
+        按协议组装 {"field", "distinct_count", "list": [{"value", "count", "proportions"}]}。
+        """
+        filters = filters or []
+
+        results: dict[str, Any] = {}
+
+        def _query_total():
+            results["total"] = self.query.query_field_aggregated_value(
+                start_time, end_time, "_index", "count", filters, query_string
+            )
+
+        def _query_distinct():
+            results["distinct"] = self.query.query_field_aggregated_value(
+                start_time, end_time, field, "distinct", filters, query_string
+            )
+
+        def _query_topk():
+            results["topk"] = self.query.query_field_topk(start_time, end_time, field, limit, filters, query_string)
+
+        ThreadPool().map_ignore_exception(lambda fn: fn(), [_query_total, _query_distinct, _query_topk])
+
+        total_count: int = int(results.get("total") or 0)
+        distinct_count: int = int(results.get("distinct") or 0)
+        topk_buckets: list[dict[str, Any]] = results.get("topk") or []
+
+        topk_list: list[dict[str, Any]] = []
+        for bucket in topk_buckets:
+            count = bucket.get("_result_", 0)
+            proportions = format_percent(
+                100 * count / total_count if total_count > 0 else 0,
+                precision=3,
+                sig_fig_cnt=3,
+                readable_precision=3,
+            )
+            topk_list.append({"value": bucket.get(field), "count": count, "proportions": proportions})
+
+        return {"field": field, "distinct_count": distinct_count, "list": topk_list}
+
+    @classmethod
+    def _is_number_field(cls, field: dict[str, Any]) -> bool:
+        """判断字段是否为数值类型。"""
+        return field["field_type"] in cls.NUMERIC_FIELD_TYPES
 
     def field_statistics_info(
         self,
@@ -175,7 +261,84 @@ class SpanLevelHandler(BaseRumLevelHandler):
         query_string: str = "",
         extra_config: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
-        raise NotImplementedError
+        """查询字段统计信息。
+
+        - keyword 类型：返回 total_count、field_count、distinct_count、field_percent
+        - 数值类型：额外补充 value_analysis: {max, min, avg, median}
+        - 支持通过 extra_config["exclude_property"] 排除部分统计属性
+        """
+        filters = filters or []
+        extra_config = extra_config or {}
+        exclude_property: list[str] = extra_config.get("exclude_property") or []
+
+        # 基础统计属性
+        statistics_properties: set[str] = (
+            self.BASE_STATISTICS_PROPERTIES | self.NUMERIC_STATISTICS_PROPERTIES
+            if self._is_number_field(field)
+            else self.BASE_STATISTICS_PROPERTIES
+        )
+        target_properties: set[str] = statistics_properties - set(exclude_property)
+
+        statistics_info: dict[str, Any] = {}
+        ThreadPool().map_ignore_exception(
+            lambda property_name: self._query_statistics_info(
+                start_time, end_time, field, filters, query_string, property_name, statistics_info
+            ),
+            list(target_properties),
+        )
+        return self._process_statistics_info(statistics_info)
+
+    def _query_statistics_info(
+        self,
+        start_time: int,
+        end_time: int,
+        field: dict[str, Any],
+        filters: list[types.Filter],
+        query_string: str,
+        property_name: str,
+        statistics_info: dict[str, Any],
+    ) -> None:
+        if property_name not in self.STATISTICS_PROPERTY_METHOD_MAP:
+            raise ValueError(_(f"未知的字段统计属性: {property_name}"))
+
+        field_name: str = field["field_name"]
+        query_filters: list[types.Filter] = copy.deepcopy(filters)
+        # 字段计数：排除空值。数值类型使用 exists 判断，其他类型排除空字符串。
+        if property_name == StatisticsProperty.FIELD_COUNT.value:
+            exclude_empty_operator = FilterOperator.EXISTS if self._is_number_field(field) else FilterOperator.NOT_EQUAL
+            query_filters.append({"key": field_name, "value": [""], "operator": exclude_empty_operator})
+
+        statistics_info[property_name] = self.query.query_field_aggregated_value(
+            start_time,
+            end_time,
+            field_name,
+            self.STATISTICS_PROPERTY_METHOD_MAP[property_name],
+            query_filters,
+            query_string,
+        )
+
+    @classmethod
+    def _process_statistics_info(cls, statistics_info: dict[str, Any]) -> dict[str, Any]:
+        processed: dict[str, Any] = {}
+        # 分类并处理结果
+        for statistics_property, value in statistics_info.items():
+            value = format_percent(value, 3, 3, 3)
+            if statistics_property in cls.NUMERIC_STATISTICS_PROPERTIES:
+                processed.setdefault("value_analysis", {})[statistics_property] = value
+                continue
+            processed[statistics_property] = value
+
+        # 计算字段占比
+        if (
+            StatisticsProperty.FIELD_COUNT.value in statistics_info
+            and StatisticsProperty.TOTAL_COUNT.value in statistics_info
+        ):
+            field_percent = 0
+            total_count = statistics_info[StatisticsProperty.TOTAL_COUNT.value]
+            if total_count > 0:
+                field_percent = statistics_info[StatisticsProperty.FIELD_COUNT.value] / total_count * 100
+            processed["field_percent"] = format_percent(field_percent, 3, 3, 3)
+        return processed
 
     def field_statistics_graph(
         self,
@@ -186,19 +349,56 @@ class SpanLevelHandler(BaseRumLevelHandler):
         query_string: str = "",
         extra_config: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
-        raise NotImplementedError
+        """查询字段统计图表。
 
-    def download_topk(
-        self,
-        start_time: int,
-        end_time: int,
-        field: str,
-        limit: int = 5,
-        filters: list[types.Filter] | None = None,
-        query_string: str = "",
-        extra_config: dict[str, Any] | None = None,
-    ) -> bytes:
-        raise NotImplementedError
+        - keyword 类型：按取值分组构建时序图（走 grafana.graph_unify_query）
+        - 数值类型：根据 min/max/distinct_count/interval_num 划分区间，并发统计各区间计数
+        """
+        filters = filters or []
+        field_name: str = field["field_name"]
+        values: list[Any] = field.get("values") or []
+
+        # keyword 类型：按取值分组构建时序图
+        if field["field_type"] == EnabledStatisticsDimension.KEYWORD.value:
+            keyword_filters = filters + [{"key": field_name, "value": values, "operator": FilterOperator.EQUAL}]
+            config = self.query.query_graph_config(
+                start_time, end_time, field_name, filters=keyword_filters, query_string=query_string
+            )
+            config.update(
+                {
+                    "time_alignment": extra_config.get("time_alignment", False),
+                    "null_as_zero": not extra_config.get("time_alignment", False),
+                    "start_time": config["start_time"] // 1000,
+                    "end_time": config["end_time"] // 1000,
+                }
+            )
+            if extra_config.get("query_method"):
+                config.update({"query_method": extra_config["query_method"]})
+            return resource.grafana.graph_unify_query(config)
+
+        # 数值类型：values 至少 4 项 [min_value, max_value, distinct_count, interval_num]
+        min_value, max_value, distinct_count, interval_num = values[:4]
+        if min_value is None or max_value is None:
+            return self._process_graph_info([])
+
+        # 字段枚举数量小于等于区间数量，或区间的最大数量小于等于区间数，直接查询枚举值返回
+        if distinct_count is not None and (
+            distinct_count <= interval_num or (max_value - min_value + 1) <= interval_num
+        ):
+            topk_buckets = self.query.query_field_topk(
+                start_time, end_time, field_name, distinct_count, filters, query_string
+            )
+            return self._process_graph_info(
+                [
+                    [bucket.get("_result_", 0), int(bucket[field_name])]
+                    for bucket in sorted(topk_buckets, key=lambda b: b.get(field_name))
+                ]
+            )
+
+        intervals = self._calculate_intervals(min_value, max_value, interval_num)
+        return self._process_graph_info(
+            self._calculate_interval_buckets(start_time, end_time, field_name, filters, query_string, intervals)
+        )
 
     def record_detail(
         self,
@@ -206,6 +406,50 @@ class SpanLevelHandler(BaseRumLevelHandler):
         extra_config: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         raise NotImplementedError
+
+    # ---------------- 内部工具方法 ----------------
+
+    @staticmethod
+    def _process_graph_info(datapoints: list[list[Any]]) -> dict[str, Any]:
+        """处理数值趋势图格式，和时序趋势图保持一致。
+
+        如果只有一个 bucket，且数据为 0，则返回空数据。
+        """
+        if len(datapoints) == 1 and datapoints[0][0] == 0:
+            datapoints = []
+        return {"series": [{"datapoints": datapoints}]}
+
+    @staticmethod
+    def _calculate_intervals(min_value: int, max_value: int, interval_num: int) -> list[tuple[int, int]]:
+        """计算区间列表，每个元素为 [左闭右开) 区间 (min, max)。"""
+        left_x, _right_x, bucket_size, num_buckets = HistogramNiceNumberGenerator.align_histogram_bounds(
+            min_value, max_value, interval_num
+        )
+        return [(left_x + i * bucket_size, left_x + (i + 1) * bucket_size) for i in range(num_buckets)]
+
+    def _calculate_interval_buckets(
+        self,
+        start_time: int,
+        end_time: int,
+        field_name: str,
+        filters: list[types.Filter],
+        query_string: str,
+        intervals: list[tuple[int, int]],
+    ) -> list[list[Any]]:
+        """并发统计各区间计数，返回按区间起点升序排列的数据点列表。"""
+        buckets: list[list[Any]] = []
+
+        def _collect(interval: tuple[int, int]):
+            interval_filters = filters + [
+                {"key": field_name, "value": [interval[0], interval[1]], "operator": FilterOperator.BETWEEN}
+            ]
+            interval_count = self.query.query_field_aggregated_value(
+                start_time, end_time, "_index", "count", interval_filters, query_string
+            )
+            buckets.append([int(interval_count or 0), f"{interval[0]}-{interval[1]}"])
+
+        ThreadPool().map_ignore_exception(_collect, intervals)
+        return sorted(buckets, key=lambda data_point: int(data_point[1].split("-")[0]))
 
     def generate_query_string(
         self,

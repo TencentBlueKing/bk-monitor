@@ -11,8 +11,9 @@ specific language governing permissions and limitations under the License.
 from rest_framework import serializers
 from django.utils.translation import gettext as _
 
-from apm.constants import EnabledStatisticsDimension, QueryMode, StatisticsProperty
+from apm.constants import QueryMode, StatisticsProperty
 from constants.apm import OperatorGroupRelation
+from constants.otel_query import EnabledStatisticsDimension
 
 
 class FilterSerializer(serializers.Serializer):
