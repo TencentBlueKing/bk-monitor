@@ -157,7 +157,6 @@ class RumFieldStatisticsInfoResource(Resource):
             field=data["field"],
             filters=data["filters"],
             query_string=data["query_string"],
-            extra_config=data["extra_config"],
         )
 
 

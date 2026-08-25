@@ -24,7 +24,7 @@ from rum_web.query.resources import (
     RumFieldStatisticsInfoResource,
     RumFieldStatisticsGraphResource,
 )
-from rum_web.query.serializers import RumFieldsTopKRequestSerializer
+from rum_web.query.serializers import RumDownloadTopKRequestSerializer
 
 
 class SearchViewSet(ResourceViewSet):
@@ -56,13 +56,13 @@ class SearchViewSet(ResourceViewSet):
 
     @action(methods=["POST"], detail=False, url_path="download_topk")
     def download_topk(self, request, *args, **kwargs):
-        s = RumFieldsTopKRequestSerializer(data=request.data)
+        s = RumDownloadTopKRequestSerializer(data=request.data)
         s.is_valid(raise_exception=True)
         validated_data: dict = s.validated_data
-        api_topk_data = RumFieldsTopKResource().perform_request(validated_data)
+        topk_data = RumFieldsTopKResource().perform_request(validated_data)
 
-        file_name = f"topk_{validated_data['bk_biz_id']}_{validated_data['app_name']}_{validated_data['field']}.csv"
-        file_content = ([item["value"], item["count"], f"{item['proportions']}%"] for item in api_topk_data["list"])
+        file_name = f"topk_{validated_data['bk_biz_id']}_{validated_data['app_name']}_{validated_data['fields'][0]}.csv"
+        file_content = ([item["value"], item["count"], f"{item['proportions']}%"] for item in topk_data[0]["list"])
         response = generate_csv_file_download_response(file_name, file_content)
 
         return response

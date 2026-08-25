@@ -102,6 +102,16 @@ class RumFieldsTopKRequestSerializer(BaseRumSearchSerializer):
     limit = serializers.IntegerField(label=_("数量限制"), default=5, min_value=1)
 
 
+class RumDownloadTopKRequestSerializer(RumFieldsTopKRequestSerializer):
+    """下载 Top-K"""
+
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        attrs = super().validate(attrs)
+        if len(attrs["fields"]) > 1:
+            raise serializers.ValidationError(_("不支持多个字段下载"))
+        return attrs
+
+
 class RumStatisticsFieldSerializer(serializers.Serializer):
     field_type = serializers.CharField(label=_("字段类型"))
     field_name = serializers.CharField(label=_("字段名称"))
