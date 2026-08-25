@@ -888,6 +888,11 @@ class DisableAlarmShieldResource(Resource):
         return resource.shield.disable_shield.request(**request_data)
 
 
+class NoticeGroupReceiverSerializer(serializers.Serializer):
+    id = serializers.CharField(required=True, label="通知对象ID")
+    type = serializers.ChoiceField(required=True, choices=["user", "group"], label="通知对象类别")
+
+
 class SearchNoticeGroupsResource(Resource):
     """查询业务下的告警组（用于 AI MCP 请求）。"""
 
@@ -911,6 +916,59 @@ class SearchNoticeGroupsResource(Resource):
             if detail and detail["bk_biz_id"] == bk_biz_id:
                 details.append(detail)
         return details
+
+
+class CreateNoticeGroupResource(Resource):
+    """创建告警组（用于 AI MCP 请求）。"""
+
+    class RequestSerializer(ConfirmedBusinessScopedSerializer):
+        name = serializers.CharField(required=True, label="告警组名称")
+        receivers = serializers.ListField(
+            required=False,
+            allow_empty=False,
+            child=NoticeGroupReceiverSerializer(),
+            label="通知接收人",
+        )
+
+    def perform_request(self, validated_request_data):
+        from constants.alert import PUBLIC_NOTICE_CONFIG
+        from kernel_api.views.v4.notice_group import SaveUserGroupResource
+
+        request_data = remove_confirm(validated_request_data)
+        if request_data.get("id"):
+            raise ValidationError({"id": "create_alarm_notice_group 不允许传入告警组 ID"})
+
+        bk_biz_id = request_data["bk_biz_id"]
+        if UserGroup.objects.filter(bk_biz_id=bk_biz_id, name=request_data["name"]).exists():
+            raise ValidationError({"name": f"业务 {bk_biz_id} 下已存在同名告警组: {request_data['name']}"})
+
+        request_data.setdefault("desc", "")
+        request_data.setdefault("need_duty", False)
+        request_data.setdefault("timezone", "Asia/Shanghai")
+        request_data.setdefault("alert_notice", PUBLIC_NOTICE_CONFIG["alert_notice"])
+        request_data.setdefault("action_notice", PUBLIC_NOTICE_CONFIG["action_notice"])
+        request_data.pop("mention_type", None)
+
+        receivers = request_data.pop("receivers", None)
+        if receivers:
+            if request_data.get("duty_arranges"):
+                raise ValidationError({"receivers": "receivers 与 duty_arranges 只能提供一个"})
+            request_data["duty_arranges"] = [{"users": receivers}]
+        request_data.setdefault("duty_arranges", [])
+
+        duty_rules = serializers.ListField(
+            child=serializers.IntegerField(),
+            allow_empty=True,
+        ).run_validation(request_data.get("duty_rules") or [])
+        ensure_duty_rules_belong_to_biz(bk_biz_id, duty_rules)
+        request_data["duty_rules"] = duty_rules
+
+        if request_data.get("need_duty") and not duty_rules:
+            raise ValidationError({"duty_rules": "need_duty=true 时必须提供轮值规则"})
+        if not request_data.get("need_duty") and not request_data.get("duty_arranges"):
+            raise ValidationError({"receivers": "创建告警组必须提供 receivers 或 duty_arranges"})
+
+        return SaveUserGroupResource().request(**request_data)
 
 
 class UpdateNoticeGroupResource(Resource):
