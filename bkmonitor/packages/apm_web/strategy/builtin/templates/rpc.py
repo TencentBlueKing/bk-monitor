@@ -55,6 +55,7 @@ class RPCStrategyTemplateCode(CachedEnum):
     RPC_CALLER_SUCCESS_RATE = "rpc_caller_success_rate"
     RPC_CALLER_AVG_TIME = "rpc_caller_avg_time"
     RPC_CALLER_P99 = "rpc_caller_p99"
+    RPC_CALLER_QUANTILE = "rpc_caller_quantile"
     RPC_CALLER_ERROR_CODE = "rpc_caller_error_code"
     RPC_METRIC_GO_GOROUTINE_FLUCTUATION = "rpc_metric_go_goroutine_fluctuation"
     RPC_ERROR_METRIC_PANIC = "rpc_error_metric_panic"
@@ -73,6 +74,7 @@ class RPCStrategyTemplateCode(CachedEnum):
                 self.RPC_CALLER_SUCCESS_RATE: _("主调成功率告警"),
                 self.RPC_CALLER_AVG_TIME: _("主调平均耗时告警"),
                 self.RPC_CALLER_P99: _("主调 P99 耗时告警"),
+                self.RPC_CALLER_QUANTILE: _("主调自定义分位耗时告警"),
                 self.RPC_CALLER_ERROR_CODE: _("主调错误码告警"),
                 self.RPC_METRIC_GO_GOROUTINE_FLUCTUATION: _("Go 协程数量波动告警"),
                 self.RPC_ERROR_METRIC_PANIC: _("Panic 指标告警"),
@@ -216,6 +218,20 @@ RPC_CALLER_P99_STRATEGY_TEMPLATE: dict[str, Any] = {
     "context": _get_common_context(),
 }
 
+RPC_CALLER_QUANTILE_STRATEGY_TEMPLATE: dict[str, Any] = {
+    "code": RPCStrategyTemplateCode.RPC_CALLER_QUANTILE.value,
+    "name": RPCStrategyTemplateCode.RPC_CALLER_QUANTILE.label,
+    "category": constants.StrategyTemplateCategory.RPC_CALLER.value,
+    "monitor_type": constants.StrategyTemplateMonitorType.P99.value,
+    "detect": utils.detect_config(5, 5, 3),
+    "algorithms": [
+        utils.warning_threshold_algorithm_config(method="gte", threshold=3000, suffix="ms"),
+        utils.fatal_threshold_algorithm_config(method="gte", threshold=5000, suffix="ms"),
+    ],
+    "query_template": {"bk_biz_id": GLOBAL_BIZ_ID, "name": APMQueryTemplateName.RPC_CALLER_QUANTILE.value},
+    "context": _get_quantile_context(),
+}
+
 RPC_CALLER_ERROR_CODE_STRATEGY_TEMPLATE: dict[str, Any] = {
     "code": RPCStrategyTemplateCode.RPC_CALLER_ERROR_CODE.value,
     "name": RPCStrategyTemplateCode.RPC_CALLER_ERROR_CODE.label,
@@ -294,6 +310,7 @@ class RPCStrategyTemplateSet(base.StrategyTemplateSet):
         RPCStrategyTemplateCode.RPC_CALLEE_REQ_FLUCTUATION.value,
         RPCStrategyTemplateCode.RPC_CALLER_SUCCESS_RATE.value,
         RPCStrategyTemplateCode.RPC_CALLER_P99.value,
+        RPCStrategyTemplateCode.RPC_CALLER_QUANTILE.value,
         RPCStrategyTemplateCode.RPC_ERROR_LOG_PANIC.value,
         RPCStrategyTemplateCode.RPC_ERROR_METRIC_PANIC.value,
         RPCStrategyTemplateCode.RPC_METRIC_GO_GOROUTINE_FLUCTUATION.value,
@@ -309,6 +326,7 @@ class RPCStrategyTemplateSet(base.StrategyTemplateSet):
         RPC_CALLER_SUCCESS_RATE_STRATEGY_TEMPLATE,
         RPC_CALLER_AVG_TIME_STRATEGY_TEMPLATE,
         RPC_CALLER_P99_STRATEGY_TEMPLATE,
+        RPC_CALLER_QUANTILE_STRATEGY_TEMPLATE,
         RPC_CALLER_ERROR_CODE_STRATEGY_TEMPLATE,
         RPC_ERROR_LOG_PANIC_STRATEGY_TEMPLATE,
         RPC_ERROR_METRIC_PANIC_STRATEGY_TEMPLATE,
