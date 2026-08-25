@@ -26,12 +26,14 @@
 import { shallowRef, watch } from 'vue';
 import type { Ref } from 'vue';
 
+import { random } from 'monitor-common/utils';
+
 import { handleTransformToTimestamp } from '../../../components/time-range/utils';
 import { useRumExploreStore } from '../../../store/modules/rum-explore';
 import { RUM_TABLE_PAGE_LIMIT } from '../constants';
 import { getRecordList } from '../services/rum-search';
 
-import type { IRumCommonParams, IRumSortInfo, IRumSpanRecord } from '../typings';
+import type { IRumCommonParams, IRumSpanRecord } from '../typings';
 
 /**
  * 表格数据。
@@ -48,6 +50,12 @@ export function useRumTableData(commonParams: Ref<IRumCommonParams>) {
   /** 触底追加时的 loading */
   const scrollLoading = shallowRef(false);
   const hasMore = shallowRef(false);
+  /**
+   * 回到顶部信号。
+   * 查询条件、排序、时间范围或手动刷新变化时会重新生成随机串，由外层视图组件监听并触发滚动复位。
+   * 使用信号而非回调，避免父组件通过 ref 直接调用子组件方法，保持数据流单向。
+   */
+  const backTopSignal = shallowRef(random(8));
 
   let requestId = 0;
 
@@ -90,13 +98,18 @@ export function useRumTableData(commonParams: Ref<IRumCommonParams>) {
     fetchList(true);
   }
 
-  function handleSortChange(sortInfo: IRumSortInfo) {
-    store.updateTableSortContainer(sortInfo);
+  /** CommonTable 的 sortChange 为单条字符串或数组（取消排序时为空串），归一化为接口的 sort 数组 */
+  function handleSortChange(sort: string | string[]) {
+    store.sortParams = (Array.isArray(sort) ? sort : [sort]).filter(Boolean);
   }
 
   watch(
     () => [commonParams.value, store.sortParams, store.timeRange, store.refreshImmediate],
-    () => fetchList(),
+    () => {
+      // 触发回到顶部信号，由外层 RumExploreView 监听并滚动到顶部
+      backTopSignal.value = random(8);
+      fetchList();
+    },
     { immediate: true }
   );
 
@@ -105,6 +118,7 @@ export function useRumTableData(commonParams: Ref<IRumCommonParams>) {
     loading,
     scrollLoading,
     hasMore,
+    backTopSignal,
     fetchList,
     handleScrollToEnd,
     handleSortChange,

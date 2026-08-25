@@ -120,8 +120,8 @@ export function useRumQuery({ extraFilters }: IUseRumQueryOptions) {
       timezone: window.timezone,
       refreshInterval: query.refreshInterval ? Number(query.refreshInterval) : -1,
       spanType: query.spanType || '',
+      sortParams: tryURLDecodeParse<string[]>(query.sortBy, []),
     });
-    store.setSortParams(tryURLDecodeParse<string[]>(query.sortBy, []));
     filterMode.value = (query.filterMode as EMode) || EMode.ui;
     where.value = tryURLDecodeParse<IWhereItem[]>(query.where, []);
     commonWhere.value = tryURLDecodeParse<IWhereItem[]>(query.commonWhere, []);
