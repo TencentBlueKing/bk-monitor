@@ -10,6 +10,8 @@ specific language governing permissions and limitations under the License.
 
 from typing import Any
 
+import time
+
 from django.utils.translation import gettext_lazy as _
 from rest_framework.serializers import ValidationError
 
@@ -75,12 +77,24 @@ class RumViewConfigResource(Resource):
 
     RequestSerializer = RumViewConfigRequestSerializer
 
+    @classmethod
+    def _build_retention_time_range(cls, application: Application) -> tuple[int, int]:
+        """根据数据保留时长构造查询窗口，与时间选择器解耦。
+
+        视图配置是字段映射，与时间范围无关；用数据保留时长作为查询窗口，
+        避免切换时间选择器时因命中索引分片变化导致页面重新加载。
+        """
+        end_time = int(time.time())
+        start_time = end_time - application.retention_days * 86400
+        return start_time, end_time
+
     def perform_request(self, data: dict[str, Any]) -> dict[str, Any]:
         application = _get_application(data["bk_biz_id"], data["app_name"])
+        start_time, end_time = self._build_retention_time_range(application)
         handler = RumLevelHandlerFactory.create(data["mode"], _build_data_sources([application]))
         return handler.view_config(
-            start_time=data["start_time"],
-            end_time=data["end_time"],
+            start_time=start_time,
+            end_time=end_time,
         )
 
 
