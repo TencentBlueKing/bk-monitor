@@ -57,6 +57,7 @@ _ALERT_HANDLING_OPERATION_IDS = {
     "update_alarm_shield",
     "disable_alarm_shield",
     "search_alarm_notice_groups",
+    "create_alarm_notice_group",
     "update_alarm_notice_group",
     "search_alarm_action_configs",
     "get_alarm_action_config",
@@ -114,10 +115,10 @@ def test_alert_mcp_resource_groups_are_disjoint():
 
 
 def test_alert_handling_mcp_contract():
-    """告警处置 MCP 必须精确包含 17 个资源并使用独立标签。"""
+    """告警处置 MCP 必须精确包含 18 个资源并使用独立标签。"""
     paths = _load_paths(_ALERT_HANDLING_MCP_FILE)
 
-    assert len(paths) == 17
+    assert len(paths) == 18
     assert set(paths) == {f"/mcp/{operation_id}/" for operation_id in _ALERT_HANDLING_OPERATION_IDS}
     assert _operation_ids(paths) == _ALERT_HANDLING_OPERATION_IDS
     for path_data in paths.values():

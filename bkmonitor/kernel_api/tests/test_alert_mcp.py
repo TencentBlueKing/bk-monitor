@@ -970,3 +970,151 @@ def test_delete_assign_group_calls_backend_after_biz_check(monkeypatch):
 
     assert result == {"deleted_group_ids": [8]}
     assert captured == {"bk_biz_id": 2, "group_ids": [8]}
+
+
+def test_create_notice_group_requires_confirm():
+    serializer = alert.CreateNoticeGroupResource.RequestSerializer(
+        data={"bk_biz_id": 2, "name": "SRE 值班", "receivers": [{"id": "alice", "type": "user"}], "confirm": False}
+    )
+
+    assert not serializer.is_valid()
+    assert "confirm" in serializer.errors
+
+
+def test_create_notice_group_rejects_id_and_missing_receivers(monkeypatch):
+    class FakeQuerySet:
+        def filter(self, **_kwargs):
+            return self
+
+        def exists(self):
+            return False
+
+    monkeypatch.setattr(alert, "UserGroup", SimpleNamespace(objects=FakeQuerySet()))
+
+    with pytest.raises(ValidationError) as with_id:
+        alert.CreateNoticeGroupResource().perform_request(
+            {
+                "bk_biz_id": 2,
+                "id": 9,
+                "name": "SRE 值班",
+                "receivers": [{"id": "alice", "type": "user"}],
+                "confirm": True,
+            }
+        )
+    assert "id" in with_id.value.detail
+
+    with pytest.raises(ValidationError) as missing_receivers:
+        alert.CreateNoticeGroupResource().perform_request({"bk_biz_id": 2, "name": "SRE 值班", "confirm": True})
+    assert "receivers" in missing_receivers.value.detail
+
+
+def test_create_notice_group_maps_receivers_and_defaults(monkeypatch):
+    captured = {}
+
+    class FakeQuerySet:
+        def filter(self, **_kwargs):
+            return self
+
+        def exists(self):
+            return False
+
+    class FakeSave:
+        def request(self, **kwargs):
+            captured.update(kwargs)
+            return {"id": 21, "name": kwargs["name"], "bk_biz_id": kwargs["bk_biz_id"]}
+
+    fake_module = ModuleType("kernel_api.views.v4.notice_group")
+    fake_module.SaveUserGroupResource = FakeSave
+    monkeypatch.setitem(sys.modules, "kernel_api.views.v4.notice_group", fake_module)
+    monkeypatch.setattr(alert, "UserGroup", SimpleNamespace(objects=FakeQuerySet()))
+
+    result = alert.CreateNoticeGroupResource().perform_request(
+        {
+            "bk_biz_id": 2,
+            "name": "SRE 值班",
+            "receivers": [{"id": "alice", "type": "user"}, {"id": "bk_biz_maintainer", "type": "group"}],
+            "confirm": True,
+        }
+    )
+
+    assert result["id"] == 21
+    assert captured["duty_arranges"] == [
+        {"users": [{"id": "alice", "type": "user"}, {"id": "bk_biz_maintainer", "type": "group"}]}
+    ]
+    assert captured["alert_notice"][0]["notify_config"][0]["type"] == ["mail"]
+    assert captured["action_notice"][0]["notify_config"][0]["type"] == ["mail"]
+    assert captured["need_duty"] is False
+    assert "receivers" not in captured
+    assert "confirm" not in captured
+
+
+def test_create_notice_group_rejects_duplicate_name(monkeypatch):
+    class FakeQuerySet:
+        def filter(self, **_kwargs):
+            return self
+
+        def exists(self):
+            return True
+
+    monkeypatch.setattr(alert, "UserGroup", SimpleNamespace(objects=FakeQuerySet()))
+
+    with pytest.raises(ValidationError) as exc:
+        alert.CreateNoticeGroupResource().perform_request(
+            {
+                "bk_biz_id": 2,
+                "name": "SRE 值班",
+                "receivers": [{"id": "alice", "type": "user"}],
+                "confirm": True,
+            }
+        )
+    assert "name" in exc.value.detail
+
+
+def test_create_notice_group_rejects_foreign_duty_rules(monkeypatch):
+    class FakeQuerySet:
+        def filter(self, **_kwargs):
+            return self
+
+        def exists(self):
+            return False
+
+        def values_list(self, *_args, **_kwargs):
+            return [11]
+
+    monkeypatch.setattr(alert, "UserGroup", SimpleNamespace(objects=FakeQuerySet()))
+    monkeypatch.setattr(alert, "DutyRule", SimpleNamespace(objects=FakeQuerySet()))
+
+    with pytest.raises(ValidationError) as foreign_rule:
+        alert.CreateNoticeGroupResource().perform_request(
+            {
+                "bk_biz_id": 2,
+                "name": "SRE 轮值",
+                "need_duty": True,
+                "duty_rules": [11, 99],
+                "confirm": True,
+            }
+        )
+    assert "duty_rules" in foreign_rule.value.detail
+
+    with pytest.raises(ValidationError) as missing_rules:
+        alert.CreateNoticeGroupResource().perform_request(
+            {
+                "bk_biz_id": 2,
+                "name": "SRE 轮值",
+                "need_duty": True,
+                "confirm": True,
+            }
+        )
+    assert "duty_rules" in missing_rules.value.detail
+
+    with pytest.raises(ValidationError) as mixed_inputs:
+        alert.CreateNoticeGroupResource().perform_request(
+            {
+                "bk_biz_id": 2,
+                "name": "SRE 值班",
+                "receivers": [{"id": "alice", "type": "user"}],
+                "duty_arranges": [{"users": [{"id": "bob", "type": "user"}]}],
+                "confirm": True,
+            }
+        )
+    assert "receivers" in mixed_inputs.value.detail
