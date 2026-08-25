@@ -129,6 +129,9 @@ test('事件维度提示使用纯文本并保留多行内容', () => {
   );
   assert.doesNotMatch(source, /allowHTML:\s*true/);
   assert.match(source, /getKeyValueTooltip/);
+  assert.doesNotMatch(source, /<div>\$\{item\}<\/div>/);
+  assert.match(source, /arr\?\.filter\(Boolean\)\.join\('\\n'\)/);
+  assert.match(source, /\$bkPopover\(event\.target,\s*\{[^}]*allowHTML:\s*false[^}]*\}\)/s);
 });
 
 test('智能检测状态文案按数字拆分为纯文本片段', () => {

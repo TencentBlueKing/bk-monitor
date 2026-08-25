@@ -473,7 +473,13 @@ export default class RelatedEvents extends tsc<IRelatedEventsProps> {
     this.handleRowLeave();
     this.tablePopover =
       this.tablePopover ||
-      this.$bkPopover(event.target, { content: tip, arrow: true, boundary: 'window', placement: 'top' });
+      this.$bkPopover(event.target, {
+        content: tip,
+        allowHTML: false,
+        arrow: true,
+        boundary: 'window',
+        placement: 'top',
+      });
     this.tablePopover?.show(100);
   }
   // 移出
@@ -488,7 +494,7 @@ export default class RelatedEvents extends tsc<IRelatedEventsProps> {
    * @return {*}
    */
   getChildSlotsComponent(child) {
-    const arrayTip = (arr: Array<string>) => arr?.map(item => `<div>${item}</div>`).join('') || '';
+    const arrayTip = (arr: Array<string>) => arr?.filter(Boolean).join('\n') || '';
     const { bizList } = this.$store.getters;
     const spaceId = bizList.find(item => item.bk_biz_id === child.bk_biz_id)?.space_id || child.bk_biz_id;
     const topItems = [
