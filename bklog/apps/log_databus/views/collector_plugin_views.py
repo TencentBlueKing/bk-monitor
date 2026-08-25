@@ -1,6 +1,15 @@
+from django.conf import settings
+from django.shortcuts import get_object_or_404
+from rest_framework.response import Response
+
 from apps.generic import ModelViewSet
 from apps.iam import ActionEnum, ResourceEnum
-from apps.iam.handlers.drf import insert_permission_field
+from apps.iam.handlers.drf import (
+    BusinessActionPermission,
+    InstanceActionForDataPermission,
+    ViewBusinessPermission,
+    insert_permission_field,
+)
 from apps.log_databus.exceptions import (
     CollectorConfigNotExistException,
     CollectorPluginNotImplemented,
@@ -19,9 +28,6 @@ from apps.log_databus.serializers import (
 from apps.log_search.permission import Permission
 from apps.utils.drf import detail_route, list_route
 from apps.utils.function import ignored
-from django.conf import settings
-from django.shortcuts import get_object_or_404
-from rest_framework.response import Response
 
 
 class CollectorPluginViewSet(ModelViewSet):
@@ -39,7 +45,20 @@ class CollectorPluginViewSet(ModelViewSet):
             # ESQUERY白名单不需要鉴权
             if auth_info["bk_app_code"] in settings.ESQUERY_WHITE_LIST:
                 return []
-        return []
+
+        if self.action == "create":
+            return [BusinessActionPermission([ActionEnum.CREATE_COLLECTION])]
+        if self.action in ["update_instance", "instance_etl"]:
+            return [
+                InstanceActionForDataPermission(
+                    "collector_config_id",
+                    [ActionEnum.MANAGE_COLLECTION],
+                    ResourceEnum.COLLECTION,
+                )
+            ]
+        if self.action in ["update", "partial_update", "destroy", "instances"]:
+            return [BusinessActionPermission([ActionEnum.MANAGE_COLLECTION])]
+        return [ViewBusinessPermission()]
 
     def get_serializer_class(self, *args, **kwargs):
         if self.action in ["create"]:
