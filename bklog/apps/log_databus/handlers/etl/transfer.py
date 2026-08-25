@@ -61,13 +61,20 @@ class TransferEtlHandler(EtlHandler):
                 CleanTemplateNotExistException.MESSAGE.format(clean_template_id=clean_template_id)
             )
 
-    def _prepare_clean_template_config(self, clean_template_id, etl_config, etl_params, fields):
+    def _prepare_clean_template_config(
+        self, clean_template_id, etl_config, etl_params, fields, use_provided_clean_config=False
+    ):
         clean_template = self._validate_clean_template(clean_template_id)
         if clean_template is None:
             return clean_template, etl_config, etl_params, fields
 
+        if not use_provided_clean_config:
+            etl_config = clean_template.clean_type
+            etl_params = copy.deepcopy(clean_template.etl_params or {})
+            fields = clean_template.etl_fields
+
         # 兼容历史模板字段整体不完整：统一补齐缺省键
-        etl_fields = copy.deepcopy(clean_template.etl_fields or [])
+        etl_fields = copy.deepcopy(fields or [])
         for field in etl_fields:
             field.setdefault("is_delete", False)
             field.setdefault("is_analyzed", False)
@@ -78,8 +85,8 @@ class TransferEtlHandler(EtlHandler):
 
         return (
             clean_template,
-            clean_template.clean_type,
-            copy.deepcopy(clean_template.etl_params or {}),
+            etl_config,
+            etl_params,
             etl_fields,
         )
 
@@ -133,6 +140,7 @@ class TransferEtlHandler(EtlHandler):
         platform_index_visibility=None,
         platform_index_filter=None,
         clean_template_id=_CLEAN_TEMPLATE_ID_NOT_PROVIDED,
+        use_provided_clean_config=False,
         *args,
         **kwargs,
     ):
@@ -140,12 +148,13 @@ class TransferEtlHandler(EtlHandler):
         clean_template_id_provided = clean_template_id is not _CLEAN_TEMPLATE_ID_NOT_PROVIDED
         if not clean_template_id_provided:
             clean_template_id = self.data.clean_template_id
-        # 模板配置是关联关系的唯一可信来源，并在外部调用前固定本次应用的配置和版本快照。
+        # 普通采集项保存以关联模板为配置来源；模板批量同步则使用发布时固定的调用参数。
         clean_template, etl_config, etl_params, fields = self._prepare_clean_template_config(
             clean_template_id,
             etl_config,
             etl_params,
             fields,
+            use_provided_clean_config=use_provided_clean_config,
         )
 
         etl_params = etl_params or {}

@@ -395,7 +395,6 @@ class CleanTemplateHandler:
             "etl_config": self.data.clean_type,
             "etl_params": copy.deepcopy(self.data.etl_params),
             "fields": copy.deepcopy(self.data.etl_fields),
-            "clean_template_id": self.data.clean_template_id,
         }
         collectors = self.get_active_collectors_queryset(
             self.data.clean_template_id,
@@ -455,8 +454,8 @@ class CleanTemplateHandler:
                 return result
             handler = CollectorHandler.get_instance(collector_config_id=collector.collector_config_id)
             params = copy.deepcopy(clean_config)
-            # 模板批量同步只下发配置，不参与采集项关联关系维护。
-            params.pop("clean_template_id", None)
+            # 使用本次发布时固定的配置，同时不参与采集项关联关系维护。
+            params["use_provided_clean_config"] = True
             handler.create_or_update_clean_config(is_update=True, params=params)
             if not CollectorConfig.objects.filter(
                 collector_config_id=collector.collector_config_id,

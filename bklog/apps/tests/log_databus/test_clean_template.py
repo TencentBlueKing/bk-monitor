@@ -645,8 +645,10 @@ class TestCleanTemplateSync(CleanTemplateTestCase):
             "etl_config": template["clean_type"],
             "etl_params": copy.deepcopy(template["etl_params"]),
             "fields": copy.deepcopy(template["etl_fields"]),
-            "clean_template_id": template_id,
         }
+        database_fields = copy.deepcopy(template["etl_fields"])
+        database_fields[0]["field_name"] = "database_only"
+        CleanTemplate.objects.filter(clean_template_id=template_id).update(etl_fields=database_fields)
         result_table = {
             "cluster_config": {"cluster_id": 11},
             "storage_config": {
@@ -717,7 +719,9 @@ class TestCleanTemplateSync(CleanTemplateTestCase):
                 result_table_params["default_storage_config"]["index_settings"]["number_of_replicas"],
                 2,
             )
-            self.assertIn("user", {field["field_name"] for field in result_table_params["field_list"]})
+            result_field_names = {field["field_name"] for field in result_table_params["field_list"]}
+            self.assertIn("user", result_field_names)
+            self.assertNotIn("database_only", result_field_names)
 
     def test_sync_collector_returns_async_submission_success(self):
         template = self.create_template()
@@ -727,7 +731,6 @@ class TestCleanTemplateSync(CleanTemplateTestCase):
             "etl_config": "bk_log_text",
             "etl_params": {},
             "fields": [],
-            "clean_template_id": template["clean_template_id"],
         }
 
         collector_handler = MagicMock()
@@ -745,7 +748,10 @@ class TestCleanTemplateSync(CleanTemplateTestCase):
         )
         collector_handler.create_or_update_clean_config.assert_called_once_with(
             is_update=True,
-            params={key: value for key, value in clean_config.items() if key != "clean_template_id"},
+            params={
+                **clean_config,
+                "use_provided_clean_config": True,
+            },
         )
 
     def test_sync_collector_does_not_restore_changed_association(self):
@@ -757,7 +763,6 @@ class TestCleanTemplateSync(CleanTemplateTestCase):
             "etl_config": "bk_log_text",
             "etl_params": {},
             "fields": [],
-            "clean_template_id": template_id,
         }
 
         collector_handler = MagicMock()
@@ -777,7 +782,10 @@ class TestCleanTemplateSync(CleanTemplateTestCase):
         self.assertEqual(result["message"], str(CleanTemplateSyncMessage.ASSOCIATION_CHANGED.value))
         collector_handler.create_or_update_clean_config.assert_called_once_with(
             is_update=True,
-            params={key: value for key, value in clean_config.items() if key != "clean_template_id"},
+            params={
+                **clean_config,
+                "use_provided_clean_config": True,
+            },
         )
 
     def test_sync_collector_returns_failed_when_association_check_raises(self):
@@ -807,7 +815,6 @@ class TestCleanTemplateSync(CleanTemplateTestCase):
             "etl_config": "bk_log_text",
             "etl_params": {},
             "fields": [],
-            "clean_template_id": template_id,
         }
         CollectorConfig.objects.filter(collector_config_id=collector.collector_config_id).update(
             clean_template_id=None,
@@ -1092,6 +1099,29 @@ class TestCleanTemplateAssociation(CleanTemplateTestCase):
         self.assertFalse(by_name["analyzed"]["is_built_in"])
         self.assertFalse(by_name["analyzed"]["is_dimension"])
         self.assertTrue(by_name["not_analyzed"]["is_dimension"])
+
+    def test_prepare_clean_template_config_normalizes_fixed_fields(self):
+        template = self.create_template()
+        collector = self.create_collector(clean_template_id=template["clean_template_id"])
+        fixed_fields = [{"field_name": "fixed", "is_analyzed": True}]
+
+        _, etl_config, etl_params, fields = TransferEtlHandler(
+            collector.collector_config_id
+        )._prepare_clean_template_config(
+            template["clean_template_id"],
+            "bk_log_json",
+            {"source": "fixed"},
+            fixed_fields,
+            use_provided_clean_config=True,
+        )
+
+        self.assertEqual(etl_config, "bk_log_json")
+        self.assertEqual(etl_params, {"source": "fixed"})
+        self.assertEqual(fields[0]["field_name"], "fixed")
+        self.assertEqual(fields[0]["field_type"], "string")
+        self.assertFalse(fields[0]["is_delete"])
+        self.assertFalse(fields[0]["is_dimension"])
+        self.assertNotIn("field_type", fixed_fields[0])
 
     def test_update_or_create_legacy_template_fields_no_key_error(self):
         # 历史模板字段整体不完整，走真实 EtlStorage 链路（get_result_table_fields 会硬下标
