@@ -119,12 +119,17 @@ def test_build_memory_view_returns_trend_current_peak_and_usage():
 
     assert result == {
         "trend": [[100.0, 1000], [None, 1060], [240.0, 1120], [200.0, 1180]],
+        "usage_trend": [[0.25, 1000], [None, 1060], [0.6, 1120], [0.5, 1180]],
         "current_bytes": 200.0,
         "max_3h_bytes": 240.0,
+        "max_3h_at": 1120,
         "capacity_bytes": 400.0,
         "current_usage_ratio": 0.5,
         "max_3h_usage_ratio": 0.6,
         "observed_at": 1180,
+        "valid_points": 3,
+        "total_points": 4,
+        "sample_coverage_ratio": 0.75,
         "missing_points": 1,
     }
 
@@ -158,7 +163,8 @@ def test_build_memory_view_merges_node_series_split_by_runtime_labels():
     assert result["max_3h_bytes"] == 220.0
     assert result["capacity_bytes"] == 500.0
     assert result["current_usage_ratio"] == 0.44
-    assert result["max_3h_usage_ratio"] == 0.45
+    assert result["max_3h_at"] == 1180
+    assert result["max_3h_usage_ratio"] == 0.44
     assert result["observed_at"] == 1180
 
 
@@ -190,6 +196,24 @@ def test_build_memory_view_does_not_pair_capacity_from_another_runtime_identity(
     assert result["capacity_bytes"] is None
     assert result["current_usage_ratio"] is None
     assert result["max_3h_usage_ratio"] is None
+
+
+def test_build_memory_view_usage_trend_follows_the_same_runtime_as_maximum_used_bytes():
+    result = build_memory_view(
+        "node-1",
+        [
+            {"dimensions": {"node": "node-1", "host": "larger"}, "datapoints": [[200.0, 1180]]},
+            {"dimensions": {"node": "node-1", "host": "higher-ratio"}, "datapoints": [[150.0, 1180]]},
+        ],
+        [
+            {"dimensions": {"node": "node-1", "host": "larger"}, "datapoints": [[400.0, 1180]]},
+            {"dimensions": {"node": "node-1", "host": "higher-ratio"}, "datapoints": [[200.0, 1180]]},
+        ],
+    )
+
+    assert result["trend"] == [[200.0, 1180]]
+    assert result["usage_trend"] == [[0.5, 1180]]
+    assert result["max_3h_usage_ratio"] == 0.5
 
 
 def test_build_memory_view_marks_stale_current_value_unknown():
@@ -328,8 +352,16 @@ def test_overview_resource_aggregates_routing_metrics_and_existing_snapshots(moc
     assert result["routing"]["routers"] == routing["routers"]
     assert result["nodes"][0]["node_alias"] == "monitor-01"
     assert result["nodes"][0]["memory"]["current_bytes"] == 120.0
+    assert result["nodes"][0]["memory"]["valid_points"] == 2
+    assert result["nodes"][0]["memory"]["total_points"] == 180
+    assert result["nodes"][0]["memory"]["sample_coverage_ratio"] == 2 / 180
     assert result["nodes"][1]["memory"]["max_3h_usage_ratio"] == 0.44
     assert result["cost_evidence"]["valid_strategy_count"] == 2
+    assert result["data_health"] == {
+        "memory_used": "ok",
+        "memory_capacity": "ok",
+        "cost_snapshot": "ok",
+    }
     assert all("host" not in node and "password" not in node for node in result["nodes"])
     assert all(call.kwargs["start_time"] == 1200 - 3 * 60 * 60 for call in query.call_args_list)
     snapshot_loader.assert_called_once_with()
@@ -364,6 +396,44 @@ def test_overview_keeps_routing_and_memory_when_service_bridge_fails(mocker):
     assert result["routing"]["snapshot_id"] == "route-snapshot"
     assert [node["id"] for node in result["nodes"]] == [1]
     assert result["cost_evidence"]["status"] == "unavailable"
+    assert result["data_health"] == {
+        "memory_used": "empty",
+        "memory_capacity": "empty",
+        "cost_snapshot": "error",
+    }
+
+
+def test_overview_reports_metric_query_failure_without_hiding_other_data(mocker):
+    class FakeNode:
+        id = 1
+
+        def __str__(self):
+            return "node-1"
+
+    routing = _routing_snapshot()
+    routing["nodes"] = routing["nodes"][:1]
+    routing["routers"] = routing["routers"][:1]
+    mocker.patch(
+        "monitor_web.redis_management.resources.load_routing_observation",
+        return_value=(routing, [FakeNode()]),
+    )
+    mocker.patch("monitor_web.redis_management.resources._load_latest_snapshots", return_value={})
+    query = mocker.patch(
+        "monitor_web.redis_management.resources.resource.grafana.graph_promql_query",
+        side_effect=[RuntimeError("used query failed"), {"series": []}],
+    )
+    mocker.patch("monitor_web.redis_management.resources.time", return_value=1200)
+
+    result = GetRedisManagementOverviewResource().perform_request({})
+
+    assert result["routing"]["snapshot_id"] == "route-snapshot"
+    assert result["nodes"][0]["memory"]["current_bytes"] is None
+    assert result["data_health"] == {
+        "memory_used": "error",
+        "memory_capacity": "empty",
+        "cost_snapshot": "empty",
+    }
+    assert query.call_count == 2
 
 
 def test_query_metric_uses_custom_report_namespace_and_cluster_job(mocker):

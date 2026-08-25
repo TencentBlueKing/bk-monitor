@@ -35,6 +35,12 @@ def test_async_publisher_is_bounded_and_fail_open():
             publisher.close()
 
 
+def test_async_publisher_accepts_numeric_string_queue_size():
+    publisher = async_publish.AsyncShadowPublisher(max_jobs="16")
+
+    assert publisher._queue.maxsize == 16
+
+
 def test_async_publisher_continues_after_one_job_fails():
     completed = threading.Event()
     attempts = []
@@ -129,3 +135,16 @@ def test_global_publisher_is_recreated_after_fork(monkeypatch):
     assert async_publish.submit_shadow_job("detect_input", ({"batch_id": "one"},), max_jobs=3)
     assert async_publish.submit_shadow_job("detect_input", ({"batch_id": "two"},), max_jobs=3)
     assert created == [3, 3]
+
+
+def test_submit_shadow_job_rate_limits_repeated_initialize_failure(monkeypatch, caplog):
+    caplog.set_level(logging.ERROR, logger="alarmd.shadow")
+    monkeypatch.setattr(async_publish, "_publisher", None)
+    monkeypatch.setattr(async_publish, "_publisher_pid", None)
+    monkeypatch.setattr(async_publish, "_last_initialize_failure_log", 0.0, raising=False)
+
+    with mock.patch.object(async_publish.time, "monotonic", side_effect=[100.0, 101.0]):
+        assert not async_publish.submit_shadow_job("detect_input", ({"batch_id": "one"},), max_jobs="invalid")
+        assert not async_publish.submit_shadow_job("detect_input", ({"batch_id": "two"},), max_jobs="invalid")
+
+    assert caplog.text.count("operation=async_initialize") == 1

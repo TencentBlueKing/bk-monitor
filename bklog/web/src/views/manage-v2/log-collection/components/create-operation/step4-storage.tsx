@@ -38,6 +38,7 @@ import { showMessage } from '../../utils';
 import ClusterTable from '../business-comp/step4/cluster-table';
 import { deepEqual } from '@/common/util';
 import $http from '@/api';
+import { isCollectionEditRoute } from './route-utils';
 
 import type { ISubmitOptions } from '../../type';
 
@@ -293,7 +294,7 @@ export default defineComponent({
     /**
      * 是否为编辑
      */
-    const isUpdate = computed(() => route.name === 'collectEdit' && props.isEdit);
+    const isUpdate = computed(() => isCollectionEditRoute(route.name) && props.isEdit);
 
     /**
      * 保存初始表单数据快照
@@ -310,9 +311,7 @@ export default defineComponent({
     };
 
     /** 是否为编辑模式 */
-    const isEditMode = computed(() =>
-      ['collectEdit', 'collectStorage', 'collectField'].includes(String(route.name ?? '')),
-    );
+    const isEditMode = computed(() => isCollectionEditRoute(route.name));
 
     /**
      * 异步获取存储列表并按权限排序
@@ -397,6 +396,7 @@ export default defineComponent({
           // 回填清洗配置到 formData，与旧版保持一致
           formData.value = {
             ...formData.value,
+            clean_template_id: res.data.clean_template_id ?? null,
             etl_config: res.data.clean_type,
             etl_params: res.data.etl_params,
             fields: res.data.etl_fields,
@@ -703,7 +703,15 @@ export default defineComponent({
     }: ISubmitOptions = {}) => {
       submitLoading.value = true;
       // 从 formData 读取清洗相关数据，与旧版保持一致
-      const { etl_config, etl_params, fields, retention, allocation_min_days, storage_replies, es_shards } = formData.value;
+      const {
+        etl_config,
+        etl_params,
+        fields,
+        retention,
+        allocation_min_days,
+        storage_replies,
+        es_shards,
+      } = formData.value;
       const collectorConfigId = currentCollect.value?.collector_config_id || route.params.collectorId;
       const tableId = props.isClone
         ? currentCollect.value.collector_config_name_en
@@ -723,6 +731,7 @@ export default defineComponent({
         };
       })();
       const data = {
+        clean_template_id: formData.value.clean_template_id ?? null,
         collector_config_id: collectorConfigId,
         retention: Number(retention),
         allocation_min_days: Number(allocation_min_days),

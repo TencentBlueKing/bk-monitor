@@ -76,6 +76,7 @@ def run_access_data(strategy_group_key, interval=60):
 
     if processor is not None:
         processor.run_inline_trigger()
+        processor.schedule_check_result_opportunity_trim()
         metrics.report_all()
 
 

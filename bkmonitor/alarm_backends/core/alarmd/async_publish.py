@@ -18,6 +18,7 @@ ASYNC_STATUS_WORKER_FAILED = "worker_failed"
 ASYNC_STATUS_ACKED = "acked"
 
 _DROP_LOG_INTERVAL_SECONDS = 30
+_INITIALIZE_FAILURE_LOG_INTERVAL_SECONDS = 30
 _STOP = object()
 
 
@@ -69,7 +70,11 @@ def _run_shadow_job(job: ShadowPublishJob) -> int:
 
 
 class AsyncShadowPublisher:
-    def __init__(self, *, max_jobs: int, run_job: Callable[[ShadowPublishJob], int] = _run_shadow_job):
+    def __init__(self, *, max_jobs: int | str, run_job: Callable[[ShadowPublishJob], int] = _run_shadow_job):
+        try:
+            max_jobs = int(max_jobs)
+        except (TypeError, ValueError) as exc:
+            raise ValueError("alarmd Shadow async queue size must be a positive integer") from exc
         if max_jobs <= 0:
             raise ValueError("alarmd Shadow async queue size must be positive")
         self._queue = queue.Queue(maxsize=max_jobs)
@@ -166,6 +171,25 @@ class AsyncShadowPublisher:
 _publisher_lock = threading.Lock()
 _publisher = None
 _publisher_pid = None
+_initialize_failure_log_pid = None
+_last_initialize_failure_log = 0.0
+
+
+def _log_initialize_failure(operation: str, process_id: int) -> None:
+    global _initialize_failure_log_pid, _last_initialize_failure_log
+
+    now = time.monotonic()
+    if (
+        _initialize_failure_log_pid == process_id
+        and now - _last_initialize_failure_log < _INITIALIZE_FAILURE_LOG_INTERVAL_SECONDS
+    ):
+        return
+    _initialize_failure_log_pid = process_id
+    _last_initialize_failure_log = now
+    logger.exception(
+        "[alarmd shadow] component=alarmd-python stage=%s result=fail_open operation=async_initialize",
+        operation,
+    )
 
 
 def _report_pending_jobs_on_shutdown(publisher: AsyncShadowPublisher, process_id: int) -> None:
@@ -188,7 +212,7 @@ def _report_current_process_pending_jobs(**_kwargs) -> None:
         _report_pending_jobs_on_shutdown(publisher, process_id)
 
 
-def submit_shadow_job(operation: str, payload: tuple[dict, ...], *, max_jobs: int) -> bool:
+def submit_shadow_job(operation: str, payload: tuple[dict, ...], *, max_jobs: int | str) -> bool:
     global _publisher, _publisher_pid
 
     process_id = os.getpid()
@@ -197,10 +221,7 @@ def submit_shadow_job(operation: str, payload: tuple[dict, ...], *, max_jobs: in
             try:
                 _publisher = AsyncShadowPublisher(max_jobs=max_jobs)
             except Exception:
-                logger.exception(
-                    "[alarmd shadow] component=alarmd-python stage=%s result=fail_open operation=async_initialize",
-                    operation,
-                )
+                _log_initialize_failure(operation, process_id)
                 return False
             _publisher_pid = process_id
         publisher = _publisher

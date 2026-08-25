@@ -1,0 +1,105 @@
+.clean-template-dialog {
+  display: flex;
+  height: 480px;
+  min-height: 480px;
+
+  .template-preview-panel {
+    flex: 1;
+    min-width: 0;
+    padding: 12px 16px;
+    overflow-y: auto;
+    background-color: #f5f7fa;
+
+    .empty-exception {
+      margin-top: 120px;
+    }
+
+    .template-detail {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+    }
+
+    .detail-title {
+      margin-bottom: 12px;
+      font-size: 14px;
+      font-weight: 600;
+      line-height: 22px;
+      color: #313238;
+    }
+
+    .detail-meta {
+      margin-bottom: 12px;
+
+      .meta-row {
+        display: flex;
+        align-items: center;
+        min-height: 24px;
+        margin-bottom: 6px;
+        line-height: 24px;
+
+        &:last-child {
+          margin-bottom: 0;
+        }
+      }
+
+      .meta-label {
+        flex-shrink: 0;
+        width: 64px;
+        font-size: 12px;
+        color: #979ba5;
+      }
+
+      .meta-value {
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        font-size: 12px;
+        color: #63656e;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .meta-value-bold {
+        font-weight: 500;
+        color: #313238;
+      }
+    }
+
+    .bk-table.fields-table {
+      flex: none;
+
+      .bk-table-row td {
+        height: 42px;
+      }
+
+      .field-name-cell,
+      .value-cell {
+        width: 100%;
+        overflow: hidden;
+        font-size: 12px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .value-cell {
+        color: #63656e;
+      }
+
+      .participle-cell {
+        font-size: 12px;
+        line-height: 18px;
+        color: #63656e;
+
+        &.participle-cell--analyzed {
+          display: block;
+          padding: 4px 0;
+
+          > div {
+            display: block;
+          }
+        }
+      }
+    }
+  }
+}

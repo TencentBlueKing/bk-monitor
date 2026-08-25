@@ -304,7 +304,10 @@ export default defineComponent({
         for (const val of visibleConfig.visible_bk_biz ?? []) {
           const target = mySpaceList.value.find(project => project.bk_biz_id === String(val.bk_biz_id));
           if (target) {
-            target.is_use = val.is_use;
+            store.commit('patchMySpaceListItem', {
+              bkBizId: String(val.bk_biz_id),
+              patch: { is_use: val.is_use },
+            });
             const targetObj = {
               id: String(val.bk_biz_id),
               name: target.space_full_code_name,

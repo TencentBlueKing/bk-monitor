@@ -17,10 +17,6 @@ from django.conf import settings
 
 from alarm_backends.core.cache import key
 from alarm_backends.core.control.strategy import Strategy
-from alarm_backends.core.detect_result.trim import (
-    check_result_producer,
-    trim_item_check_results_if_trigger_idle,
-)
 from alarm_backends.core.i18n import i18n
 from alarm_backends.core.lock.service_lock import service_lock
 from alarm_backends.core.processor.base import BaseAbnormalPushProcessor
@@ -42,8 +38,6 @@ class DetectProcess(BaseAbnormalPushProcessor):
         self.inputs = {}
         self.outputs = {}
         self.inline_trigger_items = []
-        # Access-Detect merge 只登记 producer blocker，不收集 key，也不执行热裁剪。
-        self.collect_check_result_trim_keys = False
         self.strategy = Strategy(strategy_id)
         i18n.set_biz(self.strategy.bk_biz_id)
         self.is_busy = False
@@ -118,11 +112,7 @@ class DetectProcess(BaseAbnormalPushProcessor):
         data_points = self.inputs[item.id]
         if not data_points:
             self.bootstrap_new_series_empty_batch(item)
-        item.begin_check_result_trim_batch()
-        self.outputs[item.id] = item.detect(
-            data_points,
-            collect_check_result_trim_keys=self.collect_check_result_trim_keys,
-        )
+        self.outputs[item.id] = item.detect(data_points)
 
     @staticmethod
     def bootstrap_new_series_empty_batch(item):
@@ -466,11 +456,7 @@ class DetectProcess(BaseAbnormalPushProcessor):
                 )
 
     def process(self):
-        with (
-            service_lock(key.SERVICE_LOCK_DETECT, strategy_id=self.strategy_id),
-            check_result_producer(self.strategy_id) as producer_token,
-        ):
-            self.collect_check_result_trim_keys = True
+        with service_lock(key.SERVICE_LOCK_DETECT, strategy_id=self.strategy_id):
             start_at = time.time()
             logger.info(f"[detect][latency] strategy({self.strategy_id}) processing start")
             self.strategy.gen_strategy_snapshot()
@@ -483,8 +469,6 @@ class DetectProcess(BaseAbnormalPushProcessor):
                     logger.exception("[detect] strategy(%s) 二次确认时发生异常，不影响告警主流程", self.strategy_id)
 
             self.push_data()
-            for item in self.strategy.items:
-                trim_item_check_results_if_trigger_idle(item, producer_token)
             end_at = time.time()
             logger.info(f"[detect][latency] strategy({self.strategy_id}) processing end in {end_at - start_at}")
             metrics.DETECT_PROCESS_TIME.labels(strategy_id=metrics.TOTAL_TAG).observe(end_at - start_at)

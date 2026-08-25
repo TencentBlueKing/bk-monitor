@@ -33,6 +33,21 @@
       color: #979ba5;
     }
   }
+
+  &__generated-at {
+    display: inline-block;
+    margin-top: 6px;
+    font-size: 12px;
+    color: #979ba5;
+  }
+}
+
+.redis-data-warning {
+  padding: 8px 12px;
+  margin-top: 12px;
+  color: #ff9c01;
+  background: #fff4e2;
+  border-left: 3px solid #ff9c01;
 }
 
 .redis-node-grid {
@@ -84,13 +99,35 @@
   &__trend {
     width: 100%;
     height: 42px;
-    margin-top: 12px;
+    margin-top: 4px;
 
     polyline {
       fill: none;
       stroke-width: 2;
       vector-effect: non-scaling-stroke;
     }
+  }
+
+  &__trend-head {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 12px;
+    font-size: 12px;
+    color: #979ba5;
+  }
+
+  &__peak-point {
+    fill: #ea3636;
+    stroke: #fff;
+    stroke-width: 1;
+    vector-effect: non-scaling-stroke;
+  }
+
+  &__current-point {
+    fill: #fff;
+    stroke: currentcolor;
+    stroke-width: 1.5;
+    vector-effect: non-scaling-stroke;
   }
 
   &__foot {
@@ -332,6 +369,22 @@
   }
 }
 
+.redis-route-live-preview {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  align-items: center;
+  padding: 10px 12px;
+  margin-top: 12px;
+  color: #63656e;
+  background: #f0f5ff;
+  border-left: 3px solid #3a84ff;
+
+  strong {
+    color: #313238;
+  }
+}
+
 .redis-route-warning {
   padding: 8px 12px;
   margin-top: 12px;
@@ -369,7 +422,7 @@
 
 .redis-draft-node {
   display: grid;
-  grid-template-columns: 120px 1fr 1fr;
+  grid-template-columns: 160px 1fr;
   gap: 12px;
   padding: 8px 0;
   border-top: 1px solid #eaebf0;
@@ -412,6 +465,15 @@
     background: #edf4ff;
     border-radius: 2px;
   }
+}
+
+.redis-draft-timing {
+  margin-top: 12px;
+  color: #63656e;
+}
+
+.redis-hot-strategy-tooltip {
+  white-space: pre-line;
 }
 
 @media (width <= 1180px) {

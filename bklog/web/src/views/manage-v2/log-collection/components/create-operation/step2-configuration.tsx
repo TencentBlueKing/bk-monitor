@@ -59,6 +59,7 @@ import ConfigurationItemList from '../business-comp/step2/container-collection/c
 import { HOST_COLLECTION_CONFIG, initContainerConfig } from './defaultConfig'; // 默认配置
 import IndexConfigImportDialog from '../business-comp/step2/index-config-import-dialog';
 import $http from '@/api'; // API请求封装
+import { isCollectionEditRoute } from './route-utils';
 
 import './step2-configuration.scss'; // 样式文件
 
@@ -226,9 +227,9 @@ export default defineComponent({
      */
     const isUpdate = computed(
       () =>
-        !isClone.value &&
-        ((route.name === 'collectEdit' && props.isEdit) ||
-          (route.name === 'collectAdd' && !!formData.value?.collector_config_id)),
+        !isClone.value
+        && ((isCollectionEditRoute(route.name) && props.isEdit)
+          || (route.name === 'collectAdd' && !!formData.value?.collector_config_id)),
     );
     /**
      * 是否为采集主机日志
@@ -1613,6 +1614,7 @@ export default defineComponent({
             showDialog={showMultilineRegDialog.value}
             on-cancel={handleCancelMultilineReg}
             on-update={(val: string) => {
+              isConfigChange.value = true;
               formData.value.params.multiline_pattern = val;
             }}
           />
