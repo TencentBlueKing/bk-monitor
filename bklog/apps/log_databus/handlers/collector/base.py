@@ -434,6 +434,15 @@ class CollectorHandler:
     def _pre_start(self):
         raise NotImplementedError
 
+    def _apply_clean_template_before_start(self):
+        """重新提交停用期间可能发生变化的模板正式配置。"""
+        if not self.data.clean_template_id or not self.data.table_id:
+            return
+
+        # 不显式传 clean_template_id，让清洗更新链路按采集项当前关联读取模板最新正式配置。
+        # 结果表修改仍由原有异步任务执行，这里只保证任务在采集项启用前完成提交。
+        self.create_or_update_clean_config(is_update=True, params={})
+
     @transaction.atomic
     def start(self, **kwargs):
         """
@@ -441,6 +450,8 @@ class CollectorHandler:
         :return: task_id
         """
         self._itsm_start_judge()
+
+        self._apply_clean_template_before_start()
 
         self.data.is_active = True
         self.data.save()

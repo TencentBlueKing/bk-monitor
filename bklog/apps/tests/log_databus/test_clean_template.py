@@ -42,7 +42,7 @@ from apps.log_databus.exceptions import (
     EtlPreviewException,
 )
 from apps.log_databus.handlers.clean import CleanTemplateHandler
-from apps.log_databus.handlers.collector import CollectorHandler
+from apps.log_databus.handlers.collector import CollectorHandler, HostCollectorHandler
 from apps.log_databus.handlers.etl.transfer import TransferEtlHandler
 from apps.log_databus.handlers.etl_storage.bk_log_json import BkLogJsonEtlStorage
 from apps.log_databus.models import CleanStash, CleanTemplate, CollectorConfig, ContainerCollectorConfig
@@ -1037,6 +1037,68 @@ class TestCleanTemplatePreview(CleanTemplateTestCase):
 
 
 class TestCleanTemplateAssociation(CleanTemplateTestCase):
+    def test_start_reapplies_latest_template_config_before_enabling_collector(self):
+        template = self.create_template()
+        collector = self.create_collector(
+            clean_template_id=template["clean_template_id"],
+            is_active=False,
+            table_id="706_bklog.collector",
+        )
+        changed = copy.deepcopy(CREATE_PARAMS)
+        changed.pop("bk_biz_id")
+        changed["etl_params"]["separator"] = "|"
+        updated = CleanTemplateHandler(template["clean_template_id"]).create_or_update(changed)
+        self.assertEqual(updated["status"], CleanTemplateStatus.PUBLISHED.value)
+
+        handler = HostCollectorHandler(collector_config_id=collector.collector_config_id)
+        events = []
+        etl_storage = MagicMock()
+        etl_storage.switch_result_table.side_effect = lambda **kwargs: events.append(
+            ("enable", kwargs["collector_config"].is_active)
+        )
+
+        def submit_clean_config(*, is_update, params):
+            template_config = CleanTemplate.objects.get(clean_template_id=handler.data.clean_template_id)
+            events.append(("submit", handler.data.is_active, template_config.etl_params["separator"]))
+
+        with (
+            patch.object(handler, "_itsm_start_judge"),
+            patch.object(handler, "create_or_update_clean_config", side_effect=submit_clean_config) as submit,
+            patch(
+                "apps.log_databus.handlers.collector.base.EtlStorage.get_instance",
+                return_value=etl_storage,
+            ),
+            patch("apps.log_databus.handlers.collector.base.user_operation_record.delay"),
+        ):
+            result = handler.start()
+
+        self.assertTrue(result)
+        submit.assert_called_once_with(is_update=True, params={})
+        self.assertEqual(events, [("submit", False, "|"), ("enable", True)])
+        collector.refresh_from_db()
+        self.assertTrue(collector.is_active)
+
+    def test_start_keeps_collector_inactive_when_template_submission_fails(self):
+        template = self.create_template()
+        collector = self.create_collector(
+            clean_template_id=template["clean_template_id"],
+            is_active=False,
+            table_id="706_bklog.collector",
+        )
+        handler = HostCollectorHandler(collector_config_id=collector.collector_config_id)
+
+        with (
+            patch.object(handler, "_itsm_start_judge"),
+            patch.object(handler, "create_or_update_clean_config", side_effect=RuntimeError("submit failed")),
+            patch("apps.log_databus.handlers.collector.base.EtlStorage.get_instance") as get_etl_storage,
+        ):
+            with self.assertRaisesRegex(RuntimeError, "submit failed"):
+                handler.start()
+
+        get_etl_storage.assert_not_called()
+        collector.refresh_from_db()
+        self.assertFalse(collector.is_active)
+
     def test_destroy_unlinks_collectors(self):
         template = self.create_template()
         collector = self.create_collector(
