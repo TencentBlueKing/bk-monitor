@@ -75,3 +75,14 @@ test('仪表盘搜索结果标题使用纯文本片段展示', () => {
   assert.match(source, /splitHighlightFragments\(item\.title,\s*this\.keywork\)/);
   assert.match(source, /\{fragment\.text\}/);
 });
+
+test('标签搜索结果使用纯文本片段展示', () => {
+  const source = fs.readFileSync(
+    path.resolve(__dirname, '../src/monitor-pc/components/multi-label-select/multi-label-select.tsx'),
+    'utf8'
+  );
+
+  assert.doesNotMatch(source, /domPropsInnerHTML/);
+  assert.match(source, /splitHighlightFragments\(id,\s*this\.removeSpacesInputValue\)/);
+  assert.match(source, /class='hl'/);
+});
