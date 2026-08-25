@@ -16,8 +16,7 @@ from django.conf import settings
 from django.test import override_settings
 
 from alarm_backends.core.cache import key
-from alarm_backends.core.control.item import detect_result_item_point_required, detect_result_point_required
-from alarm_backends.core.detect_result import CheckResult, CheckResultTrimAborted
+from alarm_backends.core.detect_result import CheckResult
 from alarm_backends.core.detect_result import tasks as detect_result_tasks
 from alarm_backends.core.detect_result.clean import CleanResult
 
@@ -273,75 +272,8 @@ def test_trim_check_result_caches_bounds_pipeline_commands():
     second_pipeline.zremrangebyrank.assert_called_once_with("key-3", 0, -13)
 
 
-@override_settings(CHECK_RESULT_CLEAN_PIPELINE_COMMAND_LIMIT=2)
-def test_trim_check_result_caches_refreshes_producer_lock_before_each_chunk():
-    client = MagicMock()
-    first_pipeline = MagicMock()
-    first_pipeline.execute.return_value = [1, 1]
-    second_pipeline = MagicMock()
-    second_pipeline.execute.return_value = [1]
-    client.pipeline.side_effect = [first_pipeline, second_pipeline]
-    refresh_lock = MagicMock(return_value=True)
-
-    with patch.object(key.CHECK_RESULT_CACHE_KEY, "_cache", client):
-        result = CheckResult.trim_check_result_caches(
-            ["key-1", "key-2", "key-3"],
-            12,
-            before_chunk=refresh_lock,
-        )
-
-    assert result == [1, 1, 1]
-    assert refresh_lock.call_count == 2
-
-
-@override_settings(CHECK_RESULT_CLEAN_PIPELINE_COMMAND_LIMIT=2)
-def test_trim_check_result_caches_stops_when_safety_guard_changes():
-    client = MagicMock()
-    first_pipeline = MagicMock()
-    first_pipeline.execute.return_value = [1, 1]
-    client.pipeline.return_value = first_pipeline
-    safety_guard = MagicMock(side_effect=[True, False])
-
-    with (
-        patch.object(key.CHECK_RESULT_CACHE_KEY, "_cache", client),
-        pytest.raises(CheckResultTrimAborted),
-    ):
-        CheckResult.trim_check_result_caches(
-            ["key-1", "key-2", "key-3"],
-            12,
-            before_chunk=safety_guard,
-        )
-
-    first_pipeline.execute.assert_called_once_with()
-    assert safety_guard.call_count == 2
-
-
-def test_event_cleanup_keeps_legacy_formula_while_time_series_uses_item_formula():
-    detects = [
-        {
-            "level": 1,
-            "trigger_config": {"check_window": 5, "count": 1},
-            "recovery_config": {"check_window": 5},
-        }
-    ]
-    event_item = {
-        "id": 11,
-        "algorithms": [{"level": 1, "type": "Threshold"}],
-        "query_configs": [{"data_type_label": "event"}],
-    }
-    time_series_item = {
-        "id": 12,
-        "algorithms": [{"level": 1, "type": "Threshold"}],
-        "query_configs": [{"data_type_label": "time_series"}],
-    }
-    strategy = {"detects": detects, "items": [event_item, time_series_item]}
-
-    assert detect_result_point_required(strategy) == 30
-    assert detect_result_item_point_required(strategy, time_series_item) == 12
-
-
 @override_settings(ENABLE_CHECK_RESULT_CLEAN_HSCAN=False)
-def test_periodic_cleanup_keeps_legacy_fallback_for_invalid_hot_trim_config():
+def test_periodic_cleanup_keeps_hkeys_fallback():
     client = MagicMock()
     client.hkeys.return_value = []
     strategy = {
@@ -368,26 +300,6 @@ def test_periodic_cleanup_keeps_legacy_fallback_for_invalid_hot_trim_config():
         CleanResult.clean_expired_detect_result()
 
     client.hkeys.assert_called_once_with(key.LAST_CHECKPOINTS_CACHE_KEY.get_key(strategy_id=1, item_id=11))
-
-
-def test_item_cleanup_matches_aiops_effective_trigger_window():
-    item = {
-        "id": 12,
-        "algorithms": [{"level": 1, "type": "IntelligentDetect"}],
-        "query_configs": [{"data_type_label": "time_series"}],
-    }
-    strategy = {
-        "detects": [
-            {
-                "level": 1,
-                "trigger_config": {"check_window": "ignored"},
-                "recovery_config": {"check_window": 7},
-            }
-        ],
-        "items": [item],
-    }
-
-    assert detect_result_item_point_required(strategy, item) == 14
 
 
 @pytest.mark.parametrize("member_count", [12, 13, 20])

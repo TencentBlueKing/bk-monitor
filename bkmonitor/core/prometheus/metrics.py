@@ -381,6 +381,24 @@ PROCESS_OVER_FLOW = Counter(
     labelnames=("module", "strategy_id", "bk_biz_id", "strategy_name", "redis_node"),
 )
 
+CHECK_RESULT_OPPORTUNITY_TRIM_COUNT = Counter(
+    name="bkmonitor_check_result_opportunity_trim_count",
+    documentation="CHECK_RESULT 机会裁剪扫描、命令和删除成员计数",
+    labelnames=("type",),
+)
+
+CHECK_RESULT_OPPORTUNITY_TRIM_TIME = Histogram(
+    name="bkmonitor_check_result_opportunity_trim_time",
+    documentation="CHECK_RESULT 机会裁剪任务耗时",
+    labelnames=(),
+)
+
+CHECK_RESULT_OPPORTUNITY_TRIM_QUEUE_DELAY = Histogram(
+    name="bkmonitor_check_result_opportunity_trim_queue_delay",
+    documentation="CHECK_RESULT 机会裁剪任务排队耗时",
+    labelnames=(),
+)
+
 TRIGGER_EVENT_RATE_LIMIT_DROP = Counter(
     name="bkmonitor_trigger_event_rate_limit_drop_total",
     documentation="trigger 模块按策略+数据时间戳限流后丢弃的 event 数",

@@ -15,11 +15,41 @@ import time
 from django.conf import settings
 
 from alarm_backends.core.detect_result.clean import CleanResult
+from alarm_backends.core.detect_result.opportunity import trim_strategy_group
 from alarm_backends.service.scheduler.app import app
 from bkmonitor.models import CacheRouter
 from common.context_processors import Platform
+from core.prometheus import metrics
 
 logger = logging.getLogger("celery")
+
+
+@app.task(ignore_result=True, queue="celery_cron")
+def async_trim_check_result_opportunity(strategy_group_key: str, queued_at: float):
+    started_at = time.time()
+    metrics.CHECK_RESULT_OPPORTUNITY_TRIM_QUEUE_DELAY.observe(max(0, started_at - queued_at))
+    try:
+        stats = trim_strategy_group(strategy_group_key)
+        for metric_type in ("scanned_fields", "zrem_commands", "removed_members"):
+            metrics.CHECK_RESULT_OPPORTUNITY_TRIM_COUNT.labels(type=metric_type).inc(stats[metric_type])
+        logger.info(
+            "CHECK_RESULT opportunity trim group(%s) strategies(%s) items(%s) fields(%s) "
+            "zrem(%s) removed(%s) duration(%s)",
+            strategy_group_key,
+            stats["strategy_count"],
+            stats["item_count"],
+            stats["scanned_fields"],
+            stats["zrem_commands"],
+            stats["removed_members"],
+            time.time() - started_at,
+        )
+        return stats
+    except Exception:
+        logger.exception("CHECK_RESULT opportunity trim group(%s) failed", strategy_group_key)
+        raise
+    finally:
+        metrics.CHECK_RESULT_OPPORTUNITY_TRIM_TIME.observe(time.time() - started_at)
+        metrics.report_all()
 
 
 def recover_weixin_robot_limit():

@@ -26,10 +26,6 @@ CONST_MAX_LEN_CHECK_RESULT = 30  # 检测结果缓存，默认只保留30条数�
 ANOMALY_LABEL = "ANOMALY"  # 异常标识
 
 
-class CheckResultTrimAborted(RuntimeError):
-    """The hot trim safety guard changed before the next bounded chunk."""
-
-
 class Result(object):
     _pipeline = None
 
@@ -131,8 +127,8 @@ class CheckResult(Result):
         return self.CHECK_RESULT.zremrangebyrank(self.check_result_cache_key, 0, rank_trim_stop(point_remains))
 
     @classmethod
-    def trim_check_result_caches(cls, cache_keys, point_remains, before_chunk=None):
-        """Trim each written key once with bounded pipelines isolated from the write batch."""
+    def trim_check_result_caches(cls, cache_keys, point_remains):
+        """Trim each key once with bounded pipelines isolated from write batches."""
         cache_keys = tuple(dict.fromkeys(cache_keys))
         if not cache_keys:
             return []
@@ -141,8 +137,6 @@ class CheckResult(Result):
         stop = rank_trim_stop(point_remains)
         results = []
         for start in range(0, len(cache_keys), command_limit):
-            if before_chunk is not None and not before_chunk():
-                raise CheckResultTrimAborted("check result hot trim guard changed before next chunk")
             pipeline = key.CHECK_RESULT_CACHE_KEY.client.pipeline(transaction=False)
             for cache_key in cache_keys[start : start + command_limit]:
                 pipeline.zremrangebyrank(cache_key, 0, stop)
