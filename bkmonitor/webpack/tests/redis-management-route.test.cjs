@@ -247,7 +247,7 @@ test('成本快照时间在节点卡片和路由区域都有明确标签', () =>
     path.resolve(__dirname, '../src/monitor-pc/pages/redis-management/redis-management.tsx'),
     'utf8'
   );
-  assert.match(source, /策略成本更新\s*\{formatAge\(evidenceTime/);
+  assert.match(source, /策略成本更新\s*\{formatDateTime\(evidenceTime/);
   assert.match(source, /策略成本更新：/);
 });
 
@@ -304,6 +304,8 @@ test('节点卡片解释使用趋势、峰值时间与样本覆盖', () => {
   assert.match(source, /usage_trend/);
   assert.match(source, /max_3h_at/);
   assert.match(source, /页面数据/);
+  assert.doesNotMatch(source, /formatAge/);
+  assert.match(source, /页面数据 \{formatDateTime\(this\.data\.generated_at\)\}/);
   assert.match(source, /刷新失败，当前展示仍为上次数据/);
 });
 

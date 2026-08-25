@@ -198,6 +198,24 @@ def test_build_memory_view_does_not_pair_capacity_from_another_runtime_identity(
     assert result["max_3h_usage_ratio"] is None
 
 
+def test_build_memory_view_usage_trend_follows_the_same_runtime_as_maximum_used_bytes():
+    result = build_memory_view(
+        "node-1",
+        [
+            {"dimensions": {"node": "node-1", "host": "larger"}, "datapoints": [[200.0, 1180]]},
+            {"dimensions": {"node": "node-1", "host": "higher-ratio"}, "datapoints": [[150.0, 1180]]},
+        ],
+        [
+            {"dimensions": {"node": "node-1", "host": "larger"}, "datapoints": [[400.0, 1180]]},
+            {"dimensions": {"node": "node-1", "host": "higher-ratio"}, "datapoints": [[200.0, 1180]]},
+        ],
+    )
+
+    assert result["trend"] == [[200.0, 1180]]
+    assert result["usage_trend"] == [[0.5, 1180]]
+    assert result["max_3h_usage_ratio"] == 0.5
+
+
 def test_build_memory_view_marks_stale_current_value_unknown():
     result = build_memory_view(
         "node-1",

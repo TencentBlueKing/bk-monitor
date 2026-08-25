@@ -202,7 +202,6 @@ def build_memory_view(
             [item for item in node_capacity_series if _series_identity(item) == identity]
         )
 
-    usage_by_timestamp: dict[int | float, list[float]] = {}
     current_candidates = []
     for series in node_used_series:
         identity = _series_identity(series)
@@ -215,13 +214,15 @@ def build_memory_view(
                 continue
             capacity = _capacity_at(capacity_points, timestamp)
             current_candidates.append((timestamp, float(value), capacity))
-            if capacity:
-                usage_by_timestamp.setdefault(timestamp, []).append(float(value) / capacity)
 
-    usage_trend = [
-        [max(usage_by_timestamp[timestamp]) if usage_by_timestamp.get(timestamp) else None, timestamp]
-        for _value, timestamp in trend
-    ]
+    usage_trend = []
+    for used_value, timestamp in trend:
+        usage_candidates = [
+            value / capacity
+            for candidate_timestamp, value, capacity in current_candidates
+            if candidate_timestamp == timestamp and value == used_value and capacity
+        ]
+        usage_trend.append([max(usage_candidates) if usage_candidates else None, timestamp])
 
     observed_at = next(
         (

@@ -156,16 +156,6 @@ const formatDateTime = (timestamp: null | number | string) => {
   return Number.isNaN(date.getTime()) ? '--' : date.toLocaleString();
 };
 
-const formatAge = (timestamp: null | number | string, referenceTime: null | number) => {
-  if (timestamp === null || referenceTime === null) return '时间未知';
-  const time = typeof timestamp === 'number' ? timestamp : new Date(timestamp).getTime() / 1000;
-  if (!Number.isFinite(time)) return '时间未知';
-  const seconds = Math.max(0, referenceTime - time);
-  if (seconds < 60) return '刚刚';
-  if (seconds < 3600) return `${Math.floor(seconds / 60)} 分钟前`;
-  return `${(seconds / 3600).toFixed(seconds < 36000 ? 1 : 0)} 小时前`;
-};
-
 @Component
 export default class RedisManagement extends Vue {
   data: IOverview | null = null;
@@ -251,10 +241,7 @@ export default class RedisManagement extends Vue {
     const evidenceNodes = this.data?.cost_evidence.nodes ?? [];
     if (!evidenceNodes.length) return '暂无';
     return evidenceNodes
-      .map(item => {
-        const snapshotTime = formatAge(item.snapshot_time, this.data?.generated_at ?? null);
-        return `${this.nodeName(item.node_id)} ${snapshotTime}`;
-      })
+      .map(item => `${this.nodeName(item.node_id)} ${formatDateTime(item.snapshot_time)}`)
       .join(' · ');
   }
 
@@ -446,9 +433,7 @@ export default class RedisManagement extends Vue {
         <div class='redis-node-card__foot'>
           <span>指标时间 {formatDateTime(node.memory.observed_at)}</span>
           <span>峰值时间 {formatDateTime(node.memory.max_3h_at)}</span>
-          <span title={formatDateTime(evidenceTime)}>
-            策略成本更新 {formatAge(evidenceTime, this.data?.generated_at ?? null)}
-          </span>
+          <span>策略成本更新 {formatDateTime(evidenceTime)}</span>
           {typeof measured === 'number' && typeof routeTotal === 'number' && (
             <span>
               已估算策略 {formatInteger(measured)}/{formatInteger(routeTotal)}
@@ -766,10 +751,7 @@ export default class RedisManagement extends Vue {
             <h2>Redis 节点管理</h2>
             <p>查看节点容量、策略路由与已知热策略，并生成单次边界调整的容量草稿。</p>
             {this.data && (
-              <span class='redis-management__generated-at'>
-                页面数据 {formatDateTime(this.data.generated_at)}（
-                {formatAge(this.data.generated_at, Date.now() / 1000)}）
-              </span>
+              <span class='redis-management__generated-at'>页面数据 {formatDateTime(this.data.generated_at)}</span>
             )}
           </div>
           <button
