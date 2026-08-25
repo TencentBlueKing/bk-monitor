@@ -11,16 +11,17 @@ specific language governing permissions and limitations under the License.
 from rest_framework import permissions
 
 from bkmonitor.iam import ActionEnum
-from bkmonitor.iam.drf import BusinessActionPermission
-from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
+from bkmonitor.iam.drf import IAMPermission
 from core.drf_resource import resource
+from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
+from monitor_web.permissions import GlobalSettingPermission
 
 
 class GlobalConfigViewSet(ResourceViewSet):
     def get_permissions(self):
         if self.request.method in permissions.SAFE_METHODS:
-            return [BusinessActionPermission([ActionEnum.VIEW_GLOBAL_SETTING])]
-        return [BusinessActionPermission([ActionEnum.MANAGE_GLOBAL_SETTING])]
+            return [IAMPermission([ActionEnum.VIEW_GLOBAL_SETTING])]
+        return [GlobalSettingPermission()]
 
     resource_routes = [
         ResourceRoute("GET", resource.config.list_global_config),

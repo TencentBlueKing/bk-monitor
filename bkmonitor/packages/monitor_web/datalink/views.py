@@ -9,11 +9,18 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+from bkmonitor.iam import ActionEnum
+from bkmonitor.iam.drf import BusinessActionPermission
 from core.drf_resource import resource
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
 
 
 class DatalinkStatusViewSet(ResourceViewSet):
+    def get_permissions(self):
+        if self.action == "update_alert_user_groups":
+            return [BusinessActionPermission([ActionEnum.MANAGE_COLLECTION])]
+        return [BusinessActionPermission([ActionEnum.VIEW_COLLECTION])]
+
     resource_routes = [
         # 获取采集状态信息
         ResourceRoute("GET", resource.datalink.alert_status, endpoint="alert_status"),
