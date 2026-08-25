@@ -1471,6 +1471,7 @@ export default defineComponent({
         })
         .then(res => {
           if (!res?.result) {
+            callback?.(false);
             return;
           }
           const newConfig = {
@@ -1570,6 +1571,8 @@ export default defineComponent({
           }
           if (!isTargetNodesEmpty.value && isErr && isLogFilterErr && !isSegmentError.value && isConfigError && isMetadataValid) {
             setCollection({ action, callback });
+          } else {
+            callback?.(false);
           }
         })
         .catch(() => {

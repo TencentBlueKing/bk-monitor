@@ -1361,7 +1361,7 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
             data: timeValueItem?.value || '',
           },
         })
-        .then(res => {
+        .then(() => {
           timeCheckErrContent.value = '';
           result = true;
         })
@@ -2345,17 +2345,19 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
     /**
      * 提交前的相关检验
      * @param callback
+     * @param failedCallback
      * @returns
      */
-    const handleSubmitValidate = async callback => {
+    const handleSubmitValidate = async (callback: () => void, failedCallback?: () => void) => {
       loading.value = true;
       // 校验字段表格
       const validatePromises = fieldListRef.value?.validateFieldTable();
       if (validatePromises && validatePromises.length > 0) {
         try {
           await Promise.all(validatePromises);
-        } catch (error) {
+        } catch {
           loading.value = false;
+          failedCallback?.();
           return;
         }
       }
@@ -2366,6 +2368,7 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
         const res = await requestCheckTime();
         if (!res) {
           loading.value = false;
+          failedCallback?.();
           return;
         }
       }
@@ -2375,6 +2378,7 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
       if (isClean.value && etl_fields.length === 0) {
         showMessage(t('请完成相关的清洗配置'), 'error');
         loading.value = false;
+        failedCallback?.();
         return;
       }
       callback?.();
@@ -2571,7 +2575,7 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
             }
             callback?.(false);
           });
-      });
+      }, () => callback?.(false));
     };
 
     expose({
