@@ -281,6 +281,10 @@ def _build_plan(item, identity_fields: list[str], query_window: int) -> dict:
         }
         if trigger.get("uptime"):
             trigger_config["uptime"] = copy.deepcopy(trigger["uptime"])
+            # Keep the Python hot path free of an additional BusinessManager
+            # lookup. The Go EffectiveTimeProvider resolves this stable ref
+            # with the envelope tenant/business identity at evaluation time.
+            trigger_config["timezone_ref"] = "BUSINESS_LOCAL"
         levels.append(
             {
                 "definition": {"level_id": level_id, "priority": int(priority)},

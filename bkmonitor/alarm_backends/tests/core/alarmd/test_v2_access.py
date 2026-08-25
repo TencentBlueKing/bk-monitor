@@ -16,7 +16,17 @@ from alarm_backends.core.alarmd.v2_access import (
 from alarm_backends.core.alarmd.v2_writer import build_execution_messages
 
 
-def _strategy(strategy_id, item_id, *, threshold, selected=True, level=1, priority=None, business_id=2):
+def _strategy(
+    strategy_id,
+    item_id,
+    *,
+    threshold,
+    selected=True,
+    level=1,
+    priority=None,
+    business_id=2,
+    uptime=None,
+):
     config = {
         "id": strategy_id,
         "bk_biz_id": business_id,
@@ -47,6 +57,8 @@ def _strategy(strategy_id, item_id, *, threshold, selected=True, level=1, priori
     }
     if priority is not None:
         config["detects"][0]["priority"] = priority
+    if uptime is not None:
+        config["detects"][0]["trigger_config"]["uptime"] = uptime
     strategy = SimpleNamespace(
         id=strategy_id,
         bk_biz_id=business_id,
@@ -146,6 +158,35 @@ def test_unknown_level_with_explicit_priority_passes_through_without_core_change
         "level_id": 5,
         "priority": 1,
     }
+
+
+def test_uptime_uses_business_timezone_reference_without_hot_path_lookup():
+    uptime = {
+        "time_ranges": [{"start": "09:00", "end": "18:00"}],
+        "calendars": [],
+        "active_calendars": [],
+    }
+    item, _ = _strategy(1001, 11, threshold=1, uptime=uptime)
+    processor = SimpleNamespace(
+        items=[item],
+        strategy_group_key="query-group-1",
+        from_timestamp=1724999700,
+        until_timestamp=1725000060,
+        alarmd_v2_execution_id="execution-1",
+        alarmd_v2_evaluation_time=1725000060,
+        alarmd_v2_query_result={"completeness": "FULL"},
+    )
+
+    job = build_access_publish_job(processor, [], received_time=1725000061)
+    envelope = json.loads(
+        build_execution_messages(
+            job, max_records=10, max_envelope_bytes=64 * 1024, message_id_factory=lambda: "message-1"
+        )[0][0].payload
+    )
+    trigger_config = envelope["plan_set"]["evaluation_plans"][0]["strategy_ir"]["levels"][0]["trigger_plan"]["config"]
+
+    assert trigger_config["uptime"] == uptime
+    assert trigger_config["timezone_ref"] == "BUSINESS_LOCAL"
 
 
 def test_negative_space_business_id_uses_signed_canonical_identity():
