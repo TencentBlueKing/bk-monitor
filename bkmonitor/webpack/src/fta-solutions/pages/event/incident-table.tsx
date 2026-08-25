@@ -157,7 +157,8 @@ export default class IncidentTable extends tsc<IEventTableProps, IEventTableEven
     const { clientWidth, scrollWidth, scrollHeight, clientHeight } = e.target as HTMLDivElement;
     if (scrollWidth > clientWidth || scrollHeight > clientHeight) {
       this.metricPopoverIns = this.$bkPopover(e.target, {
-        content: `${data.map(item => `<div>${item}</div>`).join('')}`,
+        content: data.map(item => (typeof item === 'string' ? item : `${item.key}：${item.value}`)).join('\n'),
+        allowHTML: false,
         interactive: true,
         distance: 0,
         duration: [200, 0],
@@ -233,8 +234,11 @@ export default class IncidentTable extends tsc<IEventTableProps, IEventTableEven
                     class='tag-column'
                     onMouseenter={e => this.handleMetricMouseenter(e, row.labels)}
                   >
-                    {row.labels?.map(item => (
-                      <div class='tag-item set-item'>
+                    {row.labels?.map((item, index) => (
+                      <div
+                        key={item.key ? `${item.key}:${item.value}` : `label-${index}`}
+                        class='tag-item set-item'
+                      >
                         {item.key ? `${item.key}: ${item.value.replace(/\//g, '')}` : item?.replace(/\//g, '')}
                       </div>
                     )) || '--'}
@@ -464,7 +468,7 @@ export default class IncidentTable extends tsc<IEventTableProps, IEventTableEven
     const origin = process.env.NODE_ENV === 'development' ? process.env.proxyUrl : location.origin;
     switch (extendInfo.type) {
       // 监控主机监控详情
-      case 'host':
+      case 'host': {
         const detailId =
           extendInfo.bk_host_id ??
           `${extendInfo.ip}-${extendInfo.bk_cloud_id === undefined ? 0 : extendInfo.bk_cloud_id}`;
@@ -473,8 +477,9 @@ export default class IncidentTable extends tsc<IEventTableProps, IEventTableEven
           '__blank'
         );
         return;
+      }
       // 监控数据检索
-      case 'bkdata':
+      case 'bkdata': {
         const targets = [{ data: { query_configs: extendInfo.query_configs } }];
         window.open(
           `${origin}${location.pathname
@@ -483,8 +488,9 @@ export default class IncidentTable extends tsc<IEventTableProps, IEventTableEven
           '__blank'
         );
         return;
+      }
       // 日志检索
-      case 'log_search':
+      case 'log_search': {
         const retrieveParams = {
           // 检索参数
           bizId,
@@ -495,8 +501,9 @@ export default class IncidentTable extends tsc<IEventTableProps, IEventTableEven
         const url = `${this.$store.getters.bkLogSearchUrl}#/retrieve/${extendInfo.index_set_id}${queryStr}`;
         window.open(url);
         return;
+      }
       // 监控自定义事件
-      case 'custom_event':
+      case 'custom_event': {
         const id = extendInfo.bk_event_group_id;
         window.open(
           `${origin}${location.pathname
@@ -505,30 +512,28 @@ export default class IncidentTable extends tsc<IEventTableProps, IEventTableEven
           '__blank'
         );
         return;
+      }
     }
   }
   /** 关联信息提示信息 */
   handleExtendInfoEnter(e, info) {
-    let tplStr = '--';
+    let content = '--';
     switch (info.type) {
       case 'host':
-        tplStr = `<div class="extend-content">${this.$t('主机名:')}${info.hostname || '--'}</div>
-            <div class="extend-content">
-              <span class="extend-content-message">${this.$t('节点信息:')}${info.topo_info || '--'}</span>
-            </div>
-          `;
+        content = [
+          `${this.$t('主机名:')}${info.hostname || '--'}`,
+          `${this.$t('节点信息:')}${info.topo_info || '--'}`,
+        ].join('\n');
         break;
       case 'log_search':
       case 'custom_event':
       case 'bkdata':
-        tplStr = `<span class="extend-content-link">
-            ${this.extendInfoMap[info.type] || '--'}
-          </span>`;
+        content = `${this.extendInfoMap[info.type] || '--'}`;
         break;
       default:
         break;
     }
-    this.handlePopoverShow(e, tplStr);
+    this.handlePopoverShow(e, content);
   }
   /**
    * @description: 关联信息组件
@@ -541,8 +546,14 @@ export default class IncidentTable extends tsc<IEventTableProps, IEventTableEven
     switch (extendInfo.type) {
       case 'host':
         return [
-          <div class='extend-content'>{`${this.$t('主机名:')}${extendInfo.hostname || '--'}`}</div>,
-          <div class='extend-content'>
+          <div
+            key='extend-hostname'
+            class='extend-content'
+          >{`${this.$t('主机名:')}${extendInfo.hostname || '--'}`}</div>,
+          <div
+            key='extend-topo'
+            class='extend-content'
+          >
             <span class='extend-content-message'>{`${this.$t('节点信息:')}${extendInfo.topo_info || '--'}`}</span>
             <span
               class='extend-content-link link-more'
@@ -600,14 +611,14 @@ export default class IncidentTable extends tsc<IEventTableProps, IEventTableEven
     this.handlePopoverShow(
       e,
       [
-        `<div class="dimension-desc">${this.$t('维度信息')}：${
+        `${this.$t('维度信息')}：${
           dimensions?.map?.(item => `${item.display_key || item.key}(${item.display_value || item.value})`).join('-') ||
           '--'
-        }</div>`,
-        `<div class="description-desc">${this.$t('告警内容')}：${description || '--'}</div>`,
+        }`,
+        `${this.$t('告警内容')}：${description || '--'}`,
       ]
         .filter(Boolean)
-        .join('')
+        .join('\n')
     );
   }
   /**
@@ -619,6 +630,7 @@ export default class IncidentTable extends tsc<IEventTableProps, IEventTableEven
   handlePopoverShow(e: MouseEvent, content: string) {
     this.popoperInstance = this.$bkPopover(e.target, {
       content,
+      allowHTML: false,
       maxWidth: 320,
       arrow: true,
       boundary: 'window',

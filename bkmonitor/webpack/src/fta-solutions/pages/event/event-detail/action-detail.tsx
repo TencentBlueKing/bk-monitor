@@ -167,6 +167,7 @@ export default class ActiveDetail extends tsc<IActiveDetail> {
   handlePopoverShow(e: MouseEvent, content: string) {
     this.popoperInstance = this.$bkPopover(e.target, {
       content,
+      allowHTML: false,
       maxWidth: 320,
       arrow: true,
     });
@@ -188,14 +189,14 @@ export default class ActiveDetail extends tsc<IActiveDetail> {
     this.handlePopoverShow(
       e,
       [
-        `<div class="dimension-desc">${this.$t('维度信息')}：${
+        `${this.$t('维度信息')}：${
           dimensions?.map?.(item => `${item.display_key || item.key}(${item.display_value || item.value})`).join('-') ||
           '--'
-        }</div>`,
-        `<div class="description-desc">${this.$t('告警内容')}：${description || '--'}</div>`,
+        }`,
+        `${this.$t('告警内容')}：${description || '--'}`,
       ]
         .filter(Boolean)
-        .join('')
+        .join('\n')
     );
   }
 
@@ -342,10 +343,16 @@ export default class ActiveDetail extends tsc<IActiveDetail> {
         <div class='detail-top'>
           <div class='detail-title'>{this.$t('处理详情')}</div>
           <div class='detail-info'>
-            {info.map(child => (
-              <div class={['form-item', { 'form-item-1': child.length === 1 }]}>
+            {info.map((child, childIndex) => (
+              <div
+                key={`info-row-${childIndex}`}
+                class={['form-item', { 'form-item-1': child.length === 1 }]}
+              >
                 {child.map((item, index) => (
-                  <div class={['item-col', `item-col-${index}`]}>
+                  <div
+                    key={`info-col-${childIndex}-${index}`}
+                    class={['item-col', `item-col-${index}`]}
+                  >
                     <div class='item-label'>{item.title}&nbsp;:&nbsp;</div>
                     <div class='item-content'>
                       {item?.extCls ? item.content : <span class='item-content-text'>{item.content}</span>}
@@ -359,7 +366,10 @@ export default class ActiveDetail extends tsc<IActiveDetail> {
         <div class='detail-table'>
           {this.tableData.trigger.length
             ? [
-                <div class='table-title first'>
+                <div
+                  key='trigger-title'
+                  class='table-title first'
+                >
                   {this.$t('触发的告警')}
                   <i18n
                     class='msg'
@@ -374,12 +384,20 @@ export default class ActiveDetail extends tsc<IActiveDetail> {
                     </span>
                   </i18n>
                 </div>,
-                <div class='table-content'>{this.getTableComponent(this.tableData.trigger)}</div>,
+                <div
+                  key='trigger-content'
+                  class='table-content'
+                >
+                  {this.getTableComponent(this.tableData.trigger)}
+                </div>,
               ]
             : undefined}
           {this.tableData.defense?.length
             ? [
-                <div class='table-title'>
+                <div
+                  key='defense-title'
+                  class='table-title'
+                >
                   {this.$t('防御的告警')}
                   <i18n
                     class='msg'
@@ -394,7 +412,12 @@ export default class ActiveDetail extends tsc<IActiveDetail> {
                     </span>
                   </i18n>
                 </div>,
-                <div class='table-content'>{this.getTableComponent(this.tableData.defense)}</div>,
+                <div
+                  key='defense-content'
+                  class='table-content'
+                >
+                  {this.getTableComponent(this.tableData.defense)}
+                </div>,
               ]
             : undefined}
         </div>
