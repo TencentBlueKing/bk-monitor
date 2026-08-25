@@ -24,7 +24,6 @@
  * IN THE SOFTWARE.
  */
 
-import { Ref } from "vue";
 
 /**
  * 通知列表
@@ -173,7 +172,7 @@ export interface LogPattern {
   pattern: string; // 格式化后的日志模式（包含占位符如 #NUMBER#）
   origin_pattern: string; // 原始日志模式
   remark: any[]; // 备注信息（数组类型，具体结构未知）
-  owners: Ref<any[]>; // 负责人列表（数组类型，具体结构未知）
+  owners: string[]; // 负责人列表
   count: number; // 该模式出现的次数
   signature: string; // 模式签名（唯一标识符）
   percentage: number; // 占比（如 10.00168170960309 表示 10.00%）

@@ -172,14 +172,14 @@ def _mget_chunks(count: int) -> int:
 
 
 def _build_detect_profiles(strategy_ids: list[int]) -> dict[int, dict[str, Any]]:
-    """算出每个策略的 CHECK_RESULT 成员数配置推导峰值。
+    """按改造前的策略级周期清理口径生成 CHECK_RESULT 参考估算。
 
     只对当前页取配置，走 ``get_strategy_by_ids`` 的分块 MGET（每 ``STRATEGY_MGET_CHUNK_SIZE``
     个策略一条命令），因此命令数由页大小决定而非策略总数，不构成 N+1。
 
-    ``point_required`` 与 ``interval`` 都直接调生产函数（``detect_result_point_required`` 与
-    ``core.control.strategy.Strategy.get_interval``）而不重算：这两个值是清理任务和 TTL 的
-    实际依据，一旦本处与生产口径漂移，成本排序就会系统性错位。
+    ``point_required`` 仍取旧的策略级保留公式，用于兼容历史成本排序。普通时序、日志和
+    NoData 已按 item 在写入后即时裁剪，因此这里的 ``peak`` 不再代表实际峰值或安全上界；
+    Event 及裁剪失败后的周期兜底仍可参考此口径。
     """
     if not strategy_ids:
         return {}
@@ -204,12 +204,13 @@ def _build_detect_profiles(strategy_ids: list[int]) -> dict[int, dict[str, Any]]
             profiles[strategy_id] = {"error": f"非法周期: {interval}"}
             continue
 
-        # 热路径 zadd 不裁剪，清理任务每 7200s 才按 point_required 收口一次，
-        # 因此峰值是"保留基线 + 一个清理周期内的新增"，而不是两者取大。
-        # 取大的写法会给出低于实测值的上界（实测 261 > max(30, 7200/30)=240），已被取证否证。
+        # 保留改造前的"基线 + 一个周期新增"公式，作为历史成本参考值。
+        # 普通时序、日志和 NoData 的写后即时裁剪未纳入该策略级模型。
         growth = -(-CHECK_RESULT_CLEAN_INTERVAL_SECONDS // interval)
         peak = point_required + growth
         profiles[strategy_id] = {
+            "model_scope": "legacy_periodic_reference",
+            "is_safe_upper_bound": False,
             "point_required": point_required,
             "interval": interval,
             "clean_interval_seconds": CHECK_RESULT_CLEAN_INTERVAL_SECONDS,
@@ -610,7 +611,8 @@ _LIST_ENABLED_PARAMS_SCHEMA = {
     "include_item_ids": "operation=list_enabled 可选，是否返回 item_ids 明细，默认 true",
     "include_detect_profile": (
         "operation=list_enabled 可选，是否附带当前页各策略的 point_required / interval / "
-        "CHECK_RESULT 成员数配置推导峰值，默认 false（启用会额外产生分块 MGET）"
+        "CHECK_RESULT 旧周期清理口径参考估算；不代表写后即时裁剪的实际峰值或安全上界，"
+        "默认 false（启用会额外产生分块 MGET）"
     ),
 }
 

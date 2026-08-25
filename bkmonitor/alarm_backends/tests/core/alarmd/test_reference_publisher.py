@@ -10,9 +10,11 @@ specific language governing permissions and limitations under the License.
 
 import copy
 import json
+import logging
 
 import pytest
 
+from alarm_backends.core.alarmd import reference_publisher as reference_publisher_module
 from alarm_backends.core.alarmd.encoder import decode_trigger_decision_batch
 from alarm_backends.core.alarmd.reference import build_terminal_reference_decision_batches
 from alarm_backends.core.alarmd.reference_publisher import (
@@ -42,8 +44,9 @@ class FakeProducer:
         self.flush_timeout = timeout
         self.flushed_payload_bytes.append(self.pending_payload_bytes)
         self.pending_payload_bytes = 0
-        for message in self.messages:
-            message["on_delivery"](self.delivery_error, None)
+        if not self.remaining:
+            for message in self.messages:
+                message["on_delivery"](self.delivery_error, None)
         return self.remaining
 
 
@@ -128,6 +131,38 @@ def test_reference_publisher_does_not_consume_past_one_size_lookahead_after_ack_
     assert producer.flush_calls == 1
 
 
+def test_reference_publisher_reports_records_from_complete_ack_groups_before_later_failure():
+    class FailSecondFlushProducer(FakeProducer):
+        def flush(self, timeout):
+            self.flush_calls += 1
+            self.flush_timeout = timeout
+            if self.flush_calls == 1:
+                for message in self.messages:
+                    message["on_delivery"](None, None)
+                return 0
+            return 1
+
+    producer = FailSecondFlushProducer()
+    publisher = KafkaReferenceDecisionPublisher(
+        producer=producer,
+        topic="alarmd-reference-shadow",
+        flush_timeout=4,
+    )
+    batches = []
+    for index in range(2):
+        batch = _normal_reference_batch()
+        batch["batch_id"] = f"batch-{index}"
+        batch["schema"]["minor"] = 1
+        batch["padding"] = "x" * (300 * 1024)
+        batches.append(batch)
+
+    with pytest.raises(ReferenceDecisionPublishError) as error:
+        publisher.publish_batches(batches)
+
+    assert error.value.acknowledged_records == 1
+    assert producer.flush_calls == 2
+
+
 @pytest.mark.parametrize(
     ("producer", "error"),
     [
@@ -146,7 +181,7 @@ def test_reference_publisher_requires_broker_ack(producer, error):
         publisher.publish_batch(_normal_reference_batch())
 
 
-def test_reference_publisher_config_is_fail_closed_and_idempotent():
+def test_reference_publisher_config_uses_all_acks_without_idempotence():
     producer = FakeProducer()
     captured = {}
 
@@ -169,7 +204,8 @@ def test_reference_publisher_config_is_fail_closed_and_idempotent():
     assert captured == {
         "bootstrap.servers": "kafka:9092",
         "message.timeout.ms": 2500,
-        "enable.idempotence": True,
+        "enable.idempotence": False,
+        "acks": "all",
     }
 
 
@@ -180,7 +216,7 @@ def test_reference_publisher_config_is_fail_closed_and_idempotent():
         {
             "topic": "alarmd-reference-shadow",
             "bootstrap.servers": "kafka:9092",
-            "enable.idempotence": False,
+            "enable.idempotence": True,
         },
     ],
 )
@@ -202,6 +238,47 @@ def test_reference_publisher_rejects_topics_that_are_explicitly_forbidden(forbid
             allowed_topics={forbidden_topic},
             forbidden_topics={forbidden_topic},
         )
+
+
+def test_cached_reference_publisher_reuses_process_producer_and_logs_enabled_once(monkeypatch, caplog):
+    reference_publisher_module.get_cached_kafka_reference_decision_publisher.cache_clear()
+    caplog.set_level(logging.INFO, logger=reference_publisher_module.__name__)
+    expected = object()
+    calls = []
+
+    def build(config, *, allowed_topics, forbidden_topics):
+        calls.append((config, allowed_topics, forbidden_topics))
+        return expected
+
+    monkeypatch.setattr(reference_publisher_module, "build_kafka_reference_decision_publisher", build)
+    config_json = json.dumps(
+        {"topic": "alarmd-reference-shadow", "bootstrap.servers": "kafka:9092"},
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+
+    first = reference_publisher_module.get_cached_kafka_reference_decision_publisher(
+        config_json, ("alarmd-reference-shadow",), ("monitor-event",)
+    )
+    second = reference_publisher_module.get_cached_kafka_reference_decision_publisher(
+        config_json, ("alarmd-reference-shadow",), ("monitor-event",)
+    )
+
+    assert first is expected
+    assert second is expected
+    assert calls == [
+        (
+            {"topic": "alarmd-reference-shadow", "bootstrap.servers": "kafka:9092"},
+            {"alarmd-reference-shadow"},
+            {"monitor-event"},
+        )
+    ]
+    enabled_logs = [record.getMessage() for record in caplog.records if "result=enabled" in record.getMessage()]
+    assert len(enabled_logs) == 1
+    assert "component=alarmd-python stage=reference result=enabled records=0 duration_ms=" in enabled_logs[0]
+    assert "bootstrap.servers" not in enabled_logs[0]
+    assert "kafka:9092" not in enabled_logs[0]
+    reference_publisher_module.get_cached_kafka_reference_decision_publisher.cache_clear()
 
 
 def _normal_reference_batch():

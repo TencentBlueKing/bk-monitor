@@ -59,7 +59,7 @@ def build_reference_trigger_decision_candidate(
     point: Mapping,
     event_record: Mapping | None,
 ) -> dict:
-    """Project an unconfirmed Trigger result for later TriggerInput correlation."""
+    """Project an unconfirmed Trigger result for later DetectInput correlation."""
 
     return _build_reference_trigger_decision_batch(
         strategy=strategy,
@@ -164,41 +164,6 @@ def _build_reference_trigger_decision_batch(
         batch_id=source["batch_id"],
         decisions=[decision],
     )
-
-
-def parse_alarmd_shadow_strategy_ids(configured_strategy_ids) -> set[int] | None:
-    """Parse the shared canonical selector, returning None for invalid configuration."""
-
-    if isinstance(configured_strategy_ids, str):
-        configured_strategy_ids = [] if not configured_strategy_ids else configured_strategy_ids.split(",")
-    try:
-        allowed_strategy_ids = set()
-        for configured_strategy_id in configured_strategy_ids:
-            if isinstance(configured_strategy_id, bool):
-                raise ValueError
-            if isinstance(configured_strategy_id, int):
-                if configured_strategy_id <= 0:
-                    raise ValueError
-                allowed_strategy_ids.add(configured_strategy_id)
-                continue
-            if (
-                not isinstance(configured_strategy_id, str)
-                or not configured_strategy_id.isascii()
-                or not configured_strategy_id.isdigit()
-                or configured_strategy_id.startswith("0")
-            ):
-                raise ValueError
-            allowed_strategy_ids.add(int(configured_strategy_id))
-    except (TypeError, ValueError):
-        return None
-    return allowed_strategy_ids
-
-
-def is_alarmd_shadow_strategy_selected(configured_strategy_ids, strategy_id: int) -> bool:
-    """Return whether a canonical positive strategy ID is explicitly selected."""
-
-    allowed_strategy_ids = parse_alarmd_shadow_strategy_ids(configured_strategy_ids)
-    return allowed_strategy_ids is not None and strategy_id in allowed_strategy_ids
 
 
 def build_terminal_reference_decision_batches(*, strategy_ir: Mapping, detection_outcomes: list[Mapping]) -> list[dict]:

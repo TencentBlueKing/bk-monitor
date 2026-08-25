@@ -21,12 +21,10 @@ from alarm_backends.core.alarmd.contract import (
     build_trigger_strategy_ir_from_legacy_config,
 )
 from alarm_backends.core.alarmd.encoder import decode_json_document
-from alarm_backends.core.alarmd.publisher import _trigger_input_envelope
 from alarm_backends.core.alarmd.reference import (
     build_reference_trigger_decision_batch,
     build_reference_trigger_decision_candidate,
     build_terminal_reference_decision_batches,
-    is_alarmd_shadow_strategy_selected,
 )
 from alarm_backends.core.alarmd.runtime import prepare_finalized_threshold_batch
 from alarm_backends.tests.alarmd_fixtures import DETECT_RECORDS, DETECT_STRATEGY, TRIGGER_POINT, TRIGGER_STRATEGY
@@ -38,6 +36,16 @@ def legacy_bytes(strategy):
 
 GOLDEN_FILE = Path(__file__).parent / "testdata" / "python-v1" / "trigger_decision_v1.json"
 CHECKSUM_FILE = GOLDEN_FILE.parent / "SHA256SUMS"
+
+
+def _trigger_input_envelope(strategy_ir, outcomes):
+    return {
+        "schema": {"name": "trigger-input", "major": 1, "minor": 0},
+        "required_features": [],
+        "partition_hash_version": "trigger-input-partition-v1",
+        "strategy_ir": strategy_ir,
+        "detection_outcomes": outcomes,
+    }
 
 
 def read_checksums(path: Path) -> dict[str, str]:
@@ -362,16 +370,6 @@ def test_unconfirmed_reference_candidate_preserves_the_same_trigger_identity():
     )
 
     assert candidate == acknowledged
-
-
-@pytest.mark.parametrize("selector", [(True,), (1.9,), ("01",), (" 1 ",), "1,", None])
-def test_alarmd_shadow_strategy_selector_rejects_noncanonical_values(selector):
-    assert not is_alarmd_shadow_strategy_selected(selector, 1)
-
-
-@pytest.mark.parametrize("selector", [(1,), ("1",), "1", ("2", 1)])
-def test_alarmd_shadow_strategy_selector_accepts_exact_positive_ids(selector):
-    assert is_alarmd_shadow_strategy_selected(selector, 1)
 
 
 def test_terminal_reference_projects_only_detection_terminal_outcomes_after_ack():

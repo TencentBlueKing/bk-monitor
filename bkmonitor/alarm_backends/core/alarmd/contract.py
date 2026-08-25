@@ -432,7 +432,8 @@ def build_trigger_strategy_ir_from_legacy_config(
         if level not in algorithm_levels:
             continue
         trigger_config = _require_mapping(detect.get("trigger_config"), f"detect[{level}].trigger_config")
-        if trigger_config.get("uptime"):
+        uptime = trigger_config.get("uptime")
+        if uptime and not _is_always_active_uptime(uptime):
             raise ContractValidationError("unsupported uptime configuration")
         if level in trigger_configs:
             raise ContractValidationError("unsupported duplicate detect level")
@@ -467,6 +468,15 @@ def build_trigger_strategy_ir_from_legacy_config(
         check_window_unit_seconds=min(intervals) if intervals else 60,
         trigger_configs=trigger_configs,
     )
+
+
+def _is_always_active_uptime(value: Any) -> bool:
+    if not isinstance(value, Mapping):
+        return False
+    if value.get("calendars") or value.get("active_calendars"):
+        return False
+    time_ranges = value.get("time_ranges")
+    return time_ranges == [] or time_ranges == [{"start": "00:00", "end": "23:59"}]
 
 
 def validate_trigger_strategy_ir(strategy_ir: Mapping) -> None:

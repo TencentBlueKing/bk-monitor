@@ -1064,6 +1064,115 @@ paths:
           userVerifiedRequired: true
           appVerifiedRequired: false
           resourcePermissionRequired: true
+  /mcp/create_alarm_notice_group/:
+    post:
+      operationId: create_alarm_notice_group
+      description: Create a notice group in one business. Use search_alarm_notice_groups first to check for a duplicate name. Provide receivers for a simple static group, or duty_arranges / duty_rules for an explicit schedule. Omitted alert_notice and action_notice default to all-day mail for every severity and action phase. need_duty=true requires duty_rules from the current or public business. Production write requires confirm=true. 在单个业务创建告警组。先用 search_alarm_notice_groups 查重。普通组传 receivers；完整排班传 duty_arranges 或 duty_rules。未传通知配置时默认全天邮件。need_duty=true 时必须提供当前或公共业务的轮值规则。
+      tags:
+      - alert_handling_mcp
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - bk_biz_id
+              - name
+              - confirm
+              properties:
+                bk_biz_id:
+                  type: string
+                  description: Business ID. 业务ID。
+                name:
+                  type: string
+                  description: Notice group name. Must be unique in the business. 告警组名称，业务内唯一。
+                receivers:
+                  type: array
+                  minItems: 1
+                  items:
+                    type: object
+                    required:
+                    - id
+                    - type
+                    properties:
+                      id:
+                        type: string
+                        description: User name or CMDB group id such as bk_biz_maintainer. 用户名或 CMDB 用户组 ID。
+                      type:
+                        type: string
+                        enum:
+                        - user
+                        - group
+                        description: Receiver type. 接收人类型。
+                  description: Simplified receivers. Converted to duty_arranges=[{users}]. Do not send together with duty_arranges. 简化接收人，转换为 duty_arranges；不可与 duty_arranges 同时传。
+                desc:
+                  type: string
+                  description: Notice group description. 告警组描述。
+                timezone:
+                  type: string
+                  default: Asia/Shanghai
+                need_duty:
+                  type: boolean
+                  default: false
+                  description: Whether to enable duty rotation. When true, duty_rules is required. 是否启用轮值；为 true 时必须提供 duty_rules。
+                channels:
+                  type: array
+                  items:
+                    type: string
+                    enum:
+                    - user
+                    - wxwork-bot
+                  description: Notice channels. 通知渠道。
+                alert_notice:
+                  type: array
+                  items:
+                    type: object
+                  description: Alert notice configuration. Defaults to all-day mail for severity 1/2/3. 告警通知配置，默认全天按级别发邮件。
+                action_notice:
+                  type: array
+                  items:
+                    type: object
+                  description: Action notice configuration. Defaults to all-day mail for every phase. 处理通知配置，默认全天按阶段发邮件。
+                duty_arranges:
+                  type: array
+                  items:
+                    type: object
+                  description: Explicit duty schedules. Do not send together with receivers. 显式排班；不可与 receivers 同时传。
+                duty_rules:
+                  type: array
+                  items:
+                    type: string
+                  description: Duty rule IDs from the current or public business. 当前或公共业务的轮值规则ID。
+                duty_notice:
+                  type: object
+                path:
+                  type: string
+                mention_list:
+                  type: array
+                  items:
+                    type: object
+                confirm:
+                  type: boolean
+                  enum:
+                  - true
+                  description: Explicit user confirmation. 用户显式确认，必须为true。
+        required: true
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        enableWebsocket: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/search_alert/create_notice_group/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: false
+          resourcePermissionRequired: true
   /mcp/update_alarm_notice_group/:
     post:
       operationId: update_alarm_notice_group

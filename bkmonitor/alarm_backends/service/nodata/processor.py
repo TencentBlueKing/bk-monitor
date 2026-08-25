@@ -18,6 +18,10 @@ import arrow
 from alarm_backends.constants import LATEST_NO_DATA_CHECK_POINT
 from alarm_backends.core.cache import key
 from alarm_backends.core.control.strategy import Strategy
+from alarm_backends.core.detect_result.trim import (
+    check_result_producer,
+    trim_item_check_results_if_trigger_idle,
+)
 from alarm_backends.core.i18n import i18n
 from alarm_backends.core.lock.service_lock import service_lock
 from alarm_backends.core.processor.base import BaseAbnormalPushProcessor
@@ -33,6 +37,7 @@ class CheckProcessor(BaseAbnormalPushProcessor):
         self.strategy_id = strategy_id
         self.inputs = {}
         self.outputs = {}
+        self.check_result_producer_token = None
         self.strategy = Strategy(strategy_id)
         i18n.set_biz(self.strategy.bk_biz_id)
 
@@ -150,6 +155,7 @@ class CheckProcessor(BaseAbnormalPushProcessor):
     def handle_data(self, item, check_timestamp):
         # check no data
         data_points = self.inputs[item.id]
+        item.begin_check_result_trim_batch()
         self.outputs[item.id] = item.check(data_points, check_timestamp)
 
     def push_data(self):
@@ -159,12 +165,21 @@ class CheckProcessor(BaseAbnormalPushProcessor):
         """
         anomaly_signal_list = []
         anomaly_count = self.push_abnormal_data(self.outputs, self.strategy_id, anomaly_signal_list)
+        for item in self.strategy.items:
+            trim_item_check_results_if_trigger_idle(
+                item,
+                self.check_result_producer_token,
+            )
         metrics.NODATA_PROCESS_PUSH_DATA_COUNT.labels(strategy_id=metrics.TOTAL_TAG).inc(len(anomaly_signal_list))
         if any(self.inputs.values()):
             logger.info("[nodata] strategy({}) 无数据检测完成: 无数据异常记录数({})".format(self.strategy_id, anomaly_count))
 
     def process(self, now_timestamp):
-        with service_lock(key.SERVICE_LOCK_NODATA, strategy_id=self.strategy_id):
+        with (
+            service_lock(key.SERVICE_LOCK_NODATA, strategy_id=self.strategy_id),
+            check_result_producer(self.strategy_id) as producer_token,
+        ):
+            self.check_result_producer_token = producer_token
             self.strategy.gen_strategy_snapshot()
 
             for item in self.strategy.items:

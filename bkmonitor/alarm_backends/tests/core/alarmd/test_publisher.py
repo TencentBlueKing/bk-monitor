@@ -10,17 +10,16 @@ specific language governing permissions and limitations under the License.
 
 import copy
 import json
-
 import pytest
 
-from alarm_backends.core.alarmd import publisher as publisher_module
-from alarm_backends.core.alarmd.encoder import decode_json_document, encode_json_document
+from alarm_backends.core.alarmd.encoder import decode_json_document
 from alarm_backends.core.alarmd.publisher import (
     DetectionPublishError,
-    KafkaDetectionPublisher,
-    build_kafka_detection_publisher,
+    KafkaDetectInputPublisher,
+    build_kafka_detect_input_publisher,
+    plan_detect_input_microbatches,
 )
-from alarm_backends.core.alarmd.runtime import prepare_finalized_threshold_batch
+from alarm_backends.core.alarmd.runtime import prepare_detect_input_batch, prepare_finalized_threshold_batch
 from alarm_backends.tests.alarmd_fixtures import DETECT_RECORDS, DETECT_STRATEGY
 
 
@@ -35,129 +34,56 @@ class FakeProducer:
 
     def flush(self, timeout):
         self.flush_timeout = timeout
-        for message in self.messages:
-            message["on_delivery"](self.delivery_error, None)
+        if not self.remaining:
+            for message in self.messages:
+                message["on_delivery"](self.delivery_error, None)
         return self.remaining
 
 
-def test_kafka_detection_publisher_waits_for_delivery_and_emits_self_contained_microbatch():
+def test_kafka_detect_input_publisher_emits_raw_records_for_go_detect():
     producer = FakeProducer()
-    publisher = KafkaDetectionPublisher(producer=producer, topic="alarmd-detection-shadow", flush_timeout=4)
-    batch = _batch()
+    publisher = KafkaDetectInputPublisher(producer=producer, topic="alarmd-detect-input-shadow", flush_timeout=4)
+    source = _batch(include_normal=True)
+    batch = prepare_detect_input_batch(
+        strategy_ir=source["strategy_ir"],
+        batch_id="batch-1",
+        data_points=copy.deepcopy(DETECT_RECORDS),
+    )
 
-    published = publisher.publish_batch(batch)
-
-    assert published == 1
-    assert producer.flush_timeout == 4
+    assert publisher.publish_batch(batch) == 2
     assert len(producer.messages) == 1
     message = producer.messages[0]
-    assert message["topic"] == "alarmd-detection-shadow"
+    assert message["topic"] == "alarmd-detect-input-shadow"
     assert isinstance(message["key"], bytes)
-    assert message["key"].hex() == "76822eff60b83ab18de1ec5ecf6c194f6e933f12af8b28e199f2a43f8a730c27"
-    envelope = decode_json_document(message["value"])
-    assert envelope == {
-        "schema": {"name": "trigger-input", "major": 1, "minor": 0},
-        "required_features": [],
-        "partition_hash_version": "trigger-input-partition-v1",
-        "strategy_ir": batch["strategy_ir"],
-        "detection_outcomes": batch["outcomes"],
-    }
+    assert decode_json_document(message["value"]) == batch
 
 
-def test_kafka_detection_publisher_splits_microbatches_by_count():
+def test_kafka_detect_input_publisher_splits_microbatches_by_count():
     producer = FakeProducer()
-    publisher = KafkaDetectionPublisher(
+    publisher = KafkaDetectInputPublisher(
         producer=producer,
-        topic="alarmd-detection-shadow",
+        topic="alarmd-detect-input-shadow",
         flush_timeout=4,
         max_outcomes_per_message=1,
         max_envelope_bytes=512 * 1024,
     )
-    batch = _batch(include_normal=True)
-
-    assert publisher.publish_batch(batch) == 2
-    assert len(producer.messages) == 2
-    assert [len(decode_json_document(message["value"])["detection_outcomes"]) for message in producer.messages] == [
-        1,
-        1,
-    ]
-
-
-def test_kafka_detection_publisher_splits_microbatches_by_encoded_bytes():
-    producer = FakeProducer()
-    batch = _batch(include_normal=True)
-    single_envelope = {
-        "schema": {"name": "trigger-input", "major": 1, "minor": 0},
-        "required_features": [],
-        "partition_hash_version": "trigger-input-partition-v1",
-        "strategy_ir": batch["strategy_ir"],
-        "detection_outcomes": batch["outcomes"][:1],
-    }
-    publisher = KafkaDetectionPublisher(
-        producer=producer,
-        topic="alarmd-detection-shadow",
-        flush_timeout=4,
-        max_outcomes_per_message=500,
-        max_envelope_bytes=len(encode_json_document(single_envelope)),
+    source = _batch(include_normal=True)
+    batch = prepare_detect_input_batch(
+        strategy_ir=source["strategy_ir"], batch_id="batch-1", data_points=copy.deepcopy(DETECT_RECORDS)
     )
 
     assert publisher.publish_batch(batch) == 2
     assert len(producer.messages) == 2
+    assert [len(decode_json_document(message["value"])["records"]) for message in producer.messages] == [1, 1]
 
 
-def test_kafka_detection_publisher_rejects_a_single_oversized_outcome_before_produce():
-    producer = FakeProducer()
-    publisher = KafkaDetectionPublisher(
-        producer=producer,
-        topic="alarmd-detection-shadow",
-        flush_timeout=4,
-        max_outcomes_per_message=500,
-        max_envelope_bytes=1,
-    )
+def test_detect_input_job_ranges_are_bounded_by_encoded_bytes():
+    source = _batch(include_normal=True)
+    records = copy.deepcopy(DETECT_RECORDS)
+    for record in records:
+        record["values"]["payload"] = "x" * 300_000
 
-    with pytest.raises(DetectionPublishError, match="exceeds"):
-        publisher.publish_batch(_batch())
-
-    assert producer.messages == []
-
-
-@pytest.mark.parametrize(
-    ("mutate", "error"),
-    [
-        (lambda batch: batch["outcomes"][1].__setitem__("batch_id", "another-batch"), "share one batch_id"),
-        (
-            lambda batch: batch["outcomes"].__setitem__(1, copy.deepcopy(batch["outcomes"][0])),
-            "duplicate input_id",
-        ),
-    ],
-)
-def test_kafka_detection_publisher_rejects_microbatch_identity_contradictions_before_produce(mutate, error):
-    producer = FakeProducer()
-    publisher = KafkaDetectionPublisher(producer=producer, topic="alarmd-detection-shadow", flush_timeout=4)
-    batch = _batch(include_normal=True)
-    mutate(batch)
-
-    with pytest.raises(DetectionPublishError, match=error):
-        publisher.publish_batch(batch)
-
-    assert producer.messages == []
-
-
-@pytest.mark.parametrize(
-    "kwargs",
-    [
-        {"max_outcomes_per_message": 501},
-        {"max_envelope_bytes": 512 * 1024 + 1},
-    ],
-)
-def test_kafka_detection_publisher_rejects_limits_above_wire_v1(kwargs):
-    with pytest.raises(ValueError, match="must be between"):
-        KafkaDetectionPublisher(
-            producer=FakeProducer(),
-            topic="alarmd-detection-shadow",
-            flush_timeout=4,
-            **kwargs,
-        )
+    assert plan_detect_input_microbatches(source["strategy_ir"], "batch-1", records) == [(0, 1), (1, 2)]
 
 
 @pytest.mark.parametrize(
@@ -167,14 +93,18 @@ def test_kafka_detection_publisher_rejects_limits_above_wire_v1(kwargs):
         (FakeProducer(remaining=1), "flush timeout"),
     ],
 )
-def test_kafka_detection_publisher_fails_when_broker_does_not_ack(producer, error):
-    publisher = KafkaDetectionPublisher(producer=producer, topic="alarmd-detection-shadow", flush_timeout=4)
+def test_kafka_detect_input_publisher_fails_when_broker_does_not_ack(producer, error):
+    publisher = KafkaDetectInputPublisher(producer=producer, topic="alarmd-detect-input-shadow", flush_timeout=4)
+    source = _batch()
+    batch = prepare_detect_input_batch(
+        strategy_ir=source["strategy_ir"], batch_id="batch-1", data_points=copy.deepcopy(DETECT_RECORDS[:1])
+    )
 
     with pytest.raises(DetectionPublishError, match=error):
-        publisher.publish_batch(_batch())
+        publisher.publish_batch(batch)
 
 
-def test_build_kafka_detection_publisher_enables_idempotence_and_bounded_delivery():
+def test_build_kafka_detect_input_publisher_uses_all_acks_without_idempotence():
     producer = FakeProducer()
     captured = {}
 
@@ -182,76 +112,34 @@ def test_build_kafka_detection_publisher_enables_idempotence_and_bounded_deliver
         captured.update(config)
         return producer
 
-    publisher = build_kafka_detection_publisher(
+    publisher = build_kafka_detect_input_publisher(
         {
-            "topic": "alarmd-detection-shadow",
+            "topic": "alarmd-detect-input-shadow",
             "bootstrap.servers": "kafka:9092",
             "message.timeout.ms": 2500,
         },
         producer_factory=producer_factory,
-        allowed_topics={"alarmd-detection-shadow"},
+        allowed_topics={"alarmd-detect-input-shadow"},
     )
 
     assert publisher.producer is producer
-    assert publisher.topic == "alarmd-detection-shadow"
+    assert publisher.topic == "alarmd-detect-input-shadow"
     assert publisher.flush_timeout == 3.5
     assert captured == {
         "bootstrap.servers": "kafka:9092",
         "message.timeout.ms": 2500,
-        "enable.idempotence": True,
+        "enable.idempotence": False,
+        "acks": "all",
     }
 
 
-def test_build_kafka_detection_publisher_rejects_production_topic():
+def test_build_kafka_detect_input_publisher_rejects_production_topic():
     with pytest.raises(ValueError, match="not in the Shadow allowlist"):
-        build_kafka_detection_publisher(
+        build_kafka_detect_input_publisher(
             {"topic": "monitor-event", "bootstrap.servers": "kafka:9092"},
             producer_factory=lambda _config: FakeProducer(),
-            allowed_topics={"alarmd-detection-shadow"},
+            allowed_topics={"alarmd-detect-input-shadow"},
         )
-
-
-def test_build_kafka_detection_publisher_rejects_disabled_idempotence():
-    with pytest.raises(ValueError, match="idempotence"):
-        build_kafka_detection_publisher(
-            {
-                "topic": "alarmd-detection-shadow",
-                "bootstrap.servers": "kafka:9092",
-                "enable.idempotence": False,
-            },
-            producer_factory=lambda _config: FakeProducer(),
-            allowed_topics={"alarmd-detection-shadow"},
-        )
-
-
-def test_cached_kafka_detection_publisher_reuses_process_producer(monkeypatch):
-    publisher_module.get_cached_kafka_detection_publisher.cache_clear()
-    expected = object()
-    calls = []
-
-    def build(config, *, allowed_topics):
-        calls.append((config, allowed_topics))
-        return expected
-
-    monkeypatch.setattr(publisher_module, "build_kafka_detection_publisher", build)
-    config_json = json.dumps(
-        {"topic": "alarmd-detection-shadow", "bootstrap.servers": "kafka:9092"},
-        sort_keys=True,
-        separators=(",", ":"),
-    )
-
-    first = publisher_module.get_cached_kafka_detection_publisher(config_json, ("alarmd-detection-shadow",))
-    second = publisher_module.get_cached_kafka_detection_publisher(config_json, ("alarmd-detection-shadow",))
-
-    assert first is expected
-    assert second is expected
-    assert calls == [
-        (
-            {"topic": "alarmd-detection-shadow", "bootstrap.servers": "kafka:9092"},
-            {"alarmd-detection-shadow"},
-        )
-    ]
-    publisher_module.get_cached_kafka_detection_publisher.cache_clear()
 
 
 def _batch(*, include_normal=False):

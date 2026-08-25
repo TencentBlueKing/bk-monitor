@@ -247,12 +247,47 @@ ANOMALY_LIST_KEY = register_key_with_config(
     }
 )
 
+CHECK_RESULT_PRODUCER_INFLIGHT_KEY = register_key_with_config(
+    {
+        "label": "[detect]CHECK_RESULT在途生产标记",
+        "key_type": "hash",
+        "key_tpl": "detect.check_result.producer.inflight.{strategy_id}",
+        "field_tpl": "{token}",
+        # 生产进程崩溃后保留标记，使热裁剪回退到原周期任务。
+        "ttl": TTL_NOT_SET,
+        "backend": "service",
+    }
+)
+
+TRIGGER_CHECK_RESULT_INFLIGHT_KEY = register_key_with_config(
+    {
+        "label": "[trigger]CHECK_RESULT在途消费标记",
+        "key_type": "hash",
+        "key_tpl": "trigger.check_result.inflight.{strategy_id}.{item_id}",
+        "field_tpl": "{token}",
+        # 在途进程崩溃后宁可保留标记、回退周期清理，也不能因 TTL 失效冒险热裁剪。
+        "ttl": TTL_NOT_SET,
+        "backend": "queue",
+    }
+)
+
 ANOMALY_SIGNAL_KEY = register_key_with_config(
     {
         "label": "[detect]异常信号队列",
         "key_type": "list",
         "key_tpl": "detect.anomaly.signal",
         "ttl": 30 * CONST_MINUTES,
+        "backend": "queue",
+    }
+)
+
+EVENT_INLINE_TRIGGER_LEASE_KEY = register_key_with_config(
+    {
+        "label": "[trigger]Event内联处理租约",
+        "key_type": "sorted_set",
+        "key_tpl": "trigger.event.inline.lease.{strategy_id}.{item_id}",
+        "ttl": 10 * CONST_MINUTES,
+        # 租约释放脚本需要与 ANOMALY_LIST_KEY 原子检查，因此必须使用同一 backend。
         "backend": "queue",
     }
 )
@@ -376,6 +411,28 @@ LAST_CHECKPOINTS_CACHE_KEY = register_key_with_config(
         "backend": "service",
         # 这里的field_tpl需要保持和CHECK_RESULT_CACHE_KEY的key_tpl一致
         "field_tpl": "detect.result.{dimensions_md5}.{level}",
+    }
+)
+
+# Redis 自监控按节点生成的策略成本快照。快照和锁都显式带 node_id，且由调用方使用
+# 对应节点的 service(DB10) 原生客户端读写，避免 RedisProxy 按 strategy_id 再次路由。
+REDIS_STRATEGY_COST_SNAPSHOT_KEY = register_key_with_config(
+    {
+        "label": "[selfmonitor]Redis节点策略成本快照(type:List, newest first)",
+        "key_type": "list",
+        "key_tpl": "selfmonitor.redis.strategy_cost.snapshot.node_{node_id}.v1",
+        "ttl": 8 * CONST_ONE_HOUR,
+        "backend": "service",
+    }
+)
+
+REDIS_STRATEGY_COST_SNAPSHOT_LOCK_KEY = register_key_with_config(
+    {
+        "label": "[selfmonitor]Redis节点策略成本快照采集锁",
+        "key_type": "string",
+        "key_tpl": "selfmonitor.redis.strategy_cost.snapshot.lock.node_{node_id}.v1",
+        "ttl": 5 * CONST_MINUTES,
+        "backend": "service",
     }
 )
 
@@ -573,6 +630,16 @@ SERVICE_LOCK_NODATA = register_key_with_config(
         "key_type": "string",
         "key_tpl": "detect.lock.{strategy_id}",
         "ttl": 3 * CONST_MINUTES,  # 从1分钟改为3分钟,防御大策略处理超时
+        "backend": "service",
+    }
+)
+
+SERVICE_LOCK_CHECK_RESULT_PRODUCER_GATE = register_key_with_config(
+    {
+        "label": "[detect]CHECK_RESULT生产者入场门禁",
+        "key_type": "string",
+        "key_tpl": "detect.check_result.producer.gate.{strategy_id}",
+        "ttl": CONST_MINUTES,
         "backend": "service",
     }
 )
