@@ -32,7 +32,6 @@ from django.conf import settings
 from django.utils import timezone, translation
 from django.utils.translation import ugettext_lazy as _
 from jinja2 import FileSystemLoader
-from jinja2.sandbox import SandboxedEnvironment as Environment
 
 from apps.api import CmsiApi
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
@@ -60,6 +59,14 @@ from apps.utils.local import set_local_param
 from apps.utils.log import logger
 from apps.utils.task import high_priority_task
 from bkm_space import api
+
+try:
+    from bkmonitor.utils.template import Environment
+except ModuleNotFoundError as error:
+    if error.name not in ("bkmonitor", "bkmonitor.utils", "bkmonitor.utils.template"):
+        raise
+    # bklog 支持独立打包，此时保持使用 Jinja 自带的沙箱环境。
+    from jinja2.sandbox import SandboxedEnvironment as Environment
 
 
 def validate_end_time(freq: dict, end_time: datetime):

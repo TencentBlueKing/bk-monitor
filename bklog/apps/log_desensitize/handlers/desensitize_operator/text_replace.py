@@ -19,12 +19,27 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
-from rest_framework import serializers
 from django.utils.translation import ugettext_lazy as _
-from jinja2 import Template
-from apps.exceptions import ValidationError
+from rest_framework import serializers
 
-from apps.log_desensitize.handlers.desensitize_operator.base import DesensitizeMethodBase
+from apps.exceptions import ValidationError
+from apps.log_desensitize.handlers.desensitize_operator.base import (
+    DesensitizeMethodBase,
+)
+
+try:
+    from bkmonitor.utils.template import Environment
+except ModuleNotFoundError as error:
+    if error.name not in ("bkmonitor", "bkmonitor.utils", "bkmonitor.utils.template"):
+        raise
+    # bklog 支持独立打包，此时保持使用 Jinja 自带的沙箱环境。
+    from jinja2.sandbox import SandboxedEnvironment as Environment
+
+
+TEMPLATE_ENVIRONMENT = Environment(
+    variable_start_string="${",
+    variable_end_string="}",
+)
 
 
 class DesensitizeTextReplace(DesensitizeMethodBase):
@@ -36,16 +51,13 @@ class DesensitizeTextReplace(DesensitizeMethodBase):
         """
         脱敏配置参数序列化器
         """
+
         template_string = serializers.CharField(label=_("替换模板格式"), required=False)
 
         def validate(self, attrs):
             attrs = super().validate(attrs)
             try:
-                Template(
-                    variable_start_string="${",
-                    variable_end_string="}",
-                    source=attrs.get("template_string")
-                )
+                TEMPLATE_ENVIRONMENT.from_string(attrs.get("template_string"))
             except Exception as e:
                 raise ValidationError(_("替换模板格式不正确: {}").format(e))
 
@@ -56,11 +68,7 @@ class DesensitizeTextReplace(DesensitizeMethodBase):
         params {String} template_string  替换格式 参数示例: "abc${partNum}defg"
         """
         self.template_string = template_string
-        self.template = Template(
-            variable_start_string="${",
-            variable_end_string="}",
-            source=self.template_string
-        )
+        self.template = TEMPLATE_ENVIRONMENT.from_string(self.template_string)
 
     def transform(self, target_text: str = None, context: dict = None):
         """

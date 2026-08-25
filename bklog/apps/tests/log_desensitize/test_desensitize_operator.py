@@ -113,3 +113,74 @@ class TestDesensitizeOperator(TestCase):
             DesensitizeTextReplace(
                 template_string=template_string
             ).transform(target_text_text_replace), text_replace_result)
+
+    def test_text_replace_legal_partnum_template(self):
+        result = DesensitizeTextReplace(template_string="abc${partNum}defg").transform(
+            "13234345678", context={"partNum": "3434"}
+        )
+        self.assertEqual(result, "abc3434defg")
+
+    def test_sandbox_rejects_unsafe_attribute_chain(self):
+        from jinja2.exceptions import SecurityError
+
+        from apps.log_desensitize.handlers.desensitize_operator.text_replace import TEMPLATE_ENVIRONMENT
+
+        with self.assertRaises(SecurityError):
+            TEMPLATE_ENVIRONMENT.from_string("${cycler.__init__.__globals__}").render()
+
+    def test_sandbox_rejects_nested_dunder_lookup(self):
+        from jinja2.exceptions import SecurityError
+
+        from apps.log_desensitize.handlers.desensitize_operator.text_replace import TEMPLATE_ENVIRONMENT
+
+        with self.assertRaises(SecurityError):
+            TEMPLATE_ENVIRONMENT.from_string("${joiner.__init__.__globals__}").render()
+
+    def test_monorepo_import_uses_project_sandbox(self):
+        from jinja2.sandbox import SandboxedEnvironment
+
+        from apps.log_desensitize.handlers.desensitize_operator import text_replace
+
+        try:
+            from bkmonitor.utils.template import Environment as ProjectEnvironment
+        except ModuleNotFoundError:
+            self.skipTest("bkmonitor package not available")
+
+        self.assertIsInstance(text_replace.TEMPLATE_ENVIRONMENT, SandboxedEnvironment)
+        self.assertIsInstance(text_replace.TEMPLATE_ENVIRONMENT, ProjectEnvironment)
+
+    def test_independent_package_import_uses_jinja_sandbox(self):
+        import importlib
+        import sys
+
+        from jinja2.sandbox import SandboxedEnvironment
+
+        module_name = "apps.log_desensitize.handlers.desensitize_operator.text_replace"
+        saved = {}
+        for key in list(sys.modules):
+            if key == "bkmonitor" or key.startswith("bkmonitor."):
+                saved[key] = sys.modules.pop(key)
+        sys.modules.pop(module_name, None)
+        orig_import = __import__
+
+        def blocked_import(name, globals=None, locals=None, fromlist=(), level=0):
+            if name == "bkmonitor" or name.startswith("bkmonitor."):
+                error = ModuleNotFoundError("No module named %r" % name)
+                error.name = name
+                raise error
+            return orig_import(name, globals, locals, fromlist, level)
+
+        try:
+            import builtins
+
+            builtins.__import__ = blocked_import
+            mod = importlib.import_module(module_name)
+            self.assertIsInstance(mod.TEMPLATE_ENVIRONMENT, SandboxedEnvironment)
+            self.assertEqual(type(mod.TEMPLATE_ENVIRONMENT).__name__, "SandboxedEnvironment")
+        finally:
+            import builtins
+
+            builtins.__import__ = orig_import
+            sys.modules.pop(module_name, None)
+            sys.modules.update(saved)
+            importlib.import_module(module_name)
