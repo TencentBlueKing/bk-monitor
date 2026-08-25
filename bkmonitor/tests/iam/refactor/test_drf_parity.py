@@ -376,6 +376,55 @@ class TestInsertPermissionField:
         # 无 id 的行不注入
         assert "permission" not in data[2]
 
+    def test_opt_in_injects_registered_legacy_keys_without_extra_iam_queries(self, fake_framework):
+        """APM 兼容响应复制同一次鉴权结果，同时提供业务键和 V3 历史键。"""
+        fw, provider = fake_framework
+        provider.batch_result = _batch_result_for([("2", True)], action_id="view_apm_application")
+        provider.batch_by_resource = MagicMock(return_value=provider.batch_result)
+
+        def view_func(request):
+            response = MagicMock()
+            response.data = [{"id": "2", "name": "app"}]
+            return response
+
+        wrapped = insert_permission_field(
+            actions=[ActionEnum.VIEW_APM_APPLICATION],
+            resource_meta=ResourceEnum.APM_APPLICATION,
+            include_legacy_action_keys=True,
+        )(view_func)
+
+        response = wrapped(_make_request())
+
+        assert response.data[0]["permission"] == {
+            "view_apm_application": True,
+            "view_apm_application_v2": True,
+        }
+        assert provider.batch_by_resource.call_count == 1
+
+    def test_legacy_keys_follow_always_allowed_override(self, fake_framework):
+        fw, provider = fake_framework
+        provider.batch_result = _batch_result_for([("2", False)], action_id="manage_apm_application")
+
+        def view_func(request):
+            response = MagicMock()
+            response.data = {"id": "2", "name": "app"}
+            return response
+
+        wrapped = insert_permission_field(
+            actions=[ActionEnum.MANAGE_APM_APPLICATION],
+            resource_meta=ResourceEnum.APM_APPLICATION,
+            always_allowed=lambda _item: True,
+            many=False,
+            include_legacy_action_keys=True,
+        )(view_func)
+
+        response = wrapped(_make_request())
+
+        assert response.data["permission"] == {
+            "manage_apm_application": True,
+            "manage_apm_application_v2": True,
+        }
+
     def test_always_allowed(self, fake_framework):
         fw, provider = fake_framework
         actions = [ActionEnum.VIEW_EVENT]
@@ -435,12 +484,45 @@ class TestInsertPermissionField:
             ResourceEnum.BUSINESS,
             id_field=lambda d: d["id"],
             sort_allowed_first=True,
+            include_legacy_action_keys=True,
         )
 
         response = wrapped(_make_request())
 
         # 有权限项在前；无权限项保持输入时的相对顺序。
         assert [item["id"] for item in response.data] == ["3", "2", None]
+        assert response.data[0]["permission"] == {"view_event": True, "view_event_v2": True}
+
+
+class TestApmLegacyPermissionKeyConfiguration:
+    def test_all_apm_permission_response_routes_enable_legacy_keys(self):
+        """旧前端会消费的 APM 列表/详情响应必须显式开启双键，避免新增 IAM 查询。"""
+        from inspect import getclosurevars
+
+        from apm_web.meta.views import ApplicationViewSet as MetaApplicationViewSet
+        from apm_web.service.views import ServiceViewSet
+
+        expected_meta_endpoints = {
+            "list_application_info",
+            "list_application",
+            "application_info",
+            "application_info_by_id",
+            "application_info_by_app_name",
+        }
+        configured_meta_endpoints = set()
+
+        for route in MetaApplicationViewSet.resource_routes:
+            if route.endpoint not in expected_meta_endpoints:
+                continue
+            assert route.decorators, route.endpoint
+            assert getclosurevars(route.decorators[0]).nonlocals["include_legacy_action_keys"] is True
+            configured_meta_endpoints.add(route.endpoint)
+
+        assert configured_meta_endpoints == expected_meta_endpoints
+
+        service_info_route = next(route for route in ServiceViewSet.resource_routes if route.endpoint == "service_info")
+        assert service_info_route.decorators
+        assert getclosurevars(service_info_route.decorators[0]).nonlocals["include_legacy_action_keys"] is True
 
 
 class TestFilterDataByPermission:

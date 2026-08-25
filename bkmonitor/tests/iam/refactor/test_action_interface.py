@@ -289,6 +289,52 @@ class TestActionIdMappingConsistency:
             assert codec.is_read_action(member.id) == (old_type == "view"), name
 
 
+class TestActionIdAliasCompatibility:
+    """历史 Provider Action ID 只在系统边界归一化，框架主键仍保持业务 ID。"""
+
+    def test_known_v3_alias_is_canonicalized(self):
+        from bkmonitor.iam.action import canonicalize_action_id
+
+        assert canonicalize_action_id("view_business_v2") == "view_business"
+        assert canonicalize_action_id("manage_apm_application_v2") == "manage_apm_application"
+
+    def test_business_and_unknown_ids_are_not_guessed(self):
+        from bkmonitor.iam.action import canonicalize_action_id
+
+        assert canonicalize_action_id("view_business") == "view_business"
+        assert canonicalize_action_id("unknown_action_v2") == "unknown_action_v2"
+
+    def test_registered_legacy_ids_are_available_for_compatible_responses(self):
+        from bkmonitor.iam.action import get_legacy_action_ids
+
+        assert get_legacy_action_ids("view_apm_application") == ("view_apm_application_v2",)
+        assert get_legacy_action_ids("view_incident") == ()
+
+    def test_all_declared_v3_ids_have_consistent_compatibility_mappings(self):
+        from bkmonitor.iam.action import canonicalize_action_id, get_legacy_action_ids
+
+        for name, (v3_action_id, _action_type, _action_name) in OLD_ACTION_SNAPSHOT.items():
+            business_action_id = getattr(ActionEnum, name).id
+            assert canonicalize_action_id(v3_action_id) == business_action_id
+            expected_aliases = () if v3_action_id == business_action_id else (v3_action_id,)
+            assert get_legacy_action_ids(business_action_id) == expected_aliases
+
+    def test_duplicate_legacy_alias_is_rejected(self):
+        from bkmonitor.iam.action import _build_legacy_action_id_mappings
+
+        actions = {
+            "first": ActionDef(
+                id="first", name="first", resource_type="", extensions={"v3": {"action_id": "shared_v2"}}
+            ),
+            "second": ActionDef(
+                id="second", name="second", resource_type="", extensions={"v3": {"action_id": "shared_v2"}}
+            ),
+        }
+
+        with pytest.raises(RuntimeError, match="duplicate IAM action alias"):
+            _build_legacy_action_id_mappings(actions)
+
+
 class TestProviderVisibility:
     """v4 平台纯净性：v3 兼容遗留的已废弃 space 级仪表盘操作不在 v4 注册。
 

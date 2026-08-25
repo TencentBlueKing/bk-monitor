@@ -25,6 +25,7 @@ from typing import Literal
 
 from rest_framework import permissions
 
+from bkmonitor.iam.action import get_legacy_action_ids
 from bkmonitor.iam.definitions.actions import Actions
 from bkmonitor.iam.definitions.resource_types import ResourceTypes
 from bkmonitor.utils.request import get_request
@@ -315,6 +316,7 @@ def insert_permission_field(
     batch_create: bool = False,
     sort_allowed_first: bool = False,
     sort_action=None,
+    include_legacy_action_keys: bool = False,
 ):
     """数据返回后，注入权限字段（内部委托 IAMFramework）。
 
@@ -326,6 +328,8 @@ def insert_permission_field(
     Args:
         sort_allowed_first: 是否将有权限记录稳定排到列表前面。
         sort_action: 排序依据的动作；未指定时优先使用查看类动作。
+        include_legacy_action_keys: 是否在 permission 字典中同时写入已登记的历史 Action ID；
+            兼容键复用同一次鉴权结果，不会增加 IAM 请求。
     """
     action_ids = _to_action_ids(actions)
     resource_type = resource_meta.id if hasattr(resource_meta, "id") else resource_meta
@@ -384,7 +388,11 @@ def insert_permission_field(
                     continue
                 perm = {}
                 for aid in action_ids:
-                    perm[aid] = allowed_map.get((aid, rid), False)
+                    allowed = allowed_map.get((aid, rid), False)
+                    perm[aid] = allowed
+                    if include_legacy_action_keys:
+                        for legacy_action_id in get_legacy_action_ids(aid):
+                            perm[legacy_action_id] = allowed
                 # 注意：dict.update 是浅拷贝，always_allowed 豁免必须作用于已写入的
                 # permission dict 本身（与旧版 item["permission"] 原地修改语义一致），
                 # 否则修改局部 perm 不会反映到响应数据上。

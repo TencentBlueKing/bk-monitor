@@ -156,6 +156,45 @@ _all_actions: dict[str, ActionDef] = {
 }
 
 
+def _build_legacy_action_id_mappings(
+    actions: dict[str, ActionDef],
+) -> tuple[dict[str, str], dict[str, tuple[str, ...]]]:
+    """从 Action 定义派生历史平台 ID 与业务 ID 的双向兼容映射。
+
+    当前历史别名来自 ``extensions["v3"]["action_id"]``。只登记与业务 ID
+    不同的显式平台 ID，避免通过 ``_v2`` 后缀猜测权限动作。
+    """
+    alias_to_business: dict[str, str] = {}
+    business_to_aliases: dict[str, list[str]] = {}
+
+    for business_id, action in actions.items():
+        legacy_action_id = action.extensions.get("v3", {}).get("action_id", "")
+        if not legacy_action_id or legacy_action_id == business_id:
+            continue
+
+        existed = alias_to_business.get(legacy_action_id)
+        if existed and existed != business_id:
+            raise RuntimeError(f"duplicate IAM action alias: {legacy_action_id}, mapped to {existed} and {business_id}")
+
+        alias_to_business[legacy_action_id] = business_id
+        business_to_aliases.setdefault(business_id, []).append(legacy_action_id)
+
+    return alias_to_business, {business_id: tuple(aliases) for business_id, aliases in business_to_aliases.items()}
+
+
+_ACTION_ALIAS_TO_BUSINESS, _BUSINESS_TO_ACTION_ALIASES = _build_legacy_action_id_mappings(_all_actions)
+
+
+def canonicalize_action_id(action_id: str) -> str:
+    """将已登记的历史平台 Action ID 归一化为框架业务 ID。"""
+    return _ACTION_ALIAS_TO_BUSINESS.get(action_id, action_id)
+
+
+def get_legacy_action_ids(business_action_id: str) -> tuple[str, ...]:
+    """返回业务 Action ID 的历史平台别名，用于兼容旧响应消费者。"""
+    return _BUSINESS_TO_ACTION_ALIASES.get(business_action_id, ())
+
+
 def get_action_by_id(action_id: str | ActionDef) -> ActionDef:
     """
     根据动作 ID 获取动作实例（使用 Business ID）。

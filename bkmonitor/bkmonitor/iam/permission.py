@@ -35,7 +35,7 @@ from django.conf import settings
 from bkm_space.api import SpaceApi
 from bkm_space.utils import bk_biz_id_to_space_uid, is_bk_saas_space
 from bkmonitor.iam import ResourceEnum
-from bkmonitor.iam.action import MINI_ACTION_IDS, ActionEnum, get_action_by_id
+from bkmonitor.iam.action import MINI_ACTION_IDS, ActionEnum, canonicalize_action_id, get_action_by_id
 from bkmonitor.iam.adapters.v3.codec import MonitorV3Codec
 from bkmonitor.iam.definitions.resource_types import ResourceTypes
 from bkmonitor.iam.iam_engine.core.exceptions import PermissionDenied, ProviderError
@@ -87,6 +87,11 @@ ActionIdMap = {
 api_paths = ["/time_series/unify_query/", "log/query/", "time_series/unify_trace_query/"]
 
 
+def _to_business_action_id(action_ref) -> str:
+    """将 Action 引用统一为框架业务 ID，并兼容已登记的历史平台 ID。"""
+    return canonicalize_action_id(to_action_id(action_ref))
+
+
 def _skip_check_enabled(request) -> bool:
     """skip_check 解析：request 级覆盖 settings 级（与 Permission.__init__ 的合并逻辑一致）。"""
     if request is not None and hasattr(request, "skip_check"):
@@ -121,7 +126,7 @@ def check_iam_preflight(request, action_ref, skip_check=None) -> bool:
         except ApiAuthToken.DoesNotExist:
             record = None
 
-        action_id = to_action_id(action_ref)
+        action_id = _to_business_action_id(action_ref)
         if (
             action_id == ActionEnum.VIEW_BUSINESS.id
             or (record and any(action_id == allowed_action.id for allowed_action in ActionIdMap.get(record.type, [])))
@@ -153,15 +158,14 @@ def check_iam_batch_preflight(request, actions) -> dict | None:
             raise TokenValidatedError
 
         result = {}
+        allowed_action_ids = {action.id for action in ActionIdMap.get(record.type, [])}
         for action in actions:
-            action_id = to_action_id(action)
-            result[action_id] = action_id == "view_business" or (
-                record and any(action_id == allowed_action.id for allowed_action in ActionIdMap.get(record.type, []))
-            )
+            action_id = _to_business_action_id(action)
+            result[action_id] = action_id == "view_business" or (record and action_id in allowed_action_ids)
         return result
 
     if _skip_check_enabled(request):
-        return {a.id if hasattr(a, "id") else str(a): True for a in actions}
+        return {_to_business_action_id(action): True for action in actions}
 
     return None
 
@@ -254,7 +258,7 @@ class Permission:
 
     def _is_allowed_fw(self, action, fw_resource: FwResource | None, raise_exception: bool):
         """内部：直接接受 FwResource 的鉴权方法。"""
-        action_id_biz = to_action_id(action)
+        action_id_biz = _to_business_action_id(action)
 
         try:
             result = self._fw.is_allowed(
@@ -319,11 +323,12 @@ class Permission:
                 record = ApiAuthToken.objects.get(token=self.request.token, bk_tenant_id=self.request.user.tenant_id)
             except ApiAuthToken.DoesNotExist:
                 raise TokenValidatedError
+            allowed_action_ids = {allowed_action.id for allowed_action in ActionIdMap.get(record.type, [])}
             for action in actions:
                 for resource in resources:
                     resource_id = resource[0].id
-                    action_id = action.id if hasattr(action, "id") else action
-                    if action_id == "view_business" or (record and action in ActionIdMap.get(record.type, [])):
+                    action_id = _to_business_action_id(action)
+                    if action_id == "view_business" or (record and action_id in allowed_action_ids):
                         result[resource_id][action_id] = True
                     else:
                         result[resource_id][action_id] = False
@@ -333,11 +338,11 @@ class Permission:
             for action in actions:
                 for resource in resources:
                     resource_id = resource[0].id
-                    action_id = action.id if hasattr(action, "id") else action
+                    action_id = _to_business_action_id(action)
                     result[resource_id][action_id] = True
             return result
 
-        action_ids_biz = [to_action_id(a) for a in actions]
+        action_ids_biz = [_to_business_action_id(action) for action in actions]
 
         # 按资源类型分组（框架批量契约：同批同类型），
         # 每个 (action, 类型组) 一次批量调用（替代 N×M 次单资源调用）
@@ -362,7 +367,7 @@ class Permission:
     # ================================================================
 
     def get_apply_url(self, action_ids: list[str], resources: list = None, system_id: str = settings.BK_IAM_SYSTEM_ID):
-        action_ids_biz = [to_action_id(a) for a in action_ids]
+        action_ids_biz = [_to_business_action_id(action_id) for action_id in action_ids]
         fw_resources = tuple(FwResource(type=r.type, id=r.id) for r in (resources or []))
         return self._fw.get_apply_url(
             ApplyURLRequest(
@@ -375,7 +380,7 @@ class Permission:
     def get_apply_data(self, actions, resources: list = None):
         resources = resources or []
 
-        action_ids_biz = [to_action_id(a) for a in actions]
+        action_ids_biz = [_to_business_action_id(action) for action in actions]
         fw_resources = [FwResource(type=r.type, id=r.id) for r in resources]
 
         return self._fw.get_apply_data(
@@ -437,7 +442,7 @@ class Permission:
         if self.skip_check:
             return space_list, True
 
-        action_id_biz = to_action_id(action)
+        action_id_biz = _to_business_action_id(action)
         subject = FwSubject(id=self.username, type=SubjectType.USER, tenant_id=self.bk_tenant_id)
         candidates = tuple(FwResource(type="space", id=str(s["bk_biz_id"])) for s in space_list)
 

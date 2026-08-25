@@ -177,6 +177,17 @@ class TestIsAllowed:
         assert req.subject.id == "tester"
         assert req.subject.tenant_id == "system"
 
+    def test_legacy_v3_id_is_normalized_before_framework(self, fake_framework):
+        """旧前端传入 V3 平台 ID 时，Framework 只能收到业务 ID。"""
+        fw, provider = fake_framework
+        provider.is_allowed_result = True
+        p = Permission(username="tester", bk_tenant_id="system")
+
+        assert p.is_allowed("view_business_v2", [ResourceEnum.BUSINESS.create_simple_instance("2")]) is True
+
+        req: AuthRequest = provider.is_allowed_calls[0]
+        assert req.action_id == "view_business"
+
     def test_legacy_v3_id_string_same_decision(self, fake_framework, real_schema, v3_provider_factory):
         """前端以 V3 平台 ID 字符串（view_business_v2）调用 is_allowed 时，
         新版路径经 codec 恒等回退后仍以正确的 V3 action 发起请求（与旧版一致）。"""
@@ -195,6 +206,18 @@ class TestIsAllowed:
         # 发给 SDK 的 action 仍是 V3 平台 ID
         assert mock_client.make_request.call_args.args[1] == "view_business_v2"
         # 读操作走缓存
+        mock_client.is_allowed_with_cache.assert_called_once()
+
+    def test_legacy_v3_id_roundtrips_through_facade_and_v3_codec(self, installed_framework, v3_provider_factory):
+        """旧前端 ID 先归一化，随后由 v3 codec 重新编码为正确的平台 ID。"""
+        provider, mock_client = v3_provider_factory()
+        installed_framework.build([provider])
+        mock_client.is_allowed_with_cache.return_value = True
+        p = Permission(username="tester", bk_tenant_id="system")
+
+        assert p.is_allowed("view_business_v2", [ResourceEnum.BUSINESS.create_simple_instance("2")]) is True
+
+        assert mock_client.make_request.call_args.args[1] == "view_business_v2"
         mock_client.is_allowed_with_cache.assert_called_once()
 
     def test_write_action_no_cache(self, real_schema, v3_provider_factory):
@@ -390,6 +413,40 @@ class TestBatchIsAllowed:
         )
         assert result["2"]["view_event"] is True
 
+    def test_legacy_v3_id_is_normalized_and_result_uses_business_key(self, fake_framework):
+        from bkmonitor.iam.iam_engine.core.types import BatchAuthResult, ResourceAuthResult
+
+        fw, provider = fake_framework
+        provider.batch_by_resource = MagicMock(
+            return_value=BatchAuthResult(
+                items=(
+                    ResourceAuthResult(action_id="view_event", resource_type="space", resource_id="2", allowed=True),
+                )
+            )
+        )
+        p = Permission(username="tester", bk_tenant_id="system")
+
+        result = p.batch_is_allowed(
+            ["view_event_v2"],
+            [[ResourceEnum.BUSINESS.create_simple_instance("2")]],
+        )
+
+        request = provider.batch_by_resource.call_args.args[0]
+        assert request.action_id == "view_event"
+        assert result == {"2": {"view_event": True}}
+
+    def test_skip_check_legacy_v3_id_result_uses_business_key(self, fake_framework):
+        fw, provider = fake_framework
+        p = Permission(username="tester", bk_tenant_id="system")
+        p.skip_check = True
+
+        result = p.batch_is_allowed(
+            ["view_event_v2"],
+            [[ResourceEnum.BUSINESS.create_simple_instance("2")]],
+        )
+
+        assert result == {"2": {"view_event": True}}
+
 
 # ---------------------------------------------------------------------------
 # apply url / apply data / 空间列表过滤 / make_resource
@@ -414,14 +471,16 @@ class TestApplyMethods:
         assert url == "http://iam.invalid/apply/xyz"
 
     def test_get_apply_data_accepts_v3_platform_id_string(self, fake_framework):
-        """前端 V3 ID 字符串（如 view_business_v2）经 apply 路径 round-trip 后仍可生成申请数据。"""
+        """前端 V3 ID 字符串在申请路径进入 Framework 前归一化为业务 ID。"""
         fw, provider = fake_framework
-        provider.apply_data = {"system": "bk_monitorv3", "actions": []}
-        provider.apply_url = "http://iam.invalid/apply/xyz"
+        provider.get_apply_data = MagicMock(return_value={"system": "bk_monitorv3", "actions": []})
+        provider.get_apply_url = MagicMock(return_value="http://iam.invalid/apply/xyz")
         p = Permission(username="tester", bk_tenant_id="system")
         data, url = p.get_apply_data(["view_business_v2"], [ResourceEnum.BUSINESS.create_simple_instance("2")])
         assert data == {"system": "bk_monitorv3", "actions": []}
         assert url == "http://iam.invalid/apply/xyz"
+        assert provider.get_apply_data.call_args.args[0] == ["view_business"]
+        assert provider.get_apply_url.call_args.args[0].action_ids == ("view_business",)
 
 
 class TestFilterSpaceListByAction:
@@ -468,6 +527,19 @@ class TestFilterSpaceListByAction:
         assert [space["bk_biz_id"] for space in spaces] == [2, 5]
         assert tenant_wide_authorized is False
 
+    def test_legacy_v3_id_is_normalized_before_visible_resource_query(self, fake_framework):
+        fw, provider = fake_framework
+        provider.filter_visible_resources = MagicMock(
+            return_value=VisibleResult(all_granted=False, visible_ids=("2", "5"))
+        )
+        p = Permission(username="tester", bk_tenant_id="system")
+
+        with patch("bkmonitor.iam.permission.SpaceApi.list_spaces_dict", return_value=self._space_list()):
+            result = p.filter_space_list_by_action("view_business_v2")
+
+        assert [space["bk_biz_id"] for space in result] == [2, 5]
+        assert provider.filter_visible_resources.call_args.args[1] == "view_business"
+
     def test_provider_error_returns_empty(self, fake_framework):
         fw, provider = fake_framework
         from bkmonitor.iam.iam_engine.core.exceptions import ProviderError
@@ -513,6 +585,22 @@ class TestFilterSpaceListByAction:
 
         assert [space["bk_biz_id"] for space in spaces] == [2, 3, 5]
         assert tenant_wide_authorized is True
+
+
+class TestLegacyFrontendResourceCompatibility:
+    def test_check_allowed_by_action_ids_echoes_original_legacy_id(self):
+        """内部归一化不能改变前端按原请求 ID 匹配响应的既有契约。"""
+        from monitor_web.iam.resources import CheckAllowedByActionIdsResource
+
+        permission = MagicMock()
+        permission.is_allowed_by_biz.return_value = True
+        with patch("monitor_web.iam.resources.Permission", return_value=permission):
+            result = CheckAllowedByActionIdsResource().perform_request(
+                {"bk_biz_id": 2, "action_ids": ["view_business_v2"]}
+            )
+
+        permission.is_allowed_by_biz.assert_called_once_with(2, "view_business_v2", raise_exception=False)
+        assert result == [{"action_id": "view_business_v2", "is_allowed": True}]
 
 
 class TestMakeResource:
@@ -609,6 +697,19 @@ class TestPreflightHelpers:
         with patch("bkmonitor.iam.permission.ApiAuthToken.objects.get", return_value=record):
             assert check_iam_preflight(request, "view_host") is True
 
+    def test_preflight_token_action_id_map_accepts_legacy_alias(self):
+        from bkmonitor.iam.permission import check_iam_preflight
+
+        request = MagicMock()
+        request.token = "tok"
+        request.path = "/any/path/"
+        request.skip_check = False
+        request.user.tenant_id = "system"
+        record = MagicMock()
+        record.type = "host"
+        with patch("bkmonitor.iam.permission.ApiAuthToken.objects.get", return_value=record):
+            assert check_iam_preflight(request, "view_host_v2") is True
+
     def test_preflight_no_exemption_goes_to_framework(self):
         from bkmonitor.iam.permission import check_iam_preflight
 
@@ -626,6 +727,15 @@ class TestPreflightHelpers:
         request.token = None  # 显式置 None：MagicMock 自动属性会误入 token 分支
         result = check_iam_batch_preflight(request, [ActionEnum.VIEW_EVENT, ActionEnum.MANAGE_EVENT])
         assert result == {"view_event": True, "manage_event": True}
+
+    def test_batch_preflight_skip_legacy_alias_uses_business_key(self):
+        from bkmonitor.iam.permission import check_iam_batch_preflight
+
+        request = MagicMock()
+        request.skip_check = True
+        request.token = None
+        result = check_iam_batch_preflight(request, ["view_event_v2"])
+        assert result == {"view_event": True}
 
     def test_batch_preflight_none(self):
         from bkmonitor.iam.permission import check_iam_batch_preflight
@@ -658,6 +768,18 @@ class TestPreflightHelpers:
         record.type = "host"  # ActionIdMap["host"] = [ActionEnum.VIEW_HOST]
         with patch("bkmonitor.iam.permission.ApiAuthToken.objects.get", return_value=record):
             result = check_iam_batch_preflight(request, ["view_host", "view_event"])
+        assert result == {"view_host": True, "view_event": False}
+
+    def test_batch_preflight_token_action_id_map_accepts_legacy_alias(self):
+        from bkmonitor.iam.permission import check_iam_batch_preflight
+
+        request = MagicMock()
+        request.token = "tok"
+        request.user.tenant_id = "system"
+        record = MagicMock()
+        record.type = "host"
+        with patch("bkmonitor.iam.permission.ApiAuthToken.objects.get", return_value=record):
+            result = check_iam_batch_preflight(request, ["view_host_v2", "view_event_v2"])
         assert result == {"view_host": True, "view_event": False}
 
 

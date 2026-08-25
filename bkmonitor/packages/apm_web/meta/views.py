@@ -143,6 +143,7 @@ class ApplicationViewSet(ResourceViewSet):
                     resource_meta=ResourceEnum.APM_APPLICATION,
                     id_field=lambda d: d["application_id"],
                     instance_create_func=ResourceEnum.APM_APPLICATION.create_instance_by_info,
+                    include_legacy_action_keys=True,
                 )
             ],
         ),
@@ -159,6 +160,7 @@ class ApplicationViewSet(ResourceViewSet):
                     instance_create_func=ResourceEnum.APM_APPLICATION.create_instance_by_info,
                     sort_allowed_first=True,
                     sort_action=ActionEnum.VIEW_APM_APPLICATION,
+                    include_legacy_action_keys=True,
                 )
             ],
         ),
@@ -191,6 +193,7 @@ class ApplicationViewSet(ResourceViewSet):
                     resource_meta=ResourceEnum.APM_APPLICATION,
                     id_field=lambda d: d["application_id"],
                     many=False,
+                    include_legacy_action_keys=True,
                 )
             ],
         ),
@@ -204,6 +207,7 @@ class ApplicationViewSet(ResourceViewSet):
                     resource_meta=ResourceEnum.APM_APPLICATION,
                     id_field=lambda d: d["application_id"],
                     many=False,
+                    include_legacy_action_keys=True,
                 )
             ],
         ),
@@ -217,6 +221,7 @@ class ApplicationViewSet(ResourceViewSet):
                     resource_meta=ResourceEnum.APM_APPLICATION,
                     id_field=lambda d: d["application_id"],
                     many=False,
+                    include_legacy_action_keys=True,
                 )
             ],
         ),

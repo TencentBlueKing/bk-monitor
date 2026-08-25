@@ -65,6 +65,7 @@ class ServiceViewSet(ResourceViewSet):
                     resource_meta=ResourceEnum.APM_APPLICATION,
                     id_field=lambda d: d["application_id"],
                     many=False,
+                    include_legacy_action_keys=True,
                 )
             ],
         ),
