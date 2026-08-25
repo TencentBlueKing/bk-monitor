@@ -299,7 +299,7 @@ class SpanLevelHandler(BaseRumLevelHandler):
         statistics_info: dict[str, Any],
     ) -> None:
         if property_name not in self.STATISTICS_PROPERTY_METHOD_MAP:
-            raise ValueError(_(f"未知的字段统计属性: {property_name}"))
+            raise ValueError(_("未知的字段统计属性: {}").format(property_name))
 
         field_name: str = field["field_name"]
         query_filters: list[types.Filter] = copy.deepcopy(filters)
@@ -355,6 +355,7 @@ class SpanLevelHandler(BaseRumLevelHandler):
         - 数值类型：根据 min/max/distinct_count/interval_num 划分区间，并发统计各区间计数
         """
         filters = filters or []
+        extra_config = extra_config or {}
         field_name: str = field["field_name"]
         values: list[Any] = field.get("values") or []
 
@@ -372,7 +373,7 @@ class SpanLevelHandler(BaseRumLevelHandler):
                     "end_time": config["end_time"] // 1000,
                 }
             )
-            if extra_config.get("query_method"):
+            if "query_method" in extra_config:
                 config.update({"query_method": extra_config["query_method"]})
             return resource.grafana.graph_unify_query(config)
 

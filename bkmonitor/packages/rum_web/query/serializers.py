@@ -139,7 +139,8 @@ class RumFieldStatisticsGraphRequestSerializer(BaseRumSearchSerializer):
     def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
         attrs = super().validate(attrs)
         time_alignment: bool = attrs.get("time_alignment", False)
-        attrs["query_method"] = ("query_reference", "query_data")[time_alignment]
+        if "query_method" not in attrs:
+            attrs["query_method"] = ("query_reference", "query_data")[time_alignment]
         field = attrs["field"]
         if field["field_type"] == EnabledStatisticsDimension.KEYWORD.value:
             return attrs
