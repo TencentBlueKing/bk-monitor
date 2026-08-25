@@ -27,6 +27,7 @@ from django.core.management.base import BaseCommand
 
 from ....core.config import FrameworkConfig
 from ....django.facade import get_framework
+from ....django.migration_logging import summarize_system_migration
 from ....django.migration_recorder import DjangoMigrationRecorder
 from ....migration.loader import MigrationLoader
 from ....migration.planner import MigrationPlanner
@@ -186,18 +187,18 @@ class Command(BaseCommand):
             return
 
         report = provider.apply_migration(plan, dry_run=dry_run, allow_destructive=allow_destructive)
+        migration_log = summarize_system_migration(plan, report, dry_run=dry_run)
 
-        if report.success:
-            if report.applied:
-                self.stdout.write(
-                    self.style.SUCCESS(f"[{provider.name}] system: applied {len(report.applied)} change(s).")
-                )
-            elif report.would_apply:
-                self.stdout.write(f"[{provider.name}] system: would apply {len(report.would_apply)} change(s).")
-            else:
-                self.stdout.write(f"[{provider.name}] system: no changes.")
+        if migration_log.is_error:
+            writer = self.stderr
+            render = self.style.ERROR
         else:
-            self.stderr.write(self.style.ERROR(f"[{provider.name}] system: {len(report.failed)} failure(s)"))
+            writer = self.stdout
+            render = self.style.SUCCESS if migration_log.outcome == "applied" else str
+
+        writer.write(render(migration_log.summary))
+        for detail in migration_log.details:
+            writer.write(render(detail) if migration_log.is_error else detail)
 
     # ------------------------------------------------------------------
 

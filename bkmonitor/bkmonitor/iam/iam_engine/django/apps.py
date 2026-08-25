@@ -15,8 +15,18 @@ import logging
 from django.apps import AppConfig
 
 from ..django.conf import load_framework
+from .migration_logging import summarize_system_migration
 
 logger = logging.getLogger("iam_engine.django")
+
+
+def _log_system_migration(plan, report) -> None:
+    """记录已 reconcile 的系统迁移结果，供 semi_auto 路径使用。"""
+    migration_log = summarize_system_migration(plan, report, dry_run=False)
+    log = logger.error if migration_log.is_error else logger.info
+    log("iam_engine migration: %s", migration_log.summary)
+    for detail in migration_log.details:
+        log("iam_engine migration: %s", detail)
 
 
 class IamEngineConfig(AppConfig):
@@ -109,8 +119,7 @@ class IamEngineConfig(AppConfig):
                     # ① 系统迁移：plan_migration(scope="system") → apply_migration
                     plan = provider.plan_migration(fw.schema, scope="system")
                     report = provider.apply_migration(plan, dry_run=False, allow_destructive=allow_destructive)
-                    if report.applied:
-                        logger.info("iam_engine migration: %s system — %d applied", provider.name, len(report.applied))
+                    _log_system_migration(plan, report)
 
                     # ② 文件迁移：本地迁移文件 → apply_migration
                     if not directory:
