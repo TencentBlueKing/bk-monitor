@@ -93,31 +93,24 @@ def test_trigger_reference_uses_shadow_switches_and_excludes_double_check():
     processor.get_strategy_snapshot_legacy_json = mock.Mock(return_value=json.dumps(strategy).encode())
 
     with (
-        mock.patch.object(settings, "ALARMD_DETECTION_SHADOW_ENABLED", True, create=True),
-        mock.patch.object(settings, "ALARMD_TRIGGER_REFERENCE_SHADOW_ENABLED", True, create=True),
+        mock.patch.object(settings, "ALARMD_SHADOW_ENABLED", True, create=True),
         mock.patch.object(settings, "DOUBLE_CHECK_SUM_STRATEGY_IDS", [], create=True),
     ):
         assert processor.is_alarmd_reference_selected(strategy=strategy, strategy_snapshot_key="snapshot")
 
     with (
-        mock.patch.object(settings, "ALARMD_DETECTION_SHADOW_ENABLED", True, create=True),
-        mock.patch.object(settings, "ALARMD_TRIGGER_REFERENCE_SHADOW_ENABLED", True, create=True),
+        mock.patch.object(settings, "ALARMD_SHADOW_ENABLED", True, create=True),
         mock.patch.object(settings, "DOUBLE_CHECK_SUM_STRATEGY_IDS", [1], create=True),
     ):
         assert not processor.is_alarmd_reference_selected(strategy=strategy, strategy_snapshot_key="snapshot")
 
 
-@pytest.mark.parametrize(
-    ("detection_enabled", "reference_enabled"),
-    [(False, False), (False, True), (True, False)],
-)
-def test_trigger_reference_switches_fail_closed_without_snapshot(detection_enabled, reference_enabled):
+def test_trigger_reference_switch_fails_closed_without_snapshot():
     processor = _processor()
     processor.get_strategy_snapshot_legacy_json = mock.Mock()
 
     with (
-        mock.patch.object(settings, "ALARMD_DETECTION_SHADOW_ENABLED", detection_enabled, create=True),
-        mock.patch.object(settings, "ALARMD_TRIGGER_REFERENCE_SHADOW_ENABLED", reference_enabled, create=True),
+        mock.patch.object(settings, "ALARMD_SHADOW_ENABLED", False, create=True),
         mock.patch.object(settings, "DOUBLE_CHECK_SUM_STRATEGY_IDS", [], create=True),
     ):
         assert not processor.is_alarmd_reference_selected(
@@ -136,8 +129,7 @@ def test_trigger_reference_skips_non_threshold_strategy_once_per_snapshot(caplog
     processor.get_strategy_snapshot_legacy_json = mock.Mock(return_value=json.dumps(strategy).encode())
 
     with (
-        mock.patch.object(settings, "ALARMD_DETECTION_SHADOW_ENABLED", True, create=True),
-        mock.patch.object(settings, "ALARMD_TRIGGER_REFERENCE_SHADOW_ENABLED", True, create=True),
+        mock.patch.object(settings, "ALARMD_SHADOW_ENABLED", True, create=True),
         mock.patch.object(settings, "DOUBLE_CHECK_SUM_STRATEGY_IDS", [], create=True),
     ):
         assert not processor.is_alarmd_reference_selected(strategy=strategy, strategy_snapshot_key="snapshot")
@@ -157,8 +149,7 @@ def test_trigger_reference_eligibility_failure_is_fail_open_and_cached(caplog):
     processor.get_strategy_snapshot_legacy_json = mock.Mock(side_effect=RuntimeError("snapshot unavailable"))
 
     with (
-        mock.patch.object(settings, "ALARMD_DETECTION_SHADOW_ENABLED", True, create=True),
-        mock.patch.object(settings, "ALARMD_TRIGGER_REFERENCE_SHADOW_ENABLED", True, create=True),
+        mock.patch.object(settings, "ALARMD_SHADOW_ENABLED", True, create=True),
         mock.patch.object(settings, "DOUBLE_CHECK_SUM_STRATEGY_IDS", [], create=True),
     ):
         assert not processor.is_alarmd_reference_selected(strategy=strategy, strategy_snapshot_key="snapshot")
@@ -176,7 +167,7 @@ def test_trigger_push_completes_monitor_event_before_reference_publish():
     processor.reference_candidates = [{"input_id": "candidate"}]
     calls = []
     processor.push_event_to_kafka = lambda records: calls.append(("monitor-event", records))
-    processor.publish_alarmd_reference_candidates = lambda: calls.append(("reference", None))
+    processor.enqueue_alarmd_reference_candidates = lambda: calls.append(("reference", None))
 
     processor.push()
 
@@ -188,22 +179,52 @@ def test_trigger_monitor_event_failure_prevents_reference_publish():
     processor.event_records = [{"event_record": {"data": {}}, "anomaly_records": []}]
     processor.reference_candidates = [{"input_id": "candidate"}]
     processor.push_event_to_kafka = mock.Mock(side_effect=RuntimeError("monitor event failed"))
-    processor.publish_alarmd_reference_candidates = mock.Mock()
+    processor.enqueue_alarmd_reference_candidates = mock.Mock()
 
     with pytest.raises(RuntimeError, match="monitor event failed"):
         processor.push()
 
-    processor.publish_alarmd_reference_candidates.assert_not_called()
+    processor.enqueue_alarmd_reference_candidates.assert_not_called()
 
 
 def test_trigger_reference_unexpected_failure_does_not_change_legacy_push_result():
     processor = _processor()
     processor.reference_candidates = [{"input_id": "candidate"}]
-    processor.publish_alarmd_reference_candidates = mock.Mock(side_effect=RuntimeError("reference failed"))
+    processor.enqueue_alarmd_reference_candidates = mock.Mock(side_effect=RuntimeError("reference failed"))
 
     processor.push()
 
     assert processor.reference_candidates == []
+
+
+def test_trigger_reference_async_jobs_are_bounded_by_count_and_encoded_bytes():
+    processor = _processor()
+    batches = [
+        {"batch_id": "one", "payload": "a" * 300_000},
+        {"batch_id": "two", "payload": "b" * 300_000},
+        {"batch_id": "three"},
+    ]
+    processor.iter_alarmd_reference_batches = lambda: iter(batches)
+    submitted = []
+
+    def submit(operation, payload, *, max_jobs):
+        submitted.append((operation, payload, max_jobs))
+        return True
+
+    with (
+        mock.patch(
+            "alarm_backends.core.alarmd.encoder.encode_trigger_decision_batch",
+            side_effect=lambda batch: json.dumps(batch, separators=(",", ":")).encode(),
+        ),
+        mock.patch("alarm_backends.core.alarmd.async_publish.submit_shadow_job", side_effect=submit),
+        mock.patch.object(settings, "ALARMD_SHADOW_ASYNC_QUEUE_SIZE", 16, create=True),
+    ):
+        assert processor.enqueue_alarmd_reference_candidates() == 3
+
+    assert submitted == [
+        ("reference", (batches[0],), 16),
+        ("reference", (batches[1], batches[2]), 16),
+    ]
 
 
 def test_trigger_reference_publisher_uses_candidate_identity_and_is_fail_open():
@@ -241,7 +262,7 @@ def test_trigger_reference_publisher_uses_candidate_identity_and_is_fail_open():
         ),
         mock.patch.object(
             settings,
-            "ALARMD_DETECTION_SHADOW_ALLOWED_TOPICS",
+            "ALARMD_DETECT_INPUT_SHADOW_ALLOWED_TOPICS",
             ("alarmd-detection-shadow",),
             create=True,
         ),
@@ -295,7 +316,7 @@ def test_trigger_reference_publisher_flushes_candidates_in_bounded_groups(caplog
         ),
         mock.patch.object(
             settings,
-            "ALARMD_DETECTION_SHADOW_ALLOWED_TOPICS",
+            "ALARMD_DETECT_INPUT_SHADOW_ALLOWED_TOPICS",
             ("alarmd-detection-shadow",),
             create=True,
         ),
@@ -354,7 +375,7 @@ def test_trigger_reference_stops_projecting_when_the_publisher_stops_consuming(c
         ),
         mock.patch.object(
             settings,
-            "ALARMD_DETECTION_SHADOW_ALLOWED_TOPICS",
+            "ALARMD_DETECT_INPUT_SHADOW_ALLOWED_TOPICS",
             ("alarmd-detection-shadow",),
             create=True,
         ),
@@ -411,7 +432,7 @@ def test_trigger_reference_failure_logs_prior_acknowledged_records_for_mixed_bat
         ),
         mock.patch.object(
             settings,
-            "ALARMD_DETECTION_SHADOW_ALLOWED_TOPICS",
+            "ALARMD_DETECT_INPUT_SHADOW_ALLOWED_TOPICS",
             ("alarmd-detection-shadow",),
             create=True,
         ),
@@ -460,7 +481,7 @@ def test_trigger_reference_stops_after_publisher_initialization_failure():
         ),
         mock.patch.object(
             settings,
-            "ALARMD_DETECTION_SHADOW_ALLOWED_TOPICS",
+            "ALARMD_DETECT_INPUT_SHADOW_ALLOWED_TOPICS",
             ("alarmd-detection-shadow",),
             create=True,
         ),

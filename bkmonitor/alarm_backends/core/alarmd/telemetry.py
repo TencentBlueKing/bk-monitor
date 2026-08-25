@@ -17,12 +17,15 @@ from core.prometheus import metrics
 # contract, encoder, publisher and reference modules stay importable without a
 # settings module so their cross-language Golden runs standalone.
 
-STAGE_DETECTION = "detection"
 STAGE_DETECT_INPUT = "detect_input"
 STAGE_REFERENCE = "reference"
 
 STATUS_SUCCESS = "success"
 STATUS_FAILED = "failed"
+
+
+def record_shadow_async_job(stage: str, status: str) -> None:
+    metrics.ALARMD_SHADOW_ASYNC_JOB_COUNT.labels(stage=stage, status=status).inc()
 
 
 @contextmanager
