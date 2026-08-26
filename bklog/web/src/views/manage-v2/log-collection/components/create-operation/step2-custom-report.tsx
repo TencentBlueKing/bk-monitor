@@ -347,6 +347,7 @@ export default defineComponent({
       try {
         await baseInfoRef.value?.validate();
       } catch {
+        callback?.(false);
         return;
       }
 
@@ -412,7 +413,12 @@ export default defineComponent({
               return;
             }
             emit('cancel');
+          } else {
+            callback?.(false);
           }
+        })
+        .catch(() => {
+          callback?.(false);
         })
         .finally(() => {
           submitLoading.value = false;

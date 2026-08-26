@@ -317,7 +317,8 @@ export default defineComponent({
                       // 保存成功后切换步骤
                       step.value = targetStep;
                     }
-                    infoResolve(success);
+                    // 保存流程结束后关闭确认弹窗，保存结果仅用于控制是否切换步骤
+                    infoResolve(true);
                     resolve(success);
                   },
                 });

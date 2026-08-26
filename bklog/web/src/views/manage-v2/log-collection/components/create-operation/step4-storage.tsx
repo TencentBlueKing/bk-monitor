@@ -676,7 +676,11 @@ export default defineComponent({
           data: submitData,
         })
         .then(res => {
-          res.result && showMessage(t('保存成功'));
+          if (!res?.result) {
+            callback?.(false);
+            return;
+          }
+          showMessage(t('保存成功'));
           if (action === 'saveOnly') {
             // 只保存，不跳转
             callback?.(true);
