@@ -253,7 +253,7 @@ export default defineComponent({
                       {group.alias}
                     </span>
                     {!group.isRawGroup && <span class='group-count'>{group.nodes.length}</span>}
-                    <i class={['icon-monitor', 'icon-mc-arrow-down', 'group-arrow', { collapsed: !expanded }]} />
+                    <i class={['icon-monitor', 'icon-arrow-down', 'group-arrow', { collapsed: !expanded }]} />
                   </div>
                   {expanded && (
                     <DimensionFieldTree

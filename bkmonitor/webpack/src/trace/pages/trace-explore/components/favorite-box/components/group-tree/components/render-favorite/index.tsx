@@ -196,13 +196,9 @@ export default defineComponent({
           },
           placement: 'right',
         }}
+        onClick={handleClick}
       >
-        <div
-          class='favorite-box-item-name'
-          onClick={handleClick}
-        >
-          {props.data.name}
-        </div>
+        <div class='favorite-box-item-name'>{props.data.name}</div>
         <div
           ref={actionRef}
           class='favorite-item-action'
