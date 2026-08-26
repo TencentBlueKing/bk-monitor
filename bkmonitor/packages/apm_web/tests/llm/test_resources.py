@@ -53,16 +53,15 @@ class ListSpansResourceTestCase(TestCase):
         with (
             mock.patch("core.drf_resource.api.apm_api.query_span_list", return_value=response) as query_span_list,
             mock.patch(
-                "apm_web.llm.resources.adapt_trace",
-                return_value={"spans": [converted_span]},
-            ) as adapt_trace,
+                "apm_web.llm.resources.adapt_spans",
+                return_value=[converted_span],
+            ) as adapt_spans,
         ):
             result = ListSpansResource().request(
                 {
                     "bk_biz_id": 11,
                     "app_name": "sand_local_dev",
                     "trace_id": "trace-1",
-                    "sdk_type": "agentlens",
                 }
             )
 
@@ -70,14 +69,7 @@ class ListSpansResourceTestCase(TestCase):
             result,
             {"trace_id": "trace-1", "total": 1, "spans": [converted_span]},
         )
-        adapt_trace.assert_called_once_with(
-            response["data"],
-            trace_id="trace-1",
-            app_name="sand_local_dev",
-            sdk_type="agentlens",
-            include_content=True,
-            partial=False,
-        )
+        adapt_spans.assert_called_once_with(response["data"])
         query_span_list.assert_called_once_with(
             {
                 "bk_biz_id": 11,

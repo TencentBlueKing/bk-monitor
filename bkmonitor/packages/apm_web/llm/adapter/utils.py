@@ -7,25 +7,6 @@ import json
 from copy import deepcopy
 from typing import Any
 
-CONTENT_KEY_PARTS = (
-    "prompt",
-    "completion",
-    "input.messages",
-    "output.messages",
-    "system_instructions",
-    "message.detail",
-    "input.value",
-    "output.value",
-    "llm.input",
-    "llm.output",
-    "tool.input",
-    "tool.output",
-    "tool.call.arguments",
-    "tool.call.result",
-    "retrieval.query.text",
-    "retrieval.documents",
-)
-
 
 def first(mapping: dict[str, Any], *keys: str) -> Any:
     for key in keys:
@@ -55,25 +36,25 @@ def _depth(value: Any, current: int = 0) -> int:
     return current
 
 
-def safe_parse(value: Any) -> tuple[Any, bool]:
-    """解析 JSON/Python 字面量；失败时保留原值并返回失败标记。"""
+def safe_parse(value: Any) -> Any:
+    """解析 JSON/Python 字面量；无法解析时保留原值。"""
     if not isinstance(value, str):
-        return deepcopy(value), False
+        return deepcopy(value)
     if len(value.encode()) > 256 * 1024:
-        return value, True
+        return value
     stripped = value.strip()
     if not stripped:
-        return value, False
+        return value
     try:
         parsed = json.loads(stripped)
     except (json.JSONDecodeError, TypeError):
         try:
             parsed = ast.literal_eval(stripped)
         except (ValueError, SyntaxError, MemoryError, RecursionError):
-            return value, True
+            return value
     if _depth(parsed) > 20:
-        return value, True
-    return parsed, False
+        return value
+    return parsed
 
 
 def _as_int(value: Any, default: int = 0) -> int:
@@ -85,7 +66,7 @@ def _as_int(value: Any, default: int = 0) -> int:
         return default
 
 
-def normalize_events(raw: dict[str, Any], warnings: list[dict[str, Any]], span_id: str) -> list[dict[str, Any]]:
+def normalize_events(raw: dict[str, Any]) -> list[dict[str, Any]]:
     if isinstance(raw.get("events"), list):
         return [
             {
@@ -101,14 +82,6 @@ def normalize_events(raw: dict[str, Any], warnings: list[dict[str, Any]], span_i
     if not flat:
         return []
     count = max(len(value) if isinstance(value, list) else 1 for value in flat.values())
-    if any((len(value) if isinstance(value, list) else 1) != count for value in flat.values()):
-        warnings.append(
-            {
-                "code": "event_array_mismatch",
-                "message": "Flattened event arrays have different lengths",
-                "span_id": span_id,
-            }
-        )
     events: list[dict[str, Any]] = []
     for index in range(count):
         event: dict[str, Any] = {"name": "", "timestamp": 0, "attributes": {}}
@@ -125,7 +98,7 @@ def normalize_events(raw: dict[str, Any], warnings: list[dict[str, Any]], span_i
     return events
 
 
-def normalize_span(raw: dict[str, Any], warnings: list[dict[str, Any]]) -> dict[str, Any]:
+def normalize_span(raw: dict[str, Any]) -> dict[str, Any]:
     attributes_raw = raw.get("attributes")
     attributes: dict[str, Any] = deepcopy(attributes_raw) if isinstance(attributes_raw, dict) else {}
     resource_raw = raw.get("resource")
@@ -145,7 +118,7 @@ def normalize_span(raw: dict[str, Any], warnings: list[dict[str, Any]]) -> dict[
     start_time = _as_int(raw.get("start_time"))
     end_time = _as_int(raw.get("end_time"), start_time)
     elapsed_time = _as_int(raw.get("elapsed_time"), max(0, end_time - start_time))
-    events = normalize_events(raw, warnings, span_id)
+    events = normalize_events(raw)
     if attributes.get("error.type") or any(event["name"] == "exception" for event in events):
         code = 2
     return {

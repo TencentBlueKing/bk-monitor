@@ -5,13 +5,35 @@ from __future__ import annotations
 import re
 from collections import defaultdict
 from copy import deepcopy
+from dataclasses import dataclass, field
 from typing import Any
 
 from .fields import FINISH_REASONS
-from .utils import safe_parse as _safe_parse
+from .utils import safe_parse
 
 
-def _role(value: Any, default: str) -> str:
+@dataclass
+class ContentState:
+    inputs: list[dict[str, Any]] = field(default_factory=list)
+    outputs: list[dict[str, Any]] = field(default_factory=list)
+    instructions: list[dict[str, Any]] = field(default_factory=list)
+    definitions: list[dict[str, Any]] = field(default_factory=list)
+    attributes: dict[str, Any] = field(default_factory=dict)
+
+    def build(self) -> dict[str, Any]:
+        content = dict(self.attributes)
+        for key, values in (
+            ("gen_ai.system_instructions", self.instructions),
+            ("gen_ai.input.messages", self.inputs),
+            ("gen_ai.output.messages", self.outputs),
+            ("gen_ai.tool.definitions", self.definitions),
+        ):
+            if values:
+                content[key] = values
+        return content
+
+
+def _normalize_role(value: Any, default: str) -> str:
     return {
         "human": "user",
         "ai": "assistant",
@@ -21,61 +43,60 @@ def _role(value: Any, default: str) -> str:
     }.get(str(value or default).lower(), str(value or default).lower())
 
 
-def _parsed(value: Any) -> tuple[Any, bool]:
-    parsed, failed = _safe_parse(value)
-    # plain text 是协议允许的来源形态，不应当被当成 JSON 解析告警。
-    structured = isinstance(value, str) and value.lstrip().startswith(("{", "[", "("))
-    return (value if failed else parsed), failed and structured
+def parse_value(value: Any) -> Any:
+    return safe_parse(value)
 
 
-def _part(value: Any) -> dict[str, Any] | None:
+def _normalize_part(value: Any) -> dict[str, Any] | None:
     """把 OTel Part、Gemini Part 或纯文本归一为 OTel Part。"""
     if not isinstance(value, dict):
         return {"type": "text", "content": str(value)} if value not in (None, "") else None
-    if value.get("type"):
-        part = deepcopy(value)
-        if part["type"] in {"text", "reasoning"} and "content" not in part:
-            part["content"] = str(part.pop("text", ""))
-        return part
-    if value.get("text") not in (None, ""):
-        return {
-            "type": "reasoning" if value.get("thought") is True else "text",
-            "content": str(value["text"]),
-        }
-    call = value.get("function_call")
-    if isinstance(call, dict):
-        arguments, _ = _parsed(call.get("args", call.get("arguments", {})))
-        part = {
-            "type": "tool_call",
-            "name": str(call.get("name", "")),
-            "arguments": arguments,
-        }
-        if call.get("id") not in (None, ""):
-            part["id"] = str(call["id"])
-        return part
-    response = value.get("function_response")
-    if isinstance(response, dict):
-        result, _ = _parsed(response.get("response", {}))
-        part = {"type": "tool_call_response", "response": result}
-        if response.get("id") not in (None, ""):
-            part["id"] = str(response["id"])
-        return part
+    match value:
+        case {"type": part_type} if part_type:
+            part = deepcopy(value)
+            if part_type in {"text", "reasoning"} and "content" not in part:
+                part["content"] = str(part.pop("text", ""))
+            return part
+        case {"text": text} if text not in (None, ""):
+            return {
+                "type": "reasoning" if value.get("thought") is True else "text",
+                "content": str(text),
+            }
+        case {"function_call": dict() as call}:
+            arguments = parse_value(call.get("args", call.get("arguments", {})))
+            part = {
+                "type": "tool_call",
+                "name": str(call.get("name", "")),
+                "arguments": arguments,
+            }
+            if call.get("id") not in (None, ""):
+                part["id"] = str(call["id"])
+            return part
+        case {"function_response": dict() as response}:
+            result = parse_value(response.get("response", {}))
+            part = {"type": "tool_call_response", "response": result}
+            if response.get("id") not in (None, ""):
+                part["id"] = str(response["id"])
+            return part
     return None
 
 
-def _message_parts(message: dict[str, Any], role: str) -> list[dict[str, Any]]:
-    parts = [part for value in message.get("parts", []) if (part := _part(value))]
+def _normalize_message_parts(message: dict[str, Any], role: str) -> list[dict[str, Any]]:
+    parts = [part for value in message.get("parts", []) if (part := _normalize_part(value))]
+    if parts:
+        return parts
+
     content = message.get("content")
-    if not parts and content not in (None, ""):
+    if content not in (None, ""):
         if role == "tool":
-            response, _ = _parsed(content)
+            response = parse_value(content)
             part: dict[str, Any] = {"type": "tool_call_response", "response": response}
             call_id = message.get("tool_call_id", message.get("tool_id"))
             if call_id not in (None, ""):
                 part["id"] = str(call_id)
             parts.append(part)
         elif isinstance(content, list):
-            parts.extend(part for value in content if (part := _part(value)))
+            parts.extend(part for value in content if (part := _normalize_part(value)))
         else:
             parts.append({"type": "text", "content": str(content)})
 
@@ -86,7 +107,7 @@ def _message_parts(message: dict[str, Any], role: str) -> list[dict[str, Any]]:
         if not isinstance(call, dict):
             continue
         function = call.get("function") if isinstance(call.get("function"), dict) else call
-        arguments, _ = _parsed(function.get("arguments", function.get("args", {})))
+        arguments = parse_value(function.get("arguments", function.get("args", {})))
         part = {
             "type": "tool_call",
             "name": str(function.get("name", "")),
@@ -98,8 +119,8 @@ def _message_parts(message: dict[str, Any], role: str) -> list[dict[str, Any]]:
     return parts
 
 
-def _message(value: Any, *, default_role: str, output: bool = False) -> dict[str, Any] | None:
-    parsed, _ = _parsed(value)
+def parse_message(value: Any, *, default_role: str, output: bool = False) -> dict[str, Any] | None:
+    parsed = parse_value(value)
     if not isinstance(parsed, dict):
         parsed = {"content": parsed}
     envelope_type = str(parsed.get("type", "")).lower()
@@ -110,8 +131,8 @@ def _message(value: Any, *, default_role: str, output: bool = False) -> dict[str
         message = deepcopy(parsed)
     if "tool_calls" not in message and isinstance(message.get("additional_kwargs"), dict):
         message["tool_calls"] = message["additional_kwargs"].get("tool_calls", [])
-    role = _role(message.get("role"), default_role)
-    parts = _message_parts(message, role)
+    role = _normalize_role(message.get("role"), default_role)
+    parts = _normalize_message_parts(message, role)
     if any(part.get("type") == "tool_call_response" for part in parts):
         role = "tool"
     if not parts:
@@ -123,8 +144,8 @@ def _message(value: Any, *, default_role: str, output: bool = False) -> dict[str
     return result
 
 
-def _messages(value: Any, *, output: bool = False) -> tuple[list[dict[str, Any]], bool]:
-    parsed, failed = _parsed(value)
+def parse_messages(value: Any, *, output: bool = False) -> list[dict[str, Any]]:
+    parsed = parse_value(value)
     if isinstance(parsed, dict):
         for key in ("messages", "input", "output"):
             if isinstance(parsed.get(key), list):
@@ -132,16 +153,15 @@ def _messages(value: Any, *, output: bool = False) -> tuple[list[dict[str, Any]]
                 break
     values = parsed if isinstance(parsed, list) else [parsed]
     default_role = "assistant" if output else "user"
-    return [message for item in values if (message := _message(item, default_role=default_role, output=output))], failed
+    return [message for item in values if (message := parse_message(item, default_role=default_role, output=output))]
 
 
-def _indexed(attrs: dict[str, Any], prefix: str, *, output: bool) -> tuple[list[dict[str, Any]], bool]:
+def parse_indexed_messages(attrs: dict[str, Any], prefix: str, *, output: bool) -> list[dict[str, Any]]:
     grouped: dict[int, dict[str, Any]] = defaultdict(dict)
     pattern = re.compile(rf"^{re.escape(prefix)}\.(\d+)\.(.+)$")
     for key, value in attrs.items():
         if match := pattern.match(key):
             grouped[int(match.group(1))][match.group(2)] = value
-    failed = False
     messages: list[dict[str, Any]] = []
     for index in sorted(grouped):
         flat = grouped[index]
@@ -159,8 +179,7 @@ def _indexed(attrs: dict[str, Any], prefix: str, *, output: bool) -> tuple[list[
             source["tool_calls"] = []
             for call_index in sorted(calls):
                 call = calls[call_index]
-                arguments, parse_failed = _parsed(call.get("arguments", {}))
-                failed = failed or parse_failed
+                arguments = parse_value(call.get("arguments", {}))
                 source["tool_calls"].append(
                     {
                         "id": call.get("id", ""),
@@ -170,12 +189,12 @@ def _indexed(attrs: dict[str, Any], prefix: str, *, output: bool) -> tuple[list[
                 )
         if flat.get("tool_call_id") not in (None, ""):
             source["tool_call_id"] = flat["tool_call_id"]
-        if message := _message(source, default_role="assistant" if output else "user", output=output):
+        if message := parse_message(source, default_role="assistant" if output else "user", output=output):
             messages.append(message)
-    return messages, failed
+    return messages
 
 
-def _split_system(
+def split_system_messages(
     messages: list[dict[str, Any]],
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     instructions: list[dict[str, Any]] = []
@@ -188,33 +207,33 @@ def _split_system(
     return instructions, regular
 
 
-def _instructions(value: Any) -> tuple[list[dict[str, Any]], bool]:
-    parsed, failed = _parsed(value)
+def parse_instructions(value: Any) -> list[dict[str, Any]]:
+    parsed = parse_value(value)
     if isinstance(parsed, dict) and isinstance(parsed.get("parts"), list):
         values = parsed["parts"]
     elif isinstance(parsed, list):
         values = parsed
     elif isinstance(parsed, dict):
-        message = _message(parsed, default_role="system")
-        return (message.get("parts", []) if message else []), failed
+        message = parse_message(parsed, default_role="system")
+        return message.get("parts", []) if message else []
     else:
         values = [parsed]
-    return [part for item in values if (part := _part(item))], failed
+    return [part for item in values if (part := _normalize_part(item))]
 
 
-def _schema_lower(value: Any) -> Any:
+def _normalize_schema_types(value: Any) -> Any:
     if isinstance(value, dict):
         return {
-            key: (item.lower() if key == "type" and isinstance(item, str) else _schema_lower(item))
+            key: (item.lower() if key == "type" and isinstance(item, str) else _normalize_schema_types(item))
             for key, item in value.items()
         }
     if isinstance(value, list):
-        return [_schema_lower(item) for item in value]
+        return [_normalize_schema_types(item) for item in value]
     return value
 
 
-def _definitions(value: Any) -> tuple[list[dict[str, Any]], bool]:
-    parsed, failed = _parsed(value)
+def parse_definitions(value: Any) -> list[dict[str, Any]]:
+    parsed = parse_value(value)
     values = parsed if isinstance(parsed, list) else [parsed]
     flattened: list[Any] = []
     for item in values:
@@ -236,53 +255,56 @@ def _definitions(value: Any) -> tuple[list[dict[str, Any]], bool]:
         if function.get("description") is not None:
             definition["description"] = str(function["description"])
         if function.get("parameters") is not None:
-            definition["parameters"] = _schema_lower(deepcopy(function["parameters"]))
+            definition["parameters"] = _normalize_schema_types(deepcopy(function["parameters"]))
         result.append(definition)
-    return result, failed
+    return result
 
 
-def _indexed_definitions(attrs: dict[str, Any], prefix: str) -> tuple[list[dict[str, Any]], bool]:
+def parse_indexed_definitions(attrs: dict[str, Any], prefix: str) -> list[dict[str, Any]]:
     grouped: dict[int, dict[str, Any]] = defaultdict(dict)
     pattern = re.compile(rf"^{re.escape(prefix)}\.(\d+)\.(.+)$")
     for key, value in attrs.items():
         if match := pattern.match(key):
             grouped[int(match.group(1))][match.group(2)] = value
-    failed = False
     result = []
     for index in sorted(grouped):
         item = grouped[index]
-        parameters, parse_failed = _parsed(item.get("parameters", {}))
-        failed = failed or parse_failed
+        parameters = parse_value(item.get("parameters", {}))
         if item.get("name") not in (None, ""):
             result.append(
                 {
                     "type": "function",
                     "name": str(item["name"]),
                     "description": str(item.get("description", "")),
-                    "parameters": _schema_lower(parameters),
+                    "parameters": _normalize_schema_types(parameters),
                 }
             )
-    return result, failed
+    return result
 
 
-parse_value = _parsed
-parse_message = _message
-parse_messages = _messages
-indexed_messages = _indexed
-split_system = _split_system
-parse_instructions = _instructions
-parse_definitions = _definitions
-indexed_definitions = _indexed_definitions
+def parse_standard_content(attrs: dict[str, Any]) -> ContentState:
+    """读取标准 OTel 正文字段，供产品映射在缺失时补充。"""
+    state = ContentState()
+    inputs = parse_messages(attrs.get("gen_ai.input.messages"))
+    outputs = parse_messages(attrs.get("gen_ai.output.messages"), output=True)
+    system, inputs = split_system_messages(inputs)
+    state.inputs.extend(inputs)
+    state.outputs.extend(outputs)
 
+    if attrs.get("gen_ai.system_instructions") is not None:
+        state.instructions.extend(parse_instructions(attrs["gen_ai.system_instructions"]))
+    else:
+        state.instructions.extend(system)
 
-def tool_calls(messages: Any) -> list[dict[str, Any]]:
-    """列出标准消息中的工具调用，供 AgentLens TOOL span 回填 call.id。"""
-    if not isinstance(messages, list):
-        return []
-    return [
-        part
-        for message in messages
-        if isinstance(message, dict)
-        for part in message.get("parts", [])
-        if isinstance(part, dict) and part.get("type") == "tool_call"
-    ]
+    if attrs.get("gen_ai.tool.definitions") is not None:
+        state.definitions.extend(parse_definitions(attrs["gen_ai.tool.definitions"]))
+    for key in (
+        "gen_ai.tool.call.arguments",
+        "gen_ai.tool.call.result",
+        "gen_ai.retrieval.documents",
+    ):
+        if attrs.get(key) is not None:
+            state.attributes[key] = parse_value(attrs[key])
+    if attrs.get("gen_ai.retrieval.query.text") is not None:
+        state.attributes["gen_ai.retrieval.query.text"] = str(attrs["gen_ai.retrieval.query.text"])
+    return state

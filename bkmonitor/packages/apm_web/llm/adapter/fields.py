@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import math
+from collections.abc import Callable
 from copy import deepcopy
 from dataclasses import dataclass
 from typing import Any, Literal
@@ -11,46 +12,28 @@ from .utils import first, nonnegative_int
 
 Product = Literal["bkaidev", "galileo", "agentlens", "default"]
 
-OPERATION_KIND = {
-    "chat": "llm",
-    "generate_content": "llm",
-    "text_completion": "llm",
-    "embeddings": "llm",
-    "fetch_response": "llm",
-    "call_llm": "llm",
-    "execute_tool": "tool",
-    "retrieval": "retriever",
-    "search_memory": "retriever",
-    "create_agent": "agent",
-    "invoke_agent": "agent",
-    "agent_run": "agent",
-    "plan": "agent",
-    "invoke_workflow": "workflow",
-    "invocation": "workflow",
+BKAIDEV_SPAN_NAMES = {
+    "agent.execution",
+    "chain.workflow",
+    "langgraph.workflow",
+    "chat_model.generate",
+    "chatmodel.chat",
+    "tool.execution",
 }
-KIND_OPERATIONS = {
-    "agent": "invoke_agent",
-    "workflow": "invoke_workflow",
-    "llm": "chat",
-    "tool": "execute_tool",
-    "retriever": "retrieval",
-}
+BKAIDEV_TASK_NAMES = {"model.task", "model_node.task", "tools.task", "chain.task"}
 
 
-@dataclass(frozen=True)
-class SpanIdentity:
-    dialect: str
-    kind: str
-    variant: str = "standard"
-    is_ai_step: bool = True
-
-
-def detect_product(spans: list[dict[str, Any]], app_name: str) -> Product:
-    """整条 Trace 只选择一次产品转换器。"""
-    if app_name.lower().startswith("bkapp_ai"):
-        return "bkaidev"
+def detect_product(spans: list[dict[str, Any]]) -> Product:
+    """只根据 Span 自身信息为整条 Trace 选择转换器。"""
     if any(str(span["resource"].get("telemetry.sdk.name", "")).lower() == "galileo" for span in spans):
         return "galileo"
+    if any(
+        span["span_name"].lower() in BKAIDEV_SPAN_NAMES
+        or span["span_name"].lower() in BKAIDEV_TASK_NAMES
+        or any(key.startswith(("agent.info.", "agent.session.")) for key in span["attributes"])
+        for span in spans
+    ):
+        return "bkaidev"
     if any(
         str(span["attributes"].get("gen_ai.span.kind", "")).lower() in {"agent", "llm", "tool"}
         or any(key.startswith(("gen_ai.prompts.", "gen_ai.completion.")) for key in span["attributes"])
@@ -152,16 +135,32 @@ TOKEN_FIELDS = (
     "gen_ai.usage.cache_creation.input_tokens",
     "gen_ai.usage.reasoning.output_tokens",
 )
-LLM_OPERATIONS = {
-    "chat",
-    "generate_content",
-    "text_completion",
-    "fetch_response",
-    "embeddings",
+
+
+def _nonnegative_float(value: Any) -> float | None:
+    if isinstance(value, int | float) and not isinstance(value, bool) and math.isfinite(value) and value >= 0:
+        return float(value)
+    return None
+
+
+def _tool_type(value: Any) -> Any:
+    return value if value in {"extension", "function", "datastore"} else None
+
+
+@dataclass(frozen=True)
+class _FieldRule:
+    normalize: Callable[[Any], Any]
+    allow_empty: bool = False
+
+
+_DEFAULT_FIELD_RULE = _FieldRule(str)
+_FIELD_RULES = {
+    "gen_ai.request.temperature": _FieldRule(_nonnegative_float),
+    "gen_ai.response.time_to_first_chunk": _FieldRule(_nonnegative_float),
+    "gen_ai.retrieval.top_k": _FieldRule(nonnegative_int),
+    "gen_ai.tool.type": _FieldRule(_tool_type),
+    "gen_ai.agent.description": _FieldRule(str, allow_empty=True),
 }
-TOOL_OPERATIONS = {"execute_tool"}
-AGENT_OPERATIONS = {"create_agent", "invoke_agent", "plan"}
-WORKFLOW_OPERATIONS = {"invoke_workflow"}
 
 
 def present(value: Any, *, allow_empty: bool = False) -> bool:
@@ -189,22 +188,14 @@ def normalize_operation(value: Any) -> str | None:
     return open_enum(value, KNOWN_OPERATIONS)
 
 
-def operation_of(span: dict[str, Any]) -> str | None:
-    value = span["attributes"].get("gen_ai.operation.name")
-    return str(value) if present(value) else None
-
-
 def project_span(
     span: dict[str, Any],
-    identity: SpanIdentity,
     *,
     operation: str | None,
     provider: Any,
     aliases: dict[str, tuple[str, ...]],
     extra: dict[str, Any],
     content: dict[str, Any],
-    parse_failed: bool,
-    warnings: list[dict[str, Any]],
 ) -> dict[str, Any] | None:
     """把产品转换器给出的结果投影到协议白名单和标准 Span 外层。"""
     attrs = span["attributes"]
@@ -213,16 +204,14 @@ def project_span(
 
     for key in PASSTHROUGH_FIELDS:
         value = attrs.get(key)
-        if key in {"gen_ai.request.temperature", "gen_ai.response.time_to_first_chunk"}:
-            if isinstance(value, int | float) and not isinstance(value, bool) and math.isfinite(value) and value >= 0:
-                put(standard, key, float(value))
-        elif key == "gen_ai.retrieval.top_k":
-            put(standard, key, nonnegative_int(value))
-        elif key == "gen_ai.tool.type":
-            if value in {"extension", "function", "datastore"}:
-                put(standard, key, value)
-        elif present(value, allow_empty=key == "gen_ai.agent.description"):
-            put(standard, key, str(value), allow_empty=key == "gen_ai.agent.description")
+        rule = _FIELD_RULES.get(key, _DEFAULT_FIELD_RULE)
+        if present(value, allow_empty=rule.allow_empty):
+            put(
+                standard,
+                key,
+                rule.normalize(value),
+                allow_empty=rule.allow_empty,
+            )
 
     put(standard, "gen_ai.provider.name", open_enum(provider, KNOWN_PROVIDERS))
     for target in TOKEN_FIELDS:
@@ -236,10 +225,6 @@ def project_span(
             target,
             str(value) if target == "gen_ai.agent.id" and value is not None else value,
         )
-    if identity.kind == "llm":
-        standard.setdefault("gen_ai.usage.input_tokens", 0)
-        standard.setdefault("gen_ai.usage.output_tokens", 0)
-
     raw_reasons = attrs.get("gen_ai.response.finish_reasons")
     values = raw_reasons if isinstance(raw_reasons, list) else [raw_reasons]
     reasons = [FINISH_REASONS.get(str(value), str(value)) for value in values if present(value)]
@@ -262,16 +247,8 @@ def project_span(
         )
         if message_reasons:
             standard["gen_ai.response.finish_reasons"] = message_reasons
-    if not standard.get("gen_ai.operation.name"):
+    if not standard:
         return None
-    if parse_failed:
-        warnings.append(
-            {
-                "code": "content_parse_error",
-                "message": "Content could not be fully parsed",
-                "span_id": span["span_id"],
-            }
-        )
     resource = deepcopy(span["resource"])
     return {
         "trace_id": span["trace_id"],
@@ -284,5 +261,4 @@ def project_span(
         "status": deepcopy(span["status"]),
         "resource": resource if isinstance(resource, dict) else {},
         "attributes": standard,
-        "_variant": identity.variant,
     }

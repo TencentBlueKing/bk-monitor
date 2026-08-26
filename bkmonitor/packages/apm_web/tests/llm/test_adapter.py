@@ -6,7 +6,7 @@ import json
 import time
 from unittest import TestCase
 
-from apm_web.llm.adapter import adapt_trace
+from apm_web.llm.adapter import adapt_spans
 from apm_web.llm.adapter.fields import detect_product
 
 TRACE_ID = "a" * 32
@@ -66,35 +66,21 @@ def seedance_poll_span(span_id: str = "d" * 16, *, trace_id: str = "e" * 32) -> 
 
 
 class AdapterTests(TestCase):
-    def test_product_routing_uses_app_then_galileo_then_agentlens_then_default(
-        self,
-    ) -> None:
+    def test_product_routing_uses_span_data(self) -> None:
         span = agentlens_span()
-        self.assertEqual(detect_product([span], "agent-test"), "agentlens")
+        self.assertEqual(detect_product([span]), "agentlens")
 
         span["resource"]["telemetry.sdk.name"] = "galileo"
-        self.assertEqual(detect_product([span], "agent-test"), "galileo")
-        self.assertEqual(detect_product([span], "bkapp_ai_demo"), "bkaidev")
+        self.assertEqual(detect_product([span]), "galileo")
 
         span["resource"] = {"telemetry.sdk.name": "opentelemetry"}
+        span["span_name"] = "agent.execution"
+        span["attributes"] = {"agent.info.name": "demo"}
+        self.assertEqual(detect_product([span]), "bkaidev")
+
         span["span_name"] = "chat demo-model"
         span["attributes"] = {"gen_ai.operation.name": "chat"}
-        self.assertEqual(detect_product([span], "agent-test"), "default")
-
-    def test_explicit_sdk_type_overrides_product_detection(self) -> None:
-        span = agentlens_span()
-        span["resource"]["telemetry.sdk.name"] = "galileo"
-
-        trace = adapt_trace(
-            [span],
-            trace_id=TRACE_ID,
-            app_name="bkapp_ai_demo",
-            sdk_type="agentlens",
-            include_content=True,
-        )
-
-        attributes = trace["spans"][0]["attributes"]
-        self.assertEqual(attributes["gen_ai.input.messages"][0]["parts"][0]["content"], "secret prompt")
+        self.assertEqual(detect_product([span]), "default")
 
     def test_default_adapter_keeps_only_standard_fields(self) -> None:
         span = agentlens_span()
@@ -110,8 +96,7 @@ class AdapterTests(TestCase):
             "vendor.debug": "drop-me",
         }
 
-        trace = adapt_trace([span], trace_id=TRACE_ID, include_content=True)
-        attributes = trace["spans"][0]["attributes"]
+        attributes = adapt_spans([span])[0]["attributes"]
 
         self.assertEqual(attributes["gen_ai.operation.name"], "chat")
         self.assertEqual(attributes["gen_ai.provider.name"], "openai")
@@ -121,10 +106,11 @@ class AdapterTests(TestCase):
         )
         self.assertNotIn("gen_ai.system", attributes)
         self.assertNotIn("gen_ai.conversation.id", attributes)
-        self.assertEqual(attributes["gen_ai.usage.input_tokens"], 0)
+        self.assertNotIn("gen_ai.usage.input_tokens", attributes)
+        self.assertNotIn("gen_ai.usage.output_tokens", attributes)
         self.assertNotIn("vendor.debug", attributes)
 
-    def test_default_adapter_requires_explicit_operation(self) -> None:
+    def test_default_adapter_keeps_standard_fields_without_operation(self) -> None:
         cases = {
             "gen_ai.agent.id": "agent-1",
             "gen_ai.agent.name": "math-agent",
@@ -138,21 +124,50 @@ class AdapterTests(TestCase):
                 span = agentlens_span(f"{index:016x}")
                 span["span_name"] = "generic-span"
                 span["attributes"] = {field: value}
-                trace = adapt_trace([span], trace_id=TRACE_ID)
-                self.assertEqual(trace["spans"], [])
-                self.assertFalse(trace["classification"]["is_agent_trace"])
+                spans = adapt_spans([span])
+                self.assertEqual(len(spans), 1)
+                self.assertEqual(spans[0]["attributes"], {field: value})
 
-    def test_default_adapter_does_not_invent_tool_type(self) -> None:
-        span = agentlens_span()
-        span["span_name"] = "execute add"
-        span["attributes"] = {
+    def test_adapters_do_not_invent_tool_type(self) -> None:
+        default = agentlens_span("1" * 16)
+        default["span_name"] = "execute add"
+        default["attributes"] = {
             "gen_ai.operation.name": "execute_tool",
             "gen_ai.tool.name": "add",
         }
 
-        attributes = adapt_trace([span], trace_id=TRACE_ID)["spans"][0]["attributes"]
+        agentlens = agentlens_span("2" * 16)
+        agentlens["span_name"] = "add.TOOL"
+        agentlens["attributes"] = {
+            "gen_ai.span.kind": "TOOL",
+            "gen_ai.operation.name": "execute_tool",
+            "gen_ai.tool.name": "add",
+        }
 
-        self.assertNotIn("gen_ai.tool.type", attributes)
+        galileo = agentlens_span("3" * 16)
+        galileo["span_name"] = "execute_tool"
+        galileo["resource"]["telemetry.sdk.name"] = "galileo"
+        galileo["attributes"] = {
+            "gen_ai.operation.name": "execute_tool",
+            "gen_ai.tool.name": "add",
+        }
+
+        for product, span in (("default", default), ("agentlens", agentlens), ("galileo", galileo)):
+            with self.subTest(product=product):
+                self.assertNotIn("gen_ai.tool.type", adapt_spans([span])[0]["attributes"])
+
+    def test_explicit_tool_type_is_preserved(self) -> None:
+        span = agentlens_span()
+        span["attributes"].update(
+            {
+                "gen_ai.span.kind": "TOOL",
+                "gen_ai.operation.name": "execute_tool",
+                "gen_ai.tool.name": "knowledge",
+                "gen_ai.tool.type": "datastore",
+            }
+        )
+
+        self.assertEqual(adapt_spans([span])[0]["attributes"]["gen_ai.tool.type"], "datastore")
 
     def test_open_operation_is_preserved_and_status_is_not_inferred(self) -> None:
         span = agentlens_span()
@@ -160,7 +175,7 @@ class AdapterTests(TestCase):
         span["attributes"] = {"gen_ai.operation.name": "vendor.magic"}
         span["status"] = {"code": 1, "message": ""}
 
-        attributes = adapt_trace([span], trace_id=TRACE_ID)["spans"][0]["attributes"]
+        attributes = adapt_spans([span])[0]["attributes"]
 
         self.assertEqual(attributes["gen_ai.operation.name"], "vendor.magic")
         self.assertNotIn("gen_ai.response.status", attributes)
@@ -168,11 +183,11 @@ class AdapterTests(TestCase):
     def test_explicit_response_status_is_preserved(self) -> None:
         span = agentlens_span()
         span["attributes"]["gen_ai.response.status"] = "in_progress"
-        attributes = adapt_trace([span], trace_id=TRACE_ID)["spans"][0]["attributes"]
+        attributes = adapt_spans([span])[0]["attributes"]
         self.assertEqual(attributes["gen_ai.response.status"], "in_progress")
 
     def test_standard_span_does_not_expose_adapter_metadata(self) -> None:
-        span = adapt_trace([agentlens_span()], trace_id=TRACE_ID)["spans"][0]
+        span = adapt_spans([agentlens_span()])[0]
         self.assertEqual(
             set(span),
             {
@@ -196,104 +211,18 @@ class AdapterTests(TestCase):
         span["attributes"] = {"rpc.system": "trpc"}
         span["events"] = [{"name": "SENT", "attributes": {"message.detail": "opaque-rpc-body"}}]
 
-        trace = adapt_trace([span], trace_id=TRACE_ID)
+        self.assertEqual(adapt_spans([span]), [])
 
-        self.assertEqual(trace["spans"], [])
-        self.assertFalse(trace["classification"]["is_gen_ai_trace"])
-
-    def test_trace_without_agent_features_is_not_agent(self) -> None:
+    def test_non_ai_span_is_dropped(self) -> None:
         span = agentlens_span()
         span["span_name"] = "GET /healthz"
         span["attributes"] = {"http.request.method": "GET"}
-        trace = adapt_trace([span], trace_id=TRACE_ID)
-        self.assertFalse(trace["classification"]["is_agent_trace"])
-        self.assertFalse(trace["classification"]["has_decision_loop"])
-        self.assertEqual(trace["spans"], [])
+        self.assertEqual(adapt_spans([span]), [])
 
-    def test_async_tool_poll_is_debuggable_but_not_a_conversation(self) -> None:
-        trace_id = "e" * 32
-        trace = adapt_trace([seedance_poll_span(trace_id=trace_id)], trace_id=trace_id)
-
-        self.assertTrue(trace["classification"]["is_gen_ai_trace"])
-        self.assertTrue(trace["classification"]["is_agent_trace"])
-        self.assertFalse(trace["classification"]["is_conversation_trace"])
-        step = trace["spans"][0]
+    def test_async_tool_poll_is_kept_as_tool(self) -> None:
+        step = adapt_spans([seedance_poll_span()])[0]
         self.assertEqual(step["attributes"]["gen_ai.operation.name"], "execute_tool")
         self.assertNotIn("correlation", step)
-
-    def test_llm_step_is_a_conversation(self) -> None:
-        trace = adapt_trace([agentlens_span()], trace_id=TRACE_ID)
-        self.assertTrue(trace["classification"]["is_conversation_trace"])
-
-    def test_raw_debug_payload_preserves_values(self) -> None:
-        span = agentlens_span()
-        span["resource"].update(
-            {
-                "api_key": "resource-secret",
-                "clientSecret": "visible-client-secret",
-                "safe.resource": "visible",
-            }
-        )
-        span["attributes"].update(
-            {
-                "http.request.header.authorization": "Bearer attribute-secret",
-                "authorizationHeader": "visible-authorization-header",
-                "passwordHash": "visible-password-hash",
-                "token": "plain-token-secret",
-                "client_token": "client-token-secret",
-                "accessTokens": "visible-access-tokens",
-                "gen_ai.usage.input_tokens": 10,
-                "gen_ai.usage.output_tokens": 3,
-                "http.request.headers": {
-                    "cookie": "session=attribute-secret",
-                    "x-request-id": "visible-request",
-                },
-            }
-        )
-        span["events"] = [
-            {
-                "name": "debug",
-                "timestamp": span["start_time"],
-                "attributes": {
-                    "session_token": "event-secret",
-                    "secretKey": "visible-secret-key",
-                    "safe.event": "visible-event",
-                },
-            }
-        ]
-
-        trace = adapt_trace(
-            [span],
-            trace_id=TRACE_ID,
-            include_content=True,
-            include_raw=True,
-        )
-        raw = trace["raw_spans"][0]
-
-        self.assertEqual(raw["resource"]["api_key"], "resource-secret")
-        self.assertEqual(raw["resource"]["clientSecret"], "visible-client-secret")
-        self.assertEqual(raw["attributes"]["http.request.header.authorization"], "Bearer attribute-secret")
-        self.assertEqual(raw["attributes"]["token"], "plain-token-secret")
-        self.assertEqual(raw["attributes"]["client_token"], "client-token-secret")
-        self.assertEqual(raw["attributes"]["authorizationHeader"], "visible-authorization-header")
-        self.assertEqual(raw["attributes"]["passwordHash"], "visible-password-hash")
-        self.assertEqual(raw["attributes"]["accessTokens"], "visible-access-tokens")
-        self.assertEqual(raw["attributes"]["http.request.headers"]["cookie"], "session=attribute-secret")
-        self.assertEqual(raw["attributes"]["gen_ai.usage.input_tokens"], 10)
-        self.assertEqual(raw["attributes"]["gen_ai.usage.output_tokens"], 3)
-        self.assertEqual(raw["events"][0]["attributes"]["session_token"], "event-secret")
-        self.assertEqual(raw["events"][0]["attributes"]["secretKey"], "visible-secret-key")
-        serialized = json.dumps(raw)
-        for value in (
-            "resource-secret",
-            "attribute-secret",
-            "event-secret",
-            "plain-token-secret",
-            "client-token-secret",
-        ):
-            self.assertIn(value, serialized)
-        self.assertIn("visible-request", serialized)
-        self.assertIn("visible-event", serialized)
 
     def test_standard_span_uses_standard_envelope_and_full_resource(self) -> None:
         span = agentlens_span()
@@ -313,8 +242,7 @@ class AdapterTests(TestCase):
             }
         ]
 
-        trace = adapt_trace([span], trace_id=TRACE_ID, include_content=True)
-        step = trace["spans"][0]
+        step = adapt_spans([span])[0]
 
         self.assertEqual(step["span_id"], SPAN_ID)
         self.assertEqual(step["parent_span_id"], "c" * 16)
@@ -338,14 +266,95 @@ class AdapterTests(TestCase):
             {"name": "gen_ai.tool_response", "timestamp": 4, "attributes": {}},
         ]
 
-        trace = adapt_trace([span], trace_id=TRACE_ID, include_content=True)
-        step = trace["spans"][0]
+        step = adapt_spans([span])[0]
 
         self.assertEqual(step["attributes"]["gen_ai.operation.name"], "chat")
         self.assertNotIn("gen_ai.input.messages", step["attributes"])
         self.assertNotIn("gen_ai.output.messages", step["attributes"])
         self.assertNotIn("gen_ai.tool.call.arguments", step["attributes"])
         self.assertNotIn("gen_ai.tool.call.result", step["attributes"])
+
+    def test_galileo_event_handlers_cover_all_supported_content(self) -> None:
+        span = agentlens_span()
+        span["span_name"] = "invocation"
+        span["resource"] = {"telemetry.sdk.name": "galileo"}
+        span["attributes"] = {"gen_ai.operation.name": "invoke_agent"}
+        span["events"] = [
+            {
+                "name": "gen_ai.system.message",
+                "attributes": {"message.detail": '"system prompt"'},
+            },
+            {
+                "name": "gen_ai.user.message",
+                "attributes": {"message.detail": json.dumps({"role": "user", "content": "user message"})},
+            },
+            {
+                "name": "gen_ai.assistant.message",
+                "attributes": {"message.detail": json.dumps({"role": "assistant", "content": "assistant message"})},
+            },
+            {
+                "name": "gen_ai.tool.message",
+                "attributes": {
+                    "message.detail": json.dumps(
+                        {
+                            "role": "tool",
+                            "content": {"result": 3},
+                            "tool_call_id": "call-1",
+                        }
+                    )
+                },
+            },
+            {
+                "name": "gen_ai.invoke_agent_request",
+                "attributes": {"message.detail": json.dumps([{"role": "user", "content": "agent request"}])},
+            },
+            {
+                "name": "gen_ai.invoke_agent_response",
+                "attributes": {"message.detail": json.dumps({"role": "assistant", "content": "agent response"})},
+            },
+            {
+                "name": "gen_ai.tools",
+                "attributes": {"message.detail": json.dumps([{"name": "add", "parameters": {"type": "OBJECT"}}])},
+            },
+            {
+                "name": "gen_ai.tool_call_args",
+                "attributes": {"message.detail": '{"a":1,"b":2}'},
+            },
+            {
+                "name": "gen_ai.tool_response",
+                "attributes": {"message.detail": '{"result":3}'},
+            },
+            {
+                "name": "gen_ai.choice",
+                "attributes": {"message.detail": '{"ignored":true}'},
+            },
+            {
+                "name": "gen_ai.unknown",
+                "attributes": {"message.detail": '{"ignored":true}'},
+            },
+        ]
+
+        attributes = adapt_spans([span])[0]["attributes"]
+
+        self.assertEqual(
+            attributes["gen_ai.system_instructions"],
+            [{"type": "text", "content": "system prompt"}],
+        )
+        self.assertEqual(
+            [message["role"] for message in attributes["gen_ai.input.messages"]],
+            ["user", "assistant", "tool", "user"],
+        )
+        self.assertEqual(
+            attributes["gen_ai.output.messages"][0]["parts"][0]["content"],
+            "agent response",
+        )
+        self.assertEqual(attributes["gen_ai.tool.definitions"][0]["name"], "add")
+        self.assertEqual(
+            attributes["gen_ai.tool.definitions"][0]["parameters"]["type"],
+            "object",
+        )
+        self.assertEqual(attributes["gen_ai.tool.call.arguments"], {"a": 1, "b": 2})
+        self.assertEqual(attributes["gen_ai.tool.call.result"], {"result": 3})
 
     def test_normalized_content_preserves_values(self) -> None:
         span = agentlens_span()
@@ -364,8 +373,7 @@ class AdapterTests(TestCase):
             "tool.output": json.dumps({"secret_key": "result-leak", "value": "visible-result"}),
         }
 
-        trace = adapt_trace([span], trace_id=TRACE_ID, include_content=True, include_raw=True)
-        step = trace["spans"][0]
+        step = adapt_spans([span])[0]
         arguments = step["attributes"]["gen_ai.tool.call.arguments"]
         result = step["attributes"]["gen_ai.tool.call.result"]
 
@@ -387,8 +395,7 @@ class AdapterTests(TestCase):
             "input.value": "plain user question",
             "output.value": '"plain assistant answer"',
         }
-        trace = adapt_trace([root], trace_id=TRACE_ID, include_content=True)
-        attributes = trace["spans"][0]["attributes"]
+        attributes = adapt_spans([root])[0]["attributes"]
         self.assertEqual(
             attributes["gen_ai.input.messages"][0]["parts"][0]["content"],
             "plain user question",
@@ -397,23 +404,21 @@ class AdapterTests(TestCase):
             attributes["gen_ai.output.messages"][0]["parts"][0]["content"],
             "plain assistant answer",
         )
-        self.assertEqual(trace["trace_io"]["source"], "reported")
-
         llm = agentlens_span()
         llm["attributes"]["gen_ai.response.time_to_first_chunk"] = 0.125
-        llm_trace = adapt_trace([llm], trace_id=TRACE_ID)
+        converted_llm = adapt_spans([llm])[0]
         self.assertEqual(
-            llm_trace["spans"][0]["attributes"]["gen_ai.response.time_to_first_chunk"],
+            converted_llm["attributes"]["gen_ai.response.time_to_first_chunk"],
             0.125,
         )
 
-    def test_current_galileo_operations_flat_events_and_cache_alias(self) -> None:
+    def test_galileo_keeps_nested_agent_spans_and_normalizes_events(self) -> None:
         current_spans = (
             ("invocation", "invoke_agent", "invoke_agent"),
             ("agent_run [math_agent]", "invoke_agent", "invoke_agent"),
             ("call_llm", "chat", "chat"),
         )
-        # invocation 与 agent_run 都是 invoke_agent；有真实父子关系时由 Trace 层合并。
+        # invocation 与 agent_run 即使有真实父子关系也分别保留。
         spans = []
         for index, (span_name, operation, _) in enumerate(current_spans, 1):
             span = {
@@ -427,6 +432,10 @@ class AdapterTests(TestCase):
                 "resource.telemetry.sdk.name": "galileo",
                 "attributes.gen_ai.operation.name": operation,
             }
+            if span_name.startswith("agent_run"):
+                span["parent_span_id"] = f"{1:016x}"
+            elif span_name == "call_llm":
+                span["parent_span_id"] = f"{2:016x}"
             if span_name == "call_llm":
                 span.update(
                     {
@@ -443,13 +452,17 @@ class AdapterTests(TestCase):
                     }
                 )
             spans.append(span)
-        trace = adapt_trace(spans, trace_id=TRACE_ID, include_content=True)
-        operations = {step["span_name"]: step["attributes"]["gen_ai.operation.name"] for step in trace["spans"]}
+        converted = adapt_spans(spans)
+        operations = {step["span_name"]: step["attributes"]["gen_ai.operation.name"] for step in converted}
         self.assertEqual(
             operations,
             {span_name: expected for span_name, _, expected in current_spans},
         )
-        llm = next(step for step in trace["spans"] if step["attributes"]["gen_ai.operation.name"] == "chat")
+        by_name = {step["span_name"]: step for step in converted}
+        self.assertEqual(len(converted), 3)
+        self.assertEqual(by_name["agent_run [math_agent]"]["parent_span_id"], f"{1:016x}")
+        self.assertEqual(by_name["call_llm"]["parent_span_id"], f"{2:016x}")
+        llm = next(step for step in converted if step["attributes"]["gen_ai.operation.name"] == "chat")
         self.assertEqual(llm["attributes"]["gen_ai.usage.cache_read.input_tokens"], 3)
         self.assertEqual(llm["attributes"]["gen_ai.usage.cache_creation.input_tokens"], 2)
         # 第一版明确丢弃 gen_ai.choice，不从它生成 output/finish_reason。
@@ -468,14 +481,32 @@ class AdapterTests(TestCase):
             "gen_ai.usage.reasoning_tokens": 3,
         }
 
-        attributes = adapt_trace([span], trace_id=TRACE_ID)["spans"][0]["attributes"]
+        attributes = adapt_spans([span])[0]["attributes"]
 
         self.assertNotIn("gen_ai.request.stream", attributes)
         self.assertNotIn("gen_ai.response.time_to_first_chunk", attributes)
         self.assertNotIn("gen_ai.usage.cached.input_tokens", attributes)
         self.assertEqual(attributes["gen_ai.usage.reasoning.output_tokens"], 3)
 
-    def test_agent_context_inheritance_is_limited_to_galileo_chat(self) -> None:
+    def test_galileo_does_not_copy_request_model_to_response_model(self) -> None:
+        span = agentlens_span()
+        span["span_name"] = "call_llm"
+        span["resource"] = {"telemetry.sdk.name": "galileo"}
+        span["attributes"] = {
+            "gen_ai.operation.name": "chat",
+            "gen_ai.request.model": "requested-model",
+        }
+
+        attributes = adapt_spans([span])[0]["attributes"]
+
+        self.assertEqual(attributes["gen_ai.request.model"], "requested-model")
+        self.assertNotIn("gen_ai.response.model", attributes)
+
+        span["attributes"]["gen_ai.response.model"] = "actual-model"
+        attributes = adapt_spans([span])[0]["attributes"]
+        self.assertEqual(attributes["gen_ai.response.model"], "actual-model")
+
+    def test_trace_does_not_copy_agent_context_between_spans(self) -> None:
         parent = agentlens_span("1" * 16)
         parent["span_name"] = "invoke_agent"
         parent["resource"] = {"telemetry.sdk.name": "galileo"}
@@ -496,22 +527,126 @@ class AdapterTests(TestCase):
             "gen_ai.tool.name": "add",
         }
 
-        trace = adapt_trace([parent, chat, tool], trace_id=TRACE_ID)
-        spans = {span["span_id"]: span for span in trace["spans"]}
+        spans = {span["span_id"]: span for span in adapt_spans([parent, chat, tool])}
 
-        self.assertEqual(
-            spans[chat["span_id"]]["attributes"]["gen_ai.conversation.id"],
-            "conversation-1",
-        )
-        self.assertEqual(spans[chat["span_id"]]["attributes"]["user.id"], "user-1")
+        self.assertNotIn("gen_ai.conversation.id", spans[chat["span_id"]]["attributes"])
+        self.assertNotIn("user.id", spans[chat["span_id"]]["attributes"])
         self.assertNotIn("gen_ai.conversation.id", spans[tool["span_id"]]["attributes"])
         self.assertNotIn("user.id", spans[tool["span_id"]]["attributes"])
 
-        parent["resource"] = {"telemetry.sdk.name": "opentelemetry"}
-        default_trace = adapt_trace([parent, chat], trace_id=TRACE_ID)
-        default_chat = next(span for span in default_trace["spans"] if span["span_id"] == chat["span_id"])
-        self.assertNotIn("gen_ai.conversation.id", default_chat["attributes"])
-        self.assertNotIn("user.id", default_chat["attributes"])
+    def test_trace_does_not_backfill_tool_call_id(self) -> None:
+        llm = agentlens_span("1" * 16)
+        llm["span_name"] = "chat"
+        llm["parent_span_id"] = "f" * 16
+        llm["attributes"] = {
+            "gen_ai.operation.name": "chat",
+            "gen_ai.output.messages": [
+                {
+                    "role": "assistant",
+                    "parts": [
+                        {
+                            "type": "tool_call",
+                            "id": "call-1",
+                            "name": "add",
+                            "arguments": {"a": 1, "b": 2},
+                        }
+                    ],
+                }
+            ],
+        }
+        tool = agentlens_span("2" * 16)
+        tool["span_name"] = "tool"
+        tool["parent_span_id"] = "f" * 16
+        tool["start_time"] = llm["start_time"] + 1
+        tool["attributes"] = {
+            "gen_ai.operation.name": "execute_tool",
+            "gen_ai.tool.name": "add",
+        }
+
+        converted = adapt_spans([llm, tool])
+        converted_tool = next(span for span in converted if span["span_id"] == tool["span_id"])
+
+        self.assertNotIn("gen_ai.tool.call.id", converted_tool["attributes"])
+
+    def test_standard_message_parts_win_over_legacy_fields(self) -> None:
+        span = agentlens_span()
+        span["span_name"] = "chat"
+        span["attributes"] = {
+            "gen_ai.operation.name": "chat",
+            "gen_ai.output.messages": [
+                {
+                    "role": "assistant",
+                    "content": "legacy text",
+                    "parts": [
+                        {
+                            "type": "tool_call",
+                            "id": "canonical-call",
+                            "name": "canonical",
+                            "arguments": {},
+                        }
+                    ],
+                    "tool_calls": [
+                        {
+                            "id": "legacy-call",
+                            "name": "legacy",
+                            "arguments": {},
+                        }
+                    ],
+                }
+            ],
+        }
+
+        attributes = adapt_spans([span])[0]["attributes"]
+        parts = attributes["gen_ai.output.messages"][0]["parts"]
+
+        self.assertEqual(parts, [{"type": "tool_call", "id": "canonical-call", "name": "canonical", "arguments": {}}])
+
+    def test_standard_system_instructions_win_over_dialect_sources(self) -> None:
+        standard = [{"type": "text", "content": "standard"}]
+
+        default = agentlens_span("1" * 16)
+        default["span_name"] = "chat"
+        default["attributes"] = {
+            "gen_ai.operation.name": "chat",
+            "gen_ai.system_instructions": standard,
+            "gen_ai.input.messages": [{"role": "system", "parts": [{"type": "text", "content": "history"}]}],
+        }
+
+        agentlens = agentlens_span("2" * 16)
+        agentlens["attributes"] = {
+            "gen_ai.span.kind": "LLM",
+            "gen_ai.operation.name": "chat",
+            "gen_ai.system_instructions": standard,
+            "gen_ai.prompts.0.role": "system",
+            "gen_ai.prompts.0.content": "agentlens",
+        }
+
+        bkaidev = agentlens_span("3" * 16)
+        bkaidev["span_name"] = "chat_model.generate"
+        bkaidev["attributes"] = {
+            "gen_ai.system_instructions": standard,
+            "llm.input": '[{"type":"system","data":{"content":"bkaidev"}}]',
+        }
+
+        galileo = agentlens_span("4" * 16)
+        galileo["span_name"] = "call_llm"
+        galileo["resource"] = {"telemetry.sdk.name": "galileo"}
+        galileo["attributes"] = {
+            "gen_ai.operation.name": "chat",
+            "gen_ai.system_instructions": standard,
+        }
+        galileo["events"] = [
+            {
+                "name": "gen_ai.system.message",
+                "timestamp": 1,
+                "attributes": {"message.detail": '"galileo"'},
+            }
+        ]
+
+        for source in (default, agentlens, bkaidev, galileo):
+            with self.subTest(span_name=source["span_name"]):
+                attributes = adapt_spans([source])[0]["attributes"]
+                self.assertEqual(attributes["gen_ai.system_instructions"], standard)
 
     def test_bkaidev_llm_spans_are_not_deduplicated(self) -> None:
         base = agentlens_span()
@@ -545,22 +680,14 @@ class AdapterTests(TestCase):
             "span_name": "model.task",
             "attributes": {"traceloop.span.kind": "TASK"},
         }
-        trace = adapt_trace(
-            [business, traceloop, wrapper],
-            trace_id=TRACE_ID,
-            app_name="bkapp_ai0us0devops0us0agent_prod_3068",
-            include_content=True,
-        )
-        self.assertEqual(trace["summary"]["llm_count"], 2)
-        self.assertEqual(trace["summary"]["tool_count"], 0)
-        self.assertEqual(trace["summary"]["total_tokens"], 10)
-        self.assertEqual(trace["summary"]["span_count"], 2)
+        spans = adapt_spans([business, traceloop, wrapper])
+        self.assertEqual(len(spans), 2)
         self.assertEqual(
-            {span["span_id"] for span in trace["spans"]},
+            {span["span_id"] for span in spans},
             {"1" * 16, "2" * 16},
         )
 
-    def test_bkaidev_still_deduplicates_documented_workflow_and_tool_pairs(
+    def test_bkaidev_keeps_mappable_spans_without_type_classification(
         self,
     ) -> None:
         base = agentlens_span()
@@ -595,20 +722,17 @@ class AdapterTests(TestCase):
             },
         }
 
-        trace = adapt_trace(
-            [workflow, workflow_wrapper, tool, tool_wrapper],
-            trace_id=TRACE_ID,
-            app_name="bkapp_ai0us0devops0us0agent_prod_3068",
-        )
+        spans = adapt_spans([workflow, workflow_wrapper, tool, tool_wrapper])
 
-        self.assertEqual(trace["summary"]["span_count"], 2)
-        self.assertEqual(trace["summary"]["tool_count"], 1)
+        self.assertEqual(len(spans), 3)
         self.assertEqual(
-            {span["attributes"]["gen_ai.operation.name"] for span in trace["spans"]},
-            {"invoke_workflow", "execute_tool"},
+            {span["span_id"] for span in spans},
+            {"1" * 16, "3" * 16, "4" * 16},
         )
+        for span in spans:
+            self.assertNotIn("gen_ai.operation.name", span["attributes"])
 
-    def test_bkaidev_agent_execution_uses_the_shared_dialect(self) -> None:
+    def test_bkaidev_maps_agent_fields_without_inventing_operation(self) -> None:
         span = agentlens_span()
         span["span_name"] = "agent.execution"
         span["attributes"] = {
@@ -618,16 +742,11 @@ class AdapterTests(TestCase):
             "agent.status": "completed",
         }
 
-        trace = adapt_trace(
-            [span],
-            trace_id=TRACE_ID,
-            app_name="bkapp_ai0us0riot0us0pm_prod_2322",
-        )
+        spans = adapt_spans([span])
 
-        self.assertEqual(trace["summary"]["span_count"], 1)
-        self.assertTrue(trace["classification"]["is_agent_trace"])
-        agent = trace["spans"][0]
-        self.assertEqual(agent["attributes"]["gen_ai.operation.name"], "invoke_agent")
+        self.assertEqual(len(spans), 1)
+        agent = spans[0]
+        self.assertNotIn("gen_ai.operation.name", agent["attributes"])
         self.assertEqual(agent["attributes"]["gen_ai.agent.id"], "3129")
         self.assertEqual(agent["attributes"]["gen_ai.conversation.id"], "session-1")
 
@@ -677,18 +796,13 @@ class AdapterTests(TestCase):
             ),
         }
 
-        trace = adapt_trace(
-            [span],
-            trace_id=TRACE_ID,
-            app_name="bkapp_ai0us0devops0us0agent_prod_3068",
-            include_content=True,
-        )
-        step = trace["spans"][0]
+        spans = adapt_spans([span])
+        step = spans[0]
         inputs = step["attributes"]["gen_ai.input.messages"]
         output = step["attributes"]["gen_ai.output.messages"][0]
 
-        self.assertEqual(step["attributes"]["gen_ai.usage.input_tokens"], 0)
-        self.assertEqual(step["attributes"]["gen_ai.usage.output_tokens"], 0)
+        self.assertNotIn("gen_ai.usage.input_tokens", step["attributes"])
+        self.assertNotIn("gen_ai.usage.output_tokens", step["attributes"])
         self.assertEqual(
             [message["role"] for message in inputs],
             ["user", "assistant", "tool"],
