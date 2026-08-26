@@ -127,6 +127,29 @@ class TestSourceAnalysisMockOptions(SourceAnalysisMockTestMixin, SimpleTestCase)
             ],
         )
 
+    def test_mock_knowledge_base_falls_back_to_space_id(self):
+        """mock 与真实链路保持同一回退语义：空间不在可见列表时展示 space_id，而不是抛 KeyError。"""
+
+        orphan_knowledge_bases = (
+            {"id": "mock-kb-orphan", "name": "[Mock] 未知空间知识库", "space_id": "mock-space-unknown"},
+        )
+        with patch.object(SourceAnalysisUpstreamMock, "KNOWLEDGE_BASES", orphan_knowledge_bases):
+            result = ListSourceAnalysisKnowledgeBasesResource().perform_request(
+                {"bk_biz_id": 2, "keyword": "", "page": 1, "page_size": 20}
+            )
+
+        self.assertEqual(
+            result["list"],
+            [
+                {
+                    "id": "mock-kb-orphan",
+                    "name": "[Mock] 未知空间知识库",
+                    "space_id": "mock-space-unknown",
+                    "space_name": "mock-space-unknown",
+                }
+            ],
+        )
+
     def test_mock_resources_pass_the_same_enable_validation(self):
         rule = IssueSourceAnalysisRule(
             bk_biz_id=2,

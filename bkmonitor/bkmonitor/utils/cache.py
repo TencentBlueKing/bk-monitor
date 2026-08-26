@@ -307,6 +307,8 @@ class CacheType:
     CC_CACHE_ALWAYS = CacheTypeItem(key="cc_cache_always", timeout=60 * 60, user_related=False)
     HOME = CacheTypeItem(key="home", timeout=settings.CACHE_HOME_TIMEOUT, label="自愈统计数据相关", user_related=False)
     DEVOPS = CacheTypeItem(key="devops", timeout=60 * 5, label="蓝盾接口相关", user_related=False)
+    # AIDEV 资源按当前登录用户的 Access Token 过滤，缓存必须按用户隔离
+    AIDEV = CacheTypeItem(key="aidev", timeout=60 * 5, label="AIDEV 接口相关", user_related=True)
     GRAFANA = CacheTypeItem(key="grafana", timeout=60 * 5, label="仪表盘相关", user_related=False)
     SCENE_VIEW = CacheTypeItem(key="scene_view", timeout=60 * 1, label="观测场景相关", user_related=False)
     DB_CACHE = CacheTypeItem(key="db_cache", timeout=60 * 3, label="db缓存", user_related=False)

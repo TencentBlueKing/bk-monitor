@@ -49,6 +49,7 @@ from bkmonitor.models import (
     TapdWorkspaceManualUnbind,
 )
 from bkmonitor.models.issue import IssueMergeRelation, IssueTapdRelation
+from bkmonitor.utils.cache import CacheType, using_cache
 from bkmonitor.utils.event_related_info import get_alert_relation_info
 from bkmonitor.utils.request import get_request_username, get_request
 from bkmonitor.utils.tenant import space_uid_to_bk_tenant_id, bk_biz_id_to_bk_tenant_id
@@ -146,7 +147,12 @@ class SourceAnalysisBaseResource(Resource):
 
     @staticmethod
     def raise_upstream_unavailable(error: Exception) -> None:
-        logger.warning("Source analysis option upstream unavailable: %s", type(error).__name__)
+        # ValueError 由本模块对上游响应结构的断言抛出，message 是代码内常量，可安全落日志；
+        # 其余异常（如 BKAPIError）可能携带上游响应与鉴权信息，只记录类型名。
+        if isinstance(error, ValueError):
+            logger.warning("Source analysis option upstream unavailable: ValueError: %s", error)
+        else:
+            logger.warning("Source analysis option upstream unavailable: %s", type(error).__name__)
         raise SourceAnalysisUpstreamUnavailableError() from error
 
     @staticmethod
@@ -1624,7 +1630,14 @@ class BaseListSourceAnalysisAidevOptionsResource(SourceAnalysisBaseResource):
         raise NotImplementedError
 
     @staticmethod
-    def get_aidev_space_name_map() -> dict[str, str]:
+    @using_cache(CacheType.AIDEV)
+    def query_aidev_space_name_map() -> dict[str, str]:
+        """拉取当前用户可见空间的 ID 到名称映射。
+
+        空间是低频变化的用户态元数据，而 Agent、Skill 选择器的每次分页和搜索都需要它，
+        因此按用户维度短期缓存，避免每个选项请求都额外打一次 AIDEV。
+        """
+
         spaces = api.aidev.list_spaces()
         if not isinstance(spaces, list) or any(not isinstance(space, dict) for space in spaces):
             raise ValueError("invalid AIDEV space list")
@@ -1637,6 +1650,20 @@ class BaseListSourceAnalysisAidevOptionsResource(SourceAnalysisBaseResource):
                 raise ValueError("AIDEV space misses id or name")
             space_name_map[str(space_id)] = str(space_name)
         return space_name_map
+
+    @classmethod
+    def get_aidev_space_name_map(cls) -> dict[str, str]:
+        """空间名称只用于选择器展示，查询失败时返回空映射，由调用方回退到 space_id。
+
+        异常在这里消化而不是交给 query_aidev_space_name_map 缓存，
+        既保证 /spaces/ 抖动不会阻断资源列表，也不会把失败结果缓存下来。
+        """
+
+        try:
+            return cls.query_aidev_space_name_map()
+        except (BKAPIError, TypeError, ValueError) as error:
+            logger.warning("Source analysis AIDEV space name map degraded: %s", type(error).__name__)
+            return {}
 
     def perform_request(self, validated_request_data: dict) -> dict:
         # bk_biz_id 由 ViewSet 用于 BKM 业务权限校验；AIDEV 使用当前用户 Token 独立过滤资源权限。
@@ -1669,14 +1696,14 @@ class BaseListSourceAnalysisAidevOptionsResource(SourceAnalysisBaseResource):
             for item in items:
                 resource_id = item.get(self.id_field)
                 resource_name = item.get(self.name_field)
-                space_id = item.get("space_id")
-                if resource_id is None or not resource_name or space_id is None:
-                    raise ValueError("AIDEV resource misses id, name or space_id")
+                if resource_id is None or not resource_name:
+                    raise ValueError("AIDEV resource misses id or name")
 
-                normalized_space_id = str(space_id)
-                # 跨空间公开资源可能对当前用户可见，但其所属空间不在用户有权限的空间列表中。
-                # 此时保留资源，并使用 space_id 作为展示名称，避免空间名称补全失败影响整个选择器。
-                space_name = space_name_map.get(normalized_space_id, normalized_space_id)
+                # 空间字段只用于选择器展示，不进入规则保存协议，因此空间信息不完整时一律降级：
+                # 上游缺失 space_id，或资源属于当前用户无权限的空间（跨空间公开资源）导致名称补全失败，
+                # 都保留该资源并退化展示，不影响整个选择器可用性。
+                normalized_space_id = str(item.get("space_id") or "")
+                space_name = space_name_map.get(normalized_space_id) or normalized_space_id
                 options.append(
                     {
                         "id": str(resource_id),
