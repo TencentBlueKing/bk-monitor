@@ -17,7 +17,7 @@ from constants.apm import OperatorGroupRelation
 from constants.otel_query import OperatorEnum
 from rum_web.handlers.level.base import BaseRumLevelHandler
 from rum_web.handlers.query.span import SpanQuery
-from rum_web.constants import RUM_SEARCH_PAGE_GROUPS
+from rum_web.constants import RUM_SEARCH_PAGE_GROUPS, RumSpanType
 
 
 class SpanLevelHandler(BaseRumLevelHandler):
@@ -112,8 +112,8 @@ class SpanLevelHandler(BaseRumLevelHandler):
 
     def view_config(
         self,
-        start_time: int,
-        end_time: int,
+        start_time: int | None,
+        end_time: int | None,
         extra_config: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         field_map: dict[str, Any] = self.query.query_fields(start_time, end_time)
@@ -133,11 +133,13 @@ class SpanLevelHandler(BaseRumLevelHandler):
                 {
                     "name": group["name"],
                     "alias": group["alias"],
-                    "fields": [field_map[name] for name in group["field_names"] if name in field_map],
+                    "supported_span_types": group["supported_span_types"],
+                    "field_names": [name for name in group["field_names"] if name in field_map],
                 }
                 for group in RUM_SEARCH_PAGE_GROUPS.get("span", [])
             ],
             "display_fields": list(self.DISPLAY_FIELDS),
+            "span_type_display_fields": {span_type.value: span_type.display_fields for span_type in RumSpanType},
         }
 
     def get_fields_option_values(

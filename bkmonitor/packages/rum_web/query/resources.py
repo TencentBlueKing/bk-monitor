@@ -35,12 +35,13 @@ def _get_application(bk_biz_id: int, app_name: str) -> Application:
 
 
 def _build_data_sources(applications: list[Application]) -> list[TraceDatasourceTarget]:
-    """从授权后的应用构造数据源目标列表"""
+    """从授权后的应用构造数据源目标列表，并携带 retention 以支持时间窗口补齐"""
     return [
         TraceDatasourceTarget.build(
             bk_biz_id=app.bk_biz_id,
             app_name=app.app_name,
             table_id=app.span_result_table_id,
+            retention=app.retention_days,
         )
         for app in applications
     ]
@@ -71,7 +72,11 @@ class RumRecordsResource(Resource):
 
 
 class RumViewConfigResource(Resource):
-    """GET /rum/search/view_config/ — 获取页面视图配置"""
+    """GET /rum/search/view_config/ — 获取页面视图配置
+
+    视图配置是字段映射，与时间范围无关，时间范围交由查询层基于 retention 自动补齐，
+    避免切换时间选择器时因命中索引分片变化导致页面重新加载。
+    """
 
     RequestSerializer = RumViewConfigRequestSerializer
 
@@ -79,8 +84,8 @@ class RumViewConfigResource(Resource):
         application = _get_application(data["bk_biz_id"], data["app_name"])
         handler = RumLevelHandlerFactory.create(data["mode"], _build_data_sources([application]))
         return handler.view_config(
-            start_time=data["start_time"],
-            end_time=data["end_time"],
+            start_time=data.get("start_time"),
+            end_time=data.get("end_time"),
         )
 
 

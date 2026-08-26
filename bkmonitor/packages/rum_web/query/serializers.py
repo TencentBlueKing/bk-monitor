@@ -57,9 +57,13 @@ class BaseRumTimeRangeSerializer(BaseRumRequestSerializer):
 
 
 class RumViewConfigRequestSerializer(BaseRumTimeRangeSerializer):
-    """获取页面视图配置"""
+    """获取页面视图配置
 
-    pass
+    start_time / end_time 允许不传：未传时由查询层基于数据保留期自动补齐时间窗口。
+    """
+
+    start_time = serializers.IntegerField(label=_("开始时间"), required=False)
+    end_time = serializers.IntegerField(label=_("结束时间"), required=False)
 
 
 class BaseRumSearchSerializer(BaseRumTimeRangeSerializer):
