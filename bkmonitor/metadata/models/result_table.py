@@ -573,11 +573,27 @@ class ResultTable(models.Model):
     def delete_datalink(self) -> None:
         """删除数据链路及对应的关联记录"""
         from metadata.models.data_link.data_link import DataLink
+        from metadata.models.vm.record import AccessVMRecord
+
+        data_source_ids = DataSourceResultTable.objects.filter(
+            bk_tenant_id=self.bk_tenant_id,
+            table_id=self.table_id,
+        ).values_list("bk_data_id", flat=True)
+        is_custom_format = DataSource.objects.filter(
+            bk_tenant_id=self.bk_tenant_id,
+            bk_data_id__in=data_source_ids,
+            etl_config=EtlConfigs.BK_CUSTOM_FORMAT.value,
+        ).exists()
 
         # 查询结果表对应的Datalink
         records = BkBaseResultTable.objects.filter(bk_tenant_id=self.bk_tenant_id, monitor_table_id=self.table_id)
         if not records:
             logger.info("delete_datalink: tenant(%s) %s no bkbase record found", self.bk_tenant_id, self.table_id)
+            if is_custom_format:
+                AccessVMRecord.objects.filter(
+                    bk_tenant_id=self.bk_tenant_id,
+                    result_table_id=self.table_id,
+                ).delete()
             return
 
         # 删除数据链路及对应的关联记录
@@ -586,13 +602,23 @@ class ResultTable(models.Model):
             datalink = DataLink.objects.filter(bk_tenant_id=self.bk_tenant_id, data_link_name=data_link_name).first()
             if datalink:
                 datalink.delete_data_link()
-            record.status = DataLinkResourceStatus.TERMINATING.value
-            record.save()
+            if is_custom_format:
+                record.delete()
+            else:
+                record.status = DataLinkResourceStatus.TERMINATING.value
+                record.save()
+
+        if is_custom_format:
+            AccessVMRecord.objects.filter(
+                bk_tenant_id=self.bk_tenant_id,
+                result_table_id=self.table_id,
+            ).delete()
 
     def apply_datalink(self, force_update: bool = False, delay: bool = True) -> None:
         """创建数据链路"""
         from metadata.models.space.constants import ENABLE_V4_DATALINK_ETL_CONFIGS
         from metadata.task.datalink import (
+            apply_custom_format_datalink,
             apply_event_group_datalink,
             apply_graph_relation_v4_datalink,
             apply_log_datalink,
@@ -610,6 +636,33 @@ class ResultTable(models.Model):
 
         # 获取目标业务ID
         target_bk_biz_id = self.get_target_bk_biz_id()
+
+        if datasource.etl_config == EtlConfigs.BK_CUSTOM_FORMAT.value:
+            enable_option_name = ResultTableOption.OPTION_ENABLE_CUSTOM_FORMAT_V4_DATA_LINK
+            if not options.get(enable_option_name, False):
+                # 未配置开关不申请；显式关闭时清理该 ResultTable 派生的全部运行态资源。
+                if enable_option_name in options:
+                    self.delete_datalink()
+                return
+            if ResultTableOption.OPTION_CUSTOM_FORMAT_V4_DATA_LINK not in options:
+                raise ValueError(_("开启自定义格式 V4 数据链路时必须配置 custom_format_v4_data_link"))
+            custom_option = CustomFormatV4DataLinkOption.from_option_value(
+                options[ResultTableOption.OPTION_CUSTOM_FORMAT_V4_DATA_LINK]
+            )
+            is_influxdb_vm_compatible = (
+                self.default_storage == ClusterInfo.TYPE_INFLUXDB
+                and custom_option.target_storage_type == ClusterInfo.TYPE_VM
+            )
+            if self.default_storage != custom_option.target_storage_type and not is_influxdb_vm_compatible:
+                raise ValueError(_("自定义格式 ResultTable 的 default_storage 必须与 target_storage_type 一致"))
+            if delay:
+                on_commit(
+                    func=lambda: apply_custom_format_datalink.delay(self.bk_tenant_id, self.table_id),
+                    using=config.DATABASE_CONNECTION_NAME,
+                )
+            else:
+                apply_custom_format_datalink(bk_tenant_id=self.bk_tenant_id, table_id=self.table_id)
+            return
 
         if ResultTableOption.OPTION_GRAPH_RELATION_V4_DATA_LINK in options:
             # Graph Relation V4 与日志链路一样由专用 option 独立选择。
@@ -705,6 +758,13 @@ class ResultTable(models.Model):
         default_storage_config: dict | None = None,
     ) -> None:
         """检测并创建存储"""
+
+        # 自定义格式 VM 目标只依赖已有的空间 VM 路由和集群，不创建 Metadata Storage 记录。
+        if (
+            self.default_storage == ClusterInfo.TYPE_VM
+            and self.get_related_datasource().etl_config == EtlConfigs.BK_CUSTOM_FORMAT.value
+        ):
+            return
 
         # 如果是influxdb类型的存储，并且禁止了influxdb存储，则不创建
         if self.default_storage == ClusterInfo.TYPE_INFLUXDB and not settings.ENABLE_INFLUXDB_STORAGE:
@@ -1303,12 +1363,20 @@ class ResultTable(models.Model):
         old_is_enable = self.is_enable
         old_active_cluster_id = self._get_storage_cluster_id(old_default_storage)
         old_es_cluster_id = self._get_storage_cluster_id(ClusterInfo.TYPE_ES)
+        is_custom_format = self.get_related_datasource().etl_config == EtlConfigs.BK_CUSTOM_FORMAT.value
 
         # 1. 判断是否需要修改中文名
         if table_name_zh is not None:
             self.table_name_zh = table_name_zh
 
         # 2. 判断是否需要修改默认的存储
+        if default_storage is not None:
+            if is_custom_format:
+                if default_storage != old_default_storage:
+                    raise ValueError(_("自定义格式 ResultTable 创建后不能修改目标存储，请创建新的 ResultTable"))
+                # 接受客户端回传未变化的 VM default_storage；它没有对应的 Storage 模型需要更新。
+                default_storage = None
+
         if default_storage is not None:
             # 判断该存储是否真实存在了
             try:
@@ -1490,6 +1558,18 @@ class ResultTable(models.Model):
 
         # 更新结果表option配置
         if option is not None:
+            existing_custom_option = ResultTableOption.objects.filter(
+                table_id=self.table_id,
+                bk_tenant_id=self.bk_tenant_id,
+                name=ResultTableOption.OPTION_CUSTOM_FORMAT_V4_DATA_LINK,
+            ).first()
+            new_custom_option_value = option.get(ResultTableOption.OPTION_CUSTOM_FORMAT_V4_DATA_LINK)
+            if existing_custom_option and new_custom_option_value is not None:
+                old_custom_config = CustomFormatV4DataLinkOption.from_option_value(existing_custom_option.get_value())
+                new_custom_config = CustomFormatV4DataLinkOption.from_option_value(new_custom_option_value)
+                if old_custom_config.target_storage_type != new_custom_config.target_storage_type:
+                    raise ValueError(_("自定义格式 ResultTable 创建后不能修改 target_storage_type"))
+
             # 检查ENABLE_FIELD_BLACK_LIST是否需要更新，如果需要更新，则需要强制更新数据链路
             modify_enable_field_black_list_option_value = option.get(ResultTableOption.OPTION_ENABLE_FIELD_BLACK_LIST)
             enable_field_black_list_option = ResultTableOption.objects.filter(
@@ -3056,6 +3136,45 @@ class LogV4DataLinkOption(pydantic.BaseModel):
         return self
 
 
+class CustomFormatV4DataLinkOption(pydantic.BaseModel):
+    """自定义格式数据链路配置；一个 ResultTable 只允许写入一个目标存储。"""
+
+    class ESStorageConfig(LogV4DataLinkOption.ESStorageConfig):
+        pass
+
+    class DorisStorageConfig(LogV4DataLinkOption.DorisStorageConfig):
+        pass
+
+    class CleanRule(LogV4DataLinkOption.CleanRule):
+        pass
+
+    target_storage_type: Literal["victoria_metrics", "elasticsearch", "doris"]
+    clean_rules: list[CleanRule] = pydantic.Field(min_length=1, description="清洗规则")
+    filter_rules: str | dict[str, Any] = pydantic.Field(default="True", description="BKBase RelExpr 过滤规则")
+    es_storage_config: ESStorageConfig | None = None
+    doris_storage_config: DorisStorageConfig | None = None
+
+    @classmethod
+    def from_option_value(cls, value: Any) -> Self:
+        if isinstance(value, str):
+            value = json.loads(value)
+        if not isinstance(value, dict):
+            raise TypeError(_("自定义格式数据链路配置必须是对象"))
+        return cls(**value)
+
+    @pydantic.model_validator(mode="after")
+    def validate_storage_config(self) -> Self:
+        if self.target_storage_type == ClusterInfo.TYPE_ES and self.es_storage_config is None:
+            raise ValueError(_("Elasticsearch 目标必须配置 es_storage_config"))
+        if self.target_storage_type == ClusterInfo.TYPE_DORIS and self.doris_storage_config is None:
+            raise ValueError(_("Doris 目标必须配置 doris_storage_config"))
+        if self.target_storage_type != ClusterInfo.TYPE_ES and self.es_storage_config is not None:
+            raise ValueError(_("非 Elasticsearch 目标不能配置 es_storage_config"))
+        if self.target_storage_type != ClusterInfo.TYPE_DORIS and self.doris_storage_config is not None:
+            raise ValueError(_("非 Doris 目标不能配置 doris_storage_config"))
+        return self
+
+
 class GraphRelationV4DataLinkOption(pydantic.BaseModel):
     """Graph Relation V4 数据链路写入目标。"""
 
@@ -3110,6 +3229,8 @@ class ResultTableOption(OptionBase):
     OPTION_ENABLE_PLUGIN_V4_DATA_LINK = "enable_plugin_v4_data_link"
     OPTION_ENABLE_DATA_LINK_COMPONENT_REUSE = "enable_data_link_component_reuse"
     OPTION_GRAPH_RELATION_V4_DATA_LINK = "graph_relation_v4_data_link"
+    OPTION_ENABLE_CUSTOM_FORMAT_V4_DATA_LINK = "enable_custom_format_v4_data_link"
+    OPTION_CUSTOM_FORMAT_V4_DATA_LINK = "custom_format_v4_data_link"
     OPTION_BINDING_BCS_CLUSTER_ID = "binding_bcs_cluster_id"
     OPTION_METRIC_GROUP_DIMENSIONS = "metric_group_dimensions"
     OPTION_QUERY_ROUTER_CONFIG = "query_router_config"
@@ -3140,6 +3261,8 @@ class ResultTableOption(OptionBase):
             (OPTION_IS_VIRTUAL_TABLE, _("是否为虚拟结果表")),
             (OPTION_ENABLE_DATA_LINK_COMPONENT_REUSE, _("是否开启DataLink组件复用")),
             (OPTION_GRAPH_RELATION_V4_DATA_LINK, _("Graph Relation V4 数据链路配置")),
+            (OPTION_ENABLE_CUSTOM_FORMAT_V4_DATA_LINK, _("是否开启自定义格式 V4 数据链路")),
+            (OPTION_CUSTOM_FORMAT_V4_DATA_LINK, _("自定义格式 V4 数据链路配置")),
             (OPTION_BINDING_BCS_CLUSTER_ID, _("绑定BCS集群ID")),
         ),
         max_length=128,

@@ -38,6 +38,7 @@ class DataLinkResourceConfigBase(models.Model):
     CONFIG_KIND_CHOICES = (
         (DataLinkKind.DATAID.value, "数据源"),
         (DataLinkKind.RESULTTABLE.value, "结果表"),
+        (DataLinkKind.CHANNELBINDING.value, "结果表通道绑定"),
         (DataLinkKind.VMSTORAGEBINDING.value, "存储配置"),
         (DataLinkKind.SURREALDBBINDING.value, "SurrealDB绑定"),
         (DataLinkKind.DATABUS.value, "清洗任务"),
@@ -304,6 +305,46 @@ class ResultTableConfig(DataLinkResourceConfigBase):
             render_params=render_params,
             err_msg_prefix="compose bkdata es table_id config",
         )
+
+
+class ChannelBindingConfig(DataLinkResourceConfigBase):
+    """BKBase ResultTable 与 Inner KafkaChannel 的绑定配置。"""
+
+    kind = DataLinkKind.CHANNELBINDING.value
+    name = models.CharField(verbose_name="通道绑定名称", max_length=64, db_index=True)
+    bkbase_result_table_name = models.CharField(verbose_name="BKBase结果表名称", max_length=255)
+    channel_name = models.CharField(verbose_name="Inner KafkaChannel名称", max_length=255)
+
+    class Meta:
+        verbose_name = "结果表通道绑定配置"
+        verbose_name_plural = verbose_name
+        unique_together = (("bk_tenant_id", "namespace", "name"),)
+
+    def compose_config(self) -> dict[str, Any]:
+        data = {
+            "kind": DataLinkKind.RESULTTABLE.value,
+            "namespace": self.namespace,
+            "name": self.bkbase_result_table_name,
+        }
+        channel = {
+            "kind": DataLinkKind.KAFKACHANNEL.value,
+            "namespace": self.namespace,
+            "name": self.channel_name,
+        }
+        metadata: dict[str, Any] = {
+            "name": self.name,
+            "namespace": self.namespace,
+            "labels": {"bk_biz_id": str(self.datalink_biz_ids.label_biz_id)},
+        }
+        if settings.ENABLE_MULTI_TENANT_MODE:
+            metadata["tenant"] = self.bk_tenant_id
+            data["tenant"] = self.bk_tenant_id
+            channel["tenant"] = self.bk_tenant_id
+        return {
+            "kind": self.kind,
+            "metadata": metadata,
+            "spec": {"data": data, "channel": channel},
+        }
 
 
 class ESStorageBindingConfig(DataLinkResourceConfigBase):
@@ -598,6 +639,9 @@ class DataBusConfig(DataLinkResourceConfigBase):
     sink_names = models.JSONField(verbose_name="处理配置列表", default=list, help_text="格式为kind:name，便于检索")
     consumer_group = models.CharField(verbose_name="Consumer Group", max_length=255, default="", blank=True)
     data_link_strategy = models.CharField(verbose_name="数据链路策略标记", max_length=64, default="", blank=True)
+    source_kind = models.CharField(verbose_name="源资源类型", max_length=64, default=DataLinkKind.DATAID.value)
+    source_name = models.CharField(verbose_name="源资源名称", max_length=64, default="", blank=True)
+    role = models.CharField(verbose_name="Databus角色", max_length=32, default="main", blank=True)
 
     class Meta:
         verbose_name = "清洗任务配置"
@@ -672,8 +716,8 @@ class DataBusConfig(DataLinkResourceConfigBase):
                 "sinks": {{sinks}},
                 "sources": [
                     {
-                        "kind": "DataId",
-                        "name": "{{data_id_name}}",
+                        "kind": "{{source_kind}}",
+                        "name": "{{source_name}}",
                         {% if tenant %}
                         "tenant": "{{ tenant }}",
                         {% endif %}
@@ -700,7 +744,8 @@ class DataBusConfig(DataLinkResourceConfigBase):
             "bk_biz_id": self.datalink_biz_ids.label_biz_id,
             "sinks": json.dumps(sinks),
             "sink_name": self.name,
-            "data_id_name": self.data_id_name,
+            "source_kind": self.source_kind or DataLinkKind.DATAID.value,
+            "source_name": self.source_name or self.data_id_name,
             "transforms": json.dumps(transforms),
             "maintainers": json.dumps(maintainer),
             "consumer_group": json.dumps(self.consumer_group) if self.consumer_group else None,
@@ -716,7 +761,12 @@ class DataBusConfig(DataLinkResourceConfigBase):
             err_msg_prefix="compose vm databus config",
         )
 
-    def compose_log_config(self, sinks: list[dict[str, Any]], rules: list[dict[str, Any]]) -> dict[str, Any]:
+    def compose_log_config(
+        self,
+        sinks: list[dict[str, Any]],
+        rules: list[dict[str, Any]],
+        filter_rules: list[dict[str, Any]] | None = None,
+    ) -> dict[str, Any]:
         """
         常规日志清洗总线配置
         """
@@ -741,8 +791,8 @@ class DataBusConfig(DataLinkResourceConfigBase):
                 "sinks": {{sinks}},
                 "sources": [
                     {
-                        "kind": "DataId",
-                        "name": "{{data_id_name}}",
+                        "kind": "{{source_kind}}",
+                        "name": "{{source_name}}",
                         {% if tenant %}
                         "tenant": "{{ tenant }}",
                         {% endif %}
@@ -753,7 +803,7 @@ class DataBusConfig(DataLinkResourceConfigBase):
                     {
                         "kind": "Clean",
                         "rules": {{rules}},
-                        "filter_rules": "True",
+                        "filter_rules": {{filter_rules}},
                         "context_map": {
                             "use_default_value": "__parse_failure"
                         }
@@ -770,7 +820,9 @@ class DataBusConfig(DataLinkResourceConfigBase):
             "maintainers": json.dumps(maintainer),
             "sinks": json.dumps(sinks),
             "rules": json.dumps(rules),
-            "data_id_name": self.data_id_name,
+            "source_kind": self.source_kind or DataLinkKind.DATAID.value,
+            "source_name": self.source_name or self.data_id_name,
+            "filter_rules": json.dumps(filter_rules if filter_rules is not None else "True"),
             "consumer_group": json.dumps(self.consumer_group) if self.consumer_group else None,
         }
 
@@ -1582,6 +1634,7 @@ class LogResultTableConfig(DataLinkResourceConfigBase):
 COMPONENT_CLASS_MAP: dict[str, type[DataLinkResourceConfigBase]] = {
     DataLinkKind.DATAID.value: DataIdConfig,
     DataLinkKind.RESULTTABLE.value: ResultTableConfig,
+    DataLinkKind.CHANNELBINDING.value: ChannelBindingConfig,
     DataLinkKind.VMSTORAGEBINDING.value: VMStorageBindingConfig,
     DataLinkKind.ESSTORAGEBINDING.value: ESStorageBindingConfig,
     DataLinkKind.DORISBINDING.value: DorisStorageBindingConfig,

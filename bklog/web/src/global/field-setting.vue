@@ -174,8 +174,10 @@
               :extract-method="cleanType"
               :fields="originBuiltFields"
               :is-preview-mode="!isEdit"
+              :is-template-bound="formData.clean_template_id != null"
               :original-text-tokenize-on-chars="defaultParticipleStr"
               :table-type="'originLog'"
+              @unbind-template="handleUnbindTemplate"
             >
             </setting-table>
             <div
@@ -198,8 +200,10 @@
               :extract-method="cleanType"
               :fields="tableField"
               :is-preview-mode="!isEdit"
+              :is-template-bound="formData.clean_template_id != null"
               :original-text-tokenize-on-chars="defaultParticipleStr"
               :table-type="'indexLog'"
+              @unbind-template="handleUnbindTemplate"
             >
             </setting-table>
             <div
@@ -274,6 +278,7 @@
     storage_display_name: '',
     storage_cluster_id: '',
     retention: '',
+    clean_template_id: null,
     etl_params: {
       retain_original_text: false,
       original_text_tokenize_on_chars: '',
@@ -449,6 +454,10 @@
     });
   };
 
+  const handleUnbindTemplate = () => {
+    formData.value.clean_template_id = null;
+  };
+
   const handleOpenSidebar = async () => {
     showSlider.value = true;
     sliderLoading.value = true;
@@ -569,6 +578,7 @@
             const originfieldTableData = originfieldTable.value?.getData();
             const data = {
               collector_config_name: formData.value.collector_config_name,
+              clean_template_id: formData.value.clean_template_id ?? null,
               storage_cluster_id: formData.value.storage_cluster_id,
               retention: formData.value.retention,
               etl_params: {

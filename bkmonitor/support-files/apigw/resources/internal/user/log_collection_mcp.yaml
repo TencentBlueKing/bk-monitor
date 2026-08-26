@@ -2,41 +2,72 @@ paths:
   /mcp/list_log_collectors/:
     get:
       operationId: list_log_collectors
-      description: List log collection configurations in a business with stable pagination. Use this before get_log_collector to discover collector_config_id values. Results normalize Linux, Windows, and container environments, collection scenarios, enabled status, and index-set metadata. 分页查询业务下的日志采集项；应先调用本工具获取 collector_config_id，再调用 get_log_collector 查看详情。返回统一的 Linux、Windows、容器环境、采集场景、启停状态和索引集信息。
-      tags: [log_collection_mcp]
+      description: >-
+        List log collectors in a business with stable pagination. Call this first to obtain collector_config_id
+        before get_log_collector, get_log_collector_status, fast_update_log_collector or update_log_collector_clean_config.
+        Filters: keyword, collector_scenario_id, enabled. Cannot filter by bk_data_id, table_id, bcs_cluster_id
+        or environment. 分页查询业务下的日志采集项。应先调用本工具拿到 collector_config_id。不支持按 dataid / 结果表 / 集群 / 环境过滤。
+      tags:
+      - log_collection_mcp
       parameters:
       - in: query
         name: bk_biz_id
         required: true
-        schema: {type: integer}
-        description: Business ID. 业务ID。
+        schema:
+          type: integer
+        description: Business ID in BlueKing Monitor. Identifies the business space. 业务ID，用于标识业务空间。
       - in: query
         name: page
         required: false
-        schema: {type: integer, minimum: 1, default: 1}
-        description: Page number, starting from 1. 页码，从 1 开始。
+        schema:
+          type: integer
+          minimum: 1
+          default: 1
+        description: Page number, starting from 1. Default 1. 页码，从 1 开始，默认 1。
       - in: query
         name: page_size
         required: false
-        schema: {type: integer, minimum: 1, maximum: 100, default: 20}
-        description: Number of collectors per page. 每页采集项数量。
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+        description: Number of collectors per page. Range 1-100, default 20. 每页采集项数量，范围 1-100，默认 20。
       - in: query
         name: keyword
         required: false
-        schema: {type: string, default: ''}
-        description: Fuzzy search keyword for collector name, result table, or business ID. 按采集项名称、结果表或业务 ID 模糊搜索。
+        schema:
+          type: string
+          default: ''
+        description: >-
+          Fuzzy search against collector display name, English name/result table, or business ID. 按采集项名称、英文名/结果表或业务
+          ID 模糊搜索。
       - in: query
         name: collector_scenario_id
         required: false
         schema:
           type: string
-          enum: [row, section, wineventlog, custom, redis_slowlog, syslog, kafka, client]
-        description: Collector scenario filter. 采集场景过滤条件。
+          enum:
+          - row
+          - section
+          - wineventlog
+          - custom
+          - redis_slowlog
+          - syslog
+          - kafka
+          - client
+        description: >-
+          Log type / collection scenario. Create supports only row (line file), section (multiline file)
+          and wineventlog (Windows event). List filter also accepts custom, redis_slowlog, syslog, kafka,
+          client. On Fast Update this field is allowed only for container collectors. 日志类型。创建仅支持 row 行日志
+          / section 段日志 / wineventlog Windows 事件；列表过滤还可传 custom、redis_slowlog、syslog、kafka、client。Fast
+          Update 仅容器采集项可改此字段。
       - in: query
         name: enabled
         required: false
-        schema: {type: boolean}
-        description: Filter by enabled or disabled status. 按启用或停用状态过滤。
+        schema:
+          type: boolean
+        description: Filter by enabled (true) or disabled (false) status. 按启用或停用状态过滤。
       x-bk-apigateway-resource:
         isPublic: false
         allowApplyPermission: false
@@ -53,23 +84,34 @@ paths:
           userVerifiedRequired: true
           appVerifiedRequired: false
           resourcePermissionRequired: true
-
   /mcp/get_log_collector/:
     get:
       operationId: get_log_collector
-      description: Get one log collection configuration by collector_config_id. Call list_log_collectors first. The tool validates that the collector belongs to bk_biz_id and returns normalized target, collection, cleaning, storage, and index-set configuration without exposing unrelated raw fields. 按 collector_config_id 查询日志采集项详情；请先调用 list_log_collectors。工具会校验采集项归属业务，并返回统一的目标、采集、清洗、存储和索引集配置。
-      tags: [log_collection_mcp]
+      description: >-
+        Get one collector by collector_config_id. Call list_log_collectors first. Validates bk_biz_id
+        ownership. IMPORTANT: collection_config.params and configs[].params mask keys containing password/secret/token/...
+        as ******. Do not echo those values into fast_update_log_collector or you will persist the literal
+        asterisks. storage currently returns cluster_id/name/type and retention only; allocation_min_days,
+        storage_replies and es_shards are missing here but required by update_log_collector_clean_config.
+        查询采集项详情。敏感字段已打码，禁止原样回传。storage 目前缺副本/分片/热数据天数。
+      tags:
+      - log_collection_mcp
       parameters:
       - in: query
         name: bk_biz_id
         required: true
-        schema: {type: integer}
-        description: Business ID. 业务ID。
+        schema:
+          type: integer
+        description: Business ID in BlueKing Monitor. Identifies the business space. 业务ID，用于标识业务空间。
       - in: query
         name: collector_config_id
         required: true
-        schema: {type: integer, minimum: 1}
-        description: Collector configuration ID returned by list_log_collectors. 由 list_log_collectors 返回的采集项 ID。
+        schema:
+          type: integer
+          minimum: 1
+        description: >-
+          Collector configuration ID. Obtain from list_log_collectors or a create/update response. 采集项
+          ID，从 list_log_collectors 或创建/更新返回值获取。
       x-bk-apigateway-resource:
         isPublic: false
         allowApplyPermission: false

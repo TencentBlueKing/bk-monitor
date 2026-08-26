@@ -243,7 +243,7 @@ class TailSamplingFlow(ApmFlow):
 
             params = {
                 "bk_username": settings.APM_APP_BKDATA_OPERATOR,
-                "bk_biz_id": settings.BK_DATA_BK_BIZ_ID,
+                "bk_biz_id": self.bkdata_bk_biz_id,
                 "resource_set_id": bkdata_cluster_id,
                 "resource_set_name": bkdata_cluster_name,
                 "geog_area_code": self._STORAGE_REGISTRY_AREA_CODE,

@@ -45,6 +45,11 @@ def _remote_component_for_kind(kind: str, name: str) -> dict:
     spec = {}
     if kind == DataLinkKind.DATAID.value:
         metadata["annotations"] = {"dataId": "60010"}
+    elif kind == DataLinkKind.CHANNELBINDING.value:
+        spec = {
+            "data": {"kind": DataLinkKind.RESULTTABLE.value, "name": "discovered_result_table"},
+            "channel": {"kind": DataLinkKind.KAFKACHANNEL.value, "name": "kafka_inner"},
+        }
     elif kind in {
         DataLinkKind.VMSTORAGEBINDING.value,
         DataLinkKind.ESSTORAGEBINDING.value,

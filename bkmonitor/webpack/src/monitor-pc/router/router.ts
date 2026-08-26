@@ -104,6 +104,7 @@ const specialReportRouteList = [
   'import-dashboard',
   'folder-dashboard',
   'grafana-admin',
+  'redis-management',
 ];
 router.beforeEach(async (to, from, next) => {
   store.commit('app/SET_PADDING_ROUTE', to);
@@ -121,6 +122,7 @@ router.beforeEach(async (to, from, next) => {
       'alarm-center',
       'alarm-center-detail',
       'share',
+      'redis-management',
     ].includes(to.name) &&
     !store.getters.bizList?.length
   ) {

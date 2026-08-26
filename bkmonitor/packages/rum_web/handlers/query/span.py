@@ -19,7 +19,7 @@ from bkm_space.utils import bk_biz_id_to_space_uid
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from constants.otel_query import FIELD_OPERATIONS, OTEL_SPAN_COMMON_FIELD_ALIAS
 
-from rum_web.constants import RUM_FIELD_ALIAS
+from rum_web.constants import RUM_FIELD_ALIAS, RumSpanType, RumSpanKind, RumSpanStatusCode, RumDeviceType
 
 
 class SpanQuery(APMQueryFilterMixin, BaseQuery):
@@ -28,6 +28,18 @@ class SpanQuery(APMQueryFilterMixin, BaseQuery):
     DEFAULT_SORT = ["-end_time"]
     FIELD_ALIAS_MAP_LIST = [OTEL_SPAN_COMMON_FIELD_ALIAS, RUM_FIELD_ALIAS]
     FIELD_OPERATIONS = FIELD_OPERATIONS
+    FIELD_UNITS = {
+        "elapsed_time": "us",
+    }
+    ENUM_FIELD_OPTION_VALUES = {
+        field_name: [{"value": value, "alias": alias} for value, alias in enum_class.choices()]
+        for field_name, enum_class in [
+            ("attributes.span_type", RumSpanType),
+            ("kind", RumSpanKind),
+            ("status.code", RumSpanStatusCode),
+            ("resource.device.type", RumDeviceType),
+        ]
+    }
 
     def __init__(self, data_sources: list[TraceDatasourceTarget]):
         self.data_sources = data_sources

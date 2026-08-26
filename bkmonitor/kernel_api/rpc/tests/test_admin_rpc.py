@@ -1468,7 +1468,7 @@ def test_datalink_component_list_accepts_cluster_config_kind():
     assert response["data"]["items"][0]["bk_biz_id"] == 0
 
 
-def test_datalink_databus_serializer_includes_consumer_group():
+def test_datalink_databus_serializer_includes_source_fields():
     databus = SimpleNamespace(
         name="l_1575783",
         namespace="bklog",
@@ -1480,6 +1480,9 @@ def test_datalink_databus_serializer_includes_consumer_group():
         bk_tenant_id="default",
         data_id_name="l_1575783",
         bk_data_id=1575783,
+        source_kind="ResultTable",
+        source_name="l_1575783_intermediate",
+        role="shipper",
         sink_names=["ElasticSearchBinding:l_1575783"],
         consumer_group="bkmonitorv3_transfer0bkmonitor_15757830",
     )
@@ -1487,7 +1490,52 @@ def test_datalink_databus_serializer_includes_consumer_group():
     item = admin_datalink._serialize_component(databus, "Databus")
 
     assert item["kind"] == "Databus"
+    assert item["source_kind"] == "ResultTable"
+    assert item["source_name"] == "l_1575783_intermediate"
+    assert item["role"] == "shipper"
     assert item["consumer_group"] == "bkmonitorv3_transfer0bkmonitor_15757830"
+
+
+def test_datalink_channel_binding_serializer_and_detail_group_are_supported():
+    channel_binding = SimpleNamespace(
+        name="custom_format_vm_intermediate",
+        namespace="bkmonitor",
+        create_time=None,
+        last_modify_time=None,
+        status="Ok",
+        data_link_name="custom_format_vm",
+        bk_biz_id=2,
+        bk_tenant_id="system",
+        bkbase_result_table_name="custom_format_vm_intermediate",
+        channel_name="inner-kafka",
+    )
+
+    item = admin_datalink._serialize_component(channel_binding, "ChannelBinding")
+
+    assert item["kind"] == "ChannelBinding"
+    assert item["bkbase_result_table_name"] == "custom_format_vm_intermediate"
+    assert item["channel_name"] == "inner-kafka"
+    assert "ChannelBinding" in admin_datalink.DATALINK_DETAIL_KIND_ORDER
+
+    datalink = SimpleNamespace(
+        data_link_name="custom_format_vm",
+        bk_tenant_id="system",
+        namespace="bkmonitor",
+        data_link_strategy="custom_format_vm",
+        bk_data_id=1575783,
+        table_ids=["2_custom_format_vm.metric"],
+        create_time=None,
+        last_modify_time=None,
+    )
+    channel_binding_model = SimpleNamespace(objects=SimpleNamespace(filter=Mock(return_value=[channel_binding])))
+    with (
+        patch.object(admin_datalink.models.DataLink.objects, "get", return_value=datalink),
+        patch.object(admin_datalink, "DATALINK_DETAIL_KIND_ORDER", ["ChannelBinding"]),
+        patch.object(admin_datalink, "COMPONENT_CLASS_MAP", {"ChannelBinding": channel_binding_model}),
+    ):
+        response = admin_datalink.get_datalink_detail({"bk_tenant_id": "system", "data_link_name": "custom_format_vm"})
+
+    assert response["data"]["components"] == {"ChannelBinding": [item]}
 
 
 def test_datalink_component_detail_accepts_cluster_config_kind_with_component_config():

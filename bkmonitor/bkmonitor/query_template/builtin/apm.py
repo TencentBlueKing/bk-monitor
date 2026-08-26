@@ -31,11 +31,13 @@ class APMQueryTemplateName(CachedEnum):
     RPC_CALLEE_SUCCESS_RATE = "apm_rpc_callee_success_rate"
     RPC_CALLEE_AVG_TIME = "apm_rpc_callee_avg_time"
     RPC_CALLEE_P99 = "apm_rpc_callee_p99"
+    RPC_CALLEE_QUANTILE = "apm_rpc_callee_quantile"
     RPC_CALLEE_REQ_TOTAL = "apm_rpc_callee_req_total"
     RPC_CALLEE_ERROR_CODE = "apm_rpc_callee_error_code"
     RPC_CALLER_SUCCESS_RATE = "apm_rpc_caller_success_rate"
     RPC_CALLER_AVG_TIME = "apm_rpc_caller_avg_time"
     RPC_CALLER_P99 = "apm_rpc_caller_p99"
+    RPC_CALLER_QUANTILE = "apm_rpc_caller_quantile"
     RPC_CALLER_REQ_TOTAL = "apm_rpc_caller_req_total"
     RPC_CALLER_ERROR_CODE = "apm_rpc_caller_error_code"
     CUSTOM_METRIC_PANIC = "apm_custom_metric_panic"
@@ -49,11 +51,13 @@ class APMQueryTemplateName(CachedEnum):
                 self.RPC_CALLEE_SUCCESS_RATE: _("[调用分析] 被调成功率（%）"),
                 self.RPC_CALLEE_AVG_TIME: _("[调用分析] 被调平均耗时 (ms）"),
                 self.RPC_CALLEE_P99: _("[调用分析] 被调 P99 耗时 (ms）"),
+                self.RPC_CALLEE_QUANTILE: _("[调用分析] 被调自定义分位耗时 (ms）"),
                 self.RPC_CALLEE_REQ_TOTAL: _("[调用分析] 被调请求总数"),
                 self.RPC_CALLEE_ERROR_CODE: _("[调用分析] 被调错误数"),
                 self.RPC_CALLER_SUCCESS_RATE: _("[调用分析] 主调成功率（%）"),
                 self.RPC_CALLER_AVG_TIME: _("[调用分析] 主调平均耗时 (ms）"),
                 self.RPC_CALLER_P99: _("[调用分析] 主调 P99 耗时 (ms）"),
+                self.RPC_CALLER_QUANTILE: _("[调用分析] 主调自定义分位耗时 (ms）"),
                 self.RPC_CALLER_REQ_TOTAL: _("[调用分析] 主调请求总数"),
                 self.RPC_CALLER_ERROR_CODE: _("[调用分析] 主调错误数"),
                 self.CUSTOM_METRIC_PANIC: _("[自定义指标] 服务 Panic 次数"),
@@ -112,6 +116,48 @@ def _get_common_variables(
         )
 
     return variables
+
+
+def _get_quantile_variables(group_by: list[str], related_metric_fields: list[str]) -> list[dict[str, Any]]:
+    variables: list[dict[str, Any]] = [
+        {
+            "name": "QUANTILE",
+            "alias": "[小数] 耗时分位",
+            "type": constants.VariableType.CONSTANTS.value,
+            "config": {"default": "0.99"},
+            "description": "耗时分位，取值范围为 (0, 1]。例如 0.95 表示 P95，0.99 表示 P99。",
+        }
+    ]
+    variables.extend(_get_common_variables(group_by=group_by, related_metric_fields=related_metric_fields))
+    return variables
+
+
+def _rpc_duration_quantile_query_template(
+    name: APMQueryTemplateName,
+    description: str,
+    bucket_field: str,
+    total_field: str,
+    group_by: list[str],
+) -> dict[str, Any]:
+    return {
+        "bk_biz_id": GLOBAL_BIZ_ID,
+        "name": name.value,
+        "alias": name.label,
+        "description": description,
+        **_qs_to_query_params(
+            UnifyQuerySet()
+            .add_query(
+                _COMMON_BUILDER.alias("a")
+                .group_by("le")
+                .func(_id="histogram_quantile", params=[{"id": "scalar", "value": "${QUANTILE}"}])
+                .metric(field=bucket_field, method="SUM", alias="a")
+            )
+            .add_query(_COMMON_BUILDER.alias("b").metric(field=total_field, method="SUM", alias="b"))
+            .expression("(b > bool ${ALARM_THRESHOLD_VALUE}) * a * 1000")
+        ),
+        "variables": _get_quantile_variables(group_by=group_by, related_metric_fields=[total_field]),
+        "unit": "ms",
+    }
 
 
 def _qs_to_query_params(qs: UnifyQuerySet) -> dict[str, Any]:
@@ -195,6 +241,14 @@ RPC_CALLEE_P99_QUERY_TEMPLATE: dict[str, Any] = {
     ),
     "unit": "ms",
 }
+
+RPC_CALLEE_QUANTILE_QUERY_TEMPLATE: dict[str, Any] = _rpc_duration_quantile_query_template(
+    name=APMQueryTemplateName.RPC_CALLEE_QUANTILE,
+    description="被调自定义分位耗时是指当前服务作为「服务提供方」，被其他服务调用时，指定分位的请求响应时间小于指标输出值，单位为毫秒（ms）。",
+    bucket_field="rpc_server_handled_seconds_bucket",
+    total_field="rpc_server_handled_total",
+    group_by=[RPCMetricTag.SERVICE_NAME.value, RPCMetricTag.CALLER_SERVICE.value, RPCMetricTag.CALLEE_METHOD.value],
+)
 
 RPC_CALLEE_REQ_TOTAL_TEMPLATE: dict[str, Any] = {
     "bk_biz_id": GLOBAL_BIZ_ID,
@@ -296,6 +350,14 @@ RPC_CALLER_P99_QUERY_TEMPLATE: dict[str, Any] = {
     ),
     "unit": "ms",
 }
+
+RPC_CALLER_QUANTILE_QUERY_TEMPLATE: dict[str, Any] = _rpc_duration_quantile_query_template(
+    name=APMQueryTemplateName.RPC_CALLER_QUANTILE,
+    description="主调自定义分位耗时是指当前服务作为「调用方」，调用其他服务时，指定分位的请求响应时间小于指标输出值，单位为毫秒（ms）。",
+    bucket_field="rpc_client_handled_seconds_bucket",
+    total_field="rpc_client_handled_total",
+    group_by=[RPCMetricTag.SERVICE_NAME.value, RPCMetricTag.CALLEE_SERVICE.value, RPCMetricTag.CALLEE_METHOD.value],
+)
 
 RPC_CALLER_REQ_TOTAL_TEMPLATE: dict[str, Any] = {
     "bk_biz_id": GLOBAL_BIZ_ID,
@@ -415,11 +477,13 @@ class APMQueryTemplateSet(QueryTemplateSet):
         RPC_CALLEE_SUCCESS_RATE_QUERY_TEMPLATE,
         RPC_CALLEE_AVG_TIME_QUERY_TEMPLATE,
         RPC_CALLEE_P99_QUERY_TEMPLATE,
+        RPC_CALLEE_QUANTILE_QUERY_TEMPLATE,
         RPC_CALLEE_REQ_TOTAL_TEMPLATE,
         RPC_CALLEE_ERROR_CODE_QUERY_TEMPLATE,
         RPC_CALLER_SUCCESS_RATE_QUERY_TEMPLATE,
         RPC_CALLER_AVG_TIME_QUERY_TEMPLATE,
         RPC_CALLER_P99_QUERY_TEMPLATE,
+        RPC_CALLER_QUANTILE_QUERY_TEMPLATE,
         RPC_CALLER_REQ_TOTAL_TEMPLATE,
         RPC_CALLER_ERROR_CODE_QUERY_TEMPLATE,
         CUSTOM_METRIC_PANIC_QUERY_TEMPLATE,

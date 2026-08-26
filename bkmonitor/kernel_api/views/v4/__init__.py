@@ -42,9 +42,14 @@ from .gse import *  # noqa
 from .log_search import *  # noqa
 from .log_extract import *  # noqa
 from .log_collection import *  # noqa
+from .log_collection_status import *  # noqa
 from .subscribe import *  # noqa
+from .log_collection_create import *  # noqa
 from .utils import *  # noqa
+from .log_collection_update import *  # noqa
 from .ai_repo import *  # noqa
+from .log_collection_etl_preview import *  # noqa
 from .alert_v2 import *  # noqa
+from .log_collection_clean_config import *  # noqa
 from .issue import *  # noqa
 from .k8s_resource import *  # noqa

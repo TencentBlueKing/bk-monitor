@@ -344,7 +344,7 @@ def create_container_release(bcs_cluster_id: str, container_config_id: int, conf
             container_config.status_detail = _("配置下发中")
             container_config.save(update_fields=["status", "status_detail"])
             break
-        except ContainerCollectorConfig.objects.DoesNotExist:
+        except ContainerCollectorConfig.DoesNotExist:
             # db的事务可能还未结束，这里需要重试
             time.sleep(WAIT_FOR_RETRY)
         except Exception as e:  # pylint: disable=broad-except
@@ -372,11 +372,13 @@ def create_container_release(bcs_cluster_id: str, container_config_id: int, conf
 def delete_container_release(
     bcs_cluster_id: str, container_config_id: int, config_name: str, delete_config: bool = False
 ):
+    delete_error = None
     try:
         # 删除配置，如果没抛异常，则必定成功
         Bcs(bcs_cluster_id).delete_bklog_config(config_name)
     except Exception as e:  # pylint: disable=broad-except
         logger.exception("[delete_container_release] delete bklog config failed: %s", e)
+        delete_error = e
 
     try:
         container_config = ContainerCollectorConfig.objects.get(pk=container_config_id)
@@ -384,13 +386,17 @@ def delete_container_release(
         # 采集配置可能已经被删掉，这种情况下直接返回就行，不用更新采集状态
         return
 
-    if delete_config:
+    if delete_error:
+        container_config.status = ContainerCollectStatus.FAILED.value
+        container_config.status_detail = _("配置删除失败: {reason}").format(reason=delete_error)
+        container_config.save(update_fields=["status", "status_detail"])
+    elif delete_config:
         # 停用后直接删掉
         container_config.delete()
     else:
-        # 无论成败与否，都设置为已停用
         container_config.status = ContainerCollectStatus.TERMINATED.value
-        container_config.save(update_fields=["status"])
+        container_config.status_detail = _("配置已停用")
+        container_config.save(update_fields=["status", "status_detail"])
 
 
 @periodic_task(run_every=crontab(minute="0"))
