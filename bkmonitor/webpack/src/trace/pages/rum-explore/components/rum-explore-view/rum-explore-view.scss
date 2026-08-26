@@ -1,0 +1,47 @@
+.rum-explore-view {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden auto;
+
+  .rum-explore-view-affixed-top {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    flex-shrink: 0;
+    background: #fff;
+  }
+
+  .rum-explore-view-table {
+    display: flex;
+    flex-grow: 1;
+    flex-basis: auto;
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .back-to-top {
+    right: 14px;
+    bottom: 24px;
+    z-index: 150;
+    width: 48px;
+    height: 48px;
+    line-height: 48px;
+    text-align: center;
+    background: #fff;
+    border-radius: 50%;
+    box-shadow: 0 3px 10px 0 #0000001f;
+
+    /* stylelint-disable-next-line selector-class-pattern */
+    .icon-BackToTop {
+      font-size: 20px;
+      color: #3a84ff;
+    }
+
+    &:hover {
+      color: #fff;
+      background-color: #f0f1f5;
+    }
+  }
+}

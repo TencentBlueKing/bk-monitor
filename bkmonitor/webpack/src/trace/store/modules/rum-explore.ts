@@ -32,7 +32,7 @@ import { type TimeRangeType, DEFAULT_TIME_RANGE } from '../../components/time-ra
 import { getDefaultTimezone } from '../../i18n/dayjs';
 import { ALL_SPAN_TYPE } from '../../pages/rum-explore/constants';
 
-import type { IRumApplication, IRumSortInfo, RumMode } from '../../pages/rum-explore/typings';
+import type { IRumApplication, RumMode } from '../../pages/rum-explore/typings';
 
 /**
  * RUM 检索的跨组件共享状态。
@@ -52,39 +52,17 @@ export const useRumExploreStore = defineStore('rumExplore', () => {
   const refreshImmediate = shallowRef('');
   /** 「类型选择」快捷筛选选中的 span 类型，空串表示全部 */
   const spanType = shallowRef(ALL_SPAN_TYPE);
-  const tableSortContainer = deepRef<IRumSortInfo>({ sortBy: '', descending: null });
+  /** 排序参数（与接口一致，降序加 `-` 前缀，如 '-end_time'） */
+  const sortParams = deepRef<string[]>([]);
 
   const currentApp = computed(() => appList.value.find(app => app.app_name === appName.value));
-
-  /** 表格排序状态转接口 sort 参数，降序加 `-` 前缀 */
-  const sortParams = computed(() => {
-    const { sortBy, descending } = tableSortContainer.value;
-    return sortBy ? [`${descending ? '-' : ''}${sortBy}`] : [];
-  });
-
-  function updateTableSortContainer(sortInfo: null | Partial<IRumSortInfo>) {
-    tableSortContainer.value = {
-      sortBy: sortInfo?.sortBy || '',
-      descending: sortInfo?.sortBy ? (sortInfo?.descending ?? null) : null,
-    };
-  }
-
-  /** 接口 sort 参数反解成表格排序状态，用于 URL / 收藏回填 */
-  function setSortParams(sort: string[]) {
-    const first = sort?.[0] || '';
-    if (!first) {
-      updateTableSortContainer(null);
-      return;
-    }
-    const descending = first.startsWith('-');
-    updateTableSortContainer({ sortBy: descending ? first.slice(1) : first, descending });
-  }
 
   /** 从 URL 或收藏配置整体初始化，未提供的项回落到默认值 */
   function init(data: {
     appName?: string;
     mode?: RumMode;
     refreshInterval?: number;
+    sortParams?: string[];
     spanType?: string;
     timeRange?: TimeRangeType;
     timezone?: string;
@@ -95,6 +73,7 @@ export const useRumExploreStore = defineStore('rumExplore', () => {
     appName.value = data.appName || '';
     refreshInterval.value = data.refreshInterval ?? -1;
     spanType.value = data.spanType || ALL_SPAN_TYPE;
+    sortParams.value = data.sortParams || [];
   }
 
   return {
@@ -106,11 +85,8 @@ export const useRumExploreStore = defineStore('rumExplore', () => {
     refreshInterval,
     sortParams,
     spanType,
-    tableSortContainer,
     timeRange,
     timezone,
     init,
-    setSortParams,
-    updateTableSortContainer,
   };
 });

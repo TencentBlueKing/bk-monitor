@@ -30,47 +30,71 @@ import type { ShallowRef } from 'vue';
 /** pointerEvents 恢复延迟（ms） */
 const POINTER_EVENTS_RESTORE_DELAY = 600;
 
-/** 目标元素类型：支持组件 ref（通过 .$el 获取 DOM）、CSS 选择器字符串、DOM 元素 */
-type TargetElementType = HTMLElement | ShallowRef<null | { $el: HTMLElement }> | string;
+/** 组件 ref（.$el 取 DOM） */
+type ComponentRef = ShallowRef<null | { $el: HTMLElement }>;
+/** 原生 DOM 的 ref */
+type DomRef = ShallowRef<HTMLElement | null>;
+interface ResolveElementOptions {
+  /** 查找作用域的根元素（仅当 target 为 CSS 选择器字符串时生效），不传则在 document 全局查找 */
+  root?: TargetElementType;
+}
+
+/** 目标元素类型：组件 ref / 原生 DOM 的 ref / DOM 元素 / CSS 选择器字符串 */
+type TargetElementType = ComponentRef | DomRef | HTMLElement | string;
 
 interface UseTableScrollOptimizeOptions {
   /** addEventListener 的配置项（如 { passive: true }），默认 { passive: true } */
   listenerOptions?: AddEventListenerOptions;
-  /** 滚动容器的 CSS 选择器 */
-  scrollContainerSelector: string;
-  /** 需要优化 pointerEvents 的目标元素（组件 ref / CSS 选择器 / DOM 元素） */
-  targetElement: TargetElementType;
-  /** 滚动时的额外回调（如隐藏 popover），接收原始 scroll Event */
+  /**
+   * 查找滚动容器的作用域根元素（组件 ref / 原生 DOM 的 ref / CSS 选择器 / DOM 元素），
+   * 不传则在 document 全局查找。用于避免多表格页面取到错误的 .t-table__content。
+   */
+  rootElement?: TargetElementType;
+  /** 滚动容器：传字符串时在 rootElement 作用域内查找；也可直接传 DOM 元素 / ref */
+  scrollContainerElement: TargetElementType;
+  /** 需要优化 pointerEvents 的目标元素（可选，如无需优化可不传） */
+  targetElement?: TargetElementType;
+  /** 滚动时的额外回调（如隐藏 popover、触底加载），接收原始 scroll Event */
   onScroll?: (event: Event) => void;
 }
 
 /**
  * @description 解析目标元素为 HTMLElement
- * @param target - 目标元素（组件 ref / CSS 选择器 / DOM 元素）
+ * @param target - 目标元素（组件 ref / 原生 DOM 的 ref / CSS 选择器 / DOM 元素）
+ * @param {ResolveElementOptions} [options] - 配置项
+ * @param {TargetElementType} [options.root] - 查找作用域的根元素，仅当 target 为选择器字符串时生效
  * @returns 解析后的 HTMLElement 或 null
  */
-const resolveElement = (target: TargetElementType): HTMLElement | null => {
+const resolveElement = (target: TargetElementType, options: ResolveElementOptions = {}): HTMLElement | null => {
   if (!target) return null;
   if (target instanceof HTMLElement) return target;
-  if (typeof target === 'string') return document.querySelector<HTMLElement>(target);
-  // ShallowRef<{ $el: HTMLElement }>
-  return target.value?.$el ?? null;
+  if (typeof target === 'string') {
+    const root = resolveElement(options.root) ?? document;
+    return root.querySelector<HTMLElement>(target);
+  }
+  const value = (target as ComponentRef | DomRef).value;
+  if (value instanceof HTMLElement) return value;
+  if (value && (value as { $el?: HTMLElement }).$el instanceof HTMLElement) {
+    return (value as { $el: HTMLElement }).$el;
+  }
+  return null;
 };
 
 /**
  * @description 表格滚动优化 Composable，在外层容器滚动时禁用目标元素 pointerEvents 以提升滚动性能，
- *              并在滚动结束后恢复。同时支持滚动时触发额外回调（如隐藏 popover）。
+ *              并在滚动结束后恢复。同时支持滚动时触发额外回调（如隐藏 popover、触底加载）。
  * @param {UseTableScrollOptimizeOptions} options - 配置项
- * @param {TargetElementType} options.targetElement - 需要优化 pointerEvents 的目标元素
- * @param {string} options.scrollContainerSelector - 滚动容器的 CSS 选择器
- * @param {(event: Event) => void} options.onScroll - 滚动时的额外回调，接收原始 scroll Event
- * @param {AddEventListenerOptions} options.listenerOptions - addEventListener 的配置项，默认 { passive: true }
+ * @param {TargetElementType} [options.targetElement] - 需要优化 pointerEvents 的目标元素，可省略
+ * @param {TargetElementType} [options.rootElement] - 查找滚动容器的作用域根元素，可省略
+ * @param {TargetElementType} options.scrollContainerElement - 滚动容器（字符串时在 rootElement 作用域内查找，也可直接传 DOM 元素 / ref）
+ * @param {(event: Event) => void} [options.onScroll] - 滚动时的额外回调，接收原始 scroll Event
+ * @param {AddEventListenerOptions} [options.listenerOptions] - addEventListener 的配置项，默认 { passive: true }
  */
 export const useTableScrollOptimize = (options: UseTableScrollOptimizeOptions) => {
-  const { targetElement, onScroll, scrollContainerSelector, listenerOptions = { passive: true } } = options;
+  const { targetElement, onScroll, scrollContainerElement, rootElement, listenerOptions = { passive: true } } = options;
 
   /** 滚动容器元素 */
-  let scrollContainer: HTMLElement = null;
+  let scrollContainerEl: HTMLElement = null;
   /** 滚动结束后回调逻辑执行计时器 */
   let scrollPointerEventsTimer: null | ReturnType<typeof setTimeout> = null;
 
@@ -102,18 +126,18 @@ export const useTableScrollOptimize = (options: UseTableScrollOptimizeOptions) =
    */
   const addScrollListener = () => {
     removeScrollListener();
-    scrollContainer = document.querySelector(scrollContainerSelector);
-    if (!scrollContainer) return;
-    scrollContainer.addEventListener('scroll', handleScroll, listenerOptions);
+    scrollContainerEl = resolveElement(scrollContainerElement, { root: rootElement });
+    if (!scrollContainerEl) return;
+    scrollContainerEl.addEventListener('scroll', handleScroll, listenerOptions);
   };
 
   /**
    * @description 移除滚动监听
    */
   const removeScrollListener = () => {
-    if (!scrollContainer) return;
-    scrollContainer.removeEventListener('scroll', handleScroll, listenerOptions);
-    scrollContainer = null;
+    if (!scrollContainerEl) return;
+    scrollContainerEl.removeEventListener('scroll', handleScroll, listenerOptions);
+    scrollContainerEl = null;
   };
 
   onMounted(() => {
