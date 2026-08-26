@@ -96,7 +96,7 @@ export default defineComponent({
     queryCtx.initFromUrl();
 
     const isSpanMode = computed(() => store.mode === 'span');
-    const residentSettingOnlyId = computed(() => `${store.mode}_${store.appName}_${RUM_RESIDENT_SETTING_KEY}`);
+    const residentSettingOnlyId = computed(() => `${RUM_RESIDENT_SETTING_KEY}_${store.mode}_${store.appName}`);
     const favoriteList = computed(
       () =>
         favoriteBoxRef.value?.getFavoriteList()?.map(item => ({
@@ -260,45 +260,47 @@ export default defineComponent({
           />
 
           <div class='rum-explore-content'>
-            <RetrievalFilter
-              changeWhereFormatter={traceWhereChangeFormatter}
-              commonWhere={queryCtx.commonWhere.value}
-              defaultShowResidentBtn={queryCtx.showResidentBtn.value}
-              favoriteList={this.favoriteList}
-              fields={viewConfigCtx.retrievalFields.value}
-              filterMode={queryCtx.filterMode.value}
-              getValueFn={this.getFieldValues}
-              handleGetUserConfig={this.getResidentConfig}
-              handleSetUserConfig={this.setResidentConfig}
-              isShowClear={true}
-              isShowCopy={true}
-              isShowFavorite={true}
-              isShowResident={true}
-              queryString={queryCtx.queryString.value}
-              residentSettingOnlyId={this.residentSettingOnlyId}
-              selectFavorite={favoriteCtx.selectedFavorite.value}
-              where={queryCtx.where.value}
-              whereFormatter={traceWhereFormatter}
-              onCommonWhereChange={value => {
-                queryCtx.commonWhere.value = value;
-                queryCtx.handleQuery();
-              }}
-              onFavorite={isEdit => favoriteCtx.saveFavorite(isEdit, () => this.favoriteBoxRef?.refreshGroupList())}
-              onModeChange={mode => {
-                queryCtx.filterMode.value = mode;
-                queryCtx.handleQuery();
-              }}
-              onQueryStringChange={value => {
-                queryCtx.queryString.value = value;
-              }}
-              onSearch={queryCtx.handleQuery}
-              onShowResidentBtnChange={value => {
-                queryCtx.showResidentBtn.value = value;
-              }}
-              onWhereChange={value => {
-                queryCtx.where.value = value;
-              }}
-            />
+            {viewConfigCtx.loading.value ? (
+              <div class='skeleton-element filter-skeleton' />
+            ) : (
+              <RetrievalFilter
+                changeWhereFormatter={traceWhereChangeFormatter}
+                commonWhere={queryCtx.commonWhere.value}
+                copyLoading={queryCtx.generateQueryStringLoading.value}
+                defaultShowResidentBtn={queryCtx.showResidentBtn.value}
+                favoriteList={this.favoriteList}
+                fields={viewConfigCtx.retrievalFields.value}
+                filterMode={queryCtx.filterMode.value}
+                getValueFn={this.getFieldValues}
+                handleGetUserConfig={this.getResidentConfig}
+                handleSetUserConfig={this.setResidentConfig}
+                isShowClear={true}
+                isShowCopy={true}
+                isShowFavorite={true}
+                isShowResident={true}
+                modeChangeLoading={queryCtx.generateQueryStringLoading.value}
+                queryString={queryCtx.queryString.value}
+                residentSettingOnlyId={this.residentSettingOnlyId}
+                selectFavorite={favoriteCtx.selectedFavorite.value}
+                where={queryCtx.where.value}
+                whereFormatter={traceWhereFormatter}
+                onCommonWhereChange={value => {
+                  queryCtx.commonWhere.value = value;
+                  queryCtx.handleQuery();
+                }}
+                onCopyWhere={queryCtx.copyWhere}
+                onFavorite={isEdit => favoriteCtx.saveFavorite(isEdit, () => this.favoriteBoxRef?.refreshGroupList())}
+                onModeChange={queryCtx.modeChange}
+                onQueryStringChange={value => {
+                  queryCtx.queryString.value = value;
+                }}
+                onSearch={queryCtx.handleQuery}
+                onShowResidentBtnChange={value => {
+                  queryCtx.showResidentBtn.value = value;
+                }}
+                onWhereChange={queryCtx.whereChange}
+              />
+            )}
 
             {this.isSpanMode ? (
               <TraceExploreLayout
