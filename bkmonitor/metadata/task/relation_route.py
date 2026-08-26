@@ -9,7 +9,7 @@ import time
 from typing import Any
 
 from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
-from metadata.models import DataSource, DataSourceResultTable, ResultTable, ResultTableOption, TimeSeriesGroup
+from metadata.models import DataSourceResultTable, ResultTable, ResultTableOption, TimeSeriesGroup
 from metadata.models.entity_relation import NAMESPACE_ALL, RelationDefinition
 from metadata.utils.redis_tools import RedisTools
 
@@ -113,6 +113,10 @@ def _route_for_space(space_uid: str, raw_value: Any) -> dict[str, Any]:
         route["status"] = "degraded"
     else:
         route["status"] = "disabled"
+    version_payload = {key: value for key, value in route.items() if key != "updated_at"}
+    route["version"] = hashlib.sha256(
+        json.dumps(version_payload, sort_keys=True, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
     return route
 
 
@@ -138,8 +142,10 @@ def refresh_graph_relation_routes(
             )
         old_json = current_routes.get(raw_field, current_routes.get(space_uid))
         old_json = _decode(old_json) if old_json is not None else ""
-        RedisTools.hset_to_redis(GRAPH_RELATION_ROUTE_REDIS_KEY, space_uid, route_json)
-        if old_json != route_json:
+        old_route = json.loads(old_json) if old_json else None
+        route_changed = not isinstance(old_route, dict) or old_route.get("version") != route.get("version")
+        if route_changed:
+            RedisTools.hset_to_redis(GRAPH_RELATION_ROUTE_REDIS_KEY, space_uid, route_json)
             RedisTools.publish(
                 GRAPH_RELATION_ROUTE_CHANNEL,
                 [json.dumps({"event": GRAPH_RELATION_ROUTE_EVENT, "scope": "business", "space_uid": space_uid})],
