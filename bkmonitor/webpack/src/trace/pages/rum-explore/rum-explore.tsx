@@ -38,6 +38,7 @@ import TraceExploreLayout from '../trace-explore/components/trace-explore-layout
 import RumDimensionPanel from './components/rum-dimension-panel';
 import RumExploreHeader from './components/rum-explore-header';
 import RumExploreTable from './components/rum-explore-table';
+import RumExploreView from './components/rum-explore-view/rum-explore-view';
 import RumSpanTypeFilter from './components/rum-span-type-filter';
 import {
   useRumFavorite,
@@ -50,7 +51,7 @@ import {
 import { RUM_RESIDENT_SETTING_KEY } from './constants';
 import { getApplicationList } from './services/rum-application';
 
-import type { IRumApplication, IRumSortInfo } from './typings';
+import type { IRumApplication } from './typings';
 
 import './rum-explore.scss';
 
@@ -96,7 +97,7 @@ export default defineComponent({
     queryCtx.initFromUrl();
 
     const isSpanMode = computed(() => store.mode === 'span');
-    const residentSettingOnlyId = computed(() => `${store.mode}_${store.appName}_${RUM_RESIDENT_SETTING_KEY}`);
+    const residentSettingOnlyId = computed(() => `${RUM_RESIDENT_SETTING_KEY}_${store.mode}_${store.appName}`);
     const favoriteList = computed(
       () =>
         favoriteBoxRef.value?.getFavoriteList()?.map(item => ({
@@ -181,7 +182,7 @@ export default defineComponent({
       queryCtx.addCondition({ key: condition.key, operator: condition.method, value: [condition.value] }, true);
     }
 
-    function handleSortChange(sort: IRumSortInfo) {
+    function handleSortChange(sort: string | string[]) {
       tableCtx.handleSortChange(sort);
       queryCtx.setUrlParams();
     }
@@ -260,45 +261,47 @@ export default defineComponent({
           />
 
           <div class='rum-explore-content'>
-            <RetrievalFilter
-              changeWhereFormatter={traceWhereChangeFormatter}
-              commonWhere={queryCtx.commonWhere.value}
-              defaultShowResidentBtn={queryCtx.showResidentBtn.value}
-              favoriteList={this.favoriteList}
-              fields={viewConfigCtx.retrievalFields.value}
-              filterMode={queryCtx.filterMode.value}
-              getValueFn={this.getFieldValues}
-              handleGetUserConfig={this.getResidentConfig}
-              handleSetUserConfig={this.setResidentConfig}
-              isShowClear={true}
-              isShowCopy={true}
-              isShowFavorite={true}
-              isShowResident={true}
-              queryString={queryCtx.queryString.value}
-              residentSettingOnlyId={this.residentSettingOnlyId}
-              selectFavorite={favoriteCtx.selectedFavorite.value}
-              where={queryCtx.where.value}
-              whereFormatter={traceWhereFormatter}
-              onCommonWhereChange={value => {
-                queryCtx.commonWhere.value = value;
-                queryCtx.handleQuery();
-              }}
-              onFavorite={isEdit => favoriteCtx.saveFavorite(isEdit, () => this.favoriteBoxRef?.refreshGroupList())}
-              onModeChange={mode => {
-                queryCtx.filterMode.value = mode;
-                queryCtx.handleQuery();
-              }}
-              onQueryStringChange={value => {
-                queryCtx.queryString.value = value;
-              }}
-              onSearch={queryCtx.handleQuery}
-              onShowResidentBtnChange={value => {
-                queryCtx.showResidentBtn.value = value;
-              }}
-              onWhereChange={value => {
-                queryCtx.where.value = value;
-              }}
-            />
+            {viewConfigCtx.loading.value ? (
+              <div class='skeleton-element filter-skeleton' />
+            ) : (
+              <RetrievalFilter
+                changeWhereFormatter={traceWhereChangeFormatter}
+                commonWhere={queryCtx.commonWhere.value}
+                copyLoading={queryCtx.generateQueryStringLoading.value}
+                defaultShowResidentBtn={queryCtx.showResidentBtn.value}
+                favoriteList={this.favoriteList}
+                fields={viewConfigCtx.retrievalFields.value}
+                filterMode={queryCtx.filterMode.value}
+                getValueFn={this.getFieldValues}
+                handleGetUserConfig={this.getResidentConfig}
+                handleSetUserConfig={this.setResidentConfig}
+                isShowClear={true}
+                isShowCopy={true}
+                isShowFavorite={true}
+                isShowResident={true}
+                modeChangeLoading={queryCtx.generateQueryStringLoading.value}
+                queryString={queryCtx.queryString.value}
+                residentSettingOnlyId={this.residentSettingOnlyId}
+                selectFavorite={favoriteCtx.selectedFavorite.value}
+                where={queryCtx.where.value}
+                whereFormatter={traceWhereFormatter}
+                onCommonWhereChange={value => {
+                  queryCtx.commonWhere.value = value;
+                  queryCtx.handleQuery();
+                }}
+                onCopyWhere={queryCtx.copyWhere}
+                onFavorite={isEdit => favoriteCtx.saveFavorite(isEdit, () => this.favoriteBoxRef?.refreshGroupList())}
+                onModeChange={queryCtx.modeChange}
+                onQueryStringChange={value => {
+                  queryCtx.queryString.value = value;
+                }}
+                onSearch={queryCtx.handleQuery}
+                onShowResidentBtnChange={value => {
+                  queryCtx.showResidentBtn.value = value;
+                }}
+                onWhereChange={queryCtx.whereChange}
+              />
+            )}
 
             {this.isSpanMode ? (
               <TraceExploreLayout
@@ -323,27 +326,38 @@ export default defineComponent({
                   ),
                   default: () => (
                     <div class='result-panel'>
-                      <RumSpanTypeFilter
-                        list={spanTypeCtx.chipList.value}
-                        value={spanTypeCtx.activeSpanType.value}
-                        onChange={this.handleSpanTypeChange}
-                      />
-                      <RumExploreTable
-                        commonParams={queryCtx.commonParams.value}
-                        data={tableCtx.tableData.value}
-                        displayableFields={viewConfigCtx.displayableFields.value}
-                        displayFields={this.displayFields}
-                        loading={tableCtx.loading.value}
-                        scrollLoading={tableCtx.scrollLoading.value}
-                        sort={this.store.tableSortContainer}
-                        timeRange={this.store.timeRange}
-                        onClearFilter={queryCtx.clearQuery}
-                        onConditionChange={this.handleConditionChange}
-                        onDisplayFieldChange={fields => {
-                          this.displayFields = fields;
+                      <RumExploreView
+                        v-slots={{
+                          affixedTop: () => (
+                            <RumSpanTypeFilter
+                              list={spanTypeCtx.chipList.value}
+                              value={spanTypeCtx.activeSpanType.value}
+                              onChange={this.handleSpanTypeChange}
+                            />
+                          ),
+                          default: () => (
+                            <RumExploreTable
+                              commonParams={queryCtx.commonParams.value}
+                              data={tableCtx.tableData.value}
+                              displayableFields={viewConfigCtx.displayableFields.value}
+                              displayFields={this.displayFields}
+                              hasMore={tableCtx.hasMore.value}
+                              loading={tableCtx.loading.value}
+                              mode={this.store.mode}
+                              scrollLoading={tableCtx.scrollLoading.value}
+                              sort={this.store.sortParams}
+                              timeRange={this.store.timeRange}
+                              onClearFilter={queryCtx.clearQuery}
+                              onConditionChange={this.handleConditionChange}
+                              onDisplayFieldChange={fields => {
+                                this.displayFields = fields;
+                              }}
+                              onScrollToEnd={tableCtx.handleScrollToEnd}
+                              onSortChange={this.handleSortChange}
+                            />
+                          ),
                         }}
-                        onScrollToEnd={tableCtx.handleScrollToEnd}
-                        onSortChange={this.handleSortChange}
+                        backTopSignal={tableCtx.backTopSignal.value}
                       />
                     </div>
                   ),
