@@ -58,7 +58,7 @@ export const useSourceAnalysisRuleDetail = () => {
     created_by: '',
     id: 0,
     is_default: false,
-    is_enabled: false,
+    is_enabled: true,
     knowledge_base_ids: [],
     priority: 10,
     repository_alias: '',
