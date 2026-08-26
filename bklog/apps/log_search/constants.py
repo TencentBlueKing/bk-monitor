@@ -1501,6 +1501,35 @@ class IndexSetDataType(ChoicesEnum):
     _choices_labels = ((RESULT_TABLE, _("结果表")), (INDEX_SET, _("索引集")))
 
 
+class PlatformIndexVisibleType(ChoicesEnum):
+    """
+    平台级索引集可见范围类型
+    """
+
+    MULTI_BIZ = "multi_biz"
+    BIZ_ATTR = "biz_attr"
+
+    _choices_labels = ((MULTI_BIZ, _("指定业务")), (BIZ_ATTR, _("业务属性")))
+
+
+class PlatformIndexFilterValueRef(ChoicesEnum):
+    """
+    平台级数据隔离维度取值来源，与 metadata query_router_config 的 filter_value 对齐
+    """
+
+    SPACE_ID = "space_id"
+    BK_BIZ_ID = "bk_biz_id"
+
+    _choices_labels = ((SPACE_ID, _("空间ID")), (BK_BIZ_ID, _("业务ID")))
+
+
+# metadata ResultTableOption 中承载跨空间路由过滤的 option 名
+QUERY_ROUTER_CONFIG_OPTION_NAME = "query_router_config"
+
+# 检索索引集列表中标记「本条是从其它空间分发过来的」，值为归属空间
+PLATFORM_INDEX_OWNER_SPACE_UID_FIELD = "platform_index_owner_space_uid"
+
+
 class SearchMode(ChoicesEnum):
     """
     检索模式

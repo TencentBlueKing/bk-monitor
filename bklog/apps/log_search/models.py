@@ -20,7 +20,9 @@ the project delivered to anyone in the future.
 """
 
 import datetime
+import functools
 import hashlib
+import operator
 import os
 import time
 from collections import defaultdict
@@ -78,6 +80,8 @@ from apps.log_search.constants import (
     TimeZoneEnum,
     LogBuiltInFieldTypeEnum,
     IndexSetDataType,
+    PLATFORM_INDEX_OWNER_SPACE_UID_FIELD,
+    PlatformIndexVisibleType,
 )
 from apps.log_search.exceptions import (
     AsyncExportRequestBusyException,
@@ -109,7 +113,7 @@ from bkm_ipchooser.constants import CommonEnum
 from bkm_space.api import AbstractSpaceApi
 from bkm_space.define import Space as SpaceDefine
 from bkm_space.define import SpaceTypeEnum
-from bkm_space.utils import bk_biz_id_to_space_uid, space_uid_to_bk_biz_id
+from bkm_space.utils import bk_biz_id_to_space_uid, parse_space_uid, space_uid_to_bk_biz_id
 
 
 class GlobalConfig(models.Model):
@@ -543,15 +547,119 @@ class LogIndexSet(SoftDeleteModel):
             for data in index_set_data
         ]
 
+    @staticmethod
+    def build_space_visibility_context(space_uids: list) -> dict:
+        """
+        汇总请求侧空间的判定依据，避免每个平台级索引集重复查关联空间。
+        """
+        from bkm_space.api import SpaceApi
+
+        bk_biz_ids, space_types, cmdb_biz_ids = set(), set(), set()
+        for space_uid in space_uids:
+            space_type, __ = parse_space_uid(space_uid)
+            space_types.add(space_type)
+            bk_biz_id = space_uid_to_bk_biz_id(space_uid)
+            if bk_biz_id:
+                bk_biz_ids.add(str(bk_biz_id))
+            # 非 BKCC 空间的 bk_biz_id 是负数，配置方填的是关联的 CMDB 业务
+            related_space = SpaceApi.get_related_space(space_uid, SpaceTypeEnum.BKCC.value)
+            if related_space:
+                bk_biz_ids.add(str(related_space.bk_biz_id))
+                cmdb_biz_ids.add(related_space.bk_biz_id)
+        return {"bk_biz_ids": bk_biz_ids, "space_types": space_types, "cmdb_biz_ids": cmdb_biz_ids}
+
+    @staticmethod
+    def is_platform_index_visible(visibility: dict, context: dict) -> bool:
+        """
+        判定平台级可见范围是否命中请求侧空间。调用方必须先确认 is_platform_index 为 True。
+        """
+        visibility = visibility or {}
+        visible_type = visibility.get("type")
+
+        if visible_type == PlatformIndexVisibleType.MULTI_BIZ.value:
+            allowed_biz_ids = {str(bk_biz_id) for bk_biz_id in visibility.get("bk_biz_ids") or []}
+            return bool(allowed_biz_ids & context["bk_biz_ids"])
+
+        if visible_type == PlatformIndexVisibleType.BIZ_ATTR.value:
+            bk_biz_labels = visibility.get("bk_biz_labels") or {}
+            if not bk_biz_labels:
+                return False
+            # 与 StorageHandler.can_visible 对齐：配了空间类型就只按空间类型判定
+            label_space_types = bk_biz_labels.get(SpacePropertyEnum.SPACE_TYPE.value, [])
+            if label_space_types:
+                return bool(set(label_space_types) & context["space_types"])
+            if not context["cmdb_biz_ids"]:
+                return False
+            q_filter = Q()
+            for label_key, label_values in bk_biz_labels.items():
+                q_filter &= functools.reduce(
+                    operator.or_,
+                    [
+                        Q(biz_property_id=label_key, biz_property_value=label_value)
+                        for label_value in label_values
+                    ],
+                )
+            return BizProperty.objects.filter(q_filter, bk_biz_id__in=context["cmdb_biz_ids"]).exists()
+
+        return False
+
     @classmethod
-    def get_index_set(cls, index_set_ids=None, scenarios=None, space_uids=None, is_trace_log=False, show_indices=True):
+    def get_visible_platform_index_set_ids(cls, space_uids: list) -> list:
+        """
+        取对请求侧空间开放检索入口的平台级索引集。归属空间自身走 space_uid__in，这里只补跨空间的部分。
+        """
+        if not space_uids:
+            return []
+        candidates = list(
+            cls.objects.filter(is_active=True, is_platform_index=True)
+            .exclude(space_uid__in=space_uids)
+            .values("index_set_id", "is_group", "platform_index_visibility")
+        )
+        if not candidates:
+            return []
+        context = cls.build_space_visibility_context(space_uids)
+        visible = [
+            candidate
+            for candidate in candidates
+            if cls.is_platform_index_visible(candidate["platform_index_visibility"], context)
+        ]
+        index_set_ids = [candidate["index_set_id"] for candidate in visible]
+
+        # 索引组的 indices 要由子索引集拼出来，子索引集不放行的话跨空间看到的会是一个空组
+        group_ids = [candidate["index_set_id"] for candidate in visible if candidate["is_group"]]
+        if group_ids:
+            child_ids = LogIndexSetData.objects.filter(
+                index_set_id__in=group_ids, type=IndexSetDataType.INDEX_SET.value
+            ).values_list("result_table_id", flat=True)
+            index_set_ids.extend(
+                int(child_id)
+                for child_id in child_ids
+                if str(child_id).isdigit()
+            )
+
+        return index_set_ids
+
+    @classmethod
+    def get_index_set(
+        cls,
+        index_set_ids=None,
+        scenarios=None,
+        space_uids=None,
+        is_trace_log=False,
+        show_indices=True,
+        current_space_uid=None,
+    ):
         qs = cls.objects.filter(is_active=True)
         if index_set_ids:
             qs = qs.filter(index_set_id__in=index_set_ids)
         if scenarios and isinstance(scenarios, list):
             qs = qs.filter(scenario_id__in=scenarios)
         if space_uids:
-            qs = qs.filter(space_uid__in=space_uids)
+            space_filter = Q(space_uid__in=space_uids)
+            visible_platform_index_set_ids = cls.get_visible_platform_index_set_ids(space_uids)
+            if visible_platform_index_set_ids:
+                space_filter |= Q(index_set_id__in=visible_platform_index_set_ids)
+            qs = qs.filter(space_filter)
         if is_trace_log:
             qs = qs.filter(is_trace_log=is_trace_log)
 
@@ -573,6 +681,9 @@ class LogIndexSet(SoftDeleteModel):
             "support_doris",
             "doris_table_id",
             "is_group",
+            "is_platform_index",
+            "platform_index_visibility",
+            "platform_index_filter",
         )
 
         # 获取接入场景
@@ -625,6 +736,15 @@ class LogIndexSet(SoftDeleteModel):
                 index_set["time_field"] = time_field
 
             index_set["scenario_name"] = scenarios.get(index_set["scenario_id"])
+            if (
+                index_set["is_platform_index"]
+                and current_space_uid
+                and index_set["space_uid"] != current_space_uid
+            ):
+                # 跨空间入口必须以请求方空间对外，否则前端拿归属业务发起检索会命中 metadata 的归属空间分支，
+                # 拿到的是 filters 为空的全量路由，数据隔离形同虚设
+                index_set[PLATFORM_INDEX_OWNER_SPACE_UID_FIELD] = index_set["space_uid"]
+                index_set["space_uid"] = current_space_uid
             index_set["bk_biz_id"] = space_uid_to_bk_biz_id(index_set["space_uid"])
             # 排除场景化检索路由标签（tag_type=scene），仅后端使用，不暴露给前端
             index_set["tags"] = [
@@ -642,6 +762,24 @@ class LogIndexSet(SoftDeleteModel):
             result.append(index_set)
 
         return sorted(result, key=lambda i: i["is_favorite"], reverse=True)
+
+    @staticmethod
+    def resolve_search_bk_biz_id(index_set, request_bk_biz_id=None):
+        """
+        解析检索要用的 bk_biz_id。
+
+        平台级索引集必须用请求方业务：归属空间会被 metadata 当成全量（filters=[]）。
+        请求方没带 bk_biz_id 时返回 None，由调用方拒绝，不能回落成 skip space。
+        普通索引集保持原行为，用归属空间。
+        """
+        if not getattr(index_set, "is_platform_index", False):
+            return space_uid_to_bk_biz_id(index_set.space_uid)
+        if request_bk_biz_id in (None, ""):
+            return None
+        try:
+            return int(request_bk_biz_id)
+        except (TypeError, ValueError):
+            return None
 
     def get_fields(self, use_snapshot=True):
         """

@@ -344,11 +344,13 @@ class SearchAttrSerializer(serializers.Serializer):
 class OriginalSearchAttrSerializer(serializers.Serializer):
     begin = serializers.IntegerField(required=False, default=0)
     size = serializers.IntegerField(required=False, default=3, max_value=10)
+    bk_biz_id = serializers.IntegerField(label=_("业务ID"), required=False, default=None)
 
 
 class SearchFieldsSerializer(serializers.Serializer):
     start_time = serializers.IntegerField(label=_("开始时间"), required=False)
     end_time = serializers.IntegerField(label=_("结束时间"), required=False)
+    bk_biz_id = serializers.IntegerField(label=_("业务ID"), required=False, default=None)
     scope = serializers.ChoiceField(
         label=_("类型"), choices=SearchScopeEnum.get_choices(), default=SearchScopeEnum.DEFAULT.value
     )
@@ -1131,6 +1133,7 @@ class ChartSerializer(serializers.Serializer):
         label=_("查询模式"), required=False, choices=QueryMode.get_choices(), default=QueryMode.SQL.value
     )
     alias_settings = AliasSettingSerializer(many=True, required=False, default=list)
+    bk_biz_id = serializers.IntegerField(label=_("业务ID"), required=False, default=None)
 
     def to_representation(self, instance):
         representation = super().to_representation(instance)
@@ -1154,6 +1157,7 @@ class UISearchSerializer(serializers.Serializer):
         child=SearchConditionSerializer(label=_("搜索条件"), required=False),
     )
     alias_settings = AliasSettingSerializer(many=True, required=False, default=list)
+    bk_biz_id = serializers.IntegerField(label=_("业务ID"), required=False, default=None)
 
     def to_representation(self, instance):
         representation = super().to_representation(instance)
@@ -1246,6 +1250,7 @@ class LogGrepQuerySerializer(serializers.Serializer):
     size = serializers.IntegerField(label=_("检索结果大小"), required=False, default=10)
     sort_list = serializers.ListField(required=False, allow_null=True, allow_empty=True, child=serializers.ListField())
     alias_settings = AliasSettingSerializer(many=True, required=False, default=list)
+    bk_biz_id = serializers.IntegerField(label=_("业务ID"), required=False, default=None)
 
     def to_representation(self, instance):
         representation = super().to_representation(instance)
@@ -1296,6 +1301,7 @@ class SearchLogForCodeSerializer(serializers.Serializer):
     end_time = serializers.CharField(label=_("结束时间"), required=True)
     timezone = serializers.CharField(label=_("时区"), required=False, default="UTC")
     limit = serializers.IntegerField(label=_("限制条数"), required=False, default=DEFAULT_QUERY_LIMIT)
+    bk_biz_id = serializers.IntegerField(label=_("业务ID"), required=False, default=None)
 
 
 class SpaceListSerializer(serializers.Serializer):

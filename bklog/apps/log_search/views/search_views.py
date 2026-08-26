@@ -43,7 +43,7 @@ from apps.iam import ActionEnum, ResourceEnum
 from apps.iam.handlers.drf import (
     BatchIAMPermission,
     InstanceActionForDataPermission,
-    InstanceActionPermission,
+    PlatformAwareIndexSearchPermission,
     ViewBusinessPermission,
 )
 from apps.log_search.constants import (
@@ -129,6 +129,15 @@ from apps.utils.local import get_request_app_code, get_request_external_username
 from bkm_space.utils import space_uid_to_bk_biz_id
 
 
+def _apply_index_set_search_bk_biz_id(index_set_obj, data):
+    """平台级索引集必须保留请求方 bk_biz_id，不能覆盖成归属业务。"""
+    bk_biz_id = LogIndexSet.resolve_search_bk_biz_id(index_set_obj, data.get("bk_biz_id"))
+    if getattr(index_set_obj, "is_platform_index", False) and bk_biz_id is None:
+        raise serializers.ValidationError(_("平台级索引集检索必须传入 bk_biz_id"))
+    data["bk_biz_id"] = bk_biz_id
+    return data
+
+
 class SearchViewSet(APIViewSet):
     """
     检索
@@ -164,7 +173,7 @@ class SearchViewSet(APIViewSet):
             "grep_query_total",
             "search_log_for_code",
         ]:
-            return [InstanceActionPermission([ActionEnum.SEARCH_LOG], ResourceEnum.INDICES)]
+            return [PlatformAwareIndexSearchPermission([ActionEnum.SEARCH_LOG], ResourceEnum.INDICES)]
 
         if self.action in ["union_search", "config"]:
             if self.action == "config":
@@ -375,6 +384,7 @@ class SearchViewSet(APIViewSet):
         }
         """
         data = self.params_valid(SearchAttrSerializer)
+        _apply_index_set_search_bk_biz_id(self.get_object(), data)
         if data.get("is_scroll_search"):
             search_handler = SearchHandlerEsquery(index_set_id, data)
             return Response(search_handler.scroll_search())
@@ -445,7 +455,7 @@ class SearchViewSet(APIViewSet):
         data["is_desensitize"] = False
 
         index_set_obj = self.get_object()
-        data["bk_biz_id"] = space_uid_to_bk_biz_id(index_set_obj.space_uid)
+        _apply_index_set_search_bk_biz_id(index_set_obj, data)
 
         if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, data.get("bk_biz_id")):
             now = arrow.now()
@@ -520,7 +530,7 @@ class SearchViewSet(APIViewSet):
         # 获取所属业务id
         index_set_obj = LogIndexSet.objects.filter(index_set_id=index_set_id).first()
         if index_set_obj:
-            data["bk_biz_id"] = space_uid_to_bk_biz_id(index_set_obj.space_uid)
+            _apply_index_set_search_bk_biz_id(index_set_obj, data)
         if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, data.get("bk_biz_id")):
             data.update({"index_set_id": index_set_id})
             params = build_context_params(data)
@@ -584,7 +594,7 @@ class SearchViewSet(APIViewSet):
         # 获取所属业务id
         index_set_obj = LogIndexSet.objects.filter(index_set_id=index_set_id).first()
         if index_set_obj:
-            data["bk_biz_id"] = space_uid_to_bk_biz_id(index_set_obj.space_uid)
+            _apply_index_set_search_bk_biz_id(index_set_obj, data)
         if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, data.get("bk_biz_id")):
             data.update({"index_set_id": index_set_id})
             params = build_tail_params(data)
@@ -1095,7 +1105,10 @@ class SearchViewSet(APIViewSet):
         }
         """
         params = self.params_valid(SearchFieldsSerializer)
-        bk_biz_id = space_uid_to_bk_biz_id(self.get_object().space_uid)
+        index_set_obj = self.get_object()
+        search_params = {"bk_biz_id": params.get("bk_biz_id")}
+        _apply_index_set_search_bk_biz_id(index_set_obj, search_params)
+        bk_biz_id = search_params["bk_biz_id"]
         index_set_id = kwargs.get("index_set_id", "")
 
         scope = params["scope"]
@@ -2028,10 +2041,8 @@ class SearchViewSet(APIViewSet):
         }
         """
         params = self.params_valid(ChartSerializer)
-        bk_biz_id = space_uid_to_bk_biz_id(self.get_object().space_uid)
-
+        _apply_index_set_search_bk_biz_id(self.get_object(), params)
         params["index_set_ids"] = [index_set_id]
-        params["bk_biz_id"] = bk_biz_id
 
         query_handler = UnifyQueryChartHandler(params)
         result = query_handler.get_chart_data()
@@ -2047,10 +2058,8 @@ class SearchViewSet(APIViewSet):
         @apiGroup 11_Search
         """
         params = self.params_valid(ChartSerializer)
-        bk_biz_id = space_uid_to_bk_biz_id(self.get_object().space_uid)
-
+        _apply_index_set_search_bk_biz_id(self.get_object(), params)
         params["index_set_ids"] = [index_set_id]
-        params["bk_biz_id"] = bk_biz_id
 
         query_handler = UnifyQueryChartHandler(params)
         if not query_handler.is_support_sql_and_grep:
@@ -2081,11 +2090,10 @@ class SearchViewSet(APIViewSet):
         }
         """
         params = self.params_valid(UISearchSerializer)
-        bk_biz_id = space_uid_to_bk_biz_id(self.get_object().space_uid)
+        _apply_index_set_search_bk_biz_id(self.get_object(), params)
 
         params["sql"] = params["sql"] or f"{SQL_PREFIX} {SQL_SUFFIX}"
         params["index_set_ids"] = [index_set_id]
-        params["bk_biz_id"] = bk_biz_id
 
         query_handler = UnifyQueryChartHandler(params)
         data = query_handler.generate_sql()
@@ -2152,6 +2160,7 @@ class SearchViewSet(APIViewSet):
         }
         """
         params = self.params_valid(LogGrepQuerySerializer)
+        _apply_index_set_search_bk_biz_id(self.get_object(), params)
         instance = ChartHandler.get_instance(index_set_id=index_set_id, mode=QueryMode.SQL.value)
         data = instance.fetch_grep_query_data(params)
         return Response(data)
@@ -2165,6 +2174,7 @@ class SearchViewSet(APIViewSet):
         @apiGroup 11_Search
         """
         params = self.params_valid(LogGrepQuerySerializer)
+        _apply_index_set_search_bk_biz_id(self.get_object(), params)
         instance = ChartHandler.get_instance(index_set_id=index_set_id, mode=QueryMode.SQL.value)
         data = instance.fetch_grep_query_total(params)
         return Response(data)

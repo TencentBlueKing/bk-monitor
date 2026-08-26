@@ -150,6 +150,46 @@ class InstanceActionPermission(IAMPermission):
         return lookup_url_kwarg
 
 
+class PlatformAwareIndexSearchPermission(InstanceActionPermission):
+    """
+    平台级索引集检索鉴权：跨空间入口用请求方业务拼 IAM path，沿用 SEARCH_LOG，不新增动作。
+    """
+
+    def has_permission(self, request, view):
+        if settings.IGNORE_IAM_PERMISSION:
+            return True
+        instance_id = view.kwargs[self.get_look_url_kwarg(view)]
+        from apps.log_search.models import LogIndexSet
+
+        try:
+            index_set = LogIndexSet.objects.get(pk=instance_id)
+        except LogIndexSet.DoesNotExist:
+            resource = self.resource_meta.create_instance(instance_id)
+        else:
+            if request.method == "GET":
+                request_bk_biz_id = request.query_params.get("bk_biz_id")
+            else:
+                request_bk_biz_id = (getattr(request, "data", None) or {}).get("bk_biz_id") or request.query_params.get(
+                    "bk_biz_id"
+                )
+            bk_biz_id = LogIndexSet.resolve_search_bk_biz_id(index_set, request_bk_biz_id)
+            if index_set.is_platform_index and bk_biz_id is not None:
+                # 传入非空 attribute 后 Indices 不再回查归属业务；name/id 一并带上，
+                # 避免申请权限页索引集名称为空（同 scene_search 的处理）
+                resource = self.resource_meta.create_simple_instance(
+                    instance_id,
+                    {
+                        "bk_biz_id": bk_biz_id,
+                        "id": str(instance_id),
+                        "name": index_set.index_set_name,
+                    },
+                )
+            else:
+                resource = self.resource_meta.create_instance(instance_id)
+        self.resources = [resource]
+        return super(InstanceActionPermission, self).has_permission(request, view)
+
+
 class InstanceActionForDataPermission(InstanceActionPermission):
     def __init__(self, iam_instance_id_key, *args, get_instance_id: Callable = lambda _id: _id):
         self.iam_instance_id_key = iam_instance_id_key
