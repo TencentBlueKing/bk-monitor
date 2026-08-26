@@ -20,6 +20,7 @@ from alarm_backends.core.cache.key import (
 )
 from alarm_backends.core.control.item import detect_result_point_required
 from alarm_backends.core.control.strategy import StrategyCacheManager
+from alarm_backends.core.detect_result_retention import rank_trim_stop
 from bkmonitor.models import AlgorithmModel
 
 DUMMY_DIMENSIONS_MD5 = "dummy_dimensions_md5"
@@ -65,7 +66,7 @@ class CleanResult:
 
         for cache_key_chunk in CleanResult.chunk_fields(check_result_cache_keys, command_limit=command_limit):
             for check_result_cache_key in cache_key_chunk:
-                pipeline.zremrangebyrank(check_result_cache_key, 0, -point_remain)
+                pipeline.zremrangebyrank(check_result_cache_key, 0, rank_trim_stop(point_remain))
             pipeline.execute()
 
         check_result_lengths = []
@@ -169,7 +170,7 @@ class CleanResult:
 
                 # 按保留点数清理检测结果缓存
                 for index, check_result_cache_key in enumerate(check_result_cache_keys):
-                    pipeline.zremrangebyrank(check_result_cache_key, 0, -point_remain)
+                    pipeline.zremrangebyrank(check_result_cache_key, 0, rank_trim_stop(point_remain))
                     # 一次最多清理5000个维度的检测结果
                     if index % 5000 == 4999:
                         pipeline.execute()

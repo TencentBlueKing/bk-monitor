@@ -47,6 +47,7 @@
     "test:host-process-metrics": "node --test ./tests/host-process-metrics.test.cjs",
     "test:host-direct-route": "node --test ./tests/host-direct-route.test.cjs",
     "test:host-share-readonly": "node --test ./tests/host-share-readonly.test.cjs",
+    "test:redis-management": "node --test ./tests/redis-management-route.test.cjs",
     "iconfont": "node ./webpack/update-iconfont.js"
   },
   "simple-git-hooks": {

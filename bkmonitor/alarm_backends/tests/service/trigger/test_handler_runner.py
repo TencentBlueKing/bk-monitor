@@ -41,7 +41,7 @@ def test_handler_requeues_signal_when_runner_cannot_get_lock(mocker):
 
     run_trigger_item.assert_called_once_with("1", "2", executor="trigger_worker")
     anomaly_signal_key.client.delay.assert_called_once_with(
-        "rpush",
+        "lpush",
         anomaly_signal_key.get_key.return_value,
         "1.2",
         delay=1,

@@ -94,6 +94,13 @@ class ApplicationViewSet(ResourceViewSet):
             "storage_field_info",
             "data_view_config",
             "dimension_count",
+            "dimension_data",
+            "indices_info",
+            "data_histogram",
+            "data_status",
+            "storage_info",
+            "storage_status",
+            "custom_service_data_view_config",
         ]:
             return [
                 InstanceActionPermission([ActionEnum.VIEW_APM_APPLICATION], ResourceEnum.APM_APPLICATION),
@@ -102,7 +109,6 @@ class ApplicationViewSet(ResourceViewSet):
             "setup",
             "start",
             "stop",
-            "query_bk_data_token",
             "nodata_strategy_info",
             "nodata_strategy_enable",
             "nodata_strategy_disable",
@@ -112,7 +118,27 @@ class ApplicationViewSet(ResourceViewSet):
                     self.INSTANCE_ID, [ActionEnum.MANAGE_APM_APPLICATION], ResourceEnum.APM_APPLICATION
                 )
             ]
-        if self.action in ["application_info_by_app_name", "service_detail", "simple_service_list"]:
+        if self.action in ["query_bk_data_token", "application_info_by_id"]:
+            return [
+                InstanceActionForDataPermission(
+                    self.INSTANCE_ID, [ActionEnum.VIEW_APM_APPLICATION], ResourceEnum.APM_APPLICATION
+                )
+            ]
+        if self.action in [
+            "application_info_by_app_name",
+            "service_detail",
+            "simple_service_list",
+            "service_list",
+            "endpoint_detail",
+            "query_exception_event",
+            "query_exception_detail_event",
+            "query_exception_endpoint",
+            "query_exception_type_graph",
+            "query_endpoint_statistics",
+            "instance_discover_keys",
+            "custom_service_list",
+            "custom_service_url_list",
+        ]:
             return [
                 InstanceActionForDataPermission(
                     "app_name",

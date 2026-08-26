@@ -133,7 +133,7 @@ class ProfileUploadRecordSLZ(serializers.ModelSerializer):
 
 
 class ProfileListFileSerializer(serializers.Serializer):
-    bk_biz_id = serializers.IntegerField(label="业务ID", required=False)
+    bk_biz_id = serializers.IntegerField(label="业务ID")
     app_name = serializers.CharField(label="应用名称", required=False)
     origin_file_name = serializers.CharField(label="上传文件名称", default="", required=False)
     service_name = serializers.CharField(label="服务名称", required=False)

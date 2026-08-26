@@ -59,14 +59,7 @@ export const getAllSpaceList = (http, store) => {
     http
       .request('space/getMySpaceList')
       .then((resp) => {
-        const spaceList = resp.data;
-        spaceList.forEach((item) => {
-          item.bk_biz_id = `${item.bk_biz_id}`;
-          item.space_uid = `${item.space_uid}`;
-          item.space_full_code_name = `${item.space_name}(#${item.space_id})`;
-        });
-
-        store.commit('updateMySpaceList', spaceList);
+        store.commit('updateMySpaceList', Array.isArray(resp.data) ? resp.data : []);
         store.commit(SET_APP_STATE, { spaceListLoaded: true });
       })
       .catch((e) => {
@@ -223,20 +216,17 @@ export default ({
     return getDefaultSpaceList().then((resp) => {
       // 兜底 resp 为 null (catch 分支) 或 resp.data 为 undefined 的情况，避免抛 TypeError
       const spaceList = Array.isArray(resp?.data) ? resp.data : [];
-      for (const item of spaceList) {
-        item.bk_biz_id = `${item.bk_biz_id}`;
-        item.space_uid = `${item.space_uid}`;
-        item.space_full_code_name = `${item.space_name}(#${item.space_id})`;
-      }
-
       let spaceUid = undefined;
       let bkBizId = undefined;
 
       store.commit('updateMySpaceList', spaceList);
+      const normalizedSpaceList = store.state.mySpaceList;
       let space: { [key: string]: any } | null = null;
 
       if (urlArgs.spaceUid || urlArgs.bizId) {
-        space = (spaceList ?? []).find(item => item.space_uid === urlArgs.spaceUid || item.bk_biz_id === urlArgs.bizId);
+        space = (normalizedSpaceList ?? []).find(
+          item => item.space_uid === urlArgs.spaceUid || item.bk_biz_id === `${urlArgs.bizId}`,
+        );
         store.commit('updateSpace', space?.space_uid || urlArgs.spaceUid);
         spaceUid = space?.space_uid || urlArgs.spaceUid;
         bkBizId = space?.bk_biz_id || urlArgs.bizId;
@@ -251,15 +241,15 @@ export default ({
         const storageSpaceUid = store.state.storage[BK_LOG_STORAGE.BK_SPACE_UID];
         const storageBkBizId = store.state.storage[BK_LOG_STORAGE.BK_BIZ_ID];
         if (storageSpaceUid) {
-          space = (spaceList ?? []).find(item => item.space_uid === storageSpaceUid);
+          space = (normalizedSpaceList ?? []).find(item => item.space_uid === storageSpaceUid);
         }
 
         if (!space && storageBkBizId) {
-          space = (spaceList ?? []).find(item => item.bk_biz_id === storageBkBizId);
+          space = (normalizedSpaceList ?? []).find(item => item.bk_biz_id === `${storageBkBizId}`);
         }
 
         if (!space?.permission?.[VIEW_BUSINESS]) {
-          space = spaceList?.find(item => item?.permission?.[VIEW_BUSINESS]) ?? spaceList?.[0];
+          space = normalizedSpaceList?.find(item => item?.permission?.[VIEW_BUSINESS]) ?? normalizedSpaceList?.[0];
         }
 
         store.commit('updateSpace', space?.space_uid);

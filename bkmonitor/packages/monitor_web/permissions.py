@@ -50,6 +50,19 @@ class SuperuserWritePermission(permissions.BasePermission):
         return self.check_permission(request)
 
 
+class PlatformAdministratorPermission(permissions.BasePermission):
+    """平台管理员权限，读取和写入均校验。"""
+
+    message = _lazy("当前用户不是平台管理员")
+
+    def has_permission(self, request, view):
+        user = request.user
+        return bool(user and user.is_superuser)
+
+    def has_object_permission(self, request, view, obj):
+        return self.has_permission(request, view)
+
+
 class BusinessViewPermission(permissions.BasePermission):
     """
     业务访问权限判断

@@ -198,7 +198,7 @@
             backRoute: 'manage-collection',
             type: 'dataStorage',
             step: '3',
-            typeKey: this.collectorData.collector_scenario_id,
+            typeKey: this.collectorData.log_access_type,
             indexSetId: this.$route.query.indexSetId,
           },
         });

@@ -52,11 +52,13 @@ def _histogram_quantile_value(query_configs: list[dict[str, Any]]) -> Any:
 
 
 class TestBuiltinTemplateRender:
-    def test_callee_quantile_uses_custom_quantile(self):
+    @pytest.mark.parametrize(
+        "template_name",
+        [APMQueryTemplateName.RPC_CALLEE_QUANTILE, APMQueryTemplateName.RPC_CALLER_QUANTILE],
+    )
+    def test_rpc_quantile_uses_custom_quantile(self, template_name: APMQueryTemplateName):
         template: dict[str, Any] = next(
-            item
-            for item in APMQueryTemplateSet.QUERY_TEMPLATES
-            if item["name"] == APMQueryTemplateName.RPC_CALLEE_QUANTILE.value
+            item for item in APMQueryTemplateSet.QUERY_TEMPLATES if item["name"] == template_name.value
         )
         rendered: dict[str, Any] = QueryTemplateWrapper.from_dict(template).render(
             {
