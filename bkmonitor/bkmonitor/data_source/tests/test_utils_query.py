@@ -264,3 +264,44 @@ class TestGetRetentionTimeRange:
         explicit_start = self.NOW - self.RETENTION_SECONDS + 100
         start_ms, _ = self._run(start_time=explicit_start, end_time=self.NOW - 10)
         assert start_ms == explicit_start * self.ACCURACY
+
+
+class TestQueryFieldsTimeConversion:
+    """_query_fields 内部经 _get_time_range 把秒级补齐并 ×1000 转毫秒后传给 _query_info_fields。"""
+
+    NOW = 1_700_000_000
+    RETENTION_DAYS = 7
+    RETENTION_SECONDS = 7 * 86400  # 604800
+    ACCURACY = BaseQuery.TIME_FIELD_ACCURACY  # 1000
+
+    def _query_fields_capture_params(self, start_time=None, end_time=None) -> dict[str, int]:
+        captured: dict[str, int] = {}
+
+        def fake_query_info_fields(table_id, space_uid, st, et):
+            captured["start_time"] = st
+            captured["end_time"] = et
+            return [_make_field(field_name="cpu_usage")]
+
+        with (
+            mock.patch.object(BaseQuery, "_query_info_fields", side_effect=fake_query_info_fields),
+            mock.patch(
+                "bkmonitor.data_source.utils.query.datetime.datetime",
+                mock.Mock(now=mock.Mock(return_value=datetime.datetime.fromtimestamp(self.NOW))),
+            ),
+        ):
+            BaseQuery()._query_fields(targets=[("rt1", "space1")], start_time=start_time, end_time=end_time)
+        return captured
+
+    def test_none_time_is_converted_to_milliseconds_in_retention_window(self):
+        """不传时间时，传给 _query_info_fields 的 start/end 为毫秒级，且落在保留期窗口内。"""
+        captured = self._query_fields_capture_params()
+        assert captured["end_time"] == (self.NOW + BaseQuery.TIME_PADDING) * self.ACCURACY
+        assert captured["start_time"] == (self.NOW - self.RETENTION_SECONDS) * self.ACCURACY
+
+    def test_explicit_seconds_converted_to_milliseconds(self):
+        """显式秒级时间应被 ×1000 转为毫秒级后传入。"""
+        start = self.NOW - 10_000
+        end = self.NOW - 5_000
+        captured = self._query_fields_capture_params(start_time=start, end_time=end)
+        assert captured["start_time"] == start * self.ACCURACY
+        assert captured["end_time"] == end * self.ACCURACY

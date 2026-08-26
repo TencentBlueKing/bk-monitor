@@ -430,8 +430,8 @@ class BaseQuery:
         """并发查询多个结果表的字段信息，合并为字段名到字段详情的映射。
 
         :param targets: 结果表 ID 与空间 UID 的元组列表
-        :param start_time: 开始时间戳（秒级）
-        :param end_time: 结束时间戳（秒级）
+        :param start_time: 开始时间戳（秒级，缺省时按 retention 自动补齐后统一转为毫秒级）
+        :param end_time: 结束时间戳（秒级，缺省时按 retention 自动补齐后统一转为毫秒级）
         :return: field_name 到字段详情字典的映射，每项包含以下键：
             - field_name: 实际字段名，用于查询、过滤、聚合
             - field_alias: 字段别名，无别名时与 field_name 相同
@@ -495,8 +495,8 @@ class BaseQuery:
 
         :param table_id: 结果表 ID
         :param space_uid: 空间 UID
-        :param start_time: 开始时间戳（秒级）
-        :param end_time: 结束时间戳（秒级）
+        :param start_time: 开始时间戳（毫秒级，已按 retention 补齐窗口）
+        :param end_time: 结束时间戳（毫秒级，已按 retention 补齐窗口）
         :return: 字段信息列表，每项为包含以下键的字典：
             - alias_name (str): 字段别名
             - field_name (str): 字段名称
