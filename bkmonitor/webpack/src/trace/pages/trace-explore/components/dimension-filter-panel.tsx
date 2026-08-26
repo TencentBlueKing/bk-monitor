@@ -80,13 +80,13 @@ export default defineComponent({
         emptyStatus.value = 'search-empty';
         const aliasNameList: IDimensionField[] = [];
         const pinyinList: IDimensionField[] = [];
-        props.list.map(item => {
+        for (const item of props.list) {
           if (item.alias.includes(keyword) || item.name.includes(keyword)) {
             aliasNameList.push(item);
           } else if (item.pinyinStr.includes(keyword)) {
             pinyinList.push(item);
           }
-        });
+        }
         searchResultList.value = [...aliasNameList, ...pinyinList];
       }
       dimensionTreeList.value = convertToTree(searchResultList.value);
@@ -165,7 +165,7 @@ export default defineComponent({
         <div class='dimension-filter-panel-skeleton'>
           <div class='skeleton-element title' />
           <div class='skeleton-element search-input' />
-          {new Array(10).fill(null).map((item, index) => (
+          {new Array(10).fill(null).map((_, index) => (
             <div
               key={index}
               class='skeleton-element list-item'
@@ -249,7 +249,6 @@ export default defineComponent({
           ref='statisticsListRef'
           commonParams={this.params}
           fieldType={this.selectField?.type}
-          isDimensions={this.selectField?.is_dimensions}
           isShow={this.showStatisticsPopover}
           selectField={this.selectField?.name}
           onConditionChange={this.handleConditionChange}
