@@ -1466,7 +1466,11 @@ class IndexSetTag(models.Model):
     ) -> list:
         """
         Query distinct dimension values for *dimension_key* across index sets
-        that belong to *bk_biz_id* and match *scene* + optional cascading *filters*.
+        that match *scene* + optional cascading *filters*.
+
+        By default only the space resolved from *bk_biz_id* is scanned.
+        Pass *space_uids* (typically IndexSetHandler.get_all_related_space_uids)
+        to include BKCC-related BCS/PaaS spaces as well.
 
         filters: list[dict] with field_name, value (list), op (eq/ne/req/nreq);
         legacy dict {key: value|[values]} is auto-converted to op=eq.
