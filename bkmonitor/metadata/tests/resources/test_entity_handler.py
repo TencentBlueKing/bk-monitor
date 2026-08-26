@@ -9,7 +9,7 @@ specific language governing permissions and limitations under the License.
 """
 
 import json
-from unittest.mock import patch
+from unittest.mock import call, patch
 
 import pytest
 from django.test import override_settings
@@ -18,6 +18,7 @@ from rest_framework.exceptions import ValidationError
 from core.errors.metadata import EntityNotFoundError, UnsupportedKindError
 from metadata.models.entity_relation import CustomRelationStatus, RelationDefinition, ResourceDefinition
 from metadata.resources.entity_relation import (
+    CUSTOM_RELATION_REDIS_CHANNEL,
     ENTITY_REDIS_CHANNEL_SUFFIX,
     ENTITY_REDIS_KEY_PREFIX,
     NAMESPACE_ALL,
@@ -510,8 +511,8 @@ class TestEntityHandlerRedisSync:
         }
 
     @patch("metadata.resources.entity_relation.RedisTools")
-    def test_custom_relation_status_not_synced(self, mock_redis, cleanup_test_data):
-        """CustomRelationStatus 不在 REDIS_SYNC_KINDS 中，不同步到 Redis"""
+    def test_custom_relation_status_not_synced_but_notifies(self, mock_redis, cleanup_test_data):
+        """CustomRelationStatus 不写实体 Redis，但发布业务变更通知"""
         assert "CustomRelationStatus" not in REDIS_SYNC_KINDS
 
         handler = EntityHandler(model_class=CustomRelationStatus)
@@ -521,7 +522,43 @@ class TestEntityHandlerRedisSync:
         )
 
         mock_redis.hset_to_redis.assert_not_called()
-        mock_redis.publish.assert_not_called()
+        mock_redis.publish.assert_called_once_with(
+            CUSTOM_RELATION_REDIS_CHANNEL,
+            ['{"namespace": "test_ns", "kind": "CustomRelationStatus"}'],
+        )
+
+    @patch("metadata.resources.entity_relation.RedisTools")
+    def test_custom_relation_status_publishes_namespace_change(self, mock_redis, cleanup_test_data):
+        handler = EntityHandler(model_class=CustomRelationStatus)
+        handler.apply(
+            metadata={"namespace": "test_ns", "name": "test_relation"},
+            spec={"from_resource": "app_version", "to_resource": "git_commit"},
+        )
+
+        assert mock_redis.publish.call_args_list == [
+            call(
+                CUSTOM_RELATION_REDIS_CHANNEL,
+                ['{"namespace": "test_ns", "kind": "CustomRelationStatus"}'],
+            )
+        ]
+
+        handler.apply(
+            metadata={"namespace": "test_ns", "name": "test_relation"},
+            spec={"from_resource": "app_version", "to_resource": "git_commit"},
+        )
+        assert len(mock_redis.publish.call_args_list) == 1
+
+        handler.delete(namespace="test_ns", name="test_relation")
+        assert mock_redis.publish.call_args_list == [
+            call(
+                CUSTOM_RELATION_REDIS_CHANNEL,
+                ['{"namespace": "test_ns", "kind": "CustomRelationStatus"}'],
+            ),
+            call(
+                CUSTOM_RELATION_REDIS_CHANNEL,
+                ['{"namespace": "test_ns", "kind": "CustomRelationStatus"}'],
+            ),
+        ]
 
     @patch("metadata.resources.entity_relation.RedisTools")
     def test_delete_rebuilds_redis_with_remaining(self, mock_redis, cleanup_definition_data):
