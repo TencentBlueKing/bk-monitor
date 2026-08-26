@@ -41,9 +41,37 @@ def cleanup_test_data():
     """清理测试数据的 fixture"""
     # 清理测试数据
     CustomRelationStatus.objects.filter(namespace__startswith="test_").delete()
+    ResourceDefinition.objects.filter(namespace=NAMESPACE_ALL, name__startswith="test_").delete()
+    for name in {
+        "source",
+        "source_1",
+        "source_2",
+        "source_entity",
+        "src",
+        "updated_source",
+        "app_version",
+        "pod",
+    }:
+        ResourceDefinition.objects.get_or_create(namespace=NAMESPACE_ALL, name=name, defaults={"fields": []})
+    for name in {
+        "target",
+        "target_1",
+        "target_2",
+        "target_entity",
+        "updated_target",
+        "dst",
+        "git_commit",
+        "node",
+    }:
+        ResourceDefinition.objects.get_or_create(namespace=NAMESPACE_ALL, name=name, defaults={"fields": []})
     yield
     # 测试后清理
     CustomRelationStatus.objects.filter(namespace__startswith="test_").delete()
+    ResourceDefinition.objects.filter(namespace=NAMESPACE_ALL, name__startswith="test_").delete()
+    ResourceDefinition.objects.filter(namespace=NAMESPACE_ALL, name__in={
+        "source", "source_1", "source_2", "source_entity", "src", "updated_source", "app_version", "pod",
+        "target", "target_1", "target_2", "target_entity", "updated_target", "dst", "git_commit", "node",
+    }).delete()
 
 
 class TestEntityHandlerApply:
@@ -208,6 +236,20 @@ class TestEntityHandlerApply:
 
         with pytest.raises(ValidationError):
             entity_handler.apply(metadata=metadata, spec=spec)
+
+    def test_apply_rejects_missing_resource_definition(self, entity_handler, cleanup_test_data):
+        with pytest.raises(ValidationError, match="关联资源定义不存在"):
+            entity_handler.apply(
+                metadata={"namespace": "test_namespace", "name": "test_entity_missing_resource"},
+                spec={"from_resource": "missing_source", "to_resource": "target"},
+            )
+
+    def test_apply_rejects_global_custom_relation_namespace(self, entity_handler, cleanup_test_data):
+        with pytest.raises(ValidationError, match="必须使用业务命名空间"):
+            entity_handler.apply(
+                metadata={"namespace": NAMESPACE_ALL, "name": "test_global_relation"},
+                spec={"from_resource": "source", "to_resource": "target"},
+            )
 
 
 class TestEntityHandlerGet:

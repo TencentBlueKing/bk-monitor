@@ -21,7 +21,7 @@ from bkm_space.utils import bk_biz_id_to_space_uid
 from core.drf_resource import Resource
 from core.errors.metadata import EntityNotFoundError, UnsupportedKindError
 from metadata.models import EntityMeta
-from metadata.models.entity_relation import NAMESPACE_ALL
+from metadata.models.entity_relation import NAMESPACE_ALL, ResourceDefinition
 from metadata.utils.redis_tools import RedisTools
 
 logger = logging.getLogger("metadata")
@@ -67,6 +67,9 @@ class EntityHandler:
         namespace = metadata["namespace"]
         name = metadata["name"]
 
+        if self.model_class.get_kind() == "CustomRelationStatus":
+            self._validate_custom_relation_resources(namespace, cleaned_spec)
+
         # 准备创建数据
         create_data = cleaned_spec.copy()
 
@@ -96,10 +99,27 @@ class EntityHandler:
                 changed = True
 
 
-        # 同步到 Redis（仅对特定类型）
-        self._rebuild_redis_cache(entity)
+        # 只有 DB 事务最终提交后才同步 Redis，避免外层事务回滚留下脏缓存。
+        transaction.on_commit(lambda entity=entity: self._rebuild_redis_cache(entity))
 
         return entity.to_json()
+
+    @staticmethod
+    def _validate_custom_relation_resources(namespace: str, spec: dict[str, Any]) -> None:
+        if not namespace or namespace == NAMESPACE_ALL:
+            raise serializers.ValidationError({"namespace": _("CustomRelationStatus 必须使用业务命名空间")})
+
+        resource_names = {spec["from_resource"], spec["to_resource"]}
+        resource_names.discard("")
+        definitions = ResourceDefinition.objects.filter(
+            namespace__in=(namespace, NAMESPACE_ALL), name__in=resource_names
+        )
+        valid_names = {definition.name for definition in definitions}
+        missing_names = sorted(resource_names - valid_names)
+        if missing_names:
+            raise serializers.ValidationError(
+                {"spec": _("关联资源定义不存在: %(resources)s") % {"resources": ", ".join(missing_names)}}
+            )
 
     def get(self, namespace: str, name: str) -> dict[str, Any]:
         """
@@ -164,8 +184,8 @@ class EntityHandler:
         with transaction.atomic():
             entity.delete()
 
-        # 从 DB 全量重建该 namespace 的 Redis 缓存
-        self._rebuild_redis_cache(entity)
+        # 只有 DB 事务最终提交后才同步 Redis，避免外层事务回滚留下脏缓存。
+        transaction.on_commit(lambda entity=entity: self._rebuild_redis_cache(entity))
 
     def _rebuild_redis_cache(self, entity: EntityMeta) -> None:
         """
