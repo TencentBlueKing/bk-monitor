@@ -158,3 +158,67 @@ class TestDimensionValuesViewRelatedSpace(TestCase):
             filters=None,
             space_uids=["bkcc__2", "bcs__BCS-K8S-001"],
         )
+
+
+@override_settings(PRE_SEARCH_SECONDS=60, TIME_ZONE="UTC")
+class TestSceneFieldsFallbackRelatedSpace(TestCase):
+    """fields() fallback must resolve related-space cluster_id the same way as dimension_values."""
+
+    @patch("apps.log_unifyquery.handler.scene_search.get_request_external_username", return_value="")
+    @patch("apps.log_unifyquery.handler.scene_search.get_request_username", return_value="admin")
+    @patch("apps.log_unifyquery.handler.scene_search.get_local_param", return_value="UTC")
+    @patch(
+        "apps.log_unifyquery.handler.scene_search.IndexSetHandler.get_all_related_space_uids",
+        return_value=["bkcc__2", "bcs__BCS-K8S-001"],
+    )
+    @patch("apps.log_unifyquery.handler.scene_search.UnifyQueryApi.query_field_map")
+    def test_related_space_cluster_recovers_when_first_field_map_fails(
+        self, mock_field_map, mock_related, mock_local, mock_user, mock_ext_user
+    ):
+        scene_tag = IndexSetTag.get_tag_id(name="scene", value="k8s", tag_type="scene")
+        related_tag = IndexSetTag.get_tag_id(name="cluster_id", value="BCS-RELATED-FB-001", tag_type="scene")
+        other_tag = IndexSetTag.get_tag_id(name="cluster_id", value="BCS-OTHER-FB-001", tag_type="scene")
+
+        related_idx = LogIndexSet.objects.create(
+            index_set_name="idx_related_fallback",
+            space_uid="bcs__BCS-K8S-001",
+            scenario_id="log",
+            tag_ids=[str(scene_tag), str(related_tag)],
+            is_active=True,
+        )
+        LogIndexSet.objects.create(
+            index_set_name="idx_unrelated_fallback",
+            space_uid="bcs__BCS-K8S-999",
+            scenario_id="log",
+            tag_ids=[str(scene_tag), str(other_tag)],
+            is_active=True,
+        )
+
+        def _query_field_map(body):
+            if body.get("table_id_conditions"):
+                raise Exception("unifyquery field_map does not support table_id_conditions")
+            self.assertEqual(body.get("table_id"), f"bklog_index_set_{related_idx.index_set_id}")
+            return {"data": [{"field_name": "log", "field_type": "text", "is_analyzed": True}]}
+
+        mock_field_map.side_effect = _query_field_map
+
+        from apps.log_unifyquery.handler.scene_search import SceneUnifyQueryHandler
+
+        handler = SceneUnifyQueryHandler(
+            {
+                "space_uid": "bkcc__2",
+                "table_id_conditions": [
+                    [
+                        {"field_name": "scene", "value": ["k8s"], "op": "eq"},
+                        {"field_name": "cluster_id", "value": ["BCS-RELATED-FB-001"], "op": "eq"},
+                    ]
+                ],
+                "start_time": "",
+                "end_time": "",
+            }
+        )
+        result = handler.fields()
+
+        self.assertEqual(result["fields"][0]["field_name"], "log")
+        self.assertEqual(mock_field_map.call_count, 2)
+        mock_related.assert_called_with("bkcc__2")
