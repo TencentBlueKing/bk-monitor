@@ -24,7 +24,7 @@ class BaseQuery:
     USING: tuple[str, str]
     DEFAULT_TIME_FIELD = "time"
     DEFAULT_SORT = ["time"]
-    DEFAULT_ES_RETENTION = 7
+    DEFAULT_RETENTION = 7
 
     # 枚举查询上限
     QUERY_MAX_LIMIT = 10000
@@ -134,7 +134,7 @@ class BaseQuery:
 
         子类（如 APM / RUM Query）应基于 TraceDatasourceTarget 提供具体实现。
         """
-        return self.DEFAULT_ES_RETENTION
+        return self.DEFAULT_RETENTION
 
     @classmethod
     def get_retention_time_range(
