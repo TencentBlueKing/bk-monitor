@@ -92,11 +92,11 @@ export default defineComponent({
       emit('appNameChange', appName);
     }
 
-    function handleModeChange(mode: RumMode) {
-      if (mode === store.mode) return;
+    function handleModeChange(tab: (typeof RUM_MODE_TAB_LIST)[number]) {
+      if (tab.value === store.mode || tab.disabled) return;
       const oldMode = store.mode;
-      store.mode = mode;
-      emit('modeChange', mode, oldMode);
+      store.mode = tab.value;
+      emit('modeChange', tab.value, oldMode);
     }
 
     function handleThumbtack(event: Event, item: IRumApplication) {
@@ -169,8 +169,8 @@ export default defineComponent({
             {RUM_MODE_TAB_LIST.map(item => (
               <div
                 key={item.value}
-                class={['mode-tab-item', { active: this.store.mode === item.value }]}
-                onClick={() => this.handleModeChange(item.value)}
+                class={['mode-tab-item', { active: this.store.mode === item.value, disabled: item.disabled }]}
+                onClick={() => this.handleModeChange(item)}
               >
                 <i class={['icon-monitor', item.icon]} />
                 <span>{item.label}</span>

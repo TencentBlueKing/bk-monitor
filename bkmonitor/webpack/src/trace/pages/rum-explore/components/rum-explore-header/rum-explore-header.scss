@@ -57,6 +57,7 @@
   .mode-tab {
     display: flex;
     align-items: center;
+    gap: 1px;
     height: 32px;
     padding: 4px;
     background: #f0f1f5;
@@ -75,13 +76,22 @@
     cursor: pointer;
     border-radius: 2px;
 
-    /* 相邻项之间的分隔线，选中项自带白底所以隐藏两侧分隔线 */
     & + .mode-tab-item {
-      box-shadow: inset 1px 0 0 0 #dcdee5;
+      position: relative;
+      &::before {
+        position: absolute;
+        top: 6px;
+        left: -1px;
+        content: '';
+        width: 1px;
+        height: 12px;
+        background: #dcdee5;
+      }
     }
 
     .icon-monitor {
       font-size: 14px;
+      font-weight: 400;
     }
 
     &.active,
@@ -91,7 +101,11 @@
 
     &.active {
       background: #fff;
-      box-shadow: 0 2px 2px 0 rgb(25 25 41 / 5%);
+      color: #3a84ff;
+    }
+
+    &.disabled {
+      color: #c4c6cc;
     }
   }
 
