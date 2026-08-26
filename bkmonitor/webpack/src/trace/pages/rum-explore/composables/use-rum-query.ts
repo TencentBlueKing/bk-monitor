@@ -26,12 +26,16 @@
 import { shallowRef } from 'vue';
 import type { Ref } from 'vue';
 
+import { Message } from 'bkui-vue';
+import { copyText } from 'monitor-common/utils/utils';
+import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 
 import { EMode } from '../../../components/retrieval-filter/typing';
 import { mergeWhereList } from '../../../components/retrieval-filter/utils';
 import { useRumExploreStore } from '../../../store/modules/rum-explore';
 import { tryURLDecodeParse } from '../../trace-explore/utils';
+import { generateQueryString } from '../services/rum-search';
 
 import type { IWhereItem } from '../../../components/retrieval-filter/typing';
 import type { TimeRangeType } from '../../../components/time-range/utils';
@@ -56,6 +60,7 @@ const EMPTY_COMMON_PARAMS: IRumCommonParams = {
  * 同时把可复现的查询状态同步到 URL，方便刷新和分享。
  */
 export function useRumQuery({ extraFilters }: IUseRumQueryOptions) {
+  const { t } = useI18n();
   const route = useRoute();
   const router = useRouter();
   const store = useRumExploreStore();
@@ -72,6 +77,8 @@ export function useRumQuery({ extraFilters }: IUseRumQueryOptions) {
   const urlFavoriteId = shallowRef<null | number>(null);
 
   const commonParams = shallowRef<IRumCommonParams>({ ...EMPTY_COMMON_PARAMS });
+  /** 生成查询字符串中 */
+  const generateQueryStringLoading = shallowRef(false);
 
   function buildFilters(): IRumFilter[] {
     const merged = mergeWhereList(where.value || [], commonWhere.value || []) as IRumFilter[];
@@ -146,6 +153,46 @@ export function useRumQuery({ extraFilters }: IUseRumQueryOptions) {
     handleQuery();
   }
 
+  async function generateQueryStringFn() {
+    generateQueryStringLoading.value = true;
+    const res = await generateQueryString({
+      app_name: store.appName,
+      mode: store.mode,
+      filters: buildFilters(),
+    }).catch(() => null);
+    generateQueryStringLoading.value = false;
+    return res;
+  }
+
+  async function modeChange(mode: EMode) {
+    const str = await generateQueryStringFn();
+    filterMode.value = mode;
+    queryString.value = str || '';
+    handleQuery();
+  }
+
+  async function copyWhere() {
+    const str = await generateQueryStringFn();
+    if (str) {
+      copyText(str, msg => {
+        Message({
+          message: msg,
+          theme: 'error',
+        });
+        return;
+      });
+      Message({
+        message: t('复制成功'),
+        theme: 'success',
+      });
+    }
+  }
+
+  function whereChange(val: IWhereItem[]) {
+    where.value = val;
+    handleQuery();
+  }
+
   return {
     commonParams,
     commonWhere,
@@ -154,10 +201,15 @@ export function useRumQuery({ extraFilters }: IUseRumQueryOptions) {
     showResidentBtn,
     urlFavoriteId,
     where,
+    generateQueryStringLoading,
     addCondition,
     clearQuery,
     handleQuery,
     initFromUrl,
     setUrlParams,
+    copyWhere,
+    modeChange,
+    generateQueryStringFn,
+    whereChange,
   };
 }

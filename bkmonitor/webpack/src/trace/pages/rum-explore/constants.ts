@@ -146,7 +146,7 @@ export const RUM_MODE_TAB_LIST: Array<{ icon: string; label: string; value: RumM
 ];
 
 /** 常驻筛选设置在用户配置中的 key 前缀 */
-export const RUM_RESIDENT_SETTING_KEY = 'RUM_RESIDENT_SETTING';
+export const RUM_RESIDENT_SETTING_KEY = 'RUM_EXPLORE_RESIDENT_SETTING';
 
 /** 收藏类型标识，需与后端 favorite type 对齐 */
 export const RUM_FAVORITE_TYPE = 'rum';
