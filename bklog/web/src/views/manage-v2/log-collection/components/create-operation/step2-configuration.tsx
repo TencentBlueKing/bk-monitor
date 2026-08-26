@@ -50,6 +50,7 @@ import BaseInfo from '../business-comp/step2/base-info';
 import type { IFormData, IValueItem, IContainerConfigItem, ISubmitOptions } from '../../type'; // 基础信息组件
 import DeviceMetadata from '../business-comp/step2/device-metadata'; // 设备元数据组件
 import EventFilter from '../business-comp/step2/event-filter'; // 事件过滤器组件
+import type { EventType, IEventFilterItem } from '../business-comp/step2/event-filter';
 import LogFilter from '../business-comp/step2/log-filter'; // 日志过滤器组件
 import MultilineRegDialog from '../business-comp/step2/multiline-reg-dialog'; // 多行正则对话框组件
 import InfoTips from '../common-comp/info-tips'; // 信息提示组件
@@ -86,6 +87,27 @@ type TargetSelectionResult = {
   // 目标类型
   type: TargetType;
   nodes: any[];
+};
+
+const WINLOG_FILTER_TYPES: EventType[] = [
+  'winlog_event_id',
+  'winlog_level',
+  'winlog_source',
+  'winlog_content',
+];
+
+const createEmptyEventFilter = (): IEventFilterItem => ({
+  type: 'winlog_event_id',
+  list: [],
+  isCorrect: true,
+});
+
+const normalizeEventFilterList = (value: unknown): string[] => {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter(item => item !== undefined && item !== null)
+    .map(item => String(item))
+    .filter(item => item.trim() !== '');
 };
 
 export default defineComponent({
@@ -210,7 +232,14 @@ export default defineComponent({
      */
     const showClusterListKeys = ['container_stdout', 'container_file'];
 
-    const eventSettingList = ref([{ type: 'winlog_event_id', list: [], isCorrect: true }]);
+    const eventSettingList = ref<IEventFilterItem[]>([createEmptyEventFilter()]);
+    const getEventFilterParams = (data: IEventFilterItem[]): Record<string, string[]> =>
+      data.reduce<Record<string, string[]>>((result, item) => {
+        if (!WINLOG_FILTER_TYPES.includes(item.type)) return result;
+        const list = normalizeEventFilterList(item.list);
+        if (list.length > 0) result[item.type] = list;
+        return result;
+      }, {});
     const isClone = computed(() => route.query.type === 'clone');
     // 获取全局数据
     const globalsData = computed(() => store.getters['globals/globalsData']);
@@ -428,12 +457,19 @@ export default defineComponent({
      * 修改过滤内容
      * @param data
      */
-    const handleFilterChange = data => {
+    const handleFilterChange = (data: IEventFilterItem[] = []) => {
       isConfigChange.value = true;
       eventSettingList.value = data;
-      (data || []).map(item => {
-        formData.value.params[item.type] = item.list;
-      });
+      const params = { ...formData.value.params };
+      WINLOG_FILTER_TYPES.forEach(type => delete params[type]);
+      const eventFilterParams = getEventFilterParams(data);
+      formData.value.params = {
+        ...params,
+        ...eventFilterParams,
+      };
+      if (!eventFilterParams.winlog_content?.length) {
+        delete formData.value.params.winlog_match_op;
+      }
     };
     /**
      * 修改日志种类 - 其他 输入框内容
@@ -483,28 +519,36 @@ export default defineComponent({
      * 处理 Windows 事件日志的配置数据
      * @param params - 参数对象
      */
-    const handleWindowsEventLogConfig = (params: any) => {
-      const { paths, exclude_files, winlog_match_op, winlog_name, ...restParams } = params;
+    const handleWindowsEventLogConfig = (params: IFormData['params'] = {}) => {
+      const normalizedParams = params || {};
+      const { paths, exclude_files, winlog_match_op, winlog_name, ...restParams } = normalizedParams;
 
-      // 构建事件设置列表，排除已处理的字段
-      eventSettingList.value = Object.keys(restParams).map(key => ({
-        type: key,
-        list: restParams[key],
-        isCorrect: true,
-      }));
+      // 仅回填有效的事件过滤条件，空值时保留一个可编辑的占位行
+      const eventSettings = WINLOG_FILTER_TYPES.reduce<IEventFilterItem[]>((list, type) => {
+        const values = normalizeEventFilterList(restParams[type]);
+        if (values.length > 0) {
+          list.push({ type, list: values, isCorrect: true });
+        }
+        return list;
+      }, []);
+      eventSettingList.value = eventSettings.length > 0 ? eventSettings : [createEmptyEventFilter()];
 
+      // 同步清理详情中已存在的空过滤字段，避免后续提交透传旧值
+      const cleanedParams = { ...formData.value.params };
+      WINLOG_FILTER_TYPES.forEach(type => delete cleanedParams[type]);
+      formData.value.params = {
+        ...cleanedParams,
+        ...getEventFilterParams(eventSettingList.value),
+      };
+
+      const logSpecies = Array.isArray(winlog_name) ? winlog_name : [];
       // 过滤出自定义的日志种类（不在预定义列表中的）
-      otherSpeciesList.value = winlog_name.filter(item => LOG_SPECIES_LIST.findIndex(i => i.id === item) === -1);
+      otherSpeciesList.value = logSpecies.filter(item => LOG_SPECIES_LIST.findIndex(i => i.id === item) === -1);
 
       // 从 winlog_name 中筛选出属于预定义列表的项，正确回填 selectLogSpeciesList
-      selectLogSpeciesList.value = winlog_name.filter(item =>
+      selectLogSpeciesList.value = logSpecies.filter(item =>
         LOG_SPECIES_LIST.some(species => species.id === item)
       );
-
-      // 如果没有自定义种类，从选择列表中移除 'Other' 选项
-      if (otherSpeciesList.value.length === 0) {
-        selectLogSpeciesList.value = selectLogSpeciesList.value.filter(item => item !== 'Other');
-      }
     };
 
     /**
@@ -1257,9 +1301,19 @@ export default defineComponent({
     // 处理winevent场景的请求数据
     const handleWineventlogRequestData = (baseParam, newParams, dataEncoding) => {
       const { paths, exclude_files, winlog_match_op, ...rect } = newParams;
+      WINLOG_FILTER_TYPES.forEach(type => delete rect[type]);
+      const eventFilterParams = getEventFilterParams(eventSettingList.value);
+      const params = {
+        ...rect,
+        ...eventFilterParams,
+      };
+      const matchOp = Array.isArray(winlog_match_op) ? winlog_match_op[0] : winlog_match_op;
+      if (eventFilterParams.winlog_content?.length && matchOp) {
+        params.winlog_match_op = matchOp;
+      }
       return {
         ...baseParam,
-        params: rect,
+        params,
         data_encoding: dataEncoding,
       };
     };
