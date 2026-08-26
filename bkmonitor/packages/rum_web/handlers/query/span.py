@@ -44,6 +44,14 @@ class SpanQuery(APMQueryFilterMixin, BaseQuery):
     def __init__(self, data_sources: list[TraceDatasourceTarget]):
         self.data_sources = data_sources
 
+    @property
+    def retention(self) -> int:
+        """数据保留天数（天），取所有数据源保留期的最小值以保证查询在有效窗口内。"""
+        retention: int | None = self.data_sources[0].retention
+        if retention is None:
+            raise ValueError("RUM 查询数据源必须设置 retention")
+        return retention
+
     @classmethod
     def build_query_q(cls, q: QueryConfigBuilder, filters: list[types.Filter] | None, query_string: str = ""):
         return q.filter(cls._build_filters(filters)).query_string(query_string)
@@ -120,7 +128,7 @@ class SpanQuery(APMQueryFilterMixin, BaseQuery):
             self.get_queries(filters, query_string), start_time, end_time, fields, limit
         )
 
-    def query_fields(self, start_time: int, end_time: int) -> dict[str, dict[str, Any]]:
+    def query_fields(self, start_time: int | None, end_time: int | None) -> dict[str, dict[str, Any]]:
         return super()._query_fields(
             [(target.table_id, bk_biz_id_to_space_uid(target.app.bk_biz_id)) for target in self.data_sources],
             start_time,

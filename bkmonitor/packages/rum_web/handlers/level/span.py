@@ -112,8 +112,8 @@ class SpanLevelHandler(BaseRumLevelHandler):
 
     def view_config(
         self,
-        start_time: int,
-        end_time: int,
+        start_time: int | None,
+        end_time: int | None,
         extra_config: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         field_map: dict[str, Any] = self.query.query_fields(start_time, end_time)

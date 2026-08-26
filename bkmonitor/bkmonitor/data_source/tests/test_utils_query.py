@@ -8,6 +8,10 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+from unittest import mock
+
+import datetime
+
 import pytest
 
 from constants.otel_query import FieldTypeEnum
@@ -211,3 +215,52 @@ class TestBaseQuery:
             end_time=1717003600,
         )
         assert result["attrs"]["is_searchable"] is False
+
+
+class TestGetRetentionTimeRange:
+    """基于保留期构造查询时间窗口的单元测试，覆盖三种时间传参情况。"""
+
+    # 以 7 天保留期、固定 now 为例：retention_seconds = 7 * 86400 = 604800
+    NOW = 1_700_000_000
+    RETENTION_DAYS = 7
+    RETENTION_SECONDS = 7 * 86400  # 604800
+    ACCURACY = BaseQuery.TIME_FIELD_ACCURACY  # 1000
+
+    def _run(self, start_time=None, end_time=None):
+        fake_now = datetime.datetime.fromtimestamp(self.NOW)
+        with mock.patch(
+            "bkmonitor.data_source.utils.query.datetime.datetime",
+            mock.Mock(now=mock.Mock(return_value=fake_now)),
+        ):
+            return BaseQuery.get_retention_time_range(self.RETENTION_DAYS, start_time, end_time)
+
+    def test_no_time_returns_full_retention_window_in_ms(self):
+        """不传时间时返回完整保留期窗口（秒 -> 毫秒）。"""
+        start_ms, end_ms = self._run()
+        assert end_ms == (self.NOW + BaseQuery.TIME_PADDING) * self.ACCURACY
+        assert start_ms == (self.NOW - self.RETENTION_SECONDS) * self.ACCURACY
+
+    def test_only_end_time_given_is_clamped_and_uses_retention_start(self):
+        """只传 end_time 时：限制不超过 now，start 取保留期下界。"""
+        start_ms, end_ms = self._run(end_time=self.NOW - 100)
+        assert start_ms == (self.NOW - self.RETENTION_SECONDS) * self.ACCURACY
+        assert end_ms == (self.NOW - 100) * self.ACCURACY
+
+    def test_future_end_time_is_clamped_to_now(self):
+        """传入未来 end_time 时，应被限制到当前时间，避免查询未来数据。"""
+        _, end_ms = self._run(end_time=self.NOW + 10_000)
+        assert end_ms == self.NOW * self.ACCURACY
+
+    def test_window_outside_retention_is_shifted_into_valid_range(self):
+        """查询窗口完全早于保留期下界时，整体右移到 [end-time, end] 区间。"""
+        far_end = self.NOW - self.RETENTION_SECONDS - 1000
+        start_ms, end_ms = self._run(start_time=far_end - 100, end_time=far_end)
+        # start 不应早于 (end - retention_seconds)
+        assert start_ms >= (far_end - self.RETENTION_SECONDS) * self.ACCURACY
+        assert start_ms <= end_ms
+
+    def test_window_partially_in_retention_keeps_explicit_start(self):
+        """查询窗口部分落在保留期内时，保留显式 start，仅限制下界。"""
+        explicit_start = self.NOW - self.RETENTION_SECONDS + 100
+        start_ms, _ = self._run(start_time=explicit_start, end_time=self.NOW - 10)
+        assert start_ms == explicit_start * self.ACCURACY

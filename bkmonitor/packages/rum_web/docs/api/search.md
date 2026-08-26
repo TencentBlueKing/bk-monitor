@@ -100,8 +100,8 @@ GET /rum/search/view_config/?app_name=rum-demo&bk_biz_id=2
 | bk_biz_id  | Integer | 是  | 业务 ID                                                               |
 | app_name   | String  | 是  | 应用名称                                                                |
 | mode       | String  | 否  | 查询层级模式，枚举值：<br/>- `span`<br/>- `view`<br/>- `session`<br/>默认 `span` |
-| start_time | Integer | 是  | 开始时间（Unix 秒级时间戳）                                                    |
-| end_time   | Integer | 是  | 结束时间（Unix 秒级时间戳）                                                    |
+| start_time | Integer | 否  | 开始时间（Unix 秒级时间戳）；不传时由查询层基于数据保留期自动补齐                                  |
+| end_time   | Integer | 否  | 结束时间（Unix 秒级时间戳）；不传时由查询层基于数据保留期自动补齐                                  |
 
 ```json
 {

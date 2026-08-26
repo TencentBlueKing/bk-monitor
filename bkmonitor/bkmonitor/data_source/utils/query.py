@@ -8,6 +8,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import datetime
 from typing import Any
 
 from core.drf_resource import api
@@ -23,9 +24,16 @@ class BaseQuery:
     USING: tuple[str, str]
     DEFAULT_TIME_FIELD = "time"
     DEFAULT_SORT = ["time"]
+    DEFAULT_ES_RETENTION = 7
 
     # 枚举查询上限
     QUERY_MAX_LIMIT = 10000
+
+    # 时间字段精度，用于时间字段查询时做乘法（秒 -> 毫秒）
+    TIME_FIELD_ACCURACY = 1000
+
+    # 时间填充，单位 s：未指定 end_time 时向前填充，避免查询最新数据时因延迟查不到
+    TIME_PADDING = 5
 
     # 查询字段映射
     KEY_REPLACE_FIELDS: dict[str, str] = {}
@@ -117,23 +125,54 @@ class BaseQuery:
             qs = qs.add_query(q)
         return qs
 
-    @classmethod
-    def _to_milliseconds(cls, ts: int) -> int:
-        """将秒级时间戳转换为毫秒级，毫秒级时间戳直接返回。
+    def _get_time_range(self, start_time: int | None = None, end_time: int | None = None) -> tuple[int, int]:
+        return self.get_retention_time_range(self.retention, start_time, end_time)
 
-        :param ts: 时间戳（10 位为秒级，13 位为毫秒级）
-        :return: 毫秒级时间戳
+    @property
+    def retention(self) -> int:
+        """数据保留天数（天），表示不自动补齐时间窗口。
+
+        子类（如 APM / RUM Query）应基于 TraceDatasourceTarget 提供具体实现。
         """
-        return ts * 1000 if len(str(ts)) == 10 else ts
+        return self.DEFAULT_ES_RETENTION
 
-    def _get_time_range(self, start_time: int, end_time: int) -> tuple[int, int]:
-        """将开始和结束时间统一转换为毫秒级时间戳。
+    @classmethod
+    def get_retention_time_range(
+        cls, retention: int, start_time: int | None = None, end_time: int | None = None
+    ) -> tuple[int, int]:
+        """基于数据保留天数构造查询时间窗口（毫秒级）。
 
-        :param start_time: 开始时间戳
-        :param end_time: 结束时间戳
+        覆盖全部不传、只传一端、两端均传三种情况；显式时间范围保持原有行为，
+        仅将 end_time 限制在当前时间之前、将 start_time 限制保留期下界之内。
+
+        :param retention: 数据保留天数
+        :param start_time: 开始时间戳（秒级），缺省时取保留期下界
+        :param end_time: 结束时间戳（秒级），缺省时取当前时间（含 TIME_PADDING 填充）
         :return: (毫秒级开始时间, 毫秒级结束时间)
         """
-        return self._to_milliseconds(start_time), self._to_milliseconds(end_time)
+        now: int = int(datetime.datetime.now().timestamp())
+
+        retention_seconds: int = int(datetime.timedelta(days=retention).total_seconds())
+        # 最早可查询时间（秒）
+        earliest_start_time: int = now - retention_seconds
+
+        if not end_time:
+            # 不传 end_time 代表查询最新数据，请求时间距离实际存储查询时间可能存在延迟，
+            # 因此增加一个时间填充，避免查询不到数据。
+            end_time = now + cls.TIME_PADDING
+        else:
+            # 已指定查询时间范围，限制 end_time 不超过当前时间，避免查询到未来数据。
+            end_time = min(now, end_time)
+
+        start_time = start_time or earliest_start_time
+        if end_time < earliest_start_time:
+            # 查询窗口不在有效保留期内：-<start_time>-----<end_time>-----<earliest_start_time>----<now>--
+            start_time = max(end_time - retention_seconds, start_time)
+        else:
+            # 查询窗口部分或全部落在有效期内：-<start_time>---<earliest_start_time>---<end_time>----<now>--
+            start_time = max(earliest_start_time, start_time)
+
+        return start_time * cls.TIME_FIELD_ACCURACY, end_time * cls.TIME_FIELD_ACCURACY
 
     def _query_list(
         self,
@@ -386,7 +425,7 @@ class BaseQuery:
         return field_name
 
     def _query_fields(
-        self, targets: list[tuple[types.TableId, types.SpaceUid]], start_time: int, end_time: int
+        self, targets: list[tuple[types.TableId, types.SpaceUid]], start_time: int | None, end_time: int | None
     ) -> dict[str, dict[str, Any]]:
         """并发查询多个结果表的字段信息，合并为字段名到字段详情的映射。
 
@@ -410,6 +449,7 @@ class BaseQuery:
             - option_values: 字段可选值列表[{"value": "", "alias": ""}]（可选）
 
         """
+        start_time, end_time = self._get_time_range(start_time, end_time)
         param_list: list[tuple[types.TableId, types.SpaceUid, int, int]] = [
             (table_id, space_uid, start_time, end_time) for table_id, space_uid in targets
         ]

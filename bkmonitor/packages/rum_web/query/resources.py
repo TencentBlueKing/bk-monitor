@@ -10,8 +10,6 @@ specific language governing permissions and limitations under the License.
 
 from typing import Any
 
-import time
-
 from django.utils.translation import gettext_lazy as _
 from rest_framework.serializers import ValidationError
 
@@ -37,12 +35,13 @@ def _get_application(bk_biz_id: int, app_name: str) -> Application:
 
 
 def _build_data_sources(applications: list[Application]) -> list[TraceDatasourceTarget]:
-    """从授权后的应用构造数据源目标列表"""
+    """从授权后的应用构造数据源目标列表，并携带 retention 以支持时间窗口补齐"""
     return [
         TraceDatasourceTarget.build(
             bk_biz_id=app.bk_biz_id,
             app_name=app.app_name,
             table_id=app.span_result_table_id,
+            retention=app.retention_days,
         )
         for app in applications
     ]
@@ -73,28 +72,20 @@ class RumRecordsResource(Resource):
 
 
 class RumViewConfigResource(Resource):
-    """GET /rum/search/view_config/ — 获取页面视图配置"""
+    """GET /rum/search/view_config/ — 获取页面视图配置
+
+    视图配置是字段映射，与时间范围无关，时间范围交由查询层基于 retention 自动补齐，
+    避免切换时间选择器时因命中索引分片变化导致页面重新加载。
+    """
 
     RequestSerializer = RumViewConfigRequestSerializer
 
-    @classmethod
-    def _build_retention_time_range(cls, application: Application) -> tuple[int, int]:
-        """根据数据保留时长构造查询窗口，与时间选择器解耦。
-
-        视图配置是字段映射，与时间范围无关；用数据保留时长作为查询窗口，
-        避免切换时间选择器时因命中索引分片变化导致页面重新加载。
-        """
-        end_time = int(time.time())
-        start_time = end_time - application.retention_days * 86400
-        return start_time, end_time
-
     def perform_request(self, data: dict[str, Any]) -> dict[str, Any]:
         application = _get_application(data["bk_biz_id"], data["app_name"])
-        start_time, end_time = self._build_retention_time_range(application)
         handler = RumLevelHandlerFactory.create(data["mode"], _build_data_sources([application]))
         return handler.view_config(
-            start_time=start_time,
-            end_time=end_time,
+            start_time=data.get("start_time"),
+            end_time=data.get("end_time"),
         )
 
 
