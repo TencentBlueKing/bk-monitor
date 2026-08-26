@@ -14,7 +14,7 @@ import time
 
 from alarm_backends.core.lock.service_lock import share_lock
 from core.prometheus import metrics
-from metadata.models.entity_relation import NAMESPACE_ALL, RelationDefinition, ResourceDefinition
+from metadata.models.entity_relation import CustomRelationStatus, NAMESPACE_ALL, RelationDefinition, ResourceDefinition
 from metadata.resources.entity_relation import ENTITY_REDIS_KEY_PREFIX, ENTITY_REDIS_CHANNEL_SUFFIX
 from metadata.tools.constants import TASK_FINISHED_SUCCESS, TASK_STARTED
 from metadata.utils.redis_tools import RedisTools
@@ -25,7 +25,7 @@ logger = logging.getLogger("metadata")
 @share_lock(ttl=3600, identify="metadata_refresh_entity_definition_to_redis")
 def refresh_entity_definition_to_redis():
     """
-    全量刷新 ResourceDefinition 和 RelationDefinition 到 Redis 的兜底任务。
+    全量刷新 ResourceDefinition、RelationDefinition 和 CustomRelationStatus 到 Redis 的兜底任务。
 
     当 Redis 数据丢失（Redis 重启、数据过期等）时，定时从 DB 全量重建缓存，
     保证 bmw SchemaProvider 始终能读到最新的资源/关联定义。
@@ -43,7 +43,7 @@ def refresh_entity_definition_to_redis():
         task_name="refresh_entity_definition_to_redis", status=TASK_STARTED, process_target=None
     ).inc()
 
-    for model_class in (ResourceDefinition, RelationDefinition):
+    for model_class in (ResourceDefinition, RelationDefinition, CustomRelationStatus):
         kind = model_class.get_kind()
         redis_key = f"{ENTITY_REDIS_KEY_PREFIX}:{kind}"
         channel = f"{redis_key}{ENTITY_REDIS_CHANNEL_SUFFIX}"

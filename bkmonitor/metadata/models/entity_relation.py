@@ -265,6 +265,16 @@ class CustomRelationStatus(EntityMeta):
     def __str__(self):
         return f"{self.namespace}/{self.name} -> {self.from_resource} -> {self.to_resource}"
 
+    def to_redis_json(self) -> dict[str, Any]:
+        return {
+            "namespace": self.namespace or NAMESPACE_ALL,
+            "name": self.name,
+            "from_resource": self.from_resource,
+            "to_resource": self.to_resource,
+            "labels": self.labels,
+            "generation": self.generation,
+        }
+
 
 class ResourceDefinition(EntityMeta):
     """

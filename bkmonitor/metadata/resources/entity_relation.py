@@ -29,7 +29,7 @@ logger = logging.getLogger("metadata")
 ENTITY_REDIS_KEY_PREFIX = "bkmonitorv3:entity"
 ENTITY_REDIS_CHANNEL_SUFFIX = ":channel"
 CUSTOM_RELATION_REDIS_CHANNEL = f"{ENTITY_REDIS_KEY_PREFIX}:CustomRelationStatus{ENTITY_REDIS_CHANNEL_SUFFIX}"
-REDIS_SYNC_KINDS = ("ResourceDefinition", "RelationDefinition")
+REDIS_SYNC_KINDS = ("ResourceDefinition", "RelationDefinition", "CustomRelationStatus")
 
 
 class EntityHandler:
@@ -95,10 +95,6 @@ class EntityHandler:
                 entity.save()
                 changed = True
 
-            if changed and self.model_class.get_kind() == "CustomRelationStatus":
-                transaction.on_commit(
-                    lambda namespace=entity.namespace: self._publish_custom_relation_change(namespace)
-                )
 
         # 同步到 Redis（仅对特定类型）
         self._rebuild_redis_cache(entity)
@@ -167,27 +163,9 @@ class EntityHandler:
         # 先 DB 删除，再 Redis 删除（DB 优先策略，保证一致性）
         with transaction.atomic():
             entity.delete()
-            if self.model_class.get_kind() == "CustomRelationStatus":
-                transaction.on_commit(
-                    lambda namespace=entity.namespace: self._publish_custom_relation_change(namespace)
-                )
 
         # 从 DB 全量重建该 namespace 的 Redis 缓存
         self._rebuild_redis_cache(entity)
-
-    @staticmethod
-    def _publish_custom_relation_change(namespace: str) -> None:
-        """发布业务级自定义关联变更通知，BMW 收到后按 namespace 重载实例。"""
-        try:
-            RedisTools.publish(
-                CUSTOM_RELATION_REDIS_CHANNEL,
-                [json.dumps({"namespace": namespace, "kind": "CustomRelationStatus"})],
-            )
-        except Exception:  # pylint: disable=broad-except
-            logger.exception(
-                "failed to publish custom relation change: namespace=%s",
-                namespace,
-            )
 
     def _rebuild_redis_cache(self, entity: EntityMeta) -> None:
         """

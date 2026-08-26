@@ -511,9 +511,9 @@ class TestEntityHandlerRedisSync:
         }
 
     @patch("metadata.resources.entity_relation.RedisTools")
-    def test_custom_relation_status_not_synced_but_notifies(self, mock_redis, cleanup_test_data):
-        """CustomRelationStatus 不写实体 Redis，但发布业务变更通知"""
-        assert "CustomRelationStatus" not in REDIS_SYNC_KINDS
+    def test_custom_relation_status_syncs_and_notifies(self, mock_redis, cleanup_test_data):
+        """CustomRelationStatus 写入实体 Redis，并发布业务变更通知"""
+        assert "CustomRelationStatus" in REDIS_SYNC_KINDS
 
         handler = EntityHandler(model_class=CustomRelationStatus)
         handler.apply(
@@ -521,7 +521,7 @@ class TestEntityHandlerRedisSync:
             spec={"from_resource": "src", "to_resource": "dst"},
         )
 
-        mock_redis.hset_to_redis.assert_not_called()
+        mock_redis.hset_to_redis.assert_called_once()
         mock_redis.publish.assert_called_once_with(
             CUSTOM_RELATION_REDIS_CHANNEL,
             ['{"namespace": "test_ns", "kind": "CustomRelationStatus"}'],
