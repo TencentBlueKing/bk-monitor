@@ -35,6 +35,13 @@ TRACE_NON_DIMENSION_FIELDS = {
     PreCalculateSpecificField.ROOT_SPAN_ID.value,
     PreCalculateSpecificField.TRACE_ID.value,
 }
+SPAN_NON_DIMENSION_FIELDS = {
+    PreCalculateSpecificField.TIME.value,
+    OtlpKey.START_TIME,
+    OtlpKey.END_TIME,
+    OtlpKey.SPAN_ID,
+    OtlpKey.TRACE_ID,
+}
 SPAN_SORTED_FIELD_INDEX_MAP = {field_name: index for index, field_name in enumerate(SPAN_SORTED_FIELD)}
 
 
@@ -44,7 +51,6 @@ class TraceFieldsInfoHandler:
     VIEW_FIELD_METADATA_KEYS: tuple[str, ...] = (
         "field_type",
         "is_searchable",
-        "is_agg",
         "is_list",
         "supported_operations",
     )
@@ -82,14 +88,13 @@ class TraceFieldsInfoHandler:
         return SpanQuery.query_fields_by_application(self.application)
 
     @staticmethod
-    def _build_static_field_info(field_name: str, field_type: str) -> dict[str, Any]:
+    def _build_static_field_info(field_type: str) -> dict[str, Any]:
         """为非 UQ 来源的 Trace 预计算字段补齐展示元数据。"""
 
         is_searchable = field_type not in NON_SEARCHABLE_FIELD_TYPES
         return {
             "field_type": field_type,
             "is_searchable": is_searchable,
-            "is_agg": field_type in DIMENSION_FIELD_TYPES and field_name not in TRACE_NON_DIMENSION_FIELDS,
             "is_list": is_searchable,
             "supported_operations": FIELD_OPERATIONS.get(field_type, []),
         }
@@ -98,7 +103,7 @@ class TraceFieldsInfoHandler:
     def pre_calculate_fields_info(self) -> dict[str, dict[str, Any]]:
         """获取预计算字段信息
 
-        保持和 span_fields_info 一样的字段类型结构。
+        补齐 view_config 所需的字段元数据。
         """
 
         # 预计算的所有字段信息
@@ -115,11 +120,11 @@ class TraceFieldsInfoHandler:
                 for child_field, child_field_info in self.TRACE_PRE_OBJECTS_FIELDS_EXTEND[field_name].items():
                     child_field_name = f"{field_name}.{child_field}"
                     pre_calculate_fields_info[child_field_name] = self._build_static_field_info(
-                        child_field_name, child_field_info["field_type"]
+                        child_field_info["field_type"]
                     )
             else:
                 pre_calculate_fields_info[field_name] = self._build_static_field_info(
-                    field_name, pre_storage_field_types.get(field_name, "")
+                    pre_storage_field_types.get(field_name, "")
                 )
         return pre_calculate_fields_info
 
@@ -127,7 +132,7 @@ class TraceFieldsInfoHandler:
     def trace_collections_fields_info(self) -> dict[str, dict[str, Any]]:
         """获取 trace collections 中可能存在的字段
 
-        保持和 span_fields_info 一样的字段类型结构。
+        从 span_fields_info 提取 view_config 所需的字段元数据。
         """
 
         # 获取所有的标准字段名
@@ -139,7 +144,7 @@ class TraceFieldsInfoHandler:
                 trace_field_name = TraceQueryTransformer.to_pre_cal_field(field_name)
                 if trace_field_name == "collections.kind":
                     standard_fields_info[trace_field_name] = self._build_static_field_info(
-                        trace_field_name, EnabledStatisticsDimension.KEYWORD.value
+                        EnabledStatisticsDimension.KEYWORD.value
                     )
                     continue
 
@@ -191,6 +196,18 @@ class TraceFieldsHandler:
                 return mapping[field_name] or field_name
         return field_name
 
+    @staticmethod
+    def is_dimensions(mode: str, field_name: str, field_type: str) -> bool:
+        """判断字段是否支持当前查询视角的统计分析。"""
+
+        if field_type not in DIMENSION_FIELD_TYPES:
+            return False
+        if mode == QueryMode.TRACE:
+            return field_name not in TRACE_NON_DIMENSION_FIELDS
+        if mode == QueryMode.SPAN:
+            return field_name not in SPAN_NON_DIMENSION_FIELDS
+        return True
+
     def get_fields_info(self, mode: str, field_names: list[str]) -> list[dict[str, Any]]:
         """获取字段信息"""
 
@@ -204,7 +221,7 @@ class TraceFieldsHandler:
                     alias=self.get_field_alias(field_name),
                     type=field_info["field_type"],
                     is_searched=field_info["is_searchable"],
-                    is_dimensions=field_info["is_agg"],
+                    is_dimensions=self.is_dimensions(mode, field_name, field_info["field_type"]),
                     can_displayed=field_info["is_list"],
                     supported_operations=field_info["supported_operations"],
                 )

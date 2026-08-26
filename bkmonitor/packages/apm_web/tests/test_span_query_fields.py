@@ -4,6 +4,8 @@ from datetime import UTC, datetime
 from types import SimpleNamespace
 from typing import Any
 
+import pytest
+
 from apm_web.constants import QueryMode
 from apm_web.handlers.backend_data_handler import TraceBackendHandler
 from apm_web.handlers.instance_handler import InstanceHandler
@@ -104,15 +106,13 @@ def test_application_retention_time_range_uses_es_retention(mocker) -> None:
     get_datetime_range.assert_called_once_with(period="day", distance=30, rounding=False)
 
 
-def test_trace_fields_handler_directly_maps_unify_query_metadata(mocker) -> None:
+def test_trace_fields_handler_maps_query_metadata_but_calculates_dimensions(mocker) -> None:
     supported_operations = [{"operator": "custom"}]
     fields_info = {
-        OtlpKey.SPAN_ID: _make_uq_field(
-            OtlpKey.SPAN_ID,
+        "attributes.custom_name": _make_uq_field(
+            "attributes.custom_name",
             "keyword",
-            is_searchable=False,
-            is_agg=True,
-            is_list=False,
+            is_agg=False,
             supported_operations=supported_operations,
         )
     }
@@ -120,12 +120,68 @@ def test_trace_fields_handler_directly_maps_unify_query_metadata(mocker) -> None
 
     handler = TraceFieldsHandler(bk_biz_id=2, app_name="app")
 
-    field_info = handler.get_fields_info(QueryMode.SPAN, [OtlpKey.SPAN_ID])[0]
+    field_info = handler.get_fields_info(QueryMode.SPAN, ["attributes.custom_name"])[0]
     assert field_info["type"] == "keyword"
-    assert field_info["is_searched"] is False
+    assert field_info["is_searched"] is True
     assert field_info["is_dimensions"] is True
-    assert field_info["can_displayed"] is False
+    assert field_info["can_displayed"] is True
     assert field_info["supported_operations"] == supported_operations
+
+
+@pytest.mark.parametrize(
+    ("field_name", "field_type"),
+    [
+        (PreCalculateSpecificField.TIME.value, "date"),
+        (OtlpKey.START_TIME, "long"),
+        (OtlpKey.END_TIME, "long"),
+        (OtlpKey.SPAN_ID, "keyword"),
+        (OtlpKey.TRACE_ID, "keyword"),
+    ],
+)
+def test_span_special_fields_do_not_support_dimensions(mocker, field_name: str, field_type: str) -> None:
+    fields_info = {field_name: _make_uq_field(field_name, field_type, is_agg=True)}
+    mocker.patch.object(TraceFieldsInfoHandler, "get_fields_info_by_mode", return_value=fields_info)
+
+    handler = TraceFieldsHandler(bk_biz_id=2, app_name="app")
+
+    field_info = handler.get_fields_info(QueryMode.SPAN, [field_name])[0]
+    assert field_info["is_dimensions"] is False
+
+
+def test_span_parent_span_id_still_supports_dimensions(mocker) -> None:
+    fields_info = {
+        OtlpKey.PARENT_SPAN_ID: _make_uq_field(OtlpKey.PARENT_SPAN_ID, "keyword", is_agg=False),
+    }
+    mocker.patch.object(TraceFieldsInfoHandler, "get_fields_info_by_mode", return_value=fields_info)
+
+    handler = TraceFieldsHandler(bk_biz_id=2, app_name="app")
+
+    field_info = handler.get_fields_info(QueryMode.SPAN, [OtlpKey.PARENT_SPAN_ID])[0]
+    assert field_info["is_dimensions"] is True
+
+
+@pytest.mark.parametrize("field_type", ["keyword", "integer", "long", "double"])
+def test_supported_field_types_support_dimensions_independent_of_is_agg(mocker, field_type: str) -> None:
+    field_name = "attributes.custom_name"
+    fields_info = {field_name: _make_uq_field(field_name, field_type, is_agg=False)}
+    mocker.patch.object(TraceFieldsInfoHandler, "get_fields_info_by_mode", return_value=fields_info)
+
+    handler = TraceFieldsHandler(bk_biz_id=2, app_name="app")
+
+    field_info = handler.get_fields_info(QueryMode.SPAN, [field_name])[0]
+    assert field_info["is_dimensions"] is True
+
+
+@pytest.mark.parametrize("field_type", ["text", "date", "boolean", "conflict"])
+def test_unsupported_field_types_do_not_support_dimensions(mocker, field_type: str) -> None:
+    field_name = "attributes.custom_name"
+    fields_info = {field_name: _make_uq_field(field_name, field_type, is_agg=True)}
+    mocker.patch.object(TraceFieldsInfoHandler, "get_fields_info_by_mode", return_value=fields_info)
+
+    handler = TraceFieldsHandler(bk_biz_id=2, app_name="app")
+
+    field_info = handler.get_fields_info(QueryMode.SPAN, [field_name])[0]
+    assert field_info["is_dimensions"] is False
 
 
 def test_trace_fields_handler_only_returns_leaf_fields(mocker) -> None:
@@ -171,25 +227,27 @@ def test_trace_fields_info_handler_builds_span_query_from_local_application(mock
     query_fields.assert_called_once_with(app)
 
 
-def test_trace_precalculated_fields_have_query_field_metadata() -> None:
+def test_trace_precalculated_fields_have_view_field_metadata() -> None:
     handler = TraceFieldsInfoHandler(bk_biz_id=2, app_name="app")
 
     field_info = next(iter(handler.pre_calculate_fields_info.values()))
 
-    assert {"field_type", "is_searchable", "is_agg", "is_list", "supported_operations"} <= field_info.keys()
+    assert set(field_info) == {"field_type", "is_searchable", "is_list", "supported_operations"}
 
 
 def test_trace_precalculated_non_dimension_fields_keep_original_semantics() -> None:
-    handler = TraceFieldsInfoHandler(bk_biz_id=2, app_name="app")
+    handler = TraceFieldsHandler(bk_biz_id=2, app_name="app")
+    handler.fields_info_handler.__dict__["span_fields_info"] = {}
 
     non_dimension_fields = {
-        PreCalculateSpecificField.MIN_START_TIME,
-        PreCalculateSpecificField.MAX_END_TIME,
-        PreCalculateSpecificField.ROOT_SPAN_ID,
-        PreCalculateSpecificField.TRACE_ID,
+        PreCalculateSpecificField.MIN_START_TIME.value,
+        PreCalculateSpecificField.MAX_END_TIME.value,
+        PreCalculateSpecificField.ROOT_SPAN_ID.value,
+        PreCalculateSpecificField.TRACE_ID.value,
     }
 
-    assert all(handler.pre_calculate_fields_info[field_name]["is_agg"] is False for field_name in non_dimension_fields)
+    fields_info = handler.get_fields_info(QueryMode.TRACE, list(non_dimension_fields))
+    assert all(field_info["is_dimensions"] is False for field_info in fields_info)
 
 
 def test_trace_collection_kind_keeps_keyword_query_semantics() -> None:
@@ -202,7 +260,7 @@ def test_trace_collection_kind_keeps_keyword_query_semantics() -> None:
 
     assert field_info["field_type"] == "keyword"
     assert field_info["is_searchable"] is True
-    assert field_info["is_agg"] is True
+    assert "is_agg" not in field_info
     assert field_info["is_list"] is True
     assert {operation["operator"] for operation in field_info["supported_operations"]} == {
         "equal",
@@ -212,6 +270,17 @@ def test_trace_collection_kind_keeps_keyword_query_semantics() -> None:
         "like",
         "not_like",
     }
+
+
+def test_trace_collection_dimensions_do_not_depend_on_unify_query_is_agg() -> None:
+    handler = TraceFieldsHandler(bk_biz_id=2, app_name="app")
+    handler.fields_info_handler.__dict__["span_fields_info"] = {
+        OtlpKey.SPAN_NAME: _make_uq_field(OtlpKey.SPAN_NAME, "keyword", is_agg=False),
+    }
+
+    field_info = handler.get_fields_info(QueryMode.TRACE, ["collections.span_name"])[0]
+
+    assert field_info["is_dimensions"] is True
 
 
 def test_trace_fields_handler_returns_empty_fields_when_unify_query_returns_empty(mocker) -> None:
