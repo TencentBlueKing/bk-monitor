@@ -99,6 +99,13 @@ class ListAgentsResource(AidevPrivateAPIGWResource):
         page_size = serializers.IntegerField(required=False, default=20, min_value=1, max_value=200)
 
 
+class ListSpacesResource(AidevPrivateAPIGWResource):
+    """获取当前用户有权限的 AIDEV 空间。"""
+
+    action = "/openapi/aidev/private/v1/spaces/"
+    method = "GET"
+
+
 class ListSkillsResource(AidevPrivateAPIGWResource):
     """获取当前用户有权限的 AIDEV Skill。"""
 

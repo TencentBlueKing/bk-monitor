@@ -47,6 +47,7 @@ class SourceAnalysisUpstreamMock:
     }
 
     AIDEV_AGENT_ACTION = "/openapi/aidev/private/v1/agents/"
+    AIDEV_SPACE_ACTION = "/openapi/aidev/private/v1/spaces/"
     AIDEV_SKILL_ACTION = "/openapi/aidev/private/v1/skills/"
 
     BKFARA_ENSURE_SCENE_ACTION = "/incident/issue_analysis/ensure_scene/"
@@ -59,35 +60,59 @@ class SourceAnalysisUpstreamMock:
     SCENARIO_RETRYABLE_FAILURE = "retryable_failure"
     SCENARIO_TERMINAL_FAILURE = "terminal_failure"
 
+    AIDEV_SPACES = (
+        {"space_id": "mock-space-a", "space_name": _("[Mock] AIDEV Helper")},
+        {"space_id": "mock-space-b", "space_name": _("[Mock] Source Analysis")},
+    )
     AGENTS = (
         {
             "id": "mock-agent-high-confidence",
             "agent_name": _("[Mock] 高置信度分析成功"),
+            "space_id": "mock-space-a",
             "scenario": SCENARIO_HIGH_CONFIDENCE,
         },
         {
             "id": "mock-agent-insufficient-evidence",
             "agent_name": _("[Mock] 证据不足分析成功"),
+            "space_id": "mock-space-a",
             "scenario": SCENARIO_INSUFFICIENT_EVIDENCE,
         },
         {
             "id": "mock-agent-retryable-failure",
             "agent_name": _("[Mock] 可重试分析失败"),
+            "space_id": "mock-space-b",
             "scenario": SCENARIO_RETRYABLE_FAILURE,
         },
         {
             "id": "mock-agent-terminal-failure",
             "agent_name": _("[Mock] 不可重试分析失败"),
+            "space_id": "mock-space-b",
             "scenario": SCENARIO_TERMINAL_FAILURE,
         },
     )
     SKILLS = (
-        {"id": "mock-skill-code-search", "skill_name": _("[Mock] 代码检索 Skill")},
-        {"id": "mock-skill-log-analysis", "skill_name": _("[Mock] 告警日志分析 Skill")},
+        {
+            "id": "mock-skill-code-search",
+            "skill_name": _("[Mock] 代码检索 Skill"),
+            "space_id": "mock-space-a",
+        },
+        {
+            "id": "mock-skill-log-analysis",
+            "skill_name": _("[Mock] 告警日志分析 Skill"),
+            "space_id": "mock-space-b",
+        },
     )
     KNOWLEDGE_BASES = (
-        {"id": "mock-kb-service", "name": _("[Mock] 业务服务知识库")},
-        {"id": "mock-kb-troubleshooting", "name": _("[Mock] 故障排查知识库")},
+        {
+            "id": "mock-kb-service",
+            "name": _("[Mock] 业务服务知识库"),
+            "space_id": "mock-space-a",
+        },
+        {
+            "id": "mock-kb-troubleshooting",
+            "name": _("[Mock] 故障排查知识库"),
+            "space_id": "mock-space-b",
+        },
     )
 
     TASK_CACHE_TIMEOUT_SECONDS = 24 * 60 * 60
@@ -117,13 +142,15 @@ class SourceAnalysisUpstreamMock:
 
     @classmethod
     def supports_aidev_action(cls, action: str) -> bool:
-        return action in {cls.AIDEV_AGENT_ACTION, cls.AIDEV_SKILL_ACTION}
+        return action in {cls.AIDEV_AGENT_ACTION, cls.AIDEV_SPACE_ACTION, cls.AIDEV_SKILL_ACTION}
 
     @classmethod
-    def list_aidev_resources(cls, action: str, params: dict) -> dict:
+    def list_aidev_resources(cls, action: str, params: dict) -> dict | list[dict]:
         if action == cls.AIDEV_AGENT_ACTION:
             items = cls.AGENTS
             name_field = "agent_name"
+        elif action == cls.AIDEV_SPACE_ACTION:
+            return [dict(item) for item in cls.AIDEV_SPACES]
         elif action == cls.AIDEV_SKILL_ACTION:
             items = cls.SKILLS
             name_field = "skill_name"
@@ -134,9 +161,19 @@ class SourceAnalysisUpstreamMock:
     @classmethod
     def list_knowledge_base_options(cls, params: dict) -> dict:
         result = cls._paginate(cls.KNOWLEDGE_BASES, "name", params)
+        space_name_map = {str(item["space_id"]): str(item["space_name"]) for item in cls.AIDEV_SPACES}
         return {
             "total": result["count"],
-            "list": [{"id": str(item["id"]), "name": str(item["name"])} for item in result["results"]],
+            "list": [
+                {
+                    "id": str(item["id"]),
+                    "name": str(item["name"]),
+                    "space_id": str(item["space_id"]),
+                    # 与真实链路一致：空间名称补全失败时回退展示 space_id
+                    "space_name": space_name_map.get(str(item["space_id"]), str(item["space_id"])),
+                }
+                for item in result["results"]
+            ],
         }
 
     @classmethod
