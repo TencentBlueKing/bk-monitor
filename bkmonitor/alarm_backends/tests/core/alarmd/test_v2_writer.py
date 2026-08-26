@@ -1,9 +1,13 @@
+import copy
 import json
 import os
 import subprocess
 from pathlib import Path
 
-from alarm_backends.core.alarmd import v2_writer
+import pytest
+
+from alarm_backends.core.alarmd import contract, v2_writer
+from alarm_backends.core.alarmd.encoder import decode_json_document
 from alarm_backends.core.alarmd.v2_writer import (
     AccessPublishJob,
     BoundedAccessShadowPublisher,
@@ -17,8 +21,21 @@ from alarm_backends.core.alarmd.v2_writer import (
 )
 
 
-M0_COMMIT = "d11f4e84"
+M0_COMMIT = "6e65c0f9"
 M0_GOLDEN = "pkg/alarmd/contract/testdata/go-v2"
+TRIGGER_EVENT_FIELDS = set(
+    "schema required_features event_id tenant_id business_id plan_ref record_ref evaluation_time event_kind "
+    "primary_level_id level_results observed trace detect_plan_fingerprint trigger_state_fingerprint "
+    "event_semantic_digest".split()
+)
+RECEIPT_FIELDS = set(
+    "schema required_features receipt_id execution_id message_id payload_digest plan_set_digest source_window "
+    "status counts per_plan reason_counts".split()
+)
+RECEIPT_COUNT_FIELDS = set("received selected processed unavailable terminal level_terminal_affected events".split())
+PLAN_RECEIPT_FIELDS = set(
+    "plan_id selected abnormal normal recovery unavailable terminal level_terminal_affected result_identity_digest".split()
+)
 
 
 def _read_m0_golden(name: str) -> dict:
@@ -30,7 +47,58 @@ def _read_m0_golden(name: str) -> dict:
             cwd=Path(repo),
         )
         assert local_payload == source_payload
-    return json.loads(local_payload)
+    return decode_json_document(local_payload)
+
+
+def _exact_fields(value, path: str, fields: set[str]):
+    return contract._validate_fixed_fields(value, path, required=fields)
+
+
+def _strict_verify_trigger_event_v1(document: dict) -> None:
+    _exact_fields(document, "trigger_event", TRIGGER_EVENT_FIELDS)
+    if contract._validate_header(document, name="trigger-event", required_features=set()) != 0:
+        raise contract.ContractValidationError("trigger_event schema must be 1.0")
+    if not isinstance(document["level_results"], list) or not document["level_results"]:
+        raise contract.ContractValidationError("trigger_event.level_results must be non-empty")
+    levels = {result["level_id"]: result["result"] for result in document["level_results"]}
+    if (
+        len(levels) != len(document["level_results"])
+        or levels.get(document["primary_level_id"]) != document["event_kind"]
+    ):
+        raise contract.ContractValidationError("trigger_event dynamic Level or primary result mismatch")
+
+
+def _strict_verify_message_receipt_v1(document: dict) -> None:
+    _exact_fields(document, "message_receipt", RECEIPT_FIELDS)
+    if contract._validate_header(document, name="message-receipt", required_features=set()) != 0:
+        raise contract.ContractValidationError("message_receipt schema must be 1.0")
+    counts = _exact_fields(document["counts"], "message_receipt.counts", RECEIPT_COUNT_FIELDS)
+    if any(type(counts[field]) is not int or counts[field] < 0 for field in RECEIPT_COUNT_FIELDS):
+        raise contract.ContractValidationError("message_receipt counts must be non-negative integers")
+    totals = {field: 0 for field in RECEIPT_COUNT_FIELDS if field != "received"}
+    for index, plan in enumerate(document["per_plan"]):
+        plan = _exact_fields(plan, f"message_receipt.per_plan[{index}]", PLAN_RECEIPT_FIELDS)
+        processed = plan["abnormal"] + plan["normal"] + plan["recovery"]
+        if plan["selected"] != processed + plan["unavailable"] + plan["terminal"]:
+            raise contract.ContractValidationError("message_receipt per_plan selected does not balance")
+        if plan["level_terminal_affected"] > processed:
+            raise contract.ContractValidationError("message_receipt affected cannot exceed processed")
+        for field, value in {
+            "selected": plan["selected"],
+            "processed": processed,
+            "unavailable": plan["unavailable"],
+            "terminal": plan["terminal"],
+            "level_terminal_affected": plan["level_terminal_affected"],
+            "events": plan["abnormal"] + plan["recovery"],
+        }.items():
+            totals[field] += value
+    if any(counts[field] != total for field, total in totals.items()):
+        raise contract.ContractValidationError("message_receipt counts do not match per_plan totals")
+    expected_status = (
+        "COMPLETED_WITH_TERMINAL" if counts["terminal"] or counts["level_terminal_affected"] else "COMPLETED"
+    )
+    if document["status"] != expected_status:
+        raise contract.ContractValidationError("message_receipt status does not match terminal counts")
 
 
 def test_cross_reads_m0_go_canonical_and_envelope_golden():
@@ -54,6 +122,38 @@ def test_cross_reads_m0_go_canonical_and_envelope_golden():
         canonical_json_v2(envelope)
         == json.dumps(envelope, ensure_ascii=False, allow_nan=False, sort_keys=True, separators=(",", ":")).encode()
     )
+
+
+def test_cross_reads_m0_go_trigger_event_and_mixed_level_receipt():
+    event = _read_m0_golden("trigger_event_v1.json")
+    _strict_verify_trigger_event_v1(event)
+    assert event["event_kind"] == "ABNORMAL"
+    assert event["primary_level_id"] == 5
+    assert {result["level_id"]: result["result"] for result in event["level_results"]} == {1: "NORMAL", 5: "ABNORMAL"}
+
+    receipt = _read_m0_golden("message_receipt_mixed_level_v1.json")
+    _strict_verify_message_receipt_v1(receipt)
+    assert receipt["status"] == "COMPLETED_WITH_TERMINAL"
+    assert receipt["counts"]["processed"] == receipt["counts"]["level_terminal_affected"] == 1
+    assert receipt["per_plan"][0]["level_terminal_affected"] == 1
+
+
+def test_go_output_verifiers_reject_unknown_and_missing_fields():
+    event = copy.deepcopy(_read_m0_golden("trigger_event_v1.json"))
+    event["future"] = True
+    with pytest.raises(contract.ContractValidationError, match="unknown field"):
+        _strict_verify_trigger_event_v1(event)
+
+    receipt = copy.deepcopy(_read_m0_golden("message_receipt_mixed_level_v1.json"))
+    del receipt["counts"]["level_terminal_affected"]
+    with pytest.raises(contract.ContractValidationError, match="missing required field"):
+        _strict_verify_message_receipt_v1(receipt)
+
+    receipt = copy.deepcopy(_read_m0_golden("message_receipt_mixed_level_v1.json"))
+    receipt["counts"]["level_terminal_affected"] = 2
+    receipt["per_plan"][0]["level_terminal_affected"] = 2
+    with pytest.raises(contract.ContractValidationError, match="cannot exceed processed"):
+        _strict_verify_message_receipt_v1(receipt)
 
 
 def _job(record_count=3, *, first_host_size=0):
