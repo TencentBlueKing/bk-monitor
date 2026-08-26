@@ -131,11 +131,11 @@ export const RUM_COLUMN_WIDTH_MAP: Record<string, number> = {
 
 export const DEFAULT_COLUMN_WIDTH = 150;
 
-/** status.code 列的展示配置，数值语义沿用 OpenTelemetry 的 UNSET / OK / ERROR */
-export const RUM_STATUS_CODE_MAP: Record<number, { alias: string; theme: 'failed' | 'normal' | 'warning' }> = {
-  0: { alias: window.i18n.t('异常'), theme: 'warning' },
-  1: { alias: window.i18n.t('成功'), theme: 'normal' },
-  2: { alias: window.i18n.t('失败'), theme: 'failed' },
+/** status.code 列的展示配置，数值语义沿用 OpenTelemetry 的 UNSET / OK / ERROR，tagColor/tagBgColor 供内置 TAGS 渲染着色 */
+export const RUM_STATUS_CODE_MAP: Record<number, { alias: string; tagBgColor: string; tagColor: string }> = {
+  0: { alias: window.i18n.t('异常'), tagBgColor: '#ff9c011f', tagColor: '#ff9c01' },
+  1: { alias: window.i18n.t('成功'), tagBgColor: '#2dcb561f', tagColor: '#2dcb56' },
+  2: { alias: window.i18n.t('失败'), tagBgColor: '#ea36361f', tagColor: '#ea3636' },
 };
 
 /** 视角 Tab 配置，当前仅 span 有实现，其余渲染占位 */
@@ -150,3 +150,6 @@ export const RUM_RESIDENT_SETTING_KEY = 'RUM_EXPLORE_RESIDENT_SETTING';
 
 /** 收藏类型标识，需与后端 favorite type 对齐 */
 export const RUM_FAVORITE_TYPE = 'rum';
+
+/** 视图根节点 class，同时作为表格滚动容器选择器（.${RUM_EXPLORE_VIEW_CLASS}） */
+export const RUM_EXPLORE_VIEW_CLASS = 'rum-explore-view';
