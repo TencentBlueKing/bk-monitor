@@ -36,6 +36,9 @@ RECEIPT_COUNT_FIELDS = set("received selected processed unavailable terminal lev
 PLAN_RECEIPT_FIELDS = set(
     "plan_id selected abnormal normal recovery unavailable terminal level_terminal_affected result_identity_digest".split()
 )
+PLAN_RECEIPT_COUNT_FIELDS = set(
+    "selected abnormal normal recovery unavailable terminal level_terminal_affected".split()
+)
 
 
 def _read_m0_golden(name: str) -> dict:
@@ -58,13 +61,27 @@ def _strict_verify_trigger_event_v1(document: dict) -> None:
     _exact_fields(document, "trigger_event", TRIGGER_EVENT_FIELDS)
     if contract._validate_header(document, name="trigger-event", required_features=set()) != 0:
         raise contract.ContractValidationError("trigger_event schema must be 1.0")
-    if not isinstance(document["level_results"], list) or not document["level_results"]:
+    results = document["level_results"]
+    if not isinstance(results, list) or not results:
         raise contract.ContractValidationError("trigger_event.level_results must be non-empty")
-    levels = {result["level_id"]: result["result"] for result in document["level_results"]}
-    if (
-        len(levels) != len(document["level_results"])
-        or levels.get(document["primary_level_id"]) != document["event_kind"]
-    ):
+    previous_level_id = 0
+    for result in results:
+        level_id, priority, outcome = result["level_id"], result["priority"], result["result"]
+        if (
+            type(level_id) is not int
+            or level_id <= previous_level_id
+            or type(priority) is not int
+            or priority <= 0
+            or outcome not in {"NORMAL", "ABNORMAL", "RECOVERY"}
+        ):
+            raise contract.ContractValidationError("trigger_event Level results are invalid or unsorted")
+        previous_level_id = level_id
+    event_kind = "ABNORMAL" if any(result["result"] == "ABNORMAL" for result in results) else "RECOVERY"
+    candidates = [result for result in results if result["result"] == event_kind]
+    if not candidates or document["event_kind"] != event_kind:
+        raise contract.ContractValidationError("trigger_event event_kind does not match Level results")
+    primary = min(candidates, key=lambda result: (result["priority"], result["level_id"]))["level_id"]
+    if document["primary_level_id"] != primary:
         raise contract.ContractValidationError("trigger_event dynamic Level or primary result mismatch")
 
 
@@ -75,12 +92,24 @@ def _strict_verify_message_receipt_v1(document: dict) -> None:
     counts = _exact_fields(document["counts"], "message_receipt.counts", RECEIPT_COUNT_FIELDS)
     if any(type(counts[field]) is not int or counts[field] < 0 for field in RECEIPT_COUNT_FIELDS):
         raise contract.ContractValidationError("message_receipt counts must be non-negative integers")
+    if not isinstance(document["per_plan"], list) or not isinstance(document["reason_counts"], list):
+        raise contract.ContractValidationError("message_receipt per_plan and reason_counts must be arrays")
+    if document["status"] == "REJECTED":
+        if any(counts.values()) or document["per_plan"] or not document["reason_counts"]:
+            raise contract.ContractValidationError(
+                "REJECTED message_receipt must have zero counts, no plans and a reason"
+            )
+        return
     totals = {field: 0 for field in RECEIPT_COUNT_FIELDS if field != "received"}
     for index, plan in enumerate(document["per_plan"]):
         plan = _exact_fields(plan, f"message_receipt.per_plan[{index}]", PLAN_RECEIPT_FIELDS)
+        if any(type(plan[field]) is not int or plan[field] < 0 for field in PLAN_RECEIPT_COUNT_FIELDS):
+            raise contract.ContractValidationError("message_receipt per_plan counts must be non-negative integers")
         processed = plan["abnormal"] + plan["normal"] + plan["recovery"]
         if plan["selected"] != processed + plan["unavailable"] + plan["terminal"]:
             raise contract.ContractValidationError("message_receipt per_plan selected does not balance")
+        if plan["selected"] > counts["received"]:
+            raise contract.ContractValidationError("message_receipt per_plan selected exceeds received")
         if plan["level_terminal_affected"] > processed:
             raise contract.ContractValidationError("message_receipt affected cannot exceed processed")
         for field, value in {
@@ -154,6 +183,50 @@ def test_go_output_verifiers_reject_unknown_and_missing_fields():
     receipt["per_plan"][0]["level_terminal_affected"] = 2
     with pytest.raises(contract.ContractValidationError, match="cannot exceed processed"):
         _strict_verify_message_receipt_v1(receipt)
+
+
+@pytest.mark.parametrize(
+    "mutate",
+    [
+        lambda event: event.update(event_kind="NORMAL"),
+        lambda event: event["level_results"][0].update(result="UNAVAILABLE"),
+        lambda event: (event["level_results"][0].update(result="ABNORMAL"), event.update(primary_level_id=1)),
+        lambda event: event["level_results"][0].update(result="ABNORMAL", priority=1),
+        lambda event: event["level_results"].reverse(),
+    ],
+)
+def test_trigger_event_verifier_rejects_invalid_aggregate_semantics(mutate):
+    event = copy.deepcopy(_read_m0_golden("trigger_event_v1.json"))
+    mutate(event)
+    with pytest.raises(contract.ContractValidationError):
+        _strict_verify_trigger_event_v1(event)
+
+
+@pytest.mark.parametrize(("normal", "abnormal"), [(-1, 2), (True, 0)])
+def test_receipt_verifier_rejects_invalid_plan_count(normal, abnormal):
+    receipt = copy.deepcopy(_read_m0_golden("message_receipt_mixed_level_v1.json"))
+    receipt["per_plan"][0].update(normal=normal, abnormal=abnormal)
+    with pytest.raises(contract.ContractValidationError, match="non-negative integers"):
+        _strict_verify_message_receipt_v1(receipt)
+
+
+def test_receipt_verifier_enforces_selected_and_rejected_semantics():
+    base = _read_m0_golden("message_receipt_mixed_level_v1.json")
+    exceeds_received = copy.deepcopy(base)
+    exceeds_received["counts"]["received"] = 0
+    with pytest.raises(contract.ContractValidationError, match="exceeds received"):
+        _strict_verify_message_receipt_v1(exceeds_received)
+
+    rejected = copy.deepcopy(base)
+    rejected["status"] = "REJECTED"
+    rejected["counts"] = {field: 0 for field in RECEIPT_COUNT_FIELDS}
+    rejected["per_plan"] = []
+    rejected["reason_counts"] = [{"reason_code": "MALFORMED_JSON", "count": 1}]
+    _strict_verify_message_receipt_v1(rejected)
+
+    rejected["reason_counts"] = []
+    with pytest.raises(contract.ContractValidationError, match="REJECTED"):
+        _strict_verify_message_receipt_v1(rejected)
 
 
 def _job(record_count=3, *, first_host_size=0):
