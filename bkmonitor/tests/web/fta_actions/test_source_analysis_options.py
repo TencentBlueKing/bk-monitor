@@ -18,7 +18,7 @@ from api.devops.default import (
     ListUserProjectResource,
     ListUserRepositoryResource,
 )
-from api.aidev.default import ListAgentsResource, ListSkillsResource
+from api.aidev.default import ListAgentsResource, ListSkillsResource, ListSpacesResource
 from bkmonitor.iam import ActionEnum
 from bkmonitor.iam.drf import BusinessActionPermission
 from core.drf_resource import api
@@ -67,6 +67,7 @@ class TestDevopsUserResources(SimpleTestCase):
 class TestAidevResources(SimpleTestCase):
     def test_actions_follow_aidev_private_gateway_contract(self):
         self.assertEqual(ListAgentsResource.action, "/openapi/aidev/private/v1/agents/")
+        self.assertEqual(ListSpacesResource.action, "/openapi/aidev/private/v1/spaces/")
         self.assertEqual(ListSkillsResource.action, "/openapi/aidev/private/v1/skills/")
 
         for resource_class in (ListAgentsResource, ListSkillsResource):
@@ -176,37 +177,75 @@ class TestSourceAnalysisOptionsResources(SimpleTestCase):
                         ListSourceAnalysisBkciProjectsResource().perform_request({"bk_biz_id": 2})
 
     def test_aidev_options_are_normalized(self):
+        spaces = [
+            {"space_id": "space-a", "space_name": "AIDEV Helper"},
+            {"space_id": "space-b", "space_name": "Source Analysis"},
+        ]
         cases = [
             (
                 ListSourceAnalysisAgentsResource,
                 "list_agents",
-                {"count": 1, "results": [{"id": 11, "agent_name": "源码分析 Agent"}]},
-                {"total": 1, "list": [{"id": "11", "name": "源码分析 Agent"}]},
+                {
+                    "count": 1,
+                    "results": [{"id": 11, "agent_name": "源码分析 Agent", "space_id": "space-a"}],
+                },
+                {
+                    "total": 1,
+                    "list": [
+                        {
+                            "id": "11",
+                            "name": "源码分析 Agent",
+                            "space_id": "space-a",
+                            "space_name": "AIDEV Helper",
+                        }
+                    ],
+                },
             ),
             (
                 ListSourceAnalysisSkillsResource,
                 "list_skills",
-                {"count": 1, "results": [{"id": 22, "skill_name": "代码检索 Skill"}]},
-                {"total": 1, "list": [{"id": "22", "name": "代码检索 Skill"}]},
+                {
+                    "count": 1,
+                    "results": [{"id": 22, "skill_name": "代码检索 Skill", "space_id": "space-b"}],
+                },
+                {
+                    "total": 1,
+                    "list": [
+                        {
+                            "id": "22",
+                            "name": "代码检索 Skill",
+                            "space_id": "space-b",
+                            "space_name": "Source Analysis",
+                        }
+                    ],
+                },
             ),
         ]
         for resource_class, api_name, upstream_data, expected in cases:
             with self.subTest(resource_class=resource_class.__name__):
-                with patch.object(api.aidev, api_name, return_value=upstream_data) as list_resources:
+                with (
+                    patch.object(api.aidev, api_name, return_value=upstream_data) as list_resources,
+                    patch.object(api.aidev, "list_spaces", return_value=spaces) as list_spaces,
+                ):
                     actual = resource_class().perform_request(
                         {"bk_biz_id": 2, "keyword": "source", "page": 2, "page_size": 10}
                     )
                 self.assertEqual(actual, expected)
                 list_resources.assert_called_once_with(space_id="all", fuzzy="source", page=2, page_size=10)
+                list_spaces.assert_called_once_with()
 
     def test_aidev_options_omit_empty_keyword(self):
-        with patch.object(api.aidev, "list_agents", return_value={"count": 0, "results": []}) as list_agents:
+        with (
+            patch.object(api.aidev, "list_agents", return_value={"count": 0, "results": []}) as list_agents,
+            patch.object(api.aidev, "list_spaces") as list_spaces,
+        ):
             result = ListSourceAnalysisAgentsResource().perform_request(
                 {"bk_biz_id": 2, "keyword": "", "page": 1, "page_size": 20}
             )
 
         self.assertEqual(result, {"total": 0, "list": []})
         list_agents.assert_called_once_with(space_id="all", page=1, page_size=20)
+        list_spaces.assert_not_called()
 
     def test_knowledge_base_options_remain_empty_until_aidev_supports_user_list(self):
         resource = ListSourceAnalysisKnowledgeBasesResource()
@@ -225,6 +264,58 @@ class TestSourceAnalysisOptionsResources(SimpleTestCase):
                         ListSourceAnalysisAgentsResource().perform_request(
                             {"bk_biz_id": 2, "keyword": "", "page": 1, "page_size": 20}
                         )
+
+    def test_aidev_option_rejects_invalid_space_list(self):
+        upstream_data = {
+            "count": 1,
+            "results": [{"id": 11, "agent_name": "源码分析 Agent", "space_id": "space-a"}],
+        }
+        invalid_space_lists = (
+            None,
+            [{"space_id": "space-a"}],
+        )
+        for spaces in invalid_space_lists:
+            with self.subTest(spaces=spaces):
+                with (
+                    patch.object(api.aidev, "list_agents", return_value=upstream_data),
+                    patch.object(api.aidev, "list_spaces", return_value=spaces),
+                    self.assertRaises(SourceAnalysisUpstreamUnavailableError),
+                ):
+                    ListSourceAnalysisAgentsResource().perform_request(
+                        {"bk_biz_id": 2, "keyword": "", "page": 1, "page_size": 20}
+                    )
+
+    def test_aidev_option_falls_back_to_space_id_for_public_cross_space_resource(self):
+        upstream_data = {
+            "count": 1,
+            "results": [{"id": 11, "agent_name": "源码分析 Agent", "space_id": "space-a"}],
+        }
+        with (
+            patch.object(api.aidev, "list_agents", return_value=upstream_data),
+            patch.object(
+                api.aidev,
+                "list_spaces",
+                return_value=[{"space_id": "space-b", "space_name": "Other Space"}],
+            ),
+        ):
+            result = ListSourceAnalysisAgentsResource().perform_request(
+                {"bk_biz_id": 2, "keyword": "", "page": 1, "page_size": 20}
+            )
+
+        self.assertEqual(
+            result,
+            {
+                "total": 1,
+                "list": [
+                    {
+                        "id": "11",
+                        "name": "源码分析 Agent",
+                        "space_id": "space-a",
+                        "space_name": "space-a",
+                    }
+                ],
+            },
+        )
 
     def test_request_contract(self):
         project_request = ListSourceAnalysisBkciProjectsResource.RequestSerializer(data={"bk_biz_id": 2})

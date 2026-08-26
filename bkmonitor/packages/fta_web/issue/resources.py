@@ -1623,6 +1623,21 @@ class BaseListSourceAnalysisAidevOptionsResource(SourceAnalysisBaseResource):
     def list_aidev_resources(self, params: dict):
         raise NotImplementedError
 
+    @staticmethod
+    def get_aidev_space_name_map() -> dict[str, str]:
+        spaces = api.aidev.list_spaces()
+        if not isinstance(spaces, list) or any(not isinstance(space, dict) for space in spaces):
+            raise ValueError("invalid AIDEV space list")
+
+        space_name_map = {}
+        for space in spaces:
+            space_id = space.get("space_id")
+            space_name = space.get("space_name")
+            if space_id is None or not space_name:
+                raise ValueError("AIDEV space misses id or name")
+            space_name_map[str(space_id)] = str(space_name)
+        return space_name_map
+
     def perform_request(self, validated_request_data: dict) -> dict:
         # bk_biz_id 由 ViewSet 用于 BKM 业务权限校验；AIDEV 使用当前用户 Token 独立过滤资源权限。
         params = {
@@ -1649,13 +1664,27 @@ class BaseListSourceAnalysisAidevOptionsResource(SourceAnalysisBaseResource):
             if total is None:
                 total = len(items)
 
+            space_name_map = self.get_aidev_space_name_map() if items else {}
             options = []
             for item in items:
                 resource_id = item.get(self.id_field)
                 resource_name = item.get(self.name_field)
-                if resource_id is None or not resource_name:
-                    raise ValueError("AIDEV resource misses id or name")
-                options.append({"id": str(resource_id), "name": str(resource_name)})
+                space_id = item.get("space_id")
+                if resource_id is None or not resource_name or space_id is None:
+                    raise ValueError("AIDEV resource misses id, name or space_id")
+
+                normalized_space_id = str(space_id)
+                # 跨空间公开资源可能对当前用户可见，但其所属空间不在用户有权限的空间列表中。
+                # 此时保留资源，并使用 space_id 作为展示名称，避免空间名称补全失败影响整个选择器。
+                space_name = space_name_map.get(normalized_space_id, normalized_space_id)
+                options.append(
+                    {
+                        "id": str(resource_id),
+                        "name": str(resource_name),
+                        "space_id": normalized_space_id,
+                        "space_name": space_name,
+                    }
+                )
             return {"total": int(total), "list": options}
         except (BKAPIError, TypeError, ValueError) as error:
             self.raise_upstream_unavailable(error)
