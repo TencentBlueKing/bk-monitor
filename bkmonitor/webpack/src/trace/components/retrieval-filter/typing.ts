@@ -465,6 +465,16 @@ export const RETRIEVAL_FILTER_PROPS = {
     type: Function as PropType<TTagValueDisplayFormatter>,
     default: (val, _fieldId) => `${val}`,
   },
+  // 模式切换中
+  modeChangeLoading: {
+    type: Boolean,
+    default: false,
+  },
+  // 复制条件中
+  copyLoading: {
+    type: Boolean,
+    default: false,
+  },
 };
 export const RETRIEVAL_FILTER_EMITS = {
   favorite: (_isEdit: boolean) => true,
