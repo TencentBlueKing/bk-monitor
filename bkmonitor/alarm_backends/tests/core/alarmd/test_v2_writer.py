@@ -21,7 +21,7 @@ from alarm_backends.core.alarmd.v2_writer import (
 )
 
 
-M0_COMMIT = "6e65c0f9"
+M0_COMMIT = "134010e4"
 M0_GOLDEN = "pkg/alarmd/contract/testdata/go-v2"
 TRIGGER_EVENT_FIELDS = set(
     "schema required_features event_id tenant_id business_id plan_ref record_ref evaluation_time event_kind "
@@ -34,7 +34,7 @@ RECEIPT_FIELDS = set(
 )
 RECEIPT_COUNT_FIELDS = set("received selected processed unavailable terminal level_terminal_affected events".split())
 PLAN_RECEIPT_FIELDS = set(
-    "plan_id selected abnormal normal recovery unavailable terminal level_terminal_affected result_identity_digest".split()
+    "plan_id selected abnormal normal recovery unavailable terminal level_terminal_affected".split()
 )
 PLAN_RECEIPT_COUNT_FIELDS = set(
     "selected abnormal normal recovery unavailable terminal level_terminal_affected".split()
@@ -176,6 +176,11 @@ def test_go_output_verifiers_reject_unknown_and_missing_fields():
     receipt = copy.deepcopy(_read_m0_golden("message_receipt_mixed_level_v1.json"))
     del receipt["counts"]["level_terminal_affected"]
     with pytest.raises(contract.ContractValidationError, match="missing required field"):
+        _strict_verify_message_receipt_v1(receipt)
+
+    receipt = copy.deepcopy(_read_m0_golden("message_receipt_mixed_level_v1.json"))
+    receipt["per_plan"][0]["result_identity_digest"] = "3" * 64
+    with pytest.raises(contract.ContractValidationError, match="unknown field"):
         _strict_verify_message_receipt_v1(receipt)
 
     receipt = copy.deepcopy(_read_m0_golden("message_receipt_mixed_level_v1.json"))
