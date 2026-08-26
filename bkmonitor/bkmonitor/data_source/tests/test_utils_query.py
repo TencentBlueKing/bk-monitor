@@ -15,6 +15,7 @@ import datetime
 import pytest
 
 from constants.otel_query import FieldTypeEnum
+from bkmonitor.data_source.utils.base import DataSourceTarget
 from bkmonitor.data_source.utils.query import BaseQuery
 
 
@@ -103,7 +104,7 @@ class TestBaseQuery:
 
         mocker.patch.object(BaseQuery, "_query_info_fields", side_effect=[rt1_fields, rt2_fields])
 
-        query = BaseQuery()
+        query = BaseQuery(data_sources=[DataSourceTarget(table_id="rt1")])
         result = query._query_fields(
             targets=[("rt1", "space1"), ("rt2", "space1")],
             start_time=1717000000,
@@ -121,7 +122,7 @@ class TestBaseQuery:
         rt_b_fields = [_make_field(is_agg=False, is_analyzed=True, is_case_sensitive=False)]
 
         mocker.patch.object(BaseQuery, "_query_info_fields", side_effect=[rt_a_fields, rt_b_fields])
-        query = BaseQuery()
+        query = BaseQuery(data_sources=[DataSourceTarget(table_id="rt1")])
         result_ab = query._query_fields(
             targets=[("rt_a", "space1"), ("rt_b", "space1")],
             start_time=1717000000,
@@ -179,7 +180,7 @@ class TestBaseQuery:
             "_query_info_fields",
             return_value=[_make_field(field_name="f", field_type=field_type)],
         )
-        query = BaseQuery()
+        query = BaseQuery(data_sources=[DataSourceTarget(table_id="rt1")])
         result = query._query_fields(
             targets=[("rt1", "space1")],
             start_time=1717000000,
@@ -193,7 +194,7 @@ class TestBaseQuery:
         rt2_fields = [_make_field(field_name="status", field_type="text")]
 
         mocker.patch.object(BaseQuery, "_query_info_fields", side_effect=[rt1_fields, rt2_fields])
-        query = BaseQuery()
+        query = BaseQuery(data_sources=[DataSourceTarget(table_id="rt1")])
         result = query._query_fields(
             targets=[("rt1", "space1"), ("rt2", "space1")],
             start_time=1717000000,
@@ -208,7 +209,7 @@ class TestBaseQuery:
         rt2_fields = [_make_field(field_name="attrs", field_type="object")]
 
         mocker.patch.object(BaseQuery, "_query_info_fields", side_effect=[rt1_fields, rt2_fields])
-        query = BaseQuery()
+        query = BaseQuery(data_sources=[DataSourceTarget(table_id="rt1")])
         result = query._query_fields(
             targets=[("rt1", "space1"), ("rt2", "space1")],
             start_time=1717000000,
@@ -289,7 +290,9 @@ class TestQueryFieldsTimeConversion:
                 mock.Mock(now=mock.Mock(return_value=datetime.datetime.fromtimestamp(self.NOW))),
             ),
         ):
-            BaseQuery()._query_fields(targets=[("rt1", "space1")], start_time=start_time, end_time=end_time)
+            BaseQuery(data_sources=[DataSourceTarget(table_id="rt1")])._query_fields(
+                targets=[("rt1", "space1")], start_time=start_time, end_time=end_time
+            )
         return captured
 
     def test_none_time_is_converted_to_milliseconds_in_retention_window(self):
