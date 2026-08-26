@@ -208,7 +208,9 @@ export async function getRecordList(
 }
 
 /** 获取页面视图配置：字段全集、字段分组、默认列与默认排序 */
-export async function getViewConfig(params: IRumQueryParams): Promise<IRumViewConfig> {
+export async function getViewConfig(
+  params: Omit<IRumQueryParams, 'filters' | 'query_string'>
+): Promise<IRumViewConfig> {
   if (USE_MOCK) {
     return normalizeViewConfig(await mockDelay(mockViewConfig));
   }
