@@ -12,7 +12,7 @@ from apm_web.handlers.trace_handler.view_config import TraceFieldsHandler, Trace
 from apm_web.models import Application
 from bkmonitor.data_source.utils.apm import TraceDatasourceTarget
 from bkmonitor.data_source.utils.query import BaseQuery
-from constants.apm import OtlpKey
+from constants.apm import OtlpKey, PreCalculateSpecificField
 
 
 def _make_application() -> SimpleNamespace:
@@ -73,12 +73,21 @@ def test_span_query_fields_uses_table_and_space_uid(mocker) -> None:
 def test_span_query_fields_by_application_uses_retention_time_range(mocker) -> None:
     app: Any = _make_application()
     query_fields = mocker.patch.object(SpanQuery, "query_fields", autospec=True, return_value={})
+    logger = mocker.patch("apm_web.handlers.query.span.logger")
 
     assert SpanQuery.query_fields_by_application(app) == {}
 
     query = query_fields.call_args.args[0]
     assert query.data_sources == [TraceDatasourceTarget.build(2, "app", "2_bkapm.trace_app")]
     query_fields.assert_called_once_with(query, 1_722_395_200, 1_723_000_000)
+    logger.warning.assert_called_once_with(
+        "[SpanQuery] query fields returned empty: bk_biz_id=%s, app_name=%s, table_id=%s, start_time=%s, end_time=%s",
+        2,
+        "app",
+        "2_bkapm.trace_app",
+        1_722_395_200,
+        1_723_000_000,
+    )
 
 
 def test_application_retention_time_range_uses_es_retention(mocker) -> None:
@@ -109,7 +118,7 @@ def test_trace_fields_handler_directly_maps_unify_query_metadata(mocker) -> None
     }
     mocker.patch.object(TraceFieldsInfoHandler, "get_fields_info_by_mode", return_value=fields_info)
 
-    handler = TraceFieldsHandler(bk_biz_id=2, app_name="app", username="admin")
+    handler = TraceFieldsHandler(bk_biz_id=2, app_name="app")
 
     field_info = handler.get_fields_info(QueryMode.SPAN, [OtlpKey.SPAN_ID])[0]
     assert field_info["type"] == "keyword"
@@ -139,7 +148,7 @@ def test_trace_fields_handler_only_returns_leaf_fields(mocker) -> None:
     }
     mocker.patch.object(TraceFieldsInfoHandler, "get_fields_info_by_mode", return_value=fields_info)
 
-    handler = TraceFieldsHandler(bk_biz_id=2, app_name="app", username="admin")
+    handler = TraceFieldsHandler(bk_biz_id=2, app_name="app")
 
     assert [field["name"] for field in handler.get_fields_by_mode(QueryMode.SPAN)] == ["resource.custom_name"]
 
@@ -156,22 +165,35 @@ def test_trace_fields_info_handler_builds_span_query_from_local_application(mock
         return_value={"span_name": _make_uq_field("span_name", "keyword")},
     )
 
-    handler = TraceFieldsInfoHandler(bk_biz_id=2, app_name="app", username="admin")
+    handler = TraceFieldsInfoHandler(bk_biz_id=2, app_name="app")
 
     assert handler.span_fields_info == {"span_name": _make_uq_field("span_name", "keyword")}
     query_fields.assert_called_once_with(app)
 
 
 def test_trace_precalculated_fields_have_query_field_metadata() -> None:
-    handler = TraceFieldsInfoHandler(bk_biz_id=2, app_name="app", username="admin")
+    handler = TraceFieldsInfoHandler(bk_biz_id=2, app_name="app")
 
     field_info = next(iter(handler.pre_calculate_fields_info.values()))
 
     assert {"field_type", "is_searchable", "is_agg", "is_list", "supported_operations"} <= field_info.keys()
 
 
+def test_trace_precalculated_non_dimension_fields_keep_original_semantics() -> None:
+    handler = TraceFieldsInfoHandler(bk_biz_id=2, app_name="app")
+
+    non_dimension_fields = {
+        PreCalculateSpecificField.MIN_START_TIME,
+        PreCalculateSpecificField.MAX_END_TIME,
+        PreCalculateSpecificField.ROOT_SPAN_ID,
+        PreCalculateSpecificField.TRACE_ID,
+    }
+
+    assert all(handler.pre_calculate_fields_info[field_name]["is_agg"] is False for field_name in non_dimension_fields)
+
+
 def test_trace_collection_kind_keeps_keyword_query_semantics() -> None:
-    handler = TraceFieldsInfoHandler(bk_biz_id=2, app_name="app", username="admin")
+    handler = TraceFieldsInfoHandler(bk_biz_id=2, app_name="app")
     handler.__dict__["span_fields_info"] = {
         OtlpKey.KIND: _make_uq_field(OtlpKey.KIND, "integer", supported_operations=[{"operator": "gt"}])
     }
@@ -200,7 +222,7 @@ def test_trace_fields_handler_returns_empty_fields_when_unify_query_returns_empt
     )
     query_fields = mocker.patch.object(SpanQuery, "query_fields_by_application", return_value={})
 
-    handler = TraceFieldsHandler(bk_biz_id=2, app_name="app", username="admin")
+    handler = TraceFieldsHandler(bk_biz_id=2, app_name="app")
 
     assert handler.get_fields_by_mode(QueryMode.SPAN) == []
     query_fields.assert_called_once_with(app)
@@ -226,6 +248,20 @@ def test_instance_span_fields_only_keeps_resource_leaf_fields(mocker) -> None:
 
     assert fields == [{"id": "resource.custom_name", "name": "resource.custom_name", "alias": None}]
     query_fields.assert_called_once_with(app)
+
+
+def test_instance_span_fields_preserve_unify_query_order(mocker) -> None:
+    app: Any = _make_application()
+    field_names = ["resource.z_field", "resource.a_field", "resource.m_field", "resource.b_field"]
+    mocker.patch.object(
+        SpanQuery,
+        "query_fields_by_application",
+        return_value={field_name: _make_uq_field(field_name, "keyword") for field_name in field_names},
+    )
+
+    fields = InstanceHandler.get_span_fields(app)
+
+    assert [field["id"] for field in fields] == field_names
 
 
 def test_trace_storage_field_info_uses_searchable_unify_query_fields(mocker) -> None:

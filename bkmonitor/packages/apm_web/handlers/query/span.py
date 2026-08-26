@@ -8,7 +8,8 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from typing import TYPE_CHECKING, Any
+import logging
+from typing import TYPE_CHECKING, Any, cast
 
 from bkm_space.utils import bk_biz_id_to_space_uid
 from bkmonitor.data_source.utils.apm import TraceDatasourceTarget
@@ -20,11 +21,13 @@ from apm_web.trace.constants import TRACE_FIELD_ALIAS
 if TYPE_CHECKING:
     from apm_web.models import Application
 
+logger = logging.getLogger("apm")
+
 
 class SpanQuery(BaseQuery):
     """通过 unify-query 查询 APM Span 字段元数据。"""
 
-    FIELD_ALIAS_MAP_LIST = [OTEL_SPAN_COMMON_FIELD_ALIAS, TRACE_FIELD_ALIAS]
+    FIELD_ALIAS_MAP_LIST: list[dict[str, Any]] = [OTEL_SPAN_COMMON_FIELD_ALIAS, TRACE_FIELD_ALIAS]
     FIELD_OPERATIONS = FIELD_OPERATIONS
 
     def __init__(self, data_sources: list[TraceDatasourceTarget]) -> None:
@@ -35,12 +38,26 @@ class SpanQuery(BaseQuery):
         """按应用的 ES 保留期查询 Span 字段。"""
 
         start_time, end_time = application.list_retention_time_range()
+        bk_biz_id = cast(int, application.bk_biz_id)
+        app_name = cast(str, application.app_name)
+        table_id = cast(str, application.trace_result_table_id)
         data_source = TraceDatasourceTarget.build(
-            application.bk_biz_id,
-            application.app_name,
-            application.trace_result_table_id,
+            bk_biz_id,
+            app_name,
+            table_id,
         )
-        return cls([data_source]).query_fields(start_time, end_time)
+        fields_info = cls([data_source]).query_fields(start_time, end_time)
+        if not fields_info:
+            logger.warning(
+                "[SpanQuery] query fields returned empty: bk_biz_id=%s, app_name=%s, table_id=%s, "
+                "start_time=%s, end_time=%s",
+                bk_biz_id,
+                app_name,
+                table_id,
+                start_time,
+                end_time,
+            )
+        return fields_info
 
     def query_fields(self, start_time: int, end_time: int) -> dict[str, dict[str, Any]]:
         """查询指定时间范围内的 Span 字段。"""

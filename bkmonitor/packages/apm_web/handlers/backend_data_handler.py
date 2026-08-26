@@ -220,10 +220,10 @@ class TraceBackendHandler(TelemetryBackendHandler):
         """通过 unify-query 获取可搜索的 Span 字段信息。"""
 
         fields_info = SpanQuery.query_fields_by_application(self.app)
-        searchable_fields_info: dict[str, dict[str, Any]] = {
-            field_name: field_info for field_name, field_info in fields_info.items() if field_info["is_searchable"]
-        }
-        if not searchable_fields_info:
+        searchable_fields: list[tuple[str, dict[str, Any]]] = [
+            (field_name, field_info) for field_name, field_info in fields_info.items() if field_info["is_searchable"]
+        ]
+        if not searchable_fields:
             return []
 
         table_data: list[dict[str, Any]] = api.metadata.get_result_table(
@@ -241,7 +241,7 @@ class TraceBackendHandler(TelemetryBackendHandler):
                 "field_type": field_info["field_type"],
                 "time_field": field_info["field_type"] == FieldTypeEnum.DATE.value,
             }
-            for field_name, field_info in searchable_fields_info.items()
+            for field_name, field_info in searchable_fields
         ]
 
     @property

@@ -394,8 +394,8 @@ class Application(AbstractRecordModel):
     def list_retention_time_range(self) -> tuple[int, int]:
         """获取当前时间往前 ``es_retention`` 天的时间范围。"""
 
-        s, e = get_datetime_range(period="day", distance=self.es_retention, rounding=False)
-        return int(s.timestamp()), int(e.timestamp())
+        start_time, end_time = get_datetime_range(period="day", distance=self.es_retention, rounding=False)
+        return int(start_time.timestamp()), int(end_time.timestamp())
 
     def get_all_config(self):
         return ApmMetaConfig.get_all_application_config_value(self.application_id)

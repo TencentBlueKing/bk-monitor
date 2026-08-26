@@ -25,12 +25,13 @@ class InstanceHandler:
 
         fields_info = SpanQuery.query_fields_by_application(app)
         resource_field_prefix: str = f"{OtlpKey.RESOURCE}."
-        field_names: set[str] = {
+        field_names: list[str] = [
             field_name
             for field_name, field_info in fields_info.items()
-            if field_name.startswith(resource_field_prefix) and field_info["is_searchable"]
-        }
-        field_names.discard(cls.BK_INSTANCE_ID_FIELD_NAME)
+            if field_name.startswith(resource_field_prefix)
+            and field_info["is_searchable"]
+            and field_name != cls.BK_INSTANCE_ID_FIELD_NAME
+        ]
 
         return [
             {"id": field_name, "name": field_name, "alias": InstanceDiscoverKeys.get_label_by_key(field_name)}
