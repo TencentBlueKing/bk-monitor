@@ -46,11 +46,11 @@ def _init_kafka_cluster(bk_tenant_id: str):
 
         logger.info("Kafka cluster created for tenant %s", bk_tenant_id)
 
-    # 同步集群配置
-    ClusterConfig.sync_cluster_config(cluster)
-
     # 注册到GSE
     KafkaGseSyncer.register_to_gse(mq_cluster=cluster)
+
+    # 同步集群配置
+    ClusterConfig.sync_cluster_config(cluster)
 
     logger.info("Kafka cluster registered to GSE for tenant %s", bk_tenant_id)
 
