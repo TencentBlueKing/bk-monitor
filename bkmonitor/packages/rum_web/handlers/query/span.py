@@ -14,7 +14,7 @@ from bkmonitor.data_source.utils import types
 from bkmonitor.data_source.utils.base import sort_fields
 from bkmonitor.data_source.utils.query import BaseQuery
 from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQuerySet
-from bkmonitor.data_source.utils.apm import TraceDatasourceTarget, APMQueryFilterMixin
+from bkmonitor.data_source.utils.apm import APMQueryFilterMixin
 from bkm_space.utils import bk_biz_id_to_space_uid
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from constants.otel_query import FIELD_OPERATIONS, OTEL_SPAN_COMMON_FIELD_ALIAS
@@ -40,17 +40,6 @@ class SpanQuery(APMQueryFilterMixin, BaseQuery):
             ("resource.device.type", RumDeviceType),
         ]
     }
-
-    def __init__(self, data_sources: list[TraceDatasourceTarget]):
-        self.data_sources = data_sources
-
-    @property
-    def retention(self) -> int:
-        """数据保留天数（天），取所有数据源保留期的最小值以保证查询在有效窗口内。"""
-        retention: int | None = self.data_sources[0].retention
-        if retention is None:
-            raise ValueError("RUM 查询数据源必须设置 retention")
-        return retention
 
     @classmethod
     def build_query_q(cls, q: QueryConfigBuilder, filters: list[types.Filter] | None, query_string: str = ""):

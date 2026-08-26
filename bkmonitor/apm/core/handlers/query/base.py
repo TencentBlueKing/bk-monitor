@@ -23,7 +23,6 @@ from apm.models import MetricDataSource
 from bkmonitor.data_source.utils.apm import (
     APMQueryFilterMixin,
     FilterOperator,
-    TraceDatasourceTarget,
     TraceQueryGuard,
 )
 from bkmonitor.data_source.utils.query import BaseQuery as DataSourceBaseQuery
@@ -43,9 +42,6 @@ class BaseQuery(APMQueryFilterMixin, DataSourceBaseQuery):
     # 查询字段映射
     KEY_REPLACE_FIELDS: dict[str, str] = {}
 
-    def __init__(self, data_sources: list[TraceDatasourceTarget]):
-        self.data_sources: list[TraceDatasourceTarget] = data_sources
-
     @property
     def bk_biz_id(self) -> int:
         return self.data_sources[0].app.bk_biz_id
@@ -53,13 +49,6 @@ class BaseQuery(APMQueryFilterMixin, DataSourceBaseQuery):
     @property
     def app_name(self) -> str:
         return self.data_sources[0].app.app_name
-
-    @property
-    def retention(self) -> int:
-        retention: int | None = self.data_sources[0].retention
-        if retention is None:
-            raise ValueError("APM 查询数据源必须设置 retention")
-        return retention
 
     def get_qs(
         self,

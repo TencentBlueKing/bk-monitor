@@ -15,6 +15,7 @@ from core.drf_resource import api
 from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQuerySet
 from bkmonitor.data_source import conditions_to_q, filter_dict_to_conditions
 from bkmonitor.data_source.utils.base import get_bar_interval_number
+from bkmonitor.data_source.utils.apm import TraceDatasourceTarget
 from bkmonitor.utils.thread_backend import ThreadPool
 from bkmonitor.data_source.utils import types
 from constants.otel_query import FieldTypeEnum
@@ -24,7 +25,6 @@ class BaseQuery:
     USING: tuple[str, str]
     DEFAULT_TIME_FIELD = "time"
     DEFAULT_SORT = ["time"]
-    DEFAULT_RETENTION = 7
 
     # 枚举查询上限
     QUERY_MAX_LIMIT = 10000
@@ -46,6 +46,9 @@ class BaseQuery:
     FIELD_UNITS: dict[str, str] = {}
     # 枚举字段选项值映射，{field_name: [{"value": "", "alias": ""}]}
     ENUM_FIELD_OPTION_VALUES: dict[str, list[dict[str, Any]]] = {}
+
+    def __init__(self, data_sources: list[TraceDatasourceTarget]):
+        self.data_sources = data_sources
 
     def _get_q(self, time_field: str | None = None) -> QueryConfigBuilder:
         """构建基础查询配置，指定数据源类型和时间字段。
@@ -130,11 +133,10 @@ class BaseQuery:
 
     @property
     def retention(self) -> int:
-        """数据保留天数（天），表示不自动补齐时间窗口。
-
-        子类（如 APM / RUM Query）应基于 TraceDatasourceTarget 提供具体实现。
-        """
-        return self.DEFAULT_RETENTION
+        retention: int | None = self.data_sources[0].retention
+        if retention is None:
+            raise ValueError("查询数据源必须设置 retention")
+        return retention
 
     @classmethod
     def get_retention_time_range(
