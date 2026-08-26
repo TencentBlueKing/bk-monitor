@@ -1,135 +1,94 @@
-.rum-explore-table {
+/* stylelint-disable selector-class-pattern, no-descending-specificity */
+@use './theme/span-table-theme';
+
+/* 布局容器：根类迁移到 CommonTable 后，wrapper 的布局职责独立保留 */
+.rum-explore-table-wrap {
+  position: relative;
+  display: flex;
+  flex-direction: column;
   flex: 1;
   min-height: 0;
   background: #fff;
+}
 
-  .rum-table-header-cell {
-    display: flex;
-    gap: 4px;
-    align-items: center;
-    overflow: hidden;
+/* 组件根（与场景类名复合于同一元素）：跨场景公共样式 */
+.rum-explore-table {
+  min-height: 0;
 
-    .header-title {
-      overflow: hidden;
-      text-overflow: ellipsis;
-      font-size: 12px;
-      font-weight: 500;
-      color: #313238;
-      white-space: nowrap;
+  /* 垂直滚动交由外层 .rum-explore-view 处理，表格内容区仅保留水平滚动 */
+  .t-table__content {
+    overflow: scroll hidden;
+  }
+
+  .t-table__header {
+    .__table-custom-setting-col__ {
+      padding: 0;
     }
 
-    .header-analysis-icon {
-      visibility: hidden;
-      flex-shrink: 0;
-      font-size: 12px;
-      color: #979ba5;
-      cursor: pointer;
+    .rum-table-header-cell {
+      display: flex;
+      align-items: center;
+      min-width: 0;
+      color: #000;
+      user-select: none;
 
-      &:hover {
-        color: #3a84ff;
+      .field-type-icon {
+        margin-right: 4px;
+      }
+
+      .header-title {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+
+        .th-label {
+          font-size: 12px;
+          font-weight: 500;
+          color: #313238;
+        }
+      }
+
+      .header-analysis-icon {
+        flex-shrink: 0;
+        margin-left: 6px;
+        font-size: 14px;
+        color: #4d4f56;
+        cursor: pointer;
+
+        &:hover {
+          color: #3a84ff;
+        }
       }
     }
   }
 
-  th:hover .header-analysis-icon {
-    visibility: visible;
-  }
+  .t-table__body {
+    /* 表尾：滚动触底提示 / 清空筛选 */
+    .scroll-end-loading {
+      position: sticky;
+      left: 50%;
+      display: inline-flex;
+      align-items: center;
+      padding: 12px 0 4px;
+      transform: translateX(-50%);
 
-  .rum-table-cell {
-    display: flex;
-    align-items: center;
-    overflow: hidden;
-    font-size: 12px;
+      .bk-loading-size-mini {
+        flex-direction: row;
+        column-gap: 8px;
+        align-items: center;
 
-    > span {
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-  }
-
-  .cell-empty {
-    color: #c4c6cc;
-  }
-
-  .cell-link {
-    color: #3a84ff;
-    cursor: pointer;
-
-    &:hover {
-      text-decoration: underline;
-    }
-  }
-
-  .cell-span-type {
-    display: flex;
-    gap: 4px;
-    align-items: center;
-    color: #4d4f56;
-
-    .span-type-icon {
-      flex-shrink: 0;
-      width: 12px;
-      height: 12px;
-    }
-  }
-
-  .cell-duration {
-    font-weight: 700;
-
-    &.is-normal {
-      color: #2dcb56;
+        .bk-loading-title {
+          margin-top: 0;
+        }
+      }
     }
 
-    &.is-warning {
-      color: #ff9c01;
+    .clear-filter-btn {
+      display: inline-block;
+      margin-top: 8px;
+      color: #3a84ff;
+      cursor: pointer;
     }
-
-    &.is-failed {
-      color: #ea3636;
-    }
-  }
-
-  .cell-status {
-    display: flex;
-    gap: 6px;
-    align-items: center;
-    color: #4d4f56;
-
-    .status-dot {
-      flex-shrink: 0;
-      width: 10px;
-      height: 10px;
-      border-radius: 50%;
-    }
-
-    &.is-normal .status-dot {
-      background: #3fc06d;
-    }
-
-    &.is-warning .status-dot {
-      background: #ff9c01;
-    }
-
-    &.is-failed .status-dot {
-      background: #ea3636;
-    }
-  }
-
-  .scroll-end-loading {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 100%;
-    padding: 8px 0;
-  }
-
-  .clear-filter-btn {
-    color: #3a84ff;
-    cursor: pointer;
-  }
-
-  .__table-custom-setting-col__ {
-    padding: 0 !important;
   }
 }
