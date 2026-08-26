@@ -1461,13 +1461,21 @@ class IndexSetTag(models.Model):
         return matched
 
     @classmethod
-    def get_dimension_values(cls, bk_biz_id: int, scene: str, dimension_key: str, filters=None) -> list:
+    def get_dimension_values(
+        cls, bk_biz_id: int, scene: str, dimension_key: str, filters=None, space_uids=None
+    ) -> list:
         """
         Query distinct dimension values for *dimension_key* across index sets
         that belong to *bk_biz_id* and match *scene* + optional cascading *filters*.
 
         filters: list[dict] with field_name, value (list), op (eq/ne/req/nreq);
         legacy dict {key: value|[values]} is auto-converted to op=eq.
+
+        space_uids: optional explicit space list (current space + related spaces).
+        When omitted, only the space resolved from bk_biz_id is scanned so unit
+        tests stay independent of SpaceApi. The view layer should pass
+        IndexSetHandler.get_all_related_space_uids(...) so BCS/PaaS related
+        spaces are included.
         """
         scene_tag_id = cls.get_tag_id(name="scene", value=scene, tag_type=TAG_TYPE_SCENE)
         required_groups = [{str(scene_tag_id)}]
@@ -1489,12 +1497,13 @@ class IndexSetTag(models.Model):
             else:
                 excluded_tag_ids |= matched
 
-        # 必须按 bk_biz_id 解析出的完整 space_uid 精确匹配；
+        # 必须按完整 space_uid 精确匹配（space_uid__in 给定列表）；
         # 旧实现 space_uid__endswith=str(bk_biz_id) 会串业务
         # （如 bk_biz_id=2 会命中 bkcc__12 / bkcc__102），放大维度值数据范围泄漏。
-        space_uid = bk_biz_id_to_space_uid(bk_biz_id)
+        if space_uids is None:
+            space_uids = [bk_biz_id_to_space_uid(bk_biz_id)]
         index_sets = LogIndexSet.objects.filter(
-            space_uid=space_uid,
+            space_uid__in=space_uids,
             is_active=True,
         ).values_list("tag_ids", flat=True)
 
