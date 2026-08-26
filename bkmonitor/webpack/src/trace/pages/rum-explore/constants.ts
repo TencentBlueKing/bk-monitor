@@ -76,15 +76,15 @@ export const SPAN_TYPE_META: Record<string, ISpanTypeMeta> = {
  * 分组由接口返回，这里按分组标识做展示层映射，未命中时用默认图标，不阻塞渲染。
  */
 export const RUM_FIELD_GROUP_ICON_MAP: Record<string, string> = {
-  COMMON: 'icon-mc-overview',
-  APPLICATION: 'icon-APM',
-  DEVICE_BROWSER: 'icon-code',
-  NETWORK: 'icon-mc-global',
-  USER: 'icon-mc-user',
-  RESOURCE: 'icon-ziyuan',
-  VIEW: 'icon-menu-view',
-  ACTION: 'icon-mc-mouse',
-  WEB_VITALS: 'icon-Chart',
+  COMMON: 'icon-gonggongziduan',
+  APPLICATION: 'icon-yingyongbanben',
+  DEVICE_BROWSER: 'icon-zhongduan',
+  NETWORK: 'icon-web1',
+  USER: 'icon-user2',
+  RESOURCE: 'icon-Resource',
+  VIEW: 'icon-View',
+  ACTION: 'icon-Action',
+  WEB_VITALS: 'icon-a-WebVital',
 };
 
 export const DEFAULT_FIELD_GROUP_ICON = 'icon-mc-list';
@@ -92,7 +92,7 @@ export const DEFAULT_FIELD_GROUP_ICON = 'icon-mc-list';
 /** 「原始字段」分组的标识，该分组由前端按 is_real 聚合而来，不来自接口 */
 export const RAW_FIELD_GROUP_NAME = '__raw_fields__';
 
-export const RAW_FIELD_GROUP_ICON = 'icon-text1';
+export const RAW_FIELD_GROUP_ICON = 'icon-yuanshiziduan';
 
 /**
  * 耗时着色阈值，单位微秒。
@@ -139,10 +139,10 @@ export const RUM_STATUS_CODE_MAP: Record<number, { alias: string; tagBgColor: st
 };
 
 /** 视角 Tab 配置，当前仅 span 有实现，其余渲染占位 */
-export const RUM_MODE_TAB_LIST: Array<{ icon: string; label: string; value: RumMode }> = [
-  { value: 'session', label: 'Session', icon: 'icon-mc-user-one' },
-  { value: 'view', label: 'View', icon: 'icon-menu-view' },
-  { value: 'span', label: 'Span (OT)', icon: 'icon-Opentelemetry' },
+export const RUM_MODE_TAB_LIST: Array<{ disabled: boolean; icon: string; label: string; value: RumMode }> = [
+  { value: 'session', label: 'Session', icon: 'icon-Session', disabled: true },
+  { value: 'view', label: 'View', icon: 'icon-View', disabled: true },
+  { value: 'span', label: 'Span (OT)', icon: 'icon-Span', disabled: false },
 ];
 
 /** 常驻筛选设置在用户配置中的 key 前缀 */
