@@ -48,26 +48,50 @@ export const getExternalMenuListBySpace = (space) => {
   return list;
 };
 
+let allSpaceListPromise: Promise<void> | null = null;
+
 /**
  * 获取所有空间列表
+ * 多处调用共享同一次请求，避免首屏与下拉打开时重复拉取
  * @param http
  * @param store
  * @returns
  */
-export const getAllSpaceList = (http, store) => {
-  window.scheduler.postTask(() => {
-    http
-      .request('space/getMySpaceList')
-      .then((resp) => {
-        store.commit('updateMySpaceList', Array.isArray(resp.data) ? resp.data : []);
-        store.commit(SET_APP_STATE, { spaceListLoaded: true });
-      })
-      .catch((e) => {
-        store.commit('updateMySpaceList', []);
-        store.commit(SET_APP_STATE, { spaceListLoaded: true });
-        console.error('获取空间列表失败', e);
-      });
+export const getAllSpaceList = (http, store): Promise<void> => {
+  if (store.state.spaceListLoaded) {
+    return Promise.resolve();
+  }
+
+  if (allSpaceListPromise) {
+    return allSpaceListPromise;
+  }
+
+  allSpaceListPromise = new Promise<void>((resolve) => {
+    window.scheduler.postTask(() => {
+      http
+        .request('space/getMySpaceList')
+        .then((resp) => {
+          const spaceList = Array.isArray(resp?.data) ? resp.data : [];
+          spaceList.forEach((item) => {
+            item.bk_biz_id = `${item.bk_biz_id}`;
+            item.space_uid = `${item.space_uid}`;
+            item.space_full_code_name = `${item.space_name}(#${item.space_id})`;
+          });
+
+          store.commit('updateMySpaceList', spaceList);
+        })
+        .catch((e) => {
+          // 保留首屏已解析出的当前空间，避免请求失败时业务名与下拉列表一起被清空
+          console.error('获取空间列表失败', e);
+        })
+        .finally(() => {
+          store.commit(SET_APP_STATE, { spaceListLoaded: true });
+          resolve();
+        });
+    });
   });
+
+  return allSpaceListPromise;
 };
 
 /**

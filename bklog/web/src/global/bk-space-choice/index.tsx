@@ -25,8 +25,10 @@
  */
 import { defineComponent, ref, computed, watch, nextTick, onUnmounted } from 'vue';
 
+import $http from '@/api';
 import useLocale from '@/hooks/use-locale';
 import { useNavMenu } from '@/hooks/use-nav-menu';
+import { getAllSpaceList } from '@/preload';
 import { SPACE_TYPE_MAP } from '@/store/constant';
 import { BK_LOG_STORAGE } from '@/store/store.type';
 import { debounce } from 'throttle-debounce';
@@ -76,6 +78,8 @@ export default defineComponent({
     const refRootElement = ref<HTMLElement>(null);
 
     const isExternal = computed(() => store.state.isExternal);
+    // 首屏只加载当前空间，全量空间列表由 getAllSpaceList 异步补齐
+    const spaceListLoading = computed(() => !store.state.spaceListLoaded);
     const demoUid = computed(() => store.getters.demoUid);
     const demoSpace = computed(() => mySpaceList.value.find(item => item.space_uid === demoUid.value));
 
@@ -361,6 +365,9 @@ export default defineComponent({
     // 点击业务名称时触发，切换下拉框显示并聚焦搜索框
     const handleClickBizSelect = () => {
       showBizList.value = !showBizList.value;
+      if (showBizList.value && spaceListLoading.value) {
+        getAllSpaceList($http, store);
+      }
       setTimeout(() => {
         menuSearchInput.value?.focus();
       }, 100);
@@ -529,6 +536,7 @@ export default defineComponent({
                 checked={spaceUid.value}
                 commonList={commonList.value}
                 list={groupList.value}
+                loading={spaceListLoading.value}
                 theme={props.theme as ThemeType}
                 selectedIndex={selectedIndex.value}
                 selectableItems={selectableItems.value}
