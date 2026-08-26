@@ -24,51 +24,64 @@
  * IN THE SOFTWARE.
  */
 
-// TODO: 当前为 mock 实现，真实接口上线后将 import 来源替换为 'monitor-api/modules/issue' 即可
+import {
+  listSourceAnalysisAgents,
+  listSourceAnalysisKnowledgeBases,
+  listSourceAnalysisSkills,
+} from 'monitor-api/modules/issue';
 import {
   createSourceAnalysisRule as createSourceAnalysisRuleApi,
   deleteSourceAnalysisRule as deleteSourceAnalysisRuleApi,
   getSourceAnalysisRule as getSourceAnalysisRuleApi,
   listSourceAnalysisRules as listSourceAnalysisRulesApi,
   updateSourceAnalysisRule as updateSourceAnalysisRuleApi,
-} from '../mock/source-analysis-rule';
+} from 'monitor-api/modules/issue';
 
-// import {
-//   createSourceAnalysisRule as createSourceAnalysisRuleApi,
-//   deleteSourceAnalysisRule as deleteSourceAnalysisRuleApi,
-//   getSourceAnalysisRule as getSourceAnalysisRuleApi,
-//   listSourceAnalysisRules as listSourceAnalysisRulesApi,
-//   updateSourceAnalysisRule as updateSourceAnalysisRuleApi,
-// } from 'monitor-api/modules/issue';
-import type { CreateSourceAnalysisRuleParams, SourceAnalysisRuleDto } from '../typings';
+import { toConditions, toWhereItems } from '../utils/condition';
+
+import type {
+  AiResourceParams,
+  AiResourceResult,
+  CreateSourceAnalysisRuleParams,
+  CreateSourceAnalysisRuleVo,
+  SourceAnalysisRuleDto,
+  SourceAnalysisRuleVo,
+} from '../typings';
 
 /**
  * @description 新增源码分析规则
- * @param {CreateSourceAnalysisRuleParams} params - 新增参数
+ * @param {CreateSourceAnalysisRuleVo} params - 新增参数（conditions 为 UI 格式的 IWhereItem[]）
  * @returns {Promise<SourceAnalysisRuleDto>} 新增后的规则详情
  */
-export const createSourceAnalysisRule = async (
-  params: CreateSourceAnalysisRuleParams
-): Promise<SourceAnalysisRuleDto> => createSourceAnalysisRuleApi(params);
+export const createSourceAnalysisRule = async (params: CreateSourceAnalysisRuleVo): Promise<SourceAnalysisRuleDto> =>
+  createSourceAnalysisRuleApi({ ...params, conditions: toConditions(params.conditions) });
 
 /**
- * @description 获取源码分析规则详情，失败返回 null
+ * @description 获取源码分析规则详情，conditions 已归一化为检索过滤器格式的 IWhereItem[]，失败返回 null
  * @param {number} id - 规则 id
- * @returns {Promise<SourceAnalysisRuleDto | null>} 规则详情
+ * @returns {Promise<SourceAnalysisRuleVo | null>} 归一化后的规则详情
  */
-export const getSourceAnalysisRule = (id: number): Promise<null | SourceAnalysisRuleDto> =>
-  getSourceAnalysisRuleApi(id).catch(() => null);
+export const getSourceAnalysisRule = (id: number): Promise<null | SourceAnalysisRuleVo> =>
+  getSourceAnalysisRuleApi(id)
+    .then(data => ({ ...data, conditions: toWhereItems(data.conditions) }))
+    .catch(() => null);
 
 /**
  * @description 更新源码分析规则（局部修改、启停或调整优先级）
  * @param {number} id - 规则 id
- * @param {Partial<CreateSourceAnalysisRuleParams>} params - 只传需要变更的字段
+ * @param {Partial<CreateSourceAnalysisRuleVo>} params - 只传需要变更的字段（conditions 为 UI 格式的 IWhereItem[]）
  * @returns {Promise<SourceAnalysisRuleDto>} 更新后的规则详情
  */
 export const updateSourceAnalysisRule = (
   id: number,
-  params: Partial<CreateSourceAnalysisRuleParams>
-): Promise<SourceAnalysisRuleDto> => updateSourceAnalysisRuleApi(id, params);
+  params: Partial<CreateSourceAnalysisRuleVo>
+): Promise<SourceAnalysisRuleDto> => {
+  const { conditions, ...rest } = params;
+  const body: Partial<CreateSourceAnalysisRuleParams> = conditions
+    ? { ...rest, conditions: toConditions(conditions) }
+    : rest;
+  return updateSourceAnalysisRuleApi(id, body);
+};
 
 /**
  * @description 删除源码分析规则
@@ -84,3 +97,24 @@ export const deleteSourceAnalysisRule = (id: number): Promise<void> => deleteSou
  */
 export const listSourceAnalysisRules = (params: Record<string, unknown> = {}): Promise<SourceAnalysisRuleDto[]> =>
   listSourceAnalysisRulesApi(params);
+
+/** 查询智能体列表 */
+export const getAgents = (params: AiResourceParams): Promise<AiResourceResult> =>
+  listSourceAnalysisAgents(params).catch(() => ({
+    list: [],
+    total: 0,
+  }));
+
+/** 查询 Skill 列表 */
+export const getSkills = (params: AiResourceParams): Promise<AiResourceResult> =>
+  listSourceAnalysisSkills(params).catch(() => ({
+    list: [],
+    total: 0,
+  }));
+
+/** 查询知识库列表 */
+export const getKnowledgeBases = (params: AiResourceParams): Promise<AiResourceResult> =>
+  listSourceAnalysisKnowledgeBases(params).catch(() => ({
+    list: [],
+    total: 0,
+  }));

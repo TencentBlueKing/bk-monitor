@@ -25,20 +25,21 @@
  */
 import { onScopeDispose, shallowRef } from 'vue';
 
-import { AiResourceEnum, EDITABLE_KEYS } from '../constants';
+import { EDITABLE_KEYS } from '../constants';
 import { getSourceAnalysisRule } from '../services/source-analysis-rule';
 
-import type { AiResourceType, CreateSourceAnalysisRuleParams, SourceAnalysisRuleDto } from '../typings';
+import type { AiResourceType, CreateSourceAnalysisRuleVo, SourceAnalysisRuleVo } from '../typings';
+import type { IWhereItem } from 'trace/components/retrieval-filter/typing';
 
 /**
  * @description 源码分析规则详情管理
  * @returns 规则详情状态与增删改查方法
  */
 export const useSourceAnalysisRuleDetail = () => {
-  /** 规则详情（编辑态，随用户操作变更） */
-  const detail = shallowRef<null | SourceAnalysisRuleDto>(null);
+  /** 规则详情（编辑态，随用户操作变更；conditions 为 UI 格式 IWhereItem[]，由 service 层归一化返回） */
+  const detail = shallowRef<null | SourceAnalysisRuleVo>(null);
   /** 接口返回的原始数据快照（非响应式，仅用于 diff 对比基准） */
-  let rawData: null | SourceAnalysisRuleDto = null;
+  let rawData: null | SourceAnalysisRuleVo = null;
   /** 加载中 */
   const loading = shallowRef(false);
   /** 当前请求的 AbortController，用于取消未完成的请求 */
@@ -49,7 +50,7 @@ export const useSourceAnalysisRuleDetail = () => {
    * 仅初始化可编辑字段为合理空值，id/审计字段由服务端生成。
    * @returns {SourceAnalysisRuleDto} 默认详情
    */
-  const createDefaultDetail = (): SourceAnalysisRuleDto => ({
+  const createDefaultDetail = (): SourceAnalysisRuleVo => ({
     agent_id: undefined,
     bk_biz_id: undefined,
     bkci_project_id: undefined,
@@ -70,11 +71,8 @@ export const useSourceAnalysisRuleDetail = () => {
   /**
    * @description 初始化新增态详情，供新增场景使用
    */
-  const initDetail = (callback: (detail: SourceAnalysisRuleDto) => void) => {
+  const initDetail = () => {
     detail.value = createDefaultDetail();
-    callback({
-      ...detail.value,
-    });
     rawData = null;
   };
 
@@ -92,7 +90,7 @@ export const useSourceAnalysisRuleDetail = () => {
    * @description 查询规则详情
    * @param {number} id - 规则 id
    */
-  const fetchDetail = async (id: number, callback: (detail: SourceAnalysisRuleDto) => void) => {
+  const fetchDetail = async (id: number) => {
     // 取消上一次未完成的请求，避免快速连续触发时竞态
     abortController?.abort();
     const controller = new AbortController();
@@ -108,17 +106,6 @@ export const useSourceAnalysisRuleDetail = () => {
     // detail 持深拷贝副本以便自由编辑，rawData 直接持有接口原始数据作为 diff 基准
     rawData = JSON.parse(JSON.stringify(data));
     detail.value = data;
-    callback(data);
-  };
-
-  /**
-   * @description 获取资源类型默认值
-   * @param {T} resource_type - 资源类型
-   * @returns {SourceAnalysisRuleDto[T]} 对应资源类型的默认值
-   */
-  const getResourceDefaultValue = <T extends AiResourceType>(resource_type: T): SourceAnalysisRuleDto[T] => {
-    if (resource_type === AiResourceEnum.AGENT) return '' as SourceAnalysisRuleDto[T];
-    return [] as SourceAnalysisRuleDto[T];
   };
 
   /**
@@ -126,54 +113,52 @@ export const useSourceAnalysisRuleDetail = () => {
    * @param {AiResourceType} resource_type - 资源类型
    * @param {SourceAnalysisRuleDto[AiResourceType]} resource_ids - 资源 ID 值
    */
-  const setResourceIds = (resource_type: AiResourceType, resource_ids: SourceAnalysisRuleDto[AiResourceType]) => {
+  const setResourceIds = (resource_type: AiResourceType, resource_ids: SourceAnalysisRuleVo[AiResourceType]) => {
     if (!detail.value) return;
     detail.value = { ...detail.value, [resource_type]: resource_ids };
   };
 
   /**
-   * @description 移除指定资源 ID
-   * @param {AiResourceType} resource_type - 资源类型
-   * @param {string} resource_id - 资源 id
+   * @description 写入匹配规则条件（UI 格式 IWhereItem[]，直接落库于 detail，提交时再转回后端格式）
+   * @param {IWhereItem[]} where - 检索过滤器条件
    */
-  const removeResourceId = (resource_type: AiResourceType, resource_id: string) => {
+  const setConditions = (where: IWhereItem[]) => {
     if (!detail.value) return;
-    const nextDetail = { ...detail.value };
-    if (resource_type === AiResourceEnum.AGENT) {
-      nextDetail[resource_type] = getResourceDefaultValue(resource_type);
-    } else {
-      nextDetail[resource_type] = detail.value[resource_type].filter(item => item !== resource_id);
-    }
-    detail.value = nextDetail;
+    detail.value = { ...detail.value, conditions: where };
   };
 
   /**
-   * @description 清空指定类型的资源 ID
-   * @param {AiResourceType} resource_type - 资源类型
+   * @description 写入优先级
+   * @param {number} val - 优先级
    */
-  const clearResourceIds = (resource_type: AiResourceType) => {
+  const setPriority = (val: number) => {
     if (!detail.value) return;
-    detail.value = { ...detail.value, [resource_type]: getResourceDefaultValue(resource_type) };
+    detail.value = { ...detail.value, priority: val };
+  };
+
+  /**
+   * @description 写入启用状态
+   * @param {boolean} val - 是否启用
+   */
+  const setEnabled = (val: boolean) => {
+    if (!detail.value) return;
+    detail.value = { ...detail.value, is_enabled: val };
   };
 
   /**
    * @description 对比 detail 与 rawData，返回需要变更的字段
-   * 仅比较 CreateSourceAnalysisRuleParams 范围内的可编辑字段，避免将 id/审计字段误传出。
+   * 仅比较 CreateSourceAnalysisRuleVo 范围内的可编辑字段，避免将 id/审计字段误传出。
    * 新增态（无 rawData）时，所有可编辑字段均视为变更，返回全量可编辑字段。
-   * @returns {Partial<CreateSourceAnalysisRuleParams>} 仅包含发生变化的字段
+   * @returns {Partial<CreateSourceAnalysisRuleVo>} 仅包含发生变化的字段
    */
-  const getChangedFields = (otherParams: Record<string, any>): Partial<CreateSourceAnalysisRuleParams> => {
+  const getChangedFields = (): Partial<CreateSourceAnalysisRuleVo> => {
     const current = detail.value;
     if (!current) return {};
-    const currentValue = {
-      ...current,
-      ...otherParams,
-    };
-    const base = (rawData ?? {}) as Partial<SourceAnalysisRuleDto>;
-    const result: Partial<CreateSourceAnalysisRuleParams> = {};
+    const base = (rawData ?? {}) as Partial<SourceAnalysisRuleVo>;
+    const result: Partial<CreateSourceAnalysisRuleVo> = {};
     for (const key of EDITABLE_KEYS) {
       const prev = base[key];
-      const next = currentValue[key];
+      const next = current[key];
       // 数组/对象按内容比较，原始值等价于 === 比较
       if (JSON.stringify(prev) !== JSON.stringify(next)) {
         Object.assign(result, { [key]: next });
@@ -184,19 +169,16 @@ export const useSourceAnalysisRuleDetail = () => {
 
   /**
    * @description 从 detail 中提取新增态所需的全量参数
-   * @returns {CreateSourceAnalysisRuleParams | null} 新增参数，detail 为空时返回 null
+   * @returns {CreateSourceAnalysisRuleVo | null} 新增参数，detail 为空时返回 null
    */
-  const getCreateParams = (otherParams: Record<string, any>): CreateSourceAnalysisRuleParams | null => {
+  const getCreateParams = (): CreateSourceAnalysisRuleVo | null => {
     if (!detail.value) return null;
-    const params = {};
-    const detailValue = {
-      ...detail.value,
-      ...otherParams,
-    };
+    const params: Partial<CreateSourceAnalysisRuleVo> = {};
+    const detailValue = detail.value;
     for (const key of EDITABLE_KEYS) {
       Object.assign(params, { [key]: detailValue[key] });
     }
-    return params as CreateSourceAnalysisRuleParams;
+    return params as CreateSourceAnalysisRuleVo;
   };
 
   // 组件卸载（effect scope 释放）时终止未完成的请求
@@ -220,11 +202,13 @@ export const useSourceAnalysisRuleDetail = () => {
     getCreateParams,
     /** 获取需要变更的字段（供更新/新增规则时使用） */
     getChangedFields,
-    /** 清空指定类型的资源 ID */
-    clearResourceIds,
     /** 写入资源 ID（整体覆盖） */
     setResourceIds,
-    /** 移除指定资源 ID */
-    removeResourceId,
+    /** 写入匹配规则条件 */
+    setConditions,
+    /** 写入优先级 */
+    setPriority,
+    /** 写入启用状态 */
+    setEnabled,
   };
 };

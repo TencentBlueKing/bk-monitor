@@ -25,26 +25,18 @@
  */
 import { type PropType, computed, defineComponent, shallowRef, watch } from 'vue';
 
-import {
-  RenderAgentCard,
-  RenderKnowledgebaseCard,
-  RenderResourceDialog,
-  RenderSkillCard,
-} from '@blueking/ai-ui-sdk/components';
-import { Module, ResourceCardType } from '@blueking/ai-ui-sdk/enums';
 import { Button, Input, Message, Sideslider, Switcher } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
 
-import { useAiResources } from '../../composables/use-ai-resources';
-import { type IResourceDialogConfirmData, useResourceDialog } from '../../composables/use-resource-dialog';
-import { useRuleBasicInfo } from '../../composables/use-rule-basic-info';
+import { useAiResourceSelect } from '../../composables/use-ai-resource-select';
+import { useRuleVerification } from '../../composables/use-rule-verification';
 import { useSourceAnalysisRuleDetail } from '../../composables/use-source-analysis-rule-detail';
-import { AiResourceEnum, MODULE_CONFIG, RESOURCE_DIALOG_TITLE_MAP, SidesliderTypeEnum } from '../../constants';
+import { AiResourceEnum, ErrorKeyEnum, SidesliderTypeEnum } from '../../constants';
+import { getAgents, getKnowledgeBases, getSkills } from '../../services/source-analysis-rule';
+import AiResourceSelect from '../ai-resource-select/ai-resource-select';
 import MatchRule from '../match-rule/match-rule';
-import ResourceCollapseList from '../resource-collapse-list/resource-collapse-list';
 
-import type { AiResourceType, ConfirmPayload, SidesliderType, SourceAnalysisRuleDto } from '../../typings';
-import type { IAgent, IKnowledgebase } from '@blueking/ai-ui-sdk/types';
+import type { ConfirmPayload, SidesliderType } from '../../typings';
 import type {
   IFilterField,
   IGetValueFnParams,
@@ -54,9 +46,6 @@ import type {
 } from 'trace/components/retrieval-filter/typing';
 
 import './analysis-config-sideslider.scss';
-
-/** AI SDK API 前缀 */
-const AI_UI_SDK_API_PREFIX = '';
 
 /**
  * @description 新增/编辑绑定侧弹窗
@@ -70,8 +59,8 @@ export default defineComponent({
       type: Boolean,
       default: false,
     },
-    /** 当前绑定流程名称 */
-    processName: {
+    /** 当前绑定项目名称 */
+    projectName: {
       type: String,
       default: '',
     },
@@ -117,45 +106,7 @@ export default defineComponent({
     confirm: (_payload: ConfirmPayload) => true,
   },
   setup(props, { emit }) {
-    // TODO: 接入真实空间 / 用户 / 接口前缀配置
-    const dialogEnv = {
-      spaceId: '',
-      memberUrl: '',
-      spaces: [],
-    };
     const { t } = useI18n();
-    const {
-      conditions,
-      priority,
-      isEnabled,
-      errors,
-      getFormData: getBasicInfoFormData,
-      setFormData: setBasicInfoFormData,
-      reset: resetBasicInfo,
-      handleConditionsChange,
-      handlePriorityChange,
-      handleEnabledChange,
-      validate: validateBasicInfo,
-    } = useRuleBasicInfo();
-
-    /**
-     * @description 匹配规则条件变化
-     * 更新表单状态，并提取所选告警策略 id 列表：
-     * 抛出 strategy-change 事件，同时调用父组件共享的 fetchStrategyDimensions 拉取策略维度候选值。
-     */
-    const handleMatchRuleConditionsChange = (where: IWhereItem[]) => {
-      handleConditionsChange(where);
-      const strategyIds: (number | string)[] = [];
-      for (const item of where || []) {
-        if (item.key === 'alert.strategy_id') {
-          for (const value of item.value) {
-            strategyIds.push(value as number | string);
-          }
-        }
-      }
-      props.fetchStrategyDimensions?.(strategyIds);
-    };
-
     /** 提交 confirmLoading */
     const confirmLoading = shallowRef(false);
 
@@ -168,48 +119,39 @@ export default defineComponent({
       getCreateParams,
       getChangedFields,
       setResourceIds,
-      clearResourceIds,
-      removeResourceId,
+      setConditions,
+      setPriority,
+      setEnabled,
     } = useSourceAnalysisRuleDetail();
 
-    const { agents, skills, knowledgebases, getResourceByType, fetchAllResources, resetAllResources } =
-      useAiResources();
+    const { errors, clearError, validate } = useRuleVerification(detail);
 
-    const { dialogIsShow, dialogModule, dialogMultiple, handleOpenResourceDialog, handleCloseResourceDialog } =
-      useResourceDialog();
-
+    /** 智能体下拉（单选） */
+    const agentSelect = useAiResourceSelect(getAgents);
+    /** 知识库下拉（多选） */
+    const knowledgeBaseSelect = useAiResourceSelect(getKnowledgeBases);
+    /** Skill 下拉（多选） */
+    const skillSelect = useAiResourceSelect(getSkills);
     /** 是否编辑态 */
     const isEdit = computed(() => props.type === SidesliderTypeEnum.EDIT);
 
     /**
-     * @description 弹窗确认：按当前模块从确认数据中提取资源值，写回规则并同步已选资源详情后关闭弹窗
-     * @param {IResourceDialogConfirmData} data 弹窗回传的已选资源
+     * @description 匹配规则条件变化
+     * 更新规则详情中的 conditions，并提取所选告警策略 id 列表：
+     * 调用父组件共享的 fetchStrategyDimensions 拉取策略维度候选值。
      */
-    const handleDialogConfirm = (data: IResourceDialogConfirmData) => {
-      const config = MODULE_CONFIG[dialogModule.value];
-      if (config) {
-        const items = data[config.field];
-        const value = config.single ? (items[0] ? String(items[0].id) : '') : items.map(item => String(item.id));
-        setResourceIds(config.resource, value as SourceAnalysisRuleDto[AiResourceType]);
-        getResourceByType(config.resource).setResources(items);
+    const handleMatchRuleConditionsChange = (where: IWhereItem[]) => {
+      setConditions(where);
+      clearError(ErrorKeyEnum.CONDITIONS);
+      const strategyIds: (number | string)[] = [];
+      for (const item of where || []) {
+        if (item.key === 'alert.strategy_id') {
+          for (const value of item.value) {
+            strategyIds.push(value as number | string);
+          }
+        }
       }
-      handleCloseResourceDialog();
-    };
-
-    /**
-     * @description 删除资源：同步移除规则中的资源 ID 与已选资源详情
-     */
-    const handleRemoveResource = (resourceType: AiResourceType, resourceId: string) => {
-      removeResourceId(resourceType, resourceId);
-      getResourceByType(resourceType).removeResource(resourceId);
-    };
-
-    /**
-     * @description 清空资源：同步清空规则中的资源 ID 与已选资源详情
-     */
-    const handleClearResources = (resourceType: AiResourceType) => {
-      clearResourceIds(resourceType);
-      getResourceByType(resourceType).clearResources();
+      props.fetchStrategyDimensions?.(strategyIds);
     };
 
     /**
@@ -219,12 +161,11 @@ export default defineComponent({
      * resolve 时自动关闭弹窗，reject 时保留弹窗，两种情况均重置 loading。
      */
     const handleConfirm = () => {
-      if (!validateBasicInfo()) return;
+      if (!validate()) return;
       if (confirmLoading.value) return;
 
-      // 准备提交参数：新增态取全量，编辑态取变更字段
-      const baseInfoParams = getBasicInfoFormData();
-      const params = isEdit.value ? getChangedFields(baseInfoParams) : getCreateParams(baseInfoParams);
+      // 准备提交参数：新增态取全量，编辑态取变更字段（conditions/priority/is_enabled 已落在 detail）
+      const params = isEdit.value ? getChangedFields() : getCreateParams();
       if (!params) return;
       if (isEdit.value && !Object.keys(params).length) {
         Message({ theme: 'warning', message: t('数据未变更') });
@@ -253,22 +194,17 @@ export default defineComponent({
       () => props.show,
       newVal => {
         if (!newVal) {
-          handleCloseResourceDialog();
           resetState();
-          resetBasicInfo();
-          resetAllResources();
+          // 清空 AI 相关资源下拉的残留状态（列表 / 搜索关键词 / 分页等），避免下次打开时显示旧数据
+          agentSelect.reset();
+          knowledgeBaseSelect.reset();
+          skillSelect.reset();
           return;
         }
         if (isEdit.value && props.ruleId) {
-          fetchDetail(props.ruleId, detail => {
-            setBasicInfoFormData(detail);
-            fetchAllResources(detail);
-          });
+          fetchDetail(props.ruleId);
         } else {
-          resetAllResources();
-          initDetail(detail => {
-            setBasicInfoFormData(detail);
-          });
+          initDetail();
         }
       },
       { immediate: true }
@@ -301,11 +237,13 @@ export default defineComponent({
                     getValueFn={props.getMatchRuleValueFn}
                     readonly={!!detail.value?.is_default}
                     tagValueDisplayFormatter={props.tagValueDisplayFormatter}
-                    value={conditions.value}
+                    value={detail.value?.conditions ?? []}
                     onUpdate:value={handleMatchRuleConditionsChange}
                   />
                 )}
-                {errors.value?.conditions && <div class='form-item-error'>{errors.value.conditions}</div>}
+                {errors.value?.[ErrorKeyEnum.CONDITIONS] && (
+                  <div class='form-item-error'>{errors.value[ErrorKeyEnum.CONDITIONS]}</div>
+                )}
               </div>
             </div>
             <div class='form-items mt-24'>
@@ -328,12 +266,17 @@ export default defineComponent({
                     <Input
                       style='width: 340px'
                       disabled={!!detail.value?.is_default}
-                      modelValue={priority.value}
+                      modelValue={detail.value?.priority}
                       type='number'
-                      onUpdate:modelValue={handlePriorityChange}
+                      onUpdate:modelValue={(val: number | string) => {
+                        setPriority(Number(val));
+                        clearError(ErrorKeyEnum.PRIORITY);
+                      }}
                     />
                   )}
-                  {errors.value?.priority && <div class='form-item-error'>{errors.value.priority}</div>}
+                  {errors.value?.[ErrorKeyEnum.PRIORITY] && (
+                    <div class='form-item-error'>{errors.value[ErrorKeyEnum.PRIORITY]}</div>
+                  )}
                 </div>
               </div>
               <div class='form-item'>
@@ -350,9 +293,9 @@ export default defineComponent({
                   ) : (
                     <Switcher
                       class='mt-6'
-                      modelValue={isEnabled.value}
+                      modelValue={detail.value?.is_enabled}
                       theme='primary'
-                      onChange={handleEnabledChange}
+                      onChange={(val: boolean) => setEnabled(val)}
                     />
                   )}
                 </div>
@@ -364,105 +307,9 @@ export default defineComponent({
     };
 
     /**
-     * @description 渲染智能体折叠面板
-     */
-    const renderAgentPanel = () => {
-      return (
-        <ResourceCollapseList
-          count={agents.value.length}
-          emptyText={t('暂无关联智能体')}
-          headerTip={t('可绑定本空间有使用权限的智能体')}
-          title={t('智能体')}
-          onAdd={() => handleOpenResourceDialog(Module.Agent)}
-          onClear={() => {
-            handleClearResources(AiResourceEnum.AGENT);
-          }}
-        >
-          {agents.value.map(agent => (
-            <RenderAgentCard
-              key={agent.id}
-              class='agent-card'
-              agent={agent}
-              apiPrefix={AI_UI_SDK_API_PREFIX}
-              isShowOperation={true}
-              showDeleteTips={false}
-              type={ResourceCardType.Info}
-              onDelete={(agent: IAgent) => {
-                handleRemoveResource(AiResourceEnum.AGENT, String(agent.id));
-              }}
-            />
-          ))}
-        </ResourceCollapseList>
-      );
-    };
-
-    /**
-     * @description 渲染 Skill 折叠面板
-     */
-    const renderSkillPanel = () => {
-      return (
-        <ResourceCollapseList
-          count={skills.value.length}
-          emptyText={t('暂无关联Skill')}
-          headerTip={t('可绑定本空间有使用权限的 Skill')}
-          title={t('Skill')}
-          onAdd={() => handleOpenResourceDialog(Module.Skill)}
-          onClear={() => {
-            handleClearResources(AiResourceEnum.SKILL);
-          }}
-        >
-          {skills.value.map(item => (
-            <RenderSkillCard
-              key={item.id}
-              class='skill-card'
-              apiPrefix={AI_UI_SDK_API_PREFIX}
-              isShowOperation={true}
-              showDeleteTips={false}
-              skill={item}
-              type={ResourceCardType.Info}
-              onDelete={() => handleRemoveResource(AiResourceEnum.SKILL, String(item.id))}
-            />
-          ))}
-        </ResourceCollapseList>
-      );
-    };
-
-    /**
-     * @description 渲染知识库折叠面板
-     */
-    const renderKnowledgeBasePanel = () => {
-      return (
-        <ResourceCollapseList
-          count={knowledgebases.value.length}
-          emptyText={t('暂无关联知识库')}
-          headerTip={t('可绑定本空间有使用权限的知识库')}
-          title={t('知识库')}
-          onAdd={() => handleOpenResourceDialog(Module.Knowledgebase)}
-          onClear={() => {
-            handleClearResources(AiResourceEnum.KNOWLEDGE_BASE);
-          }}
-        >
-          {knowledgebases.value.map(item => (
-            <RenderKnowledgebaseCard
-              key={item.id}
-              class='knowledgebase-card'
-              apiPrefix={AI_UI_SDK_API_PREFIX}
-              isShowOperation={true}
-              knowledgebase={item}
-              showDeleteTips={false}
-              type={ResourceCardType.Info}
-              onDelete={(knowledgebase: IKnowledgebase) => {
-                handleRemoveResource(AiResourceEnum.KNOWLEDGE_BASE, String(knowledgebase.id));
-              }}
-            />
-          ))}
-        </ResourceCollapseList>
-      );
-    };
-
-    /**
      * @description 渲染流程实例参数区域
-     * 折叠面板复用 trace-explore 的 chart-collapse 组件（经 resource-collapse-list 封装）。
+     * 智能体（单选）、知识库 / Skill（多选）均以 bkui-vue Select 远程搜索下拉呈现，
+     * 选中值经 setResourceIds 写回规则 detail，提交链路保持不变。
      */
     const renderProcessParams = () => {
       return (
@@ -471,13 +318,113 @@ export default defineComponent({
             <span class='main-section-title'>{t('流程实例参数')}</span>
             <div class='section-header-division' />
             <span class='main-section-subtitle'>
-              {t('当前绑定流程')}：{props.processName ?? '--'}
+              {t('当前绑定流程')}：{props.projectName ?? '--'}
             </span>
           </div>
           <div class='main-section-content'>
-            {renderAgentPanel()}
-            {renderKnowledgeBasePanel()}
-            {renderSkillPanel()}
+            <div class='form-item'>
+              <div class='form-item-label'>
+                <span>{t('智能体')}</span>
+                <span class='required-star'>*</span>
+              </div>
+              <div class='form-item-content'>
+                {detailLoading.value ? (
+                  <div
+                    style='height: 32px'
+                    class='skeleton-element'
+                  />
+                ) : (
+                  <AiResourceSelect
+                    footerText={t('新增智能体')}
+                    loading={agentSelect.loading.value}
+                    modelValue={detail.value?.agent_id || undefined}
+                    multiple={false}
+                    options={agentSelect.list.value}
+                    scrollLoading={agentSelect.scrollLoading.value}
+                    onScroll-end={agentSelect.handleScrollEnd}
+                    onSearch-change={agentSelect.handleSearch}
+                    onToggle={agentSelect.handleToggle}
+                    onUpdate:modelValue={(val: string) => {
+                      setResourceIds(AiResourceEnum.AGENT, val);
+                      clearError(ErrorKeyEnum.AGENT);
+                    }}
+                  />
+                )}
+                {errors.value?.[ErrorKeyEnum.AGENT] && (
+                  <div class='form-item-error'>{errors.value[ErrorKeyEnum.AGENT]}</div>
+                )}
+              </div>
+            </div>
+            <div class='form-item'>
+              <div class='form-item-label'>
+                <span>{t('知识库')}</span>
+                <span class='required-star'>*</span>
+              </div>
+              <div class='form-item-content'>
+                {detailLoading.value ? (
+                  <div
+                    style='height: 32px'
+                    class='skeleton-element'
+                  />
+                ) : (
+                  <AiResourceSelect
+                    footerText={t('新增知识库')}
+                    loading={knowledgeBaseSelect.loading.value}
+                    modelValue={detail.value?.knowledge_base_ids ?? []}
+                    multiple={true}
+                    multipleMode='tag'
+                    options={knowledgeBaseSelect.list.value}
+                    scrollLoading={knowledgeBaseSelect.scrollLoading.value}
+                    selectedStyle='checkbox'
+                    onScroll-end={knowledgeBaseSelect.handleScrollEnd}
+                    onSearch-change={knowledgeBaseSelect.handleSearch}
+                    onToggle={knowledgeBaseSelect.handleToggle}
+                    onUpdate:modelValue={(val: string[]) => {
+                      setResourceIds(AiResourceEnum.KNOWLEDGE_BASE, val);
+                      clearError(ErrorKeyEnum.KNOWLEDGE_BASE);
+                    }}
+                  />
+                )}
+                {errors.value?.[ErrorKeyEnum.KNOWLEDGE_BASE] && (
+                  <div class='form-item-error'>{errors.value[ErrorKeyEnum.KNOWLEDGE_BASE]}</div>
+                )}
+              </div>
+            </div>
+            <div class='form-item'>
+              <div class='form-item-label'>
+                <span>{t('Skill')}</span>
+                <span class='required-star'>*</span>
+              </div>
+              <div class='form-item-content'>
+                {detailLoading.value ? (
+                  <div
+                    style='height: 32px'
+                    class='skeleton-element'
+                  />
+                ) : (
+                  <AiResourceSelect
+                    footerText={t('新增Skill')}
+                    loading={skillSelect.loading.value}
+                    modelValue={detail.value?.skill_ids ?? []}
+                    multiple={true}
+                    multipleMode='tag'
+                    options={skillSelect.list.value}
+                    scrollLoading={skillSelect.scrollLoading.value}
+                    selectedStyle='checkbox'
+                    onScroll-end={skillSelect.handleScrollEnd}
+                    onSearch-change={skillSelect.handleSearch}
+                    onToggle={skillSelect.handleToggle}
+                    onUpdate:modelValue={(val: string[]) => {
+                      setResourceIds(AiResourceEnum.SKILL, val);
+                      clearError(ErrorKeyEnum.SKILL);
+                    }}
+                  />
+                )}
+                {errors.value?.[ErrorKeyEnum.SKILL] && (
+                  <div class='form-item-error'>{errors.value[ErrorKeyEnum.SKILL]}</div>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       );
@@ -508,44 +455,11 @@ export default defineComponent({
       );
     };
 
-    /**
-     * @description 渲染资源选择弹窗
-     */
-    const renderResourceDialog = () => {
-      return (
-        <RenderResourceDialog
-          agents={agents.value}
-          apiPrefix={AI_UI_SDK_API_PREFIX}
-          isShow={dialogIsShow.value}
-          knowledgebases={knowledgebases.value}
-          memberUrl={dialogEnv.memberUrl}
-          module={dialogModule.value}
-          multiple={dialogMultiple.value}
-          skills={skills.value}
-          spaceId={dialogEnv.spaceId}
-          spaces={dialogEnv.spaces}
-          title={RESOURCE_DIALOG_TITLE_MAP[dialogModule.value]}
-          username={window.username}
-          onConfirm={handleDialogConfirm}
-          onUpdate:isShow={(v: boolean) => {
-            dialogIsShow.value = v;
-          }}
-        />
-      );
-    };
-
     return {
-      conditions,
-      priority,
-      isEnabled,
-      errors,
       handleMatchRuleConditionsChange,
-      handlePriorityChange,
-      handleEnabledChange,
       isEdit,
       renderBasicInfo,
       renderProcessParams,
-      renderResourceDialog,
       renderFooter,
     };
   },
@@ -569,7 +483,6 @@ export default defineComponent({
             <div class='analysis-config-sideslider-main'>
               {this.renderBasicInfo()}
               {this.renderProcessParams()}
-              {this.renderResourceDialog()}
             </div>
           ),
           footer: this.renderFooter,

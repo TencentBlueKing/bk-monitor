@@ -24,12 +24,35 @@
  * IN THE SOFTWARE.
  */
 
-import type { AiResourceType } from './enum';
+import type { IWhereItem } from 'trace/components/retrieval-filter/typing';
+
+/** 资源下拉选项（智能体 / Skill / 知识库通用） */
+export type AiResourceOption = {
+  id: string;
+  name: string;
+  /** 所属空间 id，接口新增字段 */
+  space_id?: string;
+  /** 所属空间名称，接口新增字段 */
+  space_name?: string;
+};
+
+/** 资源下拉查询参数 */
+export type AiResourceParams = {
+  keyword?: string;
+  page: number;
+  page_size: number;
+};
+
+/** 资源下拉查询返回结果 */
+export type AiResourceResult = {
+  list: AiResourceOption[];
+  total: number;
+};
 
 /** 侧弹窗 confirm 事件抛出数据 */
 export type ConfirmPayload = {
   /** 提交参数：新增态为全量参数，编辑态为变更字段 */
-  params: CreateSourceAnalysisRuleParams | Partial<CreateSourceAnalysisRuleParams>;
+  params: CreateSourceAnalysisRuleVo | Partial<CreateSourceAnalysisRuleVo>;
   /** 提交完成 Promise：resolve 表示成功（父组件关闭弹窗），reject 表示失败（保留弹窗） */
   promise: Promise<void>;
   /** 标记提交失败（供父组件调用） */
@@ -44,19 +67,10 @@ export type CreateSourceAnalysisRuleParams = Pick<
   'agent_id' | 'conditions' | 'is_enabled' | 'knowledge_base_ids' | 'priority' | 'skill_ids'
 >;
 
-/**
- * @description 资源弹窗模块映射配置
- * 将资源模块（Module）与「对应 dialogConfirm 回调数据字段、规则资源类型、是否单值」统一收敛到一处，
- * 确认时 hook 内部据此完成 id 提取，宿主只需负责写回。
- */
-export interface IModuleConfig {
-  /** 对应 dialogConfirm 回调数据中的字段名 */
-  field: 'agents' | 'knowledgebases' | 'skills';
-  /** 对应规则中的资源类型（写回时使用） */
-  resource: AiResourceType;
-  /** 是否单值：智能体为单值（string），Skill / 知识库为多值（string[]） */
-  single: boolean;
-}
+/** 新增/更新请求参数视图模型（Vo）：conditions 为 UI 格式的 IWhereItem[]，由 service 层转回后端格式 */
+export type CreateSourceAnalysisRuleVo = Omit<CreateSourceAnalysisRuleParams, 'conditions'> & {
+  conditions: SourceAnalysisRuleVo['conditions'];
+};
 
 /** 策略关联分析流程规则匹配条件 */
 export type SourceAnalysisCondition = {
@@ -102,4 +116,9 @@ export type SourceAnalysisRuleDto = {
   updated_at: number;
   /** 更新人 */
   updated_by: string;
+};
+
+/** 详情视图模型（Vo）：conditions 已归一化为检索过滤器可识别的 IWhereItem[]，供侧弹窗直接渲染 */
+export type SourceAnalysisRuleVo = Omit<SourceAnalysisRuleDto, 'conditions'> & {
+  conditions: IWhereItem[];
 };

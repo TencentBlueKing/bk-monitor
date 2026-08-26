@@ -49,13 +49,10 @@ import './static/scss/global.scss';
 import 'monitor-pc/static/css/reset.scss';
 import 'monitor-static/icons/monitor-icons.css';
 import '@blueking/tdesign-ui/vue3/index.css';
-import { useStyle as injectAiUiSdkCss } from '@blueking/ai-ui-sdk/hooks';
 import { assignWindowField } from 'monitor-common/utils/assign-window';
 import { userDisplayNameConfigure } from 'monitor-pc/common/user-display-name';
 
 // import 'monitor-pc/tailwind.css';
-// 注入 @blueking/ai-ui-sdk 全局样式（useStyle 为空函数，样式靠模块副作用 import 生效，调用保留以兼容 SDK 未来变更）
-injectAiUiSdkCss();
 window.source_app = 'trace';
 const spaceUid = getUrlParam('space_uid');
 const bizId = getUrlParam('bizId')?.replace(/\//gim, '');

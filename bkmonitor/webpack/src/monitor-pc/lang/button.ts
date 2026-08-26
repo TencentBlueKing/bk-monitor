@@ -561,6 +561,9 @@ export default {
   // AI设置
   刷新状态: 'Refresh Status',
   立即添加: 'Add Now',
+  新增智能体: 'Add Agent',
+  新增Skill: 'Add Skill',
+  新增知识库: 'Add Knowledge Base',
 
   查看完整报告: 'View Full Report',
   重新分析: 'Reanalyze',

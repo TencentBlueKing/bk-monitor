@@ -32,8 +32,8 @@ import TableSkeleton from 'trace/components/skeleton/table-skeleton';
 import CommonTable from 'trace/pages/alarm-center/components/alarm-table/components/common-table/common-table';
 import { useI18n } from 'vue-i18n';
 
-import { toWhereItems } from '../../composables/use-rule-basic-info';
 import { updateSourceAnalysisRule } from '../../services/source-analysis-rule';
+import { toWhereItems } from '../../utils/condition';
 import MatchRule from '../match-rule/match-rule';
 import TagCell from './tag-cell';
 
