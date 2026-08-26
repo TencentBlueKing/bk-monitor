@@ -149,8 +149,8 @@ export function useRumFavorite(options: IUseRumFavoriteOptions) {
       timezone: store.timezone,
       refreshInterval: componentData?.refreshInterval,
       spanType: componentData?.spanType,
+      sortParams: queryParams?.sort || [],
     });
-    store.setSortParams(queryParams?.sort || []);
     options.onApplied();
   }
 
