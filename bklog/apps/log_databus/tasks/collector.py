@@ -33,7 +33,7 @@ from django.core.cache import cache
 from django.utils.translation import gettext as _
 from django.db import transaction
 
-from apps.api import BkLogApi, TransferApi
+from apps.api import BKLoginApi, BkLogApi, TransferApi
 from apps.api.modules.bkdata_databus import BkDataDatabusApi
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.feature_toggle.plugins.constants import FEATURE_BKDATA_DATAID
@@ -126,21 +126,62 @@ def collector_status():
         CollectorHandler.get_instance(_collector.collector_config_id).stop()
 
 
+# metadata 探测失败时仍会返回状态记录，字段为 None、status 为 unknown/unavailable
+# 这些响应不能折算成 0 写入，否则会覆盖上次有效指标
+UNUSABLE_DORIS_STATUS = {"unknown", "unavailable"}
+
+
+def list_storage_clusters_by_tenant(cluster_type):
+    """
+    按租户枚举存储集群。
+
+    后台任务没有 request 上下文时，DataAPI 会回退到 settings.BK_APP_TENANT_ID（默认 system），
+    Metadata 的 QueryClusterInfoResource 又严格按该租户过滤。因此必须显式传 bk_tenant_id，
+    否则非 system 租户的集群不会进入同步范围。
+    :return: [(bk_tenant_id, clusters), ...]
+    """
+    try:
+        tenants = BKLoginApi.list_tenant()
+    except Exception as e:  # pylint: disable=broad-except
+        logger.exception(f"[sync_storage_capacity] list tenant failed: {e}")
+        tenants = [{"id": settings.BK_APP_TENANT_ID}]
+
+    result = []
+    for tenant in tenants or []:
+        tenant_id = tenant.get("id")
+        if not tenant_id:
+            continue
+        try:
+            clusters = TransferApi.get_cluster_info({"cluster_type": cluster_type}, bk_tenant_id=tenant_id) or []
+        except Exception as e:  # pylint: disable=broad-except
+            logger.exception(
+                f"[sync_storage_capacity] get {cluster_type} cluster info failed, tenant={tenant_id}: {e}"
+            )
+            continue
+        result.append((tenant_id, clusters))
+    return result
+
+
 @periodic_task(run_every=crontab(minute="0"))
 def sync_storage_capacity():
     """
     每小时同步业务各集群已用容量
     :return:
     """
-    # 1、获取所有集群，doris 与 ES 的容量指标取数方式不同，分别获取后合并处理
-    es_clusters = TransferApi.get_cluster_info({"cluster_type": STORAGE_CLUSTER_TYPE})
-    # doris 指标依赖 metadata，取不到时降级为不同步 doris，不影响 ES 集群
-    try:
-        doris_clusters = TransferApi.get_cluster_info({"cluster_type": DORIS_CLUSTER_TYPE})
-        doris_cluster_stats = get_doris_cluster_stats(doris_clusters)
-    except Exception as e:  # pylint: disable=broad-except
-        logger.exception(f"[sync_storage_capacity] sync doris cluster capacity failed: {e}")
-        doris_clusters, doris_cluster_stats = [], {}
+    # 1、按租户获取所有集群，doris 与 ES 的容量指标取数方式不同，分别获取后合并处理
+    es_clusters = []
+    for _, clusters in list_storage_clusters_by_tenant(STORAGE_CLUSTER_TYPE):
+        es_clusters.extend(clusters)
+
+    # doris 指标依赖 metadata，单个租户取不到时跳过该租户，不影响 ES 集群
+    doris_clusters = []
+    doris_cluster_stats = {}
+    for tenant_id, clusters in list_storage_clusters_by_tenant(DORIS_CLUSTER_TYPE):
+        doris_clusters.extend(clusters)
+        try:
+            doris_cluster_stats.update(get_doris_cluster_stats(clusters, bk_tenant_id=tenant_id))
+        except Exception as e:  # pylint: disable=broad-except
+            logger.exception(f"[sync_storage_capacity] sync doris cluster capacity failed, tenant={tenant_id}: {e}")
 
     # 2、构建集群业务映射
     from apps.log_search.models import LogIndexSet
@@ -259,11 +300,51 @@ def get_cluster_owner_biz_id(cluster_config):
         return None
 
 
-def get_doris_cluster_stats(clusters):
+def _parse_doris_cluster_stats(status):
+    """
+    将 metadata 集群状态转成 StorageUsed 指标。
+    unknown / unavailable，或核心采集字段为 None 时返回 None，避免把探测失败折算成 0。
+    """
+    cluster_id = status.get("cluster_id")
+    if not cluster_id:
+        return None
+    if status.get("status") in UNUSABLE_DORIS_STATUS:
+        logger.info(
+            "[sync_storage_capacity] skip doris cluster(%s) due to unusable status=%s",
+            cluster_id,
+            status.get("status"),
+        )
+        return None
+
+    capacity = status.get("capacity") or {}
+    details = status.get("details") or {}
+    total_bytes = capacity.get("total_bytes")
+    used_bytes = capacity.get("used_bytes")
+    tablet_count = details.get("tablet_count")
+    if total_bytes is None or used_bytes is None or tablet_count is None:
+        logger.info(
+            "[sync_storage_capacity] skip doris cluster(%s) due to empty metrics, status=%s",
+            cluster_id,
+            status.get("status"),
+        )
+        return None
+
+    total = int(total_bytes)
+    used = int(used_bytes)
+    return {
+        "storage_usage": int((used / total) * 100) if total else 0,
+        "storage_total": total,
+        # doris 无 ES 索引概念，「索引数」按产品口径展示存储层 tablet 数
+        "index_count": int(tablet_count),
+    }
+
+
+def get_doris_cluster_stats(clusters, bk_tenant_id=None):
     """
     获取 doris 集群的容量与分片指标
     doris 没有 ES 的 _cat/allocation、_cat/indices 路由，容量与分片数改从 metadata 集群状态接口获取
     :param clusters: get_cluster_info 返回的 doris 集群列表
+    :param bk_tenant_id: 集群所属租户，后台任务必须显式传入，避免回退到 system
     :return: {cluster_id: {"storage_usage": 使用率百分比, "storage_total": 总容量字节数, "index_count": tablet 数}}
     """
     # metadata 集群状态接口按业务鉴权并据此解析租户，因此按集群归属业务分组批量查询
@@ -283,24 +364,21 @@ def get_doris_cluster_stats(clusters):
         for start in range(0, len(cluster_ids), METADATA_CLUSTER_STATUS_BATCH_SIZE):
             batch_cluster_ids = cluster_ids[start : start + METADATA_CLUSTER_STATUS_BATCH_SIZE]
             try:
-                statuses = TransferApi.get_cluster_status({"cluster_ids": batch_cluster_ids, "bk_biz_id": bk_biz_id})
+                status_kwargs = {}
+                if bk_tenant_id:
+                    status_kwargs["bk_tenant_id"] = bk_tenant_id
+                statuses = TransferApi.get_cluster_status(
+                    {"cluster_ids": batch_cluster_ids, "bk_biz_id": bk_biz_id},
+                    **status_kwargs,
+                )
             except Exception as e:  # pylint: disable=broad-except
                 logger.exception(f"[sync_storage_capacity] get doris cluster status failed: {e}")
                 continue
             for status in statuses:
-                cluster_id = status.get("cluster_id")
-                if not cluster_id:
+                parsed = _parse_doris_cluster_stats(status)
+                if not parsed:
                     continue
-                capacity = status.get("capacity") or {}
-                details = status.get("details") or {}
-                total = int(capacity.get("total_bytes") or 0)
-                used = int(capacity.get("used_bytes") or 0)
-                cluster_stats[cluster_id] = {
-                    "storage_usage": int((used / total) * 100) if total else 0,
-                    "storage_total": total,
-                    # doris 无 ES 索引概念，「索引数」按产品口径展示存储层 tablet 数
-                    "index_count": int(details.get("tablet_count") or 0),
-                }
+                cluster_stats[status["cluster_id"]] = parsed
     return cluster_stats
 
 

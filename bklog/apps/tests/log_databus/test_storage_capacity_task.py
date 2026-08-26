@@ -64,13 +64,36 @@ DORIS_PRIVATE_CLUSTER = {
 }
 
 
-def build_doris_status(cluster_id, total_bytes=1000, used_bytes=250, tablet_count=1024):
+def build_doris_status(cluster_id, total_bytes=1000, used_bytes=250, tablet_count=1024, status="available"):
     return {
         "cluster_id": cluster_id,
         "cluster_type": DORIS_CLUSTER_TYPE,
-        "is_available": True,
+        "status": status,
+        "is_available": status in {"available", "degraded"},
         "capacity": {"total_bytes": total_bytes, "used_bytes": used_bytes, "available_bytes": total_bytes - used_bytes},
         "details": {"tablet_count": tablet_count, "data_used_bytes": used_bytes},
+    }
+
+
+def build_unavailable_doris_status(cluster_id, status="unavailable"):
+    """对齐 metadata 探测失败 / 集群找不到时的标准响应：字段为 None，不是 0。"""
+    return {
+        "cluster_id": cluster_id,
+        "cluster_name": None,
+        "display_name": None,
+        "cluster_type": DORIS_CLUSTER_TYPE,
+        "status": status,
+        "is_connected": False,
+        "is_available": False,
+        "nodes": {"total": None, "available": None},
+        "capacity": {
+            "total_bytes": None,
+            "used_bytes": None,
+            "available_bytes": None,
+            "used_percent": None,
+        },
+        "details": {},
+        "error": {"code": "STATUS_COLLECTION_FAILED", "message": "集群状态查询失败"},
     }
 
 
@@ -105,17 +128,35 @@ class TestGetDorisClusterStats(TestCase):
         self.assertEqual(stats[201], {"storage_usage": 25, "storage_total": 1000, "index_count": 1024})
 
     @patch("apps.log_databus.tasks.collector.TransferApi.get_cluster_status")
-    def test_zero_or_missing_capacity_does_not_raise(self, mock_get_cluster_status):
-        """总容量为 0 或字段缺失时不应抛除零异常"""
+    def test_zero_capacity_does_not_raise(self, mock_get_cluster_status):
+        """真实数值 0 才写 0，且总容量为 0 时不应抛除零异常"""
         mock_get_cluster_status.return_value = [
             build_doris_status(201, total_bytes=0, used_bytes=0, tablet_count=0),
-            {"cluster_id": 202, "cluster_type": DORIS_CLUSTER_TYPE, "is_available": False},
         ]
 
         stats = get_doris_cluster_stats([DORIS_PUBLIC_CLUSTER])
 
         self.assertEqual(stats[201], {"storage_usage": 0, "storage_total": 0, "index_count": 0})
-        self.assertEqual(stats[202], {"storage_usage": 0, "storage_total": 0, "index_count": 0})
+
+    @patch("apps.log_databus.tasks.collector.TransferApi.get_cluster_status")
+    def test_unavailable_or_missing_metrics_skipped(self, mock_get_cluster_status):
+        """unknown / unavailable，或核心采集字段为 None 时跳过，不折算成 0"""
+        mock_get_cluster_status.return_value = [
+            build_unavailable_doris_status(201, status="unavailable"),
+            build_unavailable_doris_status(202, status="unknown"),
+            {
+                "cluster_id": 203,
+                "cluster_type": DORIS_CLUSTER_TYPE,
+                "status": "degraded",
+                "is_available": True,
+                "capacity": {"total_bytes": None, "used_bytes": None},
+                "details": {},
+            },
+        ]
+
+        stats = get_doris_cluster_stats([DORIS_PUBLIC_CLUSTER, DORIS_PRIVATE_CLUSTER])
+
+        self.assertEqual(stats, {})
 
     @patch("apps.log_databus.tasks.collector.TransferApi.get_cluster_status")
     def test_cluster_without_owner_biz_skipped(self, mock_get_cluster_status):
@@ -169,6 +210,12 @@ class TestSyncStorageCapacity(TestCase):
 
     def setUp(self):
         StorageUsed.objects.all().delete()
+        list_tenant_patcher = patch(
+            "apps.log_databus.tasks.collector.BKLoginApi.list_tenant",
+            return_value=[{"id": "system", "name": "Blueking"}],
+        )
+        self.addCleanup(list_tenant_patcher.stop)
+        self.mock_list_tenant = list_tenant_patcher.start()
 
     @patch("apps.log_databus.tasks.collector.get_all_biz_storage_capacity", return_value={})
     @patch("apps.log_databus.tasks.collector.count_storage_indices", return_value=88)
@@ -185,7 +232,7 @@ class TestSyncStorageCapacity(TestCase):
     ):
         """ES 与 doris 集群都应写出集群级记录，且 doris 不触发 ES 的 _cat 查询"""
 
-        def _get_cluster_info(params):
+        def _get_cluster_info(params, **kwargs):
             if params["cluster_type"] == DORIS_CLUSTER_TYPE:
                 return [DORIS_PUBLIC_CLUSTER]
             return [ES_CLUSTER]
@@ -226,7 +273,7 @@ class TestSyncStorageCapacity(TestCase):
     ):
         """doris 按业务的用量无等价接口，只写集群级记录"""
 
-        def _get_cluster_info(params):
+        def _get_cluster_info(params, **kwargs):
             if params["cluster_type"] == DORIS_CLUSTER_TYPE:
                 return [DORIS_PRIVATE_CLUSTER]
             return []
@@ -258,7 +305,7 @@ class TestSyncStorageCapacity(TestCase):
     ):
         """metadata 查询 doris 集群列表失败时，ES 集群同步不受影响"""
 
-        def _get_cluster_info(params):
+        def _get_cluster_info(params, **kwargs):
             if params["cluster_type"] == DORIS_CLUSTER_TYPE:
                 raise Exception("metadata unavailable")
             return [ES_CLUSTER]
@@ -284,7 +331,7 @@ class TestSyncStorageCapacity(TestCase):
     ):
         """metadata 未返回状态的 doris 集群不写记录，避免把已有指标刷成 0"""
 
-        def _get_cluster_info(params):
+        def _get_cluster_info(params, **kwargs):
             if params["cluster_type"] == DORIS_CLUSTER_TYPE:
                 return [DORIS_PUBLIC_CLUSTER]
             return [ES_CLUSTER]
@@ -295,3 +342,97 @@ class TestSyncStorageCapacity(TestCase):
 
         self.assertFalse(StorageUsed.objects.filter(storage_cluster_id=201).exists())
         self.assertTrue(StorageUsed.objects.filter(storage_cluster_id=101).exists())
+
+    @patch("apps.log_databus.tasks.collector.get_all_biz_storage_capacity", return_value={})
+    @patch("apps.log_databus.tasks.collector.count_storage_indices", return_value=0)
+    @patch("apps.log_databus.tasks.collector.get_storage_usage_and_all", return_value=(0, 0))
+    @patch("apps.log_databus.tasks.collector.TransferApi.get_cluster_status")
+    @patch("apps.log_databus.tasks.collector.TransferApi.get_cluster_info")
+    def test_existing_valid_record_kept_when_unavailable(
+        self,
+        mock_get_cluster_info,
+        mock_get_cluster_status,
+        mock_get_storage_usage_and_all,
+        mock_count_storage_indices,
+        mock_get_all_biz_storage_capacity,
+    ):
+        """已有有效记录 + unavailable 响应仍保留旧值，不覆盖为 (0, 0, 0)"""
+        StorageUsed.objects.create(
+            bk_biz_id=StorageUsed.CLUSTER_INFO_BIZ_ID,
+            storage_cluster_id=201,
+            storage_usage=25,
+            storage_total=4000,
+            index_count=512,
+        )
+
+        def _get_cluster_info(params, **kwargs):
+            if params["cluster_type"] == DORIS_CLUSTER_TYPE:
+                return [DORIS_PUBLIC_CLUSTER]
+            return []
+
+        mock_get_cluster_info.side_effect = _get_cluster_info
+        mock_get_cluster_status.return_value = [build_unavailable_doris_status(201)]
+
+        sync_storage_capacity()
+
+        doris_record = StorageUsed.objects.get(bk_biz_id=StorageUsed.CLUSTER_INFO_BIZ_ID, storage_cluster_id=201)
+        self.assertEqual(
+            (doris_record.storage_usage, doris_record.storage_total, doris_record.index_count), (25, 4000, 512)
+        )
+
+    @patch("apps.log_databus.tasks.collector.get_all_biz_storage_capacity", return_value={})
+    @patch("apps.log_databus.tasks.collector.count_storage_indices", return_value=88)
+    @patch("apps.log_databus.tasks.collector.get_storage_usage_and_all", return_value=(66, 2000))
+    @patch("apps.log_databus.tasks.collector.TransferApi.get_cluster_status")
+    @patch("apps.log_databus.tasks.collector.TransferApi.get_cluster_info")
+    def test_non_system_tenant_clusters_are_synced(
+        self,
+        mock_get_cluster_info,
+        mock_get_cluster_status,
+        mock_get_storage_usage_and_all,
+        mock_count_storage_indices,
+        mock_get_all_biz_storage_capacity,
+    ):
+        """多租户入口必须按租户传 bk_tenant_id，非 system 租户的 Doris 集群也要写出记录"""
+        self.mock_list_tenant.return_value = [
+            {"id": "system", "name": "Blueking"},
+            {"id": "tenant_a", "name": "Tenant A"},
+        ]
+        tenant_a_cluster = {
+            "cluster_type": DORIS_CLUSTER_TYPE,
+            "cluster_config": {
+                "cluster_id": 301,
+                "cluster_name": "doris_tenant_a",
+                "registered_system": REGISTERED_SYSTEM_DEFAULT,
+                "custom_option": {},
+            },
+        }
+
+        def _get_cluster_info(params, bk_tenant_id=None, **kwargs):
+            if params["cluster_type"] == DORIS_CLUSTER_TYPE and bk_tenant_id == "tenant_a":
+                return [tenant_a_cluster]
+            if params["cluster_type"] == STORAGE_CLUSTER_TYPE and bk_tenant_id == "system":
+                return [ES_CLUSTER]
+            return []
+
+        mock_get_cluster_info.side_effect = _get_cluster_info
+        mock_get_cluster_status.return_value = [
+            build_doris_status(301, total_bytes=8000, used_bytes=2000, tablet_count=256)
+        ]
+
+        sync_storage_capacity()
+
+        doris_record = StorageUsed.objects.get(bk_biz_id=StorageUsed.CLUSTER_INFO_BIZ_ID, storage_cluster_id=301)
+        self.assertEqual(
+            (doris_record.storage_usage, doris_record.storage_total, doris_record.index_count), (25, 8000, 256)
+        )
+        self.assertTrue(StorageUsed.objects.filter(storage_cluster_id=101).exists())
+
+        doris_tenant_ids = {
+            call.kwargs.get("bk_tenant_id")
+            for call in mock_get_cluster_info.call_args_list
+            if call.args[0]["cluster_type"] == DORIS_CLUSTER_TYPE
+        }
+        self.assertEqual(doris_tenant_ids, {"system", "tenant_a"})
+        mock_get_cluster_status.assert_called()
+        self.assertEqual(mock_get_cluster_status.call_args.kwargs.get("bk_tenant_id"), "tenant_a")
