@@ -7,38 +7,50 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
+import logging
 import math
 import os
 import re
 from collections import deque
 from dataclasses import dataclass
 from io import BytesIO
-from typing import Any, List
+from typing import Any
 
 from graphviz import Digraph
+from graphviz.backend import CalledProcessError, ExecutableNotFound
+
+from django.utils.translation import gettext_lazy as _
 
 from apm_web.profile.constants import CallGraph, CallGraphResponseDataMode
 from apm_web.profile.diagrams.base import FunctionNode, FunctionTree
 from apm_web.profile.diagrams.tree_converter import TreeConverter
+from core.drf_resource.exceptions import CustomException
+
+logger = logging.getLogger(__name__)
+
+CALLGRAPH_MAX_NODES = 1500
+CALLGRAPH_MAX_EDGES = 2400
+CALLGRAPH_MAX_DOT_BYTES = 768 * 1024
 
 # 定义正则表达式 来过滤切割不同语言的 pkg 名称
-cpp_anonymous_prefix_re = re.compile(r'^\(anonymous namespace\)::')
-go_ver_re = re.compile(r'^(.*?)/v(?:[2-9]|[1-9][0-9]+)([./].*)$')
-go_re = re.compile(r'^(?:[\w\-\.]+\/)+([^.]+\..+)')
-java_re = re.compile(r'^(?:[a-z]\w*\.)*([A-Z][\w\$]*\.(?:<init>|[a-z][\w\$]*(?:\$\d+)?))(?:(?:\()|$)')
-cpp_re = re.compile(r'^(?:[_a-zA-Z]\w*::)+(_*[A-Z]\w*::~?[_a-zA-Z]\w*(?:<.*>)?)')
+cpp_anonymous_prefix_re = re.compile(r"^\(anonymous namespace\)::")
+go_ver_re = re.compile(r"^(.*?)/v(?:[2-9]|[1-9][0-9]+)([./].*)$")
+go_re = re.compile(r"^(?:[\w\-\.]+\/)+([^.]+\..+)")
+java_re = re.compile(r"^(?:[a-z]\w*\.)*([A-Z][\w\$]*\.(?:<init>|[a-z][\w\$]*(?:\$\d+)?))(?:(?:\()|$)")
+cpp_re = re.compile(r"^(?:[_a-zA-Z]\w*::)+(_*[A-Z]\w*::~?[_a-zA-Z]\w*(?:<.*>)?)")
 
 
 def shorten_function_name(f):
     """
     缩短函数名 减少显示长度
     """
-    f = cpp_anonymous_prefix_re.sub('', f)
-    f = go_ver_re.sub(r'\1\2', f)
+    f = cpp_anonymous_prefix_re.sub("", f)
+    f = go_ver_re.sub(r"\1\2", f)
     for re_pattern in [go_re, java_re, cpp_re]:
         matches = re_pattern.findall(f)
         if matches:
-            return ''.join(matches)
+            return "".join(matches)
     return f
 
 
@@ -46,23 +58,23 @@ def escape_for_dot(string):
     """
     过滤 graphviz 不能识别的转义字符
     """
-    return string.replace('\\', '\\\\').replace('"', '\\"').replace('\n', '\\l')
+    return string.replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\l")
 
 
-def multiline_printable_name(name, file_path=''):
+def multiline_printable_name(name, file_path=""):
     """
     生成多行可读的函数名
     """
     name = escape_for_dot(shorten_function_name(name))
-    name = name.replace('::', '\\n')
-    name = name.replace('[...]', '[…]')
-    name = name.replace('.', '\\n')
+    name = name.replace("::", "\\n")
+    name = name.replace("[...]", "[…]")
+    name = name.replace(".", "\\n")
     if file_path:
         file_path = os.path.basename(file_path)
     return f"{name}\\n{file_path}\\n" if file_path else f"{name}\\n"
 
 
-def build_edge_relation(node_list: List[FunctionNode]) -> list:
+def build_edge_relation(node_list: list[FunctionNode]) -> list:
     edges = {}
     visited_nodes = set()
 
@@ -138,7 +150,35 @@ def dot_color(score: float, is_back_ground: bool = False) -> str:
         g = value * (1 - saturation * score)
 
     b = value * (1 - saturation)
-    return "#{:02x}{:02x}{:02x}".format(int(r * 255.0), int(g * 255.0), int(b * 255.0))
+    return f"#{int(r * 255.0):02x}{int(g * 255.0):02x}{int(b * 255.0):02x}"
+
+
+def _validate_call_graph_size(node_count: int, edge_count: int, dot_bytes: int = 0) -> None:
+    """校验调用图规模，任一指标超出渲染阈值时抛出可读异常。
+
+    :param node_count: 调用图节点数
+    :param edge_count: 调用图边数
+    :param dot_bytes: DOT 源码字节数
+    :raises CustomException: 任一指标超过渲染阈值
+    """
+
+    if node_count <= CALLGRAPH_MAX_NODES and edge_count <= CALLGRAPH_MAX_EDGES and dot_bytes <= CALLGRAPH_MAX_DOT_BYTES:
+        return
+
+    logger.warning(
+        "Call graph rendering skipped because graph size exceeds limit: "
+        "nodes=%s, max_nodes=%s, edges=%s, max_edges=%s, dot_bytes=%s, max_dot_bytes=%s",
+        node_count,
+        CALLGRAPH_MAX_NODES,
+        edge_count,
+        CALLGRAPH_MAX_EDGES,
+        dot_bytes,
+        CALLGRAPH_MAX_DOT_BYTES,
+    )
+    raise CustomException(
+        _("调用图包含的函数或调用关系过多，无法生成可读图形，请缩小查询时间范围或增加过滤条件后重试。"),
+        code=CustomException.code,
+    )
 
 
 def generate_svg_data(tree: FunctionTree, data: dict, unit: str):
@@ -149,9 +189,15 @@ def generate_svg_data(tree: FunctionTree, data: dict, unit: str):
     :param unit 单位
     """
 
-    dot = Digraph(comment="The Round Table", format="svg")
     call_graph_data = data.get("call_graph_data", {})
-    for node in call_graph_data.get("call_graph_nodes", []):
+    call_graph_nodes = call_graph_data.get("call_graph_nodes", [])
+    call_graph_edges = call_graph_data.get("call_graph_relation", [])
+    node_count = len(call_graph_nodes)
+    edge_count = len(call_graph_edges)
+    _validate_call_graph_size(node_count, edge_count)
+
+    dot = Digraph(comment="The Round Table", format="svg")
+    for node in call_graph_nodes:
         ratio = 0.00 if data["call_graph_all"] == 0 else node["value"] / data["call_graph_all"]
         ratio_str = f"{ratio:.2%}"
         node_name = multiline_printable_name(node["name"])
@@ -175,7 +221,7 @@ def generate_svg_data(tree: FunctionTree, data: dict, unit: str):
             shape="box",
         )
 
-    for edge in call_graph_data.get("call_graph_relation", []):
+    for edge in call_graph_edges:
         tooltip = (
             tree.function_node_map.get(edge["source_id"]).name
             if edge["source_id"] in tree.function_node_map
@@ -191,21 +237,48 @@ def generate_svg_data(tree: FunctionTree, data: dict, unit: str):
         dot.edge(
             str(edge["source_id"]),
             str(edge["target_id"]),
-            label=f'{display(edge["value"], unit)}',
+            label=f"{display(edge['value'], unit)}",
             tooltip=tooltip,
             color=background_color,
             splines="curved",
             penwidth=str(penwidth),
         )
 
-    svg_data = dot.pipe(format="svg")
+    dot_bytes = len(dot.source.encode("utf-8"))
+    _validate_call_graph_size(node_count, edge_count, dot_bytes)
+
+    try:
+        svg_data = dot.pipe(format="svg")
+    except (BrokenPipeError, CalledProcessError) as e:
+        logger.exception(
+            "Graphviz failed to render call graph: nodes=%s, edges=%s, dot_bytes=%s",
+            node_count,
+            edge_count,
+            dot_bytes,
+        )
+        raise CustomException(
+            _("调用图生成失败，请缩小查询时间范围或增加过滤条件后重试；若问题持续存在，请联系管理员。"),
+            code=CustomException.code,
+        ) from e
+    except (ExecutableNotFound, OSError) as e:
+        logger.exception(
+            "Graphviz is unavailable while rendering call graph: nodes=%s, edges=%s, dot_bytes=%s",
+            node_count,
+            edge_count,
+            dot_bytes,
+        )
+        raise CustomException(
+            _("调用图渲染服务暂不可用，请稍后重试；若问题持续存在，请联系管理员。"),
+            code=CustomException.code,
+        ) from e
+
     try:
         with BytesIO(svg_data) as svg_buffer:
             res = svg_buffer.read().decode()
     except Exception as e:
         raise ValueError(f"generate_svg_data, read call graph data failed , error: {e}")
 
-    res = re.sub(r'<title>.*?</title>', '', res, flags=re.DOTALL)
+    res = re.sub(r"<title>.*?</title>", "", res, flags=re.DOTALL)
     data["call_graph_data"] = res
     return data
 

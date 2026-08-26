@@ -130,6 +130,13 @@ class CreateApplicationResource(Resource):
         enabled_trace = serializers.BooleanField(label="是否开启 Trace 功能", required=True)
         enabled_metric = serializers.BooleanField(label="是否开启 Metric 功能", required=True)
         enabled_log = serializers.BooleanField(label="是否开启 Log 功能", required=True)
+        owners = serializers.ListField(
+            label="负责人列表",
+            child=serializers.CharField(),
+            required=False,
+            default=list,
+            allow_empty=True,
+        )
         # 共享数据源类型
         shared_datasource_types = serializers.ListField(
             label="共享数据源类型列表",
@@ -169,6 +176,7 @@ class CreateApplicationResource(Resource):
                 "is_enabled_metric": validated_data.get("enabled_metric", False),
                 "is_enabled_log": validated_data.get("enabled_log", False),
                 "shared_datasource_types": shared_datasource_types,
+                "owners": validated_data.get("owners") or [],
             },
         )
 

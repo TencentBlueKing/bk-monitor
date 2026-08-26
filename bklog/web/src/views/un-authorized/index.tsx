@@ -23,11 +23,15 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent } from 'vue';
+import { computed, defineComponent } from 'vue';
+import { t } from '@/hooks/use-locale';
 import useRoute from '@/hooks/use-route';
 import useRouter from '@/hooks/use-router';
 import useStore from '@/hooks/use-store';
 import { BK_LOG_STORAGE } from '@/store/store.type';
+import { pickCurrentTenantId, resolveSpaceUnauthorizedMode } from './tenant-mismatch';
+
+const LINK_STYLE = { color: '#3a84ff', cursor: 'pointer' };
 
 export default defineComponent({
   name: 'UnAuthorized',
@@ -42,6 +46,20 @@ export default defineComponent({
       const docPath = 'markdown/ZH/LogSearch/4.7/UserGuide/QuickStart/guideline_log.md';
       const url = (window as any).BK_DOC_URL.replace(/\/$/, '');
       url && window.open(`${url}/${docPath}`);
+    };
+
+    const tenantMismatch = computed(() => store.state.tenantMismatch || {});
+    const currentTenant = computed(() =>
+      pickCurrentTenantId(tenantMismatch.value.current_tenant_id, store.state.userMeta?.bk_tenant_id),
+    );
+    const targetTenant = computed(() => `${tenantMismatch.value.target_tenant_id || ''}`.trim());
+    const isCrossTenant = computed(
+      () => resolveSpaceUnauthorizedMode(currentTenant.value, targetTenant.value) === 'cross-tenant',
+    );
+
+    const handleGoLogin = () => {
+      const platHost = String((window as any).BK_PLAT_HOST || '').replace(/\/$/g, '');
+      window.location.href = platHost ? `${platHost}/login/` : '/login/';
     };
 
     /**
@@ -72,35 +90,62 @@ export default defineComponent({
       window.open(resolver.href, '_self');
     };
 
+    const renderLink = (text: string, onClick: () => void) => (
+      <span
+        style={LINK_STYLE}
+        onClick={onClick}
+      >
+        {text}
+      </span>
+    );
+
     const exceptionMap = {
-      space: () => [
-        <span>
-          当前无可用业务信息，请联系管理员申请（空间UID：{route.query.spaceUid}，业务ID：
-          {route.query.bkBizId ?? route.query.bizId}）
-        </span>,
-        <span>或者移除业务参数重试</span>,
-        <span
-          style={{ color: '#3a84ff', cursor: 'pointer' }}
-          onClick={handleRetry}
-        >
-          重试
-        </span>,
-      ],
+      space: () => {
+        const spaceUid = route.query.spaceUid || '-';
+        const bizId = route.query.bkBizId ?? route.query.bizId ?? '-';
+        if (isCrossTenant.value) {
+          return [
+            <span>
+              {t(
+                '无法跨企业空间访问该业务（当前登录：{current}，目标：{target}，空间UID: {spaceUid}，业务ID: {bizId}）。请返回登录页或切换企业空间。',
+                {
+                  current: currentTenant.value,
+                  target: targetTenant.value,
+                  spaceUid,
+                  bizId,
+                },
+              )}
+            </span>,
+            renderLink(t('返回登录页'), handleGoLogin),
+            renderLink(t('访问当前企业空间'), handleRetry),
+          ];
+        }
+        return [
+          <span>
+            {t('当前无可用业务信息，请联系管理员申请（空间UID：{spaceUid}，业务ID：{bizId}）', {
+              spaceUid,
+              bizId,
+            })}
+          </span>,
+          <span>{t('或者移除业务参数重试')}</span>,
+          renderLink(t('重试'), handleRetry),
+        ];
+      },
       indexset: () => [
-        <span>业务下无采集项，请按照指引完成接入，或联系管理员申请</span>,
+        <span>{t('业务下无采集项，请按照指引完成接入，或联系管理员申请')}</span>,
         <span
+          style={LINK_STYLE}
           onClick={handleOpenGuide}
-          style={{ color: '#3a84ff', cursor: 'pointer' }}
         >
-          接入指引
+          {t('接入指引')}
         </span>,
       ],
-      api: () => 'API无权限，请联系管理员申请',
+      api: () => t('API无权限，请联系管理员申请'),
     };
 
     const getExceptionText = () => {
       const type = route.query.type as keyof typeof exceptionMap;
-      return exceptionMap[type as keyof typeof exceptionMap]?.() ?? '无权限，请联系管理员';
+      return exceptionMap[type as keyof typeof exceptionMap]?.() ?? t('无权限，请联系管理员');
     };
 
     const exceptionStyle = `height: calc(100vh - 100px); 

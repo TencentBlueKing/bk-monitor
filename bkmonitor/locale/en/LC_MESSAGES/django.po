@@ -6239,10 +6239,9 @@ msgstr "Interface returns the result timeout"
 msgid "自定义异常"
 msgstr "Custom Exception"
 
-#, fuzzy, python-brace-format
-#| msgid "自定义异常"
+#, python-brace-format
 msgid "自定义异常：{msg}"
-msgstr "Custom Exception"
+msgstr "Custom exception: {msg}"
 
 #, python-format
 msgid "resource_class参数必须提供Resource的子类, 当前类型: %s"
@@ -12413,3 +12412,12 @@ msgstr "Call Number"
 
 msgid "缩略图"
 msgstr "Thumbnail"
+
+msgid "调用图包含的函数或调用关系过多，无法生成可读图形，请缩小查询时间范围或增加过滤条件后重试。"
+msgstr "The call graph contains too many functions or call relationships to render readably. Narrow the time range or add filters and try again."
+
+msgid "调用图渲染服务暂不可用，请稍后重试；若问题持续存在，请联系管理员。"
+msgstr "The call graph rendering service is temporarily unavailable. Try again later. If the problem persists, contact an administrator."
+
+msgid "调用图生成失败，请缩小查询时间范围或增加过滤条件后重试；若问题持续存在，请联系管理员。"
+msgstr "Failed to generate the call graph. Narrow the time range or add filters and try again. If the problem persists, contact an administrator."

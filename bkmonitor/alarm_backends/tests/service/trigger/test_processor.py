@@ -25,38 +25,10 @@ from alarm_backends.core.cache.key import (
 )
 from alarm_backends.core.storage.redis_cluster import get_node_by_strategy_id
 from alarm_backends.service.trigger.processor import TriggerProcessor
+from alarm_backends.tests.alarmd_fixtures import TRIGGER_POINT as POINT
+from alarm_backends.tests.alarmd_fixtures import TRIGGER_STRATEGY as STRATEGY
 from bkmonitor.models import AnomalyRecord, CacheNode, time_tools
 from core.errors.alarm_backends import StrategyNotFound
-
-from .test_checker import STRATEGY
-
-POINT = {
-    "data": {
-        "record_id": "55a76cf628e46c04a052f4e19bdb9dbf.1569246480",
-        "value": 1.38,
-        "values": {"timestamp": 1569246480, "load5": 1.38},
-        "dimensions": {"ip": "10.0.0.1"},
-        "time": 1569246480,
-    },
-    "anomaly": {
-        "1": {
-            "anomaly_message": "异常测试",
-            "anomaly_id": "55a76cf628e46c04a052f4e19bdb9dbf.1569246480.1.1.1",
-            "anomaly_time": "2019-10-10 10:10:00",
-        },
-        "2": {
-            "anomaly_message": "异常测试",
-            "anomaly_id": "55a76cf628e46c04a052f4e19bdb9dbf.1569246480.1.1.2",
-            "anomaly_time": "2019-10-10 10:10:00",
-        },
-        "3": {
-            "anomaly_message": "异常测试",
-            "anomaly_id": "55a76cf628e46c04a052f4e19bdb9dbf.1569246480.1.1.3",
-            "anomaly_time": "2019-10-10 10:10:00",
-        },
-    },
-    "strategy_snapshot_key": "xxx",
-}
 
 EVENT = {
     "data": {
@@ -161,15 +133,15 @@ class TestProcessor(TestCase):
 
     def test_pull(self):
         def _fake_redis_delay(*args, **kwargs):
-            ANOMALY_SIGNAL_KEY.client.rpush(ANOMALY_SIGNAL_KEY.get_key(), "1.1")
+            ANOMALY_SIGNAL_KEY.client.lpush(ANOMALY_SIGNAL_KEY.get_key(), "1.1")
 
         anomaly_list_key = ANOMALY_LIST_KEY.get_key(strategy_id=1, item_id=1)
         for i in range(10):
             ANOMALY_LIST_KEY.client.lpush(anomaly_list_key, json.dumps(POINT))
-        TriggerProcessor.MAX_PROCESS_COUNT = 6
-        processor = TriggerProcessor(1, 1)
+        with mock.patch.object(TriggerProcessor, "MAX_PROCESS_COUNT", 6):
+            processor = TriggerProcessor(1, 1)
 
-        # 除了 pull 分片拉取逻辑，trigger 信号一般先进先出，此处检测分片拉取将信号直接插入到右侧
+        # 分片续处理信号回到队尾，避免热点策略抢占已经排队的其他策略。
         ANOMALY_SIGNAL_KEY.client.lpush(ANOMALY_SIGNAL_KEY.get_key(), "1.2")
 
         with mock.patch(
@@ -180,7 +152,7 @@ class TestProcessor(TestCase):
 
         self.assertEqual(len(processor.anomaly_points), 6)
         self.assertEqual(ANOMALY_LIST_KEY.client.llen(anomaly_list_key), 4)
-        self.assertEqual(ANOMALY_SIGNAL_KEY.client.lindex(ANOMALY_SIGNAL_KEY.get_key(), -1), "1.1")
+        self.assertEqual(ANOMALY_SIGNAL_KEY.client.lindex(ANOMALY_SIGNAL_KEY.get_key(), -1), "1.2")
 
         with mock.patch(
             "alarm_backends.service.trigger.processor.ANOMALY_SIGNAL_KEY.client.delay", side_effect=_fake_redis_delay
@@ -191,7 +163,6 @@ class TestProcessor(TestCase):
         self.assertEqual(len(processor.anomaly_points), 4)
         self.assertEqual(ANOMALY_LIST_KEY.client.llen(anomaly_list_key), 0)
 
-        TriggerProcessor.MAX_PROCESS_COUNT = 0
         ANOMALY_LIST_KEY.client.delete(anomaly_list_key)
 
     def test_process_point(self):

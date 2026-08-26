@@ -13,7 +13,14 @@ from types import SimpleNamespace
 import pytest
 
 from core.drf_resource.exceptions import CustomException
-from kernel_api.rpc.functions.bkm_cli.cache import read_cache_key
+from kernel_api.rpc.bkm_cli_registry import BkmCliOpRegistry
+from kernel_api.rpc.functions.bkm_cli.cache import (
+    ALLOWED_KEY_SPECS,
+    FOOTPRINT_COUNTERS,
+    MAX_FOOTPRINT_TARGETS,
+    measure_cache_footprint,
+    read_cache_key,
+)
 
 
 class FakeRedisClient:
@@ -21,12 +28,31 @@ class FakeRedisClient:
 
     def __init__(self):
         self._data: dict = {}
+        self.hscan_calls: list = []
+        # 记录计数类命令调用，用于固化"每个目标恰好一条计数命令"
+        self.count_calls: list = []
 
     def get(self, key):
         return self._data.get(key)
 
-    def hgetall(self, key):
-        return self._data.get(key, {})
+    def hlen(self, key):
+        self.count_calls.append(("hlen", key))
+        return len(self._data.get(key) or {})
+
+    def strlen(self, key):
+        self.count_calls.append(("strlen", key))
+        value = self._data.get(key)
+        return 0 if value is None else len(value)
+
+    def hscan(self, key, cursor=0, count=10):
+        """模拟 HSCAN 游标语义：每轮最多返回 count 个 field，返回 0 表示遍历结束。"""
+        self.hscan_calls.append((key, cursor, count))
+        pairs = list((self._data.get(key) or {}).items())
+        chunk = pairs[cursor : cursor + count]
+        next_cursor = cursor + count
+        if next_cursor >= len(pairs):
+            next_cursor = 0
+        return next_cursor, dict(chunk)
 
     def hget(self, key, field):
         bucket = self._data.get(key) or {}
@@ -34,6 +60,7 @@ class FakeRedisClient:
         return bucket.get(field_b) or bucket.get(field)
 
     def zcard(self, key):
+        self.count_calls.append(("zcard", key))
         return len(self._data.get(key) or [])
 
     def zrange(self, key, start, stop, withscores=False):
@@ -46,6 +73,7 @@ class FakeRedisClient:
         return items[start : start + num]
 
     def llen(self, key):
+        self.count_calls.append(("llen", key))
         return len(self._data.get(key) or [])
 
     def lrange(self, key, start, stop):
@@ -53,6 +81,7 @@ class FakeRedisClient:
         return items[start : None if stop == -1 else stop + 1]
 
     def scard(self, key):
+        self.count_calls.append(("scard", key))
         return len(self._data.get(key) or set())
 
     def smembers(self, key):
@@ -175,6 +204,83 @@ def test_read_cache_key_hash_hgetall(mocker):
     assert result["exists"] is True
     assert result["total_fields"] == 2
     assert "dim1" in result["items"]
+
+
+def test_read_cache_key_hash_large_returns_total_without_full_read(mocker):
+    """大 hash 只返回总数与有界样本，且命令数不随 field 数增长。"""
+    fake = FakeRedisClient()
+    fake._data["test.priority.PGK:big"] = {f"dim{i}".encode(): b"1:1776376740.0" for i in range(20000)}
+
+    mocker.patch(
+        "kernel_api.rpc.functions.bkm_cli.cache._get_key_obj",
+        return_value=_make_key_obj(fake, "hash", "test.priority.{priority_group_key}"),
+    )
+
+    result = read_cache_key(
+        {
+            "key_name": "ACCESS_PRIORITY_KEY",
+            "params": {"priority_group_key": "PGK:big"},
+            "limit": 10,
+        }
+    )
+
+    assert result["total_fields"] == 20000
+    assert result["returned_count"] == 10
+    assert len(result["items"]) == 10
+    assert result["truncated"] is True
+    # 20000 个 field 只用一轮 HSCAN 就取够样本，不做全量遍历
+    assert len(fake.hscan_calls) == 1
+
+
+def test_read_cache_key_hash_scan_rounds_are_bounded(mocker):
+    """HSCAN 轮轮空返回时按固定轮数上限退出，不会一直扫到游标归零。"""
+
+    class SparseScanClient(FakeRedisClient):
+        """模拟 hashtable 编码下 HSCAN 每轮命中为空但游标未归零的情形。"""
+
+        def hscan(self, key, cursor=0, count=10):
+            self.hscan_calls.append((key, cursor, count))
+            return cursor + 1, {}
+
+    fake = SparseScanClient()
+    fake._data["test.priority.PGK:sparse"] = {f"dim{i}".encode(): b"1:1776376740.0" for i in range(100)}
+
+    mocker.patch(
+        "kernel_api.rpc.functions.bkm_cli.cache._get_key_obj",
+        return_value=_make_key_obj(fake, "hash", "test.priority.{priority_group_key}"),
+    )
+    mocker.patch("kernel_api.rpc.functions.bkm_cli.cache._READ_HASH_SCAN_MAX_ROUNDS", 3)
+
+    result = read_cache_key(
+        {
+            "key_name": "ACCESS_PRIORITY_KEY",
+            "params": {"priority_group_key": "PGK:sparse"},
+            "limit": 10,
+        }
+    )
+
+    # 总数仍由 HLEN 给出，样本取不到时如实返回空并标记 truncated
+    assert result["total_fields"] == 100
+    assert result["returned_count"] == 0
+    assert result["truncated"] is True
+    assert len(fake.hscan_calls) == 3
+
+
+def test_read_cache_key_hash_missing_key(mocker):
+    fake = FakeRedisClient()
+
+    mocker.patch(
+        "kernel_api.rpc.functions.bkm_cli.cache._get_key_obj",
+        return_value=_make_key_obj(fake, "hash", "test.priority.{priority_group_key}"),
+    )
+
+    result = read_cache_key({"key_name": "ACCESS_PRIORITY_KEY", "params": {"priority_group_key": "absent"}})
+
+    assert result["exists"] is False
+    assert result["total_fields"] == 0
+    assert result["returned_count"] == 0
+    assert result["truncated"] is False
+    assert result["items"] == {}
 
 
 def test_read_cache_key_hash_specific_field(mocker):
@@ -742,3 +848,179 @@ def test_list_cache_routing(mocker):
         assert "host" not in n
         assert "port" not in n
         assert "password" not in n
+
+
+# ---------- measure-cache-footprint ----------
+
+
+def _patch_footprint(mocker, fake, key_type, key_tpl, *, node=None):
+    mocker.patch(
+        "kernel_api.rpc.functions.bkm_cli.cache._get_key_obj",
+        return_value=_make_key_obj(fake, key_type, key_tpl),
+    )
+    mocker.patch(
+        "kernel_api.rpc.functions.bkm_cli.cache._resolve_routing",
+        return_value={"node": node if node is not None else {"id": 2, "node_alias": "monitor-02"}},
+    )
+
+
+def test_measure_cache_footprint_hash_counts_one_command_per_target(mocker):
+    fake = FakeRedisClient()
+    fake._data["test.checkpoint.1687.1805"] = {b"a": b"1", b"b": b"2", b"c": b"3"}
+    fake._data["test.checkpoint.8361.8479"] = {b"a": b"1"}
+    _patch_footprint(mocker, fake, "hash", "test.checkpoint.{strategy_id}.{item_id}")
+
+    result = measure_cache_footprint(
+        {
+            "key_name": "LAST_CHECKPOINTS_CACHE_KEY",
+            "targets": [
+                {"strategy_id": 1687, "item_id": 1805},
+                {"strategy_id": 8361, "item_id": 8479},
+                {"strategy_id": 9999, "item_id": 9999},
+            ],
+        }
+    )
+
+    assert result["command"] == "HLEN"
+    assert result["count_semantics"] == "hash field 数"
+    assert result["requested"] == 3
+    assert result["measured"] == 3
+    assert result["failed"] == 0
+    assert result["total_count"] == 4
+    assert [item["count"] for item in result["results"]] == [3, 1, 0]
+    assert [item["exists"] for item in result["results"]] == [True, True, False]
+    assert result["results"][0]["node"] == {"id": 2, "node_alias": "monitor-02"}
+    # 命令数恒等于目标数，且只用 HLEN，不落到 HGETALL/HSCAN
+    assert result["redis_commands"] == {
+        "per_target": 1,
+        "total": 3,
+        "note": "每个目标恰好一条 O(1) 计数命令，扫描全量策略的命令数等于目标数",
+    }
+    assert [call[0] for call in fake.count_calls] == ["hlen", "hlen", "hlen"]
+    assert fake.hscan_calls == []
+
+
+def test_measure_cache_footprint_keeps_two_count_semantics_separate(mocker):
+    """field 数不得冒充活跃键数：active_key_count 必须显式为 null 且带说明。"""
+    fake = FakeRedisClient()
+    fake._data["test.checkpoint.1.2"] = {b"a": b"1"}
+    _patch_footprint(mocker, fake, "hash", "test.checkpoint.{strategy_id}.{item_id}")
+
+    result = measure_cache_footprint(
+        {"key_name": "LAST_CHECKPOINTS_CACHE_KEY", "targets": [{"strategy_id": 1, "item_id": 2}]}
+    )
+
+    assert result["total_count"] == 1
+    assert result["active_key_count"] is None
+    assert "上界" in result["active_key_count_note"]
+
+
+def test_measure_cache_footprint_zset_uses_zcard(mocker):
+    fake = FakeRedisClient()
+    fake._data["test.detect.result.1.2.abc.1"] = [(b"x", 1.0), (b"y", 2.0)]
+    _patch_footprint(
+        mocker, fake, "zset", "test.detect.result.{strategy_id}.{item_id}.{dimensions_md5}.{level}"
+    )
+
+    result = measure_cache_footprint(
+        {
+            "key_name": "CHECK_RESULT_CACHE_KEY",
+            "targets": [{"strategy_id": 1, "item_id": 2, "dimensions_md5": "abc", "level": 1}],
+        }
+    )
+
+    assert result["command"] == "ZCARD"
+    assert result["count_semantics"] == "zset 成员数"
+    assert result["results"][0]["count"] == 2
+    assert [call[0] for call in fake.count_calls] == ["zcard"]
+
+
+def test_measure_cache_footprint_string_uses_strlen(mocker):
+    fake = FakeRedisClient()
+    fake._data["test.checkpoint.md5-a"] = "1776376740"
+    _patch_footprint(mocker, fake, "string", "test.checkpoint.{strategy_group_key}")
+
+    result = measure_cache_footprint(
+        {"key_name": "STRATEGY_CHECKPOINT_KEY", "targets": [{"strategy_group_key": "md5-a"}]}
+    )
+
+    assert result["command"] == "STRLEN"
+    assert result["results"][0]["count"] == 10
+
+
+def test_measure_cache_footprint_isolates_bad_target(mocker):
+    """一个目标缺参不能废掉整批结果。"""
+    fake = FakeRedisClient()
+    fake._data["test.checkpoint.1.2"] = {b"a": b"1"}
+    _patch_footprint(mocker, fake, "hash", "test.checkpoint.{strategy_id}.{item_id}")
+
+    result = measure_cache_footprint(
+        {
+            "key_name": "LAST_CHECKPOINTS_CACHE_KEY",
+            "targets": [{"strategy_id": 1, "item_id": 2}, {"strategy_id": 1}, "not-an-object"],
+        }
+    )
+
+    assert result["measured"] == 1
+    assert result["failed"] == 2
+    assert result["total_count"] == 1
+    assert "缺少必填参数" in result["results"][1]["error"]
+    assert "必须是对象" in result["results"][2]["error"]
+    # 失败目标也不产生计数命令
+    assert len(fake.count_calls) == 1
+
+
+def test_measure_cache_footprint_survives_routing_echo_failure(mocker):
+    """路由回显是附加信息，失败不能影响计数结果。"""
+    fake = FakeRedisClient()
+    fake._data["test.checkpoint.1.2"] = {b"a": b"1"}
+    mocker.patch(
+        "kernel_api.rpc.functions.bkm_cli.cache._get_key_obj",
+        return_value=_make_key_obj(fake, "hash", "test.checkpoint.{strategy_id}.{item_id}"),
+    )
+    mocker.patch(
+        "kernel_api.rpc.functions.bkm_cli.cache._resolve_routing",
+        return_value={"error": "router unavailable"},
+    )
+
+    result = measure_cache_footprint(
+        {"key_name": "LAST_CHECKPOINTS_CACHE_KEY", "targets": [{"strategy_id": 1, "item_id": 2}]}
+    )
+
+    assert result["measured"] == 1
+    assert result["results"][0]["count"] == 1
+    assert result["results"][0]["node"] == {"error": "router unavailable"}
+
+
+def test_measure_cache_footprint_rejects_bad_request_shape():
+    with pytest.raises(CustomException, match="key_name is required"):
+        measure_cache_footprint({"targets": [{"strategy_id": 1}]})
+    with pytest.raises(CustomException, match="不在 bkm-cli read-cache-key 白名单"):
+        measure_cache_footprint({"key_name": "NOPE", "targets": [{}]})
+    with pytest.raises(CustomException, match="targets 必须是非空数组"):
+        measure_cache_footprint({"key_name": "LAST_CHECKPOINTS_CACHE_KEY", "targets": []})
+    with pytest.raises(CustomException, match="targets 必须是非空数组"):
+        measure_cache_footprint({"key_name": "LAST_CHECKPOINTS_CACHE_KEY", "targets": {"a": 1}})
+
+
+def test_measure_cache_footprint_enforces_target_cap():
+    targets = [{"strategy_id": index, "item_id": index} for index in range(MAX_FOOTPRINT_TARGETS + 1)]
+
+    with pytest.raises(CustomException, match="targets 数量超过硬上限"):
+        measure_cache_footprint({"key_name": "LAST_CHECKPOINTS_CACHE_KEY", "targets": targets})
+
+
+def test_measure_cache_footprint_registered_as_bkm_cli_op():
+    op = BkmCliOpRegistry.resolve("measure-cache-footprint")
+
+    assert op.func_name == "bkm_cli.measure_cache_footprint"
+    assert op.capability_level == "readonly"
+    assert op.risk_level == "low"
+    assert op.requires_confirmation is False
+
+
+def test_measure_cache_footprint_covers_every_whitelisted_key_type():
+    """白名单里出现的每种 key_type 都必须有对应计数命令，避免新增类型时静默不可测。"""
+    key_types = {spec.key_type for spec in ALLOWED_KEY_SPECS.values()}
+
+    assert key_types <= set(FOOTPRINT_COUNTERS)

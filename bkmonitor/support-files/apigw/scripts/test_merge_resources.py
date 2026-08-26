@@ -24,6 +24,8 @@ merge_resources_func = merge_resources.merge_resources
 
 _RESOURCES_DIR = _SCRIPT.parent.parent / "resources"
 _DOCS_DIR = _SCRIPT.parent.parent / "docs/zh"
+_INTERNAL_APM_FILE = _RESOURCES_DIR / "internal/app/apm.yaml"
+_EXTERNAL_APM_FILE = _RESOURCES_DIR / "external/app/apm.yaml"
 _METADATA_FILE = _RESOURCES_DIR / "internal/app/metadata.yaml"
 _ALARM_STRATEGY_FILE = _RESOURCES_DIR / "external/app/alarm_strategy.yaml"
 _ALERT_MCP_FILE = _RESOURCES_DIR / "internal/user/alert_mcp.yaml"
@@ -55,10 +57,14 @@ _ALERT_HANDLING_OPERATION_IDS = {
     "update_alarm_shield",
     "disable_alarm_shield",
     "search_alarm_notice_groups",
+    "create_alarm_notice_group",
     "update_alarm_notice_group",
     "search_alarm_action_configs",
     "get_alarm_action_config",
     "update_alarm_action_config",
+    "search_alarm_assign_groups",
+    "save_alarm_assign_group",
+    "delete_alarm_assign_group",
 }
 
 
@@ -109,10 +115,10 @@ def test_alert_mcp_resource_groups_are_disjoint():
 
 
 def test_alert_handling_mcp_contract():
-    """告警处置 MCP 必须精确包含 14 个资源并使用独立标签。"""
+    """告警处置 MCP 必须精确包含 18 个资源并使用独立标签。"""
     paths = _load_paths(_ALERT_HANDLING_MCP_FILE)
 
-    assert len(paths) == 14
+    assert len(paths) == 18
     assert set(paths) == {f"/mcp/{operation_id}/" for operation_id in _ALERT_HANDLING_OPERATION_IDS}
     assert _operation_ids(paths) == _ALERT_HANDLING_OPERATION_IDS
     for path_data in paths.values():
@@ -309,6 +315,31 @@ def test_log_collection_update_mcp_contract():
         "appVerifiedRequired": False,
         "resourcePermissionRequired": True,
     }
+
+
+def test_apm_platform_integration_apigw_contract() -> None:
+    """平台对接依赖的服务列表与指标计算接口必须使用约定的网关配置。"""
+    internal_paths = _load_paths(_INTERNAL_APM_FILE)
+    external_paths = _load_paths(_EXTERNAL_APM_FILE)
+    expected_resources: dict[str, tuple[str, str]] = {
+        "/app/apm/service/service_list/": ("apm_service_list", "/api/v4/service_web/service_list/"),
+        "/app/apm/calculate_by_range/": ("calculate_by_range", "/api/v4/apm_metric_web/calculate_by_range/"),
+    }
+
+    for path, (operation_id, backend_path) in expected_resources.items():
+        assert path not in internal_paths
+
+        method_data = external_paths[path]["post"]
+        gateway_resource = method_data["x-bk-apigateway-resource"]
+        assert method_data["operationId"] == operation_id
+        assert gateway_resource["isPublic"] is True
+        assert gateway_resource["backend"] == {
+            "name": "default",
+            "method": "post",
+            "path": backend_path,
+            "matchSubpath": False,
+        }
+        assert (_DOCS_DIR / f"{operation_id}.md").is_file()
 
 
 def test_repository_resources_have_unique_operation_ids():

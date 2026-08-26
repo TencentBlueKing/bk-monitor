@@ -306,6 +306,10 @@ class AccessDataProcess(BaseAccessDataProcess):
         self.strategy_group_key = strategy_group_key
         self.from_timestamp = None
         self.until_timestamp = None
+        self.inline_trigger_items = []
+        self.check_result_opportunity_high_load = False
+        self.access_detect_merged = False
+        self.check_result_opportunity_trim_ready = False
 
         if sub_task_id:
             self.batch_timestamp = int(sub_task_id.split(".")[0])
@@ -314,6 +318,21 @@ class AccessDataProcess(BaseAccessDataProcess):
 
     def __str__(self):
         return f"{self.__class__.__name__}:strategy_group_key({self.strategy_group_key})"
+
+    def run_inline_trigger(self):
+        from alarm_backends.service.trigger.runner import run_trigger_item
+        from core.errors.alarm_backends import LockError
+
+        for strategy_id, item_id in self.inline_trigger_items:
+            try:
+                run_trigger_item(strategy_id, item_id, executor="detect_inline")
+            except LockError:
+                self.publish_anomaly_signals([f"{strategy_id}.{item_id}"])
+                logger.info(
+                    "[access inline trigger] strategy(%s), item(%s) is locked; signal published for trigger worker",
+                    strategy_id,
+                    item_id,
+                )
 
     def _load_items(self) -> list[Item]:
         """加载策略项列表"""
@@ -404,6 +423,7 @@ class AccessDataProcess(BaseAccessDataProcess):
         # 当点数大于阈值时，将数据拆分为多个批量任务
         point_total = len(points)
         if point_total > (settings.ACCESS_DATA_BATCH_PROCESS_THRESHOLD or 500000):
+            self.check_result_opportunity_high_load = True
             # 为分组中的每个策略分别记录指标（修复指标漏报问题）
             # Access 数据拉取基于分组，一个分组可能包含多个策略，且可能使用不同的 Redis 节点
             for item in self.items:
@@ -939,7 +959,9 @@ class AccessDataProcess(BaseAccessDataProcess):
             try:
                 detect_process.double_check(item)
             except Exception:
-                logger.exception("[access-detect-merge] strategy(%s) 二次确认时发生异常，不影响告警主流程", strategy_id)
+                logger.exception(
+                    "[access-detect-merge] strategy(%s) 二次确认时发生异常，不影响告警主流程", strategy_id
+                )
 
             # 推送无数据检测数据（如果启用）
             # 无数据检测需要知道有哪些维度有数据上报，用于判断哪些维度无数据
@@ -955,6 +977,9 @@ class AccessDataProcess(BaseAccessDataProcess):
 
             # 推送异常数据（自动获得所有监控指标：延迟统计、大延迟告警、PROCESS_OVER_FLOW 等）
             detect_process.push_data()
+            self.inline_trigger_items.extend(
+                (strategy_id, inline_item_id) for inline_item_id in detect_process.inline_trigger_items
+            )
             # 上报 detect 模块指标，保持监控连续性
             # 即使合并处理跳过了 detect 异步任务，也需要上报这些指标
             detect_end_time = time.time()
@@ -1072,7 +1097,8 @@ class AccessDataProcess(BaseAccessDataProcess):
 
         # 判断是否可以合并处理（access-detect 合并）
         # 当策略的所有检测算法均为静态阈值时，直接在 access 模块执行检测
-        if self._can_merge_access_detect():
+        self.access_detect_merged = self._can_merge_access_detect()
+        if self.access_detect_merged:
             # 直接在 access 中执行检测并推送异常数据
             self._detect_and_push_abnormal()
         else:
@@ -1109,6 +1135,9 @@ class AccessDataProcess(BaseAccessDataProcess):
 
         # 如果没有分批任务，直接返回
         if self.batch_count == 1:
+            self.check_result_opportunity_trim_ready = bool(
+                not exc and self.check_result_opportunity_high_load and self.access_detect_merged
+            )
             metrics.ACCESS_DATA_PROCESS_TIME.labels(strategy_group_key=metrics.TOTAL_TAG).observe(
                 time.time() - start_time
             )
@@ -1126,6 +1155,8 @@ class AccessDataProcess(BaseAccessDataProcess):
                 "result": not exc,
                 "error": str(exc),
                 "process_counts": self.process_counts,
+                "inline_trigger_items": self.inline_trigger_items,
+                "access_detect_merged": self.access_detect_merged,
             }
         ]
         wait_start_time = time.time()
@@ -1145,6 +1176,33 @@ class AccessDataProcess(BaseAccessDataProcess):
                     batch_results=[result["sub_task_id"] for result in batch_results],
                 )
             )
+            fallback_signals = [f"{item.strategy.id}.{item.id}" for item in self.items]
+            self.publish_anomaly_signals(fallback_signals)
+            logger.warning(
+                "[access inline trigger] strategy_group_key(%s) batch result timeout; "
+                "published %s fallback signals for trigger worker",
+                self.strategy_group_key,
+                len(fallback_signals),
+            )
+
+        self.check_result_opportunity_trim_ready = bool(
+            not exc
+            and self.check_result_opportunity_high_load
+            and self.access_detect_merged
+            and len(batch_results) == self.batch_count
+            and all(result.get("result") and result.get("access_detect_merged") for result in batch_results)
+        )
+
+        inline_trigger_items = []
+        seen_inline_trigger_items = set()
+        for result in batch_results:
+            for strategy_id, item_id in result.get("inline_trigger_items", []):
+                item = (strategy_id, item_id)
+                if item in seen_inline_trigger_items:
+                    continue
+                seen_inline_trigger_items.add(item)
+                inline_trigger_items.append(item)
+        self.inline_trigger_items = inline_trigger_items
 
         # 记录日志
         self.batch_log(batch_results)
@@ -1155,6 +1213,29 @@ class AccessDataProcess(BaseAccessDataProcess):
             status=metrics.StatusEnum.from_exc(exc),
             exception=exc,
         ).inc()
+
+    def schedule_check_result_opportunity_trim(self) -> bool:
+        if not self.check_result_opportunity_trim_ready:
+            return False
+
+        from alarm_backends.core.detect_result.opportunity import claim_opportunity_trim
+        from alarm_backends.core.detect_result.tasks import async_trim_check_result_opportunity
+
+        queued_at = time.time()
+        try:
+            if not claim_opportunity_trim(self.strategy_group_key, queued_at):
+                return False
+            async_trim_check_result_opportunity.apply_async(
+                args=(self.strategy_group_key, queued_at),
+                expires=10 * constants.CONST_MINUTES,
+            )
+        except Exception:
+            logger.exception(
+                "skip CHECK_RESULT opportunity trim scheduling for strategy_group_key(%s)",
+                self.strategy_group_key,
+            )
+            return False
+        return True
 
     def batch_log(self, batch_results: list[dict]):
         """
@@ -1336,6 +1417,8 @@ class AccessBatchDataProcess(AccessDataProcess):
                     "result": not exc,  # True 表示成功，False 表示失败
                     "error": str(exc) if exc else "",
                     "process_counts": self.process_counts,  # 处理统计信息
+                    "inline_trigger_items": self.inline_trigger_items,
+                    "access_detect_merged": self.access_detect_merged,
                 }
             ),
         )

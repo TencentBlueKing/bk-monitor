@@ -5,6 +5,7 @@ from unittest.mock import patch
 from django.test import TestCase
 
 from apps.log_clustering.constants import AGGS_FIELD_PREFIX, PatternEnum, StorageTypeEnum
+from apps.log_clustering.exceptions import DorisStorageNotExistException
 from apps.log_clustering.handlers.dataflow.constants import FlowMode
 from apps.log_clustering.handlers.dataflow.data_cls import (
     DorisCls,
@@ -387,8 +388,9 @@ class TestPatternSearch(TestCase):
     )
     @patch("apps.log_clustering.handlers.dataflow.dataflow_handler.DataAccessHandler.get_fields")
     @patch("apps.log_clustering.handlers.dataflow.dataflow_handler.TransferApi.bulk_create_or_update_log_router")
+    @patch("apps.log_clustering.handlers.dataflow.dataflow_handler.DorisClusterHandler.get_cluster_id", return_value=88)
     def test_sync_clustered_route_with_doris_storage(
-        self, mock_bulk_create_or_update_log_router, mock_get_fields, _mock_get_fields_dict
+        self, mock_get_cluster_id, mock_bulk_create_or_update_log_router, mock_get_fields, _mock_get_fields_dict
     ):
         mock_get_fields.return_value = [
             {"field_name": "dtEventTimeStamp", "field_type": "timestamp"},
@@ -402,6 +404,7 @@ class TestPatternSearch(TestCase):
             storage_type=StorageTypeEnum.DORIS.value,
             clustered_rt="2_bklog_30_clustered",
             bkdata_etl_result_table_id="2_bklog_30_clean",
+            doris_storage="test_doris_cluster",
             predict_flow={
                 "doris": {
                     "fields": json.dumps(
@@ -416,11 +419,15 @@ class TestPatternSearch(TestCase):
         result = DataFlowHandler.sync_clustered_route(index_set_id=30, raise_exception=True)
 
         self.assertTrue(result)
+        # 聚类结果表所在的集群按 BkBase 实际存储解析，BkBase 查不到时回退到下发 flow 使用的集群名
+        self.assertEqual(mock_get_cluster_id.call_args.kwargs["bkbase_table_id"], "2_bklog_30_clustered")
+        self.assertEqual(mock_get_cluster_id.call_args.kwargs["fallback_cluster_name"], "test_doris_cluster")
         mock_bulk_create_or_update_log_router.assert_called_once()
         bulk_params = mock_bulk_create_or_update_log_router.call_args.args[0]
         self.assertEqual(bulk_params["data_label"], "bklog_index_set_30_clustered")
         table_info = bulk_params["table_info"][0]
         self.assertTrue(table_info["is_enable"])
+        self.assertEqual(table_info["cluster_id"], 88)
         self.assertEqual(table_info["table_id"], "bklog_index_set_30_2_bklog_30_clustered.__doris__")
         # 同一物理字段会保留两条 alias：自定义 alias 和原始大小写字段名。
         self.assertEqual(
@@ -434,6 +441,35 @@ class TestPatternSearch(TestCase):
                 {"field_name": "gseindex", "query_alias": "gseIndex"},
             ],
         )
+
+    @patch.object(
+        DataFlowHandler,
+        "get_fields_dict",
+        return_value={"dtEventTimeStamp": "dtEventTimeStamp", "log": "log"},
+    )
+    @patch("apps.log_clustering.handlers.dataflow.dataflow_handler.DataAccessHandler.get_fields", return_value=[])
+    @patch("apps.log_clustering.handlers.dataflow.dataflow_handler.TransferApi.bulk_create_or_update_log_router")
+    @patch(
+        "apps.log_clustering.handlers.dataflow.dataflow_handler.DorisClusterHandler.get_cluster_id", return_value=None
+    )
+    def test_sync_clustered_doris_route_without_cluster_id(
+        self, _mock_get_cluster_id, mock_bulk_create_or_update_log_router, _mock_get_fields, _mock_get_fields_dict
+    ):
+        """集群解析不出来时不能下发路由，否则 metadata 会把存储建到默认 Doris 集群上"""
+        LogIndexSet.objects.create(**LOG_INDEX_SET_CREATE_PARAMS)
+        ClusteringConfig.objects.create(
+            **CLUSTERINGCONFIG_CREATE_PARAMS,
+            storage_type=StorageTypeEnum.DORIS.value,
+            clustered_rt="2_bklog_30_clustered",
+            bkdata_etl_result_table_id="2_bklog_30_clean",
+        )
+
+        self.assertFalse(DataFlowHandler.sync_clustered_route(index_set_id=30))
+        mock_bulk_create_or_update_log_router.assert_not_called()
+
+        with self.assertRaises(DorisStorageNotExistException):
+            DataFlowHandler.sync_clustered_route(index_set_id=30, raise_exception=True)
+        mock_bulk_create_or_update_log_router.assert_not_called()
 
     @patch("apps.log_clustering.handlers.dataflow.dataflow_handler.TransferApi.bulk_create_or_update_log_router")
     def test_sync_clustered_es_route(self, mock_bulk_create_or_update_log_router):

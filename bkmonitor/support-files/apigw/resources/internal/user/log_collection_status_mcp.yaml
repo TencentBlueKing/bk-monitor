@@ -2,8 +2,13 @@ paths:
   /mcp/get_log_collector_status/:
     post:
       operationId: get_log_collector_status
-      description: Query one log collector's deployment task and subscription status across Linux, Windows, and container environments. Use task_ids returned by Fast Create/Fast Update when available. Poll again after retry_after_seconds while is_terminal is false. 查询单个日志采集项的统一任务与订阅状态；可直接传入创建或更新接口返回的任务 ID，并按返回的轮询语义继续查询。
-      tags: [log_collection_mcp]
+      description: >-
+        Query one collector's deployment task and subscription status. Pass task_ids from Fast Create/Fast
+        Update when available. Poll again after retry_after_seconds while is_terminal is false. Terminal
+        statuses: success, partial_failed, failed, terminated. 查询单个采集项的任务与订阅状态。按 retry_after_seconds 轮询，is_terminal=true
+        即停。
+      tags:
+      - log_collection_mcp
       requestBody:
         required: true
         content:
@@ -11,25 +16,43 @@ paths:
             schema:
               type: object
               additionalProperties: false
-              required: [bk_biz_id, collector_config_id]
+              required:
+              - bk_biz_id
+              - collector_config_id
               properties:
-                bk_biz_id: {type: integer, description: Business ID. 业务ID。}
-                collector_config_id: {type: integer, minimum: 1, description: Log collector configuration ID. 日志采集项ID。}
+                bk_biz_id:
+                  type: integer
+                  description: Business ID in BlueKing Monitor. Identifies the business space. 业务ID，用于标识业务空间。
+                collector_config_id:
+                  type: integer
+                  minimum: 1
+                  description: >-
+                    Collector configuration ID. Obtain from list_log_collectors or a create/update response.
+                    采集项 ID，从 list_log_collectors 或创建/更新返回值获取。
                 task_ids:
                   type: array
                   minItems: 1
                   maxItems: 100
-                  description: Task IDs returned by Fast Create/Fast Update. Omit to use the collector's latest task IDs. 创建或更新接口返回的任务ID；不传则查询采集项最近一次任务。
+                  description: >-
+                    Task IDs returned by fast_create_log_collector / fast_update_log_collector. Omit to
+                    use the collector's latest task_id_list. Max 100 IDs, each a positive integer. 创建或更新返回的任务
+                    ID；不传则查最近一次任务。最多 100 个正整数。
                   items:
                     oneOf:
-                    - {type: string, maxLength: 20, pattern: '^[1-9][0-9]{0,19}$'}
-                    - {type: integer, minimum: 1, maximum: 99999999999999999999}
+                    - type: string
+                      maxLength: 20
+                      pattern: ^[1-9][0-9]{0,19}$
+                    - type: integer
+                      minimum: 1
+                      maximum: 99999999999999999999
                 detail_limit:
                   type: integer
                   minimum: 1
                   maximum: 100
                   default: 20
-                  description: Maximum instance details returned across task and subscription phases. 任务与订阅阶段合计最多返回的实例明细数。
+                  description: >-
+                    Max instance-detail rows across task and subscription phases. Range 1-100, default
+                    20. 任务与订阅阶段合计最多返回的实例明细数，默认 20，最大 100。
       x-bk-apigateway-resource:
         isPublic: false
         allowApplyPermission: false

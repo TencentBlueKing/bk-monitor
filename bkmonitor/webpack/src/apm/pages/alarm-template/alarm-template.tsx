@@ -557,7 +557,6 @@ export default class AlarmTemplate extends tsc<object> {
           show={this.templatePushObj.show}
           onShowChange={show => this.handleShowTemplatePush(show)}
           onShowDetails={params => {
-            this.templatePushObj.show = false;
             this.handleShowDetail({ id: params.id, sliderActiveTab: 'base_info' });
           }}
           onSuccess={() => this.handleRefresh()}

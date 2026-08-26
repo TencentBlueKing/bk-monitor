@@ -423,7 +423,7 @@ def create_container_release(bcs_cluster_id: str, container_config_id: int, conf
             container_config.status_detail = _("配置下发中")
             container_config.save(update_fields=["status", "status_detail"])
             break
-        except ContainerCollectorConfig.objects.DoesNotExist:
+        except ContainerCollectorConfig.DoesNotExist:
             # db的事务可能还未结束，这里需要重试
             time.sleep(WAIT_FOR_RETRY)
         except Exception as e:  # pylint: disable=broad-except

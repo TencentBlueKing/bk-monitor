@@ -26,9 +26,9 @@
 import { Component, Provide, ProvideReactive, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import DashboardTools from 'monitor-pc/pages/monitor-k8s/components/dashboard-tools';
-import customEscalationViewStore from 'monitor-pc/store/modules/custom-escalation-view';
-
+import { getDefaultTimezone } from '../../../i18n/dayjs';
+import customEscalationViewStore from '../../../store/modules/custom-escalation-view';
+import DashboardTools from '../../monitor-k8s/components/dashboard-tools';
 import PageHeadr from './components/page-header/index';
 import ViewMain from './components/view-main';
 import ViewTab from './components/view-tab/index';
@@ -49,6 +49,7 @@ export default class NewMetricView extends tsc<object> {
   cacheTimeRange = [];
   asideWidth = 220; // 侧边栏初始化宽度
   metricTimeRange: TimeRangeType = [this.startTime, this.endTime];
+  timezone: string = getDefaultTimezone();
   @Provide('handleUpdateQueryData') handleUpdateQueryData = undefined;
   @Provide('enableSelectionRestoreAll') enableSelectionRestoreAll = true;
   @ProvideReactive('showRestore') showRestore = false;
@@ -134,6 +135,10 @@ export default class NewMetricView extends tsc<object> {
     // 打开指标管理操作面板
   }
 
+  handleTimezoneChange(v: string) {
+    this.timezone = v;
+  }
+
   created() {
     const routerQuery = this.$route.query as Record<string, string>;
     this.currentView = routerQuery.viewTab || 'default';
@@ -151,9 +156,11 @@ export default class NewMetricView extends tsc<object> {
             refreshInterval={this.refreshInterval}
             showListMenu={false}
             timeRange={this.metricTimeRange}
+            timezone={this.timezone}
             onImmediateRefresh={this.handleImmediateRefresh}
             onRefreshChange={this.handleRefreshChange}
             onTimeRangeChange={this.handleTimeRangeChange}
+            onTimezoneChange={this.handleTimezoneChange}
           />
         </PageHeadr>
         <div

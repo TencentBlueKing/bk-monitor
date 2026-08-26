@@ -1532,7 +1532,7 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
 
       this.targetSet.show = true;
       this.targetSet.objectType = this.table.select[0].objectType;
-      this.targetSet.nodeType = this.table.select[0].objectType;
+      this.targetSet.nodeType = this.table.select[0].targetNodeType || this.table.select[0].nodeType;
       this.targetSet.title = this.$t('增删目标');
       this.targetSet.strategyIds = this.table.select.map(item => item.id);
     } else {
@@ -1738,7 +1738,7 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
       this.targetSet.show = true;
       this.targetSet.strategyIds = [row.id];
       this.targetSet.objectType = row.objectType;
-      this.targetSet.nodeType = row.nodeType;
+      this.targetSet.nodeType = row.targetNodeType || row.nodeType;
       this.targetSet.title = this.$t('监控目标');
     }
   }
