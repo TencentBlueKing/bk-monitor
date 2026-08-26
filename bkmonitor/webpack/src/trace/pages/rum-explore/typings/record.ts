@@ -29,11 +29,6 @@ export interface IRumRecordListResponse {
   list: IRumSpanRecord[];
 }
 
-/** 表格排序状态，与 tdesign SortInfo 对齐 */
-export interface IRumSortInfo {
-  descending: boolean | null;
-  sortBy: string;
-}
 /**
  * list_records 返回的单条记录。
  *

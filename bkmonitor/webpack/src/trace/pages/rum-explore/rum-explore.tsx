@@ -38,6 +38,7 @@ import TraceExploreLayout from '../trace-explore/components/trace-explore-layout
 import RumDimensionPanel from './components/rum-dimension-panel';
 import RumExploreHeader from './components/rum-explore-header';
 import RumExploreTable from './components/rum-explore-table';
+import RumExploreView from './components/rum-explore-view/rum-explore-view';
 import RumSpanTypeFilter from './components/rum-span-type-filter';
 import {
   useRumFavorite,
@@ -50,7 +51,7 @@ import {
 import { RUM_RESIDENT_SETTING_KEY } from './constants';
 import { getApplicationList } from './services/rum-application';
 
-import type { IRumApplication, IRumSortInfo } from './typings';
+import type { IRumApplication } from './typings';
 
 import './rum-explore.scss';
 
@@ -181,7 +182,7 @@ export default defineComponent({
       queryCtx.addCondition({ key: condition.key, operator: condition.method, value: [condition.value] }, true);
     }
 
-    function handleSortChange(sort: IRumSortInfo) {
+    function handleSortChange(sort: string | string[]) {
       tableCtx.handleSortChange(sort);
       queryCtx.setUrlParams();
     }
@@ -325,27 +326,38 @@ export default defineComponent({
                   ),
                   default: () => (
                     <div class='result-panel'>
-                      <RumSpanTypeFilter
-                        list={spanTypeCtx.chipList.value}
-                        value={spanTypeCtx.activeSpanType.value}
-                        onChange={this.handleSpanTypeChange}
-                      />
-                      <RumExploreTable
-                        commonParams={queryCtx.commonParams.value}
-                        data={tableCtx.tableData.value}
-                        displayableFields={viewConfigCtx.displayableFields.value}
-                        displayFields={this.displayFields}
-                        loading={tableCtx.loading.value}
-                        scrollLoading={tableCtx.scrollLoading.value}
-                        sort={this.store.tableSortContainer}
-                        timeRange={this.store.timeRange}
-                        onClearFilter={queryCtx.clearQuery}
-                        onConditionChange={this.handleConditionChange}
-                        onDisplayFieldChange={fields => {
-                          this.displayFields = fields;
+                      <RumExploreView
+                        v-slots={{
+                          affixedTop: () => (
+                            <RumSpanTypeFilter
+                              list={spanTypeCtx.chipList.value}
+                              value={spanTypeCtx.activeSpanType.value}
+                              onChange={this.handleSpanTypeChange}
+                            />
+                          ),
+                          default: () => (
+                            <RumExploreTable
+                              commonParams={queryCtx.commonParams.value}
+                              data={tableCtx.tableData.value}
+                              displayableFields={viewConfigCtx.displayableFields.value}
+                              displayFields={this.displayFields}
+                              hasMore={tableCtx.hasMore.value}
+                              loading={tableCtx.loading.value}
+                              mode={this.store.mode}
+                              scrollLoading={tableCtx.scrollLoading.value}
+                              sort={this.store.sortParams}
+                              timeRange={this.store.timeRange}
+                              onClearFilter={queryCtx.clearQuery}
+                              onConditionChange={this.handleConditionChange}
+                              onDisplayFieldChange={fields => {
+                                this.displayFields = fields;
+                              }}
+                              onScrollToEnd={tableCtx.handleScrollToEnd}
+                              onSortChange={this.handleSortChange}
+                            />
+                          ),
                         }}
-                        onScrollToEnd={tableCtx.handleScrollToEnd}
-                        onSortChange={this.handleSortChange}
+                        backTopSignal={tableCtx.backTopSignal.value}
                       />
                     </div>
                   ),
