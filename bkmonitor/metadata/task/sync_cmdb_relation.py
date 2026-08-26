@@ -37,7 +37,6 @@ from metadata.models import (
 from metadata.models.entity_relation import EntityMeta
 from metadata.models.space.constants import EtlConfigs
 from metadata.tools.constants import TASK_FINISHED_SUCCESS, TASK_STARTED
-from metadata.task.relation_route import refresh_graph_relation_routes
 from metadata.utils.redis_tools import RedisTools
 
 logger = logging.getLogger("metadata")
@@ -331,6 +330,7 @@ def _sync_relation_metadata(
     graph_storage_config: dict[str, Any] | None,
 ) -> DataSource:
     """创建或读取 relation 元数据，并统一回写 Redis token。"""
+    previous_value = dict(context.value)
     # 步骤 1：复用已有 DataSource，或在一个事务内创建完整的 relation 元数据。
     if result_table is not None:
         data_source = DataSource.objects.get(
@@ -376,11 +376,9 @@ def _sync_relation_metadata(
         time_series_group,
     )
     context.value["modifyTime"] = modify_time
-    RedisTools.hset_to_redis(
-        redis_key,
-        context.key,
-        json.dumps(context.value),
-    )
+    if previous_value != context.value:
+        RedisTools.hset_to_redis(redis_key, context.key, json.dumps(context.value))
+        RedisTools.publish(f"{redis_key}:channel", [context.key])
     return data_source
 
 
@@ -520,15 +518,6 @@ def sync_relation_redis_data():
             existing_time_series_group_map.get(identity),
             enabled_graph_biz_ids,
         )
-
-    # BMW consumes this snapshot to decide whether a business is currently
-    # eligible for relation metric dual-write. Refresh after relation metadata
-    # and Graph V4 apply have completed so observers never see a ready route
-    # before its DataID/token is available.
-    try:
-        refresh_graph_relation_routes(redis_key)
-    except Exception:  # pylint: disable=broad-except
-        logger.exception("sync_relation_redis_data: refresh graph relation routes failed")
 
     # 步骤 4：所有 field 处理完成后统一上报本轮任务指标。
     cost_time = time.time() - start_time
