@@ -37,6 +37,7 @@ from metadata.models import (
 from metadata.models.entity_relation import EntityMeta
 from metadata.models.space.constants import EtlConfigs
 from metadata.tools.constants import TASK_FINISHED_SUCCESS, TASK_STARTED
+from metadata.task.relation_route import refresh_graph_relation_routes
 from metadata.utils.redis_tools import RedisTools
 
 logger = logging.getLogger("metadata")
@@ -519,6 +520,15 @@ def sync_relation_redis_data():
             existing_time_series_group_map.get(identity),
             enabled_graph_biz_ids,
         )
+
+    # BMW consumes this snapshot to decide whether a business is currently
+    # eligible for relation metric dual-write. Refresh after relation metadata
+    # and Graph V4 apply have completed so observers never see a ready route
+    # before its DataID/token is available.
+    try:
+        refresh_graph_relation_routes(redis_key)
+    except Exception:  # pylint: disable=broad-except
+        logger.exception("sync_relation_redis_data: refresh graph relation routes failed")
 
     # 步骤 4：所有 field 处理完成后统一上报本轮任务指标。
     cost_time = time.time() - start_time
