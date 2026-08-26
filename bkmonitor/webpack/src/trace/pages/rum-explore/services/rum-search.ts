@@ -62,7 +62,7 @@ import type { AxiosRequestConfig } from 'axios';
  * 后端接口尚未就绪，当前统一走本地 mock 数据。
  * 联调时把这里改成 false 即可切换到真实接口，无需改动上层 composable 与组件。
  */
-const USE_MOCK = true;
+const USE_MOCK = false;
 
 /** 请求失败时不弹全局错误提示，由调用方决定降级展示 */
 const SILENT: AxiosRequestConfig & { needMessage: boolean } = { needMessage: false };
