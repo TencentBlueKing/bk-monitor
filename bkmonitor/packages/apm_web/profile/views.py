@@ -680,6 +680,9 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
         profile_id 为空时查询不会带上过滤条件，会读到其他业务上传的数据，因此必须给定且归属当前业务。
         """
         bk_biz_id = validated_data["bk_biz_id"]
+        if validated_data.get("is_compared") and not validated_data.get("diff_profile_id"):
+            raise ValueError(_("全局对比查询需要指定 diff_profile_id"))
+
         for key in ("profile_id", "diff_profile_id"):
             if key not in validated_data:
                 continue
