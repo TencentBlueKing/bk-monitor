@@ -2551,7 +2551,13 @@ class CustomServiceConfigResource(Resource):
             # 更新
             _id = validated_data.pop("id")
             self.validate_name(validated_data, _id)
-            ApplicationCustomService.objects.filter(id=_id).update(**validated_data)
+            updated = ApplicationCustomService.objects.filter(
+                id=_id,
+                bk_biz_id=validated_data["bk_biz_id"],
+                app_name=validated_data["app_name"],
+            ).update(**validated_data)
+            if not updated:
+                raise ValueError(_("自定义服务({}) 不存在").format(_id))
 
         from apm_web.tasks import update_application_config
 
@@ -2599,11 +2605,17 @@ class CustomServiceConfigResource(Resource):
 
 class DeleteCustomSeriviceResource(Resource):
     class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(label="业务id")
         id = serializers.IntegerField()
 
     def perform_request(self, validated_data):
-        query = ApplicationCustomService.objects.filter(id=validated_data["id"])
+        query = ApplicationCustomService.objects.filter(
+            id=validated_data["id"],
+            bk_biz_id=validated_data["bk_biz_id"],
+        )
         instance = query.first()
+        if not instance:
+            raise ValueError(_("自定义服务({}) 不存在").format(validated_data["id"]))
         query.delete()
 
         from apm_web.tasks import update_application_config
