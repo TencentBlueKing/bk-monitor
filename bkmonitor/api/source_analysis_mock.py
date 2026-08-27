@@ -129,16 +129,18 @@ class SourceAnalysisUpstreamMock:
         return max(0, settings.ISSUE_SOURCE_ANALYSIS_MOCK_DURATION_SECONDS)
 
     @classmethod
-    def list_bkci_project_options(cls) -> list[dict]:
+    def list_bkci_project_options(cls) -> dict:
         """返回源码分析专用的蓝盾项目，避免 Mock 影响其他蓝盾调用方。"""
 
-        return [{"id": str(item["id"]), "name": str(item["name"])} for item in cls.BKCI_PROJECTS]
+        options = [{"id": str(item["id"]), "name": str(item["name"])} for item in cls.BKCI_PROJECTS]
+        return {"total": len(options), "list": options}
 
     @classmethod
-    def list_bkci_repository_options(cls, project_id: str) -> list[dict]:
+    def list_bkci_repository_options(cls, bkci_project_id: str) -> dict:
         """按 Mock 项目返回 Git 代码库，供配置保存复用同一校验链路。"""
 
-        return [dict(item) for item in cls.BKCI_REPOSITORIES.get(str(project_id), ())]
+        options = [dict(item) for item in cls.BKCI_REPOSITORIES.get(str(bkci_project_id), ())]
+        return {"total": len(options), "list": options}
 
     @classmethod
     def supports_aidev_action(cls, action: str) -> bool:
@@ -159,22 +161,19 @@ class SourceAnalysisUpstreamMock:
         return cls._paginate(items, name_field, params)
 
     @classmethod
-    def list_knowledge_base_options(cls, params: dict) -> dict:
-        result = cls._paginate(cls.KNOWLEDGE_BASES, "name", params)
+    def list_knowledge_base_options(cls) -> dict:
         space_name_map = {str(item["space_id"]): str(item["space_name"]) for item in cls.AIDEV_SPACES}
-        return {
-            "total": result["count"],
-            "list": [
-                {
-                    "id": str(item["id"]),
-                    "name": str(item["name"]),
-                    "space_id": str(item["space_id"]),
-                    # 与真实链路一致：空间名称补全失败时回退展示 space_id
-                    "space_name": space_name_map.get(str(item["space_id"]), str(item["space_id"])),
-                }
-                for item in result["results"]
-            ],
-        }
+        options = [
+            {
+                "id": str(item["id"]),
+                "name": str(item["name"]),
+                "space_id": str(item["space_id"]),
+                # 与真实链路一致：空间名称补全失败时回退展示 space_id
+                "space_name": space_name_map.get(str(item["space_id"]), str(item["space_id"])),
+            }
+            for item in cls.KNOWLEDGE_BASES
+        ]
+        return {"total": len(options), "list": options}
 
     @classmethod
     def visible_knowledge_base_ids(cls) -> set[str]:

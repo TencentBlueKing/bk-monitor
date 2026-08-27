@@ -42,31 +42,28 @@ class TestSourceAnalysisMockOptions(SourceAnalysisMockTestMixin, SimpleTestCase)
     def test_mock_resources_use_final_option_contract(self):
         projects = ListSourceAnalysisBkciProjectsResource().perform_request({"bk_biz_id": 2})
         repositories = ListSourceAnalysisBkciRepositoriesResource().perform_request(
-            {"bk_biz_id": 2, "project_id": SourceAnalysisUpstreamMock.BKCI_PROJECT_ID}
+            {"bk_biz_id": 2, "bkci_project_id": SourceAnalysisUpstreamMock.BKCI_PROJECT_ID}
         )
-        agents = ListSourceAnalysisAgentsResource().perform_request(
-            {"bk_biz_id": 2, "keyword": "", "page": 1, "page_size": 20}
-        )
-        skills = ListSourceAnalysisSkillsResource().perform_request(
-            {"bk_biz_id": 2, "keyword": "", "page": 1, "page_size": 20}
-        )
-        knowledge_bases = ListSourceAnalysisKnowledgeBasesResource().perform_request(
-            {"bk_biz_id": 2, "keyword": "", "page": 1, "page_size": 20}
-        )
+        agents = ListSourceAnalysisAgentsResource().perform_request({"bk_biz_id": 2})
+        skills = ListSourceAnalysisSkillsResource().perform_request({"bk_biz_id": 2})
+        knowledge_bases = ListSourceAnalysisKnowledgeBasesResource().perform_request({"bk_biz_id": 2})
 
         self.assertEqual(
             projects,
-            [{"id": "mock-source-analysis-project", "name": "[Mock] 源码分析联调项目"}],
+            {"total": 1, "list": [{"id": "mock-source-analysis-project", "name": "[Mock] 源码分析联调项目"}]},
         )
         self.assertEqual(
             repositories,
-            [
-                {
-                    "id": "mock-source-analysis-repository",
-                    "name": "mock-source-analysis-repository",
-                    "scm_type": "GIT",
-                }
-            ],
+            {
+                "total": 1,
+                "list": [
+                    {
+                        "id": "mock-source-analysis-repository",
+                        "name": "mock-source-analysis-repository",
+                        "scm_type": "GIT",
+                    }
+                ],
+            },
         )
         self.assertEqual(agents["total"], 4)
         self.assertEqual(
@@ -92,7 +89,7 @@ class TestSourceAnalysisMockOptions(SourceAnalysisMockTestMixin, SimpleTestCase)
         ):
             ListSourceAnalysisBkciProjectsResource().perform_request({"bk_biz_id": 2})
             ListSourceAnalysisBkciRepositoriesResource().perform_request(
-                {"bk_biz_id": 2, "project_id": SourceAnalysisUpstreamMock.BKCI_PROJECT_ID}
+                {"bk_biz_id": 2, "bkci_project_id": SourceAnalysisUpstreamMock.BKCI_PROJECT_ID}
             )
 
     def test_mock_repository_uses_the_same_config_validation(self):
@@ -109,22 +106,22 @@ class TestSourceAnalysisMockOptions(SourceAnalysisMockTestMixin, SimpleTestCase)
                 "unknown-repository",
             )
 
-    def test_mock_options_support_keyword_and_pagination(self):
+    def test_mock_options_ignore_legacy_pagination_params(self):
+        """接口不分页：前端灰度期间即使仍传旧的分页与搜索参数，也必须返回全量结果。"""
+
         result = ListSourceAnalysisAgentsResource().perform_request(
             {"bk_biz_id": 2, "keyword": "失败", "page": 2, "page_size": 1}
         )
 
-        self.assertEqual(result["total"], 2)
+        self.assertEqual(result["total"], 4)
         self.assertEqual(
-            result["list"],
-            [
-                {
-                    "id": "mock-agent-terminal-failure",
-                    "name": "[Mock] 不可重试分析失败",
-                    "space_id": "mock-space-b",
-                    "space_name": "[Mock] Source Analysis",
-                }
-            ],
+            next(item for item in result["list"] if item["id"] == "mock-agent-terminal-failure"),
+            {
+                "id": "mock-agent-terminal-failure",
+                "name": "[Mock] 不可重试分析失败",
+                "space_id": "mock-space-b",
+                "space_name": "[Mock] Source Analysis",
+            },
         )
 
     def test_mock_knowledge_base_falls_back_to_space_id(self):
@@ -134,9 +131,7 @@ class TestSourceAnalysisMockOptions(SourceAnalysisMockTestMixin, SimpleTestCase)
             {"id": "mock-kb-orphan", "name": "[Mock] 未知空间知识库", "space_id": "mock-space-unknown"},
         )
         with patch.object(SourceAnalysisUpstreamMock, "KNOWLEDGE_BASES", orphan_knowledge_bases):
-            result = ListSourceAnalysisKnowledgeBasesResource().perform_request(
-                {"bk_biz_id": 2, "keyword": "", "page": 1, "page_size": 20}
-            )
+            result = ListSourceAnalysisKnowledgeBasesResource().perform_request({"bk_biz_id": 2})
 
         self.assertEqual(
             result["list"],
