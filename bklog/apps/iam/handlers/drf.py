@@ -190,7 +190,18 @@ class BatchIAMPermission(IAMPermission):
             raise NotHaveInstanceIdError
 
         self.resources = [self.resource_meta.create_instance(instance_id) for instance_id in instance_ids]
-        return super().has_permission(request, view)
+        if not self.actions:
+            return True
+
+        # 同类型的多个实例必须每个单独成组：单点 is_allowed 的语义是“一个动作 + 一次判定所需的关联资源”，
+        # 同类型资源在两代实现里都只会有一个参与求值（V4 取首个，V3 SDK 的 ObjectSet 按类型存放导致后者覆盖前者），
+        # 直接把列表塞进去会让列表中其余实例完全跳过校验。
+        Permission().batch_is_allowed(
+            self.actions,
+            [[resource] for resource in self.resources],
+            raise_exception=True,
+        )
+        return True
 
 
 def insert_permission_field(

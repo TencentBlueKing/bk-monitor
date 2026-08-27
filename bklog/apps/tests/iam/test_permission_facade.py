@@ -346,6 +346,102 @@ class PermissionFacadeTest(TestCase):
             },
         )
 
+    def test_batch_raise_exception_denies_unauthorized_resource_in_any_position(self):
+        """无权限资源无论排在批量列表哪一位都必须被拦下。
+
+        历史上调用方把同类型的一批实例塞进单点 is_allowed：V3 SDK 的 ObjectSet 按类型存放
+        只对最后一个求值，V4 只取 resources[0]，其余实例完全跳过校验。
+        """
+        for order in (["2", "1"], ["1", "2"]):
+            with self.subTest(order=order):
+                self.iam_client.batch_resource_multi_actions_allowed.return_value = {
+                    "1": {ActionEnum.VIEW_COLLECTION.id: True},
+                    "2": {ActionEnum.VIEW_COLLECTION.id: False},
+                }
+                permission = self._make_permission()
+                permission.get_apply_data = Mock(return_value=({"actions": []}, "https://iam.example/apply"))
+                resources = [[Resource("bk_log_search", "collection", instance_id, {})] for instance_id in order]
+
+                with self.assertRaises(PermissionDeniedError):
+                    permission.batch_is_allowed([ActionEnum.VIEW_COLLECTION], resources, raise_exception=True)
+
+                actions, denied_resources = permission.get_apply_data.call_args.args
+                self.assertEqual(actions, [ActionEnum.VIEW_COLLECTION])
+                self.assertEqual([resource.id for resource in denied_resources], ["2"])
+                self.assertEqual(permission.get_apply_data.call_args.kwargs["mode"], AuthMode.V3.value)
+
+    def test_batch_raise_exception_returns_result_when_every_resource_is_allowed(self):
+        self.iam_client.batch_resource_multi_actions_allowed.return_value = {
+            "1": {ActionEnum.VIEW_COLLECTION.id: True},
+            "2": {ActionEnum.VIEW_COLLECTION.id: True},
+        }
+        permission = self._make_permission()
+        permission.get_apply_data = Mock()
+        resources = [[Resource("bk_log_search", "collection", instance_id, {})] for instance_id in ("1", "2")]
+
+        result = permission.batch_is_allowed([ActionEnum.VIEW_COLLECTION], resources, raise_exception=True)
+
+        self.assertEqual(
+            result,
+            {"1": {ActionEnum.VIEW_COLLECTION.id: True}, "2": {ActionEnum.VIEW_COLLECTION.id: True}},
+        )
+        permission.get_apply_data.assert_not_called()
+
+    def test_batch_raise_exception_denies_resource_missing_from_result(self):
+        """上游返回残缺时按拒绝处理，不能因为查不到就放行。"""
+        self.iam_client.batch_resource_multi_actions_allowed.return_value = {"1": {ActionEnum.VIEW_COLLECTION.id: True}}
+        permission = self._make_permission()
+        permission.get_apply_data = Mock(return_value=({"actions": []}, "https://iam.example/apply"))
+        resources = [[Resource("bk_log_search", "collection", instance_id, {})] for instance_id in ("1", "2")]
+
+        with self.assertRaises(PermissionDeniedError):
+            permission.batch_is_allowed([ActionEnum.VIEW_COLLECTION], resources, raise_exception=True)
+
+        _actions, denied_resources = permission.get_apply_data.call_args.args
+        self.assertEqual([resource.id for resource in denied_resources], ["2"])
+
+    def test_batch_raise_exception_requires_every_action_on_every_resource(self):
+        self.iam_client.batch_resource_multi_actions_allowed.return_value = {
+            "1": {ActionEnum.VIEW_COLLECTION.id: True, ActionEnum.MANAGE_COLLECTION.id: True},
+            "2": {ActionEnum.VIEW_COLLECTION.id: True, ActionEnum.MANAGE_COLLECTION.id: False},
+        }
+        permission = self._make_permission()
+        permission.get_apply_data = Mock(return_value=({"actions": []}, "https://iam.example/apply"))
+        resources = [[Resource("bk_log_search", "collection", instance_id, {})] for instance_id in ("1", "2")]
+
+        with self.assertRaises(PermissionDeniedError):
+            permission.batch_is_allowed(
+                [ActionEnum.VIEW_COLLECTION, ActionEnum.MANAGE_COLLECTION],
+                resources,
+                raise_exception=True,
+            )
+
+        actions, denied_resources = permission.get_apply_data.call_args.args
+        self.assertEqual(actions, [ActionEnum.MANAGE_COLLECTION])
+        self.assertEqual([resource.id for resource in denied_resources], ["2"])
+
+    def test_batch_raise_exception_accepts_empty_resource_list(self):
+        """没有资源可判定时既不抛异常也不生成申请数据。"""
+        self.iam_client.batch_resource_multi_actions_allowed.return_value = {}
+        permission = self._make_permission()
+        permission.get_apply_data = Mock()
+
+        result = permission.batch_is_allowed([ActionEnum.VIEW_COLLECTION], [], raise_exception=True)
+
+        self.assertEqual(result, {})
+        permission.get_apply_data.assert_not_called()
+
+    def test_batch_without_raise_exception_keeps_returning_denied_result(self):
+        self.iam_client.batch_resource_multi_actions_allowed.return_value = {
+            "1": {ActionEnum.VIEW_COLLECTION.id: False}
+        }
+        permission = self._make_permission()
+        resources = [[Resource("bk_log_search", "collection", "1", {})]]
+
+        result = permission.batch_is_allowed([ActionEnum.VIEW_COLLECTION], resources)
+
+        self.assertEqual(result, {"1": {ActionEnum.VIEW_COLLECTION.id: False}})
+
     def test_batch_provider_error_is_safely_denied_and_recorded(self):
         self.mode_provider.get_mode.return_value = AuthMode.V4
         permission = self._make_permission()

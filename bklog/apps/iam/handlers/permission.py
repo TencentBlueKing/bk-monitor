@@ -425,9 +425,17 @@ class Permission:
         resources = [ResourceEnum.BUSINESS.create_simple_instance(bk_biz_id)]
         return self.is_allowed(action, resources, raise_exception)
 
-    def batch_is_allowed(self, actions: list[ActionMeta], resources: list[list[Resource]]):
+    def batch_is_allowed(
+        self,
+        actions: list[ActionMeta],
+        resources: list[list[Resource]],
+        raise_exception: bool = False,
+    ):
         """
         查询某批资源某批操作是否有权限
+        :param actions: 动作列表
+        :param resources: 资源组列表，每组代表一次独立判定所需的资源
+        :param raise_exception: 任一资源组缺少任一动作权限时是否抛出异常
         """
         actions = [get_action_by_id(action) for action in actions]
         request = self.make_engine_batch_request(actions, resources)
@@ -446,7 +454,45 @@ class Permission:
                     result[resource_id][action_id] = True
         # ===== 针对demo业务的权限豁免 结束 ===== #
 
+        if raise_exception:
+            self._assert_batch_allowed(actions, resources, result, mode=self._batch_decision_mode(decision))
+
         return result
+
+    def _assert_batch_allowed(
+        self,
+        actions: list[ActionMeta],
+        resources: list[list[Resource]],
+        result: dict,
+        *,
+        mode: str | None = None,
+    ):
+        """批量鉴权的拒绝语义与 is_allowed 对齐：一次把该动作下所有被拒资源带进申请数据再抛异常。
+
+        资源组的首个资源就是结果字典的键（见 BatchAuthRequest.iter_keys），
+        取不到结果按拒绝处理，避免上游返回残缺时被当作放行。
+        """
+        for action in actions:
+            denied_resources = [
+                resource_group[0]
+                for resource_group in resources
+                if not result.get(str(resource_group[0].id), {}).get(action.id)
+            ]
+            if not denied_resources:
+                continue
+            apply_data, apply_url = self.get_apply_data([action], denied_resources, mode=mode)
+            raise PermissionDeniedError(
+                action_name=action.name,
+                apply_url=apply_url,
+                permission=apply_data,
+            )
+
+    @staticmethod
+    def _batch_decision_mode(decision: BatchAuthDecision) -> str | None:
+        """ModeRouter 对整批只解析一次模式，取首个决策即可代表本次批量鉴权。"""
+        if not decision.items:
+            return None
+        return decision.items[0].decision.mode or None
 
     @staticmethod
     def _resource_type_label(resources: tuple[EngineResourceInstance, ...]) -> str:
