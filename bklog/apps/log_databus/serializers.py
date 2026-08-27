@@ -420,8 +420,11 @@ class PlatformIndexVisibilitySerializer(serializers.Serializer):
             if not attrs.get("bk_biz_ids"):
                 raise serializers.ValidationError(_("multi_biz 模式下 bk_biz_ids 必填且不能为空"))
         elif vis_type == "biz_attr":
-            if not attrs.get("bk_biz_labels"):
+            bk_biz_labels = attrs.get("bk_biz_labels")
+            if not bk_biz_labels:
                 raise serializers.ValidationError(_("biz_attr 模式下 bk_biz_labels 必填且不能为空"))
+            if any(not isinstance(values, list) or not values for values in bk_biz_labels.values()):
+                raise serializers.ValidationError(_("biz_attr 模式下每个业务标签的取值必须是非空列表"))
         return attrs
 
 

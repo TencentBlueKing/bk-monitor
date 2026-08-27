@@ -31,11 +31,13 @@ from collections.abc import Callable
 from django.conf import settings  # noqa
 from iam import Resource  # noqa
 from rest_framework import permissions  # noqa
+from rest_framework.exceptions import PermissionDenied
 
 from ..exceptions import NotHaveInstanceIdError  # noqa
 from . import Permission  # noqa
 from .actions import ActionEnum, ActionMeta  # noqa
 from .resources import ResourceEnum, ResourceMeta  # noqa
+from apps.log_search.utils import get_search_request_scope
 
 
 class IAMPermission(permissions.BasePermission):
@@ -155,10 +157,23 @@ class PlatformAwareIndexSearchPermission(InstanceActionPermission):
     平台级索引集检索鉴权：跨空间入口用请求方业务拼 IAM path，沿用 SEARCH_LOG，不新增动作。
     """
 
+    def __init__(self, *args, iam_instance_id_key=None, **kwargs):
+        self.iam_instance_id_key = iam_instance_id_key
+        super().__init__(*args, **kwargs)
+
+    def get_instance_id(self, request, view):
+        if not self.iam_instance_id_key:
+            return view.kwargs[self.get_look_url_kwarg(view)]
+        data = request.query_params if request.method == "GET" else request.data
+        instance_id = data.get(self.iam_instance_id_key) or view.kwargs.get(self.iam_instance_id_key)
+        if instance_id is None:
+            raise NotHaveInstanceIdError
+        return instance_id
+
     def has_permission(self, request, view):
         if settings.IGNORE_IAM_PERMISSION:
             return True
-        instance_id = view.kwargs[self.get_look_url_kwarg(view)]
+        instance_id = self.get_instance_id(request, view)
         from apps.log_search.models import LogIndexSet
 
         try:
@@ -166,14 +181,15 @@ class PlatformAwareIndexSearchPermission(InstanceActionPermission):
         except LogIndexSet.DoesNotExist:
             resource = self.resource_meta.create_instance(instance_id)
         else:
-            if request.method == "GET":
-                request_bk_biz_id = request.query_params.get("bk_biz_id")
-            else:
-                request_bk_biz_id = (getattr(request, "data", None) or {}).get("bk_biz_id") or request.query_params.get(
-                    "bk_biz_id"
-                )
-            bk_biz_id = LogIndexSet.resolve_search_bk_biz_id(index_set, request_bk_biz_id)
-            if index_set.is_platform_index and bk_biz_id is not None:
+            request_bk_biz_id, request_space_uid = get_search_request_scope(request)
+            bk_biz_id, search_space_uid = LogIndexSet.resolve_search_scope(
+                index_set, request_bk_biz_id, request_space_uid
+            )
+            if index_set.is_platform_index:
+                if bk_biz_id is None or not search_space_uid:
+                    raise PermissionDenied("平台级索引集检索缺少请求空间")
+                if not LogIndexSet.is_platform_index_visible_to_space(index_set, search_space_uid):
+                    raise PermissionDenied("当前空间不在平台级索引集的可见范围内")
                 # 传入非空 attribute 后 Indices 不再回查归属业务；name/id 一并带上，
                 # 避免申请权限页索引集名称为空（同 scene_search 的处理）
                 resource = self.resource_meta.create_simple_instance(

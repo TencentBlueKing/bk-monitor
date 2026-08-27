@@ -27,10 +27,11 @@ import arrow
 from blueapps.account.models import User
 from django.conf import settings
 from django.test import TestCase, override_settings
+from rest_framework.test import APIRequestFactory
 
 from apps.log_databus.constants import DORIS_CLUSTER_TYPE, STORAGE_CLUSTER_TYPE
 from apps.log_databus.models import CollectorConfig, DataLinkConfig
-from apps.log_search.constants import IndexSetDataType
+from apps.log_search.constants import IndexSetDataType, IndexSetType
 from apps.log_search.exceptions import IndexSetDorisQueryException
 from apps.log_search.handlers.index_set import BaseIndexSetHandler, IndexSetHandler
 from apps.log_search.handlers.search.chart_handlers import ChartHandler
@@ -1015,8 +1016,14 @@ class TestPlatformIndexSerializer(TestCase):
         ser = PlatformIndexVisibilitySerializer(data={"type": "multi_biz", "bk_biz_ids": [1, 2, 3]})
         self.assertTrue(ser.is_valid(), msg=ser.errors)
 
-        ser = PlatformIndexVisibilitySerializer(data={"type": "biz_attr", "bk_biz_labels": {"env": "prod"}})
+        ser = PlatformIndexVisibilitySerializer(data={"type": "biz_attr", "bk_biz_labels": {"env": ["prod"]}})
         self.assertTrue(ser.is_valid(), msg=ser.errors)
+
+    def test_visibility_biz_attr_rejects_empty_label_values(self):
+        from apps.log_databus.serializers import PlatformIndexVisibilitySerializer
+
+        ser = PlatformIndexVisibilitySerializer(data={"type": "biz_attr", "bk_biz_labels": {"env": []}})
+        self.assertFalse(ser.is_valid())
 
 
 PLATFORM_VISIBILITY = {"type": "multi_biz", "bk_biz_ids": [1, 2]}
@@ -1254,7 +1261,7 @@ class TestPlatformIndexHandler(TestCase):
         index_set_id = index_set.index_set_id
         original_storage_cluster_id = index_set.storage_cluster_id
 
-        new_visibility = {"type": "biz_attr", "bk_biz_labels": {"env": "prod"}}
+        new_visibility = {"type": "biz_attr", "bk_biz_labels": {"env": ["prod"]}}
         update_payload = {
             "space_uid": index_set.space_uid,
             "scenario_id": index_set.scenario_id,
@@ -2722,7 +2729,9 @@ class TestPlatformIndexListAndRouter(TestCase):
         space_detail = MagicMock()
         space_detail.space_type_id = "bkcc"
         space_detail.extend = {}
-        space_detail_patcher = patch("apps.log_search.handlers.index_set.SpaceApi.get_space_detail", return_value=space_detail)
+        space_detail_patcher = patch(
+            "apps.log_search.handlers.index_set.SpaceApi.get_space_detail", return_value=space_detail
+        )
         space_detail_patcher.start()
         self.addCleanup(space_detail_patcher.stop)
 
@@ -2797,6 +2806,31 @@ class TestPlatformIndexListAndRouter(TestCase):
         result = LogIndexSet.get_index_set(space_uids=[target_space], current_space_uid=target_space)
         self.assertIn(platform.index_set_id, [item["index_set_id"] for item in result])
 
+    @patch("bkm_space.api.SpaceApi.get_related_space", return_value=None)
+    def test_space_type_only_matches_current_space(self, _mock_related):
+        platform = self._create_index_set(
+            self.OWNER_SPACE,
+            index_set_name="bksaas_only",
+            is_platform_index=True,
+            platform_index_visibility={"type": "biz_attr", "bk_biz_labels": {"space_type": ["bksaas"]}},
+            platform_index_filter=self.PLATFORM_FILTER,
+        )
+        related_space = "bksaas__myapp"
+
+        # 当前空间是 BKCC 时，关联的 bksaas 空间不能放大 SPACE_TYPE 可见范围
+        miss = LogIndexSet.get_index_set(
+            space_uids=[self.TARGET_SPACE, related_space], current_space_uid=self.TARGET_SPACE
+        )
+        self.assertNotIn(platform.index_set_id, [item["index_set_id"] for item in miss])
+
+        hit = LogIndexSet.get_index_set(space_uids=[related_space], current_space_uid=related_space)
+        self.assertIn(platform.index_set_id, [item["index_set_id"] for item in hit])
+
+    def test_empty_biz_attr_values_are_not_visible(self):
+        context = {"bk_biz_ids": {"7"}, "current_space_type": "bkcc", "cmdb_biz_ids": {7}}
+        visibility = {"type": "biz_attr", "bk_biz_labels": {"env": []}}
+        self.assertFalse(LogIndexSet.is_platform_index_visible(visibility, context))
+
     def test_query_router_config_option_reads_effective_index_set(self):
         platform_group = LogIndexSet.objects.create(
             index_set_name="group",
@@ -2867,6 +2901,7 @@ class TestPlatformIndexListAndRouter(TestCase):
             space_uid=self.OWNER_SPACE,
         )
         self.assertEqual(LogIndexSet.resolve_search_bk_biz_id(platform, 7), 7)
+        self.assertEqual(LogIndexSet.resolve_search_bk_biz_id(platform, request_space_uid=self.TARGET_SPACE), 7)
         self.assertIsNone(LogIndexSet.resolve_search_bk_biz_id(platform, None))
         plain = LogIndexSet(is_platform_index=False, space_uid=self.OWNER_SPACE)
         self.assertEqual(LogIndexSet.resolve_search_bk_biz_id(plain, 7), 2)
@@ -2952,17 +2987,35 @@ class TestPlatformIndexListAndRouter(TestCase):
         option_names = [opt["name"] for item in plain_infos for opt in item.get("options") or []]
         self.assertNotIn("query_router_config", option_names)
 
-    def test_apply_search_bk_biz_id(self):
+    @patch("bkm_space.api.SpaceApi.get_related_space", return_value=None)
+    def test_apply_search_bk_biz_id(self, _mock_related):
         from rest_framework import serializers as drf_serializers
+        from rest_framework.exceptions import PermissionDenied
 
         from apps.log_search.views.search_views import _apply_index_set_search_bk_biz_id
 
-        platform = LogIndexSet(is_platform_index=True, space_uid=self.OWNER_SPACE)
+        platform = LogIndexSet(
+            is_platform_index=True,
+            space_uid=self.OWNER_SPACE,
+            platform_index_visibility=self.PLATFORM_VISIBILITY,
+        )
         data = {"bk_biz_id": 7}
         _apply_index_set_search_bk_biz_id(platform, data)
         self.assertEqual(data["bk_biz_id"], 7)
+
+        request = MagicMock()
+        request.data = {}
+        request.query_params = {}
+        request.headers = {"X-Bk-Space-Uid": self.TARGET_SPACE}
+        request.META = {}
+        data = {}
+        _apply_index_set_search_bk_biz_id(platform, data, request)
+        self.assertEqual(data["bk_biz_id"], 7)
+
         with self.assertRaises(drf_serializers.ValidationError):
             _apply_index_set_search_bk_biz_id(platform, {})
+        with self.assertRaises(PermissionDenied):
+            _apply_index_set_search_bk_biz_id(platform, {"bk_biz_id": 8})
         self.assertIsNone(LogIndexSet.resolve_search_bk_biz_id(platform, "not-a-biz"))
 
         plain = LogIndexSet(is_platform_index=False, space_uid=self.OWNER_SPACE)
@@ -2971,11 +3024,13 @@ class TestPlatformIndexListAndRouter(TestCase):
         self.assertEqual(data["bk_biz_id"], 2)
 
     @override_settings(IGNORE_IAM_PERMISSION=False)
+    @patch("bkm_space.api.SpaceApi.get_related_space", return_value=None)
     @patch("apps.iam.handlers.drf.Permission")
-    def test_iam_uses_request_biz_only_for_platform(self, mock_perm_cls):
+    def test_iam_uses_request_biz_only_for_platform(self, mock_perm_cls, _mock_related):
         from apps.iam.handlers.actions import ActionEnum
         from apps.iam.handlers.drf import PlatformAwareIndexSearchPermission
         from apps.iam.handlers.resources import Business, ResourceEnum
+        from rest_framework.exceptions import PermissionDenied
 
         mock_perm_cls.return_value.is_allowed.return_value = True
         platform = self._create_index_set(
@@ -2993,14 +3048,27 @@ class TestPlatformIndexListAndRouter(TestCase):
         request.method = "POST"
         request.data = {"bk_biz_id": 7}
         request.query_params = {}
+        request.headers = {}
+        request.META = {}
         perm = PlatformAwareIndexSearchPermission([ActionEnum.SEARCH_LOG], ResourceEnum.INDICES)
         self.assertTrue(perm.has_permission(request, view))
         self.assertEqual(perm.resources[0].attribute["_bk_iam_path_"], f"/{Business.id},7/")
 
         request.data = {}
+        request.headers = {"X-Bk-Space-Uid": self.OWNER_SPACE}
         perm = PlatformAwareIndexSearchPermission([ActionEnum.SEARCH_LOG], ResourceEnum.INDICES)
         perm.has_permission(request, view)
         self.assertEqual(perm.resources[0].attribute["_bk_iam_path_"], f"/{Business.id},2/")
+
+        request.headers = {}
+        perm = PlatformAwareIndexSearchPermission([ActionEnum.SEARCH_LOG], ResourceEnum.INDICES)
+        with self.assertRaises(PermissionDenied):
+            perm.has_permission(request, view)
+
+        request.data = {"bk_biz_id": 8}
+        perm = PlatformAwareIndexSearchPermission([ActionEnum.SEARCH_LOG], ResourceEnum.INDICES)
+        with self.assertRaises(PermissionDenied):
+            perm.has_permission(request, view)
 
         plain = self._create_index_set(self.OWNER_SPACE, index_set_name="iam_plain")
         view.kwargs = {"index_set_id": plain.index_set_id}
@@ -3008,3 +3076,64 @@ class TestPlatformIndexListAndRouter(TestCase):
         perm = PlatformAwareIndexSearchPermission([ActionEnum.SEARCH_LOG], ResourceEnum.INDICES)
         perm.has_permission(request, view)
         self.assertEqual(perm.resources[0].attribute["_bk_iam_path_"], f"/{Business.id},2/")
+
+    @override_settings(IGNORE_IAM_PERMISSION=True)
+    @patch("bkm_space.api.SpaceApi.get_related_space", return_value=None)
+    @patch("apps.log_search.views.search_views.IndexSetCustomConfigHandler.get_index_set_config", return_value={})
+    @patch("apps.log_search.views.search_views.UserIndexSetConfigHandler.get_index_set_config", return_value={})
+    @patch.object(LogIndexSet, "get_fields", return_value={})
+    def test_fields_endpoint_falls_back_to_space_header(self, *_mocks):
+        from apps.log_search.views.search_views import SearchViewSet
+
+        platform = self._create_index_set(
+            self.OWNER_SPACE,
+            index_set_name="fields_platform",
+            is_platform_index=True,
+            platform_index_visibility=self.PLATFORM_VISIBILITY,
+            platform_index_filter=self.PLATFORM_FILTER,
+        )
+        view = SearchViewSet.as_view({"get": "fields"})
+        request = APIRequestFactory().get(
+            f"/api/v1/search/index_set/{platform.index_set_id}/fields/",
+            HTTP_X_BK_SPACE_UID=self.TARGET_SPACE,
+        )
+        response = view(request, index_set_id=platform.index_set_id)
+        self.assertEqual(response.status_code, 200)
+
+        request_without_scope = APIRequestFactory().get(f"/api/v1/search/index_set/{platform.index_set_id}/fields/")
+        response = view(request_without_scope, index_set_id=platform.index_set_id)
+        self.assertEqual(response.status_code, 200)
+        payload = json.loads(response.content)
+        self.assertFalse(payload["result"])
+        self.assertIn("必须传入 bk_biz_id 或请求空间", payload["message"])
+
+    def test_union_search_rejects_platform_index_sets(self):
+        from rest_framework import serializers as drf_serializers
+
+        from apps.log_search.views.search_views import _reject_platform_index_sets
+
+        platform = self._create_index_set(
+            self.OWNER_SPACE,
+            index_set_name="union_platform",
+            is_platform_index=True,
+            platform_index_visibility=self.PLATFORM_VISIBILITY,
+            platform_index_filter=self.PLATFORM_FILTER,
+        )
+        with self.assertRaises(drf_serializers.ValidationError):
+            _reject_platform_index_sets([platform.index_set_id])
+
+    def test_single_index_search_actions_use_platform_aware_permission(self):
+        from apps.iam.handlers.drf import PlatformAwareIndexSearchPermission
+        from apps.log_search.views.search_views import SearchViewSet
+
+        view = SearchViewSet()
+        view.request = MagicMock()
+        for action in ["original_search", "quick_export", "async_export", "fields", "context", "tailf"]:
+            view.action = action
+            self.assertIsInstance(view.get_permissions()[0], PlatformAwareIndexSearchPermission)
+
+        view.action = "config"
+        view.request.data = {"index_set_type": IndexSetType.SINGLE.value, "index_set_id": 1}
+        permission = view.get_permissions()[0]
+        self.assertIsInstance(permission, PlatformAwareIndexSearchPermission)
+        self.assertEqual(permission.iam_instance_id_key, "index_set_id")

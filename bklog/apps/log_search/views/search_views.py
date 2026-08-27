@@ -31,6 +31,7 @@ from django.shortcuts import redirect
 from django.utils import timezone
 from django.utils.translation import gettext as _
 from rest_framework import serializers
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
 from io import BytesIO
 
@@ -42,7 +43,6 @@ from apps.generic import APIViewSet
 from apps.iam import ActionEnum, ResourceEnum
 from apps.iam.handlers.drf import (
     BatchIAMPermission,
-    InstanceActionForDataPermission,
     PlatformAwareIndexSearchPermission,
     ViewBusinessPermission,
 )
@@ -113,7 +113,7 @@ from apps.log_search.serializers import (
     SearchLogForCodeSerializer,
     SearchFieldsSerializer,
 )
-from apps.log_search.utils import create_download_response
+from apps.log_search.utils import create_download_response, get_search_request_scope
 from apps.log_unifyquery.builder.context import build_context_params
 from apps.log_unifyquery.builder.tail import build_tail_params
 from apps.log_unifyquery.handler.async_export_handlers import (
@@ -129,13 +129,29 @@ from apps.utils.local import get_request_app_code, get_request_external_username
 from bkm_space.utils import space_uid_to_bk_biz_id
 
 
-def _apply_index_set_search_bk_biz_id(index_set_obj, data):
-    """平台级索引集必须保留请求方 bk_biz_id，不能覆盖成归属业务。"""
-    bk_biz_id = LogIndexSet.resolve_search_bk_biz_id(index_set_obj, data.get("bk_biz_id"))
-    if getattr(index_set_obj, "is_platform_index", False) and bk_biz_id is None:
-        raise serializers.ValidationError(_("平台级索引集检索必须传入 bk_biz_id"))
+def _apply_index_set_search_bk_biz_id(index_set_obj, data, request=None):
+    """解析并校验平台索引集的请求空间，再把请求方业务写回检索参数。"""
+    request_bk_biz_id = data.get("bk_biz_id")
+    request_space_uid = data.get("space_uid")
+    if request is not None:
+        scope_bk_biz_id, scope_space_uid = get_search_request_scope(request, data)
+        request_bk_biz_id = request_bk_biz_id or scope_bk_biz_id
+        request_space_uid = request_space_uid or scope_space_uid
+
+    bk_biz_id, search_space_uid = LogIndexSet.resolve_search_scope(index_set_obj, request_bk_biz_id, request_space_uid)
+    if getattr(index_set_obj, "is_platform_index", False):
+        if bk_biz_id is None or not search_space_uid:
+            raise serializers.ValidationError(_("平台级索引集检索必须传入 bk_biz_id 或请求空间"))
+        if not LogIndexSet.is_platform_index_visible_to_space(index_set_obj, search_space_uid):
+            raise PermissionDenied(_("当前空间不在平台级索引集的可见范围内"))
     data["bk_biz_id"] = bk_biz_id
     return data
+
+
+def _reject_platform_index_sets(index_set_ids):
+    """联合检索暂不支持平台索引集，避免混用归属空间与请求空间。"""
+    if LogIndexSet.objects.filter(index_set_id__in=index_set_ids, is_platform_index=True).exists():
+        raise serializers.ValidationError(_("联合检索暂不支持平台级索引集"))
 
 
 class SearchViewSet(APIViewSet):
@@ -172,6 +188,9 @@ class SearchViewSet(APIViewSet):
             "export_chart_data",
             "grep_query_total",
             "search_log_for_code",
+            "original_search",
+            "quick_export",
+            "async_export",
         ]:
             return [PlatformAwareIndexSearchPermission([ActionEnum.SEARCH_LOG], ResourceEnum.INDICES)]
 
@@ -179,7 +198,9 @@ class SearchViewSet(APIViewSet):
             if self.action == "config":
                 if self.request.data.get("index_set_type", IndexSetType.SINGLE.value) == IndexSetType.SINGLE.value:
                     return [
-                        InstanceActionForDataPermission("index_set_id", [ActionEnum.SEARCH_LOG], ResourceEnum.INDICES)
+                        PlatformAwareIndexSearchPermission(
+                            [ActionEnum.SEARCH_LOG], ResourceEnum.INDICES, iam_instance_id_key="index_set_id"
+                        )
                     ]
                 else:
                     return [BatchIAMPermission("index_set_ids", [ActionEnum.SEARCH_LOG], ResourceEnum.INDICES)]
@@ -384,7 +405,7 @@ class SearchViewSet(APIViewSet):
         }
         """
         data = self.params_valid(SearchAttrSerializer)
-        _apply_index_set_search_bk_biz_id(self.get_object(), data)
+        _apply_index_set_search_bk_biz_id(self.get_object(), data, request)
         if data.get("is_scroll_search"):
             search_handler = SearchHandlerEsquery(index_set_id, data)
             return Response(search_handler.scroll_search())
@@ -455,7 +476,7 @@ class SearchViewSet(APIViewSet):
         data["is_desensitize"] = False
 
         index_set_obj = self.get_object()
-        _apply_index_set_search_bk_biz_id(index_set_obj, data)
+        _apply_index_set_search_bk_biz_id(index_set_obj, data, request)
 
         if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, data.get("bk_biz_id")):
             now = arrow.now()
@@ -530,7 +551,7 @@ class SearchViewSet(APIViewSet):
         # 获取所属业务id
         index_set_obj = LogIndexSet.objects.filter(index_set_id=index_set_id).first()
         if index_set_obj:
-            _apply_index_set_search_bk_biz_id(index_set_obj, data)
+            _apply_index_set_search_bk_biz_id(index_set_obj, data, request)
         if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, data.get("bk_biz_id")):
             data.update({"index_set_id": index_set_id})
             params = build_context_params(data)
@@ -594,7 +615,7 @@ class SearchViewSet(APIViewSet):
         # 获取所属业务id
         index_set_obj = LogIndexSet.objects.filter(index_set_id=index_set_id).first()
         if index_set_obj:
-            _apply_index_set_search_bk_biz_id(index_set_obj, data)
+            _apply_index_set_search_bk_biz_id(index_set_obj, data, request)
         if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, data.get("bk_biz_id")):
             data.update({"index_set_id": index_set_id})
             params = build_tail_params(data)
@@ -649,6 +670,7 @@ class SearchViewSet(APIViewSet):
         """
         request_user = get_request_external_username() or get_request_username()
         data = self.params_valid(SearchExportSerializer)
+        _apply_index_set_search_bk_biz_id(self.get_object(), data, request)
         if "is_desensitize" in data and not data["is_desensitize"] and request.user.is_superuser:
             data["is_desensitize"] = False
         else:
@@ -814,6 +836,7 @@ class SearchViewSet(APIViewSet):
 
     def _export(self, request, index_set_id, is_quick_export):
         data = self.params_valid(SearchExportSerializer)
+        _apply_index_set_search_bk_biz_id(self.get_object(), data, request)
         if "is_desensitize" in data and not data["is_desensitize"] and request.user.is_superuser:
             data["is_desensitize"] = False
         else:
@@ -905,6 +928,7 @@ class SearchViewSet(APIViewSet):
         }
         """
         data = self.params_valid(UnionSearchExportSerializer)
+        _reject_platform_index_sets(data["index_set_ids"])
         auth_info = Permission.get_auth_info(self.request, raise_exception=False)
         is_verify = False if not auth_info or auth_info["bk_app_code"] not in settings.ESQUERY_WHITE_LIST else True
         for info in data.get("union_configs", []):
@@ -1107,7 +1131,7 @@ class SearchViewSet(APIViewSet):
         params = self.params_valid(SearchFieldsSerializer)
         index_set_obj = self.get_object()
         search_params = {"bk_biz_id": params.get("bk_biz_id")}
-        _apply_index_set_search_bk_biz_id(index_set_obj, search_params)
+        _apply_index_set_search_bk_biz_id(index_set_obj, search_params, request)
         bk_biz_id = search_params["bk_biz_id"]
         index_set_id = kwargs.get("index_set_id", "")
 
@@ -1192,6 +1216,7 @@ class SearchViewSet(APIViewSet):
         if data["index_set_type"] == IndexSetType.SINGLE.value:
             result = IndexSetHandler(index_set_id=data["index_set_id"]).config(config_id=data["config_id"])
         else:
+            _reject_platform_index_sets(data["index_set_ids"])
             result = IndexSetHandler().config(
                 config_id=data["config_id"],
                 index_set_ids=data["index_set_ids"],
@@ -1620,6 +1645,7 @@ class SearchViewSet(APIViewSet):
         }
         """
         data = self.params_valid(UnionSearchAttrSerializer)
+        _reject_platform_index_sets(data["index_set_ids"])
         auth_info = Permission.get_auth_info(self.request, raise_exception=False)
         is_verify = False if not auth_info or auth_info["bk_app_code"] not in settings.ESQUERY_WHITE_LIST else True
         for info in data.get("union_configs", []):
@@ -1682,6 +1708,7 @@ class SearchViewSet(APIViewSet):
         }
         """
         data = self.params_valid(UnionSearchFieldsSerializer)
+        _reject_platform_index_sets(data["index_set_ids"])
 
         index_set_obj = LogIndexSet.objects.filter(index_set_id__in=data["index_set_ids"]).first()
         if index_set_obj:
@@ -1745,6 +1772,7 @@ class SearchViewSet(APIViewSet):
         """
 
         data = self.params_valid(UnionSearchSearchExportSerializer)
+        _reject_platform_index_sets(data["index_set_ids"])
         request_data = copy.deepcopy(data)
         index_set_ids = sorted(data.get("index_set_ids", []))
 
@@ -1863,6 +1891,7 @@ class SearchViewSet(APIViewSet):
         """
         data = self.params_valid(UnionSearchGetExportHistorySerializer)
         index_set_ids = sorted([int(index_set_id) for index_set_id in data["index_set_ids"].split(",")])
+        _reject_platform_index_sets(index_set_ids)
         return AsyncExportHandlers(index_set_ids=index_set_ids, bk_biz_id=data["bk_biz_id"]).get_export_history(
             request=request,
             view=self,
@@ -1943,6 +1972,7 @@ class SearchViewSet(APIViewSet):
         """
         data = self.params_valid(UnionSearchHistorySerializer)
         index_set_ids = sorted([int(index_set_id) for index_set_id in data["index_set_ids"].split(",")])
+        _reject_platform_index_sets(index_set_ids)
         return Response(SearchHandlerEsquery.search_history(index_set_ids=index_set_ids, is_union_search=True))
 
     @list_route(methods=["POST"], url_path="user_custom_config")
@@ -2041,7 +2071,7 @@ class SearchViewSet(APIViewSet):
         }
         """
         params = self.params_valid(ChartSerializer)
-        _apply_index_set_search_bk_biz_id(self.get_object(), params)
+        _apply_index_set_search_bk_biz_id(self.get_object(), params, request)
         params["index_set_ids"] = [index_set_id]
 
         query_handler = UnifyQueryChartHandler(params)
@@ -2058,7 +2088,7 @@ class SearchViewSet(APIViewSet):
         @apiGroup 11_Search
         """
         params = self.params_valid(ChartSerializer)
-        _apply_index_set_search_bk_biz_id(self.get_object(), params)
+        _apply_index_set_search_bk_biz_id(self.get_object(), params, request)
         params["index_set_ids"] = [index_set_id]
 
         query_handler = UnifyQueryChartHandler(params)
@@ -2090,7 +2120,7 @@ class SearchViewSet(APIViewSet):
         }
         """
         params = self.params_valid(UISearchSerializer)
-        _apply_index_set_search_bk_biz_id(self.get_object(), params)
+        _apply_index_set_search_bk_biz_id(self.get_object(), params, request)
 
         params["sql"] = params["sql"] or f"{SQL_PREFIX} {SQL_SUFFIX}"
         params["index_set_ids"] = [index_set_id]
@@ -2160,7 +2190,7 @@ class SearchViewSet(APIViewSet):
         }
         """
         params = self.params_valid(LogGrepQuerySerializer)
-        _apply_index_set_search_bk_biz_id(self.get_object(), params)
+        _apply_index_set_search_bk_biz_id(self.get_object(), params, request)
         instance = ChartHandler.get_instance(index_set_id=index_set_id, mode=QueryMode.SQL.value)
         data = instance.fetch_grep_query_data(params)
         return Response(data)
@@ -2174,7 +2204,7 @@ class SearchViewSet(APIViewSet):
         @apiGroup 11_Search
         """
         params = self.params_valid(LogGrepQuerySerializer)
-        _apply_index_set_search_bk_biz_id(self.get_object(), params)
+        _apply_index_set_search_bk_biz_id(self.get_object(), params, request)
         instance = ChartHandler.get_instance(index_set_id=index_set_id, mode=QueryMode.SQL.value)
         data = instance.fetch_grep_query_total(params)
         return Response(data)

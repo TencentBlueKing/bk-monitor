@@ -548,16 +548,14 @@ class LogIndexSet(SoftDeleteModel):
         ]
 
     @staticmethod
-    def build_space_visibility_context(space_uids: list) -> dict:
+    def build_space_visibility_context(space_uids: list, current_space_uid: str = None) -> dict:
         """
         汇总请求侧空间的判定依据，避免每个平台级索引集重复查关联空间。
         """
         from bkm_space.api import SpaceApi
 
-        bk_biz_ids, space_types, cmdb_biz_ids = set(), set(), set()
+        bk_biz_ids, cmdb_biz_ids = set(), set()
         for space_uid in space_uids:
-            space_type, __ = parse_space_uid(space_uid)
-            space_types.add(space_type)
             bk_biz_id = space_uid_to_bk_biz_id(space_uid)
             if bk_biz_id:
                 bk_biz_ids.add(str(bk_biz_id))
@@ -566,7 +564,13 @@ class LogIndexSet(SoftDeleteModel):
             if related_space:
                 bk_biz_ids.add(str(related_space.bk_biz_id))
                 cmdb_biz_ids.add(related_space.bk_biz_id)
-        return {"bk_biz_ids": bk_biz_ids, "space_types": space_types, "cmdb_biz_ids": cmdb_biz_ids}
+        current_space_uid = current_space_uid or (space_uids[0] if space_uids else None)
+        current_space_type = parse_space_uid(current_space_uid)[0] if current_space_uid else None
+        return {
+            "bk_biz_ids": bk_biz_ids,
+            "current_space_type": current_space_type,
+            "cmdb_biz_ids": cmdb_biz_ids,
+        }
 
     @staticmethod
     def is_platform_index_visible(visibility: dict, context: dict) -> bool:
@@ -584,27 +588,28 @@ class LogIndexSet(SoftDeleteModel):
             bk_biz_labels = visibility.get("bk_biz_labels") or {}
             if not bk_biz_labels:
                 return False
+            # 存量脏配置也必须按不可见处理，避免 reduce([]) 打成 500 或空条件放大范围
+            if any(not isinstance(label_values, list) or not label_values for label_values in bk_biz_labels.values()):
+                return False
             # 与 StorageHandler.can_visible 对齐：配了空间类型就只按空间类型判定
             label_space_types = bk_biz_labels.get(SpacePropertyEnum.SPACE_TYPE.value, [])
             if label_space_types:
-                return bool(set(label_space_types) & context["space_types"])
+                # SPACE_TYPE 只能匹配当前空间，不能被关联空间的 type 并集放大
+                return context["current_space_type"] in label_space_types
             if not context["cmdb_biz_ids"]:
                 return False
             q_filter = Q()
             for label_key, label_values in bk_biz_labels.items():
                 q_filter &= functools.reduce(
                     operator.or_,
-                    [
-                        Q(biz_property_id=label_key, biz_property_value=label_value)
-                        for label_value in label_values
-                    ],
+                    [Q(biz_property_id=label_key, biz_property_value=label_value) for label_value in label_values],
                 )
             return BizProperty.objects.filter(q_filter, bk_biz_id__in=context["cmdb_biz_ids"]).exists()
 
         return False
 
     @classmethod
-    def get_visible_platform_index_set_ids(cls, space_uids: list) -> list:
+    def get_visible_platform_index_set_ids(cls, space_uids: list, current_space_uid: str = None) -> list:
         """
         取对请求侧空间开放检索入口的平台级索引集。归属空间自身走 space_uid__in，这里只补跨空间的部分。
         """
@@ -617,7 +622,7 @@ class LogIndexSet(SoftDeleteModel):
         )
         if not candidates:
             return []
-        context = cls.build_space_visibility_context(space_uids)
+        context = cls.build_space_visibility_context(space_uids, current_space_uid=current_space_uid)
         visible = [
             candidate
             for candidate in candidates
@@ -631,11 +636,7 @@ class LogIndexSet(SoftDeleteModel):
             child_ids = LogIndexSetData.objects.filter(
                 index_set_id__in=group_ids, type=IndexSetDataType.INDEX_SET.value
             ).values_list("result_table_id", flat=True)
-            index_set_ids.extend(
-                int(child_id)
-                for child_id in child_ids
-                if str(child_id).isdigit()
-            )
+            index_set_ids.extend(int(child_id) for child_id in child_ids if str(child_id).isdigit())
 
         return index_set_ids
 
@@ -656,7 +657,9 @@ class LogIndexSet(SoftDeleteModel):
             qs = qs.filter(scenario_id__in=scenarios)
         if space_uids:
             space_filter = Q(space_uid__in=space_uids)
-            visible_platform_index_set_ids = cls.get_visible_platform_index_set_ids(space_uids)
+            visible_platform_index_set_ids = cls.get_visible_platform_index_set_ids(
+                space_uids, current_space_uid=current_space_uid
+            )
             if visible_platform_index_set_ids:
                 space_filter |= Q(index_set_id__in=visible_platform_index_set_ids)
             qs = qs.filter(space_filter)
@@ -736,11 +739,7 @@ class LogIndexSet(SoftDeleteModel):
                 index_set["time_field"] = time_field
 
             index_set["scenario_name"] = scenarios.get(index_set["scenario_id"])
-            if (
-                index_set["is_platform_index"]
-                and current_space_uid
-                and index_set["space_uid"] != current_space_uid
-            ):
+            if index_set["is_platform_index"] and current_space_uid and index_set["space_uid"] != current_space_uid:
                 # 跨空间入口必须以请求方空间对外，否则前端拿归属业务发起检索会命中 metadata 的归属空间分支，
                 # 拿到的是 filters 为空的全量路由，数据隔离形同虚设
                 index_set[PLATFORM_INDEX_OWNER_SPACE_UID_FIELD] = index_set["space_uid"]
@@ -764,7 +763,40 @@ class LogIndexSet(SoftDeleteModel):
         return sorted(result, key=lambda i: i["is_favorite"], reverse=True)
 
     @staticmethod
-    def resolve_search_bk_biz_id(index_set, request_bk_biz_id=None):
+    def resolve_search_scope(index_set, request_bk_biz_id=None, request_space_uid=None):
+        """解析检索请求方的 ``(bk_biz_id, space_uid)``，显式业务优先于请求空间。"""
+        if not getattr(index_set, "is_platform_index", False):
+            return space_uid_to_bk_biz_id(index_set.space_uid), index_set.space_uid
+
+        if request_bk_biz_id not in (None, ""):
+            try:
+                bk_biz_id = int(request_bk_biz_id)
+                return bk_biz_id, bk_biz_id_to_space_uid(bk_biz_id)
+            except (TypeError, ValueError):
+                return None, None
+
+        if request_space_uid:
+            try:
+                return space_uid_to_bk_biz_id(request_space_uid), request_space_uid
+            except (TypeError, ValueError):
+                return None, None
+
+        return None, None
+
+    @classmethod
+    def is_platform_index_visible_to_space(cls, index_set, request_space_uid: str) -> bool:
+        """归属空间天然可见；跨空间必须命中平台索引集的分发范围。"""
+        if not getattr(index_set, "is_platform_index", False):
+            return True
+        if not request_space_uid:
+            return False
+        if index_set.space_uid == request_space_uid:
+            return True
+        context = cls.build_space_visibility_context([request_space_uid], current_space_uid=request_space_uid)
+        return cls.is_platform_index_visible(index_set.platform_index_visibility, context)
+
+    @staticmethod
+    def resolve_search_bk_biz_id(index_set, request_bk_biz_id=None, request_space_uid=None):
         """
         解析检索要用的 bk_biz_id。
 
@@ -772,14 +804,7 @@ class LogIndexSet(SoftDeleteModel):
         请求方没带 bk_biz_id 时返回 None，由调用方拒绝，不能回落成 skip space。
         普通索引集保持原行为，用归属空间。
         """
-        if not getattr(index_set, "is_platform_index", False):
-            return space_uid_to_bk_biz_id(index_set.space_uid)
-        if request_bk_biz_id in (None, ""):
-            return None
-        try:
-            return int(request_bk_biz_id)
-        except (TypeError, ValueError):
-            return None
+        return LogIndexSet.resolve_search_scope(index_set, request_bk_biz_id, request_space_uid)[0]
 
     def get_fields(self, use_snapshot=True):
         """
