@@ -189,6 +189,58 @@ def test_uptime_uses_business_timezone_reference_without_hot_path_lookup():
     assert trigger_config["timezone_ref"] == "BUSINESS_LOCAL"
 
 
+@pytest.mark.parametrize(
+    "uptime",
+    [
+        {"time_ranges": [], "calendars": [], "active_calendars": []},
+        {
+            "time_ranges": [{"start": "00:00", "end": "23:59"}],
+            "calendars": [],
+            "active_calendars": [],
+        },
+        {
+            "time_ranges": [{"start": "00:00:00", "end": "23:59:59"}],
+            "calendars": [],
+            "active_calendars": [],
+        },
+    ],
+)
+def test_always_active_uptime_without_calendars_is_omitted(uptime):
+    item, _ = _strategy(1001, 11, threshold=1, uptime=uptime)
+    trigger_config = v2_access._build_plan(item, ["host"], 60)["strategy_ir"]["levels"][0]["trigger_plan"]["config"]
+
+    assert "uptime" not in trigger_config
+    assert "timezone_ref" not in trigger_config
+
+
+@pytest.mark.parametrize("calendar_field", ["calendars", "active_calendars"])
+def test_always_active_time_range_with_calendar_is_preserved(calendar_field):
+    uptime = {
+        "time_ranges": [{"start": "00:00", "end": "23:59"}],
+        "calendars": [],
+        "active_calendars": [],
+    }
+    uptime[calendar_field] = [7]
+    item, _ = _strategy(1001, 11, threshold=1, uptime=uptime)
+    trigger_config = v2_access._build_plan(item, ["host"], 60)["strategy_ir"]["levels"][0]["trigger_plan"]["config"]
+
+    assert trigger_config["uptime"] == uptime
+    assert trigger_config["timezone_ref"] == "BUSINESS_LOCAL"
+
+
+def test_non_default_second_precision_uptime_is_preserved():
+    uptime = {
+        "time_ranges": [{"start": "00:00:01", "end": "23:59:59"}],
+        "calendars": [],
+        "active_calendars": [],
+    }
+    item, _ = _strategy(1001, 11, threshold=1, uptime=uptime)
+    trigger_config = v2_access._build_plan(item, ["host"], 60)["strategy_ir"]["levels"][0]["trigger_plan"]["config"]
+
+    assert trigger_config["uptime"] == uptime
+    assert trigger_config["timezone_ref"] == "BUSINESS_LOCAL"
+
+
 def test_negative_space_business_id_uses_signed_canonical_identity():
     item, _ = _strategy(1001, 11, threshold=1, business_id=-200)
     record = SimpleNamespace(
