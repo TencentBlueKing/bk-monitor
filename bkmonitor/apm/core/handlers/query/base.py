@@ -15,7 +15,6 @@ We undertake not to change the open source license (MIT license) applicable
 to the current version of the project delivered to anyone in the future.
 """
 
-import datetime
 from typing import Any
 
 from apm import types
@@ -24,7 +23,6 @@ from apm.models import MetricDataSource
 from bkmonitor.data_source.utils.apm import (
     APMQueryFilterMixin,
     FilterOperator,
-    TraceDatasourceTarget,
     TraceQueryGuard,
 )
 from bkmonitor.data_source.utils.query import BaseQuery as DataSourceBaseQuery
@@ -38,20 +36,11 @@ __all__ = ["BaseQuery", "FakeQuery", "FilterOperator"]
 class BaseQuery(APMQueryFilterMixin, DataSourceBaseQuery):
     USING: tuple[str, str] = (DataTypeLabel.LOG, DataSourceLabel.BK_APM)
 
-    # 时间填充，单位 s
-    TIME_PADDING = 5
-
-    # 时间字段精度，用于时间字段查询时做乘法
-    TIME_FIELD_ACCURACY = 1000
-
     # 默认时间字段
     DEFAULT_TIME_FIELD = "end_time"
 
     # 查询字段映射
     KEY_REPLACE_FIELDS: dict[str, str] = {}
-
-    def __init__(self, data_sources: list[TraceDatasourceTarget]):
-        self.data_sources: list[TraceDatasourceTarget] = data_sources
 
     @property
     def bk_biz_id(self) -> int:
@@ -60,13 +49,6 @@ class BaseQuery(APMQueryFilterMixin, DataSourceBaseQuery):
     @property
     def app_name(self) -> str:
         return self.data_sources[0].app.app_name
-
-    @property
-    def retention(self) -> int:
-        retention: int | None = self.data_sources[0].retention
-        if retention is None:
-            raise ValueError("APM 查询数据源必须设置 retention")
-        return retention
 
     def get_qs(
         self,
@@ -82,40 +64,6 @@ class BaseQuery(APMQueryFilterMixin, DataSourceBaseQuery):
             # 默认仅查询本业务下的数据
             return queryset.scope(self.bk_biz_id)
         return queryset
-
-    @classmethod
-    def get_retention_time_range(
-        cls, retention: int, start_time: int | None = None, end_time: int | None = None
-    ) -> tuple[int, int]:
-        now: int = int(datetime.datetime.now().timestamp())
-
-        retention_seconds: int = int(datetime.timedelta(days=retention).total_seconds())
-        # 最早可查询时间
-        earliest_start_time: int = now - retention_seconds
-
-        if not end_time:
-            # 不传 end_time 代表查询最新数据，通常我们会在页面拿到 TraceID 后便进行查询，
-            # 请求时间距离实际存储查询时间可能存在一定延迟，因此需增加一个时间填充，避免查询不到数据。
-            end_time = now + cls.TIME_PADDING
-        else:
-            # 已指定查询时间范围，则需要对 end_time 做限制，避免查询到未来时间的数据。
-            end_time = min(now, end_time)
-
-        start_time: int = start_time or earliest_start_time
-        if end_time < earliest_start_time:
-            # 情况 1 - 查询返回不在有效查询时间内：-<start_time>-----<end_time>-----<earliest_start_time>----<now>--
-            start_time = max(end_time - retention_seconds, start_time)
-        else:
-            # 情况 2 - 查询时间部分或全部在有效查询时间内：-<start_time>---<earliest_start_time>---<end_time>----<now>--
-            start_time = max(earliest_start_time, start_time)
-
-        start_time *= cls.TIME_FIELD_ACCURACY
-        end_time *= cls.TIME_FIELD_ACCURACY
-
-        return start_time, end_time
-
-    def _get_time_range(self, start_time: int | None = None, end_time: int | None = None) -> tuple[int, int]:
-        return self.get_retention_time_range(self.retention, start_time, end_time)
 
     def build_queries(
         self,

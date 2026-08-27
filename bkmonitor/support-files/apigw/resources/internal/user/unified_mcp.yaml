@@ -1,0 +1,159 @@
+paths:
+  /mcp/lookup_tool/:
+    post:
+      operationId: lookup_tool
+      description: >-
+        Query the deterministic tool catalog exposed by the unified observability MCP Server.
+        Supports exact tool_name and enum-based category/capability filters. This tool does not
+        perform semantic search or call a model. Agent 根据用户意图选择过滤条件和最终工具；
+        服务端只返回确定性目录，不做自然语言理解、模糊搜索或相关性排序。
+      tags: [unified_mcp]
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                tool_name:
+                  type: string
+                  description: Exact tool name. 精确工具名，不支持模糊匹配。
+                category:
+                  type: string
+                  enum: [metrics, log, alert]
+                  description: Tool domain. 工具领域。
+                capability:
+                  type: string
+                  enum: [discovery, query, analysis, detail, relation]
+                  description: Capability filter. 能力类型过滤。
+                bk_biz_id:
+                  type: string
+                  description: Optional target space for permission-state filtering. 可选，按目标空间过滤权限状态。
+                available_only:
+                  type: boolean
+                  default: true
+                  description: Return only tools available to the current user. 是否只返回当前用户可用工具。
+                page: {type: integer, minimum: 1, default: 1}
+                page_size: {type: integer, minimum: 1, maximum: 100, default: 50}
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        enableWebsocket: false
+        backend: {name: default, method: post, path: /api/v4/unified_mcp/lookup_tool/, matchSubpath: false, timeout: 30}
+        pluginConfigs: []
+        authConfig: {userVerifiedRequired: true, appVerifiedRequired: false, resourcePermissionRequired: true}
+
+  /mcp/lookup_tool_schema/:
+    post:
+      operationId: lookup_tool_schema
+      description: >-
+        Return one registered tool's exact input schema, prerequisites, permission requirement,
+        limits and return description. tool_name must match exactly. 按精确工具名查询底层工具完整调用契约。
+      tags: [unified_mcp]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [tool_name]
+              properties:
+                tool_name: {type: string, description: Exact registered tool name. 底层工具精确名称。}
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        enableWebsocket: false
+        backend: {name: default, method: post, path: /api/v4/unified_mcp/lookup_tool_schema/, matchSubpath: false, timeout: 30}
+        pluginConfigs: []
+        authConfig: {userVerifiedRequired: true, appVerifiedRequired: false, resourcePermissionRequired: true}
+
+  /mcp/execute_tool/:
+    post:
+      operationId: execute_tool
+      description: >-
+        Execute one registered underlying tool. The Server validates the exact tool name, tool_args,
+        original IAM action and target space before calling the existing business API. Agent only
+        supplies tool_name and business tool_args; permission and backend routing come from the registry.
+      tags: [unified_mcp]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [tool_name, tool_args]
+              properties:
+                tool_name: {type: string, description: Exact underlying tool name. 底层工具精确名称。}
+                tool_args: {type: object, description: Arguments matching lookup_tool_schema.input_schema.}
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        enableWebsocket: false
+        backend: {name: default, method: post, path: /api/v4/unified_mcp/execute_tool/, matchSubpath: false, timeout: 63}
+        pluginConfigs: []
+        authConfig: {userVerifiedRequired: true, appVerifiedRequired: false, resourcePermissionRequired: true}
+
+  /mcp/lookup_metadata/:
+    post:
+      operationId: lookup_metadata
+      description: >-
+        Query observability spaces or BCS clusters through existing metadata APIs. metadata_type=spaces
+        requires space_name; metadata_type=bcs_clusters requires bk_biz_id. 查询空间及基础元数据。
+      tags: [unified_mcp]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [metadata_type]
+              properties:
+                metadata_type: {type: string, enum: [spaces, bcs_clusters]}
+                space_name: {type: string}
+                bk_biz_id: {type: string}
+                page: {type: integer, minimum: 1, default: 1}
+                page_size: {type: integer, minimum: 1, maximum: 100, default: 10}
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        enableWebsocket: false
+        backend: {name: default, method: post, path: /api/v4/unified_mcp/lookup_metadata/, matchSubpath: false, timeout: 30}
+        pluginConfigs: []
+        authConfig: {userVerifiedRequired: true, appVerifiedRequired: false, resourcePermissionRequired: true}
+
+  /mcp/lookup_permissions/:
+    post:
+      operationId: lookup_permissions
+      description: >-
+        Query the current user's observability permission scopes. Can check by space, category or exact
+        tool name and return missing IAM actions plus an application URL. Read-only: it never grants
+        permission and never replaces execute_tool's final authorization check.
+      tags: [unified_mcp]
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                bk_biz_id: {type: string, description: Target business/space ID. 目标业务 ID。}
+                category: {type: string, enum: [metrics, log, alert]}
+                tool_name: {type: string, description: Exact underlying tool name. 底层工具精确名称。}
+                include_apply_guide: {type: boolean, default: true}
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        enableWebsocket: false
+        backend: {name: default, method: post, path: /api/v4/unified_mcp/lookup_permissions/, matchSubpath: false, timeout: 30}
+        pluginConfigs: []
+        authConfig: {userVerifiedRequired: true, appVerifiedRequired: false, resourcePermissionRequired: true}

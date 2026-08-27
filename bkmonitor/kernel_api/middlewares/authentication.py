@@ -318,6 +318,14 @@ class AuthenticationMiddleware(MiddlewareMixin):
         # 提取MCP服务名称（用于指标上报）
         mcp_server_name = request.META.get("HTTP_X_BKAPI_MCP_SERVER_NAME", "")
         tool_name = self.extract_tool_name_from_path(request.path)
+        is_unified_mcp_path = "/unified_mcp/" in request.path
+        is_unified_execute_tool = tool_name == "execute_tool" and is_unified_mcp_path
+        is_unified_facade_tool = is_unified_mcp_path and tool_name in {
+            "lookup_tool",
+            "lookup_tool_schema",
+            "lookup_metadata",
+            "lookup_permissions",
+        }
         logger.info(
             "[%s] event=auth_begin tool=%s mcp_server=%s username=%s method=%s path=%s",
             MCP_AUTH_LOG_TAG,
@@ -372,16 +380,48 @@ class AuthenticationMiddleware(MiddlewareMixin):
             return None
 
         # 获取权限动作ID
-        # 优先从 MCP Server Name 映射中获取，如果没有则从旧的请求头中获取
+        # 普通 MCP 仍按 Server Name 映射；统一 MCP 的 execute_tool 按内层工具目录动态路由。
         permission_action_id = ""
-
         permission_action_source = ""
-        if mcp_server_name:
+        mcp_request_data = {}
+        if request.method == "POST":
+            try:
+                body = request.body.decode("utf-8")
+                if body:
+                    parsed_data = json.loads(body)
+                    if isinstance(parsed_data, dict):
+                        mcp_request_data = parsed_data
+                    else:
+                        logger.warning(
+                            "[%s] event=mcp_json_body_invalid expected=object actual=%s",
+                            MCP_AUTH_LOG_TAG,
+                            type(parsed_data).__name__,
+                        )
+            except Exception as e:  # pylint: disable=broad-except
+                logger.warning("[%s] event=mcp_json_body_parse_failed error=%s", MCP_AUTH_LOG_TAG, e)
+
+        if is_unified_execute_tool:
+            from kernel_api.unified_mcp.registry import get_tool_registry
+
+            nested_tool_name = mcp_request_data.get("tool_name", "")
+            try:
+                unified_tool = get_tool_registry().get(nested_tool_name)
+            except KeyError:
+                logger.warning(
+                    "[%s] event=unified_tool_denied reason=unknown_tool tool=%s username=%s",
+                    MCP_AUTH_LOG_TAG,
+                    nested_tool_name,
+                    username,
+                )
+                return HttpResponseForbidden("Invalid unified MCP tool")
+            permission_action_id = unified_tool.iam_action
+            permission_action_source = "unified_tool_registry"
+        elif mcp_server_name:
             permission_action_id = get_mcp_permission_action_by_server_name(mcp_server_name)
             if permission_action_id:
                 permission_action_source = "server_name_map"
 
-        # 如果没有从 MCP Server Name 获取到，则尝试从旧的请求头中获取
+        # 如果没有从 MCP Server Name / 统一工具目录获取到，则尝试旧请求头。
         if not permission_action_id:
             permission_action_id = request.META.get("HTTP_X_BKAPI_PERMISSION_ACTION", "")
             if permission_action_id:
@@ -395,7 +435,7 @@ class AuthenticationMiddleware(MiddlewareMixin):
             permission_action_source or "none",
         )
 
-        if tool_name and tool_name in settings.MCP_PERMISSION_EXEMPT_TOOLS:
+        if is_unified_facade_tool or (tool_name and tool_name in settings.MCP_PERMISSION_EXEMPT_TOOLS):
             logger.info(
                 "[%s] event=tool_exempt tool=%s permission_action=%s",
                 MCP_AUTH_LOG_TAG,
@@ -429,24 +469,28 @@ class AuthenticationMiddleware(MiddlewareMixin):
                     e,
                 )
 
-            # 如果表单数据中没有，尝试从JSON body中获取
+            # 如果表单数据中没有，尝试从 JSON body 中获取。
             if not bk_biz_id:
-                try:
-                    body = request.body.decode("utf-8")
-                    if body:
-                        data = json.loads(body)
-                        bk_biz_id = data.get("bk_biz_id")
-                        if bk_biz_id:
-                            logger.info(
-                                "[%s] event=bk_biz_id_resolved source=json_body bk_biz_id=%s",
-                                MCP_AUTH_LOG_TAG,
-                                bk_biz_id,
-                            )
-                except Exception as e:  # pylint: disable=broad-except
-                    logger.warning(
-                        "[%s] event=bk_biz_id_parse_failed source=json_body error=%s",
+                if is_unified_execute_tool:
+                    tool_args = mcp_request_data.get("tool_args") or {}
+                    if not isinstance(tool_args, dict):
+                        logger.warning(
+                            "[%s] event=unified_tool_denied reason=invalid_tool_args username=%s",
+                            MCP_AUTH_LOG_TAG,
+                            username,
+                        )
+                        return HttpResponseForbidden("Invalid unified MCP tool_args")
+                    bk_biz_id = tool_args.get(getattr(unified_tool, "resource_arg", "bk_biz_id"))
+                    source = "unified_tool_args"
+                else:
+                    bk_biz_id = mcp_request_data.get("bk_biz_id")
+                    source = "json_body"
+                if bk_biz_id:
+                    logger.info(
+                        "[%s] event=bk_biz_id_resolved source=%s bk_biz_id=%s",
                         MCP_AUTH_LOG_TAG,
-                        e,
+                        source,
+                        bk_biz_id,
                     )
 
         if not bk_biz_id:
@@ -566,6 +610,8 @@ class AuthenticationMiddleware(MiddlewareMixin):
             permission_action=permission_action_id,
             mcp_server_name=mcp_server_name,
         )
+        if is_unified_execute_tool:
+            request.unified_mcp_permission_checked = True
         return None
 
     def _handle_api_token_auth(self, request, view):

@@ -8,9 +8,14 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+from unittest import mock
+
+import datetime
+
 import pytest
 
 from constants.otel_query import FieldTypeEnum
+from bkmonitor.data_source.utils.base import DataSourceTarget
 from bkmonitor.data_source.utils.query import BaseQuery
 
 
@@ -99,7 +104,7 @@ class TestBaseQuery:
 
         mocker.patch.object(BaseQuery, "_query_info_fields", side_effect=[rt1_fields, rt2_fields])
 
-        query = BaseQuery()
+        query = BaseQuery(data_sources=[DataSourceTarget(table_id="rt1")])
         result = query._query_fields(
             targets=[("rt1", "space1"), ("rt2", "space1")],
             start_time=1717000000,
@@ -117,7 +122,7 @@ class TestBaseQuery:
         rt_b_fields = [_make_field(is_agg=False, is_analyzed=True, is_case_sensitive=False)]
 
         mocker.patch.object(BaseQuery, "_query_info_fields", side_effect=[rt_a_fields, rt_b_fields])
-        query = BaseQuery()
+        query = BaseQuery(data_sources=[DataSourceTarget(table_id="rt1")])
         result_ab = query._query_fields(
             targets=[("rt_a", "space1"), ("rt_b", "space1")],
             start_time=1717000000,
@@ -175,7 +180,7 @@ class TestBaseQuery:
             "_query_info_fields",
             return_value=[_make_field(field_name="f", field_type=field_type)],
         )
-        query = BaseQuery()
+        query = BaseQuery(data_sources=[DataSourceTarget(table_id="rt1")])
         result = query._query_fields(
             targets=[("rt1", "space1")],
             start_time=1717000000,
@@ -189,7 +194,7 @@ class TestBaseQuery:
         rt2_fields = [_make_field(field_name="status", field_type="text")]
 
         mocker.patch.object(BaseQuery, "_query_info_fields", side_effect=[rt1_fields, rt2_fields])
-        query = BaseQuery()
+        query = BaseQuery(data_sources=[DataSourceTarget(table_id="rt1")])
         result = query._query_fields(
             targets=[("rt1", "space1"), ("rt2", "space1")],
             start_time=1717000000,
@@ -204,10 +209,102 @@ class TestBaseQuery:
         rt2_fields = [_make_field(field_name="attrs", field_type="object")]
 
         mocker.patch.object(BaseQuery, "_query_info_fields", side_effect=[rt1_fields, rt2_fields])
-        query = BaseQuery()
+        query = BaseQuery(data_sources=[DataSourceTarget(table_id="rt1")])
         result = query._query_fields(
             targets=[("rt1", "space1"), ("rt2", "space1")],
             start_time=1717000000,
             end_time=1717003600,
         )
         assert result["attrs"]["is_searchable"] is False
+
+
+class TestGetRetentionTimeRange:
+    """基于保留期构造查询时间窗口的单元测试，覆盖三种时间传参情况。"""
+
+    # 以 7 天保留期、固定 now 为例：retention_seconds = 7 * 86400 = 604800
+    NOW = 1_700_000_000
+    RETENTION_DAYS = 7
+    RETENTION_SECONDS = 7 * 86400  # 604800
+    ACCURACY = BaseQuery.TIME_FIELD_ACCURACY  # 1000
+
+    def _run(self, start_time=None, end_time=None):
+        fake_now = datetime.datetime.fromtimestamp(self.NOW)
+        with mock.patch(
+            "bkmonitor.data_source.utils.query.datetime.datetime",
+            mock.Mock(now=mock.Mock(return_value=fake_now)),
+        ):
+            return BaseQuery.get_retention_time_range(self.RETENTION_DAYS, start_time, end_time)
+
+    def test_no_time_returns_full_retention_window_in_ms(self):
+        """不传时间时返回完整保留期窗口（秒 -> 毫秒）。"""
+        start_ms, end_ms = self._run()
+        assert end_ms == (self.NOW + BaseQuery.TIME_PADDING) * self.ACCURACY
+        assert start_ms == (self.NOW - self.RETENTION_SECONDS) * self.ACCURACY
+
+    def test_only_end_time_given_is_clamped_and_uses_retention_start(self):
+        """只传 end_time 时：限制不超过 now，start 取保留期下界。"""
+        start_ms, end_ms = self._run(end_time=self.NOW - 100)
+        assert start_ms == (self.NOW - self.RETENTION_SECONDS) * self.ACCURACY
+        assert end_ms == (self.NOW - 100) * self.ACCURACY
+
+    def test_future_end_time_is_clamped_to_now(self):
+        """传入未来 end_time 时，应被限制到当前时间，避免查询未来数据。"""
+        _, end_ms = self._run(end_time=self.NOW + 10_000)
+        assert end_ms == self.NOW * self.ACCURACY
+
+    def test_window_outside_retention_is_shifted_into_valid_range(self):
+        """查询窗口完全早于保留期下界时，整体右移到 [end-time, end] 区间。"""
+        far_end = self.NOW - self.RETENTION_SECONDS - 1000
+        start_ms, end_ms = self._run(start_time=far_end - 100, end_time=far_end)
+        # start 不应早于 (end - retention_seconds)
+        assert start_ms >= (far_end - self.RETENTION_SECONDS) * self.ACCURACY
+        assert start_ms <= end_ms
+
+    def test_window_partially_in_retention_keeps_explicit_start(self):
+        """查询窗口部分落在保留期内时，保留显式 start，仅限制下界。"""
+        explicit_start = self.NOW - self.RETENTION_SECONDS + 100
+        start_ms, _ = self._run(start_time=explicit_start, end_time=self.NOW - 10)
+        assert start_ms == explicit_start * self.ACCURACY
+
+
+class TestQueryFieldsTimeConversion:
+    """_query_fields 内部经 _get_time_range 把秒级补齐并 ×1000 转毫秒后传给 _query_info_fields。"""
+
+    NOW = 1_700_000_000
+    RETENTION_DAYS = 7
+    RETENTION_SECONDS = 7 * 86400  # 604800
+    ACCURACY = BaseQuery.TIME_FIELD_ACCURACY  # 1000
+
+    def _query_fields_capture_params(self, start_time=None, end_time=None) -> dict[str, int]:
+        captured: dict[str, int] = {}
+
+        def fake_query_info_fields(table_id, space_uid, st, et):
+            captured["start_time"] = st
+            captured["end_time"] = et
+            return [_make_field(field_name="cpu_usage")]
+
+        with (
+            mock.patch.object(BaseQuery, "_query_info_fields", side_effect=fake_query_info_fields),
+            mock.patch(
+                "bkmonitor.data_source.utils.query.datetime.datetime",
+                mock.Mock(now=mock.Mock(return_value=datetime.datetime.fromtimestamp(self.NOW))),
+            ),
+        ):
+            BaseQuery(data_sources=[DataSourceTarget(table_id="rt1")])._query_fields(
+                targets=[("rt1", "space1")], start_time=start_time, end_time=end_time
+            )
+        return captured
+
+    def test_none_time_is_converted_to_milliseconds_in_retention_window(self):
+        """不传时间时，传给 _query_info_fields 的 start/end 为毫秒级，且落在保留期窗口内。"""
+        captured = self._query_fields_capture_params()
+        assert captured["end_time"] == (self.NOW + BaseQuery.TIME_PADDING) * self.ACCURACY
+        assert captured["start_time"] == (self.NOW - self.RETENTION_SECONDS) * self.ACCURACY
+
+    def test_explicit_seconds_converted_to_milliseconds(self):
+        """显式秒级时间应被 ×1000 转为毫秒级后传入。"""
+        start = self.NOW - 10_000
+        end = self.NOW - 5_000
+        captured = self._query_fields_capture_params(start_time=start, end_time=end)
+        assert captured["start_time"] == start * self.ACCURACY
+        assert captured["end_time"] == end * self.ACCURACY

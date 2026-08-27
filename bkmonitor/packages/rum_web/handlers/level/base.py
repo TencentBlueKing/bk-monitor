@@ -27,8 +27,8 @@ class BaseRumLevelHandler(ABC):
     @abstractmethod
     def view_config(
         self,
-        start_time: int,
-        end_time: int,
+        start_time: int | None,
+        end_time: int | None,
         extra_config: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """获取页面视图配置"""
