@@ -30,7 +30,7 @@ import { useI18n } from 'vue-i18n';
 
 import ExploreFieldSetting from '../../../trace-explore/components/explore-field-setting/explore-field-setting';
 import StatisticsList from '../../../trace-explore/components/statistics-list';
-import { useFieldStatisticsPopover } from '../../composables/use-field-statistics-popover';
+import { type IStatisticsFieldItem, useFieldStatisticsPopover } from '../../composables/use-field-statistics-popover';
 import {
   DEFAULT_COLUMN_WIDTH,
   RUM_COLUMN_WIDTH_MAP,
@@ -44,7 +44,6 @@ import CommonTable from '@/pages/alarm-center/components/alarm-table/components/
 
 import type { TimeRangeType } from '../../../../components/time-range/utils';
 import type { BaseTableColumn } from '../../../trace-explore/components/trace-explore-table/typing';
-import type { IDimensionFieldTreeItem } from '../../../trace-explore/typing';
 import type { IRumCommonParams, IRumField, IRumSpanRecord, RumMode } from '../../typings';
 import type { SlotReturnValue } from 'tdesign-vue-next';
 
@@ -138,7 +137,7 @@ export default defineComponent({
     const { transformColumns, tableScenarioClassName, tableRowKey } = useScenarioRenderer(toRef(props, 'mode'), {
       fieldMap,
       onCellFilter: (colKey, value) => emit('conditionChange', { key: colKey, method: 'equal', value }),
-      onFieldAnalysis: (trigger, field) => openPopover(trigger, field as unknown as IDimensionFieldTreeItem),
+      onFieldAnalysis: (trigger, field) => openPopover(trigger, field as unknown as IStatisticsFieldItem),
     });
 
     /** 列展示逻辑：展示字段 -> 基础列（键 / 宽度 / 排序等元数据）-> 场景渲染注入 -> 拼接设置列 */
@@ -324,6 +323,7 @@ export default defineComponent({
           isShow={this.showPopover}
           selectField={this.selectField?.name}
           timeRange={this.timeRange as any}
+          unit={this.selectField?.field_unit}
           onConditionChange={(condition: { key: string; method: string; value: string }) =>
             this.$emit('conditionChange', condition)
           }

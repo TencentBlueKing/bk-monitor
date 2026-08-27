@@ -233,7 +233,13 @@ export default defineComponent({
         </div>
 
         {this.renderGroups.length ? (
-          <div class='panel-groups'>
+          <div
+            class='panel-groups'
+            onScroll={() => {
+              this.showPopover = false;
+              this.destroyPopover();
+            }}
+          >
             {this.renderGroups.map(group => {
               const expanded = this.isGroupExpanded(group);
               return (
@@ -282,6 +288,7 @@ export default defineComponent({
           isShow={this.showPopover}
           selectField={this.selectField?.name}
           timeRange={this.timeRange as any}
+          unit={this.selectField?.field_unit}
           onConditionChange={this.handleConditionChange}
           onShowMore={this.destroyPopover}
         />
