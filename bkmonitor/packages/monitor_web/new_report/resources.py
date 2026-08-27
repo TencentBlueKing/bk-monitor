@@ -398,6 +398,14 @@ class CreateOrUpdateReportResource(Resource):
         )
         record.save()
 
+    def _assert_report_ownership(self, report, params):
+        if report.bk_biz_id != params["bk_biz_id"]:
+            raise CustomException("report does not belong to the requested business")
+        stored_index_set_id = (report.scenario_config or {}).get("index_set_id")
+        request_index_set_id = (params.get("scenario_config") or {}).get("index_set_id")
+        if stored_index_set_id and request_index_set_id and stored_index_set_id != request_index_set_id:
+            raise CustomException("report does not belong to the requested index set")
+
     def perform_request(self, validated_request_data):
         params = copy.deepcopy(validated_request_data)
         is_manager_created = GetReportListResource.check_permission(validated_request_data["bk_biz_id"])
@@ -410,6 +418,7 @@ class CreateOrUpdateReportResource(Resource):
                 report = Report.objects.get(id=params["id"])
             except Report.DoesNotExist:
                 raise Exception("report_id: %s not found", params["id"])
+            self._assert_report_ownership(report, params)
             report.__dict__.update(params)
             report.save()
         else:
@@ -479,6 +488,19 @@ class SendReportResource(Resource):
         is_enabled = serializers.BooleanField(required=False, default=True)
 
     def perform_request(self, validated_request_data):
+        report_id = validated_request_data.get("report_id") or validated_request_data.get("id")
+        if report_id:
+            try:
+                report = Report.objects.get(id=report_id)
+            except Report.DoesNotExist:
+                raise CustomException("report_id: %s not found" % report_id)
+            bk_biz_id = validated_request_data.get("bk_biz_id")
+            if bk_biz_id is not None and report.bk_biz_id != bk_biz_id:
+                raise CustomException("report does not belong to the requested business")
+            stored_index_set_id = (report.scenario_config or {}).get("index_set_id")
+            request_index_set_id = (validated_request_data.get("scenario_config") or {}).get("index_set_id")
+            if stored_index_set_id and request_index_set_id and stored_index_set_id != request_index_set_id:
+                raise CustomException("report does not belong to the requested index set")
         try:
             api.monitor.send_report(**validated_request_data)
         except Exception as e:  # pylint: disable=broad-except

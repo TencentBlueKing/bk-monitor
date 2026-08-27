@@ -24,6 +24,12 @@ from rest_framework.response import Response
 
 from apps.api import MonitorApi
 from apps.generic import APIViewSet
+from apps.iam import ActionEnum, ResourceEnum
+from apps.iam.handlers.drf import (
+    BusinessActionPermission,
+    InstanceActionForDataPermission,
+    ViewBusinessPermission,
+)
 from apps.log_clustering.serializers import (
     CreateOrUpdateReportSerializer,
     GetExistReportsSerlaizer,
@@ -37,7 +43,27 @@ class ReportViewSet(APIViewSet):
     serializer_class = serializers.Serializer
 
     def get_permissions(self):
-        return []
+        if self.action == "get_reports":
+            return [
+                InstanceActionForDataPermission(
+                    "index_set_id",
+                    [ActionEnum.SEARCH_LOG],
+                    ResourceEnum.INDICES,
+                )
+            ]
+        if self.action in ["create_or_update", "send"]:
+            scenario_config = self.request.data.get("scenario_config") or {}
+            if isinstance(scenario_config, dict) and scenario_config.get("index_set_id"):
+                return [
+                    InstanceActionForDataPermission(
+                        "scenario_config",
+                        [ActionEnum.SEARCH_LOG],
+                        ResourceEnum.INDICES,
+                        get_instance_id=lambda config: config["index_set_id"],
+                    )
+                ]
+            return [BusinessActionPermission([ActionEnum.MANAGE_INDICES])]
+        return [ViewBusinessPermission()]
 
     @list_route(methods=["GET"], url_path="get_reports")
     def get_reports(self, request):
