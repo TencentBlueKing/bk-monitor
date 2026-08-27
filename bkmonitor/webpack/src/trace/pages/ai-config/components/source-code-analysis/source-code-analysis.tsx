@@ -483,6 +483,7 @@ export default defineComponent({
                         loading={this.repositoriesLoading}
                         modelValue={this.repositoryAlias}
                         multiple={false}
+                        multipleMode='tag'
                         noDataText={this.repositoriesLoading ? this.t('加载中...') : this.t('无数据')}
                         scrollLoading={this.repositoriesScrollLoading}
                         filterable
