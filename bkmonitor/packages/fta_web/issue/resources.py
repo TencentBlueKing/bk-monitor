@@ -208,38 +208,62 @@ class SourceAnalysisBaseResource(Resource):
         """校验代码库别名属于该蓝盾项目，选项口径与前端下拉列表保持一致。"""
 
         repositories = resource.issue.list_source_analysis_bkci_repositories(
-            bk_biz_id=bk_biz_id, project_id=bkci_project_id
+            bk_biz_id=bk_biz_id, bkci_project_id=bkci_project_id
         )
-        if not any(repository["id"] == repository_alias for repository in repositories):
+        if not any(repository["id"] == repository_alias for repository in repositories["list"]):
             raise SourceAnalysisRepositoryInvalidError()
+
+    @staticmethod
+    def parse_aidev_page(upstream_data) -> tuple[list[dict], int]:
+        """归一化 AIDEV 列表响应，兼容裸数组与 {count, results} 两种形态。"""
+
+        if isinstance(upstream_data, list):
+            items = upstream_data
+            total = len(items)
+        elif isinstance(upstream_data, dict):
+            items = upstream_data.get("results")
+            total = upstream_data.get("count")
+        else:
+            raise ValueError("invalid AIDEV resource response")
+
+        if not isinstance(items, list) or any(not isinstance(item, dict) for item in items):
+            raise ValueError("invalid AIDEV resource list")
+        if total is None:
+            total = len(items)
+        try:
+            return items, int(total)
+        except (TypeError, ValueError) as error:
+            raise ValueError("invalid AIDEV resource total") from error
+
+    @classmethod
+    def list_visible_aidev_items(cls, list_resources: Callable, id_field: str) -> list[dict]:
+        """遍历 AIDEV 全部分页，返回当前用户可见资源的上游原始条目。
+
+        选项接口和启用校验共用这一次遍历：前者取名称与空间做展示，后者只取 ID 做校验。
+        AIDEV 分页只是上游实现细节，不透给前端，因此这里按 ID 去重后返回全量条目。
+        """
+
+        items_by_id: dict[str, dict] = {}
+        page = 1
+        while page <= cls.AIDEV_MAX_PAGES:
+            items, total = cls.parse_aidev_page(
+                list_resources(space_id="all", page=page, page_size=cls.AIDEV_PAGE_SIZE)
+            )
+            try:
+                for item in items:
+                    items_by_id[str(item[id_field])] = item
+            except (KeyError, TypeError) as error:
+                raise ValueError("invalid AIDEV resource item") from error
+            if len(items_by_id) >= total or not items:
+                return list(items_by_id.values())
+            page += 1
+        raise ValueError("AIDEV resource pagination exceeds safety limit")
 
     @classmethod
     def list_visible_aidev_ids(cls, list_resources: Callable, id_field: str) -> set[str]:
-        """分页拉取当前用户可见资源，避免只校验列表第一页。"""
+        """启用校验只需要 ID 集合，复用全量遍历结果，避免只校验列表第一页。"""
 
-        visible_ids: set[str] = set()
-        page = 1
-        while page <= cls.AIDEV_MAX_PAGES:
-            upstream_data = list_resources(space_id="all", page=page, page_size=cls.AIDEV_PAGE_SIZE)
-            if isinstance(upstream_data, list):
-                items = upstream_data
-                total = len(items)
-            elif isinstance(upstream_data, dict):
-                items = upstream_data.get("results")
-                total = upstream_data.get("count")
-            else:
-                raise ValueError("invalid AIDEV resource response")
-            if not isinstance(items, list) or any(not isinstance(item, dict) for item in items):
-                raise ValueError("invalid AIDEV resource list")
-            try:
-                visible_ids.update(str(item[id_field]) for item in items)
-                total = int(total)
-            except (KeyError, TypeError, ValueError) as error:
-                raise ValueError("invalid AIDEV resource item") from error
-            if len(visible_ids) >= total or not items:
-                return visible_ids
-            page += 1
-        raise ValueError("AIDEV resource pagination exceeds safety limit")
+        return {str(item[id_field]) for item in cls.list_visible_aidev_items(list_resources, id_field)}
 
     @classmethod
     def validate_resources(cls, rule: IssueSourceAnalysisRule) -> None:
@@ -1551,7 +1575,7 @@ class ListSourceAnalysisBkciProjectsResource(SourceAnalysisBaseResource):
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(label="业务 ID")
 
-    def perform_request(self, validated_request_data: dict) -> list[dict]:
+    def perform_request(self, validated_request_data: dict) -> dict:
         if SourceAnalysisUpstreamMock.is_enabled():
             return SourceAnalysisUpstreamMock.list_bkci_project_options()
 
@@ -1568,7 +1592,7 @@ class ListSourceAnalysisBkciProjectsResource(SourceAnalysisBaseResource):
                 if not project_id or not project_name:
                     raise ValueError("project response misses projectCode or projectName")
                 options.append({"id": project_id, "name": project_name})
-            return options
+            return {"total": len(options), "list": options}
         except (BKAPIError, TypeError, ValueError) as error:
             self.raise_upstream_unavailable(error)
 
@@ -1580,14 +1604,16 @@ class ListSourceAnalysisBkciRepositoriesResource(SourceAnalysisBaseResource):
 
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(label="业务 ID")
-        project_id = serializers.CharField(label="蓝盾项目 ID", max_length=128)
+        bkci_project_id = serializers.CharField(label="蓝盾项目 ID", max_length=128)
 
-    def perform_request(self, validated_request_data: dict) -> list[dict]:
+    def perform_request(self, validated_request_data: dict) -> dict:
+        bkci_project_id = validated_request_data["bkci_project_id"]
         if SourceAnalysisUpstreamMock.is_enabled():
-            return SourceAnalysisUpstreamMock.list_bkci_repository_options(validated_request_data["project_id"])
+            return SourceAnalysisUpstreamMock.list_bkci_repository_options(bkci_project_id)
 
         try:
-            repository_page = api.devops.list_user_repository(project_id=validated_request_data["project_id"])
+            # 蓝盾接口自身的参数名仍是 project_id，这里只对外统一为 bkci_project_id。
+            repository_page = api.devops.list_user_repository(project_id=bkci_project_id)
             if not isinstance(repository_page, dict):
                 raise ValueError("invalid repository response")
 
@@ -1609,24 +1635,25 @@ class ListSourceAnalysisBkciRepositoriesResource(SourceAnalysisBaseResource):
 
                 # repositoryHashId 仅用于蓝盾内部接口联查；配置和前端选项均以不可变的代码库别名为准。
                 options.append({"id": alias, "name": alias, "scm_type": "GIT"})
-            return options
+            return {"total": len(options), "list": options}
         except (BKAPIError, TypeError, ValueError) as error:
             self.raise_upstream_unavailable(error)
 
 
 class BaseListSourceAnalysisAidevOptionsResource(SourceAnalysisBaseResource):
-    """将当前用户可见的 AIDEV 分页结果转换为源码分析统一选项协议。"""
+    """将当前用户可见的 AIDEV 资源转换为源码分析统一选项协议。
+
+    接口不分页：规则只持久化资源 ID，前端要在编辑态用 ID 回填名称与空间，分页会让已选项
+    落在未加载的页里而无法回填。资源量级在千级以内，一次返回全量后前端可本地搜索与映射。
+    """
 
     id_field: str
     name_field: str
 
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(label="业务 ID")
-        keyword = serializers.CharField(label="搜索关键词", required=False, allow_blank=True, default="")
-        page = serializers.IntegerField(label="页码", required=False, default=1, min_value=1)
-        page_size = serializers.IntegerField(label="每页数量", required=False, default=20, min_value=1, max_value=100)
 
-    def list_aidev_resources(self, params: dict):
+    def aidev_list_resources(self) -> Callable:
         raise NotImplementedError
 
     @staticmethod
@@ -1634,7 +1661,7 @@ class BaseListSourceAnalysisAidevOptionsResource(SourceAnalysisBaseResource):
     def query_aidev_space_name_map() -> dict[str, str]:
         """拉取当前用户可见空间的 ID 到名称映射。
 
-        空间是低频变化的用户态元数据，而 Agent、Skill 选择器的每次分页和搜索都需要它，
+        空间是低频变化的用户态元数据，而 Agent、Skill 选择器每次查询都需要它，
         因此按用户维度短期缓存，避免每个选项请求都额外打一次 AIDEV。
         """
 
@@ -1667,30 +1694,8 @@ class BaseListSourceAnalysisAidevOptionsResource(SourceAnalysisBaseResource):
 
     def perform_request(self, validated_request_data: dict) -> dict:
         # bk_biz_id 由 ViewSet 用于 BKM 业务权限校验；AIDEV 使用当前用户 Token 独立过滤资源权限。
-        params = {
-            "space_id": "all",
-            "page": validated_request_data["page"],
-            "page_size": validated_request_data["page_size"],
-        }
-        if validated_request_data["keyword"]:
-            params["fuzzy"] = validated_request_data["keyword"]
-
         try:
-            upstream_data = self.list_aidev_resources(params)
-            if isinstance(upstream_data, list):
-                items = upstream_data
-                total = len(items)
-            elif isinstance(upstream_data, dict):
-                items = upstream_data.get("results")
-                total = upstream_data.get("count")
-            else:
-                raise ValueError("invalid AIDEV response")
-
-            if not isinstance(items, list) or any(not isinstance(item, dict) for item in items):
-                raise ValueError("invalid AIDEV resource list")
-            if total is None:
-                total = len(items)
-
+            items = self.list_visible_aidev_items(self.aidev_list_resources(), self.id_field)
             space_name_map = self.get_aidev_space_name_map() if items else {}
             options = []
             for item in items:
@@ -1712,7 +1717,7 @@ class BaseListSourceAnalysisAidevOptionsResource(SourceAnalysisBaseResource):
                         "space_name": space_name,
                     }
                 )
-            return {"total": int(total), "list": options}
+            return {"total": len(options), "list": options}
         except (BKAPIError, TypeError, ValueError) as error:
             self.raise_upstream_unavailable(error)
 
@@ -1723,8 +1728,8 @@ class ListSourceAnalysisAgentsResource(BaseListSourceAnalysisAidevOptionsResourc
     id_field = "id"
     name_field = "agent_name"
 
-    def list_aidev_resources(self, params: dict):
-        return api.aidev.list_agents(**params)
+    def aidev_list_resources(self) -> Callable:
+        return api.aidev.list_agents
 
 
 class ListSourceAnalysisSkillsResource(BaseListSourceAnalysisAidevOptionsResource):
@@ -1733,8 +1738,8 @@ class ListSourceAnalysisSkillsResource(BaseListSourceAnalysisAidevOptionsResourc
     id_field = "id"
     name_field = "skill_name"
 
-    def list_aidev_resources(self, params: dict):
-        return api.aidev.list_skills(**params)
+    def aidev_list_resources(self) -> Callable:
+        return api.aidev.list_skills
 
 
 class ListSourceAnalysisKnowledgeBasesResource(BaseListSourceAnalysisAidevOptionsResource):
@@ -1742,7 +1747,7 @@ class ListSourceAnalysisKnowledgeBasesResource(BaseListSourceAnalysisAidevOption
 
     def perform_request(self, validated_request_data: dict) -> dict:
         if SourceAnalysisUpstreamMock.is_enabled():
-            return SourceAnalysisUpstreamMock.list_knowledge_base_options(validated_request_data)
+            return SourceAnalysisUpstreamMock.list_knowledge_base_options()
         # AIDEV 暂未提供用户态知识库列表接口；保留前端协议，支持后再接入真实数据。
         return {"total": 0, "list": []}
 

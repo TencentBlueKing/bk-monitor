@@ -121,10 +121,13 @@ class TestSourceAnalysisOptionsResources(SimpleTestCase):
         ):
             self.assertEqual(
                 ListSourceAnalysisBkciProjectsResource().perform_request({"bk_biz_id": 2}),
-                [
-                    {"id": "project-a", "name": "Project A"},
-                    {"id": "project-b", "name": "Project B"},
-                ],
+                {
+                    "total": 2,
+                    "list": [
+                        {"id": "project-a", "name": "Project A"},
+                        {"id": "project-b", "name": "Project B"},
+                    ],
+                },
             )
 
     def test_projects_fall_back_to_legacy_fields(self):
@@ -135,7 +138,7 @@ class TestSourceAnalysisOptionsResources(SimpleTestCase):
         ):
             self.assertEqual(
                 ListSourceAnalysisBkciProjectsResource().perform_request({"bk_biz_id": 2}),
-                [{"id": "legacy-project", "name": "Legacy Project"}],
+                {"total": 1, "list": [{"id": "legacy-project", "name": "Legacy Project"}]},
             )
 
     def test_repositories_keep_git_alias_only(self):
@@ -159,14 +162,18 @@ class TestSourceAnalysisOptionsResources(SimpleTestCase):
         ) as list_repositories:
             self.assertEqual(
                 ListSourceAnalysisBkciRepositoriesResource().perform_request(
-                    {"bk_biz_id": 2, "project_id": "project-a"}
+                    {"bk_biz_id": 2, "bkci_project_id": "project-a"}
                 ),
-                [
-                    {"id": "git-repo", "name": "git-repo", "scm_type": "GIT"},
-                    {"id": "scm-git-repo", "name": "scm-git-repo", "scm_type": "GIT"},
-                ],
+                {
+                    "total": 2,
+                    "list": [
+                        {"id": "git-repo", "name": "git-repo", "scm_type": "GIT"},
+                        {"id": "scm-git-repo", "name": "scm-git-repo", "scm_type": "GIT"},
+                    ],
+                },
             )
 
+        # 对外统一为 bkci_project_id，蓝盾接口自身的参数名仍是 project_id
         list_repositories.assert_called_once_with(project_id="project-a")
 
     def test_invalid_upstream_shape_is_rejected(self):
@@ -227,33 +234,84 @@ class TestSourceAnalysisOptionsResources(SimpleTestCase):
                     patch.object(api.aidev, api_name, return_value=upstream_data) as list_resources,
                     patch.object(api.aidev, "list_spaces", return_value=spaces) as list_spaces,
                 ):
-                    actual = resource_class().perform_request(
-                        {"bk_biz_id": 2, "keyword": "source", "page": 2, "page_size": 10}
-                    )
+                    actual = resource_class().perform_request({"bk_biz_id": 2})
                 self.assertEqual(actual, expected)
-                list_resources.assert_called_once_with(space_id="all", fuzzy="source", page=2, page_size=10)
+                # 接口不分页，BKM 按安全分页大小遍历上游，不再把页码和关键词透给 AIDEV
+                list_resources.assert_called_once_with(space_id="all", page=1, page_size=200)
                 list_spaces.assert_called_once_with()
 
-    def test_aidev_options_omit_empty_keyword(self):
+    def test_aidev_options_traverse_all_upstream_pages(self):
+        """规则只存 ID，前端要用 ID 回填名称，因此选项接口必须一次返回全量而不是首页。"""
+
+        with (
+            patch.object(
+                api.aidev,
+                "list_agents",
+                side_effect=[
+                    {"count": 201, "results": [{"id": index, "agent_name": f"agent-{index}"} for index in range(200)]},
+                    {"count": 201, "results": [{"id": 200, "agent_name": "agent-200"}]},
+                ],
+            ) as list_agents,
+            patch.object(api.aidev, "list_spaces", return_value=[]),
+        ):
+            result = ListSourceAnalysisAgentsResource().perform_request({"bk_biz_id": 2})
+
+        self.assertEqual(result["total"], 201)
+        self.assertEqual(len(result["list"]), 201)
+        self.assertEqual(result["list"][-1]["id"], "200")
+        self.assertEqual(list_agents.call_count, 2)
+        list_agents.assert_any_call(space_id="all", page=2, page_size=200)
+
+    def test_aidev_options_dedupe_items_repeated_across_pages(self):
+        """上游翻页期间数据变动可能让同一资源出现在两页，选项列表不能出现重复项。"""
+
+        with (
+            patch.object(
+                api.aidev,
+                "list_agents",
+                side_effect=[
+                    {"count": 3, "results": [{"id": 1, "agent_name": "agent-1"}, {"id": 2, "agent_name": "agent-2"}]},
+                    {"count": 3, "results": [{"id": 2, "agent_name": "agent-2"}, {"id": 3, "agent_name": "agent-3"}]},
+                ],
+            ),
+            patch.object(api.aidev, "list_spaces", return_value=[]),
+        ):
+            result = ListSourceAnalysisAgentsResource().perform_request({"bk_biz_id": 2})
+
+        self.assertEqual(result["total"], 3)
+        self.assertEqual([item["id"] for item in result["list"]], ["1", "2", "3"])
+
+    def test_aidev_options_reject_pagination_beyond_safety_limit(self):
+        """上游 count 与实际条目长期不一致时必须终止遍历，不能无限翻页。"""
+
+        with (
+            patch.object(
+                api.aidev,
+                "list_agents",
+                return_value={"count": 10000, "results": [{"id": 1, "agent_name": "agent-1"}]},
+            ) as list_agents,
+            patch.object(api.aidev, "list_spaces", return_value=[]),
+            self.assertRaises(SourceAnalysisUpstreamUnavailableError),
+        ):
+            ListSourceAnalysisAgentsResource().perform_request({"bk_biz_id": 2})
+
+        self.assertEqual(list_agents.call_count, 100)
+
+    def test_aidev_options_return_empty_list_without_querying_spaces(self):
         with (
             patch.object(api.aidev, "list_agents", return_value={"count": 0, "results": []}) as list_agents,
             patch.object(api.aidev, "list_spaces") as list_spaces,
         ):
-            result = ListSourceAnalysisAgentsResource().perform_request(
-                {"bk_biz_id": 2, "keyword": "", "page": 1, "page_size": 20}
-            )
+            result = ListSourceAnalysisAgentsResource().perform_request({"bk_biz_id": 2})
 
         self.assertEqual(result, {"total": 0, "list": []})
-        list_agents.assert_called_once_with(space_id="all", page=1, page_size=20)
+        list_agents.assert_called_once_with(space_id="all", page=1, page_size=200)
         list_spaces.assert_not_called()
 
     def test_knowledge_base_options_remain_empty_until_aidev_supports_user_list(self):
         resource = ListSourceAnalysisKnowledgeBasesResource()
-        with patch.object(resource, "list_aidev_resources") as list_resources:
-            self.assertEqual(
-                resource.perform_request({"bk_biz_id": 2, "keyword": "source", "page": 1, "page_size": 20}),
-                {"total": 0, "list": []},
-            )
+        with patch.object(resource, "aidev_list_resources") as list_resources:
+            self.assertEqual(resource.perform_request({"bk_biz_id": 2}), {"total": 0, "list": []})
         list_resources.assert_not_called()
 
     def test_invalid_aidev_shape_is_rejected(self):
@@ -261,9 +319,7 @@ class TestSourceAnalysisOptionsResources(SimpleTestCase):
             with self.subTest(upstream_data=upstream_data):
                 with patch.object(api.aidev, "list_agents", return_value=upstream_data):
                     with self.assertRaises(SourceAnalysisUpstreamUnavailableError):
-                        ListSourceAnalysisAgentsResource().perform_request(
-                            {"bk_biz_id": 2, "keyword": "", "page": 1, "page_size": 20}
-                        )
+                        ListSourceAnalysisAgentsResource().perform_request({"bk_biz_id": 2})
 
     def test_aidev_option_degrades_when_space_query_fails(self):
         """空间名称只用于展示，/spaces/ 异常或协议不符时资源列表必须照常返回。"""
@@ -283,9 +339,7 @@ class TestSourceAnalysisOptionsResources(SimpleTestCase):
                     patch.object(api.aidev, "list_agents", return_value=upstream_data),
                     patch.object(api.aidev, "list_spaces", **space_result),
                 ):
-                    result = ListSourceAnalysisAgentsResource().perform_request(
-                        {"bk_biz_id": 2, "keyword": "", "page": 1, "page_size": 20}
-                    )
+                    result = ListSourceAnalysisAgentsResource().perform_request({"bk_biz_id": 2})
 
                 self.assertEqual(
                     result,
@@ -319,9 +373,7 @@ class TestSourceAnalysisOptionsResources(SimpleTestCase):
                         return_value=[{"space_id": "space-a", "space_name": "AIDEV Helper"}],
                     ),
                 ):
-                    result = ListSourceAnalysisAgentsResource().perform_request(
-                        {"bk_biz_id": 2, "keyword": "", "page": 1, "page_size": 20}
-                    )
+                    result = ListSourceAnalysisAgentsResource().perform_request({"bk_biz_id": 2})
 
                 self.assertEqual(
                     result,
@@ -349,9 +401,7 @@ class TestSourceAnalysisOptionsResources(SimpleTestCase):
                     ),
                     self.assertRaises(SourceAnalysisUpstreamUnavailableError),
                 ):
-                    ListSourceAnalysisAgentsResource().perform_request(
-                        {"bk_biz_id": 2, "keyword": "", "page": 1, "page_size": 20}
-                    )
+                    ListSourceAnalysisAgentsResource().perform_request({"bk_biz_id": 2})
 
     def test_aidev_option_falls_back_to_space_id_for_public_cross_space_resource(self):
         upstream_data = {
@@ -366,9 +416,7 @@ class TestSourceAnalysisOptionsResources(SimpleTestCase):
                 return_value=[{"space_id": "space-b", "space_name": "Other Space"}],
             ),
         ):
-            result = ListSourceAnalysisAgentsResource().perform_request(
-                {"bk_biz_id": 2, "keyword": "", "page": 1, "page_size": 20}
-            )
+            result = ListSourceAnalysisAgentsResource().perform_request({"bk_biz_id": 2})
 
         self.assertEqual(
             result,
@@ -390,17 +438,19 @@ class TestSourceAnalysisOptionsResources(SimpleTestCase):
         self.assertTrue(project_request.is_valid(), project_request.errors)
 
         repository_request = ListSourceAnalysisBkciRepositoriesResource.RequestSerializer(
-            data={"bk_biz_id": 2, "project_id": "project-a"}
+            data={"bk_biz_id": 2, "bkci_project_id": "project-a"}
         )
         self.assertTrue(repository_request.is_valid(), repository_request.errors)
 
-        aidev_request = ListSourceAnalysisAgentsResource.RequestSerializer(data={"bk_biz_id": 2})
-        self.assertTrue(aidev_request.is_valid(), aidev_request.errors)
-        self.assertEqual(aidev_request.validated_data["page"], 1)
-        self.assertEqual(aidev_request.validated_data["page_size"], 20)
+        missing_project = ListSourceAnalysisBkciRepositoriesResource.RequestSerializer(data={"bk_biz_id": 2})
+        self.assertFalse(missing_project.is_valid())
 
-        oversized_page = ListSourceAnalysisAgentsResource.RequestSerializer(data={"bk_biz_id": 2, "page_size": 101})
-        self.assertFalse(oversized_page.is_valid())
+        # 选项接口不分页，请求协议只保留 bk_biz_id
+        aidev_request = ListSourceAnalysisAgentsResource.RequestSerializer(
+            data={"bk_biz_id": 2, "page": 3, "page_size": 50, "keyword": "source"}
+        )
+        self.assertTrue(aidev_request.is_valid(), aidev_request.errors)
+        self.assertEqual(dict(aidev_request.validated_data), {"bk_biz_id": 2})
 
     def test_upstream_error_raises_specific_error(self):
         upstream_error = BKAPIError(system_name="devops", url="project/list", result={"message": "failed"})
