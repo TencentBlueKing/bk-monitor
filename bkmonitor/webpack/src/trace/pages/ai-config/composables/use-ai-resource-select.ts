@@ -70,9 +70,11 @@ export function useAiResourceSelect(apiFn: AiResourceApiFn) {
       const res = await apiFn();
       if (!curAbort.signal.aborted) {
         list.value = res.list || [];
+        const tempMap = new Map();
         for (const item of list.value) {
-          nameMap.value.set(item.id, item.name);
+          tempMap.set(item.id, item.name);
         }
+        nameMap.value = tempMap;
       }
     } catch {
       if (!curAbort.signal.aborted) {

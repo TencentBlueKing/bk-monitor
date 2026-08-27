@@ -61,9 +61,11 @@ export function useBkciRepositoriesSelect(options: UseBkciRepositoriesSelectOpti
       });
       const items = data.list ?? [];
       // 填充 id -> 名称映射，供外部回显使用
+      const tempMap = new Map();
       for (const item of items) {
-        nameMap.value.set(item.id, item.name);
+        tempMap.set(item.id, item.name);
       }
+      nameMap.value = tempMap;
       list.value = items;
     } finally {
       loading.value = false;
