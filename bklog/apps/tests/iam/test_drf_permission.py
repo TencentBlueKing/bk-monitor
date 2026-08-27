@@ -4,6 +4,7 @@ from unittest.mock import Mock, patch
 from django.test import SimpleTestCase, override_settings
 from iam import Resource
 
+from apps.iam.exceptions import PermissionDeniedError
 from apps.iam.handlers.actions import ActionEnum
 from apps.iam.handlers.drf import (
     BatchIAMPermission,
@@ -89,10 +90,14 @@ class IAMPermissionCompatibilityTest(SimpleTestCase):
         self.assertEqual(permission.resources[0].id, "1")
 
     @patch("apps.iam.handlers.drf.Permission")
-    def test_batch_permission_builds_all_resources_and_uses_permission_facade(self, permission_class):
-        resources = [Mock(), Mock()]
+    def test_batch_permission_checks_every_resource_separately(self, permission_class):
+        resources = [Mock(id="1"), Mock(id="2")]
         resource_meta = Mock()
         resource_meta.create_instance.side_effect = resources
+        permission_class.return_value.batch_is_allowed.return_value = {
+            "1": {ActionEnum.VIEW_COLLECTION.id: True},
+            "2": {ActionEnum.VIEW_COLLECTION.id: True},
+        }
         batch_permission = BatchIAMPermission("instance_ids", [ActionEnum.VIEW_COLLECTION], resource_meta)
         request = Mock(method="POST", data={"instance_ids": ["1", "2"]})
 
@@ -100,11 +105,99 @@ class IAMPermissionCompatibilityTest(SimpleTestCase):
 
         self.assertTrue(result)
         self.assertEqual(resource_meta.create_instance.call_count, 2)
-        permission_class.return_value.is_allowed.assert_called_once_with(
-            action=ActionEnum.VIEW_COLLECTION,
-            resources=resources,
-            raise_exception=True,
+        # 同类型多实例必须每个实例单独成组，单点 is_allowed 只会对其中一个求值
+        permission_class.return_value.batch_is_allowed.assert_called_once_with(
+            [ActionEnum.VIEW_COLLECTION],
+            [[resources[0]], [resources[1]]],
         )
+        permission_class.return_value.is_allowed.assert_not_called()
+
+    @patch("apps.iam.handlers.drf.Permission")
+    def test_batch_permission_denies_unauthorized_instance_in_any_position(self, permission_class):
+        """无权限实例无论排在列表哪一位都必须被拦下。
+
+        历史实现把整份列表塞进单点 is_allowed：V3 只对最后一个求值，V4 只取第一个，
+        用户把自己有权限的实例放到被校验的那一位就能读到无权实例的数据。
+        """
+        for instance_ids in (["denied", "allowed"], ["allowed", "denied"]):
+            with self.subTest(instance_ids=instance_ids):
+                permission_class.reset_mock()
+                resource_meta = Mock()
+                resource_meta.create_instance.side_effect = lambda instance_id: Mock(id=instance_id)
+                permission_client = permission_class.return_value
+                permission_client.batch_is_allowed.return_value = {
+                    "allowed": {ActionEnum.VIEW_COLLECTION.id: True},
+                    "denied": {ActionEnum.VIEW_COLLECTION.id: False},
+                }
+                permission_client.get_apply_data.return_value = ({"actions": []}, "https://apply.example.com")
+                batch_permission = BatchIAMPermission("instance_ids", [ActionEnum.VIEW_COLLECTION], resource_meta)
+                request = Mock(method="POST", data={"instance_ids": instance_ids})
+
+                with self.assertRaises(PermissionDeniedError):
+                    batch_permission.has_permission(request, Mock())
+
+                actions, denied_resources = permission_client.get_apply_data.call_args.args
+                self.assertEqual(actions, [ActionEnum.VIEW_COLLECTION])
+                self.assertEqual([resource.id for resource in denied_resources], ["denied"])
+
+    @patch("apps.iam.handlers.drf.Permission")
+    def test_batch_permission_denies_when_result_misses_resource(self, permission_class):
+        """批量结果缺少某个实例时按拒绝处理，不能因为查不到就放行。"""
+        resource_meta = Mock()
+        resource_meta.create_instance.side_effect = lambda instance_id: Mock(id=instance_id)
+        permission_client = permission_class.return_value
+        permission_client.batch_is_allowed.return_value = {"1": {ActionEnum.VIEW_COLLECTION.id: True}}
+        permission_client.get_apply_data.return_value = ({"actions": []}, "https://apply.example.com")
+        batch_permission = BatchIAMPermission("instance_ids", [ActionEnum.VIEW_COLLECTION], resource_meta)
+        request = Mock(method="POST", data={"instance_ids": ["1", "2"]})
+
+        with self.assertRaises(PermissionDeniedError):
+            batch_permission.has_permission(request, Mock())
+
+        _actions, denied_resources = permission_client.get_apply_data.call_args.args
+        self.assertEqual([resource.id for resource in denied_resources], ["2"])
+
+    @patch("apps.iam.handlers.drf.Permission")
+    def test_batch_permission_requires_every_action_on_every_resource(self, permission_class):
+        actions = [ActionEnum.VIEW_COLLECTION, ActionEnum.MANAGE_COLLECTION]
+        resource_meta = Mock()
+        resource_meta.create_instance.side_effect = lambda instance_id: Mock(id=instance_id)
+        permission_client = permission_class.return_value
+        permission_client.batch_is_allowed.return_value = {
+            "1": {ActionEnum.VIEW_COLLECTION.id: True, ActionEnum.MANAGE_COLLECTION.id: True},
+            "2": {ActionEnum.VIEW_COLLECTION.id: True, ActionEnum.MANAGE_COLLECTION.id: False},
+        }
+        permission_client.get_apply_data.return_value = ({"actions": []}, "https://apply.example.com")
+        batch_permission = BatchIAMPermission("instance_ids", actions, resource_meta)
+        request = Mock(method="POST", data={"instance_ids": ["1", "2"]})
+
+        with self.assertRaises(PermissionDeniedError):
+            batch_permission.has_permission(request, Mock())
+
+        called_actions, denied_resources = permission_client.get_apply_data.call_args.args
+        self.assertEqual(called_actions, [ActionEnum.MANAGE_COLLECTION])
+        self.assertEqual([resource.id for resource in denied_resources], ["2"])
+
+    @patch("apps.iam.handlers.drf.Permission")
+    def test_batch_permission_without_actions_skips_iam_call(self, permission_class):
+        resource_meta = Mock()
+        resource_meta.create_instance.side_effect = lambda instance_id: Mock(id=instance_id)
+        batch_permission = BatchIAMPermission("instance_ids", [], resource_meta)
+        request = Mock(method="POST", data={"instance_ids": ["1"]})
+
+        self.assertTrue(batch_permission.has_permission(request, Mock()))
+
+        permission_class.return_value.batch_is_allowed.assert_not_called()
+
+    @patch("apps.iam.handlers.drf.Permission")
+    def test_batch_permission_reads_instance_ids_from_query_params_on_get(self, permission_class):
+        resource_meta = Mock()
+        resource_meta.create_instance.side_effect = lambda instance_id: Mock(id=instance_id)
+        permission_class.return_value.batch_is_allowed.return_value = {"1": {ActionEnum.VIEW_COLLECTION.id: True}}
+        batch_permission = BatchIAMPermission("instance_ids", [ActionEnum.VIEW_COLLECTION], resource_meta)
+        request = Mock(method="GET", query_params={"instance_ids": ["1"]})
+
+        self.assertTrue(batch_permission.has_permission(request, Mock()))
 
     @patch("apps.iam.handlers.drf.Permission")
     def test_insert_permission_field_uses_batch_facade_and_keeps_response_shape(self, permission_class):

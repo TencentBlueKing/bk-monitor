@@ -32,9 +32,9 @@ from django.conf import settings  # noqa
 from iam import Resource  # noqa
 from rest_framework import permissions  # noqa
 
-from ..exceptions import NotHaveInstanceIdError  # noqa
+from ..exceptions import NotHaveInstanceIdError, PermissionDeniedError  # noqa
 from . import Permission  # noqa
-from .actions import ActionEnum, ActionMeta  # noqa
+from .actions import ActionEnum, ActionMeta, get_action_by_id  # noqa
 from .resources import ResourceEnum, ResourceMeta  # noqa
 
 
@@ -190,7 +190,31 @@ class BatchIAMPermission(IAMPermission):
             raise NotHaveInstanceIdError
 
         self.resources = [self.resource_meta.create_instance(instance_id) for instance_id in instance_ids]
-        return super().has_permission(request, view)
+        if not self.actions:
+            return True
+
+        # 同类型的多个实例必须每个单独成组走批量鉴权：单点 is_allowed 的语义是
+        # “一个动作 + 一次判定所需的关联资源”，同类型资源在两代实现里都只会有一个参与求值
+        # （V4 取首个，V3 SDK 的 ObjectSet 按类型存放导致后者覆盖前者），
+        # 直接把列表塞进去会让列表中其余实例完全跳过校验。
+        client = Permission()
+        permission_result = client.batch_is_allowed(self.actions, [[resource] for resource in self.resources])
+        for action in self.actions:
+            action = get_action_by_id(action)
+            denied_resources = [
+                resource
+                for resource in self.resources
+                if not permission_result.get(str(resource.id), {}).get(action.id)
+            ]
+            if not denied_resources:
+                continue
+            apply_data, apply_url = client.get_apply_data([action], denied_resources)
+            raise PermissionDeniedError(
+                action_name=action.name,
+                apply_url=apply_url,
+                permission=apply_data,
+            )
+        return True
 
 
 def insert_permission_field(
