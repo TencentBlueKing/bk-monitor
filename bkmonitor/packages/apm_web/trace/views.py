@@ -33,7 +33,7 @@ from apm_web.trace.resources import (
 )
 
 from bkmonitor.iam import ActionEnum, ResourceEnum
-from bkmonitor.iam.drf import InstanceActionForDataPermission
+from bkmonitor.iam.drf import InstanceActionForDataPermission, ViewBusinessPermission
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
 
 
@@ -41,7 +41,8 @@ class TraceQueryViewSet(ResourceViewSet):
     INSTANCE_ID = "app_name"
 
     def get_permissions(self):
-        if self.action in ["trace_option_value", "trace_charts", "list_traces", "trace_detail"]:
+        data = self.request.query_params if self.request.method == "GET" else self.request.data
+        if data.get(self.INSTANCE_ID):
             return [
                 InstanceActionForDataPermission(
                     self.INSTANCE_ID,
@@ -50,7 +51,7 @@ class TraceQueryViewSet(ResourceViewSet):
                     get_instance_id=Application.get_application_id_by_app_name,
                 )
             ]
-        return []
+        return [ViewBusinessPermission()]
 
     resource_routes = [
         ResourceRoute(

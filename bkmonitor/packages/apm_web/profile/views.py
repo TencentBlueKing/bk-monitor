@@ -69,9 +69,15 @@ logger = logging.getLogger("root")
 class ProfileBaseViewSet(ViewSet):
     INSTANCE_ID = "app_name"
 
+    @staticmethod
+    def _is_global_query(value):
+        if isinstance(value, str):
+            return value.strip().lower() in ("true", "1")
+        return bool(value)
+
     def get_permissions(self):
-        # put auth here, but left empty for debugging
-        if self.action in []:
+        data = self.request.query_params if self.request.method == "GET" else self.request.data
+        if data.get(self.INSTANCE_ID) and not self._is_global_query(data.get("global_query")):
             return [
                 InstanceActionForDataPermission(
                     self.INSTANCE_ID,
@@ -80,7 +86,7 @@ class ProfileBaseViewSet(ViewSet):
                     get_instance_id=Application.get_application_id_by_app_name,
                 )
             ]
-        return []
+        return [ViewBusinessPermission()]
 
 
 class ProfileUploadViewSet(ProfileBaseViewSet):
@@ -144,9 +150,7 @@ class ProfileUploadViewSet(ProfileBaseViewSet):
         serializer = ProfileListFileSerializer(data=request.query_params)
         serializer.is_valid(raise_exception=True)
         validated_data = serializer.validated_data
-        filter_params = {}
-        if validated_data.get("bk_biz_id"):
-            filter_params["bk_biz_id"] = validated_data.get("bk_biz_id")
+        filter_params = {"bk_biz_id": validated_data["bk_biz_id"]}
         if validated_data.get("app_name"):
             filter_params["app_name"] = validated_data.get("app_name")
         if validated_data.get("origin_file_name"):
@@ -274,6 +278,7 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
         # - global storage, bk_biz_id/space_id level
         # - application storage, application level
         if validated_data["global_query"]:
+            self._examine_global_query_scope(validated_data)
             app_name = BUILTIN_APP_NAME
             service_name = app_name
             # TODO: fetch from apm api in the future
@@ -497,6 +502,20 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
         return start, end
 
     @staticmethod
+    def _examine_global_query_scope(validated_data):
+        bk_biz_id = validated_data["bk_biz_id"]
+        for key in ("profile_id", "diff_profile_id"):
+            if key not in validated_data:
+                continue
+            profile_id = validated_data[key]
+            if not profile_id:
+                if key == "diff_profile_id":
+                    continue
+                raise ValueError(_("全局查询需要指定 profile_id"))
+            if not ProfileUploadRecord.objects.filter(bk_biz_id=bk_biz_id, profile_id=profile_id).exists():
+                raise ValueError(_("上传记录({}) 不存在").format(profile_id))
+
+    @staticmethod
     def _examine_application(bk_biz_id: int, app_name: str) -> dict:
         """
         检查应用的 Profiling 功能是否可用
@@ -545,6 +564,7 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
             result_table_id=result_table_id,
             start=start,
             end=end,
+            profile_id=validated_data.get("profile_id"),
             extra_params={"limit": {"rows": limit}},
         )
 
@@ -581,6 +601,7 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
             result_table_id=result_table_id,
             start=start,
             end=end,
+            profile_id=validated_data.get("profile_id"),
         )
 
         return Response(data={"label_values": [i["label_value"] for i in results["list"] if i.get("label_value")]})

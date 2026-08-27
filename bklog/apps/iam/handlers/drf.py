@@ -191,7 +191,15 @@ class BatchIAMPermission(IAMPermission):
             raise NotHaveInstanceIdError
 
         self.resources = [self.resource_meta.create_instance(instance_id) for instance_id in instance_ids]
-        return super(BatchIAMPermission, self).has_permission(request, view)
+        client = Permission()
+        for action in self.actions:
+            for resource in self.resources:
+                client.is_allowed(
+                    action=action,
+                    resources=[resource],
+                    raise_exception=True,
+                )
+        return True
 
 
 def insert_permission_field(

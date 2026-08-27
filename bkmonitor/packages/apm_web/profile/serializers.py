@@ -79,10 +79,13 @@ class ProfileQueryExportSerializer(ProfileQuerySerializer):
 class ProfileQueryLabelsSerializer(QueryBaseSerializer):
     """Query Labels"""
 
+    profile_id = serializers.CharField(label="profile ID", required=False, default="")
+
 
 class ProfileQueryLabelValuesSerializer(QueryBaseSerializer):
     """Query Label Values"""
 
+    profile_id = serializers.CharField(label="profile ID", required=False, default="")
     label_key = serializers.CharField(label="标签Key")
     offset = serializers.IntegerField(label="偏移量(秒)", required=False, default=0)
     rows = serializers.IntegerField(label="返回数量", required=False, default=10)
@@ -108,7 +111,7 @@ class ProfileUploadRecordSLZ(serializers.ModelSerializer):
 
 
 class ProfileListFileSerializer(serializers.Serializer):
-    bk_biz_id = serializers.IntegerField(label="业务ID", required=False)
+    bk_biz_id = serializers.IntegerField(label="业务ID")
     app_name = serializers.CharField(label="应用名称", required=False)
     origin_file_name = serializers.CharField(label="上传文件名称", default="", required=False)
     service_name = serializers.CharField(label="服务名称", required=False)
