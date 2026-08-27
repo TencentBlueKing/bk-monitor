@@ -44,7 +44,8 @@ const PRIORITY_MIN = 1;
  * @param {Ref<null | SourceAnalysisRuleVo>} detail - 规则详情响应式引用
  * @returns {{
  *   errors: ShallowRef<Record<string, string>>;
- *   clearError: (key: string) => void;
+ *   clearErrorByKey: (key: string) => void;
+ *   resetErrors: () => void;
  *   validate: () => boolean;
  * }} 校验状态与方法集合
  */
@@ -58,11 +59,19 @@ export const useRuleVerification = (detail: Ref<null | SourceAnalysisRuleVo>) =>
    * @description 清除指定字段的校验错误
    * @param {string} key - ErrorKeyEnum 对应的字段 key
    */
-  const clearError = (key: string) => {
+  const clearErrorByKey = (key: string) => {
     if (!errors.value[key]) return;
     const nextErrors = { ...errors.value };
     delete nextErrors[key];
     errors.value = nextErrors;
+  };
+
+  /**
+   * @description 清空全部校验错误
+   */
+  const resetErrors = () => {
+    if (!Object.keys(errors.value).length) return;
+    errors.value = {};
   };
 
   /**
@@ -102,7 +111,8 @@ export const useRuleVerification = (detail: Ref<null | SourceAnalysisRuleVo>) =>
 
   return {
     errors,
-    clearError,
+    clearErrorByKey,
+    resetErrors,
     validate,
   };
 };
