@@ -7,7 +7,7 @@ import os
 import sys
 import threading
 import time
-from collections import Counter, defaultdict
+from collections import defaultdict
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
@@ -189,23 +189,23 @@ def _threshold_groups(config) -> list[dict]:
     return result
 
 
-def _identity_fields(item, records: Sequence) -> list[str]:
-    schemas = Counter()
-    for record in records:
-        try:
-            schemas[tuple(sorted(record.clean_dimension_fields()))] += 1
-        except Exception:
-            continue
-    if schemas:
-        # One malformed or exceptional record must not choose the contract for
-        # every sibling. Ties are deterministic.
-        count = max(schemas.values())
-        return list(min(schema for schema, frequency in schemas.items() if frequency == count))
+def _fallback_identity_fields(item) -> list[str]:
     dimensions = getattr(getattr(item, "query", None), "dimensions", None)
     if dimensions is None:
         query_configs = getattr(item, "query_configs", None) or []
         dimensions = query_configs[0].get("agg_dimension", []) if query_configs else []
     return sorted(set(dimensions or []))
+
+
+def _record_identity_schema(record) -> tuple[str, ...]:
+    fields = record.clean_dimension_fields()
+    if not isinstance(fields, Sequence) or isinstance(fields, (str, bytes)):
+        raise AccessV2BuildError("record identity fields must be an array")
+    if any(not isinstance(field, str) or not field for field in fields):
+        raise AccessV2BuildError("record identity fields must be non-empty strings")
+    if len(set(fields)) != len(fields):
+        raise AccessV2BuildError("record identity fields must be unique")
+    return tuple(sorted(fields))
 
 
 def _projection(item, identity_fields: list[str]) -> dict:
@@ -443,7 +443,7 @@ def apply_access_batch_context(processor, context: Mapping | None) -> None:
 def _record_snapshot(
     record, *, tenant_id: str, business_id: str, identity_fields: list[str], received_time: int
 ) -> dict:
-    if sorted(record.clean_dimension_fields()) != identity_fields:
+    if list(_record_identity_schema(record)) != identity_fields:
         raise AccessV2BuildError("record identity schema conflicts with Dataset Contract")
     dimensions = dict(record.data.get("dimensions") or {})
     if any(isinstance(value, (dict, list, tuple)) for value in dimensions.values()):
@@ -474,7 +474,87 @@ def _record_snapshot(
     }
 
 
-def build_access_publish_job(processor, records: Sequence, *, received_time: int | None = None) -> AccessPublishJob:
+def build_access_publish_jobs(
+    processor, records: Sequence, *, received_time: int | None = None
+) -> tuple[AccessPublishJob, ...]:
+    """Build self-contained Dataset jobs for contiguous exact-schema runs.
+
+    All jobs retain the source QueryExecution identity and full Plan
+    membership. Each Plan projection is compiled against its Dataset schema,
+    so its Plan Set digest is intentionally Dataset-specific. Contiguous runs
+    preserve source order when schemas are interleaved.
+    """
+    received_time = int(time.time()) if received_time is None else int(received_time)
+    effective_records = records
+    query_result = getattr(processor, "alarmd_v2_query_result", None) or {}
+    first_item = processor.items[0] if processor.items else None
+    parent_source_digest = getattr(processor, "alarmd_v2_source_config_digest", None)
+    if query_result.get("completeness") == QUERY_UNAVAILABLE or (
+        parent_source_digest and parent_source_digest != access_source_config_digest(processor)
+    ):
+        effective_records = []
+
+    dataset_groups: list[tuple[tuple[str, ...], list]] = []
+    invalid_record_count = 0
+    first_invalid_ordinal = None
+    for ordinal, record in enumerate(effective_records):
+        try:
+            identity_fields = _record_identity_schema(record)
+        except Exception:
+            invalid_record_count += 1
+            if first_invalid_ordinal is None:
+                first_invalid_ordinal = ordinal
+            continue
+        if not dataset_groups or dataset_groups[-1][0] != identity_fields:
+            dataset_groups.append((identity_fields, []))
+        dataset_groups[-1][1].append(record)
+    if not dataset_groups:
+        dataset_groups.append((tuple(_fallback_identity_fields(first_item)), []))
+
+    identity_schema_count = len({identity_fields for identity_fields, _records in dataset_groups})
+
+    if invalid_record_count:
+        _record_stage("dropped")
+        logger.warning(
+            "[alarmd shadow] component=alarmd-python stage=access_v2 result=coverage_gap "
+            "reason=RECORD_IDENTITY_INVALID execution_id=%s query_group_key=%s "
+            "identity_schemas=%s records=%s first_record_ordinal=%s",
+            processor.alarmd_v2_execution_id,
+            processor.strategy_group_key,
+            identity_schema_count,
+            invalid_record_count,
+            first_invalid_ordinal,
+        )
+
+    if len(dataset_groups) > 1:
+        logger.info(
+            "[alarmd shadow] component=alarmd-python stage=access_v2 result=split "
+            "execution_id=%s query_group_key=%s datasets=%s identity_schemas=%s records=%s",
+            processor.alarmd_v2_execution_id,
+            processor.strategy_group_key,
+            len(dataset_groups),
+            identity_schema_count,
+            sum(len(group) for _identity_fields, group in dataset_groups),
+        )
+
+    return tuple(
+        _build_access_publish_job(
+            processor,
+            group,
+            received_time=received_time,
+            identity_fields=list(identity_fields),
+        )
+        for identity_fields, group in dataset_groups
+    )
+
+
+def _build_access_publish_job(
+    processor,
+    records: Sequence,
+    *,
+    received_time: int,
+    identity_fields: list[str],
+) -> AccessPublishJob:
     if not processor.items:
         raise AccessV2BuildError("Query Group has no item")
     query_result = copy.deepcopy(getattr(processor, "alarmd_v2_query_result", None))
@@ -494,17 +574,18 @@ def build_access_publish_job(processor, records: Sequence, *, received_time: int
         for item in processor.items
     ):
         raise AccessV2BuildError("one Query Group must contain one tenant and business")
-    identity_fields = _identity_fields(first_item, records)
     query_window = max(0, int(processor.until_timestamp) - int(processor.from_timestamp))
     plan_set, selection_item_ids, terminal_reasons = _build_plan_set(processor.items, identity_fields, query_window)
     if terminal_reasons:
         _record_stage("dropped")
         logger.warning(
-            "[alarmd shadow] component=alarmd-python stage=access_v2 result=coverage_gap reason=%s plans=%s",
+            "[alarmd shadow] component=alarmd-python stage=access_v2 result=coverage_gap "
+            "reason=%s execution_id=%s query_group_key=%s plans=%s",
             terminal_reasons[0],
+            processor.alarmd_v2_execution_id,
+            processor.strategy_group_key,
             len(terminal_reasons),
         )
-    received_time = int(time.time()) if received_time is None else int(received_time)
     valid_records = []
     record_snapshots = []
     invalid_record_count = 0
@@ -529,7 +610,10 @@ def build_access_publish_job(processor, records: Sequence, *, received_time: int
         _record_stage("dropped")
         logger.warning(
             "[alarmd shadow] component=alarmd-python stage=access_v2 result=coverage_gap "
-            "reason=RECORD_IDENTITY_CONFLICT records=%s first_record_ordinal=%s",
+            "reason=RECORD_INVALID execution_id=%s query_group_key=%s "
+            "records=%s first_record_ordinal=%s",
+            processor.alarmd_v2_execution_id,
+            processor.strategy_group_key,
             invalid_record_count,
             first_invalid_ordinal,
         )
@@ -596,32 +680,49 @@ class KafkaExecutionEnvelopePublisher:
             producer_scope="access-v2",
         )
 
-    def publish(self, job: AccessPublishJob) -> AccessPublishEvidence:
-        try:
-            messages, drops = build_execution_messages(
-                job,
-                max_records=self.max_records,
-                max_envelope_bytes=self.max_envelope_bytes,
-            )
-        except PlanSetTooLarge as error:
+    def publish(self, jobs: Sequence[AccessPublishJob]) -> AccessPublishEvidence:
+        jobs = tuple(jobs)
+        if not jobs:
             raise AccessV2PublishError(
-                "alarmd v2 complete Plan Set exceeds one message",
-                _fully_dropped_evidence(job.record_count),
-                reason_code="MESSAGE_BUDGET_EXCEEDED",
-            ) from error
-        except AccessV2WriterError as error:
-            raise AccessV2PublishError(
-                "alarmd v2 message planning failed",
-                _fully_dropped_evidence(job.record_count),
+                "alarmd v2 publish requires at least one Dataset",
+                _fully_dropped_evidence(0),
                 reason_code="PLAN_INVALID",
-            ) from error
+            )
+        messages = []
+        drops = []
+        first_drop_dataset = None
+        total_records = sum(job.record_count for job in jobs)
+        for dataset_ordinal, job in enumerate(jobs):
+            try:
+                job_messages, job_drops = build_execution_messages(
+                    job,
+                    max_records=self.max_records,
+                    max_envelope_bytes=self.max_envelope_bytes,
+                )
+            except PlanSetTooLarge as error:
+                raise AccessV2PublishError(
+                    "alarmd v2 complete Plan Set exceeds one message",
+                    _fully_dropped_evidence(total_records),
+                    reason_code="MESSAGE_BUDGET_EXCEEDED",
+                ) from error
+            except AccessV2WriterError as error:
+                raise AccessV2PublishError(
+                    "alarmd v2 message planning failed",
+                    _fully_dropped_evidence(total_records),
+                    reason_code="PLAN_INVALID",
+                ) from error
+            messages.extend(job_messages)
+            if job_drops and first_drop_dataset is None:
+                first_drop_dataset = dataset_ordinal
+            drops.extend(job_drops)
         if drops:
             _record_stage("dropped")
             logger.warning(
                 "[alarmd shadow] component=alarmd-python stage=access_v2 result=coverage_gap "
-                "reason=%s records=%s first_record_ordinal=%s",
+                "reason=%s records=%s first_dataset_ordinal=%s first_record_ordinal=%s",
                 drops[0].reason_code,
                 len(drops),
+                first_drop_dataset,
                 drops[0].record_ordinal,
             )
         receipt = KafkaPublishReceipt()
@@ -732,13 +833,15 @@ def _new_async_publisher() -> BoundedAccessShadowPublisher:
         nonlocal kafka_publisher
         started = time.monotonic()
         try:
-            job = build_access_publish_job(source, source.records)
+            jobs = build_access_publish_jobs(source, source.records)
             _record_stage("built")
         except Exception:
             _record_stage("dropped")
             logger.exception(
                 "[alarmd shadow] component=alarmd-python stage=access_v2 result=coverage_gap "
-                "reason=PLAN_INVALID duration_ms=%s",
+                "reason=PLAN_INVALID execution_id=%s query_group_key=%s duration_ms=%s",
+                source.alarmd_v2_execution_id,
+                source.strategy_group_key,
                 max(0, round((time.monotonic() - started) * 1000)),
             )
             return
@@ -748,17 +851,21 @@ def _new_async_publisher() -> BoundedAccessShadowPublisher:
                     shadow_kafka_config(settings.ALARMD_V2_SHADOW_KAFKA_CONFIG),
                     shadow_topics(settings.ALARMD_V2_SHADOW_ALLOWED_TOPICS),
                 )
-            publish_evidence = kafka_publisher.publish(job)
+            publish_evidence = kafka_publisher.publish(jobs)
         except AccessV2PublishError as error:
             if error.evidence.acked_messages:
                 _record_stage("acked", error.evidence.acked_records)
             _record_stage("dropped")
             logger.exception(
                 "[alarmd shadow] component=alarmd-python stage=access_v2 result=fail_open "
-                "reason=%s planned_messages=%s planned_records=%s planned_bytes=%s "
+                "reason=%s execution_id=%s query_group_key=%s datasets=%s "
+                "planned_messages=%s planned_records=%s planned_bytes=%s "
                 "published_messages=%s published_records=%s published_bytes=%s "
                 "acked_messages=%s acked_records=%s acked_bytes=%s dropped_records=%s duration_ms=%s",
                 error.reason_code,
+                source.alarmd_v2_execution_id,
+                source.strategy_group_key,
+                len(jobs),
                 error.evidence.planned_messages,
                 error.evidence.planned_records,
                 error.evidence.planned_bytes,
@@ -776,14 +883,21 @@ def _new_async_publisher() -> BoundedAccessShadowPublisher:
             _record_stage("dropped")
             logger.exception(
                 "[alarmd shadow] component=alarmd-python stage=access_v2 result=fail_open "
-                "reason=KAFKA_UNAVAILABLE duration_ms=%s",
+                "reason=KAFKA_UNAVAILABLE execution_id=%s query_group_key=%s datasets=%s duration_ms=%s",
+                source.alarmd_v2_execution_id,
+                source.strategy_group_key,
+                len(jobs),
                 max(0, round((time.monotonic() - started) * 1000)),
             )
         else:
             _record_stage("acked", publish_evidence.acked_records)
             logger.info(
                 "[alarmd shadow] component=alarmd-python stage=access_v2 result=acked "
+                "execution_id=%s query_group_key=%s datasets=%s "
                 "messages=%s records=%s bytes=%s dropped_records=%s duration_ms=%s",
+                source.alarmd_v2_execution_id,
+                source.strategy_group_key,
+                len(jobs),
                 publish_evidence.acked_messages,
                 publish_evidence.acked_records,
                 publish_evidence.acked_bytes,
