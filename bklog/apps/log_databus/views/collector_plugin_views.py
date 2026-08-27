@@ -6,6 +6,7 @@ from apps.generic import ModelViewSet
 from apps.iam import ActionEnum, ResourceEnum
 from apps.iam.handlers.drf import (
     BusinessActionPermission,
+    IAMPermission,
     InstanceActionForDataPermission,
     insert_permission_field,
 )
@@ -40,11 +41,15 @@ class RequireBizActionPermission(BusinessActionPermission):
         self.allow_public_object_via_request_biz = allow_public_object_via_request_biz
         super(RequireBizActionPermission, self).__init__(actions)
 
-    def _parse_biz_id(self, value):
+    @staticmethod
+    def parse_biz_id(value):
         try:
             return int(value)
         except (TypeError, ValueError):
             return 0
+
+    def _parse_biz_id(self, value):
+        return self.parse_biz_id(value)
 
     def _is_privileged(self, request):
         user = getattr(request, "user", None)
@@ -70,7 +75,9 @@ class RequireBizActionPermission(BusinessActionPermission):
         if request_biz_id and request_biz_id != obj_biz_id:
             return False
         self.resources = [ResourceEnum.BUSINESS.create_instance(obj_biz_id)]
-        return super(BusinessActionPermission, self).has_object_permission(request, view, obj)
+        # 不得走 IAMPermission.has_object_permission：它会回调 self.has_permission()，
+        # 更新/删除在请求缺少业务 ID 时会直接 True，IAM 不会被调用。
+        return IAMPermission.has_permission(self, request, view)
 
 
 class RequireBizViewBusinessPermission(RequireBizActionPermission):
@@ -128,13 +135,9 @@ class CollectorPluginViewSet(ModelViewSet):
         qs = super(CollectorPluginViewSet, self).get_queryset()
         if self.action != "list":
             return qs
-        bk_biz_id = self.request.query_params.get("bk_biz_id")
-        if bk_biz_id in (None, ""):
-            bk_biz_id = self.request.data.get("bk_biz_id")
-        try:
-            bk_biz_id = int(bk_biz_id) if bk_biz_id not in (None, "") else 0
-        except (TypeError, ValueError):
-            return qs.none()
+        bk_biz_id = RequireBizActionPermission.parse_biz_id(
+            RequireBizActionPermission.fetch_biz_id_by_request(self.request)
+        )
         # 业务列表可见公共插件（bk_biz_id=0）；超管显式查询 0 时只返回全局插件。
         if bk_biz_id > 0:
             return qs.filter(bk_biz_id__in=[0, bk_biz_id])

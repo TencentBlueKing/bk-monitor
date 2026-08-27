@@ -44,12 +44,31 @@ class TestRequireBizActionPermission(TestCase):
         request = SimpleNamespace(data={}, query_params={}, user=SimpleNamespace(is_superuser=False))
         self.assertFalse(perm.has_permission(request, None))
 
-    def test_update_without_request_biz_defers_to_object_permission(self):
+    def test_update_business_plugin_without_request_biz_calls_iam(self):
         perm = RequireBizActionPermission([ActionEnum.CREATE_COLLECTION])
         request = SimpleNamespace(data={}, query_params={}, user=SimpleNamespace(is_superuser=False))
         view = SimpleNamespace(action="update")
+        obj = SimpleNamespace(bk_biz_id=2)
         self.assertTrue(perm.has_permission(request, view))
-        self.assertFalse(perm.has_object_permission(request, view, SimpleNamespace(bk_biz_id=0)))
+        with patch("apps.iam.handlers.drf.settings") as settings, patch("apps.iam.handlers.drf.Permission") as perm_cls:
+            settings.IGNORE_IAM_PERMISSION = False
+            perm_cls.return_value.is_allowed.side_effect = RuntimeError("iam denied")
+            with self.assertRaises(RuntimeError):
+                perm.has_object_permission(request, view, obj)
+            perm_cls.return_value.is_allowed.assert_called_once()
+            self.assertEqual(perm.resources[0].id, "2")
+
+    def test_destroy_business_plugin_without_request_biz_allows_when_iam_grants(self):
+        perm = RequireBizActionPermission([ActionEnum.CREATE_COLLECTION])
+        request = SimpleNamespace(data={}, query_params={}, user=SimpleNamespace(is_superuser=False))
+        view = SimpleNamespace(action="destroy")
+        obj = SimpleNamespace(bk_biz_id=2)
+        with patch("apps.iam.handlers.drf.settings") as settings, patch("apps.iam.handlers.drf.Permission") as perm_cls:
+            settings.IGNORE_IAM_PERMISSION = False
+            perm_cls.return_value.is_allowed.return_value = True
+            self.assertTrue(perm.has_object_permission(request, view, obj))
+            perm_cls.return_value.is_allowed.assert_called_once()
+            self.assertEqual(perm.resources[0].id, "2")
 
     def test_deny_zero_biz_id(self):
         perm = RequireBizActionPermission([ActionEnum.CREATE_COLLECTION])
@@ -185,6 +204,32 @@ class TestCollectorPluginViewSetQueryset(TestCase):
             result = view.get_queryset()
         self.assertEqual(len(result), 1)
         self.assertEqual(result.items[0].bk_biz_id, 2)
+
+    def test_list_query_and_body_use_the_same_biz_id(self):
+        view = CollectorPluginViewSet()
+        view.action = "list"
+        view.request = SimpleNamespace(
+            query_params={"bk_biz_id": "3"},
+            data={"bk_biz_id": 2},
+            user=SimpleNamespace(is_superuser=False),
+        )
+        qs = _QuerySet(
+            [
+                SimpleNamespace(bk_biz_id=0),
+                SimpleNamespace(bk_biz_id=2),
+                SimpleNamespace(bk_biz_id=3),
+            ]
+        )
+        with patch.object(ModelViewSet, "get_queryset", return_value=qs):
+            result = view.get_queryset()
+        self.assertEqual(sorted(item.bk_biz_id for item in result.items), [0, 2])
+
+        perm = view.get_permissions()[0]
+        with patch("apps.iam.handlers.drf.settings") as settings, patch("apps.iam.handlers.drf.Permission") as perm_cls:
+            settings.IGNORE_IAM_PERMISSION = False
+            perm_cls.return_value.is_allowed.return_value = True
+            self.assertTrue(perm.has_permission(view.request, view))
+            self.assertEqual(perm.resources[0].id, "2")
 
     def test_instances_uses_create_collection_on_request_biz(self):
         view = CollectorPluginViewSet()
