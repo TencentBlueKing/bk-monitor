@@ -62,8 +62,6 @@ def test_detect_push_data_defers_signal_and_records_items_when_enabled(mocker):
         "trim_item_check_results_if_trigger_idle",
         create=True,
     )
-    mocker.patch.object(processor, "prepare_alarmd_detection_batches", return_value=[])
-    mocker.patch.object(processor, "publish_alarmd_detection_batches")
     mocker.patch.object(detect_process, "metrics")
 
     processor.push_data()
@@ -81,8 +79,6 @@ def test_detect_push_data_publishes_signal_and_records_no_inline_items_when_disa
     processor.strategy = mocker.MagicMock(items=[mocker.MagicMock(id=1)])
     mocker.patch.object(detect_process.settings, "ENABLE_DETECT_INLINE_TRIGGER", False)
     push_abnormal_data = mocker.patch.object(processor, "push_abnormal_data", return_value=1)
-    mocker.patch.object(processor, "prepare_alarmd_detection_batches", return_value=[])
-    mocker.patch.object(processor, "publish_alarmd_detection_batches")
     mocker.patch.object(detect_process, "metrics")
 
     processor.push_data()
@@ -146,6 +142,7 @@ def test_detect_process_runs_inline_trigger_after_detect_lock_is_released(mocker
 
     mocker.patch.object(detect_process, "service_lock", side_effect=detect_lock)
     mocker.patch.object(detect_process.metrics, "DETECT_PROCESS_TIME")
+
     def assert_lock_released():
         assert lock_state["active"] is False
 

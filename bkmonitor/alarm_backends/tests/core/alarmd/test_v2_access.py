@@ -249,7 +249,11 @@ def test_multiple_items_terminalize_only_affected_plan_and_keep_sibling():
 
     plans = envelope["plan_set"]["evaluation_plans"]
     assert [plan["plan_id"] for plan in plans] == ["1001", "1002"]
-    assert plans[0]["strategy_ir"]["levels"][0]["detect_plan"]["algorithms"][0]["type"] == ("M1UnsupportedPlan")
+    assert plans[0] == {
+        "plan_id": "1001",
+        "strategy_ref": plans[0]["strategy_ref"],
+        "terminal_reason_code": "MULTIPLE_EVALUATION_UNITS_UNSUPPORTED",
+    }
     assert envelope["selectors"][0]["selector"]["ranges"] == [{"start": 0, "end": 1}]
     assert envelope["selectors"][1]["selector"]["ranges"] == [{"start": 0, "end": 1}]
 
@@ -282,10 +286,12 @@ def test_single_item_terminal_plan_keeps_original_selection_for_receipt_conserva
 
     assert job.selections == ((True,),)
     assert envelope["selectors"][0]["selector"]["ranges"] == [{"start": 0, "end": 1}]
-    assert (
-        envelope["plan_set"]["evaluation_plans"][0]["strategy_ir"]["levels"][0]["detect_plan"]["algorithms"][0]["type"]
-        == "M1UnsupportedPlan"
-    )
+    assert envelope["plan_set"]["evaluation_plans"][0]["terminal_reason_code"] == "PLAN_INVALID"
+    assert set(envelope["plan_set"]["evaluation_plans"][0]) == {
+        "plan_id",
+        "strategy_ref",
+        "terminal_reason_code",
+    }
 
 
 def test_record_identity_schema_conflict_isolates_only_that_record():
@@ -385,8 +391,7 @@ def test_submit_only_enqueues_source_reference_without_running_builder(mocker):
             return True
 
     publisher = StubPublisher()
-    mocker.patch.object(v2_access.settings, "ALARMD_SHADOW_ENABLED", True, create=True)
-    mocker.patch.object(v2_access.settings, "ALARMD_V2_SHADOW_WRITER_ENABLED", True, create=True)
+    mocker.patch.object(v2_access.settings, "ALARMD_SHADOW_ENABLED", True)
     mocker.patch.object(v2_access, "_publisher", publisher)
     mocker.patch.object(v2_access, "_publisher_pid", os.getpid())
     mocker.patch.object(v2_access, "_record_stage")

@@ -26,10 +26,10 @@ def test_async_publisher_is_bounded_and_fail_open():
     publisher = async_publish.AsyncShadowPublisher(max_jobs=1, run_job=run_job)
     with mock.patch.object(async_publish, "record_shadow_async_job"):
         try:
-            assert publisher.submit("detect_input", ({"batch_id": "first"},))
+            assert publisher.submit("reference", ({"batch_id": "first"},))
             assert started.wait(1)
-            assert publisher.submit("detect_input", ({"batch_id": "second"},))
-            assert not publisher.submit("detect_input", ({"batch_id": "dropped"},))
+            assert publisher.submit("reference", ({"batch_id": "second"},))
+            assert not publisher.submit("reference", ({"batch_id": "dropped"},))
         finally:
             release.set()
             publisher.close()
@@ -39,6 +39,12 @@ def test_async_publisher_accepts_numeric_string_queue_size():
     publisher = async_publish.AsyncShadowPublisher(max_jobs="16")
 
     assert publisher._queue.maxsize == 16
+
+
+def test_async_publisher_rejects_unknown_operation():
+    publisher = async_publish.AsyncShadowPublisher(max_jobs=1, run_job=mock.Mock())
+
+    assert not publisher.submit("unknown", ({"batch_id": "one"},))
 
 
 def test_async_publisher_continues_after_one_job_fails():
@@ -74,12 +80,12 @@ def test_async_publisher_logs_terminal_ack(caplog):
 
     publisher = async_publish.AsyncShadowPublisher(max_jobs=1, run_job=run_job)
     try:
-        assert publisher.submit("detect_input", ({"batch_id": "one"},))
+        assert publisher.submit("reference", ({"batch_id": "one"},))
         assert completed.wait(1)
     finally:
         publisher.close()
 
-    assert "stage=detect_input result=broker_ack operation=async_worker records=3" in caplog.text
+    assert "stage=reference result=broker_ack operation=async_worker records=3" in caplog.text
 
 
 def test_async_publisher_rejects_a_job_over_the_full_payload_limit():
@@ -87,22 +93,22 @@ def test_async_publisher_rejects_a_job_over_the_full_payload_limit():
     publisher = async_publish.AsyncShadowPublisher(max_jobs=1, run_job=run_job)
     with mock.patch.object(async_publish, "record_shadow_async_job") as record:
         assert not publisher.submit(
-            "detect_input",
+            "reference",
             ({"payload": "x" * async_publish.MAX_ASYNC_JOB_BYTES},),
         )
 
     run_job.assert_not_called()
-    record.assert_called_once_with("detect_input", async_publish.ASYNC_STATUS_DROPPED)
+    record.assert_called_once_with("reference", async_publish.ASYNC_STATUS_DROPPED)
 
 
 def test_async_publisher_fails_open_when_payload_cannot_be_encoded():
     run_job = mock.Mock()
     publisher = async_publish.AsyncShadowPublisher(max_jobs=1, run_job=run_job)
     with mock.patch.object(async_publish, "record_shadow_async_job") as record:
-        assert not publisher.submit("detect_input", ({"payload": object()},))
+        assert not publisher.submit("reference", ({"payload": object()},))
 
     run_job.assert_not_called()
-    record.assert_called_once_with("detect_input", async_publish.ASYNC_STATUS_DROPPED)
+    record.assert_called_once_with("reference", async_publish.ASYNC_STATUS_DROPPED)
 
 
 def test_celery_process_shutdown_reports_pending_jobs(monkeypatch, caplog):
@@ -132,8 +138,8 @@ def test_global_publisher_is_recreated_after_fork(monkeypatch):
     monkeypatch.setattr(async_publish, "_publisher", None)
     monkeypatch.setattr(async_publish, "_publisher_pid", None)
     monkeypatch.setattr(async_publish.os, "getpid", mock.Mock(side_effect=[100, 101]))
-    assert async_publish.submit_shadow_job("detect_input", ({"batch_id": "one"},), max_jobs=3)
-    assert async_publish.submit_shadow_job("detect_input", ({"batch_id": "two"},), max_jobs=3)
+    assert async_publish.submit_shadow_job("reference", ({"batch_id": "one"},), max_jobs=3)
+    assert async_publish.submit_shadow_job("reference", ({"batch_id": "two"},), max_jobs=3)
     assert created == [3, 3]
 
 
@@ -144,7 +150,7 @@ def test_submit_shadow_job_rate_limits_repeated_initialize_failure(monkeypatch, 
     monkeypatch.setattr(async_publish, "_last_initialize_failure_log", 0.0, raising=False)
 
     with mock.patch.object(async_publish.time, "monotonic", side_effect=[100.0, 101.0]):
-        assert not async_publish.submit_shadow_job("detect_input", ({"batch_id": "one"},), max_jobs="invalid")
-        assert not async_publish.submit_shadow_job("detect_input", ({"batch_id": "two"},), max_jobs="invalid")
+        assert not async_publish.submit_shadow_job("reference", ({"batch_id": "one"},), max_jobs="invalid")
+        assert not async_publish.submit_shadow_job("reference", ({"batch_id": "two"},), max_jobs="invalid")
 
     assert caplog.text.count("operation=async_initialize") == 1
