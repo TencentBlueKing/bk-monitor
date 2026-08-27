@@ -201,11 +201,6 @@ export default defineComponent({
           skillSelect.reset();
           return;
         }
-        // 规则只保存资源 id，选择器需要全量选项才能把已选 id 回填成名称与所属空间，
-        // 因此弹窗一打开就预加载，而不是等下拉展开时才请求。
-        agentSelect.ensureLoaded();
-        knowledgeBaseSelect.ensureLoaded();
-        skillSelect.ensureLoaded();
         if (isEdit.value && props.ruleId) {
           fetchDetail(props.ruleId);
         } else {
@@ -345,6 +340,9 @@ export default defineComponent({
                     modelValue={detail.value?.agent_id || undefined}
                     multiple={false}
                     options={agentSelect.list.value}
+                    scrollLoading={agentSelect.scrollLoading.value}
+                    onScroll-end={agentSelect.handleScrollEnd}
+                    onSearch-change={agentSelect.handleSearch}
                     onToggle={agentSelect.handleToggle}
                     onUpdate:modelValue={(val: string) => {
                       setResourceIds(AiResourceEnum.AGENT, val);
@@ -376,7 +374,10 @@ export default defineComponent({
                     multiple={true}
                     multipleMode='tag'
                     options={knowledgeBaseSelect.list.value}
+                    scrollLoading={knowledgeBaseSelect.scrollLoading.value}
                     selectedStyle='checkbox'
+                    onScroll-end={knowledgeBaseSelect.handleScrollEnd}
+                    onSearch-change={knowledgeBaseSelect.handleSearch}
                     onToggle={knowledgeBaseSelect.handleToggle}
                     onUpdate:modelValue={(val: string[]) => {
                       setResourceIds(AiResourceEnum.KNOWLEDGE_BASE, val);
@@ -408,7 +409,10 @@ export default defineComponent({
                     multiple={true}
                     multipleMode='tag'
                     options={skillSelect.list.value}
+                    scrollLoading={skillSelect.scrollLoading.value}
                     selectedStyle='checkbox'
+                    onScroll-end={skillSelect.handleScrollEnd}
+                    onSearch-change={skillSelect.handleSearch}
                     onToggle={skillSelect.handleToggle}
                     onUpdate:modelValue={(val: string[]) => {
                       setResourceIds(AiResourceEnum.SKILL, val);

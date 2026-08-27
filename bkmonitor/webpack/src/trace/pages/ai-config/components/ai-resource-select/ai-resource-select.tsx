@@ -34,10 +34,8 @@ import './ai-resource-select.scss';
 
 /**
  * @description 资源选择器（智能体 / 知识库 / Skill 通用）
- * 仅封装 Select 本体：本地搜索、选项渲染（名称 + 所属空间）、底部「新增」操作栏。
+ * 仅封装 Select 本体：远程搜索、滚动加载、选项渲染（名称 + 所属空间）、底部「新增」操作栏。
  * 通过具体 props 接收数据与事件，不依赖具体的 composable 实例；表单包裹由父组件负责。
- *
- * 选项接口不分页，一次返回全部可见资源，因此搜索直接交给 Select 内置的本地过滤。
  */
 export default defineComponent({
   name: 'AiResourceSelect',
@@ -62,6 +60,11 @@ export default defineComponent({
       type: Boolean,
       default: false,
     },
+    /** 滚动加载更多中 */
+    scrollLoading: {
+      type: Boolean,
+      default: false,
+    },
     /** 底部操作栏文案，如「新增智能体」 */
     footerText: {
       type: String,
@@ -83,7 +86,7 @@ export default defineComponent({
       default: 'check',
     },
   },
-  emits: ['update:modelValue', 'toggle'],
+  emits: ['update:modelValue', 'scroll-end', 'search-change', 'toggle'],
   setup() {
     const { t } = useI18n();
 
@@ -108,6 +111,7 @@ export default defineComponent({
       <Select
         class='ai-resource-select'
         customContent={this.loading}
+        filterOption={() => true}
         loading={this.loading}
         modelValue={this.modelValue}
         multiple={this.multiple}
@@ -115,8 +119,11 @@ export default defineComponent({
         noDataText={this.t('无数据')}
         placeholder={this.placeholder || this.t('请选择')}
         popoverOptions={{ extCls: 'ai-resource-select-popover' }}
+        scrollLoading={this.scrollLoading}
         selectedStyle={this.selectedStyle}
         filterable
+        onScroll-end={() => this.$emit('scroll-end')}
+        onSearch-change={(val: string) => this.$emit('search-change', val)}
         onToggle={(val: boolean) => this.$emit('toggle', val)}
         onUpdate:modelValue={(val: string | string[]) => this.$emit('update:modelValue', val)}
       >

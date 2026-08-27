@@ -36,10 +36,16 @@ export type AiResourceOption = {
   space_name?: string;
 };
 
-/** 资源下拉查询返回结果，接口不分页，一次返回当前用户全部可见资源 */
+/** 资源下拉查询参数 */
+export type AiResourceParams = {
+  keyword?: string;
+  page: number;
+  page_size: number;
+};
+
+/** 资源下拉查询返回结果 */
 export type AiResourceResult = {
   list: AiResourceOption[];
-  /** 总数，等于 list 长度 */
   total: number;
 };
 

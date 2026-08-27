@@ -25,65 +25,104 @@
  */
 import { onScopeDispose, shallowRef } from 'vue';
 
-import type { AiResourceOption, AiResourceResult } from '../typings';
+import { debounce } from 'lodash';
+
+import type { AiResourceOption, AiResourceParams, AiResourceResult } from '../typings';
+
+/** 每页加载数量 */
+const PAGE_SIZE = 20;
 
 /** 资源下拉查询 API 函数签名 */
-type AiResourceApiFn = () => Promise<AiResourceResult>;
+type AiResourceApiFn = (params: AiResourceParams) => Promise<AiResourceResult>;
 
 /**
- * @description 流程实例参数资源下拉选择数据加载逻辑
+ * @description 流程实例参数资源下拉选择数据加载逻辑（支持远程搜索 + 滚动加载）
  * 通用工厂：传入不同的查询 API（智能体 / Skill / 知识库），复用同一套下拉数据加载策略。
- *
- * 接口一次返回当前用户全部可见资源，不分页：规则只保存资源 id，编辑态需要用 id 反查名称与
- * 所属空间做回填，分页会让已选资源落在未加载的页里而无法回填。搜索交由 Select 本地过滤。
  */
 export function useAiResourceSelect(apiFn: AiResourceApiFn) {
-  /** 全量选项列表 */
+  /** 累积的选项列表 */
   const list = shallowRef<AiResourceOption[]>([]);
-  /** 加载态 */
+  /** 首次/搜索中加载态 */
   const loading = shallowRef(false);
-  /** 是否已加载过，避免每次展开下拉都重复请求全量数据 */
-  const loaded = shallowRef(false);
+  /** 滚动加载中 */
+  const scrollLoading = shallowRef(false);
+  /** 是否还有更多数据 */
+  const hasMore = shallowRef(true);
+  /** 当前页码 */
+  const page = shallowRef(1);
+  /** 当前搜索关键词 */
+  const keyword = shallowRef('');
+  /** 标记 Select 下拉面板是否处于展开状态，用于控制搜索时是否触发请求 */
+  const isToggle = shallowRef(false);
   /** 当前请求的 AbortController，用于丢弃过期响应、避免竞态覆盖新数据 */
   let abortController: AbortController | null = null;
 
   /**
-   * @description 拉取全量资源选项
-   * 过期响应（被新请求 / 卸载取消）直接丢弃，不回写 list，避免数据竞态。
+   * @description 调用接口查询资源选项列表
+   * 每次发起新请求前取消上一次未完成的请求；过期响应（被新请求/卸载取消）直接丢弃，
+   * 不回写 list，从而避免快速连续触发（展开下拉后立即搜索等）时的数据竞态。
    */
-  const fetchList = async () => {
+  const fetchList = async (isLoadMore = false) => {
     // 取消上一次未完成的请求，避免竞态导致旧响应覆盖新数据
     abortController?.abort();
     const controller = new AbortController();
     abortController = controller;
     const { signal } = controller;
 
-    loading.value = true;
+    if (!isLoadMore) {
+      loading.value = true;
+      list.value = [];
+      page.value = 1;
+    } else {
+      // 滚动加载更多时仅显示列表内部 loading
+      scrollLoading.value = true;
+    }
+
     try {
-      const data = await apiFn();
+      const data = await apiFn({ keyword: keyword.value, page: page.value, page_size: PAGE_SIZE });
+      // 请求已被取消（新请求发起 / 组件卸载），丢弃本次结果；loading 交由最新请求收尾，避免闪烁
       if (signal.aborted) return;
-      list.value = data.list ?? [];
-      loaded.value = true;
+      const items = data.list ?? [];
+      list.value = isLoadMore ? [...list.value, ...items] : items;
+      hasMore.value = items.length >= PAGE_SIZE;
     } finally {
       // 仅当本次请求未被取消时才收尾 loading，避免误清空最新请求的加载态
       if (!signal.aborted) {
         loading.value = false;
+        scrollLoading.value = false;
       }
+    }
+  };
+  const debouncedFetch = debounce(() => fetchList(false), 300);
+
+  /**
+   * @description 搜索关键词变化：仅在下拉面板展开时触发请求，避免面板关闭时的无效搜索
+   */
+  const handleSearch = (val: string) => {
+    keyword.value = val;
+    if (isToggle.value) {
+      debouncedFetch();
     }
   };
 
   /**
-   * @description 确保选项已加载
-   * 编辑态需要在弹窗打开时就拿到全量列表，才能用已保存的资源 id 回填名称与空间。
+   * @description 下拉列表滚动到底部时加载下一页
+   * 无更多数据或正在加载中时跳过，避免重复请求。
    */
-  const ensureLoaded = () => (loaded.value || loading.value ? Promise.resolve() : fetchList());
+  const handleScrollEnd = () => {
+    if (!hasMore.value || scrollLoading.value) return;
+    page.value += 1;
+    fetchList(true);
+  };
 
   /**
-   * @description Select 下拉面板展开/收起回调，展开时按需加载一次全量数据
+   * @description Select 下拉面板展开/收起回调
+   * 展开时重置条件并重新拉取最新数据；收起时仅更新展开状态标记。
    */
   const handleToggle = (val: boolean) => {
+    isToggle.value = val;
     if (val) {
-      ensureLoaded();
+      fetchList(false);
     }
   };
 
@@ -91,14 +130,21 @@ export function useAiResourceSelect(apiFn: AiResourceApiFn) {
    * @description 重置下拉状态，关闭弹窗时调用以清理残留数据；同时终止未完成的查询请求
    **/
   const reset = () => {
+    // 取消未完成的查询与防抖搜索，避免关闭弹窗后过期响应回写状态
+    debouncedFetch.cancel();
     abortController?.abort();
     abortController = null;
     list.value = [];
     loading.value = false;
-    loaded.value = false;
+    scrollLoading.value = false;
+    hasMore.value = true;
+    page.value = 1;
+    keyword.value = '';
+    isToggle.value = false;
   };
 
   onScopeDispose(() => {
+    debouncedFetch.cancel();
     // 取消未完成的查询，避免组件卸载后过期响应回写状态
     abortController?.abort();
     abortController = null;
@@ -107,7 +153,11 @@ export function useAiResourceSelect(apiFn: AiResourceApiFn) {
   return {
     list,
     loading,
-    ensureLoaded,
+    scrollLoading,
+    hasMore,
+    isToggle,
+    handleSearch,
+    handleScrollEnd,
     handleToggle,
     reset,
   };

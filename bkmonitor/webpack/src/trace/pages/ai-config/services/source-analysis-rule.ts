@@ -40,6 +40,7 @@ import {
 import { toConditions, toWhereItems } from '../utils/condition';
 
 import type {
+  AiResourceParams,
   AiResourceResult,
   CreateSourceAnalysisRuleParams,
   CreateSourceAnalysisRuleVo,
@@ -97,23 +98,23 @@ export const deleteSourceAnalysisRule = (id: number): Promise<void> => deleteSou
 export const listSourceAnalysisRules = (params: Record<string, unknown> = {}): Promise<SourceAnalysisRuleDto[]> =>
   listSourceAnalysisRulesApi(params);
 
-/** 查询智能体列表，接口不分页，一次返回当前用户全部可见资源 */
-export const getAgents = (): Promise<AiResourceResult> =>
-  listSourceAnalysisAgents().catch(() => ({
+/** 查询智能体列表 */
+export const getAgents = (params: AiResourceParams): Promise<AiResourceResult> =>
+  listSourceAnalysisAgents(params).catch(() => ({
     list: [],
     total: 0,
   }));
 
-/** 查询 Skill 列表，接口不分页，一次返回当前用户全部可见资源 */
-export const getSkills = (): Promise<AiResourceResult> =>
-  listSourceAnalysisSkills().catch(() => ({
+/** 查询 Skill 列表 */
+export const getSkills = (params: AiResourceParams): Promise<AiResourceResult> =>
+  listSourceAnalysisSkills(params).catch(() => ({
     list: [],
     total: 0,
   }));
 
-/** 查询知识库列表，接口不分页，一次返回当前用户全部可见资源 */
-export const getKnowledgeBases = (): Promise<AiResourceResult> =>
-  listSourceAnalysisKnowledgeBases().catch(() => ({
+/** 查询知识库列表 */
+export const getKnowledgeBases = (params: AiResourceParams): Promise<AiResourceResult> =>
+  listSourceAnalysisKnowledgeBases(params).catch(() => ({
     list: [],
     total: 0,
   }));

@@ -23,10 +23,11 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, nextTick, onMounted, shallowRef } from 'vue';
+import { computed, defineComponent, onMounted, shallowRef } from 'vue';
 
 import { Button, InfoBox, Input, Message, Select } from 'bkui-vue';
 import { Plus } from 'bkui-vue/lib/icon';
+import { debounce } from 'lodash';
 import OverflowTips from 'trace/directive/overflow-tips';
 import { useI18n } from 'vue-i18n';
 
@@ -188,12 +189,6 @@ export default defineComponent({
         // 初始化加载完成后记录初始快照，作为是否编辑过的基线
         initialBkciProjectId.value = `${bkciProjectId.value}`;
         initialRepositoryAlias.value = `${repositoryAlias.value}`;
-        // 已保存的配置只有项目 id 与仓库别名，先加载全量选项才能把它们展示成可读名称；
-        // 仓库列表要等项目变更的 watch 清空后再拉，避免刚写入的数据被清掉。
-        projectsSelect.fetchData();
-        if (bkciProjectId.value) {
-          nextTick(() => repositoriesSelect.fetchData());
-        }
       } finally {
         configLoading.value = false;
       }
@@ -218,6 +213,10 @@ export default defineComponent({
     const handleClearSearch = () => {
       searchValue.value = '';
     };
+
+    /** 搜索输入防抖处理（300ms），避免频繁触发接口请求 */
+    const handleProjectsSearchDebounce = debounce(projectsSelect.handleSearch, 300);
+    const handleRepositoriesSearchDebounce = debounce(repositoriesSelect.handleSearch, 300);
 
     /**
      * @description 蓝盾项目下拉展开/收起：展开时清空该校验错误
@@ -306,11 +305,17 @@ export default defineComponent({
       /** 蓝盾项目下拉 */
       bkciProjects: projectsSelect.list,
       projectsLoading: projectsSelect.loading,
+      projectsScrollLoading: projectsSelect.scrollLoading,
       handleProjectsToggle,
+      handleProjectsSearch: handleProjectsSearchDebounce,
+      handleProjectsScrollEnd: projectsSelect.handleScrollEnd,
       /** 源码仓库下拉 */
       bkciRepositories: repositoriesSelect.list,
       repositoriesLoading: repositoriesSelect.loading,
+      repositoriesScrollLoading: repositoriesSelect.scrollLoading,
       handleRepositoriesToggle,
+      handleRepositoriesSearch: handleRepositoriesSearchDebounce,
+      handleRepositoriesScrollEnd: repositoriesSelect.handleScrollEnd,
       handleRuleSliderChange,
       handleBindConfirm,
       handleSaveConfig,
@@ -399,11 +404,15 @@ export default defineComponent({
                           extCls: 'ai-config-source-code-analysis-popover',
                         }}
                         customContent={this.projectsLoading}
+                        filterOption={() => true}
                         loading={this.projectsLoading}
                         modelValue={this.bkciProjectId}
                         multiple={false}
                         noDataText={this.projectsLoading ? this.t('加载中...') : this.t('无数据')}
+                        scrollLoading={this.projectsScrollLoading}
                         filterable
+                        onScroll-end={this.handleProjectsScrollEnd}
+                        onSearch-change={this.handleProjectsSearch}
                         onToggle={this.handleProjectsToggle}
                         onUpdate:modelValue={val => this.handleChangeBkciProjectId(val)}
                       >
@@ -458,11 +467,15 @@ export default defineComponent({
                         }}
                         customContent={this.repositoriesLoading}
                         disabled={!this.bkciProjectId}
+                        filterOption={() => true}
                         loading={this.repositoriesLoading}
                         modelValue={this.repositoryAlias}
                         multiple={false}
                         noDataText={this.repositoriesLoading ? this.t('加载中...') : this.t('无数据')}
+                        scrollLoading={this.repositoriesScrollLoading}
                         filterable
+                        onScroll-end={this.handleRepositoriesScrollEnd}
+                        onSearch-change={this.handleRepositoriesSearch}
                         onToggle={this.handleRepositoriesToggle}
                         onUpdate:modelValue={val => {
                           this.repositoryAlias = val;

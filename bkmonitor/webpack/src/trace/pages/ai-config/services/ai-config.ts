@@ -36,6 +36,7 @@ import type {
   EIntelligentAlgorithm,
   IAiSetting,
   ISchemeItem,
+  TBkciProjectsParams,
   TBkciProjectsResult,
   TBkciRepositoriesParams,
   TBkciRepositoriesResult,
@@ -57,8 +58,8 @@ export const getSchemeList = (algorithm: EIntelligentAlgorithm): Promise<IScheme
   listIntelligentModels({ algorithm }).catch(() => []);
 
 /** 查询蓝盾项目 */
-export const getBkciProjects = (): Promise<TBkciProjectsResult> =>
-  listSourceAnalysisBkciProjects().catch(() => ({
+export const getBkciProjects = (params: TBkciProjectsParams): Promise<TBkciProjectsResult> =>
+  listSourceAnalysisBkciProjects(params).catch(() => ({
     list: [],
     total: 0,
   }));

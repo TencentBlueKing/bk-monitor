@@ -83,11 +83,20 @@ export interface ISchemeItem {
 /** 方案 id 的表单取值，空串代表未选择 */
 export type PlanIdValue = '' | number;
 
-/** 查询蓝盾项目的返回结果，接口不分页，一次返回当前用户全部可访问项目 */
+/** 查询蓝盾项目的请求参数 */
+export type TBkciProjectsParams = {
+  /** 搜索关键字 */
+  keyword: string;
+  /** 页码 */
+  page: number;
+  /** 每页数量 */
+  page_size: number;
+};
+/** 查询蓝盾项目的返回结果 */
 export type TBkciProjectsResult = {
   /** 蓝盾项目列表 */
   list: { id: string; name: string }[];
-  /** 总数，等于 list 长度 */
+  /** 总数 */
   total: number;
 };
 
@@ -95,13 +104,19 @@ export type TBkciProjectsResult = {
 export type TBkciRepositoriesParams = {
   /** 蓝盾项目 id */
   bkci_project_id: string;
+  /** 搜索关键字 */
+  keyword: string;
+  /** 页码 */
+  page: number;
+  /** 每页数量 */
+  page_size: number;
 };
 
-/** 查询源码仓库的返回结果，接口不分页，一次返回该项目下全部 Git 代码库 */
+/** 查询源码仓库的返回结果 */
 export type TBkciRepositoriesResult = {
-  /** 源码仓库列表，不含分支信息：拉取哪个分支由蓝盾流水线决定 */
-  list: { id: string; name: string; scm_type: string }[];
-  /** 总数，等于 list 长度 */
+  /** 源码仓库列表 */
+  list: { default_branch: string; id: string; name: string; scm_type: string }[];
+  /** 总数 */
   total: number;
 };
 
