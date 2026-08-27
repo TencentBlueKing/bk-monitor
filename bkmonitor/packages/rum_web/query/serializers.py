@@ -115,7 +115,7 @@ class RumStatisticsFieldSerializer(serializers.Serializer):
 
     def validate(self, attrs):
         if attrs["field_type"] not in [dimension.value for dimension in EnabledStatisticsDimension]:
-            raise ValueError(_("不支持的字段类型"))
+            raise serializers.ValidationError(_("不支持的字段类型"))
         return attrs
 
 
@@ -136,5 +136,5 @@ class RumFieldStatisticsGraphRequestSerializer(BaseRumSearchSerializer):
         if field["field_type"] == EnabledStatisticsDimension.KEYWORD.value:
             return attrs
         if len(field["values"]) < 4:
-            raise ValueError(_("数值类型查询条件不足"))
+            raise serializers.ValidationError(_("数值类型查询条件不足"))
         return attrs

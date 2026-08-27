@@ -347,7 +347,6 @@ class SpanLevelHandler(BaseRumLevelHandler):
         - 数值类型：根据 min/max/distinct_count/interval_num 划分区间，并发统计各区间计数
         """
         filters = filters or []
-        extra_config = extra_config or {}
         field_name: str = field["field_name"]
         values: list[Any] = field.get("values") or []
 
@@ -372,8 +371,10 @@ class SpanLevelHandler(BaseRumLevelHandler):
             return self._process_graph_info([])
 
         # 字段枚举数量小于等于区间数量，或区间的最大数量小于等于区间数，直接查询枚举值返回
-        if distinct_count is not None and (
-            distinct_count <= interval_num or (max_value - min_value + 1) <= interval_num
+        if (
+            distinct_count is not None
+            and interval_num is not None
+            and (distinct_count <= interval_num or (max_value - min_value + 1) <= interval_num)
         ):
             topk_buckets = self.query.query_field_topk(
                 start_time, end_time, field_name, distinct_count, filters, query_string
