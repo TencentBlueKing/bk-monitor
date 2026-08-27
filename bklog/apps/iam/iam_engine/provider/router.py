@@ -23,10 +23,10 @@ from apps.iam.iam_engine.provider.composition.union import UnionDecisionPolicy, 
 from apps.iam.iam_engine.provider.execution import PairExecutor
 
 # ---------------------------------------------------------------------------
-# ModeRouter —— 按 Toggle 选择单栈或双栈
+# ModeRouter —— 按当前鉴权模式选择单栈或双栈
 #
 # 不在这里写死 V3/V4：union 成员来自 DualStackSpec.modes_for。
-# 非法 Toggle 必须返回 degraded + 拒绝，不能回退 V3 继续鉴权。
+# 非法模式必须返回 degraded + 拒绝，不能回退 V3 继续鉴权。
 # 批量路径整批共用一次 get_mode，避免同一请求里一半走 V3、一半走 V4。
 # 空间范围走 Bundle.scope，缺能力返回错误范围，不对 auth 做鸭子调用。
 # ---------------------------------------------------------------------------

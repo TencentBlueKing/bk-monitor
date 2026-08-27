@@ -324,7 +324,8 @@ class Permission:
         """统一"显式传入模式"与"自动读取模式"两条入口，任何非法值都安全回退 legacy。
 
         调用方既可能显式传入 mode（例如 is_allowed 把 decision.mode 原样传回，可能是非法字符串），
-        也可能不传 mode 走 FeatureToggle 自动解析（可能因配置非法抛出 InvalidAuthModeError）。
+        也可能不传 mode 走 ModeProvider 自动解析（环境变量优先，否则 Feature Toggle；
+        可能因配置非法抛出 InvalidAuthModeError）。
         这里统一兜底，避免任何一条路径把异常/非法值泄漏给直接调用 get_apply_data 的业务代码。
         """
         fallback_mode = self.mode_router.stack.legacy
@@ -458,8 +459,8 @@ class Permission:
     def _mode_label(mode: str) -> str:
         """把决策模式归一到闭合取值。
 
-        非法模式配置会被 ModeRouter 原样写进 AuthDecision.mode，而它来自 FeatureToggle，是运维可改写的
-        DB 字段，直接当 label 用就不再是有限枚举。这里不套 AuthMode.safe_coerce，因为它会把误配折叠成
+        非法模式配置会被 ModeRouter 原样写进 AuthDecision.mode，而它来自环境变量或 Feature Toggle，
+        是运维可改写的配置，直接当 label 用就不再是有限枚举。这里不套 AuthMode.safe_coerce，因为它会把误配折叠成
         v3、反而掩盖配置错误；误配单独归到 invalid，仍可与 IAM_PROVIDER_RESULT_COUNT 里
         provider="mode"、error_type="InvalidPermissionMode" 的样本对上。
         """

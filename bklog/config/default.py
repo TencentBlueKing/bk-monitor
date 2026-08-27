@@ -446,6 +446,10 @@ BK_COMPONENT_API_URL = os.environ.get("BK_COMPONENT_API_URL")
 DEPLOY_MODE = os.environ.get("DEPLOY_MODE", "")
 
 BK_IAM_APIGATEWAY_URL = os.getenv("BKAPP_IAM_API_BASE_URL") or f"{BK_COMPONENT_API_URL}/api/bk-iam/prod/"
+# IAM 鉴权模式（v3 / v4 / union）。运维主入口：显式设置后忽略 Feature Toggle iam_permission_mode。
+# 留空则回退 DB Toggle；Toggle 缺失或读库失败再回退 DualStackSpec.legacy（当前 v3）。
+# 非法值 fail-closed，不会跨层回退到 Toggle 或 legacy。不要把该值写进 FEATURE_TOGGLE（那是 on/off）。
+BK_IAM_PERMISSION_MODE = os.getenv("BKAPP_IAM_PERMISSION_MODE", "").strip().lower()
 # IAM V4 权限系统 ID；未配置时回退到 V3 系统 ID，便于按环境切换。
 BK_IAM_V4_SYSTEM_ID = os.getenv("BKAPP_IAM_V4_SYSTEM_ID", "").strip()
 # IAM V4（bkiam 网关）；必须显式配置 BKAPP_IAM_V4_API_BASE_URL，未配置时 V4 client 会记录错误并安全失败
