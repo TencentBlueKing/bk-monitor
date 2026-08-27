@@ -30,6 +30,9 @@ import tippy, { type Instance, type Props, type SingleTarget } from 'tippy.js';
 import type StatisticsList from '../../trace-explore/components/statistics-list';
 import type { IDimensionFieldTreeItem } from '../../trace-explore/typing';
 
+/** 统计分析弹层展示的字段，RUM 检索的字段会额外携带 field_unit */
+export type IStatisticsFieldItem = IDimensionFieldTreeItem & { field_unit?: string };
+
 /**
  * 字段统计分析弹层。
  *
@@ -39,7 +42,7 @@ import type { IDimensionFieldTreeItem } from '../../trace-explore/typing';
 export function useFieldStatisticsPopover(placement: Props['placement'] = 'right') {
   const showPopover = shallowRef(false);
   const activeFieldName = shallowRef('');
-  const selectField = shallowRef<IDimensionFieldTreeItem>(null);
+  const selectField = shallowRef<IStatisticsFieldItem>(null);
   const popoverInstance = shallowRef<Instance | null>(null);
   const statisticsListRef = useTemplateRef<InstanceType<typeof StatisticsList>>('statisticsListRef');
 
@@ -53,7 +56,7 @@ export function useFieldStatisticsPopover(placement: Props['placement'] = 'right
     }
   }
 
-  function openPopover(trigger: Element, field: IDimensionFieldTreeItem) {
+  function openPopover(trigger: Element, field: IStatisticsFieldItem) {
     destroyPopover();
     activeFieldName.value = field.name;
     if (!field.is_dimensions) return;

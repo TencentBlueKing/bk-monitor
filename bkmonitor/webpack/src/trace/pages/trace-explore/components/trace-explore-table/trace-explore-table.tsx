@@ -42,6 +42,9 @@ import { Loading } from 'bkui-vue';
 import tippy, { type Instance, type SingleTarget } from 'tippy.js';
 
 import TableSkeleton from '../../../../components/skeleton/table-skeleton';
+import { useTableEllipsis, useTablePopover } from '../../../../hooks/use-table-popover';
+import { isEllipsisActiveSingleLine } from '../../../../utils/dom-helper';
+import { getTraceFieldUnit } from '../../utils';
 import ExploreFieldSetting from '../explore-field-setting/explore-field-setting';
 import FieldTypeIcon from '../field-type-icon';
 import StatisticsList from '../statistics-list';
@@ -58,8 +61,6 @@ import { useExploreDataCache } from './hooks/use-explore-data-cache';
 import { useTableCell } from './hooks/use-table-cell';
 import { useTableHeaderDescription } from './hooks/use-table-popover';
 import { type ActiveConditionMenuTarget, type ExploreTableColumn, ExploreTableLoadingEnum } from './typing';
-import { useTableEllipsis, useTablePopover } from '../../../../hooks/use-table-popover';
-import { isEllipsisActiveSingleLine } from '../../../../utils/dom-helper';
 
 import type { ISpanListItem, ITraceListItem } from '../../../../typings';
 import type { ConditionChangeEvent, ICommonParams, IDimensionField, IDimensionFieldTreeItem } from '../../typing';
@@ -551,6 +552,7 @@ export default defineComponent({
           fieldType={fieldOptions?.type}
           isShow={showStatisticsPopover.value}
           selectField={fieldOptions?.name}
+          unit={getTraceFieldUnit(fieldOptions?.name)}
           onConditionChange={handleConditionChange}
           onShowMore={() => handleStatisticsPopoverHide(false)}
           onSliderShowChange={handleStatisticsSliderShow}
