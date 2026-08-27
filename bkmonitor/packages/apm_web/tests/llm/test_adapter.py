@@ -252,6 +252,21 @@ class AdapterTests(TestCase):
         self.assertEqual(step["resource"]["api_key"], "resource-secret")
         self.assertNotIn("events", step)
 
+    def test_filtered_parent_does_not_change_original_span_relationship(self) -> None:
+        parent = agentlens_span("1" * 16)
+        parent["span_name"] = "GET /healthz"
+        parent["attributes"] = {"http.request.method": "GET"}
+        child = agentlens_span("2" * 16)
+        child["span_name"] = "chat"
+        child["parent_span_id"] = parent["span_id"]
+        child["attributes"] = {"gen_ai.operation.name": "chat"}
+
+        spans = adapt_spans([parent, child])
+
+        self.assertEqual(len(spans), 1)
+        self.assertEqual(spans[0]["span_id"], child["span_id"])
+        self.assertEqual(spans[0]["parent_span_id"], parent["span_id"])
+
     def test_galileo_events_without_detail_do_not_fabricate_standard_content(
         self,
     ) -> None:
@@ -424,33 +439,43 @@ class AdapterTests(TestCase):
             span = {
                 "trace_id": TRACE_ID,
                 "span_id": f"{index:016x}",
+                "parent_span_id": "",
                 "span_name": span_name,
                 "start_time": (NOW - 60) * 1_000_000 + index,
                 "end_time": (NOW - 59) * 1_000_000 + index,
                 "elapsed_time": 1_000_000,
-                "status.code": 1,
-                "resource.telemetry.sdk.name": "galileo",
-                "attributes.gen_ai.operation.name": operation,
+                "status": {"code": 1, "message": ""},
+                "resource": {"telemetry.sdk.name": "galileo"},
+                "attributes": {"gen_ai.operation.name": operation},
+                "events": [],
             }
             if span_name.startswith("agent_run"):
                 span["parent_span_id"] = f"{1:016x}"
             elif span_name == "call_llm":
                 span["parent_span_id"] = f"{2:016x}"
             if span_name == "call_llm":
-                span.update(
+                span["attributes"].update(
                     {
-                        "attributes.gen_ai.usage.input_tokens": 5,
-                        "attributes.gen_ai.usage.output_tokens": 2,
-                        "attributes.gen_ai.usage.cache_read_input_tokens": 3,
-                        "attributes.gen_ai.usage.cache_creation_input_tokens": 2,
-                        "events.name": ["gen_ai.user.message", "gen_ai.choice"],
-                        "events.timestamp": [1, 2],
-                        "events.attributes.message.detail": [
-                            '{"role":"user","content":"hello"}',
-                            '{"finish_reason":"stop","message":{"role":"assistant","content":"hi"}}',
-                        ],
+                        "gen_ai.usage.input_tokens": 5,
+                        "gen_ai.usage.output_tokens": 2,
+                        "gen_ai.usage.cache_read_input_tokens": 3,
+                        "gen_ai.usage.cache_creation_input_tokens": 2,
                     }
                 )
+                span["events"] = [
+                    {
+                        "name": "gen_ai.user.message",
+                        "timestamp": 1,
+                        "attributes": {"message.detail": '{"role":"user","content":"hello"}'},
+                    },
+                    {
+                        "name": "gen_ai.choice",
+                        "timestamp": 2,
+                        "attributes": {
+                            "message.detail": ('{"finish_reason":"stop","message":{"role":"assistant","content":"hi"}}')
+                        },
+                    },
+                ]
             spans.append(span)
         converted = adapt_spans(spans)
         operations = {step["span_name"]: step["attributes"]["gen_ai.operation.name"] for step in converted}

@@ -4,7 +4,7 @@ from apm_web.llm.resources import ListSpansResource
 
 
 class ListSpansResourceTestCase(TestCase):
-    def test_adapts_flattened_standard_span(self):
+    def test_adapts_standard_span(self):
         trace_id = "a" * 32
         response = {
             "total": 1,
@@ -17,11 +17,14 @@ class ListSpansResourceTestCase(TestCase):
                     "start_time": 1,
                     "end_time": 2,
                     "elapsed_time": 1,
-                    "status.code": 1,
-                    "resource.service.name": "demo",
-                    "attributes.gen_ai.operation.name": "chat",
-                    "attributes.gen_ai.request.model": "demo-model",
-                    "attributes.vendor.debug": "drop-me",
+                    "status": {"code": 1, "message": ""},
+                    "resource": {"service.name": "demo"},
+                    "attributes": {
+                        "gen_ai.operation.name": "chat",
+                        "gen_ai.request.model": "demo-model",
+                        "vendor.debug": "drop-me",
+                    },
+                    "events": [],
                 }
             ],
         }

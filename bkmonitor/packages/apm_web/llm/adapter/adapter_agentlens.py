@@ -2,19 +2,23 @@
 
 from __future__ import annotations
 
+import json
 from typing import Any
 
-from .content import (
-    parse_definitions,
-    parse_indexed_definitions,
-    parse_indexed_messages,
-    parse_messages,
-    parse_standard_content,
-    parse_value,
-    split_system_messages,
+from .fields import STANDARD_FIELDS
+from .utils import (
+    first,
+    indexed,
+    normalize_schema,
+    present,
+    put,
+    safe_parse,
+    split_system,
+    standard_content,
+    text_message,
+    tool_call_part,
+    tool_response_part,
 )
-from .fields import normalize_operation, project_span
-from .utils import first
 
 
 def provider(attrs: dict[str, Any]) -> Any:
@@ -35,35 +39,79 @@ def aliases() -> dict[str, tuple[str, ...]]:
     }
 
 
+def parse_text_value(value: Any) -> Any:
+    if not isinstance(value, str):
+        return value
+    try:
+        parsed = json.loads(value)
+    except json.JSONDecodeError:
+        return value
+    return parsed if isinstance(parsed, str) else value
+
+
+def parse_indexed_messages(
+    attrs: dict[str, Any],
+    prefix: str,
+    *,
+    output: bool = False,
+) -> list[dict[str, Any]]:
+    messages: list[dict[str, Any]] = []
+    for item in indexed(attrs, prefix):
+        role = str(item.get("role") or ("assistant" if output else "user"))
+        content = item.get("content")
+        parts: list[dict[str, Any]] = []
+        if role == "tool" and content not in (None, ""):
+            parts.append(tool_response_part(content, item.get("tool_call_id")))
+        elif content not in (None, ""):
+            parts.append({"type": "text", "content": str(content)})
+        parts.extend(tool_call_part(call) for call in indexed(item, "tool_calls"))
+        if not parts:
+            continue
+        message: dict[str, Any] = {"role": role, "parts": parts}
+        if output and item.get("finish_reason") not in (None, ""):
+            reason = str(item["finish_reason"])
+            message["finish_reason"] = "tool_call" if reason in {"tool_call", "tool_calls"} else reason
+        messages.append(message)
+    return messages
+
+
+def parse_indexed_definitions(attrs: dict[str, Any]) -> list[dict[str, Any]]:
+    return [
+        {
+            "type": "function",
+            "name": str(item["name"]),
+            "description": str(item.get("description", "")),
+            "parameters": normalize_schema(safe_parse(item.get("parameters", {}))),
+        }
+        for item in indexed(attrs, "gen_ai.request.functions")
+        if item.get("name") not in (None, "")
+    ]
+
+
 def convert_content(span: dict[str, Any]) -> dict[str, Any]:
     attrs = span["attributes"]
-    state = parse_standard_content(attrs)
+    content = standard_content(attrs)
+    inputs = parse_indexed_messages(attrs, "gen_ai.prompts")
+    instructions, inputs = split_system(inputs)
+    put(content, "gen_ai.system_instructions", instructions)
+    put(content, "gen_ai.input.messages", inputs)
+    put(content, "gen_ai.output.messages", parse_indexed_messages(attrs, "gen_ai.completion", output=True))
+    put(content, "gen_ai.tool.definitions", parse_indexed_definitions(attrs))
 
-    if not state.inputs:
-        inputs = parse_indexed_messages(attrs, "gen_ai.prompts", output=False)
-        if not inputs and attrs.get("input.value") is not None:
-            inputs = parse_messages(attrs["input.value"])
-        system, inputs = split_system_messages(inputs)
-        state.inputs.extend(inputs)
-        if not state.instructions:
-            state.instructions.extend(system)
-    if not state.outputs:
-        outputs = parse_indexed_messages(attrs, "gen_ai.completion", output=True)
-        if not outputs and attrs.get("output.value") is not None:
-            outputs = parse_messages(attrs["output.value"], output=True)
-        state.outputs.extend(outputs)
-    if not state.definitions:
-        if attrs.get("gen_ai.request.tools") is not None:
-            state.definitions.extend(parse_definitions(attrs["gen_ai.request.tools"]))
-        if not state.definitions:
-            state.definitions.extend(parse_indexed_definitions(attrs, "gen_ai.request.functions"))
-    for target, keys in {
-        "gen_ai.tool.call.arguments": ("tool.input", "traceloop.entity.input"),
-        "gen_ai.tool.call.result": ("tool.output", "traceloop.entity.output"),
-    }.items():
-        if target not in state.attributes and (value := first(attrs, *keys)) is not None:
-            state.attributes[target] = parse_value(value)
-    return state.build()
+    span_kind = str(attrs.get("gen_ai.span.kind", "")).upper()
+    if span_kind == "AGENT":
+        input_value = attrs.get("input.value")
+        output_value = attrs.get("output.value")
+        if input_value not in (None, ""):
+            put(content, "gen_ai.input.messages", [text_message("user", parse_text_value(input_value))])
+        if output_value not in (None, ""):
+            put(content, "gen_ai.output.messages", [text_message("assistant", parse_text_value(output_value))])
+    elif span_kind == "TOOL":
+        arguments = first(attrs, "tool.input", "traceloop.entity.input", "input.value")
+        result = first(attrs, "tool.output", "traceloop.entity.output", "output.value")
+        put(content, "gen_ai.tool.call.arguments", safe_parse(arguments))
+        put(content, "gen_ai.tool.call.result", safe_parse(result))
+    return content
 
 
 def convert(raw: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -71,15 +119,25 @@ def convert(raw: list[dict[str, Any]]) -> list[dict[str, Any]]:
     spans: list[dict[str, Any]] = []
     for span in raw:
         attrs = span["attributes"]
-        content = convert_content(span)
-        converted = project_span(
-            span,
-            operation=normalize_operation(attrs.get("gen_ai.operation.name")),
-            provider=provider(attrs),
-            aliases=aliases(),
-            extra={},
-            content=content,
+        attributes = {key: value for key, value in attrs.items() if key in STANDARD_FIELDS and present(value)}
+        put(attributes, "gen_ai.provider.name", provider(attrs))
+        for target, source_keys in aliases().items():
+            put(attributes, target, first(attrs, *source_keys))
+        attributes.update(convert_content(span))
+        if not attributes:
+            continue
+        spans.append(
+            {
+                "trace_id": span["trace_id"],
+                "span_id": span["span_id"],
+                "parent_span_id": span["parent_span_id"],
+                "span_name": span["span_name"],
+                "start_time": span["start_time"],
+                "end_time": span["end_time"],
+                "elapsed_time": span["elapsed_time"],
+                "status": span["status"],
+                "resource": span["resource"],
+                "attributes": attributes,
+            }
         )
-        if converted:
-            spans.append(converted)
     return spans

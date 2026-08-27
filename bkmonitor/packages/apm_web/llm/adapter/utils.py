@@ -1,11 +1,20 @@
-"""Adapter 共用的值解析和原始 Span 归一工具。"""
+"""Adapter 共用的基础值与标准正文处理。"""
 
 from __future__ import annotations
 
 import ast
 import json
-from copy import deepcopy
+import re
 from typing import Any
+
+CONTENT_FIELDS = (
+    "gen_ai.system_instructions",
+    "gen_ai.input.messages",
+    "gen_ai.output.messages",
+    "gen_ai.tool.definitions",
+    "gen_ai.tool.call.arguments",
+    "gen_ai.tool.call.result",
+)
 
 
 def first(mapping: dict[str, Any], *keys: str) -> Any:
@@ -26,114 +35,92 @@ def nonnegative_int(value: Any) -> int | None:
     return None
 
 
-def _depth(value: Any, current: int = 0) -> int:
-    if current > 20:
-        return current
-    if isinstance(value, dict):
-        return max((_depth(item, current + 1) for item in value.values()), default=current)
-    if isinstance(value, list | tuple):
-        return max((_depth(item, current + 1) for item in value), default=current)
-    return current
+def present(value: Any) -> bool:
+    if value is None:
+        return False
+    if isinstance(value, str) and not value.strip():
+        return False
+    return not isinstance(value, list | dict) or bool(value)
+
+
+def put(target: dict[str, Any], key: str, value: Any) -> None:
+    if key not in target and present(value):
+        target[key] = value
 
 
 def safe_parse(value: Any) -> Any:
     """解析 JSON/Python 字面量；无法解析时保留原值。"""
     if not isinstance(value, str):
-        return deepcopy(value)
-    if len(value.encode()) > 256 * 1024:
         return value
-    stripped = value.strip()
-    if not stripped:
-        return value
-    try:
-        parsed = json.loads(stripped)
-    except (json.JSONDecodeError, TypeError):
+    for parser in (json.loads, ast.literal_eval):
         try:
-            parsed = ast.literal_eval(stripped)
-        except (ValueError, SyntaxError, MemoryError, RecursionError):
-            return value
-    if _depth(parsed) > 20:
-        return value
-    return parsed
+            parsed: Any = parser(value)
+            return parsed if isinstance(parsed, dict | list) else value
+        except (ValueError, SyntaxError):
+            continue
+    return value
 
 
-def _as_int(value: Any, default: int = 0) -> int:
-    if isinstance(value, bool):
-        return default
-    try:
-        return int(value)
-    except (TypeError, ValueError, OverflowError):
-        return default
+def indexed(attrs: dict[str, Any], prefix: str) -> list[dict[str, Any]]:
+    """将 prefix.N.field 扁平属性按 N 重组。"""
+    result: dict[int, dict[str, Any]] = {}
+    pattern = re.compile(rf"^{re.escape(prefix)}\.(\d+)\.(.+)$")
+    for key, value in attrs.items():
+        if match := pattern.match(key):
+            result.setdefault(int(match.group(1)), {})[match.group(2)] = value
+    return [result[index] for index in sorted(result)]
 
 
-def normalize_events(raw: dict[str, Any]) -> list[dict[str, Any]]:
-    if isinstance(raw.get("events"), list):
-        return [
-            {
-                "name": str(event.get("name", "")),
-                "timestamp": _as_int(event.get("timestamp")),
-                "attributes": deepcopy(event.get("attributes")) if isinstance(event.get("attributes"), dict) else {},
-            }
-            for event in raw["events"]
-            if isinstance(event, dict)
-        ]
-
-    flat = {key.removeprefix("events."): value for key, value in raw.items() if key.startswith("events.")}
-    if not flat:
-        return []
-    count = max(len(value) if isinstance(value, list) else 1 for value in flat.values())
-    events: list[dict[str, Any]] = []
-    for index in range(count):
-        event: dict[str, Any] = {"name": "", "timestamp": 0, "attributes": {}}
-        for field, raw_value in flat.items():
-            values = raw_value if isinstance(raw_value, list) else [raw_value]
-            value = values[index] if index < len(values) else None
-            if field == "name":
-                event["name"] = str(value or "")
-            elif field == "timestamp":
-                event["timestamp"] = _as_int(value)
-            elif field.startswith("attributes."):
-                event["attributes"][field.removeprefix("attributes.")] = value
-        events.append(event)
-    return events
+def standard_content(attrs: dict[str, Any]) -> dict[str, Any]:
+    """读取已符合标准的正文属性，产品字段只补充缺失值。"""
+    content: dict[str, Any] = {}
+    instructions = safe_parse(attrs.get("gen_ai.system_instructions"))
+    if present(instructions) and not isinstance(instructions, list):
+        instructions = [{"type": "text", "content": str(instructions)}]
+    put(content, "gen_ai.system_instructions", instructions)
+    for key in CONTENT_FIELDS[1:]:
+        put(content, key, safe_parse(attrs.get(key)))
+    return content
 
 
-def normalize_span(raw: dict[str, Any]) -> dict[str, Any]:
-    attributes_raw = raw.get("attributes")
-    attributes: dict[str, Any] = deepcopy(attributes_raw) if isinstance(attributes_raw, dict) else {}
-    resource_raw = raw.get("resource")
-    resource: dict[str, Any] = deepcopy(resource_raw) if isinstance(resource_raw, dict) else {}
-    for key, value in raw.items():
-        if key.startswith("attributes."):
-            attributes[key.removeprefix("attributes.")] = value
-        elif key.startswith("resource."):
-            resource[key.removeprefix("resource.")] = value
+def split_system(messages: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    instructions: list[dict[str, Any]] = []
+    regular: list[dict[str, Any]] = []
+    for message in messages:
+        if message.get("role") == "system":
+            instructions.extend(message.get("parts", []))
+        else:
+            regular.append(message)
+    return instructions, regular
 
-    status_raw = raw.get("status")
-    status: dict[str, Any] = status_raw if isinstance(status_raw, dict) else {}
-    code: Any = status.get("code", raw.get("status.code", 0))
-    if isinstance(code, str):
-        code = {"UNSET": 0, "OK": 1, "ERROR": 2, "STATUS_CODE_ERROR": 2}.get(code.upper(), _as_int(code))
-    span_id = str(raw.get("span_id", ""))
-    start_time = _as_int(raw.get("start_time"))
-    end_time = _as_int(raw.get("end_time"), start_time)
-    elapsed_time = _as_int(raw.get("elapsed_time"), max(0, end_time - start_time))
-    events = normalize_events(raw)
-    if attributes.get("error.type") or any(event["name"] == "exception" for event in events):
-        code = 2
-    return {
-        "trace_id": str(raw.get("trace_id", "")),
-        "span_id": span_id,
-        "parent_span_id": str(raw.get("parent_span_id") or "") or None,
-        "span_name": str(raw.get("span_name", raw.get("name", ""))),
-        "start_time": start_time,
-        "end_time": end_time,
-        "elapsed_time": max(0, elapsed_time),
-        "status": {
-            "code": code if code in (0, 1, 2) else 0,
-            "message": str(status.get("message", raw.get("status.message", "")) or ""),
-        },
-        "attributes": attributes,
-        "events": events,
-        "resource": resource,
-    }
+
+def text_message(role: str, content: Any) -> dict[str, Any]:
+    return {"role": role, "parts": [{"type": "text", "content": str(content)}]}
+
+
+def tool_call_part(call: dict[str, Any]) -> dict[str, Any]:
+    function = call.get("function") if isinstance(call.get("function"), dict) else call
+    name = function.get("name", call.get("function.name", ""))
+    arguments = function.get("arguments", function.get("args", call.get("function.arguments", {})))
+    part = {"type": "tool_call", "name": str(name), "arguments": safe_parse(arguments)}
+    if call.get("id") not in (None, ""):
+        part["id"] = str(call["id"])
+    return part
+
+
+def tool_response_part(response: Any, call_id: Any = None) -> dict[str, Any]:
+    part = {"type": "tool_call_response", "response": safe_parse(response)}
+    if call_id not in (None, ""):
+        part["id"] = str(call_id)
+    return part
+
+
+def normalize_schema(value: Any) -> Any:
+    if isinstance(value, list):
+        return [normalize_schema(item) for item in value]
+    if isinstance(value, dict):
+        return {
+            key: item.lower() if key == "type" and isinstance(item, str) else normalize_schema(item)
+            for key, item in value.items()
+        }
+    return value
