@@ -18,35 +18,20 @@ from .utils import (
     tool_response_part,
 )
 
-
-def provider(attrs: dict[str, Any]) -> Any:
-    # gen_ai.system 是 tRPC Agent 运行时名，不是模型 provider。
-    return attrs.get("gen_ai.provider.name")
-
-
-def aliases() -> dict[str, tuple[str, ...]]:
-    return {
-        "gen_ai.conversation.id": ("gen_ai.session_id",),
-        "user.id": ("gen_ai.user.id",),
-        "gen_ai.usage.cache_read.input_tokens": ("gen_ai.usage.cache_read_input_tokens",),
-        "gen_ai.usage.cache_creation.input_tokens": ("gen_ai.usage.cache_creation_input_tokens",),
-        "gen_ai.usage.reasoning.output_tokens": ("gen_ai.usage.reasoning_tokens",),
-        "gen_ai.tool.name": ("tool.name", "traceloop.entity.name"),
-        "gen_ai.agent.name": (
-            "gen_ai.entity.name",
-            "gen_ai.chain.name",
-            "agent.info.name",
-        ),
-        "gen_ai.request.model": ("gen_ai.model_name",),
-    }
-
-
-def extra_attributes(attrs: dict[str, Any]) -> dict[str, Any]:
-    extra: dict[str, Any] = {}
-    nested = safe_parse(attrs.get("trpc.python.agent.llm_response"))
-    if isinstance(nested, dict):
-        extra["gen_ai.response.id"] = nested.get("response_id")
-    return extra
+ALIASES = {
+    "gen_ai.conversation.id": ("gen_ai.session_id",),
+    "user.id": ("gen_ai.user.id",),
+    "gen_ai.usage.cache_read.input_tokens": ("gen_ai.usage.cache_read_input_tokens",),
+    "gen_ai.usage.cache_creation.input_tokens": ("gen_ai.usage.cache_creation_input_tokens",),
+    "gen_ai.usage.reasoning.output_tokens": ("gen_ai.usage.reasoning_tokens",),
+    "gen_ai.tool.name": ("tool.name", "traceloop.entity.name"),
+    "gen_ai.agent.name": (
+        "gen_ai.entity.name",
+        "gen_ai.chain.name",
+        "agent.info.name",
+    ),
+    "gen_ai.request.model": ("gen_ai.model_name",),
+}
 
 
 def parse_event_detail(detail: Any) -> Any:
@@ -189,14 +174,14 @@ def convert(raw: list[dict[str, Any]]) -> list[dict[str, Any]]:
         attributes = {
             key: value for key, value in attrs.items() if key in STANDARD_FIELDS and value not in (None, "", [])
         }
-        put(attributes, "gen_ai.provider.name", provider(attrs))
-        for target, source_keys in aliases().items():
+        for target, source_keys in ALIASES.items():
             value = first(attrs, *source_keys)
             if target.startswith("gen_ai.usage."):
                 value = nonnegative_int(value)
             put(attributes, target, value)
-        for key, value in extra_attributes(attrs).items():
-            put(attributes, key, value)
+        nested = safe_parse(attrs.get("trpc.python.agent.llm_response"))
+        if isinstance(nested, dict):
+            put(attributes, "gen_ai.response.id", nested.get("response_id"))
         attributes.update(convert_content(span))
         if not attributes:
             continue

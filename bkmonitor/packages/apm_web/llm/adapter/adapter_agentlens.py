@@ -19,23 +19,18 @@ from .utils import (
     tool_response_part,
 )
 
-
-def provider(attrs: dict[str, Any]) -> Any:
-    return attrs.get("gen_ai.provider.name") or attrs.get("gen_ai.system")
-
-
-def aliases() -> dict[str, tuple[str, ...]]:
-    return {
-        "gen_ai.conversation.id": ("gen_ai.session.id",),
-        "user.id": ("gen_ai.user.id",),
-        "gen_ai.tool.name": ("tool.name", "traceloop.entity.name"),
-        "gen_ai.agent.name": (
-            "gen_ai.entity.name",
-            "gen_ai.chain.name",
-            "agent.info.name",
-        ),
-        "gen_ai.request.model": ("gen_ai.model_name",),
-    }
+ALIASES = {
+    "gen_ai.provider.name": ("gen_ai.system",),
+    "gen_ai.conversation.id": ("gen_ai.session.id",),
+    "user.id": ("gen_ai.user.id",),
+    "gen_ai.tool.name": ("tool.name", "traceloop.entity.name"),
+    "gen_ai.agent.name": (
+        "gen_ai.entity.name",
+        "gen_ai.chain.name",
+        "agent.info.name",
+    ),
+    "gen_ai.request.model": ("gen_ai.model_name",),
+}
 
 
 def parse_text_value(value: Any) -> Any:
@@ -121,8 +116,7 @@ def convert(raw: list[dict[str, Any]]) -> list[dict[str, Any]]:
         attributes = {
             key: value for key, value in attrs.items() if key in STANDARD_FIELDS and value not in (None, "", [])
         }
-        put(attributes, "gen_ai.provider.name", provider(attrs))
-        for target, source_keys in aliases().items():
+        for target, source_keys in ALIASES.items():
             put(attributes, target, first(attrs, *source_keys))
         attributes.update(convert_content(span))
         if not attributes:

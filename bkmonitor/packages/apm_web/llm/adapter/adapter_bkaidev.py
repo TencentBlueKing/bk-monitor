@@ -31,6 +31,21 @@ ROLE_MAP = {
     "chatgeneration": "assistant",
     "aichunk": "assistant",
 }
+ALIASES = {
+    "gen_ai.provider.name": ("gen_ai.system",),
+    "gen_ai.agent.name": (
+        "gen_ai.entity.name",
+        "gen_ai.chain.name",
+        "agent.info.name",
+    ),
+    "gen_ai.conversation.id": ("agent.session.session_code",),
+    "user.name": ("agent.session.caller_executor",),
+    "gen_ai.agent.id": ("agent.info.id",),
+    "gen_ai.usage.input_tokens": ("gen_ai.usage.prompt_tokens",),
+    "gen_ai.usage.output_tokens": ("gen_ai.usage.completion_tokens",),
+    "gen_ai.tool.name": ("tool.name", "traceloop.entity.name"),
+    "gen_ai.request.model": ("gen_ai.model_name",),
+}
 
 
 def operation(attrs: dict[str, Any]) -> str | None:
@@ -38,27 +53,6 @@ def operation(attrs: dict[str, Any]) -> str | None:
     if request_type:
         return REQUEST_OPERATIONS.get(request_type, request_type)
     return None
-
-
-def provider(attrs: dict[str, Any]) -> Any:
-    return attrs.get("gen_ai.provider.name") or attrs.get("gen_ai.system")
-
-
-def aliases() -> dict[str, tuple[str, ...]]:
-    return {
-        "gen_ai.agent.name": (
-            "gen_ai.entity.name",
-            "gen_ai.chain.name",
-            "agent.info.name",
-        ),
-        "gen_ai.conversation.id": ("agent.session.session_code",),
-        "user.name": ("agent.session.caller_executor",),
-        "gen_ai.agent.id": ("agent.info.id",),
-        "gen_ai.usage.input_tokens": ("gen_ai.usage.prompt_tokens",),
-        "gen_ai.usage.output_tokens": ("gen_ai.usage.completion_tokens",),
-        "gen_ai.tool.name": ("tool.name", "traceloop.entity.name"),
-        "gen_ai.request.model": ("gen_ai.model_name",),
-    }
 
 
 def parse_langchain_messages(value: Any, default_role: str) -> list[dict[str, Any]]:
@@ -157,8 +151,7 @@ def convert(raw: list[dict[str, Any]]) -> list[dict[str, Any]]:
             key: value for key, value in attrs.items() if key in STANDARD_FIELDS and value not in (None, "", [])
         }
         put(attributes, "gen_ai.operation.name", operation(attrs))
-        put(attributes, "gen_ai.provider.name", provider(attrs))
-        for target, source_keys in aliases().items():
+        for target, source_keys in ALIASES.items():
             value = first(attrs, *source_keys)
             if target.startswith("gen_ai.usage."):
                 value = nonnegative_int(value)
