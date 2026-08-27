@@ -354,9 +354,7 @@ class SpanLevelHandler(BaseRumLevelHandler):
         # keyword 类型：按取值分组构建时序图
         if field["field_type"] == EnabledStatisticsDimension.KEYWORD.value:
             keyword_filters = filters + [{"key": field_name, "value": values, "operator": FilterOperator.EQUAL}]
-            config = self.query.query_graph_config(
-                start_time, end_time, field_name, filters=keyword_filters, query_string=query_string
-            )
+            config = self.query.query_graph_config(start_time, end_time, field_name, keyword_filters, query_string)
             config.update(
                 {
                     "time_alignment": False,
