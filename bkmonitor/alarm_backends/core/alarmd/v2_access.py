@@ -246,6 +246,19 @@ def _build_algorithm(algorithm: Mapping, item) -> dict:
     }
 
 
+def _is_always_active_uptime(uptime) -> bool:
+    if not isinstance(uptime, Mapping):
+        return False
+    if uptime.get("calendars") or uptime.get("active_calendars"):
+        return False
+    time_ranges = uptime.get("time_ranges")
+    return time_ranges in (
+        [],
+        [{"start": "00:00", "end": "23:59"}],
+        [{"start": "00:00:00", "end": "23:59:59"}],
+    )
+
+
 def _build_plan(item, identity_fields: list[str], query_window: int) -> dict:
     strategy = item.strategy
     strategy_id = str(strategy.id)
@@ -279,8 +292,9 @@ def _build_plan(item, identity_fields: list[str], query_window: int) -> dict:
             "step_seconds": interval,
             "window_size": int(trigger.get("check_window") or 0),
         }
-        if trigger.get("uptime"):
-            trigger_config["uptime"] = copy.deepcopy(trigger["uptime"])
+        uptime = trigger.get("uptime")
+        if uptime and not _is_always_active_uptime(uptime):
+            trigger_config["uptime"] = copy.deepcopy(uptime)
             # Keep the Python hot path free of an additional BusinessManager
             # lookup. The Go EffectiveTimeProvider resolves this stable ref
             # with the envelope tenant/business identity at evaluation time.
