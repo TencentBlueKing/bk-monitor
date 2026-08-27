@@ -1,6 +1,5 @@
 """APM Span 字段元数据查询测试。"""
 
-from datetime import UTC, datetime
 from types import SimpleNamespace
 from typing import Any
 
@@ -11,7 +10,6 @@ from apm_web.handlers.backend_data_handler import TraceBackendHandler
 from apm_web.handlers.instance_handler import InstanceHandler
 from apm_web.handlers.query.span import SpanQuery
 from apm_web.handlers.trace_handler.view_config import TraceFieldsHandler, TraceFieldsInfoHandler
-from apm_web.models import Application
 from bkmonitor.data_source.utils.apm import TraceDatasourceTarget
 from bkmonitor.data_source.utils.query import BaseQuery
 from constants.apm import OtlpKey, PreCalculateSpecificField
@@ -22,7 +20,7 @@ def _make_application() -> SimpleNamespace:
         bk_biz_id=2,
         app_name="app",
         trace_result_table_id="2_bkapm.trace_app",
-        list_retention_time_range=lambda: (1_722_395_200, 1_723_000_000),
+        es_retention=30,
     )
 
 
@@ -45,9 +43,14 @@ def _make_uq_field(
     }
 
 
-def test_span_query_fields_uses_table_and_space_uid(mocker) -> None:
-    start_time = 1_722_395_200
-    end_time = 1_723_000_000
+@pytest.mark.parametrize(
+    ("start_time", "end_time"),
+    [
+        (1_722_395_200, 1_723_000_000),
+        (None, None),
+    ],
+)
+def test_span_query_fields_uses_table_and_space_uid(mocker, start_time: int | None, end_time: int | None) -> None:
     query_fields = mocker.patch.object(BaseQuery, "_query_fields", autospec=True, return_value={})
     mocker.patch(
         "apm_web.handlers.query.span.bk_biz_id_to_space_uid",
@@ -72,7 +75,18 @@ def test_span_query_fields_uses_table_and_space_uid(mocker) -> None:
     )
 
 
-def test_span_query_fields_by_application_uses_retention_time_range(mocker) -> None:
+def test_span_query_from_application_builds_target_with_retention() -> None:
+    app: Any = _make_application()
+
+    query = SpanQuery.from_application(app)
+
+    assert query.data_sources == [
+        TraceDatasourceTarget.build(2, "app", "2_bkapm.trace_app", retention=30),
+    ]
+    assert query.retention == 30
+
+
+def test_span_query_fields_by_application_uses_target_retention(mocker) -> None:
     app: Any = _make_application()
     query_fields = mocker.patch.object(SpanQuery, "query_fields", autospec=True, return_value={})
     logger = mocker.patch("apm_web.handlers.query.span.logger")
@@ -80,30 +94,15 @@ def test_span_query_fields_by_application_uses_retention_time_range(mocker) -> N
     assert SpanQuery.query_fields_by_application(app) == {}
 
     query = query_fields.call_args.args[0]
-    assert query.data_sources == [TraceDatasourceTarget.build(2, "app", "2_bkapm.trace_app")]
-    query_fields.assert_called_once_with(query, 1_722_395_200, 1_723_000_000)
+    assert query.data_sources == [TraceDatasourceTarget.build(2, "app", "2_bkapm.trace_app", retention=30)]
+    query_fields.assert_called_once_with(query, None, None)
     logger.warning.assert_called_once_with(
-        "[SpanQuery] query fields returned empty: bk_biz_id=%s, app_name=%s, table_id=%s, start_time=%s, end_time=%s",
+        "[SpanQuery] query fields returned empty: bk_biz_id=%s, app_name=%s, table_id=%s, retention=%s",
         2,
         "app",
         "2_bkapm.trace_app",
-        1_722_395_200,
-        1_723_000_000,
+        30,
     )
-
-
-def test_application_retention_time_range_uses_es_retention(mocker) -> None:
-    start_time = datetime(2024, 7, 31, tzinfo=UTC)
-    end_time = datetime(2024, 8, 30, tzinfo=UTC)
-    get_datetime_range = mocker.patch(
-        "apm_web.models.application.get_datetime_range",
-        return_value=(start_time, end_time),
-    )
-    application = Application(bk_biz_id=2, app_name="app")
-    application.__dict__["es_retention"] = 30
-
-    assert application.list_retention_time_range() == (int(start_time.timestamp()), int(end_time.timestamp()))
-    get_datetime_range.assert_called_once_with(period="day", distance=30, rounding=False)
 
 
 def test_trace_fields_handler_maps_query_metadata_but_calculates_dimensions(mocker) -> None:

@@ -120,7 +120,7 @@ class TestBaseQuery:
         """单个结果表查询失败时，字段查询降级为空映射。"""
         mocker.patch.object(BaseQuery, "_query_info_fields", side_effect=RuntimeError("unify-query unavailable"))
 
-        result = BaseQuery()._query_fields(
+        result = BaseQuery(data_sources=[DataSourceTarget(table_id="rt1")])._query_fields(
             targets=[("rt1", "space1")],
             start_time=1717000000,
             end_time=1717003600,
