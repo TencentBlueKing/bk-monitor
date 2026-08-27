@@ -326,7 +326,7 @@ def _build_plan(item, identity_fields: list[str], query_window: int) -> dict:
     }
 
 
-def _build_terminal_plan(item, identity_fields: list[str], query_window: int, reason_code: str) -> dict:
+def _build_terminal_plan(item, reason_code: str) -> dict:
     strategy = item.strategy
     strategy_id = str(strategy.id)
     strategy_config = strategy.config if isinstance(strategy.config, Mapping) else {}
@@ -336,66 +336,10 @@ def _build_terminal_plan(item, identity_fields: list[str], query_window: int, re
         "strategy_id": strategy_id,
         "revision": revision,
     }
-    projection = _projection(item, identity_fields)
-    try:
-        interval = min((int(config.get("agg_interval") or 60) for config in item.query_configs), default=60)
-    except (TypeError, ValueError):
-        interval = 60
-    interval = max(1, interval)
-    level_id = 1
-    for algorithm in getattr(item, "algorithms", ()):
-        try:
-            candidate = int(algorithm.get("level"))
-        except (AttributeError, TypeError, ValueError):
-            continue
-        if candidate > 0:
-            level_id = candidate
-            break
-    priority = level_id if level_id in {1, 2, 3} else 1
-    strategy_ir = {
-        "schema": {"name": "alarmd-strategy-ir", "major": 2, "minor": 0},
-        "required_features": [],
-        "strategy_ref": strategy_ref,
-        "execution_semantics": {
-            "evaluation_scope": "SERIES",
-            "query_window": max(interval, int(query_window)),
-            "aggregation_interval": interval,
-            "evaluation_interval": interval,
-            "lateness_tolerance": interval * 2,
-        },
-        "input_projection": projection,
-        "levels": [
-            {
-                "definition": {"level_id": level_id, "priority": priority},
-                "connector": "AND",
-                "detect_plan": {
-                    "algorithms": [
-                        {
-                            "type": "M1UnsupportedPlan",
-                            "version": 1,
-                            "config": {"reason_code": reason_code},
-                        }
-                    ]
-                },
-                "trigger_plan": {
-                    "type": "N_OF_M",
-                    "version": 1,
-                    "config": {"required_anomalies": 1, "step_seconds": interval, "window_size": 1},
-                },
-                "recovery_plan": {
-                    "type": "CONTINUOUS_TRIGGER_MISS",
-                    "version": 1,
-                    "config": {"consecutive_windows": 1, "enabled": False},
-                },
-            }
-        ],
-    }
     return {
         "plan_id": strategy_id,
         "strategy_ref": strategy_ref,
-        "input_projection": projection,
-        "source_compatibility": {"item_id": str(item.id)},
-        "strategy_ir": strategy_ir,
+        "terminal_reason_code": reason_code,
     }
 
 
@@ -413,7 +357,7 @@ def _build_plan_set(
         source_item = source_items[0]
         if len(source_items) > 1:
             reason = "MULTIPLE_EVALUATION_UNITS_UNSUPPORTED"
-            plans.append(_build_terminal_plan(source_item, identity_fields, query_window, reason))
+            plans.append(_build_terminal_plan(source_item, reason))
             selection_item_ids.append(tuple(int(item.id) for item in source_items))
             terminal_reasons.append(reason)
             continue
@@ -421,7 +365,7 @@ def _build_plan_set(
             plans.append(_build_plan(source_item, identity_fields, query_window))
         except Exception:
             reason = "PLAN_INVALID"
-            plans.append(_build_terminal_plan(source_item, identity_fields, query_window, reason))
+            plans.append(_build_terminal_plan(source_item, reason))
             selection_item_ids.append((int(source_item.id),))
             terminal_reasons.append(reason)
             continue
@@ -842,7 +786,7 @@ def _new_async_publisher() -> BoundedAccessShadowPublisher:
 
 
 def submit_access_shadow(processor, records: Sequence) -> bool:
-    if not shadow_flag(settings.ALARMD_SHADOW_ENABLED) or not shadow_flag(settings.ALARMD_V2_SHADOW_WRITER_ENABLED):
+    if not shadow_flag(settings.ALARMD_SHADOW_ENABLED):
         return False
     if getattr(processor, "alarmd_v2_query_result", None) is None:
         return False

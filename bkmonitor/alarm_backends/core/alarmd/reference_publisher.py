@@ -21,7 +21,7 @@ from alarm_backends.core.alarmd.encoder import (
 from alarm_backends.core.alarmd.publisher import (
     DEFAULT_DELIVERY_TIMEOUT_MS,
     KafkaPublishReceipt,
-    PRODUCER_SCOPE_POST_DETECTION,
+    PRODUCER_SCOPE_TRIGGER_REFERENCE,
     _build_kafka_producer,
     trigger_partition_key,
 )
@@ -190,7 +190,7 @@ def build_kafka_reference_decision_publisher(
     producer = _build_kafka_producer(
         producer_config,
         producer_factory=producer_factory,
-        producer_scope=PRODUCER_SCOPE_POST_DETECTION,
+        producer_scope=PRODUCER_SCOPE_TRIGGER_REFERENCE,
     )
     return KafkaReferenceDecisionPublisher(producer=producer, topic=topic, flush_timeout=flush_timeout)
 

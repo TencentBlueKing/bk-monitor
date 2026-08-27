@@ -1377,13 +1377,6 @@ PUSH_MONITOR_EVENT_TO_FTA = True
 MONITOR_EVENT_KAFKA_TOPIC = os.getenv("BK_MONITOR_EVENT_KAFKA_TOPIC", "0bkmonitor_backend_event")
 # alarmd Detect→Trigger Shadow 默认关闭；所有旁路发布由一个总开关控制。
 ALARMD_SHADOW_ENABLED = False
-ALARMD_SHADOW_ASYNC_QUEUE_SIZE = 16
-ALARMD_DETECT_INPUT_SHADOW_KAFKA_CONFIG = {}
-ALARMD_DETECT_INPUT_SHADOW_ALLOWED_TOPICS = ()
-# Reader-first rollout gate for the Query Group level v2 Writer. The existing
-# Shadow switch remains the single business-level kill switch; this gate keeps
-# a new wire writer disabled until its Go reader is deployed.
-ALARMD_V2_SHADOW_WRITER_ENABLED = False
 ALARMD_V2_SHADOW_KAFKA_CONFIG = {}
 ALARMD_V2_SHADOW_ALLOWED_TOPICS = ()
 ALARMD_V2_SHADOW_ASYNC_MAX_JOBS = 0
@@ -1392,6 +1385,7 @@ ALARMD_V2_SHADOW_ASYNC_MAX_BYTES = 0
 ALARMD_V2_SHADOW_DRAIN_TIMEOUT_SECONDS = 1
 ALARMD_TRIGGER_REFERENCE_SHADOW_KAFKA_CONFIG = {}
 ALARMD_TRIGGER_REFERENCE_SHADOW_ALLOWED_TOPICS = ()
+ALARMD_TRIGGER_REFERENCE_SHADOW_ASYNC_QUEUE_SIZE = 16
 # 监控推送事件数据给自愈的 插件ID
 MONITOR_EVENT_PLUGIN_ID = "bkmonitor"
 # 主机监控获取单个进程支持最多port数

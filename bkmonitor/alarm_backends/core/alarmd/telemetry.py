@@ -17,7 +17,6 @@ from core.prometheus import metrics
 # contract, encoder, publisher and reference modules stay importable without a
 # settings module so their cross-language Golden runs standalone.
 
-STAGE_DETECT_INPUT = "detect_input"
 STAGE_REFERENCE = "reference"
 
 STATUS_SUCCESS = "success"
@@ -32,7 +31,7 @@ def record_shadow_async_job(stage: str, status: str) -> None:
 def observe_shadow_publish(stage: str):
     """Record one isolated Shadow publish attempt and how long its ACK took.
 
-    The bypass is fail-open for the legacy chain, so a broker rejection is only ever
+    The bypass is fail-open for the Python main chain, so a broker rejection is only ever
     visible here and in the logs. Labels stay a bounded enum and never expand by
     strategy, topic, partition or error text.
     """
@@ -51,12 +50,6 @@ def record_shadow_published_records(stage: str, count: int) -> None:
 
     if count > 0:
         metrics.ALARMD_SHADOW_PUBLISH_RECORD_COUNT.labels(stage=stage).inc(count)
-
-
-def record_shadow_publish_result(stage: str, *, success: bool, elapsed: float) -> None:
-    """Record a stage result when multiple topics share one physical flush."""
-
-    _observe(stage, STATUS_SUCCESS if success else STATUS_FAILED, elapsed)
 
 
 def _observe(stage: str, status: str, elapsed: float) -> None:

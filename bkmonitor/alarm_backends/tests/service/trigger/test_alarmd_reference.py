@@ -68,6 +68,45 @@ def test_trigger_reference_is_not_captured_outside_shadow_eligibility():
     processor.get_strategy_snapshot_legacy_json.assert_not_called()
 
 
+def test_trigger_reference_is_not_captured_without_abnormal_event():
+    processor = _processor()
+    processor.get_strategy_snapshot = mock.Mock(return_value=copy.deepcopy(TRIGGER_STRATEGY))
+    checker = mock.Mock()
+    checker.check.return_value = ([], None)
+    checker.is_no_data_point.return_value = False
+
+    with (
+        mock.patch("alarm_backends.service.trigger.processor.AnomalyChecker", return_value=checker),
+        mock.patch.object(processor, "is_alarmd_reference_selected", return_value=True),
+    ):
+        processor.process_point(json.dumps(copy.deepcopy(TRIGGER_POINT)))
+
+    assert processor.reference_candidates == []
+
+
+def test_trigger_reference_capture_uses_event_presence_not_mapping_truthiness():
+    point = copy.deepcopy(TRIGGER_POINT)
+    processor = _processor()
+    processor.get_strategy_snapshot = mock.Mock(return_value=copy.deepcopy(TRIGGER_STRATEGY))
+    checker = mock.Mock()
+    checker.check.return_value = ([], {})
+    checker.is_no_data_point.return_value = False
+
+    with (
+        mock.patch("alarm_backends.service.trigger.processor.AnomalyChecker", return_value=checker),
+        mock.patch.object(processor, "is_alarmd_reference_selected", return_value=True),
+    ):
+        processor.process_point(json.dumps(point))
+
+    assert processor.reference_candidates == [
+        {
+            "strategy_snapshot_key": point["strategy_snapshot_key"],
+            "point": point,
+            "event_record": {},
+        }
+    ]
+
+
 def test_trigger_reference_does_not_capture_nodata_points():
     processor = _processor()
     processor.get_strategy_snapshot = mock.Mock(return_value=copy.deepcopy(TRIGGER_STRATEGY))
@@ -217,7 +256,7 @@ def test_trigger_reference_async_jobs_are_bounded_by_count_and_encoded_bytes():
             side_effect=lambda batch: json.dumps(batch, separators=(",", ":")).encode(),
         ),
         mock.patch("alarm_backends.core.alarmd.async_publish.submit_shadow_job", side_effect=submit),
-        mock.patch.object(settings, "ALARMD_SHADOW_ASYNC_QUEUE_SIZE", 16, create=True),
+        mock.patch.object(settings, "ALARMD_TRIGGER_REFERENCE_SHADOW_ASYNC_QUEUE_SIZE", 16, create=True),
     ):
         assert processor.enqueue_alarmd_reference_candidates() == 3
 
@@ -230,8 +269,8 @@ def test_trigger_reference_async_jobs_are_bounded_by_count_and_encoded_bytes():
 def test_trigger_reference_publisher_uses_candidate_identity_and_is_fail_open():
     processor = _processor()
     processor.reference_candidates = [
-        {"strategy_snapshot_key": "first", "point": "first", "event_record": None},
-        {"strategy_snapshot_key": "second", "point": "second", "event_record": None},
+        {"strategy_snapshot_key": "first", "point": "first", "event_record": {"actual": True}},
+        {"strategy_snapshot_key": "second", "point": "second", "event_record": {"actual": True}},
     ]
     processor.get_strategy_snapshot = mock.Mock(return_value=copy.deepcopy(TRIGGER_STRATEGY))
     processor.get_strategy_snapshot_legacy_json = mock.Mock(return_value=b"strategy")
@@ -260,12 +299,6 @@ def test_trigger_reference_publisher_uses_candidate_identity_and_is_fail_open():
             ("alarmd-reference-shadow",),
             create=True,
         ),
-        mock.patch.object(
-            settings,
-            "ALARMD_DETECT_INPUT_SHADOW_ALLOWED_TOPICS",
-            ("alarmd-detection-shadow",),
-            create=True,
-        ),
         mock.patch.object(MonitorEventAdapter, "get_output_topic", return_value="monitor-event-nondefault"),
         mock.patch(
             "alarm_backends.core.alarmd.reference.build_reference_trigger_decision_candidate",
@@ -282,14 +315,14 @@ def test_trigger_reference_publisher_uses_candidate_identity_and_is_fail_open():
     assert published_groups == [batches]
     assert processor.get_strategy_snapshot_legacy_json.call_args_list == [mock.call("first"), mock.call("second")]
     assert [call.kwargs["legacy_json"] for call in candidate_builder.call_args_list] == [b"strategy", b"strategy"]
-    assert factory.call_args.args[2] == ("alarmd-detection-shadow", "monitor-event-nondefault")
+    assert factory.call_args.args[2] == ("monitor-event-nondefault",)
 
 
 def test_trigger_reference_publisher_flushes_candidates_in_bounded_groups(caplog):
     caplog.set_level(logging.INFO, logger="trigger")
     processor = _processor()
     processor.reference_candidates = [
-        {"strategy_snapshot_key": "snapshot", "point": index, "event_record": None} for index in range(501)
+        {"strategy_snapshot_key": "snapshot", "point": index, "event_record": {"actual": True}} for index in range(501)
     ]
     processor.get_strategy_snapshot = mock.Mock(return_value=copy.deepcopy(TRIGGER_STRATEGY))
     processor.get_strategy_snapshot_legacy_json = mock.Mock(return_value=b"strategy")
@@ -312,12 +345,6 @@ def test_trigger_reference_publisher_flushes_candidates_in_bounded_groups(caplog
             settings,
             "ALARMD_TRIGGER_REFERENCE_SHADOW_ALLOWED_TOPICS",
             ("alarmd-reference-shadow",),
-            create=True,
-        ),
-        mock.patch.object(
-            settings,
-            "ALARMD_DETECT_INPUT_SHADOW_ALLOWED_TOPICS",
-            ("alarmd-detection-shadow",),
             create=True,
         ),
         mock.patch.object(MonitorEventAdapter, "get_output_topic", return_value="monitor-event-nondefault"),
@@ -350,7 +377,7 @@ def test_trigger_reference_stops_projecting_when_the_publisher_stops_consuming(c
     caplog.set_level(logging.WARNING, logger="trigger")
     processor = _processor()
     processor.reference_candidates = [
-        {"strategy_snapshot_key": "snapshot", "point": index, "event_record": None} for index in range(501)
+        {"strategy_snapshot_key": "snapshot", "point": index, "event_record": {"actual": True}} for index in range(501)
     ]
     processor.get_strategy_snapshot = mock.Mock(return_value=copy.deepcopy(TRIGGER_STRATEGY))
     processor.get_strategy_snapshot_legacy_json = mock.Mock(return_value=b"strategy")
@@ -371,12 +398,6 @@ def test_trigger_reference_stops_projecting_when_the_publisher_stops_consuming(c
             settings,
             "ALARMD_TRIGGER_REFERENCE_SHADOW_ALLOWED_TOPICS",
             ("alarmd-reference-shadow",),
-            create=True,
-        ),
-        mock.patch.object(
-            settings,
-            "ALARMD_DETECT_INPUT_SHADOW_ALLOWED_TOPICS",
-            ("alarmd-detection-shadow",),
             create=True,
         ),
         mock.patch.object(MonitorEventAdapter, "get_output_topic", return_value="monitor-event-nondefault"),
@@ -407,7 +428,7 @@ def test_trigger_reference_failure_logs_prior_acknowledged_records_for_mixed_bat
     caplog.set_level(logging.WARNING, logger="trigger")
     processor = _processor()
     processor.reference_candidates = [
-        {"strategy_snapshot_key": "snapshot", "point": index, "event_record": None} for index in range(2)
+        {"strategy_snapshot_key": "snapshot", "point": index, "event_record": {"actual": True}} for index in range(2)
     ]
     processor.get_strategy_snapshot = mock.Mock(return_value=copy.deepcopy(TRIGGER_STRATEGY))
     processor.get_strategy_snapshot_legacy_json = mock.Mock(return_value=b"strategy")
@@ -428,12 +449,6 @@ def test_trigger_reference_failure_logs_prior_acknowledged_records_for_mixed_bat
             settings,
             "ALARMD_TRIGGER_REFERENCE_SHADOW_ALLOWED_TOPICS",
             ("alarmd-reference-shadow",),
-            create=True,
-        ),
-        mock.patch.object(
-            settings,
-            "ALARMD_DETECT_INPUT_SHADOW_ALLOWED_TOPICS",
-            ("alarmd-detection-shadow",),
             create=True,
         ),
         mock.patch.object(MonitorEventAdapter, "get_output_topic", return_value="monitor-event-nondefault"),
@@ -461,7 +476,7 @@ def test_trigger_reference_failure_logs_prior_acknowledged_records_for_mixed_bat
 def test_trigger_reference_stops_after_publisher_initialization_failure():
     processor = _processor()
     processor.reference_candidates = [
-        {"strategy_snapshot_key": "snapshot", "point": index, "event_record": None} for index in range(501)
+        {"strategy_snapshot_key": "snapshot", "point": index, "event_record": {"actual": True}} for index in range(501)
     ]
     processor.get_strategy_snapshot = mock.Mock(return_value=copy.deepcopy(TRIGGER_STRATEGY))
     processor.get_strategy_snapshot_legacy_json = mock.Mock(return_value=b"strategy")
@@ -477,12 +492,6 @@ def test_trigger_reference_stops_after_publisher_initialization_failure():
             settings,
             "ALARMD_TRIGGER_REFERENCE_SHADOW_ALLOWED_TOPICS",
             ("alarmd-reference-shadow",),
-            create=True,
-        ),
-        mock.patch.object(
-            settings,
-            "ALARMD_DETECT_INPUT_SHADOW_ALLOWED_TOPICS",
-            ("alarmd-detection-shadow",),
             create=True,
         ),
         mock.patch.object(MonitorEventAdapter, "get_output_topic", return_value="monitor-event-nondefault"),

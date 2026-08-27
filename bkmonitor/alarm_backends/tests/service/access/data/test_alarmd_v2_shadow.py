@@ -9,9 +9,14 @@ from alarm_backends.service.access.data import processor as access_processor
 from alarm_backends.service.access.data.processor import AccessDataProcess, BaseAccessDataProcess
 
 
+def test_alarmd_shadow_master_switch_is_the_only_writer_gate(mocker):
+    mocker.patch.object(settings, "ALARMD_SHADOW_ENABLED", True)
+
+    assert access_processor._alarmd_v2_shadow_enabled()
+
+
 def test_alarmd_v2_gate_off_does_not_import_v2_modules(mocker):
     mocker.patch.object(settings, "ALARMD_SHADOW_ENABLED", False)
-    mocker.patch.object(settings, "ALARMD_V2_SHADOW_WRITER_ENABLED", True, create=True)
     imported = mocker.patch("builtins.__import__", wraps=__import__)
 
     assert not access_processor._alarmd_v2_shadow_enabled()
