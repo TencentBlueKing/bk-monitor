@@ -55,6 +55,11 @@ export default defineComponent({
       type: Boolean,
       default: false,
     },
+    /** 字段单位，us / ms 视为耗时字段，用于 tooltip 按单位换算 */
+    unit: {
+      type: String,
+      default: '',
+    },
     data: {
       type: Array as PropType<IStatisticsGraph[]>,
       default: () => [],
@@ -121,8 +126,8 @@ export default defineComponent({
       if (props.isDuration) {
         const nameVal = params[0].name.split('-');
         const [start, end] = nameVal;
-        const startLabel = formatDurationWithUnit(Number(start || 0));
-        const endLabel = formatDurationWithUnit(Number(end || 0));
+        const startLabel = formatDurationWithUnit(Number(start || 0), '', props.unit);
+        const endLabel = formatDurationWithUnit(Number(end || 0), '', props.unit);
         name = `${startLabel} - ${endLabel}`;
         value = params[0].value[1];
       }
