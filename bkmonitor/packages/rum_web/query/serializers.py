@@ -105,11 +105,7 @@ class RumFieldsTopKRequestSerializer(BaseRumSearchSerializer):
 class RumDownloadTopKRequestSerializer(RumFieldsTopKRequestSerializer):
     """下载 Top-K"""
 
-    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
-        attrs = super().validate(attrs)
-        if len(attrs["fields"]) > 1:
-            raise serializers.ValidationError(_("不支持多个字段下载"))
-        return attrs
+    fields = serializers.ListField(label=_("查询字段列表"), child=serializers.CharField(), min_length=1, max_length=1)
 
 
 class RumStatisticsFieldSerializer(serializers.Serializer):
@@ -133,14 +129,9 @@ class RumFieldStatisticsGraphRequestSerializer(BaseRumSearchSerializer):
     """查询字段统计图表配置"""
 
     field = RumStatisticsFieldSerializer(label=_("字段"))
-    query_method = serializers.CharField(label=_("查询方法"), required=False)
-    time_alignment = serializers.BooleanField(label=_("是否对齐时间"), default=False)
 
     def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
         attrs = super().validate(attrs)
-        time_alignment: bool = attrs.get("time_alignment", False)
-        if "query_method" not in attrs:
-            attrs["query_method"] = ("query_reference", "query_data")[time_alignment]
         field = attrs["field"]
         if field["field_type"] == EnabledStatisticsDimension.KEYWORD.value:
             return attrs

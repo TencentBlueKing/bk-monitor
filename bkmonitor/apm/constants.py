@@ -8,8 +8,6 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from enum import Enum
-
 from django.conf import settings
 from django.db.models import TextChoices
 from django.utils.translation import gettext as _
@@ -697,34 +695,3 @@ class QueryMode:
             (cls.TRACE, "Trace视角"),
             (cls.SPAN, "span视角"),
         ]
-
-
-class AggregatedMethod(Enum):
-    """
-    聚合方法枚举
-    """
-
-    AVG = "avg"
-    MAX = "max"
-    MIN = "min"
-    COUNT = "count"
-    DISTINCT = "distinct"
-    CP50 = "cp50"
-
-
-class StatisticsProperty(Enum):
-    """
-    统计属性枚举
-    """
-
-    AVG = "avg"
-    MAX = "max"
-    MIN = "min"
-    TOTAL_COUNT = "total_count"
-    DISTINCT_COUNT = "distinct_count"
-    FIELD_COUNT = "field_count"
-    MEDIAN = "median"
-
-    @classmethod
-    def choices(cls):
-        return [(p.value, p.name) for p in cls]

@@ -24,10 +24,8 @@ from rest_framework.exceptions import ValidationError
 
 from apm.constants import (
     GLOBAL_CONFIG_BK_BIZ_ID,
-    AggregatedMethod,
     ApmCacheType,
     ConfigTypes,
-    StatisticsProperty,
     VisibleEnum,
 )
 from apm.core.discover.instance import InstanceDiscover
@@ -91,7 +89,7 @@ from constants.apm import (
     TraceListQueryMode,
     TraceWaterFallDisplayKey,
 )
-from constants.otel_query import EnabledStatisticsDimension
+from constants.otel_query import EnabledStatisticsDimension, AggregatedMethod, StatisticsProperty
 from core.drf_resource import Resource, api, resource
 from core.drf_resource.exceptions import CustomException
 from metadata import models
@@ -2424,15 +2422,7 @@ class QueryFieldStatisticsInfoResource(Resource):
 
     @classmethod
     def query_statistics_info(cls, proxy, validated_data, property_name, statistics_info) -> None:
-        query_property_method_map = {
-            StatisticsProperty.TOTAL_COUNT.value: AggregatedMethod.COUNT.value,
-            StatisticsProperty.FIELD_COUNT.value: AggregatedMethod.COUNT.value,
-            StatisticsProperty.DISTINCT_COUNT.value: AggregatedMethod.DISTINCT.value,
-            StatisticsProperty.AVG.value: AggregatedMethod.AVG.value,
-            StatisticsProperty.MAX.value: AggregatedMethod.MAX.value,
-            StatisticsProperty.MIN.value: AggregatedMethod.MIN.value,
-            StatisticsProperty.MEDIAN.value: AggregatedMethod.CP50.value,
-        }
+        query_property_method_map = StatisticsProperty.method_mapping()
         if property_name not in query_property_method_map:
             raise ValueError(_(f"未知的字段统计属性: {property_name}"))
 
@@ -2589,7 +2579,8 @@ class QueryFieldStatisticsGraphResource(Resource):
                 for interval in intervals
             ]
         )
-        return sorted(buckets, key=lambda data_point: int(data_point[1].split("-")[0]))
+        buckets.sort(key=lambda item: item[0])
+        return [data_point for _start, data_point in buckets]
 
     @classmethod
     def collect_interval_buckets(cls, base_query_params, proxy, bucket, interval: tuple[int, int]):
@@ -2605,4 +2596,4 @@ class QueryFieldStatisticsGraphResource(Resource):
         interval_count = proxy.query_field_aggregated_value(
             **interval_query_params,
         )
-        bucket.append([interval_count, f"{interval[0]}-{interval[1]}"])
+        bucket.append((interval[0], [interval_count, f"{interval[0]}-{interval[1]}"]))

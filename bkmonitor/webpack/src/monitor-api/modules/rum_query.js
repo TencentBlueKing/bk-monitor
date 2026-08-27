@@ -7,7 +7,7 @@ export const rumGenerateQueryString = request('POST', 'rum/search/generate_query
 export const rumFieldsTopK = request('POST', 'rum/search/fields_topk/');
 export const rumFieldStatisticsInfo = request('POST', 'rum/search/field_statistics_info/');
 export const rumFieldStatisticsGraph = request('POST', 'rum/search/field_statistics_graph/');
-export const rumDownloadTopk = request('POST', '/rum/search/download_topk/')
+export const rumDownloadTopk = request('POST', '/rum/search/download_topk/');
 
 export default {
   rumRecords,

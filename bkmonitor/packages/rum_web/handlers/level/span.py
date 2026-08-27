@@ -14,16 +14,18 @@ from typing import Any
 from django.utils.translation import gettext_lazy as _
 
 
-from apm.constants import AggregatedMethod, StatisticsProperty
 from apm.utils.ui_optimizations import HistogramNiceNumberGenerator
 from bkmonitor.data_source.utils import types
 from bkmonitor.utils.elasticsearch.handler import QueryStringGenerator
 from constants.apm import OperatorGroupRelation
-from constants.otel_query import OperatorEnum
+from constants.otel_query import (
+    EnabledStatisticsDimension,
+    OperatorEnum,
+    StatisticsProperty,
+)
 from bkmonitor.data_source.utils.apm import FilterOperator, TraceDatasourceTarget
 from bkmonitor.utils.common_utils import format_percent
 from bkmonitor.utils.thread_backend import ThreadPool
-from constants.otel_query import EnabledStatisticsDimension
 from core.drf_resource import resource
 from rum_web.handlers.level.base import BaseRumLevelHandler
 from rum_web.handlers.query.span import SpanQuery
@@ -108,17 +110,6 @@ class SpanLevelHandler(BaseRumLevelHandler):
         EnabledStatisticsDimension.INTEGER.value,
         EnabledStatisticsDimension.LONG.value,
         EnabledStatisticsDimension.DOUBLE.value,
-    }
-
-    #: 统计属性 -> 聚合方法
-    STATISTICS_PROPERTY_METHOD_MAP: dict[str, str] = {
-        StatisticsProperty.TOTAL_COUNT.value: AggregatedMethod.COUNT.value,
-        StatisticsProperty.FIELD_COUNT.value: AggregatedMethod.COUNT.value,
-        StatisticsProperty.DISTINCT_COUNT.value: AggregatedMethod.DISTINCT.value,
-        StatisticsProperty.AVG.value: AggregatedMethod.AVG.value,
-        StatisticsProperty.MAX.value: AggregatedMethod.MAX.value,
-        StatisticsProperty.MIN.value: AggregatedMethod.MIN.value,
-        StatisticsProperty.MEDIAN.value: AggregatedMethod.CP50.value,
     }
 
     BASE_STATISTICS_PROPERTIES: set[str] = {
@@ -298,7 +289,8 @@ class SpanLevelHandler(BaseRumLevelHandler):
         property_name: str,
         statistics_info: dict[str, Any],
     ) -> None:
-        if property_name not in self.STATISTICS_PROPERTY_METHOD_MAP:
+        method_mapping = StatisticsProperty.method_mapping()
+        if property_name not in method_mapping:
             raise ValueError(_("未知的字段统计属性: {}").format(property_name))
 
         field_name: str = field["field_name"]
@@ -312,7 +304,7 @@ class SpanLevelHandler(BaseRumLevelHandler):
             start_time,
             end_time,
             field_name,
-            self.STATISTICS_PROPERTY_METHOD_MAP[property_name],
+            method_mapping[property_name],
             query_filters,
             query_string,
         )
@@ -367,14 +359,13 @@ class SpanLevelHandler(BaseRumLevelHandler):
             )
             config.update(
                 {
-                    "time_alignment": extra_config.get("time_alignment", False),
-                    "null_as_zero": not extra_config.get("time_alignment", False),
+                    "time_alignment": False,
+                    "query_method": "query_reference",
+                    "null_as_zero": True,
                     "start_time": config["start_time"] // 1000,
                     "end_time": config["end_time"] // 1000,
                 }
             )
-            if "query_method" in extra_config:
-                config.update({"query_method": extra_config["query_method"]})
             return resource.grafana.graph_unify_query(config)
 
         # 数值类型：values 至少 4 项 [min_value, max_value, distinct_count, interval_num]
@@ -438,7 +429,7 @@ class SpanLevelHandler(BaseRumLevelHandler):
         intervals: list[tuple[int, int]],
     ) -> list[list[Any]]:
         """并发统计各区间计数，返回按区间起点升序排列的数据点列表。"""
-        buckets: list[list[Any]] = []
+        buckets: list[tuple[int, list[Any]]] = []
 
         def _collect(interval: tuple[int, int]):
             interval_filters = filters + [
@@ -447,10 +438,11 @@ class SpanLevelHandler(BaseRumLevelHandler):
             interval_count = self.query.query_field_aggregated_value(
                 start_time, end_time, "_index", "count", interval_filters, query_string
             )
-            buckets.append([int(interval_count or 0), f"{interval[0]}-{interval[1]}"])
+            buckets.append((interval[0], [int(interval_count or 0), f"{interval[0]}-{interval[1]}"]))
 
         ThreadPool().map_ignore_exception(_collect, intervals)
-        return sorted(buckets, key=lambda data_point: int(data_point[1].split("-")[0]))
+        buckets.sort(key=lambda item: item[0])
+        return [data_point for _start, data_point in buckets]
 
     def generate_query_string(
         self,

@@ -174,5 +174,4 @@ class RumFieldStatisticsGraphResource(Resource):
             field=data["field"],
             filters=data["filters"],
             query_string=data["query_string"],
-            extra_config={"time_alignment": data["time_alignment"], "query_method": data["query_method"]},
         )

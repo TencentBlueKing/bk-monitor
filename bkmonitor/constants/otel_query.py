@@ -202,3 +202,74 @@ class EnabledStatisticsDimension(CachedEnum):
     @classmethod
     def choices(cls):
         return [(dimension_type.value, dimension_type.name) for dimension_type in cls]
+
+
+class AggregatedMethod(CachedEnum):
+    """聚合方法枚举"""
+
+    AVG = "avg"
+    MAX = "max"
+    MIN = "min"
+    COUNT = "count"
+    DISTINCT = "distinct"
+    CP50 = "cp50"
+
+    @cached_property
+    def label(self) -> str:
+        return str(
+            {
+                self.AVG: _("平均值"),
+                self.MAX: _("最大值"),
+                self.MIN: _("最小值"),
+                self.COUNT: _("计数"),
+                self.DISTINCT: _("去重计数"),
+                self.CP50: _("中位数(CP50)"),
+            }.get(self, self.value)
+        )
+
+    @classmethod
+    def choices(cls) -> list[tuple[str, str]]:
+        return [(member.value, member.label) for member in cls]
+
+
+class StatisticsProperty(CachedEnum):
+    """统计属性枚举"""
+
+    AVG = "avg"
+    MAX = "max"
+    MIN = "min"
+    TOTAL_COUNT = "total_count"
+    DISTINCT_COUNT = "distinct_count"
+    FIELD_COUNT = "field_count"
+    MEDIAN = "median"
+
+    @cached_property
+    def label(self) -> str:
+        return str(
+            {
+                self.AVG: _("平均值"),
+                self.MAX: _("最大值"),
+                self.MIN: _("最小值"),
+                self.TOTAL_COUNT: _("总计数"),
+                self.DISTINCT_COUNT: _("去重计数"),
+                self.FIELD_COUNT: _("字段计数"),
+                self.MEDIAN: _("中位数"),
+            }.get(self, self.value)
+        )
+
+    @classmethod
+    def choices(cls) -> list[tuple[str, str]]:
+        return [(member.value, member.label) for member in cls]
+
+    @classmethod
+    def method_mapping(cls) -> dict[str, str]:
+        """统计属性到聚合方法的映射"""
+        return {
+            cls.TOTAL_COUNT.value: AggregatedMethod.COUNT.value,
+            cls.FIELD_COUNT.value: AggregatedMethod.COUNT.value,
+            cls.DISTINCT_COUNT.value: AggregatedMethod.DISTINCT.value,
+            cls.AVG.value: AggregatedMethod.AVG.value,
+            cls.MAX.value: AggregatedMethod.MAX.value,
+            cls.MIN.value: AggregatedMethod.MIN.value,
+            cls.MEDIAN.value: AggregatedMethod.CP50.value,
+        }
