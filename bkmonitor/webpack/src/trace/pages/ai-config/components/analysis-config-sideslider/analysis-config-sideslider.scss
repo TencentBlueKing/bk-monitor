@@ -87,20 +87,6 @@
           }
         }
 
-        .resource-collapse {
-          .agent-card {
-            .ai-ui-sdk-kuaijiezhiling {
-              display: none;
-            }
-          }
-
-          .skill-card {
-            .ai-ui-sdk-miyaoyiyanzheng {
-              display: none;
-            }
-          }
-        }
-
         &.process-params-section {
           .main-section-content {
             display: flex;
@@ -134,4 +120,5 @@
       }
     }
   }
+
 }

@@ -27,7 +27,7 @@
 import type { CreateSourceAnalysisRuleParams, SourceAnalysisRuleDto } from '../typings';
 
 /** 模拟网络延迟（ms） */
-const MOCK_LATENCY = 300;
+const MOCK_LATENCY = 2000;
 
 /** mock 当前用户（模拟服务端生成的审计字段） */
 const MOCK_USER = 'admin';

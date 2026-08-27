@@ -23,14 +23,24 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import type { CreateSourceAnalysisRuleVo } from '../typings';
 
-/** 参与变更对比的可编辑字段 key 列表（与 CreateSourceAnalysisRuleVo 保持一致） */
-export const EDITABLE_KEYS: (keyof CreateSourceAnalysisRuleVo)[] = [
-  'agent_id',
-  'conditions',
-  'is_enabled',
-  'knowledge_base_ids',
-  'priority',
-  'skill_ids',
-];
+import type { SourceAnalysisCondition } from '../typings';
+import type { IWhereItem } from 'trace/components/retrieval-filter/typing';
+
+/** 后端匹配条件转换为检索过滤器可识别的 where 结构 */
+export const toWhereItems = (conditions: SourceAnalysisCondition[]): IWhereItem[] =>
+  (conditions ?? []).map(item => ({
+    condition: item.condition,
+    key: item.field,
+    method: item.method,
+    value: item.value,
+  }));
+
+/** 检索过滤器的 where 结构转换为后端匹配条件 */
+export const toConditions = (where: IWhereItem[]): SourceAnalysisCondition[] =>
+  (where ?? []).map(item => ({
+    condition: item.condition,
+    field: item.key,
+    method: item.method,
+    value: (item.value ?? []).map(String),
+  }));

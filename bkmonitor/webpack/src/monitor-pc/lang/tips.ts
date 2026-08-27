@@ -548,6 +548,11 @@ export default {
   '数据未就绪，请稍后重试': 'Data is not ready, please try again later',
   优先级不能为空: 'Priority cannot be empty',
   匹配条件不能为空: 'Matching conditions cannot be empty',
-
+  请添加告警策略匹配规则: 'Please add alarm strategy matching rules',
+  请选择智能体: 'Please select an agent',
+  请选择知识库: 'Please select a knowledge base',
+  请选择Skill: 'Please select a Skill',
+  请输入优先级: 'Please enter the priority',
+  '优先级需在1-10000之间': 'The priority must be between 1 and 10000',
   '正在拉取来源构建、提交历史与 Blame 信息': 'Pulling source build, commit history, and blame information',
 };

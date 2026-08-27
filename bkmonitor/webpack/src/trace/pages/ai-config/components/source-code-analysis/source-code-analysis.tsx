@@ -45,12 +45,7 @@ import {
 import AnalysisConfigSideslider from '../analysis-config-sideslider/analysis-config-sideslider';
 import AnalysisRuleTable from '../analysis-rule-table/analysis-rule-table';
 
-import type {
-  ConfirmPayload,
-  CreateSourceAnalysisRuleParams,
-  SidesliderType,
-  SourceAnalysisRuleDto,
-} from '../../typings';
+import type { ConfirmPayload, CreateSourceAnalysisRuleVo, SidesliderType, SourceAnalysisRuleDto } from '../../typings';
 
 import './source-code-analysis.scss';
 
@@ -143,10 +138,10 @@ export default defineComponent({
       const isEditMode = sidesliderType.value === SidesliderTypeEnum.EDIT;
       try {
         if (isEditMode && editRuleId.value) {
-          await updateSourceAnalysisRule(editRuleId.value, payload.params as Partial<CreateSourceAnalysisRuleParams>);
+          await updateSourceAnalysisRule(editRuleId.value, payload.params as Partial<CreateSourceAnalysisRuleVo>);
           Message({ theme: 'success', message: t('编辑成功') });
         } else {
-          await createSourceAnalysisRule(payload.params as CreateSourceAnalysisRuleParams);
+          await createSourceAnalysisRule(payload.params as CreateSourceAnalysisRuleVo);
           Message({ theme: 'success', message: t('新增成功') });
         }
         payload.resolve();
@@ -569,7 +564,7 @@ export default defineComponent({
                   getMatchRuleValueFn={this.getMatchRuleValueFn}
                   matchRuleFields={this.matchRuleFields}
                   matchRuleFieldsLoading={this.matchRuleFieldsLoading}
-                  processName='IEG - 登陆服务'
+                  projectName='IEG - 登陆服务'
                   ruleId={this.editRuleId}
                   show={this.showBindModal}
                   tagValueDisplayFormatter={this.getMatchRuleTagValueDisplayFormatter}

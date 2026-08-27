@@ -41,3 +41,17 @@ export const SidesliderTypeEnum = {
   /** 编辑 */
   EDIT: 'edit',
 } as const;
+
+/** 表单项错误信息 key */
+export const ErrorKeyEnum = {
+  /** 告警策略匹配规则 */
+  CONDITIONS: 'conditions',
+  /** 优先级 */
+  PRIORITY: 'priority',
+  /** 智能体 */
+  AGENT: 'agent_id',
+  /** 知识库 */
+  KNOWLEDGE_BASE: 'knowledge_base_ids',
+  /** 技能 */
+  SKILL: 'skill_ids',
+} as const;

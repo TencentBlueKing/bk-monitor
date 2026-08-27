@@ -651,9 +651,6 @@ importers:
       '@antv/g6':
         specifier: ^4.8.25
         version: 4.8.25
-      '@blueking/ai-ui-sdk':
-        specifier: 0.4.3-beta.11
-        version: 0.4.3-beta.11(@blueking/ediatable@0.0.1-beta.33(vue@3.5.30(typescript@5.9.3)))(@blueking/xss-filter@0.0.10)(@toast-ui/editor-plugin-code-syntax-highlight@3.1.0)(@toast-ui/editor@3.2.2)(bkui-vue@2.0.2-beta.97(highlight.js@11.11.1)(vue@3.5.30(typescript@5.9.3)))(dayjs@1.11.20)(katex@0.16.45)(prismjs@1.30.0)(tdesign-vue-next@1.18.6(vue@3.5.30(typescript@5.9.3)))(tippy.js@6.3.7)(vue-router@4.5.1(vue@3.5.30(typescript@5.9.3)))(vue@3.5.30(typescript@5.9.3))
       '@blueking/bk-user-display-name':
         specifier: 1.0.3-beta.3
         version: 1.0.3-beta.3
@@ -1581,22 +1578,6 @@ packages:
       vue-router: ^4.5.1
       x-mavon-editor: 0.0.20
 
-  '@blueking/ai-ui-sdk@0.4.3-beta.11':
-    resolution: {integrity: sha512-lfWGnG81TBgXTGb/XgxPp9gpKxRrHsqD9pLaKw7hreHbZTqOaZZ66O8uTwpl3zAMrfL/lHgpEirKkJTHBxntWQ==}
-    peerDependencies:
-      '@blueking/ediatable': ^0.0.1-beta.31
-      '@blueking/xss-filter': ^0.0.10
-      '@toast-ui/editor': ^3.2.2
-      '@toast-ui/editor-plugin-code-syntax-highlight': ^3.1.0
-      bkui-vue: '*'
-      dayjs: ^1.11.13
-      katex: ^0.16.45
-      prismjs: ^1.30.0
-      tdesign-vue-next: ^1.16.0
-      tippy.js: ^6.3.7
-      vue: ^3.5.13
-      vue-router: ^4.2.4
-
   '@blueking/aiops-topo@0.0.1-beta.6':
     resolution: {integrity: sha512-hL6hObz8U8HWOEhbSgsyH0hi3oYLPC5jIv5AMDY9cWq+DAnJaXAu9/rYS8jrBiPdh4LtmeqBWMDH2npTcdbQ2g==}
     peerDependencies:
@@ -1637,12 +1618,6 @@ packages:
       '@blueking/bkui-library': ^0.0.0-beta.4
       bkui-vue: ^2.0.1
       dayjs: ^1.11.10
-      vue: ^3
-
-  '@blueking/ediatable@0.0.1-beta.33':
-    resolution: {integrity: sha512-PoknOgFULk7cuOFMHbVqaDiA8qm+khQnxIsdBXIlISZ985MpJ0gvH1OtMNenUBIhdxeWxZSeCZQCObaLLG9VOA==}
-    engines: {node: '>=18.16.0'}
-    peerDependencies:
       vue: ^3
 
   '@blueking/fork-resize-detector@0.0.2':
@@ -3593,9 +3568,6 @@ packages:
   '@vueuse/core@10.11.1':
     resolution: {integrity: sha512-guoy26JQktXPcz+0n3GukWIy/JDNKti9v6VEMu6kV2sYBsWuGiTU8OWdg+ADfUbHg3/3DlqySDe7JmdHrktiww==}
 
-  '@vueuse/core@10.9.0':
-    resolution: {integrity: sha512-/1vjTol8SXnx6xewDEKfS0Ra//ncg4Hb0DaZiwKf7drgfMsKFExQ+FnnENcN6efPen+1kIzhLQoGSy0eDUVOMg==}
-
   '@vueuse/core@13.9.0':
     resolution: {integrity: sha512-ts3regBQyURfCE2BcytLqzm8+MmLlo5Ln/KLoxDVcsZ2gzIwVNnQpQOL/UKV8alUqjSZOlpFZcRNsLRqj+OzyA==}
     peerDependencies:
@@ -3604,17 +3576,11 @@ packages:
   '@vueuse/metadata@10.11.1':
     resolution: {integrity: sha512-IGa5FXd003Ug1qAZmyE8wF3sJ81xGLSqTqtQ6jaVfkeZ4i5kS2mwQF61yhVqojRnenVew5PldLyRgvdl4YYuSw==}
 
-  '@vueuse/metadata@10.9.0':
-    resolution: {integrity: sha512-iddNbg3yZM0X7qFY2sAotomgdHK7YJ6sKUvQqbvwnf7TmaVPxS4EJydcNsVejNdS8iWCtDk+fYXr7E32nyTnGA==}
-
   '@vueuse/metadata@13.9.0':
     resolution: {integrity: sha512-1AFRvuiGphfF7yWixZa0KwjYH8ulyjDCC0aFgrGRz8+P4kvDFSdXLVfTk5xAN9wEuD1J6z4/myMoYbnHoX07zg==}
 
   '@vueuse/shared@10.11.1':
     resolution: {integrity: sha512-LHpC8711VFZlDaYUXEBbFBCQ7GS3dVU9mjOhhMhXP6txTV4EhYQg/KGnQuvt/sPAtoUKq7VVUnL6mVtFoL42sA==}
-
-  '@vueuse/shared@10.9.0':
-    resolution: {integrity: sha512-Uud2IWncmAfJvRaFYzv5OHDli+FbOzxiVEQdLCKQKLyhz94PIyFC3CHcH7EDMwIn8NPtD06+PNbC/PiO0LGLtw==}
 
   '@vueuse/shared@13.9.0':
     resolution: {integrity: sha512-e89uuTLMh0U5cZ9iDpEI2senqPGfbPRTHM/0AaQkcxnpqjkZqDYP8rpfm7edOz8s+pOCOROEy1PIveSW8+fL5g==}
@@ -10603,21 +10569,6 @@ snapshots:
       vue-router: 3.6.5(vue@2.7.16)
       x-mavon-editor: 0.0.20
 
-  '@blueking/ai-ui-sdk@0.4.3-beta.11(@blueking/ediatable@0.0.1-beta.33(vue@3.5.30(typescript@5.9.3)))(@blueking/xss-filter@0.0.10)(@toast-ui/editor-plugin-code-syntax-highlight@3.1.0)(@toast-ui/editor@3.2.2)(bkui-vue@2.0.2-beta.97(highlight.js@11.11.1)(vue@3.5.30(typescript@5.9.3)))(dayjs@1.11.20)(katex@0.16.45)(prismjs@1.30.0)(tdesign-vue-next@1.18.6(vue@3.5.30(typescript@5.9.3)))(tippy.js@6.3.7)(vue-router@4.5.1(vue@3.5.30(typescript@5.9.3)))(vue@3.5.30(typescript@5.9.3))':
-    dependencies:
-      '@blueking/ediatable': 0.0.1-beta.33(vue@3.5.30(typescript@5.9.3))
-      '@blueking/xss-filter': 0.0.10
-      '@toast-ui/editor': 3.2.2
-      '@toast-ui/editor-plugin-code-syntax-highlight': 3.1.0
-      bkui-vue: 2.0.2-beta.97(highlight.js@11.11.1)(vue@3.5.30(typescript@5.9.3))
-      dayjs: 1.11.20
-      katex: 0.16.45
-      prismjs: 1.30.0
-      tdesign-vue-next: 1.18.6(vue@3.5.30(typescript@5.9.3))
-      tippy.js: 6.3.7
-      vue: 3.5.30(typescript@5.9.3)
-      vue-router: 4.5.1(vue@3.5.30(typescript@5.9.3))
-
   '@blueking/aiops-topo@0.0.1-beta.6(@blueking/bkui-library@0.0.0-beta.6)(vue@2.7.16)':
     dependencies:
       '@blueking/bkui-library': 0.0.0-beta.6
@@ -10815,14 +10766,6 @@ snapshots:
       bkui-vue: 2.0.2-beta.97(highlight.js@11.11.1)(vue@3.5.30(typescript@5.9.3))
       dayjs: 1.11.20
       vue: 3.5.30(typescript@5.9.3)
-
-  '@blueking/ediatable@0.0.1-beta.33(vue@3.5.30(typescript@5.9.3))':
-    dependencies:
-      '@vueuse/core': 10.9.0(vue@3.5.30(typescript@5.9.3))
-      tippy.js: 6.3.7
-      vue: 3.5.30(typescript@5.9.3)
-    transitivePeerDependencies:
-      - '@vue/composition-api'
 
   '@blueking/fork-resize-detector@0.0.2': {}
 
@@ -13085,16 +13028,6 @@ snapshots:
       - '@vue/composition-api'
       - vue
 
-  '@vueuse/core@10.9.0(vue@3.5.30(typescript@5.9.3))':
-    dependencies:
-      '@types/web-bluetooth': 0.0.20
-      '@vueuse/metadata': 10.9.0
-      '@vueuse/shared': 10.9.0(vue@3.5.30(typescript@5.9.3))
-      vue-demi: 0.14.10(vue@3.5.30(typescript@5.9.3))
-    transitivePeerDependencies:
-      - '@vue/composition-api'
-      - vue
-
   '@vueuse/core@13.9.0(vue@3.5.30(typescript@5.9.3))':
     dependencies:
       '@types/web-bluetooth': 0.0.21
@@ -13103,8 +13036,6 @@ snapshots:
       vue: 3.5.30(typescript@5.9.3)
 
   '@vueuse/metadata@10.11.1': {}
-
-  '@vueuse/metadata@10.9.0': {}
 
   '@vueuse/metadata@13.9.0': {}
 
@@ -13116,13 +13047,6 @@ snapshots:
       - vue
 
   '@vueuse/shared@10.11.1(vue@3.5.30(typescript@5.9.3))':
-    dependencies:
-      vue-demi: 0.14.10(vue@3.5.30(typescript@5.9.3))
-    transitivePeerDependencies:
-      - '@vue/composition-api'
-      - vue
-
-  '@vueuse/shared@10.9.0(vue@3.5.30(typescript@5.9.3))':
     dependencies:
       vue-demi: 0.14.10(vue@3.5.30(typescript@5.9.3))
     transitivePeerDependencies:
