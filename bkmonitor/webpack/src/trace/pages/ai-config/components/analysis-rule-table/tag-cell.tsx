@@ -41,14 +41,27 @@ export default defineComponent({
       type: Array as PropType<string[]>,
       default: () => [],
     },
+    nameMap: {
+      type: Object as PropType<Map<string, string>>,
+      default: () => new Map(),
+    },
   },
-  setup() {
+  setup(props) {
     /**
      * @description 默认的溢出标签提示popover内容渲染方法
      * @param ellipsisTags 溢出标签列表
      * @returns {SlotReturnValue} popover 展示的内容
      */
-    const defaultEllipsisTipsContentRender = (ellipsisTags: string[]) => ellipsisTags.join('，');
+    const defaultEllipsisTipsContentRender = (ellipsisTags: string[]) =>
+      ellipsisTags
+        .map(item => {
+          const name = props.nameMap.get(item);
+          if (name && name !== item) {
+            return `${name}（${item}）`;
+          }
+          return item;
+        })
+        .join('，');
     return {
       defaultEllipsisTipsContentRender,
     };
@@ -65,8 +78,11 @@ export default defineComponent({
             <span
               key={`${index}-${tag}`}
               class='analysis-rule-table-tags-cell-tag-item'
+              v-bk-tooltips={{
+                content: tag,
+              }}
             >
-              {tag}
+              {this.nameMap.get(tag) || tag}
             </span>
           ),
         }}

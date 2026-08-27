@@ -27,10 +27,10 @@ import { computed, defineComponent, onMounted, shallowRef } from 'vue';
 
 import { Button, InfoBox, Input, Message, Select } from 'bkui-vue';
 import { Plus } from 'bkui-vue/lib/icon';
-import { debounce } from 'lodash';
 import OverflowTips from 'trace/directive/overflow-tips';
 import { useI18n } from 'vue-i18n';
 
+import { useAiResourceSelect } from '../../composables/use-ai-resource-select';
 import { useBkciProjectsSelect } from '../../composables/use-bkci-projects-select';
 import { useBkciRepositoriesSelect } from '../../composables/use-bkci-repositories-select';
 import { useMatchRuleFields } from '../../composables/use-match-rule-fields';
@@ -39,6 +39,9 @@ import { getSourceAnalysisConfigData, setSaveSourceAnalysisConfig } from '../../
 import {
   createSourceAnalysisRule,
   deleteSourceAnalysisRule,
+  getAgents,
+  getKnowledgeBases,
+  getSkills,
   listSourceAnalysisRules,
   updateSourceAnalysisRule,
 } from '../../services/source-analysis-rule';
@@ -105,6 +108,13 @@ export default defineComponent({
       loading: matchRuleFieldsLoading,
       tagValueDisplayFormatter: getMatchRuleTagValueDisplayFormatter,
     } = useMatchRuleFields();
+
+    /** 智能体下拉（单选） */
+    const agentSelect = useAiResourceSelect(getAgents);
+    /** 知识库下拉（多选） */
+    const knowledgeBaseSelect = useAiResourceSelect(getKnowledgeBases);
+    /** Skill 下拉（多选） */
+    const skillSelect = useAiResourceSelect(getSkills);
 
     /**
      * @description 统一控制侧弹窗显隐，并在关闭时重置操作类型与规则 id
@@ -189,9 +199,9 @@ export default defineComponent({
         // 初始化加载完成后记录初始快照，作为是否编辑过的基线
         initialBkciProjectId.value = `${bkciProjectId.value}`;
         initialRepositoryAlias.value = `${repositoryAlias.value}`;
-        // 详情回显：以当前 id 回查项目/仓库列表，定位并加载目标项
-        projectsSelect.fetchDataInit(bkciProjectId.value);
-        repositoriesSelect.fetchDataInit(repositoryAlias.value);
+        // 详情回显：拉取项目/仓库全量列表并填充映射表
+        projectsSelect.fetchDataInit();
+        repositoriesSelect.fetchDataInit();
       } finally {
         configLoading.value = false;
       }
@@ -217,10 +227,6 @@ export default defineComponent({
       searchValue.value = '';
     };
 
-    /** 搜索输入防抖处理（300ms），避免频繁触发接口请求 */
-    const handleProjectsSearchDebounce = debounce(projectsSelect.handleSearch, 300);
-    const handleRepositoriesSearchDebounce = debounce(repositoriesSelect.handleSearch, 300);
-
     /**
      * @description 蓝盾项目下拉展开/收起：展开时清空该校验错误
      */
@@ -228,7 +234,6 @@ export default defineComponent({
       if (val) {
         projectErrMsg.value = '';
       }
-      projectsSelect.handleToggle(val);
     };
 
     /**
@@ -238,7 +243,6 @@ export default defineComponent({
       if (val) {
         repositoryErrMsg.value = '';
       }
-      repositoriesSelect.handleToggle(val);
     };
 
     /**
@@ -286,10 +290,17 @@ export default defineComponent({
       repositoryAlias.value = '';
     };
 
+    const fetchAiResource = () => {
+      agentSelect.fetchList();
+      knowledgeBaseSelect.fetchList();
+      skillSelect.fetchList();
+    };
+
     onMounted(() => {
       handleInitConfig();
       handleFetchRules();
       fetchMatchRuleFields();
+      fetchAiResource();
     });
 
     return {
@@ -308,21 +319,15 @@ export default defineComponent({
       /** 蓝盾项目下拉 */
       bkciProjects: projectsSelect.list,
       projectsLoading: projectsSelect.loading,
-      projectsScrollLoading: projectsSelect.scrollLoading,
       /** id -> 名称 映射，供标签/回显反查展示 */
       bkciProjectsNameMap: projectsSelect.nameMap,
       handleProjectsToggle,
-      handleProjectsSearch: handleProjectsSearchDebounce,
-      handleProjectsScrollEnd: projectsSelect.handleScrollEnd,
       /** 源码仓库下拉 */
       bkciRepositories: repositoriesSelect.list,
       repositoriesLoading: repositoriesSelect.loading,
-      repositoriesScrollLoading: repositoriesSelect.scrollLoading,
       /** id -> 名称 映射，供标签/回显反查展示 */
       bkciRepositoriesNameMap: repositoriesSelect.nameMap,
       handleRepositoriesToggle,
-      handleRepositoriesSearch: handleRepositoriesSearchDebounce,
-      handleRepositoriesScrollEnd: repositoriesSelect.handleScrollEnd,
       handleRuleSliderChange,
       handleBindConfirm,
       handleSaveConfig,
@@ -338,6 +343,9 @@ export default defineComponent({
       handleChangeBkciProjectId,
       save: handleSaveConfig,
       isEdited,
+      agentNameMap: agentSelect.nameMap,
+      knowledgeNameMap: knowledgeBaseSelect.nameMap,
+      skillNameMap: skillSelect.nameMap,
     };
   },
   render() {
@@ -411,16 +419,12 @@ export default defineComponent({
                           extCls: 'ai-config-source-code-analysis-popover',
                         }}
                         customContent={this.projectsLoading}
-                        filterOption={() => true}
                         loading={this.projectsLoading}
                         modelValue={this.bkciProjectId}
                         multiple={false}
                         multipleMode='tag'
                         noDataText={this.projectsLoading ? this.t('加载中...') : this.t('无数据')}
-                        scrollLoading={this.projectsScrollLoading}
                         filterable
-                        onScroll-end={this.handleProjectsScrollEnd}
-                        onSearch-change={this.handleProjectsSearch}
                         onToggle={this.handleProjectsToggle}
                         onUpdate:modelValue={val => this.handleChangeBkciProjectId(val)}
                       >
@@ -479,16 +483,12 @@ export default defineComponent({
                         }}
                         customContent={this.repositoriesLoading}
                         disabled={!this.bkciProjectId}
-                        filterOption={() => true}
                         loading={this.repositoriesLoading}
                         modelValue={this.repositoryAlias}
                         multiple={false}
                         multipleMode='tag'
                         noDataText={this.repositoriesLoading ? this.t('加载中...') : this.t('无数据')}
-                        scrollLoading={this.repositoriesScrollLoading}
                         filterable
-                        onScroll-end={this.handleRepositoriesScrollEnd}
-                        onSearch-change={this.handleRepositoriesSearch}
                         onToggle={this.handleRepositoriesToggle}
                         onUpdate:modelValue={val => {
                           this.repositoryAlias = val;
@@ -563,11 +563,14 @@ export default defineComponent({
                 </span>
 
                 <AnalysisRuleTable
+                  agentNameMap={this.agentNameMap}
                   data={this.sourceAnalysisRules}
+                  knowledgeNameMap={this.knowledgeNameMap}
                   loading={this.rulesLoading}
                   matchRuleFields={this.matchRuleFields}
                   matchRuleFieldsLoading={this.matchRuleFieldsLoading}
                   searchValue={this.searchValue}
+                  skillNameMap={this.skillNameMap}
                   tagValueDisplayFormatter={this.getMatchRuleTagValueDisplayFormatter}
                   onClearSearch={this.handleClearSearch}
                   onDeleteRule={this.handleDeleteRule}

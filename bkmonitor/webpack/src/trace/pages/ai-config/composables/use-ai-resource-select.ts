@@ -53,6 +53,7 @@ export function useAiResourceSelect(apiFn: AiResourceApiFn) {
   const keyword = shallowRef('');
   /** 搜索中（展示下拉骨架屏的短暂态） */
   const searchLoading = shallowRef(false);
+  const nameMap = shallowRef<Map<string, string>>(new Map());
   /** 竞态防护：取消上一轮未完成的请求，避免快速开关时旧响应覆盖新数据 */
   let abortControllerRef = new AbortController();
   /** 搜索骨架屏定时器 */
@@ -69,6 +70,9 @@ export function useAiResourceSelect(apiFn: AiResourceApiFn) {
       const res = await apiFn();
       if (!curAbort.signal.aborted) {
         list.value = res.list || [];
+        for (const item of list.value) {
+          nameMap.value.set(item.id, item.name);
+        }
       }
     } catch {
       if (!curAbort.signal.aborted) {
@@ -126,5 +130,6 @@ export function useAiResourceSelect(apiFn: AiResourceApiFn) {
     fetchList,
     handleSearch,
     reset,
+    nameMap,
   };
 }
