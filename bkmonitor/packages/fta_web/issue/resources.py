@@ -135,9 +135,14 @@ class SourceAnalysisBaseResource(Resource):
     CONDITION_METHODS = ("eq", "neq", "include", "exclude", "reg", "nreg", "issuperset")
     CONDITION_CONNECTORS = ("and", "or")
 
-    # 校验 AI 资源权限需要遍历当前用户可见的全部资源，这里约定分页大小与翻页安全上限
+    # 校验 AI 资源权限需要遍历当前用户可见的全部资源，这里约定分页大小与翻页安全上限。
+    # AIDEV 侧 page_size 的上限也是 200，无法靠调大分页来减少请求次数。
     AIDEV_PAGE_SIZE = 200
     AIDEV_MAX_PAGES = 100
+
+    # AIDEV 用户态资源类型到列表接口名的映射。带缓存的查询入口只接收类型标识，
+    # 因为缓存键由入参 md5 生成，直接传 api 方法对象会让键随对象变化而失效。
+    AIDEV_LIST_APIS = {"agents": "list_agents", "skills": "list_skills"}
 
     @staticmethod
     def db_alias() -> str:
@@ -258,6 +263,24 @@ class SourceAnalysisBaseResource(Resource):
                 return list(items_by_id.values())
             page += 1
         raise ValueError("AIDEV resource pagination exceeds safety limit")
+
+    @staticmethod
+    @using_cache(CacheType.AIDEV)
+    def query_visible_aidev_items(resource_type: str, id_field: str) -> list[dict]:
+        """选项接口专用的带缓存全量查询。
+
+        一次下拉展开就要遍历上游全部分页，千级资源约 5 次请求，Agent 与 Skill 两个选择器
+        叠加后单次打开规则编辑侧弹的开销可观，因此按登录用户短期缓存整份列表。
+        CacheType.AIDEV 是 user_related，缓存键带用户名，与 AIDEV 按 Access Token
+        过滤资源的口径一致，不会跨用户串数据。
+
+        启用校验刻意不复用这份缓存：校验结果决定规则能否保存，用陈旧列表会把用户
+        刚在 AIDEV 建好的资源判为无效，因此那条路径继续走实时遍历。
+        """
+
+        base = SourceAnalysisBaseResource
+        list_resources = getattr(api.aidev, base.AIDEV_LIST_APIS[resource_type])
+        return base.list_visible_aidev_items(list_resources, id_field)
 
     @classmethod
     def list_visible_aidev_ids(cls, list_resources: Callable, id_field: str) -> set[str]:
@@ -1649,12 +1672,11 @@ class BaseListSourceAnalysisAidevOptionsResource(SourceAnalysisBaseResource):
 
     id_field: str
     name_field: str
+    # 取值来自 AIDEV_LIST_APIS，同时作为缓存键的一部分
+    aidev_resource_type: str
 
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(label="业务 ID")
-
-    def aidev_list_resources(self) -> Callable:
-        raise NotImplementedError
 
     @staticmethod
     @using_cache(CacheType.AIDEV)
@@ -1695,7 +1717,7 @@ class BaseListSourceAnalysisAidevOptionsResource(SourceAnalysisBaseResource):
     def perform_request(self, validated_request_data: dict) -> dict:
         # bk_biz_id 由 ViewSet 用于 BKM 业务权限校验；AIDEV 使用当前用户 Token 独立过滤资源权限。
         try:
-            items = self.list_visible_aidev_items(self.aidev_list_resources(), self.id_field)
+            items = self.query_visible_aidev_items(self.aidev_resource_type, self.id_field)
             space_name_map = self.get_aidev_space_name_map() if items else {}
             options = []
             for item in items:
@@ -1727,9 +1749,7 @@ class ListSourceAnalysisAgentsResource(BaseListSourceAnalysisAidevOptionsResourc
 
     id_field = "id"
     name_field = "agent_name"
-
-    def aidev_list_resources(self) -> Callable:
-        return api.aidev.list_agents
+    aidev_resource_type = "agents"
 
 
 class ListSourceAnalysisSkillsResource(BaseListSourceAnalysisAidevOptionsResource):
@@ -1737,9 +1757,7 @@ class ListSourceAnalysisSkillsResource(BaseListSourceAnalysisAidevOptionsResourc
 
     id_field = "id"
     name_field = "skill_name"
-
-    def aidev_list_resources(self) -> Callable:
-        return api.aidev.list_skills
+    aidev_resource_type = "skills"
 
 
 class ListSourceAnalysisKnowledgeBasesResource(BaseListSourceAnalysisAidevOptionsResource):

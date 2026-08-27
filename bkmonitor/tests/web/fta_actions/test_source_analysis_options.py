@@ -21,6 +21,8 @@ from api.devops.default import (
 from api.aidev.default import ListAgentsResource, ListSkillsResource, ListSpacesResource
 from bkmonitor.iam import ActionEnum
 from bkmonitor.iam.drf import BusinessActionPermission
+from bkmonitor.models import IssueSourceAnalysisRule
+from bkmonitor.utils.cache import CacheType
 from core.drf_resource import api
 from core.errors.api import BKAPIError
 from core.errors.issue import SourceAnalysisUpstreamUnavailableError
@@ -30,6 +32,7 @@ from fta_web.issue.resources import (
     ListSourceAnalysisAgentsResource,
     ListSourceAnalysisKnowledgeBasesResource,
     ListSourceAnalysisSkillsResource,
+    SourceAnalysisBaseResource,
 )
 from fta_web.issue.views import SourceAnalysisOptionsViewSet
 
@@ -297,6 +300,61 @@ class TestSourceAnalysisOptionsResources(SimpleTestCase):
 
         self.assertEqual(list_agents.call_count, 100)
 
+    def test_aidev_options_query_through_user_cached_entry(self):
+        """选项查询必须走带缓存的入口：一次展开就要遍历上游全部分页，重复查询会持续压 AIDEV。"""
+
+        # using_cache 包装后会挂上 cacheless / refresh 调用模式，可用于确认装饰器没被摘掉
+        self.assertTrue(hasattr(SourceAnalysisBaseResource.query_visible_aidev_items, "cacheless"))
+        # AIDEV 资源按当前用户 Access Token 过滤，缓存必须按用户隔离，否则会跨用户串资源
+        self.assertTrue(CacheType.AIDEV.user_related)
+
+        # 缓存键由入参 md5 生成，因此入参只能是资源类型标识，不能是 api 方法对象
+        self.assertEqual(ListSourceAnalysisAgentsResource.aidev_resource_type, "agents")
+        self.assertEqual(ListSourceAnalysisSkillsResource.aidev_resource_type, "skills")
+        self.assertEqual(
+            SourceAnalysisBaseResource.AIDEV_LIST_APIS,
+            {"agents": "list_agents", "skills": "list_skills"},
+        )
+
+        for resource_class, resource_type in (
+            (ListSourceAnalysisAgentsResource, "agents"),
+            (ListSourceAnalysisSkillsResource, "skills"),
+        ):
+            with self.subTest(resource_type=resource_type):
+                with patch.object(
+                    SourceAnalysisBaseResource, "query_visible_aidev_items", return_value=[]
+                ) as query_items:
+                    resource_class().perform_request({"bk_biz_id": 2})
+                query_items.assert_called_once_with(resource_type, "id")
+
+    def test_aidev_cached_entry_reaches_matching_upstream_api(self):
+        """资源类型到上游接口的映射不能串：Agent 缓存条目不能由 Skill 列表填充。"""
+
+        upstream = {"count": 1, "results": [{"id": 1, "agent_name": "agent-1", "skill_name": "skill-1"}]}
+        with (
+            patch.object(api.aidev, "list_agents", return_value=upstream) as list_agents,
+            patch.object(api.aidev, "list_skills", return_value=upstream) as list_skills,
+        ):
+            SourceAnalysisBaseResource.query_visible_aidev_items.cacheless("agents", "id")
+            list_agents.assert_called_once_with(space_id="all", page=1, page_size=200)
+            list_skills.assert_not_called()
+
+            SourceAnalysisBaseResource.query_visible_aidev_items.cacheless("skills", "id")
+            list_skills.assert_called_once_with(space_id="all", page=1, page_size=200)
+
+    def test_enable_validation_does_not_reuse_option_cache(self):
+        """启用校验决定规则能否保存，必须实时遍历：用选项缓存会把刚建好的资源判为无效。"""
+
+        rule = IssueSourceAnalysisRule(bk_biz_id=2, priority=1, agent_id="1")
+        with (
+            patch.object(SourceAnalysisBaseResource, "query_visible_aidev_items") as query_items,
+            patch.object(api.aidev, "list_agents", return_value={"count": 1, "results": [{"id": 1}]}) as list_agents,
+        ):
+            SourceAnalysisBaseResource.validate_resources(rule)
+
+        query_items.assert_not_called()
+        list_agents.assert_called_once_with(space_id="all", page=1, page_size=200)
+
     def test_aidev_options_return_empty_list_without_querying_spaces(self):
         with (
             patch.object(api.aidev, "list_agents", return_value={"count": 0, "results": []}) as list_agents,
@@ -310,9 +368,9 @@ class TestSourceAnalysisOptionsResources(SimpleTestCase):
 
     def test_knowledge_base_options_remain_empty_until_aidev_supports_user_list(self):
         resource = ListSourceAnalysisKnowledgeBasesResource()
-        with patch.object(resource, "aidev_list_resources") as list_resources:
+        with patch.object(resource, "query_visible_aidev_items") as query_items:
             self.assertEqual(resource.perform_request({"bk_biz_id": 2}), {"total": 0, "list": []})
-        list_resources.assert_not_called()
+        query_items.assert_not_called()
 
     def test_invalid_aidev_shape_is_rejected(self):
         for upstream_data in (None, {}, {"count": 1, "results": ["invalid-item"]}):
