@@ -35,7 +35,7 @@ import EmptyStatus, {
   type EmptyStatusOperationType,
   type EmptyStatusType,
 } from '../../../components/empty-status/empty-status';
-import { convertToTree } from '../utils';
+import { convertToTree, getTraceFieldUnit } from '../utils';
 import DimensionFieldTree from './dimension-field-tree';
 import StatisticsList from './statistics-list';
 
@@ -251,6 +251,7 @@ export default defineComponent({
           fieldType={this.selectField?.type}
           isShow={this.showStatisticsPopover}
           selectField={this.selectField?.name}
+          unit={getTraceFieldUnit(this.selectField?.name)}
           onConditionChange={this.handleConditionChange}
           onShowMore={this.destroyPopover}
         />
