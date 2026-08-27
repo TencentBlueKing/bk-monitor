@@ -1,9 +1,12 @@
 from unittest.mock import Mock
 
+from django.apps import apps
+from django.core.exceptions import ImproperlyConfigured
 from django.test import SimpleTestCase, override_settings
 
 from apps.feature_toggle.handlers.toggle import Toggle
 from apps.feature_toggle.plugins.constants import IAM_PERMISSION_MODE
+from apps.iam.apps import IamConfig
 from apps.iam.iam_engine.core.config import AuthMode, DEFAULT_DUAL_STACK, DualStackSpec
 from apps.iam.iam_engine.core.exceptions import InvalidAuthModeError
 from apps.iam.iam_engine.core.requests import AuthRequest, BatchAuthRequest, ResourceInstance, Subject
@@ -16,7 +19,12 @@ from apps.iam.iam_engine.core.types import (
 )
 from apps.iam.iam_engine.provider.bundle import ProviderBundle
 from apps.iam.iam_engine.provider.router import ModeRouter
-from apps.iam.mode import FeatureToggleModeProvider, InvalidIAMPermissionModeError, get_mode_provider
+from apps.iam.mode import (
+    FeatureToggleModeProvider,
+    InvalidIAMPermissionModeError,
+    get_mode_provider,
+    validate_configured_permission_mode,
+)
 
 
 @override_settings(BK_IAM_PERMISSION_MODE="")
@@ -204,6 +212,25 @@ class FeatureToggleModeProviderTest(SimpleTestCase):
                 self.assertEqual(provider.get_mode(), expected_mode)
                 toggle_loader.assert_not_called()
 
+    def test_non_string_env_mode_value_is_coerced(self):
+        # 与 Toggle 路径的 test_non_string_mode_value_is_coerced 对称：自定义 env_loader
+        # 可能返回非 str；必须先 str() 再校验，非法值 fail-closed 且不读 Toggle。
+        toggle_loader = Mock()
+        logger = Mock()
+        provider = FeatureToggleModeProvider(
+            toggle_loader=toggle_loader,
+            logger=logger,
+            env_loader=lambda: 4,
+        )
+
+        with self.assertRaises(InvalidIAMPermissionModeError) as context:
+            provider.get_mode()
+
+        self.assertEqual(context.exception.mode_value, "4")
+        toggle_loader.assert_not_called()
+        logger.error.assert_called_once()
+        logger.warning.assert_not_called()
+
     def test_invalid_env_mode_rejects_without_reading_toggle(self):
         toggle_loader = Mock(return_value=Toggle(name=IAM_PERMISSION_MODE, status="on", feature_config={"mode": "v3"}))
         logger = Mock()
@@ -260,6 +287,54 @@ class FeatureToggleModeProviderTest(SimpleTestCase):
                 action_ids=("view_collection_v2",),
                 resource_groups=((),),
             )
+
+
+class ConfiguredPermissionModeValidationTest(SimpleTestCase):
+    def test_blank_setting_is_allowed(self):
+        for mode_value in ("", "   ", None):
+            with self.subTest(mode_value=mode_value):
+                validate_configured_permission_mode(mode_value)
+
+    def test_valid_modes_are_allowed(self):
+        for mode_value in ("v3", "v4", "union", "V4", "  Union  "):
+            with self.subTest(mode_value=mode_value):
+                validate_configured_permission_mode(mode_value)
+
+    def test_invalid_mode_raises_improperly_configured(self):
+        with self.assertRaises(ImproperlyConfigured) as context:
+            validate_configured_permission_mode("iam_v4")
+
+        self.assertIn("BKAPP_IAM_PERMISSION_MODE='iam_v4'", str(context.exception))
+        self.assertIn("v3", str(context.exception))
+        self.assertIn("v4", str(context.exception))
+        self.assertIn("union", str(context.exception))
+
+    def test_uses_injected_stack_valid_mode_values(self):
+        stack = DualStackSpec(legacy=AuthMode.V4, current=AuthMode.V3)
+
+        validate_configured_permission_mode("v3", stack=stack)
+        with self.assertRaises(ImproperlyConfigured):
+            validate_configured_permission_mode("both", stack=stack)
+
+    @override_settings(BK_IAM_PERMISSION_MODE="both")
+    def test_reads_django_settings_when_value_omitted(self):
+        with self.assertRaises(ImproperlyConfigured):
+            validate_configured_permission_mode()
+
+    def test_iam_app_config_is_registered(self):
+        config = apps.get_app_config("iam")
+
+        self.assertIsInstance(config, IamConfig)
+        self.assertEqual(config.name, "apps.iam")
+
+    @override_settings(BK_IAM_PERMISSION_MODE="iam_v4")
+    def test_ready_raises_improperly_configured_for_invalid_setting(self):
+        with self.assertRaises(ImproperlyConfigured):
+            apps.get_app_config("iam").ready()
+
+    @override_settings(BK_IAM_PERMISSION_MODE="v3")
+    def test_ready_accepts_valid_setting(self):
+        apps.get_app_config("iam").ready()
 
 
 class DualStackSpecTest(SimpleTestCase):
