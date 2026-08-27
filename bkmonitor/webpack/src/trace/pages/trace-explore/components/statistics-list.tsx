@@ -54,7 +54,14 @@ import { topKColorList } from '../utils';
 import DimensionEcharts from './dimension-echarts';
 import { transformFieldName } from './trace-explore-table/constants';
 
-import type { DimensionType, ICommonParams, IStatisticsGraph, IStatisticsInfo, ITopKField } from '../typing';
+import type {
+  ConditionChangeEvent,
+  DimensionType,
+  ICommonParams,
+  IStatisticsGraph,
+  IStatisticsInfo,
+  ITopKField,
+} from '../typing';
 
 import './statistics-list.scss';
 
@@ -78,6 +85,23 @@ const DEFAULT_STATISTICS_API: IStatisticsApi = {
   downloadTopK: traceDownloadTopK,
 };
 
+/** 耗时字段 topk 数据，min/max 为格式化后的取值范围文本 */
+type IDurationTopKField = ITopKField & { max: string; min: string };
+
+const EMPTY_STATISTICS_INFO: IStatisticsInfo = {
+  field: '',
+  total_count: 0,
+  field_count: 0,
+  distinct_count: 0,
+  field_percent: 0,
+};
+
+const EMPTY_TOPK_FIELD: ITopKField = {
+  distinct_count: 0,
+  field: '',
+  list: [],
+};
+
 export default defineComponent({
   name: 'StatisticsList',
   props: {
@@ -86,6 +110,11 @@ export default defineComponent({
       default: () => ({}),
     },
     selectField: {
+      type: String,
+      default: '',
+    },
+    /** 字段单位，单位为 us / ms 的字段按耗时维度处理 */
+    unit: {
       type: String,
       default: '',
     },
@@ -108,7 +137,11 @@ export default defineComponent({
       default: null,
     },
   },
-  emits: ['conditionChange', 'showMore', 'sliderShowChange'],
+  emits: {
+    conditionChange: (_condition: ConditionChangeEvent) => true,
+    showMore: () => true,
+    sliderShowChange: (_show: boolean) => true,
+  },
   setup(props, { emit }) {
     const { t } = useI18n();
     const appStore = useAppStore();
@@ -118,7 +151,7 @@ export default defineComponent({
     const currentTimeRange = computed<TimeRangeType>(() => props.timeRange || store.timeRange);
 
     /** 展示的范围文本 */
-    const rangeText = shallowRef([]);
+    const rangeText = shallowRef<TimeRangeType>([]);
     const infoLoading = shallowRef(false);
     const popoverLoading = shallowRef(false);
 
@@ -127,26 +160,16 @@ export default defineComponent({
     const getStatisticsListCount = shallowRef(1);
     /** 获取字段信息接口次数 */
     const getStatisticsInfoCount = shallowRef(1);
-    const statisticsInfo = shallowRef<IStatisticsInfo>({
-      field: '',
-      total_count: 0,
-      field_count: 0,
-      distinct_count: 0,
-      field_percent: 0,
-    });
-    const statisticsList = reactive<ITopKField>({
-      distinct_count: 0,
-      field: '',
-      list: [],
-    });
-    let topKInfoCancelFn = null;
-    let topKCancelFn = null;
-    let topKChartCancelFn = null;
+    const statisticsInfo = shallowRef<IStatisticsInfo>({ ...EMPTY_STATISTICS_INFO });
+    const statisticsList = reactive<ITopKField>({ ...EMPTY_TOPK_FIELD });
+    let topKInfoCancelFn: (() => void) | null = null;
+    let topKCancelFn: (() => void) | null = null;
+    let topKChartCancelFn: (() => void) | null = null;
     const chartData = shallowRef<IStatisticsGraph[]>([]);
     const downloadLoading = shallowRef(false);
 
     /** '耗时字段' topk列表 */
-    const durationTopkList = shallowRef({
+    const durationTopkList = shallowRef<IDurationTopKField>({
       distinct_count: 0,
       field: '',
       max: '',
@@ -157,50 +180,59 @@ export default defineComponent({
     /** 数值类型 */
     const isInteger = computed(() => ['double', 'long', 'integer'].includes(props.fieldType));
 
-    /** 耗时维度 */
-    const isDuration = computed(() => ['trace_duration', 'elapsed_time'].includes(localField.value));
+    /** 耗时维度：单位为 us / ms 的字段 */
+    const isDuration = computed(() => ['us', 'ms'].includes(props.unit));
 
     watch(
       () => props.isShow,
       async val => {
         if (val) {
-          infoLoading.value = true;
-          localField.value = props.selectField;
-          if (!isDuration.value) {
-            rangeText.value = handleTransformTime(currentTimeRange.value);
-            getStatisticsList();
-          } else {
-            popoverLoading.value = true;
-            await getStatisticsGraphData();
-            popoverLoading.value = false;
-            const { min, max, avg, median } = statisticsInfo.value.value_analysis || {};
-            statisticsInfo.value.value_analysis = {
-              min: formatDuration(Number(min) || 0, '', 3).replace(/ /g, ''),
-              max: formatDuration(Number(max) || 0, '', 3).replace(/ /g, ''),
-              avg: formatDuration(Number(avg) || 0, '', 3).replace(/ /g, ''),
-              median: median,
-            };
-            getDurationTopkList();
-            rangeText.value = [durationTopkList.value.min, durationTopkList.value.max];
-            statisticsList.distinct_count = durationTopkList.value.distinct_count;
-            statisticsList.field = durationTopkList.value.field;
-            statisticsList.list = durationTopkList.value.list.slice(0, 5);
-          }
+          await handleShowStatistics();
         } else {
-          statisticsList.distinct_count = 0;
-          statisticsList.field = '';
-          statisticsList.list = [];
-          statisticsInfo.value = {
-            field: '',
-            total_count: 0,
-            field_count: 0,
-            distinct_count: 0,
-            field_percent: 0,
-          };
-          chartData.value = [];
+          resetStatisticsState();
         }
       }
     );
+
+    /** 弹窗打开：按是否耗时字段走两条数据流 */
+    async function handleShowStatistics() {
+      infoLoading.value = true;
+      localField.value = props.selectField;
+      if (!isDuration.value) {
+        rangeText.value = handleTransformTime(currentTimeRange.value);
+        getStatisticsList();
+        return;
+      }
+      popoverLoading.value = true;
+      await getStatisticsGraphData();
+      popoverLoading.value = false;
+      const { min, max, avg, median } = statisticsInfo.value.value_analysis || {};
+      statisticsInfo.value.value_analysis = {
+        min: formatDurationValue(min),
+        max: formatDurationValue(max),
+        avg: formatDurationValue(avg),
+        median,
+      };
+      getDurationTopkList();
+      rangeText.value = [durationTopkList.value.min, durationTopkList.value.max];
+      statisticsList.distinct_count = durationTopkList.value.distinct_count;
+      statisticsList.field = durationTopkList.value.field;
+      statisticsList.list = durationTopkList.value.list.slice(0, 5);
+    }
+
+    /** 弹窗关闭：清空统计数据 */
+    function resetStatisticsState() {
+      statisticsList.distinct_count = 0;
+      statisticsList.field = '';
+      statisticsList.list = [];
+      statisticsInfo.value = { ...EMPTY_STATISTICS_INFO };
+      chartData.value = [];
+    }
+
+    /** 耗时统计值格式化为无空格的紧凑文本 */
+    function formatDurationValue(value: number | string) {
+      return formatDuration(Number(value) || 0, '', 3, props.unit).replace(/ /g, '');
+    }
 
     /** 耗时topK列表逻辑特殊，通过traceFieldStatisticsGraph接口返回的数据由前端生成 */
     function getDurationTopkList() {
@@ -213,7 +245,11 @@ export default defineComponent({
         if (index === 0) min = Number(start);
         if (index === data.length - 1) max = Number(end);
         return {
-          alias: `${formatDurationWithUnit(Number(start))} - ${formatDurationWithUnit(Number(end))}`,
+          alias: `${formatDurationWithUnit(Number(start), '', props.unit)} - ${formatDurationWithUnit(
+            Number(end),
+            '',
+            props.unit
+          )}`,
           count: item[0],
           proportions: formatPercent((item[0] / total) * 100, 3, 3, 3),
           value: item[1],
@@ -223,8 +259,8 @@ export default defineComponent({
         distinct_count: list.length,
         field: localField.value,
         list: list.sort((a, b) => b.count - a.count),
-        min: formatDurationWithUnit(min),
-        max: formatDurationWithUnit(max),
+        min: formatDurationWithUnit(min, '', props.unit),
+        max: formatDurationWithUnit(max, '', props.unit),
       };
     }
 
@@ -250,11 +286,11 @@ export default defineComponent({
             }),
           }
         )
-        .catch(() => [{ distinct_count: 0, field: '', list: [] }]);
+        .catch(() => [{ ...EMPTY_TOPK_FIELD }]);
       if (count !== getStatisticsListCount.value) return;
-      statisticsList.distinct_count = data[0].distinct_count || 0;
-      statisticsList.field = data[0].field || '';
-      const list = data[0].list || [];
+      statisticsList.distinct_count = data[0]?.distinct_count || 0;
+      statisticsList.field = data[0]?.field || '';
+      const list = data[0]?.list || [];
       statisticsList.list = list.map(item => ({
         ...item,
         alias: transformFieldName(localField.value, item.value),
@@ -269,7 +305,7 @@ export default defineComponent({
       const count = getStatisticsInfoCount.value;
       const [start_time, end_time] = handleTransformToTimestamp(currentTimeRange.value);
       topKInfoCancelFn?.();
-      const info: IStatisticsInfo = await props.api
+      const info: IStatisticsInfo | null = await props.api
         .fieldStatisticsInfo(
           {
             ...props.commonParams,
@@ -286,7 +322,7 @@ export default defineComponent({
             }),
           }
         )
-        .catch(() => []);
+        .catch(() => null);
       /** 如果是取消接口，不进行后续操作 */
       if (count !== getStatisticsInfoCount.value) return;
       /** topk没有数据且keyword类型不请求graph接口 */
@@ -324,16 +360,19 @@ export default defineComponent({
       chartData.value = series.map(item => {
         if (isInteger.value) {
           return {
-            datapoints: item.datapoints.map(item => [
-              item[0],
-              transformFieldName(localField.value, item[1]) || item[1],
+            datapoints: item.datapoints.map(point => [
+              point[0],
+              transformFieldName(localField.value, point[1]) || point[1],
             ]),
             color: '#5AB8A8',
             name: localField.value,
           };
         }
         const name = item.dimensions?.[localField.value];
-        const index = statisticsList.list.findIndex(i => name === i.value) || 0;
+        const index = Math.max(
+          0,
+          statisticsList.list.findIndex(i => name === i.value)
+        );
         return {
           color: topKColorList[index],
           name: transformFieldName(localField.value, name) || name || NULL_VALUE_NAME,
@@ -347,11 +386,7 @@ export default defineComponent({
     const sliderLoading = shallowRef(false);
     const sliderLoadMoreLoading = shallowRef(false);
     const sliderListPage = shallowRef(1);
-    const sliderDimensionList = reactive<ITopKField>({
-      distinct_count: 0,
-      field: '',
-      list: [],
-    });
+    const sliderDimensionList = reactive<ITopKField>({ ...EMPTY_TOPK_FIELD });
     const slideOverflowPopoverInstance = shallowRef(null);
 
     /** 展示侧栏 */
@@ -550,6 +585,46 @@ export default defineComponent({
       );
     }
 
+    /** 统计信息区域的加载骨架 */
+    function renderInfoSkeleton() {
+      return (
+        <div class='info-skeleton'>
+          <div class='total-skeleton'>
+            <div class='skeleton-element' />
+            <div class='skeleton-element' />
+            <div class='skeleton-element' />
+          </div>
+          {isInteger.value && (
+            <div class='info-skeleton'>
+              <div class='skeleton-element' />
+              <div class='skeleton-element' />
+              <div class='skeleton-element' />
+              <div class='skeleton-element' />
+            </div>
+          )}
+          <div class='skeleton-element chart' />
+        </div>
+      );
+    }
+
+    /** TopK 标题：字段名 + 去重统计数 */
+    function renderTopKTitle(distinctCount?: number) {
+      return (
+        <div class='dimension-top-k-title'>
+          <span
+            class='field-name'
+            v-overflow-tips
+          >
+            {localField.value}
+          </span>
+          <span class='divider' />
+          <span class='desc'>
+            {t('去重后的字段统计')} ({distinctCount || 0})
+          </span>
+        </div>
+      );
+    }
+
     return {
       t,
       localField,
@@ -577,6 +652,8 @@ export default defineComponent({
       handleDownload,
       loadMore,
       renderSkeleton,
+      renderInfoSkeleton,
+      renderTopKTitle,
     };
   },
 
@@ -590,22 +667,7 @@ export default defineComponent({
           {this.isShow && (
             <div class='trace-explore-dimension-statistics-popover-content'>
               {this.infoLoading ? (
-                <div class='info-skeleton'>
-                  <div class='total-skeleton'>
-                    <div class='skeleton-element' />
-                    <div class='skeleton-element' />
-                    <div class='skeleton-element' />
-                  </div>
-                  {this.isInteger && (
-                    <div class='info-skeleton'>
-                      <div class='skeleton-element' />
-                      <div class='skeleton-element' />
-                      <div class='skeleton-element' />
-                      <div class='skeleton-element' />
-                    </div>
-                  )}
-                  <div class='skeleton-element chart' />
-                </div>
+                this.renderInfoSkeleton()
               ) : (
                 <div class='statistics-info'>
                   {!this.isDuration && (
@@ -662,22 +724,12 @@ export default defineComponent({
                     data={this.chartData}
                     isDuration={this.isDuration}
                     seriesType={this.isInteger ? 'histogram' : 'line'}
+                    unit={this.unit}
                   />
                 </div>
               )}
               <div class='top-k-list-header'>
-                <div class='dimension-top-k-title'>
-                  <span
-                    class='field-name'
-                    v-overflow-tips
-                  >
-                    {this.localField}
-                  </span>
-                  <span class='divider' />
-                  <span class='desc'>
-                    {this.t('去重后的字段统计')} ({this.statisticsList?.distinct_count || 0})
-                  </span>
-                </div>
+                {this.renderTopKTitle(this.statisticsList?.distinct_count)}
                 {this.downloadLoading ? (
                   <img
                     class='loading-icon'
@@ -715,7 +767,6 @@ export default defineComponent({
           width='480'
           ext-cls='trace-dimension-top-k-slider'
           is-show={this.sliderShow}
-          // show-mask={false}
           transfer={true}
           quick-close
           onUpdate:isShow={this.handleSliderShowChange}
@@ -723,18 +774,7 @@ export default defineComponent({
           {{
             header: () => (
               <div class='dimension-slider-header'>
-                <div class='dimension-top-k-title'>
-                  <span
-                    class='field-name'
-                    v-overflow-tips
-                  >
-                    {this.localField}
-                  </span>
-                  <span class='divider' />
-                  <span class='desc'>
-                    {this.t('去重后的字段统计')} ({this.sliderDimensionList.distinct_count || 0})
-                  </span>
-                </div>
+                {this.renderTopKTitle(this.sliderDimensionList.distinct_count)}
                 {this.downloadLoading ? (
                   <img
                     class='loading-icon'
