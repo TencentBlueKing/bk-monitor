@@ -497,6 +497,7 @@ export default defineComponent({
                 clearKey={this.clearKey}
                 fields={this.localFields}
                 getValueFn={this.getValueFn}
+                hasShortcutKey={this.hasShortcutKey}
                 limit={this.limit}
                 loadDelay={this.loadDelay}
                 noValueOfMethods={this.noValueOfMethods}

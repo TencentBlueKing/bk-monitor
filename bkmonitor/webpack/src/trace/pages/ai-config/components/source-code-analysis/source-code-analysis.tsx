@@ -189,6 +189,9 @@ export default defineComponent({
         // 初始化加载完成后记录初始快照，作为是否编辑过的基线
         initialBkciProjectId.value = `${bkciProjectId.value}`;
         initialRepositoryAlias.value = `${repositoryAlias.value}`;
+        // 详情回显：以当前 id 回查项目/仓库列表，定位并加载目标项
+        projectsSelect.fetchDataInit(bkciProjectId.value);
+        repositoriesSelect.fetchDataInit(repositoryAlias.value);
       } finally {
         configLoading.value = false;
       }
@@ -306,6 +309,8 @@ export default defineComponent({
       bkciProjects: projectsSelect.list,
       projectsLoading: projectsSelect.loading,
       projectsScrollLoading: projectsSelect.scrollLoading,
+      /** id -> 名称 映射，供标签/回显反查展示 */
+      bkciProjectsNameMap: projectsSelect.nameMap,
       handleProjectsToggle,
       handleProjectsSearch: handleProjectsSearchDebounce,
       handleProjectsScrollEnd: projectsSelect.handleScrollEnd,
@@ -313,6 +318,8 @@ export default defineComponent({
       bkciRepositories: repositoriesSelect.list,
       repositoriesLoading: repositoriesSelect.loading,
       repositoriesScrollLoading: repositoriesSelect.scrollLoading,
+      /** id -> 名称 映射，供标签/回显反查展示 */
+      bkciRepositoriesNameMap: repositoriesSelect.nameMap,
       handleRepositoriesToggle,
       handleRepositoriesSearch: handleRepositoriesSearchDebounce,
       handleRepositoriesScrollEnd: repositoriesSelect.handleScrollEnd,
@@ -408,6 +415,7 @@ export default defineComponent({
                         loading={this.projectsLoading}
                         modelValue={this.bkciProjectId}
                         multiple={false}
+                        multipleMode='tag'
                         noDataText={this.projectsLoading ? this.t('加载中...') : this.t('无数据')}
                         scrollLoading={this.projectsScrollLoading}
                         filterable
@@ -417,32 +425,36 @@ export default defineComponent({
                         onUpdate:modelValue={val => this.handleChangeBkciProjectId(val)}
                       >
                         {/* 首次加载/搜索时显示骨架屏占位，避免下拉面板空白闪烁 */}
-                        {this.projectsLoading ? (
-                          <div style='padding: 0 8px;'>
-                            {new Array(4).fill(null).map((_item, index) => (
-                              <div
-                                key={index}
-                                style='height: 24px; margin: 4px 0;'
-                                class='skeleton-element'
-                              />
-                            ))}
-                          </div>
-                        ) : (
-                          this.bkciProjects.map(item => (
-                            <Select.Option
-                              id={item.id}
-                              key={item.id}
-                              name={item.name}
-                            >
-                              <span
-                                class='source-select-item'
-                                v-overflow-tips
-                              >
-                                {item.name}
-                              </span>
-                            </Select.Option>
-                          ))
-                        )}
+                        {{
+                          tag: () => this.bkciProjectsNameMap.get(this.bkciProjectId) || this.bkciProjectId,
+                          default: () =>
+                            this.projectsLoading ? (
+                              <div style='padding: 0 8px;'>
+                                {new Array(4).fill(null).map((_item, index) => (
+                                  <div
+                                    key={index}
+                                    style='height: 24px; margin: 4px 0;'
+                                    class='skeleton-element'
+                                  />
+                                ))}
+                              </div>
+                            ) : (
+                              this.bkciProjects.map(item => (
+                                <Select.Option
+                                  id={item.id}
+                                  key={item.id}
+                                  name={item.name}
+                                >
+                                  <span
+                                    class='source-select-item'
+                                    v-overflow-tips
+                                  >
+                                    {item.name}
+                                  </span>
+                                </Select.Option>
+                              ))
+                            ),
+                        }}
                       </Select>
                     ),
                   err: this.projectErrMsg,
@@ -482,32 +494,36 @@ export default defineComponent({
                         }}
                       >
                         {/* 首次加载/搜索时显示骨架屏占位，避免下拉面板空白闪烁 */}
-                        {this.repositoriesLoading ? (
-                          <div style='padding: 0 8px;'>
-                            {new Array(4).fill(null).map((_item, index) => (
-                              <div
-                                key={index}
-                                style='height: 24px; margin: 4px 0;'
-                                class='skeleton-element'
-                              />
-                            ))}
-                          </div>
-                        ) : (
-                          this.bkciRepositories.map(item => (
-                            <Select.Option
-                              id={item.id}
-                              key={item.id}
-                              name={item.name}
-                            >
-                              <span
-                                class='source-select-item'
-                                v-overflow-tips
-                              >
-                                {item.name}
-                              </span>
-                            </Select.Option>
-                          ))
-                        )}
+                        {{
+                          tag: () => this.bkciRepositoriesNameMap.get(this.repositoryAlias) || this.repositoryAlias,
+                          default: () =>
+                            this.repositoriesLoading ? (
+                              <div style='padding: 0 8px;'>
+                                {new Array(4).fill(null).map((_item, index) => (
+                                  <div
+                                    key={index}
+                                    style='height: 24px; margin: 4px 0;'
+                                    class='skeleton-element'
+                                  />
+                                ))}
+                              </div>
+                            ) : (
+                              this.bkciRepositories.map(item => (
+                                <Select.Option
+                                  id={item.id}
+                                  key={item.id}
+                                  name={item.name}
+                                >
+                                  <span
+                                    class='source-select-item'
+                                    v-overflow-tips
+                                  >
+                                    {item.name}
+                                  </span>
+                                </Select.Option>
+                              ))
+                            ),
+                        }}
                       </Select>
                     ),
                   err: this.repositoryErrMsg,
@@ -564,7 +580,8 @@ export default defineComponent({
                   getMatchRuleValueFn={this.getMatchRuleValueFn}
                   matchRuleFields={this.matchRuleFields}
                   matchRuleFieldsLoading={this.matchRuleFieldsLoading}
-                  projectName='IEG - 登陆服务'
+                  // 绑定规则弹窗的项目名：按 id 从映射表反查展示名称，缺省时回退到 id
+                  projectName={this.bkciProjectsNameMap.get(this.bkciProjectId) || this.bkciProjectId}
                   ruleId={this.editRuleId}
                   show={this.showBindModal}
                   tagValueDisplayFormatter={this.getMatchRuleTagValueDisplayFormatter}

@@ -76,6 +76,25 @@
 
             .form-item-content {
               min-height: 32px;
+
+              // 默认策略占位：展示「所有策略」文案及绿色「默认」标签
+              .match-rule-default {
+                display: flex;
+                align-items: center;
+                line-height: 48px;
+                color: #4d4f56;
+
+                .green-tag {
+                  display: flex;
+                  align-items: center;
+                  height: 18px;
+                  padding: 0 8px;
+                  margin-left: 6px;
+                  color: #299e56;
+                  background: #daf6e5;
+                  border-radius: 2px;
+                }
+              }
             }
 
             .form-item-error {
@@ -120,5 +139,4 @@
       }
     }
   }
-
 }
