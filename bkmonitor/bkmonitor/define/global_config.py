@@ -616,6 +616,15 @@ STANDARD_CONFIGS = OrderedDict(
             slz.CharField(label=_("集群内服务域名"), default="bkm-collector.bkmonitor-operator"),
         ),
         (
+            "CUSTOM_REPORT_DEFAULT_K8S_CLUSTER_SERVICE_CONFIGS",
+            slz.ListField(
+                label=_("集群内上报服务配置"),
+                default=[
+                    {"endpoint": "bkm-collector.bkmonitor-operator", "alias": "集群内服务"},
+                ],
+            ),
+        ),
+        (
             "CUSTOM_REPORT_K8S_SECRETS_CONFIG",
             slz.DictField(label=_("自定义上报K8S集群中 Secrets 分配逻辑"), default={}),
         ),
