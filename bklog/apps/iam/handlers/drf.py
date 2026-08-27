@@ -134,8 +134,7 @@ class InstanceActionPermission(IAMPermission):
         if settings.IGNORE_IAM_PERMISSION:
             return True
         instance_id = view.kwargs[self.get_look_url_kwarg(view)]
-        resource = self.resource_meta.create_instance(instance_id)
-        self.resources = [resource]
+        self.resources = [self.resource_meta.create_instance(instance_id)]
         return super().has_permission(request, view)
 
     def get_look_url_kwarg(self, view):
@@ -143,9 +142,9 @@ class InstanceActionPermission(IAMPermission):
         lookup_url_kwarg = view.lookup_url_kwarg or view.lookup_field
 
         assert lookup_url_kwarg in view.kwargs, (
-            "Expected view %s to be called with a URL keyword argument "
-            'named "%s". Fix your URL conf, or set the `.lookup_field` '
-            "attribute on the view correctly." % (self.__class__.__name__, lookup_url_kwarg)
+            f"Expected view {self.__class__.__name__} to be called with a URL keyword argument "
+            f'named "{lookup_url_kwarg}". Fix your URL conf, or set the `.lookup_field` '
+            "attribute on the view correctly."
         )
         return lookup_url_kwarg
 
@@ -164,8 +163,7 @@ class InstanceActionForDataPermission(InstanceActionPermission):
         instance_id = data.get(self.iam_instance_id_key) or view.kwargs.get(self.get_look_url_kwarg(view))
         if instance_id is None:
             raise NotHaveInstanceIdError
-        resource = self.resource_meta.create_instance(self.get_instance_id(instance_id))
-        self.resources = [resource]
+        self.resources = [self.resource_meta.create_instance(self.get_instance_id(instance_id))]
         return super(InstanceActionPermission, self).has_permission(request, view)
 
 

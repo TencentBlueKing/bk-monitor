@@ -1,9 +1,12 @@
-# -*- coding: utf-8 -*-
+from __future__ import annotations
+
 import copy
 
-from apps.utils.log import logger
 from iam import IAM
 from iam.exceptions import AuthAPIError
+
+from apps.iam.backends.v3.config import V3Options
+from apps.utils.log import logger
 
 
 class CompatibleIAM(IAM):
@@ -46,7 +49,7 @@ class CompatibleIAM(IAM):
 
     def _do_policy_query(self, request, with_resources=True):
         if not self.in_compatibility_mode():
-            return super(CompatibleIAM, self)._do_policy_query(request, with_resources)
+            return super()._do_policy_query(request, with_resources)
 
         data = request.to_dict()
         logger.debug("the request: %s", data)
@@ -91,7 +94,7 @@ class CompatibleIAM(IAM):
 
     def _do_policy_query_by_actions(self, request, with_resources=True):
         if not self.in_compatibility_mode():
-            return super(CompatibleIAM, self)._do_policy_query_by_actions(request, with_resources)
+            return super()._do_policy_query_by_actions(request, with_resources)
 
         data = request.to_dict()
         logger.debug("the request: %s", data)
@@ -137,3 +140,15 @@ class CompatibleIAM(IAM):
         if not ok:
             raise AuthAPIError(message)
         return action_policies
+
+
+def build_v3_client(bk_tenant_id: str) -> CompatibleIAM:
+    """按当前 settings 构造指定租户的 IAM V3 客户端。"""
+
+    options = V3Options.from_settings()
+    return CompatibleIAM(
+        options.app_code,
+        options.app_secret,
+        options.gateway_url,
+        bk_tenant_id=bk_tenant_id,
+    )

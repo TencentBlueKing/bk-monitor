@@ -48,6 +48,9 @@ EXTERNAL_AUTHORIZER_MAP = "external_authorizer_map"
 # 字段分析白名单开关
 FIELD_ANALYSIS_CONFIG = "field_analysis_config"
 
+# IAM 权限中心鉴权模式：v3 / v4 / union
+IAM_PERMISSION_MODE = "iam_permission_mode"
+
 # 直接进行esquery_search查询的开关
 DIRECT_ESQUERY_SEARCH = "direct_esquery_search"
 
