@@ -8,7 +8,7 @@ class InvalidAuthModeError(Exception):
     只有生成申请数据这种旁路才可以用 AuthMode.safe_coerce 兜底，避免 403 变成 500。
 
     Attributes:
-        mode_value: Toggle 或决策里带出来的原始字符串，可能根本不是 v3/v4/union。
+        mode_value: 环境变量、Toggle 或决策里带出来的原始字符串，可能根本不是 v3/v4/union。
         reason: 给日志和指标用的人类可读原因，不要回传给前端。
     """
 

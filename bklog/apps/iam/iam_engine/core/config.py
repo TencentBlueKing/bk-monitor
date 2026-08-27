@@ -3,7 +3,7 @@ from __future__ import annotations
 # ---------------------------------------------------------------------------
 # 鉴权模式 vs 双栈拓扑
 #
-# AuthMode 是运维可改的 Feature Toggle 取值，对外仍是协议名 + union。
+# AuthMode 是运维可改的鉴权模式取值（环境变量优先，否则 Feature Toggle），对外仍是协议名 + union。
 # DualStackSpec 只描述「这一对里谁旧谁新」，不要在 ModeRouter 里写死 V3/V4。
 #
 # 换代不是只改 DEFAULT_DUAL_STACK：要同时改枚举成员、默认拓扑和 Bundle 注入。
@@ -17,7 +17,7 @@ from enum import Enum
 
 
 class AuthMode(str, Enum):
-    """运行时鉴权模式。值会进 Feature Toggle、指标 label 和 AuthDecision.mode。"""
+    """运行时鉴权模式。值会进环境变量、Feature Toggle、指标 label 和 AuthDecision.mode。"""
 
     V3 = "v3"
     V4 = "v4"
@@ -30,10 +30,10 @@ class AuthMode(str, Enum):
         default 缺省时用 ``DEFAULT_DUAL_STACK.legacy``，不要在这里写死 V3。
         换代后申请旁路应回退仍在服役的旧栈，而不是上一代字面量。
 
-        用于处理已经越过 FeatureToggle 校验、但仍可能是非法值的场景（例如 AuthDecision.mode
+        用于处理已经越过 ModeProvider 校验、但仍可能是非法值的场景（例如 AuthDecision.mode
         在非法模式下被写入原始非法字符串），确保鉴权模式解析永远不会向上抛出未捕获异常。
 
-        不要用它去「纠正」Toggle 误配再继续鉴权：ModeRouter 对非法模式必须 fail-closed。
+        不要用它去「纠正」环境变量或 Toggle 误配再继续鉴权：ModeRouter 对非法模式必须 fail-closed。
         这里只给申请数据等旁路兜底，避免 403 流程变成 500。
         """
 
@@ -53,7 +53,7 @@ class DualStackSpec:
     Feature Toggle 对外仍是协议名 + union；本结构只描述「这一对里谁旧谁新」。
     从 V4 迁到 V5 时，要同时给 ``AuthMode`` 加成员、改 ``DEFAULT_DUAL_STACK``、
     给 current 注入新 Bundle。ModeRouter / MigrationPolicy / DualWrite 不用再抄版本字面量，
-    但退出的协议名会变成非法 Toggle，不是「历史字面量继续合法」。
+    但退出的协议名会变成非法配置，不是「历史字面量继续合法」。
 
     Args:
         legacy: 旧协议对应的 AuthMode，默认 v3。不能是 union。
@@ -102,7 +102,7 @@ class DualStackSpec:
 
     @property
     def fallback_mode(self) -> AuthMode:
-        """Toggle 缺失、读库失败、feature_config 未写 mode 时的安全默认。
+        """环境变量未设置且 Toggle 缺失、读库失败、feature_config 未写 mode 时的安全默认。
 
         回退 legacy：旧栈仍在服役，比默认切到正在切入的 current 更安全。
         """
@@ -111,7 +111,7 @@ class DualStackSpec:
 
     @property
     def valid_mode_values(self) -> frozenset[str]:
-        """Feature Toggle 允许的取值：当前拓扑两侧协议 + union。
+        """环境变量和 Feature Toggle 允许的取值：当前拓扑两侧协议 + union。
 
         枚举里加 V5 不会自动合法；必须改 ``DEFAULT_DUAL_STACK`` 或注入新 spec。
         spec 也不能发明尚未登记的枚举成员。拓扑切走后，退出的协议名会变成非法配置。

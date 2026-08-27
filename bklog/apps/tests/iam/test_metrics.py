@@ -183,7 +183,7 @@ class AuthDecisionMetricsTest(MetricPatchMixin, TestCase):
 
         self.assertFalse(self._is_allowed())
 
-        # 非法模式来自 FeatureToggle，是运维可改写的 DB 字段，不归一 label 就不再是有限枚举
+        # 非法模式来自环境变量或 Feature Toggle，是运维可改写的配置，不归一 label 就不再是有限枚举
         self.assertEqual(label_kwargs(self.decision_count)[0]["mode"], "invalid")
         provider = label_kwargs(self.provider_count)[0]
         self.assertEqual((provider["mode"], provider["provider"]), ("invalid", "mode"))
