@@ -35,16 +35,8 @@ def nonnegative_int(value: Any) -> int | None:
     return None
 
 
-def present(value: Any) -> bool:
-    if value is None:
-        return False
-    if isinstance(value, str) and not value.strip():
-        return False
-    return not isinstance(value, list | dict) or bool(value)
-
-
 def put(target: dict[str, Any], key: str, value: Any) -> None:
-    if key not in target and present(value):
+    if key not in target and value not in (None, "", []):
         target[key] = value
 
 
@@ -75,7 +67,7 @@ def standard_content(attrs: dict[str, Any]) -> dict[str, Any]:
     """读取已符合标准的正文属性，产品字段只补充缺失值。"""
     content: dict[str, Any] = {}
     instructions = safe_parse(attrs.get("gen_ai.system_instructions"))
-    if present(instructions) and not isinstance(instructions, list):
+    if instructions not in (None, "") and not isinstance(instructions, list):
         instructions = [{"type": "text", "content": str(instructions)}]
     put(content, "gen_ai.system_instructions", instructions)
     for key in CONTENT_FIELDS[1:]:

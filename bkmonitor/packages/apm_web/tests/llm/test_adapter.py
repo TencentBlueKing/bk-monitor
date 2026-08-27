@@ -169,6 +169,17 @@ class AdapterTests(TestCase):
 
         self.assertEqual(adapt_spans([span])[0]["attributes"]["gen_ai.tool.type"], "datastore")
 
+    def test_empty_tool_arguments_are_preserved(self) -> None:
+        span = agentlens_span()
+        span["attributes"].update(
+            {
+                "gen_ai.span.kind": "TOOL",
+                "gen_ai.tool.call.arguments": {},
+            }
+        )
+
+        self.assertEqual(adapt_spans([span])[0]["attributes"]["gen_ai.tool.call.arguments"], {})
+
     def test_open_operation_is_preserved_and_status_is_not_inferred(self) -> None:
         span = agentlens_span()
         span["span_name"] = "vendor.operation"

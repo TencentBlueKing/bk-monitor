@@ -5,14 +5,16 @@ from __future__ import annotations
 from typing import Any
 
 from .fields import STANDARD_FIELDS
-from .utils import present, standard_content
+from .utils import standard_content
 
 
 def convert(raw: list[dict[str, Any]]) -> list[dict[str, Any]]:
     spans: list[dict[str, Any]] = []
     for span in raw:
         attrs = span["attributes"]
-        attributes = {key: value for key, value in attrs.items() if key in STANDARD_FIELDS and present(value)}
+        attributes = {
+            key: value for key, value in attrs.items() if key in STANDARD_FIELDS and value not in (None, "", [])
+        }
         attributes.update(standard_content(attrs))
         if not attributes:
             continue

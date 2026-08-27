@@ -10,7 +10,6 @@ from .utils import (
     indexed,
     normalize_schema,
     nonnegative_int,
-    present,
     put,
     safe_parse,
     split_system,
@@ -154,7 +153,9 @@ def convert(raw: list[dict[str, Any]]) -> list[dict[str, Any]]:
     spans: list[dict[str, Any]] = []
     for span in raw:
         attrs = span["attributes"]
-        attributes = {key: value for key, value in attrs.items() if key in STANDARD_FIELDS and present(value)}
+        attributes = {
+            key: value for key, value in attrs.items() if key in STANDARD_FIELDS and value not in (None, "", [])
+        }
         put(attributes, "gen_ai.operation.name", operation(attrs))
         put(attributes, "gen_ai.provider.name", provider(attrs))
         for target, source_keys in aliases().items():

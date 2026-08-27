@@ -30,7 +30,7 @@ class ListSpansResource(Resource):
             "exclude_field": ["bk_app_code"],
         }
         response = api.apm_api.query_span_list(params)
-        raw_spans = response.get("data", [])
+        raw_spans = response["data"]
         spans = adapt_spans(raw_spans)
         return {
             "trace_id": validated_request_data["trace_id"],
