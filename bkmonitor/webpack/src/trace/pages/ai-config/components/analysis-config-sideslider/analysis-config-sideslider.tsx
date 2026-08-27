@@ -124,7 +124,7 @@ export default defineComponent({
       setEnabled,
     } = useSourceAnalysisRuleDetail();
 
-    const { errors, clearError, validate } = useRuleVerification(detail);
+    const { errors, clearErrorByKey, resetErrors, validate } = useRuleVerification(detail);
 
     /** 智能体下拉（单选） */
     const agentSelect = useAiResourceSelect(getAgents);
@@ -142,7 +142,7 @@ export default defineComponent({
      */
     const handleMatchRuleConditionsChange = (where: IWhereItem[]) => {
       setConditions(where);
-      clearError(ErrorKeyEnum.CONDITIONS);
+      clearErrorByKey(ErrorKeyEnum.CONDITIONS);
       const strategyIds: (number | string)[] = [];
       for (const item of where || []) {
         if (item.key === 'alert.strategy_id') {
@@ -196,12 +196,18 @@ export default defineComponent({
       newVal => {
         if (!newVal) {
           resetState();
+          // 清空校验错误残留状态，避免下次打开时显示旧的错误提示
+          resetErrors();
           // 清空 AI 相关资源下拉的残留状态（列表 / 搜索关键词 / 分页等），避免下次打开时显示旧数据
           agentSelect.reset();
           knowledgeBaseSelect.reset();
           skillSelect.reset();
           return;
         }
+        // 侧弹打开即拉取三个资源的全量列表（一次全量，搜索交给 Select 内置 filterOption）
+        agentSelect.fetchList();
+        knowledgeBaseSelect.fetchList();
+        skillSelect.fetchList();
         if (isEdit.value && props.ruleId) {
           fetchDetail(props.ruleId);
         } else {
@@ -276,7 +282,7 @@ export default defineComponent({
                       type='number'
                       onUpdate:modelValue={(val: number | string) => {
                         setPriority(Number(val));
-                        clearError(ErrorKeyEnum.PRIORITY);
+                        clearErrorByKey(ErrorKeyEnum.PRIORITY);
                       }}
                     />
                   )}
@@ -314,8 +320,8 @@ export default defineComponent({
 
     /**
      * @description 渲染流程实例参数区域
-     * 智能体（单选）、知识库 / Skill（多选）均以 bkui-vue Select 远程搜索下拉呈现，
-     * 选中值经 setResourceIds 写回规则 detail，提交链路保持不变。
+     * 智能体（单选）、知识库 / Skill（多选）均以 bkui-vue Select 本地搜索下拉呈现，
+     * 全量列表在侧弹打开时拉取，选中值经 setResourceIds 写回规则 detail，提交链路保持不变。
      */
     const renderProcessParams = () => {
       return (
@@ -334,7 +340,7 @@ export default defineComponent({
                 <span class='required-star'>*</span>
               </div>
               <div class='form-item-content'>
-                {detailLoading.value ? (
+                {detailLoading.value || agentSelect.loading.value ? (
                   <div
                     style='height: 32px'
                     class='skeleton-element'
@@ -345,14 +351,12 @@ export default defineComponent({
                     loading={agentSelect.loading.value}
                     modelValue={detail.value?.agent_id || undefined}
                     multiple={false}
-                    options={agentSelect.list.value}
-                    scrollLoading={agentSelect.scrollLoading.value}
-                    onScroll-end={agentSelect.handleScrollEnd}
+                    options={agentSelect.filteredList.value}
+                    searchLoading={agentSelect.searchLoading.value}
                     onSearch-change={agentSelect.handleSearch}
-                    onToggle={agentSelect.handleToggle}
                     onUpdate:modelValue={(val: string) => {
                       setResourceIds(AiResourceEnum.AGENT, val);
-                      clearError(ErrorKeyEnum.AGENT);
+                      clearErrorByKey(ErrorKeyEnum.AGENT);
                     }}
                   />
                 )}
@@ -367,7 +371,7 @@ export default defineComponent({
                 <span class='required-star'>*</span>
               </div>
               <div class='form-item-content'>
-                {detailLoading.value ? (
+                {detailLoading.value || knowledgeBaseSelect.loading.value ? (
                   <div
                     style='height: 32px'
                     class='skeleton-element'
@@ -379,15 +383,13 @@ export default defineComponent({
                     modelValue={detail.value?.knowledge_base_ids ?? []}
                     multiple={true}
                     multipleMode='tag'
-                    options={knowledgeBaseSelect.list.value}
-                    scrollLoading={knowledgeBaseSelect.scrollLoading.value}
+                    options={knowledgeBaseSelect.filteredList.value}
+                    searchLoading={knowledgeBaseSelect.searchLoading.value}
                     selectedStyle='checkbox'
-                    onScroll-end={knowledgeBaseSelect.handleScrollEnd}
                     onSearch-change={knowledgeBaseSelect.handleSearch}
-                    onToggle={knowledgeBaseSelect.handleToggle}
                     onUpdate:modelValue={(val: string[]) => {
                       setResourceIds(AiResourceEnum.KNOWLEDGE_BASE, val);
-                      clearError(ErrorKeyEnum.KNOWLEDGE_BASE);
+                      clearErrorByKey(ErrorKeyEnum.KNOWLEDGE_BASE);
                     }}
                   />
                 )}
@@ -402,7 +404,7 @@ export default defineComponent({
                 <span class='required-star'>*</span>
               </div>
               <div class='form-item-content'>
-                {detailLoading.value ? (
+                {detailLoading.value || skillSelect.loading.value ? (
                   <div
                     style='height: 32px'
                     class='skeleton-element'
@@ -414,15 +416,13 @@ export default defineComponent({
                     modelValue={detail.value?.skill_ids ?? []}
                     multiple={true}
                     multipleMode='tag'
-                    options={skillSelect.list.value}
-                    scrollLoading={skillSelect.scrollLoading.value}
+                    options={skillSelect.filteredList.value}
+                    searchLoading={skillSelect.searchLoading.value}
                     selectedStyle='checkbox'
-                    onScroll-end={skillSelect.handleScrollEnd}
                     onSearch-change={skillSelect.handleSearch}
-                    onToggle={skillSelect.handleToggle}
                     onUpdate:modelValue={(val: string[]) => {
                       setResourceIds(AiResourceEnum.SKILL, val);
-                      clearError(ErrorKeyEnum.SKILL);
+                      clearErrorByKey(ErrorKeyEnum.SKILL);
                     }}
                   />
                 )}
@@ -489,9 +489,9 @@ export default defineComponent({
             <div class='analysis-config-sideslider-main'>
               {this.renderBasicInfo()}
               {this.renderProcessParams()}
+              {this.renderFooter()}
             </div>
           ),
-          footer: this.renderFooter,
         }}
       </Sideslider>
     );

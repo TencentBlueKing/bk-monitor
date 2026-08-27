@@ -36,13 +36,6 @@ export type AiResourceOption = {
   space_name?: string;
 };
 
-/** 资源下拉查询参数 */
-export type AiResourceParams = {
-  keyword?: string;
-  page: number;
-  page_size: number;
-};
-
 /** 资源下拉查询返回结果 */
 export type AiResourceResult = {
   list: AiResourceOption[];

@@ -6,8 +6,18 @@
       display: flex;
       flex-direction: column;
       row-gap: 16px;
-      min-height: calc(100vh - 52px - 48px);
+      min-height: calc(100vh - 52px);
       padding: 24px 40px;
+
+      .analysis-config-sideslider-footer {
+        display: flex;
+        column-gap: 8px;
+        align-items: center;
+
+        .bk-button {
+          width: 88px;
+        }
+      }
 
       .main-section {
         padding: 16px 24px;
