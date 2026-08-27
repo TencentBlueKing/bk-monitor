@@ -15,9 +15,7 @@ import pytest
 from django.conf import settings
 from django.test import override_settings
 
-from bkmonitor.utils.cipher import transform_data_id_to_token
 from metadata import models
-from metadata.task import sync_cmdb_relation
 from metadata.task.sync_cmdb_relation import (
     _compose_relation_graph_v4_storage_config,
     enable_relation_surrealdb_dual_write,
@@ -97,8 +95,8 @@ def create_and_delete_records(mocker):
 def test_sync_relation_redis_data(create_and_delete_records):
     """
     测试验证 CMDB Relation同步任务能否正确工作
-    1. 根据 TimeSeriesGroup 或兼容规则生成 Redis token
-    2. 不存在对应内置RT和数据源，创建之
+    1. 不存在对应内置RT和数据源时创建之
+    2. Redis 仅保留 relation 元数据同步进度，不下发 token
     3. 不覆盖 DataSource 自身的独立上报 token
     """
     created_group = Mock(token="", last_modify_time=datetime.fromtimestamp(1733198214, tz=timezone.utc))
@@ -116,18 +114,11 @@ def test_sync_relation_redis_data(create_and_delete_records):
     ):
         sync_relation_redis_data()
 
-        bkcc_2_expected_token = transform_data_id_to_token(
-            metric_data_id=50010, bk_biz_id=2, app_name="2_bkcc_built_in_time_series"
-        )
         bkcc_2_builtin_ds = models.DataSource.objects.get(bk_data_id=50010)
         assert bkcc_2_builtin_ds.token == ""
 
-        bkcc_3_expected_token = transform_data_id_to_token(
-            metric_data_id=50011, bk_biz_id=3, app_name="3_bkcc_built_in_time_series"
-        )
         bkcc_3_builtin_ds = models.DataSource.objects.get(bk_data_id=50011)
         assert bkcc_3_builtin_ds.token
-        assert bkcc_3_builtin_ds.token != bkcc_3_expected_token
 
         # 应调用两次hset
         assert mock_hset_to_redis.call_count == 2
@@ -139,12 +130,12 @@ def test_sync_relation_redis_data(create_and_delete_records):
             call(
                 f"{settings.BUILTIN_DATA_RT_REDIS_KEY}",
                 "bkcc__2",
-                f'{{"token":"{bkcc_2_expected_token}","modifyTime":"1733198214"}}',
+                '{"modifyTime":"1733198214"}',
             ),
             call(
                 f"{settings.BUILTIN_DATA_RT_REDIS_KEY}",
                 "bkcc__3",
-                f'{{"token":"{bkcc_3_expected_token}","modifyTime":{expected_bkcc_3_timestamp}}}',
+                f'{{"modifyTime":{expected_bkcc_3_timestamp}}}',
             ),
         ]
         assert mock_hset_to_redis.call_args_list == expected_calls
@@ -238,7 +229,7 @@ def test_sync_relation_redis_data_configures_graph_v4_for_whitelist(create_and_d
 
 @pytest.mark.django_db(databases="__all__")
 @override_settings(GRAPH_RELATION_BKBASE_SYNC_BIZ_ID_WHITE_LIST=[2])
-def test_sync_relation_graph_v4_apply_failure_does_not_block_token_sync(create_and_delete_records):
+def test_sync_relation_graph_v4_apply_failure_does_not_block_metadata_sync(create_and_delete_records):
     storage_config = {
         "storage_cluster_id": 900002,
         "table_type": "temporary",
@@ -264,16 +255,11 @@ def test_sync_relation_graph_v4_apply_failure_does_not_block_token_sync(create_a
     ):
         sync_relation_redis_data()
 
-    expected_token = transform_data_id_to_token(
-        metric_data_id=50010,
-        bk_biz_id=2,
-        app_name="2_bkcc_built_in_time_series",
-    )
     assert models.DataSource.objects.get(bk_data_id=50010).token == ""
     mock_hset_to_redis.assert_called_once_with(
         settings.BUILTIN_DATA_RT_REDIS_KEY,
         "bkcc__2",
-        f'{{"token":"{expected_token}","modifyTime":"1733198214"}}',
+        '{"modifyTime":"1733198214"}',
     )
     assert any(
         "graph relation dual-write best-effort setup failed" in call_args.args[0]
@@ -430,7 +416,7 @@ def test_sync_relation_graph_v4_dependency_failure_does_not_block_relation_sync(
 
 
 @pytest.mark.django_db(databases="__all__")
-def test_sync_relation_redis_data_uses_existing_time_series_group_token(create_and_delete_records, mocker):
+def test_sync_relation_redis_data_does_not_publish_time_series_group_token(create_and_delete_records):
     models.TimeSeriesGroup.objects.create(
         bk_data_id=50010,
         bk_biz_id=2,
@@ -449,23 +435,20 @@ def test_sync_relation_redis_data_uses_existing_time_series_group_token(create_a
         patch("metadata.task.sync_cmdb_relation.metrics.report_all", return_value=None),
         patch("metadata.models.DataSource.refresh_consul_config", autospec=True) as mock_refresh_consul,
     ):
-        token_spy = mocker.spy(sync_cmdb_relation, "_get_builtin_relation_token")
         sync_relation_redis_data()
 
     builtin_ds = models.DataSource.objects.get(bk_data_id=50010)
     assert builtin_ds.token == ""
-    token_spy.assert_called_once()
-    assert token_spy.call_args.args[3].token == "group-token"
     mock_hset_to_redis.assert_called_once_with(
         f"{settings.BUILTIN_DATA_RT_REDIS_KEY}",
         "bkcc__2",
-        '{"token":"group-token","modifyTime":"1733198214"}',
+        '{"modifyTime":"1733198214"}',
     )
     mock_refresh_consul.assert_not_called()
 
 
 @pytest.mark.django_db(databases="__all__")
-def test_sync_relation_redis_data_existing_rt_without_group_uses_generated_token(create_and_delete_records, mocker):
+def test_sync_relation_redis_data_existing_rt_without_group_does_not_publish_token(create_and_delete_records):
     redis_data = {b"bkcc__2": b'{"token":"testtokenxxxxxx","modifyTime":"1733132051"}'}
     with (
         patch("metadata.utils.redis_tools.RedisTools.hgetall", return_value=redis_data),
@@ -474,26 +457,20 @@ def test_sync_relation_redis_data_existing_rt_without_group_uses_generated_token
         patch("metadata.task.sync_cmdb_relation.metrics.report_all", return_value=None),
         patch("metadata.models.DataSource.refresh_consul_config", autospec=True) as mock_refresh_consul,
     ):
-        token_spy = mocker.spy(sync_cmdb_relation, "_get_builtin_relation_token")
         sync_relation_redis_data()
 
-    expected_token = transform_data_id_to_token(
-        metric_data_id=50010, bk_biz_id=2, app_name="2_bkcc_built_in_time_series"
-    )
     builtin_ds = models.DataSource.objects.get(bk_data_id=50010)
     assert builtin_ds.token == ""
-    token_spy.assert_called_once()
-    assert token_spy.call_args.args[3] is None
     mock_hset_to_redis.assert_called_once_with(
         f"{settings.BUILTIN_DATA_RT_REDIS_KEY}",
         "bkcc__2",
-        f'{{"token":"{expected_token}","modifyTime":"1733198214"}}',
+        '{"modifyTime":"1733198214"}',
     )
     mock_refresh_consul.assert_not_called()
 
 
 @pytest.mark.django_db(databases="__all__")
-def test_sync_relation_redis_data_new_rt_uses_created_group_token(create_and_delete_records, mocker):
+def test_sync_relation_redis_data_new_rt_does_not_publish_created_group_token(create_and_delete_records):
     redis_data = {b"bkcc__3": b'{"token":""}'}
     created_group = Mock(
         token="created-group-token", last_modify_time=datetime.fromtimestamp(1733198214, tz=timezone.utc)
@@ -506,18 +483,15 @@ def test_sync_relation_redis_data_new_rt_uses_created_group_token(create_and_del
         patch("metadata.models.DataSource.refresh_consul_config", autospec=True) as mock_refresh_consul,
         patch("metadata.models.TimeSeriesGroup.create_time_series_group", return_value=created_group),
     ):
-        token_spy = mocker.spy(sync_cmdb_relation, "_get_builtin_relation_token")
         sync_relation_redis_data()
 
     builtin_ds = models.DataSource.objects.get(bk_data_id=50011)
     assert builtin_ds.token
     assert builtin_ds.token != "created-group-token"
-    token_spy.assert_called_once()
-    assert token_spy.call_args.args[3] is created_group
     mock_hset_to_redis.assert_called_once_with(
         f"{settings.BUILTIN_DATA_RT_REDIS_KEY}",
         "bkcc__3",
-        '{"token":"created-group-token","modifyTime":1733198214}',
+        '{"modifyTime":1733198214}',
     )
     mock_refresh_consul.assert_not_called()
 

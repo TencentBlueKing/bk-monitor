@@ -18,7 +18,6 @@ from django.conf import settings
 from django.db import transaction
 
 from alarm_backends.core.lock.service_lock import share_lock
-from bkmonitor.utils.cipher import transform_data_id_to_token
 from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from core.prometheus import metrics
 from metadata import config
@@ -87,26 +86,6 @@ def _get_graph_relation_bkbase_sync_biz_ids() -> set[int]:
                 value,
             )
     return biz_ids
-
-
-def _get_builtin_relation_token(
-    data_source: DataSource,
-    bk_biz_id: int,
-    data_name: str,
-    time_series_group: TimeSeriesGroup | None = None,
-) -> str:
-    """获取 relation 上报 token。
-
-    正常链路以 TimeSeriesGroup.token 为准；仅在历史 RT 缺少 TimeSeriesGroup
-    记录时，使用可重复计算的 Prometheus token 作为兼容兜底。
-    """
-    if time_series_group and time_series_group.token:
-        return time_series_group.token
-    return transform_data_id_to_token(
-        metric_data_id=data_source.bk_data_id,
-        bk_biz_id=bk_biz_id,
-        app_name=data_name,
-    )
 
 
 def _canonical_graph_definitions(definitions: list) -> list[str]:
@@ -329,7 +308,7 @@ def _sync_relation_metadata(
     time_series_group: TimeSeriesGroup | None,
     graph_storage_config: dict[str, Any] | None,
 ) -> DataSource:
-    """创建或读取 relation 元数据，并统一回写 Redis token。"""
+    """创建或读取 relation 元数据，并回写同步进度。"""
     # 步骤 1：复用已有 DataSource，或在一个事务内创建完整的 relation 元数据。
     if result_table is not None:
         data_source = DataSource.objects.get(
@@ -365,15 +344,9 @@ def _sync_relation_metadata(
             )
         modify_time = int(time_series_group.last_modify_time.timestamp())
 
-    # 步骤 2：计算并回写 relation 生产端使用的 Redis token。
-    # relation 生产端从 Redis 获取 TimeSeriesGroup token；DataSource.token
-    # 是另一套独立上报凭证，不在这个周期任务中修改。
-    context.value["token"] = _get_builtin_relation_token(
-        data_source,
-        context.bk_biz_id,
-        context.data_name,
-        time_series_group,
-    )
+    # BMW reads the token for its explicitly configured relation DataID from Metadata MySQL.
+    # Remove the legacy business-scoped token so Redis no longer distributes write credentials.
+    context.value.pop("token", None)
     context.value["modifyTime"] = modify_time
     RedisTools.hset_to_redis(redis_key, context.key, json.dumps(context.value))
     return data_source
@@ -391,7 +364,7 @@ def _sync_relation_redis_item(
 
     # 步骤 1：先处理不能安全自动修复的历史状态。
     if result_table is None and context.redis_token:
-        # Redis 已有 token 说明生产端可能仍在使用历史链路。此时自动创建新
+        # Redis 仍有历史 token 说明旧生产端可能尚未迁移。此时自动创建新
         # DataSource 会生成新的 data_id/token，因此保守跳过，避免覆盖在线凭证。
         logger.warning(
             "sync_relation_redis_data: result table is missing but redis token exists, skip auto creation, "
@@ -411,8 +384,8 @@ def _sync_relation_redis_item(
                 context.table_id,
             )
         except Exception as e:  # pylint: disable=broad-except
-            # Graph 依赖异常只影响本轮 Graph 配置，普通 relation RT 和
-            # Redis token 仍按主流程维护。
+            # Graph 依赖异常只影响本轮 Graph 配置，普通 relation RT
+            # 和 Redis 同步进度仍按主流程维护。
             logger.warning(
                 "sync_relation_redis_data: graph relation dependency check failed, "
                 "bk_tenant_id->[%s], bk_biz_id->[%s], error->[%s]",
@@ -421,7 +394,7 @@ def _sync_relation_redis_item(
                 e,
             )
 
-    # 步骤 3：创建或复用 relation 元数据，并完成 Redis token 回写。
+    # 步骤 3：创建或复用 relation 元数据，并回写 Redis 同步进度。
     # 失败只终止当前 field，后续业务继续处理。
     action = "update" if result_table is not None else "create"
     try:
@@ -444,7 +417,7 @@ def _sync_relation_redis_item(
 
     # 步骤 4：Graph 接入作为附加能力 best-effort 执行。
     # 接入失败只记录告警，并在下个
-    # 周期重试，不回滚已经完成的 RT 创建和 Redis token 更新。
+    # 周期重试，不回滚已经完成的 RT 创建和 Redis 同步进度更新。
     if graph_storage_config is not None:
         try:
             enable_relation_surrealdb_dual_write(
@@ -472,7 +445,7 @@ def _sync_relation_redis_item(
 
 @share_lock(ttl=3600, identify="metadata_sync_relation_redis_data")
 def sync_relation_redis_data():
-    """按 Redis field 同步 CMDB relation 内置 RT、token 和 Graph V4 配置。
+    """按 Redis field 同步 CMDB relation 内置 RT、同步进度和 Graph V4 配置。
 
     主流程只负责批量加载已有元数据和逐项调度。单业务的数据解析、创建/更新
     以及 Graph best-effort 异常均在各自 helper 内隔离，避免影响后续业务。
