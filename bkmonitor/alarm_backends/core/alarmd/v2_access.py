@@ -451,8 +451,8 @@ def _record_snapshot(
     fields = []
     for name in identity_fields:
         value = dimensions.get(name)
-        if value is None or isinstance(value, (dict, list, tuple)):
-            raise AccessV2BuildError(f"identity dimension {name} is missing or non-scalar")
+        if isinstance(value, (dict, list, tuple)):
+            raise AccessV2BuildError(f"identity dimension {name} is non-scalar")
         fields.append({"name": name, "value": value})
     source_time = int(record.data["time"])
     digest = derive_dimension_identity_digest_v2(tenant_id, business_id, fields)

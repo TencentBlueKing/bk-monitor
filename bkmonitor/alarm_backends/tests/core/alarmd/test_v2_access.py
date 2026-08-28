@@ -121,6 +121,35 @@ def test_builds_query_group_data_once_plans_many_with_item_selectors():
     assert envelope["records"][0]["business_id"] == "2"
 
 
+def test_configured_missing_dimension_is_preserved_as_explicit_null_identity():
+    item, _ = _strategy(1001, 11, threshold=1)
+    record = DataRecord(item, {"_time_": 1725000000, "_result_": 3.0}).clean()
+    processor = SimpleNamespace(
+        items=[item],
+        strategy_group_key="query-group-1",
+        from_timestamp=1724999700,
+        until_timestamp=1725000060,
+        alarmd_v2_execution_id="execution-1",
+        alarmd_v2_evaluation_time=1725000060,
+        alarmd_v2_query_result={"completeness": "FULL"},
+    )
+
+    job = build_access_publish_jobs(processor, [record], received_time=1725000061)[0]
+    message = build_execution_messages(
+        job, max_records=10, max_envelope_bytes=64 * 1024, message_id_factory=lambda: "message-1"
+    )[0][0]
+    envelope = json.loads(message.payload)
+
+    assert job.record_count == 1
+    assert envelope["dataset_contract"]["identity_fields"] == ["host"]
+    assert envelope["records"][0]["dimension_identity"]["fields"] == [{"name": "host", "value": None}]
+    assert (
+        envelope["records"][0]["dimension_identity"]["digest"]
+        == "248cb04ea988fcad43b087a7377e931b6ae200866a2e314af91677d8cbe16a87"
+    )
+    assert envelope["records"][0]["dimensions"] == {"host": None}
+
+
 def test_full_empty_still_builds_one_self_contained_message():
     item, _ = _strategy(1001, 11, threshold=1)
     processor = SimpleNamespace(
