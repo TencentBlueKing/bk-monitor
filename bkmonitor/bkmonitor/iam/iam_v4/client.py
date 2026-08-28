@@ -267,6 +267,11 @@ class V4Client:
                 f"IAM v4 HTTP {resp.status_code}: POST {path}: {_safe_truncate(resp)}",
                 code=resp.status_code,
             )
+        except requests.exceptions.RequestException as exc:
+            # 兜底：MissingSchema / InvalidURL / ConnectionError 等传输层异常
+            # 都必须转成 ProviderUnavailable，避免直接冒泡到视图层变成 500，
+            # 也确保 CompositionPolicy（primary / any_of）能识别并容错。
+            raise ProviderUnavailable(f"IAM v4 transport error: POST {path}: {exc}") from exc
         return _safe_json(resp)
 
     def _get(self, path: str, params: dict | None = None) -> dict:
@@ -280,6 +285,8 @@ class V4Client:
                 f"IAM v4 HTTP {resp.status_code}: GET {path}: {_safe_truncate(resp)}",
                 code=resp.status_code,
             )
+        except requests.exceptions.RequestException as exc:
+            raise ProviderUnavailable(f"IAM v4 transport error: GET {path}: {exc}") from exc
         return _safe_json(resp)
 
     def _put(self, path: str, body: dict) -> dict:
@@ -293,6 +300,8 @@ class V4Client:
                 f"IAM v4 HTTP {resp.status_code}: PUT {path}: {_safe_truncate(resp)}",
                 code=resp.status_code,
             )
+        except requests.exceptions.RequestException as exc:
+            raise ProviderUnavailable(f"IAM v4 transport error: PUT {path}: {exc}") from exc
         return _safe_json(resp)
 
     def _delete(self, path: str, body: dict | None = None, params: dict | None = None) -> dict:
@@ -311,6 +320,8 @@ class V4Client:
                 f"IAM v4 HTTP {resp.status_code}: DELETE {path}: {_safe_truncate(resp)}",
                 code=resp.status_code,
             )
+        except requests.exceptions.RequestException as exc:
+            raise ProviderUnavailable(f"IAM v4 transport error: DELETE {path}: {exc}") from exc
         return _safe_json(resp)
 
 

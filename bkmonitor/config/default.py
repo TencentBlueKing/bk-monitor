@@ -1440,6 +1440,82 @@ BK_IAM_V3_SYSTEM_CLIENTS_LIST = [
 ]
 
 
+# ---- IAM 鉴权栈单开关 ----
+#
+# 通过单一环境变量决定装配哪些 Provider、以及 CompositionPolicy：
+#   * v3    —— 只装配 V3，COMPOSITION=single
+#   * v4    —— 只装配 V4，COMPOSITION=single
+#   * union —— 同时装配 V4 + V3（V4 在前作为 primary），COMPOSITION=any_of；
+#              读鉴权任一命中即通过，写授权由 CompositionPolicy 内部双写两侧。
+#
+# 拒绝拆成 USE_V3 / USE_V4 两个布尔，避免 {False, False} / {True, True} 类型
+# 的非法组合以及"再引一个字段区分模式"的隐晦耦合。
+BK_IAM_MODE = os.getenv("BK_IAM_MODE", "v4").lower()
+
+_IAM_V3_PROVIDER = {
+    "class": "bkmonitor.iam.iam_v3.provider.V3PermissionProvider",
+    "options": {
+        "codec_class": "bkmonitor.iam.adapters.v3.codec.MonitorV3Codec",
+        "resolver_class": "bkmonitor.iam.adapters.resolver.MonitorResourceResolver",
+        "base_url": BK_IAM_V3_API_BASE_URL,
+        "bk_tenant_id": "system",
+        "provider_config_path": BK_IAM_V3_RESOURCE_PATH,
+        "credentials": {
+            "app_code": BK_IAM_V3_CLIENT_APP_CODE,
+            "app_secret": BK_IAM_V3_CLIENT_APP_SECRET,
+        },
+        "system": {
+            "id": BK_IAM_V3_SYSTEM_ID,
+            "name": "监控平台",
+            "description": (
+                "蓝鲸监控平台是一款针对主机和互联网应用进行监控的产品，监控服务可用于收集主机资源"
+                "（系统性能、组件服务、数据库、日志等）的监控指标，探测互联网应用服务的可用性，"
+                "并对指标进行告警设置。"
+            ),
+            "name_en": BK_IAM_V3_SYSTEM_NAME_EN,
+            "description_en": BK_IAM_V3_SYSTEM_DESCRIPTION_EN,
+            "clients": BK_IAM_V3_SYSTEM_CLIENTS_LIST,
+        },
+    },
+}
+
+_IAM_V4_PROVIDER = {
+    "class": "bkmonitor.iam.iam_v4.provider.V4PermissionProvider",
+    "options": {
+        "codec_class": "bkmonitor.iam.adapters.v4.codec.MonitorV4Codec",
+        "resolver_class": "bkmonitor.iam.adapters.resolver.MonitorResourceResolver",
+        "base_url": BK_IAM_V4_API_BASE_URL,
+        "bk_tenant_id": "system",
+        "credentials": {
+            "app_code": BK_IAM_V4_CLIENT_APP_CODE,
+            "app_secret": BK_IAM_V4_CLIENT_APP_SECRET,
+        },
+        "system": {
+            "id": BK_IAM_V4_SYSTEM_ID,
+            "name": BK_IAM_V4_SYSTEM_NAME,
+            "description": BK_IAM_V4_SYSTEM_DESCRIPTION,
+            "callback_url": BK_IAM_V4_CALLBACK_URL,
+            "managers": [m.strip() for m in os.getenv("BK_IAM_V4_MANAGERS", "admin").split(",") if m.strip()],
+            "clients": [BK_IAM_V4_CLIENT_APP_CODE],
+        },
+        "chunk_size": 20,
+        "max_workers": 4,
+    },
+}
+
+if BK_IAM_MODE == "v3":
+    _IAM_PROVIDERS = [_IAM_V3_PROVIDER]
+    _IAM_COMPOSITION = {"policy": "single"}
+elif BK_IAM_MODE == "v4":
+    _IAM_PROVIDERS = [_IAM_V4_PROVIDER]
+    _IAM_COMPOSITION = {"policy": "single"}
+elif BK_IAM_MODE == "union":
+    # V4 在前：primary() 取 providers[0]，get_apply_url / get_apply_data 优先出 V4 页面。
+    _IAM_PROVIDERS = [_IAM_V4_PROVIDER, _IAM_V3_PROVIDER]
+    _IAM_COMPOSITION = {"policy": "any_of"}
+else:
+    raise ValueError(f"Unknown BK_IAM_MODE={BK_IAM_MODE!r}. Supported values: 'v3' | 'v4' | 'union'.")
+
 IAM_FRAMEWORK = {
     # 操作定义
     "ACTIONS": "bkmonitor.iam.definitions.actions.Actions",
@@ -1447,53 +1523,7 @@ IAM_FRAMEWORK = {
     "RESOURCE_TYPES": "bkmonitor.iam.definitions.resource_types.ResourceTypes",
     # 角色定义
     "ROLES": "bkmonitor.iam.definitions.roles.Roles",
-    "PROVIDERS": [
-        # {
-        #     "class": "bkmonitor.iam.iam_v3.provider.V3PermissionProvider",
-        #     "options": {
-        #         "codec_class": "bkmonitor.iam.adapters.v3.codec.MonitorV3Codec",
-        #         "resolver_class": "bkmonitor.iam.adapters.resolver.MonitorResourceResolver",
-        #         "base_url": BK_IAM_V3_API_BASE_URL,
-        #         "bk_tenant_id": "system",
-        #         "provider_config_path": BK_IAM_V3_RESOURCE_PATH,
-        #         "credentials": {
-        #             "app_code": BK_IAM_V3_CLIENT_APP_CODE,
-        #             "app_secret": BK_IAM_V3_CLIENT_APP_SECRET,
-        #         },
-        #         "system": {
-        #             "id": BK_IAM_V3_SYSTEM_ID,
-        #             "name": "监控平台",
-        #             "description": "蓝鲸监控平台是一款针对主机和互联网应用进行监控的产品，监控服务可用于收集主机资源（系统性能、组件服务、数据库、日志等）的监控指标，探测互联网应用服务的可用性，并对指标进行告警设置。",
-        #             "name_en": BK_IAM_V3_SYSTEM_NAME_EN,
-        #             "description_en": BK_IAM_V3_SYSTEM_DESCRIPTION_EN,
-        #             "clients": BK_IAM_V3_SYSTEM_CLIENTS_LIST,
-        #         },
-        #     },
-        # },
-        {
-            "class": "bkmonitor.iam.iam_v4.provider.V4PermissionProvider",
-            "options": {
-                "codec_class": "bkmonitor.iam.adapters.v4.codec.MonitorV4Codec",
-                "resolver_class": "bkmonitor.iam.adapters.resolver.MonitorResourceResolver",
-                "base_url": BK_IAM_V4_API_BASE_URL,
-                "bk_tenant_id": "system",
-                "credentials": {
-                    "app_code": BK_IAM_V4_CLIENT_APP_CODE,
-                    "app_secret": BK_IAM_V4_CLIENT_APP_SECRET,
-                },
-                "system": {
-                    "id": BK_IAM_V4_SYSTEM_ID,
-                    "name": BK_IAM_V4_SYSTEM_NAME,
-                    "description": BK_IAM_V4_SYSTEM_DESCRIPTION,
-                    "callback_url": BK_IAM_V4_CALLBACK_URL,
-                    "managers": [m.strip() for m in os.getenv("BK_IAM_V4_MANAGERS", "admin").split(",") if m.strip()],
-                    "clients": [BK_IAM_V4_CLIENT_APP_CODE],
-                },
-                "chunk_size": 20,
-                "max_workers": 4,
-            },
-        },
-    ],
+    "PROVIDERS": _IAM_PROVIDERS,
     # Provider 组合策略：
     #   single  —— 单 Provider 直通；要求 PROVIDERS 恰好配置 1 个 Provider（默认）。
     #   any_of  —— 任一 Provider 允许即允许；批量结果取并集，适合 v3/v4 迁移过渡期。
@@ -1503,14 +1533,16 @@ IAM_FRAMEWORK = {
     #   max_workers      —— 多 Provider 调用的并发数（不是 Provider 内部分片并发数）。
     #   strict_errors    —— any_of 默认 False、all_of 默认 True；是否立即上抛 Provider 异常。
     #   fallback_on_error —— primary 默认 True；主 Provider 故障时是否切换备用 Provider。
-    "COMPOSITION": {"policy": "single"},
+    "COMPOSITION": _IAM_COMPOSITION,
     "MIGRATION": {
         # 迁移模式 manual ｜ semi_auto
         "mode": "semi_auto",
         # 迁移文件存放目录
         "directory": "bkmonitor/iam/iam_migrations",
         # 破坏性变更（DELETE / id变更重建）全局开关，默认 False：
-        "allow_destructive": True,
+        # 破坏性变更（DELETE / 方言 id 变更重建）必须走独立命令 `iam_engine_migrate
+        # --allow-destructive` 显式确认，绝不在 post_migrate 自动流程里默认放开。
+        "allow_destructive": False,
     },
 }
 
