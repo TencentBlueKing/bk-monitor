@@ -287,10 +287,30 @@ class TestSpanLevelHandlerMethods:
                 return_value=5,
             ),
         ):
-            handler.field_statistics_graph(start_time=1000, end_time=2000, field=field)
+            result = handler.field_statistics_graph(start_time=1000, end_time=2000, field=field)
 
         # 高基数 double 不应调用 topk，应走区间统计
         mock_topk.assert_not_called()
+        # 应生成约 interval_num 个区间（nice number 对齐后可能略有出入）
+        datapoints = result["series"][0]["datapoints"]
+        assert len(datapoints) == 9, "高基数 double 应生成 9 个区间，而非单个 [0, 1) 区间"
+
+    def test_calculate_double_intervals_precision(self, handler):
+        """double 区间计算应生成约 interval_num 个小数区间，精度不丢失"""
+
+        intervals = SpanLevelHandler._calculate_intervals(0.1, 0.9, 10, "double")
+        # 应生成约 9 个区间（0.1 步长），而非单个 [0, 1) 整数区间
+        assert len(intervals) >= 8, f"应生成约 9 个区间，实际 {len(intervals)} 个: {intervals}"
+        # 第一个区间起点应 <= 0.1
+        assert intervals[0][0] <= 0.1
+        # 最后一个区间终点应 >= 0.9
+        assert intervals[-1][1] >= 0.9
+        # 区间步长应为小数（0.1），而非整数（1）
+        bucket_size = intervals[0][1] - intervals[0][0]
+        assert bucket_size < 1.0, f"double 区间步长应为小数，实际为 {bucket_size}"
+        assert len(intervals) == 9
+        assert intervals[0] == (0.1, 0.2)
+        assert intervals[-1] == (0.9, 1.0)
 
     def test_field_statistics_info_field_percent_less_than_100_when_missing_records(self, handler):
         """存在字段缺失记录时，field_percent 应小于 100"""

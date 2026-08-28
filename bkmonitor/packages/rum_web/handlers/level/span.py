@@ -9,6 +9,8 @@ specific language governing permissions and limitations under the License.
 """
 
 import copy
+import bisect
+from decimal import ROUND_CEILING, ROUND_FLOOR, Decimal
 from typing import Any
 
 from django.utils.translation import gettext_lazy as _
@@ -391,7 +393,7 @@ class SpanLevelHandler(BaseRumLevelHandler):
             datapoints.sort(key=lambda b: b[1])
             return self._process_graph_info(datapoints)
 
-        intervals = self._calculate_intervals(min_value, max_value, interval_num)
+        intervals = self._calculate_intervals(min_value, max_value, interval_num, field["field_type"])
         return self._process_graph_info(
             self._calculate_interval_buckets(start_time, end_time, field_name, filters, query_string, intervals)
         )
@@ -416,12 +418,50 @@ class SpanLevelHandler(BaseRumLevelHandler):
         return {"series": [{"datapoints": datapoints}]}
 
     @staticmethod
-    def _calculate_intervals(min_value: int, max_value: int, interval_num: int) -> list[tuple[int, int]]:
-        """计算区间列表，每个元素为 [左闭右开) 区间 (min, max)。"""
-        left_x, _right_x, bucket_size, num_buckets = HistogramNiceNumberGenerator.align_histogram_bounds(
-            min_value, max_value, interval_num
-        )
-        return [(left_x + i * bucket_size, left_x + (i + 1) * bucket_size) for i in range(num_buckets)]
+    def _calculate_intervals(
+        min_value: int | float,
+        max_value: int | float,
+        interval_num: int,
+        field_type: str = "",
+    ) -> list[tuple[int | float, int | float]]:
+        """计算区间列表，每个元素为 [左闭右开) 区间 (min, max)。
+
+        - integer / long：使用整数 nice number 生成器。
+        - double：使用 Decimal 计算支持小数的 nice bucket size，避免精度丢失。
+        """
+        if field_type != EnabledStatisticsDimension.DOUBLE.value:
+            left_x, _right_x, bucket_size, num_buckets = HistogramNiceNumberGenerator.align_histogram_bounds(
+                min_value, max_value, interval_num
+            )
+            return [(left_x + i * bucket_size, left_x + (i + 1) * bucket_size) for i in range(num_buckets)]
+
+        d_min = Decimal(str(min_value))
+        d_max = Decimal(str(max_value))
+        raw_size = (d_max - d_min) / interval_num
+
+        magnitude = (
+            Decimal(10) ** raw_size.adjusted()
+        )  # 对应 raw_size 的数量级, 比如 1.5 -> 0 -> 10 ** 0, 15 -> 1 -> 10 ** 1
+        normalized_size = raw_size / magnitude  # 归一化到 10 的区间
+        _NICE_FACTORS = [Decimal("1"), Decimal("2"), Decimal("2.5"), Decimal("4"), Decimal("5"), Decimal("10")]
+
+        factor = _NICE_FACTORS[bisect.bisect_left(_NICE_FACTORS, normalized_size)]
+        bucket_size = factor * magnitude
+
+        left = (d_min / bucket_size).to_integral_value(rounding=ROUND_FLOOR) * bucket_size
+        right = (d_max / bucket_size).to_integral_value(rounding=ROUND_CEILING) * bucket_size
+        if right == d_max:
+            right += bucket_size
+
+        def _to_number(d: Decimal) -> int | float:
+            """Decimal 转为 int 或 float，整数值返回 int 避免冗余小数点。"""
+            return int(d) if d == d.to_integral_value() else float(d)
+
+        bucket_count = int((right - left) / bucket_size)
+        return [
+            (_to_number(left + index * bucket_size), _to_number(left + (index + 1) * bucket_size))
+            for index in range(bucket_count)
+        ]
 
     def _calculate_interval_buckets(
         self,
