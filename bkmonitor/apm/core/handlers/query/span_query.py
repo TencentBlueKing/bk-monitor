@@ -18,6 +18,8 @@ to the current version of the project delivered to anyone in the future.
 import logging
 from typing import Any
 
+from django.db.models import Q
+
 from apm import constants, types
 from apm.core.handlers.query.base import BaseQuery
 from apm.core.handlers.query.builder import QueryConfigBuilder, UnifyQuerySet
@@ -54,6 +56,56 @@ class SpanQuery(BaseQuery):
             for q in self.build_queries(filters, query_string)
         ]
         return self._query_list(queries, start_time, end_time, offset, limit)
+
+    def query_group_list(
+        self,
+        start_time: int | None,
+        end_time: int | None,
+        group_field: str,
+        offset: int,
+        limit: int,
+        filters: list[types.Filter] | None = None,
+        query_string: str | None = None,
+    ) -> list[str]:
+        queries = [
+            query.distinct(group_field).values(group_field).order_by(f"{self.DEFAULT_TIME_FIELD} desc")
+            for query in self.build_queries(filters, query_string)
+        ]
+        records = self._query_list(queries, start_time, end_time, offset, limit)
+
+        group_ids: list[str] = []
+        for record in records:
+            group_id: str | list[str] = record[group_field]
+            if isinstance(group_id, list):
+                group_id = group_id[0]
+            group_ids.append(group_id)
+
+        return group_ids
+
+    def query_by_group_ids(
+        self,
+        group_field: str,
+        group_ids: list[str],
+        start_time: int | None = None,
+        end_time: int | None = None,
+        limit: int = constants.DISCOVER_BATCH_SIZE,
+    ) -> list[dict[str, Any]]:
+        queries = [
+            query.order_by(OtlpKey.START_TIME).filter(**{f"{group_field}__eq": group_ids})
+            for query in self.build_queries(time_field=OtlpKey.START_TIME)
+        ]
+        return self._query_list(queries, start_time, end_time, 0, limit)
+
+    @classmethod
+    def _add_logic_filter(cls, q: Q, field: str, value: types.FilterValue) -> Q:
+        if field == "keyword":
+            return q & (
+                Q(**{f"{OtlpKey.TRACE_ID}__include": value})
+                | Q(**{f"{OtlpKey.SPAN_ID}__include": value})
+                | Q(**{f"{OtlpKey.get_attributes_key('user.id')}__include": value})
+                | Q(**{f"{OtlpKey.get_attributes_key('gen_ai.conversation.id')}__include": value})
+            )
+        return q
 
     def query_by_trace_id(
         self,
