@@ -26,9 +26,8 @@ from apm_web.handlers.trace_handler.query import TraceQueryTransformer
 from apm_web.trace.constants import TRACE_FIELD_ALIAS
 from bkmonitor.utils.request import get_request_username
 from constants.apm import PreCalculateSpecificField, SpanStandardField, PrecalculateStorageConfig
-from constants.otel_query import FIELD_OPERATIONS, OTEL_SPAN_COMMON_FIELD_ALIAS
+from constants.otel_query import FIELD_OPERATIONS, OTEL_SPAN_COMMON_FIELD_ALIAS, EnabledStatisticsDimension
 from core.drf_resource import api
-from packages.apm_web.trace.constants import EnabledStatisticsDimension
 
 
 class TraceFieldsInfoHandler:

@@ -16,7 +16,7 @@ from apm_web.decorators import user_visit_record
 from apm_web.event import resources
 from apm_web.event.serializers import EventDownloadTopKRequestSerializer
 from apm_web.models import Application
-from apm_web.utils import generate_csv_file_download_response
+from bkmonitor.utils.csv import generate_csv_file_download_response
 from bkmonitor.iam import ActionEnum, ResourceEnum
 from bkmonitor.iam.drf import InstanceActionForDataPermission
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet

@@ -8,8 +8,11 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+from rest_framework.decorators import action
+
 from bkmonitor.iam import ActionEnum, ResourceEnum
 from bkmonitor.iam.drf import InstanceActionForDataPermission
+from bkmonitor.utils.csv import generate_csv_file_download_response
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
 from rum_web.models.application import Application
 from rum_web.query.resources import (
@@ -17,7 +20,11 @@ from rum_web.query.resources import (
     RumGenerateQueryStringResource,
     RumRecordsResource,
     RumViewConfigResource,
+    RumFieldsTopKResource,
+    RumFieldStatisticsInfoResource,
+    RumFieldStatisticsGraphResource,
 )
+from rum_web.query.serializers import RumDownloadTopKRequestSerializer
 
 
 class SearchViewSet(ResourceViewSet):
@@ -42,4 +49,20 @@ class SearchViewSet(ResourceViewSet):
         ResourceRoute("GET", RumViewConfigResource, endpoint="view_config"),
         ResourceRoute("POST", RumFieldsOptionValuesResource, endpoint="get_fields_option_values"),
         ResourceRoute("POST", RumGenerateQueryStringResource, endpoint="generate_query_string"),
+        ResourceRoute("POST", RumFieldsTopKResource, endpoint="fields_topk"),
+        ResourceRoute("POST", RumFieldStatisticsInfoResource, endpoint="field_statistics_info"),
+        ResourceRoute("POST", RumFieldStatisticsGraphResource, endpoint="field_statistics_graph"),
     ]
+
+    @action(methods=["POST"], detail=False, url_path="download_topk")
+    def download_topk(self, request, *args, **kwargs):
+        s = RumDownloadTopKRequestSerializer(data=request.data)
+        s.is_valid(raise_exception=True)
+        validated_data: dict = s.validated_data
+        topk_data = RumFieldsTopKResource().perform_request(validated_data)
+
+        file_name = f"topk_{validated_data['bk_biz_id']}_{validated_data['app_name']}_{validated_data['fields'][0]}.csv"
+        file_content = ([item["value"], item["count"], f"{item['proportions']}%"] for item in topk_data[0]["list"])
+        response = generate_csv_file_download_response(file_name, file_content)
+
+        return response

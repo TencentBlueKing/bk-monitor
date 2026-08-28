@@ -226,6 +226,7 @@ class BaseQuery:
         :param limit: 返回 Top-K 数量，默认 5
         :param need_empty: 为 True 时统计含空值的记录数（使用 _index 计数），默认 False
         :return: 按出现次数降序排列的记录列表，每条记录包含字段值和计数
+        [{'span_name': 'browser.resource', '_time_': 1786686397000, '_result_': 7295}]
         """
         alias: str = "a"
         query_limit = limit * 2 + 10
