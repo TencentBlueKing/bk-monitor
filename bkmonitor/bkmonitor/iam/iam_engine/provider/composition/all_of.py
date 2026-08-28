@@ -32,6 +32,9 @@ from ...core.types import (
     BatchByActionRequest,
     BatchByResourceRequest,
     ResourceAuthResult,
+    ResourceInstance,
+    Subject,
+    VisibleResult,
     to_resource_type_id,
 )
 from ...provider.composition.base import CompositionPolicy
@@ -112,3 +115,44 @@ class AllOfPolicy(CompositionPolicy):
                 for aid in request.action_ids
             )
         )
+
+    # ---- filter_visible_resources ----
+
+    def filter_visible_resources(
+        self,
+        subject: Subject,
+        action_id: Any,
+        candidates: tuple[ResourceInstance, ...],
+    ) -> VisibleResult:
+        """AllOf 语义：所有 Provider 都命中才命中；范围取交集。
+
+        strict 模式（默认）：任一 Provider 抛异常即上抛，行为对齐 is_allowed / batch_by_*。
+        非 strict 模式：跳过异常侧，仅用成功侧求交集；若没有任何成功侧，返回空。
+          * all_granted：所有成功侧都 all_granted=True 才为 True（取 AND）
+          * visible_ids：所有成功侧 visible_ids 的交集
+          * 只要有一侧 all_granted=True，它对交集不做限制（其它侧的 ids 就是最终 ids）
+        """
+        all_granted_flags: list[bool] = []
+        id_sets: list[set[str]] = []
+        succeeded = 0
+        for result, is_error in self._call_all("filter_visible_resources", subject, action_id, candidates):
+            if is_error:
+                if self._strict_errors:
+                    raise result
+                continue
+            succeeded += 1
+            all_granted_flags.append(result.all_granted)
+            if not result.all_granted:
+                # all_granted 侧不参与 ids 交集（视为无限制集合）
+                id_sets.append(set(result.visible_ids))
+
+        if succeeded == 0:
+            return VisibleResult(all_granted=False, visible_ids=())
+
+        merged_all_granted = all(all_granted_flags)
+        if merged_all_granted:
+            # 所有侧都 all_granted：整体 all_granted，visible_ids 无意义
+            return VisibleResult(all_granted=True, visible_ids=())
+
+        merged_ids = set.intersection(*id_sets) if id_sets else set()
+        return VisibleResult(all_granted=False, visible_ids=tuple(merged_ids))

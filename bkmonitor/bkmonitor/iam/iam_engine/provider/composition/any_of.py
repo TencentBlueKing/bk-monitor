@@ -32,6 +32,9 @@ from ...core.types import (
     BatchByActionRequest,
     BatchByResourceRequest,
     ResourceAuthResult,
+    ResourceInstance,
+    Subject,
+    VisibleResult,
     to_resource_type_id,
 )
 from ...provider.composition.base import CompositionPolicy
@@ -114,3 +117,37 @@ class AnyOfPolicy(CompositionPolicy):
                 for aid in request.action_ids
             )
         )
+
+    # ---- filter_visible_resources ----
+
+    def filter_visible_resources(
+        self,
+        subject: Subject,
+        action_id: Any,
+        candidates: tuple[ResourceInstance, ...],
+    ) -> VisibleResult:
+        """AnyOf 语义：任一 Provider 命中即命中，异常侧按 strict_errors 决定是否上抛。
+
+        非 strict 模式（默认）：
+          * 跳过抛异常的 Provider（保留其它 Provider 已有的可见性）
+          * 合并成功侧：all_granted 取 OR，visible_ids 取并集
+          * 所有 Provider 都失败时抛最后一次异常，避免"上层降级为空"这种静默错误
+
+        strict 模式：任一 Provider 抛异常即上抛（对齐 is_allowed 的行为契约）。
+        """
+        all_granted = False
+        ids: set[str] = set()
+        succeeded = 0
+        last_error: BaseException | None = None
+        for result, is_error in self._call_all("filter_visible_resources", subject, action_id, candidates):
+            if is_error:
+                last_error = result
+                if self._strict_errors:
+                    raise result
+                continue
+            succeeded += 1
+            all_granted = all_granted or result.all_granted
+            ids.update(result.visible_ids)
+        if succeeded == 0 and last_error is not None:
+            raise last_error
+        return VisibleResult(all_granted=all_granted, visible_ids=tuple(ids))

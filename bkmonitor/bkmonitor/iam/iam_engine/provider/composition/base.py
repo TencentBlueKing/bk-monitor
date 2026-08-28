@@ -274,11 +274,19 @@ class CompositionPolicy(ABC):
         action_id: ActionDef | str,
         candidates: tuple[ResourceInstance, ...],
     ) -> VisibleResult:
-        """收集所有 Provider 的过滤结果并合并：all_granted 取 OR，visible_ids 取并集。"""
-        all_granted = False
-        ids: set[str] = set()
-        for p in self.providers:
-            r = p.filter_visible_resources(subject, action_id, candidates)
-            all_granted = all_granted or r.all_granted
-            ids.update(r.visible_ids)
-        return VisibleResult(all_granted=all_granted, visible_ids=tuple(ids))
+        """按策略组合各 Provider 的 filter_visible_resources 结果。
+
+        必须由子类实现，因为不同策略的合并语义完全不同：
+          * SinglePolicy   —— 直通唯一 Provider
+          * AnyOfPolicy    —— 成功侧合并（all_granted 取 OR，visible_ids 取并集）；
+                              非 strict 模式下跳过异常侧，任一 Provider 命中即命中
+          * AllOfPolicy    —— 严格交集（all_granted 取 AND，visible_ids 取交集）；
+                              strict 模式下任一异常即上抛
+          * PrimaryPolicy  —— 主决策，主故障时按 fallback 顺序尝试备
+
+        之所以不在基类里硬编码"遍历 + OR/并集"：那是 AnyOf 的语义，
+        直接放在基类会让 AllOf/Primary 也走宽松合并，违反策略契约；同时基类
+        的直接遍历没有走 _call_all 的错误容忍分支，Provider 异常会直接冒泡，
+        与 is_allowed / batch_by_* 的 strict_errors 语义完全不对齐。
+        """
+        raise NotImplementedError

@@ -30,6 +30,9 @@ from ...core.types import (
     BatchAuthResult,
     BatchByActionRequest,
     BatchByResourceRequest,
+    ResourceInstance,
+    Subject,
+    VisibleResult,
 )
 from ...provider.composition.base import CompositionPolicy
 
@@ -66,3 +69,12 @@ class PrimaryPolicy(CompositionPolicy):
 
     def batch_by_action(self, request: BatchByActionRequest) -> BatchAuthResult:
         return self._try_chain("batch_by_action", request)
+
+    def filter_visible_resources(
+        self,
+        subject: Subject,
+        action_id,
+        candidates: tuple[ResourceInstance, ...],
+    ) -> VisibleResult:
+        """Primary 语义：主 Provider 结果为准；主抛 ProviderUnavailable 时按顺序 fallback。"""
+        return self._try_chain("filter_visible_resources", subject, action_id, candidates)

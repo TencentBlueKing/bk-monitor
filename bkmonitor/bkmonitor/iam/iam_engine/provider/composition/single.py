@@ -17,14 +17,22 @@ from __future__ import annotations
 # 所有方法直接委托给 self.providers[0]，无组合逻辑。
 # ---------------------------------------------------------------------------
 
+from typing import TYPE_CHECKING
+
 from ...core.exceptions import ConfigError
 from ...core.types import (
     AuthRequest,
     BatchAuthResult,
     BatchByActionRequest,
     BatchByResourceRequest,
+    ResourceInstance,
+    Subject,
+    VisibleResult,
 )
 from ...provider.composition.base import CompositionPolicy
+
+if TYPE_CHECKING:
+    from ...schema.definitions import ActionDef
 
 
 class SinglePolicy(CompositionPolicy):
@@ -46,3 +54,12 @@ class SinglePolicy(CompositionPolicy):
 
     def batch_by_action(self, request: BatchByActionRequest) -> BatchAuthResult:
         return self.providers[0].batch_by_action(request)
+
+    def filter_visible_resources(
+        self,
+        subject: Subject,
+        action_id: ActionDef | str,
+        candidates: tuple[ResourceInstance, ...],
+    ) -> VisibleResult:
+        """直通唯一 Provider，异常照抛（由上层 Permission 层的 try/except 处理）。"""
+        return self.providers[0].filter_visible_resources(subject, action_id, candidates)
