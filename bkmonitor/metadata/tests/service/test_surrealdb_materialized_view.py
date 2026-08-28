@@ -10,6 +10,7 @@ from metadata.service.surrealdb_materialized_view import (
     reconcile_materialized_views,
     resolve_surrealdb_scope,
 )
+from metadata.task.bkbase import reconcile_surrealdb_materialized_view
 
 
 def _binding(**kwargs):
@@ -52,6 +53,7 @@ def test_build_materialized_view_ddl():
     ddl = build_materialized_view_ddl(_binding(), SurrealDBScope(namespace="bkmonitor", database="biz_2"))
 
     assert "USE NS `bkmonitor` DB `biz_2`;" in ddl
+    assert "BEGIN TRANSACTION;" in ddl
     assert "REMOVE TABLE IF EXISTS `node_with_pod_materialized_view`;" in ddl
     assert "DEFINE TABLE `node_with_pod_materialized_view` TYPE NORMAL AS" in ddl
     assert "relation_id.in AS source_id" in ddl
@@ -60,6 +62,7 @@ def test_build_materialized_view_ddl():
     assert "period_end AS relation_period_end_ms\nFROM `node_with_pod_liveness_record`" in ddl
     assert "FIELDS source_id, relation_period_start_ms, relation_period_end_ms;" in ddl
     assert "FIELDS target_id, relation_period_start_ms, relation_period_end_ms;" in ddl
+    assert ddl.rstrip().endswith("COMMIT TRANSACTION;")
 
 
 def test_build_materialized_view_ddl_rejects_unsafe_identifier():
@@ -102,3 +105,31 @@ def test_reconcile_materialized_views_records_failure(mocker):
     binding.refresh_from_db()
     assert binding.materialized_view_status == DataLinkResourceStatus.FAILED.value
     assert binding.materialized_view_last_error == "query failed"
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_reconcile_materialized_views_records_scope_failure():
+    binding = _binding()
+    binding.save()
+
+    with pytest.raises(ValueError, match="namespace/database"):
+        reconcile_materialized_views(binding, {"metadata": {"annotations": {"SurrealDBNamespace": "bkmonitor"}}})
+
+    binding.refresh_from_db()
+    assert binding.materialized_view_status == DataLinkResourceStatus.FAILED.value
+    assert "namespace/database" in binding.materialized_view_last_error
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_reconcile_materialized_view_task_keeps_failure_state():
+    binding = _binding()
+    binding.save()
+
+    reconcile_surrealdb_materialized_view.run(
+        binding.pk,
+        {"metadata": {"annotations": {"SurrealDBNamespace": "bkmonitor"}}},
+    )
+
+    binding.refresh_from_db()
+    assert binding.materialized_view_status == DataLinkResourceStatus.FAILED.value
+    assert "namespace/database" in binding.materialized_view_last_error

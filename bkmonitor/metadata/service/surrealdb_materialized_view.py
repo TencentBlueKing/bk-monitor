@@ -8,6 +8,8 @@ import re
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
+from metadata.models.data_link.constants import DataLinkResourceStatus
+
 if TYPE_CHECKING:
     from metadata.models.data_link.data_link_configs import SurrealDBBindingConfig
 
@@ -80,6 +82,7 @@ def build_materialized_view_ddl(binding: SurrealDBBindingConfig, scope: SurrealD
     vertices = {vertex["name"]: vertex for vertex in binding.vertices}
     statements = [
         f"USE NS {_quote_identifier(scope.namespace)} DB {_quote_identifier(scope.database)};",
+        "BEGIN TRANSACTION;",
     ]
 
     for index, relation in enumerate(binding.relations):
@@ -139,33 +142,36 @@ def build_materialized_view_ddl(binding: SurrealDBBindingConfig, scope: SurrealD
                 ),
             ]
         )
+    statements.append("COMMIT TRANSACTION;")
     return "\n\n".join(statements)
+
+
+def _mark_materialized_view_failed(binding: SurrealDBBindingConfig, error: Exception) -> None:
+    binding.materialized_view_status = DataLinkResourceStatus.FAILED.value
+    binding.materialized_view_last_error = str(error)[:4096]
+    binding.save(update_fields=["materialized_view_status", "materialized_view_last_error", "last_modify_time"])
 
 
 def reconcile_materialized_views(binding: SurrealDBBindingConfig, remote_config: dict[str, Any]) -> bool:
     from django.utils import timezone
 
     from core.drf_resource import api
-    from metadata.models.data_link.constants import DataLinkResourceStatus
 
     if binding.status != DataLinkResourceStatus.OK.value:
         return False
 
-    scope = resolve_surrealdb_scope(remote_config)
-    ddl = build_materialized_view_ddl(binding, scope)
-    definition_hash = hashlib.sha256(ddl.encode("utf-8")).hexdigest()
-    if (
-        binding.materialized_view_status == DataLinkResourceStatus.OK.value
-        and binding.materialized_view_definition_hash == definition_hash
-    ):
-        return False
-
     try:
+        scope = resolve_surrealdb_scope(remote_config)
+        ddl = build_materialized_view_ddl(binding, scope)
+        definition_hash = hashlib.sha256(ddl.encode("utf-8")).hexdigest()
+        if (
+            binding.materialized_view_status == DataLinkResourceStatus.OK.value
+            and binding.materialized_view_definition_hash == definition_hash
+        ):
+            return False
         api.bkdata.query_data(sql=ddl, prefer_storage="surrealdb")
     except Exception as error:
-        binding.materialized_view_status = DataLinkResourceStatus.FAILED.value
-        binding.materialized_view_last_error = str(error)[:4096]
-        binding.save(update_fields=["materialized_view_status", "materialized_view_last_error", "last_modify_time"])
+        _mark_materialized_view_failed(binding, error)
         raise
 
     binding.materialized_view_definition_hash = definition_hash

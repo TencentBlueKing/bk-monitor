@@ -64,6 +64,30 @@ PUBSUB_POLL_TIMEOUT_SECONDS = 1.0
 
 
 @app.task(ignore_result=True, queue="celery_metadata_task_worker")
+def reconcile_surrealdb_materialized_view(binding_id: int, remote_config: dict[str, Any]) -> None:
+    """Serially reconcile one SurrealDBBinding materialized view definition."""
+    try:
+        with transaction.atomic():
+            binding = SurrealDBBindingConfig.objects.select_for_update().get(pk=binding_id)
+            try:
+                reconcile_materialized_views(binding, remote_config)
+            except Exception as error:  # pylint: disable=broad-except
+                logger.exception(
+                    "reconcile_surrealdb_materialized_view: reconcile failed, binding_id->[%s], error->[%s]",
+                    binding_id,
+                    error,
+                )
+    except SurrealDBBindingConfig.DoesNotExist:
+        logger.info("reconcile_surrealdb_materialized_view: binding->[%s] no longer exists", binding_id)
+    except Exception as error:  # pylint: disable=broad-except
+        logger.exception(
+            "reconcile_surrealdb_materialized_view: task failed, binding_id->[%s], error->[%s]",
+            binding_id,
+            error,
+        )
+
+
+@app.task(ignore_result=True, queue="celery_metadata_task_worker")
 def sync_bkbase_v4_metadata(key, skip_types: list[str] | None = None):
     """
     同步计算平台元数据信息至Metadata
@@ -1558,20 +1582,12 @@ def _reconcile_data_link_components() -> tuple[
                 }
                 for name, (_, extra_config) in parsed_configs.items():
                     component = materialized_view_components.get(name)
-                    if not isinstance(component, SurrealDBBindingConfig):
+                    if (
+                        not isinstance(component, SurrealDBBindingConfig)
+                        or extra_config["status"] != DataLinkResourceStatus.OK.value
+                    ):
                         continue
-                    component.status = extra_config["status"]
-                    try:
-                        reconcile_materialized_views(component, remote_configs_by_name[name])
-                    except Exception as error:  # pylint: disable=broad-except
-                        logger.exception(
-                            "bulk_refresh_data_link_status: reconcile surrealdb materialized views failed, "
-                            "tenant->[%s], namespace->[%s], name->[%s], error->[%s]",
-                            bk_tenant_id,
-                            namespace,
-                            name,
-                            error,
-                        )
+                    reconcile_surrealdb_materialized_view.delay(component.pk, remote_configs_by_name[name])
 
             stats.created_count += len(created_components)
             stats.updated_count += len(changed_components) - terminated_count

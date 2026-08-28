@@ -885,13 +885,13 @@ def test_refresh_reconciles_surrealdb_materialized_views_when_enabled(mocker, se
         "SurrealDBDatabase": "biz_2",
     }
     mocker.patch("metadata.task.bkbase.api.bkdata.list_data_link", return_value=[remote_config])
-    reconcile = mocker.patch("metadata.task.bkbase.reconcile_materialized_views")
+    reconcile = mocker.patch("metadata.task.bkbase.reconcile_surrealdb_materialized_view.delay")
 
     _reconcile_data_link_components()
 
     component.refresh_from_db()
     assert component.status == DataLinkResourceStatus.OK.value
-    reconcile.assert_called_once_with(component, remote_config)
+    reconcile.assert_called_once_with(component.pk, remote_config)
 
 
 @pytest.mark.django_db(databases="__all__")
