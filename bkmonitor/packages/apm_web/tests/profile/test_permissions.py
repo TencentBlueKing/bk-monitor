@@ -6,6 +6,7 @@ from rest_framework.test import APIRequestFactory
 
 from apm_web.profile.serializers import (
     ProfileListFileSerializer,
+    ProfileQuerySerializer,
     ProfileQueryLabelValuesSerializer,
     ProfileQueryLabelsSerializer,
 )
@@ -83,6 +84,25 @@ def test_global_query_accepts_own_profile_id(filter_mock):
     ProfileQueryViewSet._examine_global_query_scope(
         {"bk_biz_id": 2, "profile_id": "own-profile", "diff_profile_id": ""}
     )
+
+
+@mock.patch("apm_web.profile.views.ProfileUploadRecord.objects.filter")
+def test_global_compare_query_requires_diff_profile_id(filter_mock):
+    filter_mock.return_value.exists.return_value = True
+    serializer = ProfileQuerySerializer(
+        data={
+            "bk_biz_id": 2,
+            "global_query": True,
+            "start": 1,
+            "end": 2,
+            "profile_id": "own-profile",
+            "is_compared": True,
+        }
+    )
+    serializer.is_valid(raise_exception=True)
+
+    with pytest.raises(ValueError, match="diff_profile_id"):
+        ProfileQueryViewSet._examine_global_query_scope(serializer.validated_data)
 
 
 @pytest.mark.parametrize("serializer_class", [ProfileQueryLabelsSerializer, ProfileQueryLabelValuesSerializer])

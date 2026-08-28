@@ -504,6 +504,9 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
     @staticmethod
     def _examine_global_query_scope(validated_data):
         bk_biz_id = validated_data["bk_biz_id"]
+        if validated_data.get("is_compared") and not validated_data.get("diff_profile_id"):
+            raise ValueError(_("全局对比查询需要指定 diff_profile_id"))
+
         for key in ("profile_id", "diff_profile_id"):
             if key not in validated_data:
                 continue
