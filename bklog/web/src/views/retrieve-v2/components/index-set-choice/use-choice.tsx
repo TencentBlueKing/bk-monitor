@@ -355,10 +355,12 @@ export default (props, { emit }) => {
         data: {
           name,
           space_uid: props.spaceUid,
-          index_set_ids: unionListValue.value.map(v => {
-            const uniqueId = v?.unique_id ?? v;
-            return uniqueId.split('_').at(-1);
-          }).filter(v => v !== undefined),
+          index_set_ids: unionListValue.value
+            .map(v => {
+              const uniqueId = v?.unique_id ?? v;
+              return uniqueId.split('_').at(-1);
+            })
+            .filter(v => v !== undefined),
         },
       })
       .then(resp => {

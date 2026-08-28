@@ -1,178 +1,181 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
+  import { computed, ref, watch } from 'vue';
 
-import { getOperatorKey } from '@/common/util';
-import useLocale from '@/hooks/use-locale';
-import useStore from '@/hooks/use-store';
+  import { getOperatorKey } from '@/common/util';
+  import useLocale from '@/hooks/use-locale';
+  import useStore from '@/hooks/use-store';
 
-import useFieldEgges from '@/hooks/use-field-egges';
-import { storeRuntimeCacheService } from '@/store/services/runtime-cache.service';
-import { BK_LOG_STORAGE } from '@/store/store.type';
-import RetrieveHelper, { RetrieveEvent } from '@/views/retrieve-helper';
-import { useRoute } from 'vue-router/composables';
-import { getCommonFilterAddition, getCommonFilterFieldsList, setStorageCommonFilterAddition } from '../../../../store/helper';
-import { operatorMapping, translateKeys } from '../utils/const-values';
-import { FulltextOperator, FulltextOperatorKey, withoutValueConditionList } from '../utils/const.common';
-import bklogTagChoice from './bklog-tag-choice';
-import CommonFilterSetting from './common-filter-setting.vue';
+  import useFieldEgges from '@/hooks/use-field-egges';
+  import { storeRuntimeCacheService } from '@/store/services/runtime-cache.service';
+  import { BK_LOG_STORAGE } from '@/store/store.type';
+  import RetrieveHelper, { RetrieveEvent } from '@/views/retrieve-helper';
+  import { useRoute } from 'vue-router/composables';
+  import {
+    getCommonFilterAddition,
+    getCommonFilterFieldsList,
+    setStorageCommonFilterAddition,
+  } from '../../../../store/helper';
+  import { operatorMapping, translateKeys } from '../utils/const-values';
+  import { FulltextOperator, FulltextOperatorKey, withoutValueConditionList } from '../utils/const.common';
+  import bklogTagChoice from './bklog-tag-choice';
+  import CommonFilterSetting from './common-filter-setting.vue';
 
-const { $t } = useLocale();
-const store = useStore();
-const route = useRoute();
-const filterFieldsList = computed(() => getCommonFilterFieldsList(store.state));
+  const { $t } = useLocale();
+  const store = useStore();
+  const route = useRoute();
+  const filterFieldsList = computed(() => getCommonFilterFieldsList(store.state));
 
-// 判定当前选中条件是否需要设置Value
-const isShowConditonValueSetting = operator => !withoutValueConditionList.includes(operator);
-const commonFilterAddition = ref([]);
+  // 判定当前选中条件是否需要设置Value
+  const isShowConditonValueSetting = operator => !withoutValueConditionList.includes(operator);
+  const commonFilterAddition = ref([]);
 
-const setCommonFilterAddition = () => {
-  commonFilterAddition.value.length = 0;
-  commonFilterAddition.value = [];
-  // 合并策略优化
-  commonFilterAddition.value = getCommonFilterAddition(store.state);
-};
-
-
-watch(
-  () => [filterFieldsList.value, store.state.indexId], // 同时监听 indexId
-  () => {
-    setCommonFilterAddition();
-  },
-  { immediate: true, deep: true },
-);
-const activeIndex = ref(-1);
-
-const operatorDictionary = computed(() => {
-  store.state.operatorDictionaryVersion;
-  const defVal = {
-    [getOperatorKey(FulltextOperatorKey)]: { label: $t('包含'), operator: FulltextOperator },
+  const setCommonFilterAddition = () => {
+    commonFilterAddition.value.length = 0;
+    commonFilterAddition.value = [];
+    // 合并策略优化
+    commonFilterAddition.value = getCommonFilterAddition(store.state);
   };
-  return {
-    ...defVal,
-    ...storeRuntimeCacheService.getOperatorDictionary(store.state.indexId || 'default'),
-  };
-});
 
-const fieldAggsItems = computed(() => {
-  store.state.fieldAggsItemsVersion;
-  return storeRuntimeCacheService.getFieldAggsItems(store.state.indexId || 'default');
-});
+  watch(
+    () => [filterFieldsList.value, store.state.indexId], // 同时监听 indexId
+    () => {
+      setCommonFilterAddition();
+    },
+    { immediate: true, deep: true },
+  );
+  const activeIndex = ref(-1);
 
-const textDir = computed(() => {
-  const textEllipsisDir = store.state.storage[BK_LOG_STORAGE.TEXT_ELLIPSIS_DIR];
-  return textEllipsisDir === 'start' ? 'rtl' : 'ltr';
-});
+  const operatorDictionary = computed(() => {
+    store.state.operatorDictionaryVersion;
+    const defVal = {
+      [getOperatorKey(FulltextOperatorKey)]: { label: $t('包含'), operator: FulltextOperator },
+    };
+    return {
+      ...defVal,
+      ...storeRuntimeCacheService.getOperatorDictionary(store.state.indexId || 'default'),
+    };
+  });
 
-/**
+  const fieldAggsItems = computed(() => {
+    store.state.fieldAggsItemsVersion;
+    return storeRuntimeCacheService.getFieldAggsItems(store.state.indexId || 'default');
+  });
+
+  const textDir = computed(() => {
+    const textEllipsisDir = store.state.storage[BK_LOG_STORAGE.TEXT_ELLIPSIS_DIR];
+    return textEllipsisDir === 'start' ? 'rtl' : 'ltr';
+  });
+
+  /**
    * 获取操作符展示文本
    * @param {*} item
    */
-const getOperatorLabel = (item) => {
-  if (item.field === '_ip-select_') {
-    return '';
-  }
+  const getOperatorLabel = item => {
+    if (item.field === '_ip-select_') {
+      return '';
+    }
 
-  const key = item.field === '*' ? getOperatorKey(`*${item.operator}`) : getOperatorKey(item.operator);
-  if (translateKeys.includes(operatorMapping[item.operator])) {
-    return $t(operatorMapping[item.operator] ?? item.operator);
-  }
+    const key = item.field === '*' ? getOperatorKey(`*${item.operator}`) : getOperatorKey(item.operator);
+    if (translateKeys.includes(operatorMapping[item.operator])) {
+      return $t(operatorMapping[item.operator] ?? item.operator);
+    }
 
-  return operatorMapping[item.operator] ?? operatorDictionary.value[key]?.label ?? item.operator;
-};
+    return operatorMapping[item.operator] ?? operatorDictionary.value[key]?.label ?? item.operator;
+  };
 
-const { requestFieldEgges, isRequesting } = useFieldEgges();
-const handleToggle = (visable, item, index) => {
-  if (visable) {
+  const { requestFieldEgges, isRequesting } = useFieldEgges();
+  const handleToggle = (visable, item, index) => {
+    if (visable) {
+      activeIndex.value = index;
+      requestFieldEgges(item, null, resp => {
+        if (typeof resp === 'boolean') {
+          return;
+        }
+        commonFilterAddition.value[index].list = fieldAggsItems.value[item.field_name] ?? [];
+      });
+    }
+  };
+
+  const handleInputVlaueChange = (value, item, index) => {
     activeIndex.value = index;
-    requestFieldEgges(item, null, (resp) => {
+    requestFieldEgges(item, value, resp => {
       if (typeof resp === 'boolean') {
         return;
       }
       commonFilterAddition.value[index].list = fieldAggsItems.value[item.field_name] ?? [];
     });
-  }
-};
+  };
 
-const handleInputVlaueChange = (value, item, index) => {
-  activeIndex.value = index;
-  requestFieldEgges(item, value, (resp) => {
-    if (typeof resp === 'boolean') {
-      return;
-    }
-    commonFilterAddition.value[index].list = fieldAggsItems.value[item.field_name] ?? [];
-  });
-};
+  const handleChange = async () => {
+    commonFilterAddition.value.forEach(item => {
+      if (!isShowConditonValueSetting(item.operator)) {
+        item.value = [];
+      }
+    });
 
-const handleChange = async () => {
-  commonFilterAddition.value.forEach((item) => {
-    if (!isShowConditonValueSetting(item.operator)) {
-      item.value = [];
-    }
-  });
+    setStorageCommonFilterAddition(store.state, commonFilterAddition.value);
 
-  setStorageCommonFilterAddition(store.state, commonFilterAddition.value);
+    store.commit('retrieve/updateCatchFilterAddition', { addition: commonFilterAddition.value });
 
-  store.commit('retrieve/updateCatchFilterAddition', { addition: commonFilterAddition.value });
+    // 兼容旧版本 graphAnalysis
+    if (route.query.tab !== 'graphAnalysis' && route.query.tab !== 'graph_analysis') {
+      // 场景化检索模式下条件为空时跳过检索请求
+      if (store.getters.isSceneMode && store.getters.isSceneFilterEmpty) return;
 
-  // 兼容旧版本 graphAnalysis
-  if (route.query.tab !== 'graphAnalysis' && route.query.tab !== 'graph_analysis') {
-    // 场景化检索模式下条件为空时跳过检索请求
-    if (store.getters.isSceneMode && store.getters.isSceneFilterEmpty) return;
-
-    // 检索条件有变更时先加载字段信息
-    if (store.state.indexItem.isSceneFilterChanged) {
-      const resp = await store.dispatch('requestIndexSetFieldInfo');
-      if (resp?.data?.fields?.length) {
+      // 检索条件有变更时先加载字段信息
+      if (store.state.indexItem.isSceneFilterChanged) {
+        const resp = await store.dispatch('requestIndexSetFieldInfo');
+        if (resp?.data?.fields?.length) {
+          store.dispatch('requestIndexSetQuery');
+          RetrieveHelper.searchValueChange('filter', commonFilterAddition.value);
+        } else {
+          RetrieveHelper.fire(RetrieveEvent.SCENE_FIELD_EMPTY);
+        }
+      } else {
         store.dispatch('requestIndexSetQuery');
         RetrieveHelper.searchValueChange('filter', commonFilterAddition.value);
-      } else {
-        RetrieveHelper.fire(RetrieveEvent.SCENE_FIELD_EMPTY);
       }
     } else {
-      store.dispatch('requestIndexSetQuery');
       RetrieveHelper.searchValueChange('filter', commonFilterAddition.value);
     }
-  } else {
-    RetrieveHelper.searchValueChange('filter', commonFilterAddition.value);
-  }
-};
+  };
 
-const focusIndex = ref(null);
-const handleRowFocus = (index, e) => {
-  if (document.activeElement === e.target) {
+  const focusIndex = ref(null);
+  const handleRowFocus = (index, e) => {
+    if (document.activeElement === e.target) {
+      focusIndex.value = index;
+    }
+  };
+
+  const isChoiceInputFocus = ref(false);
+
+  const handleChoiceFocus = index => {
+    isChoiceInputFocus.value = true;
     focusIndex.value = index;
-  }
-};
+  };
 
-const isChoiceInputFocus = ref(false);
+  const handleChoiceBlur = index => {
+    if (focusIndex.value === index) {
+      focusIndex.value = null;
+      isChoiceInputFocus.value = null;
+    }
+  };
 
-const handleChoiceFocus = (index) => {
-  isChoiceInputFocus.value = true;
-  focusIndex.value = index;
-};
+  const handleRowBlur = () => {
+    if (isChoiceInputFocus.value) {
+      return;
+    }
 
-const handleChoiceBlur = (index) => {
-  if (focusIndex.value === index) {
     focusIndex.value = null;
-    isChoiceInputFocus.value = null;
-  }
-};
+  };
 
-const handleRowBlur = () => {
-  if (isChoiceInputFocus.value) {
-    return;
-  }
+  const handleDeleAllOptions = () => {
+    commonFilterAddition.value.forEach(item => {
+      item.value = [];
+    });
 
-  focusIndex.value = null;
-};
-
-const handleDeleAllOptions = () => {
-  commonFilterAddition.value.forEach((item) => {
-    item.value = [];
-  });
-
-  handleChange();
-};
+    handleChange();
+  };
 </script>
 
 <template>
@@ -210,7 +213,8 @@ const handleDeleAllOptions = () => {
             <span
               class="operator-label"
               :data-operator="commonFilterAddition[index].operator"
-            >{{ getOperatorLabel(commonFilterAddition[index]) }}</span>
+              >{{ getOperatorLabel(commonFilterAddition[index]) }}</span
+            >
           </template>
           <bk-option
             v-for="(child, childIndex) in item?.field_operator"

@@ -82,8 +82,8 @@ export function getConditionRouterParams(searchList, searchMode, isNewLink, appe
   Object.assign(filterQuery, newQueryObj, append ?? {});
   const storeState = window.mainComponent.$store.state;
   const indexId = window.__IS_MONITOR_COMPONENT__
-    ? (query.indexId || params.indexId || storeState.indexId)
-    : (params.indexId || query.indexId || storeState.indexId);
+    ? query.indexId || params.indexId || storeState.indexId
+    : params.indexId || query.indexId || storeState.indexId;
 
   if (isMonitorEmbedContext(query)) {
     return buildMonitorLogRetrievalUrl({

@@ -51,7 +51,6 @@
             >
               <span style="margin-right: 20px; line-height: 30px">{{ $t('显示内置字段') }}</span>
             </bk-checkbox>
-
           </div>
         </div>
         <!-- <bk-switcher
@@ -230,7 +229,7 @@
                 </bk-form-item>
               </template>
             </bk-table-column>
-           
+
             <!-- 字段说明 -->
             <!-- <bk-table-column
               :render-header="renderHeaderDescription"
@@ -782,7 +781,7 @@
             item.field_type = 'string';
             item.previous_type = 'string';
           }
-          this.validateInput(item)
+          this.validateInput(item);
         });
         this.formData.tableList.splice(0, this.formData.tableList.length, ...arr);
       },
@@ -983,7 +982,7 @@
         });
       },
       checkFieldNameItem(row) {
-        this.validateInput(row)
+        this.validateInput(row);
         if (row.alias_name) {
           return;
         }
@@ -1053,7 +1052,7 @@
             queryResult = this.$t('重命名与系统内置字段重复');
           } else if (alias_name === row.field_name) {
             queryResult = this.$t('重命名与字段名重复');
-          }  else if (this.selectEtlConfig === 'bk_log_json') {
+          } else if (this.selectEtlConfig === 'bk_log_json') {
             // 此处对比还是字段名，要改成重名间对比
 
             queryResult = this.filedNameIsConflict(field_index, alias_name)
@@ -1139,7 +1138,7 @@
         this.$emit('handle-built-field', value);
         this.builtFieldVisible = !this.builtFieldVisible;
       },
-   
+
       renderHeaderDescription(h) {
         return h(
           'div',
@@ -1180,13 +1179,13 @@
         row.is_delete = !row.is_delete;
         this.$emit('handle-table-data', this.changeTableList);
       },
-      
+
       filedNameIsConflict(fieldIndex, fieldName, is_time = false) {
         const otherFieldNameList = this.formData.tableList.filter(item => {
           // 指定日志时间的字段名会重复
           return item.field_index !== fieldIndex && (!is_time || !item.is_time);
         });
-        return otherFieldNameList.some(item => item.field_name === fieldName );
+        return otherFieldNameList.some(item => item.field_name === fieldName);
       },
       /** 当前字段是否禁用 */
       getFieldEditDisabled(row) {
@@ -1243,8 +1242,8 @@
       // },
       // 不满足特定正则表达式时添加双引号，并且确保已经添加过的不会再重复添加
       validateInput(row) {
-        if(!row.field_name || this.extractMethod !== 'bk_log_json'){
-          return
+        if (!row.field_name || this.extractMethod !== 'bk_log_json') {
+          return;
         }
         const quotedPattern = /^".*"$/;
         // 定义正则，用于检测字段名称的合法性
@@ -1257,7 +1256,7 @@
             row.field_name = `"${row.field_name}"`; // 则添加引号
           }
         }
-    }
+      },
     },
   };
 </script>

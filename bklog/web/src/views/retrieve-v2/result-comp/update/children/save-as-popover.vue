@@ -110,7 +110,7 @@
       align-items: center;
       margin-top: 8px;
 
-      button{
+      button {
         font-size: 12px;
       }
     }

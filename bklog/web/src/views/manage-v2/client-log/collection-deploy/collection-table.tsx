@@ -29,7 +29,6 @@ import { computed, defineComponent, ref } from 'vue';
 import { clearTableFilter } from '@/common/util';
 import EmptyStatus from '@/components/empty-status/index.vue';
 
-
 import { t } from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
 import { TRIGGER_FREQUENCY_OPTIONS, CLIENT_TYPE_OPTIONS } from '../constant';

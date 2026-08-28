@@ -11,17 +11,12 @@ import { tokensWithoutWhitespace } from '../lexer/tokenizer';
 
 const GLOBAL_KINDS = new Set(['IP', 'IPv6', 'UUID', 'URL', 'URI', 'MAC', 'Email', 'Hash']);
 
-const joinTokenValues = (tokens: LexToken[]) =>
-  tokens.map(t => (t.kind === 'QuotedString' ? t.raw : t.value)).join('');
+const joinTokenValues = (tokens: LexToken[]) => tokens.map(t => (t.kind === 'QuotedString' ? t.raw : t.value)).join('');
 
 /**
  * 将连续普通词合并为 Phrase；特殊类型 token 单独成节点。
  */
-const buildSmartNodes = (
-  tokens: LexToken[],
-  ctx: SelectionContext,
-  options: QueryCompilerOptions,
-): AstNode[] => {
+const buildSmartNodes = (tokens: LexToken[], ctx: SelectionContext, options: QueryCompilerOptions): AstNode[] => {
   const meaningful = tokensWithoutWhitespace(tokens);
   const nodes: AstNode[] = [];
   let phraseBuf: LexToken[] = [];
@@ -40,7 +35,7 @@ const buildSmartNodes = (
     phraseBuf = [];
   };
 
-  meaningful.forEach((token) => {
+  meaningful.forEach(token => {
     if (token.kind === 'Operator' || token.kind === 'Keyword') {
       flushPhrase();
       return;
@@ -96,49 +91,44 @@ const buildPhraseNode = (tokens: LexToken[], ctx: SelectionContext): AstNode[] =
     .join('')
     .replace(/^\s+|\s+$/g, '');
   if (!value) return [];
-  return [{
-    type: 'Phrase',
-    field: ctx.field,
-    fieldType: ctx.fieldType,
-    value,
-    valueKind: 'Phrase',
-    matchMode: 'phrase',
-  }];
+  return [
+    {
+      type: 'Phrase',
+      field: ctx.field,
+      fieldType: ctx.fieldType,
+      value,
+      valueKind: 'Phrase',
+      matchMode: 'phrase',
+    },
+  ];
 };
 
 /**
  * Parser：Lexer 不管语义；此处生成 AST。
  * 规则：仅首个 `:` 解析为 field:value。
  */
-export const parseTokens = (
-  tokens: LexToken[],
-  ctx: SelectionContext,
-  options: QueryCompilerOptions,
-): AstNode => {
+export const parseTokens = (tokens: LexToken[], ctx: SelectionContext, options: QueryCompilerOptions): AstNode => {
   const meaningful = tokensWithoutWhitespace(tokens);
   const colonIdx = options.detectField === false ? -1 : findFirstFieldColonIndex(meaningful);
 
   // field:value（仅首个冒号；compileFieldValue 场景 detectField=false 跳过）
-  if (
-    colonIdx > 0
-    && meaningful[colonIdx - 1]
-    && ['Identifier', 'Keyword'].includes(meaningful[colonIdx - 1].kind)
-  ) {
+  if (colonIdx > 0 && meaningful[colonIdx - 1] && ['Identifier', 'Keyword'].includes(meaningful[colonIdx - 1].kind)) {
     const fieldToken = meaningful[colonIdx - 1];
     const valueTokens = meaningful.slice(colonIdx + 1);
-    const value = joinTokenValues(valueTokens).trim()
-      || valueTokens.map(t => t.value).join('');
+    const value = joinTokenValues(valueTokens).trim() || valueTokens.map(t => t.value).join('');
     return {
       type: 'Root',
-      children: [{
-        type: 'Field',
-        field: fieldToken.value,
-        fieldType: ctx.fieldType,
-        operator: ':',
-        value,
-        valueKind: valueTokens[0]?.kind ?? 'Identifier',
-        matchMode: 'term',
-      }],
+      children: [
+        {
+          type: 'Field',
+          field: fieldToken.value,
+          fieldType: ctx.fieldType,
+          operator: ':',
+          value,
+          valueKind: valueTokens[0]?.kind ?? 'Identifier',
+          matchMode: 'term',
+        },
+      ],
     };
   }
 
@@ -160,12 +150,15 @@ export const parseTokens = (
 
   return {
     type: 'Root',
-    children: children.length > 1
-      ? [{
-        type: 'Boolean',
-        operator: options.defaultBoolean,
-        children,
-      }]
-      : children,
+    children:
+      children.length > 1
+        ? [
+            {
+              type: 'Boolean',
+              operator: options.defaultBoolean,
+              children,
+            },
+          ]
+        : children,
   };
 };

@@ -61,7 +61,6 @@ export default {
      * @returns {Boolean} 是否编辑过
      */
     $isSidebarClosed(): Promise<boolean> {
-       
       const _this = this;
       return new Promise(resolve => {
         if (this._isChange_) {

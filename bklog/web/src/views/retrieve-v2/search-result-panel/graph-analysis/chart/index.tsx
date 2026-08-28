@@ -76,7 +76,7 @@ export default defineComponent({
       } = props.chartOptions.data ?? {};
       const timeFields = resultSchema.filter(item => /^date/.test(item.field_type));
       return {
-        list: list.map((item) => {
+        list: list.map(item => {
           return {
             ...item,
             ...timeFields.reduce((acc, cur) => {
@@ -123,11 +123,11 @@ export default defineComponent({
           return;
         }
 
-        const result = (props.chartOptions.yFields ?? []).map((yField) => {
+        const result = (props.chartOptions.yFields ?? []).map(yField => {
           const groups = showNumber.value ? [] : [...props.chartOptions.dimensions, props.chartOptions.xFields[0]];
           return [groups].map(([timeField, xField]) => {
             if (timeField || xField) {
-              return (formatListData.value?.list ?? []).map((row) => {
+              return (formatListData.value?.list ?? []).map(row => {
                 const targetValue = [timeField, xField, yField].reduce((acc, cur) => {
                   if (cur && row[cur]) {
                     acc[cur] = row[cur];
@@ -150,8 +150,8 @@ export default defineComponent({
 
         const length = showNumber.value
           ? (props.chartOptions.yFields ?? []).length
-          : [...props.chartOptions.dimensions, ...props.chartOptions.xFields].length
-          * props.chartOptions.xFields.length;
+          : [...props.chartOptions.dimensions, ...props.chartOptions.xFields].length *
+            props.chartOptions.xFields.length;
 
         tableData.value.splice(0, tableData.value.length, ...result.flat(length + 1));
         return;
@@ -179,11 +179,11 @@ export default defineComponent({
       limit: 20,
     });
 
-    const handlePageChange = (newPage) => {
+    const handlePageChange = newPage => {
       pagination.value.current = newPage;
     };
 
-    const handlePageLimitChange = (limit) => {
+    const handlePageLimitChange = limit => {
       pagination.value.current = 1;
       pagination.value.limit = limit;
     };
@@ -218,12 +218,12 @@ export default defineComponent({
       getChartInstance()?.resize();
     });
 
-    const handleSearchClick = (value) => {
+    const handleSearchClick = value => {
       searchValue.value = value;
     };
     /**
-    * 检查浏览器是否支持 File System Access API
-    */
+     * 检查浏览器是否支持 File System Access API
+     */
     function supportsFileSystemAccess() {
       // @ts-ignore - File System Access API 可能不存在于类型定义中
       return 'showSaveFilePicker' in window;
@@ -248,21 +248,23 @@ export default defineComponent({
       return { success: true, message: '文件下载完成' };
     }
     /**
-    * 使用现代 File System Access API 下载（内存高效）
-    * 使用手动读写方式，确保在 Mac 上正常工作
-    */
+     * 使用现代 File System Access API 下载（内存高效）
+     * 使用手动读写方式，确保在 Mac 上正常工作
+     */
     async function downloadWithFileSystemAPI(response, filename) {
       try {
         // @ts-ignore - File System Access API 可能不存在于类型定义中
         const fileHandle = await window.showSaveFilePicker({
           suggestedName: filename,
-          types: [{
-            description: 'CSV 文件',
-            accept: {
-              'text/csv': ['.csv'],
-              'application/vnd.ms-excel': ['.csv'],
+          types: [
+            {
+              description: 'CSV 文件',
+              accept: {
+                'text/csv': ['.csv'],
+                'application/vnd.ms-excel': ['.csv'],
+              },
             },
-          }],
+          ],
         });
 
         const writable = await fileHandle.createWritable();

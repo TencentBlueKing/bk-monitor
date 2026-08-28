@@ -27,6 +27,7 @@
 export default {
   arrowParens: 'avoid',
   bracketSameLine: false,
+  endOfLine: 'auto',
   jsxSingleQuote: true,
   printWidth: 120,
   quoteProps: 'as-needed',

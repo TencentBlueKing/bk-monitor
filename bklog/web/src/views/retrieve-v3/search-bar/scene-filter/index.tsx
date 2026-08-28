@@ -159,27 +159,27 @@ export default defineComponent({
       resetRetrieveData(store);
 
       // 获取场景化检索用户自定义配置
-      http.request('retrieve/getSceneUserCustomConfig', {
-        query: {
-          bk_biz_id: store.state.bkBizId,
-          scene_id: type,
-        },
-      }).then((res) => {
-        store.commit('retrieve/updateCatchFieldCustomConfig', res.data);
-      });
+      http
+        .request('retrieve/getSceneUserCustomConfig', {
+          query: {
+            bk_biz_id: store.state.bkBizId,
+            scene_id: type,
+          },
+        })
+        .then(res => {
+          store.commit('retrieve/updateCatchFieldCustomConfig', res.data);
+        });
 
       syncUrlParams({ clearKeywordAndAddition: true });
 
       updateQueryHint();
     };
 
-    const handleFilterChange = (
-      payload: {
-        values: FilterValues;
-        labels?: { fieldName: string; labels: Record<string, string> };
-        operatorChange?: { fieldKey: string; op: string };
-      },
-    ) => {
+    const handleFilterChange = (payload: {
+      values: FilterValues;
+      labels?: { fieldName: string; labels: Record<string, string> };
+      operatorChange?: { fieldKey: string; op: string };
+    }) => {
       filterValues.value = payload.values;
       if (payload.labels) {
         filterLabels.value = { ...filterLabels.value, [payload.labels.fieldName]: payload.labels.labels };
@@ -189,8 +189,8 @@ export default defineComponent({
         const { fieldKey, op } = payload.operatorChange;
         const currentFields = currentDisplayFields.value;
         if (currentFields) {
-          const updated = currentFields.map(
-            ([k, o]) => (k === fieldKey ? [k, op] as [string, string] : [k, o] as [string, string]),
+          const updated = currentFields.map(([k, o]) =>
+            k === fieldKey ? ([k, op] as [string, string]) : ([k, o] as [string, string]),
           );
           handleDisplayFieldsChange(updated);
         }
@@ -277,10 +277,11 @@ export default defineComponent({
 
     const shortcutKey = getOs() === 'macos' ? 'cmd+shift+enter' : 'ctrl+shift+enter';
 
-    const hintText = () => t('检索条件有变更，请点击{icon}按钮{shortcut}', {
-      icon: '🔍',
-      shortcut: `(${shortcutKey})`,
-    });
+    const hintText = () =>
+      t('检索条件有变更，请点击{icon}按钮{shortcut}', {
+        icon: '🔍',
+        shortcut: `(${shortcutKey})`,
+      });
 
     // ---- 场景化检索禁用判断 ----
     /** 当前是否正在检索中 */

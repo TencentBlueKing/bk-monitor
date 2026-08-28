@@ -555,7 +555,8 @@ export default defineComponent({
           </div>
           <div class='content-bot'>
             <div class='content-bot-title'>{t('请选择目标索引集')}</div>
-            <TableComponent class='config-import-table'
+            <TableComponent
+              class='config-import-table'
               columns={allColumns.value}
               data={collectList.value}
               loading={isTableLoading.value}

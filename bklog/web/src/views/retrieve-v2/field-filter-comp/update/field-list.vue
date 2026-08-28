@@ -41,7 +41,7 @@
   const { $t } = useLocale();
   const { $bkPopover } = Vue.prototype;
 
-  const emit = defineEmits(['select-fields-config','handle-popover-hide']);
+  const emit = defineEmits(['select-fields-config', 'handle-popover-hide']);
 
   /** popover 弹窗实例 */
   let popoverInstance = null;
@@ -131,7 +131,7 @@
       arrow: false,
       interactive: true,
       boundary: 'viewport',
-      onHidden: async() => {
+      onHidden: async () => {
         popoverInstance?.destroy?.();
         popoverInstance = null;
         emit('handle-popover-hide');
@@ -209,12 +209,12 @@
     }
   };
 
-  const handleClickSelectConfig = async (item) => {
+  const handleClickSelectConfig = async item => {
     handlePopoverHide();
     store.commit('retrieve/updateFiledSettingConfigID', item.id);
     store.commit('updateState', { localSort: false });
     store.commit('updateIsSetDefaultTableColumn', false);
-    
+
     // 先等待用户配置保存完成
     await store.dispatch('userFieldConfigChange', {
       displayFields: item.display_fields,
@@ -234,11 +234,11 @@
   };
 
   const isPopoverInstance = () => {
-    return popoverInstance?.state.isShown
-  }
+    return popoverInstance?.state.isShown;
+  };
   defineExpose({
     isPopoverInstance,
-  })
+  });
 </script>
 <template>
   <div class="field-select-config-v2">
@@ -249,7 +249,7 @@
     >
       <span class="bklog-icon bklog-overview1"></span>
       <span class="trigger-label"> {{ $t('字段模板') }} </span>
-      <i class='bk-icon icon-angle-right-line'></i>
+      <i class="bk-icon icon-angle-right-line"></i>
     </div>
     <div style="display: none">
       <div

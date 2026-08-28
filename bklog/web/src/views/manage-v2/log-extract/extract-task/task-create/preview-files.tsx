@@ -100,7 +100,9 @@ export default defineComponent({
 
     const updateFilterKeyword = debounce((val: string) => {
       isSwitchingFilterData = true;
-      filterKeyword.value = String(val ?? '').trim().toLowerCase();
+      filterKeyword.value = String(val ?? '')
+        .trim()
+        .toLowerCase();
     }, 200);
 
     const handleFilterChange = (val: string) => {
@@ -338,9 +340,7 @@ export default defineComponent({
 
       const nextSelectedPathSet = new Set(selectedFilePathSet.value);
       const visibleSelectablePathSet = new Set(
-        filteredExplorerList.value
-          .filter(item => isSelectableFile(item))
-          .map(item => getFilePath(item)),
+        filteredExplorerList.value.filter(item => isSelectableFile(item)).map(item => getFilePath(item)),
       );
 
       for (const path of visibleSelectablePathSet) {

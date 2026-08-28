@@ -132,7 +132,10 @@
         isCleaning: false,
         isSubmit: false,
         isUpdate: false, // 判断第一步是否是处于编辑状态
-        isItsm: isFeatureToggleOn('collect_itsm', [String(this.$store.state.bkBizId), String(this.$store.state.spaceUid)]),
+        isItsm: isFeatureToggleOn('collect_itsm', [
+          String(this.$store.state.bkBizId),
+          String(this.$store.state.spaceUid),
+        ]),
         operateType: '',
         curStep: 1, // 组件步骤
         isPhysics: true, // 采集配置是否是物理环境

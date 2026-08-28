@@ -61,12 +61,18 @@ const isNegativeOperator = (operator?: string) =>
  */
 export const resolveAddToSearch = (input: AddToSearchInput): AddToSearchPayload => {
   const field = String(input.field ?? '');
-  const value = String(input.value ?? '').replace(/<\/?mark>/gim, '').trim();
+  const value = String(input.value ?? '')
+    .replace(/<\/?mark>/gim, '')
+    .trim();
   const fieldType = input.fieldType;
-  const fullPlainRaw = input.fullText == null ? '' : String(input.fullText).replace(/<\/?mark>/gim, '').trim();
-  const fullPlain = fullPlainRaw && fullPlainRaw !== '--' && fullPlainRaw !== '[object Object]'
-    ? fullPlainRaw
-    : undefined;
+  const fullPlainRaw =
+    input.fullText == null
+      ? ''
+      : String(input.fullText)
+          .replace(/<\/?mark>/gim, '')
+          .trim();
+  const fullPlain =
+    fullPlainRaw && fullPlainRaw !== '--' && fullPlainRaw !== '[object Object]' ? fullPlainRaw : undefined;
   const operatorHint = input.operatorHint || 'contains match phrase';
   const negative = isNegativeOperator(operatorHint);
   const isFulltext = !field || field === '*';
@@ -74,10 +80,8 @@ export const resolveAddToSearch = (input: AddToSearchInput): AddToSearchPayload 
   // keyword/flattened：唯一分词 / 整值相等 → 强制无通配
   const soleByValue = Boolean(fullPlain && fullPlain === value);
   const soleByTokenMeta = Boolean(
-    input.isSoleToken
-    || (typeof input.tokenCount === 'number' && input.tokenCount === 1 && (
-      !fullPlain || soleByValue || !value
-    )),
+    input.isSoleToken ||
+    (typeof input.tokenCount === 'number' && input.tokenCount === 1 && (!fullPlain || soleByValue || !value)),
   );
   const isSoleToken = soleByTokenMeta || soleByValue;
   const tokenCount = input.tokenCount ?? (isSoleToken ? 1 : undefined);
@@ -150,7 +154,7 @@ export const resolveAddToSearch = (input: AddToSearchInput): AddToSearchPayload 
   const preserveNewSearch = operatorHint === 'new-search-page-is';
   return {
     field: ui?.field || field,
-    operator: preserveNewSearch ? operatorHint : (ui?.operator || operatorHint),
+    operator: preserveNewSearch ? operatorHint : ui?.operator || operatorHint,
     value: ui?.value || [value],
     fieldType,
     fullPlain,

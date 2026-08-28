@@ -469,9 +469,11 @@ export default defineComponent({
       );
     };
 
-    return () => <div class='base-info'>
-      <div class='base-info-box'>{renderBaseInfo()}</div>
-      <div class='help-panel-box'>{renderHelpPanel()}</div>
-    </div>;
+    return () => (
+      <div class='base-info'>
+        <div class='base-info-box'>{renderBaseInfo()}</div>
+        <div class='help-panel-box'>{renderHelpPanel()}</div>
+      </div>
+    );
   },
 });

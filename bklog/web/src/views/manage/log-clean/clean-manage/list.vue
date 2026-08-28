@@ -47,7 +47,6 @@
           @change="handleSearchChange"
           @enter="search"
           :placeholder="$t('搜索 任务名称、存储索引名称')"
-          
         >
         </bk-input>
         <div
@@ -339,7 +338,7 @@
         try {
           this.isTableLoading = true;
           const res = await this.$store.dispatch('getApplyData', paramData);
-          this.$store.commit('updateState', { 'authDialogData': res.data});
+          this.$store.commit('updateState', { authDialogData: res.data });
         } catch (err) {
           console.warn(err);
         } finally {
@@ -427,7 +426,7 @@
           query.editName = row.collector_config_name;
           params.collectorId = row.collector_config_id;
         } else if (operateType === 'search') {
-          updateLastSelectedIndexId(this.spaceUid, row.index_set_id)
+          updateLastSelectedIndexId(this.spaceUid, row.index_set_id);
           routeName = 'retrieve';
           params.indexId = row.index_set_id;
         }

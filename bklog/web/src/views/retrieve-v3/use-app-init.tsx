@@ -37,7 +37,12 @@ import RetrieveHelper, { RetrieveEvent } from '@/views/retrieve-helper';
 import { retrieveRowCacheService, storageHealthService } from '@/storage';
 import { useRoute, useRouter } from 'vue-router/composables';
 
-import { getSceneFieldKeys, getDefaultOp, getSceneConfig, getAllSceneFieldOpKeys } from './search-bar/scene-filter/scene-config';
+import {
+  getSceneFieldKeys,
+  getDefaultOp,
+  getSceneConfig,
+  getAllSceneFieldOpKeys,
+} from './search-bar/scene-filter/scene-config';
 import { resetRetrieveData } from './search-bar/scene-filter/scene-retrieve-utils';
 import { isFeatureToggleOn } from '@/hooks/use-feature-toggle';
 
@@ -457,8 +462,8 @@ export default () => {
           resolveAdditionKeyword().then(async () => {
             const isExternal = store.state.isExternal;
             if (
-              !isExternal
-              && isFeatureToggleOn('scene_search', [String(store.state.bkBizId), String(store.state.spaceUid)])
+              !isExternal &&
+              isFeatureToggleOn('scene_search', [String(store.state.bkBizId), String(store.state.spaceUid)])
             ) {
               if (store.state.indexItem.retrieve_type === RetrieveType.Scene) {
                 // 场景化检索：请求场景配置，从URL获取筛选参数
@@ -552,7 +557,6 @@ export default () => {
           route.query.tab,
           store.getters.isUnionSearch,
         );
-
       })
       .catch(err => {
         // 任何异常（请求失败 / then 内同步代码抛错）都要确保 loading 能退出
@@ -648,7 +652,7 @@ export default () => {
       // 读取 URL 中的操作符参数: field[op]=op，无则使用本地存储中的 op，再无则从字段配置取默认操作符
       const opFromUrl = route.query[`${fieldKey}[op]`];
       const storedTuple = sceneDisplayFields?.find(([k]) => k === fieldKey);
-      const opFromStorage = (Array.isArray(storedTuple) && storedTuple.length >= 2) ? storedTuple[1] : undefined;
+      const opFromStorage = Array.isArray(storedTuple) && storedTuple.length >= 2 ? storedTuple[1] : undefined;
       const defaultOp = getDefaultOp(fieldOpsMap.get(fieldKey));
       const op = opFromUrl || opFromStorage || defaultOp;
 
@@ -766,8 +770,10 @@ export default () => {
   const isSearchResultStickyTop = computed(() => {
     if (isSceneMode.value) {
       // 场景模式下，表头吸顶时机：字段筛选面板 + 趋势图都滚出后
-      return sceneFilterPanelHeight.value > 0
-        && sceneScrollTop.value >= sceneFilterPanelHeight.value + trendGraphHeight.value;
+      return (
+        sceneFilterPanelHeight.value > 0 &&
+        sceneScrollTop.value >= sceneFilterPanelHeight.value + trendGraphHeight.value
+      );
     }
     return searchResultTop.value === subBarHeight.value + trendGraphHeight.value;
   });

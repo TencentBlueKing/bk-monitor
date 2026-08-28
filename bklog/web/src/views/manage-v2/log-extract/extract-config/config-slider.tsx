@@ -111,12 +111,13 @@ export default defineComponent({
     const isValidated = ref(isEditMode);
 
     const isValidatedComputed = () => {
-      isValidated.value =        manageStrategyData.value.strategy_name
-        && manageStrategyData.value.user_list.length
-        && manageStrategyData.value.visible_dir.every((item: ListItem) => Boolean(validateVisibleDir(item.value)))
-        && manageStrategyData.value.file_type.every((item: ListItem) => Boolean(validateFileExtension(item.value)))
-        && manageStrategyData.value.modules.length
-        && manageStrategyData.value?.operator;
+      isValidated.value =
+        manageStrategyData.value.strategy_name &&
+        manageStrategyData.value.user_list.length &&
+        manageStrategyData.value.visible_dir.every((item: ListItem) => Boolean(validateVisibleDir(item.value))) &&
+        manageStrategyData.value.file_type.every((item: ListItem) => Boolean(validateFileExtension(item.value))) &&
+        manageStrategyData.value.modules.length &&
+        manageStrategyData.value?.operator;
     };
 
     // 校验授权目录

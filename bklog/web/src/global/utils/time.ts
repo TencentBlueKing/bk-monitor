@@ -52,9 +52,7 @@ export const formatTimeZoneString = (
     const prefixFormat = formatString.slice(0, matchIndex) + 'SSS';
     const suffixFormat = formatString.slice(matchIndex + sMatch[0].length);
 
-    const dayjsInstance = time.endsWith('Z')
-      ? dayjs.utc(time).tz(timezone)
-      : dayjs(time).tz(timezone);
+    const dayjsInstance = time.endsWith('Z') ? dayjs.utc(time).tz(timezone) : dayjs(time).tz(timezone);
 
     const prefix = dayjsInstance.format(prefixFormat);
     const suffix = suffixFormat ? dayjsInstance.format(suffixFormat) : '';
@@ -63,12 +61,10 @@ export const formatTimeZoneString = (
 
   // 如果是 ISO 8601 格式字符串（以 Z 结尾），先解析为 UTC，再转换到目标时区
   if (typeof time === 'string' && time.endsWith('Z')) {
-    return dayjs.utc(time).tz(timezone)
-      .format(formatString);
+    return dayjs.utc(time).tz(timezone).format(formatString);
   }
   // 其他格式直接解析并转换时区
-  return dayjs(time).tz(timezone)
-    .format(formatString);
+  return dayjs(time).tz(timezone).format(formatString);
 };
 
 /**
@@ -82,15 +78,18 @@ export const formatTimeStampZone = (timestamp: number, timezone: string, format?
   let formatStr = format || 'YYYY-MM-DD HH:mm:ss';
 
   if (!format) {
-    const milliseconds = `${timestamp}`.toString().split('.')[1]?.replace(/[^0-9]/g, '')?.length ?? 0;
+    const milliseconds =
+      `${timestamp}`
+        .toString()
+        .split('.')[1]
+        ?.replace(/[^0-9]/g, '')?.length ?? 0;
     if (milliseconds > 0) {
       formatStr = `YYYY-MM-DD HH:mm:ss.${'S'.repeat(milliseconds)}`;
     }
   }
 
   if (/^\d+(\.\d+)?$/.test(`${timestamp}`)) {
-    return dayjs.utc(Number(timestamp)).tz(timezone)
-      .format(formatStr);
+    return dayjs.utc(Number(timestamp)).tz(timezone).format(formatStr);
   }
 
   return timestamp;

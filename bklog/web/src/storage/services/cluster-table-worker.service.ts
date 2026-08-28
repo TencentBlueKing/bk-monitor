@@ -98,11 +98,14 @@ class ClusterTableWorkerService {
     if (this.workerSupported) {
       try {
         workerManagerService.update(WORK_ID, { state: 'running' });
-        const view = (await this.postMessage({
-          payload: plainInput,
-          type: 'pipeline',
-          window: plainWindow,
-        }, 30000)) as ClusterViewResult;
+        const view = (await this.postMessage(
+          {
+            payload: plainInput,
+            type: 'pipeline',
+            window: plainWindow,
+          },
+          30000,
+        )) as ClusterViewResult;
         this.ownsInWorker = true;
         this.workerHasRaw = true;
         this.localSnapshot = [];
@@ -169,7 +172,7 @@ class ClusterTableWorkerService {
   }
 
   private destroyWorker() {
-    this.pendingRequests.forEach((pending) => {
+    this.pendingRequests.forEach(pending => {
       if (pending.timer) clearTimeout(pending.timer);
     });
     this.pendingRequests.clear();
@@ -194,9 +197,9 @@ class ClusterTableWorkerService {
         pending.reject(new Error(data.error || 'cluster table worker failed'));
       }
     };
-    worker.onerror = (event) => {
+    worker.onerror = event => {
       const error = new Error(event.message || 'cluster table worker error');
-      this.pendingRequests.forEach((pending) => {
+      this.pendingRequests.forEach(pending => {
         if (pending.timer) clearTimeout(pending.timer);
         pending.reject(error);
       });
@@ -206,7 +209,7 @@ class ClusterTableWorkerService {
       this.workerHasRaw = false;
     };
     worker.addEventListener?.('messageerror', () => {
-      this.pendingRequests.forEach((pending) => {
+      this.pendingRequests.forEach(pending => {
         if (pending.timer) clearTimeout(pending.timer);
         pending.reject(new Error('cluster table worker messageerror'));
       });
@@ -217,7 +220,11 @@ class ClusterTableWorkerService {
   }
 
   private postMessage(
-    body: { payload?: ClusterPipelineInput; type: 'clear' | 'ping' | 'pipeline' | 'walk'; window?: WalkVisibleWindowOptions },
+    body: {
+      payload?: ClusterPipelineInput;
+      type: 'clear' | 'ping' | 'pipeline' | 'walk';
+      window?: WalkVisibleWindowOptions;
+    },
     timeout: number,
   ) {
     const id = `cluster-table:${Date.now()}:${this.requestSeq++}`;

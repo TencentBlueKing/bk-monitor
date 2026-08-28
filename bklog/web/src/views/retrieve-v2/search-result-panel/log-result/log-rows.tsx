@@ -200,15 +200,20 @@ export default defineComponent({
         return new DOMRect(point.x, point.y, 1, 1);
       }
 
-      return rects.reduce((closestRect, rect) => {
-        const getDistance = (targetRect: DOMRect) => {
-          const offsetX = point.x < targetRect.left ? targetRect.left - point.x : Math.max(point.x - targetRect.right, 0);
-          const offsetY = point.y < targetRect.top ? targetRect.top - point.y : Math.max(point.y - targetRect.bottom, 0);
-          return offsetX ** 2 + offsetY ** 2;
-        };
+      return rects.reduce(
+        (closestRect, rect) => {
+          const getDistance = (targetRect: DOMRect) => {
+            const offsetX =
+              point.x < targetRect.left ? targetRect.left - point.x : Math.max(point.x - targetRect.right, 0);
+            const offsetY =
+              point.y < targetRect.top ? targetRect.top - point.y : Math.max(point.y - targetRect.bottom, 0);
+            return offsetX ** 2 + offsetY ** 2;
+          };
 
-        return getDistance(rect) < getDistance(closestRect) ? rect : closestRect;
-      }, rects[rects.length - 1]);
+          return getDistance(rect) < getDistance(closestRect) ? rect : closestRect;
+        },
+        rects[rects.length - 1],
+      );
     };
 
     /** 表格模式下可用的全量字段列（无可见字段时的兜底） */
@@ -245,8 +250,8 @@ export default defineComponent({
       if (!selectionPopAnchorEl?.isConnected) {
         selectionPopAnchorEl = document.createElement('span');
         selectionPopAnchorEl.className = 'bklog-selection-pop-target';
-        selectionPopAnchorEl.style.cssText
-          = 'position: fixed; top: 0; left: 0; width: 1px; height: 1px; visibility: hidden; pointer-events: none; z-index: -1;';
+        selectionPopAnchorEl.style.cssText =
+          'position: fixed; top: 0; left: 0; width: 1px; height: 1px; visibility: hidden; pointer-events: none; z-index: -1;';
         document.body.appendChild(selectionPopAnchorEl);
       }
 
@@ -435,20 +440,19 @@ export default defineComponent({
     };
 
     const { addEvent } = useRetrieveEvent();
-    addEvent(RetrieveEvent.SEARCHING_CHANGE, (isSearching) => {
+    addEvent(RetrieveEvent.SEARCHING_CHANGE, isSearching => {
       isPageLoading.value = isSearching;
       if (isSearching && tableDataSize.value === 0 && !isPaginationLoading.value) {
         resetPageState();
       }
     });
 
-    addEvent([
-      RetrieveEvent.SEARCH_VALUE_CHANGE,
-      RetrieveEvent.SEARCH_TIME_CHANGE,
-      RetrieveEvent.TREND_GRAPH_SEARCH,
-    ], () => {
-      resetPageState();
-    });
+    addEvent(
+      [RetrieveEvent.SEARCH_VALUE_CHANGE, RetrieveEvent.SEARCH_TIME_CHANGE, RetrieveEvent.TREND_GRAPH_SEARCH],
+      () => {
+        resetPageState();
+      },
+    );
 
     addEvent(RetrieveEvent.SORT_LIST_CHANGED, () => {
       /**
@@ -516,22 +520,30 @@ export default defineComponent({
           return;
         }
 
-        retrieveRowCacheService.getRenderEntries(keysToLoad).then((entries) => {
-          const isCurrentTask = taskToken === renderTaskToken
-            && queryKey === (indexSetQueryResult.value?.row_query_key ?? '')
-            && targetKeys.every((key, index) => key === rowKeys.value[index])
-            && (!startIndex || Array.from({ length: startIndex }).every(
-              (_, index) => renderList[index]?.[ROW_KEY] === targetKeys[index],
-            ));
+        retrieveRowCacheService.getRenderEntries(keysToLoad).then(entries => {
+          const isCurrentTask =
+            taskToken === renderTaskToken &&
+            queryKey === (indexSetQueryResult.value?.row_query_key ?? '') &&
+            targetKeys.every((key, index) => key === rowKeys.value[index]) &&
+            (!startIndex ||
+              Array.from({ length: startIndex }).every(
+                (_, index) => renderList[index]?.[ROW_KEY] === targetKeys[index],
+              ));
           if (!isCurrentTask) {
             return;
           }
 
-          const nextRows = entries.flatMap((entry, index) => (entry ? [{
-            item: entry.row,
-            renderMeta: entry.renderMeta as RetrieveRowRenderMeta | undefined,
-            [ROW_KEY]: keysToLoad[index] ?? getRowCacheKey(entry.row, startIndex + index),
-          }] : []));
+          const nextRows = entries.flatMap((entry, index) =>
+            entry
+              ? [
+                  {
+                    item: entry.row,
+                    renderMeta: entry.renderMeta as RetrieveRowRenderMeta | undefined,
+                    [ROW_KEY]: keysToLoad[index] ?? getRowCacheKey(entry.row, startIndex + index),
+                  },
+                ]
+              : [],
+          );
           renderList = startIndex ? renderList.concat(nextRows) : nextRows;
           localUpdateCounter.value += 1;
           nextTick(RetrieveHelper.updateMarkElement.bind(RetrieveHelper));
@@ -566,14 +578,20 @@ export default defineComponent({
       { renderMeta?: RetrieveRowRenderMeta; rowKey?: string }
     >();
 
-    const setRowComponentMeta = (row: Record<string, any> | undefined, rowKey?: string, renderMeta?: RetrieveRowRenderMeta) => {
+    const setRowComponentMeta = (
+      row: Record<string, any> | undefined,
+      rowKey?: string,
+      renderMeta?: RetrieveRowRenderMeta,
+    ) => {
       if (row && typeof row === 'object') {
         rowComponentMetaMap.set(row, { rowKey, renderMeta });
       }
     };
 
-    const getRowRenderMeta = (row?: Record<string, any>) => row ? rowComponentMetaMap.get(row)?.renderMeta : undefined;
-    const getRowComponentKey = (row: Record<string, any> | undefined) => row ? rowComponentMetaMap.get(row)?.rowKey : undefined;
+    const getRowRenderMeta = (row?: Record<string, any>) =>
+      row ? rowComponentMetaMap.get(row)?.renderMeta : undefined;
+    const getRowComponentKey = (row: Record<string, any> | undefined) =>
+      row ? rowComponentMetaMap.get(row)?.rowKey : undefined;
 
     /** 行内是否有字段被截断，决定是否展示「全文」入口 */
     const shouldShowFullRowAction = (row: Record<string, any>) => {
@@ -619,7 +637,9 @@ export default defineComponent({
             const rawValue = row[fieldName];
             const formatValue = formatDate
               ? RetrieveHelper.formatTimeZoneValue(rawValue, fieldType, timezone)
-              : (rawValue === null || rawValue === undefined || rawValue === '' ? '--' : rawValue);
+              : rawValue === null || rawValue === undefined || rawValue === ''
+                ? '--'
+                : rawValue;
             // formatTimeZoneValue 可能返回 <mark>格式化时间</mark>，需先解析再渲染，避免标签被 escape
             const { plainText, markRanges } = parseResultMarkedText(formatValue);
             const displayText = plainText || String(formatValue ?? '');
@@ -662,10 +682,12 @@ export default defineComponent({
                 originalMode={true}
                 renderMeta={getRowRenderMeta(row)}
                 stateKey={getRowComponentKey(row)}
-                onMenu-click={({ option, isLink }) => handleMenuClick(option, isLink, {
-                  row,
-                  field: getFieldByName(option.fieldName),
-                })}
+                onMenu-click={({ option, isLink }) =>
+                  handleMenuClick(option, isLink, {
+                    row,
+                    field: getFieldByName(option.fieldName),
+                  })
+                }
               />
             );
           },
@@ -676,7 +698,7 @@ export default defineComponent({
     /**
      * 将索引字段描述转为表头/单元格列配置（含排序头、JSON 单元格渲染）。
      */
-    const formatColumn = (field) => {
+    const formatColumn = field => {
       return {
         field: field.field_name,
         key: field.field_name,
@@ -701,10 +723,10 @@ export default defineComponent({
         },
         renderHeaderCell: () => {
           const sortable = field.es_doc_values && field.tag !== 'union-source' && field.field_type !== 'flattened';
-          return renderHead(field, (order) => {
+          return renderHead(field, order => {
             if (sortable) {
               const sortList = order ? [[field.field_name, order]] : [];
-              const updatedSortList = store.state.indexFieldInfo.sort_list.map((item) => {
+              const updatedSortList = store.state.indexFieldInfo.sort_list.map(item => {
                 if (sortList.length > 0 && item[0] === field.field_name) {
                   return sortList[0];
                 }
@@ -761,7 +783,7 @@ export default defineComponent({
 
     /** 多余宽度优先分给 log / text / 宽列，避免空白挤在窄字段上 */
     const getExtraWidthTargetColumns = (columnList: Record<string, any>[]) => {
-      const longTextColumns = columnList.filter((item) => {
+      const longTextColumns = columnList.filter(item => {
         return item.field === 'log' || item.field_type === 'text' || getNumericWidth(item.width) >= 800;
       });
 
@@ -791,7 +813,7 @@ export default defineComponent({
       const addWidth = Math.floor(extraWidth / targetColumns.length);
       let restWidth = extraWidth - addWidth * targetColumns.length;
 
-      targetColumns.forEach((item) => {
+      targetColumns.forEach(item => {
         const nextWidth = getNumericWidth(item.width, item.minWidth) + addWidth + (restWidth > 0 ? 1 : 0);
         restWidth -= 1;
         item.width = nextWidth;
@@ -900,10 +922,10 @@ export default defineComponent({
         fixed: 'left',
         disabled: !(isShowSourceField.value && indexSetType.value),
         renderBodyCell: ({ row }) => {
-          const indeSetName = unionIndexItemList.value.find(
-            item => item.index_set_id === String(row.__index_set_id__),
-          )?.index_set_name ?? '';
-          const hanldeSoureClick = (event) => {
+          const indeSetName =
+            unionIndexItemList.value.find(item => item.index_set_id === String(row.__index_set_id__))?.index_set_name ??
+            '';
+          const hanldeSoureClick = event => {
             event.stopPropagation();
             event.preventDefault();
             event.stopImmediatePropagation();
@@ -923,12 +945,12 @@ export default defineComponent({
         disabled: !(isShowCollectorField.value && isSceneMode.value),
         renderBodyCell: ({ row }) => {
           const rowIndexSetId = row.__index_set_id__;
-          const collectorName = rowIndexSetId !== null
-            ? flatIndexSetList.value.find(
-              item => item.index_set_id === String(rowIndexSetId),
-            )?.index_set_name ?? '--'
-            : '--';
-          const hanldeSoureClick = (event) => {
+          const collectorName =
+            rowIndexSetId !== null
+              ? (flatIndexSetList.value.find(item => item.index_set_id === String(rowIndexSetId))?.index_set_name ??
+                '--')
+              : '--';
+          const hanldeSoureClick = event => {
             event.stopPropagation();
             event.preventDefault();
             event.stopImmediatePropagation();
@@ -975,9 +997,10 @@ export default defineComponent({
       handleOperation(option.operation, {
         ...option,
         // 时间格式化只影响展示；构造检索条件时必须回取当前行中的原始时间戳。
-        value: timeTypes.includes(fieldType) && fieldOption?.row && field
-          ? String(getObjectValue(fieldOption.row, field)).replace(/<\/?mark>/gim, '')
-          : option.value,
+        value:
+          timeTypes.includes(fieldType) && fieldOption?.row && field
+            ? String(getObjectValue(fieldOption.row, field)).replace(/<\/?mark>/gim, '')
+            : option.value,
         fieldName: option.fieldName,
         operation: option.operation,
         field,
@@ -996,18 +1019,14 @@ export default defineComponent({
      * 可见字段为空时的兜底渲染字段：优先 log/body，否则取前 4 个可渲染字段。
      */
     const getFallbackRenderFields = (fields: Record<string, any>[] = []) => {
-      const renderableFields = fields.filter(field =>
-        field?.field_name
-        && field.field_type !== '__virtual__'
-        && !field.is_virtual_obj_node,
+      const renderableFields = fields.filter(
+        field => field?.field_name && field.field_type !== '__virtual__' && !field.is_virtual_obj_node,
       );
       const preferredFields = ['log', 'body']
         .map(fieldName => renderableFields.find(field => field.field_name === fieldName))
         .filter(Boolean);
 
-      return preferredFields.length
-        ? preferredFields
-        : renderableFields.slice(0, 4);
+      return preferredFields.length ? preferredFields : renderableFields.slice(0, 4);
     };
     // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: reason
     /**
@@ -1051,15 +1070,21 @@ export default defineComponent({
       }
 
       if (rowKeys.value.length) {
-        retrieveRowCacheService
-          .getRows(rowKeys.value.slice(0, Math.min(rowKeys.value.length, 50)))
-          .then((rows) => {
-            const widthSnapshot = setDefaultTableWidth(sortFieldsList, rows, retrieveFieldCacheService.getUserWidthConfig(fieldScope.value));
-            retrieveFieldCacheService.setComputedWidths(fieldScope.value, sortFieldsList);
-            if (Object.keys(widthSnapshot).length) bumpFieldWidthVersion();
-          });
+        retrieveRowCacheService.getRows(rowKeys.value.slice(0, Math.min(rowKeys.value.length, 50))).then(rows => {
+          const widthSnapshot = setDefaultTableWidth(
+            sortFieldsList,
+            rows,
+            retrieveFieldCacheService.getUserWidthConfig(fieldScope.value),
+          );
+          retrieveFieldCacheService.setComputedWidths(fieldScope.value, sortFieldsList);
+          if (Object.keys(widthSnapshot).length) bumpFieldWidthVersion();
+        });
       } else {
-        const widthSnapshot = setDefaultTableWidth(sortFieldsList, tableList.value, retrieveFieldCacheService.getUserWidthConfig(fieldScope.value));
+        const widthSnapshot = setDefaultTableWidth(
+          sortFieldsList,
+          tableList.value,
+          retrieveFieldCacheService.getUserWidthConfig(fieldScope.value),
+        );
         retrieveFieldCacheService.setComputedWidths(fieldScope.value, sortFieldsList);
         if (Object.keys(widthSnapshot).length) bumpFieldWidthVersion();
       }
@@ -1222,9 +1247,14 @@ export default defineComponent({
       return updatedSortList;
     };
 
-
     watch(
-      () => [tableShowRowIndex.value, isShowSourceField.value, indexSetType.value, isShowCollectorField.value, isSceneMode.value],
+      () => [
+        tableShowRowIndex.value,
+        isShowSourceField.value,
+        indexSetType.value,
+        isShowCollectorField.value,
+        isSceneMode.value,
+      ],
       () => {
         computeRect();
       },
@@ -1328,13 +1358,7 @@ export default defineComponent({
       60,
     );
 
-    addEvent(
-      [
-        RetrieveEvent.FAVORITE_WIDTH_CHANGE,
-        RetrieveEvent.FAVORITE_SHOWN_CHANGE,
-      ],
-      handleResultBoxResize,
-    );
+    addEvent([RetrieveEvent.FAVORITE_WIDTH_CHANGE, RetrieveEvent.FAVORITE_SHOWN_CHANGE], handleResultBoxResize);
 
     addEvent(RetrieveEvent.AI_CLOSE, () => {
       refResultRowBox.value?.querySelector('.ai-active')?.classList.remove('ai-active');
@@ -1381,9 +1405,7 @@ export default defineComponent({
         item => item.width >= 800 || item.field_name === 'log' || item.field_type === 'text',
       );
       const logField = longFiels.find(item => item.field_name === 'log');
-      const targetField = longFiels.length
-        ? longFiels
-        : currentFields.filter(item => item.field_name !== col.field);
+      const targetField = longFiels.length ? longFiels : currentFields.filter(item => item.field_name !== col.field);
 
       if (width < col.width && targetField.length) {
         const widthDiff = col.width - width;
@@ -1426,7 +1448,7 @@ export default defineComponent({
     };
 
     /** 从分页接口响应中解析本页条数，用于判断是否还有下一页 */
-    const getPaginationResponseSize = (resp) => {
+    const getPaginationResponseSize = resp => {
       if (typeof resp?.length === 'number') {
         return resp.length;
       }
@@ -1494,10 +1516,11 @@ export default defineComponent({
         skipNextLoadingEndReset = true;
         const currentPromise = store
           .dispatch('requestIndexSetQuery', { isPagination: true })
-          .then((resp) => {
-            const isCurrentRequest = requestToken === paginationRequestToken
-              && requestQueryKey === (indexSetQueryResult.value?.row_query_key ?? '')
-              && !resp?.ignored;
+          .then(resp => {
+            const isCurrentRequest =
+              requestToken === paginationRequestToken &&
+              requestQueryKey === (indexSetQueryResult.value?.row_query_key ?? '') &&
+              !resp?.ignored;
             if (!isCurrentRequest) {
               return false;
             }
@@ -1531,7 +1554,7 @@ export default defineComponent({
       return Promise.resolve(false);
     };
 
-    useResizeObserve(SECTION_SEARCH_INPUT, (entry) => {
+    useResizeObserve(SECTION_SEARCH_INPUT, entry => {
       searchContainerHeight.value = entry.contentRect.height;
     });
 
@@ -1659,10 +1682,7 @@ export default defineComponent({
     };
 
     addEvent(
-      [
-        RetrieveEvent.LEFT_FIELD_SETTING_WIDTH_CHANGE,
-        RetrieveEvent.LEFT_FIELD_SETTING_SHOWN_CHANGE,
-      ],
+      [RetrieveEvent.LEFT_FIELD_SETTING_WIDTH_CHANGE, RetrieveEvent.LEFT_FIELD_SETTING_SHOWN_CHANGE],
       handleFieldSettingLayoutChange,
     );
 
@@ -1676,10 +1696,10 @@ export default defineComponent({
     );
 
     // —— Wheel 预加载与横向滚动 ——
-    const isPreloading = ref(false);     // 是否正在预加载
-    const preloadThreshold = 32 * 50;        // 距离底部多少 px 开始预加载
+    const isPreloading = ref(false); // 是否正在预加载
+    const preloadThreshold = 32 * 50; // 距离底部多少 px 开始预加载
     let lastPreloadTime = 0;
-    const preloadCooldown = 300;         // ms
+    const preloadCooldown = 300; // ms
 
     /** 向下滚动且接近底部时触发预加载（带冷却） */
     const shouldPreloadOnScrollDown = (event: WheelEvent) => {
@@ -1769,7 +1789,6 @@ export default defineComponent({
       },
     });
 
-
     const showHeader = computed(() => {
       return showCtxType.value === 'table' && tableDataSize.value > 0;
     });
@@ -1793,10 +1812,10 @@ export default defineComponent({
     /** 无数据且检索中：进入首屏骨架条件之一 */
     const shouldEnterFirstPageSkeleton = computed(() => {
       return (
-        !hasResultException.value
-        && !isPaginationLoading.value
-        && tableDataSize.value === 0
-        && (isLoading.value || isPageLoading.value || isRequesting.value)
+        !hasResultException.value &&
+        !isPaginationLoading.value &&
+        tableDataSize.value === 0 &&
+        (isLoading.value || isPageLoading.value || isRequesting.value)
       );
     });
 
@@ -1827,7 +1846,7 @@ export default defineComponent({
           class={['bklog-row-container row-header']}
         >
           <div class='bklog-list-row'>
-            {allColumns.value.map((column) => {
+            {allColumns.value.map(column => {
               const isFullWidthColumn = !hasFullWidth && column.width === '100%';
               const cellStyle = getColumnWidth(column, isFullWidthColumn);
               hasFullWidth = hasFullWidth || column.width === '100%';
@@ -1879,9 +1898,7 @@ export default defineComponent({
 
     /** 最终渲染列 = 左侧固定列 + 字段列，过滤 disabled */
     const allColumns = computed(() => {
-      const columns = [...leftColumns.value, ...getFieldColumns.value].filter(
-        item => !(item as any).disabled,
-      );
+      const columns = [...leftColumns.value, ...getFieldColumns.value].filter(item => !(item as any).disabled);
       return columns;
     });
 
@@ -2016,7 +2033,7 @@ export default defineComponent({
           data-row-index={rowIndex}
           data-row-click
         >
-          {allColumns.value.map((column) => {
+          {allColumns.value.map(column => {
             const isFullWidthColumn = !hasFullWidth && column.width === '100%';
             const cellStyle = getColumnWidth(column, isFullWidthColumn);
             hasFullWidth = hasFullWidth || column.width === '100%';
@@ -2295,12 +2312,11 @@ export default defineComponent({
       );
     };
 
-
     const isTableLoading = computed(() => {
       return (
-        !shouldShowFirstPageSkeleton.value
-        && tableDataSize.value === 0
-        && (isRequesting.value || isRending.value || isPageLoading.value || isLoading.value)
+        !shouldShowFirstPageSkeleton.value &&
+        tableDataSize.value === 0 &&
+        (isRequesting.value || isRending.value || isPageLoading.value || isLoading.value)
       );
     });
 

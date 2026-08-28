@@ -22,11 +22,13 @@
       <span
         v-if="loading"
         class="meta-status"
-      >{{ $t('正在读取全量数据...') }}</span>
+        >{{ $t('正在读取全量数据...') }}</span
+      >
       <span
         v-if="loadError"
         class="meta-status load-error"
-      >{{ loadError }}</span>
+        >{{ loadError }}</span
+      >
     </div>
     <div
       ref="scrollContainer"
@@ -42,15 +44,20 @@
               :key="row.key"
               class="json-kv-item"
             >
-              <span class="json-key">&quot;{{ row.fieldName }}&quot;</span><span class="json-colon">: </span><template v-if="row.wrapQuotes">&quot;</template><span
+              <span class="json-key">&quot;{{ row.fieldName }}&quot;</span><span class="json-colon">: </span
+              ><template v-if="row.wrapQuotes">&quot;</template
+              ><span
                 v-for="chunk in row.chunks"
                 :key="chunk.key"
                 class="json-value"
                 v-html="chunk.html"
-              ></span><template v-if="row.wrapQuotes">&quot;</template><span
+              ></span
+              ><template v-if="row.wrapQuotes">&quot;</template
+              ><span
                 v-if="row.showComma"
                 class="json-comma"
-              >,</span>
+                >,</span
+              >
             </div>
             <div class="json-struct-line">}</div>
           </div>
@@ -64,7 +71,8 @@
               v-for="lineNumber in lineNumbers"
               :key="lineNumber"
               class="line-number"
-            >{{ lineNumber }}</span>
+              >{{ lineNumber }}</span
+            >
           </div>
           <div class="text-content-wrap">
             <pre class="content-text"><span
@@ -97,11 +105,12 @@
   const HIGHLIGHT_FIELD_NAME = '__highlight';
   const SCROLL_LOAD_MORE_THRESHOLD = 240;
 
-  const stripMarkTags = value => String(value)
-    .replace(/<mark>/gi, '')
-    .replace(/<\/mark>/gi, '');
+  const stripMarkTags = value =>
+    String(value)
+      .replace(/<mark>/gi, '')
+      .replace(/<\/mark>/gi, '');
 
-  const stripMarkFromCopyValue = (value) => {
+  const stripMarkFromCopyValue = value => {
     if (typeof value === 'string') return stripMarkTags(value);
     if (Array.isArray(value)) return value.map(item => stripMarkFromCopyValue(item));
     if (value && Object.prototype.toString.call(value) === '[object Object]') {
@@ -115,7 +124,7 @@
     return value;
   };
 
-  const parseMarkedText = (value) => {
+  const parseMarkedText = value => {
     const source = String(value ?? '');
     const markRanges = [];
     let plainText = '';
@@ -137,7 +146,7 @@
   };
 
   // 与表格列同源：跨结构的检索高亮收敛进 KEY/VALUE 内部后再解析，侧栏同样不丢高亮
-  const tryParseJsonString = (value) => {
+  const tryParseJsonString = value => {
     if (typeof value !== 'string') return value;
     const parsed = parseMarkedJson(value.trim());
     return parsed.isJson ? parsed.value : value;
@@ -183,11 +192,12 @@
 
   const getFieldName = field => (typeof field === 'string' ? field : field?.field_name);
 
-  const formatFieldPlainValue = (value) => {
+  const formatFieldPlainValue = value => {
     if (value === null) return { plainText: 'null', markRanges: [], wrapQuotes: false };
     if (value === undefined) return { plainText: '', markRanges: [], wrapQuotes: false };
     if (typeof value === 'boolean') return { plainText: value ? 'true' : 'false', markRanges: [], wrapQuotes: false };
-    if (typeof value === 'number' || typeof value === 'bigint') return { plainText: String(value), markRanges: [], wrapQuotes: false };
+    if (typeof value === 'number' || typeof value === 'bigint')
+      return { plainText: String(value), markRanges: [], wrapQuotes: false };
     if (typeof value === 'string') {
       const { plainText, markRanges } = parseMarkedText(value);
       return { plainText, markRanges, wrapQuotes: true };
@@ -200,7 +210,7 @@
 
   const escapeRegExp = value => String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-  const buildKeywordRegExp = (keyword) => {
+  const buildKeywordRegExp = keyword => {
     if (!keyword) return null;
     try {
       return new RegExp(escapeRegExp(keyword), 'gi');
@@ -269,10 +279,14 @@
         return this.rowData;
       },
       orderedFieldNames() {
-        const fieldNames = this.fields.map(getFieldName).filter(fieldName => fieldName && fieldName !== HIGHLIGHT_FIELD_NAME);
+        const fieldNames = this.fields
+          .map(getFieldName)
+          .filter(fieldName => fieldName && fieldName !== HIGHLIGHT_FIELD_NAME);
         if (!this.displayRow) return fieldNames;
         const rowFieldNames = Object.keys(this.displayRow).filter(fieldName => fieldName !== HIGHLIGHT_FIELD_NAME);
-        const orderedFields = fieldNames.filter(fieldName => Object.prototype.hasOwnProperty.call(this.displayRow, fieldName));
+        const orderedFields = fieldNames.filter(fieldName =>
+          Object.prototype.hasOwnProperty.call(this.displayRow, fieldName),
+        );
         const orderedFieldSet = new Set(orderedFields);
         const extraFields = rowFieldNames.filter(fieldName => !orderedFieldSet.has(fieldName));
         return [...orderedFields, ...extraFields];
@@ -284,8 +298,10 @@
       allJsonFieldNames() {
         if (!this.displayRowData) return [];
         const fieldNames = this.orderedFieldNames.length ? this.orderedFieldNames : Object.keys(this.displayRowData);
-        return fieldNames.filter(fieldName => fieldName !== HIGHLIGHT_FIELD_NAME
-          && Object.prototype.hasOwnProperty.call(this.displayRowData, fieldName));
+        return fieldNames.filter(
+          fieldName =>
+            fieldName !== HIGHLIGHT_FIELD_NAME && Object.prototype.hasOwnProperty.call(this.displayRowData, fieldName),
+        );
       },
       textSourceInfo() {
         if (!this.displayRowData) return { plainText: '', markRanges: [] };
@@ -316,7 +332,10 @@
               text: chunkText,
               markRanges: this.textVisibleMarkRanges
                 .filter(range => range.end > start && range.start < start + chunkText.length)
-                .map(range => ({ start: Math.max(0, range.start - start), end: Math.min(chunkText.length, range.end - start) })),
+                .map(range => ({
+                  start: Math.max(0, range.start - start),
+                  end: Math.min(chunkText.length, range.end - start),
+                })),
               globalOffset: start,
             }),
           });
@@ -333,7 +352,12 @@
           const loadedLength = Math.min(totalLength, this.jsonLoadedBytes[fieldName] || 0);
           const visiblePlainText = formatted.plainText.slice(0, loadedLength);
           const valueGlobalStart = globalOffset + fieldName.length + 4 + (formatted.wrapQuotes ? 1 : 0);
-          globalOffset += fieldName.length + 4 + (formatted.wrapQuotes ? 2 : 0) + totalLength + (index < this.allJsonFieldNames.length - 1 ? 1 : 0);
+          globalOffset +=
+            fieldName.length +
+            4 +
+            (formatted.wrapQuotes ? 2 : 0) +
+            totalLength +
+            (index < this.allJsonFieldNames.length - 1 ? 1 : 0);
           return {
             fieldName,
             plainText: formatted.plainText,
@@ -374,10 +398,12 @@
       },
       visibleContentText() {
         if (this.mode === 'text') return this.textVisibleText;
-        return this.jsonVisibleFieldMetaList.map((field) => {
-          const valueText = field.wrapQuotes ? `"${field.visiblePlainText}"` : field.visiblePlainText;
-          return `${field.fieldName}: ${valueText}`;
-        }).join('\n');
+        return this.jsonVisibleFieldMetaList
+          .map(field => {
+            const valueText = field.wrapQuotes ? `"${field.visiblePlainText}"` : field.visiblePlainText;
+            return `${field.fieldName}: ${valueText}`;
+          })
+          .join('\n');
       },
       hasVisibleContent() {
         if (this.mode === 'text') return Boolean(this.textVisibleText);
@@ -401,7 +427,9 @@
         return this.matches[this.activeMatchIndex];
       },
       matchText() {
-        return this.matches.length ? `${this.activeMatchIndex + 1}/${this.matches.length}${this.searchMatchLimited ? '+' : ''}` : '0/0';
+        return this.matches.length
+          ? `${this.activeMatchIndex + 1}/${this.matches.length}${this.searchMatchLimited ? '+' : ''}`
+          : '0/0';
       },
       displaySize() {
         if (!this.displayRowData) return '0 B';
@@ -507,7 +535,7 @@
         if (!originRow) return originRow;
         if (!renderRow || typeof renderRow !== 'object') return originRow;
         const output = { ...originRow };
-        Object.keys(renderRow).forEach((fieldName) => {
+        Object.keys(renderRow).forEach(fieldName => {
           const renderValue = renderRow[fieldName];
           const originValue = originRow[fieldName];
           if (typeof renderValue !== 'string' || !/<\/?mark>/i.test(renderValue)) return;
@@ -528,12 +556,12 @@
         const directOffset = originText.startsWith(plainRenderText) ? 0 : originText.indexOf(plainRenderText);
         const mergedRanges = [];
         if (directOffset >= 0) {
-          renderInfo.markRanges.forEach((range) => {
+          renderInfo.markRanges.forEach(range => {
             mergedRanges.push({ start: directOffset + range.start, end: directOffset + range.end });
           });
         } else {
           let searchStart = 0;
-          renderInfo.markRanges.forEach((range) => {
+          renderInfo.markRanges.forEach(range => {
             const markedText = plainRenderText.slice(range.start, range.end);
             if (!markedText) return;
             const hitIndex = originText.indexOf(markedText, searchStart);
@@ -545,7 +573,7 @@
         if (!mergedRanges.length) return originValue;
         let cursor = 0;
         let output = '';
-        mergedRanges.forEach((range) => {
+        mergedRanges.forEach(range => {
           output += originText.slice(cursor, range.start);
           output += ['<mark>', originText.slice(range.start, range.end), '</mark>'].join('');
           cursor = range.end;
@@ -578,7 +606,7 @@
         while (remainingSize > 0) {
           const lastVisibleFieldName = fieldNames[this.jsonVisibleFieldCount - 1];
           const lastVisibleTotalLength = lastVisibleFieldName ? this.getJsonFieldPlainLength(lastVisibleFieldName) : 0;
-          const lastVisibleLoadedLength = lastVisibleFieldName ? (this.jsonLoadedBytes[lastVisibleFieldName] || 0) : 0;
+          const lastVisibleLoadedLength = lastVisibleFieldName ? this.jsonLoadedBytes[lastVisibleFieldName] || 0 : 0;
 
           if (lastVisibleFieldName && lastVisibleLoadedLength < lastVisibleTotalLength) {
             const appendLength = Math.min(remainingSize, lastVisibleTotalLength - lastVisibleLoadedLength);
@@ -617,7 +645,10 @@
               text: chunkText,
               markRanges: field.markRanges
                 .filter(range => range.end > start && range.start < start + chunkText.length)
-                .map(range => ({ start: Math.max(0, range.start - start), end: Math.min(chunkText.length, range.end - start) })),
+                .map(range => ({
+                  start: Math.max(0, range.start - start),
+                  end: Math.min(chunkText.length, range.end - start),
+                })),
               globalOffset: field.valueGlobalStart + start,
             }),
           });
@@ -631,16 +662,26 @@
         if (this.mode === 'text') {
           const hitIndex = this.textSourceInfo.plainText.toLowerCase().indexOf(lowerKeyword);
           if (hitIndex < 0) return;
-          this.textLoadedChunkCount = Math.max(this.textLoadedChunkCount, Math.ceil((hitIndex + keyword.length) / FIELD_CHUNK_SIZE));
+          this.textLoadedChunkCount = Math.max(
+            this.textLoadedChunkCount,
+            Math.ceil((hitIndex + keyword.length) / FIELD_CHUNK_SIZE),
+          );
           return;
         }
-        this.allJsonFieldNames.forEach((fieldName) => {
+        this.allJsonFieldNames.forEach(fieldName => {
           const value = this.displayRowData?.[fieldName];
           const { plainText } = formatFieldPlainValue(value);
           const hitIndex = plainText.toLowerCase().indexOf(lowerKeyword);
           if (hitIndex < 0) return;
           this.ensureFieldVisible(fieldName);
-          this.$set(this.jsonLoadedBytes, fieldName, Math.max(this.jsonLoadedBytes[fieldName] || 0, Math.ceil((hitIndex + keyword.length) / FIELD_CHUNK_SIZE) * FIELD_CHUNK_SIZE));
+          this.$set(
+            this.jsonLoadedBytes,
+            fieldName,
+            Math.max(
+              this.jsonLoadedBytes[fieldName] || 0,
+              Math.ceil((hitIndex + keyword.length) / FIELD_CHUNK_SIZE) * FIELD_CHUNK_SIZE,
+            ),
+          );
         });
       },
       buildHighlightedHtml({ text, markRanges = [], globalOffset = 0 }) {
@@ -657,7 +698,7 @@
           .filter(range => range.end > range.start);
         const pageRanges = collectPageHighlightRanges(text);
         const points = new Set([0, text.length]);
-        const addRangePoints = (range) => {
+        const addRangePoints = range => {
           const start = Math.max(0, Math.min(text.length, range.start));
           const end = Math.max(0, Math.min(text.length, range.end));
           if (end > start) {
@@ -711,7 +752,20 @@
           const activeMatchId = isActiveMatch && !activeMatchIdRendered ? ' id="full-row-active-match"' : '';
           if (activeMatchId) activeMatchIdRendered = true;
           const styleAttr = stylePairs.length ? [' style="', stylePairs.join(';'), '"'].join('') : '';
-          htmlList.push(classes.length ? ['<mark class="', classes.join(' '), '"', activeMatchId, styleAttr, '>', escapeHtml(segmentText), '</mark>'].join('') : escapeHtml(segmentText));
+          htmlList.push(
+            classes.length
+              ? [
+                  '<mark class="',
+                  classes.join(' '),
+                  '"',
+                  activeMatchId,
+                  styleAttr,
+                  '>',
+                  escapeHtml(segmentText),
+                  '</mark>',
+                ].join('')
+              : escapeHtml(segmentText),
+          );
         }
 
         return htmlList.join('');
@@ -750,7 +804,7 @@
           });
         }
         const matches = [];
-        this.jsonFieldMetaList.forEach((field) => {
+        this.jsonFieldMetaList.forEach(field => {
           if (matches.length > MAX_SEARCH_MATCHES) return;
           const ranges = collectSearchRanges({
             text: field.plainText,
@@ -769,11 +823,20 @@
           this.textLoadedChunkCount = Math.max(this.textLoadedChunkCount, Math.ceil(match.end / FIELD_CHUNK_SIZE));
           return;
         }
-        const field = this.jsonFieldMetaList.find(item => match.start >= item.valueGlobalStart && match.start < item.valueGlobalStart + item.totalLength);
+        const field = this.jsonFieldMetaList.find(
+          item => match.start >= item.valueGlobalStart && match.start < item.valueGlobalStart + item.totalLength,
+        );
         if (!field) return;
         this.ensureFieldVisible(field.fieldName);
         const localEnd = Math.min(field.totalLength, Math.max(1, match.end - field.valueGlobalStart));
-        this.$set(this.jsonLoadedBytes, field.fieldName, Math.max(this.jsonLoadedBytes[field.fieldName] || 0, Math.ceil(localEnd / FIELD_CHUNK_SIZE) * FIELD_CHUNK_SIZE));
+        this.$set(
+          this.jsonLoadedBytes,
+          field.fieldName,
+          Math.max(
+            this.jsonLoadedBytes[field.fieldName] || 0,
+            Math.ceil(localEnd / FIELD_CHUNK_SIZE) * FIELD_CHUNK_SIZE,
+          ),
+        );
       },
       observeContentResize() {
         if (typeof ResizeObserver === 'undefined') return;
@@ -911,7 +974,7 @@
         const scrollRect = scrollable.getBoundingClientRect();
         const markRect = activeMark.getBoundingClientRect();
         const markTop = markRect.top - scrollRect.top + scrollable.scrollTop;
-        const targetScrollTop = markTop - (scrollable.clientHeight / 2) + (markRect.height / 2);
+        const targetScrollTop = markTop - scrollable.clientHeight / 2 + markRect.height / 2;
         const maxScroll = Math.max(0, scrollable.scrollHeight - scrollable.clientHeight);
         scrollable.scrollTop = Math.max(0, Math.min(targetScrollTop, maxScroll));
       },
@@ -1003,7 +1066,6 @@
     background: #fff;
     border: 1px solid #dcdee5;
     border-radius: 2px;
-
   }
 
   .full-row-dom-content {
@@ -1070,7 +1132,6 @@
     white-space: pre-wrap;
     word-break: break-all;
   }
-
 
   .empty-content {
     position: absolute;

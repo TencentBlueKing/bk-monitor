@@ -615,7 +615,10 @@
       return {
         configDocUrl: window.BK_HOT_WARM_CONFIG_URL,
         archiveDocUrl: window.BK_ARCHIVE_DOC_URL, // 日志归档跳转链接
-        isItsm: isFeatureToggleOn('collect_itsm', [String(this.$store.state.bkBizId), String(this.$store.state.spaceUid)]), // 容量评估全局参数
+        isItsm: isFeatureToggleOn('collect_itsm', [
+          String(this.$store.state.bkBizId),
+          String(this.$store.state.spaceUid),
+        ]), // 容量评估全局参数
         confirmLoading: false,
         sliderLoading: false,
         formData: {

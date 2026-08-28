@@ -25,76 +25,86 @@
 -->
 
 <script setup>
-import Vue, { ref, computed, onBeforeUnmount } from "vue";
-import FieldSelectConfig from "./field-list.vue";
-import FieldAlias from "./field-alias.vue";
-import useStore from "@/hooks/use-store";
+  import Vue, { ref, computed, onBeforeUnmount } from 'vue';
+  import FieldSelectConfig from './field-list.vue';
+  import FieldAlias from './field-alias.vue';
+  import useStore from '@/hooks/use-store';
 
-const { $bkPopover } = Vue.prototype;
-const store = useStore();
+  const { $bkPopover } = Vue.prototype;
+  const store = useStore();
 
-let popoverInstance = null;
-const fieldSelectConfigRef = ref();
-const dropdownListRef = ref();
+  let popoverInstance = null;
+  const fieldSelectConfigRef = ref();
+  const dropdownListRef = ref();
 
-const isUnionSearch = computed(() => store.getters.isUnionSearch);
-const isExternal = computed(() => store.state.isExternal);
-const isSceneMode = computed(() => store.getters.isSceneMode);
+  const isUnionSearch = computed(() => store.getters.isUnionSearch);
+  const isExternal = computed(() => store.state.isExternal);
+  const isSceneMode = computed(() => store.getters.isSceneMode);
 
-// 联合查询、外部环境和场景化检索不展示
-const isFieldSettingShow = computed(() => {
-  return !store.getters.isUnionSearch && !isExternal.value && !isSceneMode.value;
-});
+  // 联合查询、外部环境和场景化检索不展示
+  const isFieldSettingShow = computed(() => {
+    return !store.getters.isUnionSearch && !isExternal.value && !isSceneMode.value;
+  });
 
-const handleSetting = (e) => {
-  if (popoverInstance) {
-    return;
-  }
-  popoverInstance = $bkPopover(e.target, {
-    content: dropdownListRef.value,
-    trigger: "manual",
-    arrow: false,
-    width: "130px",
-    theme: "light",
-    sticky: true,
-    interactive: true,
-    placement: "bottom-start",
-    boundary: "viewport",
-    extCls: "field-setting-popover",
-    onHide: () => {
-      if (fieldSelectConfigRef.value.isPopoverInstance()) {
-        return false;
-      }
-    },
-    onHidden: () => {
+  const handleSetting = e => {
+    if (popoverInstance) {
+      return;
+    }
+    popoverInstance = $bkPopover(e.target, {
+      content: dropdownListRef.value,
+      trigger: 'manual',
+      arrow: false,
+      width: '130px',
+      theme: 'light',
+      sticky: true,
+      interactive: true,
+      placement: 'bottom-start',
+      boundary: 'viewport',
+      extCls: 'field-setting-popover',
+      onHide: () => {
+        if (fieldSelectConfigRef.value.isPopoverInstance()) {
+          return false;
+        }
+      },
+      onHidden: () => {
+        popoverInstance?.destroy?.();
+        popoverInstance = null;
+      },
+    });
+    popoverInstance.show();
+  };
+
+  /**
+   * @description 关闭 popover
+   *
+   */
+  const handlePopoverHide = () => {
+    popoverInstance?.hide?.();
+  };
+  onBeforeUnmount(() => {
+    if (popoverInstance) {
       popoverInstance?.destroy?.();
       popoverInstance = null;
-    },
+    }
   });
-  popoverInstance.show();
-};
-
-/**
- * @description 关闭 popover
- *
- */
-const handlePopoverHide = () => {
-  popoverInstance?.hide?.();
-};
-onBeforeUnmount(() => {
-  if (popoverInstance) {
-    popoverInstance?.destroy?.();
-    popoverInstance = null;
-  }
-});
 </script>
 <template>
-  <div class="field-seeting" v-show="!isUnionSearch">
+  <div
+    class="field-seeting"
+    v-show="!isUnionSearch"
+  >
     <span>
-      <span class="bklog-icon bklog-shezhi" @click.stop="handleSetting"> </span>
+      <span
+        class="bklog-icon bklog-shezhi"
+        @click.stop="handleSetting"
+      >
+      </span>
     </span>
     <div v-show="false">
-      <ul ref="dropdownListRef" class="dropdown-list">
+      <ul
+        ref="dropdownListRef"
+        class="dropdown-list"
+      >
         <li>
           <FieldSelectConfig
             ref="fieldSelectConfigRef"
@@ -109,37 +119,37 @@ onBeforeUnmount(() => {
   </div>
 </template>
 <style lang="scss">
-.field-seeting {
-  position: absolute;
-  right: 20px;
+  .field-seeting {
+    position: absolute;
+    right: 20px;
 
-  .bklog-shezhi {
-    font-size: 15px;
-    cursor: pointer;
-
-    &:hover {
-      color: #3a84ff;
-    }
-  }
-}
-
-.field-setting-popover {
-  .tippy-tooltip {
-    padding: 7px 0;
-  }
-
-  .dropdown-list {
-    li {
-      height: 32px;
-      padding: 0 6px 0px 12px;
-      line-height: 32px;
-      color: #4d4f56;
+    .bklog-shezhi {
+      font-size: 15px;
       cursor: pointer;
 
       &:hover {
-        background: #f5f7fa;
+        color: #3a84ff;
       }
     }
   }
-}
+
+  .field-setting-popover {
+    .tippy-tooltip {
+      padding: 7px 0;
+    }
+
+    .dropdown-list {
+      li {
+        height: 32px;
+        padding: 0 6px 0px 12px;
+        line-height: 32px;
+        color: #4d4f56;
+        cursor: pointer;
+
+        &:hover {
+          background: #f5f7fa;
+        }
+      }
+    }
+  }
 </style>

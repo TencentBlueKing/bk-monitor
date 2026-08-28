@@ -27,10 +27,7 @@
 export type CleanType = 'bk_log_json' | 'bk_log_delimiter' | 'bk_log_regexp';
 
 /** clean_type 与文本/icon 的映射 */
-export const CLEAN_TYPE_MAP: Record<
-  CleanType,
-  { label: string; icon: string }
-> = {
+export const CLEAN_TYPE_MAP: Record<CleanType, { label: string; icon: string }> = {
   bk_log_json: { label: 'JSON', icon: 'bklog-icon bklog-json-fanxuliehua' },
   bk_log_delimiter: { label: '分隔符', icon: 'bklog-icon bklog-fengefu' },
   bk_log_regexp: { label: '正则', icon: 'bklog-icon bklog-zhengzetiqu' },

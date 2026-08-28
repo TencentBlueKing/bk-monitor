@@ -24,7 +24,9 @@ export const resolveCleanTemplateDraft = <
   TEtlParams,
   TField,
   TTemplate extends DraftAwareCleanTemplate<TCleanType, TEtlParams, TField>,
->(template: TTemplate): TTemplate => {
+>(
+  template: TTemplate,
+): TTemplate => {
   if (template.status !== 'DRAFT' || !template.snapshot) {
     return template;
   }

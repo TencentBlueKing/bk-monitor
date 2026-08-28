@@ -33,8 +33,8 @@ const generateSql = {
   url: '/search/index_set/:index_set_id/generate_sql/',
   method: 'post',
 };
-const asyncDownload  ={
+const asyncDownload = {
   url: `/search/index_set/:index_set_id/export_chart_data/`,
-  method: 'post'
-}
-export { searchSQL, generateSql,asyncDownload };
+  method: 'post',
+};
+export { searchSQL, generateSql, asyncDownload };

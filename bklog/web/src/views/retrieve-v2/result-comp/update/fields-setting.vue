@@ -169,7 +169,6 @@
   import fieldsSettingOperate from './fields-setting-operate';
   import tableSort from './table-sort';
 
-
   /** 导出配置字段文件名前缀 */
   const FIELD_CONFIG_FILENAME_PREFIX = 'log-field-';
 
@@ -347,7 +346,7 @@
         // 在数据初始化后缓存，使用深拷贝
         this.cachedVisibleFields = structuredClone(this.shadowVisible);
         this.cachedSortFields = structuredClone(this.shadowSort);
-     },
+      },
       /** 保存或应用 */
       async confirmModifyFields() {
         const currentVisibleList = this.$refs.fieldSettingRef.shadowVisible.map(item => item.field_name);
@@ -389,7 +388,6 @@
           // 更新本地显示字段状态
           this.$store.commit('resetVisibleFields', currentVisibleList);
           this.$store.commit('updateIsSetDefaultTableColumn');
-
         } catch (error) {
           console.warn(error);
         } finally {
@@ -409,11 +407,9 @@
               sort_list: this.cachedSortFields,
               config_id: configID,
             };
-        await this.$http
-          .request(requestName, { data })
-          .catch(e => {
-            console.warn(e);
-          });
+        await this.$http.request(requestName, { data }).catch(e => {
+          console.warn(e);
+        });
       },
       cancelModifyFields() {
         this.$emit('cancel');
@@ -689,7 +685,7 @@
         });
 
         return currentSortList;
-      }
+      },
     },
   };
 </script>

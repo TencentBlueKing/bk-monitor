@@ -193,7 +193,7 @@
         return;
       }
       setRouteQuery({ ...route.query, indexId: payload.ids[0], unionList: undefined, clusterParams: undefined });
-      store.commit('updateUnionIndexList', payload.isUnionIndex ? payload.ids ?? [] : []);
+      store.commit('updateUnionIndexList', payload.isUnionIndex ? (payload.ids ?? []) : []);
       store.dispatch('requestIndexSetItemChanged', payload ?? {}).then(() => {
         store.commit('retrieve/updateChartKey');
         store.dispatch('requestIndexSetQuery');

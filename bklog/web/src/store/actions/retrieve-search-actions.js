@@ -28,12 +28,12 @@ let currentRetrieveRowQueryKey = '';
 let currentMainSearchRequestId = '';
 const fieldInfoRequestPromises = new Map();
 
-const getCookie = (name) => {
+const getCookie = name => {
   const matched = document.cookie.match(new RegExp(`(?:^|; )${name}=([^;]*)`));
   return matched ? decodeURIComponent(matched[1]) : '';
 };
 
-const buildSearchRequestHeaders = (state) => {
+const buildSearchRequestHeaders = state => {
   const headers = {
     'Content-Type': 'application/json',
     'X-Requested-With': 'XMLHttpRequest',
@@ -51,7 +51,8 @@ const buildSearchRequestHeaders = (state) => {
   return headers;
 };
 
-const isSearchRequestCanceled = error => error?.code === 'ERR_CANCELED' || error?.name === 'AbortError' || error?.message === 'Search request canceled';
+const isSearchRequestCanceled = error =>
+  error?.code === 'ERR_CANCELED' || error?.name === 'AbortError' || error?.message === 'Search request canceled';
 
 // 检索接口 total 只用于结果集自身，不覆盖 requestSearchTotal 写入的总趋势总数
 const normalizeResultTotal = total => normalizeSearchTotal(total);
@@ -84,14 +85,14 @@ const applySearchStreamProgress = ({ commit, payload, progress, requestCurrentRo
 
   if (progress.stage === 'row' && progress.rowKeys?.length) {
     if (!payload?.isPagination && progress.rowCount === 1) {
-      retrieveRowCacheService.getRows(progress.rowKeys.slice(0, 1)).then((layoutRows) => {
+      retrieveRowCacheService.getRows(progress.rowKeys.slice(0, 1)).then(layoutRows => {
         commit('updateIsSetDefaultTableColumn', { list: layoutRows });
       });
     }
   }
 };
 
-const getRenderFieldMetadata = (state) => {
+const getRenderFieldMetadata = state => {
   const fieldScope = state.indexFieldInfo.field_scope || state.indexId || 'default';
   const fieldNameIndex = retrieveFieldCacheService.getFieldNameIndex(fieldScope);
 
@@ -114,7 +115,7 @@ const getRenderFieldMetadata = (state) => {
   }, {});
 };
 
-const getProjectionFieldNames = (state) => {
+const getProjectionFieldNames = state => {
   const fieldScope = state.indexFieldInfo.field_scope || state.indexId || 'default';
   const cachedFields = retrieveFieldCacheService.getFieldList(fieldScope, false);
   const fields = [
@@ -125,7 +126,7 @@ const getProjectionFieldNames = (state) => {
   return Array.from(
     new Set(
       fields
-        .flatMap((field) => {
+        .flatMap(field => {
           if (!field) return [];
           return [field.field_name, field.alias_mapping_field?.field_name, ...(field.source_field_names || [])];
         })
@@ -189,10 +190,10 @@ function requestIndexSetFieldInfoActionImpl({ commit, state, getters }) {
     end_time,
     scene: isScene
       ? {
-        space_uid: queryData.space_uid,
-        table_id_conditions: queryData.table_id_conditions,
-        scene_filter_values: queryData.scene_filter_values,
-      }
+          space_uid: queryData.space_uid,
+          table_id_conditions: queryData.table_id_conditions,
+          scene_filter_values: queryData.scene_filter_values,
+        }
       : undefined,
   });
 
@@ -209,7 +210,7 @@ function requestIndexSetFieldInfoActionImpl({ commit, state, getters }) {
         ? { cancelToken: requestCancelToken }
         : { catchIsShowMessage: false, cancelToken: requestCancelToken },
     )
-    .then(async (res) => {
+    .then(async res => {
       const normalizedFields = normalizeRetrieveFields(res.data ?? {});
       if (res.data) {
         res.data.fields = normalizedFields;
@@ -219,7 +220,7 @@ function requestIndexSetFieldInfoActionImpl({ commit, state, getters }) {
         ([fieldName]) => [fieldName, undefined],
       );
 
-      normalizedFields.forEach((field) => {
+      normalizedFields.forEach(field => {
         if (!field || typeof field !== 'object') return;
         Object.assign(field, {
           filterVisible: field.filterVisible ?? true,
@@ -251,12 +252,12 @@ function requestIndexSetFieldInfoActionImpl({ commit, state, getters }) {
         // API 缓存 key 沿用后端字段名 start_time / end_time
         // eslint-disable-next-line camelcase
         .setApiCache(urlStr, `${ids.join(',')}:${start_time}:${end_time}`, res.data || {})
-        .catch((error) => {
+        .catch(error => {
           console.warn('[store-cache] cache field info failed', error);
         });
       return res;
     })
-    .catch((err) => {
+    .catch(err => {
       if (axios.isCancel(err)) return;
       !isUnionIndex && commit('updateApiError', { apiName: urlStr, errorMessage: err });
       commit('updateIndexFieldInfo', { is_loading: false });
@@ -278,7 +279,8 @@ export function requestIndexSetFieldInfoAction(context) {
   const existing = fieldInfoRequestPromises.get(key);
   if (existing) return existing;
 
-  const request = Promise.resolve(requestIndexSetFieldInfoActionImpl(context)).finally(() => fieldInfoRequestPromises.delete(key),
+  const request = Promise.resolve(requestIndexSetFieldInfoActionImpl(context)).finally(() =>
+    fieldInfoRequestPromises.delete(key),
   );
   fieldInfoRequestPromises.set(key, request);
   return request;
@@ -316,8 +318,8 @@ export async function requestIndexSetQueryAction(
   }
 
   if (
-    (!state.indexItem.isUnionIndex && !state.indexId)
-    || (state.indexItem.isUnionIndex && !state.unionIndexList.length)
+    (!state.indexItem.isUnionIndex && !state.indexId) ||
+    (state.indexItem.isUnionIndex && !state.unionIndexList.length)
   ) {
     state.searchTotal = 0;
     commit('updateSqlQueryFieldList', []);
@@ -345,7 +347,8 @@ export async function requestIndexSetQueryAction(
   );
 
   const retrieveParams = getters.retrieveParams;
-  const shouldSkipEmptySceneSearch =    isSceneRetrieve(state) && (getters.isSceneFilterEmpty || !retrieveParams.table_id_conditions?.length);
+  const shouldSkipEmptySceneSearch =
+    isSceneRetrieve(state) && (getters.isSceneFilterEmpty || !retrieveParams.table_id_conditions?.length);
   if (shouldSkipEmptySceneSearch) {
     commit('updateIndexSetQueryResult', {
       is_error: false,
@@ -363,9 +366,9 @@ export async function requestIndexSetQueryAction(
   // 首屏流式检索未完成时，row_keys 只是部分缓存结果；此时分页请求会先取消当前 active search，
   // 导致 replace 流被 append 误杀，最终表现为只解析了部分行但页面无结果。
   if (
-    payload?.isPagination
-    && state.indexSetQueryResult.is_loading
-    && !state.indexSetQueryResult.is_pagination_loading
+    payload?.isPagination &&
+    state.indexSetQueryResult.is_loading &&
+    !state.indexSetQueryResult.is_pagination_loading
   ) {
     return Promise.resolve({ result: false, ignored: true, reason: 'initial-search-loading' });
   }
@@ -426,7 +429,7 @@ export async function requestIndexSetQueryAction(
     if (previousRowQueryKey) {
       storageHealthService.clearActiveQuery(previousRowQueryKey);
       retrieveRowCacheService.releaseQuery(previousRowQueryKey);
-      retrieveRowCacheService.clearQuery(previousRowQueryKey).catch((error) => {
+      retrieveRowCacheService.clearQuery(previousRowQueryKey).catch(error => {
         console.warn('[retrieve-search] clear previous query rows failed', error);
       });
     }
@@ -457,11 +460,11 @@ export async function requestIndexSetQueryAction(
     baseData,
     !state.indexItem.isUnionIndex
       ? {
-        begin: queryBegin,
-      }
+          begin: queryBegin,
+        }
       : {
-        union_configs: unionConfigs,
-      },
+          union_configs: unionConfigs,
+        },
   );
 
   const requestRowQueryKey = payload.isPagination
@@ -470,10 +473,11 @@ export async function requestIndexSetQueryAction(
   const requestCurrentRowKeys = payload.isPagination ? state.indexSetQueryResult.row_keys || [] : [];
   const requestStartSeq = payload.isPagination ? requestCurrentRowKeys.length : 0;
   let isStaleSearchResponse = false;
-  const isCurrentSearchRequest = () => (payload.isPagination
-    ? requestRowQueryKey === state.indexSetQueryResult.row_query_key
-        && requestStartSeq === (state.indexSetQueryResult.row_keys || []).length
-    : requestRowQueryKey === currentRetrieveRowQueryKey);
+  const isCurrentSearchRequest = () =>
+    payload.isPagination
+      ? requestRowQueryKey === state.indexSetQueryResult.row_query_key &&
+        requestStartSeq === (state.indexSetQueryResult.row_keys || []).length
+      : requestRowQueryKey === currentRetrieveRowQueryKey;
 
   const searchHeaders = buildSearchRequestHeaders(state);
   let thisMainSearchRequestId = '';
@@ -485,11 +489,11 @@ export async function requestIndexSetQueryAction(
       fieldMetadata: getRenderFieldMetadata(state),
       fieldNames: getProjectionFieldNames(state),
       headers: searchHeaders,
-      onRequestId: (requestId) => {
+      onRequestId: requestId => {
         thisMainSearchRequestId = requestId;
         currentMainSearchRequestId = requestId;
       },
-      onProgress: (progress) => {
+      onProgress: progress => {
         if (!isCurrentSearchRequest()) return;
         applySearchStreamProgress({
           commit,
@@ -505,12 +509,12 @@ export async function requestIndexSetQueryAction(
       startSeq: requestStartSeq,
       writeMode: payload.isPagination ? 'append' : 'replace',
     })
-    .then(async (workerResult) => {
+    .then(async workerResult => {
       const { code, data, result, message, permission, rowKeys, size, source } = workerResult;
       if (!isCurrentSearchRequest()) {
         isStaleSearchResponse = true;
         if (!payload.isPagination || requestRowQueryKey !== state.indexSetQueryResult.row_query_key) {
-          retrieveRowCacheService.clearQuery(requestRowQueryKey).catch((error) => {
+          retrieveRowCacheService.clearQuery(requestRowQueryKey).catch(error => {
             console.warn('[retrieve-search] clear stale query rows failed', error);
           });
         }
@@ -558,7 +562,7 @@ export async function requestIndexSetQueryAction(
             row_query_key: requestRowQueryKey,
             cached_count: rsolvedData.cached_count,
           })
-          .catch((error) => {
+          .catch(error => {
             console.warn('[store-cache] cache search meta failed', error);
           });
         const activeQueryKeys = await storageHealthService.getActiveQueryKeys();
@@ -566,7 +570,7 @@ export async function requestIndexSetQueryAction(
           .gc({
             excludeQueryKeys: Array.from(new Set([requestRowQueryKey, ...activeQueryKeys])),
           })
-          .catch((error) => {
+          .catch(error => {
             console.warn('[retrieve-search] gc rows failed', error);
           });
 
@@ -615,7 +619,7 @@ export async function requestIndexSetQueryAction(
         size: 0,
       };
     })
-    .catch((e) => {
+    .catch(e => {
       if (!isCurrentSearchRequest()) {
         isStaleSearchResponse = true;
         return;

@@ -154,7 +154,7 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
     return chartInstance?.[name](...args);
   };
 
-  const dispatchAction = (payload) => {
+  const dispatchAction = payload => {
     delegateMethod('dispatchAction', payload);
   };
 
@@ -213,7 +213,7 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
   };
 
   // 时间向下取整
-  const getIntegerTime = (time) => {
+  const getIntegerTime = time => {
     if (runningInterval === '1d') {
       // 如果周期是 天 则特殊处理
       const step = formatTimeStampZone(time * 1000, timezone.value, 'YYYY-MM-DD');
@@ -321,7 +321,7 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
 
   // 监听loading, 在接口请求结束时再补充数据
   const loading = computed(() => store.state.retrieve.isTrendDataLoading);
-  watch(loading, (val) => {
+  watch(loading, val => {
     if (val === false) {
       const intervalMs = getIntervalValue(runningInterval) * 1000;
       if (options.series && Array.isArray(options.series)) {
@@ -439,7 +439,7 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
 
     const keys = [...optData.keys()];
     keys.sort((a, b) => a[0] - b[0]);
-    const data = keys.map((key) => {
+    const data = keys.map(key => {
       const val = optData.get(key);
       const count = val ? (val[0] === 0 ? null : val[0]) : null;
       return [key, count, val ? val[1] : null] as [number, number | null, null | string];
@@ -517,15 +517,14 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
     const { start_time, end_time } = retrieveParams.value;
     const formatStr = getXAxisFormat(start_time, end_time, runningInterval);
 
-    options.xAxis[0].axisLabel.formatter = v => xLabelMap.get(v)
-      || formatTimeStampZone(v, timezone.value, formatStr);
+    options.xAxis[0].axisLabel.formatter = v => xLabelMap.get(v) || formatTimeStampZone(v, timezone.value, formatStr);
 
     options.xAxis[0].minInterval = getIntervalValue(runningInterval);
     options.yAxis[0].axisLabel.formatter = v => abbreviateNumber(v);
     options.yAxis[0].splitNumber = dynamicHeight.value < 120 ? 2 : 4;
 
     // 格式化tooltip
-    options.tooltip.formatter = (params) => {
+    options.tooltip.formatter = params => {
       // 计算结束时间：起始时间 + runningInterval
       const startTimestamp = params[0].value[0]; // 时间戳
       const timeStart = RetrieveHelper.formatTimeZoneValue(startTimestamp, 'date', timezone.value);
@@ -536,7 +535,7 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
 
       // 多 series 展示
       const seriesHtml = params
-        .map((item) => {
+        .map(item => {
           const value = item.value[1] || 0;
           const seriesName = item.seriesName;
           const color = item.color;
@@ -577,7 +576,7 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
   const cachedBatch = computed(() => store.state.storage[BK_LOG_STORAGE.CACHED_BATCH_LIST] || []);
   const canGoBack = computed(() => cachedBatch.value.length > 1);
 
-  const handleDataZoom = debounce((event) => {
+  const handleDataZoom = debounce(event => {
     const [batch] = event.batch;
 
     // 初始化时，存入初始时间范围

@@ -265,7 +265,7 @@
       ModuleSelect,
       ValidateInput,
       // ValidateUserSelector,
-      BkUserSelector
+      BkUserSelector,
     },
     mixins: [SidebarDiffMixin],
     props: {
@@ -385,7 +385,7 @@
         try {
           this.isChangeOperatorLoading = true;
           const res = await this.$http.request('userInfo/getUsername');
-          this.$store.commit('updateState', { 'userMeta': res.data});
+          this.$store.commit('updateState', { userMeta: res.data });
           this.manageStrategyData.operator = res.data.operator;
         } catch (e) {
           console.warn(e);
@@ -399,7 +399,7 @@
       handleConfirm() {
         this.$emit('confirm', this.manageStrategyData);
       },
-      handleChangePrincipal(val){
+      handleChangePrincipal(val) {
         this.isError = !val.length;
         this.manageStrategyData.user_list = val;
       },
@@ -496,7 +496,7 @@
     }
 
     :deep(.is-error .user-selector-container) {
-      border-color:#ff5656;
+      border-color: #ff5656;
     }
   }
 </style>

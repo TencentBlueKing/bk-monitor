@@ -438,7 +438,7 @@ export default defineComponent({
     // 监听 total 变化，更新分页配置
     watch(
       () => props.total,
-      (newTotal) => {
+      newTotal => {
         pagination.value.count = newTotal;
       },
     );

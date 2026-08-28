@@ -65,9 +65,7 @@
               :key="item.result_table_id"
               :name="`${item.result_table_name_alias}(${item.result_table_id})`"
             >
-              <div
-                class="option-slot-container"
-              >
+              <div class="option-slot-container">
                 {{ item.result_table_name_alias }}
               </div>
             </bk-option>
@@ -85,7 +83,7 @@
             multiple
             data-test-id="addIndex_multiple_select_selectIndex"
             searchable
-            @selected="(value) => handleLogSelected(value)"
+            @selected="value => handleLogSelected(value)"
           >
             <bk-option
               v-for="item in getShowCollectionList"
@@ -223,7 +221,7 @@
             },
           ],
         },
-        searchData:[],// log 多选时搜索结果
+        searchData: [], // log 多选时搜索结果
       };
     },
     computed: {
@@ -305,36 +303,33 @@
       // 选择采集项获取字段列表
       async handleMultipleSelected(id) {
         try {
-          const res = await this.$http.request(
-            '/resultTables/info',
-            {
-              params: {
-                result_table_id: id,
-              },
-              query: {
-                scenario_id: this.scenarioId,
-                bk_biz_id: this.bkBizId,
-              },
+          const res = await this.$http.request('/resultTables/info', {
+            params: {
+              result_table_id: id,
             },
-          );
-           return res.data?.fields || [];
+            query: {
+              scenario_id: this.scenarioId,
+              bk_biz_id: this.bkBizId,
+            },
+          });
+          return res.data?.fields || [];
         } catch (e) {
           console.warn(e);
           return [];
         }
       },
-      async handleLogSelected(value){
+      async handleLogSelected(value) {
         const existingIds = new Set(this.searchData.map(item => item.id));
         this.searchData = this.searchData.filter(item => value.includes(item.id));
         const newEntriesPromises = value
-          .filter(id => !existingIds.has(id)) 
+          .filter(id => !existingIds.has(id))
           .map(async id => {
             try {
               const data = await this.handleMultipleSelected(id);
               return { id, data };
             } catch (error) {
               console.error(`Error fetching data for id ${id}:`, error);
-              return null; 
+              return null;
             }
           });
         const newEntries = await Promise.all(newEntriesPromises);
@@ -375,14 +370,14 @@
         try {
           await this.$refs.formRef.validate();
           this.confirmLoading = true;
-          if(this.scenarioId === 'log') {
+          if (this.scenarioId === 'log') {
             this.formData.resultTableIds.forEach(resultTableId => {
               this.$emit(
-              'selected',
-              this.collectionList.find(item => item.result_table_id === resultTableId),
-            );
+                'selected',
+                this.collectionList.find(item => item.result_table_id === resultTableId),
+              );
             });
-          }else{
+          } else {
             const data = {
               scenario_id: this.scenarioId,
               bk_biz_id: this.bkBizId,
@@ -444,8 +439,8 @@
     @include overflow-tips;
   }
 
-  .table-container-collection{
-    :deep(.bk-table-body-wrapper){
+  .table-container-collection {
+    :deep(.bk-table-body-wrapper) {
       overflow-x: hidden;
     }
   }

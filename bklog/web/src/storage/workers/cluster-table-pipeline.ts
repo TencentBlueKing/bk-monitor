@@ -116,8 +116,7 @@ export function fastHash(text: string, length = 16) {
   }
 
   const combined = (h1 & 0x1fffff) * 0x1000000000 + (h2 & 0xfffffff);
-  return combined.toString(36).padStart(length, '0')
-    .slice(-length);
+  return combined.toString(36).padStart(length, '0').slice(-length);
 }
 
 const getByPath = (obj: any, path: string) => {
@@ -154,7 +153,7 @@ export function buildGroupedList(raw: ClusterPatternRow[], groupBy: string[]) {
   const listMap = new Map<string, ClusterPatternRow[]>();
   const groupKeys: string[] = [];
 
-  raw.forEach((item) => {
+  raw.forEach(item => {
     const groupList = item.group?.map((g, i) => `${groupBy[i] ?? '#'}=${g}`) ?? ['#'];
     const groupKey = groupList.length ? groupList.join(' | ') : '#';
     if (!listMap.has(groupKey)) {
@@ -167,7 +166,7 @@ export function buildGroupedList(raw: ClusterPatternRow[], groupBy: string[]) {
   const list: ITableItem[] = [];
   let index = 0;
 
-  groupKeys.forEach((key) => {
+  groupKeys.forEach(key => {
     const children = listMap.get(key) ?? [];
     const hashKey = fastHash(key);
     index += 1;
@@ -180,7 +179,7 @@ export function buildGroupedList(raw: ClusterPatternRow[], groupBy: string[]) {
       isGroupRow: true,
     });
 
-    children.forEach((item) => {
+    children.forEach(item => {
       index += 1;
       list.push({
         data: normalizePatternRow(item, index),
@@ -212,9 +211,7 @@ const createFilterFn = (filterSort: ClusterFilterSort) => {
     let result = true;
     if (filterOwners) {
       const ownerList = getOwnerList(item.data?.owners);
-      result = noOwner
-        ? ownerList.length > 0
-        : ownerList.some(owner => !!ownersMap[owner]);
+      result = noOwner ? ownerList.length > 0 : ownerList.some(owner => !!ownersMap[owner]);
     }
     if (filterRemark && result) {
       result = isRemarked ? (item.data?.remark ?? []).length > 0 : !item.data?.remark?.length;
@@ -375,7 +372,7 @@ export function resolveOpenMap(
   options: WalkVisibleWindowOptions,
 ): Record<string, { isOpen?: boolean }> {
   const openMap: Record<string, { isOpen?: boolean }> = {};
-  Object.keys(options.openMap || {}).forEach((key) => {
+  Object.keys(options.openMap || {}).forEach(key => {
     openMap[key] = { isOpen: !!options.openMap[key]?.isOpen };
   });
   const showGroup = options.displayType === 'group' && options.groupByLength > 0;
@@ -407,7 +404,7 @@ export function toPlainOpenMap(
   openMap: Record<string, { isOpen?: boolean } | undefined> = {},
 ): Record<string, { isOpen?: boolean }> {
   const plain: Record<string, { isOpen?: boolean }> = {};
-  Object.keys(openMap).forEach((key) => {
+  Object.keys(openMap).forEach(key => {
     plain[key] = { isOpen: !!openMap[key]?.isOpen };
   });
   return plain;

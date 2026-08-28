@@ -118,9 +118,9 @@
         min-width="80"
         prop="created_by"
       >
-      <template #default="{ row }">
-        <bk-user-display-name :user-id="row.created_by"></bk-user-display-name>
-      </template>
+        <template #default="{ row }">
+          <bk-user-display-name :user-id="row.created_by"></bk-user-display-name>
+        </template>
       </bk-table-column>
       <bk-table-column
         :label="$t('操作')"
@@ -266,7 +266,7 @@
                 },
               ],
             });
-            this.$store.commit('updateState', {'authDialogData': res.data});
+            this.$store.commit('updateState', { authDialogData: res.data });
           } catch (err) {
             console.warn(err);
           } finally {

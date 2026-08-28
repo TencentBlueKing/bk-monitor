@@ -4,12 +4,8 @@
  */
 import DOMPurify from 'dompurify';
 
-import {
-  compileFieldValueToQueryString,
-  escapeQueryStringPhraseLiteral,
-} from '@/hooks/log-query-compiler';
+import { compileFieldValueToQueryString, escapeQueryStringPhraseLiteral } from '@/hooks/log-query-compiler';
 import { storeCacheService } from '@/storage';
-
 
 import { BK_LOG_STORAGE, SEARCH_MODE_DIC } from '../store.type.ts';
 
@@ -27,11 +23,12 @@ export function setQueryConditionAction({ state, dispatch }, payload) {
   const isNewSearchPage = newQueryList[0].operator === 'new-search-page-is';
   const from = newQueryList[0].from ?? 'origin';
 
-  const getTargetField = field => state.visibleFields?.find(item => item.field_name === field)
-    ?? state.indexFieldInfo?.fields?.find?.(item => item.field_name === field);
+  const getTargetField = field =>
+    state.visibleFields?.find(item => item.field_name === field) ??
+    state.indexFieldInfo?.fields?.find?.(item => item.field_name === field);
   const getFieldType = (field, fallbackType) => getTargetField(field)?.field_type ?? fallbackType ?? '';
 
-  const normalizeAdditionValue = (value) => {
+  const normalizeAdditionValue = value => {
     if (Array.isArray(value)) {
       return value;
     }
@@ -113,11 +110,11 @@ export function setQueryConditionAction({ state, dispatch }, payload) {
   const searchValueIsExist = (newSearchValue, targetSearchMode) => {
     let isExist;
     if (targetSearchMode === 'ui') {
-      isExist = state.indexItem.addition.some((addition) => {
+      isExist = state.indexItem.addition.some(addition => {
         return (
-          addition.field === newSearchValue.field
-          && addition.operator === newSearchValue.operator
-          && addition.value.toString() === newSearchValue.value.toString()
+          addition.field === newSearchValue.field &&
+          addition.operator === newSearchValue.operator &&
+          addition.value.toString() === newSearchValue.value.toString()
         );
       });
     }
@@ -129,7 +126,7 @@ export function setQueryConditionAction({ state, dispatch }, payload) {
   };
 
   const filterQueryList = newQueryList
-    .map((item) => {
+    .map(item => {
       const isNewSearchPageItem = item.operator === 'new-search-page-is';
       item.operator = isNewSearchPageItem ? 'is' : item.operator;
       const { field, operator } = item;
@@ -207,13 +204,15 @@ export function setQueryConditionAction({ state, dispatch }, payload) {
     }
   }
 
-  storeCacheService.setApiCache('store/query-condition-result', state.indexId || 'default', {
-    filterQueryList,
-    searchMode,
-    isNewSearchPage,
-    addition: state.indexItem.addition,
-    keyword: state.indexItem.keyword,
-  }).catch(() => {});
+  storeCacheService
+    .setApiCache('store/query-condition-result', state.indexId || 'default', {
+      filterQueryList,
+      searchMode,
+      isNewSearchPage,
+      addition: state.indexItem.addition,
+      keyword: state.indexItem.keyword,
+    })
+    .catch(() => {});
 
   return Promise.resolve([filterQueryList, searchMode, isNewSearchPage]);
 }

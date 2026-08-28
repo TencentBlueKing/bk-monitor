@@ -339,10 +339,7 @@ export default defineComponent({
      * @param options.action 操作类型: 'next'(默认) | 'back' | 'saveOnly'
      * @param options.callback 保存完成后的回调函数
      */
-    const handleSubmitSave = async ({
-      action = 'saveOnly',
-      callback,
-    }: ISubmitOptions = {}) => {
+    const handleSubmitSave = async ({ action = 'saveOnly', callback }: ISubmitOptions = {}) => {
       // 表单校验
       try {
         await baseInfoRef.value?.validate();
@@ -404,7 +401,7 @@ export default defineComponent({
           },
           data: submitData,
         })
-        .then((res) => {
+        .then(res => {
           if (res.result) {
             showMessage(t('保存成功'));
             callback?.(true);

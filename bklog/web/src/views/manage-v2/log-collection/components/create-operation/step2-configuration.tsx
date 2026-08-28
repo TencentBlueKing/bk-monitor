@@ -89,12 +89,7 @@ type TargetSelectionResult = {
   nodes: any[];
 };
 
-const WINLOG_FILTER_TYPES: EventType[] = [
-  'winlog_event_id',
-  'winlog_level',
-  'winlog_source',
-  'winlog_content',
-];
+const WINLOG_FILTER_TYPES: EventType[] = ['winlog_event_id', 'winlog_level', 'winlog_source', 'winlog_content'];
 
 const createEmptyEventFilter = (): IEventFilterItem => ({
   type: 'winlog_event_id',
@@ -256,9 +251,9 @@ export default defineComponent({
      */
     const isUpdate = computed(
       () =>
-        !isClone.value
-        && ((isCollectionEditRoute(route.name) && props.isEdit)
-          || (route.name === 'collectAdd' && !!formData.value?.collector_config_id)),
+        !isClone.value &&
+        ((isCollectionEditRoute(route.name) && props.isEdit) ||
+          (route.name === 'collectAdd' && !!formData.value?.collector_config_id)),
     );
     /**
      * 是否为采集主机日志
@@ -546,9 +541,7 @@ export default defineComponent({
       otherSpeciesList.value = logSpecies.filter(item => LOG_SPECIES_LIST.findIndex(i => i.id === item) === -1);
 
       // 从 winlog_name 中筛选出属于预定义列表的项，正确回填 selectLogSpeciesList
-      selectLogSpeciesList.value = logSpecies.filter(item =>
-        LOG_SPECIES_LIST.some(species => species.id === item)
-      );
+      selectLogSpeciesList.value = logSpecies.filter(item => LOG_SPECIES_LIST.some(species => species.id === item));
     };
 
     /**
@@ -597,7 +590,8 @@ export default defineComponent({
       }
       const namespacesExclude = namespacesExcludeList?.length ? '!=' : '=';
       // 处理命名空间字符串（如果是 '*' 则返回空字符串）
-      const namespaceStr = effectiveNamespaces?.length === 1 && effectiveNamespaces[0] === '*' ? '' : effectiveNamespaces?.join(',') || '';
+      const namespaceStr =
+        effectiveNamespaces?.length === 1 && effectiveNamespaces[0] === '*' ? '' : effectiveNamespaces?.join(',') || '';
 
       // 构建范围选择显示配置
       const noQuestParams = {
@@ -673,10 +667,9 @@ export default defineComponent({
           exclude_files: excludeFiles,
         },
         index_set_name: collector_config_name,
-        extra_labels:
-          detailData.extra_labels?.length
-            ? detailData.extra_labels
-            : [{ key: '', value: '', operator: '=' }],
+        extra_labels: detailData.extra_labels?.length
+          ? detailData.extra_labels
+          : [{ key: '', value: '', operator: '=' }],
       };
       /**
        * 克隆的时候数据处理
@@ -1388,8 +1381,17 @@ export default defineComponent({
       // Node 采集模式下，需要清空 namespaces、workload、containerName 等容器筛选字段，与旧版保持一致
       const isNode = collectorType.value === 'node_log_config';
       const newConfig = (configs || []).map(item => {
-        const { data_encoding, container, params: itemParams, collector_type, namespaces, label_selector, annotation_selector,
-          noQuestParams, containerNameList } = item;
+        const {
+          data_encoding,
+          container,
+          params: itemParams,
+          collector_type,
+          namespaces,
+          label_selector,
+          annotation_selector,
+          noQuestParams,
+          containerNameList,
+        } = item;
 
         const cleanedParams = clearSectionLogFields(itemParams, logType.value === 'section');
 
@@ -1401,11 +1403,11 @@ export default defineComponent({
         // 根据排除操作符决定使用 namespaces 还是 namespaces_exclude
         const namespacesKey = noQuestParams?.namespacesExclude === '!=' ? 'namespaces_exclude' : 'namespaces';
         // Node 采集模式下，namespaces 清空为 []
-        const namespacesValue = isNode ? [] : (JSON.stringify(namespaces) === '["*"]' ? [] : (namespaces || []));
+        const namespacesValue = isNode ? [] : JSON.stringify(namespaces) === '["*"]' ? [] : namespaces || [];
 
         // Node 采集模式下，workload_type 和 workload_name 清空
-        const workload_type = isNode ? '' : (container?.workload_type || '');
-        const workload_name = isNode ? '' : (container?.workload_name || '');
+        const workload_type = isNode ? '' : container?.workload_type || '';
+        const workload_name = isNode ? '' : container?.workload_name || '';
 
         return {
           data_encoding,
@@ -1445,10 +1447,7 @@ export default defineComponent({
      * @param options.action 操作类型: 'next'(默认) | 'back' | 'saveOnly'
      * @param options.callback 保存完成后的回调函数
      */
-    const setCollection = ({
-      action = 'next',
-      callback,
-    }: ISubmitOptions = {}) => {
+    const setCollection = ({ action = 'next', callback }: ISubmitOptions = {}) => {
       loadingSave.value = true;
       const {
         params,
@@ -1558,10 +1557,7 @@ export default defineComponent({
      * @param options.action 操作类型: 'next'(默认) | 'back' | 'saveOnly'
      * @param options.callback 保存完成后的回调函数
      */
-    const handleSubmitSave = ({
-      action = 'next',
-      callback,
-    }: ISubmitOptions = {}) => {
+    const handleSubmitSave = ({ action = 'next', callback }: ISubmitOptions = {}) => {
       if (!showClusterListKeys.includes(props.scenarioId)) {
         isTargetNodesEmpty.value = formData.value.target_nodes.length === 0;
       }
@@ -1612,7 +1608,8 @@ export default defineComponent({
               // 只保存，不跳转
               callback?.(true);
               return;
-            } if (action === 'back') {
+            }
+            if (action === 'back') {
               goListPage();
             } else {
               emit('next', formData.value);
@@ -1623,7 +1620,14 @@ export default defineComponent({
             setCollection({ action, callback });
             return;
           }
-          if (!isTargetNodesEmpty.value && isErr && isLogFilterErr && !isSegmentError.value && isConfigError && isMetadataValid) {
+          if (
+            !isTargetNodesEmpty.value &&
+            isErr &&
+            isLogFilterErr &&
+            !isSegmentError.value &&
+            isConfigError &&
+            isMetadataValid
+          ) {
             setCollection({ action, callback });
           } else {
             callback?.(false);

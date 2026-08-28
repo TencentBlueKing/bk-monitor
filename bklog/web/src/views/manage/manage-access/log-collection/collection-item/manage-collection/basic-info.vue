@@ -377,7 +377,7 @@
         return this.params.winlog_name?.join(',') || '';
       },
       isHaveEventValue() {
-        return (this.params.winlog_event_id?.length || 0) || (this.params.winlog_level?.length || 0);
+        return this.params.winlog_event_id?.length || 0 || this.params.winlog_level?.length || 0;
       },
       isContainer() {
         return this.collectorData.environment === 'container';
@@ -433,7 +433,7 @@
             {
               key: 'updated_by',
               label: this.$t('更新人'),
-              isUserAccount: true
+              isUserAccount: true,
             },
             {
               key: 'updated_at',
@@ -442,7 +442,7 @@
             {
               key: 'created_by',
               label: this.$t('创建人'),
-              isUserAccount: true
+              isUserAccount: true,
             },
             {
               key: 'created_at',
@@ -482,7 +482,7 @@
       },
       handleClickEdit() {
         if (!this.editAuth && this.editAuthData) {
-          this.$store.commit('updateState', { 'authDialogData': this.editAuthData});
+          this.$store.commit('updateState', { authDialogData: this.editAuthData });
           return;
         }
         const params = {};
@@ -508,7 +508,7 @@
       },
       async handleGetToken() {
         if (!this.editAuth && this.editAuthData) {
-          this.$store.commit('updateState', { 'authDialogData': this.editAuthData});
+          this.$store.commit('updateState', { authDialogData: this.editAuthData });
           return;
         }
         try {

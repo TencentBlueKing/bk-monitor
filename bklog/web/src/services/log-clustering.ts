@@ -24,7 +24,6 @@
  * IN THE SOFTWARE.
  */
 
-
 /**
  * 通知列表
  */
@@ -155,18 +154,18 @@ export interface ConfigInfo {
   regex_template_id: number;
 }
 const getConfig = {
-  url: "/clustering_config/:index_set_id/config/",
-  method: "get",
+  url: '/clustering_config/:index_set_id/config/',
+  method: 'get',
 };
 
 const getDefaultConfig = {
-  url: "/clustering_config/default_config/",
-  method: "get",
+  url: '/clustering_config/default_config/',
+  method: 'get',
 };
 
 const debug = {
-  url: "/clustering_config/debug/",
-  method: "post",
+  url: '/clustering_config/debug/',
+  method: 'post',
 };
 export interface LogPattern {
   pattern: string; // 格式化后的日志模式（包含占位符如 #NUMBER#）
@@ -187,69 +186,69 @@ export interface LogPattern {
 }
 
 const clusterSearch = {
-  url: "/pattern/:index_set_id/search/",
-  method: "post",
+  url: '/pattern/:index_set_id/search/',
+  method: 'post',
 };
 
 const closeClean = {
-  url: "/databus/collectors/:collector_config_id/close_clean/",
-  method: "post",
+  url: '/databus/collectors/:collector_config_id/close_clean/',
+  method: 'post',
 };
 
 const updateStrategies = {
-  url: "/clustering_monitor/:index_set_id/update_strategies/",
-  method: "post",
+  url: '/clustering_monitor/:index_set_id/update_strategies/',
+  method: 'post',
 };
 
 const getFingerLabels = {
-  url: "/pattern/:index_set_id/labels/",
-  method: "post",
+  url: '/pattern/:index_set_id/labels/',
+  method: 'post',
 };
 
 const updateNewClsStrategy = {
-  url: "/clustering_monitor/:index_set_id/update_new_cls_strategy/",
-  method: "post",
+  url: '/clustering_monitor/:index_set_id/update_new_cls_strategy/',
+  method: 'post',
 };
 
 const checkRegexp = {
-  url: "/clustering_config/check_regexp/",
-  method: "post",
+  url: '/clustering_config/check_regexp/',
+  method: 'post',
 };
 
 // 设置备注
 const setRemark = {
-  url: "/pattern/:index_set_id/remark/ ",
-  method: "post",
+  url: '/pattern/:index_set_id/remark/ ',
+  method: 'post',
 };
 
 // 更新备注
 const updateRemark = {
-  url: "/pattern/:index_set_id/update_remark/ ",
-  method: "put",
+  url: '/pattern/:index_set_id/update_remark/ ',
+  method: 'put',
 };
 
 // 删除备注
 const deleteRemark = {
-  url: "/pattern/:index_set_id/delete_remark/ ",
-  method: "delete",
+  url: '/pattern/:index_set_id/delete_remark/ ',
+  method: 'delete',
 };
 
 // 设置负责人
 const setOwner = {
-  url: "/pattern/:index_set_id/owner/",
-  method: "post",
+  url: '/pattern/:index_set_id/owner/',
+  method: 'post',
 };
 
 // 获取当前pattern所有负责人列表
 const getOwnerList = {
-  url: "/pattern/:index_set_id/list_owners/",
-  method: "get",
+  url: '/pattern/:index_set_id/list_owners/',
+  method: 'get',
 };
 
 // 第一次进数据指纹时候的分组
 const updateInitGroup = {
-  url: "/pattern/:index_set_id/group_fields/",
-  method: "post",
+  url: '/pattern/:index_set_id/group_fields/',
+  method: 'post',
 };
 export interface RuleTemplate {
   id: number;
@@ -264,50 +263,50 @@ export interface RuleTemplate {
 
 // 模板列表
 const ruleTemplate = {
-  url: "/regex_template/?space_uid=:space_uid",
-  method: "get",
+  url: '/regex_template/?space_uid=:space_uid',
+  method: 'get',
 };
 
 // 创建模板
 const createTemplate = {
-  url: "/regex_template/",
-  method: "post",
+  url: '/regex_template/',
+  method: 'post',
 };
 
 // 更新模板（名称）
 const updateTemplateName = {
-  url: "/regex_template/:regex_template_id/",
-  method: "patch",
+  url: '/regex_template/:regex_template_id/',
+  method: 'patch',
 };
 
 // 删除模板
 const deleteTemplate = {
-  url: "/regex_template/:regex_template_id/",
-  method: "delete",
+  url: '/regex_template/:regex_template_id/',
+  method: 'delete',
 };
 
 // 日志聚类-告警策略开关
 const updatePatternStrategy = {
-  url: "/pattern/:index_set_id/pattern_strategy/",
-  method: "post",
+  url: '/pattern/:index_set_id/pattern_strategy/',
+  method: 'post',
 };
 
 // 占位符分布统计
 const placeholderDistribution = {
-  url: "/pattern/:index_set_id/placeholder_distribution/",
-  method: "post",
+  url: '/pattern/:index_set_id/placeholder_distribution/',
+  method: 'post',
 };
 
 // 占位符趋势
 const placeholderTrend = {
-  url: "/pattern/:index_set_id/placeholder_trend/",
-  method: "post",
+  url: '/pattern/:index_set_id/placeholder_trend/',
+  method: 'post',
 };
 
 // 占位符相关样本
 const placeholderSamples = {
-  url: "/pattern/:index_set_id/placeholder_samples/",
-  method: "post",
+  url: '/pattern/:index_set_id/placeholder_samples/',
+  method: 'post',
 };
 export {
   getConfig,

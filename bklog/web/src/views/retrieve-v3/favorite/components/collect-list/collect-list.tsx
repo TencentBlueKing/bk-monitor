@@ -425,17 +425,17 @@ export default defineComponent({
         {
           title: t('创建人'),
           value: item.created_by || '--',
-          isUserAccount: true
+          isUserAccount: true,
         },
         {
           title: t('更新人'),
           value: item.updated_by || '--',
-          isUserAccount: true
+          isUserAccount: true,
         },
         {
           title: t('创建时间'),
           value: utcFormatDate(item.created_at, true) || '--',
-          isUserAccount: false
+          isUserAccount: false,
         },
       ];
 
@@ -513,7 +513,15 @@ export default defineComponent({
                 {item.favorites.map(child => (
                   <BklogPopover
                     class='child-item-name'
-                    options={{ offset: [10, 12], placement: 'right', appendTo: document.body, theme: 'dark', allowHTML: true } as any}
+                    options={
+                      {
+                        offset: [10, 12],
+                        placement: 'right',
+                        appendTo: document.body,
+                        theme: 'dark',
+                        allowHTML: true,
+                      } as any
+                    }
                     trigger='hover'
                     {...{
                       scopedSlots: { content: () => renderTips(child) },

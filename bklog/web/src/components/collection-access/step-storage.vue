@@ -131,7 +131,7 @@
           :disabled="!selectedStorageCluster.enable_hot_warm"
           data-test-id="storageBox_select_selectHotData"
         >
-        <template #trigger>
+          <template #trigger>
             <div class="bk-select-name">
               {{ formData.allocation_min_days + $t('天') }}
             </div>
@@ -357,9 +357,9 @@
 
 <script>
   import { deepEqual, projectManages } from '@/common/util';
-import { isFeatureToggleOn } from '@/hooks/use-feature-toggle';
-import storageMixin from '@/mixins/storage-mixin';
-import { mapGetters } from 'vuex';
+  import { isFeatureToggleOn } from '@/hooks/use-feature-toggle';
+  import storageMixin from '@/mixins/storage-mixin';
+  import { mapGetters } from 'vuex';
 
   import ClusterTable from './components/cluster-table';
   import ClusterTypeTabs from '@/views/manage-v2/es-cluster/cluster-manage/cluster-type-tabs';
@@ -385,7 +385,10 @@ import { mapGetters } from 'vuex';
     },
     data() {
       return {
-        isItsm: isFeatureToggleOn('collect_itsm', [String(this.$store.state.bkBizId), String(this.$store.state.spaceUid)]),
+        isItsm: isFeatureToggleOn('collect_itsm', [
+          String(this.$store.state.bkBizId),
+          String(this.$store.state.spaceUid),
+        ]),
         HOST_COUNT: window.ASSESSMEN_HOST_COUNT,
         refresh: false,
 
@@ -744,10 +747,7 @@ import { mapGetters } from 'vuex';
         copyFields.forEach(row => {
           row.value = '';
           if (row.is_delete) {
-            const copyRow = Object.assign(
-              structuredClone(this.rowTemplate),
-              structuredClone(row),
-            );
+            const copyRow = Object.assign(structuredClone(this.rowTemplate), structuredClone(row));
             Object.assign(row, copyRow);
           }
           if (row.option) {

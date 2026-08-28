@@ -30,10 +30,7 @@ import {
   highlightPlainTextIntoFragment,
   type HighlightRange,
 } from '@/views/retrieve-core/page-highlight';
-import {
-  isKeywordLikeFieldType,
-  isTextFieldType,
-} from '@/views/retrieve-v2/search-bar/utils/sql-contains-wildcard';
+import { isKeywordLikeFieldType, isTextFieldType } from '@/views/retrieve-v2/search-bar/utils/sql-contains-wildcard';
 
 import JsonView from '../global/json-view';
 // import jsonEditorTask, { EditorTask } from '../global/utils/json-editor-task';
@@ -77,14 +74,17 @@ export type SegmentAppendText = {
   onMouseUp?: (..._args) => void;
   attributes?: Record<string, string>;
 };
-export type PrecomputedSegments = Record<string, Array<{
-  text: string;
-  isMark?: boolean;
-  isCursorText?: boolean;
-  isBlobWord?: boolean;
-  isNotParticiple?: boolean;
-  resultRanges?: HighlightRange[];
-}>>;
+export type PrecomputedSegments = Record<
+  string,
+  Array<{
+    text: string;
+    isMark?: boolean;
+    isCursorText?: boolean;
+    isBlobWord?: boolean;
+    isNotParticiple?: boolean;
+    resultRanges?: HighlightRange[];
+  }>
+>;
 
 /** 分词点击上下文：在 show tippy 时写入，避免共享 virtual-target / taskEventManager 串台导致多次点击结果漂移 */
 type SegmentClickContext = {
@@ -176,8 +176,7 @@ export default class UseJsonFormatter {
           if (index[name]) return index[name];
         }
       }
-      return matchInList(store.getters?.filteredFieldList)
-        ?? matchInList(store.getters?.rawFieldList);
+      return matchInList(store.getters?.filteredFieldList) ?? matchInList(store.getters?.rawFieldList);
     } catch {
       return undefined;
     }
@@ -219,8 +218,8 @@ export default class UseJsonFormatter {
     const tippyInstance = segmentPopInstance.getInstance();
     const target = tippyInstance.reference as HTMLElement;
     let name = target.getAttribute('data-field-name');
-    let searchFieldName = target.getAttribute('data-segment-field-name')
-      || target.getAttribute('data-search-field-name');
+    let searchFieldName =
+      target.getAttribute('data-segment-field-name') || target.getAttribute('data-search-field-name');
     let value = target.getAttribute('data-field-value');
     let depth = target.getAttribute('data-field-dpth');
     const segmentRole = target.getAttribute('data-segment-field-role') || '';
@@ -230,8 +229,9 @@ export default class UseJsonFormatter {
     }
 
     if (!searchFieldName) {
-      searchFieldName = target.closest('[data-segment-field-name]')?.getAttribute('data-segment-field-name')
-        || target.closest('[data-search-field-name]')?.getAttribute('data-search-field-name');
+      searchFieldName =
+        target.closest('[data-segment-field-name]')?.getAttribute('data-segment-field-name') ||
+        target.closest('[data-search-field-name]')?.getAttribute('data-search-field-name');
     }
 
     if (name === undefined || name === null) {
@@ -248,7 +248,7 @@ export default class UseJsonFormatter {
   }
 
   private clearVirtualTargetSegmentAttrs(target: HTMLElement) {
-    SEGMENT_VIRTUAL_TARGET_ATTRS.forEach((attr) => {
+    SEGMENT_VIRTUAL_TARGET_ATTRS.forEach(attr => {
       target.removeAttribute(attr);
     });
   }
@@ -291,11 +291,9 @@ export default class UseJsonFormatter {
    */
   private getObjectLeafValueFromContext(ctx: SegmentClickContext, fieldName: string, fallback: any) {
     const rootName = ctx.rootFieldName;
-    const relativePath = rootName && fieldName.startsWith(`${rootName}.`)
-      ? fieldName.slice(rootName.length + 1)
-      : fieldName;
-    const rawValue = this.getPathValue(ctx.jsonValue, fieldName)
-      ?? this.getPathValue(ctx.jsonValue, relativePath);
+    const relativePath =
+      rootName && fieldName.startsWith(`${rootName}.`) ? fieldName.slice(rootName.length + 1) : fieldName;
+    const rawValue = this.getPathValue(ctx.jsonValue, fieldName) ?? this.getPathValue(ctx.jsonValue, relativePath);
     return rawValue === undefined || rawValue === null ? fallback : rawValue;
   }
 
@@ -327,17 +325,16 @@ export default class UseJsonFormatter {
     selectedValue?: string,
   ) {
     const name = field?.field_name || fieldName;
-    const fromPath = this.getPathValue(ctx.jsonValue, name)
-      ?? (name ? ctx.jsonValue?.[name] : undefined);
+    const fromPath = this.getPathValue(ctx.jsonValue, name) ?? (name ? ctx.jsonValue?.[name] : undefined);
     if (fromPath !== undefined && fromPath !== null && fromPath !== '') {
       return fromPath;
     }
 
     const jsonValue = ctx.jsonValue;
     if (
-      typeof jsonValue === 'string'
-      || typeof jsonValue === 'number'
-      || (jsonValue && typeof jsonValue === 'object' && jsonValue._isBigNumber)
+      typeof jsonValue === 'string' ||
+      typeof jsonValue === 'number' ||
+      (jsonValue && typeof jsonValue === 'object' && jsonValue._isBigNumber)
     ) {
       return jsonValue;
     }
@@ -367,16 +364,15 @@ export default class UseJsonFormatter {
     }
 
     // 根字段整段 VALUE（如 log / keyword 列）：优先按字段名从行数据取
-    const pathValue = this.getPathValue(ctx.jsonValue, fieldName)
-      ?? (fieldName ? ctx.jsonValue?.[fieldName] : undefined);
+    const pathValue =
+      this.getPathValue(ctx.jsonValue, fieldName) ?? (fieldName ? ctx.jsonValue?.[fieldName] : undefined);
     if (pathValue !== undefined && pathValue !== null) {
       return this.toScalarPlainValue(pathValue);
     }
 
     if (!fieldName || fieldName === ctx.rootFieldName) {
-      const rootValue = typeof ctx.jsonValue === 'string' || typeof ctx.jsonValue === 'number'
-        ? ctx.jsonValue
-        : undefined;
+      const rootValue =
+        typeof ctx.jsonValue === 'string' || typeof ctx.jsonValue === 'number' ? ctx.jsonValue : undefined;
       if (rootValue !== undefined && rootValue !== null) {
         return this.toScalarPlainValue(rootValue);
       }
@@ -409,22 +405,24 @@ export default class UseJsonFormatter {
       return { isSoleToken: false };
     }
 
-    const resolvePath = (node: HTMLElement) => node.getAttribute('data-segment-field-name')
-      || node.closest?.('[data-segment-field-name]')?.getAttribute('data-segment-field-name')
-      || '';
-    const resolveRole = (node: HTMLElement) => node.getAttribute('data-segment-field-role')
-      || node.closest?.('[data-segment-field-role]')?.getAttribute('data-segment-field-role')
-      || '';
+    const resolvePath = (node: HTMLElement) =>
+      node.getAttribute('data-segment-field-name') ||
+      node.closest?.('[data-segment-field-name]')?.getAttribute('data-segment-field-name') ||
+      '';
+    const resolveRole = (node: HTMLElement) =>
+      node.getAttribute('data-segment-field-role') ||
+      node.closest?.('[data-segment-field-role]')?.getAttribute('data-segment-field-role') ||
+      '';
 
     const fieldPath = resolvePath(active);
     const segmentRole = resolveRole(active);
 
     // 扫描根：整段分词容器，保证能看到同一叶子下的兄弟 .valid-text
-    const scanRoot = (active.closest('.segment-content')
-      || active.closest('.bklog-json-field-value')
-      || active.closest('.field-value')
-      || active.closest('[data-field-name][data-has-word-split]')
-      || active.parentElement) as HTMLElement | null;
+    const scanRoot = (active.closest('.segment-content') ||
+      active.closest('.bklog-json-field-value') ||
+      active.closest('.field-value') ||
+      active.closest('[data-field-name][data-has-word-split]') ||
+      active.parentElement) as HTMLElement | null;
     if (!scanRoot) {
       return { isSoleToken: false };
     }
@@ -455,24 +453,17 @@ export default class UseJsonFormatter {
   ) {
     const isObjectRoot = ctx.rootFieldType === 'object' || ctx.isVirtualObjNode;
     const isChildPath = Boolean(
-      resolvedFieldName
-      && ctx.rootFieldName
-      && resolvedFieldName !== ctx.rootFieldName
-      && resolvedFieldName.startsWith(`${ctx.rootFieldName}.`),
+      resolvedFieldName &&
+      ctx.rootFieldName &&
+      resolvedFieldName !== ctx.rootFieldName &&
+      resolvedFieldName.startsWith(`${ctx.rootFieldName}.`),
     );
     const isLeaf = Boolean(
-      field
-      && field.field_type !== 'object'
-      && field.field_type !== 'nested'
-      && field.field_type !== '__virtual__',
+      field && field.field_type !== 'object' && field.field_type !== 'nested' && field.field_type !== '__virtual__',
     );
     // DOM 挂在父级 Object（name=__ext）而检索路径已解析到子叶子
     const domIsParentObject = Boolean(
-      isObjectRoot
-      && isLeaf
-      && ctx.name
-      && resolvedFieldName
-      && ctx.name !== resolvedFieldName,
+      isObjectRoot && isLeaf && ctx.name && resolvedFieldName && ctx.name !== resolvedFieldName,
     );
 
     return ctx.parsedFromJsonString || isChildPath || domIsParentObject;
@@ -505,19 +496,21 @@ export default class UseJsonFormatter {
       return val;
     }
 
-    const selected = this.escapeString(String(selectedValue ?? '')).replace(/<\/?mark>/g, '').trim();
+    const selected = this.escapeString(String(selectedValue ?? ''))
+      .replace(/<\/?mark>/g, '')
+      .trim();
     const fullPlain = this.resolveClickFullPlainValue(ctx, resolvedFieldName, field, selected).trim();
     const fieldType = field?.field_type ?? ctx.rootFieldType;
 
     // 其他类型（非 text / keyword / flattened）：统一等值
     if (
-      fieldType
-      && !isTextFieldType(fieldType)
-      && !isKeywordLikeFieldType(fieldType)
-      && fieldType !== 'string'
-      && fieldType !== 'object'
-      && fieldType !== 'nested'
-      && fieldType !== '__virtual__'
+      fieldType &&
+      !isTextFieldType(fieldType) &&
+      !isKeywordLikeFieldType(fieldType) &&
+      fieldType !== 'string' &&
+      fieldType !== 'object' &&
+      fieldType !== 'nested' &&
+      fieldType !== '__virtual__'
     ) {
       return val === 'not' ? 'is not' : 'is';
     }
@@ -530,7 +523,10 @@ export default class UseJsonFormatter {
     }
 
     // text / string / object 叶子：完整等值用 is，否则 contains
-    if (this.isObjectLeafClickContext(ctx, field, resolvedFieldName) || (fullPlain && selected && fullPlain !== selected)) {
+    if (
+      this.isObjectLeafClickContext(ctx, field, resolvedFieldName) ||
+      (fullPlain && selected && fullPlain !== selected)
+    ) {
       if (fullPlain && selected && fullPlain === selected) {
         return val === 'not' ? 'is not' : 'is';
       }
@@ -548,9 +544,7 @@ export default class UseJsonFormatter {
   onSegmentEnumClick(val, isLink) {
     // 复制只走剪贴板，禁止进入字段/操作符解析（尤其 KEY 会被改写成 contains）
     if (val === 'copy') {
-      const copyValue = activeSegmentClickContext?.value
-        ?? this.getFieldNameValue().value
-        ?? '';
+      const copyValue = activeSegmentClickContext?.value ?? this.getFieldNameValue().value ?? '';
       this.config.onSegmentClick?.({
         option: { operation: 'copy', value: String(copyValue ?? '') },
         isLink,
@@ -576,12 +570,11 @@ export default class UseJsonFormatter {
     };
 
     // Text/String JSON：检索字段固定外层根字段；Object/Nested 解析叶子路径
-    const isObjectRoot = ctx.rootFieldType === 'object'
-      || ctx.rootFieldType === 'nested'
-      || ctx.isVirtualObjNode;
-    const resolvedFieldName = ctx.parsedFromJsonString && ctx.rootFieldName && !isObjectRoot
-      ? ctx.rootFieldName
-      : this.resolveFormatterSearchFieldName(ctx.name, ctx.searchFieldName);
+    const isObjectRoot = ctx.rootFieldType === 'object' || ctx.rootFieldType === 'nested' || ctx.isVirtualObjNode;
+    const resolvedFieldName =
+      ctx.parsedFromJsonString && ctx.rootFieldName && !isObjectRoot
+        ? ctx.rootFieldName
+        : this.resolveFormatterSearchFieldName(ctx.name, ctx.searchFieldName);
     const activeField = this.getField(resolvedFieldName) ?? this.config.field;
     const selectedValue = ctx.value;
     const fieldType = activeField?.field_type;
@@ -594,65 +587,60 @@ export default class UseJsonFormatter {
 
     const tippyTarget = segmentPopInstance.getInstance()?.reference as HTMLElement | undefined;
     // tippy.reference 是 body 虚拟节点：优先用点击时缓存的真实 .valid-text / 预计算位置
-    const tokenPos = (typeof ctx.tokenCount === 'number' && ctx.tokenCount > 0)
-      ? {
-        tokenIndex: ctx.tokenIndex,
-        tokenCount: ctx.tokenCount,
-        isSoleToken: Boolean(ctx.isSoleToken),
-      }
-      : this.resolveValidTokenPosition(ctx.tokenEl || tippyTarget);
-    const selectedPlain = String(selectedValue ?? '').replace(/<\/?mark>/g, '').trim();
-    const normalizedFullPlain = String(fullPlain ?? '').replace(/<\/?mark>/g, '').trim();
-    const isSoleToken = tokenPos.isSoleToken
-      || (Boolean(normalizedFullPlain)
-        && normalizedFullPlain !== '--'
-        && normalizedFullPlain === selectedPlain);
+    const tokenPos =
+      typeof ctx.tokenCount === 'number' && ctx.tokenCount > 0
+        ? {
+            tokenIndex: ctx.tokenIndex,
+            tokenCount: ctx.tokenCount,
+            isSoleToken: Boolean(ctx.isSoleToken),
+          }
+        : this.resolveValidTokenPosition(ctx.tokenEl || tippyTarget);
+    const selectedPlain = String(selectedValue ?? '')
+      .replace(/<\/?mark>/g, '')
+      .trim();
+    const normalizedFullPlain = String(fullPlain ?? '')
+      .replace(/<\/?mark>/g, '')
+      .trim();
+    const isSoleToken =
+      tokenPos.isSoleToken ||
+      (Boolean(normalizedFullPlain) && normalizedFullPlain !== '--' && normalizedFullPlain === selectedPlain);
 
     let target = ['date', 'date_nanos'].includes(fieldType)
       ? this.resolveDateFieldRawValue(
-        ctx,
-        resolvedFieldName || activeField?.field_name || '',
-        activeField,
-        selectedValue,
-      )
+          ctx,
+          resolvedFieldName || activeField?.field_name || '',
+          activeField,
+          selectedValue,
+        )
       : selectedValue;
 
     // 其他类型：Value 统一补齐为完整 FieldValue
     // date/date_nanos 已在上方回取原始时间戳，且 fullPlain 同源，避免被展示串覆盖
     if (
-      fieldType
-      && !['date', 'date_nanos'].includes(fieldType)
-      && !isTextFieldType(fieldType)
-      && !isKeywordLikeFieldType(fieldType)
-      && fieldType !== 'string'
-      && fieldType !== 'object'
-      && fieldType !== 'nested'
-      && fieldType !== '__virtual__'
-      && fullPlain
-      && fullPlain !== '--'
+      fieldType &&
+      !['date', 'date_nanos'].includes(fieldType) &&
+      !isTextFieldType(fieldType) &&
+      !isKeywordLikeFieldType(fieldType) &&
+      fieldType !== 'string' &&
+      fieldType !== 'object' &&
+      fieldType !== 'nested' &&
+      fieldType !== '__virtual__' &&
+      fullPlain &&
+      fullPlain !== '--'
     ) {
       target = fullPlain;
     }
 
-    const operation = this.resolveSegmentClickOperation(
-      val,
-      ctx,
-      activeField,
-      resolvedFieldName,
-      selectedValue,
-    );
+    const operation = this.resolveSegmentClickOperation(val, ctx, activeField, resolvedFieldName, selectedValue);
 
     const option = {
       fieldName: resolvedFieldName || activeField?.field_name,
       // 叶子字段优先用 store/fields 精确类型；找不到时再退父级
-      fieldType: this.getField(resolvedFieldName)?.field_type
-        ?? activeField?.field_type
-        ?? fieldType,
+      fieldType: this.getField(resolvedFieldName)?.field_type ?? activeField?.field_type ?? fieldType,
       operation,
       // 语句模式格式化（通配 / 引号）由 use-text-action 按字段类型统一处理
       value: target ?? selectedValue,
-      fullPlain: normalizedFullPlain
-        || (isSoleToken ? selectedPlain : ''),
+      fullPlain: normalizedFullPlain || (isSoleToken ? selectedPlain : ''),
       isSoleToken,
       tokenIndex: tokenPos.tokenIndex,
       tokenCount: tokenPos.tokenCount,
@@ -679,45 +667,37 @@ export default class UseJsonFormatter {
     if (RetrieveHelper.isClickOnSelection(e, 2) || getSelectionText(e.target as Node).length > 1) {
       return;
     }
-    
+
     if (!value.toString() || value === '--') {
       return;
     }
 
     const clickTarget = e.target as HTMLElement;
     const valueElement = clickTarget.closest('.field-value') as HTMLElement;
-    const searchFieldElement = (clickTarget.closest('[data-segment-field-name]')
-      || clickTarget.closest('[data-search-field-name]')) as HTMLElement;
+    const searchFieldElement = (clickTarget.closest('[data-segment-field-name]') ||
+      clickTarget.closest('[data-search-field-name]')) as HTMLElement;
     const fieldName = valueElement?.getAttribute('data-field-name');
-    const fieldType = valueElement?.getAttribute('data-field-type')
-      || this.config.field?.field_type
-      || '';
+    const fieldType = valueElement?.getAttribute('data-field-type') || this.config.field?.field_type || '';
     // Object/Nested 始终走叶子 segment 路径，即使 DOM 误带了 data-json-text-value
-    const isObjectLikeField = fieldType === 'object'
-      || fieldType === 'nested'
-      || !!this.config.field?.is_virtual_obj_node;
-    const isJsonTextValue = !isObjectLikeField && (
-      valueElement?.getAttribute('data-json-text-value') === 'true'
-      || !!this.config.options?.parsedFromJsonString
-      || clickTarget.closest('[data-json-text-value="true"]') != null
-      || clickTarget.closest('[data-json-string-parsed="true"]') != null
-    );
+    const isObjectLikeField =
+      fieldType === 'object' || fieldType === 'nested' || !!this.config.field?.is_virtual_obj_node;
+    const isJsonTextValue =
+      !isObjectLikeField &&
+      (valueElement?.getAttribute('data-json-text-value') === 'true' ||
+        !!this.config.options?.parsedFromJsonString ||
+        clickTarget.closest('[data-json-text-value="true"]') != null ||
+        clickTarget.closest('[data-json-string-parsed="true"]') != null);
     // Text/String JSON：检索字段固定为外层字段；Object 使用叶子 segment 路径并回归 Fields 列表
     const rawSearchFieldName = isJsonTextValue
-      ? (valueElement?.getAttribute('data-search-field-name')
-        || valueElement?.getAttribute('data-field-name')
-        || this.config.field?.field_name
-        || '')
-      : (searchFieldElement?.getAttribute('data-segment-field-name')
-        || searchFieldElement?.getAttribute('data-search-field-name')
-        || '');
-    const searchFieldName = this.clampToMappedFieldPath(
-      rawSearchFieldName,
-      this.config.field?.field_name,
-    );
-    const segmentRole = isJsonTextValue
-      ? ''
-      : searchFieldElement?.getAttribute('data-segment-field-role');
+      ? valueElement?.getAttribute('data-search-field-name') ||
+        valueElement?.getAttribute('data-field-name') ||
+        this.config.field?.field_name ||
+        ''
+      : searchFieldElement?.getAttribute('data-segment-field-name') ||
+        searchFieldElement?.getAttribute('data-search-field-name') ||
+        '';
+    const searchFieldName = this.clampToMappedFieldPath(rawSearchFieldName, this.config.field?.field_name);
+    const segmentRole = isJsonTextValue ? '' : searchFieldElement?.getAttribute('data-segment-field-role');
 
     const content = this.getSegmentContent(this.keyRef, this.onSegmentEnumClick.bind(this));
     const traceView = content.value.querySelector('[data-item-id="trace-view"]') as HTMLElement;
@@ -727,7 +707,7 @@ export default class UseJsonFormatter {
     const isVirtualField = fieldType === '__virtual__';
     const virtualFieldHiddenItems = ['is', 'not', 'new-search-page-is']; // 需要隐藏的选项
 
-    virtualFieldHiddenItems.forEach((itemId) => {
+    virtualFieldHiddenItems.forEach(itemId => {
       const element = content.value.querySelector(`[data-item-id="${itemId}"]`) as HTMLElement;
       element?.style.setProperty('display', isVirtualField ? 'none' : 'inline-flex');
     });
@@ -743,8 +723,9 @@ export default class UseJsonFormatter {
     const { offsetX, offsetY } = getClickTargetElement(e);
     const target = setPointerCellClickTargetHandler(e, { offsetX, offsetY });
 
-    const depth = valueElement?.closest('[data-depth]')?.getAttribute('data-depth')
-      ?? clickTarget.closest('[data-depth]')?.getAttribute('data-depth');
+    const depth =
+      valueElement?.closest('[data-depth]')?.getAttribute('data-depth') ??
+      clickTarget.closest('[data-depth]')?.getAttribute('data-depth');
 
     // 共享 virtual-target 必须先清空再写入，否则上次 KEY role / 字段路径会残留，导致同词多次点击结果漂移
     this.clearVirtualTargetSegmentAttrs(target);
@@ -767,8 +748,8 @@ export default class UseJsonFormatter {
       value: String(value ?? ''),
       depth: depth ?? '',
       segmentRole: segmentRole ?? '',
-      parsedFromJsonString: !!this.config.options?.parsedFromJsonString
-        || clickTarget.closest('[data-json-string-parsed="true"]') != null,
+      parsedFromJsonString:
+        !!this.config.options?.parsedFromJsonString || clickTarget.closest('[data-json-string-parsed="true"]') != null,
       rootFieldName: this.config.field?.field_name ?? '',
       rootFieldType: this.config.field?.field_type ?? '',
       isVirtualObjNode: !!this.config.field?.is_virtual_obj_node,
@@ -830,7 +811,9 @@ export default class UseJsonFormatter {
     const textNode = document.createElement('span');
     const resultRanges = item.resultRanges?.length
       ? item.resultRanges
-      : (item.isMark ? [{ start: 0, end: text.length }] : undefined);
+      : item.isMark
+        ? [{ start: 0, end: text.length }]
+        : undefined;
 
     if (!(item.isNotParticiple || item.isBlobWord) && item.isCursorText) {
       textNode.classList.add('valid-text');
@@ -846,11 +829,13 @@ export default class UseJsonFormatter {
       }
     }
 
-    textNode.appendChild(highlightPlainTextIntoFragment({
-      text: text.replace(/<mark>/g, '').replace(/<\/mark>/g, ''),
-      resultRanges,
-      pageRanges,
-    }));
+    textNode.appendChild(
+      highlightPlainTextIntoFragment({
+        text: text.replace(/<mark>/g, '').replace(/<\/mark>/g, ''),
+        resultRanges,
+        pageRanges,
+      }),
+    );
     return textNode;
   }
 
@@ -871,8 +856,8 @@ export default class UseJsonFormatter {
    * 不改动已有 .valid-text 的 segment 绑定逻辑。
    */
   private annotateTruncatedBlobSpans(target: HTMLElement, text: string, rootFieldName: string) {
-    const field = this.getField(rootFieldName)
-      ?? (this.config.field?.field_name === rootFieldName ? this.config.field : undefined);
+    const field =
+      this.getField(rootFieldName) ?? (this.config.field?.field_name === rootFieldName ? this.config.field : undefined);
     const fieldType = field?.field_type ?? target.getAttribute('data-field-type') ?? '';
     const segmentRoot = target.querySelector('.segment-content') as HTMLElement | null;
     if (!segmentRoot) return;
@@ -973,16 +958,15 @@ export default class UseJsonFormatter {
       // 仅给可定位到的 JSON KEY/VALUE token 增加分词专用字段路径，
       // data-search-field-name 继续保留根字段，确保划词逻辑不变。
       const looksLikeJson = (value?: string) => !!value && /^\s*[\[{]/.test(value);
-      const lookLikeJson = looksLikeJson(text)
-        || looksLikeJson(this.getSegmentResolveText(text).replace(/<\/?mark>/gim, ''));
+      const lookLikeJson =
+        looksLikeJson(text) || looksLikeJson(this.getSegmentResolveText(text).replace(/<\/?mark>/gim, ''));
       if (text && fieldName && lookLikeJson) {
         const valueElement = root.querySelector('.field-value') as HTMLElement;
         if (valueElement) {
-          const field = this.getField(fieldName)
-            ?? (this.config.field?.field_name === fieldName ? this.config.field : undefined);
-          const isObjectLikeField = field?.field_type === 'object'
-            || field?.field_type === 'nested'
-            || !!field?.is_virtual_obj_node;
+          const field =
+            this.getField(fieldName) ?? (this.config.field?.field_name === fieldName ? this.config.field : undefined);
+          const isObjectLikeField =
+            field?.field_type === 'object' || field?.field_type === 'nested' || !!field?.is_virtual_obj_node;
           // 仅 Text/String 的 JSON 外观打标；Object/Nested 依赖 data-segment-field-name 做叶子 KEY/VALUE 解析
           if (!isObjectLikeField) {
             valueElement.setAttribute('data-json-text-value', 'true');
@@ -996,7 +980,7 @@ export default class UseJsonFormatter {
   addWordSegmentClick(root: HTMLElement) {
     if (!root.hasAttribute('data-word-segment-click')) {
       root.setAttribute('data-word-segment-click', '1');
-      root.addEventListener('click', (e) => {
+      root.addEventListener('click', e => {
         const validTextElement = resolveOuterValidText(e.target as HTMLElement);
         if (validTextElement) {
           this.handleSegmentClick(e, validTextElement.textContent);
@@ -1030,8 +1014,9 @@ export default class UseJsonFormatter {
       // 兼容历史 DOM：曾把大段原文写入 Attr，重建时清掉
       targetElement.removeAttribute('data-word-split-source');
       // getField 已含根字段回退；此处再兜底一次，避免动态 Visible 时 Object 整段不分词
-      const field = this.getField(fieldName)
-        ?? (this.config.field?.field_name === fieldName || !fieldName ? this.config.field : undefined);
+      const field =
+        this.getField(fieldName) ??
+        (this.config.field?.field_name === fieldName || !fieldName ? this.config.field : undefined);
       const vlaues = this.getSplitList(field, text);
 
       targetElement.setAttribute('data-has-word-split', '1');
@@ -1044,9 +1029,8 @@ export default class UseJsonFormatter {
       }
       targetElement.setAttribute('data-field-type', field?.field_type ?? '');
       // 仅 Text/String 解析出的 JSON 外观打标；Object/Nested 绝不打此标
-      const isObjectLikeField = field?.field_type === 'object'
-        || field?.field_type === 'nested'
-        || !!field?.is_virtual_obj_node;
+      const isObjectLikeField =
+        field?.field_type === 'object' || field?.field_type === 'nested' || !!field?.is_virtual_obj_node;
       if (this.config.options?.parsedFromJsonString && !isObjectLikeField) {
         targetElement.setAttribute('data-json-text-value', 'true');
       } else {
@@ -1152,16 +1136,14 @@ export default class UseJsonFormatter {
       field: this.config.field,
       parsedFromJsonString: !!this.config.options?.parsedFromJsonString,
       resolveFieldDisplayName: this.config.options?.resolveFieldDisplayName,
-      resolveMappedFieldPath: (fieldPath: string) => this.clampToMappedFieldPath(
-        fieldPath,
-        this.config.field?.field_name,
-      ),
+      resolveMappedFieldPath: (fieldPath: string) =>
+        this.clampToMappedFieldPath(fieldPath, this.config.field?.field_name),
       segmentRender: (value: string, rootNode: HTMLElement) => {
         this.renderLeafSegment(value, rootNode);
       },
     });
 
-    this.editor.initClickEvent((e) => {
+    this.editor.initClickEvent(e => {
       const actionBtn = (e.target as HTMLElement).closest?.('.btn-json-leaf-more') as HTMLElement | null;
       if (actionBtn) {
         return;
@@ -1201,9 +1183,9 @@ export default class UseJsonFormatter {
     }
 
     const leafFieldName = this.clampToMappedFieldPath(
-      rootNode.getAttribute('data-search-field-name')
-        || rootNode.getAttribute('data-segment-field-name')
-        || this.config.field?.field_name,
+      rootNode.getAttribute('data-search-field-name') ||
+        rootNode.getAttribute('data-segment-field-name') ||
+        this.config.field?.field_name,
       this.config.field?.field_name,
     );
     const leafField = this.getField(leafFieldName) ?? leafFieldName ?? this.config.field;
@@ -1214,8 +1196,8 @@ export default class UseJsonFormatter {
     // JSON String 解析出的所有叶子都绑定外层真实字段用于检索，但外层字段的
     // precomputedSegments 表示整段原始 JSON，不能复用于单个叶子。否则每个
     // ip/name/port 都会重复渲染完整 JSON。叶子应基于自身 value 重新分词。
-    const isParsedFromJsonStringLeaf = !!this.config.options?.parsedFromJsonString
-      || rootNode.closest('[data-json-string-parsed="true"]') !== null;
+    const isParsedFromJsonStringLeaf =
+      !!this.config.options?.parsedFromJsonString || rootNode.closest('[data-json-string-parsed="true"]') !== null;
     const vlaues = this.getSplitList(leafField, renderText, {
       usePrecomputedSegments: !isTruncatable && !isParsedFromJsonStringLeaf,
     });
@@ -1230,11 +1212,8 @@ export default class UseJsonFormatter {
     }
 
     const segmentPageRanges = buildSegmentPageHighlightRanges(vlaues);
-    const { setListItem, removeScrollEvent } = setScrollLoadCell(
-      vlaues,
-      rootNode,
-      segmentContent,
-      (item, index) => this.getChildItem(item, segmentPageRanges[index]),
+    const { setListItem, removeScrollEvent } = setScrollLoadCell(vlaues, rootNode, segmentContent, (item, index) =>
+      this.getChildItem(item, segmentPageRanges[index]),
     );
     removeScrollEvent();
 
@@ -1253,9 +1232,7 @@ export default class UseJsonFormatter {
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'btn-json-leaf-more';
-    btn.textContent = isExpanded
-      ? (window.$t?.('收起') ?? '收起')
-      : (window.$t?.('更多') ?? '更多');
+    btn.textContent = isExpanded ? (window.$t?.('收起') ?? '收起') : (window.$t?.('更多') ?? '更多');
     btn.setAttribute('aria-expanded', isExpanded ? 'true' : 'false');
 
     const stop = (e: Event) => {
@@ -1266,7 +1243,7 @@ export default class UseJsonFormatter {
 
     btn.addEventListener('mousedown', stop);
     btn.addEventListener('mouseup', stop);
-    btn.addEventListener('click', (e) => {
+    btn.addEventListener('click', e => {
       stop(e);
       RetrieveHelper.jsonFormatter.setIsExpandNodeClick(true);
       const nextExpanded = rootNode.getAttribute('data-leaf-expanded') !== '1';
@@ -1320,12 +1297,14 @@ export default class UseJsonFormatter {
   }
 
   setExpand(depth) {
-    this.setValuePromise?.then(() => {
-      if (!this.editor && !this.initEditor(depth)) return;
+    this.setValuePromise
+      ?.then(() => {
+        if (!this.editor && !this.initEditor(depth)) return;
 
-      this.setNodeExpand([depth]);
-      this.localDepth = depth;
-    }).catch(() => undefined);
+        this.setNodeExpand([depth]);
+        this.localDepth = depth;
+      })
+      .catch(() => undefined);
   }
 
   destroy() {

@@ -96,7 +96,7 @@ export const shouldUseNDJSONStream = (url = '', contentType = '') => {
 
 /** 判断解析出的对象是否为普通检索 JSON envelope（非流式 meta/row/done 事件） */
 export const isSearchJsonEnvelope = (value: any) =>
-  !!value
-  && typeof value === 'object'
-  && !('event' in value)
-  && ('result' in value || 'list' in value || 'origin_log_list' in value || 'data' in value);
+  !!value &&
+  typeof value === 'object' &&
+  !('event' in value) &&
+  ('result' in value || 'list' in value || 'origin_log_list' in value || 'data' in value);

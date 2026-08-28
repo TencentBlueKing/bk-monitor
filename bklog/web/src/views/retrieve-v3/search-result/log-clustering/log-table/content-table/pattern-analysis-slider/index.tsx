@@ -532,17 +532,32 @@ export default defineComponent({
     const renderDistributionSkeleton = () => (
       <div class='table-body'>
         {Array.from({ length: 8 }).map((_, i) => (
-          <div class='table-row skeleton-row' key={i}>
+          <div
+            class='table-row skeleton-row'
+            key={i}
+          >
             <div class='col-index'>
-              <div class='skeleton-block skeleton-text-xs' style='width: 16px;' />
+              <div
+                class='skeleton-block skeleton-text-xs'
+                style='width: 16px;'
+              />
             </div>
             <div class='col-value'>
-              <div class='skeleton-block skeleton-text-sm' style={{ width: `${60 + Math.random() * 30}%` }} />
+              <div
+                class='skeleton-block skeleton-text-sm'
+                style={{ width: `${60 + Math.random() * 30}%` }}
+              />
             </div>
             <div class='col-count'>
               <div class='count-bar-wrapper'>
-                <div class='skeleton-block skeleton-text-xs' style='width: 100%; margin-bottom: 6px;' />
-                <div class='skeleton-block skeleton-progress' style='width: 100%;' />
+                <div
+                  class='skeleton-block skeleton-text-xs'
+                  style='width: 100%; margin-bottom: 6px;'
+                />
+                <div
+                  class='skeleton-block skeleton-progress'
+                  style='width: 100%;'
+                />
               </div>
             </div>
           </div>
@@ -557,7 +572,10 @@ export default defineComponent({
           {/* 模拟 Y 轴刻度线 */}
           <div class='skeleton-chart-lines'>
             {Array.from({ length: 5 }).map((_, i) => (
-              <div class='skeleton-chart-line' key={i} />
+              <div
+                class='skeleton-chart-line'
+                key={i}
+              />
             ))}
           </div>
           {/* 模拟曲线区域 */}
@@ -565,8 +583,14 @@ export default defineComponent({
         </div>
         {/* 模拟图例 */}
         <div class='skeleton-legend'>
-          <div class='skeleton-block skeleton-text-xs' style='width: 64px;' />
-          <div class='skeleton-block skeleton-text-xs' style='width: 48px;' />
+          <div
+            class='skeleton-block skeleton-text-xs'
+            style='width: 64px;'
+          />
+          <div
+            class='skeleton-block skeleton-text-xs'
+            style='width: 48px;'
+          />
         </div>
       </div>
     );
@@ -575,9 +599,18 @@ export default defineComponent({
     const renderSamplesSkeleton = () => (
       <div class='sample-list'>
         {Array.from({ length: 3 }).map((_, i) => (
-          <div class='sample-item skeleton-sample-item' key={i}>
-            <div class='skeleton-block skeleton-tag' style='width: 120px; margin-bottom: 6px;' />
-            <div class='skeleton-block skeleton-text-sm' style='width: 90%;' />
+          <div
+            class='sample-item skeleton-sample-item'
+            key={i}
+          >
+            <div
+              class='skeleton-block skeleton-tag'
+              style='width: 120px; margin-bottom: 6px;'
+            />
+            <div
+              class='skeleton-block skeleton-text-sm'
+              style='width: 90%;'
+            />
           </div>
         ))}
       </div>
@@ -696,10 +729,16 @@ export default defineComponent({
               </div>
               <div class='stat-info'>
                 <div class='stat-label'>{t('唯一值数量')}</div>
-                {distributionLoading.value
-                  ? <div class='stat-value'><div class='skeleton-block skeleton-text-lg' style='width: 96px;' /></div>
-                  : <div class='stat-value'>{statsData.value.uniqueValueCount}</div>
-                }
+                {distributionLoading.value ? (
+                  <div class='stat-value'>
+                    <div
+                      class='skeleton-block skeleton-text-lg'
+                      style='width: 96px;'
+                    />
+                  </div>
+                ) : (
+                  <div class='stat-value'>{statsData.value.uniqueValueCount}</div>
+                )}
               </div>
             </div>
             <div class='stat-card'>
@@ -708,10 +747,16 @@ export default defineComponent({
               </div>
               <div class='stat-info'>
                 <div class='stat-label'>{t('总出现次数')}</div>
-                {distributionLoading.value
-                  ? <div class='stat-value'><div class='skeleton-block skeleton-text-lg' style='width: 96px;' /></div>
-                  : <div class='stat-value'>{statsData.value.totalCount}</div>
-                }
+                {distributionLoading.value ? (
+                  <div class='stat-value'>
+                    <div
+                      class='skeleton-block skeleton-text-lg'
+                      style='width: 96px;'
+                    />
+                  </div>
+                ) : (
+                  <div class='stat-value'>{statsData.value.totalCount}</div>
+                )}
               </div>
             </div>
           </div>
@@ -782,65 +827,64 @@ export default defineComponent({
                   </div>
                   <div class='col-count'>{t('出现次数 & 占比')}</div>
                 </div>
-                {distributionLoading.value
-                  ? renderDistributionSkeleton()
-                  : (
-                    <div class='table-body'>
-                      {valueDistributionList.value.length > 0
-                        ? valueDistributionList.value.map((item, index) => (
-                            <div
-                              class={`table-row ${selectedValue.value === item.value ? 'active' : ''}`}
-                              key={index}
-                              onClick={() => handleValueClick(item)}
+                {distributionLoading.value ? (
+                  renderDistributionSkeleton()
+                ) : (
+                  <div class='table-body'>
+                    {valueDistributionList.value.length > 0 ? (
+                      valueDistributionList.value.map((item, index) => (
+                        <div
+                          class={`table-row ${selectedValue.value === item.value ? 'active' : ''}`}
+                          key={index}
+                          onClick={() => handleValueClick(item)}
+                        >
+                          <div class='col-index'>{index + 1}</div>
+                          <div class='col-value'>
+                            <i
+                              class='bklog-icon bklog-jump hover-icon'
+                              onClick={e => {
+                                e.stopPropagation();
+                                handleJumpToRetrieve(item);
+                              }}
+                              v-bk-tooltips={{
+                                placement: 'top',
+                                content: t('前往日志检索'),
+                                delay: 300,
+                              }}
+                            />
+                            <span
+                              class='col-value-text'
+                              v-bk-overflow-tips
                             >
-                              <div class='col-index'>{index + 1}</div>
-                              <div class='col-value'>
-                                <i
-                                  class='bklog-icon bklog-jump hover-icon'
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleJumpToRetrieve(item);
-                                  }}
-                                  v-bk-tooltips={{
-                                    placement: 'top',
-                                    content: t('前往日志检索'),
-                                    delay: 300,
-                                  }}
-                                />
-                                <span
-                                  class='col-value-text'
-                                  v-bk-overflow-tips
-                                >
-                                  {item.value}
-                                </span>
+                              {item.value}
+                            </span>
+                          </div>
+                          <div class='col-count'>
+                            <div class='count-bar-wrapper'>
+                              <div class='count-info'>
+                                <span class='count-num'>{item.count}</span>
+                                <span class='percentage'>{item.percentage.toFixed(2)}%</span>
                               </div>
-                              <div class='col-count'>
-                                <div class='count-bar-wrapper'>
-                                  <div class='count-info'>
-                                    <span class='count-num'>{item.count}</span>
-                                    <span class='percentage'>{item.percentage.toFixed(2)}%</span>
-                                  </div>
-                                  <div class='progress-bar'>
-                                    <div
-                                      class='progress-fill'
-                                      style={{ width: `${item.percentage}%` }}
-                                    />
-                                  </div>
-                                </div>
+                              <div class='progress-bar'>
+                                <div
+                                  class='progress-fill'
+                                  style={{ width: `${item.percentage}%` }}
+                                />
                               </div>
                             </div>
-                        ))
-                        : (
-                            <bk-exception
-                              class='exception-wrap-item exception-part'
-                              scene='part'
-                              style='margin-top: 240px;'
-                              type='empty'
-                            />
-                        )}
-                    </div>
-                  )
-                }
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <bk-exception
+                        class='exception-wrap-item exception-part'
+                        scene='part'
+                        style='margin-top: 240px;'
+                        type='empty'
+                      />
+                    )}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -856,59 +900,57 @@ export default defineComponent({
                     </span>
                   )}
                 </div>
-                {trendLoading.value
-                  ? renderTrendSkeleton()
-                  : (
-                    <div class='trend-chart-wrapper'>
-                      {trendData.value ? (
-                        <div class='trend-chart'>
-                          <div
-                            ref={trendChartRef}
-                            style={{ width: '100%', height: '250px' }}
-                          />
-                        </div>
-                      ) : (
-                        <bk-exception
-                          class='exception-wrap-item exception-part'
-                          scene='part'
-                          style='margin-top: 60px;'
-                          type='empty'
+                {trendLoading.value ? (
+                  renderTrendSkeleton()
+                ) : (
+                  <div class='trend-chart-wrapper'>
+                    {trendData.value ? (
+                      <div class='trend-chart'>
+                        <div
+                          ref={trendChartRef}
+                          style={{ width: '100%', height: '250px' }}
                         />
-                      )}
-                    </div>
-                  )
-                }
+                      </div>
+                    ) : (
+                      <bk-exception
+                        class='exception-wrap-item exception-part'
+                        scene='part'
+                        style='margin-top: 60px;'
+                        type='empty'
+                      />
+                    )}
+                  </div>
+                )}
               </div>
 
               <div class='sample-section'>
                 <div class='section-title'>
                   {selectedValue.value} {t('相关样本')}
                 </div>
-                {samplesLoading.value
-                  ? renderSamplesSkeleton()
-                  : (
-                    <div class='sample-list'>
-                      {sampleList.value.length > 0
-                        ? sampleList.value.map(sample => (
-                            <div
-                              class='sample-item'
-                              key={sample.id}
-                            >
-                              <div class='sample-time'>{sample.dteventtime}</div>
-                              <div class='sample-content'>{sample.log}</div>
-                            </div>
-                        ))
-                        : (
-                            <bk-exception
-                              class='exception-wrap-item exception-part'
-                              scene='part'
-                              style='margin-top: 80px;margin-bottom: 80px'
-                              type='empty'
-                            />
-                        )}
-                    </div>
-                  )
-                }
+                {samplesLoading.value ? (
+                  renderSamplesSkeleton()
+                ) : (
+                  <div class='sample-list'>
+                    {sampleList.value.length > 0 ? (
+                      sampleList.value.map(sample => (
+                        <div
+                          class='sample-item'
+                          key={sample.id}
+                        >
+                          <div class='sample-time'>{sample.dteventtime}</div>
+                          <div class='sample-content'>{sample.log}</div>
+                        </div>
+                      ))
+                    ) : (
+                      <bk-exception
+                        class='exception-wrap-item exception-part'
+                        scene='part'
+                        style='margin-top: 80px;margin-bottom: 80px'
+                        type='empty'
+                      />
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           </div>

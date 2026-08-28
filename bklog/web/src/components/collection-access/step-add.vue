@@ -560,7 +560,10 @@
       return {
         guideUrl: window.COLLECTOR_GUIDE_URL,
         colorRules: false,
-        isItsm: isFeatureToggleOn('collect_itsm', [String(this.$store.state.bkBizId), String(this.$store.state.spaceUid)]),
+        isItsm: isFeatureToggleOn('collect_itsm', [
+          String(this.$store.state.bkBizId),
+          String(this.$store.state.spaceUid),
+        ]),
         showRegDialog: false, // 显示段日志调试弹窗
         linkConfigurationList: [], // 链路配置列表
         formData: {
@@ -788,7 +791,14 @@
         isExtraError: false, // 附加标签是否有出错
         uiconfigToYamlData: {}, // 切换成yaml时当前保存的ui配置
         // ip选择器面板
-        ipSelectorPanelList: ['staticTopo', 'dynamicTopo', 'dynamicGroup', 'serviceTemplate', 'setTemplate', 'manualInput'],
+        ipSelectorPanelList: [
+          'staticTopo',
+          'dynamicTopo',
+          'dynamicGroup',
+          'serviceTemplate',
+          'setTemplate',
+          'manualInput',
+        ],
         // 编辑态ip选择器初始值
         ipSelectorOriginalValue: null,
         enLabelWidth: 180,
@@ -910,7 +920,7 @@
     },
     created() {
       this.isClone = this.$route.query?.type === 'clone';
-      this.$store.commit('updateState', { 'showRouterLeaveTip': false});
+      this.$store.commit('updateState', { showRouterLeaveTip: false });
       this.configBaseObj = structuredClone(this.formData.configs[0]); // 生成配置项的基础对象
       this.getLinkData();
       // 克隆与编辑均进行数据回填

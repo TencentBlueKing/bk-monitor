@@ -39,7 +39,7 @@
       type: Array,
     },
   });
-  const emit = defineEmits(['refresh', 'save-current-active-favorite','instanceShow']);
+  const emit = defineEmits(['refresh', 'save-current-active-favorite', 'instanceShow']);
   const { $t } = useLocale();
   const store = useStore();
 
@@ -183,7 +183,11 @@
   // 确认新增组事件
   const handleCreateGroup = () => {
     checkInputFormRef.value.validate().then(async () => {
-      const data = { name: verifyData.value.groupName, space_uid: spaceUid.value, source_type: store.getters.isSceneMode ? 'scene' : 'index_set' };
+      const data = {
+        name: verifyData.value.groupName,
+        space_uid: spaceUid.value,
+        source_type: store.getters.isSceneMode ? 'scene' : 'index_set',
+      };
       try {
         const res = await $http.request('favorite/createGroup', {
           data,
@@ -219,7 +223,7 @@
       }),
   );
 
-  const formatValueStr = (value) => {
+  const formatValueStr = value => {
     if (Array.isArray(value)) {
       return `[${value.map(v => `'${v}'`).join(',')}]`;
     }
@@ -262,16 +266,16 @@
   const sceneFilterString = computed(() => {
     if (!store.getters.isSceneMode) return '';
 
-    const {
-      table_id_conditions: tableIdConditions, scene_filter_values: sceneFilterValues,
-    } = store.getters.retrieveParams;
+    const { table_id_conditions: tableIdConditions, scene_filter_values: sceneFilterValues } =
+      store.getters.retrieveParams;
 
     const staticParts = (tableIdConditions?.[0] ?? [])
       .filter(item => item.field_name !== 'scene')
       .map(item => `${item.field_name} ${item.op} ${item.value.join(',')}`);
 
-    const freeInputParts = (sceneFilterValues ?? [])
-      .map(item => `(${item.field} ${item.operator} [${item.value.join(',')}])`);
+    const freeInputParts = (sceneFilterValues ?? []).map(
+      item => `(${item.field} ${item.operator} [${item.value.join(',')}])`,
+    );
 
     const segments = [];
     if (staticParts.length > 0) {
@@ -292,15 +296,11 @@
     }
 
     if (['sql'].includes(props.searchMode)) {
-    if (['sql'].includes(props.searchMode)) {
-      const sql = commonFilterAdditionString.value
-        ? `${props.sql} ${commonFilterAdditionString.value}`
-        : props.sql;
+      if (['sql'].includes(props.searchMode)) {
+        const sql = commonFilterAdditionString.value ? `${props.sql} ${commonFilterAdditionString.value}` : props.sql;
 
-      return scenePrefix
-        ? `${scenePrefix} AND ${sql}`
-        : sql;
-}
+        return scenePrefix ? `${scenePrefix} AND ${sql}` : sql;
+      }
     }
 
     return scenePrefix ? `${scenePrefix} AND ${additionString.value}` : additionString.value;
@@ -317,10 +317,7 @@
           ...(props.extendParams ?? {}),
         }
       : {
-          addition: [
-            ...formatAddition.value.filter(v => v.field !== '_ip-select_'),
-            ...props.commonFilterAddition,
-          ],
+          addition: [...formatAddition.value.filter(v => v.field !== '_ip-select_'), ...props.commonFilterAddition],
           keyword: '*',
         };
 
@@ -402,7 +399,7 @@
     favoriteData.value.name = '';
     favoriteData.value.group_id = undefined;
     verifyData.value.groupName = '';
-    emit('instanceShow',false);
+    emit('instanceShow', false);
     nextTick(() => {
       popoverContentRef.value?.clearError?.();
     });
@@ -417,7 +414,7 @@
   };
   // 历史记录弹窗按钮打开逻辑
   const handleHistoryCollection = () => {
-    emit('instanceShow',true);
+    emit('instanceShow', true);
     popoverShow.value ? hidePopover() : showPopover();
   };
   const showPopover = () => {
@@ -445,7 +442,7 @@
   };
   const tippyOptions = {
     theme: 'light',
-    placement: props.activeFavorite === 'history'? 'right' : 'bottom-end',
+    placement: props.activeFavorite === 'history' ? 'right' : 'bottom-end',
     offset: '22',
     interactive: true,
     trigger: 'manual',

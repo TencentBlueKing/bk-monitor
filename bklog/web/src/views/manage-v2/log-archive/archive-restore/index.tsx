@@ -147,7 +147,11 @@ export default defineComponent({
         const { formatResponseListTimeZoneString } = useUtils();
         restoreIds.value = [];
         pagination.count = data.total;
-        const formattedList = formatResponseListTimeZoneString(data.list || [], {}, ['expired_time', 'created_at', 'updated_at']);
+        const formattedList = formatResponseListTimeZoneString(data.list || [], {}, [
+          'expired_time',
+          'created_at',
+          'updated_at',
+        ]);
         for (const row of formattedList) {
           row.status = '';
           row.status_name = '';
@@ -379,7 +383,6 @@ export default defineComponent({
               onChange={val => (keyword.value = val)}
               onEnter={search}
               placeholder={t('搜索 归档项')}
-
             />
           </div>
         </section>

@@ -398,17 +398,11 @@
       handleSubmitClusterChange() {
         this.isHandle = true;
         const { index_set_id, bk_biz_id } = this.indexSetItem;
-        const {
-          max_dist_list,
-          delimeter,
-          max_log_length,
-          is_case_sensitive,
-          clustering_fields,
-          filter_rules,
-        } = this.formData;
+        const { max_dist_list, delimeter, max_log_length, is_case_sensitive, clustering_fields, filter_rules } =
+          this.formData;
         const paramsData = {
           max_dist_list,
-          predefined_varibles: this.$refs.ruleTableRef.ruleArrToBase64(), 
+          predefined_varibles: this.$refs.ruleTableRef.ruleArrToBase64(),
           delimeter,
           max_log_length,
           is_case_sensitive,
@@ -421,8 +415,8 @@
               op: item.op,
               value: item.value,
             })),
-          regex_rule_type: this.$refs.ruleTableRef.getRuleType(), 
-          regex_template_id: this.$refs.ruleTableRef.getTemplateID(), 
+          regex_rule_type: this.$refs.ruleTableRef.getRuleType(),
+          regex_template_id: this.$refs.ruleTableRef.getTemplateID(),
         };
         this.$http
           .request('retrieve/updateClusteringConfig', {

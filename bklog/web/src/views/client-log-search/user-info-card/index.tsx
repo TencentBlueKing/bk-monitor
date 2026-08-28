@@ -13,38 +13,57 @@ interface DetailItemConfig {
   field?: keyof LogItem;
   /** 自定义渲染右侧内容，优先级高于 field */
   // eslint-disable-next-line no-unused-vars
-  render?: (userInfo: LogItem | null, reportStats: UserReportStats | null, taskList: LogItem[], timezone: string) => JSX.Element;
+  render?: (
+    userInfo: LogItem | null,
+    reportStats: UserReportStats | null,
+    taskList: LogItem[],
+    timezone: string,
+  ) => JSX.Element;
 }
 
 /** 详细信息项配置 */
 const detailConfig: DetailItemConfig[] = [
   { icon: 'bklog-client-log', label: '设备型号', field: 'model' },
   { icon: 'bklog-version', label: '当前版本', field: 'sdk_version' },
-  { icon: 'bklog-shijian', label: '最近活跃', render: (_userInfo, _reportStats, taskList, timezone) => {
-    const time = taskList.find((item) => {
-      const t = item.source === 'task' ? item.processed_at : item.report_time;
-      return !!t;
-    });
-    const activeTime = time
-      ? formatTimeZoneString(time.source === 'task' ? time.processed_at! : time.report_time!, timezone)
-      : '';
-    return <span class='value'>{activeTime || '--'}</span>;
-  } },
+  {
+    icon: 'bklog-shijian',
+    label: '最近活跃',
+    render: (_userInfo, _reportStats, taskList, timezone) => {
+      const time = taskList.find(item => {
+        const t = item.source === 'task' ? item.processed_at : item.report_time;
+        return !!t;
+      });
+      const activeTime = time
+        ? formatTimeZoneString(time.source === 'task' ? time.processed_at! : time.report_time!, timezone)
+        : '';
+      return <span class='value'>{activeTime || '--'}</span>;
+    },
+  },
   { icon: 'bklog-os', label: '操作系统', field: 'os_version' },
   {
     icon: 'bklog-business',
     label: '累计上报',
     render: (_userInfo, reportStats) => (
       <span class='value'>
-        {reportStats
-          ? [
-              <span><span class='count'>{reportStats.total_count}</span> {window.$t('次')}</span>,
-              <span>（{window.$t('检索时间范围下')}
-                <span class='count' style={{ margin: '0 2px' }}>{reportStats.range_count}</span>{window.$t('次')}）
-              </span>,
+        {reportStats ? (
+          [
+            <span>
+              <span class='count'>{reportStats.total_count}</span> {window.$t('次')}
+            </span>,
+            <span>
+              （{window.$t('检索时间范围下')}
+              <span
+                class='count'
+                style={{ margin: '0 2px' }}
+              >
+                {reportStats.range_count}
+              </span>
+              {window.$t('次')}）
+            </span>,
           ]
-          : <span class='count'>--</span>
-        }
+        ) : (
+          <span class='count'>--</span>
+        )}
       </span>
     ),
   },
@@ -90,9 +109,11 @@ export default defineComponent({
       <div class='detail-item'>
         <i class={`bklog-icon ${item.icon}`}></i>
         <span class='label'>{window.$t(item.label)}：</span>
-        {item.render
-          ? item.render(userInfo, reportStats, taskList, props.timezone)
-          : <span class='value'>{(userInfo?.[item.field!] ?? '') || '--'}</span>}
+        {item.render ? (
+          item.render(userInfo, reportStats, taskList, props.timezone)
+        ) : (
+          <span class='value'>{(userInfo?.[item.field!] ?? '') || '--'}</span>
+        )}
       </div>
     );
 
@@ -110,16 +131,19 @@ export default defineComponent({
 
           {/* 用户基本信息 */}
           <div class='user-basic-info'>
-            <div class='user-name'>{window.$t('用户')} {userInfo?.openid || ''}</div>
-            <div class='device-id overflow-hidden-text' v-bk-overflow-tips>
+            <div class='user-name'>
+              {window.$t('用户')} {userInfo?.openid || ''}
+            </div>
+            <div
+              class='device-id overflow-hidden-text'
+              v-bk-overflow-tips
+            >
               {userInfo?.xid || ''}
             </div>
           </div>
 
           {/* 详细信息 */}
-          <div class='detail-info'>
-            {detailConfig.map(item => renderDetailItem(item, userInfo, reportStats, list))}
-          </div>
+          <div class='detail-info'>{detailConfig.map(item => renderDetailItem(item, userInfo, reportStats, list))}</div>
         </div>
       );
     };

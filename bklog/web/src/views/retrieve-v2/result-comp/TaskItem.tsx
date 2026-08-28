@@ -34,13 +34,13 @@ export default defineComponent({
   name: 'TaskItem',
   components: {
     bkProgress,
-    bkLink
+    bkLink,
   },
   props: {
     item: {
       type: Object,
-      required: true
-    }
+      required: true,
+    },
   },
   emits: ['retry-export'],
   setup(props, { emit }) {
@@ -84,12 +84,12 @@ export default defineComponent({
     const renderStatusContent = () => {
       if (isFailed()) {
         return (
-          <div class="status-content failed">
-            <span class="status-dot failed-dot"></span>
-            <span class="status-text">{t('失败')}</span>
+          <div class='status-content failed'>
+            <span class='status-dot failed-dot'></span>
+            <span class='status-text'>{t('失败')}</span>
             <span
-              class="detail-link"
-              onClick={(e) => {
+              class='detail-link'
+              onClick={e => {
                 e.stopPropagation();
                 emit('retry-export', props.item);
               }}
@@ -101,18 +101,19 @@ export default defineComponent({
       }
       if (isNotStarted()) {
         return (
-          <div class="status-content not-started">
-            <span class="status-dot pending-dot"></span>
-            <span class="status-text">{t('未启动')}</span>
+          <div class='status-content not-started'>
+            <span class='status-dot pending-dot'></span>
+            <span class='status-text'>{t('未启动')}</span>
           </div>
         );
       }
       if (isDownloading()) {
         // 下载中状态：显示百分比和数量详情
         return (
-          <div class="status-content downloading">
-            <span class="progress-text">
-              {props.item.progressPercent} % ({formatNumber(props.item.exported_count)} / {formatNumber(props.item.export_total_count)})
+          <div class='status-content downloading'>
+            <span class='progress-text'>
+              {props.item.progressPercent} % ({formatNumber(props.item.exported_count)} /{' '}
+              {formatNumber(props.item.export_total_count)})
             </span>
           </div>
         );
@@ -121,17 +122,15 @@ export default defineComponent({
     };
 
     return () => (
-      <div class="task-item-wrapper">
+      <div class='task-item-wrapper'>
         {/* 头部区域：ID + 状态信息 */}
-        <div class="task-header">
-          <div class="task-id">#{props.item.id}</div>
-          <div class="task-status-area">
-            {renderStatusContent()}
-          </div>
+        <div class='task-header'>
+          <div class='task-id'>#{props.item.id}</div>
+          <div class='task-status-area'>{renderStatusContent()}</div>
         </div>
-        
+
         {/* 进度条区域 */}
-        <div class="task-progress-area">
+        <div class='task-progress-area'>
           <bk-progress
             percent={(props.item.progressPercent ?? 0) / 100}
             theme={progressTheme()}
@@ -141,5 +140,5 @@ export default defineComponent({
         </div>
       </div>
     );
-  }
+  },
 });

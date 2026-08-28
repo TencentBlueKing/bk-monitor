@@ -442,7 +442,7 @@ export default defineComponent({
     // ==================== Watch 监听 ====================
     watch(
       () => props.bcsClusterId,
-      (newVal) => {
+      newVal => {
         if (newVal && !props.isNode) {
           nextTick(() => {
             if (isShowAddScopeButton.value && rootRef.value) {
@@ -452,8 +452,6 @@ export default defineComponent({
         }
       },
     );
-
-
 
     /**
      * 监听节点模式变化

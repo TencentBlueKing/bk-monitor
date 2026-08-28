@@ -24,62 +24,62 @@
 * IN THE SOFTWARE.
 -->
 <script setup>
-import { ref, computed } from "vue";
-import useLocale from "@/hooks/use-locale";
-const { $t } = useLocale();
-const isShow = ref(false);
-const keyword = ref("");
-const formData = ref({
-  name: "",
-  aggregate: null,
-});
-const disabledTips = ref(false);
-const fields = ref([]);
-const aggregationOptions = ref([]);
-const namesMap = ref({
-  names: new Map(),
-});
-const props = defineProps({
-  isAdd: Boolean,
-  disabledTips: {
-    type: String,
-    default: "",
-  },
-  fields: {
-    type: Array,
-  },
-  namesMap: {
-    type: Object,
-  },
-  preferRawData: Boolean,
-});
-const filteredFields = computed(() => {
-  if (!keyword.value) {
-    return fields.value;
-  }
-  return fields.value.filter(
-    ({ name, display_name }) =>
-      name?.toLowerCase().includes(keyword.value.toLowerCase()) ||
-      display_name?.toLowerCase().includes(keyword.value.toLowerCase())
-  );
-});
+  import { ref, computed } from 'vue';
+  import useLocale from '@/hooks/use-locale';
+  const { $t } = useLocale();
+  const isShow = ref(false);
+  const keyword = ref('');
+  const formData = ref({
+    name: '',
+    aggregate: null,
+  });
+  const disabledTips = ref(false);
+  const fields = ref([]);
+  const aggregationOptions = ref([]);
+  const namesMap = ref({
+    names: new Map(),
+  });
+  const props = defineProps({
+    isAdd: Boolean,
+    disabledTips: {
+      type: String,
+      default: '',
+    },
+    fields: {
+      type: Array,
+    },
+    namesMap: {
+      type: Object,
+    },
+    preferRawData: Boolean,
+  });
+  const filteredFields = computed(() => {
+    if (!keyword.value) {
+      return fields.value;
+    }
+    return fields.value.filter(
+      ({ name, display_name }) =>
+        name?.toLowerCase().includes(keyword.value.toLowerCase()) ||
+        display_name?.toLowerCase().includes(keyword.value.toLowerCase()),
+    );
+  });
 
-const handleAfterHidden = () => {};
+  const handleAfterHidden = () => {};
 
-const changeColumn = (row) => {};
+  const changeColumn = row => {};
 
-const ensure = () => {};
+  const ensure = () => {};
 
-const cancel = () => {};
+  const cancel = () => {};
 
-const isDisabled = (row) => {
-  const exitItem = namesMap.value.names.get(row.name);
-  return exitItem && aggregationOptions.value.every((item) => exitItem.has(item.id));
-};
+  const isDisabled = row => {
+    const exitItem = namesMap.value.names.get(row.name);
+    return exitItem && aggregationOptions.value.every(item => exitItem.has(item.id));
+  };
 
-const isActive = (row) => {
-  return formData.value.name === row.name;
-};
+  const isActive = row => {
+    return formData.value.name === row.name;
+  };
 </script>
 <template>
   <bk-popover
@@ -137,17 +137,15 @@ const isActive = (row) => {
                   />
                 </template>
                 <template v-else>
-                  <div
-                    class="full-height align-items-center justify-content-center flex-column text-gray"
-                  >
-                    {{ keyword ? $t("无匹配数据") : $t("暂无数据") }}
+                  <div class="full-height align-items-center justify-content-center flex-column text-gray">
+                    {{ keyword ? $t('无匹配数据') : $t('暂无数据') }}
                   </div>
                 </template>
               </div>
             </div>
           </div>
           <div class="bv-metric-radio-box">
-            <div class="text-title mb-small">{{ $t("聚合算法") }}</div>
+            <div class="text-title mb-small">{{ $t('聚合算法') }}</div>
             <!-- <Radio.Group v-model="formData.aggregate">
               <div class="flex-1 overflow-auto">
                 <div
@@ -171,10 +169,13 @@ const isActive = (row) => {
             theme="primary"
             class="mr-normal"
           >
-            {{ $t("确定") }}
+            {{ $t('确定') }}
           </Button>
-          <Button @click="cancel" size="small">
-            {{ $t("取消") }}
+          <Button
+            @click="cancel"
+            size="small"
+          >
+            {{ $t('取消') }}
           </Button>
         </div>
       </div>
@@ -183,58 +184,58 @@ const isActive = (row) => {
 </template>
 
 <style lang="scss" scoped>
-.bv-metric {
-  &-select {
-    z-index: 1000;
-  }
+  .bv-metric {
+    &-select {
+      z-index: 1000;
+    }
 
-  &-footer {
-    height: 42px;
-    padding: 0 16px;
-    background: #fafbfd;
-    box-shadow: inset 0 1px 0 0 #0000001f;
-  }
+    &-footer {
+      height: 42px;
+      padding: 0 16px;
+      background: #fafbfd;
+      box-shadow: inset 0 1px 0 0 #0000001f;
+    }
 
-  &-field {
-    padding: 0 12px;
-    line-height: 32px;
+    &-field {
+      padding: 0 12px;
+      line-height: 32px;
 
-    &:hover {
+      &:hover {
+        background: #f5f7fa;
+      }
+
+      &-disabled {
+        cursor: not-allowed;
+
+        &,
+        .text-gray,
+        .bkvision-icon {
+          color: #c4c6cc;
+        }
+      }
+
+      &-active {
+        color: #3a84ff;
+        background: #e1ecff;
+
+        .text-gray {
+          color: #699df4;
+        }
+
+        &:hover {
+          background: #ccd7e5;
+        }
+      }
+    }
+
+    &-radio-box {
+      width: 126px;
+      padding: 8px 16px;
       background: #f5f7fa;
     }
 
-    &-disabled {
-      cursor: not-allowed;
-
-      &,
-      .text-gray,
-      .bkvision-icon {
-        color: #c4c6cc;
-      }
-    }
-
-    &-active {
-      color: #3a84ff;
-      background: #e1ecff;
-
-      .text-gray {
-        color: #699df4;
-      }
-
-      &:hover {
-        background: #ccd7e5;
-      }
+    &-radio-title {
+      padding: 8px 0;
     }
   }
-
-  &-radio-box {
-    width: 126px;
-    padding: 8px 16px;
-    background: #f5f7fa;
-  }
-
-  &-radio-title {
-    padding: 8px 0;
-  }
-}
 </style>

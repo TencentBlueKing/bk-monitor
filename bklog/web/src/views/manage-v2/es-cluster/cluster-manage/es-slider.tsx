@@ -220,8 +220,8 @@ export default defineComponent({
       if (isDoris.value) {
         const { visible_type: visibleType } = formData.value.visible_config;
         return (
-          (visibleType === 'multi_biz' && !visibleBkBiz.value.length)
-          || (visibleType === 'biz_attr' && !bkBizLabelsList.value.length)
+          (visibleType === 'multi_biz' && !visibleBkBiz.value.length) ||
+          (visibleType === 'biz_attr' && !bkBizLabelsList.value.length)
         );
       }
       return connectResult.value !== 'success' || invalidHotSetting.value || isRulesCheckSubmit.value;
@@ -284,9 +284,7 @@ export default defineComponent({
           await getBizPropertyId();
         }
         const visibleConfig = clusterData.cluster_config.custom_option?.visible_config || {};
-        bkBizLabelsList.value = Object.entries(
-          visibleConfig.bk_biz_labels || {},
-        ).reduce((pre: any[], cur) => {
+        bkBizLabelsList.value = Object.entries(visibleConfig.bk_biz_labels || {}).reduce((pre: any[], cur) => {
           const propertyName = bizParentList.value.find(item => item.id === cur[0]);
           const obj = {
             name: propertyName?.name || cur[0], // 如果找不到名称，使用 ID 作为名称
@@ -755,7 +753,7 @@ export default defineComponent({
     // 监听：侧滑显示/隐藏
     watch(
       () => props.showSlider,
-      async (val) => {
+      async val => {
         if (val) {
           // 先获取业务属性列表，确保在编辑模式下回填数据时 bizParentList 已经有值
           await getBizPropertyId();
@@ -851,7 +849,7 @@ export default defineComponent({
     // 监听：可见范围类型切换
     watch(
       () => formData.value.visible_config.visible_type,
-      (val) => {
+      val => {
         if (val !== 'multi_biz') {
           visibleList.value = [];
         } else {
@@ -868,7 +866,7 @@ export default defineComponent({
     // 监听：多业务可见列表变化时，同步 ID 列表
     watch(
       () => visibleList.value,
-      (val) => {
+      val => {
         visibleBkBiz.value = val.map((item: any) => item.id);
       },
       { deep: true },
@@ -906,7 +904,7 @@ export default defineComponent({
           enable-virtual-scroll
           multiple
           searchable
-          onChange={(v) => {
+          onChange={v => {
             visibleBkBiz.value = v;
           }}
         ></bk-select>
@@ -1375,13 +1373,13 @@ export default defineComponent({
                             size='large'
                             theme='primary'
                             value={formData.value.enable_hot_warm}
-                            onChange={(val) => {
+                            onChange={val => {
                               formData.value.enable_hot_warm = val;
                               handleChangeHotWarm(val);
                             }}
                           />
-                          {isDisableHotSetting.value
-                            && !connectLoading.value && [
+                          {isDisableHotSetting.value &&
+                            !connectLoading.value && [
                               <span
                                 key='icon-info'
                                 class='bk-icon icon-info'
@@ -1400,7 +1398,7 @@ export default defineComponent({
                               >
                                 {t('查看具体的配置方法')}
                               </a>,
-                          ]}
+                            ]}
                         </div>
                       </bk-form-item>
 

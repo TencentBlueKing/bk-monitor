@@ -88,8 +88,7 @@ export const normalizeSpaceListItem = (item: Record<string, any> = {}): SpaceLis
     space_name: spaceName,
     space_type_id: spaceTypeId,
     space_type_name: item.space_type_name,
-    permission:
-      item.permission && typeof item.permission === 'object' ? { ...item.permission } : item.permission,
+    permission: item.permission && typeof item.permission === 'object' ? { ...item.permission } : item.permission,
     external_permission: Array.isArray(item.external_permission) ? [...item.external_permission] : [],
     is_use: !!item.is_use,
     space_full_code_name: `${spaceName}(#${item.space_id ?? ''})`,

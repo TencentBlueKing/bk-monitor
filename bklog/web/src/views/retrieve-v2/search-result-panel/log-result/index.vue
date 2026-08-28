@@ -26,7 +26,7 @@
 
 <template>
   <div class="original-log-panel">
-    <div :class="['original-log-panel-tools', {'trace-log-panel': isMonitorTrace}]">
+    <div :class="['original-log-panel-tools', { 'trace-log-panel': isMonitorTrace }]">
       <div class="left-operate">
         <div class="bk-button-group">
           <span
@@ -112,481 +112,479 @@
 </template>
 
 <script>
-import { debounce } from 'lodash-es';
-import { mapGetters, mapState } from 'vuex';
-// MONITOR_APP !== 'trace'
-import ExportLog from '../../result-comp/export-log.vue';
-// #else
-// #code const ExportLog = () => null;
-// #endif
-import MatchMode from '@/global/match-mode';
-import { BK_LOG_STORAGE } from '@/store/store.type';
-import BkLogPopover from '../../../../components/bklog-popover/index';
-import RetrieveHelper, { RetrieveEvent } from '../../../retrieve-helper';
-import ResultStorage from '../../components/result-storage/index';
-import FieldsSetting from '../../result-comp/update/fields-setting';
-import bklogTagChoice from '../../search-bar/components/bklog-tag-choice';
-import TableLog from './log-result.vue';
+  import { debounce } from 'lodash-es';
+  import { mapGetters, mapState } from 'vuex';
+  // MONITOR_APP !== 'trace'
+  import ExportLog from '../../result-comp/export-log.vue';
+  // #else
+  // #code const ExportLog = () => null;
+  // #endif
+  import MatchMode from '@/global/match-mode';
+  import { BK_LOG_STORAGE } from '@/store/store.type';
+  import BkLogPopover from '../../../../components/bklog-popover/index';
+  import RetrieveHelper, { RetrieveEvent } from '../../../retrieve-helper';
+  import ResultStorage from '../../components/result-storage/index';
+  import FieldsSetting from '../../result-comp/update/fields-setting';
+  import bklogTagChoice from '../../search-bar/components/bklog-tag-choice';
+  import TableLog from './log-result.vue';
 
-
-export default {
-  components: {
-    TableLog,
-    FieldsSetting,
-    ExportLog,
-    bklogTagChoice,
-    ResultStorage,
-    BkLogPopover,
-    MatchMode,
-  },
-  inheritAttrs: false,
-  props: {
-    retrieveParams: {
-      type: Object,
-      required: true,
+  export default {
+    components: {
+      TableLog,
+      FieldsSetting,
+      ExportLog,
+      bklogTagChoice,
+      ResultStorage,
+      BkLogPopover,
+      MatchMode,
     },
-    totalCount: {
-      type: Number,
-      default: 0,
-    },
-    queueStatus: {
-      type: Boolean,
-      default: true,
-    },
-  },
-  data() {
-    return {
-      highlightValue: [],
-      contentType: 'table',
-      showFieldsSetting: false,
-      showAsyncExport: false, // 异步下载弹窗
-      exportLoading: false,
-      isInitActiveTab: false,
-      isMonitorTrace: window.__IS_MONITOR_TRACE__,
-      isMonitorApm: window.__IS_MONITOR_APM__,
-      highlightWidth: 200,
-      matchMode: {
-        caseSensitive: false,
-        regexMode: false,
-        wordMatch: false,
+    inheritAttrs: false,
+    props: {
+      retrieveParams: {
+        type: Object,
+        required: true,
       },
-      tippyOptions: {
-        maxWidth: 1200,
-        arrow: false,
-        hideOnClick: false,
-        appendTo: document.body,
-        popperOptions: {
-          strategy: 'fixed',
-        },
-        zIndex: window.__bk_zIndex_manager?.nextZIndex?.() ?? 2500,
-        onShow: () => {
-          this.showFieldsSetting = true;
-        },
+      totalCount: {
+        type: Number,
+        default: 0,
       },
-      logResultResizeObserver: null,
-      logResultResizeObserverFn: null,
-      highlightTriggerHandler: null,
-    };
-  },
-  computed: {
-    showOriginalLog() {
-      return this.contentType === 'original';
+      queueStatus: {
+        type: Boolean,
+        default: true,
+      },
     },
-    asyncExportUsable() {
-      return this.$attrs['async-export-usable'];
-    },
-    asyncExportUsableReason() {
-      return this.$attrs['async-export-usable-reason'];
-    },
-    filedSettingConfigID() {
-      // 当前索引集的显示字段ID
-      return this.$store.state.retrieve.filedSettingConfigID;
-    },
-    ...mapGetters({
-      unionIndexList: 'unionIndexList',
-      isUnionSearch: 'isUnionSearch',
-    }),
-    ...mapState({
-      indexSetList: state => state.retrieve?.indexSetList ?? [],
-      indexSetQueryResult: 'indexSetQueryResult',
-      indexFieldInfo: 'indexFieldInfo',
-    }),
-
-    routeIndexSet() {
-      return this.$route.params.indexId;
-    },
-
-
-    fieldAliasMap() {
-      return this.$store.getters.fieldAliasMap;
-    },
-    showFieldsConfigPopoverNum() {
-      return this.$store.state.showFieldsConfigPopoverNum;
-    },
-    jsonFormat() {
-      return this.$store.state.storage[BK_LOG_STORAGE.TABLE_JSON_FORMAT];
-    },
-    highlightStyle() {
+    data() {
       return {
-        width: `${this.highlightWidth}px`,
+        highlightValue: [],
+        contentType: 'table',
+        showFieldsSetting: false,
+        showAsyncExport: false, // 异步下载弹窗
+        exportLoading: false,
+        isInitActiveTab: false,
+        isMonitorTrace: window.__IS_MONITOR_TRACE__,
+        isMonitorApm: window.__IS_MONITOR_APM__,
+        highlightWidth: 200,
+        matchMode: {
+          caseSensitive: false,
+          regexMode: false,
+          wordMatch: false,
+        },
+        tippyOptions: {
+          maxWidth: 1200,
+          arrow: false,
+          hideOnClick: false,
+          appendTo: document.body,
+          popperOptions: {
+            strategy: 'fixed',
+          },
+          zIndex: window.__bk_zIndex_manager?.nextZIndex?.() ?? 2500,
+          onShow: () => {
+            this.showFieldsSetting = true;
+          },
+        },
+        logResultResizeObserver: null,
+        logResultResizeObserverFn: null,
+        highlightTriggerHandler: null,
       };
     },
-  },
-  watch: {
-    showFieldsConfigPopoverNum() {
-      this.handleAddNewConfig();
+    computed: {
+      showOriginalLog() {
+        return this.contentType === 'original';
+      },
+      asyncExportUsable() {
+        return this.$attrs['async-export-usable'];
+      },
+      asyncExportUsableReason() {
+        return this.$attrs['async-export-usable-reason'];
+      },
+      filedSettingConfigID() {
+        // 当前索引集的显示字段ID
+        return this.$store.state.retrieve.filedSettingConfigID;
+      },
+      ...mapGetters({
+        unionIndexList: 'unionIndexList',
+        isUnionSearch: 'isUnionSearch',
+      }),
+      ...mapState({
+        indexSetList: state => state.retrieve?.indexSetList ?? [],
+        indexSetQueryResult: 'indexSetQueryResult',
+        indexFieldInfo: 'indexFieldInfo',
+      }),
+
+      routeIndexSet() {
+        return this.$route.params.indexId;
+      },
+
+      fieldAliasMap() {
+        return this.$store.getters.fieldAliasMap;
+      },
+      showFieldsConfigPopoverNum() {
+        return this.$store.state.showFieldsConfigPopoverNum;
+      },
+      jsonFormat() {
+        return this.$store.state.storage[BK_LOG_STORAGE.TABLE_JSON_FORMAT];
+      },
+      highlightStyle() {
+        return {
+          width: `${this.highlightWidth}px`,
+        };
+      },
     },
-    jsonFormat() {
-      this.$nextTick(this.calcHighlightWidth);
+    watch: {
+      showFieldsConfigPopoverNum() {
+        this.handleAddNewConfig();
+      },
+      jsonFormat() {
+        this.$nextTick(this.calcHighlightWidth);
+      },
     },
-  },
-  mounted() {
-    this.contentType = localStorage.getItem('SEARCH_STORAGE_ACTIVE_TAB') || 'table';
-    RetrieveHelper.setMarkInstance();
+    mounted() {
+      this.contentType = localStorage.getItem('SEARCH_STORAGE_ACTIVE_TAB') || 'table';
+      RetrieveHelper.setMarkInstance();
 
-    this.highlightTriggerHandler = ({ event, value, values }) => {
-      if (event !== 'mark') {
-        return;
-      }
+      this.highlightTriggerHandler = ({ event, value, values }) => {
+        if (event !== 'mark') {
+          return;
+        }
 
-      const nextValues = (Array.isArray(values) ? values : value != null ? [value] : [])
-        .map(item => String(item ?? '').trim())
-        .filter(item => item.length > 0 && !this.highlightValue.includes(item));
+        const nextValues = (Array.isArray(values) ? values : value != null ? [value] : [])
+          .map(item => String(item ?? '').trim())
+          .filter(item => item.length > 0 && !this.highlightValue.includes(item));
 
-      if (!nextValues.length) {
-        return;
-      }
+        if (!nextValues.length) {
+          return;
+        }
 
-      this.highlightValue.push(...nextValues);
-      RetrieveHelper.highLightKeywords(this.highlightValue.filter(w => w.length > 0));
-    };
-    RetrieveHelper.on(RetrieveEvent.HILIGHT_TRIGGER, this.highlightTriggerHandler);
-
-    if (document.body.offsetHeight < 900) {
-      this.$refs.refFieldsSettingPopper?.setProps({
-        placement: 'auto',
-        arrow: true,
-      });
-    }
-
-    this.logResultResizeObserverFn = debounce(() => {
-      this.calcHighlightWidth();
-    }, 100);
-    this.logResultResizeObserver = new ResizeObserver(this.logResultResizeObserverFn);
-    this.logResultResizeObserver.observe(this.$el);
-  },
-  unmounted() {
-    if (this.highlightTriggerHandler) {
-      RetrieveHelper.off(RetrieveEvent.HILIGHT_TRIGGER, this.highlightTriggerHandler);
-      this.highlightTriggerHandler = null;
-    }
-    this.logResultResizeObserverFn?.cancel?.();
-    this.logResultResizeObserver?.unobserve(this.$el);
-    this.logResultResizeObserver?.disconnect();
-    this.logResultResizeObserver = null;
-    this.logResultResizeObserverFn = null;
-    this.$refs.refFieldsSettingPopper?.hide?.();
-    RetrieveHelper.destroyMarkInstance();
-  },
-  methods: {
-    calcHighlightWidth() {
-      const { offsetWidth } = this.$el;
-      const leftWidth = this.$el.querySelector('.left-operate')?.offsetWidth ?? 0;
-      const rightWidth = 200;
-      const calcWidth = offsetWidth - leftWidth - rightWidth;
-      if (calcWidth > 400) {
-        this.highlightWidth = 400;
-        return;
-      }
-
-      this.highlightWidth = offsetWidth - leftWidth - rightWidth;
-    },
-    handleMatchModeChange(args) {
-      Object.assign(this.matchMode, args);
-      RetrieveHelper.setHighlightCaseSensitive(args.caseSensitive);
-      RetrieveHelper.setHighlightRegExpMode(args.regexMode);
-      RetrieveHelper.setHighlightAccuracy(args.wordMatch ? 'exactly' : 'partially');
-      RetrieveHelper.highLightKeywords(this.highlightValue);
-    },
-    handleBeforeHide(e) {
-      if (e.target?.closest?.('.bklog-v3-popover-tag')) {
-        return false;
-      }
-
-      this.showFieldsSetting = false;
-      return true;
-    },
-    handleTagRender(item, index) {
-      const colors = RetrieveHelper.RGBA_LIST;
-      const colorPair = colors[index % colors.length];
-      return {
-        style: {
-          backgroundColor: colorPair[0],
-          color: colorPair[1],
-        },
+        this.highlightValue.push(...nextValues);
+        RetrieveHelper.highLightKeywords(this.highlightValue.filter(w => w.length > 0));
       };
-    },
-    handleHighlightEnter(valList) {
-      this.highlightValue = [];
-      for (let i = 0; i < valList.length; i++) {
-        const val = valList[i];
-        this.highlightValue.push(val);
-        // const values = val.split(/\s+/);
-        // for (let j = 0; j < values.length; j++) {
-        //   const value = values[j].replace(/^\s+|\s+$/g, '');
-        //   if (value.length > 0) {
-        //     this.highlightValue.push(value);
-        //   }
-        // }
+      RetrieveHelper.on(RetrieveEvent.HILIGHT_TRIGGER, this.highlightTriggerHandler);
+
+      if (document.body.offsetHeight < 900) {
+        this.$refs.refFieldsSettingPopper?.setProps({
+          placement: 'auto',
+          arrow: true,
+        });
       }
 
-      RetrieveHelper.highLightKeywords(this.highlightValue);
+      this.logResultResizeObserverFn = debounce(() => {
+        this.calcHighlightWidth();
+      }, 100);
+      this.logResultResizeObserver = new ResizeObserver(this.logResultResizeObserverFn);
+      this.logResultResizeObserver.observe(this.$el);
     },
-
-    cancelModifyFields() {
-      this.closeDropdown();
-    },
-    closeDropdown() {
-      if (!this.showFieldsSetting) {
-        return;
+    unmounted() {
+      if (this.highlightTriggerHandler) {
+        RetrieveHelper.off(RetrieveEvent.HILIGHT_TRIGGER, this.highlightTriggerHandler);
+        this.highlightTriggerHandler = null;
       }
-      this.$refs.refFieldsSettingPopper?.hide();
-      this.showFieldsSetting = false;
+      this.logResultResizeObserverFn?.cancel?.();
+      this.logResultResizeObserver?.unobserve(this.$el);
+      this.logResultResizeObserver?.disconnect();
+      this.logResultResizeObserver = null;
+      this.logResultResizeObserverFn = null;
+      this.$refs.refFieldsSettingPopper?.hide?.();
+      RetrieveHelper.destroyMarkInstance();
     },
+    methods: {
+      calcHighlightWidth() {
+        const { offsetWidth } = this.$el;
+        const leftWidth = this.$el.querySelector('.left-operate')?.offsetWidth ?? 0;
+        const rightWidth = 200;
+        const calcWidth = offsetWidth - leftWidth - rightWidth;
+        if (calcWidth > 400) {
+          this.highlightWidth = 400;
+          return;
+        }
 
-    handleAddNewConfig() {
-      this.$refs.refFieldsSettingPopper.show();
-    },
-    handleClickTableBtn(active = 'table') {
-      this.contentType = active;
-      localStorage.setItem('SEARCH_STORAGE_ACTIVE_TAB', active);
-      setTimeout(() => {
+        this.highlightWidth = offsetWidth - leftWidth - rightWidth;
+      },
+      handleMatchModeChange(args) {
+        Object.assign(this.matchMode, args);
+        RetrieveHelper.setHighlightCaseSensitive(args.caseSensitive);
+        RetrieveHelper.setHighlightRegExpMode(args.regexMode);
+        RetrieveHelper.setHighlightAccuracy(args.wordMatch ? 'exactly' : 'partially');
         RetrieveHelper.highLightKeywords(this.highlightValue);
-      });
+      },
+      handleBeforeHide(e) {
+        if (e.target?.closest?.('.bklog-v3-popover-tag')) {
+          return false;
+        }
+
+        this.showFieldsSetting = false;
+        return true;
+      },
+      handleTagRender(item, index) {
+        const colors = RetrieveHelper.RGBA_LIST;
+        const colorPair = colors[index % colors.length];
+        return {
+          style: {
+            backgroundColor: colorPair[0],
+            color: colorPair[1],
+          },
+        };
+      },
+      handleHighlightEnter(valList) {
+        this.highlightValue = [];
+        for (let i = 0; i < valList.length; i++) {
+          const val = valList[i];
+          this.highlightValue.push(val);
+          // const values = val.split(/\s+/);
+          // for (let j = 0; j < values.length; j++) {
+          //   const value = values[j].replace(/^\s+|\s+$/g, '');
+          //   if (value.length > 0) {
+          //     this.highlightValue.push(value);
+          //   }
+          // }
+        }
+
+        RetrieveHelper.highLightKeywords(this.highlightValue);
+      },
+
+      cancelModifyFields() {
+        this.closeDropdown();
+      },
+      closeDropdown() {
+        if (!this.showFieldsSetting) {
+          return;
+        }
+        this.$refs.refFieldsSettingPopper?.hide();
+        this.showFieldsSetting = false;
+      },
+
+      handleAddNewConfig() {
+        this.$refs.refFieldsSettingPopper.show();
+      },
+      handleClickTableBtn(active = 'table') {
+        this.contentType = active;
+        localStorage.setItem('SEARCH_STORAGE_ACTIVE_TAB', active);
+        setTimeout(() => {
+          RetrieveHelper.highLightKeywords(this.highlightValue);
+        });
+      },
     },
-  },
-};
+  };
 </script>
 
 <style lang="scss" scoped>
-@import '@/scss/mixins/flex.scss';
+  @import '@/scss/mixins/flex.scss';
 
-.original-log-panel {
-  .original-log-panel-tools {
-    position: sticky;
-    top: var(--bklog-result-tools-sticky-top, var(--offset-search-bar, var(--top-searchbar-height, 0)));
-    z-index: 6;
-    display: flex;
-    justify-content: space-between;
-    padding: 0 6px 0 0;
-    background: #fff;
-    // border-bottom: 1px solid #dfe0e5;
+  .original-log-panel {
+    .original-log-panel-tools {
+      position: sticky;
+      top: var(--bklog-result-tools-sticky-top, var(--offset-search-bar, var(--top-searchbar-height, 0)));
+      z-index: 6;
+      display: flex;
+      justify-content: space-between;
+      padding: 0 6px 0 0;
+      background: #fff;
+      // border-bottom: 1px solid #dfe0e5;
 
-    &.trace-log-panel {
-      padding-top: 6px;
+      &.trace-log-panel {
+        padding-top: 6px;
+      }
     }
-  }
 
-  .tools-more {
-    @include flex-center;
+    .tools-more {
+      @include flex-center;
 
-    .switch-label {
-      margin-right: 2px;
-      font-size: 12px;
-      color: #63656e;
+      .switch-label {
+        margin-right: 2px;
+        font-size: 12px;
+        color: #63656e;
+      }
     }
-  }
 
-  .operation-icons {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-left: 16px;
-
-    .operation-icon {
+    .operation-icons {
       display: flex;
       align-items: center;
-      justify-content: center;
-      width: 32px;
-      height: 32px;
-      margin-left: 10px;
-      cursor: pointer;
-      background-color: #f0f1f5;
-      border-radius: 2px;
-      outline: none;
-      transition: boder-color 0.2s;
+      justify-content: space-between;
+      margin-left: 16px;
 
-      &:hover {
-        border-color: #4d4f56;
-        transition: boder-color 0.2s;
-      }
-
-      &:active {
-        border-color: #3a84ff;
-        transition: boder-color 0.2s;
-      }
-
-      .bklog-icon {
-        width: 16px;
-        font-size: 16px;
-        color: #4d4f56;
-      }
-    }
-
-    .light-search {
-      display: flex;
-      align-items: center;
-      font-size: 12px;
-      color: #4d4f56;
-      background: #ffffff;
-
-      label {
+      .operation-icon {
         display: flex;
         align-items: center;
         justify-content: center;
-        width: 40px;
+        width: 32px;
         height: 32px;
-        padding: 0px 0px;
+        margin-left: 10px;
+        cursor: pointer;
+        background-color: #f0f1f5;
+        border-radius: 2px;
+        outline: none;
+        transition: boder-color 0.2s;
+
+        &:hover {
+          border-color: #4d4f56;
+          transition: boder-color 0.2s;
+        }
+
+        &:active {
+          border-color: #3a84ff;
+          transition: boder-color 0.2s;
+        }
+
+        .bklog-icon {
+          width: 16px;
+          font-size: 16px;
+          color: #4d4f56;
+        }
+      }
+
+      .light-search {
+        display: flex;
+        align-items: center;
+        font-size: 12px;
         color: #4d4f56;
-        text-align: center;
-        background: #fafbfd;
-        border-top: 1px solid #c4c6cc;
-        border-right: none;
-        border-bottom: 1px solid #c4c6cc;
-        border-left: 1px solid #c4c6cc;
-        border-top-left-radius: 2px;
-        border-bottom-left-radius: 2px;
+        background: #ffffff;
+
+        label {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 40px;
+          height: 32px;
+          padding: 0px 0px;
+          color: #4d4f56;
+          text-align: center;
+          background: #fafbfd;
+          border-top: 1px solid #c4c6cc;
+          border-right: none;
+          border-bottom: 1px solid #c4c6cc;
+          border-left: 1px solid #c4c6cc;
+          border-top-left-radius: 2px;
+          border-bottom-left-radius: 2px;
+        }
+      }
+
+      .disabled-icon {
+        cursor: not-allowed;
+        background-color: #fff;
+        border-color: #dcdee5;
+
+        &:hover,
+        .bklog-icon {
+          color: #c4c6cc;
+          border-color: #dcdee5;
+        }
       }
     }
 
-    .disabled-icon {
-      cursor: not-allowed;
-      background-color: #fff;
-      border-color: #dcdee5;
+    .left-operate {
+      flex-wrap: nowrap;
+      align-items: center;
 
-      &:hover,
-      .bklog-icon {
-        color: #c4c6cc;
-        border-color: #dcdee5;
+      @include flex-justify(space-between);
+
+      > div {
+        flex-shrink: 0;
+      }
+
+      .bk-button-group {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 104px;
+        height: 32px;
+        padding: 4px 4px;
+        font-size: 12px;
+        background-color: #f0f1f5;
+        border-radius: 2px;
+      }
+
+      .option {
+        display: flex;
+
+        /* 使用 flex 布局 */
+        flex: 1;
+        align-items: center;
+
+        /* 垂直居中 */
+        justify-content: center;
+
+        /* 水平居中 */
+        width: 100%;
+        height: 100%;
+        color: #4d4f56;
+        cursor: pointer;
+        transition: background-color 0.3s;
+      }
+
+      .option.option-selected {
+        color: #3a84ff;
+
+        /* 蓝色 */
+        background-color: #ffffff;
+      }
+
+      .bklog-option-item {
+        font-size: 12px;
+        line-height: 20px;
+        color: #63656e;
+      }
+    }
+
+    .field-select {
+      position: relative;
+      width: 120px;
+      margin-left: 16px;
+
+      .icon-field-config {
+        position: absolute;
+        top: 4px;
+        left: 4px;
+        width: 18px;
+      }
+
+      :deep(.bk-select .bk-select-name) {
+        padding: 0px 36px 0 30px;
       }
     }
   }
 
-  .left-operate {
-    flex-wrap: nowrap;
-    align-items: center;
+  .extension-add-new-config {
+    cursor: pointer;
 
-    @include flex-justify(space-between);
+    @include flex-center();
 
-    >div {
-      flex-shrink: 0;
-    }
-
-    .bk-button-group {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      width: 104px;
-      height: 32px;
-      padding: 4px 4px;
-      font-size: 12px;
-      background-color: #f0f1f5;
-      border-radius: 2px;
-    }
-
-    .option {
-      display: flex;
-
-      /* 使用 flex 布局 */
-      flex: 1;
-      align-items: center;
-
-      /* 垂直居中 */
-      justify-content: center;
-
-      /* 水平居中 */
-      width: 100%;
-      height: 100%;
-      color: #4d4f56;
-      cursor: pointer;
-      transition: background-color 0.3s;
-    }
-
-    .option.option-selected {
-      color: #3a84ff;
-
-      /* 蓝色 */
-      background-color: #ffffff;
-    }
-
-    .bklog-option-item {
-      font-size: 12px;
-      line-height: 20px;
+    :last-child {
+      margin-left: 4px;
       color: #63656e;
     }
-  }
 
-  .field-select {
-    position: relative;
-    width: 120px;
-    margin-left: 16px;
-
-    .icon-field-config {
-      position: absolute;
-      top: 4px;
-      left: 4px;
-      width: 18px;
-    }
-
-    :deep(.bk-select .bk-select-name) {
-      padding: 0px 36px 0 30px;
+    .icon-close-circle {
+      margin-left: 4px;
+      font-size: 14px;
+      color: #979ba5;
+      transform: rotateZ(45deg);
     }
   }
-}
-
-.extension-add-new-config {
-  cursor: pointer;
-
-  @include flex-center();
-
-  :last-child {
-    margin-left: 4px;
-    color: #63656e;
-  }
-
-  .icon-close-circle {
-    margin-left: 4px;
-    font-size: 14px;
-    color: #979ba5;
-    transform: rotateZ(45deg);
-  }
-}
 </style>
 <style lang="scss">
-.json-depth-num.json-depth-num-input {
-  &.bk-form-control {
-    width: 96px;
+  .json-depth-num.json-depth-num-input {
+    &.bk-form-control {
+      width: 96px;
 
-    .bk-input-number {
-      input {
-        &.bk-form-input {
-          height: 26px;
+      .bk-input-number {
+        input {
+          &.bk-form-input {
+            height: 26px;
+          }
         }
       }
     }
   }
-}
 
-body.no-user-select {
-  user-select: none;
-}
+  body.no-user-select {
+    user-select: none;
+  }
 
-.bklog-v3-match-mode {
-  height: 32px;
-  padding-left: 6px;
-}
+  .bklog-v3-match-mode {
+    height: 32px;
+    padding-left: 6px;
+  }
 
-.bklog-v3-select-dropdown {
-  z-index: 2500;
-}
+  .bklog-v3-select-dropdown {
+    z-index: 2500;
+  }
 </style>

@@ -315,7 +315,11 @@
               this.restoreIds = [];
               this.pagination.count = data.total;
               this.restoreIds = [];
-              const formattedList = formatResponseListTimeZoneString(data.list || [], { }, ['expired_time', 'created_at', 'updated_at']);
+              const formattedList = formatResponseListTimeZoneString(data.list || [], {}, [
+                'expired_time',
+                'created_at',
+                'updated_at',
+              ]);
               formattedList.forEach(row => {
                 row.status = '';
                 row.status_name = '';
@@ -486,7 +490,7 @@
         try {
           this.isTableLoading = true;
           const res = await this.$store.dispatch('getApplyData', paramData);
-          this.$store.commit('updateState', {'authDialogData': res.data});
+          this.$store.commit('updateState', { authDialogData: res.data });
         } catch (err) {
           console.warn(err);
         } finally {

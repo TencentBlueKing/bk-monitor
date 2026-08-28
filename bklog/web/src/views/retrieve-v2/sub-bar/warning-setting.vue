@@ -6,9 +6,9 @@
     <span
       :style="{ color: badgeCount !== 0 ? 'red' : '' }"
       :class="`bklog-icon bklog-${badgeCount !== 0 ? 'gaojing-filled' : 'gaojing-line'}`"
-      v-bk-tooltips.top="$t('告警')" 
+      v-bk-tooltips.top="$t('告警')"
     ></span>
-    <span class='warn-table-text'>{{ $t('告警') }}</span>
+    <span class="warn-table-text">{{ $t('告警') }}</span>
     <bk-badge
       v-if="ownPendingCount !== 0"
       style="margin-top: -12px; margin-left: -3px"
@@ -387,26 +387,34 @@
     };
     if (active.value === 'mission') {
       const res = getQueryString();
-      window.open(`${window.MONITOR_URL}/?bizId=${store.state.bkBizId}#/${addressMap[active.value]}?${res}`, '_blank', 'noopener,noreferrer');
+      window.open(
+        `${window.MONITOR_URL}/?bizId=${store.state.bkBizId}#/${addressMap[active.value]}?${res}`,
+        '_blank',
+        'noopener,noreferrer',
+      );
       return;
     }
 
     window.open(
       `${window.MONITOR_URL}/?bizId=${store.state.bkBizId}#/${addressMap[active.value]}?filters=[{"key":"metric_id","value":["bk_log_search.index_set.${store.state.indexId}"]}]`,
       '_blank',
-      'noopener,noreferrer'
+      'noopener,noreferrer',
     );
   };
 
   const handleViewWarningDetail = row => {
-    window.open(`${window.MONITOR_URL}/?bizId=${store.state.bkBizId}#/event-center/detail/${row.id}`, '_blank', 'noopener,noreferrer');
+    window.open(
+      `${window.MONITOR_URL}/?bizId=${store.state.bkBizId}#/event-center/detail/${row.id}`,
+      '_blank',
+      'noopener,noreferrer',
+    );
   };
 
   const handleStrategyInfoClick = row => {
     window.open(
       `${window.MONITOR_URL}/?bizId=${store.state.bkBizId}#/strategy-config/detail/${row.strategy_id}`,
       '_blank',
-      'noopener,noreferrer'
+      'noopener,noreferrer',
     );
   };
 

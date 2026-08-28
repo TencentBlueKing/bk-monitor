@@ -127,9 +127,7 @@
                       >{{ $t('申请权限') }}</span
                     >
                   </div> -->
-                  <div
-                    class="option-slot-container"
-                  >
+                  <div class="option-slot-container">
                     {{ option.storage_display_name }}
                   </div>
                 </bk-option>

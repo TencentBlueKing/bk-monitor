@@ -452,9 +452,7 @@
 
         const nextSelectedPathSet = new Set(this.selectedFilePathList);
         const visibleSelectablePathSet = new Set(
-          this.filteredExplorerList
-            .filter(item => this.isSelectableFile(item))
-            .map(item => this.getFilePath(item)),
+          this.filteredExplorerList.filter(item => this.isSelectableFile(item)).map(item => this.getFilePath(item)),
         );
 
         for (const path of visibleSelectablePathSet) {

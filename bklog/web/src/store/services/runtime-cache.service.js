@@ -17,7 +17,7 @@ const setCache = (map, scope, value, cacheName) => {
   const cacheScope = getScope(scope);
   const nextValue = value && typeof value === 'object' ? value : {};
   map.set(cacheScope, nextValue);
-  storeCacheService.setApiCache(cacheName, cacheScope, nextValue).catch((error) => {
+  storeCacheService.setApiCache(cacheName, cacheScope, nextValue).catch(error => {
     console.warn('[store-runtime-cache] persist cache failed', cacheName, error);
   });
   return nextValue;
@@ -69,12 +69,14 @@ export const storeRuntimeCacheService = {
     const cacheScope = getScope(scope);
     fieldNameIndexMap.set(cacheScope, fieldNameIndex);
     queryAliasIndexMap.set(cacheScope, queryAliasIndex);
-    storeCacheService.setApiCache('store-runtime/field-indexes', cacheScope, {
-      fieldNameIndex,
-      queryAliasIndex,
-    }).catch((error) => {
-      console.warn('[store-runtime-cache] persist field indexes failed', error);
-    });
+    storeCacheService
+      .setApiCache('store-runtime/field-indexes', cacheScope, {
+        fieldNameIndex,
+        queryAliasIndex,
+      })
+      .catch(error => {
+        console.warn('[store-runtime-cache] persist field indexes failed', error);
+      });
   },
   getFieldNameIndex(scope) {
     return getCacheSync(fieldNameIndexMap, scope);

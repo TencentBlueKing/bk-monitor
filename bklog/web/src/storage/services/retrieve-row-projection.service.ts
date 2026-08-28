@@ -124,7 +124,7 @@ export class RetrieveRowProjectionService {
     let changed = false;
     const output: Record<string, any> = {};
 
-    Object.keys(row).forEach((key) => {
+    Object.keys(row).forEach(key => {
       const value = row[key];
       const normalizedValue = normalizePrimitiveForRender(value);
       output[key] = normalizedValue;
@@ -147,7 +147,7 @@ export class RetrieveRowProjectionService {
     let totalBytes = 0;
     let hasLargeFields = false;
 
-    names.forEach((fieldName) => {
+    names.forEach(fieldName => {
       if (!Object.prototype.hasOwnProperty.call(row ?? {}, fieldName)) return;
       const value = normalizeStorageValue(row[fieldName]);
       const bytes = estimateValueBytes(value);

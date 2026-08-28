@@ -281,16 +281,17 @@ export default defineComponent({
      * @param row
      * @returns
      */
-    const renderWordBreakerValue = row => (
+    const renderWordBreakerValue = row =>
       row.is_analyzed ? (
         <div class='analyzed-box'>
           <div>{row.tokenize_on_chars ? row.tokenize_on_chars : t('自然语言分词')}</div>
-          <div>{t('大小写敏感')}: {row.is_case_sensitive ? t('是') : t('否')}</div>
+          <div>
+            {t('大小写敏感')}: {row.is_case_sensitive ? t('是') : t('否')}
+          </div>
         </div>
       ) : (
         <span>{t('不分词')}</span>
-      )
-    );
+      );
 
     const renderWordBreaker = (h, { row }) => {
       if (row.field_type === 'string' && !row.is_built_in) {
@@ -326,7 +327,7 @@ export default defineComponent({
                     on-change={value => {
                       cacheData.value.is_analyzed = value;
                     }}
-                  // on-change={handelChangeAnalyzed}
+                    // on-change={handelChangeAnalyzed}
                   />
                 </div>
                 <div class='menu-item'>
@@ -513,7 +514,7 @@ export default defineComponent({
         try {
           i.hide();
           i.destroy();
-        } catch (_) { }
+        } catch (_) {}
       });
       tippyInstances = [];
     };
@@ -1120,10 +1121,7 @@ export default defineComponent({
               v-bk-tooltips={{ content: row.fieldErr, placement: 'top' }}
             />
           )}
-          {props.selectEtlConfig === 'bk_log_json'
-            && row.fieldAliasErr
-            && !row.alias_name
-            && !row.alias_name_show && (
+          {props.selectEtlConfig === 'bk_log_json' && row.fieldAliasErr && !row.alias_name && !row.alias_name_show && (
             <bk-button
               class='tooltips-btn'
               disabled={props.isTemplateSource}
@@ -1225,19 +1223,18 @@ export default defineComponent({
         width: 60,
         cell: (h, { row }) => (
           <div class='table-operation'>
-            {(isLogDelimiter.value || isLogRegexp.value)
-              && !row.is_built_in && (
-                <i
-                  class={{
-                    [`bklog-icon bklog-${row.is_delete ? 'visible' : 'invisible'} icons`]: true,
-                    'is-disabled': props.isTemplateSource,
-                  }}
-                  v-bk-tooltips={{
-                    content: row.is_delete ? t('复原') : t('隐藏'),
-                    disabled: props.isTemplateSource,
-                  }}
-                  on-click={() => !props.isTemplateSource && isDisableOperate(row)}
-                />
+            {(isLogDelimiter.value || isLogRegexp.value) && !row.is_built_in && (
+              <i
+                class={{
+                  [`bklog-icon bklog-${row.is_delete ? 'visible' : 'invisible'} icons`]: true,
+                  'is-disabled': props.isTemplateSource,
+                }}
+                v-bk-tooltips={{
+                  content: row.is_delete ? t('复原') : t('隐藏'),
+                  disabled: props.isTemplateSource,
+                }}
+                on-click={() => !props.isTemplateSource && isDisableOperate(row)}
+              />
             )}
             {isLogJson.value && !row.is_built_in && (
               <i

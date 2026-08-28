@@ -284,7 +284,7 @@
         default: true,
       },
       maxLogLength: {
-        type: Number
+        type: Number,
       },
     },
     data() {

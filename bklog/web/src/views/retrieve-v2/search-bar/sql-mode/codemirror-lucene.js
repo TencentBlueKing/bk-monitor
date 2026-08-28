@@ -34,7 +34,7 @@ const notKeywordDecorator = Decoration.mark({
 });
 
 function highlightNotKeywords() {
-  return EditorView.decorations.of((view) => {
+  return EditorView.decorations.of(view => {
     const decorations = [];
     const text = view.state.doc.toString();
     const regex = /\bNOT\b/g;
@@ -59,7 +59,8 @@ function highlightNotKeywords() {
  * @param {String} params.value 初始值
  * @param {Function} params.stopDefaultKeyboard 阻止默认键盘行为回调 'ArrowUp', 'ArrowDown'
  */
-export default ({ target,
+export default ({
+  target,
   onChange,
   onFocusChange,
   onFocusPosChange,
@@ -77,7 +78,7 @@ export default ({ target,
     },
   }));
 
-  const debouncedTrack = debounce((update) => {
+  const debouncedTrack = debounce(update => {
     onChange?.(update.state.doc);
     onFocusPosChange?.(update.state);
   });
@@ -89,17 +90,18 @@ export default ({ target,
         {
           key: 'Enter',
           mac: 'Enter',
-          run: (view) => {
+          run: view => {
             // 检查是否正在输入法组合过程中
             if (isComposing || view.dom.getAttribute('data-composing') === 'true') {
               return false;
             }
             return onKeyEnter?.(view) ?? false;
           },
-        }, {
+        },
+        {
           key: 'Ctrl-Enter',
           mac: 'Cmd-Enter',
-          run: (view) => {
+          run: view => {
             // Ctrl+Enter 通常不受输入法影响，但为了安全也检查一下
             if (isComposing || view.dom.getAttribute('data-composing') === 'true') {
               return false;
@@ -117,7 +119,7 @@ export default ({ target,
       EditorView.focusChangeEffect.of((state, focusing) => {
         onFocusChange?.(state, focusing);
       }),
-      EditorView.updateListener.of((update) => {
+      EditorView.updateListener.of(update => {
         if (update.selectionSet) {
           onFocusPosChange?.(update.state);
         }
@@ -148,7 +150,7 @@ export default ({ target,
   view.dom.addEventListener('compositionstart', handleCompositionStart);
   view.dom.addEventListener('compositionend', handleCompositionEnd);
 
-  const appendText = (value) => {
+  const appendText = value => {
     view.dispatch({
       changes: { from: view.state.doc.length, insert: value },
     });
@@ -207,7 +209,7 @@ export default ({ target,
     }
   };
 
-  const setFocus = (focusPosition) => {
+  const setFocus = focusPosition => {
     if (!view) return;
 
     view.focus();

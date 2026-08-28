@@ -30,10 +30,21 @@
     class="manage-content manage-content-headless"
     :key="refreshKey"
   ></router-view>
-  <bk-navigation v-else class="bk-log-navigation" :theme-color="navThemeColor" head-height="0" header-title=""
-    navigation-type="left-right" :default-open="false" @toggle="handleToggle">
+  <bk-navigation
+    v-else
+    class="bk-log-navigation"
+    :theme-color="navThemeColor"
+    head-height="0"
+    header-title=""
+    navigation-type="left-right"
+    :default-open="false"
+    @toggle="handleToggle"
+  >
     <template #menu>
-      <bk-navigation-menu :default-active="activeManageNav.id || ''" :item-default-bg-color="navThemeColor">
+      <bk-navigation-menu
+        :default-active="activeManageNav.id || ''"
+        :item-default-bg-color="navThemeColor"
+      >
         <template v-for="groupItem in menuList">
           <bk-navigation-menu-group
             v-if="getGroupChildren(groupItem.children).length"
@@ -41,11 +52,19 @@
             :key="groupItem.id"
           >
             <template>
-              <a v-for="navItem in getGroupChildren(groupItem.children)" class="nav-item"
-                :href="getRouteHref(navItem.id)" :key="navItem.id">
-                <bk-navigation-menu-item :data-test-id="`navBox_nav_${navItem.id}`" :icon="getMenuIcon(navItem)"
+              <a
+                v-for="navItem in getGroupChildren(groupItem.children)"
+                class="nav-item"
+                :href="getRouteHref(navItem.id)"
+                :key="navItem.id"
+              >
+                <bk-navigation-menu-item
+                  :data-test-id="`navBox_nav_${navItem.id}`"
+                  :icon="getMenuIcon(navItem)"
                   v-if="shouldShowMenuItem(navItem.id)"
-                  :id="navItem.id" @click="handleClickNavItem(navItem.id)">
+                  :id="navItem.id"
+                  @click="handleClickNavItem(navItem.id)"
+                >
                   <span>{{ isExpand ? navItem.name : '' }}</span>
                 </bk-navigation-menu-item>
               </a>
@@ -55,22 +74,30 @@
       </bk-navigation-menu>
     </template>
     <div class="navigation-content">
-      <auth-container-page v-if="authPageInfo" :info="authPageInfo"></auth-container-page>
+      <auth-container-page
+        v-if="authPageInfo"
+        :info="authPageInfo"
+      ></auth-container-page>
       <div class="manage-container">
         <div class="manage-main">
-          <sub-nav :sub-nav-list="menuList" :show-sub-nav="showSubNav"></sub-nav>
-          <router-view class="manage-content" :key="refreshKey"></router-view>
+          <sub-nav
+            :sub-nav-list="menuList"
+            :show-sub-nav="showSubNav"
+          ></sub-nav>
+          <router-view
+            class="manage-content"
+            :key="refreshKey"
+          ></router-view>
         </div>
       </div>
     </div>
   </bk-navigation>
-
 </template>
 
 <script>
   import SubNav from '@/components/nav/manage-nav';
-import { mapState } from 'vuex';
-import { isFeatureToggleOn } from '@/store/helper';
+  import { mapState } from 'vuex';
+  import { isFeatureToggleOn } from '@/store/helper';
 
   export default {
     name: 'ManageIndex',
@@ -106,12 +133,10 @@ import { isFeatureToggleOn } from '@/store/helper';
         return (this.topMenu || []).find(item => item.id === 'manage')?.children || [];
       },
       menuList() {
-        const list = (this.manageNavList || [])
-          .filter(Boolean)
-          .map(menu => ({
-            ...menu,
-            children: menu.children || [],
-          }));
+        const list = (this.manageNavList || []).filter(Boolean).map(menu => ({
+          ...menu,
+          children: menu.children || [],
+        }));
         if (this.isExternal) {
           // 外部版只保留【日志提取】菜单
           return list.filter(menu => menu.id === 'manage-extract-strategy');
@@ -130,7 +155,7 @@ import { isFeatureToggleOn } from '@/store/helper';
       },
       isHeadless() {
         return this.$route.query.hl === '1';
-      }
+      },
     },
     watch: {
       '$route.query.spaceUid'(newSpaceUid, oldSpaceUid) {
@@ -159,16 +184,18 @@ import { isFeatureToggleOn } from '@/store/helper';
           // 获取最外层路径
           const topLevelRoute = this.getTopLevelRoute();
 
-          this.$router.replace({
-            name: topLevelRoute,
-            query: {
-              ...this.$route.query,
-              spaceUid: this.spaceUid,
-              bizId: this.bkBizId,
-            },
-          }).then(() => {
-            this.updateRefreshKey();
-          });
+          this.$router
+            .replace({
+              name: topLevelRoute,
+              query: {
+                ...this.$route.query,
+                spaceUid: this.spaceUid,
+                bizId: this.bkBizId,
+              },
+            })
+            .then(() => {
+              this.updateRefreshKey();
+            });
         }
       },
     },
@@ -176,15 +203,17 @@ import { isFeatureToggleOn } from '@/store/helper';
       const bkBizId = this.$store.state.bkBizId;
       const spaceUid = this.$store.state.spaceUid;
 
-      this.$router.replace({
-        query: {
-          bizId: bkBizId,
-          spaceUid: spaceUid,
-          ...this.$route.query,
-        },
-      }).then(() => {
-        this.updateRefreshKey();
-      });
+      this.$router
+        .replace({
+          query: {
+            bizId: bkBizId,
+            spaceUid: spaceUid,
+            ...this.$route.query,
+          },
+        })
+        .then(() => {
+          this.updateRefreshKey();
+        });
       if (!this.isHeadless) {
         setTimeout(() => {
           this.handleToggle(false);
@@ -224,7 +253,7 @@ import { isFeatureToggleOn } from '@/store/helper';
       // 获取当前路由的最外层路径，用于切换业务时跳转到菜单栏目录项
       getTopLevelRoute() {
         const currentPath = this.$route.path;
-        const match = currentPath.match(/^\/manage\/([^/]+)/);  // 匹配 /manage/xxx 的模式
+        const match = currentPath.match(/^\/manage\/([^/]+)/); // 匹配 /manage/xxx 的模式
 
         if (match) return match[1]; // 返回紧跟 /manage 的路径段
 

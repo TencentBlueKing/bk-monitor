@@ -46,7 +46,6 @@
           data-test-id="storehouseContainer_input_searchTableItem"
           @change="handleSearchChange"
           @enter="handleSearch"
-
         >
         </bk-input>
       </div>
@@ -299,7 +298,11 @@
             if (!data.length) {
               return;
             }
-            const formattedData = formatResponseListTimeZoneString(data || [], {}, ['create_time', 'created_at', 'updated_at']);
+            const formattedData = formatResponseListTimeZoneString(data || [], {}, [
+              'create_time',
+              'created_at',
+              'updated_at',
+            ]);
             this.tableDataOrigin = formattedData;
             this.tableDataSearched = formattedData;
             this.pagination.count = formattedData.length;
@@ -425,7 +428,7 @@
         try {
           this.isTableLoading = true;
           const res = await this.$store.dispatch('getApplyData', paramData);
-          this.$store.commit('updateState', {'authDialogData': res.data});
+          this.$store.commit('updateState', { authDialogData: res.data });
         } catch (err) {
           console.warn(err);
         } finally {

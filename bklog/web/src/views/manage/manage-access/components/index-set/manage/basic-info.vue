@@ -32,7 +32,10 @@
           {{ $t('基础信息') }}
         </div>
         <!-- 编辑按钮和创建人信息 -->
-        <div v-if="isV2Enabled" class="edit-btn-container">
+        <div
+          v-if="isV2Enabled"
+          class="edit-btn-container"
+        >
           <bk-button
             v-cursor="{ active: !editAuth }"
             style="min-width: 88px; color: #3a84ff"
@@ -46,7 +49,10 @@
             <bk-button class="bklog-icon bklog-lishijilu" />
             <template #content>
               <div class="create-name-and-time">
-                <div v-for="item in createAndTimeData" :key="item.key">
+                <div
+                  v-for="item in createAndTimeData"
+                  :key="item.key"
+                >
                   <span>{{ item.label }}</span>
                   <span>
                     <template v-if="item.isUserAccount">
@@ -203,9 +209,9 @@
           :label="$t('操作人')"
           prop="created_by"
         >
-        <template #default="{ row }">
-          <bk-user-display-name :user-id="row.created_by"></bk-user-display-name>
-        </template>
+          <template #default="{ row }">
+            <bk-user-display-name :user-id="row.created_by"></bk-user-display-name>
+          </template>
         </bk-table-column>
         <bk-table-column
           width="140"
@@ -355,7 +361,7 @@
       },
       handleClickEdit() {
         if (!this.editAuth && this.editAuthData) {
-          this.$store.commit('updateState', { 'authDialogData': this.editAuthData });
+          this.$store.commit('updateState', { authDialogData: this.editAuthData });
           return;
         }
         const params = {};

@@ -78,9 +78,7 @@ export default defineComponent({
     const previewRef = ref<any>(null);
 
     const selectedCount = computed(() => {
-      return targetNodeType.value === 'INSTANCE'
-        ? ipList.value.length
-        : targetNodes.value.length;
+      return targetNodeType.value === 'INSTANCE' ? ipList.value.length : targetNodes.value.length;
     });
 
     const canSubmit = computed(() => {
@@ -110,7 +108,7 @@ export default defineComponent({
       if (isClone.value) {
         let cloneData = JSON.parse(sessionStorage.getItem('cloneData') || '{}');
         if (!Object.keys(cloneData).length) {
-          cloneData = await manageDraftCacheService.get('cloneData') || {};
+          cloneData = (await manageDraftCacheService.get('cloneData')) || {};
         }
         sessionStorage.removeItem('cloneData');
         manageDraftCacheService.remove('cloneData').catch(() => {});

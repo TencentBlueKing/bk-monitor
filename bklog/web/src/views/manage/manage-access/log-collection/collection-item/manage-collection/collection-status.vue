@@ -555,7 +555,7 @@
           })
           .catch(e => {
             console.warn(e);
-            this.reloadTable = false
+            this.reloadTable = false;
           });
       },
       viewDetail(row) {

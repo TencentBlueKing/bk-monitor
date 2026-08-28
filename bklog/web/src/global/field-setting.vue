@@ -4,8 +4,11 @@
       class="bklog-v3 field-setting-wrap"
       @click="handleOpenSidebar"
     >
-      <span class="bklog-icon bklog-setting" v-bk-tooltips.top="t('索引配置')"></span> 
-      <span class='field-settin-text'>{{ t('索引配置') }}</span>
+      <span
+        class="bklog-icon bklog-setting"
+        v-bk-tooltips.top="t('索引配置')"
+      ></span>
+      <span class="field-settin-text">{{ t('索引配置') }}</span>
     </div>
     <bk-sideslider
       :is-show.sync="showSlider"
@@ -127,7 +130,7 @@
                 >
                 </bk-option>
               </bk-select>
-              <div v-else>{{ formData.storage_display_name || '--' }} </div>
+              <div v-else>{{ formData.storage_display_name || '--' }}</div>
             </bk-form-item>
             <bk-form-item
               ext-cls="en-bk-form"
@@ -254,7 +257,7 @@
   import * as authorityMap from '../common/authority-map';
   import settingTable from './setting-table.vue';
   import http from '@/api';
-  import { RetrieveEvent } from '@/views/retrieve-helper'
+  import { RetrieveEvent } from '@/views/retrieve-helper';
   import useRetrieveEvent from '@/hooks/use-retrieve-event';
 
   const { t } = useLocale();
@@ -414,8 +417,8 @@
     return cleanType.value === 'bk_log_json';
   });
   const labelWidth = computed(() => {
-      return store.state.isEnLanguage ?  130 : 94;
-    });
+    return store.state.isEnLanguage ? 130 : 94;
+  });
   const indexfieldTable = ref(null);
   const addNewField = () => {
     const fields = structuredClone(indexfieldTable.value.getData());
@@ -432,10 +435,10 @@
     hideSingleConfigInput();
     handleOpenSidebar();
     nextTick(() => {
-      handleEdit()
+      handleEdit();
     });
   });
-  
+
   function formLableFormatter(label) {
     return `${label} :`;
   }
@@ -446,7 +449,7 @@
     isEdit.value = true;
   };
 
-  const handleCancel = async() => {
+  const handleCancel = async () => {
     formData.value = structuredClone(formDataCopy.value);
     tableField.value = structuredClone(fieldsCopy.value);
     nextTick(() => {

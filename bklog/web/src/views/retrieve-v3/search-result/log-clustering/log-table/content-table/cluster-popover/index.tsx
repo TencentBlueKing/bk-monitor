@@ -68,7 +68,10 @@ export default defineComponent({
 
     const handleClickPattern = (e: Event) => {
       const target = e.target as HTMLElement;
-      if (target.classList.contains('text__highlight') && props.clusteringConfigData?.placeholder_analysis_supported !== false) {
+      if (
+        target.classList.contains('text__highlight') &&
+        props.clusteringConfigData?.placeholder_analysis_supported !== false
+      ) {
         e.stopPropagation();
         e.preventDefault();
         destroyPopover();
@@ -145,8 +148,8 @@ export default defineComponent({
       if (intersectionObserver) {
         unregisterOberver();
       }
-      intersectionObserver = new IntersectionObserver((entries) => {
-        entries.forEach((entry) => {
+      intersectionObserver = new IntersectionObserver(entries => {
+        entries.forEach(entry => {
           if (intersectionObserver) {
             if (entry.intersectionRatio <= 0) {
               destroyPopover();
@@ -167,29 +170,50 @@ export default defineComponent({
 
     const popoverSlot = () => (
       <div style={{ display: 'none' }}>
-        <div ref={eventTippyRef} class='pattern-event-tippy'>
+        <div
+          ref={eventTippyRef}
+          class='pattern-event-tippy'
+        >
           <div class='event-icons'>
             <div class='event-box'>
-              <span class='event-btn' onClick={handleCopy}>
-                <log-icon type='copy' class='icon copy-icon' />
+              <span
+                class='event-btn'
+                onClick={handleCopy}
+              >
+                <log-icon
+                  type='copy'
+                  class='icon copy-icon'
+                />
                 <span>{t('复制')}</span>
               </span>
             </div>
-            <div class='event-box' on-click={handleShowRegexDialog}>
+            <div
+              class='event-box'
+              on-click={handleShowRegexDialog}
+            >
               <span class='event-btn'>
-                <log-icon type='zhengze' class='icon' />
+                <log-icon
+                  type='zhengze'
+                  class='icon'
+                />
                 <span>{t('正则匹配')}</span>
               </span>
             </div>
             <div class='event-box'>
-              <span class='event-btn' onClick={() => handleClick(true)}>
-                <log-icon type='audit' class='icon' />
+              <span
+                class='event-btn'
+                onClick={() => handleClick(true)}
+              >
+                <log-icon
+                  type='audit'
+                  class='icon'
+                />
                 <span>{t('查询命中pattern的日志')}</span>
               </span>
               <div
                 class='new-link'
                 v-bk-tooltips={t('新开标签页')}
-                onClick={(e) => {
+                onClick={e => {
                   e.stopPropagation();
                   handleClick(true);
                 }}
@@ -203,7 +227,10 @@ export default defineComponent({
     );
 
     return () => (
-      <div class='pattern-line' onClick={handleClickPattern}>
+      <div
+        class='pattern-line'
+        onClick={handleClickPattern}
+      >
         {slots.default?.()}
         {popoverSlot()}
         <RegexMatchDialog

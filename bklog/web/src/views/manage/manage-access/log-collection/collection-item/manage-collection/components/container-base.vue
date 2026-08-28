@@ -233,7 +233,9 @@
               <!-- 采集范围 -->
               <div>
                 <span>{{ $t('采集范围') }}</span>
-                <span>{{ configItem.params?.tail_files === false ? $t('采集全量日志') : $t('仅采集下发后的日志') }}</span>
+                <span>{{
+                  configItem.params?.tail_files === false ? $t('采集全量日志') : $t('仅采集下发后的日志')
+                }}</span>
               </div>
               <!-- 过滤内容 -->
               <div

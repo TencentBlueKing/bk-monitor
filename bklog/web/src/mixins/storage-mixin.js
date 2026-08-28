@@ -160,7 +160,7 @@ export default {
           },
         }).href,
         '_blank',
-        'noopener,noreferrer'
+        'noopener,noreferrer',
       );
     },
     // 存储集群管理权限

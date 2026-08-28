@@ -152,7 +152,7 @@ export default defineComponent({
      */
     const getSelectedValues = () => {
       const flatList = getFlatList();
-      const values = props.indexSetValue.map((v) => {
+      const values = props.indexSetValue.map(v => {
         const target = flatList.find((i: any) => `${i.unique_id}` === `${v}`);
         if (!target) {
           return flatList.find((i: any) => `${i.index_set_id}` === `${v.split('_').at(-1)}`);
@@ -206,7 +206,7 @@ export default defineComponent({
       }
     };
 
-    const handleKeyDown = (event) => {
+    const handleKeyDown = event => {
       // 检查是否按下了 ⌘/⌘/Ctrl + O 或 Cmd + O
       const isCtrlO = event.ctrlKey && event.key === 'o';
       const isCmdO = event.metaKey && event.key === 'o';
@@ -237,7 +237,7 @@ export default defineComponent({
       };
     });
 
-    const handleAuthRequest = (item) => {
+    const handleAuthRequest = item => {
       emit('auth-request', item);
       refRootElement.value?.hide();
     };

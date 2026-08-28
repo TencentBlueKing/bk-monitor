@@ -103,14 +103,14 @@
           <span>{{ props.row.indexes.map(item => item.result_table_id).join('; ') }}</span>
         </template>
       </bk-table-column>
-          <bk-table-column
+      <bk-table-column
         :label="$t('日用量/总用量')"
         :render-header="$renderHeader"
         min-width="80"
       >
         <template #default="props">
           <span :class="{ 'text-disabled': props.row.status === 'stop' }">
-            {{ formatUsage(props.row.daily_usage, props.row.total_usage)  }}
+            {{ formatUsage(props.row.daily_usage, props.row.total_usage) }}
           </span>
         </template>
       </bk-table-column>
@@ -340,13 +340,13 @@
             const resList = res.data.list;
             const indexIdList = resList.filter(item => !!item.index_set_id).map(item => item.index_set_id);
             const { data: desensitizeStatus } = await this.getDesensitizeStatus(indexIdList);
-            this.indexSetList = formatResponseListTimeZoneString(resList, (item) => ({ 
-              is_desensitize: desensitizeStatus[item.index_set_id]?.is_desensitize ?? false, 
+            this.indexSetList = formatResponseListTimeZoneString(resList, item => ({
+              is_desensitize: desensitizeStatus[item.index_set_id]?.is_desensitize ?? false,
             }));
             this.pagination.count = res.data.total;
-            this.loadData()
+            this.loadData();
           })
-          .catch((err) => {
+          .catch(err => {
             console.warn(err);
             this.emptyType = '500';
           })
@@ -363,15 +363,15 @@
       },
       loadData() {
         const callbackFn = (item, key, value) => {
-            this.$set(item, key, value[key]);
+          this.$set(item, key, value[key]);
         };
         requestStorageUsage(this.bkBizId, this.indexSetList, false, callbackFn)
-          .catch((error) => {
+          .catch(error => {
             console.error('Error loading data:', error);
           })
           .finally(() => {
             this.isTableLoading = false;
-        });
+          });
       },
       /**
        * 分页变换
@@ -419,7 +419,7 @@
                 },
               ],
             });
-            this.$store.commit('updateState', {'authDialogData': res.data});
+            this.$store.commit('updateState', { authDialogData: res.data });
           } catch (err) {
             console.warn(err);
           } finally {
@@ -448,7 +448,7 @@
                 },
               ],
             });
-            this.$store.commit('updateState', {'authDialogData': res.data});
+            this.$store.commit('updateState', { authDialogData: res.data });
           } catch (err) {
             console.warn(err);
           } finally {
@@ -471,7 +471,7 @@
           });
         } else if (type === 'search') {
           // 检索
-          updateLastSelectedIndexId(this.spaceUid, row.index_set_id)
+          updateLastSelectedIndexId(this.spaceUid, row.index_set_id);
           this.$router.push({
             name: 'retrieve',
             params: {
@@ -577,7 +577,7 @@
       },
       formatUsage(dailyUsage, totalUsage) {
         return `${formatBytes(dailyUsage)} / ${formatBytes(totalUsage)}`;
-      }
+      },
     },
   };
 </script>

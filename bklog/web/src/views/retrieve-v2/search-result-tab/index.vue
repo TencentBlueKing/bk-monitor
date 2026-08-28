@@ -1,175 +1,187 @@
 <script setup>
-import $http from '@/api';
-import { getFeatureToggleStatus, isFeatureToggleOn } from '@/hooks/use-feature-toggle';
-import useLocale from '@/hooks/use-locale';
-import useStore from '@/hooks/use-store';
-import { computed, defineEmits, defineProps, onMounted, ref, watch } from 'vue';
-import { useRoute } from 'vue-router/composables';
-import DashboardDialog from './components/dashboard-dialog.vue';
+  import $http from '@/api';
+  import { getFeatureToggleStatus, isFeatureToggleOn } from '@/hooks/use-feature-toggle';
+  import useLocale from '@/hooks/use-locale';
+  import useStore from '@/hooks/use-store';
+  import { computed, defineEmits, defineProps, onMounted, ref, watch } from 'vue';
+  import { useRoute } from 'vue-router/composables';
+  import DashboardDialog from './components/dashboard-dialog.vue';
 
-const props = defineProps({
-  value: {
-    type: String,
-    required: true,
-  },
-});
-
-
-const showDialog = ref(false); // 控制弹窗显示状态
-const { $t } = useLocale();
-const store = useStore();
-const route = useRoute();
-
-const emit = defineEmits(['input']);
-
-const indexSetIds = computed(() => store.state.indexItem.ids.map(id => `${id}`));
-const indexSetId = computed(() => indexSetIds.value[0]);
-const bkBizId = computed(() => store.state.bkBizId);
-
-const indexSetItems = computed(() => store.state.retrieve.flatIndexSetList?.filter(item => indexSetIds.value.includes(`${item.index_set_id}`)),
-);
-
-const retrieveParams = computed(() => store.getters.retrieveParams);
-const requestAddition = computed(() => store.getters.requestAddition);
-
-const isAiopsToggle = computed(() => {
-  if (store.getters.isUnionSearch) {
-    return false;
-  }
-
-  const isLocalToggle = (indexSetItems.value?.some(i => i.scenario_id === 'log' && i.collector_config_id !== null))
-    || indexSetItems.value?.some(i => i.scenario_id === 'bkdata');
-  const status = getFeatureToggleStatus('bkdata_aiops_toggle');
-
-  if (status === 'on') {
-    return isLocalToggle;
-  }
-
-  return isFeatureToggleOn('bkdata_aiops_toggle', String(bkBizId.value), { defaultEnabled: isLocalToggle });
-});
-
-const isExternal = computed(() => window.IS_EXTERNAL === true);
-const isSceneMode = computed(() => store.getters.isSceneMode);
-const isChartEnable = computed(() => !store.getters.isUnionSearch && indexSetItems.value?.[0]?.support_doris && !isSceneMode.value && !isExternal.value);
-const isGrepEnable = computed(() => !store.getters.isUnionSearch && indexSetItems.value?.[0]?.support_doris && !isSceneMode.value && !isExternal.value);
-
-// 可切换Tab数组
-const panelList = computed(() => {
-  return [
-    { name: 'origin', label: $t('原始日志'), disabled: false },
-    { name: 'clustering', label: $t('日志聚类'), disabled: !isAiopsToggle.value || isSceneMode.value },
-    { name: 'graph_analysis', label: $t('图表分析'), disabled: !isChartEnable.value },
-    { name: 'grep', label: $t('Grep模式'), disabled: !isGrepEnable.value },
-  ];
-});
-
-const renderPanelList = computed(() => panelList.value.filter(item => !item.disabled));
-
-// 标准化 tab 值，将旧值转换为新值
-const normalizeTabValue = (tabValue) => {
-  return tabValue === 'graphAnalysis' ? 'graph_analysis' : tabValue;
-};
-
-const normalizedValue = computed(() => normalizeTabValue(props.value));
-
-const tabClassList = computed(() => {
-  return renderPanelList.value.map((item, index) => {
-    const isActive = normalizedValue.value === item.name;
-    const isPreItemActive = renderPanelList.value[index - 1]?.name === normalizedValue.value;
-
-    if (isActive || index === 0 || isPreItemActive) {
-      return [];
-    }
-
-    return ['border-left'];
+  const props = defineProps({
+    value: {
+      type: String,
+      required: true,
+    },
   });
-});
-const handleDialogUpdate = (newVal) => {
-  showDialog.value = newVal;
-};
 
-const handleCollectionSuccess = () => {
-  console.log('收藏成功');
-};
+  const showDialog = ref(false); // 控制弹窗显示状态
+  const { $t } = useLocale();
+  const store = useStore();
+  const route = useRoute();
 
-const handleAddAlertPolicy = async () => {
-  const params = {
-    bizId: store.state.bkBizId,
-    indexSetId: indexSetId.value,
-    scenarioId: '',
-    indexStatement: retrieveParams.value.keyword, // 查询语句
-    dimension: [], // 监控维度
-    condition: [], // 监控条件
-  };
-  const indexSet = (store.state.retrieve.indexSetList ?? []).find(item => item.index_set_id === indexSetId.value);
-  if (indexSet) {
-    params.scenarioId = indexSet.category_id;
-  }
+  const emit = defineEmits(['input']);
 
-  if (requestAddition.value.length) {
-    const resp = await $http.request('retrieve/generateQueryString', {
-      data: {
-        addition: requestAddition.value,
-      },
-    });
+  const indexSetIds = computed(() => store.state.indexItem.ids.map(id => `${id}`));
+  const indexSetId = computed(() => indexSetIds.value[0]);
+  const bkBizId = computed(() => store.state.bkBizId);
 
-    if (resp.result) {
-      params.indexStatement = [retrieveParams.value.keyword, resp.data?.querystring]
-        .filter(item => item.length > 0 && item !== '*')
-        .join(' AND ');
+  const indexSetItems = computed(() =>
+    store.state.retrieve.flatIndexSetList?.filter(item => indexSetIds.value.includes(`${item.index_set_id}`)),
+  );
+
+  const retrieveParams = computed(() => store.getters.retrieveParams);
+  const requestAddition = computed(() => store.getters.requestAddition);
+
+  const isAiopsToggle = computed(() => {
+    if (store.getters.isUnionSearch) {
+      return false;
     }
-  }
 
-  const urlArr = [];
-  for (const key in params) {
-    const value = typeof params[key] === 'object' ? JSON.stringify(params[key]) : params[key];
-    urlArr.push(`${key}=${value}`);
-  }
-  window.open(`${window.MONITOR_URL}/?${urlArr.join('&')}#/strategy-config/add`, '_blank', 'noopener,noreferrer');
-};
-const handleAddAlertDashboard = async () => {
-  showDialog.value = true;
-};
-const handleActive = (panel) => {
-  // 标准化比较，确保旧值也能正确判断是否为当前激活的 tab
-  if (normalizedValue.value === panel) return;
+    const isLocalToggle =
+      indexSetItems.value?.some(i => i.scenario_id === 'log' && i.collector_config_id !== null) ||
+      indexSetItems.value?.some(i => i.scenario_id === 'bkdata');
+    const status = getFeatureToggleStatus('bkdata_aiops_toggle');
 
-  emit('input', panel, panel === 'origin');
-};
+    if (status === 'on') {
+      return isLocalToggle;
+    }
 
-watch(
-  () => [isGrepEnable.value, isChartEnable.value, isAiopsToggle.value],
-  ([grepEnable, graphEnable, aiopsEnable]) => {
-    // graphAnalysis: 兼容旧版本 graphAnalysis
-    if (['clustering', 'graphAnalysis', 'grep', 'graph_analysis'].includes(route.query.tab)) {
-      if (
-        (!grepEnable && route.query.tab === 'grep')
-        || (!graphEnable && (route.query.tab === 'graphAnalysis'
-        || route.query.tab === 'graph_analysis'))
-        || (!aiopsEnable && route.query.tab === 'clustering')
-      ) {
-        emit('input', 'origin', false);
+    return isFeatureToggleOn('bkdata_aiops_toggle', String(bkBizId.value), { defaultEnabled: isLocalToggle });
+  });
+
+  const isExternal = computed(() => window.IS_EXTERNAL === true);
+  const isSceneMode = computed(() => store.getters.isSceneMode);
+  const isChartEnable = computed(
+    () =>
+      !store.getters.isUnionSearch &&
+      indexSetItems.value?.[0]?.support_doris &&
+      !isSceneMode.value &&
+      !isExternal.value,
+  );
+  const isGrepEnable = computed(
+    () =>
+      !store.getters.isUnionSearch &&
+      indexSetItems.value?.[0]?.support_doris &&
+      !isSceneMode.value &&
+      !isExternal.value,
+  );
+
+  // 可切换Tab数组
+  const panelList = computed(() => {
+    return [
+      { name: 'origin', label: $t('原始日志'), disabled: false },
+      { name: 'clustering', label: $t('日志聚类'), disabled: !isAiopsToggle.value || isSceneMode.value },
+      { name: 'graph_analysis', label: $t('图表分析'), disabled: !isChartEnable.value },
+      { name: 'grep', label: $t('Grep模式'), disabled: !isGrepEnable.value },
+    ];
+  });
+
+  const renderPanelList = computed(() => panelList.value.filter(item => !item.disabled));
+
+  // 标准化 tab 值，将旧值转换为新值
+  const normalizeTabValue = tabValue => {
+    return tabValue === 'graphAnalysis' ? 'graph_analysis' : tabValue;
+  };
+
+  const normalizedValue = computed(() => normalizeTabValue(props.value));
+
+  const tabClassList = computed(() => {
+    return renderPanelList.value.map((item, index) => {
+      const isActive = normalizedValue.value === item.name;
+      const isPreItemActive = renderPanelList.value[index - 1]?.name === normalizedValue.value;
+
+      if (isActive || index === 0 || isPreItemActive) {
+        return [];
+      }
+
+      return ['border-left'];
+    });
+  });
+  const handleDialogUpdate = newVal => {
+    showDialog.value = newVal;
+  };
+
+  const handleCollectionSuccess = () => {
+    console.log('收藏成功');
+  };
+
+  const handleAddAlertPolicy = async () => {
+    const params = {
+      bizId: store.state.bkBizId,
+      indexSetId: indexSetId.value,
+      scenarioId: '',
+      indexStatement: retrieveParams.value.keyword, // 查询语句
+      dimension: [], // 监控维度
+      condition: [], // 监控条件
+    };
+    const indexSet = (store.state.retrieve.indexSetList ?? []).find(item => item.index_set_id === indexSetId.value);
+    if (indexSet) {
+      params.scenarioId = indexSet.category_id;
+    }
+
+    if (requestAddition.value.length) {
+      const resp = await $http.request('retrieve/generateQueryString', {
+        data: {
+          addition: requestAddition.value,
+        },
+      });
+
+      if (resp.result) {
+        params.indexStatement = [retrieveParams.value.keyword, resp.data?.querystring]
+          .filter(item => item.length > 0 && item !== '*')
+          .join(' AND ');
       }
     }
-  },
-);
 
-// 场景化检索模式切换时，若当前不在原始日志 tab，自动切回原始日志
-watch(
-  () => isSceneMode.value,
-  (isSceneMode) => {
-    if (isSceneMode && normalizedValue.value !== 'origin') {
-      emit('input', 'origin', false);
+    const urlArr = [];
+    for (const key in params) {
+      const value = typeof params[key] === 'object' ? JSON.stringify(params[key]) : params[key];
+      urlArr.push(`${key}=${value}`);
     }
-  },
-);
+    window.open(`${window.MONITOR_URL}/?${urlArr.join('&')}#/strategy-config/add`, '_blank', 'noopener,noreferrer');
+  };
+  const handleAddAlertDashboard = async () => {
+    showDialog.value = true;
+  };
+  const handleActive = panel => {
+    // 标准化比较，确保旧值也能正确判断是否为当前激活的 tab
+    if (normalizedValue.value === panel) return;
 
-onMounted(() => {
-  const tabName = normalizeTabValue(route.query.tab) ?? 'origin';
-  if (panelList.value.find(item => item.name === tabName)?.disabled ?? true) {
-    emit('input', panelList.value[0].name, false);
-  }
-});
+    emit('input', panel, panel === 'origin');
+  };
+
+  watch(
+    () => [isGrepEnable.value, isChartEnable.value, isAiopsToggle.value],
+    ([grepEnable, graphEnable, aiopsEnable]) => {
+      // graphAnalysis: 兼容旧版本 graphAnalysis
+      if (['clustering', 'graphAnalysis', 'grep', 'graph_analysis'].includes(route.query.tab)) {
+        if (
+          (!grepEnable && route.query.tab === 'grep') ||
+          (!graphEnable && (route.query.tab === 'graphAnalysis' || route.query.tab === 'graph_analysis')) ||
+          (!aiopsEnable && route.query.tab === 'clustering')
+        ) {
+          emit('input', 'origin', false);
+        }
+      }
+    },
+  );
+
+  // 场景化检索模式切换时，若当前不在原始日志 tab，自动切回原始日志
+  watch(
+    () => isSceneMode.value,
+    isSceneMode => {
+      if (isSceneMode && normalizedValue.value !== 'origin') {
+        emit('input', 'origin', false);
+      }
+    },
+  );
+
+  onMounted(() => {
+    const tabName = normalizeTabValue(route.query.tab) ?? 'origin';
+    if (panelList.value.find(item => item.name === tabName)?.disabled ?? true) {
+      emit('input', panelList.value[0].name, false);
+    }
+  });
 </script>
 <template>
   <div class="retrieve2-tab">
@@ -179,7 +191,8 @@ onMounted(() => {
         :key="item.label"
         :class="['retrieve-panel', { active: normalizedValue === item.name }, ...tabClassList[index]]"
         @click="handleActive(item.name)"
-      >{{ item.label }}</span>
+        >{{ item.label }}</span
+      >
     </div>
     <div class="retrieve2-tab-right">
       <div
@@ -213,5 +226,5 @@ onMounted(() => {
   </div>
 </template>
 <style lang="scss">
-@import './index.scss';
+  @import './index.scss';
 </style>

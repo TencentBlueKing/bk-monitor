@@ -73,7 +73,7 @@
           >
             <div class="field_name">{{ field }}</div>
             <div
-              class='operate-button'
+              class="operate-button"
               @click="addItem(field)"
             >
               {{ $t('添加') }}

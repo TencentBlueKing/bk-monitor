@@ -54,19 +54,30 @@ export default defineComponent({
       emit('tab-click', type);
     };
 
-    return () => props.isDorisEnabled && (
-      <div class='cluster-type-tabs'>
-        <span
-          class={['tab-btn', props.activeTab === CLUSTER_TYPES.ES ? 'active' : '', props.disabled && props.activeTab !== CLUSTER_TYPES.ES ? 'disabled' : '']}
-          onClick={() => handleTabClick(CLUSTER_TYPES.ES)}>
-          {t('ES集群')}
-        </span>
-        <span
-          class={['tab-btn', props.activeTab === CLUSTER_TYPES.DORIS ? 'active' : '', props.disabled && props.activeTab !== CLUSTER_TYPES.DORIS ? 'disabled' : '']}
-          onClick={() => handleTabClick(CLUSTER_TYPES.DORIS)}>
-          {t('Doris集群')}
-        </span>
-      </div>
-    );
+    return () =>
+      props.isDorisEnabled && (
+        <div class='cluster-type-tabs'>
+          <span
+            class={[
+              'tab-btn',
+              props.activeTab === CLUSTER_TYPES.ES ? 'active' : '',
+              props.disabled && props.activeTab !== CLUSTER_TYPES.ES ? 'disabled' : '',
+            ]}
+            onClick={() => handleTabClick(CLUSTER_TYPES.ES)}
+          >
+            {t('ES集群')}
+          </span>
+          <span
+            class={[
+              'tab-btn',
+              props.activeTab === CLUSTER_TYPES.DORIS ? 'active' : '',
+              props.disabled && props.activeTab !== CLUSTER_TYPES.DORIS ? 'disabled' : '',
+            ]}
+            onClick={() => handleTabClick(CLUSTER_TYPES.DORIS)}
+          >
+            {t('Doris集群')}
+          </span>
+        </div>
+      );
   },
 });

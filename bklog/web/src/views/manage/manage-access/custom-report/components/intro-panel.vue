@@ -69,7 +69,7 @@
     },
     data() {
       return {
-        proxyHost:[]
+        proxyHost: [],
       };
     },
     computed: {
@@ -103,30 +103,30 @@
         this.$emit('handle-active-details', state ? state : !this.isOpenWindow);
         this.$store.commit('updateChartSize');
       },
-      async initTargetFieldSelectList () {
+      async initTargetFieldSelectList() {
         const res = await $http.request('retrieve/getProxyHost', {
           query: {
             space_uid: this.$route.query.spaceUid,
-          }
+          },
         });
-        this.proxyHost = res.data
-        
+        this.proxyHost = res.data;
       },
       updateStringWithNewData(originalString) {
-        const regex = /<code>[\s\S]*?云区域ID[\s\S]*?<\/code>/
+        const regex = /<code>[\s\S]*?云区域ID[\s\S]*?<\/code>/;
 
         // 格式化新的数据以便插入到 <code> 标签中
-        const newDataContent = this.proxyHost.map(dataGroup =>
-          dataGroup.urls.map(data => 
-            `云区域ID ${dataGroup.bk_cloud_id} ${data.protocol}: ${data.report_url}`
-          ).join('\n')
-        ).join('\n');
+        const newDataContent = this.proxyHost
+          .map(dataGroup =>
+            dataGroup.urls
+              .map(data => `云区域ID ${dataGroup.bk_cloud_id} ${data.protocol}: ${data.report_url}`)
+              .join('\n'),
+          )
+          .join('\n');
         console.log(newDataContent);
-        
-        const updatedString = originalString.replace(regex,  `<code>${newDataContent}</code>`);
-        return updatedString;
-      }
 
+        const updatedString = originalString.replace(regex, `<code>${newDataContent}</code>`);
+        return updatedString;
+      },
     },
   };
 </script>

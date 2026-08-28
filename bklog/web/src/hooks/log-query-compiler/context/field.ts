@@ -10,7 +10,15 @@ import type { LogFieldType, SelectionContext } from '../types';
 const KEYWORD_LIKE = new Set(['keyword', 'flattened']);
 const TEXT_LIKE = new Set(['text', 'string']);
 const NUMBER_LIKE = new Set([
-  'long', 'integer', 'short', 'byte', 'double', 'float', 'half_float', 'scaled_float', 'number',
+  'long',
+  'integer',
+  'short',
+  'byte',
+  'double',
+  'float',
+  'half_float',
+  'scaled_float',
+  'number',
 ]);
 const DATE_LIKE = new Set(['date', 'date_nanos']);
 
@@ -38,14 +46,8 @@ export const buildSelectionContext = (params: {
   endOffset?: number;
 }): SelectionContext => {
   const fieldObj = typeof params.field === 'object' && params.field ? params.field : undefined;
-  const fieldName = typeof params.field === 'string'
-    ? params.field
-    : (fieldObj?.field_name ?? '');
-  const fieldType = normalizeFieldType(
-    params.fieldType
-    ?? fieldObj?.field_type
-    ?? '',
-  );
+  const fieldName = typeof params.field === 'string' ? params.field : (fieldObj?.field_name ?? '');
+  const fieldType = normalizeFieldType(params.fieldType ?? fieldObj?.field_type ?? '');
 
   return {
     text: String(params.text ?? ''),

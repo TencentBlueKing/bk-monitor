@@ -133,9 +133,9 @@ export default class LuceneSegment {
     if (LuceneSegment.isMidNumLet(c)) {
       return Boolean(
         prev &&
-          next &&
-          ((LuceneSegment.isLetter(prev) && LuceneSegment.isLetter(next)) ||
-            (LuceneSegment.isNumber(prev) && LuceneSegment.isNumber(next))),
+        next &&
+        ((LuceneSegment.isLetter(prev) && LuceneSegment.isLetter(next)) ||
+          (LuceneSegment.isNumber(prev) && LuceneSegment.isNumber(next))),
       );
     }
     if (LuceneSegment.isMidNum(c)) {
@@ -147,11 +147,7 @@ export default class LuceneSegment {
   /**
    * 处理普通文本的分词逻辑，遵循 StandardTokenizer 的 Mid 规则
    */
-  private static processBuffer(
-    buffer: string,
-    MAX_TOKENS: number,
-    currentTokenCount: number,
-  ): LuceneSegmentToken[] {
+  private static processBuffer(buffer: string, MAX_TOKENS: number, currentTokenCount: number): LuceneSegmentToken[] {
     const result: LuceneSegmentToken[] = [];
     let currentToken = '';
     let currentMidSequence = false;

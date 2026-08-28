@@ -528,7 +528,8 @@ export default defineComponent({
               }}
               on-blur={val => {
                 if (val === '') {
-                  formData.value.retention = clusterData.value?.setup_config?.retention_days_default ?? STORAGE_DEFAULTS.retention;
+                  formData.value.retention =
+                    clusterData.value?.setup_config?.retention_days_default ?? STORAGE_DEFAULTS.retention;
                 }
               }}
             >
@@ -553,7 +554,8 @@ export default defineComponent({
                   }}
                   on-blur={val => {
                     if (val === '') {
-                      formData.value.allocation_min_days = clusterData.value?.setup_config?.retention_days_default ?? STORAGE_DEFAULTS.retention;
+                      formData.value.allocation_min_days =
+                        clusterData.value?.setup_config?.retention_days_default ?? STORAGE_DEFAULTS.retention;
                     }
                   }}
                 >
@@ -577,7 +579,8 @@ export default defineComponent({
                 }}
                 on-blur={val => {
                   if (val === '') {
-                    formData.value.storage_replies = clusterData.value?.setup_config?.number_of_replicas_default ?? STORAGE_DEFAULTS.storage_replies;
+                    formData.value.storage_replies =
+                      clusterData.value?.setup_config?.number_of_replicas_default ?? STORAGE_DEFAULTS.storage_replies;
                   }
                 }}
               />
@@ -596,7 +599,8 @@ export default defineComponent({
                 }}
                 on-blur={val => {
                   if (val === '') {
-                    formData.value.es_shards = clusterData.value?.setup_config?.es_shards_default ?? STORAGE_DEFAULTS.es_shards;
+                    formData.value.es_shards =
+                      clusterData.value?.setup_config?.es_shards_default ?? STORAGE_DEFAULTS.es_shards;
                   }
                 }}
               />
@@ -623,10 +627,7 @@ export default defineComponent({
      * @param options.action 操作类型: 'next'(默认) | 'saveOnly'
      * @param options.callback 保存完成后的回调函数
      */
-    const handleCustomSubmit = ({
-      action = 'next',
-      callback,
-    }: ISubmitOptions = {}) => {
+    const handleCustomSubmit = ({ action = 'next', callback }: ISubmitOptions = {}) => {
       submitLoading.value = true;
       const {
         collector_config_name,
@@ -701,25 +702,15 @@ export default defineComponent({
      * @param options.action 操作类型: 'next'(默认) | 'saveOnly'
      * @param options.callback 保存完成后的回调函数
      */
-    const handleNormalSubmit = ({
-      action = 'next',
-      callback,
-    }: ISubmitOptions = {}) => {
+    const handleNormalSubmit = ({ action = 'next', callback }: ISubmitOptions = {}) => {
       submitLoading.value = true;
       // 从 formData 读取清洗相关数据，与旧版保持一致
-      const {
-        etl_config,
-        etl_params,
-        fields,
-        retention,
-        allocation_min_days,
-        storage_replies,
-        es_shards,
-      } = formData.value;
+      const { etl_config, etl_params, fields, retention, allocation_min_days, storage_replies, es_shards } =
+        formData.value;
       const collectorConfigId = currentCollect.value?.collector_config_id || route.params.collectorId;
       const tableId = props.isClone
         ? currentCollect.value.collector_config_name_en
-        : (formData.value.table_id || currentCollect.value.collector_config_name_en);
+        : formData.value.table_id || currentCollect.value.collector_config_name_en;
       // 仅透传公开的 expand_depth，避免覆盖后台隐藏的 overflow_strategy
       const submitEtlParams = (() => {
         if (!etl_params) return etl_params;
@@ -780,10 +771,7 @@ export default defineComponent({
      * @param options.action 操作类型: 'next'(默认) | 'saveOnly'
      * @param options.callback 保存完成后的回调函数
      */
-    const handleSubmitSave = async ({
-      action = 'next',
-      callback,
-    }: ISubmitOptions = {}) => {
+    const handleSubmitSave = async ({ action = 'next', callback }: ISubmitOptions = {}) => {
       if (!clusterSelect.value) {
         showMessage(t('请选择集群'), 'error');
         callback?.(false);

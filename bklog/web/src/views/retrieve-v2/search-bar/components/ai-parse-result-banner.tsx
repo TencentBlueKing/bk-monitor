@@ -72,20 +72,24 @@ export default defineComponent({
         const firstSpan = container.childNodes[0]?.childNodes[1] as HTMLElement;
         const lastSpan = container.childNodes[1]?.childNodes[1] as HTMLElement;
 
-        hasOverflow.value = firstSpan.scrollWidth > firstSpan.clientWidth
-          || lastSpan.scrollWidth > lastSpan.clientWidth;
+        hasOverflow.value =
+          firstSpan.scrollWidth > firstSpan.clientWidth || lastSpan.scrollWidth > lastSpan.clientWidth;
       } else {
         // 非部分成功情况，直接检测容器
         hasOverflow.value = textRef.value.scrollWidth > textRef.value.clientWidth;
       }
     };
 
-    watch(() => [props.aiQueryResult?.explain, props.aiQueryResult?.queryString], () => {
-      isExpanded.value = false;
-      nextTick(checkOverflow);
-    }, {
-      immediate: true,
-    });
+    watch(
+      () => [props.aiQueryResult?.explain, props.aiQueryResult?.queryString],
+      () => {
+        isExpanded.value = false;
+        nextTick(checkOverflow);
+      },
+      {
+        immediate: true,
+      },
+    );
 
     const { addElementEvent } = useElementEvent();
     addElementEvent(document, 'resize', checkOverflow);
@@ -100,9 +104,7 @@ export default defineComponent({
         // 部分成功：复制有效语句和无效内容
         const validPart = `${$t('识别出部分语句')}: ${props.aiQueryResult.queryString}`;
         const invalidPart = `${$t('部分无效内容')}: ${props.aiQueryResult?.explain || ''}`;
-        content = validPart
-          ? `${validPart}\n ${invalidPart}`
-          : invalidPart;
+        content = validPart ? `${validPart}\n ${invalidPart}` : invalidPart;
       } else if (isSuccess.value) {
         // 成功：复制查询语句
         content = props.aiQueryResult?.queryString || '';
@@ -129,7 +131,6 @@ export default defineComponent({
     const toggleExpanded = () => {
       isExpanded.value = !isExpanded.value;
     };
-
 
     /**
      * 渲染解析失败原因
@@ -164,25 +165,27 @@ export default defineComponent({
 
       const expandIcon = isExpanded.value ? 'bklog-collapse-small' : 'bklog-expand-small';
 
-      return <div class={['ai-parse-actions', { 'is-expanded': isExpanded.value }]}>
-        {hasOverflow.value && (
+      return (
+        <div class={['ai-parse-actions', { 'is-expanded': isExpanded.value }]}>
+          {hasOverflow.value && (
+            <span
+              class='ai-parse-action-btn'
+              onClick={toggleExpanded}
+            >
+              <i class={['bklog-icon', expandIcon]}></i>
+              {isExpanded.value ? $t('收起') : $t('完整语句')}
+            </span>
+          )}
           <span
             class='ai-parse-action-btn'
-            onClick={toggleExpanded}
+            onClick={handleCopy}
           >
-            <i class={['bklog-icon', expandIcon]}></i>
-            {isExpanded.value ? $t('收起') : $t('完整语句')}
+            <i class='bklog-icon bklog-data-copy'></i>
+            {$t('复制')}
           </span>
-        )}
-        <span
-          class='ai-parse-action-btn'
-          onClick={handleCopy}
-        >
-          <i class='bklog-icon bklog-data-copy'></i>
-          {$t('复制')}
-        </span>
-      </div>;
-    }
+        </div>
+      );
+    };
 
     /**
      * 高亮渲染关键词
@@ -204,11 +207,11 @@ export default defineComponent({
 
       // 1. 先匹配关键字（AND NOT 必须在 AND 之前，避免误匹配）
       const keywordPatterns = [
-        /\b(AND\s+NOT)\b/gi,  // AND NOT
-        /\b(AND|OR)\b/gi,      // AND 或 OR
+        /\b(AND\s+NOT)\b/gi, // AND NOT
+        /\b(AND|OR)\b/gi, // AND 或 OR
       ];
 
-      keywordPatterns.forEach((pattern) => {
+      keywordPatterns.forEach(pattern => {
         let match;
         pattern.lastIndex = 0;
         while ((match = pattern.exec(text)) !== null) {
@@ -248,7 +251,7 @@ export default defineComponent({
 
         // 检查 key 是否与已匹配的关键字重叠（排除括号，因为 key 可以在括号内）
         const isKeyOverlapped = matches.some(
-          m => m.type === 'keyword' && m.index < colonIndex && m.index + m.length > keyStart
+          m => m.type === 'keyword' && m.index < colonIndex && m.index + m.length > keyStart,
         );
 
         if (!isKeyOverlapped) {
@@ -296,9 +299,7 @@ export default defineComponent({
         } else {
           // 普通值：找到值的结束位置
           // 结束条件：遇到关键字、括号、或下一个 key:
-          const nextKeyColon = idx < keyColonMatches.length - 1
-            ? keyColonMatches[idx + 1].keyStart
-            : text.length;
+          const nextKeyColon = idx < keyColonMatches.length - 1 ? keyColonMatches[idx + 1].keyStart : text.length;
 
           valueEnd = valueStart;
           while (valueEnd < nextKeyColon && valueEnd < text.length) {
@@ -350,7 +351,7 @@ export default defineComponent({
 
           // 检查是否真正重叠（有字符重叠，不仅仅是相邻）
           const overlaps =
-            (current.index < existing.index + existing.length && current.index + current.length > existing.index);
+            current.index < existing.index + existing.length && current.index + current.length > existing.index;
 
           if (overlaps) {
             // 如果当前是 AND NOT，且已存在的是 AND，则替换
@@ -423,9 +424,13 @@ export default defineComponent({
         }
 
         elements.push(
-          <span key={`${match.type}-${idx}`} class={className} style={style}>
+          <span
+            key={`${match.type}-${idx}`}
+            class={className}
+            style={style}
+          >
             {match.value}
-          </span>
+          </span>,
         );
 
         lastIndex = match.index + match.length;
@@ -433,13 +438,11 @@ export default defineComponent({
 
       // 添加剩余的文本
       if (lastIndex < text.length) {
-        elements.push(
-          <span key="text-end">{text.substring(lastIndex)}</span>
-        );
+        elements.push(<span key='text-end'>{text.substring(lastIndex)}</span>);
       }
 
       return elements.length > 0 ? elements : keyword;
-    }
+    };
 
     return () => {
       if (!props.aiQueryResult?.parseResult) {
@@ -459,9 +462,9 @@ export default defineComponent({
           ]}
         >
           <div class={['ai-parse-result-left', { 'is-expanded': isExpanded.value }]}>
-            {isSuccess.value && (
-              [<span class='ai-parse-label'>
-                <span class="ai-parse-label-left">
+            {isSuccess.value && [
+              <span class='ai-parse-label'>
+                <span class='ai-parse-label-left'>
                   <i class='bklog-icon bklog-circle-correct-filled ai-parse-icon' />
                   <span class='ai-parse-success-label'>{$t('解析成功')}:</span>
                 </span>
@@ -472,41 +475,40 @@ export default defineComponent({
                 class={['ai-parse-success-text', { 'is-expanded': isExpanded.value }]}
               >
                 {getSementKeywordElements(props.aiQueryResult.queryString)}
-              </span>]
-            )}
-            {(isFailed.value || isPartialSuccess.value) && (
-              [
-                <span class='ai-parse-label'>
-                  <span class="ai-parse-label-left">
-                    <i class='bklog-icon bklog-circle-alert-filled ai-parse-icon' />
-                    <span class='ai-parse-failed-label'>{$t('解析失败')}:</span>
-                  </span>
-                  {getActions(!isExpanded.value)}
-                </span>,
-                isPartialSuccess.value ? (
-                  <span
-                    ref={textRef}
-                    class={['ai-parse-failed-reason', 'partial-success', { 'is-ellipsis': !isExpanded.value, 'is-expanded': isExpanded.value }]}
-                  >
-                    {renderFailedReason()}
-                  </span>
-                ) : (
-                  <span
-                    ref={textRef}
-                    class={['ai-parse-failed-reason', { 'is-expanded': isExpanded.value }]}
-                  >
-                    {renderFailedReason()}
-                  </span>
-                ),
-              ]
-            )}
+              </span>,
+            ]}
+            {(isFailed.value || isPartialSuccess.value) && [
+              <span class='ai-parse-label'>
+                <span class='ai-parse-label-left'>
+                  <i class='bklog-icon bklog-circle-alert-filled ai-parse-icon' />
+                  <span class='ai-parse-failed-label'>{$t('解析失败')}:</span>
+                </span>
+                {getActions(!isExpanded.value)}
+              </span>,
+              isPartialSuccess.value ? (
+                <span
+                  ref={textRef}
+                  class={[
+                    'ai-parse-failed-reason',
+                    'partial-success',
+                    { 'is-ellipsis': !isExpanded.value, 'is-expanded': isExpanded.value },
+                  ]}
+                >
+                  {renderFailedReason()}
+                </span>
+              ) : (
+                <span
+                  ref={textRef}
+                  class={['ai-parse-failed-reason', { 'is-expanded': isExpanded.value }]}
+                >
+                  {renderFailedReason()}
+                </span>
+              ),
+            ]}
           </div>
-          {
-            getActions(isExpanded.value)
-          }
+          {getActions(isExpanded.value)}
         </div>
       );
     };
   },
 });
-

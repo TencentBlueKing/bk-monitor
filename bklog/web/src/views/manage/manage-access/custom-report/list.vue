@@ -404,15 +404,15 @@
       !this.authGlobalInfo && this.initLabelSelectList();
       !this.authGlobalInfo && this.search();
     },
-    watch:{
-      collectList:{
+    watch: {
+      collectList: {
         handler(val) {
           if (val) {
             const callbackFn = (item, key, value) => {
-                this.$set(item, key, value[key]);
+              this.$set(item, key, value[key]);
             };
             requestStorageUsage(this.bkBizId, val, true, callbackFn)
-              .catch((error) => {
+              .catch(error => {
                 console.error('Error loading data:', error);
               })
               .finally(() => {
@@ -420,7 +420,7 @@
               });
           }
         },
-      }
+      },
     },
     methods: {
       search() {
@@ -459,7 +459,7 @@
         };
 
         if (operateType === 'search') {
-         updateLastSelectedIndexId(this.spaceUid, row.index_set_id)
+          updateLastSelectedIndexId(this.spaceUid, row.index_set_id);
           if (!row.index_set_id && !row.bkdata_index_set_ids.length) return;
           params.indexId = row.index_set_id ? row.index_set_id : row.bkdata_index_set_ids[0];
         }
@@ -549,12 +549,14 @@
               const indexIdList = resList.filter(item => !!item.index_set_id).map(item => item.index_set_id);
               const { data: desensitizeStatus } = await this.getDesensitizeStatus(indexIdList);
 
-              const formattedList = formatResponseListTimeZoneString(resList, (item) => ({ is_desensitize: desensitizeStatus[item.index_set_id]?.is_desensitize ?? false, }));
+              const formattedList = formatResponseListTimeZoneString(resList, item => ({
+                is_desensitize: desensitizeStatus[item.index_set_id]?.is_desensitize ?? false,
+              }));
               this.collectList.splice(0, this.collectList.length, ...formattedList);
               this.pagination.count = data.total;
             }
           })
-          .catch((err) => {
+          .catch(err => {
             console.warn(err);
             this.emptyType = '500';
           })
@@ -613,7 +615,7 @@
       },
       formatUsage(dailyUsage, totalUsage) {
         return `${formatBytes(dailyUsage)} / ${formatBytes(totalUsage)}`;
-      }
+      },
     },
   };
 </script>

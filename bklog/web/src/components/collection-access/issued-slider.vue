@@ -231,7 +231,7 @@
                   v-else
                   class="exception-wrap-item exception-part"
                   scene="part"
-                  style="margin-top: 240px;"
+                  style="margin-top: 240px"
                   type="empty"
                 >
                 </bk-exception>
@@ -491,7 +491,7 @@
       },
       prevHandler() {
         if (this.operateType === 'add') {
-          this.$store.commit('updateState', {'showRouterLeaveTip': true});
+          this.$store.commit('updateState', { showRouterLeaveTip: true });
           this.$router.replace({
             name: 'collectEdit',
             params: {

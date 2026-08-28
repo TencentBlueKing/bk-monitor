@@ -158,8 +158,8 @@
                 v-if="isShowProgress(row.export_status)"
                 class="progress-text"
               >
-                {{ row.progressPercent || 0 }} %
-                ({{ formatNumber(row.exported_count) }} / {{ formatNumber(row.export_total_count) }})
+                {{ row.progressPercent || 0 }} % ({{ formatNumber(row.exported_count) }} /
+                {{ formatNumber(row.export_total_count) }})
               </span>
             </span>
           </template>
@@ -536,12 +536,13 @@
           });
         }
 
-        const requestConfig = this.isScene || this.isUnionSearch
-          ? { data }
-          : {
-              params: { index_set_id: this.routerIndexSet },
-              data,
-            };
+        const requestConfig =
+          this.isScene || this.isUnionSearch
+            ? { data }
+            : {
+                params: { index_set_id: this.routerIndexSet },
+                data,
+              };
 
         this.$http
           .request(downRequestUrl, requestConfig)
@@ -755,10 +756,7 @@
         return {
           ...row,
           currentGrowth: DOWNLOAD_PROGRESS_BASE_GROWTH,
-          progressPercent: calculateProgressPercent(
-            row.exported_count || 0,
-            row.export_total_count || 0,
-          ),
+          progressPercent: calculateProgressPercent(row.exported_count || 0, row.export_total_count || 0),
         };
       },
       setExportListData(data) {
@@ -817,9 +815,7 @@
           pagesize: limit,
           show_all: this.isSearchAll,
           start_time: this.dateRange[0]?.getTime() || null,
-          end_time: this.dateRange[1]
-            ? this.dateRange[1].getTime() + DOWNLOAD_DATA_DELAY
-            : null,
+          end_time: this.dateRange[1] ? this.dateRange[1].getTime() + DOWNLOAD_DATA_DELAY : null,
         };
         let queryUrl;
         let requestConfig;
@@ -957,7 +953,7 @@
   .progress-text {
     font-size: 12px;
     font-weight: 700;
-    color: #3A84FF;
+    color: #3a84ff;
     white-space: nowrap;
   }
 </style>

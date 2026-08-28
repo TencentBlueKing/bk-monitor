@@ -155,16 +155,14 @@ export default defineComponent({
       openMap: toPlainOpenMap(groupListState.value),
     });
 
-    const syncGroupStateFromMeta = (
-      openMap: ClusterViewResult['openMap'] = {},
-    ) => {
+    const syncGroupStateFromMeta = (openMap: ClusterViewResult['openMap'] = {}) => {
       const next: GroupListState = {};
-      Object.keys(groupListState.value).forEach((key) => {
+      Object.keys(groupListState.value).forEach(key => {
         if (groupListState.value[key]?.isOpen) {
           next[key] = { isOpen: true };
         }
       });
-      Object.keys(openMap).forEach((key) => {
+      Object.keys(openMap).forEach(key => {
         if (openMap[key]?.isOpen) {
           next[key] = { isOpen: true };
         }
@@ -270,7 +268,7 @@ export default defineComponent({
     /**
      * 分页器观察器
      */
-    useIntersectionObserver(paginationRef, (entry) => {
+    useIntersectionObserver(paginationRef, entry => {
       if (entry.isIntersecting) {
         (paginationRef.value?.childNodes[0] as HTMLElement)?.style?.setProperty('visibility', 'visible');
         if (pagination.value.current * pagination.value.limit < pagination.value.count) {
@@ -408,9 +406,9 @@ export default defineComponent({
           { cancelWhenRouteChange: false },
         ) as Promise<IResponseData<LogPattern[]>>
       ) // 由于回填指纹的数据导致路由变化，故路由变化时不取消请求
-        .then(async (res) => {
+        .then(async res => {
           // 原始接口数据不再 structuredClone 到响应式内存，分块镜像到 IndexedDB，下载时按需读取。
-          const responseList = (Array.isArray(res.data) ? res.data : []).map((item) => {
+          const responseList = (Array.isArray(res.data) ? res.data : []).map(item => {
             const nextItem = {
               ...item,
               owners: getOwnerList(item.owners),
@@ -451,7 +449,7 @@ export default defineComponent({
     };
 
     const handleColumnSort = (field: string, order: string) => {
-      Object.keys(filterSortMap.value.sort).forEach((key) => {
+      Object.keys(filterSortMap.value.sort).forEach(key => {
         if (key !== field) {
           filterSortMap.value.sort[key] = '';
         }
@@ -477,7 +475,7 @@ export default defineComponent({
       pagination.value.current = 1;
     };
 
-    const handleScrollXChange = (event) => {
+    const handleScrollXChange = event => {
       const scrollLeft = (event.target as HTMLElement)?.scrollLeft || 0;
       for (const element of rootElement.value.querySelectorAll('.bklog-fill-offset-x')) {
         element.scrollLeft = scrollLeft;

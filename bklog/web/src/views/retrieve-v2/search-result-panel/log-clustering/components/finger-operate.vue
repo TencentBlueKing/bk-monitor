@@ -335,7 +335,7 @@
       },
       indexSetId() {
         return window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId;
-      }
+      },
     },
     watch: {
       group: {

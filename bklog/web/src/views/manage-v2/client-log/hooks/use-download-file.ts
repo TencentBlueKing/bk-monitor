@@ -54,7 +54,7 @@ export const useDownloadFile = () => {
           },
           responseType: 'blob',
         })
-        .then(async (res) => {
+        .then(async res => {
           const contentType = res.headers?.['content-type'] || '';
           if (!contentType.includes('application/zip')) {
             try {
@@ -76,7 +76,7 @@ export const useDownloadFile = () => {
           }
           blobDownload(res.data, fileName);
         })
-        .catch((error) => {
+        .catch(error => {
           console.error('下载失败:', error);
         });
     } else {

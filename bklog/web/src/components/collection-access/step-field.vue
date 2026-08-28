@@ -394,9 +394,7 @@
                   <span v-bk-tooltips="$t('你可以自行指定日志展示时间，勾选前请提前清洗日志时间')">{{
                     $t('指定字段为日志时间')
                   }}</span>
-                  <span style=" font-size: 12px;color: #000;">
-                    (切换时间为纳秒，历史数据将无法查询，请谨慎切换)
-                  </span>
+                  <span style="font-size: 12px; color: #000"> (切换时间为纳秒，历史数据将无法查询，请谨慎切换) </span>
                 </bk-radio>
               </bk-radio-group>
             </div>
@@ -1320,10 +1318,9 @@
         );
       },
       advanceDisableTips() {
-        if (!isFeatureToggleOn('scenario_bkdata', [
-          String(this.$store.state.bkBizId),
-          String(this.$store.state.spaceUid),
-        ])) {
+        if (
+          !isFeatureToggleOn('scenario_bkdata', [String(this.$store.state.bkBizId), String(this.$store.state.spaceUid)])
+        ) {
           return '';
         }
         if (this.curCollect.bkdata_data_id === null) {
@@ -1452,7 +1449,7 @@ __ext_json.service.labels   ${this.$t('动态对象字段')}`;
             disabled: false, //isNanoTimeFormat(item),
           });
         });
-      }
+      },
     },
     watch: {
       'formData.fields'() {
@@ -1928,9 +1925,7 @@ __ext_json.service.labels   ${this.$t('动态对象字段')}`;
               // 仅后台确认索引轮转成功后，才提示层级已生效
               if (showedDepthSuccess) {
                 const depthLabel = getExpandDepthLabel(this.expandDepthSelect, key => this.$t(key));
-                this.messageSuccess(
-                  this.$t('动态字段解析层级已生效，新写入数据将按 {n} 解析。', { n: depthLabel }),
-                );
+                this.messageSuccess(this.$t('动态字段解析层级已生效，新写入数据将按 {n} 解析。', { n: depthLabel }));
                 this.originHadExtJsonConfig = true;
                 this.originRetainExtraJson = true;
                 this.originExpandDepthSelect = this.expandDepthSelect;
@@ -2171,10 +2166,7 @@ __ext_json.service.labels   ${this.$t('动态对象字段')}`;
         copyFields.forEach(row => {
           row.value = '';
           if (row.is_delete) {
-            const copyRow = Object.assign(
-              structuredClone(this.rowTemplate),
-              structuredClone(row),
-            );
+            const copyRow = Object.assign(structuredClone(this.rowTemplate), structuredClone(row));
             Object.assign(row, copyRow);
           }
           if (row.option) {
@@ -2295,7 +2287,8 @@ __ext_json.service.labels   ${this.$t('动态对象字段')}`;
         if (this.isTempField) {
           requestUrl = 'clean/getEtlPreview';
         } else {
-          (urlParams.collector_config_id = this.curCollect.collector_config_id), (requestUrl = 'collect/getEtlPreview');
+          ((urlParams.collector_config_id = this.curCollect.collector_config_id),
+            (requestUrl = 'collect/getEtlPreview'));
         }
         const updateData = { params: urlParams, data };
         this.$http
@@ -2310,10 +2303,10 @@ __ext_json.service.labels   ${this.$t('动态对象字段')}`;
               const dataFields = res.data.fields;
               const validFieldPattern = /^[A-Za-z_][0-9A-Za-z_]*$/;
               dataFields.forEach((item, itemIndex) => {
-                if(item.field_name && !validFieldPattern.test(item.field_name)){
-                  item.field_name = JSON.stringify(item.field_name)
+                if (item.field_name && !validFieldPattern.test(item.field_name)) {
+                  item.field_name = JSON.stringify(item.field_name);
                 }
-                item.field_index = itemIndex +1;
+                item.field_index = itemIndex + 1;
                 item.verdict = this.judgeNumber(item);
               });
               const fields = this.formData.fields;
@@ -2764,8 +2757,7 @@ __ext_json.service.labels   ${this.$t('动态对象字段')}`;
           return;
         }
         if (val) {
-          this.expandDepthSelect =
-            this.sessionLastExpandDepth ?? DEFAULT_EXPAND_DEPTH;
+          this.expandDepthSelect = this.sessionLastExpandDepth ?? DEFAULT_EXPAND_DEPTH;
         } else {
           this.sessionLastExpandDepth = this.expandDepthSelect;
         }

@@ -63,47 +63,72 @@
                   class="field-name-overflow-tips"
                   v-bk-overflow-tips
                 >
-                  <span 
-                    v-if="props.row.children?.length && !props.row.expand" 
-                    @click="expandObject(props.row,true)" 
-                    class="ext-btn rotate bklog-icon bklog-arrow-down-filled">
+                  <span
+                    v-if="props.row.children?.length && !props.row.expand"
+                    @click="expandObject(props.row, true)"
+                    class="ext-btn rotate bklog-icon bklog-arrow-down-filled"
+                  >
                   </span>
-                  <span 
-                    v-if="props.row.children?.length && props.row.expand" 
-                    @click="expandObject(props.row,false)" 
-                    class="ext-btn bklog-icon bklog-arrow-down-filled">
+                  <span
+                    v-if="props.row.children?.length && props.row.expand"
+                    @click="expandObject(props.row, false)"
+                    class="ext-btn bklog-icon bklog-arrow-down-filled"
+                  >
                   </span>
-                 
+
                   <!-- 如果为内置字段且有alias_name则优先展示alias_name -->
-                  <div 
-                    v-if="aliasShow(props.row)" 
+                  <div
+                    v-if="aliasShow(props.row)"
                     v-bk-tooltips.top="$t('字段名不支持快速修改')"
-                    class="field-name">
-                    <span v-if="props.row.is_objectKey" class="bklog-icon bklog-subnode"></span>
-                    {{ props.row.field_name }} 
+                    class="field-name"
+                  >
+                    <span
+                      v-if="props.row.is_objectKey"
+                      class="bklog-icon bklog-subnode"
+                    ></span>
+                    {{ props.row.field_name }}
                   </div>
-                  <div v-else-if="props.row.is_built_in && props.row.alias_name" v-bk-tooltips.top="$t('字段名不支持快速修改')" class="field-name">{{ props.row.alias_name }} </div>
-                  <div v-else class="field-name-box">
+                  <div
+                    v-else-if="props.row.is_built_in && props.row.alias_name"
+                    v-bk-tooltips.top="$t('字段名不支持快速修改')"
+                    class="field-name"
+                  >
+                    {{ props.row.alias_name }}
+                  </div>
+                  <div
+                    v-else
+                    class="field-name-box"
+                  >
                     <div class="alias-name">{{ props.row.field_name }}</div>
-                    <div 
+                    <div
                       class="participle-icon"
-                      :class="getFieldEditDisabled(props.row)?'participle-icon-color':''"
+                      :class="getFieldEditDisabled(props.row) ? 'participle-icon-color' : ''"
                     >
                       <i
-                      style ='margin: 0 10px;color: #3A84FF;'
-                      class="bk-icon bklog-icon bklog-yingshe"
-                    ></i>
+                        style="margin: 0 10px; color: #3a84ff"
+                        class="bk-icon bklog-icon bklog-yingshe"
+                      ></i>
                     </div>
-                    <div class="alias-name" v-if="isPreviewMode || props.row.is_built_in">{{ props.row.alias_name}}</div>
-                    <bk-input class="alias-name" v-else v-model.trim="props.row.alias_name" @blur="checkAliasNameItem(props.row)"></bk-input>
-                    <template v-if="props.row.fieldErr">
-                    <i
-                      style="right: 8px"
-                      class="bk-icon icon-exclamation-circle-shape tooltips-icon"
-                      v-bk-tooltips.top="props.row.fieldErr"
+                    <div
+                      class="alias-name"
+                      v-if="isPreviewMode || props.row.is_built_in"
                     >
-                    </i>
-                  </template>
+                      {{ props.row.alias_name }}
+                    </div>
+                    <bk-input
+                      class="alias-name"
+                      v-else
+                      v-model.trim="props.row.alias_name"
+                      @blur="checkAliasNameItem(props.row)"
+                    ></bk-input>
+                    <template v-if="props.row.fieldErr">
+                      <i
+                        style="right: 8px"
+                        class="bk-icon icon-exclamation-circle-shape tooltips-icon"
+                        v-bk-tooltips.top="props.row.fieldErr"
+                      >
+                      </i>
+                    </template>
                   </div>
                 </div>
                 <bk-form-item
@@ -192,7 +217,7 @@
                     style="width: 85%; margin-left: 15px"
                   >
                     <div>
-                      {{ props.row.participleState === 'custom' ? props.row.tokenize_on_chars :  $t('自然语言分词') }}
+                      {{ props.row.participleState === 'custom' ? props.row.tokenize_on_chars : $t('自然语言分词') }}
                     </div>
                     <div>{{ $t('大小写敏感') }}: {{ props.row.is_case_sensitive ? $t('是') : $t('否') }}</div>
                   </div>
@@ -239,7 +264,9 @@
                           style="width: 85%"
                         >
                           <div>
-                            {{ props.row.participleState === 'custom' ? props.row.tokenize_on_chars : $t('自然语言分词') }}
+                            {{
+                              props.row.participleState === 'custom' ? props.row.tokenize_on_chars : $t('自然语言分词')
+                            }}
                           </div>
                           <div>{{ $t('大小写敏感') }}: {{ props.row.is_case_sensitive ? $t('是') : $t('否') }}</div>
                         </div>
@@ -326,7 +353,9 @@
                           style="width: 85%"
                         >
                           <div>
-                            {{ props.row.participleState === 'custom' ? props.row.tokenize_on_chars : $t('自然语言分词') }}
+                            {{
+                              props.row.participleState === 'custom' ? props.row.tokenize_on_chars : $t('自然语言分词')
+                            }}
                           </div>
                           <div>{{ $t('大小写敏感') }}: {{ props.row.is_case_sensitive ? $t('是') : $t('否') }}</div>
                         </div>
@@ -516,7 +545,7 @@
             },
           ],
         },
-        expandRowKeys: []
+        expandRowKeys: [],
       };
     },
     computed: {
@@ -539,7 +568,9 @@
         if (this.keyword) {
           const query = this.keyword.toLowerCase();
           return currentTableList.filter(
-            item => item.field_name.toLowerCase().includes(query) || (item.query_alias?.toLowerCase().includes(query) ?? false) ,
+            item =>
+              item.field_name.toLowerCase().includes(query) ||
+              (item.query_alias?.toLowerCase().includes(query) ?? false),
           );
         } else {
           return currentTableList;
@@ -560,7 +591,7 @@
     async mounted() {
       this.reset();
       this.$emit('handle-table-data', this.changeTableList);
-      this.addObject()
+      this.addObject();
     },
     methods: {
       reset() {
@@ -576,7 +607,7 @@
         }
         copyFields.reduce((list, item) => {
           // 采集路径分割正则不展示
-          if(item.option?.metadata_type !== 'path'){
+          if (item.option?.metadata_type !== 'path') {
             list.push(Object.assign({}, errTemp, item));
           }
           return list;
@@ -602,7 +633,7 @@
             item.field_type = 'string';
             item.previous_type = 'string';
           }
-          this.validateInput(item)
+          this.validateInput(item);
         });
         this.formData.tableList.splice(0, this.formData.tableList.length, ...arr);
       },
@@ -749,10 +780,10 @@
         data.forEach(field => {
           if (field.hasOwnProperty('expand')) {
             if (field.expand === false) {
-              data.push(...field.children)
-            } 
+              data.push(...field.children);
+            }
           }
-        })
+        });
         data.forEach(item => {
           if (item.hasOwnProperty('fieldErr')) {
             delete item.fieldErr;
@@ -864,14 +895,17 @@
           if (!/^[A-Za-z0-9_]+$/g.test(aliasName)) {
             row.fieldErr = this.$t('重命名只能包含a-z、A-Z、0-9和_');
             return false;
-          }else if (aliasName === fieldName) {
+          } else if (aliasName === fieldName) {
             row.fieldErr = this.$t('重命名与字段名重复');
           }
-          if (this.globalsData.field_built_in.find(item => item.id === aliasName.toLocaleLowerCase())&&this.tableType !== 'originLog') {
+          if (
+            this.globalsData.field_built_in.find(item => item.id === aliasName.toLocaleLowerCase()) &&
+            this.tableType !== 'originLog'
+          ) {
             row.fieldErr = this.$t('重命名不能与内置字段名相同');
             return false;
           }
-        } 
+        }
 
         row.fieldErr = '';
         return true;
@@ -897,7 +931,6 @@
           }
         });
       },
-
 
       validateFieldTable() {
         const promises = [];
@@ -995,45 +1028,47 @@
       // isShowFieldDateIcon(row) {
       //   return ['string', 'int', 'long'].includes(row.field_type);
       // },
-      expandObject(row, show){
+      expandObject(row, show) {
         row.expand = show;
         const index = this.changeTableList.findIndex(item => item.field_name === row.field_name);
         if (show) {
-            if (index !== -1) {
-              this.changeTableList.splice(index + 1, 0, ...row.children);
-            }
+          if (index !== -1) {
+            this.changeTableList.splice(index + 1, 0, ...row.children);
+          }
         } else {
-            if (index !== -1) {
-              const childrenCount = row.children.length;
-              this.changeTableList.splice(index + 1, childrenCount);
-            }
+          if (index !== -1) {
+            const childrenCount = row.children.length;
+            this.changeTableList.splice(index + 1, childrenCount);
+          }
         }
       },
-      addObject(){
-        const fieldsObjectData = structuredClone(this.$store.getters.rawFieldList.filter(item => item.field_name.includes('.')))
+      addObject() {
+        const fieldsObjectData = structuredClone(
+          this.$store.getters.rawFieldList.filter(item => item.field_name.includes('.')),
+        );
         fieldsObjectData.forEach(item => {
           let name = item.field_name?.split('.')[0].replace(/^_+|_+$/g, '');
-          item.is_objectKey = true
-          this.tableAllList.forEach( builtField => {
-            if(builtField.field_type === "object" && name === builtField.field_name?.split('.')[0]){
+          item.is_objectKey = true;
+          this.tableAllList.forEach(builtField => {
+            if (builtField.field_type === 'object' && name === builtField.field_name?.split('.')[0]) {
               if (!Array.isArray(builtField.children)) {
                 builtField.children = [];
                 this.$set(builtField, 'expand', false);
               }
               builtField.children.push(item);
             }
-          } )
-        })
+          });
+        });
       },
-      aliasShow(row){
+      aliasShow(row) {
         if (row.is_built_in) {
           return true;
         }
-        return !row.alias_name
+        return !row.alias_name;
       },
       validateInput(row) {
-        if(!row.field_name ){
-          return
+        if (!row.field_name) {
+          return;
         }
         const quotedPattern = /^".*"$/;
         // 定义正则，用于检测字段名称的合法性
@@ -1046,7 +1081,7 @@
             row.field_name = `"${row.field_name}"`; // 则添加引号
           }
         }
-    }
+      },
     },
   };
 </script>
@@ -1091,49 +1126,49 @@
             padding: 10px 15px;
           }
 
-          .field-name-overflow-tips{
-            .ext-btn{
+          .field-name-overflow-tips {
+            .ext-btn {
               position: absolute;
               left: 0;
               font-size: 18px;
               cursor: pointer;
             }
 
-            .bklog-subnode{
+            .bklog-subnode {
               font-size: 16px;
             }
 
-            .rotate{
+            .rotate {
               transform: rotate(-90deg);
             }
 
-            .field-name{
-                margin: 15px 10px 15px 15px;
+            .field-name {
+              margin: 15px 10px 15px 15px;
             }
 
-            .field-name-box{
+            .field-name-box {
               display: flex;
               align-items: center;
               height: 100%;
 
-              .alias-name{
+              .alias-name {
                 width: 50%;
-                padding-left: 15px
+                padding-left: 15px;
               }
 
-              .participle-icon{
+              .participle-icon {
                 position: absolute;
                 left: 40%;
                 z-index: 999;
                 width: 10%;
-                font-size: 18px
+                font-size: 18px;
               }
 
-              .participle-icon-color{
+              .participle-icon-color {
                 background-color: rgb(250, 251, 253);
               }
 
-              .tooltips-icon{
+              .tooltips-icon {
                 position: absolute;
                 z-index: 10;
                 font-size: 16px;
@@ -1171,7 +1206,7 @@
 
         &.is-default-trigger.is-unselected:before {
           top: 8px;
-          left: 30px
+          left: 30px;
         }
       }
 

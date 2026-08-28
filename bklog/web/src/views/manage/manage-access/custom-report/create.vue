@@ -448,7 +448,10 @@
     mixins: [storageMixin, dragMixin],
     data() {
       return {
-        isItsm: isFeatureToggleOn('collect_itsm', [String(this.$store.state.bkBizId), String(this.$store.state.spaceUid)]),
+        isItsm: isFeatureToggleOn('collect_itsm', [
+          String(this.$store.state.bkBizId),
+          String(this.$store.state.spaceUid),
+        ]),
         customRetentionDay: '', // 过期时间天数
         customHotDataDay: 0, // 热数据天数
         retentionDaysList: [], // 过期时间列表

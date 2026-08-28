@@ -225,7 +225,7 @@
         if (this.isClone) {
           let cloneData = JSON.parse(sessionStorage.getItem('cloneData') || '{}');
           if (!Object.keys(cloneData).length) {
-            cloneData = await manageDraftCacheService.get('cloneData') || {};
+            cloneData = (await manageDraftCacheService.get('cloneData')) || {};
           }
           sessionStorage.removeItem('cloneData');
           manageDraftCacheService.remove('cloneData').catch(() => {});

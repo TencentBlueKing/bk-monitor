@@ -13,7 +13,8 @@ interface PerformanceMetric {
 
 class PerformanceMonitor {
   private metrics: Map<string, PerformanceMetric> = new Map();
-  private enabled: boolean = process.env.NODE_ENV === 'development' || window.localStorage.getItem('bklog_perf_monitor') === 'true';
+  private enabled: boolean =
+    process.env.NODE_ENV === 'development' || window.localStorage.getItem('bklog_perf_monitor') === 'true';
 
   /**
    * 开始记录性能指标
@@ -68,11 +69,11 @@ class PerformanceMonitor {
       const result = fn();
       if (result instanceof Promise) {
         return result.then(
-          (value) => {
+          value => {
             this.end(name, metadata);
             return value;
           },
-          (error) => {
+          error => {
             this.end(name, { ...metadata, error: error.message });
             throw error;
           },
@@ -121,7 +122,7 @@ class PerformanceMonitor {
     }
 
     console.group('[Performance Report]');
-    metrics.forEach((metric) => {
+    metrics.forEach(metric => {
       if (metric.duration) {
         console.log(`${metric.name}: ${metric.duration.toFixed(2)}ms`, metric.metadata || '');
       }

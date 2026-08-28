@@ -209,9 +209,10 @@ export const useFavorite = () => {
       Object.assign(routeParams, { retrieve_type: 'normal', ids, isUnionIndex, unionList });
     }
 
-    const params = isSceneMode.value || isUnionIndex
-      ? { ...route.params, indexId: undefined }
-      : { ...route.params, indexId: ids?.[0] ? `${ids?.[0]}` : route.params?.indexId };
+    const params =
+      isSceneMode.value || isUnionIndex
+        ? { ...route.params, indexId: undefined }
+        : { ...route.params, indexId: ids?.[0] ? `${ids?.[0]}` : route.params?.indexId };
 
     const query = { ...route.query };
 
@@ -404,9 +405,7 @@ export const useFavorite = () => {
   const handleNewLink = (item: IFavoriteItem, type: string) => {
     // const { RetrieveUrlResolver } = require('@/store/url-resolver');
     const isSceneSource = item.source_type === 'scene';
-    const routePathParams = isSceneSource
-      ? { indexId: undefined }
-      : { indexId: item.index_set_id };
+    const routePathParams = isSceneSource ? { indexId: undefined } : { indexId: item.index_set_id };
 
     // 公共路由参数
     const routeParams: Record<string, any> = {
@@ -422,7 +421,8 @@ export const useFavorite = () => {
       Object.assign(routeParams, {
         retrieve_type: 'scene',
         scene_active: item.scene_id,
-        scene_filter_values: parseTableIdConditions(item.table_id_conditions, item.scene_filter_values).scene_filter_values,
+        scene_filter_values: parseTableIdConditions(item.table_id_conditions, item.scene_filter_values)
+          .scene_filter_values,
       });
     } else {
       Object.assign(routeParams, {

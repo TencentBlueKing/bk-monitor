@@ -101,7 +101,8 @@ export default defineComponent({
     /** 标签输入框组件引用 */
     const tagInputRefs = ref<Record<string, any>>({});
 
-    const currentScene = computed<SceneConfig | undefined>(() => sceneConfigs.value.find((scene: { type: string }) => scene.type === props.activeScene),
+    const currentScene = computed<SceneConfig | undefined>(() =>
+      sceneConfigs.value.find((scene: { type: string }) => scene.type === props.activeScene),
     );
 
     /** 拉取 dynamic 类型维度的可选值 */
@@ -184,7 +185,7 @@ export default defineComponent({
         if (props.displayFields) {
           editDisplayFields.value = [...props.displayFields];
         } else {
-          editDisplayFields.value = allFieldsOfScene.value.map((f) => {
+          editDisplayFields.value = allFieldsOfScene.value.map(f => {
             const storedOp = props.filterValues[f.key]?.op;
             return [f.key, storedOp || getDefaultOp(f.ops)] as [string, string];
           });
@@ -213,7 +214,8 @@ export default defineComponent({
 
     /** 字段设置中操作符变更（仅修改 editDisplayFields，确认后才同步） */
     const handleEditOperatorChange = (fieldKey: string, newOp: string) => {
-      editDisplayFields.value = editDisplayFields.value.map(([k, op]) => (k === fieldKey ? ([k, newOp] as [string, string]) : ([k, op] as [string, string])),
+      editDisplayFields.value = editDisplayFields.value.map(([k, op]) =>
+        k === fieldKey ? ([k, newOp] as [string, string]) : ([k, op] as [string, string]),
       );
     };
 
@@ -236,9 +238,11 @@ export default defineComponent({
       const allNames = allFieldsOfScene.value.map(f => f.key);
       const editFieldKeys = editDisplayFields.value.map(([k]) => k);
       // 字段 key 顺序与默认一致 且 每个字段的操作符也是默认值时，才算 isDefault
-      const isDefaultOrder =        editFieldKeys.length === allNames.length && editFieldKeys.every((name, i) => name === allNames[i]);
-      const isDefault =        isDefaultOrder
-        && editDisplayFields.value.every(([k, op]) => {
+      const isDefaultOrder =
+        editFieldKeys.length === allNames.length && editFieldKeys.every((name, i) => name === allNames[i]);
+      const isDefault =
+        isDefaultOrder &&
+        editDisplayFields.value.every(([k, op]) => {
           const field = allFieldsOfScene.value.find(f => f.key === k);
           return op === getDefaultOp(field?.ops);
         });
@@ -353,7 +357,7 @@ export default defineComponent({
     // 监听场景变化，容器场景下预加载全量集群列表
     watch(
       () => props.activeScene,
-      (newScene) => {
+      newScene => {
         if (newScene === SceneType.Container) {
           // 切换到容器场景时，预加载全量集群列表
           fetchFullClusterList();
@@ -473,7 +477,7 @@ export default defineComponent({
                 >
                   {t('loading...')}
                 </li>,
-            ]
+              ]
             : [],
         );
     };
@@ -546,7 +550,7 @@ export default defineComponent({
           params.end_time = retrieveParams.end_time;
         }
 
-        const cancelToken = new axios.CancelToken((c) => {
+        const cancelToken = new axios.CancelToken(c => {
           suggestionCancelExecutor = c;
         });
 
@@ -693,7 +697,7 @@ export default defineComponent({
     // 父组件 filterValues 变化时（切换场景、清空等），同步重置本地缓存
     watch(
       () => props.filterValues,
-      (newVal) => {
+      newVal => {
         const next: Record<string, string[]> = {};
         for (const [k, v] of Object.entries(newVal ?? {})) {
           const rawVal = v?.value ?? v;
@@ -710,8 +714,8 @@ export default defineComponent({
 
     const getLocalTagValues = (fieldName: string) => {
       return (
-        localTagValues.value[fieldName]
-        ?? (Array.isArray(props.filterValues[fieldName]?.value) ? props.filterValues[fieldName].value : [])
+        localTagValues.value[fieldName] ??
+        (Array.isArray(props.filterValues[fieldName]?.value) ? props.filterValues[fieldName].value : [])
       );
     };
 
@@ -766,9 +770,10 @@ export default defineComponent({
       }
 
       const currentValue = props.filterValues[field.key]?.value;
-      const currentIds =        currentValue == null || currentValue === '' || (Array.isArray(currentValue) && currentValue.length === 0)
-        ? []
-        : (Array.isArray(currentValue) ? currentValue : [currentValue]).map(id => String(id));
+      const currentIds =
+        currentValue == null || currentValue === '' || (Array.isArray(currentValue) && currentValue.length === 0)
+          ? []
+          : (Array.isArray(currentValue) ? currentValue : [currentValue]).map(id => String(id));
 
       // dynamic：接口已返回数据时优先使用，并合并手输值以便回显
       const loadedOptions = getApiFieldState(field.key).options;

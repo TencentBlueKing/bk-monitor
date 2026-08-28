@@ -62,10 +62,7 @@ export function calculateProgress(task: any) {
   const maxExportedCount = Math.floor(task.export_total_count * PROGRESS_CEILING);
 
   // 增长 exported_count，但不超过 99% 上限
-  task.exported_count = Math.min(
-    Math.max(task.exported_count, 0) + growthPerUpdate,
-    maxExportedCount,
-  );
+  task.exported_count = Math.min(Math.max(task.exported_count, 0) + growthPerUpdate, maxExportedCount);
 
   // 同步计算百分比
   task.progressPercent = calculateProgressPercent(task.exported_count, task.export_total_count);

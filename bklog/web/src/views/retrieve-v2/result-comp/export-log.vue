@@ -59,8 +59,7 @@
             v-if="totalProgressPercent > 0"
             class="progress-mask"
             :style="{ '--progress': totalProgressPercent + '%' }"
-          >
-          </div>
+          ></div>
         </div>
       </bk-badge>
       <template #content>
@@ -115,13 +114,13 @@
           <span
             class="view-history-btn"
             @click="handleViewDownloadHistory"
-          >{{ $t('查看下载历史') }}</span>
+            >{{ $t('查看下载历史') }}</span
+          >
           <div
             v-if="totalProgressPercent > 0"
             class="circular-progress"
             :style="{ '--progress': totalProgressPercent + '%' }"
-          >
-          </div>
+          ></div>
           <div
             v-if="failedTaskCount > 0"
             class="failed-task-tip"
@@ -465,7 +464,7 @@
           if (newVal) {
             this.resetComponentState();
           }
-        }
+        },
       },
       // 联合查询索引集组变化时重置状态
       unionIndexList: {
@@ -692,12 +691,13 @@
           });
         }
         this.exportLoading = true;
-        const requestConfig = this.isScene || this.isUnionSearch
-          ? { data }
-          : {
-              params: { index_set_id: this.routerIndexSet },
-              data,
-            };
+        const requestConfig =
+          this.isScene || this.isUnionSearch
+            ? { data }
+            : {
+                params: { index_set_id: this.routerIndexSet },
+                data,
+              };
         this.$http
           .request(downRequestUrl, requestConfig)
           .then(res => {
@@ -805,10 +805,7 @@
             // 初始增长量等于基础增长量
             row.currentGrowth = DOWNLOAD_PROGRESS_BASE_GROWTH;
             // 初始化进度百分比
-            row.progressPercent = calculateProgressPercent(
-              row.exported_count || 0,
-              row.export_total_count || 0,
-            );
+            row.progressPercent = calculateProgressPercent(row.exported_count || 0, row.export_total_count || 0);
           }
         });
       },
@@ -873,9 +870,10 @@
           if (currentStatus === 'success' || currentStatus === 'failed') {
             if (oldStatus !== undefined) {
               // 下载成功时显示文件名，失败时显示错误信息
-              const message = currentStatus === 'success'
-                ? `${item.export_pkg_name || ''}${this.$t('下载成功')}`
-                : (item.eerror_msg || this.$t('下载任务异常，请查看下载历史'));
+              const message =
+                currentStatus === 'success'
+                  ? `${item.export_pkg_name || ''}${this.$t('下载成功')}`
+                  : item.eerror_msg || this.$t('下载任务异常，请查看下载历史');
               this.$bkMessage({
                 theme: currentStatus === 'success' ? 'success' : 'error',
                 message,
@@ -892,9 +890,12 @@
                 }
                 // 清除之前的定时器，重新设置20分钟定时器
                 this.clearFailedTaskTimer();
-                this.failedTaskTimer = setTimeout(() => {
-                  this.failedTaskIds = [];
-                }, 20 * 60 * 1000);
+                this.failedTaskTimer = setTimeout(
+                  () => {
+                    this.failedTaskIds = [];
+                  },
+                  20 * 60 * 1000,
+                );
               }
             }
           } else if (POLLING_STATUS.includes(currentStatus)) {
@@ -976,14 +977,12 @@
           requestConfig = { data: params };
         } else if (this.isUnionSearch) {
           queryUrl = 'unionSearch/unionExportHistory';
-          params.index_set_id = window.__IS_MONITOR_COMPONENT__
-            ? this.$route.query.indexId : this.$store.state.indexId;
+          params.index_set_id = window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$store.state.indexId;
           params.index_set_ids = this.unionIndexList;
           requestConfig = { params };
         } else {
           queryUrl = 'retrieve/getExportHistoryList';
-          params.index_set_id = window.__IS_MONITOR_COMPONENT__
-            ? this.$route.query.indexId : this.$store.state.indexId;
+          params.index_set_id = window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$store.state.indexId;
           requestConfig = { params };
         }
 
@@ -1277,7 +1276,7 @@
           text-align: center;
           line-height: 20px;
           font-size: 12px;
-          background-color: #EA3636;
+          background-color: #ea3636;
           border-radius: 50%;
           color: #fff;
           margin-right: 4px;
@@ -1285,7 +1284,7 @@
 
         .failed-task-text {
           font-weight: 400;
-          color: #EA3636;
+          color: #ea3636;
         }
       }
 

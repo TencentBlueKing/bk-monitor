@@ -1,625 +1,630 @@
 <script lang="ts" setup>
-import { ComputedRef, Ref, computed, nextTick, ref, watch } from 'vue';
+  import { ComputedRef, Ref, computed, nextTick, ref, watch } from 'vue';
 
-import useFieldNameHook from '@/hooks/use-field-name';
-// @ts-ignore
-import useLocale from '@/hooks/use-locale';
-// @ts-ignore
-import useStore from '@/hooks/use-store';
+  import useFieldNameHook from '@/hooks/use-field-name';
+  // @ts-ignore
+  import useLocale from '@/hooks/use-locale';
+  // @ts-ignore
+  import useStore from '@/hooks/use-store';
 
-import jsCookie from 'js-cookie';
-// @ts-ignore
-import { debounce } from 'lodash-es';
+  import jsCookie from 'js-cookie';
+  // @ts-ignore
+  import { debounce } from 'lodash-es';
 
-import { getOsCommandLabel } from '@/common/util';
-import { join } from '@/global/utils/path';
-import useFieldEgges from '@/hooks/use-field-egges';
-import { storeRuntimeCacheService } from '@/store/services/runtime-cache.service';
-import { FieldInfoItem } from '@/store/store.type';
-import { excludesFields } from '../utils/const.common'; // @ts-ignore
-import FavoriteList from '../components/favorite-list';
+  import { getOsCommandLabel } from '@/common/util';
+  import { join } from '@/global/utils/path';
+  import useFieldEgges from '@/hooks/use-field-egges';
+  import { storeRuntimeCacheService } from '@/store/services/runtime-cache.service';
+  import { FieldInfoItem } from '@/store/store.type';
+  import { excludesFields } from '../utils/const.common'; // @ts-ignore
+  import FavoriteList from '../components/favorite-list';
 
-const props = defineProps({
-  value: {
-    type: String,
-    default: '',
-    required: true,
-  },
-  focusPosition: {
-    type: Number,
-    default: null,
-  },
-});
+  const props = defineProps({
+    value: {
+      type: String,
+      default: '',
+      required: true,
+    },
+    focusPosition: {
+      type: Number,
+      default: null,
+    },
+  });
 
-const emits = defineEmits(['change', 'cancel', 'retrieve', 'active-change', 'text-to-query']);
+  const emits = defineEmits(['change', 'cancel', 'retrieve', 'active-change', 'text-to-query']);
 
-const store = useStore();
-const { $t } = useLocale();
-const { getQualifiedFieldName, buildFieldNameIndex } = useFieldNameHook({ store });
+  const store = useStore();
+  const { $t } = useLocale();
+  const { getQualifiedFieldName, buildFieldNameIndex } = useFieldNameHook({ store });
 
-const shortCutClsName = computed(() => {
-  const iconMap = {
-    cmd: 'bklog-icon bklog-command',
-    ctrl: 'bklog-icon bklog-ctrl',
-  };
+  const shortCutClsName = computed(() => {
+    const iconMap = {
+      cmd: 'bklog-icon bklog-command',
+      ctrl: 'bklog-icon bklog-ctrl',
+    };
 
-  const osName = getOsCommandLabel()?.toLocaleLowerCase() ?? 'ctrl';
+    const osName = getOsCommandLabel()?.toLocaleLowerCase() ?? 'ctrl';
 
-  return iconMap[osName] ?? iconMap.ctrl;
-});
+    return iconMap[osName] ?? iconMap.ctrl;
+  });
 
-/**
- * @description 是否显示 AI 助手快捷键提示
- * @returns {boolean}
- */
-const isAiAssistantActive = computed(() => store.state.features.isAiAssistantActive);
+  /**
+   * @description 是否显示 AI 助手快捷键提示
+   * @returns {boolean}
+   */
+  const isAiAssistantActive = computed(() => store.state.features.isAiAssistantActive);
 
-// eslint-disable-next-line no-unused-vars
-enum OptionItemType {
   // eslint-disable-next-line no-unused-vars
-  Colon = 'Colon',
-  // eslint-disable-next-line no-unused-vars
-  Continue = 'Continue',
-  // eslint-disable-next-line no-unused-vars
-  Fields = 'Fields',
-  // eslint-disable-next-line no-unused-vars
-  Operator = 'Operator',
-  // eslint-disable-next-line no-unused-vars
-  Value = 'Value',
-}
-
-// 定义一个类型来表示生成对象的类型
-type ShowOptionValueType = {
-  [K in keyof typeof OptionItemType as `show${(typeof OptionItemType)[K]}`]: boolean;
-};
-
-const defShowOptionValueType: Partial<ShowOptionValueType> = {};
-const showOption = computed(() => {
-  return Object.values(OptionItemType).reduce(
-    (output, key) => ({
-      ...output,
-      [`show${key}`]: activeType.value.includes(key),
-    }),
-    defShowOptionValueType,
-  );
-});
-
-const retrieveDropdownData = computed(() => {
-  store.state.retrieveDropdownDataVersion;
-  return storeRuntimeCacheService.getRetrieveDropdownData(store.state.indexId || 'default');
-});
-const fieldAggsItems = computed(() => {
-  store.state.fieldAggsItemsVersion;
-  return storeRuntimeCacheService.getFieldAggsItems(store.state.indexId || 'default');
-});
-const totalFields: ComputedRef<FieldInfoItem[]> = computed(() => store.getters.filteredFieldList);
-
-const { isRequesting, requestFieldEgges, isValidateEgges } = useFieldEgges();
-
-/** 获取数字类型的字段name */
-const getNumTypeFieldList = computed(() => {
-  return totalFields.value
-    .filter(item => ['long', 'integer', 'float'].includes(item.field_type))
-    .map(item => item.field_name);
-});
-
-/**
- * @description 是否显示 AI 助手
- * @returns {boolean}
- */
-const showAiAssistant = computed(() => {
-  return props.value.length > 0;
-});
-
-/**
- * @description AI 预览文本
- * @returns {string}
- */
-// const aiPreviewText = computed(() => {
-//   return props.value;
-// });
-
-/** 所有字段的字段名 */
-const totalFieldsNameList = computed(() => {
-  const filterFn = field => field.field_type !== '__virtual__' && !excludesFields.includes(field.field_name);
-  return totalFields.value.filter(filterFn).map((fieldInfo: FieldInfoItem) => fieldInfo.field_name);
-});
-
-// 检索后的日志数据如果字段在字段接口找不到则不展示联想的key
-const originFieldList = () => totalFieldsNameList.value;
-
-const activeType: Ref<string[]> = ref([]);
-// const separator = /\s+(AND\s+NOT|OR|AND)\s+/i; // 区分查询语句条件
-const fieldList: Ref<string[]> = ref([]);
-const valueList: Ref<string[]> = ref([]);
-
-const refDropdownEl: Ref<HTMLElement | null> = ref(null);
-const activeIndex: Ref<number | null> = ref(null);
-
-const operatorSelectList = ref([
-  {
-    operator: '>',
-    label: $t('大于'),
-  },
-  {
-    operator: '<',
-    label: $t('小于'),
-  },
-  {
-    operator: '>=',
-    label: $t('大于或等于'),
-  },
-  {
-    operator: '<=',
-    label: $t('小于或等于'),
-  },
-]);
-
-const setOptionActive = () => {
-  const dropdownList = refDropdownEl?.value?.querySelectorAll('.list-item');
-  refDropdownEl?.value?.querySelector('.list-item.active')?.classList.remove('active');
-  if (activeIndex.value === null) {
-    return;
+  enum OptionItemType {
+    // eslint-disable-next-line no-unused-vars
+    Colon = 'Colon',
+    // eslint-disable-next-line no-unused-vars
+    Continue = 'Continue',
+    // eslint-disable-next-line no-unused-vars
+    Fields = 'Fields',
+    // eslint-disable-next-line no-unused-vars
+    Operator = 'Operator',
+    // eslint-disable-next-line no-unused-vars
+    Value = 'Value',
   }
 
-  dropdownList?.[activeIndex.value]?.classList.add('active');
-};
+  // 定义一个类型来表示生成对象的类型
+  type ShowOptionValueType = {
+    [K in keyof typeof OptionItemType as `show${(typeof OptionItemType)[K]}`]: boolean;
+  };
 
-/**
+  const defShowOptionValueType: Partial<ShowOptionValueType> = {};
+  const showOption = computed(() => {
+    return Object.values(OptionItemType).reduce(
+      (output, key) => ({
+        ...output,
+        [`show${key}`]: activeType.value.includes(key),
+      }),
+      defShowOptionValueType,
+    );
+  });
+
+  const retrieveDropdownData = computed(() => {
+    store.state.retrieveDropdownDataVersion;
+    return storeRuntimeCacheService.getRetrieveDropdownData(store.state.indexId || 'default');
+  });
+  const fieldAggsItems = computed(() => {
+    store.state.fieldAggsItemsVersion;
+    return storeRuntimeCacheService.getFieldAggsItems(store.state.indexId || 'default');
+  });
+  const totalFields: ComputedRef<FieldInfoItem[]> = computed(() => store.getters.filteredFieldList);
+
+  const { isRequesting, requestFieldEgges, isValidateEgges } = useFieldEgges();
+
+  /** 获取数字类型的字段name */
+  const getNumTypeFieldList = computed(() => {
+    return totalFields.value
+      .filter(item => ['long', 'integer', 'float'].includes(item.field_type))
+      .map(item => item.field_name);
+  });
+
+  /**
+   * @description 是否显示 AI 助手
+   * @returns {boolean}
+   */
+  const showAiAssistant = computed(() => {
+    return props.value.length > 0;
+  });
+
+  /**
+   * @description AI 预览文本
+   * @returns {string}
+   */
+  // const aiPreviewText = computed(() => {
+  //   return props.value;
+  // });
+
+  /** 所有字段的字段名 */
+  const totalFieldsNameList = computed(() => {
+    const filterFn = field => field.field_type !== '__virtual__' && !excludesFields.includes(field.field_name);
+    return totalFields.value.filter(filterFn).map((fieldInfo: FieldInfoItem) => fieldInfo.field_name);
+  });
+
+  // 检索后的日志数据如果字段在字段接口找不到则不展示联想的key
+  const originFieldList = () => totalFieldsNameList.value;
+
+  const activeType: Ref<string[]> = ref([]);
+  // const separator = /\s+(AND\s+NOT|OR|AND)\s+/i; // 区分查询语句条件
+  const fieldList: Ref<string[]> = ref([]);
+  const valueList: Ref<string[]> = ref([]);
+
+  const refDropdownEl: Ref<HTMLElement | null> = ref(null);
+  const activeIndex: Ref<number | null> = ref(null);
+
+  const operatorSelectList = ref([
+    {
+      operator: '>',
+      label: $t('大于'),
+    },
+    {
+      operator: '<',
+      label: $t('小于'),
+    },
+    {
+      operator: '>=',
+      label: $t('大于或等于'),
+    },
+    {
+      operator: '<=',
+      label: $t('小于或等于'),
+    },
+  ]);
+
+  const setOptionActive = () => {
+    const dropdownList = refDropdownEl?.value?.querySelectorAll('.list-item');
+    refDropdownEl?.value?.querySelector('.list-item.active')?.classList.remove('active');
+    if (activeIndex.value === null) {
+      return;
+    }
+
+    dropdownList?.[activeIndex.value]?.classList.add('active');
+  };
+
+  /**
    * 显示哪个下拉列表
    * @param {String} [param]
    */
-const showWhichDropdown = (param?: OptionItemType[] | string) => {
-  activeType.value.length = 0;
-  activeType.value = [];
-  if (typeof param === 'string') {
-    activeType.value.push(param);
-  }
+  const showWhichDropdown = (param?: OptionItemType[] | string) => {
+    activeType.value.length = 0;
+    activeType.value = [];
+    if (typeof param === 'string') {
+      activeType.value.push(param);
+    }
 
-  if (Array.isArray(param)) {
-    activeType.value.push(...param);
-  }
-  activeIndex.value = null;
-};
+    if (Array.isArray(param)) {
+      activeType.value.push(...param);
+    }
+    activeIndex.value = null;
+  };
 
-/**
+  /**
    * 获取某个字段可选的值列表
    * @param {Object} valueMap
    * @return {string[]}
    */
-const getValueList = (valueMap: { __fieldType?: any }) => {
-  const resolveValueMap = valueMap ?? {};
-  let valueMapList = Object.keys(resolveValueMap);
-  if (resolveValueMap.__fieldType === 'string') {
-    valueMapList = valueMapList // 清除mark标签
-      .map(item => `"${item.replace(/<mark>/g, '').replace(/<\/mark>/g, '')}"`);
-  }
-  return [...new Set(valueMapList)]; // 清除重复的字段
-};
+  const getValueList = (valueMap: { __fieldType?: any }) => {
+    const resolveValueMap = valueMap ?? {};
+    let valueMapList = Object.keys(resolveValueMap);
+    if (resolveValueMap.__fieldType === 'string') {
+      valueMapList = valueMapList // 清除mark标签
+        .map(item => `"${item.replace(/<mark>/g, '').replace(/<\/mark>/g, '')}"`);
+    }
+    return [...new Set(valueMapList)]; // 清除重复的字段
+  };
 
-const setValueList = (fieldName: string, value: string) => {
-  const fieldInfo = totalFields.value.find(item => item.field_name === fieldName);
-  if (fieldInfo && isValidateEgges(fieldInfo)) {
-    valueList.value = [];
-    requestFieldEgges(fieldInfo, value, (resp) => {
-      if (typeof resp === 'boolean') {
-        valueList.value = getValueList(retrieveDropdownData.value[fieldName] ?? {});
-        return;
-      }
+  const setValueList = (fieldName: string, value: string) => {
+    const fieldInfo = totalFields.value.find(item => item.field_name === fieldName);
+    if (fieldInfo && isValidateEgges(fieldInfo)) {
+      valueList.value = [];
+      requestFieldEgges(fieldInfo, value, resp => {
+        if (typeof resp === 'boolean') {
+          valueList.value = getValueList(retrieveDropdownData.value[fieldName] ?? {});
+          return;
+        }
 
-      valueList.value = fieldAggsItems.value[fieldName] ?? [];
-    });
-    return;
-  }
+        valueList.value = fieldAggsItems.value[fieldName] ?? [];
+      });
+      return;
+    }
 
-  valueList.value = (getValueList(retrieveDropdownData.value[fieldName] ?? {}) ?? [])
-    .filter(item => item?.indexOf(value) !== -1);
-};
+    valueList.value = (getValueList(retrieveDropdownData.value[fieldName] ?? {}) ?? []).filter(
+      item => item?.indexOf(value) !== -1,
+    );
+  };
 
-/**
+  /**
    * @desc: 当前是否是数字类型字段
    * @param {string} fieldStr 字段名
    * @returns {boolean}
    */
-const isNumTypeField = (fieldStr = '') => {
-  return getNumTypeFieldList.value.includes(fieldStr);
-};
+  const isNumTypeField = (fieldStr = '') => {
+    return getNumTypeFieldList.value.includes(fieldStr);
+  };
 
-const showColonOperator = (inputField: string) => {
-  const showVal = [OptionItemType.Colon];
+  const showColonOperator = (inputField: string) => {
+    const showVal = [OptionItemType.Colon];
 
-  if (isNumTypeField(inputField?.trim())) {
-    showVal.push(OptionItemType.Operator);
-  }
-  // 完全匹配字段同时和 : :* 选项
-  showWhichDropdown(showVal);
-};
+    if (isNumTypeField(inputField?.trim())) {
+      showVal.push(OptionItemType.Operator);
+    }
+    // 完全匹配字段同时和 : :* 选项
+    showWhichDropdown(showVal);
+  };
 
-/**
+  /**
    * @description 获取当前输入框左侧内容
    */
-const getFocusLeftValue = () => {
-  if (props.focusPosition !== null && props.focusPosition >= 0) {
-    return props.value.slice(0, props.focusPosition);
-  }
+  const getFocusLeftValue = () => {
+    if (props.focusPosition !== null && props.focusPosition >= 0) {
+      return props.value.slice(0, props.focusPosition);
+    }
 
-  return props.value;
-};
+    return props.value;
+  };
 
-const getFocusRightValue = () => {
-  if (props.focusPosition !== null && props.focusPosition >= 0) {
-    return props.value.slice(props.focusPosition);
-  }
+  const getFocusRightValue = () => {
+    if (props.focusPosition !== null && props.focusPosition >= 0) {
+      return props.value.slice(props.focusPosition);
+    }
 
-  return '';
-};
+    return '';
+  };
 
-const emitValueChange = (appendValue: string,
-  retrieve = false,
-  replace = false,
-  focusPosition: number | undefined = undefined,
-) => {
-  emits('change', appendValue, retrieve, replace, focusPosition);
-};
+  const emitValueChange = (
+    appendValue: string,
+    retrieve = false,
+    replace = false,
+    focusPosition: number | undefined = undefined,
+  ) => {
+    emits('change', appendValue, retrieve, replace, focusPosition);
+  };
 
-// 如果是当前位置 AND | OR | AND NOT 结尾
-const regExpAndOrNot = /\s(AND|OR|AND\s+NOT)\s*$/i;
+  // 如果是当前位置 AND | OR | AND NOT 结尾
+  const regExpAndOrNot = /\s(AND|OR|AND\s+NOT)\s*$/i;
 
-// 如果当前位置是 : 结尾，说明需要显示字段值列表
-const regExpFieldValue = /(:\s*)$/;
+  // 如果当前位置是 : 结尾，说明需要显示字段值列表
+  const regExpFieldValue = /(:\s*)$/;
 
-// 根据当前输入关键字计算提示内容
-const calculateDropdown = () => {
-  if (!originFieldList().length) {
-    return;
-  }
+  // 根据当前输入关键字计算提示内容
+  const calculateDropdown = () => {
+    if (!originFieldList().length) {
+      return;
+    }
 
-  fieldList.value.length = 0;
-  fieldList.value = [];
+    fieldList.value.length = 0;
+    fieldList.value = [];
 
-  const value = getFocusLeftValue();
+    const value = getFocusLeftValue();
 
-  if (!value.length) {
-    showWhichDropdown('Fields');
-    fieldList.value.push(...originFieldList());
-    return;
-  }
-
-  const isEndOrNot = regExpAndOrNot.test(value);
-  const isEndWidthEmpty = /\s+$/.test(value);
-
-  // 如果是以 AND | OR | AND NOT 结尾，弹出 Feidl选择
-  if (isEndOrNot) {
-    if (isEndWidthEmpty) {
+    if (!value.length) {
       showWhichDropdown('Fields');
-
       fieldList.value.push(...originFieldList());
       return;
     }
 
-    showWhichDropdown();
-    return;
-  }
+    const isEndOrNot = regExpAndOrNot.test(value);
+    const isEndWidthEmpty = /\s+$/.test(value);
 
-  const lastFragments = value.split(/\s+(AND\s+NOT|OR|AND)\s+/i);
-  const lastFragment = lastFragments?.[lastFragments.length - 1] ?? '';
+    // 如果是以 AND | OR | AND NOT 结尾，弹出 Feidl选择
+    if (isEndOrNot) {
+      if (isEndWidthEmpty) {
+        showWhichDropdown('Fields');
 
-  // 如果是以 : 结尾，说明需要显示字段值列表
-  if (regExpFieldValue.test(value)) {
-    const confirmField = /^\s*(?<field>[\w.]+)\s*(:|>=|<=|>|<)\s*$/.exec(lastFragment)?.groups?.field;
+        fieldList.value.push(...originFieldList());
+        return;
+      }
 
-    if (confirmField) {
-      showWhichDropdown(OptionItemType.Value);
-      setValueList(confirmField, '');
+      showWhichDropdown();
       return;
+    }
+
+    const lastFragments = value.split(/\s+(AND\s+NOT|OR|AND)\s+/i);
+    const lastFragment = lastFragments?.[lastFragments.length - 1] ?? '';
+
+    // 如果是以 : 结尾，说明需要显示字段值列表
+    if (regExpFieldValue.test(value)) {
+      const confirmField = /^\s*(?<field>[\w.]+)\s*(:|>=|<=|>|<)\s*$/.exec(lastFragment)?.groups?.field;
+
+      if (confirmField) {
+        showWhichDropdown(OptionItemType.Value);
+        setValueList(confirmField, '');
+        return;
+      }
+
+      showWhichDropdown();
+      return;
+    }
+
+    const lastValues = /(:|>=|<=|>|<)\s*(\d+|\w+|"((?:[^"\\]|\\.)*)"?)/.exec(lastFragment);
+    const matchValue = lastValues?.[3] ?? lastValues?.[2];
+    const matchValueWithQuotes = lastValues?.[2];
+
+    if (matchValueWithQuotes && lastFragment.length >= (matchValue?.length ?? 0)) {
+      const lastValue = lastFragment.slice(0, lastFragment.length - matchValueWithQuotes.length);
+      const confirmField = /^\s*(?<field>[\w.]+)\s*(:|>=|<=|>|<)\s*$/.exec(lastValue)?.groups?.field;
+
+      if (confirmField) {
+        showWhichDropdown(OptionItemType.Value);
+        setValueList(confirmField, matchValue ?? '');
+        return;
+      }
+    }
+
+    // 如果是空格 & 已有条件不为空，追加弹出 AND OR 等连接符
+    if (/\S+\s+$/.test(value)) {
+      showWhichDropdown(OptionItemType.Continue);
+      return;
+    }
+
+    if (lastFragment && totalFieldsNameList.value.includes(lastFragment)) {
+      showColonOperator(lastFragment);
+      return;
+    }
+
+    // 开始输入字段【nam】
+    const inputField = /^\s*(?<field>[\w.]+)$/.exec(lastFragment)?.groups?.field;
+    if (inputField) {
+      const fieldScope = store.state.indexFieldInfo.field_scope || store.state.indexId || 'default';
+      const cachedFieldIndex = storeRuntimeCacheService.getFieldNameIndex(fieldScope);
+      const fieldIndex = Object.keys(cachedFieldIndex).length
+        ? cachedFieldIndex
+        : buildFieldNameIndex(totalFields.value);
+      const inputLower = inputField.toLowerCase();
+      fieldList.value = originFieldList()
+        .reduce((acc: { index: number; fieldName: string }[], item) => {
+          const field = fieldIndex[item];
+          const displayName = field?.query_alias ? `${field.query_alias}(${item})` : item;
+          const idx = displayName.toLowerCase().indexOf(inputLower);
+          if (idx >= 0) {
+            acc.push({ index: idx * 10 - (field?.is_virtual_alias_field ? 1 : 0), fieldName: item });
+          }
+          return acc;
+        }, [])
+        .sort((a, b) => a.index - b.index)
+        .map(item => item.fieldName);
+      if (fieldList.value.length) {
+        showWhichDropdown(OptionItemType.Fields);
+        return;
+      }
     }
 
     showWhichDropdown();
-    return;
-  }
+  };
 
-  const lastValues = /(:|>=|<=|>|<)\s*(\d+|\w+|"((?:[^"\\]|\\.)*)"?)/.exec(lastFragment);
-  const matchValue = lastValues?.[3] ?? lastValues?.[2];
-  const matchValueWithQuotes = lastValues?.[2];
+  const setNextActive = () => {
+    nextTick(() => {
+      activeIndex.value = null;
+      setOptionActive();
+    });
+  };
 
-  if (matchValueWithQuotes && lastFragment.length >= (matchValue?.length ?? 0)) {
-    const lastValue = lastFragment.slice(0, lastFragment.length - matchValueWithQuotes.length);
-    const confirmField = /^\s*(?<field>[\w.]+)\s*(:|>=|<=|>|<)\s*$/.exec(lastValue)?.groups?.field;
+  /**
+   * 选择某个可选字段
+   * @param {string} field
+   */
+  const handleClickField = (field: string) => {
+    const sqlValue = getFocusLeftValue();
+    const lastFieldStr = sqlValue.split(/\s+(AND\s+NOT|OR|AND)\s+/i)?.pop() ?? '';
+    let leftValue = sqlValue.slice(0, sqlValue.length - lastFieldStr.replace(/^\s/, '').length);
 
-    if (confirmField) {
-      showWhichDropdown(OptionItemType.Value);
-      setValueList(confirmField, matchValue ?? '');
-      return;
+    if (leftValue.length && !/\s$/.test(leftValue)) {
+      leftValue = `${leftValue} `;
     }
-  }
 
-  // 如果是空格 & 已有条件不为空，追加弹出 AND OR 等连接符
-  if (/\S+\s+$/.test(value)) {
-    showWhichDropdown(OptionItemType.Continue);
-    return;
-  }
+    const isEndWithConnection = regExpAndOrNot.test(leftValue);
 
-  if (lastFragment && totalFieldsNameList.value.includes(lastFragment)) {
-    showColonOperator(lastFragment);
-    return;
-  }
+    const rightValue = getFocusRightValue();
 
-  // 开始输入字段【nam】
-  const inputField = /^\s*(?<field>[\w.]+)$/.exec(lastFragment)?.groups?.field;
-  if (inputField) {
-    const fieldScope = store.state.indexFieldInfo.field_scope || store.state.indexId || 'default';
-    const cachedFieldIndex = storeRuntimeCacheService.getFieldNameIndex(fieldScope);
-    const fieldIndex = Object.keys(cachedFieldIndex).length ? cachedFieldIndex : buildFieldNameIndex(totalFields.value);
-    const inputLower = inputField.toLowerCase();
-    fieldList.value = originFieldList()
-      .reduce((acc: { index: number; fieldName: string }[], item) => {
-        const field = fieldIndex[item];
-        const displayName = field?.query_alias ? `${field.query_alias}(${item})` : item;
-        const idx = displayName.toLowerCase().indexOf(inputLower);
-        if (idx >= 0) {
-          acc.push({ index: idx * 10 - (field?.is_virtual_alias_field ? 1 : 0), fieldName: item });
-        }
-        return acc;
-      }, [])
-      .sort((a, b) => a.index - b.index)
-      .map(item => item.fieldName);
-    if (fieldList.value.length) {
-      showWhichDropdown(OptionItemType.Fields);
-      return;
-    }
-  }
+    const rightEndPosition = isEndWithConnection ? 0 : rightValue.indexOf(':');
+    const targetPosition = rightEndPosition >= 0 ? rightEndPosition : 0;
+    const rightFieldStr = rightValue.slice(targetPosition);
+    const result = `${leftValue}${field}${rightFieldStr}`;
 
-  showWhichDropdown();
-};
+    emitValueChange(result, false, true, leftValue.length + field.length);
+    showColonOperator(field as string);
+    setNextActive();
+  };
 
-const setNextActive = () => {
-  nextTick(() => {
-    activeIndex.value = null;
-    setOptionActive();
-  });
-};
-
-/**
- * 选择某个可选字段
- * @param {string} field
- */
-const handleClickField = (field: string) => {
-  const sqlValue = getFocusLeftValue();
-  const lastFieldStr = sqlValue.split(/\s+(AND\s+NOT|OR|AND)\s+/i)?.pop() ?? '';
-  let leftValue = sqlValue.slice(0, sqlValue.length - lastFieldStr.replace(/^\s/, '').length);
-
-  if (leftValue.length && !/\s$/.test(leftValue)) {
-    leftValue = `${leftValue} `;
-  }
-
-  const isEndWithConnection = regExpAndOrNot.test(leftValue);
-
-  const rightValue = getFocusRightValue();
-
-  const rightEndPosition = isEndWithConnection ? 0 : rightValue.indexOf(':');
-  const targetPosition = rightEndPosition >= 0 ? rightEndPosition : 0;
-  const rightFieldStr = rightValue.slice(targetPosition);
-  const result = `${leftValue}${field}${rightFieldStr}`;
-
-  emitValueChange(result, false, true, leftValue.length + field.length);
-  showColonOperator(field as string);
-  setNextActive();
-};
-
-/**
+  /**
    * 选择 : 或者 :*
    * @param {string} type
    */
-const handleClickColon = (type: string) => {
-  let target = type;
-  if (type === ': *') {
-    target = `${target} `;
-  }
+  const handleClickColon = (type: string) => {
+    let target = type;
+    if (type === ': *') {
+      target = `${target} `;
+    }
 
-  const sqlValue = getFocusLeftValue();
-  const rightValue = getFocusRightValue();
-  const result = `${sqlValue}${target}${rightValue}`;
+    const sqlValue = getFocusLeftValue();
+    const rightValue = getFocusRightValue();
+    const result = `${sqlValue}${target}${rightValue}`;
 
-  emitValueChange(result, false, true, sqlValue.length + target.length);
-  calculateDropdown();
-  setNextActive();
-};
+    emitValueChange(result, false, true, sqlValue.length + target.length);
+    calculateDropdown();
+    setNextActive();
+  };
 
-/**
+  /**
    * 选择某个字段可选值
    * @param {string} value
    */
-const handleClickValue = (value: string) => {
-  const sqlValue = getFocusLeftValue();
-  const rightValue = getFocusRightValue();
-  const lastFragment = sqlValue.split(/\s+(AND\s+NOT|OR|AND)\s+/i)?.pop() ?? '';
+  const handleClickValue = (value: string) => {
+    const sqlValue = getFocusLeftValue();
+    const rightValue = getFocusRightValue();
+    const lastFragment = sqlValue.split(/\s+(AND\s+NOT|OR|AND)\s+/i)?.pop() ?? '';
 
-  const lastValues = /(:|>=|<=|>|<)\s*(\d+|\w+|"((?:[^"\\]|\\.)*)"?)/.exec(lastFragment);
-  const matchValueWithQuotes = lastValues?.[2] ?? '';
-  const matchLeft = sqlValue.slice(0, sqlValue.length - matchValueWithQuotes.length);
-  const targetValue = value.replace(/^"|"$/g, '').replace(/"/g, '\\"');
+    const lastValues = /(:|>=|<=|>|<)\s*(\d+|\w+|"((?:[^"\\]|\\.)*)"?)/.exec(lastFragment);
+    const matchValueWithQuotes = lastValues?.[2] ?? '';
+    const matchLeft = sqlValue.slice(0, sqlValue.length - matchValueWithQuotes.length);
+    const targetValue = value.replace(/^"|"$/g, '').replace(/"/g, '\\"');
 
-  const rightFirstValue =      matchValueWithQuotes.length >= 1 ? rightValue.split(/\s+(AND\s+NOT|OR|AND)\s+/i)?.shift() ?? '' : '';
+    const rightFirstValue =
+      matchValueWithQuotes.length >= 1 ? (rightValue.split(/\s+(AND\s+NOT|OR|AND)\s+/i)?.shift() ?? '') : '';
 
-  const formatRightValue = `${rightValue.slice(rightFirstValue.length).replace(/\s+$/, '')}`;
-  const appendSpace = formatRightValue === '' ? ' ' : '';
-  const result = `${matchLeft}"${targetValue}"${formatRightValue}${appendSpace}`;
-  const focusPosition = matchLeft.length + targetValue.length + 3;
+    const formatRightValue = `${rightValue.slice(rightFirstValue.length).replace(/\s+$/, '')}`;
+    const appendSpace = formatRightValue === '' ? ' ' : '';
+    const result = `${matchLeft}"${targetValue}"${formatRightValue}${appendSpace}`;
+    const focusPosition = matchLeft.length + targetValue.length + 3;
 
-  // 当前输入值可能的情况 【name:"a】【age:】
-  emitValueChange(result, false, true, focusPosition);
-  setNextActive();
-};
+    // 当前输入值可能的情况 【name:"a】【age:】
+    emitValueChange(result, false, true, focusPosition);
+    setNextActive();
+  };
 
-/**
+  /**
    * 选择 AND 或者 OR
    * @param {string} type
    */
-const handleClickContinue = (type: string) => {
-  const sqlValue = getFocusLeftValue();
-  const rightValue = getFocusRightValue();
-  const result = `${sqlValue}${type} ${rightValue}`;
-  emitValueChange(result, false, true, sqlValue.length + type.length + 1);
-  showWhichDropdown(OptionItemType.Fields);
-  fieldList.value = [...originFieldList()];
-  setNextActive();
-};
+  const handleClickContinue = (type: string) => {
+    const sqlValue = getFocusLeftValue();
+    const rightValue = getFocusRightValue();
+    const result = `${sqlValue}${type} ${rightValue}`;
+    emitValueChange(result, false, true, sqlValue.length + type.length + 1);
+    showWhichDropdown(OptionItemType.Fields);
+    fieldList.value = [...originFieldList()];
+    setNextActive();
+  };
 
-const scrollActiveItemIntoView = () => {
-  if ((activeIndex.value ?? -1) >= 0) {
-    const target = refDropdownEl.value?.querySelector('.list-item.active');
-    target?.scrollIntoView({ block: 'nearest' });
-  }
-};
+  const scrollActiveItemIntoView = () => {
+    if ((activeIndex.value ?? -1) >= 0) {
+      const target = refDropdownEl.value?.querySelector('.list-item.active');
+      target?.scrollIntoView({ block: 'nearest' });
+    }
+  };
 
-const stopEventPreventDefault = (e) => {
-  e.stopPropagation();
-  e.preventDefault();
-  e.stopImmediatePropagation();
-};
+  const stopEventPreventDefault = e => {
+    e.stopPropagation();
+    e.preventDefault();
+    e.stopImmediatePropagation();
+  };
 
-const handleKeydown = (e: {
+  const handleKeydown = (e: {
     preventDefault?: any;
     code?: any;
     ctrlKey?: boolean;
     metaKey: boolean;
     keyCode: number;
   }) => {
-  const { code } = e;
-  const catchKeyCode = ['ArrowUp', 'ArrowDown', 'Enter', 'NumpadEnter'];
+    const { code } = e;
+    const catchKeyCode = ['ArrowUp', 'ArrowDown', 'Enter', 'NumpadEnter'];
 
-  if (code === 'Escape' || !catchKeyCode.includes(code)) {
-    return;
-  }
-
-  const dropdownEl = refDropdownEl.value;
-  if (!dropdownEl) {
-    return;
-  }
-
-  const dropdownList = dropdownEl.querySelectorAll('.list-item');
-  const hasHover = dropdownEl.querySelector('.list-item.is-hover');
-  if (code === 'NumpadEnter' || code === 'Enter') {
-    // Ctrl+Enter 操作已由父组件处理，这里不再处理
-    if (e.ctrlKey || e.metaKey) {
+    if (code === 'Escape' || !catchKeyCode.includes(code)) {
       return;
     }
 
-    if (activeIndex.value !== null) {
+    const dropdownEl = refDropdownEl.value;
+    if (!dropdownEl) {
+      return;
+    }
+
+    const dropdownList = dropdownEl.querySelectorAll('.list-item');
+    const hasHover = dropdownEl.querySelector('.list-item.is-hover');
+    if (code === 'NumpadEnter' || code === 'Enter') {
+      // Ctrl+Enter 操作已由父组件处理，这里不再处理
+      if (e.ctrlKey || e.metaKey) {
+        return;
+      }
+
+      if (activeIndex.value !== null) {
+        stopEventPreventDefault(e);
+        if (hasHover && !activeIndex.value) {
+          activeIndex.value = 0;
+        }
+
+        if (activeIndex.value !== null && dropdownList[activeIndex.value] !== undefined) {
+          // enter 选中下拉选项
+          (dropdownList[activeIndex.value] as HTMLElement).click();
+        } else {
+          emitValueChange(props.value, false, true);
+        }
+      }
+    }
+
+    if (code === 'ArrowUp') {
       stopEventPreventDefault(e);
-      if (hasHover && !activeIndex.value) {
+
+      if (hasHover) {
         activeIndex.value = 0;
+        hasHover?.classList.remove('is-hover');
       }
-
-      if (activeIndex.value !== null && dropdownList[activeIndex.value] !== undefined) {
-        // enter 选中下拉选项
-        (dropdownList[activeIndex.value] as HTMLElement).click();
+      if (activeIndex.value) {
+        activeIndex.value -= 1;
       } else {
-        emitValueChange(props.value, false, true);
+        activeIndex.value = dropdownList.length - 1;
       }
     }
-  }
 
-  if (code === 'ArrowUp') {
-    stopEventPreventDefault(e);
+    if (code === 'ArrowDown') {
+      stopEventPreventDefault(e);
 
-    if (hasHover) {
-      activeIndex.value = 0;
-      hasHover?.classList.remove('is-hover');
+      if (hasHover) {
+        activeIndex.value = 0;
+        hasHover?.classList.remove('is-hover');
+      }
+      if (activeIndex.value === null || activeIndex.value === dropdownList.length - 1) {
+        activeIndex.value = 0;
+      } else {
+        activeIndex.value += 1;
+      }
     }
-    if (activeIndex.value) {
-      activeIndex.value -= 1;
-    } else {
-      activeIndex.value = dropdownList.length - 1;
-    }
-  }
 
-  if (code === 'ArrowDown') {
-    stopEventPreventDefault(e);
-
-    if (hasHover) {
-      activeIndex.value = 0;
-      hasHover?.classList.remove('is-hover');
-    }
-    if (activeIndex.value === null || activeIndex.value === dropdownList.length - 1) {
-      activeIndex.value = 0;
-    } else {
-      activeIndex.value += 1;
-    }
-  }
-
-  setOptionActive();
-  scrollActiveItemIntoView();
-};
-
-const beforeShowndFn = () => {
-  calculateDropdown();
-  activeIndex.value = null;
-  nextTick(() => {
     setOptionActive();
+    scrollActiveItemIntoView();
+  };
+
+  const beforeShowndFn = () => {
+    calculateDropdown();
+    activeIndex.value = null;
+    nextTick(() => {
+      setOptionActive();
+    });
+
+    const beforeShownValue =
+      showOption.value.showFields ||
+      showOption.value.showValue ||
+      showOption.value.showColon ||
+      showOption.value.showContinue ||
+      (showOption.value.showOperator && operatorSelectList.value.length);
+
+    if (beforeShownValue) {
+      // capture： true 避免执行顺序导致编辑器的 enter 事件误触发
+      document.addEventListener('keydown', handleKeydown, { capture: true });
+    }
+
+    return beforeShownValue;
+  };
+
+  const beforeHideFn = () => {
+    activeIndex.value = null;
+    document.removeEventListener('keydown', handleKeydown, { capture: true });
+  };
+
+  const handleFavoriteClick = item => {
+    emitValueChange(item.params?.keyword, true, true);
+  };
+
+  const handleSQLReadmeClick = () => {
+    const lang = /^en/.test(jsCookie.get('blueking_language')) ? 'EN' : 'ZH';
+    window.open(
+      join(
+        (window as any).BK_DOC_URL,
+        `/markdown/${lang}/LogSearch/4.6/UserGuide/ProductFeatures/data-visualization/query_string.md`,
+      ),
+      '_blank',
+    );
+  };
+
+  const debounceUpdate = debounce(() => {
+    calculateDropdown();
+    nextTick(() => {
+      setOptionActive();
+    });
+  });
+  const fieldNameShow = item => {
+    return getQualifiedFieldName(item);
+  };
+
+  defineExpose({
+    beforeShowndFn,
+    beforeHideFn,
   });
 
-  const beforeShownValue = showOption.value.showFields
-      || showOption.value.showValue
-      || showOption.value.showColon
-      || showOption.value.showContinue
-      || (showOption.value.showOperator && operatorSelectList.value.length);
-
-  if (beforeShownValue) {
-    // capture： true 避免执行顺序导致编辑器的 enter 事件误触发
-    document.addEventListener('keydown', handleKeydown, { capture: true });
-  }
-
-  return beforeShownValue;
-};
-
-const beforeHideFn = () => {
-  activeIndex.value = null;
-  document.removeEventListener('keydown', handleKeydown, { capture: true });
-};
-
-
-const handleFavoriteClick = (item) => {
-  emitValueChange(item.params?.keyword, true, true);
-};
-
-const handleSQLReadmeClick = () => {
-  const lang = /^en/.test(jsCookie.get('blueking_language')) ? 'EN' : 'ZH';
-  window.open(
-    join(
-      (window as any).BK_DOC_URL,
-      `/markdown/${lang}/LogSearch/4.6/UserGuide/ProductFeatures/data-visualization/query_string.md`,
-    ),
-    '_blank',
+  watch(
+    () => [props.value, props.focusPosition],
+    () => {
+      debounceUpdate();
+    },
+    { immediate: true, deep: true },
   );
-};
 
-const debounceUpdate = debounce(() => {
-  calculateDropdown();
-  nextTick(() => {
-    setOptionActive();
+  watch(activeIndex, () => {
+    emits('active-change', activeIndex.value);
   });
-});
-const fieldNameShow = (item) => {
-  return getQualifiedFieldName(item);
-};
-
-defineExpose({
-  beforeShowndFn,
-  beforeHideFn,
-});
-
-watch(
-  () => [props.value, props.focusPosition],
-  () => {
-    debounceUpdate();
-  },
-  { immediate: true, deep: true },
-);
-
-watch(activeIndex, () => {
-  emits('active-change', activeIndex.value);
-});
 </script>
 <template>
   <div class="sql-query-container">
@@ -627,9 +632,7 @@ watch(activeIndex, () => {
       <!-- 顶部工具栏 -->
       <div class="sql-query-header">
         <div class="ui-shortcut-key">
-          <div
-            class="ui-shortcut-item direct-retrieve-item"
-          >
+          <div class="ui-shortcut-item direct-retrieve-item">
             <span class="bklog-icon bklog-enter-3 label" />
             <span class="value">{{ $t('直接检索') }}</span>
           </div>
@@ -645,7 +648,8 @@ watch(activeIndex, () => {
             <span class="label">
               <i :class="shortCutClsName" />
               <i class="bklog-icon bklog-plus" />
-              <i class="bklog-icon bklog-enter-3" /></span>
+              <i class="bklog-icon bklog-enter-3"
+            /></span>
             <span class="value">{{ $t('AI 解析') }}</span>
           </div>
         </div>
@@ -720,9 +724,7 @@ watch(activeIndex, () => {
               <div class="item-type-icon">
                 <span class="bklog-icon bklog-equal" />
               </div>
-              <div class="item-text">
-                :
-              </div>
+              <div class="item-text">:</div>
               <div
                 v-bk-overflow-tips="{ placement: 'right' }"
                 class="item-description text-overflow-hidden"
@@ -740,9 +742,7 @@ watch(activeIndex, () => {
               <div class="item-type-icon">
                 <span class="bklog-icon bklog-equal" />
               </div>
-              <div class="item-text">
-                :*
-              </div>
+              <div class="item-text">:*</div>
               <div
                 v-bk-overflow-tips="{ placement: 'right' }"
                 class="item-description text-overflow-hidden"
@@ -792,9 +792,7 @@ watch(activeIndex, () => {
               <div class="item-type-icon">
                 <span class="bklog-icon bklog-and" />
               </div>
-              <div class="item-text">
-                AND
-              </div>
+              <div class="item-text">AND</div>
               <div
                 v-bk-overflow-tips="{ placement: 'right' }"
                 class="item-description text-overflow-hidden"
@@ -812,9 +810,7 @@ watch(activeIndex, () => {
               <div class="item-type-icon">
                 <span class="bklog-icon bklog-and" />
               </div>
-              <div class="item-text">
-                OR
-              </div>
+              <div class="item-text">OR</div>
               <div
                 v-bk-overflow-tips="{ placement: 'right' }"
                 class="item-description text-overflow-hidden"
@@ -832,9 +828,7 @@ watch(activeIndex, () => {
               <div class="item-type-icon">
                 <span class="bklog-icon bklog-and" />
               </div>
-              <div class="item-text">
-                AND NOT
-              </div>
+              <div class="item-text">AND NOT</div>
               <div
                 v-bk-overflow-tips="{ placement: 'right' }"
                 class="item-description text-overflow-hidden"
@@ -930,7 +924,7 @@ watch(activeIndex, () => {
 
             .value {
               margin-left: 4px;
-              color: #4D4F56;
+              color: #4d4f56;
             }
 
             &:last-child {

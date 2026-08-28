@@ -321,9 +321,7 @@ export const resolveOuterValidText = (el: Element | null | undefined): HTMLEleme
   if (!el) {
     return null;
   }
-  let current = (el.classList?.contains('valid-text')
-    ? el
-    : el.closest?.('.valid-text')) as HTMLElement | null;
+  let current = (el.classList?.contains('valid-text') ? el : el.closest?.('.valid-text')) as HTMLElement | null;
   if (!current) {
     return null;
   }
@@ -340,7 +338,7 @@ export const listOuterValidTextNodes = (root: ParentNode | null | undefined): HT
   if (!root) {
     return [];
   }
-  return Array.from(root.querySelectorAll('.valid-text')).filter((node) => {
+  return Array.from(root.querySelectorAll('.valid-text')).filter(node => {
     const el = node as HTMLElement;
     return !el.parentElement?.closest?.('.valid-text');
   }) as HTMLElement[];

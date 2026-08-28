@@ -105,10 +105,10 @@ enum RetrieveEvent {
    */
   SEARCH_TIME_CHANGE = 'search-time-change',
 
-    /**
+  /**
    * 搜索时区
    */
-    SEARCH_TIME_ZONE_CHANGE = 'search-time-zone-change',
+  SEARCH_TIME_ZONE_CHANGE = 'search-time-zone-change',
 
   /**
    * 搜索条件改变

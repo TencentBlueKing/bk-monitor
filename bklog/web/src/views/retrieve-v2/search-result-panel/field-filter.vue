@@ -41,9 +41,11 @@
 
   const fieldAliasMap = computed(() => {
     const fieldAliasMap = {};
-    totalFields.value.filter(field => !field.is_virtual_alias_field).forEach(item => {
-      fieldAliasMap[item.field_name] = item.query_alias || item.field_name;
-    });
+    totalFields.value
+      .filter(field => !field.is_virtual_alias_field)
+      .forEach(item => {
+        fieldAliasMap[item.field_name] = item.query_alias || item.field_name;
+      });
 
     return fieldAliasMap;
   });

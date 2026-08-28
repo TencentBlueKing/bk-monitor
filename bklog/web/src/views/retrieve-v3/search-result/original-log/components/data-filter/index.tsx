@@ -101,7 +101,6 @@ export default defineComponent({
       fieldConfigPopoverInstance = null;
     });
 
-
     watch(ignoreCase, () => {
       emit('handle-filter', 'ignoreCase', ignoreCase.value);
     });
@@ -131,7 +130,7 @@ export default defineComponent({
       const colorIndex = contextHighlightColor.findIndex((item, index) => !catchColorIndexList.value.includes(index));
       const catchCloneColorList = deepClone(colorHighlightList.value);
       // 给高亮颜色重新赋值
-      colorHighlightList.value = highlightList.value.map((item) => {
+      colorHighlightList.value = highlightList.value.map(item => {
         const notChangeItem = catchCloneColorList.find(cItem => cItem.heightKey === item);
         if (notChangeItem) return notChangeItem;
         return {
@@ -150,7 +149,7 @@ export default defineComponent({
       filterType.value = val;
       emit('handle-filter', 'filterType', val);
     };
-    const handleSelectShowType = (type) => {
+    const handleSelectShowType = type => {
       showType.value = type;
       emit('handle-filter', 'showType', type);
     };
@@ -179,10 +178,10 @@ export default defineComponent({
     /** 更新taginput组件中的颜色 */
     const initTagInputColor = () => {
       const childEl = tagInputRef.value.$el.querySelectorAll('.key-node');
-      childEl.forEach((child) => {
+      childEl.forEach(child => {
         const tag = child.querySelectorAll('.tag')[0];
         const colorObj = colorHighlightList.value.find(item => item.heightKey === tag.innerText);
-        [child, tag].forEach((item) => {
+        [child, tag].forEach(item => {
           Object.assign(item.style, {
             backgroundColor: colorObj.color.light,
           });
@@ -260,7 +259,7 @@ export default defineComponent({
               allow-create
               has-delete-icon
               paste-fn={filterPasteFn}
-              on-change={(value) => {
+              on-change={value => {
                 filterKey.value = value;
                 filterLog();
               }}
@@ -276,7 +275,7 @@ export default defineComponent({
               value={highlightList.value}
               allow-create
               has-delete-icon
-              on-change={(value) => {
+              on-change={value => {
                 highlightList.value = value;
                 changeLightList();
               }}
@@ -311,7 +310,7 @@ export default defineComponent({
             <bk-checkbox
               style='margin-right: 6px'
               value={ignoreCase.value}
-              on-change={(value) => {
+              on-change={value => {
                 ignoreCase.value = value;
               }}
             />
@@ -336,7 +335,7 @@ export default defineComponent({
                   size='small'
                   type='number'
                   value={interval.value.prev}
-                  on-change={(value) => {
+                  on-change={value => {
                     interval.value.prev = Number(value);
                   }}
                 />
@@ -352,7 +351,7 @@ export default defineComponent({
                   size='small'
                   type='number'
                   value={interval.value.next}
-                  on-change={(value) => {
+                  on-change={value => {
                     interval.value.next = Number(value);
                   }}
                 />

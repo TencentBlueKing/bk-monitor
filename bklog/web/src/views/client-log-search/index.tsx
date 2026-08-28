@@ -248,9 +248,7 @@ export default defineComponent({
             taskListPanelRef.value?.resetScroll?.();
             // 首次加载默认选中第一项
             if (list.length > 0) {
-              const matchedItem = urlFileName
-                ? list.find((item: LogItem) => item.file_name === urlFileName)
-                : null;
+              const matchedItem = urlFileName ? list.find((item: LogItem) => item.file_name === urlFileName) : null;
               selectedLogItem.value = matchedItem || list[0];
               fetchClientInfo(selectedLogItem.value);
               // 任务列表返回后同步 URL（选中的任务文件名）
@@ -386,7 +384,7 @@ export default defineComponent({
 
     /** 更新 taskList 中指定任务的状态 */
     const updateTaskStatus = (source: DataSource, id: number | string, status: ProcessStatus, processedAt?: string) => {
-      const index = taskList.value.findIndex((item) => {
+      const index = taskList.value.findIndex(item => {
         if (source === 'task') {
           return item.source === 'task' && String(item.task_id) === String(id);
         }
@@ -400,8 +398,13 @@ export default defineComponent({
         }
         taskList.value.splice(index, 1, updatedItem);
         // 同步更新 selectedLogItem
-        if (selectedLogItem.value && selectedLogItem.value.source === source
-          && (source === 'task' ? String(selectedLogItem.value.task_id) === String(id) : selectedLogItem.value.file_name === id)) {
+        if (
+          selectedLogItem.value &&
+          selectedLogItem.value.source === source &&
+          (source === 'task'
+            ? String(selectedLogItem.value.task_id) === String(id)
+            : selectedLogItem.value.file_name === id)
+        ) {
           selectedLogItem.value = updatedItem;
         }
       }
@@ -429,39 +432,43 @@ export default defineComponent({
       if (taskItems.length > 0) {
         const taskIdList = taskItems.map(item => item.task_id).filter((id): id is string => id !== null);
         queries.push(
-          $http.request('clientLog/getTaskStatus', {
-            data: {
-              bk_biz_id: bkBizId,
-              task_id_list: taskIdList,
-            },
-          }).then((res) => {
-            if (res?.data && Array.isArray(res.data)) {
-              res.data.forEach((statusItem: any) => {
-                if (statusItem.status !== 'pending' && statusItem.process_status !== 'running') {
-                  updateTaskStatus('task', statusItem.task_id, statusItem.process_status, statusItem.processed_at);
-                }
-              });
-            }
-          }),
+          $http
+            .request('clientLog/getTaskStatus', {
+              data: {
+                bk_biz_id: bkBizId,
+                task_id_list: taskIdList,
+              },
+            })
+            .then(res => {
+              if (res?.data && Array.isArray(res.data)) {
+                res.data.forEach((statusItem: any) => {
+                  if (statusItem.status !== 'pending' && statusItem.process_status !== 'running') {
+                    updateTaskStatus('task', statusItem.task_id, statusItem.process_status, statusItem.processed_at);
+                  }
+                });
+              }
+            }),
         );
       }
 
       if (reportItems.length > 0) {
         const fileNameList = reportItems.map(item => item.file_name);
         queries.push(
-          $http.request('collect/getFileStatus', {
-            data: {
-              file_name_list: fileNameList,
-            },
-          }).then((res) => {
-            if (res?.data && Array.isArray(res.data)) {
-              res.data.forEach((statusItem: any) => {
-                if (statusItem.status !== 'pending' && statusItem.status !== 'running') {
-                  updateTaskStatus('report', statusItem.file_name, statusItem.status as ProcessStatus);
-                }
-              });
-            }
-          }),
+          $http
+            .request('collect/getFileStatus', {
+              data: {
+                file_name_list: fileNameList,
+              },
+            })
+            .then(res => {
+              if (res?.data && Array.isArray(res.data)) {
+                res.data.forEach((statusItem: any) => {
+                  if (statusItem.status !== 'pending' && statusItem.status !== 'running') {
+                    updateTaskStatus('report', statusItem.file_name, statusItem.status as ProcessStatus);
+                  }
+                });
+              }
+            }),
         );
       }
 
@@ -491,7 +498,7 @@ export default defineComponent({
       stopPolling();
 
       // 先将任务状态修改为 running
-      const index = taskList.value.findIndex((t) => {
+      const index = taskList.value.findIndex(t => {
         if (item.source === 'task') {
           return t.source === 'task' && t.file_name === item.file_name;
         }
@@ -501,8 +508,13 @@ export default defineComponent({
         const updatedItem = { ...taskList.value[index], process_status: 'running' as ProcessStatus };
         taskList.value.splice(index, 1, updatedItem);
         // 如果当前选中项就是该项，同步更新选中状态
-        if (selectedLogItem.value && selectedLogItem.value.source === item.source
-          && (item.source === 'task' ? selectedLogItem.value.task_id === item.task_id : selectedLogItem.value.file_name === item.file_name)) {
+        if (
+          selectedLogItem.value &&
+          selectedLogItem.value.source === item.source &&
+          (item.source === 'task'
+            ? selectedLogItem.value.task_id === item.task_id
+            : selectedLogItem.value.file_name === item.file_name)
+        ) {
           selectedLogItem.value = updatedItem;
         }
       }
@@ -559,10 +571,7 @@ export default defineComponent({
           // 业务切换时清空 URL 中的条件
           clearUrlParams();
           const isExternal = store.state.isExternal;
-          const hasPermission = isFeatureToggleOn(
-            'tgpa_task',
-            [String(store.state.bkBizId), String(newSpaceUid)],
-          );
+          const hasPermission = isFeatureToggleOn('tgpa_task', [String(store.state.bkBizId), String(newSpaceUid)]);
           const externalMenu = store.state.externalMenu as string[];
           const hasExternalPermission = isExternal && (externalMenu || []).includes('client-log-search');
           // 灰度开关关闭 或 外部版无权限 则跳转
@@ -627,10 +636,7 @@ export default defineComponent({
     onMounted(async () => {
       // 页面挂载时检查功能开关/权限，无权限则跳转
       const isExternal = store.state.isExternal;
-      const hasPermission = isFeatureToggleOn(
-        'tgpa_task',
-        [String(store.state.bkBizId), String(store.state.spaceUid)],
-      );
+      const hasPermission = isFeatureToggleOn('tgpa_task', [String(store.state.bkBizId), String(store.state.spaceUid)]);
       const externalMenu = store.state.externalMenu as string[];
       const hasExternalPermission = isExternal && (externalMenu || []).includes('client-log-search');
       // 灰度开关关闭 或 外部版无权限 则跳转
