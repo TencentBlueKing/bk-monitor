@@ -45,53 +45,42 @@ class ListTracesResource(Resource):
         return value
 
     @staticmethod
-    def _message_text(spans: list[dict[str, Any]], attribute: str, role: str) -> str:
-        messages: list[dict[str, Any]] = []
+    def _message_text(spans: list[dict[str, Any]], attribute: str) -> str:
         for span in spans:
             attributes = span.get(OtlpKey.ATTRIBUTES)
-            values = attributes.get(attribute) if isinstance(attributes, dict) else None
-            if isinstance(values, list):
-                messages.extend(value for value in values if isinstance(value, dict))
-
-        preferred = [message for message in messages if message.get("role") == role]
-        for message in reversed(preferred or messages):
-            parts = message.get("parts")
-            if not isinstance(parts, list):
+            messages = attributes.get(attribute) if isinstance(attributes, dict) else None
+            if not isinstance(messages, list):
                 continue
-            texts = [
-                content
-                for part in parts
-                if isinstance(part, dict)
-                and part.get("type") == "text"
-                and isinstance((content := part.get("content", part.get("text"))), str)
-                and content.strip()
-            ]
-            if texts:
-                return " ".join(texts)
+            for message in reversed(messages):
+                if not isinstance(message, dict):
+                    continue
+                parts = message.get("parts")
+                if not isinstance(parts, list):
+                    continue
+                texts = [
+                    content
+                    for part in parts
+                    if isinstance(part, dict)
+                    and part.get("type") == "text"
+                    and isinstance((content := part.get("content", part.get("text"))), str)
+                    and content.strip()
+                ]
+                if texts:
+                    return " ".join(texts)
         return ""
 
     @classmethod
     def _trace_item(cls, trace_id: str, raw_spans: list[dict[str, Any]]) -> dict[str, Any]:
-        spans = adapt_spans(raw_spans)
-        start_times = [
-            value
-            for span in spans
-            if isinstance((value := span.get(OtlpKey.START_TIME)), int) and not isinstance(value, bool)
+        converted_spans = adapt_spans(raw_spans)
+        converted_attributes = [
+            attributes for span in converted_spans if isinstance((attributes := span.get(OtlpKey.ATTRIBUTES)), dict)
         ]
-        end_times = [
-            value
-            for span in spans
-            if isinstance((value := span.get(OtlpKey.END_TIME)), int) and not isinstance(value, bool)
-        ]
-        start_time = min(start_times, default=0)
-        end_time = max(end_times, default=start_time)
+        root_span = next((span for span in raw_spans if not span.get(OtlpKey.PARENT_SPAN_ID)), {})
+        start_time = root_span.get(OtlpKey.START_TIME, 0)
+        end_time = root_span.get(OtlpKey.END_TIME, start_time)
 
         def attribute_values(attribute: str) -> list[Any]:
-            return [
-                attributes[attribute]
-                for span in spans
-                if isinstance((attributes := span.get(OtlpKey.ATTRIBUTES)), dict) and attribute in attributes
-            ]
+            return [attributes[attribute] for attributes in converted_attributes if attribute in attributes]
 
         def token_total(attribute: str) -> int:
             return sum(
@@ -106,8 +95,8 @@ class ListTracesResource(Resource):
             "group_id": trace_id,
             "group_field": OtlpKey.TRACE_ID,
             "trace_id": trace_id,
-            "input": cls._message_text(spans, "gen_ai.input.messages", "user"),
-            "output": cls._message_text(spans, "gen_ai.output.messages", "assistant"),
+            "input": cls._message_text(converted_spans, "gen_ai.input.messages"),
+            "output": cls._message_text(converted_spans[::-1], "gen_ai.output.messages"),
             "input_tokens": token_total("gen_ai.usage.input_tokens"),
             "output_tokens": token_total("gen_ai.usage.output_tokens"),
             "cache_read_input_tokens": token_total("gen_ai.usage.cache_read.input_tokens"),
@@ -136,12 +125,22 @@ class ListTracesResource(Resource):
             childs = [cls._trace_item(trace_id, spans) for trace_id, spans in spans_by_group[group_id].items()]
             if not childs:
                 continue
+            childs.sort(key=lambda child: child["start_time"])
+            start_time = childs[0]["start_time"]
+            end_time = max(child["start_time"] + child["elapsed_time"] for child in childs)
             items.append(
                 {
                     "group_id": group_id,
                     "group_field": group_field,
                     "input": "",
                     "output": "",
+                    "input_tokens": sum(child["input_tokens"] for child in childs),
+                    "output_tokens": sum(child["output_tokens"] for child in childs),
+                    "cache_read_input_tokens": sum(child["cache_read_input_tokens"] for child in childs),
+                    "cache_creation_input_tokens": sum(child["cache_creation_input_tokens"] for child in childs),
+                    "start_time": start_time,
+                    "elapsed_time": max(0, end_time - start_time),
+                    "user_id": next((child["user_id"] for child in childs if child["user_id"]), ""),
                     "childs": childs,
                 }
             )
@@ -185,8 +184,6 @@ class ListTracesResource(Resource):
         spans = span_query.query_by_group_ids(
             group_field=validated_request_data["group_field"],
             group_ids=group_ids,
-            start_time=validated_request_data["start_time"],
-            end_time=validated_request_data["end_time"],
         )
         result["items"] = self._group_spans(
             validated_request_data["group_field"],

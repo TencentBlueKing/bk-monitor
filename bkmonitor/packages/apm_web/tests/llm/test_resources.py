@@ -35,6 +35,7 @@ class ListTracesResourceTestCase(TestCase):
             {
                 "trace_id": "trace-1",
                 "span_id": "span-1",
+                "parent_span_id": "",
                 "input": "问一",
                 "output": "答一",
                 "start_time": 100,
@@ -48,10 +49,11 @@ class ListTracesResourceTestCase(TestCase):
             {
                 "trace_id": "trace-2",
                 "span_id": "span-2",
+                "parent_span_id": "",
                 "input": "问二",
-                "output": "答二",
+                "output": "处理中",
                 "start_time": 200,
-                "end_time": 240,
+                "end_time": 280,
                 "input_tokens": 12,
                 "output_tokens": 5,
                 "cache_read_input_tokens": 4,
@@ -61,7 +63,8 @@ class ListTracesResourceTestCase(TestCase):
             {
                 "trace_id": "trace-2",
                 "span_id": "span-3",
-                "input": "问二",
+                "parent_span_id": "span-2",
+                "input": "问二（包含工具结果）",
                 "output": "答二",
                 "start_time": 250,
                 "end_time": 280,
@@ -151,8 +154,6 @@ class ListTracesResourceTestCase(TestCase):
         span_query.query_by_group_ids.assert_called_once_with(
             group_field="trace_id",
             group_ids=["trace-2", "trace-1"],
-            start_time=1,
-            end_time=2,
         )
 
     def test_custom_group_keeps_trace_children(self):
@@ -164,23 +165,47 @@ class ListTracesResourceTestCase(TestCase):
             {
                 "trace_id": "trace-1",
                 "span_id": "span-1",
+                "parent_span_id": "",
                 "attributes": {"session.id": "session-1"},
                 "input": "问一",
                 "output": "答一",
-            },
-            {
-                "trace_id": "trace-2",
-                "span_id": "span-2",
-                "attributes": {"session.id": "session-2"},
-                "input": "问二",
-                "output": "答二",
+                "start_time": 300,
+                "end_time": 330,
+                "input_tokens": 5,
+                "output_tokens": 2,
+                "cache_read_input_tokens": 1,
+                "cache_creation_input_tokens": 0,
+                "user_id": "user-1",
             },
             {
                 "trace_id": "trace-3",
                 "span_id": "span-3",
+                "parent_span_id": "",
                 "attributes": {"session.id": "session-2"},
                 "input": "问三",
                 "output": "答三",
+                "start_time": 200,
+                "end_time": 280,
+                "input_tokens": 20,
+                "output_tokens": 8,
+                "cache_read_input_tokens": 6,
+                "cache_creation_input_tokens": 1,
+                "user_id": "user-2",
+            },
+            {
+                "trace_id": "trace-2",
+                "span_id": "span-2",
+                "parent_span_id": "",
+                "attributes": {"session.id": "session-2"},
+                "input": "问二",
+                "output": "答二",
+                "start_time": 100,
+                "end_time": 160,
+                "input_tokens": 10,
+                "output_tokens": 4,
+                "cache_read_input_tokens": 3,
+                "cache_creation_input_tokens": 2,
+                "user_id": "user-2",
             },
         ]
         span_query.query_by_group_ids.return_value = raw_spans
@@ -199,6 +224,7 @@ class ListTracesResourceTestCase(TestCase):
                 }
             )
 
+        self.assertEqual(len(result["items"]), 2)
         self.assertEqual(
             result["items"][0],
             {
@@ -206,6 +232,13 @@ class ListTracesResourceTestCase(TestCase):
                 "group_field": group_field,
                 "input": "",
                 "output": "",
+                "input_tokens": 30,
+                "output_tokens": 12,
+                "cache_read_input_tokens": 9,
+                "cache_creation_input_tokens": 3,
+                "start_time": 100,
+                "elapsed_time": 180,
+                "user_id": "user-2",
                 "childs": [
                     {
                         "group_id": "trace-2",
@@ -213,13 +246,13 @@ class ListTracesResourceTestCase(TestCase):
                         "trace_id": "trace-2",
                         "input": "问二",
                         "output": "答二",
-                        "input_tokens": 0,
-                        "output_tokens": 0,
-                        "cache_read_input_tokens": 0,
-                        "cache_creation_input_tokens": 0,
-                        "start_time": 0,
-                        "elapsed_time": 0,
-                        "user_id": "",
+                        "input_tokens": 10,
+                        "output_tokens": 4,
+                        "cache_read_input_tokens": 3,
+                        "cache_creation_input_tokens": 2,
+                        "start_time": 100,
+                        "elapsed_time": 60,
+                        "user_id": "user-2",
                     },
                     {
                         "group_id": "trace-3",
@@ -227,13 +260,13 @@ class ListTracesResourceTestCase(TestCase):
                         "trace_id": "trace-3",
                         "input": "问三",
                         "output": "答三",
-                        "input_tokens": 0,
-                        "output_tokens": 0,
-                        "cache_read_input_tokens": 0,
-                        "cache_creation_input_tokens": 0,
-                        "start_time": 0,
-                        "elapsed_time": 0,
-                        "user_id": "",
+                        "input_tokens": 20,
+                        "output_tokens": 8,
+                        "cache_read_input_tokens": 6,
+                        "cache_creation_input_tokens": 1,
+                        "start_time": 200,
+                        "elapsed_time": 80,
+                        "user_id": "user-2",
                     },
                 ],
             },
@@ -249,9 +282,34 @@ class ListTracesResourceTestCase(TestCase):
         span_query.query_by_group_ids.assert_called_once_with(
             group_field=group_field,
             group_ids=["session-2", "session-1"],
-            start_time=1,
-            end_time=2,
         )
+
+    def test_trace_time_uses_raw_root_span(self):
+        raw_spans = [
+            {"trace_id": "trace-1", "span_id": "root", "parent_span_id": "", "start_time": 100, "end_time": 300},
+            {
+                "trace_id": "trace-1",
+                "span_id": "llm",
+                "parent_span_id": "root",
+                "start_time": 150,
+                "end_time": 200,
+            },
+        ]
+        converted_spans = [
+            {
+                "trace_id": "trace-1",
+                "span_id": "llm",
+                "start_time": 150,
+                "end_time": 200,
+                "attributes": {},
+            }
+        ]
+
+        with mock.patch("apm_web.llm.resources.adapt_spans", return_value=converted_spans):
+            item = ListTracesResource._trace_item("trace-1", raw_spans)
+
+        self.assertEqual(item["start_time"], 100)
+        self.assertEqual(item["elapsed_time"], 200)
 
 
 class ListSpansResourceTestCase(TestCase):
