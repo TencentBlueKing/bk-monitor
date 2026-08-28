@@ -25,26 +25,23 @@
  */
 import { type PropType, computed, defineComponent, nextTick, onBeforeUnmount, toRef, useTemplateRef, watch } from 'vue';
 
-import { Exception, Loading } from 'bkui-vue';
+import { Loading } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
 
 import ExploreFieldSetting from '../../../trace-explore/components/explore-field-setting/explore-field-setting';
 import StatisticsList from '../../../trace-explore/components/statistics-list';
 import { type IStatisticsFieldItem, useFieldStatisticsPopover } from '../../composables/use-field-statistics-popover';
-import {
-  DEFAULT_COLUMN_WIDTH,
-  RUM_COLUMN_WIDTH_MAP,
-  RUM_EXPLORE_VIEW_CLASS,
-  RUM_SORTABLE_FIELD_TYPES,
-} from '../../constants';
+import { RUM_EXPLORE_VIEW_CLASS } from '../../constants';
 import { statisticsApi } from '../../services/rum-search';
 import { useScenarioRenderer } from './hooks/use-scenario-renderer';
 import { useTableScrollOptimize } from '@/hooks/use-table-scroll-optimize';
 import CommonTable from '@/pages/alarm-center/components/alarm-table/components/common-table/common-table';
+import ExploreTableEmpty from '@/pages/trace-explore/components/trace-explore-table/components/explore-table-empty';
 
 import type { TimeRangeType } from '../../../../components/time-range/utils';
 import type { BaseTableColumn } from '../../../trace-explore/components/trace-explore-table/typing';
 import type { IRumCommonParams, IRumField, IRumSpanRecord, RumMode } from '../../typings';
+import type { ConditionChangeEvent } from '@/pages/trace-explore/typing';
 import type { SlotReturnValue } from 'tdesign-vue-next';
 
 import './rum-explore-table.scss';
@@ -62,15 +59,20 @@ export default defineComponent({
       type: Array as PropType<IRumSpanRecord[]>,
       default: () => [],
     },
-    /** 当前展示的列 */
-    displayFields: {
-      type: Array as PropType<string[]>,
-      default: () => [],
+    /** 基础列配置（含列宽覆盖），由上层 useRumColumnConfig 提供 */
+    baseColumns: {
+      type: Array as PropType<BaseTableColumn[]>,
+      required: true,
     },
     /** 可作为列的字段全集，供字段设置使用 */
     displayableFields: {
       type: Array as PropType<IRumField[]>,
       default: () => [],
+    },
+    /** 是否显示列设置：span 视角选中具体类型（特殊态）时由类型决定列，隐藏设置入口 */
+    showSettings: {
+      type: Boolean,
+      default: true,
     },
     /** 表格初始加载状态（用于展示全屏 loading） */
     loading: {
@@ -106,12 +108,24 @@ export default defineComponent({
       type: Array as PropType<TimeRangeType>,
       default: () => [],
     },
+    /** 字段映射表：按字段名快速查找字段元数据（性能优化方案，非必填） */
+    fieldMap: {
+      type: Object as PropType<Map<string, IRumField>>,
+      default: () => new Map(),
+    },
+    /** 表格空数据类型 */
+    emptyType: {
+      type: String as PropType<'empty' | 'search-empty'>,
+      default: 'search-empty',
+    },
   },
   emits: {
     /** 点击单元格筛选值或统计列表触发，回传检索条件 */
-    conditionChange: (_condition: { key: string; method: string; value: string }) => true,
+    conditionChange: (_condition: ConditionChangeEvent) => true,
     /** 字段设置变更，回传新的展示字段列表 */
     displayFieldChange: (_fields: string[]) => true,
+    /** 列宽调整变更，回传各列宽覆盖 { colKey: width } */
+    columnResizeChange: (_width: Record<string, number>) => true,
     /** 表格排序变更，回传排序字符串（正序/倒序） */
     sortChange: (sort: string | string[]) => typeof sort === 'string' || Array.isArray(sort),
     /** 表格滚动触底，触发加载更多数据 */
@@ -128,7 +142,12 @@ export default defineComponent({
     /** 本地请求锁：从发起加载到数据渲染完成期间，忽略滚动事件，避免 scrollLoading 切换间隙重复触发 */
     let isRequestingLock = false;
     /** 可展示字段映射表：按字段名快速查找字段元数据 */
-    const fieldMap = computed(() => new Map(props.displayableFields.map(field => [field.name, field])));
+    const fieldMap = computed(() => {
+      if (props.fieldMap?.size) {
+        return props.fieldMap;
+      }
+      return new Map(props.displayableFields.map(field => [field.name, field]));
+    });
 
     const { activeFieldName, selectField, showPopover, statisticsListRef, destroyPopover, openPopover } =
       useFieldStatisticsPopover('bottom');
@@ -140,21 +159,11 @@ export default defineComponent({
       onFieldAnalysis: (trigger, field) => openPopover(trigger, field as unknown as IStatisticsFieldItem),
     });
 
-    /** 列展示逻辑：展示字段 -> 基础列（键 / 宽度 / 排序等元数据）-> 场景渲染注入 -> 拼接设置列 */
-    const columns = computed<BaseTableColumn[]>(() =>
-      transformColumns(
-        props.displayFields
-          .map(name => fieldMap.value.get(name))
-          .filter(Boolean)
-          .map(field => ({
-            colKey: field.name,
-            width: RUM_COLUMN_WIDTH_MAP[field.name] || DEFAULT_COLUMN_WIDTH,
-            minWidth: 100,
-            resizable: true,
-            sorter: RUM_SORTABLE_FIELD_TYPES.has(field.type),
-          }))
-      )
-    );
+    /** 列展示逻辑：基础列（含列宽覆盖）-> 场景渲染注入 -> 拼接设置列 */
+    const columns = computed<BaseTableColumn[]>(() => transformColumns(props.baseColumns));
+
+    /** 当前展示列的字段 key 列表，供字段设置组件使用 */
+    const displayFieldKeys = computed(() => props.baseColumns.map(col => col.colKey));
 
     /**
      * @description 滚动触底加载更多
@@ -176,7 +185,6 @@ export default defineComponent({
         }
         // 加锁：在数据返回并渲染完成前，阻止滚动事件重复触发
         isRequestingLock = true;
-
         emit('scrollToEnd');
       }
     };
@@ -231,6 +239,7 @@ export default defineComponent({
       t,
       activeFieldName,
       columns,
+      displayFieldKeys,
       selectField,
       showPopover,
       statisticsListRef,
@@ -248,40 +257,37 @@ export default defineComponent({
           class={`rum-explore-table ${this.tableScenarioClassName}`}
           columns={[
             ...this.columns,
-            {
-              colKey: '__col_setting__',
-              width: 32,
-              minWidth: 32,
-              fixed: 'right',
-              align: 'center',
-              resizable: false,
-              thClassName: '__table-custom-setting-col__',
-              title: (() =>
-                (
-                  <ExploreFieldSetting
-                    class='table-field-setting'
-                    sourceList={this.displayableFields}
-                    targetList={this.displayFields}
-                    onConfirm={fields => this.$emit('displayFieldChange', fields)}
-                  />
-                ) as unknown as SlotReturnValue) as BaseTableColumn['title'],
-              cellRenderer: () => null,
-            },
+            ...(this.showSettings
+              ? ([
+                  {
+                    colKey: '__col_setting__',
+                    width: 32,
+                    minWidth: 32,
+                    fixed: 'right',
+                    align: 'center',
+                    resizable: false,
+                    thClassName: '__table-custom-setting-col__',
+                    title: (() =>
+                      (
+                        <ExploreFieldSetting
+                          class='table-field-setting'
+                          sourceList={this.displayableFields}
+                          targetList={this.displayFieldKeys}
+                          onConfirm={fields => this.$emit('displayFieldChange', fields)}
+                        />
+                      ) as unknown as SlotReturnValue) as BaseTableColumn['title'],
+                    cellRenderer: () => null,
+                  },
+                ] as BaseTableColumn[])
+              : []),
           ]}
           empty={() =>
             (
-              <Exception
-                description={this.t('搜索结果为空')}
-                scene='part'
-                type='search-empty'
-              >
-                <span
-                  class='clear-filter-btn'
-                  onClick={() => this.$emit('clearFilter')}
-                >
-                  {this.t('清空检索条件')}
-                </span>
-              </Exception>
+              <ExploreTableEmpty
+                showOperation={this.emptyType === 'search-empty'}
+                type={this.emptyType}
+                onClearFilter={() => this.$emit('clearFilter')}
+              />
             ) as unknown as SlotReturnValue
           }
           headerAffixedTop={{
@@ -307,11 +313,14 @@ export default defineComponent({
                 ) as unknown as SlotReturnValue)
               : null
           }
-          autoFillSpace={true}
+          autoFillSpace={!this.data?.length}
           data={this.data}
           loading={this.loading}
           rowKey={this.tableRowKey}
           sort={this.sort}
+          onColumnResizeChange={(ctx: { columnsWidth: Record<string, number> }) =>
+            this.$emit('columnResizeChange', ctx.columnsWidth)
+          }
           onSortChange={(sort: string | string[]) => this.$emit('sortChange', sort)}
         />
 
@@ -324,9 +333,7 @@ export default defineComponent({
           selectField={this.selectField?.name}
           timeRange={this.timeRange as any}
           unit={this.selectField?.field_unit}
-          onConditionChange={(condition: { key: string; method: string; value: string }) =>
-            this.$emit('conditionChange', condition)
-          }
+          onConditionChange={(condition: ConditionChangeEvent) => this.$emit('conditionChange', condition)}
           onShowMore={this.destroyPopover}
         />
       </div>

@@ -29,6 +29,7 @@ import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
 
 import RetrievalFilter from '../../components/retrieval-filter/retrieval-filter';
+import { EMode } from '../../components/retrieval-filter/typing';
 import { traceWhereChangeFormatter, traceWhereFormatter } from '../../components/retrieval-filter/utils';
 import useUserConfig from '../../hooks/useUserConfig';
 import { updateTimezone } from '../../i18n/dayjs';
@@ -41,6 +42,7 @@ import RumExploreTable from './components/rum-explore-table';
 import RumExploreView from './components/rum-explore-view/rum-explore-view';
 import RumSpanTypeFilter from './components/rum-span-type-filter';
 import {
+  useRumColumnConfig,
   useRumFavorite,
   useRumFieldValues,
   useRumQuery,
@@ -48,9 +50,10 @@ import {
   useRumTableData,
   useRumViewConfig,
 } from './composables';
-import { RUM_RESIDENT_SETTING_KEY } from './constants';
+import { RUM_COLUMN_CONFIG_KEY, RUM_RESIDENT_SETTING_KEY } from './constants';
 import { getApplicationList } from './services/rum-application';
 
+import type { ConditionChangeEvent } from '../trace-explore/typing';
 import type { IRumApplication } from './typings';
 
 import './rum-explore.scss';
@@ -74,14 +77,35 @@ export default defineComponent({
     const applicationList = shallowRef<IRumApplication[]>([]);
     const thumbtackList = shallowRef<string[]>([]);
     const defaultApplication = shallowRef('');
-    /** 表格当前展示的列 */
-    const displayFields = shallowRef<string[]>([]);
 
     const viewConfigCtx = useRumViewConfig();
     const spanTypeCtx = useRumSpanType(viewConfigCtx.viewConfig);
     const queryCtx = useRumQuery({ extraFilters: spanTypeCtx.spanTypeFilters });
     const tableCtx = useRumTableData(queryCtx.commonParams);
     const { getFieldValues } = useRumFieldValues(computed(() => viewConfigCtx.viewConfig.value.fields));
+    /** 是否处于 span 视角下「指定具体类型」的特殊态 */
+    const isSpanSpecialPerspective = computed(() => store.mode === 'span' && store.spanType);
+    /** 是否存在检索条件，决定表格空状态类型 */
+    const emptyType = computed(() => {
+      const hasCondition =
+        queryCtx.filterMode.value === EMode.queryString
+          ? queryCtx.queryString.value.trim()
+          : queryCtx.where.value.length > 0 || queryCtx.commonWhere.value.length > 0;
+      return hasCondition ? 'search-empty' : 'empty';
+    });
+
+    /** 列配置集中管理：显隐/顺序 + 列宽，并持久化到用户常驻配置 */
+    const columnConfig = useRumColumnConfig({
+      viewConfig: viewConfigCtx.viewConfig,
+      cacheKey: computed(() =>
+        store.mode && store.appName ? `${RUM_COLUMN_CONFIG_KEY}_${store.mode}_${store.appName}` : ''
+      ),
+      overrideDisplayFields: computed(() =>
+        isSpanSpecialPerspective.value
+          ? (viewConfigCtx.viewConfig.value.span_type_display_fields?.[store.spanType] ?? [])
+          : []
+      ),
+    });
 
     const favoriteBoxRef = useTemplateRef<InstanceType<typeof FavoriteBox>>('favoriteBoxRef');
     const favoriteCtx = useRumFavorite({
@@ -89,7 +113,7 @@ export default defineComponent({
       commonWhere: queryCtx.commonWhere,
       queryString: queryCtx.queryString,
       filterMode: queryCtx.filterMode,
-      displayFields,
+      displayFields: columnConfig.displayFields,
       onApplied: () => queryCtx.handleQuery(),
     });
 
@@ -108,15 +132,6 @@ export default defineComponent({
             commonWhere: item?.config?.componentData?.commonWhere || [],
           },
         })) || []
-    );
-
-    /** 切换 span 类型后表格列跟着换成该类型的默认列 */
-    watch(
-      () => spanTypeCtx.spanTypeDisplayFields.value,
-      fields => {
-        displayFields.value = [...fields];
-      },
-      { immediate: true }
     );
 
     watch(
@@ -178,7 +193,7 @@ export default defineComponent({
     }
 
     /** 维度面板与表格单元格触发的条件追加 */
-    function handleConditionChange(condition: { key: string; method: string; value: string }) {
+    function handleConditionChange(condition: ConditionChangeEvent) {
       queryCtx.addCondition({ key: condition.key, operator: condition.method, value: [condition.value] }, true);
     }
 
@@ -203,7 +218,9 @@ export default defineComponent({
       route,
       store,
       applicationList,
-      displayFields,
+      columnConfig,
+      emptyType,
+      isSpanSpecialPerspective,
       favoriteBoxRef,
       favoriteCtx,
       favoriteList,
@@ -337,21 +354,23 @@ export default defineComponent({
                           ),
                           default: () => (
                             <RumExploreTable
+                              baseColumns={this.columnConfig.baseColumns.value}
                               commonParams={queryCtx.commonParams.value}
                               data={tableCtx.tableData.value}
-                              displayableFields={viewConfigCtx.displayableFields.value}
-                              displayFields={this.displayFields}
+                              displayableFields={this.columnConfig.displayableFields.value}
+                              emptyType={this.emptyType}
+                              fieldMap={this.columnConfig.fieldMap.value}
                               hasMore={tableCtx.hasMore.value}
                               loading={tableCtx.loading.value}
                               mode={this.store.mode}
                               scrollLoading={tableCtx.scrollLoading.value}
+                              showSettings={!this.isSpanSpecialPerspective}
                               sort={this.store.sortParams}
                               timeRange={this.store.timeRange}
                               onClearFilter={queryCtx.clearQuery}
+                              onColumnResizeChange={width => this.columnConfig.updateColumnResizeWidth(width)}
                               onConditionChange={this.handleConditionChange}
-                              onDisplayFieldChange={fields => {
-                                this.displayFields = fields;
-                              }}
+                              onDisplayFieldChange={fields => this.columnConfig.updateDisplayFields(fields)}
                               onScrollToEnd={tableCtx.handleScrollToEnd}
                               onSortChange={this.handleSortChange}
                             />
