@@ -470,6 +470,11 @@ export const RETRIEVAL_FILTER_PROPS = {
     type: Boolean,
     default: false,
   },
+  /** 拥有快捷键功能 */
+  hasShortcutKey: {
+    type: Boolean,
+    default: true,
+  },
 };
 export const RETRIEVAL_FILTER_EMITS = {
   favorite: (_isEdit: boolean) => true,

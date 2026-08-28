@@ -84,14 +84,7 @@ export interface ISchemeItem {
 export type PlanIdValue = '' | number;
 
 /** 查询蓝盾项目的请求参数 */
-export type TBkciProjectsParams = {
-  /** 搜索关键字 */
-  keyword: string;
-  /** 页码 */
-  page: number;
-  /** 每页数量 */
-  page_size: number;
-};
+export type TBkciProjectsParams = Record<string, never>;
 /** 查询蓝盾项目的返回结果 */
 export type TBkciProjectsResult = {
   /** 蓝盾项目列表 */
@@ -104,12 +97,6 @@ export type TBkciProjectsResult = {
 export type TBkciRepositoriesParams = {
   /** 蓝盾项目 id */
   bkci_project_id: string;
-  /** 搜索关键字 */
-  keyword: string;
-  /** 页码 */
-  page: number;
-  /** 每页数量 */
-  page_size: number;
 };
 
 /** 查询源码仓库的返回结果 */

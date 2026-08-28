@@ -60,6 +60,7 @@ export default defineComponent({
         class={['ai-config-match-rule-component', { 'is-readonly': this.readonly }]}
         fields={this.fields}
         getValueFn={this.getValueFn}
+        hasShortcutKey={false}
         isShowClear={!this.readonly}
         isShowSearchBtn={false}
         isSingleMode={true}

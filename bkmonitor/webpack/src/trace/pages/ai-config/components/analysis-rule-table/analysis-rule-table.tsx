@@ -76,6 +76,18 @@ export default defineComponent({
       type: Boolean,
       default: false,
     },
+    agentNameMap: {
+      type: Object as PropType<Map<string, string>>,
+      default: () => new Map(),
+    },
+    knowledgeNameMap: {
+      type: Object as PropType<Map<string, string>>,
+      default: () => new Map(),
+    },
+    skillNameMap: {
+      type: Object as PropType<Map<string, string>>,
+      default: () => new Map(),
+    },
   },
   emits: {
     /** 清空搜索值 */
@@ -207,7 +219,12 @@ export default defineComponent({
         width: 224,
         minWidth: 224,
         sorter: false,
-        cellRenderer: row => <TagCell tags={[row.agent_id]} />,
+        cellRenderer: row => (
+          <TagCell
+            nameMap={props.agentNameMap}
+            tags={[row.agent_id]}
+          />
+        ),
         title: () => <span>{t('智能体')}</span>,
       },
       {
@@ -217,7 +234,12 @@ export default defineComponent({
         width: 224,
         minWidth: 224,
         sorter: false,
-        cellRenderer: row => <TagCell tags={row.knowledge_base_ids} />,
+        cellRenderer: row => (
+          <TagCell
+            nameMap={props.knowledgeNameMap}
+            tags={row.knowledge_base_ids}
+          />
+        ),
         title: () => <span>{t('知识库')}</span>,
       },
       {
@@ -228,7 +250,12 @@ export default defineComponent({
         width: 224,
         minWidth: 224,
         sorter: false,
-        cellRenderer: row => <TagCell tags={row.skill_ids} />,
+        cellRenderer: row => (
+          <TagCell
+            nameMap={props.skillNameMap}
+            tags={row.skill_ids}
+          />
+        ),
         title: () => <span>skill</span>,
       },
       {

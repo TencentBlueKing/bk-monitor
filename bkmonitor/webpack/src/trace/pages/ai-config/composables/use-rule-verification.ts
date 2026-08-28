@@ -78,12 +78,13 @@ export const useRuleVerification = (detail: Ref<null | SourceAnalysisRuleVo>) =>
    * @description 校验规则基础信息
    * 必填项包括：告警策略匹配规则（conditions）、智能体（agent_id）、知识库（knowledge_base_ids）、Skill（skill_ids）；
    * 优先级（priority）必填且必须在 PRIORITY_MIN 与 PRIORITY_MAX 之间。
+   * @param {boolean} isDefault 是否为「默认策略」，默认策略无需配置匹配规则与优先级，对应校验项豁免
    * @returns {boolean} 全部校验通过返回 true，否则返回 false 并写入 errors
    */
-  const validate = () => {
+  const validate = (isDefault = false) => {
     const nextErrors: Record<string, string> = {};
-    // 告警策略匹配规则：至少存在一条条件
-    if (!detail.value?.conditions?.length) {
+    // 告警策略匹配规则：至少存在一条条件（默认策略豁免）
+    if (!detail.value?.conditions?.length && !isDefault) {
       nextErrors[ErrorKeyEnum.CONDITIONS] = t('请添加告警策略匹配规则');
     }
     // 智能体：必须选择
@@ -98,12 +99,14 @@ export const useRuleVerification = (detail: Ref<null | SourceAnalysisRuleVo>) =>
     if (!detail.value?.skill_ids?.length) {
       nextErrors[ErrorKeyEnum.SKILL] = t('请选择Skill');
     }
-    // 优先级：必填，且必须在允许区间
+    // 优先级仅对非默认策略校验：必填，且必须在允许区间
     const priority = detail.value?.priority;
-    if (!priority) {
-      nextErrors[ErrorKeyEnum.PRIORITY] = t('请输入优先级');
-    } else if (priority < PRIORITY_MIN || priority > PRIORITY_MAX) {
-      nextErrors[ErrorKeyEnum.PRIORITY] = t('优先级需在1-10000之间');
+    if (!isDefault) {
+      if (!priority) {
+        nextErrors[ErrorKeyEnum.PRIORITY] = t('请输入优先级');
+      } else if (priority < PRIORITY_MIN || priority > PRIORITY_MAX) {
+        nextErrors[ErrorKeyEnum.PRIORITY] = t('优先级需在1-10000之间');
+      }
     }
     errors.value = nextErrors;
     return !Object.keys(nextErrors).length;

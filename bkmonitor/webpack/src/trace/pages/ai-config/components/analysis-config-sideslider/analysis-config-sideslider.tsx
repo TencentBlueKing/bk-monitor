@@ -161,7 +161,8 @@ export default defineComponent({
      * resolve 时自动关闭弹窗，reject 时保留弹窗，两种情况均重置 loading。
      */
     const handleConfirm = () => {
-      if (!validate()) return;
+      // 传入 is_default：默认策略跳过匹配规则与优先级校验
+      if (!validate(detail.value?.is_default)) return;
       if (confirmLoading.value) return;
 
       // 准备提交参数：新增态取全量，编辑态取变更字段（conditions/priority/is_enabled 已落在 detail）
@@ -237,6 +238,11 @@ export default defineComponent({
                     style='height: 48px'
                     class='skeleton-element'
                   />
+                ) : // 默认策略且无自定义匹配规则时，展示「所有策略-默认」占位
+                detail.value?.is_default && !detail.value?.conditions?.length ? (
+                  <div class='match-rule-default'>
+                    {t('所有策略')} <span class='green-tag'>{t('默认')}</span>
+                  </div>
                 ) : (
                   <MatchRule
                     fields={props.matchRuleFields}

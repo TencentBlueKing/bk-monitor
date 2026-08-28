@@ -29,113 +29,67 @@ import { getBkciRepositories } from '../services/ai-config';
 
 import type { TBkciRepositoriesResult } from '../typings';
 
-/** 每页加载数量 */
-const PAGE_SIZE = 20;
-
 interface UseBkciRepositoriesSelectOptions {
   /** 蓝盾项目 id，为空时不加载仓库列表 */
   bkciProjectId: Ref<string>;
 }
 
 /**
- * @description 源码仓库下拉选择数据加载逻辑（依赖蓝盾项目，支持远程搜索 + 滚动加载）
+ * @description 源码仓库下拉选择数据加载逻辑（依赖蓝盾项目，全量加载，切换项目时拉取一次）
  */
 export function useBkciRepositoriesSelect(options: UseBkciRepositoriesSelectOptions) {
   const { bkciProjectId } = options;
 
-  /** 累积的仓库选项列表 */
+  /** 仓库选项列表 */
   const list = shallowRef<TBkciRepositoriesResult['list']>([]);
-  /** 首次/搜索中加载态 */
+  /** 加载态 */
   const loading = shallowRef(false);
-  /** 滚动加载中 */
-  const scrollLoading = shallowRef(false);
-  /** 是否还有更多数据 */
-  const hasMore = shallowRef(true);
-  /** 当前页码 */
-  const page = shallowRef(1);
-  /** 当前搜索关键词 */
-  const keyword = shallowRef('');
-  /** 标记 Select 下拉面板是否处于展开状态，用于控制搜索时是否触发请求 */
-  const isToggle = shallowRef(false);
-
-  /** 当蓝盾项目变化时，重置并清空仓库列表 */
-  watch(
-    bkciProjectId,
-    () => {
-      list.value = [];
-      page.value = 1;
-      hasMore.value = true;
-      keyword.value = '';
-    },
-    { immediate: true }
-  );
+  /** id -> 名称 的映射表，供外部按 id 反查展示名称（如详情回显） */
+  const nameMap = shallowRef<Map<string, string>>(new Map());
 
   /**
-   * @description 调用接口查询指定蓝盾项目下的源码仓库列表
+   * @description 调用接口查询指定蓝盾项目下的源码仓库全量列表
    */
-  const fetchList = async (isLoadMore = false) => {
+  const fetchList = async () => {
     // 前置校验：未选择蓝盾项目或已有请求在执行中则跳过
-    if (!bkciProjectId.value || loading.value || scrollLoading.value) return;
-    if (!isLoadMore) {
-      loading.value = true;
-      list.value = [];
-      page.value = 1;
-    } else {
-      // 滚动加载更多时仅显示列表内部 loading
-      scrollLoading.value = true;
-    }
+    if (!bkciProjectId.value || loading.value) return;
+    loading.value = true;
 
     try {
       const data = await getBkciRepositories({
         bkci_project_id: bkciProjectId.value,
-        keyword: keyword.value,
-        page: page.value,
-        page_size: PAGE_SIZE,
       });
       const items = data.list ?? [];
-      list.value = isLoadMore ? [...list.value, ...items] : items;
-      hasMore.value = items.length >= PAGE_SIZE;
+      // 填充 id -> 名称映射，供外部回显使用
+      const tempMap = new Map();
+      for (const item of items) {
+        tempMap.set(item.id, item.name);
+      }
+      nameMap.value = tempMap;
+      list.value = items;
     } finally {
       loading.value = false;
-      scrollLoading.value = false;
     }
   };
 
-  /** 初始加载 / 重置后重新加载 */
-  const fetchData = () => fetchList(false);
+  /** 当蓝盾项目变化时，清空仓库列表并拉取新项目的全量仓库 */
+  watch(
+    bkciProjectId,
+    () => {
+      list.value = [];
+      nameMap.value = new Map();
+      fetchList();
+    },
+    { immediate: true }
+  );
 
-  /** 搜索关键词变化：仅在下拉面板展开时触发请求，避免面板关闭时的无效搜索 */
-  const handleSearch = (val: string) => {
-    keyword.value = val;
-    if (isToggle.value) {
-      fetchList(false);
-    }
-  };
-
-  /** Select 滚动到底部触发加载更多 */
-  const handleScrollEnd = () => {
-    if (!hasMore.value || scrollLoading.value) return;
-    page.value += 1;
-    fetchList(true);
-  };
-
-  /** Select 下拉面板展开/收起回调，展开时重新拉取最新数据 */
-  const handleToggle = (val: boolean) => {
-    isToggle.value = val;
-    if (val) {
-      fetchData();
-    }
-  };
+  /** 详情回显：拉取当前蓝盾项目下的全量仓库并填充映射表 */
+  const fetchDataInit = () => fetchList();
 
   return {
     list,
     loading,
-    scrollLoading,
-    hasMore,
-    isToggle,
-    fetchData,
-    handleSearch,
-    handleScrollEnd,
-    handleToggle,
+    nameMap,
+    fetchDataInit,
   };
 }
