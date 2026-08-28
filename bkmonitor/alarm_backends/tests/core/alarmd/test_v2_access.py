@@ -266,7 +266,8 @@ def test_full_empty_still_builds_one_self_contained_message():
     assert envelope["query_result"] == {"completeness": "FULL"}
 
 
-def test_unavailable_ignores_record_schemas_and_builds_one_empty_dataset():
+def test_unavailable_ignores_record_schemas_and_builds_one_empty_dataset(mocker):
+    exclusions = mocker.patch.object(v2_access, "_record_access_exclusion")
     item, _ = _strategy(1001, 11, threshold=1)
     records = [
         SimpleNamespace(clean_dimension_fields=lambda: ["host"]),
@@ -291,6 +292,33 @@ def test_unavailable_ignores_record_schemas_and_builds_one_empty_dataset():
         "completeness": "UNAVAILABLE",
         "reason_code": "QUERY_UNAVAILABLE",
     }
+    exclusions.assert_called_once_with("QUERY_UNAVAILABLE", 2)
+
+
+def test_all_false_selector_keeps_record_without_prewire_exclusion(mocker):
+    exclusions = mocker.patch.object(v2_access, "_record_access_exclusion")
+    item, _ = _strategy(1001, 11, threshold=1, selected=False)
+    record = SimpleNamespace(
+        data={"time": 1725000000, "value": 3.0, "dimensions": {"host": "127.0.0.1"}},
+        is_retains={11: False},
+        inhibitions={11: False},
+        clean_dimension_fields=lambda: ["host"],
+    )
+    processor = SimpleNamespace(
+        items=[item],
+        strategy_group_key="query-group-1",
+        from_timestamp=1724999700,
+        until_timestamp=1725000060,
+        alarmd_v2_execution_id="execution-1",
+        alarmd_v2_evaluation_time=1725000060,
+        alarmd_v2_query_result={"completeness": "FULL"},
+    )
+
+    job = build_access_publish_jobs(processor, [record], received_time=1725000061)[0]
+
+    assert job.record_count == 1
+    assert job.selections == ((False,),)
+    exclusions.assert_not_called()
 
 
 def test_unknown_level_with_explicit_priority_passes_through_without_core_change():
@@ -684,7 +712,8 @@ def test_invalid_identity_schema_isolated_with_execution_context(caplog):
     assert "first_record_ordinal=0" in caplog.text
 
 
-def test_batch_context_keeps_execution_and_detects_source_config_drift():
+def test_batch_context_keeps_execution_and_detects_source_config_drift(mocker):
+    exclusions = mocker.patch.object(v2_access, "_record_access_exclusion")
     item, _ = _strategy(1001, 11, threshold=1)
     parent = SimpleNamespace(
         items=[item],
@@ -700,7 +729,16 @@ def test_batch_context_keeps_execution_and_detects_source_config_drift():
     apply_access_batch_context(child, context)
 
     item.strategy.config["update_time"] += 1
-    job = build_access_publish_jobs(child, [], received_time=1725000061)[0]
+    records = [
+        SimpleNamespace(
+            data={"time": 1725000000 + ordinal, "value": 3.0, "dimensions": {"host": f"host-{ordinal}"}},
+            is_retains={11: True},
+            inhibitions={11: False},
+            clean_dimension_fields=lambda: ["host"],
+        )
+        for ordinal in range(2)
+    ]
+    job = build_access_publish_jobs(child, records, received_time=1725000061)[0]
     envelope = json.loads(
         build_execution_messages(
             job, max_records=10, max_envelope_bytes=64 * 1024, message_id_factory=lambda: "message-1"
@@ -708,7 +746,9 @@ def test_batch_context_keeps_execution_and_detects_source_config_drift():
     )
 
     assert envelope["execution_id"] == "execution-1"
+    assert envelope["records"] == []
     assert envelope["query_result"] == {"completeness": "UNAVAILABLE", "reason_code": "CONFIG_DRIFT"}
+    exclusions.assert_called_once_with("CONFIG_DRIFT", 2)
 
 
 def test_kafka_client_is_initialized_only_in_async_worker(mocker):
@@ -1166,7 +1206,9 @@ def test_unknown_ack_is_not_counted_as_a_definite_drop(mocker):
     )
 
 
-def test_success_counts_records_excluded_during_build_or_planning_as_dropped(mocker):
+def test_success_logs_source_to_wire_evidence_and_query_outcome(mocker, caplog):
+    caplog.set_level("INFO", logger="alarmd.shadow")
+
     class StubKafkaPublisher:
         def __init__(self, *_args, **_kwargs):
             pass
@@ -1224,6 +1266,13 @@ def test_success_counts_records_excluded_during_build_or_planning_as_dropped(moc
         ack_unknown_messages=0,
         ack_unknown_bytes=0,
     )
+    assert "result=acked" in caplog.text
+    assert "source_records=2" in caplog.text
+    assert "planned_records=1" in caplog.text
+    assert "prewire_excluded_records=1" in caplog.text
+    assert "query_completeness=FULL" in caplog.text
+    assert "query_reason=NONE" in caplog.text
+    assert "planner_dropped_records=1" in caplog.text
 
 
 def test_bad_and_oversized_records_with_unknown_ack_keep_one_terminal_cohort(mocker):
@@ -1317,6 +1366,58 @@ def test_bad_and_oversized_records_with_unknown_ack_keep_one_terminal_cohort(moc
     assert terminal["planned_bytes"] == terminal["ack_unknown_bytes"]
 
 
+def test_invalid_and_oversized_records_have_one_exclusion_reason_each(mocker):
+    exclusions = []
+    mocker.patch.object(
+        v2_access,
+        "_record_access_exclusion",
+        side_effect=lambda reason, count: exclusions.append((reason, count)),
+    )
+
+    class StubProducer:
+        def flush(self, *, timeout):
+            return 0
+
+    item, _ = _strategy(1001, 11, threshold=1)
+    invalid = SimpleNamespace(
+        data={"time": "invalid", "value": 3.0, "dimensions": {"host": "invalid"}},
+        is_retains={11: True},
+        inhibitions={11: False},
+        clean_dimension_fields=lambda: ["host"],
+    )
+    oversized = SimpleNamespace(
+        data={"time": 1725000001, "value": 3.0, "dimensions": {"host": "x" * 100_000}},
+        is_retains={11: True},
+        inhibitions={11: False},
+        clean_dimension_fields=lambda: ["host"],
+    )
+    processor = SimpleNamespace(
+        items=[item],
+        strategy_group_key="query-group-1",
+        from_timestamp=1724999700,
+        until_timestamp=1725000060,
+        alarmd_v2_execution_id="execution-1",
+        alarmd_v2_evaluation_time=1725000060,
+        alarmd_v2_query_result={"completeness": "FULL"},
+    )
+    jobs = build_access_publish_jobs(processor, [invalid, oversized], received_time=1725000061)
+    publisher = KafkaExecutionEnvelopePublisher(
+        {
+            "topic": "alarmd-v2",
+            "alarm.engine.max.records.per.message": 1,
+            "alarm.engine.max.envelope.bytes": 64 * 1024,
+        },
+        ["alarmd-v2"],
+        producer_factory=lambda _config: StubProducer(),
+    )
+
+    evidence = publisher.publish(jobs)
+
+    assert evidence.planned_records == 0
+    assert evidence.planner_dropped_records == 1
+    assert exclusions == [("RECORD_INVALID", 1), ("RECORD_TOO_LARGE", 1)]
+
+
 @pytest.mark.parametrize(
     ("dropped_records", "dropped_messages", "dropped_bytes", "unknown_records", "unknown_messages", "unknown_bytes"),
     [(2, 2, 200, 0, 0, 0), (0, 0, 0, 2, 2, 200)],
@@ -1382,6 +1483,62 @@ def test_access_funnel_preserves_record_message_and_byte_conservation(
         "messages": expected_messages,
         "bytes": expected_bytes,
     }
+
+
+def test_access_exclusion_reason_budget_and_two_layer_conservation(mocker):
+    observed = {"funnel": {}, "exclusions": {}}
+
+    class Counter:
+        def __init__(self, unit):
+            self.unit = unit
+            self.label = None
+
+        def labels(self, **labels):
+            self.label = next(iter(labels.values()))
+            return self
+
+        def inc(self, count=1):
+            observed[self.unit][self.label] = observed[self.unit].get(self.label, 0) + count
+
+    mocker.patch.object(telemetry.metrics, "ALARMD_SHADOW_ACCESS_RECORD_COUNT", Counter("funnel"), create=True)
+    mocker.patch.object(telemetry.metrics, "ALARMD_SHADOW_ACCESS_MESSAGE_COUNT", Counter("funnel"), create=True)
+    mocker.patch.object(telemetry.metrics, "ALARMD_SHADOW_ACCESS_BYTES", Counter("funnel"), create=True)
+    mocker.patch.object(
+        telemetry.metrics,
+        "ALARMD_SHADOW_ACCESS_RECORD_EXCLUSION_COUNT",
+        Counter("exclusions"),
+        create=True,
+    )
+
+    telemetry.record_shadow_access_record_exclusion("CONFIG_DRIFT", 2)
+    telemetry.record_shadow_access_funnel(
+        source_records=5,
+        planned_records=3,
+        planned_messages=3,
+        planned_bytes=300,
+        acked_records=2,
+        acked_messages=2,
+        acked_bytes=200,
+        dropped_records=0,
+        dropped_messages=0,
+        dropped_bytes=0,
+        ack_unknown_records=1,
+        ack_unknown_messages=1,
+        ack_unknown_bytes=100,
+    )
+
+    assert telemetry.ACCESS_RECORD_EXCLUSION_REASONS == (
+        "QUERY_UNAVAILABLE",
+        "CONFIG_DRIFT",
+        "RECORD_IDENTITY_INVALID",
+        "RECORD_INVALID",
+        "RECORD_TOO_LARGE",
+    )
+    assert observed["exclusions"] == {"CONFIG_DRIFT": 2}
+    assert 5 == 3 + sum(observed["exclusions"].values())
+    assert 3 == 2 + 0 + 1
+    with pytest.raises(ValueError, match="unsupported alarmd Access v2 exclusion reason"):
+        telemetry.record_shadow_access_record_exclusion("arbitrary-error", 1)
 
 
 def test_publisher_flushes_identity_schema_datasets_once_and_aggregates_ack_evidence():

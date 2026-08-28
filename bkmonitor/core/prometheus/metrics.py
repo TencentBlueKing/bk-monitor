@@ -295,6 +295,12 @@ ALARMD_SHADOW_ACCESS_RECORD_COUNT = Counter(
     labelnames=("status",),
 )
 
+ALARMD_SHADOW_ACCESS_RECORD_EXCLUSION_COUNT = Counter(
+    name="bkmonitor_alarmd_shadow_access_record_exclusion_count",
+    documentation="alarmd Access v2 从 source 到 wire 前排除的记录条数",
+    labelnames=("reason",),
+)
+
 ALARMD_SHADOW_ACCESS_MESSAGE_COUNT = Counter(
     name="bkmonitor_alarmd_shadow_access_wire_message_count",
     documentation="alarmd Access v2 终态 wire message 漏斗(status: planned/acked/dropped/ack_unknown)",
