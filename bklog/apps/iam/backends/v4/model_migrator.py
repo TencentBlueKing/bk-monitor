@@ -431,11 +431,19 @@ class V4ModelMigrator:
 
 
 def is_auto_migration_enabled() -> bool:
-    """自动同步只在显式打开开关、且 V4 网关已配置时生效。"""
-    if not getattr(settings, "BK_IAM_V4_MODEL_MIGRATE_ENABLED", False):
-        return False
+    """V4 网关已配置即自动同步，与鉴权模式无关。
+
+    对齐 V3 ``IAMMigrator`` 的无条件收敛：模型基线同步是幂等的（无变更时一次调用都不发），
+    失败也只记日志不阻断 migrate，因此不需要额外开关。网关地址是唯一前置条件——未配置时
+    ``V4Options.gateway_url`` 为空，收敛只会拿空网关发请求。这里与 Provider / Writer 注入
+    共用 ``resolve_v4_gateway_url``，「V4 是否接线」全项目只有一个判据。
+
+    不要改成按 BKAPP_IAM_PERMISSION_MODE 门禁：创建者授权双写由 ``DualStackSpec.writer_modes``
+    决定，与当前鉴权模式无关，v3 模式下只要网关已配置就已经在往 V4 写授权，此时跳过收敛会让
+    切流前的预热双写一直打在未注册的模型上。
+    """
     if not resolve_v4_gateway_url():
-        logger.warning("IAM V4 model auto migration is enabled but BKAPP_IAM_V4_API_BASE_URL is not configured")
+        logger.info("IAM V4 model migration is skipped because BKAPP_IAM_V4_API_BASE_URL is not configured")
         return False
     return True
 

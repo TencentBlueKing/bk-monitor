@@ -157,7 +157,6 @@ class IamV4MigrateModelCommandTest(SimpleTestCase):
     APP_CODE="bk_log_search",
     BK_APP_TENANT_ID="system",
     BK_IAM_V4_APIGATEWAY_URL="https://bkiam.example/prod/",
-    BK_IAM_V4_MODEL_MIGRATE_ENABLED=True,
 )
 class PostMigrateHookTest(SimpleTestCase):
     def setUp(self):
@@ -171,27 +170,32 @@ class PostMigrateHookTest(SimpleTestCase):
 
         self.from_settings.assert_not_called()
 
-    def test_hook_is_skipped_when_switch_is_off(self):
-        with patch("apps.iam.backends.v4.model_migrator.sys.argv", ["manage.py", "migrate"]):
-            with self.settings(BK_IAM_V4_MODEL_MIGRATE_ENABLED=False):
-                self.assertIsNone(migrate_v4_model_on_post_migrate())
-
-        self.from_settings.assert_not_called()
-
     def test_hook_is_skipped_when_v4_gateway_is_not_configured(self):
         with patch("apps.iam.backends.v4.model_migrator.sys.argv", ["manage.py", "migrate"]):
             with self.settings(BK_IAM_V4_APIGATEWAY_URL=""):
-                with self.assertLogs("iam.v4.model_migrator", level="WARNING"):
+                with self.assertLogs("iam.v4.model_migrator", level="INFO"):
                     self.assertIsNone(migrate_v4_model_on_post_migrate())
 
         self.from_settings.assert_not_called()
 
-    def test_hook_applies_when_enabled(self):
+    def test_hook_applies_when_gateway_is_configured(self):
         with patch("apps.iam.backends.v4.model_migrator.sys.argv", ["manage.py", "migrate"]):
             migrate_v4_model_on_post_migrate()
 
         self.from_settings.assert_called_once_with(bk_tenant_id="system")
         self.from_settings.return_value.migrate.assert_called_once_with(dry_run=False)
+
+    def test_hook_ignores_permission_mode(self):
+        """v3 单栈也要收敛：创建者授权双写只看网关是否配置，与鉴权模式无关。"""
+
+        for mode in ("", "v3", "v4", "union"):
+            with self.subTest(mode=mode):
+                self.from_settings.reset_mock()
+                with patch("apps.iam.backends.v4.model_migrator.sys.argv", ["manage.py", "migrate"]):
+                    with self.settings(BK_IAM_PERMISSION_MODE=mode):
+                        migrate_v4_model_on_post_migrate()
+
+                self.from_settings.return_value.migrate.assert_called_once_with(dry_run=False)
 
     def test_hook_never_breaks_migrate_on_failure(self):
         self.from_settings.side_effect = RuntimeError("iam is down")
@@ -202,8 +206,8 @@ class PostMigrateHookTest(SimpleTestCase):
 
         self.assertIn("iam_v4_migrate_model --apply", logs.output[0])
 
-    def test_auto_migration_requires_both_switch_and_gateway(self):
+    def test_auto_migration_requires_only_the_gateway(self):
         self.assertTrue(is_auto_migration_enabled())
 
-        with self.settings(BK_IAM_V4_MODEL_MIGRATE_ENABLED=False):
+        with self.settings(BK_IAM_V4_APIGATEWAY_URL=""):
             self.assertFalse(is_auto_migration_enabled())
