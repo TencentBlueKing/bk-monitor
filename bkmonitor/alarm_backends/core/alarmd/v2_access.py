@@ -155,6 +155,20 @@ def _record_stage(status: str, acknowledged_records: int = 0) -> None:
         )
 
 
+def _record_acknowledged_records(acknowledged_records: int) -> None:
+    if not acknowledged_records:
+        return
+    try:
+        from alarm_backends.core.alarmd.telemetry import record_shadow_published_records
+
+        record_shadow_published_records(TELEMETRY_STAGE, acknowledged_records)
+    except Exception:
+        logger.exception(
+            "[alarmd shadow] component=alarmd-python stage=access_v2 "
+            "result=fail_open reason=AUDIT_DROP operation=telemetry"
+        )
+
+
 def _canonical_decimal(value) -> str:
     if isinstance(value, bool):
         raise AccessV2BuildError("boolean threshold is invalid")
@@ -823,16 +837,26 @@ class KafkaExecutionEnvelopePublisher:
                 receipt.fail_enqueue(error)
                 break
         _record_stage("published")
+        flush_error = None
         try:
-            remaining = self.producer.flush(timeout=self.flush_timeout)
+            self.producer.flush(timeout=self.flush_timeout)
         except Exception as error:
-            raise AccessV2PublishError("alarmd v2 Kafka flush failed", evidence()) from error
-        if (
-            receipt.enqueue_error
-            or receipt.first_delivery_error
-            or (remaining and receipt.pending_messages)
-            or receipt.pending_messages
-        ):
+            flush_error = error
+        if receipt.enqueue_error:
+            raise AccessV2PublishError(
+                "alarmd v2 Kafka message enqueue failed",
+                evidence(),
+                reason_code="OUTPUT_ENQUEUE_FAILED",
+            ) from receipt.enqueue_error
+        if receipt.first_delivery_error:
+            raise AccessV2PublishError(
+                "alarmd v2 Kafka message delivery failed",
+                evidence(),
+                reason_code="OUTPUT_DELIVERY_FAILED",
+            ) from receipt.first_delivery_error
+        if flush_error is not None:
+            raise AccessV2PublishError("alarmd v2 Kafka flush failed", evidence()) from flush_error
+        if receipt.pending_messages:
             raise AccessV2PublishError("alarmd v2 Kafka publish was not fully acknowledged", evidence())
         return evidence()
 
@@ -891,7 +915,7 @@ def _new_async_publisher() -> BoundedAccessShadowPublisher:
             publish_evidence = kafka_publisher.publish(jobs)
         except AccessV2PublishError as error:
             if error.evidence.acked_messages:
-                _record_stage("acked", error.evidence.acked_records)
+                _record_acknowledged_records(error.evidence.acked_records)
             _record_stage("dropped")
             logger.exception(
                 "[alarmd shadow] component=alarmd-python stage=access_v2 result=fail_open "

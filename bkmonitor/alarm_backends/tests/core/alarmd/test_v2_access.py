@@ -786,7 +786,7 @@ def test_submit_only_enqueues_source_reference_without_running_builder(mocker):
     assert retained_bytes > 0
 
 
-def test_partial_publish_failure_preserves_known_ack_evidence():
+def test_enqueue_failure_preserves_known_ack_evidence_and_reason():
     class StubProducer:
         calls = 0
 
@@ -801,7 +801,7 @@ def test_partial_publish_failure_preserves_known_ack_evidence():
             return None
 
         def flush(self, *, timeout):
-            return 0
+            raise RuntimeError("flush failed")
 
     producer = StubProducer()
     publisher = KafkaExecutionEnvelopePublisher(
@@ -838,9 +838,101 @@ def test_partial_publish_failure_preserves_known_ack_evidence():
         publisher.publish(jobs)
 
     evidence = raised.value.evidence
+    assert raised.value.reason_code == "OUTPUT_ENQUEUE_FAILED"
     assert (evidence.planned_messages, evidence.published_messages, evidence.acked_messages) == (2, 1, 1)
     assert (evidence.planned_records, evidence.published_records, evidence.acked_records) == (2, 1, 1)
     assert evidence.acked_bytes > 0
+
+
+@pytest.mark.parametrize(
+    ("failure_mode", "expected_reason"),
+    [
+        ("delivery", "OUTPUT_DELIVERY_FAILED"),
+        ("pending", "OUTPUT_ACK_UNKNOWN"),
+    ],
+)
+def test_publisher_classifies_delivery_failure_and_unknown_ack(failure_mode, expected_reason):
+    class StubProducer:
+        def produce(self, *, on_delivery, **_kwargs):
+            if failure_mode == "delivery":
+                on_delivery(RuntimeError("delivery failed"), None)
+
+        def poll(self, _timeout):
+            return None
+
+        def flush(self, *, timeout):
+            if failure_mode == "delivery":
+                raise RuntimeError("flush failed")
+            return 1
+
+    publisher = KafkaExecutionEnvelopePublisher(
+        {
+            "topic": "alarmd-v2",
+            "alarm.engine.max.records.per.message": 1,
+            "alarm.engine.max.envelope.bytes": 64 * 1024,
+        },
+        ["alarmd-v2"],
+        producer_factory=lambda _config: StubProducer(),
+    )
+
+    with pytest.raises(AccessV2PublishError) as raised:
+        publisher.publish((_minimal_job(),))
+
+    assert raised.value.reason_code == expected_reason
+
+
+def test_failed_job_records_partial_acks_without_counting_an_acked_job(mocker):
+    class StubKafkaPublisher:
+        def __init__(self, *_args, **_kwargs):
+            pass
+
+        def publish(self, _jobs):
+            raise AccessV2PublishError(
+                "partial failure",
+                v2_access.AccessPublishEvidence(
+                    planned_messages=2,
+                    planned_records=2,
+                    planned_bytes=200,
+                    published_messages=1,
+                    published_records=1,
+                    published_bytes=100,
+                    acked_messages=1,
+                    acked_records=1,
+                    acked_bytes=100,
+                    dropped_records=0,
+                ),
+                reason_code="OUTPUT_ENQUEUE_FAILED",
+            )
+
+    async_jobs = []
+    acknowledged_records = []
+    mocker.patch.object(v2_access, "KafkaExecutionEnvelopePublisher", StubKafkaPublisher)
+    mocker.patch.object(v2_access.settings, "ALARMD_V2_SHADOW_ASYNC_MAX_JOBS", 1, create=True)
+    mocker.patch.object(v2_access.settings, "ALARMD_V2_SHADOW_ASYNC_MAX_RECORDS", 10, create=True)
+    mocker.patch.object(v2_access.settings, "ALARMD_V2_SHADOW_ASYNC_MAX_BYTES", 100_000, create=True)
+    mocker.patch.object(v2_access.settings, "ALARMD_V2_SHADOW_KAFKA_CONFIG", {}, create=True)
+    mocker.patch.object(v2_access.settings, "ALARMD_V2_SHADOW_ALLOWED_TOPICS", (), create=True)
+    mocker.patch.object(v2_access, "build_access_publish_jobs", lambda _source, _records: (_minimal_job(),))
+    mocker.patch(
+        "alarm_backends.core.alarmd.telemetry.record_shadow_async_job",
+        side_effect=lambda stage, status: async_jobs.append((stage, status)),
+    )
+    mocker.patch(
+        "alarm_backends.core.alarmd.telemetry.record_shadow_published_records",
+        side_effect=lambda stage, count: acknowledged_records.append((stage, count)),
+    )
+    publisher = v2_access._new_async_publisher()
+    source = SimpleNamespace(
+        records=[],
+        alarmd_v2_execution_id="execution-1",
+        strategy_group_key="query-group-1",
+    )
+
+    assert publisher.submit(source, record_count=0, retained_bytes=1)
+    assert publisher.wait_empty(timeout=1)
+    assert publisher.close(timeout=1)
+    assert async_jobs == [("access_v2", "built"), ("access_v2", "dropped")]
+    assert acknowledged_records == [("access_v2", 1)]
 
 
 def test_publisher_flushes_identity_schema_datasets_once_and_aggregates_ack_evidence():
