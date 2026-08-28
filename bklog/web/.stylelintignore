@@ -5,4 +5,6 @@
 *.woff
 
 static/style.css
+packages/web-v1/**
+monitor-*/**
 
