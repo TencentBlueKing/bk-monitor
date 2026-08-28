@@ -266,13 +266,13 @@ TRIGGER_PROCESS_PUSH_DATA_COUNT = Counter(
 # stage/status 都是有界枚举，禁止按 strategy_id、topic、partition 或错误文本展开。
 ALARMD_SHADOW_PUBLISH_COUNT = Counter(
     name="bkmonitor_alarmd_shadow_publish_count",
-    documentation="alarmd Shadow 发布次数(stage: detect_input/reference; status: success/failed)",
+    documentation="alarmd Shadow 发布次数(stage: access_v2/reference; status: success/failed)",
     labelnames=("stage", "status"),
 )
 
 ALARMD_SHADOW_PUBLISH_RECORD_COUNT = Counter(
     name="bkmonitor_alarmd_shadow_publish_record_count",
-    documentation="alarmd Shadow 已获 broker 确认的记录条数(stage: detect_input/reference)",
+    documentation="alarmd Shadow 已获 broker 确认的记录条数(stage: access_v2/reference)",
     labelnames=("stage",),
 )
 
@@ -285,8 +285,26 @@ ALARMD_SHADOW_PUBLISH_TIME = Histogram(
 
 ALARMD_SHADOW_ASYNC_JOB_COUNT = Counter(
     name="bkmonitor_alarmd_shadow_async_job_count",
-    documentation="alarmd Shadow 异步任务次数(status: enqueued/dropped/worker_failed/acked)",
+    documentation="alarmd Shadow 异步任务阶段次数（阶段诊断指标，不用于计数守恒）",
     labelnames=("stage", "status"),
+)
+
+ALARMD_SHADOW_ACCESS_RECORD_COUNT = Counter(
+    name="bkmonitor_alarmd_shadow_access_record_count",
+    documentation="alarmd Access v2 终态记录漏斗(status: source/acked/dropped/ack_unknown)",
+    labelnames=("status",),
+)
+
+ALARMD_SHADOW_ACCESS_MESSAGE_COUNT = Counter(
+    name="bkmonitor_alarmd_shadow_access_wire_message_count",
+    documentation="alarmd Access v2 终态 wire message 漏斗(status: planned/acked/dropped/ack_unknown)",
+    labelnames=("status",),
+)
+
+ALARMD_SHADOW_ACCESS_BYTES = Counter(
+    name="bkmonitor_alarmd_shadow_access_wire_bytes",
+    documentation="alarmd Access v2 终态 wire bytes 漏斗(status: planned/acked/dropped/ack_unknown)",
+    labelnames=("status",),
 )
 
 STRATEGY_ROUTER_CACHE_REFRESH_FAIL = Counter(

@@ -1,11 +1,12 @@
 import json
 import os
 import threading
+from contextlib import contextmanager
 from types import SimpleNamespace
 
 import pytest
 
-from alarm_backends.core.alarmd import v2_access
+from alarm_backends.core.alarmd import telemetry, v2_access
 from alarm_backends.core.alarmd.v2_access import (
     AccessV2PublishError,
     KafkaExecutionEnvelopePublisher,
@@ -730,7 +731,13 @@ def test_kafka_client_is_initialized_only_in_async_worker(mocker):
                 acked_messages=1,
                 acked_records=0,
                 acked_bytes=1,
+                dropped_messages=0,
                 dropped_records=0,
+                dropped_bytes=0,
+                ack_unknown_messages=0,
+                ack_unknown_records=0,
+                ack_unknown_bytes=0,
+                planner_dropped_records=0,
             )
 
     mocker.patch.object(v2_access, "KafkaExecutionEnvelopePublisher", StubKafkaPublisher)
@@ -784,6 +791,51 @@ def test_submit_only_enqueues_source_reference_without_running_builder(mocker):
     assert source.items is processor.items
     assert record_count == 1
     assert retained_bytes > 0
+
+
+def test_queue_rejection_records_one_dropped_terminal_cohort(mocker):
+    class StubPublisher:
+        def submit(self, _source, *, record_count, retained_bytes):
+            return False
+
+    funnel = mocker.patch.object(v2_access, "_record_access_funnel")
+    mocker.patch.object(v2_access.settings, "ALARMD_SHADOW_ENABLED", True)
+    mocker.patch.object(v2_access, "_publisher", StubPublisher())
+    mocker.patch.object(v2_access, "_publisher_pid", os.getpid())
+    item, _ = _strategy(1001, 11, threshold=1)
+    processor = SimpleNamespace(
+        items=[item],
+        strategy_group_key="query-group-1",
+        from_timestamp=1724999700,
+        until_timestamp=1725000060,
+        alarmd_v2_execution_id="execution-1",
+        alarmd_v2_evaluation_time=1725000060,
+        alarmd_v2_query_result={"completeness": "FULL"},
+    )
+
+    assert not v2_access.submit_access_shadow(processor, [object(), object()])
+    funnel.assert_called_once_with(2)
+
+
+def test_build_failure_records_one_dropped_terminal_cohort_without_publish_latency(mocker):
+    funnel = mocker.patch.object(v2_access, "_record_access_funnel")
+    observe = mocker.patch("alarm_backends.core.alarmd.telemetry.observe_shadow_publish")
+    mocker.patch.object(v2_access.settings, "ALARMD_V2_SHADOW_ASYNC_MAX_JOBS", 1, create=True)
+    mocker.patch.object(v2_access.settings, "ALARMD_V2_SHADOW_ASYNC_MAX_RECORDS", 10, create=True)
+    mocker.patch.object(v2_access.settings, "ALARMD_V2_SHADOW_ASYNC_MAX_BYTES", 100_000, create=True)
+    mocker.patch.object(v2_access, "build_access_publish_jobs", side_effect=ValueError("invalid record"))
+    publisher = v2_access._new_async_publisher()
+    source = SimpleNamespace(
+        records=[object(), object()],
+        alarmd_v2_execution_id="execution-1",
+        strategy_group_key="query-group-1",
+    )
+
+    assert publisher.submit(source, record_count=2, retained_bytes=1)
+    assert publisher.wait_empty(timeout=1)
+    assert publisher.close(timeout=1)
+    funnel.assert_called_once_with(2)
+    observe.assert_not_called()
 
 
 def test_enqueue_failure_preserves_known_ack_evidence_and_reason():
@@ -881,6 +933,80 @@ def test_publisher_classifies_delivery_failure_and_unknown_ack(failure_mode, exp
     assert raised.value.reason_code == expected_reason
 
 
+def test_publisher_evidence_separates_ack_delivery_failure_and_pending():
+    class StubProducer:
+        calls = 0
+
+        def produce(self, *, on_delivery, **_kwargs):
+            self.calls += 1
+            if self.calls == 1:
+                on_delivery(None, None)
+            elif self.calls == 2:
+                on_delivery(RuntimeError("delivery failed"), None)
+
+        def poll(self, _timeout):
+            return None
+
+        def flush(self, *, timeout):
+            return 1
+
+    publisher = KafkaExecutionEnvelopePublisher(
+        {
+            "topic": "alarmd-v2",
+            "alarm.engine.max.records.per.message": 1,
+            "alarm.engine.max.envelope.bytes": 64 * 1024,
+        },
+        ["alarmd-v2"],
+        producer_factory=lambda _config: StubProducer(),
+    )
+
+    with pytest.raises(AccessV2PublishError) as raised:
+        publisher.publish(_jobs_with_records(3))
+
+    evidence = raised.value.evidence
+    assert raised.value.reason_code == "OUTPUT_DELIVERY_FAILED"
+    assert (evidence.acked_messages, evidence.dropped_messages, evidence.ack_unknown_messages) == (1, 1, 1)
+    assert (evidence.acked_records, evidence.dropped_records, evidence.ack_unknown_records) == (1, 1, 1)
+    assert evidence.planned_bytes == evidence.acked_bytes + evidence.dropped_bytes + evidence.ack_unknown_bytes
+
+
+def test_publisher_evidence_separates_ack_enqueue_tail_and_produced_pending():
+    class StubProducer:
+        calls = 0
+
+        def produce(self, *, on_delivery, **_kwargs):
+            self.calls += 1
+            if self.calls == 1:
+                on_delivery(None, None)
+            elif self.calls == 3:
+                raise RuntimeError("enqueue failed")
+
+        def poll(self, _timeout):
+            return None
+
+        def flush(self, *, timeout):
+            return 1
+
+    publisher = KafkaExecutionEnvelopePublisher(
+        {
+            "topic": "alarmd-v2",
+            "alarm.engine.max.records.per.message": 1,
+            "alarm.engine.max.envelope.bytes": 64 * 1024,
+        },
+        ["alarmd-v2"],
+        producer_factory=lambda _config: StubProducer(),
+    )
+
+    with pytest.raises(AccessV2PublishError) as raised:
+        publisher.publish(_jobs_with_records(4))
+
+    evidence = raised.value.evidence
+    assert raised.value.reason_code == "OUTPUT_ENQUEUE_FAILED"
+    assert (evidence.acked_messages, evidence.dropped_messages, evidence.ack_unknown_messages) == (1, 2, 1)
+    assert (evidence.acked_records, evidence.dropped_records, evidence.ack_unknown_records) == (1, 2, 1)
+    assert evidence.planned_bytes == evidence.acked_bytes + evidence.dropped_bytes + evidence.ack_unknown_bytes
+
+
 def test_failed_job_records_partial_acks_without_counting_an_acked_job(mocker):
     class StubKafkaPublisher:
         def __init__(self, *_args, **_kwargs):
@@ -899,13 +1025,21 @@ def test_failed_job_records_partial_acks_without_counting_an_acked_job(mocker):
                     acked_messages=1,
                     acked_records=1,
                     acked_bytes=100,
-                    dropped_records=0,
+                    dropped_messages=1,
+                    dropped_records=1,
+                    dropped_bytes=100,
+                    ack_unknown_messages=0,
+                    ack_unknown_records=0,
+                    ack_unknown_bytes=0,
+                    planner_dropped_records=0,
                 ),
                 reason_code="OUTPUT_ENQUEUE_FAILED",
             )
 
     async_jobs = []
     acknowledged_records = []
+    terminal_cohorts = []
+    observed_publish = []
     mocker.patch.object(v2_access, "KafkaExecutionEnvelopePublisher", StubKafkaPublisher)
     mocker.patch.object(v2_access.settings, "ALARMD_V2_SHADOW_ASYNC_MAX_JOBS", 1, create=True)
     mocker.patch.object(v2_access.settings, "ALARMD_V2_SHADOW_ASYNC_MAX_RECORDS", 10, create=True)
@@ -921,18 +1055,333 @@ def test_failed_job_records_partial_acks_without_counting_an_acked_job(mocker):
         "alarm_backends.core.alarmd.telemetry.record_shadow_published_records",
         side_effect=lambda stage, count: acknowledged_records.append((stage, count)),
     )
+    mocker.patch(
+        "alarm_backends.core.alarmd.telemetry.record_shadow_access_funnel",
+        side_effect=lambda **values: terminal_cohorts.append(values),
+    )
+
+    @contextmanager
+    def observe_publish(stage):
+        observed_publish.append(("entered", stage))
+        try:
+            yield
+        except Exception:
+            observed_publish.append(("failed", stage))
+            raise
+
+    mocker.patch("alarm_backends.core.alarmd.telemetry.observe_shadow_publish", side_effect=observe_publish)
     publisher = v2_access._new_async_publisher()
     source = SimpleNamespace(
-        records=[],
+        records=[object(), object()],
         alarmd_v2_execution_id="execution-1",
         strategy_group_key="query-group-1",
     )
 
-    assert publisher.submit(source, record_count=0, retained_bytes=1)
+    assert publisher.submit(source, record_count=2, retained_bytes=1)
     assert publisher.wait_empty(timeout=1)
     assert publisher.close(timeout=1)
     assert async_jobs == [("access_v2", "built"), ("access_v2", "dropped")]
     assert acknowledged_records == [("access_v2", 1)]
+    assert observed_publish == [("entered", "access_v2"), ("failed", "access_v2")]
+    assert terminal_cohorts == [
+        {
+            "source_records": 2,
+            "planned_records": 2,
+            "planned_messages": 2,
+            "planned_bytes": 200,
+            "acked_records": 1,
+            "acked_messages": 1,
+            "acked_bytes": 100,
+            "dropped_records": 1,
+            "dropped_messages": 1,
+            "dropped_bytes": 100,
+            "ack_unknown_records": 0,
+            "ack_unknown_messages": 0,
+            "ack_unknown_bytes": 0,
+        }
+    ]
+
+
+def test_unknown_ack_is_not_counted_as_a_definite_drop(mocker):
+    class StubKafkaPublisher:
+        def __init__(self, *_args, **_kwargs):
+            pass
+
+        def publish(self, _jobs):
+            raise AccessV2PublishError(
+                "flush result unknown",
+                v2_access.AccessPublishEvidence(
+                    planned_messages=2,
+                    planned_records=2,
+                    planned_bytes=200,
+                    published_messages=2,
+                    published_records=2,
+                    published_bytes=200,
+                    acked_messages=1,
+                    acked_records=1,
+                    acked_bytes=100,
+                    dropped_messages=0,
+                    dropped_records=0,
+                    dropped_bytes=0,
+                    ack_unknown_messages=1,
+                    ack_unknown_records=1,
+                    ack_unknown_bytes=100,
+                    planner_dropped_records=0,
+                ),
+                reason_code="OUTPUT_ACK_UNKNOWN",
+            )
+
+    funnel = mocker.patch("alarm_backends.core.alarmd.telemetry.record_shadow_access_funnel")
+    mocker.patch.object(v2_access, "KafkaExecutionEnvelopePublisher", StubKafkaPublisher)
+    mocker.patch.object(v2_access.settings, "ALARMD_V2_SHADOW_ASYNC_MAX_JOBS", 1, create=True)
+    mocker.patch.object(v2_access.settings, "ALARMD_V2_SHADOW_ASYNC_MAX_RECORDS", 10, create=True)
+    mocker.patch.object(v2_access.settings, "ALARMD_V2_SHADOW_ASYNC_MAX_BYTES", 100_000, create=True)
+    mocker.patch.object(v2_access.settings, "ALARMD_V2_SHADOW_KAFKA_CONFIG", {}, create=True)
+    mocker.patch.object(v2_access.settings, "ALARMD_V2_SHADOW_ALLOWED_TOPICS", (), create=True)
+    mocker.patch.object(v2_access, "build_access_publish_jobs", lambda _source, _records: (_minimal_job(),))
+    publisher = v2_access._new_async_publisher()
+    source = SimpleNamespace(
+        records=[object(), object()],
+        alarmd_v2_execution_id="execution-1",
+        strategy_group_key="query-group-1",
+    )
+
+    assert publisher.submit(source, record_count=2, retained_bytes=1)
+    assert publisher.wait_empty(timeout=1)
+    assert publisher.close(timeout=1)
+    funnel.assert_called_once_with(
+        source_records=2,
+        planned_records=2,
+        planned_messages=2,
+        planned_bytes=200,
+        acked_records=1,
+        acked_messages=1,
+        acked_bytes=100,
+        dropped_records=0,
+        dropped_messages=0,
+        dropped_bytes=0,
+        ack_unknown_records=1,
+        ack_unknown_messages=1,
+        ack_unknown_bytes=100,
+    )
+
+
+def test_success_counts_records_excluded_during_build_or_planning_as_dropped(mocker):
+    class StubKafkaPublisher:
+        def __init__(self, *_args, **_kwargs):
+            pass
+
+        def publish(self, _jobs):
+            return v2_access.AccessPublishEvidence(
+                planned_messages=1,
+                planned_records=1,
+                planned_bytes=100,
+                published_messages=1,
+                published_records=1,
+                published_bytes=100,
+                acked_messages=1,
+                acked_records=1,
+                acked_bytes=100,
+                dropped_messages=0,
+                dropped_records=0,
+                dropped_bytes=0,
+                ack_unknown_messages=0,
+                ack_unknown_records=0,
+                ack_unknown_bytes=0,
+                planner_dropped_records=1,
+            )
+
+    funnel = mocker.patch("alarm_backends.core.alarmd.telemetry.record_shadow_access_funnel")
+    mocker.patch.object(v2_access, "KafkaExecutionEnvelopePublisher", StubKafkaPublisher)
+    mocker.patch.object(v2_access.settings, "ALARMD_V2_SHADOW_ASYNC_MAX_JOBS", 1, create=True)
+    mocker.patch.object(v2_access.settings, "ALARMD_V2_SHADOW_ASYNC_MAX_RECORDS", 10, create=True)
+    mocker.patch.object(v2_access.settings, "ALARMD_V2_SHADOW_ASYNC_MAX_BYTES", 100_000, create=True)
+    mocker.patch.object(v2_access.settings, "ALARMD_V2_SHADOW_KAFKA_CONFIG", {}, create=True)
+    mocker.patch.object(v2_access.settings, "ALARMD_V2_SHADOW_ALLOWED_TOPICS", (), create=True)
+    mocker.patch.object(v2_access, "build_access_publish_jobs", lambda _source, _records: (_minimal_job(),))
+    publisher = v2_access._new_async_publisher()
+    source = SimpleNamespace(
+        records=[object(), object()],
+        alarmd_v2_execution_id="execution-1",
+        strategy_group_key="query-group-1",
+    )
+
+    assert publisher.submit(source, record_count=2, retained_bytes=1)
+    assert publisher.wait_empty(timeout=1)
+    assert publisher.close(timeout=1)
+    funnel.assert_called_once_with(
+        source_records=2,
+        planned_records=1,
+        planned_messages=1,
+        planned_bytes=100,
+        acked_records=1,
+        acked_messages=1,
+        acked_bytes=100,
+        dropped_records=0,
+        dropped_messages=0,
+        dropped_bytes=0,
+        ack_unknown_records=0,
+        ack_unknown_messages=0,
+        ack_unknown_bytes=0,
+    )
+
+
+def test_bad_and_oversized_records_with_unknown_ack_keep_one_terminal_cohort(mocker):
+    class PendingProducer:
+        def produce(self, **_kwargs):
+            return None
+
+        def poll(self, _timeout):
+            return None
+
+        def flush(self, *, timeout):
+            return 1
+
+    kafka_publisher = KafkaExecutionEnvelopePublisher(
+        {
+            "topic": "alarmd-v2",
+            "alarm.engine.max.records.per.message": 1,
+            "alarm.engine.max.envelope.bytes": 64 * 1024,
+        },
+        ["alarmd-v2"],
+        producer_factory=lambda _config: PendingProducer(),
+    )
+    captured_evidence = []
+
+    class CapturingPublisher:
+        def publish(self, jobs):
+            try:
+                return kafka_publisher.publish(jobs)
+            except AccessV2PublishError as error:
+                captured_evidence.append(error.evidence)
+                raise
+
+    funnel = mocker.patch("alarm_backends.core.alarmd.telemetry.record_shadow_access_funnel")
+    mocker.patch.object(v2_access, "KafkaExecutionEnvelopePublisher", return_value=CapturingPublisher())
+    mocker.patch.object(v2_access.settings, "ALARMD_V2_SHADOW_ASYNC_MAX_JOBS", 1, create=True)
+    mocker.patch.object(v2_access.settings, "ALARMD_V2_SHADOW_ASYNC_MAX_RECORDS", 10, create=True)
+    mocker.patch.object(v2_access.settings, "ALARMD_V2_SHADOW_ASYNC_MAX_BYTES", 200_000, create=True)
+    mocker.patch.object(v2_access.settings, "ALARMD_V2_SHADOW_KAFKA_CONFIG", {}, create=True)
+    mocker.patch.object(v2_access.settings, "ALARMD_V2_SHADOW_ALLOWED_TOPICS", (), create=True)
+    item, _ = _strategy(1001, 11, threshold=1)
+    invalid = SimpleNamespace(clean_dimension_fields=lambda: ["host", "host"])
+    small = SimpleNamespace(
+        data={"time": 1725000000, "value": 3.0, "dimensions": {"host": "small"}},
+        is_retains={11: True},
+        inhibitions={11: False},
+        clean_dimension_fields=lambda: ["host"],
+    )
+    oversized = SimpleNamespace(
+        data={"time": 1725000001, "value": 3.0, "dimensions": {"host": "x" * 100_000}},
+        is_retains={11: True},
+        inhibitions={11: False},
+        clean_dimension_fields=lambda: ["host"],
+    )
+    source = v2_access.AccessPublishSource(
+        items=[item],
+        strategy_group_key="query-group-1",
+        from_timestamp=1724999700,
+        until_timestamp=1725000060,
+        alarmd_v2_execution_id="execution-1",
+        alarmd_v2_evaluation_time=1725000060,
+        alarmd_v2_query_result={"completeness": "FULL"},
+        alarmd_v2_source_config_digest=None,
+        records=[invalid, small, oversized],
+    )
+    publisher = v2_access._new_async_publisher()
+
+    assert publisher.submit(source, record_count=3, retained_bytes=source.retained_reference_bytes)
+    assert publisher.wait_empty(timeout=1)
+    assert publisher.close(timeout=1)
+    assert len(captured_evidence) == 1
+    evidence = captured_evidence[0]
+    assert evidence.planner_dropped_records == 1
+    assert (
+        evidence.planned_records,
+        evidence.acked_records,
+        evidence.dropped_records,
+        evidence.ack_unknown_records,
+    ) == (
+        1,
+        0,
+        0,
+        1,
+    )
+    funnel.assert_called_once()
+    terminal = funnel.call_args.kwargs
+    assert terminal["source_records"] == 3
+    assert terminal["planned_records"] == 1
+    assert terminal["dropped_records"] == 0
+    assert terminal["ack_unknown_records"] == 1
+    assert terminal["planned_messages"] == terminal["ack_unknown_messages"] == 1
+    assert terminal["planned_bytes"] == terminal["ack_unknown_bytes"]
+
+
+@pytest.mark.parametrize(
+    ("dropped_records", "dropped_messages", "dropped_bytes", "unknown_records", "unknown_messages", "unknown_bytes"),
+    [(2, 2, 200, 0, 0, 0), (0, 0, 0, 2, 2, 200)],
+)
+def test_access_funnel_preserves_record_message_and_byte_conservation(
+    mocker,
+    dropped_records,
+    dropped_messages,
+    dropped_bytes,
+    unknown_records,
+    unknown_messages,
+    unknown_bytes,
+):
+    observed = {"records": {}, "messages": {}, "bytes": {}}
+
+    class Counter:
+        def __init__(self, unit):
+            self.unit = unit
+            self.status = None
+
+        def labels(self, *, status):
+            self.status = status
+            return self
+
+        def inc(self, count=1):
+            observed[self.unit][self.status] = observed[self.unit].get(self.status, 0) + count
+
+    mocker.patch.object(telemetry.metrics, "ALARMD_SHADOW_ACCESS_RECORD_COUNT", Counter("records"), create=True)
+    mocker.patch.object(telemetry.metrics, "ALARMD_SHADOW_ACCESS_MESSAGE_COUNT", Counter("messages"), create=True)
+    mocker.patch.object(telemetry.metrics, "ALARMD_SHADOW_ACCESS_BYTES", Counter("bytes"), create=True)
+
+    telemetry.record_shadow_access_funnel(
+        source_records=5,
+        planned_records=4,
+        planned_messages=3,
+        planned_bytes=300,
+        acked_records=2,
+        acked_messages=1,
+        acked_bytes=100,
+        dropped_records=dropped_records,
+        dropped_messages=dropped_messages,
+        dropped_bytes=dropped_bytes,
+        ack_unknown_records=unknown_records,
+        ack_unknown_messages=unknown_messages,
+        ack_unknown_bytes=unknown_bytes,
+    )
+
+    expected_records = {"source": 5, "acked": 2, "dropped": 1 + dropped_records}
+    if unknown_records:
+        expected_records["ack_unknown"] = unknown_records
+    expected_messages = {"planned": 3, "acked": 1}
+    if dropped_messages:
+        expected_messages["dropped"] = dropped_messages
+    if unknown_messages:
+        expected_messages["ack_unknown"] = unknown_messages
+    expected_bytes = {"planned": 300, "acked": 100}
+    if dropped_bytes:
+        expected_bytes["dropped"] = dropped_bytes
+    if unknown_bytes:
+        expected_bytes["ack_unknown"] = unknown_bytes
+    assert observed == {
+        "records": expected_records,
+        "messages": expected_messages,
+        "bytes": expected_bytes,
+    }
 
 
 def test_publisher_flushes_identity_schema_datasets_once_and_aggregates_ack_evidence():
@@ -1023,3 +1472,26 @@ def _minimal_job():
         alarmd_v2_query_result={"completeness": "FULL"},
     )
     return build_access_publish_jobs(processor, [], received_time=1725000061)[0]
+
+
+def _jobs_with_records(record_count):
+    item, _ = _strategy(1001, 11, threshold=1)
+    processor = SimpleNamespace(
+        items=[item],
+        strategy_group_key="query-group-1",
+        from_timestamp=1724999700,
+        until_timestamp=1725000060,
+        alarmd_v2_execution_id="execution-1",
+        alarmd_v2_evaluation_time=1725000060,
+        alarmd_v2_query_result={"completeness": "FULL"},
+    )
+    records = [
+        SimpleNamespace(
+            data={"time": 1725000000 + ordinal, "value": 3.0, "dimensions": {"host": f"host-{ordinal}"}},
+            is_retains={11: True},
+            inhibitions={11: False},
+            clean_dimension_fields=lambda: ["host"],
+        )
+        for ordinal in range(record_count)
+    ]
+    return build_access_publish_jobs(processor, records, received_time=1725000061)
