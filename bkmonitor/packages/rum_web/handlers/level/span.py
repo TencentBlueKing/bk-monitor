@@ -300,10 +300,12 @@ class SpanLevelHandler(BaseRumLevelHandler):
             exclude_empty_operator = FilterOperator.EXISTS if self._is_number_field(field) else FilterOperator.NOT_EQUAL
             query_filters.append({"key": field_name, "value": [""], "operator": exclude_empty_operator})
 
+        # TOTAL_COUNT 使用 _index 计数，确保分母包含所有 Span（含缺失该字段的记录）
+        query_field = "_index" if property_name == StatisticsProperty.TOTAL_COUNT.value else field_name
         statistics_info[property_name] = self.query.query_field_aggregated_value(
             start_time,
             end_time,
-            field_name,
+            query_field,
             method_mapping[property_name],
             query_filters,
             query_string,
@@ -367,25 +369,27 @@ class SpanLevelHandler(BaseRumLevelHandler):
 
         # 数值类型：values 至少 4 项 [min_value, max_value, distinct_count, interval_num]
         min_value, max_value, distinct_count, interval_num = values[:4]
-        if min_value is None or max_value is None:
+        if min_value is None or max_value is None or interval_num is None:
             return self._process_graph_info([])
 
-        # 字段枚举数量小于等于区间数量，或区间的最大数量小于等于区间数，直接查询枚举值返回
-        if (
-            distinct_count is not None
-            and interval_num is not None
-            and (distinct_count <= interval_num or (max_value - min_value + 1) <= interval_num)
-        ):
+        # 字段枚举数量小于等于区间数量，或 INTEGER / LONG 类型的区间最大数量小于等于区间数，直接查询枚举值返回
+        use_discrete_values = distinct_count is not None and distinct_count <= interval_num
+        if field["field_type"] in {
+            EnabledStatisticsDimension.INTEGER.value,
+            EnabledStatisticsDimension.LONG.value,
+        }:
+            use_discrete_values |= (max_value - min_value + 1) <= interval_num
+
+        if use_discrete_values:
             topk_buckets = self.query.query_field_topk(
                 start_time, end_time, field_name, distinct_count, filters, query_string
             )
             value_parser = float if field["field_type"] == EnabledStatisticsDimension.DOUBLE.value else int
-            return self._process_graph_info(
-                [
-                    [bucket.get("_result_", 0), value_parser(bucket[field_name])]
-                    for bucket in sorted(topk_buckets, key=lambda b: b.get(field_name))
-                ]
-            )
+            datapoints: list[list[int | float]] = [
+                [bucket.get("_result_", 0), value_parser(bucket[field_name])] for bucket in topk_buckets
+            ]
+            datapoints.sort(key=lambda b: b[1])
+            return self._process_graph_info(datapoints)
 
         intervals = self._calculate_intervals(min_value, max_value, interval_num)
         return self._process_graph_info(

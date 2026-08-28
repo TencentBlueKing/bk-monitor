@@ -247,3 +247,65 @@ class TestSpanLevelHandlerMethods:
         result = handler.generate_query_string(filters=filters)
         assert isinstance(result, str)
         assert len(result) > 0
+
+    # ---- double 精度与排序行为测试 ----
+
+    def test_field_statistics_graph_double_sorted_by_parsed_value(self, handler):
+        """double 字段 topk 结果应按规范化数值排序，而非字符串排序（"10" 不应排在 "2" 前）"""
+        field = {"field_name": "CLS", "field_type": "double", "values": [0.1, 10.0, 4, 4]}
+        # 模拟 UnifyQuery 返回字符串桶值，顺序故意乱序
+        mock_topk = [
+            {"CLS": "10", "_result_": 5},
+            {"CLS": "2", "_result_": 3},
+            {"CLS": "0.75", "_result_": 8},
+            {"CLS": "0.25", "_result_": 2},
+        ]
+        with patch.object(handler.query, "query_field_topk", return_value=mock_topk):
+            result = handler.field_statistics_graph(start_time=1000, end_time=2000, field=field)
+
+        datapoints = result["series"][0]["datapoints"]
+        # 应按数值升序：0.25, 0.75, 2.0, 10.0
+        values = [dp[1] for dp in datapoints]
+        assert values == sorted(values), f"datapoints 未按数值升序排列: {values}"
+        # 精度不应丢失
+        assert 0.25 in values
+        assert 0.75 in values
+
+    def test_field_statistics_graph_double_high_cardinality_uses_intervals(self, handler):
+        """高基数 double 字段（distinct_count > interval_num）应进入区间统计，而非 topk 枚举"""
+        field = {
+            "field_name": "CLS",
+            "field_type": "double",
+            # min=0.1, max=0.9, distinct_count=100000, interval_num=10
+            "values": [0.1, 0.9, 100000, 10],
+        }
+        with (
+            patch.object(handler.query, "query_field_topk") as mock_topk,
+            patch.object(
+                handler.query,
+                "query_field_aggregated_value",
+                return_value=5,
+            ),
+        ):
+            handler.field_statistics_graph(start_time=1000, end_time=2000, field=field)
+
+        # 高基数 double 不应调用 topk，应走区间统计
+        mock_topk.assert_not_called()
+
+    def test_field_statistics_info_field_percent_less_than_100_when_missing_records(self, handler):
+        """存在字段缺失记录时，field_percent 应小于 100"""
+        field = {"field_name": "CLS", "field_type": "double"}
+        # total_count=10（含缺失字段的记录），field_count=7（仅有该字段的记录）
+        call_results = {"_index": 10, "CLS": 7}
+
+        def _mock_aggregated(start_time, end_time, field_name, method, filters, query_string):
+            return call_results.get(field_name, 0)
+
+        with patch.object(handler.query, "query_field_aggregated_value", side_effect=_mock_aggregated):
+            result = handler.field_statistics_info(start_time=1000, end_time=2000, field=field)
+
+        # field_percent 应为 70%，而非 100%
+        assert "field_percent" in result
+        field_percent_val = result["field_percent"]
+        assert field_percent_val < 100, f"field_percent 应 < 100，实际为 {field_percent_val}"
+        assert abs(field_percent_val - 70.0) < 0.1, f"field_percent 应约为 70%，实际为 {field_percent_val}"
