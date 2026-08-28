@@ -463,6 +463,27 @@ class ViewSetActionEnum(ChoicesEnum):
         view_set="ClusteringConfigViewSet",
         view_action="get_config",
     )
+    # view_action 取 ViewSet 的方法名而非 url_path，转发入口是从 view_func.actions 反查的
+    CLUSTERING_CONFIG_VIEWSET_UPDATE_ACCESS = ViewSetAction(
+        action_id=ExternalPermissionActionEnum.LOG_SEARCH.value,
+        view_set="ClusteringConfigViewSet",
+        view_action="update_access",
+    )
+    CLUSTERING_CONFIG_VIEWSET_DEFAULT_CONFIG = ViewSetAction(
+        action_id=ExternalPermissionActionEnum.LOG_SEARCH.value,
+        view_set="ClusteringConfigViewSet",
+        view_action="get_default_config",
+    )
+    CLUSTERING_CONFIG_VIEWSET_DEBUG = ViewSetAction(
+        action_id=ExternalPermissionActionEnum.LOG_SEARCH.value,
+        view_set="ClusteringConfigViewSet",
+        view_action="debug",
+    )
+    CLUSTERING_CONFIG_VIEWSET_CHECK_REGEXP = ViewSetAction(
+        action_id=ExternalPermissionActionEnum.LOG_SEARCH.value,
+        view_set="ClusteringConfigViewSet",
+        view_action="check",
+    )
     CLUSTERING_CONFIG_MONITOR_VIEWSET_STRATEGY = ViewSetAction(
         action_id=ExternalPermissionActionEnum.LOG_SEARCH.value,
         view_set="ClusteringMonitorViewSet",
@@ -485,6 +506,11 @@ class ViewSetActionEnum(ChoicesEnum):
     )
     PATTERN_VIEWSET_GET_OWNERS = ViewSetAction(
         action_id=ExternalPermissionActionEnum.LOG_SEARCH.value, view_set="PatternViewSet", view_action="get_owners"
+    )
+    # ======================================= 日志聚类-RegexTemplateViewSet =======================================
+    # 聚类配置的正则规则可选用模板，只开放模板列表，模板的增删改仍不对外部开放
+    REGEX_TEMPLATE_VIEWSET_LIST = ViewSetAction(
+        action_id=ExternalPermissionActionEnum.LOG_SEARCH.value, view_set="RegexTemplateViewSet", view_action="list"
     )
     # ======================================= 索引-IndexSetViewSet =======================================
     INDEX_SET_VIEWSET_MARK_FAVORITE = ViewSetAction(
@@ -671,6 +697,10 @@ class ViewSetActionEnum(ChoicesEnum):
         # ======================================= 字段分析-FieldViewSet =======================================
         CLUSTERING_CONFIG_VIEWSET_STATUS,
         CLUSTERING_CONFIG_VIEWSET_CONFIG,
+        CLUSTERING_CONFIG_VIEWSET_UPDATE_ACCESS,
+        CLUSTERING_CONFIG_VIEWSET_DEFAULT_CONFIG,
+        CLUSTERING_CONFIG_VIEWSET_DEBUG,
+        CLUSTERING_CONFIG_VIEWSET_CHECK_REGEXP,
         CLUSTERING_CONFIG_MONITOR_VIEWSET_STRATEGY,
         # ======================================= 日志聚类-PatternViewSet =====================================
         PATTERN_VIEWSET_SEARCH,
@@ -679,6 +709,8 @@ class ViewSetActionEnum(ChoicesEnum):
         PATTERN_VIEWSET_DELETE_REMARK,
         PATTERN_VIEWSET_SET_OWNER,
         PATTERN_VIEWSET_GET_OWNERS,
+        # ================================== 日志聚类-RegexTemplateViewSet ==================================
+        REGEX_TEMPLATE_VIEWSET_LIST,
         # ======================================= 索引-IndexSetViewSet =======================================
         INDEX_SET_VIEWSET_MARK_FAVORITE,
         INDEX_SET_VIEWSET_CANCEL_FAVORITE,
