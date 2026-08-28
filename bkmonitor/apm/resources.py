@@ -1420,20 +1420,6 @@ class QuerySpanDetailResource(Resource):
         )
 
 
-class QueryFieldsResource(Resource):
-    class RequestSerializer(serializers.Serializer):
-        bk_biz_id = serializers.IntegerField(label="业务id")
-        app_name = serializers.CharField(label="应用名称", max_length=50)
-
-    def perform_request(self, validated_request_data):
-        bk_biz_id = validated_request_data["bk_biz_id"]
-        app_name = validated_request_data["app_name"]
-        application = ApmApplication.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
-        if not application:
-            raise CustomException(_("业务下的应用: {} 不存在").format(app_name))
-        return application.trace_datasource.fields()
-
-
 class UpdateMetricFieldsResource(Resource):
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(label="业务id")
@@ -1447,19 +1433,6 @@ class UpdateMetricFieldsResource(Resource):
         if not application:
             raise CustomException(_("业务下的应用: {} 不存在").format(app_name))
         return application.metric_datasource.update_fields(validated_request_data["field_list"])
-
-
-class QueryEsMappingResource(Resource):
-    class RequestSerializer(serializers.Serializer):
-        bk_biz_id = serializers.IntegerField()
-        app_name = serializers.CharField()
-
-    def perform_request(self, data):
-        datasource = TraceDataSource.objects.get(bk_biz_id=data["bk_biz_id"], app_name=data["app_name"])
-        if not datasource:
-            return None
-
-        return datasource.es_client.indices.get_mapping(datasource.index_name)
 
 
 class ListEsClusterInfoResource(Resource):
