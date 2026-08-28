@@ -68,10 +68,27 @@ def cleanup_test_data():
     # 测试后清理
     CustomRelationStatus.objects.filter(namespace__startswith="test_").delete()
     ResourceDefinition.objects.filter(namespace=NAMESPACE_ALL, name__startswith="test_").delete()
-    ResourceDefinition.objects.filter(namespace=NAMESPACE_ALL, name__in={
-        "source", "source_1", "source_2", "source_entity", "src", "updated_source", "app_version", "pod",
-        "target", "target_1", "target_2", "target_entity", "updated_target", "dst", "git_commit", "node",
-    }).delete()
+    ResourceDefinition.objects.filter(
+        namespace=NAMESPACE_ALL,
+        name__in={
+            "source",
+            "source_1",
+            "source_2",
+            "source_entity",
+            "src",
+            "updated_source",
+            "app_version",
+            "pod",
+            "target",
+            "target_1",
+            "target_2",
+            "target_entity",
+            "updated_target",
+            "dst",
+            "git_commit",
+            "node",
+        },
+    ).delete()
 
 
 class TestEntityHandlerApply:
@@ -522,11 +539,19 @@ class TestEntityHandlerRedisSync:
     )
     @patch("metadata.resources.entity_relation.RedisTools")
     def test_rebuild_redis_cache_on_apply(
-        self, mock_redis, cleanup_definition_data, case_id, model_class, metadata, spec
+        self,
+        mock_redis,
+        cleanup_definition_data,
+        case_id,
+        model_class,
+        metadata,
+        spec,
+        django_capture_on_commit_callbacks,
     ):
         """验证 apply 后从 DB 全量重建 Redis 缓存"""
         handler = EntityHandler(model_class=model_class)
-        handler.apply(metadata=metadata, spec=spec)
+        with django_capture_on_commit_callbacks(execute=True):
+            handler.apply(metadata=metadata, spec=spec)
 
         # 验证 Redis 写入
         kind = model_class.get_kind()
@@ -553,15 +578,18 @@ class TestEntityHandlerRedisSync:
         }
 
     @patch("metadata.resources.entity_relation.RedisTools")
-    def test_custom_relation_status_syncs_and_notifies(self, mock_redis, cleanup_test_data):
+    def test_custom_relation_status_syncs_and_notifies(
+        self, mock_redis, cleanup_test_data, django_capture_on_commit_callbacks
+    ):
         """CustomRelationStatus 写入实体 Redis，并发布业务变更通知"""
         assert "CustomRelationStatus" in REDIS_SYNC_KINDS
 
         handler = EntityHandler(model_class=CustomRelationStatus)
-        handler.apply(
-            metadata={"namespace": "test_ns", "name": "test_no_sync"},
-            spec={"from_resource": "src", "to_resource": "dst"},
-        )
+        with django_capture_on_commit_callbacks(execute=True):
+            handler.apply(
+                metadata={"namespace": "test_ns", "name": "test_no_sync"},
+                spec={"from_resource": "src", "to_resource": "dst"},
+            )
 
         mock_redis.hset_to_redis.assert_called_once()
         mock_redis.publish.assert_called_once_with(
@@ -570,12 +598,15 @@ class TestEntityHandlerRedisSync:
         )
 
     @patch("metadata.resources.entity_relation.RedisTools")
-    def test_custom_relation_status_publishes_namespace_change(self, mock_redis, cleanup_test_data):
+    def test_custom_relation_status_publishes_namespace_change(
+        self, mock_redis, cleanup_test_data, django_capture_on_commit_callbacks
+    ):
         handler = EntityHandler(model_class=CustomRelationStatus)
-        handler.apply(
-            metadata={"namespace": "test_ns", "name": "test_relation"},
-            spec={"from_resource": "app_version", "to_resource": "git_commit"},
-        )
+        with django_capture_on_commit_callbacks(execute=True):
+            handler.apply(
+                metadata={"namespace": "test_ns", "name": "test_relation"},
+                spec={"from_resource": "app_version", "to_resource": "git_commit"},
+            )
 
         assert mock_redis.publish.call_args_list == [
             call(
@@ -584,13 +615,15 @@ class TestEntityHandlerRedisSync:
             )
         ]
 
-        handler.apply(
-            metadata={"namespace": "test_ns", "name": "test_relation"},
-            spec={"from_resource": "app_version", "to_resource": "git_commit"},
-        )
+        with django_capture_on_commit_callbacks(execute=True):
+            handler.apply(
+                metadata={"namespace": "test_ns", "name": "test_relation"},
+                spec={"from_resource": "app_version", "to_resource": "git_commit"},
+            )
         assert len(mock_redis.publish.call_args_list) == 1
 
-        handler.delete(namespace="test_ns", name="test_relation")
+        with django_capture_on_commit_callbacks(execute=True):
+            handler.delete(namespace="test_ns", name="test_relation")
         assert mock_redis.publish.call_args_list == [
             call(
                 CUSTOM_RELATION_REDIS_CHANNEL,
@@ -603,7 +636,9 @@ class TestEntityHandlerRedisSync:
         ]
 
     @patch("metadata.resources.entity_relation.RedisTools")
-    def test_delete_rebuilds_redis_with_remaining(self, mock_redis, cleanup_definition_data):
+    def test_delete_rebuilds_redis_with_remaining(
+        self, mock_redis, cleanup_definition_data, django_capture_on_commit_callbacks
+    ):
         """删除实体后，从 DB 全量重建 Redis，保留同 namespace 下其他实体"""
         handler = EntityHandler(model_class=ResourceDefinition)
 
@@ -619,7 +654,8 @@ class TestEntityHandlerRedisSync:
         mock_redis.reset_mock()
 
         # 删除一个实体
-        handler.delete(namespace=NAMESPACE_ALL, name="test_del")
+        with django_capture_on_commit_callbacks(execute=True):
+            handler.delete(namespace=NAMESPACE_ALL, name="test_del")
 
         # 验证 DB 中只剩 test_keep
         assert not ResourceDefinition.objects.filter(namespace=NAMESPACE_ALL, name="test_del").exists()
@@ -632,7 +668,9 @@ class TestEntityHandlerRedisSync:
         assert "test_keep" in written_data
 
     @patch("metadata.resources.entity_relation.RedisTools")
-    def test_delete_last_entity_calls_hdel(self, mock_redis, cleanup_definition_data):
+    def test_delete_last_entity_calls_hdel(
+        self, mock_redis, cleanup_definition_data, django_capture_on_commit_callbacks
+    ):
         """删除 namespace 下最后一个实体时，调用 hdel 清除整个字段"""
         handler = EntityHandler(model_class=ResourceDefinition)
 
@@ -644,7 +682,8 @@ class TestEntityHandlerRedisSync:
         mock_redis.reset_mock()
 
         # 删除最后一个实体
-        handler.delete(namespace=NAMESPACE_ALL, name="test_last")
+        with django_capture_on_commit_callbacks(execute=True):
+            handler.delete(namespace=NAMESPACE_ALL, name="test_last")
 
         # 验证 DB 中已无实体
         assert not ResourceDefinition.objects.filter(namespace=NAMESPACE_ALL, name="test_last").exists()
@@ -654,15 +693,16 @@ class TestEntityHandlerRedisSync:
         mock_redis.hset_to_redis.assert_not_called()
 
     @patch("metadata.resources.entity_relation.RedisTools")
-    def test_redis_error_not_affect_db(self, mock_redis, cleanup_definition_data):
+    def test_redis_error_not_affect_db(self, mock_redis, cleanup_definition_data, django_capture_on_commit_callbacks):
         """Redis 异常不影响数据库操作"""
         mock_redis.hset_to_redis.side_effect = Exception("Redis connection failed")
 
         handler = EntityHandler(model_class=ResourceDefinition)
-        result = handler.apply(
-            metadata={"namespace": NAMESPACE_ALL, "name": "test_err"},
-            spec={"fields": []},
-        )
+        with django_capture_on_commit_callbacks(execute=True):
+            result = handler.apply(
+                metadata={"namespace": NAMESPACE_ALL, "name": "test_err"},
+                spec={"fields": []},
+            )
 
         assert result["metadata"]["name"] == "test_err"
         assert ResourceDefinition.objects.filter(name="test_err").exists()

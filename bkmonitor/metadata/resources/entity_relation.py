@@ -98,9 +98,9 @@ class EntityHandler:
                 entity.save()
                 changed = True
 
-
         # 只有 DB 事务最终提交后才同步 Redis，避免外层事务回滚留下脏缓存。
-        transaction.on_commit(lambda entity=entity: self._rebuild_redis_cache(entity))
+        if changed:
+            transaction.on_commit(lambda entity=entity: self._rebuild_redis_cache(entity))
 
         return entity.to_json()
 

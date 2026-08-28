@@ -291,7 +291,10 @@ class ResourceDefinition(EntityMeta):
     """
 
     fields = models.JSONField(
-        _("字段定义列表"), default=list, blank=True, help_text=_("资源的字段定义，每个字段包含 namespace, name, required")
+        _("字段定义列表"),
+        default=list,
+        blank=True,
+        help_text=_("资源的字段定义，每个字段包含 namespace, name, required"),
     )
 
     class Meta:
@@ -458,9 +461,9 @@ def convert_to_vertices_and_relations(
         tuple: (vertices, relations)
 
     输出示例:
-        >>> vertices = [{"name":"pod", "id_fields":["pod_name","namespace"], "delimiter":"_"}]
+        >>> vertices = [{"name": "pod", "id_fields": ["pod_name", "namespace"], "delimiter": "_"}]
         >>> relations = [
-        ...     {"name":"pod_node", "from":"pod", "to":"node", "metric":"node_with_pod_relation", "delimiter":"_"}
+        ...     {"name": "pod_node", "from": "pod", "to": "node", "metric": "node_with_pod_relation", "delimiter": "_"}
         ... ]
     """
     # 转换 ResourceDefinition -> vertices
