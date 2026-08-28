@@ -104,10 +104,13 @@ class ProfileQueryExportSerializer(ProfileQuerySerializer):
 class ProfileQueryLabelsSerializer(QueryBaseSerializer):
     """Query Labels"""
 
+    profile_id = serializers.CharField(label="profile ID", required=False, default="", allow_blank=True)
+
 
 class ProfileQueryLabelValuesSerializer(QueryBaseSerializer):
     """Query Label Values"""
 
+    profile_id = serializers.CharField(label="profile ID", required=False, default="", allow_blank=True)
     label_key = serializers.CharField(label="标签Key")
     offset = serializers.IntegerField(label="偏移量(秒)", required=False, default=0)
     rows = serializers.IntegerField(label="返回数量", required=False, default=10)
