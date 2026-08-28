@@ -2519,9 +2519,10 @@ class QueryFieldStatisticsGraphResource(Resource):
             distinct_count <= interval_num or (max_value - min_value + 1) <= interval_num
         ):
             field_topk = proxy.query_field_topk(**base_query_params, limit=distinct_count)
+            value_parser = float if field["field_type"] == EnabledStatisticsDimension.DOUBLE.value else int
             return self.process_graph_info(
                 [
-                    [topk_item["count"], int(topk_item["field_value"])]
+                    [topk_item["count"], value_parser(topk_item["field_value"])]
                     for topk_item in sorted(field_topk, key=lambda topk_item: topk_item["field_value"])
                 ]
             )

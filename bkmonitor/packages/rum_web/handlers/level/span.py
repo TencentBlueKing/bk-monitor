@@ -379,9 +379,10 @@ class SpanLevelHandler(BaseRumLevelHandler):
             topk_buckets = self.query.query_field_topk(
                 start_time, end_time, field_name, distinct_count, filters, query_string
             )
+            value_parser = float if field["field_type"] == EnabledStatisticsDimension.DOUBLE.value else int
             return self._process_graph_info(
                 [
-                    [bucket.get("_result_", 0), int(bucket[field_name])]
+                    [bucket.get("_result_", 0), value_parser(bucket[field_name])]
                     for bucket in sorted(topk_buckets, key=lambda b: b.get(field_name))
                 ]
             )
