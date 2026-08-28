@@ -25,8 +25,8 @@ from apm_web.handlers.query import get_query
 from apm_web.handlers.query.span import SpanQuery
 from apm_web.handlers.trace_handler.query import TraceQueryTransformer
 from apm_web.models import Application
-from constants.apm import PreCalculateSpecificField, SpanStandardField, PrecalculateStorageConfig
-from constants.otel_query import FIELD_OPERATIONS, OTEL_SPAN_COMMON_FIELD_ALIAS, EnabledStatisticsDimension
+from constants.apm import PreCalculateSpecificField, SpanStandardField, PrecalculateStorageConfig, OtlpKey
+from constants.otel_query import FIELD_OPERATIONS, EnabledStatisticsDimension
 
 NON_SEARCHABLE_FIELD_TYPES = {"object", "nested"}
 DIMENSION_FIELD_TYPES = {dimension.value for dimension in EnabledStatisticsDimension}
