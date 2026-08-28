@@ -257,6 +257,18 @@ def test_trigger_reference_async_jobs_are_bounded_by_count_and_encoded_bytes():
         ),
         mock.patch("alarm_backends.core.alarmd.async_publish.submit_shadow_job", side_effect=submit),
         mock.patch.object(settings, "ALARMD_TRIGGER_REFERENCE_SHADOW_ASYNC_QUEUE_SIZE", 16, create=True),
+        mock.patch.object(
+            settings,
+            "ALARMD_TRIGGER_REFERENCE_SHADOW_KAFKA_CONFIG",
+            {"topic": "alarmd-reference-shadow", "bootstrap.servers": "kafka:9092"},
+            create=True,
+        ),
+        mock.patch.object(
+            settings,
+            "ALARMD_TRIGGER_REFERENCE_SHADOW_ALLOWED_TOPICS",
+            ("alarmd-reference-shadow",),
+            create=True,
+        ),
     ):
         assert processor.enqueue_alarmd_reference_candidates() == 3
 
@@ -264,6 +276,22 @@ def test_trigger_reference_async_jobs_are_bounded_by_count_and_encoded_bytes():
         ("reference", (batches[0],), 16),
         ("reference", (batches[1], batches[2]), 16),
     ]
+
+
+@pytest.mark.parametrize(("kafka_config", "allowed_topics"), [({}, ()), ("{}", " ")])
+def test_trigger_reference_async_jobs_are_disabled_without_publish_config(kafka_config, allowed_topics):
+    processor = _processor()
+    processor.iter_alarmd_reference_batches = mock.Mock(
+        side_effect=AssertionError("reference batches should not build")
+    )
+
+    with (
+        mock.patch.object(settings, "ALARMD_TRIGGER_REFERENCE_SHADOW_KAFKA_CONFIG", kafka_config, create=True),
+        mock.patch.object(settings, "ALARMD_TRIGGER_REFERENCE_SHADOW_ALLOWED_TOPICS", allowed_topics, create=True),
+    ):
+        assert processor.enqueue_alarmd_reference_candidates() == 0
+
+    processor.iter_alarmd_reference_batches.assert_not_called()
 
 
 def test_trigger_reference_publisher_uses_candidate_identity_and_is_fail_open():

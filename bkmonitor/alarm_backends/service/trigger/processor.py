@@ -293,6 +293,14 @@ class TriggerProcessor:
         return list(self.iter_alarmd_reference_batches())
 
     def enqueue_alarmd_reference_candidates(self):
+        from alarm_backends.core.alarmd.config import shadow_kafka_config, shadow_topics
+
+        if not (
+            shadow_kafka_config(settings.ALARMD_TRIGGER_REFERENCE_SHADOW_KAFKA_CONFIG)
+            and shadow_topics(settings.ALARMD_TRIGGER_REFERENCE_SHADOW_ALLOWED_TOPICS)
+        ):
+            return 0
+
         from alarm_backends.core.alarmd.async_publish import (
             MAX_ASYNC_JOB_BYTES,
             shadow_job_encoded_size_from_payload_sizes,
