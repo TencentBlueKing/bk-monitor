@@ -1668,7 +1668,7 @@ ENABLE_INFLUXDB_STORAGE = os.getenv("BKAPP_ENABLE_INFLUXDB_STORAGE", "false").lo
 # 是否开启空间内置数据链路初始化
 ENABLE_SPACE_BUILTIN_DATA_LINK = os.getenv("ENABLE_SPACE_BUILTIN_DATA_LINK", "false").lower() == "true"
 
-# 是否在 SurrealDBBinding 就绪后下发 relation materialized view DDL，默认关闭
+# 是否在 SurrealDBBinding 就绪后下发 relation active-edge Event DDL，默认关闭
 ENABLE_SURREALDB_MATERIALIZED_VIEW = os.getenv("BKAPP_ENABLE_SURREALDB_MATERIALIZED_VIEW", "false").lower() == "true"
 
 # 创建 vm 链路资源所属的命名空间

@@ -54,14 +54,24 @@ def test_build_materialized_view_ddl():
 
     assert "USE NS `bkmonitor` DB `biz_2`;" in ddl
     assert "BEGIN TRANSACTION;" in ddl
-    assert "REMOVE TABLE IF EXISTS `node_with_pod_materialized_view`;" in ddl
-    assert "DEFINE TABLE `node_with_pod_materialized_view` TYPE NORMAL AS" in ddl
-    assert "relation_id.in AS source_id" in ddl
-    assert "node: relation_id.in.node" in ddl
-    assert "pod: relation_id.out.pod" in ddl
-    assert "period_end AS relation_period_end_ms\nFROM `node_with_pod_liveness_record`" in ddl
-    assert "FIELDS source_id, relation_period_start_ms, relation_period_end_ms;" in ddl
-    assert "FIELDS target_id, relation_period_start_ms, relation_period_end_ms;" in ddl
+    assert "DEFINE TABLE IF NOT EXISTS `node_with_pod_active_edge_view` SCHEMALESS;" in ddl
+    assert "FIELDS source_liveness_id UNIQUE;" in ddl
+    assert "FIELDS source_id, active_period_start_ms;" in ddl
+    assert "FIELDS source_id, active_period_end_ms;" in ddl
+    assert "FIELDS target_id, active_period_start_ms;" in ddl
+    assert "FIELDS target_id, active_period_end_ms;" in ddl
+    assert "FIELDS source_data.bcs_cluster_id, source_data.node, active_period_start_ms;" in ddl
+    assert "FIELDS target_data.bcs_cluster_id, target_data.namespace, target_data.pod, active_period_end_ms;" in ddl
+    assert "DEFINE EVENT OVERWRITE `materialize_node_with_pod_active_edge`" in ddl
+    assert "ON TABLE `node_with_pod_liveness_record`" in ddl
+    assert "source_liveness_id = $after.id" in ddl
+    assert "node: $edge.in.node" in ddl
+    assert "pod: $edge.out.pod" in ddl
+    assert "DEFINE EVENT OVERWRITE `delete_node_with_pod_active_edge`" in ddl
+    assert "DELETE `node_with_pod_active_edge_view` WHERE source_liveness_id = $before.id" in ddl
+    assert "DEFINE EVENT OVERWRITE `remove_invalid_node_with_pod_active_edge`" in ddl
+    assert "DELETE `node_with_pod_active_edge_view` WHERE source_liveness_id = $after.id" in ddl
+    assert " TYPE NORMAL AS" not in ddl
     assert ddl.rstrip().endswith("COMMIT TRANSACTION;")
 
 
