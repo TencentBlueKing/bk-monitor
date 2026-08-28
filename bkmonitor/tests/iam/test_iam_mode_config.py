@@ -69,3 +69,62 @@ class TestMigrationSafeDefault:
         assert migration["allow_destructive"] is False, (
             "破坏性变更必须走独立命令显式确认，绝不允许在 post_migrate 自动流程里默认放开"
         )
+
+
+class TestMigrationEnvOverrides:
+    """MIGRATION 三个字段都通过 BK_IAM_ENGINE_MIGRATION_* 环境变量覆写，未显式设置时走安全默认。
+
+    通过 monkeypatch.setenv + importlib.reload(config.default) 让 default.py
+    重新按环境变量装配 IAM_FRAMEWORK，然后直接检查 module 内的 dict；不修改
+    django.conf.settings 避免污染整个 session。
+    """
+
+    @staticmethod
+    def _reload_default_migration(monkeypatch, env: dict[str, str]) -> dict:
+        """按 env 设置环境变量后 reload config.default，返回 IAM_FRAMEWORK['MIGRATION']。"""
+        import importlib
+
+        # 清理再赋值：避免上一个 case 残留污染
+        for k in (
+            "BK_IAM_ENGINE_MIGRATION_MODE",
+            "BK_IAM_ENGINE_MIGRATION_DIRECTORY",
+            "BK_IAM_ENGINE_MIGRATION_ALLOW_DESTRUCTIVE",
+        ):
+            monkeypatch.delenv(k, raising=False)
+        for k, v in env.items():
+            monkeypatch.setenv(k, v)
+
+        import config.default as default_mod
+
+        reloaded = importlib.reload(default_mod)
+        return reloaded.IAM_FRAMEWORK["MIGRATION"]
+
+    def test_defaults_without_env(self, monkeypatch):
+        migration = self._reload_default_migration(monkeypatch, {})
+        assert migration["mode"] == "semi_auto"
+        assert migration["directory"] == "bkmonitor/iam/iam_migrations"
+        assert migration["allow_destructive"] is False
+
+    def test_mode_override(self, monkeypatch):
+        migration = self._reload_default_migration(monkeypatch, {"BK_IAM_ENGINE_MIGRATION_MODE": "manual"})
+        assert migration["mode"] == "manual"
+
+    def test_directory_override(self, monkeypatch):
+        migration = self._reload_default_migration(
+            monkeypatch, {"BK_IAM_ENGINE_MIGRATION_DIRECTORY": "/tmp/custom_migrations"}
+        )
+        assert migration["directory"] == "/tmp/custom_migrations"
+
+    def test_allow_destructive_truthy_values(self, monkeypatch):
+        for value in ("1", "true", "True", "YES", "yes"):
+            migration = self._reload_default_migration(
+                monkeypatch, {"BK_IAM_ENGINE_MIGRATION_ALLOW_DESTRUCTIVE": value}
+            )
+            assert migration["allow_destructive"] is True, f"value={value!r} 应视为开启"
+
+    def test_allow_destructive_falsy_values(self, monkeypatch):
+        for value in ("0", "false", "no", "off", "", "anything_else"):
+            migration = self._reload_default_migration(
+                monkeypatch, {"BK_IAM_ENGINE_MIGRATION_ALLOW_DESTRUCTIVE": value}
+            )
+            assert migration["allow_destructive"] is False, f"value={value!r} 不应视为开启"

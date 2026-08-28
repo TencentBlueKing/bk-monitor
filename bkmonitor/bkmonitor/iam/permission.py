@@ -241,20 +241,79 @@ class Permission:
     def is_allowed(self, action, resources: list = None, raise_exception: bool = False):
         """
         校验用户是否有动作的权限（委托 IAMFramework）。
+
+        资源列表处理规则：
+          * 空 / 单资源 → 走 ``_is_allowed_fw`` 单点鉴权。
+          * 多资源同类型 → 走框架 ``batch_by_resource``，**全部允许才判 True**，
+            任一资源被拒即 False；``raise_exception=True`` 时按首个被拒资源构造
+            PermissionDeniedError。这条修复了旧版"只取 ``resources[0]`` 静默漏检
+            其余资源"的问题。
+          * 多资源异类型 → 显式抛 ValueError。批量鉴权不接受隐式混合类型，
+            调用方必须按类型拆分或使用框架批量接口显式表达意图。
         """
         # token 临时分享 / skip_check 前置豁免（与旧版逻辑一致；skip_check 传实例值，
         # 兼容调用方构造后修改 permission.skip_check 的既有用法）
         if check_iam_preflight(self.request, action, skip_check=self.skip_check):
             return True
 
-        # 构建 FwResource（兼容 iam.Resource 旧调用方）
         resources = resources or []
-        fw_resource = None
-        if resources:
-            r = resources[0]
-            fw_resource = FwResource(type=r.type, id=r.id)
 
-        return self._is_allowed_fw(action, fw_resource, raise_exception)
+        # 单资源（或空）保持原路径，避免对既有调用方引入行为差异
+        if len(resources) <= 1:
+            fw_resource = None
+            if resources:
+                r = resources[0]
+                fw_resource = FwResource(type=r.type, id=r.id)
+            return self._is_allowed_fw(action, fw_resource, raise_exception)
+
+        # 多资源同类型 → batch_by_resource
+        resource_types = {r.type for r in resources}
+        if len(resource_types) > 1:
+            raise ValueError(
+                f"Permission.is_allowed 不支持混合资源类型（收到 {sorted(resource_types)}）；"
+                "请按类型拆分调用，或直接使用 IAMFramework 批量接口显式表达意图。"
+            )
+
+        return self._is_allowed_batch(action, resources, raise_exception)
+
+    def _is_allowed_batch(self, action, resources: list, raise_exception: bool):
+        """内部：同类型多资源批量鉴权，所有资源都允许才返回 True。"""
+        action_id_biz = _to_business_action_id(action)
+        resource_type = resources[0].type
+        fw_resources = tuple(FwResource(type=resource_type, id=r.id) for r in resources)
+
+        try:
+            batch_result = self._fw.batch_by_resource(
+                BatchByResourceRequest(
+                    subject=FwSubject(id=self.username, type=SubjectType.USER, tenant_id=self.bk_tenant_id),
+                    action_id=action_id_biz,
+                    resources=fw_resources,
+                )
+            )
+        except PermissionDenied as e:
+            if raise_exception:
+                raise self._build_permission_denied(action_id_biz, fw_resources[0]) from e
+            return False
+        except ProviderError as e:
+            logger.exception("[Permission.is_allowed batch] ProviderError: %s", e)
+            if raise_exception:
+                raise self._build_permission_denied(action_id_biz, fw_resources[0]) from e
+            return False
+
+        # items 与请求资源顺序一致；按 resource_id 汇总允许集
+        allowed_ids = {item.resource_id for item in batch_result.items if item.allowed}
+        denied_resource: FwResource | None = None
+        for r in fw_resources:
+            if r.id not in allowed_ids:
+                denied_resource = r
+                break
+
+        if denied_resource is None:
+            return True
+
+        if raise_exception:
+            raise self._build_permission_denied(action_id_biz, denied_resource)
+        return False
 
     def _is_allowed_fw(self, action, fw_resource: FwResource | None, raise_exception: bool):
         """内部：直接接受 FwResource 的鉴权方法。"""
@@ -471,7 +530,59 @@ class Permission:
         return [cls.make_resource(r["type"], r["id"]) for r in resources]
 
     # ================================================================
-    # list_actions — 已弃用（有一个端点依旧在调用）
+    # list_actions — 从框架 SchemaRegistry 生成动作列表
     # ================================================================
     def list_actions(self):
-        raise NotImplementedError("list_actions is deprecated. Use IAMFramework to query actions from schema.")
+        """返回平台注册的动作列表，字段兼容旧版 IAM V3 ``model.actions`` 返回结构。
+
+        原实现调 V3 平台 ``model/systems/{sys}/query``；重构后不再依赖具体
+        Provider，直接从注入的 ``IAMFramework.schema``（SchemaRegistry）读取，
+        即使 Provider 平台不可用也能返回稳定结果。
+
+        每一项包含字段：
+            id                     : 业务 action id（如 "view_business"）
+            name                   : 中文名
+            name_en                : 英文名（读 extensions.v3.name_en，缺失回落到 id）
+            type                   : "view" / "manage"（读 extensions.v3.type）
+            version                : 版本号（读 extensions.v3.version，缺失默认 1）
+            related_resource_types : 关联资源类型元数据列表（system_id + id + name_en）
+            related_actions        : 依赖动作列表（读 extensions.v3.related_actions）
+            description            : action 描述
+        """
+        schema = self._fw.schema
+        actions_data: list[dict] = []
+        for action_def in schema.all_actions():
+            v3_ext = (action_def.extensions or {}).get("v3", {}) or {}
+
+            # related_resource_types：查 schema 获取资源类型名称，缺失时以 id 兜底
+            related_resource_types: list[dict] = []
+            rt_id = action_def.resource_type
+            if rt_id:
+                try:
+                    rt_def = schema.get_resource_type(rt_id)
+                    rt_name_en = (rt_def.extensions or {}).get("v3", {}).get("name_en", "") if rt_def else ""
+                except Exception:  # noqa: BLE001  schema 未注册该资源类型时兜底
+                    rt_def = None
+                    rt_name_en = ""
+                related_resource_types.append(
+                    {
+                        "system_id": settings.BK_IAM_SYSTEM_ID,
+                        "id": rt_id,
+                        "name": rt_def.name if rt_def else rt_id,
+                        "name_en": rt_name_en,
+                    }
+                )
+
+            actions_data.append(
+                {
+                    "id": action_def.id,
+                    "name": action_def.name,
+                    "name_en": v3_ext.get("name_en", action_def.id),
+                    "type": v3_ext.get("type", ""),
+                    "version": v3_ext.get("version", 1),
+                    "related_resource_types": related_resource_types,
+                    "related_actions": list(v3_ext.get("related_actions", []) or []),
+                    "description": action_def.description or "",
+                }
+            )
+        return actions_data

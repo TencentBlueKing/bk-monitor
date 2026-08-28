@@ -262,20 +262,32 @@ class TestIsAllowed:
         assert p.is_allowed(ActionEnum.VIEW_BUSINESS) is True
         assert provider.is_allowed_calls == []
 
-    def test_multi_resource_uses_first_only(self, fake_framework):
-        """已知语义差异：旧版 is_allowed 把整个 resources 列表传给 SDK（求值时
-        同类型对象只保留最后一个）；新版只取 resources[0]。
-        影响面：CheckAllowedResource 端点多资源入参（实际调用多为单资源）。
+    def test_multi_resource_routes_to_batch_by_resource(self, fake_framework):
+        """守护修复：多资源同类型必须走 framework.batch_by_resource，不再退化到 is_allowed 的第一项。
+
+        修复前旧实现只取 resources[0] 调 is_allowed 单点鉴权，导致后续资源
+        被静默漏检；修复后走批量鉴权，全部允许才判 True。
         """
+        from bkmonitor.iam.iam_engine.core.types import BatchAuthResult, ResourceAuthResult
+
         fw, provider = fake_framework
-        provider.is_allowed_result = True
+        # 全部资源都允许
+        provider.batch_result = BatchAuthResult(
+            items=(
+                ResourceAuthResult(action_id="view_business", resource_type="space", resource_id="2", allowed=True),
+                ResourceAuthResult(action_id="view_business", resource_type="space", resource_id="3", allowed=True),
+            )
+        )
         p = Permission(username="tester", bk_tenant_id="system")
         resources = [
             ResourceEnum.BUSINESS.create_simple_instance("2"),
             ResourceEnum.BUSINESS.create_simple_instance("3"),
         ]
         assert p.is_allowed(ActionEnum.VIEW_BUSINESS, resources) is True
-        assert provider.is_allowed_calls[0].resource.id == "2"
+        # 关键守护：多资源分支不能退化到调 is_allowed（否则又会只看第一项）
+        assert provider.is_allowed_calls == [], (
+            "多资源鉴权必须走 batch_by_resource，不允许退化为对 resources[0] 的单点 is_allowed"
+        )
 
     def test_token_bypass_parity(self, fake_framework):
         """token 临时分享豁免逻辑与旧版一致（业务查看动作直接豁免）。"""
@@ -784,16 +796,86 @@ class TestPreflightHelpers:
 
 
 class TestKnownRegressions:
-    @pytest.mark.xfail(
-        strict=True,
-        reason="回归点：新版 list_actions 直接抛 NotImplementedError，"
-        "导致 GET /get_authority_meta 端点（packages/monitor_web/iam/resources.py "
-        "GetAuthorityMetaResource）从可用变为 500",
-    )
-    def test_list_actions_returns_action_list(self):
-        """旧版行为：list_actions 返回平台动作列表（dict 含 actions 字段）。"""
+    """本次回归修复的守卫用例：list_actions + is_allowed 多资源静默漏检。"""
+
+    def test_list_actions_returns_action_list(self, installed_framework):
+        """list_actions 应从 SchemaRegistry 生成动作列表（含旧版兼容字段）。
+
+        与旧版 IAM V3 model.actions 契约对齐：每项含 id / name / name_en / type /
+        version / related_resource_types / related_actions / description。
+        """
         result = Permission(username="tester", bk_tenant_id="system").list_actions()
         assert isinstance(result, list)
+        assert len(result) > 0
+
+        first = result[0]
+        for key in ("id", "name", "name_en", "type", "version", "related_resource_types", "related_actions"):
+            assert key in first, f"list_actions 缺少兼容字段 {key!r}: {first}"
+
+        # 抽样断言：view_business 的 v3 兼容字段来自 extensions.v3
+        view_business = next((a for a in result if a["id"] == "view_business"), None)
+        assert view_business is not None, "SchemaRegistry 应包含 view_business"
+        assert view_business["type"] == "view"
+        assert view_business["version"] == 1
+        assert view_business["related_resource_types"], "view_business 关联 space，应有一条 related_resource_types"
+
+    def test_is_allowed_multi_resource_partial_deny(self, fake_framework):
+        """回归：多资源同类型鉴权，第一项允许、第二项拒绝时整体必须 False。
+
+        旧实现只取 resources[0]，会把上述场景误判为 True 并静默漏检后续资源。
+        修复后走 framework.batch_by_resource，任一资源被拒即整体 False。
+        """
+        from bkmonitor.iam.iam_engine.core.types import BatchAuthResult, ResourceAuthResult
+
+        fw, provider = fake_framework
+        provider.batch_result = BatchAuthResult(
+            items=(
+                ResourceAuthResult(action_id="view_business", resource_type="space", resource_id="2", allowed=True),
+                ResourceAuthResult(action_id="view_business", resource_type="space", resource_id="3", allowed=False),
+            )
+        )
+        p = Permission(username="tester", bk_tenant_id="system")
+
+        resources = [
+            ResourceEnum.BUSINESS.create_simple_instance("2"),
+            ResourceEnum.BUSINESS.create_simple_instance("3"),
+        ]
+        # raise_exception=False：不抛错但必须返回 False
+        assert p.is_allowed(ActionEnum.VIEW_BUSINESS, resources) is False
+
+        # raise_exception=True：抛 PermissionDeniedError，且 context 归属被拒的动作
+        with pytest.raises(PermissionDeniedError):
+            p.is_allowed(ActionEnum.VIEW_BUSINESS, resources, raise_exception=True)
+
+    def test_is_allowed_multi_resource_all_hit(self, fake_framework):
+        """多资源同类型全部允许 → 整体 True。"""
+        from bkmonitor.iam.iam_engine.core.types import BatchAuthResult, ResourceAuthResult
+
+        fw, provider = fake_framework
+        provider.batch_result = BatchAuthResult(
+            items=(
+                ResourceAuthResult(action_id="view_business", resource_type="space", resource_id="2", allowed=True),
+                ResourceAuthResult(action_id="view_business", resource_type="space", resource_id="3", allowed=True),
+            )
+        )
+        p = Permission(username="tester", bk_tenant_id="system")
+
+        resources = [
+            ResourceEnum.BUSINESS.create_simple_instance("2"),
+            ResourceEnum.BUSINESS.create_simple_instance("3"),
+        ]
+        assert p.is_allowed(ActionEnum.VIEW_BUSINESS, resources) is True
+
+    def test_is_allowed_mixed_resource_types_raises(self, fake_framework):
+        """混合资源类型必须显式拒绝：Permission.is_allowed 不接受隐式混合。"""
+        p = Permission(username="tester", bk_tenant_id="system")
+
+        resources = [
+            ResourceEnum.BUSINESS.create_simple_instance("2"),
+            ResourceEnum.APM_APPLICATION.create_simple_instance("app-1"),
+        ]
+        with pytest.raises(ValueError, match="混合资源类型"):
+            p.is_allowed(ActionEnum.VIEW_BUSINESS, resources)
 
 
 # ---------------------------------------------------------------------------
