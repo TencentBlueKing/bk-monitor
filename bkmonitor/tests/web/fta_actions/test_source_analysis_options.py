@@ -18,6 +18,7 @@ from api.devops.default import (
     ListUserProjectResource,
     ListUserRepositoryResource,
 )
+from core.drf_resource.contrib.api import APIResource
 from api.aidev.default import ListAgentsResource, ListSkillsResource, ListSpacesResource
 from bkmonitor.iam import ActionEnum
 from bkmonitor.iam.drf import BusinessActionPermission
@@ -65,6 +66,56 @@ class TestDevopsUserResources(SimpleTestCase):
             )
             with self.assertRaises(BKAPIError):
                 resource.render_response_data({}, {"status": 1, "message": "failed", "data": None})
+
+    def test_user_ticket_travels_in_authorization_header(self):
+        """用户凭证必须放在 X-Bkapi-Authorization 中。
+
+        APIGW 只从该请求头识别用户态身份，放进请求参数时 apigw-user 接口会返回
+        1640001 认证失败，同时 ticket 会随 GET URL 进入访问日志与失败日志。
+        """
+
+        base_headers = {"x-bkapi-authorization": json.dumps({"bk_username": "tester"})}
+
+        class _WithoutAppCredential:
+            BKCI_APP_CODE = ""
+            BKCI_APP_SECRET = ""
+
+        class _WithAppCredential:
+            BKCI_APP_CODE = "bkci-app"
+            BKCI_APP_SECRET = "bkci-secret"
+
+        # 每次返回新字典：get_headers 会就地改写返回值，共享同一份会串台
+        with patch.object(APIResource, "get_headers", side_effect=lambda *args, **kwargs: dict(base_headers)):
+            # 蓝盾专用应用凭证缺省时，仍需注入用户凭证
+            with patch("api.devops.default.settings", _WithoutAppCredential()):
+                resource = ListUserProjectResource()
+                resource.bk_ticket = "ticket-xyz"
+                authorization = json.loads(resource.get_headers()["x-bkapi-authorization"])
+                self.assertEqual(authorization["bk_ticket"], "ticket-xyz")
+                self.assertEqual(authorization["bk_username"], "tester")
+                self.assertNotIn("bk_app_code", authorization)
+
+                # 无用户凭证时不写入空值，避免网关按无效身份处理
+                authorization = json.loads(ListUserProjectResource().get_headers()["x-bkapi-authorization"])
+                self.assertNotIn("bk_ticket", authorization)
+
+            # 应用凭证与用户凭证并存
+            with patch("api.devops.default.settings", _WithAppCredential()):
+                resource = ListUserProjectResource()
+                resource.bk_ticket = "ticket-xyz"
+                authorization = json.loads(resource.get_headers()["x-bkapi-authorization"])
+                self.assertEqual(authorization["bk_app_code"], "bkci-app")
+                self.assertEqual(authorization["bk_app_secret"], "bkci-secret")
+                self.assertEqual(authorization["bk_ticket"], "ticket-xyz")
+
+    def test_user_ticket_is_stripped_from_request_params(self):
+        resource = ListUserRepositoryResource()
+        with patch.object(
+            APIResource,
+            "full_request_data",
+            return_value={"bk_ticket": "ticket-xyz", "bk_username": "tester", "project_id": "project-a"},
+        ):
+            self.assertEqual(resource.full_request_data({}), {"bk_username": "tester", "project_id": "project-a"})
 
 
 class TestAidevResources(SimpleTestCase):

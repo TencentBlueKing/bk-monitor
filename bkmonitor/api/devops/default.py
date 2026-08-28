@@ -32,23 +32,28 @@ class DevopsBaseResource(APIResource, metaclass=abc.ABCMeta):
 
     def full_request_data(self, validated_request_data):
         data = super().full_request_data(validated_request_data)
-        if hasattr(self, "bk_ticket"):
-            data.update({"bk_ticket": self.bk_ticket})
+        # 用户凭证只走 X-Bkapi-Authorization：APIGW 仅从该请求头识别用户态身份，
+        # 放进请求参数不仅认证不生效（apigw-user 接口会返回 1640001），
+        # 还会让 ticket 出现在 GET URL 与失败日志里。
+        data.pop("bk_ticket", None)
         return data
 
     def get_headers(self):
         headers = super().get_headers()
 
-        if not (settings.BKCI_APP_CODE and settings.BKCI_APP_SECRET):
-            return headers
-
         auth_header = json.loads(headers["x-bkapi-authorization"])
-        auth_header.update(
-            {
-                "bk_app_code": settings.BKCI_APP_CODE,
-                "bk_app_secret": settings.BKCI_APP_SECRET,
-            }
-        )
+        if settings.BKCI_APP_CODE and settings.BKCI_APP_SECRET:
+            auth_header.update(
+                {
+                    "bk_app_code": settings.BKCI_APP_CODE,
+                    "bk_app_secret": settings.BKCI_APP_SECRET,
+                }
+            )
+
+        bk_ticket = getattr(self, "bk_ticket", "")
+        if bk_ticket:
+            auth_header["bk_ticket"] = bk_ticket
+
         headers["x-bkapi-authorization"] = json.dumps(auth_header)
         return headers
 
