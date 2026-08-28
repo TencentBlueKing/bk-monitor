@@ -1,27 +1,26 @@
 """APM Span 字段元数据查询测试。"""
 
-from types import SimpleNamespace
-from typing import Any
+from typing import Any, cast
 
 import pytest
 
 from apm_web.constants import QueryMode
 from apm_web.handlers.backend_data_handler import TraceBackendHandler
 from apm_web.handlers.instance_handler import InstanceHandler
+from apm_web.handlers.query import get_query
+from apm_web.handlers.query.base import BaseQuery as APMBaseQuery
 from apm_web.handlers.query.span import SpanQuery
 from apm_web.handlers.trace_handler.view_config import TraceFieldsHandler, TraceFieldsInfoHandler
+from apm_web.models import Application
 from bkmonitor.data_source.utils.apm import TraceDatasourceTarget
-from bkmonitor.data_source.utils.query import BaseQuery
+from bkmonitor.data_source.utils.query import BaseQuery as DataSourceBaseQuery
 from constants.apm import OtlpKey, PreCalculateSpecificField
 
 
-def _make_application() -> SimpleNamespace:
-    return SimpleNamespace(
-        bk_biz_id=2,
-        app_name="app",
-        trace_result_table_id="2_bkapm.trace_app",
-        es_retention=30,
-    )
+def _make_application() -> Application:
+    application = Application(bk_biz_id=2, app_name="app", trace_result_table_id="2_bkapm.trace_app")
+    cast(dict[str, Any], application.__dict__)["es_retention"] = 30
+    return application
 
 
 def _make_uq_field(
@@ -31,11 +30,15 @@ def _make_uq_field(
     is_searchable: bool = True,
     is_agg: bool = True,
     is_list: bool = True,
+    field_alias: str | None = None,
+    origin_field: str | None = None,
     supported_operations: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     return {
         "field_name": field_name,
+        "field_alias": field_name if field_alias is None else field_alias,
         "field_type": field_type,
+        "origin_field": field_name.split(".", 1)[0] if origin_field is None else origin_field,
         "is_searchable": is_searchable,
         "is_agg": is_agg,
         "is_list": is_list,
@@ -51,7 +54,7 @@ def _make_uq_field(
     ],
 )
 def test_span_query_fields_uses_table_and_space_uid(mocker, start_time: int | None, end_time: int | None) -> None:
-    query_fields = mocker.patch.object(BaseQuery, "_query_fields", autospec=True, return_value={})
+    query_fields = mocker.patch.object(APMBaseQuery, "_query_fields", autospec=True, return_value={})
     mocker.patch(
         "apm_web.handlers.query.span.bk_biz_id_to_space_uid",
         side_effect=["bkcc__2", "bkcc__3"],
@@ -75,33 +78,36 @@ def test_span_query_fields_uses_table_and_space_uid(mocker, start_time: int | No
     )
 
 
-def test_span_query_from_application_builds_target_with_retention() -> None:
-    app: Any = _make_application()
+def test_application_build_data_sources_uses_trace_retention() -> None:
+    app = _make_application()
 
-    query = SpanQuery.from_application(app)
-
-    assert query.data_sources == [
+    assert app.build_data_sources() == [
         TraceDatasourceTarget.build(2, "app", "2_bkapm.trace_app", retention=30),
     ]
+
+
+def test_get_query_initializes_span_query() -> None:
+    data_sources = [TraceDatasourceTarget.build(2, "app", "2_bkapm.trace_app", retention=30)]
+
+    query = get_query(data_sources)
+
+    assert isinstance(query, SpanQuery)
+    assert query.data_sources == data_sources
     assert query.retention == 30
 
 
-def test_span_query_fields_by_application_uses_target_retention(mocker) -> None:
-    app: Any = _make_application()
-    query_fields = mocker.patch.object(SpanQuery, "query_fields", autospec=True, return_value={})
-    logger = mocker.patch("apm_web.handlers.query.span.logger")
+def test_apm_base_query_logs_data_sources_when_fields_are_empty(mocker) -> None:
+    data_sources = [TraceDatasourceTarget.build(2, "app", "2_bkapm.trace_app", retention=30)]
+    query = APMBaseQuery(data_sources)
+    query_fields = mocker.patch.object(DataSourceBaseQuery, "_query_fields", autospec=True, return_value={})
+    logger = mocker.patch("apm_web.handlers.query.base.logger")
 
-    assert SpanQuery.query_fields_by_application(app) == {}
+    assert query._query_fields([("2_bkapm.trace_app", "bkcc__2")], None, None) == {}
 
-    query = query_fields.call_args.args[0]
-    assert query.data_sources == [TraceDatasourceTarget.build(2, "app", "2_bkapm.trace_app", retention=30)]
-    query_fields.assert_called_once_with(query, None, None)
+    query_fields.assert_called_once_with(query, [("2_bkapm.trace_app", "bkcc__2")], None, None)
     logger.warning.assert_called_once_with(
-        "[SpanQuery] query fields returned empty: bk_biz_id=%s, app_name=%s, table_id=%s, retention=%s",
-        2,
-        "app",
-        "2_bkapm.trace_app",
-        30,
+        "[BaseQuery] query fields returned empty: data_sources=%s",
+        data_sources,
     )
 
 
@@ -209,21 +215,21 @@ def test_trace_fields_handler_only_returns_leaf_fields(mocker) -> None:
 
 
 def test_trace_fields_info_handler_builds_span_query_from_local_application(mocker) -> None:
-    app: Any = _make_application()
+    app = _make_application()
     mocker.patch(
         "apm_web.handlers.trace_handler.view_config.Application.objects.get",
         return_value=app,
     )
     query_fields = mocker.patch.object(
-        SpanQuery,
-        "query_fields_by_application",
-        return_value={"span_name": _make_uq_field("span_name", "keyword")},
+        SpanQuery, "query_fields", autospec=True, return_value={"span_name": _make_uq_field("span_name", "keyword")}
     )
 
     handler = TraceFieldsInfoHandler(bk_biz_id=2, app_name="app")
 
     assert handler.span_fields_info == {"span_name": _make_uq_field("span_name", "keyword")}
-    query_fields.assert_called_once_with(app)
+    query = query_fields.call_args.args[0]
+    assert query.data_sources == app.build_data_sources()
+    query_fields.assert_called_once_with(query, None, None)
 
 
 def test_trace_precalculated_fields_have_view_field_metadata() -> None:
@@ -283,22 +289,24 @@ def test_trace_collection_dimensions_do_not_depend_on_unify_query_is_agg() -> No
 
 
 def test_trace_fields_handler_returns_empty_fields_when_unify_query_returns_empty(mocker) -> None:
-    app: Any = _make_application()
+    app = _make_application()
     mocker.patch(
         "apm_web.handlers.trace_handler.view_config.Application.objects.get",
         return_value=app,
     )
-    query_fields = mocker.patch.object(SpanQuery, "query_fields_by_application", return_value={})
+    query_fields = mocker.patch.object(SpanQuery, "query_fields", autospec=True, return_value={})
 
     handler = TraceFieldsHandler(bk_biz_id=2, app_name="app")
 
     assert handler.get_fields_by_mode(QueryMode.SPAN) == []
-    query_fields.assert_called_once_with(app)
+    query = query_fields.call_args.args[0]
+    assert query.data_sources == app.build_data_sources()
+    query_fields.assert_called_once_with(query, None, None)
 
 
 def test_instance_span_fields_only_keeps_resource_leaf_fields(mocker) -> None:
-    app: Any = _make_application()
-    query_fields = mocker.patch.object(SpanQuery, "query_fields_by_application")
+    app = _make_application()
+    query_fields = mocker.patch.object(SpanQuery, "query_fields", autospec=True)
     query_fields.return_value = {
         OtlpKey.RESOURCE: _make_uq_field(
             OtlpKey.RESOURCE,
@@ -315,15 +323,18 @@ def test_instance_span_fields_only_keeps_resource_leaf_fields(mocker) -> None:
     fields = InstanceHandler.get_span_fields(app)
 
     assert fields == [{"id": "resource.custom_name", "name": "resource.custom_name", "alias": None}]
-    query_fields.assert_called_once_with(app)
+    query = query_fields.call_args.args[0]
+    assert query.data_sources == app.build_data_sources()
+    query_fields.assert_called_once_with(query, None, None)
 
 
 def test_instance_span_fields_preserve_unify_query_order(mocker) -> None:
-    app: Any = _make_application()
+    app = _make_application()
     field_names = ["resource.z_field", "resource.a_field", "resource.m_field", "resource.b_field"]
     mocker.patch.object(
         SpanQuery,
-        "query_fields_by_application",
+        "query_fields",
+        autospec=True,
         return_value={field_name: _make_uq_field(field_name, "keyword") for field_name in field_names},
     )
 
@@ -333,66 +344,62 @@ def test_instance_span_fields_preserve_unify_query_order(mocker) -> None:
 
 
 def test_trace_storage_field_info_uses_searchable_unify_query_fields(mocker) -> None:
-    app: Any = _make_application()
-    query_fields = mocker.patch.object(SpanQuery, "query_fields_by_application")
+    app = _make_application()
+    query_fields = mocker.patch.object(SpanQuery, "query_fields", autospec=True)
     query_fields.return_value = {
-        OtlpKey.RESOURCE: {"field_type": "object", "is_searchable": False},
-        OtlpKey.SPAN_NAME: {"field_type": "keyword", "is_searchable": True},
-        "attributes.message": {"field_type": "text", "is_searchable": True},
-        "time": {"field_type": "date", "is_searchable": True},
-        "attributes.status": {"field_type": "conflict", "is_searchable": True},
+        OtlpKey.RESOURCE: _make_uq_field(OtlpKey.RESOURCE, "object", is_searchable=False),
+        OtlpKey.SPAN_NAME: _make_uq_field(OtlpKey.SPAN_NAME, "keyword", field_alias="接口名称"),
+        "attributes.message": _make_uq_field("attributes.message", "text"),
+        "time": _make_uq_field("time", "date", field_alias="时间"),
+        "attributes.status": _make_uq_field("attributes.status", "conflict"),
     }
-    get_result_table = mocker.patch(
-        "apm_web.handlers.backend_data_handler.api.metadata.get_result_table",
-        return_value={
-            "field_list": [
-                {"field_name": OtlpKey.SPAN_NAME, "description": "Span 名称"},
-                {"field_name": "attributes.message", "description": "消息内容"},
-            ]
-        },
-    )
+    get_result_table = mocker.patch("apm_web.handlers.backend_data_handler.api.metadata.get_result_table")
 
     fields = TraceBackendHandler(app).storage_field_info()
 
     assert fields == [
         {
             "field_name": OtlpKey.SPAN_NAME,
-            "ch_field_name": "Span 名称",
+            "ch_field_name": "接口名称",
             "analysis_field": False,
             "field_type": "keyword",
             "time_field": False,
         },
         {
             "field_name": "attributes.message",
-            "ch_field_name": "消息内容",
+            "ch_field_name": "attributes.message",
             "analysis_field": True,
             "field_type": "text",
             "time_field": False,
         },
         {
             "field_name": "time",
-            "ch_field_name": "",
+            "ch_field_name": "时间",
             "analysis_field": False,
             "field_type": "date",
             "time_field": True,
         },
         {
             "field_name": "attributes.status",
-            "ch_field_name": "",
+            "ch_field_name": "attributes.status",
             "analysis_field": False,
             "field_type": "conflict",
             "time_field": False,
         },
     ]
-    query_fields.assert_called_once_with(app)
-    get_result_table.assert_called_once_with({"table_id": "2_bkapm.trace_app"})
+    query = query_fields.call_args.args[0]
+    assert query.data_sources == app.build_data_sources()
+    query_fields.assert_called_once_with(query, None, None)
+    get_result_table.assert_not_called()
 
 
-def test_trace_storage_field_info_returns_empty_without_metadata_fallback(mocker) -> None:
-    app: Any = _make_application()
-    query_fields = mocker.patch.object(SpanQuery, "query_fields_by_application", return_value={})
+def test_trace_storage_field_info_returns_empty_when_unify_query_returns_empty(mocker) -> None:
+    app = _make_application()
+    query_fields = mocker.patch.object(SpanQuery, "query_fields", autospec=True, return_value={})
     get_result_table = mocker.patch("apm_web.handlers.backend_data_handler.api.metadata.get_result_table")
 
     assert TraceBackendHandler(app).storage_field_info() == []
-    query_fields.assert_called_once_with(app)
+    query = query_fields.call_args.args[0]
+    assert query.data_sources == app.build_data_sources()
+    query_fields.assert_called_once_with(query, None, None)
     get_result_table.assert_not_called()

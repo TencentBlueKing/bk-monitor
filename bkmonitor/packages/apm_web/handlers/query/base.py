@@ -8,13 +8,14 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from typing import TYPE_CHECKING, Self, cast
+import logging
+from typing import Any
 
 from bkmonitor.data_source.utils.apm import TraceDatasourceTarget
+from bkmonitor.data_source.utils import types
 from bkmonitor.data_source.utils.query import BaseQuery as DataSourceBaseQuery
 
-if TYPE_CHECKING:
-    from apm_web.models import Application
+logger = logging.getLogger("apm")
 
 
 class BaseQuery(DataSourceBaseQuery):
@@ -23,17 +24,15 @@ class BaseQuery(DataSourceBaseQuery):
     def __init__(self, data_sources: list[TraceDatasourceTarget]) -> None:
         self.data_sources: list[TraceDatasourceTarget] = data_sources
 
-    @classmethod
-    def from_application(cls, application: "Application") -> Self:
-        """根据 APM 应用构造携带数据保留期的查询对象。"""
+    def _query_fields(
+        self,
+        targets: list[tuple[types.TableId, types.SpaceUid]],
+        start_time: int | None,
+        end_time: int | None,
+    ) -> dict[str, dict[str, Any]]:
+        """查询字段元数据，并在空结果时记录当前数据源。"""
 
-        return cls(
-            [
-                TraceDatasourceTarget.build(
-                    bk_biz_id=cast(int, application.bk_biz_id),
-                    app_name=cast(str, application.app_name),
-                    table_id=cast(str, application.trace_result_table_id),
-                    retention=cast(int, application.es_retention),
-                )
-            ]
-        )
+        fields_info = super()._query_fields(targets, start_time, end_time)
+        if not fields_info:
+            logger.warning("[BaseQuery] query fields returned empty: data_sources=%s", self.data_sources)
+        return fields_info

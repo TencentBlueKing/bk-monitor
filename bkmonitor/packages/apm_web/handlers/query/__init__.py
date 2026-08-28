@@ -7,3 +7,13 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
+from bkmonitor.data_source.utils.apm import TraceDatasourceTarget
+
+from apm_web.handlers.query.span import SpanQuery
+
+
+def get_query(data_sources: list[TraceDatasourceTarget]) -> SpanQuery:
+    """根据数据源构造 Span 查询对象。"""
+
+    return SpanQuery(data_sources)

@@ -20,7 +20,7 @@ from django.conf import settings
 from django.utils.functional import cached_property
 from django.utils.translation import gettext_lazy as _
 
-from apm_web.handlers.query.span import SpanQuery
+from apm_web.handlers.query import get_query
 from bkmonitor.utils.time_tools import time_interval_align
 from constants.apm import TelemetryDataType
 from constants.data_source import (
@@ -219,24 +219,15 @@ class TraceBackendHandler(TelemetryBackendHandler):
     def storage_field_info(self) -> list[dict[str, Any]]:
         """通过 unify-query 获取可搜索的 Span 字段信息。"""
 
-        fields_info = SpanQuery.query_fields_by_application(self.app)
+        fields_info = get_query(self.app.build_data_sources()).query_fields(None, None)
         searchable_fields: list[tuple[str, dict[str, Any]]] = [
             (field_name, field_info) for field_name, field_info in fields_info.items() if field_info["is_searchable"]
         ]
-        if not searchable_fields:
-            return []
-
-        table_data: list[dict[str, Any]] = api.metadata.get_result_table(
-            {"table_id": self.app.trace_result_table_id}
-        ).get("field_list", [])
-        field_desc_data: dict[str, str] = {
-            table_field_info["field_name"]: table_field_info["description"] for table_field_info in table_data
-        }
 
         return [
             {
                 "field_name": field_name,
-                "ch_field_name": field_desc_data.get(field_name, ""),
+                "ch_field_name": field_info["field_alias"],
                 "analysis_field": field_info["field_type"] == FieldTypeEnum.TEXT.value,
                 "field_type": field_info["field_type"],
                 "time_field": field_info["field_type"] == FieldTypeEnum.DATE.value,

@@ -21,6 +21,7 @@ from typing import Any
 
 from apm.constants import KindCategory
 from apm_web.constants import CategoryEnum, QueryMode, SPAN_SORTED_FIELD
+from apm_web.handlers.query import get_query
 from apm_web.handlers.query.span import SpanQuery
 from apm_web.handlers.trace_handler.query import TraceQueryTransformer
 from apm_web.models import Application
@@ -47,13 +48,6 @@ SPAN_SORTED_FIELD_INDEX_MAP = {field_name: index for index, field_name in enumer
 
 class TraceFieldsInfoHandler:
     """trace 检索页面不同视角下的所有字段信息"""
-
-    VIEW_FIELD_METADATA_KEYS: tuple[str, ...] = (
-        "field_type",
-        "is_searchable",
-        "is_list",
-        "supported_operations",
-    )
 
     # 预计算对象字段扩展信息
     TRACE_PRE_OBJECTS_FIELDS_EXTEND = {
@@ -85,7 +79,7 @@ class TraceFieldsInfoHandler:
     def span_fields_info(self) -> dict[str, dict[str, Any]]:
         """通过 unify-query 获取 Span 原始表的字段信息。"""
 
-        return SpanQuery.query_fields_by_application(self.application)
+        return get_query(self.application.build_data_sources()).query_fields(None, None)
 
     @staticmethod
     def _build_static_field_info(field_type: str) -> dict[str, Any]:
@@ -150,7 +144,8 @@ class TraceFieldsInfoHandler:
 
                 span_field_info = span_fields_info[field_name]
                 standard_fields_info[trace_field_name] = {
-                    key: span_field_info[key] for key in self.VIEW_FIELD_METADATA_KEYS
+                    key: span_field_info[key]
+                    for key in ("field_type", "is_searchable", "is_list", "supported_operations")
                 }
         return standard_fields_info
 

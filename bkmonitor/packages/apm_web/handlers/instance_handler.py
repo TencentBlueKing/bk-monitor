@@ -11,7 +11,7 @@ specific language governing permissions and limitations under the License.
 from typing import Any
 
 from apm_web.constants import InstanceDiscoverKeys
-from apm_web.handlers.query.span import SpanQuery
+from apm_web.handlers.query import get_query
 from apm_web.models import Application
 from constants.apm import OtlpKey
 
@@ -23,12 +23,11 @@ class InstanceHandler:
     def get_span_fields(cls, app: Application) -> list[dict[str, Any]]:
         """获取所有 Resource 类型的 Span 字段。"""
 
-        fields_info = SpanQuery.query_fields_by_application(app)
-        resource_field_prefix: str = f"{OtlpKey.RESOURCE}."
+        fields_info = get_query(app.build_data_sources()).query_fields(None, None)
         field_names: list[str] = [
             field_name
             for field_name, field_info in fields_info.items()
-            if field_name.startswith(resource_field_prefix)
+            if field_info["origin_field"] == OtlpKey.RESOURCE
             and field_info["is_searchable"]
             and field_name != cls.BK_INSTANCE_ID_FIELD_NAME
         ]
