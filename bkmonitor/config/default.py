@@ -1535,14 +1535,17 @@ IAM_FRAMEWORK = {
     #   fallback_on_error —— primary 默认 True；主 Provider 故障时是否切换备用 Provider。
     "COMPOSITION": _IAM_COMPOSITION,
     "MIGRATION": {
-        # 迁移模式 manual ｜ semi_auto
-        "mode": "semi_auto",
-        # 迁移文件存放目录
-        "directory": "bkmonitor/iam/iam_migrations",
-        # 破坏性变更（DELETE / id变更重建）全局开关，默认 False：
-        # 破坏性变更（DELETE / 方言 id 变更重建）必须走独立命令 `iam_engine_migrate
-        # --allow-destructive` 显式确认，绝不在 post_migrate 自动流程里默认放开。
-        "allow_destructive": False,
+        # 迁移模式 manual ｜ semi_auto —— 由 BK_IAM_ENGINE_MIGRATION_MODE 控制，
+        # 默认 semi_auto 保持随 `manage.py migrate` 一起跑（幂等 CREATE/UPDATE）。
+        "mode": os.getenv("BK_IAM_ENGINE_MIGRATION_MODE", "semi_auto"),
+        # 迁移文件存放目录 —— 由 BK_IAM_ENGINE_MIGRATION_DIRECTORY 控制。
+        "directory": os.getenv("BK_IAM_ENGINE_MIGRATION_DIRECTORY", "bkmonitor/iam/iam_migrations"),
+        # 破坏性变更（DELETE / 方言 id 变更重建）全局开关：
+        # 默认 False —— 破坏性变更必须走独立命令 `iam_engine_migrate --allow-destructive`
+        # 显式确认，绝不在 post_migrate 自动流程里默认放开。
+        # 由 BK_IAM_ENGINE_MIGRATION_ALLOW_DESTRUCTIVE 控制，取值 "1"/"true"/"yes" 表示开启。
+        "allow_destructive": os.getenv("BK_IAM_ENGINE_MIGRATION_ALLOW_DESTRUCTIVE", "false").lower()
+        in ("1", "true", "yes"),
     },
 }
 
