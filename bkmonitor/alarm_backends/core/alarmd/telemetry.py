@@ -22,6 +22,12 @@ STAGE_REFERENCE = "reference"
 STATUS_SUCCESS = "success"
 STATUS_FAILED = "failed"
 
+STATUS_SOURCE = "source"
+STATUS_PLANNED = "planned"
+STATUS_ACKED = "acked"
+STATUS_DROPPED = "dropped"
+STATUS_ACK_UNKNOWN = "ack_unknown"
+
 
 def record_shadow_async_job(stage: str, status: str) -> None:
     metrics.ALARMD_SHADOW_ASYNC_JOB_COUNT.labels(stage=stage, status=status).inc()
@@ -50,6 +56,74 @@ def record_shadow_published_records(stage: str, count: int) -> None:
 
     if count > 0:
         metrics.ALARMD_SHADOW_PUBLISH_RECORD_COUNT.labels(stage=stage).inc(count)
+
+
+def record_shadow_access_funnel(
+    *,
+    source_records: int,
+    planned_records: int,
+    planned_messages: int,
+    planned_bytes: int,
+    acked_records: int,
+    acked_messages: int,
+    acked_bytes: int,
+    dropped_records: int,
+    dropped_messages: int,
+    dropped_bytes: int,
+    ack_unknown_records: int,
+    ack_unknown_messages: int,
+    ack_unknown_bytes: int,
+) -> None:
+    """Record one completed Access v2 job using three independent units."""
+
+    values = (
+        source_records,
+        planned_records,
+        planned_messages,
+        planned_bytes,
+        acked_records,
+        acked_messages,
+        acked_bytes,
+        dropped_records,
+        dropped_messages,
+        dropped_bytes,
+        ack_unknown_records,
+        ack_unknown_messages,
+        ack_unknown_bytes,
+    )
+    if any(value < 0 for value in values):
+        raise ValueError("alarmd Access v2 funnel counters must be non-negative")
+    if (
+        planned_records > source_records
+        or planned_records != acked_records + dropped_records + ack_unknown_records
+        or planned_messages != acked_messages + dropped_messages + ack_unknown_messages
+        or planned_bytes != acked_bytes + dropped_bytes + ack_unknown_bytes
+    ):
+        raise ValueError("alarmd Access v2 planned cohort does not conserve")
+
+    _increment(metrics.ALARMD_SHADOW_ACCESS_RECORD_COUNT, STATUS_SOURCE, source_records)
+    _increment(metrics.ALARMD_SHADOW_ACCESS_RECORD_COUNT, STATUS_ACKED, acked_records)
+    _increment(
+        metrics.ALARMD_SHADOW_ACCESS_RECORD_COUNT,
+        STATUS_DROPPED,
+        source_records - planned_records + dropped_records,
+    )
+    _increment(metrics.ALARMD_SHADOW_ACCESS_RECORD_COUNT, STATUS_ACK_UNKNOWN, ack_unknown_records)
+
+    _increment(metrics.ALARMD_SHADOW_ACCESS_MESSAGE_COUNT, STATUS_PLANNED, planned_messages)
+    _increment(metrics.ALARMD_SHADOW_ACCESS_MESSAGE_COUNT, STATUS_ACKED, acked_messages)
+    _increment(metrics.ALARMD_SHADOW_ACCESS_MESSAGE_COUNT, STATUS_DROPPED, dropped_messages)
+    _increment(metrics.ALARMD_SHADOW_ACCESS_MESSAGE_COUNT, STATUS_ACK_UNKNOWN, ack_unknown_messages)
+
+    _increment(metrics.ALARMD_SHADOW_ACCESS_BYTES, STATUS_PLANNED, planned_bytes)
+    _increment(metrics.ALARMD_SHADOW_ACCESS_BYTES, STATUS_ACKED, acked_bytes)
+    _increment(metrics.ALARMD_SHADOW_ACCESS_BYTES, STATUS_DROPPED, dropped_bytes)
+    _increment(metrics.ALARMD_SHADOW_ACCESS_BYTES, STATUS_ACK_UNKNOWN, ack_unknown_bytes)
+
+
+def _increment(counter, status: str, count: int) -> None:
+    if count > 0:
+        counter.labels(status=status).inc(count)
 
 
 def _observe(stage: str, status: str, elapsed: float) -> None:

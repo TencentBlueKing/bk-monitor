@@ -116,7 +116,41 @@ class AccessPublishEvidence:
     acked_messages: int
     acked_records: int
     acked_bytes: int
+    dropped_messages: int
     dropped_records: int
+    dropped_bytes: int
+    ack_unknown_messages: int
+    ack_unknown_records: int
+    ack_unknown_bytes: int
+    planner_dropped_records: int
+
+    def __post_init__(self):
+        values = (
+            self.planned_messages,
+            self.planned_records,
+            self.planned_bytes,
+            self.published_messages,
+            self.published_records,
+            self.published_bytes,
+            self.acked_messages,
+            self.acked_records,
+            self.acked_bytes,
+            self.dropped_messages,
+            self.dropped_records,
+            self.dropped_bytes,
+            self.ack_unknown_messages,
+            self.ack_unknown_records,
+            self.ack_unknown_bytes,
+            self.planner_dropped_records,
+        )
+        if any(value < 0 for value in values):
+            raise ValueError("alarmd Access v2 publish evidence must be non-negative")
+        if (
+            self.planned_messages != self.acked_messages + self.dropped_messages + self.ack_unknown_messages
+            or self.planned_records != self.acked_records + self.dropped_records + self.ack_unknown_records
+            or self.planned_bytes != self.acked_bytes + self.dropped_bytes + self.ack_unknown_bytes
+        ):
+            raise ValueError("alarmd Access v2 planned publish evidence does not conserve")
 
 
 class AccessV2PublishError(RuntimeError):
@@ -137,7 +171,13 @@ def _fully_dropped_evidence(record_count: int) -> AccessPublishEvidence:
         acked_messages=0,
         acked_records=0,
         acked_bytes=0,
-        dropped_records=record_count,
+        dropped_messages=0,
+        dropped_records=0,
+        dropped_bytes=0,
+        ack_unknown_messages=0,
+        ack_unknown_records=0,
+        ack_unknown_bytes=0,
+        planner_dropped_records=record_count,
     )
 
 
@@ -166,6 +206,35 @@ def _record_acknowledged_records(acknowledged_records: int) -> None:
         logger.exception(
             "[alarmd shadow] component=alarmd-python stage=access_v2 "
             "result=fail_open reason=AUDIT_DROP operation=telemetry"
+        )
+
+
+def _record_access_funnel(
+    source_records: int,
+    evidence: AccessPublishEvidence | None = None,
+) -> None:
+    try:
+        from alarm_backends.core.alarmd.telemetry import record_shadow_access_funnel
+
+        record_shadow_access_funnel(
+            source_records=source_records,
+            planned_records=evidence.planned_records if evidence else 0,
+            planned_messages=evidence.planned_messages if evidence else 0,
+            planned_bytes=evidence.planned_bytes if evidence else 0,
+            acked_records=evidence.acked_records if evidence else 0,
+            acked_messages=evidence.acked_messages if evidence else 0,
+            acked_bytes=evidence.acked_bytes if evidence else 0,
+            dropped_records=evidence.dropped_records if evidence else 0,
+            dropped_messages=evidence.dropped_messages if evidence else 0,
+            dropped_bytes=evidence.dropped_bytes if evidence else 0,
+            ack_unknown_records=evidence.ack_unknown_records if evidence else 0,
+            ack_unknown_messages=evidence.ack_unknown_messages if evidence else 0,
+            ack_unknown_bytes=evidence.ack_unknown_bytes if evidence else 0,
+        )
+    except Exception:
+        logger.exception(
+            "[alarmd shadow] component=alarmd-python stage=access_v2 "
+            "result=fail_open reason=AUDIT_DROP operation=access_funnel"
         )
 
 
@@ -778,15 +847,34 @@ class KafkaExecutionEnvelopePublisher:
             )
         receipt = KafkaPublishReceipt()
         lock = threading.Lock()
+        message_states = [{"message": message, "status": "planned"} for message in messages]
+        finalized = False
         published_messages = 0
         published_records = 0
         published_bytes = 0
-        acked_messages = 0
-        acked_records = 0
-        acked_bytes = 0
 
         def evidence() -> AccessPublishEvidence:
+            nonlocal finalized
             with lock:
+                if not finalized:
+                    for state in message_states:
+                        if state["status"] == "pending":
+                            state["status"] = "ack_unknown"
+                        elif state["status"] == "planned":
+                            state["status"] = "dropped"
+                    finalized = True
+
+                def terminal_totals(status):
+                    terminal_messages = [state["message"] for state in message_states if state["status"] == status]
+                    return (
+                        len(terminal_messages),
+                        sum(message.record_count for message in terminal_messages),
+                        sum(len(message.payload) for message in terminal_messages),
+                    )
+
+                acked_messages, acked_records, acked_bytes = terminal_totals("acked")
+                dropped_messages, dropped_records, dropped_bytes = terminal_totals("dropped")
+                ack_unknown_messages, ack_unknown_records, ack_unknown_bytes = terminal_totals("ack_unknown")
                 return AccessPublishEvidence(
                     planned_messages=len(messages),
                     planned_records=sum(message.record_count for message in messages),
@@ -797,36 +885,43 @@ class KafkaExecutionEnvelopePublisher:
                     acked_messages=acked_messages,
                     acked_records=acked_records,
                     acked_bytes=acked_bytes,
-                    dropped_records=len(drops),
+                    dropped_messages=dropped_messages,
+                    dropped_records=dropped_records,
+                    dropped_bytes=dropped_bytes,
+                    ack_unknown_messages=ack_unknown_messages,
+                    ack_unknown_records=ack_unknown_records,
+                    ack_unknown_bytes=ack_unknown_bytes,
+                    planner_dropped_records=len(drops),
                 )
 
-        def delivery_callback(current, downstream):
+        def delivery_callback(state, downstream):
             delivered = False
 
             def on_delivery(error, broker_message):
-                nonlocal delivered, acked_messages, acked_records, acked_bytes
+                nonlocal delivered
                 with lock:
                     if delivered:
                         return
                     delivered = True
-                    if error is None:
-                        acked_messages += 1
-                        acked_records += current.record_count
-                        acked_bytes += len(current.payload)
+                    if not finalized:
+                        state["status"] = "acked" if error is None else "dropped"
                 downstream(error, broker_message)
 
             return on_delivery
 
-        for message in messages:
+        for state in message_states:
+            message = state["message"]
             callback, cancel = receipt.reserve(message.record_count)
             try:
                 self.producer.produce(
                     topic=self.topic,
                     key=message.key,
                     value=message.payload,
-                    on_delivery=delivery_callback(message, callback),
+                    on_delivery=delivery_callback(state, callback),
                 )
                 with lock:
+                    if state["status"] == "planned":
+                        state["status"] = "pending"
                     published_messages += 1
                     published_records += message.record_count
                     published_bytes += len(message.payload)
@@ -834,6 +929,9 @@ class KafkaExecutionEnvelopePublisher:
                     self.producer.poll(0)
             except Exception as error:
                 cancel()
+                with lock:
+                    if state["status"] == "planned":
+                        state["status"] = "dropped"
                 receipt.fail_enqueue(error)
                 break
         _record_stage("published")
@@ -842,23 +940,24 @@ class KafkaExecutionEnvelopePublisher:
             self.producer.flush(timeout=self.flush_timeout)
         except Exception as error:
             flush_error = error
+        publish_evidence = evidence()
         if receipt.enqueue_error:
             raise AccessV2PublishError(
                 "alarmd v2 Kafka message enqueue failed",
-                evidence(),
+                publish_evidence,
                 reason_code="OUTPUT_ENQUEUE_FAILED",
             ) from receipt.enqueue_error
-        if receipt.first_delivery_error:
+        if publish_evidence.dropped_messages:
             raise AccessV2PublishError(
                 "alarmd v2 Kafka message delivery failed",
-                evidence(),
+                publish_evidence,
                 reason_code="OUTPUT_DELIVERY_FAILED",
             ) from receipt.first_delivery_error
         if flush_error is not None:
-            raise AccessV2PublishError("alarmd v2 Kafka flush failed", evidence()) from flush_error
-        if receipt.pending_messages:
-            raise AccessV2PublishError("alarmd v2 Kafka publish was not fully acknowledged", evidence())
-        return evidence()
+            raise AccessV2PublishError("alarmd v2 Kafka flush failed", publish_evidence) from flush_error
+        if publish_evidence.ack_unknown_messages:
+            raise AccessV2PublishError("alarmd v2 Kafka publish was not fully acknowledged", publish_evidence)
+        return publish_evidence
 
 
 _publisher_lock = threading.Lock()
@@ -898,6 +997,7 @@ def _new_async_publisher() -> BoundedAccessShadowPublisher:
             _record_stage("built")
         except Exception:
             _record_stage("dropped")
+            _record_access_funnel(len(source.records))
             logger.exception(
                 "[alarmd shadow] component=alarmd-python stage=access_v2 result=coverage_gap "
                 "reason=PLAN_INVALID execution_id=%s query_group_key=%s duration_ms=%s",
@@ -912,17 +1012,24 @@ def _new_async_publisher() -> BoundedAccessShadowPublisher:
                     shadow_kafka_config(settings.ALARMD_V2_SHADOW_KAFKA_CONFIG),
                     shadow_topics(settings.ALARMD_V2_SHADOW_ALLOWED_TOPICS),
                 )
-            publish_evidence = kafka_publisher.publish(jobs)
+            from alarm_backends.core.alarmd.telemetry import observe_shadow_publish
+
+            with observe_shadow_publish(TELEMETRY_STAGE):
+                publish_evidence = kafka_publisher.publish(jobs)
         except AccessV2PublishError as error:
             if error.evidence.acked_messages:
                 _record_acknowledged_records(error.evidence.acked_records)
             _record_stage("dropped")
+            _record_access_funnel(len(source.records), error.evidence)
             logger.exception(
                 "[alarmd shadow] component=alarmd-python stage=access_v2 result=fail_open "
                 "reason=%s execution_id=%s query_group_key=%s datasets=%s "
                 "planned_messages=%s planned_records=%s planned_bytes=%s "
                 "published_messages=%s published_records=%s published_bytes=%s "
-                "acked_messages=%s acked_records=%s acked_bytes=%s dropped_records=%s duration_ms=%s",
+                "acked_messages=%s acked_records=%s acked_bytes=%s "
+                "dropped_messages=%s dropped_records=%s dropped_bytes=%s "
+                "ack_unknown_messages=%s ack_unknown_records=%s ack_unknown_bytes=%s "
+                "planner_dropped_records=%s duration_ms=%s",
                 error.reason_code,
                 source.alarmd_v2_execution_id,
                 source.strategy_group_key,
@@ -936,12 +1043,19 @@ def _new_async_publisher() -> BoundedAccessShadowPublisher:
                 error.evidence.acked_messages,
                 error.evidence.acked_records,
                 error.evidence.acked_bytes,
+                error.evidence.dropped_messages,
                 error.evidence.dropped_records,
+                error.evidence.dropped_bytes,
+                error.evidence.ack_unknown_messages,
+                error.evidence.ack_unknown_records,
+                error.evidence.ack_unknown_bytes,
+                error.evidence.planner_dropped_records,
                 max(0, round((time.monotonic() - started) * 1000)),
             )
             return
         except Exception:
             _record_stage("dropped")
+            _record_access_funnel(len(source.records))
             logger.exception(
                 "[alarmd shadow] component=alarmd-python stage=access_v2 result=fail_open "
                 "reason=KAFKA_UNAVAILABLE execution_id=%s query_group_key=%s datasets=%s duration_ms=%s",
@@ -952,17 +1066,18 @@ def _new_async_publisher() -> BoundedAccessShadowPublisher:
             )
         else:
             _record_stage("acked", publish_evidence.acked_records)
+            _record_access_funnel(len(source.records), publish_evidence)
             logger.info(
                 "[alarmd shadow] component=alarmd-python stage=access_v2 result=acked "
                 "execution_id=%s query_group_key=%s datasets=%s "
-                "messages=%s records=%s bytes=%s dropped_records=%s duration_ms=%s",
+                "messages=%s records=%s bytes=%s planner_dropped_records=%s duration_ms=%s",
                 source.alarmd_v2_execution_id,
                 source.strategy_group_key,
                 len(jobs),
                 publish_evidence.acked_messages,
                 publish_evidence.acked_records,
                 publish_evidence.acked_bytes,
-                publish_evidence.dropped_records,
+                publish_evidence.planner_dropped_records,
                 max(0, round((time.monotonic() - started) * 1000)),
             )
 
@@ -989,6 +1104,7 @@ def submit_access_shadow(processor, records: Sequence) -> bool:
                 _publisher = _new_async_publisher()
             except Exception:
                 _record_stage("dropped")
+                _record_access_funnel(len(records))
                 _log_publisher_initialize_failure(process_id)
                 return False
             _publisher_pid = process_id
@@ -1000,6 +1116,7 @@ def submit_access_shadow(processor, records: Sequence) -> bool:
     )
     if not accepted:
         _record_stage("dropped")
+        _record_access_funnel(len(records))
         logger.warning(
             "[alarmd shadow] component=alarmd-python stage=access_v2 result=coverage_gap reason=RESOURCE_HARD_STOP records=%s",
             len(records),
