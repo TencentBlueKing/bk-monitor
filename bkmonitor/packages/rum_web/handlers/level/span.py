@@ -435,14 +435,14 @@ class SpanLevelHandler(BaseRumLevelHandler):
         """并发统计各区间计数，返回按区间起点升序排列的数据点列表。"""
         buckets: list[tuple[int, list[Any]]] = []
 
-        def _collect(interval: tuple[int, int]):
+        def _collect(left: int, right: int):
             interval_filters = filters + [
-                {"key": field_name, "value": [interval[0], interval[1]], "operator": FilterOperator.BETWEEN}
+                {"key": field_name, "value": [left, right], "operator": FilterOperator.BETWEEN}
             ]
             interval_count = self.query.query_field_aggregated_value(
                 start_time, end_time, "_index", "count", interval_filters, query_string
             )
-            buckets.append((interval[0], [int(interval_count or 0), f"{interval[0]}-{interval[1]}"]))
+            buckets.append((left, [int(interval_count or 0), f"{left}-{right}"]))
 
         ThreadPool().map_ignore_exception(_collect, intervals)
         buckets.sort(key=lambda item: item[0])
