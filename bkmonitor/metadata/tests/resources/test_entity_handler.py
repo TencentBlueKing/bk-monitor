@@ -254,19 +254,21 @@ class TestEntityHandlerApply:
         with pytest.raises(ValidationError):
             entity_handler.apply(metadata=metadata, spec=spec)
 
-    def test_apply_rejects_missing_resource_definition(self, entity_handler, cleanup_test_data):
-        with pytest.raises(ValidationError, match="关联资源定义不存在"):
-            entity_handler.apply(
-                metadata={"namespace": "test_namespace", "name": "test_entity_missing_resource"},
-                spec={"from_resource": "missing_source", "to_resource": "target"},
-            )
+    def test_apply_allows_missing_resource_definition(self, entity_handler, cleanup_test_data):
+        result = entity_handler.apply(
+            metadata={"namespace": "test_namespace", "name": "test_entity_missing_resource"},
+            spec={"from_resource": "missing_source", "to_resource": "target"},
+        )
 
-    def test_apply_rejects_global_custom_relation_namespace(self, entity_handler, cleanup_test_data):
-        with pytest.raises(ValidationError, match="必须使用业务命名空间"):
-            entity_handler.apply(
-                metadata={"namespace": NAMESPACE_ALL, "name": "test_global_relation"},
-                spec={"from_resource": "source", "to_resource": "target"},
-            )
+        assert result["spec"] == {"from_resource": "missing_source", "to_resource": "target"}
+
+    def test_apply_allows_global_custom_relation_namespace(self, entity_handler, cleanup_test_data):
+        result = entity_handler.apply(
+            metadata={"namespace": NAMESPACE_ALL, "name": "test_global_relation"},
+            spec={"from_resource": "source", "to_resource": "target"},
+        )
+
+        assert result["metadata"]["namespace"] == NAMESPACE_ALL
 
 
 class TestEntityHandlerGet:
