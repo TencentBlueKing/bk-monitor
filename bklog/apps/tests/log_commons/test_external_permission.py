@@ -1,10 +1,13 @@
 from datetime import timedelta
+from unittest.mock import patch
 
 from django.test import TestCase
 from django.utils import timezone
 
-from apps.constants import ExternalPermissionActionEnum
+from apps.constants import ExternalPermissionActionEnum, TokenStatusEnum
+from apps.iam.handlers.actions import ActionEnum
 from apps.log_commons.constants import DEFAULT_EXTERNAL_PERMISSION_EXPIRE_DAYS
+from apps.log_commons.handlers.external_permission import ExternalPermissionHandler
 from apps.log_commons.models import ExternalPermission
 
 
@@ -71,25 +74,45 @@ class TestClusteringConfigActionValid(TestCase):
 
     LOG_SEARCH = ExternalPermissionActionEnum.LOG_SEARCH.value
     LOG_EXTRACT = ExternalPermissionActionEnum.LOG_EXTRACT.value
+    LOG_CLUSTERING = ExternalPermissionActionEnum.LOG_CLUSTERING.value
+
+    # view_action 是 ViewSet 的方法名，check 对应 url_path check_regexp
+    WRITE_VIEW_ACTIONS = ["update_access", "get_default_config", "debug", "check"]
 
     def _is_valid(self, view_set, view_action, action_id=None):
         return ExternalPermission.is_action_valid(
-            view_set=view_set, view_action=view_action, action_id=action_id or self.LOG_SEARCH
+            view_set=view_set, view_action=view_action, action_id=action_id or self.LOG_CLUSTERING
         )
 
-    # ---------- 聚类配置读写链路对外开放 ----------
-    def test_clustering_config_write_actions_allowed(self):
-        # view_action 是 ViewSet 的方法名，check 对应 url_path check_regexp
-        for view_action in ["get_config", "access_status", "update_access", "get_default_config", "debug", "check"]:
+    # ---------- 聚类设置写入链路归属独立授权项 ----------
+    def test_clustering_config_write_actions_allowed_for_log_clustering(self):
+        for view_action in self.WRITE_VIEW_ACTIONS:
             with self.subTest(view_action=view_action):
                 self.assertTrue(self._is_valid("ClusteringConfigViewSet", view_action))
 
-    def test_regex_template_list_allowed(self):
+    def test_regex_template_list_allowed_for_log_clustering(self):
         self.assertTrue(self._is_valid("RegexTemplateViewSet", "list"))
+
+    # ---------- 只授予日志检索时拿不到聚类设置 ----------
+    def test_clustering_config_write_actions_denied_for_log_search(self):
+        for view_action in self.WRITE_VIEW_ACTIONS:
+            with self.subTest(view_action=view_action):
+                self.assertFalse(self._is_valid("ClusteringConfigViewSet", view_action, action_id=self.LOG_SEARCH))
+
+    def test_regex_template_list_denied_for_log_search(self):
+        self.assertFalse(self._is_valid("RegexTemplateViewSet", "list", action_id=self.LOG_SEARCH))
+
+    # ---------- 聚类结果的读取仍归属日志检索 ----------
+    def test_clustering_read_actions_stay_in_log_search(self):
+        for view_action in ["get_config", "access_status"]:
+            with self.subTest(view_action=view_action):
+                self.assertTrue(self._is_valid("ClusteringConfigViewSet", view_action, action_id=self.LOG_SEARCH))
 
     # ---------- 接入能力不在开放范围内 ----------
     def test_create_access_not_allowed(self):
-        self.assertFalse(self._is_valid("ClusteringConfigViewSet", "create_access"))
+        for action_id in [self.LOG_CLUSTERING, self.LOG_SEARCH]:
+            with self.subTest(action_id=action_id):
+                self.assertFalse(self._is_valid("ClusteringConfigViewSet", "create_access", action_id=action_id))
 
     def test_regex_template_write_actions_not_allowed(self):
         for view_action in ["create", "partial_update", "destroy"]:
@@ -99,3 +122,175 @@ class TestClusteringConfigActionValid(TestCase):
     # ---------- 其它授权项不得越界访问聚类配置 ----------
     def test_log_extract_cannot_update_clustering_config(self):
         self.assertFalse(self._is_valid("ClusteringConfigViewSet", "update_access", action_id=self.LOG_EXTRACT))
+
+
+class TestLogClusteringImpliedLogSearch(TestCase):
+    """聚类配置授权隐含其索引集上的日志检索资源"""
+
+    SPACE_UID = "bkcc__2"
+    LOG_SEARCH = ExternalPermissionActionEnum.LOG_SEARCH.value
+    LOG_CLUSTERING = ExternalPermissionActionEnum.LOG_CLUSTERING.value
+
+    def _create(self, action_id, resources, expired=False):
+        expire_time = timezone.now() + timedelta(days=-1 if expired else 30)
+        ExternalPermission.objects.create(
+            authorized_user="user_a",
+            space_uid=self.SPACE_UID,
+            action_id=action_id,
+            resources=resources,
+            expire_time=expire_time,
+        )
+
+    def _get_log_search_resources(self):
+        return ExternalPermission.get_resources(
+            action_id=self.LOG_SEARCH, authorized_user="user_a", space_uid=self.SPACE_UID
+        )
+
+    def test_resources_merged_into_log_search(self):
+        # 只有聚类配置授权时，隐式放通的 log_search 必须拿到同一批索引集，否则被授权人进不了聚类页
+        self._create(self.LOG_CLUSTERING, [1001])
+
+        result = self._get_log_search_resources()
+
+        self.assertTrue(result["allowed"])
+        self.assertEqual(result["resources"], [1001])
+
+    def test_expired_resources_not_merged(self):
+        self._create(self.LOG_CLUSTERING, [1001], expired=True)
+
+        self.assertEqual(self._get_log_search_resources()["resources"], [])
+
+    def test_other_space_resources_not_merged(self):
+        self._create(self.LOG_CLUSTERING, [1001])
+        ExternalPermission.objects.create(
+            authorized_user="user_a",
+            space_uid="bkcc__3",
+            action_id=self.LOG_CLUSTERING,
+            resources=[2002],
+            expire_time=timezone.now() + timedelta(days=30),
+        )
+
+        self.assertEqual(self._get_log_search_resources()["resources"], [1001])
+
+    def test_clustering_resources_not_polluted_by_log_search(self):
+        # 反向不成立：日志检索授权不得让被授权人改到该索引集的聚类配置
+        self._create(self.LOG_SEARCH, [1001])
+        self._create(self.LOG_CLUSTERING, [2002])
+
+        result = ExternalPermission.get_resources(
+            action_id=self.LOG_CLUSTERING, authorized_user="user_a", space_uid=self.SPACE_UID
+        )
+
+        self.assertEqual(result["resources"], [2002])
+
+    def test_get_resource_from_index_set_scoped_request(self):
+        """转发入口需要能从聚类配置类请求里解析出索引集, 否则实例级校验会被跳过"""
+        from log_adapter.home.views import RequestProcessor
+
+        self.assertEqual(
+            RequestProcessor.get_resource(
+                action_id=self.LOG_CLUSTERING, kwargs={"index_set_id": "1001"}, json_data_str=""
+            ),
+            1001,
+        )
+        self.assertEqual(
+            RequestProcessor.get_resource(
+                action_id=self.LOG_CLUSTERING, kwargs={}, json_data_str='{"index_set_id": 1001}'
+            ),
+            1001,
+        )
+        # 空间维度的授权项不解析索引集
+        self.assertIsNone(
+            RequestProcessor.get_resource(
+                action_id=ExternalPermissionActionEnum.LOG_EXTRACT.value,
+                kwargs={"index_set_id": "1001"},
+                json_data_str="",
+            )
+        )
+
+
+class TestLogClusteringAuthorizerStatus(TestCase):
+    """聚类配置授权的有效性同样跟随授权人在该索引集上的日志检索权限"""
+
+    SPACE_UID = "bkcc__2"
+    AUTHORIZER = "authorizer_a"
+    LOG_CLUSTERING = ExternalPermissionActionEnum.LOG_CLUSTERING.value
+
+    def setUp(self):
+        self.permission = ExternalPermission.objects.create(
+            authorized_user="user_a",
+            space_uid=self.SPACE_UID,
+            action_id=self.LOG_CLUSTERING,
+            resources=[1001],
+            expire_time=timezone.now() + timedelta(days=30),
+        )
+
+    def _status(self, search_log_allowed: bool):
+        batch_result = {"1001": {ActionEnum.SEARCH_LOG.id: search_log_allowed}}
+        with (
+            patch(
+                "apps.log_commons.models.AuthorizerSettings.get_authorizer",
+                return_value=self.AUTHORIZER,
+            ),
+            patch(
+                "apps.iam.handlers.permission.Permission.batch_is_allowed",
+                return_value=batch_result,
+            ),
+        ):
+            return self.permission.status
+
+    def test_status_available_when_authorizer_can_search(self):
+        self.assertEqual(self._status(search_log_allowed=True), TokenStatusEnum.AVAILABLE.value)
+
+    def test_status_invalid_when_authorizer_lost_search_permission(self):
+        self.assertEqual(self._status(search_log_allowed=False), TokenStatusEnum.INVALID.value)
+
+    def test_handler_status_follows_index_set_permission(self):
+        """列表页走 handler 的批量预取路径, 聚类配置授权必须被纳入索引集维度的预取范围"""
+        handler = ExternalPermissionHandler()
+
+        with (
+            patch(
+                "apps.log_commons.handlers.external_permission.AuthorizerSettings.get_authorizer",
+                return_value=self.AUTHORIZER,
+            ),
+            patch(
+                "apps.iam.handlers.permission.Permission.batch_is_allowed",
+                return_value={"1001": {ActionEnum.SEARCH_LOG.id: False}},
+            ),
+            patch(
+                "apps.log_commons.handlers.external_permission.SpaceApi.batch_get_space_detail",
+                return_value={},
+            ),
+        ):
+            result = handler.list(space_uid=self.SPACE_UID)
+
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0]["action_id"], self.LOG_CLUSTERING)
+        self.assertEqual(result[0]["status"], TokenStatusEnum.INVALID.value)
+
+
+class TestLogClusteringResourceByAction(TestCase):
+    """授权页「操作实例」候选列表: 聚类配置与日志检索同为索引集维度"""
+
+    SPACE_UID = "bkcc__2"
+
+    def test_resource_by_action_returns_index_sets(self):
+        from apps.log_search.models import LogIndexSet
+
+        index_set = LogIndexSet.objects.create(
+            index_set_name="clustering_index_set", space_uid=self.SPACE_UID, scenario_id="es"
+        )
+
+        with patch(
+            "apps.log_search.handlers.index_set.IndexSetHandler.get_all_related_space_uids",
+            return_value=[self.SPACE_UID],
+        ):
+            resources = ExternalPermission.get_resource_by_action(
+                action_id=ExternalPermissionActionEnum.LOG_CLUSTERING.value, space_uid=self.SPACE_UID
+            )
+
+        self.assertEqual(
+            resources,
+            [{"id": index_set.index_set_id, "uid": index_set.index_set_id, "text": "clustering_index_set"}],
+        )

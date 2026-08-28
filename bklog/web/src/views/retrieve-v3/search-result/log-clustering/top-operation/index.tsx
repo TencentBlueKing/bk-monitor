@@ -105,9 +105,12 @@ export default defineComponent({
 
     const isExternal = window.IS_EXTERNAL === true;
 
-    // PO 环境（外部版）按空间的外部授权决定聚类配置入口，与客户端日志同一判断方式。
-    // externalMenu 在空间加载完成后才写入，不能在 setup 里取一次快照
-    const isClusterConfigVisible = computed(() => !isExternal || (store.state.externalMenu ?? []).includes('retrieve'));
+    // PO 环境（外部版）由独立授权项 log_clustering 控制聚类设置入口的显隐，
+    // 只有日志检索授权的被授权人能看聚类结果但看不到入口。
+    // externalPermissions 在空间加载完成后才写入，不能在 setup 里取一次快照
+    const isClusterConfigVisible = computed(
+      () => !isExternal || (store.state.externalPermissions ?? []).includes('log_clustering'),
+    );
 
     const handleStrategySubmitStatus = (v) => {
       strategyHaveSubmit.value = v;
