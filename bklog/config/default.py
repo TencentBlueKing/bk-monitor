@@ -475,9 +475,9 @@ BK_IAM_V4_GRANT_EXPIRE_DAYS = os.getenv("BK_IAM_V4_GRANT_EXPIRE_DAYS", "365")
 BK_IAM_GRANT_MAX_ATTEMPTS = os.getenv("BK_IAM_GRANT_MAX_ATTEMPTS", "12")
 
 # IAM V4 权限模型 as-code：基线文件在 support-files/iam/v4/，由 manage.py iam_v4_migrate_model 收敛。
+# post_migrate 会像 V3 IAMMigrator 一样无条件收敛一次，唯一前置条件是配了 BKAPP_IAM_V4_API_BASE_URL；
+# 不受 BKAPP_IAM_PERMISSION_MODE 影响，因为创建者授权双写只看网关是否配置，不看鉴权模式。
 BK_IAM_V4_MODEL_BASE_PATH = os.getenv("BKAPP_IAM_V4_MODEL_BASE_PATH", "api/v1/open/rbac/model/systems/")
-# 打开后 post_migrate 会自动把模型基线同步到权限中心；默认关闭，先用命令 dry-run 确认计划。
-BK_IAM_V4_MODEL_MIGRATE_ENABLED = os.getenv("BKAPP_IAM_V4_MODEL_MIGRATE_ENABLED", "off") == "on"
 # 系统管理员；留空表示不由 as-code 托管，同步时既不下发也不比对，避免清空人工配置。
 BK_IAM_V4_MODEL_MANAGERS = os.getenv("BKAPP_IAM_V4_MODEL_MANAGERS", "").strip()
 # V4 资源回调地址；留空时由 BK_IAM_RESOURCE_API_HOST 拼出 api/v1/iam/v4/resource/。
