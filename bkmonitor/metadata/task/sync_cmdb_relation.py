@@ -330,7 +330,6 @@ def _sync_relation_metadata(
     graph_storage_config: dict[str, Any] | None,
 ) -> DataSource:
     """创建或读取 relation 元数据，并统一回写 Redis token。"""
-    previous_token = context.redis_token
     # 步骤 1：复用已有 DataSource，或在一个事务内创建完整的 relation 元数据。
     if result_table is not None:
         data_source = DataSource.objects.get(
@@ -381,8 +380,6 @@ def _sync_relation_metadata(
         context.key,
         json.dumps(context.value),
     )
-    if previous_token != context.value["token"]:
-        RedisTools.publish(f"{redis_key}:channel", [context.key])
     return data_source
 
 

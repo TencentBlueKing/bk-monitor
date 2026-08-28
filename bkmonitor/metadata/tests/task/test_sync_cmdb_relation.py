@@ -104,7 +104,6 @@ def test_sync_relation_redis_data(create_and_delete_records):
     with (
         patch("metadata.utils.redis_tools.RedisTools.hgetall", return_value=mock_redis_hgetall_return_value),
         patch("metadata.utils.redis_tools.RedisTools.hset_to_redis", return_value=0) as mock_hset_to_redis,
-        patch("metadata.utils.redis_tools.RedisTools.publish") as mock_publish,
         patch("metadata.models.DataSource.apply_for_data_id_from_bkdata", return_value=50011),
         patch("time.time", return_value=1733198214),
         patch("metadata.task.sync_cmdb_relation.metrics.report_all", return_value=None),
@@ -148,10 +147,6 @@ def test_sync_relation_redis_data(create_and_delete_records):
             ),
         ]
         assert mock_hset_to_redis.call_args_list == expected_calls
-        assert mock_publish.call_args_list == [
-            call(f"{settings.BUILTIN_DATA_RT_REDIS_KEY}:channel", ["bkcc__2"]),
-            call(f"{settings.BUILTIN_DATA_RT_REDIS_KEY}:channel", ["bkcc__3"]),
-        ]
         mock_refresh_consul.assert_not_called()
 
 
