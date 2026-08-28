@@ -53,6 +53,12 @@ class AccessV2BuildError(ValueError):
     pass
 
 
+class AccessV2RecordBuildError(AccessV2BuildError):
+    def __init__(self, detail_reason: str, message: str):
+        super().__init__(message)
+        self.detail_reason = detail_reason
+
+
 @dataclass(frozen=True)
 class AccessPublishSource:
     """O(1) capture of stable, already-prepared Access objects.
@@ -440,29 +446,51 @@ def apply_access_batch_context(processor, context: Mapping | None) -> None:
     processor.alarmd_v2_source_config_digest = context.get("source_config_digest")
 
 
+def _is_canonical_json_scalar(value) -> bool:
+    if value is None or isinstance(value, (str, bool, int)):
+        return True
+    return isinstance(value, float) and math.isfinite(value)
+
+
 def _record_snapshot(
     record, *, tenant_id: str, business_id: str, identity_fields: list[str], received_time: int
 ) -> dict:
     if list(_record_identity_schema(record)) != identity_fields:
-        raise AccessV2BuildError("record identity schema conflicts with Dataset Contract")
-    dimensions = dict(record.data.get("dimensions") or {})
-    if any(isinstance(value, (dict, list, tuple)) for value in dimensions.values()):
-        raise AccessV2BuildError("v2 dimensions must contain scalar JSON values")
+        raise AccessV2RecordBuildError(
+            "IDENTITY_SCHEMA_CONFLICT", "record identity schema conflicts with Dataset Contract"
+        )
+    source_dimensions = dict(record.data.get("dimensions") or {})
+    dimensions = {}
     fields = []
     for name in identity_fields:
-        value = dimensions.get(name)
-        if isinstance(value, (dict, list, tuple)):
-            raise AccessV2BuildError(f"identity dimension {name} is non-scalar")
+        value = source_dimensions.get(name)
+        if not _is_canonical_json_scalar(value):
+            raise AccessV2RecordBuildError("IDENTITY_DIMENSION_INVALID", f"identity dimension {name} is invalid")
+        dimensions[name] = value
         fields.append({"name": name, "value": value})
-    source_time = int(record.data["time"])
-    digest = derive_dimension_identity_digest_v2(tenant_id, business_id, fields)
+    # Python Access enriches records with Alert/CMDB-only structures such as
+    # bk_topo_node. Evaluation v2 keeps scalar supplemental labels and leaves
+    # nested enrichment to Alert.Builder instead of dropping the whole record.
+    for name, value in source_dimensions.items():
+        if name not in dimensions and _is_canonical_json_scalar(value):
+            dimensions[name] = value
+    try:
+        source_time = int(record.data["time"])
+    except (KeyError, TypeError, ValueError) as error:
+        raise AccessV2RecordBuildError("RECORD_TIME_INVALID", "record time is invalid") from error
+    try:
+        digest = derive_dimension_identity_digest_v2(tenant_id, business_id, fields)
+    except (TypeError, ValueError, UnicodeError) as error:
+        raise AccessV2RecordBuildError("IDENTITY_DIMENSION_INVALID", "identity dimension is invalid") from error
     value = record.data.get("value")
-    if isinstance(value, float) and not math.isfinite(value):
-        raise AccessV2BuildError("record value must be finite")
+    if not _is_canonical_json_scalar(value):
+        raise AccessV2RecordBuildError("RECORD_VALUE_INVALID", "record value must be a canonical JSON scalar")
     try:
         canonical_json_v2({"dimensions": dimensions, "value": value})
-    except (TypeError, ValueError) as error:
-        raise AccessV2BuildError("record dimensions and value must be canonical JSON scalars") from error
+    except (TypeError, ValueError, UnicodeError) as error:
+        raise AccessV2RecordBuildError(
+            "RECORD_CANONICALIZATION_INVALID", "record dimensions and value must be canonical JSON scalars"
+        ) from error
     return {
         "record_id": derive_record_id_v2(digest, source_time),
         "source_time": source_time,
@@ -590,6 +618,7 @@ def _build_access_publish_job(
     record_snapshots = []
     invalid_record_count = 0
     first_invalid_ordinal = None
+    invalid_detail_reasons = defaultdict(int)
     for ordinal, record in enumerate(records):
         try:
             snapshot = _record_snapshot(
@@ -599,8 +628,15 @@ def _build_access_publish_job(
                 identity_fields=identity_fields,
                 received_time=received_time,
             )
+        except AccessV2RecordBuildError as error:
+            invalid_record_count += 1
+            invalid_detail_reasons[error.detail_reason] += 1
+            if first_invalid_ordinal is None:
+                first_invalid_ordinal = ordinal
+            continue
         except (AccessV2BuildError, KeyError, TypeError, ValueError):
             invalid_record_count += 1
+            invalid_detail_reasons["RECORD_BUILD_INVALID"] += 1
             if first_invalid_ordinal is None:
                 first_invalid_ordinal = ordinal
             continue
@@ -611,11 +647,12 @@ def _build_access_publish_job(
         logger.warning(
             "[alarmd shadow] component=alarmd-python stage=access_v2 result=coverage_gap "
             "reason=RECORD_INVALID execution_id=%s query_group_key=%s "
-            "records=%s first_record_ordinal=%s",
+            "records=%s first_record_ordinal=%s detail_reasons=%s",
             processor.alarmd_v2_execution_id,
             processor.strategy_group_key,
             invalid_record_count,
             first_invalid_ordinal,
+            ",".join(f"{reason}:{invalid_detail_reasons[reason]}" for reason in sorted(invalid_detail_reasons)),
         )
     selections = [
         [

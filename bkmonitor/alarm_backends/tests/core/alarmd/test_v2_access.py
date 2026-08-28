@@ -150,6 +150,98 @@ def test_configured_missing_dimension_is_preserved_as_explicit_null_identity():
     assert envelope["records"][0]["dimensions"] == {"host": None}
 
 
+def test_nested_supplemental_dimension_is_excluded_without_dropping_record():
+    item, _ = _strategy(1001, 11, threshold=1)
+    record = SimpleNamespace(
+        data={
+            "time": 1725000000,
+            "value": 3.0,
+            "dimensions": {
+                "host": "127.0.0.1",
+                "bk_target_cloud_id": "0",
+                "bk_topo_node": ["biz|2", "set|3"],
+            },
+        },
+        is_retains={11: True},
+        inhibitions={11: False},
+        clean_dimension_fields=lambda: ["host"],
+    )
+    processor = SimpleNamespace(
+        items=[item],
+        strategy_group_key="query-group-1",
+        from_timestamp=1724999700,
+        until_timestamp=1725000060,
+        alarmd_v2_execution_id="execution-1",
+        alarmd_v2_evaluation_time=1725000060,
+        alarmd_v2_query_result={"completeness": "FULL"},
+    )
+
+    job = build_access_publish_jobs(processor, [record], received_time=1725000061)[0]
+    envelope = json.loads(
+        build_execution_messages(
+            job, max_records=10, max_envelope_bytes=64 * 1024, message_id_factory=lambda: "message-1"
+        )[0][0].payload
+    )
+
+    assert job.record_count == 1
+    assert envelope["records"][0]["dimension_identity"]["fields"] == [{"name": "host", "value": "127.0.0.1"}]
+    assert envelope["records"][0]["dimensions"] == {
+        "bk_target_cloud_id": "0",
+        "host": "127.0.0.1",
+    }
+
+
+def test_invalid_identity_value_reports_bounded_detail_reason(caplog):
+    caplog.set_level("WARNING", logger="alarmd.shadow")
+    item, _ = _strategy(1001, 11, threshold=1)
+    record = SimpleNamespace(
+        data={"time": 1725000000, "value": 3.0, "dimensions": {"host": ["127.0.0.1"]}},
+        is_retains={11: True},
+        inhibitions={11: False},
+        clean_dimension_fields=lambda: ["host"],
+    )
+    processor = SimpleNamespace(
+        items=[item],
+        strategy_group_key="query-group-1",
+        from_timestamp=1724999700,
+        until_timestamp=1725000060,
+        alarmd_v2_execution_id="execution-1",
+        alarmd_v2_evaluation_time=1725000060,
+        alarmd_v2_query_result={"completeness": "FULL"},
+    )
+
+    job = build_access_publish_jobs(processor, [record], received_time=1725000061)[0]
+
+    assert job.record_count == 0
+    assert "reason=RECORD_INVALID" in caplog.text
+    assert "detail_reasons=IDENTITY_DIMENSION_INVALID:1" in caplog.text
+
+
+def test_non_scalar_record_value_reports_bounded_detail_reason(caplog):
+    caplog.set_level("WARNING", logger="alarmd.shadow")
+    item, _ = _strategy(1001, 11, threshold=1)
+    record = SimpleNamespace(
+        data={"time": 1725000000, "value": {"nested": 3.0}, "dimensions": {"host": "127.0.0.1"}},
+        is_retains={11: True},
+        inhibitions={11: False},
+        clean_dimension_fields=lambda: ["host"],
+    )
+    processor = SimpleNamespace(
+        items=[item],
+        strategy_group_key="query-group-1",
+        from_timestamp=1724999700,
+        until_timestamp=1725000060,
+        alarmd_v2_execution_id="execution-1",
+        alarmd_v2_evaluation_time=1725000060,
+        alarmd_v2_query_result={"completeness": "FULL"},
+    )
+
+    job = build_access_publish_jobs(processor, [record], received_time=1725000061)[0]
+
+    assert job.record_count == 0
+    assert "detail_reasons=RECORD_VALUE_INVALID:1" in caplog.text
+
+
 def test_full_empty_still_builds_one_self_contained_message():
     item, _ = _strategy(1001, 11, threshold=1)
     processor = SimpleNamespace(
