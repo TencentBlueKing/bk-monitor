@@ -28,6 +28,31 @@ STATUS_ACKED = "acked"
 STATUS_DROPPED = "dropped"
 STATUS_ACK_UNKNOWN = "ack_unknown"
 
+ACCESS_RECORD_EXCLUSION_REASONS = (
+    "QUERY_UNAVAILABLE",
+    "CONFIG_DRIFT",
+    "RECORD_IDENTITY_INVALID",
+    "RECORD_INVALID",
+    "RECORD_TOO_LARGE",
+)
+
+# Materialize the fixed label domain once per process. The custom push registry
+# may clear samples after a flush; subsequent real observations recreate only
+# these same bounded children.
+for _reason in ACCESS_RECORD_EXCLUSION_REASONS:
+    metrics.ALARMD_SHADOW_ACCESS_RECORD_EXCLUSION_COUNT.labels(reason=_reason).inc(0)
+
+
+def record_shadow_access_record_exclusion(reason: str, count: int) -> None:
+    """Record a source record excluded before the wire cohort is formed."""
+
+    if reason not in ACCESS_RECORD_EXCLUSION_REASONS:
+        raise ValueError(f"unsupported alarmd Access v2 exclusion reason: {reason}")
+    if count < 0:
+        raise ValueError("alarmd Access v2 exclusion count must be non-negative")
+    if count > 0:
+        metrics.ALARMD_SHADOW_ACCESS_RECORD_EXCLUSION_COUNT.labels(reason=reason).inc(count)
+
 
 def record_shadow_async_job(stage: str, status: str) -> None:
     metrics.ALARMD_SHADOW_ASYNC_JOB_COUNT.labels(stage=stage, status=status).inc()

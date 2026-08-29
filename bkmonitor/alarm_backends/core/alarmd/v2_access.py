@@ -38,6 +38,11 @@ QUERY_PARTIAL = "PARTIAL"
 QUERY_UNAVAILABLE = "UNAVAILABLE"
 REASON_QUERY_PARTIAL = "QUERY_PARTIAL"
 REASON_QUERY_UNAVAILABLE = "QUERY_UNAVAILABLE"
+REASON_CONFIG_DRIFT = "CONFIG_DRIFT"
+REASON_RECORD_IDENTITY_INVALID = "RECORD_IDENTITY_INVALID"
+REASON_RECORD_INVALID = "RECORD_INVALID"
+REASON_RECORD_TOO_LARGE = "RECORD_TOO_LARGE"
+QUERY_REASON_NONE = "NONE"
 
 _OPERATOR = {
     "gt": "GT",
@@ -209,6 +214,20 @@ def _record_acknowledged_records(acknowledged_records: int) -> None:
         )
 
 
+def _record_access_exclusion(reason: str, count: int) -> None:
+    if count <= 0:
+        return
+    try:
+        from alarm_backends.core.alarmd.telemetry import record_shadow_access_record_exclusion
+
+        record_shadow_access_record_exclusion(reason, count)
+    except Exception:
+        logger.exception(
+            "[alarmd shadow] component=alarmd-python stage=access_v2 "
+            "result=fail_open reason=AUDIT_DROP operation=record_exclusion"
+        )
+
+
 def _record_access_funnel(
     source_records: int,
     evidence: AccessPublishEvidence | None = None,
@@ -236,6 +255,18 @@ def _record_access_funnel(
             "[alarmd shadow] component=alarmd-python stage=access_v2 "
             "result=fail_open reason=AUDIT_DROP operation=access_funnel"
         )
+
+
+def _query_outcome(jobs: Sequence[AccessPublishJob]) -> tuple[str, str]:
+    query_result = jobs[0].snapshot["query_result"]
+    completeness = str(query_result.get("completeness") or QUERY_UNAVAILABLE)
+    if query_result.get("reason_code") == REASON_CONFIG_DRIFT:
+        return completeness, REASON_CONFIG_DRIFT
+    if completeness == QUERY_UNAVAILABLE:
+        return completeness, REASON_QUERY_UNAVAILABLE
+    if completeness == QUERY_PARTIAL:
+        return completeness, REASON_QUERY_PARTIAL
+    return completeness, QUERY_REASON_NONE
 
 
 def _canonical_decimal(value) -> str:
@@ -600,10 +631,10 @@ def build_access_publish_jobs(
     query_result = getattr(processor, "alarmd_v2_query_result", None) or {}
     first_item = processor.items[0] if processor.items else None
     parent_source_digest = getattr(processor, "alarmd_v2_source_config_digest", None)
-    if query_result.get("completeness") == QUERY_UNAVAILABLE or (
-        parent_source_digest and parent_source_digest != access_source_config_digest(processor)
-    ):
+    config_drift = bool(parent_source_digest and parent_source_digest != access_source_config_digest(processor))
+    if query_result.get("completeness") == QUERY_UNAVAILABLE or config_drift:
         effective_records = []
+        _record_access_exclusion(REASON_CONFIG_DRIFT if config_drift else REASON_QUERY_UNAVAILABLE, len(records))
 
     dataset_groups: list[tuple[tuple[str, ...], list]] = []
     invalid_record_count = 0
@@ -626,6 +657,7 @@ def build_access_publish_jobs(
 
     if invalid_record_count:
         _record_stage("dropped")
+        _record_access_exclusion(REASON_RECORD_IDENTITY_INVALID, invalid_record_count)
         logger.warning(
             "[alarmd shadow] component=alarmd-python stage=access_v2 result=coverage_gap "
             "reason=RECORD_IDENTITY_INVALID execution_id=%s query_group_key=%s "
@@ -727,6 +759,7 @@ def _build_access_publish_job(
         record_snapshots.append(snapshot)
     if invalid_record_count:
         _record_stage("dropped")
+        _record_access_exclusion(REASON_RECORD_INVALID, invalid_record_count)
         logger.warning(
             "[alarmd shadow] component=alarmd-python stage=access_v2 result=coverage_gap "
             "reason=RECORD_INVALID execution_id=%s query_group_key=%s "
@@ -837,6 +870,8 @@ class KafkaExecutionEnvelopePublisher:
             drops.extend(job_drops)
         if drops:
             _record_stage("dropped")
+            oversized_record_count = sum(drop.reason_code == REASON_RECORD_TOO_LARGE for drop in drops)
+            _record_access_exclusion(REASON_RECORD_TOO_LARGE, oversized_record_count)
             logger.warning(
                 "[alarmd shadow] component=alarmd-python stage=access_v2 result=coverage_gap "
                 "reason=%s records=%s first_dataset_ordinal=%s first_record_ordinal=%s",
@@ -1067,16 +1102,24 @@ def _new_async_publisher() -> BoundedAccessShadowPublisher:
         else:
             _record_stage("acked", publish_evidence.acked_records)
             _record_access_funnel(len(source.records), publish_evidence)
+            query_completeness, query_reason = _query_outcome(jobs)
             logger.info(
                 "[alarmd shadow] component=alarmd-python stage=access_v2 result=acked "
                 "execution_id=%s query_group_key=%s datasets=%s "
-                "messages=%s records=%s bytes=%s planner_dropped_records=%s duration_ms=%s",
+                "messages=%s records=%s bytes=%s source_records=%s planned_records=%s "
+                "prewire_excluded_records=%s query_completeness=%s query_reason=%s "
+                "planner_dropped_records=%s duration_ms=%s",
                 source.alarmd_v2_execution_id,
                 source.strategy_group_key,
                 len(jobs),
                 publish_evidence.acked_messages,
                 publish_evidence.acked_records,
                 publish_evidence.acked_bytes,
+                len(source.records),
+                publish_evidence.planned_records,
+                len(source.records) - publish_evidence.planned_records,
+                query_completeness,
+                query_reason,
                 publish_evidence.planner_dropped_records,
                 max(0, round((time.monotonic() - started) * 1000)),
             )
