@@ -85,14 +85,20 @@ class AsyncExportEvidenceTest(TestCase):
     def test_detail_returns_bounded_evidence_without_download_url_and_does_not_write(self):
         task = create_task(
             export_status=ExportStatus.FAILED,
-            failed_reason="worker failed token=top-secret password:another-secret",
+            failed_reason=(
+                "worker failed token=top-secret password:another-secret "
+                "authorization: Bearer bearer-secret https://user:pass@example.com/path"
+            ),
             file_name="export.tar.gz",
             file_size=1024,
             download_url="https://download.example/secret",
             request_param={
                 "start_time": 1,
                 "end_time": 2,
-                "query_string": "error",
+                "query_string": (
+                    "error token=query-secret authorization: Bearer query-bearer "
+                    "https://query-user:query-pass@example.com/path"
+                ),
                 "authorization": "do-not-return",
                 "host_scopes": [{"bk_host_id": 1}],
             },
@@ -111,10 +117,15 @@ class AsyncExportEvidenceTest(TestCase):
         self.assertEqual(result["failure"]["stage"], "unknown")
         self.assertNotIn("top-secret", result["failure"]["reason"])
         self.assertNotIn("another-secret", result["failure"]["reason"])
+        self.assertNotIn("bearer-secret", result["failure"]["reason"])
+        self.assertNotIn("user:pass", result["failure"]["reason"])
         self.assertTrue(result["artifact"]["download_entry_present"])
         self.assertNotIn("download_url", result["artifact"])
         self.assertEqual(result["request_summary"]["included_fields"], ["end_time", "query_string", "start_time"])
         self.assertEqual(result["request_summary"]["omitted_field_count"], 2)
+        self.assertNotIn("query-secret", str(result["request_summary"]))
+        self.assertNotIn("query-bearer", str(result["request_summary"]))
+        self.assertNotIn("query-user:query-pass", str(result["request_summary"]))
         self.assertEqual(result["evidence_scope"], "db_and_artifact")
 
         task.refresh_from_db()

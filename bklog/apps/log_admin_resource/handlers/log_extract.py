@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import os
-import re
 import time
 from datetime import datetime
 
@@ -13,7 +12,13 @@ from pipeline.service import task_service
 from qcloud_cos import CosServiceError
 
 from apps.exceptions import ValidationError
-from apps.log_admin_resource.handlers.inspection import probe_failure, probe_skipped, probe_success, sanitize_json
+from apps.log_admin_resource.handlers.inspection import (
+    probe_failure,
+    probe_skipped,
+    probe_success,
+    sanitize_json,
+    sanitize_sensitive_text,
+)
 from apps.log_extract.constants import DownloadStatus, PIPELINE_TIME_FORMAT
 from apps.log_extract.models import ExtractLink, Tasks
 from apps.utils.cos import QcloudCos
@@ -45,9 +50,6 @@ TERMINAL_STATUSES = {
     DownloadStatus.EXPIRED.value,
     DownloadStatus.FAILED.value,
 }
-SENSITIVE_TEXT = re.compile(
-    r"(?i)(password|passwd|secret|token|authorization|cookie|access[_-]?key)\s*[:=]\s*([^\s,;]+)"
-)
 
 
 def list_log_extract_tasks(params):
@@ -100,8 +102,8 @@ def get_log_extract_detail(params):
     pipeline = _pipeline_probe(task)
     hosts = _bounded_strings(task.ip_list or [], MAX_HOSTS)
     paths = _bounded_strings(task.file_path or [], MAX_PATHS)
-    targets = sanitize_json(task.target_nodes or [], max_bytes=MAX_TARGET_BYTES)
-    filters = sanitize_json(task.filter_content, max_bytes=MAX_FILTER_BYTES)
+    targets = sanitize_json(task.target_nodes or [], max_bytes=MAX_TARGET_BYTES, redact_text=True)
+    filters = sanitize_json(task.filter_content, max_bytes=MAX_FILTER_BYTES, redact_text=True)
     effective_status = _effective_status(task)
     result = {
         "task_id": task.task_id,
@@ -244,8 +246,8 @@ def _project_pipeline_state(state, component_tree):
 def _probe_local_artifact(file_name):
     started = time.monotonic()
     try:
-        base = os.path.abspath(settings.EXTRACT_SAAS_STORE_DIR)
-        target = os.path.abspath(os.path.join(base, file_name))
+        base = os.path.realpath(settings.EXTRACT_SAAS_STORE_DIR)
+        target = os.path.realpath(os.path.join(base, file_name))
         if os.path.commonpath([base, target]) != base:
             raise ValidationError("artifact reference escapes the configured extract directory")
         exists = os.path.isfile(target)
@@ -396,7 +398,7 @@ def _effective_status(task):
 def _sanitize_text(value):
     if not value:
         return None
-    value = SENSITIVE_TEXT.sub(lambda match: f"{match.group(1)}=***", str(value))
+    value = sanitize_sensitive_text(value, maximum=None)
     return _limited_string(value, MAX_FAILURE_REASON)
 
 

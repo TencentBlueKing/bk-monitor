@@ -63,7 +63,13 @@ class IndexSetStorageRouteSnapshotTest(SimpleTestCase):
             ],
             [],
         ]
-        mock_metadata.return_value = {"table_id": "bklog_index_set_16462_2_bklog_demo.__default__"}
+        mock_metadata.return_value = {
+            "table_id": "bklog_index_set_16462_2_bklog_demo.__default__",
+            "default_storage": "elasticsearch",
+            "storage_list": ["elasticsearch"],
+            "auth_token": "must-not-leak",
+            "option": {"password": "must-not-leak"},
+        }
         mock_physical.return_value = [{"index": "2_bklog_demo_20260829"}]
 
         result = get_index_set_storage_route_snapshot({"index_set_id": 16462})
@@ -75,6 +81,8 @@ class IndexSetStorageRouteSnapshotTest(SimpleTestCase):
         self.assertTrue(route["table_info"][0]["is_enable"])
         self.assertEqual(result["metadata_route"]["probe_status"], "success")
         self.assertEqual(result["physical_storage"]["probe_status"], "success")
+        self.assertNotIn("auth_token", str(result["metadata_route"]))
+        self.assertNotIn("must-not-leak", str(result["metadata_route"]))
         mock_sync_router.assert_not_called()
         called_params = mock_metadata.call_args.kwargs["params"]
         self.assertTrue(called_params["no_request"])
@@ -364,12 +372,12 @@ class IndexSetRouteSnapshotTest(SimpleTestCase):
 
         result, _ = self._snapshot(expected, ["unexpected-response"])
 
-        self.assertEqual(result["runtime_route"]["data"], ["unexpected-response"])
+        self.assertEqual(result["runtime_route"]["data"], {"items": [], "invalid_response": True})
         self.assertEqual(result["status"], "route_missing")
 
         result, _ = self._snapshot(expected, {"items": "unexpected-response"})
 
-        self.assertEqual(result["runtime_route"]["data"], {"items": "unexpected-response"})
+        self.assertEqual(result["runtime_route"]["data"], {"items": [], "invalid_response": True})
         self.assertEqual(result["status"], "route_missing")
 
     def test_monitor_runtime_failure_marks_each_route_unavailable(self):
@@ -528,6 +536,10 @@ class IndexSetRouteSnapshotTest(SimpleTestCase):
         inferred["data"]["result_table"]["default_storage"] = None
         skipped = runtime_item("skipped")
         skipped["data"]["cluster_results"]["11"]["runtime_skipped"] = True
+        skipped["data"]["cluster_results"]["11"]["warnings"] = [
+            {"code": "RUNTIME_SKIPPED", "message": "token=warning-secret"},
+            "unstructured warning token=warning-secret",
+        ]
         skipped["data"]["cluster_results"]["invalid"] = "unexpected-result"
         runtime = {
             "items": [
@@ -543,7 +555,8 @@ class IndexSetRouteSnapshotTest(SimpleTestCase):
                 runtime_item("missing", storage_type="doris", cluster_id=22),
                 inferred,
                 skipped,
-            ]
+            ],
+            "raw_secret": "token=must-not-leak",
         }
 
         result, _ = self._snapshot(expected, runtime)
@@ -572,3 +585,43 @@ class IndexSetRouteSnapshotTest(SimpleTestCase):
             ],
         )
         self.assertNotIn("must-not-leak", str(result))
+        self.assertNotIn("warning-secret", str(result))
+
+    def test_runtime_projection_excludes_cluster_endpoints_credentials_and_custom_options(self):
+        expected = [
+            {
+                "data_label": "bklog_index_set_16462",
+                "route_kind": "default",
+                "table_info": [{"table_id": "virtual.es", "cluster_id": 11}],
+            }
+        ]
+        item = runtime_item("virtual.es")
+        cluster = item["data"]["cluster_results"]["11"]
+        cluster["cluster"] = {
+            "cluster_id": 11,
+            "cluster_name": "safe-name",
+            "domain_name": "secret-broker.example.com",
+            "port": 9092,
+            "auth_info": {"password": "cluster-password"},
+        }
+        item["data"]["storage_configs"]["elasticsearch"].update(
+            {
+                "storage_cluster_id": 11,
+                "custom_option": {"password": "storage-password"},
+                "domain_name": "storage.example.com",
+            }
+        )
+
+        result, _ = self._snapshot(expected, {"items": [item]})
+
+        self.assertEqual(result["status"], "consistent")
+        rendered = str(result)
+        for sensitive in (
+            "secret-broker.example.com",
+            "cluster-password",
+            "storage-password",
+            "storage.example.com",
+            "custom_option",
+            "auth_info",
+        ):
+            self.assertNotIn(sensitive, rendered)

@@ -30,6 +30,7 @@ from apps.log_admin_resource.handlers.index_set import get_index_set_detail, lis
 from apps.log_admin_resource.handlers.inspection import (
     build_bkdata_context,
     call_bkdata,
+    probe_failure,
     sanitize_json,
     serialize_tail_rows,
 )
@@ -619,13 +620,34 @@ class InspectionEvidenceTest(TestCase):
         self.assertEqual(result["time_evidence"]["selection_strategy"], "highest_priority_field_latest_value")
 
     def test_sanitizer_masks_config_secrets_but_not_log_text(self):
-        value = {"password": "secret", "nested": {"access_token": "token"}, "log": "password=visible-log"}
+        value = {
+            "password": "secret",
+            "nested": {"access_token": "token", "api_key": "api-secret"},
+            "log": "password=visible-log",
+        }
 
         sanitized = sanitize_json(value)
 
         self.assertEqual(sanitized["password"], "***")
         self.assertEqual(sanitized["nested"]["access_token"], "***")
+        self.assertEqual(sanitized["nested"]["api_key"], "***")
         self.assertEqual(sanitized["log"], "password=visible-log")
+
+        redacted_text = sanitize_json(
+            {
+                "log": (
+                    "password=top-secret bearer_token: bearer-secret Bearer standalone-secret "
+                    "authorization: Basic dXNlcjpwYXNz https://user:pass@example.com/path"
+                ),
+                "items": ("api_key=api-secret", 1),
+            },
+            redact_text=True,
+        )
+        self.assertEqual(
+            redacted_text["log"],
+            "password=*** bearer_token: *** Bearer *** authorization: *** https://***:***@example.com/path",
+        )
+        self.assertEqual(redacted_text["items"], ["api_key=***", 1])
 
     def test_upstream_error_codes_do_not_guess_permission_from_1511001(self):
         generic_api = MagicMock(side_effect=ApiResultError("generic failure", code=1511001))
@@ -636,6 +658,25 @@ class InspectionEvidenceTest(TestCase):
 
         self.assertEqual(generic["error"]["code"], "UPSTREAM_REQUEST_FAILED")
         self.assertEqual(auth["error"]["code"], "UPSTREAM_AUTH_FAILED")
+
+    def test_probe_failure_redacts_credentials_and_bounds_upstream_message(self):
+        error = RuntimeError(
+            "snapshot unavailable password=top-secret authorization: Bearer bearer-secret "
+            "Basic c3RhbmRhbG9uZS1iYXNpYw== at https://user:pass@example.com/path " + "x" * 2048
+        )
+
+        result = probe_failure(error)
+        message = result["error"]["upstream_message"]
+
+        self.assertIn("snapshot unavailable", message)
+        self.assertIn("password=***", message)
+        self.assertIn("authorization: ***", message)
+        self.assertIn("https://***:***@example.com/path", message)
+        self.assertNotIn("top-secret", message)
+        self.assertNotIn("bearer-secret", message)
+        self.assertNotIn("c3RhbmRhbG9uZS1iYXNpYw", message)
+        self.assertNotIn("user:pass", message)
+        self.assertLessEqual(len(message), 1024)
 
     @patch("apps.log_admin_resource.handlers.bkdata_inspection.build_bkdata_context", return_value=BKDATA_CONTEXT)
     @patch("apps.log_admin_resource.handlers.bkdata_inspection.BkDataDataFlowApi.get_flow_graph")

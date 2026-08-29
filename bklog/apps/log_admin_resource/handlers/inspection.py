@@ -27,9 +27,19 @@ FORBIDDEN_IDENTITY_PARAMS = {
     "no_request",
 }
 SENSITIVE_KEY_PATTERN = re.compile(
-    r"(?:password|passwd|secret|token|authorization|cookie|credential|access[_-]?key|private[_-]?key)",
+    r"(?:password|passwd|secret|token|authorization|cookie|credential|access[_-]?key|api[_-]?key|app[_-]?key"
+    r"|private[_-]?key|webhook|dsn|salt|cipher)",
     re.IGNORECASE,
 )
+SENSITIVE_ASSIGNMENT_PATTERN = re.compile(
+    r"\b(password|passwd|secret|token|authorization|cookie|credential|(?:access|refresh|bearer|id)[_-]?token"
+    r"|access[_-]?key|api[_-]?key|app[_-]?secret|private[_-]?key|webhook|dsn|broker|account|salt|cipher)"
+    r"(\s*[:=]\s*)(?:(?:bearer|basic)\s+)?([^\s,;]+)",
+    re.IGNORECASE,
+)
+AUTH_SCHEME_PATTERN = re.compile(r"\b(bearer|basic)\s+[A-Za-z0-9._~+/=-]{8,}", re.IGNORECASE)
+CREDENTIAL_URL_PATTERN = re.compile(r"://[^/\s:@]+:[^/\s@]+@")
+MAX_UPSTREAM_MESSAGE_LENGTH = 1024
 EVENT_TIME_PRIORITY = {
     "dteventtimestamp": 0,
     "dteventtime": 1,
@@ -163,7 +173,7 @@ def probe_failure(error, started=None, not_found_codes=None):
     upstream_code = getattr(error, "code", None)
     raw_upstream_message = getattr(error, "message", None) or str(error)
     normalized_code, retryable = _normalize_error(upstream_code, raw_upstream_message, not_found_codes or set())
-    upstream_message = str(raw_upstream_message)
+    upstream_message = sanitize_sensitive_text(raw_upstream_message)
     exists = False if normalized_code == "RESOURCE_NOT_FOUND" else None
     return {
         "probe_status": "failed",
@@ -184,8 +194,15 @@ def probe_failure(error, started=None, not_found_codes=None):
     }
 
 
-def sanitize_json(value, *, max_bytes=None):
-    sanitized = _sanitize(value)
+def sanitize_sensitive_text(value, maximum=MAX_UPSTREAM_MESSAGE_LENGTH):
+    message = CREDENTIAL_URL_PATTERN.sub("://***:***@", str(value))
+    message = SENSITIVE_ASSIGNMENT_PATTERN.sub(lambda match: f"{match.group(1)}{match.group(2)}***", message)
+    message = AUTH_SCHEME_PATTERN.sub(lambda match: f"{match.group(1)} ***", message)
+    return message if maximum is None else message[:maximum]
+
+
+def sanitize_json(value, *, max_bytes=None, redact_text=False):
+    sanitized = _sanitize(value, redact_text=redact_text)
     if max_bytes is None:
         return sanitized
     return limit_json_value(sanitized, max_bytes)
@@ -430,17 +447,19 @@ def _parse_time_candidate(field_name, raw_value, field_path, row_index):
     }
 
 
-def _sanitize(value):
+def _sanitize(value, *, redact_text=False):
     if isinstance(value, dict):
         return {
-            str(key): "***" if SENSITIVE_KEY_PATTERN.search(str(key)) else _sanitize(child)
+            str(key): "***" if SENSITIVE_KEY_PATTERN.search(str(key)) else _sanitize(child, redact_text=redact_text)
             for key, child in value.items()
         }
     if isinstance(value, list):
-        return [_sanitize(item) for item in value]
+        return [_sanitize(item, redact_text=redact_text) for item in value]
     if isinstance(value, tuple):
-        return [_sanitize(item) for item in value]
-    if isinstance(value, str | int | float | bool) or value is None:
+        return [_sanitize(item, redact_text=redact_text) for item in value]
+    if isinstance(value, str):
+        return sanitize_sensitive_text(value, maximum=None) if redact_text else value
+    if isinstance(value, int | float | bool) or value is None:
         return value
     if isinstance(value, datetime):
         return value.isoformat()

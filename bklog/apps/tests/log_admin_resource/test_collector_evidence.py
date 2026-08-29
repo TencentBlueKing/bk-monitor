@@ -22,6 +22,11 @@ class CollectorControlPlaneSnapshotTest(SimpleTestCase):
         mock_detail.return_value = {
             "collector": {"collector_config_id": 10},
             "chain": {"subscription_id": 20},
+            "raw": {
+                "params": {
+                    "description": "token=collector-secret https://collector-user:collector-pass@example.com/path"
+                }
+            },
             "warnings": [],
         }
         mock_platform.side_effect = [
@@ -40,6 +45,8 @@ class CollectorControlPlaneSnapshotTest(SimpleTestCase):
         self.assertEqual(result["subscription_summary"]["probe_status"], "success")
         self.assertEqual(result["subscription_statistic"]["probe_status"], "success")
         self.assertEqual(result["subscription_instances"]["probe_status"], "success")
+        self.assertNotIn("collector-secret", str(result))
+        self.assertNotIn("collector-user:collector-pass", str(result))
         self.assertEqual(mock_platform.call_count, 3)
         operations = [call.args[0]["operation"] for call in mock_platform.call_args_list]
         self.assertEqual(
@@ -165,7 +172,12 @@ class CollectorHostSnapshotTest(SimpleTestCase):
         }
         instance = MagicMock()
         instance.list_collectors_by_host.return_value = [
-            {"collector_config_id": 10, "status": "SUCCESS", "index_set_id": 20}
+            {
+                "collector_config_id": 10,
+                "status": "SUCCESS",
+                "index_set_id": 20,
+                "description": "authorization: Bearer runtime-secret",
+            }
         ]
         mock_host_handler.return_value = instance
 
@@ -174,6 +186,7 @@ class CollectorHostSnapshotTest(SimpleTestCase):
         instance.list_collectors_by_host.assert_called_once_with({"bk_host_id": 101, "bk_biz_id": 2, "bk_cloud_id": 0})
         self.assertEqual(result["collector_runtime"]["probe_status"], "success")
         self.assertEqual(result["collector_runtime"]["data"]["value"][0]["collector_config_id"], 10)
+        self.assertNotIn("runtime-secret", str(result))
 
     @patch("apps.log_admin_resource.handlers.collector_evidence.HostCollectorHandler")
     @patch("apps.log_admin_resource.handlers.collector_evidence.query_platform_source")

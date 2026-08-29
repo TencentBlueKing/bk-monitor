@@ -151,7 +151,7 @@ def _invoke(domain, operation, invoke_params):
 
     try:
         data = spec.projector(raw, normalized)
-        sanitized = sanitize_json(data)
+        sanitized = sanitize_json(data, redact_text=True)
     except Exception:
         logger.exception("platform source projection failed: domain=%s operation=%s", domain, operation)
         _raise_platform_error("RESPONSE_PROJECTION_FAILED", "platform source response projection failed")
@@ -504,8 +504,353 @@ def _project_host_plugin_status(raw, _params):
     }
 
 
-def _project_metadata(raw, _params):
-    return sanitize_json(raw)
+def _project_data_source(raw, _params):
+    """Exclude token, MQ connection, arbitrary options and shipper configs."""
+
+    return _pick(
+        raw,
+        "bk_data_id",
+        "data_id",
+        "bk_tenant_id",
+        "bk_biz_id",
+        "data_name",
+        "type_label",
+        "source_label",
+        "transfer_cluster_id",
+        "is_platform_data_id",
+        "space_type_id",
+        "space_uid",
+    )
+
+
+def _project_result_table(raw, _params):
+    raw = raw if isinstance(raw, dict) else {}
+    result = _pick(
+        raw,
+        "table_id",
+        "bk_tenant_id",
+        "bk_biz_id",
+        "table_name_zh",
+        "is_custom_table",
+        "scheme_type",
+        "default_storage",
+        "storage_list",
+        "label",
+        "bk_data_id",
+        "is_enable",
+        "data_label",
+    )
+    result["field_list"] = [
+        _pick(
+            item,
+            "field_name",
+            "field_type",
+            "tag",
+            "description",
+            "unit",
+            "alias_name",
+            "is_config_by_user",
+        )
+        for item in raw.get("field_list", [])
+        if isinstance(item, dict)
+    ]
+    return result
+
+
+def _project_result_table_storage(raw, params):
+    """Project storage identity without endpoints, auth, certificates or custom options."""
+
+    items = []
+    for table_id, storage in raw.items() if isinstance(raw, dict) else []:
+        if not isinstance(storage, dict):
+            continue
+        cluster = storage.get("cluster_config") if isinstance(storage.get("cluster_config"), dict) else {}
+        items.append(
+            {
+                "table_id": table_id,
+                "storage_type": params.get("storage_type"),
+                **_pick(storage, "storage_cluster_id", "retention", "date_format", "slice_size", "slice_gap"),
+                **_pick(
+                    cluster,
+                    "cluster_id",
+                    "cluster_name",
+                    "display_name",
+                    "version",
+                    "registered_system",
+                    "is_default_cluster",
+                ),
+            }
+        )
+    return {"items": items}
+
+
+def _project_provider_issue(value, fallback_code, message):
+    value = value if isinstance(value, dict) else {}
+    return {
+        "code": str(value.get("code") or fallback_code),
+        "message": message,
+        "request_id": value.get("request_id"),
+        "retryable": bool(value.get("retryable")),
+    }
+
+
+def _project_storage_runtime(raw):
+    raw = raw if isinstance(raw, dict) else {}
+    indices = raw.get("indices") if isinstance(raw.get("indices"), dict) else {}
+    return {
+        **_pick(raw, "request_table_id"),
+        "metadata_context": _pick(
+            raw.get("metadata_context"),
+            "connection_cluster_id",
+            "is_historical_cluster",
+            "binding_source",
+            "historical_binding_snapshot_available",
+        ),
+        "binding": _pick(
+            raw.get("binding"),
+            "name",
+            "namespace",
+            "phase",
+            "physical_table_name",
+            "physical_table_name_source",
+        ),
+        "table": _pick(
+            raw.get("table"),
+            "schema",
+            "name",
+            "type",
+            "engine",
+            "rows",
+            "data_length_bytes",
+            "index_length_bytes",
+            "create_time",
+            "update_time",
+        ),
+        "partitions": [
+            _pick(
+                item,
+                "name",
+                "position",
+                "method",
+                "rows",
+                "data_length_bytes",
+                "index_length_bytes",
+                "create_time",
+                "update_time",
+            )
+            for item in raw.get("partitions", [])
+            if isinstance(item, dict)
+        ],
+        "indices": {
+            "items": [
+                _pick(
+                    item,
+                    "index",
+                    "uuid",
+                    "health",
+                    "status",
+                    "docs_count",
+                    "docs_deleted",
+                    "store_size_bytes",
+                    "primary_store_size_bytes",
+                    "primary_shards",
+                    "replica_factor",
+                )
+                for item in indices.get("items", [])
+                if isinstance(item, dict)
+            ]
+        },
+    }
+
+
+def _project_storage_config(value):
+    return _pick(
+        value,
+        "table_id",
+        "origin_table_id",
+        "bk_tenant_id",
+        "storage_cluster_id",
+        "effective_table_id",
+        "source_type",
+        "index_set",
+        "retention",
+        "date_format",
+        "slice_size",
+        "slice_gap",
+        "expire_days",
+        "bkbase_table_id",
+        "table_type",
+    )
+
+
+def _project_storage_cluster(value):
+    return _pick(value, "cluster_id", "cluster_name", "display_name", "cluster_type", "version")
+
+
+def _project_storage_status_item(item):
+    item = item if isinstance(item, dict) else {}
+    data = item.get("data") if isinstance(item.get("data"), dict) else {}
+    storage_configs = data.get("storage_configs") if isinstance(data.get("storage_configs"), dict) else {}
+    cluster_results = data.get("cluster_results") if isinstance(data.get("cluster_results"), dict) else {}
+    projected_clusters = {}
+    for cluster_id, cluster_result in cluster_results.items():
+        cluster_result = cluster_result if isinstance(cluster_result, dict) else {}
+        projected_clusters[str(cluster_id)] = {
+            **_pick(
+                cluster_result,
+                "storage_type",
+                "is_current",
+                "is_current_segment",
+                "is_configured_current",
+                "runtime_skipped",
+                "config_source",
+            ),
+            "cluster": _project_storage_cluster(cluster_result.get("cluster")),
+            "connectivity": _pick(cluster_result.get("connectivity"), "is_connected", "status"),
+            "runtime": _project_storage_runtime(cluster_result.get("runtime")),
+            "warnings": [
+                _project_provider_issue(value, "METADATA_STATUS_WARNING", "metadata storage status warning")
+                for value in cluster_result.get("warnings", [])
+            ],
+            "errors": [
+                _project_provider_issue(value, "METADATA_STATUS_ERROR", "metadata storage status probe failed")
+                for value in cluster_result.get("errors", [])
+            ],
+        }
+    return {
+        "table_id": item.get("table_id"),
+        "data": {
+            "result_table": _pick(
+                data.get("result_table"),
+                "table_id",
+                "bk_tenant_id",
+                "table_name_zh",
+                "bk_biz_id",
+                "data_label",
+                "default_storage",
+                "is_enable",
+                "is_deleted",
+            ),
+            "history_table_id": data.get("history_table_id"),
+            "storage_configs": {
+                storage_type: _project_storage_config(storage_configs.get(storage_type))
+                for storage_type in ("elasticsearch", "doris")
+                if storage_configs.get(storage_type) is not None
+            },
+            "segments": [
+                _pick(
+                    value,
+                    "id",
+                    "table_id",
+                    "cluster_id",
+                    "storage_type",
+                    "is_current",
+                    "is_deleted",
+                    "create_time",
+                    "enable_time",
+                    "disable_time",
+                    "delete_time",
+                )
+                for value in data.get("segments", [])
+                if isinstance(value, dict)
+            ],
+            "cluster_results": projected_clusters,
+            "warnings": [
+                _project_provider_issue(value, "METADATA_STATUS_WARNING", "metadata storage status warning")
+                for value in data.get("warnings", [])
+            ],
+            "errors": [
+                _project_provider_issue(value, "METADATA_STATUS_ERROR", "metadata storage status query failed")
+                for value in data.get("errors", [])
+            ],
+        }
+        if data
+        else None,
+        "error": (
+            _project_provider_issue(item.get("error"), "METADATA_STATUS_ERROR", "metadata storage status query failed")
+            if item.get("error")
+            else None
+        ),
+    }
+
+
+def _project_result_table_storage_status(raw, _params):
+    raw = raw if isinstance(raw, dict) else {}
+    return {"items": [_project_storage_status_item(item) for item in raw.get("items", []) if isinstance(item, dict)]}
+
+
+def _project_storage_cluster_list(raw, _params):
+    result = []
+    for item in raw if isinstance(raw, list) else []:
+        if not isinstance(item, dict):
+            continue
+        cluster = item.get("cluster_config") if isinstance(item.get("cluster_config"), dict) else {}
+        result.append(
+            {
+                "cluster_type": item.get("cluster_type"),
+                **_pick(
+                    cluster,
+                    "cluster_id",
+                    "cluster_name",
+                    "display_name",
+                    "version",
+                    "registered_system",
+                    "is_default_cluster",
+                ),
+            }
+        )
+    return result
+
+
+def _project_storage_cluster_status(raw, _params):
+    result = []
+    for item in raw if isinstance(raw, list) else []:
+        if not isinstance(item, dict):
+            continue
+        result.append(
+            {
+                **_pick(
+                    item,
+                    "cluster_id",
+                    "cluster_name",
+                    "display_name",
+                    "cluster_type",
+                    "status",
+                    "is_connected",
+                    "is_available",
+                ),
+                "nodes": _pick(item.get("nodes"), "total", "available"),
+                "capacity": _pick(item.get("capacity"), "total_bytes", "used_bytes", "available_bytes", "used_percent"),
+                "details": _pick(
+                    item.get("details"),
+                    "health_status",
+                    "number_of_nodes",
+                    "active_shards",
+                    "initializing_shards",
+                    "relocating_shards",
+                    "unassigned_shards",
+                    "indices_store_bytes",
+                    "data_used_bytes",
+                    "trash_used_bytes",
+                    "remote_used_bytes",
+                    "tablet_count",
+                    "max_disk_used_percent",
+                    "broker_count",
+                    "topic_count",
+                    "security_protocol",
+                    "auth_enabled",
+                    "status_code",
+                ),
+                "error": (
+                    _project_provider_issue(
+                        item.get("error"), "METADATA_CLUSTER_ERROR", "metadata cluster probe failed"
+                    )
+                    if item.get("error")
+                    else None
+                ),
+            }
+        )
+    return result
 
 
 def _project_kafka_sample(raw, params):
@@ -524,7 +869,7 @@ def _project_kafka_sample(raw, params):
     return {
         "has_data": bool(rows),
         "count": len(selected),
-        "items": sanitize_json(selected),
+        "items": sanitize_json(selected, redact_text=True),
         "latest_business_time": latest_business_time,
         "data_age_seconds": data_age_seconds,
         "warnings": warnings,
@@ -668,6 +1013,10 @@ for _spec in (
         _subscription_summary,
         _project_subscription_summary,
         "不返回目标主机、渲染参数或安装凭据。",
+        projection={
+            "mode": "field_allowlist_and_recursive_redaction",
+            "fields": ["subscription_identity", "scope_summary", "target_host_count", "step_config_summary"],
+        },
     ),
     OperationSpec(
         "nodeman",
@@ -677,6 +1026,10 @@ for _spec in (
         {"subscription_id_list": [10001]},
         _subscription_statistic,
         _project_subscription_statistic,
+        projection={
+            "mode": "field_allowlist_and_recursive_redaction",
+            "fields": ["subscription_id", "instances", "status_counts", "version_counts"],
+        },
     ),
     OperationSpec(
         "nodeman",
@@ -687,6 +1040,10 @@ for _spec in (
         _subscription_instance_status,
         _project_subscription_instance_status,
         "固定关闭任务详情并投影响应字段。",
+        projection={
+            "mode": "field_allowlist_and_recursive_redaction",
+            "fields": ["subscription_id", "instance_identity", "status", "host_summary", "plugin_status"],
+        },
     ),
     OperationSpec(
         "nodeman",
@@ -707,6 +1064,10 @@ for _spec in (
         _subscription_task_instances,
         _project_subscription_tasks,
         "固定关闭步骤、日志、渲染输入和越界快照。",
+        projection={
+            "mode": "field_allowlist_and_recursive_redaction",
+            "fields": ["total", "status_counter", "task_identity", "times", "status", "instance_summary"],
+        },
     ),
     OperationSpec(
         "nodeman",
@@ -725,6 +1086,10 @@ for _spec in (
         {"bk_host_id": [101]},
         _host_plugin_status,
         _project_host_plugin_status,
+        projection={
+            "mode": "field_allowlist_and_recursive_redaction",
+            "fields": ["total", "host_identity", "host_status", "plugin_status"],
+        },
     ),
     OperationSpec(
         "metadata",
@@ -733,7 +1098,11 @@ for _spec in (
         _id_schema("bk_data_id"),
         {"bk_data_id": 1500001},
         _metadata_call("get_data_id", {"bk_data_id": "bk_data_id"}),
-        _project_metadata,
+        _project_data_source,
+        projection={
+            "mode": "field_allowlist_and_recursive_redaction",
+            "fields": ["bk_data_id", "data_id", "bk_tenant_id", "bk_biz_id", "data_name", "labels", "space"],
+        },
     ),
     OperationSpec(
         "metadata",
@@ -747,7 +1116,11 @@ for _spec in (
         },
         {"result_table_id": "2_bklog.demo"},
         _metadata_call("get_result_table", {"result_table_id": "table_id"}),
-        _project_metadata,
+        _project_result_table,
+        projection={
+            "mode": "field_allowlist_and_recursive_redaction",
+            "fields": ["result_table", "field_list"],
+        },
     ),
     OperationSpec(
         "metadata",
@@ -756,14 +1129,18 @@ for _spec in (
         {
             "type": "object",
             "properties": {"result_table_id": {"type": "string"}, "storage_type": {"type": "string"}},
-            "required": ["result_table_id"],
+            "required": ["result_table_id", "storage_type"],
             "additionalProperties": False,
         },
         {"result_table_id": "2_bklog.demo", "storage_type": "elasticsearch"},
         _metadata_call(
             "get_result_table_storage", {"result_table_id": "result_table_list", "storage_type": "storage_type"}
         ),
-        _project_metadata,
+        _project_result_table_storage,
+        projection={
+            "mode": "field_allowlist_and_recursive_redaction",
+            "fields": ["table_id", "storage_type", "storage_identity", "retention"],
+        },
     ),
     OperationSpec(
         "metadata",
@@ -776,7 +1153,7 @@ for _spec in (
                     "type": "array",
                     "items": {"type": "string"},
                     "minItems": 1,
-                    "maxItems": 100,
+                    "maxItems": 50,
                 }
             },
             "required": ["result_table_ids"],
@@ -784,7 +1161,11 @@ for _spec in (
         },
         {"result_table_ids": ["2_bklog.demo"]},
         _metadata_call("get_result_table_storage_status", {"result_table_ids": "table_ids"}),
-        _project_metadata,
+        _project_result_table_storage_status,
+        projection={
+            "mode": "field_allowlist_and_recursive_redaction",
+            "fields": ["result_table", "storage_configs", "segments", "cluster_results", "runtime_summary"],
+        },
     ),
     OperationSpec(
         "metadata",
@@ -793,7 +1174,11 @@ for _spec in (
         _id_schema("cluster_id"),
         {"cluster_id": 11},
         _metadata_call("get_cluster_info", {"cluster_id": "cluster_id"}),
-        _project_metadata,
+        _project_storage_cluster_list,
+        projection={
+            "mode": "field_allowlist_and_recursive_redaction",
+            "fields": ["cluster_id", "cluster_name", "display_name", "cluster_type", "version", "registered_system"],
+        },
     ),
     OperationSpec(
         "metadata",
@@ -810,7 +1195,11 @@ for _spec in (
         },
         {"bk_biz_id": 2, "cluster_ids": [11]},
         _metadata_call("get_cluster_status", {"bk_biz_id": "bk_biz_id", "cluster_ids": "cluster_ids"}),
-        _project_metadata,
+        _project_storage_cluster_status,
+        projection={
+            "mode": "field_allowlist_and_recursive_redaction",
+            "fields": ["cluster_identity", "status", "nodes", "capacity", "details_summary", "error"],
+        },
     ),
     OperationSpec(
         "metadata",
@@ -836,6 +1225,10 @@ for _spec in (
         "最多返回 20 条样本，不返回 broker 或凭据。",
         safety_level="inspect",
         limits={"default_sample_limit": DEFAULT_KAFKA_SAMPLES, "max_sample_limit": MAX_KAFKA_SAMPLES},
+        projection={
+            "mode": "field_allowlist_and_recursive_redaction",
+            "fields": ["has_data", "count", "credential_redacted_items", "latest_business_time", "data_age_seconds"],
+        },
     ),
     OperationSpec(
         "cmdb",
@@ -851,6 +1244,10 @@ for _spec in (
         _resolve_host,
         _project_resolved_host,
         "多候选时返回 ambiguous，绝不自动选择第一条。",
+        projection={
+            "mode": "field_allowlist_and_recursive_redaction",
+            "fields": ["query", "resolution_status", "candidate_count", "host", "candidates"],
+        },
     ),
 ):
     _register(_spec)

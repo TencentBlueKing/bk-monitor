@@ -7,7 +7,9 @@ from django.test import SimpleTestCase, TestCase, override_settings
 
 from apps.exceptions import ValidationError
 from apps.feature_toggle.models import FeatureToggle
-from apps.log_extract.models import ExtractLink
+from apps.log_clustering.models import AiopsSignatureAndPattern, ClusteringConfig
+from apps.log_databus.models import BcsRule, CollectorConfig, ContainerCollectorConfig
+from apps.log_extract.models import ExtractLink, ExtractLinkHost
 from apps.log_admin_resource.handlers.model_query import (
     LOOKUPS_EXACT,
     MASKED_VALUE,
@@ -110,6 +112,18 @@ class ModelSpecContractTest(SimpleTestCase):
         self.assertEqual(detail["manager"], "origin_objects")
         self.assertEqual(detail["next_call"]["func_name"], "bklog.model.query")
         self.assertTrue(detail["examples"])
+
+    def test_every_model_spec_has_a_legal_bounded_query_example(self):
+        for alias, spec in SPECS.items():
+            with self.subTest(model=alias):
+                self.assertTrue(spec.examples)
+                for example in spec.examples:
+                    fields = _normalize_selected_fields(example.get("fields"), None, spec)
+                    ordering = _normalize_order_by(example.get("order_by"), spec)
+                    limit = _normalize_limit(example.get("limit"), spec.max_limit)
+                    self.assertTrue(fields)
+                    self.assertLessEqual(len(ordering), 5)
+                    self.assertLessEqual(limit, spec.max_limit)
 
     def test_unknown_and_unavailable_models_have_distinct_errors(self):
         with self.assertRaisesRegex(ValidationError, "outside the Resource Call allowlist"):
@@ -273,8 +287,9 @@ class ModelSpecContractTest(SimpleTestCase):
             "nested": {"apiKey": "secret", "safe": "ok"},
             "items": [{"token": "secret"}],
             "url": "https://user:pass@example.com/path",
+            "message": "failed password=top-secret authorization: Bearer bearer-secret",
             "json": '{"password":"secret","name":"ok"}',
-            "invalid_json": "{not-json",
+            "invalid_json": "{not-json api_key=api-secret",
         }
 
         masked = _mask_sensitive_tree(value)
@@ -282,8 +297,9 @@ class ModelSpecContractTest(SimpleTestCase):
         self.assertEqual(masked["nested"]["apiKey"], MASKED_VALUE)
         self.assertEqual(masked["items"][0]["token"], MASKED_VALUE)
         self.assertEqual(masked["url"], MASKED_VALUE)
+        self.assertEqual(masked["message"], "failed password=*** authorization: ***")
         self.assertEqual(json_loads(masked["json"])["password"], MASKED_VALUE)
-        self.assertEqual(masked["invalid_json"], "{not-json")
+        self.assertEqual(masked["invalid_json"], "{not-json api_key=***")
 
     def test_global_config_row_masking_uses_raw_instance_key_even_if_not_selected(self):
         sensitive = _mask_global_config_row({"configs": {"safe": "value"}}, SimpleNamespace(config_id="API_TOKEN"))
@@ -397,6 +413,108 @@ class ModelQueryScopeTest(TestCase):
         self.assertEqual(index_result["items"], [{"index_set_id": 1001, "space_uid": "bkcc__2"}])
 
     @patch("apps.log_admin_resource.handlers.model_query.get_request_tenant_id", return_value="tenant-1")
+    def test_indirect_scopes_exclude_cross_tenant_rows_through_owning_models(self, _mock_tenant):
+        own_link = ExtractLink.objects.create(name="own-link", operator="operator", op_bk_biz_id=2)
+        other_link = ExtractLink.objects.create(name="other-link", operator="operator", op_bk_biz_id=3)
+        ExtractLinkHost.objects.create(target_dir="/own", bk_cloud_id=0, ip="127.0.0.1", link=own_link)
+        ExtractLinkHost.objects.create(target_dir="/other", bk_cloud_id=0, ip="127.0.0.2", link=other_link)
+
+        own_rule = BcsRule.objects.create(rule_name="own-rule", bcs_project_id="own-project")
+        other_rule = BcsRule.objects.create(rule_name="other-rule", bcs_project_id="other-project")
+        own_collector = CollectorConfig.objects.create(
+            collector_config_name="own-collector",
+            collector_config_name_en="own_collector",
+            bk_biz_id=2,
+            category_id="os",
+            collector_scenario_id="row",
+            custom_type="log",
+            environment="linux",
+            rule_id=own_rule.id,
+        )
+        other_collector = CollectorConfig.objects.create(
+            collector_config_name="other-collector",
+            collector_config_name_en="other_collector",
+            bk_biz_id=3,
+            category_id="os",
+            collector_scenario_id="row",
+            custom_type="log",
+            environment="linux",
+            rule_id=other_rule.id,
+        )
+        own_container = ContainerCollectorConfig.objects.create(
+            collector_config_id=own_collector.collector_config_id,
+            collector_type="container",
+        )
+        ContainerCollectorConfig.objects.create(
+            collector_config_id=other_collector.collector_config_id,
+            collector_type="container",
+        )
+
+        own_clustering = ClusteringConfig.objects.create(
+            index_set_id=2001,
+            model_id="own-model",
+            min_members=1,
+            max_dist_list="0.1",
+            predefined_varibles="",
+            delimeter="",
+            max_log_length=1024,
+            clustering_fields="log",
+            bk_biz_id=2,
+        )
+        ClusteringConfig.objects.create(
+            index_set_id=2002,
+            model_id="other-model",
+            min_members=1,
+            max_dist_list="0.1",
+            predefined_varibles="",
+            delimeter="",
+            max_log_length=1024,
+            clustering_fields="log",
+            bk_biz_id=3,
+        )
+        own_pattern = AiopsSignatureAndPattern.objects.create(
+            model_id=own_clustering.model_id,
+            signature="own-signature",
+            pattern="own pattern",
+        )
+        AiopsSignatureAndPattern.objects.create(
+            model_id="other-model",
+            signature="other-signature",
+            pattern="other pattern",
+        )
+
+        results = {
+            "op_biz": query_model({"model": "log_extract.ExtractLink", "fields": ["link_id"], "order_by": ["link_id"]}),
+            "link": query_model(
+                {"model": "log_extract.ExtractLinkHost", "fields": ["link_id"], "order_by": ["link_id"]}
+            ),
+            "collector": query_model(
+                {
+                    "model": "log_databus.ContainerCollectorConfig",
+                    "fields": ["id", "collector_config_id"],
+                    "order_by": ["id"],
+                }
+            ),
+            "rule": query_model({"model": "log_databus.BcsRule", "fields": ["id"], "order_by": ["id"]}),
+            "model": query_model(
+                {
+                    "model": "log_clustering.AiopsSignatureAndPattern",
+                    "fields": ["id", "model_id"],
+                    "order_by": ["id"],
+                }
+            ),
+        }
+
+        self.assertEqual(results["op_biz"]["items"], [{"link_id": own_link.link_id}])
+        self.assertEqual(results["link"]["items"], [{"link_id": own_link.link_id}])
+        self.assertEqual(
+            results["collector"]["items"],
+            [{"id": own_container.id, "collector_config_id": own_collector.collector_config_id}],
+        )
+        self.assertEqual(results["rule"]["items"], [{"id": own_rule.id}])
+        self.assertEqual(results["model"]["items"], [{"id": own_pattern.id, "model_id": "own-model"}])
+
+    @patch("apps.log_admin_resource.handlers.model_query.get_request_tenant_id", return_value="tenant-1")
     def test_text_filter_default_order_and_has_more_are_bounded(self, _mock_tenant):
         for index in range(3):
             BizProperty.objects.create(
@@ -503,6 +621,18 @@ class ModelQueryScopeTest(TestCase):
 
         with self.assertRaisesRegex(ValidationError, "at most 100"):
             query_model({"model": "feature_toggle.FeatureToggle", "limit": 101})
+
+    @patch("apps.log_admin_resource.handlers.model_query.get_request_tenant_id", return_value="tenant-1")
+    def test_query_rejects_filter_values_incompatible_with_model_field_types(self, _mock_tenant):
+        with self.assertRaisesRegex(ValidationError, "filter values are incompatible"):
+            query_model(
+                {
+                    "model": "log_extract.ExtractLink",
+                    "filter": {"link_id": "not-an-integer"},
+                    "fields": ["link_id"],
+                    "limit": 10,
+                }
+            )
 
     def test_query_supports_a_model_spec_without_default_ordering(self):
         alias = "log_search.GlobalConfig"

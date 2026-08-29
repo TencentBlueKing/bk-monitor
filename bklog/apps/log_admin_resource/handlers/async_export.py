@@ -1,11 +1,9 @@
 from __future__ import annotations
 
-import re
-
 from django.utils.dateparse import parse_datetime
 
 from apps.exceptions import ValidationError
-from apps.log_admin_resource.handlers.inspection import sanitize_json
+from apps.log_admin_resource.handlers.inspection import sanitize_json, sanitize_sensitive_text
 from apps.log_search.constants import ASYNC_EXPORT_SCENE_ID, ExportStatus, IndexSetType
 from apps.log_search.models import AsyncTask
 
@@ -35,9 +33,6 @@ PHASES = {
     ExportStatus.FAILED: "failed",
     ExportStatus.DOWNLOAD_EXPIRED: "artifact_expired",
 }
-SENSITIVE_TEXT = re.compile(
-    r"(?i)(password|passwd|secret|token|authorization|cookie|access[_-]?key)\s*[:=]\s*([^\s,;]+)"
-)
 
 
 def list_async_exports(params):
@@ -165,7 +160,7 @@ def _target_summary(task):
 def _request_summary(request_param):
     source = request_param if isinstance(request_param, dict) else {}
     summary = {key: source[key] for key in REQUEST_SUMMARY_FIELDS if key in source}
-    limited = sanitize_json(summary, max_bytes=MAX_REQUEST_SUMMARY_BYTES)
+    limited = sanitize_json(summary, max_bytes=MAX_REQUEST_SUMMARY_BYTES, redact_text=True)
     return {
         "value": limited["value"],
         "truncated": limited["truncated"],
@@ -202,7 +197,7 @@ def _phase(status):
 def _sanitize_failure_reason(value):
     if not value:
         return None
-    redacted = SENSITIVE_TEXT.sub(lambda match: f"{match.group(1)}=***", str(value))
+    redacted = sanitize_sensitive_text(value, maximum=None)
     return _limited_string(redacted, MAX_FAILURE_REASON)
 
 

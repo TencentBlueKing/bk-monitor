@@ -9,6 +9,7 @@ from apps.api import TransferApi
 from apps.exceptions import ValidationError
 from apps.log_admin_resource.handlers.index_set import get_index_set_detail
 from apps.log_admin_resource.handlers.inspection import probe_failure, probe_skipped, probe_success, sanitize_json
+from apps.log_admin_resource.handlers.platform_source import _project_result_table, _project_storage_status_item
 from apps.log_databus.constants import STORAGE_CLUSTER_TYPE
 from apps.log_databus.handlers.storage import StorageHandler
 from apps.log_search.handlers.index_set import BaseIndexSetHandler, IndexSetHandler
@@ -34,7 +35,7 @@ def get_index_set_storage_route_snapshot(params):
     observed_at = timezone.now().isoformat()
     try:
         index_set = LogIndexSet.objects.get(index_set_id=index_set_id)
-        database = probe_success(sanitize_json(get_index_set_detail({"index_set_id": index_set_id})))
+        database = probe_success(sanitize_json(get_index_set_detail({"index_set_id": index_set_id}), redact_text=True))
     except Exception as error:
         return {
             "source_env": _source_env(),
@@ -104,7 +105,7 @@ def get_index_set_route_snapshot(params):
     started = time.monotonic()
     try:
         detail = get_index_set_detail({"index_set_id": index_set.index_set_id})
-        result["database"] = probe_success(sanitize_json(detail), started)
+        result["database"] = probe_success(sanitize_json(detail, redact_text=True), started)
     except Exception as error:
         result["database"] = probe_failure(error, started)
 
@@ -281,7 +282,7 @@ def _build_expected_routes(index_set):
             "route_kind": "analysis" if is_analysis else "default",
             "space_id": index_set.space_uid.split("__")[-1],
             "space_type": index_set.space_uid.split("__")[0],
-            "table_info": sanitize_json(table_info),
+            "table_info": sanitize_json(table_info, redact_text=True),
             "original_table_count": original_table_count,
             "returned_table_count": len(table_info),
             "truncated": original_table_count > len(table_info),
@@ -302,7 +303,8 @@ def _probe_metadata_routes(table_ids):
                 timeout=DEFAULT_TIMEOUT_SECONDS,
                 request_cookies=False,
             )
-            items.append({"table_id": table_id, "probe": probe_success(sanitize_json(data), item_started)})
+            projected = _project_result_table(data, {})
+            items.append({"table_id": table_id, "probe": probe_success(projected, item_started)})
         except Exception as error:
             items.append({"table_id": table_id, "probe": probe_failure(error, item_started)})
     return probe_success({"items": items, "item_count": len(items)}, started)
@@ -315,7 +317,8 @@ def _probe_physical_storage(table_ids):
         item_started = time.monotonic()
         try:
             indices = StorageHandler.get_result_table_indices(table_id)
-            items.append({"table_id": table_id, "probe": probe_success(sanitize_json(indices), item_started)})
+            projected = sanitize_json(indices, redact_text=True)
+            items.append({"table_id": table_id, "probe": probe_success(projected, item_started)})
         except Exception as error:
             items.append({"table_id": table_id, "probe": probe_failure(error, item_started)})
     return probe_success({"items": items, "item_count": len(items)}, started)
@@ -436,7 +439,7 @@ def _compare_route(route_meta, expected, actual):
 
     cluster_results = data.get("cluster_results") or {}
     cluster_result = cluster_results.get(str(actual_cluster)) or cluster_results.get(actual_cluster) or {}
-    route["warnings"].extend(sanitize_json(cluster_result.get("warnings") or []))
+    route["warnings"].extend(_project_runtime_warning(warning) for warning in cluster_result.get("warnings") or [])
     route["errors"].extend(_project_runtime_error(error) for error in cluster_result.get("errors") or [])
     if cluster_result.get("runtime_skipped") or route["errors"]:
         route["status"] = "runtime_unavailable"
@@ -456,29 +459,21 @@ def _runtime_unavailable_route(route_meta, expected, error):
 
 
 def _project_runtime_response(runtime):
-    """Keep route evidence useful without returning arbitrary upstream error text."""
+    """Keep only the fixed storage-status projection used for route comparison."""
 
     if not isinstance(runtime, dict):
-        return sanitize_json(runtime)
-    projected = sanitize_json(runtime)
-    if isinstance(projected.get("items"), list):
-        projected["items"] = [
-            _project_runtime_item(item) if isinstance(item, dict) else item for item in projected["items"]
-        ]
-    return projected
+        return {"items": [], "invalid_response": True}
+    items = runtime.get("items")
+    if not isinstance(items, list):
+        return {"items": [], "invalid_response": True}
+    return {
+        "items": [_project_runtime_item(item) for item in items if isinstance(item, dict)],
+        "invalid_response": False,
+    }
 
 
 def _project_runtime_item(item):
-    projected = sanitize_json(item)
-    if isinstance(projected, dict) and projected.get("error"):
-        projected["error"] = _project_runtime_error(projected["error"])
-    data = projected.get("data") if isinstance(projected, dict) else None
-    cluster_results = data.get("cluster_results") if isinstance(data, dict) else None
-    if isinstance(cluster_results, dict):
-        for cluster_result in cluster_results.values():
-            if isinstance(cluster_result, dict) and isinstance(cluster_result.get("errors"), list):
-                cluster_result["errors"] = [_project_runtime_error(error) for error in cluster_result["errors"]]
-    return projected
+    return sanitize_json(_project_storage_status_item(item), redact_text=True)
 
 
 def _project_runtime_error(error):
@@ -489,6 +484,17 @@ def _project_runtime_error(error):
         "message": "Monitor runtime route probe failed",
         "request_id": error.get("request_id"),
         "retryable": bool(error.get("retryable")),
+    }
+
+
+def _project_runtime_warning(warning):
+    if not isinstance(warning, dict):
+        return {"code": "RUNTIME_ROUTE_WARNING", "message": "Monitor runtime route warning"}
+    return {
+        "code": str(warning.get("code") or "RUNTIME_ROUTE_WARNING"),
+        "message": "Monitor runtime route warning",
+        "request_id": warning.get("request_id"),
+        "retryable": bool(warning.get("retryable")),
     }
 
 

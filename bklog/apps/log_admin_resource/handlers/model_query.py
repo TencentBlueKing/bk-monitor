@@ -7,9 +7,12 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from django.apps import apps as django_apps
+from django.core.exceptions import ValidationError as DjangoValidationError
+from django.db import DataError
 from django.db.models import Q, Subquery
 
 from apps.exceptions import ValidationError
+from apps.log_admin_resource.handlers.inspection import sanitize_sensitive_text
 from apps.utils.local import get_request_tenant_id
 
 
@@ -106,6 +109,13 @@ def _model_spec(
     default_fields = tuple(default or sorted(all_fields))
     allowed_order_by = tuple(order_by or default_fields[:1])
     normalized_default_order = tuple(default_order_by or allowed_order_by[:1])
+    normalized_examples = tuple(examples) or (
+        {
+            "fields": list(default_fields),
+            "order_by": list(normalized_default_order),
+            "limit": min(DEFAULT_LIMIT, max_limit),
+        },
+    )
     scope_notes = {
         "global": "Environment-global control-plane facts; no business row scope exists on this model.",
         "tenant": "Forced to the current request tenant through bk_tenant_id.",
@@ -134,7 +144,7 @@ def _model_spec(
         manager_name="origin_objects" if soft_delete else "objects",
         fixed_filters=dict(fixed_filters or {}),
         row_masker=row_masker,
-        examples=tuple(examples),
+        examples=normalized_examples,
     )
 
 
@@ -156,8 +166,9 @@ def _mask_sensitive_tree(value):
             try:
                 parsed = json.loads(value)
             except (TypeError, ValueError):
-                return value
+                return sanitize_sensitive_text(value, maximum=None)
             return json.dumps(_mask_sensitive_tree(parsed), ensure_ascii=False, default=str)
+        return sanitize_sensitive_text(value, maximum=None)
     return value
 
 
@@ -1245,10 +1256,13 @@ def query_model(params):
 
     queryset = getattr(model, spec.manager_name).all()
     queryset = _apply_scope(queryset, spec)
-    queryset = queryset.filter(**filters)
-    if ordering:
-        queryset = queryset.order_by(*ordering)
-    rows = list(queryset[: limit + 1])
+    try:
+        queryset = queryset.filter(**filters)
+        if ordering:
+            queryset = queryset.order_by(*ordering)
+        rows = list(queryset[: limit + 1])
+    except (DjangoValidationError, DataError, TypeError, ValueError) as error:
+        raise ValidationError("filter values are incompatible with the selected model fields") from error
     has_more = len(rows) > limit
     rows = rows[:limit]
     items = []

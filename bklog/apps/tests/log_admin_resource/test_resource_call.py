@@ -190,6 +190,24 @@ class AdminResourceCallViewTest(ClearRequestLocalMixin, TestCase):
         self.assertIn("unknown func_name", content["message"])
 
     @override_settings(MIDDLEWARE=(APIGW_MIDDLEWARE,))
+    def test_success_and_error_return_request_id_header_without_changing_body_protocol(self):
+        success = self.client.post(
+            "/api/v1/admin/resource/call/",
+            data=json.dumps({"func_name": "__meta__", "params": {"action": "list"}}),
+            content_type="application/json",
+        )
+        failure = self.client.post(
+            "/api/v1/admin/resource/call/",
+            data=json.dumps({"func_name": "bklog.unknown.list", "params": {}}),
+            content_type="application/json",
+        )
+
+        self.assertTrue(success.headers["X-Request-Id"])
+        self.assertTrue(failure.headers["X-Request-Id"])
+        self.assertNotIn("request_id", json.loads(success.content)["data"])
+        self.assertNotIn("request_id", json.loads(failure.content))
+
+    @override_settings(MIDDLEWARE=(APIGW_MIDDLEWARE,))
     def test_platform_source_error_reuses_outer_resource_error_envelope(self):
         content = self._call(
             "bklog.platform_source.query",

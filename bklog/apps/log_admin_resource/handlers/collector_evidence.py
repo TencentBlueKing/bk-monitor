@@ -321,7 +321,7 @@ def _evidence_status(result):
 
 
 def _bounded(value):
-    limited = sanitize_json(value, max_bytes=MAX_RESPONSE_BYTES)
+    limited = sanitize_json(value, max_bytes=MAX_RESPONSE_BYTES, redact_text=True)
     return {
         "value": limited["value"],
         "truncated": limited["truncated"],

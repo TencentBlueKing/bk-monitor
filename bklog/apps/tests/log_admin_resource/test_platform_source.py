@@ -3,6 +3,7 @@ from unittest.mock import patch
 from django.test import SimpleTestCase, override_settings
 
 from apps.log_admin_resource.handlers.platform_source import (
+    OPERATIONS,
     OperationSpec,
     PlatformSourceError,
     _data_age_seconds,
@@ -33,6 +34,12 @@ class PlatformSourceHandlerTest(SimpleTestCase):
         self.assertEqual(described["result"]["projection"]["mode"], "field_allowlist_and_recursive_redaction")
         self.assertEqual(described["result"]["limits"]["timeout_seconds"], 10)
         self.assertEqual(described["next_call"]["mode"], "invoke")
+
+    def test_every_registered_operation_declares_a_fixed_nonempty_response_projection(self):
+        for key, spec in OPERATIONS.items():
+            with self.subTest(operation=key):
+                self.assertEqual(spec.projection["mode"], "field_allowlist_and_recursive_redaction")
+                self.assertTrue(spec.projection["fields"])
 
     def test_invalid_mode_domain_operation_and_invoke_envelope_return_stable_errors(self):
         cases = (
@@ -396,8 +403,24 @@ class PlatformSourceHandlerTest(SimpleTestCase):
         self.assertEqual(result["result"], {"total": 0, "list": []})
 
     @patch("apps.log_admin_resource.handlers.platform_source.TransferApi.get_result_table_storage")
-    def test_metadata_params_are_mapped_and_sensitive_keys_are_redacted(self, mock_api):
-        mock_api.return_value = {"storage_cluster_id": 1, "password": "top-secret"}
+    def test_metadata_storage_params_are_mapped_and_response_is_allowlisted(self, mock_api):
+        mock_api.return_value = {
+            "2_bklog.demo": {
+                "storage_cluster_id": 1,
+                "retention": 7,
+                "auth_info": {"username": "admin", "password": "top-secret"},
+                "cluster_config": {
+                    "cluster_id": 1,
+                    "cluster_name": "es-one",
+                    "domain_name": "secret.example.com",
+                    "port": 9200,
+                    "custom_option": {"admin": ["operator"]},
+                    "raw_ssl_certificate": "secret-certificate",
+                },
+                "unexpected": "drop-me",
+            },
+            "malformed": "drop-me",
+        }
 
         result = query_platform_source(
             {
@@ -412,12 +435,282 @@ class PlatformSourceHandlerTest(SimpleTestCase):
         self.assertEqual(called_params["result_table_list"], "2_bklog.demo")
         self.assertEqual(called_params["storage_type"], "elasticsearch")
         self.assertTrue(called_params["no_request"])
-        self.assertEqual(result["result"]["password"], "***")
+        self.assertEqual(
+            result["result"],
+            {
+                "items": [
+                    {
+                        "table_id": "2_bklog.demo",
+                        "storage_type": "elasticsearch",
+                        "storage_cluster_id": 1,
+                        "retention": 7,
+                        "cluster_id": 1,
+                        "cluster_name": "es-one",
+                    }
+                ]
+            },
+        )
+
+    @patch("apps.log_admin_resource.handlers.platform_source.TransferApi.get_data_id")
+    def test_data_source_projection_drops_token_mq_and_arbitrary_configs(self, mock_api):
+        mock_api.return_value = {
+            "bk_data_id": 1500001,
+            "bk_tenant_id": "tenant-a",
+            "bk_biz_id": 2,
+            "data_name": "bklog_demo",
+            "token": "secret-token",
+            "mq_config": {"bootstrap_servers": "kafka.example.com:9092", "auth_info": {"password": "secret"}},
+            "option": {"credential": "secret"},
+            "result_table_list": [{"result_table": "2_bklog.demo", "shipper_list": [{"password": "secret"}]}],
+        }
+
+        result = query_platform_source(
+            {
+                "mode": "invoke",
+                "domain": "metadata",
+                "operation": "get_data_source",
+                "params": {"bk_data_id": 1500001},
+            }
+        )
+
+        self.assertEqual(
+            result["result"],
+            {
+                "bk_data_id": 1500001,
+                "bk_tenant_id": "tenant-a",
+                "bk_biz_id": 2,
+                "data_name": "bklog_demo",
+            },
+        )
+
+    @patch("apps.log_admin_resource.handlers.platform_source.TransferApi.get_result_table")
+    def test_result_table_projection_drops_options_and_allowlists_fields(self, mock_api):
+        mock_api.return_value = {
+            "table_id": "2_bklog.demo",
+            "bk_tenant_id": "tenant-a",
+            "bk_biz_id": 2,
+            "default_storage": "elasticsearch",
+            "option": {"password": "secret"},
+            "query_alias_settings": {"raw": "drop-me"},
+            "field_list": [
+                {"field_name": "log", "field_type": "string", "tag": "dimension", "raw": "drop-me"},
+                "malformed",
+            ],
+        }
+
+        result = query_platform_source(
+            {
+                "mode": "invoke",
+                "domain": "metadata",
+                "operation": "get_result_table",
+                "params": {"result_table_id": "2_bklog.demo"},
+            }
+        )
+
+        self.assertEqual(
+            result["result"],
+            {
+                "table_id": "2_bklog.demo",
+                "bk_tenant_id": "tenant-a",
+                "bk_biz_id": 2,
+                "default_storage": "elasticsearch",
+                "field_list": [{"field_name": "log", "field_type": "string", "tag": "dimension"}],
+            },
+        )
+
+    @patch("apps.log_admin_resource.handlers.platform_source.TransferApi.get_result_table_storage_status")
+    def test_storage_status_projection_keeps_runtime_evidence_without_raw_provider_fields(self, mock_api):
+        mock_api.return_value = {
+            "items": [
+                {
+                    "table_id": "2_bklog.demo",
+                    "data": {
+                        "result_table": {
+                            "table_id": "2_bklog.demo",
+                            "default_storage": "elasticsearch",
+                            "creator": "drop-me",
+                        },
+                        "storage_configs": {
+                            "elasticsearch": {
+                                "table_id": "2_bklog.demo",
+                                "storage_cluster_id": 11,
+                                "retention": 7,
+                                "index_settings": {"secret": "drop-me"},
+                            },
+                            "kafka": {"bootstrap_servers": "drop-me"},
+                        },
+                        "segments": [
+                            {"id": 1, "cluster_id": 11, "storage_type": "elasticsearch", "creator": "drop-me"},
+                            "malformed",
+                        ],
+                        "cluster_results": {
+                            "11": {
+                                "storage_type": "elasticsearch",
+                                "cluster": {
+                                    "cluster_id": 11,
+                                    "cluster_name": "es-one",
+                                    "domain_name": "drop-me",
+                                },
+                                "connectivity": {"is_connected": True, "error": "drop-me"},
+                                "runtime": {
+                                    "indices": {
+                                        "items": [
+                                            {
+                                                "index": "2_bklog_demo_20260830_0",
+                                                "health": "green",
+                                                "docs_count": 3,
+                                                "raw": "drop-me",
+                                            },
+                                            "malformed",
+                                        ]
+                                    },
+                                    "raw_backend_response": {"secret": "drop-me"},
+                                },
+                                "warnings": [{"code": "DEGRADED", "message": "raw provider warning"}],
+                                "errors": ["raw provider error"],
+                            },
+                            "malformed": "drop-me",
+                        },
+                        "warnings": [{"code": "PARTIAL", "message": "raw provider warning"}],
+                        "errors": [{"message": "raw provider error", "password": "secret"}],
+                    },
+                    "error": None,
+                },
+                {
+                    "table_id": "missing",
+                    "data": None,
+                    "error": {"code": "RESULT_TABLE_NOT_FOUND", "message": "raw provider error"},
+                },
+                "malformed",
+            ]
+        }
+
+        result = query_platform_source(
+            {
+                "mode": "invoke",
+                "domain": "metadata",
+                "operation": "get_result_table_storage_status",
+                "params": {"result_table_ids": ["2_bklog.demo", "missing"]},
+            }
+        )["result"]
+
+        first = result["items"][0]
+        self.assertEqual(
+            first["data"]["storage_configs"],
+            {"elasticsearch": {"table_id": "2_bklog.demo", "storage_cluster_id": 11, "retention": 7}},
+        )
+        self.assertEqual(first["data"]["segments"], [{"id": 1, "cluster_id": 11, "storage_type": "elasticsearch"}])
+        cluster = first["data"]["cluster_results"]["11"]
+        self.assertEqual(cluster["cluster"], {"cluster_id": 11, "cluster_name": "es-one"})
+        self.assertEqual(
+            cluster["runtime"]["indices"]["items"],
+            [{"index": "2_bklog_demo_20260830_0", "health": "green", "docs_count": 3}],
+        )
+        self.assertEqual(cluster["warnings"][0]["message"], "metadata storage status warning")
+        self.assertEqual(cluster["errors"][0]["code"], "METADATA_STATUS_ERROR")
+        self.assertEqual(result["items"][1]["error"]["message"], "metadata storage status query failed")
+        self.assertNotIn("raw provider", str(result))
+        self.assertNotIn("drop-me", str(result))
+        self.assertNotIn("secret", str(result))
+
+    @patch("apps.log_admin_resource.handlers.platform_source.TransferApi.get_cluster_info")
+    def test_storage_cluster_projection_drops_endpoints_auth_and_certificates(self, mock_api):
+        mock_api.return_value = [
+            {
+                "cluster_type": "elasticsearch",
+                "auth_info": {"username": "admin", "password": "secret"},
+                "cluster_config": {
+                    "cluster_id": 11,
+                    "cluster_name": "es-one",
+                    "display_name": "ES One",
+                    "version": "7.10",
+                    "registered_system": "bklog",
+                    "domain_name": "secret.example.com",
+                    "port": 9200,
+                    "schema": "https",
+                    "raw_ssl_certificate": "secret-certificate",
+                    "custom_option": {"admin": ["operator"]},
+                },
+            },
+            "malformed",
+        ]
+
+        result = query_platform_source(
+            {
+                "mode": "invoke",
+                "domain": "metadata",
+                "operation": "get_storage_cluster",
+                "params": {"cluster_id": 11},
+            }
+        )
+
+        self.assertEqual(
+            result["result"],
+            [
+                {
+                    "cluster_type": "elasticsearch",
+                    "cluster_id": 11,
+                    "cluster_name": "es-one",
+                    "display_name": "ES One",
+                    "version": "7.10",
+                    "registered_system": "bklog",
+                }
+            ],
+        )
+
+    @patch("apps.log_admin_resource.handlers.platform_source.TransferApi.get_cluster_status")
+    def test_storage_cluster_status_projection_excludes_broker_url_node_and_raw_error(self, mock_api):
+        mock_api.return_value = [
+            {
+                "cluster_id": 11,
+                "cluster_type": "kafka",
+                "status": "available",
+                "is_connected": True,
+                "is_available": True,
+                "nodes": {"total": 3, "available": 3, "items": [{"ip": "secret"}]},
+                "capacity": {"total_bytes": 10, "used_bytes": 2, "raw": "drop-me"},
+                "details": {
+                    "broker_count": 3,
+                    "topic_count": 20,
+                    "bootstrap_servers": "secret.example.com:9092",
+                    "url": "https://secret.example.com",
+                    "response": "drop-me",
+                    "node_details": [{"ip": "secret"}],
+                },
+                "error": {"code": "PROBE_WARNING", "message": "raw provider error"},
+            },
+            "malformed",
+        ]
+
+        result = query_platform_source(
+            {
+                "mode": "invoke",
+                "domain": "metadata",
+                "operation": "get_storage_cluster_status",
+                "params": {"bk_biz_id": 2, "cluster_ids": [11]},
+            }
+        )["result"]
+
+        self.assertEqual(result[0]["nodes"], {"total": 3, "available": 3})
+        self.assertEqual(result[0]["capacity"], {"total_bytes": 10, "used_bytes": 2})
+        self.assertEqual(result[0]["details"], {"broker_count": 3, "topic_count": 20})
+        self.assertEqual(result[0]["error"]["message"], "metadata cluster probe failed")
+        self.assertNotIn("secret", str(result))
+        self.assertNotIn("drop-me", str(result))
 
     @patch("apps.log_admin_resource.handlers.platform_source.TransferApi.list_kafka_tail")
     def test_kafka_sample_is_bounded_and_does_not_expose_credentials(self, mock_api):
         mock_api.return_value = [
-            {"items": [{"data": f"line-{index}"}], "authorization": "secret"} for index in range(5)
+            {
+                "items": [
+                    {
+                        "data": f"line-{index} password=top-secret authorization: Bearer bearer-secret "
+                        "https://user:pass@example.com/path"
+                    }
+                ],
+                "authorization": "secret",
+            }
+            for index in range(5)
         ]
 
         result = query_platform_source(
@@ -433,6 +726,14 @@ class PlatformSourceHandlerTest(SimpleTestCase):
         self.assertEqual(result["result"]["count"], 2)
         self.assertEqual(len(result["result"]["items"]), 2)
         self.assertEqual(result["result"]["items"][0]["authorization"], "***")
+        sample_text = result["result"]["items"][0]["items"][0]["data"]
+        self.assertIn("line-0", sample_text)
+        self.assertIn("password=***", sample_text)
+        self.assertIn("authorization: ***", sample_text)
+        self.assertIn("https://***:***@example.com/path", sample_text)
+        self.assertNotIn("top-secret", sample_text)
+        self.assertNotIn("bearer-secret", sample_text)
+        self.assertNotIn("user:pass", sample_text)
         self.assertEqual(result["warnings"][0]["code"], "SAMPLE_TRUNCATED")
 
     @patch("apps.log_admin_resource.handlers.platform_source.TransferApi.list_kafka_tail")
@@ -575,7 +876,7 @@ class PlatformSourceHandlerTest(SimpleTestCase):
     @patch("apps.log_admin_resource.handlers.platform_source.MAX_RESPONSE_BYTES", 64)
     @patch("apps.log_admin_resource.handlers.platform_source.TransferApi.get_data_id")
     def test_large_projected_response_has_explicit_truncation_warning(self, mock_api):
-        mock_api.return_value = {"payload": "x" * 1000}
+        mock_api.return_value = {"data_name": "x" * 1000}
 
         result = query_platform_source(
             {

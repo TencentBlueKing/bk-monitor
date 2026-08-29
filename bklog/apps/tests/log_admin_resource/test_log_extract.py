@@ -125,7 +125,20 @@ class LogExtractEvidenceTest(TestCase):
         link = create_link()
         task = create_task(
             link,
-            task_process_info="failed token=top-secret password:another-secret",
+            target_nodes=[
+                {
+                    "bk_host_id": 101,
+                    "description": "token=target-secret https://target-user:target-pass@example.com/path",
+                }
+            ],
+            filter_content={
+                "keyword": "ERROR authorization: Bearer filter-bearer",
+                "password": "filter-password",
+            },
+            task_process_info=(
+                "failed token=top-secret password:another-secret "
+                "authorization: Bearer bearer-secret https://user:pass@example.com/path"
+            ),
         )
         mock_get_state.return_value = {
             "state": "RUNNING",
@@ -151,6 +164,15 @@ class LogExtractEvidenceTest(TestCase):
         self.assertNotIn("inputs", component)
         self.assertNotIn("top-secret", result["failure_reason"])
         self.assertNotIn("another-secret", result["failure_reason"])
+        self.assertNotIn("bearer-secret", result["failure_reason"])
+        self.assertNotIn("user:pass", result["failure_reason"])
+        for sensitive in (
+            "target-secret",
+            "target-user:target-pass",
+            "filter-bearer",
+            "filter-password",
+        ):
+            self.assertNotIn(sensitive, str(result))
         self.assertTrue(result["cos_file_name_present"])
         self.assertTrue(result["artifact_reference_present"])
         self.assertNotIn("cos_file_name", result)
@@ -347,6 +369,20 @@ class LogExtractArtifactProbeTest(TestCase):
             result = probe_log_extract_artifact({"task_id": task.task_id})
 
         self.assertEqual(result["artifact"]["probe_status"], "failed")
+
+    def test_common_probe_rejects_symlink_outside_extract_directory(self):
+        link = create_link("common")
+        task = create_task(link, cos_file_name="artifact-link.tar.gz")
+        with tempfile.TemporaryDirectory() as directory, tempfile.TemporaryDirectory() as outside:
+            outside_path = os.path.join(outside, "outside.tar.gz")
+            with open(outside_path, "wb") as file_object:
+                file_object.write(b"outside")
+            os.symlink(outside_path, os.path.join(directory, "artifact-link.tar.gz"))
+            with override_settings(EXTRACT_SAAS_STORE_DIR=directory):
+                result = probe_log_extract_artifact({"task_id": task.task_id})
+
+        self.assertEqual(result["artifact"]["probe_status"], "failed")
+        self.assertIsNone(result["artifact"]["exists"])
 
     def test_missing_link_is_reported_without_storage_probe(self):
         link = create_link("common")
