@@ -1,5 +1,12 @@
+from django.conf import settings
+
+from apps.exceptions import PermissionError as BklogPermissionError
 from apps.exceptions import ValidationError
 from apps.log_admin_resource.handlers.collector import get_collector_detail, list_collectors
+from apps.log_admin_resource.handlers.collector_evidence import (
+    FUNCTIONS as COLLECTOR_EVIDENCE_FUNCTIONS,
+    HANDLERS as COLLECTOR_EVIDENCE_HANDLERS,
+)
 from apps.log_admin_resource.handlers.collector_storage import (
     apply_collector_storage,
     get_collector_storage_snapshot,
@@ -10,6 +17,10 @@ from apps.log_admin_resource.handlers.bkdata_inspection import (
     get_bkdata_clean_snapshot,
     get_bkdata_flow_snapshot,
     get_bkdata_raw_snapshot,
+)
+from apps.log_admin_resource.handlers.async_export import (
+    FUNCTIONS as ASYNC_EXPORT_FUNCTIONS,
+    HANDLERS as ASYNC_EXPORT_HANDLERS,
 )
 from apps.log_admin_resource.handlers.clustering_config import (
     get_clustering_config_detail,
@@ -22,7 +33,24 @@ from apps.log_admin_resource.handlers.clustering_pipeline import (
     skip_clustering_pipeline_node,
 )
 from apps.log_admin_resource.handlers.index_set import get_index_set_detail, list_index_sets
+from apps.log_admin_resource.handlers.index_set_route import (
+    FUNCTIONS as INDEX_SET_ROUTE_FUNCTIONS,
+    HANDLERS as INDEX_SET_ROUTE_HANDLERS,
+)
+from apps.log_admin_resource.handlers.log_extract import (
+    FUNCTIONS as LOG_EXTRACT_FUNCTIONS,
+    HANDLERS as LOG_EXTRACT_HANDLERS,
+)
+from apps.log_admin_resource.handlers.model_query import (
+    FUNCTIONS as MODEL_QUERY_FUNCTIONS,
+    HANDLERS as MODEL_QUERY_HANDLERS,
+)
+from apps.log_admin_resource.handlers.platform_source import (
+    FUNCTIONS as PLATFORM_SOURCE_FUNCTIONS,
+    HANDLERS as PLATFORM_SOURCE_HANDLERS,
+)
 from apps.log_admin_resource.handlers.storage_cluster import list_storage_clusters
+from apps.log_admin_resource.schema import validate_params
 
 
 PROTOCOL = "bklog.admin_resource.v1"
@@ -494,6 +522,12 @@ FUNCTIONS = {
         ],
     },
 }
+FUNCTIONS.update(PLATFORM_SOURCE_FUNCTIONS)
+FUNCTIONS.update(COLLECTOR_EVIDENCE_FUNCTIONS)
+FUNCTIONS.update(INDEX_SET_ROUTE_FUNCTIONS)
+FUNCTIONS.update(ASYNC_EXPORT_FUNCTIONS)
+FUNCTIONS.update(LOG_EXTRACT_FUNCTIONS)
+FUNCTIONS.update(MODEL_QUERY_FUNCTIONS)
 
 HANDLERS = {
     "bklog.collector.list": list_collectors,
@@ -515,29 +549,73 @@ HANDLERS = {
     "bklog.bkdata.flow.snapshot": get_bkdata_flow_snapshot,
     "bklog.bkdata.result_table.snapshot_batch": batch_get_bkdata_result_table_snapshots,
 }
+HANDLERS.update(PLATFORM_SOURCE_HANDLERS)
+HANDLERS.update(COLLECTOR_EVIDENCE_HANDLERS)
+HANDLERS.update(INDEX_SET_ROUTE_HANDLERS)
+HANDLERS.update(ASYNC_EXPORT_HANDLERS)
+HANDLERS.update(LOG_EXTRACT_HANDLERS)
+HANDLERS.update(MODEL_QUERY_HANDLERS)
 
 
 class AdminResourceRegistry:
     @classmethod
-    def call(cls, func_name, params):
+    def call(cls, func_name, params, app_code=None):
+        cls._validate_app_access(app_code=app_code, func_name=func_name)
         if func_name == "__meta__":
-            return cls.meta(params)
+            return cls.meta(params, app_code=app_code)
         if func_name in HANDLERS:
+            function = FUNCTIONS[func_name]
+            if function.get("validate_params"):
+                validate_params(params or {}, function.get("params_schema") or _object_schema())
             return HANDLERS[func_name](params or {})
         raise ValidationError(f"unknown func_name: {func_name}")
 
     @classmethod
-    def meta(cls, params):
+    def meta(cls, params, app_code=None):
         params = params or {}
         action = params.get("action", "list")
+        visible_functions = cls._visible_functions(app_code)
         if action == "list":
-            return {"functions": sorted(FUNCTIONS.keys())}
+            names = sorted(visible_functions)
+            return {
+                "protocol": PROTOCOL,
+                "functions": names,
+                "capabilities": [cls._capability_summary(visible_functions[name]) for name in names],
+            }
         if action == "detail":
             target_func_name = params.get("target_func_name")
-            if target_func_name not in FUNCTIONS:
+            if target_func_name not in visible_functions:
                 raise ValidationError(f"unknown target_func_name: {target_func_name}")
-            return FUNCTIONS[target_func_name]
+            return cls._public_metadata(visible_functions[target_func_name])
         raise ValidationError(f"unknown meta action: {action}")
+
+    @staticmethod
+    def _public_metadata(function):
+        return {key: value for key, value in function.items() if not key.startswith("_") and key != "validate_params"}
+
+    @staticmethod
+    def _capability_summary(function):
+        return {key: function[key] for key in ("func_name", "description", "safety_level") if key in function}
+
+    @classmethod
+    def _visible_functions(cls, app_code):
+        if app_code in settings.RESOURCE_CALL_APP_CODE_WHITE_LIST:
+            return FUNCTIONS
+        return {
+            name: function
+            for name, function in FUNCTIONS.items()
+            if function.get("safety_level") in {"read", "inspect"}
+        }
+
+    @classmethod
+    def _validate_app_access(cls, app_code, func_name):
+        if not app_code:
+            raise BklogPermissionError("resource call requires a trusted APIGW app identity")
+        if func_name == "__meta__" or func_name not in FUNCTIONS:
+            return
+        safety_level = FUNCTIONS[func_name].get("safety_level")
+        if safety_level in {"write", "destructive"} and app_code not in settings.RESOURCE_CALL_APP_CODE_WHITE_LIST:
+            raise BklogPermissionError("resource call app is outside the management allowlist")
 
 
 def wrap_result(func_name, result):

@@ -13,5 +13,9 @@ class AdminResourceViewSet(APIViewSet):
     def call(self, request):
         func_name = request.data.get("func_name")
         params = request.data.get("params") or {}
-        result = AdminResourceRegistry.call(func_name=func_name, params=params)
+        result = AdminResourceRegistry.call(
+            func_name=func_name,
+            params=params,
+            app_code=getattr(request, "resource_app_code", None),
+        )
         return Response(wrap_result(func_name=func_name, result=result))
