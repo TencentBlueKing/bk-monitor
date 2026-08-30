@@ -2,12 +2,23 @@ from django.conf import settings
 
 from apps.exceptions import PermissionError as BklogPermissionError
 from apps.exceptions import ValidationError
-from apps.log_admin_resource.handlers.collector import get_collector_detail, list_collectors
+from apps.log_admin_resource.handlers.collector import (
+    COLLECTOR_DETAIL_PARAMS_SCHEMA,
+    COLLECTOR_DETAIL_RESPONSE_SCHEMA,
+    COLLECTOR_LIST_PARAMS_SCHEMA,
+    COLLECTOR_LIST_RESPONSE_SCHEMA,
+    get_collector_detail,
+    list_collectors,
+)
 from apps.log_admin_resource.handlers.collector_evidence import (
     FUNCTIONS as COLLECTOR_EVIDENCE_FUNCTIONS,
     HANDLERS as COLLECTOR_EVIDENCE_HANDLERS,
 )
 from apps.log_admin_resource.handlers.collector_storage import (
+    COLLECTOR_STORAGE_APPLY_PARAMS_SCHEMA,
+    COLLECTOR_STORAGE_PREVIEW_PARAMS_SCHEMA,
+    COLLECTOR_STORAGE_RESPONSE_SCHEMA,
+    COLLECTOR_STORAGE_SNAPSHOT_PARAMS_SCHEMA,
     apply_collector_storage,
     get_collector_storage_snapshot,
     preview_collector_storage,
@@ -49,7 +60,11 @@ from apps.log_admin_resource.handlers.platform_source import (
     FUNCTIONS as PLATFORM_SOURCE_FUNCTIONS,
     HANDLERS as PLATFORM_SOURCE_HANDLERS,
 )
-from apps.log_admin_resource.handlers.storage_cluster import list_storage_clusters
+from apps.log_admin_resource.handlers.storage_cluster import (
+    STORAGE_CLUSTER_LIST_PARAMS_SCHEMA,
+    STORAGE_CLUSTER_LIST_RESPONSE_SCHEMA,
+    list_storage_clusters,
+)
 from apps.log_admin_resource.schema import validate_params
 
 
@@ -201,44 +216,64 @@ FUNCTIONS = {
         "func_name": "bklog.collector.list",
         "description": "List bklog collector configs for admin resource views.",
         "safety_level": "read",
+        "params_schema": COLLECTOR_LIST_PARAMS_SCHEMA,
+        "response_schema": COLLECTOR_LIST_RESPONSE_SCHEMA,
+        "examples": [{"params": {"page": 1, "page_size": 20, "bk_biz_id": 2}}],
     },
     "bklog.collector.detail": {
         "func_name": "bklog.collector.detail",
         "description": "Get bklog collector config detail for admin resource views.",
         "safety_level": "read",
+        "params_schema": COLLECTOR_DETAIL_PARAMS_SCHEMA,
+        "response_schema": COLLECTOR_DETAIL_RESPONSE_SCHEMA,
+        "examples": [{"params": {"collector_config_id": 1001}}],
     },
     "bklog.collector.storage.preview": {
         "func_name": "bklog.collector.storage.preview",
         "description": "Preview bklog collector storage config changes.",
         "safety_level": "read",
+        "params_schema": COLLECTOR_STORAGE_PREVIEW_PARAMS_SCHEMA,
+        "response_schema": COLLECTOR_STORAGE_RESPONSE_SCHEMA,
+        "examples": [
+            {
+                "params": {
+                    "collector_config_ids": [1001],
+                    "target": {"retention": 7, "storage_shards_nums": 3},
+                }
+            }
+        ],
     },
     "bklog.collector.storage.snapshot": {
         "func_name": "bklog.collector.storage.snapshot",
         "description": "Get current bklog collector storage config snapshots.",
         "safety_level": "read",
-        "params_schema": {
-            "type": "object",
-            "properties": {
-                "collector_config_ids": {
-                    "type": "array",
-                    "items": {"type": "integer", "minimum": 1},
-                    "minItems": 1,
-                    "maxItems": 30,
-                }
-            },
-            "required": ["collector_config_ids"],
-            "additionalProperties": False,
-        },
+        "params_schema": COLLECTOR_STORAGE_SNAPSHOT_PARAMS_SCHEMA,
+        "response_schema": COLLECTOR_STORAGE_RESPONSE_SCHEMA,
+        "examples": [{"params": {"collector_config_ids": [1001]}}],
     },
     "bklog.collector.storage.apply": {
         "func_name": "bklog.collector.storage.apply",
         "description": "Apply bklog collector storage config changes.",
         "safety_level": "write",
+        "params_schema": COLLECTOR_STORAGE_APPLY_PARAMS_SCHEMA,
+        "response_schema": COLLECTOR_STORAGE_RESPONSE_SCHEMA,
+        "examples": [
+            {
+                "params": {
+                    "collector_config_ids": [1001],
+                    "target": {"retention": 7},
+                    "expected_before": {"1001": {"retention": 30}},
+                }
+            }
+        ],
     },
     "bklog.storage_cluster.list": {
         "func_name": "bklog.storage_cluster.list",
         "description": "List bklog ES storage clusters for admin resource views.",
         "safety_level": "read",
+        "params_schema": STORAGE_CLUSTER_LIST_PARAMS_SCHEMA,
+        "response_schema": STORAGE_CLUSTER_LIST_RESPONSE_SCHEMA,
+        "examples": [{"params": {"bk_biz_id": 2, "page": 1, "page_size": 20}}],
     },
     "bklog.index_set.list": {
         "func_name": "bklog.index_set.list",

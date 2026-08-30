@@ -13,6 +13,7 @@ from apps.api import CCApi, NodeApi, TransferApi
 from apps.exceptions import BaseException as BklogBaseException
 from apps.exceptions import ValidationError
 from apps.log_admin_resource.handlers.inspection import extract_event_time_evidence, sanitize_json
+from apps.log_admin_resource.response_schema import diagnostic_schema, nullable_schema, object_schema
 from apps.log_databus.constants import LogPluginInfo
 from apps.utils.local import get_request_tenant_id
 
@@ -1253,6 +1254,130 @@ for _spec in (
     _register(_spec)
 
 
+PLATFORM_NEXT_CALL_SCHEMA = object_schema(
+    "mode",
+    properties={
+        "mode": {"type": "string", "enum": ["discover", "describe", "invoke"]},
+        "domain": {"type": "string"},
+        "operation": {"type": "string"},
+        "params": {"type": "object"},
+    },
+)
+PLATFORM_TRUNCATION_SCHEMA = object_schema(
+    "truncated",
+    "original_size_bytes",
+    "returned_size_bytes",
+    properties={
+        "truncated": {"type": "boolean"},
+        "original_size_bytes": {"type": "integer", "minimum": 0},
+        "returned_size_bytes": {"type": "integer", "minimum": 0},
+    },
+)
+
+
+def _platform_response_schema(kind, result_schema, *extra_required):
+    return object_schema(
+        "kind",
+        "domain",
+        "operation",
+        "result",
+        "catalog_revision",
+        "observed_at",
+        "warnings",
+        *extra_required,
+        properties={
+            "kind": {"type": "string", "const": kind},
+            "domain": nullable_schema("string"),
+            "operation": nullable_schema("string"),
+            "result": result_schema,
+            "catalog_revision": {"type": "string"},
+            "observed_at": {"type": "string", "format": "date-time"},
+            "warnings": {"type": "array", "items": diagnostic_schema()},
+            "next_call": PLATFORM_NEXT_CALL_SCHEMA,
+            "truncation": PLATFORM_TRUNCATION_SCHEMA,
+        },
+    )
+
+
+PLATFORM_SOURCE_RESPONSE_SCHEMA = {
+    "anyOf": [
+        _platform_response_schema(
+            "domain_catalog",
+            object_schema(
+                "domains",
+                properties={
+                    "domains": {
+                        "type": "array",
+                        "items": object_schema(
+                            "id",
+                            "operation_count",
+                            "safety_levels",
+                            properties={
+                                "id": {"type": "string"},
+                                "operation_count": {"type": "integer", "minimum": 1},
+                                "safety_levels": {"type": "array", "items": {"type": "string"}},
+                            },
+                        ),
+                    }
+                },
+            ),
+            "next_call",
+        ),
+        _platform_response_schema(
+            "operation_catalog",
+            object_schema(
+                "operations",
+                properties={
+                    "operations": {
+                        "type": "array",
+                        "items": object_schema(
+                            "id",
+                            "summary",
+                            "required_params",
+                            "safety_level",
+                            "catalog_revision",
+                            properties={
+                                "id": {"type": "string"},
+                                "summary": {"type": "string"},
+                                "required_params": {"type": "array", "items": {"type": "string"}},
+                                "safety_level": {"type": "string", "enum": ["read", "inspect"]},
+                                "catalog_revision": {"type": "string"},
+                            },
+                        ),
+                    }
+                },
+            ),
+            "next_call",
+        ),
+        _platform_response_schema(
+            "operation_schema",
+            object_schema(
+                "summary",
+                "safety_level",
+                "params_schema",
+                "limits",
+                "projection",
+                "examples",
+                "notes",
+                "catalog_revision",
+                properties={
+                    "summary": {"type": "string"},
+                    "safety_level": {"type": "string", "enum": ["read", "inspect"]},
+                    "params_schema": {"type": "object"},
+                    "limits": {"type": "object"},
+                    "projection": {"type": "object"},
+                    "examples": {"type": "array", "items": {"type": "object"}},
+                    "notes": {"type": "string"},
+                    "catalog_revision": {"type": "string"},
+                },
+            ),
+            "next_call",
+        ),
+        _platform_response_schema("operation_result", {}, "truncation"),
+    ]
+}
+
+
 FUNCTIONS = {
     "bklog.platform_source.query": {
         "func_name": "bklog.platform_source.query",
@@ -1269,7 +1394,7 @@ FUNCTIONS = {
             },
             "additionalProperties": False,
         },
-        "response_schema": {"type": "object"},
+        "response_schema": PLATFORM_SOURCE_RESPONSE_SCHEMA,
         "examples": [
             {"params": {"mode": "discover"}},
             {"params": {"mode": "discover", "domain": "nodeman"}},

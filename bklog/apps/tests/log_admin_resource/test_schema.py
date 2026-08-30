@@ -1,7 +1,30 @@
 from django.test import SimpleTestCase
 
 from apps.exceptions import ValidationError
+from apps.log_admin_resource.registry import FUNCTIONS
 from apps.log_admin_resource.schema import validate_params
+
+
+LEGACY_FUNCTIONS = {
+    "bklog.collector.list",
+    "bklog.collector.detail",
+    "bklog.collector.storage.preview",
+    "bklog.collector.storage.snapshot",
+    "bklog.collector.storage.apply",
+    "bklog.storage_cluster.list",
+    "bklog.index_set.list",
+    "bklog.index_set.detail",
+    "bklog.clustering_config.list",
+    "bklog.clustering_config.detail",
+    "bklog.clustering_config.access_pipeline",
+    "bklog.clustering_config.pipeline.retry",
+    "bklog.clustering_config.pipeline.skip",
+    "bklog.clustering_config.pipeline.force_fail",
+    "bklog.bkdata.raw.snapshot",
+    "bklog.bkdata.clean.snapshot",
+    "bklog.bkdata.flow.snapshot",
+    "bklog.bkdata.result_table.snapshot_batch",
+}
 
 
 class ResourceSchemaValidationTest(SimpleTestCase):
@@ -65,3 +88,26 @@ class ResourceSchemaValidationTest(SimpleTestCase):
     def test_boolean_and_null_types(self):
         validate_params(False, {"type": "boolean"})
         validate_params(None, {"type": "null"})
+
+    def test_strict_resource_handlers_expose_field_level_response_contracts(self):
+        strict_functions = {name: function for name, function in FUNCTIONS.items() if function.get("validate_params")}
+
+        self.assertTrue(strict_functions)
+        for name, function in strict_functions.items():
+            with self.subTest(func_name=name):
+                response_schema = function.get("response_schema")
+                self.assertIsInstance(response_schema, dict)
+                self.assertNotEqual(response_schema, {"type": "object"})
+                self.assertTrue(response_schema.get("required") or response_schema.get("anyOf"))
+
+    def test_every_registered_resource_exposes_request_and_response_schemas(self):
+        for name, function in FUNCTIONS.items():
+            with self.subTest(func_name=name):
+                self.assertIsInstance(function.get("params_schema"), dict)
+                self.assertIsInstance(function.get("response_schema"), dict)
+
+    def test_legacy_resource_schemas_remain_discovery_only(self):
+        self.assertTrue(LEGACY_FUNCTIONS.issubset(FUNCTIONS))
+        for name in LEGACY_FUNCTIONS:
+            with self.subTest(func_name=name):
+                self.assertFalse(FUNCTIONS[name].get("validate_params"))

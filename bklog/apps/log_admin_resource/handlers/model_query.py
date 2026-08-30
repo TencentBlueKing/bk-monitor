@@ -13,6 +13,7 @@ from django.db.models import Q, Subquery
 
 from apps.exceptions import ValidationError
 from apps.log_admin_resource.handlers.inspection import sanitize_sensitive_text
+from apps.log_admin_resource.response_schema import object_schema
 from apps.utils.local import get_request_tenant_id
 
 
@@ -1516,6 +1517,94 @@ def _serialize_instance(instance, selected_fields):
     return item
 
 
+MODEL_CALL_SCHEMA = object_schema(
+    "func_name",
+    "params",
+    properties={
+        "func_name": {"type": "string"},
+        "params": {"type": "object"},
+    },
+)
+MODEL_LIST_RESPONSE_SCHEMA = object_schema(
+    "count",
+    "items",
+    "next_call",
+    properties={
+        "count": {"type": "integer", "minimum": 0},
+        "items": {
+            "type": "array",
+            "items": object_schema(
+                "model",
+                "domain",
+                "summary",
+                "safety_level",
+                properties={
+                    "model": {"type": "string"},
+                    "domain": {"type": "string"},
+                    "summary": {"type": "string"},
+                    "safety_level": {"type": "string", "const": "read"},
+                },
+            ),
+        },
+        "next_call": MODEL_CALL_SCHEMA,
+    },
+)
+MODEL_DETAIL_RESPONSE_SCHEMA = object_schema(
+    "model",
+    "domain",
+    "summary",
+    "default_fields",
+    "allowed_fields",
+    "field_lookups",
+    "allowed_order_by",
+    "default_order_by",
+    "default_limit",
+    "max_limit",
+    "fixed_filters",
+    "server_scope",
+    "manager",
+    "row_masking",
+    "examples",
+    "next_call",
+    properties={
+        "model": {"type": "string"},
+        "domain": {"type": "string"},
+        "summary": {"type": "string"},
+        "default_fields": {"type": "array", "items": {"type": "string"}},
+        "allowed_fields": {"type": "array", "items": {"type": "string"}},
+        "field_lookups": {"type": "object"},
+        "allowed_order_by": {"type": "array", "items": {"type": "string"}},
+        "default_order_by": {"type": "array", "items": {"type": "string"}},
+        "default_limit": {"type": "integer", "minimum": 1, "maximum": MAX_LIMIT},
+        "max_limit": {"type": "integer", "minimum": 1, "maximum": MAX_LIMIT},
+        "fixed_filters": {"type": "object"},
+        "server_scope": {"type": "string"},
+        "manager": {"type": "string"},
+        "row_masking": {"type": "string"},
+        "examples": {"type": "array", "items": {"type": "object"}},
+        "next_call": MODEL_CALL_SCHEMA,
+    },
+)
+MODEL_QUERY_RESPONSE_SCHEMA = object_schema(
+    "model",
+    "fields",
+    "count",
+    "limit",
+    "has_more",
+    "items",
+    "scope",
+    properties={
+        "model": {"type": "string"},
+        "fields": {"type": "array", "items": {"type": "string"}},
+        "count": {"type": "integer", "minimum": 0},
+        "limit": {"type": "integer", "minimum": 1, "maximum": MAX_LIMIT},
+        "has_more": {"type": "boolean"},
+        "items": {"type": "array", "items": {"type": "object"}},
+        "scope": {"type": "string"},
+    },
+)
+
+
 FUNCTIONS = {
     "bklog.model.list": {
         "func_name": "bklog.model.list",
@@ -1527,7 +1616,7 @@ FUNCTIONS = {
             "properties": {"domain": {"type": "string", "maxLength": 64}},
             "additionalProperties": False,
         },
-        "response_schema": {"type": "object"},
+        "response_schema": MODEL_LIST_RESPONSE_SCHEMA,
         "examples": [{"params": {}}, {"params": {"domain": "log_search"}}],
     },
     "bklog.model.detail": {
@@ -1541,7 +1630,7 @@ FUNCTIONS = {
             "required": ["model"],
             "additionalProperties": False,
         },
-        "response_schema": {"type": "object"},
+        "response_schema": MODEL_DETAIL_RESPONSE_SCHEMA,
         "examples": [{"params": {"model": "log_search.LogIndexSet"}}],
     },
     "bklog.model.query": {
@@ -1562,7 +1651,7 @@ FUNCTIONS = {
             "required": ["model"],
             "additionalProperties": False,
         },
-        "response_schema": {"type": "object"},
+        "response_schema": MODEL_QUERY_RESPONSE_SCHEMA,
         "examples": [
             {
                 "params": {

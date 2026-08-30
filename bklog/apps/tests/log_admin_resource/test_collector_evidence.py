@@ -4,6 +4,7 @@ from django.test import SimpleTestCase, override_settings
 
 from apps.exceptions import ValidationError
 from apps.log_admin_resource.handlers.collector_evidence import (
+    FUNCTIONS,
     _collector_config_evidence,
     _evidence_status,
     _platform_result_to_probe,
@@ -12,6 +13,7 @@ from apps.log_admin_resource.handlers.collector_evidence import (
 )
 from apps.log_admin_resource.handlers.platform_source import PlatformSourceError
 from apps.log_admin_resource.registry import AdminResourceRegistry
+from apps.log_admin_resource.schema import validate_params
 
 
 @override_settings(ENVIRONMENT="bkte")
@@ -37,6 +39,11 @@ class CollectorControlPlaneSnapshotTest(SimpleTestCase):
 
         result = get_collector_control_plane_snapshot({"collector_config_id": 10})
 
+        validate_params(
+            result,
+            FUNCTIONS["bklog.collector.control_plane.snapshot"]["response_schema"],
+            "response",
+        )
         self.assertEqual(result["source_env"], "bkte")
         self.assertEqual(result["problem_env"], "bkte")
         self.assertEqual(result["evidence_status"], "complete")
@@ -183,6 +190,7 @@ class CollectorHostSnapshotTest(SimpleTestCase):
 
         result = get_collector_host_snapshot({"ip": "127.0.0.1", "bk_cloud_id": 0})
 
+        validate_params(result, FUNCTIONS["bklog.collector.host_snapshot"]["response_schema"], "response")
         instance.list_collectors_by_host.assert_called_once_with({"bk_host_id": 101, "bk_biz_id": 2, "bk_cloud_id": 0})
         self.assertEqual(result["collector_runtime"]["probe_status"], "success")
         self.assertEqual(result["collector_runtime"]["data"]["value"][0]["collector_config_id"], 10)

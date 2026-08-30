@@ -9,12 +9,14 @@ from qcloud_cos import CosServiceError
 
 from apps.exceptions import ValidationError
 from apps.log_admin_resource.handlers.log_extract import (
+    FUNCTIONS,
     PHASES,
     get_log_extract_detail,
     list_log_extract_tasks,
     probe_log_extract_artifact,
 )
 from apps.log_admin_resource.registry import AdminResourceRegistry
+from apps.log_admin_resource.schema import validate_params
 from apps.log_extract.constants import DownloadStatus
 from apps.log_extract.models import ExtractLink, Tasks
 from apps.utils.cos import QcloudCos
@@ -73,6 +75,7 @@ class LogExtractEvidenceTest(TestCase):
             {"bk_biz_id": 2, "download_status": DownloadStatus.FAILED.value, "page": 1, "page_size": 20}
         )
 
+        validate_params(result, FUNCTIONS["bklog.log_extract.list"]["response_schema"], "response")
         self.assertEqual(result["total"], 1)
         item = result["items"][0]
         self.assertEqual(item["task_id"], selected.task_id)
@@ -156,6 +159,7 @@ class LogExtractEvidenceTest(TestCase):
 
         result = get_log_extract_detail({"task_id": task.task_id})
 
+        validate_params(result, FUNCTIONS["bklog.log_extract.detail"]["response_schema"], "response")
         self.assertEqual(result["raw_status"], DownloadStatus.PIPELINE.value)
         self.assertEqual(result["phase"], "workflow_submitting")
         self.assertEqual(result["pipeline"]["probe_status"], "success")
@@ -356,6 +360,7 @@ class LogExtractArtifactProbeTest(TestCase):
             with override_settings(EXTRACT_SAAS_STORE_DIR=directory):
                 result = probe_log_extract_artifact({"task_id": task.task_id})
 
+        validate_params(result, FUNCTIONS["bklog.log_extract.artifact_probe"]["response_schema"], "response")
         self.assertEqual(result["artifact"]["probe_status"], "success")
         self.assertTrue(result["artifact"]["exists"])
         self.assertEqual(result["artifact"]["data"]["size"], 5)

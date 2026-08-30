@@ -11,6 +11,7 @@ from apps.log_clustering.models import AiopsSignatureAndPattern, ClusteringConfi
 from apps.log_databus.models import BcsRule, CollectorConfig, ContainerCollectorConfig
 from apps.log_extract.models import ExtractLink, ExtractLinkHost
 from apps.log_admin_resource.handlers.model_query import (
+    FUNCTIONS,
     LOOKUPS_EXACT,
     MASKED_VALUE,
     SENSITIVE_TREE_KEY_PATTERN,
@@ -31,6 +32,7 @@ from apps.log_admin_resource.handlers.model_query import (
     query_model,
 )
 from apps.log_admin_resource.registry import AdminResourceRegistry
+from apps.log_admin_resource.schema import validate_params
 from apps.log_search.models import BizProperty, GlobalConfig, LogIndexSet, Scenario, Space
 
 
@@ -60,6 +62,7 @@ class ModelSpecContractTest(SimpleTestCase):
         ):
             result = list_model_specs({})
 
+        validate_params(result, FUNCTIONS["bklog.model.list"]["response_schema"], "response")
         self.assertEqual(result["count"], 48)
         self.assertTrue(all(item["domain"] != "tgpa" for item in result["items"]))
         self.assertEqual(result["next_call"]["func_name"], "bklog.model.detail")
@@ -95,6 +98,7 @@ class ModelSpecContractTest(SimpleTestCase):
     def test_detail_describes_per_field_lookups_scope_limits_and_example(self):
         detail = get_model_spec_detail({"model": "log_search.LogIndexSet"})
 
+        validate_params(detail, FUNCTIONS["bklog.model.detail"]["response_schema"], "response")
         self.assertEqual(detail["model"], "log_search.LogIndexSet")
         self.assertEqual(
             detail["field_lookups"]["index_set_name"],
@@ -532,6 +536,7 @@ class ModelQueryScopeTest(TestCase):
             }
         )
 
+        validate_params(result, FUNCTIONS["bklog.model.query"]["response_schema"], "response")
         self.assertEqual(result["count"], 2)
         self.assertTrue(result["has_more"])
         self.assertEqual(result["limit"], 2)

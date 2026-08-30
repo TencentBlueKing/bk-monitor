@@ -10,6 +10,13 @@ from apps.exceptions import ValidationError
 from apps.log_admin_resource.handlers.index_set import get_index_set_detail
 from apps.log_admin_resource.handlers.inspection import probe_failure, probe_skipped, probe_success, sanitize_json
 from apps.log_admin_resource.handlers.platform_source import _project_result_table, _project_storage_status_item
+from apps.log_admin_resource.response_schema import (
+    diagnostic_schema,
+    nullable_probe_schema,
+    nullable_schema,
+    object_schema,
+    probe_schema,
+)
 from apps.log_databus.constants import STORAGE_CLUSTER_TYPE
 from apps.log_databus.handlers.storage import StorageHandler
 from apps.log_search.handlers.index_set import BaseIndexSetHandler, IndexSetHandler
@@ -538,6 +545,127 @@ def _source_env():
     return getattr(settings, "ENVIRONMENT", None) or getattr(settings, "RUN_VER", None) or "unknown"
 
 
+INDEX_SET_STORAGE_ROUTE_RESPONSE_SCHEMA = object_schema(
+    "source_env",
+    "observed_at",
+    "index_set_id",
+    "database",
+    "expected_route",
+    "metadata_route",
+    "physical_storage",
+    "consistency_warnings",
+    properties={
+        "source_env": {"type": "string"},
+        "observed_at": {"type": "string", "format": "date-time"},
+        "index_set_id": {"type": "integer", "minimum": 1},
+        "database": probe_schema(),
+        "expected_route": probe_schema(),
+        "metadata_route": probe_schema(),
+        "physical_storage": probe_schema(),
+        "consistency_warnings": {"type": "array", "items": diagnostic_schema()},
+    },
+)
+INDEX_SET_CANDIDATE_SCHEMA = object_schema(
+    "index_set_id",
+    "index_set_name",
+    "space_uid",
+    "scenario_id",
+    "is_group",
+    properties={
+        "index_set_id": {"type": "integer", "minimum": 1},
+        "index_set_name": nullable_schema("string"),
+        "space_uid": nullable_schema("string"),
+        "scenario_id": nullable_schema("string"),
+        "is_group": {"type": "boolean"},
+    },
+)
+INDEX_SET_RESOLUTION_SCHEMA = object_schema(
+    "status",
+    "query",
+    "candidate_count",
+    "candidates",
+    "warnings",
+    properties={
+        "status": {"type": "string", "enum": ["resolved", "route_missing", "ambiguous"]},
+        "query": {"type": "object"},
+        "candidate_count": {"type": "integer", "minimum": 0},
+        "candidates": {"type": "array", "items": INDEX_SET_CANDIDATE_SCHEMA},
+        "warnings": {"type": "array", "items": diagnostic_schema()},
+    },
+)
+ROUTE_TRUNCATION_SCHEMA = object_schema(
+    "truncated",
+    "original_size_bytes",
+    "returned_size_bytes",
+    properties={
+        "truncated": {"type": "boolean"},
+        "original_size_bytes": {"type": "integer", "minimum": 0},
+        "returned_size_bytes": {"type": "integer", "minimum": 0},
+    },
+)
+ROUTE_ITEM_SCHEMA = object_schema(
+    "data_label",
+    "route_kind",
+    "table_id",
+    "expected",
+    "actual",
+    "status",
+    "warnings",
+    "errors",
+    "truncation",
+    properties={
+        "data_label": nullable_schema("string"),
+        "route_kind": nullable_schema("string"),
+        "table_id": nullable_schema("string"),
+        "expected": {"type": "object"},
+        "actual": {},
+        "status": {"type": "string", "enum": list(ROUTE_STATUS_PRIORITY)},
+        "warnings": {"type": "array", "items": diagnostic_schema()},
+        "errors": {"type": "array", "items": diagnostic_schema()},
+        "truncation": ROUTE_TRUNCATION_SCHEMA,
+    },
+)
+INDEX_SET_ROUTE_RESPONSE_SCHEMA = object_schema(
+    "source_env",
+    "bk_tenant_id",
+    "observed_at",
+    "query",
+    "resolution",
+    "index_set_id",
+    "status",
+    "database",
+    "expected_route",
+    "runtime_route",
+    "routes",
+    "warnings",
+    "truncation",
+    properties={
+        "source_env": {"type": "string"},
+        "bk_tenant_id": nullable_schema("string"),
+        "observed_at": {"type": "string", "format": "date-time"},
+        "query": {"type": "object"},
+        "resolution": INDEX_SET_RESOLUTION_SCHEMA,
+        "index_set_id": nullable_schema("integer"),
+        "status": {"type": "string", "enum": list(ROUTE_STATUS_PRIORITY)},
+        "database": nullable_probe_schema(),
+        "expected_route": nullable_probe_schema(),
+        "runtime_route": nullable_probe_schema(),
+        "routes": {"type": "array", "items": ROUTE_ITEM_SCHEMA},
+        "warnings": {"type": "array", "items": diagnostic_schema()},
+        "truncation": object_schema(
+            "truncated",
+            "original_route_count",
+            "returned_route_count",
+            properties={
+                "truncated": {"type": "boolean"},
+                "original_route_count": {"type": "integer", "minimum": 0},
+                "returned_route_count": {"type": "integer", "minimum": 0},
+            },
+        ),
+    },
+)
+
+
 FUNCTIONS = {
     "bklog.index_set.route_snapshot": {
         "func_name": "bklog.index_set.route_snapshot",
@@ -552,7 +680,7 @@ FUNCTIONS = {
             },
             "additionalProperties": False,
         },
-        "response_schema": {"type": "object"},
+        "response_schema": INDEX_SET_ROUTE_RESPONSE_SCHEMA,
         "examples": [
             {"params": {"index_set_id": 16462}},
             {"params": {"result_table_id": "2_bklog.demo"}},
@@ -569,7 +697,7 @@ FUNCTIONS = {
             "required": ["index_set_id"],
             "additionalProperties": False,
         },
-        "response_schema": {"type": "object"},
+        "response_schema": INDEX_SET_STORAGE_ROUTE_RESPONSE_SCHEMA,
         "examples": [{"params": {"index_set_id": 16462}}],
         "deprecated": True,
         "replacement": "bklog.index_set.route_snapshot",

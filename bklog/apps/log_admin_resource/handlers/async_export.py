@@ -4,6 +4,7 @@ from django.utils.dateparse import parse_datetime
 
 from apps.exceptions import ValidationError
 from apps.log_admin_resource.handlers.inspection import sanitize_json, sanitize_sensitive_text
+from apps.log_admin_resource.response_schema import diagnostic_schema, nullable_schema, object_schema, pagination_schema
 from apps.log_search.constants import ASYNC_EXPORT_SCENE_ID, ExportStatus, IndexSetType
 from apps.log_search.models import AsyncTask
 
@@ -233,6 +234,148 @@ def _iso(value):
     return value.isoformat() if value else None
 
 
+ASYNC_TARGET_SCHEMA = object_schema(
+    "type",
+    properties={
+        "type": {"type": "string", "enum": ["single", "union", "scene"]},
+        "scenario_id": nullable_schema("string"),
+        "index_set_id": nullable_schema("integer"),
+        "index_set_ids": {"type": "array", "items": {"type": "integer"}},
+    },
+)
+ASYNC_LIST_ITEM_SCHEMA = object_schema(
+    "task_id",
+    "bk_biz_id",
+    "created_by",
+    "source_app_code",
+    "target",
+    "raw_status",
+    "phase",
+    "exported_count",
+    "total",
+    "created_at",
+    "updated_at",
+    "completed_at",
+    properties={
+        "task_id": {"type": "integer", "minimum": 1},
+        "bk_biz_id": nullable_schema("integer"),
+        "created_by": {"type": "string"},
+        "source_app_code": {"type": "string"},
+        "target": ASYNC_TARGET_SCHEMA,
+        "raw_status": nullable_schema("string"),
+        "phase": {"type": "string"},
+        "exported_count": {"type": "integer", "minimum": 0},
+        "total": {"type": "integer", "minimum": 0},
+        "created_at": nullable_schema("string"),
+        "updated_at": nullable_schema("string"),
+        "completed_at": nullable_schema("string"),
+    },
+)
+ASYNC_EXPORT_LIST_RESPONSE_SCHEMA = pagination_schema(ASYNC_LIST_ITEM_SCHEMA)
+ASYNC_EXPORT_DETAIL_RESPONSE_SCHEMA = object_schema(
+    "task_id",
+    "bk_biz_id",
+    "created_by",
+    "source_app_code",
+    "target",
+    "request_summary",
+    "raw_status",
+    "effective_status",
+    "phase",
+    "progress",
+    "times",
+    "failure",
+    "artifact",
+    "consistency_warnings",
+    "evidence_scope",
+    "mcp_correlation",
+    properties={
+        "task_id": {"type": "integer", "minimum": 1},
+        "bk_biz_id": nullable_schema("integer"),
+        "created_by": {"type": "string"},
+        "source_app_code": {"type": "string"},
+        "target": ASYNC_TARGET_SCHEMA,
+        "request_summary": object_schema(
+            "value",
+            "truncated",
+            "included_fields",
+            "omitted_field_count",
+            properties={
+                "value": {},
+                "truncated": {"type": "boolean"},
+                "included_fields": {"type": "array", "items": {"type": "string"}},
+                "omitted_field_count": {"type": "integer", "minimum": 0},
+            },
+        ),
+        "raw_status": nullable_schema("string"),
+        "effective_status": nullable_schema("string"),
+        "phase": {"type": "string"},
+        "progress": object_schema(
+            "exported_count",
+            "total",
+            "ratio",
+            properties={
+                "exported_count": {"type": "integer", "minimum": 0},
+                "total": {"type": "integer"},
+                "ratio": nullable_schema("number"),
+            },
+        ),
+        "times": object_schema(
+            "created_at",
+            "updated_at",
+            "completed_at",
+            "query_start_time",
+            "query_end_time",
+            "duration_ms",
+            properties={
+                "created_at": nullable_schema("string"),
+                "updated_at": nullable_schema("string"),
+                "completed_at": nullable_schema("string"),
+                "query_start_time": nullable_schema("string"),
+                "query_end_time": nullable_schema("string"),
+                "duration_ms": nullable_schema("number"),
+            },
+        ),
+        "failure": object_schema(
+            "stage",
+            "reason",
+            properties={
+                "stage": nullable_schema("string"),
+                "reason": nullable_schema("string"),
+            },
+        ),
+        "artifact": object_schema(
+            "file_name",
+            "file_size",
+            "download_entry_present",
+            "is_clean",
+            "download_count",
+            properties={
+                "file_name": nullable_schema("string"),
+                "file_size": nullable_schema("number"),
+                "download_entry_present": {"type": "boolean"},
+                "is_clean": {"type": "boolean"},
+                "download_count": {"type": "integer", "minimum": 0},
+            },
+        ),
+        "consistency_warnings": {"type": "array", "items": diagnostic_schema()},
+        "evidence_scope": {"type": "string"},
+        "mcp_correlation": object_schema(
+            "task_id",
+            "created_at",
+            "completed_at",
+            "source_app_code",
+            properties={
+                "task_id": {"type": "integer", "minimum": 1},
+                "created_at": nullable_schema("string"),
+                "completed_at": nullable_schema("string"),
+                "source_app_code": {"type": "string"},
+            },
+        ),
+    },
+)
+
+
 FUNCTIONS = {
     "bklog.async_export.list": {
         "func_name": "bklog.async_export.list",
@@ -257,7 +400,7 @@ FUNCTIONS = {
             },
             "additionalProperties": False,
         },
-        "response_schema": {"type": "object"},
+        "response_schema": ASYNC_EXPORT_LIST_RESPONSE_SCHEMA,
         "examples": [{"params": {"bk_biz_id": 2, "export_status": "failed", "page": 1}}],
     },
     "bklog.async_export.detail": {
@@ -271,7 +414,7 @@ FUNCTIONS = {
             "required": ["task_id"],
             "additionalProperties": False,
         },
-        "response_schema": {"type": "object"},
+        "response_schema": ASYNC_EXPORT_DETAIL_RESPONSE_SCHEMA,
         "examples": [{"params": {"task_id": 10001}}],
     },
 }

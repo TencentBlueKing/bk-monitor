@@ -19,6 +19,15 @@ from apps.log_admin_resource.handlers.inspection import (
     sanitize_json,
     sanitize_sensitive_text,
 )
+from apps.log_admin_resource.response_schema import (
+    bounded_string_list_schema,
+    bounded_value_schema,
+    diagnostic_schema,
+    nullable_schema,
+    object_schema,
+    pagination_schema,
+    probe_schema,
+)
 from apps.log_extract.constants import DownloadStatus, PIPELINE_TIME_FORMAT
 from apps.log_extract.models import ExtractLink, Tasks
 from apps.utils.cos import QcloudCos
@@ -472,6 +481,171 @@ def _iso(value):
     return value.isoformat() if value else None
 
 
+LOG_EXTRACT_LIST_ITEM_SCHEMA = object_schema(
+    "task_id",
+    "bk_biz_id",
+    "created_by",
+    "source_app_code",
+    "raw_status",
+    "phase",
+    "target_node_type",
+    "host_count",
+    "file_count",
+    "link_type",
+    "created_at",
+    "updated_at",
+    "expiration_date",
+    properties={
+        "task_id": {"type": "integer", "minimum": 1},
+        "bk_biz_id": {"type": "integer"},
+        "created_by": {"type": "string"},
+        "source_app_code": {"type": "string"},
+        "raw_status": nullable_schema("string"),
+        "phase": {"type": "string"},
+        "target_node_type": {"type": "string"},
+        "host_count": {"type": "integer", "minimum": 0},
+        "file_count": {"type": "integer", "minimum": 0},
+        "link_type": nullable_schema("string"),
+        "created_at": nullable_schema("string"),
+        "updated_at": nullable_schema("string"),
+        "expiration_date": nullable_schema("string"),
+    },
+)
+LOG_EXTRACT_LIST_RESPONSE_SCHEMA = pagination_schema(LOG_EXTRACT_LIST_ITEM_SCHEMA)
+LOG_EXTRACT_DETAIL_RESPONSE_SCHEMA = object_schema(
+    "task_id",
+    "bk_biz_id",
+    "created_by",
+    "source_app_code",
+    "created_at",
+    "updated_at",
+    "expiration_date",
+    "target",
+    "filter",
+    "link",
+    "raw_status",
+    "effective_status",
+    "phase",
+    "pipeline_id",
+    "job_task_id",
+    "cos_file_name_present",
+    "artifact_reference_present",
+    "file_statistics",
+    "failure_reason",
+    "failure_category",
+    "pipeline",
+    "consistency_warnings",
+    "evidence_scope",
+    "mcp_correlation",
+    properties={
+        "task_id": {"type": "integer", "minimum": 1},
+        "bk_biz_id": {"type": "integer"},
+        "created_by": {"type": "string"},
+        "source_app_code": {"type": "string"},
+        "created_at": nullable_schema("string"),
+        "updated_at": nullable_schema("string"),
+        "expiration_date": nullable_schema("string"),
+        "target": object_schema(
+            "target_node_type",
+            "hosts",
+            "target_nodes",
+            "file_paths",
+            properties={
+                "target_node_type": {"type": "string"},
+                "hosts": bounded_string_list_schema(),
+                "target_nodes": bounded_value_schema(),
+                "file_paths": bounded_string_list_schema(),
+            },
+        ),
+        "filter": object_schema(
+            "type",
+            "content",
+            properties={
+                "type": nullable_schema("string"),
+                "content": bounded_value_schema(),
+            },
+        ),
+        "link": object_schema(
+            "link_id",
+            "name",
+            "link_type",
+            "is_enable",
+            properties={
+                "link_id": nullable_schema("integer"),
+                "name": nullable_schema("string"),
+                "link_type": nullable_schema("string"),
+                "is_enable": nullable_schema("boolean"),
+            },
+        ),
+        "raw_status": nullable_schema("string"),
+        "effective_status": nullable_schema("string"),
+        "phase": {"type": "string"},
+        "pipeline_id": nullable_schema("string"),
+        "job_task_id": nullable_schema("integer"),
+        "cos_file_name_present": {"type": "boolean"},
+        "artifact_reference_present": {"type": "boolean"},
+        "file_statistics": object_schema(
+            "host_count",
+            "file_count",
+            "original_size",
+            "packed_size",
+            properties={
+                "host_count": {"type": "integer", "minimum": 0},
+                "file_count": {"type": "integer", "minimum": 0},
+                "original_size": {"type": "integer", "minimum": 0},
+                "packed_size": {"type": "integer", "minimum": 0},
+            },
+        ),
+        "failure_reason": nullable_schema("string"),
+        "failure_category": nullable_schema("string"),
+        "pipeline": probe_schema(),
+        "consistency_warnings": {"type": "array", "items": diagnostic_schema()},
+        "evidence_scope": object_schema(
+            "database",
+            "pipeline",
+            "artifact",
+            "mcp_required",
+            properties={
+                "database": {"type": "string"},
+                "pipeline": {"type": "string"},
+                "artifact": {"type": "string"},
+                "mcp_required": {"type": "boolean"},
+            },
+        ),
+        "mcp_correlation": object_schema(
+            "task_id",
+            "pipeline_id",
+            "job_task_id",
+            "link_type",
+            "created_at",
+            "expiration_date",
+            properties={
+                "task_id": {"type": "integer", "minimum": 1},
+                "pipeline_id": nullable_schema("string"),
+                "job_task_id": nullable_schema("integer"),
+                "link_type": nullable_schema("string"),
+                "created_at": nullable_schema("string"),
+                "expiration_date": nullable_schema("string"),
+            },
+        ),
+    },
+)
+LOG_EXTRACT_ARTIFACT_RESPONSE_SCHEMA = object_schema(
+    "task_id",
+    "link_type",
+    "raw_status",
+    "artifact",
+    "consistency_warnings",
+    properties={
+        "task_id": {"type": "integer", "minimum": 1},
+        "link_type": nullable_schema("string"),
+        "raw_status": nullable_schema("string"),
+        "artifact": probe_schema(),
+        "consistency_warnings": {"type": "array", "items": diagnostic_schema()},
+    },
+)
+
+
 FUNCTIONS = {
     "bklog.log_extract.list": {
         "func_name": "bklog.log_extract.list",
@@ -497,7 +671,7 @@ FUNCTIONS = {
             },
             "additionalProperties": False,
         },
-        "response_schema": {"type": "object"},
+        "response_schema": LOG_EXTRACT_LIST_RESPONSE_SCHEMA,
         "examples": [{"params": {"bk_biz_id": 2, "download_status": "failed", "page": 1}}],
     },
     "bklog.log_extract.detail": {
@@ -511,7 +685,7 @@ FUNCTIONS = {
             "required": ["task_id"],
             "additionalProperties": False,
         },
-        "response_schema": {"type": "object"},
+        "response_schema": LOG_EXTRACT_DETAIL_RESPONSE_SCHEMA,
         "examples": [{"params": {"task_id": 10001}}],
     },
     "bklog.log_extract.artifact_probe": {
@@ -525,7 +699,7 @@ FUNCTIONS = {
             "required": ["task_id"],
             "additionalProperties": False,
         },
-        "response_schema": {"type": "object"},
+        "response_schema": LOG_EXTRACT_ARTIFACT_RESPONSE_SCHEMA,
         "examples": [{"params": {"task_id": 10001}}],
     },
 }

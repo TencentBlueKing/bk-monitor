@@ -4,8 +4,9 @@ from django.test import TestCase, override_settings
 from django.utils import timezone
 
 from apps.exceptions import ValidationError
-from apps.log_admin_resource.handlers.async_export import _phase, get_async_export_detail, list_async_exports
+from apps.log_admin_resource.handlers.async_export import FUNCTIONS, _phase, get_async_export_detail, list_async_exports
 from apps.log_admin_resource.registry import AdminResourceRegistry
+from apps.log_admin_resource.schema import validate_params
 from apps.log_search.constants import ASYNC_EXPORT_SCENE_ID, ExportStatus, IndexSetType
 from apps.log_search.models import AsyncTask
 
@@ -42,6 +43,7 @@ class AsyncExportEvidenceTest(TestCase):
 
         result = list_async_exports({"bk_biz_id": 2, "export_status": ExportStatus.FAILED, "page": 1, "page_size": 20})
 
+        validate_params(result, FUNCTIONS["bklog.async_export.list"]["response_schema"], "response")
         self.assertEqual(result["total"], 1)
         self.assertEqual(result["items"][0]["task_id"], selected.id)
         self.assertNotIn("request_param", result["items"][0])
@@ -112,6 +114,7 @@ class AsyncExportEvidenceTest(TestCase):
 
         result = get_async_export_detail({"task_id": task.id})
 
+        validate_params(result, FUNCTIONS["bklog.async_export.detail"]["response_schema"], "response")
         self.assertEqual(result["raw_status"], ExportStatus.FAILED)
         self.assertEqual(result["phase"], "failed")
         self.assertEqual(result["failure"]["stage"], "unknown")

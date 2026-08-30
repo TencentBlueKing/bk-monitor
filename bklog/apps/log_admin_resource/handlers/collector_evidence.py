@@ -9,6 +9,7 @@ from apps.exceptions import ValidationError
 from apps.log_admin_resource.handlers.collector import get_collector_detail
 from apps.log_admin_resource.handlers.inspection import probe_failure, probe_skipped, probe_success, sanitize_json
 from apps.log_admin_resource.handlers.platform_source import query_platform_source
+from apps.log_admin_resource.response_schema import diagnostic_schema, object_schema, probe_schema
 from apps.log_databus.handlers.collector.host import HostCollectorHandler
 from apps.utils.local import get_request_tenant_id
 
@@ -372,6 +373,65 @@ _HOST_DEPENDENT_PROBES = (
 )
 
 
+EVIDENCE_STATUS_SCHEMA = {"type": "string", "enum": ["complete", "partial", "unavailable"]}
+COLLECTOR_CONTROL_PLANE_RESPONSE_SCHEMA = object_schema(
+    "problem_env",
+    "source_env",
+    "observed_at",
+    "collector_config_id",
+    "evidence_status",
+    "effective_config",
+    "database",
+    "subscription_summary",
+    "subscription_statistic",
+    "subscription_instances",
+    "consistency_warnings",
+    properties={
+        "problem_env": {"type": "string"},
+        "source_env": {"type": "string"},
+        "observed_at": {"type": "string", "format": "date-time"},
+        "collector_config_id": {"type": "integer", "minimum": 1},
+        "evidence_status": EVIDENCE_STATUS_SCHEMA,
+        "effective_config": probe_schema(),
+        "database": probe_schema(),
+        "subscription_summary": probe_schema(),
+        "subscription_statistic": probe_schema(),
+        "subscription_instances": probe_schema(),
+        "consistency_warnings": {"type": "array", "items": diagnostic_schema()},
+    },
+)
+COLLECTOR_HOST_RESPONSE_SCHEMA = object_schema(
+    "problem_env",
+    "source_env",
+    "observed_at",
+    "query",
+    "cmdb",
+    "collector_runtime",
+    "collector_configs",
+    "host_plugin_status",
+    "subscription_summary",
+    "subscription_statistic",
+    "subscription_instances",
+    "consistency_warnings",
+    "evidence_status",
+    properties={
+        "problem_env": {"type": "string"},
+        "source_env": {"type": "string"},
+        "observed_at": {"type": "string", "format": "date-time"},
+        "query": {"type": "object"},
+        "cmdb": probe_schema(),
+        "collector_runtime": probe_schema(),
+        "collector_configs": probe_schema(),
+        "host_plugin_status": probe_schema(),
+        "subscription_summary": probe_schema(),
+        "subscription_statistic": probe_schema(),
+        "subscription_instances": probe_schema(),
+        "consistency_warnings": {"type": "array", "items": diagnostic_schema()},
+        "evidence_status": EVIDENCE_STATUS_SCHEMA,
+    },
+)
+
+
 FUNCTIONS = {
     "bklog.collector.control_plane.snapshot": {
         "func_name": "bklog.collector.control_plane.snapshot",
@@ -387,7 +447,7 @@ FUNCTIONS = {
             "required": ["collector_config_id"],
             "additionalProperties": False,
         },
-        "response_schema": {"type": "object"},
+        "response_schema": COLLECTOR_CONTROL_PLANE_RESPONSE_SCHEMA,
         "examples": [{"params": {"collector_config_id": 1001}}],
     },
     "bklog.collector.host_snapshot": {
@@ -406,7 +466,7 @@ FUNCTIONS = {
             },
             "additionalProperties": False,
         },
-        "response_schema": {"type": "object"},
+        "response_schema": COLLECTOR_HOST_RESPONSE_SCHEMA,
         "examples": [
             {"params": {"ip": "127.0.0.1", "bk_cloud_id": 0}},
             {"params": {"bk_host_id": 101, "bk_biz_id": 2}},

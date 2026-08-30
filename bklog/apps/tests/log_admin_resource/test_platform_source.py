@@ -3,6 +3,7 @@ from unittest.mock import patch
 from django.test import SimpleTestCase, override_settings
 
 from apps.log_admin_resource.handlers.platform_source import (
+    FUNCTIONS,
     OPERATIONS,
     OperationSpec,
     PlatformSourceError,
@@ -12,12 +13,14 @@ from apps.log_admin_resource.handlers.platform_source import (
     query_platform_source,
 )
 from apps.log_admin_resource.registry import AdminResourceRegistry
+from apps.log_admin_resource.schema import validate_params
 
 
 class PlatformSourceHandlerTest(SimpleTestCase):
     def test_discover_exposes_only_fixed_readonly_domains(self):
         result = query_platform_source({"mode": "discover"})
 
+        validate_params(result, FUNCTIONS["bklog.platform_source.query"]["response_schema"], "response")
         self.assertEqual(result["kind"], "domain_catalog")
         self.assertEqual([item["id"] for item in result["result"]["domains"]], ["cmdb", "metadata", "nodeman"])
         self.assertNotIn("status", result)
@@ -28,6 +31,9 @@ class PlatformSourceHandlerTest(SimpleTestCase):
         discovered = query_platform_source({"mode": "discover", "domain": "cmdb"})
         described = query_platform_source({"mode": "describe", "domain": "cmdb", "operation": "resolve_host"})
 
+        schema = FUNCTIONS["bklog.platform_source.query"]["response_schema"]
+        validate_params(discovered, schema, "response")
+        validate_params(described, schema, "response")
         self.assertEqual([item["id"] for item in discovered["result"]["operations"]], ["resolve_host"])
         self.assertEqual(described["result"]["params_schema"]["required"], ["ip"])
         self.assertEqual(described["result"]["safety_level"], "read")
@@ -213,6 +219,7 @@ class PlatformSourceHandlerTest(SimpleTestCase):
             }
         )
 
+        validate_params(result, FUNCTIONS["bklog.platform_source.query"]["response_schema"], "response")
         called_params = mock_api.call_args.kwargs["params"]
         self.assertTrue(called_params["no_request"])
         self.assertNotIn("bk_username", called_params)

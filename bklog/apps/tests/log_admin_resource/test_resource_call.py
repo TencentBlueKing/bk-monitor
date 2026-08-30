@@ -29,6 +29,7 @@ from django.utils.deprecation import MiddlewareMixin
 from apps.api import TransferApi
 from apps.log_admin_resource.permissions import AdminResourceAppWhiteListPermission
 from apps.log_admin_resource.registry import FUNCTIONS, HANDLERS, AdminResourceRegistry, _object_schema
+from apps.log_admin_resource.schema import validate_params
 from apps.log_admin_resource.views import AdminResourceViewSet
 from apps.log_databus.constants import STORAGE_CLUSTER_TYPE, ContainerCollectorType
 from apps.log_databus.handlers.storage import StorageHandler
@@ -591,6 +592,7 @@ class CollectorResourceCallTest(CollectorFixtureMixin, ClearRequestLocalMixin, T
 
         self.assertTrue(content["result"])
         result = content["data"]["result"]
+        validate_params(result, FUNCTIONS["bklog.collector.list"]["response_schema"], "response")
         self.assertEqual(result["total"], 1)
         item = result["items"][0]
         self.assertEqual(item["collector_config_id"], 10402)
@@ -652,6 +654,7 @@ class CollectorResourceCallTest(CollectorFixtureMixin, ClearRequestLocalMixin, T
 
         self.assertTrue(content["result"])
         result = content["data"]["result"]
+        validate_params(result, FUNCTIONS["bklog.collector.detail"]["response_schema"], "response")
         self.assertEqual(result["chain"]["primary_index_set_id"], 755)
         self.assertEqual(result["storage"]["storage_cluster_id"], 88)
         self.assertEqual(result["storage"]["retention"], 30)
@@ -836,6 +839,7 @@ class CollectorStorageResourceCallTest(CollectorFixtureMixin, ClearRequestLocalM
 
         self.assertTrue(content["result"])
         result = content["data"]["result"]
+        validate_params(result, FUNCTIONS["bklog.collector.storage.snapshot"]["response_schema"], "response")
         self.assertEqual(result["summary"]["total"], 1)
         item = result["items"][0]
         self.assertEqual(item["before"]["storage_cluster_id"], 88)
@@ -898,6 +902,7 @@ class CollectorStorageResourceCallTest(CollectorFixtureMixin, ClearRequestLocalM
 
         self.assertTrue(content["result"])
         result = content["data"]["result"]
+        validate_params(result, FUNCTIONS["bklog.collector.storage.preview"]["response_schema"], "response")
         self.assertEqual(result["summary"]["total"], 1)
         self.assertEqual(result["summary"]["changeable"], 1)
         item = result["items"][0]
@@ -1094,6 +1099,7 @@ class CollectorStorageResourceCallTest(CollectorFixtureMixin, ClearRequestLocalM
 
         self.assertTrue(content["result"])
         result = content["data"]["result"]
+        validate_params(result, FUNCTIONS["bklog.collector.storage.apply"]["response_schema"], "response")
         self.assertEqual(result["summary"]["success"], 1)
         self.assertEqual(result["items"][0]["status"], "success")
         mock_patch_update.assert_called_once_with(
@@ -1152,6 +1158,7 @@ class CollectorStorageResourceCallTest(CollectorFixtureMixin, ClearRequestLocalM
 
         self.assertTrue(content["result"])
         result = content["data"]["result"]
+        validate_params(result, FUNCTIONS["bklog.storage_cluster.list"]["response_schema"], "response")
         self.assertEqual(result["total"], 2)
         self.assertEqual(result["items"][0]["storage_cluster_id"], 25)
         self.assertEqual(result["items"][0]["storage_cluster_name"], "public-hot-es")

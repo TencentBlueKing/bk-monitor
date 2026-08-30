@@ -5,10 +5,12 @@ from django.test import SimpleTestCase, override_settings
 
 from apps.exceptions import ValidationError
 from apps.log_admin_resource.handlers.index_set_route import (
+    FUNCTIONS,
     _build_expected_routes,
     get_index_set_route_snapshot,
     get_index_set_storage_route_snapshot,
 )
+from apps.log_admin_resource.schema import validate_params
 
 
 def build_index_set(**overrides):
@@ -74,6 +76,11 @@ class IndexSetStorageRouteSnapshotTest(SimpleTestCase):
 
         result = get_index_set_storage_route_snapshot({"index_set_id": 16462})
 
+        validate_params(
+            result,
+            FUNCTIONS["bklog.index_set.storage_route.snapshot"]["response_schema"],
+            "response",
+        )
         self.assertEqual(result["source_env"], "bkte")
         self.assertEqual(result["expected_route"]["probe_status"], "success")
         route = result["expected_route"]["data"][0]
@@ -287,6 +294,7 @@ class IndexSetRouteSnapshotTest(SimpleTestCase):
 
         result, mock_runtime = self._snapshot(expected, {"items": [runtime_item("virtual.es")]})
 
+        validate_params(result, FUNCTIONS["bklog.index_set.route_snapshot"]["response_schema"], "response")
         self.assertEqual(result["status"], "consistent")
         self.assertEqual(result["routes"][0]["status"], "consistent")
         mock_runtime.assert_called_once_with(
