@@ -7,6 +7,7 @@ learn Celery/JOB identifiers.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import uuid
 import zlib
@@ -19,7 +20,20 @@ from django.utils import timezone
 
 
 TASK_TYPE_HOST_INSPECTION = "collector_host_inspection"
+TASK_TYPE_K8S_INSPECTION = "collector_k8s_inspection"
 ACTIVE_STATUSES = {"pending", "running"}
+TASK_DEADLINE_SECONDS = {
+    TASK_TYPE_HOST_INSPECTION: 90,
+    TASK_TYPE_K8S_INSPECTION: 120,
+}
+
+
+def request_fingerprint(*, task_type: str, target: dict[str, Any], request_options: dict[str, Any]) -> str:
+    """Return a stable opaque identity for one normalized inspection request."""
+
+    payload = {"task_type": task_type, "target": target, "request_options": request_options}
+    encoded = json.dumps(payload, cls=DjangoJSONEncoder, sort_keys=True, ensure_ascii=False, separators=(",", ":"))
+    return hashlib.sha256(encoded.encode("utf-8")).hexdigest()
 
 
 class ResourceInspectionTaskRecord:
@@ -29,6 +43,7 @@ class ResourceInspectionTaskRecord:
     RESULT_TTL_SECONDS = 60 * 60
     ACTIVE_TTL_SECONDS = 120
     DEADLINE_SECONDS = 90
+    MAX_RESULT_BYTES = 10 * 1024 * 1024
 
     META_KEY_PREFIX = "bklog:resource_inspection:task:"
     RESULT_KEY_PREFIX = "bklog:resource_inspection:result:"
@@ -47,23 +62,37 @@ class ResourceInspectionTaskRecord:
         bk_tenant_id: str,
         target: dict[str, Any],
         request_options: dict[str, Any],
+        task_type: str = TASK_TYPE_HOST_INSPECTION,
+        fingerprint: str | None = None,
+        deadline_seconds: int | None = None,
     ) -> tuple[dict[str, Any], bool]:
-        """Atomically acquire a target and create its public task record.
+        """Atomically acquire one normalized request and create its public record.
 
         A stale active key is reclaimed once.  A valid pending/running task is
-        returned as-is so the caller does not dispatch a duplicate JOB probe.
+        returned as-is so the caller does not dispatch duplicate remote probes.
         """
 
-        active_key = cls._active_key(target)
+        if task_type not in TASK_DEADLINE_SECONDS:
+            raise ValueError(f"unsupported inspection task type: {task_type}")
+        fingerprint = fingerprint or request_fingerprint(
+            task_type=task_type, target=target, request_options=request_options
+        )
+        deadline_seconds = deadline_seconds or TASK_DEADLINE_SECONDS[task_type]
+        active_ttl_seconds = max(cls.ACTIVE_TTL_SECONDS, deadline_seconds + 30)
+        active_key = cls._active_key(task_type=task_type, fingerprint=fingerprint)
         for _attempt in range(2):
             task_id = str(uuid.uuid4())
-            if cls.cache().add(active_key, task_id, timeout=cls.ACTIVE_TTL_SECONDS):
+            if cls.cache().add(active_key, task_id, timeout=active_ttl_seconds):
                 record = cls._new_record(
                     task_id=task_id,
                     app_code=app_code,
                     bk_tenant_id=bk_tenant_id,
                     target=target,
                     request_options=request_options,
+                    task_type=task_type,
+                    fingerprint=fingerprint,
+                    deadline_seconds=deadline_seconds,
+                    active_ttl_seconds=active_ttl_seconds,
                 )
                 try:
                     cls.save(record)
@@ -92,11 +121,18 @@ class ResourceInspectionTaskRecord:
         bk_tenant_id: str,
         target: dict[str, Any],
         request_options: dict[str, Any],
+        task_type: str,
+        fingerprint: str,
+        deadline_seconds: int,
+        active_ttl_seconds: int,
     ) -> dict[str, Any]:
         now = timezone.now()
         return {
             "task_id": task_id,
-            "task_type": TASK_TYPE_HOST_INSPECTION,
+            "task_type": task_type,
+            "request_fingerprint": fingerprint,
+            "deadline_seconds": deadline_seconds,
+            "active_ttl_seconds": active_ttl_seconds,
             "task_status": "pending",
             "phase": "queued",
             "app_code": app_code,
@@ -108,7 +144,7 @@ class ResourceInspectionTaskRecord:
             "updated_at": now.isoformat(),
             "finished_at": None,
             "heartbeat_at": now.isoformat(),
-            "deadline_at": (now + timedelta(seconds=cls.DEADLINE_SECONDS)).isoformat(),
+            "deadline_at": (now + timedelta(seconds=deadline_seconds)).isoformat(),
             "result_expires_at": (now + timedelta(seconds=cls.RESULT_TTL_SECONDS)).isoformat(),
             "celery_task_id": None,
             "job_instance_id": None,
@@ -166,6 +202,8 @@ class ResourceInspectionTaskRecord:
     @classmethod
     def store_result(cls, task_id: str, result: dict[str, Any]) -> None:
         encoded = json.dumps(result, cls=DjangoJSONEncoder, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+        if len(encoded) > cls.MAX_RESULT_BYTES:
+            raise RuntimeError("inspection task result exceeds the 10 MiB response limit")
         compressed = zlib.compress(encoded)
         record = cls.get(task_id)
         expires_at = cls._parse_datetime(record.get("result_expires_at")) if record else None
@@ -214,11 +252,19 @@ class ResourceInspectionTaskRecord:
 
     @classmethod
     def release_active(cls, record: dict[str, Any]) -> None:
-        cls._delete_if_owner(cls._active_key(record.get("target") or {}), record.get("task_id"))
+        task_type = record.get("task_type") or TASK_TYPE_HOST_INSPECTION
+        fingerprint = record.get("request_fingerprint") or request_fingerprint(
+            task_type=task_type,
+            target=record.get("target") or {},
+            request_options=record.get("request_options") or {},
+        )
+        cls._delete_if_owner(cls._active_key(task_type=task_type, fingerprint=fingerprint), record.get("task_id"))
 
     @classmethod
     def claim_execution(cls, task_id: str) -> bool:
-        return bool(cls.cache().add(cls._execution_key(task_id), task_id, timeout=cls.ACTIVE_TTL_SECONDS))
+        record = cls.get(task_id) or {}
+        timeout = int(record.get("active_ttl_seconds") or cls.ACTIVE_TTL_SECONDS)
+        return bool(cls.cache().add(cls._execution_key(task_id), task_id, timeout=timeout))
 
     @classmethod
     def release_execution(cls, task_id: str) -> None:
@@ -239,7 +285,7 @@ class ResourceInspectionTaskRecord:
     def remaining_seconds(cls, record: dict[str, Any]) -> int:
         deadline = cls._parse_datetime(record.get("deadline_at"))
         if not deadline:
-            return cls.DEADLINE_SECONDS
+            return int(record.get("deadline_seconds") or cls.DEADLINE_SECONDS)
         return max(0, int((deadline - timezone.now()).total_seconds()))
 
     @classmethod
@@ -303,11 +349,8 @@ class ResourceInspectionTaskRecord:
         return f"{cls.RESULT_KEY_PREFIX}{task_id}"
 
     @classmethod
-    def _active_key(cls, target: dict[str, Any]) -> str:
-        return (
-            f"{cls.ACTIVE_KEY_PREFIX}{TASK_TYPE_HOST_INSPECTION}:"
-            f"{target.get('collector_config_id')}:{target.get('bk_host_id')}"
-        )
+    def _active_key(cls, *, task_type: str, fingerprint: str) -> str:
+        return f"{cls.ACTIVE_KEY_PREFIX}{task_type}:{fingerprint}"
 
     @classmethod
     def _execution_key(cls, task_id: str) -> str:
@@ -330,3 +373,58 @@ class ResourceInspectionTaskRecord:
         if timezone.is_naive(parsed):
             parsed = timezone.make_aware(parsed)
         return parsed
+
+
+class K8sCollectorCandidateStore:
+    """Short-lived opaque bindings for server-discovered collector candidates."""
+
+    TTL_SECONDS = 5 * 60
+    KEY_PREFIX = "bklog:resource_inspection:k8s_candidate:"
+
+    @classmethod
+    def create(cls, binding: dict[str, Any]) -> str:
+        candidate_id = str(uuid.uuid4())
+        encoded = json.dumps(binding, cls=DjangoJSONEncoder, ensure_ascii=False, separators=(",", ":"))
+        ResourceInspectionTaskRecord.cache().set(cls._key(candidate_id), encoded, timeout=cls.TTL_SECONDS)
+        if ResourceInspectionTaskRecord.cache().get(cls._key(candidate_id)) is None:
+            raise RuntimeError("collector candidate binding was not persisted")
+        return candidate_id
+
+    @classmethod
+    def get(cls, candidate_id: str) -> dict[str, Any] | None:
+        raw = ResourceInspectionTaskRecord.cache().get(cls._key(candidate_id))
+        if raw is None:
+            return None
+        try:
+            if isinstance(raw, bytes):
+                raw = raw.decode("utf-8")
+            return json.loads(raw) if isinstance(raw, str) else dict(raw)
+        except (TypeError, ValueError, UnicodeDecodeError):
+            return None
+
+    @classmethod
+    def _key(cls, candidate_id: str) -> str:
+        return f"{cls.KEY_PREFIX}{candidate_id}"
+
+
+class K8sDeepProbeSlots:
+    """Bound deep exec concurrency to two probes per exact collector Pod UID."""
+
+    MAX_SLOTS = 2
+    # Keep the slot for the complete 120-second task window, including logs and pre/post identity checks.
+    TTL_SECONDS = 130
+    KEY_PREFIX = "bklog:resource_inspection:k8s_deep:"
+
+    @classmethod
+    def claim(cls, pod_uid: str, task_id: str) -> str | None:
+        pod_key = hashlib.sha256(pod_uid.encode("utf-8")).hexdigest()
+        for slot in range(cls.MAX_SLOTS):
+            key = f"{cls.KEY_PREFIX}{pod_key}:{slot}"
+            if ResourceInspectionTaskRecord.cache().add(key, task_id, timeout=cls.TTL_SECONDS):
+                return key
+        return None
+
+    @classmethod
+    def release(cls, key: str | None, task_id: str) -> None:
+        if key:
+            ResourceInspectionTaskRecord._delete_if_owner(key, task_id)

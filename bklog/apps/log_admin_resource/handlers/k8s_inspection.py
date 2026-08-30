@@ -1,4 +1,4 @@
-"""Resource Call handlers for bounded Linux host collector inspection."""
+"""Resource Call handlers for bounded Kubernetes collector inspection."""
 
 from __future__ import annotations
 
@@ -7,49 +7,58 @@ from typing import Any
 
 from django.conf import settings
 
-from apps.api import NodeApi
 from apps.exceptions import BaseException as BklogBaseException
 from apps.exceptions import PermissionError as BklogPermissionError
 from apps.exceptions import ValidationError
-from apps.log_admin_resource.handlers.inspection import sanitize_json
 from apps.log_admin_resource.inspection_protocol import (
     INSPECTION_PROBE_SCHEMA,
     INSPECTION_PROBE_SUMMARY_SCHEMA,
     RUNTIME_LOG_OPTIONS_SCHEMA,
     TASK_STATUS_SCHEMA,
 )
+from apps.log_admin_resource.handlers.inspection import sanitize_json
+from apps.log_admin_resource.inspection_runtime import normalize_runtime_log_options
 from apps.log_admin_resource.inspection_tasks import (
     ACTIVE_STATUSES,
+    TASK_TYPE_K8S_INSPECTION,
+    K8sCollectorCandidateStore,
     ResourceInspectionTaskRecord,
-    TASK_TYPE_HOST_INSPECTION,
 )
-from apps.log_admin_resource.inspection_runtime import normalize_runtime_log_options
+from apps.log_admin_resource.k8s_inspection import target_identity
 from apps.log_admin_resource.response_schema import diagnostic_schema, nullable_schema, object_schema
-from apps.log_databus.constants import Environment
 from apps.log_databus.models import CollectorConfig
 from apps.log_search.models import Space
 from apps.utils.local import get_request, get_request_tenant_id
 
 
-START_FUNC_NAME = "bklog.collector.host_inspection.start"
-DETAIL_FUNC_NAME = "bklog.collector.host_inspection.detail"
+START_FUNC_NAME = "bklog.collector.k8s_inspection.start"
+DETAIL_FUNC_NAME = "bklog.collector.k8s_inspection.detail"
+EVIDENCE_GROUPS = ("control_plane", "sidecar", "collector", "progress")
 
-TARGET_SCHEMA = object_schema(
-    "collector_config_id",
-    "bk_host_id",
-    "bk_biz_id",
-    "bk_data_id",
-    "subscription_id",
+
+POD_TARGET_SCHEMA = object_schema(
+    "type",
+    "namespace",
+    "pod_name",
+    "container_name",
     properties={
-        "collector_config_id": {"type": "integer", "minimum": 1},
-        "bk_host_id": {"type": "integer", "minimum": 1},
-        "bk_biz_id": {"type": "integer", "minimum": 1},
-        "bk_data_id": {"type": "integer", "minimum": 1},
-        "subscription_id": {"type": "integer", "minimum": 1},
-        "source": nullable_schema("string"),
-        "include_source_sample": {"type": "boolean"},
+        "type": {"type": "string", "const": "pod_container"},
+        "namespace": {"type": "string", "minLength": 1, "maxLength": 253},
+        "pod_name": {"type": "string", "minLength": 1, "maxLength": 253},
+        "container_name": {"type": "string", "minLength": 1, "maxLength": 253},
     },
+    additional_properties=False,
 )
+NODE_TARGET_SCHEMA = object_schema(
+    "type",
+    "node_name",
+    properties={
+        "type": {"type": "string", "const": "node"},
+        "node_name": {"type": "string", "minLength": 1, "maxLength": 253},
+    },
+    additional_properties=False,
+)
+TARGET_SCHEMA = {"oneOf": [POD_TARGET_SCHEMA, NODE_TARGET_SCHEMA]}
 
 NEXT_CALL_SCHEMA = object_schema(
     "func_name",
@@ -57,57 +66,10 @@ NEXT_CALL_SCHEMA = object_schema(
     properties={
         "func_name": {"type": "string", "const": DETAIL_FUNC_NAME},
         "params": object_schema(
-            "task_id",
-            properties={"task_id": {"type": "string", "minLength": 36, "maxLength": 36}},
+            "task_id", properties={"task_id": {"type": "string", "minLength": 36, "maxLength": 36}}
         ),
     },
 )
-
-RESULT_TARGET_SCHEMA = object_schema(
-    "collector_config_id",
-    "bk_host_id",
-    "bk_biz_id",
-    "bk_data_id",
-    "subscription_id",
-    properties={
-        "collector_config_id": {"type": "integer", "minimum": 1},
-        "bk_host_id": {"type": "integer", "minimum": 1},
-        "bk_biz_id": {"type": "integer", "minimum": 1},
-        "bk_data_id": {"type": "integer", "minimum": 1},
-        "subscription_id": {"type": "integer", "minimum": 1},
-    },
-)
-
-INSPECTION_EVIDENCE_SCHEMA = object_schema(
-    "problem_env",
-    "source_env",
-    "observed_at",
-    "target",
-    "remote_execution",
-    "probes",
-    "partial",
-    "error",
-    properties={
-        "problem_env": {"type": "string"},
-        "source_env": {"type": "string"},
-        "observed_at": {"type": "string", "format": "date-time"},
-        "target": RESULT_TARGET_SCHEMA,
-        "remote_execution": object_schema(
-            "executor",
-            "mode",
-            "mutations_permitted",
-            properties={
-                "executor": {"type": "string", "const": "JOB"},
-                "mode": {"type": "string", "const": "server_fixed_read_only_script"},
-                "mutations_permitted": {"type": "boolean", "const": False},
-            },
-        ),
-        "probes": {"type": "object", "additionalProperties": INSPECTION_PROBE_SCHEMA},
-        "partial": {"type": "boolean"},
-        "error": {"anyOf": [diagnostic_schema(), {"type": "null"}]},
-    },
-)
-
 START_RESPONSE_SCHEMA = object_schema(
     "task_id",
     "task_status",
@@ -127,7 +89,35 @@ START_RESPONSE_SCHEMA = object_schema(
         "next_call": NEXT_CALL_SCHEMA,
     },
 )
-
+EVIDENCE_SCHEMA = object_schema(
+    "problem_env",
+    "source_env",
+    "observed_at",
+    "target",
+    "remote_execution",
+    "probes",
+    "partial",
+    "error",
+    properties={
+        "problem_env": {"type": "string"},
+        "source_env": {"type": "string"},
+        "observed_at": {"type": "string", "format": "date-time"},
+        "target": {"type": "object"},
+        "remote_execution": object_schema(
+            "executor",
+            "mode",
+            "mutations_permitted",
+            properties={
+                "executor": {"type": "string", "const": "K8S_API"},
+                "mode": {"type": "string", "const": "server_fixed_read_only_probe"},
+                "mutations_permitted": {"type": "boolean", "const": False},
+            },
+        ),
+        "probes": {"type": "object", "additionalProperties": INSPECTION_PROBE_SCHEMA},
+        "partial": {"type": "boolean"},
+        "error": {"anyOf": [diagnostic_schema(), {"type": "null"}]},
+    },
+)
 DETAIL_RESPONSE_SCHEMA = object_schema(
     "task_id",
     "task_type",
@@ -147,21 +137,18 @@ DETAIL_RESPONSE_SCHEMA = object_schema(
     "next_call",
     properties={
         "task_id": {"type": "string", "minLength": 1, "maxLength": 64},
-        "task_type": {"type": "string", "const": TASK_TYPE_HOST_INSPECTION},
+        "task_type": {"type": "string", "const": TASK_TYPE_K8S_INSPECTION},
         "task_status": TASK_STATUS_SCHEMA,
         "phase": {"type": "string"},
-        "target": {"anyOf": [TARGET_SCHEMA, {"type": "null"}]},
+        "target": {"anyOf": [{"type": "object"}, {"type": "null"}]},
         "created_at": nullable_schema("string"),
         "started_at": nullable_schema("string"),
         "updated_at": nullable_schema("string"),
         "finished_at": nullable_schema("string"),
         "heartbeat_at": nullable_schema("string"),
         "result_expires_at": nullable_schema("string"),
-        "probes": {
-            "type": "object",
-            "additionalProperties": INSPECTION_PROBE_SUMMARY_SCHEMA,
-        },
-        "evidence": {"anyOf": [INSPECTION_EVIDENCE_SCHEMA, {"type": "null"}]},
+        "probes": {"type": "object", "additionalProperties": INSPECTION_PROBE_SUMMARY_SCHEMA},
+        "evidence": {"anyOf": [EVIDENCE_SCHEMA, {"type": "null"}]},
         "partial": {"type": "boolean"},
         "error": {"anyOf": [diagnostic_schema(), {"type": "null"}]},
         "next_call": {"anyOf": [NEXT_CALL_SCHEMA, {"type": "null"}]},
@@ -169,44 +156,57 @@ DETAIL_RESPONSE_SCHEMA = object_schema(
 )
 
 
-def start_host_inspection(params: dict[str, Any]) -> dict[str, Any]:
-    collector_config_id = int(params["collector_config_id"])
-    bk_host_id = int(params["bk_host_id"])
+def start_k8s_inspection(params: dict[str, Any]) -> dict[str, Any]:
     app_code, request_tenant_id = _request_identity()
-    collector = _get_collector(collector_config_id)
+    collector = _get_collector(int(params["collector_config_id"]))
     tenant_id = _validate_collector(collector, request_tenant_id)
-    _validate_host_membership(collector, bk_host_id, tenant_id)
-
+    target = _normalize_target(params.get("target"))
+    groups = _normalize_groups(params.get("evidence_groups"))
     source = (params.get("source") or "").strip() or None
-    target = {
+    include_source_sample = bool(params.get("include_source_sample", False))
+    if include_source_sample and not source:
+        raise ValidationError("include_source_sample requires an explicit source")
+    if any(group != "control_plane" for group in groups) and not target:
+        raise ValidationError("target is required for sidecar, collector or progress evidence")
+
+    candidate_id = (params.get("collector_candidate_id") or "").strip() or None
+    if candidate_id:
+        _validate_candidate_binding(
+            candidate_id=candidate_id,
+            app_code=app_code,
+            tenant_id=tenant_id,
+            collector=collector,
+            target=target,
+        )
+
+    public_target = {
         "collector_config_id": collector.collector_config_id,
-        "bk_host_id": bk_host_id,
         "bk_biz_id": collector.bk_biz_id,
         "bk_data_id": collector.bk_data_id,
-        "subscription_id": collector.subscription_id,
-        "source": source,
-        "include_source_sample": bool(params.get("include_source_sample", False)),
+        "bcs_cluster_id": collector.bcs_cluster_id,
+        "observed_object": target,
     }
-    runtime_log_options = _runtime_log_options(params.get("runtime_log_options"))
     request_options = {
+        "target": target,
+        "evidence_groups": groups,
+        "collector_candidate_id": candidate_id,
         "source": source,
-        "include_source_sample": target["include_source_sample"],
-        "runtime_log_options": runtime_log_options,
+        "include_source_sample": include_source_sample,
+        "runtime_log_options": normalize_runtime_log_options(params.get("runtime_log_options")),
     }
-
     try:
         record, reused = ResourceInspectionTaskRecord.create_or_reuse(
             app_code=app_code,
             bk_tenant_id=tenant_id,
-            target=target,
+            target=public_target,
             request_options=request_options,
-            task_type=TASK_TYPE_HOST_INSPECTION,
+            task_type=TASK_TYPE_K8S_INSPECTION,
         )
     except Exception as error:
         raise BklogBaseException("inspection task storage is unavailable") from error
 
     if not reused:
-        from apps.log_admin_resource.tasks import run_host_inspection
+        from apps.log_admin_resource.k8s_tasks import run_k8s_inspection
 
         celery_task_id = str(uuid.uuid4())
         try:
@@ -215,7 +215,7 @@ def start_host_inspection(params: dict[str, Any]) -> dict[str, Any]:
             )
             if not stored:
                 raise RuntimeError("inspection task metadata disappeared before dispatch")
-            run_host_inspection.apply_async(args=[record["task_id"]], task_id=celery_task_id)
+            run_k8s_inspection.apply_async(args=[record["task_id"]], task_id=celery_task_id)
         except Exception as error:
             ResourceInspectionTaskRecord.delete_pending(record)
             raise BklogBaseException("inspection task dispatch failed") from error
@@ -224,11 +224,16 @@ def start_host_inspection(params: dict[str, Any]) -> dict[str, Any]:
     return _start_response(current, reused=reused)
 
 
-def get_host_inspection_detail(params: dict[str, Any]) -> dict[str, Any]:
+def get_k8s_inspection_detail(params: dict[str, Any]) -> dict[str, Any]:
     task_id = params["task_id"]
     app_code, tenant_id = _request_identity()
     record = ResourceInspectionTaskRecord.get(task_id)
-    if not record or record.get("app_code") != app_code or record.get("bk_tenant_id") != tenant_id:
+    if (
+        not record
+        or record.get("task_type") != TASK_TYPE_K8S_INSPECTION
+        or record.get("app_code") != app_code
+        or record.get("bk_tenant_id") != tenant_id
+    ):
         return _not_found_response(task_id)
 
     record = ResourceInspectionTaskRecord.normalize_timeout(record)
@@ -241,26 +246,12 @@ def get_host_inspection_detail(params: dict[str, Any]) -> dict[str, Any]:
     elif task_status not in ACTIVE_STATUSES:
         evidence = ResourceInspectionTaskRecord.load_result(task_id)
 
-    public_target = {
-        key: value
-        for key, value in (record.get("target") or {}).items()
-        if key
-        in {
-            "collector_config_id",
-            "bk_host_id",
-            "bk_biz_id",
-            "bk_data_id",
-            "subscription_id",
-            "source",
-            "include_source_sample",
-        }
-    }
     return {
         "task_id": task_id,
-        "task_type": TASK_TYPE_HOST_INSPECTION,
+        "task_type": TASK_TYPE_K8S_INSPECTION,
         "task_status": task_status,
         "phase": "expired" if task_status == "expired" else record.get("phase") or "unknown",
-        "target": public_target,
+        "target": sanitize_json(record.get("target") or {}, redact_text=True),
         "created_at": record.get("created_at"),
         "started_at": record.get("started_at"),
         "updated_at": record.get("updated_at"),
@@ -279,7 +270,7 @@ def _request_identity() -> tuple[str, str]:
     request = get_request(peaceful=True)
     app_code = getattr(request, "resource_app_code", "") if request else ""
     if not app_code:
-        raise BklogPermissionError("host inspection requires a trusted Resource Call app identity")
+        raise BklogPermissionError("Kubernetes inspection requires a trusted Resource Call app identity")
     return app_code, get_request_tenant_id()
 
 
@@ -293,11 +284,10 @@ def _get_collector(collector_config_id: int) -> CollectorConfig:
 def _validate_collector(collector: CollectorConfig, request_tenant_id: str) -> str:
     if not collector.is_active:
         raise ValidationError("collector_config_inactive")
-    if collector.environment != Environment.LINUX or collector.is_container_collector:
-        raise ValidationError("unsupported_os: only Linux host collectors are supported")
-    if not collector.bk_biz_id or not collector.bk_data_id or not collector.subscription_id:
+    if not collector.is_container_collector:
+        raise ValidationError("collector_not_k8s")
+    if not collector.bk_biz_id or not collector.bk_data_id or not collector.bcs_cluster_id:
         raise ValidationError("collector_context_incomplete")
-
     tenant_id = Space.get_tenant_id(bk_biz_id=collector.bk_biz_id, is_need_default=False)
     if not tenant_id:
         tenant_id = request_tenant_id or settings.BK_APP_TENANT_ID
@@ -306,27 +296,50 @@ def _validate_collector(collector: CollectorConfig, request_tenant_id: str) -> s
     return tenant_id
 
 
-def _validate_host_membership(collector: CollectorConfig, bk_host_id: int, tenant_id: str) -> None:
-    rows = NodeApi.query_host_subscriptions(
-        params={
-            "bk_biz_id": collector.bk_biz_id,
-            "bk_host_id": bk_host_id,
-            "source_type": "subscription",
-        },
-        request_cookies=False,
-        bk_tenant_id=tenant_id,
-    )
-    if isinstance(rows, dict):
-        rows = rows.get("list") or rows.get("data") or []
-    subscription_ids = {
-        int(row["source_id"]) for row in rows or [] if isinstance(row, dict) and str(row.get("source_id", "")).isdigit()
+def _normalize_target(target: dict[str, Any] | None) -> dict[str, Any] | None:
+    if not target:
+        return None
+    if target.get("type") == "node":
+        node_name = str(target.get("node_name") or "").strip()
+        if not node_name:
+            raise ValidationError("node_name is required")
+        return {"type": "node", "node_name": node_name}
+    if target.get("type") != "pod_container":
+        raise ValidationError("unsupported Kubernetes inspection target type")
+    result = {
+        "type": "pod_container",
+        "namespace": str(target.get("namespace") or "").strip(),
+        "pod_name": str(target.get("pod_name") or "").strip(),
+        "container_name": str(target.get("container_name") or "").strip(),
     }
-    if collector.subscription_id not in subscription_ids:
-        raise ValidationError("host_not_in_collector_subscription")
+    if not all(result[key] for key in ("namespace", "pod_name", "container_name")):
+        raise ValidationError("namespace, pod_name and container_name are required")
+    return result
 
 
-def _runtime_log_options(value: dict[str, Any] | None) -> dict[str, Any]:
-    return normalize_runtime_log_options(value)
+def _normalize_groups(value: list[str] | None) -> list[str]:
+    groups = list(value or ["control_plane"])
+    if "all" in groups:
+        return list(EVIDENCE_GROUPS)
+    unknown = set(groups) - set(EVIDENCE_GROUPS)
+    if unknown:
+        raise ValidationError(f"unsupported evidence groups: {sorted(unknown)}")
+    return sorted(set(groups), key=EVIDENCE_GROUPS.index)
+
+
+def _validate_candidate_binding(
+    *, candidate_id: str, app_code: str, tenant_id: str, collector: CollectorConfig, target: dict[str, Any] | None
+) -> None:
+    binding = K8sCollectorCandidateStore.get(candidate_id)
+    expected = {
+        "app_code": app_code,
+        "bk_tenant_id": tenant_id,
+        "collector_config_id": collector.collector_config_id,
+        "cluster_id": collector.bcs_cluster_id,
+        "target_identity": target_identity(target),
+    }
+    if not binding or any(binding.get(key) != value for key, value in expected.items()):
+        raise ValidationError("collector_candidate_expired_or_unknown")
 
 
 def _start_response(record: dict[str, Any], *, reused: bool) -> dict[str, Any]:
@@ -347,7 +360,7 @@ def _next_call(task_id: str) -> dict[str, Any]:
 def _not_found_response(task_id: str) -> dict[str, Any]:
     return {
         "task_id": task_id,
-        "task_type": TASK_TYPE_HOST_INSPECTION,
+        "task_type": TASK_TYPE_K8S_INSPECTION,
         "task_status": "not_found",
         "phase": "not_found",
         "target": None,
@@ -368,27 +381,48 @@ def _not_found_response(task_id: str) -> dict[str, Any]:
 FUNCTIONS = {
     START_FUNC_NAME: {
         "func_name": START_FUNC_NAME,
-        "description": "Start a bounded asynchronous inspection of one Linux host collector runtime.",
+        "description": "Start a bounded asynchronous inspection of one Kubernetes log collector runtime.",
         "safety_level": "inspect",
         "validate_params": True,
         "params_schema": {
             "type": "object",
             "properties": {
                 "collector_config_id": {"type": "integer", "minimum": 1},
-                "bk_host_id": {"type": "integer", "minimum": 1},
+                "target": TARGET_SCHEMA,
+                "collector_candidate_id": {"type": "string", "minLength": 36, "maxLength": 36},
+                "evidence_groups": {
+                    "type": "array",
+                    "minItems": 1,
+                    "maxItems": 5,
+                    "uniqueItems": True,
+                    "items": {"type": "string", "enum": ["all", *EVIDENCE_GROUPS]},
+                },
                 "source": {"type": "string", "minLength": 1, "maxLength": 4096},
                 "include_source_sample": {"type": "boolean"},
                 "runtime_log_options": RUNTIME_LOG_OPTIONS_SCHEMA,
             },
-            "required": ["collector_config_id", "bk_host_id"],
+            "required": ["collector_config_id"],
             "additionalProperties": False,
         },
         "response_schema": START_RESPONSE_SCHEMA,
-        "examples": [{"params": {"collector_config_id": 123, "bk_host_id": 51985}}],
+        "examples": [
+            {
+                "params": {
+                    "collector_config_id": 123,
+                    "target": {
+                        "type": "pod_container",
+                        "namespace": "production",
+                        "pod_name": "demo-7d8f9",
+                        "container_name": "demo",
+                    },
+                    "evidence_groups": ["all"],
+                }
+            }
+        ],
     },
     DETAIL_FUNC_NAME: {
         "func_name": DETAIL_FUNC_NAME,
-        "description": "Read progress or bounded evidence for a Resource-owned host inspection task.",
+        "description": "Read progress or bounded evidence for a Resource-owned Kubernetes inspection task.",
         "safety_level": "inspect",
         "validate_params": True,
         "params_schema": {
@@ -402,4 +436,4 @@ FUNCTIONS = {
     },
 }
 
-HANDLERS = {START_FUNC_NAME: start_host_inspection, DETAIL_FUNC_NAME: get_host_inspection_detail}
+HANDLERS = {START_FUNC_NAME: start_k8s_inspection, DETAIL_FUNC_NAME: get_k8s_inspection_detail}

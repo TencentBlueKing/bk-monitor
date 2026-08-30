@@ -52,6 +52,10 @@ from apps.log_admin_resource.handlers.host_inspection import (
     FUNCTIONS as HOST_INSPECTION_FUNCTIONS,
     HANDLERS as HOST_INSPECTION_HANDLERS,
 )
+from apps.log_admin_resource.handlers.k8s_inspection import (
+    FUNCTIONS as K8S_INSPECTION_FUNCTIONS,
+    HANDLERS as K8S_INSPECTION_HANDLERS,
+)
 from apps.log_admin_resource.handlers.log_extract import (
     FUNCTIONS as LOG_EXTRACT_FUNCTIONS,
     HANDLERS as LOG_EXTRACT_HANDLERS,
@@ -568,6 +572,7 @@ FUNCTIONS.update(ASYNC_EXPORT_FUNCTIONS)
 FUNCTIONS.update(LOG_EXTRACT_FUNCTIONS)
 FUNCTIONS.update(MODEL_QUERY_FUNCTIONS)
 FUNCTIONS.update(HOST_INSPECTION_FUNCTIONS)
+FUNCTIONS.update(K8S_INSPECTION_FUNCTIONS)
 
 HANDLERS = {
     "bklog.collector.list": list_collectors,
@@ -596,6 +601,7 @@ HANDLERS.update(ASYNC_EXPORT_HANDLERS)
 HANDLERS.update(LOG_EXTRACT_HANDLERS)
 HANDLERS.update(MODEL_QUERY_HANDLERS)
 HANDLERS.update(HOST_INSPECTION_HANDLERS)
+HANDLERS.update(K8S_INSPECTION_HANDLERS)
 
 
 class AdminResourceRegistry:

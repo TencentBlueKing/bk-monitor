@@ -239,6 +239,7 @@ CELERY_IMPORTS = (
     "apps.log_databus.tasks.bkdata",
     "apps.log_databus.tasks.archive",
     "apps.log_admin_resource.tasks",
+    "apps.log_admin_resource.k8s_tasks",
     "apps.log_measure.tasks.report",
     "apps.log_extract.tasks",
     "apps.log_clustering.tasks.msg",

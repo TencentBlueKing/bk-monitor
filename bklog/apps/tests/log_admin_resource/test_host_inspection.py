@@ -22,7 +22,11 @@ from apps.log_admin_resource.handlers.host_inspection import (
     get_host_inspection_detail,
     start_host_inspection,
 )
-from apps.log_admin_resource.inspection_tasks import ResourceInspectionTaskRecord
+from apps.log_admin_resource.inspection_tasks import (
+    TASK_TYPE_HOST_INSPECTION,
+    ResourceInspectionTaskRecord,
+    request_fingerprint,
+)
 from apps.log_admin_resource.registry import AdminResourceRegistry
 from apps.log_admin_resource.schema import validate_params
 from apps.log_admin_resource.scripts import host_inspection as remote_script
@@ -126,7 +130,12 @@ class ResourceInspectionTaskRecordTest(SimpleTestCase):
                     app_code="reader-a", bk_tenant_id="tenant-a", target=target, request_options={}
                 )
 
-        self.assertIsNone(task_cache().get(ResourceInspectionTaskRecord._active_key(target)))
+        fingerprint = request_fingerprint(task_type=TASK_TYPE_HOST_INSPECTION, target=target, request_options={})
+        self.assertIsNone(
+            task_cache().get(
+                ResourceInspectionTaskRecord._active_key(task_type=TASK_TYPE_HOST_INSPECTION, fingerprint=fingerprint)
+            )
+        )
 
     def test_timeout_is_normalized_and_active_key_is_released(self):
         record, _ = ResourceInspectionTaskRecord.create_or_reuse(
@@ -141,7 +150,13 @@ class ResourceInspectionTaskRecordTest(SimpleTestCase):
         normalized = ResourceInspectionTaskRecord.normalize_timeout(record)
 
         self.assertEqual(normalized["task_status"], "timed_out")
-        self.assertIsNone(task_cache().get(ResourceInspectionTaskRecord._active_key(record["target"])))
+        self.assertIsNone(
+            task_cache().get(
+                ResourceInspectionTaskRecord._active_key(
+                    task_type=record["task_type"], fingerprint=record["request_fingerprint"]
+                )
+            )
+        )
 
     def test_redis_owner_release_uses_atomic_compare_and_delete(self):
         redis_client = MagicMock()
@@ -223,7 +238,31 @@ class HostInspectionHandlerTest(SimpleTestCase):
         with self.assertRaisesRegex(BklogBaseException, "dispatch failed"):
             start_host_inspection({"collector_config_id": 123, "bk_host_id": 99})
 
-        active_key = f"{ResourceInspectionTaskRecord.ACTIVE_KEY_PREFIX}collector_host_inspection:123:99"
+        active_key = ResourceInspectionTaskRecord._active_key(
+            task_type=TASK_TYPE_HOST_INSPECTION,
+            fingerprint=request_fingerprint(
+                task_type=TASK_TYPE_HOST_INSPECTION,
+                target={
+                    "collector_config_id": 123,
+                    "bk_host_id": 99,
+                    "bk_biz_id": 2,
+                    "bk_data_id": 1001,
+                    "subscription_id": 2001,
+                    "source": None,
+                    "include_source_sample": False,
+                },
+                request_options={
+                    "source": None,
+                    "include_source_sample": False,
+                    "runtime_log_options": {
+                        "keywords": [],
+                        "match": "any",
+                        "case_sensitive": False,
+                        "context_lines": 0,
+                    },
+                },
+            ),
+        )
         self.assertIsNone(task_cache().get(active_key))
         self.assertEqual(target, {"collector_config_id": 123, "bk_host_id": 99})
 
