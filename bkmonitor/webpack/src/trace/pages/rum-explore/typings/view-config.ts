@@ -25,6 +25,7 @@
  */
 
 import type { DimensionType } from '../../trace-explore/typing';
+import type { RumFieldDisplayType } from './enum';
 
 export type { DimensionType };
 
@@ -39,6 +40,8 @@ export interface IRumField {
   alias: string;
   /** 是否可作为表格列展示，源自 is_list */
   can_displayed: boolean;
+  /** 字段展示类型（仅特殊渲染字段有值） */
+  field_display_type?: RumFieldDisplayType;
   field_unit: string;
   /** 是否支持聚合统计，决定能否做统计分析，源自 is_agg */
   is_dimensions: boolean;
@@ -80,6 +83,7 @@ export interface IRumFieldOptionValue {
 /** view_config 接口返回的原始字段结构 */
 export interface IRumRawField {
   field_alias: string;
+  field_display_type?: RumFieldDisplayType;
   field_name: string;
   field_type: DimensionType;
   field_unit?: string;
