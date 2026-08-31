@@ -192,6 +192,10 @@ export interface IFormData {
   bcs_cluster_id?: string;
   add_pod_label?: boolean;
   add_pod_annotation?: boolean;
+  /** 仅采集指定的 Pod label key（白名单），为空时全量采集 */
+  pod_label_keys?: string[];
+  /** 仅采集指定的 Pod annotation key（白名单），为空时全量采集 */
+  pod_annotation_keys?: string[];
   extra_labels?: IValueItem[];
   configs?: IContainerConfigItem[];
   yaml_config?: string;

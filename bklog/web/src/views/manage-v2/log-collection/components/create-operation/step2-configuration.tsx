@@ -289,6 +289,8 @@ export default defineComponent({
         target_object_type: 'HOST',
         data_encoding: 'UTF-8',
         parent_index_set_ids: [],
+        pod_label_keys: [] as string[],
+        pod_annotation_keys: [] as string[],
         params: {
           conditions: {
             type: 'none',
@@ -677,6 +679,8 @@ export default defineComponent({
           detailData.extra_labels?.length
             ? detailData.extra_labels
             : [{ key: '', value: '', operator: '=' }],
+        pod_label_keys: detailData.pod_label_keys || [],
+        pod_annotation_keys: detailData.pod_annotation_keys || [],
       };
       /**
        * 克隆的时候数据处理
@@ -1382,6 +1386,8 @@ export default defineComponent({
       addPodLabel,
       extraLabels,
       bcsClusterId,
+      podLabelKeys,
+      podAnnotationKeys,
     ) => {
       const { params, ...rect } = requestData;
       // const { data_encoding, params, target_object_type, target_node_type, target_nodes, ...rect } = requestData;
@@ -1437,6 +1443,8 @@ export default defineComponent({
         add_pod_label: addPodLabel,
         extra_labels: finalExtraLabels,
         bcs_cluster_id: bcsClusterId,
+        pod_label_keys: podLabelKeys || [],
+        pod_annotation_keys: podAnnotationKeys || [],
       };
     };
     /**
@@ -1468,6 +1476,8 @@ export default defineComponent({
         add_pod_annotation,
         add_pod_label,
         bcs_cluster_id,
+        pod_label_keys,
+        pod_annotation_keys,
       } = formData.value;
 
       const baseParam = {
@@ -1516,6 +1526,8 @@ export default defineComponent({
           add_pod_label,
           extra_labels,
           bcs_cluster_id,
+          pod_label_keys,
+          pod_annotation_keys,
         );
       }
       $http
