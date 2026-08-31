@@ -24,6 +24,8 @@ specific language governing permissions and limitations under the License.
 # "分派逻辑正确 + 安全默认不倒退"这两条底线。
 # ==============================================================================
 
+import pytest
+
 
 class TestIamModeStackWiring:
     """按 BK_IAM_MODE 的实际值验证装配结果，覆盖三种模式的语义。"""
@@ -81,6 +83,56 @@ class TestIamModeStackWiring:
                 "policy": "primary",
                 "options": {"primary_provider": "v3"},
             }
+
+
+class TestV4ModeBaseUrlRequired:
+    """默认 V4 仍 fail-fast；仅 V3 模式允许不提供 V4 地址。"""
+
+    def test_v4_mode_requires_non_empty_v4_base_url(self, monkeypatch):
+        import importlib
+
+        from django.core.exceptions import ImproperlyConfigured
+
+        import config.default as default_mod
+
+        with monkeypatch.context() as m:
+            m.setenv("BK_IAM_MODE", "v4")
+            m.setenv("BK_IAM_V4_API_BASE_URL", " \t ")
+            with pytest.raises(ImproperlyConfigured, match="BK_IAM_MODE=v4/union requires BK_IAM_V4_API_BASE_URL"):
+                importlib.reload(default_mod)
+
+        # 上一个 reload 会在模块中途退出；恢复环境后立即重载，避免污染本文件
+        # 后续的 settings 组装验证。
+        importlib.reload(default_mod)
+
+    def test_union_mode_requires_non_empty_v4_base_url(self, monkeypatch):
+        import importlib
+
+        from django.core.exceptions import ImproperlyConfigured
+
+        import config.default as default_mod
+
+        with monkeypatch.context() as m:
+            m.setenv("BK_IAM_MODE", "union")
+            m.setenv("BK_IAM_V4_API_BASE_URL", "")
+            with pytest.raises(ImproperlyConfigured, match="BK_IAM_MODE=v4/union requires BK_IAM_V4_API_BASE_URL"):
+                importlib.reload(default_mod)
+
+        importlib.reload(default_mod)
+
+    def test_v3_mode_does_not_require_v4_base_url(self, monkeypatch):
+        import importlib
+
+        import config.default as default_mod
+
+        with monkeypatch.context() as m:
+            m.setenv("BK_IAM_MODE", "v3")
+            m.setenv("BK_IAM_V4_API_BASE_URL", "")
+            reloaded = importlib.reload(default_mod)
+            assert reloaded.BK_IAM_MODE == "v3"
+            assert reloaded.IAM_FRAMEWORK["PROVIDERS"][0]["class"].endswith("V3PermissionProvider")
+
+        importlib.reload(default_mod)
 
 
 class TestMigrationSafeDefault:

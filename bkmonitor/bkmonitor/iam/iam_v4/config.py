@@ -113,6 +113,10 @@ class V4Options:
         timeout:       HTTP 请求超时（秒），默认 30
         chunk_size:    批量鉴权分片大小（v4 单次上限 20）
         max_workers:   批量鉴权分片的并发工作线程数，1 表示串行
+        fallback_apply_url: 平台生成申请 URL 失败/为空时的兜底跳转地址。
+            为空则维持既有降级契约（`_get_apply_url_dialect` 返回 ""）；
+            非空则返回该地址，让前端至少能给用户一个可点击的兜底链接
+            （典型值：外部 ITSM 权限工单页或 IAM SaaS 站点根 URL）。
     """
 
     base_url: str
@@ -122,6 +126,8 @@ class V4Options:
     timeout: int = 30
     chunk_size: int = 20
     max_workers: int = 1
+    #: 平台生成申请 URL 为空时的兜底跳转地址；默认空 = 维持既有行为（返回 ""）。
+    fallback_apply_url: str = ""
     # 预留：Provider 私有扩展字段（未识别的 options 会被收纳到此，方便调试/演进）
     extra: dict[str, Any] = field(default_factory=dict)
 
@@ -141,6 +147,7 @@ class V4Options:
             "timeout",
             "chunk_size",
             "max_workers",
+            "fallback_apply_url",
         }
         try:
             base_url = raw["base_url"]
@@ -151,6 +158,20 @@ class V4Options:
                 f"V4Options missing required field {exc.args[0]!r}; expected keys: base_url, credentials, system"
             ) from exc
 
+        # 只做必要规范化：部署侧负责 URL 的 scheme / 域名正确性；这里确保
+        # 前后空白不会通过非空校验后又带入实际 HTTP 请求。
+        if not isinstance(base_url, str):
+            raise ValueError(
+                "V4Options.base_url must be a non-empty string; "
+                "check BK_IAM_V4_API_BASE_URL / IAM_FRAMEWORK.PROVIDERS[*].options.base_url"
+            )
+        base_url = base_url.strip()
+        if not base_url:
+            raise ValueError(
+                "V4Options.base_url must be a non-empty string; "
+                "check BK_IAM_V4_API_BASE_URL / IAM_FRAMEWORK.PROVIDERS[*].options.base_url"
+            )
+
         if not isinstance(credentials_raw, dict):
             raise ValueError("V4Options.credentials must be a dict")
         if not isinstance(system_raw, dict):
@@ -159,12 +180,13 @@ class V4Options:
         extra = {k: v for k, v in raw.items() if k not in known}
 
         return cls(
-            base_url=str(base_url),
+            base_url=base_url,
             credentials=V4Credentials.from_dict(credentials_raw),
             system=V4SystemInfo.from_dict(system_raw),
             bk_tenant_id=str(raw.get("bk_tenant_id", "system")),
             timeout=int(raw.get("timeout", 30)),
             chunk_size=int(raw.get("chunk_size", 20)),
             max_workers=int(raw.get("max_workers", 1)),
+            fallback_apply_url=str(raw.get("fallback_apply_url", "") or ""),
             extra=extra,
         )

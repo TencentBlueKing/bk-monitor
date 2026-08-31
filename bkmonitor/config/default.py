@@ -23,6 +23,7 @@ from bkcrypto.symmetric.options import AESSymmetricOptions, SM4SymmetricOptions
 from bkcrypto.utils.convertors import Base64Convertor
 from blueapps.conf.default_settings import *  # noqa
 from blueapps.conf.log import get_logging_config_dict
+from django.core.exceptions import ImproperlyConfigured
 from django.utils.translation import gettext_lazy as _
 
 from bkmonitor.utils.i18n import TranslateDict
@@ -1439,6 +1440,16 @@ BK_IAM_V3_SYSTEM_CLIENTS_LIST = [
     if c.strip()
 ]
 
+# ---- IAM 申请 URL 兜底 ----
+#
+# Provider._get_apply_url_dialect 在平台侧生成申请 URL 失败 / 返回空串时会降级到
+# 该兜底链接（仍为空则保持既有"返回 \"\""契约）。
+#   * V3：默认回退到 BK_IAM_SAAS_HOST（V3 的申请页本来就基于 IAM SaaS 域名，
+#     SDK 生成失败时回退到同域名的首页至少可保证链接可访问）。
+#   * V4：V4 申请页域名与 SaaS 域名不一定对齐，默认空，需要业务方显式配
+#     BK_IAM_V4_FALLBACK_APPLY_URL（建议指向内部 ITSM 权限工单页或 V4 对应的 SaaS 首页）。
+BK_IAM_V3_FALLBACK_APPLY_URL = os.getenv("BK_IAM_V3_FALLBACK_APPLY_URL", "") or BK_IAM_SAAS_HOST
+BK_IAM_V4_FALLBACK_APPLY_URL = os.getenv("BK_IAM_V4_FALLBACK_APPLY_URL", "")
 
 # ---- IAM 鉴权栈单开关 ----
 #
@@ -1452,6 +1463,12 @@ BK_IAM_V3_SYSTEM_CLIENTS_LIST = [
 # 的非法组合以及"再引一个字段区分模式"的隐晦耦合。
 BK_IAM_MODE = os.getenv("BK_IAM_MODE", "v4").lower()
 
+if BK_IAM_MODE not in {"v3", "v4", "union"}:
+    raise ValueError(f"Unknown BK_IAM_MODE={BK_IAM_MODE!r}. Supported values: 'v3' | 'v4' | 'union'.")
+
+if BK_IAM_MODE in {"v4", "union"} and not BK_IAM_V4_API_BASE_URL.strip():
+    raise ImproperlyConfigured("BK_IAM_MODE=v4/union requires BK_IAM_V4_API_BASE_URL")
+
 _IAM_V3_PROVIDER = {
     "class": "bkmonitor.iam.iam_v3.provider.V3PermissionProvider",
     "options": {
@@ -1460,6 +1477,7 @@ _IAM_V3_PROVIDER = {
         "base_url": BK_IAM_V3_API_BASE_URL,
         "bk_tenant_id": "system",
         "provider_config_path": BK_IAM_V3_RESOURCE_PATH,
+        "fallback_apply_url": BK_IAM_V3_FALLBACK_APPLY_URL,
         "credentials": {
             "app_code": BK_IAM_V3_CLIENT_APP_CODE,
             "app_secret": BK_IAM_V3_CLIENT_APP_SECRET,
@@ -1486,6 +1504,7 @@ _IAM_V4_PROVIDER = {
         "resolver_class": "bkmonitor.iam.adapters.resolver.MonitorResourceResolver",
         "base_url": BK_IAM_V4_API_BASE_URL,
         "bk_tenant_id": "system",
+        "fallback_apply_url": BK_IAM_V4_FALLBACK_APPLY_URL,
         "credentials": {
             "app_code": BK_IAM_V4_CLIENT_APP_CODE,
             "app_secret": BK_IAM_V4_CLIENT_APP_SECRET,
@@ -1509,7 +1528,7 @@ if BK_IAM_MODE == "v3":
 elif BK_IAM_MODE == "v4":
     _IAM_PROVIDERS = [_IAM_V4_PROVIDER]
     _IAM_COMPOSITION = {"policy": "single"}
-elif BK_IAM_MODE == "union":
+else:  # union（取值已在上方校验）
     # V4 在前：primary() 取 providers[0]，get_apply_url / get_apply_data 优先出 V4 页面。
     _IAM_PROVIDERS = [_IAM_V4_PROVIDER, _IAM_V3_PROVIDER]
     # union 下走 DynamicCompositionPolicy：
@@ -1537,9 +1556,6 @@ elif BK_IAM_MODE == "union":
             },
         },
     }
-else:
-    raise ValueError(f"Unknown BK_IAM_MODE={BK_IAM_MODE!r}. Supported values: 'v3' | 'v4' | 'union'.")
-
 IAM_FRAMEWORK = {
     # 操作定义
     "ACTIONS": "bkmonitor.iam.definitions.actions.Actions",

@@ -37,11 +37,14 @@ from bkmonitor.iam.drf import (
     filter_data_by_permission,
     insert_permission_field,
 )
+from bkmonitor.iam.errors import IAMBackendUnavailableError
+from bkmonitor.iam.iam_engine.core.exceptions import ProviderUnavailable
 from bkmonitor.iam.iam_engine.core.types import (
     BatchAuthResult,
     ResourceAuthResult,
     ResourceInstance,
 )
+from core.drf_resource.exceptions import custom_exception_handler
 from core.errors.iam import PermissionDeniedError
 
 
@@ -151,10 +154,60 @@ class TestIAMPermission:
         fw, provider = fake_framework
         provider.is_allowed_result = False
         provider.apply_url = "http://iam.invalid/apply/x"
+        provider.apply_data = {"system": "bk_monitorv3", "actions": [{"id": "view_event"}]}
         perm = IAMPermission(actions=[ActionEnum.VIEW_EVENT, ActionEnum.MANAGE_EVENT])
         with pytest.raises(PermissionDeniedError) as exc:
             perm.has_permission(_make_request(), view=None)
         assert exc.value.data.get("apply_url") == "http://iam.invalid/apply/x"
+        assert str(exc.value) == "当前用户无 [事件中心管理] 权限"
+        assert exc.value.extra["permission"] == {"system": "bk_monitorv3", "actions": [{"id": "view_event"}]}
+
+    def test_legacy_v3_action_id_is_normalized_but_message_uses_display_name(self, fake_framework):
+        """方言 ID 只在 Provider codec 边界出现，老前端消息始终显示动作名称。"""
+        fw, provider = fake_framework
+        provider.is_allowed_result = False
+        provider.apply_url = "http://iam.invalid/apply/x"
+
+        perm = IAMPermission(actions=["view_event_v2"])
+        with pytest.raises(PermissionDeniedError) as exc:
+            perm.has_permission(_make_request(), view=None)
+
+        assert provider.is_allowed_calls[0].action_id == "view_event"
+        assert str(exc.value) == "当前用户无 [事件中心查看] 权限"
+
+    def test_provider_unavailable_uses_exact_legacy_response_envelope(self, fake_framework):
+        """P1：DRF 直调框架超时后仍返回旧前端可处理的 403 结构，而不是 500。"""
+        fw, provider = fake_framework
+        provider.is_allowed_result = ProviderUnavailable("v4 timeout")
+        provider.apply_url = "http://iam.invalid/fallback"
+        provider.apply_data = {"system": "bk_monitor_v4", "actions": [{"id": "view_event"}]}
+
+        perm = IAMPermission(actions=[ActionEnum.VIEW_EVENT])
+        with pytest.raises(IAMBackendUnavailableError) as exc:
+            perm.has_permission(_make_request(), view=None)
+
+        assert isinstance(exc.value.__cause__, ProviderUnavailable)
+        assert str(exc.value) == "当前用户无 [事件中心查看] 权限"
+        assert exc.value.data == {"apply_url": "http://iam.invalid/fallback"}
+        assert exc.value.extra["permission"] == {"system": "bk_monitor_v4", "actions": [{"id": "view_event"}]}
+
+        response = custom_exception_handler(exc.value, context={})
+        assert response.status_code == 403
+        assert response.data == {
+            "result": False,
+            "code": 9900403,
+            "name": "权限校验不通过",
+            "message": "当前用户无 [事件中心查看] 权限",
+            "data": {"apply_url": "http://iam.invalid/fallback"},
+            "error_details": {
+                "type": "PermissionDeniedError",
+                "code": 9900403,
+                "overview": "当前用户无 [事件中心查看] 权限",
+                "detail": "{'apply_url': 'http://iam.invalid/fallback'}",
+                "popup_message": "primary",
+            },
+            "permission": {"system": "bk_monitor_v4", "actions": [{"id": "view_event"}]},
+        }
 
     def test_resources_passed_through(self, fake_framework):
         fw, provider = fake_framework

@@ -105,6 +105,10 @@ class V3Options:
         timeout:      HTTP 请求超时（秒），默认 30
         chunk_size:   批量鉴权分片大小，默认 20
         max_workers:  批量鉴权分片的并发工作线程数，1 表示串行
+        fallback_apply_url: 平台生成申请页 URL 失败/为空时的兜底跳转地址。
+            为空则维持既有降级契约（`_get_apply_url_dialect` 返回 ""）；
+            非空则返回该地址，让前端至少能给用户一个可点击的兜底链接
+            （典型值：IAM SaaS 站点根 URL，如 `BK_IAM_SAAS_HOST`）。
     """
 
     base_url: str
@@ -117,6 +121,8 @@ class V3Options:
     #: 资源类型注册时的 provider_config.path（bkmonitor 资源实例回调 API）。
     #: 老版本在部署下发的 iam_migrations json 中配置
     provider_config_path: str = "/rest/v2/iam/resource/"
+    #: 平台生成申请 URL 失败时的兜底跳转地址；默认空 = 维持既有行为（返回 ""）。
+    fallback_apply_url: str = ""
     extra: dict[str, Any] = field(default_factory=dict)
 
     @classmethod
@@ -136,6 +142,7 @@ class V3Options:
             "chunk_size",
             "max_workers",
             "provider_config_path",
+            "fallback_apply_url",
         }
         try:
             base_url = raw["base_url"]
@@ -160,5 +167,6 @@ class V3Options:
             chunk_size=int(raw.get("chunk_size", 20)),
             max_workers=int(raw.get("max_workers", 1)),
             provider_config_path=raw.get("provider_config_path", "/rest/v2/iam/resource/"),
+            fallback_apply_url=str(raw.get("fallback_apply_url", "") or ""),
             extra=extra,
         )

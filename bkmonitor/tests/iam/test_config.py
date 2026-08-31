@@ -139,6 +139,32 @@ class TestV4Options:
             )
         assert "base_url" in str(exc.value)
 
+    def test_empty_base_url_fails_fast(self):
+        """key 存在但值为空字符串 → fail-fast，避免线上"启动通过，首次请求 500"。"""
+        with pytest.raises(ValueError) as exc:
+            V4Options.from_dict(_valid_options(base_url=""))
+        assert "base_url" in str(exc.value)
+        assert "non-empty" in str(exc.value)
+
+    def test_whitespace_only_base_url_fails_fast(self):
+        """值仅由空白构成时也视作缺失。"""
+        with pytest.raises(ValueError) as exc:
+            V4Options.from_dict(_valid_options(base_url="   \t\n"))
+        assert "base_url" in str(exc.value)
+        assert "non-empty" in str(exc.value)
+
+    def test_base_url_is_stripped_before_storage(self):
+        """必要规范化：通过校验的 URL 必须以 strip 后的值传给 HTTP client。"""
+        cfg = V4Options.from_dict(_valid_options(base_url=" \thttps://iam.example.com/api/  \n"))
+        assert cfg.base_url == "https://iam.example.com/api/"
+
+    def test_non_string_base_url_fails_fast(self):
+        """非字符串类型（None / int）也应立即抛错，而不是被 str(None) 静默转换。"""
+        with pytest.raises(ValueError):
+            V4Options.from_dict(_valid_options(base_url=None))
+        with pytest.raises(ValueError):
+            V4Options.from_dict(_valid_options(base_url=12345))
+
     def test_missing_credentials(self):
         with pytest.raises(ValueError) as exc:
             V4Options.from_dict({"base_url": "u", "system": {"id": "i", "name": "n"}})
@@ -163,6 +189,26 @@ class TestV4Options:
         """未识别字段应收纳到 extra，不报错。"""
         cfg = V4Options.from_dict(_valid_options(custom_field="hello", another=123))
         assert cfg.extra == {"custom_field": "hello", "another": 123}
+
+    def test_fallback_apply_url_default_empty(self):
+        """未配置 fallback_apply_url 时保持空字符串（维持既有降级契约）。"""
+        cfg = V4Options.from_dict(_valid_options())
+        assert cfg.fallback_apply_url == ""
+
+    def test_fallback_apply_url_parsed(self):
+        """显式配置的 fallback_apply_url 应被解析到 _cfg.fallback_apply_url。"""
+        cfg = V4Options.from_dict(_valid_options(fallback_apply_url="https://itsm.example.com/apply"))
+        assert cfg.fallback_apply_url == "https://itsm.example.com/apply"
+
+    def test_fallback_apply_url_none_coerced_to_empty(self):
+        """None 被视作未配置（兼容 os.getenv 未设置且 or "" 的写法）。"""
+        cfg = V4Options.from_dict(_valid_options(fallback_apply_url=None))
+        assert cfg.fallback_apply_url == ""
+
+    def test_fallback_apply_url_not_in_extra(self):
+        """新增字段必须列入 known 白名单，不能被误收纳到 extra。"""
+        cfg = V4Options.from_dict(_valid_options(fallback_apply_url="https://x.example.com"))
+        assert "fallback_apply_url" not in cfg.extra
 
     def test_frozen(self):
         cfg = V4Options.from_dict(_valid_options())

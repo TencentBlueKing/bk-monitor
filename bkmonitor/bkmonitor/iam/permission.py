@@ -331,6 +331,15 @@ class Permission:
             if raise_exception:
                 raise self._build_permission_denied(action_id_biz, fw_resource) from e
             return False
+        except ProviderError as e:
+            # Provider 层错误（含 ProviderUnavailable：平台不可达 / URL 缺失 / 超时）
+            # 语义与 _is_allowed_batch 对齐：不冒泡到视图层（避免 500），
+            # raise_exception=True 时降级为 PermissionDenied（用户看到"暂时无法验证
+            # 权限"），False 时 log.exception + 返回 False。
+            logger.exception("[Permission.is_allowed] ProviderError: %s", e)
+            if raise_exception:
+                raise self._build_permission_denied(action_id_biz, fw_resource) from e
+            return False
 
         if not result and raise_exception:
             raise self._build_permission_denied(action_id_biz, fw_resource)
@@ -355,8 +364,12 @@ class Permission:
             [a.id for a in actions] if actions else [action_id_biz],
             detail_resources,
         )
+        try:
+            action_name = get_action_by_id(action_id_biz).name
+        except ActionNotExistError:
+            action_name = action_id_biz
         return PermissionDeniedError(
-            context={"action_name": action_id_biz},
+            context={"action_name": action_name},
             data={"apply_url": apply_url},
             extra={"permission": apply_data},
         )
@@ -413,9 +426,19 @@ class Permission:
 
         for action_id_biz in action_ids_biz:
             for fw_resources in grouped.values():
-                batch_result = self._fw.batch_by_resource(
-                    BatchByResourceRequest(subject=subject, action_id=action_id_biz, resources=tuple(fw_resources))
-                )
+                try:
+                    batch_result = self._fw.batch_by_resource(
+                        BatchByResourceRequest(subject=subject, action_id=action_id_biz, resources=tuple(fw_resources))
+                    )
+                except ProviderError as e:
+                    # Provider 不可达（URL 缺失 / 网络异常 / 超时）时不冒泡为 500：
+                    # 与 filter_space_list_by_action 的 ProviderError 兜底对齐，
+                    # 把当前 (action, 分组内资源) 全部标记为无权限，让上游继续渲染
+                    # 页面而不是整块 500；运维通过 log 追查。
+                    logger.exception("[Permission.batch_is_allowed] ProviderError action=%s: %s", action_id_biz, e)
+                    for r in fw_resources:
+                        result[r.id][action_id_biz] = False
+                    continue
                 for item in batch_result.items:
                     result[item.resource_id][action_id_biz] = item.allowed
 
@@ -428,13 +451,17 @@ class Permission:
     def get_apply_url(self, action_ids: list[str], resources: list = None, system_id: str = settings.BK_IAM_SYSTEM_ID):
         action_ids_biz = [_to_business_action_id(action_id) for action_id in action_ids]
         fw_resources = tuple(FwResource(type=r.type, id=r.id) for r in (resources or []))
-        return self._fw.get_apply_url(
-            ApplyURLRequest(
-                subject=FwSubject(id=self.username, type=SubjectType.USER, tenant_id=self.bk_tenant_id),
-                action_ids=tuple(action_ids_biz),
-                resources=fw_resources,
+        try:
+            return self._fw.get_apply_url(
+                ApplyURLRequest(
+                    subject=FwSubject(id=self.username, type=SubjectType.USER, tenant_id=self.bk_tenant_id),
+                    action_ids=tuple(action_ids_biz),
+                    resources=fw_resources,
+                )
             )
-        )
+        except ProviderError as e:
+            logger.exception("[Permission.get_apply_url] ProviderError: %s", e)
+            return ""
 
     def get_apply_data(self, actions, resources: list = None):
         resources = resources or []
@@ -442,11 +469,16 @@ class Permission:
         action_ids_biz = [_to_business_action_id(action) for action in actions]
         fw_resources = [FwResource(type=r.type, id=r.id) for r in resources]
 
-        return self._fw.get_apply_data(
-            action_ids_biz,
-            fw_resources,
-            FwSubject(id=self.username, type=SubjectType.USER, tenant_id=self.bk_tenant_id),
-        ), self.get_apply_url(action_ids_biz, resources)
+        try:
+            apply_data = self._fw.get_apply_data(
+                action_ids_biz,
+                fw_resources,
+                FwSubject(id=self.username, type=SubjectType.USER, tenant_id=self.bk_tenant_id),
+            )
+        except ProviderError as e:
+            logger.exception("[Permission.get_apply_data] ProviderError: %s", e)
+            apply_data = None
+        return apply_data, self.get_apply_url(action_ids_biz, resources)
 
     # ================================================================
     # 创建者授权 — 框架委托

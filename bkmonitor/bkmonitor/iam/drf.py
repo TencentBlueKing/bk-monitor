@@ -25,7 +25,7 @@ from typing import Literal
 
 from rest_framework import permissions
 
-from bkmonitor.iam.action import get_legacy_action_ids
+from bkmonitor.iam.action import canonicalize_action_id, get_action_by_id, get_legacy_action_ids
 from bkmonitor.iam.definitions.actions import Actions
 from bkmonitor.iam.definitions.resource_types import ResourceTypes
 from bkmonitor.utils.request import get_request
@@ -40,7 +40,9 @@ from bkmonitor.iam.iam_engine.core.types import (
     to_action_id,
 )
 from bkmonitor.iam.iam_engine.django.facade import get_framework
-from core.errors.iam import PermissionDeniedError
+from bkmonitor.iam.iam_engine.core.exceptions import ProviderUnavailable
+from bkmonitor.iam.errors import build_legacy_permission_denied
+from core.errors.iam import ActionNotExistError, PermissionDeniedError
 from bkmonitor.iam.permission import check_iam_preflight, check_iam_batch_preflight
 
 logger = logging.getLogger("apm")
@@ -51,8 +53,59 @@ logger = logging.getLogger("apm")
 # ============================================================================
 
 
+def _to_business_action_id(action_ref) -> str:
+    """归一化为框架业务 action ID，兼容已登记的 V3 历史方言 ID。"""
+    return canonicalize_action_id(to_action_id(action_ref))
+
+
+def _get_action_display_name(action_ref) -> str:
+    """返回用户可见的动作名称，绝不把 V3/V4 方言 ID 暴露给旧前端。"""
+    name = getattr(action_ref, "name", "")
+    if name:
+        return str(name)
+
+    action_id = _to_business_action_id(action_ref)
+    try:
+        return str(get_action_by_id(action_id).name)
+    except ActionNotExistError:
+        # 未登记 action 保持旧行为：无法解析展示名时才回退为原始业务 ID。
+        return action_id
+
+
+def _build_drf_permission_denied(fw, subject, action_ref, resources, *, backend_unavailable: bool):
+    """尽力补齐旧 PermissionDeniedError 所需的申请信息，绝不让二次查询变成 500。"""
+    action_id = _to_business_action_id(action_ref)
+    action_name = _get_action_display_name(action_ref)
+    permission = None
+    try:
+        # V4 的 get_apply_data 为本地构造；即使鉴权 API 超时，通常仍能提供
+        # 老前端权限弹窗需要的 permission 数据。
+        permission = fw.get_apply_data([action_id], list(resources), subject)
+    except ProviderUnavailable as exc:
+        logger.exception("[IAMPermission] generate apply data unavailable: %s", exc)
+
+    apply_url = ""
+    try:
+        apply_url = fw.get_apply_url(
+            ApplyURLRequest(
+                subject=subject,
+                action_ids=(action_id,),
+                resources=resources,
+            )
+        )
+    except ProviderUnavailable as exc:
+        logger.exception("[IAMPermission] generate apply url unavailable: %s", exc)
+
+    return build_legacy_permission_denied(
+        action_name=action_name,
+        apply_url=apply_url,
+        permission=permission,
+        backend_unavailable=backend_unavailable,
+    )
+
+
 def _fw_check_any(request, action_refs, resources=None):
-    """逐个 action 鉴权，任一通过即放行（OR 语义）。全部拒绝时抛 PermissionDeniedError。
+    """逐个 action 鉴权，任一通过即放行（OR 语义）。全部失败时返回旧鉴权错误协议。
 
     每个 action 先走前置豁免（token 临时分享 / skip_check），与旧版
     IAMPermission → Permission().is_allowed 的豁免语义一致。
@@ -62,27 +115,40 @@ def _fw_check_any(request, action_refs, resources=None):
 
     fw_resources = tuple(resources) if resources else ()
 
+    last_unavailable = None
     for action in action_refs:
         # 前置豁免（token 临时分享 / skip_check，与旧版一致）
         if check_iam_preflight(request, action):
             return True
 
         fw_resource = fw_resources[0] if fw_resources else None
-        allowed = fw.is_allowed(AuthRequest(subject=subject, action_id=to_action_id(action), resource=fw_resource))
+        try:
+            allowed = fw.is_allowed(
+                AuthRequest(subject=subject, action_id=_to_business_action_id(action), resource=fw_resource)
+            )
+        except ProviderUnavailable as exc:
+            # 不能在 Provider 层提前降级为 False：这会破坏组合策略的 fallback。
+            # 这里已是 DRF 边界，仍继续尝试其它 OR action；若存在任一可用的
+            # allow 结果则照常放行。
+            logger.exception("[IAMPermission] auth provider unavailable: %s", exc)
+            last_unavailable = exc
+            continue
         if allowed:
             return True
 
-    apply_url = fw.get_apply_url(
-        ApplyURLRequest(
-            subject=subject,
-            action_ids=tuple(to_action_id(a) for a in action_refs),
-            resources=fw_resources,
-        )
+    # 旧 IAMPermission 会抛出“最后一个 action”的 PermissionDeniedError；申请
+    # 数据也只对应该 action。沿用此语义，而不是把多个 OR action 合并进申请单。
+    denied_action = action_refs[-1] if action_refs else ""
+    error = _build_drf_permission_denied(
+        fw,
+        subject,
+        denied_action,
+        fw_resources,
+        backend_unavailable=last_unavailable is not None,
     )
-    raise PermissionDeniedError(
-        context={"action_name": to_action_id(action_refs[-1]) if action_refs else ""},
-        data={"apply_url": apply_url},
-    )
+    if last_unavailable is not None:
+        raise error from last_unavailable
+    raise error
 
 
 def _to_action_ids(actions) -> list[str]:

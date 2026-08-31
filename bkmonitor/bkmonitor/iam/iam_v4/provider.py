@@ -248,6 +248,12 @@ class V4PermissionProvider(PermissionProvider):
 
         Returns:
             str: IAM 平台的权限申请页面 URL。
+
+        降级：``generate_perm_apply_url`` 内部已把 ``ProviderError`` 转成空字符串
+        （见 :class:`V4Client`）。这里进一步引入配置化的 ``fallback_apply_url``：
+          * 平台返回非空 URL → 原样返回；
+          * 平台返回空串 → 返回 ``self._cfg.fallback_apply_url``（未配置则仍为空，
+            维持既有"上层兜底"契约）。
         """
         permissions = []
         for aid in request.action_ids:
@@ -256,7 +262,8 @@ class V4PermissionProvider(PermissionProvider):
                 ancestors = [{"id": a.id, "type": a.type} for a in r.ancestors]
                 resources.append({"id": r.id, "type": r.type, "ancestors": ancestors})
             permissions.append({"action_id": aid, "resources": resources})
-        return self._get_client(request.subject.tenant_id).generate_perm_apply_url(permissions)
+        url = self._get_client(request.subject.tenant_id).generate_perm_apply_url(permissions)
+        return url or self._cfg.fallback_apply_url
 
     # ================================================================
     # 权限申请数据 —— 与 V3 gen_perms_apply_data 兼容

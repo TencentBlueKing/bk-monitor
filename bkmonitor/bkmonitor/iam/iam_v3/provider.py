@@ -319,9 +319,10 @@ class V3PermissionProvider(PermissionProvider):
         ok, message, url = client.get_apply_url(application)
         if not ok:
             logger.error("[iam_v3:get_apply_url] generate apply url fail: %s", message)
-            # 返回空字符串，上层可兜底处理
-            return ""
-        return url
+            # 平台生成失败：优先走 fallback_apply_url（业务侧显式配置的兜底跳转地址），
+            # 未配置则维持"返回空串"的既有降级契约，由上层 Permission 层决定如何呈现。
+            return self._cfg.fallback_apply_url
+        return url or self._cfg.fallback_apply_url
 
     # ================================================================
     # 权限申请数据 —— 委托 SDK gen_perms_apply_data
