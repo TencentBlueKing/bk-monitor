@@ -1760,6 +1760,27 @@ class CollectorHandler:
         index_set.tag_ids = list((existing - old_scene_tag_ids) | set(tag_ids))
         index_set.save(update_fields=["tag_ids"])
 
+    def sync_scene_labels(self):
+        """Sync scene labels to ResultTable.labels and the index set scene tags.
+
+        labels 是场景化检索的路由元数据，不属于清洗配置：采集项的集群、环境、stream 等属性
+        变更后必须同步，否则 unify-query 按 labels 选表时会命中不到该结果表。
+        """
+        if not self.data.table_id:
+            return
+
+        labels = self._build_scene_labels()
+        # 走 switch_result_table：与 modify_result_table 同一个 metadata 接口，但不会改写存储配置，
+        # 因此可以只提交 labels，不必带上整份 default_storage_config。
+        TransferApi.switch_result_table(
+            {
+                "table_id": self.data.table_id,
+                "operator": get_request_username(),
+                "labels": labels,
+            }
+        )
+        self._sync_scene_tags_to_index_set(labels)
+
     @staticmethod
     def _get_current_allocation_min_days(result_table: dict) -> int:
         # 部分历史 RT 保留了 warm_phase_days，但当前集群并不支持冷热数据。

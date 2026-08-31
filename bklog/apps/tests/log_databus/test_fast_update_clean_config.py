@@ -75,6 +75,7 @@ class FastUpdateHandlerTests(SimpleTestCase):
         handler._cat_illegal_ips = MagicMock()
         handler._update_or_create_subscription = MagicMock()
         handler.create_or_update_clean_config = MagicMock()
+        handler.sync_scene_labels = MagicMock()
         return handler
 
     def test_host_fast_update_keeps_old_clean_behavior_by_default(self):
@@ -87,6 +88,7 @@ class FastUpdateHandlerTests(SimpleTestCase):
             result = handler.fast_update({"is_allow_alone_data_id": False})
 
         handler.create_or_update_clean_config.assert_called_once()
+        handler.sync_scene_labels.assert_not_called()
         self.assertEqual(result["subscription_id"], 20)
         self.assertEqual(result["task_id_list"], [])
 
@@ -100,6 +102,8 @@ class FastUpdateHandlerTests(SimpleTestCase):
             result = handler.fast_update({"update_clean_config": False, "is_allow_alone_data_id": False})
 
         handler.create_or_update_clean_config.assert_not_called()
+        # 场景化检索的路由标签与清洗配置无关，跳过清洗时仍需同步
+        handler.sync_scene_labels.assert_called_once_with()
         self.assertEqual(result["collector_config_id"], 10)
 
     def test_host_fast_update_can_clear_description_and_targets(self):
@@ -212,10 +216,12 @@ class FastUpdateHandlerTests(SimpleTestCase):
         )
         handler.update_container_config = MagicMock()
         handler.create_or_update_clean_config = MagicMock()
+        handler.sync_scene_labels = MagicMock()
 
         result = handler.fast_update({})
 
         handler.create_or_update_clean_config.assert_called_once()
+        handler.sync_scene_labels.assert_not_called()
         self.assertEqual(result["task_id_list"], [])
 
     def test_container_fast_update_can_skip_clean_update(self):
@@ -230,10 +236,12 @@ class FastUpdateHandlerTests(SimpleTestCase):
         )
         handler.update_container_config = MagicMock()
         handler.create_or_update_clean_config = MagicMock()
+        handler.sync_scene_labels = MagicMock()
 
         result = handler.fast_update({"update_clean_config": False})
 
         handler.create_or_update_clean_config.assert_not_called()
+        handler.sync_scene_labels.assert_called_once_with()
         self.assertEqual(result["collector_config_id"], 11)
         self.assertEqual(result["task_id_list"], [])
 
@@ -249,6 +257,7 @@ class FastUpdateHandlerTests(SimpleTestCase):
         )
         handler.update_container_config = MagicMock()
         handler.create_or_update_clean_config = MagicMock()
+        handler.sync_scene_labels = MagicMock()
 
         result = handler.fast_update({"yaml_config": "encoded-yaml", "update_clean_config": False})
 

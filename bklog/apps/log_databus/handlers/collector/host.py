@@ -1405,6 +1405,9 @@ class HostCollectorHandler(CollectorHandler):
         if update_clean_config:
             params["table_id"] = self.data.collector_config_name_en
             self.create_or_update_clean_config(True, params)
+        else:
+            # 跳过清洗配置不代表跳过检索路由标签，两者来源不同，必须独立同步。
+            self.sync_scene_labels()
 
         return {
             "collector_config_id": self.data.collector_config_id,

@@ -21,11 +21,11 @@ the project delivered to anyone in the future.
 
 from io import StringIO
 from types import SimpleNamespace
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from django.core.management import call_command
 from django.db import connection
-from django.test import TestCase
+from django.test import SimpleTestCase, TestCase
 from django.test.utils import CaptureQueriesContext
 
 from apps.log_databus.constants import (
@@ -274,6 +274,97 @@ class TestSyncSceneTagsToIndexSet(TestCase):
                 ("stream", "json"),
             },
         )
+
+
+class TestSyncSceneLabels(TestCase):
+    @staticmethod
+    def _new_handler(**overrides):
+        data = {
+            "collector_config_id": 1,
+            "collector_scenario_id": "row",
+            "custom_type": "log",
+            "environment": "container",
+            "is_container_collector": True,
+            "bcs_cluster_id": "BCS-K8S-27158",
+            "bk_app_code": "bk_log_search",
+            "table_id": "space_4283579_bklog.demo_collector",
+            "collector_config_name_en": "demo_collector",
+            "index_set_id": None,
+        }
+        data.update(overrides)
+        handler = CollectorHandler.__new__(CollectorHandler)
+        handler.data = SimpleNamespace(**data)
+        return handler
+
+    @patch("apps.log_databus.handlers.collector.base.TransferApi.switch_result_table")
+    def test_sync_pushes_labels_to_result_table_and_index_set(self, mock_switch_result_table):
+        index_set = LogIndexSet.objects.create(
+            index_set_name="scene_labels_sync",
+            space_uid="bkcc__2",
+            scenario_id="log",
+            is_active=True,
+        )
+        handler = self._new_handler(index_set_id=index_set.index_set_id)
+
+        with patch.object(handler, "_detect_container_stream", return_value="file"):
+            handler.sync_scene_labels()
+
+        expected_labels = {"scene": "k8s", "cluster_id": "BCS-K8S-27158", "stream": "file"}
+        params = mock_switch_result_table.call_args.args[0]
+        self.assertEqual(params["table_id"], "space_4283579_bklog.demo_collector")
+        self.assertEqual(params["labels"], expected_labels)
+
+        index_set.refresh_from_db()
+        scene_tags = set(
+            IndexSetTag.objects.filter(tag_id__in=index_set.tag_ids, tag_type=TAG_TYPE_SCENE).values_list(
+                "name", "value"
+            )
+        )
+        self.assertEqual(scene_tags, set(expected_labels.items()))
+
+    @patch("apps.log_databus.handlers.collector.base.TransferApi.switch_result_table")
+    def test_sync_skipped_before_result_table_created(self, mock_switch_result_table):
+        handler = self._new_handler(table_id="")
+
+        handler.sync_scene_labels()
+
+        mock_switch_result_table.assert_not_called()
+
+
+class TestCleanConfigEntryBuildsLabels(SimpleTestCase):
+    """清洗配置 HTTP 入口必须复用 CollectorHandler 封装，否则会漏掉场景标签。"""
+
+    @staticmethod
+    def _call_view(table_id):
+        from apps.log_databus.views.collector_views import CollectorViewSet
+
+        view = CollectorViewSet()
+        params = {"table_id": "demo_collector", "need_assessment": False, "assessment_config": None}
+        view.params_valid = MagicMock(return_value=params)
+
+        with (
+            patch("apps.log_databus.views.collector_views.EtlHandler.get_instance") as mock_etl_handler,
+            patch("apps.log_databus.views.collector_views.CollectorHandler.get_instance") as mock_get_instance,
+        ):
+            mock_etl_handler.return_value.itsm_pre_hook.side_effect = lambda data, _: (data, True)
+            collector_handler = mock_get_instance.return_value
+            collector_handler.data = SimpleNamespace(table_id=table_id)
+            view.update_or_create_clean_config(SimpleNamespace(), collector_config_id=1)
+
+        return mock_etl_handler.return_value, collector_handler
+
+    def test_entry_delegates_to_collector_handler(self):
+        etl_handler, collector_handler = self._call_view("2_bklog.demo_collector")
+
+        etl_handler.update_or_create.assert_not_called()
+        collector_handler.create_or_update_clean_config.assert_called_once_with(
+            is_update=True, params={"table_id": "demo_collector"}
+        )
+
+    def test_entry_treats_collector_without_result_table_as_create(self):
+        _etl_handler, collector_handler = self._call_view("")
+
+        self.assertIs(collector_handler.create_or_update_clean_config.call_args.kwargs["is_update"], False)
 
 
 class TestPaasSceneDimensions(TestCase):

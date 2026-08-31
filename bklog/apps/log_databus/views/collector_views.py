@@ -1425,7 +1425,14 @@ class CollectorViewSet(ModelViewSet):
             return Response(data)
         for key in ["need_assessment", "assessment_config"]:
             data.pop(key, None)
-        return Response(etl_handler.update_or_create(**data))
+        # 走 CollectorHandler 统一封装，与 fast_create / fast_update 保持一致：
+        # 直接调用 EtlHandler 会漏掉场景化检索的 ResultTable.labels 与索引集 scene tag。
+        collector_handler = CollectorHandler.get_instance(collector_config_id)
+        return Response(
+            collector_handler.create_or_update_clean_config(
+                is_update=bool(collector_handler.data.table_id), params=data
+            )
+        )
 
     @detail_route(methods=["GET"], url_path="get_data_link_list")
     def get_data_link_list(self, request):

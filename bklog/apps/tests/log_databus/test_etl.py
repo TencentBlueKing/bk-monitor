@@ -789,6 +789,63 @@ class TestEtl(TestCase):
     @FakeRedis("apps.utils.cache.cache")
     @patch("apps.log_databus.handlers.etl.EtlHandler._update_or_create_index_set")
     @patch("apps.log_databus.tasks.collector.modify_result_table.delay", return_value=None)
+    def test_result_table_omits_labels_when_not_provided(self, mock_modify_delay, mock_index_set):
+        """未声明 labels 时整个字段不下发，避免把结果表已有的场景标签清空。"""
+        collector_config = CollectorConfig.objects.create(**COLLECTOR_CONFIG)
+        mock_index_set.return_value = LOG_INDEX_DATA
+
+        etl_storage = EtlStorage.get_instance(ETL_CONFIG)
+        result = etl_storage.update_or_create_result_table(
+            collector_config,
+            table_id=TABLE_ID,
+            storage_cluster_id=STORAGE_CLUSTER_ID,
+            retention=RETENTION_TIME,
+            allocation_min_days=ALLOCATION_MIN_DAYS,
+            storage_replies=1,
+            fields=FIELDS,
+            etl_params=ETL_PARAMS,
+            hot_warm_config=HOT_WARM_CONFIG,
+        )
+
+        self.assertNotIn("labels", result["params"])
+        self.assertNotIn("labels", mock_modify_delay.call_args.args[0])
+
+    @patch("apps.api.TransferApi.create_result_table", lambda _: {"table_id": TABLE_ID})
+    @patch("apps.api.TransferApi.modify_result_table", lambda _: {"table_id": TABLE_ID})
+    @patch("apps.api.TransferApi.get_result_table", lambda _: {"table_id": TABLE_ID})
+    @patch("apps.api.TransferApi.get_cluster_info", lambda _: [CLUSTER_INFO])
+    @FakeRedis("apps.utils.cache.cache")
+    @patch("apps.log_databus.handlers.etl.EtlHandler._update_or_create_index_set")
+    @patch("apps.log_databus.tasks.collector.modify_result_table.delay", return_value=None)
+    def test_result_table_carries_labels_when_provided(self, mock_modify_delay, mock_index_set):
+        collector_config = CollectorConfig.objects.create(**COLLECTOR_CONFIG)
+        mock_index_set.return_value = LOG_INDEX_DATA
+        labels = {"scene": "k8s", "cluster_id": "BCS-K8S-00000", "stream": "file"}
+
+        etl_storage = EtlStorage.get_instance(ETL_CONFIG)
+        result = etl_storage.update_or_create_result_table(
+            collector_config,
+            table_id=TABLE_ID,
+            storage_cluster_id=STORAGE_CLUSTER_ID,
+            retention=RETENTION_TIME,
+            allocation_min_days=ALLOCATION_MIN_DAYS,
+            storage_replies=1,
+            fields=FIELDS,
+            etl_params=ETL_PARAMS,
+            hot_warm_config=HOT_WARM_CONFIG,
+            labels=labels,
+        )
+
+        self.assertEqual(result["params"]["labels"], labels)
+        self.assertEqual(mock_modify_delay.call_args.args[0]["labels"], labels)
+
+    @patch("apps.api.TransferApi.create_result_table", lambda _: {"table_id": TABLE_ID})
+    @patch("apps.api.TransferApi.modify_result_table", lambda _: {"table_id": TABLE_ID})
+    @patch("apps.api.TransferApi.get_result_table", lambda _: {"table_id": TABLE_ID})
+    @patch("apps.api.TransferApi.get_cluster_info", lambda _: [CLUSTER_INFO])
+    @FakeRedis("apps.utils.cache.cache")
+    @patch("apps.log_databus.handlers.etl.EtlHandler._update_or_create_index_set")
+    @patch("apps.log_databus.tasks.collector.modify_result_table.delay", return_value=None)
     def test_rt_option_from_index_set(self, mock_modify_delay, mock_index_set):
         """time_field / need_add_time 应从 index_set 动态获取"""
         from unittest.mock import MagicMock
