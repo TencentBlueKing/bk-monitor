@@ -525,7 +525,8 @@ export default class IncidentTable extends tsc<IEventTableProps, IEventTableEven
     const { clientWidth, clientHeight, scrollWidth, scrollHeight } = e.target as HTMLDivElement;
     if (scrollWidth > clientWidth || scrollHeight > clientHeight) {
       this.tagPopoverIns = this.$bkPopover(e.target, {
-        content: `${data.map(item => `<div>${item}</div>`).join('')}`,
+        content: data.map(item => (typeof item === 'string' ? item : `${item.key}：${item.value}`)).join('\n'),
+        allowHTML: false,
         maxWidth: 320,
         placement: 'top',
         boundary: 'window',
@@ -602,26 +603,23 @@ export default class IncidentTable extends tsc<IEventTableProps, IEventTableEven
   }
   /** 关联信息提示信息 */
   handleExtendInfoEnter(e, info) {
-    let tplStr = '--';
+    let content = '--';
     switch (info.type) {
       case 'host':
-        tplStr = `<div class="extend-content">${this.$t('主机名:')}${info.hostname || '--'}</div>
-            <div class="extend-content">
-              <span class="extend-content-message">${this.$t('节点信息:')}${info.topo_info || '--'}</span>
-            </div>
-          `;
+        content = [
+          `${this.$t('主机名:')}${info.hostname || '--'}`,
+          `${this.$t('节点信息:')}${info.topo_info || '--'}`,
+        ].join('\n');
         break;
       case 'log_search':
       case 'custom_event':
       case 'bkdata':
-        tplStr = `<span class="extend-content-link">
-            ${this.extendInfoMap[info.type] || '--'}
-          </span>`;
+        content = `${this.extendInfoMap[info.type] || '--'}`;
         break;
       default:
         break;
     }
-    this.handlePopoverShow(e, tplStr);
+    this.handlePopoverShow(e, content);
   }
   /**
    * @description: 关联信息组件
@@ -699,14 +697,14 @@ export default class IncidentTable extends tsc<IEventTableProps, IEventTableEven
     this.handlePopoverShow(
       e,
       [
-        `<div class="dimension-desc">${this.$t('维度信息')}：${
+        `${this.$t('维度信息')}：${
           dimensions?.map?.(item => `${item.display_key || item.key}(${item.display_value || item.value})`).join('-') ||
           '--'
-        }</div>`,
-        `<div class="description-desc">${this.$t('告警内容')}：${description || '--'}</div>`,
+        }`,
+        `${this.$t('告警内容')}：${description || '--'}`,
       ]
         .filter(Boolean)
-        .join('')
+        .join('\n')
     );
   }
   /**
@@ -718,6 +716,7 @@ export default class IncidentTable extends tsc<IEventTableProps, IEventTableEven
   handlePopoverShow(e: MouseEvent, content: string) {
     this.popoperInstance = this.$bkPopover(e.target, {
       content,
+      allowHTML: false,
       maxWidth: 320,
       arrow: true,
       boundary: 'window',
