@@ -280,6 +280,8 @@ export default defineComponent({
                 isShowFavorite={true}
                 isShowResident={true}
                 modeChangeLoading={queryCtx.generateQueryStringLoading.value}
+                /* 提示用户按 / 可唤起检索框 */
+                placeholder={this.t('/ 唤起，输入检索内容')}
                 queryString={queryCtx.queryString.value}
                 residentSettingOnlyId={this.residentSettingOnlyId}
                 selectFavorite={favoriteCtx.selectedFavorite.value}
@@ -292,13 +294,9 @@ export default defineComponent({
                 onCopyWhere={queryCtx.copyWhere}
                 onFavorite={isEdit => favoriteCtx.saveFavorite(isEdit, () => this.favoriteBoxRef?.refreshGroupList())}
                 onModeChange={queryCtx.modeChange}
-                onQueryStringChange={value => {
-                  queryCtx.queryString.value = value;
-                }}
+                onQueryStringChange={queryCtx.queryStringChange}
                 onSearch={queryCtx.handleQuery}
-                onShowResidentBtnChange={value => {
-                  queryCtx.showResidentBtn.value = value;
-                }}
+                onShowResidentBtnChange={queryCtx.showResidentChange}
                 onWhereChange={queryCtx.whereChange}
               />
             )}
