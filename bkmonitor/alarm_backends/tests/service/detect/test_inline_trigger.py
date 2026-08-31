@@ -10,6 +10,8 @@ specific language governing permissions and limitations under the License.
 
 from contextlib import contextmanager
 
+from django.conf import settings
+
 from alarm_backends.service.detect import process as detect_process
 from alarm_backends.service.detect.process import DetectProcess
 from alarm_backends.service.trigger import runner
@@ -21,10 +23,11 @@ def test_detect_process_exposes_inline_trigger_entry():
     assert callable(getattr(DetectProcess, "run_inline_trigger", None))
 
 
-def test_inline_trigger_switch_is_registered_as_dynamic_setting():
+def test_inline_trigger_switch_defaults_to_enabled_and_is_dynamic():
     field = global_config.ADVANCED_OPTIONS["ENABLE_DETECT_INLINE_TRIGGER"]
 
-    assert field.default is False
+    assert settings.ENABLE_DETECT_INLINE_TRIGGER is True
+    assert field.default is True
     assert "ENABLE_DETECT_INLINE_TRIGGER" in global_config.GLOBAL_CONFIGS
 
 

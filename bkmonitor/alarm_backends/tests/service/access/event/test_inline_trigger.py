@@ -1,4 +1,5 @@
 import pytest
+from django.conf import settings
 
 from alarm_backends.service.access.event import processor as event_processor
 from alarm_backends.service.access.event import processorv2 as event_processor_v2
@@ -28,7 +29,7 @@ def test_event_push_defers_signal_and_records_inline_items_when_enabled(mocker, 
     mocker.patch.object(processor, "check_qos")
     mocker.patch.object(processor, "push_to_check_result")
     mocker.patch.object(module.PriorityChecker, "check_records")
-    mocker.patch.object(module.settings, "ENABLE_EVENT_INLINE_TRIGGER", True, create=True)
+    mocker.patch.object(module.settings, "ENABLE_EVENT_INLINE_TRIGGER", True)
     mocker.patch.object(module, "metrics")
 
     list_key = mocker.patch.object(module.key, "ANOMALY_LIST_KEY")
@@ -67,7 +68,7 @@ def test_event_push_keeps_signal_path_when_inline_is_disabled(mocker, module, pr
     mocker.patch.object(processor, "check_qos")
     mocker.patch.object(processor, "push_to_check_result")
     mocker.patch.object(module.PriorityChecker, "check_records")
-    mocker.patch.object(module.settings, "ENABLE_EVENT_INLINE_TRIGGER", False, create=True)
+    mocker.patch.object(module.settings, "ENABLE_EVENT_INLINE_TRIGGER", False)
     mocker.patch.object(module, "metrics")
 
     list_key = mocker.patch.object(module.key, "ANOMALY_LIST_KEY")
@@ -96,10 +97,11 @@ def test_event_process_runs_recorded_inline_items(mocker, processor_cls):
     run_event_trigger_items.assert_called_once_with([(1, 2), (3, 4)])
 
 
-def test_event_inline_trigger_settings_are_dynamic():
+def test_event_inline_trigger_defaults_to_enabled_and_is_dynamic():
     enabled = global_config.ADVANCED_OPTIONS["ENABLE_EVENT_INLINE_TRIGGER"]
     concurrency = global_config.ADVANCED_OPTIONS["EVENT_INLINE_TRIGGER_MAX_CONCURRENCY_PER_ITEM"]
 
-    assert enabled.default is False
+    assert settings.ENABLE_EVENT_INLINE_TRIGGER is True
+    assert enabled.default is True
     assert concurrency.default == 1
     assert concurrency.min_value == 1
