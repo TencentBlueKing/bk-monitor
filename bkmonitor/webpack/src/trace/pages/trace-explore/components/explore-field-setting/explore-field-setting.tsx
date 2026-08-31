@@ -38,8 +38,8 @@ import { computed } from 'vue';
 
 import { useThrottleFn } from '@vueuse/core';
 import { Button, Exception, Input } from 'bkui-vue';
-import tippy, { type Instance, type SingleTarget } from 'tippy.js';
 import { ArrowsRight, Close, Transfer } from 'bkui-vue/lib/icon';
+import tippy, { type Instance, type SingleTarget } from 'tippy.js';
 import { useI18n } from 'vue-i18n';
 
 import FieldTypeIcon from '../field-type-icon';
@@ -318,7 +318,7 @@ export default defineComponent({
       draggingField.value = field;
       e.dataTransfer.effectAllowed = 'move';
       e.dataTransfer.setData('text/plain', field);
-      // @ts-ignore
+      // @ts-expect-error
       e.target.closest('.target-item').classList.add('dragging');
     }
 
@@ -355,7 +355,7 @@ export default defineComponent({
       const dragDom = target.closest('.target-item');
       if (dragDom) {
         dragDom?.classList.remove('dragging');
-        // @ts-ignore
+        // @ts-expect-error
         dragDom.draggable = false;
       }
       draggingField.value = '';
@@ -374,7 +374,7 @@ export default defineComponent({
      *
      */
     function dragHandleMouseOperation(e: MouseEvent, draggable) {
-      // @ts-ignore
+      // @ts-expect-error
       e.target.closest('.target-item').draggable = draggable;
     }
 
