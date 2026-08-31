@@ -1738,6 +1738,30 @@ class DataFlowHandler(BaseAiopsHandler):
         }
 
     @classmethod
+    def _get_clustered_es_field_names(cls, index_set: LogIndexSet, clustering_config: ClusteringConfig) -> set:
+        """
+        获取聚类结果表在 ES 上的真实字段名，取不到时返回空集合，由调用方按保守策略处理
+        """
+        from apps.log_search.handlers.search.mapping_handlers import MappingHandlers
+
+        try:
+            return MappingHandlers(
+                indices=clustering_config.clustered_rt,
+                index_set_id=index_set.index_set_id,
+                scenario_id=Scenario.BKDATA,
+                storage_cluster_id=index_set.storage_cluster_id,
+                time_field=index_set.time_field,
+                only_search=True,
+            ).get_mapping_field_names()
+        except Exception as error:  # pylint: disable=broad-except
+            logger.warning(
+                "get mapping fields of clustered result table(%s) failed: %s",
+                clustering_config.clustered_rt,
+                error,
+            )
+            return set()
+
+    @classmethod
     def _build_clustered_es_route_params(cls, index_set: LogIndexSet, clustering_config: ClusteringConfig) -> dict:
         route_params = {
             **cls._build_clustered_route_base_params(index_set, clustering_config),
@@ -1749,9 +1773,25 @@ class DataFlowHandler(BaseAiopsHandler):
             ),
         }
         signature_alias = cls._build_clustered_signature_alias_setting(clustering_config)
+        # 入口索引集的别名是按源表字段配的，聚类结果表的字段集合与源表并不一致。
+        # 别名指向的物理字段在聚类结果表里不存在时，改写后一定查不到数据，因此按真实 mapping 裁剪。
+        # 字段拉不到时只保留固定别名，不能整份继承，否则会把源表的撞名别名带到聚类路由上。
+        clustered_field_names = cls._get_clustered_es_field_names(index_set, clustering_config)
+        inherited_alias_settings = []
+        for alias_setting in index_set.query_alias_settings or []:
+            if alias_setting.get("field_name") not in clustered_field_names:
+                logger.info(
+                    "skip inherited alias(%s -> %s) for clustered result table(%s): physical field does not exist",
+                    alias_setting.get("query_alias"),
+                    alias_setting.get("field_name"),
+                    clustering_config.clustered_rt,
+                )
+                continue
+            inherited_alias_settings.append(alias_setting)
+
         merged_alias_settings = []
         seen_query_alias = set()
-        for alias_setting in (signature_alias, *(index_set.query_alias_settings or [])):
+        for alias_setting in (signature_alias, *inherited_alias_settings):
             query_alias = alias_setting.get("query_alias")
             if not query_alias or query_alias in seen_query_alias:
                 continue

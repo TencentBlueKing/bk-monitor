@@ -1803,6 +1803,20 @@ class TestSyncRouter(TestCase):
         for params in routers:
             self.assertNotIn("cluster_id", params)
 
+    def test_update_alias_settings_syncs_clustered_route(self):
+        """
+        聚类结果表是独立的一条路由，不会随源表路由一起刷新
+        期望：别名变更时同步聚类路由，并且传的是当前入口索引集 ID，否则会污染原始索引集那条路由
+        """
+        index_set = self._build_manual_doris_index_set()
+
+        with patch(
+            "apps.log_clustering.handlers.dataflow.dataflow_handler.DataFlowHandler.sync_clustered_route"
+        ) as mock_sync_clustered_route:
+            self._capture_alias_settings_routers(index_set)
+
+        mock_sync_clustered_route.assert_called_once_with(index_set_id=index_set.index_set_id)
+
     # ==================================================================
     # 边界情况
     # ==================================================================

@@ -1644,6 +1644,13 @@ class IndexSetHandler(APIModel):
                         reason=f"create or update index set({self.index_set_id}) es router failed：{ret}"
                     )
                 )
+
+        # 聚类结果表是独立的一条路由，不会随源表路由一起刷新。
+        # 不在这里同步，用户改完别名要等到下一次聚类 flow 变更才生效。
+        # 必须传当前入口索引集 ID：聚类路由按入口 ID 注册，归一到原始索引集会污染另一条路由。
+        from apps.log_clustering.handlers.dataflow.dataflow_handler import DataFlowHandler
+
+        DataFlowHandler.sync_clustered_route(index_set_id=self.index_set_id)
         return {"index_set_id": self.index_set_id}
 
     def add_to_parent_index_sets(self, parent_index_set_ids: list[int]):
