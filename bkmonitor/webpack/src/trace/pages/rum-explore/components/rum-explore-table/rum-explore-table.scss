@@ -5,14 +5,15 @@
 .rum-explore-table-wrap {
   position: relative;
   display: flex;
-  flex-direction: column;
   flex: 1;
+  flex-direction: column;
   min-height: 0;
   background: #fff;
 }
 
 /* 组件根（与场景类名复合于同一元素）：跨场景公共样式 */
 .rum-explore-table {
+  flex: 1;
   min-height: 0;
 
   /* 垂直滚动交由外层 .rum-explore-view 处理，表格内容区仅保留水平滚动 */
@@ -83,12 +84,15 @@
         }
       }
     }
+  }
 
-    .clear-filter-btn {
-      display: inline-block;
-      margin-top: 8px;
-      color: #3a84ff;
-      cursor: pointer;
+  .t-affix {
+    .t-table__affixed-header-elm-wrap {
+      opacity: 1 !important;
+
+      .t-table__affixed-header-elm {
+        opacity: inherit !important;
+      }
     }
   }
 }

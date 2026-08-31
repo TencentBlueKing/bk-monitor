@@ -23,6 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+export * from './use-rum-column-config';
 export * from './use-rum-favorite';
 export * from './use-rum-field-values';
 export * from './use-rum-query';
