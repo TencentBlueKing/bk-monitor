@@ -1147,10 +1147,12 @@ class TestMergeDecoupledFromStatus:
         search_mock.filter.return_value.source.return_value.params.return_value.execute.return_value.hits = hits
         monkeypatch.setattr(issue_mod.IssueDocument, "search", classmethod(lambda cls, **kw: search_mock))
 
-        # 校验 2/3/4 关系查询全部"无冲突"，bulk_create 捕获写入行
+        # 校验 2/3 关系查询全部"无冲突"，bulk_create 捕获写入行
         manager = MagicMock()
         manager.select_for_update.return_value.filter.return_value.values.return_value.first.return_value = None
         manager.filter.return_value.values_list.return_value.distinct.return_value = []
+        # 组规模门禁：现有 active 成员数（MagicMock 默认返回 MagicMock，与 int 比较会 TypeError）
+        manager.filter.return_value.count.return_value = 0
         captured: dict = {}
         manager.bulk_create.side_effect = lambda objs, **kw: captured.update({"rows": list(objs)})
         monkeypatch.setattr(issue_mod.IssueMergeRelation, "objects", manager)
@@ -1266,3 +1268,553 @@ class TestListIssueHistoryExcludesActiveMembers:
 
         terms_excludes = [c for c in search_mock.exclude.call_args_list if c.args[:1] == ("terms",)]
         assert not terms_excludes
+
+
+class _FakeRelationRow:
+    """IssueMergeRelation 行的最小内存替身（只带本测试关心的字段）。"""
+
+    _next_pk = 1
+
+    def __init__(self, **kwargs):
+        cls = type(self)
+        # Django 语义：id 即主键，pk 是它的别名（生产代码 values("id") 与 filter(pk=...) 都会用到）
+        self.id = cls._next_pk
+        cls._next_pk += 1
+        self.bk_biz_id = kwargs.get("bk_biz_id")
+        self.main_issue_id = kwargs.get("main_issue_id")
+        self.member_issue_id = kwargs.get("member_issue_id")
+        self.status = kwargs.get("status")
+        self.merge_reasons = kwargs.get("merge_reasons")
+        self.split_reasons = kwargs.get("split_reasons")
+        self.split_kind = kwargs.get("split_kind")
+        self.via_issue_id = kwargs.get("via_issue_id")
+        self.create_user = kwargs.get("create_user")
+        self.update_user = kwargs.get("update_user")
+        self.create_time = kwargs.get("create_time")
+        self.update_time = kwargs.get("update_time")
+
+    @property
+    def pk(self):
+        return self.id
+
+
+class _FakeQuerySet:
+    """支持 MergeResource 实际用到的链式调用的最小 QuerySet。
+
+    覆盖：filter(精确 / __in) / select_for_update / values / values_list(flat, distinct)
+    / first / count / annotate(Count) / order_by / 切片 / update。
+    刻意用真实语义（而非 MagicMock）实现，才能验证改挂前后的行状态。
+    """
+
+    def __init__(self, store, rows=None):
+        self._store = store
+        self._rows = list(store.rows if rows is None else rows)
+
+    def _clone(self, rows):
+        return _FakeQuerySet(self._store, rows)
+
+    def select_for_update(self):
+        self._store.locked = True
+        return self
+
+    def filter(self, **kw):
+        rows = self._rows
+        for key, value in kw.items():
+            if key.endswith("__in"):
+                field = key[: -len("__in")]
+                allowed = set(value)
+                rows = [r for r in rows if getattr(r, field) in allowed]
+            elif key.endswith("__gte"):
+                rows = [r for r in rows if getattr(r, key[: -len("__gte")]) >= value]
+            elif key == "pk":
+                rows = [r for r in rows if r.id == value]
+            else:
+                rows = [r for r in rows if getattr(r, key) == value]
+        return self._clone(rows)
+
+    def exclude(self, **kw):
+        keep = {r.id for r in self.filter(**kw)._rows}
+        return self._clone([r for r in self._rows if r.id not in keep])
+
+    def values(self, *fields):
+        return _FakeValuesList({f: getattr(r, f) for f in fields} for r in self._rows)
+
+    def values_list(self, *fields, flat=False):
+        if flat:
+            out = [getattr(r, fields[0]) for r in self._rows]
+            return _FakeValuesList(out)
+        return _FakeValuesList([tuple(getattr(r, f) for f in fields) for r in self._rows])
+
+    def first(self):
+        return self._rows[0] if self._rows else None
+
+    def count(self):
+        return len(self._rows)
+
+    def annotate(self, **kw):
+        """只支持 Count("id") 形态：按当前已 filter 的行做分组计数。
+
+        调用方形态是 .values("x").annotate(n=Count("id"))，故这里在 _FakeValuesList 上实现。
+        """
+        raise NotImplementedError("annotate 应在 values() 之后调用")
+
+    def order_by(self, *_args):
+        return self
+
+    def update(self, **kw):
+        for r in self._rows:
+            for key, value in kw.items():
+                setattr(r, key, value)
+        self._store.updates.append((sorted(r.id for r in self._rows), dict(kw)))
+        return len(self._rows)
+
+    def __iter__(self):
+        return iter(self._rows)
+
+    def __getitem__(self, item):
+        return self._rows[item]
+
+    def __len__(self):
+        return len(self._rows)
+
+
+class _FakeValuesList(list):
+    """values() / values_list() 的返回值：额外支持 distinct / first / annotate。"""
+
+    def distinct(self):
+        seen, out = set(), []
+        for v in self:
+            key = tuple(sorted(v.items())) if isinstance(v, dict) else v
+            if key not in seen:
+                seen.add(key)
+                out.append(v)
+        return _FakeValuesList(out)
+
+    def first(self):
+        return self[0] if self else None
+
+    def annotate(self, **kw):
+        """只支持 ``Count("id")``：按 values() 选出的字段分组计数。
+
+        形态：.values("member_issue_id").annotate(active_count=Count("id"))
+        """
+        assert len(kw) == 1, "fake annotate 只支持单个聚合"
+        alias = next(iter(kw))
+        groups: dict = {}
+        for row in self:
+            key = tuple(sorted(row.items()))
+            groups.setdefault(key, {"row": row, "n": 0})
+            groups[key]["n"] += 1
+        return _FakeValuesList([{**g["row"], alias: g["n"]} for g in groups.values()])
+
+
+class _FakeRelationStore:
+    """内存关系表：manager 入口 + 行集合 + 写入记录。"""
+
+    def __init__(self, rows=None):
+        self.rows = list(rows or [])
+        self.updates = []
+        self.created = []
+        self.locked = False
+
+    # --- manager 接口 ---
+    @property
+    def objects(self):
+        return self
+
+    def filter(self, **kw):
+        return _FakeQuerySet(self).filter(**kw)
+
+    def select_for_update(self):
+        return _FakeQuerySet(self).select_for_update()
+
+    def bulk_create(self, objs):
+        objs = list(objs)
+        self.created.extend(objs)
+        self.rows.extend(objs)
+        return objs
+
+    # --- 断言辅助 ---
+    def active(self):
+        return [r for r in self.rows if r.status == "active"]
+
+    def members_of(self, main_id):
+        return sorted(r.member_issue_id for r in self.active() if r.main_issue_id == main_id)
+
+    def row_for(self, member_id):
+        for r in self.rows:
+            if r.member_issue_id == member_id:
+                return r
+        return None
+
+    def assert_depth_is_one(self):
+        """深度不变量：任一 active member 不得同时是别行的 active main。"""
+        member_ids = {r.member_issue_id for r in self.active()}
+        main_ids = {r.main_issue_id for r in self.active()}
+        overlap = member_ids & main_ids
+        assert not overlap, f"关系深度违例（member 同时是 main）: {sorted(overlap)}"
+
+
+class TestMergeGroupReparent:
+    """已合并主 Issue 继续合并：A 及其成员扁平化改挂到 B（深度恒为 1）。
+
+    对应设计 042-merge-group-reparent 的 AC-01 / AC-03~AC-07。
+    直接驱动 ``MergeResource.perform_request``，用内存 fake 关系表（非 MagicMock）
+    以便断言改挂前后的真实行状态。
+    """
+
+    BIZ = 2
+    B = "1716000000bbbbbb01"  # 目标主
+    B1 = "1716000000bbbbbb02"  # B 的既有成员
+    A = "1716000000aaaaaa01"  # 已成组的主（本次被并入 B）
+    M1 = "1716000000aaaaaa02"  # A 的成员
+    M2 = "1716000000aaaaaa03"  # A 的成员
+
+    class _Hit:
+        def __init__(self, _id, bk_biz_id="2"):
+            from types import SimpleNamespace
+
+            self.meta = SimpleNamespace(id=_id)
+            self.bk_biz_id = bk_biz_id
+
+    def _store_two_groups(self):
+        """B──B1 与 A──M1,M2 两个 active 组。"""
+        import datetime
+
+        t0 = datetime.datetime(2026, 8, 1, 10, 0, 0)
+        return _FakeRelationStore(
+            [
+                _FakeRelationRow(
+                    bk_biz_id=self.BIZ,
+                    main_issue_id=self.B,
+                    member_issue_id=self.B1,
+                    status="active",
+                    merge_reasons=["b 组原因"],
+                    create_user="u0",
+                    update_user="u0",
+                    create_time=t0,
+                    update_time=t0,
+                ),
+                _FakeRelationRow(
+                    bk_biz_id=self.BIZ,
+                    main_issue_id=self.A,
+                    member_issue_id=self.M1,
+                    status="active",
+                    merge_reasons=["a 组原因"],
+                    create_user="u1",
+                    update_user="u1",
+                    create_time=t0,
+                    update_time=t0,
+                ),
+                _FakeRelationRow(
+                    bk_biz_id=self.BIZ,
+                    main_issue_id=self.A,
+                    member_issue_id=self.M2,
+                    status="active",
+                    merge_reasons=["a 组原因"],
+                    create_user="u1",
+                    update_user="u1",
+                    create_time=t0,
+                    update_time=t0,
+                ),
+            ]
+        )
+
+    def _patch_io(self, monkeypatch, store, es_ids, group_limit=500):
+        """patch ES 存在性查询 + 关系表 + 事务 / 路由 + 活动日志写入，返回捕获的活动日志。"""
+        import contextlib
+        from unittest import mock
+        from unittest.mock import MagicMock
+
+        from django.conf import settings
+
+        from kernel_api.views.v4 import issue as issue_mod
+
+        search_mock = MagicMock()
+        hits = [self._Hit(i) for i in es_ids]
+        search_mock.filter.return_value.source.return_value.params.return_value.execute.return_value.hits = hits
+        monkeypatch.setattr(issue_mod.IssueDocument, "search", classmethod(lambda cls, **kw: search_mock))
+
+        monkeypatch.setattr(issue_mod.IssueMergeRelation, "objects", store.objects)
+
+        fake_tx = mock.Mock()
+        fake_tx.atomic = lambda *a, **k: contextlib.nullcontext()
+        monkeypatch.setattr(issue_mod, "transaction", fake_tx)
+        fake_router = mock.Mock()
+        fake_router.db_for_write = lambda *a, **k: "default"
+        monkeypatch.setattr(issue_mod, "router", fake_router)
+        monkeypatch.setattr(settings, "ISSUE_MAX_MERGE_GROUP_SIZE", group_limit, raising=False)
+
+        acts: list = []
+        monkeypatch.setattr(
+            issue_mod.IssueActivityDocument,
+            "bulk_create",
+            classmethod(lambda cls, a, **kw: acts.extend(a)),
+        )
+        return acts
+
+    def _merge(self, main_id, members, reasons=None, operator="alice"):
+        from kernel_api.views.v4.issue import MergeResource
+
+        return MergeResource().perform_request(
+            {
+                "bk_biz_id": self.BIZ,
+                "main_issue_id": main_id,
+                "members": list(members),
+                "reasons": reasons if reasons is not None else [],
+                "operator": operator,
+            }
+        )
+
+    # ---------- AC-01 ----------
+
+    def test_reparent_moves_members_to_new_main(self, monkeypatch):
+        """把已成组的主 A 并入 B：A 与 A 的成员全部成为 B 的平级成员。"""
+        store = self._store_two_groups()
+        self._patch_io(monkeypatch, store, [self.B, self.A])
+
+        result = self._merge(self.B, [self.A], reasons=["同根因"])
+
+        assert result["status"] == "ok"
+        assert result["members"] == [self.A]
+        assert sorted(result["reparented_members"]) == sorted([self.M1, self.M2])
+        # B 组现有 4 个平级成员
+        assert store.members_of(self.B) == sorted([self.B1, self.A, self.M1, self.M2])
+        # A 名下不再有 active 成员
+        assert store.members_of(self.A) == []
+        store.assert_depth_is_one()
+
+    def test_reparent_records_via_issue_id_and_preserves_original_merge_facts(self, monkeypatch):
+        """改挂只改归属与 via/update_*，create_time / create_user 保留原始合并事实。"""
+        store = self._store_two_groups()
+        original = {mid: (store.row_for(mid).create_user, store.row_for(mid).create_time) for mid in (self.M1, self.M2)}
+        self._patch_io(monkeypatch, store, [self.B, self.A])
+
+        self._merge(self.B, [self.A], operator="bob")
+
+        for mid in (self.M1, self.M2):
+            row = store.row_for(mid)
+            assert row.main_issue_id == self.B
+            assert row.via_issue_id == self.A, "被携带成员必须记上一跳主"
+            assert row.status == "active", "改挂不得把关系标成 split（否则前端误挂「由合并拆分」标签）"
+            assert (row.create_user, row.create_time) == original[mid], "原始合并事实不可改写"
+            assert row.update_user == "bob"
+            assert row.update_time is not None, "update_time 必须显式赋值（.update() 不触发 auto_now）"
+        # 直接合并进来的 A 自身 via 为空
+        assert store.row_for(self.A).via_issue_id is None
+
+    def test_reparent_writes_activity_with_reparent_kind(self, monkeypatch):
+        """被改挂成员写 kind=reparent 活动日志，区别于用户直接合并的 kind=manual。"""
+        store = self._store_two_groups()
+        acts = self._patch_io(monkeypatch, store, [self.B, self.A])
+
+        self._merge(self.B, [self.A])
+
+        by_issue = {}
+        for a in acts:
+            by_issue.setdefault(a.issue_id, []).append(json.loads(a.content) if a.content else {})
+        assert by_issue[self.A][0]["kind"] == "manual"
+        for mid in (self.M1, self.M2):
+            payload = by_issue[mid][0]
+            assert payload["kind"] == "reparent"
+            assert payload["from_main_issue_id"] == self.A
+            assert payload["main_issue_id"] == self.B
+
+    def test_plain_merge_without_carried_members_unchanged(self, monkeypatch):
+        """未成组的普通 member 合并：不产生改挂，行为与改造前一致。"""
+        store = self._store_two_groups()
+        self._patch_io(monkeypatch, store, [self.B, "1716000000cccccc01"])
+
+        result = self._merge(self.B, ["1716000000cccccc01"])
+
+        assert result["reparented_members"] == []
+        assert store.updates == [], "无被携带成员时不应发生任何 UPDATE"
+        store.assert_depth_is_one()
+
+    # ---------- AC-04：环 ----------
+
+    def test_cycle_rejected_by_target_is_member_check(self, monkeypatch):
+        """B 已是 A 的 member 时，merge(main=B, members=[A]) 必须被校验 2 拒绝，不产生环。"""
+        from bkmonitor.issue_merge import MergeTargetIsMemberError
+
+        store = _FakeRelationStore(
+            [
+                _FakeRelationRow(
+                    bk_biz_id=self.BIZ,
+                    main_issue_id=self.A,
+                    member_issue_id=self.B,
+                    status="active",
+                    merge_reasons=[],
+                )
+            ]
+        )
+        self._patch_io(monkeypatch, store, [self.B, self.A])
+
+        with pytest.raises(MergeTargetIsMemberError) as exc:
+            self._merge(self.B, [self.A])
+
+        assert exc.value.extra["business_code"] == "MERGE_TARGET_IS_MEMBER"
+        assert store.created == [], "被拒后不得有任何写入"
+        store.assert_depth_is_one()
+
+    # ---------- AC-05：组规模 ----------
+
+    def test_group_size_limit_rejects_and_writes_nothing(self, monkeypatch):
+        """合并后组成员数超上限：抛 3337110，且关系表零写入。"""
+        from bkmonitor.issue_merge import MergeGroupTooLargeError
+
+        store = self._store_two_groups()
+        # 现有 1（B1）+ 入参 1（A）+ 携带 2（M1/M2）= 4 > limit 3
+        self._patch_io(monkeypatch, store, [self.B, self.A], group_limit=3)
+
+        with pytest.raises(MergeGroupTooLargeError) as exc:
+            self._merge(self.B, [self.A])
+
+        assert exc.value.code == 3337110
+        assert exc.value.extra["business_code"] == "MERGE_GROUP_TOO_LARGE"
+        assert exc.value.extra["current"] == 1
+        assert exc.value.extra["incoming"] == 1
+        assert exc.value.extra["carried"] == 2
+        assert exc.value.extra["limit"] == 3
+        assert store.created == [], "门禁必须在写入之前，不得留半写状态"
+        assert store.updates == []
+
+    def test_group_size_limit_disabled_when_zero(self, monkeypatch):
+        """阈值 0 = 关闭门禁：超大组也放行。"""
+        store = self._store_two_groups()
+        self._patch_io(monkeypatch, store, [self.B, self.A], group_limit=0)
+
+        result = self._merge(self.B, [self.A])
+
+        assert result["status"] == "ok"
+        assert sorted(result["reparented_members"]) == sorted([self.M1, self.M2])
+
+    # ---------- AC-06：前置一致性失败关闭 ----------
+
+    def test_carried_member_already_in_target_group_fails_closed(self, monkeypatch):
+        """待改挂成员已是目标主的 active 成员（历史 race 残留）→ 3337111，零写入。"""
+        from bkmonitor.issue_merge import MergeGroupInconsistentError
+
+        store = self._store_two_groups()
+        # 造不一致：M1 同时挂在 B 下
+        store.rows.append(
+            _FakeRelationRow(
+                bk_biz_id=self.BIZ,
+                main_issue_id=self.B,
+                member_issue_id=self.M1,
+                status="active",
+                merge_reasons=[],
+            )
+        )
+        self._patch_io(monkeypatch, store, [self.B, self.A])
+
+        with pytest.raises(MergeGroupInconsistentError) as exc:
+            self._merge(self.B, [self.A])
+
+        assert exc.value.code == 3337111
+        assert exc.value.extra["business_code"] == "MERGE_GROUP_INCONSISTENT"
+        assert exc.value.extra["reason"] == "already_active_member_of_target"
+        assert self.M1 in exc.value.extra["issue_ids"]
+        assert store.created == []
+        assert store.updates == []
+
+    def test_carried_member_with_own_members_fails_closed(self, monkeypatch):
+        """待改挂成员自身还带 active 成员（已存在深度违例）→ 3337111，零写入。"""
+        from bkmonitor.issue_merge import MergeGroupInconsistentError
+
+        store = self._store_two_groups()
+        # 造深度违例：M1 自己还是别人的主
+        store.rows.append(
+            _FakeRelationRow(
+                bk_biz_id=self.BIZ,
+                main_issue_id=self.M1,
+                member_issue_id="1716000000dddddd01",
+                status="active",
+                merge_reasons=[],
+            )
+        )
+        self._patch_io(monkeypatch, store, [self.B, self.A])
+
+        with pytest.raises(MergeGroupInconsistentError) as exc:
+            self._merge(self.B, [self.A])
+
+        assert exc.value.extra["reason"] == "carried_member_has_own_members"
+        assert self.M1 in exc.value.extra["issue_ids"]
+        assert store.created == []
+        assert store.updates == []
+
+    # ---------- AC-03：拆分语义（决策 2） ----------
+
+    def test_split_only_restores_the_merged_main(self, monkeypatch):
+        """拆分 A 只恢复 A，M1/M2 仍留在 B 下（via_issue_id 保留）。"""
+        import contextlib
+        from unittest import mock
+
+        from kernel_api.views.v4 import issue as issue_mod
+        from kernel_api.views.v4.issue import SplitResource
+
+        store = self._store_two_groups()
+        self._patch_io(monkeypatch, store, [self.B, self.A])
+        self._merge(self.B, [self.A])
+
+        # split 走同一 store；patch 掉 ES 重置与时间
+        monkeypatch.setattr(issue_mod.IssueMergeRelation, "objects", store.objects)
+        fake_tx = mock.Mock()
+        fake_tx.atomic = lambda *a, **k: contextlib.nullcontext()
+        monkeypatch.setattr(issue_mod, "transaction", fake_tx)
+        reset_calls: list = []
+        monkeypatch.setattr(
+            issue_mod.IssueDocument,
+            "bulk_reset_for_split",
+            classmethod(lambda cls, ids, **kw: reset_calls.append((list(ids), kw))),
+        )
+
+        SplitResource().perform_request(
+            {
+                "bk_biz_id": self.BIZ,
+                "member_issue_id": self.A,
+                "reasons": ["误判"],
+                "operator": "carol",
+            }
+        )
+
+        # A 的关系变 split，只有 A 被 ES 重置
+        assert store.row_for(self.A).status == "split"
+        assert reset_calls[0][0] == [self.A]
+        # M1/M2 不受影响：仍在 B 组、via 保留
+        for mid in (self.M1, self.M2):
+            row = store.row_for(mid)
+            assert row.status == "active"
+            assert row.main_issue_id == self.B
+            assert row.via_issue_id == self.A, "via 可指向已不在本组的 Issue（纯溯源标签）"
+        assert store.members_of(self.B) == sorted([self.B1, self.M1, self.M2])
+        store.assert_depth_is_one()
+
+    # ---------- AC-07：并发 ----------
+
+    def test_concurrent_merge_of_same_group_second_one_conflicts(self, monkeypatch):
+        """两路并发把同一 A 并入不同主：第二路被校验 3（member 已在 active 关系）拒绝。"""
+        from bkmonitor.issue_merge import MergeConflictError
+
+        store = self._store_two_groups()
+        self._patch_io(monkeypatch, store, [self.B, self.A])
+        self._merge(self.B, [self.A])  # 第一路成功
+
+        c_main = "1716000000cccccc09"
+        self._patch_io(monkeypatch, store, [c_main, self.A])
+        with pytest.raises(MergeConflictError) as exc:
+            self._merge(c_main, [self.A])  # 第二路
+
+        assert exc.value.conflicting_main_issue_id == self.B
+        # A 的成员没被拆到两个组
+        assert store.members_of(self.B) == sorted([self.B1, self.A, self.M1, self.M2])
+        store.assert_depth_is_one()
+
+    def test_select_for_update_used_on_carried_rows(self, monkeypatch):
+        """改挂路径必须走 select_for_update（防并发 split / 另一路 merge 改动被携带行）。"""
+        store = self._store_two_groups()
+        self._patch_io(monkeypatch, store, [self.B, self.A])
+
+        self._merge(self.B, [self.A])
+
+        assert store.locked, "收集被携带成员时必须 select_for_update 加锁"

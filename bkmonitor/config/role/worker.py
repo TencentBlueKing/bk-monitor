@@ -557,6 +557,15 @@ QOS_ALERT_WINDOW = 60
 # （metric 由 ISSUE_ACTIVE_COUNT_KEY 5min Redis cache 驱动，存在 ≤5min 滞后）。
 ISSUE_MAX_ACTIVE_PER_STRATEGY = 500
 
+# Issue 单个合并组的成员总数上限（**超限拒绝合并**，不是 warn-only）
+# 0 = 关闭该门禁；>0 = 合并后组成员数超过此值时 MergeResource 抛 MergeGroupTooLargeError(3337110)。
+# 把已成组的主并入另一主时，被并入主的成员会一起改挂过来，组规模可成倍增长；
+# IssueMergeResolver.hydrate_aggregations 与 IssueDocument.bulk_follow_status 的 ES 查询是
+# size=len(member_ids)，无界组会退化成慢查询。
+# 与上面 ISSUE_MAX_ACTIVE_PER_STRATEGY 的 warn-only 取向刻意不同：那边放行是因为阻塞会让告警
+# 永久失联（数据代价），这里超限只是用户一次交互失败（先拆分再合并即可），无数据代价。
+ISSUE_MAX_MERGE_GROUP_SIZE = 500
+
 # Issue LLM 标题生成动态配置的静态占位（值与 bkmonitor/define/global_config.py 的 serializer default 对齐）。
 # 必须保留：DynamicSettings.__getattr__ 读 DB 前先 getattr 静态 settings（dynamic_settings.py L74），
 # 缺占位会抛 AttributeError 短路掉 DB 查询，导致 GlobalConfig 页面改的值被静默忽略、功能无法开启。
