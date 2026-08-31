@@ -87,6 +87,9 @@
         return !this.$store.getters.isAiAssistantActive;
       },
     },
+    beforeUnmount() {
+      this.hideDialog();
+    },
     methods: {
       // handleAiClose() {
       //   this.$el.querySelector(".ai-active")?.classList.remove("ai-active");
@@ -170,9 +173,6 @@
         this.isShowContextLog = false;
         this.isShowRealTimeLog = false;
       },
-    },
-    beforeUnmount() {
-      this.hideDialog();
     },
   };
 </script>

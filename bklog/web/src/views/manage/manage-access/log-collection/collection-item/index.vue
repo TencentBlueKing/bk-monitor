@@ -849,21 +849,6 @@
         return !!Object.values(this.filterParams).some(item => !this.filterIsNotCompared(item));
       },
     },
-    created() {
-      !this.authGlobalInfo && this.checkCreateAuth();
-      const { selectedFields } = this.columnSetting;
-      this.columnSetting.selectedFields = getDefaultSettingSelectFiled(this.settingCacheKey, selectedFields);
-    },
-    async mounted() {
-      this.needGuide = !localStorage.getItem('needGuide');
-      !this.authGlobalInfo && (await this.initLabelSelectList());
-      !this.authGlobalInfo && this.requestData();
-    },
-    beforeDestroy() {
-      this.isDestroyed = true;
-      this.isShouldPollCollect = false;
-      this.stopStatusPolling();
-    },
     watch: {
       collectShowList: {
         handler(val) {
@@ -881,6 +866,21 @@
           }
         },
       },
+    },
+    created() {
+      !this.authGlobalInfo && this.checkCreateAuth();
+      const { selectedFields } = this.columnSetting;
+      this.columnSetting.selectedFields = getDefaultSettingSelectFiled(this.settingCacheKey, selectedFields);
+    },
+    async mounted() {
+      this.needGuide = !localStorage.getItem('needGuide');
+      !this.authGlobalInfo && (await this.initLabelSelectList());
+      !this.authGlobalInfo && this.requestData();
+    },
+    beforeDestroy() {
+      this.isDestroyed = true;
+      this.isShouldPollCollect = false;
+      this.stopStatusPolling();
     },
     methods: {
       async stopCollectHandler(row) {

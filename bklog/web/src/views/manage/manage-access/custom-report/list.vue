@@ -397,13 +397,6 @@
         return authorityMap;
       },
     },
-    created() {
-      !this.authGlobalInfo && this.checkCreateAuth();
-    },
-    mounted() {
-      !this.authGlobalInfo && this.initLabelSelectList();
-      !this.authGlobalInfo && this.search();
-    },
     watch: {
       collectList: {
         handler(val) {
@@ -421,6 +414,13 @@
           }
         },
       },
+    },
+    created() {
+      !this.authGlobalInfo && this.checkCreateAuth();
+    },
+    mounted() {
+      !this.authGlobalInfo && this.initLabelSelectList();
+      !this.authGlobalInfo && this.search();
     },
     methods: {
       search() {

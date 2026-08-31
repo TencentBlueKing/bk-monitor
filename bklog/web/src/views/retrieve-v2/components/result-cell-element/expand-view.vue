@@ -314,6 +314,38 @@
         return this.jsonShowDataCache;
       },
     },
+    watch: {
+      // 监听数据变化，清空缓存
+      data: {
+        handler() {
+          this.jsonShowDataCache = null;
+          this.jsonShowDataCacheFormatDate = undefined;
+          this.jsonShowDataCacheShowFieldAlias = undefined;
+        },
+        deep: false, // 禁止深度监听，避免性能问题
+      },
+      // 时间格式化开关变化时，强制重建 JSON 视图缓存
+      isFormatDate() {
+        this.jsonShowDataCache = null;
+      },
+      // 别名显示开关变化时，重建 JSON KEY 展示缓存
+      showFieldAlias() {
+        this.jsonShowDataCache = null;
+      },
+      // 监听视图切换，清空 JSON 缓存（如果需要）
+      activeExpandView(newVal) {
+        if (newVal === 'json' && this.jsonShowDataCache === null) {
+          // 切换到 JSON 视图时，如果缓存为空，触发计算
+          // computed 会自动计算
+        }
+      },
+    },
+    mounted() {
+      // 立即创建非响应式数据副本，确保 kv-list 可以立即渲染骨架屏
+      // 使用浅拷贝 + Object.freeze 创建非响应式数据副本
+      // 防止整行日志对象进入 Vue2 深度响应式系统
+      this.rawRowData = Object.freeze({ ...this.data });
+    },
     methods: {
       /**
        * flattened 或无子字段的 Object 不隐藏；有子字段的可解析 Object 父字段才隐藏
@@ -390,38 +422,6 @@
         // 当输入框内容被手动删空时，重置搜索
         if (!value?.trim?.()) {
           this.activeSearchKeyword = '';
-        }
-      },
-    },
-    mounted() {
-      // 立即创建非响应式数据副本，确保 kv-list 可以立即渲染骨架屏
-      // 使用浅拷贝 + Object.freeze 创建非响应式数据副本
-      // 防止整行日志对象进入 Vue2 深度响应式系统
-      this.rawRowData = Object.freeze({ ...this.data });
-    },
-    watch: {
-      // 监听数据变化，清空缓存
-      data: {
-        handler() {
-          this.jsonShowDataCache = null;
-          this.jsonShowDataCacheFormatDate = undefined;
-          this.jsonShowDataCacheShowFieldAlias = undefined;
-        },
-        deep: false, // 禁止深度监听，避免性能问题
-      },
-      // 时间格式化开关变化时，强制重建 JSON 视图缓存
-      isFormatDate() {
-        this.jsonShowDataCache = null;
-      },
-      // 别名显示开关变化时，重建 JSON KEY 展示缓存
-      showFieldAlias() {
-        this.jsonShowDataCache = null;
-      },
-      // 监听视图切换，清空 JSON 缓存（如果需要）
-      activeExpandView(newVal) {
-        if (newVal === 'json' && this.jsonShowDataCache === null) {
-          // 切换到 JSON 视图时，如果缓存为空，触发计算
-          // computed 会自动计算
         }
       },
     },

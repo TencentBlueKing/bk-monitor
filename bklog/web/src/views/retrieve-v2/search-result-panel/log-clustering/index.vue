@@ -384,6 +384,24 @@
         this.filterGroupList();
       },
     },
+    async mounted() {
+      await this.onMountedLoad();
+    },
+    async activated() {
+      this.dataFingerprintShow = true;
+      await this.onMountedLoad();
+    },
+    deactivated() {
+      this.onUnMountedLoad();
+      this.dataFingerprintShow = false;
+    },
+    unmounted() {
+      this.onUnMountedLoad();
+    },
+    beforeDestroy() {
+      this.$store.commit('updateState', { clusterParams: null });
+      this.stopPolling(); // 停止状态轮询
+    },
     methods: {
       setRouteParams() {
         const route = this.$route;
@@ -717,24 +735,6 @@
           this.stopPolling(); // 停止状态轮询
         }
       },
-    },
-    async mounted() {
-      await this.onMountedLoad();
-    },
-    async activated() {
-      this.dataFingerprintShow = true;
-      await this.onMountedLoad();
-    },
-    deactivated() {
-      this.onUnMountedLoad();
-      this.dataFingerprintShow = false;
-    },
-    unmounted() {
-      this.onUnMountedLoad();
-    },
-    beforeDestroy() {
-      this.$store.commit('updateState', { clusterParams: null });
-      this.stopPolling(); // 停止状态轮询
     },
   };
 </script>

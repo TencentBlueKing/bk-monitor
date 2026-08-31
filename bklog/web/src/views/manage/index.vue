@@ -117,10 +117,6 @@
         refreshKey: '',
       };
     },
-    created() {
-      this.refreshKey = this.buildRefreshKey();
-    },
-
     computed: {
       ...mapState(['topMenu', 'spaceUid', 'bkBizId', 'isExternal', 'globals']),
       authPageInfo() {
@@ -198,6 +194,9 @@
             });
         }
       },
+    },
+    created() {
+      this.refreshKey = this.buildRefreshKey();
     },
     mounted() {
       const bkBizId = this.$store.state.bkBizId;

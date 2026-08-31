@@ -376,6 +376,10 @@
       this.initInputType();
       this.initTemplateList();
     },
+    beforeDestroy() {
+      this.inputDocument.removeEventListener('change', this.inputFileEvent);
+      this.inputDocument = null;
+    },
     methods: {
       /**
        * @desc: 关闭添加规则弹窗重置参数
@@ -798,10 +802,6 @@
         this.ruleType = v.regex_rule_type;
         this.initTemplateID = v.regex_template_id;
       },
-    },
-    beforeDestroy() {
-      this.inputDocument.removeEventListener('change', this.inputFileEvent);
-      this.inputDocument = null;
     },
   };
 </script>

@@ -40,6 +40,11 @@ import 'tippy.js/themes/light.css';
 
 export default defineComponent({
   name: 'TemplateManage',
+  components: {
+    CreateTemplate,
+    EditTemplate,
+    DeleteTemplate,
+  },
   props: {
     data: {
       type: Object as PropType<TemplateItem>,
@@ -49,11 +54,6 @@ export default defineComponent({
       type: Boolean,
       default: false,
     },
-  },
-  components: {
-    CreateTemplate,
-    EditTemplate,
-    DeleteTemplate,
   },
   setup(props, { emit }) {
     const { t } = useLocale();

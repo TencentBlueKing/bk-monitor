@@ -81,6 +81,9 @@
   // #endif
   import dayjs from 'dayjs';
   export default {
+    components: {
+      BookmarkPop,
+    },
     data() {
       return {
         historyLoading: false,
@@ -91,12 +94,6 @@
         bookmarkPopRefsShow: false,
         isMonitorComponent: false,
       };
-    },
-    components: {
-      BookmarkPop,
-    },
-    mounted() {
-      this.isMonitorComponent = window.__IS_MONITOR_COMPONENT__;
     },
     computed: {
       isUnionSearch() {
@@ -124,6 +121,9 @@
           return item.query_string?.toLowerCase().includes(searchTerm);
         });
       },
+    },
+    mounted() {
+      this.isMonitorComponent = window.__IS_MONITOR_COMPONENT__;
     },
     methods: {
       getClass(searchMode) {
