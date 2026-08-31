@@ -214,6 +214,8 @@ export default class App extends tsc<object> {
   }
   @Watch('$route.name', { immediate: true })
   async handlerRouteChange() {
+    // 切换子应用的时候，需要以url为准矫正最新的业务id
+    this.checkAndUpdateBizId();
     this.handleSowNav();
     this.headerNav = this.navActive;
   }
@@ -244,6 +246,15 @@ export default class App extends tsc<object> {
       },
     ];
     this.getDocsLinkMapping();
+  }
+  /** 检查并更新业务id */
+  checkAndUpdateBizId() {
+    const parsedUrl = new URL(window.location.href);
+    const urlBizId = parsedUrl.searchParams.get('bizId');
+    const storeBizId = this.$store.getters.bizId;
+    if (typeof urlBizId === 'string' && urlBizId && Number(urlBizId) !== storeBizId) {
+      this.$store.commit('app/SET_BIZ_ID', +urlBizId);
+    }
   }
   /** 获取文档链接 */
   async getDocsLinkMapping() {
