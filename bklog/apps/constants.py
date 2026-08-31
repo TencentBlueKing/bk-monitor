@@ -299,13 +299,10 @@ class ExternalPermissionActionEnum(ChoicesEnum):
     )
 
 
-# 这些授权项隐含其资源上的日志检索权限:
-# client_log 的检索复用同一批 search 接口; log_clustering 的入口位于检索页的日志聚类 tab 内,
-# 不放通日志检索则被授权人根本到不了聚类设置入口
-ACTIONS_IMPLYING_LOG_SEARCH = (
-    ExternalPermissionActionEnum.CLIENT_LOG.value,
-    ExternalPermissionActionEnum.LOG_CLUSTERING.value,
-)
+# 这些授权项隐含其资源上的日志检索权限。
+# client_log 检索复用同一批 search 接口，是已有特例；log_clustering 与 log_search 相互独立，
+# 不得加入此列表，否则单独授予聚类配置就会放通检索、上下文、导出等全部 log_search 接口。
+ACTIONS_IMPLYING_LOG_SEARCH = (ExternalPermissionActionEnum.CLIENT_LOG.value,)
 
 # 资源维度为索引集的授权项, 授权人侧统一按 ResourceEnum.INDICES 校验 ActionEnum.SEARCH_LOG
 INDEX_SET_SCOPED_EXTERNAL_ACTIONS = (

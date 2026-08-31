@@ -377,7 +377,7 @@ def dispatch_external_proxy(request):
             external_user_allowed_action_id_list = ExternalPermission.get_authorizer_permission(
                 space_uid=space_uid, authorizer=external_user
             ).get(space_uid, [])
-            # 拥有客户端日志、聚类配置权限的用户，自动拥有对应索引集的日志检索权限
+            # 仅 client_log 这类特例会隐式放通 log_search；log_clustering 不合成检索权限
             if ExternalPermissionActionEnum.LOG_SEARCH.value not in external_user_allowed_action_id_list and any(
                 implying_action_id in external_user_allowed_action_id_list
                 for implying_action_id in ACTIONS_IMPLYING_LOG_SEARCH
@@ -410,6 +410,20 @@ def dispatch_external_proxy(request):
                 audit_recorder.resource = resource
                 if resource and resource not in allow_resources:
                     message = f"external_user:{external_user} cannot access resource(ID:{resource})."
+                    audit_recorder.set_result(403, message)
+                    return JsonResponse({"result": False, "message": message}, status=403)
+                # 聚类设置写入链路必须同时具备该索引集的日志检索权限，避免只授聚类配置即可改配置
+                if (
+                    action_id == ExternalPermissionActionEnum.LOG_CLUSTERING.value
+                    and resource
+                    and not ExternalPermission.can_access_clustering_settings(
+                        space_uid=space_uid, authorized_user=external_user, index_set_id=resource
+                    )
+                ):
+                    message = (
+                        f"external_user:{external_user} cannot access clustering settings "
+                        f"without log_search on resource(ID:{resource})."
+                    )
                     audit_recorder.set_result(403, message)
                     return JsonResponse({"result": False, "message": message}, status=403)
         setattr(fake_request, "space_uid", space_uid)

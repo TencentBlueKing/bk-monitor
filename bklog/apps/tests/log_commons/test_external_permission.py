@@ -124,8 +124,8 @@ class TestClusteringConfigActionValid(TestCase):
         self.assertFalse(self._is_valid("ClusteringConfigViewSet", "update_access", action_id=self.LOG_EXTRACT))
 
 
-class TestLogClusteringImpliedLogSearch(TestCase):
-    """聚类配置授权隐含其索引集上的日志检索资源"""
+class TestLogClusteringIndependentFromLogSearch(TestCase):
+    """log_clustering 与 log_search 相互独立，进入聚类设置时取资源交集"""
 
     SPACE_UID = "bkcc__2"
     LOG_SEARCH = ExternalPermissionActionEnum.LOG_SEARCH.value
@@ -146,31 +146,25 @@ class TestLogClusteringImpliedLogSearch(TestCase):
             action_id=self.LOG_SEARCH, authorized_user="user_a", space_uid=self.SPACE_UID
         )
 
-    def test_resources_merged_into_log_search(self):
-        # 只有聚类配置授权时，隐式放通的 log_search 必须拿到同一批索引集，否则被授权人进不了聚类页
+    def _can_access_clustering_settings(self, index_set_id):
+        return ExternalPermission.can_access_clustering_settings(
+            space_uid=self.SPACE_UID, authorized_user="user_a", index_set_id=index_set_id
+        )
+
+    def test_clustering_does_not_imply_log_search(self):
+        from apps.constants import ACTIONS_IMPLYING_LOG_SEARCH
+
+        self.assertNotIn(self.LOG_CLUSTERING, ACTIONS_IMPLYING_LOG_SEARCH)
+        self.assertIn(ExternalPermissionActionEnum.CLIENT_LOG.value, ACTIONS_IMPLYING_LOG_SEARCH)
+
+    def test_clustering_resources_not_merged_into_log_search(self):
+        # 只授聚类配置时，不得把其索引集并入 log_search，否则会放通检索/上下文/导出
         self._create(self.LOG_CLUSTERING, [1001])
 
         result = self._get_log_search_resources()
 
         self.assertTrue(result["allowed"])
-        self.assertEqual(result["resources"], [1001])
-
-    def test_expired_resources_not_merged(self):
-        self._create(self.LOG_CLUSTERING, [1001], expired=True)
-
-        self.assertEqual(self._get_log_search_resources()["resources"], [])
-
-    def test_other_space_resources_not_merged(self):
-        self._create(self.LOG_CLUSTERING, [1001])
-        ExternalPermission.objects.create(
-            authorized_user="user_a",
-            space_uid="bkcc__3",
-            action_id=self.LOG_CLUSTERING,
-            resources=[2002],
-            expire_time=timezone.now() + timedelta(days=30),
-        )
-
-        self.assertEqual(self._get_log_search_resources()["resources"], [1001])
+        self.assertEqual(result["resources"], [])
 
     def test_clustering_resources_not_polluted_by_log_search(self):
         # 反向不成立：日志检索授权不得让被授权人改到该索引集的聚类配置
@@ -182,6 +176,50 @@ class TestLogClusteringImpliedLogSearch(TestCase):
         )
 
         self.assertEqual(result["resources"], [2002])
+
+    def test_clustering_settings_requires_both_permissions_on_same_index_set(self):
+        self._create(self.LOG_SEARCH, [1001, 1002])
+        self._create(self.LOG_CLUSTERING, [1002, 1003])
+
+        self.assertFalse(self._can_access_clustering_settings(1001))
+        self.assertTrue(self._can_access_clustering_settings(1002))
+        self.assertFalse(self._can_access_clustering_settings(1003))
+
+    def test_clustering_only_cannot_access_clustering_settings(self):
+        self._create(self.LOG_CLUSTERING, [1001])
+
+        self.assertFalse(self._can_access_clustering_settings(1001))
+
+    def test_search_only_cannot_access_clustering_settings(self):
+        self._create(self.LOG_SEARCH, [1001])
+
+        self.assertFalse(self._can_access_clustering_settings(1001))
+
+    def test_permission_from_other_space_does_not_grant_access(self):
+        # 空间隔离: 另一空间的聚类配置授权不得让本空间的同号索引集通过校验
+        self._create(self.LOG_SEARCH, [1001])
+        ExternalPermission.objects.create(
+            authorized_user="user_a",
+            space_uid="bkcc__3",
+            action_id=self.LOG_CLUSTERING,
+            resources=[1001],
+            expire_time=timezone.now() + timedelta(days=30),
+        )
+
+        self.assertFalse(self._can_access_clustering_settings(1001))
+
+    def test_expired_clustering_permission_denies_access(self):
+        self._create(self.LOG_SEARCH, [1001])
+        self._create(self.LOG_CLUSTERING, [1001], expired=True)
+
+        self.assertFalse(self._can_access_clustering_settings(1001))
+
+    def test_unresolved_index_set_is_denied(self):
+        # 解析不出索引集时必须拒绝, 鉴权入口不做兜底放行
+        self._create(self.LOG_SEARCH, [1001])
+        self._create(self.LOG_CLUSTERING, [1001])
+
+        self.assertFalse(self._can_access_clustering_settings(None))
 
     def test_get_resource_from_index_set_scoped_request(self):
         """转发入口需要能从聚类配置类请求里解析出索引集, 否则实例级校验会被跳过"""

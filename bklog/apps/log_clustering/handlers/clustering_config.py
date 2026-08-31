@@ -284,15 +284,20 @@ class ClusteringConfigHandler:
             # 当 regex_rule_type 为 customize 时，regex_template_id 设为0，predefined_varibles 按前端的传的保存
             params["regex_template_id"] = 0
         else:
-            # 当 regex_rule_type 为 template 时，predefined_varibles从模板获取
-            instance = RegexTemplate.objects.filter(id=regex_template_id).first()
-            if not instance:
-                raise RegexTemplateNotExistException(
-                    RegexTemplateNotExistException.MESSAGE.format(regex_template_id=regex_template_id)
-                )
+            # 模板必须属于目标索引集所在空间，避免只凭模板 ID 绑定并复制其他空间的规则
+            instance = self._get_space_scoped_regex_template(regex_template_id)
             params["predefined_varibles"] = instance.predefined_varibles
         pipeline_id = self.update(params)
         return [pipeline_id]
+
+    def _get_space_scoped_regex_template(self, regex_template_id):
+        log_index_set = LogIndexSet.objects.get(index_set_id=self.index_set_id)
+        instance = RegexTemplate.objects.filter(id=regex_template_id, space_uid=log_index_set.space_uid).first()
+        if not instance:
+            raise RegexTemplateNotExistException(
+                RegexTemplateNotExistException.MESSAGE.format(regex_template_id=regex_template_id)
+            )
+        return instance
 
     @staticmethod
     def _get_access_check_time_range():

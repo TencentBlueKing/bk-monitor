@@ -105,12 +105,16 @@ export default defineComponent({
 
     const isExternal = window.IS_EXTERNAL === true;
 
-    // PO 环境（外部版）由独立授权项 log_clustering 控制聚类设置入口的显隐，
-    // 只有日志检索授权的被授权人能看聚类结果但看不到入口。
+    // PO 环境进入聚类设置需同时具备 log_search 与 log_clustering。
+    // 只授聚类配置不能隐式获得检索权；只授检索能看结果但看不到设置入口。
     // externalPermissions 在空间加载完成后才写入，不能在 setup 里取一次快照
-    const isClusterConfigVisible = computed(
-      () => !isExternal || (store.state.externalPermissions ?? []).includes('log_clustering'),
-    );
+    const isClusterConfigVisible = computed(() => {
+      if (!isExternal) {
+        return true;
+      }
+      const permissions = store.state.externalPermissions ?? [];
+      return permissions.includes('log_search') && permissions.includes('log_clustering');
+    });
 
     const handleStrategySubmitStatus = (v) => {
       strategyHaveSubmit.value = v;
@@ -169,6 +173,7 @@ export default defineComponent({
                 ref={clusterConfigRef}
                 indexId={props.indexId}
                 total-fields={props.totalFields}
+                isExternal={isExternal}
               />
             )}
           </div>

@@ -635,8 +635,8 @@ class ExternalPermission(OperateRecordModel):
         )
         for obj in objs:
             result["resources"].extend(obj.resources)
-        # 客户端日志检索、聚类配置的入口都落在日志检索链路上, 校验 log_search 时需合并这些授权项的资源,
-        # 否则被隐式放通的 log_search 会因资源列表为空而在实例级校验处被拒
+        # client_log 会隐式放通 log_search, 校验检索资源时需合并其索引集, 否则实例级校验会因资源为空被拒。
+        # log_clustering 不在 ACTIONS_IMPLYING_LOG_SEARCH 中, 不会并入检索资源。
         if action_id == ExternalPermissionActionEnum.LOG_SEARCH.value:
             implied_objs = ExternalPermission.objects.filter(
                 action_id__in=ACTIONS_IMPLYING_LOG_SEARCH,
@@ -647,6 +647,24 @@ class ExternalPermission(OperateRecordModel):
             for obj in implied_objs:
                 result["resources"].extend(obj.resources)
         return result
+
+    @classmethod
+    def can_access_clustering_settings(cls, space_uid: str, authorized_user: str, index_set_id) -> bool:
+        """进入聚类设置需要同时具备日志检索与聚类配置，且索引集落在两者资源交集中。
+
+        无法解析出索引集时按拒绝处理，不在鉴权入口做兜底放行。
+        """
+        search_resources = cls.get_resources(
+            action_id=ExternalPermissionActionEnum.LOG_SEARCH.value,
+            authorized_user=authorized_user,
+            space_uid=space_uid,
+        )["resources"]
+        clustering_resources = cls.get_resources(
+            action_id=ExternalPermissionActionEnum.LOG_CLUSTERING.value,
+            authorized_user=authorized_user,
+            space_uid=space_uid,
+        )["resources"]
+        return index_set_id in search_resources and index_set_id in clustering_resources
 
 
 class ExternalPermissionApplyRecord(OperateRecordModel):
