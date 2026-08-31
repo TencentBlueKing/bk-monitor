@@ -82,8 +82,8 @@ export function useRumColumnConfig(opts: {
   const displayableFields = computed(() => get(viewConfig).fields.filter(field => field.can_displayed));
   /** 字段名 -> 字段元数据；同时承担「有效字段集合」的校验职责 */
   const fieldMap = computed(() => new Map(displayableFields.value.map(field => [field.name, field])));
-  /** 是否处于非受控态；overrideDisplayFields 为空数组时用户可自由设置列 */
-  const isControlled = computed(() => !get(overrideDisplayFields)?.length);
+  /** 是否处于受控态；overrideDisplayFields 非空即受控，锁定展示列与持久化 */
+  const isControlled = computed(() => get(overrideDisplayFields)?.length);
   /** 用户缓存的展示列；非受控态下可被接口默认列兜底 */
   const cachedDisplayFields = computed<string[]>({
     get: () => {
@@ -120,11 +120,11 @@ export function useRumColumnConfig(opts: {
   /** 生效的展示列（渲染与收藏使用） */
   const displayFields = computed<string[]>(() => {
     if (isControlled.value) {
-      // 非受控态：用户缓存列 > 接口默认列
-      return cachedDisplayFields.value;
+      // 受控态：直接展示外部指定的列（按有效字段校验裁剪），忽略用户缓存
+      return get(overrideDisplayFields).filter(name => fieldMap.value.has(name));
     }
-    // 受控态：直接展示外部指定的列（按有效字段校验裁剪），忽略用户缓存
-    return get(overrideDisplayFields).filter(name => fieldMap.value.has(name));
+    // 非受控态：用户缓存列 > 接口默认列
+    return cachedDisplayFields.value;
   });
 
   /** 基础列配置：展示列 -> 列宽（列宽覆盖优先于常量默认值）-> 排序等元数据 */
