@@ -106,7 +106,10 @@ export abstract class BaseScenario {
         />
         <div
           class='header-title'
-          v-overflow-tips
+          v-overflow-tips={{
+            placement: 'top',
+            theme: 'dark text-wrap',
+          }}
         >
           <span class='th-label'>{field.alias}</span>
         </div>
