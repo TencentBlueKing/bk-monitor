@@ -166,6 +166,10 @@ MIDDLEWARE = (
     "apps.middleware.tenant_middleware.TenantValidationMiddleware",
 )
 
+# Resource Call owns an explicit, discoverable params schema. Avoid recursively
+# adding space fields to its opaque ``params`` envelope before schema validation.
+BKM_SPACE_INJECT_REQUEST_EXCLUDED_PATHS = ("/api/v1/admin/resource/call/",)
+
 # 所有环境的日志级别可以在这里配置
 # LOG_LEVEL = 'INFO'
 

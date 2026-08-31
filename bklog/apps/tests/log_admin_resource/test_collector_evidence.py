@@ -168,8 +168,11 @@ class CollectorHostSnapshotTest(SimpleTestCase):
         mock_host_handler.assert_not_called()
 
     @patch("apps.log_admin_resource.handlers.collector_evidence.HostCollectorHandler")
+    @patch("apps.log_admin_resource.handlers.collector_evidence.require_biz_in_request_tenant")
     @patch("apps.log_admin_resource.handlers.collector_evidence.query_platform_source")
-    def test_resolved_host_drives_existing_readonly_collector_handler(self, mock_platform, mock_host_handler):
+    def test_resolved_host_drives_existing_readonly_collector_handler(
+        self, mock_platform, mock_require_biz, mock_host_handler
+    ):
         mock_platform.return_value = {
             "result": {
                 "resolution_status": "resolved",
@@ -191,6 +194,7 @@ class CollectorHostSnapshotTest(SimpleTestCase):
         result = get_collector_host_snapshot({"ip": "127.0.0.1", "bk_cloud_id": 0})
 
         validate_params(result, FUNCTIONS["bklog.collector.host_snapshot"]["response_schema"], "response")
+        mock_require_biz.assert_called_once_with(2)
         instance.list_collectors_by_host.assert_called_once_with({"bk_host_id": 101, "bk_biz_id": 2, "bk_cloud_id": 0})
         self.assertEqual(result["collector_runtime"]["probe_status"], "success")
         self.assertEqual(result["collector_runtime"]["data"]["value"][0]["collector_config_id"], 10)

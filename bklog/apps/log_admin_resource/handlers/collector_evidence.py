@@ -139,6 +139,7 @@ def get_collector_host_snapshot(params):
         result["evidence_status"] = "partial"
         return result
 
+    require_biz_in_request_tenant(bk_biz_id)
     request_params = {"bk_host_id": bk_host_id, "bk_biz_id": bk_biz_id}
     if host.get("bk_cloud_id") is not None:
         request_params["bk_cloud_id"] = host["bk_cloud_id"]
