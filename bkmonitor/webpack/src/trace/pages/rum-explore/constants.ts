@@ -107,6 +107,9 @@ export const DURATION_COLOR_THRESHOLDS = {
   warning: 2000 * 1000,
 };
 
+/** 耗时字段支持的单位集合，命中后按 duration 单元格渲染（量纲需对齐 formatDuration 的 unit 参数） */
+export const RUM_DURATION_FIELD_UNITS = new Set(['us', 'ms']);
+
 /** 微秒级时间戳字段，按日期时间展示而非耗时 */
 export const RUM_TIME_FIELDS = new Set(['start_time', 'end_time', 'events.timestamp']);
 
@@ -131,6 +134,9 @@ export const RUM_COLUMN_WIDTH_MAP: Record<string, number> = {
 
 export const DEFAULT_COLUMN_WIDTH = 150;
 
+/** 表格列最小宽度 */
+export const DEFAULT_MIN_COLUMN_WIDTH = 100;
+
 /** status.code 列的展示配置，数值语义沿用 OpenTelemetry 的 UNSET / OK / ERROR，tagColor/tagBgColor 供内置 TAGS 渲染着色 */
 export const RUM_STATUS_CODE_MAP: Record<number, { alias: string; tagBgColor: string; tagColor: string }> = {
   0: { alias: window.i18n.t('异常'), tagBgColor: '#ff9c011f', tagColor: '#ff9c01' },
@@ -147,6 +153,9 @@ export const RUM_MODE_TAB_LIST: Array<{ disabled: boolean; icon: string; label: 
 
 /** 常驻筛选设置在用户配置中的 key 前缀 */
 export const RUM_RESIDENT_SETTING_KEY = 'RUM_EXPLORE_RESIDENT_SETTING';
+
+/** 列配置（显隐/顺序 + 列宽）在用户配置中的 key */
+export const RUM_COLUMN_CONFIG_KEY = 'RUM_EXPLORE_COLUMN_CONFIG';
 
 /** 收藏类型标识，需与后端 favorite type 对齐 */
 export const RUM_FAVORITE_TYPE = 'rum';
