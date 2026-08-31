@@ -7,6 +7,7 @@ learn Celery/JOB identifiers.
 
 from __future__ import annotations
 
+import copy
 import hashlib
 import json
 import uuid
@@ -26,6 +27,61 @@ TASK_DEADLINE_SECONDS = {
     TASK_TYPE_HOST_INSPECTION: 90,
     TASK_TYPE_K8S_INSPECTION: 120,
 }
+
+
+class InspectionConcurrencyExceeded(RuntimeError):
+    pass
+
+
+def store_bounded_inspection_result(
+    task_id: str,
+    result: dict[str, Any],
+    *,
+    compaction_probe: dict[str, Any],
+    compaction_error: dict[str, Any],
+) -> bool:
+    """Persist a final result, compacting it deterministically above 10 MiB."""
+
+    try:
+        ResourceInspectionTaskRecord.store_result(task_id, result)
+        return False
+    except RuntimeError as error:
+        if "10 MiB response limit" not in str(error):
+            raise
+
+    compacted = _compact_inspection_value(copy.deepcopy(result))
+    compacted["probes"]["response_limit"] = compaction_probe
+    compacted["partial"] = True
+    compacted["error"] = compaction_error
+    try:
+        ResourceInspectionTaskRecord.store_result(task_id, compacted)
+    except RuntimeError as error:
+        if "10 MiB response limit" not in str(error):
+            raise
+        compacted = {
+            key: compacted.get(key)
+            for key in ("problem_env", "source_env", "observed_at", "target", "remote_execution")
+        }
+        compacted.update(
+            {
+                "probes": {"response_limit": compaction_probe},
+                "partial": True,
+                "error": compaction_error,
+            }
+        )
+        ResourceInspectionTaskRecord.store_result(task_id, compacted)
+    return True
+
+
+def _compact_inspection_value(value: Any, *, key: str | None = None) -> Any:
+    if isinstance(value, dict):
+        return {item_key: _compact_inspection_value(item, key=item_key) for item_key, item in value.items()}
+    if isinstance(value, list):
+        return [_compact_inspection_value(item) for item in value[:100]]
+    if isinstance(value, str) and len(value.encode("utf-8", errors="replace")) > 4096:
+        content = value.encode("utf-8", errors="replace")[:4096].decode("utf-8", errors="ignore")
+        return content + f"\n[TRUNCATED:{key or 'value'}]"
+    return value
 
 
 def request_fingerprint(*, task_type: str, target: dict[str, Any], request_options: dict[str, Any]) -> str:
@@ -49,6 +105,8 @@ class ResourceInspectionTaskRecord:
     RESULT_KEY_PREFIX = "bklog:resource_inspection:result:"
     ACTIVE_KEY_PREFIX = "bklog:resource_inspection:active:"
     EXECUTION_KEY_PREFIX = "bklog:resource_inspection:execution:"
+    OWNER_SLOT_KEY_PREFIX = "bklog:resource_inspection:owner_slot:"
+    MAX_ACTIVE_TASKS_PER_OWNER = 5
 
     @staticmethod
     def cache():
@@ -83,6 +141,15 @@ class ResourceInspectionTaskRecord:
         for _attempt in range(2):
             task_id = str(uuid.uuid4())
             if cls.cache().add(active_key, task_id, timeout=active_ttl_seconds):
+                owner_slot_key = cls._claim_owner_slot(
+                    app_code=app_code,
+                    bk_tenant_id=bk_tenant_id,
+                    task_id=task_id,
+                    timeout=active_ttl_seconds,
+                )
+                if not owner_slot_key:
+                    cls._delete_if_owner(active_key, task_id)
+                    raise InspectionConcurrencyExceeded("inspection app concurrency limit reached")
                 record = cls._new_record(
                     task_id=task_id,
                     app_code=app_code,
@@ -93,6 +160,7 @@ class ResourceInspectionTaskRecord:
                     fingerprint=fingerprint,
                     deadline_seconds=deadline_seconds,
                     active_ttl_seconds=active_ttl_seconds,
+                    owner_slot_key=owner_slot_key,
                 )
                 try:
                     cls.save(record)
@@ -108,7 +176,10 @@ class ResourceInspectionTaskRecord:
                     return active_record, True
                 raise RuntimeError("inspection target already has an active task")
 
-            cls._delete_if_owner(active_key, active_task_id)
+            if active_record:
+                cls.release_active(active_record)
+            else:
+                cls._delete_if_owner(active_key, active_task_id)
 
         raise RuntimeError("inspection target is busy")
 
@@ -125,6 +196,7 @@ class ResourceInspectionTaskRecord:
         fingerprint: str,
         deadline_seconds: int,
         active_ttl_seconds: int,
+        owner_slot_key: str,
     ) -> dict[str, Any]:
         now = timezone.now()
         return {
@@ -133,6 +205,7 @@ class ResourceInspectionTaskRecord:
             "request_fingerprint": fingerprint,
             "deadline_seconds": deadline_seconds,
             "active_ttl_seconds": active_ttl_seconds,
+            "owner_slot_key": owner_slot_key,
             "task_status": "pending",
             "phase": "queued",
             "app_code": app_code,
@@ -259,6 +332,7 @@ class ResourceInspectionTaskRecord:
             request_options=record.get("request_options") or {},
         )
         cls._delete_if_owner(cls._active_key(task_type=task_type, fingerprint=fingerprint), record.get("task_id"))
+        cls._delete_if_owner(record.get("owner_slot_key"), record.get("task_id"))
 
     @classmethod
     def claim_execution(cls, task_id: str) -> bool:
@@ -316,7 +390,7 @@ class ResourceInspectionTaskRecord:
 
     @classmethod
     def _delete_if_owner(cls, key: str, expected_owner: str | None) -> None:
-        if not expected_owner:
+        if not key or not expected_owner:
             return
         backend = cls.cache()
         client_adapter = getattr(backend, "client", None)
@@ -355,6 +429,15 @@ class ResourceInspectionTaskRecord:
     @classmethod
     def _execution_key(cls, task_id: str) -> str:
         return f"{cls.EXECUTION_KEY_PREFIX}{task_id}"
+
+    @classmethod
+    def _claim_owner_slot(cls, *, app_code: str, bk_tenant_id: str, task_id: str, timeout: int) -> str | None:
+        owner = hashlib.sha256(f"{app_code}\x00{bk_tenant_id}".encode()).hexdigest()
+        for slot in range(cls.MAX_ACTIVE_TASKS_PER_OWNER):
+            key = f"{cls.OWNER_SLOT_KEY_PREFIX}{owner}:{slot}"
+            if cls.cache().add(key, task_id, timeout=timeout):
+                return key
+        return None
 
     @staticmethod
     def _cache_text(value: Any) -> str | None:

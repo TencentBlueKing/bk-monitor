@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import copy
 import hashlib
 import logging
 import time
@@ -20,6 +19,7 @@ from apps.log_admin_resource.inspection_tasks import (
     K8sCollectorCandidateStore,
     K8sDeepProbeSlots,
     ResourceInspectionTaskRecord,
+    store_bounded_inspection_result,
 )
 from apps.log_admin_resource.k8s_inspection import (
     BKLOG_CONFIG_CRD_NAME,
@@ -42,6 +42,7 @@ from apps.log_admin_resource.k8s_probe import FixedProbeError, run_fixed_collect
 from apps.log_admin_resource.k8s_probe_evidence import build_collector_file_log_probe, build_probe_evidence
 from apps.log_bcs.handlers.bcs_handler import BcsHandler
 from apps.log_databus.models import CollectorConfig, ContainerCollectorConfig
+from apps.log_search.models import Space
 from apps.utils.task import high_priority_task
 
 
@@ -74,9 +75,8 @@ def run_k8s_inspection(task_id: str) -> None:
         )
         if not record:
             raise RuntimeError("inspection task metadata disappeared before execution")
-        target = record.get("target") or {}
         options = record.get("request_options") or {}
-        collector = CollectorConfig.objects.get(collector_config_id=target["collector_config_id"])
+        collector = _load_bound_collector(record)
         container_configs = list(
             ContainerCollectorConfig.objects.filter(collector_config_id=collector.collector_config_id).order_by("id")
         )
@@ -284,6 +284,25 @@ def run_k8s_inspection(task_id: str) -> None:
         ResourceInspectionTaskRecord.release_execution(task_id)
         current = ResourceInspectionTaskRecord.get(task_id) or record
         ResourceInspectionTaskRecord.release_active(current)
+
+
+def _load_bound_collector(record: dict[str, Any]) -> CollectorConfig:
+    target = record.get("target") or {}
+    collector = CollectorConfig.objects.get(collector_config_id=target["collector_config_id"])
+    expected_binding = {
+        "bk_biz_id": target.get("bk_biz_id"),
+        "bk_data_id": target.get("bk_data_id"),
+        "bcs_cluster_id": target.get("bcs_cluster_id"),
+    }
+    actual_binding = {key: getattr(collector, key, None) for key in expected_binding}
+    if actual_binding != expected_binding or not collector.is_active or not collector.is_container_collector:
+        raise RuntimeError("collector binding changed after inspection dispatch")
+
+    if settings.ENABLE_MULTI_TENANT_MODE:
+        tenant_id = Space.get_tenant_id(bk_biz_id=collector.bk_biz_id, is_need_default=False)
+        if not tenant_id or tenant_id != record.get("bk_tenant_id"):
+            raise RuntimeError("collector tenant binding changed after inspection dispatch")
+    return collector
 
 
 def _control_plane_probe(
@@ -1017,34 +1036,17 @@ def _finish(
 
 
 def _store_bounded_result(task_id: str, result: dict[str, Any]) -> bool:
-    try:
-        ResourceInspectionTaskRecord.store_result(task_id, result)
-        return False
-    except RuntimeError as error:
-        if "10 MiB response limit" not in str(error):
-            raise
-    compacted = _compact_response(copy.deepcopy(result))
-    compacted["probes"]["response_limit"] = _probe(
-        "warning",
-        "response_compacted",
-        "oversized string and list evidence was compacted to preserve a valid final response",
-        {"maximum_response_bytes": ResourceInspectionTaskRecord.MAX_RESULT_BYTES},
+    return store_bounded_inspection_result(
+        task_id,
+        result,
+        compaction_probe=_probe(
+            "warning",
+            "response_compacted",
+            "oversized string and list evidence was compacted to preserve a valid final response",
+            {"maximum_response_bytes": ResourceInspectionTaskRecord.MAX_RESULT_BYTES},
+        ),
+        compaction_error=_task_error("response_compacted"),
     )
-    compacted["partial"] = True
-    compacted["error"] = _task_error("response_compacted")
-    ResourceInspectionTaskRecord.store_result(task_id, compacted)
-    return True
-
-
-def _compact_response(value: Any, *, key: str | None = None) -> Any:
-    if isinstance(value, dict):
-        return {item_key: _compact_response(item, key=item_key) for item_key, item in value.items()}
-    if isinstance(value, list):
-        return [_compact_response(item) for item in value[:100]]
-    if isinstance(value, str) and len(value.encode("utf-8", errors="replace")) > 4096:
-        content, _truncated = bounded_text(value, 4096)
-        return content + f"\n[TRUNCATED:{key or 'value'}]"
-    return value
 
 
 def _task_error(code: str) -> dict[str, Any]:

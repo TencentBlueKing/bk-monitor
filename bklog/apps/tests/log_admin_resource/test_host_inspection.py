@@ -10,6 +10,7 @@ from django.test import SimpleTestCase, override_settings
 from django.utils import timezone
 
 from apps.exceptions import BaseException as BklogBaseException
+from apps.exceptions import PermissionError as BklogPermissionError
 from apps.exceptions import ValidationError
 from apps.log_admin_resource.handlers.host_inspection import (
     DETAIL_FUNC_NAME,
@@ -31,7 +32,9 @@ from apps.log_admin_resource.registry import AdminResourceRegistry
 from apps.log_admin_resource.schema import validate_params
 from apps.log_admin_resource.scripts import host_inspection as remote_script
 from apps.log_admin_resource.tasks import (
+    _finish as finish_host_inspection,
     _fixed_remote_shell_script,
+    _inspect_nodeman,
     _merge_context_intervals,
     _run_remote_inspection,
     filter_runtime_logs,
@@ -289,6 +292,14 @@ class HostInspectionHandlerTest(SimpleTestCase):
         with self.assertRaisesRegex(ValidationError, "unsupported_os"):
             _validate_collector(collector(environment=Environment.WINDOWS), "tenant-a")
 
+    @override_settings(ENABLE_MULTI_TENANT_MODE=True)
+    @patch("apps.log_admin_resource.handlers.host_inspection.Space.get_tenant_id", return_value=None)
+    def test_collector_without_tenant_mapping_fails_closed(self, _tenant):
+        from apps.log_admin_resource.handlers.host_inspection import _validate_collector
+
+        with self.assertRaisesRegex(BklogPermissionError, "tenant is not configured"):
+            _validate_collector(collector(), "tenant-a")
+
     @patch("apps.log_admin_resource.handlers.host_inspection.NodeApi.query_host_subscriptions", return_value=[])
     def test_host_must_belong_to_exact_collector_subscription(self, _query):
         with self.assertRaisesRegex(ValidationError, "host_not_in_collector_subscription"):
@@ -500,6 +511,36 @@ class HostInspectionWorkerTest(SimpleTestCase):
 
     def tearDown(self):
         task_cache().clear()
+
+    @patch("apps.log_admin_resource.tasks.NodeApi.plugin_search")
+    @patch("apps.log_admin_resource.handlers.host_inspection.NodeApi.query_host_subscriptions", return_value=[])
+    def test_worker_revalidates_host_subscription_before_nodeman_lookup(self, _membership, plugin_search):
+        result, setup_path = _inspect_nodeman(
+            {
+                "bk_tenant_id": "tenant-a",
+                "target": {"bk_biz_id": 2, "bk_host_id": 99, "subscription_id": 2001},
+            }
+        )
+
+        self.assertEqual(result["code"], "host_not_in_collector_subscription")
+        self.assertIsNone(setup_path)
+        plugin_search.assert_not_called()
+
+    def test_oversized_final_result_is_compacted_and_reaches_terminal_state(self):
+        record, _ = ResourceInspectionTaskRecord.create_or_reuse(
+            app_code="reader-a",
+            bk_tenant_id="tenant-a",
+            target={"collector_config_id": 1, "bk_host_id": 2},
+            request_options={},
+        )
+        oversized = probe(evidence={"blob": "x" * (ResourceInspectionTaskRecord.MAX_RESULT_BYTES + 1)})
+
+        finish_host_inspection(record["task_id"], record, {"runtime": oversized}, task_status="success", error=None)
+
+        stored = ResourceInspectionTaskRecord.get(record["task_id"])
+        result = ResourceInspectionTaskRecord.load_result(record["task_id"])
+        self.assertEqual(stored["task_status"], "partial")
+        self.assertEqual(result["probes"]["response_limit"]["code"], "response_compacted")
 
     @patch("apps.log_admin_resource.tasks._run_remote_inspection")
     @patch("apps.log_admin_resource.tasks._inspect_nodeman")
@@ -829,7 +870,7 @@ bkunifylogbeat.multi_config:
                 remote_script.source_is_allowed(str(Path(directory) / "outside.log"), [str(allowed / "*.log")])
             )
 
-    def test_source_sample_does_not_follow_configured_symlink(self):
+    def test_source_sample_follows_symlink_matched_by_target_config(self):
         with tempfile.TemporaryDirectory() as directory:
             allowed = Path(directory) / "allowed"
             allowed.mkdir()
@@ -842,8 +883,8 @@ bkunifylogbeat.multi_config:
             self.assertFalse(remote_script.source_is_allowed(str(outside), [pattern]))
             result = remote_script.inspect_sources([pattern], str(symlink), True)
 
-            self.assertNotIn("sample", result["files"][0])
-            self.assertEqual(result["files"][0]["sample_warning"]["code"], "source_sample_symlink_refused")
+            self.assertTrue(result["files"][0]["is_symlink"])
+            self.assertEqual(result["files"][0]["sample"]["content"], "secret")
 
     def test_source_sample_is_bounded_to_50_lines_and_64_kib(self):
         with tempfile.TemporaryDirectory() as directory:

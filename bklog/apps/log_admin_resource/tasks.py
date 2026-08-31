@@ -7,6 +7,7 @@ import json
 import logging
 import time
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 from celery.exceptions import SoftTimeLimitExceeded
@@ -15,13 +16,15 @@ from django.utils import timezone
 
 from apps.api import JobApi, NodeApi
 from apps.constants import ScriptType
+from apps.exceptions import ValidationError
+from apps.log_admin_resource.handlers.host_inspection import _validate_host_membership
 from apps.log_admin_resource.handlers.inspection import sanitize_json, sanitize_sensitive_text
 from apps.log_admin_resource.inspection_runtime import (
     _merge_context_intervals as _merge_context_intervals,
     apply_runtime_log_filter as _apply_runtime_log_filter,
     filter_runtime_logs as filter_runtime_logs,
 )
-from apps.log_admin_resource.inspection_tasks import ResourceInspectionTaskRecord
+from apps.log_admin_resource.inspection_tasks import ResourceInspectionTaskRecord, store_bounded_inspection_result
 from apps.log_commons.job import JobHelper
 from apps.log_databus.constants import DEFAULT_BK_USERNAME, DEFAULT_EXECUTE_SCRIPT_ACCOUNT, JOB_SUCCESS_STATUS
 from apps.utils.task import high_priority_task
@@ -105,6 +108,24 @@ def _inspect_nodeman(record: dict[str, Any]) -> tuple[dict[str, Any], str | None
     started_at = timezone.now().isoformat()
     started = time.monotonic()
     target = record["target"]
+    try:
+        _validate_host_membership(
+            SimpleNamespace(
+                bk_biz_id=target["bk_biz_id"],
+                subscription_id=target["subscription_id"],
+            ),
+            target["bk_host_id"],
+            record["bk_tenant_id"],
+        )
+    except ValidationError:
+        return _probe(
+            "failed",
+            "host_not_in_collector_subscription",
+            "the host no longer belongs to the collector subscription",
+            None,
+            started_at,
+            started,
+        ), None
     try:
         raw = NodeApi.plugin_search(
             params={"conditions": [], "bk_host_id": [target["bk_host_id"]], "page": 1, "pagesize": 20},
@@ -404,7 +425,20 @@ def _finish(
         "partial": partial,
         "error": error,
     }
-    ResourceInspectionTaskRecord.store_result(task_id, result)
+    response_compacted = store_bounded_inspection_result(
+        task_id,
+        result,
+        compaction_probe={
+            "status": "warning",
+            "code": "response_compacted",
+            "summary": "oversized string and list evidence was compacted to preserve a valid final response",
+            "evidence": {"maximum_response_bytes": ResourceInspectionTaskRecord.MAX_RESULT_BYTES},
+        },
+        compaction_error=_task_error("response_compacted"),
+    )
+    if response_compacted and task_status == "success":
+        task_status = "partial"
+        error = _task_error("response_compacted")
     finished_at = timezone.now().isoformat()
     ResourceInspectionTaskRecord.update(
         task_id,
@@ -447,6 +481,7 @@ def _task_error(code: str) -> dict[str, Any]:
         "task_timed_out": "inspection task exceeded its 90 second deadline",
         "no_usable_evidence": "inspection completed without usable evidence",
         "inspection_execution_failed": "inspection execution failed after preserving completed probes",
+        "response_compacted": "oversized evidence was compacted to preserve the final response",
     }
     return {
         "code": code,

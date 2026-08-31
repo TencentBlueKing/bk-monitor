@@ -272,6 +272,17 @@ class ClusteringPipelineResourceTest(TestCase):
         self.assertEqual(result["pipeline"]["data"]["persistent_task_steps"][0]["status"], "FAILED")
         self.assertEqual(result["pipeline"]["warnings"][0]["code"], "PIPELINE_ENGINE_ROW_NOT_FOUND")
 
+    def test_read_only_pipeline_query_accepts_engine_task_outside_task_records(self):
+        config = create_clustering_config(task_records=[])
+        Status.objects.create(id="external-pipeline", state="RUNNING", name="pipeline", version="1")
+
+        result = get_clustering_access_pipeline({"config_id": config.id, "task_id": "external-pipeline"})
+
+        self.assertEqual(result["selected_task_id"], "external-pipeline")
+        self.assertTrue(result["pipeline"]["exists"])
+        self.assertEqual(result["pipeline"]["data"]["root_status"]["state"], "RUNNING")
+        self.assertIn("PIPELINE_TASK_RECORD_CONFLICT", {item["code"] for item in result["pipeline"]["warnings"]})
+
     @override_settings(
         MIDDLEWARE=(APIGW_MIDDLEWARE,),
         ESQUERY_WHITE_LIST=["bkmonitorv3"],
@@ -637,7 +648,8 @@ class InspectionEvidenceTest(TestCase):
             {
                 "log": (
                     "password=top-secret bearer_token: bearer-secret Bearer standalone-secret "
-                    "authorization: Basic dXNlcjpwYXNz https://user:pass@example.com/path"
+                    "authorization: Basic dXNlcjpwYXNz https://user:pass@example.com/path "
+                    'json={"password":"json-secret"} --api-key cli-secret'
                 ),
                 "items": ("api_key=api-secret", 1),
             },
@@ -645,7 +657,8 @@ class InspectionEvidenceTest(TestCase):
         )
         self.assertEqual(
             redacted_text["log"],
-            "password=*** bearer_token: *** Bearer *** authorization: *** https://***:***@example.com/path",
+            "password=*** bearer_token: *** Bearer *** authorization: *** https://***:***@example.com/path "
+            'json={"password":"***"} --api-key cli-secret',
         )
         self.assertEqual(redacted_text["items"], ["api_key=***", 1])
 
@@ -760,12 +773,24 @@ class BkDataSnapshotResourceTest(TestCase):
     @patch("apps.log_admin_resource.handlers.bkdata_inspection.BkDataAccessApi.get_deploy_summary")
     def test_raw_snapshot_returns_deploy_and_full_tail(self, deploy_api, tail_api, _context):
         deploy_api.return_value = {"data_id": 590089, "active": True, "topic": "raw-topic"}
-        tail_api.return_value = [{"value": json.dumps({"log": "original", "utctime": "2026-08-12 02:52:08"})}]
+        tail_api.return_value = [
+            {
+                "value": json.dumps(
+                    {
+                        "log": "original password=top-secret",
+                        "api_key": "api-key-value",
+                        "utctime": "2026-08-12 02:52:08",
+                    }
+                )
+            }
+        ]
 
         result = get_bkdata_raw_snapshot({"raw_data_id": 590089, "bk_biz_id": 2})
 
         self.assertEqual(result["deploy"]["data"]["summary"]["topic"], "raw-topic")
-        self.assertEqual(result["tail"]["data"]["samples"][0]["decoded"]["value"]["log"], "original")
+        decoded = result["tail"]["data"]["samples"][0]["decoded"]["value"]
+        self.assertEqual(decoded["log"], "original password=***")
+        self.assertEqual(decoded["api_key"], "***")
         self.assertFalse(result["tail"]["empty"])
 
     @patch("apps.log_admin_resource.handlers.bkdata_inspection.build_bkdata_context", return_value=BKDATA_CONTEXT)

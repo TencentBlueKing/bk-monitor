@@ -8,7 +8,13 @@ from django.utils import timezone
 from apps.api import TransferApi
 from apps.exceptions import ValidationError
 from apps.log_admin_resource.handlers.index_set import get_index_set_detail
-from apps.log_admin_resource.handlers.inspection import probe_failure, probe_skipped, probe_success, sanitize_json
+from apps.log_admin_resource.handlers.inspection import (
+    probe_failure,
+    probe_skipped,
+    probe_success,
+    sanitize_json,
+    scope_space_queryset,
+)
 from apps.log_admin_resource.handlers.platform_source import _project_result_table, _project_storage_status_item
 from apps.log_admin_resource.response_schema import (
     diagnostic_schema,
@@ -41,7 +47,7 @@ def get_index_set_storage_route_snapshot(params):
     index_set_id = _positive_int(params.get("index_set_id"), "index_set_id")
     observed_at = timezone.now().isoformat()
     try:
-        index_set = LogIndexSet.objects.get(index_set_id=index_set_id)
+        index_set = scope_space_queryset(LogIndexSet.objects).get(index_set_id=index_set_id)
         database = probe_success(sanitize_json(get_index_set_detail({"index_set_id": index_set_id}), redact_text=True))
     except Exception as error:
         return {
@@ -182,7 +188,7 @@ def _resolve_index_set(params):
         index_set_id = _positive_int(params.get("index_set_id"), "index_set_id")
         query = {"index_set_id": index_set_id}
         try:
-            index_set = LogIndexSet.objects.get(index_set_id=index_set_id)
+            index_set = scope_space_queryset(LogIndexSet.objects).get(index_set_id=index_set_id)
         except LogIndexSet.DoesNotExist:
             return _missing_resolution(query, "INDEX_SET_NOT_FOUND", "index set does not exist"), None
         return _resolved_resolution(query, [index_set]), index_set
@@ -197,7 +203,9 @@ def _resolve_index_set(params):
             LogIndexSetData.objects.filter(result_table_id=result_table_id).values_list("index_set_id", flat=True)
         )
     )
-    index_sets = list(LogIndexSet.objects.filter(index_set_id__in=candidate_ids).order_by("index_set_id"))
+    index_sets = list(
+        scope_space_queryset(LogIndexSet.objects).filter(index_set_id__in=candidate_ids).order_by("index_set_id")
+    )
     if not index_sets:
         return _missing_resolution(query, "RESULT_TABLE_ROUTE_NOT_FOUND", "result table has no index set"), None
     if len(index_sets) > 1:
@@ -261,7 +269,10 @@ def _build_expected_routes(index_set):
         table_info = []
         if index_set.is_group:
             child_ids = index_set.get_child_index_set_ids()
-            child_map = {item.index_set_id: item for item in LogIndexSet.objects.filter(index_set_id__in=child_ids)}
+            child_map = {
+                item.index_set_id: item
+                for item in scope_space_queryset(LogIndexSet.objects.filter(index_set_id__in=child_ids))
+            }
             for child_id in child_ids:
                 child = child_map.get(child_id)
                 if child is None:

@@ -11,7 +11,7 @@ from apps.api import NodeApi
 from apps.exceptions import BaseException as BklogBaseException
 from apps.exceptions import PermissionError as BklogPermissionError
 from apps.exceptions import ValidationError
-from apps.log_admin_resource.handlers.inspection import sanitize_json
+from apps.log_admin_resource.handlers.inspection import sanitize_json, scope_biz_queryset
 from apps.log_admin_resource.inspection_protocol import (
     INSPECTION_PROBE_SCHEMA,
     INSPECTION_PROBE_SUMMARY_SCHEMA,
@@ -20,6 +20,7 @@ from apps.log_admin_resource.inspection_protocol import (
 )
 from apps.log_admin_resource.inspection_tasks import (
     ACTIVE_STATUSES,
+    InspectionConcurrencyExceeded,
     ResourceInspectionTaskRecord,
     TASK_TYPE_HOST_INSPECTION,
 )
@@ -202,6 +203,8 @@ def start_host_inspection(params: dict[str, Any]) -> dict[str, Any]:
             request_options=request_options,
             task_type=TASK_TYPE_HOST_INSPECTION,
         )
+    except InspectionConcurrencyExceeded as error:
+        raise BklogBaseException("inspection task concurrency limit reached") from error
     except Exception as error:
         raise BklogBaseException("inspection task storage is unavailable") from error
 
@@ -280,11 +283,14 @@ def _request_identity() -> tuple[str, str]:
     app_code = getattr(request, "resource_app_code", "") if request else ""
     if not app_code:
         raise BklogPermissionError("host inspection requires a trusted Resource Call app identity")
-    return app_code, get_request_tenant_id()
+    tenant_id = get_request_tenant_id()
+    if not tenant_id:
+        raise BklogPermissionError("host inspection requires a trusted Resource Call tenant")
+    return app_code, tenant_id
 
 
 def _get_collector(collector_config_id: int) -> CollectorConfig:
-    collector = CollectorConfig.objects.filter(collector_config_id=collector_config_id).first()
+    collector = scope_biz_queryset(CollectorConfig.objects).filter(collector_config_id=collector_config_id).first()
     if not collector:
         raise ValidationError("collector_config_not_found")
     return collector
@@ -300,6 +306,8 @@ def _validate_collector(collector: CollectorConfig, request_tenant_id: str) -> s
 
     tenant_id = Space.get_tenant_id(bk_biz_id=collector.bk_biz_id, is_need_default=False)
     if not tenant_id:
+        if settings.ENABLE_MULTI_TENANT_MODE:
+            raise BklogPermissionError("collector tenant is not configured")
         tenant_id = request_tenant_id or settings.BK_APP_TENANT_ID
     if request_tenant_id and tenant_id != request_tenant_id:
         raise BklogPermissionError("collector tenant does not match the current Resource Call tenant")

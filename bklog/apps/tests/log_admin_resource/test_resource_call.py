@@ -315,6 +315,17 @@ class AdminResourceRegistryContractTest(TestCase):
 
         mock_get_auth_info.assert_called_once_with(request, raise_exception=False)
 
+    @patch(
+        "apps.log_admin_resource.permissions.Permission.get_auth_info",
+        return_value={"bk_app_code": "resource-read-app"},
+    )
+    def test_permission_accepts_authorized_app_from_any_verified_apigw(self, mock_get_auth_info):
+        request = SimpleNamespace(jwt=SimpleNamespace(gateway_name="another-verified-gateway"))
+
+        self.assertTrue(AdminResourceAppWhiteListPermission().has_permission(request, None))
+        self.assertEqual(request.resource_app_code, "resource-read-app")
+        mock_get_auth_info.assert_called_once_with(request, raise_exception=False)
+
     @override_settings(
         RESOURCE_CALL_APP_CODE_WHITE_LIST=["reader"],
     )
@@ -475,7 +486,8 @@ class CollectorFixtureMixin:
             params={
                 "paths": ["/data/logs/*.log"],
                 "password": "plain-password",
-                "nested": {"bearer_token": "token-value"},
+                "nested": {"bearer_token": "token-value", "api_key": "api-key-value"},
+                "endpoint": "https://user:pass@example.com/path",
             },
             task_id_list=[9881, 9882],
             storage_shards_nums=6,
@@ -674,6 +686,8 @@ class CollectorResourceCallTest(CollectorFixtureMixin, ClearRequestLocalMixin, T
         )
         self.assertEqual(result["raw"]["params"]["password"], "******")
         self.assertEqual(result["raw"]["params"]["nested"]["bearer_token"], "******")
+        self.assertEqual(result["raw"]["params"]["nested"]["api_key"], "******")
+        self.assertEqual(result["raw"]["params"]["endpoint"], "https://***:***@example.com/path")
 
     @override_settings(MIDDLEWARE=(APIGW_MIDDLEWARE,))
     def test_index_set_list_returns_result_tables_and_collector_relation(self):

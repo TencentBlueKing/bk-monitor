@@ -34,7 +34,8 @@ class ResourceSchemaValidationTest(SimpleTestCase):
 
     def test_rejects_invalid_server_schema_and_unknown_type(self):
         self.assert_invalid({}, [], "invalid server schema")
-        self.assert_invalid("value", {"type": "unsupported"}, "must be of type unsupported")
+        self.assert_invalid("value", {"type": "unsupported"}, "invalid server schema types")
+        self.assert_invalid("value", {"type": "string", "pattern": "x"}, "unsupported server schema keywords")
 
     def test_any_of_accepts_first_match_and_reports_all_failures(self):
         validate_params("value", {"anyOf": [{"type": "string"}, {"type": "integer"}]})
@@ -42,6 +43,14 @@ class ResourceSchemaValidationTest(SimpleTestCase):
             True,
             {"anyOf": [{"type": "string"}, {"type": "integer"}]},
             "does not match any allowed schema",
+        )
+
+    def test_one_of_requires_exactly_one_match(self):
+        validate_params({"kind": "a"}, {"oneOf": [{"required": ["kind"]}, {"required": ["other"]}]})
+        self.assert_invalid(
+            {"kind": "a", "other": "b"},
+            {"oneOf": [{"required": ["kind"]}, {"required": ["other"]}]},
+            "must match exactly one",
         )
 
     def test_const_enum_and_not(self):
@@ -62,6 +71,13 @@ class ResourceSchemaValidationTest(SimpleTestCase):
         self.assert_invalid({"name": "ok", "extra": 1}, schema, "contains unsupported fields: extra")
         self.assert_invalid({"name": "x"}, schema, "params.name must contain at least 2 characters")
         validate_params({"free": "value"}, {"type": "object"})
+        validate_params({"free": 1}, {"type": "object", "additionalProperties": {"type": "integer"}})
+        self.assert_invalid(
+            {"free": "1"},
+            {"type": "object", "additionalProperties": {"type": "integer"}},
+            "params.free must be of type integer",
+        )
+        self.assert_invalid({}, {"type": "object", "minProperties": 1}, "at least 1 properties")
 
     def test_array_bounds_and_items(self):
         schema = {"type": "array", "minItems": 1, "maxItems": 2, "items": {"type": "integer"}}
@@ -69,6 +85,7 @@ class ResourceSchemaValidationTest(SimpleTestCase):
         self.assert_invalid([], schema, "must contain at least 1 items")
         self.assert_invalid([1, 2, 3], schema, "must contain at most 2 items")
         self.assert_invalid([1, "2"], schema, r"params\[1\] must be of type integer")
+        self.assert_invalid([1, 1], {"type": "array", "uniqueItems": True}, "must contain unique items")
         validate_params(["unconstrained"], {"type": "array"})
 
     def test_string_length_bounds(self):

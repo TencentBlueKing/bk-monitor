@@ -7,7 +7,13 @@ from django.utils import timezone
 
 from apps.exceptions import ValidationError
 from apps.log_admin_resource.handlers.collector import get_collector_detail
-from apps.log_admin_resource.handlers.inspection import probe_failure, probe_skipped, probe_success, sanitize_json
+from apps.log_admin_resource.handlers.inspection import (
+    probe_failure,
+    probe_skipped,
+    probe_success,
+    require_biz_in_request_tenant,
+    sanitize_json,
+)
 from apps.log_admin_resource.handlers.platform_source import query_platform_source
 from apps.log_admin_resource.response_schema import diagnostic_schema, object_schema, probe_schema
 from apps.log_databus.handlers.collector.host import HostCollectorHandler
@@ -197,6 +203,7 @@ def _resolve_host_input(params):
             raise ValidationError("use either bk_host_id with bk_biz_id or ip, not both")
         bk_host_id = _positive_int(params.get("bk_host_id"), "bk_host_id")
         bk_biz_id = _positive_int(params.get("bk_biz_id"), "bk_biz_id")
+        require_biz_in_request_tenant(bk_biz_id)
         bk_cloud_id = None
         if params.get("bk_cloud_id") is not None:
             bk_cloud_id = _nonnegative_int(params["bk_cloud_id"], "bk_cloud_id")

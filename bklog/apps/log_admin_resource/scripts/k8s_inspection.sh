@@ -453,7 +453,7 @@ snapshot_sources() {
             emit_kv "$phase.source.$index.inode" "$inode"
             emit_kv "$phase.source.$index.size_bytes" "$size_bytes"
             emit_kv "$phase.source.$index.mtime_epoch" "$mtime_epoch"
-            if [ "$phase" = "second" ] && [ -f "$source_path" ] && [ ! -L "$source_path" ]; then
+            if [ "$phase" = "second" ] && [ -f "$source_path" ]; then
                 emit_sample_stream "$phase.source.$index.sample" "$source_path"
             fi
             index=$((index + 1))

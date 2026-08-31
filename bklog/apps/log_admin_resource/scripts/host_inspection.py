@@ -778,11 +778,7 @@ def inspect_sources(patterns, explicit_source, include_sample):
                 "inspection_warning": make_warning("source_metadata_unavailable", str(error)),
             }
         if include_sample and item.get("exists") and item.get("readable"):
-            if item.get("is_symlink"):
-                item["sample_warning"] = make_warning(
-                    "source_sample_symlink_refused", "source samples do not follow symbolic links"
-                )
-            elif sample_bytes_remaining <= 0 or sample_lines_remaining <= 0:
+            if sample_bytes_remaining <= 0 or sample_lines_remaining <= 0:
                 item["sample_warning"] = make_warning(
                     "source_sample_limit_reached", "the task-level source sample limit was reached"
                 )

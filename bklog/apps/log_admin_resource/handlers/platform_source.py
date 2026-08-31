@@ -12,7 +12,11 @@ from collections.abc import Callable
 from apps.api import CCApi, NodeApi, TransferApi
 from apps.exceptions import BaseException as BklogBaseException
 from apps.exceptions import ValidationError
-from apps.log_admin_resource.handlers.inspection import extract_event_time_evidence, sanitize_json
+from apps.log_admin_resource.handlers.inspection import (
+    extract_event_time_evidence,
+    require_biz_in_request_tenant,
+    sanitize_json,
+)
 from apps.log_admin_resource.response_schema import diagnostic_schema, nullable_schema, object_schema
 from apps.log_databus.constants import LogPluginInfo
 from apps.utils.local import get_request_tenant_id
@@ -135,6 +139,9 @@ def _invoke(domain, operation, invoke_params):
         normalized = _validate_operation_params(spec, invoke_params)
     except ValidationError as error:
         _raise_platform_error("INVALID_ARGUMENT", error.message)
+
+    if "bk_biz_id" in normalized:
+        require_biz_in_request_tenant(normalized["bk_biz_id"])
 
     try:
         raw = spec.handler(normalized)

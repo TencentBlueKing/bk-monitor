@@ -1,5 +1,9 @@
 from apps.api import TransferApi
 from apps.exceptions import ValidationError
+from apps.log_admin_resource.handlers.inspection import (
+    SENSITIVE_KEY_PATTERN,
+    sanitize_sensitive_text,
+)
 from apps.log_admin_resource.response_schema import (
     diagnostic_schema,
     nullable_schema,
@@ -15,9 +19,6 @@ from apps.log_databus.models import (
 from apps.log_databus.utils.storage_config import get_storage_retention
 from apps.log_search.constants import CollectorScenarioEnum, IndexSetDataType, LogAccessTypeEnum
 from apps.log_search.models import LogIndexSet, LogIndexSetData, Scenario
-
-
-SENSITIVE_KEYWORDS = ("password", "secret", "token")
 
 
 COLLECTOR_LIST_PARAMS_SCHEMA = {
@@ -357,6 +358,8 @@ def mask_sensitive(value):
         return {key: "******" if _is_sensitive_key(key) else mask_sensitive(item) for key, item in value.items()}
     if isinstance(value, list):
         return [mask_sensitive(item) for item in value]
+    if isinstance(value, str):
+        return sanitize_sensitive_text(value, maximum=None)
     return value
 
 
@@ -718,5 +721,4 @@ def _first_not_none(*values):
 
 
 def _is_sensitive_key(key):
-    key = str(key).lower()
-    return any(keyword in key for keyword in SENSITIVE_KEYWORDS)
+    return bool(SENSITIVE_KEY_PATTERN.search(str(key)))

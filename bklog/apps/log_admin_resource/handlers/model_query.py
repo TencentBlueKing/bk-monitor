@@ -1604,6 +1604,22 @@ MODEL_QUERY_RESPONSE_SCHEMA = object_schema(
     },
 )
 
+MODEL_FILTER_SCALAR_SCHEMA = {
+    "anyOf": [
+        {"type": "string", "maxLength": 4096},
+        {"type": "integer"},
+        {"type": "number"},
+        {"type": "boolean"},
+        {"type": "null"},
+    ]
+}
+MODEL_FILTER_VALUE_SCHEMA = {
+    "anyOf": [
+        MODEL_FILTER_SCALAR_SCHEMA,
+        {"type": "array", "maxItems": MAX_LIMIT, "items": MODEL_FILTER_SCALAR_SCHEMA},
+    ]
+}
+
 
 FUNCTIONS = {
     "bklog.model.list": {
@@ -1642,7 +1658,11 @@ FUNCTIONS = {
             "type": "object",
             "properties": {
                 "model": {"type": "string", "minLength": 1, "maxLength": 128},
-                "filter": {"type": "object"},
+                "filter": {
+                    "type": "object",
+                    "maxProperties": 50,
+                    "additionalProperties": MODEL_FILTER_VALUE_SCHEMA,
+                },
                 "fields": {"type": "array", "items": {"type": "string"}, "minItems": 1, "maxItems": 200},
                 "exclude_fields": {"type": "array", "items": {"type": "string"}, "maxItems": 200},
                 "order_by": {"type": "array", "items": {"type": "string"}, "maxItems": 5},

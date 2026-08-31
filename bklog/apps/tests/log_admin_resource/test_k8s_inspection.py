@@ -6,6 +6,7 @@ from django.core.cache import caches
 from django.test import SimpleTestCase, override_settings
 from django.utils import timezone
 
+from apps.exceptions import PermissionError as BklogPermissionError
 from apps.exceptions import ValidationError
 from apps.log_admin_resource.handlers.k8s_inspection import (
     DETAIL_FUNC_NAME,
@@ -22,6 +23,7 @@ from apps.log_admin_resource.inspection_tasks import (
     TASK_TYPE_K8S_INSPECTION,
     K8sCollectorCandidateStore,
     K8sDeepProbeSlots,
+    InspectionConcurrencyExceeded,
     ResourceInspectionTaskRecord,
 )
 from apps.log_admin_resource.k8s_inspection import (
@@ -47,6 +49,7 @@ from apps.log_admin_resource.k8s_probe import (
 from apps.log_admin_resource.k8s_probe_evidence import build_collector_file_log_probe, build_probe_evidence
 from apps.log_admin_resource.k8s_tasks import (
     _control_plane_probe,
+    _load_bound_collector,
     _pod_logs_probe,
     _reload_observation_probe,
     _revalidate_candidate,
@@ -279,6 +282,39 @@ class SharedInspectionTaskTest(SimpleTestCase):
         K8sDeepProbeSlots.release(first, "task-1")
         self.assertTrue(K8sDeepProbeSlots.claim("pod-uid", "task-3"))
 
+    def test_owner_concurrency_limit_cannot_be_bypassed_with_request_variants(self):
+        records = []
+        for index in range(ResourceInspectionTaskRecord.MAX_ACTIVE_TASKS_PER_OWNER):
+            record, reused = ResourceInspectionTaskRecord.create_or_reuse(
+                app_code="reader-a",
+                bk_tenant_id="tenant-a",
+                target={"collector_config_id": index + 1},
+                request_options={"runtime_log_options": {"keywords": [f"error-{index}"]}},
+                task_type=TASK_TYPE_HOST_INSPECTION,
+            )
+            self.assertFalse(reused)
+            records.append(record)
+
+        with self.assertRaises(InspectionConcurrencyExceeded):
+            ResourceInspectionTaskRecord.create_or_reuse(
+                app_code="reader-a",
+                bk_tenant_id="tenant-a",
+                target={"collector_config_id": 999},
+                request_options={"runtime_log_options": {"keywords": ["different"]}},
+                task_type=TASK_TYPE_HOST_INSPECTION,
+            )
+
+        ResourceInspectionTaskRecord.release_active(records[0])
+        replacement, reused = ResourceInspectionTaskRecord.create_or_reuse(
+            app_code="reader-a",
+            bk_tenant_id="tenant-a",
+            target={"collector_config_id": 999},
+            request_options={"runtime_log_options": {"keywords": ["different"]}},
+            task_type=TASK_TYPE_HOST_INSPECTION,
+        )
+        self.assertFalse(reused)
+        self.assertTrue(replacement["owner_slot_key"])
+
 
 @override_settings(CACHES=TEST_CACHES, BK_APP_TENANT_ID="tenant-a", ENVIRONMENT="bkte")
 class K8sInspectionHandlerTest(SimpleTestCase):
@@ -287,6 +323,14 @@ class K8sInspectionHandlerTest(SimpleTestCase):
 
     def tearDown(self):
         task_cache().clear()
+
+    @override_settings(ENABLE_MULTI_TENANT_MODE=True)
+    @patch("apps.log_admin_resource.handlers.k8s_inspection.Space.get_tenant_id", return_value=None)
+    def test_collector_without_tenant_mapping_fails_closed(self, _tenant):
+        from apps.log_admin_resource.handlers.k8s_inspection import _validate_collector
+
+        with self.assertRaisesRegex(BklogPermissionError, "tenant is not configured"):
+            _validate_collector(collector(), "tenant-a")
 
     @patch("apps.log_admin_resource.k8s_tasks.run_k8s_inspection.apply_async")
     @patch("apps.log_admin_resource.handlers.k8s_inspection._validate_collector", return_value="tenant-a")
@@ -649,6 +693,7 @@ class FixedK8sProbeTest(SimpleTestCase):
         self.assertNotIn("kubectl", script)
         self.assertNotIn("eval ", script)
         self.assertNotIn(' > "', script)
+        self.assertNotIn('[ ! -L "$source_path" ]', script)
 
     def test_line_protocol_parser_reconstructs_bounded_streams(self):
         parsed = parse_probe_output(
@@ -899,6 +944,24 @@ class K8sInspectionWorkerTest(SimpleTestCase):
 
     def tearDown(self):
         task_cache().clear()
+
+    @patch(
+        "apps.log_admin_resource.k8s_tasks.CollectorConfig.objects.get",
+        return_value=collector(bcs_cluster_id="BCS-K8S-CHANGED"),
+    )
+    def test_worker_rejects_collector_binding_changed_after_dispatch(self, _get):
+        with self.assertRaisesRegex(RuntimeError, "collector binding changed"):
+            _load_bound_collector(
+                {
+                    "bk_tenant_id": "tenant-a",
+                    "target": {
+                        "collector_config_id": 123,
+                        "bk_biz_id": 2,
+                        "bk_data_id": 1001,
+                        "bcs_cluster_id": "BCS-K8S-1",
+                    },
+                }
+            )
 
     def _record(self, *, target=None, groups=None, candidate_id=None):
         return ResourceInspectionTaskRecord.create_or_reuse(

@@ -260,6 +260,24 @@ class ModelSpecContractTest(SimpleTestCase):
             with self.subTest(raw_filter=raw_filter), self.assertRaisesRegex(ValidationError, message):
                 _normalize_filter(raw_filter, spec)
 
+    def test_query_schema_bounds_filter_complexity_and_scalar_size(self):
+        schema = FUNCTIONS["bklog.model.query"]["params_schema"]
+        with self.assertRaisesRegex(ValidationError, "at most 50 properties"):
+            validate_params(
+                {"model": "log_search.LogIndexSet", "filter": {f"field-{index}": index for index in range(51)}},
+                schema,
+            )
+        with self.assertRaisesRegex(ValidationError, "at most 4096 characters"):
+            validate_params(
+                {"model": "log_search.LogIndexSet", "filter": {"index_set_id": "x" * 4097}},
+                schema,
+            )
+        with self.assertRaises(ValidationError):
+            validate_params(
+                {"model": "log_search.LogIndexSet", "filter": {"index_set_id": {"nested": "value"}}},
+                schema,
+            )
+
     def test_fixed_filter_is_appended_and_conflicts_are_rejected(self):
         spec = replace(SPECS["log_extract.ExtractLink"], fixed_filters={"link_type": "common"})
         self.assertEqual(_normalize_filter({}, spec)["link_type"], "common")
