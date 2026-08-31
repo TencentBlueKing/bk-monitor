@@ -1419,12 +1419,18 @@ class CollectorViewSet(ModelViewSet):
         """
         data = self.params_valid(CollectorEtlStorageSerializer)
         etl_handler = EtlHandler.get_instance(collector_config_id)
+        collector_handler = CollectorHandler.get_instance(collector_config_id)
+        labels = collector_handler._build_scene_labels()
+        data["labels"] = labels
         data, can_apply = etl_handler.itsm_pre_hook(data, collector_config_id)
         if not can_apply:
             return Response(data)
         for key in ["need_assessment", "assessment_config"]:
             data.pop(key, None)
-        return Response(etl_handler.update_or_create(**data))
+        result = etl_handler.update_or_create(**data)
+        index_set_id = result.get("index_set_id") or collector_handler.data.index_set_id
+        CollectorHandler.sync_scene_tags_to_index_set(index_set_id, labels)
+        return Response(result)
 
     @detail_route(methods=["GET"], url_path="get_data_link_list")
     def get_data_link_list(self, request):

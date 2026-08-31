@@ -1078,9 +1078,11 @@ class K8sCollectorHandler(CollectorHandler):
             "etl_config": custom_config.etl_config,
             "fields": custom_config.fields,
         }
+        etl_params["labels"] = self._build_scene_labels()
         etl_result = etl_handler.update_or_create(**etl_params)
         self.data.index_set_id = etl_result["index_set_id"]
         self.data.table_id = etl_result["table_id"]
+        self._sync_scene_tags_to_index_set(etl_params["labels"])
         custom_config.after_hook(self.data)
         return self.data
 
@@ -1119,6 +1121,24 @@ class K8sCollectorHandler(CollectorHandler):
         if not storage_cluster_id:
             raise ValueError("default es cluster not exists.")
         return {"data_link_id": data_link_id, "storage_cluster_id": storage_cluster_id}
+
+    @staticmethod
+    def _sync_bcs_scene_labels(*collector_configs: CollectorConfig):
+        """Refresh metadata and index-set scene labels after container configs are persisted."""
+        for collector_config in collector_configs:
+            if not collector_config:
+                continue
+            collector_handler = K8sCollectorHandler(data=collector_config)
+            labels = collector_handler._build_scene_labels()
+            TransferApi.switch_result_table(
+                {
+                    "table_id": collector_config.table_id,
+                    "bk_biz_id": collector_config.bk_biz_id,
+                    "operator": "admin",
+                    "labels": labels,
+                }
+            )
+            collector_handler._sync_scene_tags_to_index_set(labels)
 
     @transaction.atomic
     def create_bcs_container_config(self, data, bk_app_code="bk_bcs"):
@@ -1279,6 +1299,8 @@ class K8sCollectorHandler(CollectorHandler):
                 )
 
         ContainerCollectorConfig.objects.bulk_create(container_collector_config_list)
+
+        self._sync_bcs_scene_labels(path_collector_config, std_collector_config)
 
         if is_send_create_notify:
             self._send_create_notify(path_collector_config)
@@ -1505,6 +1527,8 @@ class K8sCollectorHandler(CollectorHandler):
                 func=self.compare_config,
                 **{"data_configs": std_container_config},
             )
+
+        self._sync_bcs_scene_labels(path_collector, std_collector)
 
         if is_send_path_create_notify:
             self._send_create_notify(path_collector_config)
@@ -1964,9 +1988,7 @@ class K8sCollectorHandler(CollectorHandler):
         raw_config.update(
             {
                 "dataId": collector_config.bk_data_id,
-                "extMeta": {
-                    label["key"]: label["value"] for label in (collector_config.extra_labels or []) if label
-                },
+                "extMeta": {label["key"]: label["value"] for label in (collector_config.extra_labels or []) if label},
                 "addPodLabel": collector_config.add_pod_label,
                 "addPodAnnotation": collector_config.add_pod_annotation,
             }

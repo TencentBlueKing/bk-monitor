@@ -1224,12 +1224,13 @@ class EtlStorage:
             "is_time_field_only": True,
             "bk_biz_id": instance.get_bk_biz_id(),
             "label": instance.category_id,
-            "labels": labels or {},
             "option": {},
             "field_list": [],
             "warm_phase_days": 0,
             "warm_phase_settings": {},
         }
+        if labels is not None:
+            params["labels"] = labels
         index_settings = index_settings or {}
         if total_shards_per_node is not None and total_shards_per_node > 0:
             index_settings.update({"index.routing.allocation.total_shards_per_node": total_shards_per_node})

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,6 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 import json
 
 from django.conf import settings
@@ -44,7 +44,7 @@ from apps.utils.local import get_request, get_request_username
 from apps.utils.log import logger
 
 
-class ItsmHandler(object):
+class ItsmHandler:
     ITSM_TRUE = "true"
     ITSM_FALSE = "false"
 
@@ -155,11 +155,15 @@ class ItsmHandler(object):
             return
         request_param = itsm_etl_config.request_param
         from apps.log_databus.handlers.etl import EtlHandler
+        from apps.log_databus.handlers.collector.base import CollectorHandler
 
         for key in ["need_assessment", "assessment_config"]:
             request_param.pop(key, None)
         etl_handler = EtlHandler.get_instance(collect_id)
-        etl_handler.update_or_create(**request_param)
+        result = etl_handler.update_or_create(**request_param)
+        if "labels" in request_param:
+            index_set_id = (result or {}).get("index_set_id") or etl_handler.data.index_set_id
+            CollectorHandler.sync_scene_tags_to_index_set(index_set_id, request_param["labels"])
 
     def _ticket_is_finish(self, ticket_info: dict):
         return "RUNNING" != ticket_info["current_status"]
