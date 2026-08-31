@@ -318,7 +318,7 @@ export default defineComponent({
         };
         dataType.value = data_type;
         aggMethod.value = agg_method;
-        if(app_name && service_name) {
+        if (app_name && service_name) {
           handleAppServiceChange(app_name, service_name);
         }
       }
@@ -564,6 +564,7 @@ export default defineComponent({
           >
             <RetrievalSearch
               formData={this.searchState.formData}
+              profileId={this.curFileInfo?.profile_id}
               onAppServiceChange={this.handleAppServiceChange}
               onChange={this.handleSearchFormDataChange}
               onShowDetail={() => this.handleShowDetail(DetailType.Application, this.selectServiceData)}

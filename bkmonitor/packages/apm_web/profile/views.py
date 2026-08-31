@@ -676,11 +676,13 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
         """
         检查全局查询限定在当前业务上传的 Profile 内
 
-        内置数据源由全平台共用，samples/export 只能靠 profile_id 定位数据：
+        内置数据源由全平台共用，全局查询只能靠 profile_id 定位数据：
         profile_id 为空时查询不会带上过滤条件，会读到其他业务上传的数据，因此必须给定且归属当前业务。
-        labels/label_values 没有 profile_id 字段，保持原有的全局聚合行为。
         """
         bk_biz_id = validated_data["bk_biz_id"]
+        if validated_data.get("is_compared") and not validated_data.get("diff_profile_id"):
+            raise ValueError(_("全局对比查询需要指定 diff_profile_id"))
+
         for key in ("profile_id", "diff_profile_id"):
             if key not in validated_data:
                 continue
@@ -742,6 +744,7 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
             result_table_id=result_table_id,
             start=start,
             end=end,
+            profile_id=validated_data.get("profile_id"),
             extra_params={"limit": {"rows": limit}},
         )
 
@@ -778,6 +781,7 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
             result_table_id=result_table_id,
             start=start,
             end=end,
+            profile_id=validated_data.get("profile_id"),
         )
 
         return Response(

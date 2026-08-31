@@ -28,9 +28,7 @@ class SpanQuery(APMQueryFilterMixin, BaseQuery):
     DEFAULT_SORT = ["-end_time"]
     FIELD_ALIAS_MAP_LIST = [OTEL_SPAN_COMMON_FIELD_ALIAS, RUM_FIELD_ALIAS]
     FIELD_OPERATIONS = FIELD_OPERATIONS
-    FIELD_UNITS = {
-        "elapsed_time": "us",
-    }
+    FIELD_UNITS = {"elapsed_time": "us", "start_time": "us", "end_time": "us", "time": "ms"}
     ENUM_FIELD_OPTION_VALUES = {
         field_name: [{"value": value, "alias": alias} for value, alias in enum_class.choices()]
         for field_name, enum_class in [
@@ -115,6 +113,29 @@ class SpanQuery(APMQueryFilterMixin, BaseQuery):
     ):
         return super()._query_option_values(
             self.get_queries(filters, query_string), start_time, end_time, fields, limit
+        )
+
+    def query_graph_config(
+        self,
+        start_time: int,
+        end_time: int,
+        field: str,
+        filters: list[types.Filter],
+        query_string: str,
+    ):
+        return super()._query_graph_config(self.get_queries(filters, query_string), start_time, end_time, field)
+
+    def query_field_aggregated_value(
+        self,
+        start_time: int,
+        end_time: int,
+        field: str,
+        method: str,
+        filters: list[types.Filter],
+        query_string: str,
+    ):
+        return super()._query_field_aggregated_value(
+            self.get_queries(filters, query_string), start_time, end_time, field, method
         )
 
     def query_fields(self, start_time: int | None, end_time: int | None) -> dict[str, dict[str, Any]]:

@@ -17,11 +17,41 @@ from core.prometheus import metrics
 # contract, encoder, publisher and reference modules stay importable without a
 # settings module so their cross-language Golden runs standalone.
 
-STAGE_DETECT_INPUT = "detect_input"
 STAGE_REFERENCE = "reference"
 
 STATUS_SUCCESS = "success"
 STATUS_FAILED = "failed"
+
+STATUS_SOURCE = "source"
+STATUS_PLANNED = "planned"
+STATUS_ACKED = "acked"
+STATUS_DROPPED = "dropped"
+STATUS_ACK_UNKNOWN = "ack_unknown"
+
+ACCESS_RECORD_EXCLUSION_REASONS = (
+    "QUERY_UNAVAILABLE",
+    "CONFIG_DRIFT",
+    "RECORD_IDENTITY_INVALID",
+    "RECORD_INVALID",
+    "RECORD_TOO_LARGE",
+)
+
+# Materialize the fixed label domain once per process. The custom push registry
+# may clear samples after a flush; subsequent real observations recreate only
+# these same bounded children.
+for _reason in ACCESS_RECORD_EXCLUSION_REASONS:
+    metrics.ALARMD_SHADOW_ACCESS_RECORD_EXCLUSION_COUNT.labels(reason=_reason).inc(0)
+
+
+def record_shadow_access_record_exclusion(reason: str, count: int) -> None:
+    """Record a source record excluded before the wire cohort is formed."""
+
+    if reason not in ACCESS_RECORD_EXCLUSION_REASONS:
+        raise ValueError(f"unsupported alarmd Access v2 exclusion reason: {reason}")
+    if count < 0:
+        raise ValueError("alarmd Access v2 exclusion count must be non-negative")
+    if count > 0:
+        metrics.ALARMD_SHADOW_ACCESS_RECORD_EXCLUSION_COUNT.labels(reason=reason).inc(count)
 
 
 def record_shadow_async_job(stage: str, status: str) -> None:
@@ -32,7 +62,7 @@ def record_shadow_async_job(stage: str, status: str) -> None:
 def observe_shadow_publish(stage: str):
     """Record one isolated Shadow publish attempt and how long its ACK took.
 
-    The bypass is fail-open for the legacy chain, so a broker rejection is only ever
+    The bypass is fail-open for the Python main chain, so a broker rejection is only ever
     visible here and in the logs. Labels stay a bounded enum and never expand by
     strategy, topic, partition or error text.
     """
@@ -53,10 +83,72 @@ def record_shadow_published_records(stage: str, count: int) -> None:
         metrics.ALARMD_SHADOW_PUBLISH_RECORD_COUNT.labels(stage=stage).inc(count)
 
 
-def record_shadow_publish_result(stage: str, *, success: bool, elapsed: float) -> None:
-    """Record a stage result when multiple topics share one physical flush."""
+def record_shadow_access_funnel(
+    *,
+    source_records: int,
+    planned_records: int,
+    planned_messages: int,
+    planned_bytes: int,
+    acked_records: int,
+    acked_messages: int,
+    acked_bytes: int,
+    dropped_records: int,
+    dropped_messages: int,
+    dropped_bytes: int,
+    ack_unknown_records: int,
+    ack_unknown_messages: int,
+    ack_unknown_bytes: int,
+) -> None:
+    """Record one completed Access v2 job using three independent units."""
 
-    _observe(stage, STATUS_SUCCESS if success else STATUS_FAILED, elapsed)
+    values = (
+        source_records,
+        planned_records,
+        planned_messages,
+        planned_bytes,
+        acked_records,
+        acked_messages,
+        acked_bytes,
+        dropped_records,
+        dropped_messages,
+        dropped_bytes,
+        ack_unknown_records,
+        ack_unknown_messages,
+        ack_unknown_bytes,
+    )
+    if any(value < 0 for value in values):
+        raise ValueError("alarmd Access v2 funnel counters must be non-negative")
+    if (
+        planned_records > source_records
+        or planned_records != acked_records + dropped_records + ack_unknown_records
+        or planned_messages != acked_messages + dropped_messages + ack_unknown_messages
+        or planned_bytes != acked_bytes + dropped_bytes + ack_unknown_bytes
+    ):
+        raise ValueError("alarmd Access v2 planned cohort does not conserve")
+
+    _increment(metrics.ALARMD_SHADOW_ACCESS_RECORD_COUNT, STATUS_SOURCE, source_records)
+    _increment(metrics.ALARMD_SHADOW_ACCESS_RECORD_COUNT, STATUS_ACKED, acked_records)
+    _increment(
+        metrics.ALARMD_SHADOW_ACCESS_RECORD_COUNT,
+        STATUS_DROPPED,
+        source_records - planned_records + dropped_records,
+    )
+    _increment(metrics.ALARMD_SHADOW_ACCESS_RECORD_COUNT, STATUS_ACK_UNKNOWN, ack_unknown_records)
+
+    _increment(metrics.ALARMD_SHADOW_ACCESS_MESSAGE_COUNT, STATUS_PLANNED, planned_messages)
+    _increment(metrics.ALARMD_SHADOW_ACCESS_MESSAGE_COUNT, STATUS_ACKED, acked_messages)
+    _increment(metrics.ALARMD_SHADOW_ACCESS_MESSAGE_COUNT, STATUS_DROPPED, dropped_messages)
+    _increment(metrics.ALARMD_SHADOW_ACCESS_MESSAGE_COUNT, STATUS_ACK_UNKNOWN, ack_unknown_messages)
+
+    _increment(metrics.ALARMD_SHADOW_ACCESS_BYTES, STATUS_PLANNED, planned_bytes)
+    _increment(metrics.ALARMD_SHADOW_ACCESS_BYTES, STATUS_ACKED, acked_bytes)
+    _increment(metrics.ALARMD_SHADOW_ACCESS_BYTES, STATUS_DROPPED, dropped_bytes)
+    _increment(metrics.ALARMD_SHADOW_ACCESS_BYTES, STATUS_ACK_UNKNOWN, ack_unknown_bytes)
+
+
+def _increment(counter, status: str, count: int) -> None:
+    if count > 0:
+        counter.labels(status=status).inc(count)
 
 
 def _observe(stage: str, status: str, elapsed: float) -> None:

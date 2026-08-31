@@ -7,7 +7,7 @@ import os
 import sys
 import threading
 import time
-from collections import Counter, defaultdict
+from collections import defaultdict
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
@@ -38,6 +38,11 @@ QUERY_PARTIAL = "PARTIAL"
 QUERY_UNAVAILABLE = "UNAVAILABLE"
 REASON_QUERY_PARTIAL = "QUERY_PARTIAL"
 REASON_QUERY_UNAVAILABLE = "QUERY_UNAVAILABLE"
+REASON_CONFIG_DRIFT = "CONFIG_DRIFT"
+REASON_RECORD_IDENTITY_INVALID = "RECORD_IDENTITY_INVALID"
+REASON_RECORD_INVALID = "RECORD_INVALID"
+REASON_RECORD_TOO_LARGE = "RECORD_TOO_LARGE"
+QUERY_REASON_NONE = "NONE"
 
 _OPERATOR = {
     "gt": "GT",
@@ -51,6 +56,12 @@ _OPERATOR = {
 
 class AccessV2BuildError(ValueError):
     pass
+
+
+class AccessV2RecordBuildError(AccessV2BuildError):
+    def __init__(self, detail_reason: str, message: str):
+        super().__init__(message)
+        self.detail_reason = detail_reason
 
 
 @dataclass(frozen=True)
@@ -110,7 +121,41 @@ class AccessPublishEvidence:
     acked_messages: int
     acked_records: int
     acked_bytes: int
+    dropped_messages: int
     dropped_records: int
+    dropped_bytes: int
+    ack_unknown_messages: int
+    ack_unknown_records: int
+    ack_unknown_bytes: int
+    planner_dropped_records: int
+
+    def __post_init__(self):
+        values = (
+            self.planned_messages,
+            self.planned_records,
+            self.planned_bytes,
+            self.published_messages,
+            self.published_records,
+            self.published_bytes,
+            self.acked_messages,
+            self.acked_records,
+            self.acked_bytes,
+            self.dropped_messages,
+            self.dropped_records,
+            self.dropped_bytes,
+            self.ack_unknown_messages,
+            self.ack_unknown_records,
+            self.ack_unknown_bytes,
+            self.planner_dropped_records,
+        )
+        if any(value < 0 for value in values):
+            raise ValueError("alarmd Access v2 publish evidence must be non-negative")
+        if (
+            self.planned_messages != self.acked_messages + self.dropped_messages + self.ack_unknown_messages
+            or self.planned_records != self.acked_records + self.dropped_records + self.ack_unknown_records
+            or self.planned_bytes != self.acked_bytes + self.dropped_bytes + self.ack_unknown_bytes
+        ):
+            raise ValueError("alarmd Access v2 planned publish evidence does not conserve")
 
 
 class AccessV2PublishError(RuntimeError):
@@ -131,7 +176,13 @@ def _fully_dropped_evidence(record_count: int) -> AccessPublishEvidence:
         acked_messages=0,
         acked_records=0,
         acked_bytes=0,
-        dropped_records=record_count,
+        dropped_messages=0,
+        dropped_records=0,
+        dropped_bytes=0,
+        ack_unknown_messages=0,
+        ack_unknown_records=0,
+        ack_unknown_bytes=0,
+        planner_dropped_records=record_count,
     )
 
 
@@ -147,6 +198,75 @@ def _record_stage(status: str, acknowledged_records: int = 0) -> None:
             "[alarmd shadow] component=alarmd-python stage=access_v2 "
             "result=fail_open reason=AUDIT_DROP operation=telemetry"
         )
+
+
+def _record_acknowledged_records(acknowledged_records: int) -> None:
+    if not acknowledged_records:
+        return
+    try:
+        from alarm_backends.core.alarmd.telemetry import record_shadow_published_records
+
+        record_shadow_published_records(TELEMETRY_STAGE, acknowledged_records)
+    except Exception:
+        logger.exception(
+            "[alarmd shadow] component=alarmd-python stage=access_v2 "
+            "result=fail_open reason=AUDIT_DROP operation=telemetry"
+        )
+
+
+def _record_access_exclusion(reason: str, count: int) -> None:
+    if count <= 0:
+        return
+    try:
+        from alarm_backends.core.alarmd.telemetry import record_shadow_access_record_exclusion
+
+        record_shadow_access_record_exclusion(reason, count)
+    except Exception:
+        logger.exception(
+            "[alarmd shadow] component=alarmd-python stage=access_v2 "
+            "result=fail_open reason=AUDIT_DROP operation=record_exclusion"
+        )
+
+
+def _record_access_funnel(
+    source_records: int,
+    evidence: AccessPublishEvidence | None = None,
+) -> None:
+    try:
+        from alarm_backends.core.alarmd.telemetry import record_shadow_access_funnel
+
+        record_shadow_access_funnel(
+            source_records=source_records,
+            planned_records=evidence.planned_records if evidence else 0,
+            planned_messages=evidence.planned_messages if evidence else 0,
+            planned_bytes=evidence.planned_bytes if evidence else 0,
+            acked_records=evidence.acked_records if evidence else 0,
+            acked_messages=evidence.acked_messages if evidence else 0,
+            acked_bytes=evidence.acked_bytes if evidence else 0,
+            dropped_records=evidence.dropped_records if evidence else 0,
+            dropped_messages=evidence.dropped_messages if evidence else 0,
+            dropped_bytes=evidence.dropped_bytes if evidence else 0,
+            ack_unknown_records=evidence.ack_unknown_records if evidence else 0,
+            ack_unknown_messages=evidence.ack_unknown_messages if evidence else 0,
+            ack_unknown_bytes=evidence.ack_unknown_bytes if evidence else 0,
+        )
+    except Exception:
+        logger.exception(
+            "[alarmd shadow] component=alarmd-python stage=access_v2 "
+            "result=fail_open reason=AUDIT_DROP operation=access_funnel"
+        )
+
+
+def _query_outcome(jobs: Sequence[AccessPublishJob]) -> tuple[str, str]:
+    query_result = jobs[0].snapshot["query_result"]
+    completeness = str(query_result.get("completeness") or QUERY_UNAVAILABLE)
+    if query_result.get("reason_code") == REASON_CONFIG_DRIFT:
+        return completeness, REASON_CONFIG_DRIFT
+    if completeness == QUERY_UNAVAILABLE:
+        return completeness, REASON_QUERY_UNAVAILABLE
+    if completeness == QUERY_PARTIAL:
+        return completeness, REASON_QUERY_PARTIAL
+    return completeness, QUERY_REASON_NONE
 
 
 def _canonical_decimal(value) -> str:
@@ -189,23 +309,23 @@ def _threshold_groups(config) -> list[dict]:
     return result
 
 
-def _identity_fields(item, records: Sequence) -> list[str]:
-    schemas = Counter()
-    for record in records:
-        try:
-            schemas[tuple(sorted(record.clean_dimension_fields()))] += 1
-        except Exception:
-            continue
-    if schemas:
-        # One malformed or exceptional record must not choose the contract for
-        # every sibling. Ties are deterministic.
-        count = max(schemas.values())
-        return list(min(schema for schema, frequency in schemas.items() if frequency == count))
+def _fallback_identity_fields(item) -> list[str]:
     dimensions = getattr(getattr(item, "query", None), "dimensions", None)
     if dimensions is None:
         query_configs = getattr(item, "query_configs", None) or []
         dimensions = query_configs[0].get("agg_dimension", []) if query_configs else []
     return sorted(set(dimensions or []))
+
+
+def _record_identity_schema(record) -> tuple[str, ...]:
+    fields = record.clean_dimension_fields()
+    if not isinstance(fields, Sequence) or isinstance(fields, (str, bytes)):
+        raise AccessV2BuildError("record identity fields must be an array")
+    if any(not isinstance(field, str) or not field for field in fields):
+        raise AccessV2BuildError("record identity fields must be non-empty strings")
+    if len(set(fields)) != len(fields):
+        raise AccessV2BuildError("record identity fields must be unique")
+    return tuple(sorted(fields))
 
 
 def _projection(item, identity_fields: list[str]) -> dict:
@@ -246,6 +366,19 @@ def _build_algorithm(algorithm: Mapping, item) -> dict:
     }
 
 
+def _is_always_active_uptime(uptime) -> bool:
+    if not isinstance(uptime, Mapping):
+        return False
+    if uptime.get("calendars") or uptime.get("active_calendars"):
+        return False
+    time_ranges = uptime.get("time_ranges")
+    return time_ranges in (
+        [],
+        [{"start": "00:00", "end": "23:59"}],
+        [{"start": "00:00:00", "end": "23:59:59"}],
+    )
+
+
 def _build_plan(item, identity_fields: list[str], query_window: int) -> dict:
     strategy = item.strategy
     strategy_id = str(strategy.id)
@@ -279,8 +412,9 @@ def _build_plan(item, identity_fields: list[str], query_window: int) -> dict:
             "step_seconds": interval,
             "window_size": int(trigger.get("check_window") or 0),
         }
-        if trigger.get("uptime"):
-            trigger_config["uptime"] = copy.deepcopy(trigger["uptime"])
+        uptime = trigger.get("uptime")
+        if uptime and not _is_always_active_uptime(uptime):
+            trigger_config["uptime"] = copy.deepcopy(uptime)
             # Keep the Python hot path free of an additional BusinessManager
             # lookup. The Go EffectiveTimeProvider resolves this stable ref
             # with the envelope tenant/business identity at evaluation time.
@@ -326,7 +460,7 @@ def _build_plan(item, identity_fields: list[str], query_window: int) -> dict:
     }
 
 
-def _build_terminal_plan(item, identity_fields: list[str], query_window: int, reason_code: str) -> dict:
+def _build_terminal_plan(item, reason_code: str) -> dict:
     strategy = item.strategy
     strategy_id = str(strategy.id)
     strategy_config = strategy.config if isinstance(strategy.config, Mapping) else {}
@@ -336,66 +470,10 @@ def _build_terminal_plan(item, identity_fields: list[str], query_window: int, re
         "strategy_id": strategy_id,
         "revision": revision,
     }
-    projection = _projection(item, identity_fields)
-    try:
-        interval = min((int(config.get("agg_interval") or 60) for config in item.query_configs), default=60)
-    except (TypeError, ValueError):
-        interval = 60
-    interval = max(1, interval)
-    level_id = 1
-    for algorithm in getattr(item, "algorithms", ()):
-        try:
-            candidate = int(algorithm.get("level"))
-        except (AttributeError, TypeError, ValueError):
-            continue
-        if candidate > 0:
-            level_id = candidate
-            break
-    priority = level_id if level_id in {1, 2, 3} else 1
-    strategy_ir = {
-        "schema": {"name": "alarmd-strategy-ir", "major": 2, "minor": 0},
-        "required_features": [],
-        "strategy_ref": strategy_ref,
-        "execution_semantics": {
-            "evaluation_scope": "SERIES",
-            "query_window": max(interval, int(query_window)),
-            "aggregation_interval": interval,
-            "evaluation_interval": interval,
-            "lateness_tolerance": interval * 2,
-        },
-        "input_projection": projection,
-        "levels": [
-            {
-                "definition": {"level_id": level_id, "priority": priority},
-                "connector": "AND",
-                "detect_plan": {
-                    "algorithms": [
-                        {
-                            "type": "M1UnsupportedPlan",
-                            "version": 1,
-                            "config": {"reason_code": reason_code},
-                        }
-                    ]
-                },
-                "trigger_plan": {
-                    "type": "N_OF_M",
-                    "version": 1,
-                    "config": {"required_anomalies": 1, "step_seconds": interval, "window_size": 1},
-                },
-                "recovery_plan": {
-                    "type": "CONTINUOUS_TRIGGER_MISS",
-                    "version": 1,
-                    "config": {"consecutive_windows": 1, "enabled": False},
-                },
-            }
-        ],
-    }
     return {
         "plan_id": strategy_id,
         "strategy_ref": strategy_ref,
-        "input_projection": projection,
-        "source_compatibility": {"item_id": str(item.id)},
-        "strategy_ir": strategy_ir,
+        "terminal_reason_code": reason_code,
     }
 
 
@@ -413,7 +491,7 @@ def _build_plan_set(
         source_item = source_items[0]
         if len(source_items) > 1:
             reason = "MULTIPLE_EVALUATION_UNITS_UNSUPPORTED"
-            plans.append(_build_terminal_plan(source_item, identity_fields, query_window, reason))
+            plans.append(_build_terminal_plan(source_item, reason))
             selection_item_ids.append(tuple(int(item.id) for item in source_items))
             terminal_reasons.append(reason)
             continue
@@ -421,7 +499,7 @@ def _build_plan_set(
             plans.append(_build_plan(source_item, identity_fields, query_window))
         except Exception:
             reason = "PLAN_INVALID"
-            plans.append(_build_terminal_plan(source_item, identity_fields, query_window, reason))
+            plans.append(_build_terminal_plan(source_item, reason))
             selection_item_ids.append((int(source_item.id),))
             terminal_reasons.append(reason)
             continue
@@ -482,29 +560,51 @@ def apply_access_batch_context(processor, context: Mapping | None) -> None:
     processor.alarmd_v2_source_config_digest = context.get("source_config_digest")
 
 
+def _is_canonical_json_scalar(value) -> bool:
+    if value is None or isinstance(value, (str, bool, int)):
+        return True
+    return isinstance(value, float) and math.isfinite(value)
+
+
 def _record_snapshot(
     record, *, tenant_id: str, business_id: str, identity_fields: list[str], received_time: int
 ) -> dict:
-    if sorted(record.clean_dimension_fields()) != identity_fields:
-        raise AccessV2BuildError("record identity schema conflicts with Dataset Contract")
-    dimensions = dict(record.data.get("dimensions") or {})
-    if any(isinstance(value, (dict, list, tuple)) for value in dimensions.values()):
-        raise AccessV2BuildError("v2 dimensions must contain scalar JSON values")
+    if list(_record_identity_schema(record)) != identity_fields:
+        raise AccessV2RecordBuildError(
+            "IDENTITY_SCHEMA_CONFLICT", "record identity schema conflicts with Dataset Contract"
+        )
+    source_dimensions = dict(record.data.get("dimensions") or {})
+    dimensions = {}
     fields = []
     for name in identity_fields:
-        value = dimensions.get(name)
-        if value is None or isinstance(value, (dict, list, tuple)):
-            raise AccessV2BuildError(f"identity dimension {name} is missing or non-scalar")
+        value = source_dimensions.get(name)
+        if not _is_canonical_json_scalar(value):
+            raise AccessV2RecordBuildError("IDENTITY_DIMENSION_INVALID", f"identity dimension {name} is invalid")
+        dimensions[name] = value
         fields.append({"name": name, "value": value})
-    source_time = int(record.data["time"])
-    digest = derive_dimension_identity_digest_v2(tenant_id, business_id, fields)
+    # Python Access enriches records with Alert/CMDB-only structures such as
+    # bk_topo_node. Evaluation v2 keeps scalar supplemental labels and leaves
+    # nested enrichment to Alert.Builder instead of dropping the whole record.
+    for name, value in source_dimensions.items():
+        if name not in dimensions and _is_canonical_json_scalar(value):
+            dimensions[name] = value
+    try:
+        source_time = int(record.data["time"])
+    except (KeyError, TypeError, ValueError) as error:
+        raise AccessV2RecordBuildError("RECORD_TIME_INVALID", "record time is invalid") from error
+    try:
+        digest = derive_dimension_identity_digest_v2(tenant_id, business_id, fields)
+    except (TypeError, ValueError, UnicodeError) as error:
+        raise AccessV2RecordBuildError("IDENTITY_DIMENSION_INVALID", "identity dimension is invalid") from error
     value = record.data.get("value")
-    if isinstance(value, float) and not math.isfinite(value):
-        raise AccessV2BuildError("record value must be finite")
+    if not _is_canonical_json_scalar(value):
+        raise AccessV2RecordBuildError("RECORD_VALUE_INVALID", "record value must be a canonical JSON scalar")
     try:
         canonical_json_v2({"dimensions": dimensions, "value": value})
-    except (TypeError, ValueError) as error:
-        raise AccessV2BuildError("record dimensions and value must be canonical JSON scalars") from error
+    except (TypeError, ValueError, UnicodeError) as error:
+        raise AccessV2RecordBuildError(
+            "RECORD_CANONICALIZATION_INVALID", "record dimensions and value must be canonical JSON scalars"
+        ) from error
     return {
         "record_id": derive_record_id_v2(digest, source_time),
         "source_time": source_time,
@@ -516,7 +616,88 @@ def _record_snapshot(
     }
 
 
-def build_access_publish_job(processor, records: Sequence, *, received_time: int | None = None) -> AccessPublishJob:
+def build_access_publish_jobs(
+    processor, records: Sequence, *, received_time: int | None = None
+) -> tuple[AccessPublishJob, ...]:
+    """Build self-contained Dataset jobs for contiguous exact-schema runs.
+
+    All jobs retain the source QueryExecution identity and full Plan
+    membership. Each Plan projection is compiled against its Dataset schema,
+    so its Plan Set digest is intentionally Dataset-specific. Contiguous runs
+    preserve source order when schemas are interleaved.
+    """
+    received_time = int(time.time()) if received_time is None else int(received_time)
+    effective_records = records
+    query_result = getattr(processor, "alarmd_v2_query_result", None) or {}
+    first_item = processor.items[0] if processor.items else None
+    parent_source_digest = getattr(processor, "alarmd_v2_source_config_digest", None)
+    config_drift = bool(parent_source_digest and parent_source_digest != access_source_config_digest(processor))
+    if query_result.get("completeness") == QUERY_UNAVAILABLE or config_drift:
+        effective_records = []
+        _record_access_exclusion(REASON_CONFIG_DRIFT if config_drift else REASON_QUERY_UNAVAILABLE, len(records))
+
+    dataset_groups: list[tuple[tuple[str, ...], list]] = []
+    invalid_record_count = 0
+    first_invalid_ordinal = None
+    for ordinal, record in enumerate(effective_records):
+        try:
+            identity_fields = _record_identity_schema(record)
+        except Exception:
+            invalid_record_count += 1
+            if first_invalid_ordinal is None:
+                first_invalid_ordinal = ordinal
+            continue
+        if not dataset_groups or dataset_groups[-1][0] != identity_fields:
+            dataset_groups.append((identity_fields, []))
+        dataset_groups[-1][1].append(record)
+    if not dataset_groups:
+        dataset_groups.append((tuple(_fallback_identity_fields(first_item)), []))
+
+    identity_schema_count = len({identity_fields for identity_fields, _records in dataset_groups})
+
+    if invalid_record_count:
+        _record_stage("dropped")
+        _record_access_exclusion(REASON_RECORD_IDENTITY_INVALID, invalid_record_count)
+        logger.warning(
+            "[alarmd shadow] component=alarmd-python stage=access_v2 result=coverage_gap "
+            "reason=RECORD_IDENTITY_INVALID execution_id=%s query_group_key=%s "
+            "identity_schemas=%s records=%s first_record_ordinal=%s",
+            processor.alarmd_v2_execution_id,
+            processor.strategy_group_key,
+            identity_schema_count,
+            invalid_record_count,
+            first_invalid_ordinal,
+        )
+
+    if len(dataset_groups) > 1:
+        logger.info(
+            "[alarmd shadow] component=alarmd-python stage=access_v2 result=split "
+            "execution_id=%s query_group_key=%s datasets=%s identity_schemas=%s records=%s",
+            processor.alarmd_v2_execution_id,
+            processor.strategy_group_key,
+            len(dataset_groups),
+            identity_schema_count,
+            sum(len(group) for _identity_fields, group in dataset_groups),
+        )
+
+    return tuple(
+        _build_access_publish_job(
+            processor,
+            group,
+            received_time=received_time,
+            identity_fields=list(identity_fields),
+        )
+        for identity_fields, group in dataset_groups
+    )
+
+
+def _build_access_publish_job(
+    processor,
+    records: Sequence,
+    *,
+    received_time: int,
+    identity_fields: list[str],
+) -> AccessPublishJob:
     if not processor.items:
         raise AccessV2BuildError("Query Group has no item")
     query_result = copy.deepcopy(getattr(processor, "alarmd_v2_query_result", None))
@@ -536,21 +717,23 @@ def build_access_publish_job(processor, records: Sequence, *, received_time: int
         for item in processor.items
     ):
         raise AccessV2BuildError("one Query Group must contain one tenant and business")
-    identity_fields = _identity_fields(first_item, records)
     query_window = max(0, int(processor.until_timestamp) - int(processor.from_timestamp))
     plan_set, selection_item_ids, terminal_reasons = _build_plan_set(processor.items, identity_fields, query_window)
     if terminal_reasons:
         _record_stage("dropped")
         logger.warning(
-            "[alarmd shadow] component=alarmd-python stage=access_v2 result=coverage_gap reason=%s plans=%s",
+            "[alarmd shadow] component=alarmd-python stage=access_v2 result=coverage_gap "
+            "reason=%s execution_id=%s query_group_key=%s plans=%s",
             terminal_reasons[0],
+            processor.alarmd_v2_execution_id,
+            processor.strategy_group_key,
             len(terminal_reasons),
         )
-    received_time = int(time.time()) if received_time is None else int(received_time)
     valid_records = []
     record_snapshots = []
     invalid_record_count = 0
     first_invalid_ordinal = None
+    invalid_detail_reasons = defaultdict(int)
     for ordinal, record in enumerate(records):
         try:
             snapshot = _record_snapshot(
@@ -560,8 +743,15 @@ def build_access_publish_job(processor, records: Sequence, *, received_time: int
                 identity_fields=identity_fields,
                 received_time=received_time,
             )
+        except AccessV2RecordBuildError as error:
+            invalid_record_count += 1
+            invalid_detail_reasons[error.detail_reason] += 1
+            if first_invalid_ordinal is None:
+                first_invalid_ordinal = ordinal
+            continue
         except (AccessV2BuildError, KeyError, TypeError, ValueError):
             invalid_record_count += 1
+            invalid_detail_reasons["RECORD_BUILD_INVALID"] += 1
             if first_invalid_ordinal is None:
                 first_invalid_ordinal = ordinal
             continue
@@ -569,11 +759,16 @@ def build_access_publish_job(processor, records: Sequence, *, received_time: int
         record_snapshots.append(snapshot)
     if invalid_record_count:
         _record_stage("dropped")
+        _record_access_exclusion(REASON_RECORD_INVALID, invalid_record_count)
         logger.warning(
             "[alarmd shadow] component=alarmd-python stage=access_v2 result=coverage_gap "
-            "reason=RECORD_IDENTITY_CONFLICT records=%s first_record_ordinal=%s",
+            "reason=RECORD_INVALID execution_id=%s query_group_key=%s "
+            "records=%s first_record_ordinal=%s detail_reasons=%s",
+            processor.alarmd_v2_execution_id,
+            processor.strategy_group_key,
             invalid_record_count,
             first_invalid_ordinal,
+            ",".join(f"{reason}:{invalid_detail_reasons[reason]}" for reason in sorted(invalid_detail_reasons)),
         )
     selections = [
         [
@@ -638,45 +833,83 @@ class KafkaExecutionEnvelopePublisher:
             producer_scope="access-v2",
         )
 
-    def publish(self, job: AccessPublishJob) -> AccessPublishEvidence:
-        try:
-            messages, drops = build_execution_messages(
-                job,
-                max_records=self.max_records,
-                max_envelope_bytes=self.max_envelope_bytes,
-            )
-        except PlanSetTooLarge as error:
+    def publish(self, jobs: Sequence[AccessPublishJob]) -> AccessPublishEvidence:
+        jobs = tuple(jobs)
+        if not jobs:
             raise AccessV2PublishError(
-                "alarmd v2 complete Plan Set exceeds one message",
-                _fully_dropped_evidence(job.record_count),
-                reason_code="MESSAGE_BUDGET_EXCEEDED",
-            ) from error
-        except AccessV2WriterError as error:
-            raise AccessV2PublishError(
-                "alarmd v2 message planning failed",
-                _fully_dropped_evidence(job.record_count),
+                "alarmd v2 publish requires at least one Dataset",
+                _fully_dropped_evidence(0),
                 reason_code="PLAN_INVALID",
-            ) from error
+            )
+        messages = []
+        drops = []
+        first_drop_dataset = None
+        total_records = sum(job.record_count for job in jobs)
+        for dataset_ordinal, job in enumerate(jobs):
+            try:
+                job_messages, job_drops = build_execution_messages(
+                    job,
+                    max_records=self.max_records,
+                    max_envelope_bytes=self.max_envelope_bytes,
+                )
+            except PlanSetTooLarge as error:
+                raise AccessV2PublishError(
+                    "alarmd v2 complete Plan Set exceeds one message",
+                    _fully_dropped_evidence(total_records),
+                    reason_code="MESSAGE_BUDGET_EXCEEDED",
+                ) from error
+            except AccessV2WriterError as error:
+                raise AccessV2PublishError(
+                    "alarmd v2 message planning failed",
+                    _fully_dropped_evidence(total_records),
+                    reason_code="PLAN_INVALID",
+                ) from error
+            messages.extend(job_messages)
+            if job_drops and first_drop_dataset is None:
+                first_drop_dataset = dataset_ordinal
+            drops.extend(job_drops)
         if drops:
             _record_stage("dropped")
+            oversized_record_count = sum(drop.reason_code == REASON_RECORD_TOO_LARGE for drop in drops)
+            _record_access_exclusion(REASON_RECORD_TOO_LARGE, oversized_record_count)
             logger.warning(
                 "[alarmd shadow] component=alarmd-python stage=access_v2 result=coverage_gap "
-                "reason=%s records=%s first_record_ordinal=%s",
+                "reason=%s records=%s first_dataset_ordinal=%s first_record_ordinal=%s",
                 drops[0].reason_code,
                 len(drops),
+                first_drop_dataset,
                 drops[0].record_ordinal,
             )
         receipt = KafkaPublishReceipt()
         lock = threading.Lock()
+        message_states = [{"message": message, "status": "planned"} for message in messages]
+        finalized = False
         published_messages = 0
         published_records = 0
         published_bytes = 0
-        acked_messages = 0
-        acked_records = 0
-        acked_bytes = 0
 
         def evidence() -> AccessPublishEvidence:
+            nonlocal finalized
             with lock:
+                if not finalized:
+                    for state in message_states:
+                        if state["status"] == "pending":
+                            state["status"] = "ack_unknown"
+                        elif state["status"] == "planned":
+                            state["status"] = "dropped"
+                    finalized = True
+
+                def terminal_totals(status):
+                    terminal_messages = [state["message"] for state in message_states if state["status"] == status]
+                    return (
+                        len(terminal_messages),
+                        sum(message.record_count for message in terminal_messages),
+                        sum(len(message.payload) for message in terminal_messages),
+                    )
+
+                acked_messages, acked_records, acked_bytes = terminal_totals("acked")
+                dropped_messages, dropped_records, dropped_bytes = terminal_totals("dropped")
+                ack_unknown_messages, ack_unknown_records, ack_unknown_bytes = terminal_totals("ack_unknown")
                 return AccessPublishEvidence(
                     planned_messages=len(messages),
                     planned_records=sum(message.record_count for message in messages),
@@ -687,36 +920,43 @@ class KafkaExecutionEnvelopePublisher:
                     acked_messages=acked_messages,
                     acked_records=acked_records,
                     acked_bytes=acked_bytes,
-                    dropped_records=len(drops),
+                    dropped_messages=dropped_messages,
+                    dropped_records=dropped_records,
+                    dropped_bytes=dropped_bytes,
+                    ack_unknown_messages=ack_unknown_messages,
+                    ack_unknown_records=ack_unknown_records,
+                    ack_unknown_bytes=ack_unknown_bytes,
+                    planner_dropped_records=len(drops),
                 )
 
-        def delivery_callback(current, downstream):
+        def delivery_callback(state, downstream):
             delivered = False
 
             def on_delivery(error, broker_message):
-                nonlocal delivered, acked_messages, acked_records, acked_bytes
+                nonlocal delivered
                 with lock:
                     if delivered:
                         return
                     delivered = True
-                    if error is None:
-                        acked_messages += 1
-                        acked_records += current.record_count
-                        acked_bytes += len(current.payload)
+                    if not finalized:
+                        state["status"] = "acked" if error is None else "dropped"
                 downstream(error, broker_message)
 
             return on_delivery
 
-        for message in messages:
+        for state in message_states:
+            message = state["message"]
             callback, cancel = receipt.reserve(message.record_count)
             try:
                 self.producer.produce(
                     topic=self.topic,
                     key=message.key,
                     value=message.payload,
-                    on_delivery=delivery_callback(message, callback),
+                    on_delivery=delivery_callback(state, callback),
                 )
                 with lock:
+                    if state["status"] == "planned":
+                        state["status"] = "pending"
                     published_messages += 1
                     published_records += message.record_count
                     published_bytes += len(message.payload)
@@ -724,21 +964,35 @@ class KafkaExecutionEnvelopePublisher:
                     self.producer.poll(0)
             except Exception as error:
                 cancel()
+                with lock:
+                    if state["status"] == "planned":
+                        state["status"] = "dropped"
                 receipt.fail_enqueue(error)
                 break
         _record_stage("published")
+        flush_error = None
         try:
-            remaining = self.producer.flush(timeout=self.flush_timeout)
+            self.producer.flush(timeout=self.flush_timeout)
         except Exception as error:
-            raise AccessV2PublishError("alarmd v2 Kafka flush failed", evidence()) from error
-        if (
-            receipt.enqueue_error
-            or receipt.first_delivery_error
-            or (remaining and receipt.pending_messages)
-            or receipt.pending_messages
-        ):
-            raise AccessV2PublishError("alarmd v2 Kafka publish was not fully acknowledged", evidence())
-        return evidence()
+            flush_error = error
+        publish_evidence = evidence()
+        if receipt.enqueue_error:
+            raise AccessV2PublishError(
+                "alarmd v2 Kafka message enqueue failed",
+                publish_evidence,
+                reason_code="OUTPUT_ENQUEUE_FAILED",
+            ) from receipt.enqueue_error
+        if publish_evidence.dropped_messages:
+            raise AccessV2PublishError(
+                "alarmd v2 Kafka message delivery failed",
+                publish_evidence,
+                reason_code="OUTPUT_DELIVERY_FAILED",
+            ) from receipt.first_delivery_error
+        if flush_error is not None:
+            raise AccessV2PublishError("alarmd v2 Kafka flush failed", publish_evidence) from flush_error
+        if publish_evidence.ack_unknown_messages:
+            raise AccessV2PublishError("alarmd v2 Kafka publish was not fully acknowledged", publish_evidence)
+        return publish_evidence
 
 
 _publisher_lock = threading.Lock()
@@ -774,13 +1028,16 @@ def _new_async_publisher() -> BoundedAccessShadowPublisher:
         nonlocal kafka_publisher
         started = time.monotonic()
         try:
-            job = build_access_publish_job(source, source.records)
+            jobs = build_access_publish_jobs(source, source.records)
             _record_stage("built")
         except Exception:
             _record_stage("dropped")
+            _record_access_funnel(len(source.records))
             logger.exception(
                 "[alarmd shadow] component=alarmd-python stage=access_v2 result=coverage_gap "
-                "reason=PLAN_INVALID duration_ms=%s",
+                "reason=PLAN_INVALID execution_id=%s query_group_key=%s duration_ms=%s",
+                source.alarmd_v2_execution_id,
+                source.strategy_group_key,
                 max(0, round((time.monotonic() - started) * 1000)),
             )
             return
@@ -790,17 +1047,28 @@ def _new_async_publisher() -> BoundedAccessShadowPublisher:
                     shadow_kafka_config(settings.ALARMD_V2_SHADOW_KAFKA_CONFIG),
                     shadow_topics(settings.ALARMD_V2_SHADOW_ALLOWED_TOPICS),
                 )
-            publish_evidence = kafka_publisher.publish(job)
+            from alarm_backends.core.alarmd.telemetry import observe_shadow_publish
+
+            with observe_shadow_publish(TELEMETRY_STAGE):
+                publish_evidence = kafka_publisher.publish(jobs)
         except AccessV2PublishError as error:
             if error.evidence.acked_messages:
-                _record_stage("acked", error.evidence.acked_records)
+                _record_acknowledged_records(error.evidence.acked_records)
             _record_stage("dropped")
+            _record_access_funnel(len(source.records), error.evidence)
             logger.exception(
                 "[alarmd shadow] component=alarmd-python stage=access_v2 result=fail_open "
-                "reason=%s planned_messages=%s planned_records=%s planned_bytes=%s "
+                "reason=%s execution_id=%s query_group_key=%s datasets=%s "
+                "planned_messages=%s planned_records=%s planned_bytes=%s "
                 "published_messages=%s published_records=%s published_bytes=%s "
-                "acked_messages=%s acked_records=%s acked_bytes=%s dropped_records=%s duration_ms=%s",
+                "acked_messages=%s acked_records=%s acked_bytes=%s "
+                "dropped_messages=%s dropped_records=%s dropped_bytes=%s "
+                "ack_unknown_messages=%s ack_unknown_records=%s ack_unknown_bytes=%s "
+                "planner_dropped_records=%s duration_ms=%s",
                 error.reason_code,
+                source.alarmd_v2_execution_id,
+                source.strategy_group_key,
+                len(jobs),
                 error.evidence.planned_messages,
                 error.evidence.planned_records,
                 error.evidence.planned_bytes,
@@ -810,26 +1078,49 @@ def _new_async_publisher() -> BoundedAccessShadowPublisher:
                 error.evidence.acked_messages,
                 error.evidence.acked_records,
                 error.evidence.acked_bytes,
+                error.evidence.dropped_messages,
                 error.evidence.dropped_records,
+                error.evidence.dropped_bytes,
+                error.evidence.ack_unknown_messages,
+                error.evidence.ack_unknown_records,
+                error.evidence.ack_unknown_bytes,
+                error.evidence.planner_dropped_records,
                 max(0, round((time.monotonic() - started) * 1000)),
             )
             return
         except Exception:
             _record_stage("dropped")
+            _record_access_funnel(len(source.records))
             logger.exception(
                 "[alarmd shadow] component=alarmd-python stage=access_v2 result=fail_open "
-                "reason=KAFKA_UNAVAILABLE duration_ms=%s",
+                "reason=KAFKA_UNAVAILABLE execution_id=%s query_group_key=%s datasets=%s duration_ms=%s",
+                source.alarmd_v2_execution_id,
+                source.strategy_group_key,
+                len(jobs),
                 max(0, round((time.monotonic() - started) * 1000)),
             )
         else:
             _record_stage("acked", publish_evidence.acked_records)
+            _record_access_funnel(len(source.records), publish_evidence)
+            query_completeness, query_reason = _query_outcome(jobs)
             logger.info(
                 "[alarmd shadow] component=alarmd-python stage=access_v2 result=acked "
-                "messages=%s records=%s bytes=%s dropped_records=%s duration_ms=%s",
+                "execution_id=%s query_group_key=%s datasets=%s "
+                "messages=%s records=%s bytes=%s source_records=%s planned_records=%s "
+                "prewire_excluded_records=%s query_completeness=%s query_reason=%s "
+                "planner_dropped_records=%s duration_ms=%s",
+                source.alarmd_v2_execution_id,
+                source.strategy_group_key,
+                len(jobs),
                 publish_evidence.acked_messages,
                 publish_evidence.acked_records,
                 publish_evidence.acked_bytes,
-                publish_evidence.dropped_records,
+                len(source.records),
+                publish_evidence.planned_records,
+                len(source.records) - publish_evidence.planned_records,
+                query_completeness,
+                query_reason,
+                publish_evidence.planner_dropped_records,
                 max(0, round((time.monotonic() - started) * 1000)),
             )
 
@@ -842,7 +1133,7 @@ def _new_async_publisher() -> BoundedAccessShadowPublisher:
 
 
 def submit_access_shadow(processor, records: Sequence) -> bool:
-    if not shadow_flag(settings.ALARMD_SHADOW_ENABLED) or not shadow_flag(settings.ALARMD_V2_SHADOW_WRITER_ENABLED):
+    if not shadow_flag(settings.ALARMD_SHADOW_ENABLED):
         return False
     if getattr(processor, "alarmd_v2_query_result", None) is None:
         return False
@@ -856,6 +1147,7 @@ def submit_access_shadow(processor, records: Sequence) -> bool:
                 _publisher = _new_async_publisher()
             except Exception:
                 _record_stage("dropped")
+                _record_access_funnel(len(records))
                 _log_publisher_initialize_failure(process_id)
                 return False
             _publisher_pid = process_id
@@ -867,6 +1159,7 @@ def submit_access_shadow(processor, records: Sequence) -> bool:
     )
     if not accepted:
         _record_stage("dropped")
+        _record_access_funnel(len(records))
         logger.warning(
             "[alarmd shadow] component=alarmd-python stage=access_v2 result=coverage_gap reason=RESOURCE_HARD_STOP records=%s",
             len(records),

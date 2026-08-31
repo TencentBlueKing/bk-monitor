@@ -134,8 +134,7 @@ class InstanceActionPermission(IAMPermission):
         if settings.IGNORE_IAM_PERMISSION:
             return True
         instance_id = view.kwargs[self.get_look_url_kwarg(view)]
-        resource = self.resource_meta.create_instance(instance_id)
-        self.resources = [resource]
+        self.resources = [self.resource_meta.create_instance(instance_id)]
         return super().has_permission(request, view)
 
     def get_look_url_kwarg(self, view):
@@ -143,9 +142,9 @@ class InstanceActionPermission(IAMPermission):
         lookup_url_kwarg = view.lookup_url_kwarg or view.lookup_field
 
         assert lookup_url_kwarg in view.kwargs, (
-            "Expected view %s to be called with a URL keyword argument "
-            'named "%s". Fix your URL conf, or set the `.lookup_field` '
-            "attribute on the view correctly." % (self.__class__.__name__, lookup_url_kwarg)
+            f"Expected view {self.__class__.__name__} to be called with a URL keyword argument "
+            f'named "{lookup_url_kwarg}". Fix your URL conf, or set the `.lookup_field` '
+            "attribute on the view correctly."
         )
         return lookup_url_kwarg
 
@@ -164,8 +163,7 @@ class InstanceActionForDataPermission(InstanceActionPermission):
         instance_id = data.get(self.iam_instance_id_key) or view.kwargs.get(self.get_look_url_kwarg(view))
         if instance_id is None:
             raise NotHaveInstanceIdError
-        resource = self.resource_meta.create_instance(self.get_instance_id(instance_id))
-        self.resources = [resource]
+        self.resources = [self.resource_meta.create_instance(self.get_instance_id(instance_id))]
         return super(InstanceActionPermission, self).has_permission(request, view)
 
 
@@ -192,7 +190,18 @@ class BatchIAMPermission(IAMPermission):
             raise NotHaveInstanceIdError
 
         self.resources = [self.resource_meta.create_instance(instance_id) for instance_id in instance_ids]
-        return super().has_permission(request, view)
+        if not self.actions:
+            return True
+
+        # 同类型的多个实例必须每个单独成组：单点 is_allowed 的语义是“一个动作 + 一次判定所需的关联资源”，
+        # 同类型资源在两代实现里都只会有一个参与求值（V4 取首个，V3 SDK 的 ObjectSet 按类型存放导致后者覆盖前者），
+        # 直接把列表塞进去会让列表中其余实例完全跳过校验。
+        Permission().batch_is_allowed(
+            self.actions,
+            [[resource] for resource in self.resources],
+            raise_exception=True,
+        )
+        return True
 
 
 def insert_permission_field(

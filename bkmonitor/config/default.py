@@ -811,11 +811,11 @@ ACCESS_LATENCY_THRESHOLD_CONSTANT = 180
 # 仅对列表中的策略启用合并处理，为空时对所有静态阈值策略生效
 ACCESS_DETECT_MERGE_STRATEGY_IDS = []
 
-# Detect 完成后是否同步执行 Trigger；Access-Detect 合并路径共用此开关
-ENABLE_DETECT_INLINE_TRIGGER = False
+# Detect 完成后是否同步执行 Trigger；默认开启，Access-Detect 合并路径共用此开关
+ENABLE_DETECT_INLINE_TRIGGER = True
 
-# Event 完成后是否同步执行 Trigger；开启前需要先完成 Event 和 Trigger worker 滚动更新
-ENABLE_EVENT_INLINE_TRIGGER = False
+# Event 完成后是否同步执行 Trigger；默认开启，从旧版本升级时需先完成 Event 和 Trigger worker 滚动更新
+ENABLE_EVENT_INLINE_TRIGGER = True
 
 # 单个 Event 策略项最多占用的内联 Trigger 并发数
 EVENT_INLINE_TRIGGER_MAX_CONCURRENCY_PER_ITEM = 1
@@ -1377,13 +1377,6 @@ PUSH_MONITOR_EVENT_TO_FTA = True
 MONITOR_EVENT_KAFKA_TOPIC = os.getenv("BK_MONITOR_EVENT_KAFKA_TOPIC", "0bkmonitor_backend_event")
 # alarmd Detect→Trigger Shadow 默认关闭；所有旁路发布由一个总开关控制。
 ALARMD_SHADOW_ENABLED = False
-ALARMD_SHADOW_ASYNC_QUEUE_SIZE = 16
-ALARMD_DETECT_INPUT_SHADOW_KAFKA_CONFIG = {}
-ALARMD_DETECT_INPUT_SHADOW_ALLOWED_TOPICS = ()
-# Reader-first rollout gate for the Query Group level v2 Writer. The existing
-# Shadow switch remains the single business-level kill switch; this gate keeps
-# a new wire writer disabled until its Go reader is deployed.
-ALARMD_V2_SHADOW_WRITER_ENABLED = False
 ALARMD_V2_SHADOW_KAFKA_CONFIG = {}
 ALARMD_V2_SHADOW_ALLOWED_TOPICS = ()
 ALARMD_V2_SHADOW_ASYNC_MAX_JOBS = 0
@@ -1392,6 +1385,7 @@ ALARMD_V2_SHADOW_ASYNC_MAX_BYTES = 0
 ALARMD_V2_SHADOW_DRAIN_TIMEOUT_SECONDS = 1
 ALARMD_TRIGGER_REFERENCE_SHADOW_KAFKA_CONFIG = {}
 ALARMD_TRIGGER_REFERENCE_SHADOW_ALLOWED_TOPICS = ()
+ALARMD_TRIGGER_REFERENCE_SHADOW_ASYNC_QUEUE_SIZE = 16
 # 监控推送事件数据给自愈的 插件ID
 MONITOR_EVENT_PLUGIN_ID = "bkmonitor"
 # 主机监控获取单个进程支持最多port数

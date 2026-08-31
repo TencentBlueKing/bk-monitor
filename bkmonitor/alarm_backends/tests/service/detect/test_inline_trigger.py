@@ -10,6 +10,8 @@ specific language governing permissions and limitations under the License.
 
 from contextlib import contextmanager
 
+from django.conf import settings
+
 from alarm_backends.service.detect import process as detect_process
 from alarm_backends.service.detect.process import DetectProcess
 from alarm_backends.service.trigger import runner
@@ -21,10 +23,11 @@ def test_detect_process_exposes_inline_trigger_entry():
     assert callable(getattr(DetectProcess, "run_inline_trigger", None))
 
 
-def test_inline_trigger_switch_is_registered_as_dynamic_setting():
+def test_inline_trigger_switch_defaults_to_enabled_and_is_dynamic():
     field = global_config.ADVANCED_OPTIONS["ENABLE_DETECT_INLINE_TRIGGER"]
 
-    assert field.default is False
+    assert settings.ENABLE_DETECT_INLINE_TRIGGER is True
+    assert field.default is True
     assert "ENABLE_DETECT_INLINE_TRIGGER" in global_config.GLOBAL_CONFIGS
 
 
@@ -62,8 +65,6 @@ def test_detect_push_data_defers_signal_and_records_items_when_enabled(mocker):
         "trim_item_check_results_if_trigger_idle",
         create=True,
     )
-    mocker.patch.object(processor, "prepare_alarmd_detection_batches", return_value=[])
-    mocker.patch.object(processor, "publish_alarmd_detection_batches")
     mocker.patch.object(detect_process, "metrics")
 
     processor.push_data()
@@ -81,8 +82,6 @@ def test_detect_push_data_publishes_signal_and_records_no_inline_items_when_disa
     processor.strategy = mocker.MagicMock(items=[mocker.MagicMock(id=1)])
     mocker.patch.object(detect_process.settings, "ENABLE_DETECT_INLINE_TRIGGER", False)
     push_abnormal_data = mocker.patch.object(processor, "push_abnormal_data", return_value=1)
-    mocker.patch.object(processor, "prepare_alarmd_detection_batches", return_value=[])
-    mocker.patch.object(processor, "publish_alarmd_detection_batches")
     mocker.patch.object(detect_process, "metrics")
 
     processor.push_data()
@@ -146,6 +145,7 @@ def test_detect_process_runs_inline_trigger_after_detect_lock_is_released(mocker
 
     mocker.patch.object(detect_process, "service_lock", side_effect=detect_lock)
     mocker.patch.object(detect_process.metrics, "DETECT_PROCESS_TIME")
+
     def assert_lock_released():
         assert lock_state["active"] is False
 

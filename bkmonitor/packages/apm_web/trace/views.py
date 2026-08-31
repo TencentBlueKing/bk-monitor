@@ -41,7 +41,7 @@ from apm_web.trace.resources import (
     TraceStatisticsResource,
 )
 from apm_web.trace.serializers import TraceFieldsTopkRequestSerializer
-from apm_web.utils import generate_csv_file_download_response
+from bkmonitor.utils.csv import generate_csv_file_download_response
 from bkmonitor.iam import ActionEnum, ResourceEnum
 from bkmonitor.iam.drf import InstanceActionForDataPermission, ViewBusinessPermission
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
