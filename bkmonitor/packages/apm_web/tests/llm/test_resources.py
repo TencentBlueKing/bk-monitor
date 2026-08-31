@@ -1,15 +1,38 @@
 from unittest import TestCase, mock
 
-from apm_web.llm.resources import ListSpansResource, ListTracesResource
+from apm_web.llm.resources import AGENT_CANDIDATE_QUERY, ListSpansResource, ListTracesResource
 
 
 class ListTracesResourceTestCase(TestCase):
+    def test_agent_candidate_query_covers_supported_sources(self):
+        candidate_fields = {
+            condition.removeprefix("_exists_:attributes.") for condition in AGENT_CANDIDATE_QUERY.split(" OR ")
+        }
+        cases = {
+            "agentlens": ({"gen_ai.span.kind": "LLM"}, True),
+            "galileo": ({"gen_ai.operation.name": "chat"}, True),
+            "bkaidev": ({"agent.info.id": 3129, "agent.info.name": "demo"}, True),
+            "http": ({"http.method": "GET", "http.route": "/api/orders"}, False),
+        }
+
+        for source, (attributes, expected) in cases.items():
+            with self.subTest(source=source):
+                self.assertEqual(bool(candidate_fields.intersection(attributes)), expected)
+
+    def test_request_only_exposes_keyword_filter(self):
+        fields = ListTracesResource.RequestSerializer().fields
+
+        self.assertIn("keyword", fields)
+        self.assertNotIn("filters", fields)
+        self.assertNotIn("service_name", fields)
+
     @staticmethod
     def convert_spans(raw_spans):
         return [
             {
                 "trace_id": span["trace_id"],
                 "span_id": span["span_id"],
+                "parent_span_id": span.get("parent_span_id", ""),
                 "start_time": span.get("start_time", 0),
                 "end_time": span.get("end_time", 0),
                 "attributes": {
@@ -30,7 +53,9 @@ class ListTracesResourceTestCase(TestCase):
     def test_trace_group_flattens_child(self):
         span_query = mock.Mock(QUERY_MAX_LIMIT=10000)
         span_query.query_group_list.return_value = ["trace-2", "trace-1"]
-        proxy = mock.Mock(span_query=span_query)
+        application = mock.Mock()
+        data_sources = [mock.sentinel.data_source]
+        application.build_data_sources.return_value = data_sources
         raw_spans = [
             {
                 "trace_id": "trace-1",
@@ -78,7 +103,8 @@ class ListTracesResourceTestCase(TestCase):
         span_query.query_by_group_ids.return_value = raw_spans
 
         with (
-            mock.patch("apm_web.llm.resources.QueryProxy", return_value=proxy) as query_proxy,
+            mock.patch("apm_web.llm.resources.Application.objects.get", return_value=application) as get_application,
+            mock.patch("apm_web.llm.resources.get_query", return_value=span_query) as get_query,
             mock.patch("apm_web.llm.resources.adapt_spans", side_effect=self.convert_spans),
         ):
             result = ListTracesResource().request(
@@ -87,15 +113,7 @@ class ListTracesResourceTestCase(TestCase):
                     "app_name": "sand_local_dev",
                     "start_time": 1,
                     "end_time": 2,
-                    "service_name": "demo-service",
-                    "filters": [
-                        {
-                            "key": "keyword",
-                            "operator": "logic",
-                            "value": ["订单"],
-                            "options": {"is_wildcard": False, "group_relation": "OR"},
-                        }
-                    ],
+                    "keyword": "订单",
                 }
             )
 
@@ -107,7 +125,7 @@ class ListTracesResourceTestCase(TestCase):
                     "group_field": "trace_id",
                     "trace_id": "trace-2",
                     "input": "问二",
-                    "output": "答二",
+                    "output": "处理中",
                     "input_tokens": 20,
                     "output_tokens": 8,
                     "cache_read_input_tokens": 6,
@@ -134,7 +152,9 @@ class ListTracesResourceTestCase(TestCase):
         )
         self.assertNotIn("childs", result["items"][0])
         self.assertNotIn("total", result)
-        query_proxy.assert_called_once_with(11, "sand_local_dev")
+        get_application.assert_called_once_with(bk_biz_id=11, app_name="sand_local_dev")
+        application.build_data_sources.assert_called_once_with()
+        get_query.assert_called_once_with(data_sources)
         span_query.query_group_list.assert_called_once_with(
             start_time=1,
             end_time=2,
@@ -142,14 +162,9 @@ class ListTracesResourceTestCase(TestCase):
             offset=0,
             limit=20,
             filters=[
-                {
-                    "key": "keyword",
-                    "operator": "logic",
-                    "value": ["订单"],
-                    "options": {"is_wildcard": False, "group_relation": "OR"},
-                },
-                {"key": "resource.service.name", "operator": "equal", "value": ["demo-service"]},
+                {"key": "keyword", "operator": "logic", "value": ["订单"]},
             ],
+            query_string=AGENT_CANDIDATE_QUERY,
         )
         span_query.query_by_group_ids.assert_called_once_with(
             group_field="trace_id",
@@ -160,7 +175,9 @@ class ListTracesResourceTestCase(TestCase):
         group_field = "attributes.session.id"
         span_query = mock.Mock(QUERY_MAX_LIMIT=10000)
         span_query.query_group_list.return_value = ["session-2", "session-1"]
-        proxy = mock.Mock(span_query=span_query)
+        application = mock.Mock()
+        data_sources = [mock.sentinel.data_source]
+        application.build_data_sources.return_value = data_sources
         raw_spans = [
             {
                 "trace_id": "trace-1",
@@ -211,7 +228,8 @@ class ListTracesResourceTestCase(TestCase):
         span_query.query_by_group_ids.return_value = raw_spans
 
         with (
-            mock.patch("apm_web.llm.resources.QueryProxy", return_value=proxy),
+            mock.patch("apm_web.llm.resources.Application.objects.get", return_value=application) as get_application,
+            mock.patch("apm_web.llm.resources.get_query", return_value=span_query) as get_query,
             mock.patch("apm_web.llm.resources.adapt_spans", side_effect=self.convert_spans),
         ):
             result = ListTracesResource().request(
@@ -278,11 +296,15 @@ class ListTracesResourceTestCase(TestCase):
             offset=0,
             limit=20,
             filters=[],
+            query_string=AGENT_CANDIDATE_QUERY,
         )
         span_query.query_by_group_ids.assert_called_once_with(
             group_field=group_field,
             group_ids=["session-2", "session-1"],
         )
+        get_application.assert_called_once_with(bk_biz_id=11, app_name="sand_local_dev")
+        application.build_data_sources.assert_called_once_with()
+        get_query.assert_called_once_with(data_sources)
 
     def test_trace_time_uses_raw_root_span(self):
         raw_spans = [
@@ -310,6 +332,105 @@ class ListTracesResourceTestCase(TestCase):
 
         self.assertEqual(item["start_time"], 100)
         self.assertEqual(item["elapsed_time"], 200)
+
+    def test_trace_preview_uses_last_user_and_assistant_on_logical_root(self):
+        raw_spans = [
+            {"trace_id": "trace-1", "span_id": "http-root", "parent_span_id": "", "start_time": 100, "end_time": 300}
+        ]
+        converted_spans = [
+            {
+                "trace_id": "trace-1",
+                "span_id": "http-root",
+                "parent_span_id": "",
+                "attributes": {},
+            },
+            {
+                "trace_id": "trace-1",
+                "span_id": "agent",
+                "parent_span_id": "http-root",
+                "attributes": {
+                    "gen_ai.operation.name": "invoke_agent",
+                    "gen_ai.input.messages": [
+                        {"role": "system", "parts": [{"type": "text", "content": "系统提示词"}]},
+                        {"role": "user", "parts": [{"type": "text", "content": "历史问题"}]},
+                        {"role": "assistant", "parts": [{"type": "text", "content": "历史回答"}]},
+                        {
+                            "role": "tool",
+                            "parts": [{"type": "tool_call_response", "content": "内部工具结果"}],
+                        },
+                        {
+                            "role": "user",
+                            "parts": [
+                                {"type": "text", "content": "最新问题"},
+                                {"type": "reasoning", "content": "用户推理"},
+                            ],
+                        },
+                    ],
+                    "gen_ai.output.messages": [
+                        {"role": "assistant", "parts": [{"type": "text", "content": "历史输出"}]},
+                        {"role": "tool", "parts": [{"type": "text", "content": "工具输出"}]},
+                        {
+                            "role": "assistant",
+                            "parts": [
+                                {"type": "reasoning", "content": "内部推理"},
+                                {"type": "text", "content": "最终回答"},
+                            ],
+                        },
+                    ],
+                },
+            },
+            {
+                "trace_id": "trace-1",
+                "span_id": "llm",
+                "parent_span_id": "agent",
+                "attributes": {
+                    "gen_ai.operation.name": "chat",
+                    "gen_ai.input.messages": [
+                        {"role": "user", "parts": [{"type": "text", "content": "子 LLM 内部提示词"}]}
+                    ],
+                    "gen_ai.output.messages": [
+                        {"role": "assistant", "parts": [{"type": "text", "content": "子 LLM 输出"}]}
+                    ],
+                },
+            },
+        ]
+
+        with mock.patch("apm_web.llm.resources.adapt_spans", return_value=converted_spans):
+            item = ListTracesResource._trace_item("trace-1", raw_spans)
+
+        self.assertEqual(item["input"], "最新问题")
+        self.assertEqual(item["output"], "最终回答")
+
+    def test_trace_preview_does_not_fallback_to_child_llm(self):
+        raw_spans = [
+            {"trace_id": "trace-1", "span_id": "agent", "parent_span_id": "", "start_time": 100, "end_time": 300}
+        ]
+        converted_spans = [
+            {
+                "trace_id": "trace-1",
+                "span_id": "agent",
+                "parent_span_id": "",
+                "attributes": {"gen_ai.operation.name": "invoke_workflow"},
+            },
+            {
+                "trace_id": "trace-1",
+                "span_id": "llm",
+                "parent_span_id": "agent",
+                "attributes": {
+                    "gen_ai.operation.name": "chat",
+                    "gen_ai.input.messages": [{"role": "user", "parts": [{"type": "text", "content": "内部提示词"}]}],
+                    "gen_ai.output.messages": [
+                        {"role": "assistant", "parts": [{"type": "text", "content": "内部回答"}]}
+                    ],
+                },
+            },
+        ]
+
+        with mock.patch("apm_web.llm.resources.adapt_spans", return_value=converted_spans):
+            item = ListTracesResource._trace_item("trace-1", raw_spans)
+
+        self.assertEqual(item["input"], "")
+        self.assertEqual(item["output"], "")
 
 
 class ListSpansResourceTestCase(TestCase):

@@ -2,14 +2,15 @@ from unittest import TestCase, mock
 
 from django.db.models import Q
 
-from apm.core.handlers.query.span_query import SpanQuery
 from bkmonitor.data_source.utils.apm import TraceDatasourceTarget
 from constants.apm import OtlpKey
 
+from apm_web.llm.query import LLMQuery
 
-class SpanQueryTestCase(TestCase):
+
+class LLMQueryTestCase(TestCase):
     def setUp(self):
-        self.query = SpanQuery(
+        self.query = LLMQuery(
             [
                 TraceDatasourceTarget.build(
                     bk_biz_id=11,
@@ -21,12 +22,10 @@ class SpanQueryTestCase(TestCase):
         )
 
     def test_query_group_list(self):
-        with (
-            mock.patch.object(
-                self.query,
-                "_query_list",
-                return_value=[{"attributes.session.id": ["session-2"]}, {"attributes.session.id": "session-1"}],
-            ),
+        with mock.patch.object(
+            self.query,
+            "_query_list",
+            return_value=[{"attributes.session.id": "session-2"}, {"attributes.session.id": "session-1"}],
         ):
             group_ids = self.query.query_group_list(
                 start_time=1,
@@ -68,8 +67,8 @@ class SpanQueryTestCase(TestCase):
         result = self.query._build_filters([{"key": "keyword", "operator": "logic", "value": value}])
 
         expected = (
-            Q(**{f"{OtlpKey.TRACE_ID}__include": value})
-            | Q(**{f"{OtlpKey.SPAN_ID}__include": value})
+            Q(**{f"{OtlpKey.TRACE_ID}__eq": value})
+            | Q(**{f"{OtlpKey.SPAN_ID}__eq": value})
             | Q(**{f"{OtlpKey.get_attributes_key('user.id')}__include": value})
             | Q(**{f"{OtlpKey.get_attributes_key('gen_ai.conversation.id')}__include": value})
         )

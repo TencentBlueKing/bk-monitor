@@ -1,16 +1,22 @@
 from collections import defaultdict
 from typing import Any
 
-from opentelemetry.semconv.resource import ResourceAttributes
 from rest_framework import serializers
 
-from apm.core.handlers.query.proxy import QueryProxy
-from apm.serializers import FilterSerializer
 from constants.apm import OtlpKey
 from constants.otel_query import OperatorEnum
 from core.drf_resource import Resource, api
 
 from apm_web.llm.adapter import adapt_spans
+from apm_web.llm.query import get_query
+from apm_web.models import Application
+
+AGENT_CANDIDATE_QUERY = (
+    "_exists_:attributes.gen_ai.span.kind "
+    "OR _exists_:attributes.gen_ai.operation.name "
+    "OR _exists_:attributes.agent.info.id "
+    "OR _exists_:attributes.agent.info.name"
+)
 
 
 class ListTracesResource(Resource):
@@ -22,8 +28,7 @@ class ListTracesResource(Resource):
         start_time = serializers.IntegerField(required=True, label="开始时间")
         end_time = serializers.IntegerField(required=True, label="结束时间")
         group_field = serializers.CharField(required=False, default=OtlpKey.TRACE_ID, label="分组字段")
-        filters = serializers.ListSerializer(child=FilterSerializer(), required=False, default=[], label="查询条件")
-        service_name = serializers.CharField(required=False, allow_blank=True, default="", label="服务名称")
+        keyword = serializers.CharField(required=False, allow_blank=True, default="", label="关键词")
         offset = serializers.IntegerField(required=False, min_value=0, default=0, label="分页偏移")
         limit = serializers.IntegerField(required=False, min_value=1, default=20, label="分页大小")
 
@@ -45,28 +50,45 @@ class ListTracesResource(Resource):
         return value
 
     @staticmethod
-    def _message_text(spans: list[dict[str, Any]], attribute: str) -> str:
+    def _preview_root(spans: list[dict[str, Any]]) -> dict[str, Any]:
         for span in spans:
             attributes = span.get(OtlpKey.ATTRIBUTES)
-            messages = attributes.get(attribute) if isinstance(attributes, dict) else None
-            if not isinstance(messages, list):
+            operation = attributes.get("gen_ai.operation.name") if isinstance(attributes, dict) else None
+            if isinstance(operation, str) and operation.lower() in {"invoke_agent", "invoke_workflow"}:
+                return span
+
+        span_ids = {span_id for span in spans if (span_id := span.get(OtlpKey.SPAN_ID))}
+        return next(
+            (
+                span
+                for span in spans
+                if not (parent_span_id := span.get(OtlpKey.PARENT_SPAN_ID)) or parent_span_id not in span_ids
+            ),
+            {},
+        )
+
+    @staticmethod
+    def _last_message_text(span: dict[str, Any], attribute: str, expected_role: str) -> str:
+        attributes = span.get(OtlpKey.ATTRIBUTES)
+        messages = attributes.get(attribute) if isinstance(attributes, dict) else None
+        if not isinstance(messages, list):
+            return ""
+
+        for message in reversed(messages):
+            if not isinstance(message, dict) or message.get("role") != expected_role:
                 continue
-            for message in reversed(messages):
-                if not isinstance(message, dict):
-                    continue
-                parts = message.get("parts")
-                if not isinstance(parts, list):
-                    continue
-                texts = [
-                    content
-                    for part in parts
-                    if isinstance(part, dict)
-                    and part.get("type") == "text"
-                    and isinstance((content := part.get("content", part.get("text"))), str)
-                    and content.strip()
-                ]
-                if texts:
-                    return " ".join(texts)
+            parts = message.get("parts")
+            if not isinstance(parts, list):
+                return ""
+            texts = [
+                content
+                for part in parts
+                if isinstance(part, dict)
+                and part.get("type") == "text"
+                and isinstance((content := part.get("content", part.get("text"))), str)
+                and content.strip()
+            ]
+            return " ".join(texts)
         return ""
 
     @classmethod
@@ -75,6 +97,7 @@ class ListTracesResource(Resource):
         converted_attributes = [
             attributes for span in converted_spans if isinstance((attributes := span.get(OtlpKey.ATTRIBUTES)), dict)
         ]
+        preview_root = cls._preview_root(converted_spans)
         root_span = next((span for span in raw_spans if not span.get(OtlpKey.PARENT_SPAN_ID)), {})
         start_time = root_span.get(OtlpKey.START_TIME, 0)
         end_time = root_span.get(OtlpKey.END_TIME, start_time)
@@ -95,8 +118,8 @@ class ListTracesResource(Resource):
             "group_id": trace_id,
             "group_field": OtlpKey.TRACE_ID,
             "trace_id": trace_id,
-            "input": cls._message_text(converted_spans, "gen_ai.input.messages"),
-            "output": cls._message_text(converted_spans[::-1], "gen_ai.output.messages"),
+            "input": cls._last_message_text(preview_root, "gen_ai.input.messages", "user"),
+            "output": cls._last_message_text(preview_root, "gen_ai.output.messages", "assistant"),
             "input_tokens": token_total("gen_ai.usage.input_tokens"),
             "output_tokens": token_total("gen_ai.usage.output_tokens"),
             "cache_read_input_tokens": token_total("gen_ai.usage.cache_read.input_tokens"),
@@ -151,20 +174,15 @@ class ListTracesResource(Resource):
         return items
 
     def perform_request(self, validated_request_data):
-        filters = list(validated_request_data["filters"])
-        if service_name := validated_request_data["service_name"]:
-            filters.append(
-                {
-                    "key": OtlpKey.get_resource_key(ResourceAttributes.SERVICE_NAME),
-                    "operator": OperatorEnum.EQUAL["operator"],
-                    "value": [service_name],
-                }
-            )
+        filters = []
+        if keyword := validated_request_data["keyword"]:
+            filters.append({"key": "keyword", "operator": "logic", "value": [keyword]})
 
-        span_query = QueryProxy(
-            validated_request_data["bk_biz_id"],
-            validated_request_data["app_name"],
-        ).span_query
+        application = Application.objects.get(
+            bk_biz_id=validated_request_data["bk_biz_id"],
+            app_name=validated_request_data["app_name"],
+        )
+        span_query = get_query(application.build_data_sources())
         group_ids = span_query.query_group_list(
             start_time=validated_request_data["start_time"],
             end_time=validated_request_data["end_time"],
@@ -172,6 +190,7 @@ class ListTracesResource(Resource):
             offset=validated_request_data["offset"],
             limit=validated_request_data["limit"],
             filters=filters,
+            query_string=AGENT_CANDIDATE_QUERY,
         )
         result = {
             "offset": validated_request_data["offset"],

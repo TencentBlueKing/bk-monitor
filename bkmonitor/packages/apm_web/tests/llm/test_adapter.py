@@ -352,7 +352,14 @@ class AdapterTests(TestCase):
             },
             {
                 "name": "gen_ai.choice",
-                "attributes": {"message.detail": '{"ignored":true}'},
+                "attributes": {
+                    "message.detail": json.dumps(
+                        {
+                            "role": "assistant",
+                            "parts": [{"type": "text", "content": "choice response"}],
+                        }
+                    )
+                },
             },
             {
                 "name": "gen_ai.unknown",
@@ -371,8 +378,8 @@ class AdapterTests(TestCase):
             ["user", "assistant", "tool", "user"],
         )
         self.assertEqual(
-            attributes["gen_ai.output.messages"][0]["parts"][0]["content"],
-            "agent response",
+            [message["parts"][0]["content"] for message in attributes["gen_ai.output.messages"]],
+            ["agent response", "choice response"],
         )
         self.assertEqual(attributes["gen_ai.tool.definitions"][0]["name"], "add")
         self.assertEqual(
@@ -501,9 +508,11 @@ class AdapterTests(TestCase):
         llm = next(step for step in converted if step["attributes"]["gen_ai.operation.name"] == "chat")
         self.assertEqual(llm["attributes"]["gen_ai.usage.cache_read.input_tokens"], 3)
         self.assertEqual(llm["attributes"]["gen_ai.usage.cache_creation.input_tokens"], 2)
-        # 第一版明确丢弃 gen_ai.choice，不从它生成 output/finish_reason。
-        self.assertNotIn("gen_ai.output.messages", llm["attributes"])
-        self.assertNotIn("gen_ai.response.finish_reasons", llm["attributes"])
+        output = llm["attributes"]["gen_ai.output.messages"][0]
+        self.assertEqual(output["role"], "assistant")
+        self.assertEqual(output["parts"], [{"type": "text", "content": "hi"}])
+        self.assertEqual(output["finish_reason"], "stop")
+        self.assertEqual(llm["attributes"]["gen_ai.response.finish_reasons"], ["stop"])
 
     def test_galileo_drops_stream_ttft_and_cached_alias(self) -> None:
         span = agentlens_span()
