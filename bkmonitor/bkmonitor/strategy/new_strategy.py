@@ -1711,7 +1711,7 @@ class Item(AbstractConfig):
 
     @staticmethod
     def update_query_output_meta(meta, query_output_config) -> dict:
-        if meta is None:
+        if meta is None or (isinstance(meta, list) and not meta):
             meta = {}
         if not isinstance(meta, dict):
             raise ValidationError(detail="ItemModel.meta 历史值不是对象，禁止覆盖")

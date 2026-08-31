@@ -139,7 +139,13 @@ def test_update_query_output_meta_preserves_unrelated_keys_and_deletes_only_rese
     assert deleted == {"owner": "monitor"}
 
 
-@pytest.mark.parametrize("invalid_meta", [[], "legacy", 1])
+def test_update_query_output_meta_treats_empty_list_as_uninitialized():
+    updated = Item.update_query_output_meta([], named_output_config())
+
+    assert updated == {"query_output_config": named_output_config()}
+
+
+@pytest.mark.parametrize("invalid_meta", [["legacy"], "legacy", 1])
 def test_update_query_output_meta_rejects_non_object_history(invalid_meta):
     with pytest.raises(ValidationError, match="meta"):
         Item.update_query_output_meta(invalid_meta, named_output_config())

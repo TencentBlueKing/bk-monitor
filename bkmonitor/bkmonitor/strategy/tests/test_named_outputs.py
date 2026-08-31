@@ -81,6 +81,16 @@ def test_query_output_config_object_roundtrip_preserves_other_meta(clean_model):
     assert saved.meta == {"owner": "monitor", "query_output_config": named_output_config()}
 
 
+def test_existing_item_with_default_meta_can_enable_named_output(clean_model):
+    item = Item(strategy_id=1, **item_config())
+    item.save()
+    assert ItemModel.objects.get(id=item.id).meta == []
+
+    Item(strategy_id=1, **item_config(id=item.id, query_output_config=named_output_config())).save()
+
+    assert ItemModel.objects.get(id=item.id).meta == {"query_output_config": named_output_config()}
+
+
 def test_query_output_config_omitted_preserves_existing_value(clean_model):
     item = Item(strategy_id=1, **item_config(query_output_config=named_output_config()))
     item.save()
