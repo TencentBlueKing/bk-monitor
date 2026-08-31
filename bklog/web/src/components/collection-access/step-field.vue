@@ -1446,7 +1446,7 @@ __ext_json.service.labels   ${this.$t('动态对象字段')}`;
 
         return this.globalsData.field_date_format.map(item => {
           return Object.assign(item, {
-            disabled: false, //isNanoTimeFormat(item),
+            disabled: false, // isNanoTimeFormat(item),
           });
         });
       },

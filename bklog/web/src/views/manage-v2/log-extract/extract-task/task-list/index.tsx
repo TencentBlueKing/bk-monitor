@@ -161,7 +161,6 @@ export default defineComponent({
         return;
       }
 
-      // eslint-disable-next-line @typescript-eslint/no-misused-promises
       timeoutID.value = setTimeout(async () => {
         if (!pollingList.value.length) {
           return;
@@ -507,7 +506,7 @@ export default defineComponent({
                 <div class='task-operation-container'>
                   <span
                     class='task-operation'
-                    onClick={() => viewDetail(row)} // eslint-disable-line @typescript-eslint/no-misused-promises
+                    onClick={() => viewDetail(row)}
                   >
                     {t('详情')}
                   </span>
@@ -534,7 +533,7 @@ export default defineComponent({
                   {row.download_status === 'redownloadable' && (
                     <span
                       class='task-operation'
-                      onClick={() => reDownloadFile(row)} // eslint-disable-line @typescript-eslint/no-misused-promises
+                      onClick={() => reDownloadFile(row)}
                     >
                       {t('重试')}
                     </span>

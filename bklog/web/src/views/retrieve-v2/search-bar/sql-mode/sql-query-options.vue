@@ -54,17 +54,11 @@
    */
   const isAiAssistantActive = computed(() => store.state.features.isAiAssistantActive);
 
-  // eslint-disable-next-line no-unused-vars
   enum OptionItemType {
-    // eslint-disable-next-line no-unused-vars
     Colon = 'Colon',
-    // eslint-disable-next-line no-unused-vars
     Continue = 'Continue',
-    // eslint-disable-next-line no-unused-vars
     Fields = 'Fields',
-    // eslint-disable-next-line no-unused-vars
     Operator = 'Operator',
-    // eslint-disable-next-line no-unused-vars
     Value = 'Value',
   }
 

@@ -790,7 +790,6 @@ export default defineComponent({
     const renderOperatorSelector = (
       currentOp: string,
       ops: string[] | undefined,
-      // eslint-disable-next-line no-unused-vars
       onChange: (newOp: string) => void,
       options?: {
         label?: string;

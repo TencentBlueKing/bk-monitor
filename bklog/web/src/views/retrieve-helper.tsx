@@ -46,11 +46,8 @@ import RetrieveEvent from './retrieve-core/retrieve-events';
 import { RouteQueryTab } from './retrieve-v3/index.type';
 
 export enum STORAGE_KEY {
-  // eslint-disable-next-line no-unused-vars
   STORAGE_KEY_FAVORITE_SHOW = 'STORAGE_KEY_FAVORITE_SHOW',
-  // eslint-disable-next-line no-unused-vars
   STORAGE_KEY_FAVORITE_VIEW_CURRENT_CHANGE = 'STORAGE_KEY_FAVORITE_VIEW_CURRENT_CHANGE',
-  // eslint-disable-next-line no-unused-vars
   STORAGE_KEY_FAVORITE_WIDTH = 'STORAGE_KEY_FAVORITE_WIDTH',
 }
 

@@ -551,7 +551,6 @@
       },
       getApprover() {
         if (this.isCanUseAssessment) {
-          // eslint-disable-next-line vue/no-side-effects-in-computed-properties
           this.formData.assessment_config.approvals = this.selectedStorageCluster?.admin || [];
           return this.selectedStorageCluster?.admin.join(', ') || '';
         }

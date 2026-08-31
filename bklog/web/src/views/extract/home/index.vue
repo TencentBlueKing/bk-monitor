@@ -373,7 +373,6 @@
           return;
         }
 
-        // eslint-disable-next-line @typescript-eslint/no-misused-promises
         this.timeoutID = setTimeout(async () => {
           if (!this.pollingList.length) {
             return;

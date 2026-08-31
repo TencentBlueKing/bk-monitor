@@ -45,7 +45,6 @@ interface IProps {
   data: any;
 }
 
-/* eslint-disable no-unused-vars */
 export enum OptionList {
   Analysis = 'analysis',
   Overview = 'overview',
@@ -60,8 +59,6 @@ export enum GraphCategory {
   PIE = 'pie',
   TABLE = 'table',
 }
-/* eslint-enable no-unused-vars */
-
 @Component({
   components: {
     GraphDragTool,

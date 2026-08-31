@@ -12,7 +12,6 @@ interface DetailItemConfig {
   /** 从 LogItem 中取值的字段名，与 render 互斥 */
   field?: keyof LogItem;
   /** 自定义渲染右侧内容，优先级高于 field */
-  // eslint-disable-next-line no-unused-vars
   render?: (
     userInfo: LogItem | null,
     reportStats: UserReportStats | null,

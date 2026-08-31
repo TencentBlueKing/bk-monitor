@@ -340,7 +340,7 @@ export default defineComponent({
               </span>
               <span
                 class='apply-text'
-                onClick={() => applyProjectAccess(option)} // eslint-disable-line @typescript-eslint/no-misused-promises
+                onClick={() => applyProjectAccess(option)}
               >
                 {t('申请权限')}
               </span>

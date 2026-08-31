@@ -56,7 +56,6 @@ class RouteUrlResolver {
 
   constructor({ route, resolveFieldList }: { route: Route; resolveFieldList?: string[] }) {
     this.route = route;
-    // eslint-disable-next-line
     this.resolver = new Map<string, (_str: string) => unknown>();
     this.paramSanitizers = new Map<string, (val: unknown) => unknown>();
     this.resolveFieldList = resolveFieldList ?? this.getDefaultResolveFieldList();

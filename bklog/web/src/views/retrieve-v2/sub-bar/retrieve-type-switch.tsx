@@ -39,7 +39,6 @@ import { SceneType } from '../../retrieve-v3/search-bar/scene-filter/types';
 import { BK_LOG_STORAGE } from '@/store/store.type';
 import './retrieve-type-switch.scss';
 
-/* eslint-disable no-unused-vars */
 export enum RetrieveType {
   Normal = 'normal',
   Scene = 'scene',

@@ -33,7 +33,6 @@ import './index.scss';
 
 export default defineComponent({
   name: 'V3Toolbar',
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   setup() {
     const isFavoriteShown = ref(RetrieveHelper.isFavoriteShown);
     const onFavoriteShowChange = (val: boolean) => {

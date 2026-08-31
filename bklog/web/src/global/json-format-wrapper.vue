@@ -205,7 +205,6 @@
 
             scheduleCalculation(() => {
               // 触发 computed 计算，生成缓存
-              // eslint-disable-next-line no-unused-expressions
               this.jsonShowData;
               // 提取所有 keys（异步执行，避免阻塞）
               this.allKeys = this.extractKeys(this.jsonShowDataCache);

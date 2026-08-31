@@ -259,7 +259,6 @@
           const matchValueError = this.isHaveCompared ? !this.matchValueArr.length : !this.matchValue;
           // key value 不能为空
           if (matchValueError) {
-            // eslint-disable-next-line vue/no-side-effects-in-computed-properties
             matchValueError && (this.isValueError = true);
             return false;
           }
