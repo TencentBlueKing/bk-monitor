@@ -34,6 +34,7 @@ import {
 } from '../../../../trace-explore/components/trace-explore-table/typing';
 import {
   DURATION_COLOR_THRESHOLDS,
+  RUM_DURATION_FIELD_UNITS,
   RUM_LINK_FIELDS,
   RUM_STATUS_CODE_MAP,
   RUM_TIME_FIELDS,
@@ -99,8 +100,13 @@ export class SpanScenario extends BaseScenario {
    */
   protected buildBaseline(colKey: string): Partial<BaseTableColumn> {
     const field = get(this.context.fieldMap).get(colKey);
-    if (field?.field_unit === 'us') {
-      return { cellRenderer: this.renderDurationCell };
+    const unit = field?.field_unit;
+    if (unit && RUM_DURATION_FIELD_UNITS.has(unit)) {
+      return {
+        cellRenderer: this.renderDurationCell,
+        // 将字段原始单位透传给 duration 单元格渲染器，使其按正确量纲格式化与着色
+        cellSpecificProps: { durationUnit: unit },
+      };
     }
     return {};
   }
@@ -113,7 +119,9 @@ export class SpanScenario extends BaseScenario {
     const inner = renderCtx?.cellRenderHandleMap?.[ExploreTableColumnTypeEnum.DURATION]?.(row, column, renderCtx);
     const value = (row as Record<string, unknown>)?.[column.colKey];
     if (value == null || value === '') return inner;
-    const microseconds = Number(value);
+    // 阈值量纲为微秒，需按字段单位换算后再比对颜色（ms 字段需 * 1000）
+    const unit = column?.cellSpecificProps?.durationUnit ?? 'us';
+    const microseconds = unit === 'ms' ? Number(value) * 1000 : Number(value);
     let theme = 'normal';
     if (microseconds >= DURATION_COLOR_THRESHOLDS.warning) {
       theme = 'failed';

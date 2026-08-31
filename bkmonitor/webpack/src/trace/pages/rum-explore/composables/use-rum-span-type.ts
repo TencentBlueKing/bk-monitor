@@ -69,13 +69,6 @@ export function useRumSpanType(viewConfig: Ref<IRumViewConfig>) {
     store.spanType ? [{ key: SPAN_TYPE_FIELD, operator: 'equal', value: [store.spanType] }] : []
   );
 
-  /** 当前类型对应的默认展示列，未选类型时用全局默认列 */
-  const spanTypeDisplayFields = computed<string[]>(() => {
-    const { span_type_display_fields: typeFields, display_fields: defaultFields } = viewConfig.value;
-    if (!store.spanType) return defaultFields;
-    return typeFields?.[store.spanType]?.length ? typeFields[store.spanType] : defaultFields;
-  });
-
   /** 分组是否适用于当前类型，不适用的分组在左侧栏折叠 */
   function isGroupSupported(group: IRumFieldGroup) {
     if (!store.spanType || !group.supported_span_types?.length) return true;
@@ -90,7 +83,6 @@ export function useRumSpanType(viewConfig: Ref<IRumViewConfig>) {
     chipList,
     activeSpanType,
     spanTypeFilters,
-    spanTypeDisplayFields,
     isGroupSupported,
     setSpanType,
   };
