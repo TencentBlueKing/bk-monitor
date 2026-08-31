@@ -42,7 +42,6 @@ export function getConditionRouterParams(searchList, searchMode, isNewLink, appe
     return JSON.stringify(linkAdditionList?.length ? filterAddition.concat(...linkAdditionList) : filterAddition);
   };
   const { params, query } = window.mainComponent.$route;
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   const { ip_chooser, addition, keyword, ...reset } = query;
   const filterQuery = reset; // 给query排序 让addition和ip_chooser排前面
   let newAddition;

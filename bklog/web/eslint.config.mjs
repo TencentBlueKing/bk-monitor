@@ -56,13 +56,56 @@ const typescriptMigrationWarnings = {
   '@typescript-eslint/triple-slash-reference': 'warn',
 };
 
+const typescriptUnusedVarsRule = [
+  'error',
+  {
+    args: 'after-used',
+    argsIgnorePattern: '^_.+',
+    ignoreRestSiblings: true,
+    varsIgnorePattern: '^_.+',
+  },
+];
+
+const vueComponentRules = {
+  'vue/multi-word-component-names': 'off',
+  'vue/no-confusing-v-for-v-if': 'off',
+  'vue/no-lone-template': 'off',
+  'vue/no-side-effects-in-computed-properties': 'off',
+  'vue/order-in-components': [
+    'error',
+    {
+      order: [
+        'el',
+        'name',
+        'parent',
+        'functional',
+        ['delimiters', 'comments'],
+        ['components', 'directives', 'filters'],
+        'extends',
+        'mixins',
+        'inheritAttrs',
+        'model',
+        ['props', 'propsData'],
+        'data',
+        'computed',
+        'watch',
+        'LIFECYCLE_HOOKS',
+        'methods',
+        ['template', 'render'],
+        'renderError',
+      ],
+    },
+  ],
+  'vue/require-default-prop': 'off',
+};
+
 export default [
   {
     ignores: ['.aafe/**', 'node_modules/**', 'packages/web-v1/**', 'monitor-*/**'],
   },
   js.configs.recommended,
   ...createTencentConfig({}),
-  ...vuePlugin.configs['flat/recommended'],
+  ...vuePlugin.configs['flat/vue2-recommended'],
   {
     files: ['src/**/*.{js,ts,tsx,vue}'],
     languageOptions: {
@@ -114,15 +157,7 @@ export default [
       '@typescript-eslint/no-explicit-any': 'off',
       '@typescript-eslint/no-require-imports': 'off',
       '@typescript-eslint/no-unnecessary-parameter-property-assignment': 'warn',
-      '@typescript-eslint/no-unused-vars': [
-        'error',
-        {
-          args: 'after-used',
-          argsIgnorePattern: '^_.+',
-          ignoreRestSiblings: true,
-          varsIgnorePattern: '^_.+',
-        },
-      ],
+      '@typescript-eslint/no-unused-vars': typescriptUnusedVarsRule,
       '@typescript-eslint/no-useless-empty-export': 'warn',
       '@typescript-eslint/no-var-requires': 'off',
       '@typescript-eslint/no-wrapper-object-types': 'warn',
@@ -143,41 +178,17 @@ export default [
     },
     rules: {
       'no-unused-expressions': 'off',
+      'no-unused-vars': 'off',
       ...typescriptProblemRules,
       ...typescriptMigrationWarnings,
       '@typescript-eslint/no-require-imports': 'off',
+      '@typescript-eslint/no-unused-vars': typescriptUnusedVarsRule,
       '@typescript-eslint/no-var-requires': 'off',
-      'vue/multi-word-component-names': 'off',
-      'vue/no-confusing-v-for-v-if': 'off',
-      'vue/no-lone-template': 'off',
-      'vue/no-side-effects-in-computed-properties': 'off',
-      'vue/order-in-components': [
-        'error',
-        {
-          order: [
-            'el',
-            'name',
-            'parent',
-            'functional',
-            ['delimiters', 'comments'],
-            ['components', 'directives', 'filters'],
-            'extends',
-            'mixins',
-            'inheritAttrs',
-            'model',
-            ['props', 'propsData'],
-            'data',
-            'computed',
-            'watch',
-            'LIFECYCLE_HOOKS',
-            'methods',
-            ['template', 'render'],
-            'renderError',
-          ],
-        },
-      ],
-      'vue/require-default-prop': 'off',
     },
+  },
+  {
+    files: ['src/**/*.{tsx,vue}'],
+    rules: vueComponentRules,
   },
   eslintConfigPrettier,
 ];
