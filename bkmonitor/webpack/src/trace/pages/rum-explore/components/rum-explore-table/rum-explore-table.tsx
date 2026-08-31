@@ -30,9 +30,11 @@ import { useI18n } from 'vue-i18n';
 
 import ExploreFieldSetting from '../../../trace-explore/components/explore-field-setting/explore-field-setting';
 import StatisticsList from '../../../trace-explore/components/statistics-list';
+import ExploreConditionMenu from '../../../trace-explore/components/trace-explore-table/components/explore-condition-menu';
 import { type IStatisticsFieldItem, useFieldStatisticsPopover } from '../../composables/use-field-statistics-popover';
 import { RUM_EXPLORE_VIEW_CLASS } from '../../constants';
 import { statisticsApi } from '../../services/rum-search';
+import { useCellConditionMenu } from './hooks/use-cell-condition-menu';
 import { useScenarioRenderer } from './hooks/use-scenario-renderer';
 import { useTableScrollOptimize } from '@/hooks/use-table-scroll-optimize';
 import CommonTable from '@/pages/alarm-center/components/alarm-table/components/common-table/common-table';
@@ -135,8 +137,10 @@ export default defineComponent({
   },
   setup(props, { emit }) {
     const { t } = useI18n();
-    /** CommonTable 组件实例 ref，用于滚动时禁用 pointerEvents */
+    /** CommonTable 组件实例 ref，用于滚动时禁用 pointerEvents、单元格事件委托 */
     const tableRef = useTemplateRef<InstanceType<typeof CommonTable>>('tableRef');
+    /** 单元格检索条件菜单组件实例 ref，其 $el 作为 popover 内容 */
+    const conditionMenuRef = useTemplateRef<InstanceType<typeof ExploreConditionMenu>>('conditionMenuRef');
     /** 触底加载前记录的滚动位置，数据追加后还原以避免仍停在底部重复触发 */
     let scrollTopBeforeLoad: null | number = null;
     /** 本地请求锁：从发起加载到数据渲染完成期间，忽略滚动事件，避免 scrollLoading 切换间隙重复触发 */
@@ -157,6 +161,16 @@ export default defineComponent({
       fieldMap,
       onCellFilter: (colKey, value) => emit('conditionChange', { key: colKey, method: 'equal', value }),
       onFieldAnalysis: (trigger, field) => openPopover(trigger, field as unknown as IStatisticsFieldItem),
+    });
+
+    /**
+     * 单元格检索条件菜单：普通单元格左键点击弹出菜单，CLICK 类型列（左键已用于直接加为检索条件）右键弹出同一个菜单。
+     * 菜单项行为与 trace 检索完全一致（复制 / 添加到本次检索 / 从本次检索中排除 / 新建检索）。
+     */
+    const { activeConditionMenuTarget, cacheRows, clearCache, closeMenu, hideMenu } = useCellConditionMenu({
+      delegationRoot: tableRef,
+      menuRef: conditionMenuRef,
+      rowKey: tableRowKey,
     });
 
     /** 列展示逻辑：基础列（含列宽覆盖）-> 场景渲染注入 -> 拼接设置列 */
@@ -189,12 +203,13 @@ export default defineComponent({
       }
     };
 
-    /** 滚动时关闭统计 popover（避免 popover 与单元格错位），触底时触发加载更多 */
+    /** 滚动时关闭统计 popover 与单元格条件菜单（避免 popover 与单元格错位），触底时触发加载更多 */
     useTableScrollOptimize({
       targetElement: tableRef,
       scrollContainerElement: props.scrollContainerSelector,
       onScroll: (event: Event) => {
         destroyPopover();
+        hideMenu();
         handleScrollToEnd(event.target as HTMLElement);
       },
     });
@@ -206,7 +221,10 @@ export default defineComponent({
         // 新查询（数据变少或从无到有）时清空记录的滚动位置，避免把旧位置恢复到新结果
         if (!oldData?.length || (newData?.length ?? 0) <= oldData.length) {
           scrollTopBeforeLoad = null;
+          clearCache();
         }
+        // 单元格条件菜单只能从 DOM 上拿到 rowId/colId，这里按行缓存以便回源取值
+        cacheRows(newData);
         nextTick(() => {
           requestAnimationFrame(() => {
             // 数据已渲染完成，释放加载锁，允许下一次触底加载
@@ -237,7 +255,9 @@ export default defineComponent({
 
     return {
       t,
+      activeConditionMenuTarget,
       activeFieldName,
+      closeMenu,
       columns,
       displayFieldKeys,
       selectField,
@@ -336,6 +356,16 @@ export default defineComponent({
           onConditionChange={(condition: ConditionChangeEvent) => this.$emit('conditionChange', condition)}
           onShowMore={this.destroyPopover}
         />
+
+        <div style='display: none'>
+          <ExploreConditionMenu
+            ref='conditionMenuRef'
+            conditionKey={this.activeConditionMenuTarget.colId}
+            conditionValue={this.activeConditionMenuTarget.conditionValue}
+            onConditionChange={(condition: ConditionChangeEvent) => this.$emit('conditionChange', condition)}
+            onMenuClick={this.closeMenu}
+          />
+        </div>
       </div>
     );
   },

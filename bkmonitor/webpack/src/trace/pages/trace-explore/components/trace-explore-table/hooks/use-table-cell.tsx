@@ -177,6 +177,8 @@ export function useTableCell({
         <div class={`${renderCtx.isEnabledCellEllipsis(column)}`}>
           <span
             class='explore-click-text '
+            data-col-id={column.colKey}
+            data-row-id={getRowId(row)}
             onClick={event => column?.clickCallback?.(row, column, event)}
           >
             {alias}
