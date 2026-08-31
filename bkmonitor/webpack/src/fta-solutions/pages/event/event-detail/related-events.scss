@@ -1,4 +1,4 @@
-@import '../../../static/scss/mixin.scss';
+@import '../../../static/scss/mixin';
 
 .event-detail-relatedevents {
   padding: 16px;
@@ -92,7 +92,7 @@
           align-items: center;
           font-weight: 400;
           color: #63656e;
-          word-break: break-word;
+          overflow-wrap: break-word;
 
           .icon-monitor {
             margin-left: 8px;
@@ -155,17 +155,21 @@
       height: 16px;
       padding-left: 4px;
       overflow: hidden;
-      line-height: 16px;
       text-overflow: ellipsis;
+      line-height: 16px;
       white-space: nowrap;
       border-left: 4px solid #699df4;
 
-      $statusColors: #ea3635 #ff9c00 #699df4;
+      &.status-1 {
+        border-left-color: #ea3635;
+      }
 
-      @for $i from 1 through length($statusColors) {
-        &.status-#{$i} {
-          border-left-color: nth($statusColors, $i);
-        }
+      &.status-2 {
+        border-left-color: #ff9c00;
+      }
+
+      &.status-3 {
+        border-left-color: #699df4;
       }
     }
 
@@ -209,9 +213,9 @@
     margin: 15px 20px 22px 24px;
 
     .tool-popover-content-item {
+      flex-shrink: 0;
       flex-basis: 33.33%;
       flex-flow: 0;
-      flex-shrink: 0;
       max-width: 200px;
       margin: 8px 0;
 
@@ -234,4 +238,8 @@
       }
     }
   }
+}
+
+.event-tags-text-tooltips .tippy-content {
+  white-space: pre-wrap;
 }
