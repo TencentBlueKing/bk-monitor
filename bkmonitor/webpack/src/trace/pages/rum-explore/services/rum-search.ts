@@ -59,6 +59,7 @@ function normalizeField(raw: IRumRawField): IRumField {
     name: raw.field_name,
     alias,
     type: raw.field_type,
+    field_display_type: raw.field_display_type,
     field_unit: raw.field_unit || '',
     is_real: !!raw.is_real,
     is_searched: !!raw.is_searchable,
