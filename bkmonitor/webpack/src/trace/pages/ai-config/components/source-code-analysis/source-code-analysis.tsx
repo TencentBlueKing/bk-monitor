@@ -76,7 +76,7 @@ export default defineComponent({
     const projectsSelect = useBkciProjectsSelect();
     /** 源码仓库下拉选择（依赖蓝盾项目） */
     const repositoriesSelect = useBkciRepositoriesSelect({ bkciProjectId });
-    /** 源码分析规则列表（当前为 mock 数据，后续接入真实接口） */
+    /** 源码分析规则列表 */
     const sourceAnalysisRules = shallowRef<SourceAnalysisRuleDto[]>([]);
 
     /** 规则搜索关键字 */
