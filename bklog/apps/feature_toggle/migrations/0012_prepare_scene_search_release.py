@@ -15,7 +15,7 @@ def prepare_scene_search_release(apps, schema_editor):
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("feature_toggle", "0010_init_ext_json_expand_depth_toggle"),
+        ("feature_toggle", "0011_init_iam_permission_toggle"),
     ]
 
     operations = [migrations.RunPython(prepare_scene_search_release, migrations.RunPython.noop)]
