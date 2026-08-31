@@ -321,8 +321,8 @@ ADVANCED_OPTIONS = OrderedDict(
         ("ACCESS_LATENCY_INTERVAL_FACTOR", slz.IntegerField(label="access数据源延迟上报周期因子", default=1)),
         ("ACCESS_LATENCY_THRESHOLD_CONSTANT", slz.IntegerField(label="access数据源延迟上报常量阈值", default=180)),
         ("ACCESS_DETECT_MERGE_STRATEGY_IDS", slz.ListField(label="access合并detect策略列表", default=[])),
-        ("ENABLE_DETECT_INLINE_TRIGGER", slz.BooleanField(label="Detect完成后是否同步执行Trigger", default=False)),
-        ("ENABLE_EVENT_INLINE_TRIGGER", slz.BooleanField(label="Event完成后是否同步执行Trigger", default=False)),
+        ("ENABLE_DETECT_INLINE_TRIGGER", slz.BooleanField(label="Detect完成后是否同步执行Trigger", default=True)),
+        ("ENABLE_EVENT_INLINE_TRIGGER", slz.BooleanField(label="Event完成后是否同步执行Trigger", default=True)),
         (
             "EVENT_INLINE_TRIGGER_MAX_CONCURRENCY_PER_ITEM",
             slz.IntegerField(label="单Event策略项内联Trigger最大并发", default=1, min_value=1),

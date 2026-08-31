@@ -811,11 +811,11 @@ ACCESS_LATENCY_THRESHOLD_CONSTANT = 180
 # 仅对列表中的策略启用合并处理，为空时对所有静态阈值策略生效
 ACCESS_DETECT_MERGE_STRATEGY_IDS = []
 
-# Detect 完成后是否同步执行 Trigger；Access-Detect 合并路径共用此开关
-ENABLE_DETECT_INLINE_TRIGGER = False
+# Detect 完成后是否同步执行 Trigger；默认开启，Access-Detect 合并路径共用此开关
+ENABLE_DETECT_INLINE_TRIGGER = True
 
-# Event 完成后是否同步执行 Trigger；开启前需要先完成 Event 和 Trigger worker 滚动更新
-ENABLE_EVENT_INLINE_TRIGGER = False
+# Event 完成后是否同步执行 Trigger；默认开启，从旧版本升级时需先完成 Event 和 Trigger worker 滚动更新
+ENABLE_EVENT_INLINE_TRIGGER = True
 
 # 单个 Event 策略项最多占用的内联 Trigger 并发数
 EVENT_INLINE_TRIGGER_MAX_CONCURRENCY_PER_ITEM = 1
