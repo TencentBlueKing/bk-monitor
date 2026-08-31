@@ -12,6 +12,7 @@ import abc
 import copy
 import json
 import logging
+import re
 import traceback
 from collections import defaultdict
 from collections.abc import Mapping
@@ -1495,6 +1496,9 @@ class QueryConfig(AbstractConfig):
         self.agg_dimension = [dimension for dimension in self.agg_dimension if dimension]
 
 
+QUERY_OUTPUT_CONFIG_EMPTY = object()
+
+
 class Item(AbstractConfig):
     """
     监控项配置
@@ -1531,6 +1535,7 @@ class Item(AbstractConfig):
         query_configs = serializers.ListField(allow_empty=False)
         algorithms = Algorithm.Serializer(many=True)
         metric_type = serializers.CharField(allow_blank=True, default="")
+        query_output_config = serializers.DictField(required=False, allow_null=True)
         # 目前只允许后台修改
         # time_delay = serializers.IntegerField(default=0)
 
@@ -1549,6 +1554,7 @@ class Item(AbstractConfig):
         metric_type: str = "",
         instance: ItemModel = None,
         time_delay: int = None,
+        query_output_config=QUERY_OUTPUT_CONFIG_EMPTY,
         **kwargs,
     ):
         self.functions = functions or []
@@ -1563,6 +1569,11 @@ class Item(AbstractConfig):
         self.id = id
         self.instance = instance
         self.time_delay = time_delay or 0
+        self.query_output_config = (
+            query_output_config
+            if query_output_config is QUERY_OUTPUT_CONFIG_EMPTY or query_output_config is None
+            else self.normalize_query_output_config(query_output_config)
+        )
 
         if metric_type:
             self.metric_type = metric_type
@@ -1604,7 +1615,7 @@ class Item(AbstractConfig):
             metric_type = self.metric_type
         else:
             metric_type = self.query_configs[0].data_type_label
-        return {
+        data = {
             "id": self.id,
             "name": self.name,
             "no_data_config": self.no_data_config,
@@ -1617,6 +1628,73 @@ class Item(AbstractConfig):
             "metric_type": metric_type,
             "time_delay": self.time_delay,
         }
+        if self.query_output_config is not QUERY_OUTPUT_CONFIG_EMPTY:
+            data["query_output_config"] = self.query_output_config
+        return data
+
+    @staticmethod
+    def normalize_query_output_config(config: dict) -> dict:
+        if not isinstance(config, dict):
+            raise ValidationError(detail="query_output_config 必须为对象")
+
+        response_contract = config.get("response_contract", "")
+        legacy_output_ref = config.get("legacy_output_ref", "")
+        if not isinstance(response_contract, str):
+            raise ValidationError(detail="query_output_config.response_contract 必须为字符串")
+        if not isinstance(legacy_output_ref, str):
+            raise ValidationError(detail="query_output_config.legacy_output_ref 必须为字符串")
+        response_contract = response_contract.strip()
+        legacy_output_ref = legacy_output_ref.strip()
+        if legacy_output_ref and not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", legacy_output_ref):
+            raise ValidationError(detail=f"命名输出引用不是合法标识符: {legacy_output_ref}")
+
+        raw_output_list = config.get("output_list")
+        if not isinstance(raw_output_list, list):
+            raise ValidationError(detail="query_output_config.output_list 必须为数组")
+        output_list = []
+        references = set()
+        for output in raw_output_list:
+            if not isinstance(output, dict):
+                raise ValidationError(detail="query_output_config.output_list 条目必须为对象")
+            reference_name = output.get("reference_name", "")
+            expression = output.get("expression", "")
+            if not isinstance(reference_name, str) or not isinstance(expression, str):
+                raise ValidationError(detail="命名输出引用和表达式必须为字符串")
+            reference_name = reference_name.strip()
+            expression = expression.strip()
+            if not reference_name or not expression:
+                raise ValidationError(detail="命名输出引用和表达式不能为空")
+            if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", reference_name):
+                raise ValidationError(detail=f"命名输出引用不是合法标识符: {reference_name}")
+            if reference_name in references:
+                raise ValidationError(detail=f"命名输出引用重复: {reference_name}")
+            references.add(reference_name)
+            output_list.append({"reference_name": reference_name, "expression": expression})
+
+        if response_contract != "named_outputs/v1":
+            raise ValidationError(detail=f"不支持的命名输出契约: {response_contract}")
+        if not legacy_output_ref or legacy_output_ref not in references:
+            raise ValidationError(detail=f"legacy_output_ref 不存在: {legacy_output_ref}")
+
+        return {
+            "response_contract": response_contract,
+            "legacy_output_ref": legacy_output_ref,
+            "output_list": output_list,
+        }
+
+    @staticmethod
+    def update_query_output_meta(meta, query_output_config) -> dict:
+        if meta is None:
+            meta = {}
+        if not isinstance(meta, dict):
+            raise ValidationError(detail="ItemModel.meta 历史值不是对象，禁止覆盖")
+
+        updated_meta = copy.deepcopy(meta)
+        if query_output_config is None:
+            updated_meta.pop("query_output_config", None)
+        else:
+            updated_meta["query_output_config"] = copy.deepcopy(query_output_config)
+        return updated_meta
 
     def to_unify_query_config(self):
         """
@@ -1651,13 +1729,16 @@ class Item(AbstractConfig):
                 query["interval"] = f"{query_config.agg_interval}s"
             query_list.append(query)
 
-        return {
+        config = {
             "query_list": query_list,
             "metric_merge": add_expression_functions(self.expression, self.functions),
             "join_on": self.public_dimensions,
             "order_by": ["-time"],
             "keep_columns": ["_result", "_time", *[query["reference_name"] for query in query_list]],
         }
+        if isinstance(self.query_output_config, dict):
+            config.update(self.query_output_config)
+        return config
 
     @classmethod
     def delete_useless(cls, useless_item_ids: list[int]):
@@ -1682,6 +1763,9 @@ class Item(AbstractConfig):
         data.pop("id", None)
         data.pop("query_configs", None)
         data.pop("algorithms", None)
+        query_output_config = data.pop("query_output_config", QUERY_OUTPUT_CONFIG_EMPTY)
+        if query_output_config is not QUERY_OUTPUT_CONFIG_EMPTY:
+            data["meta"] = self.update_query_output_meta(None, query_output_config)
         data["name"] = self.truncate_name(data.get("name", ""))
         self.name = data["name"]
         item = ItemModel.objects.create(strategy_id=self.strategy_id, **data)
@@ -1723,6 +1807,8 @@ class Item(AbstractConfig):
                 item.origin_sql = self.origin_sql
                 item.metric_type = self.metric_type
                 item.time_delay = self.time_delay if self.time_delay else item.time_delay
+                if self.query_output_config is not QUERY_OUTPUT_CONFIG_EMPTY:
+                    item.meta = self.update_query_output_meta(item.meta, self.query_output_config)
                 item.save()
             else:
                 item = self._create()
@@ -1747,6 +1833,9 @@ class Item(AbstractConfig):
         """
         records = []
         for item in items:
+            item_kwargs = {}
+            if isinstance(item.meta, dict) and "query_output_config" in item.meta:
+                item_kwargs["query_output_config"] = item.meta["query_output_config"]
             record = Item(
                 id=item.id,
                 strategy_id=item.strategy_id,
@@ -1759,6 +1848,7 @@ class Item(AbstractConfig):
                 metric_type=item.metric_type,
                 instance=item,
                 time_delay=item.time_delay,
+                **item_kwargs,
             )
             record.algorithms = Algorithm.from_models(algorithms[item.id])
             record.query_configs = QueryConfig.from_models(query_configs[item.id])

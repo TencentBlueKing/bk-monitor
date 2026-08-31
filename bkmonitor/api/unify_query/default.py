@@ -185,6 +185,9 @@ class QueryDataResource(UnifyQueryAPIResource):
         timezone = serializers.CharField(required=False)
         instant = serializers.BooleanField(required=False)
         not_time_align = serializers.BooleanField(label="是否不对齐时间窗口", required=False, default=False)
+        response_contract = serializers.CharField(required=False)
+        legacy_output_ref = serializers.CharField(required=False)
+        output_list = serializers.ListField(child=serializers.DictField(), required=False)
 
 
 class QueryRawResource(UnifyQueryAPIResource):
