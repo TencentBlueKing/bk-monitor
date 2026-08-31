@@ -750,7 +750,8 @@ export default defineComponent({
                           getValueFn={this.getValueFnProxy}
                           limit={this.limit}
                           loadDelay={this.loadDelay}
-                          placeholder={''}
+                          /* 按当前选中的操作符给出对应的输入提示（如「等于」与「包含」提示不同） */
+                          placeholder={this.placeholderStr || ''}
                           value={this.values}
                           autoFocus
                           onChange={this.handleValueChange}

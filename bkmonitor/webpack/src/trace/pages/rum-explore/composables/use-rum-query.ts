@@ -72,7 +72,8 @@ export function useRumQuery({ extraFilters }: IUseRumQueryOptions) {
   const commonWhere = shallowRef<IWhereItem[]>([]);
   /** 语句模式条件 */
   const queryString = shallowRef('');
-  const showResidentBtn = shallowRef(false);
+  /** 是否展示常驻筛选入口，默认展开，用户收起后写入 URL 以便复现 */
+  const showResidentBtn = shallowRef(true);
   /** 从 URL 带入的收藏 id */
   const urlFavoriteId = shallowRef<null | number>(null);
 
@@ -154,14 +155,19 @@ export function useRumQuery({ extraFilters }: IUseRumQueryOptions) {
   }
 
   async function generateQueryStringFn() {
-    generateQueryStringLoading.value = true;
-    const res = await generateQueryString({
-      app_name: store.appName,
-      mode: store.mode,
-      filters: buildFilters(),
-    }).catch(() => null);
-    generateQueryStringLoading.value = false;
-    return res;
+    const filters = buildFilters();
+    // 无条件时后端会返回空语句，直接短路省掉一次请求与 loading 抖动
+    if (filters.length) {
+      generateQueryStringLoading.value = true;
+      const res = await generateQueryString({
+        app_name: store.appName,
+        mode: store.mode,
+        filters,
+      }).catch(() => null);
+      generateQueryStringLoading.value = false;
+      return res;
+    }
+    return '';
   }
 
   async function modeChange(mode: EMode) {
@@ -193,6 +199,18 @@ export function useRumQuery({ extraFilters }: IUseRumQueryOptions) {
     handleQuery();
   }
 
+  /** 常驻筛选入口的展开/收起：只影响展示，不触发查询，但需要同步到 URL 保持复现一致 */
+  function showResidentChange(val: boolean) {
+    showResidentBtn.value = val;
+    setUrlParams();
+  }
+
+  /** 语句模式下检索内容变更：与 whereChange 对齐，实时触发查询 */
+  function queryStringChange(val: string) {
+    queryString.value = val;
+    handleQuery();
+  }
+
   return {
     commonParams,
     commonWhere,
@@ -211,5 +229,7 @@ export function useRumQuery({ extraFilters }: IUseRumQueryOptions) {
     modeChange,
     generateQueryStringFn,
     whereChange,
+    showResidentChange,
+    queryStringChange,
   };
 }
