@@ -15,6 +15,7 @@ from rest_framework.serializers import ValidationError
 
 from bkmonitor.data_source.format import flatten_dict_data
 from bkmonitor.data_source.utils.apm import TraceDatasourceTarget
+from bkmonitor.utils.thread_backend import ThreadPool
 from core.drf_resource import Resource
 from rum_web.handlers.level.factory import RumLevelHandlerFactory
 from rum_web.models.application import Application
@@ -23,6 +24,9 @@ from rum_web.query.serializers import (
     RumGenerateQueryStringRequestSerializer,
     RumRecordsRequestSerializer,
     RumViewConfigRequestSerializer,
+    RumFieldsTopKRequestSerializer,
+    RumFieldStatisticsInfoRequestSerializer,
+    RumFieldStatisticsGraphRequestSerializer,
 )
 
 
@@ -116,3 +120,58 @@ class RumGenerateQueryStringResource(Resource):
         application = _get_application(data["bk_biz_id"], data["app_name"])
         handler = RumLevelHandlerFactory.create(data["mode"], _build_data_sources([application]))
         return handler.generate_query_string(data["filters"])
+
+
+class RumFieldsTopKResource(Resource):
+    """查询字段 Top-K 值"""
+
+    RequestSerializer = RumFieldsTopKRequestSerializer
+
+    def perform_request(self, data: dict[str, Any]) -> list[dict[str, Any]]:
+        application = _get_application(data["bk_biz_id"], data["app_name"])
+        handler = RumLevelHandlerFactory.create(data["mode"], _build_data_sources([application]))
+        start_time, end_time = data["start_time"], data["end_time"]
+        limit = data["limit"]
+        filters, query_string = data["filters"], data["query_string"]
+
+        if len(data["fields"]) == 1:
+            return [handler.field_topk(start_time, end_time, data["fields"][0], limit, filters, query_string)]
+
+        return ThreadPool().map_ignore_exception(
+            lambda field: handler.field_topk(start_time, end_time, field, limit, filters, query_string),
+            data["fields"],
+        )
+
+
+class RumFieldStatisticsInfoResource(Resource):
+    """查询字段统计信息"""
+
+    RequestSerializer = RumFieldStatisticsInfoRequestSerializer
+
+    def perform_request(self, data: dict[str, Any]) -> dict[str, Any]:
+        application = _get_application(data["bk_biz_id"], data["app_name"])
+        handler = RumLevelHandlerFactory.create(data["mode"], _build_data_sources([application]))
+        return handler.field_statistics_info(
+            start_time=data["start_time"],
+            end_time=data["end_time"],
+            field=data["field"],
+            filters=data["filters"],
+            query_string=data["query_string"],
+        )
+
+
+class RumFieldStatisticsGraphResource(Resource):
+    """查询字段统计图表配置"""
+
+    RequestSerializer = RumFieldStatisticsGraphRequestSerializer
+
+    def perform_request(self, data: dict[str, Any]) -> dict[str, Any]:
+        application = _get_application(data["bk_biz_id"], data["app_name"])
+        handler = RumLevelHandlerFactory.create(data["mode"], _build_data_sources([application]))
+        return handler.field_statistics_graph(
+            start_time=data["start_time"],
+            end_time=data["end_time"],
+            field=data["field"],
+            filters=data["filters"],
+            query_string=data["query_string"],
+        )

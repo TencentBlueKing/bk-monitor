@@ -44,7 +44,7 @@ class BaseRumLevelHandler(ABC):
         filters: list[types.Filter] | None = None,
         query_string: str = "",
         extra_config: dict[str, Any] | None = None,
-    ) -> list[dict[str, Any]]:
+    ) -> dict[str, Any]:
         """查询指定字段出现次数最多的 Top-K 值"""
         ...
 
@@ -72,20 +72,6 @@ class BaseRumLevelHandler(ABC):
         extra_config: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """查询字段统计图表配置"""
-        ...
-
-    @abstractmethod
-    def download_topk(
-        self,
-        start_time: int,
-        end_time: int,
-        field: str,
-        limit: int = 5,
-        filters: list[types.Filter] | None = None,
-        query_string: str = "",
-        extra_config: dict[str, Any] | None = None,
-    ) -> bytes:
-        """下载 Top-K 数据为 CSV 字节流"""
         ...
 
     @abstractmethod

@@ -19,7 +19,6 @@ from django.utils.translation import gettext_lazy as _lazy
 from opentelemetry.semconv.resource import ResourceAttributes
 from rest_framework import serializers
 
-from apm.constants import StatisticsProperty
 from apm_web.constants import DEFAULT_DIFF_TRACE_MAX_NUM, CategoryEnum, QueryMode
 from apm_web.handlers.trace_handler.base import (
     StatisticsHandler,
@@ -37,7 +36,6 @@ from apm_web.handlers.trace_handler.query import (
 from apm_web.handlers.trace_handler.view_config import TraceFieldsHandler
 from apm_web.models import Application
 from apm_web.models.trace import TraceComparison
-from apm_web.trace.constants import EnabledStatisticsDimension
 from apm_web.trace.serializers import (
     BaseTraceRequestSerializer,
     GetFieldsOptionValuesRequestSerializer,
@@ -63,6 +61,7 @@ from constants.apm import (
     TraceListQueryMode,
     TraceWaterFallDisplayKey,
 )
+from constants.otel_query import EnabledStatisticsDimension, StatisticsProperty
 from core.drf_resource import Resource, api, FaultTolerantResource
 from core.drf_resource.exceptions import CustomException
 from core.errors.api import BKAPIError

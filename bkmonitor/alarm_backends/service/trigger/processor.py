@@ -80,12 +80,7 @@ def publish_alarmd_reference_batches(batches, *, strategy_id=None, item_id=None)
         separators=(",", ":"),
     )
     allowed_topics = shadow_topics(settings.ALARMD_TRIGGER_REFERENCE_SHADOW_ALLOWED_TOPICS)
-    forbidden_topics = tuple(
-        sorted(
-            set(shadow_topics(settings.ALARMD_DETECT_INPUT_SHADOW_ALLOWED_TOPICS))
-            | {MonitorEventAdapter.get_output_topic()}
-        )
-    )
+    forbidden_topics = (MonitorEventAdapter.get_output_topic(),)
     publisher = get_cached_kafka_reference_decision_publisher(config_json, allowed_topics, forbidden_topics)
     acknowledged = 0
     while True:
@@ -298,6 +293,14 @@ class TriggerProcessor:
         return list(self.iter_alarmd_reference_batches())
 
     def enqueue_alarmd_reference_candidates(self):
+        from alarm_backends.core.alarmd.config import shadow_kafka_config, shadow_topics
+
+        if not (
+            shadow_kafka_config(settings.ALARMD_TRIGGER_REFERENCE_SHADOW_KAFKA_CONFIG)
+            and shadow_topics(settings.ALARMD_TRIGGER_REFERENCE_SHADOW_ALLOWED_TOPICS)
+        ):
+            return 0
+
         from alarm_backends.core.alarmd.async_publish import (
             MAX_ASYNC_JOB_BYTES,
             shadow_job_encoded_size_from_payload_sizes,
@@ -313,7 +316,11 @@ class TriggerProcessor:
             candidate_size = chunk_size + encoded_size + int(bool(chunk))
             if chunk and (len(chunk) >= ALARMD_REFERENCE_BATCHES_PER_FLUSH or candidate_size > MAX_ASYNC_JOB_BYTES):
                 payload = tuple(chunk)
-                if submit_shadow_job("reference", payload, max_jobs=settings.ALARMD_SHADOW_ASYNC_QUEUE_SIZE):
+                if submit_shadow_job(
+                    "reference",
+                    payload,
+                    max_jobs=settings.ALARMD_TRIGGER_REFERENCE_SHADOW_ASYNC_QUEUE_SIZE,
+                ):
                     enqueued += len(payload)
                 chunk = []
                 chunk_size = shadow_job_encoded_size_from_payload_sizes("reference", ())
@@ -324,7 +331,11 @@ class TriggerProcessor:
             chunk_size = candidate_size
         if chunk:
             chunk = tuple(chunk)
-            if submit_shadow_job("reference", chunk, max_jobs=settings.ALARMD_SHADOW_ASYNC_QUEUE_SIZE):
+            if submit_shadow_job(
+                "reference",
+                chunk,
+                max_jobs=settings.ALARMD_TRIGGER_REFERENCE_SHADOW_ASYNC_QUEUE_SIZE,
+            ):
                 enqueued += len(chunk)
         return enqueued
 
@@ -675,9 +686,13 @@ class TriggerProcessor:
         checker = AnomalyChecker(point, strategy, self.item_id)
         anomaly_records, event_record = checker.check()
 
-        if not checker.is_no_data_point(point) and self.is_alarmd_reference_selected(
-            strategy=strategy,
-            strategy_snapshot_key=point["strategy_snapshot_key"],
+        if (
+            event_record is not None
+            and not checker.is_no_data_point(point)
+            and self.is_alarmd_reference_selected(
+                strategy=strategy,
+                strategy_snapshot_key=point["strategy_snapshot_key"],
+            )
         ):
             self.capture_alarmd_reference_candidate(
                 point=point,

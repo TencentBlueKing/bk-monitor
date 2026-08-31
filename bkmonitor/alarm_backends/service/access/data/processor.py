@@ -67,9 +67,7 @@ def _alarmd_v2_shadow_enabled() -> bool:
     def enabled(value) -> bool:
         return value is True or (isinstance(value, str) and value.strip().lower() == "true")
 
-    return enabled(settings.ALARMD_SHADOW_ENABLED) and enabled(
-        getattr(settings, "ALARMD_V2_SHADOW_WRITER_ENABLED", False)
-    )
+    return enabled(settings.ALARMD_SHADOW_ENABLED)
 
 
 class BaseAccessDataProcess(base.BaseAccessProcess):

@@ -1,0 +1,168 @@
+{
+    "version": 1,
+    "system": {
+        "name": "日志平台",
+        "description": "蓝鲸智云日志平台是为了解决运维场景中查询日志难的问题而推出的一款Saas，基于业界主流的全文检索引擎，通过蓝鲸智云的专属agent进行日志采集，无需登录各台机器，集中管理所有日志。IAM V4 模型以空间为顶层资源，管理空间下的索引集、采集项和 ES 源，并通过业务运维、业务只读和系统管理员角色统一申请权限。",
+        "clients": [
+            "bk_log_search",
+            "log-search-4",
+            "bk_bklog",
+            "paasv3cli",
+            "bk_paas3"
+        ]
+    },
+    "resource_types": [
+        {
+            "id": "space",
+            "name": "空间",
+            "ancestors": []
+        },
+        {
+            "id": "indices",
+            "name": "索引集",
+            "ancestors": [
+                "space"
+            ]
+        },
+        {
+            "id": "collection",
+            "name": "采集项",
+            "ancestors": [
+                "space"
+            ]
+        },
+        {
+            "id": "es_source",
+            "name": "ES源",
+            "ancestors": [
+                "space"
+            ]
+        }
+    ],
+    "actions": [
+        {
+            "id": "view_business",
+            "name": "业务访问",
+            "resource_type_id": "space"
+        },
+        {
+            "id": "search_log",
+            "name": "日志检索",
+            "resource_type_id": "indices"
+        },
+        {
+            "id": "view_collection",
+            "name": "采集查看",
+            "resource_type_id": "collection"
+        },
+        {
+            "id": "create_collection",
+            "name": "采集新建",
+            "resource_type_id": "space"
+        },
+        {
+            "id": "manage_collection",
+            "name": "采集管理",
+            "resource_type_id": "collection"
+        },
+        {
+            "id": "create_es_source",
+            "name": "ES源配置新建",
+            "resource_type_id": "space"
+        },
+        {
+            "id": "manage_es_source",
+            "name": "ES源配置管理",
+            "resource_type_id": "es_source"
+        },
+        {
+            "id": "create_indices",
+            "name": "索引集配置新建",
+            "resource_type_id": "space"
+        },
+        {
+            "id": "manage_indices",
+            "name": "索引集配置管理",
+            "resource_type_id": "indices"
+        },
+        {
+            "id": "manage_extract_config",
+            "name": "日志提取配置管理",
+            "resource_type_id": "space"
+        },
+        {
+            "id": "manage_desensitize_rule",
+            "name": "脱敏规则管理",
+            "resource_type_id": "space"
+        },
+        {
+            "id": "manage_global_desensitize_rule",
+            "name": "全局脱敏规则管理",
+            "resource_type_id": ""
+        },
+        {
+            "id": "download_client_log",
+            "name": "客户端日志下载",
+            "resource_type_id": "space"
+        },
+        {
+            "id": "create_client_log_task",
+            "name": "客户端日志采集任务创建",
+            "resource_type_id": "space"
+        }
+    ],
+    "roles": [
+        {
+            "id": "space_operator",
+            "name": "业务运维",
+            "description": "日志平台业务运维；可按空间、索引集、采集项和 ES 源分别配置资源范围。",
+            "actions": [
+                {"id": "view_business", "resource_type_id": "space"},
+                {"id": "search_log", "resource_type_id": "indices"},
+                {"id": "view_collection", "resource_type_id": "collection"},
+                {"id": "create_collection", "resource_type_id": "space"},
+                {"id": "manage_collection", "resource_type_id": "collection"},
+                {"id": "create_es_source", "resource_type_id": "space"},
+                {"id": "manage_es_source", "resource_type_id": "es_source"},
+                {"id": "create_indices", "resource_type_id": "space"},
+                {"id": "manage_indices", "resource_type_id": "indices"},
+                {"id": "manage_extract_config", "resource_type_id": "space"},
+                {"id": "manage_desensitize_rule", "resource_type_id": "space"},
+                {"id": "download_client_log", "resource_type_id": "space"},
+                {"id": "create_client_log_task", "resource_type_id": "space"}
+            ]
+        },
+        {
+            "id": "space_viewer",
+            "name": "业务只读",
+            "description": "日志平台业务只读；可按空间、索引集和采集项分别配置资源范围。",
+            "actions": [
+                {"id": "view_business", "resource_type_id": "space"},
+                {"id": "search_log", "resource_type_id": "indices"},
+                {"id": "view_collection", "resource_type_id": "collection"},
+                {"id": "download_client_log", "resource_type_id": "space"}
+            ]
+        },
+        {
+            "id": "system_admin",
+            "name": "系统管理员",
+            "description": "拥有日志平台全部操作权限。",
+            "actions": [
+                {"id": "view_business", "resource_type_id": "space"},
+                {"id": "search_log", "resource_type_id": "indices"},
+                {"id": "view_collection", "resource_type_id": "collection"},
+                {"id": "create_collection", "resource_type_id": "space"},
+                {"id": "manage_collection", "resource_type_id": "collection"},
+                {"id": "create_es_source", "resource_type_id": "space"},
+                {"id": "manage_es_source", "resource_type_id": "es_source"},
+                {"id": "create_indices", "resource_type_id": "space"},
+                {"id": "manage_indices", "resource_type_id": "indices"},
+                {"id": "manage_extract_config", "resource_type_id": "space"},
+                {"id": "manage_desensitize_rule", "resource_type_id": "space"},
+                {"id": "manage_global_desensitize_rule", "resource_type_id": ""},
+                {"id": "download_client_log", "resource_type_id": "space"},
+                {"id": "create_client_log_task", "resource_type_id": "space"}
+            ]
+        }
+    ]
+}

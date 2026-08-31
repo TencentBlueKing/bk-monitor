@@ -58,10 +58,6 @@ def record_shadow_async_job(stage: str, status: str) -> None:
 
 
 def _run_shadow_job(job: ShadowPublishJob) -> int:
-    if job.operation == "detect_input":
-        from alarm_backends.service.detect.process import publish_alarmd_detect_shadow_batches
-
-        return publish_alarmd_detect_shadow_batches(job.payload)
     if job.operation == "reference":
         from alarm_backends.service.trigger.processor import publish_alarmd_reference_batches
 
@@ -84,7 +80,7 @@ class AsyncShadowPublisher:
         self._last_drop_log = 0.0
 
     def submit(self, operation: str, payload: tuple[dict, ...]) -> bool:
-        if operation not in {"detect_input", "reference"} or not payload:
+        if operation != "reference" or not payload:
             return False
         try:
             fits = shadow_job_fits(operation, payload)

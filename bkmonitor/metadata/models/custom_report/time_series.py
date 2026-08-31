@@ -28,6 +28,7 @@ from django.utils.timezone import make_aware
 from django.utils.timezone import now as tz_now
 from django.utils.translation import gettext as _
 
+from bkmonitor.utils.base62 import decode_identifier
 from bkmonitor.utils.db.fields import JsonField
 from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import api
@@ -1428,6 +1429,18 @@ class TimeSeriesScope(models.Model):
         return scope_name_to_metrics, scope_name_to_dimensions
 
     @classmethod
+    def build_new_dimension_config(cls, dimension: str) -> dict:
+        """新发现维度的初始配置
+
+        SDK 会把含中文等非法字符的维度名编码成 base62 标识符上报，查询必须继续使用编码后的名字，
+        这里把解码出的原始名回填成别名，让各展示入口都能拿到可读的维度名。
+        """
+        original_name = decode_identifier(dimension)
+        if original_name == dimension:
+            return {}
+        return {"alias": original_name}
+
+    @classmethod
     def _do_bulk_refresh_ts_scopes(cls, group_id: int, scope_name_to_dimensions: dict):
         # 1. 获取已存在的 scope
         exists_scope_name_to_obj = {scope.scope_name: scope for scope in cls.objects.filter(group_id=group_id)}
@@ -1445,12 +1458,12 @@ class TimeSeriesScope(models.Model):
                 dimension_config = scope.dimension_config or {}
                 new_dims = {dim for dim in dimensions if dim not in dimension_config}
                 if new_dims:
-                    dimension_config.update({dim: {} for dim in new_dims})
+                    dimension_config.update({dim: cls.build_new_dimension_config(dim) for dim in new_dims})
                     scope.dimension_config = dimension_config
                     scopes_to_update.append(scope)
             else:
                 # 不存在的 scope：创建新的 scope
-                dimension_config = {dim: {} for dim in dimensions}
+                dimension_config = {dim: cls.build_new_dimension_config(dim) for dim in dimensions}
                 # 根据是否为默认分组决定 create_from 字段
                 create_from = cls.CREATE_FROM_DEFAULT if create_from_default else cls.CREATE_FROM_DATA
                 new_scope = cls(
