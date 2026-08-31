@@ -157,6 +157,24 @@ class RumQueryMode(CachedEnum):
         return [(member.value, member.label) for member in cls]
 
 
+class FieldDisplayType(CachedEnum):
+    """字段展示类型，用于告知前端如何渲染字段值"""
+
+    DATETIME = "datetime"
+    DURATION = "duration"
+
+    @cached_property
+    def label(self) -> str:
+        return {
+            self.DATETIME: _("日期"),
+            self.DURATION: _("持续时长"),
+        }.get(self, self.value)
+
+    @classmethod
+    def choices(cls) -> list[tuple[str, str]]:
+        return [(member.value, member.label) for member in cls]
+
+
 SPAN_TYPE_COMMON_DISPLAY_FIELDS = [
     "span_name",
     "attributes.span_type",
