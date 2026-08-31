@@ -88,6 +88,7 @@ export const useScenarioRenderer = (mode: MaybeRef<RumMode>, context: SpanScenar
    * @returns {BaseTableColumn[]} 场景渲染所需的最终列配置
    */
   const transformColumns = (baseColumns: BaseTableColumn[]) => {
+    if (!baseColumns?.length) return [];
     const scenario = currentScenario.value;
     return baseColumns.map(column => ({
       ...column,

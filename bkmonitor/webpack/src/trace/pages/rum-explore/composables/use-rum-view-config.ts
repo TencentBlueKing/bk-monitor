@@ -92,15 +92,6 @@ export function useRumViewConfig() {
     }))
   );
 
-  /** 可作为表格列的字段，供字段设置使用 */
-  const displayableFields = computed(() => viewConfig.value.fields.filter(field => field.can_displayed));
-
-  const fieldMap = computed(() => new Map(viewConfig.value.fields.map(field => [field.name, field])));
-
-  function getField(name: string): IRumField | undefined {
-    return fieldMap.value.get(name);
-  }
-
   async function fetchViewConfig() {
     if (!store.appName) {
       viewConfig.value = EMPTY_VIEW_CONFIG;
@@ -126,8 +117,6 @@ export function useRumViewConfig() {
     fieldGroups,
     retrievalFields,
     searchableFields,
-    displayableFields,
-    getField,
     fetchViewConfig,
   };
 }

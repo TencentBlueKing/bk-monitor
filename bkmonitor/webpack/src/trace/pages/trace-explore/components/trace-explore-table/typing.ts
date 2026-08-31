@@ -86,6 +86,11 @@ export interface BaseTableCellRenderValueType {
 
 /** 不同类型单元格的私有属性映射 */
 export interface BaseTableCellSpecificPropsMap {
+  /** 持续时间类型单元格私有属性 */
+  [ExploreTableColumnTypeEnum.DURATION]: {
+    /** 原始数据单位，默认 'us'（微秒），需与 formatDuration 的 unit 参数对齐（当前仅 'ms' | 'us' 会被正确换算） */
+    durationUnit?: 'ms' | 'us';
+  };
   /** tag 类型单元格私有属性 */
   [ExploreTableColumnTypeEnum.TAGS]: {
     /** 溢出标签提示popover内容渲染 */
@@ -97,8 +102,10 @@ export interface BaseTableCellSpecificPropsMap {
 }
 
 /** trace检索 表格列配置类型 */
-export interface BaseTableColumn<K extends string = string, U extends Record<string, any> = Record<string, any>>
-  extends Omit<PrimaryTableCol, 'ellipsis' | 'ellipsisTitle'> {
+export interface BaseTableColumn<
+  K extends string = string,
+  U extends Record<string, any> = Record<string, any>,
+> extends Omit<PrimaryTableCol, 'ellipsis' | 'ellipsisTitle'> {
   /** 单元格是否开启溢出省略弹出 popover 功能 */
   cellEllipsis?: boolean;
   /** 自定义单元格渲染 */

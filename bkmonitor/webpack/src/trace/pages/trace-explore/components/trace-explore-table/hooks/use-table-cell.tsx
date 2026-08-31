@@ -286,7 +286,7 @@ export function useTableCell({
         renderCtx
       );
     }
-    const alias = formatDuration(+timestamp);
+    const alias = formatDuration(+timestamp, '', 2, column.cellSpecificProps?.durationUnit ?? 'us');
     return (
       <div class={'explore-col explore-duration-col '}>
         <div class={`${renderCtx.isEnabledCellEllipsis(column)}`}>
