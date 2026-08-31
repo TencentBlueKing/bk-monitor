@@ -93,7 +93,7 @@
 <template>
   <div class="bklog-chart-field">
     <div v-show="options.category !== 'table'">
-      <div class="title">{{ this.$t('指标') }}</div>
+      <div class="title">{{ $t('指标') }}</div>
       <bk-select
         :value="options.yFields"
         searchable
@@ -112,7 +112,7 @@
       </bk-select>
     </div>
     <div v-show="options.category !== 'table' && options.category !== 'number'">
-      <div class="title">{{ this.$t('维度') }}</div>
+      <div class="title">{{ $t('维度') }}</div>
       <bk-select
         :value="options.xFields"
         searchable
@@ -131,7 +131,7 @@
       </bk-select>
     </div>
     <div v-show="options.category == 'bar' || options.category == 'line'">
-      <div class="title">{{ this.$t('时间维度') }}</div>
+      <div class="title">{{ $t('时间维度') }}</div>
       <bk-select
         :value="options.dimensions"
         searchable
@@ -148,7 +148,7 @@
       </bk-select>
     </div>
     <div v-show="options.category == 'table'">
-      <div class="title">{{ this.$t('隐藏字段') }}</div>
+      <div class="title">{{ $t('隐藏字段') }}</div>
       <bk-select
         :value="options.hiddenFields"
         :clearable="true"

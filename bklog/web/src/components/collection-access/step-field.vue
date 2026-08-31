@@ -534,7 +534,7 @@
                 <i class="bk-icon icon-info-circle" />
                 <span>
                   {{
-                    this.$t(
+                    $t(
                       '在日志采集中，若您的日志中产生新的JSON字段，我们会自动采集并合入 __ext_json 字段中，您可以通过 __ext_json.xxx 检索该数据',
                     )
                   }}
