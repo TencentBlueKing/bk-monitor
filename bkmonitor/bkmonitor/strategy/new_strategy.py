@@ -1574,6 +1574,8 @@ class Item(AbstractConfig):
             if query_output_config is QUERY_OUTPUT_CONFIG_EMPTY or query_output_config is None
             else self.normalize_query_output_config(query_output_config)
         )
+        if isinstance(self.query_output_config, dict):
+            self.validate_query_output_compatibility(self.query_output_config)
 
         if metric_type:
             self.metric_type = metric_type
@@ -1681,6 +1683,31 @@ class Item(AbstractConfig):
             "legacy_output_ref": legacy_output_ref,
             "output_list": output_list,
         }
+
+    @staticmethod
+    def normalize_output_expression(expression: str) -> str:
+        return re.sub(r"\s+", "", expression)
+
+    def validate_query_output_compatibility(self, config: dict):
+        aliases = {
+            self.normalize_output_expression(query_config.alias)
+            for query_config in self.query_configs
+            if query_config.alias
+        }
+        legacy_output_ref = config["legacy_output_ref"]
+        effective_metric_merge = self.normalize_output_expression(
+            add_expression_functions(self.expression, self.functions)
+        )
+
+        for output in config["output_list"]:
+            expression = self.normalize_output_expression(output["expression"])
+            if output["reference_name"] == legacy_output_ref:
+                if expression != effective_metric_merge:
+                    raise ValidationError(detail="query_output_config 的 legacy 输出表达式必须匹配当前查询表达式和函数")
+            elif expression not in aliases:
+                raise ValidationError(
+                    detail="query_output_config 的非 legacy 输出表达式必须是当前 query alias 的 identity 表达式"
+                )
 
     @staticmethod
     def update_query_output_meta(meta, query_output_config) -> dict:
@@ -1799,6 +1826,21 @@ class Item(AbstractConfig):
         try:
             if self.id > 0:
                 item: ItemModel = ItemModel.objects.get(id=self.id, strategy_id=self.strategy_id)
+                if self.query_output_config is QUERY_OUTPUT_CONFIG_EMPTY and isinstance(item.meta, dict):
+                    current_query_output_config = item.meta.get("query_output_config")
+                    if current_query_output_config is not None:
+                        try:
+                            current_query_output_config = self.normalize_query_output_config(
+                                current_query_output_config
+                            )
+                            self.validate_query_output_compatibility(current_query_output_config)
+                        except ValidationError as error:
+                            raise ValidationError(
+                                detail=(
+                                    "当前查询与已保存的 query_output_config 不兼容；"
+                                    "请通过完整 API 同步更新 query_output_config，或显式传 null 删除"
+                                )
+                            ) from error
                 item.name = self.name
                 item.no_data_config = self.no_data_config
                 item.target = self.target
@@ -1833,9 +1875,6 @@ class Item(AbstractConfig):
         """
         records = []
         for item in items:
-            item_kwargs = {}
-            if isinstance(item.meta, dict) and "query_output_config" in item.meta:
-                item_kwargs["query_output_config"] = item.meta["query_output_config"]
             record = Item(
                 id=item.id,
                 strategy_id=item.strategy_id,
@@ -1848,10 +1887,12 @@ class Item(AbstractConfig):
                 metric_type=item.metric_type,
                 instance=item,
                 time_delay=item.time_delay,
-                **item_kwargs,
             )
             record.algorithms = Algorithm.from_models(algorithms[item.id])
             record.query_configs = QueryConfig.from_models(query_configs[item.id])
+            if isinstance(item.meta, dict) and "query_output_config" in item.meta:
+                record.query_output_config = record.normalize_query_output_config(item.meta["query_output_config"])
+                record.validate_query_output_compatibility(record.query_output_config)
             records.append(record)
 
         return records
@@ -2889,6 +2930,25 @@ class Strategy(AbstractConfig):
 
         return create_or_update_datas
 
+    def get_history_content(self) -> dict:
+        """生成包含省略字段有效值的完整历史快照。"""
+        content = self.to_dict()
+        if self.id <= 0:
+            return content
+
+        current_items = list(ItemModel.objects.filter(strategy_id=self.id).only("id", "meta"))
+        current_items_by_id = {item.id: item for item in current_items}
+        for index, (item, item_content) in enumerate(zip(self.items, content["items"])):
+            if item.query_output_config is not QUERY_OUTPUT_CONFIG_EMPTY:
+                continue
+            current_item = current_items_by_id.get(item.id)
+            if current_item is None and index < len(current_items):
+                current_item = current_items[index]
+            if isinstance(getattr(current_item, "meta", None), dict) and "query_output_config" in current_item.meta:
+                item_content["query_output_config"] = copy.deepcopy(current_item.meta["query_output_config"])
+
+        return content
+
     def save(self, rollback=False):
         """
         保存策略配置
@@ -2917,7 +2977,7 @@ class Strategy(AbstractConfig):
                 create_user=self._get_username(),
                 strategy_id=self.id,
                 operate="create" if self.id == 0 else "update",
-                content=self.to_dict(),
+                content=self.get_history_content(),
             )
 
             # 重名检测

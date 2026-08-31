@@ -1,6 +1,8 @@
 from types import SimpleNamespace
 
 from alarm_backends.core.context.alarm import Alarm
+from bkmonitor.utils.template import Jinja2Renderer
+from monitor_web.strategies.constant import ValueableList
 from constants.alert import EventStatus
 
 
@@ -52,3 +54,22 @@ def test_alarm_ref_values_is_empty_for_legacy_anomaly_without_snapshot():
     )
 
     assert Alarm(parent).ref_values == {}
+
+
+def test_alarm_ref_values_can_be_rendered_with_safe_get_access():
+    alarm, _ = build_alarm()
+
+    rendered = Jinja2Renderer.render(
+        '{{ alarm.ref_values.get("A", {}).get("value") }}|{{ alarm.ref_values.get("A", {}).get("state") }}',
+        {"alarm": alarm},
+    )
+
+    assert rendered == "42|SUCCESS"
+
+
+def test_notice_variable_list_documents_alarm_ref_values_get_usage():
+    alarm_variables = next(group for group in ValueableList.VALUEABLELIST if group["id"] == "ALARM_VAR")
+
+    ids = {item["id"] for item in alarm_variables["items"]}
+    assert 'alarm.ref_values.get("reference_name", {}).get("value")' in ids
+    assert 'alarm.ref_values.get("reference_name", {}).get("state")' in ids

@@ -13,9 +13,9 @@ def named_output_config():
         "response_contract": "named_outputs/v1",
         "legacy_output_ref": "C",
         "output_list": [
-            {"reference_name": "A", "expression": "A"},
-            {"reference_name": "B", "expression": "B"},
-            {"reference_name": "C", "expression": "A / B * 100"},
+            {"reference_name": "A", "expression": "a"},
+            {"reference_name": "B", "expression": "b"},
+            {"reference_name": "C", "expression": "a / b * 100"},
         ],
     }
 
@@ -24,7 +24,7 @@ def item_config(**overrides):
     config = {
         "id": 0,
         "name": "name",
-        "expression": "A / B * 100",
+        "expression": "a / b * 100",
         "origin_sql": "test",
         "no_data_config": {},
         "target": [[]],
@@ -33,7 +33,7 @@ def item_config(**overrides):
             {
                 "data_source_label": "bk_monitor",
                 "data_type_label": "time_series",
-                "alias": "A",
+                "alias": "a",
                 "id": 0,
                 "result_table_id": "xxxx",
                 "metric_field": "aaa",
@@ -46,7 +46,7 @@ def item_config(**overrides):
             {
                 "data_source_label": "bk_monitor",
                 "data_type_label": "time_series",
-                "alias": "B",
+                "alias": "b",
                 "id": 0,
                 "result_table_id": "xxxx",
                 "metric_field": "bbb",
