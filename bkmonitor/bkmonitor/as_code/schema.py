@@ -51,6 +51,19 @@ BkMonitorQuerySchema = Schema(
         ),
         Optional("expression", default="a"): str,
         Optional("functions", default=lambda: []): [str],
+        Optional("query_output_config"): Or(
+            None,
+            {
+                "response_contract": "named_outputs/v1",
+                "legacy_output_ref": Regex(r"^[A-Za-z_][A-Za-z0-9_]*$"),
+                "output_list": [
+                    {
+                        "reference_name": Regex(r"^[A-Za-z_][A-Za-z0-9_]*$"),
+                        "expression": And(str, lambda value: bool(value.strip())),
+                    }
+                ],
+            },
+        ),
         "query_configs": [
             {
                 Optional("metric", default=""): str,
@@ -99,6 +112,13 @@ IssueConfigSchema = {
     Optional("conditions", default=""): str,
 }
 
+
+def validate_strategy_version(data):
+    if "query_output_config" in data["query"] and data["version"] != MaxVersion.STRATEGY:
+        raise SchemaError([], "query.query_output_config requires strategy version 1.1 or later")
+    return True
+
+
 StrategySchema = Schema(
     {
         "name": And(str, lambda p: 128 >= len(p) > 0),
@@ -106,7 +126,7 @@ StrategySchema = Schema(
             "version",
             default=MinVersion.STRATEGY,
             description=f"策略支持版本号范围：{MinVersion.STRATEGY}-{MaxVersion.STRATEGY}",
-        ): And(Use(str), lambda s: MinVersion.STRATEGY <= s <= MaxVersion.STRATEGY),
+        ): And(Use(str), lambda s: s in {MinVersion.STRATEGY, MaxVersion.STRATEGY}),
         Optional("labels", default=lambda: []): [str],
         Optional("enabled", default=True): bool,
         Optional("active_time", default="00:00 -- 23:59"): Regex(
@@ -216,6 +236,7 @@ StrategySchema = Schema(
     },
     ignore_extra_keys=True,
 )
+StrategySchema = Schema(And(StrategySchema, validate_strategy_version))
 
 TimeRangeSchema = Schema(Regex(r"^\d{2}:\d{2}(:\d{2})? *-- *\d{2}:\d{2}(:\d{2})?$"))
 

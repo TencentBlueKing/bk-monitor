@@ -14,7 +14,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from api.unify_query.default import GetDimensionDataResource, QueryRawResource
+from api.unify_query.default import GetDimensionDataResource, QueryDataResource, QueryRawResource
 from bkmonitor.data_source.data_source import LogSearchLogDataSource
 from bkmonitor.data_source.unify_query.builder import QueryHelper
 from bkmonitor.data_source.unify_query.query import UnifyQuery
@@ -40,13 +40,18 @@ def mock_query_metrics(mocker):
     }
 
 
-def build_unify_query() -> UnifyQuery:
+def build_unify_query(query_output_config=None) -> UnifyQuery:
     data_source = MagicMock()
     data_source.metrics = [{"field": "cpu_usage"}]
     data_source.data_source_label = "bk_monitor"
     data_source.data_type_label = "time_series"
     data_source.table = "system.cpu_summary"
-    return UnifyQuery(bk_biz_id=2, data_sources=[data_source], expression="a")
+    return UnifyQuery(
+        bk_biz_id=2,
+        data_sources=[data_source],
+        expression="a",
+        query_output_config=query_output_config,
+    )
 
 
 def build_dimension_unify_query(supports_unify_query_dimensions: bool = True) -> tuple[UnifyQuery, MagicMock]:
@@ -79,6 +84,241 @@ def build_dimension_config(**overrides: Any) -> dict[str, Any]:
 
 
 class TestUnifyQuery:
+    @staticmethod
+    def named_output_config():
+        return {
+            "response_contract": "named_outputs/v1",
+            "legacy_output_ref": "C",
+            "output_list": [
+                {"reference_name": "A", "expression": "A"},
+                {"reference_name": "B", "expression": "B"},
+                {"reference_name": "C", "expression": "A / B * 100"},
+            ],
+        }
+
+    def test_query_data_resource_accepts_named_output_request_fields(self):
+        params = {
+            "query_list": [],
+            "metric_merge": "A / B * 100",
+            "start_time": "1",
+            "end_time": "2",
+            "step": "60s",
+            "space_uid": "bkcc__2",
+            "down_sample_range": "",
+            **self.named_output_config(),
+        }
+
+        serializer = QueryDataResource.RequestSerializer(data=params)
+
+        assert serializer.is_valid(), serializer.errors
+        assert serializer.validated_data["response_contract"] == "named_outputs/v1"
+        assert serializer.validated_data["legacy_output_ref"] == "C"
+        assert serializer.validated_data["output_list"] == self.named_output_config()["output_list"]
+
+    def test_named_output_config_is_forwarded_without_changing_metric_merge(self):
+        query = build_unify_query(self.named_output_config())
+        query.data_sources[0].interval = 60
+        query.data_sources[0].to_unify_query_config.return_value = [
+            {"reference_name": "A"},
+            {"reference_name": "B"},
+        ]
+
+        params = query.get_unify_query_params()
+
+        assert params["metric_merge"] == "a"
+        assert {key: params[key] for key in self.named_output_config()} == self.named_output_config()
+
+    def test_named_outputs_align_snapshot_by_timestamp_and_complete_labels(self, mocker):
+        query = build_unify_query(self.named_output_config())
+        span = MagicMock()
+        params = {
+            "query_list": [{"reference_name": "A"}, {"reference_name": "B"}],
+            "metric_merge": "A / B * 100",
+            **self.named_output_config(),
+        }
+        mocker.patch.object(query, "get_unify_query_params", return_value=params)
+        mocker.patch(
+            "bkmonitor.data_source.unify_query.query.tracer.start_as_current_span", return_value=nullcontext(span)
+        )
+        mocker.patch.object(query, "process_data_by_datasource", side_effect=lambda records: records)
+        mocker.patch(
+            "bkmonitor.data_source.unify_query.query.api.unify_query.query_data",
+            return_value={
+                "contract_version": "named_outputs/v1",
+                "is_partial": True,
+                "outputs": [
+                    {
+                        "reference_name": "A",
+                        "state": "PARTIAL",
+                        "is_partial": True,
+                        "series": [
+                            {
+                                "columns": ["_time", "A"],
+                                "types": ["time", "float"],
+                                "group_keys": ["service"],
+                                "group_values": ["order"],
+                                "values": [[1774525980, 42]],
+                            }
+                        ],
+                    },
+                    {"reference_name": "B", "state": "ERROR", "is_partial": False, "series": []},
+                    {
+                        "reference_name": "C",
+                        "state": "SUCCESS",
+                        "is_partial": False,
+                        "series": [
+                            {
+                                "columns": ["_time", "C"],
+                                "types": ["time", "float"],
+                                "group_keys": ["service"],
+                                "group_values": ["order"],
+                                "values": [[1774525980, 4.2]],
+                            }
+                        ],
+                    },
+                ],
+            },
+        )
+
+        records, is_partial, _ = query._query_unify_query(
+            start_time=1774525980000,
+            end_time=1774526040000,
+        )
+
+        assert is_partial is False
+        assert records == [
+            {
+                "service": "order",
+                "_time_": 1774525980000,
+                "_result_": 4.2,
+                "_ref_values_": {
+                    "A": {"value": 42, "state": "PARTIAL"},
+                    "B": {"state": "ERROR"},
+                    "C": {"value": 4.2, "state": "SUCCESS"},
+                },
+            }
+        ]
+
+    def test_named_outputs_reject_unknown_response_contract(self, mocker):
+        query = build_unify_query(self.named_output_config())
+        span = MagicMock()
+        mocker.patch.object(
+            query,
+            "get_unify_query_params",
+            return_value={"query_list": [{"reference_name": "A"}], **self.named_output_config()},
+        )
+        mocker.patch(
+            "bkmonitor.data_source.unify_query.query.tracer.start_as_current_span", return_value=nullcontext(span)
+        )
+        mocker.patch(
+            "bkmonitor.data_source.unify_query.query.api.unify_query.query_data",
+            return_value={"contract_version": "named_outputs/v2", "outputs": []},
+        )
+
+        with pytest.raises(ValueError, match="named_outputs/v2"):
+            query._query_unify_query(start_time=1774525980000, end_time=1774526040000)
+
+    def test_named_outputs_reject_present_but_empty_response_contract(self, mocker):
+        query = build_unify_query(self.named_output_config())
+        span = MagicMock()
+        mocker.patch.object(
+            query,
+            "get_unify_query_params",
+            return_value={"query_list": [{"reference_name": "A"}], **self.named_output_config()},
+        )
+        mocker.patch(
+            "bkmonitor.data_source.unify_query.query.tracer.start_as_current_span", return_value=nullcontext(span)
+        )
+        mocker.patch(
+            "bkmonitor.data_source.unify_query.query.api.unify_query.query_data",
+            return_value={"contract_version": "", "outputs": []},
+        )
+
+        with pytest.raises(ValueError, match="unsupported named outputs response contract"):
+            query._query_unify_query(start_time=1774525980000, end_time=1774526040000)
+
+    @pytest.mark.parametrize(
+        ("outputs", "error"),
+        [
+            (
+                [
+                    {"reference_name": "A", "state": "SUCCESS", "series": []},
+                    {"reference_name": "A", "state": "SUCCESS", "series": []},
+                    {"reference_name": "C", "state": "SUCCESS", "series": []},
+                ],
+                "duplicate",
+            ),
+            ([{"reference_name": "A", "state": "SUCCESS", "series": []}], "legacy output"),
+        ],
+    )
+    def test_named_outputs_reject_duplicate_or_missing_legacy_output(self, outputs, error):
+        params = {"query_list": [{"reference_name": "A"}], **self.named_output_config()}
+
+        with pytest.raises(ValueError, match=error):
+            UnifyQuery.process_named_outputs_data(
+                params,
+                {"contract_version": "named_outputs/v1", "outputs": outputs},
+            )
+
+    def test_legacy_response_marks_non_legacy_outputs_unsupported(self, mocker):
+        query = build_unify_query(self.named_output_config())
+        span = MagicMock()
+        mocker.patch.object(
+            query,
+            "get_unify_query_params",
+            return_value={"query_list": [{"reference_name": "A"}], **self.named_output_config()},
+        )
+        mocker.patch(
+            "bkmonitor.data_source.unify_query.query.tracer.start_as_current_span", return_value=nullcontext(span)
+        )
+        mocker.patch.object(query, "process_data_by_datasource", side_effect=lambda records: records)
+        mocker.patch(
+            "bkmonitor.data_source.unify_query.query.api.unify_query.query_data",
+            return_value={
+                "is_partial": True,
+                "series": [
+                    {
+                        "columns": ["_time", "_result"],
+                        "types": ["time", "float"],
+                        "group_keys": ["service"],
+                        "group_values": ["order"],
+                        "values": [[1774525980, 4.2]],
+                    }
+                ],
+            },
+        )
+
+        records, is_partial, _ = query._query_unify_query(
+            start_time=1774525980000,
+            end_time=1774526040000,
+        )
+
+        assert is_partial is True
+        assert records[0]["_ref_values_"] == {
+            "A": {"state": "UNSUPPORTED"},
+            "B": {"state": "UNSUPPORTED"},
+            "C": {"value": 4.2, "state": "PARTIAL"},
+        }
+
+    def test_legacy_response_without_series_is_rejected(self, mocker):
+        query = build_unify_query(self.named_output_config())
+        span = MagicMock()
+        mocker.patch.object(
+            query,
+            "get_unify_query_params",
+            return_value={"query_list": [{"reference_name": "A"}], **self.named_output_config()},
+        )
+        mocker.patch(
+            "bkmonitor.data_source.unify_query.query.tracer.start_as_current_span", return_value=nullcontext(span)
+        )
+        mocker.patch(
+            "bkmonitor.data_source.unify_query.query.api.unify_query.query_data",
+            return_value={"is_partial": False},
+        )
+
+        with pytest.raises(ValueError, match="series"):
+            query._query_unify_query(start_time=1774525980000, end_time=1774526040000)
+
     def test_query_helper_forwards_es_batch_opt_in(self):
         unify_query = MagicMock()
         unify_query.query_log.return_value = ([], 0)
