@@ -1763,7 +1763,7 @@ class CollectorHandler:
 
     def _sync_scene_tags_to_index_set(self, labels: dict):
         self.sync_scene_tags_to_index_set(self.data.index_set_id, labels)
-        
+
     @staticmethod
     def _get_current_allocation_min_days(result_table: dict) -> int:
         # 部分历史 RT 保留了 warm_phase_days，但当前集群并不支持冷热数据。

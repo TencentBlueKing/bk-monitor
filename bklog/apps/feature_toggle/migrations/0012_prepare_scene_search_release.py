@@ -7,7 +7,7 @@ from apps.feature_toggle.plugins.constants import SCENE_SEARCH
 
 def prepare_scene_search_release(apps, schema_editor):
     feature_toggle = apps.get_model("feature_toggle", "FeatureToggle")
-    feature_toggle.objects.update_or_create(
+    feature_toggle.objects.get_or_create(
         name=SCENE_SEARCH,
         defaults={"status": "debug"},
     )
