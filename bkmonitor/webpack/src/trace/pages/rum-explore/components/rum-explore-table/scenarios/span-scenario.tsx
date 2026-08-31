@@ -25,19 +25,17 @@
  */
 
 import { get } from '@vueuse/core';
+import { hexToRgba } from 'monitor-common/utils/colorHelpers';
 
 import {
   type BaseTableColumn,
-  type TableCellRenderContext,
-  type TableCellRenderer,
   ExploreTableColumnTypeEnum,
 } from '../../../../trace-explore/components/trace-explore-table/typing';
 import {
-  DURATION_COLOR_THRESHOLDS,
-  RUM_DURATION_FIELD_UNITS,
+  RUM_HTTP_STATUS_CODE_MAP,
   RUM_LINK_FIELDS,
   RUM_STATUS_CODE_MAP,
-  RUM_TIME_FIELDS,
+  RumFieldDisplayEnum,
   SPAN_TYPE_FIELD,
   SPAN_TYPE_META,
 } from '../../../constants';
@@ -55,13 +53,6 @@ export class SpanScenario extends BaseScenario {
   readonly privateClassName = 'span-table';
   readonly rowKey = 'span_id';
   protected columnOverrides: Record<string, BaseTableColumn> = {
-    /** 时间列：复用内置时间渲染 */
-    ...Object.fromEntries(
-      [...RUM_TIME_FIELDS].map((key): [string, BaseTableColumn] => [
-        key,
-        { renderType: ExploreTableColumnTypeEnum.TIME },
-      ])
-    ),
     /** 链接列：点击把值加为检索条件 */
     ...Object.fromEntries(
       [...RUM_LINK_FIELDS].map((key): [string, BaseTableColumn] => [
@@ -77,11 +68,33 @@ export class SpanScenario extends BaseScenario {
       renderType: ExploreTableColumnTypeEnum.PREFIX_ICON,
       getRenderValue: row => this.getSpanTypeRenderValue(row[SPAN_TYPE_FIELD]),
     },
-    /** 状态码列：按状态语义着色的 Tag */
+    /** status.code 列：按状态语义着色的 Tag */
     'status.code': {
       renderType: ExploreTableColumnTypeEnum.TAGS,
       getRenderValue: row => this.getStatusCodeRenderValue(row['status.code']),
     },
+    'attributes.http.response.status_code': {
+      renderType: ExploreTableColumnTypeEnum.TAGS,
+      getRenderValue: row => this.getHttpStatusCodeRenderValue(row['attributes.http.response.status_code']),
+    },
+    /** attributes.http.request.method 列：统一灰色 Tag（不指定配色即用 tags 渲染的默认灰） */
+    'attributes.http.request.method': {
+      renderType: ExploreTableColumnTypeEnum.TAGS,
+      getRenderValue: row => this.getHttpMethodRenderValue(row['attributes.http.request.method']),
+    },
+    /** attributes.resource.cache.hit 列：缓存命中（图标 + HIT / --） */
+    'attributes.resource.cache.hit': {
+      renderType: ExploreTableColumnTypeEnum.PREFIX_ICON,
+      getRenderValue: row => this.getCacheHitRenderValue(row['attributes.resource.cache.hit']),
+    },
+    'events.attributes.exception.type': {
+      renderType: ExploreTableColumnTypeEnum.TAGS,
+      getRenderValue: row => this.getExceptionTypeRenderValue(row['events.attributes.exception.type']),
+    },
+    // TODO： attributes.action.frustration.type 列渲染逻辑需和 设计确认
+    // 'attributes.action.frustration.type': {
+    //   renderType: ExploreTableColumnTypeEnum.TAGS,
+    // },
   };
 
   constructor(
@@ -94,42 +107,24 @@ export class SpanScenario extends BaseScenario {
   }
 
   /**
-   * @description 场景元数据推导：Span 中单位为微秒（us）的字段按耗时渲染（三色着色）
-   * @param {string} colKey 列键
-   * @returns 声明式列配置（仅渲染/交互相关）
+   * @description 场景元数据推导：根据 field_display_type 派发对应渲染类型
+   * - datetime → 时间列
+   * - duration → 耗时列（透传原始单位供 formatDuration 量纲换算）
    */
   protected buildBaseline(colKey: string): Partial<BaseTableColumn> {
     const field = get(this.context.fieldMap).get(colKey);
-    const unit = field?.field_unit;
-    if (unit && RUM_DURATION_FIELD_UNITS.has(unit)) {
-      return {
-        cellRenderer: this.renderDurationCell,
-        // 将字段原始单位透传给 duration 单元格渲染器，使其按正确量纲格式化与着色
-        cellSpecificProps: { durationUnit: unit },
-      };
+    switch (field?.field_display_type) {
+      case RumFieldDisplayEnum.DATETIME:
+        return { renderType: ExploreTableColumnTypeEnum.TIME };
+      case RumFieldDisplayEnum.DURATION:
+        return {
+          renderType: ExploreTableColumnTypeEnum.DURATION,
+          cellSpecificProps: { durationUnit: field?.field_unit as 'ms' | 'us' },
+        };
+      default:
+        return {};
     }
-    return {};
   }
-
-  // ----------------- Span 场景私有渲染方法 -----------------
-  /**
-   * @description Span 耗时单元格渲染：复用内置 DURATION 格式化（阈值/单位），再按自身耗时阈值套用三色主题
-   */
-  renderDurationCell: TableCellRenderer = (row, column: BaseTableColumn, renderCtx: TableCellRenderContext) => {
-    const inner = renderCtx?.cellRenderHandleMap?.[ExploreTableColumnTypeEnum.DURATION]?.(row, column, renderCtx);
-    const value = (row as Record<string, unknown>)?.[column.colKey];
-    if (value == null || value === '') return inner;
-    // 阈值量纲为微秒，需按字段单位换算后再比对颜色（ms 字段需 * 1000）
-    const unit = column?.cellSpecificProps?.durationUnit ?? 'us';
-    const microseconds = unit === 'ms' ? Number(value) * 1000 : Number(value);
-    let theme = 'normal';
-    if (microseconds >= DURATION_COLOR_THRESHOLDS.warning) {
-      theme = 'failed';
-    } else if (microseconds >= DURATION_COLOR_THRESHOLDS.normal) {
-      theme = 'warning';
-    }
-    return (<span class={['custom-duration-col', `is-${theme}`]}>{inner}</span>) as unknown as SlotReturnValue;
-  };
 
   // ----------------- Span 场景私有逻辑方法 -----------------
 
@@ -158,8 +153,57 @@ export class SpanScenario extends BaseScenario {
    * @description 状态码列渲染值：按状态语义着色的 Tag（复用内置 tags 渲染）
    * @param {unknown} value 当前行状态码值
    */
-  private getStatusCodeRenderValue(value: unknown) {
-    const status = RUM_STATUS_CODE_MAP[Number(value)];
-    return status ? [{ alias: status.alias, tagBgColor: status.tagBgColor, tagColor: status.tagColor }] : [];
+  private getStatusCodeRenderValue(value: number) {
+    const status = RUM_STATUS_CODE_MAP[value];
+    return status ? [{ ...status }] : [{ alias: value }];
+  }
+
+  /**
+   * @description HTTP 状态码列渲染值：按百位分组着色的 Tag（复用内置 tags 渲染）
+   * @param {unknown} value 当前行 HTTP 状态码值
+   */
+  private getHttpStatusCodeRenderValue(value: unknown) {
+    const code = Number(value);
+    if (!Number.isFinite(code)) return [];
+    const config = RUM_HTTP_STATUS_CODE_MAP[Math.floor(code / 100)];
+    return config ? [{ alias: String(value), ...config }] : [{ alias: value }];
+  }
+
+  /**
+   * @description HTTP 方法列渲染值：统一灰色 Tag（复用内置 tags 渲染的默认配色，不做方法语义区分）
+   * @param {unknown} value 当前行 HTTP 方法值
+   */
+  private getHttpMethodRenderValue(value: unknown) {
+    return value ? [String(value)] : [];
+  }
+
+  /**
+   * @description 缓存命中列渲染值：命中时显示勾选图标 + HIT 文本，未命中显示 --
+   * @param {unknown} value 当前行缓存命中值（布尔值）
+   */
+  private getCacheHitRenderValue(value: unknown) {
+    if (!value) return { alias: '', prefixIcon: '' };
+    return {
+      alias: 'HIT',
+      prefixIcon: 'icon-monitor icon-mc-check-small',
+    };
+  }
+
+  /**
+   * @description 错误类型列渲染值：红色主题 Tag（无映射，原始字符串直接展示）
+   * @param {unknown} value 当前行错误类型值（如 'TypeError'）
+   */
+  private getExceptionTypeRenderValue(value: unknown) {
+    return value
+      ? [
+          {
+            alias: String(value),
+            tagBgColor: '#FDE7E7',
+            tagColor: '#EA3636',
+            tagHoverBgColor: hexToRgba('#FDE7E7', 0.8),
+            tagHoverColor: hexToRgba('#EA3636', 0.8),
+          },
+        ]
+      : [];
   }
 }

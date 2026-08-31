@@ -24,6 +24,8 @@
  * IN THE SOFTWARE.
  */
 
+import { hexToRgba } from 'monitor-common/utils/colorHelpers';
+
 import ActionIcon from '../../static/img/rum-explore/span-type/action.svg';
 import CustomIcon from '../../static/img/rum-explore/span-type/custom.svg';
 import ErrorIcon from '../../static/img/rum-explore/span-type/error.svg';
@@ -34,6 +36,28 @@ import VitalIcon from '../../static/img/rum-explore/span-type/vital.svg';
 import WebsocketIcon from '../../static/img/rum-explore/span-type/websocket.svg';
 
 import type { RumMode } from './typings';
+
+/** 字段展示类型（仅特殊渲染的字段才返回此字段，取值需与 view_config 接口对齐） */
+export const RumFieldDisplayEnum = {
+  /** 日期时间字段，按时间列渲染 */
+  DATETIME: 'datetime',
+  /** 耗时字段，按 duration 列渲染 */
+  DURATION: 'duration',
+} as const;
+
+/**
+ * HTTP 状态码分组，取值即状态码的百位数字，可直接由 Math.floor(code / 100) 查得。
+ */
+export const RumHttpStatusCodeGroupEnum = {
+  /** 2xx 成功 */
+  SUCCESS: 2,
+  /** 3xx 重定向 */
+  REDIRECT: 3,
+  /** 4xx 客户端错误 */
+  CLIENT_ERROR: 4,
+  /** 5xx 服务端错误 */
+  SERVER_ERROR: 5,
+} as const;
 
 /** 「类型选择」中代表不限类型的值，非后端枚举 */
 export const ALL_SPAN_TYPE = '';
@@ -94,22 +118,6 @@ export const RAW_FIELD_GROUP_NAME = '__raw_fields__';
 
 export const RAW_FIELD_GROUP_ICON = 'icon-yuanshiziduan';
 
-/**
- * 耗时着色阈值，单位微秒。
- *
- * 设计稿只给了绿 / 橙 / 红三档配色，未标注具体阈值，这里按稿中样例数据反推：
- * 140ms、234ms 为绿，530ms、875ms 为橙，2354ms、2980ms 为红。
- */
-export const DURATION_COLOR_THRESHOLDS = {
-  /** 低于该值显示为正常色 */
-  normal: 500 * 1000,
-  /** 低于该值显示为警告色，超过则为异常色 */
-  warning: 2000 * 1000,
-};
-
-/** 耗时字段支持的单位集合，命中后按 duration 单元格渲染（量纲需对齐 formatDuration 的 unit 参数） */
-export const RUM_DURATION_FIELD_UNITS = new Set(['us', 'ms']);
-
 /** 微秒级时间戳字段，按日期时间展示而非耗时 */
 export const RUM_TIME_FIELDS = new Set(['start_time', 'end_time', 'events.timestamp']);
 
@@ -137,11 +145,60 @@ export const DEFAULT_COLUMN_WIDTH = 150;
 /** 表格列最小宽度 */
 export const DEFAULT_MIN_COLUMN_WIDTH = 100;
 
-/** status.code 列的展示配置，数值语义沿用 OpenTelemetry 的 UNSET / OK / ERROR，tagColor/tagBgColor 供内置 TAGS 渲染着色 */
-export const RUM_STATUS_CODE_MAP: Record<number, { alias: string; tagBgColor: string; tagColor: string }> = {
-  0: { alias: window.i18n.t('异常'), tagBgColor: '#ff9c011f', tagColor: '#ff9c01' },
-  1: { alias: window.i18n.t('成功'), tagBgColor: '#2dcb561f', tagColor: '#2dcb56' },
-  2: { alias: window.i18n.t('失败'), tagBgColor: '#ea36361f', tagColor: '#ea3636' },
+/** status.code 列的展示配置 */
+export const RUM_STATUS_CODE_MAP = {
+  0: {
+    alias: window.i18n.t('未设置'),
+    tagBgColor: '#FFF3E1',
+    tagColor: '#FF9C01',
+    tagHoverBgColor: hexToRgba('#FFF3E1', 0.8),
+    tagHoverColor: hexToRgba('#FF9C01', 0.8),
+  },
+  1: {
+    alias: window.i18n.t('正常'),
+    tagBgColor: '#E6F9EB',
+    tagColor: '#2DCB56',
+    tagHoverBgColor: hexToRgba('#E6F9EB', 0.8),
+    tagHoverColor: hexToRgba('#2DCB56', 0.8),
+  },
+  2: {
+    alias: window.i18n.t('异常'),
+    tagBgColor: '#FDE7E7',
+    tagColor: '#EA3636',
+    tagHoverBgColor: hexToRgba('#FDE7E7', 0.8),
+    tagHoverColor: hexToRgba('#EA3636', 0.8),
+  },
+};
+
+/** attributes.http.response.status_code 列按状态码分组的展示配置 */
+export const RUM_HTTP_STATUS_CODE_MAP: Record<
+  number,
+  { tagBgColor: string; tagColor: string; tagHoverBgColor: string; tagHoverColor: string }
+> = {
+  [RumHttpStatusCodeGroupEnum.SUCCESS]: {
+    tagBgColor: '#21A380',
+    tagColor: '#FFFFFF',
+    tagHoverBgColor: hexToRgba('#21A380', 0.8),
+    tagHoverColor: hexToRgba('#FFFFFF', 0.8),
+  },
+  [RumHttpStatusCodeGroupEnum.REDIRECT]: {
+    tagBgColor: '#3A84FF',
+    tagColor: '#FFFFFF',
+    tagHoverBgColor: hexToRgba('#3A84FF', 0.8),
+    tagHoverColor: hexToRgba('#FFFFFF', 0.8),
+  },
+  [RumHttpStatusCodeGroupEnum.CLIENT_ERROR]: {
+    tagBgColor: '#F59500',
+    tagColor: '#FFFFFF',
+    tagHoverBgColor: hexToRgba('#F59500', 0.8),
+    tagHoverColor: hexToRgba('#FFFFFF', 0.8),
+  },
+  [RumHttpStatusCodeGroupEnum.SERVER_ERROR]: {
+    tagBgColor: '#EA3636',
+    tagColor: '#FFFFFF',
+    tagHoverBgColor: hexToRgba('#EA3636', 0.8),
+    tagHoverColor: hexToRgba('#FFFFFF', 0.8),
+  },
 };
 
 /** 视角 Tab 配置，当前仅 span 有实现，其余渲染占位 */
