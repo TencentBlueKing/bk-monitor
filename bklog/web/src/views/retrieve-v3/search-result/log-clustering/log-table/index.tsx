@@ -336,9 +336,12 @@ export default defineComponent({
         host_scopes,
         interval,
         timezone,
+        scene_filter_values,
+        table_id_conditions,
+        space_uid,
       } = retrieveParams.value;
 
-      return {
+      const data: Record<string, any> = {
         bk_biz_id: store.state.bkBizId,
         addition: getClusterSearchAddition(),
         size,
@@ -352,6 +355,13 @@ export default defineComponent({
         ...props.requestData,
         ...overrides,
       };
+
+      // 场景化检索模式：传递场景过滤参数，聚类结果才能随场景条件刷新
+      if (store.getters.isSceneMode) {
+        Object.assign(data, { scene_filter_values, table_id_conditions, space_uid });
+      }
+
+      return data;
     };
 
     const getPatternOriginLog = async (row: LogPattern) => {
