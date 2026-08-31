@@ -194,8 +194,8 @@
       </span></span
     >
     <span
-      class="field-value"
       ref="refFieldValue"
+      class="field-value"
       :data-field-name="field.field_name"
       v-html="$xss(renderText)"
     ></span>

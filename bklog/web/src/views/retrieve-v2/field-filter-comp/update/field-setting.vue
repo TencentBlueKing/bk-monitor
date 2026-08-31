@@ -90,8 +90,8 @@
 </script>
 <template>
   <div
-    class="field-seeting"
     v-show="!isUnionSearch"
+    class="field-seeting"
   >
     <span>
       <span

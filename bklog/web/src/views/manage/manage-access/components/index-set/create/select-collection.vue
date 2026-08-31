@@ -35,8 +35,8 @@
     header-position="left"
   >
     <div
-      class="slot-container"
       v-bkloading="{ isLoading: basicLoading }"
+      class="slot-container"
     >
       <bk-form
         ref="formRef"
@@ -45,9 +45,9 @@
         :rules="formRules"
       >
         <bk-form-item
+          v-if="scenarioId === 'bkdata'"
           :label="$t('索引')"
           property="resultTableId"
-          v-if="scenarioId === 'bkdata'"
           required
         >
           <bk-select
@@ -59,10 +59,10 @@
           >
             <bk-option
               v-for="item in getShowCollectionList"
-              class="custom-no-padding-option"
-              :disabled="parentData.indexes.some(selectedItem => item.result_table_id === selectedItem.result_table_id)"
               :id="item.result_table_id"
               :key="item.result_table_id"
+              class="custom-no-padding-option"
+              :disabled="parentData.indexes.some(selectedItem => item.result_table_id === selectedItem.result_table_id)"
               :name="`${item.result_table_name_alias}(${item.result_table_id})`"
             >
               <div class="option-slot-container">
@@ -87,10 +87,10 @@
           >
             <bk-option
               v-for="item in getShowCollectionList"
-              class="custom-no-padding-option"
-              :disabled="parentData.indexes.some(selectedItem => item.result_table_id === selectedItem.result_table_id)"
               :id="item.result_table_id"
               :key="item.result_table_id"
+              class="custom-no-padding-option"
+              :disabled="parentData.indexes.some(selectedItem => item.result_table_id === selectedItem.result_table_id)"
               :name="`${item.result_table_name_alias}(${item.result_table_id})`"
             >
               <div
@@ -128,8 +128,8 @@
             >
               <template #default="props">
                 <span
-                  class="overflow-tips"
                   v-bk-overflow-tips
+                  class="overflow-tips"
                   >{{ props.row.field_name }}</span
                 >
               </template>
@@ -141,8 +141,8 @@
             >
               <template #default="props">
                 <span
-                  class="overflow-tips"
                   v-bk-overflow-tips
+                  class="overflow-tips"
                   >{{ props.row.field_type }}</span
                 >
               </template>
@@ -156,8 +156,8 @@
         </bk-form-item>
       </bk-form>
       <div
-        class="button-footer"
         slot="footer"
+        class="button-footer"
       >
         <bk-button
           class="king-button"

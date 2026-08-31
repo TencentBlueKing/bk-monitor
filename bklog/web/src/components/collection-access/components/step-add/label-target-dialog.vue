@@ -36,16 +36,16 @@
     @cancel="handelCancelDialog"
   >
     <div
-      class="log-target-container"
       v-bkloading="{ isLoading: treeLoading, zIndex: 10 }"
+      class="log-target-container"
     >
       <div
         :style="`width : ${leftPreWidth}px`"
         :class="['label-tree', activeStretchBtn === 'left' && 'right-border-light']"
       >
         <bk-input
-          class="tree-search"
           v-model="filterStr"
+          class="tree-search"
           right-icon="bk-icon icon-search"
           clearable
           @change="search"
@@ -67,8 +67,8 @@
             <div>
               <div class="item-slot">
                 <span
-                  class="item-name"
                   v-bk-overflow-tips
+                  class="item-name"
                   >{{ data.name }}</span
                 >
                 <span
@@ -93,8 +93,8 @@
         ></div>
       </div>
       <div
-        class="label-operate"
         v-bkloading="{ isLoading: labelLoading, zIndex: 10 }"
+        class="label-operate"
       >
         <div
           v-if="!isEmpty"
@@ -110,8 +110,8 @@
               <bk-checkbox-group v-model="matchCheckedList">
                 <bk-checkbox
                   v-for="labItem in matchCheckedItemList"
-                  ext-cls="select-item"
                   :key="labItem.id"
+                  ext-cls="select-item"
                   :value="labItem.id"
                 >
                   <match-label-item
@@ -131,8 +131,8 @@
             <bk-checkbox-group v-model="matchSelectList">
               <bk-checkbox
                 v-for="labItem in matchSelectItemList"
-                ext-cls="select-item"
                 :key="labItem.id"
+                ext-cls="select-item"
                 :value="labItem.id"
               >
                 <match-label-item

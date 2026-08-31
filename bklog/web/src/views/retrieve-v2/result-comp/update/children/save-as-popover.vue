@@ -28,8 +28,8 @@
           label="模板名称"
         >
           <bk-input
-            class="template-name-input"
             v-model="formModel.editStr"
+            class="template-name-input"
           />
         </bk-form-item>
         <div class="button-wrap">

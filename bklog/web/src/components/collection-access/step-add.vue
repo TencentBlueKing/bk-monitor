@@ -62,8 +62,8 @@
           :rules="rules.collector_config_name"
         >
           <bk-input
-            class="w520"
             v-model="formData.collector_config_name"
+            class="w520"
             data-test-id="baseMessage_input_fillName"
             maxlength="50"
             show-word-limit
@@ -81,8 +81,8 @@
           <div class="en-name-box">
             <div>
               <bk-input
-                class="w520"
                 v-model="formData.collector_config_name_en"
+                class="w520"
                 :disabled="isUpdate && !!formData.collector_config_name_en"
                 :placeholder="$t('支持数字、字母、下划线，长短5～50字符')"
                 data-test-id="baseMessage_input_fillEnglishName"
@@ -113,8 +113,8 @@
         </bk-form-item>
         <bk-form-item :label="$t('备注说明')">
           <bk-input
-            class="w520"
             v-model="formData.description"
+            class="w520"
             data-test-id="baseMessage_input_fillDetails"
             maxlength="100"
             type="textarea"
@@ -128,8 +128,8 @@
         <div class="add-collection-title original-title">
           <span>{{ $t('源日志信息') }}</span>
           <div
-            class="flex-ac"
             v-show="!isPhysicsEnvironment"
+            class="flex-ac"
           >
             <span>{{ $t('Yaml模式') }}</span>
             <div
@@ -137,8 +137,8 @@
               :disabled="!!formData.bcs_cluster_id"
             >
               <bk-switcher
-                class="ml10"
                 v-model="isYaml"
+                class="ml10"
                 :disabled="!formData.bcs_cluster_id"
                 :pre-check="handelChangeYaml"
                 theme="primary"
@@ -165,19 +165,19 @@
           <div class="environment-box">
             <div
               v-for="(fItem, fIndex) of environmentList"
-              class="environment-container"
               :key="fIndex"
+              class="environment-container"
             >
               <span class="environment-category">{{ fItem.category }}</span>
               <div class="button-box">
                 <div
                   v-for="(sItem, index) of fItem.btnList"
+                  :key="index"
                   :class="{
                     'environment-button': true,
                     active: sItem.id === currentEnvironment,
                     disable: sItem.isDisable,
                   }"
-                  :key="index"
                   @click="handleSelectEnvironment(sItem.id, sItem.isDisable)"
                 >
                   <img :src="sItem.img" />
@@ -195,8 +195,8 @@
           required
         >
           <bk-select
-            style="width: 320px"
             v-model="formData.category_id"
+            style="width: 320px"
             :disabled="isUpdate"
             data-test-id="sourceLogBox_div_selectDataClassification"
             @selected="chooseDataClass"
@@ -258,13 +258,13 @@
           <div class="bk-button-group log-type">
             <bk-button
               v-for="(item, index) in getCollectorScenario"
+              :key="index"
               :class="{
                 disable: !item.is_active,
                 'is-selected': item.id === formData.collector_scenario_id,
               }"
               :data-test-id="`sourceLogBox_button_checkoutType${item.id}`"
               :disabled="isUpdate && isUpdateAndSelectedWinEvent && isWinEventLog"
-              :key="index"
               @click="chooseLogType(item)"
               >{{ item.name }}
             </bk-button>
@@ -279,11 +279,11 @@
           <div class="bk-button-group log-type">
             <bk-button
               v-for="(item, index) in getCollectorScenario"
+              :key="index"
               :class="{
                 'is-selected': item.id === formData.collector_scenario_id,
               }"
               :data-test-id="`sourceLogBox_buttom_checkoutType${item.id}`"
-              :key="index"
               @click="chooseLogType(item)"
               >{{ item.name }}
             </bk-button>
@@ -332,8 +332,8 @@
           <template v-if="formData.category_id">
             <!-- 目标选择器 -->
             <log-ip-selector
-              :height="670"
               :key="bkBizId"
+              :height="670"
               :original-value="ipSelectorOriginalValue"
               :show-dialog.sync="showIpSelectorDialog"
               :show-view-diff="isUpdate"
@@ -407,8 +407,8 @@
             <bk-form-item :label="$t('附加日志标签')">
               <div
                 v-for="(item, index) in formData.extra_labels"
-                class="add-log-label form-div"
                 :key="index"
+                class="add-log-label form-div"
               >
                 <bk-input
                   v-model.trim="item.key"
@@ -438,14 +438,14 @@
                 </div>
               </div>
               <bk-checkbox
-                class="mt8"
                 v-model="formData.add_pod_label"
+                class="mt8"
               >
                 {{ $t('自动添加Pod中的{n}', { n: 'label' }) }}
               </bk-checkbox>
               <bk-checkbox
-                class="mt8 ml10"
                 v-model="formData.add_pod_annotation"
+                class="mt8 ml10"
               >
                 {{ $t('自动添加Pod中的{n}', { n: 'annotation' }) }}
               </bk-checkbox>
@@ -464,8 +464,8 @@
           required
         >
           <bk-select
-            class="w520"
             v-model="formData.data_link_id"
+            class="w520"
             :clearable="false"
             :disabled="isUpdate"
             data-test-id="acquisitionConfig_div_selectReportLink"

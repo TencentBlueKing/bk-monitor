@@ -56,8 +56,8 @@
           <transition-group>
             <li
               v-for="(item, index) in rulesList"
-              class="table-row table-row-li flbc"
               :key="item.__Index__"
+              class="table-row table-row-li flbc"
             >
               <div class="row-left">
                 <div class="row-left-index">
@@ -81,8 +81,8 @@
               <div class="row-right flbc">
                 <div>
                   <span
-                    class="row-right-item"
                     :ref="`placeholder-${index}`"
+                    class="row-right-item"
                     >{{ Object.keys(item)[0] }}</span
                   >
                 </div>
@@ -160,8 +160,8 @@
     </div>
     <!-- 原始日志 -->
     <div
-      :class="{ 'debug-container': true, 'is-hidden': !isClickAlertIcon }"
       v-bk-clickoutside="handleClickOutSide"
+      :class="{ 'debug-container': true, 'is-hidden': !isClickAlertIcon }"
     >
       <div
         class="debug-tool"
@@ -193,6 +193,7 @@
 
         <div class="log-style">
           <bk-input
+            v-model.trim="logOriginal"
             :input-style="{
               'background-color': '#313238',
               height: '100px',
@@ -200,7 +201,6 @@
               color: '#C4C6CC',
               borderRadius: '2px',
             }"
-            v-model.trim="logOriginal"
             :disabled="!globalEditable || logOriginalRequest"
             :rows="3"
             :type="'textarea'"
@@ -212,8 +212,8 @@
         <div class="mt18">
           <p style="height: 32px">{{ $t('效果预览') }}</p>
           <div
-            class="effect-container"
             v-bkloading="{ isLoading: debugRequest, size: 'mini' }"
+            class="effect-container"
           >
             <text-highlight
               style="word-break: break-all"

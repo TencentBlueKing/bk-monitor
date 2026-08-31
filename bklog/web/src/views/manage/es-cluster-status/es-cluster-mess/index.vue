@@ -37,8 +37,8 @@
     >
       <div class="main-operator-container">
         <bk-button
-          style="width: 120px"
           v-cursor="{ active: isAllowedCreate === false }"
+          style="width: 120px"
           :disabled="isAllowedCreate === null || tableLoading"
           data-test-id="esAccessBox_button_addNewEsAccess"
           theme="primary"
@@ -46,8 +46,8 @@
           >{{ $t('新建') }}
         </bk-button>
         <bk-input
-          style="float: right; width: 360px"
           v-model="params.keyword"
+          style="float: right; width: 360px"
           :clearable="true"
           :placeholder="$t('搜索ES源名称，地址，创建人')"
           data-test-id="esAccessBox_input_search"
@@ -58,8 +58,8 @@
       </div>
       <bk-table
         ref="clusterTable"
-        class="king-table"
         v-bkloading="{ isLoading: tableLoading }"
+        class="king-table"
         :data="tableDataPaged"
         :pagination="pagination"
         data-test-id="esAccessBox_table_esAccessTableBox"
@@ -223,8 +223,8 @@
               >>
             </log-button>
             <log-button
-              class="mr10"
               v-cursor="{ active: !(props.row.permission && props.row.permission[authorityMap.MANAGE_ES_SOURCE_AUTH]) }"
+              class="mr10"
               :button-text="$t('编辑')"
               :disabled="!props.row.is_editable"
               :tips-conf="$t('平台默认的集群不允许编辑和删除，请联系管理员。')"
@@ -234,8 +234,8 @@
             >
             </log-button>
             <log-button
-              class="mr10"
               v-cursor="{ active: !(props.row.permission && props.row.permission[authorityMap.MANAGE_ES_SOURCE_AUTH]) }"
+              class="mr10"
               :button-text="$t('删除')"
               :disabled="!props.row.is_editable"
               :tips-conf="$t('平台默认的集群不允许编辑和删除，请联系管理员。')"

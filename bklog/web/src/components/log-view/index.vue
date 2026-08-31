@@ -29,9 +29,9 @@
     <pre id="log-content">
       <div
         v-for="(item, index) in escapedReverseLogList"
-        class="line"
         v-show="checkLineShow(item, index, 'reverse')"
         :key="index - reverseLogList.length"
+        class="line"
         :class="['line', { 'filter-line': lineMatch(item) }]">
         <span class="line-num">{{ index - reverseLogList.length }}</span>
         <HighlightHtml

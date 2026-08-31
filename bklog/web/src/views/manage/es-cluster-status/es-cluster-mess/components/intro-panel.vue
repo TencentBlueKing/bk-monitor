@@ -50,8 +50,8 @@
       <div class="help-main">
         <div
           v-for="(item, index) of customTypeIntro"
-          class="help-md-container"
           :key="index"
+          class="help-md-container"
         >
           <div
             class="help-md"
@@ -86,8 +86,8 @@
       </div>
     </div>
     <bk-dialog
-      width="600"
       v-model="isShowDialog"
+      width="600"
       :mask-close="false"
       :title="$t('一键拉群')"
       header-position="left"

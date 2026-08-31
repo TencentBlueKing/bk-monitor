@@ -231,8 +231,8 @@
         >
           <li
             v-for="menu in showSettingMenuList"
-            class="list-menu-item"
             :key="menu.id"
+            class="list-menu-item"
             @click="handleMenuClick(menu.id)"
           >
             {{ menu.name }}

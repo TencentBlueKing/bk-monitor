@@ -11,18 +11,18 @@
       <div ref="historyUlRef">
         <div class="input-box">
           <bk-input
+            v-model="searchInput"
             behavior="simplicity"
             :left-icon="'bklog-icon bklog-shoudongchaxun'"
             :clearable="true"
             :placeholder="$t('请输入关键字')"
-            v-model="searchInput"
             ext-cls="search-input"
           ></bk-input>
         </div>
         <ul
           ref="historyUlRef"
-          class="retrieve-history-list"
           v-bkloading="{ isLoading: historyLoading, size: 'mini' }"
+          class="retrieve-history-list"
         >
           <template v-if="isHistoryRecords">
             <li
@@ -32,13 +32,13 @@
               @click="handleClickHistory(item)"
             >
               <div
-                class="item-text"
                 v-bk-tooltips="{
                   allowHTML: true,
                   placement: 'top',
                   content: getContent(item),
                   disabled: item.query_string.length < 5,
                 }"
+                class="item-text"
               >
                 <span
                   class="bklog-icon"

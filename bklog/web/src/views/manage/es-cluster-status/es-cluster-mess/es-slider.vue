@@ -41,8 +41,8 @@
     >
       <template #content>
         <div
-          class="king-slider-content"
           v-bkloading="{ isLoading: sliderLoading }"
+          class="king-slider-content"
         >
           <bk-form
             v-if="!sliderLoading"
@@ -75,8 +75,8 @@
               >
                 <div class="source-item">
                   <bk-select
-                    style="width: 154px; margin-right: 10px"
                     v-model="basicFormData.source_type"
+                    style="width: 154px; margin-right: 10px"
                     @change="handleChangeSource"
                   >
                     <bk-option
@@ -96,8 +96,8 @@
                 required
               >
                 <bk-input
-                  class="address-input"
                   v-model="basicFormData.domain_name"
+                  class="address-input"
                   :readonly="isEdit"
                   data-test-id="esAccessFromBox_input_fillDomainName"
                 ></bk-input>
@@ -209,16 +209,16 @@
                 <bk-radio-group v-model="formData.visible_config.visible_type">
                   <bk-radio
                     v-for="item of visibleScopeSelectList"
-                    class="scope-radio"
                     :key="item.id"
+                    class="scope-radio"
                     :value="item.id"
                   >
                     {{ item.name }}
                   </bk-radio>
                 </bk-radio-group>
                 <bk-select
-                  v-model="visibleBkBiz"
                   v-show="!scopeValueType"
+                  v-model="visibleBkBiz"
                   :list="mySpaceList"
                   :virtual-scroll-render="virtualscrollSpaceList"
                   display-key="space_full_code_name"
@@ -234,10 +234,10 @@
                       <div class="selected-tag">
                         <bk-tag
                           v-for="(tag, index) in visibleList"
+                          :key="tag.id"
                           v-bk-tooltips="inUseProjectPopover(tag.is_use)"
                           :class="`tag-icon ${tag.is_use ? 'is-active' : 'is-normal'}`"
                           :closable="!tag.is_use"
-                          :key="tag.id"
                           @close="handleDeleteTag(index)"
                         >
                           {{ tag.name }}
@@ -253,9 +253,9 @@
                   </template>
                 </bk-select>
                 <bk-search-select
+                  v-show="isBizAttr"
                   ref="searchSelectRef"
                   v-model="bkBizLabelsList"
-                  v-show="isBizAttr"
                   :data="bizParentList"
                   :popover-zindex="selectZIndex"
                   :remote-method="handleRemoteMethod"
@@ -290,9 +290,9 @@
                       <template>
                         <bk-option
                           v-for="(option, index) in retentionDaysList"
-                          :disabled="option.disabled"
                           :id="option.id"
                           :key="index"
+                          :disabled="option.disabled"
                           :name="option.name"
                         >
                         </bk-option>
@@ -326,9 +326,9 @@
                       <template>
                         <bk-option
                           v-for="(option, index) in maxDaysList"
-                          :disabled="option.disabled"
                           :id="option.id"
                           :key="index"
+                          :disabled="option.disabled"
                           :name="option.name"
                         >
                         </bk-option>
@@ -451,9 +451,9 @@
                     <template>
                       <bk-option
                         v-for="option in hotColdAttrSet"
-                        :disabled="option.isSelected"
                         :id="option.computedId"
                         :key="option.computedId"
+                        :disabled="option.isSelected"
                         :name="`${option.computedName}(${option.computedCounts})`"
                       >
                       </bk-option>
@@ -481,9 +481,9 @@
                     <template>
                       <bk-option
                         v-for="option in hotColdAttrSet"
-                        :disabled="option.isSelected"
                         :id="option.computedId"
                         :key="option.computedId"
+                        :disabled="option.isSelected"
                         :name="`${option.computedName}(${option.computedCounts})`"
                       >
                       </bk-option>

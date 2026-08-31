@@ -472,11 +472,11 @@
     </span>
     <span
       v-else-if="activeFavorite"
+      v-bk-tooltips="$t('收藏当前查询')"
       :style="{
         color: popoverShow ? '#3a84ff' : '',
       }"
       class="bklog-icon bklog-star-line"
-      v-bk-tooltips="$t('收藏当前查询')"
       @click="handleCollection"
       ><slot></slot
     ></span>
@@ -486,9 +486,9 @@
     >
       <template #dropdown-trigger>
         <div
+          v-bk-tooltips="$t('收藏')"
           style="font-size: 18px"
           class="icon bklog-icon bklog-save"
-          v-bk-tooltips="$t('收藏')"
         ></div>
       </template>
       <template #dropdown-content>
@@ -540,8 +540,8 @@
           >
             <bk-select
               ref="favoriteGroupSelectRef"
-              ext-cls="add-popover-new-page-container"
               v-model="favoriteData.group_id"
+              ext-cls="add-popover-new-page-container"
               :placeholder="$t('未编组')"
               :popover-options="{ appendTo: 'parent' }"
               :search-placeholder="$t('请输入关键字')"

@@ -27,8 +27,8 @@
 <template>
   <router-view
     v-if="isHeadless"
-    class="manage-content manage-content-headless"
     :key="refreshKey"
+    class="manage-content manage-content-headless"
   ></router-view>
   <bk-navigation
     v-else
@@ -48,21 +48,21 @@
         <template v-for="groupItem in menuList">
           <bk-navigation-menu-group
             v-if="getGroupChildren(groupItem.children).length"
-            :group-name="isExpand ? groupItem.name : groupItem.keyword"
             :key="groupItem.id"
+            :group-name="isExpand ? groupItem.name : groupItem.keyword"
           >
             <template>
               <a
                 v-for="navItem in getGroupChildren(groupItem.children)"
+                :key="navItem.id"
                 class="nav-item"
                 :href="getRouteHref(navItem.id)"
-                :key="navItem.id"
               >
                 <bk-navigation-menu-item
-                  :data-test-id="`navBox_nav_${navItem.id}`"
-                  :icon="getMenuIcon(navItem)"
                   v-if="shouldShowMenuItem(navItem.id)"
                   :id="navItem.id"
+                  :data-test-id="`navBox_nav_${navItem.id}`"
+                  :icon="getMenuIcon(navItem)"
                   @click="handleClickNavItem(navItem.id)"
                 >
                   <span>{{ isExpand ? navItem.name : '' }}</span>
@@ -85,8 +85,8 @@
             :show-sub-nav="showSubNav"
           ></sub-nav>
           <router-view
-            class="manage-content"
             :key="refreshKey"
+            class="manage-content"
           ></router-view>
         </div>
       </div>

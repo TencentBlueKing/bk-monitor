@@ -26,8 +26,8 @@
 
 <template>
   <bk-dialog
-    width="100%"
     v-model="modelValue"
+    width="100%"
     :position="{
       top: 50,
       left: 0,
@@ -129,8 +129,8 @@
           </bk-popover>
 
           <bk-input
-            class="search-input"
             v-model="groupSearchValue"
+            class="search-input"
             :allow-emoji="false"
             :right-icon="'bk-icon icon-search'"
             clearable
@@ -161,8 +161,8 @@
             @operateChange="handleBatchUpdateGroup"
           />
           <bk-input
-            class="favorite-search-input"
             v-model="favoriteSearchValue"
+            class="favorite-search-input"
             :allow-emoji="false"
             :right-icon="'bk-icon icon-search'"
             clearable
@@ -228,8 +228,8 @@
                 </div>
                 <bk-select
                   v-else
-                  class="edit-favorite-group"
                   ref="editFavoriteNameSelectRef"
+                  class="edit-favorite-group"
                   :model-value="row.group_id"
                   :clearable="false"
                   @toggle="val => handleToggle(val, row)"
@@ -237,8 +237,8 @@
                 >
                   <bk-option
                     v-for="item in localFavoriteList"
-                    :key="item.id"
                     :id="String(item.id)"
+                    :key="item.id"
                     :name="item.name"
                   />
                 </bk-select>

@@ -1,7 +1,7 @@
 <template>
   <div
-    class="field-table-container"
     v-bkloading="{ isLoading: isExtracting }"
+    class="field-table-container"
   >
     <div
       v-if="tableType === 'indexLog'"
@@ -15,8 +15,8 @@
       </div>
       <div style="display: flex; align-items: center">
         <bk-checkbox
-          class="visible-built-btn"
           v-model="builtFieldVisible"
+          class="visible-built-btn"
           size="small"
           theme="primary"
         >
@@ -24,9 +24,9 @@
         </bk-checkbox>
 
         <bk-input
+          v-model="keyword"
           style="width: 220px"
           class="field-header-search"
-          v-model="keyword"
           :placeholder="$t('请输入字段名/别名')"
           right-icon="bk-icon icon-search"
           clearable
@@ -41,6 +41,7 @@
         :model="formData"
       >
         <bk-table
+          ref="fieldsTable"
           class="field-table add-field-table"
           :data="changeTableList"
           :empty-text="$t('暂无内容')"
@@ -48,7 +49,6 @@
           size="small"
           col-border
           :expand-row-keys="expandRowKeys"
-          ref="fieldsTable"
         >
           <template>
             <!-- 字段名 -->
@@ -60,19 +60,19 @@
               <template #default="props">
                 <div
                   v-if="!props.row.is_edit"
-                  class="field-name-overflow-tips"
                   v-bk-overflow-tips
+                  class="field-name-overflow-tips"
                 >
                   <span
                     v-if="props.row.children?.length && !props.row.expand"
-                    @click="expandObject(props.row, true)"
                     class="ext-btn rotate bklog-icon bklog-arrow-down-filled"
+                    @click="expandObject(props.row, true)"
                   >
                   </span>
                   <span
                     v-if="props.row.children?.length && props.row.expand"
-                    @click="expandObject(props.row, false)"
                     class="ext-btn bklog-icon bklog-arrow-down-filled"
+                    @click="expandObject(props.row, false)"
                   >
                   </span>
 
@@ -110,22 +110,22 @@
                       ></i>
                     </div>
                     <div
-                      class="alias-name"
                       v-if="isPreviewMode || props.row.is_built_in"
+                      class="alias-name"
                     >
                       {{ props.row.alias_name }}
                     </div>
                     <bk-input
-                      class="alias-name"
                       v-else
                       v-model.trim="props.row.alias_name"
+                      class="alias-name"
                       @blur="checkAliasNameItem(props.row)"
                     ></bk-input>
                     <template v-if="props.row.fieldErr">
                       <i
+                        v-bk-tooltips.top="props.row.fieldErr"
                         style="right: 8px"
                         class="bk-icon icon-exclamation-circle-shape tooltips-icon"
-                        v-bk-tooltips.top="props.row.fieldErr"
                       >
                       </i>
                     </template>
@@ -136,16 +136,16 @@
                   :class="{ 'is-required is-error': props.row.fieldErr }"
                 >
                   <bk-input
-                    class="participle-disabled-input"
                     v-model.trim="props.row.field_name"
+                    class="participle-disabled-input"
                     :disabled="getFieldEditDisabled(props.row)"
                     @blur="checkFieldNameItem(props.row)"
                   ></bk-input>
                   <template v-if="props.row.fieldErr">
                     <i
+                      v-bk-tooltips.top="props.row.fieldErr"
                       style="right: 8px"
                       class="bk-icon icon-exclamation-circle-shape tooltips-icon"
-                      v-bk-tooltips.top="props.row.fieldErr"
                     >
                     </i>
                   </template>
@@ -162,8 +162,8 @@
               <template #default="props">
                 <div
                   v-if="!props.row.is_edit"
-                  class="overflow-tips"
                   v-bk-overflow-tips
+                  class="overflow-tips"
                 >
                   <span v-bk-tooltips.top="$t('字段类型不支持快速修改')">{{ props.row.field_type }}</span>
                 </div>
@@ -183,18 +183,18 @@
                   >
                     <bk-option
                       v-for="option in globalsData.field_data_type"
-                      :disabled="isTypeDisabled(props.row, option)"
                       :id="option.id"
                       :key="option.id"
+                      :disabled="isTypeDisabled(props.row, option)"
                       :name="option.name"
                     >
                     </bk-option>
                   </bk-select>
                   <template v-if="props.row.typeErr">
                     <i
+                      v-bk-tooltips.top="$t('必填项')"
                       style="right: 8px"
                       class="bk-icon icon-exclamation-circle-shape tooltips-icon"
-                      v-bk-tooltips.top="$t('必填项')"
                     ></i>
                   </template>
                 </bk-form-item>
@@ -223,8 +223,8 @@
                   </div>
                   <div
                     v-else-if="props.row.is_built_in"
-                    style="width: 85%; margin-left: 15px"
                     v-bk-tooltips.top="$t('内置字段不支持快速修改')"
+                    style="width: 85%; margin-left: 15px"
                   >
                     {{ $t('不分词') }}
                   </div>
@@ -312,11 +312,11 @@
                                 <div class="bk-button-group">
                                   <bk-button
                                     v-for="option in participleList"
+                                    :key="option.id"
                                     class="participle-btn"
                                     :class="currentParticipleState === option.id ? 'is-selected' : ''"
                                     :data-test-id="`fieldExtractionBox_button_filterMethod${option.id}`"
                                     :disabled="getCustomizeDisabled(props.row)"
-                                    :key="option.id"
                                     @click="handleChangeParticipleState(option.id, props.$index)"
                                   >
                                     {{ option.name }}
@@ -324,8 +324,8 @@
                                 </div>
                                 <bk-input
                                   v-if="currentParticipleState === 'custom'"
-                                  style="margin-top: 10px"
                                   v-model="currentTokenizeOnChars"
+                                  style="margin-top: 10px"
                                   :disabled="getCustomizeDisabled(props.row)"
                                 >
                                 </bk-input>
@@ -381,8 +381,8 @@
               </template>
             </bk-table-column>
             <div
-              class="empty-text"
               slot="empty"
+              class="empty-text"
             >
               {{ $t('暂无数据') }}
             </div>

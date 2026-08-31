@@ -42,8 +42,8 @@
         <!-- 当采集下发 -->
         <div
           v-if="!isFinishStep"
-          class="step-issued-wrapper"
           v-bkloading="{ isLoading: loading | (hasRunning && !tableList.length) }"
+          class="step-issued-wrapper"
           data-test-id="addNewCollectionItem_div_collectionDistribution"
         >
           <!-- 容器日志显示状态页信息 -->
@@ -94,8 +94,8 @@
                 <div class="nav-btn-box">
                   <div
                     v-for="tabItem in tabList"
-                    :class="`nav-btn ${tabItem.type === curTab ? 'active' : ''}`"
                     :key="tabItem.type"
+                    :class="`nav-btn ${tabItem.type === curTab ? 'active' : ''}`"
                     href="javascript:void(0);"
                     @click="tabHandler(tabItem)"
                   >
@@ -137,10 +137,10 @@
                   <template v-for="cluster in tableList">
                     <right-panel
                       v-if="cluster.child.length"
+                      :key="cluster.id"
                       :class="['cluster-menu', { 'has-title-sign': cluster.is_label && isEdit }]"
                       :collapse.sync="cluster.collapse"
                       :collapse-color="'#313238'"
-                      :key="cluster.id"
                       :need-border="true"
                       :title="getRightPanelTitle(cluster)"
                       :title-bg-color="'#F0F1F5'"
@@ -173,8 +173,8 @@
                       <template #default>
                         <div class="cluster-table-wrapper">
                           <bk-table
-                            class="cluster-table"
                             v-bkloading="{ isLoading: loading }"
+                            class="cluster-table"
                             :cell-class-name="tableRowClassName"
                             :data="cluster.child"
                             :empty-text="$t('暂无内容')"
@@ -237,8 +237,8 @@
                 </bk-exception>
                 <div
                   v-if="tableList.length"
-                  class="detail-wrap"
                   v-bkloading="{ isLoading: detail.loading }"
+                  class="detail-wrap"
                 >
                   <div class="detail-header">
                     <div class="detail-title">{{ $t('采集详情') }}</div>

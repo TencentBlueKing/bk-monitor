@@ -91,8 +91,8 @@
         />
         <quick-cluster-step
           v-else-if="isShowClusterStep"
-          style="min-height: calc(100vh - 410px)"
           ref="stepRef"
+          style="min-height: calc(100vh - 410px)"
           :cluster-step-data="clusterStepData"
         />
         <quick-open-cluster
@@ -106,13 +106,13 @@
           v-else-if="dataFingerprintShow"
           v-bind="$attrs"
           ref="fingerTableRef"
-          v-on="$listeners"
           :all-finger-list="allFingerList"
           :clustering-config="clusteringConfig"
           :finger-list="fingerList"
           :is-page-over="isPageOver"
           :loader-width-list="smallLoaderWidthList"
           :request-data="requestData"
+          v-on="$listeners"
           @handle-finger-operate="handleFingerOperate"
           @handle-scroll-is-show="handleScrollIsShow"
           @pagination-options="paginationOptions"
@@ -157,8 +157,8 @@
       </bk-table>
 
       <div
-        class="fixed-scroll-top-btn"
         v-show="showScrollTop"
+        class="fixed-scroll-top-btn"
         @click="scrollToTop"
       >
         <i class="bk-icon icon-angle-up"></i>

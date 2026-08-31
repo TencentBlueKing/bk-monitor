@@ -26,8 +26,8 @@
 
 <template>
   <div
-    class="dashboard-container"
     v-bkloading="{ isLoading }"
+    class="dashboard-container"
   >
     <auth-container-page
       v-if="authPageInfo"

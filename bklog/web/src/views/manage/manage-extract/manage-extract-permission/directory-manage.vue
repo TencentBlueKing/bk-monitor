@@ -35,15 +35,15 @@
           {{ $t('名称') }}
           <span class="required">*</span>
           <span
-            class="bklog-icon bklog-info-fill"
             v-bk-tooltips="{ width: 200, content: $t('不同类别的授权用户，通过用户组名区分，单业务下唯一') }"
+            class="bklog-icon bklog-info-fill"
           >
           </span>
         </div>
         <div class="content">
           <validate-input
-            style="width: 400px"
             v-model.trim="manageStrategyData.strategy_name"
+            style="width: 400px"
           />
         </div>
       </div>
@@ -54,19 +54,19 @@
           <span class="required">*</span>
           <span
             v-if="allowCreate"
-            class="bklog-icon bklog-info-fill"
             v-bk-tooltips="{
               width: 200,
               content: $t('多个QQ号粘贴请使用英文分号 “ ; ” 分隔 ，手动输入QQ号请键入 Enter 保存'),
             }"
+            class="bklog-icon bklog-info-fill"
           ></span>
           <span
             v-else
-            class="bklog-icon bklog-info-fill"
             v-bk-tooltips="{
               width: 200,
               content: $t('多个用户名粘贴请使用英文分号 “ ; ” 分隔 ，手动输入用户名请键入 Enter 保存'),
             }"
+            class="bklog-icon bklog-info-fill"
           ></span>
         </div>
         <div class="content">
@@ -96,19 +96,19 @@
           {{ $t('授权目录') }}
           <span class="required">*</span>
           <span
-            class="bklog-icon bklog-info-fill"
             v-bk-tooltips="{ width: 200, content: $t('目录以 / 结尾，windows 服务器以 /cygdrive/ 开头') }"
+            class="bklog-icon bklog-info-fill"
           ></span>
         </div>
         <div class="content">
           <div
             v-for="(item, index) in manageStrategyData.visible_dir"
-            class="flex-box add-minus-component visible-dir"
             :key="index"
+            class="flex-box add-minus-component visible-dir"
           >
             <validate-input
-              style="width: 256px; margin-right: 4px"
               v-model.trim="manageStrategyData.visible_dir[index]"
+              style="width: 256px; margin-right: 4px"
               :validator="validateVisibleDir"
             />
             <span
@@ -116,8 +116,8 @@
               @click="handleAddVisibleDir"
             ></span>
             <span
-              class="bk-icon icon-minus-circle"
               v-show="manageStrategyData.visible_dir.length > 1"
+              class="bk-icon icon-minus-circle"
               @click="manageStrategyData.visible_dir.splice(index, 1)"
             ></span>
           </div>
@@ -129,19 +129,19 @@
           {{ $t('文件后缀') }}
           <span class="required">*</span>
           <span
-            class="bklog-icon bklog-info-fill"
             v-bk-tooltips="$t('请输入不带点号(.)的后缀名，匹配任意文件可填写星号(*)')"
+            class="bklog-icon bklog-info-fill"
           ></span>
         </div>
         <div class="content">
           <div
             v-for="(item, index) in manageStrategyData.file_type"
-            class="flex-box add-minus-component file-type"
             :key="index"
+            class="flex-box add-minus-component file-type"
           >
             <validate-input
-              style="width: 256px; margin-right: 4px"
               v-model.trim="manageStrategyData.file_type[index]"
+              style="width: 256px; margin-right: 4px"
               :validator="validateFileExtension"
             />
             <span
@@ -149,8 +149,8 @@
               @click="handleAddFileType"
             ></span>
             <span
-              class="bk-icon icon-minus-circle"
               v-show="manageStrategyData.file_type.length > 1"
+              class="bk-icon icon-minus-circle"
               @click="manageStrategyData.file_type.splice(index, 1)"
             ></span>
           </div>
@@ -207,11 +207,11 @@
           {{ $t('执行人') }}
           <span class="required">*</span>
           <span
-            class="bklog-icon bklog-info-fill"
             v-bk-tooltips="{
               width: 200,
               content: $t('全局设置，下载过程中需使用job传输，将以执行人身份进行，请确保执行人拥有业务权限'),
             }"
+            class="bklog-icon bklog-info-fill"
           >
           </span>
         </div>

@@ -37,8 +37,8 @@
     >
       <template #content>
         <div
-          class="restore-slider-content"
           v-bkloading="{ isLoading: sliderLoading }"
+          class="restore-slider-content"
         >
           <bk-form
             v-if="!sliderLoading"
@@ -75,9 +75,9 @@
               >
                 <bk-option
                   v-for="option in archiveList"
-                  :disabled="!option.permission[authorityMap.MANAGE_COLLECTION_AUTH]"
                   :id="option.archive_config_id"
                   :key="option.archive_config_id"
+                  :disabled="!option.permission[authorityMap.MANAGE_COLLECTION_AUTH]"
                   :name="option.instance_name"
                 >
                 </bk-option>
@@ -118,8 +118,8 @@
               required
             >
               <validate-user-selector
-                style="width: 500px"
                 v-model="formData.notice_user"
+                style="width: 500px"
                 :api="userApi"
                 :disabled="isEdit"
                 data-test-id="addNewRestore_input_notifiedUser"

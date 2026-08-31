@@ -56,15 +56,15 @@
         >
         </bk-input>
         <span
-          class="bklog-icon bklog-data-copy"
           v-bk-tooltips="{ content: $t('复制') }"
+          class="bklog-icon bklog-data-copy"
           @click="handleCopy"
         ></span>
       </div>
     </div>
     <div
-      class="view-content kv-view-content"
       v-if="activeExpandView === 'kv' && rawRowData"
+      class="view-content kv-view-content"
     >
       <kv-list
         :data="rawRowData"
@@ -82,9 +82,9 @@
       />
     </div>
     <div
+      v-if="activeExpandView === 'json'"
       style="padding: 2px 12px 10px 39px"
       class="view-content json-view-content"
-      v-if="activeExpandView === 'json'"
     >
       <JsonFormatWrapper
         :data="jsonShowData"

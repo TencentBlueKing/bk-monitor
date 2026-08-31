@@ -26,8 +26,8 @@
 
 <template>
   <div
-    class="step-storage"
     v-bkloading="{ isLoading: basicLoading }"
+    class="step-storage"
   >
     <bk-form
       ref="validateForm"
@@ -70,8 +70,8 @@
         >
           <!-- <div class="prefix">{{formData.table_id_prefix}}</div> -->
           <bk-input
-            style="width: 320px"
             v-model="formData.table_id"
+            style="width: 320px"
             :placeholder="$t('英文或者数字，5～50长度')"
             disabled
           >
@@ -85,8 +85,8 @@
       <!-- 过期时间 -->
       <bk-form-item :label="$t('过期时间')">
         <bk-select
-          style="width: 320px"
           v-model="formData.retention"
+          style="width: 320px"
           :clearable="false"
           data-test-id="storageBox_select_selectExpiration"
         >
@@ -125,8 +125,8 @@
         :label="$t('热数据天数')"
       >
         <bk-select
-          style="width: 320px"
           v-model="formData.allocation_min_days"
+          style="width: 320px"
           :clearable="false"
           :disabled="!selectedStorageCluster.enable_hot_warm"
           data-test-id="storageBox_select_selectHotData"
@@ -179,8 +179,8 @@
         :rules="rules.storage_replies"
       >
         <bk-input
-          class="copy-number-input"
           v-model="formData.storage_replies"
+          class="copy-number-input"
           :clearable="false"
           :min="0"
           :precision="0"
@@ -198,8 +198,8 @@
         :rules="rules.es_shards"
       >
         <bk-input
-          class="copy-number-input"
           v-model="formData.es_shards"
+          class="copy-number-input"
           :clearable="false"
           :min="1"
           :precision="0"
@@ -245,16 +245,16 @@
         <bk-form-item :label="$t('每日单台日志量')">
           <div class="capacity-message">
             <bk-input
-              class="capacity-input"
               v-model="formData.assessment_config.log_assessment"
+              class="capacity-input"
               :min="0.1"
               type="number"
             >
             </bk-input>
             <div class="unit-container">G</div>
             <span
-              class="right"
               v-bk-tooltips.right="$t('基于单台最大的日志存储量粗略评估')"
+              class="right"
             >
               <i class="bk-icon icon-info"></i>
             </span>

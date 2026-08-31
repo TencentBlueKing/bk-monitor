@@ -26,8 +26,8 @@
 
 <template>
   <div
-    class="main-container"
     v-bkloading="{ isLoading }"
+    class="main-container"
     data-test-id="logExtraction_div_fromBox"
   >
     <div class="option-container">
@@ -39,8 +39,8 @@
         >{{ $t('新建') }}</bk-button
       >
       <bk-input
-        class="king-input-search"
         v-model="searchKeyword"
+        class="king-input-search"
         :clearable="true"
         :left-icon="'bk-icon icon-search'"
         :placeholder="$t('搜索文件名、创建人，按 enter 键搜索')"
@@ -130,11 +130,11 @@
             <span>{{ row.download_status_display }}</span>
             <span
               v-if="row.download_status === 'failed'"
-              class="bklog-icon bklog-info-fill"
               v-bk-tooltips="{
                 disabled: !row.task_process_info,
                 content: row.task_process_info,
               }"
+              class="bklog-icon bklog-info-fill"
             />
           </div>
         </template>
@@ -199,8 +199,8 @@
     >
       <template #content>
         <div
-          class="task-detail-content"
           v-bkloading="{ isLoading: sideSlider.isLoading }"
+          class="task-detail-content"
         >
           <list-box
             :mark="true"

@@ -26,8 +26,8 @@
 
 <template>
   <div
-    class="access-manage-container"
     v-bkloading="{ isLoading: basicLoading }"
+    class="access-manage-container"
   >
     <auth-container-page
       v-if="authPageInfo"
@@ -60,13 +60,13 @@
       </basic-tab>
       <keep-alive>
         <component
+          :is="dynamicComponent"
           class="tab-content"
           :collector-data="collectorData"
           :edit-auth="editAuth"
           :edit-auth-data="editAuthData"
           :index-set-data="collectorData"
           :index-set-id="collectorData.index_set_id"
-          :is="dynamicComponent"
           :is-show-edit-btn="!['bkdata', 'es', 'custom_report'].includes($route.query.typeKey)"
           @update-active-panel="activePanel = $event"
         ></component>

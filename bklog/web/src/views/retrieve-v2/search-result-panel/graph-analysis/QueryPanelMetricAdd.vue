@@ -85,8 +85,6 @@
   <bk-popover
     ref="popoverRef"
     :isShow="isShow"
-    @after-show="isShow = true"
-    @after-hidden="handleAfterHidden"
     trigger="click"
     theme="light"
     extCls="bv-custom-popover"
@@ -94,6 +92,8 @@
     :disabled="!!disabledTips"
     width="446"
     height="300"
+    @after-show="isShow = true"
+    @after-hidden="handleAfterHidden"
   >
     <template #default>
       <!-- <AddFieldButton :disabledTips="disabledTips" /> -->
@@ -120,7 +120,6 @@
                   <DataSetFieldItem
                     v-for="row in filteredFields"
                     :key="row.name"
-                    @click="!isDisabled(row) && changeColumn(row)"
                     v-bk-tooltips="{
                       content: $t('已经存该字段，不可重复添加！'),
                       disabled: !isDisabled(row) || isActive(row),
@@ -134,6 +133,7 @@
                       },
                     ]"
                     :field="row"
+                    @click="!isDisabled(row) && changeColumn(row)"
                   />
                 </template>
                 <template v-else>
@@ -163,17 +163,17 @@
         </div>
         <div class="bv-metric-footer flex-row justify-content-end align-items-center">
           <Button
-            @click="ensure"
             :disabled="!formData.name"
             size="small"
             theme="primary"
             class="mr-normal"
+            @click="ensure"
           >
             {{ $t('确定') }}
           </Button>
           <Button
-            @click="cancel"
             size="small"
+            @click="cancel"
           >
             {{ $t('取消') }}
           </Button>

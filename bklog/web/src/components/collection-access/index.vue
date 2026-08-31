@@ -57,17 +57,17 @@
       </section>
       <section
         v-if="operateType"
-        class="access-step-container"
         v-bkloading="{ isLoading: containerLoading, zIndex: 10 }"
+        class="access-step-container"
       >
         <component
+          :is="getCurrentComponent"
           ref="currentRef"
           :apply-data="applyData"
           :container-loading.sync="containerLoading"
           :cur-step="curStep"
           :force-show-component.sync="forceShowComponent"
           :index-set-id="indexSetId"
-          :is="getCurrentComponent"
           :is-container-step="isContainerStep"
           :is-finish-create-step="isFinishCreateStep"
           :is-physics.sync="isPhysics"

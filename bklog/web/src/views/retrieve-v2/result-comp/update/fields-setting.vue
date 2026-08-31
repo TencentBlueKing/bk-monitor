@@ -26,8 +26,8 @@
 
 <template>
   <div
-    class="update-fields-setting"
     v-bkloading="{ isLoading: isLoading }"
+    class="update-fields-setting"
   >
     <!-- 设置列表字段 -->
     <div class="fields-container">
@@ -37,8 +37,8 @@
       >
         <div class="config-container-header">
           <div
-            class="header-config-operation"
             v-show="!isShowAddInput"
+            class="header-config-operation"
           >
             <bk-button
               class="config-btn"
@@ -57,8 +57,8 @@
             </log-export>
           </div>
           <div
-            class="header-config-new-input"
             v-show="isShowAddInput"
+            class="header-config-new-input"
           >
             <bk-input
               v-model="newConfigStr"

@@ -52,8 +52,8 @@
     </section>
     <section class="log-archive-table">
       <bk-table
-        class="archive-table"
         v-bkloading="{ isLoading: isTableLoading }"
+        class="archive-table"
         :data="dataList"
         :limit-list="pagination.limitList"
         :pagination="pagination"
@@ -132,10 +132,10 @@
             <div class="collect-table-operate">
               <!-- 回溯 -->
               <bk-button
-                class="mr10 king-button"
                 v-cursor="{
                   active: !(props.row.permission && props.row.permission[authorityMap.MANAGE_COLLECTION_AUTH]),
                 }"
+                class="mr10 king-button"
                 theme="primary"
                 text
                 @click.stop="operateHandler(props.row, 'restore')"
@@ -144,10 +144,10 @@
               </bk-button>
               <!-- 编辑 -->
               <bk-button
-                class="mr10 king-button"
                 v-cursor="{
                   active: !(props.row.permission && props.row.permission[authorityMap.MANAGE_COLLECTION_AUTH]),
                 }"
+                class="mr10 king-button"
                 theme="primary"
                 text
                 @click.stop="operateHandler(props.row, 'edit')"
@@ -156,10 +156,10 @@
               </bk-button>
               <!-- 删除 -->
               <bk-button
-                class="mr10 king-button"
                 v-cursor="{
                   active: !(props.row.permission && props.row.permission[authorityMap.MANAGE_COLLECTION_AUTH]),
                 }"
+                class="mr10 king-button"
                 theme="primary"
                 text
                 @click.stop="operateHandler(props.row, 'delete')"

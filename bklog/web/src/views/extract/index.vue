@@ -26,8 +26,8 @@
 
 <template>
   <div
-    class="log-extract-container"
     v-bkloading="{ isLoading }"
+    class="log-extract-container"
   >
     <router-view></router-view>
   </div>

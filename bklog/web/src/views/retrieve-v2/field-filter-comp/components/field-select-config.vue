@@ -114,8 +114,8 @@
       </template>
       <template #dropdown-content>
         <ul
-          class="bk-dropdown-list"
           v-bkloading="{ isLoading: isLoading, size: 'small' }"
+          class="bk-dropdown-list"
         >
           <li
             v-for="(item, index) in configList"

@@ -12,7 +12,7 @@
         class="per"
         style="height: 424px; white-space: pre-wrap; background: #f5f7fa"
       >
-        <code v-html="$xss(highlightedCode)" class="flex-column" />
+        <code class="flex-column" v-html="$xss(highlightedCode)" />
         <div class="vertical"></div>
       </pre>
     </template>

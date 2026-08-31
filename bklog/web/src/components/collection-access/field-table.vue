@@ -27,8 +27,8 @@
 
 <template>
   <div
-    class="field-table-container"
     v-bkloading="{ isLoading: isExtracting }"
+    class="field-table-container"
   >
     <div
       v-if="!isPreviewMode"
@@ -137,8 +137,8 @@
               <template #default="props">
                 <div
                   v-if="isPreviewMode || props.row.is_objectKey"
-                  class="overflow-tips-field-name"
                   v-bk-tooltips.top="props.row.field_name"
+                  class="overflow-tips-field-name"
                 >
                   <span
                     v-if="props.row.is_objectKey"
@@ -153,13 +153,13 @@
                 >
                   <span
                     v-if="canExpandObjectField(props.row) && !props.row.expand"
-                    @click="expandObject(props.row, true)"
                     class="ext-btn rotate bklog-icon bklog-arrow-down-filled"
+                    @click="expandObject(props.row, true)"
                   ></span>
                   <span
                     v-if="canExpandObjectField(props.row) && props.row.expand"
-                    @click="expandObject(props.row, false)"
                     class="ext-btn bklog-icon bklog-arrow-down-filled"
+                    @click="expandObject(props.row, false)"
                   ></span>
                   <!-- 如果为内置字段且有alias_name则优先展示alias_name -->
                   <bk-input
@@ -171,8 +171,8 @@
                   ></bk-input>
                   <bk-input
                     v-else
-                    :class="props.row.alias_name || props.row.alias_name_show ? 'participle-field-name-input' : ''"
                     v-model.trim="props.row.field_name"
+                    :class="props.row.alias_name || props.row.alias_name_show ? 'participle-field-name-input' : ''"
                     class="participle-field-name-input-pl5"
                     :disabled="getFieldEditDisabled(props.row)"
                     @blur="checkFieldNameItem(props.row)"
@@ -188,17 +188,17 @@
                       ></i>
                     </div>
                     <bk-input
-                      class="participle-alias-name-input"
                       v-model.trim="props.row.alias_name"
+                      class="participle-alias-name-input"
                       :disabled="getFieldEditDisabled(props.row)"
                       @blur="checkAliasNameItem(props.row)"
                     ></bk-input>
                   </template>
                   <template v-if="props.row.fieldErr && !props.row.btnShow">
                     <i
+                      v-bk-tooltips.top="props.row.fieldErr"
                       style="right: 8px"
                       class="bk-icon icon-exclamation-circle-shape tooltips-icon"
-                      v-bk-tooltips.top="props.row.fieldErr"
                     >
                     </i>
                   </template>
@@ -213,15 +213,15 @@
                     "
                   >
                     <bk-button
-                      :theme="'danger'"
-                      class="tooltips-btn"
-                      @click="handlePopoverRename(props.row)"
                       v-bk-tooltips.top="
                         {
                           width: props.row.width,
                           content: props.row.fieldAliasErr,
                         } || '点击定义字段名映射'
                       "
+                      :theme="'danger'"
+                      class="tooltips-btn"
+                      @click="handlePopoverRename(props.row)"
                     >
                       {{ $t('字段映射') }}
                     </bk-button>
@@ -261,8 +261,8 @@
               <template #default="props">
                 <div
                   v-if="isPreviewMode"
-                  class="overflow-tips"
                   v-bk-overflow-tips
+                  class="overflow-tips"
                 >
                   <span>{{ getFieldTypeDisplay(props.row.field_type) }}</span>
                 </div>
@@ -296,8 +296,8 @@
                   <!-- 动态对象边界字段只展示用户文案，不暴露 flattened -->
                   <span
                     v-if="props.row.field_type === 'flattened'"
-                    class="overflow-tips"
                     v-bk-overflow-tips
+                    class="overflow-tips"
                   >
                     {{ getFieldTypeDisplay(props.row.field_type) }}
                   </span>
@@ -314,18 +314,18 @@
                   >
                     <bk-option
                       v-for="option in globalsData.field_data_type"
-                      :disabled="isTypeDisabled(props.row, option)"
                       :id="option.id"
                       :key="option.id"
+                      :disabled="isTypeDisabled(props.row, option)"
                       :name="option.name"
                     >
                     </bk-option>
                   </bk-select>
                   <template v-if="props.row.typeErr">
                     <i
+                      v-bk-tooltips.top="$t('必填项')"
                       style="right: 8px"
                       class="bk-icon icon-exclamation-circle-shape tooltips-icon"
-                      v-bk-tooltips.top="$t('必填项')"
                     ></i>
                   </template>
                 </bk-form-item>
@@ -413,11 +413,11 @@
                               <div class="bk-button-group">
                                 <bk-button
                                   v-for="option in participleList"
+                                  :key="option.id"
                                   class="participle-btn"
                                   :class="currentParticipleState === option.id ? 'is-selected' : ''"
                                   :data-test-id="`fieldExtractionBox_button_filterMethod${option.id}`"
                                   :disabled="getCustomizeDisabled(props.row)"
-                                  :key="option.id"
                                   @click="handleChangeParticipleState(option.id, props.$index)"
                                 >
                                   {{ option.name }}
@@ -425,8 +425,8 @@
                               </div>
                               <bk-input
                                 v-if="currentParticipleState === 'custom'"
-                                style="margin-top: 10px"
                                 v-model="currentTokenizeOnChars"
+                                style="margin-top: 10px"
                                 :disabled="getCustomizeDisabled(props.row)"
                               >
                               </bk-input>
@@ -453,10 +453,10 @@
                           style="width: 85%"
                         >
                           <div
-                            class="participle_content"
                             v-bk-tooltips="
                               props.row.participleState === 'custom' ? props.row.tokenize_on_chars : '自然语言分词'
                             "
+                            class="participle_content"
                           >
                             {{ props.row.participleState === 'custom' ? props.row.tokenize_on_chars : '自然语言分词' }}
                           </div>
@@ -504,27 +504,27 @@
                   <!-- {{ props.row.is_delete ? $t('复原') : $t('隐藏') }} -->
                   <i
                     v-if="props.row.is_delete"
-                    class="bk-icon bklog-icon bklog-eye"
                     v-bk-tooltips.top="$t('复原')"
+                    class="bk-icon bklog-icon bklog-eye"
                   ></i>
                   <i
                     v-else
-                    class="bk-icon bklog-icon bklog-eye-slash"
                     v-bk-tooltips.top="$t('隐藏')"
+                    class="bk-icon bklog-icon bklog-eye-slash"
                   ></i>
                 </span>
 
                 <i
                   v-if="props.row.is_add_in"
-                  class="bk-icon bklog-icon bklog-log-delete"
                   v-bk-tooltips.top="$t('删除')"
+                  class="bk-icon bklog-icon bklog-log-delete"
                   @click="deleteField(props.row)"
                 ></i>
               </template>
             </bk-table-column>
             <div
-              class="empty-text"
               slot="empty"
+              class="empty-text"
             >
               {{ $t('请先选择字段提取模式') }}
             </div>
@@ -540,10 +540,10 @@
       <template v-if="deletedVisible">
         <div
           v-for="(row, index) in hideDeletedTable"
-          :style="!isPreviewMode ? { height: '51px', 'line-height': '51px' } : ''"
-          class="preview-item"
           :key="index"
           v-bk-tooltips.top="{ content: row.value || $t('暂无数据'), allowHTML: false }"
+          :style="!isPreviewMode ? { height: '51px', 'line-height': '51px' } : ''"
+          class="preview-item"
         >
           {{ row.value }}
         </div>
@@ -551,10 +551,10 @@
       <template v-else>
         <div
           v-for="(row, index) in tableList"
-          :style="!isPreviewMode ? { height: '51px', 'line-height': '51px' } : ''"
-          class="preview-item"
           :key="index"
           v-bk-tooltips.top="{ content: row.value || $t('暂无数据'), allowHTML: false }"
+          :style="!isPreviewMode ? { height: '51px', 'line-height': '51px' } : ''"
+          class="preview-item"
         >
           {{ row.value }}
         </div>

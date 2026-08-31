@@ -26,15 +26,15 @@
 
 <template>
   <div
-    class="extract-auth-manage"
     v-bkloading="{ isLoading }"
+    class="extract-auth-manage"
     data-test-id="extractAuthManage_div_extractAuthManageBox"
   >
     <div>
       <bk-button
+        v-cursor="{ active: isAllowedManage === false }"
         style="width: 120px; margin: 20px 0"
         class="king-button"
-        v-cursor="{ active: isAllowedManage === false }"
         :disabled="isAllowedManage === null || isLoading"
         :loading="isButtonLoading"
         data-test-id="extractAuthManageBox_button_addNewExtractAuthManage"

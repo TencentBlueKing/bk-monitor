@@ -2,21 +2,21 @@
   <div>
     <vue-draggable
       v-bind="dragOptions"
-      class="custom-select-list"
       v-model="sortList"
+      class="custom-select-list"
     >
       <li
         v-for="({ key, sorts }, index) in sortList"
-        class="custom-select-item"
         :key="key"
+        class="custom-select-item"
       >
         <span class="icon bklog-icon bklog-ketuodong"></span>
         <bk-select
+          v-model="sorts[0]"
           style="width: 174px"
           class="rtl-text"
           ext-cls="bklog-v3-popover-tag"
           ext-popover-cls="bklog-v3-popover-tag"
-          v-model="sorts[0]"
           auto-focus
           searchable
         >
@@ -27,10 +27,10 @@
           >
             <bk-option
               v-for="option in selectList"
-              class="custom-option bklog-v3-popover-tag"
-              :disabled="option.disabled"
               :id="option.field_name"
               :key="option.field_name"
+              class="custom-option bklog-v3-popover-tag"
+              :disabled="option.disabled"
               :name="option.field_name"
             >
               <div class="custom-option-item bklog-v3-popover-tag">
@@ -44,16 +44,16 @@
                 </span>
                 <div
                   v-if="option.query_alias"
-                  class="display-container rtl-text"
                   v-bk-overflow-tips="{ placement: 'right' }"
+                  class="display-container rtl-text"
                 >
                   <span class="field-alias">{{ option.query_alias || option.field_name }}</span>
                   <span class="field-name">({{ option.field_name }})</span>
                 </div>
                 <div
                   v-else
-                  class="display-container rtl-text"
                   v-bk-overflow-tips="{ placement: 'right' }"
+                  class="display-container rtl-text"
                 >
                   <span class="field-name">{{ option.field_name }}</span>
                 </div>
@@ -62,16 +62,16 @@
           </div>
         </bk-select>
         <bk-select
-          style="width: 77px"
           v-model="sorts[1]"
+          style="width: 77px"
           :placeholder="$t('请选择')"
         >
           <!-- bklog-v3-popover-tag 不要乱加，这里用来判定是否为select 弹出，只做标识，不做样式作用 -->
           <bk-option
             v-for="option in orderList"
-            class="bklog-v3-popover-tag"
             :id="option.id"
             :key="option.id"
+            class="bklog-v3-popover-tag"
             :name="option.name"
           >
           </bk-option>

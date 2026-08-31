@@ -35,8 +35,8 @@
     ></auth-container-page>
     <div
       v-else
-      class="step-field"
       v-bkloading="{ isLoading: basicLoading }"
+      class="step-field"
     >
       <bk-alert
         v-if="!isCleanField && !isTempField && !isSetEdit"
@@ -75,8 +75,8 @@
             :label="$t('采集项')"
           >
             <bk-select
-              style="width: 520px"
               v-model="cleanCollector"
+              style="width: 520px"
               :clearable="false"
               :disabled="isEditCleanItem"
               searchable
@@ -105,8 +105,8 @@
                 </div>
                 <div
                   v-else
-                  class="option-slot-container"
                   v-bk-overflow-tips
+                  class="option-slot-container"
                 >
                   <span>{{ option.collector_config_name }}</span>
                   <span style="color: #979ba5">（{{ `#${option.collector_config_id}` }}）</span>
@@ -136,14 +136,14 @@
                 </bk-radio>
               </bk-radio-group>
               <div
-                class="flex-box select-container"
                 v-show="formData.etl_params.retain_original_text"
+                class="flex-box select-container"
               >
                 <div class="flex-box">
                   <div class="select-title">{{ $t('分词符') }}</div>
                   <bk-select
-                    ext-cls="origin-select-custom"
                     v-model="originParticipleState"
+                    ext-cls="origin-select-custom"
                     :clearable="false"
                     :popover-min-width="160"
                     @change="handleChangeParticipleState"
@@ -159,13 +159,13 @@
                 </div>
                 <bk-input
                   v-if="originParticipleState === 'custom'"
-                  style="width: 170px; margin-left: 8px"
                   v-model="formData.etl_params.original_text_tokenize_on_chars"
+                  style="width: 170px; margin-left: 8px"
                 >
                 </bk-input>
                 <bk-checkbox
-                  style="margin-left: 24px"
                   v-model="formData.etl_params.original_text_is_case_sensitive"
+                  style="margin-left: 24px"
                 >
                   <span>{{ $t('大小写敏感') }}</span>
                 </bk-checkbox>
@@ -189,8 +189,8 @@
                   @click="openTemplateDialog(false)"
                 >
                   <i
-                    class="bk-icon bklog-icon bklog-app-store"
                     v-bk-tooltips.top="$t('隐藏')"
+                    class="bk-icon bklog-icon bklog-app-store"
                   ></i>
                   {{ $t('应用模版') }}
                 </span>
@@ -200,8 +200,8 @@
                   @click="handleGotoLink('logExtract')"
                 >
                   <i
-                    class="bk-icon bklog-icon bklog-help"
                     v-bk-tooltips.top="$t('隐藏')"
+                    class="bk-icon bklog-icon bklog-help"
                   ></i>
                   {{ $t('说明文档') }}
                 </span>
@@ -212,10 +212,10 @@
                 <div class="bk-button-group">
                   <bk-button
                     v-for="option in globalsData.etl_config"
+                    :key="option.id"
                     :class="params.etl_config === option.id ? 'is-selected' : ''"
                     :data-test-id="`fieldExtractionBox_button_filterMethod${option.id}`"
                     :disabled="(isCleanField && !cleanCollector) || isSetDisabled"
-                    :key="option.id"
                     class="bklog-button"
                     @click="handleSelectConfig(option.id)"
                   >
@@ -224,9 +224,9 @@
                 </div>
                 <template v-if="params.etl_config === 'bk_log_regexp'">
                   <span
+                    v-bk-tooltips="{ allowHtml: true, placement: 'right', content: '#reg-tip' }"
                     style="margin-left: 10px; color: #979ba5; cursor: pointer"
                     class="bklog-icon bklog-info-fill fl"
-                    v-bk-tooltips="{ allowHtml: true, placement: 'right', content: '#reg-tip' }"
                   ></span>
                   <div id="reg-tip">
                     <p>{{ $t('正则表达式(golang语法)需要匹配日志全文，如以下DEMO将从日志内容提取请求时间与内容') }}</p>
@@ -237,8 +237,8 @@
                 <!-- 分隔符选择 -->
                 <bk-select
                   v-if="params.etl_config === 'bk_log_delimiter'"
-                  style="width: 120px; margin-left: 10px"
                   v-model="params.etl_params.separator"
+                  style="width: 120px; margin-left: 10px"
                   :clearable="false"
                   :disabled="isExtracting"
                   data-test-id="fieldExtractionBox_div_selectSeparator"
@@ -271,8 +271,8 @@
             </div>
           </bk-form-item>
           <bk-form-item
-            ext-cls="en-bk-form"
             v-bkloading="{ isLoading: logOriginalLoding }"
+            ext-cls="en-bk-form"
             :label="$t('日志样例')"
             :property="'log_original'"
             :rules="rules.log_original"
@@ -285,9 +285,9 @@
               {{ $t('查看上报日志') }}
             </div>
             <bk-input
+              v-model="logOriginal"
               style="margin-top: -20px"
               class="log-textarea"
-              v-model="logOriginal"
               :right-icon="'bk-icon icon-refresh'"
               :rows="3"
               :type="'textarea'"
@@ -310,8 +310,8 @@
                 {{ params.etl_params.separator_regexp }}
                 </pre>
                 <bk-input
-                  class="regex-textarea"
                   v-model="params.etl_params.separator_regexp"
+                  class="regex-textarea"
                   :placeholder="defaultRegex"
                   :type="'textarea'"
                   data-test-id="fieldExtractionBox_input_regular"
@@ -343,6 +343,7 @@
             >
               <field-table
                 ref="fieldTable"
+                :key="renderKey"
                 :deleted-visible="deletedVisible"
                 :extract-method="formData.etl_config"
                 :fields="formData.fields"
@@ -350,7 +351,6 @@
                 :is-extracting="isExtracting"
                 :is-set-disabled="isSetDisabled"
                 :is-temp-field="isTempField"
-                :key="renderKey"
                 :original-text-tokenize-on-chars="defaultParticipleStr"
                 :built-field-show="builtFieldShow"
                 :select-etl-config="params.etl_config"
@@ -414,8 +414,8 @@
               <div class="flex-box">
                 <div class="select-title">{{ $t('字段') }}</div>
                 <bk-select
-                  ext-cls="log-time-select"
                   v-model="formData.field_name"
+                  ext-cls="log-time-select"
                   :popover-min-width="160"
                   clearable
                   searchable
@@ -442,8 +442,8 @@
               <div class="flex-box">
                 <div class="select-title">{{ $t('时间格式') }}</div>
                 <bk-select
-                  ext-cls="log-time-select"
                   v-model="formData.time_format"
+                  ext-cls="log-time-select"
                   :popover-min-width="360"
                   clearable
                   searchable
@@ -470,8 +470,8 @@
               <div class="flex-box">
                 <div class="select-title">{{ $t('时区选择') }}</div>
                 <bk-select
-                  ext-cls="log-time-select"
                   v-model="formData.time_zone"
+                  ext-cls="log-time-select"
                   :popover-min-width="160"
                   clearable
                   searchable
@@ -605,14 +605,14 @@
           </bk-form-item>
           <bk-form-item
             v-if="enableMetaData"
-            ext-cls="en-bk-form"
             v-bkloading="{ isLoading: pathExampleLoading }"
+            ext-cls="en-bk-form"
             :label="$t('路径样例')"
           >
             <div class="origin-log-config">
               <bk-input
-                style="width: 520px"
                 v-model="pathExample"
+                style="width: 520px"
               >
               </bk-input>
               <i
@@ -631,8 +631,8 @@
           >
             <div class="origin-log-config">
               <bk-input
-                style="width: 520px"
                 v-model="formData.etl_params.path_regexp"
+                style="width: 520px"
                 :placeholder="defaultRegex"
               >
               </bk-input>
@@ -654,20 +654,20 @@
             >
               <div
                 v-for="item in metaDataList"
-                style="margin-bottom: 10px"
                 :key="`${item.field_index}${item.field_name}`"
+                style="margin-bottom: 10px"
               >
                 <bk-input
-                  style="width: 110px"
                   v-model="item.field_name"
+                  style="width: 110px"
                   :placeholder="' '"
                   :title="item.field_name"
                   disabled
                 ></bk-input>
                 <span>: </span>
                 <bk-input
-                  style="width: 400px"
                   v-model="item.value"
+                  style="width: 400px"
                   :placeholder="' '"
                   :title="item.value"
                   disabled
@@ -690,17 +690,17 @@
               <bk-radio-group v-model="formData.visible_type">
                 <bk-radio
                   v-for="item of visibleScopeSelectList"
-                  class="scope-radio"
                   :key="item.id"
+                  class="scope-radio"
                   :value="item.id"
                 >
                   {{ item.name }}
                 </bk-radio>
               </bk-radio-group>
               <bk-select
-                style="width: 500px; margin-top: 10px"
-                v-model="visibleBkBiz"
                 v-show="scopeValueType"
+                v-model="visibleBkBiz"
+                style="width: 500px; margin-top: 10px"
                 :list="mySpaceList"
                 :virtual-scroll-render="virtualscrollSpaceList"
                 display-key="space_full_code_name"
@@ -906,8 +906,8 @@
       </bk-sideslider>
 
       <bk-dialog
-        width="1200"
         v-model="dialogVisible"
+        width="1200"
         :draggable="false"
         :header-position="'left'"
         :mask-close="false"
@@ -928,8 +928,8 @@
 
       <!-- 选择模版 -->
       <bk-dialog
-        width="480"
         v-model="templateDialogVisible"
+        width="480"
         :confirm-fn="handleTemplConfirm"
         :draggable="false"
         :header-position="'left'"
@@ -940,14 +940,14 @@
           <div v-if="isSaveTempDialog">
             <label style="color: #63656e">{{ $t('模板名称') }}</label>
             <bk-input
-              style="margin-top: 8px"
               v-model="saveTempName"
+              style="margin-top: 8px"
             ></bk-input>
           </div>
           <div v-else>
             <bk-input
-              style="margin-top: 8px"
               v-model="templateKeyWord"
+              style="margin-top: 8px"
               :right-icon="'bk-icon icon-search'"
               data-test-id="fieldExtractionBox_select_selectTemplate"
               clearable
@@ -956,8 +956,8 @@
             <div class="template-list-wrap">
               <div
                 v-for="option in currentTemplateList"
-                :class="{ 'template-item': true, active: option.clean_template_id === selectTemplate }"
                 :key="option.clean_template_id"
+                :class="{ 'template-item': true, active: option.clean_template_id === selectTemplate }"
                 :title="option.name"
                 @click="handleSelectTemplate(option.clean_template_id, option.name)"
               >

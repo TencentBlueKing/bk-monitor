@@ -100,16 +100,16 @@
         @click="handleCloseFilterTitle(false)"
       >
         <span
+          v-bk-tooltips="{ content: value ? $t('收起') : $t('打开') }"
           :style="{ transform: value ? '' : 'rotate(180deg)' }"
           style="font-size: 14px"
           class="bklog-icon bklog-collapse"
-          v-bk-tooltips="{ content: value ? $t('收起') : $t('打开') }"
         ></span>
       </div>
     </div>
     <FieldFilterComp
-      ref="fieldFilterRef"
       v-show="value"
+      ref="fieldFilterRef"
       :date-picker-value="datePickerValue"
       :field-alias-map="fieldAliasMap"
       :index-set-item="indexSetItem"

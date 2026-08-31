@@ -214,18 +214,18 @@
           </span>
 
           <i
-            @click="() => remove(index, element)"
             class="bv-query-field--remove cursor-pointer bkvision-icon icon-guanbi_mianxing"
+            @click="() => remove(index, element)"
           />
         </div>
       </template>
       <template #footer>
         <QueryPanelMetricAdd
-          @add="add"
           :disabledTips="isCanPutInTips"
           :fields="fields"
           :namesMap="namesMap"
           :preferRawData="preferRawData"
+          @add="add"
         />
         <!-- <ClearFieldsButton
         v-show="formData.length"

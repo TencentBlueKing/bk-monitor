@@ -61,8 +61,8 @@
       :label-selector="config[selectorType]"
       :submit-edit="handleSubmitExpressions"
       :is-label-edit="isLabelEdit"
-      @cancel-edit="handleEdit = false"
       only-show-select-edit
+      @cancel-edit="handleEdit = false"
     />
     <div class="specify-domain">
       <template>

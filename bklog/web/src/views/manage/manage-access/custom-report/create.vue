@@ -27,9 +27,9 @@
 <template>
   <div
     ref="addNewCustomBoxRef"
+    v-bkloading="{ isLoading: containerLoading }"
     :style="`padding-right: ${introWidth + 20}px;`"
     class="custom-create-container"
-    v-bkloading="{ isLoading: containerLoading }"
     data-test-id="custom_div_addNewCustomBox"
   >
     <bk-form
@@ -47,8 +47,8 @@
           required
         >
           <bk-input
-            class="form-input"
             v-model="formData.bk_data_id"
+            class="form-input"
             disabled
           >
           </bk-input>
@@ -65,8 +65,8 @@
           required
         >
           <bk-input
-            class="form-input"
             v-model="formData.collector_config_name"
+            class="form-input"
             data-test-id="addNewCustomBox_input_dataName"
             maxlength="50"
             show-word-limit
@@ -82,10 +82,10 @@
             <div class="bk-button-group">
               <bk-button
                 v-for="(item, index) of globalsData.databus_custom"
+                :key="index"
                 :class="`${formData.custom_type === item.id ? 'is-selected' : ''}`"
                 :data-test-id="`addNewCustomBox_button_typeTo${item.id}`"
                 :disabled="isEdit"
-                :key="index"
                 size="small"
                 @click="handleChangeType(item.id)"
               >
@@ -93,8 +93,8 @@
               </bk-button>
             </div>
             <p
-              class="group-tip"
               slot="tip"
+              class="group-tip"
             >
               {{
                 $t(
@@ -115,8 +115,8 @@
           <div class="en-name-box">
             <div>
               <bk-input
-                class="form-input"
                 v-model="formData.collector_config_name_en"
+                class="form-input"
                 :disabled="submitLoading || isEdit"
                 :placeholder="$t('支持数字、字母、下划线，长短5～50字符')"
                 data-test-id="addNewCustomBox_input_englishName"
@@ -147,8 +147,8 @@
           required
         >
           <bk-select
-            style="width: 500px"
             v-model="formData.category_id"
+            style="width: 500px"
             :disabled="submitLoading"
             data-test-id="addNewCustomBox_select_selectDataCategory"
           >
@@ -173,8 +173,8 @@
         </bk-form-item>
         <bk-form-item :label="$t('说明')">
           <bk-input
-            class="form-input"
             v-model="formData.description"
+            class="form-input"
             :disabled="submitLoading"
             :maxlength="100"
             :placeholder="$t('未输入')"
@@ -224,8 +224,8 @@
           required
         >
           <bk-select
-            style="width: 500px"
             v-model="formData.data_link_id"
+            style="width: 500px"
             :clearable="false"
             :disabled="submitLoading || isEdit"
             data-test-id="addNewCustomBox_select_selectDataLink"
@@ -247,8 +247,8 @@
           :rules="storageRules.table_id"
         >
           <bk-input
-            style="width: 500px"
             v-model="formData.collector_config_name_en"
+            style="width: 500px"
             :placeholder="$t('英文或者数字，5～50长度')"
             data-test-id="addNewCustomBox_input_configName"
             maxlength="50"
@@ -263,8 +263,8 @@
         <!-- 过期时间 -->
         <bk-form-item :label="$t('过期时间')">
           <bk-select
-            style="width: 500px"
             v-model="formData.retention"
+            style="width: 500px"
             :clearable="false"
             :disabled="submitLoading"
             data-test-id="addNewCustomBox_select_expireDate"
@@ -302,8 +302,8 @@
           :label="$t('副本数')"
         >
           <bk-input
-            class="copy-number-input"
             v-model="formData.storage_replies"
+            class="copy-number-input"
             :clearable="false"
             :disabled="submitLoading"
             :max="replicasMax"
@@ -321,8 +321,8 @@
           :label="$t('分片数')"
         >
           <bk-input
-            class="copy-number-input"
             v-model="formData.es_shards"
+            class="copy-number-input"
             :clearable="false"
             :disabled="submitLoading"
             :max="shardsMax"
@@ -340,8 +340,8 @@
           :label="$t('热数据天数')"
         >
           <bk-select
-            style="width: 320px"
             v-model="formData.allocation_min_days"
+            style="width: 320px"
             :clearable="false"
             :disabled="!selectedStorageCluster.enable_hot_warm"
             data-test-id="addNewCustomBox_select_selectHotData"

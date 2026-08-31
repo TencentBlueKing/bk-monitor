@@ -20,8 +20,8 @@
   >
     <template v-for="item in rootList">
       <span
-        class="bklog-root-field"
         :key="item.name"
+        class="bklog-root-field"
       >
         <span
           class="field-name"
@@ -33,6 +33,7 @@
           ></span
         ></span>
         <span
+          :ref="item.formatter.ref"
           class="field-value"
           :data-with-intersection="true"
           :data-field-name="item.name"
@@ -41,7 +42,6 @@
           :data-json-text-value="
             item.formatter.parsedFromJsonString && item.type !== 'object' && item.type !== 'nested' ? 'true' : undefined
           "
-          :ref="item.formatter.ref"
           >{{ item.formatter.stringValue }}</span
         >
         <button

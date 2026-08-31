@@ -14,8 +14,8 @@
       :desc="$t('用于标识日志文件来源及唯一性')"
     >
       <bk-select
-        style="width: 500px"
         v-model="value.targetFields"
+        style="width: 500px"
         :collapse-tag="false"
         :is-tag-width-limit="false"
         display-tag
@@ -46,8 +46,8 @@
           <transition-group>
             <bk-tag
               v-for="(item, index) in value.sortFields"
-              ext-cls="tag-items"
               :key="item"
+              ext-cls="tag-items"
               closable
               @close="handleCloseSortFiled(item, index)"
             >
@@ -71,9 +71,9 @@
           </template>
           <bk-option
             v-for="option in targetFieldSelectList"
-            :disabled="getSortDisabledState(option.id)"
             :id="option.id"
             :key="option.id"
+            :disabled="getSortDisabledState(option.id)"
             :name="option.name"
           >
           </bk-option>

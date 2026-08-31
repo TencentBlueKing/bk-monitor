@@ -32,8 +32,8 @@
   >
     <section>
       <bk-table
-        class="state-table"
         v-bkloading="{ isLoading: isTableLoading }"
+        class="state-table"
         :data="dataList"
         :outer-border="false"
       >
@@ -94,9 +94,9 @@
       </bk-table>
       <template v-if="dataList.length">
         <div
-          style="height: 40px"
-          v-bkloading="{ isLoading: true }"
           v-show="!isPageOver"
+          v-bkloading="{ isLoading: true }"
+          style="height: 40px"
         ></div>
       </template>
     </section>

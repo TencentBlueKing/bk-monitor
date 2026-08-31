@@ -84,13 +84,13 @@
     >
     </bk-input>
     <bk-collapse
-      class="my-menu"
       v-model="collapseValue"
+      class="my-menu"
     >
       <bk-collapse-item
-        :name="item.name"
         v-for="item in arrData"
         :key="item.id"
+        :name="item.name"
         :hide-arrow="true"
       >
         <i
@@ -107,9 +107,9 @@
         <div slot="content">
           <ul class="list">
             <li
-              class="list_li"
               v-for="childItem in item.children"
               :key="childItem.id"
+              class="list_li"
             >
               {{ childItem.name }}
             </li>

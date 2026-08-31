@@ -251,10 +251,11 @@
       </template>
       <template #content>
         <div
-          class="sideslider-content"
           v-bkloading="{ isLoading: sliderLoading }"
+          class="sideslider-content"
         >
           <bk-table
+            ref="fieldsTable"
             class="field-table field-alias-table"
             :data="formData"
             :empty-text="$t('暂无内容')"
@@ -262,7 +263,6 @@
             size="small"
             col-border
             custom-header-color="#F0F1F5"
-            ref="fieldsTable"
           >
             <template>
               <bk-table-column
@@ -271,19 +271,19 @@
               >
                 <template #default="props">
                   <div
-                    class="sideslider-field-name field-name-overflow-tips"
                     v-bk-overflow-tips
+                    class="sideslider-field-name field-name-overflow-tips"
                   >
                     <span
                       v-if="props.row.children?.length && !props.row.expand"
-                      @click="expandObject(props.row, true)"
                       class="ext-btn rotate bklog-icon bklog-arrow-down-filled"
+                      @click="expandObject(props.row, true)"
                     >
                     </span>
                     <span
                       v-if="props.row.children?.length && props.row.expand"
-                      @click="expandObject(props.row, false)"
                       class="ext-btn bklog-icon bklog-arrow-down-filled"
+                      @click="expandObject(props.row, false)"
                     >
                     </span>
 
@@ -315,24 +315,24 @@
                   <div class="alias-container">
                     <div
                       v-if="props.row.field_type === 'object'"
-                      class="ml8"
                       v-bk-tooltips.top="$t('object字段不支持编辑别名')"
+                      class="ml8"
                     >
                       --
                     </div>
                     <bk-input
                       v-else
-                      class="alias-input"
                       v-model="props.row.query_alias"
+                      class="alias-input"
                       :placeholder="$t('请输入')"
                       @blur="checkQueryAliasItem(props.row)"
                     >
                     </bk-input>
                     <template v-if="props.row.aliasErr">
                       <i
+                        v-bk-tooltips.top="props.row.aliasErr"
                         style="right: 8px"
                         class="bk-icon icon-exclamation-circle-shape tooltips-icon"
-                        v-bk-tooltips.top="props.row.aliasErr"
                       ></i>
                     </template>
                   </div>
@@ -340,8 +340,8 @@
               </bk-table-column>
 
               <div
-                class="empty-text"
                 slot="empty"
+                class="empty-text"
               >
                 {{ $t('暂无数据') }}
               </div>

@@ -37,8 +37,8 @@
     ></bk-alert>
     <div class="operate-box">
       <bk-button
-        style="min-width: 120px"
         v-cursor="{ active: isAllowedCreate === false }"
+        style="min-width: 120px"
         :disabled="!collectProject || isTableLoading || isAllowedCreate === null"
         :loading="isCreateLoading"
         data-test-id="logIndexSetBox_button_newIndexSet"
@@ -48,8 +48,8 @@
         {{ $t('新建索引集') }}
       </bk-button>
       <bk-input
-        style="width: 300px"
         v-model="searchParams.keyword"
+        style="width: 300px"
         :placeholder="$t('请输入索引集名称')"
         :right-icon="'bk-icon icon-search'"
         data-test-id="logIndexSetBox_input_searchIndexSet"
@@ -77,17 +77,17 @@
             </bk-button> -->
           <div class="index-set-name-box">
             <span
-              class="indexSet-name"
               v-bk-overflow-tips
               v-cursor="{ active: !(row.permission && row.permission[authorityMap.MANAGE_INDICES_AUTH]) }"
+              class="indexSet-name"
               @click="manageIndexSet('manage', row)"
             >
               {{ row.index_set_name }}
             </span>
             <span
               v-if="row.is_desensitize"
-              class="bk-icon bklog-icon bklog-masking"
               v-bk-tooltips.top="$t('已脱敏')"
+              class="bk-icon bklog-icon bklog-masking"
             >
             </span>
           </div>
@@ -173,8 +173,8 @@
       >
         <template #default="props">
           <bk-button
-            style="margin-right: 4px"
             v-cursor="{ active: !(props.row.permission && props.row.permission[authorityMap.MANAGE_INDICES_AUTH]) }"
+            style="margin-right: 4px"
             theme="primary"
             text
             @click="manageIndexSet('search', props.row)"
@@ -190,8 +190,8 @@
             >{{ $t('日志脱敏') }}
           </bk-button>
           <bk-button
-            style="margin-right: 4px"
             v-cursor="{ active: !(props.row.permission && props.row.permission.manage_indices_v2) }"
+            style="margin-right: 4px"
             :disabled="!props.row.is_editable"
             theme="primary"
             text

@@ -5,8 +5,8 @@
       @click="handleOpenSidebar"
     >
       <span
-        class="bklog-icon bklog-setting"
         v-bk-tooltips.top="t('索引配置')"
+        class="bklog-icon bklog-setting"
       ></span>
       <span class="field-settin-text">{{ t('索引配置') }}</span>
     </div>
@@ -34,8 +34,8 @@
       </template>
       <template #content>
         <div
-          class="bklog-v3 field-slider-content"
           v-bkloading="{ isLoading: sliderLoading }"
+          class="bklog-v3 field-slider-content"
         >
           <bk-form
             v-if="!sliderLoading"
@@ -58,8 +58,8 @@
               <div @click.stop="() => ({})">
                 <bk-input
                   v-if="isEdit || isEditConfigName"
-                  class="w520"
                   v-model="formData.collector_config_name"
+                  class="w520"
                   maxlength="50"
                   show-word-limit
                 >
@@ -84,8 +84,8 @@
               <div class="en-name-box">
                 <bk-input
                   v-if="isEdit"
-                  class="w520"
                   v-model="formData.collector_config_name_en"
+                  class="w520"
                   disabled
                   show-word-limit
                 >
@@ -102,8 +102,8 @@
             >
               <bk-input
                 v-if="isEdit"
-                class="form-input"
                 v-model="formData.bk_data_id"
+                class="form-input"
                 disabled
               >
               </bk-input>

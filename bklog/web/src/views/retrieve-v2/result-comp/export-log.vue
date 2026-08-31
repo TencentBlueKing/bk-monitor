@@ -98,8 +98,8 @@
 
     <!-- 导出弹窗提示 -->
     <bk-dialog
-      ext-cls="async-export-dialog"
       v-model="isShowExportDialog"
+      ext-cls="async-export-dialog"
       :mask-close="false"
       :ok-text="$t('下载')"
       :width="640"
@@ -131,8 +131,8 @@
         </div>
       </template>
       <div
-        class="export-container"
         v-bkloading="{ isLoading: exportLoading }"
+        class="export-container"
       >
         <div class="log-num-container">
           <div class="num-box">
@@ -147,8 +147,8 @@
         <div class="filed-select-box">
           <span class="middle-title">{{ $t('下载模式') }}</span>
           <bk-radio-group
-            class="filed-radio-box"
             v-model="downloadType"
+            class="filed-radio-box"
           >
             <bk-radio
               v-for="[key, val] in Object.entries(downloadTypeRadioMap)"
@@ -169,13 +169,13 @@
           </span>
         </div>
         <div
-          class="filed-select-box"
           v-if="downloadType !== 'quick'"
+          class="filed-select-box"
         >
           <span class="middle-title">{{ $t('下载范围') }}</span>
           <bk-radio-group
-            class="filed-radio-box"
             v-model="selectFiledType"
+            class="filed-radio-box"
           >
             <bk-radio
               v-for="[key, val] in Object.entries(radioMap)"
@@ -226,8 +226,8 @@
         >
           <span class="middle-title">{{ $t('日志类型') }}</span>
           <bk-radio-group
-            class="desensitize-radio-box"
             v-model="desensitizeRadioType"
+            class="desensitize-radio-box"
           >
             <bk-radio
               v-for="[key, val] in Object.entries(logTypeMap)"

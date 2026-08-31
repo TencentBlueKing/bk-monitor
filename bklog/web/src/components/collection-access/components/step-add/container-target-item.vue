@@ -38,9 +38,9 @@
       >
         <bk-option
           v-for="(option, index) in typeList"
-          class="space-type-select"
           :id="option.id"
           :key="index"
+          class="space-type-select"
           :name="option.name"
         >
         </bk-option>

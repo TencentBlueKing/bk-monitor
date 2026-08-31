@@ -26,8 +26,8 @@
 <template>
   <div class="fingerprint-setting fl-sb">
     <div
-      class="is-near24"
       v-bk-tooltips="{ content: $t('请先新建新类告警策略'), disabled: strategyHaveSubmit }"
+      class="is-near24"
     >
       <bk-checkbox
         v-model="isNear24"
@@ -69,8 +69,8 @@
         <template #dropdown-trigger>
           <i
             v-if="isCurrentIndexSetIdCreateSubscription"
-            class="bk-icon icon-email btn-subscription"
             v-bk-tooltips.bottom-end="$t('已订阅当前页面')"
+            class="bk-icon icon-email btn-subscription"
             :class="{
               selected: isCurrentIndexSetIdCreateSubscription,
             }"
@@ -97,8 +97,8 @@
       </bk-dropdown-menu>
       <i
         v-if="!isCurrentIndexSetIdCreateSubscription"
-        class="bk-icon icon-email btn-subscription"
         v-bk-tooltips.bottom-end="$t('邮件订阅')"
+        class="bk-icon icon-email btn-subscription"
         @click="isShowQuickCreateSubscriptionDrawer = true"
       />
     </div>
@@ -131,8 +131,8 @@
             <span>
               <span class="title">{{ $t('维度') }}</span>
               <i
-                class="notice bklog-icon bklog-help"
                 v-bk-tooltips.top="$t('修改字段会影响当前聚类结果，请勿随意修改')"
+                class="notice bklog-icon bklog-help"
               ></i>
             </span>
             <bk-select
@@ -198,8 +198,8 @@
               >
               </bk-switcher>
               <bk-select
-                ext-cls="compared-select"
                 v-model="yearOnYearHour"
+                ext-cls="compared-select"
                 :clearable="false"
                 :disabled="!yearSwitch"
                 ext-popover-cls="compared-select-option"
@@ -229,8 +229,8 @@
                       </bk-input>
                       <div class="compared-select-icon">
                         <span
-                          class="top-end"
                           v-bk-tooltips="$t('自定义输入格式: 如 1h 代表一小时 h小时')"
+                          class="top-end"
                         >
                           <i class="bklog-icon bklog-help"></i>
                         </span>

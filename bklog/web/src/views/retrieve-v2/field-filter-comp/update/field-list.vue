@@ -243,8 +243,8 @@
 <template>
   <div class="field-select-config-v2">
     <div
-      class="dropdown-trigger"
       :ref="vm => (popoverTrigger = vm)"
+      class="dropdown-trigger"
       @click="handleDropdownPopoverShow"
     >
       <span class="bklog-icon bklog-overview1"></span>
@@ -254,17 +254,17 @@
     <div style="display: none">
       <div
         v-if="popoverLazyLoaded.dropdown"
-        class="dropdown-content"
         :ref="
           vm => {
             dropdownRef = vm;
           }
         "
+        class="dropdown-content"
       >
         <div class="dropdown-search">
           <bk-input
-            class="field-input"
             v-model="searchKeyword"
+            class="field-input"
             left-icon="icon-search"
             :placeholder="$t('请输入模板名称')"
             clearable
@@ -272,13 +272,13 @@
         </div>
         <div class="underline-box"></div>
         <ul
-          class="dropdown-list"
           v-bkloading="{ isLoading: isLoading, size: 'small' }"
+          class="dropdown-list"
         >
           <li
             v-for="item in searchConfigList"
-            class="dropdown-item"
             :key="item.name"
+            class="dropdown-item"
             @click="() => handleClickSelectConfig(item)"
           >
             <span> {{ item.name }} </span>

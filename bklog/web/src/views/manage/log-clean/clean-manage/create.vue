@@ -26,8 +26,8 @@
 
 <template>
   <div
-    class="log-clean-create-container"
     v-bkloading="{ isLoading: loading }"
+    class="log-clean-create-container"
   >
     <article
       v-if="!isCleaning"

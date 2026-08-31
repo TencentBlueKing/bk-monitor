@@ -26,8 +26,8 @@
 
 <template>
   <bk-dialog
-    width="80%"
     v-model="isShowDialog"
+    width="80%"
     :draggable="false"
     :mask-close="false"
     :position="position"
@@ -54,8 +54,8 @@
       >
       </bk-date-picker>
       <span
-        class="top-start"
         v-bk-tooltips="$t('查看所有的索引集的下载历史')"
+        class="top-start"
       >
         <bk-button
           theme="primary"
@@ -67,8 +67,8 @@
       </span>
     </div>
     <div
-      class="table-container"
       v-bkloading="{ isLoading: tableLoading }"
+      class="table-container"
     >
       <bk-table
         class="export-table"
@@ -172,8 +172,8 @@
         >
           <template #default="{ row }">
             <div
-              class="title-overflow"
               v-bk-overflow-tips
+              class="title-overflow"
             >
               <span>{{ row.export_pkg_name || '--' }}</span>
             </div>
@@ -197,8 +197,8 @@
         >
           <template #default="{ row }">
             <div
-              class="title-overflow"
               v-bk-overflow-tips
+              class="title-overflow"
             >
               <span>
                 <bk-user-display-name :user-id="row.export_created_by || '--'"></bk-user-display-name>
@@ -215,8 +215,8 @@
         >
           <template #default="{ row }">
             <div
-              class="title-overflow"
               v-bk-overflow-tips
+              class="title-overflow"
             >
               <span>{{ getFormatDate(row.export_created_at) }}</span>
             </div>
@@ -243,8 +243,8 @@
               </bk-button>
               <span
                 v-else
-                class="top-start"
                 v-bk-tooltips="$t('下载链接过期')"
+                class="top-start"
               >
                 <bk-button
                   disabled
@@ -267,11 +267,11 @@
               </bk-button>
               <span
                 v-else
-                class="top-start"
                 v-bk-tooltips="{
                   content: $t('数据源过期'),
                   disabled: row.export_status === 'success',
                 }"
+                class="top-start"
               >
                 <bk-button
                   disabled

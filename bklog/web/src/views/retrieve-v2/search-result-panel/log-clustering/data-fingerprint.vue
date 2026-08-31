@@ -91,8 +91,8 @@
           <div class="fl-ac signature-box">
             <span v-bk-overflow-tips>{{ row.signature }}</span>
             <div
-              class="new-finger"
               v-show="row.is_new_class"
+              class="new-finger"
             >
               New
             </div>
@@ -209,8 +209,8 @@
       <template v-if="isGroupSearch">
         <bk-table-column
           v-for="(item, index) of requestData.group_by"
-          width="130"
           :key="index"
+          width="130"
           :label="item"
           :render-header="$renderHeader"
           class-name="symbol-column"
@@ -250,8 +250,8 @@
             </bk-user-selector>
             <bk-tag-input
               v-else
-              style="margin-top: 4px"
               v-model="row.owners"
+              style="margin-top: 4px"
               placeholder=" "
               :allow-create="true"
               :clearable="false"
@@ -280,18 +280,18 @@
                 @change="val => changeStrategy(val, row)"
               ></bk-switcher>
               <span
+                v-if="row.strategy_id"
                 class="button-view"
                 @click="handleStrategyInfoClick(row)"
-                v-if="row.strategy_id"
                 >{{ $t('前往查看') }} <span class="bklog-icon bklog-jump"></span
               ></span>
             </div>
             <bk-switcher
               v-else
               v-model="row.strategy_enabled"
+              v-bk-tooltips="$t('暂无配置责任人，无法自动创建告警策略')"
               theme="primary"
               :disabled="true"
-              v-bk-tooltips="$t('暂无配置责任人，无法自动创建告警策略')"
             ></bk-switcher>
           </div>
         </template>
@@ -360,8 +360,8 @@
         ref="remarkTips"
       >
         <div
-          class="remark-list"
           v-show="currentRemarkList.length"
+          class="remark-list"
         >
           <div
             v-for="(remark, index) in currentRemarkList"

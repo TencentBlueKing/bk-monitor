@@ -27,8 +27,8 @@
 <template>
   <!-- 设置-日志聚类 -->
   <div
-    class="setting-log-cluster"
     v-bkloading="{ isLoading: globalLoading }"
+    class="setting-log-cluster"
   >
     <bk-form
       ref="validateForm"
@@ -45,8 +45,8 @@
       >
         <div class="setting-item">
           <bk-select
-            style="width: 482px"
             v-model="formData.clustering_fields"
+            style="width: 482px"
             :clearable="false"
             :disabled="!globalEditable"
             data-test-id="LogCluster_div_selectField"
@@ -74,13 +74,13 @@
         <div class="setting-item">
           <div @click="handleChangeFinger">
             <span
-              class="top-middle"
               v-bk-tooltips="$t('暂时未开放聚类关闭功能，如有关闭需求，可联系平台管理员')"
+              class="top-middle"
               :disabled="!isShowFingerTips"
             >
               <bk-switcher
-                class="left-word"
                 v-model="fingerSwitch"
+                class="left-word"
                 :disabled="!globalEditable || fingerSwitch"
                 :pre-check="() => false"
                 data-test-id="LogCluster_div_isOpenSignature"
@@ -103,8 +103,8 @@
         >
           <div class="setting-item">
             <bk-input
-              style="width: 94px"
               v-model="formData.max_log_length"
+              style="width: 94px"
               :disabled="!globalEditable"
               :max="2000000"
               :min="1"
@@ -138,12 +138,12 @@
         <!-- 聚类规则 -->
         <rule-table
           ref="ruleTableRef"
-          v-on="$listeners"
           :clean-config="cleanConfig"
           :global-editable="globalEditable"
           :submit-lading="isHandle"
           :table-str="defaultData.predefined_varibles"
           :max-log-length="formData.max_log_length"
+          v-on="$listeners"
           @submit-rule="handleSubmitClusterChange"
         />
       </div>
@@ -171,9 +171,9 @@
     </div>
     <!-- 保存dialog -->
     <bk-dialog
+      v-model="isShowSubmitDialog"
       width="360"
       ext-cls="submit-dialog"
-      v-model="isShowSubmitDialog"
       :mask-close="false"
       :show-footer="false"
       header-position="left"

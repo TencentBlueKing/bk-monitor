@@ -28,10 +28,10 @@
   <div>
     <div
       v-for="(conItem, conIndex) of formData.configs"
-      v-en-style="'width: 900px;'"
-      class="config-box"
-      v-bkloading="{ isLoading: nameSpaceRequest, zIndex: 10 }"
       :key="conIndex"
+      v-en-style="'width: 900px;'"
+      v-bkloading="{ isLoading: nameSpaceRequest, zIndex: 10 }"
+      class="config-box"
     >
       <div class="config-title">
         <span>{{ getFromCharCode(conItem.noQuestParams.letterIndex) }}</span>
@@ -89,13 +89,13 @@
               </span>
             </div>
             <div
-              class="operator-box"
               v-bk-tooltips.top="{ content: $t('请先选择集群'), delay: 500 }"
+              class="operator-box"
               :disabled="!!formData.bcs_cluster_id"
             >
               <bk-select
-                class="operate-select"
                 v-model="conItem.noQuestParams.namespacesExclude"
+                class="operate-select"
                 :clearable="false"
                 :disabled="isNode || !formData.bcs_cluster_id || nameSpaceRequest"
                 :popover-width="100"
@@ -178,8 +178,8 @@
             </div>
             <div class="operator-box">
               <bk-select
-                class="operate-select"
                 v-model="conItem.noQuestParams.containerExclude"
+                class="operate-select"
                 :clearable="false"
                 :popover-width="100"
                 placeholder=" "
@@ -192,8 +192,8 @@
                 ></bk-option>
               </bk-select>
               <bk-tag-input
-                ext-cls="container-input"
                 v-model="conItem.containerNameList"
+                ext-cls="container-input"
                 allow-create
                 free-paste
                 has-delete-icon

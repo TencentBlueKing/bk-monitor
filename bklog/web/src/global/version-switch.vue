@@ -27,8 +27,8 @@
 </script>
 <template>
   <div
-    @click="handleVersionChanged"
     class="bklog-version-switch"
+    @click="handleVersionChanged"
   >
     <span class="bklog-icon bklog-qiehuanbanben"></span>{{ showText }}
   </div>

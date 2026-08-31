@@ -49,8 +49,8 @@
         <bk-select
           v-if="ruleType === 'template'"
           ref="templateListRef"
-          ext-cls="template-select"
           v-model="templateRule"
+          ext-cls="template-select"
           behavior="simplicity"
           searchable
           :style="'margin-left: 10px'"
@@ -92,8 +92,8 @@
             </bk-button>
           </template>
           <ul
-            class="bk-dropdown-list"
             slot="dropdown-content"
+            class="bk-dropdown-list"
           >
             <li>
               <a
@@ -134,9 +134,9 @@
     </div>
     <!-- 添加规则dialog -->
     <bk-dialog
+      v-model="isShowAddRule"
       width="640"
       ext-cls="add-rule"
-      v-model="isShowAddRule"
       :mask-close="false"
       :title="isEditRules ? $t('编辑规则') : $t('添加规则')"
       header-position="left"
@@ -155,8 +155,8 @@
           required
         >
           <bk-input
-            style="width: 560px"
             v-model="addRulesData.regular"
+            style="width: 560px"
           ></bk-input>
           <span>{{ $t('样例') }}：\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}</span>
         </bk-form-item>
@@ -167,8 +167,8 @@
           required
         >
           <bk-input
-            style="width: 560px"
             v-model="addRulesData.placeholder"
+            style="width: 560px"
           ></bk-input>
           <span>{{ $t('样例') }}：IP</span>
         </bk-form-item>
@@ -211,9 +211,9 @@
     </bk-dialog>
     <!-- 其他索引集导入弹窗 -->
     <bk-dialog
+      v-model="isShowOtherExport"
       width="640"
       ext-cls="add-rule"
-      v-model="isShowOtherExport"
       header-position="left"
       :mask-close="false"
       :title="$t('其他索引集导入')"

@@ -26,14 +26,14 @@
 
 <template>
   <div
-    class="basic-info-container"
     v-bkloading="{ isLoading: basicLoading }"
+    class="basic-info-container"
   >
     <div>
       <div
         v-if="!isContainer"
-        class="deploy-sub"
         v-en-class="'en-deploy'"
+        class="deploy-sub"
       >
         <!-- 数据ID -->
         <div>
@@ -54,8 +54,8 @@
                 class="loading"
               ></span>
               <bk-button
-                class="view-btn"
                 v-cursor="{ active: !editAuth }"
+                class="view-btn"
                 :loading="tokenLoading"
                 text
                 @click="handleGetToken"
@@ -291,9 +291,9 @@
     </div>
     <div>
       <bk-button
+        v-cursor="{ active: !editAuth }"
         style="min-width: 88px; color: #3a84ff"
         class="mr10"
-        v-cursor="{ active: !editAuth }"
         :theme="'default'"
         @click="handleClickEdit"
       >

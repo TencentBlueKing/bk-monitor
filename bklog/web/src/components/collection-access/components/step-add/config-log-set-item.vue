@@ -47,8 +47,8 @@
             >
               <div class="flex-ac">
                 <bk-input
-                  style="width: 320px"
                   v-model.trim="subFormData.params.multiline_pattern"
+                  style="width: 320px"
                   data-test-id="sourceLogBox_input_beginningRegular"
                 ></bk-input>
                 <bk-button
@@ -106,8 +106,8 @@
           <!-- 日志路径 -->
           <div
             v-for="(log, index) in logPaths"
-            class="form-div mt log-paths"
             :key="index"
+            class="form-div mt log-paths"
           >
             <bk-form-item
               :label="index === 0 ? $t('日志路径') : ''"
@@ -173,8 +173,8 @@
             <template v-if="isShowBlackList">
               <div
                 v-for="(log, index) in blackLogListPaths"
-                :class="['form-div log-paths', !!index && 'mt']"
                 :key="index"
+                :class="['form-div log-paths', !!index && 'mt']"
               >
                 <bk-form-item
                   :property="'params.exclude_files.' + index + '.value'"
@@ -213,8 +213,8 @@
             required
           >
             <bk-select
-              style="width: 320px"
               v-model="subFormData.data_encoding"
+              style="width: 320px"
               :clearable="false"
               data-test-id="sourceLogBox_div_changeLogCharacterTet"
               searchable
@@ -280,8 +280,8 @@
           <div class="species-item">
             <bk-checkbox
               v-for="(item, index) in logSpeciesList"
-              :disabled="selectLogSpeciesList.length === 1 && selectLogSpeciesList[0] === item.id"
               :key="index"
+              :disabled="selectLogSpeciesList.length === 1 && selectLogSpeciesList[0] === item.id"
               :value="item.id"
             >
               {{ item.name }}
@@ -311,20 +311,20 @@
       </span>
       <div
         v-for="(item, index) in eventSettingList"
-        class="form-div win-filter"
         :key="index"
+        class="form-div win-filter"
       >
         <bk-select
-          class="select-div"
           v-model="item.type"
+          class="select-div"
           :clearable="false"
           @selected="tagBlurRules(item, index)"
         >
           <bk-option
             v-for="option in selectEventList"
-            :disabled="option.isSelect"
             :id="option.id"
             :key="option.id"
+            :disabled="option.isSelect"
             :name="option.name"
           >
           </bk-option>

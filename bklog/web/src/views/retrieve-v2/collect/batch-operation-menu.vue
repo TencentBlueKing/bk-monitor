@@ -126,9 +126,9 @@
 
     <!-- 批量删除对话框 -->
     <bk-dialog
+      v-model="batchDeleteDialogVisible"
       :width="480"
       ext-cls="batch-delete-dialog"
-      v-model="batchDeleteDialogVisible"
     >
       <template #header>
         <div class="dialog-content">
@@ -144,8 +144,8 @@
               <div
                 v-for="item in selectFavoriteList"
                 :key="item.id"
-                class="item"
                 v-bk-overflow-tips
+                class="item"
               >
                 {{ item.name }}
               </div>

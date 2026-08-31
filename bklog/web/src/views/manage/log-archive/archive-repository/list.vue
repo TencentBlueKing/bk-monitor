@@ -56,8 +56,8 @@
     >
       <bk-table
         ref="repositoryTable"
-        class="repository-table"
         v-bkloading="{ isLoading: isTableLoading }"
+        class="repository-table"
         :data="tableDataPaged"
         :limit-list="pagination.limitList"
         :pagination="pagination"
@@ -150,10 +150,10 @@
             </bk-button> -->
               <!-- 删除 -->
               <bk-button
-                class="mr10 king-button"
                 v-cursor="{
                   active: !(props.row.permission && props.row.permission[authorityMap.MANAGE_ES_SOURCE_AUTH]),
                 }"
+                class="mr10 king-button"
                 theme="primary"
                 text
                 @click.stop="operateHandler(props.row, 'delete')"

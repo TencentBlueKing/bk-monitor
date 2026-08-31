@@ -33,8 +33,8 @@
     <section class="operation">
       <div class="top-operation">
         <bk-button
-          class="fl"
           v-cursor="{ active: isAllowedCreate === false }"
+          class="fl"
           :disabled="!collectProject || isAllowedCreate === null || isRequest"
           data-test-id="customContainer_button_addNewCustom"
           theme="primary"
@@ -61,8 +61,8 @@
         data-test-id="customContainer_table_container"
       >
         <bk-table
-          class="custom-table"
           v-bkloading="{ isLoading: isRequest }"
+          class="custom-table"
           :data="collectList"
           :limit-list="pagination.limitList"
           :pagination="pagination"
@@ -96,8 +96,8 @@
                 </span>
                 <span
                   v-if="props.row.is_desensitize"
-                  class="bk-icon bklog-icon bklog-masking"
                   v-bk-tooltips.top="$t('已脱敏')"
+                  class="bk-icon bklog-icon bklog-masking"
                 >
                 </span>
               </div>
@@ -195,8 +195,8 @@
             <template #default="props">
               <div class="collect-table-operate">
                 <bk-button
-                  class="king-button"
                   v-cursor="{ active: !(props.row.permission && props.row.permission[authorityMap.SEARCH_LOG_AUTH]) }"
+                  class="king-button"
                   :disabled="
                     !props.row.is_active || (!props.row.index_set_id && !props.row.bkdata_index_set_ids.length)
                   "
@@ -207,10 +207,10 @@
                   {{ $t('检索') }}</bk-button
                 >
                 <bk-button
-                  class="king-button"
                   v-cursor="{
                     active: !(props.row.permission && props.row.permission[authorityMap.MANAGE_COLLECTION_AUTH]),
                   }"
+                  class="king-button"
                   theme="primary"
                   text
                   @click="operateHandler(props.row, 'edit')"

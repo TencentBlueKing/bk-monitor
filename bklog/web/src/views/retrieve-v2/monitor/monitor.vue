@@ -349,13 +349,13 @@
 </script>
 <template>
   <div
+    v-bkloading="{ isLoading: initLoading }"
     :style="stickyStyle"
     :class="['retrieve-v2-index', { 'scroll-y': true, 'is-sticky-top': isStickyTop }]"
-    v-bkloading="{ isLoading: initLoading }"
   >
     <div
-      class="sub-head"
       v-show="!initLoading"
+      class="sub-head"
     >
       <SelectIndexSet
         :popover-options="{ offset: '-6,10' }"
@@ -365,9 +365,9 @@
       <QueryHistory @change="updateSearchParam"></QueryHistory>
     </div>
     <div
+      v-show="!initLoading"
       :style="contentStyle"
       :class="['retrieve-v2-body']"
-      v-show="!initLoading"
     >
       <div class="retrieve-v2-content">
         <SearchBar @height-change="handleHeightChange"></SearchBar>

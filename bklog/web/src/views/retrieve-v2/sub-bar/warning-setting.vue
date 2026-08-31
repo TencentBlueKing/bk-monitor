@@ -4,9 +4,9 @@
     @click="isShowList"
   >
     <span
+      v-bk-tooltips.top="$t('告警')"
       :style="{ color: badgeCount !== 0 ? 'red' : '' }"
       :class="`bklog-icon bklog-${badgeCount !== 0 ? 'gaojing-filled' : 'gaojing-line'}`"
-      v-bk-tooltips.top="$t('告警')"
     ></span>
     <span class="warn-table-text">{{ $t('告警') }}</span>
     <bk-badge
@@ -31,14 +31,14 @@
           <template #setting>
             <div style="display: flex; align-items: center; justify-content: center; background-color: #f0f1f5">
               <div
-                class="selector-owner"
                 v-if="active === 'mission'"
+                class="selector-owner"
               >
                 {{ $t('我的') }}
                 <bk-switcher
+                  v-model="filterOwner"
                   class="selector-owner-switch"
                   size="small"
-                  v-model="filterOwner"
                 ></bk-switcher>
               </div>
               <div
@@ -47,9 +47,9 @@
               >
                 <span
                   v-for="type in ['all', 'unHandle']"
+                  :key="type"
                   class="option"
                   :class="{ selected: currentType === type }"
-                  :key="type"
                   @click="handleRadioGroup(type)"
                 >
                   {{ type === 'all' ? $t('全部') : $t('未恢复') }}
@@ -92,16 +92,16 @@
             </bk-alert> -->
             <bk-table
               v-if="active === 'mission'"
+              :key="tableKey"
               v-bkloading="{ isLoading: loading }"
               :data="recordListshow"
               :empty-text="$t('暂无内容')"
-              :key="tableKey"
               :max-height="200"
               :min-height="120"
               :outer-border="false"
               :row-border="false"
-              @sort-change="handleSortChange"
               :stripe="true"
+              @sort-change="handleSortChange"
             >
               <bk-table-column
                 :label="$t('告警名称')"
@@ -109,6 +109,7 @@
               >
                 <template #default="{ row }">
                   <div
+                    v-bk-overflow-tips="row.alert_name"
                     class="bklog-table-col-alert-name"
                     :style="{
                       color: '#3a84ff',
@@ -116,7 +117,6 @@
                       '--severity-color': getLevelColor(row.severity),
                     }"
                     @click="handleViewWarningDetail(row)"
-                    v-bk-overflow-tips="row.alert_name"
                   >
                     <span class="severity-level"></span>{{ row.alert_name }}
                   </div>
@@ -177,11 +177,11 @@
             </bk-table>
             <bk-table
               v-if="active === 'config'"
+              :key="tableKey"
               v-bkloading="{ isLoading: loading }"
               :border="false"
               :data="strategyList"
               :empty-text="$t('暂无内容')"
-              :key="tableKey"
               :max-height="200"
               :outer-border="false"
               :row-border="false"

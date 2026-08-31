@@ -49,9 +49,9 @@
     >
       <template v-for="navItem in activeManageNav.children">
         <li
+          :key="navItem.id"
           :class="{ 'sub-nav-item': true, active: navItem.id === activeManageSubNav.id }"
           :data-test-id="`logCollectionNavBox_li_${navItem.id}`"
-          :key="navItem.id"
           @click="handleClickSubNav(navItem.id)"
         >
           {{ navItem.name }}

@@ -72,8 +72,8 @@
         <div class="description-row">
           <dt class="description-term">{{ $t('索引集名称') }}</dt>
           <dd
-            class="description-definition"
             v-bk-overflow-tips
+            class="description-definition"
           >
             {{ indexSetData.index_set_name || '--' }}
           </dd>
@@ -91,8 +91,8 @@
         <div class="description-row">
           <dt class="description-term">{{ $t('数据分类') }}</dt>
           <dd
-            class="description-definition"
             v-bk-overflow-tips
+            class="description-definition"
           >
             {{ categoryMap[indexSetData.category_id] || '--' }}
           </dd>
@@ -104,8 +104,8 @@
         <div class="description-row">
           <dt class="description-term">{{ $t('数据源') }}</dt>
           <dd
-            class="description-definition"
             v-bk-overflow-tips
+            class="description-definition"
           >
             {{ scenarioMap[indexSetData.scenario_id] || '--' }}
           </dd>
@@ -183,8 +183,8 @@
         {{ $t('操作记录') }}
       </div>
       <bk-table
-        class="king-table"
         v-bkloading="{ isLoading: tableLoading2 }"
+        class="king-table"
         :data="recordsData"
         :max-height="526"
         :pagination="recordsPagination"

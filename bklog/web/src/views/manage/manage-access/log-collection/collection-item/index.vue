@@ -31,8 +31,8 @@
   >
     <section class="top-operation">
       <bk-button
-        class="fl"
         v-cursor="{ active: isAllowedCreate === false }"
+        class="fl"
         :disabled="!collectProject || isAllowedCreate === null || isTableLoading"
         data-test-id="logCollectionBox_button_addNewCollectionItem"
         theme="primary"
@@ -56,8 +56,8 @@
     <section class="collect-list">
       <bk-table
         ref="collectTable"
-        class="collect-table"
         v-bkloading="{ isLoading: isTableLoading }"
+        class="collect-table"
         :data="collectShowList"
         :empty-text="$t('暂无内容')"
         :limit-list="pagination.limitList"
@@ -90,16 +90,16 @@
         >
           <template #default="props">
             <span
-              class="text-active"
               v-cursor="{ active: !(props.row.permission && props.row.permission[authorityMap.VIEW_COLLECTION_AUTH]) }"
+              class="text-active"
               @click="operateHandler(props.row, 'view')"
             >
               {{ props.row.collector_config_name }}
             </span>
             <span
               v-if="props.row.is_desensitize"
-              class="bk-icon bklog-icon bklog-masking"
               v-bk-tooltips.top="$t('已脱敏')"
+              class="bk-icon bklog-icon bklog-masking"
             >
             </span>
             <span
@@ -353,12 +353,12 @@
               <!-- 检索 -->
               <!-- 启用状态下 且存在 index_set_id 才能检索 -->
               <span
-                class="king-button"
                 v-bk-tooltips.top="{
                   content: getDisabledTipsMessage(props.row, 'search'),
                   disabled: getOperatorCanClick(props.row, 'search'),
                   delay: 500,
                 }"
+                class="king-button"
               >
                 <bk-button
                   v-cursor="{ active: !(props.row.permission && props.row.permission[authorityMap.SEARCH_LOG_AUTH]) }"
@@ -372,12 +372,12 @@
               </span>
               <!-- 编辑 -->
               <span
-                class="king-button"
                 v-bk-tooltips.top="{
                   content: getDisabledTipsMessage(props.row, 'edit'),
                   disabled: getOperatorCanClick(props.row, 'edit'),
                   delay: 500,
                 }"
+                class="king-button"
               >
                 <bk-button
                   v-cursor="{
@@ -394,12 +394,12 @@
 
               <!-- 清洗 -->
               <span
-                class="king-button"
                 v-bk-tooltips.top="{
                   content: getDisabledTipsMessage(props.row, 'clean'),
                   disabled: getOperatorCanClick(props.row, 'clean'),
                   delay: 500,
                 }"
+                class="king-button"
               >
                 <bk-button
                   v-cursor="{

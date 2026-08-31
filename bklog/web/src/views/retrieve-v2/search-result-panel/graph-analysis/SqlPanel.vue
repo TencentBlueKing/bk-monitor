@@ -114,10 +114,10 @@ LIMIT 2;`,
     ></div>
     <div class="sql-editor-tools">
       <bk-button
-        @click="emitQuery"
         class="sql-editor-query-button font-small mr-small"
         theme="primary"
         size="small"
+        @click="emitQuery"
       >
         <i class="bklog-icon bklog-bofang"></i>
         <span
@@ -127,9 +127,9 @@ LIMIT 2;`,
         >
       </bk-button>
       <bk-button
-        @click="emitStop"
         class="sql-editor-view-button text-center pl-min pr-min mr-small cursor-pointer"
         size="small"
+        @click="emitStop"
       >
         <span class="icon bklog-icon bklog-stop" />
         <span>{{ $t('中止') }}</span>

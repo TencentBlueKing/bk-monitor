@@ -49,8 +49,8 @@
             </template>
             <template v-else>
               <bk-input
-                class="edit-input-wrap"
                 v-model="nameInput"
+                class="edit-input-wrap"
                 @blur="handleUpdateName"
                 @enter="handleUpdateName"
               />
@@ -79,15 +79,15 @@
             </template>
             <template v-else>
               <bk-select
-                class="edit-input-wrap"
                 v-model="groupInput"
+                class="edit-input-wrap"
                 :clearable="false"
                 @change="handleUpdateGroup"
               >
                 <bk-option
                   v-for="item in groups"
-                  :key="String(item.id)"
                   :id="String(item.id)"
+                  :key="String(item.id)"
                   :name="item.name"
                 />
               </bk-select>

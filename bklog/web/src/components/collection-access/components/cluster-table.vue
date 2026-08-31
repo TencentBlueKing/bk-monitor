@@ -43,9 +43,9 @@
       </div>
     </div>
     <div
-      class="cluster-main"
       v-show="isShowTable"
       v-bkloading="{ isLoading: tableLoading }"
+      class="cluster-main"
     >
       <template v-if="tableList.length">
         <bk-table
@@ -62,8 +62,8 @@
             <template #default="{ row }">
               <bk-radio :checked="clusterSelect === row.storage_cluster_id">
                 <div
-                  class="overflow-tips"
                   v-bk-overflow-tips
+                  class="overflow-tips"
                 >
                   <span @click.stop>{{ row.storage_display_name }}</span>
                 </div>
@@ -111,13 +111,13 @@
           </bk-table-column>
         </bk-table>
         <div
-          class="cluster-illustrate"
           v-show="!!activeItem && !isDorisMode"
+          class="cluster-illustrate"
         >
           <p class="illustrate-title">{{ $t('说明') }}</p>
           <div
-            class="illustrate-container"
             v-en-class="'en-container'"
+            class="illustrate-container"
           >
             <div
               v-for="[key, value] of Object.entries(illustrateLabelData)"

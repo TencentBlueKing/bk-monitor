@@ -46,18 +46,18 @@
     >
       <bk-select
         ref="select"
+        v-model="selectValue"
         searchable
         multiple
         selected-style="checkbox"
-        v-model="selectValue"
         :display-tag="true"
         :show-empty="false"
         :auto-height="true"
       >
         <bk-option
           v-for="option in groupList"
-          :key="option.field"
           :id="option.field"
+          :key="option.field"
           :name="`${option.field}(${option.name})`"
         >
         </bk-option>
@@ -72,8 +72,8 @@
         <template v-if="extraLabelList.length">
           <div
             v-for="(item, index) in extraLabelList"
-            class="add-log-label form-div"
             :key="index"
+            class="add-log-label form-div"
           >
             <div class="keyInputBox">
               <bk-input
@@ -86,9 +86,9 @@
               ></bk-input>
               <template v-if="item.duplicateKey">
                 <i
+                  v-bk-tooltips.top="$t('自定义标签key与元数据key重复')"
                   style="right: 8px"
                   class="bk-icon icon-exclamation-circle-shape tooltips-icon"
-                  v-bk-tooltips.top="$t('自定义标签key与元数据key重复')"
                 ></i>
               </template>
             </div>
