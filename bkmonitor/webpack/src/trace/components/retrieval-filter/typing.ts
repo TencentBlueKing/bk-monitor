@@ -928,6 +928,7 @@ export const SETTING_KV_INPUT_PROPS = {
 };
 export const SETTING_KV_INPUT_EMITS = {
   change: (_v: INormalWhere) => true,
+  enter: (_v: INormalWhere) => true,
 } as const;
 export const RESIDENT_SETTING_PROPS = {
   fields: {

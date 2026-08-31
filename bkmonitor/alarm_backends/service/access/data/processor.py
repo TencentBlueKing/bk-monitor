@@ -63,6 +63,13 @@ IP = get_local_ip()
 logger = logging.getLogger("access.data")
 
 
+def _alarmd_v2_shadow_enabled() -> bool:
+    def enabled(value) -> bool:
+        return value is True or (isinstance(value, str) and value.strip().lower() == "true")
+
+    return enabled(settings.ALARMD_SHADOW_ENABLED)
+
+
 class BaseAccessDataProcess(base.BaseAccessProcess):
     def __init__(self, *args, sub_task_id: str = None, **kwargs):
         super().__init__(*args, **kwargs)
@@ -242,18 +249,19 @@ class BaseAccessDataProcess(base.BaseAccessProcess):
                 "count": len(record_list),
             }
 
-    def push(self, records: list | None = None, output_client=None):
+    def push(self, records: list | None = None, output_client=None, *, prepared: bool = False):
         """
         推送格式化后的数据到 detect 和 nodata 中(按单个策略，单个item项，写入不同的队列)
         """
         if records is None:
             records = self.record_list
 
-        # 去除重复数据
-        records: list[DataRecord] = [record for record in records if not record.is_duplicate]
+        if not prepared:
+            # 去除重复数据
+            records: list[DataRecord] = [record for record in records if not record.is_duplicate]
 
-        # 优先级检查
-        PriorityChecker.check_records(records)
+            # 优先级检查
+            PriorityChecker.check_records(records)
 
         # 按item_id分组
         pending_to_push: dict[int, list[DataRecord]] = {}
@@ -307,6 +315,12 @@ class AccessDataProcess(BaseAccessDataProcess):
         self.from_timestamp = None
         self.until_timestamp = None
         self.inline_trigger_items = []
+        self.check_result_opportunity_high_load = False
+        self.access_detect_merged = False
+        self.check_result_opportunity_trim_ready = False
+        self.alarmd_v2_execution_id = None
+        self.alarmd_v2_evaluation_time = None
+        self.alarmd_v2_query_result = None
 
         if sub_task_id:
             self.batch_timestamp = int(sub_task_id.split(".")[0])
@@ -399,6 +413,15 @@ class AccessDataProcess(BaseAccessDataProcess):
 
         now_timestamp = arrow.utcnow().timestamp
 
+        # v2 Shadow identity is tracing-only and is created only when the
+        # writer is explicitly enabled. It never participates in checkpoint,
+        # duplicate or downstream business identity.
+        if _alarmd_v2_shadow_enabled():
+            import uuid
+
+            self.alarmd_v2_execution_id = uuid.uuid4().hex
+            self.alarmd_v2_evaluation_time = now_timestamp
+
         # 设置查询时间范围
         self.get_query_time_range(now_timestamp)
 
@@ -420,6 +443,7 @@ class AccessDataProcess(BaseAccessDataProcess):
         # 当点数大于阈值时，将数据拆分为多个批量任务
         point_total = len(points)
         if point_total > (settings.ACCESS_DATA_BATCH_PROCESS_THRESHOLD or 500000):
+            self.check_result_opportunity_high_load = True
             # 为分组中的每个策略分别记录指标（修复指标漏报问题）
             # Access 数据拉取基于分组，一个分组可能包含多个策略，且可能使用不同的 Redis 节点
             for item in self.items:
@@ -469,6 +493,11 @@ class AccessDataProcess(BaseAccessDataProcess):
             points = first_item.query_record(self.from_timestamp, self.until_timestamp)
             # 判定is_partial
             if first_item.query.is_partial:
+                if self.alarmd_v2_execution_id:
+                    self.alarmd_v2_query_result = {
+                        "completeness": "PARTIAL",
+                        "reason_code": "QUERY_PARTIAL",
+                    }
                 logger.info(
                     f"strategy_group_key({self.strategy_group_key}) strategy({first_item.strategy.id}) "
                     f"query records is partial, one of points: {points[:1]}"
@@ -484,11 +513,23 @@ class AccessDataProcess(BaseAccessDataProcess):
                         sorted(protected_strategy_ids),
                     )
                     points = []
+            elif self.alarmd_v2_execution_id:
+                self.alarmd_v2_query_result = {"completeness": "FULL"}
         except BKAPIError as e:
             logger.error(e)
+            if self.alarmd_v2_execution_id:
+                self.alarmd_v2_query_result = {
+                    "completeness": "UNAVAILABLE",
+                    "reason_code": "QUERY_UNAVAILABLE",
+                }
             points = []
         except Exception as e:  # noqa
             logger.exception(f"strategy_group_key({self.strategy_group_key}) query records error, {e}")
+            if self.alarmd_v2_execution_id:
+                self.alarmd_v2_query_result = {
+                    "completeness": "UNAVAILABLE",
+                    "reason_code": "QUERY_UNAVAILABLE",
+                }
             points = []
 
         # 如果最大的localTime离得太近，那就存下until_timestamp，下次再拉取数据
@@ -598,6 +639,11 @@ class AccessDataProcess(BaseAccessDataProcess):
         self.batch_timestamp = int(time.time())
 
         client = key.ACCESS_BATCH_DATA_KEY.client
+        alarmd_v2_context = None
+        if self.alarmd_v2_execution_id:
+            from alarm_backends.core.alarmd.v2_access import export_access_batch_context
+
+            alarmd_v2_context = export_access_batch_context(self)
         first_batch_points = []  # 第一批数据，原地处理
         latest_record_timestamp = None  # 上一个记录的时间戳，用于判断是否遇到新时间点
         last_batch_index, batch_count = 0, 0  # last_batch_index: 上一批次的结束位置，batch_count: 批次计数
@@ -643,7 +689,14 @@ class AccessDataProcess(BaseAccessDataProcess):
                 data_key.strategy_id = self.items[0].strategy.id
 
                 # 数据压缩：使用 gzip + base64 压缩数据，减少 Redis 存储空间
-                compress_batch_points = base64.b64encode(gzip.compress(json.dumps(batch_points).encode("utf-8")))
+                batch_payload = batch_points
+                if alarmd_v2_context:
+                    batch_payload = {
+                        "format": "access-batch-v2-shadow-context",
+                        "points": batch_points,
+                        "alarmd_v2": alarmd_v2_context,
+                    }
+                compress_batch_points = base64.b64encode(gzip.compress(json.dumps(batch_payload).encode("utf-8")))
                 client.set(data_key, compress_batch_points, ex=key.ACCESS_BATCH_DATA_KEY.ttl)
 
                 # 发起异步任务：将批量数据写入 Redis 后，发起异步处理任务
@@ -888,7 +941,7 @@ class AccessDataProcess(BaseAccessDataProcess):
 
         return True
 
-    def _detect_and_push_abnormal(self, output_client=None):
+    def _detect_and_push_abnormal(self, records=None, output_client=None):
         """
         在 access 模块直接执行静态阈值检测，并推送异常数据。
 
@@ -918,11 +971,11 @@ class AccessDataProcess(BaseAccessDataProcess):
         detect_start_time = time.time()
         exc = None
 
-        # 去除重复数据（复用原有逻辑）
-        records: list[DataRecord] = [record for record in self.record_list if not record.is_duplicate]
-
-        # 优先级检查（复用原有逻辑）
-        PriorityChecker.check_records(records)
+        # 独立调用保持兼容；AccessDataProcess.push 会传入统一准备结果，
+        # 避免两个正式分支和 Shadow 重复执行 PriorityChecker。
+        if records is None:
+            records = [record for record in self.record_list if not record.is_duplicate]
+            PriorityChecker.check_records(records)
         for item in self.items:
             strategy_id = item.strategy.id
             # 创建 DetectProcess 实例，复用成熟的检测逻辑
@@ -1089,14 +1142,29 @@ class AccessDataProcess(BaseAccessDataProcess):
 
         self.record_list = limited_records
 
+        # 两个正式分支与 v2 Shadow 共用同一份去重和优先级结果。
+        # Shadow 只读该结果；任何构建或入队失败都必须 fail-open。
+        prepared_records: list[DataRecord] = [record for record in self.record_list if not record.is_duplicate]
+        PriorityChecker.check_records(prepared_records)
+        if self.alarmd_v2_execution_id:
+            try:
+                from alarm_backends.core.alarmd.v2_access import submit_access_shadow
+
+                submit_access_shadow(self, prepared_records)
+            except Exception:
+                logger.exception(
+                    "[alarmd shadow] component=alarmd-python stage=access_v2 result=fail_open reason=AUDIT_DROP"
+                )
+
         # 判断是否可以合并处理（access-detect 合并）
         # 当策略的所有检测算法均为静态阈值时，直接在 access 模块执行检测
-        if self._can_merge_access_detect():
+        self.access_detect_merged = self._can_merge_access_detect()
+        if self.access_detect_merged:
             # 直接在 access 中执行检测并推送异常数据
-            self._detect_and_push_abnormal()
+            self._detect_and_push_abnormal(records=prepared_records)
         else:
             # 走原有流程：推送到 Redis 队列，由 detect 异步任务处理
-            super().push(records=records, output_client=output_client)
+            super().push(records=prepared_records, output_client=output_client, prepared=True)
 
         if self.sub_task_id is None:
             # 主任务 需要额外做一些事情
@@ -1128,6 +1196,9 @@ class AccessDataProcess(BaseAccessDataProcess):
 
         # 如果没有分批任务，直接返回
         if self.batch_count == 1:
+            self.check_result_opportunity_trim_ready = bool(
+                not exc and self.check_result_opportunity_high_load and self.access_detect_merged
+            )
             metrics.ACCESS_DATA_PROCESS_TIME.labels(strategy_group_key=metrics.TOTAL_TAG).observe(
                 time.time() - start_time
             )
@@ -1146,6 +1217,7 @@ class AccessDataProcess(BaseAccessDataProcess):
                 "error": str(exc),
                 "process_counts": self.process_counts,
                 "inline_trigger_items": self.inline_trigger_items,
+                "access_detect_merged": self.access_detect_merged,
             }
         ]
         wait_start_time = time.time()
@@ -1174,6 +1246,14 @@ class AccessDataProcess(BaseAccessDataProcess):
                 len(fallback_signals),
             )
 
+        self.check_result_opportunity_trim_ready = bool(
+            not exc
+            and self.check_result_opportunity_high_load
+            and self.access_detect_merged
+            and len(batch_results) == self.batch_count
+            and all(result.get("result") and result.get("access_detect_merged") for result in batch_results)
+        )
+
         inline_trigger_items = []
         seen_inline_trigger_items = set()
         for result in batch_results:
@@ -1194,6 +1274,29 @@ class AccessDataProcess(BaseAccessDataProcess):
             status=metrics.StatusEnum.from_exc(exc),
             exception=exc,
         ).inc()
+
+    def schedule_check_result_opportunity_trim(self) -> bool:
+        if not self.check_result_opportunity_trim_ready:
+            return False
+
+        from alarm_backends.core.detect_result.opportunity import claim_opportunity_trim
+        from alarm_backends.core.detect_result.tasks import async_trim_check_result_opportunity
+
+        queued_at = time.time()
+        try:
+            if not claim_opportunity_trim(self.strategy_group_key, queued_at):
+                return False
+            async_trim_check_result_opportunity.apply_async(
+                args=(self.strategy_group_key, queued_at),
+                expires=10 * constants.CONST_MINUTES,
+            )
+        except Exception:
+            logger.exception(
+                "skip CHECK_RESULT opportunity trim scheduling for strategy_group_key(%s)",
+                self.strategy_group_key,
+            )
+            return False
+        return True
 
     def batch_log(self, batch_results: list[dict]):
         """
@@ -1338,7 +1441,14 @@ class AccessBatchDataProcess(AccessDataProcess):
         data = client.get(cache_key)
         if data:
             # 解压数据：base64 解码 → gzip 解压 → JSON 解析
-            points = json.loads(gzip.decompress(base64.b64decode(data)).decode("utf-8"))
+            batch_payload = json.loads(gzip.decompress(base64.b64decode(data)).decode("utf-8"))
+            if isinstance(batch_payload, dict) and batch_payload.get("format") == "access-batch-v2-shadow-context":
+                from alarm_backends.core.alarmd.v2_access import apply_access_batch_context
+
+                points = batch_payload.get("points") or []
+                apply_access_batch_context(self, batch_payload.get("alarmd_v2"))
+            else:
+                points = batch_payload
         else:
             points = []
         # 删除缓存数据（避免数据残留）
@@ -1376,6 +1486,7 @@ class AccessBatchDataProcess(AccessDataProcess):
                     "error": str(exc) if exc else "",
                     "process_counts": self.process_counts,  # 处理统计信息
                     "inline_trigger_items": self.inline_trigger_items,
+                    "access_detect_merged": self.access_detect_merged,
                 }
             ),
         )

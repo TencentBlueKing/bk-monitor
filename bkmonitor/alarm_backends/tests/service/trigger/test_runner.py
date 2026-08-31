@@ -102,6 +102,42 @@ def test_run_trigger_item_records_and_swallows_processing_error(mocker):
     fake_metrics.TRIGGER_PROCESS_COUNT.labels.return_value.inc.assert_called_once_with()
 
 
+def test_run_trigger_item_event_inline_skips_lock_and_propagates_processing_error(mocker):
+    error = ValueError("boom")
+    processor = mocker.MagicMock()
+    processor.process.side_effect = error
+    processor_cls = mocker.patch.object(runner, "TriggerProcessor", return_value=processor)
+    lock = mocker.patch.object(runner, "service_lock")
+    fake_metrics = mocker.MagicMock(TOTAL_TAG="__total__")
+    fake_metrics.StatusEnum.from_exc.return_value = "failed"
+    mocker.patch.object(runner, "metrics", fake_metrics)
+    progress_callback = mocker.MagicMock()
+
+    with pytest.raises(ValueError) as raised:
+        runner.run_trigger_item(
+            "1",
+            "2",
+            executor="event_inline",
+            acquire_lock=False,
+            max_process_count=1000,
+            requeue_on_full=False,
+            raise_process_error=True,
+            concurrent_rate_limit=True,
+            progress_callback=progress_callback,
+        )
+
+    assert raised.value is error
+    lock.assert_not_called()
+    processor_cls.assert_called_once_with(
+        "1",
+        "2",
+        max_process_count=1000,
+        requeue_on_full=False,
+        concurrent_rate_limit=True,
+        progress_callback=progress_callback,
+    )
+
+
 def test_run_trigger_item_propagates_lock_error_without_recording_result(mocker):
     error = LockError(msg="locked")
     mocker.patch.object(runner, "service_lock", side_effect=error)
@@ -124,6 +160,7 @@ def test_trigger_processor_returns_pulled_count(mocker):
     processor.anomaly_points = ["first", "second"]
     processor.process_point = mocker.MagicMock()
     processor.push = mocker.MagicMock()
+    processor.progress_callback = None
 
     pulled_count = processor.process()
 
@@ -132,23 +169,61 @@ def test_trigger_processor_returns_pulled_count(mocker):
     processor.push.assert_called_once_with()
 
 
+def test_trigger_processor_progress_callback_failure_is_not_swallowed(mocker):
+    processor = object.__new__(TriggerProcessor)
+    processor.strategy_id = 1
+    processor.item_id = 2
+    processor.pull = mocker.MagicMock(return_value=1)
+    processor.strategy = mocker.MagicMock()
+    processor.strategy.in_alarm_time.return_value = (True, None)
+    processor.anomaly_points = ["point"]
+    processor.process_point = mocker.MagicMock(side_effect=ValueError("point failed"))
+    processor.progress_callback = mocker.MagicMock(side_effect=RuntimeError("lease expired"))
+    processor.push = mocker.MagicMock()
+
+    with pytest.raises(RuntimeError, match="lease expired"):
+        processor.process()
+
+    processor.progress_callback.assert_called_once_with()
+    processor.push.assert_not_called()
+
+
+def test_trigger_processor_default_pull_batch_is_unbounded():
+    assert TriggerProcessor.MAX_PROCESS_COUNT == 0
+
+
+def test_event_trigger_pull_batch_remains_bounded():
+    assert runner.EVENT_TRIGGER_BATCH_SIZE == 1000
+
+
+def test_anomaly_list_pull_script_does_not_register_trim_inflight():
+    assert "HSET" not in trigger_processor.ANOMALY_LIST_PULL_SCRIPT
+
+
 def test_trigger_processor_pull_returns_actual_count(mocker):
     processor = object.__new__(TriggerProcessor)
     processor.strategy_id = "1"
     processor.item_id = "2"
     processor.anomaly_list_key = "anomaly.list.1.2"
-    processor.MAX_PROCESS_COUNT = 100
+    processor.max_process_count = 100
+    processor.requeue_on_full = True
 
-    anomaly_list_key = mocker.patch.object(trigger_processor, "ANOMALY_LIST_KEY")
-    anomaly_list_key.client.lrange.return_value = ["new", "old"]
-    mocker.patch.object(trigger_processor, "routing_snapshot", return_value=nullcontext())
+    mocker.patch.object(trigger_processor, "ANOMALY_LIST_KEY")
+    native_client = mocker.MagicMock()
+    native_client.eval.return_value = ["new", "old"]
+    mocker.patch.object(trigger_processor, "routed_client", return_value=nullcontext(native_client))
     mocker.patch.object(trigger_processor, "metrics")
 
     pulled_count = processor.pull()
 
     assert pulled_count == 2
     assert processor.anomaly_points == ["old", "new"]
-    anomaly_list_key.client.ltrim.assert_called_once_with("anomaly.list.1.2", 0, -3)
+    native_client.eval.assert_called_once_with(
+        trigger_processor.ANOMALY_LIST_PULL_SCRIPT,
+        1,
+        "anomaly.list.1.2",
+        100,
+    )
 
 
 def test_trigger_processor_empty_pull_keeps_warning_without_requeue(mocker, caplog):
@@ -156,18 +231,43 @@ def test_trigger_processor_empty_pull_keeps_warning_without_requeue(mocker, capl
     processor.strategy_id = "1"
     processor.item_id = "2"
     processor.anomaly_list_key = "anomaly.list.1.2"
-    processor.MAX_PROCESS_COUNT = 100
+    processor.max_process_count = 100
+    processor.requeue_on_full = True
 
-    anomaly_list_key = mocker.patch.object(trigger_processor, "ANOMALY_LIST_KEY")
-    anomaly_list_key.client.lrange.return_value = []
+    mocker.patch.object(trigger_processor, "ANOMALY_LIST_KEY")
+    native_client = mocker.MagicMock()
+    native_client.eval.return_value = []
     anomaly_signal_key = mocker.patch.object(trigger_processor, "ANOMALY_SIGNAL_KEY")
-    mocker.patch.object(trigger_processor, "routing_snapshot", return_value=nullcontext())
+    mocker.patch.object(trigger_processor, "routed_client", return_value=nullcontext(native_client))
     mocker.patch.object(trigger_processor, "metrics")
 
     with caplog.at_level(logging.WARNING, logger="trigger"):
         pulled_count = processor.pull()
 
     assert pulled_count == 0
-    anomaly_list_key.client.ltrim.assert_not_called()
     anomaly_signal_key.client.delay.assert_not_called()
     assert "pull 0 record" in caplog.text
+
+
+def test_trigger_processor_full_batch_requeues_behind_other_signals(mocker):
+    processor = object.__new__(TriggerProcessor)
+    processor.strategy_id = "1"
+    processor.item_id = "2"
+    processor.anomaly_list_key = "anomaly.list.1.2"
+    processor.max_process_count = 2
+    processor.requeue_on_full = True
+
+    mocker.patch.object(trigger_processor, "ANOMALY_LIST_KEY")
+    native_client = mocker.MagicMock()
+    native_client.eval.return_value = ["new", "old"]
+    anomaly_signal_key = mocker.patch.object(trigger_processor, "ANOMALY_SIGNAL_KEY")
+    mocker.patch.object(trigger_processor, "routed_client", return_value=nullcontext(native_client))
+    mocker.patch.object(trigger_processor, "metrics")
+
+    assert processor.pull() == 2
+    anomaly_signal_key.client.delay.assert_called_once_with(
+        "lpush",
+        anomaly_signal_key.get_key.return_value,
+        "1.2",
+        delay=1,
+    )

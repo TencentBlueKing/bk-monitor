@@ -261,26 +261,56 @@ TRIGGER_PROCESS_PUSH_DATA_COUNT = Counter(
     labelnames=("strategy_id",),
 )
 
-# alarmd Trigger-only Shadow 自监控：旁路对旧链 fail-open，broker 拒绝只在指标和日志可见，
+# alarmd Detect→Trigger Shadow 自监控：旁路对旧链 fail-open，broker 拒绝只在指标和日志可见，
 # 因此发布结果、耗时和已确认条数本身就是能力闭环的一部分。
 # stage/status 都是有界枚举，禁止按 strategy_id、topic、partition 或错误文本展开。
 ALARMD_SHADOW_PUBLISH_COUNT = Counter(
     name="bkmonitor_alarmd_shadow_publish_count",
-    documentation="alarmd Shadow 发布次数(stage: detection/reference; status: success/failed)",
+    documentation="alarmd Shadow 发布次数(stage: access_v2/reference; status: success/failed)",
     labelnames=("stage", "status"),
 )
 
 ALARMD_SHADOW_PUBLISH_RECORD_COUNT = Counter(
     name="bkmonitor_alarmd_shadow_publish_record_count",
-    documentation="alarmd Shadow 已获 broker 确认的记录条数(stage: detection/reference)",
+    documentation="alarmd Shadow 已获 broker 确认的记录条数(stage: access_v2/reference)",
     labelnames=("stage",),
 )
 
 ALARMD_SHADOW_PUBLISH_TIME = Histogram(
     name="bkmonitor_alarmd_shadow_publish_time",
-    documentation="alarmd Shadow 发布耗时，含等待 broker 确认；首期该等待发生在模块处理锁内",
+    documentation="alarmd Shadow 异步发布耗时，含等待 broker 确认",
     labelnames=("stage", "status"),
     buckets=(0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 30, 60, INF),
+)
+
+ALARMD_SHADOW_ASYNC_JOB_COUNT = Counter(
+    name="bkmonitor_alarmd_shadow_async_job_count",
+    documentation="alarmd Shadow 异步任务阶段次数（阶段诊断指标，不用于计数守恒）",
+    labelnames=("stage", "status"),
+)
+
+ALARMD_SHADOW_ACCESS_RECORD_COUNT = Counter(
+    name="bkmonitor_alarmd_shadow_access_record_count",
+    documentation="alarmd Access v2 终态记录漏斗(status: source/acked/dropped/ack_unknown)",
+    labelnames=("status",),
+)
+
+ALARMD_SHADOW_ACCESS_RECORD_EXCLUSION_COUNT = Counter(
+    name="bkmonitor_alarmd_shadow_access_record_exclusion_count",
+    documentation="alarmd Access v2 从 source 到 wire 前排除的记录条数",
+    labelnames=("reason",),
+)
+
+ALARMD_SHADOW_ACCESS_MESSAGE_COUNT = Counter(
+    name="bkmonitor_alarmd_shadow_access_wire_message_count",
+    documentation="alarmd Access v2 终态 wire message 漏斗(status: planned/acked/dropped/ack_unknown)",
+    labelnames=("status",),
+)
+
+ALARMD_SHADOW_ACCESS_BYTES = Counter(
+    name="bkmonitor_alarmd_shadow_access_wire_bytes",
+    documentation="alarmd Access v2 终态 wire bytes 漏斗(status: planned/acked/dropped/ack_unknown)",
+    labelnames=("status",),
 )
 
 STRATEGY_ROUTER_CACHE_REFRESH_FAIL = Counter(
@@ -373,6 +403,24 @@ PROCESS_OVER_FLOW = Counter(
     name="bkmonitor_process_overflow",
     documentation="模块处理量级过大",
     labelnames=("module", "strategy_id", "bk_biz_id", "strategy_name", "redis_node"),
+)
+
+CHECK_RESULT_OPPORTUNITY_TRIM_COUNT = Counter(
+    name="bkmonitor_check_result_opportunity_trim_count",
+    documentation="CHECK_RESULT 机会裁剪扫描、命令和删除成员计数",
+    labelnames=("type",),
+)
+
+CHECK_RESULT_OPPORTUNITY_TRIM_TIME = Histogram(
+    name="bkmonitor_check_result_opportunity_trim_time",
+    documentation="CHECK_RESULT 机会裁剪任务耗时",
+    labelnames=(),
+)
+
+CHECK_RESULT_OPPORTUNITY_TRIM_QUEUE_DELAY = Histogram(
+    name="bkmonitor_check_result_opportunity_trim_queue_delay",
+    documentation="CHECK_RESULT 机会裁剪任务排队耗时",
+    labelnames=(),
 )
 
 TRIGGER_EVENT_RATE_LIMIT_DROP = Counter(
@@ -980,6 +1028,19 @@ EXPORTER_SCRAPE_DURATION_SECONDS_COUNT = Gauge(
     name="redis_exporter_scrape_duration_seconds_count",
     documentation="Durations of scrapes by the exporter",
     labelnames=("node", "role", "host", "port", "cluster_name"),
+)
+
+REDIS_STRATEGY_COST_SNAPSHOT_EXECUTE_COUNT = Counter(
+    name="redis_strategy_cost_snapshot_execute_count",
+    documentation="Redis strategy cost snapshot execution count",
+    labelnames=("cluster_name", "node_id", "status"),
+)
+
+REDIS_STRATEGY_COST_SNAPSHOT_DURATION_SECONDS = Histogram(
+    name="redis_strategy_cost_snapshot_duration_seconds",
+    documentation="Redis strategy cost snapshot execution duration in seconds",
+    labelnames=("cluster_name", "node_id", "status"),
+    buckets=(0.1, 0.5, 1, 2, 5, 10, 15, 20, 30, 60, INF),
 )
 
 EXPORTER_SCRAPES_TOTAL = Gauge(

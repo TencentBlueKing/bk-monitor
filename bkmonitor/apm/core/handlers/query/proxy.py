@@ -180,7 +180,7 @@ class QueryProxy:
 
         options = {"ebpf_enabled": DeepflowWorkload.is_exist_ebpf(bk_biz_id)}
         # query ebpf data
-        if TraceWaterFallDisplayKey.SOURCE_CATEGORY_EBPF in displays:
+        if options["ebpf_enabled"] and TraceWaterFallDisplayKey.SOURCE_CATEGORY_EBPF in displays:
             ebpf_spans = DeepFlowQuery.get_ebpf(trace_id, bk_biz_id)
             if ebpf_spans:
                 spans += ebpf_spans

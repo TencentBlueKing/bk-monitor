@@ -985,7 +985,7 @@ export default defineComponent({
         >
           <div class='message-item'>
             <span>{this.t('产生时间')}</span>
-            <span>{formatWithTimezone(traceInfo?.product_time / 1e3) as string}</span>
+            <span>{formatWithTimezone(traceInfo?.product_time) as string}</span>
           </div>
           <div class='message-item'>
             <span>{this.t('总耗时')}</span>

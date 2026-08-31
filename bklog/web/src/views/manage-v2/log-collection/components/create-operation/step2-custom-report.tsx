@@ -37,6 +37,7 @@ import DragTag from '../common-comp/drag-tag';
 import InfoTips from '../common-comp/info-tips';
 import $http from '@/api';
 import { showMessage } from '../../utils';
+import { isCollectionEditRoute } from './route-utils';
 import type { ISubmitOptions } from '../../type';
 
 import './step2-custom-report.scss';
@@ -207,9 +208,7 @@ export default defineComponent({
     /**
      * 是否为编辑
      */
-    const isUpdate = computed(() =>
-      route.name === 'collectEdit' && props.isEdit,
-    );
+    const isUpdate = computed(() => isCollectionEditRoute(route.name) && props.isEdit);
 
     /**
      * 获取链路配置列表
@@ -348,6 +347,7 @@ export default defineComponent({
       try {
         await baseInfoRef.value?.validate();
       } catch {
+        callback?.(false);
         return;
       }
 
@@ -413,7 +413,12 @@ export default defineComponent({
               return;
             }
             emit('cancel');
+          } else {
+            callback?.(false);
           }
+        })
+        .catch(() => {
+          callback?.(false);
         })
         .finally(() => {
           submitLoading.value = false;

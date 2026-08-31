@@ -40,9 +40,15 @@ def test_access_merge_records_item_pair_after_anomaly_is_pushed(mocker):
     )
     mocker.patch.object(access_processor, "PriorityChecker")
     mocker.patch.object(access_processor, "metrics")
+    producer_context = mocker.patch.object(
+        access_processor,
+        "check_result_producer",
+        create=True,
+    )
 
     processor._detect_and_push_abnormal()
 
+    producer_context.assert_not_called()
     detect_process_class.assert_called_once_with(10)
     inline_candidate.push_data.assert_called_once_with()
     assert processor.inline_trigger_items == [(10, 1)]
@@ -84,9 +90,15 @@ def test_access_merge_records_no_inline_item_when_detect_publishes_signal(mocker
     mocker.patch.object(detect_process, "DetectProcess", return_value=inline_candidate)
     mocker.patch.object(access_processor, "PriorityChecker")
     mocker.patch.object(access_processor, "metrics")
+    producer_context = mocker.patch.object(
+        access_processor,
+        "check_result_producer",
+        create=True,
+    )
 
     processor._detect_and_push_abnormal()
 
+    producer_context.assert_not_called()
     assert processor.inline_trigger_items == []
 
 
@@ -97,6 +109,7 @@ def test_access_batch_result_returns_inline_trigger_items(mocker):
     processor.sub_task_id = "1.2"
     processor.process_counts = {}
     processor.inline_trigger_items = [(10, 1), (10, 2)]
+    processor.access_detect_merged = True
     mocker.patch.object(AccessDataProcess, "process", return_value=None)
     batch_result_key = mocker.patch.object(access_processor.key, "ACCESS_BATCH_DATA_RESULT_KEY")
     batch_result_key.get_key.return_value = "batch-result"
@@ -105,6 +118,7 @@ def test_access_batch_result_returns_inline_trigger_items(mocker):
 
     payload = json.loads(batch_result_key.client.lpush.call_args.args[1])
     assert payload["inline_trigger_items"] == [[10, 1], [10, 2]]
+    assert payload["access_detect_merged"] is True
 
 
 def test_access_main_collects_unique_inline_items_from_batch_results(mocker):
@@ -115,6 +129,9 @@ def test_access_main_collects_unique_inline_items_from_batch_results(mocker):
     processor.sub_task_id = "1.1"
     processor.process_counts = {}
     processor.inline_trigger_items = [(10, 1)]
+    processor.check_result_opportunity_high_load = True
+    processor.access_detect_merged = True
+    processor.check_result_opportunity_trim_ready = False
     processor.batch_log = mocker.MagicMock()
     processor.publish_anomaly_signals = mocker.MagicMock()
 
@@ -130,6 +147,7 @@ def test_access_main_collects_unique_inline_items_from_batch_results(mocker):
                     "error": "",
                     "process_counts": {},
                     "inline_trigger_items": [[10, 1], [10, 2]],
+                    "access_detect_merged": True,
                 }
             ),
         ),
@@ -142,6 +160,7 @@ def test_access_main_collects_unique_inline_items_from_batch_results(mocker):
                     "error": "",
                     "process_counts": {},
                     "inline_trigger_items": [[10, 2], [11, 3]],
+                    "access_detect_merged": True,
                 }
             ),
         ),
@@ -152,6 +171,7 @@ def test_access_main_collects_unique_inline_items_from_batch_results(mocker):
     processor.process()
 
     assert processor.inline_trigger_items == [(10, 1), (10, 2), (11, 3)]
+    assert processor.check_result_opportunity_trim_ready is True
     processor.publish_anomaly_signals.assert_not_called()
 
 
@@ -163,6 +183,9 @@ def test_access_main_publishes_all_strategy_item_signals_when_batch_result_times
     processor.sub_task_id = "100.1"
     processor.process_counts = {}
     processor.inline_trigger_items = [(10, 1)]
+    processor.check_result_opportunity_high_load = True
+    processor.access_detect_merged = True
+    processor.check_result_opportunity_trim_ready = False
     processor.batch_log = mocker.MagicMock()
     item_1 = mocker.MagicMock(id=1)
     item_1.strategy.id = 10
@@ -184,3 +207,56 @@ def test_access_main_publishes_all_strategy_item_signals_when_batch_result_times
     processor.process()
 
     publish_anomaly_signals.assert_called_once_with(["10.1", "10.2", "11.3"])
+    assert processor.check_result_opportunity_trim_ready is False
+
+
+def test_access_opportunity_trim_is_not_scheduled_when_not_ready(mocker):
+    processor = object.__new__(AccessDataProcess)
+    processor.strategy_group_key = "group"
+    processor.check_result_opportunity_trim_ready = False
+    claim = mocker.patch(
+        "alarm_backends.core.detect_result.opportunity.claim_opportunity_trim",
+        create=True,
+    )
+
+    assert processor.schedule_check_result_opportunity_trim() is False
+    claim.assert_not_called()
+
+
+def test_access_opportunity_trim_claims_before_enqueue(mocker):
+    processor = object.__new__(AccessDataProcess)
+    processor.strategy_group_key = "group"
+    processor.check_result_opportunity_trim_ready = True
+    claim = mocker.patch(
+        "alarm_backends.core.detect_result.opportunity.claim_opportunity_trim",
+        return_value=True,
+        create=True,
+    )
+    task = mocker.patch(
+        "alarm_backends.core.detect_result.tasks.async_trim_check_result_opportunity",
+        create=True,
+    )
+    mocker.patch.object(access_processor.time, "time", return_value=123.0)
+
+    assert processor.schedule_check_result_opportunity_trim() is True
+    claim.assert_called_once_with("group", 123.0)
+    task.apply_async.assert_called_once_with(args=("group", 123.0), expires=600)
+
+
+def test_access_opportunity_trim_does_not_clear_claim_when_enqueue_fails(mocker):
+    processor = object.__new__(AccessDataProcess)
+    processor.strategy_group_key = "group"
+    processor.check_result_opportunity_trim_ready = True
+    claim = mocker.patch(
+        "alarm_backends.core.detect_result.opportunity.claim_opportunity_trim",
+        return_value=True,
+    )
+    task = mocker.patch(
+        "alarm_backends.core.detect_result.tasks.async_trim_check_result_opportunity",
+    )
+    task.apply_async.side_effect = RuntimeError("queue unavailable")
+    mocker.patch.object(access_processor.time, "time", return_value=123.0)
+
+    assert processor.schedule_check_result_opportunity_trim() is False
+    claim.assert_called_once_with("group", 123.0)
+    task.apply_async.assert_called_once_with(args=("group", 123.0), expires=600)

@@ -116,6 +116,9 @@ export interface ICollectionParams {
   winlog_name?: string[];
   winlog_level?: string[];
   winlog_event_id?: string[];
+  winlog_source?: string[];
+  winlog_content?: string[];
+  winlog_match_op?: string | string[];
   tail_files?: boolean;
 }
 

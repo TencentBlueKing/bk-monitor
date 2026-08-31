@@ -30,6 +30,7 @@ from django.conf import settings
 from django.core.cache import cache
 from django.db import connection, models
 from django.db.models import Q
+from django.db.models.functions import Cast
 from django.db.transaction import atomic
 from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
@@ -1461,13 +1462,25 @@ class IndexSetTag(models.Model):
         return matched
 
     @classmethod
-    def get_dimension_values(cls, bk_biz_id: int, scene: str, dimension_key: str, filters=None) -> list:
+    def get_dimension_values(
+        cls, bk_biz_id: int, scene: str, dimension_key: str, filters=None, space_uids=None
+    ) -> list:
         """
         Query distinct dimension values for *dimension_key* across index sets
-        that belong to *bk_biz_id* and match *scene* + optional cascading *filters*.
+        that match *scene* + optional cascading *filters*.
+
+        By default only the space resolved from *bk_biz_id* is scanned.
+        Pass *space_uids* (typically IndexSetHandler.get_all_related_space_uids)
+        to include BKCC-related BCS/PaaS spaces as well.
 
         filters: list[dict] with field_name, value (list), op (eq/ne/req/nreq);
         legacy dict {key: value|[values]} is auto-converted to op=eq.
+
+        space_uids: optional explicit space list (current space + related spaces).
+        When omitted, only the space resolved from bk_biz_id is scanned so unit
+        tests stay independent of SpaceApi. The view layer should pass
+        IndexSetHandler.get_all_related_space_uids(...) so BCS/PaaS related
+        spaces are included.
         """
         scene_tag_id = cls.get_tag_id(name="scene", value=scene, tag_type=TAG_TYPE_SCENE)
         required_groups = [{str(scene_tag_id)}]
@@ -1489,12 +1502,13 @@ class IndexSetTag(models.Model):
             else:
                 excluded_tag_ids |= matched
 
-        # 必须按 bk_biz_id 解析出的完整 space_uid 精确匹配；
+        # 必须按完整 space_uid 精确匹配（space_uid__in 给定列表）；
         # 旧实现 space_uid__endswith=str(bk_biz_id) 会串业务
         # （如 bk_biz_id=2 会命中 bkcc__12 / bkcc__102），放大维度值数据范围泄漏。
-        space_uid = bk_biz_id_to_space_uid(bk_biz_id)
+        if space_uids is None:
+            space_uids = [bk_biz_id_to_space_uid(bk_biz_id)]
         index_sets = LogIndexSet.objects.filter(
-            space_uid=space_uid,
+            space_uid__in=space_uids,
             is_active=True,
         ).values_list("tag_ids", flat=True)
 
@@ -1819,6 +1833,75 @@ class Space(SoftDeleteModel):
             spaces = [dict(zip(columns, row)) for row in cursor.fetchall()]
 
         return spaces
+
+    @classmethod
+    def get_spaces_by_bk_biz_ids(cls, bk_tenant_id: str, bk_biz_ids: list | set) -> list:
+        """按租户与 bk_biz_id 列表定向查询未删除空间，字段与 get_all_spaces 一致。"""
+        biz_ids = []
+        for biz_id in bk_biz_ids or []:
+            try:
+                biz_ids.append(int(biz_id))
+            except (TypeError, ValueError):
+                continue
+        if not biz_ids:
+            return []
+
+        placeholders = ", ".join(["%s"] * len(biz_ids))
+        with connection.cursor() as cursor:
+            cursor.execute(
+                f"""
+                SELECT id,
+                       space_type_id,
+                       space_type_name,
+                       space_id,
+                       space_name,
+                       space_uid,
+                       space_code,
+                       bk_biz_id,
+                       bk_tenant_id,
+                       JSON_EXTRACT(properties, '$.time_zone') AS time_zone
+                FROM log_search_space
+                WHERE bk_tenant_id = %s AND is_deleted = 0 AND bk_biz_id IN ({placeholders})
+                """,
+                (bk_tenant_id, *biz_ids),
+            )
+            columns = [col[0] for col in cursor.description]
+            return [dict(zip(columns, row)) for row in cursor.fetchall()]
+
+    @classmethod
+    def get_spaces_page(
+        cls,
+        bk_tenant_id: str,
+        *,
+        offset: int,
+        limit: int,
+        keywords: list[str] | None = None,
+    ) -> tuple[list[dict], int]:
+        """按租户查询 IAM 回调所需的空间分页数据，并在数据库侧完成搜索。"""
+        offset = max(int(offset), 0)
+        limit = max(int(limit), 0)
+        queryset = cls.objects.filter(bk_tenant_id=bk_tenant_id).annotate(
+            bk_biz_id_text=Cast("bk_biz_id", output_field=models.CharField())
+        )
+
+        search_condition = Q()
+        for raw_keyword in keywords or []:
+            keyword = str(raw_keyword or "").strip()
+            if not keyword:
+                continue
+            search_condition |= (
+                Q(space_name__icontains=keyword)
+                | Q(space_type_name__icontains=keyword)
+                | Q(bk_biz_id_text__icontains=keyword)
+            )
+        if search_condition.children:
+            queryset = queryset.filter(search_condition)
+
+        count = queryset.count()
+        spaces = list(
+            queryset.order_by("id").values("bk_biz_id", "space_type_name", "space_name")[offset : offset + limit]
+        )
+        return spaces, count
 
     @classmethod
     def get_tenant_id(cls, space_uid: str = "", bk_biz_id: int = 0, is_need_default: bool = True) -> str | None:

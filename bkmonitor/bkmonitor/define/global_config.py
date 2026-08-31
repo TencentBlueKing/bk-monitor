@@ -46,6 +46,10 @@ ADVANCED_OPTIONS = OrderedDict(
         ("COMPATIBLE_ALARM_FORMAT", slz.BooleanField(label="是否兼容老版本数据字段格式", default=False)),
         ("ENABLE_RESOURCE_DATA_COLLECT", slz.BooleanField(label="是否开启Resource数据收集", default=False)),
         ("RESOURCE_DATA_COLLECT_RATIO", slz.IntegerField(label="Resource数据采样率", default=0)),
+        (
+            "ENABLE_REDIS_STRATEGY_COST_SNAPSHOT",
+            slz.BooleanField(label="是否开启Redis策略成本周期快照", default=False),
+        ),
         ("DIMENSION_COLLECT_THRESHOLD", slz.IntegerField(label="同维度汇总阈值", default=2)),
         ("DIMENSION_COLLECT_WINDOW", slz.IntegerField(label="同维度汇总时间窗口", default=120)),
         ("MULTI_STRATEGY_COLLECT_THRESHOLD", slz.IntegerField(label="多策略汇总阈值", default=3)),
@@ -318,6 +322,11 @@ ADVANCED_OPTIONS = OrderedDict(
         ("ACCESS_LATENCY_THRESHOLD_CONSTANT", slz.IntegerField(label="access数据源延迟上报常量阈值", default=180)),
         ("ACCESS_DETECT_MERGE_STRATEGY_IDS", slz.ListField(label="access合并detect策略列表", default=[])),
         ("ENABLE_DETECT_INLINE_TRIGGER", slz.BooleanField(label="Detect完成后是否同步执行Trigger", default=False)),
+        ("ENABLE_EVENT_INLINE_TRIGGER", slz.BooleanField(label="Event完成后是否同步执行Trigger", default=False)),
+        (
+            "EVENT_INLINE_TRIGGER_MAX_CONCURRENCY_PER_ITEM",
+            slz.IntegerField(label="单Event策略项内联Trigger最大并发", default=1, min_value=1),
+        ),
         ("KAFKA_AUTO_COMMIT", slz.BooleanField(label="kafka是否自动提交", default=True)),
         ("MAX_BUILD_EVENT_NUMBER", slz.IntegerField(label="单次告警生成任务处理的event数量", default=0)),
         ("HOST_DYNAMIC_FIELDS", slz.ListField(label="主机动态属性", default=[])),

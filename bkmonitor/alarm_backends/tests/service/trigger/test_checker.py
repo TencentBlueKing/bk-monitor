@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -17,11 +16,7 @@ import pytest
 from django.test import TestCase
 
 from alarm_backends.constants import NO_DATA_TAG_DIMENSION
-from alarm_backends.core.alarmd.contract import (
-    build_detection_outcome,
-    build_trigger_strategy_ir_from_legacy_config,
-)
-from alarm_backends.core.alarmd.reference import build_reference_trigger_decision_batch
+from alarm_backends.core.alarmd.reference import build_reference_trigger_decision_candidate
 from alarm_backends.core.cache.key import CHECK_RESULT_CACHE_KEY
 from alarm_backends.core.storage.redis_cluster import get_node_by_strategy_id
 from alarm_backends.service.trigger.checker import AnomalyChecker
@@ -114,31 +109,11 @@ class TestChecker(TestCase):
         strategy["update_time"] = 1569246480
         raw = json.dumps(strategy, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
         _, event_record = AnomalyChecker(point, strategy, 1).check()
-        strategy_ir = build_trigger_strategy_ir_from_legacy_config(
-            tenant_id="default",
-            purpose="DETECT",
-            strategy=strategy,
-            item_id=1,
-            legacy_json=raw,
-        )
-        evaluations = [
-            {"level": level, "result": "ANOMALOUS", "anomaly": copy.deepcopy(point["anomaly"][str(level)])}
-            for level in strategy_ir["required_levels"]
-        ]
-        detected = build_detection_outcome(
-            strategy_ir=strategy_ir,
-            batch_id="authoritative-detect-batch",
-            data_raw=point["data"],
-            evaluations=evaluations,
-            outcome="ANOMALOUS",
-        )
-
-        batch = build_reference_trigger_decision_batch(
+        batch = build_reference_trigger_decision_candidate(
             strategy=strategy,
             legacy_json=raw,
             strategy_snapshot_key=point["strategy_snapshot_key"],
             tenant_id_resolver=lambda _bk_biz_id: "default",
-            expected_input_id=detected["input_id"],
             item_id=1,
             point=point,
             event_record=event_record,

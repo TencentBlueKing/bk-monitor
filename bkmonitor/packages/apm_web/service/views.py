@@ -40,10 +40,15 @@ class ServiceViewSet(ResourceViewSet):
         if self.action == "app_query_by_index_set":
             return []
 
+        action = (
+            ActionEnum.MANAGE_APM_APPLICATION
+            if self.action in ["service_config", "set_code_redefined_rule", "set_code_remark"]
+            else ActionEnum.VIEW_APM_APPLICATION
+        )
         return [
             InstanceActionForDataPermission(
                 self.INSTANCE_ID,
-                [ActionEnum.VIEW_APM_APPLICATION],
+                [action],
                 ResourceEnum.APM_APPLICATION,
                 get_instance_id=Application.get_application_id_by_app_name,
             )

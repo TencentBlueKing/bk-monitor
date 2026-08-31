@@ -432,6 +432,15 @@ class CollectorHandler:
     def _pre_start(self):
         raise NotImplementedError
 
+    def _apply_clean_template_before_start(self):
+        """重新提交停用期间可能发生变化的模板正式配置。"""
+        if not self.data.clean_template_id or not self.data.table_id:
+            return
+
+        # 不显式传 clean_template_id，让清洗更新链路按采集项当前关联读取模板最新正式配置。
+        # 结果表修改仍由原有异步任务执行，这里只保证任务在采集项启用前完成提交。
+        self.create_or_update_clean_config(is_update=True, params={})
+
     @transaction.atomic
     def start(self, **kwargs):
         """
@@ -439,6 +448,8 @@ class CollectorHandler:
         :return: task_id
         """
         self._itsm_start_judge()
+
+        self._apply_clean_template_before_start()
 
         self.data.is_active = True
         self.data.save()
@@ -1404,6 +1415,7 @@ class CollectorHandler:
 
     def create_clean_stash(self, params: dict):
         model_fields = {
+            "clean_template_id": params.get("clean_template_id"),
             "clean_type": params["clean_type"],
             "etl_params": params["etl_params"],
             "etl_fields": params["etl_fields"],
@@ -1751,6 +1763,18 @@ class CollectorHandler:
 
     def _sync_scene_tags_to_index_set(self, labels: dict):
         self.sync_scene_tags_to_index_set(self.data.index_set_id, labels)
+        
+    @staticmethod
+    def _get_current_allocation_min_days(result_table: dict) -> int:
+        # 部分历史 RT 保留了 warm_phase_days，但当前集群并不支持冷热数据。
+        allocation_min_days = result_table["storage_config"].get("warm_phase_days") or 0
+        if not allocation_min_days:
+            return 0
+
+        storage_cluster_id = result_table["cluster_config"]["cluster_id"]
+        cluster_config = StorageHandler(storage_cluster_id).get_cluster_info_by_id().get("cluster_config", {})
+        hot_warm_enabled = cluster_config.get("custom_option", {}).get("hot_warm_config", {}).get("is_enabled", False)
+        return allocation_min_days if hot_warm_enabled else 0
 
     def create_or_update_clean_config(self, is_update, params):
         if is_update:
@@ -1763,14 +1787,21 @@ class CollectorHandler:
             if not result_table:
                 raise ResultTableNotExistException(ResultTableNotExistException.MESSAGE.format(table_id))
 
+            current_storage_cluster_id = result_table["cluster_config"]["cluster_id"]
+            target_storage_cluster_id = params.get("storage_cluster_id", current_storage_cluster_id)
+            allocation_min_days = params.get("allocation_min_days", 0)
+            if "allocation_min_days" not in params and target_storage_cluster_id == current_storage_cluster_id:
+                allocation_min_days = self._get_current_allocation_min_days(result_table)
+
             default_etl_params = {
+                "table_id": table_id.split(".")[-1],
                 "es_shards": result_table["storage_config"].get("index_settings", {}).get("number_of_shards", 1),
                 "storage_replies": (
                     result_table["storage_config"].get("index_settings", {}).get("number_of_replicas", 0)
                 ),
                 "storage_cluster_id": result_table["cluster_config"]["cluster_id"],
                 "retention": get_storage_retention(result_table["storage_config"], default=0),
-                "allocation_min_days": params.get("allocation_min_days", 0),
+                "allocation_min_days": allocation_min_days,
                 "etl_config": self.data.etl_config,
             }
             default_etl_params.update(params)
