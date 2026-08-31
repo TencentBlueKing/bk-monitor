@@ -68,6 +68,24 @@ class CompositionPolicy(ABC):
         self.providers = providers
         self.options = options
 
+    # ---- 工厂 ----
+
+    @classmethod
+    def from_options(cls, providers: list[PermissionProvider], **options: Any) -> CompositionPolicy:
+        """从配置字典构造策略实例。
+
+        默认实现等价于 ``cls(providers, **options)``，对绝大多数
+        CompositionPolicy 子类（single / any_of / all_of / primary）足够。
+
+        对于装配语义复杂、需要把配置字典翻译成运行期对象的子类（典型代表
+        DynamicCompositionPolicy 需要把 ``selector`` 规格翻译成 callable、
+        把嵌套的 ``policies`` 规格翻译成子策略实例），可以覆盖本方法承担
+        这层"配置期规格 → 运行期对象"的翻译职责，让 django/conf.py 等
+        集成层保持完全对称的分派路径（永远只调 ``policy_cls.from_options``，
+        不再有 ``if policy_name == "dynamic"`` 特化分支）。
+        """
+        return cls(providers, **options)
+
     # ---- Provider 寻址 ----
 
     def primary(self) -> PermissionProvider:

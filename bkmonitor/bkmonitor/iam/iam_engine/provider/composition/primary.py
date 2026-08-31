@@ -15,14 +15,18 @@ from __future__ import annotations
 #
 # 典型场景：v4 挂了自动降级到 v3，保证服务不中断。
 # 语义：
-#   * providers[0] 是主，其余是备
+#   * 主 provider：默认 providers[0]；也可通过 options["primary_provider"]（provider.name）显式指定
+#   * 备 provider：其余按 providers 顺序（不含主）
 #   * 主返回结果时以主为准（无论 allow/deny）
 #   * 主抛 ProviderUnavailable（**注意：不是 ProviderError**）时按顺序尝试备
 #   * 全部不可用时抛最后一个异常
 #
 # options:
-#   fallback_on_error: bool = True   —— False 时主故障不 fallback（直接抛）
+#   primary_provider: str | None = None  —— 显式指定主 provider 的 name；未指定则取 providers[0]
+#   fallback_on_error: bool = True       —— False 时主故障不 fallback（直接抛）
 # ---------------------------------------------------------------------------
+
+from typing import Any
 
 from ...core.exceptions import ProviderUnavailable
 from ...core.types import (
@@ -34,6 +38,7 @@ from ...core.types import (
     Subject,
     VisibleResult,
 )
+from ...provider.base import PermissionProvider
 from ...provider.composition.base import CompositionPolicy
 
 
@@ -45,11 +50,30 @@ class PrimaryPolicy(CompositionPolicy):
       * AnyOfPolicy 会继续尝试备（宽松放行）
     """
 
+    def __init__(self, providers: list[PermissionProvider], **options: Any) -> None:
+        super().__init__(providers, **options)
+        primary_name: str | None = options.get("primary_provider")
+        if primary_name:
+            match = [p for p in providers if p.name == primary_name]
+            if not match:
+                raise ValueError(f"primary_provider={primary_name!r} not in providers {[p.name for p in providers]}")
+            self._primary: PermissionProvider = match[0]
+            self._fallbacks: list[PermissionProvider] = [p for p in providers if p is not self._primary]
+        else:
+            self._primary = providers[0]
+            self._fallbacks = list(providers[1:])
+        # _chain：主在前 + 按声明顺序的备
+        self._chain: list[PermissionProvider] = [self._primary, *self._fallbacks]
+
+    def primary(self) -> PermissionProvider:
+        """无法合并的操作（get_apply_url / get_apply_data）走主 Provider。"""
+        return self._primary
+
     def _try_chain(self, fn_name: str, *args, **kwargs):
-        """按 providers 顺序调用同名方法，遇 ProviderUnavailable 尝试下一个。"""
+        """按 primary → fallbacks 顺序调用同名方法，遇 ProviderUnavailable 尝试下一个。"""
         fallback_on_error: bool = self.options.get("fallback_on_error", True)
         last_exc: BaseException | None = None
-        for idx, provider in enumerate(self.providers):
+        for idx, provider in enumerate(self._chain):
             try:
                 method = getattr(provider, fn_name)
                 return method(*args, **kwargs)

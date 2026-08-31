@@ -541,6 +541,29 @@ ADVANCED_OPTIONS = OrderedDict(
             "OPERATION_MCP_STAT_BIZ_IDS",
             slz.JSONField(label="运营MCP按指标族的统计业务ID(形如{default:id,logbeat:id})", default={}),
         ),
+        # ------------------------------------------------------------------
+        # IAM union 模式下"读鉴权组合策略"的动态开关。
+        # 装配契约（PROVIDERS 列表 & COMPOSITION.policy）由 BK_IAM_MODE 环境变量
+        # 在进程启动时决定；本项只影响 union 模式下 DynamicCompositionPolicy
+        # 内部委托到的具体子策略，运维在 Django Admin 修改后经 DynamicSettings
+        # 允许的取值须与 config/default.py 中 dynamic policies 池的 key 严格对齐：
+        #   any_of     —— 双侧任一允许即允许（默认，迁移期宽松放行）
+        #   all_of     —— 双侧都允许才允许（严格审计场景）
+        #   primary_v4 —— 主 v4，v4 不可用时 fallback v3
+        #   primary_v3 —— 主 v3，v3 不可用时 fallback v4
+        # 单栈部署（BK_IAM_MODE=v3/v4）下本项无效，因为 COMPOSITION.policy=single。
+        (
+            "BK_IAM_MODE_UNION_STRATEGY",
+            slz.ChoiceField(
+                choices=[
+                    ("any_of", "any_of"),
+                    ("all_of", "all_of"),
+                    ("primary_v4", "primary_v4"),
+                    ("primary_v3", "primary_v3"),
+                ],
+                default="any_of",
+            ),
+        ),
     ]
 )
 

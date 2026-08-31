@@ -16,36 +16,36 @@ from ..core.config import BypassRuleConfig, FrameworkConfig
 from ..core.framework import IAMFramework
 from ..core.utils import import_class
 from ..django.facade import _set_framework
-from ..provider.composition.all_of import AllOfPolicy
-from ..provider.composition.any_of import AnyOfPolicy
-from ..provider.composition.primary import PrimaryPolicy
-from ..provider.composition.single import SinglePolicy
+from ..provider.composition.base import CompositionPolicy
+from ..provider.composition.resolver import resolve_policy_class
 from ..schema.loaders import load_from_class as schema_load_from_class
 from ..schema.registry import SchemaRegistry
+
+# 触发 composition 包的 __init__，把 DynamicCompositionPolicy 注入 resolver 注册表。
+# 单独 import 一次即可，后续 resolve_policy_class("dynamic") 就能命中。
+from ..provider import composition as _composition  # noqa: F401
 
 logger = logging.getLogger("iam_engine.django")
 
 
-# --------------------------------------------------------------------------
-# CompositionPolicy 类名 → 类的映射
-#
-# 用户配置 composition.policy = "any_of" 时，框架查此表定位具体类。
-# --------------------------------------------------------------------------
+def _build_composition(
+    providers: list,
+    policy_name: str,
+    options: dict,
+) -> CompositionPolicy:
+    """从配置构建 CompositionPolicy。
 
-_POLICY_CLASS_MAP: dict[str, type] = {
-    "single": SinglePolicy,
-    "any_of": AnyOfPolicy,
-    "all_of": AllOfPolicy,
-    "primary": PrimaryPolicy,
-}
+    所有 policy 走**完全相同**的分派路径：``policy_cls.from_options(providers, **options)``。
 
-
-def _resolve_policy_class(policy_name: str) -> type:
-    """根据策略名（如 "any_of"）返回 CompositionPolicy 子类。"""
-    policy_cls = _POLICY_CLASS_MAP.get(policy_name)
-    if policy_cls is None:
-        raise ValueError(f"Unknown composition policy {policy_name!r}. Available: {sorted(_POLICY_CLASS_MAP)}")
-    return policy_cls
+    * 简单 policy（single / any_of / all_of / primary）继承 CompositionPolicy 的
+      默认 from_options（等价于 ``cls(providers, **options)``），零成本对齐。
+    * 复杂 policy（dynamic）覆盖 from_options，把配置里的
+      ``selector`` 规格翻译成 callable、把嵌套 ``policies`` 规格翻译成实例池，
+      集成层无需感知这些差异。
+    * 业务侧可以把 policy_name 写成 dotted path 接入自定义 CompositionPolicy 子类。
+    """
+    policy_cls = resolve_policy_class(policy_name)
+    return policy_cls.from_options(providers, **options)
 
 
 def _build_provider(provider_cfg, schema: SchemaRegistry):
@@ -109,8 +109,7 @@ def load_framework() -> IAMFramework:
         raise RuntimeError("IAM_FRAMEWORK.PROVIDERS must contain at least one provider")
 
     # 3. 构建 CompositionPolicy
-    policy_cls = _resolve_policy_class(config.composition.policy)
-    composition = policy_cls(providers, **config.composition.options)
+    composition = _build_composition(providers, config.composition.policy, dict(config.composition.options))
     logger.info("composition policy: %s", config.composition.policy)
 
     # 4. 构建 BypassRules

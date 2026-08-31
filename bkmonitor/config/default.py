@@ -1512,7 +1512,31 @@ elif BK_IAM_MODE == "v4":
 elif BK_IAM_MODE == "union":
     # V4 在前：primary() 取 providers[0]，get_apply_url / get_apply_data 优先出 V4 页面。
     _IAM_PROVIDERS = [_IAM_V4_PROVIDER, _IAM_V3_PROVIDER]
-    _IAM_COMPOSITION = {"policy": "any_of"}
+    # union 下走 DynamicCompositionPolicy：
+    #   * 装配层（本 if/elif/else 分支）由 BK_IAM_MODE 决定，改后需要重启进程；
+    #   * union 内部读组合策略由 BK_IAM_MODE_UNION_STRATEGY（GlobalConfig）决定，
+    #     运维在 Django Admin 修改后经 DynamicSettings 清缓存 → ≤180s 全集群生效。
+    #   * selector 采用统一规格：type + kwargs。这里选 "django_setting" 通道，
+    #     业务层不再直接告诉框架"去读 settings"，而是通过 selector 抽象声明数据源，
+    #     未来接 etcd / apollo 只需换 selector.type，框架和这里的注册表都无感。
+    #   * fallback_key=any_of：selector 无值/未知值/异常时兜底走 any_of，与旧行为对齐。
+    _IAM_COMPOSITION = {
+        "policy": "dynamic",
+        "options": {
+            "selector": {
+                "type": "django_setting",
+                "attr": "BK_IAM_MODE_UNION_STRATEGY",
+                "default": "any_of",
+            },
+            "fallback_key": "any_of",
+            "policies": {
+                "any_of": {"policy": "any_of"},
+                "all_of": {"policy": "all_of"},
+                "primary_v4": {"policy": "primary", "options": {"primary_provider": "v4"}},
+                "primary_v3": {"policy": "primary", "options": {"primary_provider": "v3"}},
+            },
+        },
+    }
 else:
     raise ValueError(f"Unknown BK_IAM_MODE={BK_IAM_MODE!r}. Supported values: 'v3' | 'v4' | 'union'.")
 
@@ -1529,10 +1553,17 @@ IAM_FRAMEWORK = {
     #   any_of  —— 任一 Provider 允许即允许；批量结果取并集，适合 v3/v4 迁移过渡期。
     #   all_of  —— 所有 Provider 都允许才允许；批量结果取交集，适合严格的多重校验。
     #   primary —— 第一个 Provider 为主；主 Provider 发生 ProviderUnavailable 时按顺序 fallback。
+    #   dynamic —— 运行时按 selector（settings 属性）动态委托到候选池中的具体策略，
+    #              装配契约（PROVIDERS）不变；BK_IAM_MODE_UNION_STRATEGY 走 GlobalConfig
+    #              可实现 ≤180s 全集群生效（无需重启进程）。
     # 可选 COMPOSITION.options：
     #   max_workers      —— 多 Provider 调用的并发数（不是 Provider 内部分片并发数）。
     #   strict_errors    —— any_of 默认 False、all_of 默认 True；是否立即上抛 Provider 异常。
     #   fallback_on_error —— primary 默认 True；主 Provider 故障时是否切换备用 Provider。
+    #   selector / fallback_key / policies —— dynamic 专用。selector 是形如
+    #     {"type": "django_setting", "attr": ..., "default": ...} 的规格 dict，
+    #     支持内置类型（django_setting / static）或 dotted path 走自定义 factory；
+    #     policies 是 {mode_key: {"policy": ..., "options": ...}} 的候选池。
     "COMPOSITION": _IAM_COMPOSITION,
     "MIGRATION": {
         # 迁移模式 manual ｜ semi_auto —— 由 BK_IAM_ENGINE_MIGRATION_MODE 控制，

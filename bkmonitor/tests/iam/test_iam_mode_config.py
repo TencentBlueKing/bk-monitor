@@ -56,7 +56,31 @@ class TestIamModeStackWiring:
                 "union 模式下 V4 必须作为 primary，即 providers[0]"
             )
             assert providers[1]["class"].endswith("V3PermissionProvider")
-            assert composition == {"policy": "any_of"}
+            # union 模式改为 DynamicCompositionPolicy：装配契约（PROVIDERS）不变，
+            # union 内部读组合策略走 GlobalConfig 动态开关 BK_IAM_MODE_UNION_STRATEGY。
+            assert composition["policy"] == "dynamic"
+            options = composition["options"]
+            # selector 是显式的规格 dict：type + kwargs，通过 selectors 注册表解析
+            assert options["selector"] == {
+                "type": "django_setting",
+                "attr": "BK_IAM_MODE_UNION_STRATEGY",
+                "default": "any_of",
+            }
+            assert options["fallback_key"] == "any_of"
+            policies = options["policies"]
+            # 候选池至少覆盖："any_of / all_of / primary_v4 / primary_v3"
+            assert set(policies.keys()) >= {"any_of", "all_of", "primary_v4", "primary_v3"}
+            # 兜底策略 any_of 必须已注册（与 fallback_key 对齐，避免装配期崩溃）
+            assert options["fallback_key"] in policies
+            # primary_v4 / primary_v3 必须携带 primary_provider 参数
+            assert policies["primary_v4"] == {
+                "policy": "primary",
+                "options": {"primary_provider": "v4"},
+            }
+            assert policies["primary_v3"] == {
+                "policy": "primary",
+                "options": {"primary_provider": "v3"},
+            }
 
 
 class TestMigrationSafeDefault:
