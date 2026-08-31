@@ -60,7 +60,8 @@ export function useRumFieldValues(fields: Ref<IRumField[]>) {
 
   async function getFieldValues(params: IGetValueFnParams): Promise<IWhereValueOptionsItem> {
     const field = params?.fields?.[0] || '';
-    const fieldType = fields.value.find(item => item.name === field)?.type || '';
+    const viewConfigFieldInfo = fields.value.find(item => item.name === field);
+    const fieldType = viewConfigFieldInfo?.type || '';
     const isKeyword = fieldType === 'keyword';
     const search = String(params?.where?.[0]?.value?.[0] ?? '').toLocaleLowerCase();
 
@@ -89,25 +90,35 @@ export function useRumFieldValues(fields: Ref<IRumField[]>) {
 
     const [startTime, endTime] = handleTransformToTimestamp(store.timeRange);
     const limit = params?.limit || 200;
-    const res = await getFieldsOptionValues(
-      {
-        app_name: store.appName,
-        mode: store.mode,
-        start_time: startTime,
-        end_time: endTime,
-        fields: [field],
-        limit,
-        query_string: params?.queryString || '',
-        filters: (params?.where || []).map(item => ({
-          key: item.key,
-          operator: 'like',
-          value: item.value || [],
-        })),
-      },
-      { signal: abortController.signal }
-    );
-
-    const values = (res?.[field] || []).filter(Boolean).map(value => ({ id: `${value}`, name: `${value}` }));
+    // view_config 已声明该字段的枚举值时直接取用，无需再打接口（如 span_type 等固定取值字段）
+    const optionValues = viewConfigFieldInfo?.option_values || [];
+    let res = {};
+    if (!optionValues.length) {
+      res = await getFieldsOptionValues(
+        {
+          app_name: store.appName,
+          mode: store.mode,
+          start_time: startTime,
+          end_time: endTime,
+          fields: [field],
+          limit,
+          query_string: params?.queryString || '',
+          filters: (params?.where || []).map(item => ({
+            key: item.key,
+            operator: 'like',
+            value: item.value || [],
+          })),
+        },
+        { signal: abortController.signal }
+      );
+    }
+    // 枚举值用 alias 展示、value 作为实际取值；接口返回的只有纯值，id 与 name 相同
+    const values = optionValues.length
+      ? optionValues.map(item => ({
+          id: `${item.value}`,
+          name: `${item.alias}`,
+        }))
+      : (res?.[field] || []).filter(Boolean).map(value => ({ id: `${value}`, name: `${value}` }));
     cache = !search && values.length < limit ? { key: cacheKey, values } : null;
 
     return { count: values.length, list: withNullOption(values, isKeyword) };
