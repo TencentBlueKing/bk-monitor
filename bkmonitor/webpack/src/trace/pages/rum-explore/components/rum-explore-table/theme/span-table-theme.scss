@@ -1,5 +1,12 @@
 /* span 场景专属样式（根类 + 场景类名同元素复合）：按 DOM 层级嵌套于 td */
 .rum-explore-table.span-table {
+  /* 状态列的条件菜单 hover 时保持原色：由多个 data-col-id 通过 @extend 复用 */
+  %condition-menu-inherit-color {
+    .explore-table-condition-menu:hover {
+      color: inherit;
+    }
+  }
+
   .explore-col {
     &.explore-prefix-icon-col {
       &:has([data-col-id='attributes.span_type']) {
@@ -11,24 +18,29 @@
           height: 12px;
         }
       }
-    }
-  }
 
-  td {
-    .custom-duration-col {
-      font-weight: 700;
-    }
+      &:has([data-col-id='attributes.resource.cache.hit']) {
+        column-gap: 2px;
+        color: #21a380;
 
-    .custom-duration-col.is-normal {
-      color: #2dcb56;
-    }
-
-    .custom-duration-col.is-warning {
-      color: #ff9c01;
+        .icon-mc-check-small {
+          font-size: 20px;
+        }
+      }
     }
 
-    .custom-duration-col.is-failed {
-      color: #ea3636;
+    &.explore-tags-col {
+      &:has([data-col-id='status.code']) {
+        @extend %condition-menu-inherit-color;
+      }
+
+      &:has([data-col-id='attributes.http.response.status_code']) {
+        @extend %condition-menu-inherit-color;
+      }
+
+      &:has([data-col-id='events.attributes.exception.type']) {
+        @extend %condition-menu-inherit-color;
+      }
     }
   }
 }
