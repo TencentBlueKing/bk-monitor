@@ -54,7 +54,7 @@
                   v-if="!isMonitorComponent"
                   :sql="(item.params.search_mode || item.search_mode) === 'sql' ? item.query_string : ''"
                   :addition="item.params.addition"
-                  :searchMode="item.params.search_mode || item.search_mode || 'sql'"
+                  :search-mode="item.params.search_mode || item.search_mode || 'sql'"
                   active-favorite="history"
                   @instanceShow="instanceShow"
                 ></BookmarkPop>

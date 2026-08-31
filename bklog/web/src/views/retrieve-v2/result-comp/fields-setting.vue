@@ -87,7 +87,7 @@
         <div class="fields-tab-container">
           <bk-tab
             :active.sync="activeFieldTab"
-            :labelHeight="42"
+            :label-height="42"
             type="unborder-card"
           >
             <template v-for="(panel, index) in fieldTabPanels">

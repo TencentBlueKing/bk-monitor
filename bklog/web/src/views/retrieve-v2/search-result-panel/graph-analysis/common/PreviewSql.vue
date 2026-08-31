@@ -4,7 +4,7 @@
     width="640"
     :title="$t('预览查询 SQL')"
     class="bv-preview-sql"
-    :beforeClose="close"
+    :before-close="close"
     header-position="left"
   >
     <template #default>

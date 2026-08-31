@@ -33,7 +33,7 @@
       theme="light"
       placement="bottom-start"
       boundary="viewport"
-      extCls="batch-operation-menu"
+      ext-cls="batch-operation-menu"
       :interactive="true"
     >
       <bk-button :disabled="selectFavoriteList.length === 0">
@@ -48,7 +48,7 @@
               :arrow="false"
               theme="light"
               boundary="viewport"
-              extCls="batch-operation-menu"
+              ext-cls="batch-operation-menu"
               @show="() => handleShowOperationMenuRef(false)"
               @hide="() => handleShowOperationMenuRef(true)"
             >

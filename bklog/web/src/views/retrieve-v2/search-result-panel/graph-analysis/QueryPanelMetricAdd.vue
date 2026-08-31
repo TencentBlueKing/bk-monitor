@@ -84,10 +84,10 @@
 <template>
   <bk-popover
     ref="popoverRef"
-    :isShow="isShow"
+    :is-show="isShow"
     trigger="click"
     theme="light"
-    extCls="bv-custom-popover"
+    ext-cls="bv-custom-popover"
     placement="bottom-start"
     :disabled="!!disabledTips"
     width="446"

@@ -142,8 +142,8 @@ LIMIT 2;`,
         {{ $t('预览查询 SQL') }}
       </bk-button>
       <PreviewSql
-        :isShow="showDialog"
-        :sqlContent="sqlContent"
+        :is-show="showDialog"
+        :sql-content="sqlContent"
         @update:isShow="newValue => (showDialog = newValue)"
       />
     </div>

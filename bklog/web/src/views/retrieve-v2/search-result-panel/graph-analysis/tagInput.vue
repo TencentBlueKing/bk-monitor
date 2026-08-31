@@ -185,7 +185,7 @@
           'cursor-not-allow': isCanPutInTips,
         },
       ]"
-      :beforeAdd="addFormField"
+      :before-add="addFormField"
       @start="handleDragStart"
     >
       <template #item="{ element, index }">
@@ -221,10 +221,10 @@
       </template>
       <template #footer>
         <QueryPanelMetricAdd
-          :disabledTips="isCanPutInTips"
+          :disabled-tips="isCanPutInTips"
           :fields="fields"
-          :namesMap="namesMap"
-          :preferRawData="preferRawData"
+          :names-map="namesMap"
+          :prefer-raw-data="preferRawData"
           @add="add"
         />
         <!-- <ClearFieldsButton
