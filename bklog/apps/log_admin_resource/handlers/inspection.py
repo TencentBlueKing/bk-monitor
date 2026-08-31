@@ -7,12 +7,16 @@ import time
 from datetime import datetime, timezone as datetime_timezone
 
 import arrow
+from django.conf import settings
+from django.db.models import Q, Subquery
 from django.utils import timezone
 
 from apps.api.base import get_request_id
 from apps.exceptions import ApiRequestError, ApiResultError, ValidationError
+from apps.exceptions import PermissionError as BklogPermissionError
 from apps.log_clustering.handlers.aiops.config import get_online_clustering_config
 from apps.log_search.models import Space
+from apps.utils.local import get_request_tenant_id
 
 
 DEFAULT_SAMPLE_LIMIT = 10
@@ -27,9 +31,21 @@ FORBIDDEN_IDENTITY_PARAMS = {
     "no_request",
 }
 SENSITIVE_KEY_PATTERN = re.compile(
-    r"(?:password|passwd|secret|token|authorization|cookie|credential|access[_-]?key|private[_-]?key)",
+    r"(?:password|passwd|secret|token|authorization|cookie|credential|access[_-]?key|api[_-]?key|app[_-]?key"
+    r"|private[_-]?key|webhook|dsn|salt|cipher)",
     re.IGNORECASE,
 )
+SENSITIVE_ASSIGNMENT_PATTERN = re.compile(
+    r"(?P<key_quote>[\"']?)(?P<key>\b(?:password|passwd|secret|token|authorization|cookie|credential"
+    r"|(?:access|refresh|bearer|id)[_-]?token|access[_-]?key|api[_-]?key|app[_-]?secret"
+    r"|private[_-]?key|webhook|dsn|broker|account|salt|cipher))(?P=key_quote)"
+    r"(?P<separator>\s*[:=]\s*)(?:(?:bearer|basic)\s+)?"
+    r"(?P<value>\"(?:\\.|[^\"\\])*\"|'(?:\\.|[^'\\])*'|[^\s,;}]+)",
+    re.IGNORECASE,
+)
+AUTH_SCHEME_PATTERN = re.compile(r"\b(bearer|basic)\s+[^\s,;]+", re.IGNORECASE)
+CREDENTIAL_URL_PATTERN = re.compile(r"://[^/\s:@]+:[^/\s@]+@")
+MAX_UPSTREAM_MESSAGE_LENGTH = 1024
 EVENT_TIME_PRIORITY = {
     "dteventtimestamp": 0,
     "dteventtime": 1,
@@ -48,6 +64,58 @@ def reject_identity_params(params):
     forbidden = sorted(FORBIDDEN_IDENTITY_PARAMS.intersection(params))
     if forbidden:
         raise ValidationError("identity parameters are managed by bklog: {}".format(", ".join(forbidden)))
+
+
+def require_request_tenant_id():
+    """Return the trusted request tenant or fail closed for Resource reads."""
+
+    tenant_id = get_request_tenant_id()
+    if not tenant_id:
+        raise BklogPermissionError("Resource Call request tenant is required")
+    return tenant_id
+
+
+def request_tenant_spaces():
+    """Build the canonical active-space scope for the trusted request tenant."""
+
+    return Space.origin_objects.filter(bk_tenant_id=require_request_tenant_id())
+
+
+def scope_biz_queryset(queryset, field_name="bk_biz_id", *, include_global=False):
+    """Restrict a queryset business field to the current request tenant."""
+
+    if not settings.ENABLE_MULTI_TENANT_MODE:
+        return queryset
+    tenant_biz_ids = request_tenant_spaces().values("bk_biz_id")
+    condition = Q(**{f"{field_name}__in": Subquery(tenant_biz_ids)})
+    if include_global:
+        condition |= Q(**{field_name: 0})
+    return queryset.filter(condition)
+
+
+def scope_space_queryset(queryset, field_name="space_uid"):
+    """Restrict a queryset space field to the current request tenant."""
+
+    if not settings.ENABLE_MULTI_TENANT_MODE:
+        return queryset
+    tenant_space_uids = request_tenant_spaces().values("space_uid")
+    return queryset.filter(**{f"{field_name}__in": Subquery(tenant_space_uids)})
+
+
+def require_biz_in_request_tenant(bk_biz_id, *, allow_global=False):
+    """Reject caller-selected businesses that are outside the request tenant."""
+
+    try:
+        normalized_biz_id = int(bk_biz_id)
+    except (TypeError, ValueError) as error:
+        raise ValidationError("bk_biz_id must be an integer") from error
+    if not settings.ENABLE_MULTI_TENANT_MODE:
+        return normalized_biz_id
+    if allow_global and normalized_biz_id == 0:
+        return normalized_biz_id
+    if not request_tenant_spaces().filter(bk_biz_id=normalized_biz_id).exists():
+        raise BklogPermissionError("business does not belong to the current Resource Call tenant")
+    return normalized_biz_id
 
 
 def require_positive_int(params, key):
@@ -91,6 +159,7 @@ def optional_positive_int(value, key, default=None, maximum=None):
 
 
 def build_bkdata_context(bk_biz_id):
+    require_biz_in_request_tenant(bk_biz_id)
     config = get_online_clustering_config(bk_biz_id)
     bk_username = config.get("bk_username")
     if not bk_username:
@@ -163,7 +232,7 @@ def probe_failure(error, started=None, not_found_codes=None):
     upstream_code = getattr(error, "code", None)
     raw_upstream_message = getattr(error, "message", None) or str(error)
     normalized_code, retryable = _normalize_error(upstream_code, raw_upstream_message, not_found_codes or set())
-    upstream_message = str(raw_upstream_message)
+    upstream_message = sanitize_sensitive_text(raw_upstream_message)
     exists = False if normalized_code == "RESOURCE_NOT_FOUND" else None
     return {
         "probe_status": "failed",
@@ -184,8 +253,22 @@ def probe_failure(error, started=None, not_found_codes=None):
     }
 
 
-def sanitize_json(value, *, max_bytes=None):
-    sanitized = _sanitize(value)
+def sanitize_sensitive_text(value, maximum=MAX_UPSTREAM_MESSAGE_LENGTH):
+    message = CREDENTIAL_URL_PATTERN.sub("://***:***@", str(value))
+    message = SENSITIVE_ASSIGNMENT_PATTERN.sub(_redact_assignment, message)
+    message = AUTH_SCHEME_PATTERN.sub(lambda match: f"{match.group(1)} ***", message)
+    return message if maximum is None else message[:maximum]
+
+
+def _redact_assignment(match):
+    key_quote = match.group("key_quote") or ""
+    value = match.group("value")
+    value_quote = value[0] if len(value) >= 2 and value[0] == value[-1] and value[0] in "\"'" else ""
+    return f"{key_quote}{match.group('key')}{key_quote}{match.group('separator')}{value_quote}***{value_quote}"
+
+
+def sanitize_json(value, *, max_bytes=None, redact_text=False):
+    sanitized = _sanitize(value, redact_text=redact_text)
     if max_bytes is None:
         return sanitized
     return limit_json_value(sanitized, max_bytes)
@@ -222,7 +305,7 @@ def serialize_tail_rows(rows, sample_limit, *, decode_wrapped=False):
     samples = []
     time_rows = []
     for row in selected_rows:
-        limited = limit_json_value(row)
+        limited = limit_json_value(sanitize_json(row, redact_text=True))
         sample = {"raw": limited}
         time_row = row
         if decode_wrapped and isinstance(row, dict):
@@ -274,8 +357,8 @@ def decode_raw_data_row(row, max_bytes=MAX_SAMPLE_BYTES):
                 "decode_status": "success",
                 "decoded_from": field,
                 "content_encoding": "json_object",
-                "decoded": limit_json_value(value, max_bytes=max_bytes),
-                "_decoded_for_time": value,
+                "decoded": limit_json_value(sanitize_json(value, redact_text=True), max_bytes=max_bytes),
+                "_decoded_for_time": sanitize_json(value, redact_text=True),
             }
         if isinstance(value, str) and value:
             candidates.append((field, value))
@@ -290,8 +373,11 @@ def decode_raw_data_row(row, max_bytes=MAX_SAMPLE_BYTES):
                 "decode_status": "success",
                 "decoded_from": field,
                 "content_encoding": "json",
-                "decoded": limit_json_value(decoded_value, max_bytes=max_bytes),
-                "_decoded_for_time": decoded_value,
+                "decoded": limit_json_value(
+                    sanitize_json(decoded_value, redact_text=True),
+                    max_bytes=max_bytes,
+                ),
+                "_decoded_for_time": sanitize_json(decoded_value, redact_text=True),
             }
         except (TypeError, ValueError):
             pass
@@ -304,12 +390,13 @@ def decode_raw_data_row(row, max_bytes=MAX_SAMPLE_BYTES):
             except (TypeError, ValueError):
                 decoded_value = decoded_text
                 content_encoding = "base64+utf-8"
+            sanitized_value = sanitize_json(decoded_value, redact_text=True)
             return {
                 "decode_status": "success",
                 "decoded_from": field,
                 "content_encoding": content_encoding,
-                "decoded": limit_json_value(decoded_value, max_bytes=max_bytes),
-                "_decoded_for_time": decoded_value,
+                "decoded": limit_json_value(sanitized_value, max_bytes=max_bytes),
+                "_decoded_for_time": sanitized_value,
             }
         except (binascii.Error, UnicodeDecodeError, ValueError) as error:
             errors.append(f"{field}: {error}")
@@ -430,17 +517,19 @@ def _parse_time_candidate(field_name, raw_value, field_path, row_index):
     }
 
 
-def _sanitize(value):
+def _sanitize(value, *, redact_text=False):
     if isinstance(value, dict):
         return {
-            str(key): "***" if SENSITIVE_KEY_PATTERN.search(str(key)) else _sanitize(child)
+            str(key): "***" if SENSITIVE_KEY_PATTERN.search(str(key)) else _sanitize(child, redact_text=redact_text)
             for key, child in value.items()
         }
     if isinstance(value, list):
-        return [_sanitize(item) for item in value]
+        return [_sanitize(item, redact_text=redact_text) for item in value]
     if isinstance(value, tuple):
-        return [_sanitize(item) for item in value]
-    if isinstance(value, str | int | float | bool) or value is None:
+        return [_sanitize(item, redact_text=redact_text) for item in value]
+    if isinstance(value, str):
+        return sanitize_sensitive_text(value, maximum=None) if redact_text else value
+    if isinstance(value, int | float | bool) or value is None:
         return value
     if isinstance(value, datetime):
         return value.isoformat()

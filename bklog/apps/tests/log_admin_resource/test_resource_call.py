@@ -27,6 +27,9 @@ from django.test import TestCase, override_settings
 from django.utils.deprecation import MiddlewareMixin
 
 from apps.api import TransferApi
+from apps.log_admin_resource.permissions import AdminResourceAppWhiteListPermission
+from apps.log_admin_resource.registry import FUNCTIONS, HANDLERS, AdminResourceRegistry, _object_schema
+from apps.log_admin_resource.schema import validate_params
 from apps.log_admin_resource.views import AdminResourceViewSet
 from apps.log_databus.constants import STORAGE_CLUSTER_TYPE, ContainerCollectorType
 from apps.log_databus.handlers.storage import StorageHandler
@@ -46,6 +49,8 @@ APIGW_MIDDLEWARE = "apps.tests.log_admin_resource.test_resource_call.AdminApiGat
 NON_WHITE_LIST_APIGW_MIDDLEWARE = (
     "apps.tests.log_admin_resource.test_resource_call.NonWhiteListAdminApiGatewayMiddleware"
 )
+READ_ONLY_APIGW_MIDDLEWARE = "apps.tests.log_admin_resource.test_resource_call.ReadOnlyAdminApiGatewayMiddleware"
+WRITE_ONLY_APIGW_MIDDLEWARE = "apps.tests.log_admin_resource.test_resource_call.WriteOnlyAdminApiGatewayMiddleware"
 NON_SUPERUSER_MIDDLEWARE = "apps.tests.log_admin_resource.test_resource_call.NonSuperuserMiddleware"
 METADATA_STORAGE = {
     "2_bklog.bcs_checkinsvr": {
@@ -105,6 +110,14 @@ class NonWhiteListAdminApiGatewayMiddleware(AdminApiGatewayMiddleware):
     bk_app_code = "not-white-list-app"
 
 
+class ReadOnlyAdminApiGatewayMiddleware(AdminApiGatewayMiddleware):
+    bk_app_code = "resource-read-app"
+
+
+class WriteOnlyAdminApiGatewayMiddleware(AdminApiGatewayMiddleware):
+    bk_app_code = "resource-write-app"
+
+
 class NonSuperuserMiddleware(MiddlewareMixin):
     def process_request(self, request):
         class Base:
@@ -147,6 +160,9 @@ class AdminResourceCallViewTest(ClearRequestLocalMixin, TestCase):
         self.assertIn("bklog.collector.storage.preview", content["data"]["result"]["functions"])
         self.assertIn("bklog.collector.storage.apply", content["data"]["result"]["functions"])
         self.assertIn("bklog.storage_cluster.list", content["data"]["result"]["functions"])
+        self.assertIn("bklog.platform_source.query", content["data"]["result"]["functions"])
+        self.assertIn("bklog.index_set.route_snapshot", content["data"]["result"]["functions"])
+        self.assertIn("bklog.model.query", content["data"]["result"]["functions"])
 
     @override_settings(MIDDLEWARE=(APIGW_MIDDLEWARE,))
     def test_meta_detail_returns_storage_snapshot_schema(self):
@@ -174,6 +190,36 @@ class AdminResourceCallViewTest(ClearRequestLocalMixin, TestCase):
         self.assertFalse(content["result"])
         self.assertIn("unknown func_name", content["message"])
 
+    @override_settings(MIDDLEWARE=(APIGW_MIDDLEWARE,))
+    def test_success_and_error_return_request_id_header_without_changing_body_protocol(self):
+        success = self.client.post(
+            "/api/v1/admin/resource/call/",
+            data=json.dumps({"func_name": "__meta__", "params": {"action": "list"}}),
+            content_type="application/json",
+        )
+        failure = self.client.post(
+            "/api/v1/admin/resource/call/",
+            data=json.dumps({"func_name": "bklog.unknown.list", "params": {}}),
+            content_type="application/json",
+        )
+
+        self.assertTrue(success.headers["X-Request-Id"])
+        self.assertTrue(failure.headers["X-Request-Id"])
+        self.assertNotIn("request_id", json.loads(success.content)["data"])
+        self.assertNotIn("request_id", json.loads(failure.content))
+
+    @override_settings(MIDDLEWARE=(APIGW_MIDDLEWARE,))
+    def test_platform_source_error_reuses_outer_resource_error_envelope(self):
+        content = self._call(
+            "bklog.platform_source.query",
+            {"mode": "discover", "domain": "job"},
+        )
+
+        self.assertFalse(content["result"])
+        self.assertEqual(content["code"], "DOMAIN_NOT_FOUND")
+        self.assertIn("unknown domain", content["message"])
+        self.assertEqual(content["data"]["next_call"], {"mode": "discover"})
+
     @override_settings(MIDDLEWARE=(NON_SUPERUSER_MIDDLEWARE,))
     def test_call_rejects_non_apigw_request(self):
         content = self._call("__meta__", {"action": "list"})
@@ -182,13 +228,177 @@ class AdminResourceCallViewTest(ClearRequestLocalMixin, TestCase):
         self.assertEqual(content["code"], "3600403")
         self.assertIn("APIGW", content["message"])
 
-    @override_settings(MIDDLEWARE=(NON_WHITE_LIST_APIGW_MIDDLEWARE,), ESQUERY_WHITE_LIST=["bkmonitorv3"])
-    def test_call_rejects_non_white_list_apigw_app(self):
+    @override_settings(
+        MIDDLEWARE=(NON_WHITE_LIST_APIGW_MIDDLEWARE,),
+        RESOURCE_CALL_APP_CODE_WHITE_LIST=["bkmonitorv3"],
+    )
+    def test_non_management_app_with_api_permission_gets_readonly_capabilities(self):
         content = self._call("__meta__", {"action": "list"})
 
-        self.assertFalse(content["result"])
-        self.assertEqual(content["code"], "3600403")
-        self.assertIn("white-list", content["message"])
+        self.assertTrue(content["result"])
+        functions = content["data"]["result"]["functions"]
+        self.assertIn("bklog.collector.list", functions)
+        self.assertNotIn("bklog.collector.storage.apply", functions)
+
+    @override_settings(
+        MIDDLEWARE=(READ_ONLY_APIGW_MIDDLEWARE,),
+        RESOURCE_CALL_APP_CODE_WHITE_LIST=[],
+    )
+    def test_non_management_app_meta_hides_write_and_destructive_functions(self):
+        content = self._call("__meta__", {"action": "list"})
+
+        self.assertTrue(content["result"])
+        result = content["data"]["result"]
+        self.assertEqual(result["protocol"], "bklog.admin_resource.v1")
+        self.assertIn("bklog.collector.list", result["functions"])
+        self.assertNotIn("bklog.collector.storage.apply", result["functions"])
+        self.assertNotIn("bklog.clustering_config.pipeline.skip", result["functions"])
+        self.assertTrue(result["capabilities"])
+        self.assertTrue(all(item["safety_level"] in {"read", "inspect"} for item in result["capabilities"]))
+        self.assertTrue(all("params_schema" not in item for item in result["capabilities"]))
+
+    @override_settings(
+        MIDDLEWARE=(READ_ONLY_APIGW_MIDDLEWARE,),
+        RESOURCE_CALL_APP_CODE_WHITE_LIST=[],
+    )
+    def test_non_management_app_cannot_describe_or_invoke_write_function(self):
+        detail = self._call(
+            "__meta__",
+            {"action": "detail", "target_func_name": "bklog.collector.storage.apply"},
+        )
+        invoke = self._call("bklog.collector.storage.apply", {"collector_config_ids": [1], "target": {}})
+
+        self.assertFalse(detail["result"])
+        self.assertIn("unknown target_func_name", detail["message"])
+        self.assertFalse(invoke["result"])
+        self.assertEqual(invoke["code"], "3600403")
+        self.assertIn("management allowlist", invoke["message"])
+
+    @override_settings(
+        MIDDLEWARE=(APIGW_MIDDLEWARE,),
+        RESOURCE_CALL_APP_CODE_WHITE_LIST=["bkmonitorv3"],
+    )
+    def test_management_allowlist_meta_keeps_existing_write_functions(self):
+        content = self._call("__meta__", {"action": "list"})
+
+        self.assertTrue(content["result"])
+        functions = content["data"]["result"]["functions"]
+        self.assertIn("bklog.collector.storage.apply", functions)
+        self.assertIn("bklog.clustering_config.pipeline.skip", functions)
+
+    @override_settings(
+        MIDDLEWARE=(WRITE_ONLY_APIGW_MIDDLEWARE,),
+        RESOURCE_CALL_APP_CODE_WHITE_LIST=["resource-write-app"],
+    )
+    def test_management_allowlist_includes_read_and_write_capabilities(self):
+        content = self._call("__meta__", {"action": "list"})
+
+        self.assertTrue(content["result"])
+        functions = content["data"]["result"]["functions"]
+        self.assertIn("bklog.collector.list", functions)
+        self.assertIn("bklog.collector.storage.apply", functions)
+
+
+class AdminResourceRegistryContractTest(TestCase):
+    def test_object_schema_without_required_fields_remains_open_by_default(self):
+        self.assertEqual(
+            _object_schema(),
+            {"type": "object", "properties": {}, "additionalProperties": True},
+        )
+
+    @patch("apps.log_admin_resource.permissions.Permission.get_auth_info", return_value={})
+    def test_permission_rejects_apigw_request_without_trusted_app_identity(self, mock_get_auth_info):
+        request = SimpleNamespace(jwt=SimpleNamespace(gateway_name="bk-log-search"))
+
+        with self.assertRaisesRegex(Exception, "trusted APIGW app identity"):
+            AdminResourceAppWhiteListPermission().has_permission(request, None)
+
+        mock_get_auth_info.assert_called_once_with(request, raise_exception=False)
+
+    @patch(
+        "apps.log_admin_resource.permissions.Permission.get_auth_info",
+        return_value={"bk_app_code": "resource-read-app"},
+    )
+    def test_permission_accepts_authorized_app_from_any_verified_apigw(self, mock_get_auth_info):
+        request = SimpleNamespace(jwt=SimpleNamespace(gateway_name="another-verified-gateway"))
+
+        self.assertTrue(AdminResourceAppWhiteListPermission().has_permission(request, None))
+        self.assertEqual(request.resource_app_code, "resource-read-app")
+        mock_get_auth_info.assert_called_once_with(request, raise_exception=False)
+
+    @override_settings(
+        RESOURCE_CALL_APP_CODE_WHITE_LIST=["reader"],
+    )
+    def test_registry_rejects_missing_app_identity_without_view_layer(self):
+        with self.assertRaisesRegex(Exception, "trusted APIGW app identity"):
+            AdminResourceRegistry.call("__meta__", {"action": "list"})
+
+    @override_settings(
+        RESOURCE_CALL_APP_CODE_WHITE_LIST=[],
+    )
+    def test_registry_rejects_unknown_meta_action(self):
+        with self.assertRaisesRegex(Exception, "unknown meta action"):
+            AdminResourceRegistry.call("__meta__", {"action": "unknown"}, app_code="reader")
+
+    @override_settings(
+        RESOURCE_CALL_APP_CODE_WHITE_LIST=["writer"],
+    )
+    def test_registry_enforces_write_boundary_without_view_layer(self):
+        with self.assertRaisesRegex(Exception, "management allowlist"):
+            AdminResourceRegistry.call(
+                "bklog.collector.storage.apply",
+                {"collector_config_ids": [1], "target": {}},
+                app_code="reader",
+            )
+
+    @override_settings(
+        RESOURCE_CALL_APP_CODE_WHITE_LIST=[],
+    )
+    def test_opt_in_schema_validation_rejects_unknown_fields_before_handler(self):
+        func_name = "bklog.test.strict"
+        function = {
+            "func_name": func_name,
+            "description": "strict test function",
+            "safety_level": "read",
+            "validate_params": True,
+            "params_schema": {
+                "type": "object",
+                "properties": {"id": {"type": "integer", "minimum": 1}},
+                "required": ["id"],
+                "additionalProperties": False,
+            },
+        }
+        called = []
+
+        with (
+            patch.dict(FUNCTIONS, {func_name: function}),
+            patch.dict(HANDLERS, {func_name: lambda params: called.append(params) or params}),
+        ):
+            with self.assertRaisesRegex(Exception, "unsupported fields"):
+                AdminResourceRegistry.call(func_name, {"id": 1, "extra": True}, app_code="reader")
+
+        self.assertEqual(called, [])
+
+    @override_settings(
+        RESOURCE_CALL_APP_CODE_WHITE_LIST=[],
+    )
+    def test_legacy_handler_schema_remains_non_strict_without_opt_in(self):
+        func_name = "bklog.test.legacy"
+        function = {
+            "func_name": func_name,
+            "description": "legacy test function",
+            "safety_level": "read",
+            "params_schema": {
+                "type": "object",
+                "properties": {"id": {"type": "integer"}},
+                "additionalProperties": False,
+            },
+        }
+
+        with patch.dict(FUNCTIONS, {func_name: function}), patch.dict(HANDLERS, {func_name: lambda params: params}):
+            result = AdminResourceRegistry.call(func_name, {"legacy_extra": True}, app_code="reader")
+
+        self.assertEqual(result, {"legacy_extra": True})
 
 
 class TransferApiTenantGetterTest(TestCase):
@@ -276,7 +486,8 @@ class CollectorFixtureMixin:
             params={
                 "paths": ["/data/logs/*.log"],
                 "password": "plain-password",
-                "nested": {"bearer_token": "token-value"},
+                "nested": {"bearer_token": "token-value", "api_key": "api-key-value"},
+                "endpoint": "https://user:pass@example.com/path",
             },
             task_id_list=[9881, 9882],
             storage_shards_nums=6,
@@ -393,6 +604,7 @@ class CollectorResourceCallTest(CollectorFixtureMixin, ClearRequestLocalMixin, T
 
         self.assertTrue(content["result"])
         result = content["data"]["result"]
+        validate_params(result, FUNCTIONS["bklog.collector.list"]["response_schema"], "response")
         self.assertEqual(result["total"], 1)
         item = result["items"][0]
         self.assertEqual(item["collector_config_id"], 10402)
@@ -454,6 +666,7 @@ class CollectorResourceCallTest(CollectorFixtureMixin, ClearRequestLocalMixin, T
 
         self.assertTrue(content["result"])
         result = content["data"]["result"]
+        validate_params(result, FUNCTIONS["bklog.collector.detail"]["response_schema"], "response")
         self.assertEqual(result["chain"]["primary_index_set_id"], 755)
         self.assertEqual(result["storage"]["storage_cluster_id"], 88)
         self.assertEqual(result["storage"]["retention"], 30)
@@ -473,6 +686,8 @@ class CollectorResourceCallTest(CollectorFixtureMixin, ClearRequestLocalMixin, T
         )
         self.assertEqual(result["raw"]["params"]["password"], "******")
         self.assertEqual(result["raw"]["params"]["nested"]["bearer_token"], "******")
+        self.assertEqual(result["raw"]["params"]["nested"]["api_key"], "******")
+        self.assertEqual(result["raw"]["params"]["endpoint"], "https://***:***@example.com/path")
 
     @override_settings(MIDDLEWARE=(APIGW_MIDDLEWARE,))
     def test_index_set_list_returns_result_tables_and_collector_relation(self):
@@ -638,6 +853,7 @@ class CollectorStorageResourceCallTest(CollectorFixtureMixin, ClearRequestLocalM
 
         self.assertTrue(content["result"])
         result = content["data"]["result"]
+        validate_params(result, FUNCTIONS["bklog.collector.storage.snapshot"]["response_schema"], "response")
         self.assertEqual(result["summary"]["total"], 1)
         item = result["items"][0]
         self.assertEqual(item["before"]["storage_cluster_id"], 88)
@@ -700,6 +916,7 @@ class CollectorStorageResourceCallTest(CollectorFixtureMixin, ClearRequestLocalM
 
         self.assertTrue(content["result"])
         result = content["data"]["result"]
+        validate_params(result, FUNCTIONS["bklog.collector.storage.preview"]["response_schema"], "response")
         self.assertEqual(result["summary"]["total"], 1)
         self.assertEqual(result["summary"]["changeable"], 1)
         item = result["items"][0]
@@ -896,6 +1113,7 @@ class CollectorStorageResourceCallTest(CollectorFixtureMixin, ClearRequestLocalM
 
         self.assertTrue(content["result"])
         result = content["data"]["result"]
+        validate_params(result, FUNCTIONS["bklog.collector.storage.apply"]["response_schema"], "response")
         self.assertEqual(result["summary"]["success"], 1)
         self.assertEqual(result["items"][0]["status"], "success")
         mock_patch_update.assert_called_once_with(
@@ -954,6 +1172,7 @@ class CollectorStorageResourceCallTest(CollectorFixtureMixin, ClearRequestLocalM
 
         self.assertTrue(content["result"])
         result = content["data"]["result"]
+        validate_params(result, FUNCTIONS["bklog.storage_cluster.list"]["response_schema"], "response")
         self.assertEqual(result["total"], 2)
         self.assertEqual(result["items"][0]["storage_cluster_id"], 25)
         self.assertEqual(result["items"][0]["storage_cluster_name"], "public-hot-es")

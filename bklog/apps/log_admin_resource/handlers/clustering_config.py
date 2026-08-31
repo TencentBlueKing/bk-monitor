@@ -105,7 +105,7 @@ def get_clustering_config_detail(params):
             in {"is_deleted", "deleted_at", "deleted_by"} | GENERATED_FLOW_CONFIG_FIELDS | ACCESS_RUNTIME_FIELDS
         ):
             continue
-        fields[field.name] = sanitize_json(getattr(config, field.name))
+        fields[field.name] = sanitize_json(getattr(config, field.name), redact_text=True)
 
     available_flow_config_fields = sorted(
         field_name for field_name in GENERATED_FLOW_CONFIG_FIELDS if getattr(config, field_name) is not None
@@ -114,7 +114,10 @@ def get_clustering_config_detail(params):
         "included": include_flow_configs,
         "available_fields": available_flow_config_fields,
         "values": (
-            {field_name: sanitize_json(getattr(config, field_name)) for field_name in available_flow_config_fields}
+            {
+                field_name: sanitize_json(getattr(config, field_name), redact_text=True)
+                for field_name in available_flow_config_fields
+            }
             if include_flow_configs
             else None
         ),
@@ -127,7 +130,7 @@ def get_clustering_config_detail(params):
         "generated_flow_configs": generated_flow_configs,
         "result_table_references": _result_table_references(config),
         "access_tasks": {
-            "task_records": sanitize_json(config.task_records or []),
+            "task_records": sanitize_json(config.task_records or [], redact_text=True),
             "task_detail_ids": sorted((config.task_details or {}).keys()),
         },
     }

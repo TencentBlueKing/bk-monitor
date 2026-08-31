@@ -2,6 +2,7 @@ from django.db.models import Q
 
 from apps.exceptions import ValidationError
 from apps.log_admin_resource.handlers.collector import serialize_collectors
+from apps.log_admin_resource.handlers.inspection import sanitize_json
 from apps.log_clustering.models import ClusteringConfig
 from apps.log_databus.models import CollectorConfig
 from apps.log_search.constants import IndexSetDataType
@@ -73,14 +74,17 @@ def get_index_set_detail(params):
         "indexes": indexes,
         "collectors": collectors,
         "clustering_relations": clustering["items"],
-        "raw": {
-            "source_id": index_set.source_id,
-            "source_app_code": index_set.source_app_code,
-            "target_fields": index_set.target_fields or [],
-            "sort_fields": index_set.sort_fields or [],
-            "query_alias_settings": index_set.query_alias_settings,
-            "fields_snapshot": index_set.fields_snapshot,
-        },
+        "raw": sanitize_json(
+            {
+                "source_id": index_set.source_id,
+                "source_app_code": index_set.source_app_code,
+                "target_fields": index_set.target_fields or [],
+                "sort_fields": index_set.sort_fields or [],
+                "query_alias_settings": index_set.query_alias_settings,
+                "fields_snapshot": index_set.fields_snapshot,
+            },
+            redact_text=True,
+        ),
         "warnings": warnings,
     }
 

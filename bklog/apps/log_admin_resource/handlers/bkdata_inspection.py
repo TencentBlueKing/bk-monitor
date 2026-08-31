@@ -252,7 +252,7 @@ def _summarize_probe(probe, serializer):
 def _raw_deploy_summary(data):
     _require_mapping(data, "RawData deploy")
     summary = _pick(data, "raw_data_id", "data_id", "active", "status", "topic", "bk_biz_id")
-    return {"summary": summary, "raw": sanitize_json(data, max_bytes=256 * 1024)}
+    return {"summary": summary, "raw": sanitize_json(data, max_bytes=256 * 1024, redact_text=True)}
 
 
 def _clean_detail_summary(data):
@@ -268,7 +268,7 @@ def _clean_detail_summary(data):
         "updated_by",
         "updated_at",
     )
-    return {"summary": summary, "raw": sanitize_json(data, max_bytes=256 * 1024)}
+    return {"summary": summary, "raw": sanitize_json(data, max_bytes=256 * 1024, redact_text=True)}
 
 
 def _clean_task_summary(data):
@@ -280,14 +280,14 @@ def _clean_task_summary(data):
         for row in rows
         if isinstance(row, dict)
     ]
-    return {"summary": summary, "raw": sanitize_json(data, max_bytes=256 * 1024)}
+    return {"summary": summary, "raw": sanitize_json(data, max_bytes=256 * 1024, redact_text=True)}
 
 
 def _flow_detail_summary(data):
     _require_mapping(data, "Flow detail")
     return {
         "summary": _pick(data, "flow_id", "flow_name", "status", "project_id", "created_at", "updated_at"),
-        "raw": sanitize_json(data, max_bytes=512 * 1024),
+        "raw": sanitize_json(data, max_bytes=512 * 1024, redact_text=True),
     }
 
 
@@ -304,7 +304,7 @@ def _flow_deploy_summary(data):
             "nodes_status",
             "version",
         ),
-        "raw": sanitize_json(data, max_bytes=512 * 1024),
+        "raw": sanitize_json(data, max_bytes=512 * 1024, redact_text=True),
     }
 
 
@@ -324,7 +324,7 @@ def _flow_graph_summary(data):
             "node_count": len(nodes),
             "link_count": _collection_size(data, "links", "lines", "edges"),
         },
-        "raw": sanitize_json(data, max_bytes=1024 * 1024),
+        "raw": sanitize_json(data, max_bytes=1024 * 1024, redact_text=True),
     }
 
 
@@ -342,14 +342,14 @@ def _result_table_summary(data):
             "created_at",
             "updated_at",
         ),
-        "raw": sanitize_json(data, max_bytes=256 * 1024),
+        "raw": sanitize_json(data, max_bytes=256 * 1024, redact_text=True),
     }
 
 
 def _pick(value, *keys):
     if not isinstance(value, dict):
         return {}
-    return {key: sanitize_json(value.get(key)) for key in keys if key in value}
+    return {key: sanitize_json(value.get(key), redact_text=True) for key in keys if key in value}
 
 
 def _collection_size(value, *keys):

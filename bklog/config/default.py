@@ -238,6 +238,8 @@ CELERY_IMPORTS = (
     "apps.log_databus.tasks.itsm",
     "apps.log_databus.tasks.bkdata",
     "apps.log_databus.tasks.archive",
+    "apps.log_admin_resource.tasks",
+    "apps.log_admin_resource.k8s_tasks",
     "apps.log_measure.tasks.report",
     "apps.log_extract.tasks",
     "apps.log_clustering.tasks.msg",
@@ -1063,6 +1065,13 @@ ESQUERY_WHITE_LIST = [
     "apigw-dashboard",
     "bk_apigateway",
 ] + ESQUERY_EXTRA_WHITE_LIST
+
+# Resource Call 的 API 网关主动授权提供只读准入；此白名单只提升管理能力。
+# 默认继承现有 ESQUERY 白名单以保持已部署管理端兼容，各环境可通过环境变量逐步切换到
+# 专用 APP Code。最终边界由 AdminResourceRegistry.call 在真实 Handler 调用入口执行。
+RESOURCE_CALL_APP_CODE_WHITE_LIST = [
+    app for app in os.getenv("BKAPP_RESOURCE_CALL_APP_CODE_WHITE_LIST", ",".join(ESQUERY_WHITE_LIST)).split(",") if app
+]
 
 # BK repo conf
 BKREPO_ENDPOINT_URL = os.getenv("BKREPO_ENDPOINT_URL") or os.getenv("BKAPP_BKREPO_ENDPOINT_URL")
