@@ -1,3 +1,4 @@
+import base64
 import json
 import threading
 import time
@@ -565,6 +566,25 @@ class InspectionEvidenceTest(TestCase):
         self.assertEqual(sample["decode_status"], "success")
         self.assertEqual(result["time_evidence"]["selected"]["field_name"], "utctime")
         self.assertEqual(result["time_evidence"]["selected"]["timezone_assumption"], "UTC")
+
+    def test_tail_redacts_base64_decoded_text_and_json(self):
+        text_value = base64.b64encode(b"password=text-secret").decode()
+        json_value = base64.b64encode(
+            json.dumps({"password": "json-secret", "log": "token=log-secret"}).encode()
+        ).decode()
+
+        result = serialize_tail_rows(
+            [{"value": text_value}, {"value": json_value}],
+            10,
+            decode_wrapped=True,
+        )
+
+        text_sample, json_sample = result["samples"]
+        self.assertEqual(text_sample["content_encoding"], "base64+utf-8")
+        self.assertEqual(text_sample["decoded"]["value"], "password=***")
+        self.assertEqual(json_sample["content_encoding"], "base64+json")
+        self.assertEqual(json_sample["decoded"]["value"]["password"], "***")
+        self.assertEqual(json_sample["decoded"]["value"]["log"], "token=***")
 
     def test_tail_truncates_each_oversized_sample_with_explicit_sizes(self):
         result = serialize_tail_rows([{"log": "x" * (70 * 1024)}], 10)

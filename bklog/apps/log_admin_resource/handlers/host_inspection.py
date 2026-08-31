@@ -231,7 +231,12 @@ def get_host_inspection_detail(params: dict[str, Any]) -> dict[str, Any]:
     task_id = params["task_id"]
     app_code, tenant_id = _request_identity()
     record = ResourceInspectionTaskRecord.get(task_id)
-    if not record or record.get("app_code") != app_code or record.get("bk_tenant_id") != tenant_id:
+    if (
+        not record
+        or record.get("task_type") != TASK_TYPE_HOST_INSPECTION
+        or record.get("app_code") != app_code
+        or record.get("bk_tenant_id") != tenant_id
+    ):
         return _not_found_response(task_id)
 
     record = ResourceInspectionTaskRecord.normalize_timeout(record)

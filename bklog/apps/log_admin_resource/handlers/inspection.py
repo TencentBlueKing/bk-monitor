@@ -390,12 +390,13 @@ def decode_raw_data_row(row, max_bytes=MAX_SAMPLE_BYTES):
             except (TypeError, ValueError):
                 decoded_value = decoded_text
                 content_encoding = "base64+utf-8"
+            sanitized_value = sanitize_json(decoded_value, redact_text=True)
             return {
                 "decode_status": "success",
                 "decoded_from": field,
                 "content_encoding": content_encoding,
-                "decoded": limit_json_value(decoded_value, max_bytes=max_bytes),
-                "_decoded_for_time": decoded_value,
+                "decoded": limit_json_value(sanitized_value, max_bytes=max_bytes),
+                "_decoded_for_time": sanitized_value,
             }
         except (binascii.Error, UnicodeDecodeError, ValueError) as error:
             errors.append(f"{field}: {error}")

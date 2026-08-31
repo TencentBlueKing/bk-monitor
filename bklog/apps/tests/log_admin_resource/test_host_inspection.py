@@ -25,6 +25,7 @@ from apps.log_admin_resource.handlers.host_inspection import (
 )
 from apps.log_admin_resource.inspection_tasks import (
     TASK_TYPE_HOST_INSPECTION,
+    TASK_TYPE_K8S_INSPECTION,
     ResourceInspectionTaskRecord,
     request_fingerprint,
 )
@@ -370,6 +371,21 @@ class HostInspectionHandlerTest(SimpleTestCase):
             bk_tenant_id="tenant-a",
             target={"collector_config_id": 1, "bk_host_id": 2},
             request_options={},
+        )
+
+        result = get_host_inspection_detail({"task_id": record["task_id"]})
+
+        self.assertEqual(result["task_status"], "not_found")
+        self.assertIsNone(result["target"])
+
+    @patch("apps.log_admin_resource.handlers.host_inspection._request_identity", return_value=("reader-a", "tenant-a"))
+    def test_k8s_task_is_indistinguishable_from_missing_host_task(self, _identity):
+        record, _ = ResourceInspectionTaskRecord.create_or_reuse(
+            app_code="reader-a",
+            bk_tenant_id="tenant-a",
+            target={"collector_config_id": 1, "bk_biz_id": 2, "bcs_cluster_id": "BCS-K8S-1"},
+            request_options={},
+            task_type=TASK_TYPE_K8S_INSPECTION,
         )
 
         result = get_host_inspection_detail({"task_id": record["task_id"]})
