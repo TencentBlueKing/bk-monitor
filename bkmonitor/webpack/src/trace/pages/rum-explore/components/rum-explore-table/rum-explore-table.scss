@@ -86,6 +86,23 @@
     }
   }
 
+  /* 可点击唤起检索条件菜单的单元格（与 trace 检索保持一致） */
+  .explore-table-condition-menu {
+    cursor: pointer;
+
+    &:hover {
+      color: #3a84ff;
+    }
+  }
+
+  .common-table-ellipsis {
+    &:has(> .explore-table-condition-menu) {
+      &:hover {
+        color: #3a84ff;
+      }
+    }
+  }
+
   .t-affix {
     .t-table__affixed-header-elm-wrap {
       opacity: 1 !important;
