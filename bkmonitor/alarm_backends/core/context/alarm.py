@@ -439,6 +439,22 @@ class Alarm(BaseContextObject):
             return None
 
     @cached_property
+    def ref_values(self):
+        """异常评估时的命名输出快照。
+
+        恢复和无数据在未定义独立快照契约前固定返回空映射。
+        """
+        if self.is_no_data_alarm or self.parent.alert.status == EventStatus.RECOVERED:
+            return {}
+        try:
+            return self.parent.anomaly_record.extra_info.origin_alarm.data.ref_values or {}
+        except Exception as error:
+            logger.info(
+                "action(%s) get ref values error: %s", self.parent.action.id if self.parent.action else "", error
+            )
+            return {}
+
+    @cached_property
     def detail_url(self):
         """
         告警详情链接, 告警url

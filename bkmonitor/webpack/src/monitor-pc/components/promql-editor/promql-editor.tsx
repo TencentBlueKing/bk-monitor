@@ -201,12 +201,15 @@ export default class PromqlMonacoEditor extends tsc<IPromqlMonacoEditorProps> {
     this.editor.onDidContentSizeChange(_event => {
       this.updateLayout();
     });
-    const placeholderWidget = new PlaceholderWidget(this.editor);
+    if (this.readonly) {
+      this.editor.getContribution('editor.contrib.readOnlyMessageController')?.dispose();
+    }
+    const placeholderWidget = this.readonly ? null : new PlaceholderWidget(this.editor);
     this.editor.onDidChangeModelContent(_event => {
       if (!this.preventTriggerChangeEvent) {
         this.onChange(this.editor.getValue());
       }
-      placeholderWidget.update();
+      placeholderWidget?.update();
       const model = this.editor.getModel();
       if (!model) {
         return;
@@ -228,20 +231,22 @@ export default class PromqlMonacoEditor extends tsc<IPromqlMonacoEditorProps> {
     this.editor.onDidFocusEditorText(() => {
       this.$emit('focus');
     });
-    this.editor.addAction({
-      keybindings: [monaco.KeyCode.Enter],
-      id: 'enter',
-      label: 'enter',
-      run: (editor: monaco.editor.ICodeEditor): Promise<void> | void => {
-        const suggestController = editor.getContribution('editor.contrib.suggestController') as any;
-        const suggestCount = suggestController.widget.value._state || 0;
-        if (suggestCount <= 0) {
-          this.executeQuery(this.getLinterStatus());
-        } else {
-          editor.trigger('keyboard', 'acceptSelectedSuggestion', {});
-        }
-      },
-    });
+    if (!this.readonly) {
+      this.editor.addAction({
+        keybindings: [monaco.KeyCode.Enter],
+        id: 'enter',
+        label: 'enter',
+        run: (editor: monaco.editor.ICodeEditor): Promise<void> | void => {
+          const suggestController = editor.getContribution('editor.contrib.suggestController') as any;
+          const suggestCount = suggestController.widget.value._state || 0;
+          if (suggestCount <= 0) {
+            this.executeQuery(this.getLinterStatus());
+          } else {
+            editor.trigger('keyboard', 'acceptSelectedSuggestion', {});
+          }
+        },
+      });
+    }
     setTimeout(() => {
       this.updateLayout();
     }, 0);
@@ -280,6 +285,7 @@ export default class PromqlMonacoEditor extends tsc<IPromqlMonacoEditorProps> {
           ...finalOptions,
           ...(this.theme ? { theme: this.theme } : {}),
           readOnly: this.readonly,
+          domReadOnly: this.readonly,
         },
         this.overrideServices
       );
@@ -393,7 +399,7 @@ export default class PromqlMonacoEditor extends tsc<IPromqlMonacoEditorProps> {
           minHeight: `${this.minHeight}px`,
           height: `${this.wrapHeight <= 0 ? this.minHeight : this.wrapHeight}px`,
         }}
-        class={['promql-editor-component', { 'is-error': this.isError }]}
+        class={['promql-editor-component', { 'is-error': this.isError, 'is-readonly': this.readonly }]}
       >
         <div
           ref='containerElement'

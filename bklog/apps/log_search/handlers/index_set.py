@@ -264,7 +264,7 @@ class IndexSetHandler(APIModel):
                 if index_set_id not in index_id_to_index_mapping:
                     continue
                 child_index_set = index_id_to_index_mapping[index_set_id]
-                remove_ids.add(index_set_id)
+                remove_ids.add(child_index_set["index_set_id"])
                 log_index_set["children"].append(child_index_set)
                 log_index_set["indices"].extend(child_index_set["indices"])
 

@@ -457,6 +457,25 @@ class StrategyCacheManager(CacheManager):
         return result
 
     @classmethod
+    def canonical_query_output_config(cls, config: dict) -> dict:
+        if not isinstance(config, dict):
+            raise ValueError("query_output_config must be an object")
+        return {
+            "response_contract": str(config.get("response_contract", "")).strip(),
+            "legacy_output_ref": str(config.get("legacy_output_ref", "")).strip(),
+            "output_list": sorted(
+                [
+                    {
+                        "reference_name": str(output.get("reference_name", "")).strip(),
+                        "expression": str(output.get("expression", "")).strip(),
+                    }
+                    for output in config.get("output_list") or []
+                ],
+                key=lambda output: output["reference_name"],
+            ),
+        }
+
+    @classmethod
     def get_query_md5(cls, bk_biz_id: int, item: dict) -> str:
         """
         生成监控项查询MD5
@@ -516,10 +535,19 @@ class StrategyCacheManager(CacheManager):
             configs.append(params)
 
         # 只有一个查询配置时与单指标时保持一致，避免策略大幅波动
-        return count_md5(
+        legacy_query_identity = (
             configs[0]
             if len(configs) == 1 and len(item.get("expression", "").strip(" ")) <= 1
             else {"expression": item["expression"], "query_configs": configs}
+        )
+        if "query_output_config" not in item:
+            return count_md5(legacy_query_identity)
+
+        return count_md5(
+            {
+                "legacy_query": legacy_query_identity,
+                "query_output_config": cls.canonical_query_output_config(item["query_output_config"]),
+            }
         )
 
     @classmethod
