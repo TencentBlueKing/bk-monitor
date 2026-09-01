@@ -50,11 +50,11 @@ import {
   useRumTableData,
   useRumViewConfig,
 } from './composables';
-import { RUM_COLUMN_CONFIG_KEY, RUM_RESIDENT_SETTING_KEY } from './constants';
+import { RUM_COLUMN_CONFIG_KEY, RUM_COLUMN_LAYOUT_PRESET, RUM_RESIDENT_SETTING_KEY, RumModeEnum } from './constants';
 import { getApplicationList } from './services/rum-application';
 
 import type { ConditionChangeEvent } from '../trace-explore/typing';
-import type { IRumApplication } from './typings';
+import type { IRumApplication, IRumColumnLayoutPreset } from './typings';
 
 import './rum-explore.scss';
 
@@ -84,7 +84,7 @@ export default defineComponent({
     const tableCtx = useRumTableData(queryCtx.commonParams);
     const { getFieldValues } = useRumFieldValues(computed(() => viewConfigCtx.viewConfig.value.fields));
     /** 是否处于 span 视角下「指定具体类型」的特殊态 */
-    const isSpanSpecialPerspective = computed(() => store.mode === 'span' && store.spanType);
+    const isSpanSpecialPerspective = computed(() => store.mode === RumModeEnum.SPAN && store.spanType);
     /** 是否存在检索条件，决定表格空状态类型 */
     const emptyType = computed(() => {
       const hasCondition =
@@ -94,12 +94,16 @@ export default defineComponent({
       return hasCondition ? 'search-empty' : 'empty';
     });
 
+    /** 当前视角的列布局预设（默认列宽 / 固定列）：列配置与列设置面板共用同一份声明 */
+    const layoutPreset = computed<IRumColumnLayoutPreset>(() => RUM_COLUMN_LAYOUT_PRESET[store.mode] ?? {});
+
     /** 列配置集中管理：显隐/顺序 + 列宽，并持久化到用户常驻配置 */
     const columnConfig = useRumColumnConfig({
       viewConfig: viewConfigCtx.viewConfig,
       cacheKey: computed(() =>
         store.mode && store.appName ? `${RUM_COLUMN_CONFIG_KEY}_${store.mode}_${store.appName}` : ''
       ),
+      layoutPreset,
       overrideDisplayFields: computed(() =>
         isSpanSpecialPerspective.value
           ? (viewConfigCtx.viewConfig.value.span_type_display_fields?.[store.spanType] ?? [])
@@ -120,7 +124,7 @@ export default defineComponent({
     // URL 状态要在应用列表加载前恢复，否则会被默认应用覆盖
     queryCtx.initFromUrl();
 
-    const isSpanMode = computed(() => store.mode === 'span');
+    const isSpanMode = computed(() => store.mode === RumModeEnum.SPAN);
     const residentSettingOnlyId = computed(() => `${RUM_RESIDENT_SETTING_KEY}_${store.mode}_${store.appName}`);
     const favoriteList = computed(
       () =>
@@ -220,6 +224,7 @@ export default defineComponent({
       applicationList,
       columnConfig,
       emptyType,
+      layoutPreset,
       isSpanSpecialPerspective,
       favoriteBoxRef,
       favoriteCtx,
@@ -358,6 +363,7 @@ export default defineComponent({
                               displayableFields={this.columnConfig.displayableFields.value}
                               emptyType={this.emptyType}
                               fieldMap={this.columnConfig.fieldMap.value}
+                              fixedDisplayList={this.layoutPreset.leftFixedColumns}
                               hasMore={tableCtx.hasMore.value}
                               loading={tableCtx.loading.value}
                               mode={this.store.mode}

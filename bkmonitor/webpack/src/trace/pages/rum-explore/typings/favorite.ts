@@ -26,7 +26,7 @@
 
 import type { EMode, IWhereItem } from '../../../components/retrieval-filter/typing';
 import type { TimeRangeType } from '../../../components/time-range/utils';
-import type { RumMode } from './common';
+import type { RumModeType } from './enum';
 
 /**
  * RUM 检索的收藏配置。
@@ -39,7 +39,7 @@ export interface IRumFavoriteConfig {
   componentData: {
     commonWhere: IWhereItem[];
     filterMode: EMode;
-    mode: RumMode;
+    mode: RumModeType;
     refreshInterval: number;
     /** 当前选中的 span 类型快捷筛选，空串表示「全部」 */
     spanType: string;
@@ -49,7 +49,7 @@ export interface IRumFavoriteConfig {
     app_name: string;
     end_time: string;
     filters: IWhereItem[];
-    mode: RumMode;
+    mode: RumModeType;
     query: string;
     sort?: string[];
     start_time: string;
