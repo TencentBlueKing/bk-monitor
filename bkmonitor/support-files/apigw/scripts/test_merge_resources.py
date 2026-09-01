@@ -33,6 +33,7 @@ _ALERT_HANDLING_MCP_FILE = _RESOURCES_DIR / "internal/user/alert_handling_mcp.ya
 _LOG_COLLECTION_MCP_FILE = _RESOURCES_DIR / "internal/user/log_collection_mcp.yaml"
 _LOG_COLLECTION_INDEX_SET_MCP_FILE = _RESOURCES_DIR / "internal/user/log_collection_index_set_mcp.yaml"
 _LOG_COLLECTION_SPECIAL_CREATE_MCP_FILE = _RESOURCES_DIR / "internal/user/log_collection_special_create_mcp.yaml"
+_LOG_COLLECTION_SPECIAL_UPDATE_MCP_FILE = _RESOURCES_DIR / "internal/user/log_collection_special_update_mcp.yaml"
 
 _ALERT_QUERY_OPERATION_IDS = {
     "list_alerts",
@@ -194,6 +195,18 @@ def test_log_collection_mcp_exposes_index_groups_and_mixed_access_types():
     assert set(special_paths) == {"/mcp/create_custom_report/", "/mcp/create_third_party_es/"}
     assert _operation_ids(special_paths) == {"create_custom_report", "create_third_party_es"}
     for path_data in special_paths.values():
+        method_data = path_data["post"]
+        schema = method_data["requestBody"]["content"]["application/json"]["schema"]
+        parent_ids_schema = schema["properties"]["parent_index_set_ids"]
+        assert parent_ids_schema["type"] == "array"
+        assert parent_ids_schema["items"]["minimum"] == 1
+        assert schema["properties"]["confirm"]["enum"] == [True]
+        assert method_data["tags"] == ["log_collection_mcp"]
+
+    special_update_paths = _load_paths(_LOG_COLLECTION_SPECIAL_UPDATE_MCP_FILE)
+    assert set(special_update_paths) == {"/mcp/update_custom_report/", "/mcp/update_third_party_es/"}
+    assert _operation_ids(special_update_paths) == {"update_custom_report", "update_third_party_es"}
+    for path_data in special_update_paths.values():
         method_data = path_data["post"]
         schema = method_data["requestBody"]["content"]["application/json"]["schema"]
         parent_ids_schema = schema["properties"]["parent_index_set_ids"]
