@@ -12,6 +12,8 @@ from __future__ import annotations
 
 from unittest.mock import Mock
 
+from jsonschema import Draft7Validator
+
 from kernel_api.resource.bkm_cli import BkmCliOpCallResource
 from kernel_api.rpc import KernelRPCRegistry
 from kernel_api.rpc.bkm_cli_registry import BkmCliOpRegistry
@@ -130,6 +132,28 @@ def test_describe_returns_external_schema_and_server_derived_scope():
     query_references = {item["reference_name"] for item in out["next_call"]["params"]["query_list"]}
     assert query_references == {"A"}
     assert out["parameter_sources"]["query_list"] == {"operation": "discover_query_ts_metrics"}
+
+
+def test_describe_query_ts_schema_matches_named_output_runtime_contract():
+    schema = query_unify_query({"mode": "describe", "operation": "query_ts"})["params_schema"]
+    validator = Draft7Validator(schema)
+
+    named_params = _query_ts_params()
+    assert not list(validator.iter_errors(named_params))
+    for missing_field in ("legacy_output_ref", "output_list"):
+        invalid_params = dict(named_params)
+        invalid_params.pop(missing_field)
+        assert list(validator.iter_errors(invalid_params))
+
+    legacy_params = {
+        key: value
+        for key, value in named_params.items()
+        if key not in {"response_contract", "legacy_output_ref", "output_list"}
+    }
+    assert not list(validator.iter_errors(legacy_params))
+    for forbidden_field in ("legacy_output_ref", "output_list"):
+        invalid_params = legacy_params | {forbidden_field: named_params[forbidden_field]}
+        assert list(validator.iter_errors(invalid_params))
 
 
 def test_discover_query_ts_metrics_projects_query_template_and_forwards_scope_and_page(monkeypatch):
