@@ -107,11 +107,12 @@ const mutations = {
   },
   [SET_BIZ_ID](state, id) {
     const parsed = parseBizId(id);
+    if (!Number.isFinite(parsed)) return;
     window.cc_biz_id = parsed;
     window.bk_biz_id = parsed;
     const bizItem = state.bizIdMap.get(parsed);
     window.space_uid = bizItem?.space_uid;
-    state.bizId = Number.isFinite(parsed) ? parsed : id;
+    state.bizId = parsed;
     !bizItem?.is_demo && localStorage.setItem(LOCAL_BIZ_STORE_KEY, `${state.bizId}`);
   },
   [SET_APP_STATE](state, data) {
