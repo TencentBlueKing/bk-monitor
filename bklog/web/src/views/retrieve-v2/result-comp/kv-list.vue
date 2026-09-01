@@ -953,7 +953,7 @@
         const key = field.toLowerCase();
         // 提取最后一段字段名，仅用于trace检索的嵌套字段匹配
         const lastSegment = key.includes('.') ? key.split('.').pop() : key;
-        const trace_id = String(this.data[field])
+        const traceId = String(this.data[field])
           .replace(/<mark>/g, '')
           .replace(/<\/mark>/g, '');
         let path = '';
@@ -989,7 +989,7 @@
             case 'ip':
             case 'bk_host_id':
               {
-                const endStr = `${trace_id}${field === 'bk_host_id' && this.isHaveBkHostIDAndHaveValue ? '' : '-0'}`;
+                const endStr = `${traceId}${field === 'bk_host_id' && this.isHaveBkHostIDAndHaveValue ? '' : '-0'}`;
                 path = `/?bizId=${this.bkBizId}#/performance/detail/${endStr}`;
               }
               break;

@@ -1281,7 +1281,8 @@ export default defineComponent({
      * 用 layoutToken 丢弃过期的异步样本行读取结果。
      */
     const refreshVisibleFieldsColumnLayout = async () => {
-      const layoutToken = ++visibleFieldsLayoutToken;
+      visibleFieldsLayoutToken += 1;
+      const layoutToken = visibleFieldsLayoutToken;
       if (!visibleFields.value.length) {
         setFullColumns();
         triggerColumnLayoutReflow();

@@ -199,7 +199,8 @@ export default defineComponent({
     };
 
     const runPipeline = async (resetWindow = true) => {
-      const token = ++pipelineToken;
+      pipelineToken += 1;
+      const token = pipelineToken;
       if (resetWindow) {
         pagination.value.current = 1;
       }

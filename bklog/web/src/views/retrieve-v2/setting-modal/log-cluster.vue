@@ -293,7 +293,7 @@
           const res = await this.$http.request(requestUrl, !isDefault && { params, data });
           const {
             max_dist_list,
-            predefined_varibles,
+            predefined_varibles: predefinedVaribles,
             max_log_length,
             clustering_fields,
             filter_rules: filterRules,
@@ -305,10 +305,10 @@
             ...item,
             value: Array.isArray(item.value) ? [...item.value] : [item.value],
           }));
-          this.defaultVaribles = predefined_varibles;
+          this.defaultVaribles = predefinedVaribles;
           const assignObj = {
             max_dist_list,
-            predefined_varibles,
+            predefined_varibles: predefinedVaribles,
             max_log_length,
             clustering_fields,
             filter_rules: newFilterRules || [],
@@ -398,8 +398,14 @@
       handleSubmitClusterChange() {
         this.isHandle = true;
         const { index_set_id, bk_biz_id } = this.indexSetItem;
-        const { max_dist_list, delimeter, max_log_length, is_case_sensitive, clustering_fields, filter_rules } =
-          this.formData;
+        const {
+          max_dist_list,
+          delimeter,
+          max_log_length,
+          is_case_sensitive,
+          clustering_fields,
+          filter_rules: filterRules,
+        } = this.formData;
         const paramsData = {
           max_dist_list,
           predefined_varibles: this.$refs.ruleTableRef.ruleArrToBase64(),
@@ -407,7 +413,7 @@
           max_log_length,
           is_case_sensitive,
           clustering_fields,
-          filter_rules: filter_rules
+          filter_rules: filterRules
             .filter(item => item.value.length)
             .map(item => ({
               fields_name: item.fields_name,

@@ -703,9 +703,9 @@ export async function* parseJSONArrayStream(stream) {
           inString = true;
         } else if (ch === '{') {
           if (depth === 0) start = i;
-          depth++;
+          depth += 1;
         } else if (ch === '}') {
-          depth--;
+          depth -= 1;
           if (depth === 0 && start >= 0) {
             yield JSONBigNumber.parse(buffer.slice(start, i + 1));
             start = -1;

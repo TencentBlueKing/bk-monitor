@@ -758,9 +758,9 @@
         return this.hotColdAttrSet.length < 2;
       },
       sourceNameCheck() {
-        const { source_type, source_name } = this.formData;
+        const { source_type: sourceType, source_name: sourceName } = this.formData;
 
-        if (source_type === 'other' && source_name.trim() === '') return true;
+        if (sourceType === 'other' && sourceName.trim() === '') return true;
         return false;
       },
       // 可见范围单选判断，禁用下拉框

@@ -625,10 +625,10 @@
 
         // 根据预览值 value 判断不是数字，则默认为字符串
         arr.forEach(item => {
-          const { value, field_type } = item;
+          const { value, field_type: fieldType } = item;
           item.participleState = item.tokenize_on_chars ? 'custom' : 'default';
 
-          if (field_type === '' && value !== '' && this.judgeNumber(value)) {
+          if (fieldType === '' && value !== '' && this.judgeNumber(value)) {
             item.field_type = 'string';
             item.previous_type = 'string';
           }
@@ -831,23 +831,29 @@
         });
       },
       checkFieldNameItem(row) {
-        const { field_name, is_delete, field_index, is_built_in, alias_name } = row;
+        const {
+          field_name: fieldName,
+          is_delete: isDelete,
+          field_index,
+          is_built_in: isBuiltIn,
+          alias_name: aliasName,
+        } = row;
         let result = '';
-        if (!is_delete && !is_built_in && !alias_name) {
-          if (!field_name) {
+        if (!isDelete && !isBuiltIn && !aliasName) {
+          if (!fieldName) {
             result = this.$t('必填项');
-          } else if (this.extractMethod !== 'bk_log_json' && !/^(?!_)(?!.*?_$)^[A-Za-z0-9_]+$/gi.test(field_name)) {
+          } else if (this.extractMethod !== 'bk_log_json' && !/^(?!_)(?!.*?_$)^[A-Za-z0-9_]+$/gi.test(fieldName)) {
             result = this.$t('只能包含a-z、A-Z、0-9和_，且不能以_开头和结尾');
           } else if (
             this.extractMethod !== 'bk_log_json' &&
-            this.globalsData.field_built_in.find(item => item.id === field_name.toLocaleLowerCase())
+            this.globalsData.field_built_in.find(item => item.id === fieldName.toLocaleLowerCase())
           ) {
             result =
               this.extractMethod === 'bk_log_regexp'
                 ? this.$t('字段名与系统字段重复，必须修改正则表达式')
                 : this.$t('字段名与系统内置字段重复');
           } else if (this.extractMethod === 'bk_log_delimiter' || this.selectEtlConfig === 'bk_log_json') {
-            result = this.filedNameIsConflict(field_index, field_name) ? this.$t('字段名称冲突, 请调整') : '';
+            result = this.filedNameIsConflict(field_index, fieldName) ? this.$t('字段名称冲突, 请调整') : '';
           } else {
             result = '';
           }

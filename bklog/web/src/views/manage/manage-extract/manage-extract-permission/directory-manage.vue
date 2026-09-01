@@ -337,7 +337,7 @@
         // 必须以 / 开头
         // 必须以 / 结尾
 
-        return !/[^\w\-\.\/]/.test(val) && !/\.\//.test(val) && val.startsWith('/') && val.endsWith('/');
+        return !/[^\w\-./]/.test(val) && !/\.\//.test(val) && val.startsWith('/') && val.endsWith('/');
       },
       // 校验文件后缀
       validateFileExtension(val) {

@@ -47,7 +47,7 @@ export interface IFieldInfo {
 }
 
 /** 结果表信息响应结构（仅收敛 useOperation 里用到的 fields） */
-export interface IResultTableInfoResponse extends IApiResponse<{ fields?: IFieldInfo[]; [key: string]: unknown }> {}
+export type IResultTableInfoResponse = IApiResponse<{ fields?: IFieldInfo[]; [key: string]: unknown }>;
 
 /** 索引组列表响应结构 */
 export interface IIndexGroupListResponse {

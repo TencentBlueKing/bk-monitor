@@ -376,7 +376,7 @@
   const rules = {
     name: [
       {
-        validator: () => /^[\u4e00-\u9fa5\w\s\-\+]+$/.test(addGroupData.value.name),
+        validator: () => /^[\u4e00-\u9fa5\w\s\-+]+$/.test(addGroupData.value.name),
         message: $t('组名不规范'),
         trigger: 'blur',
       },

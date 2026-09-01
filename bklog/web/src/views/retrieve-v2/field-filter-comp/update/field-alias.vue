@@ -59,7 +59,7 @@
   const submit = async () => {
     try {
       await checkQueryAlias();
-      const alias_settings = formData.value
+      const aliasSettings = formData.value
         .filter(item => !item.is_objectKey)
         .reduce((acc, item) => {
           if (item.field_type !== 'object') {
@@ -84,7 +84,7 @@
           index_set_id: route.params.indexId,
         },
         data: {
-          alias_settings,
+          alias_settings: aliasSettings,
         },
       });
 

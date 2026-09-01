@@ -73,7 +73,7 @@
   const fetchDirectoryList = () => {
     basicLoading.value = true;
     $http
-      .request('dashboard/get_dashboard_directory_tree', {
+      .request('dashboard/getDashboardDirectoryTree', {
         query: {
           bk_biz_id: store.state.bkBizId || 0,
         },
@@ -174,7 +174,7 @@
           type: 'folder',
           bk_biz_id: store.state.bkBizId || 0,
         };
-        const res = await $http.request('dashboard/create_dashboard_directory', {
+        const res = await $http.request('dashboard/createDashboardDirectory', {
           data,
         });
 
@@ -193,7 +193,7 @@
       } else {
         // 创建仪表盘
         const folderId = formData.value.directory.replace('folder_', '');
-        const res = await $http.request('dashboard/create_dashboard_directory', {
+        const res = await $http.request('dashboard/createDashboardDirectory', {
           data: {
             title: inputValue.trim(),
             type: 'dashboard',
@@ -291,7 +291,7 @@
   };
   const saveChartToDashboard = async dashboardUids => {
     try {
-      const result = await $http.request('dashboard/save_to_dashboard', {
+      const result = await $http.request('dashboard/saveToDashboard', {
         data: {
           panel_name: formData.value.chartName || '',
           query_string: queryStringData.value || '',

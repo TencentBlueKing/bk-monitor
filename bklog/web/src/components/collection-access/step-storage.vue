@@ -538,9 +538,9 @@
         return projectManages(this.$store.state.topMenu, 'collection-item');
       },
       defaultRetention() {
-        const { storage_duration_time } = this.globalsData;
+        const { storage_duration_time: storageDurationTime } = this.globalsData;
 
-        return storage_duration_time?.filter(item => item.default === true)[0].id;
+        return storageDurationTime?.filter(item => item.default === true)[0].id;
       },
       isCanUseAssessment() {
         /**
@@ -728,18 +728,18 @@
       getDetail() {
         const tsStorageId = this.formData.storage_cluster_id;
         const {
-          table_id,
-          storage_cluster_id,
+          table_id: tableId,
+          storage_cluster_id: storageClusterId,
           retention,
           storage_replies,
           storage_shards_nums: storageShardsNums,
-          allocation_min_days,
+          allocation_min_days: allocationMinDays,
           table_id_prefix,
           view_roles,
           etl_config,
-          etl_params,
+          etl_params: etlParams,
           fields,
-          collector_config_name_en,
+          collector_config_name_en: collectorConfigNameEn,
         } = this.curCollect;
         const option = { time_zone: '', time_format: '' };
         const copyFields = fields ? structuredClone(fields) : [];
@@ -758,14 +758,14 @@
         /* eslint-disable */
         this.params.etl_config = etl_config;
         Object.assign(this.params.etl_params, {
-          separator_regexp: etl_params.separator_regexp || '',
-          separator: etl_params.separator || '',
+          separator_regexp: etlParams.separator_regexp || '',
+          separator: etlParams.separator || '',
         });
-        this.isUnmodifiable = !!(table_id || storage_cluster_id);
-        this.isUnmodfyIndexName = !!(table_id || storage_cluster_id || collector_config_name_en);
+        this.isUnmodifiable = !!(tableId || storageClusterId);
+        this.isUnmodfyIndexName = !!(tableId || storageClusterId || collectorConfigNameEn);
         this.fieldType = etl_config || 'bk_log_text';
-        let default_exclusive_cluster_id;
-        if (!storage_cluster_id && this.exclusiveList.length) {
+        let defaultExclusiveClusterId;
+        if (!storageClusterId && this.exclusiveList.length) {
           // 新增时若有业务独享集群则直接赋值独享集群列表第一条id
           this.isChangeSelect = true; // 不提示切换集群dialog
           default_exclusive_cluster_id = this.exclusiveList[0].storage_cluster_id;
@@ -773,9 +773,9 @@
         // this.switcher = etl_config ? etl_config !== 'bk_log_text' : false
         /* eslint-enable */
         Object.assign(this.formData, {
-          table_id: table_id ? table_id : collector_config_name_en ? collector_config_name_en : '',
+          table_id: tableId ? tableId : collectorConfigNameEn ? collectorConfigNameEn : '',
 
-          storage_cluster_id: default_exclusive_cluster_id ? default_exclusive_cluster_id : storage_cluster_id,
+          storage_cluster_id: defaultExclusiveClusterId ? defaultExclusiveClusterId : storageClusterId,
           es_shards: storageShardsNums,
           table_id_prefix,
           etl_config: this.fieldType,
@@ -790,13 +790,13 @@
               // separator_field_list: ''
             },
 
-            etl_params ? structuredClone(etl_params) : {},
+            etlParams ? structuredClone(etlParams) : {},
           ),
           fields: copyFields.filter(item => !item.is_built_in),
           retention: retention ? `${retention}` : this.defaultRetention,
           storage_replies,
 
-          allocation_min_days: allocation_min_days ? `${allocation_min_days}` : '0',
+          allocation_min_days: allocationMinDays ? `${allocationMinDays}` : '0',
           view_roles,
         });
 
@@ -809,7 +809,7 @@
           });
         }
 
-        this.editStorageClusterID = storage_cluster_id;
+        this.editStorageClusterID = storageClusterId;
         this.formData.storage_cluster_id =
           this.formData.storage_cluster_id === null ? tsStorageId : this.formData.storage_cluster_id;
         this.basicLoading = false;

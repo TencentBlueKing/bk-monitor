@@ -516,7 +516,7 @@ export default defineComponent({
      */
     const handleWindowsEventLogConfig = (params: IFormData['params'] = {}) => {
       const normalizedParams = params || {};
-      const { paths, exclude_files, winlog_match_op, winlog_name, ...restParams } = normalizedParams;
+      const { paths, exclude_files, winlog_match_op, winlog_name: winlogName, ...restParams } = normalizedParams;
 
       // 仅回填有效的事件过滤条件，空值时保留一个可编辑的占位行
       const eventSettings = WINLOG_FILTER_TYPES.reduce<IEventFilterItem[]>((list, type) => {
@@ -536,7 +536,7 @@ export default defineComponent({
         ...getEventFilterParams(eventSettingList.value),
       };
 
-      const logSpecies = Array.isArray(winlog_name) ? winlog_name : [];
+      const logSpecies = Array.isArray(winlogName) ? winlogName : [];
       // 过滤出自定义的日志种类（不在预定义列表中的）
       otherSpeciesList.value = logSpecies.filter(item => LOG_SPECIES_LIST.findIndex(i => i.id === item) === -1);
 
@@ -552,13 +552,13 @@ export default defineComponent({
     const transformContainerConfigItem = (configItem: any) => {
       const {
         namespaces,
-        container_name,
+        container_name: containerName,
         match_expressions,
         match_labels,
         workload_name,
         workload_type,
-        container_name_exclude,
-        match_annotations,
+        container_name_exclude: containerNameExclude,
+        match_annotations: matchAnnotations,
         namespaces_exclude: namespacesExcludeList,
         params: itemParams,
       } = configItem;
@@ -573,12 +573,12 @@ export default defineComponent({
         match_labels,
       });
       const annotationSelector = getLabelSelectorArray({
-        match_annotations: match_annotations || [],
+        match_annotations: matchAnnotations || [],
       });
 
       // 确定容器的排除操作符
-      const containerExclude = container_name_exclude ? '!=' : '=';
-      const containerNameList = getContainerNameList(container_name || container_name_exclude);
+      const containerExclude = containerNameExclude ? '!=' : '=';
+      const containerNameList = getContainerNameList(containerName || containerNameExclude);
 
       // 处理命名空间：优先使用 namespaces，如果为空则使用 namespaces_exclude
       let effectiveNamespaces = namespaces || [];
@@ -618,12 +618,12 @@ export default defineComponent({
           match_expressions,
         },
         annotation_selector: {
-          match_annotations: match_annotations || [],
+          match_annotations: matchAnnotations || [],
         },
         container: {
           workload_type,
           workload_name,
-          container_name,
+          container_name: containerName,
         },
         params: {
           ...itemParams,
@@ -652,7 +652,7 @@ export default defineComponent({
      * @param detailData - 详情数据
      */
     const initializeBaseFormData = (detailData: IFormData) => {
-      const { collector_config_name, params } = detailData;
+      const { collector_config_name: collectorConfigName, params } = detailData;
 
       // 转换路径和排除文件格式
       const paths = transformStringArrayToInputValue(params.paths);
@@ -666,7 +666,7 @@ export default defineComponent({
           paths,
           exclude_files: excludeFiles,
         },
-        index_set_name: collector_config_name,
+        index_set_name: collectorConfigName,
         extra_labels: detailData.extra_labels?.length
           ? detailData.extra_labels
           : [{ key: '', value: '', operator: '=' }],
@@ -675,8 +675,8 @@ export default defineComponent({
        * 克隆的时候数据处理
        */
       if (props.isClone) {
-        const { collector_config_name } = formData.value;
-        const cloneName = `${collector_config_name}_clone`;
+        const { collector_config_name: collectorConfigName } = formData.value;
+        const cloneName = `${collectorConfigName}_clone`;
         formData.value = {
           ...formData.value,
           collector_config_name: cloneName,
@@ -700,8 +700,14 @@ export default defineComponent({
     };
 
     const initConfig = (data: IFormData) => {
-      const { configs, collector_scenario_id, params, target_node_type: type, target_nodes: nodes } = data;
-      logType.value = collector_scenario_id;
+      const {
+        configs,
+        collector_scenario_id: collectorScenarioId,
+        params,
+        target_node_type: type,
+        target_nodes: nodes,
+      } = data;
+      logType.value = collectorScenarioId;
       /**
        * 初始化采集目标
        */
@@ -715,7 +721,7 @@ export default defineComponent({
         handleWindowsEventLogConfig(params);
       } else if (showClusterListKeys.includes(props.scenarioId)) {
         // 容器采集（文件采集和标准输出）特殊处理
-        handleContainerCollectionConfig(configs, collector_scenario_id);
+        handleContainerCollectionConfig(configs, collectorScenarioId);
       }
     };
 
@@ -759,9 +765,9 @@ export default defineComponent({
         data={formData.value}
         isEdit={isUpdate.value}
         on-change={data => {
-          const { index_set_name } = data;
+          const { index_set_name: indexSetName } = data;
           isConfigChange.value = true;
-          formData.value = { ...formData.value, ...data, collector_config_name: index_set_name };
+          formData.value = { ...formData.value, ...data, collector_config_name: indexSetName };
         }}
       />
     );
@@ -1293,14 +1299,14 @@ export default defineComponent({
 
     // 处理winevent场景的请求数据
     const handleWineventlogRequestData = (baseParam, newParams, dataEncoding) => {
-      const { paths, exclude_files, winlog_match_op, ...rect } = newParams;
+      const { paths, exclude_files, winlog_match_op: winlogMatchOp, ...rect } = newParams;
       WINLOG_FILTER_TYPES.forEach(type => delete rect[type]);
       const eventFilterParams = getEventFilterParams(eventSettingList.value);
       const params = {
         ...rect,
         ...eventFilterParams,
       };
-      const matchOp = Array.isArray(winlog_match_op) ? winlog_match_op[0] : winlog_match_op;
+      const matchOp = Array.isArray(winlogMatchOp) ? winlogMatchOp[0] : winlogMatchOp;
       if (eventFilterParams.winlog_content?.length && matchOp) {
         params.winlog_match_op = matchOp;
       }
@@ -1388,7 +1394,7 @@ export default defineComponent({
           collector_type,
           namespaces,
           label_selector,
-          annotation_selector,
+          annotation_selector: annotationSelector,
           noQuestParams,
           containerNameList,
         } = item;
@@ -1406,14 +1412,14 @@ export default defineComponent({
         const namespacesValue = isNode ? [] : JSON.stringify(namespaces) === '["*"]' ? [] : namespaces || [];
 
         // Node 采集模式下，workload_type 和 workload_name 清空
-        const workload_type = isNode ? '' : container?.workload_type || '';
-        const workload_name = isNode ? '' : container?.workload_name || '';
+        const workloadType = isNode ? '' : container?.workload_type || '';
+        const workloadName = isNode ? '' : container?.workload_name || '';
 
         return {
           data_encoding,
           container: {
-            workload_type,
-            workload_name,
+            workload_type: workloadType,
+            workload_name: workloadName,
             [containerKey]: containerNameValue,
           },
           params: {
@@ -1425,8 +1431,8 @@ export default defineComponent({
           [namespacesKey]: namespacesValue,
           label_selector,
           annotation_selector: {
-            ...annotation_selector,
-            match_annotations: annotation_selector?.match_annotations || [],
+            ...annotationSelector,
+            match_annotations: annotationSelector?.match_annotations || [],
           },
         };
       });

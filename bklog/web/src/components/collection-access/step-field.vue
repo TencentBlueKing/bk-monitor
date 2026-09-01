@@ -1039,7 +1039,7 @@
     data() {
       return {
         refresh: false,
-        defaultRegex: '(?P<request_ip>[\d\.]+)[^[]+\[(?P<request_time>[^]]+)\]',
+        defaultRegex: '(?P<request_ip>[\\d.]+)[^[]+\\[(?P<request_time>[^]]+)\\]',
         isLoading: false,
         basicLoading: false,
         logOriginalLoding: false,
@@ -1645,7 +1645,7 @@ __ext_json.service.labels   ${this.$t('动态对象字段')}`;
       setTempDetail(data) {
         const {
           name,
-          clean_type,
+          clean_type: cleanType,
           etl_params: etlParams,
           etl_fields: etlFields,
           visible_type,
@@ -1653,8 +1653,8 @@ __ext_json.service.labels   ${this.$t('动态对象字段')}`;
         } = data;
         this.saveTempName = name;
 
-        this.params.etl_config = clean_type;
-        this.catchEtlConfig = clean_type;
+        this.params.etl_config = cleanType;
+        this.catchEtlConfig = cleanType;
         Object.assign(this.params.etl_params, {
           separator_regexp: etlParams.separator_regexp || '',
           separator: etlParams.separator || '',
@@ -1674,7 +1674,7 @@ __ext_json.service.labels   ${this.$t('动态对象字段')}`;
 
         this.visibleBkBiz = visibleBkBizList;
         this.cacheVisibleList = visibleBkBizList;
-        this.fieldType = clean_type;
+        this.fieldType = cleanType;
         this.enableMetaData = !!etlParams.path_regexp;
         Object.assign(this.formData, {
           etl_config: this.fieldType,
@@ -2561,10 +2561,10 @@ __ext_json.service.labels   ${this.$t('动态对象字段')}`;
           })
           .then(res => {
             if (res.data) {
-              const { clean_type, etl_params: etlParams, etl_fields: etlFields } = res.data;
+              const { clean_type: cleanType, etl_params: etlParams, etl_fields: etlFields } = res.data;
               this.formData.fields.splice(0, this.formData.fields.length);
 
-              this.params.etl_config = clean_type;
+              this.params.etl_config = cleanType;
               const logTimeOption = {};
               const previousStateFields = etlFields.map(item => {
                 if (item.is_time) {
@@ -2584,7 +2584,7 @@ __ext_json.service.labels   ${this.$t('动态对象字段')}`;
                 separator_regexp: etlParams.separator_regexp || '',
                 separator: etlParams.separator || '',
               });
-              this.fieldType = clean_type;
+              this.fieldType = cleanType;
               this.enableMetaData = !!etlParams.path_regexp;
 
               Object.assign(this.formData, {
@@ -2874,7 +2874,7 @@ __ext_json.service.labels   ${this.$t('动态对象字段')}`;
       getNotParticipleFieldTableData() {
         const fieldsData = this.$refs.fieldTable.getData() || [];
 
-        const { field_name, time_zone, time_format } = this.formData;
+        const { field_name: fieldName, time_zone: timeZone, time_format: timeFormat } = this.formData;
         const isReportingTime = this.formData.log_reporting_time;
         const result = fieldsData.map(item => {
           // 通用的删除操作
@@ -2887,12 +2887,12 @@ __ext_json.service.labels   ${this.$t('动态对象字段')}`;
               item.option.time_zone = '';
               item.option.time_format = '';
             }
-          } else if (item.field_name === field_name) {
+          } else if (item.field_name === fieldName) {
             // 当不是日志上报时间时
             item.is_time = true;
             if (item.option) {
-              item.option.time_zone = time_zone;
-              item.option.time_format = time_format;
+              item.option.time_zone = timeZone;
+              item.option.time_format = timeFormat;
             }
           }
 
@@ -2966,13 +2966,13 @@ __ext_json.service.labels   ${this.$t('动态对象字段')}`;
         });
       },
       addChildrenToBuiltField(builtFieldList, item, name) {
-        const field_name = name.split('.')[0].replace(/^_+|_+$/g, '');
+        const fieldName = name.split('.')[0].replace(/^_+|_+$/g, '');
         builtFieldList.forEach(builtField => {
           // 动态对象边界字段（flattened）不再递归挂载内部 mapping 字段
           if (builtField.field_type === 'flattened') {
             return;
           }
-          if (builtField.field_type === 'object' && field_name === builtField.field_name?.split('.')[0]) {
+          if (builtField.field_type === 'object' && fieldName === builtField.field_name?.split('.')[0]) {
             if (!Array.isArray(builtField.children)) {
               builtField.children = [];
               this.$set(builtField, 'expand', false);

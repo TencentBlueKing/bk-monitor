@@ -37,6 +37,15 @@ import vueParser from 'vue-eslint-parser';
 
 const dirname = path.dirname(fileURLToPath(import.meta.url));
 
+const unusedExpressionsRule = [
+  'error',
+  {
+    allowShortCircuit: true,
+    allowTaggedTemplates: true,
+    allowTernary: true,
+  },
+];
+
 const typescriptProblemRules = {
   '@typescript-eslint/no-duplicate-enum-values': 'error',
   '@typescript-eslint/no-extra-non-null-assertion': 'error',
@@ -52,7 +61,6 @@ const typescriptProblemRules = {
 const typescriptMigrationWarnings = {
   '@typescript-eslint/no-empty-object-type': 'warn',
   '@typescript-eslint/no-this-alias': 'warn',
-  '@typescript-eslint/no-unused-expressions': 'warn',
   '@typescript-eslint/triple-slash-reference': 'warn',
 };
 
@@ -132,6 +140,7 @@ export default [
       'no-restricted-properties': 'off',
       'no-restricted-syntax': 'off',
       'no-underscore-dangle': 'off',
+      'no-unused-expressions': unusedExpressionsRule,
       'prefer-destructuring': 'off',
     },
   },
@@ -157,6 +166,7 @@ export default [
       '@typescript-eslint/no-explicit-any': 'off',
       '@typescript-eslint/no-require-imports': 'off',
       '@typescript-eslint/no-unnecessary-parameter-property-assignment': 'warn',
+      '@typescript-eslint/no-unused-expressions': unusedExpressionsRule,
       '@typescript-eslint/no-unused-vars': typescriptUnusedVarsRule,
       '@typescript-eslint/no-useless-empty-export': 'warn',
       '@typescript-eslint/no-var-requires': 'off',
@@ -182,6 +192,7 @@ export default [
       ...typescriptProblemRules,
       ...typescriptMigrationWarnings,
       '@typescript-eslint/no-require-imports': 'off',
+      '@typescript-eslint/no-unused-expressions': unusedExpressionsRule,
       '@typescript-eslint/no-unused-vars': typescriptUnusedVarsRule,
       '@typescript-eslint/no-var-requires': 'off',
     },

@@ -227,7 +227,9 @@ class ClusterTableWorkerService {
     },
     timeout: number,
   ) {
-    const id = `cluster-table:${Date.now()}:${this.requestSeq++}`;
+    const requestSeq = this.requestSeq;
+    this.requestSeq += 1;
+    const id = `cluster-table:${Date.now()}:${requestSeq}`;
     const worker = this.ensureWorker();
     return new Promise<ClusterViewResult | true>((resolve, reject) => {
       const timer = setTimeout(() => {

@@ -67,7 +67,7 @@ export default (options: ComputedRef<TextOption>) => {
     const length = groups.length;
     let groupIndex = 0;
     groupLoop: for (const group of groups) {
-      groupIndex++;
+      groupIndex += 1;
 
       for (const char of group) {
         const charWidth = getTextWidth(char, font);

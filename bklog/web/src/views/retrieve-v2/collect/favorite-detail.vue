@@ -182,7 +182,7 @@
     showGroupInput.value = false;
     if (groupInput.value && groupInput.value !== props.value.group_id) {
       groupLoading.value = true;
-      const group_name = props.groups.find(item => String(item.id) === String(groupInput.value))?.name;
+      const groupName = props.groups.find(item => String(item.id) === String(groupInput.value))?.name;
       const params = {
         ...props.value,
         group_id: groupInput.value === 'null' ? null : groupInput.value,
@@ -192,7 +192,7 @@
       success &&
         emit('success', {
           ...params,
-          group_name: group_name || props.value.group_name,
+          group_name: groupName || props.value.group_name,
         });
     }
   };

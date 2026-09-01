@@ -350,7 +350,7 @@
       checkName() {
         if (this.verifyData.matchKey === '') return true;
 
-        return /^([A-Za-z0-9][-A-Za-z0-9_.\/]*)?[A-Za-z0-9]$/.test(this.verifyData.matchKey);
+        return /^([A-Za-z0-9][-A-Za-z0-9_./]*)?[A-Za-z0-9]$/.test(this.verifyData.matchKey);
       },
       resetStatus() {
         this.isEdit = false;

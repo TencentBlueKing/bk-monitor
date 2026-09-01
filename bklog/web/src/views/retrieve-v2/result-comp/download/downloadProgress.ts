@@ -125,7 +125,7 @@ export function formatNumber(num: number | null | undefined) {
 
   while (value >= 1000 && unitIndex < UNITS.length - 1) {
     value /= 1000;
-    unitIndex++;
+    unitIndex += 1;
   }
 
   value = Number(value.toFixed(1));
@@ -133,7 +133,7 @@ export function formatNumber(num: number | null | undefined) {
   // 四舍五入后达到1000，则升级单位
   if (value >= 1000 && unitIndex < UNITS.length - 1) {
     value = 1;
-    unitIndex++;
+    unitIndex += 1;
   }
 
   return `${value}${UNITS[unitIndex]}`;

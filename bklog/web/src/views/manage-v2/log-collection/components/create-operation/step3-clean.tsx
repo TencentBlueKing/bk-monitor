@@ -151,7 +151,7 @@ export default defineComponent({
     const store = useStore();
     const { t } = useLocale();
     const route = useRoute();
-    const defaultRegex = '(?P<request_ip>[d.]+)[^[]+[(?P<request_time>[^]]+)]';
+    const defaultRegex = '(?P<request_ip>[\\d.]+)[^[]+\\[(?P<request_time>[^]]+)\\]';
     const { cardRender } = useOperation();
     const { goListPage } = useCollectList();
     const showReportLogSlider = ref(false);
@@ -796,7 +796,7 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
             builtInFieldsList.value = (fieldsSource || []).filter(item => item.is_built_in);
 
             // 从 curCollect 获取详情数据并回填到 formData，与旧版 getDetail 保持一致
-            const { etl_config, etl_params: etlParams, fields } = curCollect.value;
+            const { etl_config: etlConfig, etl_params: etlParams, fields } = curCollect.value;
 
             // 处理 fields：清空 value、处理 is_delete、确保 option 存在
             const option = { time_zone: '', time_format: '' };
@@ -815,7 +815,7 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
             });
 
             // 更新 cleaningMode 和 enableMetaData
-            cleaningMode.value = etl_config || 'bk_log_text';
+            cleaningMode.value = etlConfig || 'bk_log_text';
             enableMetaData.value = !!etlParams?.path_regexp;
 
             // 更新 delimiter 和 originParticipleState
@@ -933,7 +933,7 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
      */
     const debugHandler = (type = 'default') => {
       const isRefresh = type === 'refresh';
-      const { etl_params } = formData.value;
+      const { etl_params: etlParams } = formData.value;
       const data = {
         etl_config: cleaningMode.value,
         etl_params: {},
@@ -943,7 +943,7 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
         data.etl_params.separator = delimiter.value;
       }
       if (cleaningMode.value === 'bk_log_regexp') {
-        data.etl_params.separator_regexp = etl_params.separator_regexp;
+        data.etl_params.separator_regexp = etlParams.separator_regexp;
         data.etl_params.is_grok = grokModeEnabled.value;
         data.bk_biz_id = bkBizId.value;
       }
@@ -1169,7 +1169,7 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
                     '正则表达式(golang语法)需要匹配日志全文，如以下DEMO将从日志内容提取请求时间与内容',
                   )}<br />${t(' - 日志内容：[2006-01-02 15:04:05] content')}<br /> ${t(
                     ' - 表达式：',
-                  )} \[(?P<request_time>[^]]+)\] (?P<content>.+)`,
+                  )} \\[(?P<request_time>[^]]+)\\] (?P<content>.+)`,
                 }}
               />
               <GrokModeSwitch
@@ -1182,7 +1182,7 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
             <GrokInput
               grokMode={grokModeEnabled.value}
               popoverPosition='cursor'
-              placeholder={'(?P<request_ip>[d.]+)[^[]+[(?P<request_time>[^]]+)]'}
+              placeholder={'(?P<request_ip>[\\d.]+)[^[]+\\[(?P<request_time>[^]]+)\\]'}
               type='textarea'
               value={formData.value.etl_params.separator_regexp}
               on-input={(val: string) => {
@@ -1326,9 +1326,9 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
 
     // 对时间格式做校验逻辑
     const requestCheckTime = async () => {
-      const { time_format, time_zone, field_name } = formData.value;
+      const { time_format, time_zone, field_name: fieldName } = formData.value;
       const fieldsData = formData.value.etl_fields;
-      const timeValueItem = fieldsData.find(item => field_name === item.field_name);
+      const timeValueItem = fieldsData.find(item => fieldName === item.field_name);
       let result = false;
       await $http
         .request('collect/getCheckTime', {
@@ -2358,9 +2358,9 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
         }
       }
       syncLogTimeFields();
-      const { etl_fields } = formData.value;
+      const { etl_fields: etlFields } = formData.value;
 
-      if (isClean.value && etl_fields.length === 0) {
+      if (isClean.value && etlFields.length === 0) {
         showMessage(t('请完成相关的清洗配置'), 'error');
         loading.value = false;
         failedCallback?.();
@@ -2397,7 +2397,7 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
           // 提交前按当前时间选项重新同步 is_time，确保切换「日志上报时间」后提交数据生效
           syncLogTimeFields();
 
-          const { etl_params: etlParams, etl_fields } = formData.value;
+          const { etl_params: etlParams, etl_fields: etlFields } = formData.value;
           const submitEtlParams = structuredClone(etlParams);
           if (enableMetaData.value) {
             // 为 metadata_fields 每项补充 metadata_type（对齐旧版）
@@ -2412,19 +2412,19 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
             submitEtlParams.metadata_fields = [];
           }
           const {
-            storage_cluster_id,
-            allocation_min_days,
+            storage_cluster_id: storageClusterId,
+            allocation_min_days: allocationMinDays,
             storage_replies,
-            es_shards,
+            es_shards: esShards,
             table_id,
             retention,
-            storage_shards_nums,
+            storage_shards_nums: storageShardsNums,
           } = curCollect.value;
           /**
            * 编辑/创建清洗
            * 未完成的情况下，调用创建清洗配置接口 （storage_cluster_id = -1 或者为空，都代表未完成）
            */
-          const isNeedCreate = (isUpdate.value && !!storage_cluster_id) || props.isCleanField;
+          const isNeedCreate = (isUpdate.value && !!storageClusterId) || props.isCleanField;
           const url = isNeedCreate ? 'collect/fieldCollection' : 'clean/updateCleanStash';
           // 构建 payload（对齐旧版逻辑）
           const payload: Record<string, any> = {
@@ -2469,17 +2469,17 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
               ...(cleaningMode.value === 'bk_log_regexp' ? { is_grok: grokModeEnabled.value } : {}),
             },
           };
-          const fieldsList = cleaningMode.value === 'bk_log_text' ? [] : etl_fields;
+          const fieldsList = cleaningMode.value === 'bk_log_text' ? [] : etlFields;
           const isDorisEdit = isUpdate.value && curCollect.value.storage_cluster_type === 'doris';
           const requestData = isNeedCreate
             ? {
                 ...data,
                 clean_template_id: getSubmitCleanTemplateId(),
                 fields: fieldsList,
-                storage_cluster_id,
-                allocation_min_days: allocation_min_days ?? (isDorisEdit ? 0 : undefined),
+                storage_cluster_id: storageClusterId,
+                allocation_min_days: allocationMinDays ?? (isDorisEdit ? 0 : undefined),
                 storage_replies,
-                es_shards: es_shards ?? storage_shards_nums,
+                es_shards: esShards ?? storageShardsNums,
                 table_id,
                 retention: retention ?? (isDorisEdit ? 7 : undefined),
                 etl_config: cleaningMode.value,

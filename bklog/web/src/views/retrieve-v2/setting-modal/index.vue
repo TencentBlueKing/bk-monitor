@@ -211,8 +211,8 @@
         return this.$store.getters.filteredFieldList;
       },
       datePickerValue() {
-        const { start_time = 'now-15m', end_time = 'now' } = this.$store.state.indexItem;
-        return [start_time, end_time];
+        const { start_time: startTime = 'now-15m', end_time: endTime = 'now' } = this.$store.state.indexItem;
+        return [startTime, endTime];
       },
       globalEditable() {
         return true;

@@ -262,14 +262,14 @@ export default defineComponent({
     };
 
     // 下载文件
-    const downloadFile = ({ task_id }: any) => {
+    const downloadFile = ({ task_id: taskId }: any) => {
       let urlPrefix = (window as any).AJAX_URL_PREFIX;
       if (!urlPrefix.endsWith('/')) {
         urlPrefix += '/';
       }
       const { bkBizId } = store.state;
 
-      const downloadUrl = `${urlPrefix}log_extract/tasks/download/?task_id=${task_id}&bk_biz_id=${bkBizId}`;
+      const downloadUrl = `${urlPrefix}log_extract/tasks/download/?task_id=${taskId}&bk_biz_id=${bkBizId}`;
       window.open(downloadUrl);
     };
 

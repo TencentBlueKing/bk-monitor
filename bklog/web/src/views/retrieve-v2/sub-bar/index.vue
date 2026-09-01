@@ -264,8 +264,8 @@
       addition,
       ip_chooser,
       search_mode: searchMode,
-      scene_filter_values,
-      table_id_conditions,
+      scene_filter_values: sceneFilterValues,
+      table_id_conditions: tableIdConditions,
     } = payload;
     const foramtAddition = (addition ?? []).map(item => {
       const instance = new ConditionOperator(item);
@@ -290,10 +290,10 @@
 
     setRouteQuery();
     // 场景化检索模式：解析 table_id_conditions 和 scene_filter_values，先请求字段列表再检索
-    if (store.getters.isSceneMode && (table_id_conditions || scene_filter_values)) {
+    if (store.getters.isSceneMode && (tableIdConditions || sceneFilterValues)) {
       const { scene_active, scene_filter_values: parsedFilterValues } = parseTableIdConditions(
-        table_id_conditions,
-        scene_filter_values,
+        tableIdConditions,
+        sceneFilterValues,
       );
       store.commit('updateIndexItemParams', {
         scene_active,

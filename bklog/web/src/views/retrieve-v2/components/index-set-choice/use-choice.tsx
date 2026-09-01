@@ -130,13 +130,13 @@ export default (props, { emit }) => {
    * @param is_delete_all
    * @returns
    */
-  const deleteHistoryItem = (space_uid, index_set_type, history_id, is_delete_all = false) => {
+  const deleteHistoryItem = (spaceUid, indexSetType, historyId, isDeleteAll = false) => {
     return $http.request('unionSearch/unionDeleteHistory', {
       data: {
-        space_uid,
-        index_set_type,
-        history_id,
-        is_delete_all,
+        space_uid: spaceUid,
+        index_set_type: indexSetType,
+        history_id: historyId,
+        is_delete_all: isDeleteAll,
       },
     });
   };
@@ -255,7 +255,7 @@ export default (props, { emit }) => {
    * @param is_favorite   是否收藏
    * @description 该方法用于在单选情况下设置索引集的收藏状态
    */
-  const setSingleFavorite = (id: string, is_favorite = false) => {
+  const setSingleFavorite = (id: string, isFavorite = false) => {
     const matchId = (item: any) => (item.unique_id ?? item.index_set_id) === id;
     let target = props.list.find(matchId);
     if (!target) {
@@ -265,12 +265,12 @@ export default (props, { emit }) => {
       }
     }
     if (!target) return;
-    set(target, 'is_favorite', is_favorite);
+    set(target, 'is_favorite', isFavorite);
     if (!target.parent_id) return;
     const parent = props.list.find((item: any) => `${item.index_set_id}` === `${target.parent_id}`);
     const sourceNode = parent?.children?.find(matchId);
     if (sourceNode && sourceNode !== target) {
-      set(sourceNode, 'is_favorite', is_favorite);
+      set(sourceNode, 'is_favorite', isFavorite);
     }
   };
 

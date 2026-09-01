@@ -214,7 +214,7 @@ export default defineComponent({
     const viewQueryParams = computed(() => {
       const type = props.isNode ? 'node' : 'pod';
       const config = props.config as IContainerConfigItem;
-      const { namespaces, annotation_selector, label_selector, container } = config;
+      const { namespaces, annotation_selector: annotationSelector, label_selector: labelSelector, container } = config;
 
       /**
        * 格式化匹配表达式的值
@@ -228,15 +228,15 @@ export default defineComponent({
       };
 
       // 处理注解选择器
-      const matchAnnotations = (annotation_selector?.match_annotations || []).map(item => ({
+      const matchAnnotations = (annotationSelector?.match_annotations || []).map(item => ({
         ...item,
         value: formatValue(item),
       }));
 
       // 处理标签选择器：合并 match_labels 和 match_expressions
-      const labelMatchExpressions = label_selector?.match_labels
-        ? [...(label_selector.match_expressions || []), ...label_selector.match_labels]
-        : label_selector?.match_expressions || [];
+      const labelMatchExpressions = labelSelector?.match_labels
+        ? [...(labelSelector.match_expressions || []), ...labelSelector.match_labels]
+        : labelSelector?.match_expressions || [];
 
       const matchExpressions = labelMatchExpressions.map(item => ({
         ...item,

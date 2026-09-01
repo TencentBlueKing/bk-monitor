@@ -304,14 +304,14 @@ export default class AuthorizationDialog extends tsc<IProps, IEvents> {
   }
 
   async authorizedRequest(formData) {
-    const { expire_time, ...rest } = formData;
+    const { expire_time: expireTime, ...rest } = formData;
     return await $http.request('authorization/createOrUpdateExternalPermission', {
       data: {
         space_uid: this.spaceUid,
         ...rest,
         authorized_users: rest.authorized_users.map(val => val.replace(/[\r\n]/g, '').trim()),
 
-        ...(expire_time ? { expire_time } : {}),
+        ...(expireTime ? { expire_time: expireTime } : {}),
         authorizer: this.authorizer,
         operate_type: this.rowData ? 'update' : 'create',
         view_type: this.viewType === 'approval' ? 'user' : this.viewType,

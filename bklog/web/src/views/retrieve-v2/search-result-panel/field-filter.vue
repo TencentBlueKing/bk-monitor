@@ -18,8 +18,8 @@
   const showFieldAlias = computed(() => store.state.storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS]);
   /** 时间选择器绑定的值 */
   const datePickerValue = computed(() => {
-    const { start_time = 'now-15m', end_time = 'now' } = store.state.indexItem;
-    return [start_time, end_time];
+    const { start_time: startTime = 'now-15m', end_time: endTime = 'now' } = store.state.indexItem;
+    return [startTime, endTime];
   });
 
   const indexSetItem = computed(() => {

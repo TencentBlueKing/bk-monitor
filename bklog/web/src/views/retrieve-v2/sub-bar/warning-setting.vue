@@ -374,9 +374,9 @@
 
   const getQueryString = () => {
     const timezone = store.state.indexItem.timezone;
-    const [start_time, end_time] = store.state.indexItem.datePickerValue;
+    const [startTime, endTime] = store.state.indexItem.datePickerValue;
 
-    return `queryString=metric:bk_log_search.index_set.${store.state.indexId}&from=${start_time}&to=${end_time}&timezone=${timezone}`;
+    return `queryString=metric:bk_log_search.index_set.${store.state.indexId}&from=${startTime}&to=${endTime}&timezone=${timezone}`;
   };
 
   const handleJumpMonitor = () => {
@@ -522,11 +522,11 @@
       })
       .then(resp => {
         if (resp.result) {
-          const { query_string, agg_condition } = resp.data;
+          const { query_string: queryString, agg_condition: aggCondition } = resp.data;
 
           const params = {
             search_mode: null,
-            addition: agg_condition.map(item => {
+            addition: aggCondition.map(item => {
               const instance = new ConditionOperator({
                 field: item.key,
                 operator: item.method,
@@ -535,7 +535,7 @@
               });
               return instance.formatApiOperatorToFront();
             }),
-            keyword: query_string,
+            keyword: queryString,
           };
           resolveCommonParams(params).then(() => {
             resolveQueryParams(params, true).then(res => {

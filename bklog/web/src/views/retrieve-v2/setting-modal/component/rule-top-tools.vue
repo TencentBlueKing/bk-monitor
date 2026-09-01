@@ -405,11 +405,11 @@
           .validate()
           .then(async () => {
             this.confirmLoading = true;
-            const { index_set_id, export_type } = this.indexSetData;
+            const { index_set_id, export_type: exportType } = this.indexSetData;
             const res = await this.getClusterConfig(index_set_id);
             const importRuleArr = this.base64ToRuleArr(res.data.predefined_varibles);
             this.rulesList =
-              export_type === 'replace' ? importRuleArr : this.mergeAndDeduplicate(importRuleArr, this.rulesList);
+              exportType === 'replace' ? importRuleArr : this.mergeAndDeduplicate(importRuleArr, this.rulesList);
             this.isShowOtherExport = false;
             this.$emit('show-table-loading');
           })

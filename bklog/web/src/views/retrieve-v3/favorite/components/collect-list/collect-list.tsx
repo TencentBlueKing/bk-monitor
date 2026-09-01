@@ -167,11 +167,11 @@ export default defineComponent({
 
       /* 移动分组 */
       'move-group': item => {
-        const visible_type = item.group_id === privateGroupID.value ? 'private' : 'public';
+        const visibleType = item.group_id === privateGroupID.value ? 'private' : 'public';
         updateFavorite(
           {
             ...item,
-            visible_type,
+            visible_type: visibleType,
           },
           t('收藏项移动成功。'),
         );

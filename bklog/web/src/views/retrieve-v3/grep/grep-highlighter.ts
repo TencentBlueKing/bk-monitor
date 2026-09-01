@@ -78,14 +78,14 @@ const grepHighlighter = ViewPlugin.fromClass(
       while (pos < len) {
         // 跳过空白字符
         if (/\s/.test(text[pos])) {
-          pos++;
+          pos += 1;
           continue;
         }
 
         // 匹配管道符
         if (text[pos] === '|') {
           builder.add(pos, pos + 1, pipeDecoration);
-          pos++;
+          pos += 1;
           continue;
         }
 
@@ -142,7 +142,7 @@ const grepHighlighter = ViewPlugin.fromClass(
           continue;
         }
 
-        pos++;
+        pos += 1;
       }
     }
 
@@ -155,7 +155,7 @@ const grepHighlighter = ViewPlugin.fromClass(
         if (text[pos] === '\\' && pos + 1 < text.length) {
           pos += 2; // 跳过转义字符
         } else {
-          pos++;
+          pos += 1;
         }
       }
       return { end: text.length }; // 未闭合的字符串

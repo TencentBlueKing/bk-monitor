@@ -101,7 +101,7 @@
   }); // 组名称
   const checkName = () => {
     if (verifyData.value.groupName.trim() === '') return true;
-    return /^[\u4e00-\u9fa5_a-zA-Z0-9`~!@#$%^&*()_\-+=<>?:"{}|\s,.\/;'\\[\]·~！@#￥%……&*（）——\-+={}|《》？：“”【】、；‘'，。、]+$/im.test(
+    return /^[\u4e00-\u9fa5_a-zA-Z0-9`~!@#$%^&*()_\-+=<>?:"{}|\s,./;'\\[\]·~！@#￥%……&*（）——\-+={}|《》？：“”【】、；‘'，。、]+$/im.test(
       verifyData.value.groupName.trim(),
     );
   };
@@ -110,7 +110,7 @@
     return !collectGroupList.value.some(item => item.name === verifyData.value.groupName);
   };
   const checkSpecification = () => {
-    return /^[\u4e00-\u9fa5_a-zA-Z0-9`~!@#$%^&*()_\-+=<>?:"{}|\s,.\/;'\\[\]·~！@#￥%……&*（）——\-+={}|《》？：“”【】、；‘'，。、]+$/im.test(
+    return /^[\u4e00-\u9fa5_a-zA-Z0-9`~!@#$%^&*()_\-+=<>?:"{}|\s,./;'\\[\]·~！@#￥%……&*（）——\-+={}|《》？：“”【】、；‘'，。、]+$/im.test(
       favoriteData.value.name.trim(),
     );
   };
@@ -308,7 +308,7 @@
 
   // 新建提交逻辑
   const handleCreateRequest = async () => {
-    const { name, group_id, display_fields, id, is_enable_display_fields } = favoriteData.value;
+    const { name, group_id: groupId, display_fields, id, is_enable_display_fields } = favoriteData.value;
 
     const searchParams = ['sql', 'sqlChart'].includes(props.searchMode)
       ? {
@@ -323,9 +323,9 @@
 
     const data = {
       name,
-      group_id,
+      group_id: groupId,
       display_fields,
-      visible_type: group_id === privateGroupID.value ? 'private' : 'public',
+      visible_type: groupId === privateGroupID.value ? 'private' : 'public',
       is_enable_display_fields,
       search_mode: props.searchMode,
       ip_chooser: formatAddition.value.find(item => item.field === '_ip-select_')?.value?.[0] ?? {},

@@ -195,14 +195,14 @@ export default defineComponent({
             fields_name: item.field_name,
           }));
           const { index_set_id, bk_biz_id } = indexSetItem.value;
-          const { max_dist_list, max_log_length, clustering_fields, filter_rules } = formData.value;
+          const { max_dist_list, max_log_length, clustering_fields, filter_rules: filterRules } = formData.value;
           const ruleInfo = ruleOperateRef.value.getRuleInfo();
           const paramsData = {
             max_dist_list,
             predefined_varibles: ruleTableRef.value.getRuleListBase64(),
             max_log_length,
             clustering_fields,
-            filter_rules: filter_rules.map(item => ({
+            filter_rules: filterRules.map(item => ({
               fields_name: item.fields_name,
               logic_operator: item.logic_operator,
               op: item.op,

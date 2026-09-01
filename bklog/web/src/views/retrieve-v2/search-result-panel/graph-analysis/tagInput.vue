@@ -135,7 +135,7 @@
   }
 
   function handleDragStart() {
-    this.dragCount++;
+    this.dragCount += 1;
   }
   function add(item) {
     formData.value.push(item);

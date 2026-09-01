@@ -72,7 +72,7 @@
   const isAsteriskEscaped = (text: string, index: number) => {
     let slashCount = 0;
     for (let i = index - 1; i >= 0 && text[i] === '\\'; i--) {
-      slashCount++;
+      slashCount += 1;
     }
     return slashCount % 2 === 1;
   };

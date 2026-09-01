@@ -58,9 +58,9 @@
       return fields.value;
     }
     return fields.value.filter(
-      ({ name, display_name }) =>
+      ({ name, display_name: displayName }) =>
         name?.toLowerCase().includes(keyword.value.toLowerCase()) ||
-        display_name?.toLowerCase().includes(keyword.value.toLowerCase()),
+        displayName?.toLowerCase().includes(keyword.value.toLowerCase()),
     );
   });
 

@@ -29,4 +29,5 @@
  * @author <>
  */
 
+// eslint-disable-next-line camelcase -- Webpack requires this exact global variable name.
 __webpack_public_path__ = process.env.NODE_ENV === 'production' ? `${window.BK_STATIC_URL}/` : '/';

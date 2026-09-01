@@ -273,7 +273,7 @@ export default defineComponent({
         let valueStart = colonIndex + 1;
         // 跳过冒号后的空格
         while (valueStart < text.length && /\s/.test(text[valueStart])) {
-          valueStart++;
+          valueStart += 1;
         }
 
         if (valueStart >= text.length) return;
@@ -319,12 +319,12 @@ export default defineComponent({
               break;
             }
 
-            valueEnd++;
+            valueEnd += 1;
           }
 
           // 去除尾部空格
           while (valueEnd > valueStart && /\s/.test(text[valueEnd - 1])) {
-            valueEnd--;
+            valueEnd -= 1;
           }
 
           if (valueEnd > valueStart) {

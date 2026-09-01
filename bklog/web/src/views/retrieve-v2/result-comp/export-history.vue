@@ -656,14 +656,14 @@
         // 单独解析并拼接场景化参数
         let sceneParams = '';
         if (dict.table_id_conditions || dict.scene_filter_values) {
-          const { scene_active, scene_filter_values } = parseTableIdConditions(
+          const { scene_active: sceneActive, scene_filter_values } = parseTableIdConditions(
             dict.table_id_conditions,
             dict.scene_filter_values,
           );
           const sceneParts = [];
           sceneParts.push('retrieve_type=scene');
-          if (scene_active) {
-            sceneParts.push(`scene_active=${encodeURIComponent(scene_active)}`);
+          if (sceneActive) {
+            sceneParts.push(`scene_active=${encodeURIComponent(sceneActive)}`);
           }
           for (const [fieldKey, fieldValue] of Object.entries(scene_filter_values)) {
             const rawValue = fieldValue?.value ?? fieldValue;

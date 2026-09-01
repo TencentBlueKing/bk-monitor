@@ -122,15 +122,15 @@ export default defineComponent({
       if (isTimeRangeManualChanged.value) {
         [cachedStartTime, cachedEndTime] = handleTransformToTimestamp(timeRange.value);
       } else {
-        const { start_time, end_time } = retrieveParams.value;
-        cachedStartTime = start_time;
-        cachedEndTime = end_time;
+        const { start_time: startTime, end_time: endTime } = retrieveParams.value;
+        cachedStartTime = startTime;
+        cachedEndTime = endTime;
       }
     };
 
     // 构建公共请求参数
     const getBaseParams = () => {
-      const { signature, origin_pattern, pattern, group } = props.rowData;
+      const { signature, origin_pattern: originPattern, pattern, group } = props.rowData;
       const { addition, keyword } = retrieveParams.value;
       const { pattern_level } = props.requestData;
       const mergeGroup = getGroupsValue(group);
@@ -140,7 +140,7 @@ export default defineComponent({
         addition,
         keyword,
         pattern_level,
-        pattern: origin_pattern || pattern,
+        pattern: originPattern || pattern,
         placeholder_index: props.markIndex,
         start_time: cachedStartTime,
         end_time: cachedEndTime,
@@ -642,7 +642,7 @@ export default defineComponent({
     const handleJumpToRetrieve = (item: { value: string; count: number; percentage: number }) => {
       const params: any = getBaseParams();
       const { signature, groups } = params;
-      const { pattern_level } = props.requestData;
+      const { pattern_level: patternLevel } = props.requestData;
 
       // 构建 additionList，与 handleMenuBatchClick 逻辑一致
       const additionList = [];
@@ -662,7 +662,7 @@ export default defineComponent({
       // 添加聚类签名条件
       if (signature) {
         additionList.push({
-          field: `__dist_${pattern_level}`,
+          field: `__dist_${patternLevel}`,
           operator: 'is',
           value: [signature.toString()],
           isLink: true,

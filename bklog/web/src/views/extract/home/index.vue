@@ -458,12 +458,12 @@
         });
       },
       // 下载文件
-      downloadFile({ task_id }) {
+      downloadFile({ task_id: taskId }) {
         let urlPrefix = window.AJAX_URL_PREFIX;
         if (!urlPrefix.endsWith('/')) urlPrefix += '/';
         const { bkBizId } = this.$store.state;
 
-        const downloadUrl = `${urlPrefix}log_extract/tasks/download/?task_id=${task_id}&bk_biz_id=${bkBizId}`;
+        const downloadUrl = `${urlPrefix}log_extract/tasks/download/?task_id=${taskId}&bk_biz_id=${bkBizId}`;
         window.open(downloadUrl);
       },
       // 重新下载

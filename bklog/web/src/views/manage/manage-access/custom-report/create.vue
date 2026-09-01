@@ -579,9 +579,9 @@
         globalsData: 'globals/globalsData',
       }),
       defaultRetention() {
-        const { storage_duration_time } = this.globalsData;
+        const { storage_duration_time: storageDurationTime } = this.globalsData;
 
-        return storage_duration_time?.filter(item => item.default === true)[0].id;
+        return storageDurationTime?.filter(item => item.default === true)[0].id;
       },
       isCloseDataLink() {
         // 没有可上报的链路时，编辑采集配置链路ID为0或null时，隐藏链路配置框，并且不做空值校验。
@@ -786,20 +786,20 @@
       },
       fillEditFormData(detailData) {
         const {
-          index_set_id,
+          index_set_id: indexSetId,
           collector_config_name,
           collector_config_name_en,
           custom_type,
           data_link_id,
-          storage_cluster_id,
+          storage_cluster_id: storageClusterId,
           retention,
           allocation_min_days,
           storage_replies,
           category_id,
           description,
           bk_data_id,
-          target_fields,
-          sort_fields,
+          target_fields: targetFields,
+          sort_fields: sortFields,
           storage_shards_nums: storageShardsNums,
         } = detailData;
 
@@ -808,7 +808,7 @@
           collector_config_name_en,
           custom_type,
           data_link_id,
-          storage_cluster_id,
+          storage_cluster_id: storageClusterId,
           retention: retention ? `${retention}` : this.defaultRetention,
           allocation_min_days,
           storage_replies,
@@ -818,11 +818,11 @@
           es_shards: storageShardsNums,
         });
         // 缓存编辑时的集群ID
-        this.editStorageClusterID = storage_cluster_id;
+        this.editStorageClusterID = storageClusterId;
         this.fieldSettingData = {
-          indexSetId: index_set_id || 0,
-          targetFields: target_fields || [],
-          sortFields: sort_fields || [],
+          indexSetId: indexSetId || 0,
+          targetFields: targetFields || [],
+          sortFields: sortFields || [],
         };
       },
       cancel() {

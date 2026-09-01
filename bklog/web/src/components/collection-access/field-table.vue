@@ -774,10 +774,10 @@
 
         // 根据预览值 value 判断不是数字，则默认为字符串
         arr.forEach(item => {
-          const { value, field_type } = item;
+          const { value, field_type: fieldType } = item;
           item.participleState = item.tokenize_on_chars ? 'custom' : 'default';
 
-          if (field_type === '' && value !== '' && this.judgeNumber(value)) {
+          if (fieldType === '' && value !== '' && this.judgeNumber(value)) {
             item.field_type = 'string';
             item.previous_type = 'string';
           }
@@ -986,15 +986,15 @@
         if (row.alias_name) {
           return;
         }
-        const { field_name, is_delete, field_index, is_time } = row;
+        const { field_name: fieldName, is_delete: isDelete, field_index, is_time } = row;
         let result = '';
         let aliasResult = '';
         let width = 220;
         let btnShow = false;
-        if (!is_delete) {
-          if (!field_name) {
+        if (!isDelete) {
+          if (!fieldName) {
             result = this.$t('必填项');
-          } else if (!/^(?!_)(?!.*?_$)^[A-Za-z0-9_]+$/gi.test(field_name)) {
+          } else if (!/^(?!_)(?!.*?_$)^[A-Za-z0-9_]+$/gi.test(fieldName)) {
             if (this.selectEtlConfig === 'bk_log_json') {
               btnShow = true;
               aliasResult = this.$t(
@@ -1006,7 +1006,7 @@
             }
           } else if (
             this.extractMethod !== 'bk_log_json' &&
-            this.globalsData.field_built_in.find(item => item.id === field_name.toLocaleLowerCase())
+            this.globalsData.field_built_in.find(item => item.id === fieldName.toLocaleLowerCase())
           ) {
             result =
               this.extractMethod === 'bk_log_regexp'
@@ -1014,13 +1014,13 @@
                 : this.$t('字段名与系统内置字段重复');
           } else if (
             this.extractMethod == 'bk_log_json' &&
-            this.globalsData.field_built_in.find(item => item.id === field_name.toLocaleLowerCase())
+            this.globalsData.field_built_in.find(item => item.id === fieldName.toLocaleLowerCase())
           ) {
             btnShow = true;
             aliasResult = this.$t('检测到字段名与系统内置名称冲突。请重命名,命名后原字段将被覆盖');
             width = 220;
           } else if (this.extractMethod === 'bk_log_delimiter' || this.selectEtlConfig === 'bk_log_json') {
-            result = this.filedNameIsConflict(field_index, field_name, is_time) ? this.$t('字段名称冲突, 请调整') : '';
+            result = this.filedNameIsConflict(field_index, fieldName, is_time) ? this.$t('字段名称冲突, 请调整') : '';
           } else {
             result = '';
           }
@@ -1037,27 +1037,25 @@
         return result || aliasResult;
       },
       checkAliasNameItem(row) {
-        const { alias_name, is_delete, field_index } = row;
+        const { alias_name: aliasName, is_delete: isDelete, field_index } = row;
         let queryResult = '';
         row.btnShow = false;
-        if (!alias_name) {
+        if (!aliasName) {
           this.$set(row, 'alias_name_show', false);
           row.btnShow = true;
           return false;
         }
-        if (!is_delete) {
-          if (!/^[A-Za-z0-9_]+$/g.test(alias_name)) {
+        if (!isDelete) {
+          if (!/^[A-Za-z0-9_]+$/g.test(aliasName)) {
             queryResult = this.$t('重命名只能包含a-z、A-Z、0-9和_');
-          } else if (this.globalsData.field_built_in.find(item => item.id === alias_name.toLocaleLowerCase())) {
+          } else if (this.globalsData.field_built_in.find(item => item.id === aliasName.toLocaleLowerCase())) {
             queryResult = this.$t('重命名与系统内置字段重复');
-          } else if (alias_name === row.field_name) {
+          } else if (aliasName === row.field_name) {
             queryResult = this.$t('重命名与字段名重复');
           } else if (this.selectEtlConfig === 'bk_log_json') {
             // 此处对比还是字段名，要改成重名间对比
 
-            queryResult = this.filedNameIsConflict(field_index, alias_name)
-              ? this.$t('重命名字段名称冲突, 请调整')
-              : '';
+            queryResult = this.filedNameIsConflict(field_index, aliasName) ? this.$t('重命名字段名称冲突, 请调整') : '';
           } else {
             queryResult = '';
           }
@@ -1180,10 +1178,10 @@
         this.$emit('handle-table-data', this.changeTableList);
       },
 
-      filedNameIsConflict(fieldIndex, fieldName, is_time = false) {
+      filedNameIsConflict(fieldIndex, fieldName, isTime = false) {
         const otherFieldNameList = this.formData.tableList.filter(item => {
           // 指定日志时间的字段名会重复
-          return item.field_index !== fieldIndex && (!is_time || !item.is_time);
+          return item.field_index !== fieldIndex && (!isTime || !item.is_time);
         });
         return otherFieldNameList.some(item => item.field_name === fieldName);
       },

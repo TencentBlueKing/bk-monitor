@@ -61,7 +61,6 @@ export default {
      * @returns {Boolean} 是否编辑过
      */
     $isSidebarClosed(): Promise<boolean> {
-      const _this = this;
       return new Promise(resolve => {
         if (this._isChange_) {
           // 已编辑
@@ -70,10 +69,10 @@ export default {
             title: this.$t('确认离开当前页？'),
             subTitle: this.$t('离开将会导致未保存信息丢失'),
             okText: this.$t('离开'),
-            confirmFn() {
+            confirmFn: () => {
               resolve(true);
-              _this._isChange_ = false;
-              _this._isDataInit_ = false;
+              this._isChange_ = false;
+              this._isDataInit_ = false;
             },
             cancelFn() {
               resolve(false);
@@ -82,8 +81,8 @@ export default {
         } else {
           // 未编辑
           resolve(true);
-          _this._isChange_ = false;
-          _this._isDataInit_ = false;
+          this._isChange_ = false;
+          this._isDataInit_ = false;
         }
       });
     },

@@ -907,7 +907,7 @@ export default class UseJsonFormatter {
   private resolveJsonSegmentRanges(displayText: string, rootFieldName: string) {
     const resolveText = this.getSegmentResolveText().replace(/<\/?mark>/gim, '');
     const candidates = [resolveText, displayText].filter((item, index, list) => {
-      if (!item || !/^\s*[\[{]/.test(item)) return false;
+      if (!item || !/^\s*[[{]/.test(item)) return false;
       return list.indexOf(item) === index;
     });
     for (const candidate of candidates) {
@@ -957,7 +957,7 @@ export default class UseJsonFormatter {
       // 未执行 JSON 解析时，setNodeValueWordSplit 仍按原始整段文本渲染。
       // 仅给可定位到的 JSON KEY/VALUE token 增加分词专用字段路径，
       // data-search-field-name 继续保留根字段，确保划词逻辑不变。
-      const looksLikeJson = (value?: string) => !!value && /^\s*[\[{]/.test(value);
+      const looksLikeJson = (value?: string) => !!value && /^\s*[[{]/.test(value);
       const lookLikeJson =
         looksLikeJson(text) || looksLikeJson(this.getSegmentResolveText(text).replace(/<\/?mark>/gim, ''));
       if (text && fieldName && lookLikeJson) {
@@ -1059,7 +1059,7 @@ export default class UseJsonFormatter {
       // 必须覆盖 MAX_TOKENS 截断尾巴（通常为第 1001 个 token），否则 blob 不进 DOM
       setListItem(Math.max(1000, vlaues.length), () => {
         if (fieldName && plainText) {
-          if (/^\s*[\[{]/.test(plainText)) {
+          if (/^\s*[[{]/.test(plainText)) {
             this.bindRawJsonSegmentFields(targetElement, plainText, fieldName);
           } else {
             this.annotateTruncatedBlobSpans(targetElement, plainText, fieldName);

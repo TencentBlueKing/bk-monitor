@@ -137,7 +137,7 @@ export default defineComponent({
         const requestBehindUrl = isDefault ? '/getDefaultConfig' : '/getConfig';
         const requestUrl = `${baseUrl}${requestBehindUrl}`;
         const res = (await $http.request(requestUrl, !isDefault && { params, data })) as IResponseData<ConfigInfo>;
-        const { regex_rule_type, regex_template_id, predefined_varibles } = res.data;
+        const { regex_rule_type: regexRuleType, regex_template_id: regexTemplateId, predefined_varibles } = res.data;
         const ruleList = base64ToRuleList(predefined_varibles);
         const tableList = ruleList.map(item => {
           const key = Object.keys(item)[0];
@@ -153,8 +153,8 @@ export default defineComponent({
         regexList.value = tableList;
         tableRef.value.setDataList(tableList);
         logConfigInfo = {
-          id: regex_template_id,
-          type: regex_rule_type,
+          id: regexTemplateId,
+          type: regexRuleType,
         };
       } catch (e) {
         console.warn(e);
@@ -253,7 +253,9 @@ export default defineComponent({
         return getRandomColor();
       }
 
-      return defaultHighlightColorList[highlightColorIndex++];
+      const highlightColor = defaultHighlightColorList[highlightColorIndex];
+      highlightColorIndex += 1;
+      return highlightColor;
     };
 
     const handleSubmitOccupy = (inputValue: string) => {
