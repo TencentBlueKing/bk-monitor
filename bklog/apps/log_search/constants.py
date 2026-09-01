@@ -46,6 +46,7 @@ from apps.log_search.exceptions import (
 )
 from apps.utils import ChoicesEnum
 from apps.utils.custom_report import render_otlp_report_config
+from bkm_space.define import SpaceTypeEnum
 
 
 class InnerTag(ChoicesEnum):
@@ -1525,6 +1526,17 @@ class PlatformIndexFilterValueRef(ChoicesEnum):
 
 # metadata ResultTableOption 中承载跨空间路由过滤的 option 名
 QUERY_ROUTER_CONFIG_OPTION_NAME = "query_router_config"
+
+# query_router_config.space_type 取该值时 metadata 不限空间类型，对所有空间组装路由
+ROUTER_SPACE_TYPE_ALL = "all"
+
+# metadata SpaceTableIDRedis.SUPPORT_SPACE_TYPES，注意不含 bcs：
+# 下发 metadata 不认识的类型会让它跳过整张表，该表在所有空间都拿不到路由
+METADATA_ROUTER_SPACE_TYPES = {
+    SpaceTypeEnum.BKCC.value,
+    SpaceTypeEnum.BKCI.value,
+    SpaceTypeEnum.BKSAAS.value,
+}
 
 # 检索索引集列表中标记「本条是从其它空间分发过来的」，值为归属空间
 PLATFORM_INDEX_OWNER_SPACE_UID_FIELD = "platform_index_owner_space_uid"

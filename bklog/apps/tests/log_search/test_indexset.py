@@ -3266,3 +3266,106 @@ class TestPlatformIndexListAndRouter(TestCase):
         permission = view.get_permissions()[0]
         self.assertIsInstance(permission, PlatformAwareIndexSearchPermission)
         self.assertEqual(permission.iam_instance_id_key, "index_set_id")
+
+    # ==================================================================
+    # query_router_config.space_type 跟随可见范围里的空间类型
+    # ==================================================================
+
+    def _platform_index_set(self, visibility):
+        return LogIndexSet(
+            is_platform_index=True,
+            space_uid=self.OWNER_SPACE,
+            platform_index_visibility=visibility,
+            platform_index_filter=self.PLATFORM_FILTER,
+        )
+
+    def test_router_space_type_follows_single_space_type_label(self):
+        index_set = self._platform_index_set({"type": "biz_attr", "bk_biz_labels": {"space_type": ["bksaas"]}})
+        self.assertEqual(BaseIndexSetHandler.resolve_router_space_type(index_set), "bksaas")
+        option = BaseIndexSetHandler.build_query_router_config_option(index_set)
+        self.assertEqual(json.loads(option["value"])["space_type"], "bksaas")
+
+    def test_router_space_type_falls_back_to_all(self):
+        cases = {
+            "多值映射不成单值": {"type": "biz_attr", "bk_biz_labels": {"space_type": ["bksaas", "bkci"]}},
+            "metadata 不认识 bcs，下发会让整张表在所有空间都没路由": {
+                "type": "biz_attr",
+                "bk_biz_labels": {"space_type": ["bcs"]},
+            },
+            "按业务属性而非空间类型配置": {"type": "biz_attr", "bk_biz_labels": {"env": ["prod"]}},
+            "指定业务模式": self.PLATFORM_VISIBILITY,
+            "可见范围为空": {},
+        }
+        for reason, visibility in cases.items():
+            with self.subTest(reason=reason):
+                index_set = self._platform_index_set(visibility)
+                self.assertEqual(BaseIndexSetHandler.resolve_router_space_type(index_set), "all")
+                option = BaseIndexSetHandler.build_query_router_config_option(index_set)
+                self.assertEqual(json.loads(option["value"])["space_type"], "all")
+
+    # ==================================================================
+    # 平台级索引集检索：额外要求请求空间下的不限实例授权
+    # ==================================================================
+
+    @override_settings(IGNORE_IAM_PERMISSION=False)
+    @patch("bkm_space.api.SpaceApi.get_related_space", return_value=None)
+    @patch("apps.iam.handlers.drf.Permission")
+    def test_platform_search_requires_unlimited_action(self, mock_perm_cls, _mock_related):
+        from rest_framework.exceptions import PermissionDenied
+
+        from apps.iam.handlers.actions import ActionEnum
+        from apps.iam.handlers.drf import PlatformAwareIndexSearchPermission
+        from apps.iam.handlers.resources import ResourceEnum
+
+        client = mock_perm_cls.return_value
+        client.is_allowed.return_value = True
+        platform = self._create_index_set(
+            self.OWNER_SPACE,
+            index_set_name="iam_unlimited",
+            is_platform_index=True,
+            platform_index_visibility=self.PLATFORM_VISIBILITY,
+            platform_index_filter=self.PLATFORM_FILTER,
+        )
+        view = MagicMock(lookup_url_kwarg=None, lookup_field="index_set_id")
+        view.kwargs = {"index_set_id": platform.index_set_id}
+        request = MagicMock(method="POST", data={"bk_biz_id": 7}, query_params={}, headers={}, META={})
+
+        # 空间级不限实例授权：放行，且判定用的是请求方业务而不是归属业务
+        client.has_unlimited_action_in_space.return_value = True
+        perm = PlatformAwareIndexSearchPermission([ActionEnum.SEARCH_LOG], ResourceEnum.INDICES)
+        self.assertTrue(perm.has_permission(request, view))
+        client.has_unlimited_action_in_space.assert_called_once_with(ActionEnum.SEARCH_LOG, 7, ResourceEnum.INDICES)
+
+        # 只单独授权了这一个索引集：标准鉴权能过，但平台级索引集不认实例级授权
+        client.has_unlimited_action_in_space.return_value = False
+        perm = PlatformAwareIndexSearchPermission([ActionEnum.SEARCH_LOG], ResourceEnum.INDICES)
+        with self.assertRaises(PermissionDenied):
+            perm.has_permission(request, view)
+
+        # 归属空间自己检索不受影响：索引集在自己空间的权限中心能正常选到，实例级授权是正当的
+        client.has_unlimited_action_in_space.reset_mock()
+        client.has_unlimited_action_in_space.return_value = False
+        owner_request = MagicMock(method="POST", data={"bk_biz_id": 2}, query_params={}, headers={}, META={})
+        perm = PlatformAwareIndexSearchPermission([ActionEnum.SEARCH_LOG], ResourceEnum.INDICES)
+        self.assertTrue(perm.has_permission(owner_request, view))
+        client.has_unlimited_action_in_space.assert_not_called()
+
+    @override_settings(IGNORE_IAM_PERMISSION=False)
+    @patch("bkm_space.api.SpaceApi.get_related_space", return_value=None)
+    @patch("apps.iam.handlers.drf.Permission")
+    def test_plain_index_set_keeps_instance_level_grant(self, mock_perm_cls, _mock_related):
+        from apps.iam.handlers.actions import ActionEnum
+        from apps.iam.handlers.drf import PlatformAwareIndexSearchPermission
+        from apps.iam.handlers.resources import ResourceEnum
+
+        client = mock_perm_cls.return_value
+        client.is_allowed.return_value = True
+        client.has_unlimited_action_in_space.return_value = False
+        plain = self._create_index_set(self.OWNER_SPACE, index_set_name="iam_plain_unlimited")
+        view = MagicMock(lookup_url_kwarg=None, lookup_field="index_set_id")
+        view.kwargs = {"index_set_id": plain.index_set_id}
+        request = MagicMock(method="POST", data={"bk_biz_id": 7}, query_params={}, headers={}, META={})
+
+        perm = PlatformAwareIndexSearchPermission([ActionEnum.SEARCH_LOG], ResourceEnum.INDICES)
+        self.assertTrue(perm.has_permission(request, view))
+        client.has_unlimited_action_in_space.assert_not_called()

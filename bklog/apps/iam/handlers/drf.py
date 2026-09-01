@@ -175,6 +175,8 @@ class PlatformAwareIndexSearchPermission(InstanceActionPermission):
         instance_id = self.get_instance_id(request, view)
         from apps.log_search.models import LogIndexSet
 
+        # 非 None 表示本次是跨空间检索，需要在标准鉴权之外再要求该业务下的不限实例授权
+        unlimited_required_biz_id = None
         try:
             index_set = LogIndexSet.objects.get(pk=instance_id)
         except LogIndexSet.DoesNotExist:
@@ -199,10 +201,25 @@ class PlatformAwareIndexSearchPermission(InstanceActionPermission):
                         "name": index_set.index_set_name,
                     },
                 )
+                if search_space_uid != index_set.space_uid:
+                    unlimited_required_biz_id = bk_biz_id
             else:
                 resource = self.resource_meta.create_instance(instance_id)
         self.resources = [resource]
-        return super(InstanceActionPermission, self).has_permission(request, view)
+        # 先跑标准鉴权，完全没有权限的用户由它抛出带申请链接的异常，保住申请权限跳转
+        result = super(InstanceActionPermission, self).has_permission(request, view)
+        if unlimited_required_biz_id is not None:
+            # 分发到别的空间后，这个索引集在对方权限中心的实例列表里根本选不到，单独授权它就等于
+            # 绕开「该用户是否被信任看这个空间的日志」，所以跨空间必须再要求一次空间级不限实例授权。
+            # 归属空间不受此限：索引集在自己空间能正常选到，实例级授权是正当授权方式。
+            self._assert_unlimited_search_in_space(unlimited_required_biz_id)
+        return result
+
+    def _assert_unlimited_search_in_space(self, bk_biz_id):
+        client = Permission()
+        for action in self.actions:
+            if not client.has_unlimited_action_in_space(action, bk_biz_id, self.resource_meta):
+                raise PermissionDenied("跨空间检索平台级索引集需要该空间下不限索引集的权限")
 
 
 class InstanceActionForDataPermission(InstanceActionPermission):

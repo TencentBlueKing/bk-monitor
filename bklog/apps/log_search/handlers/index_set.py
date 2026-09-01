@@ -32,7 +32,7 @@ from django.db.models import Q
 from django.utils.translation import gettext as _
 
 from apps.api import BkLogApi, TransferApi
-from apps.constants import UserOperationActionEnum, UserOperationTypeEnum
+from apps.constants import SpacePropertyEnum, UserOperationActionEnum, UserOperationTypeEnum
 from apps.decorators import user_operation_record
 from apps.exceptions import CreateOrUpdateLogRouterException
 from apps.feature_toggle.handlers.toggle import feature_switch
@@ -63,9 +63,12 @@ from apps.log_search.constants import (
     TimeFieldTypeEnum,
     TimeFieldUnitEnum,
     IndexSetDataType,
+    METADATA_ROUTER_SPACE_TYPES,
     PLATFORM_INDEX_OWNER_SPACE_UID_FIELD,
     QUERY_ROUTER_CONFIG_OPTION_NAME,
+    ROUTER_SPACE_TYPE_ALL,
     PlatformIndexFilterValueRef,
+    PlatformIndexVisibleType,
 )
 from apps.log_search.exceptions import (
     DesensitizeConfigCreateOrUpdateException,
@@ -1979,7 +1982,25 @@ class BaseIndexSetHandler:
                 item["is_enable"] = True
 
     @staticmethod
-    def build_query_router_config_option(index_set: LogIndexSet) -> dict | None:
+    def resolve_router_space_type(index_set: LogIndexSet) -> str:
+        """
+        把可见范围里的空间类型翻译成 metadata 认识的 query_router_config.space_type。
+
+        可见范围里的空间类型是多值列表，而 query_router_config 只收单值，因此只有恰好一个
+        且 metadata 支持时才下推；多值、bcs、未按空间类型配置的一律回落 all。回落只会让
+        metadata 多算几个空间的路由，不会放宽数据面：可见性由 is_platform_index_visible 把关，
+        且注入的 filter 是各空间自己的取值，未授权空间查出来是空集。
+        """
+        visibility = index_set.platform_index_visibility or {}
+        if visibility.get("type") != PlatformIndexVisibleType.BIZ_ATTR.value:
+            return ROUTER_SPACE_TYPE_ALL
+        label_values = (visibility.get("bk_biz_labels") or {}).get(SpacePropertyEnum.SPACE_TYPE.value) or []
+        if len(label_values) != 1 or label_values[0] not in METADATA_ROUTER_SPACE_TYPES:
+            return ROUTER_SPACE_TYPE_ALL
+        return label_values[0]
+
+    @classmethod
+    def build_query_router_config_option(cls, index_set: LogIndexSet) -> dict | None:
         """
         平台级索引集下发跨空间路由过滤条件，metadata 据此按查询空间往路由里注入 filters。
         """
@@ -2000,7 +2021,11 @@ class BaseIndexSetHandler:
             "name": QUERY_ROUTER_CONFIG_OPTION_NAME,
             "value_type": "dict",
             "value": json.dumps(
-                {"space_type": "all", "filter_key": filter_key, "filter_value": filter_value}
+                {
+                    "space_type": cls.resolve_router_space_type(index_set),
+                    "filter_key": filter_key,
+                    "filter_value": filter_value,
+                }
             ),
         }
 
