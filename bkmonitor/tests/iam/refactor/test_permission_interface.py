@@ -187,6 +187,43 @@ class TestCreatorGrantResultLogging:
         with pytest.raises(CreatorGrantFailed, match="creator grant incomplete"):
             permission.grant_creator_action(resource, raise_exception=True)
 
+    def test_raise_exception_wraps_underlying_crash_as_creator_grant_failed(self, fake_framework, monkeypatch):
+        """底层 framework 直接抛异常时，raise_exception=True 也应统一包装为 CreatorGrantFailed。
+
+        与 partial-failure 路径共用同一个异常类型，避免上层需要区分
+        `except RuntimeError` / `except CreatorGrantFailed` 两种情况。
+        """
+        from bkmonitor.iam.iam_engine.core.exceptions import CreatorGrantFailed
+
+        fw, _ = fake_framework
+        original_error = RuntimeError("framework crashed")
+
+        def _boom(*_args, **_kwargs):
+            raise original_error
+
+        monkeypatch.setattr(fw, "grant_creator_action", _boom)
+        permission = Permission(username="tester", bk_tenant_id="system")
+        resource = ResourceEnum.BUSINESS.create_simple_instance("2")
+
+        with pytest.raises(CreatorGrantFailed, match="creator grant crashed") as exc_info:
+            permission.grant_creator_action(resource, raise_exception=True)
+
+        # 原始异常通过 __cause__ 保留，便于排障
+        assert exc_info.value.__cause__ is original_error
+
+    def test_underlying_crash_without_raise_exception_returns_none(self, fake_framework, monkeypatch):
+        """底层直接抛异常且 raise_exception=False 时保持 None 返回，兼容原调用契约。"""
+        fw, _ = fake_framework
+
+        def _boom(*_args, **_kwargs):
+            raise RuntimeError("framework crashed")
+
+        monkeypatch.setattr(fw, "grant_creator_action", _boom)
+        permission = Permission(username="tester", bk_tenant_id="system")
+        resource = ResourceEnum.BUSINESS.create_simple_instance("2")
+
+        assert permission.grant_creator_action(resource) is None
+
 
 # ---------------------------------------------------------------------------
 # is_allowed

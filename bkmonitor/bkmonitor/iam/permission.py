@@ -39,6 +39,7 @@ from bkmonitor.iam.action import MINI_ACTION_IDS, ActionEnum, canonicalize_actio
 from bkmonitor.iam.adapters.v3.codec import MonitorV3Codec
 from bkmonitor.iam.definitions.resource_types import ResourceTypes
 from bkmonitor.iam.iam_engine.core.exceptions import CreatorGrantFailed, PermissionDenied, ProviderError
+from bkmonitor.iam.iam_engine.provider.permission_writer import PermissionWriteResult
 from bkmonitor.iam.iam_v3.client import V3Client
 from bkmonitor.iam.iam_engine.core.types import (
     ApplyURLRequest,
@@ -484,14 +485,17 @@ class Permission:
     # 创建者授权 — 框架委托
     # ================================================================
 
-    def grant_creator_action(self, resource, creator: str = None, raise_exception=False):
+    def grant_creator_action(
+        self, resource, creator: str = None, raise_exception: bool = False
+    ) -> PermissionWriteResult | None:
         """
         新建实例关联权限授权（委托 IAMFramework），返回逐写后端结果。
 
         默认 ``on_failure=log`` 是尽力而为：一侧失败不会阻断业务创建，但会有
         PermissionWriter 的异常栈日志和本方法的结果摘要日志；绝不再把部分失败
-        记录为 ``Success``。调用方显式传 ``raise_exception=True`` 时，部分或全部
-        失败会抛 ``CreatorGrantFailed``。
+        记录为 ``Success``。调用方显式传 ``raise_exception=True`` 时，无论是
+        底层直接抛异常，还是逐后端返回部分/全部失败，都统一抛 ``CreatorGrantFailed``
+        （底层原始异常通过 ``__cause__`` 保留），让上层可以用单一 ``except`` 兜底。
         """
         try:
             grant_result = self._fw.grant_creator_action(
@@ -503,7 +507,9 @@ class Permission:
         except Exception as e:  # pylint: disable=broad-except
             logger.exception(f"[grant_creator_action] Failed! resource: {resource}, result: {e}")
             if raise_exception:
-                raise e
+                raise CreatorGrantFailed(
+                    f"creator grant crashed: resource_type={resource.type}, resource_id={resource.id}"
+                ) from e
             return None
 
         if grant_result.is_success:
@@ -521,7 +527,8 @@ class Permission:
         )
         if raise_exception:
             raise CreatorGrantFailed(
-                f"creator grant incomplete: resource={resource}, result={grant_result.as_log_dict()}"
+                f"creator grant incomplete: resource_type={resource.type}, "
+                f"resource_id={resource.id}, result={grant_result.as_log_dict()}"
             )
 
         return grant_result
