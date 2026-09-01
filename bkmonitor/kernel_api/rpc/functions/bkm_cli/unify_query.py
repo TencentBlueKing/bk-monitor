@@ -70,8 +70,46 @@ class UQOperationSpec:
         return limits
 
 
-def _array_of_objects(description: str) -> dict[str, Any]:
-    return {"type": "array", "items": {"type": "object"}, "description": description}
+def _query_item_schema() -> dict[str, Any]:
+    return {
+        "type": "object",
+        "required": ["field_name", "reference_name"],
+        "properties": {
+            "data_source": {"type": "string"},
+            "table_id": {"type": "string", "description": "结果表 ID；标准时序指标必填，容器指标可为空"},
+            "field_name": {"type": "string", "description": "指标字段，例如 usage"},
+            "reference_name": {"type": "string", "description": "供 metric_merge 引用的查询别名"},
+            "is_regexp": {"type": "boolean"},
+            "field_list": {"type": "array", "items": {"type": "string"}},
+            "function": {"type": "array", "items": {"type": "object"}},
+            "time_aggregation": {"type": "object"},
+            "dimensions": {"type": "array", "items": {"type": "string"}},
+            "conditions": {"type": "object"},
+            "limit": {"type": "integer"},
+            "slimit": {"type": "integer"},
+            "from": {"type": "integer"},
+            "offset": {"type": "string"},
+            "offset_forward": {"type": "boolean"},
+            "query_string": {"type": "string"},
+            "sql": {"type": "string"},
+            "is_prefix": {"type": "boolean"},
+        },
+        "additionalProperties": True,
+    }
+
+
+def _example_query_item() -> dict[str, Any]:
+    return {
+        "data_source": "bkmonitor",
+        "table_id": "system.cpu_summary",
+        "field_name": "usage",
+        "reference_name": "A",
+        "is_regexp": False,
+        "function": [{"method": "avg", "without": False, "dimensions": []}],
+        "time_aggregation": {"function": "avg_over_time", "window": "60s"},
+        "dimensions": [],
+        "conditions": {"field_list": [], "condition_list": []},
+    }
 
 
 def _named_output_list_schema() -> dict[str, Any]:
@@ -91,7 +129,11 @@ def _named_output_list_schema() -> dict[str, Any]:
 
 def _query_ts_schema(*, raw: bool = False, reference: bool = False, check: bool = False) -> dict[str, Any]:
     properties: dict[str, Any] = {
-        "query_list": _array_of_objects("UQ 结构化查询引用；最多 20 个"),
+        "query_list": {
+            "type": "array",
+            "items": _query_item_schema(),
+            "description": "UQ 结构化查询引用；最多 20 个",
+        },
         "metric_merge": {"type": "string"},
         "start_time": {"type": ["string", "integer"], "description": "Unix 时间戳，秒或毫秒"},
         "end_time": {"type": ["string", "integer"], "description": "Unix 时间戳，秒或毫秒"},
@@ -207,7 +249,7 @@ OPERATIONS = {
             handler=_call_query_ts,
             params_schema=_query_ts_schema(),
             example_params={
-                "query_list": [{"reference_name": "A", "data_source": "bkmonitor", "field_name": "usage"}],
+                "query_list": [_example_query_item()],
                 "metric_merge": "A",
                 "start_time": "1725062400",
                 "end_time": "1725066000",
@@ -229,7 +271,7 @@ OPERATIONS = {
             handler=_call_query_ts_raw,
             params_schema=_query_ts_schema(raw=True),
             example_params={
-                "query_list": [{"data_source": "bkmonitor", "field_name": "usage"}],
+                "query_list": [_example_query_item()],
                 "metric_merge": "A",
                 "start_time": "1725062400",
                 "end_time": "1725066000",
@@ -247,7 +289,7 @@ OPERATIONS = {
             handler=_call_query_ts_reference,
             params_schema=_query_ts_schema(reference=True),
             example_params={
-                "query_list": [{"data_source": "bkmonitor", "field_name": "usage"}],
+                "query_list": [_example_query_item()],
                 "metric_merge": "A",
                 "start_time": "1725062400",
                 "end_time": "1725066000",
@@ -262,7 +304,7 @@ OPERATIONS = {
             handler=_call_check_query_ts,
             params_schema=_query_ts_schema(check=True),
             example_params={
-                "query_list": [{"data_source": "bkmonitor", "field_name": "usage"}],
+                "query_list": [_example_query_item()],
                 "start_time": "1725062400",
                 "end_time": "1725066000",
             },
@@ -542,13 +584,14 @@ def _describe(spec: UQOperationSpec) -> dict[str, Any]:
 
 
 def _invoke(spec: UQOperationSpec, request_params: dict[str, Any]) -> dict[str, Any]:
+    describe_call = {"mode": "describe", "operation": spec.id}
     try:
         bk_biz_id = int(request_params.get("bk_biz_id"))
     except (TypeError, ValueError) as error:
-        return _error("invalid_argument", f"bk_biz_id 必须是整数: {error}")
+        return _error("invalid_argument", f"bk_biz_id 必须是整数: {error}", next_call=describe_call)
     invoke_params = request_params.get("params")
     if not isinstance(invoke_params, dict):
-        return _error("invalid_argument", "invoke 需要 params object")
+        return _error("invalid_argument", "invoke 需要 params object", next_call=describe_call)
 
     try:
         derived_bk_tenant_id = bk_biz_id_to_bk_tenant_id(bk_biz_id)
@@ -565,7 +608,7 @@ def _invoke(spec: UQOperationSpec, request_params: dict[str, Any]) -> dict[str, 
             params=guarded_params,
         )
     except ValueError as error:
-        return _error("unsafe_action_blocked", str(error))
+        return _error("unsafe_action_blocked", str(error), next_call=describe_call)
 
     try:
         raw = spec.handler(provider_params)
