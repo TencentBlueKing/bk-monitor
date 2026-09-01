@@ -11,8 +11,6 @@ specific language governing permissions and limitations under the License.
 import json
 from json import JSONDecodeError
 
-from ai_agent.core.custom_config_manager import get_mcp_access_token
-from blueapps.utils.request_provider import get_local_request
 from django.conf import settings
 from django.http import StreamingHttpResponse
 from django.utils.translation import gettext as _
@@ -45,33 +43,15 @@ class AidevAPIGWResource(APIResource):
 
 
 class AidevPrivateAPIGWResource(APIResource):
-    """使用当前登录用户 Access Token 调用 AIDEV 用户态接口。"""
+    """使用 BKM 应用凭据和当前用户登录态调用 AIDEV 用户态接口。"""
 
     base_url = settings.AIDEV_API_BASE_URL
     module_name = "aidev"
     INSERT_BK_USERNAME_TO_REQUEST_DATA = False
 
-    def get_headers(self):
-        headers = super().get_headers()
-        try:
-            access_token = get_mcp_access_token(request=get_local_request())
-        except Exception as error:
-            # Token helper 没有提供专用异常类型，这里统一收敛成 BKAPIError，
-            # 避免用户态凭证问题裸抛成 500，也不向调用方泄露凭证细节。
-            self.report_api_failure_metric(error_code=BKAPIError.code, exception_type=type(error).__name__)
-            raise BKAPIError(
-                system_name=self.module_name,
-                url=self.action,
-                result=_("获取当前用户 AIDEV 访问凭证失败"),
-            ) from error
-
-        # AIDEV private API 要求 access_token 单独鉴权，不能混入应用凭据。
-        headers["x-bkapi-authorization"] = json.dumps({"access_token": access_token})
-        return headers
-
     def perform_request(self, validated_request_data):
         if SourceAnalysisUpstreamMock.is_enabled():
-            # 临时联调钩子：Mock 仅接管源码分析使用的 Agent / Skill 列表。
+            # 临时联调钩子：Mock 仅接管源码分析使用的 AIDEV 列表接口。
             if SourceAnalysisUpstreamMock.supports_aidev_action(self.action):
                 return SourceAnalysisUpstreamMock.list_aidev_resources(self.action, validated_request_data)
         try:
@@ -114,6 +94,29 @@ class ListSkillsResource(AidevPrivateAPIGWResource):
 
     class RequestSerializer(ListAgentsResource.RequestSerializer):
         pass
+
+
+class ListKnowledgeBasesResource(AidevPrivateAPIGWResource):
+    """获取当前用户在指定 AIDEV 空间内有权限的知识库。"""
+
+    action = "/openapi/aidev/private/v1/knowledgebase/list/"
+    method = "POST"
+
+    class RequestSerializer(serializers.Serializer):
+        # AIDEV 不支持省略 space_id 或传 all，调用方必须逐个可见空间查询。
+        space_id = serializers.CharField(required=True, allow_blank=False)
+        fuzzy = serializers.CharField(required=False, allow_blank=True)
+        name = serializers.CharField(required=False, allow_blank=True)
+        knowledgebase_code = serializers.CharField(required=False, allow_blank=True)
+        page = serializers.IntegerField(required=False, default=1, min_value=1)
+        page_size = serializers.IntegerField(required=False, default=20, min_value=1, max_value=200)
+        order_by = serializers.CharField(required=False, default="name", allow_blank=False)
+        with_private = serializers.BooleanField(required=False, default=True)
+
+        def validate_space_id(self, value):
+            if value == "all":
+                raise serializers.ValidationError(_("知识库列表必须指定具体的 AIDEV 空间 ID"))
+            return value
 
 
 class ChatCompletionResource(AidevAPIGWResource):

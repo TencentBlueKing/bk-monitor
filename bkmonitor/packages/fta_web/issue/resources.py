@@ -241,18 +241,24 @@ class SourceAnalysisBaseResource(Resource):
             raise ValueError("invalid AIDEV resource total") from error
 
     @classmethod
-    def list_visible_aidev_items(cls, list_resources: Callable, id_field: str) -> list[dict]:
+    def list_visible_aidev_items(
+        cls,
+        list_resources: Callable,
+        id_field: str,
+        **request_params,
+    ) -> list[dict]:
         """遍历 AIDEV 全部分页，返回当前用户可见资源的上游原始条目。
 
         选项接口和启用校验共用这一次遍历：前者取名称与空间做展示，后者只取 ID 做校验。
         AIDEV 分页只是上游实现细节，不透给前端，因此这里按 ID 去重后返回全量条目。
         """
 
+        request_params = {"space_id": "all", **request_params}
         items_by_id: dict[str, dict] = {}
         page = 1
         while page <= cls.AIDEV_MAX_PAGES:
             items, total = cls.parse_aidev_page(
-                list_resources(space_id="all", page=page, page_size=cls.AIDEV_PAGE_SIZE)
+                list_resources(page=page, page_size=cls.AIDEV_PAGE_SIZE, **request_params)
             )
             try:
                 for item in items:
@@ -271,7 +277,7 @@ class SourceAnalysisBaseResource(Resource):
 
         一次下拉展开就要遍历上游全部分页，千级资源约 5 次请求，Agent 与 Skill 两个选择器
         叠加后单次打开规则编辑侧弹的开销可观，因此按登录用户短期缓存整份列表。
-        CacheType.AIDEV 是 user_related，缓存键带用户名，与 AIDEV 按 Access Token
+        CacheType.AIDEV 是 user_related，缓存键带用户名，与 AIDEV 按当前用户登录态
         过滤资源的口径一致，不会跨用户串数据。
 
         启用校验刻意不复用这份缓存：校验结果决定规则能否保存，用陈旧列表会把用户
@@ -288,6 +294,55 @@ class SourceAnalysisBaseResource(Resource):
 
         return {str(item[id_field]) for item in cls.list_visible_aidev_items(list_resources, id_field)}
 
+    @staticmethod
+    def list_visible_aidev_space_name_map() -> dict[str, str]:
+        """实时查询当前用户可见空间，并转换成 ID 到名称的映射。"""
+
+        spaces = api.aidev.list_spaces()
+        if not isinstance(spaces, list) or any(not isinstance(space, dict) for space in spaces):
+            raise ValueError("invalid AIDEV space list")
+
+        space_name_map = {}
+        for space in spaces:
+            space_id = space.get("space_id")
+            space_name = space.get("space_name")
+            if space_id is None or not space_name:
+                raise ValueError("AIDEV space misses id or name")
+            space_name_map[str(space_id)] = str(space_name)
+        return space_name_map
+
+    @classmethod
+    def load_visible_aidev_knowledge_bases(cls) -> tuple[list[dict], dict[str, str]]:
+        """按当前用户可见空间逐一拉取知识库。
+
+        AIDEV 知识库列表要求具体 space_id，省略或传 all 都会返回 400。因此这里先查询
+        可见空间，再逐空间遍历全部知识库分页，并按知识库 ID 汇总去重。
+        """
+
+        space_name_map = cls.list_visible_aidev_space_name_map()
+        items_by_id: dict[str, dict] = {}
+        for space_id in space_name_map:
+            items = cls.list_visible_aidev_items(
+                api.aidev.list_knowledge_bases,
+                "id",
+                space_id=space_id,
+                order_by="name",
+                with_private=True,
+            )
+            for item in items:
+                normalized_item = dict(item)
+                # 实际接口会返回 space_id；缺失时用本次查询空间补全，避免展示信息丢失。
+                normalized_item.setdefault("space_id", space_id)
+                items_by_id.setdefault(str(normalized_item["id"]), normalized_item)
+        return list(items_by_id.values()), space_name_map
+
+    @staticmethod
+    @using_cache(CacheType.AIDEV)
+    def query_visible_aidev_knowledge_bases() -> tuple[list[dict], dict[str, str]]:
+        """知识库选择器专用的用户维度缓存；规则启用校验仍走实时查询。"""
+
+        return SourceAnalysisBaseResource.load_visible_aidev_knowledge_bases()
+
     @classmethod
     def validate_resources(cls, rule: IssueSourceAnalysisRule) -> None:
         """校验规则引用的 AI 资源当前用户是否可见。
@@ -295,21 +350,24 @@ class SourceAnalysisBaseResource(Resource):
         会向 AIDEV 发起分页请求，耗时不可控，调用方必须在数据库事务外执行。
         """
 
-        # 正式链路在 AIDEV 提供用户态知识库列表前仍拒绝非空 ID；Mock 只放行固定联调数据。
-        if rule.knowledge_base_ids:
-            if not SourceAnalysisUpstreamMock.is_enabled():
-                raise SourceAnalysisResourceNotFoundError()
-            if not set(rule.knowledge_base_ids).issubset(SourceAnalysisUpstreamMock.visible_knowledge_base_ids()):
-                raise SourceAnalysisResourceNotFoundError()
-
         try:
             visible_agents = cls.list_visible_aidev_ids(api.aidev.list_agents, "id") if rule.agent_id else set()
             visible_skills = cls.list_visible_aidev_ids(api.aidev.list_skills, "id") if rule.skill_ids else set()
+            if rule.knowledge_base_ids:
+                if SourceAnalysisUpstreamMock.is_enabled():
+                    visible_knowledge_bases = SourceAnalysisUpstreamMock.visible_knowledge_base_ids()
+                else:
+                    knowledge_bases, _space_name_map = cls.load_visible_aidev_knowledge_bases()
+                    visible_knowledge_bases = {str(item["id"]) for item in knowledge_bases}
+            else:
+                visible_knowledge_bases = set()
         except (BKAPIError, TypeError, ValueError) as error:
             cls.raise_upstream_unavailable(error)
 
         agent_visible = not rule.agent_id or rule.agent_id in visible_agents
-        if not agent_visible or not set(rule.skill_ids).issubset(visible_skills):
+        skills_visible = set(rule.skill_ids).issubset(visible_skills)
+        knowledge_bases_visible = set(rule.knowledge_base_ids).issubset(visible_knowledge_bases)
+        if not agent_visible or not skills_visible or not knowledge_bases_visible:
             raise SourceAnalysisResourceNotFoundError()
 
     @staticmethod
@@ -1687,18 +1745,7 @@ class BaseListSourceAnalysisAidevOptionsResource(SourceAnalysisBaseResource):
         因此按用户维度短期缓存，避免每个选项请求都额外打一次 AIDEV。
         """
 
-        spaces = api.aidev.list_spaces()
-        if not isinstance(spaces, list) or any(not isinstance(space, dict) for space in spaces):
-            raise ValueError("invalid AIDEV space list")
-
-        space_name_map = {}
-        for space in spaces:
-            space_id = space.get("space_id")
-            space_name = space.get("space_name")
-            if space_id is None or not space_name:
-                raise ValueError("AIDEV space misses id or name")
-            space_name_map[str(space_id)] = str(space_name)
-        return space_name_map
+        return SourceAnalysisBaseResource.list_visible_aidev_space_name_map()
 
     @classmethod
     def get_aidev_space_name_map(cls) -> dict[str, str]:
@@ -1714,32 +1761,36 @@ class BaseListSourceAnalysisAidevOptionsResource(SourceAnalysisBaseResource):
             logger.warning("Source analysis AIDEV space name map degraded: %s", type(error).__name__)
             return {}
 
+    @classmethod
+    def build_aidev_options(cls, items: list[dict], space_name_map: dict[str, str]) -> dict:
+        options = []
+        for item in items:
+            resource_id = item.get(cls.id_field)
+            resource_name = item.get(cls.name_field)
+            if resource_id is None or not resource_name:
+                raise ValueError("AIDEV resource misses id or name")
+
+            # 空间字段只用于选择器展示，不进入规则保存协议，因此空间信息不完整时一律降级：
+            # 上游缺失 space_id，或资源属于当前用户无权限的空间（跨空间公开资源）导致名称补全失败，
+            # 都保留该资源并退化展示，不影响整个选择器可用性。
+            normalized_space_id = str(item.get("space_id") or "")
+            space_name = space_name_map.get(normalized_space_id) or normalized_space_id
+            options.append(
+                {
+                    "id": str(resource_id),
+                    "name": str(resource_name),
+                    "space_id": normalized_space_id,
+                    "space_name": space_name,
+                }
+            )
+        return {"total": len(options), "list": options}
+
     def perform_request(self, validated_request_data: dict) -> dict:
-        # bk_biz_id 由 ViewSet 用于 BKM 业务权限校验；AIDEV 使用当前用户 Token 独立过滤资源权限。
+        # bk_biz_id 由 ViewSet 用于 BKM 业务权限校验；AIDEV 使用当前用户登录态独立过滤资源权限。
         try:
             items = self.query_visible_aidev_items(self.aidev_resource_type, self.id_field)
             space_name_map = self.get_aidev_space_name_map() if items else {}
-            options = []
-            for item in items:
-                resource_id = item.get(self.id_field)
-                resource_name = item.get(self.name_field)
-                if resource_id is None or not resource_name:
-                    raise ValueError("AIDEV resource misses id or name")
-
-                # 空间字段只用于选择器展示，不进入规则保存协议，因此空间信息不完整时一律降级：
-                # 上游缺失 space_id，或资源属于当前用户无权限的空间（跨空间公开资源）导致名称补全失败，
-                # 都保留该资源并退化展示，不影响整个选择器可用性。
-                normalized_space_id = str(item.get("space_id") or "")
-                space_name = space_name_map.get(normalized_space_id) or normalized_space_id
-                options.append(
-                    {
-                        "id": str(resource_id),
-                        "name": str(resource_name),
-                        "space_id": normalized_space_id,
-                        "space_name": space_name,
-                    }
-                )
-            return {"total": len(options), "list": options}
+            return self.build_aidev_options(items, space_name_map)
         except (BKAPIError, TypeError, ValueError) as error:
             self.raise_upstream_unavailable(error)
 
@@ -1761,13 +1812,19 @@ class ListSourceAnalysisSkillsResource(BaseListSourceAnalysisAidevOptionsResourc
 
 
 class ListSourceAnalysisKnowledgeBasesResource(BaseListSourceAnalysisAidevOptionsResource):
-    """预留当前用户有权限的 AIDEV 知识库选项接口。"""
+    """查询当前用户有权限的 AIDEV 知识库选项。"""
+
+    id_field = "id"
+    name_field = "name"
 
     def perform_request(self, validated_request_data: dict) -> dict:
         if SourceAnalysisUpstreamMock.is_enabled():
             return SourceAnalysisUpstreamMock.list_knowledge_base_options()
-        # AIDEV 暂未提供用户态知识库列表接口；保留前端协议，支持后再接入真实数据。
-        return {"total": 0, "list": []}
+        try:
+            items, space_name_map = self.query_visible_aidev_knowledge_bases()
+            return self.build_aidev_options(items, space_name_map)
+        except (BKAPIError, TypeError, ValueError) as error:
+            self.raise_upstream_unavailable(error)
 
 
 class GetSourceAnalysisConfigResource(SourceAnalysisBaseResource):

@@ -116,12 +116,38 @@ class TestSourceAnalysisRuleSerializers(SimpleTestCase):
         self.assertEqual(list_resources.call_count, 2)
         list_resources.assert_any_call(space_id="all", page=2, page_size=200)
 
-    def test_non_empty_knowledge_base_is_rejected_until_user_api_exists(self):
+    @patch("fta_web.issue.resources.SourceAnalysisUpstreamMock.is_enabled", return_value=False)
+    @patch.object(
+        SourceAnalysisBaseResource,
+        "load_visible_aidev_knowledge_bases",
+        return_value=([{"id": 10}], {"space-a": "AIDEV Helper"}),
+    )
+    @patch.object(SourceAnalysisBaseResource, "list_visible_aidev_ids", return_value={"1"})
+    def test_visible_knowledge_base_passes_validation(self, _list_visible, load_knowledge_bases, _is_mock_enabled):
         rule = IssueSourceAnalysisRule(
             bk_biz_id=2,
             priority=1,
             agent_id="1",
             knowledge_base_ids=["10"],
+        )
+
+        SourceAnalysisBaseResource.validate_resources(rule)
+
+        load_knowledge_bases.assert_called_once_with()
+
+    @patch("fta_web.issue.resources.SourceAnalysisUpstreamMock.is_enabled", return_value=False)
+    @patch.object(
+        SourceAnalysisBaseResource,
+        "load_visible_aidev_knowledge_bases",
+        return_value=([{"id": 10}], {"space-a": "AIDEV Helper"}),
+    )
+    @patch.object(SourceAnalysisBaseResource, "list_visible_aidev_ids", return_value={"1"})
+    def test_invisible_knowledge_base_is_rejected(self, _list_visible, _load_knowledge_bases, _is_mock_enabled):
+        rule = IssueSourceAnalysisRule(
+            bk_biz_id=2,
+            priority=1,
+            agent_id="1",
+            knowledge_base_ids=["99"],
         )
 
         with self.assertRaises(SourceAnalysisResourceNotFoundError):
