@@ -152,7 +152,7 @@ def test_sync_relation_redis_data(create_and_delete_records):
 
 
 @pytest.mark.django_db(databases="__all__")
-@override_settings(GRAPH_RELATION_BKBASE_SYNC_BIZ_ID_WHITE_LIST=[3])
+@override_settings(GRAPH_RELATION_V4_BIZ_ID_WHITE_LIST=[3])
 def test_sync_relation_redis_data_skips_missing_rt_with_existing_redis_token(create_and_delete_records):
     redis_data = {b"bkcc__3": b'{"token":"existing-token","modifyTime":"1733132051"}'}
     with (
@@ -177,7 +177,7 @@ def test_sync_relation_redis_data_skips_missing_rt_with_existing_redis_token(cre
 
 
 @pytest.mark.django_db(databases="__all__")
-@override_settings(GRAPH_RELATION_BKBASE_SYNC_BIZ_ID_WHITE_LIST=[])
+@override_settings(GRAPH_RELATION_V4_BIZ_ID_WHITE_LIST=[])
 def test_sync_relation_redis_data_skips_graph_dual_write_when_whitelist_empty(create_and_delete_records):
     created_group = Mock(token="", last_modify_time=datetime.fromtimestamp(1733198214, tz=timezone.utc))
     with (
@@ -200,7 +200,7 @@ def test_sync_relation_redis_data_skips_graph_dual_write_when_whitelist_empty(cr
 
 
 @pytest.mark.django_db(databases="__all__")
-@override_settings(GRAPH_RELATION_BKBASE_SYNC_BIZ_ID_WHITE_LIST=[2])
+@override_settings(GRAPH_RELATION_V4_BIZ_ID_WHITE_LIST=[2])
 def test_sync_relation_redis_data_configures_graph_v4_for_whitelist(create_and_delete_records):
     created_group = Mock(token="", last_modify_time=datetime.fromtimestamp(1733198214, tz=timezone.utc))
     storage_config = {
@@ -237,7 +237,7 @@ def test_sync_relation_redis_data_configures_graph_v4_for_whitelist(create_and_d
 
 
 @pytest.mark.django_db(databases="__all__")
-@override_settings(GRAPH_RELATION_BKBASE_SYNC_BIZ_ID_WHITE_LIST=[2])
+@override_settings(GRAPH_RELATION_V4_BIZ_ID_WHITE_LIST=[2])
 def test_sync_relation_graph_v4_apply_failure_does_not_block_token_sync(create_and_delete_records):
     storage_config = {
         "storage_cluster_id": 900002,
@@ -282,7 +282,7 @@ def test_sync_relation_graph_v4_apply_failure_does_not_block_token_sync(create_a
 
 
 @pytest.mark.django_db(databases="__all__")
-@override_settings(GRAPH_RELATION_BKBASE_SYNC_BIZ_ID_WHITE_LIST=[2])
+@override_settings(GRAPH_RELATION_V4_BIZ_ID_WHITE_LIST=[2])
 def test_sync_relation_redis_data_skips_modify_when_graph_v4_config_unchanged(create_and_delete_records):
     table_id = "2_bkcc_built_in_time_series.__default__"
     storage_config = {
@@ -327,7 +327,7 @@ def test_sync_relation_redis_data_skips_modify_when_graph_v4_config_unchanged(cr
 
 
 @pytest.mark.django_db(databases="__all__")
-@override_settings(GRAPH_RELATION_BKBASE_SYNC_BIZ_ID_WHITE_LIST="2, invalid, 3")
+@override_settings(GRAPH_RELATION_V4_BIZ_ID_WHITE_LIST="2, invalid, 3")
 def test_sync_relation_redis_data_configures_each_graph_v4_whitelist_biz(create_and_delete_records):
     created_group = Mock(token="", last_modify_time=datetime.fromtimestamp(1733198214, tz=timezone.utc))
     storage_config = {
@@ -365,7 +365,7 @@ def test_sync_relation_redis_data_configures_each_graph_v4_whitelist_biz(create_
 
 
 @pytest.mark.django_db(databases="__all__")
-@override_settings(GRAPH_RELATION_BKBASE_SYNC_BIZ_ID_WHITE_LIST=[2])
+@override_settings(GRAPH_RELATION_V4_BIZ_ID_WHITE_LIST=[2])
 @pytest.mark.parametrize(
     ("create_cluster", "definitions", "error"),
     [
