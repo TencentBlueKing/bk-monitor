@@ -1,7 +1,9 @@
 from types import SimpleNamespace
 
+from elasticsearch_dsl import AttrDict
+
 from alarm_backends.core.context.alarm import Alarm
-from bkmonitor.utils.template import Jinja2Renderer
+from bkmonitor.utils.template import CustomTemplateRenderer, Jinja2Renderer
 from monitor_web.strategies.constant import ValueableList
 from constants.alert import EventStatus
 
@@ -21,7 +23,7 @@ def build_alarm(*, status=EventStatus.ABNORMAL, no_data=False):
         alert=AlertStub(status=status, no_data=no_data),
         anomaly_record=SimpleNamespace(
             extra_info=SimpleNamespace(
-                origin_alarm=SimpleNamespace(data=SimpleNamespace(value=4.2, ref_values=ref_values))
+                origin_alarm=SimpleNamespace(data=SimpleNamespace(value=4.2, ref_values=AttrDict(ref_values)))
             )
         ),
         action=None,
@@ -65,6 +67,26 @@ def test_alarm_ref_values_can_be_rendered_with_safe_get_access():
     )
 
     assert rendered == "42|SUCCESS"
+
+
+def test_alarm_ref_values_can_be_rendered_by_custom_notice_template():
+    alarm, _ = build_alarm()
+    context = {
+        "action": None,
+        "alarm": alarm,
+        "notice_way": "rtx",
+        "content_template": (
+            'A={{ alarm.ref_values.get("A", {}).get("value", "--") }}；'
+            'C={{ alarm.ref_values.get("C", {}).get("value", alarm.current_value) }}'
+        ),
+        "default_content_template": "fallback",
+        "title_template": "",
+        "default_title_template": "default title",
+    }
+
+    CustomTemplateRenderer.render("", context)
+
+    assert context["user_content"] == "A=42；C=4.2"
 
 
 def test_notice_variable_list_documents_alarm_ref_values_get_usage():

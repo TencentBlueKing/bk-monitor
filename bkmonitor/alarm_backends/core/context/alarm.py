@@ -447,7 +447,10 @@ class Alarm(BaseContextObject):
         if self.is_no_data_alarm or self.parent.alert.status == EventStatus.RECOVERED:
             return {}
         try:
-            return self.parent.anomaly_record.extra_info.origin_alarm.data.ref_values or {}
+            ref_values = self.parent.anomaly_record.extra_info.origin_alarm.data.ref_values
+            if isinstance(ref_values, AttrDict):
+                return ref_values.to_dict()
+            return ref_values or {}
         except Exception as error:
             logger.info(
                 "action(%s) get ref values error: %s", self.parent.action.id if self.parent.action else "", error
