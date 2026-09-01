@@ -68,7 +68,14 @@ class Command(BaseCommand):
                 if collector_config.index_set_id:
                     index_set = LogIndexSet.objects.filter(index_set_id=collector_config.index_set_id).first()
                     if index_set:
-                        BaseIndexSetHandler.sync_router(index_set)
+                        index_sets = [index_set]
+                        parent_index_set_ids = index_set.get_parent_index_set_ids()
+                        parent_index_sets = LogIndexSet.objects.filter(
+                            index_set_id__in=parent_index_set_ids,
+                            is_group=True,
+                        )
+                        index_sets.extend(parent_index_sets)
+                        BaseIndexSetHandler.sync_router(index_sets)
                 repaired += 1
             except Exception as e:  # pylint: disable=broad-except
                 failed += 1

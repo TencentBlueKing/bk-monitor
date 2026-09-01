@@ -1494,10 +1494,13 @@ class IndexSetHandler(APIModel):
         """
         search_handler_esquery = SearchHandler(index_set_id, {})
         multi_result = search_handler_esquery.get_all_fields_by_index_id(need_merge=False)
-        resolved_result_table_ids = set(multi_result)
         result_table_mappings = defaultdict(list)
         field_name_mappings = {}
+        query_alias_mappings = defaultdict(list)
         for result_table_id, (field_result, display_fields) in multi_result.items():
+            # 仅字段查询有结果时才认为该 RT 已成功解析；空结果可能表示 mapping 不可用。
+            if field_result:
+                query_alias_mappings[result_table_id] = []
             field_name_list = []
             for i in field_result:
                 _filed_name = i["field_name"]
@@ -1507,7 +1510,6 @@ class IndexSetHandler(APIModel):
 
         # 存储别名对应的字段及其所属rt列表
         alias_field_map = defaultdict(list)
-        query_alias_mappings = defaultdict(list)
 
         for alias_setting in alias_settings:
             field_name = alias_setting["field_name"]
@@ -1522,7 +1524,7 @@ class IndexSetHandler(APIModel):
                 if field_name in _field_name_list:
                     query_alias_mappings[_result_table_id].append(alias_setting)
 
-        return query_alias_mappings, alias_field_map, resolved_result_table_ids
+        return query_alias_mappings, alias_field_map
 
     @transaction.atomic()
     def update_alias_settings(self, alias_settings):
@@ -1531,7 +1533,7 @@ class IndexSetHandler(APIModel):
         is_doris = str(IndexSetTag.get_tag_id("Doris", tag_type=TAG_TYPE_INNER)) in list(self.data.tag_ids)
         multi_execute_func = MultiExecuteFunc()
         if not is_doris:
-            query_alias_mappings, alias_field_map, _ = self.get_rt_alias_settings(self.index_set_id, alias_settings)
+            query_alias_mappings, alias_field_map = self.get_rt_alias_settings(self.index_set_id, alias_settings)
 
             # 检查同名别名的字段rt列表是否有交集
             for query_alias, fields in alias_field_map.items():
@@ -1947,7 +1949,6 @@ class BaseIndexSetHandler:
         is_analysis=False,
         parent_index_set: LogIndexSet = None,
         rt_alias_mappings=None,
-        resolved_rt_ids=None,
     ):
         table_info_list = []
         # 索引组场景下使用索引组ID生成table_id，否则使用当前索引集ID
@@ -2031,12 +2032,11 @@ class BaseIndexSetHandler:
 
             # 只有确认拿到该 RT 的字段信息后，才显式下发别名配置；
             # 查询失败的 RT 省略该字段，避免 metadata 清理已有别名。
-            alias_settings_resolved = resolved_rt_ids is None or obj.result_table_id in resolved_rt_ids
+            alias_settings_resolved = rt_alias_mappings is None or obj.result_table_id in rt_alias_mappings
             if rt_alias_mappings is None:
-                if alias_settings_resolved:
-                    table_info["query_alias_settings"] = copy.deepcopy(effective_alias_settings or [])
+                table_info["query_alias_settings"] = copy.deepcopy(effective_alias_settings or [])
             elif alias_settings_resolved:
-                table_info["query_alias_settings"] = copy.deepcopy(rt_alias_mappings.get(obj.result_table_id, []))
+                table_info["query_alias_settings"] = copy.deepcopy(rt_alias_mappings[obj.result_table_id])
 
             if table_info["source_type"] == Scenario.LOG:
                 table_info["origin_table_id"] = obj.result_table_id
@@ -2084,10 +2084,9 @@ class BaseIndexSetHandler:
                 ]
                 # 提前获取按RT粒度的别名配置（需要查询ES，避免在循环中重复调用）
                 rt_alias_mappings = None
-                resolved_rt_ids = None
                 if index_set.query_alias_settings:
                     try:
-                        rt_alias_mappings, _, resolved_rt_ids = IndexSetHandler.get_rt_alias_settings(
+                        rt_alias_mappings, _ = IndexSetHandler.get_rt_alias_settings(
                             index_set.index_set_id, index_set.query_alias_settings
                         )
                     except Exception as e:
@@ -2110,7 +2109,6 @@ class BaseIndexSetHandler:
                                 is_analysis=data_label.endswith("_analysis"),
                                 parent_index_set=index_set,
                                 rt_alias_mappings=rt_alias_mappings,
-                                resolved_rt_ids=resolved_rt_ids,
                             )
                             table_info_list.extend(table_infos)
                     else:
@@ -2118,7 +2116,6 @@ class BaseIndexSetHandler:
                             index_set=index_set,
                             is_analysis=data_label.endswith("_analysis"),
                             rt_alias_mappings=rt_alias_mappings,
-                            resolved_rt_ids=resolved_rt_ids,
                         )
                     # 如果有索引列表，则创建路由
                     if table_info_list:

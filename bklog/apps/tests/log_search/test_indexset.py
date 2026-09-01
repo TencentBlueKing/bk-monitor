@@ -1704,7 +1704,10 @@ class TestSyncRouter(TestCase):
 
     @patch(
         "apps.log_search.handlers.index_set.SearchHandler.get_all_fields_by_index_id",
-        return_value={"591_xx": ([{"field_name": "log"}], [])},
+        return_value={
+            "591_xx": ([{"field_name": "log"}], []),
+            "empty_fields": ([], []),
+        },
     )
     def test_sync_router_skips_aliases_for_rt_with_failed_field_query(self, mock_get_all_fields):
         """部分 RT 字段查询失败时，不应给失败 RT 下发空数组覆盖已有别名。"""
@@ -1714,6 +1717,12 @@ class TestSyncRouter(TestCase):
         LogIndexSetData.objects.create(
             index_set_id=index_set.index_set_id,
             result_table_id="log_failed",
+            scenario_id=Scenario.LOG,
+            apply_status=LogIndexSetData.Status.NORMAL,
+        )
+        LogIndexSetData.objects.create(
+            index_set_id=index_set.index_set_id,
+            result_table_id="empty_fields",
             scenario_id=Scenario.LOG,
             apply_status=LogIndexSetData.Status.NORMAL,
         )
@@ -1733,8 +1742,10 @@ class TestSyncRouter(TestCase):
         )
         success_info = next(info for info in default_router["table_info"] if info["index_set"].startswith("591_xx"))
         failed_info = next(info for info in default_router["table_info"] if info["index_set"].startswith("log_failed"))
+        empty_info = next(info for info in default_router["table_info"] if info["index_set"].startswith("empty_fields"))
         self.assertEqual(success_info["query_alias_settings"], [user_alias])
         self.assertNotIn("query_alias_settings", failed_info)
+        self.assertNotIn("query_alias_settings", empty_info)
 
     def test_es_doris_analysis(self):
         """
