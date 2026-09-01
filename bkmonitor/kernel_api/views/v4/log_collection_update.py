@@ -5,6 +5,7 @@ from bkmonitor.iam.drf import BusinessActionPermission
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
 from kernel_api.resource.log_collection_update import FastUpdateLogCollectorResource
 from kernel_api.resource.log_collection_special_update import (
+    UpdateBkDataResource,
     UpdateCustomReportResource,
     UpdateThirdPartyESResource,
 )
@@ -36,4 +37,5 @@ class LogCollectionUpdateViewSet(ResourceViewSet):
         ResourceRoute("POST", FastUpdateLogCollectorResource, endpoint="fast_update"),
         ResourceRoute("POST", UpdateCustomReportResource, endpoint="update_custom_report"),
         ResourceRoute("POST", UpdateThirdPartyESResource, endpoint="update_third_party_es"),
+        ResourceRoute("POST", UpdateBkDataResource, endpoint="update_bkdata_index_set"),
     ]

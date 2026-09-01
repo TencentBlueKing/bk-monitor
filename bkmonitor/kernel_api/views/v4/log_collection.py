@@ -3,7 +3,11 @@
 from bkmonitor.iam import ActionEnum
 from bkmonitor.iam.drf import BusinessActionPermission
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
-from kernel_api.resource.log_collection import GetLogCollectorResource, ListLogCollectorsResource
+from kernel_api.resource.log_collection import (
+    GetLogCollectorResource,
+    GetLogIndexSetResource,
+    ListLogCollectorsResource,
+)
 from kernel_api.resource.log_index_set import ListLogIndexSetGroupsResource
 
 
@@ -31,5 +35,6 @@ class LogCollectionViewSet(ResourceViewSet):
     resource_routes = [
         ResourceRoute("GET", ListLogCollectorsResource, endpoint="list_collectors"),
         ResourceRoute("GET", GetLogCollectorResource, endpoint="get_collector"),
+        ResourceRoute("GET", GetLogIndexSetResource, endpoint="get_index_set"),
         ResourceRoute("GET", ListLogIndexSetGroupsResource, endpoint="list_index_set_groups"),
     ]

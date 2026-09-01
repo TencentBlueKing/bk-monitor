@@ -127,7 +127,8 @@ paths:
       operationId: update_third_party_es
       description: >-
         Update a third-party Elasticsearch index set. Requires confirm=true, index_set_name, storage_cluster_id,
-        indexes and time_field. scenario_id is fixed to es. parent_index_set_ids replaces the parent groups;
+        indexes and time_field. Obtain the complete indexes and time-field values from get_log_index_set.
+        scenario_id is fixed to es. parent_index_set_ids replaces the parent groups;
         omit it to keep current membership or send [] to clear all groups. 更新第三方 ES 索引集，必须确认 confirm=true，填写索引集名称、存储集群、索引列表和时间字段；scenario_id 固定为 es。parent_index_set_ids 用于整体替换归属索引组，不传保持不变，传 [] 清空。
       tags:
       - log_collection_mcp
@@ -236,6 +237,97 @@ paths:
           name: default
           method: post
           path: /api/v4/log_collection_update/update_third_party_es/
+          matchSubpath: false
+          timeout: 30
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: false
+          resourcePermissionRequired: true
+  /mcp/update_bkdata_index_set/:
+    post:
+      operationId: update_bkdata_index_set
+      description: >-
+        Update a bkdata result-table index set. Obtain the complete index list from get_log_index_set. Requires
+        confirm=true, index_set_name and indexes. The index
+        business IDs must match bk_biz_id. scenario_id is fixed to bkdata. Omit parent_index_set_ids to keep
+        current membership; send [] to clear all groups. 更新计算平台 bkdata 索引集，必须确认 confirm=true，填写索引集名称和结果表索引列表；索引所属业务必须与 bk_biz_id 一致，scenario_id 固定为 bkdata。parent_index_set_ids 不传保持不变，传 [] 清空全部归属组。
+      tags:
+      - log_collection_mcp
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - bk_biz_id
+              - index_set_id
+              - index_set_name
+              - indexes
+              - confirm
+              properties:
+                bk_biz_id:
+                  type: integer
+                  minimum: 1
+                  description: Business ID. 业务ID。
+                index_set_id:
+                  type: integer
+                  minimum: 1
+                  description: BkBase result-table index set ID. 计算平台结果表索引集ID。
+                index_set_name:
+                  type: string
+                  maxLength: 64
+                  description: Index set name. 索引集名称。
+                indexes:
+                  type: array
+                  minItems: 1
+                  description: BkBase result-table list. 计算平台结果表列表。
+                  items:
+                    type: object
+                    additionalProperties: false
+                    required: [result_table_id]
+                    properties:
+                      result_table_id:
+                        type: string
+                        maxLength: 255
+                      bk_biz_id:
+                        type: integer
+                        minimum: 1
+                        nullable: true
+                category_id:
+                  type: string
+                  maxLength: 64
+                  description: Data category. 数据分类。
+                target_fields:
+                  type: array
+                  items: {}
+                sort_fields:
+                  type: array
+                  items: {}
+                parent_index_set_ids:
+                  type: array
+                  nullable: true
+                  items:
+                    type: integer
+                    minimum: 1
+                  description: >-
+                    Parent index group IDs. Omit to keep current membership; send [] to clear all groups.
+                    归属索引组ID列表。不传保持不变，传 [] 清空全部归属组。
+                confirm:
+                  type: boolean
+                  enum: [true]
+                  description: Must be true for this write. 写操作必须为 true。
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        enableWebsocket: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/log_collection_update/update_bkdata_index_set/
           matchSubpath: false
           timeout: 30
         pluginConfigs: []

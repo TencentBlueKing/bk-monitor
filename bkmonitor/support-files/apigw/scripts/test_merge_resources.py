@@ -161,17 +161,24 @@ def test_log_collection_clean_config_mcp_contract():
 
 
 def test_log_collection_mcp_contract():
-    """日志采集 MCP 首期只暴露分页列表和详情查询。"""
+    """日志采集 MCP 暴露列表、采集器详情和索引集详情查询。"""
     paths = _load_paths(_LOG_COLLECTION_MCP_FILE)
 
     assert set(paths) == {
         "/mcp/list_log_collectors/",
         "/mcp/get_log_collector/",
+        "/mcp/get_log_index_set/",
     }
-    assert _operation_ids(paths) == {"list_log_collectors", "get_log_collector"}
+    assert _operation_ids(paths) == {"list_log_collectors", "get_log_collector", "get_log_index_set"}
     list_schema = paths["/mcp/list_log_collectors/"]["get"]["parameters"]
+    assert "enabled" not in {parameter["name"] for parameter in list_schema}
     access_type_parameter = next(parameter for parameter in list_schema if parameter["name"] == "log_access_type")
     assert "bkdata" in access_type_parameter["schema"]["items"]["enum"]
+    index_set_parameters = paths["/mcp/get_log_index_set/"]["get"]["parameters"]
+    assert {parameter["name"] for parameter in index_set_parameters} == {"bk_biz_id", "index_set_id"}
+    assert paths["/mcp/get_log_index_set/"]["get"]["x-bk-apigateway-resource"]["backend"]["path"] == (
+        "/api/v4/log_collection/get_index_set/"
+    )
     for path_data in paths.values():
         for method_data in path_data.values():
             assert method_data["tags"] == ["log_collection_mcp"]
@@ -220,8 +227,16 @@ def test_log_collection_mcp_exposes_index_groups_and_mixed_access_types():
     assert third_party_index_schema["bk_biz_id"]["minimum"] == 1
 
     special_update_paths = _load_paths(_LOG_COLLECTION_SPECIAL_UPDATE_MCP_FILE)
-    assert set(special_update_paths) == {"/mcp/update_custom_report/", "/mcp/update_third_party_es/"}
-    assert _operation_ids(special_update_paths) == {"update_custom_report", "update_third_party_es"}
+    assert set(special_update_paths) == {
+        "/mcp/update_custom_report/",
+        "/mcp/update_third_party_es/",
+        "/mcp/update_bkdata_index_set/",
+    }
+    assert _operation_ids(special_update_paths) == {
+        "update_custom_report",
+        "update_third_party_es",
+        "update_bkdata_index_set",
+    }
     for path_data in special_update_paths.values():
         method_data = path_data["post"]
         schema = method_data["requestBody"]["content"]["application/json"]["schema"]
@@ -235,6 +250,14 @@ def test_log_collection_mcp_exposes_index_groups_and_mixed_access_types():
     ]["application/json"]["schema"]["properties"]["indexes"]["items"]["properties"]
     assert third_party_update_index_schema["result_table_id"]["maxLength"] == 255
     assert third_party_update_index_schema["bk_biz_id"]["minimum"] == 1
+    bkdata_update_schema = special_update_paths["/mcp/update_bkdata_index_set/"]["post"]["requestBody"][
+        "content"
+    ]["application/json"]["schema"]
+    assert bkdata_update_schema["properties"]["indexes"]["minItems"] == 1
+    assert (
+        bkdata_update_schema["properties"]["indexes"]["items"]["properties"]["result_table_id"]["maxLength"]
+        == 255
+    )
 
 
 def test_log_collection_create_and_update_support_parent_index_set_ids():

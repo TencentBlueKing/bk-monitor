@@ -1,4 +1,4 @@
-"""日志采集相关的自定义上报和第三方 ES 更新资源。"""
+"""日志采集相关的自定义上报、第三方 ES 和 bkdata 更新资源。"""
 
 from collections.abc import Mapping
 
@@ -8,7 +8,11 @@ from rest_framework.exceptions import PermissionDenied, ValidationError
 from bkm_space.utils import bk_biz_id_to_space_uid
 from core.drf_resource import Resource, api
 from kernel_api.resource.log_collection import get_log_access_type
-from kernel_api.resource.log_collection_special_create import ThirdPartyESIndexSerializer, fill_index_business_ids
+from kernel_api.resource.log_collection_special_create import (
+    BkDataIndexSerializer,
+    ThirdPartyESIndexSerializer,
+    fill_index_business_ids,
+)
 
 
 class StrictUpdateSerializer(serializers.Serializer):
@@ -179,7 +183,6 @@ class UpdateThirdPartyESResource(Resource):
             {
                 "space_uid": bk_biz_id_to_space_uid(bk_biz_id),
                 "scenario_id": "es",
-                "enforce_permission": True,
             }
         )
         result = api.log_search.update_index_set(index_set_id=index_set_id, **request_data) or {}
@@ -191,5 +194,74 @@ class UpdateThirdPartyESResource(Resource):
             "scenario_id": result.get("scenario_id") or "es",
             "space_uid": result.get("space_uid") or request_data["space_uid"],
             "storage_cluster_id": result.get("storage_cluster_id") or request_data["storage_cluster_id"],
+            "parent_index_set_ids": request_data.get("parent_index_set_ids"),
+        }
+
+
+class UpdateBkDataResource(Resource):
+    """更新计算平台 bkdata 索引集。"""
+
+    class RequestSerializer(StrictUpdateSerializer):
+        bk_biz_id = serializers.IntegerField(required=True, min_value=1, label="业务ID")
+        index_set_id = serializers.IntegerField(required=True, min_value=1, label="索引集ID")
+        index_set_name = serializers.CharField(required=True, max_length=64, label="索引集名称")
+        indexes = serializers.ListField(
+            child=BkDataIndexSerializer(), required=True, allow_empty=False, label="数据平台结果表列表"
+        )
+        category_id = serializers.CharField(required=False, max_length=64, label="分类ID")
+        target_fields = serializers.ListField(required=False, label="定位字段")
+        sort_fields = serializers.ListField(required=False, label="排序字段")
+        parent_index_set_ids = serializers.ListField(
+            child=serializers.IntegerField(min_value=1),
+            required=False,
+            allow_null=True,
+            label="归属索引组ID列表",
+        )
+        confirm = serializers.BooleanField(required=True, label="确认执行更新")
+
+        def validate_confirm(self, value: bool) -> bool:
+            if not value:
+                raise serializers.ValidationError("写操作必须由用户确认，请设置 confirm=true")
+            return value
+
+        def validate(self, attrs):
+            bk_biz_id = attrs["bk_biz_id"]
+            invalid_biz_ids = {
+                index["bk_biz_id"]
+                for index in attrs["indexes"]
+                if index.get("bk_biz_id") is not None and index["bk_biz_id"] != bk_biz_id
+            }
+            if invalid_biz_ids:
+                raise serializers.ValidationError(
+                    {"indexes": f"bkdata 索引所属业务必须与 bk_biz_id={bk_biz_id} 一致。"}
+                )
+            return attrs
+
+    def perform_request(self, validated_request_data):
+        request_data = dict(validated_request_data)
+        request_data.pop("confirm")
+        bk_biz_id = request_data.pop("bk_biz_id")
+        index_set_id = request_data.pop("index_set_id")
+
+        index_set = find_index_set(api.log_search.search_index_set(bk_biz_id=bk_biz_id), index_set_id)
+        if get_log_access_type(index_set) != "bkdata":
+            raise ValidationError("The index set is not a bkdata index set.")
+
+        request_data["indexes"] = fill_index_business_ids(request_data["indexes"], bk_biz_id)
+        request_data.update(
+            {
+                "space_uid": bk_biz_id_to_space_uid(bk_biz_id),
+                "scenario_id": "bkdata",
+            }
+        )
+        result = api.log_search.update_index_set(index_set_id=index_set_id, **request_data) or {}
+        if not isinstance(result, Mapping):
+            result = {}
+        return {
+            "index_set_id": result.get("index_set_id") or index_set_id,
+            "index_set_name": result.get("index_set_name") or request_data["index_set_name"],
+            "scenario_id": result.get("scenario_id") or "bkdata",
+            "space_uid": result.get("space_uid") or request_data["space_uid"],
+            "storage_cluster_id": result.get("storage_cluster_id"),
             "parent_index_set_ids": request_data.get("parent_index_set_ids"),
         }

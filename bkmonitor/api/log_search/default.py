@@ -553,7 +553,6 @@ class LogAccessCollectorResource(LogSearchAPIGWResource):
         exclude_not_completed = serializers.BooleanField(required=False, default=False)
         exclude_not_data = serializers.BooleanField(required=False, default=False)
         include_related_spaces = serializers.BooleanField(required=False, default=False)
-        enforce_permission = serializers.BooleanField(required=False, default=False, label="是否强制用户权限校验")
 
 
 class LogCollectorTaskStatusResource(LogSearchAPIGWResource):

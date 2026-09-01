@@ -2,6 +2,7 @@
 
 import json
 import math
+from collections.abc import Mapping
 from typing import Any
 
 from rest_framework import serializers
@@ -54,7 +55,6 @@ CONTAINER_CONFIG_FIELDS = {
     "status",
     "status_detail",
 }
-MIXED_LIST_FETCH_PAGE_SIZE = 1000
 
 
 def normalize_environment(collector: dict[str, Any]) -> str:
@@ -234,7 +234,6 @@ class ListLogCollectorsResource(Resource):
             required=False, default="", allow_blank=True, allow_null=True, label="搜索关键字"
         )
         collector_scenario_id = serializers.CharField(required=False, label="采集场景")
-        enabled = serializers.BooleanField(required=False, label="是否启用")
         parent_index_set_id = serializers.IntegerField(
             required=False, min_value=1, allow_null=True, label="归属索引组ID"
         )
@@ -265,38 +264,14 @@ class ListLogCollectorsResource(Resource):
             "keyword": validated_request_data.get("keyword") or "",
             "ordering": "-updated_at",
             "conditions": conditions,
-            "enforce_permission": True,
         }
         for field in ("parent_index_set_id", "exclude_parent_index_set_id"):
             if field in validated_request_data:
                 params[field] = validated_request_data[field]
 
-        if "enabled" not in validated_request_data:
-            response = api.log_search.log_access_collector(**params)
-            total = int(response.get("total") or 0)
-            items = response.get("list") or []
-        else:
-            # 新版混合列表接口暂不支持 is_active 条件，需要先完整获取再统一过滤，避免漏掉索引集类接入。
-            params["page"] = 1
-            params["pagesize"] = MIXED_LIST_FETCH_PAGE_SIZE
-            items = []
-            response = api.log_search.log_access_collector(**params)
-            remote_total = int(response.get("total") or 0)
-            items.extend(response.get("list") or [])
-            remote_page = 1
-            while len(items) < remote_total:
-                remote_page += 1
-                params["page"] = remote_page
-                page_items = api.log_search.log_access_collector(**params).get("list") or []
-                if not page_items:
-                    break
-                items.extend(page_items)
-
-            enabled = validated_request_data["enabled"]
-            items = [item for item in items if bool(item.get("is_active")) == enabled]
-            total = len(items)
-            start = (validated_request_data["page"] - 1) * validated_request_data["page_size"]
-            items = items[start : start + validated_request_data["page_size"]]
+        response = api.log_search.log_access_collector(**params)
+        total = int(response.get("total") or 0)
+        items = response.get("list") or []
 
         page_size = validated_request_data["page_size"]
         return {
@@ -326,3 +301,26 @@ class GetLogCollectorResource(Resource):
         if str(collector.get("bk_biz_id")) != str(validated_request_data["bk_biz_id"]):
             raise PermissionDenied("Collector config does not belong to the requested business.")
         return normalize_collector_detail(collector)
+
+
+class GetLogIndexSetResource(Resource):
+    """查询指定业务中的独立索引集详情。"""
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
+        index_set_id = serializers.IntegerField(required=True, min_value=1, label="索引集ID")
+
+    def perform_request(self, validated_request_data):
+        bk_biz_id = validated_request_data["bk_biz_id"]
+        index_set_id = validated_request_data["index_set_id"]
+
+        # 详情接口只按 index_set_id 查询，使用新版详情返回的 space_uid 校验业务归属，
+        # 同时保持返回结果不做字段裁剪，避免丢失更新所需的完整 indexes 等字段。
+        result = api.log_search.get_index_set(index_set_id=index_set_id)
+        detail = result
+        if isinstance(detail, Mapping) and isinstance(detail.get("data"), Mapping):
+            detail = detail["data"]
+        expected_space_uid = bk_biz_id_to_space_uid(bk_biz_id)
+        if not isinstance(detail, Mapping) or detail.get("space_uid") != expected_space_uid:
+            raise PermissionDenied("Index set does not belong to the requested business.")
+        return result

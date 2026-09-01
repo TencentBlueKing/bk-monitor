@@ -6,7 +6,8 @@ paths:
         List log access entries in a business with stable pagination. The result includes host/container collectors,
         custom reports, bkdata and third-party Elasticsearch index sets. Call this first to obtain collector_config_id
         before collector operations; index-set entries have collector_config_id=null and expose index_set_id instead.
-        Filters: keyword, collector_scenario_id, log_access_type, enabled. 分页查询业务下的日志接入项，包含主机/容器采集、自定义上报、bkdata 和第三方 ES。
+        Call get_log_index_set before updating an index-set entry to obtain its complete detail.
+        Filters: keyword, collector_scenario_id, log_access_type. 分页查询业务下的日志接入项，包含主机/容器采集、自定义上报、bkdata 和第三方 ES。
         索引集条目的 collector_config_id 为 null，请使用 index_set_id。
       tags:
       - log_collection_mcp
@@ -63,12 +64,6 @@ paths:
           client. On Fast Update this field is allowed only for container collectors. 日志类型。创建仅支持 row 行日志
           / section 段日志 / wineventlog Windows 事件；列表过滤还可传 custom、redis_slowlog、syslog、kafka、client。Fast
           Update 仅容器采集项可改此字段。
-      - in: query
-        name: enabled
-        required: false
-        schema:
-          type: boolean
-        description: Filter by enabled (true) or disabled (false) status. 按启用或停用状态过滤。
       - in: query
         name: log_access_type
         required: false
@@ -142,6 +137,48 @@ paths:
           name: default
           method: get
           path: /api/v4/log_collection/get_collector/
+          matchSubpath: false
+          timeout: 30
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: false
+          resourcePermissionRequired: true
+  /mcp/get_log_index_set/:
+    get:
+      operationId: get_log_index_set
+      description: >-
+        Get an independent log index set by index_set_id. Use this for third-party Elasticsearch and bkdata
+        entries returned by list_log_collectors. The response is passed through from the new index-set detail API
+        and includes the complete indexes and time-field information needed by the corresponding update tool.
+        查询独立日志索引集详情。第三方 ES 和 bkdata 条目请使用 index_set_id 调用；返回新版索引集详情，包含更新所需的完整索引和时间字段信息。
+      tags:
+      - log_collection_mcp
+      parameters:
+      - in: query
+        name: bk_biz_id
+        required: true
+        schema:
+          type: integer
+        description: Business ID in BlueKing Monitor. Identifies the business space. 业务ID，用于标识业务空间。
+      - in: query
+        name: index_set_id
+        required: true
+        schema:
+          type: integer
+          minimum: 1
+        description: >-
+          Independent index-set ID from list_log_collectors.index_set_id. 独立索引集ID，来自
+          list_log_collectors 返回的 index_set_id。
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        enableWebsocket: false
+        backend:
+          name: default
+          method: get
+          path: /api/v4/log_collection/get_index_set/
           matchSubpath: false
           timeout: 30
         pluginConfigs: []
