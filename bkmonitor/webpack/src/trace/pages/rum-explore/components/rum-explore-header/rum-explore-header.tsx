@@ -35,7 +35,7 @@ import { useRumExploreStore } from '../../../../store/modules/rum-explore';
 import { RUM_MODE_TAB_LIST } from '../../constants';
 
 import type { TimeRangeType } from '../../../../components/time-range/utils';
-import type { IRumApplication, RumMode } from '../../typings';
+import type { IRumApplication, RumModeType } from '../../typings';
 
 import './rum-explore-header.scss';
 
@@ -59,7 +59,7 @@ export default defineComponent({
   emits: {
     favoriteShowChange: (_show: boolean) => true,
     appNameChange: (_appName: string) => true,
-    modeChange: (_mode: RumMode, _oldMode: RumMode) => true,
+    modeChange: (_mode: RumModeType, _oldMode: RumModeType) => true,
     thumbtackChange: (_list: string[]) => true,
   },
   setup(props, { emit }) {
