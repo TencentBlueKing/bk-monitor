@@ -17,7 +17,6 @@ from django.conf import settings
 
 from rest_framework import serializers
 
-from api.source_analysis_mock import SourceAnalysisUpstreamMock
 from core.drf_resource.contrib.api import APIResource
 from core.errors.api import BKAPIError
 
@@ -251,9 +250,6 @@ class BkFaraSourceAnalysisBaseResource(APIResource):
         return error_data
 
     def perform_request(self, validated_request_data):
-        if SourceAnalysisUpstreamMock.is_enabled():
-            # 临时联调钩子：业务状态机保持真实，只替换 BKFara 四接口响应。
-            return SourceAnalysisUpstreamMock.perform_bkfara_request(self.action, validated_request_data)
         try:
             return super().perform_request(validated_request_data)
         except BKAPIError as error:

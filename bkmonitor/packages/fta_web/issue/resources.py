@@ -66,7 +66,6 @@ from constants.issue import (
     SourceAnalysisStatus,
     SourceAnalysisTriggerType,
 )
-from api.source_analysis_mock import SourceAnalysisUpstreamMock
 from core.drf_resource import Resource, api, resource
 from core.drf_resource.exceptions import CustomException
 from core.errors.api import BKAPIError
@@ -354,11 +353,8 @@ class SourceAnalysisBaseResource(Resource):
             visible_agents = cls.list_visible_aidev_ids(api.aidev.list_agents, "id") if rule.agent_id else set()
             visible_skills = cls.list_visible_aidev_ids(api.aidev.list_skills, "id") if rule.skill_ids else set()
             if rule.knowledge_base_ids:
-                if SourceAnalysisUpstreamMock.is_enabled():
-                    visible_knowledge_bases = SourceAnalysisUpstreamMock.visible_knowledge_base_ids()
-                else:
-                    knowledge_bases, _space_name_map = cls.load_visible_aidev_knowledge_bases()
-                    visible_knowledge_bases = {str(item["id"]) for item in knowledge_bases}
+                knowledge_bases, _space_name_map = cls.load_visible_aidev_knowledge_bases()
+                visible_knowledge_bases = {str(item["id"]) for item in knowledge_bases}
             else:
                 visible_knowledge_bases = set()
         except (BKAPIError, TypeError, ValueError) as error:
@@ -1657,9 +1653,6 @@ class ListSourceAnalysisBkciProjectsResource(SourceAnalysisBaseResource):
         bk_biz_id = serializers.IntegerField(label="业务 ID")
 
     def perform_request(self, validated_request_data: dict) -> dict:
-        if SourceAnalysisUpstreamMock.is_enabled():
-            return SourceAnalysisUpstreamMock.list_bkci_project_options()
-
         try:
             projects = api.devops.list_user_project()
             if not isinstance(projects, list) or any(not isinstance(project, dict) for project in projects):
@@ -1689,9 +1682,6 @@ class ListSourceAnalysisBkciRepositoriesResource(SourceAnalysisBaseResource):
 
     def perform_request(self, validated_request_data: dict) -> dict:
         bkci_project_id = validated_request_data["bkci_project_id"]
-        if SourceAnalysisUpstreamMock.is_enabled():
-            return SourceAnalysisUpstreamMock.list_bkci_repository_options(bkci_project_id)
-
         try:
             # 蓝盾接口自身的参数名仍是 project_id，这里只对外统一为 bkci_project_id。
             repository_page = api.devops.list_user_repository(project_id=bkci_project_id)
@@ -1818,8 +1808,6 @@ class ListSourceAnalysisKnowledgeBasesResource(BaseListSourceAnalysisAidevOption
     name_field = "name"
 
     def perform_request(self, validated_request_data: dict) -> dict:
-        if SourceAnalysisUpstreamMock.is_enabled():
-            return SourceAnalysisUpstreamMock.list_knowledge_base_options()
         try:
             items, space_name_map = self.query_visible_aidev_knowledge_bases()
             return self.build_aidev_options(items, space_name_map)
