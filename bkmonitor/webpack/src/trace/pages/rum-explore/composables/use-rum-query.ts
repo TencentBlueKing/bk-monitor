@@ -35,11 +35,12 @@ import { EMode } from '../../../components/retrieval-filter/typing';
 import { mergeWhereList } from '../../../components/retrieval-filter/utils';
 import { useRumExploreStore } from '../../../store/modules/rum-explore';
 import { tryURLDecodeParse } from '../../trace-explore/utils';
+import { RumModeEnum } from '../constants';
 import { generateQueryString } from '../services/rum-search';
 
 import type { IWhereItem } from '../../../components/retrieval-filter/typing';
 import type { TimeRangeType } from '../../../components/time-range/utils';
-import type { IRumCommonParams, IRumFilter, RumMode } from '../typings';
+import type { IRumCommonParams, IRumFilter, RumModeType } from '../typings';
 
 interface IUseRumQueryOptions {
   /** 由快捷筛选等区域附加的查询条件，与检索条件区的条件合并后一起下发 */
@@ -48,7 +49,7 @@ interface IUseRumQueryOptions {
 
 const EMPTY_COMMON_PARAMS: IRumCommonParams = {
   app_name: '',
-  mode: 'span',
+  mode: RumModeEnum.SPAN,
   query_string: '',
   filters: [],
 };
@@ -122,7 +123,7 @@ export function useRumQuery({ extraFilters }: IUseRumQueryOptions) {
   function initFromUrl() {
     const query = route.query as Record<string, string>;
     store.init({
-      mode: (query.mode as RumMode) || 'span',
+      mode: (query.mode as RumModeType) || RumModeEnum.SPAN,
       appName: query.app_name || '',
       timeRange: query.timeRange ? tryURLDecodeParse<TimeRangeType>(query.timeRange, undefined) : undefined,
       timezone: window.timezone,
