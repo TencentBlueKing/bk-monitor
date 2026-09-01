@@ -31,7 +31,7 @@ if [ "$target_config_hint_count" -gt 20 ]; then
 fi
 
 PROTOCOL="bklog.collector.inspection.probe.v1"
-PROBE_VERSION="137707063.6"
+PROBE_VERSION="137707063.7"
 # Stay below BK-JOB/GSE's 5 MiB atomic script-task log limit.
 OUTPUT_BUDGET_BYTES=4194304
 OUTPUT_FINAL_RESERVE_BYTES=4096
@@ -415,18 +415,19 @@ hinted_child_paths=$(printf '%s' "$TARGET_CONFIG_HINTS" | tr ',' '\n' | while IF
 done)
 target_config_hint_path_count=$(printf '%s\n' "$hinted_child_paths" | awk 'NF {count++} END {print count+0}')
 
-all_child_paths=$(
-    {
-        printf '%s\n' "$hinted_child_paths"
+if [ "$target_config_hint_count" -gt 0 ]; then
+    all_child_paths=$(printf '%s\n' "$hinted_child_paths" | awk 'NF && !seen[$0]++')
+else
+    all_child_paths=$(
         printf '%b\n' "$multi_config_rows" | while IFS="$tab" read -r directory pattern; do
             [ -d "$directory" ] || continue
             [ "${directory#/}" != "$directory" ] || continue
             find -H "$directory" -maxdepth 1 \( -type f -o -type l \) -name "${pattern:-*.conf}" 2>/dev/null
-        done
-    } | awk -v limit="$((MAX_CHILD_CONFIG_SCAN + 1))" '
-    NF && !seen[$0]++ {print; count++; if (count >= limit) exit}
-    '
-)
+        done | awk -v limit="$((MAX_CHILD_CONFIG_SCAN + 1))" '
+        NF && !seen[$0]++ {print; count++; if (count >= limit) exit}
+        '
+    )
+fi
 
 discovered_child_count=$(printf '%s\n' "$all_child_paths" | awk 'NF {count++} END {print count+0}')
 case "$discovered_child_count" in ''|*[!0-9]*) discovered_child_count=0 ;; esac

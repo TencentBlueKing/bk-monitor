@@ -855,6 +855,8 @@ class FixedRemoteScriptTest(SimpleTestCase):
         self.assertIn('find -H "$directory"', script)
         self.assertIn("MAX_CHILD_CONFIG_SCAN=1000", script)
         self.assertIn('-name "$hint" -o -name "*_$hint"', script)
+        self.assertIn('if [ "$target_config_hint_count" -gt 0 ]; then', script)
+        self.assertIn("all_child_paths=$(printf '%s\\n' \"$hinted_child_paths\"", script)
         self.assertIn('awk -v wanted="$TARGET_DATA_ID"', script)
         self.assertIn("child_paths=$(printf '%s\\n' \"$matching_child_paths\"", script)
         self.assertIn("-name 'bkunifylogbeat'", script)
@@ -923,6 +925,37 @@ class FixedRemoteScriptTest(SimpleTestCase):
         self.assertEqual(config_probe["code"], "child_config_scan_truncated")
         self.assertNotEqual(config_probe["code"], "data_id_child_config_not_rendered")
         self.assertTrue(config_probe["evidence"]["child_config_scan"]["scan_truncated"])
+
+    def test_missing_authoritative_hint_reports_target_data_id_as_not_rendered(self):
+        parsed = parsed_probe()
+        parsed["streams"].pop("child_config.0")
+        parsed["values"].update(
+            {
+                "target_data_id": "1001",
+                "child_config_hint_count": "1",
+                "child_config_hint_path_count": "0",
+                "child_config_scanned_count": "0",
+                "child_config_scan_limit": "1000",
+                "child_config_scan_truncated": "false",
+                "child_config_match_count": "0",
+                "child_config_match_limit_exceeded": "false",
+            }
+        )
+
+        probes = build_probe_evidence(
+            parsed,
+            bk_data_id=1001,
+            source=None,
+            include_source_sample=False,
+            config_map_main=None,
+            sidecar_required=False,
+        )
+
+        config_probe = probes["main_config_mounted"]
+        self.assertEqual(config_probe["code"], "data_id_child_config_not_rendered")
+        self.assertEqual(config_probe["evidence"]["child_config_scan"]["hint_count"], 1)
+        self.assertEqual(config_probe["evidence"]["child_config_scan"]["scanned_count"], 0)
+        self.assertFalse(config_probe["evidence"]["child_config_scan"]["scan_truncated"])
 
     def test_fallback_config_parser_does_not_mix_data_ids(self):
         config = """local:
