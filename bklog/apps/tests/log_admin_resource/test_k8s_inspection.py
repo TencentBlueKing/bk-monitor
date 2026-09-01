@@ -46,7 +46,9 @@ from apps.log_admin_resource.k8s_inspection import (
 )
 from apps.log_admin_resource.k8s_inspection_client import K8sInspectionClient, bounded_text
 from apps.log_admin_resource.collector_probe import (
+    PROBE_PROTOCOL,
     PROBE_SCRIPT_PATH,
+    PROBE_VERSION,
     parse_probe_output,
 )
 from apps.log_admin_resource.k8s_probe import (
@@ -1006,8 +1008,8 @@ class FixedK8sProbeTest(SimpleTestCase):
         response.is_open.side_effect = [True, False, False, False]
         response.peek_stdout.return_value = True
         response.read_stdout.return_value = (
-            "BKLOG_KV\tprotocol\tbklog.collector.inspection.probe.v1\n"
-            "BKLOG_KV\tprobe_version\t137707063.2\nBKLOG_KV\tcompleted\ttrue\n"
+            f"BKLOG_KV\tprotocol\t{PROBE_PROTOCOL}\n"
+            f"BKLOG_KV\tprobe_version\t{PROBE_VERSION}\nBKLOG_KV\tcompleted\ttrue\n"
         )
         response.peek_stderr.return_value = False
         response.returncode = 0
@@ -1030,7 +1032,7 @@ class FixedK8sProbeTest(SimpleTestCase):
         response.is_open.side_effect = [True, False, False, False]
         response.peek_stdout.return_value = True
         response.read_stdout.return_value = (
-            "BKLOG_KV\tprotocol\tbklog.collector.inspection.probe.v1\nBKLOG_KV\tprobe_version\t137707063.2\n"
+            f"BKLOG_KV\tprotocol\t{PROBE_PROTOCOL}\nBKLOG_KV\tprobe_version\t{PROBE_VERSION}\n"
         )
         response.peek_stderr.return_value = False
         response.returncode = 0
@@ -1048,7 +1050,7 @@ class FixedK8sProbeTest(SimpleTestCase):
         response.is_open.side_effect = [True, False, False, False]
         response.peek_stdout.return_value = True
         response.read_stdout.return_value = (
-            "BKLOG_KV\tprotocol\tbklog.collector.inspection.probe.v1\nBKLOG_KV\tprobe_version\t137707063.2\n"
+            f"BKLOG_KV\tprotocol\t{PROBE_PROTOCOL}\nBKLOG_KV\tprobe_version\t{PROBE_VERSION}\n"
         )
         response.peek_stderr.return_value = True
         response.read_stderr.return_value = "/bin/sh: not found"

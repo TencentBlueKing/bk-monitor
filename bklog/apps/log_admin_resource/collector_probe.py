@@ -11,7 +11,7 @@ from typing import Any
 
 PROBE_SCRIPT_PATH = Path(__file__).resolve().parent / "scripts" / "collector_inspection.sh"
 PROBE_PROTOCOL = "bklog.collector.inspection.probe.v1"
-PROBE_VERSION = "137707063.2"
+PROBE_VERSION = "137707063.3"
 PROBE_ID = "bklog.collector.fixed_read_only"
 MAX_PROBE_OUTPUT_BYTES = 10 * 1024 * 1024
 

@@ -847,6 +847,15 @@ class FixedRemoteScriptTest(SimpleTestCase):
         self.assertIn("-name 'bkunifylogbeat'", script)
         self.assertIn("/usr/local/gse*/plugins/etc/bkunifylogbeat.conf", script)
 
+    def test_shared_probe_resolves_relative_main_config_from_process_runtime(self):
+        script = fixed_probe_script().decode("utf-8")
+
+        self.assertIn('process_cwd=$(readlink "/proc/$process_pid/cwd"', script)
+        self.assertIn('process_binary_path=$(readlink "/proc/$process_pid/exe"', script)
+        self.assertIn('main_config_source="process_argument_relative_cwd"', script)
+        self.assertIn('main_config_source="process_argument_relative_binary"', script)
+        self.assertIn('canonical_main_config=$(readlink -f "$main_config"', script)
+
     def test_job_log_prefix_does_not_hide_shared_protocol(self):
         parsed = parse_probe_output(f"[JOB] BKLOG_KV\tprotocol\t{PROBE_PROTOCOL}")
 

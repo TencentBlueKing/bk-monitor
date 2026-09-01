@@ -8,7 +8,7 @@ if [ "$#" -ne 0 ]; then
 fi
 
 PROTOCOL="bklog.collector.inspection.probe.v1"
-PROBE_VERSION="137707063.2"
+PROBE_VERSION="137707063.3"
 MAX_CONFIG_BYTES=524288
 MAX_CHILD_CONFIG_BYTES=65536
 MAX_REGISTRAR_BYTES=524288
@@ -226,9 +226,39 @@ for proc_dir in /proc/[0-9]*; do
     esac
 done
 
+process_cwd=""
+process_binary_path=""
+if [ -n "$process_pid" ]; then
+    process_cwd=$(readlink "/proc/$process_pid/cwd" 2>/dev/null)
+    process_binary_path=$(readlink "/proc/$process_pid/exe" 2>/dev/null)
+fi
+
 if [ -n "$main_config" ]; then
+    case "$main_config" in
+        /*) ;;
+        *)
+            relative_main_config=""
+            if [ -n "$process_cwd" ] && [ -r "$process_cwd/$main_config" ]; then
+                relative_main_config="$process_cwd/$main_config"
+                main_config_source="process_argument_relative_cwd"
+            elif [ -n "$process_binary_path" ]; then
+                process_binary_dir=${process_binary_path%/*}
+                if [ -r "$process_binary_dir/$main_config" ]; then
+                    relative_main_config="$process_binary_dir/$main_config"
+                    main_config_source="process_argument_relative_binary"
+                fi
+            fi
+            main_config=$relative_main_config
+            ;;
+    esac
+fi
+
+if [ -n "$main_config" ] && [ -r "$main_config" ]; then
+    canonical_main_config=$(readlink -f "$main_config" 2>/dev/null)
+    [ -n "$canonical_main_config" ] && main_config=$canonical_main_config
     main_config_candidate_count=1
 else
+    main_config=""
     main_config_source="bounded_fallback_discovery"
     for candidate in \
         /usr/local/gse*/plugins/etc/bkunifylogbeat.conf \
