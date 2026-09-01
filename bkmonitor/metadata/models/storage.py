@@ -3431,7 +3431,10 @@ class ESStorage(models.Model, StorageResultTable):
         last_read_alias_name = f"{es_storage.index_name}_{last_date_str}_read"
 
         # 确定上一个写别名指向的索引
-        last_indexes = list(es_storage.es_client.indices.get_alias(name=last_write_alias_name).keys())
+        try:
+            last_indexes = list(es_storage.es_client.indices.get_alias(name=last_write_alias_name).keys())
+        except (elasticsearch5.NotFoundError, elasticsearch.NotFoundError, elasticsearch6.NotFoundError):
+            last_indexes = []
         if not last_indexes:
             print("上一个索引没有进行配置，因此也不需要进行写别名的移动")
             return
