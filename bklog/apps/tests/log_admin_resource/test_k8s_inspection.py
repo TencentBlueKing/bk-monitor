@@ -1053,7 +1053,7 @@ class FixedK8sProbeTest(SimpleTestCase):
         self.assertEqual(result["values"]["protocol"], "bklog.collector.inspection.probe.v1")
         self.assertEqual(result["metadata"]["child_config_hint_count"], 1)
 
-    def test_sidecar_config_hints_are_exact_for_node_and_pod_targets(self):
+    def test_sidecar_config_hints_are_stable_suffixes_for_node_and_pod_targets(self):
         expected = [
             {"name": "demo-node", "container_config_id": 44, "collector_type": ContainerCollectorType.NODE},
             {
@@ -1117,6 +1117,7 @@ class FixedK8sProbeTest(SimpleTestCase):
     def test_fixed_script_static_raw_budget_stays_below_transport_limit(self):
         script = PROBE_SCRIPT_PATH.read_text(encoding="utf-8")
         self.assertIn("MAX_CHILD_CONFIG_BYTES=65536", script)
+        self.assertIn('-name "$hint" -o -name "*_$hint"', script)
         self.assertIn("MAX_REGISTRAR_BYTES=524288", script)
         self.assertIn(f"OUTPUT_BUDGET_BYTES={MAX_PROBE_OUTPUT_BYTES}", script)
         self.assertIn("BKLOG_B64", script)

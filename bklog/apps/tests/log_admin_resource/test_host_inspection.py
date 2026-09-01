@@ -854,7 +854,7 @@ class FixedRemoteScriptTest(SimpleTestCase):
         self.assertNotIn('[ -L "$blob_path" ]', script)
         self.assertIn('find -H "$directory"', script)
         self.assertIn("MAX_CHILD_CONFIG_SCAN=1000", script)
-        self.assertIn('-name "$hint" -print -quit', script)
+        self.assertIn('-name "$hint" -o -name "*_$hint"', script)
         self.assertIn('awk -v wanted="$TARGET_DATA_ID"', script)
         self.assertIn("child_paths=$(printf '%s\\n' \"$matching_child_paths\"", script)
         self.assertIn("-name 'bkunifylogbeat'", script)

@@ -13,7 +13,7 @@ from typing import Any
 
 PROBE_SCRIPT_PATH = Path(__file__).resolve().parent / "scripts" / "collector_inspection.sh"
 PROBE_PROTOCOL = "bklog.collector.inspection.probe.v1"
-PROBE_VERSION = "137707063.5"
+PROBE_VERSION = "137707063.6"
 PROBE_ID = "bklog.collector.fixed_read_only"
 # BK-JOB/GSE caps one atomic script-task log at 5 MiB; keep one MiB for transport framing and prefixes.
 MAX_PROBE_OUTPUT_BYTES = 4 * 1024 * 1024
@@ -58,16 +58,16 @@ def fixed_probe_arguments(
     if normalized_data_id <= 0 or str(normalized_data_id) != str(bk_data_id):
         raise ValueError("bk_data_id must be a positive integer")
     if isinstance(child_config_hints, str | bytes):
-        raise ValueError("child_config_hints must be a sequence of safe basenames")
+        raise ValueError("child_config_hints must be a sequence of safe basename suffixes")
     normalized_hints = []
     for value in child_config_hints:
         hint = str(value)
         if not _CHILD_CONFIG_HINT_PATTERN.fullmatch(hint):
-            raise ValueError("child_config_hints must contain safe basenames")
+            raise ValueError("child_config_hints must contain safe basename suffixes")
         if hint not in normalized_hints:
             normalized_hints.append(hint)
     if len(normalized_hints) > MAX_CHILD_CONFIG_HINTS:
-        raise ValueError(f"child_config_hints must contain at most {MAX_CHILD_CONFIG_HINTS} basenames")
+        raise ValueError(f"child_config_hints must contain at most {MAX_CHILD_CONFIG_HINTS} basename suffixes")
     encoded_hints = ",".join(normalized_hints) if normalized_hints else "-"
     if len(encoded_hints) > 4096:
         raise ValueError("child_config_hints exceed the fixed probe argument budget")

@@ -223,7 +223,12 @@ def collector_child_config_hints(
     *,
     configured_namespace: str = BKLOG_CONFIG_NAMESPACE,
 ) -> list[str]:
-    """Build exact sidecar-rendered basenames from the already-resolved target and CR contract."""
+    """Build sidecar-rendered basename suffixes from the resolved target and CR contract.
+
+    The sidecar prepends a per-rendered-config identifier to these stable suffixes, so the
+    fixed probe resolves both an exact basename and ``*_<suffix>`` inside configured child
+    config directories before falling back to the bounded directory scan.
+    """
 
     if not target_snapshot:
         return []
