@@ -392,7 +392,8 @@ class ESStorageBindingConfig(DataLinkResourceConfigBase):
             "write_alias_format": write_alias_format,
             "timezone": self.timezone,
             "maintainers": json.dumps(maintainer),
-            "json_field_list": json.dumps(json_field_list) if json_field_list is not None else "null",
+            # BKBase V4 按数组反序列化该字段，缺省时必须发送空数组，不能发送 null。
+            "json_field_list": json.dumps(json_field_list or []),
         }
 
         # 现阶段仅在多租户模式下添加tenant字段
