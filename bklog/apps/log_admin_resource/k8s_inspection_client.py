@@ -90,13 +90,44 @@ class K8sInspectionClient:
         result_dict = object_to_dict(result)
         return list(getattr(result, "items", None) or result_dict.get("items") or [])
 
-    def list_pods(self, namespace: str, *, label_selector: str | None = None) -> list[Any]:
-        kwargs: dict[str, Any] = {"namespace": namespace, "_request_timeout": K8S_API_TIMEOUT_SECONDS}
+    def list_pods(self, namespace: str | None = None, *, label_selector: str | None = None) -> list[Any]:
+        kwargs: dict[str, Any] = {"_request_timeout": K8S_API_TIMEOUT_SECONDS}
         if label_selector:
             kwargs["label_selector"] = label_selector
-        result = self.bcs.api_instance_core_v1.list_namespaced_pod(**kwargs)
+        if namespace:
+            result = self.bcs.api_instance_core_v1.list_namespaced_pod(namespace=namespace, **kwargs)
+        else:
+            result = self.bcs.api_instance_core_v1.list_pod_for_all_namespaces(**kwargs)
         result_dict = object_to_dict(result)
         return list(getattr(result, "items", None) or result_dict.get("items") or [])
+
+    def list_pod_page(
+        self,
+        namespace: str | None = None,
+        *,
+        limit: int,
+        continue_token: str | None = None,
+    ) -> tuple[list[Any], str | None]:
+        kwargs: dict[str, Any] = {"limit": limit, "_request_timeout": K8S_API_TIMEOUT_SECONDS}
+        if continue_token:
+            kwargs["_continue"] = continue_token
+        if namespace:
+            result = self.bcs.api_instance_core_v1.list_namespaced_pod(namespace=namespace, **kwargs)
+        else:
+            result = self.bcs.api_instance_core_v1.list_pod_for_all_namespaces(**kwargs)
+        return _page_items(result)
+
+    def list_nodes(self) -> list[Any]:
+        result = self.bcs.api_instance_core_v1.list_node(_request_timeout=K8S_API_TIMEOUT_SECONDS)
+        result_dict = object_to_dict(result)
+        return list(getattr(result, "items", None) or result_dict.get("items") or [])
+
+    def list_node_page(self, *, limit: int, continue_token: str | None = None) -> tuple[list[Any], str | None]:
+        kwargs: dict[str, Any] = {"limit": limit, "_request_timeout": K8S_API_TIMEOUT_SECONDS}
+        if continue_token:
+            kwargs["_continue"] = continue_token
+        result = self.bcs.api_instance_core_v1.list_node(**kwargs)
+        return _page_items(result)
 
     def list_events(self, namespace: str, pod_uid: str) -> list[Any]:
         result = self.bcs.api_instance_core_v1.list_namespaced_event(
@@ -136,3 +167,14 @@ class K8sInspectionClient:
             "truncated": truncated,
             "previous": previous,
         }
+
+
+def _page_items(result: Any) -> tuple[list[Any], str | None]:
+    result_dict = object_to_dict(result)
+    items = list(getattr(result, "items", None) or result_dict.get("items") or [])
+    metadata = getattr(result, "metadata", None)
+    token = getattr(metadata, "_continue", None) or getattr(metadata, "continue", None)
+    if not token:
+        metadata_dict = result_dict.get("metadata") or {}
+        token = metadata_dict.get("_continue") or metadata_dict.get("continue")
+    return items, str(token) if token else None

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import uuid
 from typing import Any
 
@@ -25,16 +26,30 @@ from apps.log_admin_resource.inspection_tasks import (
     K8sCollectorCandidateStore,
     ResourceInspectionTaskRecord,
 )
-from apps.log_admin_resource.k8s_inspection import target_identity
+from apps.log_admin_resource.k8s_inspection import (
+    discover_inspection_targets,
+    expected_bklog_configs,
+    target_identity,
+)
+from apps.log_admin_resource.k8s_inspection_client import K8sInspectionClient
 from apps.log_admin_resource.response_schema import diagnostic_schema, nullable_schema, object_schema
-from apps.log_databus.models import CollectorConfig
+from apps.log_databus.constants import ContainerCollectorType
+from apps.log_databus.models import CollectorConfig, ContainerCollectorConfig
 from apps.log_search.models import Space
 from apps.utils.local import get_request, get_request_tenant_id
 
 
 START_FUNC_NAME = "bklog.collector.k8s_inspection.start"
 DETAIL_FUNC_NAME = "bklog.collector.k8s_inspection.detail"
+TARGET_LIST_FUNC_NAME = "bklog.collector.k8s_inspection.targets"
 EVIDENCE_GROUPS = ("control_plane", "sidecar", "collector", "progress")
+DEFAULT_TARGET_LIMIT = 50
+MAX_TARGET_LIMIT = 100
+TARGET_SCAN_PAGE_SIZE = 500
+MAX_SCANNED_TARGET_OBJECTS = 5000
+
+
+logger = logging.getLogger(__name__)
 
 
 POD_TARGET_SCHEMA = object_schema(
@@ -60,6 +75,87 @@ NODE_TARGET_SCHEMA = object_schema(
     additional_properties=False,
 )
 TARGET_SCHEMA = {"oneOf": [POD_TARGET_SCHEMA, NODE_TARGET_SCHEMA]}
+
+POD_TARGET_ITEM_SCHEMA = object_schema(
+    "target",
+    "pod_uid",
+    "node_name",
+    "phase",
+    "ready",
+    "workload_type",
+    "workload_name",
+    "matched_container_config_ids",
+    properties={
+        "target": POD_TARGET_SCHEMA,
+        "pod_uid": nullable_schema("string"),
+        "node_name": nullable_schema("string"),
+        "phase": nullable_schema("string"),
+        "ready": nullable_schema("boolean"),
+        "workload_type": nullable_schema("string"),
+        "workload_name": nullable_schema("string"),
+        "matched_container_config_ids": {
+            "type": "array",
+            "items": {"type": "integer", "minimum": 1},
+        },
+    },
+)
+NODE_TARGET_ITEM_SCHEMA = object_schema(
+    "target",
+    "node_uid",
+    "ready",
+    "matched_container_config_ids",
+    properties={
+        "target": NODE_TARGET_SCHEMA,
+        "node_uid": nullable_schema("string"),
+        "ready": nullable_schema("boolean"),
+        "matched_container_config_ids": {
+            "type": "array",
+            "items": {"type": "integer", "minimum": 1},
+        },
+    },
+)
+TARGET_LIST_RESPONSE_SCHEMA = object_schema(
+    "collector_config_id",
+    "bk_biz_id",
+    "bk_data_id",
+    "bcs_cluster_id",
+    "namespace",
+    "limit",
+    "container_config_ids",
+    "scanned_pod_count",
+    "scanned_node_count",
+    "pod_scan_truncated",
+    "node_scan_truncated",
+    "pod_targets",
+    "node_targets",
+    "pod_target_count",
+    "node_target_count",
+    "pod_targets_truncated",
+    "node_targets_truncated",
+    "partial",
+    "warnings",
+    properties={
+        "collector_config_id": {"type": "integer", "minimum": 1},
+        "bk_biz_id": {"type": "integer", "not": {"const": 0}},
+        "bk_data_id": {"type": "integer", "minimum": 1},
+        "bcs_cluster_id": {"type": "string", "minLength": 1},
+        "namespace": nullable_schema("string"),
+        "limit": {"type": "integer", "minimum": 1, "maximum": MAX_TARGET_LIMIT},
+        "container_config_ids": {"type": "array", "items": {"type": "integer", "minimum": 1}},
+        "scanned_pod_count": {"type": "integer", "minimum": 0},
+        "scanned_node_count": {"type": "integer", "minimum": 0},
+        "pod_scan_truncated": {"type": "boolean"},
+        "node_scan_truncated": {"type": "boolean"},
+        "pod_targets": {"type": "array", "items": POD_TARGET_ITEM_SCHEMA},
+        "node_targets": {"type": "array", "items": NODE_TARGET_ITEM_SCHEMA},
+        "pod_target_count": {"type": "integer", "minimum": 0},
+        "node_target_count": {"type": "integer", "minimum": 0},
+        "pod_targets_truncated": {"type": "boolean"},
+        "node_targets_truncated": {"type": "boolean"},
+        "partial": {"type": "boolean"},
+        "warnings": {"type": "array", "items": diagnostic_schema()},
+    },
+)
 
 NEXT_CALL_SCHEMA = object_schema(
     "func_name",
@@ -155,6 +251,111 @@ DETAIL_RESPONSE_SCHEMA = object_schema(
         "next_call": {"anyOf": [NEXT_CALL_SCHEMA, {"type": "null"}]},
     },
 )
+
+
+def list_k8s_inspection_targets(params: dict[str, Any]) -> dict[str, Any]:
+    _, request_tenant_id = _request_identity()
+    collector = _get_collector(int(params["collector_config_id"]))
+    _validate_collector(collector, request_tenant_id)
+    namespace = str(params.get("namespace") or "").strip() or None
+    limit = int(params.get("limit") or DEFAULT_TARGET_LIMIT)
+    container_configs = list(
+        ContainerCollectorConfig.objects.filter(collector_config_id=collector.collector_config_id).order_by("id")
+    )
+    expected = expected_bklog_configs(collector, container_configs)
+    collector_types = {item["spec"].get("logConfigType") for item in expected}
+    client = K8sInspectionClient(cluster_id=collector.bcs_cluster_id)
+    pods = []
+    nodes = []
+    pod_scan_truncated = False
+    node_scan_truncated = False
+    warnings = []
+    if collector_types.intersection({ContainerCollectorType.CONTAINER, ContainerCollectorType.STDOUT}):
+        try:
+            pods, pod_scan_truncated = _collect_bounded_pages(
+                lambda *, limit, continue_token: client.list_pod_page(
+                    namespace, limit=limit, continue_token=continue_token
+                )
+            )
+        except Exception:
+            logger.exception(
+                "Resource Kubernetes Pod target discovery failed: collector_config_id=%s namespace=%s",
+                collector.collector_config_id,
+                namespace,
+            )
+            warnings.append(
+                {
+                    "code": "pod_target_discovery_unavailable",
+                    "message": "Kubernetes Pod targets could not be listed for this collector configuration",
+                    "retryable": True,
+                }
+            )
+        if pod_scan_truncated:
+            warnings.append(
+                {
+                    "code": "pod_target_scan_truncated",
+                    "message": "Kubernetes Pod target discovery reached the fixed 5000-object scan limit",
+                    "retryable": False,
+                }
+            )
+    if ContainerCollectorType.NODE in collector_types:
+        try:
+            nodes, node_scan_truncated = _collect_bounded_pages(client.list_node_page)
+        except Exception:
+            logger.exception(
+                "Resource Kubernetes node target discovery failed: collector_config_id=%s",
+                collector.collector_config_id,
+            )
+            warnings.append(
+                {
+                    "code": "node_target_discovery_unavailable",
+                    "message": "Kubernetes node targets could not be listed for this collector configuration",
+                    "retryable": True,
+                }
+            )
+        if node_scan_truncated:
+            warnings.append(
+                {
+                    "code": "node_target_scan_truncated",
+                    "message": "Kubernetes node target discovery reached the fixed 5000-object scan limit",
+                    "retryable": False,
+                }
+            )
+    discovered = discover_inspection_targets(pods=pods, nodes=nodes, expected=expected, limit=limit)
+    return {
+        "collector_config_id": collector.collector_config_id,
+        "bk_biz_id": collector.bk_biz_id,
+        "bk_data_id": collector.bk_data_id,
+        "bcs_cluster_id": collector.bcs_cluster_id,
+        "namespace": namespace,
+        "limit": limit,
+        "container_config_ids": [item.id for item in container_configs],
+        "scanned_pod_count": len(pods),
+        "scanned_node_count": len(nodes),
+        "pod_scan_truncated": pod_scan_truncated,
+        "node_scan_truncated": node_scan_truncated,
+        **discovered,
+        "partial": bool(warnings),
+        "warnings": warnings,
+    }
+
+
+def _collect_bounded_pages(fetch_page) -> tuple[list[Any], bool]:
+    items = []
+    continue_token = None
+    while len(items) < MAX_SCANNED_TARGET_OBJECTS:
+        page_limit = min(TARGET_SCAN_PAGE_SIZE, MAX_SCANNED_TARGET_OBJECTS - len(items))
+        page, next_token = fetch_page(limit=page_limit, continue_token=continue_token)
+        remaining = MAX_SCANNED_TARGET_OBJECTS - len(items)
+        items.extend(page[:remaining])
+        if len(page) > remaining:
+            return items, True
+        if not next_token:
+            return items, False
+        if next_token == continue_token or not page:
+            return items, True
+        continue_token = next_token
+    return items, bool(continue_token)
 
 
 def start_k8s_inspection(params: dict[str, Any]) -> dict[str, Any]:
@@ -387,6 +588,28 @@ def _not_found_response(task_id: str) -> dict[str, Any]:
 
 
 FUNCTIONS = {
+    TARGET_LIST_FUNC_NAME: {
+        "func_name": TARGET_LIST_FUNC_NAME,
+        "description": "Discover bounded Pod/container and node targets matched by one active Kubernetes collector.",
+        "notes": "The optional namespace filters Pod/container targets only; node targets remain cluster-scoped.",
+        "safety_level": "inspect",
+        "validate_params": True,
+        "params_schema": {
+            "type": "object",
+            "properties": {
+                "collector_config_id": {"type": "integer", "minimum": 1},
+                "namespace": {"type": "string", "minLength": 1, "maxLength": 253},
+                "limit": {"type": "integer", "minimum": 1, "maximum": MAX_TARGET_LIMIT},
+            },
+            "required": ["collector_config_id"],
+            "additionalProperties": False,
+        },
+        "response_schema": TARGET_LIST_RESPONSE_SCHEMA,
+        "examples": [
+            {"params": {"collector_config_id": 123, "limit": 50}},
+            {"params": {"collector_config_id": 123, "namespace": "production", "limit": 50}},
+        ],
+    },
     START_FUNC_NAME: {
         "func_name": START_FUNC_NAME,
         "description": "Start a bounded asynchronous inspection of one Kubernetes log collector runtime.",
@@ -444,4 +667,8 @@ FUNCTIONS = {
     },
 }
 
-HANDLERS = {START_FUNC_NAME: start_k8s_inspection, DETAIL_FUNC_NAME: get_k8s_inspection_detail}
+HANDLERS = {
+    TARGET_LIST_FUNC_NAME: list_k8s_inspection_targets,
+    START_FUNC_NAME: start_k8s_inspection,
+    DETAIL_FUNC_NAME: get_k8s_inspection_detail,
+}
