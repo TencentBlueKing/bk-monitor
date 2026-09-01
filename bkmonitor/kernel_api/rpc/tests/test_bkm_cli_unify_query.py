@@ -20,7 +20,14 @@ from kernel_api.rpc.functions.bkm_cli.unify_query import query_unify_query
 
 def _query_ts_params(**overrides):
     params = {
-        "query_list": [{"reference_name": "A", "data_source": "bkmonitor", "field_name": "usage"}],
+        "query_list": [
+            {
+                "reference_name": "A",
+                "data_source": "bkmonitor",
+                "table_id": "system.cpu_summary",
+                "field_name": "usage",
+            }
+        ],
         "metric_merge": "A",
         "start_time": "1725062400",
         "end_time": "1725066000",
@@ -39,7 +46,14 @@ def _query_ts_params(**overrides):
 
 def _query_raw_params(**overrides):
     params = {
-        "query_list": [{"data_source": "bkmonitor", "field_name": "usage"}],
+        "query_list": [
+            {
+                "reference_name": "A",
+                "data_source": "bkmonitor",
+                "table_id": "system.cpu_summary",
+                "field_name": "usage",
+            }
+        ],
         "metric_merge": "A",
         "start_time": "1725062400",
         "end_time": "1725066000",
@@ -78,11 +92,27 @@ def test_describe_returns_external_schema_and_server_derived_scope():
     assert out["limits"]["max_time_range_seconds"] == 86400
     assert out["limits"]["max_outputs"] == 4
     assert out["params_schema"]["properties"]["response_contract"]["enum"] == ["named_outputs/v1"]
+    query_item_schema = out["params_schema"]["properties"]["query_list"]["items"]
+    assert set(query_item_schema["required"]) == {"field_name", "reference_name"}
+    assert "table_id" in query_item_schema["properties"]
+    assert "容器指标可为空" in query_item_schema["properties"]["table_id"]["description"]
     assert out["example_params"]["params"]["legacy_output_ref"] == "C"
     assert all(item.get("expression") for item in out["example_params"]["params"]["output_list"])
     assert out["next_call"]["mode"] == "invoke"
+    assert out["next_call"]["params"]["query_list"][0]["table_id"] == "system.cpu_summary"
     query_references = {item["reference_name"] for item in out["next_call"]["params"]["query_list"]}
     assert query_references == {"A"}
+
+
+def test_all_query_ts_descriptions_include_an_executable_standard_metric_item():
+    for operation in ("query_ts", "query_ts_raw", "query_ts_reference", "check_query_ts"):
+        out = query_unify_query({"mode": "describe", "operation": operation})
+
+        assert out["status"] == "ok"
+        query_item = out["next_call"]["params"]["query_list"][0]
+        assert query_item["table_id"] == "system.cpu_summary"
+        assert query_item["field_name"] == "usage"
+        assert query_item["reference_name"] == "A"
 
 
 def test_invoke_query_ts_derives_scope_and_preserves_raw_uq_response(monkeypatch):
@@ -172,6 +202,7 @@ def test_relation_partial_is_normalized_in_channel_envelope(monkeypatch):
 
     assert out["status"] == "ok"
     assert out["partial"] is True
+    assert "next_call" not in out
 
 
 def test_invoke_rejects_operation_outside_catalog():
@@ -231,6 +262,7 @@ def test_invoke_rejects_incomplete_named_output_contract(monkeypatch):
     assert out["status"] == "error"
     assert out["error"]["code"] == "unsafe_action_blocked"
     assert "expression" in out["error"]["message"]
+    assert out["next_call"] == {"mode": "describe", "operation": "query_ts"}
     query_data.assert_not_called()
 
 
