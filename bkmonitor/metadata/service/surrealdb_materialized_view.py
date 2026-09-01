@@ -97,13 +97,43 @@ def _snapshot_index_fields(prefix: str, fields: list[str], field: str, period_fi
     return ", ".join(snapshot_fields)
 
 
-def build_materialized_view_ddl(binding: SurrealDBBindingConfig, scope: SurrealDBScope) -> str:
+def build_materialized_view_ddl(
+    binding: SurrealDBBindingConfig,
+    scope: SurrealDBScope,
+    previous_relation_names: list[str] | None = None,
+) -> str:
     binding._validate_graph_definitions()
     vertices = {vertex["name"]: vertex for vertex in binding.vertices}
+    current_relation_names = {
+        _require_identifier(relation["name"], f"relations[{index}].name")
+        for index, relation in enumerate(binding.relations)
+    }
+    previous_relation_names = previous_relation_names or []
+    stale_relation_names = sorted(
+        {
+            _require_identifier(relation_name, f"previous_relation_names[{index}]")
+            for index, relation_name in enumerate(previous_relation_names)
+        }
+        - current_relation_names
+    )
     statements = [
         f"USE NS {_quote_identifier(scope.namespace)} DB {_quote_identifier(scope.database)};",
         "BEGIN TRANSACTION;",
     ]
+
+    for relation_name in stale_relation_names:
+        liveness_table = f"{relation_name}_liveness_record"
+        statements.extend(
+            [
+                f"REMOVE EVENT IF EXISTS {_quote_identifier(f'materialize_{relation_name}_active_edge')} "
+                f"ON TABLE {_quote_identifier(liveness_table)};",
+                f"REMOVE EVENT IF EXISTS {_quote_identifier(f'delete_{relation_name}_active_edge')} "
+                f"ON TABLE {_quote_identifier(liveness_table)};",
+                f"REMOVE EVENT IF EXISTS {_quote_identifier(f'remove_invalid_{relation_name}_active_edge')} "
+                f"ON TABLE {_quote_identifier(liveness_table)};",
+                f"REMOVE TABLE IF EXISTS {_quote_identifier(f'{relation_name}_active_edge_view')};",
+            ]
+        )
 
     for index, relation in enumerate(binding.relations):
         relation_name = _require_identifier(relation["name"], f"relations[{index}].name")
@@ -272,13 +302,16 @@ def reconcile_materialized_views(binding: SurrealDBBindingConfig, remote_config:
 
     try:
         scope = resolve_surrealdb_scope(remote_config)
-        ddl = build_materialized_view_ddl(binding, scope)
-        definition_hash = hashlib.sha256(ddl.encode("utf-8")).hexdigest()
+        relation_names = sorted(relation["name"] for relation in binding.relations)
+        desired_ddl = build_materialized_view_ddl(binding, scope)
+        definition_hash = hashlib.sha256(desired_ddl.encode("utf-8")).hexdigest()
         if (
             binding.materialized_view_status == DataLinkResourceStatus.OK.value
             and binding.materialized_view_definition_hash == definition_hash
+            and binding.materialized_view_relation_names == relation_names
         ):
             return False
+        ddl = build_materialized_view_ddl(binding, scope, binding.materialized_view_relation_names)
         # Events only project subsequent liveness changes. Historical rows require a
         # separately controlled backfill before a relation is routed to this table.
         api.bkdata.query_data(sql=ddl, prefer_storage="surrealdb")
@@ -290,12 +323,14 @@ def reconcile_materialized_views(binding: SurrealDBBindingConfig, remote_config:
     binding.materialized_view_status = DataLinkResourceStatus.OK.value
     binding.materialized_view_last_error = ""
     binding.materialized_view_last_apply_time = timezone.now()
+    binding.materialized_view_relation_names = relation_names
     binding.save(
         update_fields=[
             "materialized_view_definition_hash",
             "materialized_view_status",
             "materialized_view_last_error",
             "materialized_view_last_apply_time",
+            "materialized_view_relation_names",
             "last_modify_time",
         ]
     )

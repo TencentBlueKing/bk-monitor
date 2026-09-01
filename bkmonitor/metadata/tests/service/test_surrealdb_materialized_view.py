@@ -92,6 +92,38 @@ def test_build_materialized_view_ddl_rejects_unsafe_identifier():
         )
 
 
+def test_build_materialized_view_ddl_removes_stale_relation():
+    ddl = build_materialized_view_ddl(
+        _binding(),
+        SurrealDBScope(namespace="bkmonitor", database="biz_2"),
+        previous_relation_names=["node_with_pod", "stale_relation"],
+    )
+
+    assert ddl.count("REMOVE EVENT IF EXISTS") == 3
+    assert (
+        "REMOVE EVENT IF EXISTS `materialize_stale_relation_active_edge` "
+        "ON TABLE `stale_relation_liveness_record`;" in ddl
+    )
+    assert (
+        "REMOVE EVENT IF EXISTS `delete_stale_relation_active_edge` ON TABLE `stale_relation_liveness_record`;" in ddl
+    )
+    assert (
+        "REMOVE EVENT IF EXISTS `remove_invalid_stale_relation_active_edge` "
+        "ON TABLE `stale_relation_liveness_record`;" in ddl
+    )
+    assert "REMOVE TABLE IF EXISTS `stale_relation_active_edge_view`;" in ddl
+    assert "REMOVE TABLE IF EXISTS `node_with_pod_active_edge_view`;" not in ddl
+
+
+def test_build_materialized_view_ddl_rejects_unsafe_previous_relation_name():
+    with pytest.raises(ValueError, match="合法的 SurrealDB 标识符"):
+        build_materialized_view_ddl(
+            _binding(),
+            SurrealDBScope(namespace="bkmonitor", database="biz_2"),
+            previous_relation_names=["stale;REMOVE"],
+        )
+
+
 @pytest.mark.django_db(databases="__all__")
 def test_reconcile_materialized_views_applies_once(mocker):
     binding = _binding()
@@ -103,6 +135,7 @@ def test_reconcile_materialized_views_applies_once(mocker):
     assert binding.materialized_view_status == DataLinkResourceStatus.OK.value
     assert len(binding.materialized_view_definition_hash) == 64
     assert binding.materialized_view_last_apply_time is not None
+    assert binding.materialized_view_relation_names == ["node_with_pod"]
     query_data.assert_called_once_with(sql=ANY, prefer_storage="surrealdb")
 
     assert reconcile_materialized_views(binding, _remote_config()) is False
@@ -110,8 +143,22 @@ def test_reconcile_materialized_views_applies_once(mocker):
 
 
 @pytest.mark.django_db(databases="__all__")
+def test_reconcile_materialized_views_cleans_stale_relation(mocker):
+    binding = _binding(materialized_view_relation_names=["node_with_pod", "stale_relation"])
+    binding.save()
+    query_data = mocker.patch("core.drf_resource.api.bkdata.query_data")
+
+    assert reconcile_materialized_views(binding, _remote_config()) is True
+
+    ddl = query_data.call_args.kwargs["sql"]
+    assert "REMOVE TABLE IF EXISTS `stale_relation_active_edge_view`;" in ddl
+    binding.refresh_from_db()
+    assert binding.materialized_view_relation_names == ["node_with_pod"]
+
+
+@pytest.mark.django_db(databases="__all__")
 def test_reconcile_materialized_views_records_failure(mocker):
-    binding = _binding()
+    binding = _binding(materialized_view_relation_names=["node_with_pod", "stale_relation"])
     binding.save()
     mocker.patch(
         "core.drf_resource.api.bkdata.query_data",
@@ -124,6 +171,7 @@ def test_reconcile_materialized_views_records_failure(mocker):
     binding.refresh_from_db()
     assert binding.materialized_view_status == DataLinkResourceStatus.FAILED.value
     assert binding.materialized_view_last_error == "query failed"
+    assert binding.materialized_view_relation_names == ["node_with_pod", "stale_relation"]
 
 
 @pytest.mark.django_db(databases="__all__")

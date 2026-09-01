@@ -1114,6 +1114,7 @@ class SurrealDBBindingConfig(DataLinkResourceConfigBase):
     materialized_view_status = models.CharField(verbose_name="物化视图状态", max_length=64, default="", blank=True)
     materialized_view_last_error = models.TextField(verbose_name="物化视图最近错误", default="", blank=True)
     materialized_view_last_apply_time = models.DateTimeField(verbose_name="物化视图最近下发时间", null=True, blank=True)
+    materialized_view_relation_names = models.JSONField(verbose_name="物化视图关系名称", default=list)
 
     class Meta:
         verbose_name = "SurrealDB绑定配置"

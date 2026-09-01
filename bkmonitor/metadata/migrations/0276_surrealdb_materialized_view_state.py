@@ -27,4 +27,9 @@ class Migration(migrations.Migration):
             name="materialized_view_status",
             field=models.CharField(blank=True, default="", max_length=64, verbose_name="物化视图状态"),
         ),
+        migrations.AddField(
+            model_name="surrealdbbindingconfig",
+            name="materialized_view_relation_names",
+            field=models.JSONField(default=list, verbose_name="物化视图关系名称"),
+        ),
     ]
