@@ -31,7 +31,7 @@ import { copyText } from 'monitor-common/utils/utils';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 
-import { EMode } from '../../../components/retrieval-filter/typing';
+import { EMethod, EMode } from '../../../components/retrieval-filter/typing';
 import { mergeWhereList } from '../../../components/retrieval-filter/utils';
 import { useRumExploreStore } from '../../../store/modules/rum-explore';
 import { tryURLDecodeParse } from '../../trace-explore/utils';
@@ -150,7 +150,13 @@ export function useRumQuery({ extraFilters }: IUseRumQueryOptions) {
    * @param isMergeSameKey 同字段的等于、不等于条件是否合并，表格里的「添加/排除」需要
    */
   function addCondition(condition: IWhereItem, isMergeSameKey = false) {
-    where.value = mergeWhereList(where.value, [condition], isMergeSameKey);
+    if (filterMode.value === EMode.ui) {
+      where.value = mergeWhereList(where.value, [condition], isMergeSameKey);
+    } else {
+      const isEq = condition.operator === EMethod.eq;
+      const preStr = queryString.value ? `${queryString.value} ${isEq ? 'AND' : 'AND NOT'}` : `${isEq ? '' : 'NOT'}`;
+      queryString.value = `${preStr} ${condition.key}: "${condition.value?.[0]}"`;
+    }
     handleQuery();
   }
 
