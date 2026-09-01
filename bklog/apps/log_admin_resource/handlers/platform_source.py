@@ -376,7 +376,38 @@ def _resolve_host(params):
         "fields": list(HOST_FIELDS),
         "host_property_filter": {"condition": "AND", "rules": rules},
     }
-    return _call(CCApi.list_hosts_without_biz, request_params)
+    result = _call(CCApi.list_hosts_without_biz, request_params)
+    hosts = result.get("info", []) if isinstance(result, dict) else []
+    unresolved_host_ids = sorted(
+        {
+            host["bk_host_id"]
+            for host in hosts
+            if isinstance(host, dict) and host.get("bk_host_id") and not host.get("bk_biz_id")
+        }
+    )
+    if not unresolved_host_ids:
+        return result
+
+    relations = _call(CCApi.find_host_biz_relations, {"bk_host_id": unresolved_host_ids})
+    biz_ids_by_host = {}
+    for relation in relations if isinstance(relations, list) else []:
+        if not isinstance(relation, dict) or not relation.get("bk_host_id") or not relation.get("bk_biz_id"):
+            continue
+        biz_ids_by_host.setdefault(relation["bk_host_id"], set()).add(relation["bk_biz_id"])
+
+    enriched_hosts = []
+    for host in hosts:
+        if not isinstance(host, dict) or host.get("bk_biz_id"):
+            enriched_hosts.append(host)
+            continue
+        biz_ids = sorted(biz_ids_by_host.get(host.get("bk_host_id"), ()))
+        if not biz_ids:
+            enriched_hosts.append(host)
+            continue
+        for bk_biz_id in biz_ids:
+            enriched_hosts.append({**host, "bk_biz_id": bk_biz_id})
+
+    return {**result, "info": enriched_hosts}
 
 
 def _project_subscription_summary(raw, _params):

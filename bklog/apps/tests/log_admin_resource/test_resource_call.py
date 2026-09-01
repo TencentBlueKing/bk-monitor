@@ -23,7 +23,7 @@ import json
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from django.test import TestCase, override_settings
+from django.test import RequestFactory, TestCase, override_settings
 from django.utils.deprecation import MiddlewareMixin
 
 from apps.api import TransferApi
@@ -42,7 +42,8 @@ from apps.log_databus.models import (
 )
 from apps.log_search.constants import IndexSetDataType
 from apps.log_search.models import LogIndexSet, LogIndexSetData, Scenario
-from apps.utils.local import _local
+from apps.utils.local import _local, activate_request
+from bkm_space.middleware import ParamInjectMiddleware
 
 
 APIGW_MIDDLEWARE = "apps.tests.log_admin_resource.test_resource_call.AdminApiGatewayMiddleware"
@@ -52,6 +53,10 @@ NON_WHITE_LIST_APIGW_MIDDLEWARE = (
 READ_ONLY_APIGW_MIDDLEWARE = "apps.tests.log_admin_resource.test_resource_call.ReadOnlyAdminApiGatewayMiddleware"
 WRITE_ONLY_APIGW_MIDDLEWARE = "apps.tests.log_admin_resource.test_resource_call.WriteOnlyAdminApiGatewayMiddleware"
 NON_SUPERUSER_MIDDLEWARE = "apps.tests.log_admin_resource.test_resource_call.NonSuperuserMiddleware"
+SPACE_INJECT_MIDDLEWARE = "bkm_space.middleware.ParamInjectMiddleware"
+REQUEST_LOCAL_APIGW_MIDDLEWARE = (
+    "apps.tests.log_admin_resource.test_resource_call.RequestLocalAdminApiGatewayMiddleware"
+)
 METADATA_STORAGE = {
     "2_bklog.bcs_checkinsvr": {
         "cluster_config": {"cluster_id": 88, "cluster_name": "metadata-es"},
@@ -116,6 +121,11 @@ class ReadOnlyAdminApiGatewayMiddleware(AdminApiGatewayMiddleware):
 
 class WriteOnlyAdminApiGatewayMiddleware(AdminApiGatewayMiddleware):
     bk_app_code = "resource-write-app"
+
+
+class RequestLocalAdminApiGatewayMiddleware(AdminApiGatewayMiddleware):
+    def process_view(self, request, view, args, kwargs):
+        activate_request(request)
 
 
 class NonSuperuserMiddleware(MiddlewareMixin):
@@ -220,6 +230,77 @@ class AdminResourceCallViewTest(ClearRequestLocalMixin, TestCase):
         self.assertIn("unknown domain", content["message"])
         self.assertEqual(content["data"]["next_call"], {"mode": "discover"})
 
+    @override_settings(MIDDLEWARE=(APIGW_MIDDLEWARE, SPACE_INJECT_MIDDLEWARE))
+    def test_resource_call_params_are_not_mutated_by_global_space_injection(self):
+        func_name = "bklog.test.strict.biz"
+        function = {
+            "func_name": func_name,
+            "description": "strict business parameter test function",
+            "safety_level": "read",
+            "validate_params": True,
+            "params_schema": {
+                "type": "object",
+                "properties": {"bk_biz_id": {"type": "integer"}},
+                "required": ["bk_biz_id"],
+                "additionalProperties": False,
+            },
+        }
+        received = []
+
+        with (
+            patch.dict(FUNCTIONS, {func_name: function}),
+            patch.dict(HANDLERS, {func_name: lambda params: received.append(params) or params}),
+        ):
+            content = self._call(func_name, {"bk_biz_id": 2})
+
+        self.assertTrue(content["result"])
+        self.assertEqual(received, [{"bk_biz_id": 2}])
+        self.assertEqual(content["data"]["result"], {"bk_biz_id": 2})
+
+    def test_space_injection_remains_enabled_for_other_paths(self):
+        request = RequestFactory().post(
+            "/api/v1/another/",
+            data=json.dumps({"params": {"bk_biz_id": 2}}),
+            content_type="application/json",
+        )
+
+        ParamInjectMiddleware(lambda _request: None).process_request(request)
+
+        self.assertEqual(json.loads(request.body)["params"]["space_uid"], "bkcc__2")
+
+    @override_settings(
+        MIDDLEWARE=(REQUEST_LOCAL_APIGW_MIDDLEWARE,),
+        BK_APP_TENANT_ID="tenant-a",
+    )
+    def test_verified_app_identity_reaches_host_and_k8s_inspection_handlers(self):
+        from apps.log_admin_resource.handlers.host_inspection import _request_identity as host_request_identity
+        from apps.log_admin_resource.handlers.k8s_inspection import _request_identity as k8s_request_identity
+
+        func_name = "bklog.test.inspection.identity"
+        function = {
+            "func_name": func_name,
+            "description": "inspection identity propagation test function",
+            "safety_level": "inspect",
+        }
+
+        with (
+            patch.dict(FUNCTIONS, {func_name: function}),
+            patch.dict(
+                HANDLERS,
+                {
+                    func_name: lambda _params: {
+                        "host": host_request_identity(),
+                        "k8s": k8s_request_identity(),
+                    }
+                },
+            ),
+        ):
+            content = self._call(func_name)
+
+        self.assertTrue(content["result"])
+        self.assertEqual(content["data"]["result"]["host"], ["bkmonitorv3", "tenant-a"])
+        self.assertEqual(content["data"]["result"]["k8s"], ["bkmonitorv3", "tenant-a"])
+
     @override_settings(MIDDLEWARE=(NON_SUPERUSER_MIDDLEWARE,))
     def test_call_rejects_non_apigw_request(self):
         content = self._call("__meta__", {"action": "list"})
@@ -320,10 +401,15 @@ class AdminResourceRegistryContractTest(TestCase):
         return_value={"bk_app_code": "resource-read-app"},
     )
     def test_permission_accepts_authorized_app_from_any_verified_apigw(self, mock_get_auth_info):
-        request = SimpleNamespace(jwt=SimpleNamespace(gateway_name="another-verified-gateway"))
+        raw_request = SimpleNamespace()
+        request = SimpleNamespace(
+            jwt=SimpleNamespace(gateway_name="another-verified-gateway"),
+            _request=raw_request,
+        )
 
         self.assertTrue(AdminResourceAppWhiteListPermission().has_permission(request, None))
         self.assertEqual(request.resource_app_code, "resource-read-app")
+        self.assertEqual(raw_request.resource_app_code, "resource-read-app")
         mock_get_auth_info.assert_called_once_with(request, raise_exception=False)
 
     @override_settings(

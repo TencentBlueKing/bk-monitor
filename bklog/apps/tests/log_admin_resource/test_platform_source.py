@@ -832,6 +832,57 @@ class PlatformSourceHandlerTest(SimpleTestCase):
 
         self.assertEqual(result["result"]["query"]["bk_tenant_id"], "tenant-a")
 
+    @patch("apps.log_admin_resource.handlers.platform_source.CCApi.find_host_biz_relations")
+    @patch("apps.log_admin_resource.handlers.platform_source.CCApi.list_hosts_without_biz")
+    def test_resolve_host_enriches_business_from_host_relation(self, mock_hosts, mock_relations):
+        mock_hosts.return_value = {
+            "count": 1,
+            "info": [{"bk_host_id": 101, "bk_host_innerip": "127.0.0.1", "bk_cloud_id": 0}],
+        }
+        mock_relations.return_value = [
+            {"bk_host_id": 101, "bk_biz_id": 2, "bk_module_id": 3},
+            {"bk_host_id": 101, "bk_biz_id": 2, "bk_module_id": 4},
+        ]
+
+        result = query_platform_source(
+            {
+                "mode": "invoke",
+                "domain": "cmdb",
+                "operation": "resolve_host",
+                "params": {"ip": "127.0.0.1"},
+            }
+        )
+
+        self.assertEqual(result["result"]["resolution_status"], "resolved")
+        self.assertEqual(result["result"]["host"]["bk_biz_id"], 2)
+        mock_relations.assert_called_once()
+        self.assertEqual(mock_relations.call_args.kwargs["params"]["bk_host_id"], [101])
+
+    @patch("apps.log_admin_resource.handlers.platform_source.CCApi.find_host_biz_relations")
+    @patch("apps.log_admin_resource.handlers.platform_source.CCApi.list_hosts_without_biz")
+    def test_resolve_host_reports_multiple_business_relations_as_ambiguous(self, mock_hosts, mock_relations):
+        mock_hosts.return_value = {
+            "count": 1,
+            "info": [{"bk_host_id": 101, "bk_host_innerip": "127.0.0.1", "bk_cloud_id": 0}],
+        }
+        mock_relations.return_value = [
+            {"bk_host_id": 101, "bk_biz_id": 2},
+            {"bk_host_id": 101, "bk_biz_id": 3},
+        ]
+
+        result = query_platform_source(
+            {
+                "mode": "invoke",
+                "domain": "cmdb",
+                "operation": "resolve_host",
+                "params": {"ip": "127.0.0.1"},
+            }
+        )
+
+        self.assertEqual(result["result"]["resolution_status"], "ambiguous")
+        self.assertIsNone(result["result"]["host"])
+        self.assertEqual([item["bk_biz_id"] for item in result["result"]["candidates"]], [2, 3])
+
     @patch("apps.log_admin_resource.handlers.platform_source.CCApi.list_hosts_without_biz")
     def test_resolve_host_never_calls_cmdb_for_invalid_ip(self, mock_api):
         with self.assertRaises(PlatformSourceError) as raised:
