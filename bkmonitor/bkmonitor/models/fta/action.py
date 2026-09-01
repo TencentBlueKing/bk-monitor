@@ -560,7 +560,7 @@ class ActionInstance(AbstractRecordModel):
                     if self.inputs.get("shield_ids"):
                         content_template = config_schema.get("content_template_shielded_with_url", content_template)
                         # 告警屏蔽跳转，路由由前端拼接，忽略 url 参数
-                        # ?bizId={biz_id}/#/alarm-shield-detail/{shield_id}
+                        # ?bizId={biz_id}#/alarm-shield-detail/{shield_id}
                         kwargs["router_info"] = {
                             "router_name": "alarm-shield-detail",
                             "params": {"biz_id": self.bk_biz_id, "shield_id": self.inputs["shield_ids"][0]},

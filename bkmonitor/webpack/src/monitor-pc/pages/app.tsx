@@ -30,7 +30,7 @@ import { Component as tsc } from 'vue-tsx-support';
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
 import { getLinkMapping, listStickySpaces } from 'monitor-api/modules/commons';
 import { getDashboardList } from 'monitor-api/modules/grafana';
-import { APP_NAV_COLORS, LANGUAGE_COOKIE_KEY } from 'monitor-common/utils';
+import { APP_NAV_COLORS, LANGUAGE_COOKIE_KEY, parseBizId } from 'monitor-common/utils';
 import debounce from 'monitor-common/utils/debounce-decorator';
 import bus from 'monitor-common/utils/event-bus';
 import { docCookies, random } from 'monitor-common/utils/utils';
@@ -247,13 +247,12 @@ export default class App extends tsc<object> {
     ];
     this.getDocsLinkMapping();
   }
-  /** 检查并更新业务id */
+  /** 检查并更新业务id。旧链接 `?bizId=2/#/` 的 search 是 `bizId=2/`，必须走 parseBizId。 */
   checkAndUpdateBizId() {
-    const parsedUrl = new URL(window.location.href);
-    const urlBizId = parsedUrl.searchParams.get('bizId');
+    const urlBizId = parseBizId(new URL(window.location.href).searchParams.get('bizId'));
     const storeBizId = this.$store.getters.bizId;
-    if (typeof urlBizId === 'string' && urlBizId && Number(urlBizId) !== storeBizId) {
-      this.$store.commit('app/SET_BIZ_ID', +urlBizId);
+    if (Number.isFinite(urlBizId) && urlBizId !== storeBizId) {
+      this.$store.commit('app/SET_BIZ_ID', urlBizId);
     }
   }
   /** 获取文档链接 */
