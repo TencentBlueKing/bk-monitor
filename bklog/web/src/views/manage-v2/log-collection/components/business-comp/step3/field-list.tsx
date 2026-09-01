@@ -472,23 +472,35 @@ export default defineComponent({
           // 如果有行数据，初始化 cacheData
           if (currentRow) {
             cacheData.value = {
-              is_analyzed: currentRow.is_analyzed,
+              is_analyzed: Boolean(currentRow.is_analyzed),
               tokenize_on_chars: currentRow.tokenize_on_chars || '',
-              is_case_sensitive: currentRow.is_case_sensitive,
+              is_case_sensitive: Boolean(currentRow.is_case_sensitive),
             };
             currentParticipleState.value = currentRow.tokenize_on_chars ? 'custom' : 'default';
+          }
+
+          const container = reference.nextElementSibling as HTMLElement | null;
+          const contentNode = container?.querySelector('.word-breaker-menu-content') as HTMLElement | null;
+          if (contentNode) {
+            instance.setContent(contentNode);
           }
         },
         onHide(instance) {
           (instance.reference as HTMLElement).classList.remove('is-hover');
         },
-        content(reference) {
-          const btn = reference as HTMLElement;
-          // 约定：内容紧跟在按钮后的兄弟元素中
-          const container = btn.nextElementSibling as HTMLElement | null;
-          const contentNode = container?.querySelector('.word-breaker-menu-content') as HTMLElement | null;
-          return (contentNode ?? container ?? document.createElement('div')) as unknown as Element;
+        onHidden(instance) {
+          const reference = instance.reference as HTMLElement;
+          const container = reference.nextElementSibling as HTMLElement | null;
+          if (container) {
+            const tippyContentEl = instance.popper?.querySelector('.tippy-content');
+            const menuContent = tippyContentEl?.querySelector('.word-breaker-menu-content') as HTMLElement | null;
+            if (menuContent && menuContent.parentElement !== container) {
+              container.appendChild(menuContent);
+            }
+          }
+          instance.setContent(document.createElement('div'));
         },
+        content: document.createElement('div'),
       });
 
       // tippy 返回单个或数组，这里统一转为数组
