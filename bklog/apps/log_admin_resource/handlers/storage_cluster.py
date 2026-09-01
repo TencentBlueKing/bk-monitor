@@ -1,5 +1,39 @@
 from apps.log_databus.constants import REGISTERED_SYSTEM_DEFAULT
 from apps.log_databus.handlers.storage import StorageHandler
+from apps.log_admin_resource.response_schema import nullable_schema, object_schema, pagination_schema
+
+
+STORAGE_CLUSTER_LIST_PARAMS_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "page": {"type": "integer", "minimum": 1},
+        "page_size": {"type": "integer", "minimum": 1},
+        "bk_biz_id": {"type": "integer"},
+        "storage_cluster_id": {"type": "integer", "minimum": 1},
+        "cluster_id": {"type": "integer", "minimum": 1},
+        "keyword": {"type": "string"},
+    },
+    "additionalProperties": False,
+}
+STORAGE_CLUSTER_ITEM_SCHEMA = object_schema(
+    "storage_cluster_id",
+    "storage_cluster_name",
+    "cluster_name",
+    "domain_name",
+    "is_active",
+    "is_public",
+    "hot_warm_enabled",
+    properties={
+        "storage_cluster_id": nullable_schema("integer"),
+        "storage_cluster_name": nullable_schema("string"),
+        "cluster_name": nullable_schema("string"),
+        "domain_name": nullable_schema("string"),
+        "is_active": {"type": "boolean"},
+        "is_public": {"type": "boolean"},
+        "hot_warm_enabled": {"type": "boolean"},
+    },
+)
+STORAGE_CLUSTER_LIST_RESPONSE_SCHEMA = pagination_schema(STORAGE_CLUSTER_ITEM_SCHEMA)
 
 
 def list_storage_clusters(params):

@@ -22,6 +22,7 @@ from typing import Any
 
 import arrow
 from bk_monitor_base.strategy import list_strategy, parse_metric_id
+from bkm_space.api import SpaceApi
 from django.conf import settings
 
 from alarm_backends.constants import CONST_ONE_DAY
@@ -456,6 +457,25 @@ class StrategyCacheManager(CacheManager):
         return result
 
     @classmethod
+    def canonical_query_output_config(cls, config: dict) -> dict:
+        if not isinstance(config, dict):
+            raise ValueError("query_output_config must be an object")
+        return {
+            "response_contract": str(config.get("response_contract", "")).strip(),
+            "legacy_output_ref": str(config.get("legacy_output_ref", "")).strip(),
+            "output_list": sorted(
+                [
+                    {
+                        "reference_name": str(output.get("reference_name", "")).strip(),
+                        "expression": str(output.get("expression", "")).strip(),
+                    }
+                    for output in config.get("output_list") or []
+                ],
+                key=lambda output: output["reference_name"],
+            ),
+        }
+
+    @classmethod
     def get_query_md5(cls, bk_biz_id: int, item: dict) -> str:
         """
         生成监控项查询MD5
@@ -515,10 +535,19 @@ class StrategyCacheManager(CacheManager):
             configs.append(params)
 
         # 只有一个查询配置时与单指标时保持一致，避免策略大幅波动
-        return count_md5(
+        legacy_query_identity = (
             configs[0]
             if len(configs) == 1 and len(item.get("expression", "").strip(" ")) <= 1
             else {"expression": item["expression"], "query_configs": configs}
+        )
+        if "query_output_config" not in item:
+            return count_md5(legacy_query_identity)
+
+        return count_md5(
+            {
+                "legacy_query": legacy_query_identity,
+                "query_output_config": cls.canonical_query_output_config(item["query_output_config"]),
+            }
         )
 
     @classmethod
@@ -906,6 +935,79 @@ class StrategyCacheManager(CacheManager):
         cls.cache.expire(cls.FTA_ALERT_CACHE_KEY, cls.CACHE_TIMEOUT)
 
     @classmethod
+    def add_source_identity(cls, strategies: list[dict]):
+        """
+        从现有空间元数据批量冻结策略的租户和空间身份。
+
+        身份不完整时保留策略其他配置，由下游按 SOURCE_INCOMPLETE 局部终结；
+        这里不猜测默认租户或空间。
+        """
+        if not strategies:
+            return
+
+        for strategy in strategies:
+            strategy.pop("bk_tenant_id", None)
+            strategy.pop("space_uid", None)
+
+        try:
+            spaces = SpaceApi.list_spaces_dict()
+        except Exception:
+            logger.exception("refresh strategy source identity failed, reason=SPACE_LIST_FAILED")
+            return
+        if not isinstance(spaces, list):
+            logger.error("refresh strategy source identity failed, reason=SPACE_LIST_INVALID")
+            return
+
+        identity_by_biz_id: dict[int, tuple[str, str]] = {}
+        invalid_biz_ids: set[int] = set()
+        for space in spaces:
+            try:
+                bk_biz_id = int(space["bk_biz_id"])
+            except (KeyError, TypeError, ValueError):
+                continue
+
+            bk_tenant_id = space.get("bk_tenant_id")
+            space_uid = space.get("space_uid")
+            if not isinstance(bk_tenant_id, str) or not bk_tenant_id or not isinstance(space_uid, str) or not space_uid:
+                invalid_biz_ids.add(bk_biz_id)
+                identity_by_biz_id.pop(bk_biz_id, None)
+                continue
+
+            identity = (bk_tenant_id, space_uid)
+            current_identity = identity_by_biz_id.get(bk_biz_id)
+            if current_identity is not None and current_identity != identity:
+                invalid_biz_ids.add(bk_biz_id)
+                identity_by_biz_id.pop(bk_biz_id, None)
+            elif bk_biz_id not in invalid_biz_ids:
+                identity_by_biz_id[bk_biz_id] = identity
+
+        reason_counts: dict[str, int] = defaultdict(int)
+        for strategy in strategies:
+            try:
+                bk_biz_id = int(strategy["bk_biz_id"])
+            except (KeyError, TypeError, ValueError):
+                reason_counts["BUSINESS_ID_INVALID"] += 1
+                continue
+
+            if bk_biz_id in invalid_biz_ids:
+                reason_counts["SPACE_IDENTITY_INVALID"] += 1
+                continue
+
+            identity = identity_by_biz_id.get(bk_biz_id)
+            if identity is None:
+                reason_counts["SPACE_NOT_FOUND"] += 1
+                continue
+
+            strategy["bk_tenant_id"], strategy["space_uid"] = identity
+
+        for reason, affected in reason_counts.items():
+            logger.warning(
+                "refresh strategy source identity incomplete, reason=%s, affected=%s",
+                reason,
+                affected,
+            )
+
+    @classmethod
     def refresh_strategy(cls, strategies: list[dict], old_groups=None):
         """
         刷新策略缓存
@@ -922,6 +1024,8 @@ class StrategyCacheManager(CacheManager):
         :param strategies: 新的策略列表，每个策略包含其详细信息
         :param old_groups: 旧的策略分组信息，如果为None，则进行全量更新。否则进行增量更新，删除不在新策略中的旧分组
         """
+        cls.add_source_identity(strategies)
+
         # 初始化策略分组缓存结构
         strategy_groups = defaultdict(lambda: defaultdict(list))
 

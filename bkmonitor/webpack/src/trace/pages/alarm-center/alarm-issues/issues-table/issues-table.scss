@@ -332,52 +332,21 @@
   }
 
   .is-ended {
-    /** 结束状态 ISSUE 透明度 */
-    $ended-opacity-icon: 0.2; // ICON / 趋势图 / 等级 → 20%
-    $ended-opacity-text: 0.4; // 其他文字信息 → 40%
+    /** 结束状态 ISSUE：内容 80% + 行底色，便于和未结束单据区分 */
+    $ended-opacity: 0.8;
 
-    // ICON / 趋势图 / 等级 → 20%
-    .issues-name-col .issues-type-tag {
-      opacity: $ended-opacity-icon;
+    // TDesign 单元格 background-color: inherit，必须写到 td 上底色才会画出来
+    &:not(.is-split-highlighted):not(.t-table__row--active) > td {
+      background-color: #f5f7fa;
     }
 
-    .issues-trend-col {
-      opacity: $ended-opacity-text;
-
-      &:not(.is-empty) {
-        opacity: $ended-opacity-icon;
-      }
-
-      &.is-loading {
-        opacity: 1;
-      }
+    // 单元格内容统一 80%；勾选列 / 操作列保持 100%
+    & > td:not(.t-table__cell-check):not(:has(.issues-operation-col)) > * {
+      opacity: $ended-opacity;
     }
 
-    .issues-priority-col .priority-tag-wrapper .priority-tag {
-      opacity: $ended-opacity-icon;
-    }
-
-    // 其他文字信息 → 40%
-    .issues-name-col .issues-name-title,
-    .issues-name-col .issues-name-description,
-    .issues-name-col .issues-merge-badge {
-      opacity: $ended-opacity-text;
-    }
-
-    .issues-time-col {
-      opacity: $ended-opacity-text;
-    }
-
-    .issues-impact-col {
-      opacity: $ended-opacity-text;
-    }
-
-    .issues-status-col {
-      opacity: $ended-opacity-text;
-    }
-
-    .issues-assignee-cell {
-      opacity: $ended-opacity-text;
+    .issues-trend-col.is-loading {
+      opacity: 1;
     }
   }
 }

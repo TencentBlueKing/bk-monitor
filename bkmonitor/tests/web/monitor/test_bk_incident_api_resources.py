@@ -1,4 +1,5 @@
 import abc
+import logging
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -301,7 +302,9 @@ def test_incident_list_returns_bkci_enabled_space_as_monitor_negative_biz_id():
     assert "def get_enabled_space_bk_biz_id" in resource_source
     assert 'scope_identity.get("space")' in resource_source
     assert "return -int(space_id)" in resource_source
-    assert 'result["enabled_spaces"].append(self.get_enabled_space_bk_biz_id(item))' in resource_source
+    assert 'result["enabled_spaces"].append(enabled_space)' in resource_source
+    assert "query_biz_ids = [-1]" in resource_source
+    assert "page_size=1000" in resource_source
 
 
 def test_bk_incident_api_keeps_standard_scope_ids_when_converting_lists():
@@ -312,4 +315,133 @@ def test_bk_incident_api_keeps_standard_scope_ids_when_converting_lists():
     resource_source = source[resource_start:resource_end]
 
     assert "def is_standard_scope_id" in resource_source
-    assert "if self.is_standard_scope_id(bk_biz_id)" in resource_source
+    assert "is_standard_scope_id(bk_biz_id)" in resource_source
+
+
+def test_bk_incident_api_converts_negative_biz_ids_to_standard_scope_ids():
+    source = (PROJECT_ROOT / "api/bk_incident/default.py").read_text(encoding="utf-8")
+    resource_source = source[source.index("class IncidentBaseResource") : source.index("class GetTemplateListResource")]
+
+    class FakeAPIResource:
+        def perform_request(self, validated_request_data):
+            return validated_request_data
+
+    class FakeSpaceApi:
+        calls = []
+
+        @classmethod
+        def get_space_detail(cls, bk_biz_id):
+            cls.calls.append(bk_biz_id)
+            return SimpleNamespace(space_type_id="bkci", space_id="bkce")
+
+    namespace = {
+        "abc": abc,
+        "APIResource": FakeAPIResource,
+        "logger": logging.getLogger(__name__),
+        "logging": logging,
+        "settings": SimpleNamespace(BK_INCIDENT_APIGW_URL="", BK_COMPONENT_API_URL=""),
+        "SpaceApi": FakeSpaceApi,
+    }
+    exec(resource_source, namespace)
+    resource = namespace["IncidentBaseResource"]()
+
+    params = resource.perform_request(
+        {
+            "bk_biz_id": -88888,
+            "bk_biz_id_list": [-88888],
+            "bk_biz_id_config": {"scope_id_list_open": [-88888]},
+        }
+    )
+    assert params == {
+        "scope_type": "bkci",
+        "scope_value": "bkce",
+        "scope_id_list": ["bkci_bkce"],
+        "scope_id_config": {"scope_id_list_open": ["bkci_bkce"]},
+    }
+    assert FakeSpaceApi.calls == [-88888]
+
+    FakeSpaceApi.calls.clear()
+    scope_ids = resource.convert_bk_biz_id_list_to_scope_id_list(
+        {"scope_type": "bkcc"}, [-88888, 2, -1, "bkci_existing", "bcs_project"]
+    )
+    assert scope_ids == ["bkci_bkce", "bkcc_2", "bkcc_-1", "bkci_existing", "bcs_project"]
+    assert FakeSpaceApi.calls == [-88888]
+
+
+def test_bk_incident_api_keeps_bkcc_ids_after_converting_first_non_bkcc_space():
+    """incident_list 会把 bk_biz_ids[0] 写成 scope_type，不能让后续正数业务被编成 bkci_2。"""
+    source = (PROJECT_ROOT / "api/bk_incident/default.py").read_text(encoding="utf-8")
+    resource_source = source[source.index("class IncidentBaseResource") : source.index("class GetTemplateListResource")]
+
+    class FakeAPIResource:
+        def perform_request(self, validated_request_data):
+            return validated_request_data
+
+    class FakeSpaceApi:
+        @classmethod
+        def get_space_detail(cls, bk_biz_id):
+            return SimpleNamespace(space_type_id="bkci", space_id="bkce")
+
+    namespace = {
+        "abc": abc,
+        "APIResource": FakeAPIResource,
+        "logger": logging.getLogger(__name__),
+        "logging": logging,
+        "settings": SimpleNamespace(BK_INCIDENT_APIGW_URL="", BK_COMPONENT_API_URL=""),
+        "SpaceApi": FakeSpaceApi,
+    }
+    exec(resource_source, namespace)
+    resource = namespace["IncidentBaseResource"]()
+    params = resource.perform_request(
+        {
+            "bk_biz_id": -88888,
+            "bk_biz_id_list": [-88888, 2, -1],
+        }
+    )
+
+    assert params["scope_type"] == "bkci"
+    assert params["scope_value"] == "bkce"
+    assert params["scope_id_list"] == ["bkci_bkce", "bkcc_2", "bkcc_-1"]
+
+
+def test_bk_incident_api_reuses_scope_conversion_and_falls_back_to_legacy_protocol():
+    source = (PROJECT_ROOT / "api/bk_incident/default.py").read_text(encoding="utf-8")
+    resource_source = source[source.index("class IncidentBaseResource") : source.index("class GetTemplateListResource")]
+
+    class FakeAPIResource:
+        def perform_request(self, validated_request_data):
+            return validated_request_data
+
+    class FailingSpaceApi:
+        calls = []
+
+        @classmethod
+        def get_space_detail(cls, bk_biz_id):
+            cls.calls.append(bk_biz_id)
+            raise RuntimeError("space unavailable")
+
+    namespace = {
+        "abc": abc,
+        "APIResource": FakeAPIResource,
+        "logger": logging.getLogger(__name__),
+        "logging": logging,
+        "settings": SimpleNamespace(BK_INCIDENT_APIGW_URL="", BK_COMPONENT_API_URL=""),
+        "SpaceApi": FailingSpaceApi,
+    }
+    exec(resource_source, namespace)
+    resource = namespace["IncidentBaseResource"]()
+    params = resource.perform_request(
+        {
+            "bk_biz_id": -88888,
+            "bk_biz_id_list": [-88888],
+            "bk_biz_id_config": {"scope_id_list_open": [-88888]},
+        }
+    )
+
+    assert params == {
+        "scope_type": "bkcc",
+        "scope_value": "-88888",
+        "scope_id_list": ["bkcc_-88888"],
+        "scope_id_config": {"scope_id_list_open": ["bkcc_-88888"]},
+    }
+    assert FailingSpaceApi.calls == [-88888]

@@ -2,7 +2,7 @@
 
 
 class MaxVersion:
-    STRATEGY = "1.0"
+    STRATEGY = "1.1"
     NOTICE = "1.0"
     USER_GROUP = "2.0"
     ACTION = "1.0"

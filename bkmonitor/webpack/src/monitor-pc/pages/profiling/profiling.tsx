@@ -47,8 +47,8 @@ export default class Profiling extends tsc<object> {
   }
   get profilingUrl() {
     return process.env.NODE_ENV === 'development'
-      ? `${this.profilingHost}/?bizId=${this.$store.getters.bizId}/#/trace/profiling`
-      : `${location.origin}${window.site_url}trace/?bizId=${this.$store.getters.bizId}/#/trace/profiling`;
+      ? `${this.profilingHost}/?bizId=${this.$store.getters.bizId}#/trace/profiling`
+      : `${location.origin}${window.site_url}trace/?bizId=${this.$store.getters.bizId}#/trace/profiling`;
   }
   get profilingData(): Vue3WewebData {
     return {

@@ -202,6 +202,16 @@ class ValueableList:
                 {"id": "alarm.notice_from", "name": _lazy("消息来源"), "description": _lazy("蓝鲸监控")},
                 {"id": "alarm.detail_url", "name": _lazy("详情链接"), "description": ""},
                 {"id": "alarm.current_value", "name": _lazy("当前值"), "description": "1.1"},
+                {
+                    "id": 'alarm.ref_values.get("reference_name", {}).get("value")',
+                    "name": _lazy("命名输出值"),
+                    "description": "1.1",
+                },
+                {
+                    "id": 'alarm.ref_values.get("reference_name", {}).get("state")',
+                    "name": _lazy("命名输出状态"),
+                    "description": "SUCCESS",
+                },
                 {"id": "alarm.target_type", "name": _lazy("目标类型"), "description": "IP/INSTANCE/TOPO"},
                 {"id": "alarm.target_type_name", "name": _lazy("目标类型名称"), "description": _lazy("IP/实例/节点")},
             ],

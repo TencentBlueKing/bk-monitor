@@ -1,10 +1,12 @@
 from apps.exceptions import ValidationError
 from apps.log_admin_resource.handlers.collector import (
+    COLLECTOR_STORAGE_SCHEMA,
     _get_log_access_type,
     _get_primary_index_set,
     _get_result_table_storage,
     _serialize_result_table_storage,
 )
+from apps.log_admin_resource.response_schema import diagnostic_schema, nullable_schema, object_schema
 from apps.log_databus.handlers.etl.transfer import TransferEtlHandler
 from apps.log_databus.handlers.storage import StorageHandler
 from apps.log_databus.models import CollectorConfig
@@ -38,6 +40,136 @@ STATUS_NAMES = {
 
 MAX_STORAGE_SNAPSHOT_COLLECTORS = 30
 STORAGE_SNAPSHOT_QUERY_WORKERS = 8
+
+
+def _collector_ids_schema(max_items=None):
+    schema = {
+        "type": "array",
+        "items": {"type": "integer", "minimum": 1},
+        "minItems": 1,
+    }
+    if max_items is not None:
+        schema["maxItems"] = max_items
+    return schema
+
+
+STORAGE_TARGET_SCHEMA = object_schema(
+    properties={
+        "storage_cluster_id": {"type": "integer", "minimum": 1},
+        "retention": {"type": "integer", "minimum": 1},
+        "allocation_min_days": {"type": "integer", "minimum": 1},
+        "storage_shards_nums": {"type": "integer", "minimum": 1},
+        "storage_replies": {"type": "integer", "minimum": 0},
+    }
+)
+STORAGE_TARGET_SCHEMA["minProperties"] = 1
+COLLECTOR_STORAGE_SNAPSHOT_PARAMS_SCHEMA = {
+    "type": "object",
+    "properties": {"collector_config_ids": _collector_ids_schema(MAX_STORAGE_SNAPSHOT_COLLECTORS)},
+    "required": ["collector_config_ids"],
+    "additionalProperties": False,
+}
+COLLECTOR_STORAGE_PREVIEW_PARAMS_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "collector_config_ids": _collector_ids_schema(),
+        "target": STORAGE_TARGET_SCHEMA,
+    },
+    "required": ["collector_config_ids", "target"],
+    "additionalProperties": False,
+}
+COLLECTOR_STORAGE_APPLY_PARAMS_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "collector_config_ids": _collector_ids_schema(),
+        "target": STORAGE_TARGET_SCHEMA,
+        "expected_before": {
+            "type": "object",
+            "additionalProperties": COLLECTOR_STORAGE_SCHEMA,
+        },
+        "remark": {"type": "string"},
+    },
+    "required": ["collector_config_ids", "target"],
+    "additionalProperties": False,
+}
+COLLECTOR_STORAGE_SUMMARY_SCHEMA = object_schema(
+    "total",
+    "changeable",
+    "unchanged",
+    "blocked",
+    "needs_review",
+    "success",
+    "failed",
+    properties={
+        key: {"type": "integer", "minimum": 0}
+        for key in ("total", "changeable", "unchanged", "blocked", "needs_review", "success", "failed")
+    },
+)
+COLLECTOR_STORAGE_ITEM_SCHEMA = object_schema(
+    "collector_config_id",
+    "collector_config_name",
+    "bk_biz_id",
+    "bk_data_id",
+    "table_id",
+    "index_set_id",
+    "index_set_name",
+    "log_access_type",
+    "collector_scenario_id",
+    "is_active",
+    "enable_v4",
+    "status",
+    "status_name",
+    "before",
+    "after",
+    "diff",
+    "warnings",
+    "execution_message",
+    properties={
+        "collector_config_id": {"type": "integer", "minimum": 1},
+        "collector_config_name": {"type": "string"},
+        "bk_biz_id": {"type": "integer"},
+        "bk_data_id": nullable_schema("integer"),
+        "table_id": nullable_schema("string"),
+        "index_set_id": nullable_schema("integer"),
+        "index_set_name": nullable_schema("string"),
+        "log_access_type": {"type": "string"},
+        "collector_scenario_id": {"type": "string"},
+        "is_active": {"type": "boolean"},
+        "enable_v4": {"type": "boolean"},
+        "status": {
+            "type": "string",
+            "enum": ["changeable", "unchanged", "blocked", "success", "failed"],
+        },
+        "status_name": {"type": "string"},
+        "before": COLLECTOR_STORAGE_SCHEMA,
+        "after": COLLECTOR_STORAGE_SCHEMA,
+        "diff": {
+            "type": "array",
+            "items": object_schema(
+                "field",
+                "label",
+                "from",
+                "to",
+                properties={
+                    "field": {"type": "string"},
+                    "label": {"type": "string"},
+                    "from": {},
+                    "to": {},
+                },
+            ),
+        },
+        "warnings": {"type": "array", "items": diagnostic_schema()},
+        "execution_message": nullable_schema("string"),
+    },
+)
+COLLECTOR_STORAGE_RESPONSE_SCHEMA = object_schema(
+    "summary",
+    "items",
+    properties={
+        "summary": COLLECTOR_STORAGE_SUMMARY_SCHEMA,
+        "items": {"type": "array", "items": COLLECTOR_STORAGE_ITEM_SCHEMA},
+    },
+)
 
 
 def get_collector_storage_snapshot(params):

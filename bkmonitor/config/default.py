@@ -811,11 +811,11 @@ ACCESS_LATENCY_THRESHOLD_CONSTANT = 180
 # 仅对列表中的策略启用合并处理，为空时对所有静态阈值策略生效
 ACCESS_DETECT_MERGE_STRATEGY_IDS = []
 
-# Detect 完成后是否同步执行 Trigger；Access-Detect 合并路径共用此开关
-ENABLE_DETECT_INLINE_TRIGGER = False
+# Detect 完成后是否同步执行 Trigger；默认开启，Access-Detect 合并路径共用此开关
+ENABLE_DETECT_INLINE_TRIGGER = True
 
-# Event 完成后是否同步执行 Trigger；开启前需要先完成 Event 和 Trigger worker 滚动更新
-ENABLE_EVENT_INLINE_TRIGGER = False
+# Event 完成后是否同步执行 Trigger；默认开启，从旧版本升级时需先完成 Event 和 Trigger worker 滚动更新
+ENABLE_EVENT_INLINE_TRIGGER = True
 
 # 单个 Event 策略项最多占用的内联 Trigger 并发数
 EVENT_INLINE_TRIGGER_MAX_CONCURRENCY_PER_ITEM = 1
@@ -1333,7 +1333,7 @@ BK_CI_URL = os.getenv("BK_CI_URL") or os.getenv("BKAPP_BK_CI_URL", "")
 BKCI_APP_CODE = os.getenv("BKCI_APP_CODE")
 BKCI_APP_SECRET = os.getenv("BKCI_APP_SECRET")
 BK_MONITOR_HOST = os.getenv("BK_MONITOR_HOST", "{}/o/bk_monitorv3/".format(BK_PAAS_HOST.rstrip("/")))
-ACTION_DETAIL_URL = f"{BK_MONITOR_HOST}?bizId={{bk_biz_id}}/#/event-center/action-detail/{{action_id}}"
+ACTION_DETAIL_URL = f"{BK_MONITOR_HOST}?bizId={{bk_biz_id}}#/event-center/action-detail/{{action_id}}"
 EVENT_CENTER_URL = urljoin(
     BK_MONITOR_HOST,
     "?bizId={bk_biz_id}#/trace/alarm-center?queryString=action_id%20%3A%20{collect_id}&filterMode=queryString",

@@ -734,6 +734,12 @@ def access_v2_bkdata_vm(
         )
         return
 
+    # 删除数据源的consul配置，清理失败不阻断后续空间路由发布
+    try:
+        ds.delete_consul_config()
+    except Exception as e:  # pylint: disable=broad-except
+        logger.exception("delete datasource consul config failed, data_id: %s, error: %s", data_id, e)
+
 
 def create_bkbase_data_link(
     bk_biz_id: int,
