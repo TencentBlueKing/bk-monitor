@@ -450,7 +450,7 @@ def test_compose_es_storage_binding_config(create_or_delete_records):
             "maintainers": ["admin"],
             "storage": {"kind": "ElasticSearch", "name": "es_default", "namespace": "bkmonitor"},
             "unique_field_list": ["event", "target", "dimensions", "event_name", "time"],
-            "json_field_list": None,
+            "json_field_list": [],
             "write_alias": {"TimeBased": {"format": "write_%Y%m%d_base_system_1_event", "timezone": 0}},
         },
     }
@@ -493,7 +493,7 @@ def test_compose_es_storage_binding_config(create_or_delete_records):
             "maintainers": ["admin"],
             "storage": {"kind": "ElasticSearch", "tenant": "system", "name": "es_default", "namespace": "bkmonitor"},
             "unique_field_list": ["event", "target", "dimensions", "event_name", "time"],
-            "json_field_list": None,
+            "json_field_list": [],
             "write_alias": {"TimeBased": {"format": "write_%Y%m%d_base_system_1_event", "timezone": 0}},
         },
     }
