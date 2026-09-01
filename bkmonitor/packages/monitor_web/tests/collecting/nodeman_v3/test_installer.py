@@ -13,17 +13,13 @@ class FakeGateway:
     def __init__(self):
         self.calls = []
 
-    def disable_config_instance(self, config_instance_id):
-        self.calls.append(("disable_config_instance", config_instance_id))
+    def ensure_target(self, target, *, context):
+        self.calls.append(("ensure_target", target.identity_key, context))
+        return {"trigger_id": "trigger-1"}
 
-    def stop_plugin_instance(self, plugin_instance_id):
-        self.calls.append(("stop_plugin_instance", plugin_instance_id))
-
-    def delete_config_instance(self, config_instance_id):
-        self.calls.append(("delete_config_instance", config_instance_id))
-
-    def uninstall_plugin_instance(self, plugin_instance_id):
-        self.calls.append(("uninstall_plugin_instance", plugin_instance_id))
+    def update_target(self, target, *, context):
+        self.calls.append(("update_target", target.identity_key, context))
+        return {"trigger_id": "trigger-2"}
 
 
 def _target(identity, plugin_instance, config_instance):
@@ -34,44 +30,128 @@ def _target(identity, plugin_instance, config_instance):
     )
 
 
-def test_mysql0_stop_and_delete_never_operate_mysql1_resources():
+def test_deploy_policy_target_submission_keeps_each_target_isolated():
     gateway = FakeGateway()
     orchestrator = NodeManV3Orchestrator(gateway=gateway)
     mysql0 = _target("mysql0", "plugin-instance-a", "config-instance-a")
-    mysql1 = _target("mysql1", "plugin-instance-b", "config-instance-b")
+    context = SimpleNamespace(monitor_operation_id="operation-1")
 
-    orchestrator.stop_targets([mysql0])
-    orchestrator.uninstall_targets([mysql0])
+    assert orchestrator.ensure_targets([mysql0], context=context) == {"trigger_id": "trigger-1"}
+    assert orchestrator.update_targets([mysql0], context=context) == {"trigger_id": "trigger-2"}
 
     assert gateway.calls == [
-        ("disable_config_instance", "config-instance-a"),
-        ("stop_plugin_instance", "plugin-instance-a"),
-        ("delete_config_instance", "config-instance-a"),
-        ("uninstall_plugin_instance", "plugin-instance-a"),
+        ("ensure_target", "mysql0", context),
+        ("update_target", "mysql0", context),
     ]
-    assert all("instance-b" not in value for _, value in gateway.calls)
-    assert mysql1.node_man_plugin_instance_id == "plugin-instance-b"
-    assert mysql1.bkmonitorbeat_config_instance_id == "config-instance-b"
 
 
-def test_missing_external_instance_identity_is_an_explicit_e2_e3_blocker():
+def test_stop_and_delete_remain_explicit_protocol_blockers():
     gateway = FakeGateway()
     orchestrator = NodeManV3Orchestrator(gateway=gateway)
     target = _target("mysql0", "", "")
 
-    with pytest.raises(NodeManV3CapabilityBlocked, match="E2/E3"):
+    with pytest.raises(NodeManV3CapabilityBlocked, match="stop semantics"):
         orchestrator.stop_targets([target])
+    with pytest.raises(NodeManV3CapabilityBlocked, match="delete semantics"):
+        orchestrator.uninstall_targets([target])
 
     assert gateway.calls == []
 
 
-def test_installer_implements_base_interface_by_delegating_to_orchestrator():
+def test_installer_create_persists_desired_version_then_reconciles(monkeypatch):
+    calls = []
+    packaged_release = SimpleNamespace(is_packaged=True)
+    orchestrator = SimpleNamespace(
+        uninstall=lambda **kwargs: calls.append(("uninstall", kwargs)),
+        stop=lambda **kwargs: calls.append(("stop", kwargs)),
+        start=lambda **kwargs: calls.append(("start", kwargs)),
+        run=lambda **kwargs: calls.append(("run", kwargs)),
+        retry=lambda **kwargs: calls.append(("retry", kwargs)),
+        revoke=lambda **kwargs: calls.append(("revoke", kwargs)),
+        status=lambda **kwargs: calls.append(("status", kwargs)) or {"status": "running"},
+        instance_status=lambda **kwargs: calls.append(("instance_status", kwargs)) or {"status": "running"},
+    )
+    collect_config = SimpleNamespace(
+        pk=None,
+        name="mysql",
+        need_upgrade=False,
+        deployment_config_id=None,
+        deployment_config=None,
+        plugin=SimpleNamespace(plugin_type="Exporter", packaged_release_version=packaged_release),
+    )
+    reconciler = SimpleNamespace()
+    installer = NodeManV3Installer(collect_config, orchestrator=orchestrator, reconciler=reconciler)
+    new_version = SimpleNamespace(pk=8, target_nodes=[{"bk_inst_id": 3}])
+    monkeypatch.setattr(installer, "_create_deployment_version", lambda **kwargs: new_version)
+    monkeypatch.setattr(installer, "_node_diff", lambda *args: {"added": [{"bk_inst_id": 3}]})
+
+    def activate(deployment, *, last_operation):
+        calls.append(("activate", deployment, last_operation))
+        collect_config.pk = 7
+
+    monkeypatch.setattr(installer, "_activate_version", activate)
+    monkeypatch.setattr(installer, "_reconcile", lambda *, trigger: calls.append(("reconcile", trigger)))
+
+    result = installer.install(
+        {
+            "target_node_type": "TOPO",
+            "target_nodes": [{"bk_inst_id": 3}],
+            "params": {"collector": {"period": 60}},
+        },
+        "CREATE",
+    )
+
+    assert result == {
+        "diff_node": {"added": [{"bk_inst_id": 3}]},
+        "can_rollback": False,
+        "id": 7,
+        "deployment_id": 8,
+    }
+    assert calls == [("activate", new_version, "CREATE"), ("reconcile", "install:create")]
+
+
+def test_installer_blocks_edit_before_creating_or_activating_a_version(monkeypatch):
+    collect_config = SimpleNamespace(
+        pk=7,
+        name="mysql",
+        need_upgrade=False,
+        plugin=SimpleNamespace(plugin_type="Exporter"),
+    )
+    installer = NodeManV3Installer(collect_config, reconciler=SimpleNamespace())
+    monkeypatch.setattr(
+        installer,
+        "_create_deployment_version",
+        lambda **kwargs: pytest.fail("edit must be blocked before creating a deployment version"),
+    )
+
+    with pytest.raises(NodeManV3CapabilityBlocked, match="deploy-policy edit is blocked"):
+        installer.install({}, "EDIT")
+
+
+def test_installer_blocks_upgrade_and_rollback_before_mutating_desired_version(monkeypatch):
+    collect_config = SimpleNamespace(
+        pk=7,
+        name="mysql",
+        need_upgrade=True,
+        plugin=SimpleNamespace(plugin_type="Exporter"),
+    )
+    installer = NodeManV3Installer(collect_config, reconciler=SimpleNamespace())
+    monkeypatch.setattr(
+        installer,
+        "_create_deployment_version",
+        lambda **kwargs: pytest.fail("unsupported lifecycle must not create a deployment version"),
+    )
+
+    with pytest.raises(NodeManV3CapabilityBlocked, match="deploy-policy upgrade is blocked"):
+        installer.upgrade({})
+    with pytest.raises(NodeManV3CapabilityBlocked, match="deploy-policy rollback is blocked"):
+        installer.rollback()
+
+
+def test_installer_keeps_unclosed_lifecycle_methods_blocked_by_orchestrator():
     calls = []
     orchestrator = SimpleNamespace(
-        install=lambda **kwargs: calls.append(("install", kwargs)) or {"status": "deploying"},
-        upgrade=lambda **kwargs: calls.append(("upgrade", kwargs)) or {"status": "deploying"},
         uninstall=lambda **kwargs: calls.append(("uninstall", kwargs)),
-        rollback=lambda **kwargs: calls.append(("rollback", kwargs)) or {"status": "deploying"},
         stop=lambda **kwargs: calls.append(("stop", kwargs)),
         start=lambda **kwargs: calls.append(("start", kwargs)),
         run=lambda **kwargs: calls.append(("run", kwargs)),
@@ -81,12 +161,13 @@ def test_installer_implements_base_interface_by_delegating_to_orchestrator():
         instance_status=lambda **kwargs: calls.append(("instance_status", kwargs)) or {"status": "running"},
     )
     collect_config = SimpleNamespace(plugin=SimpleNamespace(plugin_type="Exporter"))
-    installer = NodeManV3Installer(collect_config, orchestrator=orchestrator)
+    installer = NodeManV3Installer(
+        collect_config,
+        orchestrator=orchestrator,
+        reconciler=SimpleNamespace(),
+    )
 
-    assert installer.install({"config": 1}, "CREATE") == {"status": "deploying"}
-    assert installer.upgrade({"version": "2.0"}) == {"status": "deploying"}
     installer.uninstall()
-    assert installer.rollback(3) == {"status": "deploying"}
     installer.stop()
     installer.start()
     installer.run("restart", {"host_ids": [1]})
@@ -95,10 +176,7 @@ def test_installer_implements_base_interface_by_delegating_to_orchestrator():
     assert installer.status(diff=False) == {"status": "running"}
     assert installer.instance_status("instance-1") == {"status": "running"}
     assert [name for name, _ in calls] == [
-        "install",
-        "upgrade",
         "uninstall",
-        "rollback",
         "stop",
         "start",
         "run",

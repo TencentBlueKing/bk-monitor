@@ -352,9 +352,9 @@ def test_target_executor_classifies_only_proven_local_blockers_as_definite(error
     )
     executor = NodeManV3TargetExecutor(
         orchestrator=SimpleNamespace(
-            ensure_targets=lambda targets: None,
-            update_targets=lambda targets: None,
-            uninstall_targets=lambda targets: None,
+            ensure_targets=lambda targets, **kwargs: None,
+            update_targets=lambda targets, **kwargs: None,
+            uninstall_targets=lambda targets, **kwargs: None,
         ),
         operation_service=RaisingOperationService(),
         coordinator=coordinator,

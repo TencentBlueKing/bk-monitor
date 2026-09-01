@@ -78,6 +78,7 @@ class FakeWorkflow:
     def __init__(self, trace, **attributes):
         self.trace = trace
         self.workflow_id = None
+        self.trigger_id = None
         self.dispatch_error = ""
         self.normalized_status = NodeManWorkflowStatus.PENDING
         for key, value in attributes.items():
@@ -147,6 +148,29 @@ def test_single_and_multiple_workflows_are_persisted_before_polling():
     assert trace.index(("operation_create", trace[0][1])) < first_submit
     assert all(trace.index(event) < first_submit for event in trace if event[0] == "workflow_create")
     assert all(context.monitor_operation_id == str(operation.id) for _, context in submitted)
+
+
+def test_deploy_policy_trigger_is_persisted_and_polled_like_a_workflow():
+    trace = []
+    scheduled = []
+    service, operation_manager, workflow_manager = _service(trace, scheduled)
+
+    operation = service.dispatch_batches(
+        binding=_binding(),
+        operation_type="reconcile",
+        generation=1,
+        batches=[{"target_summary": {"identity_keys": ["host:1"]}, "target_count": 1}],
+        request_summary={},
+        submit_batch=lambda *args, **kwargs: {"trigger_id": "trigger-1"},
+    )
+
+    workflow = workflow_manager.created[0]
+    assert operation is operation_manager.created[0]
+    assert operation.status == NodeManOperationStatus.RUNNING
+    assert workflow.workflow_id is None
+    assert workflow.trigger_id == "trigger-1"
+    assert workflow.dispatch_status == NodeManWorkflowDispatchStatus.SUBMITTED
+    assert scheduled == [operation.id]
 
 
 def test_unknown_write_result_is_not_retried_or_polled():

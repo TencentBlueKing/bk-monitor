@@ -22,6 +22,13 @@ class WorkflowClient(NodeManV3ServiceClient):
     def get_operation_instance_log(self, payload: dict, *, context: NodeManV3RequestContext):
         return self._read(f"{self.PREFIX}/operation/instance/log/get", payload, context=context)
 
+    def list_operation_instance_status_distribution(self, payload: dict, *, context: NodeManV3RequestContext):
+        return self._read(
+            f"{self.PREFIX}/operation/instance/status_distribution/list",
+            payload,
+            context=context,
+        )
+
     def retry_operation(self, payload: dict, *, context: NodeManV3RequestContext):
         return self._write(f"{self.PREFIX}/operation/retry", payload, context=context)
 

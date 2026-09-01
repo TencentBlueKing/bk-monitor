@@ -12,6 +12,7 @@ from bkmonitor.nodeman_integration.v3.client import (
     NodeManV3UnknownResultError,
 )
 from bkmonitor.nodeman_integration.v3.client.host import HostClient, NetworkUnitClient, ProxyClient
+from bkmonitor.nodeman_integration.v3.client.deploy_policy import DeployPolicyClient
 from bkmonitor.nodeman_integration.v3.client.package import PackageClient, PluginClient
 from bkmonitor.nodeman_integration.v3.client.process import ProcessClient
 from bkmonitor.nodeman_integration.v3.client.workflow import WorkflowClient
@@ -124,6 +125,39 @@ def test_plugin_write_contract_uses_v3_path_service_identity_and_audit(monkeypat
             ),
             "api/v3/plugin/workflow/operation/retry",
             True,
+        ),
+        (
+            lambda client, context: WorkflowClient(client).list_operation_instance_status_distribution(
+                {"trigger_id": ["trigger-1"]}, context=context
+            ),
+            "api/v3/plugin/workflow/operation/instance/status_distribution/list",
+            False,
+        ),
+        (
+            lambda client, context: DeployPolicyClient(client).create(
+                {"name": "policy", "specs": [], "scopes": []}, context=context
+            ),
+            "api/v3/deploy_policy/create",
+            True,
+        ),
+        (
+            lambda client, context: DeployPolicyClient(client).update(
+                {"deploy_policies": [], "fields": {}}, context=context
+            ),
+            "api/v3/deploy_policy/update",
+            True,
+        ),
+        (
+            lambda client, context: DeployPolicyClient(client).execute({"deploy_policy_id": 1}, context=context),
+            "api/v3/deploy_policy/execute",
+            True,
+        ),
+        (
+            lambda client, context: DeployPolicyClient(client).list(
+                {"page": {"offset": 0, "limit": 20}}, context=context
+            ),
+            "api/v3/deploy_policy/list",
+            False,
         ),
         (
             lambda client, context: ProcessClient(client).list(

@@ -318,8 +318,11 @@ class NodeManV3OperationService:
             try:
                 result = submit_batch(batch, context=context)
                 workflow_id = result.get("workflow_id") if isinstance(result, dict) else None
-                if not workflow_id:
-                    raise NodeManV3UnknownResultError("NodeMan V3 write response has no workflow_id")
+                trigger_id = result.get("trigger_id") if isinstance(result, dict) else None
+                if not workflow_id and not trigger_id:
+                    raise NodeManV3UnknownResultError(
+                        "NodeMan V3 write response has neither workflow_id nor trigger_id"
+                    )
             except NodeManV3UnknownResultError as error:
                 self._mark_unknown_from(
                     operation,
@@ -345,7 +348,12 @@ class NodeManV3OperationService:
                     self.terminal_handler(operation, workflows)
                 return operation
 
-            if not self._persist_submitted(operation, workflow, workflow_id):
+            if not self._persist_submitted(
+                operation,
+                workflow,
+                workflow_id=workflow_id,
+                trigger_id=trigger_id,
+            ):
                 return operation
             submitted_count += 1
 
@@ -414,7 +422,14 @@ class NodeManV3OperationService:
             workflow.save(update_fields=("dispatch_status", "updated_at"))
         return True
 
-    def _persist_submitted(self, operation, workflow, workflow_id: str) -> bool:
+    def _persist_submitted(
+        self,
+        operation,
+        workflow,
+        *,
+        workflow_id: str | None,
+        trigger_id: str | None,
+    ) -> bool:
         if hasattr(self.workflow_model, "_meta"):
             with transaction.atomic():
                 locked_operation = self.operation_model.objects.select_for_update().get(pk=operation.pk)
@@ -427,7 +442,8 @@ class NodeManV3OperationService:
                     monitor_operation=locked_operation,
                     dispatch_status=NodeManWorkflowDispatchStatus.SUBMITTING,
                 ).update(
-                    workflow_id=str(workflow_id),
+                    workflow_id=str(workflow_id) if workflow_id else None,
+                    trigger_id=str(trigger_id) if trigger_id else None,
                     dispatch_status=NodeManWorkflowDispatchStatus.SUBMITTED,
                     dispatch_error="",
                     updated_at=now,
@@ -439,19 +455,22 @@ class NodeManV3OperationService:
                 locked_operation.save(update_fields=("updated_at",))
                 operation.updated_at = now
         else:
-            workflow.workflow_id = str(workflow_id)
+            workflow.workflow_id = str(workflow_id) if workflow_id else None
+            workflow.trigger_id = str(trigger_id) if trigger_id else None
             workflow.dispatch_status = NodeManWorkflowDispatchStatus.SUBMITTED
             workflow.dispatch_error = ""
             workflow.save(
                 update_fields=(
                     "workflow_id",
+                    "trigger_id",
                     "dispatch_status",
                     "dispatch_error",
                     "updated_at",
                 )
             )
             return True
-        workflow.workflow_id = str(workflow_id)
+        workflow.workflow_id = str(workflow_id) if workflow_id else None
+        workflow.trigger_id = str(trigger_id) if trigger_id else None
         workflow.dispatch_status = NodeManWorkflowDispatchStatus.SUBMITTED
         workflow.dispatch_error = ""
         return True
