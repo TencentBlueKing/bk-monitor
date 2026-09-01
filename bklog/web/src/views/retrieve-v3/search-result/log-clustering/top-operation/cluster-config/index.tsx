@@ -43,6 +43,10 @@ export default defineComponent({
       type: Array,
       default: () => [],
     },
+    isExternal: {
+      type: Boolean,
+      default: false,
+    },
   },
   setup(props, { expose }) {
     const { t } = useLocale();
@@ -84,6 +88,7 @@ export default defineComponent({
             <edit-config
               indexId={props.indexId}
               totalFields={props.totalFields}
+              isExternal={props.isExternal}
               on-close={() => (showEditConfig.value = false)}
             />
           </div>
