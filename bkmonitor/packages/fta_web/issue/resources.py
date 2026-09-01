@@ -1402,6 +1402,10 @@ class ListMergeSourcesResource(Resource):
                 # member 自身的 ES status（PENDING_REVIEW / UNRESOLVED / RESOLVED / ARCHIVED）。
                 # ES 缺失时为 None，前端按"已删除"占位渲染
                 "member_es_status": member_es_status_map.get(r.member_issue_id),
+                # 上一跳主 Issue：该成员是"随着某个已成组的主一起被并入"时非空（扁平化 reparent）。
+                # 纯溯源标签，可能指向已不在本组的 Issue（上一跳主随后被拆分），
+                # 前端不得据此假设它仍是本组成员。直接合并进来的成员为 None。
+                "via_issue_id": r.via_issue_id,
             }
             if r.status == IssueMergeRelation.STATUS_SPLIT:
                 item.update(
