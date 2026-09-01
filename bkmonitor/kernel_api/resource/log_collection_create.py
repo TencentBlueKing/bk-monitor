@@ -20,7 +20,7 @@ COMMON_CREATE_FIELDS = {
     "collector_scenario_id",
     "category_id",
     "description",
-    "parent_index_set_id",
+    "parent_index_set_ids",
     "confirm",
 }
 HOST_CREATE_FIELDS = {
@@ -262,8 +262,11 @@ class FastCreateLogCollectorResource(Resource):
             max_length=100,
             label="描述",
         )
-        parent_index_set_id = serializers.IntegerField(
-            required=False, min_value=1, allow_null=True, label="归属索引组ID"
+        parent_index_set_ids = serializers.ListField(
+            child=serializers.IntegerField(min_value=1),
+            required=False,
+            allow_null=True,
+            label="归属索引组ID列表",
         )
         target_object_type = serializers.CharField(required=False, label="主机目标类型")
         target_node_type = serializers.CharField(required=False, label="主机节点类型")
@@ -365,9 +368,6 @@ class FastCreateLogCollectorResource(Resource):
     def perform_request(self, validated_request_data):
         request_data = dict(validated_request_data)
         request_data.pop("confirm")
-        if "parent_index_set_id" in request_data:
-            parent_index_set_id = request_data.pop("parent_index_set_id")
-            request_data["parent_index_set_ids"] = [] if parent_index_set_id is None else [parent_index_set_id]
         create_result = (
             api.log_search.fast_create_log_collector(
                 enforce_permission=True,

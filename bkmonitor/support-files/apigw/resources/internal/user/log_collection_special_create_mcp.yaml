@@ -3,9 +3,9 @@ paths:
     post:
       operationId: create_custom_report
       description: >-
-        Create a custom-report collector. Requires confirm=true. Set parent_index_set_id to attach its generated
-        index set to an existing index group; omit it to leave the index set ungrouped. 创建自定义上报采集项，必须确认
-        confirm=true。可用 parent_index_set_id 将生成的索引集加入已有索引组。
+        Create a custom-report collector. Requires confirm=true. Set parent_index_set_ids to attach its generated
+        index set to existing index groups; omit it or send [] to leave the index set ungrouped. 创建自定义上报采集项，必须确认
+        confirm=true。可用 parent_index_set_ids 将生成的索引集加入已有索引组。
       tags:
       - log_collection_mcp
       requestBody:
@@ -87,10 +87,12 @@ paths:
                 ignore_exists:
                   type: boolean
                   default: false
-                parent_index_set_id:
-                  type: integer
-                  minimum: 1
+                parent_index_set_ids:
+                  type: array
                   nullable: true
+                  items:
+                    type: integer
+                    minimum: 1
                 confirm:
                   type: boolean
                   enum: [true]
@@ -116,8 +118,8 @@ paths:
       operationId: create_third_party_es
       description: >-
         Create a third-party Elasticsearch index set. Requires confirm=true, an existing storage_cluster_id,
-        at least one index and its time_field. Set parent_index_set_id to attach it to an index group.
-        创建第三方 ES 索引集，必须确认 confirm=true，填写已有存储集群、至少一个索引和时间字段；可用 parent_index_set_id 加入索引组。
+        at least one index and its time_field. Set parent_index_set_ids to attach it to index groups.
+        创建第三方 ES 索引集，必须确认 confirm=true，填写已有存储集群、至少一个索引和时间字段；可用 parent_index_set_ids 加入索引组。
       tags:
       - log_collection_mcp
       requestBody:
@@ -193,10 +195,12 @@ paths:
                 sort_fields:
                   type: array
                   items: {}
-                parent_index_set_id:
-                  type: integer
-                  minimum: 1
+                parent_index_set_ids:
+                  type: array
                   nullable: true
+                  items:
+                    type: integer
+                    minimum: 1
                 confirm:
                   type: boolean
                   enum: [true]

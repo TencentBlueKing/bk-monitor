@@ -11,7 +11,7 @@ from core.drf_resource import Resource, api
 COMMON_UPDATE_FIELDS = {
     "collector_config_name",
     "description",
-    "parent_index_set_id",
+    "parent_index_set_ids",
 }
 HOST_UPDATE_FIELDS = COMMON_UPDATE_FIELDS | {
     "target_object_type",
@@ -228,8 +228,11 @@ class FastUpdateLogCollectorResource(Resource):
         description = serializers.CharField(
             required=False, allow_blank=True, allow_null=True, max_length=100, label="描述"
         )
-        parent_index_set_id = serializers.IntegerField(
-            required=False, min_value=1, allow_null=True, label="归属索引组ID"
+        parent_index_set_ids = serializers.ListField(
+            child=serializers.IntegerField(min_value=1),
+            required=False,
+            allow_null=True,
+            label="归属索引组ID列表",
         )
         target_object_type = serializers.CharField(required=False, label="目标类型")
         target_node_type = serializers.CharField(required=False, label="节点类型")
@@ -295,18 +298,12 @@ class FastUpdateLogCollectorResource(Resource):
         if environment == "container" and "description" in request_data and request_data["description"] is None:
             raise serializers.ValidationError({"description": "Container collector description cannot be null."})
 
-        backend_request_data = request_data.copy()
-        if "parent_index_set_id" in backend_request_data:
-            parent_index_set_id = backend_request_data.pop("parent_index_set_id")
-            # 未传表示不变；显式 null 表示解除全部归属索引组。
-            backend_request_data["parent_index_set_ids"] = [] if parent_index_set_id is None else [parent_index_set_id]
-
         update_result = (
             api.log_search.fast_update_log_collector(
                 collector_config_id=collector_config_id,
                 update_clean_config=False,
                 enforce_permission=True,
-                **backend_request_data,
+                **request_data,
             )
             or {}
         )

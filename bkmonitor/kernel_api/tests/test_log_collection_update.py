@@ -115,7 +115,7 @@ def test_host_update_injects_clean_switch_and_returns_tasks(monkeypatch):
     }
 
 
-def test_update_converts_parent_index_set_id_and_null_clears_groups(monkeypatch):
+def test_update_forwards_parent_index_set_ids(monkeypatch):
     captured = {}
     log_search = SimpleNamespace(
         log_collector_update_context=lambda **kwargs: {"bk_biz_id": 2, "environment": "linux"},
@@ -124,12 +124,12 @@ def test_update_converts_parent_index_set_id_and_null_clears_groups(monkeypatch)
     monkeypatch.setattr(update_module, "api", SimpleNamespace(log_search=log_search))
 
     result = FastUpdateLogCollectorResource().perform_request(
-        {"bk_biz_id": 2, "collector_config_id": 10, "parent_index_set_id": None}
+        {"bk_biz_id": 2, "collector_config_id": 10, "parent_index_set_ids": [901, 902]}
     )
 
-    assert captured["parent_index_set_ids"] == []
+    assert captured["parent_index_set_ids"] == [901, 902]
     assert "parent_index_set_id" not in captured
-    assert result["updated_fields"] == ["parent_index_set_id"]
+    assert result["updated_fields"] == ["parent_index_set_ids"]
 
 
 def test_container_update_uses_container_fields(monkeypatch):

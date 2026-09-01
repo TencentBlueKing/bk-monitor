@@ -4,8 +4,8 @@ paths:
       operationId: list_log_index_set_groups
       description: >-
         List index groups available to a business. Use index_set_id from this response as
-        parent_index_set_id when creating or updating a collector, custom report, or third-party ES index set.
-        查询业务可用的索引组。创建或更新采集、自定义上报、第三方 ES 索引集时，使用返回的 index_set_id 作为 parent_index_set_id。
+        parent_index_set_ids when creating or updating a collector, custom report, or third-party ES index set.
+        查询业务可用的索引组。创建或更新采集、自定义上报、第三方 ES 索引集时，使用返回的 index_set_id 填入 parent_index_set_ids 列表。
       tags:
       - log_collection_mcp
       parameters:

@@ -1,7 +1,6 @@
 """日志采集相关的自定义上报和第三方 ES 创建资源。"""
 
 from collections.abc import Mapping
-from typing import Any
 
 from rest_framework import serializers
 
@@ -20,14 +19,6 @@ class StrictCreateSerializer(serializers.Serializer):
                     {field: ["This field is not supported by this MCP create API."] for field in sorted(unknown_fields)}
                 )
         return super().to_internal_value(data)
-
-
-def parent_index_set_ids(data: dict[str, Any]) -> None:
-    """把 MCP 的单索引组参数转换为 BKLOG 现有的列表参数。"""
-    if "parent_index_set_id" not in data:
-        return
-    parent_id = data.pop("parent_index_set_id")
-    data["parent_index_set_ids"] = [] if parent_id is None else [parent_id]
 
 
 class CreateCustomReportResource(Resource):
@@ -63,8 +54,11 @@ class CreateCustomReportResource(Resource):
         sort_fields = serializers.ListField(required=False, default=list, label="排序字段")
         target_fields = serializers.ListField(required=False, default=list, label="定位字段")
         ignore_exists = serializers.BooleanField(required=False, default=False, label="是否忽略已存在")
-        parent_index_set_id = serializers.IntegerField(
-            required=False, min_value=1, allow_null=True, label="归属索引组ID"
+        parent_index_set_ids = serializers.ListField(
+            child=serializers.IntegerField(min_value=1),
+            required=False,
+            allow_null=True,
+            label="归属索引组ID列表",
         )
         confirm = serializers.BooleanField(required=True, label="确认执行创建")
 
@@ -76,8 +70,6 @@ class CreateCustomReportResource(Resource):
     def perform_request(self, validated_request_data):
         request_data = dict(validated_request_data)
         request_data.pop("confirm")
-        parent_id = request_data.get("parent_index_set_id")
-        parent_index_set_ids(request_data)
         result = api.log_search.create_custom_report(enforce_permission=True, **request_data) or {}
         return {
             "collector_config_id": result.get("collector_config_id"),
@@ -85,7 +77,7 @@ class CreateCustomReportResource(Resource):
             "bk_data_id": result.get("bk_data_id"),
             "bk_data_token": result.get("bk_data_token"),
             "created": result.get("created", True),
-            "parent_index_set_id": parent_id,
+            "parent_index_set_ids": request_data.get("parent_index_set_ids"),
         }
 
 
@@ -120,8 +112,11 @@ class CreateThirdPartyESResource(Resource):
         is_editable = serializers.BooleanField(required=False, default=True, label="是否可编辑")
         target_fields = serializers.ListField(required=False, default=list, label="定位字段")
         sort_fields = serializers.ListField(required=False, default=list, label="排序字段")
-        parent_index_set_id = serializers.IntegerField(
-            required=False, min_value=1, allow_null=True, label="归属索引组ID"
+        parent_index_set_ids = serializers.ListField(
+            child=serializers.IntegerField(min_value=1),
+            required=False,
+            allow_null=True,
+            label="归属索引组ID列表",
         )
         confirm = serializers.BooleanField(required=True, label="确认执行创建")
 
@@ -138,8 +133,6 @@ class CreateThirdPartyESResource(Resource):
     def perform_request(self, validated_request_data):
         request_data = dict(validated_request_data)
         request_data.pop("confirm")
-        parent_id = request_data.get("parent_index_set_id")
-        parent_index_set_ids(request_data)
         request_data.update(
             {
                 "space_uid": bk_biz_id_to_space_uid(request_data.pop("bk_biz_id")),
@@ -154,5 +147,5 @@ class CreateThirdPartyESResource(Resource):
             "scenario_id": result.get("scenario_id") or "es",
             "space_uid": result.get("space_uid") or request_data["space_uid"],
             "storage_cluster_id": result.get("storage_cluster_id") or validated_request_data["storage_cluster_id"],
-            "parent_index_set_id": parent_id,
+            "parent_index_set_ids": request_data.get("parent_index_set_ids"),
         }

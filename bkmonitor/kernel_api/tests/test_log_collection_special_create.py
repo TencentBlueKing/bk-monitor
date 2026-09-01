@@ -27,7 +27,7 @@ def test_list_index_set_groups_only_returns_groups(monkeypatch):
     search_index_set.assert_called_once_with(bk_biz_id=2, is_group=True)
 
 
-def test_create_custom_report_forwards_parent_index_set(monkeypatch):
+def test_create_custom_report_forwards_parent_index_set_ids(monkeypatch):
     create_custom_report = Mock(
         return_value={"collector_config_id": 21, "index_set_id": 31, "bk_data_id": 41, "created": True}
     )
@@ -42,7 +42,7 @@ def test_create_custom_report_forwards_parent_index_set(monkeypatch):
             "collector_config_name": "custom",
             "collector_config_name_en": "custom_report",
             "custom_type": "log",
-            "parent_index_set_id": 11,
+            "parent_index_set_ids": [11, 12],
             "confirm": True,
         }
     )
@@ -51,12 +51,13 @@ def test_create_custom_report_forwards_parent_index_set(monkeypatch):
     result = CreateCustomReportResource().perform_request(serializer.validated_data)
 
     assert result["collector_config_id"] == 21
-    assert result["parent_index_set_id"] == 11
-    assert create_custom_report.call_args.kwargs["parent_index_set_ids"] == [11]
+    assert result["parent_index_set_ids"] == [11, 12]
+    assert create_custom_report.call_args.kwargs["parent_index_set_ids"] == [11, 12]
+    assert "parent_index_set_id" not in create_custom_report.call_args.kwargs
     assert "confirm" not in create_custom_report.call_args.kwargs
 
 
-def test_create_third_party_es_forwards_space_and_parent(monkeypatch):
+def test_create_third_party_es_forwards_space_and_parent_index_set_ids(monkeypatch):
     create_index_set = Mock(
         return_value={
             "index_set_id": 51,
@@ -77,7 +78,7 @@ def test_create_third_party_es_forwards_space_and_parent(monkeypatch):
             "storage_cluster_id": 61,
             "indexes": [{"result_table_id": "logs-*"}],
             "time_field": "@timestamp",
-            "parent_index_set_id": 11,
+            "parent_index_set_ids": [11, 12],
             "confirm": True,
         }
     )
@@ -88,4 +89,5 @@ def test_create_third_party_es_forwards_space_and_parent(monkeypatch):
     assert result["index_set_id"] == 51
     assert create_index_set.call_args.kwargs["space_uid"] == "bkcc__2"
     assert create_index_set.call_args.kwargs["scenario_id"] == "es"
-    assert create_index_set.call_args.kwargs["parent_index_set_ids"] == [11]
+    assert create_index_set.call_args.kwargs["parent_index_set_ids"] == [11, 12]
+    assert "parent_index_set_id" not in create_index_set.call_args.kwargs
