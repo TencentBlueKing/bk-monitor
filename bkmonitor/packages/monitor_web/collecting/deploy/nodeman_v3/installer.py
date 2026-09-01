@@ -1,9 +1,23 @@
+import copy
 from typing import Any
 
+from django.db import transaction
+from django.utils.translation import gettext as _
+
+from core.errors.collecting import CollectConfigNeedUpgrade, CollectConfigRollbackError
 from monitor_web.collecting.deploy.base import BaseInstaller
+from monitor_web.collecting.constant import OperationResult, OperationType
 from monitor_web.models import CollectConfigMeta, DeploymentConfigVersion
+from monitor_web.models.node_man import (
+    NodeManBindingState,
+    NodeManIntegrationBinding,
+    NodeManResourceType,
+    build_nodeman_resource_key,
+)
 
 from .orchestrator import NodeManV3Orchestrator
+from .reconciler import CollectTargetReconciler, NodeManV3TargetExecutor
+from .validation import NodeManV3CapabilityBlocked
 
 
 class NodeManV3Installer(BaseInstaller):
@@ -13,31 +27,84 @@ class NodeManV3Installer(BaseInstaller):
         topo_tree=None,
         *,
         orchestrator: NodeManV3Orchestrator | None = None,
+        reconciler: CollectTargetReconciler | None = None,
     ):
         super().__init__(collect_config)
         self.topo_tree = topo_tree
         self.orchestrator = orchestrator or NodeManV3Orchestrator()
-
-    def install(self, install_config: dict, operation: str | None) -> dict:
-        return self.orchestrator.install(
-            collect_config=self.collect_config,
-            install_config=install_config,
-            operation=operation,
-            topo_tree=self.topo_tree,
+        self.reconciler = reconciler or CollectTargetReconciler(
+            executor=NodeManV3TargetExecutor(orchestrator=self.orchestrator)
         )
 
+    def install(self, install_config: dict, operation: str | None) -> dict:
+        if self.collect_config.pk and self.collect_config.need_upgrade:
+            raise CollectConfigNeedUpgrade({"msg": self.collect_config.name})
+
+        is_create = not self.collect_config.pk
+        release_version = self._packaged_release_version()
+        current_version = self.collect_config.deployment_config if self.collect_config.deployment_config_id else None
+        new_version = self._create_deployment_version(
+            plugin_version=release_version,
+            target_node_type=install_config["target_node_type"],
+            target_nodes=install_config["target_nodes"],
+            params=install_config["params"],
+            remote_collecting_host=install_config.get("remote_collecting_host"),
+            parent_id=current_version.pk if current_version else 0,
+        )
+        diff_node = self._node_diff(current_version, new_version)
+        last_operation = operation or (OperationType.CREATE if is_create else OperationType.EDIT)
+        self._activate_version(new_version, last_operation=last_operation)
+        self._reconcile(trigger=f"install:{last_operation.lower()}")
+        return {
+            "diff_node": diff_node,
+            "can_rollback": last_operation != OperationType.CREATE,
+            "id": self.collect_config.pk,
+            "deployment_id": new_version.pk,
+        }
+
     def upgrade(self, params: dict) -> dict:
-        return self.orchestrator.upgrade(collect_config=self.collect_config, params=params, topo_tree=self.topo_tree)
+        if not self.collect_config.need_upgrade:
+            raise CollectConfigNeedUpgrade({"msg": _("采集配置无需升级")})
+
+        current_version = self.collect_config.deployment_config
+        params = copy.deepcopy(params)
+        params["collector"]["period"] = current_version.params["collector"]["period"]
+        params["collector"]["timeout"] = current_version.params["collector"].get("timeout", 60)
+        new_version = self._create_deployment_version(
+            plugin_version=self._packaged_release_version(),
+            target_node_type=current_version.target_node_type,
+            target_nodes=current_version.target_nodes,
+            params=params,
+            remote_collecting_host=current_version.remote_collecting_host,
+            parent_id=current_version.pk,
+        )
+        self._activate_version(new_version, last_operation=OperationType.UPGRADE)
+        self._reconcile(trigger="upgrade")
+        return {"id": self.collect_config.pk, "deployment_id": new_version.pk}
 
     def uninstall(self):
         return self.orchestrator.uninstall(collect_config=self.collect_config, topo_tree=self.topo_tree)
 
     def rollback(self, deployment_config_version: int | DeploymentConfigVersion | None = None):
-        return self.orchestrator.rollback(
-            collect_config=self.collect_config,
-            deployment_config_version=deployment_config_version,
-            topo_tree=self.topo_tree,
-        )
+        if not deployment_config_version:
+            deployment_config_version = self.collect_config.deployment_config.last_version
+        elif isinstance(deployment_config_version, int):
+            deployment_config_version = DeploymentConfigVersion.objects.filter(
+                pk=deployment_config_version,
+                config_meta_id=self.collect_config.pk,
+            ).first()
+        if not deployment_config_version:
+            raise CollectConfigRollbackError({"msg": _("目标版本不存在")})
+
+        current_version = self.collect_config.deployment_config
+        diff_node = self._node_diff(current_version, deployment_config_version)
+        self._activate_version(deployment_config_version, last_operation=OperationType.ROLLBACK)
+        self._reconcile(trigger="rollback")
+        return {
+            "diff_node": diff_node,
+            "id": self.collect_config.pk,
+            "deployment_id": deployment_config_version.pk,
+        }
 
     def stop(self):
         return self.orchestrator.stop(collect_config=self.collect_config, topo_tree=self.topo_tree)
@@ -64,3 +131,89 @@ class NodeManV3Installer(BaseInstaller):
 
     def instance_status(self, instance_id: str):
         return self.orchestrator.instance_status(collect_config=self.collect_config, instance_id=instance_id)
+
+    def _packaged_release_version(self):
+        release_version = self.plugin.packaged_release_version
+        if not release_version or not release_version.is_packaged:
+            raise NodeManV3CapabilityBlocked(
+                "plugin package is not available in NodeMan V3; package import is handled by the plugin-management scope"
+            )
+        return release_version
+
+    def _create_deployment_version(
+        self,
+        *,
+        plugin_version,
+        target_node_type,
+        target_nodes,
+        params,
+        remote_collecting_host,
+        parent_id,
+    ) -> DeploymentConfigVersion:
+        return DeploymentConfigVersion.objects.create(
+            plugin_version=plugin_version,
+            target_node_type=target_node_type,
+            target_nodes=target_nodes,
+            params=params,
+            remote_collecting_host=remote_collecting_host,
+            config_meta_id=self.collect_config.pk or 0,
+            parent_id=parent_id,
+            subscription_id=0,
+            task_ids=[],
+        )
+
+    def _activate_version(self, deployment, *, last_operation: str) -> None:
+        with transaction.atomic():
+            self.collect_config.deployment_config = deployment
+            self.collect_config.last_operation = last_operation
+            self.collect_config.operation_result = OperationResult.PREPARING
+            self.collect_config.save()
+            if not deployment.config_meta_id:
+                deployment.config_meta_id = self.collect_config.pk
+                deployment.save(update_fields=("config_meta_id", "update_time"))
+
+    def _binding(self) -> NodeManIntegrationBinding:
+        resource_key = build_nodeman_resource_key(
+            NodeManResourceType.COLLECT_CONFIG,
+            object_id=self.collect_config.pk,
+        )
+        binding, _ = NodeManIntegrationBinding.objects.get_or_create(
+            resource_type=NodeManResourceType.COLLECT_CONFIG,
+            resource_key=resource_key,
+            owner_bk_tenant_id=self.collect_config.bk_tenant_id,
+            execution_bk_tenant_id=self.collect_config.bk_tenant_id,
+            bk_biz_id=self.collect_config.bk_biz_id,
+        )
+        if binding.state != NodeManBindingState.ACTIVE:
+            binding.state = NodeManBindingState.ACTIVE
+            binding.save(update_fields=("state", "updated_at"))
+        return binding
+
+    def _reconcile(self, *, trigger: str):
+        try:
+            result = self.reconciler.reconcile(
+                binding=self._binding(),
+                collect_config=self.collect_config,
+                trigger=trigger,
+            )
+        except NodeManV3CapabilityBlocked:
+            self.collect_config.operation_result = OperationResult.FAILED
+            self.collect_config.save(update_fields=("operation_result", "update_time"))
+            raise
+        if not (result.added or result.changed or result.removed or result.inflight):
+            self.collect_config.operation_result = OperationResult.SUCCESS
+            self.collect_config.cache_data = {"error_instance_count": 0, "total_instance_count": 0}
+            self.collect_config.save(update_fields=("operation_result", "cache_data", "update_time"))
+        return result
+
+    @staticmethod
+    def _node_diff(current_version, target_version) -> dict:
+        if current_version:
+            return current_version.show_diff(target_version)["nodes"]
+        return {
+            "is_modified": True,
+            "added": target_version.target_nodes,
+            "removed": [],
+            "unchanged": [],
+            "updated": [],
+        }

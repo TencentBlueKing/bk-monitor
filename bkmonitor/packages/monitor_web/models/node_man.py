@@ -293,6 +293,7 @@ class MonitorNodeManWorkflow(models.Model):
         on_delete=models.CASCADE,
     )
     workflow_id = models.CharField("NodeMan Workflow ID", max_length=128, null=True, blank=True)
+    trigger_id = models.CharField("NodeMan Trigger ID", max_length=128, null=True, blank=True)
     batch_index = models.PositiveIntegerField("批次序号")
     target_summary = models.JSONField("目标摘要", default=dict)
     target_count = models.PositiveIntegerField("目标数量", default=0)
@@ -321,6 +322,10 @@ class MonitorNodeManWorkflow(models.Model):
             models.UniqueConstraint(
                 fields=("monitor_operation", "batch_index"),
                 name="uniq_nodeman_workflow_batch",
+            ),
+            models.UniqueConstraint(
+                fields=("monitor_operation", "trigger_id"),
+                name="uniq_nodeman_trigger_operation_id",
             ),
         ]
         indexes = [models.Index(fields=("normalized_status", "updated_at"), name="idx_nodeman_workflow_status")]
@@ -366,6 +371,7 @@ class CollectDeploymentTarget(models.Model):
     execution_bk_host_id = models.BigIntegerField("执行主机 ID")
     remote_target = models.JSONField("远程采集映射", default=dict)
     plugin_name = models.CharField("Exporter 插件名", max_length=128)
+    node_man_deploy_policy_id = models.BigIntegerField("NodeMan 部署策略 ID", null=True, blank=True)
     node_man_plugin_instance_id = models.CharField("NodeMan 插件实例标识", max_length=255, blank=True, default="")
     bkmonitorbeat_config_instance_id = models.CharField(
         "bkmonitorbeat 配置实例标识", max_length=255, blank=True, default=""

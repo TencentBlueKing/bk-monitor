@@ -302,20 +302,25 @@ class NodeManV3TargetExecutor:
             "changed": self.orchestrator.update_targets,
             "removed": self.orchestrator.uninstall_targets,
         }[category]
-        batch = {
-            "targets": tuple(targets),
-            "target_summary": {"identity_keys": [target.identity_key for target in targets]},
-            "target_count": len(targets),
-        }
+        batches = [
+            {
+                "targets": (target,),
+                "target_summary": {"identity_keys": [target.identity_key]},
+                "target_count": 1,
+            }
+            for target in targets
+        ]
 
         try:
             self.operation_service.dispatch_batches(
                 binding=prepared.operation.binding,
                 operation_type=prepared.operation.operation_type,
                 generation=prepared.operation.generation,
-                batches=[batch],
+                batches=batches,
                 request_summary=prepared.operation.request_summary,
-                submit_batch=lambda current_batch, **kwargs: target_method(current_batch["targets"]),
+                submit_batch=lambda current_batch, **kwargs: target_method(
+                    current_batch["targets"], context=kwargs["context"]
+                ),
                 prepared_operation=prepared.operation,
                 prepared_workflows=prepared.workflows,
             )
@@ -367,9 +372,10 @@ class CollectTargetReconciler:
                 request_summary={"trigger": trigger},
                 batches=[
                     {
-                        "target_summary": {"identity_keys": identity_keys},
-                        "target_count": len(identity_keys),
+                        "target_summary": {"identity_keys": [target.identity_key]},
+                        "target_count": 1,
                     }
+                    for target in targets
                 ],
                 config_meta_id=int(binding.resource_key),
             )

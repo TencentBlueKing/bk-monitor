@@ -91,6 +91,48 @@ def fetch_workflow_statuses(
     return result
 
 
+def normalize_trigger_status(distribution: dict | None) -> str:
+    distribution = distribution or {}
+    counts = distribution.get("state_counts", {})
+    if distribution.get("not_inited_count", 0) or any(counts.get(key, 0) for key in ("init", "launched", "running")):
+        return "running"
+    success = counts.get("success", 0)
+    failed = counts.get("failed", 0) + counts.get("timeout", 0)
+    terminated = counts.get("terminated", 0)
+    if success and (failed or terminated):
+        return "partial_failed"
+    if failed:
+        return "failed"
+    if terminated:
+        return "cancelled"
+    if success:
+        return "success"
+    return ""
+
+
+def fetch_trigger_statuses(
+    workflow_client,
+    trigger_ids: list[str],
+    *,
+    context: NodeManV3RequestContext,
+) -> dict[str, dict]:
+    if not trigger_ids:
+        return {}
+    response = workflow_client.list_operation_instance_status_distribution(
+        {"trigger_id": trigger_ids},
+        context=context,
+    )
+    items = response.get("items", {}) if isinstance(response, dict) else {}
+    return {
+        str(trigger_id): {
+            "trigger_id": str(trigger_id),
+            "status": normalize_trigger_status(distribution),
+            "distribution": distribution,
+        }
+        for trigger_id, distribution in items.items()
+    }
+
+
 def is_current_generation(operation) -> bool:
     return not operation.binding or operation.binding.generation == operation.generation
 
@@ -108,18 +150,32 @@ def refresh_operation_status(
     submitted_workflows = [
         workflow
         for workflow in workflows
-        if workflow.dispatch_status == NodeManWorkflowDispatchStatus.SUBMITTED and workflow.workflow_id
+        if workflow.dispatch_status == NodeManWorkflowDispatchStatus.SUBMITTED
+        and (getattr(workflow, "workflow_id", None) or getattr(workflow, "trigger_id", None))
     ]
     workflow_map = fetch_workflow_statuses(
         workflow_client,
-        [workflow.workflow_id for workflow in submitted_workflows],
+        [workflow.workflow_id for workflow in submitted_workflows if getattr(workflow, "workflow_id", None)],
         context=context,
         page_size=page_size,
     )
+    trigger_map = fetch_trigger_statuses(
+        workflow_client,
+        [workflow.trigger_id for workflow in submitted_workflows if getattr(workflow, "trigger_id", None)],
+        context=context,
+    )
+    observation_map = {
+        _workflow_observation_key(workflow): (
+            workflow_map.get(workflow.workflow_id, {})
+            if getattr(workflow, "workflow_id", None)
+            else trigger_map.get(workflow.trigger_id, {})
+        )
+        for workflow in submitted_workflows
+    }
     if hasattr(operation, "_meta"):
-        operation, workflows, status = _commit_workflow_observations(operation, workflow_map)
+        operation, workflows, status = _commit_workflow_observations(operation, observation_map)
     else:
-        status = _commit_in_memory_observations(operation, workflows, workflow_map)
+        status = _commit_in_memory_observations(operation, workflows, observation_map)
 
     stale_generation = not is_current_generation(operation)
     if status in TERMINAL_OPERATION_STATUSES:
@@ -148,7 +204,8 @@ def _commit_workflow_observations(operation, workflow_map):
         submitted_workflows = [
             workflow
             for workflow in workflows
-            if workflow.dispatch_status == NodeManWorkflowDispatchStatus.SUBMITTED and workflow.workflow_id
+            if workflow.dispatch_status == NodeManWorkflowDispatchStatus.SUBMITTED
+            and (getattr(workflow, "workflow_id", None) or getattr(workflow, "trigger_id", None))
         ]
         if submitted_workflows:
             MonitorNodeManWorkflow.objects.bulk_update(
@@ -167,7 +224,8 @@ def _commit_in_memory_observations(operation, workflows, workflow_map):
     submitted_workflows = [
         workflow
         for workflow in workflows
-        if workflow.dispatch_status == NodeManWorkflowDispatchStatus.SUBMITTED and workflow.workflow_id
+        if workflow.dispatch_status == NodeManWorkflowDispatchStatus.SUBMITTED
+        and (getattr(workflow, "workflow_id", None) or getattr(workflow, "trigger_id", None))
     ]
     if submitted_workflows:
         MonitorNodeManWorkflow.objects.bulk_update(
@@ -184,7 +242,7 @@ def _apply_workflow_observations(workflows, workflow_map):
     normalized_statuses = []
     for workflow in workflows:
         if workflow.dispatch_status == NodeManWorkflowDispatchStatus.SUBMITTED:
-            remote = workflow_map.get(workflow.workflow_id, {})
+            remote = workflow_map.get(_workflow_observation_key(workflow), {})
             raw_status = remote.get("status", "")
             observed_status = normalize_workflow_status(raw_status)
             merged_status = _merge_workflow_status(workflow.normalized_status, observed_status)
@@ -201,6 +259,10 @@ def _apply_workflow_observations(workflows, workflow_map):
             workflow.normalized_status = NodeManWorkflowStatus.UNKNOWN
         normalized_statuses.append(workflow.normalized_status)
     return aggregate_workflow_status(normalized_statuses)
+
+
+def _workflow_observation_key(workflow):
+    return getattr(workflow, "pk", None) or id(workflow)
 
 
 def _merge_workflow_status(current_status: str, observed_status: str) -> str:

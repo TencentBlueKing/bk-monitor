@@ -1,3 +1,4 @@
+from .deploy_policy import NodeManV3DeployPolicyGateway
 from .validation import NodeManV3CapabilityBlocked
 
 
@@ -5,27 +6,26 @@ class NodeManV3Orchestrator:
     def __init__(self, *, gateway=None):
         self.gateway = gateway
 
-    def stop_targets(self, targets) -> None:
-        gateway = self._require_gateway("E2/E3 exact configuration and plugin instance lifecycle")
-        targets = list(targets)
-        self._require_instance_identities(targets)
-        for target in targets:
-            gateway.disable_config_instance(target.bkmonitorbeat_config_instance_id)
-            gateway.stop_plugin_instance(target.node_man_plugin_instance_id)
+    def stop_targets(self, targets, *, context=None) -> None:
+        del context
+        self._blocked("deploy-policy stop semantics", targets)
 
-    def uninstall_targets(self, targets) -> None:
-        gateway = self._require_gateway("E2/E3 exact configuration and plugin instance lifecycle")
-        targets = list(targets)
-        self._require_instance_identities(targets)
-        for target in targets:
-            gateway.delete_config_instance(target.bkmonitorbeat_config_instance_id)
-            gateway.uninstall_plugin_instance(target.node_man_plugin_instance_id)
+    def uninstall_targets(self, targets, *, context=None) -> None:
+        del context
+        self._blocked("deploy-policy delete semantics", targets)
 
-    def ensure_targets(self, targets) -> None:
-        self._blocked("E1-E6 target install and configuration lifecycle", targets)
+    def ensure_targets(self, targets, *, context=None):
+        target = self._single_target(targets)
+        return self._gateway().ensure_target(target, context=context)
 
-    def update_targets(self, targets) -> None:
-        self._blocked("E1-E6 target update and configuration lifecycle", targets)
+    def update_targets(self, targets, *, context=None):
+        target = self._single_target(targets)
+        return self._gateway().update_target(target, context=context)
+
+    def _gateway(self):
+        if self.gateway is None:
+            self.gateway = NodeManV3DeployPolicyGateway()
+        return self.gateway
 
     def install(self, **kwargs):
         self._blocked("E1-E6 install and configuration lifecycle", kwargs)
@@ -60,18 +60,12 @@ class NodeManV3Orchestrator:
     def instance_status(self, **kwargs):
         self._blocked("E1-E3 instance status identity contract", kwargs)
 
-    def _require_gateway(self, capability: str):
-        if not self.gateway:
-            raise NodeManV3CapabilityBlocked(f"NodeMan external capability is not closed: {capability}")
-        return self.gateway
-
     @staticmethod
-    def _require_instance_identities(targets) -> None:
-        for target in targets:
-            if not target.node_man_plugin_instance_id or not target.bkmonitorbeat_config_instance_id:
-                raise NodeManV3CapabilityBlocked(
-                    f"E2/E3 stable instance identity is missing for target {target.identity_key}"
-                )
+    def _single_target(targets):
+        targets = tuple(targets)
+        if len(targets) != 1:
+            raise ValueError("each deploy-policy execution batch must contain exactly one target")
+        return targets[0]
 
     @staticmethod
     def _blocked(capability: str, request) -> None:
