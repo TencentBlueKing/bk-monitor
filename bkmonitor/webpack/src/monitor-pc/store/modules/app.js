@@ -25,7 +25,13 @@
  */
 import Vue from 'vue';
 
-import { docCookies, getBizRouteHref, LANGUAGE_COOKIE_KEY, LOCAL_BIZ_STORE_KEY } from 'monitor-common/utils';
+import {
+  docCookies,
+  getBizRouteHref,
+  LANGUAGE_COOKIE_KEY,
+  LOCAL_BIZ_STORE_KEY,
+  parseBizId,
+} from 'monitor-common/utils';
 
 export const SET_TITLE = 'SET_TITLE';
 export const SET_BACK = 'SET_BACK';
@@ -100,12 +106,13 @@ const mutations = {
     state.needBack = back;
   },
   [SET_BIZ_ID](state, id) {
-    window.cc_biz_id = +id;
-    window.bk_biz_id = +id;
-    const bizItem = state.bizIdMap.get(+id);
+    const parsed = parseBizId(id);
+    window.cc_biz_id = parsed;
+    window.bk_biz_id = parsed;
+    const bizItem = state.bizIdMap.get(parsed);
     window.space_uid = bizItem?.space_uid;
-    state.bizId = id;
-    !bizItem?.is_demo && localStorage.setItem(LOCAL_BIZ_STORE_KEY, `${id}`);
+    state.bizId = Number.isFinite(parsed) ? parsed : id;
+    !bizItem?.is_demo && localStorage.setItem(LOCAL_BIZ_STORE_KEY, `${state.bizId}`);
   },
   [SET_APP_STATE](state, data) {
     for (const [key, value] of Object.entries(data)) {

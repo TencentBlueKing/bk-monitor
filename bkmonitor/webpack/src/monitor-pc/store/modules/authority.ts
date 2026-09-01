@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { checkAllowedByActionIds, getAuthorityDetail, getAuthorityMeta } from 'monitor-api/modules/iam';
+import { parseBizId } from 'monitor-common/utils';
 import { transformDataKey } from 'monitor-common/utils/utils';
 import { Action, getModule, Module, Mutation, VuexModule } from 'vuex-module-decorators';
 
@@ -50,9 +51,10 @@ class Authority extends VuexModule {
   }
   @Action // 通过actionIds获取对应权限是否放行
   public async checkAllowedByActionIds(params: any) {
+    const bizId = parseBizId(store.getters.bizId || window.cc_biz_id);
     const data = await checkAllowedByActionIds({
       ...params,
-      bk_biz_id: store.getters.bizId || window.cc_biz_id,
+      ...(Number.isFinite(bizId) ? { bk_biz_id: bizId } : {}),
       space_uid: window.space_uid,
     }).catch(err => {
       console.error(err);
