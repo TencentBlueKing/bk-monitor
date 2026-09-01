@@ -13,6 +13,7 @@ from .base import DispatchExtraConfig, DispatchGlobalConfig, DispatchConfig
 from .dispatcher import StrategyDispatcher
 from .entity import EntitySet
 from .enricher import SystemChecker
+from .updater import StrategyTemplateUpdater
 
 __all__ = [
     "EntitySet",
@@ -21,4 +22,5 @@ __all__ = [
     "DispatchGlobalConfig",
     "DispatchExtraConfig",
     "StrategyDispatcher",
+    "StrategyTemplateUpdater",
 ]
