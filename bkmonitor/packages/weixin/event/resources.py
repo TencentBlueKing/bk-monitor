@@ -596,11 +596,8 @@ class QuickShield(AlertPermissionResource):
 
     def perform_request(self, params):
         alert = AlertDocument.get(id=params["event_id"])
-        # 事件屏蔽未选维度：显式升级为策略屏蔽。
-        # 空维 ALERT 写路径只会留下 strategy_id，匹配范围等于策略屏蔽但 category 仍是 alert，
-        # 列表展示/重复快捷屏蔽检测都会走错分支；改 type=strategy 与「空选=按策略屏蔽」一致。
+        # 空选与勾选同一条 ALERT 写路径：keys=[] 时 handle_alert 不拷贝实例维，匹配只剩 strategy_id。
+        # 不升 category=strategy。PC 不走本入口（keys is None 仍拷全量维）；微信 event 两字段都空归一成 []。
         if params["type"] == "event" and not params.get("dimension_keys") and not params.get("dimension_conditions"):
-            params["type"] = "strategy"
-            params["dimension_keys"] = None
-            params["dimension_conditions"] = None
+            params["dimension_keys"] = []
         return resource.shield.add_shield(self.handle(params, alert))

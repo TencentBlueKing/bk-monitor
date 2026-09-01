@@ -107,7 +107,24 @@ class TestHandleAlertWritePath:
         assert "dimension_conditions" not in result
 
 
-def _assert_empty_event_becomes_strategy(params, alert):
+    def test_empty_keys_keep_strategy_id_only(self):
+        with patch("monitor_web.shield.resources.backend_resources.AlertDocument") as alert_document:
+            alert_document.get.return_value = _fake_alert()
+            result = AddShieldResource.handle_alert(
+                {
+                    "dimension_keys": [],
+                    "dimension_config": {"alert_id": "12345"},
+                }
+            )
+        assert result["strategy_id"] == STRATEGY_ID
+        assert "tags.pod" not in result
+        assert "tags.namespace" not in result
+        assert "ip" not in result
+        assert "dimension_conditions" not in result
+        assert [k for k in result if not str(k).startswith("_")] == ["strategy_id"]
+
+
+def _assert_empty_event_stays_alert(params, alert):
     with (
         patch("weixin.event.resources.AlertDocument") as alert_document,
         patch("weixin.event.resources.resource.shield.add_shield") as add_shield,
@@ -117,23 +134,23 @@ def _assert_empty_event_becomes_strategy(params, alert):
         QuickShield().perform_request(params)
     add_shield.assert_called_once()
     payload = add_shield.call_args[0][0]
-    assert payload["category"] == "strategy"
-    assert payload["dimension_config"]["id"] == [STRATEGY_ID]
-    assert "dimension_keys" not in payload
+    assert payload["category"] == "alert"
+    assert payload["dimension_keys"] == []
+    assert payload["dimension_config"]["alert_id"] == "12345"
 
 
 class TestWeixinQuickShield:
-    def test_event_empty_selection_with_dimensions_becomes_strategy(self):
-        _assert_empty_event_becomes_strategy(_event_params(), _fake_alert())
+    def test_event_empty_selection_with_dimensions_stays_alert(self):
+        _assert_empty_event_stays_alert(_event_params(), _fake_alert())
 
-    def test_event_empty_lists_with_dimensions_becomes_strategy(self):
-        _assert_empty_event_becomes_strategy(_event_params(dimension_keys=[], dimension_conditions=[]), _fake_alert())
+    def test_event_empty_lists_with_dimensions_stays_alert(self):
+        _assert_empty_event_stays_alert(_event_params(dimension_keys=[], dimension_conditions=[]), _fake_alert())
 
-    def test_event_empty_alert_dimensions_none_keys_becomes_strategy(self):
-        _assert_empty_event_becomes_strategy(_event_params(), _fake_alert(dimensions=[]))
+    def test_event_empty_alert_dimensions_none_keys_stays_alert(self):
+        _assert_empty_event_stays_alert(_event_params(), _fake_alert(dimensions=[]))
 
-    def test_event_empty_alert_dimensions_empty_lists_becomes_strategy(self):
-        _assert_empty_event_becomes_strategy(
+    def test_event_empty_alert_dimensions_empty_lists_stays_alert(self):
+        _assert_empty_event_stays_alert(
             _event_params(dimension_keys=[], dimension_conditions=[]), _fake_alert(dimensions=[])
         )
 

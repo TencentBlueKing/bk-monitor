@@ -503,20 +503,15 @@ export default class AlarmDetail extends Vue {
       desc: this.reason,
     };
     if (this.shieldType === 'event') {
-      if (this.selectedDimension.length) {
-        // 同时提交 dimension_keys，兼容尚未升级的后台
-        params.dimension_keys = this.selectedDimension;
-        params.dimension_conditions = this.selectedDimension.map(item => {
-          const dimension = this.dimensions.find(dimension => dimension.key === item);
-          return {
-            ...dimension,
-            value: Array.isArray(dimension.value) ? dimension.value : [dimension.value],
-          };
-        });
-      } else {
-        // 空选按策略屏蔽；后台未升级时 type=strategy 仍可走 handle_strategy
-        params.type = 'strategy';
-      }
+      // 空选也走事件屏蔽：keys=[] 时后台只留 strategy_id，与勾选同一条写路径
+      params.dimension_keys = this.selectedDimension;
+      params.dimension_conditions = this.selectedDimension.map(item => {
+        const dimension = this.dimensions.find(dimension => dimension.key === item);
+        return {
+          ...dimension,
+          value: Array.isArray(dimension.value) ? dimension.value : [dimension.value],
+        };
+      });
     }
     quickShield(params)
       .then(e => {
