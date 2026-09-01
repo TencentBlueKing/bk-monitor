@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# ruff: noqa: UP006, UP007, UP009, UP035, UP038, UP045
 from typing import Dict, List, Optional, Tuple, Union
 
 from bkm_space import api
