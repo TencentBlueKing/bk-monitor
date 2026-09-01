@@ -302,7 +302,7 @@ class MappingHandlers:
 
         return fields_list
 
-    def get_mapping_field_names(self) -> set:
+    def get_mapping_field_names(self) -> set[str]:
         """
         获取索引真实 mapping 中的字段名集合，包含 nested 子字段的完整路径
         与 get_final_fields 不同，这里不做 fields_snapshot 兜底、不追加虚拟字段，只反映物理 mapping，

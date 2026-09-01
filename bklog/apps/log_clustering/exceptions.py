@@ -156,8 +156,3 @@ class ModelFileUnpickleForbiddenException(BaseClusteringException):
 class ModelFileStructureInvalidException(BaseClusteringException):
     ERROR_CODE = "029"
     MESSAGE = _("AIOPS 模型文件结构非法: {detail}")
-
-
-class ClusteredFieldsNotExistException(BaseClusteringException):
-    ERROR_CODE = "030"
-    MESSAGE = _("日志聚类-聚类结果表字段获取失败: {clustered_rt}")

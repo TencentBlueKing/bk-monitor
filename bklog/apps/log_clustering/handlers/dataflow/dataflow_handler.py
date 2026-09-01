@@ -50,7 +50,6 @@ from apps.log_clustering.constants import (
 from apps.log_clustering.exceptions import (
     BkdataFlowException,
     BkdataStorageNotExistException,
-    ClusteredFieldsNotExistException,
     CollectorStorageNotExistException,
     DorisStorageNotExistException,
     QueryFieldsException,
@@ -1739,30 +1738,35 @@ class DataFlowHandler(BaseAiopsHandler):
         }
 
     @classmethod
-    def _get_clustered_es_field_names(cls, index_set: LogIndexSet, clustering_config: ClusteringConfig) -> set[str]:
+    def _get_clustered_es_field_names(
+        cls, index_set: LogIndexSet, clustering_config: ClusteringConfig
+    ) -> set[str] | None:
         """
-        获取聚类结果表在 ES 上的真实字段名
+        获取聚类结果表在 ES 上的真实字段名，返回 None 表示这次拿不到
 
-        字段拉不到时直接抛出，由 sync_clustered_route 放弃本次下发：
-        空字段集合无法区分"别名指向的字段不存在"和"这次没查到字段"，
-        当成前者继续下发会把用户配置正确的别名从聚类路由上抹掉，检索同样查不到数据。
-        与 _build_clustered_doris_route_params 解析不到存储集群时的处理保持一致。
+        空结果按"拿不到"处理，不能当成"字段都不存在"：新建聚类时结果表刚定义出来、
+        数据还没写进 ES，mapping 必然为空，按不存在处理会把别名裁光，
+        抛异常还会中断 create_predict_flow，留下 online_task_id 为空的半创建状态。
         """
         from apps.log_search.handlers.search.mapping_handlers import MappingHandlers
 
-        field_names = MappingHandlers(
-            indices=clustering_config.clustered_rt,
-            index_set_id=index_set.index_set_id,
-            scenario_id=Scenario.BKDATA,
-            storage_cluster_id=index_set.storage_cluster_id,
-            time_field=index_set.time_field,
-            only_search=True,
-        ).get_mapping_field_names()
-        if not field_names:
-            raise ClusteredFieldsNotExistException(
-                ClusteredFieldsNotExistException.MESSAGE.format(clustered_rt=clustering_config.clustered_rt)
+        try:
+            field_names = MappingHandlers(
+                indices=clustering_config.clustered_rt,
+                index_set_id=index_set.index_set_id,
+                scenario_id=Scenario.BKDATA,
+                storage_cluster_id=index_set.storage_cluster_id,
+                time_field=index_set.time_field,
+                only_search=True,
+            ).get_mapping_field_names()
+        except Exception as error:  # pylint: disable=broad-except
+            logger.warning(
+                "get mapping fields of clustered result table(%s) failed: %s",
+                clustering_config.clustered_rt,
+                error,
             )
-        return field_names
+            return None
+        return field_names or None
 
     @classmethod
     def _build_clustered_es_route_params(cls, index_set: LogIndexSet, clustering_config: ClusteringConfig) -> dict:
@@ -1781,7 +1785,9 @@ class DataFlowHandler(BaseAiopsHandler):
         clustered_field_names = cls._get_clustered_es_field_names(index_set, clustering_config)
         inherited_alias_settings = []
         for alias_setting in index_set.query_alias_settings or []:
-            if alias_setting.get("field_name") not in clustered_field_names:
+            # 字段集合拿不到时不裁剪：新建聚类和 ES 抖动都会走到这里，
+            # 裁掉配置正确的别名一样会让检索查不到数据，撞名别名留到下次同步再裁。
+            if clustered_field_names is not None and alias_setting.get("field_name") not in clustered_field_names:
                 logger.info(
                     "skip inherited alias(%s -> %s) for clustered result table(%s): physical field does not exist",
                     alias_setting.get("query_alias"),
