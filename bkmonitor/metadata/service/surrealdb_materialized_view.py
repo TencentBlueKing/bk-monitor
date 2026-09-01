@@ -116,6 +116,7 @@ def build_materialized_view_ddl(binding: SurrealDBBindingConfig, scope: SurrealD
 
         view_name = f"{relation_name}_active_edge_view"
         liveness_table = f"{relation_name}_liveness_record"
+        liveness_index = f"idx_{relation_name}_liveness_relation_active_created"
         materialize_event = f"materialize_{relation_name}_active_edge"
         delete_event = f"delete_{relation_name}_active_edge"
         remove_invalid_event = f"remove_invalid_{relation_name}_active_edge"
@@ -131,6 +132,11 @@ def build_materialized_view_ddl(binding: SurrealDBBindingConfig, scope: SurrealD
         statements.extend(
             [
                 f"DEFINE TABLE IF NOT EXISTS {_quote_identifier(view_name)} SCHEMALESS;",
+                _index_ddl(
+                    liveness_index,
+                    liveness_table,
+                    "relation_id, is_active, created_at",
+                ),
                 _index_ddl(
                     f"uniq_{relation_name}_active_edge_source_liveness",
                     view_name,
@@ -158,7 +164,7 @@ def build_materialized_view_ddl(binding: SurrealDBBindingConfig, scope: SurrealD
                     "target_id, active_period_end_ms",
                 ),
                 _index_ddl(
-                    f"idx_{relation_name}_active_edge_source_snapshot_start",
+                    f"idx_{relation_name}_active_edge_source_data_start",
                     view_name,
                     _snapshot_index_fields(
                         "source_data",
@@ -168,7 +174,27 @@ def build_materialized_view_ddl(binding: SurrealDBBindingConfig, scope: SurrealD
                     ),
                 ),
                 _index_ddl(
-                    f"idx_{relation_name}_active_edge_target_snapshot_end",
+                    f"idx_{relation_name}_active_edge_source_data_end",
+                    view_name,
+                    _snapshot_index_fields(
+                        "source_data",
+                        source_vertex["id_fields"],
+                        f"vertices[{source_type}].id_fields",
+                        "active_period_end_ms",
+                    ),
+                ),
+                _index_ddl(
+                    f"idx_{relation_name}_active_edge_target_data_start",
+                    view_name,
+                    _snapshot_index_fields(
+                        "target_data",
+                        target_vertex["id_fields"],
+                        f"vertices[{target_type}].id_fields",
+                        "active_period_start_ms",
+                    ),
+                ),
+                _index_ddl(
+                    f"idx_{relation_name}_active_edge_target_data_end",
                     view_name,
                     _snapshot_index_fields(
                         "target_data",
@@ -182,6 +208,7 @@ def build_materialized_view_ddl(binding: SurrealDBBindingConfig, scope: SurrealD
                         f"DEFINE EVENT OVERWRITE {_quote_identifier(materialize_event)}",
                         f"ON TABLE {_quote_identifier(liveness_table)}",
                         "WHEN ($event = 'CREATE' OR $event = 'UPDATE')",
+                        "  AND $after.is_active = true",
                         "  AND $after.period_start <= $after.period_end",
                         "THEN {",
                         "  LET $edge = (SELECT * FROM ONLY $after.relation_id);",
@@ -204,8 +231,14 @@ def build_materialized_view_ddl(binding: SurrealDBBindingConfig, scope: SurrealD
                     [
                         f"DEFINE EVENT OVERWRITE {_quote_identifier(delete_event)}",
                         f"ON TABLE {_quote_identifier(liveness_table)}",
-                        "WHEN $event = 'DELETE'",
-                        f"THEN (DELETE {_quote_identifier(view_name)} WHERE source_liveness_id = $before.id);",
+                        "WHEN $event = 'DELETE' OR ($event = 'UPDATE' AND $after.is_active != true)",
+                        "THEN {",
+                        "  IF $event = 'DELETE' {",
+                        f"    DELETE {_quote_identifier(view_name)} WHERE source_liveness_id = $before.id;",
+                        "  } ELSE {",
+                        f"    DELETE {_quote_identifier(view_name)} WHERE source_liveness_id = $after.id;",
+                        "  };",
+                        "};",
                     ]
                 ),
                 "\n".join(
