@@ -19,7 +19,12 @@ from api.devops.default import (
     ListUserRepositoryResource,
 )
 from core.drf_resource.contrib.api import APIResource
-from api.aidev.default import ListAgentsResource, ListSkillsResource, ListSpacesResource
+from api.aidev.default import (
+    ListAgentsResource,
+    ListKnowledgeBasesResource,
+    ListSkillsResource,
+    ListSpacesResource,
+)
 from bkmonitor.iam import ActionEnum
 from bkmonitor.iam.drf import BusinessActionPermission
 from bkmonitor.models import IssueSourceAnalysisRule
@@ -123,6 +128,11 @@ class TestAidevResources(SimpleTestCase):
         self.assertEqual(ListAgentsResource.action, "/openapi/aidev/private/v1/agents/")
         self.assertEqual(ListSpacesResource.action, "/openapi/aidev/private/v1/spaces/")
         self.assertEqual(ListSkillsResource.action, "/openapi/aidev/private/v1/skills/")
+        self.assertEqual(
+            ListKnowledgeBasesResource.action,
+            "/openapi/aidev/private/v1/knowledgebase/list/",
+        )
+        self.assertEqual(ListKnowledgeBasesResource.method, "POST")
 
         for resource_class in (ListAgentsResource, ListSkillsResource):
             with self.subTest(resource_class=resource_class.__name__):
@@ -133,23 +143,45 @@ class TestAidevResources(SimpleTestCase):
                 self.assertEqual(serializer.validated_data["page"], 1)
                 self.assertEqual(serializer.validated_data["page_size"], 20)
 
-    @patch("api.aidev.default.get_local_request", return_value=object())
-    @patch("api.aidev.default.get_mcp_access_token", return_value="user-access-token")
-    def test_private_gateway_uses_current_user_access_token_only(self, get_access_token, get_request):
-        headers = ListAgentsResource().get_headers()
+        knowledge_base_serializer = ListKnowledgeBasesResource.RequestSerializer(data={"space_id": "space-a"})
+        self.assertTrue(knowledge_base_serializer.is_valid(), knowledge_base_serializer.errors)
+        self.assertEqual(knowledge_base_serializer.validated_data["page"], 1)
+        self.assertEqual(knowledge_base_serializer.validated_data["page_size"], 20)
+        self.assertEqual(knowledge_base_serializer.validated_data["order_by"], "name")
+        self.assertTrue(knowledge_base_serializer.validated_data["with_private"])
+        self.assertFalse(ListKnowledgeBasesResource.RequestSerializer(data={}).is_valid())
 
-        self.assertEqual(json.loads(headers["x-bkapi-authorization"]), {"access_token": "user-access-token"})
-        get_access_token.assert_called_once_with(request=get_request.return_value)
-
-    @patch("api.aidev.default.get_local_request", return_value=object())
-    @patch("api.aidev.default.get_mcp_access_token", side_effect=Exception("token unavailable"))
-    def test_private_gateway_converts_token_error(self, get_access_token, get_request):
+    def test_private_gateway_preserves_application_credentials_and_current_user_ticket(self):
+        request = object()
         resource = ListAgentsResource()
+        with (
+            patch("core.drf_resource.contrib.api.get_request", return_value=request),
+            patch(
+                "core.drf_resource.contrib.api.get_bk_login_ticket",
+                return_value={"bk_ticket": "user-ticket"},
+            ) as get_bk_login_ticket,
+            patch(
+                "core.drf_resource.contrib.api.make_userinfo",
+                return_value={"bk_username": "tester"},
+            ) as make_userinfo,
+            patch.object(resource, "_get_tenant_id", return_value="tenant-a"),
+            patch("core.drf_resource.contrib.api.settings.APP_CODE", "bkmonitorv3"),
+            patch("core.drf_resource.contrib.api.settings.SECRET_KEY", "app-secret"),
+        ):
+            headers = resource.get_headers()
 
-        with patch.object(resource, "report_api_failure_metric"), self.assertRaises(BKAPIError):
-            resource.get_headers()
-
-        get_access_token.assert_called_once_with(request=get_request.return_value)
+        self.assertEqual(
+            json.loads(headers["x-bkapi-authorization"]),
+            {
+                "bk_app_code": "bkmonitorv3",
+                "bk_app_secret": "app-secret",
+                "bk_ticket": "user-ticket",
+                "bk_username": "tester",
+            },
+        )
+        self.assertEqual(headers["X-Bk-Tenant-Id"], "tenant-a")
+        get_bk_login_ticket.assert_called_once_with(request)
+        make_userinfo.assert_called_once_with(bk_tenant_id="tenant-a")
 
     def test_private_gateway_converts_connection_error(self):
         resource = ListAgentsResource()
@@ -356,7 +388,7 @@ class TestSourceAnalysisOptionsResources(SimpleTestCase):
 
         # using_cache 包装后会挂上 cacheless / refresh 调用模式，可用于确认装饰器没被摘掉
         self.assertTrue(hasattr(SourceAnalysisBaseResource.query_visible_aidev_items, "cacheless"))
-        # AIDEV 资源按当前用户 Access Token 过滤，缓存必须按用户隔离，否则会跨用户串资源
+        # AIDEV 资源按当前用户登录态过滤，缓存必须按用户隔离，否则会跨用户串资源
         self.assertTrue(CacheType.AIDEV.user_related)
 
         # 缓存键由入参 md5 生成，因此入参只能是资源类型标识，不能是 api 方法对象
@@ -417,11 +449,95 @@ class TestSourceAnalysisOptionsResources(SimpleTestCase):
         list_agents.assert_called_once_with(space_id="all", page=1, page_size=200)
         list_spaces.assert_not_called()
 
-    def test_knowledge_base_options_remain_empty_until_aidev_supports_user_list(self):
-        resource = ListSourceAnalysisKnowledgeBasesResource()
-        with patch.object(resource, "query_visible_aidev_items") as query_items:
-            self.assertEqual(resource.perform_request({"bk_biz_id": 2}), {"total": 0, "list": []})
-        query_items.assert_not_called()
+    def test_knowledge_base_options_are_aggregated_by_visible_space(self):
+        spaces = [
+            {"space_id": "space-a", "space_name": "AIDEV Helper"},
+            {"space_id": "space-b", "space_name": "Source Analysis"},
+        ]
+
+        def list_knowledge_bases(**kwargs):
+            if kwargs["space_id"] == "space-a":
+                return {
+                    "count": 1,
+                    "results": [{"id": 556, "name": "APM 领域知识库", "space_id": "space-a"}],
+                }
+            return {
+                "count": 2,
+                "results": [
+                    {"id": 556, "name": "重复知识库", "space_id": "space-a"},
+                    {"id": 1228, "name": "BKFara 使用手册", "space_id": "space-b"},
+                ],
+            }
+
+        with (
+            patch.object(api.aidev, "list_spaces", return_value=spaces) as list_spaces,
+            patch.object(api.aidev, "list_knowledge_bases", side_effect=list_knowledge_bases) as list_knowledge_bases,
+        ):
+            result = SourceAnalysisBaseResource.query_visible_aidev_knowledge_bases.cacheless()
+            options = ListSourceAnalysisKnowledgeBasesResource.build_aidev_options(*result)
+
+        self.assertEqual(
+            options,
+            {
+                "total": 2,
+                "list": [
+                    {
+                        "id": "556",
+                        "name": "APM 领域知识库",
+                        "space_id": "space-a",
+                        "space_name": "AIDEV Helper",
+                    },
+                    {
+                        "id": "1228",
+                        "name": "BKFara 使用手册",
+                        "space_id": "space-b",
+                        "space_name": "Source Analysis",
+                    },
+                ],
+            },
+        )
+        list_spaces.assert_called_once_with()
+        self.assertEqual(list_knowledge_bases.call_count, 2)
+        for space_id in ("space-a", "space-b"):
+            list_knowledge_bases.assert_any_call(
+                space_id=space_id,
+                page=1,
+                page_size=200,
+                order_by="name",
+                with_private=True,
+            )
+
+    def test_knowledge_base_options_return_empty_when_user_has_no_visible_space(self):
+        with (
+            patch.object(api.aidev, "list_spaces", return_value=[]),
+            patch.object(api.aidev, "list_knowledge_bases") as list_knowledge_bases,
+        ):
+            result = SourceAnalysisBaseResource.query_visible_aidev_knowledge_bases.cacheless()
+
+        self.assertEqual(result, ([], {}))
+        list_knowledge_bases.assert_not_called()
+
+    def test_knowledge_base_option_fails_closed_when_one_space_query_fails(self):
+        spaces = [
+            {"space_id": "space-a", "space_name": "AIDEV Helper"},
+            {"space_id": "space-b", "space_name": "Source Analysis"},
+        ]
+        upstream_error = BKAPIError(system_name="aidev", url="knowledgebase/list/", result={"message": "failed"})
+        with (
+            patch.object(api.aidev, "list_spaces", return_value=spaces),
+            patch.object(
+                api.aidev,
+                "list_knowledge_bases",
+                side_effect=[{"count": 0, "results": []}, upstream_error],
+            ),
+            patch.object(
+                ListSourceAnalysisKnowledgeBasesResource,
+                "query_visible_aidev_knowledge_bases",
+                side_effect=SourceAnalysisBaseResource.load_visible_aidev_knowledge_bases,
+            ),
+            self.assertRaises(SourceAnalysisUpstreamUnavailableError),
+        ):
+            ListSourceAnalysisKnowledgeBasesResource().perform_request({"bk_biz_id": 2})
 
     def test_invalid_aidev_shape_is_rejected(self):
         for upstream_data in (None, {}, {"count": 1, "results": ["invalid-item"]}):
