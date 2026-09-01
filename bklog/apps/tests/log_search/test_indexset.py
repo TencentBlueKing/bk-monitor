@@ -1507,6 +1507,7 @@ class TestSyncRouter(TestCase):
             result_table_id="591_xx",
             scenario_id=Scenario.LOG,
             bk_biz_id=2,
+            apply_status=LogIndexSetData.Status.NORMAL,
         )
         return index_set
 
@@ -1643,14 +1644,6 @@ class TestSyncRouter(TestCase):
 
         self.assertEqual(result[0]["query_alias_settings"], [])
 
-    def test_route_sync_clears_unconfigured_alias_settings_for_non_nanos_rt(self):
-        """普通日志结果表未配置用户别名时，应清理 metadata 中的历史自动别名。"""
-        index_set = self._build_es_doris_index_set()
-
-        result = BaseIndexSetHandler.get_index_set_table_info_list(index_set, is_analysis=False)
-
-        self.assertEqual(result[0]["query_alias_settings"], [])
-
     def test_route_sync_clears_auto_nanos_alias_after_switching_to_non_nanos(self):
         """纳秒时间切换为普通时间后，最终路由 payload 不应保留自动纳秒别名。"""
         index_set = self._build_es_doris_index_set(collector_is_nanos=True)
@@ -1668,11 +1661,12 @@ class TestSyncRouter(TestCase):
         non_nanos_result = BaseIndexSetHandler.get_index_set_table_info_list(index_set, is_analysis=False)
         self.assertEqual(non_nanos_result[0]["query_alias_settings"], [])
 
-    def test_route_sync_keeps_user_alias_without_auto_nanos_alias(self):
-        """普通时间字段仍应保留用户别名，但不能重新下发自动纳秒别名。"""
+    def test_route_sync_keeps_user_alias_with_auto_nanos_alias(self):
+        """纳秒时间字段应同时保留用户别名和自动纳秒别名。"""
         user_alias = {"field_name": "log", "query_alias": "message"}
         index_set = self._build_es_doris_index_set(
             query_alias_settings=[user_alias],
+            collector_is_nanos=True,
         )
 
         result = BaseIndexSetHandler.get_index_set_table_info_list(
@@ -1681,7 +1675,10 @@ class TestSyncRouter(TestCase):
             rt_alias_mappings={"591_xx": [user_alias]},
         )
 
-        self.assertEqual(result[0]["query_alias_settings"], [user_alias])
+        self.assertEqual(
+            result[0]["query_alias_settings"],
+            [user_alias, {"field_name": "dtEventTimeStampNanos", "query_alias": "dtEventTimeStamp"}],
+        )
 
     def test_doris_route_sync_clears_unconfigured_alias_settings(self):
         """Doris 路由未配置查询别名时下发空数组，清理 metadata 中的历史别名。"""
@@ -1704,6 +1701,40 @@ class TestSyncRouter(TestCase):
         )
 
         self.assertEqual(result[0]["query_alias_settings"], [])
+
+    @patch(
+        "apps.log_search.handlers.index_set.SearchHandler.get_all_fields_by_index_id",
+        return_value={"591_xx": ([{"field_name": "log"}], [])},
+    )
+    def test_sync_router_skips_aliases_for_rt_with_failed_field_query(self, mock_get_all_fields):
+        """部分 RT 字段查询失败时，不应给失败 RT 下发空数组覆盖已有别名。"""
+        user_alias = {"field_name": "log", "query_alias": "message"}
+        index_set = self._build_es_doris_index_set(query_alias_settings=[user_alias])
+        self.assertEqual(index_set.query_alias_settings, [user_alias])
+        LogIndexSetData.objects.create(
+            index_set_id=index_set.index_set_id,
+            result_table_id="log_failed",
+            scenario_id=Scenario.LOG,
+            apply_status=LogIndexSetData.Status.NORMAL,
+        )
+        append_calls = []
+
+        def _capture_append(result_key, func, params=None, use_request=True, multi_func_params=False):
+            append_calls.append((result_key, func, params))
+
+        with patch("apps.utils.thread.MultiExecuteFunc.append", side_effect=_capture_append):
+            with patch("apps.utils.thread.MultiExecuteFunc.run", return_value={}):
+                with patch("apps.log_search.handlers.index_set.SearchHandler.__init__", return_value=None):
+                    BaseIndexSetHandler.sync_router(index_set)
+
+        mock_get_all_fields.assert_called_once_with(need_merge=False)
+        default_router = next(
+            params for key, _, params in append_calls if key == f"bklog_index_set_{index_set.index_set_id}"
+        )
+        success_info = next(info for info in default_router["table_info"] if info["index_set"].startswith("591_xx"))
+        failed_info = next(info for info in default_router["table_info"] if info["index_set"].startswith("log_failed"))
+        self.assertEqual(success_info["query_alias_settings"], [user_alias])
+        self.assertNotIn("query_alias_settings", failed_info)
 
     def test_es_doris_analysis(self):
         """

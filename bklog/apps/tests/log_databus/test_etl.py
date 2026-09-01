@@ -638,8 +638,15 @@ FIELDS = [
         "is_delete": True,
     },
 ]
+
+
+def set_time_field_format(fields, time_format):
+    time_field = next(field for field in fields if field["field_name"] == "time1")
+    time_field["option"]["time_format"] = time_format
+
+
 FIELDS_NANOS = copy.deepcopy(FIELDS)
-FIELDS_NANOS[3]["option"]["time_format"] = "yyyy-MM-dd HH:mm:ss.SSSSSS"
+set_time_field_format(FIELDS_NANOS, "yyyy-MM-dd HH:mm:ss.SSSSSS")
 # 时间字段的来源直接设为非维度
 FIELDS_NOT_ES_DOC_VALUES_KEYS = ["key1", "time1"]
 FIELDS_TIME_FIELD_ALIAS_NAME = "time1"
@@ -798,7 +805,7 @@ class TestEtl(TestCase):
         etl_storage = EtlStorage.get_instance(ETL_CONFIG_JSON)
         nanos_fields = copy.deepcopy(FIELDS_NANOS)
         non_nanos_fields = copy.deepcopy(FIELDS_NANOS)
-        non_nanos_fields[3]["option"]["time_format"] = "yyyy-MM-DD hh:mm:ss"
+        set_time_field_format(non_nanos_fields, "yyyy-MM-dd HH:mm:ss")
 
         etl_storage.update_or_create_result_table(
             collector_config,

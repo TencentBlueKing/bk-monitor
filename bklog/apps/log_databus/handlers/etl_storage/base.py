@@ -1367,9 +1367,9 @@ class EtlStorage:
             instance.table_id = table_id
             instance.save()
 
-        if hasattr(instance, "is_nanos"):
+        if hasattr(instance, "is_nanos") and instance.is_nanos != is_nanos:
             instance.is_nanos = is_nanos
-            instance.save()
+            instance.save(update_fields=["is_nanos"])
 
         return {"table_id": instance.table_id, "params": params}
 
