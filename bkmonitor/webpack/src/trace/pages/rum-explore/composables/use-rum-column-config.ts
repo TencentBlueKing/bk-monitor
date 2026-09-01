@@ -27,16 +27,11 @@ import { type MaybeRef, type Ref, computed, shallowRef, watch } from 'vue';
 
 import { get, useDebounceFn } from '@vueuse/core';
 
-import {
-  DEFAULT_COLUMN_WIDTH,
-  DEFAULT_MIN_COLUMN_WIDTH,
-  RUM_COLUMN_WIDTH_MAP,
-  RUM_SORTABLE_FIELD_TYPES,
-} from '../constants';
+import { DEFAULT_COLUMN_WIDTH, DEFAULT_MIN_COLUMN_WIDTH, RUM_SORTABLE_FIELD_TYPES } from '../constants';
 import useUserConfig from '@/hooks/useUserConfig';
 
 import type { BaseTableColumn } from '../../trace-explore/components/trace-explore-table/typing';
-import type { IRumViewConfig } from '../typings';
+import type { IRumColumnLayoutPreset, IRumViewConfig } from '../typings';
 
 /** 列配置存储结构版本号，schema 变更时递增以自动失效旧缓存 */
 const RUM_COLUMN_CONFIG_VERSION = '1.0.0';
@@ -57,18 +52,21 @@ interface IRumColumnConfigCache {
 /**
  * @description 列配置集中管理 hook：统管列的显隐/顺序、列宽覆盖，并持久化到用户常驻配置。
  * @param {MaybeRef<string>} opts.cacheKey 列缓存 key，空串表示未就绪、跳过读取
+ * @param {MaybeRef<IRumColumnLayoutPreset>} opts.layoutPreset 列布局预设（默认列宽 / 左侧固定列），由调用方按检索视角选择
  * @param {MaybeRef<string[]>} opts.overrideDisplayFields 受控展示列，非空数组即「受控态」，使用该列表作为展示列并锁定编辑/持久化
  * @param {Ref<IRumViewConfig>} opts.viewConfig 字段全集与接口默认列，用于校验与兜底
  */
 export function useRumColumnConfig(opts: {
   /** 列缓存 key，空串表示未就绪、跳过读取 */
   cacheKey: MaybeRef<string>;
+  /** 列布局预设（默认列宽 / 左侧固定列），由调用方按检索视角选择 */
+  layoutPreset: MaybeRef<IRumColumnLayoutPreset>;
   /** 受控展示列，非空数组即受控态 */
   overrideDisplayFields: MaybeRef<string[]>;
   /** 字段全集与接口默认列 */
   viewConfig: Ref<IRumViewConfig>;
 }) {
-  const { cacheKey, viewConfig, overrideDisplayFields } = opts;
+  const { cacheKey, layoutPreset, viewConfig, overrideDisplayFields } = opts;
   const { handleGetUserConfig, handleSetUserConfig } = useUserConfig();
 
   /** 归一化后的缓存配置（始终为 IRumColumnConfigCache，按有效字段裁剪、版本失效回退默认） */
@@ -127,19 +125,25 @@ export function useRumColumnConfig(opts: {
     return cachedDisplayFields.value;
   });
 
-  /** 基础列配置：展示列 -> 列宽（列宽覆盖优先于常量默认值）-> 排序等元数据 */
-  const baseColumns = computed<BaseTableColumn[]>(() =>
-    displayFields.value
+  /**
+   * 基础列配置：展示列 -> 列宽（用户覆盖 > 视角预设 > 全局默认）-> 排序 / 固定等元数据。
+   * 固定列沿用展示列顺序，仅影响渲染，不改变 displayFields 的持久化顺序。
+   */
+  const baseColumns = computed<BaseTableColumn[]>(() => {
+    const { leftFixedColumns, widthMap } = get(layoutPreset) ?? {};
+    const columns: BaseTableColumn[] = displayFields.value
       .map(name => fieldMap.value.get(name))
       .filter(Boolean)
       .map(field => ({
         colKey: field.name,
-        width: fieldsWidthConfig.value[field.name] ?? RUM_COLUMN_WIDTH_MAP[field.name] ?? DEFAULT_COLUMN_WIDTH,
+        width: fieldsWidthConfig.value[field.name] ?? widthMap?.[field.name] ?? DEFAULT_COLUMN_WIDTH,
+        fixed: leftFixedColumns?.has(field.name) ? 'left' : undefined,
         minWidth: DEFAULT_MIN_COLUMN_WIDTH,
         resizable: true,
         sorter: RUM_SORTABLE_FIELD_TYPES.has(field.type),
-      }))
-  );
+      }));
+    return columns;
+  });
 
   /**
    * @description 更新展示列

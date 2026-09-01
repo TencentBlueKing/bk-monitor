@@ -35,7 +35,17 @@ import ViewIcon from '../../static/img/rum-explore/span-type/view.svg';
 import VitalIcon from '../../static/img/rum-explore/span-type/vital.svg';
 import WebsocketIcon from '../../static/img/rum-explore/span-type/websocket.svg';
 
-import type { RumMode } from './typings';
+import type { IRumColumnLayoutPreset, RumModeType } from './typings';
+
+/** 检索视角，取值需与检索接口的 mode 字段对齐（当前仅 span 有实现） */
+export const RumModeEnum = {
+  /** 会话视角 */
+  SESSION: 'session',
+  /** Span 视角 */
+  SPAN: 'span',
+  /** 页面视角 */
+  VIEW: 'view',
+} as const;
 
 /** 字段展示类型（仅特殊渲染的字段才返回此字段，取值需与 view_config 接口对齐） */
 export const RumFieldDisplayEnum = {
@@ -127,8 +137,8 @@ export const RUM_LINK_FIELDS = new Set(['span_name']);
 /** 支持排序的字段类型 */
 export const RUM_SORTABLE_FIELD_TYPES = new Set(['date', 'double', 'integer', 'long']);
 
-/** 列宽，未列出的字段使用 DEFAULT_COLUMN_WIDTH */
-export const RUM_COLUMN_WIDTH_MAP: Record<string, number> = {
+/** Span 视角列宽（视角私有），未列出的字段使用 DEFAULT_COLUMN_WIDTH */
+export const SPAN_COLUMN_WIDTH_MAP: Record<string, number> = {
   span_name: 225,
   'attributes.span_type': 146,
   end_time: 172,
@@ -144,6 +154,17 @@ export const DEFAULT_COLUMN_WIDTH = 150;
 
 /** 表格列最小宽度 */
 export const DEFAULT_MIN_COLUMN_WIDTH = 100;
+
+/**
+ * 各检索视角的列布局预设（视角私有：默认列宽 / 左侧固定列）。
+ * 新增视角只需在此登记一条，无需改动 useRumColumnConfig。
+ */
+export const RUM_COLUMN_LAYOUT_PRESET: Partial<Record<RumModeType, IRumColumnLayoutPreset>> = {
+  [RumModeEnum.SPAN]: {
+    widthMap: SPAN_COLUMN_WIDTH_MAP,
+    leftFixedColumns: new Set(['span_name']),
+  },
+};
 
 /** status.code 列的展示配置 */
 export const RUM_STATUS_CODE_MAP = {
@@ -202,10 +223,10 @@ export const RUM_HTTP_STATUS_CODE_MAP: Record<
 };
 
 /** 视角 Tab 配置，当前仅 span 有实现，其余渲染占位 */
-export const RUM_MODE_TAB_LIST: Array<{ disabled: boolean; icon: string; label: string; value: RumMode }> = [
-  { value: 'session', label: 'Session', icon: 'icon-Session', disabled: true },
-  { value: 'view', label: 'View', icon: 'icon-View', disabled: true },
-  { value: 'span', label: 'Span (OT)', icon: 'icon-Span', disabled: false },
+export const RUM_MODE_TAB_LIST: Array<{ disabled: boolean; icon: string; label: string; value: RumModeType }> = [
+  { value: RumModeEnum.SESSION, label: 'Session', icon: 'icon-Session', disabled: true },
+  { value: RumModeEnum.VIEW, label: 'View', icon: 'icon-View', disabled: true },
+  { value: RumModeEnum.SPAN, label: 'Span (OT)', icon: 'icon-Span', disabled: false },
 ];
 
 /** 常驻筛选设置在用户配置中的 key 前缀 */

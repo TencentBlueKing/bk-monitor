@@ -30,9 +30,9 @@ import { defineStore } from 'pinia';
 
 import { type TimeRangeType, DEFAULT_TIME_RANGE } from '../../components/time-range/utils';
 import { getDefaultTimezone } from '../../i18n/dayjs';
-import { ALL_SPAN_TYPE } from '../../pages/rum-explore/constants';
+import { ALL_SPAN_TYPE, RumModeEnum } from '../../pages/rum-explore/constants';
 
-import type { IRumApplication, RumMode } from '../../pages/rum-explore/typings';
+import type { IRumApplication, RumModeType } from '../../pages/rum-explore/typings';
 
 /**
  * RUM 检索的跨组件共享状态。
@@ -43,7 +43,7 @@ import type { IRumApplication, RumMode } from '../../pages/rum-explore/typings';
 export const useRumExploreStore = defineStore('rumExplore', () => {
   const timeRange = deepRef<TimeRangeType>(DEFAULT_TIME_RANGE);
   const timezone = shallowRef(getDefaultTimezone());
-  const mode = shallowRef<RumMode>('span');
+  const mode = shallowRef<RumModeType>(RumModeEnum.SPAN);
   const appName = shallowRef('');
   const appList = shallowRef<IRumApplication[]>([]);
   /** 自动刷新间隔，-1 表示关闭 */
@@ -60,7 +60,7 @@ export const useRumExploreStore = defineStore('rumExplore', () => {
   /** 从 URL 或收藏配置整体初始化，未提供的项回落到默认值 */
   function init(data: {
     appName?: string;
-    mode?: RumMode;
+    mode?: RumModeType;
     refreshInterval?: number;
     sortParams?: string[];
     spanType?: string;
@@ -69,7 +69,7 @@ export const useRumExploreStore = defineStore('rumExplore', () => {
   }) {
     timeRange.value = data.timeRange || DEFAULT_TIME_RANGE;
     timezone.value = data.timezone || getDefaultTimezone();
-    mode.value = data.mode || 'span';
+    mode.value = data.mode || RumModeEnum.SPAN;
     appName.value = data.appName || '';
     refreshInterval.value = data.refreshInterval ?? -1;
     spanType.value = data.spanType || ALL_SPAN_TYPE;

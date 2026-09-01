@@ -32,7 +32,7 @@ import ExploreFieldSetting from '../../../trace-explore/components/explore-field
 import StatisticsList from '../../../trace-explore/components/statistics-list';
 import ExploreConditionMenu from '../../../trace-explore/components/trace-explore-table/components/explore-condition-menu';
 import { type IStatisticsFieldItem, useFieldStatisticsPopover } from '../../composables/use-field-statistics-popover';
-import { RUM_EXPLORE_VIEW_CLASS } from '../../constants';
+import { RUM_EXPLORE_VIEW_CLASS, RumModeEnum } from '../../constants';
 import { statisticsApi } from '../../services/rum-search';
 import { useCellConditionMenu } from './hooks/use-cell-condition-menu';
 import { useScenarioRenderer } from './hooks/use-scenario-renderer';
@@ -42,7 +42,7 @@ import ExploreTableEmpty from '@/pages/trace-explore/components/trace-explore-ta
 
 import type { TimeRangeType } from '../../../../components/time-range/utils';
 import type { BaseTableColumn } from '../../../trace-explore/components/trace-explore-table/typing';
-import type { IRumCommonParams, IRumField, IRumSpanRecord, RumMode } from '../../typings';
+import type { IRumCommonParams, IRumField, IRumSpanRecord, RumModeType } from '../../typings';
 import type { ConditionChangeEvent } from '@/pages/trace-explore/typing';
 import type { SlotReturnValue } from 'tdesign-vue-next';
 
@@ -53,8 +53,8 @@ export default defineComponent({
   props: {
     /** 检索视角，决定表格场景渲染器（span / view / session） */
     mode: {
-      type: String as PropType<RumMode>,
-      default: 'span',
+      type: String as PropType<RumModeType>,
+      default: RumModeEnum.SPAN,
     },
     /** 表格数据：当前分页/滚动已加载的 RUM Span 记录 */
     data: {
@@ -69,6 +69,11 @@ export default defineComponent({
     /** 可作为列的字段全集，供字段设置使用 */
     displayableFields: {
       type: Array as PropType<IRumField[]>,
+      default: () => [],
+    },
+    /** 固定显示列字段名：列设置面板中锁定为不可移除，由视角布局预设的固定列透传（数组或 Set） */
+    fixedDisplayList: {
+      type: [Array, Set] as PropType<Set<string> | string[]>,
       default: () => [],
     },
     /** 是否显示列设置：span 视角选中具体类型（特殊态）时由类型决定列，隐藏设置入口 */
@@ -291,6 +296,7 @@ export default defineComponent({
                       (
                         <ExploreFieldSetting
                           class='table-field-setting'
+                          fixedDisplayList={this.fixedDisplayList}
                           sourceList={this.displayableFields}
                           targetList={this.displayFieldKeys}
                           onConfirm={fields => this.$emit('displayFieldChange', fields)}
@@ -313,7 +319,7 @@ export default defineComponent({
           headerAffixedTop={{
             container: this.scrollContainerSelector,
             // span 模式下表格上方有 RumSpanTypeFilter 吸顶区域（高度 56px：padding 12 + chip 32 + padding 12）
-            offsetTop: this.mode === 'span' ? 56 : 0,
+            offsetTop: this.mode === RumModeEnum.SPAN ? 56 : 0,
           }}
           horizontalScrollAffixedBottom={{
             container: this.scrollContainerSelector,
