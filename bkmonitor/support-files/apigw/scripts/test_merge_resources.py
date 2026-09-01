@@ -342,6 +342,27 @@ def test_apm_platform_integration_apigw_contract() -> None:
         assert (_DOCS_DIR / f"{operation_id}.md").is_file()
 
 
+def test_llm_observability_apigw_contract() -> None:
+    """Agent Trace 与 Span 接口必须转发到 LLM Resource，并提供接口文档。"""
+    paths = _load_paths(_INTERNAL_APM_FILE)
+    expected_resources: dict[str, tuple[str, str]] = {
+        "/app/apm/list_spans/": ("list_spans", "/apm/llm/list_spans/"),
+        "/app/apm/list_traces/": ("list_traces", "/apm/llm/list_traces/"),
+    }
+
+    for path, (operation_id, backend_path) in expected_resources.items():
+        method_data = paths[path]["post"]
+        gateway_resource = method_data["x-bk-apigateway-resource"]
+        assert method_data["operationId"] == operation_id
+        assert gateway_resource["backend"] == {
+            "name": "default",
+            "method": "post",
+            "path": backend_path,
+            "matchSubpath": False,
+        }
+        assert (_DOCS_DIR / f"{operation_id}.md").is_file()
+
+
 def test_repository_resources_have_unique_operation_ids():
     """仓库内现有 apigw 资源定义必须无重复 operationId（回归基线）。"""
     public_dirs = ["internal", "external"]

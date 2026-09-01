@@ -19,12 +19,28 @@ class ListTracesResourceTestCase(TestCase):
             with self.subTest(source=source):
                 self.assertEqual(bool(candidate_fields.intersection(attributes)), expected)
 
-    def test_request_only_exposes_keyword_filter(self):
+    def test_request_exposes_supported_filters(self):
         fields = ListTracesResource.RequestSerializer().fields
 
         self.assertIn("keyword", fields)
+        self.assertIn("service_name", fields)
         self.assertNotIn("filters", fields)
-        self.assertNotIn("service_name", fields)
+
+    def test_limit_max_value(self):
+        request_data = {
+            "bk_biz_id": 11,
+            "app_name": "sand_local_dev",
+            "start_time": 1,
+            "end_time": 2,
+            "limit": 100,
+        }
+
+        serializer = ListTracesResource.RequestSerializer(data=request_data)
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+
+        serializer = ListTracesResource.RequestSerializer(data={**request_data, "limit": 101})
+        self.assertFalse(serializer.is_valid())
+        self.assertIn("limit", serializer.errors)
 
     @staticmethod
     def convert_spans(raw_spans):
@@ -53,6 +69,10 @@ class ListTracesResourceTestCase(TestCase):
     def test_trace_group_flattens_child(self):
         span_query = mock.Mock(QUERY_MAX_LIMIT=10000)
         span_query.query_group_list.return_value = ["trace-2", "trace-1"]
+        span_query.query_group_trace_list.return_value = [
+            {"trace_id": "trace-2"},
+            {"trace_id": "trace-1"},
+        ]
         application = mock.Mock()
         data_sources = [mock.sentinel.data_source]
         application.build_data_sources.return_value = data_sources
@@ -113,6 +133,7 @@ class ListTracesResourceTestCase(TestCase):
                     "app_name": "sand_local_dev",
                     "start_time": 1,
                     "end_time": 2,
+                    "service_name": "agent-service",
                     "keyword": "订单",
                 }
             )
@@ -162,6 +183,7 @@ class ListTracesResourceTestCase(TestCase):
             offset=0,
             limit=20,
             filters=[
+                {"key": "resource.service.name", "operator": "equal", "value": ["agent-service"]},
                 {"key": "keyword", "operator": "logic", "value": ["订单"]},
             ],
             query_string=AGENT_CANDIDATE_QUERY,
@@ -170,11 +192,20 @@ class ListTracesResourceTestCase(TestCase):
             group_field="trace_id",
             group_ids=["trace-2", "trace-1"],
         )
+        span_query.query_group_trace_list.assert_called_once_with(
+            group_field="trace_id",
+            group_ids=["trace-2", "trace-1"],
+        )
 
     def test_custom_group_keeps_trace_children(self):
         group_field = "attributes.session.id"
         span_query = mock.Mock(QUERY_MAX_LIMIT=10000)
         span_query.query_group_list.return_value = ["session-2", "session-1"]
+        span_query.query_group_trace_list.return_value = [
+            {group_field: "session-2", "trace_id": "trace-2"},
+            {group_field: "session-2", "trace_id": "trace-3"},
+            {group_field: "session-1", "trace_id": "trace-1"},
+        ]
         application = mock.Mock()
         data_sources = [mock.sentinel.data_source]
         application.build_data_sources.return_value = data_sources
@@ -218,11 +249,26 @@ class ListTracesResourceTestCase(TestCase):
                 "output": "答二",
                 "start_time": 100,
                 "end_time": 160,
+                "input_tokens": 0,
+                "output_tokens": 0,
+                "cache_read_input_tokens": 0,
+                "cache_creation_input_tokens": 0,
+                "user_id": "user-2",
+            },
+            {
+                "trace_id": "trace-2",
+                "span_id": "span-2-llm",
+                "parent_span_id": "span-2",
+                "attributes": {},
+                "input": "模型输入",
+                "output": "模型输出",
+                "start_time": 120,
+                "end_time": 150,
                 "input_tokens": 10,
                 "output_tokens": 4,
                 "cache_read_input_tokens": 3,
                 "cache_creation_input_tokens": 2,
-                "user_id": "user-2",
+                "user_id": "",
             },
         ]
         span_query.query_by_group_ids.return_value = raw_spans
@@ -299,6 +345,10 @@ class ListTracesResourceTestCase(TestCase):
             query_string=AGENT_CANDIDATE_QUERY,
         )
         span_query.query_by_group_ids.assert_called_once_with(
+            group_field="trace_id",
+            group_ids=["trace-2", "trace-3", "trace-1"],
+        )
+        span_query.query_group_trace_list.assert_called_once_with(
             group_field=group_field,
             group_ids=["session-2", "session-1"],
         )

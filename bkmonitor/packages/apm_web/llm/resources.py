@@ -1,6 +1,7 @@
 from collections import defaultdict
 from typing import Any
 
+from opentelemetry.semconv.resource import ResourceAttributes
 from rest_framework import serializers
 
 from constants.apm import OtlpKey
@@ -28,9 +29,10 @@ class ListTracesResource(Resource):
         start_time = serializers.IntegerField(required=True, label="开始时间")
         end_time = serializers.IntegerField(required=True, label="结束时间")
         group_field = serializers.CharField(required=False, default=OtlpKey.TRACE_ID, label="分组字段")
+        service_name = serializers.CharField(required=False, allow_blank=True, default="", label="服务名称")
         keyword = serializers.CharField(required=False, allow_blank=True, default="", label="关键词")
         offset = serializers.IntegerField(required=False, min_value=0, default=0, label="分页偏移")
-        limit = serializers.IntegerField(required=False, min_value=1, default=20, label="分页大小")
+        limit = serializers.IntegerField(required=False, min_value=1, max_value=100, default=20, label="分页大小")
 
         def validate(self, attrs):
             if attrs["start_time"] > attrs["end_time"]:
@@ -134,12 +136,13 @@ class ListTracesResource(Resource):
         cls,
         group_field: str,
         group_ids: list[str],
+        trace_group_map: dict[str, str],
         raw_spans: list[dict[str, Any]],
     ) -> list[dict[str, Any]]:
         spans_by_group: dict[str, dict[str, list[dict[str, Any]]]] = defaultdict(lambda: defaultdict(list))
         for span in raw_spans:
-            group_id = cls._span_field_value(span, group_field)
             trace_id = cls._span_field_value(span, OtlpKey.TRACE_ID)
+            group_id = trace_group_map.get(trace_id, "")
             if group_id and trace_id:
                 spans_by_group[group_id][trace_id].append(span)
 
@@ -175,6 +178,14 @@ class ListTracesResource(Resource):
 
     def perform_request(self, validated_request_data):
         filters = []
+        if service_name := validated_request_data["service_name"]:
+            filters.append(
+                {
+                    "key": OtlpKey.get_resource_key(ResourceAttributes.SERVICE_NAME),
+                    "operator": OperatorEnum.EQUAL["operator"],
+                    "value": [service_name],
+                }
+            )
         if keyword := validated_request_data["keyword"]:
             filters.append({"key": "keyword", "operator": "logic", "value": [keyword]})
 
@@ -200,13 +211,24 @@ class ListTracesResource(Resource):
         if not group_ids:
             return result
 
-        spans = span_query.query_by_group_ids(
+        group_trace_records = span_query.query_group_trace_list(
             group_field=validated_request_data["group_field"],
             group_ids=group_ids,
+        )
+        trace_group_map = {
+            record[OtlpKey.TRACE_ID]: record[validated_request_data["group_field"]] for record in group_trace_records
+        }
+        if not trace_group_map:
+            return result
+
+        spans = span_query.query_by_group_ids(
+            group_field=OtlpKey.TRACE_ID,
+            group_ids=list(trace_group_map),
         )
         result["items"] = self._group_spans(
             validated_request_data["group_field"],
             group_ids,
+            trace_group_map,
             spans,
         )
         return result

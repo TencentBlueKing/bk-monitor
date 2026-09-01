@@ -3,6 +3,7 @@
 from typing import Any, cast
 
 import pytest
+from django.db.models import Q
 
 from apm_web.constants import QueryMode
 from apm_web.handlers.backend_data_handler import TraceBackendHandler
@@ -76,6 +77,37 @@ def test_span_query_fields_uses_table_and_space_uid(mocker, start_time: int | No
         start_time,
         end_time,
     )
+
+
+def test_span_query_build_queries(mocker) -> None:
+    data_source = TraceDatasourceTarget.build(2, "app", "2_bkapm.trace_app")
+    query_builder = mocker.Mock()
+    query_builder.time_field.return_value = query_builder
+    query_builder.filter.return_value = query_builder
+    query_builder.query_string.return_value = query_builder
+    get_q = mocker.patch("apm_web.handlers.query.span.TraceQueryGuard.get_q", return_value=query_builder)
+
+    query = SpanQuery([data_source])
+
+    assert query.build_queries(query_string="span_name:chat", time_field=OtlpKey.START_TIME) == [query_builder]
+    get_q.assert_called_once_with([data_source])
+    query_builder.time_field.assert_called_once_with(OtlpKey.START_TIME)
+    query_builder.filter.assert_called_once_with(Q())
+    query_builder.query_string.assert_called_once_with("span_name:chat")
+
+
+def test_span_query_get_qs_uses_business_scope(mocker) -> None:
+    data_source = TraceDatasourceTarget.build(2, "app", "2_bkapm.trace_app")
+    queryset = mocker.Mock()
+    scoped_queryset = mocker.Mock()
+    queryset.scope.return_value = scoped_queryset
+    get_qs = mocker.patch.object(DataSourceBaseQuery, "get_qs", autospec=True, return_value=queryset)
+
+    query = SpanQuery([data_source])
+
+    assert query.get_qs(1_722_395_200, 1_723_000_000) is scoped_queryset
+    get_qs.assert_called_once_with(query, 1_722_395_200, 1_723_000_000)
+    queryset.scope.assert_called_once_with(2)
 
 
 def test_application_build_data_sources_uses_trace_retention() -> None:

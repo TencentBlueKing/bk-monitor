@@ -61,6 +61,32 @@ class LLMQueryTestCase(TestCase):
         query_builder.filter.assert_called_once_with(**{"attributes.session.id__eq": ["session-1", "session-2"]})
         query_list.assert_called_once_with([query_builder], 1, 2, 0, 10000)
 
+    def test_query_group_trace_list(self):
+        query_builder = mock.Mock()
+        query_builder.filter.return_value = query_builder
+        query_builder.distinct.return_value = query_builder
+        query_builder.values.return_value = query_builder
+        records = [
+            {"attributes.session.id": "session-1", "trace_id": "trace-1"},
+            {"attributes.session.id": "session-1", "trace_id": "trace-2"},
+        ]
+
+        with (
+            mock.patch.object(self.query, "build_queries", return_value=[query_builder]) as build_queries,
+            mock.patch.object(self.query, "_query_list", return_value=records) as query_list,
+        ):
+            result = self.query.query_group_trace_list(
+                group_field="attributes.session.id",
+                group_ids=["session-1"],
+            )
+
+        self.assertEqual(result, records)
+        build_queries.assert_called_once_with()
+        query_builder.filter.assert_called_once_with(**{"attributes.session.id__eq": ["session-1"]})
+        query_builder.distinct.assert_called_once_with(OtlpKey.TRACE_ID)
+        query_builder.values.assert_called_once_with("attributes.session.id", OtlpKey.TRACE_ID)
+        query_list.assert_called_once_with([query_builder], None, None, 0, 10000)
+
     def test_keyword_logic_filter(self):
         value = ["search-text"]
 
