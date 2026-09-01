@@ -199,13 +199,15 @@ if BCS_API_GATEWAY_HOST:  # noqa: F821
     DEFAULT_CRONTAB += [
         # bcs资源同步
         ("api.bcs.tasks.sync_bcs_cluster_to_db", "*/15 * * * *", "global"),
-        ("api.bcs.tasks.sync_bcs_service_to_db", "*/25 * * * *", "global"),
-        ("api.bcs.tasks.sync_bcs_workload_to_db", "*/25 * * * *", "global"),
-        ("api.bcs.tasks.sync_bcs_pod_to_db", "*/25 * * * *", "global"),
-        ("api.bcs.tasks.sync_bcs_node_to_db", "*/25 * * * *", "global"),
-        ("api.bcs.tasks.sync_bcs_service_monitor_to_db", "*/25 * * * *", "global"),
-        ("api.bcs.tasks.sync_bcs_pod_monitor_to_db", "*/25 * * * *", "global"),
-        ("api.bcs.tasks.sync_bcs_ingress_to_db", "*/25 * * * *", "global"),
+        # 下列 7 个 to_db 均按集群 apply_async 到 celery_cron；同分钟触发会把队列瞬时堆到上万条。
+        # 错开约 4 分钟、每小时 2 次（间隔 30min，原 */25 约 25min），避开 :00/:15/:30/:45。
+        ("api.bcs.tasks.sync_bcs_service_to_db", "2,32 * * * *", "global"),
+        ("api.bcs.tasks.sync_bcs_workload_to_db", "6,36 * * * *", "global"),
+        ("api.bcs.tasks.sync_bcs_pod_to_db", "10,40 * * * *", "global"),
+        ("api.bcs.tasks.sync_bcs_node_to_db", "14,44 * * * *", "global"),
+        ("api.bcs.tasks.sync_bcs_service_monitor_to_db", "18,48 * * * *", "global"),
+        ("api.bcs.tasks.sync_bcs_pod_monitor_to_db", "22,52 * * * *", "global"),
+        ("api.bcs.tasks.sync_bcs_ingress_to_db", "26,56 * * * *", "global"),
         # bcs资源数据状态同步
         ("api.bcs.tasks.sync_bcs_cluster_resource", "*/260 * * * *", "global"),
         ("api.bcs.tasks.sync_bcs_workload_resource", "*/260 * * * *", "global"),
