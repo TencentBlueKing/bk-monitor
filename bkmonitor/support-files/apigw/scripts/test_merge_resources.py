@@ -343,11 +343,62 @@ def test_apm_platform_integration_apigw_contract() -> None:
 
 
 def test_llm_observability_apigw_contract() -> None:
-    """Agent Trace 与 Span 接口必须转发到 LLM Resource，并提供接口文档。"""
+    """旧 APM Trace API 保持不变，新增 LLM API 转发到 V4 Resource。"""
     paths = _load_paths(_INTERNAL_APM_FILE)
+    expected_legacy_resources = {
+        "/app/apm/list_spans/": {
+            "post": {
+                "operationId": "list_spans",
+                "description": "查询 span",
+                "x-bk-apigateway-resource": {
+                    "isPublic": False,
+                    "allowApplyPermission": True,
+                    "matchSubpath": False,
+                    "backend": {
+                        "name": "default",
+                        "method": "post",
+                        "path": "/api/v4/trace_query_web/list_spans/",
+                        "matchSubpath": False,
+                    },
+                    "authConfig": {
+                        "appVerifiedRequired": True,
+                        "userVerifiedRequired": False,
+                        "resourcePermissionRequired": True,
+                    },
+                    "descriptionEn": "query span list",
+                },
+            }
+        },
+        "/app/apm/list_traces/": {
+            "post": {
+                "operationId": "list_traces",
+                "description": "查询 span",
+                "x-bk-apigateway-resource": {
+                    "isPublic": False,
+                    "allowApplyPermission": True,
+                    "matchSubpath": False,
+                    "backend": {
+                        "name": "default",
+                        "method": "post",
+                        "path": "/api/v4/trace_query_web/list_traces/",
+                        "matchSubpath": False,
+                    },
+                    "authConfig": {
+                        "appVerifiedRequired": True,
+                        "userVerifiedRequired": False,
+                        "resourcePermissionRequired": True,
+                    },
+                    "descriptionEn": "query span list",
+                },
+            }
+        },
+    }
+    for path, expected_resource in expected_legacy_resources.items():
+        assert paths[path] == expected_resource
+
     expected_resources: dict[str, tuple[str, str]] = {
-        "/app/apm/list_spans/": ("list_spans", "/apm/llm/list_spans/"),
-        "/app/apm/list_traces/": ("list_traces", "/apm/llm/list_traces/"),
+        "/app/apm/list_llm_spans/": ("list_llm_spans", "/api/v4/apm_llm_web/list_spans/"),
+        "/app/apm/list_llm_traces/": ("list_llm_traces", "/api/v4/apm_llm_web/list_traces/"),
     }
 
     for path, (operation_id, backend_path) in expected_resources.items():
