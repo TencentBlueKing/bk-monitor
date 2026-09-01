@@ -691,6 +691,7 @@ class InspectionEvidenceTest(TestCase):
 
         self.assertEqual(generic["error"]["code"], "UPSTREAM_REQUEST_FAILED")
         self.assertEqual(auth["error"]["code"], "UPSTREAM_AUTH_FAILED")
+        self.assertEqual(auth["error"]["message"], "Upstream user authentication failed.")
 
     def test_probe_failure_redacts_credentials_and_bounds_upstream_message(self):
         error = RuntimeError(

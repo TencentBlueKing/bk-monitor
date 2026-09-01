@@ -1,6 +1,6 @@
 import json
 from types import SimpleNamespace
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, call, patch
 
 from django.core.cache import caches
 from django.test import SimpleTestCase, override_settings
@@ -14,8 +14,12 @@ from apps.log_admin_resource.handlers.k8s_inspection import (
     FUNCTIONS,
     START_FUNC_NAME,
     START_RESPONSE_SCHEMA,
+    TARGET_LIST_FUNC_NAME,
+    TARGET_LIST_RESPONSE_SCHEMA,
+    _collect_bounded_pages,
     _validate_candidate_binding,
     get_k8s_inspection_detail,
+    list_k8s_inspection_targets,
     start_k8s_inspection,
 )
 from apps.log_admin_resource.inspection_tasks import (
@@ -33,13 +37,14 @@ from apps.log_admin_resource.k8s_inspection import (
     collector_daemon_set_contract,
     desired_config_evidence,
     discover_collector_candidates,
+    discover_inspection_targets,
     main_config_map_reference,
     safe_events,
     safe_target_snapshot,
     target_config_matches,
     target_identity,
 )
-from apps.log_admin_resource.k8s_inspection_client import bounded_text
+from apps.log_admin_resource.k8s_inspection_client import K8sInspectionClient, bounded_text
 from apps.log_admin_resource.k8s_probe import (
     PROBE_SCRIPT_PATH,
     FixedProbeError,
@@ -205,6 +210,49 @@ def collector_pod(
             ],
         },
     }
+
+
+def business_pod(namespace="production", name="demo-abc", container_name="app", node="node-a"):
+    return {
+        "metadata": {
+            "name": name,
+            "namespace": namespace,
+            "uid": f"uid-{name}",
+            "labels": {"app": "demo", "private": "never-return"},
+            "ownerReferences": [{"kind": "ReplicaSet", "name": "demo-7d8f", "controller": True}],
+        },
+        "spec": {
+            "nodeName": node,
+            "containers": [
+                {
+                    "name": container_name,
+                    "env": [{"name": "SECRET", "value": "never-return"}],
+                }
+            ],
+        },
+        "status": {
+            "phase": "Running",
+            "containerStatuses": [{"name": container_name, "ready": True}],
+        },
+    }
+
+
+def business_target_expected():
+    return [
+        {
+            "container_config_id": 44,
+            "spec": {
+                "logConfigType": ContainerCollectorType.CONTAINER,
+                "namespaceSelector": {"matchNames": ["production"], "excludeNames": []},
+                "workloadType": "Deployment",
+                "workloadName": "demo",
+                "containerNameMatch": ["app"],
+                "containerNameExclude": [],
+                "labelSelector": {"matchLabels": {"app": "demo"}},
+                "annotationSelector": {"matchExpressions": []},
+            },
+        }
+    ]
 
 
 def candidate(**overrides):
@@ -394,6 +442,155 @@ class K8sInspectionHandlerTest(SimpleTestCase):
                     schema,
                 )
 
+    def test_target_discovery_supports_namespace_filter_and_all_namespaces(self):
+        configs = MagicMock()
+        configs.order_by.return_value = [container_config()]
+        client = MagicMock()
+        client.list_pod_page.side_effect = [([business_pod()], None), ([business_pod()], None)]
+        with (
+            patch(
+                "apps.log_admin_resource.handlers.k8s_inspection._request_identity",
+                return_value=("reader-a", "tenant-a"),
+            ),
+            patch(
+                "apps.log_admin_resource.handlers.k8s_inspection._get_collector",
+                return_value=collector(),
+            ),
+            patch(
+                "apps.log_admin_resource.handlers.k8s_inspection._validate_collector",
+                return_value="tenant-a",
+            ),
+            patch(
+                "apps.log_admin_resource.handlers.k8s_inspection.ContainerCollectorConfig.objects.filter",
+                return_value=configs,
+            ),
+            patch(
+                "apps.log_admin_resource.handlers.k8s_inspection.expected_bklog_configs",
+                return_value=business_target_expected(),
+            ),
+            patch(
+                "apps.log_admin_resource.handlers.k8s_inspection.K8sInspectionClient",
+                return_value=client,
+            ),
+        ):
+            scoped = list_k8s_inspection_targets({"collector_config_id": 123, "namespace": "production", "limit": 10})
+            cluster_wide = list_k8s_inspection_targets({"collector_config_id": 123, "limit": 10})
+
+        validate_params(scoped, TARGET_LIST_RESPONSE_SCHEMA, "response")
+        validate_params(cluster_wide, TARGET_LIST_RESPONSE_SCHEMA, "response")
+        self.assertEqual(
+            client.list_pod_page.call_args_list,
+            [
+                call("production", limit=500, continue_token=None),
+                call(None, limit=500, continue_token=None),
+            ],
+        )
+        client.list_node_page.assert_not_called()
+        self.assertEqual(
+            scoped["pod_targets"][0]["target"],
+            {
+                "type": "pod_container",
+                "namespace": "production",
+                "pod_name": "demo-abc",
+                "container_name": "app",
+            },
+        )
+        self.assertEqual(cluster_wide["namespace"], None)
+        self.assertNotIn("never-return", json.dumps(scoped))
+
+    def test_target_discovery_lists_matching_nodes_without_pod_scan(self):
+        configs = MagicMock()
+        configs.order_by.return_value = [container_config(collector_type=ContainerCollectorType.NODE)]
+        client = MagicMock()
+        client.list_node_page.return_value = (
+            [
+                {
+                    "metadata": {"name": "node-a", "uid": "node-uid", "labels": {"role": "log"}},
+                    "status": {"conditions": [{"type": "Ready", "status": "True"}]},
+                }
+            ],
+            None,
+        )
+        expected = [
+            {
+                "container_config_id": 45,
+                "spec": {
+                    "logConfigType": ContainerCollectorType.NODE,
+                    "labelSelector": {"matchLabels": {"role": "log"}},
+                },
+            }
+        ]
+        with (
+            patch(
+                "apps.log_admin_resource.handlers.k8s_inspection._request_identity",
+                return_value=("reader-a", "tenant-a"),
+            ),
+            patch(
+                "apps.log_admin_resource.handlers.k8s_inspection._get_collector",
+                return_value=collector(),
+            ),
+            patch(
+                "apps.log_admin_resource.handlers.k8s_inspection._validate_collector",
+                return_value="tenant-a",
+            ),
+            patch(
+                "apps.log_admin_resource.handlers.k8s_inspection.ContainerCollectorConfig.objects.filter",
+                return_value=configs,
+            ),
+            patch(
+                "apps.log_admin_resource.handlers.k8s_inspection.expected_bklog_configs",
+                return_value=expected,
+            ),
+            patch(
+                "apps.log_admin_resource.handlers.k8s_inspection.K8sInspectionClient",
+                return_value=client,
+            ),
+        ):
+            result = list_k8s_inspection_targets({"collector_config_id": 123})
+
+        validate_params(result, TARGET_LIST_RESPONSE_SCHEMA, "response")
+        client.list_pod_page.assert_not_called()
+        self.assertEqual(result["node_targets"][0]["target"], {"type": "node", "node_name": "node-a"})
+        self.assertTrue(result["node_targets"][0]["ready"])
+
+    def test_target_discovery_schema_is_bounded_and_rejects_extra_fields(self):
+        schema = FUNCTIONS[TARGET_LIST_FUNC_NAME]["params_schema"]
+        validate_params({"collector_config_id": 123}, schema)
+        validate_params({"collector_config_id": 123, "namespace": "production", "limit": 100}, schema)
+        for params in (
+            {"collector_config_id": 123, "limit": 101},
+            {"collector_config_id": 123, "command": ["kubectl", "get", "pods"]},
+        ):
+            with self.subTest(params=params), self.assertRaises(ValidationError):
+                validate_params(params, schema)
+
+    @patch(
+        "apps.log_admin_resource.handlers.k8s_inspection._request_identity",
+        return_value=("reader-a", "tenant-a"),
+    )
+    @patch("apps.log_admin_resource.handlers.k8s_inspection._get_collector", return_value=collector())
+    @patch("apps.log_admin_resource.handlers.k8s_inspection._validate_collector", return_value="tenant-a")
+    def test_target_discovery_rejects_blank_namespace_instead_of_scanning_cluster(
+        self, _validate_collector, _get_collector, _identity
+    ):
+        with self.assertRaisesRegex(ValidationError, "namespace must not be blank"):
+            list_k8s_inspection_targets({"collector_config_id": 123, "namespace": "   "})
+
+    def test_target_discovery_scan_is_paginated_and_hard_bounded(self):
+        fetch_page = MagicMock()
+        fetch_page.side_effect = [([index] * 500, f"token-{index}") for index in range(10)]
+
+        items, truncated = _collect_bounded_pages(fetch_page)
+
+        self.assertEqual(len(items), 5000)
+        self.assertTrue(truncated)
+        self.assertEqual(fetch_page.call_count, 10)
+
+        oversized_page = MagicMock(return_value=(list(range(6000)), None))
+        items, truncated = _collect_bounded_pages(oversized_page)
+        self.assertEqual(len(items), 5000)
+        self.assertTrue(truncated)
+
     def test_candidate_binding_cannot_cross_app_target_or_collector(self):
         binding = {
             "app_code": "reader-a",
@@ -437,6 +634,7 @@ class K8sInspectionHandlerTest(SimpleTestCase):
 
     def test_registry_exposes_k8s_start_and_detail(self):
         metadata = AdminResourceRegistry.call("__meta__", {"action": "list"}, app_code="reader-a")
+        self.assertIn(TARGET_LIST_FUNC_NAME, metadata["functions"])
         self.assertIn(START_FUNC_NAME, metadata["functions"])
         self.assertIn(DETAIL_FUNC_NAME, metadata["functions"])
 
@@ -608,6 +806,40 @@ class K8sInspectionDomainTest(SimpleTestCase):
 
         self.assertEqual(target_config_matches(target, node, expected), expected)
 
+    def test_target_discovery_returns_only_matched_safe_targets_and_applies_limit(self):
+        expected = [
+            *business_target_expected(),
+            {
+                "container_config_id": 45,
+                "spec": {
+                    "logConfigType": ContainerCollectorType.NODE,
+                    "labelSelector": {"matchLabels": {"role": "log"}},
+                },
+            },
+        ]
+        pods = [
+            business_pod(name="demo-b"),
+            business_pod(name="demo-a"),
+            business_pod(namespace="other", name="ignored"),
+        ]
+        nodes = [
+            {
+                "metadata": {"name": "node-a", "uid": "node-a-uid", "labels": {"role": "log"}},
+                "status": {"conditions": [{"type": "Ready", "status": "True", "message": "never-return"}]},
+            },
+            {"metadata": {"name": "node-b", "labels": {"role": "other"}}, "status": {}},
+        ]
+
+        result = discover_inspection_targets(pods=pods, nodes=nodes, expected=expected, limit=1)
+
+        self.assertEqual(result["pod_target_count"], 2)
+        self.assertEqual(result["node_target_count"], 1)
+        self.assertTrue(result["pod_targets_truncated"])
+        self.assertFalse(result["node_targets_truncated"])
+        self.assertEqual(result["pod_targets"][0]["target"]["pod_name"], "demo-a")
+        self.assertEqual(result["node_targets"][0]["target"], {"type": "node", "node_name": "node-a"})
+        self.assertNotIn("never-return", json.dumps(result))
+
     def test_rolling_update_selects_new_ready_pod_and_keeps_warning(self):
         old = collector_pod(name="collector-old", uid="old", deleting=True)
         new = collector_pod(name="collector-new", uid="new")
@@ -679,6 +911,43 @@ class K8sInspectionDomainTest(SimpleTestCase):
         value = daemon_set()
         value["spec"]["template"]["spec"]["volumes"][0]["configMap"]["name"] = "custom-main"
         self.assertEqual(main_config_map_reference(value), {"volume_name": "main", "config_map_name": "custom-main"})
+
+
+class K8sInspectionClientTest(SimpleTestCase):
+    @patch("apps.log_admin_resource.k8s_inspection_client.Bcs")
+    def test_pod_listing_supports_namespace_and_all_namespaces_and_nodes(self, bcs_class):
+        response = SimpleNamespace(
+            items=[{"metadata": {"name": "one"}}],
+            metadata=SimpleNamespace(_continue="next-token"),
+            to_dict=lambda: {"items": [], "metadata": {}},
+        )
+        bcs = bcs_class.return_value
+        bcs.api_instance_core_v1.list_namespaced_pod.return_value = response
+        bcs.api_instance_core_v1.list_pod_for_all_namespaces.return_value = response
+        bcs.api_instance_core_v1.list_node.return_value = response
+        client = K8sInspectionClient("BCS-K8S-1")
+
+        self.assertEqual(len(client.list_pods("production")), 1)
+        self.assertEqual(len(client.list_pods()), 1)
+        self.assertEqual(len(client.list_nodes()), 1)
+        self.assertEqual(client.list_pod_page("production", limit=50), (response.items, "next-token"))
+        self.assertEqual(client.list_pod_page(limit=50, continue_token="next-token"), (response.items, "next-token"))
+        self.assertEqual(client.list_node_page(limit=50), (response.items, "next-token"))
+        bcs.api_instance_core_v1.list_namespaced_pod.assert_has_calls(
+            [
+                call(namespace="production", _request_timeout=10),
+                call(namespace="production", limit=50, _request_timeout=10),
+            ]
+        )
+        bcs.api_instance_core_v1.list_pod_for_all_namespaces.assert_has_calls(
+            [
+                call(_request_timeout=10),
+                call(limit=50, _request_timeout=10, _continue="next-token"),
+            ]
+        )
+        bcs.api_instance_core_v1.list_node.assert_has_calls(
+            [call(_request_timeout=10), call(limit=50, _request_timeout=10)]
+        )
 
 
 class FixedK8sProbeTest(SimpleTestCase):

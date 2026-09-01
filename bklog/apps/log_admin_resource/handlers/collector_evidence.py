@@ -143,6 +143,10 @@ def get_collector_host_snapshot(params):
     request_params = {"bk_host_id": bk_host_id, "bk_biz_id": bk_biz_id}
     if host.get("bk_cloud_id") is not None:
         request_params["bk_cloud_id"] = host["bk_cloud_id"]
+    request_params["no_request"] = True
+    tenant_id = get_request_tenant_id()
+    if tenant_id:
+        request_params["bk_tenant_id"] = tenant_id
     started = time.monotonic()
     try:
         collectors = HostCollectorHandler().list_collectors_by_host(request_params)

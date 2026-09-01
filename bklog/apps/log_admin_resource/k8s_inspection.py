@@ -216,6 +216,107 @@ def target_config_matches(
     return matches
 
 
+def discover_inspection_targets(
+    *, pods: Iterable[Any], nodes: Iterable[Any], expected: list[dict[str, Any]], limit: int
+) -> dict[str, Any]:
+    """Return bounded business targets that the selected collector configuration actually matches."""
+
+    pod_targets = []
+    for value in pods:
+        pod = object_to_dict(value)
+        metadata = pod.get("metadata") or {}
+        spec = pod.get("spec") or {}
+        status = pod.get("status") or {}
+        namespace = str(metadata.get("namespace") or "")
+        pod_name = str(metadata.get("name") or "")
+        if not namespace or not pod_name:
+            continue
+        workload_type, workload_name = pod_workload(metadata)
+        statuses = {
+            str(item.get("name")): item
+            for item in (status.get("container_statuses") or status.get("containerStatuses") or [])
+            if isinstance(item, dict) and item.get("name")
+        }
+        for container in spec.get("containers") or []:
+            container_name = str(container.get("name") or "") if isinstance(container, dict) else ""
+            if not container_name:
+                continue
+            target = {
+                "type": "pod_container",
+                "namespace": namespace,
+                "pod_name": pod_name,
+                "container_name": container_name,
+            }
+            matched = target_config_matches(target, pod, expected)
+            if not matched:
+                continue
+            container_status = statuses.get(container_name) or {}
+            pod_targets.append(
+                {
+                    "target": target,
+                    "pod_uid": metadata.get("uid"),
+                    "node_name": spec.get("node_name") or spec.get("nodeName"),
+                    "phase": status.get("phase"),
+                    "ready": container_status.get("ready"),
+                    "workload_type": workload_type,
+                    "workload_name": workload_name,
+                    "matched_container_config_ids": [item["container_config_id"] for item in matched],
+                }
+            )
+
+    node_targets = []
+    for value in nodes:
+        node = object_to_dict(value)
+        metadata = node.get("metadata") or {}
+        node_name = str(metadata.get("name") or "")
+        if not node_name:
+            continue
+        target = {"type": "node", "node_name": node_name}
+        matched = target_config_matches(target, node, expected)
+        if not matched:
+            continue
+        status = node.get("status") or {}
+        node_targets.append(
+            {
+                "target": target,
+                "node_uid": metadata.get("uid"),
+                "ready": _condition_is_true(status.get("conditions") or [], "Ready"),
+                "matched_container_config_ids": [item["container_config_id"] for item in matched],
+            }
+        )
+
+    pod_targets.sort(
+        key=lambda item: (
+            item["target"]["namespace"],
+            item["target"]["pod_name"],
+            item["target"]["container_name"],
+        )
+    )
+    node_targets.sort(key=lambda item: item["target"]["node_name"])
+    return {
+        "pod_targets": pod_targets[:limit],
+        "node_targets": node_targets[:limit],
+        "pod_target_count": len(pod_targets),
+        "node_target_count": len(node_targets),
+        "pod_targets_truncated": len(pod_targets) > limit,
+        "node_targets_truncated": len(node_targets) > limit,
+    }
+
+
+def _condition_is_true(conditions: Iterable[dict[str, Any]], condition_type: str) -> bool | None:
+    condition = next(
+        (
+            item
+            for item in conditions
+            if isinstance(item, dict) and str(item.get("type") or "").lower() == condition_type.lower()
+        ),
+        None,
+    )
+    if not condition:
+        return None
+    return str(condition.get("status") or "").lower() == "true"
+
+
 def _pod_target_matches(target: dict[str, Any], pod: dict[str, Any], spec: dict[str, Any]) -> bool:
     metadata = pod.get("metadata") or {}
     pod_spec = pod.get("spec") or {}
