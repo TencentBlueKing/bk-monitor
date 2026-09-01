@@ -1363,7 +1363,8 @@ class ResultTable(models.Model):
         old_is_enable = self.is_enable
         old_active_cluster_id = self._get_storage_cluster_id(old_default_storage)
         old_es_cluster_id = self._get_storage_cluster_id(ClusterInfo.TYPE_ES)
-        is_custom_format = self.get_related_datasource().etl_config == EtlConfigs.BK_CUSTOM_FORMAT.value
+        related_data_source = self.get_related_datasource()
+        is_custom_format = related_data_source.etl_config == EtlConfigs.BK_CUSTOM_FORMAT.value
 
         # 1. 判断是否需要修改中文名
         if table_name_zh is not None:
@@ -1607,6 +1608,19 @@ class ResultTable(models.Model):
                 and self.data_source.created_from == DataIdCreatedFromSystem.BKGSE.value
             ):
                 force_update_datalink = True
+
+            # bk_exporter 会根据 cmdb_level_config 决定是否在 log_to_metric 中开启 CMDB 输出。
+            # option 是全量替换语义，因此缺少该 key 也等价于清空配置。
+            if related_data_source.etl_config == EtlConfigs.BK_EXPORTER.value:
+                cmdb_level_option = ResultTableOption.objects.filter(
+                    table_id=self.table_id,
+                    bk_tenant_id=self.bk_tenant_id,
+                    name=ResultTableOption.OPTION_CMDB_LEVEL_CONFIG,
+                ).first()
+                existing_cmdb_levels = (cmdb_level_option.get_value() or []) if cmdb_level_option else []
+                new_cmdb_levels = option.get(ResultTableOption.OPTION_CMDB_LEVEL_CONFIG) or []
+                if existing_cmdb_levels != new_cmdb_levels:
+                    force_update_datalink = True
 
             graph_relation_option = ResultTableOption.objects.filter(
                 table_id=self.table_id,
