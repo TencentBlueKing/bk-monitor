@@ -534,7 +534,7 @@
           return;
         }
         // 无清洗 去清洗
-        if (!!this.collectorConfigId) {
+        if (this.collectorConfigId) {
           this.$router.push({
             name: 'clean-edit',
             params: { collectorId: this.collectorConfigId },

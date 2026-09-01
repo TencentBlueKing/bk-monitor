@@ -744,7 +744,7 @@
     },
     methods: {
       reset() {
-        let arr = [];
+        const arr = [];
         const copyFields = structuredClone(this.fields); // option指向地址bug
         const errTemp = {
           fieldErr: '',
@@ -1037,7 +1037,7 @@
         return result || aliasResult;
       },
       checkAliasNameItem(row) {
-        let { alias_name, is_delete, field_index } = row;
+        const { alias_name, is_delete, field_index } = row;
         let queryResult = '';
         row.btnShow = false;
         if (!alias_name) {

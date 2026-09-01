@@ -295,9 +295,8 @@
           item.assignee?.some(assignee => assignee === userMeta.value.username) ||
           item.appointee?.some(appointee => appointee === userMeta.value.username),
       );
-    } else {
-      return recordList.value;
     }
+    return recordList.value;
   });
 
   const pageSize = 10;

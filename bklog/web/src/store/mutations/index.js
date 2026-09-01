@@ -407,7 +407,7 @@ const mutations = {
   },
   updateIndexFieldEggsItems(state, payload) {
     const { start_time: startTime, end_time: endTime } = state.indexItem;
-    const lastQueryTimerange = String(startTime) + '_' + String(endTime);
+    const lastQueryTimerange = `${String(startTime)}_${String(endTime)}`;
     storeRuntimeCacheService.patchFieldAggsItems(state.indexId || 'default', payload ?? {});
     state.fieldAggsItemsVersion += 1;
     state.indexFieldInfo.last_eggs_request_token = lastQueryTimerange;

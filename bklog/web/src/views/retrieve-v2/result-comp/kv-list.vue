@@ -1034,7 +1034,7 @@
               pre[curKey.toLowerCase()] = curVal;
               return pre;
             }, {});
-            return !!lowerKeyData[key] ? this.$t('主机') : null; // 判断ip和serverIp是否有值 无值则不显示主机
+            return lowerKeyData[key] ? this.$t('主机') : null; // 判断ip和serverIp是否有值 无值则不显示主机
           }
           // 容器
           case 'container_id':

@@ -400,7 +400,7 @@
         return treeList.map(item => {
           if (item.type === 'cluster') {
             const cluster = this.clusterList.find(cItem => cItem.id === item.id);
-            if (!!cluster) item.name = `${cluster.name} (${item.id})`;
+            if (cluster) item.name = `${cluster.name} (${item.id})`;
           }
           return item;
         });

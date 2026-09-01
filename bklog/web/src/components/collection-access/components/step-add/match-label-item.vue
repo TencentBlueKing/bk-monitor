@@ -367,7 +367,7 @@
           const { key, value } = this.matchItem;
           if (this.isHaveCompared) {
             const splitValue = value.split(',');
-            this.matchValueArr = !!splitValue[0] ? splitValue : [];
+            this.matchValueArr = splitValue[0] ? splitValue : [];
           } else {
             this.matchValue = value;
           }
@@ -381,7 +381,7 @@
           if (this.isHaveCompared) {
             if (!this.matchValueArr.length && !!this.matchValue) {
               const splitValue = this.matchValue.split(',');
-              this.matchValueArr = !!splitValue ? splitValue : [];
+              this.matchValueArr = splitValue ? splitValue : [];
             }
           } else {
             if (!!this.matchValueArr.length && !this.matchValue) {

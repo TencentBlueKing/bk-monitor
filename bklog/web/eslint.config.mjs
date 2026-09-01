@@ -101,7 +101,7 @@ const vueComponentRules = {
 
 export default [
   {
-    ignores: ['.aafe/**', 'node_modules/**', 'packages/web-v1/**', 'monitor-*/**'],
+    ignores: ['.aafe/**', 'node_modules/**', 'packages/web-v1/**', 'monitor-*/**', 'src/static/**'],
   },
   js.configs.recommended,
   ...createTencentConfig({}),
@@ -189,6 +189,15 @@ export default [
   {
     files: ['src/**/*.{tsx,vue}'],
     rules: vueComponentRules,
+  },
+  {
+    files: [
+      'src/views/retrieve-v3/monitor/worker-factories/create-retrieve-search-worker.ts',
+      'src/views/retrieve-v3/monitor/worker-factories/create-trend-chart-worker.ts',
+    ],
+    rules: {
+      'import/no-webpack-loader-syntax': 'off',
+    },
   },
   eslintConfigPrettier,
 ];

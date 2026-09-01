@@ -115,7 +115,7 @@
     },
     watch: {
       'formData.workload_type'(val) {
-        !!val ? this.getWorkLoadNameList() : (this.nameList = []);
+        val ? this.getWorkLoadNameList() : (this.nameList = []);
       },
       'conItem.noQuestParams.namespaceStr': {
         immediate: true,

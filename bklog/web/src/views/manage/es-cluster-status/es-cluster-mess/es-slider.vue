@@ -1246,7 +1246,7 @@
         return new Promise(resolve => {
           setTimeout(() => {
             // 空值返回全部，搜索返回部分
-            if (!!this.bizInputStr) {
+            if (this.bizInputStr) {
               resolve(this.bizChildrenList[this.bizSelectID].filter(item => item.name.includes(this.bizInputStr)));
             } else {
               resolve(this.bizChildrenList[this.bizSelectID]);
@@ -1316,7 +1316,7 @@
         visibleType === 'biz_attr' &&
           !this.bkBizLabelsList.length &&
           (messageType = this.$t('可见类型为多业务时，可见业务范围不能为空'));
-        if (!!messageType) {
+        if (messageType) {
           this.$bkMessage({
             theme: 'error',
             message: messageType,

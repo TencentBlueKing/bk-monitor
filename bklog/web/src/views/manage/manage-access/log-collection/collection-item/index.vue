@@ -757,7 +757,7 @@
           fields: settingFields,
           selectedFields: [...settingFields.slice(3, 8), settingFields[2]],
         },
-        statusEnum: statusEnum,
+        statusEnum,
         // 是否支持一键检测
         enableCheckCollector: JSON.parse(window.ENABLE_CHECK_COLLECTOR),
         // 一键检测弹窗配置
@@ -1057,7 +1057,7 @@
                 row.status_name = '';
                 idList.push(row.collector_config_id);
                 row.is_desensitize = desensitizeStatus[row.index_set_id]?.is_desensitize ?? false;
-                if (!!row.storage_display_name) setStorageDisplayName.add(row.storage_display_name);
+                if (row.storage_display_name) setStorageDisplayName.add(row.storage_display_name);
               });
               this.filterStorageLabelList = Array.from(setStorageDisplayName).map(item => ({
                 text: item,
@@ -1270,7 +1270,7 @@
         this.handleFilterChange(this.tagsData);
       },
       handleToggleTagSelect() {
-        this.tagSelect = !!this.tagsData.tags.length ? structuredClone(this.tagsData.tags) : ['all'];
+        this.tagSelect = this.tagsData.tags.length ? structuredClone(this.tagsData.tags) : ['all'];
       },
       renderTagsHeader(h, { column }) {
         const isActive = !!this.filterLabelList.length && !this.tagSelect.includes('all');

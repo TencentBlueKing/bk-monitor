@@ -291,7 +291,7 @@ export default defineComponent({
             const value = text.substring(valueStart, valueEnd); // 包含引号
             matches.push({
               type: 'value',
-              value: value,
+              value,
               index: valueStart,
               length: value.length,
             });
@@ -331,7 +331,7 @@ export default defineComponent({
             const value = text.substring(valueStart, valueEnd);
             matches.push({
               type: 'value',
-              value: value,
+              value,
               index: valueStart,
               length: value.length,
             });
@@ -344,7 +344,7 @@ export default defineComponent({
       const filteredMatches: Match[] = [];
       for (const current of matches) {
         let shouldAdd = true;
-        let removeIndices: number[] = [];
+        const removeIndices: number[] = [];
 
         for (let j = 0; j < filteredMatches.length; j++) {
           const existing = filteredMatches[j];
@@ -401,7 +401,7 @@ export default defineComponent({
         }
 
         // 添加高亮的 token
-        let style: { color?: string } = {};
+        const style: { color?: string } = {};
         let className = '';
 
         switch (match.type) {

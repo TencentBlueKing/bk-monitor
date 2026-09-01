@@ -64,7 +64,7 @@ export default defineComponent({
         return;
       }
       // 无清洗 去清洗
-      if (!!collectorConfigId.value) {
+      if (collectorConfigId.value) {
         router.push({
           name: 'clean-edit',
           params: { collectorId: collectorConfigId.value },

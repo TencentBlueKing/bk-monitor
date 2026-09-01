@@ -104,7 +104,7 @@
       }
     }
 
-    return chars.map((char, index) => (escapeIndexSet.has(index) ? '\\' + char : char)).join('');
+    return chars.map((char, index) => (escapeIndexSet.has(index) ? `\\${char}` : char)).join('');
   };
 
   const normalizeKeyword = (value: string) => escapeEdgeAsterisks(String(value ?? '').trim());

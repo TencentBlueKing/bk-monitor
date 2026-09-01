@@ -335,7 +335,7 @@
         try {
           const res = await this.$http.request(
             '/resultTables/info',
-            !!foreignParams
+            foreignParams
               ? foreignParams
               : {
                   params: {

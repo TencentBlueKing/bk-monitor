@@ -111,7 +111,8 @@ export default defineComponent({
         };
         updateRemark(type);
         return;
-      } else if (type === 'update') {
+      }
+      if (type === 'update') {
         verifyData.value.textInputStr = remarkItem!.remark;
         catchOperatorVal = {
           old_remark: remarkItem!.remark,

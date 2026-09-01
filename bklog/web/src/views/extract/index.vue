@@ -67,7 +67,7 @@
       this.$router.replace({
         query: {
           bizId: bkBizId,
-          spaceUid: spaceUid,
+          spaceUid,
           ...this.$route.query,
         },
       });

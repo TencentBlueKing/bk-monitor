@@ -144,7 +144,7 @@
             query: { backRoute, typeKey, indexSetId },
           } = this.$route;
           this.$router.push({
-            name: !!backRoute ? backRoute : this.$route.meta.backName,
+            name: backRoute ? backRoute : this.$route.meta.backName,
             query: {
               spaceUid: this.$store.state.spaceUid,
               typeKey,

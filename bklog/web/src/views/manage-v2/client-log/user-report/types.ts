@@ -24,7 +24,6 @@
  * IN THE SOFTWARE.
  */
 
-
 // 文件上传状态枚举
 export enum FileUploadStatus {
   PENDING = 'pending',

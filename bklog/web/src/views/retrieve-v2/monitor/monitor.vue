@@ -280,7 +280,7 @@
   const initIsShowClusterWatch = watch(
     () => store.state.clusterParams,
     () => {
-      if (!!store.state.clusterParams) {
+      if (store.state.clusterParams) {
         activeTab.value = 'clustering';
         initIsShowClusterWatch();
       }

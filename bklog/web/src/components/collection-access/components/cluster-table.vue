@@ -230,7 +230,7 @@
         if (val === undefined) return;
         this.clusterSelect = val;
         this.activeItem = this.tableList.find(item => item.storage_cluster_id === val);
-        if (!!this.activeItem) {
+        if (this.activeItem) {
           const { number_of_replicas_max: replicasMax, retention_days_max: daysMax } = this.activeItem.setup_config;
           const { enable_hot_warm: hotWarm, enable_archive: archive } = this.activeItem;
           this.illustrateLabelData = {

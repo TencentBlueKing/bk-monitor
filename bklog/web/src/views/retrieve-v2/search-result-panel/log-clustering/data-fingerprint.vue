@@ -689,9 +689,8 @@
             // 新开页后当前页面回填聚类参数
             this.$store.commit('updateState', { clusterParams: this.requestData });
             return;
-          } else {
-            this.$emit('show-change', 'origin');
           }
+          this.$emit('show-change', 'origin');
 
           const query = { ...route.query };
 
@@ -924,7 +923,7 @@
         this.$easeScroll(0, 300, el);
       },
       getHeightLightStr(str) {
-        return !!str ? str : this.$t('未匹配');
+        return str ? str : this.$t('未匹配');
       },
       getHeightLightList(str) {
         return str.match(/#.*?#/g) || [];
@@ -1190,7 +1189,7 @@
        * @desc: 初始化责任人选择的数据和初始化责任人列表
        */
       handleToggleUserSelect(v) {
-        this.ownerSelect = !!this.requestData.owners.length ? this.requestData.owners : [this.requestData.owner_config];
+        this.ownerSelect = this.requestData.owners.length ? this.requestData.owners : [this.requestData.owner_config];
         if (v) this.getUserList();
       },
       /**

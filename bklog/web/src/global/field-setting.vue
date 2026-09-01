@@ -405,7 +405,7 @@
             return val <= maxRetention.value;
           }
         },
-        message: function () {
+        message() {
           return t(`超出集群最大可保存天数，当前最大可保存{n}天`, { n: maxRetention.value });
         },
         trigger: 'blur',

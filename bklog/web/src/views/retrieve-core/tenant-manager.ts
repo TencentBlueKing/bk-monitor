@@ -223,7 +223,7 @@ export class TenantManager extends EventEmitter<TenantManagerEvent> {
       });
 
       this.emit('userInfoUpdated', {
-        tenantIds: tenantIds,
+        tenantIds,
         userInfo: result,
       } as UserInfoLoadedEventData);
       return result;

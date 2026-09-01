@@ -49,7 +49,7 @@ export const formatTimeZoneString = (
     const extraDigits = extractSubMilliseconds(time, maxSCount);
 
     const matchIndex = formatString.indexOf(sMatch[0]);
-    const prefixFormat = formatString.slice(0, matchIndex) + 'SSS';
+    const prefixFormat = `${formatString.slice(0, matchIndex)}SSS`;
     const suffixFormat = formatString.slice(matchIndex + sMatch[0].length);
 
     const dayjsInstance = time.endsWith('Z') ? dayjs.utc(time).tz(timezone) : dayjs(time).tz(timezone);

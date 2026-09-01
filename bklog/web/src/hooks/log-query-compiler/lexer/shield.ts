@@ -19,7 +19,7 @@ const SLOT = (index: number) => `§${index}`;
  */
 export const shieldProtectedSpans = (input: string): ShieldResult => {
   const slots: ShieldSlot[] = [];
-  let text = String(input ?? '');
+  const text = String(input ?? '');
   let i = 0;
   let out = '';
 

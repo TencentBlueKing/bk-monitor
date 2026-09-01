@@ -61,14 +61,14 @@ export default defineComponent({
     },
   },
   setup(props, {}) {
-    let baseAlarmConfigData = {
+    const baseAlarmConfigData = {
       interval: '30',
       threshold: '1',
       level: 2,
       user_groups: [],
       label_name: [],
     };
-    let baseIncreaseConfigData = {
+    const baseIncreaseConfigData = {
       level: 2,
       sensitivity: 5,
       user_groups: [],

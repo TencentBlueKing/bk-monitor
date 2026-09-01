@@ -1083,7 +1083,7 @@ export const parseTableRowData = (
       // 不能先按 attributes -> line 路径解析，否则 row['attributes.line'] 会显示为空。
       data = row[key];
     } else if (keyArr.length === 1) {
-      const prefix = key + '.';
+      const prefix = `${key}.`;
       const matchedKeys = Object.keys(row).filter(rowKey => rowKey.startsWith(prefix));
 
       if (matchedKeys.length) {

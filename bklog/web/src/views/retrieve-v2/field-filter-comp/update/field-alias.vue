@@ -208,7 +208,8 @@
         row.aliasErr = $t('别名只支持【英文、数字、下划线】，并且不能以数字开头');
 
         return false;
-      } else if (queryAlias === fieldName) {
+      }
+      if (queryAlias === fieldName) {
         row.aliasErr = $t('别名与字段名重复');
         return false;
       }

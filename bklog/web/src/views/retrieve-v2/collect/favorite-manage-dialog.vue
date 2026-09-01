@@ -716,9 +716,8 @@
               group_id: JSON.parse(groupId),
               group_name: localFavoriteList.value.find(item => item.id === JSON.parse(groupId))?.name,
             };
-          } else {
-            return item;
           }
+          return item;
         });
       };
       allGroupList.value = updateDataInList(allGroupList.value);

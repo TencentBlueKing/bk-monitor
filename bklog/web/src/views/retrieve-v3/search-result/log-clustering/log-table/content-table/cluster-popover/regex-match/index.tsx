@@ -260,7 +260,7 @@ export default defineComponent({
       tableRef.value.addItem({
         pattern: '',
         occupy: inputValue,
-        occupyOriginStr: occupyOriginStr,
+        occupyOriginStr,
         highlight: currentChoosedTextBackgroundColor,
       });
       destroyOccupyPopover();

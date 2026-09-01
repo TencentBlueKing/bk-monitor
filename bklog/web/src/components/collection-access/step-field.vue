@@ -1675,7 +1675,7 @@ __ext_json.service.labels   ${this.$t('动态对象字段')}`;
         this.visibleBkBiz = visibleBkBizList;
         this.cacheVisibleList = visibleBkBizList;
         this.fieldType = clean_type;
-        this.enableMetaData = etlParams.path_regexp ? true : false;
+        this.enableMetaData = !!etlParams.path_regexp;
         Object.assign(this.formData, {
           etl_config: this.fieldType,
           etl_params: Object.assign(
@@ -2944,7 +2944,7 @@ __ext_json.service.labels   ${this.$t('动态对象字段')}`;
           });
           this.fieldsObjectData = res.data.fields.filter(item => item.field_name.includes('.'));
           this.fieldsObjectData.forEach(item => {
-            let name = item.field_name.split('.')[0];
+            const name = item.field_name.split('.')[0];
             // flattened 边界字段保持类型，页面展示为「动态对象字段」，不继续挂载子 mapping
             if (item.field_type !== 'flattened') {
               item.field_type = typeConversion[item.field_type] || item.field_type;

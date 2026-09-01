@@ -572,9 +572,8 @@
               item.field_name.toLowerCase().includes(query) ||
               (item.query_alias?.toLowerCase().includes(query) ?? false),
           );
-        } else {
-          return currentTableList;
         }
+        return currentTableList;
       },
       getParticipleWidth() {
         return this.$store.getters.isEnLanguage ? '65' : '50';
@@ -595,7 +594,7 @@
     },
     methods: {
       reset() {
-        let arr = [];
+        const arr = [];
         const copyFields = structuredClone(this.fields); // option指向地址bug
         const errTemp = {
           fieldErr: '',
@@ -895,7 +894,8 @@
           if (!/^[A-Za-z0-9_]+$/g.test(aliasName)) {
             row.fieldErr = this.$t('重命名只能包含a-z、A-Z、0-9和_');
             return false;
-          } else if (aliasName === fieldName) {
+          }
+          if (aliasName === fieldName) {
             row.fieldErr = this.$t('重命名与字段名重复');
           }
           if (
@@ -1047,7 +1047,7 @@
           this.$store.getters.rawFieldList.filter(item => item.field_name.includes('.')),
         );
         fieldsObjectData.forEach(item => {
-          let name = item.field_name?.split('.')[0].replace(/^_+|_+$/g, '');
+          const name = item.field_name?.split('.')[0].replace(/^_+|_+$/g, '');
           item.is_objectKey = true;
           this.tableAllList.forEach(builtField => {
             if (builtField.field_type === 'object' && name === builtField.field_name?.split('.')[0]) {

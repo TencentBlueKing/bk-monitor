@@ -178,7 +178,7 @@ export default class extends EventEmitter<RetrieveEvent> {
         const markFormatValue = /^\d+$/.test(value)
           ? formatTimeZoneString(this.normalizeTimestampToMs(Number(value)), timezone, format, false)
           : formatTimeZoneString(value, timezone, format, false);
-        return '<mark>' + (markFormatValue === 'Invalid Date' ? value : markFormatValue) + '</mark>';
+        return `<mark>${markFormatValue === 'Invalid Date' ? value : markFormatValue}</mark>`;
       }
 
       if (/^\d+$/.test(String(data))) {

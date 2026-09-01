@@ -218,7 +218,7 @@
   });
 
   const originalValueFieldsSignature = computed(() =>
-    fieldList.value.map((item: any) => String(item.field_name) + ':' + String(item.field_type ?? '')).join('\u0001'),
+    fieldList.value.map((item: any) => `${String(item.field_name)}:${String(item.field_type ?? '')}`).join('\u0001'),
   );
 
   const clearOriginalValueRenderCache = () => {

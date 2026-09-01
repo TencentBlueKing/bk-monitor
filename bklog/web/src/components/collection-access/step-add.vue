@@ -877,7 +877,7 @@
       updateCollectorConfigID() {
         // 若是新增容器日志 返回上一步 则使用curCollect缓存的collector_config_id更新;
         const { collectorId } = this.$route.params;
-        return !!collectorId ? Number(collectorId) : Number(this.curCollect.collector_config_id);
+        return collectorId ? Number(collectorId) : Number(this.curCollect.collector_config_id);
       },
       labelWidth() {
         return this.$store.state.isEnLanguage ? this.enLabelWidth : 115;
@@ -1058,7 +1058,7 @@
               params.conditions.separator_filters = [{ fieldindex: '', word: '', op: '=', logic_op: 'and' }];
             }
           }
-          const containerExclude = !!containerNameExclude ? '!=' : '=';
+          const containerExclude = containerNameExclude ? '!=' : '=';
           const namespacesExclude = itemNamespacesExclude?.length ? '!=' : '=';
           const namespaceStr = this.getNameSpaceStr(namespaces);
           return {
@@ -1066,11 +1066,11 @@
             noQuestParams: {
               letterIndex: index, // 配置项字母下标
               scopeSelectShow: {
-                namespace: !Boolean(namespaces.length),
-                label: !Boolean(labelSelector.length),
+                namespace: !namespaces.length,
+                label: !labelSelector.length,
                 load: !(Boolean(container.workload_type) || Boolean(container.workload_name)),
-                containerName: !Boolean(containerNameList.length),
-                annotation: !Boolean(annotationSelector.length),
+                containerName: !containerNameList.length,
+                annotation: !annotationSelector.length,
               },
               namespaceStr,
               containerExclude,
@@ -1779,7 +1779,7 @@
           collector_config_name_en,
           description,
         };
-        let collectConfig = {};
+        const collectConfig = {};
         this.initFromData(collect);
         if (everyExport.every(item => syncType.includes(item))) {
           if (!this.isPhysicsEnvironment) {

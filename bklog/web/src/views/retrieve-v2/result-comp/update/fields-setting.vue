@@ -473,7 +473,7 @@
        *
        */
       handleFieldConfigExport(updateItem) {
-        let fieldName = `${updateItem.name}`;
+        const fieldName = `${updateItem.name}`;
         const fieldConfigParam = {
           name: fieldName,
           sort_list: updateItem.sort_list,

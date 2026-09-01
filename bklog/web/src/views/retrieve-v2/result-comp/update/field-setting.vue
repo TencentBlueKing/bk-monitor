@@ -172,7 +172,7 @@
   });
 
   const emptyType = computed(() => {
-    if (!!shadowTotal?.value?.length) {
+    if (shadowTotal?.value?.length) {
       return '';
     }
     if (searchKeyword.value == '') {
