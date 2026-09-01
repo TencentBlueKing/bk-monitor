@@ -37,25 +37,36 @@ class IncidentBaseResource(APIResource, metaclass=abc.ABCMeta):
 
     @classmethod
     def convert_bk_biz_id_to_scope_id(cls, params, bk_biz_id, scope_id_cache=None):
-        """将监控 bk_biz_id 转成 BKFara 标准 scope_id。"""
+        """将监控 bk_biz_id 转成 BKFara 标准 scope_id。
+
+        每个 ID 按监控协议独立判断，不能复用请求里已被第一个空间改写的 scope_type：
+        正数和 -1/-2 哨兵永远是 bkcc；其它负数才按空间自增 ID 反查。
+        """
         if cls.is_standard_scope_id(bk_biz_id):
             return bk_biz_id
+
+        # params 仅保持调用签名兼容；每个 ID 必须独立转换，不能读取请求级 scope_type。
+        _ = params
 
         cache_key = str(bk_biz_id)
         if scope_id_cache is not None and cache_key in scope_id_cache:
             return scope_id_cache[cache_key]
 
-        scope_id = f"{params.get('scope_type', 'bkcc')}_{bk_biz_id}"
         try:
             numeric_bk_biz_id = int(bk_biz_id)
         except (TypeError, ValueError):
             numeric_bk_biz_id = None
 
+        # 请求级 scope_type 可能已被 convert_bk_biz_id_to_scope_value 改成 bkci/bcs。
+        # 列表里的正数业务仍必须编码为 bkcc_<id>，否则 list_configs 会按错误 scope 查空。
         if (
-            numeric_bk_biz_id is not None
-            and numeric_bk_biz_id < 0
-            and numeric_bk_biz_id not in cls.MONITOR_SCOPE_QUERY_SENTINELS
+            numeric_bk_biz_id is None
+            or numeric_bk_biz_id >= 0
+            or numeric_bk_biz_id in cls.MONITOR_SCOPE_QUERY_SENTINELS
         ):
+            scope_id = f"bkcc_{bk_biz_id}"
+        else:
+            scope_id = f"bkcc_{bk_biz_id}"
             try:
                 space = SpaceApi.get_space_detail(bk_biz_id=numeric_bk_biz_id)
             except Exception as error:
@@ -314,6 +325,8 @@ class GetConfigResource(IncidentBaseResource):
         scope_value = serializers.CharField(label="空间ID", required=False)
         bk_biz_id = serializers.IntegerField(label="业务ID", required=False)
         bk_biz_id_list = serializers.ListField(label="业务ID列表", required=False)
+        page = serializers.IntegerField(label="页码", required=False, default=1)
+        page_size = serializers.IntegerField(label="每页大小", required=False, default=1000)
 
 
 class CreateListConfigResource(IncidentBaseResource):
