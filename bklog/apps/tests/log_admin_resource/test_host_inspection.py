@@ -14,6 +14,7 @@ from apps.log_admin_resource.collector_probe import (
     PROBE_PROTOCOL,
     PROBE_VERSION,
     FixedProbeError,
+    fixed_probe_arguments,
     fixed_probe_script,
     parse_probe_output,
 )
@@ -818,7 +819,7 @@ class HostInspectionWorkerTest(SimpleTestCase):
 
         kwargs = execute.call_args.kwargs
         self.assertEqual(kwargs["script_language"], 1)
-        self.assertEqual(base64.b64decode(kwargs["script_param"]).decode("ascii"), "1001 0")
+        self.assertEqual(base64.b64decode(kwargs["script_param"]).decode("ascii"), "1001 0 -")
         script = fixed_probe_script().decode("utf-8")
         self.assertNotIn("/data/app.log", script)
         self.assertNotIn("reload failed", script)
@@ -840,9 +841,10 @@ class FixedRemoteScriptTest(SimpleTestCase):
         script = fixed_probe_script().decode("utf-8")
 
         self.assertIn("accepts only server-controlled typed arguments", script)
-        self.assertIn('[ "$#" -ne 2 ]', script)
+        self.assertIn('[ "$#" -ne 3 ]', script)
         self.assertIn("TARGET_DATA_ID=$1", script)
         self.assertIn("INCLUDE_SOURCE_SAMPLE=$2", script)
+        self.assertIn("TARGET_CONFIG_HINTS=$3", script)
         self.assertNotIn("$@", script)
         self.assertNotIn("/tmp", script)
         self.assertNotIn("mktemp", script)
@@ -852,10 +854,16 @@ class FixedRemoteScriptTest(SimpleTestCase):
         self.assertNotIn('[ -L "$blob_path" ]', script)
         self.assertIn('find -H "$directory"', script)
         self.assertIn("MAX_CHILD_CONFIG_SCAN=1000", script)
+        self.assertIn('-name "$hint" -print -quit', script)
         self.assertIn('awk -v wanted="$TARGET_DATA_ID"', script)
         self.assertIn("child_paths=$(printf '%s\\n' \"$matching_child_paths\"", script)
         self.assertIn("-name 'bkunifylogbeat'", script)
         self.assertIn("/usr/local/gse*/plugins/etc/bkunifylogbeat.conf", script)
+
+    def test_shared_probe_rejects_caller_shaped_config_hints(self):
+        for hint in ("../secret.conf", "/data/etc/secret.conf", "*.conf", "a,b.conf"):
+            with self.subTest(hint=hint), self.assertRaises(ValueError):
+                fixed_probe_arguments(1001, False, [hint])
 
     def test_shared_probe_resolves_relative_main_config_from_process_runtime(self):
         script = fixed_probe_script().decode("utf-8")

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import time
+from collections.abc import Iterable
 from typing import Any
 
 from kubernetes.stream import stream
@@ -23,11 +24,16 @@ FIXED_PROBE_TIMEOUT_SECONDS = 60
 
 
 def fixed_probe_metadata(
-    candidate: CollectorCandidate, *, bk_data_id: int, include_source_sample: bool
+    candidate: CollectorCandidate,
+    *,
+    bk_data_id: int,
+    include_source_sample: bool,
+    child_config_hints: Iterable[str] = (),
 ) -> dict[str, Any]:
     return common_probe_metadata(
         bk_data_id=bk_data_id,
         include_source_sample=include_source_sample,
+        child_config_hints=child_config_hints,
         executor="K8S_POD_EXEC",
         collector_image_id=candidate.collector_image_id,
         container=COLLECTOR_CONTAINER_NAME,
@@ -40,6 +46,7 @@ def run_fixed_collector_probe(
     *,
     bk_data_id: int,
     include_source_sample: bool,
+    child_config_hints: Iterable[str] = (),
 ) -> dict[str, Any]:
     """Execute the repository-owned script in one already-validated collector identity."""
 
@@ -49,7 +56,7 @@ def run_fixed_collector_probe(
         name=candidate.pod_name,
         namespace=candidate.namespace,
         container=COLLECTOR_CONTAINER_NAME,
-        command=fixed_probe_command(bk_data_id, include_source_sample),
+        command=fixed_probe_command(bk_data_id, include_source_sample, child_config_hints),
         stderr=True,
         stdin=True,
         stdout=True,
@@ -102,6 +109,9 @@ def run_fixed_collector_probe(
     parsed["stderr"] = stderr
     parsed["return_code"] = return_code
     parsed["metadata"] = fixed_probe_metadata(
-        candidate, bk_data_id=bk_data_id, include_source_sample=include_source_sample
+        candidate,
+        bk_data_id=bk_data_id,
+        include_source_sample=include_source_sample,
+        child_config_hints=child_config_hints,
     )
     return parsed

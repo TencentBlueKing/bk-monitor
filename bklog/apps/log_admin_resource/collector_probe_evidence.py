@@ -134,6 +134,8 @@ def build_probe_evidence(
             "child_configs": configs,
             "child_config_scan": {
                 "target_data_id": _integer(values.get("target_data_id")),
+                "hint_count": _integer(values.get("child_config_hint_count")),
+                "hint_path_count": _integer(values.get("child_config_hint_path_count")),
                 "scanned_count": _integer(values.get("child_config_scanned_count")),
                 "scan_limit": _integer(values.get("child_config_scan_limit")),
                 "scan_truncated": values.get("child_config_scan_truncated") == "true",

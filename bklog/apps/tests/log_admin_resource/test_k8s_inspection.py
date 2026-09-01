@@ -34,6 +34,7 @@ from apps.log_admin_resource.k8s_inspection import (
     COLLECTOR_CONTAINER_NAME,
     SIDECAR_CONTAINER_NAME,
     CollectorCandidate,
+    collector_child_config_hints,
     collector_daemon_set_contract,
     desired_config_evidence,
     discover_collector_candidates,
@@ -975,9 +976,10 @@ class FixedK8sProbeTest(SimpleTestCase):
         script = PROBE_SCRIPT_PATH.read_text(encoding="utf-8")
 
         self.assertIn("accepts only server-controlled typed arguments", script)
-        self.assertIn('[ "$#" -ne 2 ]', script)
+        self.assertIn('[ "$#" -ne 3 ]', script)
         self.assertIn("TARGET_DATA_ID=$1", script)
         self.assertIn("INCLUDE_SOURCE_SAMPLE=$2", script)
+        self.assertIn("TARGET_CONFIG_HINTS=$3", script)
         self.assertNotIn("$@", script)
         self.assertNotIn("/tmp", script)
         self.assertNotIn("mktemp", script)
@@ -1033,13 +1035,46 @@ class FixedK8sProbeTest(SimpleTestCase):
             bcs=SimpleNamespace(api_instance_core_v1=SimpleNamespace(connect_get_namespaced_pod_exec=object()))
         )
 
-        result = run_fixed_collector_probe(client, candidate(), bk_data_id=1001, include_source_sample=False)
+        result = run_fixed_collector_probe(
+            client,
+            candidate(),
+            bk_data_id=1001,
+            include_source_sample=False,
+            child_config_hints=["node_log_config_default_demo-node.conf"],
+        )
 
         kwargs = mock_stream.call_args.kwargs
         self.assertEqual(kwargs["container"], COLLECTOR_CONTAINER_NAME)
-        self.assertEqual(kwargs["command"], ["/bin/sh", "-s", "--", "1001", "0"])
+        self.assertEqual(
+            kwargs["command"],
+            ["/bin/sh", "-s", "--", "1001", "0", "node_log_config_default_demo-node.conf"],
+        )
         self.assertEqual(kwargs["name"], "collector-node-a")
         self.assertEqual(result["values"]["protocol"], "bklog.collector.inspection.probe.v1")
+        self.assertEqual(result["metadata"]["child_config_hint_count"], 1)
+
+    def test_sidecar_config_hints_are_exact_for_node_and_pod_targets(self):
+        expected = [
+            {"name": "demo-node", "container_config_id": 44, "collector_type": ContainerCollectorType.NODE},
+            {
+                "name": "demo-container",
+                "container_config_id": 45,
+                "collector_type": ContainerCollectorType.CONTAINER,
+            },
+        ]
+
+        node_hints = collector_child_config_hints({"type": "node", "matched_container_config_ids": [44]}, expected)
+        pod_hints = collector_child_config_hints(
+            {
+                "type": "pod_container",
+                "matched_container_config_ids": [45],
+                "container": {"container_id": "containerd://abc123"},
+            },
+            expected,
+        )
+
+        self.assertEqual(node_hints, ["node_log_config_default_demo-node.conf"])
+        self.assertEqual(pod_hints, ["abc123_container_log_config_default_demo-container.conf"])
 
     @patch("apps.log_admin_resource.k8s_probe.stream")
     def test_exec_rejects_protocol_header_without_completion_marker(self, mock_stream):

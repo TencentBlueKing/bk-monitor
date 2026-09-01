@@ -5,13 +5,15 @@ from __future__ import annotations
 import base64
 import binascii
 import hashlib
+import re
+from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
 
 
 PROBE_SCRIPT_PATH = Path(__file__).resolve().parent / "scripts" / "collector_inspection.sh"
 PROBE_PROTOCOL = "bklog.collector.inspection.probe.v1"
-PROBE_VERSION = "137707063.4"
+PROBE_VERSION = "137707063.5"
 PROBE_ID = "bklog.collector.fixed_read_only"
 # BK-JOB/GSE caps one atomic script-task log at 5 MiB; keep one MiB for transport framing and prefixes.
 MAX_PROBE_OUTPUT_BYTES = 4 * 1024 * 1024
@@ -38,8 +40,14 @@ def fixed_probe_script() -> bytes:
     return PROBE_SCRIPT_PATH.read_bytes()
 
 
-def fixed_probe_arguments(bk_data_id: int, include_source_sample: bool) -> tuple[str, str]:
-    """Build the only two server-controlled arguments accepted by the fixed probe."""
+_CHILD_CONFIG_HINT_PATTERN = re.compile(r"^[A-Za-z0-9_.-]{1,255}$")
+MAX_CHILD_CONFIG_HINTS = 20
+
+
+def fixed_probe_arguments(
+    bk_data_id: int, include_source_sample: bool, child_config_hints: Iterable[str] = ()
+) -> tuple[str, str, str]:
+    """Build the only server-controlled arguments accepted by the fixed probe."""
 
     if isinstance(bk_data_id, bool):
         raise ValueError("bk_data_id must be a positive integer")
@@ -49,23 +57,46 @@ def fixed_probe_arguments(bk_data_id: int, include_source_sample: bool) -> tuple
         raise ValueError("bk_data_id must be a positive integer") from error
     if normalized_data_id <= 0 or str(normalized_data_id) != str(bk_data_id):
         raise ValueError("bk_data_id must be a positive integer")
-    return str(normalized_data_id), "1" if include_source_sample else "0"
+    if isinstance(child_config_hints, str | bytes):
+        raise ValueError("child_config_hints must be a sequence of safe basenames")
+    normalized_hints = []
+    for value in child_config_hints:
+        hint = str(value)
+        if not _CHILD_CONFIG_HINT_PATTERN.fullmatch(hint):
+            raise ValueError("child_config_hints must contain safe basenames")
+        if hint not in normalized_hints:
+            normalized_hints.append(hint)
+    if len(normalized_hints) > MAX_CHILD_CONFIG_HINTS:
+        raise ValueError(f"child_config_hints must contain at most {MAX_CHILD_CONFIG_HINTS} basenames")
+    encoded_hints = ",".join(normalized_hints) if normalized_hints else "-"
+    return str(normalized_data_id), "1" if include_source_sample else "0", encoded_hints
 
 
-def fixed_probe_command(bk_data_id: int, include_source_sample: bool) -> list[str]:
-    return ["/bin/sh", "-s", "--", *fixed_probe_arguments(bk_data_id, include_source_sample)]
+def fixed_probe_command(
+    bk_data_id: int, include_source_sample: bool, child_config_hints: Iterable[str] = ()
+) -> list[str]:
+    return [
+        "/bin/sh",
+        "-s",
+        "--",
+        *fixed_probe_arguments(bk_data_id, include_source_sample, child_config_hints),
+    ]
 
 
-def fixed_probe_metadata(*, bk_data_id: int, include_source_sample: bool, **transport: Any) -> dict[str, Any]:
+def fixed_probe_metadata(
+    *, bk_data_id: int, include_source_sample: bool, child_config_hints: Iterable[str] = (), **transport: Any
+) -> dict[str, Any]:
     source = fixed_probe_script()
+    hints = tuple(child_config_hints)
     return {
         "probe_id": PROBE_ID,
         "probe_protocol": PROBE_PROTOCOL,
         "probe_version": PROBE_VERSION,
         "script_sha256": hashlib.sha256(source).hexdigest(),
-        "command": fixed_probe_command(bk_data_id, include_source_sample),
+        "command": fixed_probe_command(bk_data_id, include_source_sample, hints),
         "target_data_id": bk_data_id,
         "include_source_sample": include_source_sample,
+        "child_config_hint_count": len(hints),
         "mutations_permitted": False,
         **transport,
     }

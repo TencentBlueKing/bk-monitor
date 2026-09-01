@@ -28,6 +28,7 @@ from apps.log_admin_resource.k8s_inspection import (
     COLLECTOR_CONTAINER_NAME,
     SIDECAR_CONTAINER_NAME,
     CollectorCandidate,
+    collector_child_config_hints,
     collector_daemon_set_contract,
     desired_config_evidence,
     discover_collector_candidates,
@@ -218,6 +219,7 @@ def run_k8s_inspection(task_id: str) -> None:
                 selected,
                 bk_data_id=collector.bk_data_id,
                 include_source_sample=bool(options.get("include_source_sample")),
+                child_config_hints=collector_child_config_hints(control_evidence.get("target"), expected),
             )
             _daemon_after, _pod_after = _revalidate_candidate(client, selected, required_bk_envs)
             if collector_logs["status"] == "failed":

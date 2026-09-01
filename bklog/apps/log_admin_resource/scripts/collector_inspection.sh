@@ -5,11 +5,12 @@ set -u
 LC_ALL=C
 export LC_ALL
 
-if [ "$#" -ne 2 ]; then
+if [ "$#" -ne 3 ]; then
     exit 64
 fi
 TARGET_DATA_ID=$1
 INCLUDE_SOURCE_SAMPLE=$2
+TARGET_CONFIG_HINTS=$3
 case "$TARGET_DATA_ID" in
     ''|*[!0-9]*|0) exit 64 ;;
 esac
@@ -17,9 +18,20 @@ case "$INCLUDE_SOURCE_SAMPLE" in
     0|1) ;;
     *) exit 64 ;;
 esac
+case "$TARGET_CONFIG_HINTS" in
+    -) ;;
+    ''|*[!A-Za-z0-9_.,-]*) exit 64 ;;
+esac
+if [ "${#TARGET_CONFIG_HINTS}" -gt 4096 ]; then
+    exit 64
+fi
+target_config_hint_count=$(printf '%s' "$TARGET_CONFIG_HINTS" | tr ',' '\n' | awk '$0 != "-" && NF {count++} END {print count+0}')
+if [ "$target_config_hint_count" -gt 20 ]; then
+    exit 64
+fi
 
 PROTOCOL="bklog.collector.inspection.probe.v1"
-PROBE_VERSION="137707063.4"
+PROBE_VERSION="137707063.5"
 # Stay below BK-JOB/GSE's 5 MiB atomic script-task log limit.
 OUTPUT_BUDGET_BYTES=4194304
 OUTPUT_FINAL_RESERVE_BYTES=4096
@@ -392,13 +404,32 @@ if [ -z "$multi_config_rows" ] && [ -d "/data/etc/bkunifylogbeat" ]; then
 fi
 
 tab=$(printf '\t')
-all_child_paths=$(printf '%b\n' "$multi_config_rows" | while IFS="$tab" read -r directory pattern; do
-    [ -d "$directory" ] || continue
-    [ "${directory#/}" != "$directory" ] || continue
-    find -H "$directory" -maxdepth 1 \( -type f -o -type l \) -name "${pattern:-*.conf}" 2>/dev/null
-done | awk -v limit="$((MAX_CHILD_CONFIG_SCAN + 1))" '
+hinted_child_paths=$(printf '%s' "$TARGET_CONFIG_HINTS" | tr ',' '\n' | while IFS= read -r hint; do
+    [ -n "$hint" ] && [ "$hint" != "-" ] || continue
+    printf '%b\n' "$multi_config_rows" | while IFS="$tab" read -r directory pattern; do
+        [ -d "$directory" ] || continue
+        [ "${directory#/}" != "$directory" ] || continue
+        hinted_path=$(find -H "$directory" -maxdepth 1 \( -type f -o -type l \) \
+            -name "${pattern:-*.conf}" -name "$hint" -print -quit 2>/dev/null)
+        if [ -n "$hinted_path" ]; then
+            printf '%s\n' "$hinted_path"
+        fi
+    done
+done)
+target_config_hint_path_count=$(printf '%s\n' "$hinted_child_paths" | awk 'NF {count++} END {print count+0}')
+
+all_child_paths=$(
+    {
+        printf '%s\n' "$hinted_child_paths"
+        printf '%b\n' "$multi_config_rows" | while IFS="$tab" read -r directory pattern; do
+            [ -d "$directory" ] || continue
+            [ "${directory#/}" != "$directory" ] || continue
+            find -H "$directory" -maxdepth 1 \( -type f -o -type l \) -name "${pattern:-*.conf}" 2>/dev/null
+        done
+    } | awk -v limit="$((MAX_CHILD_CONFIG_SCAN + 1))" '
     NF && !seen[$0]++ {print; count++; if (count >= limit) exit}
-')
+    '
+)
 
 discovered_child_count=$(printf '%s\n' "$all_child_paths" | awk 'NF {count++} END {print count+0}')
 case "$discovered_child_count" in ''|*[!0-9]*) discovered_child_count=0 ;; esac
@@ -412,6 +443,8 @@ case "$child_config_scanned_count" in ''|*[!0-9]*) child_config_scanned_count=0 
 emit_kv "child_config_scan_limit" "$MAX_CHILD_CONFIG_SCAN"
 emit_kv "child_config_scanned_count" "$child_config_scanned_count"
 emit_kv "child_config_scan_truncated" "$child_config_scan_truncated"
+emit_kv "child_config_hint_count" "$target_config_hint_count"
+emit_kv "child_config_hint_path_count" "$target_config_hint_path_count"
 
 matching_child_paths=$(while IFS= read -r child_path; do
     [ -n "$child_path" ] || continue
