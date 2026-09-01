@@ -3,6 +3,11 @@ from types import SimpleNamespace
 import pytest
 
 from bkmonitor.nodeman_integration.v3.client import NodeManV3RequestContext
+from bkmonitor.nodeman_integration.v3.exceptions import (
+    NodeManV3AdapterPending,
+    NodeManV3PayloadError,
+    NodeManV3ResultState,
+)
 from monitor_web.collecting.deploy.nodeman_v3.deploy_policy import (
     CollectDeployPolicyPayloadBuilder,
     NodeManV3DeployPolicyGateway,
@@ -120,7 +125,7 @@ def test_exporter_host_scope_is_blocked_before_sending_invalid_package_policy():
     collect_config = SimpleNamespace(plugin=SimpleNamespace(plugin_type=PluginType.EXPORTER))
     host_target = _target(identity_key="host:41", service_instance_id=None)
 
-    with pytest.raises(NodeManV3CapabilityBlocked, match="service-instance scope"):
+    with pytest.raises(NodeManV3AdapterPending, match="service-instance scope"):
         CollectDeployPolicyPayloadBuilder._build_specs(collect_config, host_target, _exporter_steps())
 
 
@@ -147,6 +152,14 @@ def test_v2_cross_step_context_is_blocked_instead_of_being_sent_unresolved():
         )
 
 
+def test_protocol_capability_block_exposes_machine_readable_result_state():
+    error = NodeManV3CapabilityBlocked("missing protocol field")
+
+    assert error.code == 3311014
+    assert error.data == {"result_state": NodeManV3ResultState.UNSUPPORTED}
+    assert error.extra == {"nodeman_v3_result_state": NodeManV3ResultState.UNSUPPORTED}
+
+
 def test_bkmonitorbeat_without_config_template_is_blocked_instead_of_succeeding_without_effect():
     collect_config = SimpleNamespace(plugin=SimpleNamespace(plugin_type=PluginType.SCRIPT))
     steps = [
@@ -156,7 +169,7 @@ def test_bkmonitorbeat_without_config_template_is_blocked_instead_of_succeeding_
         }
     ]
 
-    with pytest.raises(NodeManV3CapabilityBlocked, match="no config template"):
+    with pytest.raises(NodeManV3PayloadError, match="no config template"):
         CollectDeployPolicyPayloadBuilder._build_specs(collect_config, _target(), steps)
 
 
@@ -261,11 +274,11 @@ def test_gateway_recovers_existing_policy_by_exact_stable_name_and_updates_it(mo
     assert persisted == [(target, 301)]
 
 
-def test_gateway_blocks_target_update_until_existing_config_refresh_is_supported():
+def test_gateway_marks_monitor_side_update_adapter_as_pending():
     client = FakeDeployPolicyClient()
     gateway = NodeManV3DeployPolicyGateway(client=client)
 
-    with pytest.raises(NodeManV3CapabilityBlocked, match="cannot refresh existing template config"):
+    with pytest.raises(NodeManV3AdapterPending, match="update protocol is not wired"):
         gateway.update_target(
             _target(deploy_policy_id=301),
             context=NodeManV3RequestContext(bk_tenant_id="tenant-a", bk_biz_id=2),

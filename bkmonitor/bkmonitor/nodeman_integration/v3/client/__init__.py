@@ -10,6 +10,7 @@ from django.core.exceptions import ImproperlyConfigured
 from bkmonitor.utils.user import get_admin_username
 
 from ..audit import NodeManV3AuditEvent, record_outbound_audit
+from ..exceptions import NodeManV3ResultState
 
 
 class NodeManV3ClientError(Exception):
@@ -22,6 +23,8 @@ class NodeManV3TransportError(NodeManV3ClientError):
 
 class NodeManV3UnknownResultError(NodeManV3TransportError):
     """A write may have been accepted, but no conclusive result was returned."""
+
+    result_state = NodeManV3ResultState.WRITE_RESULT_UNKNOWN
 
 
 class NodeManV3APIError(NodeManV3ClientError):
@@ -136,7 +139,13 @@ class NodeManV3HTTPClient:
         code = response_data.get("code", 0)
         if response_data.get("result") is False or code not in (0, None):
             message = response_data.get("message") or response_data.get("errors") or "unknown error"
-            self._audit(normalized_action, context, outcome="failed", error_code=code, request_id=request_id)
+            outcome = "unknown" if write else "failed"
+            self._audit(normalized_action, context, outcome=outcome, error_code=code, request_id=request_id)
+            if write:
+                raise NodeManV3UnknownResultError(
+                    f"NodeMan V3 write returned API error {code} for {normalized_action}: {message}; "
+                    f"request_id={request_id or 'unknown'}"
+                )
             raise NodeManV3APIError(code=code, message=message, request_id=request_id)
 
         self._audit(normalized_action, context, outcome="success", request_id=request_id)

@@ -4,9 +4,9 @@ from django.db import transaction
 from django.db.models import F
 from django.utils import timezone
 
+from bkmonitor.nodeman_integration.v3.exceptions import NodeManV3DefiniteFailure
 from monitor_web.collecting.deploy.nodeman_v3.orchestrator import NodeManV3Orchestrator
 from monitor_web.collecting.deploy.nodeman_v3.targets import CMDBCollectTargetResolver
-from monitor_web.collecting.deploy.nodeman_v3.validation import NodeManV3CapabilityBlocked
 from monitor_web.models import CollectConfigMeta
 from monitor_web.models.node_man import (
     CollectDeploymentTarget,
@@ -324,7 +324,7 @@ class NodeManV3TargetExecutor:
                 prepared_operation=prepared.operation,
                 prepared_workflows=prepared.workflows,
             )
-        except NodeManV3CapabilityBlocked as error:
+        except NodeManV3DefiniteFailure as error:
             self.coordinator.mark_definite_failure(prepared, error)
             raise
         except Exception as error:

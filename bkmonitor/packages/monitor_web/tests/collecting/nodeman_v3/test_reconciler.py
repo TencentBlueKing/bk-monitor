@@ -2,6 +2,7 @@ from types import SimpleNamespace
 
 import pytest
 
+from bkmonitor.nodeman_integration.v3.exceptions import NodeManV3AdapterPending
 from constants.cmdb import TargetNodeType, TargetObjectType
 from monitor_web.collecting.deploy.nodeman_v3.reconciler import (
     CollectTargetReconciler,
@@ -336,6 +337,7 @@ def test_concurrent_reconcile_lease_conflict_defers_without_marking_target_error
     ("error", "expected_method"),
     [
         (NodeManV3CapabilityBlocked("missing contract"), "definite"),
+        (NodeManV3AdapterPending("monitor adapter pending"), "definite"),
         (RuntimeError("write outcome is not classified"), "unknown"),
     ],
 )

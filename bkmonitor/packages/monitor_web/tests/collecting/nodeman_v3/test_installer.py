@@ -4,9 +4,9 @@ from types import SimpleNamespace
 import pytest
 from django.test import override_settings
 
+from bkmonitor.nodeman_integration.v3.exceptions import NodeManV3AdapterPending
 from monitor_web.collecting.deploy.nodeman_v3.installer import NodeManV3Installer
 from monitor_web.collecting.deploy.nodeman_v3.orchestrator import NodeManV3Orchestrator
-from monitor_web.collecting.deploy.nodeman_v3.validation import NodeManV3CapabilityBlocked
 
 
 class FakeGateway:
@@ -50,9 +50,9 @@ def test_stop_and_delete_remain_explicit_protocol_blockers():
     orchestrator = NodeManV3Orchestrator(gateway=gateway)
     target = _target("mysql0", "", "")
 
-    with pytest.raises(NodeManV3CapabilityBlocked, match="stop semantics"):
+    with pytest.raises(NodeManV3AdapterPending, match="stop semantics"):
         orchestrator.stop_targets([target])
-    with pytest.raises(NodeManV3CapabilityBlocked, match="delete semantics"):
+    with pytest.raises(NodeManV3AdapterPending, match="delete semantics"):
         orchestrator.uninstall_targets([target])
 
     assert gateway.calls == []
@@ -124,7 +124,7 @@ def test_installer_blocks_edit_before_creating_or_activating_a_version(monkeypat
         lambda **kwargs: pytest.fail("edit must be blocked before creating a deployment version"),
     )
 
-    with pytest.raises(NodeManV3CapabilityBlocked, match="deploy-policy edit is blocked"):
+    with pytest.raises(NodeManV3AdapterPending, match="edit protocol is available"):
         installer.install({}, "EDIT")
 
 
@@ -142,9 +142,9 @@ def test_installer_blocks_upgrade_and_rollback_before_mutating_desired_version(m
         lambda **kwargs: pytest.fail("unsupported lifecycle must not create a deployment version"),
     )
 
-    with pytest.raises(NodeManV3CapabilityBlocked, match="deploy-policy upgrade is blocked"):
+    with pytest.raises(NodeManV3AdapterPending, match="upgrade protocol is available"):
         installer.upgrade({})
-    with pytest.raises(NodeManV3CapabilityBlocked, match="deploy-policy rollback is blocked"):
+    with pytest.raises(NodeManV3AdapterPending, match="rollback is not wired"):
         installer.rollback()
 
 

@@ -12,6 +12,7 @@ from monitor_web.models.node_man import (
     NodeManIntegrationBinding,
     NodeManOperationStatus,
     NodeManResourceType,
+    NodeManV3ResultState,
     StaleNodeManGenerationError,
     build_nodeman_resource_key,
 )
@@ -84,6 +85,12 @@ def test_operation_status_transition_contract():
 
     with pytest.raises(ValidationError, match="cannot transition"):
         operation.transition_to(NodeManOperationStatus.RUNNING, save=False)
+
+
+def test_operation_and_workflow_result_markers_are_explicit_and_blank_by_default():
+    assert NodeManV3ResultState.values == ["unsupported", "write_result_unknown"]
+    assert MonitorNodeManOperation._meta.get_field("result_state").default == ""
+    assert MonitorNodeManWorkflow._meta.get_field("result_state").default == ""
 
 
 def test_collect_target_requires_collect_config_binding():
