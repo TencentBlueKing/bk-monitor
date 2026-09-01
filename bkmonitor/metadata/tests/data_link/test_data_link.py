@@ -6556,6 +6556,232 @@ def _prepare_bk_exporter_datalink(bk_biz_id: int = 1001):
 
 
 @pytest.mark.django_db(databases="__all__")
+@pytest.mark.parametrize(
+    ("cmdb_levels", "expected_transform_options"),
+    [
+        ([], {}),
+        (
+            ["bk_set_id"],
+            {
+                "exporter_cmdb": True,
+                "exporter_cmdb_rt": "2_bkm_1001_bkmonitor_time_series_50011_cmdb",
+            },
+        ),
+    ],
+)
+def test_bk_exporter_cmdb_transform_options(
+    create_or_delete_records,
+    mocker,
+    settings,
+    cmdb_levels,
+    expected_transform_options,
+):
+    """非空 cmdb_level_config 为 bk_exporter 开启 CMDB 输出，空列表保持旧配置。"""
+    settings.ENABLE_MULTI_TENANT_MODE = False
+    datalink, ds, rt = _prepare_bk_exporter_datalink()
+    models.ResultTableOption.create_option(
+        table_id=rt.table_id,
+        name=models.ResultTableOption.OPTION_CMDB_LEVEL_CONFIG,
+        value=cmdb_levels,
+        creator="pytest",
+        bk_tenant_id=rt.bk_tenant_id,
+    )
+    mocker.patch("bkmonitor.utils.tenant.get_tenant_default_biz_id", return_value=2)
+
+    configs = datalink.compose_configs(
+        bk_biz_id=1001,
+        data_source=ds,
+        table_id=rt.table_id,
+        storage_cluster_name="vm-plat",
+    )
+
+    transform = _get_databus_config_payload(configs)["spec"]["transforms"][0]
+    assert {key: transform[key] for key in expected_transform_options} == expected_transform_options
+    if not expected_transform_options:
+        assert "exporter_cmdb" not in transform
+        assert "exporter_cmdb_rt" not in transform
+    expected_result_table_config_count = 2 if cmdb_levels else 1
+    assert (
+        ResultTableConfig.objects.filter(data_link_name=datalink.data_link_name).count()
+        == expected_result_table_config_count
+    )
+    cmdb_result_table_configs = [
+        config
+        for config in configs
+        if config["kind"] == DataLinkKind.RESULTTABLE.value and config["metadata"]["name"].endswith("_cmdb")
+    ]
+    assert len(cmdb_result_table_configs) == int(bool(cmdb_levels))
+    assert VMStorageBindingConfig.objects.filter(data_link_name=datalink.data_link_name).count() == 1
+    assert not models.ResultTable.objects.filter(table_id=f"{rt.table_id}_cmdb").exists()
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_bk_exporter_cmdb_transform_uses_persisted_bkbase_table_id(
+    create_or_delete_records,
+    bk_exporter_reuse_enabled,
+    mocker,
+    settings,
+):
+    """组件复用时优先使用已回填的 BKBase 结果表 ID。"""
+    settings.ENABLE_MULTI_TENANT_MODE = False
+    datalink, ds, rt = _prepare_bk_exporter_datalink()
+    models.ResultTableOption.create_option(
+        table_id=rt.table_id,
+        name=models.ResultTableOption.OPTION_CMDB_LEVEL_CONFIG,
+        value=["bk_module_id"],
+        creator="pytest",
+        bk_tenant_id=rt.bk_tenant_id,
+    )
+    ResultTableConfig.objects.create(
+        name="legacy_rt",
+        namespace=datalink.namespace,
+        bk_tenant_id=datalink.bk_tenant_id,
+        data_link_name=datalink.data_link_name,
+        bk_biz_id=1001,
+        table_id=rt.table_id,
+        bkbase_table_id="2_legacy_rt",
+    )
+    ResultTableConfig.objects.create(
+        name="legacy_rt_cmdb",
+        namespace=datalink.namespace,
+        bk_tenant_id=datalink.bk_tenant_id,
+        data_link_name=datalink.data_link_name,
+        bk_biz_id=1001,
+        table_id=f"{rt.table_id}_cmdb",
+        bkbase_table_id="9527_legacy_rt_cmdb",
+    )
+    mocker.patch("bkmonitor.utils.tenant.get_tenant_default_biz_id", return_value=2)
+
+    configs = datalink.compose_configs(
+        bk_biz_id=1001,
+        data_source=ds,
+        table_id=rt.table_id,
+        storage_cluster_name="vm-plat",
+        existing_context=ExistingComponentContext.from_datalink(datalink),
+    )
+
+    transform = _get_databus_config_payload(configs)["spec"]["transforms"][0]
+    assert transform["exporter_cmdb"] is True
+    assert transform["exporter_cmdb_rt"] == "9527_legacy_rt_cmdb"
+    assert not models.ResultTable.objects.filter(table_id=f"{rt.table_id}_cmdb").exists()
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_bk_exporter_keeps_existing_cmdb_result_table_config_when_disabled(
+    create_or_delete_records,
+    bk_exporter_reuse_enabled,
+    mocker,
+    settings,
+):
+    """关闭 CMDB 输出后保留已存在的 ResultTableConfig 定义，但移除 transformer 开关。"""
+    settings.ENABLE_MULTI_TENANT_MODE = False
+    datalink, ds, rt = _prepare_bk_exporter_datalink()
+    cmdb_option = models.ResultTableOption.create_option(
+        table_id=rt.table_id,
+        name=models.ResultTableOption.OPTION_CMDB_LEVEL_CONFIG,
+        value=["bk_set_id"],
+        creator="pytest",
+        bk_tenant_id=rt.bk_tenant_id,
+    )
+    mocker.patch("bkmonitor.utils.tenant.get_tenant_default_biz_id", return_value=2)
+    compose_kwargs = {
+        "bk_biz_id": 1001,
+        "data_source": ds,
+        "table_id": rt.table_id,
+        "storage_cluster_name": "vm-plat",
+    }
+
+    datalink.compose_configs(**compose_kwargs)
+    cmdb_option.delete()
+    existing_context = ExistingComponentContext.from_datalink(datalink)
+    configs = datalink.compose_configs(existing_context=existing_context, **compose_kwargs)
+
+    result_table_names = {
+        config["metadata"]["name"] for config in configs if config["kind"] == DataLinkKind.RESULTTABLE.value
+    }
+    assert result_table_names == {
+        "bkm_1001_bkmonitor_time_series_50011",
+        "bkm_1001_bkmonitor_time_series_50011_cmdb",
+    }
+    transform = _get_databus_config_payload(configs)["spec"]["transforms"][0]
+    assert "exporter_cmdb" not in transform
+    assert "exporter_cmdb_rt" not in transform
+    assert existing_context.leftover() == {}
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_bk_standard_ignores_cmdb_transform_options(create_or_delete_records, mocker, settings):
+    """cmdb_level_config 不改变 bk_standard 的 transformer 配置。"""
+    settings.ENABLE_MULTI_TENANT_MODE = False
+    ds = models.DataSource.objects.get(bk_data_id=50012)
+    rt = models.ResultTable.objects.get(table_id="1001_bkmonitor_time_series_50012.__default__")
+    datalink = DataLink.objects.create(
+        data_link_name=utils.compose_bkdata_data_id_name(ds.data_name, DataLink.BK_STANDARD_TIME_SERIES),
+        namespace="bkmonitor",
+        bk_tenant_id="system",
+        data_link_strategy=DataLink.BK_STANDARD_TIME_SERIES,
+    )
+    models.ResultTableOption.create_option(
+        table_id=rt.table_id,
+        name=models.ResultTableOption.OPTION_CMDB_LEVEL_CONFIG,
+        value=["bk_set_id"],
+        creator="pytest",
+        bk_tenant_id=rt.bk_tenant_id,
+    )
+    mocker.patch("bkmonitor.utils.tenant.get_tenant_default_biz_id", return_value=2)
+
+    configs = datalink.compose_configs(
+        bk_biz_id=1001,
+        data_source=ds,
+        table_id=rt.table_id,
+        storage_cluster_name="vm-plat",
+    )
+
+    transform = _get_databus_config_payload(configs)["spec"]["transforms"][0]
+    assert "exporter_cmdb" not in transform
+    assert "exporter_cmdb_rt" not in transform
+    assert ResultTableConfig.objects.filter(data_link_name=datalink.data_link_name).count() == 1
+
+
+@pytest.mark.django_db(databases="__all__")
+@pytest.mark.parametrize(
+    ("existing_cmdb_levels", "new_option"),
+    [
+        (None, {models.ResultTableOption.OPTION_CMDB_LEVEL_CONFIG: ["bk_set_id"]}),
+        (["bk_set_id"], {models.ResultTableOption.OPTION_CMDB_LEVEL_CONFIG: []}),
+        (["bk_set_id"], {}),
+    ],
+)
+def test_modify_bk_exporter_cmdb_level_option_forces_datalink_update(
+    create_or_delete_records,
+    mocker,
+    existing_cmdb_levels,
+    new_option,
+):
+    """bk_exporter 新增、清空或删除 cmdb_level_config 都必须强制更新链路。"""
+    ds = models.DataSource.objects.get(bk_data_id=50011)
+    rt = models.ResultTable.objects.get(table_id="1001_bkmonitor_time_series_50011.__default__")
+    if existing_cmdb_levels is not None:
+        models.ResultTableOption.create_option(
+            table_id=rt.table_id,
+            name=models.ResultTableOption.OPTION_CMDB_LEVEL_CONFIG,
+            value=existing_cmdb_levels,
+            creator="pytest",
+            bk_tenant_id=rt.bk_tenant_id,
+        )
+
+    mocker.patch.object(models.ResultTable, "get_related_datasource", return_value=ds)
+    mocker.patch.object(models.ResultTable, "_get_storage_cluster_id", return_value=None)
+    mocker.patch.object(models.ResultTable, "_delete_storage_configs")
+    mocker.patch("metadata.models.space.utils.get_space_by_table_id", return_value={})
+    apply_datalink = mocker.patch.object(models.ResultTable, "apply_datalink")
+
+    rt.modify(operator="pytest", option=new_option)
+
+    apply_datalink.assert_called_once_with(force_update=True)
+
+
+@pytest.mark.django_db(databases="__all__")
 def test_bk_exporter_reuse_three_legacy_components(create_or_delete_records, bk_exporter_reuse_enabled, mocker):
     """三个 legacy 组件唯一存在时，即使缺少 table_id / data_id 也应复用 name。"""
     datalink, ds, rt = _prepare_bk_exporter_datalink()
