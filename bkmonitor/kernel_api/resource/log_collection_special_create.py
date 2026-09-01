@@ -1,4 +1,4 @@
-"""日志采集相关的自定义上报和第三方 ES 创建资源。"""
+"""日志采集相关的自定义上报、第三方 ES 和 bkdata 创建资源。"""
 
 from collections.abc import Mapping
 
@@ -19,6 +19,11 @@ class StrictCreateSerializer(serializers.Serializer):
                     {field: ["This field is not supported by this MCP create API."] for field in sorted(unknown_fields)}
                 )
         return super().to_internal_value(data)
+
+
+def fill_index_business_ids(indexes: list[dict], bk_biz_id: int) -> list[dict]:
+    """补齐下游索引集创建逻辑必需的索引业务字段。"""
+    return [{**index, "bk_biz_id": index["bk_biz_id"] if "bk_biz_id" in index else bk_biz_id} for index in indexes]
 
 
 class CreateCustomReportResource(Resource):
@@ -83,7 +88,9 @@ class CreateCustomReportResource(Resource):
 
 class ThirdPartyESIndexSerializer(serializers.Serializer):
     result_table_id = serializers.CharField(required=True, max_length=255, label="第三方索引名")
-    bk_biz_id = serializers.IntegerField(required=False, allow_null=True, default=None, label="索引所属业务ID")
+    bk_biz_id = serializers.IntegerField(
+        required=False, min_value=1, allow_null=True, default=None, label="索引所属业务ID"
+    )
     time_field = serializers.CharField(required=False, allow_blank=False, label="时间字段")
     time_field_type = serializers.ChoiceField(required=False, choices=["date", "long"], label="时间字段类型")
     time_field_unit = serializers.ChoiceField(
@@ -133,9 +140,11 @@ class CreateThirdPartyESResource(Resource):
     def perform_request(self, validated_request_data):
         request_data = dict(validated_request_data)
         request_data.pop("confirm")
+        bk_biz_id = request_data.pop("bk_biz_id")
+        request_data["indexes"] = fill_index_business_ids(request_data["indexes"], bk_biz_id)
         request_data.update(
             {
-                "space_uid": bk_biz_id_to_space_uid(request_data.pop("bk_biz_id")),
+                "space_uid": bk_biz_id_to_space_uid(bk_biz_id),
                 "scenario_id": "es",
                 "enforce_permission": True,
             }
@@ -147,5 +156,69 @@ class CreateThirdPartyESResource(Resource):
             "scenario_id": result.get("scenario_id") or "es",
             "space_uid": result.get("space_uid") or request_data["space_uid"],
             "storage_cluster_id": result.get("storage_cluster_id") or validated_request_data["storage_cluster_id"],
+            "parent_index_set_ids": request_data.get("parent_index_set_ids"),
+        }
+
+
+class BkDataIndexSerializer(serializers.Serializer):
+    result_table_id = serializers.CharField(required=True, max_length=255, label="数据平台结果表名")
+    bk_biz_id = serializers.IntegerField(required=False, min_value=1, allow_null=True, label="索引所属业务ID")
+
+
+class CreateBkDataResource(Resource):
+    """创建数据平台 bkdata 索引集，并可将其加入指定索引组。"""
+
+    class RequestSerializer(StrictCreateSerializer):
+        bk_biz_id = serializers.IntegerField(required=True, min_value=1, label="业务ID")
+        index_set_name = serializers.CharField(required=True, max_length=64, label="索引集名称")
+        indexes = BkDataIndexSerializer(many=True, required=True, allow_empty=False, label="数据平台结果表列表")
+        category_id = serializers.CharField(required=False, max_length=64, label="分类ID")
+        target_fields = serializers.ListField(required=False, default=list, label="定位字段")
+        sort_fields = serializers.ListField(required=False, default=list, label="排序字段")
+        parent_index_set_ids = serializers.ListField(
+            child=serializers.IntegerField(min_value=1),
+            required=False,
+            allow_null=True,
+            label="归属索引组ID列表",
+        )
+        confirm = serializers.BooleanField(required=True, label="确认执行创建")
+
+        def validate_confirm(self, value: bool) -> bool:
+            if not value:
+                raise serializers.ValidationError("写操作必须由用户确认，请设置 confirm=true")
+            return value
+
+        def validate(self, attrs):
+            bk_biz_id = attrs["bk_biz_id"]
+            invalid_biz_ids = {
+                index["bk_biz_id"]
+                for index in attrs["indexes"]
+                if index.get("bk_biz_id") is not None and index["bk_biz_id"] != bk_biz_id
+            }
+            if invalid_biz_ids:
+                raise serializers.ValidationError(
+                    {"indexes": f"bkdata 索引所属业务必须与 bk_biz_id={bk_biz_id} 一致。"}
+                )
+            return attrs
+
+    def perform_request(self, validated_request_data):
+        request_data = dict(validated_request_data)
+        request_data.pop("confirm")
+        bk_biz_id = request_data.pop("bk_biz_id")
+        request_data["indexes"] = fill_index_business_ids(request_data["indexes"], bk_biz_id)
+        request_data.update(
+            {
+                "space_uid": bk_biz_id_to_space_uid(bk_biz_id),
+                "scenario_id": "bkdata",
+                "enforce_permission": True,
+            }
+        )
+        result = api.log_search.create_index_set(**request_data) or {}
+        return {
+            "index_set_id": result.get("index_set_id"),
+            "index_set_name": result.get("index_set_name") or validated_request_data["index_set_name"],
+            "scenario_id": result.get("scenario_id") or "bkdata",
+            "space_uid": result.get("space_uid") or request_data["space_uid"],
+            "storage_cluster_id": result.get("storage_cluster_id"),
             "parent_index_set_ids": request_data.get("parent_index_set_ids"),
         }

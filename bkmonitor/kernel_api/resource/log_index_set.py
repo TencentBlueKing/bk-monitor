@@ -17,6 +17,15 @@ def normalize_index_group(index_group: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def extract_index_set_list(result: Any) -> list[dict[str, Any]]:
+    """兼容 APIResource 已解包和保留 data 包装的两种返回结构。"""
+    if isinstance(result, dict):
+        result = result.get("list") or result.get("data") or []
+    if isinstance(result, dict):
+        result = result.get("list") or result.get("data") or []
+    return [item for item in result if isinstance(item, dict)] if isinstance(result, list) else []
+
+
 class ListLogIndexSetGroupsResource(Resource):
     """查询当前业务可用的索引组列表。"""
 
@@ -28,7 +37,5 @@ class ListLogIndexSetGroupsResource(Resource):
             bk_biz_id=validated_request_data["bk_biz_id"],
             is_group=True,
         )
-        if isinstance(result, dict):
-            result = result.get("list") or result.get("data") or []
-        groups = [item for item in (result or []) if isinstance(item, dict) and item.get("is_group")]
+        groups = [item for item in extract_index_set_list(result) if item.get("is_group")]
         return {"groups": [normalize_index_group(group) for group in groups]}

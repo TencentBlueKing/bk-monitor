@@ -89,71 +89,78 @@ def test_normalize_index_set_preserves_unknown_searchability():
     assert normalize_index_set({"index_set_id": 301, "is_search": False})["is_searchable"] is False
 
 
-def test_list_collectors_uses_paged_api_and_normalizes_response(monkeypatch):
+def test_list_collectors_filters_mixed_response_by_enabled_and_normalizes_response(monkeypatch):
     api_resource = Mock(
-        return_value={
-            "total": 21,
-            "list": [
-                {
-                    "collector_config_id": 101,
-                    "collector_config_name": "linux-app",
-                    "bk_biz_id": 7,
-                    "environment": None,
-                    "collector_scenario_id": "row",
-                    "collector_scenario_name": "行日志文件",
-                    "is_active": True,
-                    "bk_data_id": 1500101,
-                    "subscription_id": 201,
-                    "index_set_id": 301,
-                    "table_id_prefix": "7_bklog_",
-                    "table_id": "linux_app",
-                    "is_search": True,
-                    "bkdata_index_set_ids": [401],
-                    "created_at": "2026-08-10 10:00:00",
-                    "updated_at": "2026-08-11 10:00:00",
-                },
-                {
-                    "collector_config_id": 102,
-                    "collector_config_name": "windows-event",
-                    "bk_biz_id": 7,
-                    "collector_scenario_id": "wineventlog",
-                    "collector_scenario_name": "win event日志",
-                    "is_active": False,
-                    "index_set_id": None,
-                },
-                {
-                    "collector_config_id": 103,
-                    "collector_config_name": "container-stdout",
-                    "bk_biz_id": 7,
-                    "environment": "container",
-                    "bcs_cluster_id": "BCS-K8S-00000",
-                    "collector_scenario_id": "row",
-                    "collector_scenario_name": "行日志文件",
-                    "is_active": True,
-                },
-            ],
-        }
+        side_effect=[
+            {
+                "total": 3,
+                "list": [
+                    {
+                        "collector_config_id": 101,
+                        "collector_config_name": "linux-app",
+                        "bk_biz_id": 7,
+                        "environment": None,
+                        "collector_scenario_id": "row",
+                        "collector_scenario_name": "行日志文件",
+                        "is_active": True,
+                        "bk_data_id": 1500101,
+                        "subscription_id": 201,
+                        "index_set_id": 301,
+                        "table_id_prefix": "7_bklog_",
+                        "table_id": "linux_app",
+                        "is_search": True,
+                        "bkdata_index_set_ids": [401],
+                        "created_at": "2026-08-10 10:00:00",
+                        "updated_at": "2026-08-11 10:00:00",
+                    },
+                    {
+                        "collector_config_id": 102,
+                        "collector_config_name": "windows-event",
+                        "bk_biz_id": 7,
+                        "collector_scenario_id": "wineventlog",
+                        "collector_scenario_name": "win event日志",
+                        "is_active": False,
+                        "index_set_id": None,
+                    },
+                ],
+            },
+            {
+                "total": 3,
+                "list": [
+                    {
+                        "collector_config_id": 103,
+                        "collector_config_name": "container-stdout",
+                        "bk_biz_id": 7,
+                        "environment": "container",
+                        "bcs_cluster_id": "BCS-K8S-00000",
+                        "collector_scenario_id": "row",
+                        "collector_scenario_name": "行日志文件",
+                        "is_active": True,
+                    }
+                ],
+            },
+        ]
     )
-    monkeypatch.setattr(api.log_search, "paged_collector_configs", api_resource)
+    monkeypatch.setattr(api.log_search, "log_access_collector", api_resource)
     serializer = ListLogCollectorsResource.RequestSerializer(
         data={
             "bk_biz_id": 7,
-            "page": 2,
+            "page": 1,
             "page_size": 10,
             "keyword": "app",
             "collector_scenario_id": "row",
-            "enabled": False,
+            "enabled": True,
         }
     )
 
     assert serializer.is_valid(), serializer.errors
     result = ListLogCollectorsResource().perform_request(serializer.validated_data)
 
-    assert result["page"] == 2
+    assert result["page"] == 1
     assert result["page_size"] == 10
-    assert result["total"] == 21
-    assert result["total_pages"] == 3
-    assert [item["environment"] for item in result["items"]] == ["linux", "windows", "container"]
+    assert result["total"] == 2
+    assert result["total_pages"] == 1
+    assert [item["environment"] for item in result["items"]] == ["linux", "container"]
     assert result["items"][0]["status"] == "enabled"
     assert result["items"][0]["index_set"] == {
         "index_set_id": 301,
@@ -162,16 +169,60 @@ def test_list_collectors_uses_paged_api_and_normalizes_response(monkeypatch):
         "is_searchable": True,
         "bkdata_index_set_ids": [401],
     }
-    assert result["items"][1]["status"] == "disabled"
+    assert api_resource.call_args_list == [
+        (
+            (),
+            {
+                "space_uid": "bkcc__7",
+                "page": 1,
+                "pagesize": 1000,
+                "keyword": "app",
+                "ordering": "-updated_at",
+                "conditions": [{"key": "collector_scenario_id", "value": ["row"]}],
+                "enforce_permission": True,
+            },
+        ),
+        (
+            (),
+            {
+                "space_uid": "bkcc__7",
+                "page": 2,
+                "pagesize": 1000,
+                "keyword": "app",
+                "ordering": "-updated_at",
+                "conditions": [{"key": "collector_scenario_id", "value": ["row"]}],
+                "enforce_permission": True,
+            },
+        ),
+    ]
+
+
+def test_list_collectors_enabled_filter_includes_bkdata(monkeypatch):
+    api_resource = Mock(
+        return_value={
+            "total": 2,
+            "list": [
+                {"index_set_id": 401, "scenario_id": "bkdata", "is_active": True, "log_access_type": "bkdata"},
+                {"index_set_id": 402, "scenario_id": "bkdata", "is_active": False, "log_access_type": "bkdata"},
+            ],
+        }
+    )
+    monkeypatch.setattr(api.log_search, "log_access_collector", api_resource)
+
+    result = ListLogCollectorsResource().perform_request(
+        {"bk_biz_id": 7, "page": 1, "page_size": 20, "enabled": True, "log_access_type": ["bkdata"]}
+    )
+
+    assert result["total"] == 1
+    assert result["items"][0]["index_set"]["index_set_id"] == 401
+    assert result["items"][0]["log_access_type"] == "bkdata"
     api_resource.assert_called_once_with(
-        bk_biz_id=7,
-        page=2,
-        pagesize=10,
-        keyword="app",
-        ordering="-updated_at,-collector_config_id",
+        space_uid="bkcc__7",
+        page=1,
+        pagesize=1000,
+        keyword="",
+        conditions=[{"key": "log_access_type", "value": ["bkdata"]}],
         enforce_permission=True,
-        collector_scenario_id="row",
-        is_active=False,
     )
 
 
@@ -220,6 +271,42 @@ def test_list_collectors_uses_mixed_log_access_api_for_es_and_custom_report(monk
         keyword="",
         ordering="-updated_at",
         conditions=[{"key": "log_access_type", "value": ["es", "custom_report"]}],
+        enforce_permission=True,
+    )
+
+
+def test_list_collectors_supports_bkdata_index_sets(monkeypatch):
+    api_resource = Mock(
+        return_value={
+            "total": 1,
+            "list": [
+                {
+                    "index_set_id": 401,
+                    "index_set_name": "bkdata-result-table",
+                    "scenario_id": "bkdata",
+                    "is_active": True,
+                    "log_access_type": "bkdata",
+                }
+            ],
+        }
+    )
+    monkeypatch.setattr(api.log_search, "log_access_collector", api_resource)
+
+    serializer = ListLogCollectorsResource.RequestSerializer(data={"bk_biz_id": 7, "log_access_type": ["bkdata"]})
+    assert serializer.is_valid(), serializer.errors
+
+    result = ListLogCollectorsResource().perform_request(serializer.validated_data)
+
+    assert result["total"] == 1
+    assert result["items"][0]["log_access_type"] == "bkdata"
+    assert result["items"][0]["index_set"]["index_set_id"] == 401
+    api_resource.assert_called_once_with(
+        space_uid="bkcc__7",
+        page=1,
+        pagesize=20,
+        keyword="",
+        ordering="-updated_at",
+        conditions=[{"key": "log_access_type", "value": ["bkdata"]}],
         enforce_permission=True,
     )
 

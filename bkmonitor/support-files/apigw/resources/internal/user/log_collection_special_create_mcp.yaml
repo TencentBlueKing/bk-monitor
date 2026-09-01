@@ -113,6 +113,95 @@ paths:
           appVerifiedRequired: false
           resourcePermissionRequired: true
 
+  /mcp/create_bkdata_index_set/:
+    post:
+      operationId: create_bkdata_index_set
+      description: >-
+        Create a bkdata index set from existing BkBase result tables. Requires confirm=true and at least one
+        result table. The business ID is used as the index-set space and each result table must belong to that
+        business. parent_index_set_ids may attach the index set to existing index groups. 基于已有数据平台结果表创建
+        bkdata 索引集，必须确认 confirm=true 并至少提供一个结果表；结果表所属业务必须与 bk_biz_id 一致。
+      tags:
+      - log_collection_mcp
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - bk_biz_id
+              - index_set_name
+              - indexes
+              - confirm
+              properties:
+                bk_biz_id:
+                  type: integer
+                  minimum: 1
+                  description: Business ID. 业务ID。
+                index_set_name:
+                  type: string
+                  maxLength: 64
+                  description: Index set name. 索引集名称。
+                indexes:
+                  type: array
+                  minItems: 1
+                  description: BkBase result tables. 数据平台结果表列表。
+                  items:
+                    type: object
+                    additionalProperties: false
+                    required: [result_table_id]
+                    properties:
+                      result_table_id:
+                        type: string
+                        maxLength: 255
+                        description: BkBase result table ID. 数据平台结果表名。
+                      bk_biz_id:
+                        type: integer
+                        minimum: 1
+                        nullable: true
+                        description: Optional result-table business ID; defaults to the outer bk_biz_id. 可选，默认使用外层业务ID。
+                category_id:
+                  type: string
+                  maxLength: 64
+                  description: Data category. 数据分类。
+                target_fields:
+                  type: array
+                  items: {}
+                  description: Target fields. 定位字段。
+                sort_fields:
+                  type: array
+                  items: {}
+                  description: Sort fields. 排序字段。
+                parent_index_set_ids:
+                  type: array
+                  nullable: true
+                  items:
+                    type: integer
+                    minimum: 1
+                  description: Parent index group IDs. 归属索引组ID列表。
+                confirm:
+                  type: boolean
+                  enum: [true]
+                  description: Must be true for this write. 写操作必须为 true。
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        enableWebsocket: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/log_collection_create/create_bkdata_index_set/
+          matchSubpath: false
+          timeout: 30
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: false
+          resourcePermissionRequired: true
+
   /mcp/create_third_party_es/:
     post:
       operationId: create_third_party_es
@@ -156,8 +245,10 @@ paths:
                     properties:
                       result_table_id:
                         type: string
+                        maxLength: 255
                       bk_biz_id:
                         type: integer
+                        minimum: 1
                         nullable: true
                       time_field:
                         type: string

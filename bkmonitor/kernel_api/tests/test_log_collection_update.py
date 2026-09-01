@@ -8,7 +8,7 @@ from rest_framework.exceptions import PermissionDenied, ValidationError
 from bkmonitor.iam import ActionEnum
 from kernel_api.resource import log_collection_update as update_module
 from kernel_api.resource.log_collection_update import FastUpdateLogCollectorResource
-from kernel_api.views.v4.log_collection_update import LogCollectionUpdateViewSet
+from kernel_api.views.v4.log_collection_update import CanonicalBusinessActionPermission, LogCollectionUpdateViewSet
 
 
 @pytest.mark.parametrize("field", ["environment", "etl_config", "fields", "storage_cluster_id"])
@@ -70,10 +70,20 @@ def test_serializer_rejects_unknown_nested_fields(payload, error_field):
     assert error_field in serializer.errors
 
 
-def test_update_view_requires_manage_collection_permission():
+def test_update_view_requires_log_collection_mcp_permission():
     permissions = LogCollectionUpdateViewSet().get_permissions()
     assert len(permissions) == 1
-    assert permissions[0].actions == [ActionEnum.MANAGE_COLLECTION]
+    assert permissions[0].actions == [ActionEnum.USING_LOG_COLLECTION_MCP]
+
+
+def test_update_permission_rejects_conflicting_business_alias():
+    permission = CanonicalBusinessActionPermission([ActionEnum.USING_LOG_COLLECTION_MCP])
+    request = SimpleNamespace(
+        data={"bk_biz_id": "2", "biz_id": "3"},
+        biz_id="3",
+    )
+
+    assert permission.has_permission(request, None) is False
 
 
 def test_host_update_injects_clean_switch_and_returns_tasks(monkeypatch):

@@ -60,9 +60,7 @@ def test_request_serializer_rejects_missing_clean_or_storage_fields(field):
 
 
 def test_request_serializer_requires_explicit_confirmation():
-    serializer = UpdateLogCollectorCleanConfigResource.RequestSerializer(
-        data=build_request_data(confirm=False)
-    )
+    serializer = UpdateLogCollectorCleanConfigResource.RequestSerializer(data=build_request_data(confirm=False))
 
     assert not serializer.is_valid()
     assert "confirm" in serializer.errors
@@ -258,15 +256,15 @@ def test_update_clean_config_requires_resolved_request_user(monkeypatch):
     get_collector.assert_not_called()
 
 
-def test_clean_config_view_requires_manage_collection_permission():
+def test_clean_config_view_requires_log_collection_mcp_permission():
     permissions = LogCollectionCleanConfigViewSet().get_permissions()
 
     assert len(permissions) == 1
-    assert permissions[0].actions == [ActionEnum.MANAGE_COLLECTION]
+    assert permissions[0].actions == [ActionEnum.USING_LOG_COLLECTION_MCP]
 
 
 def test_clean_config_permission_rejects_conflicting_business_context():
-    permission = CanonicalBusinessActionPermission([ActionEnum.MANAGE_COLLECTION])
+    permission = CanonicalBusinessActionPermission([ActionEnum.USING_LOG_COLLECTION_MCP])
     request = SimpleNamespace(
         method="POST",
         data={"bk_biz_id": 7},

@@ -26,7 +26,7 @@ class CanonicalBusinessActionPermission(BusinessActionPermission):
 
 class LogCollectionStatusViewSet(ResourceViewSet):
     def get_permissions(self):
-        return [CanonicalBusinessActionPermission([ActionEnum.VIEW_COLLECTION])]
+        return [CanonicalBusinessActionPermission([ActionEnum.USING_LOG_COLLECTION_MCP])]
 
     resource_routes = [
         ResourceRoute("POST", GetLogCollectorStatusResource, endpoint="get_status"),

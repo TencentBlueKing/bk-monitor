@@ -177,6 +177,7 @@ paths:
                         maxLength: 255
                       bk_biz_id:
                         type: integer
+                        minimum: 1
                         nullable: true
                       time_field:
                         type: string

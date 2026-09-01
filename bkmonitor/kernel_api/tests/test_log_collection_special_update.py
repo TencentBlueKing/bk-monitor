@@ -88,5 +88,39 @@ def test_update_third_party_es_forwards_space_and_parent_index_set_ids(monkeypat
     assert result["index_set_id"] == 51
     assert update_index_set.call_args.kwargs["space_uid"] == "bkcc__2"
     assert update_index_set.call_args.kwargs["scenario_id"] == "es"
+    assert update_index_set.call_args.kwargs["indexes"] == [{"result_table_id": "logs-*", "bk_biz_id": 2}]
     assert update_index_set.call_args.kwargs["parent_index_set_ids"] == [11, 12]
     assert update_index_set.call_args.kwargs["enforce_permission"] is True
+
+
+def test_update_third_party_es_keeps_parent_index_set_ids_when_omitted(monkeypatch):
+    update_index_set = Mock(return_value={})
+    get_index_set = Mock(return_value={"parent_index_set_ids": [13]})
+    monkeypatch.setattr(
+        special_update_module,
+        "api",
+        SimpleNamespace(
+            log_search=SimpleNamespace(
+                search_index_set=Mock(return_value={"data": [{"index_set_id": 51, "scenario_id": "es"}]}),
+                get_index_set=get_index_set,
+                update_index_set=update_index_set,
+            )
+        ),
+    )
+    serializer = UpdateThirdPartyESResource.RequestSerializer(
+        data={
+            "bk_biz_id": 2,
+            "index_set_id": 51,
+            "index_set_name": "external-es-updated",
+            "storage_cluster_id": 61,
+            "indexes": [{"result_table_id": "logs-*"}],
+            "time_field": "@timestamp",
+            "confirm": True,
+        }
+    )
+    assert serializer.is_valid(), serializer.errors
+
+    UpdateThirdPartyESResource().perform_request(serializer.validated_data)
+
+    get_index_set.assert_called_once_with(index_set_id=51)
+    assert update_index_set.call_args.kwargs["parent_index_set_ids"] == [13]

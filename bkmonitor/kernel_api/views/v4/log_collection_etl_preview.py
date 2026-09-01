@@ -24,7 +24,7 @@ class EtlPreviewBusinessActionPermission(BusinessActionPermission):
 
 class LogCollectionEtlPreviewViewSet(ResourceViewSet):
     def get_permissions(self):
-        return [EtlPreviewBusinessActionPermission([ActionEnum.VIEW_COLLECTION])]
+        return [EtlPreviewBusinessActionPermission([ActionEnum.USING_LOG_COLLECTION_MCP])]
 
     resource_routes = [
         ResourceRoute("POST", PreviewLogEtlResource, endpoint="preview"),

@@ -235,6 +235,16 @@ class SearchIndexSetResource(LogSearchAPIGWResource):
         is_group = serializers.BooleanField(required=False, default=False, label="是否按索引组展示")
 
 
+class GetIndexSetResource(IndexSetResource):
+    """获取单个索引集详情，包括归属索引组。"""
+
+    action = "/index_set/{index_set_id}/"
+    method = "GET"
+
+    class RequestSerializer(serializers.Serializer):
+        index_set_id = serializers.IntegerField(required=True, min_value=1, label="索引集ID")
+
+
 class ListScenesResource(LogSearchAPIGWResource):
     """场景化日志检索场景列表。"""
 

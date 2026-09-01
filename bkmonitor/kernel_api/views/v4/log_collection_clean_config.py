@@ -26,7 +26,7 @@ class CanonicalBusinessActionPermission(BusinessActionPermission):
 
 class LogCollectionCleanConfigViewSet(ResourceViewSet):
     def get_permissions(self):
-        return [CanonicalBusinessActionPermission([ActionEnum.MANAGE_COLLECTION])]
+        return [CanonicalBusinessActionPermission([ActionEnum.USING_LOG_COLLECTION_MCP])]
 
     resource_routes = [
         ResourceRoute("POST", UpdateLogCollectorCleanConfigResource, endpoint="update_clean_config"),

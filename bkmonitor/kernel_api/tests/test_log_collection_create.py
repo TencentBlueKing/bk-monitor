@@ -193,15 +193,15 @@ def test_windows_requires_winlog_name_and_rejects_linux_paths():
     assert "params.paths" in mixed_paths.errors
 
 
-def test_create_view_requires_manage_collection_permission():
+def test_create_view_requires_log_collection_mcp_permission():
     permissions = LogCollectionCreateViewSet().get_permissions()
 
     assert len(permissions) == 1
-    assert permissions[0].actions == [ActionEnum.MANAGE_COLLECTION]
+    assert permissions[0].actions == [ActionEnum.USING_LOG_COLLECTION_MCP]
 
 
 def test_create_permission_rejects_conflicting_business_alias():
-    permission = CanonicalBusinessActionPermission([ActionEnum.MANAGE_COLLECTION])
+    permission = CanonicalBusinessActionPermission([ActionEnum.USING_LOG_COLLECTION_MCP])
     request = SimpleNamespace(
         data={"bk_biz_id": "2", "biz_id": "3"},
         biz_id="3",

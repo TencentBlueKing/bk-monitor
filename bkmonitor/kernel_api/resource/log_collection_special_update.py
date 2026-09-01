@@ -8,7 +8,7 @@ from rest_framework.exceptions import PermissionDenied, ValidationError
 from bkm_space.utils import bk_biz_id_to_space_uid
 from core.drf_resource import Resource, api
 from kernel_api.resource.log_collection import get_log_access_type
-from kernel_api.resource.log_collection_special_create import ThirdPartyESIndexSerializer
+from kernel_api.resource.log_collection_special_create import ThirdPartyESIndexSerializer, fill_index_business_ids
 
 
 class StrictUpdateSerializer(serializers.Serializer):
@@ -36,7 +36,12 @@ def ensure_custom_report(collector: dict) -> None:
 
 def find_index_set(index_sets, index_set_id: int) -> dict:
     if isinstance(index_sets, Mapping):
-        index_sets = index_sets.get("list") or []
+        response = index_sets
+        index_sets = response.get("list")
+        if index_sets is None:
+            index_sets = response.get("data")
+        if isinstance(index_sets, Mapping):
+            index_sets = index_sets.get("list") or index_sets.get("data") or []
     for index_set in index_sets or []:
         if isinstance(index_set, Mapping) and str(index_set.get("index_set_id")) == str(index_set_id):
             return dict(index_set)
@@ -156,6 +161,20 @@ class UpdateThirdPartyESResource(Resource):
         if get_log_access_type(index_set) != "es":
             raise ValidationError("The index set is not a third-party ES index set.")
 
+        # BKLOG 的通用更新接口在未传该字段时会按空列表处理，避免更新其他字段时误清空索引组归属。
+        if "parent_index_set_ids" not in request_data:
+            index_set_detail = api.log_search.get_index_set(index_set_id=index_set_id)
+            if isinstance(index_set_detail, Mapping) and isinstance(index_set_detail.get("data"), Mapping):
+                index_set_detail = index_set_detail["data"]
+            parent_index_set_ids = (
+                index_set_detail.get("parent_index_set_ids") if isinstance(index_set_detail, Mapping) else None
+            )
+            if parent_index_set_ids is None:
+                parent_index_set_ids = index_set.get("parent_index_set_ids")
+            if parent_index_set_ids is None:
+                raise ValidationError("无法获取索引集当前归属索引组，请显式传入 parent_index_set_ids。")
+            request_data["parent_index_set_ids"] = parent_index_set_ids
+        request_data["indexes"] = fill_index_business_ids(request_data["indexes"], bk_biz_id)
         request_data.update(
             {
                 "space_uid": bk_biz_id_to_space_uid(bk_biz_id),

@@ -5,6 +5,7 @@ from bkmonitor.iam.drf import BusinessActionPermission
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
 from kernel_api.resource.log_collection_create import FastCreateLogCollectorResource
 from kernel_api.resource.log_collection_special_create import (
+    CreateBkDataResource,
     CreateCustomReportResource,
     CreateThirdPartyESResource,
 )
@@ -30,10 +31,11 @@ class CanonicalBusinessActionPermission(BusinessActionPermission):
 
 class LogCollectionCreateViewSet(ResourceViewSet):
     def get_permissions(self):
-        return [CanonicalBusinessActionPermission([ActionEnum.MANAGE_COLLECTION])]
+        return [CanonicalBusinessActionPermission([ActionEnum.USING_LOG_COLLECTION_MCP])]
 
     resource_routes = [
         ResourceRoute("POST", FastCreateLogCollectorResource, endpoint="fast_create"),
         ResourceRoute("POST", CreateCustomReportResource, endpoint="create_custom_report"),
         ResourceRoute("POST", CreateThirdPartyESResource, endpoint="create_third_party_es"),
+        ResourceRoute("POST", CreateBkDataResource, endpoint="create_bkdata_index_set"),
     ]

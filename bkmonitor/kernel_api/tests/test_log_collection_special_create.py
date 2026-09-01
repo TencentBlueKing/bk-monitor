@@ -4,6 +4,7 @@ from unittest.mock import Mock
 from core.drf_resource import api
 from kernel_api.resource import log_collection_special_create as special_create_module
 from kernel_api.resource.log_collection_special_create import (
+    CreateBkDataResource,
     CreateCustomReportResource,
     CreateThirdPartyESResource,
 )
@@ -25,6 +26,24 @@ def test_list_index_set_groups_only_returns_groups(monkeypatch):
         "groups": [{"index_set_id": 11, "index_set_name": "group", "space_uid": "bkcc__2", "is_group": True}]
     }
     search_index_set.assert_called_once_with(bk_biz_id=2, is_group=True)
+
+
+def test_list_index_set_groups_unwraps_nested_data_response(monkeypatch):
+    monkeypatch.setattr(
+        api.log_search,
+        "search_index_set",
+        Mock(
+            return_value={
+                "data": {
+                    "list": [{"index_set_id": 11, "index_set_name": "group", "is_group": True}],
+                }
+            }
+        ),
+    )
+
+    result = ListLogIndexSetGroupsResource().perform_request({"bk_biz_id": 2})
+
+    assert result["groups"][0]["index_set_id"] == 11
 
 
 def test_create_custom_report_forwards_parent_index_set_ids(monkeypatch):
@@ -89,5 +108,55 @@ def test_create_third_party_es_forwards_space_and_parent_index_set_ids(monkeypat
     assert result["index_set_id"] == 51
     assert create_index_set.call_args.kwargs["space_uid"] == "bkcc__2"
     assert create_index_set.call_args.kwargs["scenario_id"] == "es"
+    assert create_index_set.call_args.kwargs["indexes"] == [{"result_table_id": "logs-*", "bk_biz_id": 2}]
     assert create_index_set.call_args.kwargs["parent_index_set_ids"] == [11, 12]
     assert "parent_index_set_id" not in create_index_set.call_args.kwargs
+
+
+def test_create_bkdata_index_set_forwards_space_scenario_and_business(monkeypatch):
+    create_index_set = Mock(
+        return_value={
+            "index_set_id": 71,
+            "index_set_name": "bkdata-index-set",
+            "scenario_id": "bkdata",
+        }
+    )
+    monkeypatch.setattr(
+        special_create_module,
+        "api",
+        SimpleNamespace(log_search=SimpleNamespace(create_index_set=create_index_set)),
+    )
+    serializer = CreateBkDataResource.RequestSerializer(
+        data={
+            "bk_biz_id": 2,
+            "index_set_name": "bkdata-index-set",
+            "indexes": [{"result_table_id": "2_demo_table"}],
+            "parent_index_set_ids": [11, 12],
+            "confirm": True,
+        }
+    )
+    assert serializer.is_valid(), serializer.errors
+
+    result = CreateBkDataResource().perform_request(serializer.validated_data)
+
+    assert result["index_set_id"] == 71
+    assert result["scenario_id"] == "bkdata"
+    assert create_index_set.call_args.kwargs["space_uid"] == "bkcc__2"
+    assert create_index_set.call_args.kwargs["scenario_id"] == "bkdata"
+    assert create_index_set.call_args.kwargs["indexes"] == [{"result_table_id": "2_demo_table", "bk_biz_id": 2}]
+    assert create_index_set.call_args.kwargs["parent_index_set_ids"] == [11, 12]
+    assert create_index_set.call_args.kwargs["enforce_permission"] is True
+
+
+def test_create_bkdata_index_set_rejects_cross_business_result_table(monkeypatch):
+    serializer = CreateBkDataResource.RequestSerializer(
+        data={
+            "bk_biz_id": 2,
+            "index_set_name": "bkdata-index-set",
+            "indexes": [{"result_table_id": "3_demo_table", "bk_biz_id": 3}],
+            "confirm": True,
+        }
+    )
+
+    assert not serializer.is_valid()
+    assert "indexes" in serializer.errors

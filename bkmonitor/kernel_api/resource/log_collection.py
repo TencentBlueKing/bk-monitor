@@ -54,6 +54,7 @@ CONTAINER_CONFIG_FIELDS = {
     "status",
     "status_detail",
 }
+MIXED_LIST_FETCH_PAGE_SIZE = 1000
 
 
 def normalize_environment(collector: dict[str, Any]) -> str:
@@ -148,8 +149,8 @@ def get_log_access_type(collector: dict[str, Any]) -> str:
     log_access_type = collector.get("log_access_type")
     if log_access_type:
         return log_access_type
-    if collector.get("scenario_id") == "es":
-        return "es"
+    if collector.get("scenario_id") in {"bkdata", "es"}:
+        return collector["scenario_id"]
     if collector.get("collector_scenario_id") == CUSTOM_COLLECTOR_SCENARIO:
         return "custom_report"
     return ""
@@ -189,7 +190,7 @@ def normalize_collector_detail(collector: dict[str, Any]) -> dict[str, Any]:
     result.update(
         {
             "description": collector.get("description") or "",
-            "log_access_type": collector.get("log_access_type") or "",
+            "log_access_type": get_log_access_type(collector),
             "category": {
                 "id": collector.get("category_id") or "",
                 "name": collector.get("category_name") or "",
@@ -250,43 +251,53 @@ class ListLogCollectorsResource(Resource):
         )
 
     def perform_request(self, validated_request_data):
-        # enabled 是旧版采集配置字段，新版混合列表没有对应的条件表达式；保留兼容路径。
-        if "enabled" in validated_request_data:
-            params = {
-                "bk_biz_id": validated_request_data["bk_biz_id"],
-                "page": validated_request_data["page"],
-                "pagesize": validated_request_data["page_size"],
-                "keyword": validated_request_data.get("keyword") or "",
-                "ordering": "-updated_at,-collector_config_id",
-                "enforce_permission": True,
-                "is_active": validated_request_data["enabled"],
-            }
-            if "collector_scenario_id" in validated_request_data:
-                params["collector_scenario_id"] = validated_request_data["collector_scenario_id"]
-            response = api.log_search.paged_collector_configs(**params)
-        else:
-            conditions = []
-            if "collector_scenario_id" in validated_request_data:
-                conditions.append(
-                    {"key": "collector_scenario_id", "value": [validated_request_data["collector_scenario_id"]]}
-                )
-            if validated_request_data.get("log_access_type"):
-                conditions.append({"key": "log_access_type", "value": validated_request_data["log_access_type"]})
-            params = {
-                "space_uid": bk_biz_id_to_space_uid(validated_request_data["bk_biz_id"]),
-                "page": validated_request_data["page"],
-                "pagesize": validated_request_data["page_size"],
-                "keyword": validated_request_data.get("keyword") or "",
-                "ordering": "-updated_at",
-                "conditions": conditions,
-                "enforce_permission": True,
-            }
-            for field in ("parent_index_set_id", "exclude_parent_index_set_id"):
-                if field in validated_request_data:
-                    params[field] = validated_request_data[field]
-            response = api.log_search.log_access_collector(**params)
+        conditions = []
+        if "collector_scenario_id" in validated_request_data:
+            conditions.append(
+                {"key": "collector_scenario_id", "value": [validated_request_data["collector_scenario_id"]]}
+            )
+        if validated_request_data.get("log_access_type"):
+            conditions.append({"key": "log_access_type", "value": validated_request_data["log_access_type"]})
+        params = {
+            "space_uid": bk_biz_id_to_space_uid(validated_request_data["bk_biz_id"]),
+            "page": validated_request_data["page"],
+            "pagesize": validated_request_data["page_size"],
+            "keyword": validated_request_data.get("keyword") or "",
+            "ordering": "-updated_at",
+            "conditions": conditions,
+            "enforce_permission": True,
+        }
+        for field in ("parent_index_set_id", "exclude_parent_index_set_id"):
+            if field in validated_request_data:
+                params[field] = validated_request_data[field]
 
-        total = int(response.get("total") or 0)
+        if "enabled" not in validated_request_data:
+            response = api.log_search.log_access_collector(**params)
+            total = int(response.get("total") or 0)
+            items = response.get("list") or []
+        else:
+            # 新版混合列表接口暂不支持 is_active 条件，需要先完整获取再统一过滤，避免漏掉索引集类接入。
+            params["page"] = 1
+            params["pagesize"] = MIXED_LIST_FETCH_PAGE_SIZE
+            items = []
+            response = api.log_search.log_access_collector(**params)
+            remote_total = int(response.get("total") or 0)
+            items.extend(response.get("list") or [])
+            remote_page = 1
+            while len(items) < remote_total:
+                remote_page += 1
+                params["page"] = remote_page
+                page_items = api.log_search.log_access_collector(**params).get("list") or []
+                if not page_items:
+                    break
+                items.extend(page_items)
+
+            enabled = validated_request_data["enabled"]
+            items = [item for item in items if bool(item.get("is_active")) == enabled]
+            total = len(items)
+            start = (validated_request_data["page"] - 1) * validated_request_data["page_size"]
+            items = items[start : start + validated_request_data["page_size"]]
+
         page_size = validated_request_data["page_size"]
         return {
             "page": validated_request_data["page"],
@@ -295,7 +306,7 @@ class ListLogCollectorsResource(Resource):
             "total_pages": math.ceil(total / page_size) if total else 0,
             "items": [
                 normalize_collector_summary(item, default_bk_biz_id=validated_request_data["bk_biz_id"])
-                for item in response.get("list") or []
+                for item in items
             ],
         }
 
