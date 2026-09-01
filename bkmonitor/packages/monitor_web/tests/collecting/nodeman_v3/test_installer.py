@@ -58,7 +58,7 @@ def test_stop_and_delete_remain_explicit_protocol_blockers():
     assert gateway.calls == []
 
 
-def test_installer_install_persists_desired_version_then_reconciles(monkeypatch):
+def test_installer_create_persists_desired_version_then_reconciles(monkeypatch):
     calls = []
     packaged_release = SimpleNamespace(is_packaged=True)
     orchestrator = SimpleNamespace(
@@ -72,11 +72,11 @@ def test_installer_install_persists_desired_version_then_reconciles(monkeypatch)
         instance_status=lambda **kwargs: calls.append(("instance_status", kwargs)) or {"status": "running"},
     )
     collect_config = SimpleNamespace(
-        pk=7,
+        pk=None,
         name="mysql",
         need_upgrade=False,
-        deployment_config_id=6,
-        deployment_config=SimpleNamespace(pk=6),
+        deployment_config_id=None,
+        deployment_config=None,
         plugin=SimpleNamespace(plugin_type="Exporter", packaged_release_version=packaged_release),
     )
     reconciler = SimpleNamespace()
@@ -84,11 +84,12 @@ def test_installer_install_persists_desired_version_then_reconciles(monkeypatch)
     new_version = SimpleNamespace(pk=8, target_nodes=[{"bk_inst_id": 3}])
     monkeypatch.setattr(installer, "_create_deployment_version", lambda **kwargs: new_version)
     monkeypatch.setattr(installer, "_node_diff", lambda *args: {"added": [{"bk_inst_id": 3}]})
-    monkeypatch.setattr(
-        installer,
-        "_activate_version",
-        lambda deployment, *, last_operation: calls.append(("activate", deployment, last_operation)),
-    )
+
+    def activate(deployment, *, last_operation):
+        calls.append(("activate", deployment, last_operation))
+        collect_config.pk = 7
+
+    monkeypatch.setattr(installer, "_activate_version", activate)
     monkeypatch.setattr(installer, "_reconcile", lambda *, trigger: calls.append(("reconcile", trigger)))
 
     result = installer.install(
@@ -97,16 +98,54 @@ def test_installer_install_persists_desired_version_then_reconciles(monkeypatch)
             "target_nodes": [{"bk_inst_id": 3}],
             "params": {"collector": {"period": 60}},
         },
-        "EDIT",
+        "CREATE",
     )
 
     assert result == {
         "diff_node": {"added": [{"bk_inst_id": 3}]},
-        "can_rollback": True,
+        "can_rollback": False,
         "id": 7,
         "deployment_id": 8,
     }
-    assert calls == [("activate", new_version, "EDIT"), ("reconcile", "install:edit")]
+    assert calls == [("activate", new_version, "CREATE"), ("reconcile", "install:create")]
+
+
+def test_installer_blocks_edit_before_creating_or_activating_a_version(monkeypatch):
+    collect_config = SimpleNamespace(
+        pk=7,
+        name="mysql",
+        need_upgrade=False,
+        plugin=SimpleNamespace(plugin_type="Exporter"),
+    )
+    installer = NodeManV3Installer(collect_config, reconciler=SimpleNamespace())
+    monkeypatch.setattr(
+        installer,
+        "_create_deployment_version",
+        lambda **kwargs: pytest.fail("edit must be blocked before creating a deployment version"),
+    )
+
+    with pytest.raises(NodeManV3CapabilityBlocked, match="deploy-policy edit is blocked"):
+        installer.install({}, "EDIT")
+
+
+def test_installer_blocks_upgrade_and_rollback_before_mutating_desired_version(monkeypatch):
+    collect_config = SimpleNamespace(
+        pk=7,
+        name="mysql",
+        need_upgrade=True,
+        plugin=SimpleNamespace(plugin_type="Exporter"),
+    )
+    installer = NodeManV3Installer(collect_config, reconciler=SimpleNamespace())
+    monkeypatch.setattr(
+        installer,
+        "_create_deployment_version",
+        lambda **kwargs: pytest.fail("unsupported lifecycle must not create a deployment version"),
+    )
+
+    with pytest.raises(NodeManV3CapabilityBlocked, match="deploy-policy upgrade is blocked"):
+        installer.upgrade({})
+    with pytest.raises(NodeManV3CapabilityBlocked, match="deploy-policy rollback is blocked"):
+        installer.rollback()
 
 
 def test_installer_keeps_unclosed_lifecycle_methods_blocked_by_orchestrator():

@@ -1,10 +1,9 @@
-import copy
 from typing import Any
 
 from django.db import transaction
 from django.utils.translation import gettext as _
 
-from core.errors.collecting import CollectConfigNeedUpgrade, CollectConfigRollbackError
+from core.errors.collecting import CollectConfigNeedUpgrade
 from monitor_web.collecting.deploy.base import BaseInstaller
 from monitor_web.collecting.constant import OperationResult, OperationType
 from monitor_web.models import CollectConfigMeta, DeploymentConfigVersion
@@ -41,6 +40,10 @@ class NodeManV3Installer(BaseInstaller):
             raise CollectConfigNeedUpgrade({"msg": self.collect_config.name})
 
         is_create = not self.collect_config.pk
+        if not is_create:
+            raise NodeManV3CapabilityBlocked(
+                "deploy-policy edit is blocked until existing config and package context can be refreshed"
+            )
         release_version = self._packaged_release_version()
         current_version = self.collect_config.deployment_config if self.collect_config.deployment_config_id else None
         new_version = self._create_deployment_version(
@@ -65,46 +68,18 @@ class NodeManV3Installer(BaseInstaller):
     def upgrade(self, params: dict) -> dict:
         if not self.collect_config.need_upgrade:
             raise CollectConfigNeedUpgrade({"msg": _("采集配置无需升级")})
-
-        current_version = self.collect_config.deployment_config
-        params = copy.deepcopy(params)
-        params["collector"]["period"] = current_version.params["collector"]["period"]
-        params["collector"]["timeout"] = current_version.params["collector"].get("timeout", 60)
-        new_version = self._create_deployment_version(
-            plugin_version=self._packaged_release_version(),
-            target_node_type=current_version.target_node_type,
-            target_nodes=current_version.target_nodes,
-            params=params,
-            remote_collecting_host=current_version.remote_collecting_host,
-            parent_id=current_version.pk,
+        raise NodeManV3CapabilityBlocked(
+            "deploy-policy upgrade is blocked until existing config and package context can be refreshed"
         )
-        self._activate_version(new_version, last_operation=OperationType.UPGRADE)
-        self._reconcile(trigger="upgrade")
-        return {"id": self.collect_config.pk, "deployment_id": new_version.pk}
 
     def uninstall(self):
         return self.orchestrator.uninstall(collect_config=self.collect_config, topo_tree=self.topo_tree)
 
     def rollback(self, deployment_config_version: int | DeploymentConfigVersion | None = None):
-        if not deployment_config_version:
-            deployment_config_version = self.collect_config.deployment_config.last_version
-        elif isinstance(deployment_config_version, int):
-            deployment_config_version = DeploymentConfigVersion.objects.filter(
-                pk=deployment_config_version,
-                config_meta_id=self.collect_config.pk,
-            ).first()
-        if not deployment_config_version:
-            raise CollectConfigRollbackError({"msg": _("目标版本不存在")})
-
-        current_version = self.collect_config.deployment_config
-        diff_node = self._node_diff(current_version, deployment_config_version)
-        self._activate_version(deployment_config_version, last_operation=OperationType.ROLLBACK)
-        self._reconcile(trigger="rollback")
-        return {
-            "diff_node": diff_node,
-            "id": self.collect_config.pk,
-            "deployment_id": deployment_config_version.pk,
-        }
+        del deployment_config_version
+        raise NodeManV3CapabilityBlocked(
+            "deploy-policy rollback is blocked until existing config and package context can be refreshed"
+        )
 
     def stop(self):
         return self.orchestrator.stop(collect_config=self.collect_config, topo_tree=self.topo_tree)

@@ -106,7 +106,10 @@ def normalize_trigger_status(distribution: dict | None) -> str:
     if terminated:
         return "cancelled"
     if success:
-        return "success"
+        # Deploy-policy trigger success only proves that its child plugin
+        # workflows were launched.  Keep the monitor-side operation open until
+        # NodeMan exposes final convergence evidence for those child workflows.
+        return "running"
     return ""
 
 

@@ -124,6 +124,18 @@ def test_exporter_host_scope_is_blocked_before_sending_invalid_package_policy():
         CollectDeployPolicyPayloadBuilder._build_specs(collect_config, host_target, _exporter_steps())
 
 
+def test_dynamic_plugin_config_file_template_is_blocked_instead_of_being_dropped():
+    collect_config = SimpleNamespace(plugin=SimpleNamespace(plugin_type=PluginType.EXPORTER))
+    steps = _exporter_steps()
+    steps[0]["config"]["config_templates"] = [
+        {"name": "env.yaml", "version": "1"},
+        {"name": "{{file1}}", "version": "1", "content": "{{file1_content}}"},
+    ]
+
+    with pytest.raises(NodeManV3CapabilityBlocked, match="dynamic config file templates"):
+        CollectDeployPolicyPayloadBuilder._build_specs(collect_config, _target(), steps)
+
+
 def test_v2_cross_step_context_is_blocked_instead_of_being_sent_unresolved():
     collect_config = SimpleNamespace(plugin=SimpleNamespace(plugin_type=PluginType.EXPORTER))
 
@@ -247,3 +259,16 @@ def test_gateway_recovers_existing_policy_by_exact_stable_name_and_updates_it(mo
     assert [call[0] for call in client.calls] == ["list", "update", "execute"]
     assert client.calls[1][1]["deploy_policies"][0]["deploy_policy_id"] == 301
     assert persisted == [(target, 301)]
+
+
+def test_gateway_blocks_target_update_until_existing_config_refresh_is_supported():
+    client = FakeDeployPolicyClient()
+    gateway = NodeManV3DeployPolicyGateway(client=client)
+
+    with pytest.raises(NodeManV3CapabilityBlocked, match="cannot refresh existing template config"):
+        gateway.update_target(
+            _target(deploy_policy_id=301),
+            context=NodeManV3RequestContext(bk_tenant_id="tenant-a", bk_biz_id=2),
+        )
+
+    assert client.calls == []

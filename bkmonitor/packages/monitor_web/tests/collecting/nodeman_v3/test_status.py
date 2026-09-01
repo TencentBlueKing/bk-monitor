@@ -110,7 +110,7 @@ def test_stale_generation_cannot_write_current_configuration_state():
     [
         ({"not_inited_count": 1, "state_counts": {}}, "running"),
         ({"not_inited_count": 0, "state_counts": {"running": 1}}, "running"),
-        ({"not_inited_count": 0, "state_counts": {"success": 2}}, "success"),
+        ({"not_inited_count": 0, "state_counts": {"success": 2}}, "running"),
         ({"not_inited_count": 0, "state_counts": {"failed": 1}}, "failed"),
         ({"not_inited_count": 0, "state_counts": {"timeout": 1}}, "failed"),
         ({"not_inited_count": 0, "state_counts": {"terminated": 1}}, "cancelled"),
@@ -133,11 +133,11 @@ def test_trigger_status_query_uses_exact_trigger_ids():
 
     result = fetch_trigger_statuses(client, ["trigger-1"], context=context)
 
-    assert result["trigger-1"]["status"] == "success"
+    assert result["trigger-1"]["status"] == "running"
     assert client.calls == [(({"trigger_id": ["trigger-1"]}), context)]
 
 
-def test_refresh_operation_accepts_deploy_policy_trigger_evidence(monkeypatch):
+def test_deploy_policy_trigger_success_does_not_close_operation_without_convergence_evidence(monkeypatch):
     workflow = SimpleNamespace(
         workflow_id=None,
         trigger_id="trigger-1",
@@ -164,14 +164,17 @@ def test_refresh_operation_accepts_deploy_policy_trigger_evidence(monkeypatch):
         lambda *args, **kwargs: None,
     )
 
+    callbacks = []
     result = refresh_operation_status(
         operation,
         client,
         context=NodeManV3RequestContext(bk_tenant_id="tenant-a", bk_biz_id=2),
+        on_terminal=lambda *args: callbacks.append(args),
     )
 
-    assert result.status == NodeManOperationStatus.SUCCESS
-    assert workflow.raw_status == "success"
+    assert result.status == NodeManOperationStatus.RUNNING
+    assert workflow.raw_status == "running"
+    assert callbacks == []
 
 
 @pytest.mark.parametrize(("binding_generation", "callback_count"), [(3, 1), (4, 0)])

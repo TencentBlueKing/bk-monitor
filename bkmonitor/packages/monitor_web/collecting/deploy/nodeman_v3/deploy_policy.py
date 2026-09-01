@@ -222,6 +222,10 @@ class CollectDeployPolicyPayloadBuilder:
             version = config.get("plugin_version")
             if not version:
                 raise NodeManV3CapabilityBlocked(f"plugin version is missing for {plugin_name}")
+            if any("content" in template for template in config.get("config_templates", ())):
+                raise NodeManV3CapabilityBlocked(
+                    f"deploy-policy cannot preserve dynamic config file templates for {plugin_name}"
+                )
             if collect_config.plugin.plugin_type == PluginType.EXPORTER:
                 if not target.service_instance_id:
                     raise NodeManV3CapabilityBlocked(
@@ -287,7 +291,10 @@ class NodeManV3DeployPolicyGateway:
         return {"trigger_id": str(trigger_id)}
 
     def update_target(self, target: CollectDeploymentTarget, *, context: NodeManV3RequestContext) -> dict:
-        return self.ensure_target(target, context=context)
+        del target, context
+        raise NodeManV3CapabilityBlocked(
+            "deploy-policy cannot refresh existing template config or same-version package context"
+        )
 
     def _recover_policy_id(self, name: str, *, context: NodeManV3RequestContext) -> int | None:
         result = self.client.list(
