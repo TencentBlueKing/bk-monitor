@@ -152,18 +152,23 @@ class TestAidevResources(SimpleTestCase):
         self.assertFalse(ListKnowledgeBasesResource.RequestSerializer(data={}).is_valid())
 
     def test_private_gateway_preserves_application_credentials_and_current_user_ticket(self):
-        base_headers = {
-            "x-bkapi-authorization": json.dumps(
-                {
-                    "bk_app_code": "bkmonitorv3",
-                    "bk_app_secret": "app-secret",
-                    "bk_ticket": "user-ticket",
-                    "bk_username": "tester",
-                }
-            )
-        }
-        with patch.object(APIResource, "get_headers", return_value=base_headers):
-            headers = ListAgentsResource().get_headers()
+        request = object()
+        resource = ListAgentsResource()
+        with (
+            patch("core.drf_resource.contrib.api.get_request", return_value=request),
+            patch(
+                "core.drf_resource.contrib.api.get_bk_login_ticket",
+                return_value={"bk_ticket": "user-ticket"},
+            ) as get_bk_login_ticket,
+            patch(
+                "core.drf_resource.contrib.api.make_userinfo",
+                return_value={"bk_username": "tester"},
+            ) as make_userinfo,
+            patch.object(resource, "_get_tenant_id", return_value="tenant-a"),
+            patch("core.drf_resource.contrib.api.settings.APP_CODE", "bkmonitorv3"),
+            patch("core.drf_resource.contrib.api.settings.SECRET_KEY", "app-secret"),
+        ):
+            headers = resource.get_headers()
 
         self.assertEqual(
             json.loads(headers["x-bkapi-authorization"]),
@@ -174,6 +179,9 @@ class TestAidevResources(SimpleTestCase):
                 "bk_username": "tester",
             },
         )
+        self.assertEqual(headers["X-Bk-Tenant-Id"], "tenant-a")
+        get_bk_login_ticket.assert_called_once_with(request)
+        make_userinfo.assert_called_once_with(bk_tenant_id="tenant-a")
 
     def test_private_gateway_converts_connection_error(self):
         resource = ListAgentsResource()
