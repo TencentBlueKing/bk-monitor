@@ -28,12 +28,15 @@ from blueapps.account.models import User
 from django.conf import settings
 from django.test import TestCase, override_settings
 
+from apps.log_clustering.constants import StorageTypeEnum
+from apps.log_clustering.models import ClusteringConfig
 from apps.log_databus.constants import DORIS_CLUSTER_TYPE, STORAGE_CLUSTER_TYPE
 from apps.log_databus.models import CollectorConfig, DataLinkConfig
 from apps.log_search.constants import IndexSetDataType
 from apps.log_search.exceptions import IndexSetDorisQueryException
 from apps.log_search.handlers.index_set import BaseIndexSetHandler, IndexSetHandler
 from apps.log_search.handlers.search.chart_handlers import ChartHandler
+from apps.log_search.handlers.search.mapping_handlers import MappingHandlers
 from apps.log_search.models import IndexSetTag, LogIndexSet, LogIndexSetData, Scenario, TAG_TYPE_INNER
 from apps.log_unifyquery.handler.chart import UnifyQueryChartHandler
 from apps.tests.utils import FakeRedis
@@ -1414,6 +1417,8 @@ class TestSyncRouter(TestCase):
     """
 
     DORIS_CLUSTER_ID = 77
+    # 聚类结果表在 ES 上的真实字段，注意不含 missingField
+    CLUSTERED_ES_FIELD_NAMES = {"log", "level", "__dist_05"}
 
     def setUp(self):
         super().setUp()
@@ -1803,19 +1808,129 @@ class TestSyncRouter(TestCase):
         for params in routers:
             self.assertNotIn("cluster_id", params)
 
-    def test_update_alias_settings_syncs_clustered_route(self):
+    # ==================================================================
+    # 更新别名配置时的聚类结果表路由
+    # ==================================================================
+
+    def _build_plain_es_index_set(self, **extra) -> LogIndexSet:
+        """创建一个普通 ES 采集项：无 Doris 标签、无 doris_table_id，走非 Doris 的别名更新分支"""
+        collector_config = CollectorConfig.objects.create(
+            table_id="591_es",
+            bk_biz_id=2,
+            collector_config_name="plain_es_cc",
+            collector_scenario_id="log",
+            category_id="other_rt",
+            storage_cluster_type=STORAGE_CLUSTER_TYPE,
+        )
+        params = dict(
+            index_set_name="plain_es",
+            space_uid="bkcc__2",
+            scenario_id=Scenario.LOG,
+            storage_cluster_id=STORAGE_CLUSTER_ID,
+            collector_config_id=collector_config.collector_config_id,
+            doris_table_id=None,
+            support_doris=False,
+        )
+        params.update(extra)
+        index_set = LogIndexSet.objects.create(**params)
+        collector_config.index_set_id = index_set.index_set_id
+        collector_config.save(update_fields=["index_set_id"])
+        LogIndexSetData.objects.create(
+            index_set_id=index_set.index_set_id,
+            result_table_id="591_es",
+            scenario_id=Scenario.LOG,
+            bk_biz_id=2,
+            apply_status=LogIndexSetData.Status.NORMAL,
+        )
+        return index_set
+
+    def _create_clustering_config(self, index_set: LogIndexSet) -> ClusteringConfig:
+        """给索引集挂一个 ES 存储的聚类配置"""
+        return ClusteringConfig.objects.create(
+            index_set_id=index_set.index_set_id,
+            bk_biz_id=2,
+            min_members=1,
+            max_dist_list="0.5",
+            predefined_varibles="",
+            delimeter="",
+            max_log_length=1000,
+            clustering_fields="log",
+            signature_enable=True,
+            storage_type=StorageTypeEnum.ELASTICSEARCH.value,
+            clustered_rt=f"2_bklog_{index_set.index_set_id}_clustered",
+        )
+
+    def _capture_clustered_route(self, index_set: LogIndexSet, alias_settings: list) -> dict:
+        """跑一次别名更新，返回聚类路由实际下发的 table_info"""
+        with (
+            patch.object(IndexSetHandler, "get_rt_alias_settings", return_value=({}, {})),
+            patch.object(MappingHandlers, "get_mapping_field_names", return_value=self.CLUSTERED_ES_FIELD_NAMES),
+            patch("apps.utils.thread.MultiExecuteFunc.append"),
+            patch("apps.utils.thread.MultiExecuteFunc.run", return_value={}),
+            patch(
+                "apps.log_clustering.handlers.dataflow.dataflow_handler.TransferApi.bulk_create_or_update_log_router"
+            ) as mock_bulk_router,
+        ):
+            IndexSetHandler(index_set.index_set_id).update_alias_settings(alias_settings)
+
+        mock_bulk_router.assert_called_once()
+        return mock_bulk_router.call_args.args[0]["table_info"][0]
+
+    def test_update_alias_settings_syncs_clustered_route_for_es_index_set(self):
         """
         聚类结果表是独立的一条路由，不会随源表路由一起刷新
-        期望：别名变更时同步聚类路由，并且传的是当前入口索引集 ID，否则会污染原始索引集那条路由
+        期望：别名变更时下发聚类路由，内容是本次生效的别名，并按聚类结果表真实字段裁剪
         """
-        index_set = self._build_manual_doris_index_set()
+        index_set = self._build_plain_es_index_set()
+        self._create_clustering_config(index_set)
 
-        with patch(
-            "apps.log_clustering.handlers.dataflow.dataflow_handler.DataFlowHandler.sync_clustered_route"
-        ) as mock_sync_clustered_route:
-            self._capture_alias_settings_routers(index_set)
+        table_info = self._capture_clustered_route(
+            index_set,
+            [
+                {"field_name": "log", "query_alias": "message", "path_type": "text"},
+                # 聚类结果表没有 missingField，这条继承下去改写后必然查不到数据
+                {"field_name": "missingField", "query_alias": "ignored", "path_type": "string"},
+            ],
+        )
 
-        mock_sync_clustered_route.assert_called_once_with(index_set_id=index_set.index_set_id)
+        self.assertEqual(
+            table_info["query_alias_settings"],
+            [
+                {"field_name": "__dist_05", "query_alias": "signature"},
+                {"field_name": "log", "query_alias": "message", "path_type": "text"},
+            ],
+        )
+        self.assertEqual(
+            table_info["table_id"],
+            f"bklog_index_set_{index_set.index_set_id}_2_bklog_{index_set.index_set_id}_clustered.__default__",
+        )
+
+    def test_update_alias_settings_syncs_clustered_route_for_doris_tagged_index_set(self):
+        """
+        带 Doris 标签的索引集不会把别名落到 LogIndexSet.query_alias_settings
+        期望：聚类路由用本次生效的别名，而不是回读数据库拿到的旧值
+        """
+        index_set = self._build_manual_doris_index_set(
+            query_alias_settings=[{"field_name": "log", "query_alias": "stale_alias", "path_type": "text"}]
+        )
+        self._create_clustering_config(index_set)
+
+        table_info = self._capture_clustered_route(
+            index_set, [{"field_name": "log", "query_alias": "message", "path_type": "text"}]
+        )
+
+        # stale_alias 指向的 log 字段在聚类结果表里同样存在，出现在路由上只能说明读了数据库旧值
+        self.assertEqual(
+            table_info["query_alias_settings"],
+            [
+                {"field_name": "__dist_05", "query_alias": "signature"},
+                {"field_name": "log", "query_alias": "message", "path_type": "text"},
+            ],
+        )
+        self.assertEqual(
+            LogIndexSet.objects.get(index_set_id=index_set.index_set_id).query_alias_settings,
+            [{"field_name": "log", "query_alias": "stale_alias", "path_type": "text"}],
+        )
 
     # ==================================================================
     # 边界情况

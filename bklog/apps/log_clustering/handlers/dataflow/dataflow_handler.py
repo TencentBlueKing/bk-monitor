@@ -50,6 +50,7 @@ from apps.log_clustering.constants import (
 from apps.log_clustering.exceptions import (
     BkdataFlowException,
     BkdataStorageNotExistException,
+    ClusteredFieldsNotExistException,
     CollectorStorageNotExistException,
     DorisStorageNotExistException,
     QueryFieldsException,
@@ -1738,28 +1739,30 @@ class DataFlowHandler(BaseAiopsHandler):
         }
 
     @classmethod
-    def _get_clustered_es_field_names(cls, index_set: LogIndexSet, clustering_config: ClusteringConfig) -> set:
+    def _get_clustered_es_field_names(cls, index_set: LogIndexSet, clustering_config: ClusteringConfig) -> set[str]:
         """
-        获取聚类结果表在 ES 上的真实字段名，取不到时返回空集合，由调用方按保守策略处理
+        获取聚类结果表在 ES 上的真实字段名
+
+        字段拉不到时直接抛出，由 sync_clustered_route 放弃本次下发：
+        空字段集合无法区分"别名指向的字段不存在"和"这次没查到字段"，
+        当成前者继续下发会把用户配置正确的别名从聚类路由上抹掉，检索同样查不到数据。
+        与 _build_clustered_doris_route_params 解析不到存储集群时的处理保持一致。
         """
         from apps.log_search.handlers.search.mapping_handlers import MappingHandlers
 
-        try:
-            return MappingHandlers(
-                indices=clustering_config.clustered_rt,
-                index_set_id=index_set.index_set_id,
-                scenario_id=Scenario.BKDATA,
-                storage_cluster_id=index_set.storage_cluster_id,
-                time_field=index_set.time_field,
-                only_search=True,
-            ).get_mapping_field_names()
-        except Exception as error:  # pylint: disable=broad-except
-            logger.warning(
-                "get mapping fields of clustered result table(%s) failed: %s",
-                clustering_config.clustered_rt,
-                error,
+        field_names = MappingHandlers(
+            indices=clustering_config.clustered_rt,
+            index_set_id=index_set.index_set_id,
+            scenario_id=Scenario.BKDATA,
+            storage_cluster_id=index_set.storage_cluster_id,
+            time_field=index_set.time_field,
+            only_search=True,
+        ).get_mapping_field_names()
+        if not field_names:
+            raise ClusteredFieldsNotExistException(
+                ClusteredFieldsNotExistException.MESSAGE.format(clustered_rt=clustering_config.clustered_rt)
             )
-            return set()
+        return field_names
 
     @classmethod
     def _build_clustered_es_route_params(cls, index_set: LogIndexSet, clustering_config: ClusteringConfig) -> dict:
@@ -1775,7 +1778,6 @@ class DataFlowHandler(BaseAiopsHandler):
         signature_alias = cls._build_clustered_signature_alias_setting(clustering_config)
         # 入口索引集的别名是按源表字段配的，聚类结果表的字段集合与源表并不一致。
         # 别名指向的物理字段在聚类结果表里不存在时，改写后一定查不到数据，因此按真实 mapping 裁剪。
-        # 字段拉不到时只保留固定别名，不能整份继承，否则会把源表的撞名别名带到聚类路由上。
         clustered_field_names = cls._get_clustered_es_field_names(index_set, clustering_config)
         inherited_alias_settings = []
         for alias_setting in index_set.query_alias_settings or []:
@@ -1822,7 +1824,19 @@ class DataFlowHandler(BaseAiopsHandler):
         }
 
     @classmethod
-    def sync_clustered_route(cls, index_set_id: int, raise_exception: bool = False) -> bool:
+    def sync_clustered_route(
+        cls,
+        index_set_id: int,
+        raise_exception: bool = False,
+        query_alias_settings: list | None = None,
+    ) -> bool:
+        """
+        同步聚类结果表路由
+
+        query_alias_settings 传入时以它为准，不再回读数据库：
+        带 Doris 标签的索引集不会把别名落到 LogIndexSet.query_alias_settings，
+        回读只能拿到旧值，会让聚类路由和源表路由的别名长期不一致。
+        """
         index_set = LogIndexSet.objects.filter(index_set_id=index_set_id).first()
         clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id=index_set_id, raise_exception=False)
         if not index_set or not clustering_config:
@@ -1838,6 +1852,9 @@ class DataFlowHandler(BaseAiopsHandler):
                 index_set_id,
             )
             return False
+        if query_alias_settings is not None:
+            # index_set 是这里新查出来的对象，只改内存不落库，避免影响调用方持久化时机
+            index_set.query_alias_settings = query_alias_settings
 
         try:
             # 构建路由参数需要查询存储集群，失败时同样不能下发路由，否则会落到默认 Doris 集群

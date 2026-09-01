@@ -5,7 +5,7 @@ from unittest.mock import patch
 from django.test import TestCase
 
 from apps.log_clustering.constants import AGGS_FIELD_PREFIX, PatternEnum, StorageTypeEnum
-from apps.log_clustering.exceptions import DorisStorageNotExistException
+from apps.log_clustering.exceptions import ClusteredFieldsNotExistException, DorisStorageNotExistException
 from apps.log_clustering.handlers.dataflow.constants import FlowMode
 from apps.log_clustering.handlers.dataflow.data_cls import (
     DorisCls,
@@ -34,6 +34,9 @@ ALL_FIELDS_DICT = {
     "dtEventTimeStamp": "dtEventTimeStamp",
     "gseIndex": "gseIndex",
 }
+
+# 聚类结果表在 ES 上的真实字段，注意不含 LOG_INDEX_SET_CREATE_PARAMS 里的 missingField
+CLUSTERED_ES_FIELD_NAMES = {"dtEventTimeStamp", "log", "serverIp", "__dist_05"}
 
 CLUSTERINGCONFIG_CREATE_PARAMS = {
     "id": "7",
@@ -472,11 +475,7 @@ class TestPatternSearch(TestCase):
             DataFlowHandler.sync_clustered_route(index_set_id=30, raise_exception=True)
         mock_bulk_create_or_update_log_router.assert_not_called()
 
-    @patch.object(
-        MappingHandlers,
-        "get_mapping_field_names",
-        return_value={"dtEventTimeStamp", "log", "serverIp", "__dist_05"},
-    )
+    @patch.object(MappingHandlers, "get_mapping_field_names", return_value=CLUSTERED_ES_FIELD_NAMES)
     @patch("apps.log_clustering.handlers.dataflow.dataflow_handler.TransferApi.bulk_create_or_update_log_router")
     def test_sync_clustered_es_route(self, mock_bulk_create_or_update_log_router, _mock_get_mapping_field_names):
         LogIndexSet.objects.create(**{**LOG_INDEX_SET_CREATE_PARAMS, "index_set_id": 31})
@@ -546,12 +545,13 @@ class TestPatternSearch(TestCase):
 
     @patch.object(MappingHandlers, "get_mapping_field_names", side_effect=RuntimeError("es unavailable"))
     @patch("apps.log_clustering.handlers.dataflow.dataflow_handler.TransferApi.bulk_create_or_update_log_router")
-    def test_sync_clustered_es_route_keeps_only_signature_when_mapping_unavailable(
+    def test_sync_clustered_es_route_skips_route_when_mapping_request_fails(
         self, mock_bulk_create_or_update_log_router, _mock_get_mapping_field_names
     ):
         """
-        拉不到聚类结果表字段时按保守策略只保留固定别名。
-        这里不能像源表路由那样兜底成整份下发，否则一次 ES 抖动就会把撞名别名写回聚类路由。
+        字段查询失败时不能下发路由。
+        此时无法判断别名指向的字段在聚类结果表里是否存在，继续下发会把配置正确的别名裁掉，
+        检索同样查不到数据，宁可保留路由上的现状等下一次同步。
         """
         LogIndexSet.objects.create(**{**LOG_INDEX_SET_CREATE_PARAMS, "index_set_id": 34})
         ClusteringConfig.objects.create(
@@ -563,16 +563,81 @@ class TestPatternSearch(TestCase):
             }
         )
 
-        result = DataFlowHandler.sync_clustered_route(index_set_id=34, raise_exception=True)
+        self.assertFalse(DataFlowHandler.sync_clustered_route(index_set_id=34))
+        mock_bulk_create_or_update_log_router.assert_not_called()
+
+        with self.assertRaises(RuntimeError):
+            DataFlowHandler.sync_clustered_route(index_set_id=34, raise_exception=True)
+        mock_bulk_create_or_update_log_router.assert_not_called()
+
+    @patch.object(MappingHandlers, "get_mapping_field_names", return_value=set())
+    @patch("apps.log_clustering.handlers.dataflow.dataflow_handler.TransferApi.bulk_create_or_update_log_router")
+    def test_sync_clustered_es_route_skips_route_when_mapping_empty(
+        self, mock_bulk_create_or_update_log_router, _mock_get_mapping_field_names
+    ):
+        """
+        字段查询成功但返回空同样不可信：mapping 默认只取最近一天，聚类数据断流时就会是空。
+        这种情况不能当成"所有别名字段都不存在"，否则一次同步就会把别名全部抹掉。
+        """
+        LogIndexSet.objects.create(**{**LOG_INDEX_SET_CREATE_PARAMS, "index_set_id": 35})
+        ClusteringConfig.objects.create(
+            **{
+                **CLUSTERINGCONFIG_CREATE_PARAMS,
+                "index_set_id": 35,
+                "storage_type": StorageTypeEnum.ELASTICSEARCH.value,
+                "clustered_rt": "2_bklog_35_clustered",
+            }
+        )
+
+        self.assertFalse(DataFlowHandler.sync_clustered_route(index_set_id=35))
+        mock_bulk_create_or_update_log_router.assert_not_called()
+
+        with self.assertRaises(ClusteredFieldsNotExistException):
+            DataFlowHandler.sync_clustered_route(index_set_id=35, raise_exception=True)
+        mock_bulk_create_or_update_log_router.assert_not_called()
+
+    @patch.object(MappingHandlers, "get_mapping_field_names", return_value=CLUSTERED_ES_FIELD_NAMES)
+    @patch("apps.log_clustering.handlers.dataflow.dataflow_handler.TransferApi.bulk_create_or_update_log_router")
+    def test_sync_clustered_es_route_uses_given_alias_settings(
+        self, mock_bulk_create_or_update_log_router, _mock_get_mapping_field_names
+    ):
+        """
+        显式传入别名时以它为准：带 Doris 标签的索引集不会把别名落到 LogIndexSet.query_alias_settings，
+        回读数据库会拿到旧值，聚类路由会和源表路由长期不一致。
+        """
+        LogIndexSet.objects.create(**{**LOG_INDEX_SET_CREATE_PARAMS, "index_set_id": 36})
+        ClusteringConfig.objects.create(
+            **{
+                **CLUSTERINGCONFIG_CREATE_PARAMS,
+                "index_set_id": 36,
+                "storage_type": StorageTypeEnum.ELASTICSEARCH.value,
+                "clustered_rt": "2_bklog_36_clustered",
+            }
+        )
+
+        result = DataFlowHandler.sync_clustered_route(
+            index_set_id=36,
+            raise_exception=True,
+            query_alias_settings=[{"field_name": "log", "query_alias": "content", "path_type": "text"}],
+        )
 
         self.assertTrue(result)
         table_info = mock_bulk_create_or_update_log_router.call_args.args[0]["table_info"][0]
+        # 数据库里的 sip / message 都没有出现，说明用的是传入的别名而不是回读结果
         self.assertEqual(
             table_info["query_alias_settings"],
-            [{"field_name": "__dist_05", "query_alias": "signature"}],
+            [
+                {"field_name": "__dist_05", "query_alias": "signature"},
+                {"field_name": "log", "query_alias": "content", "path_type": "text"},
+            ],
+        )
+        # 只改内存对象，不能把传入的别名落库
+        self.assertEqual(
+            LogIndexSet.objects.get(index_set_id=36).query_alias_settings,
+            LOG_INDEX_SET_CREATE_PARAMS["query_alias_settings"],
         )
 
-    @patch.object(MappingHandlers, "get_mapping_field_names", return_value=set())
+    @patch.object(MappingHandlers, "get_mapping_field_names", return_value=CLUSTERED_ES_FIELD_NAMES)
     @patch("apps.log_clustering.handlers.dataflow.dataflow_handler.TransferApi.bulk_create_or_update_log_router")
     def test_sync_clustered_route_uses_transfer_api_tenant_getter(
         self, mock_bulk_create_or_update_log_router, _mock_get_mapping_field_names
@@ -650,7 +715,7 @@ class TestPatternSearch(TestCase):
         self.assertFalse(result)
         mock_bulk_create_or_update_log_router.assert_not_called()
 
-    @patch.object(MappingHandlers, "get_mapping_field_names", return_value=set())
+    @patch.object(MappingHandlers, "get_mapping_field_names", return_value=CLUSTERED_ES_FIELD_NAMES)
     @patch("apps.log_clustering.handlers.dataflow.dataflow_handler.TransferApi.bulk_create_or_update_log_router")
     def test_sync_clustered_route_returns_false_when_transfer_api_raise(
         self, mock_bulk_create_or_update_log_router, _mock_get_mapping_field_names
@@ -669,7 +734,7 @@ class TestPatternSearch(TestCase):
         self.assertFalse(result)
         mock_bulk_create_or_update_log_router.assert_called_once()
 
-    @patch.object(MappingHandlers, "get_mapping_field_names", return_value=set())
+    @patch.object(MappingHandlers, "get_mapping_field_names", return_value=CLUSTERED_ES_FIELD_NAMES)
     @patch("apps.log_clustering.handlers.dataflow.dataflow_handler.TransferApi.bulk_create_or_update_log_router")
     def test_sync_clustered_route_raise_when_transfer_api_raise(
         self, mock_bulk_create_or_update_log_router, _mock_get_mapping_field_names
