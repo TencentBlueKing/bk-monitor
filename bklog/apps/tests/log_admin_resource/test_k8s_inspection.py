@@ -45,13 +45,15 @@ from apps.log_admin_resource.k8s_inspection import (
     target_identity,
 )
 from apps.log_admin_resource.k8s_inspection_client import K8sInspectionClient, bounded_text
-from apps.log_admin_resource.k8s_probe import (
+from apps.log_admin_resource.collector_probe import (
     PROBE_SCRIPT_PATH,
-    FixedProbeError,
     parse_probe_output,
+)
+from apps.log_admin_resource.k8s_probe import (
+    FixedProbeError,
     run_fixed_collector_probe,
 )
-from apps.log_admin_resource.k8s_probe_evidence import build_collector_file_log_probe, build_probe_evidence
+from apps.log_admin_resource.collector_probe_evidence import build_collector_file_log_probe, build_probe_evidence
 from apps.log_admin_resource.k8s_tasks import (
     _control_plane_probe,
     _load_bound_collector,
@@ -968,7 +970,7 @@ class FixedK8sProbeTest(SimpleTestCase):
         parsed = parse_probe_output(
             "\n".join(
                 [
-                    "BKLOG_KV\tprotocol\tbklog.collector.k8s_inspection.probe.v1",
+                    "BKLOG_KV\tprotocol\tbklog.collector.inspection.probe.v1",
                     "BKLOG_STREAM\tmain_config\t/data/etc/bkunifylogbeat.conf\t10\t10\tfalse",
                     "BKLOG_LINE\tmain_config\tpath.data: /data/lib/",
                     "BKLOG_END_STREAM\tmain_config",
@@ -976,7 +978,7 @@ class FixedK8sProbeTest(SimpleTestCase):
             )
         )
 
-        self.assertEqual(parsed["values"]["protocol"], "bklog.collector.k8s_inspection.probe.v1")
+        self.assertEqual(parsed["values"]["protocol"], "bklog.collector.inspection.probe.v1")
         self.assertEqual(parsed["streams"]["main_config"]["content"], "path.data: /data/lib/")
 
     def test_base64_protocol_preserves_exact_stream_bytes(self):
@@ -1004,7 +1006,8 @@ class FixedK8sProbeTest(SimpleTestCase):
         response.is_open.side_effect = [True, False, False, False]
         response.peek_stdout.return_value = True
         response.read_stdout.return_value = (
-            "BKLOG_KV\tprotocol\tbklog.collector.k8s_inspection.probe.v1\nBKLOG_KV\tcompleted\ttrue\n"
+            "BKLOG_KV\tprotocol\tbklog.collector.inspection.probe.v1\n"
+            "BKLOG_KV\tprobe_version\t137707063.2\nBKLOG_KV\tcompleted\ttrue\n"
         )
         response.peek_stderr.return_value = False
         response.returncode = 0
@@ -1019,14 +1022,16 @@ class FixedK8sProbeTest(SimpleTestCase):
         self.assertEqual(kwargs["container"], COLLECTOR_CONTAINER_NAME)
         self.assertEqual(kwargs["command"], ["/bin/sh", "-s"])
         self.assertEqual(kwargs["name"], "collector-node-a")
-        self.assertEqual(result["values"]["protocol"], "bklog.collector.k8s_inspection.probe.v1")
+        self.assertEqual(result["values"]["protocol"], "bklog.collector.inspection.probe.v1")
 
     @patch("apps.log_admin_resource.k8s_probe.stream")
     def test_exec_rejects_protocol_header_without_completion_marker(self, mock_stream):
         response = MagicMock()
         response.is_open.side_effect = [True, False, False, False]
         response.peek_stdout.return_value = True
-        response.read_stdout.return_value = "BKLOG_KV\tprotocol\tbklog.collector.k8s_inspection.probe.v1\n"
+        response.read_stdout.return_value = (
+            "BKLOG_KV\tprotocol\tbklog.collector.inspection.probe.v1\nBKLOG_KV\tprobe_version\t137707063.2\n"
+        )
         response.peek_stderr.return_value = False
         response.returncode = 0
         mock_stream.return_value = response
@@ -1042,7 +1047,9 @@ class FixedK8sProbeTest(SimpleTestCase):
         response = MagicMock()
         response.is_open.side_effect = [True, False, False, False]
         response.peek_stdout.return_value = True
-        response.read_stdout.return_value = "BKLOG_KV\tprotocol\tbklog.collector.k8s_inspection.probe.v1\n"
+        response.read_stdout.return_value = (
+            "BKLOG_KV\tprotocol\tbklog.collector.inspection.probe.v1\nBKLOG_KV\tprobe_version\t137707063.2\n"
+        )
         response.peek_stderr.return_value = True
         response.read_stderr.return_value = "/bin/sh: not found"
         response.returncode = 127
@@ -1073,7 +1080,7 @@ class FixedK8sProbeTest(SimpleTestCase):
         registrar = '{"source":"/var/host/data/app.log","offset":10,"FileStateOS":{"inode":7,"device":8}}'
         parsed = {
             "values": {
-                "protocol": "bklog.collector.k8s_inspection.probe.v1",
+                "protocol": "bklog.collector.inspection.probe.v1",
                 "main_config_path": "/data/etc/bkunifylogbeat.conf",
                 "first.source_count": "1",
                 "first.source.0.pattern": "/var/host/data/*.log",
@@ -1087,14 +1094,14 @@ class FixedK8sProbeTest(SimpleTestCase):
                 "second.source.0.device": "8",
                 "second.source.0.inode": "7",
                 "second.source.0.size_bytes": "30",
-                "first.process_pid": "1",
-                "first.start_ticks": "10",
-                "first.cpu_ticks": "10",
-                "first.rss_pages": "2",
-                "second.process_pid": "1",
-                "second.start_ticks": "10",
-                "second.cpu_ticks": "20",
-                "second.rss_pages": "3",
+                "first.collector.process_pid": "1",
+                "first.collector.start_ticks": "10",
+                "first.collector.cpu_ticks": "10",
+                "first.collector.rss_pages": "2",
+                "second.collector.process_pid": "1",
+                "second.collector.start_ticks": "10",
+                "second.collector.cpu_ticks": "20",
+                "second.collector.rss_pages": "3",
                 "page_size": "4096",
                 "observation_seconds": "5",
                 "observation_required_seconds": "4",
@@ -1177,6 +1184,41 @@ class FixedK8sProbeTest(SimpleTestCase):
         )
 
         self.assertEqual(probes["source_path"]["code"], "source_not_in_rendered_config")
+
+    def test_probe_evidence_requires_narrowing_when_remote_source_limit_is_exceeded(self):
+        parsed = {
+            "values": {
+                "source_narrowing_required": "true",
+                "first.source_count": "0",
+                "second.source_count": "0",
+            },
+            "streams": {
+                "child_config.0": {
+                    "path": "/data/etc/bkunifylogbeat/a.conf",
+                    "content": "local:\n  - dataid: 1001\n    paths: ['/data/allowed/*.log']\n",
+                }
+            },
+        }
+
+        probes = build_probe_evidence(
+            parsed,
+            bk_data_id=1001,
+            source=None,
+            include_source_sample=False,
+            config_map_main=None,
+        )
+
+        self.assertEqual(probes["source_path"]["status"], "warning")
+        self.assertEqual(probes["source_path"]["code"], "source_narrowing_required")
+
+        requested = build_probe_evidence(
+            parsed,
+            bk_data_id=1001,
+            source="/data/allowed/app.log",
+            include_source_sample=True,
+            config_map_main=None,
+        )
+        self.assertEqual(requested["source_path"]["code"], "source_narrowing_required")
 
     def test_fixed_collector_file_logs_are_only_a_bounded_fallback(self):
         parsed = {

@@ -3,10 +3,8 @@
 from __future__ import annotations
 
 import base64
-import json
 import logging
 import time
-from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
 
@@ -17,6 +15,13 @@ from django.utils import timezone
 from apps.api import JobApi, NodeApi
 from apps.constants import ScriptType
 from apps.exceptions import ValidationError
+from apps.log_admin_resource.collector_probe import (
+    FixedProbeError,
+    fixed_probe_metadata,
+    fixed_probe_script,
+    parse_and_validate_probe_output,
+)
+from apps.log_admin_resource.collector_probe_evidence import build_collector_file_log_probe, build_probe_evidence
 from apps.log_admin_resource.handlers.host_inspection import _validate_host_membership
 from apps.log_admin_resource.handlers.inspection import sanitize_json, sanitize_sensitive_text
 from apps.log_admin_resource.inspection_runtime import (
@@ -31,11 +36,8 @@ from apps.utils.task import high_priority_task
 
 
 logger = logging.getLogger(__name__)
-REMOTE_SCRIPT_PATH = Path(__file__).resolve().parent / "scripts" / "host_inspection.py"
-REMOTE_PROTOCOL = "bklog.collector.host_inspection.v1"
 JOB_SCRIPT_TIMEOUT_SECONDS = 45
 JOB_POLL_INTERVAL_SECONDS = 2
-REMOTE_SCRIPT_SENTINEL = "__BKLOG_FIXED_HOST_INSPECTION_SCRIPT_137707083__"
 
 
 @high_priority_task(ignore_result=True, soft_time_limit=90, time_limit=100)
@@ -75,8 +77,20 @@ def run_host_inspection(task_id: str) -> None:
 
         if not ResourceInspectionTaskRecord.update(task_id, phase="dispatching_read_only_job"):
             raise RuntimeError("inspection task metadata disappeared before JOB dispatch")
-        remote = _run_remote_inspection(record, setup_path)
-        remote_probes = remote.get("probes") if isinstance(remote.get("probes"), dict) else {}
+        parsed_probe = _run_remote_inspection(record)
+        options = record.get("request_options") or {}
+        remote_probes = build_probe_evidence(
+            parsed_probe,
+            bk_data_id=record["target"]["bk_data_id"],
+            source=options.get("source"),
+            include_source_sample=bool(options.get("include_source_sample")),
+            config_map_main=None,
+            sidecar_required=False,
+        )
+        remote_probes["collector_logs"] = build_collector_file_log_probe(parsed_probe, fallback=False)
+        for probe in remote_probes.values():
+            probe["probe_metadata"] = parsed_probe.get("metadata")
+            _complete_probe(probe)
         _apply_runtime_log_filter(remote_probes, (record.get("request_options") or {}).get("runtime_log_options"))
         for name, probe in remote_probes.items():
             if not isinstance(probe, dict):
@@ -85,15 +99,34 @@ def run_host_inspection(task_id: str) -> None:
             if not ResourceInspectionTaskRecord.set_probe(task_id, name, probe):
                 raise RuntimeError("inspection task metadata disappeared while saving probe summaries")
 
-        task_status = _aggregate_status(probes, remote.get("task_status"))
-        error = None
-        if task_status == "failed":
-            error = _task_error("no_usable_evidence")
-        elif remote.get("task_status") == "failed":
-            error = _task_error("inspection_execution_failed")
+        task_status = _aggregate_status(probes)
+        error = _task_error("no_usable_evidence") if task_status == "failed" else None
         _finish(task_id, record, probes, task_status=task_status, error=error)
     except SoftTimeLimitExceeded:
         _finish(task_id, record, probes, task_status="timed_out", error=_task_error("task_timed_out"))
+    except FixedProbeError as error:
+        logger.warning("Resource host fixed probe failed, task_id=%s code=%s", task_id, error.code)
+        failed_probe = {
+            "status": "failed",
+            "code": error.code,
+            "summary": sanitize_sensitive_text(str(error)),
+            "evidence": None,
+            "warnings": [],
+        }
+        _complete_probe(failed_probe)
+        probes["collector_probe"] = failed_probe
+        ResourceInspectionTaskRecord.set_probe(task_id, "collector_probe", failed_probe)
+        _finish(
+            task_id,
+            record,
+            probes,
+            task_status="partial" if _has_usable_probe(probes) else "failed",
+            error={
+                "code": error.code,
+                "message": sanitize_sensitive_text(str(error)),
+                "retryable": error.retryable,
+            },
+        )
     except Exception:
         logger.exception("Resource host inspection failed, task_id=%s", task_id)
         task_status = "partial" if _has_usable_probe(probes) else "failed"
@@ -266,24 +299,9 @@ def _nodeman_subscription_evidence(record: dict[str, Any]) -> tuple[dict[str, An
     return evidence, warnings
 
 
-def _run_remote_inspection(record: dict[str, Any], setup_path: str) -> dict[str, Any]:
+def _run_remote_inspection(record: dict[str, Any]) -> dict[str, Any]:
     target = record["target"]
-    options = record.get("request_options") or {}
-    payload = {
-        "setup_path": setup_path,
-        "bk_data_id": target["bk_data_id"],
-        "source": options.get("source"),
-        "include_source_sample": bool(options.get("include_source_sample")),
-    }
-    # runtime_log_options intentionally stays in the Resource Worker.  It must
-    # never enter JOB script params or a remote command.
-    token = (
-        base64.urlsafe_b64encode(json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8"))
-        .decode("ascii")
-        .rstrip("=")
-    )
     script_content = base64.b64encode(_fixed_remote_shell_script()).decode("ascii")
-    script_param = base64.b64encode(token.encode("ascii")).decode("ascii")
     target_server = JobHelper.adapt_hosts_target_server(
         bk_biz_id=target["bk_biz_id"], hosts=[{"bk_host_id": target["bk_host_id"]}]
     )
@@ -294,7 +312,6 @@ def _run_remote_inspection(record: dict[str, Any], setup_path: str) -> dict[str,
         bk_username=DEFAULT_BK_USERNAME,
         account=DEFAULT_EXECUTE_SCRIPT_ACCOUNT,
         task_name="BKLog read-only host collector inspection",
-        script_param=script_param,
         script_language=ScriptType.SHELL.value,
         timeout=JOB_SCRIPT_TIMEOUT_SECONDS,
     )
@@ -365,33 +382,17 @@ def _run_remote_inspection(record: dict[str, Any], setup_path: str) -> dict[str,
         for item in (logs.get("script_task_logs") or [])
         if isinstance(item, dict) and item.get("log_content")
     ]
-    result = _parse_remote_result("\n".join(contents))
-    if not result:
-        raise RuntimeError("read-only JOB inspection returned no structured evidence")
-    return result
+    parsed = _parse_remote_result("\n".join(contents))
+    parsed["metadata"] = fixed_probe_metadata(executor="JOB", script_language="SHELL")
+    return parsed
 
 
 def _fixed_remote_shell_script() -> bytes:
-    python_source = REMOTE_SCRIPT_PATH.read_text(encoding="utf-8")
-    wrapper = (
-        f"#!/bin/sh\nexec python - \"$1\" <<'{REMOTE_SCRIPT_SENTINEL}'\n{python_source}\n{REMOTE_SCRIPT_SENTINEL}\n"
-    )
-    return wrapper.encode("utf-8")
+    return fixed_probe_script()
 
 
-def _parse_remote_result(value: str) -> dict[str, Any] | None:
-    decoder = json.JSONDecoder()
-    for line in reversed(value.splitlines()):
-        for index, character in enumerate(line):
-            if character != "{":
-                continue
-            try:
-                result, _end = decoder.raw_decode(line[index:])
-            except ValueError:
-                continue
-            if isinstance(result, dict) and result.get("protocol") == REMOTE_PROTOCOL:
-                return result
-    return None
+def _parse_remote_result(value: str) -> dict[str, Any]:
+    return parse_and_validate_probe_output(value)
 
 
 def _finish(
@@ -449,13 +450,20 @@ def _finish(
     )
 
 
-def _aggregate_status(probes: dict[str, dict[str, Any]], remote_status: str | None) -> str:
+def _aggregate_status(probes: dict[str, dict[str, Any]]) -> str:
     statuses = [probe.get("status") for probe in probes.values() if isinstance(probe, dict)]
     if not any(status in {"success", "warning"} for status in statuses):
         return "failed"
-    if remote_status in {"partial", "failed"} or any(status == "failed" for status in statuses):
+    if any(status == "failed" for status in statuses):
         return "partial"
     return "success"
+
+
+def _complete_probe(probe: dict[str, Any]) -> None:
+    now = timezone.now().isoformat()
+    probe.setdefault("started_at", now)
+    probe.setdefault("finished_at", now)
+    probe.setdefault("duration_ms", 0)
 
 
 def _has_usable_probe(probes: dict[str, dict[str, Any]]) -> bool:

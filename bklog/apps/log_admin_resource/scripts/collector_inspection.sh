@@ -7,8 +7,8 @@ if [ "$#" -ne 0 ]; then
     exit 64
 fi
 
-PROTOCOL="bklog.collector.k8s_inspection.probe.v1"
-PROBE_VERSION="137707084.1"
+PROTOCOL="bklog.collector.inspection.probe.v1"
+PROBE_VERSION="137707063.2"
 MAX_CONFIG_BYTES=524288
 MAX_CHILD_CONFIG_BYTES=65536
 MAX_REGISTRAR_BYTES=524288
@@ -65,7 +65,7 @@ emit_tail_blob() {
     blob_name=$1
     blob_path=$2
     maximum=$3
-    if [ ! -r "$blob_path" ] || [ ! -f "$blob_path" ] || [ -L "$blob_path" ]; then
+    if [ ! -r "$blob_path" ] || [ ! -f "$blob_path" ]; then
         emit_kv "${blob_name}.unavailable" "true"
         return
     fi
@@ -191,6 +191,8 @@ duration_seconds() {
 process_pid=""
 sidecar_pid=""
 main_config=""
+main_config_source="process_argument"
+main_config_candidate_count=0
 for proc_dir in /proc/[0-9]*; do
     [ -r "$proc_dir/cmdline" ] || continue
     argv=$(tr '\000' '\n' < "$proc_dir/cmdline" 2>/dev/null)
@@ -224,12 +226,28 @@ for proc_dir in /proc/[0-9]*; do
     esac
 done
 
+if [ -n "$main_config" ]; then
+    main_config_candidate_count=1
+else
+    main_config_source="bounded_fallback_discovery"
+    for candidate in \
+        /usr/local/gse*/plugins/etc/bkunifylogbeat.conf \
+        /opt/gse*/plugins/etc/bkunifylogbeat.conf \
+        /data/etc/bkunifylogbeat.conf
+    do
+        [ -r "$candidate" ] || continue
+        main_config_candidate_count=$((main_config_candidate_count + 1))
+        [ -n "$main_config" ] || main_config=$candidate
+    done
+fi
 [ -n "$main_config" ] || main_config="/data/etc/bkunifylogbeat.conf"
 emit_kv "protocol" "$PROTOCOL"
 emit_kv "probe_version" "$PROBE_VERSION"
 emit_kv "process_pid" "$process_pid"
 emit_kv "sidecar_pid" "$sidecar_pid"
 emit_kv "main_config_path" "$main_config"
+emit_kv "main_config_source" "$main_config_source"
+emit_kv "main_config_candidate_count" "$main_config_candidate_count"
 
 if [ -z "$process_pid" ]; then
     emit_kv "process_missing" "true"
@@ -275,7 +293,7 @@ tab=$(printf '\t')
 child_paths=$(printf '%b\n' "$multi_config_rows" | while IFS="$tab" read -r directory pattern; do
     [ -d "$directory" ] || continue
     [ "${directory#/}" != "$directory" ] || continue
-    find "$directory" -maxdepth 1 -type f -name "${pattern:-*.conf}" 2>/dev/null
+    find -H "$directory" -maxdepth 1 \( -type f -o -type l \) -name "${pattern:-*.conf}" 2>/dev/null
 done | sed -n "1,$((MAX_CHILD_CONFIGS + 1))p")
 
 child_count=$(printf '%s\n' "$child_paths" | awk 'NF {count++} END {print count+0}')
@@ -375,6 +393,7 @@ snapshot_one_process() {
         fd_inspected=$((fd_inspected + 1))
     done
     emit_kv "$prefix.process_pid" "$pid"
+    emit_kv "$prefix.binary_path" "$(readlink "/proc/$pid/exe" 2>/dev/null)"
     emit_kv "$prefix.cpu_ticks" "$cpu_ticks"
     emit_kv "$prefix.start_ticks" "$start_ticks"
     emit_kv "$prefix.rss_pages" "$rss_pages"
@@ -429,14 +448,18 @@ snapshot_processes() {
 snapshot_sources() {
     phase=$1
     index=0
-    while IFS= read -r pattern && [ "$index" -lt "$MAX_SOURCES" ]; do
+    source_limit_exceeded=false
+    while IFS= read -r pattern; do
         case "$pattern" in
             /*) ;;
             *) continue ;;
         esac
         for source_path in $pattern; do
-            [ "$index" -lt "$MAX_SOURCES" ] || break
             [ -e "$source_path" ] || continue
+            if [ "$index" -ge "$MAX_SOURCES" ]; then
+                source_limit_exceeded=true
+                break
+            fi
             metadata=$(stat -Lc '%d %i %s %Y' "$source_path" 2>/dev/null)
             [ -n "$metadata" ] || continue
             device=$(printf '%s\n' "$metadata" | awk '{print $1}')
@@ -462,6 +485,9 @@ snapshot_sources() {
 $source_patterns
 EOF
     emit_kv "$phase.source_count" "$index"
+    if [ "$source_limit_exceeded" = "true" ]; then
+        emit_kv "source_narrowing_required" "true"
+    fi
 }
 
 snapshot_registrar() {
@@ -520,7 +546,11 @@ collector_file_log_count=0
 case "$path_logs" in
     /*)
         if [ -d "$path_logs" ]; then
-            collector_file_logs=$(find "$path_logs" -maxdepth 1 -type f \( -name '*.log' -o -name '*.log.*' \) 2>/dev/null | sort | tail -n 2)
+            collector_file_logs=$(find -H "$path_logs" -maxdepth 1 \( -type f -o -type l \) \( \
+                -name 'bkunifylogbeat' -o -name 'bkunifylogbeat.[0-9]*' -o \
+                -name 'bkunifylogbeat.err*' -o -name 'bkunifylogbeat.error*' -o \
+                -name 'bkunifylogbeat-error*.log*' -o -name '*.log' -o -name '*.log.*' \
+            \) 2>/dev/null | sort | tail -n 2)
             while IFS= read -r collector_file_log && [ "$collector_file_log_count" -lt 2 ]; do
                 [ -n "$collector_file_log" ] || continue
                 emit_tail_blob "collector_file_log.$collector_file_log_count" "$collector_file_log" "$((MAX_COLLECTOR_FILE_LOG_BYTES / 2))"

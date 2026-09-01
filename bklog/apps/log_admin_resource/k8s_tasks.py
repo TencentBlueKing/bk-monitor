@@ -14,6 +14,7 @@ from django.utils import timezone
 
 from apps.log_admin_resource.handlers.inspection import sanitize_json, sanitize_sensitive_text
 from apps.log_admin_resource.inspection_runtime import apply_runtime_log_filter
+from apps.log_admin_resource.collector_probe_evidence import build_collector_file_log_probe, build_probe_evidence
 from apps.log_admin_resource.inspection_tasks import (
     TASK_TYPE_K8S_INSPECTION,
     K8sCollectorCandidateStore,
@@ -39,7 +40,6 @@ from apps.log_admin_resource.k8s_inspection import (
 )
 from apps.log_admin_resource.k8s_inspection_client import K8sInspectionClient, bounded_text, object_to_dict
 from apps.log_admin_resource.k8s_probe import FixedProbeError, run_fixed_collector_probe
-from apps.log_admin_resource.k8s_probe_evidence import build_collector_file_log_probe, build_probe_evidence
 from apps.log_bcs.handlers.bcs_handler import BcsHandler
 from apps.log_databus.models import CollectorConfig, ContainerCollectorConfig
 from apps.log_search.models import Space
