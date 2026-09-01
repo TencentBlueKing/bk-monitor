@@ -29,13 +29,14 @@ import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
 
 import RetrievalFilter from '../../components/retrieval-filter/retrieval-filter';
-import { EMode } from '../../components/retrieval-filter/typing';
+import { EMethod, EMode } from '../../components/retrieval-filter/typing';
 import { traceWhereChangeFormatter, traceWhereFormatter } from '../../components/retrieval-filter/utils';
 import useUserConfig from '../../hooks/useUserConfig';
 import { updateTimezone } from '../../i18n/dayjs';
 import { useRumExploreStore } from '../../store/modules/rum-explore';
 import FavoriteBox, { EditFavorite } from '../trace-explore/components/favorite-box';
 import TraceExploreLayout from '../trace-explore/components/trace-explore-layout';
+import { safeParseJsonValueForWhere } from '../trace-explore/utils';
 import RumDimensionPanel from './components/rum-dimension-panel';
 import RumExploreHeader from './components/rum-explore-header';
 import RumExploreTable from './components/rum-explore-table';
@@ -193,8 +194,32 @@ export default defineComponent({
     }
 
     /** 维度面板与表格单元格触发的条件追加 */
-    function handleConditionChange(condition: ConditionChangeEvent) {
-      queryCtx.addCondition({ key: condition.key, operator: condition.method, value: [condition.value] }, true);
+    function handleConditionChange(condition: ConditionChangeEvent, isFromDimensionFilterPanel = false) {
+      const { key, method: operator, value } = condition;
+      const isDuration =
+        viewConfigCtx.viewConfig.value.fields.find(item => item.name === key)?.field_display_type === 'duration';
+      if (queryCtx.filterMode.value === EMode.ui) {
+        queryCtx.addCondition(
+          { key, operator, value: isDuration ? value.split('-') : safeParseJsonValueForWhere(value) },
+          isFromDimensionFilterPanel
+        );
+        return;
+      }
+      let endStr = `NOT ${key} : "${value || ''}"`;
+      if (operator === EMethod.eq) {
+        endStr = `${key} : "${value || ''}"`;
+      }
+      if (isDuration) {
+        const [start, end] = value.split('-');
+        /**
+         * 从表格添加耗时到检索栏只是一个时间点，并不是一个时间段
+         * 所以开始时间和结束时间是一样的
+         */
+        endStr = `${key} : [${start} TO ${end || start}]`;
+      }
+      queryCtx.queryStringChange(
+        queryCtx.queryString.value ? `${queryCtx.queryString.value} AND ${endStr}` : `${endStr}`
+      );
     }
 
     function handleSortChange(sort: string | string[]) {
