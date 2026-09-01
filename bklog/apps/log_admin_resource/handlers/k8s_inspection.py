@@ -258,6 +258,8 @@ def list_k8s_inspection_targets(params: dict[str, Any]) -> dict[str, Any]:
     collector = _get_collector(int(params["collector_config_id"]))
     _validate_collector(collector, request_tenant_id)
     namespace = str(params.get("namespace") or "").strip() or None
+    if "namespace" in params and namespace is None:
+        raise ValidationError("namespace must not be blank")
     limit = int(params.get("limit") or DEFAULT_TARGET_LIMIT)
     container_configs = list(
         ContainerCollectorConfig.objects.filter(collector_config_id=collector.collector_config_id).order_by("id")

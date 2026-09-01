@@ -564,6 +564,18 @@ class K8sInspectionHandlerTest(SimpleTestCase):
             with self.subTest(params=params), self.assertRaises(ValidationError):
                 validate_params(params, schema)
 
+    @patch(
+        "apps.log_admin_resource.handlers.k8s_inspection._request_identity",
+        return_value=("reader-a", "tenant-a"),
+    )
+    @patch("apps.log_admin_resource.handlers.k8s_inspection._get_collector", return_value=collector())
+    @patch("apps.log_admin_resource.handlers.k8s_inspection._validate_collector", return_value="tenant-a")
+    def test_target_discovery_rejects_blank_namespace_instead_of_scanning_cluster(
+        self, _validate_collector, _get_collector, _identity
+    ):
+        with self.assertRaisesRegex(ValidationError, "namespace must not be blank"):
+            list_k8s_inspection_targets({"collector_config_id": 123, "namespace": "   "})
+
     def test_target_discovery_scan_is_paginated_and_hard_bounded(self):
         fetch_page = MagicMock()
         fetch_page.side_effect = [([index] * 500, f"token-{index}") for index in range(10)]
