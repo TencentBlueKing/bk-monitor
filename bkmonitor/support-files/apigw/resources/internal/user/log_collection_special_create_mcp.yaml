@@ -1,0 +1,218 @@
+paths:
+  /mcp/create_custom_report/:
+    post:
+      operationId: create_custom_report
+      description: >-
+        Create a custom-report collector. Requires confirm=true. Set parent_index_set_id to attach its generated
+        index set to an existing index group; omit it to leave the index set ungrouped. 创建自定义上报采集项，必须确认
+        confirm=true。可用 parent_index_set_id 将生成的索引集加入已有索引组。
+      tags:
+      - log_collection_mcp
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - bk_biz_id
+              - collector_config_name
+              - collector_config_name_en
+              - custom_type
+              - confirm
+              properties:
+                bk_biz_id:
+                  type: integer
+                  minimum: 1
+                collector_config_name:
+                  type: string
+                  maxLength: 50
+                collector_config_name_en:
+                  type: string
+                  minLength: 5
+                  maxLength: 50
+                  pattern: ^[A-Za-z0-9_]+$
+                custom_type:
+                  type: string
+                  enum: [log, otlp_trace, otlp_log]
+                data_link_id:
+                  type: string
+                  nullable: true
+                category_id:
+                  type: string
+                  maxLength: 64
+                description:
+                  type: string
+                  maxLength: 64
+                  nullable: true
+                etl_config:
+                  type: string
+                etl_params:
+                  type: object
+                fields:
+                  type: array
+                  items:
+                    type: object
+                storage_cluster_id:
+                  type: integer
+                  minimum: 1
+                storage_cluster_type:
+                  type: string
+                retention:
+                  type: integer
+                  minimum: 1
+                allocation_min_days:
+                  type: integer
+                  minimum: 0
+                storage_replies:
+                  type: integer
+                  minimum: 0
+                es_shards:
+                  type: integer
+                  minimum: 1
+                is_display:
+                  type: boolean
+                  default: true
+                owners:
+                  type: array
+                  items:
+                    type: string
+                sort_fields:
+                  type: array
+                  items: {}
+                target_fields:
+                  type: array
+                  items: {}
+                ignore_exists:
+                  type: boolean
+                  default: false
+                parent_index_set_id:
+                  type: integer
+                  minimum: 1
+                  nullable: true
+                confirm:
+                  type: boolean
+                  enum: [true]
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        enableWebsocket: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/log_collection_create/create_custom_report/
+          matchSubpath: false
+          timeout: 30
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: false
+          resourcePermissionRequired: true
+
+  /mcp/create_third_party_es/:
+    post:
+      operationId: create_third_party_es
+      description: >-
+        Create a third-party Elasticsearch index set. Requires confirm=true, an existing storage_cluster_id,
+        at least one index and its time_field. Set parent_index_set_id to attach it to an index group.
+        创建第三方 ES 索引集，必须确认 confirm=true，填写已有存储集群、至少一个索引和时间字段；可用 parent_index_set_id 加入索引组。
+      tags:
+      - log_collection_mcp
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - bk_biz_id
+              - index_set_name
+              - storage_cluster_id
+              - indexes
+              - time_field
+              - confirm
+              properties:
+                bk_biz_id:
+                  type: integer
+                  minimum: 1
+                index_set_name:
+                  type: string
+                  maxLength: 64
+                storage_cluster_id:
+                  type: integer
+                  minimum: 1
+                indexes:
+                  type: array
+                  minItems: 1
+                  items:
+                    type: object
+                    additionalProperties: false
+                    required: [result_table_id]
+                    properties:
+                      result_table_id:
+                        type: string
+                      bk_biz_id:
+                        type: integer
+                        nullable: true
+                      time_field:
+                        type: string
+                      time_field_type:
+                        type: string
+                        enum: [date, long]
+                      time_field_unit:
+                        type: string
+                        enum: [second, millisecond, microsecond]
+                      storage_cluster_id:
+                        type: integer
+                        minimum: 1
+                time_field:
+                  type: string
+                time_field_type:
+                  type: string
+                  enum: [date, long]
+                  default: date
+                time_field_unit:
+                  type: string
+                  enum: [second, millisecond, microsecond]
+                  nullable: true
+                category_id:
+                  type: string
+                  maxLength: 64
+                is_trace_log:
+                  type: boolean
+                  default: false
+                is_editable:
+                  type: boolean
+                  default: true
+                target_fields:
+                  type: array
+                  items: {}
+                sort_fields:
+                  type: array
+                  items: {}
+                parent_index_set_id:
+                  type: integer
+                  minimum: 1
+                  nullable: true
+                confirm:
+                  type: boolean
+                  enum: [true]
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        enableWebsocket: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/log_collection_create/create_third_party_es/
+          matchSubpath: false
+          timeout: 30
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: false
+          resourcePermissionRequired: true

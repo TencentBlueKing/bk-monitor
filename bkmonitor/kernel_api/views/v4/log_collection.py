@@ -4,6 +4,7 @@ from bkmonitor.iam import ActionEnum
 from bkmonitor.iam.drf import BusinessActionPermission
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
 from kernel_api.resource.log_collection import GetLogCollectorResource, ListLogCollectorsResource
+from kernel_api.resource.log_index_set import ListLogIndexSetGroupsResource
 
 
 class CanonicalBusinessActionPermission(BusinessActionPermission):
@@ -25,9 +26,10 @@ class CanonicalBusinessActionPermission(BusinessActionPermission):
 
 class LogCollectionViewSet(ResourceViewSet):
     def get_permissions(self):
-        return [CanonicalBusinessActionPermission([ActionEnum.VIEW_BUSINESS])]
+        return [CanonicalBusinessActionPermission([ActionEnum.USING_LOG_COLLECTION_MCP])]
 
     resource_routes = [
         ResourceRoute("GET", ListLogCollectorsResource, endpoint="list_collectors"),
         ResourceRoute("GET", GetLogCollectorResource, endpoint="get_collector"),
+        ResourceRoute("GET", ListLogIndexSetGroupsResource, endpoint="list_index_set_groups"),
     ]

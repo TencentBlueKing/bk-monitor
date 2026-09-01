@@ -31,6 +31,8 @@ _ALARM_STRATEGY_FILE = _RESOURCES_DIR / "external/app/alarm_strategy.yaml"
 _ALERT_MCP_FILE = _RESOURCES_DIR / "internal/user/alert_mcp.yaml"
 _ALERT_HANDLING_MCP_FILE = _RESOURCES_DIR / "internal/user/alert_handling_mcp.yaml"
 _LOG_COLLECTION_MCP_FILE = _RESOURCES_DIR / "internal/user/log_collection_mcp.yaml"
+_LOG_COLLECTION_INDEX_SET_MCP_FILE = _RESOURCES_DIR / "internal/user/log_collection_index_set_mcp.yaml"
+_LOG_COLLECTION_SPECIAL_CREATE_MCP_FILE = _RESOURCES_DIR / "internal/user/log_collection_special_create_mcp.yaml"
 
 _ALERT_QUERY_OPERATION_IDS = {
     "list_alerts",
@@ -176,6 +178,38 @@ def test_log_collection_mcp_contract():
                 "appVerifiedRequired": False,
                 "resourcePermissionRequired": True,
             }
+
+
+def test_log_collection_mcp_exposes_index_groups_and_mixed_access_types():
+    index_set_paths = _load_paths(_LOG_COLLECTION_INDEX_SET_MCP_FILE)
+    assert set(index_set_paths) == {"/mcp/list_log_index_set_groups/"}
+    method_data = index_set_paths["/mcp/list_log_index_set_groups/"]["get"]
+    assert method_data["operationId"] == "list_log_index_set_groups"
+    assert method_data["tags"] == ["log_collection_mcp"]
+    assert method_data["x-bk-apigateway-resource"]["backend"]["path"] == (
+        "/api/v4/log_collection/list_index_set_groups/"
+    )
+
+    special_paths = _load_paths(_LOG_COLLECTION_SPECIAL_CREATE_MCP_FILE)
+    assert set(special_paths) == {"/mcp/create_custom_report/", "/mcp/create_third_party_es/"}
+    assert _operation_ids(special_paths) == {"create_custom_report", "create_third_party_es"}
+    for path_data in special_paths.values():
+        method_data = path_data["post"]
+        schema = method_data["requestBody"]["content"]["application/json"]["schema"]
+        assert schema["properties"]["parent_index_set_id"]["minimum"] == 1
+        assert schema["properties"]["confirm"]["enum"] == [True]
+        assert method_data["tags"] == ["log_collection_mcp"]
+
+
+def test_log_collection_create_and_update_support_parent_index_set_id():
+    create_schema = _load_paths(_RESOURCES_DIR / "internal/user/log_collection_create_mcp.yaml")[
+        "/mcp/fast_create_log_collector/"
+    ]["post"]["requestBody"]["content"]["application/json"]["schema"]
+    update_schema = _load_paths(_RESOURCES_DIR / "internal/user/log_collection_update_mcp.yaml")[
+        "/mcp/fast_update_log_collector/"
+    ]["post"]["requestBody"]["content"]["application/json"]["schema"]
+    assert create_schema["properties"]["parent_index_set_id"]["minimum"] == 1
+    assert update_schema["properties"]["parent_index_set_id"]["minimum"] == 1
 
 
 def test_log_collection_status_mcp_contract():

@@ -11,6 +11,7 @@ from core.drf_resource import Resource, api
 COMMON_UPDATE_FIELDS = {
     "collector_config_name",
     "description",
+    "parent_index_set_id",
 }
 HOST_UPDATE_FIELDS = COMMON_UPDATE_FIELDS | {
     "target_object_type",
@@ -117,7 +118,7 @@ def normalize_task_ids(value: Any) -> list[str]:
         return []
     if isinstance(value, str):
         values = value.split(",")
-    elif isinstance(value, (list, tuple, set)):
+    elif isinstance(value, list | tuple | set):
         values = value
     else:
         values = [value]
@@ -130,10 +131,7 @@ def reject_unknown_fields(value: Any, allowed_fields: set[str], path: str) -> No
     unknown_fields = set(value) - allowed_fields
     if unknown_fields:
         raise serializers.ValidationError(
-            {
-                f"{path}.{field}": ["This field is not supported by Fast Update MCP."]
-                for field in sorted(unknown_fields)
-            }
+            {f"{path}.{field}": ["This field is not supported by Fast Update MCP."] for field in sorted(unknown_fields)}
         )
 
 
@@ -230,6 +228,9 @@ class FastUpdateLogCollectorResource(Resource):
         description = serializers.CharField(
             required=False, allow_blank=True, allow_null=True, max_length=100, label="描述"
         )
+        parent_index_set_id = serializers.IntegerField(
+            required=False, min_value=1, allow_null=True, label="归属索引组ID"
+        )
         target_object_type = serializers.CharField(required=False, label="目标类型")
         target_node_type = serializers.CharField(required=False, label="节点类型")
         target_nodes = serializers.ListField(child=serializers.DictField(), required=False, label="目标节点")
@@ -288,23 +289,29 @@ class FastUpdateLogCollectorResource(Resource):
                 }
             )
         if environment in {"linux", "windows"} and len(request_data.get("description") or "") > 64:
-            raise serializers.ValidationError({"description": "Host collector description cannot exceed 64 characters."})
+            raise serializers.ValidationError(
+                {"description": "Host collector description cannot exceed 64 characters."}
+            )
         if environment == "container" and "description" in request_data and request_data["description"] is None:
             raise serializers.ValidationError({"description": "Container collector description cannot be null."})
+
+        backend_request_data = request_data.copy()
+        if "parent_index_set_id" in backend_request_data:
+            parent_index_set_id = backend_request_data.pop("parent_index_set_id")
+            # 未传表示不变；显式 null 表示解除全部归属索引组。
+            backend_request_data["parent_index_set_ids"] = [] if parent_index_set_id is None else [parent_index_set_id]
 
         update_result = (
             api.log_search.fast_update_log_collector(
                 collector_config_id=collector_config_id,
                 update_clean_config=False,
                 enforce_permission=True,
-                **request_data,
+                **backend_request_data,
             )
             or {}
         )
 
-        if deployment_requested and (
-            "subscription_id" not in update_result or "task_id_list" not in update_result
-        ):
+        if deployment_requested and ("subscription_id" not in update_result or "task_id_list" not in update_result):
             latest_collector = api.log_search.data_bus_collectors(collector_config_id=collector_config_id)
         else:
             latest_collector = {}
@@ -314,9 +321,7 @@ class FastUpdateLogCollectorResource(Resource):
             latest_collector.get("subscription_id", collector.get("subscription_id")),
         )
         task_id_list = (
-            update_result.get("task_id_list", latest_collector.get("task_id_list"))
-            if deployment_requested
-            else []
+            update_result.get("task_id_list", latest_collector.get("task_id_list")) if deployment_requested else []
         )
         return {
             "collector_config_id": collector_config_id,

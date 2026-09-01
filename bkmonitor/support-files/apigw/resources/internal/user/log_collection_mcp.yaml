@@ -3,10 +3,11 @@ paths:
     get:
       operationId: list_log_collectors
       description: >-
-        List log collectors in a business with stable pagination. Call this first to obtain collector_config_id
-        before get_log_collector, get_log_collector_status, fast_update_log_collector or update_log_collector_clean_config.
-        Filters: keyword, collector_scenario_id, enabled. Cannot filter by bk_data_id, table_id, bcs_cluster_id
-        or environment. 分页查询业务下的日志采集项。应先调用本工具拿到 collector_config_id。不支持按 dataid / 结果表 / 集群 / 环境过滤。
+        List log access entries in a business with stable pagination. The result includes host/container collectors,
+        custom reports and third-party Elasticsearch index sets. Call this first to obtain collector_config_id before
+        collector operations; third-party ES entries have collector_config_id=null and expose index_set_id instead.
+        Filters: keyword, collector_scenario_id, log_access_type, enabled. 分页查询业务下的日志接入项，包含主机/容器采集、自定义上报和第三方 ES。
+        第三方 ES 条目的 collector_config_id 为 null，请使用 index_set_id。
       tags:
       - log_collection_mcp
       parameters:
@@ -68,6 +69,26 @@ paths:
         schema:
           type: boolean
         description: Filter by enabled (true) or disabled (false) status. 按启用或停用状态过滤。
+      - in: query
+        name: log_access_type
+        required: false
+        style: form
+        explode: true
+        schema:
+          type: array
+          items:
+            type: string
+            enum:
+            - linux
+            - winevent
+            - container_file
+            - container_stdout
+            - bkdata
+            - es
+            - custom_report
+        description: >-
+          Filter by unified access type. Use es for third-party Elasticsearch and custom_report for custom reports.
+          按统一接入类型过滤，第三方 ES 使用 es，自定义上报使用 custom_report。
       x-bk-apigateway-resource:
         isPublic: false
         allowApplyPermission: false

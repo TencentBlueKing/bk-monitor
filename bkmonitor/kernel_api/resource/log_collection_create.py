@@ -20,6 +20,7 @@ COMMON_CREATE_FIELDS = {
     "collector_scenario_id",
     "category_id",
     "description",
+    "parent_index_set_id",
     "confirm",
 }
 HOST_CREATE_FIELDS = {
@@ -131,10 +132,7 @@ def reject_unknown_fields(value: Any, allowed_fields: set[str], path: str) -> No
     unknown_fields = set(value) - allowed_fields
     if unknown_fields:
         raise serializers.ValidationError(
-            {
-                f"{path}.{field}": ["This field is not supported by Fast Create MCP."]
-                for field in sorted(unknown_fields)
-            }
+            {f"{path}.{field}": ["This field is not supported by Fast Create MCP."] for field in sorted(unknown_fields)}
         )
 
 
@@ -213,7 +211,7 @@ def normalize_task_ids(value: Any) -> list[str]:
         return []
     if isinstance(value, str):
         values = value.split(",")
-    elif isinstance(value, (list, tuple, set)):
+    elif isinstance(value, list | tuple | set):
         values = value
     else:
         values = [value]
@@ -264,6 +262,9 @@ class FastCreateLogCollectorResource(Resource):
             max_length=100,
             label="描述",
         )
+        parent_index_set_id = serializers.IntegerField(
+            required=False, min_value=1, allow_null=True, label="归属索引组ID"
+        )
         target_object_type = serializers.CharField(required=False, label="主机目标类型")
         target_node_type = serializers.CharField(required=False, label="主机节点类型")
         target_nodes = serializers.ListField(
@@ -299,9 +300,7 @@ class FastCreateLogCollectorResource(Resource):
         def validate(self, attrs):
             attrs = super().validate(attrs)
             environment = attrs["environment"]
-            environment_fields = (
-                CONTAINER_CREATE_FIELDS if environment == ENVIRONMENT_CONTAINER else HOST_CREATE_FIELDS
-            )
+            environment_fields = CONTAINER_CREATE_FIELDS if environment == ENVIRONMENT_CONTAINER else HOST_CREATE_FIELDS
             invalid_fields = (set(attrs) - COMMON_CREATE_FIELDS) - environment_fields
             if invalid_fields:
                 raise serializers.ValidationError(
@@ -356,9 +355,7 @@ class FastCreateLogCollectorResource(Resource):
                         path = "params" if environment == ENVIRONMENT_LINUX else f"configs[{index}].params"
                         raise serializers.ValidationError(
                             {
-                                f"{path}.{field}": [
-                                    f"This field cannot be used for a {environment} collector."
-                                ]
+                                f"{path}.{field}": [f"This field cannot be used for a {environment} collector."]
                                 for field in sorted(invalid_params)
                             }
                         )
@@ -368,6 +365,9 @@ class FastCreateLogCollectorResource(Resource):
     def perform_request(self, validated_request_data):
         request_data = dict(validated_request_data)
         request_data.pop("confirm")
+        if "parent_index_set_id" in request_data:
+            parent_index_set_id = request_data.pop("parent_index_set_id")
+            request_data["parent_index_set_ids"] = [] if parent_index_set_id is None else [parent_index_set_id]
         create_result = (
             api.log_search.fast_create_log_collector(
                 enforce_permission=True,

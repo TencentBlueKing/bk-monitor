@@ -331,3 +331,26 @@ def test_fast_create_api_resource_injects_current_username(monkeypatch):
     request_data = resource.full_request_data({"bk_biz_id": 2})
 
     assert request_data["bk_username"] == "alice"
+
+
+def test_fast_create_converts_parent_index_set_id_to_backend_list(monkeypatch):
+    calls = {}
+
+    def fast_create(**kwargs):
+        calls.update(kwargs)
+        return {"collector_config_id": 31, "index_set_id": 41}
+
+    monkeypatch.setattr(
+        create_module,
+        "api",
+        SimpleNamespace(log_search=SimpleNamespace(fast_create_log_collector=fast_create)),
+    )
+    payload = linux_payload(parent_index_set_id=901)
+    serializer = FastCreateLogCollectorResource.RequestSerializer(data=payload)
+    assert serializer.is_valid(), serializer.errors
+
+    result = FastCreateLogCollectorResource().perform_request(serializer.validated_data)
+
+    assert calls["parent_index_set_ids"] == [901]
+    assert "parent_index_set_id" not in calls
+    assert result["index_set_id"] == 41

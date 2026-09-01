@@ -7,6 +7,7 @@ from typing import Any
 from rest_framework import serializers
 from rest_framework.exceptions import PermissionDenied
 
+from bkm_space.utils import bk_biz_id_to_space_uid
 from core.drf_resource import Resource, api
 
 ENVIRONMENT_LINUX = "linux"
@@ -58,10 +59,7 @@ CONTAINER_CONFIG_FIELDS = {
 def normalize_environment(collector: dict[str, Any]) -> str:
     """兼容存量采集项 environment 为空的情况。"""
     collector_scenario_id = collector.get("collector_scenario_id")
-    if (
-        collector_scenario_id == CUSTOM_COLLECTOR_SCENARIO
-        and collector.get("custom_type") == CUSTOM_CONTAINER_TYPE
-    ):
+    if collector_scenario_id == CUSTOM_COLLECTOR_SCENARIO and collector.get("custom_type") == CUSTOM_CONTAINER_TYPE:
         return ENVIRONMENT_CONTAINER
 
     environment = collector.get("environment")
@@ -102,7 +100,9 @@ def normalize_json_list(value: Any) -> list[Any]:
 def mask_sensitive(value: Any) -> Any:
     if isinstance(value, dict):
         return {
-            key: "******" if any(keyword in str(key).lower() for keyword in SENSITIVE_KEYWORDS) else mask_sensitive(item)
+            key: "******"
+            if any(keyword in str(key).lower() for keyword in SENSITIVE_KEYWORDS)
+            else mask_sensitive(item)
             for key, item in value.items()
         }
     if isinstance(value, list):
@@ -143,22 +143,42 @@ def normalize_index_set(collector: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def normalize_collector_summary(collector: dict[str, Any]) -> dict[str, Any]:
+def get_log_access_type(collector: dict[str, Any]) -> str:
+    """返回新版采集列表中的统一接入类型，兼容旧版字段。"""
+    log_access_type = collector.get("log_access_type")
+    if log_access_type:
+        return log_access_type
+    if collector.get("scenario_id") == "es":
+        return "es"
+    if collector.get("collector_scenario_id") == CUSTOM_COLLECTOR_SCENARIO:
+        return "custom_report"
+    return ""
+
+
+def normalize_collector_summary(collector: dict[str, Any], default_bk_biz_id: int | None = None) -> dict[str, Any]:
     is_active = bool(collector.get("is_active"))
+    collector_scenario_id = collector.get("collector_scenario_id") or collector.get("scenario_id") or ""
+    collector_scenario_name = collector.get("collector_scenario_name") or collector.get("scenario_name") or ""
+    parent_index_sets = collector.get("parent_index_sets") or []
     return {
-        "collector_config_id": collector.get("collector_config_id"),
-        "collector_config_name": collector.get("collector_config_name") or "",
-        "bk_biz_id": collector.get("bk_biz_id"),
+        "collector_config_id": collector.get("collector_config_id") or None,
+        "collector_config_name": collector.get("collector_config_name")
+        or collector.get("name")
+        or collector.get("index_set_name")
+        or "",
+        "bk_biz_id": collector.get("bk_biz_id") or default_bk_biz_id,
         "environment": normalize_environment(collector),
         "collector_scenario": {
-            "id": collector.get("collector_scenario_id") or "",
-            "name": collector.get("collector_scenario_name") or "",
+            "id": collector_scenario_id,
+            "name": collector_scenario_name,
         },
         "status": "enabled" if is_active else "disabled",
         "is_active": is_active,
         "bk_data_id": collector.get("bk_data_id"),
         "subscription_id": collector.get("subscription_id"),
         "index_set": normalize_index_set(collector),
+        "log_access_type": get_log_access_type(collector),
+        "parent_index_sets": parent_index_sets,
         "created_at": collector.get("created_at"),
         "updated_at": collector.get("updated_at"),
     }
@@ -208,30 +228,64 @@ class ListLogCollectorsResource(Resource):
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
         page = serializers.IntegerField(required=False, default=1, min_value=1, label="页码")
-        page_size = serializers.IntegerField(
-            required=False, default=20, min_value=1, max_value=100, label="每页数量"
-        )
+        page_size = serializers.IntegerField(required=False, default=20, min_value=1, max_value=100, label="每页数量")
         keyword = serializers.CharField(
             required=False, default="", allow_blank=True, allow_null=True, label="搜索关键字"
         )
         collector_scenario_id = serializers.CharField(required=False, label="采集场景")
         enabled = serializers.BooleanField(required=False, label="是否启用")
+        parent_index_set_id = serializers.IntegerField(
+            required=False, min_value=1, allow_null=True, label="归属索引组ID"
+        )
+        exclude_parent_index_set_id = serializers.IntegerField(
+            required=False, min_value=1, allow_null=True, label="排除归属索引组ID"
+        )
+        log_access_type = serializers.ListField(
+            child=serializers.ChoiceField(
+                choices=["linux", "winevent", "container_file", "container_stdout", "bkdata", "es", "custom_report"]
+            ),
+            required=False,
+            allow_empty=False,
+            label="日志接入类型",
+        )
 
     def perform_request(self, validated_request_data):
-        params = {
-            "bk_biz_id": validated_request_data["bk_biz_id"],
-            "page": validated_request_data["page"],
-            "pagesize": validated_request_data["page_size"],
-            "keyword": validated_request_data.get("keyword") or "",
-            "ordering": "-updated_at,-collector_config_id",
-            "enforce_permission": True,
-        }
-        if "collector_scenario_id" in validated_request_data:
-            params["collector_scenario_id"] = validated_request_data["collector_scenario_id"]
+        # enabled 是旧版采集配置字段，新版混合列表没有对应的条件表达式；保留兼容路径。
         if "enabled" in validated_request_data:
-            params["is_active"] = validated_request_data["enabled"]
+            params = {
+                "bk_biz_id": validated_request_data["bk_biz_id"],
+                "page": validated_request_data["page"],
+                "pagesize": validated_request_data["page_size"],
+                "keyword": validated_request_data.get("keyword") or "",
+                "ordering": "-updated_at,-collector_config_id",
+                "enforce_permission": True,
+                "is_active": validated_request_data["enabled"],
+            }
+            if "collector_scenario_id" in validated_request_data:
+                params["collector_scenario_id"] = validated_request_data["collector_scenario_id"]
+            response = api.log_search.paged_collector_configs(**params)
+        else:
+            conditions = []
+            if "collector_scenario_id" in validated_request_data:
+                conditions.append(
+                    {"key": "collector_scenario_id", "value": [validated_request_data["collector_scenario_id"]]}
+                )
+            if validated_request_data.get("log_access_type"):
+                conditions.append({"key": "log_access_type", "value": validated_request_data["log_access_type"]})
+            params = {
+                "space_uid": bk_biz_id_to_space_uid(validated_request_data["bk_biz_id"]),
+                "page": validated_request_data["page"],
+                "pagesize": validated_request_data["page_size"],
+                "keyword": validated_request_data.get("keyword") or "",
+                "ordering": "-updated_at",
+                "conditions": conditions,
+                "enforce_permission": True,
+            }
+            for field in ("parent_index_set_id", "exclude_parent_index_set_id"):
+                if field in validated_request_data:
+                    params[field] = validated_request_data[field]
+            response = api.log_search.log_access_collector(**params)
 
-        response = api.log_search.paged_collector_configs(**params)
         total = int(response.get("total") or 0)
         page_size = validated_request_data["page_size"]
         return {
@@ -239,7 +293,10 @@ class ListLogCollectorsResource(Resource):
             "page_size": page_size,
             "total": total,
             "total_pages": math.ceil(total / page_size) if total else 0,
-            "items": [normalize_collector_summary(item) for item in response.get("list") or []],
+            "items": [
+                normalize_collector_summary(item, default_bk_biz_id=validated_request_data["bk_biz_id"])
+                for item in response.get("list") or []
+            ],
         }
 
 

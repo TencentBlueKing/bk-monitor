@@ -21,9 +21,7 @@ def test_serializer_rejects_environment_clean_and_storage_fields(field):
 
 
 def test_serializer_requires_at_least_one_update_field():
-    serializer = FastUpdateLogCollectorResource.RequestSerializer(
-        data={"bk_biz_id": 2, "collector_config_id": 1}
-    )
+    serializer = FastUpdateLogCollectorResource.RequestSerializer(data={"bk_biz_id": 2, "collector_config_id": 1})
     assert not serializer.is_valid()
     assert "non_field_errors" in serializer.errors
 
@@ -117,6 +115,23 @@ def test_host_update_injects_clean_switch_and_returns_tasks(monkeypatch):
     }
 
 
+def test_update_converts_parent_index_set_id_and_null_clears_groups(monkeypatch):
+    captured = {}
+    log_search = SimpleNamespace(
+        log_collector_update_context=lambda **kwargs: {"bk_biz_id": 2, "environment": "linux"},
+        fast_update_log_collector=lambda **kwargs: captured.update(kwargs) or {"collector_config_id": 10},
+    )
+    monkeypatch.setattr(update_module, "api", SimpleNamespace(log_search=log_search))
+
+    result = FastUpdateLogCollectorResource().perform_request(
+        {"bk_biz_id": 2, "collector_config_id": 10, "parent_index_set_id": None}
+    )
+
+    assert captured["parent_index_set_ids"] == []
+    assert "parent_index_set_id" not in captured
+    assert result["updated_fields"] == ["parent_index_set_id"]
+
+
 def test_container_update_uses_container_fields(monkeypatch):
     log_search = SimpleNamespace(
         log_collector_update_context=lambda **kwargs: {
@@ -155,8 +170,9 @@ def test_legacy_null_environment_routes_to_host_even_with_bcs_cluster_id(monkeyp
             "bcs_cluster_id": "0",
             "collector_scenario_id": "row",
         },
-        fast_update_log_collector=lambda **kwargs: captured.update(kwargs)
-        or {"collector_config_id": 15, "subscription_id": 21, "task_id_list": [41]},
+        fast_update_log_collector=lambda **kwargs: (
+            captured.update(kwargs) or {"collector_config_id": 15, "subscription_id": 21, "task_id_list": [41]}
+        ),
     )
     monkeypatch.setattr(update_module, "api", SimpleNamespace(log_search=log_search))
 
@@ -247,8 +263,9 @@ def test_deployment_update_falls_back_to_latest_detail_for_old_backend_response(
             "environment": "linux",
             "subscription_id": 21,
         },
-        data_bus_collectors=lambda **kwargs: calls.update(detail=calls["detail"] + 1)
-        or {"subscription_id": 21, "task_id_list": "41,42"},
+        data_bus_collectors=lambda **kwargs: (
+            calls.update(detail=calls["detail"] + 1) or {"subscription_id": 21, "task_id_list": "41,42"}
+        ),
         fast_update_log_collector=lambda **kwargs: {"collector_config_id": 14},
     )
     monkeypatch.setattr(update_module, "api", SimpleNamespace(log_search=log_search))

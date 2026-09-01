@@ -45,18 +45,18 @@ def test_list_request_serializer_defaults_and_bounds_page_size():
     assert "page_size" in serializer.errors
 
 
-@pytest.mark.parametrize("action", ["list_collectors", "get_collector"])
-def test_log_collection_view_requires_view_business_permission(action):
+@pytest.mark.parametrize("action", ["list_collectors", "get_collector", "list_index_set_groups"])
+def test_log_collection_view_requires_log_collection_mcp_permission(action):
     view = LogCollectionViewSet()
     view.action = action
     permissions = view.get_permissions()
 
     assert len(permissions) == 1
-    assert permissions[0].actions == [ActionEnum.VIEW_BUSINESS]
+    assert permissions[0].actions == [ActionEnum.USING_LOG_COLLECTION_MCP]
 
 
 def test_log_collection_permission_rejects_conflicting_business_alias():
-    permission = CanonicalBusinessActionPermission([ActionEnum.VIEW_BUSINESS])
+    permission = CanonicalBusinessActionPermission([ActionEnum.USING_LOG_COLLECTION_MCP])
     request = SimpleNamespace(
         query_params={"bk_biz_id": "2", "biz_id": "3"},
         biz_id="3",
@@ -172,6 +172,55 @@ def test_list_collectors_uses_paged_api_and_normalizes_response(monkeypatch):
         enforce_permission=True,
         collector_scenario_id="row",
         is_active=False,
+    )
+
+
+def test_list_collectors_uses_mixed_log_access_api_for_es_and_custom_report(monkeypatch):
+    api_resource = Mock(
+        return_value={
+            "total": 2,
+            "list": [
+                {
+                    "index_set_id": 301,
+                    "index_set_name": "third-party-es",
+                    "scenario_id": "es",
+                    "is_active": True,
+                    "log_access_type": "es",
+                },
+                {
+                    "collector_config_id": 302,
+                    "collector_config_name": "custom-report",
+                    "collector_scenario_id": "custom",
+                    "custom_type": "log",
+                    "is_active": True,
+                    "log_access_type": "custom_report",
+                },
+            ],
+        }
+    )
+    monkeypatch.setattr(api.log_search, "log_access_collector", api_resource)
+
+    result = ListLogCollectorsResource().perform_request(
+        {
+            "bk_biz_id": 7,
+            "page": 1,
+            "page_size": 20,
+            "keyword": "",
+            "log_access_type": ["es", "custom_report"],
+        }
+    )
+
+    assert [item["log_access_type"] for item in result["items"]] == ["es", "custom_report"]
+    assert result["items"][0]["collector_config_id"] is None
+    assert result["items"][0]["bk_biz_id"] == 7
+    api_resource.assert_called_once_with(
+        space_uid="bkcc__7",
+        page=1,
+        pagesize=20,
+        keyword="",
+        ordering="-updated_at",
+        conditions=[{"key": "log_access_type", "value": ["es", "custom_report"]}],
+        enforce_permission=True,
     )
 
 

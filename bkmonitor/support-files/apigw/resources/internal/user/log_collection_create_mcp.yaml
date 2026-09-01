@@ -7,8 +7,9 @@ paths:
         target_node_type, target_nodes and params; Windows also needs collector_scenario_id=wineventlog
         and params.winlog_name. Container needs bcs_cluster_id and configs (each item needs params + collector_type).
         Namespaces vs namespaces_exclude and container_name vs container_name_exclude are mutually exclusive.
-        Storage cluster, retention, shards, replicas, etl_config, data link, parent index set and caller
-        identity are not configurable; the new collector is always bk_log_text on the default storage.
+        Storage cluster, retention, shards, replicas, etl_config, data link and caller identity are not configurable;
+        parent_index_set_id may attach the generated index set to an existing index group. The new collector is always
+        bk_log_text on the default storage.
         Then call get_log_collector and get_log_collector_status. Cannot create redis_slowlog / syslog
         / kafka / custom / client. 创建采集项。存储和清洗不可指定，新建结果一定是直接入库 + 默认集群。不能创建 Redis/Syslog/Kafka/自定义上报。
       tags:
@@ -83,6 +84,13 @@ paths:
                   description: >-
                     Collector remark. Host/Windows max 64 characters; container max 100. 采集项描述。主机/Windows
                     最长 64 字符，容器最长 100 字符。
+                parent_index_set_id:
+                  type: integer
+                  minimum: 1
+                  nullable: true
+                  description: >-
+                    Existing index group ID. Omit to keep the generated index set ungrouped; null also clears the
+                    grouping at create time. 已有索引组 ID。不传或传 null 表示不加入索引组。
                 target_object_type:
                   type: string
                   description: >-
