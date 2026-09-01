@@ -13,7 +13,6 @@ from datetime import datetime, timedelta
 
 from django.utils.translation import gettext as _
 from rest_framework import serializers
-from rest_framework.exceptions import ValidationError
 
 from bkmonitor.aiops.alert.utils import AIOPSManager
 from bkmonitor.documents import ActionInstanceDocument, AlertDocument
@@ -597,14 +596,11 @@ class QuickShield(AlertPermissionResource):
 
     def perform_request(self, params):
         alert = AlertDocument.get(id=params["event_id"])
-        # 有维度却空选择时，handle_alert 拷贝不到任何实例维，匹配只剩 strategy_id，
-        # 范围比「当前实例」更大，必须拒绝。告警本身无维度时当前实例与该策略是同一集合，
-        # 空选择就是全量维度，与 PC 快捷默认（不传 keys）一致，放行。
-        if (
-            params["type"] == "event"
-            and alert.dimensions
-            and not params.get("dimension_keys")
-            and not params.get("dimension_conditions")
-        ):
-            raise ValidationError(_("请选择屏蔽维度"))
+        # 事件屏蔽未选维度：显式升级为策略屏蔽。
+        # 空维 ALERT 写路径只会留下 strategy_id，匹配范围等于策略屏蔽但 category 仍是 alert，
+        # 列表展示/重复快捷屏蔽检测都会走错分支；改 type=strategy 与「空选=按策略屏蔽」一致。
+        if params["type"] == "event" and not params.get("dimension_keys") and not params.get("dimension_conditions"):
+            params["type"] = "strategy"
+            params["dimension_keys"] = None
+            params["dimension_conditions"] = None
         return resource.shield.add_shield(self.handle(params, alert))
