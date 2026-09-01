@@ -150,7 +150,6 @@ class TestAidevResources(SimpleTestCase):
         self.assertEqual(knowledge_base_serializer.validated_data["order_by"], "name")
         self.assertTrue(knowledge_base_serializer.validated_data["with_private"])
         self.assertFalse(ListKnowledgeBasesResource.RequestSerializer(data={}).is_valid())
-        self.assertFalse(ListKnowledgeBasesResource.RequestSerializer(data={"space_id": "all"}).is_valid())
 
     def test_private_gateway_preserves_application_credentials_and_current_user_ticket(self):
         base_headers = {

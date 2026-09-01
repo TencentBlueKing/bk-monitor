@@ -103,7 +103,7 @@ class ListKnowledgeBasesResource(AidevPrivateAPIGWResource):
     method = "POST"
 
     class RequestSerializer(serializers.Serializer):
-        # AIDEV 不支持省略 space_id 或传 all，调用方必须逐个可见空间查询。
+        # 上游要求 space_id 必填，聚合调用方会传入当前用户可见的具体空间 ID。
         space_id = serializers.CharField(required=True, allow_blank=False)
         fuzzy = serializers.CharField(required=False, allow_blank=True)
         name = serializers.CharField(required=False, allow_blank=True)
@@ -112,11 +112,6 @@ class ListKnowledgeBasesResource(AidevPrivateAPIGWResource):
         page_size = serializers.IntegerField(required=False, default=20, min_value=1, max_value=200)
         order_by = serializers.CharField(required=False, default="name", allow_blank=False)
         with_private = serializers.BooleanField(required=False, default=True)
-
-        def validate_space_id(self, value):
-            if value == "all":
-                raise serializers.ValidationError(_("知识库列表必须指定具体的 AIDEV 空间 ID"))
-            return value
 
 
 class ChatCompletionResource(AidevAPIGWResource):
