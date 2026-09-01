@@ -598,7 +598,11 @@ FUNCTIONS = {
             "type": "object",
             "properties": {
                 "collector_config_id": {"type": "integer", "minimum": 1},
-                "namespace": {"type": "string", "minLength": 1, "maxLength": 253},
+                "namespace": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 63,
+                },
                 "limit": {"type": "integer", "minimum": 1, "maximum": MAX_TARGET_LIMIT},
             },
             "required": ["collector_config_id"],
