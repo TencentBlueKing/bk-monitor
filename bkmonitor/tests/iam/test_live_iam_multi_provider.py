@@ -9,10 +9,11 @@ specific language governing permissions and limitations under the License.
 """
 
 # ==============================================================================
-# Live 集成测试：union 模式下的多 Provider 授权 / 鉴权 / filter_visible_resources
+# Live 集成测试：多 Provider any_of 读策略下的授权 / 鉴权 / filter_visible_resources
 #
 # 前提（.env 已配置好）：
-#   * BK_IAM_MODE=union            —— PROVIDERS=[V4, V3]，COMPOSITION=any_of
+#   * BK_IAM_PROVIDERS=v4,v3 + BK_IAM_READ_PROVIDERS=v4,v3
+#   * BK_IAM_READ_POLICY=dynamic + BK_IAM_READ_STRATEGY=any_of
 #   * BK_IAM_ENGINE_USER=xuchaoshan —— 目标用户（V4 无授权、V3 有部分权限）
 #   * BK_IAM_V4_* / BK_IAM_V3_*    —— 两侧真实网关地址与凭据
 #   * pytest 测试库已灌好 IAM dump（.claude/datasource/load_iam_dump.py test）
@@ -72,12 +73,6 @@ def _current_stage() -> str:
     return os.getenv("BK_IAM_LIVE_STAGE", "").lower().strip()
 
 
-def _iam_mode() -> str:
-    from django.conf import settings
-
-    return getattr(settings, "BK_IAM_MODE", "").lower()
-
-
 # ---- 目标资源与已知 V3 授权数据（对齐 v3_permission.json 里的抽样）----
 
 # 默认业务 space=2：xuchaoshan 在 V3 上通过 view_business_v2(all) 拥有可见权限
@@ -110,13 +105,17 @@ def iam_user() -> str:
 
 
 @pytest.fixture
-def require_union_mode():
-    if _iam_mode() != "union":
-        pytest.skip(f"BK_IAM_MODE={_iam_mode()!r}，live 多 Provider 测试要求 BK_IAM_MODE=union")
+def require_multi_provider_any_of(live_framework):
+    if not {"v4", "v3"}.issubset(live_framework.providers):
+        pytest.skip("live 多 Provider 测试要求同时装配 v4 与 v3")
+    read_policy = live_framework.router.read_policy
+    current_policy = read_policy._current() if hasattr(read_policy, "_current") else read_policy
+    if current_policy.__class__.__name__ != "AnyOfPolicy":
+        pytest.skip(f"live 多 Provider 测试要求当前读策略为 any_of，实际 {current_policy.__class__.__name__}")
 
 
 @pytest.fixture
-def live_permission(live_framework, iam_user, require_union_mode):
+def live_permission(live_framework, iam_user, require_multi_provider_any_of):
     """安装真实 framework，返回 Permission 实例。"""
     from bkmonitor.iam.iam_engine.django.facade import _set_framework, get_framework
 
@@ -180,39 +179,39 @@ class TestLiveMultiProviderNaturalV4Empty:
     """
 
     # --------------------------------------------------------------------
-    # 评论 2 · CompositionPolicy 多 Provider 双写语义（用 mock 验证，不污染真实平台）
+    # 评论 2 · PermissionWriter 多 Provider 双写语义（用 mock 验证，不污染真实平台）
     #
     # 之前用真实 grant_creator_action 会走 V4 space_operator 角色写入路径，把
     # xuchaoshan 授予该角色（含 view_incident / view_host 等），后续 test_05
     # 的 union any_of 语义就会因为 V4 侧命中被误放行。
     #
     # 真实双写行为已由阶段 2 的 mock 单元测试全面覆盖（12 passed）。此处只做
-    # "live 环境下加载 union CompositionPolicy 类型正确、写授权的行为契约还在"
+    # "live 环境下路由已装配独立写入器、写授权行为契约还在"
     # 的最小回归 —— 不真的调远端。
     # --------------------------------------------------------------------
-    def test_00_composition_grant_creator_action_double_writes(self, live_framework, iam_user, capsys):
+    def test_00_permission_writer_double_writes(self, live_framework, iam_user, capsys):
         from unittest.mock import MagicMock
+        from bkmonitor.iam.iam_engine.provider.permission_writer import PermissionWriter
 
-        # union 模式下 fw._policy 是 AnyOfPolicy（评论 3 的关键前提）
-        policy_cls = type(live_framework.router.policy)
+        writer_cls = type(live_framework.router.permission_writer)
         with capsys.disabled():
-            print(f"\n[live·natural] composition policy = {policy_cls.__name__}")
-        assert policy_cls.__name__ == "AnyOfPolicy", f"union 模式下应装配 AnyOfPolicy，实际 {policy_cls.__name__}"
+            print(f"\n[live·natural] creator grant writer = {writer_cls.__name__}")
+        assert writer_cls.__name__ == "PermissionWriter"
 
-        # 构造两个 mock Provider 走一次真实 CompositionPolicy 的 grant_creator_action：
-        # 一侧成功、一侧异常 → 应"至少一侧成功即整体不抛错"（评论 2）
+        # 构造两个 mock Provider 走一次真实 PermissionWriter：
+        # 一侧成功、一侧异常 → 返回部分失败结果且不会跳过成功侧（评论 2）。
         good = MagicMock()
         good.name = "v3_mock"
         bad = MagicMock()
         bad.name = "v4_mock"
         bad.grant_creator_action.side_effect = RuntimeError("simulate v4 unavailable")
 
-        policy = policy_cls([bad, good])
-        policy.grant_creator_action("space", TARGET_SPACE_ID, iam_user)
+        result = PermissionWriter([bad, good]).grant_creator_action("space", TARGET_SPACE_ID, iam_user)
 
-        # 两侧都被调用一次，且不抛错
+        # 两侧都被调用一次，且结果可观测。
         bad.grant_creator_action.assert_called_once()
         good.grant_creator_action.assert_called_once()
+        assert result.is_partial_failure is True
 
     # --------------------------------------------------------------------
     # 直连 V4 provider 断言：V4 侧对 view_business_v2 空间应为 False

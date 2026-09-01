@@ -10,58 +10,40 @@ specific language governing permissions and limitations under the License.
 
 from __future__ import annotations
 
-# ---------------------------------------------------------------------------
-# FrameworkConfig —— 框架配置的强类型表示
-#
-# 把 Django settings.IAM_FRAMEWORK 字典转成结构化的 frozen dataclass，
-# 放在 core/ 而非 django/，保持零 Django 依赖。
-#
-# django/conf.py:load_framework() 负责：
-#   1. 读 settings.IAM_FRAMEWORK 原始 dict
-#   2. 构建 FrameworkConfig 实例
-#   3. 用 import_class 解析 dotted path → 组装 IAMFramework
-# ---------------------------------------------------------------------------
-
+import json
 from dataclasses import dataclass, field
 from typing import Any
 
 
 @dataclass(frozen=True)
 class ProviderConfig:
-    """单个 Provider 的配置。
+    """Provider 目录中的一个候选后端。"""
 
-    Attributes:
-        cls: Provider 类的 dotted path（如 "your_project.iam.iam_v4.provider.V4PermissionProvider"）
-        options: 实例化参数。完全由 Provider 自己定义结构，包含业务配置
-            （如 base_url）、凭据（credentials 字子典）、系统信息（system
-            子字典）等。框架不解析 options 内部结构，直接透传给 Provider。
-    """
-
+    name: str
     cls: str
     options: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
-class CompositionConfig:
-    """组合策略配置。
+class ReadConfig:
+    """读鉴权路径的后端集合、策略名及策略私有参数。"""
 
-    Attributes:
-        policy: 策略名称（"single"/"any_of"/"all_of"/"primary"）
-        options: 策略参数（max_workers/strict_errors/fallback_on_error 等）
-    """
-
+    providers: tuple[str, ...] = ()
     policy: str = "single"
     options: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
-class BypassRuleConfig:
-    """单条鉴权豁免规则配置。
+class WriteConfig:
+    """通用权限写路径配置。"""
 
-    Attributes:
-        cls: BypassRule 类的 dotted path。
-        options: 原样透传给规则构造器的配置。
-    """
+    providers: tuple[str, ...] = ()
+    on_failure: str = "log"
+
+
+@dataclass(frozen=True)
+class BypassRuleConfig:
+    """单条鉴权豁免规则配置。"""
 
     cls: str
     options: dict[str, Any] = field(default_factory=dict)
@@ -69,24 +51,7 @@ class BypassRuleConfig:
 
 @dataclass(frozen=True)
 class MigrationConfig:
-    """Schema 迁移配置。
-
-    Attributes:
-        mode: 迁移触发模式
-            - "manual":    仅 CLI 触发（生产推荐）；破坏性变更由
-                           `iam_engine_migrate --allow-destructive` 显式启用
-            - "semi_auto": 挂 Django post_migrate 信号，跟随 `manage.py migrate`
-                           部署脚本触发；破坏性变更由 `allow_destructive: True`
-                           配置项启用（与 CLI flag 语义完全对齐）
-        directory: 系统级迁移文件目录（所有 Provider 共用）
-        allow_destructive: 全局破坏性开关。
-            semi_auto 模式下直接生效；manual 模式下作为 CLI --allow-destructive 的默认值
-            （命令行显式传入时优先）。默认 False，破坏性变更（DELETE / 方言 id 变更重建）
-            会被 skip 并告警。
-        auto_makemigrations: 保留字段（当前不使用）
-        database: 迁移状态记录使用的 Django database alias。
-        table_name: 迁移状态记录表名。
-    """
+    """Schema 迁移配置。"""
 
     mode: str = "manual"
     directory: str = ""
@@ -98,47 +63,62 @@ class MigrationConfig:
 
 @dataclass(frozen=True)
 class FrameworkConfig:
-    """iam_engine 全局配置。
+    """iam_engine 在加载期解析后的强类型配置。
 
-    由 django/conf.py:load_framework() 从 settings.IAM_FRAMEWORK 构建，
-    再驱动 IAMFramework 的装配。
-
-    Attributes:
-        actions_module: ActionDef 定义的 dotted path
-        resource_types_module: ResourceTypeDef 定义的 dotted path
-        roles_module: RoleDef 定义的 dotted path（可选）
-        providers: Provider 配置列表
-        composition: 组合策略配置
-        migration: 迁移配置
-        bypass_rules: BypassRule 配置列表
+    ``provider_catalog`` 描述所有候选后端；``enabled_providers`` 决定当前进程
+    实际装配哪些后端。READ 与 WRITE 的交叉引用在 Provider 实例构造后校验。
     """
 
     actions_module: str = ""
     resource_types_module: str = ""
     roles_module: str = ""
-    providers: tuple[ProviderConfig, ...] = ()
-    composition: CompositionConfig = field(default_factory=CompositionConfig)
+    provider_catalog: tuple[ProviderConfig, ...] = ()
+    enabled_providers: tuple[str, ...] = ()
+    read: ReadConfig = field(default_factory=ReadConfig)
+    write: WriteConfig = field(default_factory=WriteConfig)
     migration: MigrationConfig = field(default_factory=MigrationConfig)
     bypass_rules: tuple[BypassRuleConfig, ...] = ()
 
     @classmethod
     def from_dict(cls, raw: dict) -> FrameworkConfig:
-        """从 settings.IAM_FRAMEWORK 字典构建强类型配置。
+        """从 settings.IAM_FRAMEWORK 构建强类型配置。
 
-        settings dict key 使用 UPPER_CASE，此方法完成映射。
+        Provider 列表允许使用逗号分隔字符串（环境变量来源）或 list/tuple
+        （直接 Python settings）。default.py 仅传递原始意图，语义校验在本方法
+        与后续 ``load_framework`` 中完成。
         """
-        providers = tuple(
-            ProviderConfig(
-                cls=item["class"],
-                options=item.get("options", {}),
-            )
-            for item in raw.get("PROVIDERS", [])
+        if not isinstance(raw, dict):
+            raise ValueError("IAM_FRAMEWORK must be a dict")
+
+        provider_catalog = _parse_provider_catalog(raw.get("PROVIDER_CATALOG", {}))
+        enabled_providers = _parse_provider_names(
+            raw.get("ENABLED_PROVIDERS"), "IAM_FRAMEWORK.ENABLED_PROVIDERS", allow_missing=True
         )
-        composition = CompositionConfig(
-            policy=raw.get("COMPOSITION", {}).get("policy", "single"),
-            options=raw.get("COMPOSITION", {}).get("options", {}),
+
+        read_raw = raw.get("READ", {})
+        if not isinstance(read_raw, dict):
+            raise ValueError("IAM_FRAMEWORK.READ must be a dict")
+        read = ReadConfig(
+            providers=_parse_provider_names(
+                read_raw.get("PROVIDERS"), "IAM_FRAMEWORK.READ.PROVIDERS", allow_missing=True
+            ),
+            policy=_parse_identifier(read_raw.get("POLICY", "single"), "IAM_FRAMEWORK.READ.POLICY"),
+            options=_parse_options(read_raw.get("OPTIONS"), "IAM_FRAMEWORK.READ.OPTIONS"),
         )
+
+        write_raw = raw.get("WRITE", {})
+        if not isinstance(write_raw, dict):
+            raise ValueError("IAM_FRAMEWORK.WRITE must be a dict")
+        write = WriteConfig(
+            providers=_parse_provider_names(
+                write_raw.get("PROVIDERS"), "IAM_FRAMEWORK.WRITE.PROVIDERS", allow_missing=True
+            ),
+            on_failure=_parse_identifier(write_raw.get("ON_FAILURE", "log"), "IAM_FRAMEWORK.WRITE.ON_FAILURE"),
+        )
+
         migration_raw = raw.get("MIGRATION", {})
+        if not isinstance(migration_raw, dict):
+            raise ValueError("IAM_FRAMEWORK.MIGRATION must be a dict")
         migration = MigrationConfig(
             mode=migration_raw.get("mode", "manual"),
             directory=migration_raw.get("directory", ""),
@@ -147,6 +127,7 @@ class FrameworkConfig:
             database=migration_raw.get("database", "default"),
             table_name=migration_raw.get("table_name", "iam_migration_state"),
         )
+
         bypass_rules: list[BypassRuleConfig] = []
         for item in raw.get("BYPASS_RULES", []):
             if isinstance(item, str):
@@ -158,12 +139,78 @@ class FrameworkConfig:
             if not isinstance(options, dict):
                 raise ValueError("BYPASS_RULES item options must be a dict")
             bypass_rules.append(BypassRuleConfig(cls=item["class"], options=options))
+
         return cls(
             actions_module=raw.get("ACTIONS", ""),
             resource_types_module=raw.get("RESOURCE_TYPES", ""),
             roles_module=raw.get("ROLES", ""),
-            providers=providers,
-            composition=composition,
+            provider_catalog=provider_catalog,
+            enabled_providers=enabled_providers,
+            read=read,
+            write=write,
             migration=migration,
             bypass_rules=tuple(bypass_rules),
         )
+
+
+def _parse_provider_catalog(value: Any) -> tuple[ProviderConfig, ...]:
+    if not isinstance(value, dict):
+        raise ValueError("IAM_FRAMEWORK.PROVIDER_CATALOG must be a dict")
+
+    entries: list[ProviderConfig] = []
+    names: set[str] = set()
+    for raw_name, spec in value.items():
+        name = _parse_identifier(raw_name, "IAM_FRAMEWORK.PROVIDER_CATALOG key")
+        if name in names:
+            raise ValueError(f"IAM_FRAMEWORK.PROVIDER_CATALOG contains duplicate provider name {name!r}")
+        if not isinstance(spec, dict) or not isinstance(spec.get("class"), str) or not spec["class"].strip():
+            raise ValueError(f"IAM_FRAMEWORK.PROVIDER_CATALOG[{name!r}] requires non-empty 'class'")
+        options = spec.get("options", {})
+        if not isinstance(options, dict):
+            raise ValueError(f"IAM_FRAMEWORK.PROVIDER_CATALOG[{name!r}].options must be a dict")
+        names.add(name)
+        entries.append(ProviderConfig(name=name, cls=spec["class"], options=options))
+    return tuple(entries)
+
+
+def _parse_provider_names(value: Any, field_name: str, *, allow_missing: bool = False) -> tuple[str, ...]:
+    # 迁移命令只读取 MIGRATION 配置，允许它们以最小 IAM_FRAMEWORK 配置启动；
+    # 真正创建运行时框架时，load_framework 会要求三组 Provider 引用完整存在。
+    if value is None and allow_missing:
+        return ()
+    if isinstance(value, str):
+        raw_names = value.split(",")
+    elif isinstance(value, list | tuple):
+        raw_names = value
+    else:
+        raise ValueError(f"{field_name} must be a comma-separated string, list, or tuple of provider names")
+    names = tuple(_parse_identifier(name, field_name) for name in raw_names)
+    if not names:
+        raise ValueError(f"{field_name} must contain at least one provider name")
+    if len(set(names)) != len(names):
+        raise ValueError(f"{field_name} must not contain duplicate provider names: {list(names)}")
+    return names
+
+
+def _parse_identifier(value: Any, field_name: str) -> str:
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError(f"{field_name} must be a non-empty string")
+    return value.strip().lower()
+
+
+def _parse_options(value: Any, field_name: str) -> dict[str, Any]:
+    """解析一个策略的私有参数。
+
+    default.py 通过环境变量传入 JSON 字符串；直接 Python settings 则可传 dict。
+    参数的具体含义由被选择的 CompositionPolicy 自己在框架加载期校验。
+    """
+    if value in (None, ""):
+        return {}
+    if isinstance(value, str):
+        try:
+            value = json.loads(value)
+        except json.JSONDecodeError as exc:
+            raise ValueError(f"{field_name} must be valid JSON when configured by environment variable") from exc
+    if not isinstance(value, dict):
+        raise ValueError(f"{field_name} must be a dict or JSON object")
+    return dict(value)

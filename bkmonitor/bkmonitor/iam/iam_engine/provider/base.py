@@ -93,7 +93,7 @@ class PermissionProvider(ABC):
         Provider 只吃两样东西：
           - schema：框架统一构建的冻结 SchemaRegistry（跨 Provider 共享，
             使用业务规范化命名）
-          - options：settings.IAM_FRAMEWORK.PROVIDERS[*].options 原样透传的字典
+          - options：settings.IAM_FRAMEWORK.PROVIDER_CATALOG[<name>].options 原样透传的字典
 
         options 里的结构（含 credentials、system 等）**完全由 Provider 自己决定**，
         框架不做任何解析。推荐 Provider 在自己的 config.py 里用 dataclass 声明

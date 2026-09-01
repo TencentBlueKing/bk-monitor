@@ -11,15 +11,15 @@ specific language governing permissions and limitations under the License.
 from __future__ import annotations
 
 # ---------------------------------------------------------------------------
-# ProviderRouter —— Framework 与 CompositionPolicy 之间的胶水层
+# ProviderRouter —— Framework 的统一权限路由入口
 #
 # 职责：
-#   1. 在委托给 CompositionPolicy 之前，先跑 BypassRules；命中即放行
-#   2. 委托给 CompositionPolicy 完成实际鉴权组合决策
-#   3. 数据查询（query_policies）不经过 bypass，直接委托给 policy
+#   1. 在委托给读 CompositionPolicy 之前，先跑 BypassRules；命中即放行
+#   2. 委托给读 CompositionPolicy 完成鉴权、展示和数据查询
+#   3. 委托给独立 PermissionWriter 完成权限写入
 #
 # 为什么需要独立一层：
-#   * BypassRule 是横切能力，不同 CompositionPolicy 都需要
+#   * BypassRule 是读鉴权横切能力，不同 CompositionPolicy 都需要
 #   * 未来若增加 Metrics / Audit / CircuitBreaker，也在此层挂钩
 #   * 上层 IAMFramework 只与 Router 打交道，接口稳定
 #
@@ -41,6 +41,7 @@ from ..core.types import (
     to_resource_type_id,
 )
 from ..provider.composition.base import CompositionPolicy
+from ..provider.permission_writer import PermissionWriteResult, PermissionWriter
 
 if TYPE_CHECKING:
     from ..crosscutting.bypass import BypassRule
@@ -49,12 +50,13 @@ if TYPE_CHECKING:
 
 
 class ProviderRouter:
-    """Framework 与 CompositionPolicy 之间的胶水层。
+    """Framework 的统一权限路由入口。
 
     典型用法（由 IAMFramework 装配）::
 
         router = ProviderRouter(
-            policy=AnyOfPolicy([v3, v4]),
+            read_policy=AnyOfPolicy([v3, v4]),
+            permission_writer=PermissionWriter([v4, v3]),
             bypass_rules=[SettingsSkipRule(), TokenBypassRule()],
         )
         allowed = router.is_allowed(request)
@@ -62,10 +64,12 @@ class ProviderRouter:
 
     def __init__(
         self,
-        policy: CompositionPolicy,
+        read_policy: CompositionPolicy,
+        permission_writer: PermissionWriter,
         bypass_rules: list[BypassRule] | None = None,
     ) -> None:
-        self.policy = policy
+        self.read_policy = read_policy
+        self.permission_writer = permission_writer
         self.bypass_rules: list[BypassRule] = list(bypass_rules or [])
 
     # ---- 内部 helper ----
@@ -91,7 +95,7 @@ class ProviderRouter:
             (request.resource,) if request.resource else (),
         ):
             return True
-        return self.policy.is_allowed(request)
+        return self.read_policy.is_allowed(request)
 
     def batch_by_resource(self, request: BatchByResourceRequest) -> BatchAuthResult:
         if self._should_bypass(
@@ -110,7 +114,7 @@ class ProviderRouter:
                     for r in request.resources
                 )
             )
-        return self.policy.batch_by_resource(request)
+        return self.read_policy.batch_by_resource(request)
 
     def batch_by_action(self, request: BatchByActionRequest) -> BatchAuthResult:
         if self._should_bypass(
@@ -129,10 +133,10 @@ class ProviderRouter:
                     for aid in request.action_ids
                 )
             )
-        return self.policy.batch_by_action(request)
+        return self.read_policy.batch_by_action(request)
 
     def get_apply_url(self, request: ApplyURLRequest) -> str:
-        return self.policy.get_apply_url(request)
+        return self.read_policy.get_apply_url(request)
 
     def get_apply_data(
         self,
@@ -141,7 +145,7 @@ class ProviderRouter:
         subject: Subject,
     ) -> dict | None:
         """权限申请数据由组合策略的主 Provider 生成。"""
-        return self.policy.get_apply_data(action_ids, resources, subject)
+        return self.read_policy.get_apply_data(action_ids, resources, subject)
 
     # ==================== 创建者授权 ====================
 
@@ -152,9 +156,9 @@ class ProviderRouter:
         creator: str,
         expired_at: int | None = None,
         tenant_id: str = "",
-    ) -> None:
-        """授予创建者权限。由组合策略的主 Provider 执行。"""
-        return self.policy.grant_creator_action(resource_type, resource_id, creator, expired_at, tenant_id)
+    ) -> PermissionWriteResult:
+        """授予创建者权限；写目标由独立写配置决定，不受读策略影响。"""
+        return self.permission_writer.grant_creator_action(resource_type, resource_id, creator, expired_at, tenant_id)
 
     # ==================== 数据通路（通用收集，不经过 bypass） ====================
 
@@ -167,7 +171,7 @@ class ProviderRouter:
 
         不走 BypassRule：bypass 决定"整个鉴权是否放行"，与 AST 数据查询的语义不匹配。
         """
-        return self.policy.query_policies(subject, action_id)
+        return self.read_policy.query_policies(subject, action_id)
 
     def query_policies_by_actions(
         self,
@@ -175,7 +179,7 @@ class ProviderRouter:
         action_ids: list[ActionDef | str],
     ) -> dict[str, list[PolicyExpression]]:
         """批量收集多个 action 的策略 AST。"""
-        return self.policy.query_policies_by_actions(subject, action_ids)
+        return self.read_policy.query_policies_by_actions(subject, action_ids)
 
     def has_any_permission(
         self,
@@ -183,7 +187,7 @@ class ProviderRouter:
         action_id: ActionDef | str,
     ) -> bool:
         """是否存在任意实例级权限（不走 bypass：与 AST 数据查询同理）。"""
-        return self.policy.has_any_permission(subject, action_id)
+        return self.read_policy.has_any_permission(subject, action_id)
 
     def filter_visible_resources(
         self,
@@ -192,4 +196,4 @@ class ProviderRouter:
         candidates: tuple[ResourceInstance, ...],
     ) -> VisibleResult:
         """过滤可见资源。"""
-        return self.policy.filter_visible_resources(subject, action_id, candidates)
+        return self.read_policy.filter_visible_resources(subject, action_id, candidates)

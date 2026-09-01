@@ -12,54 +12,38 @@ from __future__ import annotations
 
 import logging
 
-from ..core.config import BypassRuleConfig, FrameworkConfig
+from ..core.config import BypassRuleConfig, FrameworkConfig, ProviderConfig, ReadConfig
 from ..core.framework import IAMFramework
 from ..core.utils import import_class
 from ..django.facade import _set_framework
+from ..provider import composition as _composition  # noqa: F401
+from ..provider.base import PermissionProvider
 from ..provider.composition.base import CompositionPolicy
 from ..provider.composition.resolver import resolve_policy_class
+from ..provider.permission_writer import PermissionWriter
 from ..schema.loaders import load_from_class as schema_load_from_class
 from ..schema.registry import SchemaRegistry
-
-# 触发 composition 包的 __init__，把 DynamicCompositionPolicy 注入 resolver 注册表。
-# 单独 import 一次即可，后续 resolve_policy_class("dynamic") 就能命中。
-from ..provider import composition as _composition  # noqa: F401
 
 logger = logging.getLogger("iam_engine.django")
 
 
 def _build_composition(
-    providers: list,
+    providers: list[PermissionProvider],
     policy_name: str,
     options: dict,
 ) -> CompositionPolicy:
-    """从配置构建 CompositionPolicy。
-
-    所有 policy 走**完全相同**的分派路径：``policy_cls.from_options(providers, **options)``。
-
-    * 简单 policy（single / any_of / all_of / primary）继承 CompositionPolicy 的
-      默认 from_options（等价于 ``cls(providers, **options)``），零成本对齐。
-    * 复杂 policy（dynamic）覆盖 from_options，把配置里的
-      ``selector`` 规格翻译成 callable、把嵌套 ``policies`` 规格翻译成实例池，
-      集成层无需感知这些差异。
-    * 业务侧可以把 policy_name 写成 dotted path 接入自定义 CompositionPolicy 子类。
-    """
+    """从已选择的读 Provider 构建组合策略。"""
     policy_cls = resolve_policy_class(policy_name)
     return policy_cls.from_options(providers, **options)
 
 
-def _build_provider(provider_cfg, schema: SchemaRegistry):
-    """从配置实例化一个 Provider。
-
-    框架层不解析 options 内部结构（含 credentials、system 等），
-    直接原封不动透传给 Provider，由 Provider 自己校验和消费。
-    """
+def _build_provider(provider_cfg: ProviderConfig, schema: SchemaRegistry) -> PermissionProvider:
+    """Provider 的 options 原样透传，由 Provider 自己校验地址、凭据等细节。"""
     cls = import_class(provider_cfg.cls)
     return cls(schema, **provider_cfg.options)
 
 
 def _build_bypass_rules(raw_rules: tuple[BypassRuleConfig, ...]):
-    """从配置实例化 bypass 规则。"""
     rules = []
     for rule_config in raw_rules:
         rule_cls = import_class(rule_config.cls)
@@ -67,14 +51,58 @@ def _build_bypass_rules(raw_rules: tuple[BypassRuleConfig, ...]):
     return rules
 
 
+def _select_provider_configs(config: FrameworkConfig) -> tuple[ProviderConfig, ...]:
+    """从完整目录中选择当前进程实际启用的 Provider 配置。"""
+    catalog = {provider.name: provider for provider in config.provider_catalog}
+    if not config.enabled_providers:
+        raise RuntimeError("IAM_FRAMEWORK.ENABLED_PROVIDERS must contain at least one provider name")
+    missing = [name for name in config.enabled_providers if name not in catalog]
+    if missing:
+        raise RuntimeError(
+            "IAM_FRAMEWORK.ENABLED_PROVIDERS references providers not present in IAM_FRAMEWORK.PROVIDER_CATALOG: "
+            f"{missing}; available: {sorted(catalog)}"
+        )
+    return tuple(catalog[name] for name in config.enabled_providers)
+
+
+def _build_enabled_providers(config: FrameworkConfig, schema: SchemaRegistry) -> list[PermissionProvider]:
+    providers: list[PermissionProvider] = []
+    for provider_cfg in _select_provider_configs(config):
+        provider = _build_provider(provider_cfg, schema)
+        if provider.name != provider_cfg.name:
+            raise RuntimeError(
+                "Provider catalog name "
+                f"{provider_cfg.name!r} does not match instantiated provider.name {provider.name!r}"
+            )
+        providers.append(provider)
+        logger.info("provider loaded: %s", provider.name)
+    return providers
+
+
+def _select_providers(
+    providers_by_name: dict[str, PermissionProvider],
+    names: tuple[str, ...],
+    field_name: str,
+) -> list[PermissionProvider]:
+    """选择读或写路径目标，并拒绝引用未启用的 Provider。"""
+    if not names:
+        raise RuntimeError(f"{field_name} must contain at least one provider name")
+    missing = [name for name in names if name not in providers_by_name]
+    if missing:
+        raise RuntimeError(
+            f"{field_name} references providers not enabled by IAM_FRAMEWORK.ENABLED_PROVIDERS: {missing}; "
+            f"available: {sorted(providers_by_name)}"
+        )
+    return [providers_by_name[name] for name in names]
+
+
+def _build_read_policy(read_config: ReadConfig, providers: list[PermissionProvider]) -> CompositionPolicy:
+    """将 READ 的通用字段和策略私有 OPTIONS 交给策略工厂。"""
+    return _build_composition(providers, read_config.policy, read_config.options)
+
+
 def load_framework() -> IAMFramework:
-    """从 settings.IAM_FRAMEWORK 构建 IAMFramework 并存入单例。
-
-    调用方：IamEngineConfig.ready() 或测试代码直接调用。
-
-    Returns:
-        已装配的 IAMFramework 实例
-    """
+    """从 settings.IAM_FRAMEWORK 构建并安装 IAMFramework 单例。"""
     from django.conf import settings
 
     raw: dict = getattr(settings, "IAM_FRAMEWORK", {})
@@ -82,10 +110,8 @@ def load_framework() -> IAMFramework:
         raise RuntimeError(
             "IAM_FRAMEWORK is not configured in Django settings. Add IAM_FRAMEWORK = {...} to your settings.py."
         )
-
     config = FrameworkConfig.from_dict(raw)
 
-    # 1. 构建 SchemaRegistry
     registry = SchemaRegistry()
     for dotted in (config.actions_module, config.resource_types_module, config.roles_module):
         if not dotted:
@@ -99,30 +125,27 @@ def load_framework() -> IAMFramework:
     registry.freeze()
     logger.info("schema registry frozen: %d action(s)", len(registry.all_actions()))
 
-    # 2. 构建 Provider 列表
-    providers = []
-    for provider_cfg in config.providers:
-        provider = _build_provider(provider_cfg, registry)
-        providers.append(provider)
-        logger.info("provider loaded: %s", provider.name)
+    providers = _build_enabled_providers(config, registry)
     if not providers:
-        raise RuntimeError("IAM_FRAMEWORK.PROVIDERS must contain at least one provider")
+        raise RuntimeError("IAM_FRAMEWORK.ENABLED_PROVIDERS must contain at least one provider")
+    if len({provider.name for provider in providers}) != len(providers):
+        raise RuntimeError(f"Enabled Provider names must be unique, got {[provider.name for provider in providers]}")
+    providers_by_name = {provider.name: provider for provider in providers}
 
-    # 3. 构建 CompositionPolicy
-    composition = _build_composition(providers, config.composition.policy, dict(config.composition.options))
-    logger.info("composition policy: %s", config.composition.policy)
+    read_providers = _select_providers(providers_by_name, config.read.providers, "IAM_FRAMEWORK.READ.PROVIDERS")
+    read_policy = _build_read_policy(config.read, read_providers)
+    logger.info("read policy: %s", config.read.policy)
 
-    # 4. 构建 BypassRules
-    bypass_rules = _build_bypass_rules(config.bypass_rules)
+    write_providers = _select_providers(providers_by_name, config.write.providers, "IAM_FRAMEWORK.WRITE.PROVIDERS")
+    permission_writer = PermissionWriter(write_providers, on_failure=config.write.on_failure)
+    logger.info("permission writer targets: %s", [provider.name for provider in write_providers])
 
-    # 5. 装配 IAMFramework
     fw = IAMFramework(
         schema=registry,
         providers=providers,
-        composition=composition,
-        bypass_rules=bypass_rules,
+        read_policy=read_policy,
+        permission_writer=permission_writer,
+        bypass_rules=_build_bypass_rules(config.bypass_rules),
     )
-
-    # 6. 存入模块级单例
     _set_framework(fw)
     return fw

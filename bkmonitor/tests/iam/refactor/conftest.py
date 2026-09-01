@@ -36,6 +36,7 @@ from bkmonitor.iam.iam_engine.django.facade import _set_framework
 from bkmonitor.iam.iam_engine.schema.loaders import load_from_class
 from bkmonitor.iam.iam_engine.schema.registry import SchemaRegistry
 from bkmonitor.iam.iam_engine.core.framework import IAMFramework
+from bkmonitor.iam.iam_engine.provider.permission_writer import PermissionWriter
 from bkmonitor.iam.iam_engine.provider.composition.single import SinglePolicy
 from bkmonitor.iam.iam_engine.provider.base import PermissionProvider
 
@@ -370,7 +371,8 @@ def installed_framework(real_schema):
             fw = IAMFramework(
                 schema=schema or real_schema,
                 providers=providers,
-                composition=SinglePolicy(providers),
+                read_policy=SinglePolicy(providers),
+                permission_writer=PermissionWriter(providers),
                 bypass_rules=bypass_rules or [],
             )
             _set_framework(fw)
@@ -400,6 +402,8 @@ def fake_framework(installed_framework, real_schema):
             self.apply_url = "http://iam.invalid/apply"
             self.apply_data = {"system": "bk_monitorv3", "actions": []}
             self.visible = None  # VisibleResult
+            self.creator_grant_error = None
+            self.creator_grant_calls: list = []
 
         def is_allowed(self, request):
             self.is_allowed_calls.append(request)
@@ -418,6 +422,11 @@ def fake_framework(installed_framework, real_schema):
 
         def filter_visible_resources(self, subject, action_id, candidates):
             return self.visible
+
+        def grant_creator_action(self, resource_type, resource_id, creator, expired_at=None, tenant_id=""):
+            self.creator_grant_calls.append((resource_type, resource_id, creator, expired_at, tenant_id))
+            if self.creator_grant_error is not None:
+                raise self.creator_grant_error
 
         # ---- PermissionProvider 抽象方言方法：本桩不直接使用（框架层只调
         #      is_allowed / batch_by_resource 等非抽象接口），补实现以满足实例化 ----

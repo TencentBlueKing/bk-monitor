@@ -288,6 +288,66 @@ class TestFrameworkConfigNoCredentialsProvider:
         assert not hasattr(cfg, "credentials_provider")
 
 
+class TestFrameworkReadWriteConfig:
+    def test_read_and_write_targets_are_parsed_independently(self):
+        from bkmonitor.iam.iam_engine.core.config import FrameworkConfig
+
+        cfg = FrameworkConfig.from_dict(
+            {
+                "PROVIDER_CATALOG": {
+                    "v3": {"class": "test.v3"},
+                    "v4": {"class": "test.v4"},
+                },
+                "ENABLED_PROVIDERS": ["v4", "v3"],
+                "READ": {
+                    "PROVIDERS": ["v3"],
+                    "POLICY": "single",
+                },
+                "WRITE": {
+                    "PROVIDERS": ["v4", "v3"],
+                    "ON_FAILURE": "log",
+                },
+            }
+        )
+
+        assert cfg.read.providers == ("v3",)
+        assert cfg.read.policy == "single"
+        assert cfg.write.providers == ("v4", "v3")
+        assert cfg.write.on_failure == "log"
+
+    def test_policy_options_accept_environment_json(self):
+        from bkmonitor.iam.iam_engine.core.config import FrameworkConfig
+
+        cfg = FrameworkConfig.from_dict(
+            {
+                "READ": {
+                    "PROVIDERS": ["v4", "v3"],
+                    "POLICY": "dynamic",
+                    "OPTIONS": (
+                        '{"selector":{"type":"static","value":"only_v3"},'
+                        '"fallback_key":"only_v3",'
+                        '"policies":{"only_v3":{"providers":["v3"],"policy":"single"}}}'
+                    ),
+                }
+            }
+        )
+
+        assert cfg.read.options["policies"] == {"only_v3": {"providers": ["v3"], "policy": "single"}}
+
+    def test_policy_options_reject_invalid_environment_json(self):
+        from bkmonitor.iam.iam_engine.core.config import FrameworkConfig
+
+        with pytest.raises(ValueError, match="valid JSON"):
+            FrameworkConfig.from_dict({"READ": {"OPTIONS": "not-json"}})
+
+    @pytest.mark.parametrize("names", [["v3", "v3"], ["v3", ""]])
+    def test_rejects_invalid_read_or_write_provider_names(self, names):
+        from bkmonitor.iam.iam_engine.core.config import FrameworkConfig
+
+        with pytest.raises(ValueError, match="PROVIDERS"):
+            FrameworkConfig.from_dict({"READ": {"PROVIDERS": names}})
+
+
 class TestFrameworkConfigExtensibility:
     def test_migration_recorder_and_bypass_rule_options_are_parsed(self):
         from bkmonitor.iam.iam_engine.core.config import FrameworkConfig

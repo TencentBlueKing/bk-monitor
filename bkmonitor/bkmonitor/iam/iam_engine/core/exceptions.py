@@ -84,6 +84,15 @@ class CapabilityNotSupported(ProviderError):
     """当前 Provider 不支持某能力（应通过 Provider.supports() 事先判断）。"""
 
 
+class CreatorGrantFailed(ProviderError):
+    """创建者授权未写入全部目标后端。
+
+    ``grant_creator_action`` 默认按尽力而为语义返回结构化结果；仅当调用方显式
+    要求 ``raise_exception=True`` 时，Permission facade 使用本异常把部分失败
+    交给上层事务或接口处理。
+    """
+
+
 # ---- Migration 类 ----------------------------------------------------------
 
 

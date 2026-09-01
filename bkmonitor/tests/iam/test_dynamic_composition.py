@@ -16,8 +16,7 @@ specific language governing permissions and limitations under the License.
 #   2. selector 返回未注册 key → 走 fallback
 #   3. selector 抛异常 → 走 fallback
 #   4. selector 返回大小写 / 空串 / None → 规范化后走 fallback
-#   5. 写授权（grant_creator_action）与展示（get_apply_url）走基类固定语义，
-#      与 selector / mode 无关（对所有 provider 扇出 / 走 primary()）
+#   5. 展示（get_apply_url / get_apply_data）跟随当前动态读策略的 primary Provider
 #   6. 构造契约：policies 为空 或 fallback_key 不在 policies 中 → ValueError
 #
 # 设计原则：框架层测试严格不依赖 Django；构造 mock provider 与 mock
@@ -64,11 +63,14 @@ def providers() -> list[MagicMock]:
 
 
 @pytest.fixture()
-def policies() -> dict[str, MagicMock]:
-    return {
+def policies(providers) -> dict[str, MagicMock]:
+    result = {
         "alpha": _make_sub_policy("alpha"),
         "beta": _make_sub_policy("beta"),
     }
+    result["alpha"].primary.return_value = providers[0]
+    result["beta"].primary.return_value = providers[1]
+    return result
 
 
 # ------------------------------------------------------------------
@@ -214,34 +216,12 @@ class TestFallbackBehavior:
 
 
 # ------------------------------------------------------------------
-# 3. 写授权 & 展示：与 mode 解耦，走基类固定语义
+# 3. 展示：跟随当前读策略的 primary Provider
 # ------------------------------------------------------------------
 
 
-class TestWriteAndDisplayIndependentOfSelector:
-    """grant_creator_action / get_apply_url 走基类，不受 selector 影响。
-
-    * grant_creator_action：对 self.providers 全扇出（迁移期双写契约）
-    * get_apply_url：走 self.primary()（默认 providers[0]）
-    * 这两者的行为不依赖候选池中任何子策略。
-    """
-
-    def test_grant_creator_action_uses_base_impl_fanout(self, providers, policies):
-        dyn = DynamicCompositionPolicy(
-            providers,
-            selector=lambda: "alpha",
-            policies=policies,
-            fallback_key="beta",
-        )
-        dyn.grant_creator_action("space", "2", "alice")
-        # 所有 provider 都被写入一次（对齐 CompositionPolicy 基类的 fanout 行为）
-        providers[0].grant_creator_action.assert_called_once_with("space", "2", "alice", None, "")
-        providers[1].grant_creator_action.assert_called_once_with("space", "2", "alice", None, "")
-        # 候选子策略的 grant_creator_action 不应被调用（走的是基类而不是委托）
-        policies["alpha"].grant_creator_action.assert_not_called()
-        policies["beta"].grant_creator_action.assert_not_called()
-
-    def test_get_apply_url_uses_primary(self, providers, policies):
+class TestDisplayFollowsDynamicReadPolicy:
+    def test_get_apply_url_uses_current_policy_primary(self, providers, policies):
         providers[0].get_apply_url.return_value = "https://a/apply"
         providers[1].get_apply_url.return_value = "https://b/apply"
         dyn = DynamicCompositionPolicy(
@@ -251,13 +231,14 @@ class TestWriteAndDisplayIndependentOfSelector:
             fallback_key="beta",
         )
         request = MagicMock()
-        # primary() 默认取 providers[0]
+        # alpha 的 primary 是 a；切换 selector 后展示也应跟着变。
         assert dyn.get_apply_url(request) == "https://a/apply"
         providers[0].get_apply_url.assert_called_once_with(request)
         providers[1].get_apply_url.assert_not_called()
 
-    def test_get_apply_data_uses_primary(self, providers, policies):
+    def test_get_apply_data_uses_current_policy_primary(self, providers, policies):
         providers[0].get_apply_data.return_value = {"from": "a"}
+        providers[1].get_apply_data.return_value = {"from": "b"}
         dyn = DynamicCompositionPolicy(
             providers,
             selector=lambda: "beta",
@@ -265,9 +246,22 @@ class TestWriteAndDisplayIndependentOfSelector:
             fallback_key="alpha",
         )
         subject = MagicMock()
-        assert dyn.get_apply_data(["act"], [], subject) == {"from": "a"}
-        providers[0].get_apply_data.assert_called_once()
-        providers[1].get_apply_data.assert_not_called()
+        assert dyn.get_apply_data(["act"], [], subject) == {"from": "b"}
+        providers[0].get_apply_data.assert_not_called()
+        providers[1].get_apply_data.assert_called_once()
+
+    def test_primary_follows_selector_on_every_call(self, providers, policies):
+        state = {"strategy": "alpha"}
+        dyn = DynamicCompositionPolicy(
+            providers,
+            selector=lambda: state["strategy"],
+            policies=policies,
+            fallback_key="beta",
+        )
+
+        assert dyn.primary() is providers[0]
+        state["strategy"] = "beta"
+        assert dyn.primary() is providers[1]
 
 
 # ------------------------------------------------------------------
@@ -326,7 +320,7 @@ class TestConstructionContract:
 # 规格 → 运行期对象"的翻译是否正确：
 #   * selector 支持 dict 规格（内置 static / django_setting、dotted path）与
 #     callable 两种输入形态
-#   * policies 支持嵌套的 {"policy": ..., "options": ...} 规格，运行期解析
+#   * policies 支持嵌套的 {"providers": [...], "policy": ..., "options": ...} 规格，运行期解析
 #     成真正的 CompositionPolicy 实例
 #   * 禁止嵌套 dynamic
 # ------------------------------------------------------------------
@@ -354,12 +348,14 @@ class TestFromOptions:
             selector={"type": "static", "value": "primary_v4"},
             fallback_key="any_of",
             policies={
-                "any_of": {"policy": "any_of"},
+                "any_of": {"providers": ["v4", "v3"], "policy": "any_of"},
                 "primary_v4": {
+                    "providers": ["v4", "v3"],
                     "policy": "primary",
                     "options": {"primary_provider": "v4"},
                 },
                 "primary_v3": {
+                    "providers": ["v4", "v3"],
                     "policy": "primary",
                     "options": {"primary_provider": "v3"},
                 },
@@ -379,10 +375,47 @@ class TestFromOptions:
             providers,
             selector=lambda: "any_of",
             fallback_key="any_of",
-            policies={"any_of": {"policy": "any_of"}},
+            policies={"any_of": {"providers": ["a", "b"], "policy": "any_of"}},
         )
         # 直接构造 provider 结果无所谓，只验证选择器命中
         assert dyn._selector() == "any_of"
+
+    def test_each_candidate_can_select_its_own_provider_set(self):
+        v4 = _make_provider("v4")
+        v3 = _make_provider("v3")
+
+        dyn = DynamicCompositionPolicy.from_options(
+            [v4, v3],
+            selector={"type": "static", "value": "single_v3"},
+            fallback_key="single_v4",
+            policies={
+                "single_v4": {"providers": ["v4"], "policy": "single"},
+                "single_v3": {"providers": ["v3"], "policy": "single"},
+                "any_of": {"providers": ["v4", "v3"], "policy": "any_of"},
+            },
+        )
+
+        assert [provider.name for provider in dyn._policies["single_v4"].providers] == ["v4"]
+        assert [provider.name for provider in dyn._policies["single_v3"].providers] == ["v3"]
+        assert dyn.primary() is v3
+
+    def test_candidate_requires_non_empty_provider_set(self, providers):
+        with pytest.raises(ValueError, match="requires non-empty 'providers'"):
+            DynamicCompositionPolicy.from_options(
+                providers,
+                selector={"type": "static", "value": "any_of"},
+                fallback_key="any_of",
+                policies={"any_of": {"policy": "any_of"}},
+            )
+
+    def test_candidate_rejects_provider_not_available_to_dynamic_policy(self, providers):
+        with pytest.raises(ValueError, match="not available to dynamic policy"):
+            DynamicCompositionPolicy.from_options(
+                providers,
+                selector={"type": "static", "value": "single_missing"},
+                fallback_key="single_missing",
+                policies={"single_missing": {"providers": ["missing"], "policy": "single"}},
+            )
 
     def test_from_options_selector_invalid_type_raises(self, providers):
         with pytest.raises(ValueError, match="selector must be a callable or a spec dict"):
@@ -390,7 +423,7 @@ class TestFromOptions:
                 providers,
                 selector=123,  # type: ignore[arg-type]
                 fallback_key="any_of",
-                policies={"any_of": {"policy": "any_of"}},
+                policies={"any_of": {"providers": ["a", "b"], "policy": "any_of"}},
             )
 
     def test_from_options_empty_policies_raises(self, providers):
@@ -408,7 +441,7 @@ class TestFromOptions:
                 providers,
                 selector={"type": "static", "value": "any_of"},
                 fallback_key="any_of",
-                policies={"any_of": {"options": {}}},
+                policies={"any_of": {"providers": ["a"], "options": {}}},
             )
 
     def test_from_options_policy_spec_not_dict_raises(self, providers):
@@ -428,11 +461,12 @@ class TestFromOptions:
                 fallback_key="outer",
                 policies={
                     "outer": {
+                        "providers": ["a", "b"],
                         "policy": "dynamic",
                         "options": {
                             "selector": {"type": "static", "value": "x"},
                             "fallback_key": "x",
-                            "policies": {"x": {"policy": "any_of"}},
+                            "policies": {"x": {"providers": ["a", "b"], "policy": "any_of"}},
                         },
                     }
                 },
@@ -444,5 +478,5 @@ class TestFromOptions:
                 providers,
                 selector={"type": "static", "value": "any_of"},
                 fallback_key="not_in_pool",
-                policies={"any_of": {"policy": "any_of"}},
+                policies={"any_of": {"providers": ["a", "b"], "policy": "any_of"}},
             )

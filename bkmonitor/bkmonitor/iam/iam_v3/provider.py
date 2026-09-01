@@ -14,7 +14,7 @@ specific language governing permissions and limitations under the License.
 # 只实现"方言层"接口：接收编码后的 Dialect* 结构，通过 V3Client SDK
 # 调用 V3 IAM 平台 API。业务命名 ↔ V3 方言的编解码全部由基类和注入的 codec 完成。
 #
-# codec 类通过 IAM_FRAMEWORK.PROVIDERS[*].options.codec_class 配置。
+# codec 类通过 IAM_FRAMEWORK.PROVIDER_CATALOG["v3"].options.codec_class 配置。
 # ---------------------------------------------------------------------------
 
 from __future__ import annotations
@@ -89,7 +89,7 @@ class V3PermissionProvider(PermissionProvider):
         由基类 __init__ 实例化。子类只处理"方言 ID → V3 SDK payload"。
 
     配置：
-        完全由 IAM_FRAMEWORK.PROVIDERS[*].options 传入，
+        完全由 IAM_FRAMEWORK.PROVIDER_CATALOG["v3"].options 传入，
         Provider 不读 Django settings；具体字段参见 V3Options。
     """
 
@@ -104,7 +104,7 @@ class V3PermissionProvider(PermissionProvider):
 
         Args:
             schema: 框架统一构建的冻结 SchemaRegistry。
-            **options: IAM_FRAMEWORK.PROVIDERS[*].options 原样透传的字典，
+            **options: IAM_FRAMEWORK.PROVIDER_CATALOG["v3"].options 原样透传的字典，
                 必须包含 V3Options 所需的所有字段。
 
         Raises:

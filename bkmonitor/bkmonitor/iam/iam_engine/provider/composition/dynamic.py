@@ -22,9 +22,10 @@ from __future__ import annotations
 #     环境变量、etcd、apollo 都行）。测试时可注入 lambda: "a" 完全绕开 django。
 #   * 读鉴权路径（is_allowed / batch_by_* / filter_visible_resources /
 #     query_policies / has_any_permission）走当前 selector 命中的子策略；
-#   * 写授权路径（grant_creator_action）与展示路径（get_apply_url /
-#     get_apply_data）与 mode 无关，直接沿用基类 CompositionPolicy 的固定语义
-#     （对所有已装配的 provider 扇出 / 走 primary()），不再受 selector 影响。
+#   * 创建者授权是独立写通路，由 ProviderRouter 中的 PermissionWriter 负责，
+#     不属于 CompositionPolicy；
+#   * 展示路径（get_apply_url / get_apply_data）跟随当前读策略的 primary Provider，
+#     避免运行时读策略已经切到某后端、展示却仍固定落到 providers[0]。
 # ---------------------------------------------------------------------------
 
 from collections.abc import Callable
@@ -98,6 +99,10 @@ class DynamicCompositionPolicy(CompositionPolicy):
         key = (raw or "").lower()
         return self._policies.get(key, self._policies[self._fallback_key])
 
+    def primary(self) -> PermissionProvider:
+        """展示能力与当前动态读策略使用同一个 primary Provider。"""
+        return self._current().primary()
+
     # ------------------------------------------------------------------
     # 读鉴权契约：全部一行委托到 _current()
     # ------------------------------------------------------------------
@@ -150,8 +155,8 @@ class DynamicCompositionPolicy(CompositionPolicy):
         providers: list[PermissionProvider],
         *,
         selector: dict[str, Any] | Callable[[], str],
-        policies: dict[str, dict[str, Any]],
-        fallback_key: str,
+        policies: dict[str, dict[str, Any]] | None = None,
+        fallback_key: str = "any_of",
         **_options: Any,
     ) -> DynamicCompositionPolicy:
         """从配置字典构造 DynamicCompositionPolicy。
@@ -164,7 +169,10 @@ class DynamicCompositionPolicy(CompositionPolicy):
           - dict 规格（推荐）：``{"type": "django_setting", "attr": "...", "default": "..."}``
             按 :mod:`selectors` 里的注册表 / dotted path 构造 callable。
           - 已经是 callable：直接透传（给 Python API / 单测 用）。
-        * ``policies`` 里每一项形如 ``{"policy": "<name>", "options": {...}}``，
+        * ``policies`` 里每一项形如
+          ``{"providers": ["..."], "policy": "<name>", "options": {...}}``；
+          每个候选可声明自己的 Provider 子集，因而可动态切换 single_v3 /
+          single_v4 等不同单栈策略，而不把策略与全局 providers[0] 耦合。
           调用方通过 ``sub_policy_resolver`` 参数（隐式：走本文件同目录的
           ``_resolve_sub_policy``）解析子策略类；子策略不允许嵌套 dynamic
           （避免无穷递归和调试灾难）。
@@ -172,13 +180,16 @@ class DynamicCompositionPolicy(CompositionPolicy):
         参数：
             providers: 已装配的 provider 列表。
             selector: selector 规格 dict 或 callable。
-            policies: 候选池规格，key 为业务 mode 名，value 为
-                ``{"policy": "<name>", "options": {...}}``。
+            policies: 可选候选池规格，key 为业务定义的策略名，value 为
+                ``{"providers": ["..."], "policy": "<name>", "options": {...}}``。
+                未提供时按当前 ``providers`` 自动生成 ``single_<name>``、
+                ``any_of``、``all_of`` 和 ``primary_<name>``。
             fallback_key: selector 无法命中时兜底走的 key，必须存在于 policies。
             **_options: 目前透传给父类构造器（保留 kw 兼容性）。
         """
         selector_callable = cls._resolve_selector(selector)
-        policies_pool = cls._build_policies_pool(providers, policies)
+        policies_cfg = cls._default_policies(providers) if policies is None else policies
+        policies_pool = cls._build_policies_pool(providers, policies_cfg)
         return cls(
             providers,
             selector=selector_callable,
@@ -186,6 +197,28 @@ class DynamicCompositionPolicy(CompositionPolicy):
             fallback_key=fallback_key,
             **_options,
         )
+
+    @staticmethod
+    def _default_policies(providers: list[PermissionProvider]) -> dict[str, dict[str, Any]]:
+        """为未指定候选池的动态读策略生成通用规格。
+
+        只使用 Provider ``name``，不关联任何具体权限系统；每个候选仍明确声明
+        自己的 Provider 集合，因此展示主后端和读鉴权会一起随策略切换。
+        """
+        names = [provider.name for provider in providers]
+        return {
+            **{f"single_{name}": {"providers": [name], "policy": "single"} for name in names},
+            "any_of": {"providers": names, "policy": "any_of"},
+            "all_of": {"providers": names, "policy": "all_of"},
+            **{
+                f"primary_{name}": {
+                    "providers": names,
+                    "policy": "primary",
+                    "options": {"primary_provider": name},
+                }
+                for name in names
+            },
+        }
 
     @staticmethod
     def _resolve_selector(
@@ -224,25 +257,38 @@ class DynamicCompositionPolicy(CompositionPolicy):
         # 延迟导入：resolver 只依赖同目录内的 policy 类，不引入外部依赖
         from .resolver import resolve_policy_class
 
+        providers_by_name = {provider.name: provider for provider in providers}
         pool: dict[str, CompositionPolicy] = {}
         for key, spec in policies_cfg.items():
             if not isinstance(spec, dict):
                 raise ValueError(f"dynamic policies[{key!r}] spec must be a dict, got {type(spec).__name__}")
             sub_policy_name = spec.get("policy") or ""
             sub_options = spec.get("options") or {}
+            provider_names = spec.get("providers")
             if not sub_policy_name:
                 raise ValueError(f"dynamic policies[{key!r}] missing 'policy' name")
+            if not isinstance(provider_names, list | tuple) or not provider_names:
+                raise ValueError(f"dynamic policies[{key!r}] requires non-empty 'providers'")
+            if any(not isinstance(name, str) or not name for name in provider_names):
+                raise ValueError(f"dynamic policies[{key!r}].providers must contain non-empty provider names")
+            if len(set(provider_names)) != len(provider_names):
+                raise ValueError(f"dynamic policies[{key!r}].providers must not contain duplicates")
+            missing = [name for name in provider_names if name not in providers_by_name]
+            if missing:
+                raise ValueError(
+                    f"dynamic policies[{key!r}] references providers not available to dynamic policy: {missing}; "
+                    f"available: {sorted(providers_by_name)}"
+                )
+            if not isinstance(sub_options, dict):
+                raise ValueError(f"dynamic policies[{key!r}].options must be a dict")
             if sub_policy_name == "dynamic":
                 # 禁止嵌套：DynamicCompositionPolicy 内部再放 DynamicCompositionPolicy
                 # 会导致 selector 语义纠缠、错误处理路径爆炸，性价比极低。
                 raise ValueError(f"dynamic policies[{key!r}] policy='dynamic' is not allowed (no nesting)")
             sub_cls = resolve_policy_class(sub_policy_name)
-            pool[key] = sub_cls.from_options(providers, **sub_options)
+            sub_providers = [providers_by_name[name] for name in provider_names]
+            pool[key] = sub_cls.from_options(sub_providers, **sub_options)
         return pool
 
-    # ------------------------------------------------------------------
-    # 写授权 / 展示路径：与 mode 无关，走 CompositionPolicy 基类的固定语义。
-    # grant_creator_action / get_apply_url / get_apply_data 都由基类实现，
-    # 不需要在这里 override —— 基类的实现直接作用于 self.providers（扇出）
-    # 和 self.primary()（默认 providers[0]），与运行时 selector 完全解耦。
-    # ------------------------------------------------------------------
+    # 展示接口由 CompositionPolicy 基类实现；基类会调用上面的 primary()，因此
+    # get_apply_url / get_apply_data 会随每次 selector 求值而跟随当前读策略。

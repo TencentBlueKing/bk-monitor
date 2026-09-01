@@ -23,7 +23,6 @@ from bkcrypto.symmetric.options import AESSymmetricOptions, SM4SymmetricOptions
 from bkcrypto.utils.convertors import Base64Convertor
 from blueapps.conf.default_settings import *  # noqa
 from blueapps.conf.log import get_logging_config_dict
-from django.core.exceptions import ImproperlyConfigured
 from django.utils.translation import gettext_lazy as _
 
 from bkmonitor.utils.i18n import TranslateDict
@@ -1388,17 +1387,13 @@ BK_IAM_V4_SYSTEM_DESCRIPTION = os.getenv("BK_IAM_V4_SYSTEM_DESCRIPTION", "蓝鲸
 BK_IAM_V4_CALLBACK_URL = os.getenv("BK_IAM_V4_CALLBACK_URL", "")
 
 # ---- IAM v4 资源 callback ----
-#
-# callback 可独立部署，因此它有自己的 IAM 客户端配置，绝不回退读取 Provider 的
-# BK_IAM_V4_CLIENT_* 或 IAM_FRAMEWORK.PROVIDERS[*].options.credentials。部署时若
-# 确有需要，可将两组环境变量指向同一份受管密钥；这种复用是部署决定而不是代码耦合。
-BK_IAM_V4_CALLBACK_API_BASE_URL = os.getenv("BK_IAM_V4_CALLBACK_API_BASE_URL", "")
-BK_IAM_V4_CALLBACK_SYSTEM_ID = os.getenv("BK_IAM_V4_CALLBACK_SYSTEM_ID", "")
-BK_IAM_V4_CALLBACK_CLIENT_APP_CODE = os.getenv("BK_IAM_V4_CALLBACK_CLIENT_APP_CODE", "")
-BK_IAM_V4_CALLBACK_CLIENT_APP_SECRET = os.getenv("BK_IAM_V4_CALLBACK_CLIENT_APP_SECRET", "")
+# callback 可独立部署
+BK_IAM_V4_CALLBACK_API_BASE_URL = os.getenv("BK_IAM_V4_CALLBACK_API_BASE_URL", BK_IAM_V4_API_BASE_URL)
+BK_IAM_V4_CALLBACK_SYSTEM_ID = os.getenv("BK_IAM_V4_CALLBACK_SYSTEM_ID", BK_IAM_V4_SYSTEM_ID)
+BK_IAM_V4_CALLBACK_CLIENT_APP_CODE = os.getenv("BK_IAM_V4_CALLBACK_CLIENT_APP_CODE", BK_IAM_V4_CLIENT_APP_CODE)
+BK_IAM_V4_CALLBACK_CLIENT_APP_SECRET = os.getenv("BK_IAM_V4_CALLBACK_CLIENT_APP_SECRET", BK_IAM_V4_CLIENT_APP_SECRET)
 BK_IAM_V4_CALLBACK_TIMEOUT = int(os.getenv("BK_IAM_V4_CALLBACK_TIMEOUT", "30"))
 BK_IAM_V4_CALLBACK_TENANT_ID = os.getenv("BK_IAM_V4_CALLBACK_TENANT_ID", "system")
-
 IAM_V4_CALLBACK = {
     "base_url": BK_IAM_V4_CALLBACK_API_BASE_URL,
     "system_id": BK_IAM_V4_CALLBACK_SYSTEM_ID,
@@ -1441,33 +1436,8 @@ BK_IAM_V3_SYSTEM_CLIENTS_LIST = [
 ]
 
 # ---- IAM 申请 URL 兜底 ----
-#
-# Provider._get_apply_url_dialect 在平台侧生成申请 URL 失败 / 返回空串时会降级到
-# 该兜底链接（仍为空则保持既有"返回 \"\""契约）。
-#   * V3：默认回退到 BK_IAM_SAAS_HOST（V3 的申请页本来就基于 IAM SaaS 域名，
-#     SDK 生成失败时回退到同域名的首页至少可保证链接可访问）。
-#   * V4：V4 申请页域名与 SaaS 域名不一定对齐，默认空，需要业务方显式配
-#     BK_IAM_V4_FALLBACK_APPLY_URL（建议指向内部 ITSM 权限工单页或 V4 对应的 SaaS 首页）。
 BK_IAM_V3_FALLBACK_APPLY_URL = os.getenv("BK_IAM_V3_FALLBACK_APPLY_URL", "") or BK_IAM_SAAS_HOST
 BK_IAM_V4_FALLBACK_APPLY_URL = os.getenv("BK_IAM_V4_FALLBACK_APPLY_URL", "")
-
-# ---- IAM 鉴权栈单开关 ----
-#
-# 通过单一环境变量决定装配哪些 Provider、以及 CompositionPolicy：
-#   * v3    —— 只装配 V3，COMPOSITION=single
-#   * v4    —— 只装配 V4，COMPOSITION=single
-#   * union —— 同时装配 V4 + V3（V4 在前作为 primary），COMPOSITION=any_of；
-#              读鉴权任一命中即通过，写授权由 CompositionPolicy 内部双写两侧。
-#
-# 拒绝拆成 USE_V3 / USE_V4 两个布尔，避免 {False, False} / {True, True} 类型
-# 的非法组合以及"再引一个字段区分模式"的隐晦耦合。
-BK_IAM_MODE = os.getenv("BK_IAM_MODE", "v4").lower()
-
-if BK_IAM_MODE not in {"v3", "v4", "union"}:
-    raise ValueError(f"Unknown BK_IAM_MODE={BK_IAM_MODE!r}. Supported values: 'v3' | 'v4' | 'union'.")
-
-if BK_IAM_MODE in {"v4", "union"} and not BK_IAM_V4_API_BASE_URL.strip():
-    raise ImproperlyConfigured("BK_IAM_MODE=v4/union requires BK_IAM_V4_API_BASE_URL")
 
 _IAM_V3_PROVIDER = {
     "class": "bkmonitor.iam.iam_v3.provider.V3PermissionProvider",
@@ -1522,40 +1492,43 @@ _IAM_V4_PROVIDER = {
     },
 }
 
-if BK_IAM_MODE == "v3":
-    _IAM_PROVIDERS = [_IAM_V3_PROVIDER]
-    _IAM_COMPOSITION = {"policy": "single"}
-elif BK_IAM_MODE == "v4":
-    _IAM_PROVIDERS = [_IAM_V4_PROVIDER]
-    _IAM_COMPOSITION = {"policy": "single"}
-else:  # union（取值已在上方校验）
-    # V4 在前：primary() 取 providers[0]，get_apply_url / get_apply_data 优先出 V4 页面。
-    _IAM_PROVIDERS = [_IAM_V4_PROVIDER, _IAM_V3_PROVIDER]
-    # union 下走 DynamicCompositionPolicy：
-    #   * 装配层（本 if/elif/else 分支）由 BK_IAM_MODE 决定，改后需要重启进程；
-    #   * union 内部读组合策略由 BK_IAM_MODE_UNION_STRATEGY（GlobalConfig）决定，
-    #     运维在 Django Admin 修改后经 DynamicSettings 清缓存 → ≤180s 全集群生效。
-    #   * selector 采用统一规格：type + kwargs。这里选 "django_setting" 通道，
-    #     业务层不再直接告诉框架"去读 settings"，而是通过 selector 抽象声明数据源，
-    #     未来接 etcd / apollo 只需换 selector.type，框架和这里的注册表都无感。
-    #   * fallback_key=any_of：selector 无值/未知值/异常时兜底走 any_of，与旧行为对齐。
-    _IAM_COMPOSITION = {
-        "policy": "dynamic",
-        "options": {
+# ---- IAM 读写后端独立配置 ----
+#
+# Provider 目录、进程装配集合、读策略与写目标各自独立。此处只声明环境变量
+# 的原始值；名称、引用关系和策略语义由 iam_engine 加载框架时统一校验。
+#
+#   BK_IAM_PROVIDERS                    当前进程装配的后端，默认 v4,v3
+#   BK_IAM_READ_PROVIDERS               读鉴权后端，默认 v4,v3
+#   BK_IAM_READ_POLICY                  single/any_of/all_of/primary/dynamic，默认 dynamic
+#   BK_IAM_READ_STRATEGY                dynamic 当前候选；可由 GlobalConfig 动态覆盖
+#   BK_IAM_READ_OPTIONS                 当前读策略的 JSON 参数；默认是 dynamic 策略参数
+#   BK_IAM_WRITE_PROVIDERS              通用权限写后端，默认 v4,v3
+#   BK_IAM_WRITE_ON_FAILURE             当前仅支持 log（逐后端详细失败日志）
+_IAM_PROVIDER_CATALOG = {
+    "v3": _IAM_V3_PROVIDER,
+    "v4": _IAM_V4_PROVIDER,
+}
+
+BK_IAM_PROVIDERS = get_env_or_raise("BK_IAM_PROVIDERS", default="v4,v3")
+BK_IAM_READ_PROVIDERS = get_env_or_raise("BK_IAM_READ_PROVIDERS", default="v4,v3")
+BK_IAM_READ_POLICY = get_env_or_raise("BK_IAM_READ_POLICY", default="dynamic")
+BK_IAM_READ_STRATEGY = get_env_or_raise("BK_IAM_READ_STRATEGY", default="any_of")
+BK_IAM_READ_OPTIONS = get_env_or_raise(
+    "BK_IAM_READ_OPTIONS",
+    default=json.dumps(
+        {
             "selector": {
                 "type": "django_setting",
-                "attr": "BK_IAM_MODE_UNION_STRATEGY",
-                "default": "any_of",
+                "attr": "BK_IAM_READ_STRATEGY",
+                "default": BK_IAM_READ_STRATEGY,
             },
             "fallback_key": "any_of",
-            "policies": {
-                "any_of": {"policy": "any_of"},
-                "all_of": {"policy": "all_of"},
-                "primary_v4": {"policy": "primary", "options": {"primary_provider": "v4"}},
-                "primary_v3": {"policy": "primary", "options": {"primary_provider": "v3"}},
-            },
-        },
-    }
+        }
+    ),
+)
+BK_IAM_WRITE_PROVIDERS = get_env_or_raise("BK_IAM_WRITE_PROVIDERS", default="v4,v3")
+BK_IAM_WRITE_ON_FAILURE = get_env_or_raise("BK_IAM_WRITE_ON_FAILURE", default="log")
+
 IAM_FRAMEWORK = {
     # 操作定义
     "ACTIONS": "bkmonitor.iam.definitions.actions.Actions",
@@ -1563,24 +1536,18 @@ IAM_FRAMEWORK = {
     "RESOURCE_TYPES": "bkmonitor.iam.definitions.resource_types.ResourceTypes",
     # 角色定义
     "ROLES": "bkmonitor.iam.definitions.roles.Roles",
-    "PROVIDERS": _IAM_PROVIDERS,
-    # Provider 组合策略：
-    #   single  —— 单 Provider 直通；要求 PROVIDERS 恰好配置 1 个 Provider（默认）。
-    #   any_of  —— 任一 Provider 允许即允许；批量结果取并集，适合 v3/v4 迁移过渡期。
-    #   all_of  —— 所有 Provider 都允许才允许；批量结果取交集，适合严格的多重校验。
-    #   primary —— 第一个 Provider 为主；主 Provider 发生 ProviderUnavailable 时按顺序 fallback。
-    #   dynamic —— 运行时按 selector（settings 属性）动态委托到候选池中的具体策略，
-    #              装配契约（PROVIDERS）不变；BK_IAM_MODE_UNION_STRATEGY 走 GlobalConfig
-    #              可实现 ≤180s 全集群生效（无需重启进程）。
-    # 可选 COMPOSITION.options：
-    #   max_workers      —— 多 Provider 调用的并发数（不是 Provider 内部分片并发数）。
-    #   strict_errors    —— any_of 默认 False、all_of 默认 True；是否立即上抛 Provider 异常。
-    #   fallback_on_error —— primary 默认 True；主 Provider 故障时是否切换备用 Provider。
-    #   selector / fallback_key / policies —— dynamic 专用。selector 是形如
-    #     {"type": "django_setting", "attr": ..., "default": ...} 的规格 dict，
-    #     支持内置类型（django_setting / static）或 dotted path 走自定义 factory；
-    #     policies 是 {mode_key: {"policy": ..., "options": ...}} 的候选池。
-    "COMPOSITION": _IAM_COMPOSITION,
+    # 完整目录不等于当前装配集合，便于读/写独立选择且不隐含 V3/V4 语义。
+    "PROVIDER_CATALOG": _IAM_PROVIDER_CATALOG,
+    "ENABLED_PROVIDERS": BK_IAM_PROVIDERS,
+    "READ": {
+        "PROVIDERS": BK_IAM_READ_PROVIDERS,
+        "POLICY": BK_IAM_READ_POLICY,
+        "OPTIONS": BK_IAM_READ_OPTIONS,
+    },
+    "WRITE": {
+        "PROVIDERS": BK_IAM_WRITE_PROVIDERS,
+        "ON_FAILURE": BK_IAM_WRITE_ON_FAILURE,
+    },
     "MIGRATION": {
         # 迁移模式 manual ｜ semi_auto —— 由 BK_IAM_ENGINE_MIGRATION_MODE 控制，
         # 默认 semi_auto 保持随 `manage.py migrate` 一起跑（幂等 CREATE/UPDATE）。
@@ -1589,12 +1556,11 @@ IAM_FRAMEWORK = {
         "directory": os.getenv("BK_IAM_ENGINE_MIGRATION_DIRECTORY", "bkmonitor/iam/iam_migrations"),
         # 破坏性变更（DELETE / 方言 id 变更重建）全局开关：
         # 默认 False —— 破坏性变更必须走独立命令 `iam_engine_migrate --allow-destructive`
-        # 显式确认，绝不在 post_migrate 自动流程里默认放开。
-        # 由 BK_IAM_ENGINE_MIGRATION_ALLOW_DESTRUCTIVE 控制，取值 "1"/"true"/"yes" 表示开启。
         "allow_destructive": os.getenv("BK_IAM_ENGINE_MIGRATION_ALLOW_DESTRUCTIVE", "false").lower()
         in ("1", "true", "yes"),
     },
 }
+
 
 # 聚合网关默认业务ID
 AGGREGATION_BIZ_ID = int(os.getenv("BKAPP_AGGREGATION_BIZ_ID", 2))

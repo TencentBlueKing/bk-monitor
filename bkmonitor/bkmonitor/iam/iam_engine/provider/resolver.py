@@ -20,7 +20,7 @@ specific language governing permissions and limitations under the License.
 #           ...  # 查 DB、补祖先链、填名称
 #
 # 注入方式（同 codec）：
-#   IAM_FRAMEWORK.PROVIDERS[*].options.resolver_class = "dotted.path.MyResolver"
+#   IAM_FRAMEWORK.PROVIDER_CATALOG[<name>].options.resolver_class = "dotted.path.MyResolver"
 # ---------------------------------------------------------------------------
 
 from __future__ import annotations

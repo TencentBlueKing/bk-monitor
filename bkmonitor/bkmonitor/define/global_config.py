@@ -542,27 +542,15 @@ ADVANCED_OPTIONS = OrderedDict(
             slz.JSONField(label="运营MCP按指标族的统计业务ID(形如{default:id,logbeat:id})", default={}),
         ),
         # ------------------------------------------------------------------
-        # IAM union 模式下"读鉴权组合策略"的动态开关。
-        # 装配契约（PROVIDERS 列表 & COMPOSITION.policy）由 BK_IAM_MODE 环境变量
-        # 在进程启动时决定；本项只影响 union 模式下 DynamicCompositionPolicy
-        # 内部委托到的具体子策略，运维在 Django Admin 修改后经 DynamicSettings
-        # 允许的取值须与 config/default.py 中 dynamic policies 池的 key 严格对齐：
-        #   any_of     —— 双侧任一允许即允许（默认，迁移期宽松放行）
-        #   all_of     —— 双侧都允许才允许（严格审计场景）
-        #   primary_v4 —— 主 v4，v4 不可用时 fallback v3
-        #   primary_v3 —— 主 v3，v3 不可用时 fallback v4
-        # 单栈部署（BK_IAM_MODE=v3/v4）下本项无效，因为 COMPOSITION.policy=single。
+        # IAM 动态读策略。Provider 的装配、读集合和写集合由启动环境变量分别
+        # 决定；本项仅在 BK_IAM_READ_POLICY=dynamic 且 READ.OPTIONS selector
+        # 引用本项时选择候选读策略。默认值来自 BK_IAM_READ_STRATEGY 环境变量。
+        # READ.OPTIONS 未提供 policies 时，可写值为框架自动生成的候选 key（例如
+        # single_<provider-name> / any_of / all_of / primary_<provider-name>）；提供 policies 时使用其 key。
+        # 未知值由动态策略使用 READ.OPTIONS 中的 fallback_key 回退，避免全局配置短暂脏值中断鉴权。
         (
-            "BK_IAM_MODE_UNION_STRATEGY",
-            slz.ChoiceField(
-                choices=[
-                    ("any_of", "any_of"),
-                    ("all_of", "all_of"),
-                    ("primary_v4", "primary_v4"),
-                    ("primary_v3", "primary_v3"),
-                ],
-                default="any_of",
-            ),
+            "BK_IAM_READ_STRATEGY",
+            slz.CharField(label="IAM动态读策略", default=settings.BK_IAM_READ_STRATEGY),
         ),
     ]
 )

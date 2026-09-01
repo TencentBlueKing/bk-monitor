@@ -8,172 +8,243 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-# ==============================================================================
-# 阶段 1 · 评论 1 + 评论 4 —— IAM 单开关 + 迁移安全默认
-#
-# 校验 Django settings 落地的语义正确性：
-#   1. BK_IAM_MODE 取值必须在 {v3, v4, union} 内（不允许被静默塞脏值进来）
-#   2. 装配结果与 BK_IAM_MODE 语义一致：
-#        - v3 / v4  → 单 Provider + composition=single
-#        - union    → V4 + V3 双 Provider（V4 在前）+ composition=any_of
-#   3. MIGRATION.allow_destructive is False（评论 4）
-#
-# 说明：BK_IAM_MODE 的三分支分派在 config/default.py 里直接内联 if/elif/else，
-# 不再单独抽纯函数；本测试通过读取 django.conf.settings 校验最终装配语义，
-# 从而在任意 .env 覆盖下（包括开发者本地 export BK_IAM_MODE=union）都能守住
-# "分派逻辑正确 + 安全默认不倒退"这两条底线。
-# ==============================================================================
+"""IAM 读写分离配置与加载期校验。"""
+
+import json
+from unittest.mock import MagicMock
 
 import pytest
+from django.test import override_settings
 
 
-class TestIamModeStackWiring:
-    """按 BK_IAM_MODE 的实际值验证装配结果，覆盖三种模式的语义。"""
+class TestIamReadWriteEnvironmentConfig:
+    """default.py 只收集环境变量；语义校验不应散落在 settings 文件中。"""
 
-    def test_bk_iam_mode_is_valid_enum(self):
-        from django.conf import settings
+    @staticmethod
+    def _reload_default(monkeypatch, env: dict[str, str]):
+        import importlib
 
-        mode = getattr(settings, "BK_IAM_MODE", "").lower()
-        assert mode in {"v3", "v4", "union"}, f"BK_IAM_MODE={mode!r} 非法，仅允许 'v3' | 'v4' | 'union'"
+        import config.default as default_mod
 
-    def test_providers_and_composition_match_mode(self):
-        from django.conf import settings
+        keys = (
+            "BK_IAM_PROVIDERS",
+            "BK_IAM_READ_PROVIDERS",
+            "BK_IAM_READ_POLICY",
+            "BK_IAM_READ_STRATEGY",
+            "BK_IAM_READ_OPTIONS",
+            "BK_IAM_WRITE_PROVIDERS",
+            "BK_IAM_WRITE_ON_FAILURE",
+        )
+        for key in keys:
+            monkeypatch.delenv(key, raising=False)
+        for key, value in env.items():
+            monkeypatch.setenv(key, value)
+        return importlib.reload(default_mod)
 
-        mode = settings.BK_IAM_MODE.lower()
-        providers = settings.IAM_FRAMEWORK["PROVIDERS"]
-        composition = settings.IAM_FRAMEWORK["COMPOSITION"]
+    def test_default_declarations_are_grouped_by_catalog_enabled_read_and_write(self, monkeypatch):
+        settings_module = self._reload_default(monkeypatch, {})
 
-        if mode == "v3":
-            assert len(providers) == 1
-            assert providers[0]["class"].endswith("V3PermissionProvider")
-            assert composition == {"policy": "single"}
-        elif mode == "v4":
-            assert len(providers) == 1
-            assert providers[0]["class"].endswith("V4PermissionProvider")
-            assert composition == {"policy": "single"}
-        else:  # union
-            assert len(providers) == 2
-            # V4 必须在前：primary() 取 providers[0]，get_apply_url/get_apply_data 优先出 V4 页面
-            assert providers[0]["class"].endswith("V4PermissionProvider"), (
-                "union 模式下 V4 必须作为 primary，即 providers[0]"
-            )
-            assert providers[1]["class"].endswith("V3PermissionProvider")
-            # union 模式改为 DynamicCompositionPolicy：装配契约（PROVIDERS）不变，
-            # union 内部读组合策略走 GlobalConfig 动态开关 BK_IAM_MODE_UNION_STRATEGY。
-            assert composition["policy"] == "dynamic"
-            options = composition["options"]
-            # selector 是显式的规格 dict：type + kwargs，通过 selectors 注册表解析
-            assert options["selector"] == {
+        framework = settings_module.IAM_FRAMEWORK
+        assert set(framework["PROVIDER_CATALOG"]) == {"v3", "v4"}
+        assert framework["ENABLED_PROVIDERS"] == "v4,v3"
+        assert framework["READ"]["PROVIDERS"] == "v4,v3"
+        assert framework["READ"]["POLICY"] == "dynamic"
+        assert json.loads(framework["READ"]["OPTIONS"]) == {
+            "selector": {
                 "type": "django_setting",
-                "attr": "BK_IAM_MODE_UNION_STRATEGY",
+                "attr": "BK_IAM_READ_STRATEGY",
                 "default": "any_of",
+            },
+            "fallback_key": "any_of",
+        }
+        assert framework["WRITE"] == {"PROVIDERS": "v4,v3", "ON_FAILURE": "log"}
+
+    def test_single_read_can_keep_dual_write_targets(self, monkeypatch):
+        settings_module = self._reload_default(
+            monkeypatch,
+            {
+                "BK_IAM_PROVIDERS": "v4,v3",
+                "BK_IAM_READ_PROVIDERS": "v3",
+                "BK_IAM_READ_POLICY": "single",
+                "BK_IAM_WRITE_PROVIDERS": "v4,v3",
+            },
+        )
+
+        framework = settings_module.IAM_FRAMEWORK
+        assert framework["READ"]["PROVIDERS"] == "v3"
+        assert framework["READ"]["POLICY"] == "single"
+        assert framework["WRITE"]["PROVIDERS"] == "v4,v3"
+
+    def test_dynamic_options_are_supplied_by_the_generic_options_environment_variable(self, monkeypatch):
+        settings_module = self._reload_default(
+            monkeypatch,
+            {
+                "BK_IAM_READ_STRATEGY": "primary_v3",
+                "BK_IAM_READ_OPTIONS": (
+                    '{"selector":{"type":"django_setting","attr":"BK_IAM_READ_STRATEGY","default":"primary_v3"},'
+                    '"fallback_key":"all_of"}'
+                ),
+            },
+        )
+
+        options = json.loads(settings_module.IAM_FRAMEWORK["READ"]["OPTIONS"])
+        assert options["selector"] == {
+            "type": "django_setting",
+            "attr": "BK_IAM_READ_STRATEGY",
+            "default": "primary_v3",
+        }
+        assert options["fallback_key"] == "all_of"
+
+    def test_v3_only_environment_needs_no_v4_connection_setting(self, monkeypatch):
+        settings_module = self._reload_default(
+            monkeypatch,
+            {
+                "BK_IAM_PROVIDERS": "v3",
+                "BK_IAM_READ_PROVIDERS": "v3",
+                "BK_IAM_READ_POLICY": "single",
+                "BK_IAM_WRITE_PROVIDERS": "v3",
+            },
+        )
+
+        assert settings_module.IAM_FRAMEWORK["ENABLED_PROVIDERS"] == "v3"
+
+
+class TestIamFrameworkLoading:
+    """引用、策略和失败策略都在框架加载期验证。"""
+
+    @staticmethod
+    def _raw(*, enabled=("v4", "v3"), read=("v3",), policy="single", write=("v4", "v3"), on_failure="log"):
+        return {
+            "PROVIDER_CATALOG": {
+                "v4": {"class": "unused.v4", "options": {}},
+                "v3": {"class": "unused.v3", "options": {}},
+            },
+            "ENABLED_PROVIDERS": list(enabled),
+            "READ": {
+                "PROVIDERS": list(read),
+                "POLICY": policy,
+                "OPTIONS": {
+                    "selector": {"type": "django_setting", "attr": "BK_IAM_READ_STRATEGY", "default": "any_of"},
+                    "fallback_key": "any_of",
+                },
+            },
+            "WRITE": {"PROVIDERS": list(write), "ON_FAILURE": on_failure},
+        }
+
+    @staticmethod
+    def _load(monkeypatch, raw, **extra_settings):
+        from bkmonitor.iam.iam_engine.django import conf
+        from bkmonitor.iam.iam_engine.django.facade import _set_framework, get_framework
+
+        try:
+            previous_framework = get_framework()
+        except RuntimeError:
+            previous_framework = None
+
+        def _fake_build_provider(provider_cfg, _schema):
+            provider = MagicMock()
+            provider.name = provider_cfg.name
+            provider.get_apply_url.return_value = f"apply://{provider_cfg.name}"
+            return provider
+
+        monkeypatch.setattr(conf, "_build_provider", _fake_build_provider)
+        try:
+            with override_settings(IAM_FRAMEWORK=raw, **extra_settings):
+                return conf.load_framework()
+        finally:
+            _set_framework(previous_framework)  # type: ignore[arg-type]
+
+    def test_load_uses_distinct_read_and_generic_write_provider_sets(self, monkeypatch):
+        framework = self._load(monkeypatch, self._raw())
+
+        assert [provider.name for provider in framework.router.read_policy.providers] == ["v3"]
+        assert [provider.name for provider in framework.router.permission_writer.providers] == ["v4", "v3"]
+
+    def test_primary_provider_is_a_primary_policy_option_not_a_read_level_field(self, monkeypatch):
+        raw = self._raw(read=("v4", "v3"), policy="primary")
+        raw["READ"]["OPTIONS"] = {"primary_provider": "v3"}
+
+        framework = self._load(monkeypatch, raw)
+
+        assert framework.router.read_policy.primary().name == "v3"
+
+    def test_dynamic_single_candidate_uses_its_own_provider_set_and_apply_display(self, monkeypatch):
+        raw = self._raw(read=("v4", "v3"), policy="dynamic")
+        raw["READ"]["OPTIONS"]["selector"] = {"type": "static", "value": "single_v3"}
+        framework = self._load(
+            monkeypatch,
+            raw,
+        )
+
+        policy = framework.router.read_policy
+        assert [provider.name for provider in policy._policies["single_v3"].providers] == ["v3"]
+        assert policy.primary().name == "v3"
+        assert framework.get_apply_url(MagicMock()) == "apply://v3"
+
+    def test_dynamic_candidates_can_be_supplied_as_json_with_independent_provider_sets(self, monkeypatch):
+        raw = self._raw(read=("v4", "v3"), policy="dynamic")
+        raw["READ"]["OPTIONS"].update(
+            {
+                "selector": {"type": "static", "value": "only_v3"},
+                "fallback_key": "only_v3",
+                "policies": {"only_v3": {"providers": ["v3"], "policy": "single"}},
             }
-            assert options["fallback_key"] == "any_of"
-            policies = options["policies"]
-            # 候选池至少覆盖："any_of / all_of / primary_v4 / primary_v3"
-            assert set(policies.keys()) >= {"any_of", "all_of", "primary_v4", "primary_v3"}
-            # 兜底策略 any_of 必须已注册（与 fallback_key 对齐，避免装配期崩溃）
-            assert options["fallback_key"] in policies
-            # primary_v4 / primary_v3 必须携带 primary_provider 参数
-            assert policies["primary_v4"] == {
-                "policy": "primary",
-                "options": {"primary_provider": "v4"},
-            }
-            assert policies["primary_v3"] == {
-                "policy": "primary",
-                "options": {"primary_provider": "v3"},
-            }
+        )
 
+        framework = self._load(monkeypatch, raw)
 
-class TestV4ModeBaseUrlRequired:
-    """默认 V4 仍 fail-fast；仅 V3 模式允许不提供 V4 地址。"""
+        policy = framework.router.read_policy
+        assert [provider.name for provider in policy._policies["only_v3"].providers] == ["v3"]
+        assert policy.primary().name == "v3"
 
-    def test_v4_mode_requires_non_empty_v4_base_url(self, monkeypatch):
-        import importlib
+    def test_rejects_read_or_write_provider_not_enabled(self, monkeypatch):
+        with pytest.raises(RuntimeError, match="WRITE.PROVIDERS references providers not enabled"):
+            self._load(monkeypatch, self._raw(enabled=("v3",), read=("v3",), write=("v4",)))
 
-        from django.core.exceptions import ImproperlyConfigured
+    def test_rejects_single_read_policy_with_multiple_providers_at_loading(self, monkeypatch):
+        from bkmonitor.iam.iam_engine.core.exceptions import ConfigError
 
-        import config.default as default_mod
+        with pytest.raises(ConfigError, match="exactly 1 provider"):
+            self._load(monkeypatch, self._raw(read=("v4", "v3"), policy="single"))
 
-        with monkeypatch.context() as m:
-            m.setenv("BK_IAM_MODE", "v4")
-            m.setenv("BK_IAM_V4_API_BASE_URL", " \t ")
-            with pytest.raises(ImproperlyConfigured, match="BK_IAM_MODE=v4/union requires BK_IAM_V4_API_BASE_URL"):
-                importlib.reload(default_mod)
-
-        # 上一个 reload 会在模块中途退出；恢复环境后立即重载，避免污染本文件
-        # 后续的 settings 组装验证。
-        importlib.reload(default_mod)
-
-    def test_union_mode_requires_non_empty_v4_base_url(self, monkeypatch):
-        import importlib
-
-        from django.core.exceptions import ImproperlyConfigured
-
-        import config.default as default_mod
-
-        with monkeypatch.context() as m:
-            m.setenv("BK_IAM_MODE", "union")
-            m.setenv("BK_IAM_V4_API_BASE_URL", "")
-            with pytest.raises(ImproperlyConfigured, match="BK_IAM_MODE=v4/union requires BK_IAM_V4_API_BASE_URL"):
-                importlib.reload(default_mod)
-
-        importlib.reload(default_mod)
-
-    def test_v3_mode_does_not_require_v4_base_url(self, monkeypatch):
-        import importlib
-
-        import config.default as default_mod
-
-        with monkeypatch.context() as m:
-            m.setenv("BK_IAM_MODE", "v3")
-            m.setenv("BK_IAM_V4_API_BASE_URL", "")
-            reloaded = importlib.reload(default_mod)
-            assert reloaded.BK_IAM_MODE == "v3"
-            assert reloaded.IAM_FRAMEWORK["PROVIDERS"][0]["class"].endswith("V3PermissionProvider")
-
-        importlib.reload(default_mod)
+    def test_rejects_unimplemented_write_failure_policy_at_loading(self, monkeypatch):
+        with pytest.raises(ValueError, match="only on_failure='log'"):
+            self._load(monkeypatch, self._raw(enabled=("v3",), read=("v3",), write=("v3",), on_failure="outbox"))
 
 
 class TestMigrationSafeDefault:
-    """评论 4：破坏性变更必须走独立命令显式确认，不允许 post_migrate 默认放开。"""
-
     def test_migration_allow_destructive_defaults_false(self):
         from django.conf import settings
 
-        migration = settings.IAM_FRAMEWORK["MIGRATION"]
-        assert migration["allow_destructive"] is False, (
-            "破坏性变更必须走独立命令显式确认，绝不允许在 post_migrate 自动流程里默认放开"
-        )
+        assert settings.IAM_FRAMEWORK["MIGRATION"]["allow_destructive"] is False
 
 
 class TestMigrationEnvOverrides:
-    """MIGRATION 三个字段都通过 BK_IAM_ENGINE_MIGRATION_* 环境变量覆写，未显式设置时走安全默认。
-
-    通过 monkeypatch.setenv + importlib.reload(config.default) 让 default.py
-    重新按环境变量装配 IAM_FRAMEWORK，然后直接检查 module 内的 dict；不修改
-    django.conf.settings 避免污染整个 session。
-    """
-
     @staticmethod
     def _reload_default_migration(monkeypatch, env: dict[str, str]) -> dict:
-        """按 env 设置环境变量后 reload config.default，返回 IAM_FRAMEWORK['MIGRATION']。"""
         import importlib
 
-        # 清理再赋值：避免上一个 case 残留污染
-        for k in (
+        for key in (
             "BK_IAM_ENGINE_MIGRATION_MODE",
             "BK_IAM_ENGINE_MIGRATION_DIRECTORY",
             "BK_IAM_ENGINE_MIGRATION_ALLOW_DESTRUCTIVE",
+            "BK_IAM_PROVIDERS",
+            "BK_IAM_READ_PROVIDERS",
+            "BK_IAM_READ_POLICY",
+            "BK_IAM_READ_OPTIONS",
+            "BK_IAM_WRITE_PROVIDERS",
         ):
-            monkeypatch.delenv(k, raising=False)
-        for k, v in env.items():
-            monkeypatch.setenv(k, v)
+            monkeypatch.delenv(key, raising=False)
+        monkeypatch.setenv("BK_IAM_PROVIDERS", "v3")
+        monkeypatch.setenv("BK_IAM_READ_PROVIDERS", "v3")
+        monkeypatch.setenv("BK_IAM_READ_POLICY", "single")
+        monkeypatch.setenv("BK_IAM_WRITE_PROVIDERS", "v3")
+        for key, value in env.items():
+            monkeypatch.setenv(key, value)
 
         import config.default as default_mod
 
-        reloaded = importlib.reload(default_mod)
-        return reloaded.IAM_FRAMEWORK["MIGRATION"]
+        return importlib.reload(default_mod).IAM_FRAMEWORK["MIGRATION"]
 
     def test_defaults_without_env(self, monkeypatch):
         migration = self._reload_default_migration(monkeypatch, {})
@@ -181,26 +252,12 @@ class TestMigrationEnvOverrides:
         assert migration["directory"] == "bkmonitor/iam/iam_migrations"
         assert migration["allow_destructive"] is False
 
-    def test_mode_override(self, monkeypatch):
-        migration = self._reload_default_migration(monkeypatch, {"BK_IAM_ENGINE_MIGRATION_MODE": "manual"})
-        assert migration["mode"] == "manual"
+    @pytest.mark.parametrize("value", ("1", "true", "True", "YES", "yes"))
+    def test_allow_destructive_truthy_values(self, monkeypatch, value):
+        migration = self._reload_default_migration(monkeypatch, {"BK_IAM_ENGINE_MIGRATION_ALLOW_DESTRUCTIVE": value})
+        assert migration["allow_destructive"] is True
 
-    def test_directory_override(self, monkeypatch):
-        migration = self._reload_default_migration(
-            monkeypatch, {"BK_IAM_ENGINE_MIGRATION_DIRECTORY": "/tmp/custom_migrations"}
-        )
-        assert migration["directory"] == "/tmp/custom_migrations"
-
-    def test_allow_destructive_truthy_values(self, monkeypatch):
-        for value in ("1", "true", "True", "YES", "yes"):
-            migration = self._reload_default_migration(
-                monkeypatch, {"BK_IAM_ENGINE_MIGRATION_ALLOW_DESTRUCTIVE": value}
-            )
-            assert migration["allow_destructive"] is True, f"value={value!r} 应视为开启"
-
-    def test_allow_destructive_falsy_values(self, monkeypatch):
-        for value in ("0", "false", "no", "off", "", "anything_else"):
-            migration = self._reload_default_migration(
-                monkeypatch, {"BK_IAM_ENGINE_MIGRATION_ALLOW_DESTRUCTIVE": value}
-            )
-            assert migration["allow_destructive"] is False, f"value={value!r} 不应视为开启"
+    @pytest.mark.parametrize("value", ("0", "false", "no", "off", "", "anything_else"))
+    def test_allow_destructive_falsy_values(self, monkeypatch, value):
+        migration = self._reload_default_migration(monkeypatch, {"BK_IAM_ENGINE_MIGRATION_ALLOW_DESTRUCTIVE": value})
+        assert migration["allow_destructive"] is False

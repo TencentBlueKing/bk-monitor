@@ -38,7 +38,7 @@ from bkmonitor.iam import ResourceEnum
 from bkmonitor.iam.action import MINI_ACTION_IDS, ActionEnum, canonicalize_action_id, get_action_by_id
 from bkmonitor.iam.adapters.v3.codec import MonitorV3Codec
 from bkmonitor.iam.definitions.resource_types import ResourceTypes
-from bkmonitor.iam.iam_engine.core.exceptions import PermissionDenied, ProviderError
+from bkmonitor.iam.iam_engine.core.exceptions import CreatorGrantFailed, PermissionDenied, ProviderError
 from bkmonitor.iam.iam_v3.client import V3Client
 from bkmonitor.iam.iam_engine.core.types import (
     ApplyURLRequest,
@@ -486,21 +486,43 @@ class Permission:
 
     def grant_creator_action(self, resource, creator: str = None, raise_exception=False):
         """
-        新建实例关联权限授权（委托 IAMFramework）。
+        新建实例关联权限授权（委托 IAMFramework），返回逐写后端结果。
+
+        默认 ``on_failure=log`` 是尽力而为：一侧失败不会阻断业务创建，但会有
+        PermissionWriter 的异常栈日志和本方法的结果摘要日志；绝不再把部分失败
+        记录为 ``Success``。调用方显式传 ``raise_exception=True`` 时，部分或全部
+        失败会抛 ``CreatorGrantFailed``。
         """
-        grant_result = None
         try:
-            self._fw.grant_creator_action(
+            grant_result = self._fw.grant_creator_action(
                 resource_type=resource.type,
                 resource_id=resource.id,
                 creator=creator or self.username,
                 tenant_id=self.bk_tenant_id,
             )
-            logger.info(f"[grant_creator_action] Success! resource: {resource}")
         except Exception as e:  # pylint: disable=broad-except
             logger.exception(f"[grant_creator_action] Failed! resource: {resource}, result: {e}")
             if raise_exception:
                 raise e
+            return None
+
+        if grant_result.is_success:
+            logger.info(
+                "[grant_creator_action] Success! resource: %s, result: %s",
+                resource,
+                grant_result.as_log_dict(),
+            )
+            return grant_result
+
+        logger.warning(
+            "[grant_creator_action] Incomplete! resource: %s, result: %s",
+            resource,
+            grant_result.as_log_dict(),
+        )
+        if raise_exception:
+            raise CreatorGrantFailed(
+                f"creator grant incomplete: resource={resource}, result={grant_result.as_log_dict()}"
+            )
 
         return grant_result
 

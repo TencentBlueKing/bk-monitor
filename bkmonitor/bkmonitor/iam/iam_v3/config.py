@@ -84,7 +84,7 @@ class V3SystemInfo:
 
 @dataclass(frozen=True)
 class V3Options:
-    """V3 Provider 完整配置契约，即 IAM_FRAMEWORK.PROVIDERS[*].options 的强类型表示。
+    """V3 Provider 完整配置契约，即 IAM_FRAMEWORK.PROVIDER_CATALOG["v3"].options 的强类型表示。
 
     使用方式：
         cfg = V3Options.from_dict(options)
@@ -127,7 +127,7 @@ class V3Options:
 
     @classmethod
     def from_dict(cls, raw: dict[str, Any]) -> V3Options:
-        """从 IAM_FRAMEWORK.PROVIDERS[*].options 字典构建强类型配置。
+        """从 IAM_FRAMEWORK.PROVIDER_CATALOG["v3"].options 字典构建强类型配置。
 
         约定：
             * 必填字段缺失或类型错误 → 抛 ValueError（fail fast）

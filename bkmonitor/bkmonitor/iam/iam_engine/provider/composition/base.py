@@ -10,7 +10,6 @@ specific language governing permissions and limitations under the License.
 
 from __future__ import annotations
 
-import logging
 from abc import ABC, abstractmethod
 from collections.abc import Generator
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -28,8 +27,6 @@ from ...core.types import (
     VisibleResult,
 )
 from ...provider.base import PermissionProvider
-
-logger = logging.getLogger("iam_engine.composition")
 
 # ---------------------------------------------------------------------------
 # CompositionPolicy —— 多 Provider 鉴权决策组合策略基类
@@ -49,7 +46,7 @@ logger = logging.getLogger("iam_engine.composition")
 
 if TYPE_CHECKING:
     from ...policy.expression import PolicyExpression
-    from ...schema.definitions import ActionDef, ResourceTypeDef
+    from ...schema.definitions import ActionDef
 
 
 class CompositionPolicy(ABC):
@@ -182,64 +179,6 @@ class CompositionPolicy(ABC):
     ) -> dict | None:
         """权限申请数据由主 Provider 生成（不同平台格式不同）。"""
         return self.primary().get_apply_data(action_ids, resources, subject)
-
-    def grant_creator_action(
-        self,
-        resource_type: ResourceTypeDef | str,
-        resource_id: str,
-        creator: str,
-        expired_at: int | None = None,
-        tenant_id: str = "",
-    ) -> None:
-        """创建者授权：迁移期必须写入所有已装配 Provider，不受读鉴权组合策略影响。
-
-        与 is_allowed / batch_by_* 的语义解耦：
-          - 读鉴权（single / any_of / all_of / primary）决定"权限判定如何组合"；
-          - 写授权固定"多 Provider 全写"：只要装配了 V3 + V4，就两侧都写，
-            避免创建者在切换/回滚时失去刚创建资源的权限。
-
-        错误策略：
-          - 单 Provider：直接直通，异常照抛。
-          - 多 Provider：逐个写入，任一 Provider 抛异常都记录 log，
-            只要"至少一侧成功"就返回；"全部失败"时上抛最后一次异常，
-            让调用方（Permission.grant_creator_action 会 catch 并 log.exception）
-            决定是否 raise_exception。
-        """
-        if len(self.providers) == 1:
-            self.providers[0].grant_creator_action(resource_type, resource_id, creator, expired_at, tenant_id)
-            return
-
-        errors: list[tuple[str, BaseException]] = []
-        successes: list[str] = []
-        for provider in self.providers:
-            try:
-                provider.grant_creator_action(resource_type, resource_id, creator, expired_at, tenant_id)
-                successes.append(provider.name)
-            except Exception as exc:  # noqa: BLE001
-                errors.append((provider.name, exc))
-                logger.exception(
-                    "grant_creator_action failed on provider=%s: resource=%s/%s creator=%s",
-                    provider.name,
-                    resource_type,
-                    resource_id,
-                    creator,
-                )
-
-        if not successes:
-            # 全部 Provider 都失败：上抛最后一次异常，行为对齐"单 Provider 抛错"路径
-            _, last_exc = errors[-1]
-            raise last_exc
-
-        if errors:
-            # 部分成功、部分失败：不上抛，但显式告警——迁移期一侧写入失败需要人工补偿
-            logger.warning(
-                "grant_creator_action partial success: resource=%s/%s creator=%s succeeded=%s failed=%s",
-                resource_type,
-                resource_id,
-                creator,
-                successes,
-                [name for name, _ in errors],
-            )
 
     # ---- 数据查询：框架只收集，不合并 ----
 

@@ -23,7 +23,7 @@ specific language governing permissions and limitations under the License.
 #       V3 全部恒等映射，继承 IdentityCodec。
 #
 # 配置方式：
-#   在 IAM_FRAMEWORK.PROVIDERS[*].options.codec_class 中配置本类的 dotted path：
+#   在 IAM_FRAMEWORK.PROVIDER_CATALOG["v3"].options.codec_class 中配置本类的 dotted path：
 #       "codec_class": "bkmonitor.iam.adapters.v3.codec.MonitorV3Codec"
 #   Provider 在初始化时自动加载，无需手动传参。
 # ---------------------------------------------------------------------------

@@ -14,7 +14,7 @@ from __future__ import annotations
 # V4 Provider 配置契约
 #
 # 这个文件是 V4PermissionProvider 的"配置说明书"：
-#   * 用户在 settings.IAM_FRAMEWORK.PROVIDERS[*].options 里传什么字段，
+#   * 用户在 settings.IAM_FRAMEWORK.PROVIDER_CATALOG["v4"].options 里传什么字段，
 #     直接来这里查 V4Options / V4Credentials / V4SystemInfo。
 #   * V4PermissionProvider.__init__ 里调用 V4Options.from_dict(options) 完成
 #     强类型解析 + 缺字段/类型错误的启动期校验，出错时立刻 fail fast。
@@ -92,7 +92,7 @@ class V4SystemInfo:
 
 @dataclass(frozen=True)
 class V4Options:
-    """V4 Provider 完整配置契约，即 IAM_FRAMEWORK.PROVIDERS[*].options 的强类型表示。
+    """V4 Provider 完整配置契约，即 IAM_FRAMEWORK.PROVIDER_CATALOG["v4"].options 的强类型表示。
 
     使用方式：
         cfg = V4Options.from_dict(options)
@@ -133,7 +133,7 @@ class V4Options:
 
     @classmethod
     def from_dict(cls, raw: dict[str, Any]) -> V4Options:
-        """从 IAM_FRAMEWORK.PROVIDERS[*].options 字典构建强类型配置。
+        """从 IAM_FRAMEWORK.PROVIDER_CATALOG["v4"].options 字典构建强类型配置。
 
         约定：
             * 必填字段缺失或类型错误 → 抛 ValueError（fail fast）
@@ -163,13 +163,13 @@ class V4Options:
         if not isinstance(base_url, str):
             raise ValueError(
                 "V4Options.base_url must be a non-empty string; "
-                "check BK_IAM_V4_API_BASE_URL / IAM_FRAMEWORK.PROVIDERS[*].options.base_url"
+                "check BK_IAM_V4_API_BASE_URL / IAM_FRAMEWORK.PROVIDER_CATALOG['v4'].options.base_url"
             )
         base_url = base_url.strip()
         if not base_url:
             raise ValueError(
                 "V4Options.base_url must be a non-empty string; "
-                "check BK_IAM_V4_API_BASE_URL / IAM_FRAMEWORK.PROVIDERS[*].options.base_url"
+                "check BK_IAM_V4_API_BASE_URL / IAM_FRAMEWORK.PROVIDER_CATALOG['v4'].options.base_url"
             )
 
         if not isinstance(credentials_raw, dict):

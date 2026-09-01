@@ -151,12 +151,41 @@ class TestPermissionSurface:
 
     def test_default_tenant_is_system(self):
         """租户概念核对：无 request 时的默认租户为 DEFAULT_TENANT_ID="system"，
-        与 config/default.py 的 IAM_FRAMEWORK.PROVIDERS[0].options.bk_tenant_id="system" 一致。"""
+        与 config/default.py 的 PROVIDER_CATALOG 中 Provider options.bk_tenant_id="system" 一致。"""
         from constants.common import DEFAULT_TENANT_ID
 
         assert DEFAULT_TENANT_ID == "system"
         p = Permission(username="tester", bk_tenant_id="system")
         assert p.bk_tenant_id == "system"
+
+
+class TestCreatorGrantResultLogging:
+    def test_failure_is_logged_as_incomplete_not_success(self, fake_framework, caplog):
+        _, provider = fake_framework
+        provider.creator_grant_error = RuntimeError("temporary backend failure")
+        permission = Permission(username="tester", bk_tenant_id="system")
+        resource = ResourceEnum.BUSINESS.create_simple_instance("2")
+
+        with caplog.at_level("WARNING", logger="bkmonitor.iam.permission"):
+            result = permission.grant_creator_action(resource)
+
+        assert result.is_success is False
+        assert len(result.failed) == 1
+        assert provider.creator_grant_calls == [("space", "2", "tester", None, "system")]
+        messages = [record.getMessage() for record in caplog.records]
+        assert any("[grant_creator_action] Incomplete!" in message for message in messages)
+        assert not any("[grant_creator_action] Success!" in message for message in messages)
+
+    def test_raise_exception_exposes_incomplete_creator_grant(self, fake_framework):
+        from bkmonitor.iam.iam_engine.core.exceptions import CreatorGrantFailed
+
+        _, provider = fake_framework
+        provider.creator_grant_error = RuntimeError("temporary backend failure")
+        permission = Permission(username="tester", bk_tenant_id="system")
+        resource = ResourceEnum.BUSINESS.create_simple_instance("2")
+
+        with pytest.raises(CreatorGrantFailed, match="creator grant incomplete"):
+            permission.grant_creator_action(resource, raise_exception=True)
 
 
 # ---------------------------------------------------------------------------

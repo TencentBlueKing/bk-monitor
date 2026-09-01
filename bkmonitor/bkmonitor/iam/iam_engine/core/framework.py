@@ -16,7 +16,7 @@ from __future__ import annotations
 # 职责：
 #   1. 持有只读 SchemaRegistry（schema 元数据查询）
 #   2. 持有所有 Provider 实例（通过 fw.providers["name"] 直接访问）
-#   3. 持有 ProviderRouter（鉴权通路 = bypass 横切 + composition 组合）
+#   3. 持有 ProviderRouter（读策略 + 通用权限写策略 + bypass 横切）
 #   4. 对外暴露鉴权 / 数据查询接口
 #
 # 生命周期：
@@ -28,7 +28,8 @@ from __future__ import annotations
 #   fw = IAMFramework(
 #       schema=registry,
 #       providers=[v4_provider, v3_provider],
-#       composition=AnyOfPolicy([v4_provider, v3_provider]),
+#       read_policy=AnyOfPolicy([v4_provider, v3_provider]),
+#       permission_writer=PermissionWriter([v4_provider, v3_provider]),
 #       bypass_rules=[SettingsSkipRule()],
 #   )
 #   allowed = fw.is_allowed(request)
@@ -49,6 +50,7 @@ from ..core.types import (
 )
 from ..core.exceptions import ProviderNotFound
 from ..provider.base import PermissionProvider
+from ..provider.permission_writer import PermissionWriteResult, PermissionWriter
 
 if TYPE_CHECKING:
     from ..schema.definitions import ActionDef, ResourceTypeDef
@@ -69,7 +71,8 @@ class IAMFramework:
         fw = IAMFramework(
             schema=registry,
             providers=[v4, v3],
-            composition=AnyOfPolicy([v4, v3]),
+            read_policy=AnyOfPolicy([v4, v3]),
+            permission_writer=PermissionWriter([v4, v3]),
             bypass_rules=[SettingsSkipRule()],
         )
         allowed = fw.is_allowed(request)
@@ -79,7 +82,8 @@ class IAMFramework:
         self,
         schema: SchemaRegistry,
         providers: list[PermissionProvider],
-        composition: CompositionPolicy,
+        read_policy: CompositionPolicy,
+        permission_writer: PermissionWriter,
         bypass_rules: list[BypassRule] | None = None,
     ) -> None:
         if not providers:
@@ -89,7 +93,7 @@ class IAMFramework:
         if len({p.name for p in providers}) != len(providers):
             raise ValueError(f"Provider names must be unique, got: {[p.name for p in providers]}")
         self._providers: dict[str, PermissionProvider] = {p.name: p for p in providers}
-        self._router = ProviderRouter(composition, bypass_rules)
+        self._router = ProviderRouter(read_policy, permission_writer, bypass_rules)
 
     # ---- 只读资源 ----
 
@@ -127,7 +131,7 @@ class IAMFramework:
 
     @property
     def router(self) -> ProviderRouter:
-        """内部 Router（用于需要直接访问 bypass/composition 的场景）。"""
+        """内部 Router（用于需要直接访问读策略或写策略的场景）。"""
         return self._router
 
     # ==================== 鉴权通路 ====================
@@ -169,8 +173,8 @@ class IAMFramework:
         creator: str,
         expired_at: int | None = None,
         tenant_id: str = "",
-    ) -> None:
-        """授予资源创建者对该资源的管理权限。由 composition 的 primary Provider 执行。"""
+    ) -> PermissionWriteResult:
+        """授予资源创建者对该资源的管理权限，返回每个写目标的执行结果。"""
         return self._router.grant_creator_action(resource_type, resource_id, creator, expired_at, tenant_id)
 
     # ==================== 数据通路 ====================
