@@ -302,9 +302,20 @@ class HostInspectionHandlerTest(SimpleTestCase):
             _validate_collector(collector(), "tenant-a")
 
     @patch("apps.log_admin_resource.handlers.host_inspection.NodeApi.query_host_subscriptions", return_value=[])
-    def test_host_must_belong_to_exact_collector_subscription(self, _query):
+    def test_host_must_belong_to_exact_collector_subscription(self, mock_query):
         with self.assertRaisesRegex(ValidationError, "host_not_in_collector_subscription"):
             _validate_host_membership(collector(), 99, "tenant-a")
+        mock_query.assert_called_once_with(
+            params={
+                "bk_biz_id": 2,
+                "bk_host_id": 99,
+                "source_type": "subscription",
+                "no_request": True,
+                "bk_tenant_id": "tenant-a",
+            },
+            request_cookies=False,
+            bk_tenant_id="tenant-a",
+        )
 
     @patch("apps.log_admin_resource.handlers.host_inspection._request_identity", return_value=("reader-a", "tenant-a"))
     def test_detail_returns_evidence_without_internal_ids(self, _identity):

@@ -589,10 +589,10 @@ def _normalize_error(upstream_code, message, not_found_codes):
 def _error_message(code):
     messages = {
         "RESOURCE_NOT_FOUND": "The requested upstream resource does not exist.",
-        "UPSTREAM_AUTH_FAILED": "BKBase user authentication failed.",
+        "UPSTREAM_AUTH_FAILED": "Upstream user authentication failed.",
         "BKDATA_IDENTITY_NOT_CONFIGURED": "BKLOG has no configured BKBase user for this business.",
         "BKDATA_TENANT_NOT_CONFIGURED": "BKLOG cannot resolve a BKBase tenant for this business.",
-        "UPSTREAM_PERMISSION_DENIED": "BKBase denied access to the requested resource.",
+        "UPSTREAM_PERMISSION_DENIED": "The upstream service denied access to the requested resource.",
         "UPSTREAM_TIMEOUT": "The upstream request timed out.",
         "UPSTREAM_INVALID_RESPONSE": "The upstream response was invalid.",
         "UPSTREAM_DECODE_FAILED": "The upstream response could not be decoded.",

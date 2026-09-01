@@ -14,6 +14,7 @@ from apps.log_admin_resource.handlers.collector_evidence import (
 from apps.log_admin_resource.handlers.platform_source import PlatformSourceError
 from apps.log_admin_resource.registry import AdminResourceRegistry
 from apps.log_admin_resource.schema import validate_params
+from apps.log_databus.handlers.collector import HostCollectorHandler
 
 
 @override_settings(ENVIRONMENT="bkte")
@@ -140,8 +141,37 @@ class CollectorControlPlaneSnapshotTest(SimpleTestCase):
         self.assertEqual(result["warnings"][0]["code"], "RESPONSE_TRUNCATED")
 
 
-@override_settings(ENVIRONMENT="bkte")
+@override_settings(ENVIRONMENT="bkte", BK_APP_TENANT_ID="tenant-a")
 class CollectorHostSnapshotTest(SimpleTestCase):
+    @patch("apps.log_databus.handlers.collector.host.LogIndexSet.objects.filter", return_value=[])
+    @patch("apps.log_databus.handlers.collector.host.CollectorConfig.objects.filter", return_value=[])
+    @patch("apps.log_databus.handlers.collector.host.NodeApi.query_host_subscriptions", return_value=[])
+    def test_shared_collector_handler_preserves_user_request_default(
+        self, mock_query_subscriptions, _collectors, _index_sets
+    ):
+        handler = HostCollectorHandler()
+        with patch.object(handler, "get_subscription_status_by_list", return_value=[]) as mock_status:
+            result = handler.list_collectors_by_host({"bk_biz_id": 2})
+
+        self.assertEqual(result, [])
+        mock_query_subscriptions.assert_called_once_with({"bk_biz_id": 2, "source_type": "subscription"})
+        mock_status.assert_called_once_with([], no_request=False, bk_tenant_id=None)
+
+    @patch("apps.log_databus.handlers.collector.host.LogIndexSet.objects.filter", return_value=[])
+    @patch("apps.log_databus.handlers.collector.host.CollectorConfig.objects.filter", return_value=[])
+    @patch("apps.log_databus.handlers.collector.host.NodeApi.query_host_subscriptions", return_value=[])
+    def test_shared_collector_handler_propagates_explicit_app_identity(
+        self, mock_query_subscriptions, _collectors, _index_sets
+    ):
+        handler = HostCollectorHandler()
+        params = {"bk_biz_id": 2, "no_request": True, "bk_tenant_id": "tenant-a"}
+        with patch.object(handler, "get_subscription_status_by_list", return_value=[]) as mock_status:
+            result = handler.list_collectors_by_host(params)
+
+        self.assertEqual(result, [])
+        mock_query_subscriptions.assert_called_once_with({**params, "source_type": "subscription"})
+        mock_status.assert_called_once_with([], no_request=True, bk_tenant_id="tenant-a")
+
     def test_host_query_requires_nonempty_ip_and_nonnegative_cloud_id(self):
         for params, message in (
             ({}, "ip or bk_host_id with bk_biz_id is required"),
@@ -195,7 +225,15 @@ class CollectorHostSnapshotTest(SimpleTestCase):
 
         validate_params(result, FUNCTIONS["bklog.collector.host_snapshot"]["response_schema"], "response")
         mock_require_biz.assert_called_once_with(2)
-        instance.list_collectors_by_host.assert_called_once_with({"bk_host_id": 101, "bk_biz_id": 2, "bk_cloud_id": 0})
+        instance.list_collectors_by_host.assert_called_once_with(
+            {
+                "bk_host_id": 101,
+                "bk_biz_id": 2,
+                "bk_cloud_id": 0,
+                "no_request": True,
+                "bk_tenant_id": "tenant-a",
+            }
+        )
         self.assertEqual(result["collector_runtime"]["probe_status"], "success")
         self.assertEqual(result["collector_runtime"]["data"]["value"][0]["collector_config_id"], 10)
         self.assertNotIn("runtime-secret", str(result))
@@ -273,7 +311,7 @@ class CollectorHostSnapshotTest(SimpleTestCase):
 
         self.assertEqual(result["cmdb"]["probe_status"], "skipped")
         mock_host_handler.return_value.list_collectors_by_host.assert_called_once_with(
-            {"bk_host_id": 101, "bk_biz_id": 2}
+            {"bk_host_id": 101, "bk_biz_id": 2, "no_request": True, "bk_tenant_id": "tenant-a"}
         )
         operations = [call.args[1] for call in mock_platform_probe.call_args_list]
         self.assertEqual(
@@ -313,7 +351,13 @@ class CollectorHostSnapshotTest(SimpleTestCase):
         get_collector_host_snapshot({"bk_host_id": 101, "bk_biz_id": 2, "bk_cloud_id": 3})
 
         mock_host_handler.return_value.list_collectors_by_host.assert_called_once_with(
-            {"bk_host_id": 101, "bk_biz_id": 2, "bk_cloud_id": 3}
+            {
+                "bk_host_id": 101,
+                "bk_biz_id": 2,
+                "bk_cloud_id": 3,
+                "no_request": True,
+                "bk_tenant_id": "tenant-a",
+            }
         )
 
     @patch("apps.log_admin_resource.handlers.collector_evidence.query_platform_source")

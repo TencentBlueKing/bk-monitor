@@ -325,6 +325,8 @@ def _validate_host_membership(collector: CollectorConfig, bk_host_id: int, tenan
             "bk_biz_id": collector.bk_biz_id,
             "bk_host_id": bk_host_id,
             "source_type": "subscription",
+            "no_request": True,
+            "bk_tenant_id": tenant_id,
         },
         request_cookies=False,
         bk_tenant_id=tenant_id,
