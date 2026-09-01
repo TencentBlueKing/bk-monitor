@@ -208,7 +208,23 @@ def _query_ts_schema(*, raw: bool = False, reference: bool = False, check: bool 
             }
         )
         required.append("down_sample_range")
-    return {"type": "object", "required": required, "properties": properties, "additionalProperties": False}
+    schema = {"type": "object", "required": required, "properties": properties, "additionalProperties": False}
+    if not any((raw, reference, check)):
+        schema["allOf"] = [
+            {
+                "if": {"required": ["response_contract"]},
+                "then": {"required": ["legacy_output_ref", "output_list"]},
+                "else": {
+                    "not": {
+                        "anyOf": [
+                            {"required": ["legacy_output_ref"]},
+                            {"required": ["output_list"]},
+                        ]
+                    }
+                },
+            }
+        ]
+    return schema
 
 
 def _relation_schema(*, ranged: bool) -> dict[str, Any]:
