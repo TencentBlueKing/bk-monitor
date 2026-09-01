@@ -2090,9 +2090,12 @@ class BaseIndexSetHandler:
                             index_set.index_set_id, index_set.query_alias_settings
                         )
                     except Exception as e:
+                        # 已配置别名但解析失败时，不要把 None 当作全量解析成功。
+                        # 空映射会让所有 RT 省略 query_alias_settings，避免覆盖已有别名。
+                        rt_alias_mappings = {}
                         logger.warning(
                             "get rt alias settings for index set(%s) failed: %s, "
-                            "fallback to apply full alias settings to all result tables",
+                            "skip alias settings for all result tables",
                             index_set.index_set_id,
                             e,
                         )

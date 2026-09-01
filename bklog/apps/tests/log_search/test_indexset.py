@@ -1747,6 +1747,31 @@ class TestSyncRouter(TestCase):
         self.assertNotIn("query_alias_settings", failed_info)
         self.assertNotIn("query_alias_settings", empty_info)
 
+    @patch(
+        "apps.log_search.handlers.index_set.SearchHandler.get_all_fields_by_index_id",
+        side_effect=RuntimeError("mapping unavailable"),
+    )
+    def test_sync_router_skips_aliases_when_all_rt_field_queries_fail(self, mock_get_all_fields):
+        """所有 RT 字段查询失败时，不应把完整别名配置下发到任一 RT。"""
+        user_alias = {"field_name": "log", "query_alias": "message"}
+        index_set = self._build_es_doris_index_set(query_alias_settings=[user_alias])
+        append_calls = []
+
+        def _capture_append(result_key, func, params=None, use_request=True, multi_func_params=False):
+            append_calls.append((result_key, func, params))
+
+        with patch("apps.utils.thread.MultiExecuteFunc.append", side_effect=_capture_append):
+            with patch("apps.utils.thread.MultiExecuteFunc.run", return_value={}):
+                with patch("apps.log_search.handlers.index_set.SearchHandler.__init__", return_value=None):
+                    BaseIndexSetHandler.sync_router(index_set)
+
+        mock_get_all_fields.assert_called_once_with(need_merge=False)
+        default_router = next(
+            params for key, _, params in append_calls if key == f"bklog_index_set_{index_set.index_set_id}"
+        )
+        for info in default_router["table_info"]:
+            self.assertNotIn("query_alias_settings", info)
+
     def test_es_doris_analysis(self):
         """
         存量 ES + Doris —— get_index_set_table_info_list(is_analysis=True)
