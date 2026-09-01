@@ -28,10 +28,11 @@ import { type ComputedRef, type MaybeRef, computed, onBeforeUnmount, onMounted, 
 
 import { get } from '@vueuse/core';
 
+import { RumModeEnum } from '../../../constants';
 import { SpanScenario } from '../scenarios/span-scenario';
 
 import type { BaseTableColumn } from '../../../../trace-explore/components/trace-explore-table/typing';
-import type { RumMode } from '../../../typings/common';
+import type { RumModeType } from '../../../typings';
 import type { BaseScenario } from '../scenarios/base-scenario';
 
 export interface ScenarioRenderer {
@@ -50,16 +51,19 @@ export interface ScenarioRenderer {
  * @description 按检索模式选择场景渲染器实例（session / view 场景待实现），未注册的场景模式将显式抛错，
  *              负责将基础列（列展示元数据）注入场景产出的声明式渲染配置（renderType 等），
  *              实现「列展示」「场景配置」「渲染执行」三者分离
- * @param {MaybeRef<RumMode>} mode 检索视角（由组件以 prop 显式传入，避免隐式依赖全局 store）
+ * @param {MaybeRef<RumModeType>} mode 检索视角（由组件以 prop 显式传入，避免隐式依赖全局 store）
  * @param {SpanScenario['context']} context 场景上下文（包含 fieldMap）
  * @returns {ScenarioRenderer} 当前激活的场景渲染器相关属性
  */
-export const useScenarioRenderer = (mode: MaybeRef<RumMode>, context: SpanScenario['context']): ScenarioRenderer => {
+export const useScenarioRenderer = (
+  mode: MaybeRef<RumModeType>,
+  context: SpanScenario['context']
+): ScenarioRenderer => {
   /** 场景渲染器实例缓存映射，由于是无状态类，所以用 Map 缓存场景实例，避免重复创建节省资源 */
   let scenarioInstanceMap = new Map<string, BaseScenario>();
   /** 场景渲染器类映射 */
-  const scenarioMap: Partial<Record<RumMode, new (ctx: SpanScenario['context']) => BaseScenario>> = {
-    span: SpanScenario,
+  const scenarioMap: Partial<Record<RumModeType, new (ctx: SpanScenario['context']) => BaseScenario>> = {
+    [RumModeEnum.SPAN]: SpanScenario,
   };
   /** 当前激活的场景渲染器实例 */
   const currentScenario = computed<BaseScenario>(() => {

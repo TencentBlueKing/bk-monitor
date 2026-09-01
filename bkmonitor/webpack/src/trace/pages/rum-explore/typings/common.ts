@@ -23,10 +23,11 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-/** RUM 检索的三个视角，当前仅 span 视角有实现 */
-export type RumMode = 'session' | 'span' | 'view';
+import { RumModeEnum } from '../constants';
 
-export const RUM_MODE_LIST: RumMode[] = ['session', 'view', 'span'];
+import type { RumModeType } from './enum';
+
+export const RUM_MODE_LIST: RumModeType[] = [RumModeEnum.SESSION, RumModeEnum.VIEW, RumModeEnum.SPAN];
 
 /** 应用列表项，字段取自 rum/meta/application/list_application */
 export interface IRumApplication {
@@ -39,11 +40,22 @@ export interface IRumApplication {
   isTop?: boolean;
 }
 
+/** 检索视角私有的列布局预设，视角未登记时全部走全局默认值 */
+export interface IRumColumnLayoutPreset {
+  /**
+   * 左侧固定列的字段名集合（无序）：命中即给该列打 fixed='left'，不参与排序。
+   * 列的实际顺序沿用展示列顺序，未展示的字段自动忽略。
+   */
+  leftFixedColumns?: Set<string>;
+  /** 默认列宽：colKey -> 宽度，优先级低于用户列宽覆盖 */
+  widthMap?: Record<string, number>;
+}
+
 /** 驱动列表 / 维度统计 / 字段候选值的公共查询参数 */
 export interface IRumCommonParams {
   app_name: string;
   filters: IRumFilter[];
-  mode: RumMode;
+  mode: RumModeType;
   query_string: string;
 }
 

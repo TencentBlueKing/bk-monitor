@@ -62,9 +62,9 @@ export default defineComponent({
       type: Array as PropType<string[]>,
       default: () => [],
     },
-    /** 固定选中的数据 */
+    /** 固定选中的数据，数组或 Set 均可 */
     fixedDisplayList: {
-      type: Array as PropType<string[]>,
+      type: [Array, Set] as PropType<Set<string> | string[]>,
       default: () => [],
     },
     /** 具有唯一标识的 key 值 */
