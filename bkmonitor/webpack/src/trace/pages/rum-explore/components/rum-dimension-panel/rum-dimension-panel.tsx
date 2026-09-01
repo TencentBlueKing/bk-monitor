@@ -88,7 +88,10 @@ export default defineComponent({
     },
   },
   emits: {
-    conditionChange: (_condition: { key: string; method: string; value: string }) => true,
+    conditionChange: (
+      _condition: { key: string; method: string; value: string },
+      _isFromDimensionFilterPanel: boolean
+    ) => true,
     close: () => true,
   },
   setup(props, { emit }) {
@@ -186,7 +189,7 @@ export default defineComponent({
       isGroupExpanded,
       toggleGroup,
       handleConditionChange: (condition: { key: string; method: string; value: string }) =>
-        emit('conditionChange', condition),
+        emit('conditionChange', condition, true),
       handleClose: () => emit('close'),
     };
   },
