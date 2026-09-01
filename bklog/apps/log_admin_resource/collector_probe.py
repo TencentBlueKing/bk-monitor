@@ -69,6 +69,8 @@ def fixed_probe_arguments(
     if len(normalized_hints) > MAX_CHILD_CONFIG_HINTS:
         raise ValueError(f"child_config_hints must contain at most {MAX_CHILD_CONFIG_HINTS} basenames")
     encoded_hints = ",".join(normalized_hints) if normalized_hints else "-"
+    if len(encoded_hints) > 4096:
+        raise ValueError("child_config_hints exceed the fixed probe argument budget")
     return str(normalized_data_id), "1" if include_source_sample else "0", encoded_hints
 
 

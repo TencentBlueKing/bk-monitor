@@ -50,13 +50,14 @@ def run_fixed_collector_probe(
 ) -> dict[str, Any]:
     """Execute the repository-owned script in one already-validated collector identity."""
 
+    hints = tuple(child_config_hints)
     script = fixed_probe_script().decode("utf-8")
     response = stream(
         client.bcs.api_instance_core_v1.connect_get_namespaced_pod_exec,
         name=candidate.pod_name,
         namespace=candidate.namespace,
         container=COLLECTOR_CONTAINER_NAME,
-        command=fixed_probe_command(bk_data_id, include_source_sample, child_config_hints),
+        command=fixed_probe_command(bk_data_id, include_source_sample, hints),
         stderr=True,
         stdin=True,
         stdout=True,
@@ -112,6 +113,6 @@ def run_fixed_collector_probe(
         candidate,
         bk_data_id=bk_data_id,
         include_source_sample=include_source_sample,
-        child_config_hints=child_config_hints,
+        child_config_hints=hints,
     )
     return parsed

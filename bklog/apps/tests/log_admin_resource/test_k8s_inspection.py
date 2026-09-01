@@ -1040,7 +1040,7 @@ class FixedK8sProbeTest(SimpleTestCase):
             candidate(),
             bk_data_id=1001,
             include_source_sample=False,
-            child_config_hints=["node_log_config_default_demo-node.conf"],
+            child_config_hints=(value for value in ["node_log_config_default_demo-node.conf"]),
         )
 
         kwargs = mock_stream.call_args.kwargs
