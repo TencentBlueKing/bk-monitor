@@ -1,21 +1,40 @@
 #!/bin/sh
-# Resource-owned fixed read-only probe. It intentionally accepts no arguments.
+# Resource-owned fixed read-only probe. It accepts only server-controlled typed arguments.
 
 set -u
+LC_ALL=C
+export LC_ALL
 
-if [ "$#" -ne 0 ]; then
+if [ "$#" -ne 2 ]; then
     exit 64
 fi
+TARGET_DATA_ID=$1
+INCLUDE_SOURCE_SAMPLE=$2
+case "$TARGET_DATA_ID" in
+    ''|*[!0-9]*|0) exit 64 ;;
+esac
+case "$INCLUDE_SOURCE_SAMPLE" in
+    0|1) ;;
+    *) exit 64 ;;
+esac
 
 PROTOCOL="bklog.collector.inspection.probe.v1"
-PROBE_VERSION="137707063.3"
+PROBE_VERSION="137707063.4"
+# Stay below BK-JOB/GSE's 5 MiB atomic script-task log limit.
+OUTPUT_BUDGET_BYTES=4194304
+OUTPUT_FINAL_RESERVE_BYTES=4096
 MAX_CONFIG_BYTES=524288
 MAX_CHILD_CONFIG_BYTES=65536
 MAX_REGISTRAR_BYTES=524288
 MAX_SAMPLE_BYTES=65536
 MAX_COLLECTOR_FILE_LOG_BYTES=1048576
-MAX_CHILD_CONFIGS=20
+MAX_CHILD_CONFIG_SCAN=1000
+MAX_MATCHED_CHILD_CONFIGS=5
 MAX_SOURCES=50
+output_used_bytes=0
+content_kv_count=0
+stream_count=0
+output_budget_exhausted=false
 
 safe_field() {
     printf '%s' "$1" | tr '\t\r\n' '___'
@@ -24,7 +43,60 @@ safe_field() {
 emit_kv() {
     key=$(safe_field "$1")
     value=$(safe_field "${2-}")
-    printf 'BKLOG_KV\t%s\t%s\n' "$key" "$value"
+    line=$(printf 'BKLOG_KV\t%s\t%s' "$key" "$value")
+    line_size=$((${#line} + 1))
+    if [ "$((output_used_bytes + line_size + OUTPUT_FINAL_RESERVE_BYTES))" -gt "$OUTPUT_BUDGET_BYTES" ]; then
+        output_budget_exhausted=true
+        return 1
+    fi
+    printf '%s\n' "$line"
+    output_used_bytes=$((output_used_bytes + line_size))
+    content_kv_count=$((content_kv_count + 1))
+}
+
+emit_manifest_kv() {
+    key=$(safe_field "$1")
+    value=$(safe_field "${2-}")
+    line=$(printf 'BKLOG_KV\t%s\t%s' "$key" "$value")
+    line_size=$((${#line} + 1))
+    if [ "$((output_used_bytes + line_size))" -gt "$OUTPUT_BUDGET_BYTES" ]; then
+        return 1
+    fi
+    printf '%s\n' "$line"
+    output_used_bytes=$((output_used_bytes + line_size))
+}
+
+decoded_base64_size() {
+    encoded_value=$1
+    if [ -z "$encoded_value" ]; then
+        printf '0'
+        return
+    fi
+    printf '%s' "$encoded_value" | base64 -d 2>/dev/null | wc -c | tr -d ' '
+}
+
+emit_encoded_stream() {
+    stream_name_value=$(safe_field "$1")
+    stream_path_value=$(safe_field "$2")
+    stream_returned=$3
+    stream_total=$4
+    stream_truncated=$5
+    stream_encoded=$6
+    stream_encoded_size=${#stream_encoded}
+    stream_header=$(printf 'BKLOG_STREAM\t%s\t%s\t%s\t%s\t%s\t%s' \
+        "$stream_name_value" "$stream_path_value" "$stream_returned" "$stream_total" \
+        "$stream_truncated" "$stream_encoded_size")
+    stream_payload=$(printf 'BKLOG_B64\t%s\t%s' "$stream_name_value" "$stream_encoded")
+    stream_end=$(printf 'BKLOG_END_STREAM\t%s' "$stream_name_value")
+    stream_output_size=$((${#stream_header} + ${#stream_payload} + ${#stream_end} + 3))
+    if [ "$((output_used_bytes + stream_output_size + OUTPUT_FINAL_RESERVE_BYTES))" -gt "$OUTPUT_BUDGET_BYTES" ]; then
+        output_budget_exhausted=true
+        emit_kv "${stream_name_value}.unavailable" "output_budget_exhausted" || true
+        return 1
+    fi
+    printf '%s\n%s\n%s\n' "$stream_header" "$stream_payload" "$stream_end"
+    output_used_bytes=$((output_used_bytes + stream_output_size))
+    stream_count=$((stream_count + 1))
 }
 
 emit_blob() {
@@ -53,12 +125,9 @@ emit_blob() {
         returned=$maximum
         truncated=true
     fi
-    printf 'BKLOG_STREAM\t%s\t%s\t%s\t%s\t%s\n' \
-        "$(safe_field "$blob_name")" "$(safe_field "$blob_path")" "$returned" "$total" "$truncated"
-    printf 'BKLOG_B64\t%s\t' "$(safe_field "$blob_name")"
-    dd if="$blob_path" bs=1 count="$returned" 2>/dev/null | base64 | tr -d '\r\n'
-    printf '\n'
-    printf 'BKLOG_END_STREAM\t%s\n' "$(safe_field "$blob_name")"
+    encoded=$(dd if="$blob_path" bs=1 count="$returned" 2>/dev/null | base64 | tr -d '\r\n')
+    actual_returned=$(decoded_base64_size "$encoded")
+    emit_encoded_stream "$blob_name" "$blob_path" "$actual_returned" "$total" "$truncated" "$encoded" || true
 }
 
 emit_tail_blob() {
@@ -83,47 +152,48 @@ emit_tail_blob() {
         returned=$maximum
         truncated=true
     fi
-    printf 'BKLOG_STREAM\t%s\t%s\t%s\t%s\t%s\n' \
-        "$(safe_field "$blob_name")" "$(safe_field "$blob_path")" "$returned" "$total" "$truncated"
-    printf 'BKLOG_B64\t%s\t' "$(safe_field "$blob_name")"
-    tail -c "$returned" "$blob_path" 2>/dev/null | base64 | tr -d '\r\n'
-    printf '\n'
-    printf 'BKLOG_END_STREAM\t%s\n' "$(safe_field "$blob_name")"
+    encoded=$(tail -c "$returned" "$blob_path" 2>/dev/null | base64 | tr -d '\r\n')
+    actual_returned=$(decoded_base64_size "$encoded")
+    emit_encoded_stream "$blob_name" "$blob_path" "$actual_returned" "$total" "$truncated" "$encoded" || true
 }
 
 emit_registrar_stream() {
     stream_name=$1
     registrar_path=$2
-    printf 'BKLOG_STREAM\t%s\t%s\t%s\t%s\t%s\n' \
-        "$(safe_field "$stream_name")" "$(safe_field "$registrar_path")" \
-        "$MAX_REGISTRAR_BYTES" "$MAX_REGISTRAR_BYTES" "unknown"
     if ! command -v base64 >/dev/null 2>&1; then
         emit_kv "${stream_name}.unavailable" "base64_missing"
-        printf 'BKLOG_END_STREAM\t%s\n' "$(safe_field "$stream_name")"
         return
     fi
-    printf 'BKLOG_B64\t%s\t' "$(safe_field "$stream_name")"
-    strings -n 4 -- "$registrar_path" 2>/dev/null | dd bs=1 count="$MAX_REGISTRAR_BYTES" 2>/dev/null | \
-        base64 | tr -d '\r\n'
-    printf '\n'
-    printf 'BKLOG_END_STREAM\t%s\n' "$(safe_field "$stream_name")"
+    encoded=$(strings -n 4 -- "$registrar_path" 2>/dev/null | \
+        dd bs=1 count="$MAX_REGISTRAR_BYTES" 2>/dev/null | base64 | tr -d '\r\n')
+    actual_returned=$(decoded_base64_size "$encoded")
+    registrar_truncated=false
+    if [ "$actual_returned" -ge "$MAX_REGISTRAR_BYTES" ]; then
+        registrar_truncated=true
+    fi
+    emit_encoded_stream "$stream_name" "$registrar_path" "$actual_returned" \
+        "$actual_returned" "$registrar_truncated" "$encoded" || true
 }
 
 emit_sample_stream() {
     stream_name=$1
     source_path=$2
-    printf 'BKLOG_STREAM\t%s\t%s\t%s\t%s\t%s\n' \
-        "$(safe_field "$stream_name")" "$(safe_field "$source_path")" \
-        "$MAX_SAMPLE_BYTES" "$MAX_SAMPLE_BYTES" "unknown"
     if ! command -v base64 >/dev/null 2>&1; then
         emit_kv "${stream_name}.unavailable" "base64_missing"
-        printf 'BKLOG_END_STREAM\t%s\n' "$(safe_field "$stream_name")"
         return
     fi
-    printf 'BKLOG_B64\t%s\t' "$(safe_field "$stream_name")"
-    tail -c "$MAX_SAMPLE_BYTES" "$source_path" 2>/dev/null | base64 | tr -d '\r\n'
-    printf '\n'
-    printf 'BKLOG_END_STREAM\t%s\n' "$(safe_field "$stream_name")"
+    total=$(wc -c < "$source_path" 2>/dev/null | tr -d ' ')
+    case "$total" in
+        ''|*[!0-9]*) total=0 ;;
+    esac
+    encoded=$(tail -c "$MAX_SAMPLE_BYTES" "$source_path" 2>/dev/null | base64 | tr -d '\r\n')
+    actual_returned=$(decoded_base64_size "$encoded")
+    sample_truncated=false
+    if [ "$total" -gt "$actual_returned" ]; then
+        sample_truncated=true
+    fi
+    emit_encoded_stream "$stream_name" "$source_path" "$actual_returned" \
+        "$total" "$sample_truncated" "$encoded" || true
 }
 
 config_value() {
@@ -273,6 +343,8 @@ fi
 [ -n "$main_config" ] || main_config="/data/etc/bkunifylogbeat.conf"
 emit_kv "protocol" "$PROTOCOL"
 emit_kv "probe_version" "$PROBE_VERSION"
+emit_kv "target_data_id" "$TARGET_DATA_ID"
+emit_kv "include_source_sample" "$INCLUDE_SOURCE_SAMPLE"
 emit_kv "process_pid" "$process_pid"
 emit_kv "sidecar_pid" "$sidecar_pid"
 emit_kv "main_config_path" "$main_config"
@@ -320,26 +392,68 @@ if [ -z "$multi_config_rows" ] && [ -d "/data/etc/bkunifylogbeat" ]; then
 fi
 
 tab=$(printf '\t')
-child_paths=$(printf '%b\n' "$multi_config_rows" | while IFS="$tab" read -r directory pattern; do
+all_child_paths=$(printf '%b\n' "$multi_config_rows" | while IFS="$tab" read -r directory pattern; do
     [ -d "$directory" ] || continue
     [ "${directory#/}" != "$directory" ] || continue
     find -H "$directory" -maxdepth 1 \( -type f -o -type l \) -name "${pattern:-*.conf}" 2>/dev/null
-done | sed -n "1,$((MAX_CHILD_CONFIGS + 1))p")
+done | awk -v limit="$((MAX_CHILD_CONFIG_SCAN + 1))" '
+    NF && !seen[$0]++ {print; count++; if (count >= limit) exit}
+')
 
+discovered_child_count=$(printf '%s\n' "$all_child_paths" | awk 'NF {count++} END {print count+0}')
+case "$discovered_child_count" in ''|*[!0-9]*) discovered_child_count=0 ;; esac
+child_config_scan_truncated=false
+if [ "$discovered_child_count" -gt "$MAX_CHILD_CONFIG_SCAN" ]; then
+    child_config_scan_truncated=true
+fi
+scan_paths=$(printf '%s\n' "$all_child_paths" | sed -n "1,${MAX_CHILD_CONFIG_SCAN}p")
+child_config_scanned_count=$(printf '%s\n' "$scan_paths" | awk 'NF {count++} END {print count+0}')
+case "$child_config_scanned_count" in ''|*[!0-9]*) child_config_scanned_count=0 ;; esac
+emit_kv "child_config_scan_limit" "$MAX_CHILD_CONFIG_SCAN"
+emit_kv "child_config_scanned_count" "$child_config_scanned_count"
+emit_kv "child_config_scan_truncated" "$child_config_scan_truncated"
+
+matching_child_paths=$(while IFS= read -r child_path; do
+    [ -n "$child_path" ] || continue
+    awk -v wanted="$TARGET_DATA_ID" '
+        {
+            line=$0
+            sub(/[[:space:]]+#.*$/, "", line)
+            key=line
+            sub(/:.*/, "", key)
+            gsub(/^[[:space:]]+|[[:space:]]+$/, "", key)
+            if (key == "dataid" || key == "data_id" || key == "dataId") {
+                sub(/^[^:]*:[[:space:]]*/, "", line)
+                gsub(/^[[:space:]\047\"]+|[[:space:]\047\"]+$/, "", line)
+                if (line == wanted) found=1
+            }
+        }
+        END {exit found ? 0 : 1}
+    ' "$child_path" 2>/dev/null && printf '%s\n' "$child_path"
+done <<EOF
+$scan_paths
+EOF
+)
+child_config_match_count=$(printf '%s\n' "$matching_child_paths" | awk 'NF {count++} END {print count+0}')
+case "$child_config_match_count" in ''|*[!0-9]*) child_config_match_count=0 ;; esac
+child_config_match_limit_exceeded=false
+if [ "$child_config_match_count" -gt "$MAX_MATCHED_CHILD_CONFIGS" ]; then
+    child_config_match_limit_exceeded=true
+    emit_kv "child_config_limit_exceeded" "true"
+fi
+child_paths=$(printf '%s\n' "$matching_child_paths" | sed -n "1,${MAX_MATCHED_CHILD_CONFIGS}p")
 child_count=$(printf '%s\n' "$child_paths" | awk 'NF {count++} END {print count+0}')
 case "$child_count" in ''|*[!0-9]*) child_count=0 ;; esac
-if [ "$child_count" -gt "$MAX_CHILD_CONFIGS" ]; then
-    emit_kv "child_config_limit_exceeded" "true"
-    child_count=$MAX_CHILD_CONFIGS
-fi
+emit_kv "child_config_match_count" "$child_config_match_count"
+emit_kv "child_config_match_limit_exceeded" "$child_config_match_limit_exceeded"
 emit_kv "child_config_count" "$child_count"
 
 child_index=0
 source_patterns=""
-while IFS= read -r child_path && [ "$child_index" -lt "$MAX_CHILD_CONFIGS" ]; do
+while IFS= read -r child_path && [ "$child_index" -lt "$MAX_MATCHED_CHILD_CONFIGS" ]; do
     [ -n "$child_path" ] || continue
     case "$child_path" in
-        *'\t'*|*'\r'*|*'\n'*) continue ;;
+        *"$tab"*) continue ;;
     esac
     emit_blob "child_config.$child_index" "$child_path" "$MAX_CHILD_CONFIG_BYTES"
     extracted_patterns=$(awk '
@@ -506,7 +620,7 @@ snapshot_sources() {
             emit_kv "$phase.source.$index.inode" "$inode"
             emit_kv "$phase.source.$index.size_bytes" "$size_bytes"
             emit_kv "$phase.source.$index.mtime_epoch" "$mtime_epoch"
-            if [ "$phase" = "second" ] && [ -f "$source_path" ]; then
+            if [ "$phase" = "second" ] && [ "$INCLUDE_SOURCE_SAMPLE" = "1" ] && [ -f "$source_path" ]; then
                 emit_sample_stream "$phase.source.$index.sample" "$source_path"
             fi
             index=$((index + 1))
@@ -569,8 +683,8 @@ fi
 sleep "$observation"
 
 snapshot_processes "second"
-snapshot_sources "second"
 snapshot_registrar "second"
+snapshot_sources "second"
 
 collector_file_log_count=0
 case "$path_logs" in
@@ -593,5 +707,9 @@ EOF
 esac
 emit_kv "collector_file_log_count" "$collector_file_log_count"
 
-emit_kv "completed" "true"
+emit_manifest_kv "manifest_kv_count" "$content_kv_count" || exit 70
+emit_manifest_kv "manifest_stream_count" "$stream_count" || exit 70
+emit_manifest_kv "output_budget_bytes" "$OUTPUT_BUDGET_BYTES" || exit 70
+emit_manifest_kv "output_budget_exhausted" "$output_budget_exhausted" || exit 70
+emit_manifest_kv "completed" "true" || exit 70
 exit 0

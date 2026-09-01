@@ -1,3 +1,4 @@
+import base64
 import json
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
@@ -792,6 +793,10 @@ class HostInspectionWorkerTest(SimpleTestCase):
                         [
                             f"BKLOG_KV\tprotocol\t{PROBE_PROTOCOL}",
                             f"BKLOG_KV\tprobe_version\t{PROBE_VERSION}",
+                            "BKLOG_KV\tmanifest_kv_count\t2",
+                            "BKLOG_KV\tmanifest_stream_count\t0",
+                            "BKLOG_KV\toutput_budget_bytes\t4194304",
+                            "BKLOG_KV\toutput_budget_exhausted\tfalse",
                             "BKLOG_KV\tcompleted\ttrue",
                         ]
                     )
@@ -813,7 +818,7 @@ class HostInspectionWorkerTest(SimpleTestCase):
 
         kwargs = execute.call_args.kwargs
         self.assertEqual(kwargs["script_language"], 1)
-        self.assertNotIn("script_param", kwargs)
+        self.assertEqual(base64.b64decode(kwargs["script_param"]).decode("ascii"), "1001 0")
         script = fixed_probe_script().decode("utf-8")
         self.assertNotIn("/data/app.log", script)
         self.assertNotIn("reload failed", script)
@@ -831,11 +836,13 @@ class FixedRemoteScriptTest(SimpleTestCase):
         self.assertIn(PROBE_PROTOCOL, decoded)
         self.assertIn(PROBE_VERSION, decoded)
 
-    def test_shared_probe_accepts_no_arguments_and_performs_no_file_writes(self):
+    def test_shared_probe_accepts_only_typed_server_arguments_and_performs_no_file_writes(self):
         script = fixed_probe_script().decode("utf-8")
 
-        self.assertIn("intentionally accepts no arguments", script)
-        self.assertIn('[ "$#" -ne 0 ]', script)
+        self.assertIn("accepts only server-controlled typed arguments", script)
+        self.assertIn('[ "$#" -ne 2 ]', script)
+        self.assertIn("TARGET_DATA_ID=$1", script)
+        self.assertIn("INCLUDE_SOURCE_SAMPLE=$2", script)
         self.assertNotIn("$@", script)
         self.assertNotIn("/tmp", script)
         self.assertNotIn("mktemp", script)
@@ -844,6 +851,9 @@ class FixedRemoteScriptTest(SimpleTestCase):
         self.assertNotIn(' > "', script)
         self.assertNotIn('[ -L "$blob_path" ]', script)
         self.assertIn('find -H "$directory"', script)
+        self.assertIn("MAX_CHILD_CONFIG_SCAN=1000", script)
+        self.assertIn('awk -v wanted="$TARGET_DATA_ID"', script)
+        self.assertIn("child_paths=$(printf '%s\\n' \"$matching_child_paths\"", script)
         self.assertIn("-name 'bkunifylogbeat'", script)
         self.assertIn("/usr/local/gse*/plugins/etc/bkunifylogbeat.conf", script)
 
@@ -877,6 +887,34 @@ class FixedRemoteScriptTest(SimpleTestCase):
 
         warning_codes = {item["code"] for item in probes["main_config_mounted"]["warnings"]}
         self.assertIn("multiple_main_config_candidates", warning_codes)
+
+    def test_bounded_scan_does_not_misreport_target_data_id_as_not_rendered(self):
+        parsed = parsed_probe()
+        parsed["streams"].pop("child_config.0")
+        parsed["values"].update(
+            {
+                "target_data_id": "1001",
+                "child_config_scanned_count": "1000",
+                "child_config_scan_limit": "1000",
+                "child_config_scan_truncated": "true",
+                "child_config_match_count": "0",
+                "child_config_match_limit_exceeded": "false",
+            }
+        )
+
+        probes = build_probe_evidence(
+            parsed,
+            bk_data_id=1001,
+            source=None,
+            include_source_sample=False,
+            config_map_main=None,
+            sidecar_required=False,
+        )
+
+        config_probe = probes["main_config_mounted"]
+        self.assertEqual(config_probe["code"], "child_config_scan_truncated")
+        self.assertNotEqual(config_probe["code"], "data_id_child_config_not_rendered")
+        self.assertTrue(config_probe["evidence"]["child_config_scan"]["scan_truncated"])
 
     def test_fallback_config_parser_does_not_mix_data_ids(self):
         config = """local:

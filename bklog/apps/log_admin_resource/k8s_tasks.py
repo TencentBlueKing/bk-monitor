@@ -213,7 +213,12 @@ def run_k8s_inspection(task_id: str) -> None:
             )
             _save_probe(task_id, "collector_logs", collector_logs)
 
-            parsed_probe = run_fixed_collector_probe(client, selected)
+            parsed_probe = run_fixed_collector_probe(
+                client,
+                selected,
+                bk_data_id=collector.bk_data_id,
+                include_source_sample=bool(options.get("include_source_sample")),
+            )
             _daemon_after, _pod_after = _revalidate_candidate(client, selected, required_bk_envs)
             if collector_logs["status"] == "failed":
                 collector_logs = _timed_probe(build_collector_file_log_probe(parsed_probe))

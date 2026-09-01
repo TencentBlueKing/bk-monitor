@@ -55,13 +55,16 @@ def build_probe_evidence(
     config_map_main_sha256 = _sha256_text(config_map_main) if config_map_main is not None else None
     main_matches = config_map_main is not None and mounted_main_sha256 == config_map_main_sha256
     config_status = "success" if configs and matching_inputs and render_comparison["equivalent"] else "warning"
-    config_code = (
-        "child_config_rendered"
-        if matching_inputs and render_comparison["equivalent"]
-        else "child_config_rendered_drift"
-        if matching_inputs
-        else "data_id_child_config_not_rendered"
-    )
+    if matching_inputs and render_comparison["equivalent"]:
+        config_code = "child_config_rendered"
+    elif matching_inputs:
+        config_code = "child_config_rendered_drift"
+    elif values.get("child_config_scan_truncated") == "true":
+        config_code = "child_config_scan_truncated"
+    elif (_integer(values.get("child_config_match_count")) or 0) > 0:
+        config_code = "matched_child_config_content_unavailable"
+    else:
+        config_code = "data_id_child_config_not_rendered"
     config_warnings = []
     if values.get("main_config.unavailable") == "base64_missing":
         config_warnings.append(
@@ -87,6 +90,30 @@ def build_probe_evidence(
                 "retryable": False,
             }
         )
+    if values.get("child_config_scan_truncated") == "true":
+        config_warnings.append(
+            {
+                "code": "child_config_scan_truncated",
+                "message": "the bounded child-config scan reached its limit before all candidates were inspected",
+                "retryable": False,
+            }
+        )
+    if values.get("child_config_match_limit_exceeded") == "true":
+        config_warnings.append(
+            {
+                "code": "child_config_match_limit_exceeded",
+                "message": "more matching child configs exist than can be returned in one probe",
+                "retryable": False,
+            }
+        )
+    if values.get("output_budget_exhausted") == "true":
+        config_warnings.append(
+            {
+                "code": "probe_output_budget_exhausted",
+                "message": "lower-priority evidence was omitted to stay below the transport output limit",
+                "retryable": False,
+            }
+        )
     config_probe = {
         "status": config_status,
         "code": config_code,
@@ -105,6 +132,14 @@ def build_probe_evidence(
                 "mounted_config_map_sha256": config_map_main_sha256,
             },
             "child_configs": configs,
+            "child_config_scan": {
+                "target_data_id": _integer(values.get("target_data_id")),
+                "scanned_count": _integer(values.get("child_config_scanned_count")),
+                "scan_limit": _integer(values.get("child_config_scan_limit")),
+                "scan_truncated": values.get("child_config_scan_truncated") == "true",
+                "match_count": _integer(values.get("child_config_match_count")),
+                "match_limit_exceeded": values.get("child_config_match_limit_exceeded") == "true",
+            },
             "matching_input_count": len(matching_inputs),
             "matching_patterns": allowed_patterns,
             "render_comparison": render_comparison,
@@ -492,10 +527,13 @@ def _source_probe(
     files = []
     returned_lines = 0
     returned_bytes = 0
+    sample_unavailable_reasons = []
     for first in first_rows:
         row = {"first": first, "second": second_by_path.get(first["path"])}
         if include_sample and source and first["path"] == source:
-            sample_stream = streams.get(f"second.source.{(row['second'] or first)['index']}.sample") or {}
+            sample_name = f"second.source.{(row['second'] or first)['index']}.sample"
+            sample_stream = streams.get(sample_name) or {}
+            unavailable_reason = values.get(f"{sample_name}.unavailable")
             sample = str(sample_stream.get("content") or "")
             sample_bytes = sample.encode("utf-8", errors="replace")[-MAX_SOURCE_SAMPLE_BYTES:]
             lines = sample_bytes.decode("utf-8", errors="replace").splitlines()[-MAX_SOURCE_SAMPLE_LINES:]
@@ -504,7 +542,10 @@ def _source_probe(
                 "lines": lines,
                 "returned_lines": len(lines),
                 "returned_bytes": returned_sample_bytes,
+                "unavailable_reason": unavailable_reason,
             }
+            if unavailable_reason:
+                sample_unavailable_reasons.append(unavailable_reason)
             returned_lines += len(lines)
             returned_bytes += returned_sample_bytes
         files.append(row)
@@ -523,7 +564,18 @@ def _source_probe(
                 "returned_bytes": returned_bytes,
             },
         },
-        "warnings": [],
+        "warnings": (
+            [
+                {
+                    "code": "source_sample_unavailable",
+                    "message": "the requested source sample could not be returned within the fixed probe bounds",
+                    "retryable": False,
+                    "reasons": sorted(set(sample_unavailable_reasons)),
+                }
+            ]
+            if sample_unavailable_reasons
+            else []
+        ),
     }
 
 

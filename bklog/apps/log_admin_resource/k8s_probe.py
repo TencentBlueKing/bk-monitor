@@ -10,6 +10,7 @@ from kubernetes.stream import stream
 from apps.log_admin_resource.collector_probe import (
     MAX_PROBE_OUTPUT_BYTES,
     FixedProbeError,
+    fixed_probe_command,
     fixed_probe_metadata as common_probe_metadata,
     fixed_probe_script,
     parse_and_validate_probe_output,
@@ -21,15 +22,25 @@ from apps.log_admin_resource.k8s_inspection_client import K8sInspectionClient
 FIXED_PROBE_TIMEOUT_SECONDS = 60
 
 
-def fixed_probe_metadata(candidate: CollectorCandidate) -> dict[str, Any]:
+def fixed_probe_metadata(
+    candidate: CollectorCandidate, *, bk_data_id: int, include_source_sample: bool
+) -> dict[str, Any]:
     return common_probe_metadata(
+        bk_data_id=bk_data_id,
+        include_source_sample=include_source_sample,
         executor="K8S_POD_EXEC",
         collector_image_id=candidate.collector_image_id,
         container=COLLECTOR_CONTAINER_NAME,
     )
 
 
-def run_fixed_collector_probe(client: K8sInspectionClient, candidate: CollectorCandidate) -> dict[str, Any]:
+def run_fixed_collector_probe(
+    client: K8sInspectionClient,
+    candidate: CollectorCandidate,
+    *,
+    bk_data_id: int,
+    include_source_sample: bool,
+) -> dict[str, Any]:
     """Execute the repository-owned script in one already-validated collector identity."""
 
     script = fixed_probe_script().decode("utf-8")
@@ -38,7 +49,7 @@ def run_fixed_collector_probe(client: K8sInspectionClient, candidate: CollectorC
         name=candidate.pod_name,
         namespace=candidate.namespace,
         container=COLLECTOR_CONTAINER_NAME,
-        command=["/bin/sh", "-s"],
+        command=fixed_probe_command(bk_data_id, include_source_sample),
         stderr=True,
         stdin=True,
         stdout=True,
@@ -67,7 +78,7 @@ def run_fixed_collector_probe(client: K8sInspectionClient, candidate: CollectorC
                     response.close()
                     raise FixedProbeError(
                         "probe_output_limit_exceeded",
-                        "fixed collector probe exceeded the 10 MiB output limit",
+                        "fixed collector probe exceeded the 4 MiB output limit",
                         retryable=False,
                     )
                 parts.append(text)
@@ -90,5 +101,7 @@ def run_fixed_collector_probe(client: K8sInspectionClient, candidate: CollectorC
     parsed = parse_and_validate_probe_output("".join(stdout_parts))
     parsed["stderr"] = stderr
     parsed["return_code"] = return_code
-    parsed["metadata"] = fixed_probe_metadata(candidate)
+    parsed["metadata"] = fixed_probe_metadata(
+        candidate, bk_data_id=bk_data_id, include_source_sample=include_source_sample
+    )
     return parsed

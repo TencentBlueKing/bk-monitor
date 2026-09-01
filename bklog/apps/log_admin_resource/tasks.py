@@ -17,6 +17,7 @@ from apps.constants import ScriptType
 from apps.exceptions import ValidationError
 from apps.log_admin_resource.collector_probe import (
     FixedProbeError,
+    fixed_probe_arguments,
     fixed_probe_metadata,
     fixed_probe_script,
     parse_and_validate_probe_output,
@@ -301,6 +302,8 @@ def _nodeman_subscription_evidence(record: dict[str, Any]) -> tuple[dict[str, An
 
 def _run_remote_inspection(record: dict[str, Any]) -> dict[str, Any]:
     target = record["target"]
+    options = record.get("request_options") or {}
+    probe_arguments = fixed_probe_arguments(target["bk_data_id"], bool(options.get("include_source_sample")))
     script_content = base64.b64encode(_fixed_remote_shell_script()).decode("ascii")
     target_server = JobHelper.adapt_hosts_target_server(
         bk_biz_id=target["bk_biz_id"], hosts=[{"bk_host_id": target["bk_host_id"]}]
@@ -312,6 +315,7 @@ def _run_remote_inspection(record: dict[str, Any]) -> dict[str, Any]:
         bk_username=DEFAULT_BK_USERNAME,
         account=DEFAULT_EXECUTE_SCRIPT_ACCOUNT,
         task_name="BKLog read-only host collector inspection",
+        script_param=base64.b64encode(" ".join(probe_arguments).encode("ascii")).decode("ascii"),
         script_language=ScriptType.SHELL.value,
         timeout=JOB_SCRIPT_TIMEOUT_SECONDS,
     )
@@ -383,7 +387,12 @@ def _run_remote_inspection(record: dict[str, Any]) -> dict[str, Any]:
         if isinstance(item, dict) and item.get("log_content")
     ]
     parsed = _parse_remote_result("\n".join(contents))
-    parsed["metadata"] = fixed_probe_metadata(executor="JOB", script_language="SHELL")
+    parsed["metadata"] = fixed_probe_metadata(
+        bk_data_id=target["bk_data_id"],
+        include_source_sample=bool(options.get("include_source_sample")),
+        executor="JOB",
+        script_language="SHELL",
+    )
     return parsed
 
 
