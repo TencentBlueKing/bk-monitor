@@ -154,7 +154,8 @@ export default defineComponent({
           regex_template_id,
         } = res.data;
         const newFilterRules = filterRules.map((item) => {
-          const sameFieldItem: any =            props.totalFields.find((tItem: any) => tItem.field_name === item.fields_name) || {};
+          const fieldName = item.fields_name;
+          const sameFieldItem: any = props.totalFields.find((tItem: any) => tItem.field_name === fieldName) || {};
           return {
             ...sameFieldItem,
             ...item,
