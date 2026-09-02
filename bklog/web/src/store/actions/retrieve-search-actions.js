@@ -42,7 +42,7 @@ const buildSearchRequestHeaders = (state) => {
   if (csrfToken) {
     headers['X-CSRFToken'] = csrfToken;
   }
-  if (window.IS_EXTERNAL && JSON.parse(window.IS_EXTERNAL) && state.spaceUid) {
+  if (state.spaceUid) {
     headers['X-Bk-Space-Uid'] = state.spaceUid;
   }
   if (state.indexItem?.timezone) {

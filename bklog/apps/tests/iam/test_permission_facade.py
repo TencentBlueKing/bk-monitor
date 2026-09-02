@@ -9,7 +9,8 @@ from iam.exceptions import AuthAPIError
 from apps.iam.concurrency import run_pair_concurrently
 from apps.iam.exceptions import GetSystemInfoError, PermissionDeniedError
 from apps.iam.handlers.actions import ActionEnum, get_action_by_id
-from apps.iam.handlers.permission import Permission
+from apps.iam.handlers.permission import UNLIMITED_INSTANCE_PROBE_ID, Permission
+from apps.iam.handlers.resources import ResourceEnum
 from apps.iam.iam_engine.core.config import AuthMode, DualStackSpec
 from apps.iam.iam_engine.core.exceptions import InvalidAuthModeError
 from apps.iam.iam_engine.core.requests import ResourceInstance as EngineResourceInstance
@@ -565,6 +566,65 @@ class PermissionFacadeTest(TestCase):
 
         self.assertIn("v3", str(ctx.exception))
         self.iam_client.grant_resource_creator_actions.assert_not_called()
+
+    # ==================================================================
+    # 「不限实例」授权探测：用哨兵实例把空间级授权与实例级授权区分开
+    # ==================================================================
+
+    @override_settings(IGNORE_IAM_PERMISSION=False)
+    def test_unlimited_action_probes_absent_instance_under_space_path(self):
+        permission = self._make_permission()
+
+        with patch.object(Permission, "is_allowed", return_value=True) as is_allowed:
+            self.assertTrue(permission.has_unlimited_action_in_space(ActionEnum.SEARCH_LOG, 7, ResourceEnum.INDICES))
+
+        action, resources = is_allowed.call_args[0]
+        self.assertEqual(action, ActionEnum.SEARCH_LOG)
+        probe = resources[0]
+        self.assertEqual(probe.id, UNLIMITED_INSTANCE_PROBE_ID)
+        self.assertEqual(probe.attribute["_bk_iam_path_"], "/space,7/")
+        # 索引集 ID 是自增整数，哨兵一旦长得像数字就可能撞上真实实例，实例级授权会被误判成空间级
+        self.assertFalse(probe.id.isdigit())
+
+    def test_unlimited_probe_id_satisfies_v4_resource_id_contract(self):
+        """V4 codec 对非根资源不做任何编码，哨兵值本身必须满足「字母或数字开头」的契约。"""
+        from apps.iam.backends.v4.codec import BklogNameCodec
+
+        codec = BklogNameCodec()
+        probe = EngineResourceInstance(
+            type="indices",
+            id=UNLIMITED_INSTANCE_PROBE_ID,
+            attributes={"_bk_iam_path_": "/space,7/"},
+        )
+        payload = codec.encode_resource_for_auth(probe)
+
+        self.assertEqual(payload["id"], UNLIMITED_INSTANCE_PROBE_ID)
+        self.assertTrue(payload["id"][0].isalnum(), f"V4 资源 ID 必须以字母或数字开头: {payload['id']}")
+        # 索引集 ID 是自增整数，哨兵长得像数字就可能撞上真实实例，实例级授权会被误判成空间级
+        self.assertFalse(payload["id"].isdigit())
+
+        ancestors = codec.encode_resource_for_apply(probe)["ancestors"]
+        self.assertEqual(ancestors, [{"type": "space", "id": "7"}])
+
+    @override_settings(IGNORE_IAM_PERMISSION=True)
+    def test_unlimited_action_honors_global_ignore_switch(self):
+        permission = self._make_permission()
+
+        with patch.object(Permission, "is_allowed") as is_allowed:
+            self.assertTrue(permission.has_unlimited_action_in_space(ActionEnum.SEARCH_LOG, 7, ResourceEnum.INDICES))
+
+        is_allowed.assert_not_called()
+
+    @override_settings(IGNORE_IAM_PERMISSION=False)
+    def test_unlimited_action_honors_token_skip_check(self):
+        """Grafana token 请求已由 token 预授权，新增的闸不能把看板挡在外面。"""
+        permission = self._make_permission()
+        permission.skip_check = True
+
+        with patch.object(Permission, "is_allowed") as is_allowed:
+            self.assertTrue(permission.has_unlimited_action_in_space(ActionEnum.SEARCH_LOG, 7, ResourceEnum.INDICES))
+
+        is_allowed.assert_not_called()
 
     @staticmethod
     def _make_permission() -> Permission:
