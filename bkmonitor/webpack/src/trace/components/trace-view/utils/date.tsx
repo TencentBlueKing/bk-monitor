@@ -62,6 +62,15 @@ const timeUnitToShortTermMapper = {
 };
 
 /**
+ * 将给定单位的时长值换算为微秒
+ * 支持 UNIT_STEPS 中所有单位（d / h / m / s / ms / μs），'us' 等同 'μs'，未匹配的单位按微秒处理
+ */
+const convertToMicroseconds = (duration: number, unit: string): number => {
+  const step = UNIT_STEPS.find(({ unit: stepUnit }) => stepUnit === unit || (unit === 'us' && stepUnit === 'μs'));
+  return step ? duration * step.microseconds : duration;
+};
+
+/**
  * @param {number} timestamp
  * @param {number} initialTimestamp
  * @param {number} totalDuration
@@ -104,12 +113,12 @@ export function formatDatetime(duration: number) {
  * @param {number} duration (in unit, defaults to microseconds)
  * @param {string} split 分隔符
  * @param {number} precision 精度
- * @param {string} unit 输入值的单位，us / ms，默认 us
+ * @param {string} unit 输入值的单位，支持 UNIT_STEPS 所有单位（d / h / m / s / ms / μs），'us' 等同 'μs'，默认 us
  * @return {string} formatted duration
  */
 export function formatDuration(duration: number, split = '', precision = 2, unit = 'us'): string {
   // 输入值按单位换算为微秒（默认微秒）
-  if (unit === 'ms') duration *= 1000;
+  duration = convertToMicroseconds(duration, unit);
   // Drop all units that are too large except the last one
   const [primaryUnit, secondaryUnit] = _dropWhile(
     UNIT_STEPS,
@@ -137,7 +146,7 @@ export function formatDuration(duration: number, split = '', precision = 2, unit
 
 export function formatDurationWithUnit(duration: number, split = '', unit = 'us') {
   // 输入值按单位换算为微秒（默认微秒）
-  if (unit === 'ms') duration *= 1000;
+  duration = convertToMicroseconds(duration, unit);
   const units = _dropWhile(
     UNIT_STEPS,
     ({ microseconds }, index) => index < UNIT_STEPS.length - 1 && microseconds > duration

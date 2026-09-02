@@ -45,7 +45,7 @@ import {
 } from '../../constants';
 import { statisticsApi } from '../../services/rum-search';
 
-import type { IDimensionFieldTreeItem } from '../../../trace-explore/typing';
+import type { ConditionChangeEvent, IDimensionFieldTreeItem } from '../../../trace-explore/typing';
 import type { IRumCommonParams, IRumField, IRumFieldGroup } from '../../typings';
 
 import './rum-dimension-panel.scss';
@@ -88,10 +88,7 @@ export default defineComponent({
     },
   },
   emits: {
-    conditionChange: (
-      _condition: { key: string; method: string; value: string },
-      _isFromDimensionFilterPanel: boolean
-    ) => true,
+    conditionChange: (_condition: ConditionChangeEvent, _isFromDimensionFilterPanel: boolean) => true,
     close: () => true,
   },
   setup(props, { emit }) {
