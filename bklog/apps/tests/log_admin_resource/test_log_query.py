@@ -9,12 +9,17 @@ from apps.log_admin_resource.handlers.log_query import (
     CLUSTERING_PATTERN_PARAMS_SCHEMA,
     FUNCTIONS,
     SEARCH_PARAMS_SCHEMA,
+    ResourceAggsHandlers,
+    ResourceAggsViewAdapter,
     ResourceClusteringSearchHandler,
     ResourceClusteringUnifyQueryHandler,
+    ResourceMappingHandlers,
     ResourceSceneUnifyQueryHandler,
+    ResourceSearchHandler,
     ResourceUnifyQueryTermsAggsHandler,
     _bounded_items,
     _context_time_bounds,
+    _index_set_fields,
     _resolve_source,
     _route_evidence,
     _run_query,
@@ -29,6 +34,9 @@ from apps.log_admin_resource.schema import validate_params
 from apps.log_clustering.constants import PatternEnum, StorageTypeEnum
 from apps.log_clustering.models import ClusteringConfig
 from apps.log_search.constants import IndexSetDataType
+from apps.log_search.handlers.search.aggs_handlers import AggsHandlers, AggsViewAdapter
+from apps.log_search.handlers.search.mapping_handlers import MappingHandlers
+from apps.log_search.handlers.search.search_handlers_esquery import SearchHandler as SearchHandlerEsquery
 from apps.log_search.models import LogIndexSet, LogIndexSetData, Scenario, Space
 from apps.log_unifyquery.handler.scene_search import SceneUnifyQueryHandler
 from apps.log_unifyquery.handler.base import UnifyQueryHandler
@@ -340,6 +348,57 @@ class LogQueryHandlerTest(TestCase):
             "log": "request failed",
             "level": "ERROR",
         }
+
+    def test_resource_query_uses_dedicated_mapping_extension_points(self):
+        self.assertIs(ResourceSearchHandler.mapping_handler_class, ResourceMappingHandlers)
+        self.assertIs(SearchHandlerEsquery.mapping_handler_class, MappingHandlers)
+        self.assertIs(ResourceAggsHandlers.search_handler_class, ResourceSearchHandler)
+        self.assertIs(AggsHandlers.search_handler_class, SearchHandlerEsquery)
+        self.assertIs(ResourceAggsViewAdapter()._aggs_handlers, ResourceAggsHandlers)
+        self.assertIs(AggsViewAdapter()._aggs_handlers, AggsHandlers)
+
+    @patch("apps.log_search.handlers.search.mapping_handlers.BkLogApi.mapping")
+    @patch("apps.log_admin_resource.handlers.log_query.EsQuery")
+    def test_resource_mapping_uses_local_read_only_client(self, mock_esquery, mock_api_mapping):
+        mock_esquery.return_value.mapping.return_value = [{"properties": {"log": {"type": "text"}}}]
+        handler = ResourceMappingHandlers.__new__(ResourceMappingHandlers)
+
+        result = handler._direct_latest_mapping(
+            {
+                "indices": "2_bklog_app",
+                "scenario_id": Scenario.LOG,
+                "storage_cluster_id": -1,
+                "start_time": "2026-01-01 00:00:00",
+                "end_time": "2026-01-01 01:00:00",
+            }
+        )
+
+        self.assertEqual(result, [{"properties": {"log": {"type": "text"}}}])
+        mock_esquery.return_value.mapping.assert_called_once_with()
+        mock_api_mapping.assert_not_called()
+
+    @patch("apps.log_admin_resource.handlers.log_query.ResourceSearchHandler")
+    @patch("apps.log_admin_resource.handlers.log_query.FeatureToggleObject.switch", return_value=False)
+    def test_fields_legacy_route_uses_resource_search_handler(self, _mock_switch, mock_handler):
+        mock_handler.return_value.fields.return_value = {"fields": []}
+
+        result = _index_set_fields(
+            {
+                "type": "index_set",
+                "bk_biz_id": 2,
+                "index_set_id": self.index_set.index_set_id,
+                "index_set": self.index_set,
+            },
+            {
+                "start_time": 1767225600000,
+                "end_time": 1767229200000,
+                "time_zone": "UTC",
+            },
+            "default",
+        )
+
+        self.assertEqual(result, {"fields": []})
+        mock_handler.assert_called_once()
 
     @patch("apps.log_admin_resource.handlers.log_query.FeatureToggleObject.switch", return_value=False)
     @patch("apps.log_admin_resource.handlers.log_query._index_set_search")

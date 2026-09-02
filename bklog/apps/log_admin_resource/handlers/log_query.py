@@ -31,10 +31,13 @@ from apps.log_clustering.constants import (
 )
 from apps.log_clustering.handlers.pattern import PatternHandler
 from apps.log_clustering.models import ClusteringConfig
+from apps.log_esquery.esquery.esquery import EsQuery
+from apps.log_esquery.serializers import EsQueryMappingAttrSerializer
 from apps.log_search.constants import MAX_RESULT_WINDOW, FieldDataTypeEnum, IndexSetDataType, SearchScopeEnum
 from apps.log_search.handlers.index_set import BaseIndexSetHandler, IndexSetHandler
 from apps.log_search.handlers.scene_search import AllConditionsBuilder
 from apps.log_search.handlers.search.aggs_handlers import AggsHandlers, AggsViewAdapter
+from apps.log_search.handlers.search.mapping_handlers import MappingHandlers
 from apps.log_search.handlers.search.search_handlers_esquery import SearchHandler as SearchHandlerEsquery
 from apps.log_search.models import IndexSetTag, LogIndexSet, LogIndexSetData, Scenario, Space, TAG_TYPE_SCENE
 from apps.log_unifyquery.constants import BASE_OP_MAP, FIELD_TYPE_MAP, AggTypeEnum
@@ -46,6 +49,7 @@ from apps.log_unifyquery.handler.scene_field import SceneFieldHandler
 from apps.log_unifyquery.handler.scene_search import SceneUnifyQueryHandler
 from apps.log_unifyquery.handler.scene_terms_aggs import SceneTermsAggsHandler
 from apps.log_unifyquery.handler.terms_aggs import UnifyQueryTermsAggsHandler
+from apps.utils.drf import custom_params_valid
 from apps.utils.local import (
     del_local_param,
     get_local_param,
@@ -725,7 +729,28 @@ class ResourceClusteringUnifyQueryPatternHandler(
     pass
 
 
-class ResourceClusteringSearchHandler(SearchHandlerEsquery):
+class ResourceMappingHandlers(MappingHandlers):
+    """Use the local read-only mapping client for application-authenticated Resource calls."""
+
+    def _direct_latest_mapping(self, params):
+        data = custom_params_valid(EsQueryMappingAttrSerializer, params)
+        return EsQuery(data).mapping()
+
+
+class ResourceSearchHandler(SearchHandlerEsquery):
+    mapping_handler_class = ResourceMappingHandlers
+
+
+class ResourceAggsHandlers(AggsHandlers):
+    search_handler_class = ResourceSearchHandler
+
+
+class ResourceAggsViewAdapter(AggsViewAdapter):
+    def __init__(self):
+        self._aggs_handlers = ResourceAggsHandlers
+
+
+class ResourceClusteringSearchHandler(ResourceSearchHandler):
     """Pin the legacy search chain to clustered_rt without keyword/addition probing."""
 
     def __init__(self, index_set_id, search_dict, *, clustering_config, **kwargs):
@@ -970,7 +995,7 @@ def get_log_context(params):
         data = _run_query(lambda: ResourceUnifyQueryContextHandler(query).search(), time_zone=params.get("time_zone"))
     else:
         data = _run_query(
-            lambda: SearchHandlerEsquery(index_set.index_set_id, query).search_context(),
+            lambda: ResourceSearchHandler(index_set.index_set_id, query).search_context(),
             time_zone=params.get("time_zone"),
         )
     warnings = []
@@ -1336,7 +1361,7 @@ def _index_set_fields(source, params, scope):
     }
     if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, source["bk_biz_id"]):
         return ResourceUnifyQueryHandler(query).fields(scope)
-    return SearchHandlerEsquery(index_set.index_set_id, query).fields(scope)
+    return ResourceSearchHandler(index_set.index_set_id, query).fields(scope)
 
 
 def _index_set_search(source, query):
@@ -1344,7 +1369,7 @@ def _index_set_search(source, query):
     if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, source["bk_biz_id"]):
         query.update({"index_set_ids": [index_set_id], "bk_biz_id": source["bk_biz_id"]})
         return ResourceUnifyQueryHandler(query).search(search_type=None)
-    return SearchHandlerEsquery(index_set_id, query).search()
+    return ResourceSearchHandler(index_set_id, query).search()
 
 
 def _clustering_search(source, query):
@@ -1383,14 +1408,14 @@ def _index_set_terms(source, query):
     if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, source["bk_biz_id"]):
         query.update({"index_set_ids": [source["index_set_id"]], "bk_biz_id": source["bk_biz_id"]})
         return ResourceUnifyQueryTermsAggsHandler(query["fields"], query).terms()
-    return AggsViewAdapter().terms(source["index_set_id"], query)
+    return ResourceAggsViewAdapter().terms(source["index_set_id"], query)
 
 
 def _index_set_histogram(source, query):
     if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, source["bk_biz_id"]):
         query.update({"index_set_ids": [source["index_set_id"]], "bk_biz_id": source["bk_biz_id"]})
         return ResourceUnifyQueryHandler(query).date_histogram()
-    return AggsViewAdapter().date_histogram(source["index_set_id"], query)
+    return ResourceAggsViewAdapter().date_histogram(source["index_set_id"], query)
 
 
 def _scene_query_params(source, params):
