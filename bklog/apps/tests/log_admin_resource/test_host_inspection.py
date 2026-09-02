@@ -859,6 +859,7 @@ class FixedRemoteScriptTest(SimpleTestCase):
         self.assertIn("MAX_CHILD_CONFIG_SCAN=1000", script)
         self.assertIn('-name "$hint" -o -name "*_$hint"', script)
         self.assertIn('-name "$hint.conf" -o -name "${hint}_*.conf"', script)
+        self.assertIn('-name "*${hint}.conf" -o -name "*${hint}_*.conf"', script)
         self.assertIn('if [ "$target_config_hint_count" -gt 0 ]; then', script)
         self.assertIn("all_child_paths=$(printf '%s\\n' \"$hinted_child_paths\"", script)
         self.assertIn('awk -v wanted="$TARGET_DATA_ID"', script)
