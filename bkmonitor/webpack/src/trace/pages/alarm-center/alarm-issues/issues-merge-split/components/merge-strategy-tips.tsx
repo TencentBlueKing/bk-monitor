@@ -32,12 +32,6 @@ import './merge-strategy-tips.scss';
 
 export default defineComponent({
   name: 'MergeStrategyTips',
-  props: {
-    hasMainIssue: {
-      type: Boolean,
-      default: false,
-    },
-  },
   setup() {
     const { t } = useI18n();
 
@@ -54,15 +48,12 @@ export default defineComponent({
         <div class='merge-strategy-content'>
           <div class='merge-strategy-title'>{this.t('合并策略：')}</div>
           <ul class='merge-strategy-list'>
-            {!this.hasMainIssue && (
-              <li class='merge-strategy-item'>
-                {this.$t('默认保留第 1 条选中的 Issue 作为主 Issue，也可以在下方表单切换；')}
-              </li>
-            )}
-
+            <li class='merge-strategy-item'>
+              {this.$t('默认保留第 1 条选中的 Issue 作为主 Issue，也可以在下方表单切换；')}
+            </li>
             <li class='merge-strategy-item'>
               <span class='item-name'>【{this.$t('主 Issue')}】</span>
-              <span>{this.$t('只能继续作为主 Issue，不支持再合并入其他 Issue；')}</span>
+              <span>{this.$t('合并后作为展示主体；被合入的主 Issue 及其子 Issue 会打平并入，不保留嵌套；')}</span>
             </li>
             <li class='merge-strategy-item'>
               <span class='item-name'>【{this.$t('被合并 Issue')}】</span>
