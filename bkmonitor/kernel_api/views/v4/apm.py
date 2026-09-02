@@ -1,4 +1,4 @@
-from apm_web.llm.views import LLMViewSet
+from apm_web.llm.views import LLMViewSet as _LLMViewSet
 from apm_web.meta.views import ApplicationViewSet
 from apm_web.service.views import ServiceViewSet
 from apm_web.trace.views import TraceQueryViewSet
@@ -25,7 +25,7 @@ class ApmProfileQueryWebViewSet(ProfileQueryViewSet):
     """
 
 
-class ApmLLMWebViewSet(LLMViewSet):
+class ApmLLMWebViewSet(_LLMViewSet):
     """APM LLM 相关 API"""
 
 

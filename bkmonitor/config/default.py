@@ -365,6 +365,7 @@ ACTIVE_VIEWS = {
         "apm_profile": "apm_web.profile.views",
         "apm_container": "apm_web.container.views",
         "apm_strategy": "apm_web.strategy.views",
+        "llm_web": "apm_web.llm.views",
     },
     "rum_web": {
         "rum_meta": "rum_web.meta.views",
