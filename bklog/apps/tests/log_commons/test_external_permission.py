@@ -77,7 +77,7 @@ class TestClusteringConfigActionValid(TestCase):
     LOG_CLUSTERING = ExternalPermissionActionEnum.LOG_CLUSTERING.value
 
     # view_action 是 ViewSet 的方法名，check 对应 url_path check_regexp
-    WRITE_VIEW_ACTIONS = ["update_access", "get_default_config", "debug", "check"]
+    WRITE_VIEW_ACTIONS = ["update_access", "get_default_config", "debug", "check", "sample_log"]
 
     def _is_valid(self, view_set, view_action, action_id=None):
         return ExternalPermission.is_action_valid(
@@ -122,6 +122,24 @@ class TestClusteringConfigActionValid(TestCase):
     # ---------- 其它授权项不得越界访问聚类配置 ----------
     def test_log_extract_cannot_update_clustering_config(self):
         self.assertFalse(self._is_valid("ClusteringConfigViewSet", "update_access", action_id=self.LOG_EXTRACT))
+
+    def test_collector_tail_remains_unexposed(self):
+        # 采集抽样不得直接挂 CollectorViewSet.tail / LogESBViewSet.call，否则会跳过索引集校验
+        for view_set, view_action in [
+            ("CollectorViewSet", "tail"),
+            ("LogESBViewSet", "call"),
+        ]:
+            with self.subTest(view_set=view_set, view_action=view_action):
+                self.assertFalse(self._is_valid(view_set, view_action))
+                self.assertFalse(self._is_valid(view_set, view_action, action_id=self.LOG_SEARCH))
+
+    def test_sample_log_action_id_is_log_clustering(self):
+        from log_adapter.home.views import RequestProcessor
+
+        self.assertEqual(
+            RequestProcessor.get_action_id("ClusteringConfigViewSet", "sample_log"),
+            self.LOG_CLUSTERING,
+        )
 
 
 class TestLogClusteringIndependentFromLogSearch(TestCase):
