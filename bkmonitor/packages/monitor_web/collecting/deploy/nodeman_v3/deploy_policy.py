@@ -292,10 +292,7 @@ class NodeManV3DeployPolicyGateway:
         return {"trigger_id": str(trigger_id)}
 
     def update_target(self, target: CollectDeploymentTarget, *, context: NodeManV3RequestContext) -> dict:
-        del target, context
-        raise NodeManV3AdapterPending(
-            "deploy-policy update protocol is not wired for existing template config or package context"
-        )
+        return self.ensure_target(target, context=context)
 
     def _recover_policy_id(self, name: str, *, context: NodeManV3RequestContext) -> int | None:
         result = self.client.list(

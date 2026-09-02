@@ -17,6 +17,7 @@ from monitor_web.models.node_man import (
 
 from .orchestrator import NodeManV3Orchestrator
 from .reconciler import CollectTargetReconciler, NodeManV3TargetExecutor
+from .validation import NodeManV3CapabilityBlocked
 
 
 class NodeManV3Installer(BaseInstaller):
@@ -40,10 +41,6 @@ class NodeManV3Installer(BaseInstaller):
             raise CollectConfigNeedUpgrade({"msg": self.collect_config.name})
 
         is_create = not self.collect_config.pk
-        if not is_create:
-            raise NodeManV3AdapterPending(
-                "deploy-policy edit protocol is available but not wired into the monitor adapter"
-            )
         release_version = self._packaged_release_version()
         current_version = self.collect_config.deployment_config if self.collect_config.deployment_config_id else None
         new_version = self._create_deployment_version(
@@ -60,7 +57,7 @@ class NodeManV3Installer(BaseInstaller):
         self._reconcile(trigger=f"install:{last_operation.lower()}")
         return {
             "diff_node": diff_node,
-            "can_rollback": last_operation != OperationType.CREATE,
+            "can_rollback": False,
             "id": self.collect_config.pk,
             "deployment_id": new_version.pk,
         }
@@ -68,17 +65,28 @@ class NodeManV3Installer(BaseInstaller):
     def upgrade(self, params: dict) -> dict:
         if not self.collect_config.need_upgrade:
             raise CollectConfigNeedUpgrade({"msg": _("采集配置无需升级")})
-        raise NodeManV3AdapterPending(
-            "deploy-policy upgrade protocol is available but not wired into the monitor adapter"
+        current_version = self.collect_config.deployment_config
+        params["collector"]["period"] = current_version.params["collector"]["period"]
+        params["collector"]["timeout"] = current_version.params["collector"].get("timeout", 60)
+        new_version = self._create_deployment_version(
+            plugin_version=self._packaged_release_version(),
+            target_node_type=current_version.target_node_type,
+            target_nodes=current_version.target_nodes,
+            params=params,
+            remote_collecting_host=current_version.remote_collecting_host,
+            parent_id=current_version.pk,
         )
+        self._activate_version(new_version, last_operation=OperationType.UPGRADE)
+        self._reconcile(trigger="upgrade")
+        return {"id": self.collect_config.pk, "deployment_id": new_version.pk}
 
     def uninstall(self):
         return self.orchestrator.uninstall(collect_config=self.collect_config, topo_tree=self.topo_tree)
 
     def rollback(self, deployment_config_version: int | DeploymentConfigVersion | None = None):
         del deployment_config_version
-        raise NodeManV3AdapterPending(
-            "deploy-policy update protocol is available but rollback is not wired into the monitor adapter"
+        raise NodeManV3CapabilityBlocked(
+            "deploy-policy rollback and replacement semantics are absent from the NodeMan V3 protocol"
         )
 
     def stop(self):

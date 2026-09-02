@@ -4,9 +4,10 @@ from types import SimpleNamespace
 import pytest
 from django.test import override_settings
 
-from bkmonitor.nodeman_integration.v3.exceptions import NodeManV3AdapterPending
+from bkmonitor.nodeman_integration.v3.exceptions import NodeManV3AdapterPending, NodeManV3ResultState
 from monitor_web.collecting.deploy.nodeman_v3.installer import NodeManV3Installer
 from monitor_web.collecting.deploy.nodeman_v3.orchestrator import NodeManV3Orchestrator
+from monitor_web.collecting.deploy.nodeman_v3.validation import NodeManV3CapabilityBlocked
 
 
 class FakeGateway:
@@ -50,11 +51,13 @@ def test_stop_and_delete_remain_explicit_protocol_blockers():
     orchestrator = NodeManV3Orchestrator(gateway=gateway)
     target = _target("mysql0", "", "")
 
-    with pytest.raises(NodeManV3AdapterPending, match="stop semantics"):
+    with pytest.raises(NodeManV3CapabilityBlocked, match="sub-config removal") as stop_error:
         orchestrator.stop_targets([target])
-    with pytest.raises(NodeManV3AdapterPending, match="delete semantics"):
+    with pytest.raises(NodeManV3CapabilityBlocked, match="target removal") as delete_error:
         orchestrator.uninstall_targets([target])
 
+    assert stop_error.value.result_state == NodeManV3ResultState.UNSUPPORTED
+    assert delete_error.value.result_state == NodeManV3ResultState.UNSUPPORTED
     assert gateway.calls == []
 
 
@@ -110,7 +113,91 @@ def test_installer_create_persists_desired_version_then_reconciles(monkeypatch):
     assert calls == [("activate", new_version, "CREATE"), ("reconcile", "install:create")]
 
 
-def test_installer_blocks_edit_before_creating_or_activating_a_version(monkeypatch):
+def test_installer_edit_persists_desired_version_then_updates_targets(monkeypatch):
+    calls = []
+    packaged_release = SimpleNamespace(is_packaged=True)
+    current_version = SimpleNamespace(pk=6, target_nodes=[{"bk_inst_id": 2}])
+    collect_config = SimpleNamespace(
+        pk=7,
+        name="mysql",
+        need_upgrade=False,
+        deployment_config_id=6,
+        deployment_config=current_version,
+        plugin=SimpleNamespace(plugin_type="Exporter", packaged_release_version=packaged_release),
+    )
+    installer = NodeManV3Installer(collect_config, reconciler=SimpleNamespace())
+    new_version = SimpleNamespace(pk=8, target_nodes=[{"bk_inst_id": 3}])
+    monkeypatch.setattr(installer, "_create_deployment_version", lambda **kwargs: new_version)
+    monkeypatch.setattr(installer, "_node_diff", lambda *args: {"updated": [{"bk_inst_id": 3}]})
+    monkeypatch.setattr(
+        installer,
+        "_activate_version",
+        lambda deployment, *, last_operation: calls.append(("activate", deployment, last_operation)),
+    )
+    monkeypatch.setattr(installer, "_reconcile", lambda *, trigger: calls.append(("reconcile", trigger)))
+
+    result = installer.install(
+        {
+            "target_node_type": "TOPO",
+            "target_nodes": [{"bk_inst_id": 3}],
+            "params": {"collector": {"period": 60}},
+        },
+        "EDIT",
+    )
+
+    assert result == {
+        "diff_node": {"updated": [{"bk_inst_id": 3}]},
+        "can_rollback": False,
+        "id": 7,
+        "deployment_id": 8,
+    }
+    assert calls == [("activate", new_version, "EDIT"), ("reconcile", "install:edit")]
+
+
+def test_installer_upgrade_persists_desired_version_then_updates_targets(monkeypatch):
+    calls = []
+    packaged_release = SimpleNamespace(is_packaged=True)
+    current_version = SimpleNamespace(
+        pk=6,
+        target_node_type="TOPO",
+        target_nodes=[{"bk_inst_id": 2}],
+        params={"collector": {"period": 60, "timeout": 30}},
+        remote_collecting_host=None,
+    )
+    collect_config = SimpleNamespace(
+        pk=7,
+        name="mysql",
+        need_upgrade=True,
+        deployment_config=current_version,
+        plugin=SimpleNamespace(plugin_type="Exporter", packaged_release_version=packaged_release),
+    )
+    installer = NodeManV3Installer(collect_config, reconciler=SimpleNamespace())
+    new_version = SimpleNamespace(pk=8)
+    created = []
+    monkeypatch.setattr(installer, "_create_deployment_version", lambda **kwargs: created.append(kwargs) or new_version)
+    monkeypatch.setattr(
+        installer,
+        "_activate_version",
+        lambda deployment, *, last_operation: calls.append(("activate", deployment, last_operation)),
+    )
+    monkeypatch.setattr(installer, "_reconcile", lambda *, trigger: calls.append(("reconcile", trigger)))
+
+    params = {"collector": {"period": 10, "timeout": 5}, "plugin": {}}
+    assert installer.upgrade(params) == {"id": 7, "deployment_id": 8}
+    assert created == [
+        {
+            "plugin_version": packaged_release,
+            "target_node_type": "TOPO",
+            "target_nodes": [{"bk_inst_id": 2}],
+            "params": {"collector": {"period": 60, "timeout": 30}, "plugin": {}},
+            "remote_collecting_host": None,
+            "parent_id": 6,
+        }
+    ]
+    assert calls == [("activate", new_version, "UPGRADE"), ("reconcile", "upgrade")]
+
+
+def test_installer_marks_rollback_as_unsupported_before_mutating_desired_version():
     collect_config = SimpleNamespace(
         pk=7,
         name="mysql",
@@ -118,34 +205,19 @@ def test_installer_blocks_edit_before_creating_or_activating_a_version(monkeypat
         plugin=SimpleNamespace(plugin_type="Exporter"),
     )
     installer = NodeManV3Installer(collect_config, reconciler=SimpleNamespace())
-    monkeypatch.setattr(
-        installer,
-        "_create_deployment_version",
-        lambda **kwargs: pytest.fail("edit must be blocked before creating a deployment version"),
-    )
 
-    with pytest.raises(NodeManV3AdapterPending, match="edit protocol is available"):
-        installer.install({}, "EDIT")
-
-
-def test_installer_blocks_upgrade_and_rollback_before_mutating_desired_version(monkeypatch):
-    collect_config = SimpleNamespace(
-        pk=7,
-        name="mysql",
-        need_upgrade=True,
-        plugin=SimpleNamespace(plugin_type="Exporter"),
-    )
-    installer = NodeManV3Installer(collect_config, reconciler=SimpleNamespace())
-    monkeypatch.setattr(
-        installer,
-        "_create_deployment_version",
-        lambda **kwargs: pytest.fail("unsupported lifecycle must not create a deployment version"),
-    )
-
-    with pytest.raises(NodeManV3AdapterPending, match="upgrade protocol is available"):
-        installer.upgrade({})
-    with pytest.raises(NodeManV3AdapterPending, match="rollback is not wired"):
+    with pytest.raises(NodeManV3CapabilityBlocked, match="rollback and replacement") as error:
         installer.rollback()
+
+    assert error.value.result_state == NodeManV3ResultState.UNSUPPORTED
+
+
+@pytest.mark.parametrize("method", ["start", "run", "retry", "revoke", "status", "instance_status"])
+def test_protocol_backed_lifecycle_remains_adapter_pending(method):
+    orchestrator = NodeManV3Orchestrator()
+
+    with pytest.raises(NodeManV3AdapterPending, match="adapter is pending"):
+        getattr(orchestrator, method)()
 
 
 def test_installer_keeps_unclosed_lifecycle_methods_blocked_by_orchestrator():

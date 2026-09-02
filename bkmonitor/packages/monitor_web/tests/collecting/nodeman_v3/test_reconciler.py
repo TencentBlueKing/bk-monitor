@@ -298,6 +298,44 @@ def test_scale_down_removes_only_the_exact_stored_target():
     assert executor.calls[0][:2] == ("removed", ("service:100",))
 
 
+def test_unsupported_removal_fails_before_supported_writes_in_same_generation():
+    added = SimpleNamespace(identity_key="host:2")
+    removed = SimpleNamespace(identity_key="host:1")
+    plan = SimpleNamespace(
+        generation=4,
+        added=(added,),
+        changed=(),
+        removed=(removed,),
+        unchanged=(),
+        inflight=(),
+        blocked=(),
+    )
+    store = FakeSnapshotStore([plan])
+
+    class RemovalBlockingExecutor(FakeExecutor):
+        def execute(self, category, targets, prepared):
+            super().execute(category, targets, prepared)
+            if category == "removed":
+                raise NodeManV3CapabilityBlocked("target removal protocol is missing")
+
+    executor = RemovalBlockingExecutor()
+    reconciler = CollectTargetReconciler(
+        resolver=SimpleNamespace(resolve=lambda collect_config: [added]),
+        store=store,
+        executor=executor,
+        coordinator=FakeCoordinator(),
+    )
+
+    with pytest.raises(NodeManV3CapabilityBlocked, match="target removal"):
+        reconciler.reconcile(
+            binding=SimpleNamespace(id=8, resource_key="7"),
+            collect_config=SimpleNamespace(id=7),
+            trigger="edit",
+        )
+
+    assert [call[0] for call in executor.calls] == ["removed"]
+
+
 def test_concurrent_reconcile_lease_conflict_defers_without_marking_target_error():
     target = SimpleNamespace(identity_key="host:1")
     plan = SimpleNamespace(

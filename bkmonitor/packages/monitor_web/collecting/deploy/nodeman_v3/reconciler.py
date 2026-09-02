@@ -342,9 +342,12 @@ class CollectTargetReconciler:
     def reconcile(self, *, binding, collect_config, trigger: str) -> ReconcileResult:
         desired = self.resolver.resolve(collect_config)
         prepared = self.store.prepare(binding.id, desired)
+        # A removed target requires cleanup semantics that deploy-policy does not
+        # currently define. Fail before dispatching any supported add/update
+        # writes from the same reconcile generation.
+        self._execute(binding, prepared, "removed", trigger)
         self._execute(binding, prepared, "added", trigger)
         self._execute(binding, prepared, "changed", trigger)
-        self._execute(binding, prepared, "removed", trigger)
         return ReconcileResult(
             binding_id=binding.id,
             generation=prepared.generation,
