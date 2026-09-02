@@ -1,3 +1,4 @@
+import json
 from types import SimpleNamespace
 from unittest.mock import Mock
 
@@ -46,10 +47,39 @@ def test_list_request_serializer_defaults_and_bounds_page_size():
     assert "page_size" in serializer.errors
 
 
-def test_list_request_serializer_excludes_frontend_only_index_set_filters():
+def test_list_request_serializer_exposes_useful_filters_and_conditions():
     serializer = ListLogCollectorsResource.RequestSerializer()
 
-    assert {"parent_index_set_id", "exclude_parent_index_set_id"}.isdisjoint(serializer.fields)
+    assert {"conditions", "ordering"}.issubset(serializer.fields)
+    assert {
+        "parent_index_set_id",
+        "exclude_parent_index_set_id",
+        "exclude_not_completed",
+        "exclude_not_data",
+        "include_related_spaces",
+    }.isdisjoint(serializer.fields)
+
+
+def test_list_request_serializer_rejects_ambiguous_duplicate_conditions():
+    serializer = ListLogCollectorsResource.RequestSerializer(
+        data={
+            "bk_biz_id": 7,
+            "collector_scenario_id": "row",
+            "conditions": [{"key": "collector_scenario_id", "value": ["section"]}],
+        }
+    )
+
+    assert not serializer.is_valid()
+    assert "conditions" in serializer.errors
+
+
+def test_list_request_serializer_accepts_json_encoded_conditions():
+    serializer = ListLogCollectorsResource.RequestSerializer(
+        data={"bk_biz_id": 7, "conditions": json.dumps([{"key": "name", "value": ["nginx"]}])}
+    )
+
+    assert serializer.is_valid(), serializer.errors
+    assert serializer.validated_data["conditions"] == [{"key": "name", "value": ["nginx"]}]
 
 
 @pytest.mark.parametrize("action", ["list_collectors", "get_collector", "get_index_set", "list_index_set_groups"])
@@ -96,28 +126,25 @@ def test_normalize_index_set_preserves_unknown_searchability():
     assert normalize_index_set({"index_set_id": 301, "is_search": False})["is_searchable"] is False
 
 
-def test_list_collectors_uses_mixed_api_pagination_and_normalizes_response(monkeypatch):
+def test_list_collectors_forwards_useful_filters_and_preserves_mixed_api_response(monkeypatch):
     api_resource = Mock(
         return_value={
             "total": 3,
             "list": [
                 {
                     "collector_config_id": 101,
-                    "collector_config_name": "linux-app",
+                    "name": "linux-app",
                     "bk_biz_id": 7,
-                    "environment": None,
-                    "collector_scenario_id": "row",
-                    "collector_scenario_name": "行日志文件",
+                    "name_en": "linux_app",
                     "is_active": True,
                     "bk_data_id": 1500101,
-                    "subscription_id": 201,
                     "index_set_id": 301,
                     "table_id_prefix": "7_bklog_",
                     "table_id": "linux_app",
-                    "is_search": True,
-                    "bkdata_index_set_ids": [401],
                     "created_at": "2026-08-10 10:00:00",
                     "updated_at": "2026-08-11 10:00:00",
+                    "permission": {"manage_collection": True},
+                    "log_access_type": "linux",
                 },
                 {
                     "collector_config_id": 102,
@@ -149,32 +176,27 @@ def test_list_collectors_uses_mixed_api_pagination_and_normalizes_response(monke
             "page_size": 10,
             "keyword": "app",
             "collector_scenario_id": "row",
+            "conditions": [{"key": "name", "value": ["linux-app"]}],
+            "ordering": "name",
         }
     )
 
     assert serializer.is_valid(), serializer.errors
     result = ListLogCollectorsResource().perform_request(serializer.validated_data)
 
-    assert result["page"] == 1
-    assert result["page_size"] == 10
-    assert result["total"] == 3
-    assert result["total_pages"] == 1
-    assert [item["environment"] for item in result["items"]] == ["linux", "windows", "container"]
-    assert result["items"][0]["status"] == "enabled"
-    assert result["items"][0]["index_set"] == {
-        "index_set_id": 301,
-        "table_id_prefix": "7_bklog_",
-        "table_id": "linux_app",
-        "is_searchable": True,
-        "bkdata_index_set_ids": [401],
-    }
+    assert result == api_resource.return_value
+    assert result["list"][0]["permission"] == {"manage_collection": True}
+    assert result["list"][0]["name_en"] == "linux_app"
     api_resource.assert_called_once_with(
         space_uid="bkcc__7",
         page=1,
         pagesize=10,
         keyword="app",
-        ordering="-updated_at",
-        conditions=[{"key": "collector_scenario_id", "value": ["row"]}],
+        ordering="name",
+        conditions=[
+            {"key": "name", "value": ["linux-app"]},
+            {"key": "collector_scenario_id", "value": ["row"]},
+        ],
     )
 
 
@@ -213,9 +235,8 @@ def test_list_collectors_uses_mixed_log_access_api_for_es_and_custom_report(monk
         }
     )
 
-    assert [item["log_access_type"] for item in result["items"]] == ["es", "custom_report"]
-    assert result["items"][0]["collector_config_id"] is None
-    assert result["items"][0]["bk_biz_id"] == 7
+    assert [item["log_access_type"] for item in result["list"]] == ["es", "custom_report"]
+    assert result["list"][0]["collector_config_id"] is None
     api_resource.assert_called_once_with(
         space_uid="bkcc__7",
         page=1,
@@ -249,8 +270,8 @@ def test_list_collectors_supports_bkdata_index_sets(monkeypatch):
     result = ListLogCollectorsResource().perform_request(serializer.validated_data)
 
     assert result["total"] == 1
-    assert result["items"][0]["log_access_type"] == "bkdata"
-    assert result["items"][0]["index_set"]["index_set_id"] == 401
+    assert result["list"][0]["log_access_type"] == "bkdata"
+    assert result["list"][0]["index_set_id"] == 401
     api_resource.assert_called_once_with(
         space_uid="bkcc__7",
         page=1,

@@ -172,7 +172,14 @@ def test_log_collection_mcp_contract():
     assert _operation_ids(paths) == {"list_log_collectors", "get_log_collector", "get_log_index_set"}
     list_schema = paths["/mcp/list_log_collectors/"]["get"]["parameters"]
     list_parameter_names = {parameter["name"] for parameter in list_schema}
-    assert {"enabled", "parent_index_set_id", "exclude_parent_index_set_id"}.isdisjoint(list_parameter_names)
+    assert {"conditions", "ordering"}.issubset(list_parameter_names)
+    assert {
+        "parent_index_set_id",
+        "exclude_parent_index_set_id",
+        "exclude_not_completed",
+        "exclude_not_data",
+        "include_related_spaces",
+    }.isdisjoint(list_parameter_names)
     access_type_parameter = next(parameter for parameter in list_schema if parameter["name"] == "log_access_type")
     assert "bkdata" in access_type_parameter["schema"]["items"]["enum"]
     index_set_parameters = paths["/mcp/get_log_index_set/"]["get"]["parameters"]

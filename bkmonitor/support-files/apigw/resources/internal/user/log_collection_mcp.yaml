@@ -3,11 +3,12 @@ paths:
     get:
       operationId: list_log_collectors
       description: >-
-        List log access entries in a business with stable pagination. The result includes host/container collectors,
-        custom reports, bkdata and third-party Elasticsearch index sets. Call this first to obtain collector_config_id
+        List log access entries in a business with stable pagination. The response is passed through from the new
+        log-access API as {total, list}; each entry includes its type-specific ID and permission. The list includes
+        host/container collectors, custom reports, bkdata and third-party Elasticsearch index sets. Call this first to obtain collector_config_id
         before collector operations; index-set entries have collector_config_id=null and expose index_set_id instead.
         Call get_log_index_set before updating an index-set entry to obtain its complete detail.
-        Filters: keyword, collector_scenario_id, log_access_type. 分页查询业务下的日志接入项，包含主机/容器采集、自定义上报、bkdata 和第三方 ES。
+        Filters: keyword, conditions, collector_scenario_id and log_access_type. 分页查询业务下的日志接入项，包含主机/容器采集、自定义上报、bkdata 和第三方 ES。
         索引集条目的 collector_config_id 为 null，请使用 index_set_id。
       tags:
       - log_collection_mcp
@@ -84,6 +85,22 @@ paths:
         description: >-
           Filter by unified access type. Use bkdata for BkBase result-table index sets, es for third-party Elasticsearch,
           and custom_report for custom reports. 按统一接入类型过滤，数据平台使用 bkdata，第三方 ES 使用 es，自定义上报使用 custom_report。
+      - in: query
+        name: conditions
+        required: false
+        schema:
+          type: string
+        description: >-
+          JSON array of advanced filters, such as [{"key":"name","value":["nginx"]}]. Each item requires a string key and a non-empty value list.
+          Do not repeat collector_scenario_id or log_access_type when using their dedicated parameters. 高级过滤条件 JSON 数组，每项包含 key 和非空 value 列表；使用快捷参数时不要重复传对应条件。
+      - in: query
+        name: ordering
+        required: false
+        schema:
+          type: string
+          default: -updated_at
+          enum: [name, -name, retention, -retention, updated_at, -updated_at, created_at, -created_at, daily_usage, -daily_usage, total_usage, -total_usage]
+        description: Sort by a supported list field; prefix with - for descending order. 排序字段，前缀 - 表示降序。
       x-bk-apigateway-resource:
         isPublic: false
         allowApplyPermission: false

@@ -1,6 +1,6 @@
 """日志采集接入 MCP 资源。"""
 
-import math
+import json
 from collections.abc import Mapping
 from typing import Any
 
@@ -24,6 +24,16 @@ WINDOWS_COLLECTOR_SCENARIO = "wineventlog"
 LINUX_COLLECTOR_SCENARIOS = {"row", "section"}
 CUSTOM_COLLECTOR_SCENARIO = "custom"
 CUSTOM_CONTAINER_TYPE = "log"
+LOG_COLLECTOR_ORDERING_CHOICES = (
+    "name",
+    "-name",
+    "retention",
+    "-retention",
+    "updated_at",
+    "-updated_at",
+    "created_at",
+    "-created_at",
+)
 SENSITIVE_KEYWORDS = (
     "password",
     "passwd",
@@ -55,6 +65,18 @@ CONTAINER_CONFIG_FIELDS = {
     "status",
     "status_detail",
 }
+
+
+class JSONListField(serializers.JSONField):
+    """接受 GET 查询参数中的 JSON 数组，也兼容资源内部传入的原生数组。"""
+
+    def to_internal_value(self, data):
+        if isinstance(data, str):
+            try:
+                data = json.loads(data)
+            except json.JSONDecodeError:
+                raise serializers.ValidationError("必须是合法的 JSON 数组。")
+        return super().to_internal_value(data)
 
 
 def normalize_environment(collector: dict[str, Any]) -> str:
@@ -132,18 +154,18 @@ def get_log_access_type(collector: dict[str, Any]) -> str:
     return ""
 
 
-def normalize_collector_summary(collector: dict[str, Any], default_bk_biz_id: int | None = None) -> dict[str, Any]:
+def normalize_collector_detail(collector: dict[str, Any]) -> dict[str, Any]:
     is_active = bool(collector.get("is_active"))
     collector_scenario_id = collector.get("collector_scenario_id") or collector.get("scenario_id") or ""
     collector_scenario_name = collector.get("collector_scenario_name") or collector.get("scenario_name") or ""
     parent_index_sets = collector.get("parent_index_sets") or []
-    return {
+    result = {
         "collector_config_id": collector.get("collector_config_id") or None,
         "collector_config_name": collector.get("collector_config_name")
         or collector.get("name")
         or collector.get("index_set_name")
         or "",
-        "bk_biz_id": collector.get("bk_biz_id") or default_bk_biz_id,
+        "bk_biz_id": collector.get("bk_biz_id"),
         "environment": normalize_environment(collector),
         "collector_scenario": {
             "id": collector_scenario_id,
@@ -159,10 +181,6 @@ def normalize_collector_summary(collector: dict[str, Any], default_bk_biz_id: in
         "created_at": collector.get("created_at"),
         "updated_at": collector.get("updated_at"),
     }
-
-
-def normalize_collector_detail(collector: dict[str, Any]) -> dict[str, Any]:
-    result = normalize_collector_summary(collector)
     result.update(
         {
             "description": collector.get("description") or "",
@@ -203,6 +221,10 @@ class ListLogCollectorsResource(Resource):
     """分页查询指定业务的日志采集项。"""
 
     class RequestSerializer(serializers.Serializer):
+        class ConditionSerializer(serializers.Serializer):
+            key = serializers.CharField(required=True, allow_blank=False, label="过滤字段")
+            value = serializers.ListField(required=True, allow_empty=False, label="过滤值列表")
+
         bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
         page = serializers.IntegerField(required=False, default=1, min_value=1, label="页码")
         page_size = serializers.IntegerField(required=False, default=20, min_value=1, max_value=100, label="每页数量")
@@ -218,9 +240,33 @@ class ListLogCollectorsResource(Resource):
             allow_empty=False,
             label="日志接入类型",
         )
+        ordering = serializers.ChoiceField(
+            required=False,
+            default="-updated_at",
+            choices=LOG_COLLECTOR_ORDERING_CHOICES,
+            label="排序方式",
+        )
+        conditions = JSONListField(required=False, label="高级过滤条件")
+
+        def validate_conditions(self, value):
+            if not isinstance(value, list):
+                raise serializers.ValidationError("conditions 必须是由 {key, value} 组成的列表。")
+            serializer = self.ConditionSerializer(data=value, many=True)
+            serializer.is_valid(raise_exception=True)
+            return serializer.validated_data
+
+        def validate(self, attrs):
+            condition_keys = {condition["key"] for condition in attrs.get("conditions", [])}
+            duplicate_keys = condition_keys.intersection({"collector_scenario_id", "log_access_type"})
+            explicit_keys = {key for key in ("collector_scenario_id", "log_access_type") if key in attrs}
+            if conflict_keys := duplicate_keys.intersection(explicit_keys):
+                raise serializers.ValidationError(
+                    {"conditions": f"请勿同时通过 conditions 和快捷参数过滤 {', '.join(sorted(conflict_keys))}。"}
+                )
+            return attrs
 
     def perform_request(self, validated_request_data):
-        conditions = []
+        conditions = list(validated_request_data.get("conditions", []))
         if "collector_scenario_id" in validated_request_data:
             conditions.append(
                 {"key": "collector_scenario_id", "value": [validated_request_data["collector_scenario_id"]]}
@@ -232,24 +278,11 @@ class ListLogCollectorsResource(Resource):
             "page": validated_request_data["page"],
             "pagesize": validated_request_data["page_size"],
             "keyword": validated_request_data.get("keyword") or "",
-            "ordering": "-updated_at",
+            "ordering": validated_request_data.get("ordering", "-updated_at"),
             "conditions": conditions,
         }
-        response = api.log_search.log_access_collector(**params)
-        total = int(response.get("total") or 0)
-        items = response.get("list") or []
-
-        page_size = validated_request_data["page_size"]
-        return {
-            "page": validated_request_data["page"],
-            "page_size": page_size,
-            "total": total,
-            "total_pages": math.ceil(total / page_size) if total else 0,
-            "items": [
-                normalize_collector_summary(item, default_bk_biz_id=validated_request_data["bk_biz_id"])
-                for item in items
-            ],
-        }
+        # 新版接口已完成混合采集项/索引集的字段整合和实例权限计算；不得再次裁剪。
+        return api.log_search.log_access_collector(**params)
 
 
 class GetLogCollectorResource(Resource):
