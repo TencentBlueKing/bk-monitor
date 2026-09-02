@@ -909,6 +909,48 @@ class FixedRemoteScriptTest(SimpleTestCase):
 
                     self.assertEqual(completed.stdout.splitlines(), [str(path) for path in expected])
 
+    def test_shared_probe_matches_data_id_in_yaml_list_items(self):
+        script = fixed_probe_script().decode("utf-8")
+        matching_start = script.index("matching_child_paths=$(while")
+        matching_end = script.index("\nchild_config_match_count=", matching_start)
+        matching_script = script[matching_start:matching_end]
+
+        with tempfile.TemporaryDirectory() as directory:
+            config_directory = Path(directory)
+            matching_configs = {
+                "dataid.conf": "local:\n    - dataid: 1001\n",
+                "data_id.conf": "local:\n    - data_id: '1001' # inline comment\n",
+                "dataId.conf": 'local:\n    - dataId: "1001"\n',
+                "mapping.conf": "dataid: 1001\n",
+            }
+            expected_paths = []
+            for name, content in matching_configs.items():
+                config_path = config_directory / name
+                config_path.write_text(content, encoding="utf-8")
+                expected_paths.append(config_path)
+            non_matching_path = config_directory / "other.conf"
+            non_matching_path.write_text("local:\n    - dataid: 10010\n", encoding="utf-8")
+
+            scan_paths = "\n".join(str(path) for path in [*expected_paths, non_matching_path])
+            harness = "\n".join(
+                (
+                    "set -u",
+                    "TARGET_DATA_ID=1001",
+                    f"scan_paths='{scan_paths}'",
+                    matching_script,
+                    "printf '%s\\n' \"$matching_child_paths\"",
+                )
+            )
+            completed = subprocess.run(
+                ["/bin/sh"],
+                input=harness,
+                text=True,
+                capture_output=True,
+                check=True,
+            )
+
+            self.assertEqual(completed.stdout.splitlines(), [str(path) for path in expected_paths])
+
     def test_shared_probe_rejects_caller_shaped_config_hints(self):
         for hint in ("../secret.conf", "/data/etc/secret.conf", "*.conf", "a,b.conf"):
             with self.subTest(hint=hint), self.assertRaises(ValueError):
