@@ -1115,6 +1115,42 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: "query span list"
+  /app/apm/list_llm_spans/:
+    post:
+      operationId: list_llm_spans
+      description: 查询 Agent Trace 的标准化 Span
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/apm_llm_web/list_spans/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: "query normalized Agent spans"
+  /app/apm/list_llm_traces/:
+    post:
+      operationId: list_llm_traces
+      description: 分页查询 Agent Trace 或会话
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/apm_llm_web/list_traces/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: "query Agent traces or conversations"
   /app/apm/application_info_by_id/:
     get:
       operationId: apm_application_info_by_id

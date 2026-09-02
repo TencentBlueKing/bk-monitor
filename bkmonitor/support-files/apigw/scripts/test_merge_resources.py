@@ -342,6 +342,78 @@ def test_apm_platform_integration_apigw_contract() -> None:
         assert (_DOCS_DIR / f"{operation_id}.md").is_file()
 
 
+def test_llm_observability_apigw_contract() -> None:
+    """旧 APM Trace API 保持不变，新增 LLM API 转发到 V4 Resource。"""
+    paths = _load_paths(_INTERNAL_APM_FILE)
+    expected_legacy_resources = {
+        "/app/apm/list_spans/": {
+            "post": {
+                "operationId": "list_spans",
+                "description": "查询 span",
+                "x-bk-apigateway-resource": {
+                    "isPublic": False,
+                    "allowApplyPermission": True,
+                    "matchSubpath": False,
+                    "backend": {
+                        "name": "default",
+                        "method": "post",
+                        "path": "/api/v4/trace_query_web/list_spans/",
+                        "matchSubpath": False,
+                    },
+                    "authConfig": {
+                        "appVerifiedRequired": True,
+                        "userVerifiedRequired": False,
+                        "resourcePermissionRequired": True,
+                    },
+                    "descriptionEn": "query span list",
+                },
+            }
+        },
+        "/app/apm/list_traces/": {
+            "post": {
+                "operationId": "list_traces",
+                "description": "查询 span",
+                "x-bk-apigateway-resource": {
+                    "isPublic": False,
+                    "allowApplyPermission": True,
+                    "matchSubpath": False,
+                    "backend": {
+                        "name": "default",
+                        "method": "post",
+                        "path": "/api/v4/trace_query_web/list_traces/",
+                        "matchSubpath": False,
+                    },
+                    "authConfig": {
+                        "appVerifiedRequired": True,
+                        "userVerifiedRequired": False,
+                        "resourcePermissionRequired": True,
+                    },
+                    "descriptionEn": "query span list",
+                },
+            }
+        },
+    }
+    for path, expected_resource in expected_legacy_resources.items():
+        assert paths[path] == expected_resource
+
+    expected_resources: dict[str, tuple[str, str]] = {
+        "/app/apm/list_llm_spans/": ("list_llm_spans", "/api/v4/apm_llm_web/list_spans/"),
+        "/app/apm/list_llm_traces/": ("list_llm_traces", "/api/v4/apm_llm_web/list_traces/"),
+    }
+
+    for path, (operation_id, backend_path) in expected_resources.items():
+        method_data = paths[path]["post"]
+        gateway_resource = method_data["x-bk-apigateway-resource"]
+        assert method_data["operationId"] == operation_id
+        assert gateway_resource["backend"] == {
+            "name": "default",
+            "method": "post",
+            "path": backend_path,
+            "matchSubpath": False,
+        }
+        assert (_DOCS_DIR / f"{operation_id}.md").is_file()
+
+
 def test_repository_resources_have_unique_operation_ids():
     """仓库内现有 apigw 资源定义必须无重复 operationId（回归基线）。"""
     public_dirs = ["internal", "external"]
