@@ -42,5 +42,9 @@
         @extend %condition-menu-inherit-color;
       }
     }
+
+    &.explore-duration-col {
+      font-weight: 700;
+    }
   }
 }

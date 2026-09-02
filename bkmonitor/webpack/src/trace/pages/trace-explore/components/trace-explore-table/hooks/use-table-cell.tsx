@@ -281,7 +281,7 @@ export function useTableCell({
     renderCtx: TableCellRenderContext<keyof typeof customCellRenderMap>
   ) {
     const timestamp = getTableCellRenderValue(row, column);
-    if (!timestamp) {
+    if (isEmpty(timestamp)) {
       return textColumnFormatter(
         row,
         column as unknown as ExploreTableColumn<ExploreTableColumnTypeEnum.TEXT>,
