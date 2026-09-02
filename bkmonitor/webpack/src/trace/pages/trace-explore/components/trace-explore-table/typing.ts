@@ -88,7 +88,7 @@ export interface BaseTableCellRenderValueType {
 export interface BaseTableCellSpecificPropsMap {
   /** 持续时间类型单元格私有属性 */
   [ExploreTableColumnTypeEnum.DURATION]: {
-    /** 原始数据单位，默认 'us'（微秒），需与 formatDuration 的 unit 参数对齐（当前仅 'ms' | 'us' 会被正确换算） */
+    /** 原始数据单位，默认 'us'（微秒），需与 formatDuration 的 unit 参数对齐（支持 d / h / m / s / ms / μs / us） */
     durationUnit?: 'ms' | 'us';
   };
   /** tag 类型单元格私有属性 */
