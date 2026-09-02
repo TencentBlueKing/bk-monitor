@@ -12,8 +12,8 @@ class StrictCreateSerializer(StrictMCPSerializer):
 
 
 def fill_index_business_ids(indexes: list[dict], bk_biz_id: int) -> list[dict]:
-    """补齐下游索引集创建逻辑必需的索引业务字段。"""
-    return [{**index, "bk_biz_id": index["bk_biz_id"] if "bk_biz_id" in index else bk_biz_id} for index in indexes]
+    """补齐下游索引集创建逻辑必需的索引业务字段；索引未提供业务ID（含显式 null）时回落到外层业务。"""
+    return [{**index, "bk_biz_id": index.get("bk_biz_id") or bk_biz_id} for index in indexes]
 
 
 class CreateCustomReportResource(Resource):

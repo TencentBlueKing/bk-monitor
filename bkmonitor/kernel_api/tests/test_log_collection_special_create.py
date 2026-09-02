@@ -93,6 +93,59 @@ def test_create_third_party_es_forwards_space_and_parent_index_set_ids(monkeypat
     assert "parent_index_set_id" not in create_index_set.call_args.kwargs
 
 
+def test_create_third_party_es_explicit_null_biz_falls_back_to_outer(monkeypatch):
+    """索引显式传 bk_biz_id=null 时应回落到外层业务ID，而不是把 None 透传给下游。"""
+    create_index_set = Mock(return_value={"index_set_id": 51})
+    monkeypatch.setattr(
+        special_create_module,
+        "api",
+        SimpleNamespace(log_search=SimpleNamespace(create_index_set=create_index_set)),
+    )
+    serializer = CreateThirdPartyESResource.RequestSerializer(
+        data={
+            "bk_biz_id": 2,
+            "index_set_name": "external-es",
+            "storage_cluster_id": 61,
+            "indexes": [
+                {"result_table_id": "logs-*", "bk_biz_id": None},
+                {"result_table_id": "logs-2024"},
+            ],
+            "time_field": "@timestamp",
+            "confirm": True,
+        }
+    )
+    assert serializer.is_valid(), serializer.errors
+
+    CreateThirdPartyESResource().perform_request(serializer.validated_data)
+
+    assert create_index_set.call_args.kwargs["indexes"] == [
+        {"result_table_id": "logs-*", "bk_biz_id": 2},
+        {"result_table_id": "logs-2024", "bk_biz_id": 2},
+    ]
+
+
+def test_create_bkdata_explicit_null_biz_falls_back_to_outer(monkeypatch):
+    create_index_set = Mock(return_value={"index_set_id": 71})
+    monkeypatch.setattr(
+        special_create_module,
+        "api",
+        SimpleNamespace(log_search=SimpleNamespace(create_index_set=create_index_set)),
+    )
+    serializer = CreateBkDataResource.RequestSerializer(
+        data={
+            "bk_biz_id": 2,
+            "index_set_name": "bkdata-index-set",
+            "indexes": [{"result_table_id": "2_demo_table", "bk_biz_id": None}],
+            "confirm": True,
+        }
+    )
+    assert serializer.is_valid(), serializer.errors
+
+    CreateBkDataResource().perform_request(serializer.validated_data)
+
+    assert create_index_set.call_args.kwargs["indexes"] == [{"result_table_id": "2_demo_table", "bk_biz_id": 2}]
+
+
 def test_create_bkdata_index_set_forwards_space_scenario_and_business(monkeypatch):
     create_index_set = Mock(
         return_value={

@@ -126,6 +126,12 @@ class ApiGatewayResourcesTests(SimpleTestCase):
         self.assertEqual(resource["backend"]["path"], "/api/v1/index_group/")
         self.assertEqual(resolve(resource["backend"]["path"]).func.actions["get"], "list")
 
+    def test_log_access_collector_resource_maps_to_existing_action(self):
+        resource = self.resources["paths"]["/databus/log_access/collector/"]["post"]["x-bk-apigateway-resource"]
+        self.assertEqual(resource["backend"]["method"], "post")
+        self.assertEqual(resource["backend"]["path"], "/api/v1/databus/log_access/collector/")
+        self.assertEqual(resolve(resource["backend"]["path"]).func.actions["post"], "collector")
+
     def test_public_search_helper_docs_use_apigw_auth_keys(self):
         for operation_id in (
             "index_set_terms",

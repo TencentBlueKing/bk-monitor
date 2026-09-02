@@ -961,6 +961,28 @@ paths:
           appVerifiedRequired: true
           resourcePermissionRequired: true
         descriptionEn:
+  /databus/log_access/collector/:
+    post:
+      operationId: databus_log_access_collector
+      description: 日志平台-新版日志接入列表（采集项与独立索引集混合分页）
+      tags:
+      - 采集项
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v1/databus/log_access/collector/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: false
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn:
   /databus_custom_create/:
     post:
       operationId: databus_custom_create
