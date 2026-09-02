@@ -1,13 +1,12 @@
 """日志采集相关的自定义上报、第三方 ES 和 bkdata 更新资源。"""
 
-from collections.abc import Mapping
-
 from rest_framework import serializers
 from rest_framework.exceptions import PermissionDenied, ValidationError
 
 from bkm_space.utils import bk_biz_id_to_space_uid
 from core.drf_resource import Resource, api
 from kernel_api.resource.log_collection import get_log_access_type
+from kernel_api.resource.log_collection_common import StrictMCPSerializer
 from kernel_api.resource.log_collection_special_create import (
     BkDataIndexSerializer,
     ThirdPartyESIndexSerializer,
@@ -15,17 +14,8 @@ from kernel_api.resource.log_collection_special_create import (
 )
 
 
-class StrictUpdateSerializer(serializers.Serializer):
-    """拒绝未声明字段，避免更新接口静默忽略参数。"""
-
-    def to_internal_value(self, data):
-        if isinstance(data, Mapping):
-            unknown_fields = set(data) - set(self.fields)
-            if unknown_fields:
-                raise serializers.ValidationError(
-                    {field: ["This field is not supported by this MCP update API."] for field in sorted(unknown_fields)}
-                )
-        return super().to_internal_value(data)
+class StrictUpdateSerializer(StrictMCPSerializer):
+    unsupported_api_name = "MCP update API"
 
 
 def ensure_collector_belongs_to_biz(collector: dict, bk_biz_id: int) -> None:
@@ -38,17 +28,10 @@ def ensure_custom_report(collector: dict) -> None:
         raise ValidationError("The collector config is not a custom-report collector.")
 
 
-def find_index_set(index_sets, index_set_id: int) -> dict:
-    if isinstance(index_sets, Mapping):
-        response = index_sets
-        index_sets = response.get("list")
-        if index_sets is None:
-            index_sets = response.get("data")
-        if isinstance(index_sets, Mapping):
-            index_sets = index_sets.get("list") or index_sets.get("data") or []
-    for index_set in index_sets or []:
-        if isinstance(index_set, Mapping) and str(index_set.get("index_set_id")) == str(index_set_id):
-            return dict(index_set)
+def find_index_set(index_sets: list[dict], index_set_id: int) -> dict:
+    for index_set in index_sets:
+        if str(index_set.get("index_set_id")) == str(index_set_id):
+            return index_set
     raise PermissionDenied("Index set does not belong to the requested business.")
 
 
@@ -109,9 +92,7 @@ class UpdateCustomReportResource(Resource):
         )
         return {
             "collector_config_id": collector_config_id,
-            "bk_biz_id": bk_biz_id,
             "updated": result if isinstance(result, bool) else True,
-            "parent_index_set_ids": request_data.get("parent_index_set_ids"),
         }
 
 
@@ -165,19 +146,6 @@ class UpdateThirdPartyESResource(Resource):
         if get_log_access_type(index_set) != "es":
             raise ValidationError("The index set is not a third-party ES index set.")
 
-        # BKLOG 的通用更新接口在未传该字段时会按空列表处理，避免更新其他字段时误清空索引组归属。
-        if "parent_index_set_ids" not in request_data:
-            index_set_detail = api.log_search.get_index_set(index_set_id=index_set_id)
-            if isinstance(index_set_detail, Mapping) and isinstance(index_set_detail.get("data"), Mapping):
-                index_set_detail = index_set_detail["data"]
-            parent_index_set_ids = (
-                index_set_detail.get("parent_index_set_ids") if isinstance(index_set_detail, Mapping) else None
-            )
-            if parent_index_set_ids is None:
-                parent_index_set_ids = index_set.get("parent_index_set_ids")
-            if parent_index_set_ids is None:
-                raise ValidationError("无法获取索引集当前归属索引组，请显式传入 parent_index_set_ids。")
-            request_data["parent_index_set_ids"] = parent_index_set_ids
         request_data["indexes"] = fill_index_business_ids(request_data["indexes"], bk_biz_id)
         request_data.update(
             {
@@ -185,17 +153,7 @@ class UpdateThirdPartyESResource(Resource):
                 "scenario_id": "es",
             }
         )
-        result = api.log_search.update_index_set(index_set_id=index_set_id, **request_data) or {}
-        if not isinstance(result, Mapping):
-            result = {}
-        return {
-            "index_set_id": result.get("index_set_id") or index_set_id,
-            "index_set_name": result.get("index_set_name") or request_data["index_set_name"],
-            "scenario_id": result.get("scenario_id") or "es",
-            "space_uid": result.get("space_uid") or request_data["space_uid"],
-            "storage_cluster_id": result.get("storage_cluster_id") or request_data["storage_cluster_id"],
-            "parent_index_set_ids": request_data.get("parent_index_set_ids"),
-        }
+        return api.log_search.update_index_set(index_set_id=index_set_id, **request_data)
 
 
 class UpdateBkDataResource(Resource):
@@ -254,14 +212,4 @@ class UpdateBkDataResource(Resource):
                 "scenario_id": "bkdata",
             }
         )
-        result = api.log_search.update_index_set(index_set_id=index_set_id, **request_data) or {}
-        if not isinstance(result, Mapping):
-            result = {}
-        return {
-            "index_set_id": result.get("index_set_id") or index_set_id,
-            "index_set_name": result.get("index_set_name") or request_data["index_set_name"],
-            "scenario_id": result.get("scenario_id") or "bkdata",
-            "space_uid": result.get("space_uid") or request_data["space_uid"],
-            "storage_cluster_id": result.get("storage_cluster_id"),
-            "parent_index_set_ids": request_data.get("parent_index_set_ids"),
-        }
+        return api.log_search.update_index_set(index_set_id=index_set_id, **request_data)

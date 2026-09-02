@@ -1,6 +1,5 @@
 """日志采集接入 MCP 资源。"""
 
-import json
 import math
 from collections.abc import Mapping
 from typing import Any
@@ -10,6 +9,7 @@ from rest_framework.exceptions import PermissionDenied
 
 from bkm_space.utils import bk_biz_id_to_space_uid
 from core.drf_resource import Resource, api
+from kernel_api.resource.log_collection_common import normalize_json_list, normalize_json_object
 
 ENVIRONMENT_LINUX = "linux"
 ENVIRONMENT_WINDOWS = "windows"
@@ -72,30 +72,6 @@ def normalize_environment(collector: dict[str, Any]) -> str:
     if collector_scenario_id in LINUX_COLLECTOR_SCENARIOS:
         return ENVIRONMENT_LINUX
     return ENVIRONMENT_UNKNOWN
-
-
-def normalize_json_object(value: Any) -> dict[str, Any]:
-    if isinstance(value, dict):
-        return value
-    if isinstance(value, str):
-        try:
-            parsed = json.loads(value)
-        except (TypeError, ValueError):
-            return {}
-        return parsed if isinstance(parsed, dict) else {}
-    return {}
-
-
-def normalize_json_list(value: Any) -> list[Any]:
-    if isinstance(value, list):
-        return value
-    if isinstance(value, str):
-        try:
-            parsed = json.loads(value)
-        except (TypeError, ValueError):
-            return []
-        return parsed if isinstance(parsed, list) else []
-    return []
 
 
 def mask_sensitive(value: Any) -> Any:

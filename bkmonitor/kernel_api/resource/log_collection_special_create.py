@@ -1,24 +1,14 @@
 """日志采集相关的自定义上报、第三方 ES 和 bkdata 创建资源。"""
 
-from collections.abc import Mapping
-
 from rest_framework import serializers
 
 from bkm_space.utils import bk_biz_id_to_space_uid
 from core.drf_resource import Resource, api
+from kernel_api.resource.log_collection_common import StrictMCPSerializer
 
 
-class StrictCreateSerializer(serializers.Serializer):
-    """拒绝未声明字段，避免 MCP 创建接口静默丢弃参数。"""
-
-    def to_internal_value(self, data):
-        if isinstance(data, Mapping):
-            unknown_fields = set(data) - set(self.fields)
-            if unknown_fields:
-                raise serializers.ValidationError(
-                    {field: ["This field is not supported by this MCP create API."] for field in sorted(unknown_fields)}
-                )
-        return super().to_internal_value(data)
+class StrictCreateSerializer(StrictMCPSerializer):
+    unsupported_api_name = "MCP create API"
 
 
 def fill_index_business_ids(indexes: list[dict], bk_biz_id: int) -> list[dict]:
@@ -75,15 +65,7 @@ class CreateCustomReportResource(Resource):
     def perform_request(self, validated_request_data):
         request_data = dict(validated_request_data)
         request_data.pop("confirm")
-        result = api.log_search.create_custom_report(enforce_permission=True, **request_data) or {}
-        return {
-            "collector_config_id": result.get("collector_config_id"),
-            "index_set_id": result.get("index_set_id"),
-            "bk_data_id": result.get("bk_data_id"),
-            "bk_data_token": result.get("bk_data_token"),
-            "created": result.get("created", True),
-            "parent_index_set_ids": request_data.get("parent_index_set_ids"),
-        }
+        return api.log_search.create_custom_report(enforce_permission=True, **request_data)
 
 
 class ThirdPartyESIndexSerializer(serializers.Serializer):
@@ -149,15 +131,7 @@ class CreateThirdPartyESResource(Resource):
                 "enforce_permission": True,
             }
         )
-        result = api.log_search.create_index_set(**request_data) or {}
-        return {
-            "index_set_id": result.get("index_set_id"),
-            "index_set_name": result.get("index_set_name") or validated_request_data["index_set_name"],
-            "scenario_id": result.get("scenario_id") or "es",
-            "space_uid": result.get("space_uid") or request_data["space_uid"],
-            "storage_cluster_id": result.get("storage_cluster_id") or validated_request_data["storage_cluster_id"],
-            "parent_index_set_ids": request_data.get("parent_index_set_ids"),
-        }
+        return api.log_search.create_index_set(**request_data)
 
 
 class BkDataIndexSerializer(serializers.Serializer):
@@ -213,12 +187,4 @@ class CreateBkDataResource(Resource):
                 "enforce_permission": True,
             }
         )
-        result = api.log_search.create_index_set(**request_data) or {}
-        return {
-            "index_set_id": result.get("index_set_id"),
-            "index_set_name": result.get("index_set_name") or validated_request_data["index_set_name"],
-            "scenario_id": result.get("scenario_id") or "bkdata",
-            "space_uid": result.get("space_uid") or request_data["space_uid"],
-            "storage_cluster_id": result.get("storage_cluster_id"),
-            "parent_index_set_ids": request_data.get("parent_index_set_ids"),
-        }
+        return api.log_search.create_index_set(**request_data)

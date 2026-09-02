@@ -8,42 +8,23 @@ from kernel_api.resource.log_collection_special_create import (
     CreateCustomReportResource,
     CreateThirdPartyESResource,
 )
+from kernel_api.resource import log_index_set as log_index_set_module
 from kernel_api.resource.log_index_set import ListLogIndexSetGroupsResource
 
 
-def test_list_index_set_groups_only_returns_groups(monkeypatch):
-    search_index_set = Mock(
-        return_value=[
-            {"index_set_id": 11, "index_set_name": "group", "space_uid": "bkcc__2", "is_group": True},
-            {"index_set_id": 12, "index_set_name": "child", "space_uid": "bkcc__2", "is_group": False},
-        ]
-    )
-    monkeypatch.setattr(api.log_search, "search_index_set", search_index_set)
-
-    result = ListLogIndexSetGroupsResource().perform_request({"bk_biz_id": 2})
-
-    assert result == {
-        "groups": [{"index_set_id": 11, "index_set_name": "group", "space_uid": "bkcc__2", "is_group": True}]
+def test_list_index_set_groups_uses_dedicated_group_api(monkeypatch):
+    expected_result = {
+        "total": 1,
+        "list": [{"index_set_id": 11, "index_set_name": "group", "index_count": 2}],
     }
-    search_index_set.assert_called_once_with(bk_biz_id=2, is_group=True)
-
-
-def test_list_index_set_groups_unwraps_nested_data_response(monkeypatch):
-    monkeypatch.setattr(
-        api.log_search,
-        "search_index_set",
-        Mock(
-            return_value={
-                "data": {
-                    "list": [{"index_set_id": 11, "index_set_name": "group", "is_group": True}],
-                }
-            }
-        ),
-    )
+    list_index_groups = Mock(return_value=expected_result)
+    monkeypatch.setattr(api.log_search, "list_index_groups", list_index_groups)
+    monkeypatch.setattr(log_index_set_module, "bk_biz_id_to_space_uid", lambda _: "bkcc__2")
 
     result = ListLogIndexSetGroupsResource().perform_request({"bk_biz_id": 2})
 
-    assert result["groups"][0]["index_set_id"] == 11
+    assert result == expected_result
+    list_index_groups.assert_called_once_with(space_uid="bkcc__2")
 
 
 def test_create_custom_report_forwards_parent_index_set_ids(monkeypatch):
@@ -69,8 +50,7 @@ def test_create_custom_report_forwards_parent_index_set_ids(monkeypatch):
 
     result = CreateCustomReportResource().perform_request(serializer.validated_data)
 
-    assert result["collector_config_id"] == 21
-    assert result["parent_index_set_ids"] == [11, 12]
+    assert result == {"collector_config_id": 21, "index_set_id": 31, "bk_data_id": 41, "created": True}
     assert create_custom_report.call_args.kwargs["parent_index_set_ids"] == [11, 12]
     assert "parent_index_set_id" not in create_custom_report.call_args.kwargs
     assert "confirm" not in create_custom_report.call_args.kwargs

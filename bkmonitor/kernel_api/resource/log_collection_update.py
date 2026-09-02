@@ -7,6 +7,7 @@ from rest_framework import serializers
 from rest_framework.exceptions import PermissionDenied
 
 from core.drf_resource import Resource, api
+from kernel_api.resource.log_collection_common import StrictMCPSerializer, normalize_task_ids
 
 COMMON_UPDATE_FIELDS = {
     "collector_config_name",
@@ -113,18 +114,6 @@ SEPARATOR_FILTER_FIELDS = {"fieldindex", "word", "op", "logic_op"}
 SYSLOG_CONDITION_FIELDS = {"syslog_field", "syslog_content", "syslog_op", "syslog_logic_op"}
 
 
-def normalize_task_ids(value: Any) -> list[str]:
-    if value in (None, ""):
-        return []
-    if isinstance(value, str):
-        values = value.split(",")
-    elif isinstance(value, list | tuple | set):
-        values = value
-    else:
-        values = [value]
-    return [str(item).strip() for item in values if str(item).strip()]
-
-
 def reject_unknown_fields(value: Any, allowed_fields: set[str], path: str) -> None:
     if not isinstance(value, Mapping):
         return
@@ -205,23 +194,13 @@ def validate_nested_update_fields(attrs: Mapping) -> None:
         validate_plugin_params(config.get("params"), f"{config_path}.params")
 
 
-class StrictFastUpdateSerializer(serializers.Serializer):
-    """拒绝未声明字段，避免 MCP 静默忽略环境、清洗或存储参数。"""
-
-    def to_internal_value(self, data):
-        if isinstance(data, Mapping):
-            unknown_fields = set(data.keys()) - set(self.fields)
-            if unknown_fields:
-                raise serializers.ValidationError(
-                    {field: ["This field is not supported by Fast Update MCP."] for field in sorted(unknown_fields)}
-                )
-        return super().to_internal_value(data)
-
-
 class FastUpdateLogCollectorResource(Resource):
     """只更新采集配置，不修改清洗、字段和存储配置。"""
 
-    class RequestSerializer(StrictFastUpdateSerializer):
+    class RequestSerializer(StrictMCPSerializer):
+        unsupported_api_name = "Fast Update MCP"
+        unsupported_field_message = "This field is not supported by {api_name}."
+
         bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
         collector_config_id = serializers.IntegerField(required=True, min_value=1, label="采集项ID")
         collector_config_name = serializers.CharField(required=False, max_length=50, label="采集项名称")

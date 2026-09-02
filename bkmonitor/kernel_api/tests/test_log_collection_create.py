@@ -129,7 +129,6 @@ def test_serializer_rejects_scenario_environment_mismatch(payload, field):
         "data_link_id",
         "retention",
         "es_shards",
-        "parent_index_set_ids",
         "platform_username",
         "bk_username",
     ],
@@ -139,6 +138,13 @@ def test_serializer_rejects_infrastructure_and_identity_overrides(field):
 
     assert not serializer.is_valid()
     assert field in serializer.errors
+
+
+def test_serializer_accepts_parent_index_set_ids():
+    serializer = FastCreateLogCollectorResource.RequestSerializer(data=linux_payload(parent_index_set_ids=[11, 12]))
+
+    assert serializer.is_valid(), serializer.errors
+    assert serializer.validated_data["parent_index_set_ids"] == [11, 12]
 
 
 @pytest.mark.parametrize(

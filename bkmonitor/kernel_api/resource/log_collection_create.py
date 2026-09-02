@@ -7,6 +7,7 @@ from rest_framework import serializers
 from rest_framework.exceptions import PermissionDenied
 
 from core.drf_resource import Resource, api
+from kernel_api.resource.log_collection_common import StrictMCPSerializer, normalize_task_ids
 
 ENVIRONMENT_LINUX = "linux"
 ENVIRONMENT_WINDOWS = "windows"
@@ -206,35 +207,13 @@ def validate_nested_create_fields(attrs: Mapping) -> None:
         validate_plugin_params(config.get("params"), f"{config_path}.params")
 
 
-def normalize_task_ids(value: Any) -> list[str]:
-    if value in (None, ""):
-        return []
-    if isinstance(value, str):
-        values = value.split(",")
-    elif isinstance(value, list | tuple | set):
-        values = value
-    else:
-        values = [value]
-    return [str(item).strip() for item in values if str(item).strip()]
-
-
-class StrictFastCreateSerializer(serializers.Serializer):
-    """拒绝未声明字段，避免 MCP 覆盖存储、数据链路或索引集默认选择。"""
-
-    def to_internal_value(self, data):
-        if isinstance(data, Mapping):
-            unknown_fields = set(data.keys()) - set(self.fields)
-            if unknown_fields:
-                raise serializers.ValidationError(
-                    {field: ["This field is not supported by Fast Create MCP."] for field in sorted(unknown_fields)}
-                )
-        return super().to_internal_value(data)
-
-
 class FastCreateLogCollectorResource(Resource):
     """使用 BKLOG Fast Create 创建 Linux、Windows 或容器日志采集项。"""
 
-    class RequestSerializer(StrictFastCreateSerializer):
+    class RequestSerializer(StrictMCPSerializer):
+        unsupported_api_name = "Fast Create MCP"
+        unsupported_field_message = "This field is not supported by {api_name}."
+
         bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
         environment = serializers.ChoiceField(
             required=True,

@@ -42,9 +42,7 @@ def test_update_custom_report_forwards_parent_index_set_ids(monkeypatch):
 
     assert result == {
         "collector_config_id": 21,
-        "bk_biz_id": 2,
         "updated": True,
-        "parent_index_set_ids": [11, 12],
     }
     assert update_custom_report.call_args.kwargs["parent_index_set_ids"] == [11, 12]
     assert update_custom_report.call_args.kwargs["enforce_permission"] is True
@@ -93,16 +91,14 @@ def test_update_third_party_es_forwards_space_and_parent_index_set_ids(monkeypat
     assert update_index_set.call_args.kwargs["parent_index_set_ids"] == [11, 12]
 
 
-def test_update_third_party_es_keeps_parent_index_set_ids_when_omitted(monkeypatch):
+def test_update_third_party_es_leaves_parent_index_set_ids_unchanged_when_omitted(monkeypatch):
     update_index_set = Mock(return_value={})
-    get_index_set = Mock(return_value={"parent_index_set_ids": [13]})
     monkeypatch.setattr(
         special_update_module,
         "api",
         SimpleNamespace(
             log_search=SimpleNamespace(
-                search_index_set=Mock(return_value={"data": [{"index_set_id": 51, "scenario_id": "es"}]}),
-                get_index_set=get_index_set,
+                search_index_set=Mock(return_value=[{"index_set_id": 51, "scenario_id": "es"}]),
                 update_index_set=update_index_set,
             )
         ),
@@ -122,8 +118,7 @@ def test_update_third_party_es_keeps_parent_index_set_ids_when_omitted(monkeypat
 
     UpdateThirdPartyESResource().perform_request(serializer.validated_data)
 
-    get_index_set.assert_called_once_with(index_set_id=51)
-    assert update_index_set.call_args.kwargs["parent_index_set_ids"] == [13]
+    assert "parent_index_set_ids" not in update_index_set.call_args.kwargs
 
 
 def test_update_bkdata_forwards_space_and_result_tables(monkeypatch):

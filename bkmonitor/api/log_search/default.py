@@ -235,6 +235,16 @@ class SearchIndexSetResource(LogSearchAPIGWResource):
         is_group = serializers.BooleanField(required=False, default=False, label="是否按索引组展示")
 
 
+class ListIndexGroupsResource(LogSearchAPIGWResource):
+    """索引组列表。"""
+
+    action = "/index_group/"
+    method = "GET"
+
+    class RequestSerializer(serializers.Serializer):
+        space_uid = serializers.CharField(required=True, label="空间唯一标识")
+
+
 class GetIndexSetResource(IndexSetResource):
     """获取单个索引集详情，包括归属索引组。"""
 
