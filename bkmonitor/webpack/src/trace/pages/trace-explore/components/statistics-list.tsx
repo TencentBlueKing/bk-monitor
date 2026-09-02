@@ -715,7 +715,10 @@ export default defineComponent({
                       {this.t(this.isDuration ? '耗时区间' : this.isInteger ? '数值分布直方图' : 'TOP 5 时序图')}
                     </span>
                     {this.isInteger && (
-                      <span class='time-range'>
+                      <span
+                        class='time-range'
+                        v-overflow-tips
+                      >
                         {this.rangeText[0]} ～ {this.rangeText[1]}
                       </span>
                     )}

@@ -4,6 +4,7 @@
   width: 100%;
   height: 100%;
   background: #fff;
+  border-right: 1px solid #dcdee5;
 
   .panel-header {
     display: flex;
@@ -40,17 +41,24 @@
     padding: 0 12px;
     margin-bottom: 8px;
 
-    .bk-form-control .bk-form-input {
+    .bk-input {
       cursor: pointer;
-      background-color: #f0f1f5;
       border-color: transparent;
 
-      &:hover {
-        background-color: #eaebf0;
+      input,
+      .bk-input--suffix-icon {
+        background-color: #f0f1f5;
       }
 
-      &:focus {
-        border-width: 1px;
+      &:hover {
+        input,
+        .bk-input--suffix-icon {
+          background-color: #eaebf0;
+        }
+      }
+
+      &.is-focused {
+        box-shadow: none;
       }
     }
   }
