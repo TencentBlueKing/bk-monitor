@@ -32,6 +32,10 @@ class QueryMultiResourceRelationResource(Resource):
             path_resource = serializers.ListField(
                 child=serializers.CharField(), required=False, allow_empty=True, label="关联路径资源类型列表"
             )
+            target_info_show = serializers.BooleanField(required=False, label="是否展示目标资源扩展信息")
+            look_back_delta = serializers.CharField(
+                required=False, allow_blank=True, label="instant 回看窗口，如 1440m"
+            )
 
         bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
         query_list = serializers.ListField(child=QueryListItemSerializer(), min_length=1, label="查询列表")
@@ -59,6 +63,10 @@ class QueryMultiResourceRelationRangeResource(Resource):
             target_type = serializers.CharField(required=False, default="system", label="目标资源类型")
             path_resource = serializers.ListField(
                 child=serializers.CharField(), required=False, allow_empty=True, label="关联路径资源类型列表"
+            )
+            target_info_show = serializers.BooleanField(required=False, label="是否展示目标资源扩展信息")
+            look_back_delta = serializers.CharField(
+                required=False, allow_blank=True, label="instant 回看窗口，如 1440m"
             )
 
         bk_biz_id = serializers.IntegerField(required=True, label="业务ID")

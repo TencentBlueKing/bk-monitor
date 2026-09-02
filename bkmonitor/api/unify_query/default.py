@@ -529,6 +529,10 @@ class QueryMultiResourceRange(UnifyQueryAPIResource):
             source_type = serializers.CharField(required=False)
             source_info = serializers.DictField()
             path_resource = serializers.ListField(child=serializers.CharField(), required=False, allow_empty=True)
+            target_info_show = serializers.BooleanField(required=False, label="是否展示目标资源扩展信息")
+            look_back_delta = serializers.CharField(
+                required=False, allow_blank=True, label="instant 回看窗口，如 1440m"
+            )
 
         bk_biz_ids = serializers.ListField(child=serializers.CharField(), allow_empty=True, required=False)
         query_list = serializers.ListField(child=QueryListSerializer(), min_length=1)
@@ -547,6 +551,10 @@ class QueryMultiResource(UnifyQueryAPIResource):
             source_type = serializers.CharField(required=False)
             source_info = serializers.DictField()
             path_resource = serializers.ListField(child=serializers.CharField(), required=False, allow_empty=True)
+            target_info_show = serializers.BooleanField(required=False, label="是否展示目标资源扩展信息")
+            look_back_delta = serializers.CharField(
+                required=False, allow_blank=True, label="instant 回看窗口，如 1440m"
+            )
 
         bk_biz_ids = serializers.ListField(child=serializers.CharField(), allow_empty=True, required=False)
         query_list = serializers.ListField(child=QueryListSerializer(), min_length=1)
