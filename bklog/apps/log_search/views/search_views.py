@@ -144,8 +144,23 @@ def _apply_index_set_search_bk_biz_id(index_set_obj, data, request=None):
             raise serializers.ValidationError(_("平台级索引集检索必须传入 bk_biz_id 或请求空间"))
         if not LogIndexSet.is_platform_index_visible_to_space(index_set_obj, search_space_uid):
             raise PermissionDenied(_("当前空间不在平台级索引集的可见范围内"))
+        if search_space_uid != index_set_obj.space_uid:
+            _assert_cross_space_filter_enforceable(bk_biz_id, data)
     data["bk_biz_id"] = bk_biz_id
     return data
+
+
+def _assert_cross_space_filter_enforceable(bk_biz_id, data):
+    """跨空间的数据隔离只由 metadata query router 在 UnifyQuery 链路上注入。
+
+    ESQuery 链路不认识 platform_index_filter，回落过去就是直接查共享物理索引的全量数据，
+    所以 scroll 查询和未开启统一查询的业务必须拒绝，不能带着已通过的可见性和 IAM 校验放行。
+    归属空间不受此限：metadata 对归属空间本就不加过滤，走哪条链路拿到的都是全量。
+    """
+    if data.get("is_scroll_search"):
+        raise serializers.ValidationError(_("跨空间检索平台级索引集不支持 scroll 查询"))
+    if not FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, bk_biz_id):
+        raise serializers.ValidationError(_("跨空间检索平台级索引集要求当前业务开启统一查询"))
 
 
 def _reject_platform_index_sets(index_set_ids):

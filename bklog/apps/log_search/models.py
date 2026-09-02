@@ -20,9 +20,7 @@ the project delivered to anyone in the future.
 """
 
 import datetime
-import functools
 import hashlib
-import operator
 import os
 import time
 from collections import defaultdict
@@ -599,13 +597,21 @@ class LogIndexSet(SoftDeleteModel):
                 return context["current_space_type"] in label_space_types
             if not context["cmdb_biz_ids"]:
                 return False
-            q_filter = Q()
+            # 每条 BizProperty 只承载一个 biz_property_id，多个属性 key 不能 AND 进同一次查询，
+            # 否则等价于要求同一行同时是两个属性，恒为假。按 key 分别取业务集合再求交集：
+            # 同 key 的多个取值是「或」，不同 key 之间是「且」
+            candidate_biz_ids = set(context["cmdb_biz_ids"])
             for label_key, label_values in bk_biz_labels.items():
-                q_filter &= functools.reduce(
-                    operator.or_,
-                    [Q(biz_property_id=label_key, biz_property_value=label_value) for label_value in label_values],
+                candidate_biz_ids &= set(
+                    BizProperty.objects.filter(
+                        biz_property_id=label_key,
+                        biz_property_value__in=label_values,
+                        bk_biz_id__in=candidate_biz_ids,
+                    ).values_list("bk_biz_id", flat=True)
                 )
-            return BizProperty.objects.filter(q_filter, bk_biz_id__in=context["cmdb_biz_ids"]).exists()
+                if not candidate_biz_ids:
+                    return False
+            return bool(candidate_biz_ids)
 
         return False
 

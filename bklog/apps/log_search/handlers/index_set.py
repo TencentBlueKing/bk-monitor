@@ -92,6 +92,7 @@ from apps.log_search.exceptions import (
     DataIDNotExistException,
     IndexSetAliasSettingsException,
     ParentIndexSetNotExistException,
+    PlatformIndexRouterSyncException,
 )
 from apps.log_search.handlers.search.mapping_handlers import MappingHandlers
 from apps.log_search.handlers.search.search_handlers_esquery import SearchHandler
@@ -528,6 +529,7 @@ class IndexSetHandler(APIModel):
 
         return index_set
 
+    @transaction.atomic()
     def update(
         self,
         index_set_name,
@@ -2162,10 +2164,18 @@ class BaseIndexSetHandler:
 
     @classmethod
     def sync_router(cls, index_sets: LogIndexSet | list[LogIndexSet]):
-        """创建结果表路由信息"""
+        """创建结果表路由信息。
+
+        平台级索引集的跨空间数据隔离完全靠这里下发的 query_router_config 生效，静默失败会让
+        可见范围和 IAM 入口先开放、过滤却没落地，形成越权窗口，所以这类索引集失败即抛出，
+        由调用方连同配置一起回滚。普通索引集维持原有「记日志并继续」的行为。
+        """
         if not isinstance(index_sets, list):
             index_sets = [index_sets]
 
+        # data_label -> index_set，用于把并发写入的失败归因回具体索引集
+        routed_index_sets = {}
+        failed_platform_index_set_ids = set()
         multi_execute_func = MultiExecuteFunc()
         for index_set in index_sets:
             try:
@@ -2223,9 +2233,27 @@ class BaseIndexSetHandler:
                             func=TransferApi.bulk_create_or_update_log_router,
                             params=request_params,
                         )
+                        routed_index_sets[data_label] = index_set
             except Exception as e:
                 logger.exception("create or update index set(%s) router failed：%s", index_set.index_set_id, e)
-        multi_execute_func.run()
+                if index_set.is_platform_index:
+                    failed_platform_index_set_ids.add(index_set.index_set_id)
+
+        # MultiExecuteFunc 默认会把 worker 异常直接吞掉，必须显式取回才能判断路由是否真的落库
+        for data_label, result in multi_execute_func.run(return_exception=True).items():
+            if not isinstance(result, Exception):
+                continue
+            logger.error("create or update log router(%s) failed：%s", data_label, result)
+            failed_index_set = routed_index_sets.get(data_label)
+            if failed_index_set is not None and failed_index_set.is_platform_index:
+                failed_platform_index_set_ids.add(failed_index_set.index_set_id)
+
+        if failed_platform_index_set_ids:
+            raise PlatformIndexRouterSyncException(
+                PlatformIndexRouterSyncException.MESSAGE.format(
+                    index_set_ids=",".join(str(index_set_id) for index_set_id in sorted(failed_platform_index_set_ids))
+                )
+            )
 
     def pre_update(self):
         if self.is_trace_log:

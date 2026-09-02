@@ -73,8 +73,10 @@ from apps.utils.local import get_request, get_request_username, get_local_userna
 from apps.utils.log import logger
 
 # 探测「不限实例」授权用的哨兵实例 ID。真实资源 ID 都是自增整数，
-# 这个串不可能命中任何实例，因此只有不带实例白名单的策略才会放行它
-UNLIMITED_INSTANCE_PROBE_ID = "__bklog_unlimited_probe__"
+# 这个串不可能命中任何实例，因此只有不带实例白名单的策略才会放行它。
+# 必须以字母或数字开头：V4 codec 对非根资源不做任何编码、原样下发，
+# 下划线开头会违反 IAM V4 的资源 ID 契约（见 apps/iam/backends/v4/codec.py）
+UNLIMITED_INSTANCE_PROBE_ID = "bklog_unlimited_probe"
 
 
 class Permission:

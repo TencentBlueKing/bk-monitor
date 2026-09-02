@@ -38,7 +38,7 @@ from apps.log_search.exceptions import IndexSetDorisQueryException
 from apps.log_search.handlers.index_set import BaseIndexSetHandler, IndexSetHandler
 from apps.log_search.handlers.search.chart_handlers import ChartHandler
 from apps.log_search.handlers.search.mapping_handlers import MappingHandlers
-from apps.log_search.models import IndexSetTag, LogIndexSet, LogIndexSetData, Scenario, TAG_TYPE_INNER
+from apps.log_search.models import BizProperty, IndexSetTag, LogIndexSet, LogIndexSetData, Scenario, TAG_TYPE_INNER
 from apps.log_unifyquery.handler.chart import UnifyQueryChartHandler
 from apps.tests.utils import FakeRedis
 from bkm_space.define import Space
@@ -1170,6 +1170,67 @@ class TestPlatformIndexHandler(TestCase):
             content_type="application/json",
         )
         self.assertEqual(response.status_code, SUCCESS_STATUS_CODE)
+
+        index_set.refresh_from_db()
+        self.assertFalse(index_set.is_platform_index)
+        self.assertIsNone(index_set.platform_index_visibility)
+        self.assertIsNone(index_set.platform_index_filter)
+
+    @patch("apps.log_search.tasks.mapping.sync_index_set_mapping_snapshot.delay", return_value=None)
+    @patch("apps.api.TransferApi.get_cluster_info", return_value=CLUSTER_INFO_WITH_AUTH)
+    @patch("apps.log_search.models.LogIndexSetData.objects.filter", return_value=LogIndexSetData.objects.none())
+    @patch("apps.api.BkLogApi.mapping", return_value=MAPPING_LIST)
+    @patch("apps.api.TransferApi.get_result_table_storage", lambda _: CLUSTER_INFOS)
+    @patch("apps.api.TransferApi.create_or_update_log_router", return_value=None)
+    @patch("apps.log_search.handlers.index_set.sync_index_set_archive.delay", return_value=None)
+    @override_settings(MIDDLEWARE=(OVERRIDE_MIDDLEWARE,))
+    def test_update_rolls_back_platform_fields_when_router_sync_fails(self, *args, **kwargs):
+        """
+        普通索引集切换为平台级时，路由下发失败必须连同 is_platform_index 一起回滚，
+        否则跨空间列表和 IAM 入口已开放、过滤却没生效，形成越权窗口。
+        """
+        from apps.log_search.exceptions import PlatformIndexRouterSyncException
+
+        create_payload = self._build_create_payload()
+        response = self.client.post(
+            path="/api/v1/index_set/",
+            data=json.dumps(create_payload),
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, SUCCESS_STATUS_CODE)
+
+        index_set = LogIndexSet.objects.all().order_by("-index_set_id").first()
+        index_set_id = index_set.index_set_id
+        self.assertFalse(index_set.is_platform_index)
+
+        update_payload = {
+            "space_uid": index_set.space_uid,
+            "scenario_id": index_set.scenario_id,
+            "index_set_name": index_set.index_set_name,
+            "view_roles": [],
+            "storage_cluster_id": index_set.storage_cluster_id,
+            "category_id": "host",
+            "indexes": [
+                {"bk_biz_id": BK_BIZ_ID, "result_table_id": "591_xx", "time_field": "timestamp"},
+                {"bk_biz_id": None, "result_table_id": "log_xxx", "time_field": "timestamp"},
+            ],
+            "time_field": "abc",
+            "time_field_type": "date",
+            "time_field_unit": "millisecond",
+            "is_platform_index": True,
+            "platform_index_visibility": PLATFORM_VISIBILITY,
+            "platform_index_filter": PLATFORM_FILTER,
+        }
+        with patch.object(
+            BaseIndexSetHandler,
+            "sync_router",
+            side_effect=PlatformIndexRouterSyncException("router sync failed"),
+        ):
+            self.client.patch(
+                path=f"/api/v1/index_set/{index_set_id}/",
+                data=json.dumps(update_payload),
+                content_type="application/json",
+            )
 
         index_set.refresh_from_db()
         self.assertFalse(index_set.is_platform_index)
@@ -2863,6 +2924,13 @@ class TestPlatformIndexListAndRouter(TestCase):
         )
         space_detail_patcher.start()
         self.addCleanup(space_detail_patcher.stop)
+        # 跨空间检索要求目标业务开启统一查询，这里按现网常态默认打开，
+        # 关闭态由 test_cross_space_requires_unify_query 单独覆盖
+        unify_query_patcher = patch(
+            "apps.log_search.views.search_views.FeatureToggleObject.switch", return_value=True
+        )
+        unify_query_patcher.start()
+        self.addCleanup(unify_query_patcher.stop)
 
     def _create_index_set(self, space_uid, **extra):
         result_table_id = extra.pop("result_table_id", None)
@@ -2960,6 +3028,87 @@ class TestPlatformIndexListAndRouter(TestCase):
         visibility = {"type": "biz_attr", "bk_biz_labels": {"env": []}}
         self.assertFalse(LogIndexSet.is_platform_index_visible(visibility, context))
 
+    def test_multiple_biz_attr_keys_require_all_of_them(self):
+        """每条 BizProperty 只有一个 biz_property_id，多个属性 key 必须按业务取交集而不是 AND 同一行。"""
+        context = {"bk_biz_ids": {"7"}, "current_space_type": "bkcc", "cmdb_biz_ids": {7}}
+        visibility = {"type": "biz_attr", "bk_biz_labels": {"environment": ["prod"], "region": ["apac"]}}
+
+        BizProperty.objects.create(bk_biz_id=7, biz_property_id="environment", biz_property_value="prod")
+        BizProperty.objects.create(bk_biz_id=7, biz_property_id="region", biz_property_value="apac")
+        self.assertTrue(LogIndexSet.is_platform_index_visible(visibility, context))
+
+        # 同 key 多取值之间是「或」
+        multi_value = {"type": "biz_attr", "bk_biz_labels": {"environment": ["prod", "gray"], "region": ["apac"]}}
+        self.assertTrue(LogIndexSet.is_platform_index_visible(multi_value, context))
+
+        # 缺少任一属性就不可见，不能因为命中了另一个 key 就放行
+        BizProperty.objects.filter(bk_biz_id=7, biz_property_id="region").delete()
+        self.assertFalse(LogIndexSet.is_platform_index_visible(visibility, context))
+
+    def test_multiple_biz_attr_keys_reject_partial_match_across_biz(self):
+        """两个 key 分别由不同业务命中时不能算命中，交集必须落在同一个业务上。"""
+        context = {"bk_biz_ids": {"7", "8"}, "current_space_type": "bkcc", "cmdb_biz_ids": {7, 8}}
+        visibility = {"type": "biz_attr", "bk_biz_labels": {"environment": ["prod"], "region": ["apac"]}}
+
+        BizProperty.objects.create(bk_biz_id=7, biz_property_id="environment", biz_property_value="prod")
+        BizProperty.objects.create(bk_biz_id=8, biz_property_id="region", biz_property_value="apac")
+        self.assertFalse(LogIndexSet.is_platform_index_visible(visibility, context))
+
+        BizProperty.objects.create(bk_biz_id=7, biz_property_id="region", biz_property_value="apac")
+        self.assertTrue(LogIndexSet.is_platform_index_visible(visibility, context))
+
+    @patch("bkm_space.api.SpaceApi.get_related_space", return_value=None)
+    def test_cross_space_requires_unify_query(self, _mock_related):
+        """ESQuery 链路不认识 platform_index_filter，未开统一查询的业务必须 fail closed。"""
+        from rest_framework import serializers as drf_serializers
+
+        from apps.log_search.views.search_views import _apply_index_set_search_bk_biz_id
+
+        platform = LogIndexSet(
+            is_platform_index=True,
+            space_uid=self.OWNER_SPACE,
+            platform_index_visibility=self.PLATFORM_VISIBILITY,
+        )
+        with patch("apps.log_search.views.search_views.FeatureToggleObject.switch", return_value=False):
+            with self.assertRaises(drf_serializers.ValidationError):
+                _apply_index_set_search_bk_biz_id(platform, {"bk_biz_id": 7})
+
+            # 归属空间在 metadata 侧本就是全量，走哪条链路都不算越权，不受此限
+            owner_data = {"bk_biz_id": 2}
+            _apply_index_set_search_bk_biz_id(platform, owner_data)
+            self.assertEqual(owner_data["bk_biz_id"], 2)
+
+            # 普通索引集不受影响
+            plain = LogIndexSet(is_platform_index=False, space_uid=self.OWNER_SPACE)
+            plain_data = {}
+            _apply_index_set_search_bk_biz_id(plain, plain_data)
+            self.assertEqual(plain_data["bk_biz_id"], 2)
+
+    @patch("bkm_space.api.SpaceApi.get_related_space", return_value=None)
+    def test_cross_space_rejects_scroll_search(self, _mock_related):
+        """scroll 查询只有 ESQuery 实现，UnifyQuery 没有等价的 scroll_id 协议。"""
+        from rest_framework import serializers as drf_serializers
+
+        from apps.log_search.views.search_views import _apply_index_set_search_bk_biz_id
+
+        platform = LogIndexSet(
+            is_platform_index=True,
+            space_uid=self.OWNER_SPACE,
+            platform_index_visibility=self.PLATFORM_VISIBILITY,
+        )
+        with self.assertRaises(drf_serializers.ValidationError):
+            _apply_index_set_search_bk_biz_id(platform, {"bk_biz_id": 7, "is_scroll_search": True})
+
+        # 非 scroll 的跨空间检索仍然放行
+        data = {"bk_biz_id": 7, "is_scroll_search": False}
+        _apply_index_set_search_bk_biz_id(platform, data)
+        self.assertEqual(data["bk_biz_id"], 7)
+
+        # 归属空间的 scroll 不受影响
+        owner_data = {"bk_biz_id": 2, "is_scroll_search": True}
+        _apply_index_set_search_bk_biz_id(platform, owner_data)
+        self.assertEqual(owner_data["bk_biz_id"], 2)
+
     def test_query_router_config_option_reads_effective_index_set(self):
         platform_group = LogIndexSet.objects.create(
             index_set_name="group",
@@ -3023,6 +3172,77 @@ class TestPlatformIndexListAndRouter(TestCase):
         )
         option_names = [opt["name"] for item in child_as_member for opt in item.get("options") or []]
         self.assertNotIn("query_router_config", option_names)
+
+    def _index_set_with_rt(self, **extra):
+        index_set = LogIndexSet.objects.create(
+            index_set_name=extra.pop("index_set_name", "router_sync"),
+            space_uid=self.OWNER_SPACE,
+            scenario_id=Scenario.ES,
+            **extra,
+        )
+        LogIndexSetData.objects.create(
+            index_set_id=index_set.index_set_id,
+            result_table_id=f"rt_{index_set.index_set_id}",
+            scenario_id=Scenario.ES,
+            bk_biz_id=2,
+            apply_status=LogIndexSetData.Status.NORMAL,
+        )
+        return index_set
+
+    def test_platform_router_sync_failure_raises(self):
+        """跨空间隔离全靠 query_router_config，下发失败必须抛出，不能静默放行已开放的入口。"""
+        from apps.log_search.exceptions import PlatformIndexRouterSyncException
+
+        platform = self._index_set_with_rt(
+            index_set_name="router_platform",
+            is_platform_index=True,
+            platform_index_visibility=self.PLATFORM_VISIBILITY,
+            platform_index_filter=self.PLATFORM_FILTER,
+        )
+        with patch(
+            "apps.log_search.handlers.index_set.TransferApi.bulk_create_or_update_log_router",
+            side_effect=Exception("metadata unavailable"),
+        ):
+            with self.assertRaises(PlatformIndexRouterSyncException):
+                BaseIndexSetHandler.sync_router(platform)
+
+    def test_plain_index_set_router_sync_failure_stays_silent(self):
+        """普通索引集没有跨空间入口，保持原有「记日志并继续」的行为，避免 metadata 抖动打挂全部更新。"""
+        plain = self._index_set_with_rt(index_set_name="router_plain", is_platform_index=False)
+        with patch(
+            "apps.log_search.handlers.index_set.TransferApi.bulk_create_or_update_log_router",
+            side_effect=Exception("metadata unavailable"),
+        ):
+            BaseIndexSetHandler.sync_router(plain)
+
+    def test_platform_router_sync_failure_during_build_also_raises(self):
+        """失败发生在组装阶段（进不到并发写入）时同样要抛出。"""
+        from apps.log_search.exceptions import PlatformIndexRouterSyncException
+
+        platform = self._index_set_with_rt(
+            index_set_name="router_platform_build",
+            is_platform_index=True,
+            platform_index_visibility=self.PLATFORM_VISIBILITY,
+            platform_index_filter=self.PLATFORM_FILTER,
+        )
+        with patch.object(
+            BaseIndexSetHandler, "get_index_set_table_info_list", side_effect=Exception("build failed")
+        ):
+            with self.assertRaises(PlatformIndexRouterSyncException):
+                BaseIndexSetHandler.sync_router(platform)
+
+    def test_platform_router_sync_success_does_not_raise(self):
+        platform = self._index_set_with_rt(
+            index_set_name="router_platform_ok",
+            is_platform_index=True,
+            platform_index_visibility=self.PLATFORM_VISIBILITY,
+            platform_index_filter=self.PLATFORM_FILTER,
+        )
+        with patch(
+            "apps.log_search.handlers.index_set.TransferApi.bulk_create_or_update_log_router", return_value={}
+        ) as mock_router:
+            BaseIndexSetHandler.sync_router(platform)
+        self.assertTrue(mock_router.called)
 
     def test_resolve_search_bk_biz_id(self):
         platform = LogIndexSet(

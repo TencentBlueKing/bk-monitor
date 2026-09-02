@@ -586,6 +586,26 @@ class PermissionFacadeTest(TestCase):
         # 索引集 ID 是自增整数，哨兵一旦长得像数字就可能撞上真实实例，实例级授权会被误判成空间级
         self.assertFalse(probe.id.isdigit())
 
+    def test_unlimited_probe_id_satisfies_v4_resource_id_contract(self):
+        """V4 codec 对非根资源不做任何编码，哨兵值本身必须满足「字母或数字开头」的契约。"""
+        from apps.iam.backends.v4.codec import BklogNameCodec
+
+        codec = BklogNameCodec()
+        probe = EngineResourceInstance(
+            type="indices",
+            id=UNLIMITED_INSTANCE_PROBE_ID,
+            attributes={"_bk_iam_path_": "/space,7/"},
+        )
+        payload = codec.encode_resource_for_auth(probe)
+
+        self.assertEqual(payload["id"], UNLIMITED_INSTANCE_PROBE_ID)
+        self.assertTrue(payload["id"][0].isalnum(), f"V4 资源 ID 必须以字母或数字开头: {payload['id']}")
+        # 索引集 ID 是自增整数，哨兵长得像数字就可能撞上真实实例，实例级授权会被误判成空间级
+        self.assertFalse(payload["id"].isdigit())
+
+        ancestors = codec.encode_resource_for_apply(probe)["ancestors"]
+        self.assertEqual(ancestors, [{"type": "space", "id": "7"}])
+
     @override_settings(IGNORE_IAM_PERMISSION=True)
     def test_unlimited_action_honors_global_ignore_switch(self):
         permission = self._make_permission()
