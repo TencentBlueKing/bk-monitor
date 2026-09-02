@@ -99,7 +99,7 @@ paths:
         schema:
           type: string
           default: -updated_at
-          enum: [name, -name, retention, -retention, updated_at, -updated_at, created_at, -created_at, daily_usage, -daily_usage, total_usage, -total_usage]
+          enum: [name, -name, retention, -retention, updated_at, -updated_at, created_at, -created_at]
         description: Sort by a supported list field; prefix with - for descending order. 排序字段，前缀 - 表示降序。
       x-bk-apigateway-resource:
         isPublic: false

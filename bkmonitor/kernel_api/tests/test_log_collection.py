@@ -1,8 +1,10 @@
 import json
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import Mock
 
 import pytest
+import yaml
 from rest_framework.exceptions import PermissionDenied
 
 from bkmonitor.iam import ActionEnum
@@ -10,6 +12,7 @@ from core.drf_resource import api
 from kernel_api.resource.log_collection import (
     GetLogCollectorResource,
     GetLogIndexSetResource,
+    LOG_COLLECTOR_ORDERING_CHOICES,
     ListLogCollectorsResource,
     mask_sensitive,
     normalize_environment,
@@ -45,6 +48,14 @@ def test_list_request_serializer_defaults_and_bounds_page_size():
     serializer = ListLogCollectorsResource.RequestSerializer(data={"bk_biz_id": 7, "page_size": 101})
     assert not serializer.is_valid()
     assert "page_size" in serializer.errors
+
+
+def test_list_ordering_schema_matches_resource_choices():
+    resource_file = Path(__file__).parents[2] / "support-files/apigw/resources/internal/user/log_collection_mcp.yaml"
+    schema = yaml.safe_load(resource_file.read_text())["paths"]["/mcp/list_log_collectors/"]["get"]["parameters"]
+    ordering = next(parameter for parameter in schema if parameter["name"] == "ordering")
+
+    assert tuple(ordering["schema"]["enum"]) == LOG_COLLECTOR_ORDERING_CHOICES
 
 
 def test_list_request_serializer_exposes_useful_filters_and_conditions():
