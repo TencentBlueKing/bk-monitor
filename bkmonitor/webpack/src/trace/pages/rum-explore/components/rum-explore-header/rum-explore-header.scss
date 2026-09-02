@@ -132,6 +132,7 @@
         overflow: hidden;
         text-overflow: ellipsis;
         font-size: 12px;
+        margin-right: auto;
         color: #313238;
         white-space: nowrap;
       }
@@ -139,7 +140,6 @@
       .select-shortcut-keys {
         flex-shrink: 0;
         padding: 0 4px;
-        margin-left: auto;
         font-family: Menlo, monospace;
         font-size: 12px;
         font-weight: 700;
@@ -153,7 +153,7 @@
         flex-shrink: 0;
         margin-left: 8px;
         font-size: 12px;
-        color: #8e9bb3;
+        color: #313238;
         transition: transform 0.2s;
 
         &.expand {
