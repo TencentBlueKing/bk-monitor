@@ -63,6 +63,35 @@
   }
 }
 
+.files-input-wrapper {
+  .files-input-tabs {
+    display: flex;
+    margin-bottom: 8px;
+    color: #63656e;
+
+    span {
+      margin-right: 24px;
+      cursor: pointer;
+
+      &.active {
+        color: #3a84ff;
+      }
+    }
+  }
+
+  .files-input-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .manual-tip {
+    margin-top: 6px;
+    font-size: 12px;
+    color: #979ba5;
+  }
+}
+
 .en-title {
   .row-container .title {
     /* stylelint-disable-next-line declaration-no-important */
