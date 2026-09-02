@@ -274,14 +274,35 @@ def test_gateway_recovers_existing_policy_by_exact_stable_name_and_updates_it(mo
     assert persisted == [(target, 301)]
 
 
-def test_gateway_marks_monitor_side_update_adapter_as_pending():
+def test_gateway_updates_and_executes_existing_target_policy(monkeypatch):
+    target = _target(deploy_policy_id=301)
     client = FakeDeployPolicyClient()
-    gateway = NodeManV3DeployPolicyGateway(client=client)
+    payload = {
+        "name": "bkm-collect-7-stable",
+        "description": "updated collect target",
+        "enabled": True,
+        "specs": [{"type": "specify_plugin", "param": {"version": "2.0"}}],
+        "scopes": [],
+    }
+    builder = SimpleNamespace(
+        build=lambda current_target: payload,
+        update_payload=CollectDeployPolicyPayloadBuilder.update_payload,
+    )
+    persisted = []
+    monkeypatch.setattr(
+        NodeManV3DeployPolicyGateway,
+        "_persist_policy_id",
+        staticmethod(lambda current_target, policy_id: persisted.append((current_target, policy_id))),
+    )
+    gateway = NodeManV3DeployPolicyGateway(client=client, payload_builder=builder)
+    context = NodeManV3RequestContext(
+        bk_tenant_id="tenant-a",
+        bk_biz_id=2,
+        monitor_operation_id="operation-2",
+    )
 
-    with pytest.raises(NodeManV3AdapterPending, match="update protocol is not wired"):
-        gateway.update_target(
-            _target(deploy_policy_id=301),
-            context=NodeManV3RequestContext(bk_tenant_id="tenant-a", bk_biz_id=2),
-        )
+    assert gateway.update_target(target, context=context) == {"trigger_id": "trigger-301"}
 
-    assert client.calls == []
+    assert [call[0] for call in client.calls] == ["update", "execute"]
+    assert client.calls[0][1] == CollectDeployPolicyPayloadBuilder.update_payload(301, payload)
+    assert persisted == [(target, 301)]

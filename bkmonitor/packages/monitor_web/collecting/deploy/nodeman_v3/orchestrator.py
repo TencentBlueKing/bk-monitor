@@ -1,6 +1,7 @@
 from bkmonitor.nodeman_integration.v3.exceptions import NodeManV3AdapterPending
 
 from .deploy_policy import NodeManV3DeployPolicyGateway
+from .validation import NodeManV3CapabilityBlocked
 
 
 class NodeManV3Orchestrator:
@@ -8,12 +9,16 @@ class NodeManV3Orchestrator:
         self.gateway = gateway
 
     def stop_targets(self, targets, *, context=None) -> None:
-        del context
-        self._blocked("deploy-policy stop semantics", targets)
+        del context, targets
+        raise NodeManV3CapabilityBlocked(
+            "deploy-policy does not define exact sub-config removal and exporter stop semantics"
+        )
 
     def uninstall_targets(self, targets, *, context=None) -> None:
-        del context
-        self._blocked("deploy-policy delete semantics", targets)
+        del context, targets
+        raise NodeManV3CapabilityBlocked(
+            "deploy-policy does not define target removal and generated resource cleanup semantics"
+        )
 
     def ensure_targets(self, targets, *, context=None):
         target = self._single_target(targets)
@@ -29,37 +34,46 @@ class NodeManV3Orchestrator:
         return self.gateway
 
     def install(self, **kwargs):
-        self._blocked("E1-E6 install and configuration lifecycle", kwargs)
+        self._adapter_pending("E1-E6 install and configuration lifecycle", kwargs)
 
     def upgrade(self, **kwargs):
-        self._blocked("E1-E6 upgrade and configuration lifecycle", kwargs)
+        self._adapter_pending("E1-E6 upgrade and configuration lifecycle", kwargs)
 
     def uninstall(self, **kwargs):
-        self._blocked("E2/E3/E6 uninstall lifecycle", kwargs)
+        del kwargs
+        raise NodeManV3CapabilityBlocked(
+            "deploy-policy does not define policy deletion and generated resource cleanup semantics"
+        )
 
     def rollback(self, **kwargs):
-        self._blocked("E2-E6 rollback lifecycle", kwargs)
+        del kwargs
+        raise NodeManV3CapabilityBlocked(
+            "deploy-policy rollback and replacement semantics are absent from the NodeMan V3 protocol"
+        )
 
     def stop(self, **kwargs):
-        self._blocked("E2/E3 exact stop lifecycle", kwargs)
+        del kwargs
+        raise NodeManV3CapabilityBlocked(
+            "deploy-policy does not define exact sub-config removal and exporter stop semantics"
+        )
 
     def start(self, **kwargs):
-        self._blocked("E7 independent start operation", kwargs)
+        self._adapter_pending("E7 independent start operation", kwargs)
 
     def run(self, **kwargs):
-        self._blocked("E1-E7 explicit execution lifecycle", kwargs)
+        self._adapter_pending("E1-E7 explicit execution lifecycle", kwargs)
 
     def retry(self, **kwargs):
-        self._blocked("E1 retry workflow contract", kwargs)
+        self._adapter_pending("E1 retry workflow contract", kwargs)
 
     def revoke(self, **kwargs):
-        self._blocked("E1 terminate workflow contract", kwargs)
+        self._adapter_pending("E1 terminate workflow contract", kwargs)
 
     def status(self, **kwargs):
-        self._blocked("E1-E3 status identity contract", kwargs)
+        self._adapter_pending("E1-E3 status identity contract", kwargs)
 
     def instance_status(self, **kwargs):
-        self._blocked("E1-E3 instance status identity contract", kwargs)
+        self._adapter_pending("E1-E3 instance status identity contract", kwargs)
 
     @staticmethod
     def _single_target(targets):
@@ -69,6 +83,6 @@ class NodeManV3Orchestrator:
         return targets[0]
 
     @staticmethod
-    def _blocked(capability: str, request) -> None:
+    def _adapter_pending(capability: str, request) -> None:
         del request
         raise NodeManV3AdapterPending(f"NodeMan protocol is available but monitor adapter is pending: {capability}")
