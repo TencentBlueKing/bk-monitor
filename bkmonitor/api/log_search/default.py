@@ -470,6 +470,30 @@ class BkLogSearchClusterGroupsResource(LogSearchAPIGWResource):
         bk_username = serializers.CharField(required=False, allow_blank=True, label="用户名")
 
 
+class ListResultTablesResource(LogSearchAPIGWResource):
+    """结果表/索引列表。"""
+
+    action = "/result_table/"
+    method = "GET"
+
+    class RequestSerializer(serializers.Serializer):
+        scenario_id = serializers.CharField(required=True, label="接入场景")
+        bk_biz_id = serializers.IntegerField(required=False, label="业务ID")
+        storage_cluster_id = serializers.IntegerField(required=False, label="存储集群ID")
+        result_table_id = serializers.CharField(required=False, allow_blank=True, label="索引")
+
+
+class ListLogClusterResource(LogSearchAPIGWResource):
+    """第三方 ES 存储集群列表。"""
+
+    action = "/databus_storage/log_cluster/"
+    method = "GET"
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
+        enable_archive = serializers.BooleanField(required=False, default=False, label="是否启用归档")
+
+
 class CreateIndexSetResource(LogSearchAPIGWResource):
     """
     创建索引集

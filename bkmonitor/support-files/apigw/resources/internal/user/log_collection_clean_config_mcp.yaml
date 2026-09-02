@@ -252,9 +252,15 @@ paths:
                           Custom token characters for this field. Empty = natural-language tokenization.
                           该字段的自定义分词符，空表示自然语言分词。
                       value:
+                        type: string
+                        nullable: true
                         description: >-
-                          Sample value from ETL preview / debug. Optional, not persisted as mapping. 字段样例值，来自清洗预览，不作为
-                          mapping 持久化。
+                          Sample value of the field, used by the frontend for field preview. Optional but
+                          recommended: it is persisted to clean_stash (not into the ES mapping) and echoed back
+                          when the clean config is edited. When is_time=true the frontend validates this value
+                          against option.time_format, so provide a sample matching the configured format. 字段样例值，前端用于字段预览。非必填但推荐传入：
+                          会持久化到清洗缓存 clean_stash（不进入 ES mapping），编辑时回显；当字段被设为时间字段（is_time=true）时，前端会用该值校验
+                          option.time_format，请提供与所配时间格式一致的样例。
                 storage_cluster_id:
                   type: integer
                   minimum: 1

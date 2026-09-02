@@ -1,0 +1,94 @@
+paths:
+  /mcp/list_third_party_es_clusters/:
+    get:
+      operationId: list_third_party_es_clusters
+      description: >-
+        List third-party Elasticsearch storage clusters available to a business. Use storage_cluster_id from this
+        response as the storage_cluster_id argument when creating a third-party ES index set (create_third_party_es).
+        查询业务可用的第三方 ES 存储集群列表；创建第三方 ES 索引集（create_third_party_es）时，使用返回的 storage_cluster_id 填入存储集群参数。
+      tags:
+      - log_collection_mcp
+      parameters:
+      - in: query
+        name: bk_biz_id
+        required: true
+        schema:
+          type: integer
+          minimum: 1
+        description: Business ID. 业务ID。
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        enableWebsocket: false
+        backend:
+          name: default
+          method: get
+          path: /api/v4/log_collection/list_third_party_es_clusters/
+          matchSubpath: false
+          timeout: 30
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: false
+          resourcePermissionRequired: true
+
+  /mcp/list_result_tables/:
+    get:
+      operationId: list_result_tables
+      description: >-
+        List result tables / indexes available to a business. For the bkdata scenario pass scenario_id=bkdata with
+        bk_biz_id; use the returned result_table_id values as indexes when creating a bkdata index set
+        (create_bkdata_index_set). For the third-party ES scenario pass scenario_id=es with storage_cluster_id; use
+        the returned result_table_id values as indexes when creating a third-party ES index set
+        (create_third_party_es). 查询业务可接入的结果表/索引列表。数据平台场景传 scenario_id=bkdata 与 bk_biz_id，返回的 result_table_id 用于创建
+        bkdata 索引集（create_bkdata_index_set）的 indexes；第三方 ES 场景传 scenario_id=es 与 storage_cluster_id，返回的 result_table_id
+        用于创建第三方 ES 索引集（create_third_party_es）的 indexes。
+      tags:
+      - log_collection_mcp
+      parameters:
+      - in: query
+        name: bk_biz_id
+        required: true
+        schema:
+          type: integer
+          minimum: 1
+        description: Business ID. 业务ID。
+      - in: query
+        name: scenario_id
+        required: true
+        schema:
+          type: string
+          enum: [bkdata, es]
+        description: >-
+          Access scenario. bkdata queries BkBase result tables (requires bk_biz_id); es queries third-party ES
+          indexes (requires storage_cluster_id). 接入场景；bkdata 查询数据平台结果表（需配合 bk_biz_id），es 查询第三方 ES 索引（需配合 storage_cluster_id）。
+      - in: query
+        name: storage_cluster_id
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+        description: Storage cluster ID, required when scenario_id=es. 存储集群ID，第三方 ES 场景必填。
+      - in: query
+        name: result_table_id
+        required: false
+        schema:
+          type: string
+        description: Optional index name to fuzzy match. 可选，按索引名模糊过滤。
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        enableWebsocket: false
+        backend:
+          name: default
+          method: get
+          path: /api/v4/log_collection/list_result_tables/
+          matchSubpath: false
+          timeout: 30
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: false
+          resourcePermissionRequired: true

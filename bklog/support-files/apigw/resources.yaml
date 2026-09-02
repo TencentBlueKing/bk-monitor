@@ -1879,6 +1879,28 @@ paths:
           appVerifiedRequired: true
           resourcePermissionRequired: true
         descriptionEn:
+  /databus_storage/log_cluster/:
+    get:
+      operationId: list_log_cluster
+      description: 日志平台-获取第三方ES存储集群列表
+      tags:
+      - 存储
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: get
+          path: /api/v1/databus/storage/log_cluster/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: false
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn:
   /databus_collectors/list_bcs_clusters/:
     get:
       operationId: databus_collectors_list_bcs_clusters
