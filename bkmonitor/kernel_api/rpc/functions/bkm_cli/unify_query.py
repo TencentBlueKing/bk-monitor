@@ -233,6 +233,14 @@ def _relation_schema(*, ranged: bool) -> dict[str, Any]:
         "source_type": {"type": "string"},
         "source_info": {"type": "object"},
         "path_resource": {"type": "array", "items": {"type": "string"}},
+        "target_info_show": {
+            "type": "boolean",
+            "description": "为 true 时展开目标资源扩展信息（如 container version）",
+        },
+        "look_back_delta": {
+            "type": "string",
+            "description": "instant 回看窗口，例如 1440m；未传则沿用 UQ 默认",
+        },
     }
     required = ["target_type", "source_info"]
     if ranged:
@@ -443,6 +451,7 @@ OPERATIONS = {
                         "target_type": "pod",
                         "source_type": "service",
                         "source_info": {"service_name": "api"},
+                        "target_info_show": True,
                     }
                 ]
             },
@@ -463,6 +472,7 @@ OPERATIONS = {
                         "target_type": "pod",
                         "source_type": "service",
                         "source_info": {"service_name": "api"},
+                        "target_info_show": True,
                     }
                 ]
             },
