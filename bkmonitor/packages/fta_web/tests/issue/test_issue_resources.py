@@ -500,9 +500,136 @@ class TestSplitReasonsOptional:
     def test_web_split_serializer_reasons_optional(self):
         from fta_web.issue.resources import SplitIssueResource
 
+        s = SplitIssueResource.RequestSerializer(data={"bk_biz_id": 2, "member_issue_ids": [self.VALID_ID]})
+        assert s.is_valid(), s.errors
+        assert s.validated_data["reasons"] == []
+
+
+class TestSplitIssueBatchContract:
+    """SplitIssueResource 拆分契约：``member_issue_ids``（批量 ≤50，单条传长度 1 的列表）
+    与旧单条 ``member_issue_id`` 二选一（旧入参兼容保留至前端适配完成），单次透传到
+    api role 端（kernel_api SplitResource 双参数契约；批量逐条独立 + ES 按主分组合并重置）。
+    """
+
+    # 合法 Issue ID：前 10 位为时间戳（IssueIDField → IssueDocument.parse_timestamp_by_id）
+    VALID_ID = "1716000000abcdef01"
+    VALID_ID_2 = "1716000000abcdef02"
+
+    def test_batch_ids_accepted_and_reasons_default_empty(self):
+        from fta_web.issue.resources import SplitIssueResource
+
+        s = SplitIssueResource.RequestSerializer(
+            data={"bk_biz_id": 2, "member_issue_ids": [self.VALID_ID, self.VALID_ID_2]}
+        )
+        assert s.is_valid(), s.errors
+        assert s.validated_data["member_issue_ids"] == [self.VALID_ID, self.VALID_ID_2]
+        assert s.validated_data["reasons"] == []
+
+    def test_split_params_required(self):
+        """member_issue_id / member_issue_ids 均不传 → 拒绝（二选一必传）。"""
+        from fta_web.issue.resources import SplitIssueResource
+
+        s = SplitIssueResource.RequestSerializer(data={"bk_biz_id": 2})
+        assert not s.is_valid()
+
+    def test_both_params_rejected(self):
+        """旧单条与批量同时传 → 拒绝（二选一）。"""
+        from fta_web.issue.resources import SplitIssueResource
+
+        s = SplitIssueResource.RequestSerializer(
+            data={"bk_biz_id": 2, "member_issue_id": self.VALID_ID, "member_issue_ids": [self.VALID_ID]}
+        )
+        assert not s.is_valid()
+
+    def test_old_single_param_accepted(self):
+        """旧单条 member_issue_id 单独传 → 合法（兼容保留，前端未适配期间发布不中断）。"""
+        from fta_web.issue.resources import SplitIssueResource
+
         s = SplitIssueResource.RequestSerializer(data={"bk_biz_id": 2, "member_issue_id": self.VALID_ID})
         assert s.is_valid(), s.errors
         assert s.validated_data["reasons"] == []
+
+    def test_invalid_issue_id_rejected(self):
+        from fta_web.issue.resources import SplitIssueResource
+
+        s = SplitIssueResource.RequestSerializer(data={"bk_biz_id": 2, "member_issue_ids": ["bad-id"]})
+        assert not s.is_valid()
+        assert "member_issue_ids" in s.errors
+
+    def test_batch_over_50_rejected(self):
+        from fta_web.issue.resources import SplitIssueResource
+
+        ids = [f"1716000000{i:02d}abcdef" for i in range(51)]
+        s = SplitIssueResource.RequestSerializer(data={"bk_biz_id": 2, "member_issue_ids": ids})
+        assert not s.is_valid()
+
+    def test_perform_request_passes_batch_payload(self, monkeypatch):
+        """web 薄壳单次透传 member_issue_ids，批量执行收敛在 api role 端（kernel_api 原生批量）。"""
+        from types import SimpleNamespace
+
+        from fta_web.issue import resources
+
+        captured = {}
+
+        def _fake_split(**kwargs):
+            captured.update(kwargs)
+            return {
+                "status": "ok",
+                "results": [
+                    {"member_issue_id": self.VALID_ID, "status": "ok"},
+                    {"member_issue_id": self.VALID_ID_2, "status": "skipped", "message": "relation not active"},
+                ],
+            }
+
+        monkeypatch.setattr(resources.api, "issue", SimpleNamespace(split=_fake_split))
+        monkeypatch.setattr(resources, "get_request_username", lambda: "alice")
+
+        result = resources.SplitIssueResource().perform_request(
+            {"bk_biz_id": 2, "member_issue_ids": [self.VALID_ID, self.VALID_ID_2], "reasons": ["误合并"]}
+        )
+
+        # 响应原样透传（逐条结果由 api role 生成）
+        assert result == {
+            "status": "ok",
+            "results": [
+                {"member_issue_id": self.VALID_ID, "status": "ok"},
+                {"member_issue_id": self.VALID_ID_2, "status": "skipped", "message": "relation not active"},
+            ],
+        }
+        assert captured == {
+            "bk_biz_id": 2,
+            "member_issue_ids": [self.VALID_ID, self.VALID_ID_2],
+            "reasons": ["误合并"],
+            "operator": "alice",
+        }
+
+    def test_perform_request_old_single_param_passthrough(self, monkeypatch):
+        """旧单条入参原样透传 member_issue_id，旧响应 shape 与抛错语义由 api role 端保证。"""
+        from types import SimpleNamespace
+
+        from fta_web.issue import resources
+
+        captured = {}
+
+        def _fake_split(**kwargs):
+            captured.update(kwargs)
+            return {"status": "ok", "member_issue_id": self.VALID_ID}
+
+        monkeypatch.setattr(resources.api, "issue", SimpleNamespace(split=_fake_split))
+        monkeypatch.setattr(resources, "get_request_username", lambda: "alice")
+
+        result = resources.SplitIssueResource().perform_request(
+            {"bk_biz_id": 2, "member_issue_id": self.VALID_ID, "reasons": []}
+        )
+
+        # 响应原样透传（旧单条 shape）
+        assert result == {"status": "ok", "member_issue_id": self.VALID_ID}
+        assert captured == {
+            "bk_biz_id": 2,
+            "member_issue_id": self.VALID_ID,
+            "reasons": [],
+            "operator": "alice",
+        }
 
 
 class TestIssueTopNResource:

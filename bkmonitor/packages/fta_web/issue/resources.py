@@ -1274,21 +1274,48 @@ class MergeIssueResource(Resource):
 
 
 class SplitIssueResource(Resource):
-    """拆分单个 member Issue：web 端薄壳，转 api role 端 ``api.issue.split`` 执行。"""
+    """拆分 member Issue：web 端薄壳，转 api role 端 ``api.issue.split`` 执行。
+
+    入参二选一（由 validate 强制）：
+    - ``member_issue_ids``（批量 ≤50，单条拆分传长度 1 的列表）：api role 端原生批量
+      执行（逐条独立、部分失败不阻塞），返回逐条结果 ``results``
+    - ``member_issue_id``（旧，单条）：原样透传旧单条契约（响应 shape / 失败抛错语义
+      均不变），前端未适配新入参期间发布不中断；前端适配完成后移除
+    """
 
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(label="业务ID")
-        member_issue_id = IssueIDField(label="并入 Issue ID")
-        # 拆分依据非必填：缺省/空列表均合法（下游 bulk_reset_for_split 与 split_info 已按空兜底）
+        member_issue_id = IssueIDField(label="并入 Issue ID（旧单条，兼容保留）", required=False)
+        member_issue_ids = serializers.ListField(
+            label="并入 Issue ID 列表",
+            child=IssueIDField(),
+            required=False,
+            min_length=1,
+            max_length=50,
+        )
+        # 拆分依据非必填：缺省/空列表均合法（下游 bulk_reset_for_split 与 split_info 已按空兜底）；
+        # 批量拆分时同一 reasons 应用到全部条目（与需求"每条明细拆分行为与单条一致"对齐）
         reasons = serializers.ListField(label="拆分依据", child=serializers.CharField(), required=False, default=list)
 
+        def validate(self, attrs):
+            has_single = attrs.get("member_issue_id") is not None
+            has_batch = attrs.get("member_issue_ids") is not None
+            if has_single == has_batch:
+                raise serializers.ValidationError("member_issue_id 与 member_issue_ids 必须二选一")
+            return attrs
+
     def perform_request(self, validated_request_data: dict) -> dict:
-        return api.issue.split(
-            bk_biz_id=validated_request_data["bk_biz_id"],
-            member_issue_id=validated_request_data["member_issue_id"],
-            reasons=validated_request_data["reasons"],
-            operator=get_request_username(),
-        )
+        split_kwargs = {
+            "bk_biz_id": validated_request_data["bk_biz_id"],
+            "reasons": validated_request_data["reasons"],
+            "operator": get_request_username(),
+        }
+        if validated_request_data.get("member_issue_id") is not None:
+            # 旧单条契约：原样透传（响应 shape 与失败抛错语义由 api role 端旧路径保证）
+            split_kwargs["member_issue_id"] = validated_request_data["member_issue_id"]
+        else:
+            split_kwargs["member_issue_ids"] = validated_request_data["member_issue_ids"]
+        return api.issue.split(**split_kwargs)
 
 
 _MERGE_SOURCES_ANOMALY_FALLBACK_BUFFER = 30 * 86400
