@@ -303,7 +303,10 @@ def _nodeman_subscription_evidence(record: dict[str, Any]) -> tuple[dict[str, An
 def _run_remote_inspection(record: dict[str, Any]) -> dict[str, Any]:
     target = record["target"]
     options = record.get("request_options") or {}
-    probe_arguments = fixed_probe_arguments(target["bk_data_id"], bool(options.get("include_source_sample")))
+    child_config_hints = (f"bkunifylogbeat_sub_{target['subscription_id']}",)
+    probe_arguments = fixed_probe_arguments(
+        target["bk_data_id"], bool(options.get("include_source_sample")), child_config_hints
+    )
     script_content = base64.b64encode(_fixed_remote_shell_script()).decode("ascii")
     target_server = JobHelper.adapt_hosts_target_server(
         bk_biz_id=target["bk_biz_id"], hosts=[{"bk_host_id": target["bk_host_id"]}]
@@ -390,6 +393,7 @@ def _run_remote_inspection(record: dict[str, Any]) -> dict[str, Any]:
     parsed["metadata"] = fixed_probe_metadata(
         bk_data_id=target["bk_data_id"],
         include_source_sample=bool(options.get("include_source_sample")),
+        child_config_hints=child_config_hints,
         executor="JOB",
         script_language="SHELL",
     )

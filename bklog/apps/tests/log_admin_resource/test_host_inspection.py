@@ -807,7 +807,7 @@ class HostInspectionWorkerTest(SimpleTestCase):
         record = {
             "task_id": "public-task",
             "bk_tenant_id": "tenant-a",
-            "target": {"bk_biz_id": 2, "bk_host_id": 2, "bk_data_id": 1001},
+            "target": {"bk_biz_id": 2, "bk_host_id": 2, "bk_data_id": 1001, "subscription_id": 2001},
             "request_options": {
                 "source": "/data/app.log",
                 "include_source_sample": False,
@@ -819,7 +819,10 @@ class HostInspectionWorkerTest(SimpleTestCase):
 
         kwargs = execute.call_args.kwargs
         self.assertEqual(kwargs["script_language"], 1)
-        self.assertEqual(base64.b64decode(kwargs["script_param"]).decode("ascii"), "1001 0 -")
+        self.assertEqual(
+            base64.b64decode(kwargs["script_param"]).decode("ascii"),
+            "1001 0 bkunifylogbeat_sub_2001",
+        )
         script = fixed_probe_script().decode("utf-8")
         self.assertNotIn("/data/app.log", script)
         self.assertNotIn("reload failed", script)
@@ -855,6 +858,7 @@ class FixedRemoteScriptTest(SimpleTestCase):
         self.assertIn('find -H "$directory"', script)
         self.assertIn("MAX_CHILD_CONFIG_SCAN=1000", script)
         self.assertIn('-name "$hint" -o -name "*_$hint"', script)
+        self.assertIn('-name "$hint.conf" -o -name "${hint}_*.conf"', script)
         self.assertIn('if [ "$target_config_hint_count" -gt 0 ]; then', script)
         self.assertIn("all_child_paths=$(printf '%s\\n' \"$hinted_child_paths\"", script)
         self.assertIn('awk -v wanted="$TARGET_DATA_ID"', script)

@@ -31,7 +31,7 @@ if [ "$target_config_hint_count" -gt 20 ]; then
 fi
 
 PROTOCOL="bklog.collector.inspection.probe.v1"
-PROBE_VERSION="137707063.7"
+PROBE_VERSION="137707063.8"
 # Stay below BK-JOB/GSE's 5 MiB atomic script-task log limit.
 OUTPUT_BUDGET_BYTES=4194304
 OUTPUT_FINAL_RESERVE_BYTES=4096
@@ -410,7 +410,9 @@ hinted_child_paths=$(printf '%s' "$TARGET_CONFIG_HINTS" | tr ',' '\n' | while IF
         [ -d "$directory" ] || continue
         [ "${directory#/}" != "$directory" ] || continue
         find -H "$directory" -maxdepth 1 \( -type f -o -type l \) \
-            -name "${pattern:-*.conf}" \( -name "$hint" -o -name "*_$hint" \) -print 2>/dev/null
+            -name "${pattern:-*.conf}" \
+            \( -name "$hint" -o -name "*_$hint" -o -name "$hint.conf" -o -name "${hint}_*.conf" \) \
+            -print 2>/dev/null
     done
 done)
 target_config_hint_path_count=$(printf '%s\n' "$hinted_child_paths" | awk 'NF {count++} END {print count+0}')
