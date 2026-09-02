@@ -31,7 +31,7 @@ if [ "$target_config_hint_count" -gt 20 ]; then
 fi
 
 PROTOCOL="bklog.collector.inspection.probe.v1"
-PROBE_VERSION="137707063.9"
+PROBE_VERSION="137707063.10"
 # Stay below BK-JOB/GSE's 5 MiB atomic script-task log limit.
 OUTPUT_BUDGET_BYTES=4194304
 OUTPUT_FINAL_RESERVE_BYTES=4096
@@ -404,7 +404,7 @@ if [ -z "$multi_config_rows" ] && [ -d "/data/etc/bkunifylogbeat" ]; then
 fi
 
 tab=$(printf '\t')
-hinted_child_paths=$(printf '%s' "$TARGET_CONFIG_HINTS" | tr ',' '\n' | while IFS= read -r hint; do
+hinted_child_paths=$(printf '%s\n' "$TARGET_CONFIG_HINTS" | tr ',' '\n' | while IFS= read -r hint; do
     [ -n "$hint" ] && [ "$hint" != "-" ] || continue
     printf '%b\n' "$multi_config_rows" | while IFS="$tab" read -r directory pattern; do
         [ -d "$directory" ] || continue

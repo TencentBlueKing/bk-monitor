@@ -1,5 +1,8 @@
 import base64
 import json
+import subprocess
+import tempfile
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
@@ -866,6 +869,45 @@ class FixedRemoteScriptTest(SimpleTestCase):
         self.assertIn("child_paths=$(printf '%s\\n' \"$matching_child_paths\"", script)
         self.assertIn("-name 'bkunifylogbeat'", script)
         self.assertIn("/usr/local/gse*/plugins/etc/bkunifylogbeat.conf", script)
+
+    def test_shared_probe_discovers_single_and_final_config_hint(self):
+        script = fixed_probe_script().decode("utf-8")
+        discovery_start = script.index("tab=$(printf '\\t')")
+        discovery_end = script.index('\nif [ "$target_config_hint_count" -gt 0 ]; then', discovery_start)
+        discovery_script = script[discovery_start:discovery_end]
+
+        with tempfile.TemporaryDirectory() as directory:
+            config_directory = Path(directory)
+            expected_paths = [
+                config_directory / "bkunifylogbeat_sub_23799_host_135.conf",
+                config_directory / "bkunifylogbeat_sub_23888_host_135.conf",
+            ]
+            for config_path in expected_paths:
+                config_path.write_text("local: []\n", encoding="utf-8")
+
+            for hints, expected in (
+                ("bkunifylogbeat_sub_23799", expected_paths[:1]),
+                ("bkunifylogbeat_sub_23799,bkunifylogbeat_sub_23888", expected_paths),
+            ):
+                with self.subTest(hints=hints):
+                    harness = "\n".join(
+                        (
+                            "set -eu",
+                            f"TARGET_CONFIG_HINTS='{hints}'",
+                            f"multi_config_rows='{config_directory}\\t*.conf'",
+                            discovery_script,
+                            "printf '%s\\n' \"$hinted_child_paths\"",
+                        )
+                    )
+                    completed = subprocess.run(
+                        ["/bin/sh"],
+                        input=harness,
+                        text=True,
+                        capture_output=True,
+                        check=True,
+                    )
+
+                    self.assertEqual(completed.stdout.splitlines(), [str(path) for path in expected])
 
     def test_shared_probe_rejects_caller_shaped_config_hints(self):
         for hint in ("../secret.conf", "/data/etc/secret.conf", "*.conf", "a,b.conf"):
