@@ -1127,6 +1127,10 @@ class SourceAnalysisExecutionBaseResource(Resource):
             "devops_project_id": execution.bkci_project_id,
             "client_request_id": build_bkfara_client_request_id("trigger", execution.analysis_id),
             "inputs": {
+                # BKFara 不解析 inputs，整体透传给蓝盾流水线。业务与租户标识和顶层重复是有意的：
+                # 顶层供 BKFara 做场景绑定，这里供流水线回调 BKM 反查 Pod 与代码版本的关联关系。
+                "bk_biz_id": execution.bk_biz_id,
+                "bk_tenant_id": bk_tenant_id,
                 "repository_alias": execution.repository_alias,
                 "agent_id": execution.agent_id,
                 "skill_ids": list(execution.skill_ids),
