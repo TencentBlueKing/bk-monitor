@@ -50,6 +50,7 @@ import {
   omitRouteIndexId,
   shouldKeepSceneOnSpaceChange,
 } from '@/global/bk-space-choice/space-switch-route';
+import { shouldStripIndexIdOnEmptyScene } from './scene-empty-view';
 
 import $http from '@/api';
 import { RetrieveType } from '../retrieve-v2/sub-bar/retrieve-type-switch';
@@ -247,7 +248,7 @@ export default () => {
    * 拉取索引集列表
    * @param beforeResolveFn 在结果返回解析之后，尚未进行路由解析之前的处理函数
    */
-  const getIndexSetList = (beforeResolveFn?: () => void) => {
+  const getIndexSetList = (beforeResolveFn?: () => void, options: { isSpaceChanging?: boolean } = {}) => {
     store.commit('updateIndexSetQueryResult', {
       row_keys: [],
       row_query_key: '',
@@ -473,8 +474,15 @@ export default () => {
                 if (!sceneCleared && store.getters.isSceneFilterEmpty) {
                   RetrieveHelper.setSearchingValue(false);
                   resetRetrieveData(store);
-                  // 只摘掉旧 indexId，不写入新业务默认索引，避免子组件被路由变化再次拉数
-                  stripRouteIndexId();
+                  // 首屏/刷新保留分享 URL；切业务才摘旧业务 indexId，避免子组件用旧 ID 拉数。
+                  if (
+                    shouldStripIndexIdOnEmptyScene({
+                      hasRouteIndexId: !!route.params?.indexId,
+                      isSpaceChanging: !!options.isSpaceChanging,
+                    })
+                  ) {
+                    stripRouteIndexId();
+                  }
                   return;
                 }
               } else {
@@ -714,7 +722,7 @@ export default () => {
     store.commit('updateUnionIndexList', []);
     RetrieveHelper.setIndexsetId([], null);
 
-    getIndexSetList();
+    getIndexSetList(undefined, { isSpaceChanging: true });
     store.dispatch('requestFavoriteList');
   };
 

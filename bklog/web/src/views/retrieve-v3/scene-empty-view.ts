@@ -39,6 +39,11 @@ export interface SceneEmptyView {
   sceneEmptyTipLoading: boolean;
 }
 
+export interface EmptySceneRouteActionInput {
+  hasRouteIndexId: boolean;
+  isSpaceChanging: boolean;
+}
+
 /** 场景化检索结果区空态：未过滤不转圈，已过滤才进入字段 loading / 未匹配 */
 export const resolveSceneEmptyView = (input: SceneEmptyViewInput): SceneEmptyView => {
   const { isSceneMode, isSceneFilterEmpty, isFieldListFetched, isFieldListEmpty, isSceneLoading } = input;
@@ -50,3 +55,6 @@ export const resolveSceneEmptyView = (input: SceneEmptyViewInput): SceneEmptyVie
     sceneEmptyTipLoading: isSceneLoading && !isSceneFilterEmpty,
   };
 };
+
+/** 首屏空筛选保留分享 URL；只有切业务时才摘掉旧业务 indexId。 */
+export const shouldStripIndexIdOnEmptyScene = (input: EmptySceneRouteActionInput): boolean => input.isSpaceChanging && input.hasRouteIndexId;
