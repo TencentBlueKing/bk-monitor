@@ -71,7 +71,10 @@ class IncidentBaseResource(APIResource, metaclass=abc.ABCMeta):
 
         # 将 bk_biz_id 转换为 scope_value
         if "bk_biz_id" in params and "scope_value" not in params:
-            scope_id = self.convert_bk_biz_id_to_scope_id(params, params.pop("bk_biz_id"), scope_id_cache)
+            # QueryDict.pop() 返回值列表；先按标量读取，避免单业务 GET 被转换成无效 scope。
+            bk_biz_id = params["bk_biz_id"]
+            params.pop("bk_biz_id")
+            scope_id = self.convert_bk_biz_id_to_scope_id(params, bk_biz_id, scope_id_cache)
             params["scope_type"], params["scope_value"] = scope_id.split("_", 1)
         elif "bk_biz_id" in params and "scope_value" in params:
             params.pop("bk_biz_id")
