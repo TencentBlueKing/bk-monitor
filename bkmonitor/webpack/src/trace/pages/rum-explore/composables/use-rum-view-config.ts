@@ -98,6 +98,8 @@ export function useRumViewConfig() {
       return;
     }
     loading.value = true;
+    // 应用 / 视角已变，旧的默认排序失效，先清空避免切换瞬间用它去查新视角
+    store.defaultSort = [];
     const [startTime, endTime] = handleTransformToTimestamp(store.timeRange);
     viewConfig.value = await getViewConfig({
       app_name: store.appName,
@@ -105,6 +107,7 @@ export function useRumViewConfig() {
       start_time: startTime,
       end_time: endTime,
     });
+    store.defaultSort = viewConfig.value.default_sort || [];
     loading.value = false;
   }
 

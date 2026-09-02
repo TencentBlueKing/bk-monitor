@@ -184,6 +184,8 @@ export default defineComponent({
     }
 
     function handleModeChange() {
+      // 切换场景：排序重置为「未设置」，回落到新场景视图配置的 default_sort
+      store.userSort = null;
       queryCtx.handleQuery();
     }
 
@@ -376,6 +378,7 @@ export default defineComponent({
                           affixedTop: () => (
                             <RumSpanTypeFilter
                               list={spanTypeCtx.chipList.value}
+                              loading={viewConfigCtx.loading.value}
                               value={spanTypeCtx.activeSpanType.value}
                               onChange={this.handleSpanTypeChange}
                             />
@@ -394,7 +397,7 @@ export default defineComponent({
                               mode={this.store.mode}
                               scrollLoading={tableCtx.scrollLoading.value}
                               showSettings={!this.isSpanSpecialPerspective}
-                              sort={this.store.sortParams}
+                              sort={tableCtx.sortParams.value}
                               timeRange={this.store.timeRange}
                               onClearFilter={queryCtx.clearQuery}
                               onColumnResizeChange={width => this.columnConfig.updateColumnResizeWidth(width)}
