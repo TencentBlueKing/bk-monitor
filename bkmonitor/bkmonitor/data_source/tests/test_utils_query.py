@@ -320,3 +320,39 @@ class TestQueryFieldsTimeConversion:
         captured = self._query_fields_capture_params(start_time=start, end_time=end)
         assert captured["start_time"] == start * self.ACCURACY
         assert captured["end_time"] == end * self.ACCURACY
+
+
+class TestRemovedFieldEnrichmentAttributes:
+    """校验 BaseQuery 已移除旧的字段补充机制（FIELD_ALIAS_MAP_LIST / FIELD_UNITS / ENUM_FIELD_OPTION_VALUES / _resolve_field_alias）。"""
+
+    def test_removed_class_attributes_do_not_exist(self):
+        """历史用于补充别名 / 单位 / 枚举候选值的类属性应已移除。"""
+        for attr in ("FIELD_ALIAS_MAP_LIST", "FIELD_UNITS", "ENUM_FIELD_OPTION_VALUES"):
+            assert not hasattr(BaseQuery, attr), f"BaseQuery 仍残留已移除的类属性: {attr}"
+
+    def test_resolve_field_alias_method_removed(self):
+        """字段别名解析方法应已移除。"""
+        assert not hasattr(BaseQuery, "_resolve_field_alias")
+
+    def test_query_fields_does_not_add_removed_keys(self, mocker):
+        """_query_fields 仅依赖底层字段详情，不应再补充 field_alias / field_unit / option_values 等键。"""
+        mocker.patch.object(
+            BaseQuery,
+            "_query_info_fields",
+            return_value=[_make_field(field_name="cpu_usage", field_type="long", is_agg=True)],
+        )
+        query = BaseQuery(data_sources=[DataSourceTarget(table_id="rt1")])
+        result = query._query_fields(
+            targets=[("rt1", "space1")],
+            start_time=1717000000,
+            end_time=1717003600,
+        )
+
+        field = result["cpu_usage"]
+        # 旧补充逻辑遗留的键不应出现
+        assert "field_alias" not in field
+        assert "field_unit" not in field
+        assert "option_values" not in field
+        # 底层字段详情键仍按预期产出
+        assert field["field_name"] == "cpu_usage"
+        assert field["is_searchable"] is True

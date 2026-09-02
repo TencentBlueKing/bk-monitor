@@ -31,7 +31,7 @@ from bkmonitor.utils.thread_backend import ThreadPool
 from core.drf_resource import resource
 from rum_web.handlers.level.base import BaseRumLevelHandler
 from rum_web.handlers.query.span import SpanQuery
-from rum_web.constants import RUM_SEARCH_PAGE_GROUPS, RumSpanType, FieldDisplayType
+from rum_web.constants import RUM_SEARCH_PAGE_GROUPS, RumSpanType
 
 
 class SpanLevelHandler(BaseRumLevelHandler):
@@ -58,6 +58,7 @@ class SpanLevelHandler(BaseRumLevelHandler):
             "is_searchable": True,
             "is_agg": True,
             "is_list": False,
+            "is_real": False,
             "supported_operations": [],
         },
         "INP": {
@@ -69,6 +70,7 @@ class SpanLevelHandler(BaseRumLevelHandler):
             "is_searchable": True,
             "is_agg": True,
             "is_list": False,
+            "is_real": False,
             "supported_operations": [],
         },
         "LCP": {
@@ -80,6 +82,7 @@ class SpanLevelHandler(BaseRumLevelHandler):
             "is_searchable": True,
             "is_agg": True,
             "is_list": False,
+            "is_real": False,
             "supported_operations": [],
         },
         "FCP": {
@@ -91,6 +94,7 @@ class SpanLevelHandler(BaseRumLevelHandler):
             "is_searchable": True,
             "is_agg": True,
             "is_list": False,
+            "is_real": False,
             "supported_operations": [],
         },
         "TTFB": {
@@ -102,6 +106,7 @@ class SpanLevelHandler(BaseRumLevelHandler):
             "is_searchable": True,
             "is_agg": True,
             "is_list": False,
+            "is_real": False,
             "supported_operations": [],
         },
     }
@@ -126,12 +131,6 @@ class SpanLevelHandler(BaseRumLevelHandler):
         StatisticsProperty.MIN.value,
         StatisticsProperty.MEDIAN.value,
         StatisticsProperty.AVG.value,
-    }
-
-    #: 字段 -> 展示类型映射（仅需特殊渲染的字段才需声明）
-    FIELD_DISPLAY_TYPE_MAP: dict[str, str] = {
-        FieldDisplayType.DURATION.value: {"elapsed_time"},
-        FieldDisplayType.DATETIME.value: {"start_time", "end_time", "time"},
     }
 
     def __init__(self, data_sources: list[TraceDatasourceTarget]):
@@ -166,12 +165,6 @@ class SpanLevelHandler(BaseRumLevelHandler):
         # mapping 没有的虚拟字段，先补进 field_map，WEB_VITALS 才组得起来
         for name, meta in self.VIRTUAL_FIELDS.items():
             field_map.setdefault(name, meta)
-
-        for field_display_type, field_names in self.FIELD_DISPLAY_TYPE_MAP.items():
-            for field_name in field_names:
-                if field_name not in field_map:
-                    continue
-                field_map[field_name]["field_display_type"] = field_display_type
 
         return {
             "default_sort": list(self.query.DEFAULT_SORT),

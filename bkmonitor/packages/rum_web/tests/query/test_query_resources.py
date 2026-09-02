@@ -266,31 +266,72 @@ class TestSpanViewConfig:
 # ─────────────────────────────────────────────────────────────────────────────
 
 
-class TestSemconvFieldEnrichment:
-    """[f] SpanQuery 通过 FIELD_ALIAS_MAP_LIST、FIELD_UNITS、ENUM_FIELD_OPTION_VALUES 补充字段元数据"""
+class TestQueryFieldsSemconvEnrichment:
+    """[f] query_fields 通过 SpanSpec 补充 field_alias / field_unit / field_display_type / option_values / is_real"""
 
-    def test_span_query_has_field_units(self):
+    @staticmethod
+    def _build_query():
+        from bkmonitor.data_source.utils.apm import TraceDatasourceTarget
         from rum_web.handlers.query.span import SpanQuery
 
-        assert "elapsed_time" in SpanQuery.FIELD_UNITS
-        assert SpanQuery.FIELD_UNITS["elapsed_time"] == "us"
+        target = TraceDatasourceTarget.build(bk_biz_id=2, app_name="my_app", table_id="bk_rum.default.span")
+        return SpanQuery([target])
 
-    def test_span_query_has_enum_field_option_values(self):
-        from rum_web.handlers.query.span import SpanQuery
+    def test_enriches_alias_unit_display_type_and_is_real(self, mocker):
+        from semconv.rum.trace import SpanSpec
 
-        assert "attributes.span_type" in SpanQuery.ENUM_FIELD_OPTION_VALUES
-        option_values = SpanQuery.ENUM_FIELD_OPTION_VALUES["attributes.span_type"]
+        base_fields = {
+            "elapsed_time": {"field_name": "elapsed_time", "field_type": "long", "origin_field": "elapsed_time"},
+            "start_time": {"field_name": "start_time", "field_type": "date", "origin_field": "start_time"},
+        }
+        mocker.patch.object(BaseQuery, "_query_fields", return_value=base_fields)
+
+        result = self._build_query().query_fields(None, None)
+
+        elapsed_spec = SpanSpec.from_field("elapsed_time")
+        assert result["elapsed_time"]["field_alias"] == (elapsed_spec.field_alias or "elapsed_time")
+        assert result["elapsed_time"]["field_unit"] == elapsed_spec.field_unit
+        assert result["elapsed_time"]["is_real"] is True
+
+        # start_time 含 DATETIME 展示类型
+        assert result["start_time"]["field_display_type"] == "datetime"
+        assert result["start_time"]["is_real"] is True
+
+    def test_enriches_option_values_from_enum(self, mocker):
+        from rum_web.constants import RumSpanType
+
+        base_fields = {
+            "attributes.span_type": {
+                "field_name": "attributes.span_type",
+                "field_type": "keyword",
+                "origin_field": "attributes",
+            },
+        }
+        mocker.patch.object(BaseQuery, "_query_fields", return_value=base_fields)
+
+        result = self._build_query().query_fields(None, None)
+
+        option_values = result["attributes.span_type"]["option_values"]
         assert isinstance(option_values, list)
         assert all("value" in item and "alias" in item for item in option_values)
 
-    def test_span_query_enum_option_values_cover_all_span_types(self):
-        from rum_web.constants import RumSpanType
-        from rum_web.handlers.query.span import SpanQuery
-
-        option_values = SpanQuery.ENUM_FIELD_OPTION_VALUES["attributes.span_type"]
         registered_values = {item["value"] for item in option_values}
         for span_type in RumSpanType:
             assert span_type.value in registered_values
+
+    def test_unknown_field_keeps_name_as_alias_without_extra_keys(self, mocker):
+        base_fields = {
+            "unknown.field": {"field_name": "unknown.field", "field_type": "keyword", "origin_field": "unknown"},
+        }
+        mocker.patch.object(BaseQuery, "_query_fields", return_value=base_fields)
+
+        result = self._build_query().query_fields(None, None)
+
+        # 未注册字段：别名为字段名本身，且不上浮单位 / 枚举候选值
+        assert result["unknown.field"]["field_alias"] == "unknown.field"
+        assert "field_unit" not in result["unknown.field"]
+        assert "option_values" not in result["unknown.field"]
+        assert result["unknown.field"]["is_real"] is True
 
 
 # ─────────────────────────────────────────────────────────────────────────────
