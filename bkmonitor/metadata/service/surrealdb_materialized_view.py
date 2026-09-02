@@ -292,7 +292,13 @@ def _mark_materialized_view_failed(binding: SurrealDBBindingConfig, error: Excep
     binding.save(update_fields=["materialized_view_status", "materialized_view_last_error", "last_modify_time"])
 
 
-def reconcile_materialized_views(binding: SurrealDBBindingConfig, remote_config: dict[str, Any]) -> bool:
+def reconcile_materialized_views(
+    binding: SurrealDBBindingConfig,
+    remote_config: dict[str, Any],
+    *,
+    force: bool = False,
+) -> bool:
+    """Apply the desired materialized-view DDL, optionally bypassing local state."""
     from django.utils import timezone
 
     from core.drf_resource import api
@@ -306,7 +312,8 @@ def reconcile_materialized_views(binding: SurrealDBBindingConfig, remote_config:
         desired_ddl = build_materialized_view_ddl(binding, scope)
         definition_hash = hashlib.sha256(desired_ddl.encode("utf-8")).hexdigest()
         if (
-            binding.materialized_view_status == DataLinkResourceStatus.OK.value
+            not force
+            and binding.materialized_view_status == DataLinkResourceStatus.OK.value
             and binding.materialized_view_definition_hash == definition_hash
             and binding.materialized_view_relation_names == relation_names
         ):

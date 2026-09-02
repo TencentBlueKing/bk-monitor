@@ -143,6 +143,33 @@ def test_reconcile_materialized_views_applies_once(mocker):
 
 
 @pytest.mark.django_db(databases="__all__")
+def test_reconcile_materialized_views_force_rebuilds_after_state_match(mocker):
+    binding = _binding()
+    binding.save()
+    query_data = mocker.patch("core.drf_resource.api.bkdata.query_data")
+
+    assert reconcile_materialized_views(binding, _remote_config()) is True
+    binding.refresh_from_db()
+    query_data.reset_mock()
+
+    # A manually cleared SurrealDB database leaves the local state/hash intact.
+    # Force mode must re-apply the idempotent DDL instead of returning early.
+    assert reconcile_materialized_views(binding, _remote_config(), force=True) is True
+    query_data.assert_called_once_with(sql=ANY, prefer_storage="surrealdb")
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_reconcile_materialized_view_task_forwards_force(mocker):
+    binding = _binding()
+    binding.save()
+    reconcile = mocker.patch("metadata.task.bkbase.reconcile_materialized_views")
+
+    reconcile_surrealdb_materialized_view.run(binding.pk, _remote_config(), force=True)
+
+    reconcile.assert_called_once_with(binding, _remote_config(), force=True)
+
+
+@pytest.mark.django_db(databases="__all__")
 def test_reconcile_materialized_views_cleans_stale_relation(mocker):
     binding = _binding(materialized_view_relation_names=["node_with_pod", "stale_relation"])
     binding.save()

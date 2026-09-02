@@ -64,13 +64,21 @@ PUBSUB_POLL_TIMEOUT_SECONDS = 1.0
 
 
 @app.task(ignore_result=True, queue="celery_metadata_task_worker")
-def reconcile_surrealdb_materialized_view(binding_id: int, remote_config: dict[str, Any]) -> None:
-    """Serially reconcile one SurrealDBBinding materialized view definition."""
+def reconcile_surrealdb_materialized_view(
+    binding_id: int,
+    remote_config: dict[str, Any],
+    force: bool = False,
+) -> None:
+    """Serially reconcile one SurrealDBBinding materialized view definition.
+
+    ``force`` is used after an operator clears or restores the remote database,
+    because the local definition hash cannot detect that kind of drift.
+    """
     try:
         with transaction.atomic():
             binding = SurrealDBBindingConfig.objects.select_for_update().get(pk=binding_id)
             try:
-                reconcile_materialized_views(binding, remote_config)
+                reconcile_materialized_views(binding, remote_config, force=force)
             except Exception as error:  # pylint: disable=broad-except
                 logger.exception(
                     "reconcile_surrealdb_materialized_view: reconcile failed, binding_id->[%s], error->[%s]",
