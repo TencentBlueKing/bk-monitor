@@ -109,6 +109,27 @@ def get_table_info_for_influxdb_and_vm(bk_tenant_id: str, table_id_list: list | 
         }
         for data in influxdb_tables
     }
+    surrealdb_tables = models.SurrealDBStorage.objects.filter(bk_tenant_id=bk_tenant_id).values(
+        "table_id", "storage_cluster_id"
+    )
+    if table_id_list:
+        surrealdb_tables = surrealdb_tables.filter(table_id__in=table_id_list)
+    surrealdb_table_map = {data["table_id"]: data["storage_cluster_id"] for data in surrealdb_tables}
+    surrealdb_cluster_map = {
+        data["cluster_id"]: data["cluster_name"]
+        for data in models.ClusterInfo.objects.filter(
+            bk_tenant_id=bk_tenant_id,
+            cluster_id__in=surrealdb_table_map.values(),
+            cluster_type=models.ClusterInfo.TYPE_SURREALDB,
+        ).values("cluster_id", "cluster_name")
+    }
+    surrealdb_binding_map = {
+        data["table_id"]: data
+        for data in models.SurrealDBBindingConfig.objects.filter(
+            bk_tenant_id=bk_tenant_id,
+            table_id__in=surrealdb_table_map,
+        ).values("table_id", "namespace", "bkbase_result_table_name")
+    }
     # 获取proxy关联的集群信息
     influxdb_proxy_storage_ids = {
         detail["influxdb_proxy_storage_id"]
@@ -181,6 +202,28 @@ def get_table_info_for_influxdb_and_vm(bk_tenant_id: str, table_id_list: list | 
                 }
             )
             table_id_info[table_id] = detail
+    # 同表双写时保留原查询路由，并将 SurrealDB 作为独立子路由下发。
+    for table_id, storage_id in surrealdb_table_map.items():
+        binding = surrealdb_binding_map.get(table_id, {})
+        database = binding.get("bkbase_result_table_name") or table_id
+        surrealdb_detail = {
+            "storage_id": storage_id,
+            "storage_name": surrealdb_cluster_map.get(storage_id, ""),
+            "cluster_name": surrealdb_cluster_map.get(storage_id, ""),
+            "db": database,
+            "database": database,
+            "namespace": binding.get("namespace", ""),
+            "storage_type": models.SurrealDBStorage.STORAGE_TYPE,
+        }
+        if table_id in table_id_info:
+            table_id_info[table_id][models.SurrealDBStorage.STORAGE_TYPE] = surrealdb_detail
+            continue
+        table_id_info[table_id] = {
+            **surrealdb_detail,
+            "measurement": "",
+            "vm_rt": "",
+            "tags_key": [],
+        }
     return table_id_info
 
 
