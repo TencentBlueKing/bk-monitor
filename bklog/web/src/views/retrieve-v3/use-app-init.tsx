@@ -472,8 +472,9 @@ export default () => {
                 const sceneCleared = await requestSceneConfigs();
                 if (!sceneCleared && store.getters.isSceneFilterEmpty) {
                   RetrieveHelper.setSearchingValue(false);
-                  // 切业务后旧 indexId 仍挂在路由上时，子组件会用它打字段接口导致 404
-                  syncIndexIdToRoute(indexId, unionList, queryTab);
+                  resetRetrieveData(store);
+                  // 只摘掉旧 indexId，不写入新业务默认索引，避免子组件被路由变化再次拉数
+                  stripRouteIndexId();
                   return;
                 }
               } else {
@@ -570,6 +571,16 @@ export default () => {
    * 同步索引集到路由：有新 indexId 则写入，否则从 params 删除旧 indexId。
    * Vue Router 3 对 params.indexId = undefined 不会摘掉路径参数，必须 delete。
    */
+  const stripRouteIndexId = () => {
+    if (!route.params?.indexId) {
+      return;
+    }
+    router.replace({
+      params: omitRouteIndexId(route.params ?? {}),
+      query: route.query,
+    });
+  };
+
   const syncIndexIdToRoute = (indexId?: string, unionList?: string[], queryTab: Record<string, any> = {}) => {
     const nextParams = indexId ? { ...(route.params ?? {}), indexId } : omitRouteIndexId(route.params ?? {});
 
@@ -684,6 +695,8 @@ export default () => {
 
   const handleSpaceIdChange = () => {
     cancelPendingRetrieveRequests();
+    // 与切换场景 tab 相同：取消请求后必须清字段/结果 loading，否则空筛选提前返回会永久转圈
+    resetRetrieveData(store);
 
     const keepScene = shouldKeepSceneOnSpaceChange(store.state.indexItem.retrieve_type, route.query.retrieve_type);
 
