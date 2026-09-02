@@ -1224,12 +1224,16 @@ class EtlStorage:
             "is_time_field_only": True,
             "bk_biz_id": instance.get_bk_biz_id(),
             "label": instance.category_id,
-            "labels": labels or {},
             "option": {},
             "field_list": [],
             "warm_phase_days": 0,
             "warm_phase_settings": {},
         }
+        # 同一份 params 既用于 create_result_table 也用于 modify_result_table，而 metadata 侧
+        # 对 labels 是全量覆盖（labels is not None 才赋值）。调用方未声明路由标签时必须整个字段不下发，
+        # 否则一次不带 labels 的更新就会把结果表已有的场景标签清空，导致场景化检索路由不到该表。
+        if labels is not None:
+            params["labels"] = labels
         index_settings = index_settings or {}
         if total_shards_per_node is not None and total_shards_per_node > 0:
             index_settings.update({"index.routing.allocation.total_shards_per_node": total_shards_per_node})
