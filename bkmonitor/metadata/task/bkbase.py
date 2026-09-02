@@ -46,7 +46,7 @@ from metadata.models.data_link.data_link_configs import (
     SurrealDBBindingConfig,
 )
 from metadata.models.space.constants import SpaceStatus, SpaceTypes
-from metadata.service.surrealdb_materialized_view import reconcile_materialized_views
+from metadata.service.surrealdb_materialized_view import SurrealDBRemoteConfig, reconcile_materialized_views
 from metadata.models.vm.utils import report_metadata_data_link_status_info
 from metadata.service.sync_metadata import sync_kafka_metadata, sync_vm_metadata
 from metadata.task.constants import BKBASE_V4_KIND_STORAGE_CONFIGS
@@ -66,7 +66,7 @@ PUBSUB_POLL_TIMEOUT_SECONDS = 1.0
 @app.task(ignore_result=True, queue="celery_metadata_task_worker")
 def reconcile_surrealdb_materialized_view(
     binding_id: int,
-    remote_config: dict[str, Any],
+    remote_config: SurrealDBRemoteConfig,
     force: bool = False,
 ) -> None:
     """Serially reconcile one SurrealDBBinding materialized view definition.

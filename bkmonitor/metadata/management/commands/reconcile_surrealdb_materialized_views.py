@@ -1,10 +1,14 @@
 """Force-reconcile SurrealDB materialized-view definitions."""
 
+from collections.abc import Mapping
+from typing import cast
+
 from django.core.management import BaseCommand, CommandError
 
 from core.drf_resource import api
 from metadata.models.data_link.constants import DataLinkKind, DataLinkResourceStatus
 from metadata.models.data_link.data_link_configs import SurrealDBBindingConfig
+from metadata.service.surrealdb_materialized_view import SurrealDBRemoteConfig
 from metadata.task.bkbase import reconcile_surrealdb_materialized_view
 
 
@@ -21,19 +25,24 @@ class Command(BaseCommand):
         namespace = options["namespace"]
         binding_name = options.get("binding_name")
 
-        remote_configs = api.bkdata.list_data_link(
+        raw_remote_configs: object = api.bkdata.list_data_link(
             bk_tenant_id=bk_tenant_id,
             namespace=namespace,
             kind=DataLinkKind.get_choice_value(DataLinkKind.SURREALDBBINDING.value),
         )
-        if not isinstance(remote_configs, list):
+        if not isinstance(raw_remote_configs, list):
             raise CommandError("BKBase 返回的 SurrealDBBinding 列表格式无效")
 
-        remote_configs_by_name = {
-            config.get("metadata", {}).get("name"): config
-            for config in remote_configs
-            if isinstance(config, dict) and isinstance(config.get("metadata"), dict) and config["metadata"].get("name")
-        }
+        remote_configs_by_name: dict[str, SurrealDBRemoteConfig] = {}
+        for raw_config in raw_remote_configs:
+            if not isinstance(raw_config, Mapping):
+                continue
+            metadata = raw_config.get("metadata")
+            if not isinstance(metadata, Mapping):
+                continue
+            name = metadata.get("name")
+            if isinstance(name, str) and name:
+                remote_configs_by_name[name] = cast(SurrealDBRemoteConfig, raw_config)
         bindings = SurrealDBBindingConfig.objects.filter(bk_tenant_id=bk_tenant_id, namespace=namespace)
         if binding_name:
             bindings = bindings.filter(name=binding_name)

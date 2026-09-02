@@ -5,13 +5,44 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, TypeAlias, TypedDict, cast
 
 from metadata.models.data_link.constants import DataLinkResourceStatus
 
 if TYPE_CHECKING:
     from metadata.models.data_link.data_link_configs import SurrealDBBindingConfig
+
+
+class SurrealDBRemoteMetadata(TypedDict, total=False):
+    annotations: dict[str, object]
+
+
+class SurrealDBRemoteStorage(TypedDict, total=False):
+    namespace: object
+    database: object
+
+
+class SurrealDBRemoteStatus(TypedDict, total=False):
+    phase: str
+    storage: SurrealDBRemoteStorage
+
+
+class SurrealDBRemoteConfig(TypedDict, total=False):
+    metadata: SurrealDBRemoteMetadata
+    status: SurrealDBRemoteStatus
+
+
+class GraphVertexDefinition(TypedDict):
+    name: str
+    id_fields: list[str]
+
+
+GraphRelationDefinition: TypeAlias = TypedDict(
+    "GraphRelationDefinition",
+    {"name": str, "from": str, "to": str},
+)
 
 _IDENTIFIER_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 _SCOPE_ANNOTATION_KEYS = {
@@ -30,7 +61,7 @@ def _normalize_key(value: str) -> str:
     return value.replace("_", "").replace("-", "").lower()
 
 
-def _require_identifier(value: Any, field: str) -> str:
+def _require_identifier(value: object, field: str) -> str:
     if not isinstance(value, str) or not _IDENTIFIER_PATTERN.fullmatch(value):
         raise ValueError(f"{field} 不是合法的 SurrealDB 标识符: {value!r}")
     return value
@@ -44,11 +75,9 @@ def _string_literal(value: str) -> str:
     return json.dumps(value, ensure_ascii=False)
 
 
-def resolve_surrealdb_scope(config: dict[str, Any]) -> SurrealDBScope:
-    metadata = config.get("metadata") if isinstance(config, dict) else None
-    annotations = metadata.get("annotations") if isinstance(metadata, dict) else None
-    if not isinstance(annotations, dict):
-        annotations = {}
+def resolve_surrealdb_scope(config: SurrealDBRemoteConfig) -> SurrealDBScope:
+    metadata = config.get("metadata", {})
+    annotations = metadata.get("annotations", {})
     normalized_annotations = {_normalize_key(key): value for key, value in annotations.items() if isinstance(key, str)}
 
     resolved = {}
@@ -57,9 +86,9 @@ def resolve_surrealdb_scope(config: dict[str, Any]) -> SurrealDBScope:
         if value is not None:
             resolved[field] = _require_identifier(value, f"metadata.annotations.{field}")
 
-    status = config.get("status") if isinstance(config, dict) else None
-    scope = status.get("storage") if isinstance(status, dict) else None
-    if isinstance(scope, dict):
+    status = config.get("status", {})
+    scope = status.get("storage", {})
+    if scope:
         for field in ("namespace", "database"):
             if field not in resolved and scope.get(field):
                 resolved[field] = _require_identifier(scope[field], f"status.storage.{field}")
@@ -69,7 +98,7 @@ def resolve_surrealdb_scope(config: dict[str, Any]) -> SurrealDBScope:
     return SurrealDBScope(namespace=resolved["namespace"], database=resolved["database"])
 
 
-def _snapshot_expression(record_link: str, fields: list[str], field: str) -> str:
+def _snapshot_expression(record_link: str, fields: Sequence[str], field: str) -> str:
     projections = []
     for index, item in enumerate(fields):
         identifier = _require_identifier(item, f"{field}[{index}]")
@@ -88,7 +117,7 @@ def _index_ddl(name: str, table: str, fields: str, *, unique: bool = False) -> s
     )
 
 
-def _snapshot_index_fields(prefix: str, fields: list[str], field: str, period_field: str) -> str:
+def _snapshot_index_fields(prefix: str, fields: Sequence[str], field: str, period_field: str) -> str:
     snapshot_fields = []
     for index, item in enumerate(fields):
         identifier = _require_identifier(item, f"{field}[{index}]")
@@ -100,13 +129,13 @@ def _snapshot_index_fields(prefix: str, fields: list[str], field: str, period_fi
 def build_materialized_view_ddl(
     binding: SurrealDBBindingConfig,
     scope: SurrealDBScope,
-    previous_relation_names: list[str] | None = None,
+    previous_relation_names: Sequence[str] | None = None,
 ) -> str:
     binding._validate_graph_definitions()
-    vertices = {vertex["name"]: vertex for vertex in binding.vertices}
+    vertices = {vertex["name"]: vertex for vertex in cast(list[GraphVertexDefinition], binding.vertices)}
+    relations = cast(list[GraphRelationDefinition], binding.relations)
     current_relation_names = {
-        _require_identifier(relation["name"], f"relations[{index}].name")
-        for index, relation in enumerate(binding.relations)
+        _require_identifier(relation["name"], f"relations[{index}].name") for index, relation in enumerate(relations)
     }
     previous_relation_names = previous_relation_names or []
     stale_relation_names = sorted(
@@ -135,7 +164,7 @@ def build_materialized_view_ddl(
             ]
         )
 
-    for index, relation in enumerate(binding.relations):
+    for index, relation in enumerate(relations):
         relation_name = _require_identifier(relation["name"], f"relations[{index}].name")
         source_type = _require_identifier(relation["from"], f"relations[{index}].from")
         target_type = _require_identifier(relation["to"], f"relations[{index}].to")
@@ -294,7 +323,7 @@ def _mark_materialized_view_failed(binding: SurrealDBBindingConfig, error: Excep
 
 def reconcile_materialized_views(
     binding: SurrealDBBindingConfig,
-    remote_config: dict[str, Any],
+    remote_config: SurrealDBRemoteConfig,
     *,
     force: bool = False,
 ) -> bool:
@@ -308,7 +337,10 @@ def reconcile_materialized_views(
 
     try:
         scope = resolve_surrealdb_scope(remote_config)
-        relation_names = sorted(relation["name"] for relation in binding.relations)
+        relation_names = sorted(
+            _require_identifier(relation["name"], f"relations[{index}].name")
+            for index, relation in enumerate(cast(list[GraphRelationDefinition], binding.relations))
+        )
         desired_ddl = build_materialized_view_ddl(binding, scope)
         definition_hash = hashlib.sha256(desired_ddl.encode("utf-8")).hexdigest()
         if (
@@ -318,7 +350,11 @@ def reconcile_materialized_views(
             and binding.materialized_view_relation_names == relation_names
         ):
             return False
-        ddl = build_materialized_view_ddl(binding, scope, binding.materialized_view_relation_names)
+        ddl = build_materialized_view_ddl(
+            binding,
+            scope,
+            cast(list[str], binding.materialized_view_relation_names),
+        )
         # Events only project subsequent liveness changes. Historical rows require a
         # separately controlled backfill before a relation is routed to this table.
         api.bkdata.query_data(sql=ddl, prefer_storage="surrealdb")

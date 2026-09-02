@@ -6,6 +6,7 @@ from metadata.models.data_link.constants import DataLinkResourceStatus
 from metadata.models.data_link.data_link_configs import SurrealDBBindingConfig
 from metadata.service.surrealdb_materialized_view import (
     SurrealDBScope,
+    SurrealDBRemoteConfig,
     build_materialized_view_ddl,
     reconcile_materialized_views,
     resolve_surrealdb_scope,
@@ -28,7 +29,7 @@ def _binding(**kwargs):
     return SurrealDBBindingConfig(**defaults)
 
 
-def _remote_config():
+def _remote_config() -> SurrealDBRemoteConfig:
     return {
         "metadata": {
             "annotations": {

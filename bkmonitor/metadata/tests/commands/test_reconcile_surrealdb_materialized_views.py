@@ -6,6 +6,7 @@ from django.core.management.base import CommandError
 
 from metadata.models.data_link.constants import DataLinkKind, DataLinkResourceStatus
 from metadata.models.data_link.data_link_configs import SurrealDBBindingConfig
+from metadata.service.surrealdb_materialized_view import SurrealDBRemoteConfig
 
 
 def _binding():
@@ -23,7 +24,7 @@ def _binding():
     )
 
 
-def _remote_config():
+def _remote_config() -> SurrealDBRemoteConfig:
     return {
         "metadata": {
             "name": "graph_binding",
