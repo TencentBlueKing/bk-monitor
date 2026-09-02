@@ -221,22 +221,47 @@
       normalizeTraceSearchText(value) {
         return String(value).replace(/<[^>]*>/g, '');
       },
-      getTraceIdFromText(value) {
+      isTraceIdKey(key) {
+        return /(^|[._\-\s])(?:trace[_-]?id|x[_-]trace[_-]id)($|[._\-\s])/.test(String(key).toLowerCase());
+      },
+      getTraceIdCandidatesFromText(value, sourceKey = '') {
         const text = this.normalizeTraceSearchText(value);
-        const traceIdPattern = /\btrace_?id\b\s*[=:]\s*([a-f0-9]{32})(?![a-z0-9])/i;
-        const traceIdMatch = text.match(traceIdPattern);
-        if (traceIdMatch) {
-          return traceIdMatch[1];
+        const candidates = [];
+        const matchedIndexes = new Set();
+        const addCandidate = (traceId, key, index) => {
+          const matchedKey = `${index}:${traceId}`;
+          if (!matchedIndexes.has(matchedKey)) {
+            matchedIndexes.add(matchedKey);
+            candidates.push({ traceId, key, index });
+          }
+        };
+
+        const keyValueTraceIdPattern = /(?:^|[^a-z0-9_-])["']?([a-z0-9][\w.-]*?)["']?\s*[=:]\s*["']?([a-f0-9]{32})(?![a-z0-9])/gi;
+        for (const match of text.matchAll(keyValueTraceIdPattern)) {
+          const traceId = match[2];
+          addCandidate(traceId, match[1] || sourceKey, match.index + match[0].lastIndexOf(traceId));
         }
 
-        const strictTraceIdPattern = /(^|[^a-z0-9])([a-f0-9]{32})(?![a-z0-9])/i;
-        const strictTraceIdMatch = text.match(strictTraceIdPattern);
-        return strictTraceIdMatch?.[2] ?? null;
+        const strictTraceIdPattern = /(^|[^a-z0-9])([a-f0-9]{32})(?![a-z0-9])/gi;
+        for (const match of text.matchAll(strictTraceIdPattern)) {
+          const traceId = match[2];
+          addCandidate(traceId, sourceKey, match.index + match[0].lastIndexOf(traceId));
+        }
+
+        return candidates.sort((prev, next) => prev.index - next.index);
+      },
+      getTraceIdFromText(value, sourceKey = '') {
+        const candidates = this.getTraceIdCandidatesFromText(value, sourceKey);
+        return this.pickTraceIdCandidate(candidates)?.traceId ?? null;
+      },
+      pickTraceIdCandidate(candidates) {
+        return candidates.find(candidate => this.isTraceIdKey(candidate.key)) ?? candidates[0] ?? null;
       },
       getTraceIdFromRowData() {
-        const traceId = this.rowData.trace_id ?? this.rowData.traceid;
+        const directTraceKey = Object.keys(this.rowData).find(key => this.isTraceIdKey(key));
+        const traceId = directTraceKey ? this.rowData[directTraceKey] : null;
         if (traceId) {
-          const matchedTraceId = this.getTraceIdFromText(traceId);
+          const matchedTraceId = this.getTraceIdFromText(traceId, directTraceKey);
           if (matchedTraceId) {
             return matchedTraceId;
           }
@@ -247,30 +272,24 @@
           }
         }
 
-        const rowValues = Object.values(this.rowData);
-        for (const value of rowValues) {
+        const candidates = [];
+        for (const [key, value] of Object.entries(this.rowData)) {
           if (typeof value !== 'string') {
             continue;
           }
 
-          const traceIdFromText = this.getTraceIdFromText(value);
-          if (traceIdFromText) {
-            return traceIdFromText;
-          }
+          candidates.push(...this.getTraceIdCandidatesFromText(value, key));
         }
 
-        for (const value of rowValues) {
+        for (const [key, value] of Object.entries(this.rowData)) {
           if (!value || typeof value !== 'object') {
             continue;
           }
 
-          const traceIdFromText = this.getTraceIdFromText(JSON.stringify(value));
-          if (traceIdFromText) {
-            return traceIdFromText;
-          }
+          candidates.push(...this.getTraceIdCandidatesFromText(JSON.stringify(value), key));
         }
 
-        return null;
+        return this.pickTraceIdCandidate(candidates)?.traceId ?? null;
       },
       handleCheckClick(clickType, isActive = false, event) {
         if (!isActive) return;
@@ -371,11 +390,13 @@
 
         .ai-label {
           font-weight: 600;
+          color: transparent;
           background: linear-gradient(118deg, #235dfa 0%, #e28bed 100%);
+
+          /* stylelint-disable-next-line property-no-vendor-prefix */
           -webkit-background-clip: text;
           background-clip: text;
           -webkit-text-fill-color: transparent;
-          color: transparent;
         }
       }
     }
@@ -406,7 +427,10 @@
 
     &:hover,
     &:focus-visible {
+      /* stylelint-disable-next-line declaration-no-important */
       color: #c4c6cc !important;
+
+      /* stylelint-disable-next-line declaration-no-important */
       background: transparent !important;
     }
   }
