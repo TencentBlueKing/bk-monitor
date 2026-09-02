@@ -67,7 +67,7 @@ class FavoriteScopeField(serializers.JSONField):
 
     default_error_messages = {
         "not_object": _("scope 必须是 JSON 对象"),
-        "invalid_key": _("scope 参数名必须以小写字母开头，且只能包含小写字母、数字和下划线"),
+        "invalid_key": _("scope 参数名必须以小写字母开头，只能包含小写字母、数字和下划线，且不能包含双下划线"),
         "invalid_value": _("scope 参数值必须是字符串"),
     }
 
@@ -83,7 +83,7 @@ class FavoriteScopeField(serializers.JSONField):
             self.fail("not_object")
 
         for key, value in scope.items():
-            if not isinstance(key, str) or not FAVORITE_SCOPE_KEY_PATTERN.fullmatch(key):
+            if not isinstance(key, str) or "__" in key or not FAVORITE_SCOPE_KEY_PATTERN.fullmatch(key):
                 self.fail("invalid_key")
             if not isinstance(value, str):
                 self.fail("invalid_value")

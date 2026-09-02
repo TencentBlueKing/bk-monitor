@@ -142,6 +142,22 @@ class FavoriteHandler:
         result["query_string"] = _build_query_string_by_source(self.data)
         return result
 
+    def _list_groups_for_favorites(
+        self,
+        source_type: str,
+        scope: dict[str, str] = None,
+    ) -> tuple[list[dict[str, Any]], list[int]]:
+        """分组 scope 只控制展示，公开收藏始终按自身 scope 独立过滤。"""
+        group_handler = FavoriteGroupHandler(space_uid=self.space_uid)
+        visible_groups: list[dict[str, Any]] = group_handler.list(source_type=source_type, scope=scope)
+        public_group_ids: list[int] = [
+            group.id for group in FavoriteGroup.get_public_group(space_uid=self.space_uid, source_type=source_type)
+        ]
+        public_group_ids.extend(
+            group["id"] for group in visible_groups if group["group_type"] == FavoriteGroupType.UNGROUPED.value
+        )
+        return visible_groups, public_group_ids
+
     def list_group_favorites(
         self,
         order_type: str = FavoriteListOrderType.NAME_ASC.value,
@@ -151,17 +167,8 @@ class FavoriteHandler:
         """收藏栏分组后且排序后的收藏列表（按 source_type 隔离）"""
         # 列表与分组按同一 source_type 桶取，避免 favorites 中出现 group_info 缺失的 group_id
         effective_source_type = source_type or FavoriteSourceType.INDEX_SET.value
-        groups = FavoriteGroupHandler(space_uid=self.space_uid).list(
-            source_type=effective_source_type,
-            scope=scope,
-        )
-        public_group_ids = []
-        group_info = {}
-        for i in groups:
-            group_info[i["id"]] = i
-            if i["group_type"] in [FavoriteGroupType.PUBLIC.value, FavoriteGroupType.UNGROUPED.value]:
-                # UNGROUPED在favorites表中也是public
-                public_group_ids.append(i["id"])
+        groups, public_group_ids = self._list_groups_for_favorites(effective_source_type, scope)
+        group_info: dict[int, dict[str, Any]] = {group["id"]: group for group in groups}
         favorites = Favorite.get_user_favorite(
             space_uid=self.space_uid,
             username=self.username,
@@ -200,17 +207,8 @@ class FavoriteHandler:
     ) -> list:
         """管理界面列出根据name A-Z排序的所有收藏（按 source_type 隔离）"""
         effective_source_type = source_type or FavoriteSourceType.INDEX_SET.value
-        groups = FavoriteGroupHandler(space_uid=self.space_uid).list(
-            source_type=effective_source_type,
-            scope=scope,
-        )
-        public_group_ids = []
-        group_info = {}
-        for i in groups:
-            group_info[i["id"]] = i
-            if i["group_type"] in [FavoriteGroupType.PUBLIC.value, FavoriteGroupType.UNGROUPED.value]:
-                # UNGROUPED在favorites表中也是public
-                public_group_ids.append(i["id"])
+        groups, public_group_ids = self._list_groups_for_favorites(effective_source_type, scope)
+        group_info: dict[int, dict[str, Any]] = {group["id"]: group for group in groups}
         favorites = Favorite.get_user_favorite(
             space_uid=self.space_uid,
             username=self.username,

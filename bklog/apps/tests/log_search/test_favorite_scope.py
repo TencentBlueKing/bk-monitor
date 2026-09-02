@@ -13,7 +13,7 @@ from apps.log_search.constants import (
     FavoriteVisibleType,
     SearchMode,
 )
-from apps.log_search.exceptions import FavoriteGroupAlreadyExistException
+from apps.log_search.exceptions import FavoriteAlreadyExistException, FavoriteGroupAlreadyExistException
 from apps.log_search.handlers.search.favorite_handlers import FavoriteGroupHandler, FavoriteHandler
 from apps.log_search.models import Favorite, FavoriteGroup
 from apps.log_search.serializers import (
@@ -25,29 +25,33 @@ from apps.log_search.serializers import (
     UpdateFavoriteSerializer,
 )
 
-SPACE_UID = "bkcc__2"
+SPACE_UID = "bkcc__999999999"
 USERNAME = "scope_user"
 OTHER_USERNAME = "other_scope_user"
 SOURCE_APP_CODE = "scope_test"
 SOURCE_TYPE = FavoriteSourceType.SCENE.value
 
 
-def _patch_request_context(test_case):
-    test_case = patch(
-        "apps.log_search.handlers.search.favorite_handlers.get_request_external_username",
-        lambda *args, **kwargs: "",
-    )(test_case)
-    test_case = patch(
-        "apps.log_search.handlers.search.favorite_handlers.get_request_username",
-        lambda *args, **kwargs: USERNAME,
-    )(test_case)
-    test_case = patch(
-        "apps.log_search.handlers.search.favorite_handlers.get_request_app_code",
-        lambda *args, **kwargs: SOURCE_APP_CODE,
-    )(test_case)
-    test_case = patch("apps.models.get_request_username", lambda *args, **kwargs: USERNAME)(test_case)
-    test_case = patch("apps.log_search.models.get_request_app_code", lambda *args, **kwargs: SOURCE_APP_CODE)(test_case)
-    return test_case
+def _start_request_context_patches(test_case: TestCase) -> None:
+    patchers: list = [
+        patch(
+            "apps.log_search.handlers.search.favorite_handlers.get_request_external_username",
+            lambda *args, **kwargs: "",
+        ),
+        patch(
+            "apps.log_search.handlers.search.favorite_handlers.get_request_username",
+            lambda *args, **kwargs: USERNAME,
+        ),
+        patch(
+            "apps.log_search.handlers.search.favorite_handlers.get_request_app_code",
+            lambda *args, **kwargs: SOURCE_APP_CODE,
+        ),
+        patch("apps.models.get_request_username", lambda *args, **kwargs: USERNAME),
+        patch("apps.log_search.models.get_request_app_code", lambda *args, **kwargs: SOURCE_APP_CODE),
+    ]
+    for patcher in patchers:
+        patcher.start()
+        test_case.addCleanup(patcher.stop)
 
 
 class TestFavoriteScopeField(TestCase):
@@ -101,9 +105,9 @@ class TestFavoriteScopeField(TestCase):
             lookup_field.run_validation({"app_name__contains": "demo"})
 
 
-@_patch_request_context
 class TestFavoriteScope(TestCase):
     def setUp(self):
+        _start_request_context_patches(self)
         groups: list[dict] = FavoriteGroupHandler(space_uid=SPACE_UID).list(source_type=SOURCE_TYPE)
         self.private_group: FavoriteGroup = FavoriteGroup.objects.get(
             id=next(group["id"] for group in groups if group["group_type"] == FavoriteGroupType.PRIVATE.value)
@@ -293,6 +297,67 @@ class TestFavoriteScope(TestCase):
                 source_type=SOURCE_TYPE,
                 scope={"app_name": "demo"},
             )
+
+    def test_favorite_name_remains_unique_across_scope(self):
+        FavoriteHandler(space_uid=SPACE_UID).create_or_update(
+            **self._favorite_params(
+                name="same_name_favorite",
+                group_id=self.public_group.id,
+                scope={"app_name": "demo", "service_name": "api"},
+            )
+        )
+
+        with self.assertRaises(FavoriteAlreadyExistException):
+            FavoriteHandler(space_uid=SPACE_UID).create_or_update(
+                **self._favorite_params(
+                    name="same_name_favorite",
+                    group_id=self.public_group.id,
+                    scope={"app_name": "demo", "service_name": "worker"},
+                )
+            )
+
+    def test_favorite_scope_does_not_depend_on_group_scope(self):
+        legacy_group = FavoriteGroupHandler(space_uid=SPACE_UID).create_or_update(
+            name="legacy_public_group",
+            source_type=SOURCE_TYPE,
+        )
+        favorite = self._create_favorite(
+            "scoped_favorite_in_legacy_group",
+            FavoriteGroup.objects.get(id=legacy_group["id"]),
+            FavoriteVisibleType.PUBLIC.value,
+            OTHER_USERNAME,
+            {"app_name": "demo", "service_name": "api"},
+        )
+
+        favorites: list[dict] = FavoriteHandler(space_uid=SPACE_UID).list_favorites(
+            source_type=SOURCE_TYPE,
+            scope={"app_name": "demo", "service_name": "api"},
+        )
+        grouped_favorites: list[dict] = FavoriteHandler(space_uid=SPACE_UID).list_group_favorites(
+            source_type=SOURCE_TYPE,
+            scope={"app_name": "demo", "service_name": "api"},
+        )
+        ungrouped = next(
+            group for group in grouped_favorites if group["group_type"] == FavoriteGroupType.UNGROUPED.value
+        )
+
+        self.assertEqual([item["id"] for item in favorites], [favorite.id])
+        self.assertEqual(favorites[0]["group_id"], self.ungrouped_group.id)
+        self.assertEqual([item["id"] for item in ungrouped["favorites"]], [favorite.id])
+
+    def test_lookup_name_scope_key_is_matched_as_literal_key(self):
+        literal_group = FavoriteGroupHandler(space_uid=SPACE_UID).create_or_update(
+            name="literal_lookup_name_group",
+            source_type=SOURCE_TYPE,
+            scope={"contains": "literal-value"},
+        )
+
+        groups: list[dict] = FavoriteGroupHandler(space_uid=SPACE_UID).list(
+            source_type=SOURCE_TYPE,
+            scope={"contains": "literal-value"},
+        )
+
+        self.assertIn(literal_group["id"], {group["id"] for group in groups})
 
     def test_scope_query_filters_public_but_keeps_all_personal_favorites(self):
         self._create_favorite(

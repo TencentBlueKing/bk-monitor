@@ -29,7 +29,8 @@ from typing import Any
 from django.conf import settings
 from django.core.cache import cache
 from django.db import connection, models
-from django.db.models import Q
+from django.db.models import Q, Value
+from django.db.models.fields.json import KeyTransform, KeyTransformExact
 from django.db.models.functions import Cast
 from django.db.transaction import atomic
 from django.utils.html import format_html
@@ -1065,10 +1066,15 @@ class ResourceChange(OperateRecordModel):
 
 
 def build_favorite_scope_query(scope: dict[str, str] = None) -> Q:
-    """将收藏作用域转换为 JSONField 包含匹配条件。"""
+    """将收藏作用域转换为 JSONField 字面键精确匹配条件。"""
     scope_query: Q = Q()
     for key, value in (scope or {}).items():
-        scope_query &= Q(**{f"scope__{key}": value})
+        scope_query &= Q(
+            KeyTransformExact(
+                KeyTransform(key, "scope"),
+                Value(value, output_field=models.JSONField()),
+            )
+        )
     return scope_query
 
 
