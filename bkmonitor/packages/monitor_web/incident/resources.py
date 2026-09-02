@@ -36,7 +36,7 @@ from bkmonitor.documents.incident import (
 )
 from bkmonitor.utils.request import get_request_username
 from bkmonitor.views import serializers
-from bkm_space.scope import bk_biz_id_to_scope_id, scope_id_to_bk_biz_id
+from bkm_space.scope import MONITOR_SCOPE_QUERY_SENTINELS, bk_biz_id_to_scope_id, scope_id_to_bk_biz_id
 from constants.alert import EVENT_STATUS_DICT, EventStatus
 from constants.incident import (
     IncidentAlertAggregateDimension,
@@ -468,7 +468,7 @@ class IncidentListResource(IncidentBaseResource):
         authorized_biz_ids = resource.space.get_bk_biz_ids_by_user()
         authorized_biz_ids = list(dict.fromkeys(authorized_biz_ids))
         requested_biz_ids = [biz_id for biz_id in (bk_biz_ids or []) if biz_id not in (None, "")]
-        if not requested_biz_ids or set(requested_biz_ids) & {-1, -2}:
+        if not requested_biz_ids or set(requested_biz_ids) & MONITOR_SCOPE_QUERY_SENTINELS:
             return authorized_biz_ids
 
         authorized_biz_id_set = set(authorized_biz_ids)
@@ -486,7 +486,7 @@ class IncidentListResource(IncidentBaseResource):
             try:
                 scope_id = bk_biz_id_to_scope_id(biz_id)
             except (TypeError, ValueError):
-                logger.warning("skip unresolved enabled-space scope: bk_biz_id=%s", biz_id)
+                logger.warning("skip unresolved enabled-space scope")
                 continue
             if scope_id and scope_id not in scope_id_list:
                 scope_id_list.append(scope_id)
@@ -505,19 +505,15 @@ class IncidentListResource(IncidentBaseResource):
     @classmethod
     def fetch_enabled_spaces(cls, bk_biz_ids):
         """分页查询当前用户授权范围内已开启故障分析的空间。"""
-        scope_count = 0
-        page = 1
         try:
             query_biz_ids = cls.get_authorized_query_biz_ids(bk_biz_ids)
             if not query_biz_ids:
                 return []
 
             params = cls.build_general_config_search_params(query_biz_ids)
-            scope_count = len(params["scope_id_list"])
             enabled_spaces = []
             enabled_space_set = set()
             while True:
-                page = params["page"]
                 general_config_data = GetConfigResource().request(**params)
                 if not isinstance(general_config_data, dict) or not isinstance(
                     general_config_data.get("objects"), list
@@ -546,11 +542,7 @@ class IncidentListResource(IncidentBaseResource):
                     raise ValueError("list_configs pagination exceeds safety limit")
                 params["page"] = current_page + 1
         except Exception:
-            logger.exception(
-                "fetch enabled incident spaces failed: scope_count=%s, page=%s",
-                scope_count,
-                page,
-            )
+            logger.error("fetch enabled incident spaces failed")
             return []
 
     class RequestSerializer(IncidentSearchSerializer):

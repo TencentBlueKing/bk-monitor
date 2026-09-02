@@ -62,10 +62,14 @@ def _load_incident_list_resource(remote_responses, authorized_biz_ids):
         "IncidentSearchSerializer": _Serializer,
         "serializers": _serializers,
         "resource": SimpleNamespace(space=SimpleNamespace(get_bk_biz_ids_by_user=lambda: list(authorized_biz_ids))),
+        "MONITOR_SCOPE_QUERY_SENTINELS": {-1, -2},
         "bk_biz_id_to_scope_id": lambda bk_biz_id: scope_ids[bk_biz_id],
         "scope_id_to_bk_biz_id": lambda scope_id: monitor_ids.get(scope_id, 0),
         "GetConfigResource": FakeGetConfigResource,
-        "logger": SimpleNamespace(exception=lambda *args, **kwargs: None),
+        "logger": SimpleNamespace(
+            error=lambda *args, **kwargs: None,
+            warning=lambda *args, **kwargs: None,
+        ),
     }
     exec(resource_source, namespace)
     return namespace["IncidentListResource"], FakeGetConfigResource
@@ -307,13 +311,14 @@ def test_incident_alert_view_returns_anomaly_timestamps():
         def get(cls, _id):
             return SimpleNamespace(
                 snapshot=SimpleNamespace(content=SimpleNamespace(to_dict=lambda: {})),
+                bk_biz_id=2,
                 extra_info=None,
                 feedback=None,
             )
 
     class FakeAlertDocument:
         def __init__(self, **kwargs):
-            self.event = SimpleNamespace()
+            self.event = SimpleNamespace(bk_biz_id=None)
             self.extra_info = kwargs["extra_info"]
 
     namespace = {
@@ -459,7 +464,9 @@ def test_bk_incident_api_converts_negative_biz_ids_to_standard_scope_ids():
         if isinstance(bk_biz_id, str) and bk_biz_id.startswith(("bkcc_", "bcs_", "bkci_", "bksaas_")):
             return bk_biz_id
         numeric_bk_biz_id = int(bk_biz_id)
-        if numeric_bk_biz_id < 0 and numeric_bk_biz_id not in {-1, -2}:
+        if numeric_bk_biz_id in {-1, -2}:
+            raise ValueError("monitor query sentinel must be expanded before scope conversion")
+        if numeric_bk_biz_id < 0:
             space = FakeSpaceApi.get_space_detail(numeric_bk_biz_id)
             return f"{space.space_type_id}_{space.space_id}"
         return f"bkcc_{numeric_bk_biz_id}"
@@ -490,9 +497,9 @@ def test_bk_incident_api_converts_negative_biz_ids_to_standard_scope_ids():
 
     FakeSpaceApi.calls.clear()
     scope_ids = resource.convert_bk_biz_id_list_to_scope_id_list(
-        {"scope_type": "bkcc"}, [-88888, 2, -1, "bkci_existing", "bcs_project"]
+        {"scope_type": "bkcc"}, [-88888, 2, "bkci_existing", "bcs_project"]
     )
-    assert scope_ids == ["bkci_bkce", "bkcc_2", "bkcc_-1", "bkci_existing", "bcs_project"]
+    assert scope_ids == ["bkci_bkce", "bkcc_2", "bkci_existing", "bcs_project"]
     assert FakeSpaceApi.calls == [-88888]
 
 
@@ -509,22 +516,20 @@ def test_bk_incident_api_keeps_bkcc_ids_after_converting_first_non_bkcc_space():
         "abc": abc,
         "APIResource": FakeAPIResource,
         "settings": SimpleNamespace(BK_INCIDENT_APIGW_URL="", BK_COMPONENT_API_URL=""),
-        "bk_biz_id_to_scope_id": lambda bk_biz_id: (
-            "bkci_bkce" if int(bk_biz_id) < 0 and int(bk_biz_id) not in {-1, -2} else f"bkcc_{int(bk_biz_id)}"
-        ),
+        "bk_biz_id_to_scope_id": lambda bk_biz_id: ("bkci_bkce" if int(bk_biz_id) < 0 else f"bkcc_{int(bk_biz_id)}"),
     }
     exec(resource_source, namespace)
     resource = namespace["IncidentBaseResource"]()
     params = resource.perform_request(
         {
             "bk_biz_id": -88888,
-            "bk_biz_id_list": [-88888, 2, -1],
+            "bk_biz_id_list": [-88888, 2],
         }
     )
 
     assert params["scope_type"] == "bkci"
     assert params["scope_value"] == "bkce"
-    assert params["scope_id_list"] == ["bkci_bkce", "bkcc_2", "bkcc_-1"]
+    assert params["scope_id_list"] == ["bkci_bkce", "bkcc_2"]
     assert "scope_id_config" not in params
 
 

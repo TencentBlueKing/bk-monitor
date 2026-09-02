@@ -36,7 +36,7 @@ class IncidentBaseResource(APIResource, metaclass=abc.ABCMeta):
         """将监控 bk_biz_id 转成 BKFara 标准 scope_id。
 
         每个 ID 按监控协议独立判断，不能复用请求里已被第一个空间改写的 scope_type：
-        正数和 -1/-2 哨兵永远是 bkcc；其它负数才按空间自增 ID 反查。
+        正数是 BKCC；其它负数按空间自增 ID 反查。-1/-2 查询哨兵必须由调用方先展开。
         """
         if cls.is_standard_scope_id(bk_biz_id):
             return bk_biz_id
