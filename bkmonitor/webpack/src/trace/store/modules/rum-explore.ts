@@ -52,8 +52,12 @@ export const useRumExploreStore = defineStore('rumExplore', () => {
   const refreshImmediate = shallowRef('');
   /** 「类型选择」快捷筛选选中的 span 类型，空串表示全部 */
   const spanType = shallowRef(ALL_SPAN_TYPE);
-  /** 排序参数（与接口一致，降序加 `-` 前缀，如 '-end_time'） */
-  const sortParams = deepRef<string[]>([]);
+  /** 用户显式设置的排序（与接口一致，降序加 `-` 前缀，如 '-end_time'）。null 表示未设置（回落默认排序），空数组表示明确不排序 */
+  const userSort = shallowRef<null | string[]>(null);
+  /** 视图配置的默认排序，随应用 / 视角变化刷新 */
+  const defaultSort = shallowRef<string[]>([]);
+  /** 实际生效的排序参数：用户未设置时回落到视图配置的默认排序，空数组是有效值不回落 */
+  const sortParams = computed<string[]>(() => userSort.value ?? defaultSort.value);
 
   const currentApp = computed(() => appList.value.find(app => app.app_name === appName.value));
 
@@ -62,7 +66,7 @@ export const useRumExploreStore = defineStore('rumExplore', () => {
     appName?: string;
     mode?: RumModeType;
     refreshInterval?: number;
-    sortParams?: string[];
+    sortParams?: null | string[];
     spanType?: string;
     timeRange?: TimeRangeType;
     timezone?: string;
@@ -73,13 +77,14 @@ export const useRumExploreStore = defineStore('rumExplore', () => {
     appName.value = data.appName || '';
     refreshInterval.value = data.refreshInterval ?? -1;
     spanType.value = data.spanType || ALL_SPAN_TYPE;
-    sortParams.value = data.sortParams || [];
+    userSort.value = data.sortParams ?? null;
   }
 
   return {
     appList,
     appName,
     currentApp,
+    defaultSort,
     mode,
     refreshImmediate,
     refreshInterval,
@@ -87,6 +92,7 @@ export const useRumExploreStore = defineStore('rumExplore', () => {
     spanType,
     timeRange,
     timezone,
+    userSort,
     init,
   };
 });

@@ -41,6 +41,10 @@ export default defineComponent({
       type: Array as PropType<IRumSpanTypeChip[]>,
       default: () => [],
     },
+    loading: {
+      type: Boolean,
+      default: false,
+    },
     /** 当前选中的类型，空串代表「全部」 */
     value: {
       type: String,
@@ -58,7 +62,20 @@ export default defineComponent({
     };
   },
   render() {
-    if (!this.list.length) return null;
+    if (this.loading) {
+      return (
+        <div class='rum-span-type-filter'>
+          <div class='skeleton-element filter-label-skeleton' />
+          <div class='filter-chips'>
+            <div class='skeleton-element type-chip-skeleton' />
+            <div class='skeleton-element type-chip-skeleton' />
+            <div class='skeleton-element type-chip-skeleton' />
+            <div class='skeleton-element type-chip-skeleton' />
+          </div>
+        </div>
+      );
+    }
+    // if (!this.list.length) return null;
     return (
       <div class='rum-span-type-filter'>
         <span class='filter-label'>{this.t('类型选择')}：</span>
@@ -69,7 +86,7 @@ export default defineComponent({
           >
             <span class='chip-label'>{this.t('全部')}</span>
           </div>
-          {this.list.map(item => (
+          {this.list?.map(item => (
             <div
               key={item.value}
               class={['type-chip', { active: this.value === item.value }]}
