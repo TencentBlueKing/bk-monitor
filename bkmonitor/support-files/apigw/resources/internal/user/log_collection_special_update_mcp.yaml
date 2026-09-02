@@ -127,7 +127,8 @@ paths:
       operationId: update_third_party_es
       description: >-
         Update a third-party Elasticsearch index set. Requires confirm=true, index_set_name, storage_cluster_id,
-        indexes and time_field. Obtain the complete indexes and time-field values from get_log_index_set.
+        indexes and all mutable fields. Obtain the complete index-set detail from get_log_index_set and send every
+        mutable field back to avoid resetting existing configuration.
         scenario_id is fixed to es. parent_index_set_ids replaces the parent groups;
         omit it to keep current membership or send [] to clear all groups. 更新第三方 ES 索引集，必须确认 confirm=true，填写索引集名称、存储集群、索引列表和时间字段；scenario_id 固定为 es。parent_index_set_ids 用于整体替换归属索引组，不传保持不变，传 [] 清空。
       tags:
@@ -146,6 +147,12 @@ paths:
               - storage_cluster_id
               - indexes
               - time_field
+              - time_field_type
+              - time_field_unit
+              - category_id
+              - is_trace_log
+              - target_fields
+              - sort_fields
               - confirm
               properties:
                 bk_biz_id:
@@ -197,7 +204,6 @@ paths:
                 time_field_type:
                   type: string
                   enum: [date, long]
-                  default: date
                 time_field_unit:
                   type: string
                   enum: [second, millisecond, microsecond]
@@ -208,7 +214,6 @@ paths:
                   description: Data category. 数据分类。
                 is_trace_log:
                   type: boolean
-                  default: false
                 target_fields:
                   type: array
                   items: {}
@@ -248,8 +253,8 @@ paths:
     post:
       operationId: update_bkdata_index_set
       description: >-
-        Update a bkdata result-table index set. Obtain the complete index list from get_log_index_set. Requires
-        confirm=true, index_set_name and indexes. The index
+        Update a bkdata result-table index set. Obtain the complete indexes and time-field values from
+        get_log_index_set. Requires confirm=true, index_set_name, indexes and all mutable fields. The index
         business IDs must match bk_biz_id. scenario_id is fixed to bkdata. Omit parent_index_set_ids to keep
         current membership; send [] to clear all groups. 更新计算平台 bkdata 索引集，必须确认 confirm=true，填写索引集名称和结果表索引列表；索引所属业务必须与 bk_biz_id 一致，scenario_id 固定为 bkdata。parent_index_set_ids 不传保持不变，传 [] 清空全部归属组。
       tags:
@@ -266,6 +271,13 @@ paths:
               - index_set_id
               - index_set_name
               - indexes
+              - time_field
+              - time_field_type
+              - time_field_unit
+              - category_id
+              - is_trace_log
+              - target_fields
+              - sort_fields
               - confirm
               properties:
                 bk_biz_id:
@@ -296,10 +308,22 @@ paths:
                         type: integer
                         minimum: 1
                         nullable: true
+                time_field:
+                  type: string
+                  description: Time field. 时间字段。
+                time_field_type:
+                  type: string
+                  enum: [date, long]
+                time_field_unit:
+                  type: string
+                  enum: [second, millisecond, microsecond]
+                  nullable: true
                 category_id:
                   type: string
                   maxLength: 64
                   description: Data category. 数据分类。
+                is_trace_log:
+                  type: boolean
                 target_fields:
                   type: array
                   items: {}

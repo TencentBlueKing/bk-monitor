@@ -108,16 +108,14 @@ class UpdateThirdPartyESResource(Resource):
             child=ThirdPartyESIndexSerializer(), required=True, allow_empty=False, label="第三方索引列表"
         )
         time_field = serializers.CharField(required=True, allow_blank=False, label="时间字段")
-        time_field_type = serializers.ChoiceField(
-            required=False, default="date", choices=["date", "long"], label="时间字段类型"
-        )
+        time_field_type = serializers.ChoiceField(required=True, choices=["date", "long"], label="时间字段类型")
         time_field_unit = serializers.ChoiceField(
-            required=False, allow_null=True, choices=["second", "millisecond", "microsecond"], label="时间字段单位"
+            required=True, allow_null=True, choices=["second", "millisecond", "microsecond"], label="时间字段单位"
         )
-        category_id = serializers.CharField(required=False, max_length=64, label="分类ID")
-        is_trace_log = serializers.BooleanField(required=False, default=False, label="是否 Trace 日志")
-        target_fields = serializers.ListField(required=False, default=list, label="定位字段")
-        sort_fields = serializers.ListField(required=False, default=list, label="排序字段")
+        category_id = serializers.CharField(required=True, max_length=64, label="分类ID")
+        is_trace_log = serializers.BooleanField(required=True, label="是否 Trace 日志")
+        target_fields = serializers.ListField(required=True, allow_empty=True, label="定位字段")
+        sort_fields = serializers.ListField(required=True, allow_empty=True, label="排序字段")
         parent_index_set_ids = serializers.ListField(
             child=serializers.IntegerField(min_value=1),
             required=False,
@@ -166,9 +164,15 @@ class UpdateBkDataResource(Resource):
         indexes = serializers.ListField(
             child=BkDataIndexSerializer(), required=True, allow_empty=False, label="数据平台结果表列表"
         )
-        category_id = serializers.CharField(required=False, max_length=64, label="分类ID")
-        target_fields = serializers.ListField(required=False, label="定位字段")
-        sort_fields = serializers.ListField(required=False, label="排序字段")
+        time_field = serializers.CharField(required=True, allow_blank=False, label="时间字段")
+        time_field_type = serializers.ChoiceField(required=True, choices=["date", "long"], label="时间字段类型")
+        time_field_unit = serializers.ChoiceField(
+            required=True, allow_null=True, choices=["second", "millisecond", "microsecond"], label="时间字段单位"
+        )
+        category_id = serializers.CharField(required=True, max_length=64, label="分类ID")
+        is_trace_log = serializers.BooleanField(required=True, label="是否 Trace 日志")
+        target_fields = serializers.ListField(required=True, allow_empty=True, label="定位字段")
+        sort_fields = serializers.ListField(required=True, allow_empty=True, label="排序字段")
         parent_index_set_ids = serializers.ListField(
             child=serializers.IntegerField(min_value=1),
             required=False,

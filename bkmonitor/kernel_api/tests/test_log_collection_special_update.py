@@ -76,6 +76,12 @@ def test_update_third_party_es_forwards_space_and_parent_index_set_ids(monkeypat
             "storage_cluster_id": 61,
             "indexes": [{"result_table_id": "logs-*"}],
             "time_field": "@timestamp",
+            "time_field_type": "date",
+            "time_field_unit": None,
+            "category_id": "application",
+            "is_trace_log": False,
+            "target_fields": [],
+            "sort_fields": [],
             "parent_index_set_ids": [11, 12],
             "confirm": True,
         }
@@ -111,6 +117,12 @@ def test_update_third_party_es_leaves_parent_index_set_ids_unchanged_when_omitte
             "storage_cluster_id": 61,
             "indexes": [{"result_table_id": "logs-*"}],
             "time_field": "@timestamp",
+            "time_field_type": "date",
+            "time_field_unit": None,
+            "category_id": "application",
+            "is_trace_log": False,
+            "target_fields": [],
+            "sort_fields": [],
             "confirm": True,
         }
     )
@@ -146,6 +158,13 @@ def test_update_bkdata_forwards_space_and_result_tables(monkeypatch):
             "index_set_id": 61,
             "index_set_name": "bkdata-updated",
             "indexes": [{"result_table_id": "2_rt_a"}],
+            "time_field": "dtEventTime",
+            "time_field_type": "date",
+            "time_field_unit": None,
+            "category_id": "application",
+            "is_trace_log": True,
+            "target_fields": ["host"],
+            "sort_fields": ["dtEventTime"],
             "parent_index_set_ids": [11],
             "confirm": True,
         }
@@ -159,6 +178,28 @@ def test_update_bkdata_forwards_space_and_result_tables(monkeypatch):
     assert update_index_set.call_args.kwargs["scenario_id"] == "bkdata"
     assert update_index_set.call_args.kwargs["indexes"] == [{"result_table_id": "2_rt_a", "bk_biz_id": 2}]
     assert update_index_set.call_args.kwargs["parent_index_set_ids"] == [11]
+    assert update_index_set.call_args.kwargs["category_id"] == "application"
+    assert update_index_set.call_args.kwargs["is_trace_log"] is True
+    assert update_index_set.call_args.kwargs["time_field"] == "dtEventTime"
+    assert update_index_set.call_args.kwargs["time_field_type"] == "date"
+    assert update_index_set.call_args.kwargs["time_field_unit"] is None
+    assert update_index_set.call_args.kwargs["target_fields"] == ["host"]
+    assert update_index_set.call_args.kwargs["sort_fields"] == ["dtEventTime"]
+
+
+def test_update_bkdata_requires_time_field():
+    serializer = UpdateBkDataResource.RequestSerializer(
+        data={
+            "bk_biz_id": 2,
+            "index_set_id": 61,
+            "index_set_name": "bkdata",
+            "indexes": [{"result_table_id": "2_rt_a"}],
+            "confirm": True,
+        }
+    )
+
+    assert not serializer.is_valid()
+    assert "time_field" in serializer.errors
 
 
 def test_update_bkdata_rejects_cross_business_index(monkeypatch):
@@ -168,6 +209,13 @@ def test_update_bkdata_rejects_cross_business_index(monkeypatch):
             "index_set_id": 61,
             "index_set_name": "bkdata",
             "indexes": [{"result_table_id": "3_rt_a", "bk_biz_id": 3}],
+            "time_field": "dtEventTime",
+            "time_field_type": "date",
+            "time_field_unit": None,
+            "category_id": "application",
+            "is_trace_log": False,
+            "target_fields": [],
+            "sort_fields": [],
             "confirm": True,
         }
     )

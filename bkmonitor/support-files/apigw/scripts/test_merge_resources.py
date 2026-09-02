@@ -251,11 +251,24 @@ def test_log_collection_mcp_exposes_index_groups_and_mixed_access_types():
     ]["application/json"]["schema"]["properties"]["indexes"]["items"]["properties"]
     assert third_party_update_index_schema["result_table_id"]["maxLength"] == 255
     assert third_party_update_index_schema["bk_biz_id"]["minimum"] == 1
+    required_full_update_fields = {
+        "time_field",
+        "time_field_type",
+        "time_field_unit",
+        "category_id",
+        "is_trace_log",
+        "target_fields",
+        "sort_fields",
+    }
+    for path in ("/mcp/update_third_party_es/", "/mcp/update_bkdata_index_set/"):
+        schema = special_update_paths[path]["post"]["requestBody"]["content"]["application/json"]["schema"]
+        assert required_full_update_fields.issubset(schema["required"])
     bkdata_update_schema = special_update_paths["/mcp/update_bkdata_index_set/"]["post"]["requestBody"]["content"][
         "application/json"
     ]["schema"]
     assert bkdata_update_schema["properties"]["indexes"]["minItems"] == 1
     assert bkdata_update_schema["properties"]["indexes"]["items"]["properties"]["result_table_id"]["maxLength"] == 255
+    assert "time_field" in bkdata_update_schema["required"]
 
 
 def test_log_collection_create_and_update_support_parent_index_set_ids():
