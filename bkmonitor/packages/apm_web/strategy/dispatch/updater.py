@@ -10,6 +10,8 @@ specific language governing permissions and limitations under the License.
 
 import copy
 import json
+import logging
+import traceback
 from typing import Any
 
 from django.conf import settings
@@ -33,94 +35,130 @@ from bkmonitor.strategy.new_strategy import Algorithm, Detect, Item, QueryConfig
 from core.errors.strategy import CreateStrategyError
 from monitor_web.strategies.resources.v2 import SaveStrategyV2Resource
 
+logger = logging.getLogger(__name__)
+
 
 class StrategyTemplateUpdater:
-    """Only update fields owned by an APM strategy template."""
-
     @classmethod
     def update(cls, bk_biz_id: int, strategy_id: int, params: dict[str, Any]) -> int:
+        """仅更新由 APM 策略模板管理的字段"""
         candidate: Strategy = cls._build_candidate(strategy_id, params)
         SaveStrategyV2Resource.validate_realtime_kafka(candidate)
         SaveStrategyV2Resource.validate_cmdb_level(candidate)
 
-        with transaction.atomic(settings.BACKEND_DATABASE_NAME):
-            strategy: StrategyModel = StrategyModel.objects.select_for_update().get(bk_biz_id=bk_biz_id, id=strategy_id)
-            items: list[ItemModel] = list(
-                ItemModel.objects.select_for_update().filter(strategy_id=strategy_id).order_by("id")
-            )
-            if len(items) != 1 or len(candidate.items) != 1:
-                raise ValidationError(detail=_("策略模板仅支持更新单监控项策略"))
-
-            notice_relations: list[StrategyActionConfigRelation] = list(
-                StrategyActionConfigRelation.objects.select_for_update()
-                .filter(
-                    strategy_id=strategy_id,
-                    relate_type=StrategyActionConfigRelation.RelateType.NOTICE,
+        username: str = Strategy._get_username()
+        should_record_failure: bool = False
+        try:
+            with transaction.atomic(settings.BACKEND_DATABASE_NAME):
+                strategy: StrategyModel = StrategyModel.objects.select_for_update().get(
+                    bk_biz_id=bk_biz_id, id=strategy_id
                 )
-                .order_by("id")
-            )
-            if len(notice_relations) != 1:
-                raise ValidationError(detail=_("策略模板更新要求策略存在唯一通知关系"))
+                items: list[ItemModel] = list(
+                    ItemModel.objects.select_for_update().filter(strategy_id=strategy_id).order_by("id")
+                )
+                if len(items) != 1 or len(candidate.items) != 1:
+                    raise ValidationError(detail=_("策略模板仅支持更新单监控项策略"))
 
-            item: ItemModel = items[0]
-            notice_relation: StrategyActionConfigRelation = notice_relations[0]
-            query_configs: list[QueryConfigModel] = list(
-                QueryConfigModel.objects.select_for_update()
-                .filter(strategy_id=strategy_id, item_id=item.id)
-                .order_by("id")
-            )
-            algorithms: list[AlgorithmModel] = list(
-                AlgorithmModel.objects.select_for_update()
-                .filter(strategy_id=strategy_id, item_id=item.id)
-                .order_by("id")
-            )
-            detects: list[DetectModel] = list(
-                DetectModel.objects.select_for_update().filter(strategy_id=strategy_id).order_by("id")
-            )
-            labels: list[StrategyLabel] = list(
-                StrategyLabel.objects.select_for_update()
-                .filter(bk_biz_id=bk_biz_id, strategy_id=strategy_id)
-                .order_by("id")
-            )
+                notice_relations: list[StrategyActionConfigRelation] = list(
+                    StrategyActionConfigRelation.objects.select_for_update()
+                    .filter(
+                        strategy_id=strategy_id,
+                        relate_type=StrategyActionConfigRelation.RelateType.NOTICE,
+                    )
+                    .order_by("id")
+                )
+                if len(notice_relations) != 1:
+                    raise ValidationError(detail=_("策略模板更新要求策略存在唯一通知关系"))
 
-            cls._prepare_candidate(candidate, item, query_configs, algorithms, detects)
-            candidate.notice.options = copy.deepcopy(notice_relation.options)
-            SaveStrategyV2Resource.validate_upgrade_user_groups(candidate)
+                item: ItemModel = items[0]
+                notice_relation: StrategyActionConfigRelation = notice_relations[0]
+                query_configs: list[QueryConfigModel] = list(
+                    QueryConfigModel.objects.select_for_update()
+                    .filter(strategy_id=strategy_id, item_id=item.id)
+                    .order_by("id")
+                )
+                algorithms: list[AlgorithmModel] = list(
+                    AlgorithmModel.objects.select_for_update()
+                    .filter(strategy_id=strategy_id, item_id=item.id)
+                    .order_by("id")
+                )
+                detects: list[DetectModel] = list(
+                    DetectModel.objects.select_for_update().filter(strategy_id=strategy_id).order_by("id")
+                )
+                labels: list[StrategyLabel] = list(
+                    StrategyLabel.objects.select_for_update()
+                    .filter(bk_biz_id=bk_biz_id, strategy_id=strategy_id)
+                    .order_by("id")
+                )
 
-            current_projection: dict[str, Any] = cls._current_projection(
-                strategy, item, query_configs, algorithms, detects, notice_relation, labels
-            )
-            candidate_projection: dict[str, Any] = cls._candidate_projection(candidate)
-            if current_projection == candidate_projection:
-                return strategy_id
+                cls._prepare_candidate(candidate, item, query_configs, algorithms, detects)
+                # 通知高级选项仅用于校验已有升级配置，不属于模板更新范围。
+                candidate.notice.options = copy.deepcopy(notice_relation.options)
+                SaveStrategyV2Resource.validate_upgrade_user_groups(candidate)
 
-            cls._validate_name(bk_biz_id, strategy_id, candidate.name)
-            username: str = Strategy._get_username()
-            now = timezone.now()
-            StrategyModel.objects.filter(id=strategy_id, bk_biz_id=bk_biz_id).update(
-                name=candidate.name,
-                scenario=candidate.scenario,
-                update_user=username,
-                update_time=now,
-                hash="",
-                snippet="",
-            )
-            candidate_item: Item = candidate.items[0]
-            ItemModel.objects.filter(id=item.id, strategy_id=strategy_id).update(
-                name=candidate_item.name,
-                expression=candidate_item.expression,
-                functions=candidate_item.functions,
-                metric_type=candidate_item.metric_type,
-            )
+                current_priority_group_key: str = str(strategy.priority_group_key or "")
+                priority_group_key: str = (
+                    Strategy.get_priority_group_key(bk_biz_id, candidate.items, current_priority_group_key)
+                    if strategy.priority is not None
+                    else ""
+                )
+                current_projection: dict[str, Any] = cls._current_projection(
+                    strategy, item, query_configs, algorithms, detects, notice_relation, labels
+                )
+                candidate_projection: dict[str, Any] = cls._candidate_projection(candidate)
+                if current_projection == candidate_projection and strategy.priority_group_key == priority_group_key:
+                    return strategy_id
 
-            cls._save_query_configs(candidate_item, query_configs)
-            cls._save_algorithms(candidate_item, algorithms)
-            cls._save_detects(candidate.detects, detects)
-            StrategyActionConfigRelation.objects.filter(id=notice_relation.id).update(
-                user_groups=candidate.notice.user_groups
-            )
-            cls._save_labels(bk_biz_id, strategy_id, labels, candidate.labels)
+                should_record_failure = True
+                cls._validate_name(bk_biz_id, strategy_id, candidate.name)
+                now = timezone.now()
+                StrategyModel.objects.filter(id=strategy_id, bk_biz_id=bk_biz_id).update(
+                    name=candidate.name,
+                    scenario=candidate.scenario,
+                    update_user=username,
+                    update_time=now,
+                    priority_group_key=priority_group_key,
+                    hash="",
+                    snippet="",
+                )
+                candidate_item: Item = candidate.items[0]
+                ItemModel.objects.filter(id=item.id, strategy_id=strategy_id).update(
+                    name=candidate_item.name,
+                    expression=candidate_item.expression,
+                    functions=candidate_item.functions,
+                    metric_type=candidate_item.metric_type,
+                )
 
+                cls._save_query_configs(candidate_item, query_configs)
+                cls._save_algorithms(candidate_item, algorithms)
+                cls._save_detects(candidate.detects, detects)
+                StrategyActionConfigRelation.objects.filter(id=notice_relation.id).update(
+                    user_groups=candidate.notice.user_groups
+                )
+                cls._save_labels(bk_biz_id, strategy_id, labels, candidate.labels)
+
+                persisted_strategy: Strategy = Strategy.from_models(
+                    [StrategyModel.objects.get(id=strategy_id, bk_biz_id=bk_biz_id)]
+                )[0]
+                StrategyHistoryModel.objects.create(
+                    strategy_id=strategy_id,
+                    create_user=username,
+                    content=persisted_strategy.get_history_content(),
+                    operate="update",
+                    status=True,
+                )
+        except Exception:  # pylint: disable=broad-except
+            if should_record_failure:
+                cls._record_failed_history(bk_biz_id, strategy_id, username, traceback.format_exc())
+            raise
+
+        return strategy_id
+
+    @staticmethod
+    def _record_failed_history(bk_biz_id: int, strategy_id: int, username: str, message: str) -> None:
+        """在更新事务回滚后记录失败历史，且不覆盖原始异常。"""
+
+        try:
             persisted_strategy: Strategy = Strategy.from_models(
                 [StrategyModel.objects.get(id=strategy_id, bk_biz_id=bk_biz_id)]
             )[0]
@@ -129,10 +167,15 @@ class StrategyTemplateUpdater:
                 create_user=username,
                 content=persisted_strategy.get_history_content(),
                 operate="update",
-                status=True,
+                status=False,
+                message=message,
             )
-
-        return strategy_id
+        except Exception:  # pylint: disable=broad-except
+            logger.exception(
+                "记录 APM 策略模板更新失败历史失败: bk_biz_id=%s, strategy_id=%s",
+                bk_biz_id,
+                strategy_id,
+            )
 
     @staticmethod
     def _build_candidate(strategy_id: int, params: dict[str, Any]) -> Strategy:
@@ -154,11 +197,11 @@ class StrategyTemplateUpdater:
         algorithms: list[AlgorithmModel],
         detects: list[DetectModel],
     ) -> None:
-        candidate.id = item.strategy_id
         candidate_item: Item = candidate.items[0]
         candidate_item.id = item.id
         candidate_item.name = Item.truncate_name(candidate_item.name)
 
+        # 投影比较需使用与保存路径一致的规范化查询配置。
         for query_config, current_query_config in zip(candidate_item.query_configs, query_configs):
             query_config.id = current_query_config.id
         for query_config in candidate_item.query_configs[len(query_configs) :]:
@@ -166,7 +209,8 @@ class StrategyTemplateUpdater:
         for query_config in candidate_item.query_configs:
             query_config._clean_empty_dimension()
             query_config.supplement_adv_condition_dimension(candidate_item)
-            query_config.to_dict()
+            if not query_config.metric_id:
+                query_config.metric_id = query_config.get_metric_id()
 
         for algorithm, current_algorithm in zip(candidate_item.algorithms, algorithms):
             algorithm.id = current_algorithm.id

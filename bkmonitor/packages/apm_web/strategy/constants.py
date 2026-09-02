@@ -23,20 +23,6 @@ DEFAULT_DETECT_TYPE: str = "default"
 
 BUILTIN_USER_GROUP_ID: int = -9999
 
-TEMPLATE_MANAGED_UPDATE_PATHS: tuple[str, ...] = (
-    "strategy.name",
-    "strategy.scenario",
-    "item.name",
-    "item.expression",
-    "item.functions",
-    "item.metric_type",
-    "item.query_configs",
-    "item.algorithms",
-    "detects",
-    "notice.user_groups",
-    "labels.apm_namespaces",
-)
-
 APM_MANAGED_LABEL_PREFIXES: tuple[str, ...] = (
     "APM-APP(",
     "APM-SERVICE(",
