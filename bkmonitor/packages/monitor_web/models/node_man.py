@@ -5,6 +5,8 @@ from django.db import models
 from django.db.models import F
 from django.utils import timezone
 
+from bkmonitor.nodeman_integration.v3.exceptions import NodeManV3ResultState as V3ResultState
+
 
 class NodeManResourceType(models.TextChoices):
     COLLECT_CONFIG = "COLLECT_CONFIG", "采集配置"
@@ -72,6 +74,11 @@ class NodeManWorkflowDispatchStatus(models.TextChoices):
     SUBMITTED = "submitted", "已提交"
     DEFINITE_FAILED = "definite_failed", "明确提交失败"
     UNKNOWN = "unknown", "提交结果未知"
+
+
+class NodeManV3ResultState(models.TextChoices):
+    UNSUPPORTED = V3ResultState.UNSUPPORTED, "接口协议确定不支持"
+    WRITE_RESULT_UNKNOWN = V3ResultState.WRITE_RESULT_UNKNOWN, "写请求结果不确定"
 
 
 class StaleNodeManGenerationError(RuntimeError):
@@ -217,6 +224,9 @@ class MonitorNodeManOperation(models.Model):
     status = models.CharField(
         "状态", max_length=32, choices=NodeManOperationStatus.choices, default=NodeManOperationStatus.DISPATCHING
     )
+    result_state = models.CharField(
+        "结果标记", max_length=32, choices=NodeManV3ResultState.choices, blank=True, default=""
+    )
     parent_operation = models.ForeignKey(
         "self",
         related_name="derived_operations",
@@ -304,6 +314,9 @@ class MonitorNodeManWorkflow(models.Model):
         default=NodeManWorkflowDispatchStatus.PREPARED,
     )
     dispatch_error = models.TextField("分发错误", blank=True, default="")
+    result_state = models.CharField(
+        "结果标记", max_length=32, choices=NodeManV3ResultState.choices, blank=True, default=""
+    )
     raw_status = models.CharField("NodeMan 原始状态", max_length=64, blank=True, default="")
     normalized_status = models.CharField(
         "归一状态", max_length=16, choices=NodeManWorkflowStatus.choices, default=NodeManWorkflowStatus.PENDING

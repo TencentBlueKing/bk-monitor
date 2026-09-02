@@ -10,6 +10,8 @@ from bkmonitor.nodeman_integration.v3.client import (
     NodeManV3RequestContext,
     NodeManV3UnknownResultError,
 )
+from bkmonitor.nodeman_integration.v3.exceptions import NodeManV3ResultState
+from monitor_web.collecting.deploy.nodeman_v3.validation import NodeManV3CapabilityBlocked
 from monitor_web.models.node_man import (
     CollectDeploymentTarget,
     MonitorNodeManOperation,
@@ -39,6 +41,7 @@ class FakeOperation:
         self.id = uuid.uuid4()
         self.status = NodeManOperationStatus.PENDING
         self.error_summary = ""
+        self.result_state = ""
         for key, value in attributes.items():
             setattr(self, key, value)
 
@@ -80,6 +83,7 @@ class FakeWorkflow:
         self.workflow_id = None
         self.trigger_id = None
         self.dispatch_error = ""
+        self.result_state = ""
         self.normalized_status = NodeManWorkflowStatus.PENDING
         for key, value in attributes.items():
             setattr(self, key, value)
@@ -195,10 +199,12 @@ def test_unknown_write_result_is_not_retried_or_polled():
 
     assert operation is operation_manager.created[0]
     assert operation.status == NodeManOperationStatus.UNKNOWN
+    assert operation.result_state == NodeManV3ResultState.WRITE_RESULT_UNKNOWN
     assert submit_count == 1
     assert len(workflow_manager.created) == 1
     assert workflow_manager.created[0].workflow_id is None
     assert workflow_manager.created[0].dispatch_status == "unknown"
+    assert workflow_manager.created[0].result_state == NodeManV3ResultState.WRITE_RESULT_UNKNOWN
     assert scheduled == []
 
 
@@ -465,7 +471,9 @@ def test_recovery_turns_only_started_submitting_batch_unknown_without_releasing_
     prepared.operation.refresh_from_db()
     workflow.refresh_from_db()
     assert prepared.operation.status == NodeManOperationStatus.UNKNOWN
+    assert prepared.operation.result_state == NodeManV3ResultState.WRITE_RESULT_UNKNOWN
     assert workflow.dispatch_status == NodeManWorkflowDispatchStatus.UNKNOWN
+    assert workflow.result_state == NodeManV3ResultState.WRITE_RESULT_UNKNOWN
     assert NodeManExecutionLease.objects.filter(holder_operation=prepared.operation).exists() is True
     assert recover_submitting_batches(prepared.operation) is False
 
@@ -490,6 +498,30 @@ def test_recovery_marks_never_submitted_prepared_batches_definite_and_releases_l
     assert prepared.operation.status == NodeManOperationStatus.FAILED
     assert workflow.dispatch_status == NodeManWorkflowDispatchStatus.DEFINITE_FAILED
     assert NodeManExecutionLease.objects.filter(holder_operation=prepared.operation).exists() is False
+
+
+@pytest.mark.django_db(transaction=True)
+def test_protocol_capability_block_is_persisted_as_unsupported():
+    binding = _database_binding(7)
+    target = _database_target(binding, "host:1", 1)
+    coordinator = NodeManV3TargetOperationCoordinator()
+    prepared = coordinator.prepare_action(
+        binding=binding,
+        operation_type=NodeManOperationType.RECONCILE,
+        action="changed",
+        generation=1,
+        targets=[target],
+        request_summary={},
+    )
+
+    coordinator.mark_definite_failure(prepared, NodeManV3CapabilityBlocked("missing protocol field"))
+
+    prepared.operation.refresh_from_db()
+    workflow = MonitorNodeManWorkflow.objects.get(pk=prepared.workflows[0].pk)
+    assert prepared.operation.status == NodeManOperationStatus.FAILED
+    assert prepared.operation.result_state == NodeManV3ResultState.UNSUPPORTED
+    assert workflow.dispatch_status == NodeManWorkflowDispatchStatus.DEFINITE_FAILED
+    assert workflow.result_state == NodeManV3ResultState.UNSUPPORTED
 
 
 @pytest.mark.django_db(transaction=True)

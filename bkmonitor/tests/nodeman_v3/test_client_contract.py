@@ -16,6 +16,7 @@ from bkmonitor.nodeman_integration.v3.client.deploy_policy import DeployPolicyCl
 from bkmonitor.nodeman_integration.v3.client.package import PackageClient, PluginClient
 from bkmonitor.nodeman_integration.v3.client.process import ProcessClient
 from bkmonitor.nodeman_integration.v3.client.workflow import WorkflowClient
+from bkmonitor.nodeman_integration.v3.exceptions import NodeManV3ResultState
 
 
 class FakeResponse:
@@ -239,16 +240,31 @@ def test_transport_error_mapping_preserves_unknown_write_result(monkeypatch, wri
         client.post("api/v3/plugin/install", {"bk_biz_id": 2}, context=_context(), write=write)
 
 
-def test_api_error_keeps_code_message_and_request_id(monkeypatch):
+def test_write_api_error_is_marked_unknown_when_protocol_cannot_exclude_side_effects(monkeypatch):
     session = FakeSession(FakeResponse({"result": False, "code": 4001001, "message": "invalid release", "data": None}))
+    events = []
+    monkeypatch.setattr("bkmonitor.nodeman_integration.v3.client.get_admin_username", lambda **kwargs: "admin")
+    client = NodeManV3HTTPClient(base_url="https://nodeman.example", session=session, audit_recorder=events.append)
+
+    with pytest.raises(NodeManV3UnknownResultError) as error:
+        client.post("api/v3/plugin/install", {"bk_biz_id": 2}, context=_context(), write=True)
+
+    assert error.value.result_state == NodeManV3ResultState.WRITE_RESULT_UNKNOWN
+    assert "4001001" in str(error.value)
+    assert "request-id" in str(error.value)
+    assert events[-1].outcome == "unknown"
+
+
+def test_read_api_error_keeps_code_message_and_request_id(monkeypatch):
+    session = FakeSession(FakeResponse({"result": False, "code": 4001001, "message": "invalid filter", "data": None}))
     monkeypatch.setattr("bkmonitor.nodeman_integration.v3.client.get_admin_username", lambda **kwargs: "admin")
     client = NodeManV3HTTPClient(base_url="https://nodeman.example", session=session)
 
     with pytest.raises(NodeManV3APIError) as error:
-        client.post("api/v3/plugin/install", {"bk_biz_id": 2}, context=_context(), write=True)
+        client.post("api/v3/plugin/workflow/list", {"bk_biz_id": 2}, context=_context(), write=False)
 
     assert error.value.code == 4001001
-    assert error.value.message == "invalid release"
+    assert error.value.message == "invalid filter"
     assert error.value.request_id == "request-id"
 
 

@@ -3,6 +3,7 @@ from typing import Any
 from django.db import transaction
 from django.utils.translation import gettext as _
 
+from bkmonitor.nodeman_integration.v3.exceptions import NodeManV3AdapterPending, NodeManV3DefiniteFailure
 from core.errors.collecting import CollectConfigNeedUpgrade
 from monitor_web.collecting.deploy.base import BaseInstaller
 from monitor_web.collecting.constant import OperationResult, OperationType
@@ -16,7 +17,6 @@ from monitor_web.models.node_man import (
 
 from .orchestrator import NodeManV3Orchestrator
 from .reconciler import CollectTargetReconciler, NodeManV3TargetExecutor
-from .validation import NodeManV3CapabilityBlocked
 
 
 class NodeManV3Installer(BaseInstaller):
@@ -41,8 +41,8 @@ class NodeManV3Installer(BaseInstaller):
 
         is_create = not self.collect_config.pk
         if not is_create:
-            raise NodeManV3CapabilityBlocked(
-                "deploy-policy edit is blocked until existing config and package context can be refreshed"
+            raise NodeManV3AdapterPending(
+                "deploy-policy edit protocol is available but not wired into the monitor adapter"
             )
         release_version = self._packaged_release_version()
         current_version = self.collect_config.deployment_config if self.collect_config.deployment_config_id else None
@@ -68,8 +68,8 @@ class NodeManV3Installer(BaseInstaller):
     def upgrade(self, params: dict) -> dict:
         if not self.collect_config.need_upgrade:
             raise CollectConfigNeedUpgrade({"msg": _("采集配置无需升级")})
-        raise NodeManV3CapabilityBlocked(
-            "deploy-policy upgrade is blocked until existing config and package context can be refreshed"
+        raise NodeManV3AdapterPending(
+            "deploy-policy upgrade protocol is available but not wired into the monitor adapter"
         )
 
     def uninstall(self):
@@ -77,8 +77,8 @@ class NodeManV3Installer(BaseInstaller):
 
     def rollback(self, deployment_config_version: int | DeploymentConfigVersion | None = None):
         del deployment_config_version
-        raise NodeManV3CapabilityBlocked(
-            "deploy-policy rollback is blocked until existing config and package context can be refreshed"
+        raise NodeManV3AdapterPending(
+            "deploy-policy update protocol is available but rollback is not wired into the monitor adapter"
         )
 
     def stop(self):
@@ -110,8 +110,8 @@ class NodeManV3Installer(BaseInstaller):
     def _packaged_release_version(self):
         release_version = self.plugin.packaged_release_version
         if not release_version or not release_version.is_packaged:
-            raise NodeManV3CapabilityBlocked(
-                "plugin package is not available in NodeMan V3; package import is handled by the plugin-management scope"
+            raise NodeManV3AdapterPending(
+                "NodeMan V3 package import protocol is available but not wired into the collecting adapter"
             )
         return release_version
 
@@ -171,7 +171,7 @@ class NodeManV3Installer(BaseInstaller):
                 collect_config=self.collect_config,
                 trigger=trigger,
             )
-        except NodeManV3CapabilityBlocked:
+        except NodeManV3DefiniteFailure:
             self.collect_config.operation_result = OperationResult.FAILED
             self.collect_config.save(update_fields=("operation_result", "update_time"))
             raise

@@ -11,6 +11,7 @@ from bkmonitor.nodeman_integration.v3.client import (
     NodeManV3UnknownResultError,
 )
 from bkmonitor.nodeman_integration.v3.client.deploy_policy import DeployPolicyClient
+from bkmonitor.nodeman_integration.v3.exceptions import NodeManV3AdapterPending, NodeManV3PayloadError
 from monitor_web.models import CollectConfigMeta
 from monitor_web.models.node_man import CollectDeploymentTarget
 from monitor_web.plugin.constant import ParamMode, PluginType
@@ -33,12 +34,12 @@ class CollectDeployPolicyPayloadBuilder:
         ).get(pk=target.config_meta_id)
         deployment = collect_config.deployment_config
         if target.remote_target or target.execution_bk_host_id != target.observed_target.get("bk_host_id"):
-            raise NodeManV3CapabilityBlocked("remote collection deploy-policy is not part of the host main flow")
+            raise NodeManV3AdapterPending("remote collection protocol is not wired into the host adapter")
 
         steps = self.step_builder(collect_config, deployment)
         specs = self._build_specs(collect_config, target, steps)
         if not specs:
-            raise NodeManV3CapabilityBlocked("collect deployment produced no deploy-policy specs")
+            raise NodeManV3PayloadError("collect deployment produced no deploy-policy specs")
 
         if target.service_instance_id:
             granularity = "service_instance"
@@ -206,7 +207,7 @@ class CollectDeployPolicyPayloadBuilder:
                     if template.get("name")
                 ]
                 if not details:
-                    raise NodeManV3CapabilityBlocked("bkmonitorbeat deploy-policy has no config template")
+                    raise NodeManV3PayloadError("bkmonitorbeat deploy-policy has no config template")
                 specs.append(
                     {
                         "type": "specify_plugin_sub_config_template",
@@ -221,14 +222,14 @@ class CollectDeployPolicyPayloadBuilder:
 
             version = config.get("plugin_version")
             if not version:
-                raise NodeManV3CapabilityBlocked(f"plugin version is missing for {plugin_name}")
+                raise NodeManV3PayloadError(f"plugin version is missing for {plugin_name}")
             if any("content" in template for template in config.get("config_templates", ())):
                 raise NodeManV3CapabilityBlocked(
                     f"deploy-policy cannot preserve dynamic config file templates for {plugin_name}"
                 )
             if collect_config.plugin.plugin_type == PluginType.EXPORTER:
                 if not target.service_instance_id:
-                    raise NodeManV3CapabilityBlocked(
+                    raise NodeManV3AdapterPending(
                         "specify_plugin_pkg requires a service-instance scope with a module identity"
                     )
                 specs.append(
@@ -292,8 +293,8 @@ class NodeManV3DeployPolicyGateway:
 
     def update_target(self, target: CollectDeploymentTarget, *, context: NodeManV3RequestContext) -> dict:
         del target, context
-        raise NodeManV3CapabilityBlocked(
-            "deploy-policy cannot refresh existing template config or same-version package context"
+        raise NodeManV3AdapterPending(
+            "deploy-policy update protocol is not wired for existing template config or package context"
         )
 
     def _recover_policy_id(self, name: str, *, context: NodeManV3RequestContext) -> int | None:
@@ -307,13 +308,13 @@ class NodeManV3DeployPolicyGateway:
         items = result.get("items", []) if isinstance(result, dict) else []
         exact = [item for item in items if item.get("meta", {}).get("name") == name]
         if len(exact) > 1:
-            raise NodeManV3CapabilityBlocked(f"multiple deploy policies found for stable name {name}")
+            raise NodeManV3PayloadError(f"multiple deploy policies found for stable name {name}")
         return int(exact[0]["deploy_policy_id"]) if exact else None
 
     @staticmethod
     def _persist_policy_id(target: CollectDeploymentTarget, deploy_policy_id: int) -> None:
         if target.node_man_deploy_policy_id and target.node_man_deploy_policy_id != deploy_policy_id:
-            raise NodeManV3CapabilityBlocked(
+            raise NodeManV3UnknownResultError(
                 f"target {target.identity_key} is already bound to deploy policy {target.node_man_deploy_policy_id}"
             )
         updated = CollectDeploymentTarget.objects.filter(
@@ -323,7 +324,7 @@ class NodeManV3DeployPolicyGateway:
         if not updated:
             stored = CollectDeploymentTarget.objects.only("node_man_deploy_policy_id").get(pk=target.pk)
             if stored.node_man_deploy_policy_id != deploy_policy_id:
-                raise NodeManV3CapabilityBlocked(
+                raise NodeManV3UnknownResultError(
                     f"target {target.identity_key} was concurrently bound to deploy policy "
                     f"{stored.node_man_deploy_policy_id}"
                 )

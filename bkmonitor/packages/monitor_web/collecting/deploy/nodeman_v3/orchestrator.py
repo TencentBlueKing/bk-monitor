@@ -1,5 +1,6 @@
+from bkmonitor.nodeman_integration.v3.exceptions import NodeManV3AdapterPending
+
 from .deploy_policy import NodeManV3DeployPolicyGateway
-from .validation import NodeManV3CapabilityBlocked
 
 
 class NodeManV3Orchestrator:
@@ -70,4 +71,4 @@ class NodeManV3Orchestrator:
     @staticmethod
     def _blocked(capability: str, request) -> None:
         del request
-        raise NodeManV3CapabilityBlocked(f"NodeMan external capability is not closed: {capability}")
+        raise NodeManV3AdapterPending(f"NodeMan protocol is available but monitor adapter is pending: {capability}")

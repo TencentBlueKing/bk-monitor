@@ -16,6 +16,7 @@ from bkmonitor.nodeman_integration.v3.client import (
     NodeManV3RequestContext,
     NodeManV3UnknownResultError,
 )
+from bkmonitor.nodeman_integration.v3.exceptions import NodeManV3ResultState
 from monitor_web.models.node_man import (
     CollectDeploymentTarget,
     MonitorNodeManOperation,
@@ -446,6 +447,7 @@ class NodeManV3OperationService:
                     trigger_id=str(trigger_id) if trigger_id else None,
                     dispatch_status=NodeManWorkflowDispatchStatus.SUBMITTED,
                     dispatch_error="",
+                    result_state="",
                     updated_at=now,
                 )
                 if updated != 1:
@@ -459,12 +461,14 @@ class NodeManV3OperationService:
             workflow.trigger_id = str(trigger_id) if trigger_id else None
             workflow.dispatch_status = NodeManWorkflowDispatchStatus.SUBMITTED
             workflow.dispatch_error = ""
+            workflow.result_state = ""
             workflow.save(
                 update_fields=(
                     "workflow_id",
                     "trigger_id",
                     "dispatch_status",
                     "dispatch_error",
+                    "result_state",
                     "updated_at",
                 )
             )
@@ -473,6 +477,7 @@ class NodeManV3OperationService:
         workflow.trigger_id = str(trigger_id) if trigger_id else None
         workflow.dispatch_status = NodeManWorkflowDispatchStatus.SUBMITTED
         workflow.dispatch_error = ""
+        workflow.result_state = ""
         return True
 
     @staticmethod
@@ -480,13 +485,19 @@ class NodeManV3OperationService:
         current = workflows[current_index]
         current.dispatch_status = NodeManWorkflowDispatchStatus.UNKNOWN
         current.dispatch_error = str(error)
+        current.result_state = NodeManV3ResultState.WRITE_RESULT_UNKNOWN
         current.normalized_status = NodeManWorkflowStatus.UNKNOWN
-        current.save(update_fields=("dispatch_status", "dispatch_error", "normalized_status", "updated_at"))
+        current.save(
+            update_fields=("dispatch_status", "dispatch_error", "result_state", "normalized_status", "updated_at")
+        )
         for workflow in workflows[current_index + 1 :]:
             workflow.dispatch_status = NodeManWorkflowDispatchStatus.DEFINITE_FAILED
             workflow.dispatch_error = "not dispatched after an unknown earlier batch"
+            workflow.result_state = ""
             workflow.normalized_status = NodeManWorkflowStatus.FAILED
-            workflow.save(update_fields=("dispatch_status", "dispatch_error", "normalized_status", "updated_at"))
+            workflow.save(
+                update_fields=("dispatch_status", "dispatch_error", "result_state", "normalized_status", "updated_at")
+            )
         _set_operation_status(operation, NodeManOperationStatus.UNKNOWN, error=error)
 
     @staticmethod
@@ -494,8 +505,11 @@ class NodeManV3OperationService:
         for workflow in workflows[current_index:]:
             workflow.dispatch_status = NodeManWorkflowDispatchStatus.DEFINITE_FAILED
             workflow.dispatch_error = str(error)
+            workflow.result_state = _result_state_for_error(error)
             workflow.normalized_status = NodeManWorkflowStatus.FAILED
-            workflow.save(update_fields=("dispatch_status", "dispatch_error", "normalized_status", "updated_at"))
+            workflow.save(
+                update_fields=("dispatch_status", "dispatch_error", "result_state", "normalized_status", "updated_at")
+            )
 
     @staticmethod
     def _schedule_poll(operation_id) -> None:
@@ -524,6 +538,7 @@ def recover_submitting_batches(operation, *, recovery_before=None) -> bool:
             dispatch_status=NodeManWorkflowDispatchStatus.UNKNOWN,
             normalized_status=NodeManWorkflowStatus.UNKNOWN,
             dispatch_error="dispatcher exited before a conclusive response was persisted",
+            result_state=NodeManV3ResultState.WRITE_RESULT_UNKNOWN,
             updated_at=timezone.now(),
         )
         prepared_count = MonitorNodeManWorkflow.objects.filter(
@@ -533,6 +548,7 @@ def recover_submitting_batches(operation, *, recovery_before=None) -> bool:
             dispatch_status=NodeManWorkflowDispatchStatus.DEFINITE_FAILED,
             normalized_status=NodeManWorkflowStatus.FAILED,
             dispatch_error="dispatcher exited before this batch was submitted",
+            result_state="",
             updated_at=timezone.now(),
         )
         submitted_exists = MonitorNodeManWorkflow.objects.filter(
@@ -741,16 +757,28 @@ def _mark_unresolved_batches(
             continue
         if workflow.dispatch_status == NodeManWorkflowDispatchStatus.SUBMITTING and first:
             workflow.dispatch_status = current_status
+            workflow.result_state = (
+                NodeManV3ResultState.WRITE_RESULT_UNKNOWN
+                if current_status == NodeManWorkflowDispatchStatus.UNKNOWN
+                else _result_state_for_error(error)
+            )
             first = False
         else:
             workflow.dispatch_status = remaining_status
+            workflow.result_state = (
+                _result_state_for_error(error)
+                if remaining_status != NodeManWorkflowDispatchStatus.DEFINITE_FAILED
+                else ""
+            )
         workflow.dispatch_error = str(error)
         workflow.normalized_status = (
             NodeManWorkflowStatus.UNKNOWN
             if workflow.dispatch_status == NodeManWorkflowDispatchStatus.UNKNOWN
             else NodeManWorkflowStatus.FAILED
         )
-        workflow.save(update_fields=("dispatch_status", "dispatch_error", "normalized_status", "updated_at"))
+        workflow.save(
+            update_fields=("dispatch_status", "dispatch_error", "result_state", "normalized_status", "updated_at")
+        )
     _set_operation_status(operation, NodeManOperationStatus.UNKNOWN, error=error)
 
 
@@ -763,8 +791,11 @@ def _mark_all_submitting_batches(workflows, *, dispatch_status: str, error: Exce
             continue
         workflow.dispatch_status = dispatch_status
         workflow.dispatch_error = str(error)
+        workflow.result_state = _result_state_for_error(error)
         workflow.normalized_status = NodeManWorkflowStatus.FAILED
-        workflow.save(update_fields=("dispatch_status", "dispatch_error", "normalized_status", "updated_at"))
+        workflow.save(
+            update_fields=("dispatch_status", "dispatch_error", "result_state", "normalized_status", "updated_at")
+        )
 
 
 def _set_operation_status(operation, status: str, *, error: Exception | None = None) -> None:
@@ -772,7 +803,12 @@ def _set_operation_status(operation, status: str, *, error: Exception | None = N
     operation.status = status
     if error is not None:
         operation.error_summary = str(error)
-        update_fields.append("error_summary")
+        operation.result_state = (
+            NodeManV3ResultState.WRITE_RESULT_UNKNOWN
+            if status == NodeManOperationStatus.UNKNOWN
+            else _result_state_for_error(error)
+        )
+        update_fields.extend(("error_summary", "result_state"))
     if status in {
         NodeManOperationStatus.SUCCESS,
         NodeManOperationStatus.PARTIAL_FAILED,
@@ -782,6 +818,16 @@ def _set_operation_status(operation, status: str, *, error: Exception | None = N
         operation.finished_at = timezone.now()
         update_fields.append("finished_at")
     operation.save(update_fields=tuple(update_fields))
+
+
+def _result_state_for_error(error: Exception) -> str:
+    result_state = getattr(error, "result_state", "")
+    if result_state in {
+        NodeManV3ResultState.UNSUPPORTED,
+        NodeManV3ResultState.WRITE_RESULT_UNKNOWN,
+    }:
+        return result_state
+    return ""
 
 
 def _schedule_reconcile(binding_id: int) -> None:
