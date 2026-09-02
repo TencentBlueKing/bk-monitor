@@ -1,4 +1,4 @@
-"""Convert fixed Kubernetes probe output into bounded domain evidence."""
+"""Convert shared fixed-probe output into bounded collector evidence."""
 
 from __future__ import annotations
 
@@ -9,7 +9,12 @@ from typing import Any
 
 import yaml
 
-from apps.log_admin_resource.scripts import host_inspection as host_probe
+from apps.log_admin_resource.collector_probe_parsers import (
+    classify_registrar_progress,
+    fallback_matching_inputs,
+    parse_registrar_strings,
+    state_for_file,
+)
 
 
 MAX_SOURCE_SAMPLE_BYTES = 64 * 1024
@@ -24,6 +29,7 @@ def build_probe_evidence(
     include_source_sample: bool,
     config_map_main: str | None,
     expected_specs: list[dict[str, Any]] | None = None,
+    sidecar_required: bool = True,
 ) -> dict[str, dict[str, Any]]:
     values = parsed.get("values") or {}
     streams = parsed.get("streams") or {}
@@ -49,19 +55,22 @@ def build_probe_evidence(
     config_map_main_sha256 = _sha256_text(config_map_main) if config_map_main is not None else None
     main_matches = config_map_main is not None and mounted_main_sha256 == config_map_main_sha256
     config_status = "success" if configs and matching_inputs and render_comparison["equivalent"] else "warning"
-    config_code = (
-        "child_config_rendered"
-        if matching_inputs and render_comparison["equivalent"]
-        else "child_config_rendered_drift"
-        if matching_inputs
-        else "data_id_child_config_not_rendered"
-    )
+    if matching_inputs and render_comparison["equivalent"]:
+        config_code = "child_config_rendered"
+    elif matching_inputs:
+        config_code = "child_config_rendered_drift"
+    elif values.get("child_config_scan_truncated") == "true":
+        config_code = "child_config_scan_truncated"
+    elif (_integer(values.get("child_config_match_count")) or 0) > 0:
+        config_code = "matched_child_config_content_unavailable"
+    else:
+        config_code = "data_id_child_config_not_rendered"
     config_warnings = []
     if values.get("main_config.unavailable") == "base64_missing":
         config_warnings.append(
             {
                 "code": "probe_dependency_missing",
-                "message": "base64 is unavailable in the collector image; exact config content was not returned",
+                "message": "base64 is unavailable in the collector runtime; exact config content was not returned",
                 "retryable": False,
             }
         )
@@ -73,6 +82,38 @@ def build_probe_evidence(
                 "retryable": False,
             }
         )
+    if (_integer(values.get("main_config_candidate_count")) or 0) > 1:
+        config_warnings.append(
+            {
+                "code": "multiple_main_config_candidates",
+                "message": "multiple bounded fallback main-config candidates were found",
+                "retryable": False,
+            }
+        )
+    if values.get("child_config_scan_truncated") == "true":
+        config_warnings.append(
+            {
+                "code": "child_config_scan_truncated",
+                "message": "the bounded child-config scan reached its limit before all candidates were inspected",
+                "retryable": False,
+            }
+        )
+    if values.get("child_config_match_limit_exceeded") == "true":
+        config_warnings.append(
+            {
+                "code": "child_config_match_limit_exceeded",
+                "message": "more matching child configs exist than can be returned in one probe",
+                "retryable": False,
+            }
+        )
+    if values.get("output_budget_exhausted") == "true":
+        config_warnings.append(
+            {
+                "code": "probe_output_budget_exhausted",
+                "message": "lower-priority evidence was omitted to stay below the transport output limit",
+                "retryable": False,
+            }
+        )
     config_probe = {
         "status": config_status,
         "code": config_code,
@@ -80,6 +121,8 @@ def build_probe_evidence(
         "evidence": {
             "main_config": {
                 "path": values.get("main_config_path"),
+                "discovery_source": values.get("main_config_source"),
+                "candidate_count": _integer(values.get("main_config_candidate_count")),
                 "mtime_epoch": _integer(values.get("main_config.mtime_epoch")),
                 "sha256": mounted_main_sha256,
                 "total_size_bytes": main_config.get("total_size_bytes"),
@@ -89,6 +132,16 @@ def build_probe_evidence(
                 "mounted_config_map_sha256": config_map_main_sha256,
             },
             "child_configs": configs,
+            "child_config_scan": {
+                "target_data_id": _integer(values.get("target_data_id")),
+                "hint_count": _integer(values.get("child_config_hint_count")),
+                "hint_path_count": _integer(values.get("child_config_hint_path_count")),
+                "scanned_count": _integer(values.get("child_config_scanned_count")),
+                "scan_limit": _integer(values.get("child_config_scan_limit")),
+                "scan_truncated": values.get("child_config_scan_truncated") == "true",
+                "match_count": _integer(values.get("child_config_match_count")),
+                "match_limit_exceeded": values.get("child_config_match_limit_exceeded") == "true",
+            },
             "matching_input_count": len(matching_inputs),
             "matching_patterns": allowed_patterns,
             "render_comparison": render_comparison,
@@ -97,7 +150,17 @@ def build_probe_evidence(
     }
 
     collector_process_probe = _process_probe(values, streams, "collector")
-    sidecar_process_probe = _process_probe(values, streams, "sidecar")
+    sidecar_process_probe = (
+        _process_probe(values, streams, "sidecar")
+        if sidecar_required
+        else {
+            "status": "skipped",
+            "code": "sidecar_not_applicable",
+            "summary": "sidecar process evidence is not applicable to physical-host collection",
+            "evidence": None,
+            "warnings": [],
+        }
+    )
     source_probe = _source_probe(
         values=values,
         streams=streams,
@@ -196,7 +259,7 @@ def _yaml_local_inputs(content: str, bk_data_id: int) -> list[dict[str, Any]]:
         results.extend(item for item in local if isinstance(item, dict))
     if results:
         return results
-    return host_probe.fallback_matching_inputs(content, bk_data_id)
+    return fallback_matching_inputs(content, bk_data_id)
 
 
 def _safe_input(value: dict[str, Any]) -> dict[str, Any]:
@@ -285,7 +348,7 @@ def _select_sources(
     return first, second, None
 
 
-def build_collector_file_log_probe(parsed: dict[str, Any]) -> dict[str, Any]:
+def build_collector_file_log_probe(parsed: dict[str, Any], *, fallback: bool = True) -> dict[str, Any]:
     """Return the fixed collector file-log fallback captured by the repository probe."""
 
     values = parsed.get("values") or {}
@@ -307,17 +370,25 @@ def build_collector_file_log_probe(parsed: dict[str, Any]) -> dict[str, Any]:
         )
     returned_size = sum(len(item["content"].encode("utf-8", errors="replace")) for item in files)
     return {
-        "status": "warning" if files else "failed",
-        "code": "collector_file_logs_fallback" if files else "collector_logs_unavailable",
-        "summary": "fixed collector file logs were used because current pods/log was unavailable"
+        "status": "warning" if files and fallback else "success" if files else "failed",
+        "code": "collector_file_logs_fallback"
+        if files and fallback
+        else "collector_file_logs_inspected"
         if files
-        else "neither current pods/log nor fixed collector file logs were available",
+        else "collector_logs_unavailable",
+        "summary": (
+            "fixed collector file logs were used because current pods/log was unavailable"
+            if files and fallback
+            else "bounded collector file logs were inspected"
+            if files
+            else "collector file logs were unavailable"
+        ),
         "evidence": {
             "files": files,
             "returned_size_bytes": returned_size,
             "public_return_limit_bytes": 1024 * 1024,
             "truncated": any(item.get("truncated") for item in files),
-            "fallback": True,
+            "fallback": fallback,
         },
         "warnings": [],
     }
@@ -394,12 +465,7 @@ def _process_probe(values: dict[str, str], streams: dict[str, dict[str, Any]], r
 
 def _process_row(values: dict[str, str], phase: str, role: str) -> dict[str, Any] | None:
     prefix = f"{phase}.{role}"
-    # Keep parsing the initial collector-only protocol for in-flight tasks during rollout.
-    legacy_prefix = phase if role == "collector" else None
     pid = _integer(values.get(f"{prefix}.process_pid"))
-    if pid is None and legacy_prefix:
-        prefix = legacy_prefix
-        pid = _integer(values.get(f"{prefix}.process_pid"))
     if not pid:
         return None
     page_size = _integer(values.get("page_size")) or 4096
@@ -407,6 +473,7 @@ def _process_row(values: dict[str, str], phase: str, role: str) -> dict[str, Any
     pss_kib = _integer(values.get(f"{prefix}.pss_kib"))
     return {
         "pid": pid,
+        "binary_path": values.get(f"{prefix}.binary_path"),
         "start_ticks": _integer(values.get(f"{prefix}.start_ticks")),
         "cpu_ticks": _integer(values.get(f"{prefix}.cpu_ticks")),
         "rss_bytes": rss_pages * page_size if rss_pages is not None else None,
@@ -450,22 +517,25 @@ def _source_probe(
             "evidence": {"requested_source": source, "allowed_patterns": allowed_patterns},
             "warnings": [],
         }
-    if values.get("source_narrowing_required") == "true" and not source:
+    if values.get("source_narrowing_required") == "true" and (not source or not first_rows and not second_rows):
         return {
             "status": "warning",
             "code": "source_narrowing_required",
-            "summary": "more than 50 source patterns require an explicit source",
-            "evidence": {"allowed_patterns": allowed_patterns, "files": []},
+            "summary": "the bounded remote source set cannot prove the requested source state",
+            "evidence": {"requested_source": source, "allowed_patterns": allowed_patterns, "files": []},
             "warnings": [],
         }
     second_by_path = {row["path"]: row for row in second_rows}
     files = []
     returned_lines = 0
     returned_bytes = 0
+    sample_unavailable_reasons = []
     for first in first_rows:
         row = {"first": first, "second": second_by_path.get(first["path"])}
         if include_sample and source and first["path"] == source:
-            sample_stream = streams.get(f"second.source.{(row['second'] or first)['index']}.sample") or {}
+            sample_name = f"second.source.{(row['second'] or first)['index']}.sample"
+            sample_stream = streams.get(sample_name) or {}
+            unavailable_reason = values.get(f"{sample_name}.unavailable")
             sample = str(sample_stream.get("content") or "")
             sample_bytes = sample.encode("utf-8", errors="replace")[-MAX_SOURCE_SAMPLE_BYTES:]
             lines = sample_bytes.decode("utf-8", errors="replace").splitlines()[-MAX_SOURCE_SAMPLE_LINES:]
@@ -474,7 +544,10 @@ def _source_probe(
                 "lines": lines,
                 "returned_lines": len(lines),
                 "returned_bytes": returned_sample_bytes,
+                "unavailable_reason": unavailable_reason,
             }
+            if unavailable_reason:
+                sample_unavailable_reasons.append(unavailable_reason)
             returned_lines += len(lines)
             returned_bytes += returned_sample_bytes
         files.append(row)
@@ -493,7 +566,18 @@ def _source_probe(
                 "returned_bytes": returned_bytes,
             },
         },
-        "warnings": [],
+        "warnings": (
+            [
+                {
+                    "code": "source_sample_unavailable",
+                    "message": "the requested source sample could not be returned within the fixed probe bounds",
+                    "retryable": False,
+                    "reasons": sorted(set(sample_unavailable_reasons)),
+                }
+            ]
+            if sample_unavailable_reasons
+            else []
+        ),
     }
 
 
@@ -513,14 +597,10 @@ def _registrar_probe(
             "evidence": {"reason": unavailable, "registrar_path": values.get("registrar_path")},
             "warnings": [],
         }
-    first_states = host_probe.parse_registrar_strings(
-        str((streams.get("first.registrar_strings") or {}).get("content") or "")
-    )
-    second_states = host_probe.parse_registrar_strings(
-        str((streams.get("second.registrar_strings") or {}).get("content") or "")
-    )
-    first_matches = {row["path"]: host_probe._state_for_file(first_states, row) for row in first_rows}
-    second_matches = {row["path"]: host_probe._state_for_file(second_states, row) for row in second_rows}
+    first_states = parse_registrar_strings(str((streams.get("first.registrar_strings") or {}).get("content") or ""))
+    second_states = parse_registrar_strings(str((streams.get("second.registrar_strings") or {}).get("content") or ""))
+    first_matches = {row["path"]: state_for_file(first_states, row) for row in first_rows}
+    second_matches = {row["path"]: state_for_file(second_states, row) for row in second_rows}
     return {
         "status": "success",
         "code": "registrar_strings_inspected",
@@ -542,12 +622,8 @@ def _progress_probe(
     first_rows: list[dict[str, Any]],
     second_rows: list[dict[str, Any]],
 ) -> dict[str, Any]:
-    first_states = host_probe.parse_registrar_strings(
-        str((streams.get("first.registrar_strings") or {}).get("content") or "")
-    )
-    second_states = host_probe.parse_registrar_strings(
-        str((streams.get("second.registrar_strings") or {}).get("content") or "")
-    )
+    first_states = parse_registrar_strings(str((streams.get("first.registrar_strings") or {}).get("content") or ""))
+    second_states = parse_registrar_strings(str((streams.get("second.registrar_strings") or {}).get("content") or ""))
     second_by_path = {row["path"]: row for row in second_rows}
     results = []
     insufficient = values.get("insufficient_observation_window") == "true"
@@ -558,11 +634,11 @@ def _progress_probe(
         results.append(
             {
                 "path": first["path"],
-                **host_probe.classify_registrar_progress(
+                **classify_registrar_progress(
                     first,
                     second,
-                    host_probe._state_for_file(first_states, first),
-                    host_probe._state_for_file(second_states, second),
+                    state_for_file(first_states, first),
+                    state_for_file(second_states, second),
                     insufficient=insufficient,
                 ),
             }

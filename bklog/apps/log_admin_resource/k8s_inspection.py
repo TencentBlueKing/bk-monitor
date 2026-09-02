@@ -32,6 +32,7 @@ BKLOG_CONFIG_CRD_NAME = "bklogconfigs.bk.tencent.com"
 BKLOG_CONFIG_NAMESPACE = "default"
 MAX_CANDIDATES = 20
 MAX_CONTRACT_EVIDENCE = 100
+MAX_CHILD_CONFIG_HINTS = 20
 
 
 @dataclass(frozen=True)
@@ -214,6 +215,41 @@ def target_config_matches(
         if _pod_target_matches(target, target_object, spec):
             matches.append(item)
     return matches
+
+
+def collector_child_config_hints(
+    target_snapshot: dict[str, Any] | None,
+    expected: Iterable[dict[str, Any]],
+    *,
+    configured_namespace: str = BKLOG_CONFIG_NAMESPACE,
+) -> list[str]:
+    """Build sidecar-rendered basename suffixes from the resolved target and CR contract.
+
+    The sidecar prepends a per-rendered-config identifier to these stable suffixes, so the
+    fixed probe resolves both an exact basename and ``*_<suffix>`` inside configured child
+    config directories before falling back to the bounded directory scan.
+    """
+
+    if not target_snapshot:
+        return []
+    matched_ids = {str(value) for value in target_snapshot.get("matched_container_config_ids") or []}
+    matched = [item for item in expected if str(item.get("container_config_id")) in matched_ids]
+    hints = []
+    if target_snapshot.get("type") == "node":
+        for item in matched:
+            if item.get("collector_type") == ContainerCollectorType.NODE:
+                hints.append(f"{ContainerCollectorType.NODE}_{configured_namespace}_{item['name']}.conf")
+    elif target_snapshot.get("type") == "pod_container":
+        container = target_snapshot.get("container") or {}
+        container_id = str(container.get("container_id") or "")
+        if "://" in container_id:
+            container_id = container_id.split("://", 1)[1]
+        if re.fullmatch(r"[A-Za-z0-9_.-]{1,255}", container_id):
+            for item in matched:
+                collector_type = item.get("collector_type")
+                if collector_type in {ContainerCollectorType.CONTAINER, ContainerCollectorType.STDOUT}:
+                    hints.append(f"{container_id}_{collector_type}_{configured_namespace}_{item['name']}.conf")
+    return sorted({hint for hint in hints if re.fullmatch(r"[A-Za-z0-9_.-]{1,255}", hint)})[:MAX_CHILD_CONFIG_HINTS]
 
 
 def discover_inspection_targets(
