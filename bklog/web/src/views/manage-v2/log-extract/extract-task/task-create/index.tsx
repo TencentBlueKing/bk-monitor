@@ -462,6 +462,7 @@ export default defineComponent({
                 on: {
                   'update:value': (val: string) => (fileOrPath.value = val),
                   'update:select': handleFilesSelect,
+                  'manual-add': (val: string) => previewRef.value?.addFilePath(val),
                 },
               }}
             />
