@@ -372,6 +372,8 @@ export default defineComponent({
 
         <RuleConfigOperate
           ref={ruleConfigOperateRef}
+          indexSetId={props.indexId}
+          isExternal={props.isExternal}
           max_log_length={formData.value.max_log_length}
           ruleList={ruleList.value}
           on-reset={handleReset}
