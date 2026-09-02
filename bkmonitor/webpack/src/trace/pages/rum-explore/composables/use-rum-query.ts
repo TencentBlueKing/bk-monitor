@@ -109,7 +109,8 @@ export function useRumQuery({ extraFilters }: IUseRumQueryOptions) {
       commonWhere: JSON.stringify(commonWhere.value),
       queryString: queryString.value,
       showResidentBtn: `${showResidentBtn.value}`,
-      sortBy: JSON.stringify(store.sortParams),
+      // 记录用户意图而非当前生效值，避免把回落的 default_sort 固化成显式排序
+      sortBy: JSON.stringify(store.userSort),
     };
     if (urlFavoriteId.value) {
       query.favorite_id = `${urlFavoriteId.value}`;
@@ -122,6 +123,7 @@ export function useRumQuery({ extraFilters }: IUseRumQueryOptions) {
   /** 从 URL 恢复查询状态，在应用列表就绪前调用 */
   function initFromUrl() {
     const query = route.query as Record<string, string>;
+    const urlSort = tryURLDecodeParse<null | string[]>(query.sortBy, null);
     store.init({
       mode: (query.mode as RumModeType) || RumModeEnum.SPAN,
       appName: query.app_name || '',
@@ -129,7 +131,8 @@ export function useRumQuery({ extraFilters }: IUseRumQueryOptions) {
       timezone: window.timezone,
       refreshInterval: query.refreshInterval ? Number(query.refreshInterval) : -1,
       spanType: query.spanType || '',
-      sortParams: tryURLDecodeParse<string[]>(query.sortBy, []),
+      // 三态透传：null 待视图配置就绪后回落 default_sort，[] 表示明确不排序
+      sortParams: urlSort,
     });
     filterMode.value = (query.filterMode as EMode) || EMode.ui;
     where.value = tryURLDecodeParse<IWhereItem[]>(query.where, []);
