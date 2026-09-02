@@ -13,7 +13,7 @@ from kernel_api.views.v4.log_collection_permissions import CanonicalBusinessActi
 
 class LogCollectionCreateViewSet(ResourceViewSet):
     def get_permissions(self):
-        return [CanonicalBusinessActionPermission([ActionEnum.USING_LOG_COLLECTION_MCP])]
+        return [CanonicalBusinessActionPermission([ActionEnum.MANAGE_COLLECTION])]
 
     resource_routes = [
         ResourceRoute("POST", FastCreateLogCollectorResource, endpoint="fast_create"),

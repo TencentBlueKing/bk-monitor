@@ -46,20 +46,24 @@ def test_list_request_serializer_defaults_and_bounds_page_size():
     assert "page_size" in serializer.errors
 
 
-@pytest.mark.parametrize(
-    "action", ["list_collectors", "get_collector", "get_index_set", "list_index_set_groups"]
-)
-def test_log_collection_view_requires_log_collection_mcp_permission(action):
+def test_list_request_serializer_excludes_frontend_only_index_set_filters():
+    serializer = ListLogCollectorsResource.RequestSerializer()
+
+    assert {"parent_index_set_id", "exclude_parent_index_set_id"}.isdisjoint(serializer.fields)
+
+
+@pytest.mark.parametrize("action", ["list_collectors", "get_collector", "get_index_set", "list_index_set_groups"])
+def test_log_collection_view_requires_view_business_permission(action):
     view = LogCollectionViewSet()
     view.action = action
     permissions = view.get_permissions()
 
     assert len(permissions) == 1
-    assert permissions[0].actions == [ActionEnum.USING_LOG_COLLECTION_MCP]
+    assert permissions[0].actions == [ActionEnum.VIEW_BUSINESS]
 
 
 def test_log_collection_permission_rejects_conflicting_business_alias():
-    permission = CanonicalBusinessActionPermission([ActionEnum.USING_LOG_COLLECTION_MCP])
+    permission = CanonicalBusinessActionPermission([ActionEnum.VIEW_BUSINESS])
     request = SimpleNamespace(
         query_params={"bk_biz_id": "2", "biz_id": "3"},
         biz_id="3",

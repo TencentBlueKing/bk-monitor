@@ -70,14 +70,14 @@ def test_serializer_rejects_unknown_nested_fields(payload, error_field):
     assert error_field in serializer.errors
 
 
-def test_update_view_requires_log_collection_mcp_permission():
+def test_update_view_requires_manage_collection_permission():
     permissions = LogCollectionUpdateViewSet().get_permissions()
     assert len(permissions) == 1
-    assert permissions[0].actions == [ActionEnum.USING_LOG_COLLECTION_MCP]
+    assert permissions[0].actions == [ActionEnum.MANAGE_COLLECTION]
 
 
 def test_update_permission_rejects_conflicting_business_alias():
-    permission = CanonicalBusinessActionPermission([ActionEnum.USING_LOG_COLLECTION_MCP])
+    permission = CanonicalBusinessActionPermission([ActionEnum.MANAGE_COLLECTION])
     request = SimpleNamespace(
         data={"bk_biz_id": "2", "biz_id": "3"},
         biz_id="3",

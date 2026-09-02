@@ -91,6 +91,7 @@ def test_create_third_party_es_forwards_space_and_parent_index_set_ids(monkeypat
     assert create_index_set.call_args.kwargs["indexes"] == [{"result_table_id": "logs-*", "bk_biz_id": 2}]
     assert create_index_set.call_args.kwargs["parent_index_set_ids"] == [11, 12]
     assert "parent_index_set_id" not in create_index_set.call_args.kwargs
+    assert "enforce_permission" not in create_index_set.call_args.kwargs
 
 
 def test_create_third_party_es_explicit_null_biz_falls_back_to_outer(monkeypatch):
@@ -178,7 +179,7 @@ def test_create_bkdata_index_set_forwards_space_scenario_and_business(monkeypatc
     assert create_index_set.call_args.kwargs["scenario_id"] == "bkdata"
     assert create_index_set.call_args.kwargs["indexes"] == [{"result_table_id": "2_demo_table", "bk_biz_id": 2}]
     assert create_index_set.call_args.kwargs["parent_index_set_ids"] == [11, 12]
-    assert create_index_set.call_args.kwargs["enforce_permission"] is True
+    assert "enforce_permission" not in create_index_set.call_args.kwargs
 
 
 def test_create_bkdata_index_set_rejects_cross_business_result_table(monkeypatch):

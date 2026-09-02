@@ -8,7 +8,7 @@ from kernel_api.views.v4.log_collection_permissions import CanonicalBusinessActi
 
 class LogCollectionStatusViewSet(ResourceViewSet):
     def get_permissions(self):
-        return [CanonicalBusinessActionPermission([ActionEnum.USING_LOG_COLLECTION_MCP])]
+        return [CanonicalBusinessActionPermission([ActionEnum.VIEW_COLLECTION])]
 
     resource_routes = [
         ResourceRoute("POST", GetLogCollectorStatusResource, endpoint="get_status"),

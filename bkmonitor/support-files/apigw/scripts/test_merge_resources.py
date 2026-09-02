@@ -171,7 +171,8 @@ def test_log_collection_mcp_contract():
     }
     assert _operation_ids(paths) == {"list_log_collectors", "get_log_collector", "get_log_index_set"}
     list_schema = paths["/mcp/list_log_collectors/"]["get"]["parameters"]
-    assert "enabled" not in {parameter["name"] for parameter in list_schema}
+    list_parameter_names = {parameter["name"] for parameter in list_schema}
+    assert {"enabled", "parent_index_set_id", "exclude_parent_index_set_id"}.isdisjoint(list_parameter_names)
     access_type_parameter = next(parameter for parameter in list_schema if parameter["name"] == "log_access_type")
     assert "bkdata" in access_type_parameter["schema"]["items"]["enum"]
     index_set_parameters = paths["/mcp/get_log_index_set/"]["get"]["parameters"]
@@ -250,14 +251,11 @@ def test_log_collection_mcp_exposes_index_groups_and_mixed_access_types():
     ]["application/json"]["schema"]["properties"]["indexes"]["items"]["properties"]
     assert third_party_update_index_schema["result_table_id"]["maxLength"] == 255
     assert third_party_update_index_schema["bk_biz_id"]["minimum"] == 1
-    bkdata_update_schema = special_update_paths["/mcp/update_bkdata_index_set/"]["post"]["requestBody"][
-        "content"
-    ]["application/json"]["schema"]
+    bkdata_update_schema = special_update_paths["/mcp/update_bkdata_index_set/"]["post"]["requestBody"]["content"][
+        "application/json"
+    ]["schema"]
     assert bkdata_update_schema["properties"]["indexes"]["minItems"] == 1
-    assert (
-        bkdata_update_schema["properties"]["indexes"]["items"]["properties"]["result_table_id"]["maxLength"]
-        == 255
-    )
+    assert bkdata_update_schema["properties"]["indexes"]["items"]["properties"]["result_table_id"]["maxLength"] == 255
 
 
 def test_log_collection_create_and_update_support_parent_index_set_ids():

@@ -12,7 +12,7 @@ class EtlPreviewBusinessActionPermission(CanonicalBusinessActionPermission):
 
 class LogCollectionEtlPreviewViewSet(ResourceViewSet):
     def get_permissions(self):
-        return [EtlPreviewBusinessActionPermission([ActionEnum.USING_LOG_COLLECTION_MCP])]
+        return [EtlPreviewBusinessActionPermission([ActionEnum.VIEW_COLLECTION])]
 
     resource_routes = [
         ResourceRoute("POST", PreviewLogEtlResource, endpoint="preview"),

@@ -128,7 +128,6 @@ class CreateThirdPartyESResource(Resource):
             {
                 "space_uid": bk_biz_id_to_space_uid(bk_biz_id),
                 "scenario_id": "es",
-                "enforce_permission": True,
             }
         )
         return api.log_search.create_index_set(**request_data)
@@ -184,7 +183,6 @@ class CreateBkDataResource(Resource):
             {
                 "space_uid": bk_biz_id_to_space_uid(bk_biz_id),
                 "scenario_id": "bkdata",
-                "enforce_permission": True,
             }
         )
         return api.log_search.create_index_set(**request_data)

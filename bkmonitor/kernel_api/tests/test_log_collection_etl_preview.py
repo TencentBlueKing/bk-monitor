@@ -328,8 +328,8 @@ def test_permission_uses_body_business_for_iam_check(monkeypatch):
     base_permission.assert_called_once_with(request, None)
 
 
-def test_etl_preview_view_requires_log_collection_mcp_permission():
+def test_etl_preview_view_requires_view_collection_permission():
     permissions = LogCollectionEtlPreviewViewSet().get_permissions()
 
     assert len(permissions) == 1
-    assert permissions[0].actions[0].id == ActionEnum.USING_LOG_COLLECTION_MCP.id
+    assert permissions[0].actions[0].id == ActionEnum.VIEW_COLLECTION.id

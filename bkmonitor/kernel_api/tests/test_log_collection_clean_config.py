@@ -256,15 +256,15 @@ def test_update_clean_config_requires_resolved_request_user(monkeypatch):
     get_collector.assert_not_called()
 
 
-def test_clean_config_view_requires_log_collection_mcp_permission():
+def test_clean_config_view_requires_manage_collection_permission():
     permissions = LogCollectionCleanConfigViewSet().get_permissions()
 
     assert len(permissions) == 1
-    assert permissions[0].actions == [ActionEnum.USING_LOG_COLLECTION_MCP]
+    assert permissions[0].actions == [ActionEnum.MANAGE_COLLECTION]
 
 
 def test_clean_config_permission_rejects_conflicting_business_context():
-    permission = CanonicalBusinessActionPermission([ActionEnum.USING_LOG_COLLECTION_MCP])
+    permission = CanonicalBusinessActionPermission([ActionEnum.MANAGE_COLLECTION])
     request = SimpleNamespace(
         method="POST",
         data={"bk_biz_id": 7},

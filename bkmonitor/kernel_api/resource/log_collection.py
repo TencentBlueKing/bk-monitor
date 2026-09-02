@@ -210,12 +210,6 @@ class ListLogCollectorsResource(Resource):
             required=False, default="", allow_blank=True, allow_null=True, label="搜索关键字"
         )
         collector_scenario_id = serializers.CharField(required=False, label="采集场景")
-        parent_index_set_id = serializers.IntegerField(
-            required=False, min_value=1, allow_null=True, label="归属索引组ID"
-        )
-        exclude_parent_index_set_id = serializers.IntegerField(
-            required=False, min_value=1, allow_null=True, label="排除归属索引组ID"
-        )
         log_access_type = serializers.ListField(
             child=serializers.ChoiceField(
                 choices=["linux", "winevent", "container_file", "container_stdout", "bkdata", "es", "custom_report"]
@@ -241,10 +235,6 @@ class ListLogCollectorsResource(Resource):
             "ordering": "-updated_at",
             "conditions": conditions,
         }
-        for field in ("parent_index_set_id", "exclude_parent_index_set_id"):
-            if field in validated_request_data:
-                params[field] = validated_request_data[field]
-
         response = api.log_search.log_access_collector(**params)
         total = int(response.get("total") or 0)
         items = response.get("list") or []

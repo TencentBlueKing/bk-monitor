@@ -112,14 +112,14 @@ def test_status_message_is_masked_and_truncated():
     assert truncated is True
 
 
-def test_status_view_requires_log_collection_mcp_permission():
+def test_status_view_requires_view_collection_permission():
     permissions = LogCollectionStatusViewSet().get_permissions()
     assert len(permissions) == 1
-    assert permissions[0].actions == [ActionEnum.USING_LOG_COLLECTION_MCP]
+    assert permissions[0].actions == [ActionEnum.VIEW_COLLECTION]
 
 
 def test_status_permission_rejects_conflicting_business_alias():
-    permission = CanonicalBusinessActionPermission([ActionEnum.USING_LOG_COLLECTION_MCP])
+    permission = CanonicalBusinessActionPermission([ActionEnum.VIEW_COLLECTION])
     request = SimpleNamespace(
         data={"bk_biz_id": 2, "biz_id": 3},
         biz_id=3,
