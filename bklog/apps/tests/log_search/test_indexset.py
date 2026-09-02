@@ -1476,7 +1476,7 @@ class TestSyncRouter(TestCase):
         )
         return index_set
 
-    def _build_es_doris_index_set(self, **extra) -> LogIndexSet:
+    def _build_es_doris_index_set(self, collector_is_nanos=False, **extra) -> LogIndexSet:
         """创建一个存量 ES + Doris 采集项（开启了 sql/grep）：
         - 无 Doris 标签
         - doris_table_id 有值，support_doris=True（开启了 sql/grep 能力）
@@ -1499,6 +1499,7 @@ class TestSyncRouter(TestCase):
             collector_scenario_id="log",
             category_id="other_rt",
             storage_cluster_type=STORAGE_CLUSTER_TYPE,
+            is_nanos=collector_is_nanos,
         )
         params["collector_config_id"] = collector_config.collector_config_id
         index_set = LogIndexSet.objects.create(**params)
@@ -1511,6 +1512,7 @@ class TestSyncRouter(TestCase):
             result_table_id="591_xx",
             scenario_id=Scenario.LOG,
             bk_biz_id=2,
+            apply_status=LogIndexSetData.Status.NORMAL,
         )
         return index_set
 
@@ -1638,6 +1640,142 @@ class TestSyncRouter(TestCase):
             f"bklog_index_set_{index_set.index_set_id}_591_xx.__default__",
         )
         self.assertEqual(info["source_type"], Scenario.LOG)
+
+    def test_route_sync_sends_empty_alias_settings_to_clear_stale_aliases(self):
+        """路由同步必须用空数组通知 metadata 清理已删除的别名。"""
+        index_set = self._build_es_doris_index_set(query_alias_settings=[])
+
+        result = BaseIndexSetHandler.get_index_set_table_info_list(index_set, is_analysis=False)
+
+        self.assertEqual(result[0]["query_alias_settings"], [])
+
+    def test_route_sync_clears_auto_nanos_alias_after_switching_to_non_nanos(self):
+        """纳秒时间切换为普通时间后，最终路由 payload 不应保留自动纳秒别名。"""
+        index_set = self._build_es_doris_index_set(collector_is_nanos=True)
+
+        nanos_result = BaseIndexSetHandler.get_index_set_table_info_list(index_set, is_analysis=False)
+        self.assertEqual(
+            nanos_result[0]["query_alias_settings"],
+            [{"field_name": "dtEventTimeStampNanos", "query_alias": "dtEventTimeStamp"}],
+        )
+
+        collector_config = CollectorConfig.objects.get(table_id="591_xx")
+        collector_config.is_nanos = False
+        collector_config.save(update_fields=["is_nanos"])
+
+        non_nanos_result = BaseIndexSetHandler.get_index_set_table_info_list(index_set, is_analysis=False)
+        self.assertEqual(non_nanos_result[0]["query_alias_settings"], [])
+
+    def test_route_sync_keeps_user_alias_with_auto_nanos_alias(self):
+        """纳秒时间字段应同时保留用户别名和自动纳秒别名。"""
+        user_alias = {"field_name": "log", "query_alias": "message"}
+        index_set = self._build_es_doris_index_set(
+            query_alias_settings=[user_alias],
+            collector_is_nanos=True,
+        )
+
+        result = BaseIndexSetHandler.get_index_set_table_info_list(
+            index_set,
+            is_analysis=False,
+            rt_alias_mappings={"591_xx": [user_alias]},
+        )
+
+        self.assertEqual(
+            result[0]["query_alias_settings"],
+            [user_alias, {"field_name": "dtEventTimeStampNanos", "query_alias": "dtEventTimeStamp"}],
+        )
+
+    def test_doris_route_sync_clears_unconfigured_alias_settings(self):
+        """Doris 路由未配置查询别名时下发空数组，清理 metadata 中的历史别名。"""
+        index_set = self._build_manual_doris_index_set()
+
+        result = BaseIndexSetHandler.get_index_set_table_info_list(index_set, is_analysis=False)
+
+        self.assertEqual(result[0]["query_alias_settings"], [])
+
+    def test_route_sync_sends_empty_rt_alias_settings(self):
+        """RT 粒度别名配置为空时也必须传空数组，而不是省略参数。"""
+        index_set = self._build_es_doris_index_set(
+            query_alias_settings=[{"field_name": "missing_field", "query_alias": "stale_alias"}]
+        )
+
+        result = BaseIndexSetHandler.get_index_set_table_info_list(
+            index_set,
+            is_analysis=False,
+            rt_alias_mappings={"591_xx": []},
+        )
+
+        self.assertEqual(result[0]["query_alias_settings"], [])
+
+    @patch(
+        "apps.log_search.handlers.index_set.SearchHandler.get_all_fields_by_index_id",
+        return_value={
+            "591_xx": ([{"field_name": "log"}], []),
+            "empty_fields": ([], []),
+        },
+    )
+    def test_sync_router_skips_aliases_for_rt_with_failed_field_query(self, mock_get_all_fields):
+        """部分 RT 字段查询失败时，不应给失败 RT 下发空数组覆盖已有别名。"""
+        user_alias = {"field_name": "log", "query_alias": "message"}
+        index_set = self._build_es_doris_index_set(query_alias_settings=[user_alias])
+        self.assertEqual(index_set.query_alias_settings, [user_alias])
+        LogIndexSetData.objects.create(
+            index_set_id=index_set.index_set_id,
+            result_table_id="log_failed",
+            scenario_id=Scenario.LOG,
+            apply_status=LogIndexSetData.Status.NORMAL,
+        )
+        LogIndexSetData.objects.create(
+            index_set_id=index_set.index_set_id,
+            result_table_id="empty_fields",
+            scenario_id=Scenario.LOG,
+            apply_status=LogIndexSetData.Status.NORMAL,
+        )
+        append_calls = []
+
+        def _capture_append(result_key, func, params=None, use_request=True, multi_func_params=False):
+            append_calls.append((result_key, func, params))
+
+        with patch("apps.utils.thread.MultiExecuteFunc.append", side_effect=_capture_append):
+            with patch("apps.utils.thread.MultiExecuteFunc.run", return_value={}):
+                with patch("apps.log_search.handlers.index_set.SearchHandler.__init__", return_value=None):
+                    BaseIndexSetHandler.sync_router(index_set)
+
+        mock_get_all_fields.assert_called_once_with(need_merge=False)
+        default_router = next(
+            params for key, _, params in append_calls if key == f"bklog_index_set_{index_set.index_set_id}"
+        )
+        success_info = next(info for info in default_router["table_info"] if info["index_set"].startswith("591_xx"))
+        failed_info = next(info for info in default_router["table_info"] if info["index_set"].startswith("log_failed"))
+        empty_info = next(info for info in default_router["table_info"] if info["index_set"].startswith("empty_fields"))
+        self.assertEqual(success_info["query_alias_settings"], [user_alias])
+        self.assertNotIn("query_alias_settings", failed_info)
+        self.assertNotIn("query_alias_settings", empty_info)
+
+    @patch(
+        "apps.log_search.handlers.index_set.SearchHandler.get_all_fields_by_index_id",
+        side_effect=RuntimeError("mapping unavailable"),
+    )
+    def test_sync_router_skips_aliases_when_all_rt_field_queries_fail(self, mock_get_all_fields):
+        """所有 RT 字段查询失败时，不应把完整别名配置下发到任一 RT。"""
+        user_alias = {"field_name": "log", "query_alias": "message"}
+        index_set = self._build_es_doris_index_set(query_alias_settings=[user_alias])
+        append_calls = []
+
+        def _capture_append(result_key, func, params=None, use_request=True, multi_func_params=False):
+            append_calls.append((result_key, func, params))
+
+        with patch("apps.utils.thread.MultiExecuteFunc.append", side_effect=_capture_append):
+            with patch("apps.utils.thread.MultiExecuteFunc.run", return_value={}):
+                with patch("apps.log_search.handlers.index_set.SearchHandler.__init__", return_value=None):
+                    BaseIndexSetHandler.sync_router(index_set)
+
+        mock_get_all_fields.assert_called_once_with(need_merge=False)
+        default_router = next(
+            params for key, _, params in append_calls if key == f"bklog_index_set_{index_set.index_set_id}"
+        )
+        for info in default_router["table_info"]:
+            self.assertNotIn("query_alias_settings", info)
 
     def test_es_doris_analysis(self):
         """

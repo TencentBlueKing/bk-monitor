@@ -1509,7 +1509,11 @@ class IndexSetHandler(APIModel):
         multi_result = search_handler_esquery.get_all_fields_by_index_id(need_merge=False)
         result_table_mappings = defaultdict(list)
         field_name_mappings = {}
+        query_alias_mappings = defaultdict(list)
         for result_table_id, (field_result, display_fields) in multi_result.items():
+            # 仅字段查询有结果时才认为该 RT 已成功解析；空结果可能表示 mapping 不可用。
+            if field_result:
+                query_alias_mappings[result_table_id] = []
             field_name_list = []
             for i in field_result:
                 _filed_name = i["field_name"]
@@ -1519,7 +1523,6 @@ class IndexSetHandler(APIModel):
 
         # 存储别名对应的字段及其所属rt列表
         alias_field_map = defaultdict(list)
-        query_alias_mappings = defaultdict(list)
 
         for alias_setting in alias_settings:
             field_name = alias_setting["field_name"]
@@ -1993,6 +1996,7 @@ class BaseIndexSetHandler:
                     "table_id": f"bklog_index_set_{effective_index_set_id}_{bkbase_table_id}.__doris__",
                     "source_type": "bkdata",
                     "need_create_index": False,
+                    "query_alias_settings": [],
                 }
                 # 首次创建路由时不带 cluster_id 会落到默认 Doris 集群，查询会打到错误的集群；
                 # 集群解析不出来时也不能把这张表从下发列表里摘掉，否则 metadata 会清空它的 data_label，
@@ -2050,17 +2054,19 @@ class BaseIndexSetHandler:
                 cluster_info = StorageHandler(cluster_id=obj.storage_cluster_id).get_cluster_info_by_id()
                 table_info["storage_type"] = cluster_info["cluster_type"]
 
+            # 只有确认拿到该 RT 的字段信息后，才显式下发别名配置；
+            # 查询失败的 RT 省略该字段，避免 metadata 清理已有别名。
+            alias_settings_resolved = rt_alias_mappings is None or obj.result_table_id in rt_alias_mappings
             if rt_alias_mappings is None:
-                if effective_alias_settings:
-                    table_info["query_alias_settings"] = copy.deepcopy(effective_alias_settings)
-            elif rt_alias_list := rt_alias_mappings.get(obj.result_table_id, []):
-                table_info["query_alias_settings"] = copy.deepcopy(rt_alias_list)
+                table_info["query_alias_settings"] = copy.deepcopy(effective_alias_settings or [])
+            elif alias_settings_resolved:
+                table_info["query_alias_settings"] = copy.deepcopy(rt_alias_mappings[obj.result_table_id])
 
             if table_info["source_type"] == Scenario.LOG:
                 table_info["origin_table_id"] = obj.result_table_id
                 collector_config = CollectorConfig.objects.filter(table_id=obj.result_table_id).first()
                 # 为纳秒字段新增别名
-                if collector_config.is_nanos:
+                if collector_config and collector_config.is_nanos and alias_settings_resolved:
                     table_info.setdefault("query_alias_settings", []).append(
                         {"field_name": "dtEventTimeStampNanos", "query_alias": "dtEventTimeStamp"}
                     )
@@ -2108,9 +2114,12 @@ class BaseIndexSetHandler:
                             index_set.index_set_id, index_set.query_alias_settings
                         )
                     except Exception as e:
+                        # 已配置别名但解析失败时，不要把 None 当作全量解析成功。
+                        # 空映射会让所有 RT 省略 query_alias_settings，避免覆盖已有别名。
+                        rt_alias_mappings = {}
                         logger.warning(
                             "get rt alias settings for index set(%s) failed: %s, "
-                            "fallback to apply full alias settings to all result tables",
+                            "skip alias settings for all result tables",
                             index_set.index_set_id,
                             e,
                         )
