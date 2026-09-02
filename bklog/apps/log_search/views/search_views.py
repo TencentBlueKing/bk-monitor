@@ -145,22 +145,23 @@ def _apply_index_set_search_bk_biz_id(index_set_obj, data, request=None):
         if not LogIndexSet.is_platform_index_visible_to_space(index_set_obj, search_space_uid):
             raise PermissionDenied(_("当前空间不在平台级索引集的可见范围内"))
         if search_space_uid != index_set_obj.space_uid:
-            _assert_cross_space_filter_enforceable(bk_biz_id, data)
+            _pin_cross_space_search_to_unify_query(bk_biz_id, data)
     data["bk_biz_id"] = bk_biz_id
     return data
 
 
-def _assert_cross_space_filter_enforceable(bk_biz_id, data):
+def _pin_cross_space_search_to_unify_query(bk_biz_id, data):
     """跨空间的数据隔离只由 metadata query router 在 UnifyQuery 链路上注入。
 
     ESQuery 链路不认识 platform_index_filter，回落过去就是直接查共享物理索引的全量数据，
-    所以 scroll 查询和未开启统一查询的业务必须拒绝，不能带着已通过的可见性和 IAM 校验放行。
+    所以未开启统一查询的业务必须拒绝，不能带着已通过的可见性和 IAM 校验放行。
+    scroll 是 ESQuery 独有的「单次返回超过 result window」能力，UnifyQuery 没有对应实现，
+    这里退回普通检索，与该索引集的其它检索一样由 UnifyQuery 把条数截断到 MAX_RESULT_WINDOW。
     归属空间不受此限：metadata 对归属空间本就不加过滤，走哪条链路拿到的都是全量。
     """
-    if data.get("is_scroll_search"):
-        raise serializers.ValidationError(_("跨空间检索平台级索引集不支持 scroll 查询"))
     if not FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, bk_biz_id):
         raise serializers.ValidationError(_("跨空间检索平台级索引集要求当前业务开启统一查询"))
+    data["is_scroll_search"] = False
 
 
 def _reject_platform_index_sets(index_set_ids):

@@ -3085,10 +3085,8 @@ class TestPlatformIndexListAndRouter(TestCase):
             self.assertEqual(plain_data["bk_biz_id"], 2)
 
     @patch("bkm_space.api.SpaceApi.get_related_space", return_value=None)
-    def test_cross_space_rejects_scroll_search(self, _mock_related):
-        """scroll 查询只有 ESQuery 实现，UnifyQuery 没有等价的 scroll_id 协议。"""
-        from rest_framework import serializers as drf_serializers
-
+    def test_cross_space_scroll_falls_back_to_unify_query(self, _mock_related):
+        """scroll 是 ESQuery 独有能力，跨空间时退回普通 UnifyQuery 检索而不是报错。"""
         from apps.log_search.views.search_views import _apply_index_set_search_bk_biz_id
 
         platform = LogIndexSet(
@@ -3096,18 +3094,28 @@ class TestPlatformIndexListAndRouter(TestCase):
             space_uid=self.OWNER_SPACE,
             platform_index_visibility=self.PLATFORM_VISIBILITY,
         )
-        with self.assertRaises(drf_serializers.ValidationError):
-            _apply_index_set_search_bk_biz_id(platform, {"bk_biz_id": 7, "is_scroll_search": True})
-
-        # 非 scroll 的跨空间检索仍然放行
-        data = {"bk_biz_id": 7, "is_scroll_search": False}
+        # 关掉 scroll 才能让检索落到 UnifyQuery 分支，否则会走没有 platform_index_filter 的 ESQuery
+        data = {"bk_biz_id": 7, "is_scroll_search": True}
         _apply_index_set_search_bk_biz_id(platform, data)
         self.assertEqual(data["bk_biz_id"], 7)
+        self.assertFalse(data["is_scroll_search"])
 
-        # 归属空间的 scroll 不受影响
+        # 非 scroll 的跨空间检索照常放行
+        plain_data = {"bk_biz_id": 7, "is_scroll_search": False}
+        _apply_index_set_search_bk_biz_id(platform, plain_data)
+        self.assertEqual(plain_data["bk_biz_id"], 7)
+
+        # 归属空间不加过滤，走哪条链路都是全量，scroll 保持可用
         owner_data = {"bk_biz_id": 2, "is_scroll_search": True}
         _apply_index_set_search_bk_biz_id(platform, owner_data)
         self.assertEqual(owner_data["bk_biz_id"], 2)
+        self.assertTrue(owner_data["is_scroll_search"])
+
+        # 普通索引集的 scroll 不受影响
+        plain_index_set = LogIndexSet(is_platform_index=False, space_uid=self.OWNER_SPACE)
+        plain_index_set_data = {"is_scroll_search": True}
+        _apply_index_set_search_bk_biz_id(plain_index_set, plain_index_set_data)
+        self.assertTrue(plain_index_set_data["is_scroll_search"])
 
     def test_query_router_config_option_reads_effective_index_set(self):
         platform_group = LogIndexSet.objects.create(
