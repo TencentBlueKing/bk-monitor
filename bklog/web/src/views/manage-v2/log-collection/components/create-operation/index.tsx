@@ -30,6 +30,7 @@ import useLocale from '@/hooks/use-locale';
 import { useRoute, useRouter } from 'vue-router/composables';
 import { useCollectList } from '../../hook/useCollectList';
 import CollectIssuedSlider from '../business-comp/step3/collect-issued-slider';
+import V2MaskingOperation from '../masking-operation';
 import StepClassify from './step1-classify';
 import StepBkDataCollection from './step2-bk-data-collection';
 import StepConfiguration from './step2-configuration';
@@ -77,6 +78,7 @@ export default defineComponent({
      * 第三方日志新建流程 （计算平台、第三方ES接入)流程
      */
     const thirdLogStep = [{ title: t('采集配置'), icon: 2, components: StepBkDataCollection }];
+    const maskingStep = [{ title: t('日志脱敏'), icon: 1, components: V2MaskingOperation }];
     /**
      * 自定义日志新建流程
      */
@@ -97,6 +99,7 @@ export default defineComponent({
      *
      */
     const isClone = computed(() => route.query.type === 'clone' && !!route.query.collectorId);
+    const isMaskingRoute = computed(() => route.name === 'collectMasking' || route.query.type === 'masking');
     /**
      * 是否是编辑状态
      */
@@ -104,8 +107,7 @@ export default defineComponent({
     /**
      * 是否需要采集下发
      */
-    const isNeedIssue = computed(() =>
-      ['linux', 'winevent', 'container_file', 'container_stdout'].includes(typeKey.value),
+    const isNeedIssue = computed(() => ['linux', 'winevent', 'container_file', 'container_stdout'].includes(typeKey.value),
     );
     /**
      * 当前步骤流程
@@ -114,6 +116,10 @@ export default defineComponent({
      * - 新建模式：包含第一步（索引集分类），保持原有图标编号
      */
     const currentStep = computed(() => {
+      if (isMaskingRoute.value) {
+        return maskingStep;
+      }
+
       // 根据日志类型选择对应的步骤配置
       const targetSteps = ['bkdata', 'es'].includes(typeKey.value)
         ? thirdLogStep // 第三方日志流程（计算平台、第三方ES接入）
@@ -141,7 +147,11 @@ export default defineComponent({
      * 步骤是否可切换
      */
     const isStepsControllable = computed(() => {
-      return isEdit.value && (dataConfig.value as any).storage_cluster_id !== -1 && (dataConfig.value as any).storage_cluster_id !== null;
+      return (
+        isEdit.value
+        && (dataConfig.value as any).storage_cluster_id !== -1
+        && (dataConfig.value as any).storage_cluster_id !== null
+      );
     });
 
     const containerWidth = ref(0);
@@ -167,7 +177,7 @@ export default defineComponent({
         getCollectStatus(Number(collectId.value));
       }
       if (mainRef.value) {
-        resizeObserver = new ResizeObserver(entries => {
+        resizeObserver = new ResizeObserver((entries) => {
           const entry = entries[0];
           if (entry) {
             containerWidth.value = entry.contentRect.width;
@@ -230,7 +240,7 @@ export default defineComponent({
             collector_id_list: id,
           },
         })
-        .then(res => {
+        .then((res) => {
           if (isUnmounted || !res.result) {
             return;
           }
@@ -343,7 +353,7 @@ export default defineComponent({
     return () => {
       const currentStepInfo = currentStep.value.find(item => item.icon === step.value);
       const Component = currentStepInfo?.components;
-      const stepStatusProps = Component === StepClean
+      const stepStatusProps =        Component === StepClean
         ? { attrs: { collectStatus: isNeedIssue.value ? currentStatus.value.status : '' } }
         : {};
       return (
@@ -356,7 +366,7 @@ export default defineComponent({
             status={currentStatus.value.status}
             config={dataConfig.value}
             collectorConfigId={currentCollectorId.value}
-            on-change={value => {
+            on-change={(value) => {
               showCollectIssuedSlider.value = value;
             }}
           />
@@ -376,31 +386,33 @@ export default defineComponent({
               <span class='status-txt'>{currentStatus.value.text}</span>
             </div>
           )}
-          <div
-            style={{ width: `${containerWidth.value - 60}px` }}
-            class='create-step'
-          >
+          {!isMaskingRoute.value && (
             <div
-              style={{ width: `${currentStep.value.length * 200}px` }}
-              class='step-main'
+              style={{ width: `${containerWidth.value - 60}px` }}
+              class='create-step'
             >
-              <bk-steps
-                ext-cls='custom-icon'
-                cur-step={step.value}
-                line-type={'solid'}
-                before-change={handleStepChange}
-                controllable={isStepsControllable.value}
-                steps={currentStep.value}
-              />
+              <div
+                style={{ width: `${currentStep.value.length * 200}px` }}
+                class='step-main'
+              >
+                <bk-steps
+                  ext-cls='custom-icon'
+                  cur-step={step.value}
+                  line-type={'solid'}
+                  before-change={handleStepChange}
+                  controllable={isStepsControllable.value}
+                  steps={currentStep.value}
+                />
+              </div>
+              <span
+                class='step-tips'
+                on-click={handleOpenGuide}
+              >
+                <i class='bklog-icon bklog-help help-icon' />
+                {t('接入指引')}
+              </span>
             </div>
-            <span
-              class='step-tips'
-              on-click={handleOpenGuide}
-            >
-              <i class='bklog-icon bklog-help help-icon' />
-              {t('接入指引')}
-            </span>
-          </div>
+          )}
           <Component
             {...stepStatusProps}
             ref={currentStepRef}
@@ -410,7 +422,7 @@ export default defineComponent({
             on-handle={handleFunction}
             isEdit={isEdit.value}
             isClone={isClone.value}
-            on-next={data => {
+            on-next={(data) => {
               dataConfig.value = data;
               if (isNeedIssue.value && Component === StepConfiguration) {
                 currentCollectorId.value = data.collector_config_id;
@@ -425,7 +437,7 @@ export default defineComponent({
             on-prev={() => {
               step.value = step.value - 1;
             }}
-            on-detail={data => {
+            on-detail={(data) => {
               dataConfig.value = data;
               currentCollectorId.value = data.collector_config_id;
             }}

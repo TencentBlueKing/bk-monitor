@@ -39,74 +39,50 @@ const LogDesensitizeView = { name: 'LogDesensitizeView', template: '<router-view
 // 管理模块各组件异步声明（用于路由懒加载）
 const Manage = () => import(/* webpackChunkName: 'manage' */ '@/views/manage');
 const CollectionItem = () => import(/* webpackChunkName: 'collection' */ '@/views/manage-v2/log-collection/index.tsx');
-const OldCollectionItem = () =>
-  import(/* webpackChunkName: 'collection-item' */ '@/views/manage/manage-access/log-collection/collection-item');
-const AccessSteps = () =>
-  import(
-    /* webpackChunkName: 'access-steps' */ '@/views/manage-v2/log-collection/components/create-operation/index.tsx'
-  );
-const ManageCollection = () =>
-  import(
-    /* webpackChunkName: 'manage-collection' */ '@/views/manage/manage-access/log-collection/collection-item/manage-collection'
-  );
+const OldCollectionItem = () => import(/* webpackChunkName: 'collection-item' */ '@/views/manage/manage-access/log-collection/collection-item');
+const AccessSteps = () => import(
+  /* webpackChunkName: 'access-steps' */ '@/views/manage-v2/log-collection/components/create-operation/index.tsx'
+);
+const ManageCollection = () => import(
+  /* webpackChunkName: 'manage-collection' */ '@/views/manage/manage-access/log-collection/collection-item/manage-collection'
+);
 const oldAccessSteps = () => import(/* webpackChunkName: 'access-steps' */ '@/components/collection-access');
 const ClientLog = () => import(/* webpackChunkName: 'client-log' */ '@/views/manage-v2/client-log/index.tsx');
-const IndexList = () =>
-  import(/* webpackChunkName: 'index-set' */ '@/views/manage/manage-access/components/index-set/list');
-const ManageIndex = () =>
-  import(/* webpackChunkName: 'mange-index' */ '@/views/manage/manage-access/components/index-set/manage');
-const CreateIndex = () =>
-  import(/* webpackChunkName: 'create-index' */ '@/views/manage/manage-access/components/index-set/create');
-const CustomReportList = () =>
-  import(/* webpackChunkName: 'create-index' */ '@/views/manage/manage-access/custom-report/list');
-const CustomReportCreate = () =>
-  import(/* webpackChunkName: 'create-index' */ '@/views/manage/manage-access/custom-report/create');
-const CustomReportDetail = () =>
-  import(/* webpackChunkName: 'create-index' */ '@/views/manage/manage-access/custom-report/detail');
-const CollectionTrack = () =>
-  import(/* webpackChunkName: 'collection-track' */ '@/views/manage/trace-track/collection-track');
+const IndexList = () => import(/* webpackChunkName: 'index-set' */ '@/views/manage/manage-access/components/index-set/list');
+const ManageIndex = () => import(/* webpackChunkName: 'mange-index' */ '@/views/manage/manage-access/components/index-set/manage');
+const CreateIndex = () => import(/* webpackChunkName: 'create-index' */ '@/views/manage/manage-access/components/index-set/create');
+const CustomReportList = () => import(/* webpackChunkName: 'create-index' */ '@/views/manage/manage-access/custom-report/list');
+const CustomReportCreate = () => import(/* webpackChunkName: 'create-index' */ '@/views/manage/manage-access/custom-report/create');
+const CustomReportDetail = () => import(/* webpackChunkName: 'create-index' */ '@/views/manage/manage-access/custom-report/detail');
+const CollectionTrack = () => import(/* webpackChunkName: 'collection-track' */ '@/views/manage/trace-track/collection-track');
 const SdkTrack = () => import(/* webpackChunkName: 'sdk-track' */ '@/views/manage/trace-track/sdk-track');
 const cleanList = () => import(/* webpackChunkName: 'sdk-track' */ '@/views/manage/log-clean/clean-manage/list');
 const cleanCreate = () => import(/* webpackChunkName: 'sdk-track' */ '@/views/manage/log-clean/clean-manage/create');
-const cleanTempCreate = () =>
-  import(/* webpackChunkName: 'sdk-track' */ '@/views/manage/log-clean/clean-template/create');
-const cleanTemplate = () =>
-  import(/* webpackChunkName: 'v2-sdk-track' */ '@/views/manage-v2/log-clean/clean-template/list');
-const ArchiveRepository = () =>
-  import(/* webpackChunkName: 'sdk-track' */ '@/views/manage-v2/log-archive/archive-repository/index.tsx');
-const ArchiveList = () =>
-  import(/* webpackChunkName: 'sdk-track' */ '@/views/manage-v2/log-archive/archive-list/index.tsx');
-const ArchiveRestore = () =>
-  import(/* webpackChunkName: 'sdk-track' */ '@/views/manage-v2/log-archive/archive-restore/index.tsx');
+const cleanTempCreate = () => import(/* webpackChunkName: 'sdk-track' */ '@/views/manage/log-clean/clean-template/create');
+const cleanTemplate = () => import(/* webpackChunkName: 'v2-sdk-track' */ '@/views/manage-v2/log-clean/clean-template/list');
+const ArchiveRepository = () => import(/* webpackChunkName: 'sdk-track' */ '@/views/manage-v2/log-archive/archive-repository/index.tsx');
+const ArchiveList = () => import(/* webpackChunkName: 'sdk-track' */ '@/views/manage-v2/log-archive/archive-list/index.tsx');
+const ArchiveRestore = () => import(/* webpackChunkName: 'sdk-track' */ '@/views/manage-v2/log-archive/archive-restore/index.tsx');
 const ReportManage = () => import(/* webpackChunkName: 'report-manage' */ '@/views/manage/report-management');
-const ExtractConfig = () =>
-  import(/* webpackChunkName: 'manage-extract-permission' */ '@/views/manage-v2/log-extract/extract-config/index.tsx');
-const extract = () =>
-  import(/* webpackChunkName: 'logExtract' */ '@/views/manage-v2/log-extract/extract-task/index.tsx');
-const extractHome = () =>
-  import(/* webpackChunkName: 'extract-home' */ '@/views/manage-v2/log-extract/extract-task/task-list/index.tsx');
-const extractCreate = () =>
-  import(/* webpackChunkName: 'extract-create' */ '@/views/manage-v2/log-extract/extract-task/task-create/index.tsx');
-const ExtractLinkList = () =>
-  import(/* webpackChunkName: 'extract-link-manage' */ '@/views/manage-v2/log-extract/extract-link/link-list.tsx');
-const ExtractLinkCreate = () =>
-  import(/* webpackChunkName: 'extract-link-manage' */ '@/views/manage-v2/log-extract/extract-link/link-create.tsx');
-const ClusterMess = () =>
-  import(/* webpackChunkName: 'es-cluster-mess' */ '@/views/manage-v2/es-cluster/cluster-manage/index.tsx');
-const DataLinkConf = () =>
-  import(/* webpackChunkName: 'manage-data-link-conf' */ '@/views/manage/manage-data-link/manage-data-link-conf');
-const MaskingEdit = () =>
-  import(/* webpackChunkName: 'field-masking-separate' */ '@/views/manage/field-masking-separate');
-const MaskingList = () =>
-  import(/* webpackChunkName: 'manage-data-link-conf' */ '@/views/manage/log-clean/clean-masking/list');
+const ExtractConfig = () => import(/* webpackChunkName: 'manage-extract-permission' */ '@/views/manage-v2/log-extract/extract-config/index.tsx');
+const extract = () => import(/* webpackChunkName: 'logExtract' */ '@/views/manage-v2/log-extract/extract-task/index.tsx');
+const extractHome = () => import(/* webpackChunkName: 'extract-home' */ '@/views/manage-v2/log-extract/extract-task/task-list/index.tsx');
+const extractCreate = () => import(/* webpackChunkName: 'extract-create' */ '@/views/manage-v2/log-extract/extract-task/task-create/index.tsx');
+const ExtractLinkList = () => import(/* webpackChunkName: 'extract-link-manage' */ '@/views/manage-v2/log-extract/extract-link/link-list.tsx');
+const ExtractLinkCreate = () => import(/* webpackChunkName: 'extract-link-manage' */ '@/views/manage-v2/log-extract/extract-link/link-create.tsx');
+const ClusterMess = () => import(/* webpackChunkName: 'es-cluster-mess' */ '@/views/manage-v2/es-cluster/cluster-manage/index.tsx');
+const DataLinkConf = () => import(/* webpackChunkName: 'manage-data-link-conf' */ '@/views/manage/manage-data-link/manage-data-link-conf');
+const MaskingEdit = () => import(/* webpackChunkName: 'field-masking-separate' */ '@/views/manage/field-masking-separate');
+const V2MaskingEdit = () => import(
+  /* webpackChunkName: 'v2-field-masking-separate' */ '@/views/manage-v2/log-collection/components/masking-operation'
+);
+const MaskingList = () => import(/* webpackChunkName: 'manage-data-link-conf' */ '@/views/manage/log-clean/clean-masking/list');
 const ClientLogView = { name: 'ClientLogView', template: '<router-view></router-view>' };
 
-const v2CleanTempCreate = () =>
-  import(/* webpackChunkName: 'v2-sdk-track' */ '@/views/manage-v2/log-clean/create-temp-clean');
+const v2CleanTempCreate = () => import(/* webpackChunkName: 'v2-sdk-track' */ '@/views/manage-v2/log-clean/create-temp-clean');
 
 const v2CleanCreate = () => import(/* webpackChunkName: 'v2-sdk-track' */ '@/views/manage-v2/log-clean/create-clean');
 const GrokManage = () => import(/* webpackChunkName: 'grok-manage' */ '@/views/manage-v2/grok-manage/index.tsx');
-
 
 /**
  * log_manage_v2 特性开关判定 mixin
@@ -157,7 +133,7 @@ const getManageRoutes = () => [
     name: 'manage',
     component: ManageWrapper,
     // 根据当前环境（外部版/内部版）自动重定向到管理页默认子页面
-    redirect: to => {
+    redirect: (to) => {
       // 外部版:跳转到“日志提取任务”
       if (window.IS_EXTERNAL && JSON.parse(window.IS_EXTERNAL)) {
         return {
@@ -363,7 +339,7 @@ const getManageRoutes = () => [
                   backName: 'log-index-set-list',
                   navId: 'log-collection',
                 },
-                component: MaskingEdit,
+                component: createVersionedComponent(V2MaskingEdit, MaskingEdit),
               },
             ],
           },
@@ -462,7 +438,7 @@ const getManageRoutes = () => [
               backName: 'bkdata-index-set-list',
               navId: 'bk-data-collection',
             },
-            component: MaskingEdit,
+            component: createVersionedComponent(V2MaskingEdit, MaskingEdit),
           },
         ],
       },
@@ -529,7 +505,7 @@ const getManageRoutes = () => [
               backName: 'es-index-set-list',
               navId: 'es-collection',
             },
-            component: MaskingEdit,
+            component: createVersionedComponent(V2MaskingEdit, MaskingEdit),
           },
         ],
       },
@@ -596,7 +572,7 @@ const getManageRoutes = () => [
               backName: 'custom-report-list',
               navId: 'custom-report',
             },
-            component: MaskingEdit,
+            component: createVersionedComponent(V2MaskingEdit, MaskingEdit),
           },
         ],
       },

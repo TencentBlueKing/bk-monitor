@@ -77,14 +77,14 @@ interface ITableRowData {
   total_usage?: number;
   bk_data_name?: string;
   bk_data_id?: number | string;
-  parent_index_sets?: Array<{ index_set_id?: number | string; index_set_name: string;[key: string]: unknown }>;
+  parent_index_sets?: Array<{ index_set_id?: number | string; index_set_name: string; [key: string]: unknown }>;
   parent_index_set_ids?: Array<number | string>;
   scenario_id?: string;
   scenario_name?: string;
   collector_scenario_id?: string;
   collector_scenario_name?: string;
   retention?: number;
-  tags?: Array<{ name: string;[key: string]: unknown }>;
+  tags?: Array<{ name: string; [key: string]: unknown }>;
   created_by?: string;
   created_at?: string;
   updated_by?: string;
@@ -225,7 +225,15 @@ export default defineComponent({
     const checkInfo = ref('');
 
     // 使用自定义 hook 管理状态
-    const { authGlobalInfo, operateHandler, checkCreateAuth, spaceUid, bkBizId, isAllowedCreate } = useCollectList();
+    const {
+      authGlobalInfo,
+      operateHandler,
+      checkCreateAuth,
+      spaceUid,
+      bkBizId,
+      isAllowedCreate,
+      isShowMaskingTemplate,
+    } = useCollectList();
     const tableList = ref<ITableRowData[]>([]);
     const listLoading = ref(false);
     const isLoading = computed(() => listLoading.value);
@@ -252,7 +260,7 @@ export default defineComponent({
         const updateFilterItems = (items: FilterItem[] | undefined): FilterItem[] | undefined => {
           if (!items || items.length === 0) return items;
           let changed = false;
-          const next = items.map(item => {
+          const next = items.map((item) => {
             const displayName = newMap.get(item.key || '');
             if (displayName && displayName !== item.label) {
               changed = true;
@@ -283,10 +291,15 @@ export default defineComponent({
     const editingIndexSetRowId = ref<number | string>('');
     const updatingIndexSetRowId = ref<number | string>('');
     const editingIndexSetDraftIds = ref<Record<string, Array<number | string>>>({});
-    const localParentIndexSetMap = ref<Record<string, {
-      ids: Array<number | string>;
-      sets: ITableRowData['parent_index_sets'];
-    }>>({});
+    const localParentIndexSetMap = ref<
+      Record<
+        string,
+        {
+          ids: Array<number | string>;
+          sets: ITableRowData['parent_index_sets'];
+        }
+      >
+    >({});
     const indexSetSelectRef = ref<{ close?:() => void } | null>(null);
     const pendingIndexSetSubmitRowId = ref<number | string>('');
     const editingIndexSetRowMap = new Map<string, ITableRowData>();
@@ -416,23 +429,29 @@ export default defineComponent({
       const type = row?.log_access_type || 'linux';
       // status 是异步获取的，可能暂时为空，默认按非 terminated 状态处理
       const status = row?.status || '';
+      const maskingKey = isShowMaskingTemplate.value ? 'masking' : '';
+      const filterMaskingByToggle = (list: IMenuItem[]) => {
+        return isShowMaskingTemplate.value ? list : list.filter(item => item.key !== 'masking');
+      };
 
       if (!type) {
-        return MENU_LIST.filter(item => item.key !== (status !== 'terminated' ? 'start' : 'stop'));
+        return filterMaskingByToggle(
+          MENU_LIST.filter(item => item.key !== (status !== 'terminated' ? 'start' : 'stop')),
+        );
       }
 
       if (type === 'custom_report') {
         const excludeKey = status !== 'terminated' ? 'start' : 'stop';
         return MENU_LIST.filter(
-          item => ['clean', 'desensitization', 'stop', 'start', 'delete'].includes(item.key) && item.key !== excludeKey,
+          item => ['clean', maskingKey, 'stop', 'start', 'delete'].includes(item.key) && item.key !== excludeKey,
         );
       }
 
       if (['bkdata', 'es'].includes(type)) {
-        return MENU_LIST.filter(item => ['desensitization', 'delete'].includes(item.key));
+        return MENU_LIST.filter(item => [maskingKey, 'delete'].includes(item.key));
       }
 
-      return MENU_LIST.filter(item => item.key !== (status !== 'terminated' ? 'start' : 'stop'));
+      return filterMaskingByToggle(MENU_LIST.filter(item => item.key !== (status !== 'terminated' ? 'start' : 'stop')));
     };
 
     /**
@@ -468,9 +487,7 @@ export default defineComponent({
       return <span>{displayName}</span>;
     };
 
-    const getRowUniqueId = (row: ITableRowData) => (
-      row.collector_config_id || row.index_set_id || row.bk_data_id || row.name
-    );
+    const getRowUniqueId = (row: ITableRowData) => row.collector_config_id || row.index_set_id || row.bk_data_id || row.name;
 
     const getLocalParentIndexSet = (row: ITableRowData) => {
       return localParentIndexSetMap.value[String(getRowUniqueId(row))];
@@ -582,7 +599,8 @@ export default defineComponent({
           data: {
             child_index_set_ids: [childIndexSetId],
           },
-        })),
+        }),
+        ),
         ...removeIds.map(indexSetId => $http.request('collect/removeIndexSetsFromGroup', {
           params: {
             index_set_id: indexSetId,
@@ -590,7 +608,8 @@ export default defineComponent({
           data: {
             child_index_set_ids: [childIndexSetId],
           },
-        })),
+        }),
+        ),
       ];
 
       if (!requestList.length) {
@@ -847,17 +866,17 @@ export default defineComponent({
           sorter: true,
           sortType: 'all',
           cell: (h, { row }: { row: ITableRowData }) => (
-          <span
-            class='link'
-            on-click={() => {
-              const isBkDataOrEs = ['bkdata', 'es'].includes(row.log_access_type);
-              const type = isBkDataOrEs || row.storage_cluster_id !== -1 ? 'view' : 'edit';
-              handleEditOperation(row, type);
-            }}
-          >
-            {row.storage_cluster_id === -1 && <span class='link-tag'>{t('未完成')}</span>}
-            {row.name}
-          </span>
+            <span
+              class='link'
+              on-click={() => {
+                const isBkDataOrEs = ['bkdata', 'es'].includes(row.log_access_type);
+                const type = isBkDataOrEs || row.storage_cluster_id !== -1 ? 'view' : 'edit';
+                handleEditOperation(row, type);
+              }}
+            >
+              {row.storage_cluster_id === -1 && <span class='link-tag'>{t('未完成')}</span>}
+              {row.name}
+            </span>
           ),
           fixed: 'left',
           width: 220,
@@ -899,19 +918,19 @@ export default defineComponent({
               colKey: 'is_related_space',
               width: 120,
               cell: (h, { row }: { row: ITableRowData }) => (
-                <span class='space-tag-wrapper'>
-                  {!row.is_related_space && <span class='space-tag current'>{t('当前空间')}</span>}
-                  {row.is_related_space && (
-                    <span
-                      class='space-tag related'
-                      v-bk-tooltips={{
-                        content: t('关联空间') + (row?.space_name ? `: ${row?.space_name}` : ''),
-                      }}
-                    >
-                      {t('关联空间')}
-                    </span>
-                  )}
-                </span>
+                  <span class='space-tag-wrapper'>
+                    {!row.is_related_space && <span class='space-tag current'>{t('当前空间')}</span>}
+                    {row.is_related_space && (
+                      <span
+                        class='space-tag related'
+                        v-bk-tooltips={{
+                          content: t('关联空间') + (row?.space_name ? `: ${row?.space_name}` : ''),
+                        }}
+                      >
+                        {t('关联空间')}
+                      </span>
+                    )}
+                  </span>
               ),
               filter: getColumnsFilter(IS_RELATED_SPACE_ENUM),
             },
@@ -942,9 +961,9 @@ export default defineComponent({
           title: t('过期时间'),
           colKey: 'retention',
           cell: (h, { row }: { row: ITableRowData }) => (
-          <span class={{ 'text-disabled': row.status === 'stop' }}>
-            {row.retention ? `${row.retention} ${t('天')}` : '--'}
-          </span>
+            <span class={{ 'text-disabled': row.status === 'stop' }}>
+              {row.retention ? `${row.retention} ${t('天')}` : '--'}
+            </span>
           ),
           width: 100,
         },
@@ -952,31 +971,31 @@ export default defineComponent({
           title: (_h) => {
             const isActive = filterValue.value.tags.length > 0;
             return (
-            <ClusterFilter
-              title={t('标签')}
-              searchable
-              popoverMinWidth={200}
-              select={tagSelect.value}
-              selectList={filterLabelList.value}
-              toggle={() => handleToggleTagSelect()}
-              isActive={isActive}
-              on-selected={(v: string[]) => handleTagSelectChange(v)}
-              on-submit={(v: string[]) => handleTagSubmit(v)}
-            />
+              <ClusterFilter
+                title={t('标签')}
+                searchable
+                popoverMinWidth={200}
+                select={tagSelect.value}
+                selectList={filterLabelList.value}
+                toggle={() => handleToggleTagSelect()}
+                isActive={isActive}
+                on-selected={(v: string[]) => handleTagSelectChange(v)}
+                on-submit={(v: string[]) => handleTagSubmit(v)}
+              />
             );
           },
           colKey: 'tags',
           showTips: false,
           cell: (h, { row }: { row: ITableRowData }) => (
-          <TagMore
-            mode='label'
-            tags={row.tags || []}
-            rowData={row}
-            selectLabelList={selectLabelList.value}
-            title={t('标签')}
-            on-refresh-label-list={() => fetchLabelList()}
-            on-update-tags={(newTags) => handleUpdateTags(row, newTags)}
-          />
+            <TagMore
+              mode='label'
+              tags={row.tags || []}
+              rowData={row}
+              selectLabelList={selectLabelList.value}
+              title={t('标签')}
+              on-refresh-label-list={() => fetchLabelList()}
+              on-update-tags={newTags => handleUpdateTags(row, newTags)}
+            />
           ),
           width: 200,
         },
@@ -1028,68 +1047,70 @@ export default defineComponent({
             const searchKey = isBkDataOrEs ? authorityMap.MANAGE_INDICES_AUTH : authorityMap.SEARCH_LOG_AUTH;
             const isRelatedSpace = !!row.is_related_space;
             return (
-            <div class='table-operation'>
-              <span
-                class={{
-                  'link mr-6': true,
-                  disabled: !getOperatorCanClick(row, 'search'),
-                }}
-                v-cursor={{ active: !row.permission?.[searchKey] }}
-                on-click={() => handleEditOperation(row, 'search')}
-              >
-                {t('检索')}
-              </span>
-              {isRelatedSpace ? (
-                <BklogPopover
-                  options={{
-                    placement: 'top',
-                    theme: 'dark',
-                    appendTo: document.body,
-                  } as any}
-                  trigger='hover'
-                  content={() => renderRelatedSpaceTipContent(row)}
-                >
-                  <span
-                    class={{ link: true, disabled: true }}
-                    v-cursor={{ active: !row.permission?.[editKey] }}
-                  >
-                    {t('编辑')}
-                    </span>
-                </BklogPopover>
-              ) : (
+              <div class='table-operation'>
                 <span
                   class={{
-                    link: true,
-                    disabled: !getOperatorCanClick(row, 'edit'),
+                    'link mr-6': true,
+                    disabled: !getOperatorCanClick(row, 'search'),
                   }}
-                  v-cursor={{ active: !row.permission?.[editKey] }}
-                  on-click={() => handleEditOperation(row, 'edit')}
+                  v-cursor={{ active: !row.permission?.[searchKey] }}
+                  on-click={() => handleEditOperation(row, 'search')}
                 >
-                  {t('编辑')}
+                  {t('检索')}
                 </span>
-              )}
-              {!isRelatedSpace && <span class='bk-icon icon-more more-btn table-more-btn' />}
-              <div
-                style={{ display: 'none' }}
-                class='row-menu-popover'
-              >
-                <div class='row-menu-content'>
-                  {renderMenu(row).map(item => (
+                {isRelatedSpace ? (
+                  <BklogPopover
+                    options={
+                      {
+                        placement: 'top',
+                        theme: 'dark',
+                        appendTo: document.body,
+                      } as any
+                    }
+                    trigger='hover'
+                    content={() => renderRelatedSpaceTipContent(row)}
+                  >
                     <span
-                      key={item.key}
+                      class={{ link: true, disabled: true }}
                       v-cursor={{ active: !row.permission?.[editKey] }}
-                      class={{
-                        'menu-item': true,
-                        disabled: !getOperatorCanClick(row, item.key),
-                      }}
-                      on-Click={() => handleMenuClick(item.key, row)}
                     >
-                      {item.label}
+                      {t('编辑')}
                     </span>
-                  ))}
+                  </BklogPopover>
+                ) : (
+                  <span
+                    class={{
+                      link: true,
+                      disabled: !getOperatorCanClick(row, 'edit'),
+                    }}
+                    v-cursor={{ active: !row.permission?.[editKey] }}
+                    on-click={() => handleEditOperation(row, 'edit')}
+                  >
+                    {t('编辑')}
+                  </span>
+                )}
+                {!isRelatedSpace && <span class='bk-icon icon-more more-btn table-more-btn' />}
+                <div
+                  style={{ display: 'none' }}
+                  class='row-menu-popover'
+                >
+                  <div class='row-menu-content'>
+                    {renderMenu(row).map(item => (
+                      <span
+                        key={item.key}
+                        v-cursor={{ active: !row.permission?.[editKey] }}
+                        class={{
+                          'menu-item': true,
+                          disabled: !getOperatorCanClick(row, item.key),
+                        }}
+                        on-Click={() => handleMenuClick(item.key, row)}
+                      >
+                        {item.label}
+                      </span>
+                    ))}
+                  </div>
                 </div>
               </div>
-            </div>
             );
           },
         },
@@ -1208,25 +1229,27 @@ export default defineComponent({
 
     /** 获取全量标签列表 */
     const fetchLabelList = () => {
-      $http.request('unionSearch/unionLabelList', {
-        query: {
-          space_uid: spaceUid.value,
-        },
-      }).then(res => {
-        selectLabelList.value = res.data || [];
-        // 构建过滤列表："全部"选项 + 非内置标签
-        const notBuiltInList = (res.data || [])
-          .filter(item => !item.is_built_in)
-          .map(item => ({
-            id: item.tag_id,
-            name: item.name,
-          }));
-        filterLabelList.value = [{ id: 'all', name: t('全部') }, ...notBuiltInList];
-      });
+      $http
+        .request('unionSearch/unionLabelList', {
+          query: {
+            space_uid: spaceUid.value,
+          },
+        })
+        .then((res) => {
+          selectLabelList.value = res.data || [];
+          // 构建过滤列表："全部"选项 + 非内置标签
+          const notBuiltInList = (res.data || [])
+            .filter(item => !item.is_built_in)
+            .map(item => ({
+              id: item.tag_id,
+              name: item.name,
+            }));
+          filterLabelList.value = [{ id: 'all', name: t('全部') }, ...notBuiltInList];
+        });
     };
 
     /** 更新行数据中的标签 */
-    const handleUpdateTags = (row: ITableRowData, newTags: Array<{ name: string;[key: string]: unknown }>) => {
+    const handleUpdateTags = (row: ITableRowData, newTags: Array<{ name: string; [key: string]: unknown }>) => {
       row.tags = newTags;
     };
 
@@ -1510,7 +1533,7 @@ export default defineComponent({
      * @param items - 过滤选项数组
      * @returns 用户ID数组
      */
-    const extractUserIds = (items: Array<{ key?: string;[key: string]: unknown }>): string[] => {
+    const extractUserIds = (items: Array<{ key?: string; [key: string]: unknown }>): string[] => {
       return (items || []).map(item => item.key).filter(Boolean) as string[];
     };
 
@@ -1521,7 +1544,7 @@ export default defineComponent({
      * @returns 处理后的过滤选项数组
      */
     const processFilterItemsWithUserInfo = (
-      items: Array<{ key?: string; label?: string;[key: string]: unknown }>,
+      items: Array<{ key?: string; label?: string; [key: string]: unknown }>,
       userInfoMap: Map<string, { display_name: string }>,
     ) => {
       return (items || []).map(item => ({
@@ -1771,9 +1794,7 @@ export default defineComponent({
     const handleJumpToRelatedSpace = (row: ITableRowData) => {
       // 1. 获取权限 key
       const isBkDataOrEs = ['bkdata', 'es'].includes(row.log_access_type);
-      const editKey = isBkDataOrEs
-        ? authorityMap.MANAGE_INDICES_AUTH
-        : authorityMap.MANAGE_COLLECTION_AUTH;
+      const editKey = isBkDataOrEs ? authorityMap.MANAGE_INDICES_AUTH : authorityMap.MANAGE_COLLECTION_AUTH;
 
       // 2. 检查权限
       if (!row.permission?.[editKey]) {
@@ -1787,9 +1808,7 @@ export default defineComponent({
         name: 'collectEdit',
         params: {
           // bkdata/es 类型没有 collector_config_id，使用 index_set_id
-          collectorId: String(
-            isBkDataOrEs ? (row.index_set_id ?? '') : (row.collector_config_id ?? '')
-          ),
+          collectorId: String(isBkDataOrEs ? (row.index_set_id ?? '') : (row.collector_config_id ?? '')),
         },
         query: {
           typeKey: String(row.log_access_type),
@@ -1811,12 +1830,12 @@ export default defineComponent({
           <div>{t('关联空间的索引集，无法编辑')}</div>
           <div>
             <i18n path='请{0}编辑。'>
-                <span
-                  class='link-to-space'
-                  on-click={() => {
-                    handleJumpToRelatedSpace(row);
-                  }}
-                >
+              <span
+                class='link-to-space'
+                on-click={() => {
+                  handleJumpToRelatedSpace(row);
+                }}
+              >
                 {t('前往对应的空间')}
                 <i class='bklog-icon bklog-jump'></i>
               </span>

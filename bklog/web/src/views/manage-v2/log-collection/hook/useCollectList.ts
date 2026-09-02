@@ -226,13 +226,13 @@ export const useCollectList = () => {
      * - 这些页面都依赖 collectorId 获取/回显配置
      */
     if (
-      ['manage-collection', 'collectEdit', 'collectField', 'collectStorage', 'collectMasking', 'clean-edit'].includes(targetRoute)
+      ['manage-collection', 'collectEdit', 'collectField', 'collectStorage', 'collectMasking', 'clean-edit'].includes(
+        targetRoute,
+      )
     ) {
       // bkdata/es 类型没有 collector_config_id，使用 index_set_id
       const isBkDataOrEs = ['bkdata', 'es'].includes(typeKey);
-      params.collectorId = String(
-        isBkDataOrEs ? (row.index_set_id ?? '') : (row.collector_config_id ?? '')
-      );
+      params.collectorId = String(isBkDataOrEs ? (row.index_set_id ?? '') : (row.collector_config_id ?? ''));
     }
 
     /**
@@ -276,6 +276,7 @@ export const useCollectList = () => {
     if (operateType === 'masking') {
       // 脱敏：直接进入脱敏页，并隐藏左侧步骤条（通过 type=masking 控制）
       query.type = 'masking';
+      backRoute = route.name;
     }
 
     if (operateType === 'status') {
@@ -326,7 +327,7 @@ export const useCollectList = () => {
      *   - add：用 isAllowedCreate 控制（空间创建权限）
      *   - view：校验 VIEW_COLLECTION_AUTH
      *   - search：校验 SEARCH_LOG_AUTH（indices 资源）
-     *   - 其他操作：校验 MANAGE_COLLECTION_AUTH（collection 资源）
+     *   - 其他操作：校验对应管理权限（collection / indices 资源）
      */
 
     // 1) 前置：不可点击直接返回（例如“未完成/运行中”限制等）
@@ -344,42 +345,45 @@ export const useCollectList = () => {
       isAllowed: () => boolean;
       buildApplyData: () => IAuthApplyDataParams;
     }> = [
-        {
-          match: _t => _t === 'add',
-          isAllowed: () => Boolean(isAllowedCreate.value),
-          buildApplyData: () => buildSpaceCreateApplyData(),
+      {
+        match: _t => _t === 'add',
+        isAllowed: () => Boolean(isAllowedCreate.value),
+        buildApplyData: () => buildSpaceCreateApplyData(),
+      },
+      {
+        match: _t => _t === 'view',
+        isAllowed: () => {
+          const viewKey = isBkDataOrEs ? authorityMap.MANAGE_INDICES_AUTH : authorityMap.VIEW_COLLECTION_AUTH;
+          return Boolean(row.permission?.[viewKey]);
         },
-        {
-          match: _t => _t === 'view',
-          isAllowed: () => {
-            const viewKey = isBkDataOrEs ? authorityMap.MANAGE_INDICES_AUTH : authorityMap.VIEW_COLLECTION_AUTH;
-            return Boolean(row.permission?.[viewKey]);
-          },
-          buildApplyData: () => {
-            if (isBkDataOrEs) {
-              return buildIndicesApplyData(authorityMap.MANAGE_INDICES_AUTH, row.index_set_id);
-            }
-            return buildCollectionApplyData(authorityMap.VIEW_COLLECTION_AUTH, row.collector_config_id);
-          },
+        buildApplyData: () => {
+          if (isBkDataOrEs) {
+            return buildIndicesApplyData(authorityMap.MANAGE_INDICES_AUTH, row.index_set_id);
+          }
+          return buildCollectionApplyData(authorityMap.VIEW_COLLECTION_AUTH, row.collector_config_id);
         },
-        {
-          match: _t => _t === 'search',
-          isAllowed: () => Boolean(row.permission?.[authorityMap.SEARCH_LOG_AUTH]),
-          buildApplyData: () => buildIndicesApplyData(authorityMap.SEARCH_LOG_AUTH, row.index_set_id),
+      },
+      {
+        match: _t => _t === 'search',
+        isAllowed: () => Boolean(row.permission?.[authorityMap.SEARCH_LOG_AUTH]),
+        buildApplyData: () => buildIndicesApplyData(authorityMap.SEARCH_LOG_AUTH, row.index_set_id),
+      },
+      {
+        match: _t => _t === 'edit',
+        isAllowed: () => Boolean(row.permission?.[editKey]),
+        buildApplyData: () => {
+          return isBkDataOrEs ? buildIndicesApplyData(editKey, editId) : buildCollectionApplyData(editKey, editId);
         },
-        {
-          match: _t => _t === 'edit',
-          isAllowed: () => Boolean(row.permission?.[editKey]),
-          buildApplyData: () =>
-            isBkDataOrEs ? buildIndicesApplyData(editKey, editId) : buildCollectionApplyData(editKey, editId),
+      },
+      {
+        // 原逻辑：除 add/view/search 外，统一按“管理权限”兜底
+        match: _t => !['add', 'view', 'search'].includes(String(_t)),
+        isAllowed: () => Boolean(row.permission?.[editKey]),
+        buildApplyData: () => {
+          return isBkDataOrEs ? buildIndicesApplyData(editKey, editId) : buildCollectionApplyData(editKey, editId);
         },
-        {
-          // 原逻辑：除 add/view/search 外，统一按“管理权限”兜底
-          match: _t => !['add', 'view', 'search'].includes(String(_t)),
-          isAllowed: () => Boolean(row.permission?.[authorityMap.MANAGE_COLLECTION_AUTH]),
-          buildApplyData: () => buildCollectionApplyData(authorityMap.MANAGE_COLLECTION_AUTH, row.collector_config_id),
-        },
-      ];
+      },
+    ];
 
     for (const guard of guards) {
       if (!guard.match(operateType)) continue;
