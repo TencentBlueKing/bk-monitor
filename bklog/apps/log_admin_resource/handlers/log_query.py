@@ -1822,13 +1822,15 @@ def _context_time_bounds(value):
 def _validate_context_anchor(index_set, anchor, scenario_id=None, allowed_result_table_ids=None):
     result_table_id = anchor.get("result_table_id")
     if result_table_id:
+        logical_data_labels = set()
         if allowed_result_table_ids is None:
             related_index_set_ids = [index_set.index_set_id]
             if index_set.is_group:
                 related_index_set_ids.extend(index_set.get_child_index_set_ids())
-            allowed_result_table_ids = {
+            logical_data_labels = {
                 BaseIndexSetHandler.get_data_label(index_set_id) for index_set_id in related_index_set_ids
             }
+            allowed_result_table_ids = set(logical_data_labels)
             allowed_result_table_ids.update(
                 str(value)
                 for value in index_set.get_log_index_set_data()
@@ -1839,7 +1841,8 @@ def _validate_context_anchor(index_set, anchor, scenario_id=None, allowed_result
                 .values_list("result_table_id", flat=True)
                 if value
             )
-        if result_table_id not in allowed_result_table_ids:
+        logical_route_matches = any(result_table_id.startswith(f"{data_label}_") for data_label in logical_data_labels)
+        if result_table_id not in allowed_result_table_ids and not logical_route_matches:
             _error("log_context_source_mismatch", "context anchor result table does not belong to the index set")
 
     if index_set.sort_fields:
@@ -1853,8 +1856,10 @@ def _validate_context_anchor(index_set, anchor, scenario_id=None, allowed_result
         required = ["gseIndex", "iterationIndex"]
         if any(anchor.get(field) in (None, "") for field in required):
             _error("log_context_anchor_invalid", "log anchor requires gseIndex and iterationIndex")
-        if anchor.get("bk_host_id") in (None, "") and anchor.get("serverIp") in (None, ""):
-            _error("log_context_anchor_invalid", "log anchor requires bk_host_id or serverIp")
+        host_locator = anchor.get("bk_host_id") not in (None, "") or anchor.get("serverIp") not in (None, "")
+        container_locator = anchor.get("path") not in (None, "") or anchor.get("container_id") not in (None, "")
+        if not (host_locator or container_locator):
+            _error("log_context_anchor_invalid", "log anchor requires a host or container source locator")
         return
     if scenario_id == Scenario.BKDATA:
         if anchor.get("gseindex") in (None, "") or anchor.get("_iteration_idx") in (None, ""):

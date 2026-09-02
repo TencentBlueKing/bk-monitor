@@ -1,4 +1,5 @@
 import copy
+import json
 from unittest.mock import patch
 
 from django.test import TestCase, override_settings
@@ -24,6 +25,7 @@ from apps.log_admin_resource.handlers.log_query import (
     _route_evidence,
     _run_query,
     _scene_target,
+    _validate_context_anchor,
     aggregate_logs,
     get_log_context,
     search_clustering_patterns,
@@ -38,6 +40,7 @@ from apps.log_search.handlers.search.aggs_handlers import AggsHandlers, AggsView
 from apps.log_search.handlers.search.mapping_handlers import MappingHandlers
 from apps.log_search.handlers.search.search_handlers_esquery import SearchHandler as SearchHandlerEsquery
 from apps.log_search.models import LogIndexSet, LogIndexSetData, Scenario, Space
+from apps.log_unifyquery.builder.context import CreateSearchContextBodyScenarioLog
 from apps.log_unifyquery.handler.scene_search import SceneUnifyQueryHandler
 from apps.log_unifyquery.handler.base import UnifyQueryHandler
 from apps.utils.local import del_local_param, get_local_param, set_local_param
@@ -399,6 +402,41 @@ class LogQueryHandlerTest(TestCase):
 
         self.assertEqual(result, {"fields": []})
         mock_handler.assert_called_once()
+
+    def test_context_anchor_accepts_unifyquery_route_label_and_container_path(self):
+        anchor = {
+            "result_table_id": "bklog_index_set_300_2_bklog_app.__default__",
+            "gseIndex": 100,
+            "iterationIndex": 1,
+            "path": "/var/log/containers/app.log",
+        }
+
+        _validate_context_anchor(self.index_set, anchor)
+
+        anchor["result_table_id"] = "bklog_index_set_301_3_bklog_other.__default__"
+        with self.assertRaises(ValidationError) as error:
+            _validate_context_anchor(self.index_set, anchor)
+        self.assertEqual(str(error.exception.code), "3624107")
+
+    def test_log_context_builder_omits_missing_server_ip_condition(self):
+        body = CreateSearchContextBodyScenarioLog(
+            body_data={"query_list": [{}]},
+            sort_list=["dtEventTimeStamp", "gseIndex", "iterationIndex"],
+            size=10,
+            start=0,
+            order="+",
+            gse_index=100,
+            iteration_index=1,
+            dt_event_time_stamp=1767227400000,
+            path="/var/log/containers/app.log",
+            server_ip=None,
+            bk_host_id=None,
+            container_id=None,
+        ).body
+        conditions = json.dumps(body["query_list"][0]["conditions"], ensure_ascii=False)
+
+        self.assertNotIn("serverIp", conditions)
+        self.assertIn("path", conditions)
 
     @patch("apps.log_admin_resource.handlers.log_query.FeatureToggleObject.switch", return_value=False)
     @patch("apps.log_admin_resource.handlers.log_query._index_set_search")
