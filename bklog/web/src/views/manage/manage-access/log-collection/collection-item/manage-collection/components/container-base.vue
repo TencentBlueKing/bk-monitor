@@ -545,7 +545,7 @@
           const query = { bk_biz_id: this.$store.state.bkBizId };
           const res = await this.$http.request('container/getBcsList', { query });
           return res.data.find(item => item.id === bcsID)?.name || '--';
-        } catch (error) {
+        } catch {
           return '--';
         }
       },

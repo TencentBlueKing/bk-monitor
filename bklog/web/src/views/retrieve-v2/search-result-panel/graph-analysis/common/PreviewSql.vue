@@ -81,11 +81,11 @@
   }
 
   // Function to copy SQL to clipboard
-  function copy() {
-    copyToClipboard(props.sql).catch(() => {
-      Message({ theme: 'error', message: $t('dashboards.复制失败') });
-    });
-  }
+  // function copy() {
+  //   copyToClipboard(props.sql).catch(() => {
+  //     Message({ theme: 'error', message: $t('dashboards.复制失败') });
+  //   });
+  // }
 </script>
 <style lang="scss">
   .flex-row {

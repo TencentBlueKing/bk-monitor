@@ -66,7 +66,7 @@
 
   const handleAfterHidden = () => {};
 
-  const changeColumn = row => {};
+  const changeColumn = () => {};
 
   const ensure = () => {};
 

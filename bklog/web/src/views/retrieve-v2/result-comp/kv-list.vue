@@ -406,7 +406,6 @@
     methods: {
       calcShowFieldList() {
         // 原 showFieldList 逻辑完整迁移为 method
-        const startTime = Date.now();
         const kvShowFieldsSet = this.kvShowFieldsSet;
         const emptyValues = ['--', '{}', '[]'];
         const totalFields = this.totalFields;
@@ -439,16 +438,12 @@
         // 步骤2：检查空值（需要调用 formatterStr）
         const list = [];
         const rowData = this.listData;
-        let skippedExpandableObject = 0;
-        let skippedEmpty = 0;
-
         for (let i = 0; i < candidateFields.length; i++) {
           const item = candidateFields[i];
           const fieldName = item.field_name;
 
           // 可解析 Object 父字段直接隐藏，避免与子字段重复，也避免与空字段 -- 歧义
           if (this.isExpandableObjectField(fieldName)) {
-            skippedExpandableObject += 1;
             continue;
           }
 
@@ -518,7 +513,7 @@
                           shouldSkip = true;
                         }
                       }
-                    } catch (e) {
+                    } catch {
                       // 访问失败，需要调用 formatterStr
                     }
                   }
@@ -528,7 +523,6 @@
           }
 
           if (shouldSkip) {
-            skippedEmpty += 1;
             continue;
           }
 
@@ -592,7 +586,7 @@
                     isDefinitelyEmpty = true;
                   }
                 }
-              } catch (e) {
+              } catch {
                 // 检查失败，需要调用 formatterStr
               }
             }
@@ -600,7 +594,6 @@
             if (isDefinitelyEmpty) {
               formattedValue = '--';
               this.formattedValueCache.set(fieldName, formattedValue);
-              skippedEmpty += 1;
               continue; // 直接跳过，不加入列表
             }
 
@@ -610,8 +603,6 @@
 
           if (!emptyValues.includes(formattedValue)) {
             list.push(item);
-          } else {
-            skippedEmpty += 1;
           }
         }
 

@@ -24,8 +24,8 @@
 * IN THE SOFTWARE.
 -->
 <script setup>
-  import { ref, defineExpose, computed } from 'vue';
-  import settingSVG from '@/images/icons/setting-fill.svg';
+  import { ref, computed } from 'vue';
+  // import settingSVG from '@/images/icons/setting-fill.svg';
   import Draggable from 'vuedraggable';
   import QueryPanelMetricAdd from './QueryPanelMetricAdd.vue';
   import useLocale from '@/hooks/use-locale';
@@ -37,7 +37,7 @@
   const fields = ref([]);
   const preferRawData = ref(false);
   const errorMsg = ref('');
-  const svgImg = ref(settingSVG);
+  // const svgImg = ref(settingSVG);
   const isCanPutInTips = computed(() => {
     //   if (
     //     verifyRelation(
@@ -57,43 +57,43 @@
     //   }
     return '';
   });
-  const verifyRelation = (rule, currentLength, targetLength, isAdd = false) => {
-    if (!isObject(rule)) return null;
+  // const verifyRelation = (rule, currentLength, targetLength, isAdd = false) => {
+  //   if (!isObject(rule)) return null;
 
-    // 假设 rule 是一个 DimensionRule 类型的对象
-    const asRule = rule;
+  //   // 假设 rule 是一个 DimensionRule 类型的对象
+  //   const asRule = rule;
 
-    if (asRule.relation && asRule.relation.length > 0) {
-      let result = true;
+  //   if (asRule.relation && asRule.relation.length > 0) {
+  //     let result = true;
 
-      /** 关联条件中有一个命中即可 */
-      if (!isAdd) {
-        result = asRule.relation.some(({ condition, count }) => {
-          const currResult = evaluateCondition(count, currentLength, false);
-          const conditionResult = evaluateCondition(condition, targetLength, false);
-          return conditionResult && currResult;
-        });
-      } else {
-        result = asRule.relation.every(({ condition, count }) => {
-          /** 这里注意evaluateCondition isAdd添加模式下 可添加返回结果是false  */
-          const currResult = evaluateCondition(count, currentLength, isAdd);
-          const conditionResult = evaluateCondition(condition, targetLength, false);
-          if (!conditionResult) return true;
-          // 添加验证情况下，如果依赖条件不符合则直接返回true 由后续取反返回结果即可
-          return conditionResult && !currResult;
-        });
-      }
+  //     /** 关联条件中有一个命中即可 */
+  //     if (!isAdd) {
+  //       result = asRule.relation.some(({ condition, count }) => {
+  //         const currResult = evaluateCondition(count, currentLength, false);
+  //         const conditionResult = evaluateCondition(condition, targetLength, false);
+  //         return conditionResult && currResult;
+  //       });
+  //     } else {
+  //       result = asRule.relation.every(({ condition, count }) => {
+  //         /** 这里注意evaluateCondition isAdd添加模式下 可添加返回结果是false  */
+  //         const currResult = evaluateCondition(count, currentLength, isAdd);
+  //         const conditionResult = evaluateCondition(condition, targetLength, false);
+  //         if (!conditionResult) return true;
+  //         // 添加验证情况下，如果依赖条件不符合则直接返回true 由后续取反返回结果即可
+  //         return conditionResult && !currResult;
+  //       });
+  //     }
 
-      return isAdd ? !result : result;
-    }
+  //     return isAdd ? !result : result;
+  //   }
 
-    // 检查 rule 是否有 'count' 属性
-    if (Object.prototype.hasOwnProperty.call(rule, 'count')) {
-      return evaluateCondition(asRule.count, currentLength, isAdd);
-    }
+  //   // 检查 rule 是否有 'count' 属性
+  //   if (Object.prototype.hasOwnProperty.call(rule, 'count')) {
+  //     return evaluateCondition(asRule.count, currentLength, isAdd);
+  //   }
 
-    return null;
-  };
+  //   return null;
+  // };
   function addFormField(data) {
     if (!data?.name) return;
     const item = new QueryColumn(data);
@@ -159,7 +159,6 @@
       displayNames,
     };
   });
-  const addTag = () => {};
 </script>
 <template>
   <div class="settings">

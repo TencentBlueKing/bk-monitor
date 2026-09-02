@@ -6,7 +6,7 @@
       class="custom-select-list"
     >
       <li
-        v-for="({ key, sorts }, index) in sortList"
+        v-for="{ key, sorts } in sortList"
         :key="key"
         class="custom-select-item"
       >

@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, onBeforeUnmount, onMounted, ref, watch, nextTick, type PropType } from 'vue';
+import { computed, defineComponent, onBeforeUnmount, ref, watch, nextTick, type PropType } from 'vue';
 import * as echarts from 'echarts';
 import dayjs from 'dayjs';
 import useStore from '@/hooks/use-store';
@@ -196,7 +196,7 @@ export default defineComponent({
 
     watch(
       [() => props.rowData, () => props.markIndex, () => props.isShow],
-      ([newRowData, newMarkIndex, newIsShow]) => {
+      ([newRowData, _newMarkIndex, newIsShow]) => {
         // 仅在侧边栏打开且有有效数据时才请求
         if (!newIsShow || !newRowData) return;
 

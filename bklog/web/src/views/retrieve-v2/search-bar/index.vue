@@ -207,7 +207,7 @@
   // 监听 computed keyword 的变化
   watch(
     () => keyword.value,
-    (newValue, oldValue) => {
+    newValue => {
       if (newValue !== sqlQueryValue.value) {
         sqlQueryValue.value = newValue;
       }
@@ -218,7 +218,7 @@
   // 额外监听 store 中的 keyword 变化（深度监听）
   watch(
     () => store.state.indexItem.keyword,
-    (newValue, oldValue) => {
+    newValue => {
       if (newValue !== sqlQueryValue.value) {
         sqlQueryValue.value = newValue;
       }

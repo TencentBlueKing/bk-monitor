@@ -675,7 +675,7 @@
             this.isShowClusterStep = !res.data.access_finished;
             return res.data.access_finished;
           }
-        } catch (error) {
+        } catch {
           // 报错就证明没开日志聚类
           this.isShowClusterStep = false;
           this.stopPolling();

@@ -231,30 +231,30 @@
   function handleCloseDialog() {
     emit('close');
   }
-  function mergeWhereList(source, target) {
-    let result = [];
-    const sourceMap = new Map();
-    for (const item of source) {
-      sourceMap.set(item.key, item);
-    }
-    const localTarget = [];
-    for (const item of target) {
-      const sourceItem = sourceMap.get(item.key);
-      if (
-        !(
-          sourceItem &&
-          sourceItem.key === item.key &&
-          sourceItem.method === item.method &&
-          JSON.stringify(sourceItem.value) === JSON.stringify(item.value) &&
-          sourceItem?.options?.is_wildcard === item?.options?.is_wildcard
-        )
-      ) {
-        localTarget.push(item);
-      }
-    }
-    result = [...source, ...localTarget];
-    return result;
-  }
+  // function mergeWhereList(source, target) {
+  //   let result = [];
+  //   const sourceMap = new Map();
+  //   for (const item of source) {
+  //     sourceMap.set(item.key, item);
+  //   }
+  //   const localTarget = [];
+  //   for (const item of target) {
+  //     const sourceItem = sourceMap.get(item.key);
+  //     if (
+  //       !(
+  //         sourceItem &&
+  //         sourceItem.key === item.key &&
+  //         sourceItem.method === item.method &&
+  //         JSON.stringify(sourceItem.value) === JSON.stringify(item.value) &&
+  //         sourceItem?.options?.is_wildcard === item?.options?.is_wildcard
+  //       )
+  //     ) {
+  //       localTarget.push(item);
+  //     }
+  //   }
+  //   result = [...source, ...localTarget];
+  //   return result;
+  // }
 
   const queryContent = computed(() => {
     return props.value.keyword;

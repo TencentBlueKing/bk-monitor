@@ -70,7 +70,7 @@ export const estimateValueBytes = (value: any): number => {
 
   try {
     return JSON.stringify(value).length * 2;
-  } catch (error) {
+  } catch {
     return String(value).length * 2;
   }
 };
@@ -90,7 +90,7 @@ const createPreview = (value: any, bytes: number) => {
     return bytes > LARGE_FIELD_BYTES || jsonValue.length > PREVIEW_STRING_LENGTH
       ? `${jsonValue.slice(0, PREVIEW_STRING_LENGTH)}...`
       : jsonValue;
-  } catch (error) {
+  } catch {
     return String(value);
   }
 };

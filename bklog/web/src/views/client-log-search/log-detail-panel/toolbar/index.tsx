@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, nextTick, ref, watch } from 'vue';
+import { computed, defineComponent, nextTick, ref } from 'vue';
 
 import { deepClone, contextHighlightColor } from '@/common/util';
 import useLocale from '@/hooks/use-locale';

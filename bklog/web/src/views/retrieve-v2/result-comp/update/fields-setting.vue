@@ -462,7 +462,7 @@
           const fieldConfig = JSON.parse(fieldContent);
           fieldConfig.editStr = `导入模板-${random(3)}`;
           this.handleUpdateConfig(fieldConfig, true, this.$t('导入成功'));
-        } catch (error) {
+        } catch {
           this.messageWarn(this.$t('请导入正确的JSON格式文件~'));
           return;
         }
@@ -554,7 +554,8 @@
           if (successMsg) {
             isCreate ? this.messageSuccess(successMsg) : this.messageInfo(successMsg);
           }
-        } catch (error) {
+        } catch {
+          // 配置保存失败时不执行成功态处理，错误由请求层统一处理
         } finally {
           if (!this.isConfirmSubmit) this.initRequestConfigListShow();
           this.newConfigStr = '';
@@ -574,7 +575,8 @@
                 index_set_type: this.isUnionSearch ? 'union' : 'single',
               };
           await this.$http.request(requestName, { data });
-        } catch (error) {
+        } catch {
+          // 删除失败时保留当前配置，错误由请求层统一处理
         } finally {
           this.initRequestConfigListShow();
           this.newConfigStr = '';
@@ -651,7 +653,8 @@
             isShowEdit: false,
             editStr: item.name,
           }));
-        } catch (error) {
+        } catch {
+          // 配置列表加载失败时保留当前列表，错误由请求层统一处理
         } finally {
           this.isLoading = false;
         }

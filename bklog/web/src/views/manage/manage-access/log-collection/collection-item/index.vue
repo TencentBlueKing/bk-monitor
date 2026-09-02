@@ -1180,7 +1180,7 @@
           return await this.$http.request('masking/getDesensitizeState', {
             data: { index_set_ids: indexIdList },
           });
-        } catch (error) {
+        } catch {
           return [];
         }
       },
@@ -1201,7 +1201,7 @@
               name: item.name,
             }));
           this.filterLabelList = cloneTagBase.concat(notBuiltInList);
-        } catch (error) {
+        } catch {
           this.selectLabelList = [];
           this.filterLabelList = [];
         }

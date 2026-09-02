@@ -514,7 +514,9 @@ export default defineComponent({
         try {
           i.hide();
           i.destroy();
-        } catch (_) {}
+        } catch {
+          // 单个实例销毁失败不阻断其余实例清理
+        }
       });
       tippyInstances = [];
     };

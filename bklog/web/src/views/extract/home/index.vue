@@ -362,7 +362,7 @@
             },
           });
           this.displayNameList = res.data;
-        } catch (error) {
+        } catch {
           this.displayNameList = [];
         }
       },

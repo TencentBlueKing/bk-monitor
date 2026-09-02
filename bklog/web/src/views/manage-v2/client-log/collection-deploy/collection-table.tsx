@@ -30,7 +30,6 @@ import { clearTableFilter } from '@/common/util';
 import EmptyStatus from '@/components/empty-status/index.vue';
 
 import { t } from '@/hooks/use-locale';
-import useStore from '@/hooks/use-store';
 import { TRIGGER_FREQUENCY_OPTIONS, CLIENT_TYPE_OPTIONS } from '../constant';
 import { TaskStatus, TaskScene } from './types';
 import { useTableSetting } from '@/views/manage-v2/hooks/use-table-setting';
@@ -89,8 +88,6 @@ export default defineComponent({
     'sort-change',
   ],
   setup(props, { emit }) {
-    const store = useStore();
-
     const logTableRef = ref(null); // 表格引用
 
     // 表格字段配置

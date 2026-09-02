@@ -1012,7 +1012,6 @@ export default class MaskingField extends tsc<IProps> {
       return initFieldList.filter(item => item.fieldList.length);
     } catch {
       return [];
-    } finally {
     }
   }
 

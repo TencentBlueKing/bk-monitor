@@ -120,11 +120,6 @@ export default defineComponent({
       catchFilterKey.value = [...filterKey.value];
       emit('handle-filter', 'filterKey', filterKey.value);
     };
-    const blurFilterLog = () => {
-      if (catchFilterKey.value.length === 0 && filterKey.value.length === 0) return;
-      filterLog();
-    };
-
     const changeLightList = () => {
       // 找出未显示的颜色
       const colorIndex = contextHighlightColor.findIndex((item, index) => !catchColorIndexList.value.includes(index));

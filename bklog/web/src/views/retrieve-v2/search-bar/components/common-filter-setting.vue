@@ -168,7 +168,6 @@
   import VueDraggable from 'vuedraggable';
 
   import { excludesFields } from '../utils/const.common';
-  import { getCommonFilterAddition } from '../../../../store/helper';
   import { BK_LOG_STORAGE } from '@/store/store.type';
   // 获取 store
   const store = useStore();

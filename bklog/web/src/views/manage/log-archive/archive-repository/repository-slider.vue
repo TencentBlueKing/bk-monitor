@@ -405,10 +405,6 @@
       showSlider(val) {
         if (val) {
           this.getEsClusterList();
-          if (this.isEdit) {
-          } else {
-            //
-          }
           this.initSidebarFormData();
         } else {
           // 清空表单数据

@@ -226,7 +226,7 @@
           const res = await this.$store.dispatch('checkAndGetData', paramData);
           if (!res.isAllowed) this.editAuthData = res.data;
           this.editAuth = res.isAllowed;
-        } catch (error) {
+        } catch {
           this.editAuth = false;
         }
       },

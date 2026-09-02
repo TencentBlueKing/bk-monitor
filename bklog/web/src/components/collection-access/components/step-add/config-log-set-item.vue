@@ -679,7 +679,7 @@
           await this.$refs.validateForm?.validate();
           await this.$refs.logFilterRef?.inputValidate();
           return true;
-        } catch (error) {
+        } catch {
           return false;
         }
       },
@@ -733,7 +733,7 @@
         try {
           await this.$refs.deviceMetadataRef?.extraLabelsValidate();
           return true;
-        } catch (error) {
+        } catch {
           return false;
         }
       },

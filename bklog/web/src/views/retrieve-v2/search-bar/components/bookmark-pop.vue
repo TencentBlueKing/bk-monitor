@@ -199,7 +199,8 @@
           window.mainComponent.messageSuccess($t('操作成功'));
           favoriteGroupSelectRef.value?.close();
         }
-      } catch (error) {
+      } catch {
+        // 分组创建失败时保留当前状态，错误由请求层统一处理
       } finally {
         isShowAddGroup.value = true;
         verifyData.value.groupName = '';
@@ -374,7 +375,9 @@
         verifyData.value.groupName = '';
         emit('refresh', true);
       }
-    } catch (error) {}
+    } catch {
+      // 收藏保存失败时保留当前输入，错误由请求层统一处理
+    }
   };
   const saveCurrentFavorite = () => {
     emit('save-current-active-favorite');

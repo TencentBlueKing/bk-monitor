@@ -658,7 +658,7 @@ export function readBlobResponse(response) {
   try {
     const stream = response.stream().pipeThrough(new TextDecoderStream()).pipeThrough(createSanitizeTransform());
     return collectStringStream(stream);
-  } catch (e) {
+  } catch {
     return readBlobByFileReader(response).then(sanitizeBidi);
   }
 }
@@ -1347,7 +1347,7 @@ export const utcFormatDate = (val, formatTimezone = false) => {
 };
 
 // 首次加载设置表格默认宽度自适应
-export const setDefaultTableWidth = (visibleFields, tableData, catchFieldsWidthObj = null, staticWidth = 50) => {
+export const setDefaultTableWidth = (visibleFields, tableData, catchFieldsWidthObj = null, _staticWidth = 50) => {
   try {
     const widthSnapshot = Object.create(null);
     if (tableData.length && visibleFields.length) {

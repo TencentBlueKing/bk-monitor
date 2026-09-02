@@ -302,7 +302,6 @@
   import useLocale from '@/hooks/use-locale';
   import BatchOperationMenu from './batch-operation-menu';
   import FavoriteDetail from './favorite-detail';
-  import dayjs from 'dayjs';
   import useUtils from '@/hooks/use-utils';
 
   const props = defineProps({
@@ -405,7 +404,7 @@
 
   watch(
     allGroupList,
-    (newValue, oldValue) => {
+    newValue => {
       const groupMap = new Map(
         otherGroupList.value.map(group => {
           return [group.id, { ...group, favorites: [] }];
@@ -493,7 +492,7 @@
       allGroupList.value = data;
 
       searchResultFavorites.value = allGroupList.value;
-    } catch (error) {
+    } catch {
       // this.emptyType = "500";
     } finally {
       // this.tableLoading = false;

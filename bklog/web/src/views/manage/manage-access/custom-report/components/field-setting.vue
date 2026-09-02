@@ -95,7 +95,7 @@
     },
   });
 
-  const emits = defineEmits(['update:value']);
+  defineEmits(['update:value']);
 
   // 获取字段设置数据列表
   const targetFieldSelectList = ref([]);

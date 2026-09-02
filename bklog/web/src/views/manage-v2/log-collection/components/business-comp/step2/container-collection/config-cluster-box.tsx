@@ -140,8 +140,6 @@ export default defineComponent({
       content: t('请先选择集群'),
       placement: 'top' as const,
     });
-    /** 集群列表 */
-    const clusterList = computed(() => props.clusterList);
     /** 操作符选择列表 */
     const operatorSelectList = ref<ISelectItem[]>([
       { id: '=', name: '=' },

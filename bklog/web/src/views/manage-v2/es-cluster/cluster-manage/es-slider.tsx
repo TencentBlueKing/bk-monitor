@@ -180,7 +180,6 @@ export default defineComponent({
     const cacheBkBizLabelsList = ref([]); // 缓存按照业务属性选择
     const bizParentList = ref([]); // 按照业务属性父级列表
     const bizChildrenList = ref({}); // 业务属性选择子级键值对象
-    const userApi = ref((window as any).BK_LOGIN_URL); // 负责人api
     const isShowManagement = ref(false); // 是否展示集群管理
     const retentionDaysList = ref([]); // 默认过期时间列表
     const maxDaysList = ref([]); // 最大过期时间列表

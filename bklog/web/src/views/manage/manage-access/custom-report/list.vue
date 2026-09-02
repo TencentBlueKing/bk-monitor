@@ -596,7 +596,7 @@
           return await this.$http.request('masking/getDesensitizeState', {
             data: { index_set_ids: indexIdList },
           });
-        } catch (error) {
+        } catch {
           return [];
         }
       },
@@ -609,7 +609,7 @@
             },
           });
           this.selectLabelList = res.data;
-        } catch (error) {
+        } catch {
           this.selectLabelList = [];
         }
       },

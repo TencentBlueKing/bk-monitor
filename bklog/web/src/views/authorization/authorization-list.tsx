@@ -820,7 +820,9 @@ export default class AuthorizationList extends tsc<object> {
         },
       });
       this.getListData();
-    } catch {}
+    } catch {
+      // 删除失败时保留当前列表，错误由请求层统一处理
+    }
   }
 
   showDialog(row = null) {

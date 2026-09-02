@@ -24,7 +24,7 @@
 * IN THE SOFTWARE.
 -->
 <script setup>
-  import { ref, onMounted, defineExpose, nextTick, computed } from 'vue';
+  import { ref, onMounted, defineExpose } from 'vue';
   import { useRoute } from 'vue-router/composables';
   import { bkMessage } from 'bk-magic-vue';
   import * as monaco from 'monaco-editor';

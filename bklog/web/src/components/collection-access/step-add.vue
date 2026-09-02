@@ -859,7 +859,7 @@
           const winIndex = activeScenario.findIndex(item => item.id === 'wineventlog');
           activeScenario.splice(winIndex, 1);
           return activeScenario;
-        } catch (error) {
+        } catch {
           return [];
         }
       },
@@ -1161,7 +1161,9 @@
         try {
           // 基础信息表格验证
           await this.$refs.validateForm.validate();
-        } catch (error) {}
+        } catch {
+          // 基础表单错误由组件展示，继续执行其他配置校验
+        }
         // win日志类型验证
         if (this.$refs.formConfigRef?.winCannotPass && this.isWinEventLog) return false;
         // 物理环境验证
@@ -1567,7 +1569,7 @@
             this.enNameErrorMessage = res.data.message;
             return res.data.allowed;
           }
-        } catch (error) {
+        } catch {
           return false;
         }
       },
@@ -1662,7 +1664,7 @@
                 Object.assign(this.formData, assignData);
               }
               resolve(true);
-            } catch (error) {
+            } catch {
               resolve(false);
             }
           }

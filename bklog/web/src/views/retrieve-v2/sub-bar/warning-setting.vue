@@ -70,7 +70,7 @@
           </template>
 
           <bk-tab-panel
-            v-for="(item, index) in panels"
+            v-for="item in panels"
             :key="item.name"
             :label="item.label"
             :name="item.name"

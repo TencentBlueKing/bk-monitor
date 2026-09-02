@@ -588,7 +588,6 @@
   import SidebarDiffMixin from '@/mixins/sidebar-diff-mixin';
   import SpaceSelectorMixin from '@/mixins/space-selector-mixin';
   import { isFeatureToggleOn } from '@/hooks/use-feature-toggle';
-  import BkUserSelector from '@blueking/user-selector';
   import { mapState, mapGetters } from 'vuex';
   import ValidateUserSelector from '@/components/user-selector';
 
@@ -597,7 +596,6 @@
   export default {
     components: {
       EsDialog,
-      BkUserSelector,
       ValidateUserSelector,
     },
     mixins: [SidebarDiffMixin, SpaceSelectorMixin],

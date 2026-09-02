@@ -436,7 +436,7 @@
         combinedArray.forEach(item => {
           // 将对象转换为字符串进行比较，忽略 __Index__
           const key = Object.entries(item)
-            .filter(([k, _]) => k !== '__Index__')
+            .filter(([k]) => k !== '__Index__')
             .map(([k, v]) => `${k}:${v}`)
             .sort()
             .join('|');
@@ -462,7 +462,7 @@
           if (res.data) {
             return res.data;
           }
-        } catch (error) {
+        } catch {
           return false;
         }
       },
@@ -487,7 +487,7 @@
             return pre;
           }, []);
           return ruleNewList;
-        } catch (e) {
+        } catch {
           return [];
         }
       },
@@ -507,7 +507,7 @@
               };
             });
             this.rulesList = list;
-          } catch (err) {
+          } catch {
             this.$bkMessage({
               theme: 'error',
               message: this.$t('不是有效的json文件'),

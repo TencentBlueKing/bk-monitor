@@ -195,14 +195,14 @@ class RouteUrlResolver {
     for (let i = 0; i <= maxDepth; i++) {
       try {
         return JSON.parse(current) as T;
-      } catch (e) {
+      } catch {
         // parse 失败再尝试 decode；decode 失败直接返回 fallback
       }
 
       let decoded: string;
       try {
         decoded = decodeURIComponent(current);
-      } catch (e) {
+      } catch {
         return fallback;
       }
 

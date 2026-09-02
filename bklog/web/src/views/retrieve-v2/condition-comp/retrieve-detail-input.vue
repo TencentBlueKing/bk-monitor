@@ -509,7 +509,7 @@
           this.resetKeyword = data.keyword;
           this.$emit('isCanSearch', data.is_legal);
           return data.is_legal || data.is_resolved;
-        } catch (error) {
+        } catch {
           return true;
         }
       },

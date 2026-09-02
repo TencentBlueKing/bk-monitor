@@ -259,7 +259,7 @@
     },
     methods: {
       handleMenuStatus() {
-        const { isExtractActive, isClusteringActive, isCollector } = this;
+        // const { isExtractActive, isClusteringActive, isCollector } = this;
         this.showCurrentList = this.showCurrentList.map(list => {
           return {
             ...list,

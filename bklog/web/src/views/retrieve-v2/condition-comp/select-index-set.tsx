@@ -671,7 +671,9 @@ export default class SelectIndexSet extends tsc<object> {
         .then(() => {
           this.getIndexSetHistoryList(this.indexSearchType, true);
         });
-    } catch {}
+    } catch {
+      // 删除失败时保留当前历史记录，错误由请求层统一处理
+    }
   }
 
   /** 点击历史记录 */

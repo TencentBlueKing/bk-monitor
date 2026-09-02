@@ -158,7 +158,6 @@ export default defineComponent({
         };
       } catch (e) {
         console.warn(e);
-      } finally {
       }
     };
 

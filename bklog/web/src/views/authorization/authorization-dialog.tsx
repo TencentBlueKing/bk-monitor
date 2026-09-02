@@ -294,7 +294,9 @@ export default class AuthorizationDialog extends tsc<IProps, IEvents> {
             });
             this.handleCancel(false);
             this.$emit('success', res.need_approval);
-          } catch {}
+          } catch {
+            // 授权失败时保留当前弹窗，错误由请求层统一处理
+          }
           this.loading = false;
         }
       });

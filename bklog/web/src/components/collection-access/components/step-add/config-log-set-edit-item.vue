@@ -81,13 +81,11 @@
   </div>
 </template>
 <script>
-  import EmptyStatus from '@/components/empty-status';
   import matchLabelItem from './match-label-item';
   import { random } from '@/common/util';
 
   export default {
     components: {
-      EmptyStatus,
       matchLabelItem,
     },
     props: {

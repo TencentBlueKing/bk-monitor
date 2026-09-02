@@ -30,7 +30,6 @@ import { formatFileSize } from '@/common/util';
 import EmptyStatus from '@/components/empty-status/index.vue';
 
 import { t } from '@/hooks/use-locale';
-import useStore from '@/hooks/use-store';
 import { useTableSetting } from '@/views/manage-v2/hooks/use-table-setting';
 import { useSearchTask } from '../hooks/use-search-task';
 import { useDownloadFile } from '../hooks/use-download-file';
@@ -78,8 +77,6 @@ export default defineComponent({
   },
   emits: ['page-change', 'page-limit-change', 'search', 'sort-change', 'upload', 'selection-change'],
   setup(props, { emit }) {
-    const store = useStore();
-
     const reportTableRef = ref(null);
 
     // 分页配置

@@ -150,7 +150,7 @@ class ClusterTableWorkerService {
     if (!this.activeWorker) return;
     try {
       await this.postMessage({ type: 'clear' }, 3000);
-    } catch (error) {
+    } catch {
       this.destroyWorker();
     }
   }

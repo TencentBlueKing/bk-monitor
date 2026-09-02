@@ -770,7 +770,7 @@ export default defineComponent({
         }
 
         collectionTableData.value = Array.from(fieldMap.values());
-      } catch (error) {
+      } catch {
         collectionTableData.value = [];
       } finally {
         listLoading.value = false;

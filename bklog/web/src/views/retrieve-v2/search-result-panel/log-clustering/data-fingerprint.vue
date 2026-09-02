@@ -1080,7 +1080,7 @@
           const queryType = Object.keys(this.catchOperatorVal).length ? 'update' : 'add';
           this.remarkQuery(queryType);
           this.isShowStrInputDialog = false;
-        } catch (err) {
+        } catch {
           return false;
         }
       },

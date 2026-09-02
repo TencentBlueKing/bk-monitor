@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, ref, PropType } from 'vue';
+import { defineComponent, ref } from 'vue';
 import useLocale from '@/hooks/use-locale';
 import clusterImg from '@/images/cluster-img/cluster.png';
 import ClusterAccess from './cluster-access';

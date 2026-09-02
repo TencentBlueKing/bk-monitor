@@ -1,17 +1,17 @@
 <script setup>
-  import { ref, computed, onBeforeUnmount, inject, onMounted } from 'vue';
+  import { ref, computed, onBeforeUnmount, inject } from 'vue';
   import useStore from '@/hooks/use-store';
   import useTrendChart from '@/hooks/use-trend-chart';
   import { useRoute } from 'vue-router/composables';
   import { getCommonFilterAdditionWithValues } from '../../store/helper';
-  import RetrieveHelper, { RetrieveEvent } from '../../views/retrieve-helper';
+  import { RetrieveEvent } from '../../views/retrieve-helper';
   import axios from 'axios';
 
   import http from '@/api';
   const store = useStore();
   const route = useRoute();
 
-  const emit = defineEmits(['polling']);
+  defineEmits(['polling']);
 
   const CancelToken = axios.CancelToken;
   const isUnionSearch = computed(() => store.getters.isUnionSearch);

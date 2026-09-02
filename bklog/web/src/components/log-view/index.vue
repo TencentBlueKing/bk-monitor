@@ -244,7 +244,7 @@
         if (typeof val === 'object') {
           try {
             return JSON.stringify(val);
-          } catch (e) {
+          } catch {
             return String(val);
           }
         }

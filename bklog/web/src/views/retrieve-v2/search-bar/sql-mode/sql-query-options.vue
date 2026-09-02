@@ -101,9 +101,9 @@
    * @description 是否显示 AI 助手
    * @returns {boolean}
    */
-  const showAiAssistant = computed(() => {
-    return props.value.length > 0;
-  });
+  // const showAiAssistant = computed(() => {
+  //   return props.value.length > 0;
+  // });
 
   /**
    * @description AI 预览文本

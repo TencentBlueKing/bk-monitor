@@ -619,7 +619,8 @@
             }
             this.$emit('should-retrieve', undefined, false); // 不请求图表
           }
-        } catch (error) {
+        } catch {
+          // 配置保存失败时不执行成功态处理，错误由请求层统一处理
         } finally {
           if (!this.isConfirmSubmit) this.initRequestConfigListShow();
           this.newConfigStr = '';
@@ -637,7 +638,8 @@
               index_set_type: this.isUnionSearch ? 'union' : 'single',
             },
           });
-        } catch (error) {
+        } catch {
+          // 删除失败时保留当前配置，错误由请求层统一处理
         } finally {
           this.initRequestConfigListShow();
           this.newConfigStr = '';
@@ -695,7 +697,8 @@
             isShowEdit: false,
             editStr: item.name,
           }));
-        } catch (error) {
+        } catch {
+          // 配置列表加载失败时保留当前列表，错误由请求层统一处理
         } finally {
           this.isLoading = false;
         }

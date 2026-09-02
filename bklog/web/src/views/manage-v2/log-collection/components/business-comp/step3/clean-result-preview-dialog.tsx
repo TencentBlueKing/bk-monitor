@@ -105,13 +105,6 @@ type EditableFieldSnapshot = Pick<
   'field_name' | 'field_type' | 'is_analyzed' | 'is_case_sensitive' | 'tokenize_on_chars'
 >;
 
-/** 是否为空值（视为空值冲突） */
-const isEmptyValue = (value: unknown): boolean => {
-  if (value === null || value === undefined) return true;
-  if (typeof value === 'string') return value.trim() === '';
-  return false;
-};
-
 /** 字段类型选项（与原 FieldList 保持一致） */
 const FIELD_TYPE_OPTIONS = [
   { id: 'string', name: 'string' },

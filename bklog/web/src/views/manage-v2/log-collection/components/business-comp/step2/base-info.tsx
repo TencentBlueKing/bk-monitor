@@ -153,7 +153,7 @@ export default defineComponent({
           enNameErrorMessage.value = res.data.message;
           return res.data.allowed;
         }
-      } catch (error) {
+      } catch {
         return false;
       }
     };

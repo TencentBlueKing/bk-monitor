@@ -24,7 +24,7 @@
 * IN THE SOFTWARE.
 -->
 <script setup>
-  import { ref, defineProps, watch, computed, defineEmits } from 'vue';
+  import { defineProps, computed, defineEmits } from 'vue';
 
   const props = defineProps({
     options: {

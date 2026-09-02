@@ -82,28 +82,28 @@
   // 这里逻辑不要动，不做解析会导致后续前端查询相关参数的混乱
   // store.dispatch('updateIndexItemByRoute', { route, list: [] });
 
-  const setDefaultIndexsetId = () => {
-    if (!route.query.indexId) {
-      const routeParams = store.getters.retrieveParams;
-      const resolver = new RetrieveUrlResolver({
-        ...routeParams,
-        datePickerValue: store.state.indexItem.datePickerValue,
-      });
-      if (store.getters.isUnionSearch) {
-        router.replace({ query: { ...route.query, ...resolver.resolveParamsToUrl() } });
-        return;
-      }
-      if (store.state.indexId) {
-        router.replace({
-          query: {
-            ...route.query,
-            indexId: store.state.indexId,
-            ...resolver.resolveParamsToUrl(),
-          },
-        });
-      }
-    }
-  };
+  // const setDefaultIndexsetId = () => {
+  //   if (!route.query.indexId) {
+  //     const routeParams = store.getters.retrieveParams;
+  //     const resolver = new RetrieveUrlResolver({
+  //       ...routeParams,
+  //       datePickerValue: store.state.indexItem.datePickerValue,
+  //     });
+  //     if (store.getters.isUnionSearch) {
+  //       router.replace({ query: { ...route.query, ...resolver.resolveParamsToUrl() } });
+  //       return;
+  //     }
+  //     if (store.state.indexId) {
+  //       router.replace({
+  //         query: {
+  //           ...route.query,
+  //           indexId: store.state.indexId,
+  //           ...resolver.resolveParamsToUrl(),
+  //         },
+  //       });
+  //     }
+  //   }
+  // };
 
   const getApmIndexSetList = async () => {
     store.commit('retrieve/updateIndexSetLoading', true);

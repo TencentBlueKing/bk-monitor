@@ -203,7 +203,8 @@
           };
       const res = await $http.request(requestName, { data });
       configList.value = res.data;
-    } catch (error) {
+    } catch {
+      // 配置加载失败时保留当前列表，错误由请求层统一处理
     } finally {
       isLoading.value = false;
     }

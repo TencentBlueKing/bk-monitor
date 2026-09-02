@@ -570,18 +570,18 @@
     }
   };
 
-  const resetOriginalValueRenderedFlags = () => {
-    if (!isOriginalMode.value) return;
+  // const resetOriginalValueRenderedFlags = () => {
+  //   if (!isOriginalMode.value) return;
 
-    const root = refJsonFormatterCell.value as HTMLElement | undefined;
-    const elements = root?.querySelectorAll?.('.field-value[data-field-name][data-has-word-split]') ?? [];
-    for (const element of Array.from(elements) as HTMLElement[]) {
-      const fieldName = element.getAttribute('data-field-name');
-      if (fieldName && isOriginalValueTruncated(fieldName)) {
-        resetWordSplitFlag(element);
-      }
-    }
-  };
+  //   const root = refJsonFormatterCell.value as HTMLElement | undefined;
+  //   const elements = root?.querySelectorAll?.('.field-value[data-field-name][data-has-word-split]') ?? [];
+  //   for (const element of Array.from(elements) as HTMLElement[]) {
+  //     const fieldName = element.getAttribute('data-field-name');
+  //     if (fieldName && isOriginalValueTruncated(fieldName)) {
+  //       resetWordSplitFlag(element);
+  //     }
+  //   }
+  // };
 
   const handleOriginalValueActionClick = (e: MouseEvent, fieldName: string) => {
     stopOriginalValueActionEvent(e);

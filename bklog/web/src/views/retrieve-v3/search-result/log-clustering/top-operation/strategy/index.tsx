@@ -114,7 +114,7 @@ export default defineComponent({
           },
         })) as IResponseData<ClusteringInfo>;
         return { data: res.data, type: strategyType };
-      } catch (error) {
+      } catch {
         return { type: strategyType };
       }
     };

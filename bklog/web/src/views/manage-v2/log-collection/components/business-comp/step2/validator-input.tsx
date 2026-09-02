@@ -136,19 +136,6 @@ export default defineComponent({
       emit('change', formData.inputValue);
     };
 
-    const validate = () => {
-      return new Promise(reject => {
-        if (!validateFormRef.value) {
-          reject(true);
-          return;
-        }
-        validateFormRef.value.validate().then(
-          () => reject(true),
-          () => reject(false),
-        );
-      });
-    };
-
     /**
      * 校验value是否为空
      * @returns {boolean} 校验是否通过，true表示通过，false表示失败

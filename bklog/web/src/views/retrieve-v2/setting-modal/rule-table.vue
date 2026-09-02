@@ -354,7 +354,7 @@
           }, []);
           const ruleArrStr = `[${ruleNewList.join(' ,')}]`;
           return base64Encode(ruleArrStr);
-        } catch (error) {
+        } catch {
           return '';
         }
       },

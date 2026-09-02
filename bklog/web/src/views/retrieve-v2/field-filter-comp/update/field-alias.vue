@@ -25,7 +25,7 @@
 -->
 
 <script setup>
-  import Vue, { computed, ref } from 'vue';
+  import { computed, ref } from 'vue';
   import useLocale from '@/hooks/use-locale';
   import useStore from '@/hooks/use-store';
   import { useRoute } from 'vue-router/composables';
@@ -42,7 +42,6 @@
   const confirmLoading = ref(false);
   const formData = ref([]);
   const fields = computed(() => store.getters.rawFieldList);
-  const globalsData = computed(() => store.getters['globals/globalsData']);
   const handleOpenSidebar = async () => {
     showSlider.value = true;
     emit('handle-popover-hide');

@@ -627,7 +627,9 @@
             },
           });
           if (res.data) this.stashCleanConf = res.data;
-        } catch (error) {}
+        } catch {
+          // 缓存读取失败时沿用当前清洗配置
+        }
       },
       // 存储入库
       fieldCollection(callback) {

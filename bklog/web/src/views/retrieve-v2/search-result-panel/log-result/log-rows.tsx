@@ -2313,14 +2313,6 @@ export default defineComponent({
       );
     };
 
-    const isTableLoading = computed(() => {
-      return (
-        !shouldShowFirstPageSkeleton.value &&
-        tableDataSize.value === 0 &&
-        (isRequesting.value || isRending.value || isPageLoading.value || isLoading.value)
-      );
-    });
-
     // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: reason
     /** 空态 / 异常态展示类型，供 LogResultException 消费 */
     const exceptionType = computed(() => {
