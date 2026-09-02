@@ -13,7 +13,7 @@ from typing import Any
 
 PROBE_SCRIPT_PATH = Path(__file__).resolve().parent / "scripts" / "collector_inspection.sh"
 PROBE_PROTOCOL = "bklog.collector.inspection.probe.v1"
-PROBE_VERSION = "137707063.9"
+PROBE_VERSION = "137707063.10"
 PROBE_ID = "bklog.collector.fixed_read_only"
 # BK-JOB/GSE caps one atomic script-task log at 5 MiB; keep one MiB for transport framing and prefixes.
 MAX_PROBE_OUTPUT_BYTES = 4 * 1024 * 1024
