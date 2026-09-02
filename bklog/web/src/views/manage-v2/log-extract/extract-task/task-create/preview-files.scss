@@ -67,8 +67,9 @@
     color: #979ba5;
   }
 
-  .selected-files-tip { margin: 8px 0; }
-
+  .selected-files-tip {
+    margin: 8px 0;
+  }
 
   .selected-file-item {
     display: flex;
@@ -78,9 +79,15 @@
     padding: 0 8px;
     background: #fff;
 
-    span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    span {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
 
-    .icon-close { cursor: pointer; }
+    .icon-close {
+      cursor: pointer;
+    }
   }
 }
 

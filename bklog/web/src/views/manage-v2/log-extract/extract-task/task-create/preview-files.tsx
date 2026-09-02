@@ -102,7 +102,9 @@ export default defineComponent({
 
     const updateFilterKeyword = debounce((val: string) => {
       isSwitchingFilterData = true;
-      filterKeyword.value = String(val ?? '').trim().toLowerCase();
+      filterKeyword.value = String(val ?? '')
+        .trim()
+        .toLowerCase();
     }, 200);
 
     const handleFilterChange = (val: string) => {
@@ -163,7 +165,7 @@ export default defineComponent({
     // 监听IP列表变化
     watch(
       () => props.ipList,
-      val => {
+      (val) => {
         previewIp.value.splice(0);
         if (val.length) {
           previewIp.value.push(getIpListID(val[0]));
@@ -207,7 +209,7 @@ export default defineComponent({
             is_search_child: isSearchChild.value,
           },
         })
-        .then(res => {
+        .then((res) => {
           if (path) {
             // 指定目录搜索
             historyStack.value.push(cacheList);
@@ -227,7 +229,7 @@ export default defineComponent({
             explorerList.value = res.data;
           }
         })
-        .catch(err => {
+        .catch((err) => {
           console.warn(err);
           emptyType.value = '500';
         })
@@ -238,13 +240,7 @@ export default defineComponent({
 
     // 获取选中的IP列表
     const getFindIpList = () => {
-      const ipList: any[] = [];
-      let i = 0;
-      for (; i < previewIp.value.length; i++) {
-        const target = props.ipList.find(item => getIpListID(item) === previewIp.value[i]);
-        ipList.push(target);
-      }
-      return ipList;
+      return previewIp.value.map(id => props.ipList.find(item => getIpListID(item) === id)).filter(Boolean);
     };
 
     // 拼接预览地址唯一key
@@ -283,13 +279,13 @@ export default defineComponent({
             is_search_child: isSearchChildVal,
           },
         })
-        .then(res => {
+        .then((res) => {
           historyStack.value = [];
           explorerList.value = res.data;
           setSelectedFilePaths(downloadFiles);
           syncTableSelection();
         })
-        .catch(e => {
+        .catch((e) => {
           console.warn(e);
           emptyType.value = '500';
         })
@@ -302,8 +298,8 @@ export default defineComponent({
     const findPreviewIpListValue = (previewIpList: any[], ipList: any[]) => {
       // 获取previewIpList对应的ipList参数
       if (previewIpList?.length) {
-        return previewIpList.map(item => {
-          return ipList.find(dItem => {
+        return previewIpList.map((item) => {
+          return ipList.find((dItem) => {
             const hostMatch = item.bk_host_id === dItem.bk_host_id;
             const ipMatch = `${item.ip}_${item.bk_cloud_id}` === `${dItem.ip}_${dItem.bk_cloud_id}`;
             if (item?.bk_host_id) {
@@ -338,37 +334,39 @@ export default defineComponent({
 
       const nextSelectedPathSet = new Set(selectedFilePathSet.value);
       const visibleSelectablePathSet = new Set(
-        filteredExplorerList.value
-          .filter(item => isSelectableFile(item))
-          .map(item => getFilePath(item)),
+        filteredExplorerList.value.filter(item => isSelectableFile(item)).map(item => getFilePath(item)),
       );
 
       for (const path of visibleSelectablePathSet) {
         nextSelectedPathSet.delete(path);
       }
 
+      let isOverLimit = false;
       for (const item of selection) {
         const path = getFilePath(item);
         if (path) {
+          if (nextSelectedPathSet.size >= maxSelectedFiles) {
+            isOverLimit = true;
+            continue;
+          }
           nextSelectedPathSet.add(path);
         }
       }
 
-      if (nextSelectedPathSet.size > maxSelectedFiles) {
-        for (const item of selection) {
-          if (nextSelectedPathSet.size <= maxSelectedFiles) break;
-          nextSelectedPathSet.delete(getFilePath(item));
-        }
+      if (isOverLimit) {
         bkMessage({ message: t('最多选择10个文件'), theme: 'warning' });
       }
 
       selectedFilePathSet.value = nextSelectedPathSet;
       emitSelectedFiles();
+      if (isOverLimit) {
+        syncTableSelection();
+      }
     };
 
     watch(
       () => props.downloadFiles,
-      val => {
+      (val) => {
         setSelectedFilePaths((val as string[]) || []);
         syncTableSelection();
       },
@@ -388,6 +386,7 @@ export default defineComponent({
       }
       selectedFilePathSet.value = new Set([...selectedFilePathSet.value, normalizedPath]);
       emitSelectedFiles();
+      syncTableSelection();
     };
 
     const removeFilePath = (path: string) => {
@@ -395,11 +394,13 @@ export default defineComponent({
       next.delete(path);
       selectedFilePathSet.value = next;
       emitSelectedFiles();
+      syncTableSelection();
     };
 
     const clearSelectedFiles = () => {
       setSelectedFilePaths([]);
       emitSelectedFiles();
+      syncTableSelection();
     };
 
     // 暴露方法
@@ -470,17 +471,31 @@ export default defineComponent({
 
         <div class='selected-files-panel'>
           <div class='selected-files-header'>
-            <span>{t('已选预览')}（{selectedFilePathSet.value.size}/10）</span>
-            <bk-button text size='small' disabled={!selectedFilePathSet.value.size} onClick={clearSelectedFiles}>
+            <span>
+              {t('已选预览')}（{selectedFilePathSet.value.size}/10）
+            </span>
+            <bk-button
+              text
+              size='small'
+              disabled={!selectedFilePathSet.value.size}
+              onClick={clearSelectedFiles}
+            >
               {t('清空')}
             </bk-button>
           </div>
           <div class='selected-files-tip'>{t('支持切换不同的检索条件，搜索出不同文件，统一添加到右侧')}</div>
           <div class='selected-files-list'>
             {Array.from(selectedFilePathSet.value).map(path => (
-              <div class='selected-file-item' key={path}>
+              <div
+                class='selected-file-item'
+                key={path}
+              >
                 <span v-bk-overflow-tips>{path}</span>
-                <i class='bk-icon icon-close' onClick={() => removeFilePath(path)} />
+                <i
+                  class='bk-icon icon-close'
+                  data-testid='selected-file-remove'
+                  onClick={() => removeFilePath(path)}
+                />
               </div>
             ))}
             {!selectedFilePathSet.value.size && <span class='selected-files-empty'>{t('暂无已选文件')}</span>}

@@ -28,6 +28,8 @@ import { defineComponent, ref, computed, watch } from 'vue';
 
 import useLocale from '@/hooks/use-locale';
 
+const PATH_PATTERN = /^[():@[\]a-zA-Z0-9._/*\-~]+$/u;
+
 export default defineComponent({
   name: 'FilesInput',
   props: {
@@ -52,8 +54,7 @@ export default defineComponent({
 
     // 过滤后的文件路径列表
     const filesSearchedPath = computed(() => {
-      return props.availablePaths.filter((item: string) =>
-        item.toLowerCase().includes(searchValue.value.toLowerCase()),
+      return props.availablePaths.filter((item: string) => item.toLowerCase().includes(searchValue.value.toLowerCase()),
       );
     });
 
@@ -70,7 +71,7 @@ export default defineComponent({
     // 监听value值变化
     watch(
       () => props.value,
-      val => {
+      (val) => {
         showValue.value = val;
       },
       { immediate: true },
@@ -99,20 +100,28 @@ export default defineComponent({
       }
     };
 
+    const isMatchedAvailablePath = (val: string) => {
+      return (props.availablePaths as string[]).some((path) => {
+        const normalizedPath = String(path ?? '').trim();
+        if (!normalizedPath) {
+          return false;
+        }
+        if (normalizedPath === '/') {
+          return val.startsWith('/');
+        }
+        return (
+          val === normalizedPath || val.startsWith(normalizedPath.endsWith('/') ? normalizedPath : `${normalizedPath}/`)
+        );
+      });
+    };
+
     // 验证路径是否有效
     const validate = (val: string) => {
-      let isAvailable = false;
-      for (const path of props.availablePaths as string[]) {
-        if (val.startsWith(path)) {
-          isAvailable = true;
-          break;
-        }
-      }
-      const isValidated = Boolean(val)
-        && isAvailable
+      const isValidated =        Boolean(val)
+        && isMatchedAvailablePath(val)
         && !/\/\//.test(val)
         && !val.split('/').some(segment => segment === '.' || segment === '..' || segment.startsWith('.'))
-        && new RegExp('^[():@\\[\\]a-zA-Z0-9._/*\\-~]+$', 'u').test(val);
+        && PATH_PATTERN.test(val);
       isError.value = !isValidated;
       return isValidated;
     };
@@ -126,10 +135,16 @@ export default defineComponent({
           default: () => (
             <div class='files-input-wrapper'>
               <div class='files-input-tabs'>
-                <span class={activeTab.value === 'explorer' ? 'active' : ''} onClick={() => (activeTab.value = 'explorer')}>
+                <span
+                  class={activeTab.value === 'explorer' ? 'active' : ''}
+                  onClick={() => (activeTab.value = 'explorer')}
+                >
                   {t('从典型容器检索')}
                 </span>
-                <span class={activeTab.value === 'manual' ? 'active' : ''} onClick={() => (activeTab.value = 'manual')}>
+                <span
+                  class={activeTab.value === 'manual' ? 'active' : ''}
+                  onClick={() => (activeTab.value = 'manual')}
+                >
                   {t('手动输入路径')}
                 </span>
               </div>
@@ -140,13 +155,17 @@ export default defineComponent({
                   data-test-id='addNewExtraction_input_specifyFolder'
                   placeholder={activeTab.value === 'manual' ? t('比如：/var/log/application/error.log') : ''}
                   value={showValue.value}
-                  onChange={val => {
+                  onChange={(val) => {
                     showValue.value = val;
                     handleChange(val);
                   }}
                 />
                 {activeTab.value === 'manual' && (
-                  <bk-button theme='primary' size='small' onClick={handleManualAdd}>
+                  <bk-button
+                    theme='primary'
+                    size='small'
+                    onClick={handleManualAdd}
+                  >
                     {t('添加到已选列表')}
                   </bk-button>
                 )}
