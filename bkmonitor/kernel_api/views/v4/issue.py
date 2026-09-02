@@ -651,7 +651,7 @@ class SplitResource(Resource):
         # 显式写 update_time：split 关系的 update_time 即"拆分时间"，被 split_info.split_time
         # 消费（详情/列表展示 + 前端"刚拆出"瞬态高亮）。QuerySet.update() 不触发 auto_now，
         # 不显式赋值会残留合并时间 / cascade 触达时间，导致 split_time 错误。
-        updated = IssueMergeRelation.objects.filter(pk=relation.pk, status=IssueMergeRelation.STATUS_ACTIVE).update(
+        updated = IssueMergeRelation.objects.filter(pk=relation.pk).update(
             status=IssueMergeRelation.STATUS_SPLIT,
             split_kind=IssueMergeRelation.SPLIT_KIND_MANUAL,
             split_reasons=reasons,
