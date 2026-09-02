@@ -30,6 +30,7 @@ overrides:
   'serialize-javascript': '>=7.0.3'
   'path-to-regexp': '>=0.1.13'
   'lodash': '>=4.18.0'
+  'dayjs': '1.11.18'
 
 recursiveInstall: true
 
