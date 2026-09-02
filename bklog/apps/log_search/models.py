@@ -1064,6 +1064,14 @@ class ResourceChange(OperateRecordModel):
         verbose_name_plural = _("23_资源变更任务")
 
 
+def build_favorite_scope_query(scope: dict[str, str] = None) -> Q:
+    """将收藏作用域转换为 JSONField 包含匹配条件。"""
+    scope_query: Q = Q()
+    for key, value in (scope or {}).items():
+        scope_query &= Q(**{f"scope__{key}": value})
+    return scope_query
+
+
 class FavoriteSearch(SoftDeleteModel):
     """检索收藏记录"""
 
@@ -1111,6 +1119,7 @@ class Favorite(OperateRecordModel):
     table_id_conditions = models.JSONField(_("场景路由条件"), null=True, blank=True, default=None)
     # 场景化收藏专属：场景维度筛选值（可空），与前端 scene_filter_values 同结构。
     scene_filter_values = models.JSONField(_("场景维度筛选"), null=True, blank=True, default=None)
+    scope = models.JSONField(_("收藏作用域"), blank=True, default=dict)
 
     class Meta:
         verbose_name = _("检索收藏")
@@ -1126,16 +1135,19 @@ class Favorite(OperateRecordModel):
         order_type: str = FavoriteListOrderType.NAME_ASC.value,
         public_group_ids: list = None,
         source_type: str = None,
+        scope: dict[str, str] = None,
     ):
         """获取用户所有能看到的收藏
 
         :param source_type: 可选过滤；不传则全返，传 "scene" 仅场景化、"index_set" 仅索引集。
+        :param scope: 可选作用域；仅过滤公开收藏，个人收藏不受影响。
         """
         source_app_code = get_request_app_code()
         favorites = []
         public_query = Q(space_uid=space_uid, visible_type=FavoriteVisibleType.PUBLIC.value)
         if public_group_ids:
             public_query &= Q(group_id__in=public_group_ids)
+        public_query &= build_favorite_scope_query(scope)
         qs = cls.objects.filter(
             Q(
                 space_uid=space_uid,
@@ -1228,6 +1240,7 @@ class FavoriteGroup(OperateRecordModel):
         default=FavoriteSourceType.INDEX_SET.value,
         db_index=True,
     )
+    scope = models.JSONField(_("收藏组作用域"), blank=True, default=dict)
 
     class Meta:
         verbose_name = _("检索收藏组")
@@ -1282,9 +1295,16 @@ class FavoriteGroup(OperateRecordModel):
 
     @classmethod
     def get_user_groups(
-        cls, space_uid: str, username: str, source_type: str = FavoriteSourceType.INDEX_SET.value
+        cls,
+        space_uid: str,
+        username: str,
+        source_type: str = FavoriteSourceType.INDEX_SET.value,
+        scope: dict[str, str] = None,
     ) -> list[dict[str, Any]]:
-        """获取用户所有能看到的组"""
+        """获取用户所有能看到的组。
+
+        私有组和未分组始终返回；公开组按传入 scope 的所有键值做包含匹配。
+        """
         groups = list()
         source_app_code = get_request_app_code()
         # Lazy create private/ungrouped per source_type, so scene 与 index_set 各有一套
@@ -1300,6 +1320,7 @@ class FavoriteGroup(OperateRecordModel):
             .order_by("created_at")
             .all()
         )
+        public_groups = public_groups.filter(build_favorite_scope_query(scope))
         # 组顺序, 先个人, 再公共, 最后未归类
         groups.append(model_to_dict(private_group))
         for gi in public_groups:

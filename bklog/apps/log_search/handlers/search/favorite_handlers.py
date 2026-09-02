@@ -51,6 +51,7 @@ from apps.log_search.models import (
     FavoriteGroup,
     FavoriteUnionSearch,
     LogIndexSet,
+    build_favorite_scope_query,
 )
 from apps.models import model_to_dict
 from apps.utils.local import (
@@ -145,11 +146,15 @@ class FavoriteHandler:
         self,
         order_type: str = FavoriteListOrderType.NAME_ASC.value,
         source_type: str = None,
+        scope: dict[str, str] = None,
     ) -> list:
         """收藏栏分组后且排序后的收藏列表（按 source_type 隔离）"""
         # 列表与分组按同一 source_type 桶取，避免 favorites 中出现 group_info 缺失的 group_id
         effective_source_type = source_type or FavoriteSourceType.INDEX_SET.value
-        groups = FavoriteGroupHandler(space_uid=self.space_uid).list(source_type=effective_source_type)
+        groups = FavoriteGroupHandler(space_uid=self.space_uid).list(
+            source_type=effective_source_type,
+            scope=scope,
+        )
         public_group_ids = []
         group_info = {}
         for i in groups:
@@ -163,6 +168,7 @@ class FavoriteHandler:
             order_type=order_type,
             public_group_ids=public_group_ids,
             source_type=effective_source_type,
+            scope=scope,
         )
         # 渲染兜底：历史孤儿 fav（group_id 不在当前 source_type 桶内）统一归到 ungrouped，避免被静默吞掉
         visible_group_ids = {g["id"] for g in groups}
@@ -190,10 +196,14 @@ class FavoriteHandler:
         self,
         order_type: str = FavoriteListOrderType.NAME_ASC.value,
         source_type: str = None,
+        scope: dict[str, str] = None,
     ) -> list:
         """管理界面列出根据name A-Z排序的所有收藏（按 source_type 隔离）"""
         effective_source_type = source_type or FavoriteSourceType.INDEX_SET.value
-        groups = FavoriteGroupHandler(space_uid=self.space_uid).list(source_type=effective_source_type)
+        groups = FavoriteGroupHandler(space_uid=self.space_uid).list(
+            source_type=effective_source_type,
+            scope=scope,
+        )
         public_group_ids = []
         group_info = {}
         for i in groups:
@@ -207,6 +217,7 @@ class FavoriteHandler:
             order_type=order_type,
             public_group_ids=public_group_ids,
             source_type=effective_source_type,
+            scope=scope,
         )
 
         # 渲染兜底：孤儿 fav 的 group_id 不在当前 source_type 桶里时，重定向到 ungrouped，避免 KeyError 500
@@ -235,6 +246,7 @@ class FavoriteHandler:
                 "is_enable_display_fields": fi["is_enable_display_fields"],
                 "display_fields": fi["display_fields"],
                 "source_type": fi_source,
+                "scope": fi.get("scope") or {},
                 "created_by": fi["created_by"],
                 "updated_by": fi["updated_by"],
                 "updated_at": fi["updated_at"],
@@ -278,6 +290,7 @@ class FavoriteHandler:
         scene_id: str = None,
         table_id_conditions: list = None,
         scene_filter_values: list = None,
+        scope: dict[str, str] = None,
     ) -> dict:
         chart_params = chart_params or {}
         # 构建params（场景化收藏沿用同一份结构，便于复用 generate_query / get_search_fields 等）
@@ -293,7 +306,7 @@ class FavoriteHandler:
 
         # 收藏来源类型：更新时若未传则沿用既有值；新建时默认 index_set
         if source_type is None:
-            source_type = (self.data.source_type if self.data else FavoriteSourceType.INDEX_SET.value)
+            source_type = self.data.source_type if self.data else FavoriteSourceType.INDEX_SET.value
         is_scene = source_type == FavoriteSourceType.SCENE.value
 
         if group_id:
@@ -346,6 +359,10 @@ class FavoriteHandler:
                 "display_fields": display_fields,
                 "source_type": source_type,
             }
+            if scope is not None:
+                merged_scope: dict[str, str] = dict(self.data.scope or {})
+                merged_scope.update(scope)
+                update_model_fields["scope"] = merged_scope
             if is_scene:
                 if scene_id is not None:
                     update_model_fields["scene_id"] = scene_id
@@ -381,6 +398,7 @@ class FavoriteHandler:
                 display_fields=display_fields,
                 favorite_type=favorite_type,
                 source_type=source_type,
+                scope=scope or {},
                 created_by=self.username,
             )
             if is_scene:
@@ -422,6 +440,7 @@ class FavoriteHandler:
                 group_id=param["group_id"],
                 table_id_conditions=param.get("table_id_conditions"),
                 scene_filter_values=param.get("scene_filter_values"),
+                scope=param.get("scope"),
             )
 
     def delete(self):
@@ -478,16 +497,26 @@ class FavoriteGroupHandler:
     def retrieve(self) -> dict:
         return self._normalize_group_name(model_to_dict(self.data))
 
-    def list(self, source_type: str = FavoriteSourceType.INDEX_SET.value) -> list:
-        """获取所有收藏组（按 source_type 隔离）"""
+    def list(
+        self,
+        source_type: str = FavoriteSourceType.INDEX_SET.value,
+        scope: dict[str, str] = None,
+    ) -> list:
+        """获取所有收藏组（按 source_type 与 scope 隔离公开组）"""
         groups = FavoriteGroup.get_user_groups(
-            space_uid=self.space_uid, username=self.username, source_type=source_type
+            space_uid=self.space_uid,
+            username=self.username,
+            source_type=source_type,
+            scope=scope,
         )
         return [self._normalize_group_name(g) for g in groups]
 
     @atomic
     def create_or_update(
-        self, name: str, source_type: str = FavoriteSourceType.INDEX_SET.value
+        self,
+        name: str,
+        source_type: str = FavoriteSourceType.INDEX_SET.value,
+        scope: dict[str, str] = None,
     ) -> dict:
         """创建和修改都是针对公开组的"""
         space_uid = self.space_uid if self.space_uid else self.data.space_uid
@@ -500,11 +529,21 @@ class FavoriteGroupHandler:
             else:
                 qs = qs.filter(source_type=source_type)
             if qs.exists():
+                scoped_conflicts = qs.filter(build_favorite_scope_query(scope))
+                if not self.data and scope and not scoped_conflicts.exists():
+                    scope_description = ", ".join(f"{key}={value}" for key, value in scope.items())
+                    raise FavoriteGroupAlreadyExistException(
+                        _("在范围（{scope}）创建分组失败，范围外存在同名分组").format(scope=scope_description)
+                    )
                 raise FavoriteGroupAlreadyExistException()
 
         # 修改
         if self.data:
             self.data.name = name
+            if scope is not None:
+                merged_scope: dict[str, str] = dict(self.data.scope or {})
+                merged_scope.update(scope)
+                self.data.scope = merged_scope
             self.data.save()
         # 创建
         else:
@@ -514,6 +553,7 @@ class FavoriteGroupHandler:
                 space_uid=space_uid,
                 source_app_code=self.source_app_code,
                 source_type=source_type,
+                scope=scope or {},
             )
 
         return self._normalize_group_name(model_to_dict(self.data))
