@@ -124,9 +124,8 @@ paths:
         Get one collector by collector_config_id. Call list_log_collectors first. Validates bk_biz_id
         ownership. IMPORTANT: collection_config.params and configs[].params mask keys containing password/secret/token/...
         as ******. Do not echo those values into fast_update_log_collector or you will persist the literal
-        asterisks. storage currently returns cluster_id/name/type and retention only; allocation_min_days,
-        storage_replies and es_shards are missing here but required by update_log_collector_clean_config.
-        查询采集项详情。敏感字段已打码，禁止原样回传。storage 目前缺副本/分片/热数据天数。
+        asterisks. storage returns cluster_id/name/type, retention, allocation_min_days, storage_replies and es_shards.
+        查询采集项详情。敏感字段已打码，禁止原样回传。storage 包含集群、保留时间、副本数、分片数和冷热数据生效天数。
       tags:
       - log_collection_mcp
       parameters:

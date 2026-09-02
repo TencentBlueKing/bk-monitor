@@ -336,6 +336,9 @@ def test_get_collector_normalizes_detail_and_omits_unrelated_raw_fields(monkeypa
             "storage_display_name": "日志 ES",
             "storage_cluster_type": "elasticsearch",
             "retention": 7,
+            "allocation_min_days": 3,
+            "storage_replies": 1,
+            "storage_shards_nums": 2,
             "index_set_id": 301,
             "table_id_prefix": "7_bklog_",
             "table_id": "container_app",
@@ -368,6 +371,9 @@ def test_get_collector_normalizes_detail_and_omits_unrelated_raw_fields(monkeypa
     assert result["clean_config"]["etl_params"] == {"retain_original_text": True}
     assert result["clean_config"]["fields"] == [{"field_name": "level", "field_type": "string"}]
     assert result["storage"]["cluster_id"] == 501
+    assert result["storage"]["allocation_min_days"] == 3
+    assert result["storage"]["storage_replies"] == 1
+    assert result["storage"]["es_shards"] == 2
     assert "kafka_password" not in result
     api_resource.assert_called_once_with(collector_config_id=101, enforce_permission=True)
 

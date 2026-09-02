@@ -211,6 +211,9 @@ def normalize_collector_detail(collector: dict[str, Any]) -> dict[str, Any]:
                 "display_name": collector.get("storage_display_name") or "",
                 "cluster_type": collector.get("storage_cluster_type") or "",
                 "retention": collector.get("retention"),
+                "allocation_min_days": collector.get("allocation_min_days"),
+                "storage_replies": collector.get("storage_replies"),
+                "es_shards": collector.get("storage_shards_nums"),
             },
         }
     )

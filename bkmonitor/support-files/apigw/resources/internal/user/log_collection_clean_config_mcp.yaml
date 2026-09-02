@@ -267,8 +267,7 @@ paths:
                   description: >-
                     Storage cluster ID. Mandatory on the clean-config write so defaults cannot overwrite
                     the current cluster. This MCP server has no cluster-list tool; copy the current value
-                    from get_log_collector.storage.cluster_id (note: get_log_collector currently omits
-                    allocation_min_days / storage_replies / es_shards). 存储集群 ID，清洗写接口必填。本 MCP 没有集群列表，请从
+                    from get_log_collector.storage.cluster_id. 存储集群 ID，清洗写接口必填。本 MCP 没有集群列表，请从
                     get_log_collector 抄现值。
                 retention:
                   type: integer
