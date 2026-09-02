@@ -10,7 +10,24 @@ specific language governing permissions and limitations under the License.
 
 import pytest
 
-from semconv.rum.attributes import span_attributes, status_attributes, common_attributes
+from semconv.constants import (
+    SpanKind,
+    SpanStatusCode,
+    SdkLanguage,
+    VitalMetric,
+    OutcomeType,
+    NetworkStatus,
+    NetworkConnectionType,
+)
+from semconv.rum.constants import RumSpanType
+from semconv.rum.attributes import (
+    span_attributes,
+    common_attributes,
+    error_attributes,
+    device_attributes,
+    vital_attributes,
+    http_attributes,
+)
 from semconv.rum.field import FieldSpec, RatingLevel
 from semconv.rum.metric import web_vitals
 from semconv.rum.registry import FieldRegistry
@@ -71,8 +88,8 @@ class TestFieldSpec:
     def test_children_composite(self):
         """复合字段的 children() 返回直接子字段。"""
         children = list(Status(field_name="status").children())
-        assert status_attributes.CODE in children
-        assert status_attributes.MESSAGE in children
+        assert Status.CODE in children
+        assert Status.MESSAGE in children
 
 
 class TestFieldRegistry:
@@ -115,11 +132,12 @@ class TestSpanSpec:
         """复合字段查找返回原始共享对象。"""
         assert SpanSpec.from_field("status") is SpanSpec.STATUS
         assert SpanSpec.from_field("attributes") is SpanSpec.ATTRIBUTES
+        assert SpanSpec.from_field("events") is SpanSpec.EVENTS
 
     def test_nested_field_identity(self):
         """嵌套字段查找返回原始共享对象。"""
-        assert SpanSpec.from_field("status.code") is SpanSpec.STATUS.CODE is status_attributes.CODE
-        assert SpanSpec.from_field("status.message") is SpanSpec.STATUS.MESSAGE is status_attributes.MESSAGE
+        assert SpanSpec.from_field("status.code") is SpanSpec.STATUS.CODE is Status.CODE
+        assert SpanSpec.from_field("status.message") is SpanSpec.STATUS.MESSAGE is Status.MESSAGE
 
     def test_deep_nested_field_identity(self):
         """深层嵌套字段查找返回原始共享对象。"""
@@ -127,29 +145,27 @@ class TestSpanSpec:
             SpanSpec.from_field("attributes.span_type") is SpanSpec.ATTRIBUTES.SPAN_TYPE is common_attributes.SPAN_TYPE
         )
         assert (
-            SpanSpec.from_field("attributes.view.url_template")
-            is SpanSpec.ATTRIBUTES.VIEW.URL_TEMPLATE
-            is common_attributes.VIEW_URL_TEMPLATE
+            SpanSpec.from_field("attributes.url.template")
+            is SpanSpec.ATTRIBUTES.URL_TEMPLATE
+            is http_attributes.URL_TEMPLATE
         )
         assert (
             SpanSpec.from_field("attributes.http.request.method")
-            is SpanSpec.ATTRIBUTES.HTTP.REQUEST.METHOD
-            is common_attributes.HTTP_REQUEST_METHOD
+            is SpanSpec.ATTRIBUTES.HTTP_REQUEST_METHOD
+            is http_attributes.HTTP_REQUEST_METHOD
         )
 
     def test_resource_field_identity(self):
         """resource.* 字段查找返回原始共享对象。"""
-        from semconv.rum.attributes import resource_attributes
-
         assert (
             SpanSpec.from_field("resource.user_agent.name")
-            is SpanSpec.RESOURCE.USER_AGENT.NAME
-            is resource_attributes.USER_AGENT_NAME
+            is SpanSpec.RESOURCE.USER_AGENT_NAME
+            is common_attributes.USER_AGENT_NAME
         )
         assert (
             SpanSpec.from_field("resource.device.type")
-            is SpanSpec.RESOURCE.DEVICE.TYPE
-            is resource_attributes.DEVICE_TYPE
+            is SpanSpec.RESOURCE.DEVICE_TYPE
+            is device_attributes.DEVICE_TYPE
         )
 
     def test_vital_fields_at_root(self):
@@ -202,15 +218,13 @@ class TestSpanSpec:
 
     def test_option_values_on_enum_field(self):
         """枚举字段携带 option_values 类型。"""
-        from rum_web.constants import RumSpanType, RumSpanKind, RumSpanStatusCode
-
         assert SpanSpec.from_field("attributes.span_type").option_values is RumSpanType
-        assert SpanSpec.from_field("kind").option_values is RumSpanKind
-        assert SpanSpec.from_field("status.code").option_values is RumSpanStatusCode
+        assert SpanSpec.from_field("kind").option_values is SpanKind
+        assert SpanSpec.from_field("status.code").option_values is SpanStatusCode
 
     def test_links_field(self):
         """links[] 字段可查找。"""
-        assert SpanSpec.from_field("links[]") is SpanSpec.LINKS
+        assert SpanSpec.from_field("links") is SpanSpec.LINKS
 
     def test_events_field(self):
         """events 字段可查找。"""
@@ -226,15 +240,11 @@ class TestSpanSpec:
         assert result.option_values is None
         assert result.rating_config == ()
 
-    def test_vital_backward_compat_via_vital_attributes(self):
-        """vital_attributes 重新导出的字段与 metric.web_vitals 是同一对象。"""
-        from semconv.rum.attributes import vital_attributes
-
-        assert vital_attributes.LCP is web_vitals.LCP
-        assert vital_attributes.CLS is web_vitals.CLS
-        assert vital_attributes.INP is web_vitals.INP
-        assert vital_attributes.FCP is web_vitals.FCP
-        assert vital_attributes.TTFB is web_vitals.TTFB
+    def test_vital_field_shared_with_attributes(self):
+        """vital.* 字段在 attributes 树下与 vital_attributes 是同一对象。"""
+        assert SpanSpec.from_field("attributes.vital.lcp.target") is SpanSpec.ATTRIBUTES.VITAL_LCP_TARGET
+        assert SpanSpec.ATTRIBUTES.VITAL_LCP_TARGET is vital_attributes.VITAL_LCP_TARGET
+        assert SpanSpec.from_field("attributes.vital.id") is SpanSpec.ATTRIBUTES.VITAL_ID is vital_attributes.VITAL_ID
 
     def test_new_root_fields(self):
         """新增根级字段可查找。"""
@@ -250,156 +260,131 @@ class TestSpanSpec:
         assert start_time.field_display_type == "datetime"
         assert start_time.field_unit == "us"
 
-    def test_new_flat_attributes(self):
-        """新增 attributes 扁平字段可查找。"""
-        assert SpanSpec.from_field("attributes.span_subtype") is SpanSpec.ATTRIBUTES.SPAN_SUBTYPE
-        assert SpanSpec.from_field("attributes.browser_name") is SpanSpec.ATTRIBUTES.BROWSER_NAME
-        assert SpanSpec.from_field("attributes.device_type") is SpanSpec.ATTRIBUTES.DEVICE_TYPE
-        assert SpanSpec.from_field("attributes.os_name") is SpanSpec.ATTRIBUTES.OS_NAME
-        assert SpanSpec.from_field("attributes.error_type") is SpanSpec.ATTRIBUTES.ERROR_TYPE
-        assert SpanSpec.from_field("attributes.event_label") is SpanSpec.ATTRIBUTES.EVENT_LABEL
-        assert SpanSpec.from_field("attributes.initiator_type") is SpanSpec.ATTRIBUTES.INITIATOR_TYPE
-        assert SpanSpec.from_field("attributes.result") is SpanSpec.ATTRIBUTES.RESULT
-        assert SpanSpec.from_field("attributes.status_class") is SpanSpec.ATTRIBUTES.STATUS_CLASS
-        assert SpanSpec.from_field("attributes.target_domain") is SpanSpec.ATTRIBUTES.TARGET_DOMAIN
-        assert SpanSpec.from_field("attributes.transfer_size") is SpanSpec.ATTRIBUTES.TRANSFER_SIZE
-        assert SpanSpec.from_field("attributes.duration_bucket") is SpanSpec.ATTRIBUTES.DURATION_BUCKET
-        assert SpanSpec.from_field("attributes.cache_hit") is SpanSpec.ATTRIBUTES.CACHE_HIT
-
     def test_browser_fields(self):
         """attributes.browser.* 字段可查找。"""
-        assert SpanSpec.from_field("attributes.browser.screen.height") is SpanSpec.ATTRIBUTES.BROWSER.SCREEN.HEIGHT
-        assert SpanSpec.from_field("attributes.browser.viewport.width") is SpanSpec.ATTRIBUTES.BROWSER.VIEWPORT.WIDTH
+        assert SpanSpec.from_field("attributes.browser.screen.height") is SpanSpec.ATTRIBUTES.BROWSER_SCREEN_HEIGHT
+        assert SpanSpec.from_field("attributes.browser.viewport.width") is SpanSpec.ATTRIBUTES.BROWSER_VIEWPORT_WIDTH
 
     def test_code_fields(self):
         """attributes.code.* 字段可查找。"""
-        from semconv.rum.attributes import code_attributes
-
         assert (
             SpanSpec.from_field("attributes.code.lineno")
-            is SpanSpec.ATTRIBUTES.CODE.LINENO
-            is code_attributes.CODE_LINENO
+            is SpanSpec.ATTRIBUTES.ERROR_LINENO
+            is error_attributes.ERROR_LINENO
         )
-        assert SpanSpec.from_field("attributes.code.filepath") is SpanSpec.ATTRIBUTES.CODE.FILEPATH
+        assert SpanSpec.from_field("attributes.code.filepath") is SpanSpec.ATTRIBUTES.ERROR_FILEPATH
 
     def test_device_fields(self):
         """attributes.device.* 字段可查找。"""
-        assert SpanSpec.from_field("attributes.device.cpu_cores") is SpanSpec.ATTRIBUTES.DEVICE.CPU_CORES
-        assert SpanSpec.from_field("attributes.device.id") is SpanSpec.ATTRIBUTES.DEVICE.ID
-        assert SpanSpec.from_field("attributes.device.memory") is SpanSpec.ATTRIBUTES.DEVICE.MEMORY
+        assert SpanSpec.from_field("attributes.device.id") is SpanSpec.ATTRIBUTES.DEVICE_ID
 
     def test_exception_fields(self):
-        """attributes.exception.* 字段可查找。"""
-        assert SpanSpec.from_field("attributes.exception.fingerprint") is SpanSpec.ATTRIBUTES.EXCEPTION.FINGERPRINT
-        assert SpanSpec.from_field("attributes.exception.message") is SpanSpec.ATTRIBUTES.EXCEPTION.MESSAGE
-        assert SpanSpec.from_field("attributes.exception.stacktrace") is SpanSpec.ATTRIBUTES.EXCEPTION.STACKTRACE
-        assert SpanSpec.from_field("attributes.exception.type") is SpanSpec.ATTRIBUTES.EXCEPTION.TYPE
+        """attributes.error.* 字段可查找。"""
+        assert SpanSpec.from_field("attributes.error.message") is SpanSpec.ATTRIBUTES.ERROR_MESSAGE
+        assert SpanSpec.from_field("attributes.error.source") is SpanSpec.ATTRIBUTES.ERROR_SOURCE
+        assert SpanSpec.from_field("attributes.error.handled") is SpanSpec.ATTRIBUTES.ERROR_HANDLED
 
     def test_session_fields(self):
         """attributes.session.* 字段可查找。"""
-        assert SpanSpec.from_field("attributes.session.id") is SpanSpec.ATTRIBUTES.SESSION.ID
-        assert SpanSpec.from_field("attributes.session.has_replay") is SpanSpec.ATTRIBUTES.SESSION.HAS_REPLAY
-
-    def test_rum_fields(self):
-        """attributes.rum.* 字段可查找。"""
-        assert SpanSpec.from_field("attributes.rum.navigation.type") is SpanSpec.ATTRIBUTES.RUM.NAVIGATION.TYPE
-        assert SpanSpec.from_field("attributes.rum.page.host") is SpanSpec.ATTRIBUTES.RUM.PAGE.HOST
-        assert SpanSpec.from_field("attributes.rum.sampled") is SpanSpec.ATTRIBUTES.RUM.SAMPLED
+        assert SpanSpec.from_field("attributes.session.id") is SpanSpec.ATTRIBUTES.SESSION_ID
+        assert SpanSpec.from_field("attributes.session.has_replay") is SpanSpec.ATTRIBUTES.SESSION_HAS_REPLAY
 
     def test_blank_screen_fields(self):
         """attributes.blank_screen.* 字段可查找。"""
-        assert SpanSpec.from_field("attributes.blank_screen.detected") is SpanSpec.ATTRIBUTES.BLANK_SCREEN.DETECTED
-        assert SpanSpec.from_field("attributes.blank_screen.score") is SpanSpec.ATTRIBUTES.BLANK_SCREEN.SCORE
+        assert SpanSpec.from_field("attributes.blank_screen.reason") is SpanSpec.ATTRIBUTES.BLANK_SCREEN_REASON
+        assert (
+            SpanSpec.from_field("attributes.blank_screen.empty_ratio") is SpanSpec.ATTRIBUTES.BLANK_SCREEN_EMPTY_RATIO
+        )
 
     def test_extended_view_fields(self):
         """attributes.view.* 补充字段可查找。"""
-        assert SpanSpec.from_field("attributes.view.id") is SpanSpec.ATTRIBUTES.VIEW.ID
-        assert SpanSpec.from_field("attributes.view.loading_type") is SpanSpec.ATTRIBUTES.VIEW.LOADING_TYPE
-        assert SpanSpec.from_field("attributes.view.url") is SpanSpec.ATTRIBUTES.VIEW.URL
-        assert SpanSpec.from_field("attributes.view.url_path_group") is SpanSpec.ATTRIBUTES.VIEW.URL_PATH_GROUP
-        assert SpanSpec.from_field("attributes.view.end_reason") is SpanSpec.ATTRIBUTES.VIEW.END_REASON
+        assert SpanSpec.from_field("attributes.view.id") is SpanSpec.ATTRIBUTES.VIEW_ID
+        assert SpanSpec.from_field("attributes.view.loading_type") is SpanSpec.ATTRIBUTES.VIEW_LOADING_TYPE
+        assert SpanSpec.from_field("attributes.view.url") is SpanSpec.ATTRIBUTES.VIEW_URL
+        assert SpanSpec.from_field("attributes.view.url_template") is SpanSpec.ATTRIBUTES.VIEW_URL_TEMPLATE
+        assert SpanSpec.from_field("attributes.view.end_reason") is SpanSpec.ATTRIBUTES.VIEW_END_REASON
 
     def test_extended_resource_fields(self):
         """attributes.resource.* 补充字段可查找。"""
         assert (
             SpanSpec.from_field("attributes.resource.decoded_body_size")
-            is SpanSpec.ATTRIBUTES.RESOURCE.DECODED_BODY_SIZE
+            is SpanSpec.ATTRIBUTES.RESOURCE_DECODED_BODY_SIZE
         )
         assert (
             SpanSpec.from_field("attributes.resource.encoded_body_size")
-            is SpanSpec.ATTRIBUTES.RESOURCE.ENCODED_BODY_SIZE
+            is SpanSpec.ATTRIBUTES.RESOURCE_ENCODED_BODY_SIZE
         )
-        assert SpanSpec.from_field("attributes.resource.transfer_size") is SpanSpec.ATTRIBUTES.RESOURCE.TRANSFER_SIZE
-        assert SpanSpec.from_field("attributes.resource.delivery_type") is SpanSpec.ATTRIBUTES.RESOURCE.DELIVERY_TYPE
+        assert SpanSpec.from_field("attributes.resource.transfer_size") is SpanSpec.ATTRIBUTES.RESOURCE_TRANSFER_SIZE
+        assert SpanSpec.from_field("attributes.resource.delivery_type") is SpanSpec.ATTRIBUTES.RESOURCE_DELIVERY_TYPE
         assert (
             SpanSpec.from_field("attributes.resource.render_blocking_status")
-            is SpanSpec.ATTRIBUTES.RESOURCE.RENDER_BLOCKING_STATUS
+            is SpanSpec.ATTRIBUTES.RESOURCE_RENDER_BLOCKING_STATUS
         )
-        assert SpanSpec.from_field("attributes.resource.cache.hit") is SpanSpec.ATTRIBUTES.RESOURCE.CACHE.HIT
+        assert SpanSpec.from_field("attributes.resource.cache.hit") is SpanSpec.ATTRIBUTES.RESOURCE_CACHE_HIT
 
     def test_extended_url_fields(self):
         """attributes.url.* 补充字段可查找。"""
-        assert SpanSpec.from_field("attributes.url.full") is SpanSpec.ATTRIBUTES.URL.FULL
-        assert SpanSpec.from_field("attributes.url.previous") is SpanSpec.ATTRIBUTES.URL.PREVIOUS
+        assert SpanSpec.from_field("attributes.url.full") is SpanSpec.ATTRIBUTES.URL_FULL
+        assert SpanSpec.from_field("attributes.url.scheme") is SpanSpec.ATTRIBUTES.URL_SCHEME
 
     def test_extended_network_fields(self):
         """attributes.network.* 补充字段可查找。"""
-        assert SpanSpec.from_field("attributes.network.downlink") is SpanSpec.ATTRIBUTES.NETWORK.DOWNLINK
-        assert SpanSpec.from_field("attributes.network.rtt") is SpanSpec.ATTRIBUTES.NETWORK.RTT
-        assert SpanSpec.from_field("attributes.network.rtt").field_unit == "ms"
-        assert SpanSpec.from_field("attributes.network.save_data") is SpanSpec.ATTRIBUTES.NETWORK.SAVE_DATA
+        assert SpanSpec.from_field("attributes.network.effective_type") is SpanSpec.ATTRIBUTES.NETWORK_EFFECTIVE_TYPE
+        assert SpanSpec.from_field("attributes.network.status").option_values is NetworkStatus
+        assert SpanSpec.from_field("attributes.network.connection.type").option_values is NetworkConnectionType
 
     def test_extended_error_fields(self):
         """attributes.error.* 补充字段可查找。"""
-        assert SpanSpec.from_field("attributes.error.handled") is SpanSpec.ATTRIBUTES.ERROR.HANDLED
-        assert SpanSpec.from_field("attributes.error.window_count") is SpanSpec.ATTRIBUTES.ERROR.WINDOW_COUNT
+        assert SpanSpec.from_field("attributes.error.handled") is SpanSpec.ATTRIBUTES.ERROR_HANDLED
 
     def test_vital_sub_fields(self):
         """attributes.vital.* 子指标字段可查找。"""
-        assert SpanSpec.from_field("attributes.vital.id") is SpanSpec.ATTRIBUTES.VITAL.ID
-        assert SpanSpec.from_field("attributes.vital.rating") is SpanSpec.ATTRIBUTES.VITAL.RATING
-        assert (
-            SpanSpec.from_field("attributes.vital.cls.largest_shift_target")
-            is SpanSpec.ATTRIBUTES.VITAL.CLS.LARGEST_SHIFT_TARGET
-        )
-        assert SpanSpec.from_field("attributes.vital.fcp.load_state") is SpanSpec.ATTRIBUTES.VITAL.FCP.LOAD_STATE
+        assert SpanSpec.from_field("attributes.vital.id") is SpanSpec.ATTRIBUTES.VITAL_ID
+        assert SpanSpec.from_field("attributes.vital.metric").option_values is VitalMetric
         assert (
             SpanSpec.from_field("attributes.vital.lcp.element_render_delay")
-            is SpanSpec.ATTRIBUTES.VITAL.LCP.ELEMENT_RENDER_DELAY
+            is SpanSpec.ATTRIBUTES.VITAL_LCP_ELEMENT_RENDER_DELAY
         )
-        assert SpanSpec.from_field("attributes.vital.inp.input_delay") is SpanSpec.ATTRIBUTES.VITAL.INP.INPUT_DELAY
-        assert SpanSpec.from_field("attributes.vital.ttfb.dns_duration") is SpanSpec.ATTRIBUTES.VITAL.TTFB.DNS_DURATION
+        assert SpanSpec.from_field("attributes.vital.inp.input_delay") is SpanSpec.ATTRIBUTES.VITAL_INP_INPUT_DELAY
+        assert SpanSpec.from_field("attributes.vital.ttfb.dns_duration") is SpanSpec.ATTRIBUTES.VITAL_TTFB_DNS_DURATION
 
     def test_events_sub_fields(self):
         """events.* 子字段可查找。"""
         assert SpanSpec.from_field("events.name") is SpanSpec.EVENTS.NAME
         assert SpanSpec.from_field("events.timestamp") is SpanSpec.EVENTS.TIMESTAMP
-        assert SpanSpec.from_field("events.attributes.message") is SpanSpec.EVENTS.ATTRIBUTES.MESSAGE
         assert (
-            SpanSpec.from_field("events.attributes.exception.message") is SpanSpec.EVENTS.ATTRIBUTES.EXCEPTION.MESSAGE
+            SpanSpec.from_field("events.attributes.exception.message") is SpanSpec.EVENTS.ATTRIBUTES.EXCEPTION_MESSAGE
         )
-        assert SpanSpec.from_field("events.attributes.exception.type") is SpanSpec.EVENTS.ATTRIBUTES.EXCEPTION.TYPE
-        assert SpanSpec.from_field("events.attributes.code.lineno") is SpanSpec.EVENTS.ATTRIBUTES.CODE.LINENO
+        assert SpanSpec.from_field("events.attributes.exception.type") is SpanSpec.EVENTS.ATTRIBUTES.EXCEPTION_TYPE
 
     def test_resource_rum_provider(self):
-        """resource.rum.provider 字段可查找。"""
-        assert SpanSpec.from_field("resource.rum.provider") is SpanSpec.RESOURCE.RUM.PROVIDER
+        """resource.telemetry.* 字段可查找。"""
+        assert SpanSpec.from_field("resource.telemetry.sdk.language").option_values is SdkLanguage
 
     def test_server_address(self):
-        """server.address 字段可查找。"""
-        assert SpanSpec.from_field("server.address") is SpanSpec.SERVER.ADDRESS
+        """attributes.server.address 字段可查找。"""
+        assert SpanSpec.from_field("attributes.server.address") is SpanSpec.ATTRIBUTES.SERVER_ADDRESS
 
     def test_html_tag(self):
-        """attributes.html.tag 字段可查找。"""
-        assert SpanSpec.from_field("attributes.html.tag") is SpanSpec.ATTRIBUTES.HTML.TAG
+        """attributes.code.filepath 字段可查找。"""
+        assert SpanSpec.from_field("attributes.code.filepath") is SpanSpec.ATTRIBUTES.ERROR_FILEPATH
 
     def test_user_agent_attr_fields(self):
-        """attributes.user_agent.* 字段可查找。"""
-        assert SpanSpec.from_field("attributes.user_agent.name") is SpanSpec.ATTRIBUTES.USER_AGENT.NAME
-        assert SpanSpec.from_field("attributes.user_agent.original") is SpanSpec.ATTRIBUTES.USER_AGENT.ORIGINAL
-        assert SpanSpec.from_field("attributes.user_agent.version") is SpanSpec.ATTRIBUTES.USER_AGENT.VERSION
-        assert SpanSpec.from_field("attributes.user_agent.os.name") is SpanSpec.ATTRIBUTES.USER_AGENT.OS.NAME
+        """resource.user_agent.* 字段可查找。"""
+        assert (
+            SpanSpec.from_field("resource.user_agent.name")
+            is SpanSpec.RESOURCE.USER_AGENT_NAME
+            is common_attributes.USER_AGENT_NAME
+        )
 
     def test_outcome_type(self):
         """attributes.outcome.type 字段可查找。"""
-        assert SpanSpec.from_field("attributes.outcome.type") is SpanSpec.ATTRIBUTES.OUTCOME.TYPE
+        assert SpanSpec.from_field("attributes.outcome.type").option_values is OutcomeType
+
+    def test_required_assertions(self):
+        """用户要求的 6 个核心断言。"""
+        assert SpanSpec.from_field("kind") is SpanSpec.KIND is span_attributes.KIND
+        assert SpanSpec.from_field("attributes") is SpanSpec.ATTRIBUTES
+        assert SpanSpec.from_field("events") is SpanSpec.EVENTS
+        assert SpanSpec.from_field("events.name") is SpanSpec.EVENTS.NAME
+        assert SpanSpec.from_field("xxx") == FieldSpec("xxx")

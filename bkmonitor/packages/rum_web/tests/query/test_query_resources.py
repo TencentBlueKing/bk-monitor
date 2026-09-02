@@ -229,7 +229,7 @@ class TestSpanViewConfig:
     """[e] Span 视图 span_type_display_fields 和 groups.supported_span_types"""
 
     def test_span_type_display_fields_is_dict(self):
-        from rum_web.constants import RumSpanType
+        from semconv.rum.constants import RumSpanType
         from rum_web.handlers.level.span import SpanLevelHandler
 
         handler = SpanLevelHandler(
@@ -298,7 +298,7 @@ class TestQueryFieldsSemconvEnrichment:
         assert result["start_time"]["is_real"] is True
 
     def test_enriches_option_values_from_enum(self, mocker):
-        from rum_web.constants import RumSpanType
+        from semconv.rum.constants import RumSpanType
 
         base_fields = {
             "attributes.span_type": {

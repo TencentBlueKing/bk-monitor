@@ -29,9 +29,10 @@ from bkmonitor.data_source.utils.apm import FilterOperator, TraceDatasourceTarge
 from bkmonitor.utils.common_utils import format_percent
 from bkmonitor.utils.thread_backend import ThreadPool
 from core.drf_resource import resource
+from semconv.rum.constants import RumSpanType
 from rum_web.handlers.level.base import BaseRumLevelHandler
 from rum_web.handlers.query.span import SpanQuery
-from rum_web.constants import RUM_SEARCH_PAGE_GROUPS, RumSpanType
+from rum_web.constants import RUM_SEARCH_PAGE_GROUPS
 
 
 class SpanLevelHandler(BaseRumLevelHandler):

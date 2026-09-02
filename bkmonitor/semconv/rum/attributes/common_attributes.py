@@ -10,7 +10,7 @@ specific language governing permissions and limitations under the License.
 
 from django.utils.translation import gettext_lazy as _
 
-from rum_web.constants import RumSpanType
+from semconv.rum.constants import RumSpanType
 from semconv.constants import OutcomeType, SdkLanguage
 from semconv.rum.field import FieldSpec
 

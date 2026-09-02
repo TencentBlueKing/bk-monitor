@@ -43,4 +43,9 @@ END_TIME = FieldSpec(
     field_unit=FieldUnit.US.value,
     field_display_type=FieldDisplayType.DATETIME.value,
 )
-ELAPSED_TIME = FieldSpec(field_name="elapsed_time", field_alias=_("耗时"), field_unit=FieldUnit.US.value)
+ELAPSED_TIME = FieldSpec(
+    field_name="elapsed_time",
+    field_alias=_("耗时"),
+    field_unit=FieldUnit.US.value,
+    field_display_type=FieldDisplayType.DURATION.value,
+)
