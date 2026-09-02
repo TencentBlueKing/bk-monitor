@@ -236,6 +236,7 @@ import Vue from 'vue';
 
 import BkPaasLogin from '@blueking/paas-login';
 import { getFooter } from 'monitor-api/modules/commons';
+import { parseBizId } from 'monitor-common/utils';
 import { copyText, deleteCookie, getUrlParam, LOCAL_BIZ_STORE_KEY } from 'monitor-common/utils/utils';
 import AuthorityModal from 'monitor-ui/authority-modal/index';
 import { createNamespacedHelpers } from 'vuex';
@@ -405,7 +406,7 @@ export default {
     },
     // 设置全局业务
     handleGlobalBiz() {
-      const bizId = +getUrlParam('bizId')?.replace(/\//gim, '') || +window.cc_biz_id;
+      const bizId = parseBizId(getUrlParam('bizId')) || parseBizId(window.cc_biz_id);
       this.header.select.value = bizId;
       this.header.select.list = this.$store.getters.bizList;
     },

@@ -18,7 +18,7 @@ from typing import Any
 from rest_framework.exceptions import ValidationError
 
 from bkmonitor.action.serializers import DutyRuleDetailSlz
-from bkmonitor.as_code.constants import MaxVersion
+from bkmonitor.as_code.constants import MaxVersion, MinVersion
 from bkmonitor.as_code.ply.error import ParseError
 from bkmonitor.as_code.ply.expression import expression_lexer, expression_parser
 from bkmonitor.as_code.schema import (
@@ -393,6 +393,8 @@ class StrategyConfigParser(BaseConfigParser):
             "functions": [parse_function(function) for function in config["query"].get("functions", [])],
             "target": target,
         }
+        if "query_output_config" in config["query"]:
+            item["query_output_config"] = config["query"]["query_output_config"]
 
         # 通知配置
         signal = set(config["notice"]["signal"])
@@ -729,7 +731,7 @@ class StrategyConfigParser(BaseConfigParser):
 
     def unparse(self, config: dict) -> dict:
         # config --> yaml
-        code_config = {"name": config["name"], "version": MaxVersion.STRATEGY}
+        code_config = {"name": config["name"], "version": MinVersion.STRATEGY}
 
         if config["priority"] is not None:
             code_config["priority"] = config["priority"]
@@ -828,6 +830,9 @@ class StrategyConfigParser(BaseConfigParser):
                 query["functions"] = function_expressions
 
         self.update_target(item, query)
+        if isinstance(item.get("query_output_config"), dict):
+            query["query_output_config"] = item["query_output_config"]
+            code_config["version"] = MaxVersion.STRATEGY
         code_config["query"] = query
 
         # 检测配置

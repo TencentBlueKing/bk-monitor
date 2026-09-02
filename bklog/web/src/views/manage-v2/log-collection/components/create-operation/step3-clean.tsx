@@ -34,7 +34,7 @@ import { InfoBox } from 'bk-magic-vue';
 import { useOperation } from '../../hook/useOperation';
 import { useCollectList } from '../../hook/useCollectList';
 import { showMessage, visibleScopeSelectList } from '../../utils';
-import { deepClone, deepEqual } from '@/common/util';
+import { deepClone, deepEqual, judgeNumber, MAX_INT_VALUE } from '@/common/util';
 import { resolveCleanTemplateDraft } from '@/views/manage-v2/utils/clean-template';
 import FieldList from '../business-comp/step3/field-list';
 import ReportLogSlider from '../business-comp/step3/report-log-slider';
@@ -915,18 +915,6 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
         });
     };
 
-    const judgeNumber = val => {
-      const { value } = val;
-      if (value === 0) {
-        return false;
-      }
-
-      return value && value !== ' ' ? isNaN(value) : true;
-    };
-
-    /** int 类型最大值 */
-    const MAX_INT_VALUE = 2_147_483_647;
-
     /** 根据清洗结果 value 推断字段类型 */
     const detectFieldType = (value: unknown): string => {
       if (typeof value === 'number') {
@@ -988,7 +976,7 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
             if (item.field_name && !validFieldPattern.test(item.field_name)) {
               item.field_name = JSON.stringify(item.field_name);
             }
-            item.verdict = judgeNumber(item);
+            item.verdict = judgeNumber(item.value);
           }
           const fields = formData.value.etl_fields;
 

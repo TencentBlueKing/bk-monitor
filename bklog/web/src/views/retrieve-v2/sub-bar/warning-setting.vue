@@ -274,7 +274,7 @@
   const active = ref('mission');
   const typeMap = {
     all: 'ALL',
-    unHandle: 'NOT_SHIELDED_ABNORMAL',
+    unHandle: 'ABNORMAL',
   };
 
   const currentType = ref('all');
@@ -410,11 +410,49 @@
     );
   };
 
+  const requestAlertList = (status: string) => {
+    return $http.request('alertStrategy/alertList', {
+      params: {
+        index_set_id: indexId.value,
+      },
+      data: {
+        status,
+        page_size: pageSize,
+        space_uid: store.state.storage[BK_LOG_STORAGE.BK_SPACE_UID],
+      },
+    });
+  };
+
+  /**
+   * 获取告警角标数量
+   * 角标口径与列表不同：已屏蔽的告警不应再红点提醒，因此固定使用 NOT_SHIELDED_ABNORMAL
+   */
+  const getAlertBadgeCount = async () => {
+    try {
+      if (!indexId.value) {
+        return;
+      }
+
+      const res = await requestAlertList('NOT_SHIELDED_ABNORMAL');
+      const list = res?.data || [];
+
+      badgeCount.value = list.length;
+      ownPendingCount.value = list.filter(item => {
+        return (
+          item.assignee?.some(assignee => assignee === userMeta.value.username) ||
+          item.appointee?.some(appointee => appointee === userMeta.value.username)
+        );
+      }).length;
+    } catch (e) {
+      console.warn(e);
+    }
+  };
+
   /**
    * 获取告警列表
    * @param val
    * ALL - 表示查询全部告警记录;
-   * NOT_SHIELDED_ABNORMAL - 表示查询未处理的告警记录;
+   * ABNORMAL - 表示查询未恢复的告警记录，含已屏蔽;
    * MY_ASSIGNEE - 表示我收到的告警记录
    */
   const getAlertListData = async (val: string) => {
@@ -425,26 +463,7 @@
 
       recordList.value = [];
       loading.value = true;
-      const res = await $http.request('alertStrategy/alertList', {
-        params: {
-          index_set_id: indexId.value,
-        },
-        data: {
-          status: val,
-          page_size: pageSize,
-          space_uid: store.state.storage[BK_LOG_STORAGE.BK_SPACE_UID],
-        },
-      });
-
-      if (val === 'NOT_SHIELDED_ABNORMAL') {
-        badgeCount.value = res?.data.length;
-        ownPendingCount.value = res?.data.filter(item => {
-          return (
-            item.assignee?.some(assignee => assignee === userMeta.value.username) ||
-            item.appointee?.some(appointee => appointee === userMeta.value.username)
-          );
-        }).length;
-      }
+      const res = await requestAlertList(val);
 
       recordList.value = res?.data || [];
       originRecordList.value = recordList.value;
@@ -566,7 +585,7 @@
   };
 
   const setMounted = async () => {
-    await getAlertListData('NOT_SHIELDED_ABNORMAL');
+    await getAlertBadgeCount();
 
     const type = typeMap[currentType.value];
     getAlertListData(type);

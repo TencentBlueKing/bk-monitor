@@ -131,7 +131,10 @@ const mountedVueInstance = () => {
     let externalMenu = [];
     if (window.IS_EXTERNAL && space) {
       externalMenu = getExternalMenuListBySpace(space) ?? [];
-      store.commit('updateState', { externalMenu });
+      store.commit('updateState', {
+        externalMenu,
+        externalPermissions: space.external_permission ?? [],
+      });
     }
 
     const router = getRouter(spaceUid, bkBizId, externalMenu);
@@ -177,8 +180,7 @@ const mountedVueInstance = () => {
         .catch((e) => {
           console.error('获取菜单列表失败', e);
         })
-        .finally(() => {
-        });
+        .finally(() => {});
     };
 
     if (window.requestIdleCallback) {

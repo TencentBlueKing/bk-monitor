@@ -20,6 +20,7 @@ the project delivered to anyone in the future.
 """
 
 import datetime
+import json
 import re
 import time
 
@@ -58,6 +59,36 @@ from apps.utils.lucene import EnhanceLuceneAdapter
 from bkm_space.serializers import SpaceUIDField
 
 HISTORY_MAX_DAYS = 7
+FAVORITE_SCOPE_KEY_PATTERN = re.compile(r"^[a-z][a-z0-9_]*$")
+
+
+class FavoriteScopeField(serializers.JSONField):
+    """收藏作用域，只接受便于安全映射为 JSONField 查询条件的扁平字符串键值对。"""
+
+    default_error_messages = {
+        "not_object": _("scope 必须是 JSON 对象"),
+        "invalid_key": _("scope 参数名必须以小写字母开头，只能包含小写字母、数字和下划线，且不能包含双下划线"),
+        "invalid_value": _("scope 参数值必须是字符串"),
+    }
+
+    def to_internal_value(self, data):
+        if isinstance(data, str):
+            try:
+                data = json.loads(data)
+            except (TypeError, ValueError):
+                self.fail("invalid")
+
+        scope = super().to_internal_value(data)
+        if not isinstance(scope, dict):
+            self.fail("not_object")
+
+        for key, value in scope.items():
+            if not isinstance(key, str) or "__" in key or not FAVORITE_SCOPE_KEY_PATTERN.fullmatch(key):
+                self.fail("invalid_key")
+            if not isinstance(value, str):
+                self.fail("invalid_value")
+
+        return scope
 
 
 class PageSerializer(serializers.Serializer):
@@ -702,6 +733,7 @@ class CreateFavoriteSerializer(serializers.Serializer):
     favorite_type = serializers.ChoiceField(
         label=_("收藏类型"), required=False, choices=FavoriteType.get_choices(), default=FavoriteType.SEARCH.value
     )
+    scope = FavoriteScopeField(label=_("收藏作用域"), required=False, default=dict)
     chart_params = serializers.JSONField(label=_("图表相关参数"), default=dict, required=False)
     # 收藏来源类型：index_set / scene。老前端不传 → 默认 index_set，行为零变更；
     # 场景化收藏必须显式传 "scene"，并配合 scene_id + table_id_conditions。
@@ -769,6 +801,7 @@ class UpdateFavoriteSerializer(serializers.Serializer):
     index_set_type = serializers.ChoiceField(
         label=_("索引集类型"), required=False, choices=IndexSetType.get_choices(), default=IndexSetType.SINGLE.value
     )
+    scope = FavoriteScopeField(label=_("收藏作用域"), required=False)
     # 场景化收藏更新使用，可选；未传时按现有 source_type 处理
     source_type = serializers.ChoiceField(
         label=_("收藏来源类型"),
@@ -831,6 +864,7 @@ class FavoriteListSerializer(serializers.Serializer):
         choices=FavoriteSourceType.get_choices(),
         default=None,
     )
+    scope = FavoriteScopeField(label=_("收藏作用域"), required=False, default=dict)
 
 
 class CreateFavoriteGroupSerializer(serializers.Serializer):
@@ -846,6 +880,7 @@ class CreateFavoriteGroupSerializer(serializers.Serializer):
         choices=FavoriteSourceType.get_choices(),
         default=FavoriteSourceType.INDEX_SET.value,
     )
+    scope = FavoriteScopeField(label=_("收藏组作用域"), required=False, default=dict)
 
 
 class UpdateFavoriteGroupSerializer(serializers.Serializer):
@@ -854,6 +889,7 @@ class UpdateFavoriteGroupSerializer(serializers.Serializer):
     """
 
     name = serializers.CharField(label=_("收藏组名"), max_length=256)
+    scope = FavoriteScopeField(label=_("收藏组作用域"), required=False)
 
 
 class UpdateFavoriteGroupOrderSerializer(serializers.Serializer):
@@ -947,6 +983,7 @@ class FavoriteGroupListSerializer(serializers.Serializer):
         choices=FavoriteSourceType.get_choices(),
         default=FavoriteSourceType.INDEX_SET.value,
     )
+    scope = FavoriteScopeField(label=_("收藏组作用域"), required=False, default=dict)
 
 
 class BcsWebConsoleSerializer(serializers.Serializer):

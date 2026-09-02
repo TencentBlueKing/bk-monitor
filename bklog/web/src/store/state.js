@@ -117,6 +117,8 @@ const stateTpl = {
   },
   /** 外部版路由菜单 */
   externalMenu: [],
+  /** 外部版当前空间的原始授权项（ExternalPermissionActionEnum），用于菜单以外的功能级显隐 */
+  externalPermissions: [],
   isAppFirstLoad: true,
   /** 是否清空了显示字段，展示全量字段 */
   isNotVisibleFieldsShow: false,

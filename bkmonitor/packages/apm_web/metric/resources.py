@@ -1458,7 +1458,7 @@ class ErrorListResource(ServiceAndComponentCompatibleResource):
             target="blank",
             event_key=SceneEventKey.SWITCH_SCENES_TYPE,
             filterable=True,
-            url_format="/?bizId={bk_biz_id}/#/apm/service/?filter-service_name={service}&filter-app_name={app_name}",
+            url_format="/?bizId={bk_biz_id}#/apm/service/?filter-service_name={service}&filter-app_name={app_name}",
             min_width=120,
         )
         if column_type:
@@ -1520,7 +1520,7 @@ class ErrorListResource(ServiceAndComponentCompatibleResource):
                     table_format.LinkTableFormat(
                         id="operate",
                         name=_lazy("调用链"),
-                        url_format="/?bizId={bk_biz_id}/#/trace/home/?app_name={app_name}"
+                        url_format="/?bizId={bk_biz_id}#/trace/home/?app_name={app_name}"
                         + "&search_type=scope"
                         + "&start_time={start_time}&end_time={end_time}"
                         + "&sceneMode=span&filterMode=ui",
@@ -2099,7 +2099,7 @@ class EndpointListResource(ServiceAndComponentCompatibleResource):
             target="blank",
             filterable=True,
             event_key=SceneEventKey.SWITCH_SCENES_TYPE,
-            url_format="/?bizId={bk_biz_id}/#/apm/service/?filter-service_name={service}&filter-app_name={app_name}",
+            url_format="/?bizId={bk_biz_id}#/apm/service/?filter-service_name={service}&filter-app_name={app_name}",
         )
         if column_type:
             service_format = table_format.ServiceComponentAdaptLinkFormat(
@@ -2118,7 +2118,7 @@ class EndpointListResource(ServiceAndComponentCompatibleResource):
         trace_link = table_format.LinkTableFormat(
             id="trace",
             name=_lazy("调用链"),
-            url_format="/?bizId={bk_biz_id}/#/trace/home/?app_name={app_name}"
+            url_format="/?bizId={bk_biz_id}#/trace/home/?app_name={app_name}"
             + "&search_type=scope"
             + "&start_time={start_time}&end_time={end_time}"
             + "&sceneMode=span&filterMode=ui"
@@ -2772,7 +2772,7 @@ class ServiceQueryExceptionResource(PageListResource):
             table_format.LinkTableFormat(
                 id="operate",
                 name=_lazy("调用链"),
-                url_format="/?bizId={bk_biz_id}/#/trace/home/?app_name={app_name}"
+                url_format="/?bizId={bk_biz_id}#/trace/home/?app_name={app_name}"
                 + "&search_type=scope"
                 + "&listType=trace"
                 + "&start_time={start_time}&end_time={end_time}"
@@ -3031,7 +3031,7 @@ class ErrorListByTraceIdsResource(PageListResource):
                     table_format.LinkTableFormat(
                         id="operate",
                         name=_lazy("调用链"),
-                        url_format="/?bizId={bk_biz_id}/#/trace/home/?app_name={app_name}"
+                        url_format="/?bizId={bk_biz_id}#/trace/home/?app_name={app_name}"
                         + "&search_type=scope"
                         + '&filter_dict={{"service":["{service_name}"],"endpoint":["{endpoint}"]}}'
                         + "&query_string=status.code:+2+",

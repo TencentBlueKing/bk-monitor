@@ -447,7 +447,23 @@ class IncidentListResource(IncidentBaseResource):
         space_id = space.get("id") if isinstance(space, dict) else None
         if space_id not in (None, "") and (space.get("space_type_id") or "").lower() != "bkcc":
             return -int(space_id)
-        return config_item.get("scope_value")
+
+        scope_value = config_item.get("scope_value")
+        if scope_value not in (None, ""):
+            try:
+                return int(scope_value)
+            except (TypeError, ValueError):
+                pass
+
+        scope_id = config_item.get("scope_id") or ""
+        if "_" in str(scope_id):
+            scope_type, scope_value_from_id = str(scope_id).split("_", 1)
+            if scope_type.lower() == "bkcc":
+                try:
+                    return int(scope_value_from_id)
+                except (TypeError, ValueError):
+                    return scope_value
+        return scope_value
 
     class RequestSerializer(IncidentSearchSerializer):
         level = serializers.ListField(required=False, label="故障级别", default=[])
@@ -469,16 +485,26 @@ class IncidentListResource(IncidentBaseResource):
         ):
             result = handler.search(show_overview=False, show_aggs=True)
 
-        bk_biz_ids = validated_request_data.get("bk_biz_ids", [])
+        bk_biz_ids = validated_request_data.get("bk_biz_ids") or []
         result["enabled_spaces"] = []
+        # 新版告警中心会把「我有告警的空间」(-2) 归一成空列表；空列表或仅哨兵时
+        # 仍按 -1 拉取全部已开启配置，避免 enabled_spaces 直接空返回。
+        query_biz_ids = [biz_id for biz_id in bk_biz_ids if biz_id not in (None, "")]
+        if not query_biz_ids or set(query_biz_ids) <= {-1, -2}:
+            query_biz_ids = [-1]
 
-        if bk_biz_ids:
-            general_config_data = GetConfigResource().request(
-                **{"config_type": "general_config", "bk_biz_id_list": bk_biz_ids, "bk_biz_id": bk_biz_ids[0]}
-            )
-            for item in general_config_data.get("objects", []):
-                if item.get("content", {}).get("enabled", False):
-                    result["enabled_spaces"].append(self.get_enabled_space_bk_biz_id(item))
+        general_config_data = GetConfigResource().request(
+            config_type="general_config",
+            bk_biz_id_list=query_biz_ids,
+            bk_biz_id=query_biz_ids[0],
+            page_size=1000,
+        )
+        config_objects = general_config_data.get("objects", []) if isinstance(general_config_data, dict) else []
+        for item in config_objects:
+            if item.get("content", {}).get("enabled", False):
+                enabled_space = self.get_enabled_space_bk_biz_id(item)
+                if enabled_space not in (None, ""):
+                    result["enabled_spaces"].append(enabled_space)
         result["wx_cs_link"] = bk_data_robot_link_list_search(settings.BK_DATA_ROBOT_LINK_LIST, "icon-kefu")
         return result
 
