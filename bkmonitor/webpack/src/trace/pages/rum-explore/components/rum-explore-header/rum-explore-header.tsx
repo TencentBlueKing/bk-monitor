@@ -61,6 +61,7 @@ export default defineComponent({
     appNameChange: (_appName: string) => true,
     modeChange: (_mode: RumModeType, _oldMode: RumModeType) => true,
     thumbtackChange: (_list: string[]) => true,
+    setUrlParams: () => true,
   },
   setup(props, { emit }) {
     const { t } = useI18n();
@@ -133,12 +134,14 @@ export default defineComponent({
       handleThumbtack,
       handleTimeRangeChange: (val: TimeRangeType) => {
         store.timeRange = val;
+        emit('setUrlParams');
       },
       handleTimezoneChange: (val: string) => {
         store.timezone = val;
       },
       handleRefreshChange: (val: number) => {
         store.refreshInterval = val;
+        emit('setUrlParams');
       },
       handleImmediateRefresh: () => {
         store.refreshImmediate = random(4);

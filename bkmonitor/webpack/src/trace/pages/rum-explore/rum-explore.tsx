@@ -306,6 +306,7 @@ export default defineComponent({
               favoriteCtx.favoriteShow.value = show;
             }}
             onModeChange={this.handleModeChange}
+            onSetUrlParams={() => queryCtx.setUrlParams()}
             onThumbtackChange={this.handleThumbtackChange}
           />
 
