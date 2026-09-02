@@ -171,8 +171,14 @@ export default class App extends tsc<object> {
       return list;
     }
     list = this.routeList.find(item => item.id === this.navActive)?.children || [];
-    // ai 设置 enable_aiops为true 则ai设置不展示 false 则ai设置页面展示
-    list = list.filter(item => !(item.id === 'ai' && !window.enable_aiops));
+    list = list.filter(item => {
+      // ai 设置 enable_aiops为true 则ai设置不展示, false 则ai设置页面展示
+      if (item.id === 'ai') return !window.enable_aiops;
+      if (item.id === 'rum-explore') {
+        return window.rum_biz_list?.includes(+this.bizId);
+      }
+      return true;
+    });
     return list;
   }
   get navRouteList() {

@@ -1,10 +1,17 @@
 .trace-explore-dimension-statistics-popover {
+  .skeleton-wrap {
+    .skeleton-element {
+      height: 28px;
+      margin-top: 12px;
+    }
+  }
+
   .info-skeleton {
     .total-skeleton {
       display: flex;
       justify-content: space-between;
       margin-bottom: 12px;
-      
+
       .skeleton-element {
         width: 70px;
         height: 20px;
@@ -30,14 +37,14 @@
       margin-bottom: 12px;
     }
   }
-  
+
   .statistics-info {
     .top-k-info-header {
       display: flex;
       align-items: center;
       justify-content: space-between;
       margin-bottom: 12px;
-  
+
       .label-item {
         font-size: 12px;
         line-height: 20px;
@@ -52,45 +59,48 @@
       justify-content: space-between;
       height: 76px;
       margin-bottom: 15px;
-  
+
       .integer-item {
         width: 182px;
         height: 36px;
         line-height: 36px;
         text-align: center;
-        background: #F5F7FA;
+        background: #f5f7fa;
         border-radius: 2px;
-  
+
         .label {
           font-size: 12px;
-          color: #4D4F56;
+          color: #4d4f56;
         }
-  
+
         .value {
           margin-left: 8px;
           font-size: 12px;
           font-weight: 700;
-          color: #4D4F56;
+          color: #4d4f56;
         }
       }
     }
-  
 
-  
     .top-k-chart-title {
       display: flex;
       justify-content: space-between;
+      gap: 20px;
       margin-bottom: 4px;
       line-height: 22px;
-  
+
       .title {
+        flex-shrink: 0;
         font-size: 14px;
         color: #313238;
       }
-  
+
       .time-range {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
         font-size: 12px;
-        color: #4D4F56;
+        color: #4d4f56;
       }
     }
   }
@@ -123,16 +133,9 @@
         color: #4d4f56;
 
         &:hover {
-          color: #3A84FF;
+          color: #3a84ff;
         }
       }
-    }
-  }
-
-  .skeleton-wrap {
-    .skeleton-element {
-      height: 28px;
-      margin-top: 12px;
     }
   }
 
@@ -143,9 +146,9 @@
     color: #3a84ff;
     cursor: pointer;
 
-      &.is-duration {
-        margin-left: 20px;
-      }
+    &.is-duration {
+      margin-left: 20px;
+    }
   }
 
   .empty-text {
@@ -160,13 +163,6 @@
 
   .bk-sideslider-title {
     overflow: hidden;
-  }
-
-  .skeleton-wrap {
-    .skeleton-element {
-      height: 28px;
-      margin-top: 12px;
-    }
   }
 
   .dimension-slider-header {
@@ -326,8 +322,8 @@
 
 .slide-dimension-filter-overflow-tips,
 .statistics-top-k-item-tooltips-wrap-popover {
-  max-width: 400px; 
-  word-break: break-word; 
+  max-width: 400px;
+  word-break: break-word;
   overflow-wrap: break-word;
   white-space: normal;
 }
