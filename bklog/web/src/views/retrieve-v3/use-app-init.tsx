@@ -50,6 +50,7 @@ import {
   omitRouteIndexId,
   shouldKeepSceneOnSpaceChange,
 } from '@/global/bk-space-choice/space-switch-route';
+import { shouldStripIndexIdOnEmptyScene } from './scene-empty-view';
 
 import $http from '@/api';
 import { RetrieveType } from '../retrieve-v2/sub-bar/retrieve-type-switch';
@@ -247,7 +248,7 @@ export default () => {
    * 拉取索引集列表
    * @param beforeResolveFn 在结果返回解析之后，尚未进行路由解析之前的处理函数
    */
-  const getIndexSetList = (beforeResolveFn?: () => void) => {
+  const getIndexSetList = (beforeResolveFn?: () => void, options: { isSpaceChanging?: boolean } = {}) => {
     store.commit('updateIndexSetQueryResult', {
       row_keys: [],
       row_query_key: '',
@@ -472,8 +473,16 @@ export default () => {
                 const sceneCleared = await requestSceneConfigs();
                 if (!sceneCleared && store.getters.isSceneFilterEmpty) {
                   RetrieveHelper.setSearchingValue(false);
-                  // 切业务后旧 indexId 仍挂在路由上时，子组件会用它打字段接口导致 404
-                  syncIndexIdToRoute(indexId, unionList, queryTab);
+                  resetRetrieveData(store);
+                  // 首屏/刷新保留分享 URL；切业务才摘旧业务 indexId，避免子组件用旧 ID 拉数。
+                  if (
+                    shouldStripIndexIdOnEmptyScene({
+                      hasRouteIndexId: !!route.params?.indexId,
+                      isSpaceChanging: !!options.isSpaceChanging,
+                    })
+                  ) {
+                    stripRouteIndexId();
+                  }
                   return;
                 }
               } else {
@@ -570,6 +579,16 @@ export default () => {
    * 同步索引集到路由：有新 indexId 则写入，否则从 params 删除旧 indexId。
    * Vue Router 3 对 params.indexId = undefined 不会摘掉路径参数，必须 delete。
    */
+  const stripRouteIndexId = () => {
+    if (!route.params?.indexId) {
+      return;
+    }
+    router.replace({
+      params: omitRouteIndexId(route.params ?? {}),
+      query: route.query,
+    });
+  };
+
   const syncIndexIdToRoute = (indexId?: string, unionList?: string[], queryTab: Record<string, any> = {}) => {
     const nextParams = indexId ? { ...(route.params ?? {}), indexId } : omitRouteIndexId(route.params ?? {});
 
@@ -684,6 +703,8 @@ export default () => {
 
   const handleSpaceIdChange = () => {
     cancelPendingRetrieveRequests();
+    // 与切换场景 tab 相同：取消请求后必须清字段/结果 loading，否则空筛选提前返回会永久转圈
+    resetRetrieveData(store);
 
     const keepScene = shouldKeepSceneOnSpaceChange(store.state.indexItem.retrieve_type, route.query.retrieve_type);
 
@@ -701,7 +722,7 @@ export default () => {
     store.commit('updateUnionIndexList', []);
     RetrieveHelper.setIndexsetId([], null);
 
-    getIndexSetList();
+    getIndexSetList(undefined, { isSpaceChanging: true });
     store.dispatch('requestFavoriteList');
   };
 
