@@ -82,7 +82,7 @@ export default class SharePage extends tsc<object> {
       });
       const host = has_permission ? location.origin + location.pathname : data.weWebData.host;
       const path = !has_permission && process.env.NODE_ENV === 'production' ? `${location.pathname}apm/` : '';
-      url = `${host}${path}?bizId=${this.$store.getters.bizId}/#${data?.path || '/'}?${route.href.replace(
+      url = `${host}${path}?bizId=${this.$store.getters.bizId}#${data?.path || '/'}?${route.href.replace(
         /^#\/([^?]*)\?/g,
         ''
       )}`;
@@ -94,7 +94,7 @@ export default class SharePage extends tsc<object> {
       });
       url = `${process.env.NODE_ENV === 'development' ? `http://${process.env.devUrl}` : location.origin}${
         location.pathname
-      }?bizId=${this.$store.getters.bizId}/${route.href}`;
+      }?bizId=${this.$store.getters.bizId}${route.href.startsWith('#') ? route.href : `#${route.href}`}`;
     }
     if (has_permission) {
       location.replace(url);

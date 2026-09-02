@@ -80,7 +80,7 @@ def get_clustering_access_pipeline(params):
             "data": _serialize_data(current_data),
         },
         "celery_task": _serialize_celery_task(celery_task),
-        "persistent_task_steps": sanitize_json((config.task_details or {}).get(task_id, [])),
+        "persistent_task_steps": sanitize_json((config.task_details or {}).get(task_id, []), redact_text=True),
     }
     warnings = []
     if not process and not root_status:
@@ -263,7 +263,13 @@ def _serialize_task_records(records):
     for index, record in enumerate(records):
         if not isinstance(record, dict) or not record.get("task_id"):
             result.append(
-                {"sequence": index, "task_id": None, "operate": None, "time": None, "raw": sanitize_json(record)}
+                {
+                    "sequence": index,
+                    "task_id": None,
+                    "operate": None,
+                    "time": None,
+                    "raw": sanitize_json(record, redact_text=True),
+                }
             )
             continue
         result.append(
@@ -272,7 +278,7 @@ def _serialize_task_records(records):
                 "task_id": str(record["task_id"]),
                 "operate": record.get("operate"),
                 "time": record.get("time"),
-                "raw": sanitize_json(record),
+                "raw": sanitize_json(record, redact_text=True),
             }
         )
     return result
@@ -314,9 +320,9 @@ def _serialize_data(data):
         return None
     return {
         "id": data.id,
-        "inputs": sanitize_json(data.inputs, max_bytes=MAX_PIPELINE_DATA_BYTES),
-        "outputs": sanitize_json(data.outputs, max_bytes=MAX_PIPELINE_DATA_BYTES),
-        "ex_data": sanitize_json(data.ex_data, max_bytes=MAX_PIPELINE_DATA_BYTES),
+        "inputs": sanitize_json(data.inputs, max_bytes=MAX_PIPELINE_DATA_BYTES, redact_text=True),
+        "outputs": sanitize_json(data.outputs, max_bytes=MAX_PIPELINE_DATA_BYTES, redact_text=True),
+        "ex_data": sanitize_json(data.ex_data, max_bytes=MAX_PIPELINE_DATA_BYTES, redact_text=True),
     }
 
 

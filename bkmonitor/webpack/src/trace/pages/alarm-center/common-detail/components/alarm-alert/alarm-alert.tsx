@@ -119,7 +119,7 @@ export default defineComponent({
     const handleToShield = () => {
       if (!props.data.shield_id?.[0]) return;
       window.open(
-        `${location.origin}${location.pathname}?bizId=${props.data.bk_biz_id}/#/trace/alarm-shield/edit/${props.data.shield_id[0]}`
+        `${location.origin}${location.pathname}?bizId=${props.data.bk_biz_id}#/trace/alarm-shield/edit/${props.data.shield_id[0]}`
       );
     };
 

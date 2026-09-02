@@ -942,6 +942,9 @@ export default class IncidentTable extends tsc<IEventTableProps, IEventTableEven
       params: { id },
     });
 
-    window.open(`${location.origin}${location.pathname}?bizId=${bizId}/${href}`, '_blank');
+    window.open(
+      `${location.origin}${location.pathname}?bizId=${bizId}${href.startsWith('#') ? href : `#${href}`}`,
+      '_blank'
+    );
   }
 }

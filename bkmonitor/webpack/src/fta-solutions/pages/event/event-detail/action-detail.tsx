@@ -28,6 +28,7 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import dayjs from 'dayjs';
 import { actionDetail, searchAlert } from 'monitor-api/modules/alert';
+import { getBizRouteHref } from 'monitor-common/utils';
 import { getAlarmCenterListUrl } from 'monitor-common/utils/alarm-center-router';
 import { formatWithTimezone } from 'monitor-common/utils/timezone';
 import { isZh } from 'monitor-pc/common/constant';
@@ -182,9 +183,7 @@ export default class ActiveDetail extends tsc<IActiveDetail> {
   }
 
   handleToActionDetail() {
-    window.open(
-      `${location.origin}${location.pathname}?bizId=${this.detailInfo.bk_biz_id}/#/set-meal-edit/${this.detailInfo.action_config_id}`
-    );
+    window.open(getBizRouteHref(`/set-meal-edit/${this.detailInfo.action_config_id}`, this.detailInfo.bk_biz_id));
   }
 
   handleDescEnter(e: MouseEvent, dimensions, description) {

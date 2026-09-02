@@ -25,6 +25,7 @@
  */
 
 import { debounce } from 'lodash-es';
+import { bkMessage } from 'bk-magic-vue';
 import { defineComponent, ref, computed, watch, nextTick, onBeforeUnmount } from 'vue';
 
 import { formatDate } from '@/common/util';
@@ -77,6 +78,7 @@ export default defineComponent({
     const filterInputValue = ref(''); // 文件过滤输入值
     const filterKeyword = ref(''); // 节流后的文件过滤关键字
     const selectedFilePathSet = ref(new Set<string>()); // 跨过滤条件保留的已选文件路径
+    const maxSelectedFiles = 10;
     let isSyncingTableSelection = false;
     let isSwitchingFilterData = false;
 
@@ -180,8 +182,6 @@ export default defineComponent({
         exploreList: explorerList.value.splice(0),
         fileOrPath: path,
       };
-      setSelectedFilePaths([]);
-      emitSelectedFiles();
       if (path === '../' && historyStack.value.length) {
         // 返回上一级
         const cache = historyStack.value.pop();
@@ -354,6 +354,14 @@ export default defineComponent({
         }
       }
 
+      if (nextSelectedPathSet.size > maxSelectedFiles) {
+        for (const item of selection) {
+          if (nextSelectedPathSet.size <= maxSelectedFiles) break;
+          nextSelectedPathSet.delete(getFilePath(item));
+        }
+        bkMessage({ message: t('最多选择10个文件'), theme: 'warning' });
+      }
+
       selectedFilePathSet.value = nextSelectedPathSet;
       emitSelectedFiles();
     };
@@ -371,12 +379,35 @@ export default defineComponent({
       syncTableSelection();
     });
 
+    const addFilePath = (path: string) => {
+      const normalizedPath = String(path || '').trim();
+      if (!normalizedPath || selectedFilePathSet.value.has(normalizedPath)) return;
+      if (selectedFilePathSet.value.size >= maxSelectedFiles) {
+        bkMessage({ message: t('最多选择10个文件'), theme: 'warning' });
+        return;
+      }
+      selectedFilePathSet.value = new Set([...selectedFilePathSet.value, normalizedPath]);
+      emitSelectedFiles();
+    };
+
+    const removeFilePath = (path: string) => {
+      const next = new Set(selectedFilePathSet.value);
+      next.delete(path);
+      selectedFilePathSet.value = next;
+      emitSelectedFiles();
+    };
+
+    const clearSelectedFiles = () => {
+      setSelectedFilePaths([]);
+      emitSelectedFiles();
+    };
+
     // 暴露方法
     onBeforeUnmount(() => {
       updateFilterKeyword.cancel();
     });
 
-    expose({ getExplorerList, handleClone, getFindIpList, timeRange, timeStringValue, isSearchChild });
+    expose({ getExplorerList, handleClone, getFindIpList, addFilePath, timeRange, timeStringValue, isSearchChild });
 
     // 主渲染函数
     return () => (
@@ -435,6 +466,25 @@ export default defineComponent({
           >
             {t('搜索')}
           </bk-button>
+        </div>
+
+        <div class='selected-files-panel'>
+          <div class='selected-files-header'>
+            <span>{t('已选预览')}（{selectedFilePathSet.value.size}/10）</span>
+            <bk-button text size='small' disabled={!selectedFilePathSet.value.size} onClick={clearSelectedFiles}>
+              {t('清空')}
+            </bk-button>
+          </div>
+          <div class='selected-files-tip'>{t('支持切换不同的检索条件，搜索出不同文件，统一添加到右侧')}</div>
+          <div class='selected-files-list'>
+            {Array.from(selectedFilePathSet.value).map(path => (
+              <div class='selected-file-item' key={path}>
+                <span v-bk-overflow-tips>{path}</span>
+                <i class='bk-icon icon-close' onClick={() => removeFilePath(path)} />
+              </div>
+            ))}
+            {!selectedFilePathSet.value.size && <span class='selected-files-empty'>{t('暂无已选文件')}</span>}
+          </div>
         </div>
 
         {/* 表格标题 */}

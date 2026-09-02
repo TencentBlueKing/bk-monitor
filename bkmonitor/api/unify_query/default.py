@@ -185,6 +185,9 @@ class QueryDataResource(UnifyQueryAPIResource):
         timezone = serializers.CharField(required=False)
         instant = serializers.BooleanField(required=False)
         not_time_align = serializers.BooleanField(label="是否不对齐时间窗口", required=False, default=False)
+        response_contract = serializers.CharField(required=False)
+        legacy_output_ref = serializers.CharField(required=False)
+        output_list = serializers.ListField(child=serializers.DictField(), required=False)
 
 
 class QueryRawResource(UnifyQueryAPIResource):
@@ -526,6 +529,10 @@ class QueryMultiResourceRange(UnifyQueryAPIResource):
             source_type = serializers.CharField(required=False)
             source_info = serializers.DictField()
             path_resource = serializers.ListField(child=serializers.CharField(), required=False, allow_empty=True)
+            target_info_show = serializers.BooleanField(required=False, label="是否展示目标资源扩展信息")
+            look_back_delta = serializers.CharField(
+                required=False, allow_blank=True, label="instant 回看窗口，如 1440m"
+            )
 
         bk_biz_ids = serializers.ListField(child=serializers.CharField(), allow_empty=True, required=False)
         query_list = serializers.ListField(child=QueryListSerializer(), min_length=1)
@@ -544,6 +551,10 @@ class QueryMultiResource(UnifyQueryAPIResource):
             source_type = serializers.CharField(required=False)
             source_info = serializers.DictField()
             path_resource = serializers.ListField(child=serializers.CharField(), required=False, allow_empty=True)
+            target_info_show = serializers.BooleanField(required=False, label="是否展示目标资源扩展信息")
+            look_back_delta = serializers.CharField(
+                required=False, allow_blank=True, label="instant 回看窗口，如 1440m"
+            )
 
         bk_biz_ids = serializers.ListField(child=serializers.CharField(), allow_empty=True, required=False)
         query_list = serializers.ListField(child=QueryListSerializer(), min_length=1)

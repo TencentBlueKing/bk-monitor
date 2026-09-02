@@ -46,6 +46,7 @@ export default defineComponent({
     const isError = ref(false); // 输入错误状态
     const showValue = ref(''); // 显示的输入值
     const searchValue = ref(''); // 搜索框的值
+    const activeTab = ref('explorer');
 
     const selectDropdownRef = ref<any>(null);
 
@@ -77,11 +78,9 @@ export default defineComponent({
 
     // 处理输入值变化
     const handleChange = (val: string) => {
-      if (validate(val)) {
-        emit('update:value', val);
-      } else {
-        emit('update:value', '');
-      }
+      showValue.value = val;
+      validate(val);
+      emit('update:value', val);
     };
 
     // 处理选择选项
@@ -93,6 +92,13 @@ export default defineComponent({
       selectDropdownRef.value?.hideHandler();
     };
 
+    const handleManualAdd = () => {
+      const val = showValue.value.trim();
+      if (validate(val)) {
+        emit('manual-add', val);
+      }
+    };
+
     // 验证路径是否有效
     const validate = (val: string) => {
       let isAvailable = false;
@@ -102,7 +108,11 @@ export default defineComponent({
           break;
         }
       }
-      const isValidated = isAvailable && !/\.\//.test(val);
+      const isValidated = Boolean(val)
+        && isAvailable
+        && !/\/\//.test(val)
+        && !val.split('/').some(segment => segment === '.' || segment === '..' || segment.startsWith('.'))
+        && new RegExp('^[():@\\[\\]a-zA-Z0-9._/*\\-~]+$', 'u').test(val);
       isError.value = !isValidated;
       return isValidated;
     };
@@ -113,18 +123,36 @@ export default defineComponent({
         ref={selectDropdownRef}
         class='bk-select-dropdown'
         scopedSlots={{
-          // 默认插槽：输入框
           default: () => (
-            <bk-input
-              style='width: 669px'
-              class={isError.value ? 'is-error' : ''}
-              data-test-id='addNewExtraction_input_specifyFolder'
-              value={showValue.value}
-              onChange={val => {
-                showValue.value = val;
-                handleChange(val);
-              }}
-            />
+            <div class='files-input-wrapper'>
+              <div class='files-input-tabs'>
+                <span class={activeTab.value === 'explorer' ? 'active' : ''} onClick={() => (activeTab.value = 'explorer')}>
+                  {t('从典型容器检索')}
+                </span>
+                <span class={activeTab.value === 'manual' ? 'active' : ''} onClick={() => (activeTab.value = 'manual')}>
+                  {t('手动输入路径')}
+                </span>
+              </div>
+              <div class='files-input-row'>
+                <bk-input
+                  style='width: 669px'
+                  class={isError.value ? 'is-error' : ''}
+                  data-test-id='addNewExtraction_input_specifyFolder'
+                  placeholder={activeTab.value === 'manual' ? t('比如：/var/log/application/error.log') : ''}
+                  value={showValue.value}
+                  onChange={val => {
+                    showValue.value = val;
+                    handleChange(val);
+                  }}
+                />
+                {activeTab.value === 'manual' && (
+                  <bk-button theme='primary' size='small' onClick={handleManualAdd}>
+                    {t('添加到已选列表')}
+                  </bk-button>
+                )}
+              </div>
+              {activeTab.value === 'manual' && <div class='manual-tip'>{t('请精准输入目录 / 文件名')}</div>}
+            </div>
           ),
           // 内容插槽：下拉选项列表
           content: () => (

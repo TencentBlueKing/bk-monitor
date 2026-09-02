@@ -59,6 +59,10 @@ export default defineComponent({
       type: String,
       default: '',
     },
+    isExternal: {
+      type: Boolean,
+      default: false,
+    },
   },
   setup(props, { emit, expose }) {
     const { t } = useLocale();
@@ -336,7 +340,7 @@ export default defineComponent({
                 right-icon='bk-icon icon-search'
                 value={searchValue.value}
                 clearable
-                on-change={value => {
+                on-change={(value) => {
                   searchValue.value = value;
                 }}
                 on-clear={handleSearch}
@@ -410,16 +414,18 @@ export default defineComponent({
                     name={option.name}
                   />
                 ))}
-                <div
-                  class='template-manage-extension'
-                  slot='extension'
-                  on-click={() => handleGoTemplateManage()}
-                >
-                  <log-icon type='shezhi' />
-                  {t('模板管理')}
-                </div>
+                {!props.isExternal && (
+                  <div
+                    class='template-manage-extension'
+                    slot='extension'
+                    on-click={() => handleGoTemplateManage()}
+                  >
+                    <log-icon type='shezhi' />
+                    {t('模板管理')}
+                  </div>
+                )}
               </bk-select>
-              {templateRuleId.value > 0 && hasMatchedTemplate.value && (
+              {!props.isExternal && templateRuleId.value > 0 && hasMatchedTemplate.value && (
                 <bk-button
                   size='small'
                   theme='primary'
@@ -479,7 +485,7 @@ export default defineComponent({
         </div>
         <other-import
           isShow={isShowOtherImport.value}
-          on-show-change={value => {
+          on-show-change={(value) => {
             isShowOtherImport.value = value;
           }}
           on-success={list => emit('rule-list-change', list)}
