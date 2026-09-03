@@ -1133,9 +1133,12 @@ class SourceAnalysisExecutionBaseResource(Resource):
                 "bk_tenant_id": bk_tenant_id,
                 "repository_alias": execution.repository_alias,
                 "agent_id": execution.agent_id,
-                "skill_ids": list(execution.skill_ids),
-                "knowledge_base_ids": list(execution.knowledge_base_ids),
-                "issue_context": {"alert_ids": [execution.alert_id]},
+                # 多值以英文逗号分隔而非 JSON 数组：inputs 原样透传成蓝盾流水线变量，
+                # 变量只能是字符串，分隔好的字符串可由模板直接转手给下游插件。
+                # 空列表落成空串，与插件"留空即不传递"的语义一致。
+                "skill_ids": ",".join(execution.skill_ids),
+                "knowledge_base_ids": ",".join(execution.knowledge_base_ids),
+                "alert_id": execution.alert_id,
             },
         }
 

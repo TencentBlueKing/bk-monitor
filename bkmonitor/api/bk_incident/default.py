@@ -196,21 +196,28 @@ class SourceAnalysisInputsSerializer(serializers.Serializer):
     bk_tenant_id = serializers.CharField(label="租户 ID", max_length=64)
     repository_alias = serializers.CharField(label="蓝盾代码库别名", max_length=255)
     agent_id = serializers.CharField(label="智能体 ID", max_length=64)
-    skill_ids = serializers.ListField(
-        label="Skill ID",
-        child=serializers.CharField(),
+    # 多值字段以英文逗号分隔而非 JSON 数组：inputs 会原样透传成蓝盾流水线变量，
+    # 而流水线变量只能是字符串。直接给出分隔好的字符串，模板可原样转手给下游插件，
+    # 既不依赖 BKFara 的数组序列化方式，也免去模板解析后再拼接。
+    #
+    # 这两个字段不设长度上限。其余字段的 max_length 与对应数据库列宽一致，属于永远不会
+    # 触发的兜底；而这里的值由执行快照拼接得到，长度随资源数量增长，是唯一可能真正撞上
+    # 限制的字段。出站载荷由 BKM 自己拼装、不是外部输入，一旦校验失败会被
+    # _handle_upstream_error 当成可重试的上游故障，导致执行记录无限重试。要限制资源
+    # 数量应放在规则配置入口，那里是用户输入且能直接返回错误。
+    skill_ids = serializers.CharField(
+        label="Skill ID（英文逗号分隔）",
         required=False,
-        default=list,
-        max_length=50,
+        default="",
+        allow_blank=True,
     )
-    knowledge_base_ids = serializers.ListField(
-        label="知识库 ID",
-        child=serializers.CharField(),
+    knowledge_base_ids = serializers.CharField(
+        label="知识库 ID（英文逗号分隔）",
         required=False,
-        default=list,
-        max_length=50,
+        default="",
+        allow_blank=True,
     )
-    issue_context = serializers.DictField(label="Issue 上下文", required=False)
+    alert_id = serializers.CharField(label="告警 ID", max_length=64)
 
     def to_internal_value(self, data):
         if isinstance(data, dict):

@@ -76,9 +76,9 @@ class TestSourceAnalysisContract(TestCase):
                     "bk_tenant_id": "system",
                     "repository_alias": "repo-a",
                     "agent_id": "agent-a",
-                    "skill_ids": ["skill-a"],
-                    "knowledge_base_ids": [],
-                    "issue_context": {"alert_ids": ["alert-1"]},
+                    "skill_ids": "skill-a",
+                    "knowledge_base_ids": "",
+                    "alert_id": "alert-1",
                 },
             }
         )
@@ -240,9 +240,9 @@ class TestSourceAnalysisOrchestration(TestCase):
                 "bk_tenant_id": "system",
                 "repository_alias": "repo-a",
                 "agent_id": "agent-a",
-                "skill_ids": ["skill-a", "skill-b"],
-                "knowledge_base_ids": ["knowledge-a"],
-                "issue_context": {"alert_ids": ["alert-1"]},
+                "skill_ids": "skill-a,skill-b",
+                "knowledge_base_ids": "knowledge-a",
+                "alert_id": "alert-1",
             },
         )
 
