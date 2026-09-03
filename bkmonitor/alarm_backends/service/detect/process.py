@@ -27,12 +27,13 @@ logger = logging.getLogger("detect")
 
 
 class DetectProcess(BaseAbnormalPushProcessor):
-    def __init__(self, strategy_id: str):
+    def __init__(self, strategy_id: str, inline_trigger_enabled: bool | None = None):
         # note: 这里有个坑，进来的策略id是字符串
         self.strategy_id = strategy_id
         self.inputs = {}
         self.outputs = {}
         self.inline_trigger_items = []
+        self.inline_trigger_enabled = inline_trigger_enabled
         self.strategy = Strategy(strategy_id)
         i18n.set_biz(self.strategy.bk_biz_id)
         self.is_busy = False
@@ -143,7 +144,11 @@ class DetectProcess(BaseAbnormalPushProcessor):
                 bk_biz_id=self.strategy.bk_biz_id,
                 strategy_name=self.strategy.name,
             ).observe(max_latency)
-        inline_trigger_enabled = settings.ENABLE_DETECT_INLINE_TRIGGER
+        inline_trigger_enabled = (
+            settings.ENABLE_DETECT_INLINE_TRIGGER
+            if self.inline_trigger_enabled is None
+            else self.inline_trigger_enabled
+        )
         self.inline_trigger_items = (
             [item.id for item in self.strategy.items if self.outputs.get(item.id)] if inline_trigger_enabled else []
         )
