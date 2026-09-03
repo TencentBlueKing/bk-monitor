@@ -189,6 +189,10 @@ class UUIDStringField(serializers.CharField):
             raise serializers.ValidationError("Must be a valid UUID.") from error
 
 
+# 单个 AI 资源 ID 上限 64 字符，最多 50 个，逐个补一位英文逗号分隔符后的总长上限。
+RESOURCE_IDS_MAX_LENGTH = 50 * 65
+
+
 class SourceAnalysisInputsSerializer(serializers.Serializer):
     # inputs 由 BKFara 原样透传给蓝盾流水线，因此流水线自身回调 BKM 所需的业务与租户标识
     # 也放在这一层，与顶层同名字段重复是有意的。
@@ -196,19 +200,22 @@ class SourceAnalysisInputsSerializer(serializers.Serializer):
     bk_tenant_id = serializers.CharField(label="租户 ID", max_length=64)
     repository_alias = serializers.CharField(label="蓝盾代码库别名", max_length=255)
     agent_id = serializers.CharField(label="智能体 ID", max_length=64)
-    skill_ids = serializers.ListField(
-        label="Skill ID",
-        child=serializers.CharField(),
+    # 多值字段以英文逗号分隔而非 JSON 数组：inputs 会原样透传成蓝盾流水线变量，
+    # 而流水线变量只能是字符串。直接给出分隔好的字符串，模板可原样转手给下游插件，
+    # 既不依赖 BKFara 的数组序列化方式，也免去模板解析后再拼接。
+    skill_ids = serializers.CharField(
+        label="Skill ID（英文逗号分隔）",
         required=False,
-        default=list,
-        max_length=50,
+        default="",
+        allow_blank=True,
+        max_length=RESOURCE_IDS_MAX_LENGTH,
     )
-    knowledge_base_ids = serializers.ListField(
-        label="知识库 ID",
-        child=serializers.CharField(),
+    knowledge_base_ids = serializers.CharField(
+        label="知识库 ID（英文逗号分隔）",
         required=False,
-        default=list,
-        max_length=50,
+        default="",
+        allow_blank=True,
+        max_length=RESOURCE_IDS_MAX_LENGTH,
     )
     alert_id = serializers.CharField(label="告警 ID", max_length=64)
 
