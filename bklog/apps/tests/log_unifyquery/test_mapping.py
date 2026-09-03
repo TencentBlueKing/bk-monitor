@@ -1,6 +1,7 @@
 from types import SimpleNamespace
 from unittest.mock import patch
 
+from django.conf import settings
 from django.test import TestCase
 
 from apps.exceptions import ApiRequestError
@@ -124,7 +125,7 @@ class TestUnifyQueryMappingHandler(TestCase):
         )
         with (
             patch(
-                "apps.log_unifyquery.handler.mapping.UnifyQueryMappingHandler.get_fields_directly",
+                "apps.log_unifyquery.handler.mapping.UnifyQueryMappingHandler.get_fields_by_table_id",
                 return_value=[{"field_name": "message", "field_type": "text"}],
             ) as mock_get_fields,
         ):
@@ -132,7 +133,22 @@ class TestUnifyQueryMappingHandler(TestCase):
 
         self.assertEqual(fields_by_rt, {"2_bklog.demo": ([{"field_name": "message", "field_type": "text"}], [])})
         self.assertEqual(mock_get_fields.call_args.kwargs["bk_biz_id"], 2)
-        self.assertEqual(mock_get_fields.call_args.kwargs["result_table_id"], "2_bklog_demo")
+        self.assertEqual(mock_get_fields.call_args.kwargs["table_id"], "bklog_index_set_1_2_bklog_demo.__default__")
+
+    @patch("apps.log_unifyquery.handler.mapping.UnifyQueryApi.query_field_map")
+    def test_get_fields_by_table_id_uses_metadata_router(self, mock_query_field_map):
+        mock_query_field_map.return_value = {"data": [{"field_name": "message", "field_type": "text"}]}
+
+        fields = UnifyQueryMappingHandler.get_fields_by_table_id(2, "bklog_index_set_1_2_bklog_demo.__default__")
+
+        self.assertEqual(fields, [{"field_name": "message", "field_type": "text"}])
+        mock_query_field_map.assert_called_once_with(
+            {
+                "bk_biz_id": 2,
+                "data_source": settings.UNIFY_QUERY_DATA_SOURCE,
+                "table_id": "bklog_index_set_1_2_bklog_demo.__default__",
+            }
+        )
 
     def test_get_fields_by_result_tables_returns_empty_when_no_indexes(self):
         index_set = SimpleNamespace(get_indexes=lambda has_applied: [])

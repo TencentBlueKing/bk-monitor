@@ -481,9 +481,22 @@ class UnifyQueryMappingHandler:
         result = UnifyQueryApi.query_field_map(params)
         return result.get("data", [])
 
+    @staticmethod
+    def get_fields_by_table_id(bk_biz_id: int, table_id: str):
+        """通过 UQ metadata 路由查询单个 RT 的 mapping。"""
+        params = {
+            "bk_biz_id": bk_biz_id,
+            "data_source": settings.UNIFY_QUERY_DATA_SOURCE,
+            "table_id": table_id,
+        }
+        result = UnifyQueryApi.query_field_map(params)
+        return result.get("data", [])
+
     @classmethod
     def get_fields_by_result_tables(cls, index_set: LogIndexSet) -> dict:
         """按 RT 查询 UQ mapping，返回与 ES mapping 的非合并结果一致的结构。"""
+        from apps.log_search.handlers.index_set import BaseIndexSetHandler
+
         indexes = index_set.get_indexes(has_applied=True)
         if not indexes:
             return {}
@@ -493,18 +506,12 @@ class UnifyQueryMappingHandler:
 
         for index in indexes:
             result_table_id = index["result_table_id"]
-            scenario_id = index.get("scenario_id") or index_set.scenario_id
-            query_result_table_id = result_table_id
-            if scenario_id == Scenario.LOG:
-                query_result_table_id = result_table_id.replace(".", "_")
             multi_execute_func.append(
                 result_key=result_table_id,
-                func=cls.get_fields_directly,
+                func=cls.get_fields_by_table_id,
                 params={
                     "bk_biz_id": index.get("bk_biz_id") or default_bk_biz_id,
-                    "scenario_id": scenario_id,
-                    "storage_cluster_id": index.get("storage_cluster_id") or index_set.storage_cluster_id,
-                    "result_table_id": query_result_table_id,
+                    "table_id": BaseIndexSetHandler.get_rt_id(index_set.index_set_id, result_table_id),
                 },
                 multi_func_params=True,
             )

@@ -2016,7 +2016,7 @@ class TestSyncRouter(TestCase):
 
     @patch("apps.log_search.handlers.index_set.FeatureToggleObject.switch", return_value=False)
     @patch(
-        "apps.log_search.handlers.index_set.UnifyQueryMappingHandler.get_fields_directly",
+        "apps.log_search.handlers.index_set.UnifyQueryMappingHandler.get_fields_by_table_id",
         return_value=[{"field_name": "message", "field_type": "keyword"}],
     )
     def test_native_doris_alias_mapping_uses_unifyquery(self, mock_uq_fields, mock_switch):
@@ -2032,12 +2032,15 @@ class TestSyncRouter(TestCase):
 
         self.assertEqual(rt_alias_mappings["591_native"], aliases)
         self.assertEqual(alias_field_map["msg"][0]["rt_list"], ["591_native"])
-        mock_uq_fields.assert_called_once()
+        mock_uq_fields.assert_called_once_with(
+            bk_biz_id=2,
+            table_id=BaseIndexSetHandler.get_rt_id(index_set.index_set_id, "591_native"),
+        )
         mock_switch.assert_not_called()
 
     @patch("apps.log_search.handlers.index_set.FeatureToggleObject.switch", return_value=True)
     @patch(
-        "apps.log_search.handlers.index_set.UnifyQueryMappingHandler.get_fields_directly",
+        "apps.log_search.handlers.index_set.UnifyQueryMappingHandler.get_fields_by_table_id",
         return_value=[{"field_name": "message", "field_type": "keyword"}],
     )
     def test_es_alias_mapping_uses_unifyquery_when_feature_enabled(self, mock_uq_fields, mock_switch):
@@ -2052,7 +2055,10 @@ class TestSyncRouter(TestCase):
         rt_alias_mappings, _ = IndexSetHandler.get_rt_alias_settings(index_set.index_set_id, aliases)
 
         self.assertEqual(rt_alias_mappings["591_xx"], aliases)
-        mock_uq_fields.assert_called_once()
+        mock_uq_fields.assert_called_once_with(
+            bk_biz_id=2,
+            table_id=BaseIndexSetHandler.get_rt_id(index_set.index_set_id, "591_xx"),
+        )
         mock_switch.assert_called_once_with("unify_query_search", 2)
 
     @patch("apps.log_search.handlers.index_set.SearchHandler")
