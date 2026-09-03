@@ -1026,6 +1026,113 @@ class FixedRemoteScriptTest(SimpleTestCase):
             )
             self.assertEqual(pattern_count, "4")
 
+    def test_shared_probe_registrar_stream_narrows_to_inspected_sources(self):
+        script = fixed_probe_script().decode("utf-8")
+        snippet_start = script.index('registrar_filter_keys=""')
+        snippet_end = script.index("\nemit_sample_stream() {", snippet_start)
+        snippet = script[snippet_start:snippet_end]
+
+        with tempfile.TemporaryDirectory() as directory:
+            registrar_path = Path(directory) / "bkunifylogbeat.bkpipe.db"
+            registrar_path.write_text(
+                '{"source":"/data/app.log","offset":10,"FileStateOS":{"inode":7,"device":8}}\n'
+                '{"source":"/data/other.log","offset":20,"FileStateOS":{"inode":9,"device":8}}\n'
+                '{"source":"/var/log/noise.log","offset":30,"FileStateOS":{"inode":11,"device":8}}\n',
+                encoding="utf-8",
+            )
+
+            harness = "\n".join(
+                (
+                    "set -u",
+                    "MAX_REGISTRAR_BYTES=524288",
+                    'emit_kv() { printf \'KV\\t%s\\t%s\\n\' "$1" "$2"; }',
+                    'emit_encoded_stream() { printf \'STREAM\\t%s\\t%s\\n\' "$5" "$6"; }',
+                    "decoded_base64_size() { printf '%s' \"$1\" | base64 -d 2>/dev/null | wc -c | tr -d ' '; }",
+                    snippet,
+                    'add_registrar_filter_key "/data/app.log"',
+                    'add_registrar_filter_key "/data/app.log"',
+                    'add_registrar_filter_key "app.log"',
+                    f'emit_registrar_stream "first.registrar_strings" "{registrar_path}"',
+                )
+            )
+            completed = subprocess.run(
+                ["/bin/sh"],
+                input=harness,
+                text=True,
+                capture_output=True,
+                check=True,
+            )
+
+        emitted = {}
+        stream_truncated = None
+        stream_payload = ""
+        for line in completed.stdout.splitlines():
+            kind, _, rest = line.partition("\t")
+            if kind == "KV":
+                key, _, value = rest.partition("\t")
+                emitted[key] = value
+            elif kind == "STREAM":
+                stream_truncated, _, stream_payload = rest.partition("\t")
+
+        # The repeated key collapses, so grep only receives the path and the basename.
+        self.assertEqual(emitted["first.registrar_strings.filter_key_count"], "2")
+        self.assertEqual(emitted["first.registrar_strings.filtered"], "true")
+        self.assertEqual(emitted["first.registrar_strings.total_line_count"], "3")
+        self.assertEqual(emitted["first.registrar_strings.filtered_line_count"], "1")
+        self.assertEqual(stream_truncated, "false")
+        decoded = base64.b64decode(stream_payload).decode("utf-8")
+        self.assertIn("/data/app.log", decoded)
+        self.assertNotIn("/data/other.log", decoded)
+        self.assertNotIn("/var/log/noise.log", decoded)
+
+    def test_shared_probe_registrar_stream_falls_back_to_full_scan_without_keys(self):
+        script = fixed_probe_script().decode("utf-8")
+        snippet_start = script.index('registrar_filter_keys=""')
+        snippet_end = script.index("\nemit_sample_stream() {", snippet_start)
+        snippet = script[snippet_start:snippet_end]
+
+        with tempfile.TemporaryDirectory() as directory:
+            registrar_path = Path(directory) / "bkunifylogbeat.bkpipe.db"
+            registrar_path.write_text(
+                '{"source":"/data/app.log","offset":10}\n{"source":"/data/other.log","offset":20}\n',
+                encoding="utf-8",
+            )
+
+            harness = "\n".join(
+                (
+                    "set -u",
+                    "MAX_REGISTRAR_BYTES=524288",
+                    'emit_kv() { printf \'KV\\t%s\\t%s\\n\' "$1" "$2"; }',
+                    'emit_encoded_stream() { printf \'STREAM\\t%s\\t%s\\n\' "$5" "$6"; }',
+                    "decoded_base64_size() { printf '%s' \"$1\" | base64 -d 2>/dev/null | wc -c | tr -d ' '; }",
+                    snippet,
+                    f'emit_registrar_stream "first.registrar_strings" "{registrar_path}"',
+                )
+            )
+            completed = subprocess.run(
+                ["/bin/sh"],
+                input=harness,
+                text=True,
+                capture_output=True,
+                check=True,
+            )
+
+        emitted = {}
+        stream_payload = ""
+        for line in completed.stdout.splitlines():
+            kind, _, rest = line.partition("\t")
+            if kind == "KV":
+                key, _, value = rest.partition("\t")
+                emitted[key] = value
+            elif kind == "STREAM":
+                _, _, stream_payload = rest.partition("\t")
+
+        self.assertEqual(emitted["first.registrar_strings.filtered"], "false")
+        self.assertEqual(emitted["first.registrar_strings.filter_key_count"], "0")
+        self.assertEqual(emitted["first.registrar_strings.filtered_line_count"], "2")
+        decoded = base64.b64decode(stream_payload).decode("utf-8")
+        self.assertIn("/data/other.log", decoded)
+
     def test_shared_probe_rejects_caller_shaped_config_hints(self):
         for hint in ("../secret.conf", "/data/etc/secret.conf", "*.conf", "a,b.conf"):
             with self.subTest(hint=hint), self.assertRaises(ValueError):
@@ -1172,6 +1279,87 @@ class FixedRemoteScriptTest(SimpleTestCase):
 
         self.assertEqual(result["status"], "insufficient_observation_window")
         self.assertEqual(result["observed_status"], "progress_advancing")
+
+    def test_registrar_probe_surfaces_bounded_evidence_limits(self):
+        parsed = parsed_probe()
+        state = '{"source":"/data/app/service.log","offset":10,"FileStateOS":{"inode":7,"device":8}}'
+        for phase in ("first", "second"):
+            parsed["streams"][f"{phase}.registrar_strings"] = {
+                "content": state,
+                "returned_size_bytes": 524288,
+                "truncated": True,
+            }
+            parsed["values"][f"{phase}.registrar_strings.filtered"] = "true"
+            parsed["values"][f"{phase}.registrar_strings.filter_key_count"] = "2"
+            parsed["values"][f"{phase}.registrar_strings.total_line_count"] = "1430"
+            parsed["values"][f"{phase}.registrar_strings.filtered_line_count"] = "4"
+
+        registrar = build_probe_evidence(
+            parsed,
+            bk_data_id=1001,
+            source=None,
+            include_source_sample=False,
+            config_map_main=None,
+            sidecar_required=False,
+        )["registrar"]
+        sampling = registrar["evidence"]["first_sampling"]
+
+        self.assertEqual(registrar["status"], "warning")
+        self.assertEqual(registrar["code"], "registrar_strings_incomplete")
+        self.assertTrue(sampling["truncated"])
+        self.assertEqual(sampling["returned_size_bytes"], 524288)
+        self.assertEqual(sampling["total_line_count"], 1430)
+        self.assertEqual(sampling["filtered_line_count"], 4)
+        # Three of the four matched lines never made it past the byte budget.
+        self.assertIn("lines_missing_from_sample", sampling["incomplete_reasons"])
+        self.assertIn("stream_truncated", registrar["warnings"][0]["reasons"])
+
+    def test_registrar_probe_counts_records_it_could_not_parse(self):
+        parsed = parsed_probe()
+        for phase in ("first", "second"):
+            parsed["streams"][f"{phase}.registrar_strings"] = {
+                "content": '{"source":"/data/app/service.log","offset":10,"FileStateOS":{"inode":7,"dev'
+            }
+
+        registrar = build_probe_evidence(
+            parsed,
+            bk_data_id=1001,
+            source=None,
+            include_source_sample=False,
+            config_map_main=None,
+            sidecar_required=False,
+        )["registrar"]
+
+        self.assertEqual(registrar["status"], "warning")
+        self.assertEqual(registrar["evidence"]["first_sampling"]["unparsed_line_count"], 1)
+        self.assertIn("unparsed_lines", registrar["warnings"][0]["reasons"])
+
+    def test_progress_reports_incomplete_evidence_instead_of_missing_state(self):
+        parsed = parsed_probe()
+        for phase in ("first", "second"):
+            parsed["values"][f"{phase}.source_count"] = "1"
+            parsed["values"][f"{phase}.source.0.pattern"] = "/data/app/*.log"
+            parsed["values"][f"{phase}.source.0.path"] = "/data/app/service.log"
+            parsed["values"][f"{phase}.source.0.resolved_path"] = "/data/app/service.log"
+            parsed["values"][f"{phase}.source.0.device"] = "8"
+            parsed["values"][f"{phase}.source.0.inode"] = "7"
+            parsed["values"][f"{phase}.source.0.size_bytes"] = "100"
+            parsed["values"][f"{phase}.source.0.mtime_epoch"] = "1700000000"
+            parsed["streams"][f"{phase}.registrar_strings"] = {
+                "content": '{"source":"/data/app/service.log","offset":10,"FileStateOS":{"inode":7,"dev'
+            }
+
+        progress = build_probe_evidence(
+            parsed,
+            bk_data_id=1001,
+            source=None,
+            include_source_sample=False,
+            config_map_main=None,
+            sidecar_required=False,
+        )["progress"]
+
+        self.assertTrue(progress["evidence"]["registrar_evidence_incomplete"])
+        self.assertEqual(progress["evidence"]["items"][0]["observed_status"], "registrar_evidence_incomplete")
 
     def test_host_and_k8s_use_the_same_evidence_engine(self):
         parsed = parsed_probe()

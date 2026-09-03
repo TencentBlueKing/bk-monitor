@@ -31,7 +31,7 @@ if [ "$target_config_hint_count" -gt 20 ]; then
 fi
 
 PROTOCOL="bklog.collector.inspection.probe.v1"
-PROBE_VERSION="137707063.12"
+PROBE_VERSION="137865321.1"
 # Stay below BK-JOB/GSE's 5 MiB atomic script-task log limit.
 OUTPUT_BUDGET_BYTES=4194304
 OUTPUT_FINAL_RESERVE_BYTES=4096
@@ -169,6 +169,27 @@ emit_tail_blob() {
     emit_encoded_stream "$blob_name" "$blob_path" "$actual_returned" "$total" "$truncated" "$encoded" || true
 }
 
+registrar_filter_keys=""
+registrar_filter_separator='
+'
+
+# Keys stay deliberately loose (source path, resolved path and both basenames) because
+# the server still matches registrar states on path plus inode and device. Filtering the
+# probe side on the full path alone would turn a server-side path mismatch into missing
+# evidence, which is harder to diagnose than a mismatch.
+add_registrar_filter_key() {
+    candidate=$1
+    [ -n "$candidate" ] || return 0
+    case "$registrar_filter_separator$registrar_filter_keys$registrar_filter_separator" in
+        *"$registrar_filter_separator$candidate$registrar_filter_separator"*) return 0 ;;
+    esac
+    if [ -n "$registrar_filter_keys" ]; then
+        registrar_filter_keys="$registrar_filter_keys$registrar_filter_separator$candidate"
+    else
+        registrar_filter_keys=$candidate
+    fi
+}
+
 emit_registrar_stream() {
     stream_name=$1
     registrar_path=$2
@@ -176,8 +197,37 @@ emit_registrar_stream() {
         emit_kv "${stream_name}.unavailable" "base64_missing"
         return
     fi
-    encoded=$(strings -n 4 -- "$registrar_path" 2>/dev/null | \
-        dd bs=1 count="$MAX_REGISTRAR_BYTES" 2>/dev/null | base64 | tr -d '\r\n')
+    registrar_total_lines=$(strings -n 4 -- "$registrar_path" 2>/dev/null | wc -l | tr -d ' ')
+    case "$registrar_total_lines" in
+        ''|*[!0-9]*) registrar_total_lines=0 ;;
+    esac
+    registrar_filter_key_count=0
+    if [ -n "$registrar_filter_keys" ]; then
+        registrar_filter_key_count=$(printf '%s\n' "$registrar_filter_keys" | wc -l | tr -d ' ')
+    fi
+    registrar_filtered=false
+    registrar_filtered_lines=$registrar_total_lines
+    encoded=""
+    if [ "$registrar_filter_key_count" -gt 0 ] && command -v grep >/dev/null 2>&1; then
+        registrar_filtered=true
+        # grep -F reads the pattern operand as one fixed string per line.
+        registrar_filtered_content=$(strings -n 4 -- "$registrar_path" 2>/dev/null | \
+            grep -F "$registrar_filter_keys" 2>/dev/null)
+        if [ -n "$registrar_filtered_content" ]; then
+            registrar_filtered_lines=$(printf '%s\n' "$registrar_filtered_content" | wc -l | tr -d ' ')
+            encoded=$(printf '%s\n' "$registrar_filtered_content" | \
+                dd bs=1 count="$MAX_REGISTRAR_BYTES" 2>/dev/null | base64 | tr -d '\r\n')
+        else
+            registrar_filtered_lines=0
+        fi
+    else
+        encoded=$(strings -n 4 -- "$registrar_path" 2>/dev/null | \
+            dd bs=1 count="$MAX_REGISTRAR_BYTES" 2>/dev/null | base64 | tr -d '\r\n')
+    fi
+    emit_kv "${stream_name}.total_line_count" "$registrar_total_lines"
+    emit_kv "${stream_name}.filtered" "$registrar_filtered"
+    emit_kv "${stream_name}.filter_key_count" "$registrar_filter_key_count"
+    emit_kv "${stream_name}.filtered_line_count" "$registrar_filtered_lines"
     actual_returned=$(decoded_base64_size "$encoded")
     registrar_truncated=false
     if [ "$actual_returned" -ge "$MAX_REGISTRAR_BYTES" ]; then
@@ -645,9 +695,14 @@ snapshot_sources() {
             inode=$(printf '%s\n' "$metadata" | awk '{print $2}')
             size_bytes=$(printf '%s\n' "$metadata" | awk '{print $3}')
             mtime_epoch=$(printf '%s\n' "$metadata" | awk '{print $4}')
+            resolved_path=$(readlink -f "$source_path" 2>/dev/null)
             emit_kv "$phase.source.$index.pattern" "$pattern"
             emit_kv "$phase.source.$index.path" "$source_path"
-            emit_kv "$phase.source.$index.resolved_path" "$(readlink -f "$source_path" 2>/dev/null)"
+            emit_kv "$phase.source.$index.resolved_path" "$resolved_path"
+            add_registrar_filter_key "$source_path"
+            add_registrar_filter_key "$resolved_path"
+            add_registrar_filter_key "${source_path##*/}"
+            add_registrar_filter_key "${resolved_path##*/}"
             if [ -L "$source_path" ]; then
                 emit_kv "$phase.source.$index.symlink" "true"
             fi

@@ -12,7 +12,7 @@ import yaml
 from apps.log_admin_resource.collector_probe_parsers import (
     classify_registrar_progress,
     fallback_matching_inputs,
-    parse_registrar_strings,
+    parse_registrar_strings_with_stats,
     state_for_file,
 )
 
@@ -581,6 +581,42 @@ def _source_probe(
     }
 
 
+def _registrar_sampling(
+    values: dict[str, str],
+    stream: dict[str, Any],
+    stats: dict[str, int],
+    phase: str,
+) -> dict[str, Any]:
+    """Report how much of the registrar the bounded sample actually accounts for."""
+    prefix = f"{phase}.registrar_strings."
+    truncated = bool(stream.get("truncated"))
+    unparsed_line_count = stats.get("unparsed_line_count") or 0
+    partial_state_count = stats.get("partial_state_count") or 0
+    returned_line_count = stats.get("line_count") or 0
+    filtered_line_count = _integer(values.get(prefix + "filtered_line_count"))
+    incomplete_reasons = []
+    if truncated:
+        incomplete_reasons.append("stream_truncated")
+    if unparsed_line_count:
+        incomplete_reasons.append("unparsed_lines")
+    if partial_state_count:
+        incomplete_reasons.append("partial_states")
+    if filtered_line_count is not None and filtered_line_count > returned_line_count:
+        incomplete_reasons.append("lines_missing_from_sample")
+    return {
+        "filtered": values.get(prefix + "filtered") == "true",
+        "filter_key_count": _integer(values.get(prefix + "filter_key_count")),
+        "total_line_count": _integer(values.get(prefix + "total_line_count")),
+        "filtered_line_count": filtered_line_count,
+        "returned_line_count": returned_line_count,
+        "returned_size_bytes": stream.get("returned_size_bytes"),
+        "truncated": truncated,
+        "unparsed_line_count": unparsed_line_count,
+        "partial_state_count": partial_state_count,
+        "incomplete_reasons": incomplete_reasons,
+    }
+
+
 def _registrar_probe(
     values: dict[str, str],
     streams: dict[str, dict[str, Any]],
@@ -597,22 +633,44 @@ def _registrar_probe(
             "evidence": {"reason": unavailable, "registrar_path": values.get("registrar_path")},
             "warnings": [],
         }
-    first_states = parse_registrar_strings(str((streams.get("first.registrar_strings") or {}).get("content") or ""))
-    second_states = parse_registrar_strings(str((streams.get("second.registrar_strings") or {}).get("content") or ""))
+    first_stream = streams.get("first.registrar_strings") or {}
+    second_stream = streams.get("second.registrar_strings") or {}
+    first_states, first_stats = parse_registrar_strings_with_stats(str(first_stream.get("content") or ""))
+    second_states, second_stats = parse_registrar_strings_with_stats(str(second_stream.get("content") or ""))
     first_matches = {row["path"]: state_for_file(first_states, row) for row in first_rows}
     second_matches = {row["path"]: state_for_file(second_states, row) for row in second_rows}
+    first_sampling = _registrar_sampling(values, first_stream, first_stats, "first")
+    second_sampling = _registrar_sampling(values, second_stream, second_stats, "second")
+    incomplete_reasons = sorted(set(first_sampling["incomplete_reasons"]) | set(second_sampling["incomplete_reasons"]))
     return {
-        "status": "success",
-        "code": "registrar_strings_inspected",
-        "summary": "live BoltDB was not opened; bounded strings evidence was matched by source, inode and device",
+        "status": "warning" if incomplete_reasons else "success",
+        "code": "registrar_strings_incomplete" if incomplete_reasons else "registrar_strings_inspected",
+        "summary": (
+            "bounded strings evidence is incomplete, so an absent state does not prove the file is untracked"
+            if incomplete_reasons
+            else "live BoltDB was not opened; bounded strings evidence was matched by source, inode and device"
+        ),
         "evidence": {
             "path": values.get("registrar_path"),
             "first_state_count": len(first_states),
             "second_state_count": len(second_states),
             "first_matches": first_matches,
             "second_matches": second_matches,
+            "first_sampling": first_sampling,
+            "second_sampling": second_sampling,
         },
-        "warnings": [],
+        "warnings": (
+            [
+                {
+                    "code": "registrar_evidence_incomplete",
+                    "message": "registrar evidence is bounded; an absent state cannot be read as an untracked file",
+                    "retryable": False,
+                    "reasons": incomplete_reasons,
+                }
+            ]
+            if incomplete_reasons
+            else []
+        ),
     }
 
 
@@ -622,8 +680,14 @@ def _progress_probe(
     first_rows: list[dict[str, Any]],
     second_rows: list[dict[str, Any]],
 ) -> dict[str, Any]:
-    first_states = parse_registrar_strings(str((streams.get("first.registrar_strings") or {}).get("content") or ""))
-    second_states = parse_registrar_strings(str((streams.get("second.registrar_strings") or {}).get("content") or ""))
+    first_stream = streams.get("first.registrar_strings") or {}
+    second_stream = streams.get("second.registrar_strings") or {}
+    first_states, first_stats = parse_registrar_strings_with_stats(str(first_stream.get("content") or ""))
+    second_states, second_stats = parse_registrar_strings_with_stats(str(second_stream.get("content") or ""))
+    evidence_incomplete = bool(
+        _registrar_sampling(values, first_stream, first_stats, "first")["incomplete_reasons"]
+        or _registrar_sampling(values, second_stream, second_stats, "second")["incomplete_reasons"]
+    )
     second_by_path = {row["path"]: row for row in second_rows}
     results = []
     insufficient = values.get("insufficient_observation_window") == "true"
@@ -640,6 +704,7 @@ def _progress_probe(
                     state_for_file(first_states, first),
                     state_for_file(second_states, second),
                     insufficient=insufficient,
+                    evidence_incomplete=evidence_incomplete,
                 ),
             }
         )
@@ -651,6 +716,7 @@ def _progress_probe(
             "items": results,
             "observation_required_seconds": _number(values.get("observation_required_seconds")),
             "observation_seconds": _number(values.get("observation_seconds")),
+            "registrar_evidence_incomplete": evidence_incomplete,
             "scope_statement": "Registrar progress proves only local collector read/ACK state",
         },
         "warnings": [],
