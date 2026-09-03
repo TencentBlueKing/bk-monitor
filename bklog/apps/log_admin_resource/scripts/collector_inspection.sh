@@ -31,7 +31,7 @@ if [ "$target_config_hint_count" -gt 20 ]; then
 fi
 
 PROTOCOL="bklog.collector.inspection.probe.v1"
-PROBE_VERSION="137707063.11"
+PROBE_VERSION="137707063.12"
 # Stay below BK-JOB/GSE's 5 MiB atomic script-task log limit.
 OUTPUT_BUDGET_BYTES=4194304
 OUTPUT_FINAL_RESERVE_BYTES=4096
@@ -497,8 +497,8 @@ while IFS= read -r child_path && [ "$child_index" -lt "$MAX_MATCHED_CHILD_CONFIG
             sub("^[^[]*\\[", "", line)
             sub("\\].*$", "", line)
             count=split(line, values, ",")
-            for (index=1; index<=count; index++) {
-                value=values[index]
+            for (idx=1; idx<=count; idx++) {
+                value=values[idx]
                 gsub(/^[[:space:]\047\"]+|[[:space:]\047\"]+$/, "", value)
                 if (value ~ /^\//) print value
             }
