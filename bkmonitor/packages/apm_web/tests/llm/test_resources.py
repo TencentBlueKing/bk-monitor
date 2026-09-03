@@ -1,6 +1,13 @@
 from unittest import TestCase, mock
 
-from apm_web.llm.resources import AGENT_CANDIDATE_QUERY, ListSpansResource, ListTracesResource
+from apm_web.llm.resources import (
+    AGENT_CANDIDATE_QUERY,
+    CalculateByRangeResource,
+    ListSpansResource,
+    ListTracesResource,
+    MOCK_TIME_SERIES_MAX_POINTS,
+    TimeSeriesResource,
+)
 
 
 class ListTracesResourceTestCase(TestCase):
@@ -562,3 +569,218 @@ class ListSpansResourceTestCase(TestCase):
                 "exclude_field": ["bk_app_code"],
             }
         )
+
+
+class TimeSeriesResourceTestCase(TestCase):
+    def test_mock_accepts_metrics_required_by_overview_page(self):
+        fields = TimeSeriesResource.RequestSerializer().fields
+
+        self.assertEqual(
+            set(fields["cal_type"].choices),
+            {
+                "input_tokens",
+                "output_tokens",
+                "total_tokens",
+                "cache_tokens",
+                "request_count",
+                "model_call_count",
+                "duration",
+                "operation_count",
+            },
+        )
+
+    def test_input_tokens_mock_returns_series_in_requested_time_range(self):
+        request_data = {
+            "bk_biz_id": 11,
+            "app_name": "sand_local_dev",
+            "service_name": "agent-service",
+            "start_time": 1700000000,
+            "end_time": 1700001800,
+            "cal_type": "input_tokens",
+            "group_by": [],
+        }
+
+        result = TimeSeriesResource().request(request_data)
+
+        self.assertTrue(result["mock"])
+        self.assertEqual(list(result), ["series", "mock"])
+        self.assertEqual(len(result["series"]), 1)
+        self.assertEqual(list(result["series"][0]), ["datapoints"])
+        self.assertEqual(result["series"][0]["datapoints"][0][1], request_data["start_time"] * 1000)
+        self.assertEqual(result["series"][0]["datapoints"][-1][1], request_data["end_time"] * 1000)
+        self.assertEqual(result, TimeSeriesResource().request(request_data))
+
+    def test_duration_mock_groups_by_model(self):
+        result = TimeSeriesResource().request(
+            {
+                "bk_biz_id": 11,
+                "app_name": "sand_local_dev",
+                "start_time": 1700000000,
+                "end_time": 1700003600,
+                "cal_type": "duration",
+                "group_by": ["gen_ai.response.model"],
+            }
+        )
+
+        self.assertEqual(len(result["series"]), 3)
+        self.assertEqual(
+            [series["dimensions"]["gen_ai.response.model"] for series in result["series"]],
+            ["hunyuan-turbo", "deepseek-r1", "qwen3-32b"],
+        )
+        self.assertEqual(
+            [series["target"] for series in result["series"]],
+            ["hunyuan-turbo", "deepseek-r1", "qwen3-32b"],
+        )
+
+    def test_operation_count_mock_groups_by_operation_name(self):
+        result = TimeSeriesResource().request(
+            {
+                "bk_biz_id": 11,
+                "app_name": "sand_local_dev",
+                "start_time": 1700000000,
+                "end_time": 1700003600,
+                "cal_type": "operation_count",
+                "group_by": ["gen_ai.operation.name"],
+            }
+        )
+
+        self.assertEqual(len(result["series"]), 4)
+        self.assertEqual(
+            [series["dimensions"]["gen_ai.operation.name"] for series in result["series"]],
+            ["invoke_agent", "chat", "execute_tool", "retrieval"],
+        )
+        self.assertEqual(
+            [series["target"] for series in result["series"]],
+            ["invoke_agent", "chat", "execute_tool", "retrieval"],
+        )
+
+    def test_each_series_limits_datapoints_for_large_time_range(self):
+        request_data = {
+            "bk_biz_id": 11,
+            "app_name": "sand_local_dev",
+            "start_time": 0,
+            "end_time": 1_000_000_000_000,
+            "cal_type": "operation_count",
+            "group_by": ["gen_ai.operation.name"],
+        }
+
+        result = TimeSeriesResource().request(request_data)
+
+        self.assertEqual(len(result["series"]), 4)
+        for series in result["series"]:
+            datapoints = series["datapoints"]
+            self.assertLessEqual(len(datapoints), MOCK_TIME_SERIES_MAX_POINTS)
+            self.assertEqual(datapoints[0][1], request_data["start_time"] * 1000)
+            self.assertEqual(datapoints[-1][1], request_data["end_time"] * 1000)
+            self.assertEqual(
+                [datapoint[1] for datapoint in datapoints],
+                sorted({datapoint[1] for datapoint in datapoints}),
+            )
+
+    def test_rejects_unsupported_group_by(self):
+        serializer = TimeSeriesResource.RequestSerializer(
+            data={
+                "bk_biz_id": 11,
+                "app_name": "sand_local_dev",
+                "start_time": 1700000000,
+                "end_time": 1700001800,
+                "cal_type": "input_tokens",
+                "group_by": ["user.id"],
+            }
+        )
+
+        self.assertFalse(serializer.is_valid())
+        self.assertIn("暂不支持", str(serializer.errors))
+
+    def test_rejects_multiple_group_by_fields(self):
+        serializer = TimeSeriesResource.RequestSerializer(
+            data={
+                "bk_biz_id": 11,
+                "app_name": "sand_local_dev",
+                "start_time": 1700000000,
+                "end_time": 1700001800,
+                "cal_type": "input_tokens",
+                "group_by": ["gen_ai.response.model", "gen_ai.operation.name"],
+            }
+        )
+
+        self.assertFalse(serializer.is_valid())
+        self.assertIn("暂不支持多字段聚合", str(serializer.errors))
+
+
+class CalculateByRangeResourceTestCase(TestCase):
+    def test_input_tokens_mock_returns_calculate_by_range_shape(self):
+        result = CalculateByRangeResource().request(
+            {
+                "bk_biz_id": 11,
+                "app_name": "sand_local_dev",
+                "start_time": 1700000000,
+                "end_time": 1700001800,
+                "cal_type": "input_tokens",
+                "group_by": [],
+            }
+        )
+
+        self.assertEqual(result["total"], 1)
+        self.assertEqual(list(result), ["total", "data"])
+        self.assertEqual(result["data"][0]["dimensions"], {})
+        self.assertIn("0s", result["data"][0])
+        self.assertNotIn("growth_rates", result["data"][0])
+
+    def test_duration_mock_groups_by_model(self):
+        result = CalculateByRangeResource().request(
+            {
+                "bk_biz_id": 11,
+                "app_name": "sand_local_dev",
+                "start_time": 1700000000,
+                "end_time": 1700003600,
+                "cal_type": "duration",
+                "group_by": ["gen_ai.response.model"],
+            }
+        )
+
+        self.assertEqual(result["total"], 3)
+        self.assertEqual(
+            [record["dimensions"]["gen_ai.response.model"] for record in result["data"]],
+            ["hunyuan-turbo", "deepseek-r1", "qwen3-32b"],
+        )
+        for record in result["data"]:
+            self.assertIn("0s", record)
+            self.assertNotIn("1d", record)
+            self.assertNotIn("growth_rates", record)
+
+    def test_operation_count_mock_groups_by_operation_name(self):
+        result = CalculateByRangeResource().request(
+            {
+                "bk_biz_id": 11,
+                "app_name": "sand_local_dev",
+                "start_time": 1700000000,
+                "end_time": 1700003600,
+                "cal_type": "operation_count",
+                "group_by": ["gen_ai.operation.name"],
+            }
+        )
+
+        self.assertEqual(result["total"], 4)
+        self.assertEqual(
+            [record["dimensions"]["gen_ai.operation.name"] for record in result["data"]],
+            ["invoke_agent", "chat", "execute_tool", "retrieval"],
+        )
+        for record in result["data"]:
+            self.assertIn("0s", record)
+            self.assertNotIn("growth_rates", record)
+
+    def test_rejects_unsupported_group_by(self):
+        serializer = CalculateByRangeResource.RequestSerializer(
+            data={
+                "bk_biz_id": 11,
+                "app_name": "sand_local_dev",
+                "start_time": 1700000000,
+                "end_time": 1700001800,
+                "cal_type": "input_tokens",
+                "group_by": ["user.id"],
+            }
+        )
+
+        self.assertFalse(serializer.is_valid())
+        self.assertIn("暂不支持", str(serializer.errors))

@@ -1,4 +1,5 @@
 from collections import defaultdict
+from math import ceil, pi, sin
 from typing import Any
 
 from opentelemetry.semconv.resource import ResourceAttributes
@@ -17,6 +18,21 @@ AGENT_CANDIDATE_QUERY = (
     "OR _exists_:attributes.gen_ai.operation.name "
     "OR _exists_:attributes.agent.info.id "
     "OR _exists_:attributes.agent.info.name"
+)
+
+MOCK_TIME_SERIES_GROUP_BY_FIELDS = {"gen_ai.operation.name", "gen_ai.response.model"}
+MOCK_TIME_SERIES_MAX_POINTS = 60
+MOCK_TIME_SERIES_MODELS = ["hunyuan-turbo", "deepseek-r1", "qwen3-32b"]
+MOCK_TIME_SERIES_OPERATIONS = ["invoke_agent", "chat", "execute_tool", "retrieval"]
+MOCK_TIME_SERIES_CAL_TYPES = (
+    "input_tokens",
+    "output_tokens",
+    "total_tokens",
+    "cache_tokens",
+    "request_count",
+    "model_call_count",
+    "duration",
+    "operation_count",
 )
 
 
@@ -264,3 +280,196 @@ class ListSpansResource(Resource):
             "total": len(spans),
             "spans": spans,
         }
+
+
+class TimeSeriesResource(Resource):
+    """临时 LLM 指标时序 mock 接口。
+
+    只按传入时域生成稳定的假数据，用于前端先行联调；后续会替换为基于 LLMQuery 的真实查询。
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
+        app_name = serializers.CharField(required=True, label="应用名称")
+        service_name = serializers.CharField(required=False, allow_blank=True, default="", label="服务名称")
+        start_time = serializers.IntegerField(required=True, label="开始时间")
+        end_time = serializers.IntegerField(required=True, label="结束时间")
+        cal_type = serializers.ChoiceField(
+            required=True,
+            choices=MOCK_TIME_SERIES_CAL_TYPES,
+            label="指标类型",
+        )
+        group_by = serializers.ListField(
+            required=False,
+            default=list,
+            child=serializers.CharField(),
+            label="聚合字段",
+        )
+
+        def validate(self, attrs):
+            if attrs["start_time"] >= attrs["end_time"]:
+                raise serializers.ValidationError("start_time 必须小于 end_time")
+
+            if len(attrs["group_by"]) > 1:
+                raise serializers.ValidationError("暂不支持多字段聚合")
+
+            unsupported_group_by = set(attrs["group_by"]) - MOCK_TIME_SERIES_GROUP_BY_FIELDS
+            if unsupported_group_by:
+                raise serializers.ValidationError(f"暂不支持按 {sorted(unsupported_group_by)} 聚合")
+            return attrs
+
+    @staticmethod
+    def _auto_interval(start_time: int, end_time: int) -> int:
+        raw_interval = max(60, ceil((end_time - start_time) / 30))
+        for interval in (60, 300, 600, 1800, 3600, 21600, 86400):
+            if raw_interval <= interval:
+                return interval
+        return 86400
+
+    @staticmethod
+    def _mock_value(cal_type: str, point_index: int, series_index: int, point_count: int) -> int:
+        progress = point_index / max(1, point_count - 1)
+        wave = sin(progress * pi)
+        ripple = sin(progress * pi * 3 + series_index * 0.7) * 0.16
+
+        if cal_type == "input_tokens":
+            return max(0, int(2600 + series_index * 760 + wave * 2500 + ripple * 800))
+        if cal_type == "output_tokens":
+            return max(0, int(980 + series_index * 280 + wave * 980 + ripple * 320))
+        if cal_type == "total_tokens":
+            return TimeSeriesResource._mock_value("input_tokens", point_index, series_index, point_count) + (
+                TimeSeriesResource._mock_value("output_tokens", point_index, series_index, point_count)
+            )
+        if cal_type == "cache_tokens":
+            return max(0, int(420 + series_index * 120 + wave * 520 + ripple * 150))
+        if cal_type == "request_count":
+            return max(0, int(36 + series_index * 9 + wave * 42 + ripple * 12))
+        if cal_type == "model_call_count":
+            return max(0, int(110 + series_index * 28 + wave * 125 + ripple * 38))
+        if cal_type == "operation_count":
+            return max(0, int(140 + series_index * 35 + wave * 160 + ripple * 45))
+        return max(0, int(820000 + series_index * 210000 + wave * 520000 + ripple * 130000))
+
+    @staticmethod
+    def _dimensions(group_by: list[str]) -> list[dict[str, str]]:
+        if not group_by:
+            return [{}]
+        if group_by == ["gen_ai.response.model"]:
+            return [{"gen_ai.response.model": model} for model in MOCK_TIME_SERIES_MODELS]
+        if group_by == ["gen_ai.operation.name"]:
+            return [{"gen_ai.operation.name": operation} for operation in MOCK_TIME_SERIES_OPERATIONS]
+        return [{}]
+
+    def perform_request(self, validated_request_data):
+        start_time = validated_request_data["start_time"]
+        end_time = validated_request_data["end_time"]
+        interval = max(
+            self._auto_interval(start_time, end_time),
+            ceil((end_time - start_time) / (MOCK_TIME_SERIES_MAX_POINTS - 1)),
+        )
+        timestamps = list(range(start_time, end_time + 1, interval))
+        if timestamps[-1] != end_time:
+            timestamps.append(end_time)
+
+        cal_type = validated_request_data["cal_type"]
+        series = []
+        point_count = len(timestamps)
+        for series_index, dimensions in enumerate(self._dimensions(validated_request_data["group_by"])):
+            datapoints = [
+                [self._mock_value(cal_type, point_index, series_index, point_count), timestamp * 1000]
+                for point_index, timestamp in enumerate(timestamps)
+            ]
+            series_item = {"datapoints": datapoints}
+            if dimensions:
+                series_item["target"] = next(iter(dimensions.values()))
+                series_item["dimensions"] = dimensions
+            series.append(series_item)
+
+        return {
+            "series": series,
+            "mock": True,
+        }
+
+
+class CalculateByRangeResource(Resource):
+    """临时 LLM 指标区间聚合 mock 接口。"""
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
+        app_name = serializers.CharField(required=True, label="应用名称")
+        service_name = serializers.CharField(required=False, allow_blank=True, default="", label="服务名称")
+        start_time = serializers.IntegerField(required=True, label="开始时间")
+        end_time = serializers.IntegerField(required=True, label="结束时间")
+        cal_type = serializers.ChoiceField(
+            required=True,
+            choices=MOCK_TIME_SERIES_CAL_TYPES,
+            label="指标类型",
+        )
+        group_by = serializers.ListField(
+            required=False,
+            default=list,
+            child=serializers.CharField(),
+            label="聚合字段",
+        )
+
+        def validate(self, attrs):
+            if attrs["start_time"] >= attrs["end_time"]:
+                raise serializers.ValidationError("start_time 必须小于 end_time")
+
+            if len(attrs["group_by"]) > 1:
+                raise serializers.ValidationError("暂不支持多字段聚合")
+
+            unsupported_group_by = set(attrs["group_by"]) - MOCK_TIME_SERIES_GROUP_BY_FIELDS
+            if unsupported_group_by:
+                raise serializers.ValidationError(f"暂不支持按 {sorted(unsupported_group_by)} 聚合")
+            return attrs
+
+    @staticmethod
+    def _range_value(cal_type: str, start_time: int, end_time: int, series_index: int) -> int:
+        minutes = max(1, ceil((end_time - start_time) / 60))
+
+        if cal_type == "input_tokens":
+            base = minutes * (1180 + series_index * 360) + (start_time // 60 % 17) * 95
+            return int(base)
+        if cal_type == "output_tokens":
+            base = minutes * (430 + series_index * 130) + (start_time // 60 % 11) * 42
+            return int(base)
+        if cal_type == "total_tokens":
+            return CalculateByRangeResource._range_value(
+                "input_tokens", start_time, end_time, series_index
+            ) + CalculateByRangeResource._range_value("output_tokens", start_time, end_time, series_index)
+        if cal_type == "cache_tokens":
+            base = minutes * (160 + series_index * 48) + (start_time // 60 % 7) * 21
+            return int(base)
+        if cal_type == "request_count":
+            base = minutes * (17 + series_index * 4) + (start_time // 60 % 5)
+            return int(base)
+        if cal_type == "model_call_count":
+            base = minutes * (34 + series_index * 8) + (start_time // 60 % 7) * 2
+            return int(base)
+        if cal_type == "operation_count":
+            base = minutes * (43 + series_index * 13) + (start_time // 60 % 9) * 3
+            return int(base)
+
+        base = 830000 + series_index * 230000 + min(minutes, 180) * 1600 + (start_time // 60 % 13) * 4200
+        return int(base)
+
+    def perform_request(self, validated_request_data):
+        cal_type = validated_request_data["cal_type"]
+        group_by = validated_request_data["group_by"]
+
+        records = []
+        for series_index, dimensions in enumerate(TimeSeriesResource._dimensions(group_by)):
+            records.append(
+                {
+                    "dimensions": dimensions,
+                    "0s": self._range_value(
+                        cal_type,
+                        validated_request_data["start_time"],
+                        validated_request_data["end_time"],
+                        series_index,
+                    ),
+                }
+            )
+
+        return {"total": len(records), "data": records}

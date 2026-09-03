@@ -31,7 +31,7 @@ urlpatterns = [
 @pytest.mark.filterwarnings("ignore:CoreAPI compatibility is deprecated.*")
 @override_settings(ROOT_URLCONF=__name__)
 def test_apm_llm_v4_routes_exist():
-    for endpoint in ("list_spans", "list_traces"):
+    for endpoint in ("list_spans", "list_traces", "time_series", "calculate_by_range"):
         match = resolve(f"/api/v4/apm_llm_web/{endpoint}/")
 
         assert match.func.cls is apm_v4_views.ApmLLMWebViewSet
@@ -40,6 +40,6 @@ def test_apm_llm_v4_routes_exist():
 @pytest.mark.filterwarnings("ignore:CoreAPI compatibility is deprecated.*")
 @override_settings(ROOT_URLCONF=__name__)
 def test_llm_base_v4_routes_do_not_exist():
-    for endpoint in ("list_spans", "list_traces"):
+    for endpoint in ("list_spans", "list_traces", "time_series", "calculate_by_range"):
         with pytest.raises(Resolver404):
             resolve(f"/api/v4/llm/{endpoint}/")
