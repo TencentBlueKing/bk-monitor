@@ -963,8 +963,10 @@ class FixedRemoteScriptTest(SimpleTestCase):
             capture_output=True,
         )
 
+        # gawk warns about regexp escapes that BWK awk accepts silently, so assert on parse failure
+        # rather than on empty stderr.
         self.assertEqual(completed.returncode, 0, completed.stderr)
-        self.assertEqual(completed.stderr, "")
+        self.assertNotIn("syntax error", completed.stderr)
 
     def test_shared_probe_extracts_source_paths_from_inline_and_block_yaml(self):
         script = fixed_probe_script().decode("utf-8")
