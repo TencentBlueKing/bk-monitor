@@ -206,7 +206,16 @@ export default defineComponent({
             }
           } else {
             if (props.fields?.[0]) {
-              handleCheck(props.fields[0]);
+              handleCheck(
+                props.fields[0],
+                '',
+                [],
+                {
+                  isWildcard: false,
+                  groupRelation: '',
+                },
+                true
+              );
             }
 
             // 需要等待popover 动画执行完毕 300ms
