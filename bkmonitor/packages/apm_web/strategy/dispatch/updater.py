@@ -47,6 +47,7 @@ class StrategyTemplateUpdater:
         SaveStrategyV2Resource.validate_cmdb_level(candidate)
 
         username: str = Strategy._get_username()
+        # 结构与通知校验失败会在周期自动下发中重复出现；仅为已确认需要更新的尝试留痕，避免历史刷屏。
         should_record_failure: bool = False
         try:
             with transaction.atomic(settings.BACKEND_DATABASE_NAME):
