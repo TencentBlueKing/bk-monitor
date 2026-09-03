@@ -10,13 +10,6 @@ specific language governing permissions and limitations under the License.
 
 import datetime
 import math
-import csv
-from urllib import parse
-from typing import Any
-from collections.abc import Iterable
-from collections import deque
-
-from django.http import HttpResponse
 
 from core.drf_resource import api
 from bkmonitor.utils.time_tools import time_interval_align
@@ -328,77 +321,3 @@ def fill_unify_query_series(series: list, start_time: int, end_time: int, interv
         )
 
     return res or [{"datapoints": [[None, t_s] for t_s, t_e in timestamp_range]}]
-
-
-def generate_csv_file_download_response(file_name: str, file_content: Iterable[Iterable[Any]]) -> HttpResponse:
-    """生成一个带有文件内容和文件名的 HTTP 响应"""
-
-    # 确保文件名以 .csv 结尾
-    if file_name[-4:].lower() != ".csv":
-        file_name += ".csv"
-    # ISO8859_1 是 ASCII 的超集（一种8位的字符编码），实现最大兼容性
-    # 部分浏览器不支持解析参数值的 %，所以这里直接不做 URL 编码，然后用双引号包裹起来
-    iso8859_1_file_name = file_name.encode("utf-8").decode("ISO8859_1")
-
-    # 需要替换掉不符合操作系统文件名要求和会影响请求头读取的字符
-    prohibited_chars = "\\/?:*\"<>|';="
-    for char in prohibited_chars:
-        iso8859_1_file_name = iso8859_1_file_name.replace(char, "_")
-
-    # 使用 parse.quote 进行 URL 编码，确保文件名中的特殊字符被正确编码
-    # 现代浏览器会自动将不符合操作系统文件名要求的字符替换为下划线，这里 utf8_file_name 不做处理
-    utf8_file_name = parse.quote(file_name, encoding="utf8")
-
-    # 现代浏览器会自动将文件名截取到符合操作系统文件名要求的长度，这里只返回最多 240 个字符
-    iso8859_1_file_name = iso8859_1_file_name[-240:]
-    utf8_file_name = utf8_file_name[-240:]
-
-    # filename* 优先级更高，用于支持现代浏览器和系统，可以正确显示Unicode文件名
-    response = HttpResponse(
-        content_type="text/csv",
-        headers={
-            "Content-Disposition": f"attachment;filename=\"{iso8859_1_file_name}\";filename*=UTF-8''{utf8_file_name}"
-        },
-    )
-
-    writer = csv.writer(response)
-    for row_list in file_content:
-        # 例子：row_list => ["a", "b", "c"]
-        writer.writerow(row_list)
-    return response
-
-
-def flatten_es_dict_data(data_dict: dict) -> dict:
-    """将 ES 查询结果扁平化处理"""
-
-    def update_result_dict(result_dict: dict, key: str, value):
-        if key not in result_dict:
-            result_dict[key] = value
-        else:
-            if isinstance(result_dict[key], list):
-                result_dict[key].append(value)
-            else:
-                result_dict[key] = [result_dict[key], value]
-
-    result_dict = {}
-    q = deque()
-    q.append(("", data_dict))
-    while q:
-        name_prefix, data = q.popleft()
-        for field_name, field_value in data.items():
-            field_key = f"{name_prefix}.{field_name}" if name_prefix else field_name
-            if not field_value:
-                update_result_dict(result_dict, field_key, field_value)
-                continue
-
-            if isinstance(field_value, dict):
-                q.append((field_key, field_value))
-            elif isinstance(field_value, list):
-                for value in field_value:
-                    if isinstance(value, dict):
-                        q.append((field_key, value))
-                    else:
-                        update_result_dict(result_dict, field_key, value)
-            else:
-                update_result_dict(result_dict, field_key, field_value)
-    return result_dict

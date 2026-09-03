@@ -1,6 +1,6 @@
 ### 功能描述
 
-向指定 APM 服务增量绑定容器负载或蓝盾流水线，用于容器管理平台、蓝盾等内部平台向 APM 注册事件关联数据。
+向指定 APM 服务增量绑定容器负载或蓝盾流水线，并可同步服务告警组的通知人。该接口用于容器管理平台、蓝盾等内部平台向 APM 注册服务配置。
 
 该接口只追加请求中显式提交的增量关系，不提供解绑能力，也不会删除服务已有的事件关系、CMDB、日志、APDEX、URI 或标签配置。相同请求按关系身份去重，串行重复调用不会产生重复数据；并发追加不承诺强一致性。
 
@@ -19,10 +19,13 @@ POST /app/apm/service/update_service_config/
 | bk_biz_id | int | 是 | APM 应用所属业务 ID |
 | app_name | string | 是 | APM 应用名，最长 50 个字符 |
 | service_name | string | 是 | 需要绑定关系的 APM 服务名，最长 512 个字符 |
+| owners | array[string] | 否 | 服务负责人；显式提交时覆盖服务告警组的通知人 |
 | incremental_k8s_relations | array[object] | 否 | 需要追加的容器负载关系 |
 | incremental_cicd_relations | array[object] | 否 | 需要追加的蓝盾流水线关系 |
 
 两个增量字段可以同时提交。字段未提交表示不处理该类别；显式提交空数组表示本次没有新增关系，不会清空存量数据。
+
+`owners` 可以与两个增量字段同时提交。未提交时不处理通知组；显式提交空数组时会清空通知人。
 
 #### incremental_k8s_relations 元素
 
@@ -53,6 +56,7 @@ CICD 关系按 `(project_id, pipeline_id)` 去重。已有流水线与新增数�
   "bk_biz_id": 2,
   "app_name": "checkout",
   "service_name": "checkout-api",
+  "owners": ["alice", "bob"],
   "incremental_k8s_relations": [
     {
       "bcs_cluster_id": "BCS-K8S-00000",
@@ -73,8 +77,11 @@ CICD 关系按 `(project_id, pipeline_id)` 去重。已有流水线与新增数�
 
 ### 调用约束
 
-- 不要在同一请求中混用增量字段与 APM 内部的其他服务配置字段，混用时接口会拒绝请求。
+- 不要在同一请求中混用增量字段与 APM 内部的其他服务配置字段，`owners` 除外。
 - 调用前需确保 `bk_biz_id + app_name` 对应的 APM 应用已存在；接口允许在服务被拓扑发现前预先绑定 `service_name`。
+- 显式提交 `owners` 时，接口会创建或更新 `【APM】 {app_name}/{service_name} 服务告警组`，并用 `owners` 覆盖其通知人。最终告警组名称不能超过 `128` 个字符。
+- 如果已有服务告警组开启了轮值，接口会拒绝本次 `owners` 更新，不会修改现有排班。
+- `owners` 只维护服务告警组的通知人，不修改 APM 应用负责人，也不授予 IAM 权限。
 - 关系写入成功后，事件查询侧的进程内缓存最多可能延迟约 60 秒更新。
 - 如需解绑或覆盖完整事件配置，请使用 APM 自身的服务配置能力，不要用空数组表达删除。
 

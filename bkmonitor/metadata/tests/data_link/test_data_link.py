@@ -1654,7 +1654,8 @@ def test_merge_existing_component_configs_reraises_non_not_found_errors(create_o
 
 
 @pytest.mark.django_db(databases="__all__")
-def test_merge_existing_component_configs_accepts_bkbase_v4_not_found(create_or_delete_records):
+@pytest.mark.parametrize("resource_error_detail", ["resource not found", "Resource not found."])
+def test_merge_existing_component_configs_accepts_bkbase_v4_not_found(create_or_delete_records, resource_error_detail):
     data_link_ins = DataLink.objects.create(
         data_link_name="data_link_test",
         namespace="bkmonitor",
@@ -1670,7 +1671,7 @@ def test_merge_existing_component_configs_accepts_bkbase_v4_not_found(create_or_
         url="/v4/namespaces/{namespace}/{kind}/{name}/",
         result={
             "code": "1558025",
-            "data": "resource not found",
+            "data": resource_error_detail,
             "message": "resource not found",
         },
     )

@@ -24,11 +24,8 @@ from rest_framework.exceptions import ValidationError
 
 from apm.constants import (
     GLOBAL_CONFIG_BK_BIZ_ID,
-    AggregatedMethod,
     ApmCacheType,
     ConfigTypes,
-    EnabledStatisticsDimension,
-    StatisticsProperty,
     VisibleEnum,
 )
 from apm.core.discover.instance import InstanceDiscover
@@ -92,6 +89,7 @@ from constants.apm import (
     TraceListQueryMode,
     TraceWaterFallDisplayKey,
 )
+from constants.otel_query import EnabledStatisticsDimension, AggregatedMethod, StatisticsProperty
 from core.drf_resource import Resource, api, resource
 from core.drf_resource.exceptions import CustomException
 from metadata import models
@@ -1422,20 +1420,6 @@ class QuerySpanDetailResource(Resource):
         )
 
 
-class QueryFieldsResource(Resource):
-    class RequestSerializer(serializers.Serializer):
-        bk_biz_id = serializers.IntegerField(label="业务id")
-        app_name = serializers.CharField(label="应用名称", max_length=50)
-
-    def perform_request(self, validated_request_data):
-        bk_biz_id = validated_request_data["bk_biz_id"]
-        app_name = validated_request_data["app_name"]
-        application = ApmApplication.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
-        if not application:
-            raise CustomException(_("业务下的应用: {} 不存在").format(app_name))
-        return application.trace_datasource.fields()
-
-
 class UpdateMetricFieldsResource(Resource):
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(label="业务id")
@@ -1449,19 +1433,6 @@ class UpdateMetricFieldsResource(Resource):
         if not application:
             raise CustomException(_("业务下的应用: {} 不存在").format(app_name))
         return application.metric_datasource.update_fields(validated_request_data["field_list"])
-
-
-class QueryEsMappingResource(Resource):
-    class RequestSerializer(serializers.Serializer):
-        bk_biz_id = serializers.IntegerField()
-        app_name = serializers.CharField()
-
-    def perform_request(self, data):
-        datasource = TraceDataSource.objects.get(bk_biz_id=data["bk_biz_id"], app_name=data["app_name"])
-        if not datasource:
-            return None
-
-        return datasource.es_client.indices.get_mapping(datasource.index_name)
 
 
 class ListEsClusterInfoResource(Resource):
@@ -2424,15 +2395,7 @@ class QueryFieldStatisticsInfoResource(Resource):
 
     @classmethod
     def query_statistics_info(cls, proxy, validated_data, property_name, statistics_info) -> None:
-        query_property_method_map = {
-            StatisticsProperty.TOTAL_COUNT.value: AggregatedMethod.COUNT.value,
-            StatisticsProperty.FIELD_COUNT.value: AggregatedMethod.COUNT.value,
-            StatisticsProperty.DISTINCT_COUNT.value: AggregatedMethod.DISTINCT.value,
-            StatisticsProperty.AVG.value: AggregatedMethod.AVG.value,
-            StatisticsProperty.MAX.value: AggregatedMethod.MAX.value,
-            StatisticsProperty.MIN.value: AggregatedMethod.MIN.value,
-            StatisticsProperty.MEDIAN.value: AggregatedMethod.CP50.value,
-        }
+        query_property_method_map = StatisticsProperty.method_mapping()
         if property_name not in query_property_method_map:
             raise ValueError(_(f"未知的字段统计属性: {property_name}"))
 
@@ -2440,10 +2403,9 @@ class QueryFieldStatisticsInfoResource(Resource):
         field: dict[str, Any] = validated_data["field"]
         filters: list[dict[str, Any]] = copy.deepcopy(validated_data["filters"])
         if property_name == StatisticsProperty.FIELD_COUNT.value:
-            exclude_empty_operator: str = FilterOperator.NOT_EQUAL
-            if cls._is_number_field(validated_data["field"]):
-                exclude_empty_operator: str = FilterOperator.EXISTS
-
+            exclude_empty_operator: str = (
+                FilterOperator.EXISTS if cls._is_number_field(validated_data["field"]) else FilterOperator.NOT_EQUAL
+            )
             filters.append({"key": field["field_name"], "value": [""], "operator": exclude_empty_operator})
 
         statistics_info[property_name] = proxy.query_field_aggregated_value(
@@ -2458,7 +2420,7 @@ class QueryFieldStatisticsInfoResource(Resource):
 
     @classmethod
     def process_statistics_info(cls, statistics_info: dict[str, Any]) -> dict[str, Any]:
-        processed_statistics_info = {}
+        processed_statistics_info: dict[str, Any] = {}
         # 分类并处理结果
         for statistics_property, value in statistics_info.items():
             value = format_percent(value, 3, 3, 3)
@@ -2530,9 +2492,10 @@ class QueryFieldStatisticsGraphResource(Resource):
             distinct_count <= interval_num or (max_value - min_value + 1) <= interval_num
         ):
             field_topk = proxy.query_field_topk(**base_query_params, limit=distinct_count)
+            value_parser = float if field["field_type"] == EnabledStatisticsDimension.DOUBLE.value else int
             return self.process_graph_info(
                 [
-                    [topk_item["count"], int(topk_item["field_value"])]
+                    [topk_item["count"], value_parser(topk_item["field_value"])]
                     for topk_item in sorted(field_topk, key=lambda topk_item: topk_item["field_value"])
                 ]
             )
@@ -2590,7 +2553,8 @@ class QueryFieldStatisticsGraphResource(Resource):
                 for interval in intervals
             ]
         )
-        return sorted(buckets, key=lambda data_point: int(data_point[1].split("-")[0]))
+        buckets.sort(key=lambda item: item[0])
+        return [data_point for _start, data_point in buckets]
 
     @classmethod
     def collect_interval_buckets(cls, base_query_params, proxy, bucket, interval: tuple[int, int]):
@@ -2606,4 +2570,4 @@ class QueryFieldStatisticsGraphResource(Resource):
         interval_count = proxy.query_field_aggregated_value(
             **interval_query_params,
         )
-        bucket.append([interval_count, f"{interval[0]}-{interval[1]}"])
+        bucket.append((interval[0], [interval_count, f"{interval[0]}-{interval[1]}"]))

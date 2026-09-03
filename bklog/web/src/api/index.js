@@ -37,6 +37,7 @@ import { bus } from '@/common/bus';
 import { makeMessage, readBlobRespToJson } from '@/common/util';
 import i18n from '@/language/i18n';
 import serviceList from '@/services/index.js';
+import { resolveTenantMismatchPayload } from '@/views/un-authorized/tenant-mismatch';
 import { showLoginModal } from '@blueking/login-modal';
 import axios from 'axios';
 
@@ -68,8 +69,8 @@ axiosInstance.interceptors.request.use(
       // const prefix = config.url.indexOf('?') === -1 ? '?' : '&';
       config.url = config.url;
     }
-    // 外部版后端需要读取header里的 spaceUid
-    if (window.IS_EXTERNAL && JSON.parse(window.IS_EXTERNAL) && store.state.spaceUid) {
+    // 平台级索引集的所有检索子接口都需要请求空间，统一通过 header 传递
+    if (store.state.spaceUid) {
       config.headers['X-Bk-Space-Uid'] = store.state.spaceUid;
     }
     // if (window.__IS_MONITOR_COMPONENT__) {
@@ -326,7 +327,23 @@ function handleReject(error, config, reject) {
       } else if (code === '3621602') {
         return 1;
       } else if (code === 3641001) {
-        const resMessage = makeMessage(message, traceparent);
+        const tenantMismatch = resolveTenantMismatchPayload({
+          message,
+          data: error.data,
+          userTenantId: store.state.userMeta?.bk_tenant_id,
+        });
+        store.commit('updateState', { tenantMismatch });
+        const displayMessage =
+          tenantMismatch.current_tenant_id && tenantMismatch.target_tenant_id
+            ? i18n.t(
+                '您当前登录的企业空间是【{current}】，无法访问【{target}】企业空间的资源。请返回登录页或切换企业空间后重试。',
+                {
+                  current: tenantMismatch.current_tenant_id,
+                  target: tenantMismatch.target_tenant_id,
+                },
+              )
+            : message;
+        const resMessage = makeMessage(displayMessage, traceparent);
         if (config.catchIsShowMessage && !hasShownTenantMismatchWarning) {
           hasShownTenantMismatchWarning = true;
           messageWarn(resMessage);

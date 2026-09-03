@@ -245,6 +245,8 @@ export default {
   腾讯云Cos区域: 'Tencent cloud cos region',
   是否批量开启告警: 'Batch enable alerts?',
   是否批量关闭告警: 'Batch close alerts?',
+  '确认开启告警策略？': 'Confirm to enable the alert strategy?',
+  '确认关闭告警策略？': 'Confirm to disable the alert strategy?',
   可去告警策略编辑: 'Can go to alert policy editor',
   '耗时优化指引 >': 'Optimizing time consumption >',
   最大自定义天数为: 'Maximum custom days is',
@@ -1417,5 +1419,39 @@ export default {
   '按用量排序需要实时请求集群使用情况，需等待较长时间，点击确认执行':
     'Sorting by usage requires a real-time request for cluster usage and may take a while. Click Confirm to proceed.',
   '搜索 数据 ID、采集名、数据名、存储集群、存储名': 'Search by Data ID, Collection Name, Data Name, Storage Cluster, or Storage Name',
+  '确认同步后，会将模板最新清洗配置同步到以下所有采集项。该操作会影响线上日志字段解析结果。':
+    'After confirmation, the latest cleaning configuration will be synced to all collection items below. This may affect online log field parsing.',
+  '选择<同步所有采集项> 后，系统会将最新配置更新到全部关联采集项，可能会影响线上日志字段解析结果。':
+    'After selecting <Sync All Collection Items>, the latest configuration will be applied to all related collection items and may affect online log field parsing results.',
+  '当前模板已生效到{0}个采集项，关联{1}个索引集': 'The current template is active in {0} collection items and related to {1} index sets',
+  '您已修改过模板配置，确认后将和模板解除绑定关系，本次清洗配置将保存并单独生效该索引集，是否确认。':
+    'You have modified the template configuration. After confirmation, it will be unbound from the template and saved as an independent cleaning configuration for this index set. Continue?',
+  '当前清洗配置处于模板绑定状态，无法修改采集配置。如需修改，请点击':
+    'The current cleaning configuration is bound to a template and cannot be modified. To make changes, click',
+  '解除绑定后，将实例化为手动配置的清洗规则，不再随模板更新。': 'After unbinding, it will be instantiated as a manually configured scrubbing rule and will no longer update with the template.',
+  请选择采集项: 'Please select the data collection items.',
+  请选择左侧模板: 'Please select a template from the left.',
+  '如果在下方列表编辑了内容，将自动脱离模板，转为手动配置清洗规则。': 'If you edit the content in the list below, it will automatically detach from the template and switch to manual configuration of cleaning rules.',
+  '该模板已同步至关联采集项，无需同步': 'This template has already been synchronized to the associated collection items; no further synchronization is required.',
+  '确定删除该清洗模板？': 'Are you sure you want to delete this cleaning template?',
+  '删除模板后，原来关联的采集项，将实例化为手动配置的清洗规则。': 'After deleting the template, the previously associated data collection items will be instantiated as manually configured cleaning rules.',
+  '模板名称：': 'Template Name:',
+  '确定解除与模板的关联关系？': 'Are you sure you want to remove the association with the template?',
+  忽略冲突并继续填入: 'Ignore conflicts and continue filling in',
+  未从样例中匹配到有效值: 'No valid value was matched from the examples',
+  字段类型不匹配: 'Field type mismatch',
   仅新创建采集项支持选择采集范围: 'Collection range can only be selected when creating a new collection item',
+  '您当前登录的企业空间是【{current}】，无法访问【{target}】企业空间的资源。请返回登录页或切换企业空间后重试。':
+    'You are currently logged in to enterprise space [{current}] and cannot access resources in enterprise space [{target}]. Please return to the login page or switch enterprise space and try again.',
+  '无法跨企业空间访问该业务（当前登录：{current}，目标：{target}，空间UID: {spaceUid}，业务ID: {bizId}）。请返回登录页或切换企业空间。':
+    'Cannot access this business across enterprise spaces (currently logged in: {current}, target: {target}, space UID: {spaceUid}, business ID: {bizId}). Please return to the login page or switch enterprise space.',
+  返回登录页: 'Return to login page',
+  访问当前企业空间: 'Access current enterprise space',
+  '当前无可用业务信息，请联系管理员申请（空间UID：{spaceUid}，业务ID：{bizId}）':
+    'No available business information. Please contact the administrator to apply (space UID: {spaceUid}, business ID: {bizId})',
+  或者移除业务参数重试: 'Or remove the business parameters and retry',
+  '业务下无采集项，请按照指引完成接入，或联系管理员申请':
+    'No collection items under this business. Please follow the guide to onboard, or contact the administrator to apply',
+  'API无权限，请联系管理员申请': 'No API permission. Please contact the administrator to apply',
+  '无权限，请联系管理员': 'No permission. Please contact the administrator',
 };

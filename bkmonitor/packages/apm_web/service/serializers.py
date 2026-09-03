@@ -23,6 +23,7 @@ from apm_web.models import (
     CodeRedefinedConfigRelation,
 )
 from apm_web.handlers.service_handler import ServiceHandler
+from bkmonitor.models import UserGroup
 from bkmonitor.utils.common_utils import count_md5
 from core.drf_resource import api
 from monitor_web.data_explorer.event.constants import EventDomain, EventSource
@@ -90,6 +91,10 @@ class IncrementalCICDRelationSerializer(serializers.Serializer):
     pipeline_name = serializers.CharField(label=_("流水线名称"), max_length=255)
 
 
+def build_service_notice_group_name(app_name: str, service_name: str) -> str:
+    return f"【APM】 {app_name}/{service_name} 服务告警组"
+
+
 class ServiceConfigSerializer(serializers.Serializer):
     bk_biz_id = serializers.IntegerField(label=_("业务 ID"))
     app_name = serializers.CharField(label=_("应用名"), max_length=50)
@@ -104,6 +109,13 @@ class ServiceConfigSerializer(serializers.Serializer):
     incremental_cicd_relations = serializers.ListSerializer(required=False, child=IncrementalCICDRelationSerializer())
     incremental_k8s_relations = serializers.ListSerializer(required=False, child=IncrementalK8sRelationSerializer())
     labels = serializers.ListSerializer(required=False, allow_null=True, child=serializers.CharField())
+    # 仅显式提交 owners 时维护服务告警组；空列表表示清空通知人。
+    owners = serializers.ListField(
+        label=_("服务负责人列表"),
+        child=serializers.CharField(),
+        required=False,
+        allow_empty=True,
+    )
 
     def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
         request_fields: set[str] = set(self.initial_data)
@@ -119,8 +131,21 @@ class ServiceConfigSerializer(serializers.Serializer):
             "uri_relation",
             "event_relation",
         }
+        # owners 独立维护告警组通知人，可以与增量关系一起提交，不参与关系配置模式互斥判断。
         if incremental_fields and (full_relation_fields or "labels" in request_fields):
             raise serializers.ValidationError(_("增量事件关联字段不能与其他服务配置字段同时提交"))
+
+        if "owners" in request_fields:
+            # 生成的名称最终写入 UserGroup.name，先按模型字段限制拒绝超长名称。
+            group_name: str = build_service_notice_group_name(attrs["app_name"], attrs["service_name"])
+            group_name_max_length = UserGroup._meta.get_field("name").max_length  # pyright: ignore[reportAttributeAccessIssue]
+            if group_name_max_length is not None and len(group_name) > group_name_max_length:
+                raise serializers.ValidationError(
+                    {
+                        "owners": _("指定 owners 后生成的服务告警组名称不能超过 %(max_length)s 个字符")
+                        % {"max_length": group_name_max_length}
+                    }
+                )
 
         uri_relations: list[str] = attrs["uri_relation"]
         if len(set(uri_relations)) != len(uri_relations):

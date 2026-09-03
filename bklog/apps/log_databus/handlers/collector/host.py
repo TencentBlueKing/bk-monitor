@@ -1043,11 +1043,7 @@ class HostCollectorHandler(CollectorHandler):
         if self.data.is_custom_scenario:
             return {"task_ready": True, "contents": []}
 
-        task_ids = (
-            [str(task_id) for task_id in (id_list or self.data.task_id_list or [])]
-            if read_only
-            else []
-        )
+        task_ids = [str(task_id) for task_id in (id_list or self.data.task_id_list or [])] if read_only else []
         if not self.data.subscription_id:
             if read_only:
                 return {"task_ready": False, "contents": []}
@@ -1087,9 +1083,7 @@ class HostCollectorHandler(CollectorHandler):
             latest_task_id = max(task_ids, key=int)
         else:
             latest_task_id = str(self.data.task_id_list[-1]) if self.data.task_id_list else None
-        instance_status = self.format_task_instance_status(
-            status_result, latest_task_id=latest_task_id
-        )
+        instance_status = self.format_task_instance_status(status_result, latest_task_id=latest_task_id)
 
         return {"task_ready": True, "contents": self._get_status_content(instance_status, is_task=True)}
 
@@ -1477,6 +1471,8 @@ class HostCollectorHandler(CollectorHandler):
 
     def list_collectors_by_host(self, params):
         bk_biz_id = params.get("bk_biz_id")
+        no_request = bool(params.get("no_request"))
+        bk_tenant_id = params.get("bk_tenant_id")
         node_result = []
         try:
             node_result = NodeApi.query_host_subscriptions({**params, "source_type": "subscription"})
@@ -1506,7 +1502,9 @@ class HostCollectorHandler(CollectorHandler):
         collect_status = {
             status["collector_id"]: status
             for status in self.get_subscription_status_by_list(
-                [collector["collector_config_id"] for collector in collectors]
+                [collector["collector_config_id"] for collector in collectors],
+                no_request=no_request,
+                bk_tenant_id=bk_tenant_id,
             )
         }
 

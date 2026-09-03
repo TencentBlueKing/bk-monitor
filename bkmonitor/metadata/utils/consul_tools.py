@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -9,11 +8,9 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-
 import json
 import logging
 import time
-from typing import Optional
 
 from consul.base import ConsulException
 
@@ -21,7 +18,7 @@ from bkmonitor.utils import consul
 from metadata import config
 from metadata.utils import hash_util
 
-CONSUL_INFLUXDB_VERSION_PATH = "%s/influxdb_info/version/" % config.CONSUL_PATH
+CONSUL_INFLUXDB_VERSION_PATH = f"{config.CONSUL_PATH}/influxdb_info/version/"
 
 logger = logging.getLogger("metadata")
 
@@ -37,7 +34,7 @@ def refresh_router_version():
     logger.info("refresh influxdb version in consul success.")
 
 
-class HashConsul(object):
+class HashConsul:
     """
     哈希consul工具
     工具在写入consul前，将会先匹配consul上的数据是否与当次写入数据一致
@@ -82,7 +79,12 @@ class HashConsul(object):
         consul_client = consul.BKConsul(host=self.host, port=self.port, scheme=self.scheme, verify=self.verify)
         return consul_client.kv.get(key, recurse=True)
 
-    def put(self, key, value, is_force_update=False, bk_data_id: Optional[int] = None, *args, **kwargs):
+    def list_keys(self, key):
+        """仅获取指定前缀下的 key 名，不读取对应 value。"""
+        consul_client = consul.BKConsul(host=self.host, port=self.port, scheme=self.scheme, verify=self.verify)
+        return consul_client.kv.get(key, keys=True)
+
+    def put(self, key, value, is_force_update=False, bk_data_id: int | None = None, *args, **kwargs):
         """
         KV数据更新, 如果更新成功或者内容无更新，则返回True
         如果更新失败，则返回False
@@ -96,7 +98,7 @@ class HashConsul(object):
 
         # 0. 是否有强行刷新的要求
         if self.default_force or is_force_update:
-            logger.debug("key->[{}] now is force update, will update consul.".format(key))
+            logger.debug(f"key->[{key}] now is force update, will update consul.")
             return consul_client.kv.put(key=key, value=json.dumps(value), *args, **kwargs)
 
         # 1. 先获取consul上的配置内容，计算对应的哈希值
@@ -111,7 +113,7 @@ class HashConsul(object):
 
         # 3. 判断哈希值是否存在更新，如果没有，直接返回
         if old_hash == new_hash:
-            logger.debug("new value hash->[{}] is same as the one on consul, nothing will updated.".format(new_hash))
+            logger.debug(f"new value hash->[{new_hash}] is same as the one on consul, nothing will updated.")
             return True
 
         # 4. 否则，更新内容；如果存在数据源，则记录数据源 ID

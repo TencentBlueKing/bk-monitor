@@ -11,34 +11,159 @@ specific language governing permissions and limitations under the License.
 import json
 import logging
 import time
+from itertools import chain, islice
+
+from django.conf import settings
 
 from alarm_backends.core.alert.adapter import MonitorEventAdapter
-from alarm_backends.core.cache.key import ANOMALY_LIST_KEY, ANOMALY_SIGNAL_KEY, TRIGGER_EVENT_RATE_LIMIT_KEY
+from alarm_backends.core.cache import key as cache_key
+from alarm_backends.core.cache.key import (
+    ANOMALY_LIST_KEY,
+    ANOMALY_SIGNAL_KEY,
+    TRIGGER_EVENT_RATE_LIMIT_KEY,
+)
 from alarm_backends.core.control.strategy import Strategy
-from alarm_backends.core.storage.redis_cluster import get_node_by_strategy_id, routing_snapshot
+from alarm_backends.core.storage.redis_cluster import get_node_by_strategy_id, routed_client
 from alarm_backends.service.trigger.checker import AnomalyChecker
+from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from core.errors.alarm_backends import StrategyNotFound
 from core.prometheus import metrics
 
 # 每个（策略, 数据时间戳）计数器的最大 event 数，超过则丢弃
 TRIGGER_EVENT_RATE_LIMIT_THRESHOLD = 5000
+ALARMD_REFERENCE_BATCHES_PER_FLUSH = 500
+
+ANOMALY_LIST_PULL_SCRIPT = """
+local batch_size = tonumber(ARGV[1])
+local start_index = 0
+if batch_size > 0 then
+    start_index = -batch_size
+end
+
+local records = redis.call('LRANGE', KEYS[1], start_index, -1)
+if #records > 0 then
+    redis.call('LTRIM', KEYS[1], 0, -#records - 1)
+end
+return records
+"""
 
 logger = logging.getLogger("trigger")
 
 
+def publish_alarmd_reference_batches(batches, *, strategy_id=None, item_id=None):
+    from alarm_backends.core.alarmd.config import shadow_kafka_config, shadow_topics
+    from alarm_backends.core.alarmd.reference_publisher import (
+        ReferenceDecisionPublishError,
+        get_cached_kafka_reference_decision_publisher,
+    )
+    from alarm_backends.core.alarmd.telemetry import (
+        STAGE_REFERENCE,
+        observe_shadow_publish,
+        record_shadow_published_records,
+    )
+
+    source = iter(batches)
+    try:
+        first = next(source)
+    except StopIteration:
+        return 0
+
+    strategy_ref = first.get("strategy_ref") if isinstance(first, dict) else None
+    if isinstance(strategy_ref, dict):
+        strategy_id = strategy_id or strategy_ref.get("strategy_id")
+        item_id = item_id or strategy_ref.get("item_id")
+
+    started_at = time.monotonic()
+    config_json = json.dumps(
+        shadow_kafka_config(settings.ALARMD_TRIGGER_REFERENCE_SHADOW_KAFKA_CONFIG),
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    allowed_topics = shadow_topics(settings.ALARMD_TRIGGER_REFERENCE_SHADOW_ALLOWED_TOPICS)
+    forbidden_topics = (MonitorEventAdapter.get_output_topic(),)
+    publisher = get_cached_kafka_reference_decision_publisher(config_json, allowed_topics, forbidden_topics)
+    acknowledged = 0
+    while True:
+        consumed = []
+
+        def group():
+            for batch in chain((first,), islice(source, ALARMD_REFERENCE_BATCHES_PER_FLUSH - 1)):
+                consumed.append(batch)
+                yield batch
+
+        group_started_at = time.monotonic()
+        try:
+            with observe_shadow_publish(STAGE_REFERENCE):
+                group_acknowledged = publisher.publish_batches(group())
+        except Exception as error:
+            if isinstance(error, ReferenceDecisionPublishError):
+                acknowledged += error.acknowledged_records
+            if acknowledged:
+                record_shadow_published_records(STAGE_REFERENCE, acknowledged)
+            logger.exception(
+                "[alarmd shadow] component=alarmd-python stage=reference result=fail_open "
+                "operation=broker_publish records=%s duration_ms=%s strategy(%s) item(%s) batch_id=%s",
+                acknowledged,
+                max(0, round((time.monotonic() - started_at) * 1000)),
+                strategy_id,
+                item_id,
+                _reference_batch_id(consumed),
+            )
+            raise
+        acknowledged += group_acknowledged
+        record_shadow_published_records(STAGE_REFERENCE, group_acknowledged)
+        logger.info(
+            "[alarmd shadow] component=alarmd-python stage=reference result=broker_ack "
+            "records=%s duration_ms=%s strategy(%s) batch_id=%s item(%s)",
+            group_acknowledged,
+            max(0, round((time.monotonic() - group_started_at) * 1000)),
+            strategy_id,
+            _reference_batch_id(consumed),
+            item_id,
+        )
+        if len(consumed) < ALARMD_REFERENCE_BATCHES_PER_FLUSH:
+            return acknowledged
+        try:
+            first = next(source)
+        except StopIteration:
+            return acknowledged
+
+
+def _reference_batch_id(batches):
+    batch_ids = {batch.get("batch_id") for batch in batches if isinstance(batch, dict)}
+    return next(iter(batch_ids)) if len(batch_ids) == 1 else "mixed"
+
+
 class TriggerProcessor:
-    # 单次处理量(默认为全量处理)
+    # 普通 Trigger 默认全量处理；需要有限批的调用方显式传入 max_process_count。
     MAX_PROCESS_COUNT = 0
 
-    def __init__(self, strategy_id, item_id):
+    def __init__(
+        self,
+        strategy_id,
+        item_id,
+        max_process_count=None,
+        requeue_on_full=True,
+        concurrent_rate_limit=None,
+        progress_callback=None,
+    ):
         self.strategy_id = int(strategy_id)
         self.item_id = int(item_id)
         self.anomaly_list_key = ANOMALY_LIST_KEY.get_key(strategy_id=self.strategy_id, item_id=self.item_id)
+        self.max_process_count = self.MAX_PROCESS_COUNT if max_process_count is None else int(max_process_count)
+        self.requeue_on_full = requeue_on_full
+        self.concurrent_rate_limit = (
+            settings.ENABLE_EVENT_INLINE_TRIGGER if concurrent_rate_limit is None else bool(concurrent_rate_limit)
+        )
+        self.progress_callback = progress_callback
         self.anomaly_points = []
         self.anomaly_records = []
         self.event_records = []
+        self.reference_candidates = []
         # 策略快照数据
         self._strategy_snapshots = {}
+        self._strategy_snapshot_legacy_json = {}
+        self._alarmd_reference_eligibility = {}
         self.strategy = Strategy(self.strategy_id)
 
     def get_strategy_snapshot(self, key):
@@ -56,27 +181,201 @@ class TriggerProcessor:
             self._strategy_snapshots[key] = snapshot
             return snapshot
 
-    def pull(self):
-        # lrange + ltrim 必须落在同一路由快照：列表长度依赖首读结果，无法无脑打进一个 pipeline，
-        # 用 routing_snapshot 避免 TTL 边界把读/裁切拆到不同 Redis 节点。
-        with routing_snapshot():
-            self.anomaly_points = ANOMALY_LIST_KEY.client.lrange(
-                self.anomaly_list_key, -self.MAX_PROCESS_COUNT, -1
+    def get_strategy_snapshot_legacy_json(self, snapshot_key):
+        """Read and cache the exact legacy strategy document used by this Trigger point."""
+
+        try:
+            return self._strategy_snapshot_legacy_json[snapshot_key]
+        except KeyError:
+            routed_snapshot_key = cache_key.SimilarStr(snapshot_key)
+            routed_snapshot_key.strategy_id = self.strategy_id
+            legacy_json = cache_key.STRATEGY_SNAPSHOT_KEY.client.get(routed_snapshot_key)
+            if isinstance(legacy_json, str):
+                legacy_json = legacy_json.encode("utf-8")
+            if not isinstance(legacy_json, bytes) or not legacy_json:
+                raise StrategyNotFound({"key": snapshot_key})
+            self._strategy_snapshot_legacy_json[snapshot_key] = legacy_json
+            return legacy_json
+
+    def is_alarmd_reference_selected(self, *, strategy, strategy_snapshot_key):
+        from alarm_backends.core.alarmd.config import shadow_flag
+
+        if not shadow_flag(settings.ALARMD_SHADOW_ENABLED):
+            return False
+        try:
+            if self.strategy_id in settings.DOUBLE_CHECK_SUM_STRATEGY_IDS:
+                return False
+        except TypeError:
+            return False
+
+        if strategy_snapshot_key in self._alarmd_reference_eligibility:
+            return self._alarmd_reference_eligibility[strategy_snapshot_key]
+
+        from alarm_backends.core.alarmd.contract import (
+            ContractValidationError,
+            build_trigger_strategy_ir_from_legacy_config,
+        )
+
+        try:
+            build_trigger_strategy_ir_from_legacy_config(
+                tenant_id=bk_biz_id_to_bk_tenant_id(strategy["bk_biz_id"]),
+                purpose="DETECT",
+                strategy=strategy,
+                item_id=self.item_id,
+                legacy_json=self.get_strategy_snapshot_legacy_json(strategy_snapshot_key),
             )
-            # 对列表做翻转，按数据从旧到新的顺序处理
-            self.anomaly_points.reverse()
-            if self.anomaly_points:
-                metrics.TRIGGER_PROCESS_PULL_DATA_COUNT.labels(strategy_id=metrics.TOTAL_TAG).inc(
-                    len(self.anomaly_points)
+        except ContractValidationError as error:
+            logger.info(
+                "[alarmd shadow] component=alarmd-python stage=reference result=skipped "
+                "operation=eligibility records=0 strategy(%s) item(%s) reason=%s",
+                self.strategy_id,
+                self.item_id,
+                error,
+            )
+            selected = False
+        except Exception:
+            logger.exception(
+                "[alarmd shadow] component=alarmd-python stage=reference result=fail_open "
+                "operation=eligibility records=0 strategy(%s) item(%s)",
+                self.strategy_id,
+                self.item_id,
+            )
+            selected = False
+        else:
+            selected = True
+
+        self._alarmd_reference_eligibility[strategy_snapshot_key] = selected
+        return selected
+
+    def capture_alarmd_reference_candidate(self, *, point, event_record):
+        try:
+            self.reference_candidates.append(
+                {
+                    "strategy_snapshot_key": point["strategy_snapshot_key"],
+                    "point": point,
+                    "event_record": event_record,
+                }
+            )
+        except Exception:
+            logger.exception(
+                "[alarmd shadow] failed to capture Trigger reference candidate for strategy(%s) item(%s)",
+                self.strategy_id,
+                self.item_id,
+            )
+
+    def iter_alarmd_reference_batches(self):
+        if not self.reference_candidates:
+            return
+
+        from alarm_backends.core.alarmd.reference import build_reference_trigger_decision_candidate
+
+        for candidate in self.reference_candidates:
+            try:
+                strategy_snapshot_key = candidate["strategy_snapshot_key"]
+                yield build_reference_trigger_decision_candidate(
+                    strategy=self.get_strategy_snapshot(strategy_snapshot_key),
+                    legacy_json=self.get_strategy_snapshot_legacy_json(strategy_snapshot_key),
+                    strategy_snapshot_key=strategy_snapshot_key,
+                    tenant_id_resolver=bk_biz_id_to_bk_tenant_id,
+                    item_id=self.item_id,
+                    point=candidate["point"],
+                    event_record=candidate["event_record"],
                 )
-                ANOMALY_LIST_KEY.client.ltrim(
-                    self.anomaly_list_key, 0, -len(self.anomaly_points) - 1
+            except Exception:
+                logger.exception(
+                    "[alarmd shadow] component=alarmd-python stage=reference result=fail_open "
+                    "operation=project strategy(%s) item(%s)",
+                    self.strategy_id,
+                    self.item_id,
                 )
+
+    def prepare_alarmd_reference_batches(self):
+        return list(self.iter_alarmd_reference_batches())
+
+    def enqueue_alarmd_reference_candidates(self):
+        from alarm_backends.core.alarmd.config import shadow_kafka_config, shadow_topics
+
+        if not (
+            shadow_kafka_config(settings.ALARMD_TRIGGER_REFERENCE_SHADOW_KAFKA_CONFIG)
+            and shadow_topics(settings.ALARMD_TRIGGER_REFERENCE_SHADOW_ALLOWED_TOPICS)
+        ):
+            return 0
+
+        from alarm_backends.core.alarmd.async_publish import (
+            MAX_ASYNC_JOB_BYTES,
+            shadow_job_encoded_size_from_payload_sizes,
+            submit_shadow_job,
+        )
+        from alarm_backends.core.alarmd.encoder import encode_trigger_decision_batch
+
+        enqueued = 0
+        chunk = []
+        chunk_size = shadow_job_encoded_size_from_payload_sizes("reference", ())
+        for batch in self.iter_alarmd_reference_batches():
+            encoded_size = len(encode_trigger_decision_batch(batch))
+            candidate_size = chunk_size + encoded_size + int(bool(chunk))
+            if chunk and (len(chunk) >= ALARMD_REFERENCE_BATCHES_PER_FLUSH or candidate_size > MAX_ASYNC_JOB_BYTES):
+                payload = tuple(chunk)
+                if submit_shadow_job(
+                    "reference",
+                    payload,
+                    max_jobs=settings.ALARMD_TRIGGER_REFERENCE_SHADOW_ASYNC_QUEUE_SIZE,
+                ):
+                    enqueued += len(payload)
+                chunk = []
+                chunk_size = shadow_job_encoded_size_from_payload_sizes("reference", ())
+                candidate_size = chunk_size + encoded_size
+            if candidate_size > MAX_ASYNC_JOB_BYTES:
+                raise ValueError("single reference Shadow job exceeds the byte limit")
+            chunk.append(batch)
+            chunk_size = candidate_size
+        if chunk:
+            chunk = tuple(chunk)
+            if submit_shadow_job(
+                "reference",
+                chunk,
+                max_jobs=settings.ALARMD_TRIGGER_REFERENCE_SHADOW_ASYNC_QUEUE_SIZE,
+            ):
+                enqueued += len(chunk)
+        return enqueued
+
+    def publish_alarmd_reference_candidates(self):
+        try:
+            return publish_alarmd_reference_batches(
+                self.iter_alarmd_reference_batches(),
+                strategy_id=self.strategy_id,
+                item_id=self.item_id,
+            )
+        except Exception:
+            logger.exception(
+                "[alarmd shadow] failed to publish Trigger reference for strategy(%s) item(%s)",
+                self.strategy_id,
+                self.item_id,
+            )
+            return 0
+
+    def pull(self):
+        # RedisProxy.eval() 会把脚本文本误当成路由 key，因此先按异常列表取得原生客户端。
+        with routed_client(ANOMALY_LIST_KEY.client, self.anomaly_list_key) as client:
+            self.anomaly_points = client.eval(
+                ANOMALY_LIST_PULL_SCRIPT,
+                1,
+                self.anomaly_list_key,
+                self.max_process_count,
+            )
+        # Redis List 头部是新数据，尾部是旧数据；翻转后保持原有的旧到新批内顺序。
+        self.anomaly_points.reverse()
         if self.anomaly_points:
-            if len(self.anomaly_points) == self.MAX_PROCESS_COUNT:
+            metrics.TRIGGER_PROCESS_PULL_DATA_COUNT.labels(strategy_id=metrics.TOTAL_TAG).inc(len(self.anomaly_points))
+        if self.anomaly_points:
+            if (
+                self.requeue_on_full
+                and self.max_process_count > 0
+                and len(self.anomaly_points) == self.max_process_count
+            ):
                 # 拉取到的数量若等于最大数量，说明还没拉取完，下次需要再次拉取处理
                 signal_key = f"{self.strategy_id}.{self.item_id}"
-                ANOMALY_SIGNAL_KEY.client.delay("rpush", ANOMALY_SIGNAL_KEY.get_key(), signal_key, delay=1)
+                ANOMALY_SIGNAL_KEY.client.delay("lpush", ANOMALY_SIGNAL_KEY.get_key(), signal_key, delay=1)
                 logger.info(
                     f"[pull anomaly record] strategy({self.strategy_id}), item({self.item_id}) "
                     f"pull {len(self.anomaly_points)} record."
@@ -92,6 +391,77 @@ class TriggerProcessor:
                 f"[pull anomaly record] strategy({self.strategy_id}), item({self.item_id}) "
                 f"pull {len(self.anomaly_points)} record"
             )
+        return len(self.anomaly_points)
+
+    def _reserve_rate_limit(self, event_records):
+        """并发内联路径原子预占保护额度；Redis 异常时沿用 fail-open。"""
+        client = TRIGGER_EVENT_RATE_LIMIT_KEY.client
+        threshold = TRIGGER_EVENT_RATE_LIMIT_THRESHOLD
+        ts_keys = {}
+        request_counts = {}
+
+        for record in event_records:
+            source_time = record["event_record"].get("data", {}).get("time")
+            if source_time is None:
+                continue
+            source_time = int(source_time)
+            if source_time not in ts_keys:
+                ts_keys[source_time] = TRIGGER_EVENT_RATE_LIMIT_KEY.get_key(
+                    strategy_id=self.strategy_id,
+                    item_id=self.item_id,
+                    source_time=source_time,
+                )
+                request_counts[source_time] = 0
+            request_counts[source_time] += 1
+
+        if not ts_keys:
+            return event_records, {}, {}, {}
+
+        ordered_ts = list(ts_keys)
+        pipe = client.pipeline(transaction=False)
+        for source_time in ordered_ts:
+            pipe.incrby(ts_keys[source_time], request_counts[source_time])
+            pipe.expire(ts_keys[source_time], TRIGGER_EVENT_RATE_LIMIT_KEY.ttl)
+        try:
+            results = pipe.execute()
+        except Exception as error:
+            logger.warning("[trigger rate limit] redis reservation failed, fail-open. reason: %s", error)
+            return event_records, {}, {}, {}
+
+        new_counts = {source_time: int(results[index * 2]) for index, source_time in enumerate(ordered_ts)}
+        allowed_counts = {source_time: 0 for source_time in ordered_ts}
+        drop_counts = {}
+        allowed_records = []
+
+        for record in event_records:
+            event_record = record["event_record"]
+            event_data = event_record.get("data", {})
+            source_time = event_data.get("time")
+            if source_time is None:
+                allowed_records.append(record)
+                continue
+            source_time = int(source_time)
+            reserved_before_batch = new_counts[source_time] - request_counts[source_time]
+            already = reserved_before_batch + allowed_counts[source_time]
+            if already >= threshold:
+                drop_counts[source_time] = drop_counts.get(source_time, 0) + 1
+                logger.warning(
+                    "[trigger rate limit] drop event: strategy(%s) item(%s) source_time(%s) "
+                    "record_id(%s) dimensions(%s) count(%s) threshold(%s)",
+                    self.strategy_id,
+                    self.item_id,
+                    source_time,
+                    event_data.get("record_id"),
+                    event_data.get("dimensions"),
+                    already + 1,
+                    threshold,
+                )
+            else:
+                allowed_counts[source_time] += 1
+                allowed_records.append(record)
+
+        # 已在 Redis 中预占全部请求数；丢弃记录和 Kafka 失败都不回滚额度。
+        return allowed_records, {}, {}, drop_counts
 
     def _filter_by_rate_limit(self, event_records):
         """
@@ -199,8 +569,11 @@ class TriggerProcessor:
         except Exception:
             redis_node = "unknown"
 
-        # step1: 限流判定（只读 Redis，不写）
-        allowed_records, batch_counts, ts_keys, drop_counts = self._filter_by_rate_limit(event_records)
+        # Event 并发内联时必须先原子预占额度；开关关闭时保留原有 Kafka 成功后记账语义。
+        if self.concurrent_rate_limit:
+            allowed_records, batch_counts, ts_keys, drop_counts = self._reserve_rate_limit(event_records)
+        else:
+            allowed_records, batch_counts, ts_keys, drop_counts = self._filter_by_rate_limit(event_records)
         total_drop = sum(drop_counts.values())
         if total_drop > 0:
             metrics.TRIGGER_EVENT_RATE_LIMIT_DROP.labels(
@@ -243,9 +616,10 @@ class TriggerProcessor:
                 strategy_name=self.strategy.name,
             ).observe(max_latency)
 
-        # step3: 发送到 Kafka；成功后再提交计数，避免失败时额度被静默消耗
+        # step3: 发送到 Kafka；串行旧路径成功后再提交计数，并发路径已经提前预占。
         MonitorEventAdapter.push_to_kafka(events=events)
-        self._commit_rate_limit_counts(batch_counts, ts_keys)
+        if not self.concurrent_rate_limit:
+            self._commit_rate_limit_counts(batch_counts, ts_keys)
 
         if len(events) > 1000:
             # 获取 Redis 节点信息（带异常处理）
@@ -273,12 +647,22 @@ class TriggerProcessor:
             )
             metrics.TRIGGER_PROCESS_PUSH_DATA_COUNT.labels(strategy_id=metrics.TOTAL_TAG).inc(len(self.event_records))
 
+        try:
+            self.enqueue_alarmd_reference_candidates()
+        except Exception:
+            logger.exception(
+                "[alarmd shadow] unexpected Trigger reference failure for strategy(%s) item(%s)",
+                self.strategy_id,
+                self.item_id,
+            )
+
         self.anomaly_points = []
         self.anomaly_records = []
         self.event_records = []
+        self.reference_candidates = []
 
     def process(self):
-        self.pull()
+        pulled_count = self.pull()
 
         in_alarm_time, message = self.strategy.in_alarm_time()
         if not in_alarm_time:
@@ -290,14 +674,30 @@ class TriggerProcessor:
                 except Exception as e:
                     error_message = f"[process error] strategy({self.strategy_id}), item({self.item_id}) reason: {e} \norigin data: {point}"
                     logger.exception(error_message)
+                if self.progress_callback is not None:
+                    self.progress_callback()
 
         self.push()
+        return pulled_count
 
     def process_point(self, point):
         point = json.loads(point)
         strategy = self.get_strategy_snapshot(point["strategy_snapshot_key"])
         checker = AnomalyChecker(point, strategy, self.item_id)
         anomaly_records, event_record = checker.check()
+
+        if (
+            event_record is not None
+            and not checker.is_no_data_point(point)
+            and self.is_alarmd_reference_selected(
+                strategy=strategy,
+                strategy_snapshot_key=point["strategy_snapshot_key"],
+            )
+        ):
+            self.capture_alarmd_reference_candidate(
+                point=point,
+                event_record=event_record,
+            )
 
         # 暂存结果，最后批量保存
         if event_record:

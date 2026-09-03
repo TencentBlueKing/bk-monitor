@@ -10,7 +10,10 @@ specific language governing permissions and limitations under the License.
 """
 import logging
 
+from django.conf import settings
+
 from alarm_backends.core.cache.key import DATA_SIGNAL_KEY
+from alarm_backends.core.cache.strategy_cost_snapshot import RedisStrategyCostSnapshotCollector
 from alarm_backends.core.cluster import get_cluster
 from bkmonitor.models import CacheNode
 from core.prometheus import metrics
@@ -22,15 +25,26 @@ class RedisMetricCollectReport(object):
     # 默认16个db
     DB_COUNT = 16
 
+    # 聚合类型紧凑编码阈值的配置项名：Redis 7.0 起为 listpack，更早版本为 ziplist。
+    # 低版本上 CONFIG GET 未知参数返回空结果而非报错，故按序回退取值。
+    LISTPACK_ENTRIES_CONFIGS = {
+        "config_zset_max_listpack_entries": ("zset-max-listpack-entries", "zset-max-ziplist-entries"),
+        "config_hash_max_listpack_entries": ("hash-max-listpack-entries", "hash-max-ziplist-entries"),
+    }
+    # 阈值取不到时的占位值，便于在看板上与真实阈值区分
+    CONFIG_UNAVAILABLE = -1
+
     def __init__(self):
         self.client = DATA_SIGNAL_KEY.client
         # 支持按部署集群采集
         self.cluster_name = get_cluster().name
+        self.successful_nodes_info = []
 
     def get_redis_info(self):
         # 获取当前集群内节点列表
         redis_nodes = CacheNode.objects.filter(is_enable=True, cluster_name=self.cluster_name)
         nodes_info = []
+        self.successful_nodes_info = []
         node_label = {
             "err": "",
             "cluster_name": self.cluster_name,
@@ -43,6 +57,7 @@ class RedisMetricCollectReport(object):
                 node_info = self.get_node_redis_info(node)
                 node_info.update(node_label)
                 nodes_info.append(node_info)
+                self.successful_nodes_info.append((node, node_info))
             except Exception as e:
                 node_label["err"] = str(e)
                 metrics.EXPORTER_LAST_SCRAPE_ERROR.labels(**node_label).set(1)
@@ -82,7 +97,28 @@ class RedisMetricCollectReport(object):
                 "config_maxmemory": int(real_client.config_get("maxmemory")["maxmemory"]),
             }
         )
+        node_info.update(self.get_listpack_entries_configs(real_client))
+        # redis_instance_info 的 node_type / mastername 不来自 INFO，需从节点配置补齐
+        node_info["node_type"] = node.cache_type or ""
+        node_info["mastername"] = (node.connection_kwargs or {}).get("master_name") or ""
         return node_info
+
+    def get_listpack_entries_configs(self, real_client) -> dict:
+        configs = {}
+        for metric_key, config_names in self.LISTPACK_ENTRIES_CONFIGS.items():
+            configs[metric_key] = self.CONFIG_UNAVAILABLE
+            for config_name in config_names:
+                try:
+                    value = (real_client.config_get(config_name) or {}).get(config_name)
+                except Exception as e:
+                    # 阈值缺失只影响成本估算精度，不能拖垮整个节点的自监控采集
+                    logger.warning("get redis config(%s) failed: %s", config_name, e)
+                    continue
+                if value is None:
+                    continue
+                configs[metric_key] = int(value)
+                break
+        return configs
 
     def set_redis_metric_data(self, node_info: dict):
         labels = {
@@ -179,6 +215,10 @@ class RedisMetricCollectReport(object):
         # 不是从info命令获取指标值的
         metrics.CONFIG_MAXCLIENTS.labels(**labels).set(node_info["config_maxclients"])
         metrics.CONFIG_MAXMEMORY.labels(**labels).set(node_info["config_maxmemory"])
+        metrics.CONFIG_ZSET_MAX_LISTPACK_ENTRIES.labels(**labels).set(node_info["config_zset_max_listpack_entries"])
+        metrics.CONFIG_HASH_MAX_LISTPACK_ENTRIES.labels(**labels).set(node_info["config_hash_max_listpack_entries"])
+
+        self.set_instance_info(node_info)
 
         # key
         for i in range(self.DB_COUNT):
@@ -199,9 +239,39 @@ class RedisMetricCollectReport(object):
                 )
                 metrics.COMMANDS_TOTAL.labels(**labels, cmd=cmd_name).set(node_info[key]["calls"])
 
+    def set_instance_info(self, node_info: dict):
+        """上报 redis_instance_info。
+
+        指标与标签早已定义但从未赋值，导致 maxmemory_policy 完全不可观测——
+        而驱逐是否会波及检测态、以及内存告警该如何定性，都取决于该策略。
+        标签取值缺失时补空串，避免个别字段缺失导致整轮采集中断。
+        """
+        metrics.INSTANCE_INFO.labels(
+            node_type=node_info["node_type"],
+            mastername=node_info["mastername"],
+            role=node_info["role"],
+            os=node_info.get("os", ""),
+            redis_version=node_info.get("redis_version", ""),
+            redis_build_id=node_info.get("redis_build_id", ""),
+            maxmemory_policy=node_info.get("maxmemory_policy", ""),
+            run_id=node_info.get("run_id", ""),
+            tcp_port=str(node_info.get("tcp_port", "")),
+            redis_mode=node_info.get("redis_mode", ""),
+            process_id=str(node_info.get("process_id", "")),
+            host=node_info["host"],
+            port=str(node_info["port"]),
+            cluster_name=self.cluster_name,
+        ).set(1)
+
     def collect_redis_metric_data(self):
         # 这里不主动上报, 采集逻辑内置在异步任务中，异步任务框架执行完成后会统一调用metrics.report_all() 上报任务状态.
         # 数据共存于： REGISTRY对象中,
         nodes_info = self.get_redis_info()
         for node_info in nodes_info:
             self.set_redis_metric_data(node_info)
+        if settings.ENABLE_REDIS_STRATEGY_COST_SNAPSHOT:
+            try:
+                RedisStrategyCostSnapshotCollector().collect(self.successful_nodes_info)
+            except Exception:
+                # 成本快照是低优先级观测能力，失败不能影响原有 Redis 指标采集与上报。
+                logger.exception("collect redis strategy cost snapshots failed")

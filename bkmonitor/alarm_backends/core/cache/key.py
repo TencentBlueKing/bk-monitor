@@ -247,12 +247,33 @@ ANOMALY_LIST_KEY = register_key_with_config(
     }
 )
 
+CHECK_RESULT_OPPORTUNITY_TRIM_MARKER_KEY = register_key_with_config(
+    {
+        "label": "[detect]CHECK_RESULT机会裁剪周期标记",
+        "key_type": "string",
+        "key_tpl": "detect.check_result.opportunity_trim.{strategy_group_key}.{cycle_id}",
+        "ttl": 5 * CONST_MINUTES,
+        "backend": "service",
+    }
+)
+
 ANOMALY_SIGNAL_KEY = register_key_with_config(
     {
         "label": "[detect]异常信号队列",
         "key_type": "list",
         "key_tpl": "detect.anomaly.signal",
         "ttl": 30 * CONST_MINUTES,
+        "backend": "queue",
+    }
+)
+
+EVENT_INLINE_TRIGGER_LEASE_KEY = register_key_with_config(
+    {
+        "label": "[trigger]Event内联处理租约",
+        "key_type": "sorted_set",
+        "key_tpl": "trigger.event.inline.lease.{strategy_id}.{item_id}",
+        "ttl": 10 * CONST_MINUTES,
+        # 租约释放脚本需要与 ANOMALY_LIST_KEY 原子检查，因此必须使用同一 backend。
         "backend": "queue",
     }
 )
@@ -376,6 +397,28 @@ LAST_CHECKPOINTS_CACHE_KEY = register_key_with_config(
         "backend": "service",
         # 这里的field_tpl需要保持和CHECK_RESULT_CACHE_KEY的key_tpl一致
         "field_tpl": "detect.result.{dimensions_md5}.{level}",
+    }
+)
+
+# Redis 自监控按节点生成的策略成本快照。快照和锁都显式带 node_id，且由调用方使用
+# 对应节点的 service(DB10) 原生客户端读写，避免 RedisProxy 按 strategy_id 再次路由。
+REDIS_STRATEGY_COST_SNAPSHOT_KEY = register_key_with_config(
+    {
+        "label": "[selfmonitor]Redis节点策略成本快照(type:List, newest first)",
+        "key_type": "list",
+        "key_tpl": "selfmonitor.redis.strategy_cost.snapshot.node_{node_id}.v1",
+        "ttl": 8 * CONST_ONE_HOUR,
+        "backend": "service",
+    }
+)
+
+REDIS_STRATEGY_COST_SNAPSHOT_LOCK_KEY = register_key_with_config(
+    {
+        "label": "[selfmonitor]Redis节点策略成本快照采集锁",
+        "key_type": "string",
+        "key_tpl": "selfmonitor.redis.strategy_cost.snapshot.lock.node_{node_id}.v1",
+        "ttl": 5 * CONST_MINUTES,
+        "backend": "service",
     }
 )
 

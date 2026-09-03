@@ -42,6 +42,10 @@ import { parseTableIdConditions, isFeatureToggleOn } from '@/store/helper';
 import RetrieveHelper, { RetrieveEvent } from '../../retrieve-helper';
 import ShareLink from './share-link.tsx';
 import RetrieveTypeSwitch, { RetrieveType } from './retrieve-type-switch.tsx';
+import {
+  shouldCollapseUnionToSingle,
+  buildSingleIndexPayloadFromUnion,
+} from './union-to-single';
 
 const props = defineProps({
   showFavorites: {
@@ -307,6 +311,27 @@ const handleActiveTypeChange = (type) => {
   const storage = { [BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB]: type };
   if (['union', 'single'].includes(type)) {
     Object.assign(storage, { [BK_LOG_STORAGE.FAVORITE_ID]: undefined, [BK_LOG_STORAGE.HISTORY_ID]: undefined });
+  }
+
+  // 多选切单选：立即收敛为原多选项第 0 项，并走完整选中同步（清 unionList / 写 indexId）
+  // 必须在改 isUnionIndex 之前调用，否则 ids 不变时 handleIndexSetSelected 会跳过，残留多选参数
+  if (shouldCollapseUnionToSingle(type, indexSetType.value)) {
+    const firstUid = indexSetUid.value[0];
+    const payload = buildSingleIndexPayloadFromUnion(firstUid, flatIndexSetList.value);
+    if (payload) {
+      Object.assign(storage, {
+        [BK_LOG_STORAGE.LAST_INDEX_SET_ID]: {
+          ...(store.state.storage[BK_LOG_STORAGE.LAST_INDEX_SET_ID] ?? {}),
+          [spaceUid.value]: [firstUid],
+        },
+      });
+      store.commit('updateStorage', storage);
+      handleIndexSetSelected(payload);
+      return;
+    }
+  }
+
+  if (['union', 'single'].includes(type)) {
     store.commit('updateIndexItem', {
       isUnionIndex: type === 'union',
     });

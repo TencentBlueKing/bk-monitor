@@ -37,6 +37,7 @@ import DragTag from '../common-comp/drag-tag';
 import InfoTips from '../common-comp/info-tips';
 import $http from '@/api';
 import { showMessage } from '../../utils';
+import { isCollectionEditRoute } from './route-utils';
 import type { ISubmitOptions } from '../../type';
 
 import './step2-custom-report.scss';
@@ -207,9 +208,7 @@ export default defineComponent({
     /**
      * 是否为编辑
      */
-    const isUpdate = computed(() =>
-      route.name === 'collectEdit' && props.isEdit,
-    );
+    const isUpdate = computed(() => isCollectionEditRoute(route.name) && props.isEdit);
 
     /**
      * 获取链路配置列表
@@ -268,7 +267,8 @@ export default defineComponent({
         typeKey='custom'
         isEdit={props.isEdit}
         on-change={data => {
-          configData.value = { ...configData.value, ...data };
+          // 采集名输入框绑定的是 index_set_name，需要同步回真实后端字段 collector_config_name
+          configData.value = { ...configData.value, ...data, collector_config_name: data.index_set_name };
         }}
       />
     );
@@ -348,6 +348,7 @@ export default defineComponent({
       try {
         await baseInfoRef.value?.validate();
       } catch {
+        callback?.(false);
         return;
       }
 
@@ -407,13 +408,20 @@ export default defineComponent({
         .then((res) => {
           if (res.result) {
             showMessage(t('保存成功'));
+            // 同步最新配置到父级，避免步骤条切换后存储步骤使用旧快照提交
+            emit('detail', configData.value);
             callback?.(true);
             if (action === 'saveOnly') {
               // 只保存，不跳转
               return;
             }
             emit('cancel');
+          } else {
+            callback?.(false);
           }
+        })
+        .catch(() => {
+          callback?.(false);
         })
         .finally(() => {
           submitLoading.value = false;

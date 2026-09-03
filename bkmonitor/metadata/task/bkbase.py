@@ -106,13 +106,9 @@ def sync_bkbase_v4_metadata(key, skip_types: list[str] | None = None):
 
     try:
         ds = models.DataSource.objects.get(bk_data_id=bk_data_id)
-        table_id = models.DataSourceResultTable.objects.get(bk_data_id=bk_data_id).table_id
         bk_tenant_id: str = ds.bk_tenant_id
     except models.DataSource.DoesNotExist:
         logger.error("sync_bkbase_v4_metadata: DataSource->[%s] does not exist", bk_data_id)
-        return
-    except models.DataSourceResultTable.DoesNotExist:
-        logger.error("sync_bkbase_v4_metadata: DataSourceResultTable for bk_data_id->[%s] does not exist", bk_data_id)
         return
 
     if ds.created_from != DataIdCreatedFromSystem.BKDATA.value:
@@ -799,6 +795,9 @@ def _get_bkbase_components_config(
             if not extra_config["bkbase_table_id"]:
                 extra_config["bkbase_table_id"] = f"{spec['bizId']}_{name}"
             extra_config["data_type"] = spec["dataType"]
+        case DataLinkKind.CHANNELBINDING.value:
+            extra_config["bkbase_result_table_name"] = spec["data"]["name"]
+            extra_config["channel_name"] = spec["channel"]["name"]
         case DataLinkKind.VMSTORAGEBINDING.value:
             extra_config["vm_cluster_name"] = spec["storage"]["name"]
             extra_config["bkbase_result_table_name"] = spec["data"]["name"]
@@ -817,7 +816,17 @@ def _get_bkbase_components_config(
             extra_config["vertices"] = spec.get("vertices", [])
             extra_config["relations"] = spec.get("relations", [])
         case DataLinkKind.DATABUS.value:
-            extra_config["data_id_name"] = spec["sources"][0]["name"]
+            source = spec["sources"][0]
+            extra_config["data_id_name"] = source["name"]
+            extra_config["source_kind"] = source["kind"]
+            extra_config["source_name"] = source["name"]
+            extra_config["role"] = (
+                "vm_shipper"
+                if source["kind"] == DataLinkKind.RESULTTABLE.value
+                else "clean"
+                if any(transform.get("kind") == "Clean" for transform in spec.get("transforms", []))
+                else "main"
+            )
             extra_config["sink_names"] = [f"{sink['kind']}:{sink['name']}" for sink in spec["sinks"]]
             extra_config["consumer_group"] = spec.get("consumerGroup") or ""
         case DataLinkKind.BASEREPORTSINK.value:

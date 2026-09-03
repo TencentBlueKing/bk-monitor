@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -33,7 +32,7 @@ class ConfigMap(typing.NamedTuple):
     error: str
 
 
-class QcloudCos(object):
+class QcloudCos:
     CONFIG_MAP = [
         ConfigMap(target="qcloud_secret_id", source="QCLOUD_COS_SECRET_ID", error=_("请设置腾讯云cos SecretId")),
         ConfigMap(target="qcloud_secret_key", source="QCLOUD_COS_SECRET_KEY", error=_("请设置腾讯云cos SecretKey")),
@@ -73,6 +72,10 @@ class QcloudCos(object):
             Bucket=self._qcloud_cos_bucket.strip(), LocalFilePath=file_path, Key=file_name
         )
         return response["ETag"]
+
+    def head_object(self, file_name: str) -> dict:
+        """Read object metadata without generating a download URL or reading object content."""
+        return self._client.head_object(Bucket=self._qcloud_cos_bucket.strip(), Key=file_name)
 
     def _has_accelerate(self):
         return settings.EXTRACT_COS_DOMAIN is not None

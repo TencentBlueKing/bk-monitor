@@ -8,12 +8,13 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import datetime
 from typing import Any
 
 from core.drf_resource import api
 from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQuerySet
 from bkmonitor.data_source import conditions_to_q, filter_dict_to_conditions
-from bkmonitor.data_source.utils.base import get_bar_interval_number
+from bkmonitor.data_source.utils.base import get_bar_interval_number, DataSourceTarget
 from bkmonitor.utils.thread_backend import ThreadPool
 from bkmonitor.data_source.utils import types
 from constants.otel_query import FieldTypeEnum
@@ -23,17 +24,25 @@ class BaseQuery:
     USING: tuple[str, str]
     DEFAULT_TIME_FIELD = "time"
     DEFAULT_SORT = ["time"]
+    DEFAULT_RETENTION = 7
 
     # 枚举查询上限
     QUERY_MAX_LIMIT = 10000
 
+    # 时间字段精度，用于时间字段查询时做乘法（秒 -> 毫秒）
+    TIME_FIELD_ACCURACY = 1000
+
+    # 时间填充，单位 s：未指定 end_time 时向前填充，避免查询最新数据时因延迟查不到
+    TIME_PADDING = 5
+
     # 查询字段映射
     KEY_REPLACE_FIELDS: dict[str, str] = {}
 
-    # 字段别名映射
-    FIELD_ALIAS_MAP_LIST: list[dict[str, str]] = []
-    # 字段操作符映射
+    # 字段操作符映射，{field_type: operations}
     FIELD_OPERATIONS: dict[str, list[dict[str, Any]]] = {}
+
+    def __init__(self, data_sources: list[DataSourceTarget]):
+        self.data_sources = data_sources
 
     def _get_q(self, time_field: str | None = None) -> QueryConfigBuilder:
         """构建基础查询配置，指定数据源类型和时间字段。
@@ -113,23 +122,50 @@ class BaseQuery:
             qs = qs.add_query(q)
         return qs
 
+    def _get_time_range(self, start_time: int | None = None, end_time: int | None = None) -> tuple[int, int]:
+        return self.get_retention_time_range(self.retention, start_time, end_time)
+
+    @property
+    def retention(self) -> int:
+        return self.data_sources[0].retention or self.DEFAULT_RETENTION
+
     @classmethod
-    def _to_milliseconds(cls, ts: int) -> int:
-        """将秒级时间戳转换为毫秒级，毫秒级时间戳直接返回。
+    def get_retention_time_range(
+        cls, retention: int, start_time: int | None = None, end_time: int | None = None
+    ) -> tuple[int, int]:
+        """基于数据保留天数构造查询时间窗口（毫秒级）。
 
-        :param ts: 时间戳（10 位为秒级，13 位为毫秒级）
-        :return: 毫秒级时间戳
-        """
-        return ts * 1000 if len(str(ts)) == 10 else ts
+        覆盖全部不传、只传一端、两端均传三种情况；显式时间范围保持原有行为，
+        仅将 end_time 限制在当前时间之前、将 start_time 限制保留期下界之内。
 
-    def _get_time_range(self, start_time: int, end_time: int) -> tuple[int, int]:
-        """将开始和结束时间统一转换为毫秒级时间戳。
-
-        :param start_time: 开始时间戳
-        :param end_time: 结束时间戳
+        :param retention: 数据保留天数
+        :param start_time: 开始时间戳（秒级），缺省时取保留期下界
+        :param end_time: 结束时间戳（秒级），缺省时取当前时间（含 TIME_PADDING 填充）
         :return: (毫秒级开始时间, 毫秒级结束时间)
         """
-        return self._to_milliseconds(start_time), self._to_milliseconds(end_time)
+        now: int = int(datetime.datetime.now().timestamp())
+
+        retention_seconds: int = int(datetime.timedelta(days=retention).total_seconds())
+        # 最早可查询时间（秒）
+        earliest_start_time: int = now - retention_seconds
+
+        if not end_time:
+            # 不传 end_time 代表查询最新数据，请求时间距离实际存储查询时间可能存在延迟，
+            # 因此增加一个时间填充，避免查询不到数据。
+            end_time = now + cls.TIME_PADDING
+        else:
+            # 已指定查询时间范围，限制 end_time 不超过当前时间，避免查询到未来数据。
+            end_time = min(now, end_time)
+
+        start_time = start_time or earliest_start_time
+        if end_time < earliest_start_time:
+            # 查询窗口不在有效保留期内：-<start_time>-----<end_time>-----<earliest_start_time>----<now>--
+            start_time = max(end_time - retention_seconds, start_time)
+        else:
+            # 查询窗口部分或全部落在有效期内：-<start_time>---<earliest_start_time>---<end_time>----<now>--
+            start_time = max(earliest_start_time, start_time)
+
+        return start_time * cls.TIME_FIELD_ACCURACY, end_time * cls.TIME_FIELD_ACCURACY
 
     def _query_list(
         self,
@@ -184,6 +220,7 @@ class BaseQuery:
         :param limit: 返回 Top-K 数量，默认 5
         :param need_empty: 为 True 时统计含空值的记录数（使用 _index 计数），默认 False
         :return: 按出现次数降序排列的记录列表，每条记录包含字段值和计数
+        [{'span_name': 'browser.resource', '_time_': 1786686397000, '_result_': 7295}]
         """
         alias: str = "a"
         query_limit = limit * 2 + 10
@@ -231,7 +268,12 @@ class BaseQuery:
         )
         option_values: dict[str, list[str]] = {field: [] for field in fields}
         ThreadPool().map_ignore_exception(
-            self._collect_option_values, [(queries, qs, field, option_values) for field in fields]
+            self._collect_option_values,
+            [
+                (queries, qs, field_name, option_values)
+                for field_name, value_list in option_values.items()
+                if not value_list
+            ],
         )
         return {field: values[:limit] for field, values in option_values.items()}
 
@@ -367,23 +409,29 @@ class BaseQuery:
             "is_case_sensitive": bool(current["is_case_sensitive"] and field_dict["is_case_sensitive"]),
         }
 
-    @classmethod
-    def _resolve_field_alias(cls, field_name: str) -> str:
-        for mapping in reversed(cls.FIELD_ALIAS_MAP_LIST):
-            if field_name in mapping:
-                return mapping[field_name]
-        return field_name
-
     def _query_fields(
-        self, targets: list[tuple[types.TableId, types.SpaceUid]], start_time: int, end_time: int
+        self, targets: list[tuple[types.TableId, types.SpaceUid]], start_time: int | None, end_time: int | None
     ) -> dict[str, dict[str, Any]]:
         """并发查询多个结果表的字段信息，合并为字段名到字段详情的映射。
 
         :param targets: 结果表 ID 与空间 UID 的元组列表
-        :param start_time: 开始时间戳（秒级）
-        :param end_time: 结束时间戳（秒级）
-        :return: 字段名到字段详情字典的映射
+        :param start_time: 开始时间戳（秒级，缺省时按 retention 自动补齐后统一转为毫秒级）
+        :param end_time: 结束时间戳（秒级，缺省时按 retention 自动补齐后统一转为毫秒级）
+        :return: field_name 到字段详情字典的映射，每项包含以下键：
+            - field_name: 实际字段名，用于查询、过滤、聚合
+            - field_alias: 字段别名，无别名时与 field_name 相同
+            - field_type: ES 字段类型，如 keyword、text、long 等；多表类型冲突时为 "conflict"
+            - origin_field: 原始顶层字段名，嵌套字段时为顶层字段（如 attributes.http.url 对应 attributes）
+            - is_searchable: 是否可搜索（object/nested 类型为 False）
+            - is_agg: 是否支持聚合、分组、排序
+            - is_list: 是否可展示在列表表头中（object/nested 类型为 False）
+            - is_analyzed: 是否经过文本分析器分词（查询层私有键，接口层应忽略）
+            - is_case_sensitive: 是否区分大小写（查询层私有键，接口层应忽略）
+            - wildcard_case_insensitive(bool): 通配符查询是否忽略大小写（查询层私有键，接口层应忽略）
+            - tokenize_on_chars (list): 自定义分词字符列表（查询层私有键，接口层应忽略）
+            - supported_operations: 该字段类型支持的操作符列表
         """
+        start_time, end_time = self._get_time_range(start_time, end_time)
         param_list: list[tuple[types.TableId, types.SpaceUid, int, int]] = [
             (table_id, space_uid, start_time, end_time) for table_id, space_uid in targets
         ]
@@ -391,6 +439,7 @@ class BaseQuery:
         for field_list in ThreadPool().map_ignore_exception(self._query_info_fields, param_list):
             for field_dict in field_list:
                 field_name = field_dict.get("field_name", "")
+                field_dict["field_alias"] = field_dict.pop("alias_name", None) or field_name
 
                 current = field_map.get(field_name)
                 if current is None:
@@ -404,13 +453,15 @@ class BaseQuery:
                     field_map[field_name] = self.merge_field_metadata(current, field_dict)
 
                 _field_dict = field_map[field_name]
-                _field_dict["alias_name"] = self._resolve_field_alias(field_name)
+
                 _field_dict["supported_operations"] = self.FIELD_OPERATIONS.get(
                     _field_dict["field_type"],
                     [],
                 )
-                _field_dict["is_searchable"] = _field_dict["field_type"] not in {"object", "nested"}
-
+                _field_dict["is_list"] = _field_dict["is_searchable"] = _field_dict["field_type"] not in {
+                    "object",
+                    "nested",
+                }
         return field_map
 
     @classmethod
@@ -420,18 +471,19 @@ class BaseQuery:
         调用 unify_query.query_info_field_map 接口获取指定结果表在给定时间范围内的字段元数据。
 
         :param table_id: 结果表 ID
-        :param start_time: 开始时间戳（秒级）
-        :param end_time: 结束时间戳（秒级）
+        :param space_uid: 空间 UID
+        :param start_time: 开始时间戳（毫秒级，已按 retention 补齐窗口）
+        :param end_time: 结束时间戳（毫秒级，已按 retention 补齐窗口）
         :return: 字段信息列表，每项为包含以下键的字典：
-            - alias_name: 字段别名，为空表示未配置别名
-            - field_name: 实际字段名，用于查询、过滤、聚合
-            - field_type: ES 字段类型，如 keyword（不分词字符串）、text（分词字符串）等
-            - origin_field: 原始顶层字段名，主要用于嵌套字段（如 attributes.http.url 的原始字段为
-              attributes）；普通字段与 field_name 相同
-            - is_agg: 是否支持聚合、分组、排序
-            - is_analyzed: 是否经过文本分析器分词，keyword 通常为 False，text 通常为 True
-            - is_case_sensitive: 是否区分大小写，True 表示 AppA 与 appa 视为不同值
-            - tokenize_on_chars: 分词使用的分隔字符列表，主要对 text 类型生效，keyword 通常为空
+            - alias_name (str): 字段别名
+            - field_name (str): 字段名称
+            - field_type (str): 字段类型，如 keyword、integer、float 等
+            - origin_field (str): 原始字段名
+            - is_agg (bool): 是否支持聚合
+            - is_analyzed (bool): 是否已分词（全文检索）
+            - is_case_sensitive (bool): 是否大小写敏感
+            - wildcard_case_insensitive (bool): 通配符查询是否忽略大小写
+            - tokenize_on_chars (list): 自定义分词字符列表
         """
         return api.unify_query.query_info_field_map(
             {

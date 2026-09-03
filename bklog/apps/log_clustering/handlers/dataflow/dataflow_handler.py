@@ -111,6 +111,7 @@ from apps.log_clustering.handlers.dataflow.data_cls import (
     UpdateOnlineTaskCls,
 )
 from apps.log_clustering.models import ClusteringConfig
+from apps.log_databus.handlers.doris_cluster import DorisClusterHandler
 from apps.log_databus.models import CollectorConfig
 from apps.log_search.constants import DEFAULT_TIME_FIELD, TimeFieldUnitEnum, TimeFieldTypeEnum
 from apps.log_search.handlers.index_set import BaseIndexSetHandler
@@ -1715,15 +1716,57 @@ class DataFlowHandler(BaseAiopsHandler):
 
     @classmethod
     def _build_clustered_doris_route_params(cls, index_set: LogIndexSet, clustering_config: ClusteringConfig) -> dict:
+        # 不带 cluster_id 时 metadata 会把存储建到默认 Doris 集群上，查询会打到错误的集群
+        cluster_id = DorisClusterHandler.get_cluster_id(
+            bkbase_table_id=clustering_config.clustered_rt,
+            # flow 刚创建时 BkBase 侧可能还查不到存储，此时按下发 flow 时使用的集群名兜底
+            fallback_cluster_name=clustering_config.doris_storage or "",
+        )
+        if not cluster_id:
+            raise DorisStorageNotExistException(
+                DorisStorageNotExistException.MESSAGE.format(index_set_id=index_set.index_set_id)
+            )
         return {
             **cls._build_clustered_route_base_params(index_set, clustering_config),
             "storage_type": StorageTypeEnum.DORIS.value,
+            "cluster_id": cluster_id,
             "bkbase_table_id": clustering_config.clustered_rt,
             "table_id": (
                 f"bklog_index_set_{index_set.index_set_id}_{clustering_config.clustered_rt.replace('.', '_')}.__doris__"
             ),
             "query_alias_settings": cls._build_clustered_doris_alias_settings(index_set, clustering_config),
         }
+
+    @classmethod
+    def _get_clustered_es_field_names(
+        cls, index_set: LogIndexSet, clustering_config: ClusteringConfig
+    ) -> set[str] | None:
+        """
+        获取聚类结果表在 ES 上的真实字段名，返回 None 表示这次拿不到
+
+        空结果按"拿不到"处理，不能当成"字段都不存在"：新建聚类时结果表刚定义出来、
+        数据还没写进 ES，mapping 必然为空，按不存在处理会把别名裁光，
+        抛异常还会中断 create_predict_flow，留下 online_task_id 为空的半创建状态。
+        """
+        from apps.log_search.handlers.search.mapping_handlers import MappingHandlers
+
+        try:
+            field_names = MappingHandlers(
+                indices=clustering_config.clustered_rt,
+                index_set_id=index_set.index_set_id,
+                scenario_id=Scenario.BKDATA,
+                storage_cluster_id=index_set.storage_cluster_id,
+                time_field=index_set.time_field,
+                only_search=True,
+            ).get_mapping_field_names()
+        except Exception as error:  # pylint: disable=broad-except
+            logger.warning(
+                "get mapping fields of clustered result table(%s) failed: %s",
+                clustering_config.clustered_rt,
+                error,
+            )
+            return None
+        return field_names or None
 
     @classmethod
     def _build_clustered_es_route_params(cls, index_set: LogIndexSet, clustering_config: ClusteringConfig) -> dict:
@@ -1737,9 +1780,26 @@ class DataFlowHandler(BaseAiopsHandler):
             ),
         }
         signature_alias = cls._build_clustered_signature_alias_setting(clustering_config)
+        # 入口索引集的别名是按源表字段配的，聚类结果表的字段集合与源表并不一致。
+        # 别名指向的物理字段在聚类结果表里不存在时，改写后一定查不到数据，因此按真实 mapping 裁剪。
+        clustered_field_names = cls._get_clustered_es_field_names(index_set, clustering_config)
+        inherited_alias_settings = []
+        for alias_setting in index_set.query_alias_settings or []:
+            # 字段集合拿不到时不裁剪：新建聚类和 ES 抖动都会走到这里，
+            # 裁掉配置正确的别名一样会让检索查不到数据，撞名别名留到下次同步再裁。
+            if clustered_field_names is not None and alias_setting.get("field_name") not in clustered_field_names:
+                logger.info(
+                    "skip inherited alias(%s -> %s) for clustered result table(%s): physical field does not exist",
+                    alias_setting.get("query_alias"),
+                    alias_setting.get("field_name"),
+                    clustering_config.clustered_rt,
+                )
+                continue
+            inherited_alias_settings.append(alias_setting)
+
         merged_alias_settings = []
         seen_query_alias = set()
-        for alias_setting in (signature_alias, *(index_set.query_alias_settings or [])):
+        for alias_setting in (signature_alias, *inherited_alias_settings):
             query_alias = alias_setting.get("query_alias")
             if not query_alias or query_alias in seen_query_alias:
                 continue
@@ -1770,7 +1830,19 @@ class DataFlowHandler(BaseAiopsHandler):
         }
 
     @classmethod
-    def sync_clustered_route(cls, index_set_id: int, raise_exception: bool = False) -> bool:
+    def sync_clustered_route(
+        cls,
+        index_set_id: int,
+        raise_exception: bool = False,
+        query_alias_settings: list | None = None,
+    ) -> bool:
+        """
+        同步聚类结果表路由
+
+        query_alias_settings 传入时以它为准，不再回读数据库：
+        带 Doris 标签的索引集不会把别名落到 LogIndexSet.query_alias_settings，
+        回读只能拿到旧值，会让聚类路由和源表路由的别名长期不一致。
+        """
         index_set = LogIndexSet.objects.filter(index_set_id=index_set_id).first()
         clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id=index_set_id, raise_exception=False)
         if not index_set or not clustering_config:
@@ -1786,9 +1858,13 @@ class DataFlowHandler(BaseAiopsHandler):
                 index_set_id,
             )
             return False
+        if query_alias_settings is not None:
+            # index_set 是这里新查出来的对象，只改内存不落库，避免影响调用方持久化时机
+            index_set.query_alias_settings = query_alias_settings
 
-        bulk_route_params = cls._build_clustered_bulk_route_params(index_set, clustering_config)
         try:
+            # 构建路由参数需要查询存储集群，失败时同样不能下发路由，否则会落到默认 Doris 集群
+            bulk_route_params = cls._build_clustered_bulk_route_params(index_set, clustering_config)
             TransferApi.bulk_create_or_update_log_router(bulk_route_params)
             return True
         except Exception as error:

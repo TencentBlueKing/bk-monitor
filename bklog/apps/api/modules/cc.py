@@ -160,6 +160,14 @@ class _CCApi:
             before_request=get_supplier_account_before,
             use_superuser=True,
         )
+        self.find_host_biz_relations = DataAPI(
+            method="POST",
+            url=self._build_url("api/v3/hosts/modules/read", "find_host_biz_relations"),
+            module=self.MODULE,
+            description="查询主机业务关系信息",
+            before_request=get_supplier_account_before,
+            use_superuser=True,
+        )
         self.list_biz_hosts_topo = DataAPI(
             method="POST",
             url=self._build_url("api/v3/hosts/app/{bk_biz_id}/list_hosts_topo", "list_biz_hosts_topo"),

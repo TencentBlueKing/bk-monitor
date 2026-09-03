@@ -1,3 +1,4 @@
+import base64
 import json
 import threading
 import time
@@ -20,11 +21,17 @@ from apps.log_admin_resource.handlers.clustering_config import (
     get_clustering_config_detail,
     list_clustering_configs,
 )
-from apps.log_admin_resource.handlers.clustering_pipeline import get_clustering_access_pipeline
+from apps.log_admin_resource.handlers.clustering_pipeline import (
+    force_fail_clustering_pipeline_node,
+    get_clustering_access_pipeline,
+    retry_clustering_pipeline_node,
+    skip_clustering_pipeline_node,
+)
 from apps.log_admin_resource.handlers.index_set import get_index_set_detail, list_index_sets
 from apps.log_admin_resource.handlers.inspection import (
     build_bkdata_context,
     call_bkdata,
+    probe_failure,
     sanitize_json,
     serialize_tail_rows,
 )
@@ -108,13 +115,16 @@ class ClusteringConfigResourceTest(TestCase):
         )
         self.config = create_clustering_config()
 
-    def test_all_nine_operations_have_machine_readable_contracts(self):
+    def test_all_twelve_operations_have_machine_readable_contracts(self):
         operation_names = {
             "bklog.index_set.list",
             "bklog.index_set.detail",
             "bklog.clustering_config.list",
             "bklog.clustering_config.detail",
             "bklog.clustering_config.access_pipeline",
+            "bklog.clustering_config.pipeline.retry",
+            "bklog.clustering_config.pipeline.skip",
+            "bklog.clustering_config.pipeline.force_fail",
             "bklog.bkdata.raw.snapshot",
             "bklog.bkdata.clean.snapshot",
             "bklog.bkdata.flow.snapshot",
@@ -127,7 +137,7 @@ class ClusteringConfigResourceTest(TestCase):
             self.assertIn("params_schema", operation)
             self.assertIn("response_schema", operation)
             self.assertTrue(operation["examples"])
-            self.assertIn(operation["safety_level"], {"read", "inspect"})
+            self.assertIn(operation["safety_level"], {"read", "inspect", "write", "destructive"})
             self.assertTrue(operation["response_schema"]["required"])
 
     @override_settings(MIDDLEWARE=(APIGW_MIDDLEWARE,))
@@ -263,6 +273,285 @@ class ClusteringPipelineResourceTest(TestCase):
         self.assertEqual(result["pipeline"]["data"]["persistent_task_steps"][0]["status"], "FAILED")
         self.assertEqual(result["pipeline"]["warnings"][0]["code"], "PIPELINE_ENGINE_ROW_NOT_FOUND")
 
+    def test_read_only_pipeline_query_accepts_engine_task_outside_task_records(self):
+        config = create_clustering_config(task_records=[])
+        Status.objects.create(id="external-pipeline", state="RUNNING", name="pipeline", version="1")
+
+        result = get_clustering_access_pipeline({"config_id": config.id, "task_id": "external-pipeline"})
+
+        self.assertEqual(result["selected_task_id"], "external-pipeline")
+        self.assertTrue(result["pipeline"]["exists"])
+        self.assertEqual(result["pipeline"]["data"]["root_status"]["state"], "RUNNING")
+        self.assertIn("PIPELINE_TASK_RECORD_CONFLICT", {item["code"] for item in result["pipeline"]["warnings"]})
+
+    @override_settings(
+        MIDDLEWARE=(APIGW_MIDDLEWARE,),
+        ESQUERY_WHITE_LIST=["bkmonitorv3"],
+    )
+    @patch("apps.log_admin_resource.handlers.clustering_pipeline.task_service.retry_activity")
+    def test_retry_endpoint_runs_the_authenticated_registry_handler_chain(self, retry_activity):
+        retry_activity.return_value = MagicMock(result=True, message="success")
+        config = create_clustering_config(
+            task_records=[{"operate": "create", "task_id": "root-pipeline", "time": 1786503128}]
+        )
+        Status.objects.create(id="node-1", state="FAILED", name="create flow", version="version-1")
+        PipelineProcess.objects.create(
+            id="process-1",
+            root_pipeline_id="root-pipeline",
+            current_node_id="node-1",
+            is_alive=True,
+            is_frozen=False,
+        )
+
+        response = self.client.post(
+            "/api/v1/admin/resource/call/",
+            data=json.dumps(
+                {
+                    "func_name": "bklog.clustering_config.pipeline.retry",
+                    "params": {
+                        "config_id": config.id,
+                        "task_id": "root-pipeline",
+                        "node_id": "node-1",
+                        "expected_version": "version-1",
+                        "reason": "依赖已修复",
+                    },
+                }
+            ),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        content = response.json()
+        self.assertTrue(content["result"])
+        self.assertEqual(content["data"]["result"]["action"], "retry")
+        retry_activity.assert_called_once_with("node-1")
+
+    @patch("apps.log_admin_resource.handlers.clustering_pipeline.task_service.retry_activity")
+    def test_retry_requires_owned_current_failed_node_and_returns_refreshed_pipeline(self, retry_activity):
+        retry_activity.return_value = MagicMock(result=True, message="success")
+        config = create_clustering_config(
+            task_records=[{"operate": "create", "task_id": "root-pipeline", "time": 1786503128}]
+        )
+        Status.objects.create(id="node-1", state="FAILED", name="create flow", version="version-1")
+        PipelineProcess.objects.create(
+            id="process-1",
+            root_pipeline_id="root-pipeline",
+            current_node_id="node-1",
+            is_alive=True,
+            is_frozen=False,
+        )
+
+        result = retry_clustering_pipeline_node(
+            {
+                "config_id": config.id,
+                "task_id": "root-pipeline",
+                "node_id": "node-1",
+                "expected_version": "version-1",
+                "reason": "依赖已修复",
+            }
+        )
+
+        retry_activity.assert_called_once_with("node-1")
+        self.assertTrue(result["result"])
+        self.assertEqual(result["before"]["status"]["state"], "FAILED")
+        self.assertEqual(result["pipeline"]["selected_task_id"], "root-pipeline")
+
+    @patch("apps.log_admin_resource.handlers.clustering_pipeline.task_service.retry_activity")
+    def test_retry_rejects_stale_node_version_without_calling_engine(self, retry_activity):
+        config = create_clustering_config(
+            task_records=[{"operate": "create", "task_id": "root-pipeline", "time": 1786503128}]
+        )
+        Status.objects.create(id="node-1", state="FAILED", name="create flow", version="version-2")
+        PipelineProcess.objects.create(
+            id="process-1",
+            root_pipeline_id="root-pipeline",
+            current_node_id="node-1",
+            is_alive=True,
+            is_frozen=False,
+        )
+
+        with self.assertRaisesMessage(ValidationError, "pipeline node version changed"):
+            retry_clustering_pipeline_node(
+                {
+                    "config_id": config.id,
+                    "task_id": "root-pipeline",
+                    "node_id": "node-1",
+                    "expected_version": "version-1",
+                    "reason": "依赖已修复",
+                }
+            )
+
+        retry_activity.assert_not_called()
+
+    @patch("apps.log_admin_resource.handlers.clustering_pipeline.task_service.skip_activity")
+    def test_skip_requires_explicit_external_effect_acknowledgement(self, skip_activity):
+        config = create_clustering_config(
+            task_records=[{"operate": "create", "task_id": "root-pipeline", "time": 1786503128}]
+        )
+        Status.objects.create(id="node-1", state="FAILED", name="create flow", version="version-1")
+        PipelineProcess.objects.create(
+            id="process-1",
+            root_pipeline_id="root-pipeline",
+            current_node_id="node-1",
+            is_alive=True,
+            is_frozen=False,
+        )
+
+        with self.assertRaisesMessage(ValidationError, "acknowledge_external_effects=true"):
+            skip_clustering_pipeline_node(
+                {
+                    "config_id": config.id,
+                    "task_id": "root-pipeline",
+                    "node_id": "node-1",
+                    "expected_version": "version-1",
+                    "reason": "外部副作用已完成",
+                }
+            )
+
+        skip_activity.assert_not_called()
+
+    @patch("apps.log_admin_resource.handlers.clustering_pipeline.task_service.forced_fail")
+    def test_force_fail_only_operates_the_current_running_node(self, forced_fail):
+        forced_fail.return_value = MagicMock(result=True, message="success")
+        config = create_clustering_config(
+            task_records=[{"operate": "create", "task_id": "root-pipeline", "time": 1786503128}]
+        )
+        Status.objects.create(id="node-1", state="RUNNING", name="create flow", version="version-1")
+        PipelineProcess.objects.create(
+            id="process-1",
+            root_pipeline_id="root-pipeline",
+            current_node_id="node-1",
+            is_alive=True,
+            is_frozen=False,
+        )
+
+        result = force_fail_clustering_pipeline_node(
+            {
+                "config_id": config.id,
+                "task_id": "root-pipeline",
+                "node_id": "node-1",
+                "expected_version": "version-1",
+                "reason": "节点长时间没有刷新",
+            }
+        )
+
+        forced_fail.assert_called_once_with("node-1", ex_data="Admin forced failure: 节点长时间没有刷新")
+        self.assertEqual(result["action"], "force_fail")
+
+    @patch("apps.log_admin_resource.handlers.clustering_pipeline.task_service.skip_activity")
+    def test_skip_accepts_explicit_external_effect_acknowledgement(self, skip_activity):
+        skip_activity.return_value = MagicMock(result=True, message="success")
+        config = create_clustering_config(
+            task_records=[{"operate": "create", "task_id": "root-pipeline", "time": 1786503128}]
+        )
+        Status.objects.create(id="node-1", state="FAILED", name="create flow", version="version-1")
+        PipelineProcess.objects.create(
+            id="process-1",
+            root_pipeline_id="root-pipeline",
+            current_node_id="node-1",
+            is_alive=True,
+            is_frozen=False,
+        )
+
+        result = skip_clustering_pipeline_node(
+            {
+                "config_id": config.id,
+                "task_id": "root-pipeline",
+                "node_id": "node-1",
+                "expected_version": "version-1",
+                "reason": "外部副作用已完成",
+                "acknowledge_external_effects": True,
+            }
+        )
+
+        skip_activity.assert_called_once_with("node-1")
+        self.assertEqual(result["action"], "skip")
+
+    @patch("apps.log_admin_resource.handlers.clustering_pipeline.task_service.retry_activity")
+    def test_retry_rejects_ambiguous_root_process(self, retry_activity):
+        config = create_clustering_config(
+            task_records=[{"operate": "create", "task_id": "root-pipeline", "time": 1786503128}]
+        )
+        Status.objects.create(id="node-1", state="FAILED", name="create flow", version="version-1")
+        for process_id in ("process-1", "process-2"):
+            PipelineProcess.objects.create(
+                id=process_id,
+                root_pipeline_id="root-pipeline",
+                current_node_id="node-1",
+                is_alive=True,
+                is_frozen=False,
+            )
+
+        with self.assertRaisesMessage(ValidationError, "multiple root pipeline processes"):
+            retry_clustering_pipeline_node(
+                {
+                    "config_id": config.id,
+                    "task_id": "root-pipeline",
+                    "node_id": "node-1",
+                    "expected_version": "version-1",
+                    "reason": "依赖已修复",
+                }
+            )
+
+        retry_activity.assert_not_called()
+
+    @patch("apps.log_admin_resource.handlers.clustering_pipeline.task_service.retry_activity")
+    def test_retry_rejects_engine_failure(self, retry_activity):
+        retry_activity.return_value = MagicMock(result=False, message="node is not retryable")
+        config = create_clustering_config(
+            task_records=[{"operate": "create", "task_id": "root-pipeline", "time": 1786503128}]
+        )
+        Status.objects.create(id="node-1", state="FAILED", name="create flow", version="version-1")
+        PipelineProcess.objects.create(
+            id="process-1",
+            root_pipeline_id="root-pipeline",
+            current_node_id="node-1",
+            is_alive=True,
+            is_frozen=False,
+        )
+
+        with self.assertRaisesMessage(ValidationError, "pipeline engine rejected retry"):
+            retry_clustering_pipeline_node(
+                {
+                    "config_id": config.id,
+                    "task_id": "root-pipeline",
+                    "node_id": "node-1",
+                    "expected_version": "version-1",
+                    "reason": "依赖已修复",
+                }
+            )
+
+    @patch("apps.log_admin_resource.handlers.clustering_pipeline.get_clustering_access_pipeline")
+    @patch("apps.log_admin_resource.handlers.clustering_pipeline.task_service.retry_activity")
+    def test_retry_reports_snapshot_failure_without_hiding_committed_operation(self, retry_activity, get_snapshot):
+        retry_activity.return_value = MagicMock(result=True, message="success")
+        get_snapshot.side_effect = RuntimeError("snapshot unavailable")
+        config = create_clustering_config(
+            task_records=[{"operate": "create", "task_id": "root-pipeline", "time": 1786503128}]
+        )
+        Status.objects.create(id="node-1", state="FAILED", name="create flow", version="version-1")
+        PipelineProcess.objects.create(
+            id="process-1",
+            root_pipeline_id="root-pipeline",
+            current_node_id="node-1",
+            is_alive=True,
+            is_frozen=False,
+        )
+
+        result = retry_clustering_pipeline_node(
+            {
+                "config_id": config.id,
+                "task_id": "root-pipeline",
+                "node_id": "node-1",
+                "expected_version": "version-1",
+                "reason": "依赖已修复",
+            }
+        )
+
+        self.assertTrue(result["result"])
+        self.assertEqual(result["pipeline"]["pipeline"]["probe_status"], "failed")
+        self.assertEqual(result["pipeline"]["pipeline"]["error"]["upstream_message"], "snapshot unavailable")
+
 
 class InspectionEvidenceTest(TestCase):
     def test_tail_preserves_log_original_and_extracts_decoded_event_time(self):
@@ -277,6 +566,25 @@ class InspectionEvidenceTest(TestCase):
         self.assertEqual(sample["decode_status"], "success")
         self.assertEqual(result["time_evidence"]["selected"]["field_name"], "utctime")
         self.assertEqual(result["time_evidence"]["selected"]["timezone_assumption"], "UTC")
+
+    def test_tail_redacts_base64_decoded_text_and_json(self):
+        text_value = base64.b64encode(b"password=text-secret").decode()
+        json_value = base64.b64encode(
+            json.dumps({"password": "json-secret", "log": "token=log-secret"}).encode()
+        ).decode()
+
+        result = serialize_tail_rows(
+            [{"value": text_value}, {"value": json_value}],
+            10,
+            decode_wrapped=True,
+        )
+
+        text_sample, json_sample = result["samples"]
+        self.assertEqual(text_sample["content_encoding"], "base64+utf-8")
+        self.assertEqual(text_sample["decoded"]["value"], "password=***")
+        self.assertEqual(json_sample["content_encoding"], "base64+json")
+        self.assertEqual(json_sample["decoded"]["value"]["password"], "***")
+        self.assertEqual(json_sample["decoded"]["value"]["log"], "token=***")
 
     def test_tail_truncates_each_oversized_sample_with_explicit_sizes(self):
         result = serialize_tail_rows([{"log": "x" * (70 * 1024)}], 10)
@@ -343,13 +651,36 @@ class InspectionEvidenceTest(TestCase):
         self.assertEqual(result["time_evidence"]["selection_strategy"], "highest_priority_field_latest_value")
 
     def test_sanitizer_masks_config_secrets_but_not_log_text(self):
-        value = {"password": "secret", "nested": {"access_token": "token"}, "log": "password=visible-log"}
+        value = {
+            "password": "secret",
+            "nested": {"access_token": "token", "api_key": "api-secret"},
+            "log": "password=visible-log",
+        }
 
         sanitized = sanitize_json(value)
 
         self.assertEqual(sanitized["password"], "***")
         self.assertEqual(sanitized["nested"]["access_token"], "***")
+        self.assertEqual(sanitized["nested"]["api_key"], "***")
         self.assertEqual(sanitized["log"], "password=visible-log")
+
+        redacted_text = sanitize_json(
+            {
+                "log": (
+                    "password=top-secret bearer_token: bearer-secret Bearer standalone-secret "
+                    "authorization: Basic dXNlcjpwYXNz https://user:pass@example.com/path "
+                    'json={"password":"json-secret"} --api-key cli-secret'
+                ),
+                "items": ("api_key=api-secret", 1),
+            },
+            redact_text=True,
+        )
+        self.assertEqual(
+            redacted_text["log"],
+            "password=*** bearer_token: *** Bearer *** authorization: *** https://***:***@example.com/path "
+            'json={"password":"***"} --api-key cli-secret',
+        )
+        self.assertEqual(redacted_text["items"], ["api_key=***", 1])
 
     def test_upstream_error_codes_do_not_guess_permission_from_1511001(self):
         generic_api = MagicMock(side_effect=ApiResultError("generic failure", code=1511001))
@@ -360,6 +691,26 @@ class InspectionEvidenceTest(TestCase):
 
         self.assertEqual(generic["error"]["code"], "UPSTREAM_REQUEST_FAILED")
         self.assertEqual(auth["error"]["code"], "UPSTREAM_AUTH_FAILED")
+        self.assertEqual(auth["error"]["message"], "Upstream user authentication failed.")
+
+    def test_probe_failure_redacts_credentials_and_bounds_upstream_message(self):
+        error = RuntimeError(
+            "snapshot unavailable password=top-secret authorization: Bearer bearer-secret "
+            "Basic c3RhbmRhbG9uZS1iYXNpYw== at https://user:pass@example.com/path " + "x" * 2048
+        )
+
+        result = probe_failure(error)
+        message = result["error"]["upstream_message"]
+
+        self.assertIn("snapshot unavailable", message)
+        self.assertIn("password=***", message)
+        self.assertIn("authorization: ***", message)
+        self.assertIn("https://***:***@example.com/path", message)
+        self.assertNotIn("top-secret", message)
+        self.assertNotIn("bearer-secret", message)
+        self.assertNotIn("c3RhbmRhbG9uZS1iYXNpYw", message)
+        self.assertNotIn("user:pass", message)
+        self.assertLessEqual(len(message), 1024)
 
     @patch("apps.log_admin_resource.handlers.bkdata_inspection.build_bkdata_context", return_value=BKDATA_CONTEXT)
     @patch("apps.log_admin_resource.handlers.bkdata_inspection.BkDataDataFlowApi.get_flow_graph")
@@ -443,12 +794,24 @@ class BkDataSnapshotResourceTest(TestCase):
     @patch("apps.log_admin_resource.handlers.bkdata_inspection.BkDataAccessApi.get_deploy_summary")
     def test_raw_snapshot_returns_deploy_and_full_tail(self, deploy_api, tail_api, _context):
         deploy_api.return_value = {"data_id": 590089, "active": True, "topic": "raw-topic"}
-        tail_api.return_value = [{"value": json.dumps({"log": "original", "utctime": "2026-08-12 02:52:08"})}]
+        tail_api.return_value = [
+            {
+                "value": json.dumps(
+                    {
+                        "log": "original password=top-secret",
+                        "api_key": "api-key-value",
+                        "utctime": "2026-08-12 02:52:08",
+                    }
+                )
+            }
+        ]
 
         result = get_bkdata_raw_snapshot({"raw_data_id": 590089, "bk_biz_id": 2})
 
         self.assertEqual(result["deploy"]["data"]["summary"]["topic"], "raw-topic")
-        self.assertEqual(result["tail"]["data"]["samples"][0]["decoded"]["value"]["log"], "original")
+        decoded = result["tail"]["data"]["samples"][0]["decoded"]["value"]
+        self.assertEqual(decoded["log"], "original password=***")
+        self.assertEqual(decoded["api_key"], "***")
         self.assertFalse(result["tail"]["empty"])
 
     @patch("apps.log_admin_resource.handlers.bkdata_inspection.build_bkdata_context", return_value=BKDATA_CONTEXT)

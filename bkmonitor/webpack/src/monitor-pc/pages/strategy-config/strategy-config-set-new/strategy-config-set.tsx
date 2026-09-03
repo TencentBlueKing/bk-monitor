@@ -158,6 +158,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
   @ProvideReactive('strategyId') strategyId = 0;
   /** 当前编辑的策略是否存在智能异常检测算法 */
   @ProvideReactive('editStrategyIntelligentDetectList') editStrategyIntelligentDetectList: string[] = [];
+  queryOutputConfig: Record<string, unknown> | undefined = undefined;
 
   @Ref('judgingCondition') readonly judgingConditionEl: InstanceType<typeof JudgingCondition>;
   @Ref('base-config') readonly baseConfigEl: InstanceType<typeof BaseConfig>;
@@ -843,6 +844,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
   }
   // 重置数据
   handleSetDefaultData() {
+    this.queryOutputConfig = undefined;
     this.baseConfig = {
       bk_biz_id: this.bizId,
       scenario: 'os',
@@ -1221,11 +1223,13 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
           query_configs: queryConfigs,
           algorithms,
           functions,
+          query_output_config: queryOutputConfig,
         },
       ],
       metric_type,
       // actions: [{ notice_template: template = noticeTemplate }]
     } = data;
+    this.queryOutputConfig = queryOutputConfig ?? undefined;
     this.expression = (expression || '').toLocaleLowerCase();
     this.localExpress = this.expression;
     this.localExpFunctions = functions || [];
@@ -1840,6 +1844,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
     if (validate) {
       const { noDataConfig } = this.analyzingConditions;
       const itemsParams = [];
+      const queryOutputConfig = this.queryOutputConfig === undefined ? undefined : deepClone(this.queryOutputConfig);
       /* 无数据配置 */
       const noDataConfigParams = {
         // 监控项名称
@@ -1860,6 +1865,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
           origin_sql: '',
           query_configs: curMetricData.sceneConfig.query_configs,
           algorithms: curMetricData.sceneConfig.algorithms,
+          query_output_config: queryOutputConfig,
         });
       } else {
         itemsParams.push({
@@ -1883,6 +1889,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
             this.monitorDataEditMode === 'Source' ? this.handlePromsqlQueryConfig() : this.handleQueryConfig(),
           // 检测算法
           algorithms: this.getAlgorithmList(this.metricData[0]),
+          query_output_config: queryOutputConfig,
         });
       }
       // 当 input 手动清空时 priority 为 空串，不符合后端的类型，这里做一次调整或转换。
@@ -2158,11 +2165,12 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
     const [metricItem] = this.metricData;
     if (!metricItem) return [];
     if ((this.isEditMode || metricItem.canSetTarget) && this.target?.length) {
+      // Only SERVICE uses service-instance topology. NONE / HOST / empty persist as host targets.
       let field = '';
-      if (metricItem.objectType === 'HOST') {
-        field = hostTargetFieldType[metricItem.targetType];
-      } else {
+      if (metricItem.objectType === 'SERVICE') {
         field = serviceTargetFieldType[metricItem.targetType];
+      } else {
+        field = hostTargetFieldType[metricItem.targetType];
       }
       return this.target?.length
         ? [

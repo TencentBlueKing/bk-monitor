@@ -14,6 +14,16 @@
     border-color: #ff5656;
   }
 
+  &.is-readonly {
+    .monaco-editor-overlaymessage {
+      display: none !important;
+    }
+
+    .cursors-layer .cursor {
+      display: none !important;
+    }
+  }
+
   .promql-editor {
     width: 100%;
     height: 100%;

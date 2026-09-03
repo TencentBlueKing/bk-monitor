@@ -247,13 +247,13 @@ export default defineComponent({
           if (routerName === 'alarm-shield-detail') {
             return {
               ...item,
-              url: `${location.origin}${location.pathname}?bizId=${params?.biz_id}/#/trace/alarm-shield/edit/${params?.shield_id}`,
+              url: `${location.origin}${location.pathname}?bizId=${params?.biz_id}#/trace/alarm-shield/edit/${params?.shield_id}`,
             };
           }
           if (routerName === 'alarm-dispatch') {
             return {
               ...item,
-              url: `${location.origin}${location.pathname}?bizId=${params?.biz_id}/#/alarm-dispatch?group_id=${params?.group_id}`,
+              url: `${location.origin}${location.pathname}?bizId=${params?.biz_id}#/alarm-dispatch?group_id=${params?.group_id}`,
             };
           }
         } else if (item?.url) {
@@ -263,7 +263,7 @@ export default defineComponent({
             if (id) {
               return {
                 ...item,
-                url: `${location.origin}${location.pathname}?bizId=${props.detail.bk_biz_id}/#/trace/alarm-shield/edit/${id}`,
+                url: `${location.origin}${location.pathname}?bizId=${props.detail.bk_biz_id}#/trace/alarm-shield/edit/${id}`,
               };
             }
           }

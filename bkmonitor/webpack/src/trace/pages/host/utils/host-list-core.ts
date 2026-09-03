@@ -81,8 +81,11 @@ const extractClusters = (modules: IHostModule[]): IHostCluster[] => {
   return [...map.values()];
 };
 
-const mergeHostComponents = (components: IHostMetricInfo['component'] = []) => {
-  const componentMap = new Map<string, IHostMetricInfo['component'][number]>();
+const mergeHostComponents = (components: IHostMetricInfo['component'] | undefined) => {
+  if (!components) {
+    return components;
+  }
+  const componentMap = new Map<string, NonNullable<IHostMetricInfo['component']>[number]>();
   for (const component of components) {
     const current = componentMap.get(component.display_name);
     if (!current) {
@@ -102,7 +105,9 @@ export const createHostListRow = (row: IHostBaseInfo, metric?: IHostMetricInfo):
   const bkClusters = extractClusters(modules);
   const components = mergeHostComponents(metricWithDefault.component);
   const rowId = String(row.bk_host_id ?? `${row.bk_host_innerip}|${row.bk_cloud_id}`);
-  const totalAlarmCount = (metricWithDefault.alarm_count || []).reduce((pre, cur) => pre + (cur.count || 0), 0);
+  const totalAlarmCount = Array.isArray(metricWithDefault.alarm_count)
+    ? metricWithDefault.alarm_count.reduce((pre, cur) => pre + (cur.count || 0), 0)
+    : null;
   return {
     ...(row ?? {}),
     ...(metricWithDefault ?? {}),
@@ -111,7 +116,7 @@ export const createHostListRow = (row: IHostBaseInfo, metric?: IHostMetricInfo):
     clusterNames: bkClusters.map(c => c.name).join(','),
     component: components,
     moduleNames: modules.map(m => m.bk_inst_name).join(','),
-    processNames: components.map(c => c.display_name).join(','),
+    processNames: components?.map(c => c.display_name).join(',') || '',
     rowId,
     totalAlarmCount,
   };
@@ -130,7 +135,7 @@ export const matchTopoNode = (row: IHostListRow, node: IHostTopoTreeNode | null)
 export const matchQuickCategory = (row: IHostListRow, category: '' | EHostQuickCategory): boolean => {
   switch (category) {
     case 'alarm':
-      return row.totalAlarmCount > 0;
+      return (row.totalAlarmCount ?? 0) > 0;
     case 'cpu':
       return (row.cpu_usage || 0) >= HOST_METRIC_OVER_THRESHOLD;
     case 'mem':
@@ -250,7 +255,7 @@ export const matchWhere = (row: IHostListRow, where: IWhereItem[]): boolean => {
 export const computeCategoryStats = (rows: IHostListRow[]) => {
   const stats = { alarm: 0, cpu: 0, mem: 0, disk: 0 };
   for (const row of rows) {
-    if (row.totalAlarmCount > 0) stats.alarm += 1;
+    if ((row.totalAlarmCount ?? 0) > 0) stats.alarm += 1;
     if ((row.cpu_usage || 0) >= HOST_METRIC_OVER_THRESHOLD) stats.cpu += 1;
     if ((row.mem_usage || 0) >= HOST_METRIC_OVER_THRESHOLD) stats.mem += 1;
     if ((row.disk_in_use || 0) >= HOST_METRIC_OVER_THRESHOLD) stats.disk += 1;

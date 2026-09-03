@@ -99,7 +99,7 @@ class ListDbStatisticsResource(PageListResource):
                     LinkTableFormat(
                         id="trace",
                         name=_("调用链"),
-                        url_format="/?bizId={bk_biz_id}/#/trace/home/?app_name={app_name}"
+                        url_format="/?bizId={bk_biz_id}#/trace/home/?app_name={app_name}"
                         + "&search_type=scope"
                         + "&start_time={start_time}&end_time={end_time}"
                         + "&sceneMode=span&filterMode=ui",
@@ -307,7 +307,7 @@ class ListDbSpanResource(PageListResource):
                     LinkTableFormat(
                         id="detail",
                         name=_("详情"),
-                        url_format="/?bizId={bk_biz_id}/#/trace/home/?app_name={app_name}"
+                        url_format="/?bizId={bk_biz_id}#/trace/home/?app_name={app_name}"
                         + "&sceneMode=span"
                         + '&where=[{{"key":"span_id","operator":"equal","value":["{span_id}"]}}]',
                         target="blank",

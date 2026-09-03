@@ -247,6 +247,9 @@ def _read_string(key_obj, key_params: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+_READ_HASH_SCAN_MAX_ROUNDS = 5
+
+
 def _read_hash(key_obj, key_params: dict[str, Any], field: str | None, limit: int) -> dict[str, Any]:
     resolved_key = key_obj.get_key(**key_params)
     client = key_obj.client
@@ -258,15 +261,28 @@ def _read_hash(key_obj, key_params: dict[str, Any], field: str | None, limit: in
             "field": field,
             "value": _try_json(value),
         }
-    raw_map: dict = client.hgetall(resolved_key)
-    items = {_safe_decode(k): _try_json(_safe_decode(v)) for k, v in raw_map.items()}
-    total = len(items)
-    truncated_items = dict(list(items.items())[:limit])
+    # 计数走 HLEN、取样走 HSCAN 游标，与 zset/list/set 分支保持一致的有界读取。
+    # 不用 HGETALL：检测态 hash（如 LAST_CHECKPOINTS_CACHE_KEY）单键 field 数可达万级，
+    # 全量拉取会长时间占用 Redis 单线程，而本接口只需要总数和少量样本。
+    total: int = client.hlen(resolved_key)
+    items: dict[str, Any] = {}
+    cursor = 0
+    # listpack 编码的小 hash 会忽略 count 一次返回全部，此时首轮即 cursor=0 退出；
+    # hashtable 编码下 count 仅为每轮提示，故设固定轮数上限兜底，保证命令数有界。
+    for _ in range(_READ_HASH_SCAN_MAX_ROUNDS):
+        cursor, chunk = client.hscan(resolved_key, cursor=cursor, count=limit)
+        for raw_field, raw_value in (chunk or {}).items():
+            if len(items) >= limit:
+                break
+            items[_safe_decode(raw_field)] = _try_json(_safe_decode(raw_value))
+        if cursor == 0 or len(items) >= limit:
+            break
     return {
         "exists": total > 0,
         "total_fields": total,
-        "truncated": total > limit,
-        "items": truncated_items,
+        "returned_count": len(items),
+        "truncated": total > len(items),
+        "items": items,
     }
 
 
@@ -431,6 +447,105 @@ def read_cache_key(params: dict[str, Any]) -> dict[str, Any]:
         "routing": _resolve_routing(key_obj, similar_key),
         "ttl_ms": _resolve_ttl_ms(key_obj, similar_key),
         **data,
+    }
+
+
+# ---------- measure-cache-footprint ----------
+
+MAX_FOOTPRINT_TARGETS = 500
+
+# 每种键类型的 O(1) 计数命令与计数语义。刻意只用计数命令、不取成员：
+# 成本核算只要数量，取成员会把命令复杂度从 O(1) 抬到 O(N) 并把返回体撑大。
+FOOTPRINT_COUNTERS: dict[str, tuple[str, str]] = {
+    "hash": ("hlen", "hash field 数"),
+    "zset": ("zcard", "zset 成员数"),
+    "list": ("llen", "list 长度"),
+    "set": ("scard", "set 成员数"),
+    "string": ("strlen", "字符串值字节数"),
+}
+
+
+def _measure_one_footprint(key_name: str, spec: CacheKeySpec, key_params: Any) -> dict[str, Any]:
+    """测量单个目标，恰好一条计数命令。
+
+    单个目标失败只记录该条 error，不中断整批：批量测量的价值就在于一次拿到全景，
+    让一个参数写错的目标废掉其余几百个目标的结果是最差的取舍。
+    """
+    result: dict[str, Any] = {"params": key_params}
+    try:
+        if not isinstance(key_params, dict):
+            raise CustomException(message="targets 每一项必须是对象")
+        _validate_params(key_params, spec)
+
+        key_obj = _get_key_obj(key_name)
+        # 必须把 SimilarStr 原对象交给 client，str() 会丢 strategy_id 而错误路由到 default node
+        similar_key = key_obj.get_key(**key_params)
+        command, _ = FOOTPRINT_COUNTERS[spec.key_type]
+        count = int(getattr(key_obj.client, command)(similar_key))
+
+        result["resolved_key"] = str(similar_key)
+        result["count"] = count
+        result["exists"] = count > 0
+        # 路由回显走本地路由快照，不产生 Redis 命令，因此可以逐目标附带；
+        # 成本榜需要按节点分组，这个字段让"某节点上的成本排序"一次扫描即可得出。
+        routing = _resolve_routing(key_obj, similar_key)
+        result["node"] = routing.get("node") or {"error": routing.get("error")}
+    except CustomException as exc:
+        result["error"] = exc.message
+    except Exception as exc:
+        result["error"] = str(exc)
+    return result
+
+
+def measure_cache_footprint(params: dict[str, Any]) -> dict[str, Any]:
+    """批量测量白名单缓存键的数量足迹，用于策略级 Redis 成本核算。
+
+    与 read-cache-key 的分工：后者面向单键取证、会返回成员样本；本操作只返回数量，
+    换来"命令数恒等于目标数、每条都是 O(1)"的可估算性，从而支持全量启用策略扫描。
+    """
+    key_name = str(params.get("key_name") or "").strip()
+    if not key_name:
+        raise CustomException(message="key_name is required")
+
+    spec = _get_key_spec(key_name)
+    if spec.key_type not in FOOTPRINT_COUNTERS:
+        raise CustomException(message=f"不支持的 key_type: {spec.key_type}")
+
+    targets = params.get("targets")
+    if not isinstance(targets, list) or not targets:
+        raise CustomException(message="targets 必须是非空数组")
+    if len(targets) > MAX_FOOTPRINT_TARGETS:
+        raise CustomException(message=f"targets 数量超过硬上限 {MAX_FOOTPRINT_TARGETS}: {len(targets)}")
+
+    command, count_semantics = FOOTPRINT_COUNTERS[spec.key_type]
+    results = [_measure_one_footprint(key_name, spec, key_params) for key_params in targets]
+    measured = [item for item in results if "error" not in item]
+
+    return {
+        "key_name": key_name,
+        "key_type": spec.key_type,
+        "label": spec.label,
+        "command": command.upper(),
+        "count_semantics": count_semantics,
+        "requested": len(targets),
+        "measured": len(measured),
+        "failed": len(results) - len(measured),
+        "redis_commands": {
+            "per_target": 1,
+            "total": len(targets),
+            "note": "每个目标恰好一条 O(1) 计数命令，扫描全量策略的命令数等于目标数",
+        },
+        "total_count": sum(item["count"] for item in measured),
+        # AR-3 要求两个口径分列。hash 的 field 数是活跃键数的上界：field 由 detect 写入后
+        # 随 hash 的 7 天滑动 TTL 保留，对应的 CHECK_RESULT zset 却按 P*I 独立过期，
+        # 因此可能存在 field 还在、zset 已过期的残留。本操作不做存活探测（那需要逐 field
+        # 反查 zset，命令数不再有界），故此处显式给 null 而不是拿 field 数冒充活跃键数。
+        "active_key_count": None,
+        "active_key_count_note": (
+            "未探测。hash field 数是活跃键数的上界；抽样校准实测存活率为 100%，"
+            "但成本排序仍应以配置推导的峰值为准，不以本计数为准"
+        ),
+        "results": results,
     }
 
 
@@ -651,7 +766,7 @@ KernelRPCRegistry.register_function(
         "key_name": f"白名单键常量名，可选值: {sorted(ALLOWED_KEY_SPECS)}",
         "params": "键模板变量，因 key_name 而异",
         "limit": f"最大返回条数，默认 {DEFAULT_LIMIT}，上限 {MAX_LIMIT}",
-        "field": "Hash 类型指定字段（省略则 hgetall）",
+        "field": "Hash 类型指定字段（省略则返回 HLEN 总数 + HSCAN 取样，不做全量拉取）",
         "score_range": "ZSet 类型分值区间 {min, max}",
     },
     example_params={
@@ -687,6 +802,51 @@ BkmCliOpRegistry.register(
         "key_name": "CHECK_RESULT_CACHE_KEY",
         "params": {"strategy_id": 12345, "item_id": 67890, "dimensions_md5": "abc123", "level": 1},
     },
+)
+
+_FOOTPRINT_PARAMS_SCHEMA = {
+    "key_name": f"白名单键常量名，可选值: {sorted(ALLOWED_KEY_SPECS)}",
+    "targets": f"目标数组，每项是该 key_name 的键模板变量对象，上限 {MAX_FOOTPRINT_TARGETS} 个",
+}
+
+_FOOTPRINT_EXAMPLE = {
+    "key_name": "LAST_CHECKPOINTS_CACHE_KEY",
+    "targets": [
+        {"strategy_id": 1687, "item_id": 1805},
+        {"strategy_id": 8361, "item_id": 8479},
+    ],
+}
+
+KernelRPCRegistry.register_function(
+    func_name="bkm_cli.measure_cache_footprint",
+    summary="运行时 Redis 缓存键批量数量测量",
+    description=(
+        "bkm-cli measure-cache-footprint 后端函数。"
+        "对白名单键的多个目标各执行一条 O(1) 计数命令（HLEN/ZCARD/LLEN/SCARD/STRLEN），"
+        "只返回数量不返回成员，用于策略级缓存成本核算。"
+    ),
+    handler=measure_cache_footprint,
+    params_schema=_FOOTPRINT_PARAMS_SCHEMA,
+    example_params=_FOOTPRINT_EXAMPLE,
+)
+
+BkmCliOpRegistry.register(
+    op_id="measure-cache-footprint",
+    func_name="bkm_cli.measure_cache_footprint",
+    summary="运行时 Redis 缓存键批量数量测量",
+    description=(
+        "批量测量白名单缓存键的数量足迹。每个目标恰好一条 O(1) 计数命令，"
+        "命令总数等于目标数，因此可事先估算全量扫描开销。"
+        "逐目标回显路由节点身份（不含 host/port），可直接按节点分组做成本排序。"
+        "输出 active_key_count 恒为 null 并附说明：hash field 数只是活跃键数的上界，"
+        "本操作不做存活探测，避免把单一数字误当作活跃占用。"
+    ),
+    capability_level="readonly",
+    risk_level="low",
+    requires_confirmation=False,
+    audit_tags=["cache", "redis", "readonly"],
+    params_schema=_FOOTPRINT_PARAMS_SCHEMA,
+    example_params=_FOOTPRINT_EXAMPLE,
 )
 
 KernelRPCRegistry.register_function(

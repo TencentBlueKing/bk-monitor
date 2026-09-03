@@ -994,6 +994,35 @@ export const isIPv6 = (str = '') => {
   );
 };
 
+/** int 类型最大值（2^31 - 1） */
+export const MAX_INT_VALUE = 2147483647;
+
+/**
+ * 判断清洗字段预览值是否不是数值
+ * @param {*} value 字段预览值
+ * @returns {boolean} true 表示不是数值（或为空）
+ */
+export const judgeNumber = (value) => {
+  if (value === 0) return false;
+
+  return value && value !== ' ' ? isNaN(value) : true;
+};
+
+/**
+ * 清洗字段类型选项是否禁用
+ * @param {Object} row 字段行（verdict：是否非数值；value：预览值）
+ * @param {Object} option 类型选项（含 id）
+ * @returns {boolean} true 表示该类型选项禁用
+ */
+export const isFieldTypeDisabled = (row, option) => {
+  if (row.verdict) {
+    // 不是数值，相关数值类型选项被禁用
+    return ['int', 'long', 'double', 'float'].includes(option.id);
+  }
+  // 是数值，如果值大于 MAX_INT_VALUE 即 2^31 - 1，int 选项被禁用
+  return option.id === 'int' && row.value > MAX_INT_VALUE;
+};
+
 /** 是否强制更新现有的表格缓存显示字段 每次需要强制更新只需取反即可 */
 const TABLE_FORCE = true;
 

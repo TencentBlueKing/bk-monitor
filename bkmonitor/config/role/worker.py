@@ -140,7 +140,6 @@ DEFAULT_CRONTAB = [
     ("alarm_backends.core.cache.models.custom_ts_group", "*/10 * * * *", "global"),
     ("alarm_backends.core.cache.models.uptimecheck", "* * * * *", "global"),
     ("alarm_backends.core.cache.action_config.refresh_total", "*/60 * * * *", "global"),
-    ("alarm_backends.core.cache.action_config.refresh_latest_5_minutes", "* * * * *", "global"),
     ("alarm_backends.core.cache.assign", "* * * * *", "global"),
     # alarm_backends.core.cache.issue (StrategyIssueConfigCache) 已废弃，issue_config 合并进策略缓存
     ("alarm_backends.core.cache.calendar", "* * * * *", "global"),
@@ -199,13 +198,15 @@ if BCS_API_GATEWAY_HOST:  # noqa: F821
     DEFAULT_CRONTAB += [
         # bcs资源同步
         ("api.bcs.tasks.sync_bcs_cluster_to_db", "*/15 * * * *", "global"),
-        ("api.bcs.tasks.sync_bcs_service_to_db", "*/25 * * * *", "global"),
-        ("api.bcs.tasks.sync_bcs_workload_to_db", "*/25 * * * *", "global"),
-        ("api.bcs.tasks.sync_bcs_pod_to_db", "*/25 * * * *", "global"),
-        ("api.bcs.tasks.sync_bcs_node_to_db", "*/25 * * * *", "global"),
-        ("api.bcs.tasks.sync_bcs_service_monitor_to_db", "*/25 * * * *", "global"),
-        ("api.bcs.tasks.sync_bcs_pod_monitor_to_db", "*/25 * * * *", "global"),
-        ("api.bcs.tasks.sync_bcs_ingress_to_db", "*/25 * * * *", "global"),
+        # 下列 7 个 to_db 均按集群 apply_async 到 celery_cron；同分钟触发会把队列瞬时堆到上万条。
+        # 错开约 4 分钟、每小时 2 次（间隔 30min，原 */25 约 25min），避开 :00/:15/:30/:45。
+        ("api.bcs.tasks.sync_bcs_service_to_db", "2,32 * * * *", "global"),
+        ("api.bcs.tasks.sync_bcs_workload_to_db", "6,36 * * * *", "global"),
+        ("api.bcs.tasks.sync_bcs_pod_to_db", "10,40 * * * *", "global"),
+        ("api.bcs.tasks.sync_bcs_node_to_db", "14,44 * * * *", "global"),
+        ("api.bcs.tasks.sync_bcs_service_monitor_to_db", "18,48 * * * *", "global"),
+        ("api.bcs.tasks.sync_bcs_pod_monitor_to_db", "22,52 * * * *", "global"),
+        ("api.bcs.tasks.sync_bcs_ingress_to_db", "26,56 * * * *", "global"),
         # bcs资源数据状态同步
         ("api.bcs.tasks.sync_bcs_cluster_resource", "*/260 * * * *", "global"),
         ("api.bcs.tasks.sync_bcs_workload_resource", "*/260 * * * *", "global"),
@@ -556,6 +557,15 @@ QOS_ALERT_WINDOW = 60
 # 运维通过 `bkmonitor_issue_fingerprint_blocked{reason=high_cardinality}` 速率告警发现高基数策略
 # （metric 由 ISSUE_ACTIVE_COUNT_KEY 5min Redis cache 驱动，存在 ≤5min 滞后）。
 ISSUE_MAX_ACTIVE_PER_STRATEGY = 500
+
+# Issue 单个合并组的成员总数上限（**超限拒绝合并**，不是 warn-only）
+# 0 = 关闭该门禁；>0 = 合并后组成员数超过此值时 MergeResource 抛 MergeGroupTooLargeError(3337110)。
+# 把已成组的主并入另一主时，被并入主的成员会一起改挂过来，组规模可成倍增长；
+# IssueMergeResolver.hydrate_aggregations 与 IssueDocument.bulk_follow_status 的 ES 查询是
+# size=len(member_ids)，无界组会退化成慢查询。
+# 与上面 ISSUE_MAX_ACTIVE_PER_STRATEGY 的 warn-only 取向刻意不同：那边放行是因为阻塞会让告警
+# 永久失联（数据代价），这里超限只是用户一次交互失败（先拆分再合并即可），无数据代价。
+ISSUE_MAX_MERGE_GROUP_SIZE = 500
 
 # Issue LLM 标题生成动态配置的静态占位（值与 bkmonitor/define/global_config.py 的 serializer default 对齐）。
 # 必须保留：DynamicSettings.__getattr__ 读 DB 前先 getattr 静态 settings（dynamic_settings.py L74），

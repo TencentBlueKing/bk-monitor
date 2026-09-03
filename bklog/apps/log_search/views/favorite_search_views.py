@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,6 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 from django.http import Http404
 from rest_framework import serializers
 from rest_framework.response import Response
@@ -112,6 +112,7 @@ class FavoriteViewSet(APIViewSet):
         @apiGroup 21_Favorite
         @apiParam {String} space_uid 空间唯一标识
         @apiParam {String} order_type 排序方式
+        @apiParam {Json} [scope] 收藏作用域
         @apiSuccessExample {json} 成功返回：
         {
             "message": "",
@@ -149,6 +150,7 @@ class FavoriteViewSet(APIViewSet):
             FavoriteHandler(space_uid=data.get("space_uid")).list_favorites(
                 order_type=data["order_type"],
                 source_type=data.get("source_type"),
+                scope=data["scope"],
             )
         )
 
@@ -161,6 +163,7 @@ class FavoriteViewSet(APIViewSet):
         @apiGroup 21_Favorite
         @apiParam {String} space_uid 空间唯一标识
         @apiParam {String} order_type 排序方式
+        @apiParam {Json} [scope] 收藏作用域
         @apiSuccessExample {json} 成功返回：
         {
             "message": "",
@@ -208,6 +211,7 @@ class FavoriteViewSet(APIViewSet):
             FavoriteHandler(space_uid=data.get("space_uid")).list_group_favorites(
                 order_type=data["order_type"],
                 source_type=data.get("source_type"),
+                scope=data["scope"],
             )
         )
 
@@ -225,6 +229,7 @@ class FavoriteViewSet(APIViewSet):
         @apiParam {Json} addition 搜索条件
         @apiParam {List} search_fields 检索字段
         @apiParam {List} display_fields 展示字段
+        @apiParam {Json} [scope] 收藏作用域
         @apiParamExample {json} 请求参数
         {
             "index_set_id": 12312,
@@ -300,6 +305,7 @@ class FavoriteViewSet(APIViewSet):
             scene_id=data.get("scene_id"),
             table_id_conditions=data.get("table_id_conditions"),
             scene_filter_values=data.get("scene_filter_values"),
+            scope=data["scope"],
         )
         return Response(favorite_search)
 
@@ -314,6 +320,7 @@ class FavoriteViewSet(APIViewSet):
         @apiParam {Json} addition 搜索条件
         @apiParam {List} search_fields 检索字段
         @apiParam {List} display_fields 展示字段
+        @apiParam {Json} [scope] 增量更新的收藏作用域
         @apiParamExample {json} 请求参数
         {
             "index_set_id": 12312,
@@ -388,6 +395,7 @@ class FavoriteViewSet(APIViewSet):
             scene_id=data.get("scene_id"),
             table_id_conditions=data.get("table_id_conditions"),
             scene_filter_values=data.get("scene_filter_values"),
+            scope=data.get("scope"),
         )
         return Response(favorite_search)
 
@@ -618,6 +626,7 @@ class FavoriteGroupViewSet(APIViewSet):
         @apiGroup 21_Favorite
         @apiParam {String} space_uid 空间唯一标识
         @apiParam {String} [source_type=index_set] 收藏来源类型：index_set(默认) | scene
+        @apiParam {Json} [scope] 收藏组作用域
         @apiSuccessExample {json} 成功返回：
         {
             "message": "",
@@ -643,7 +652,10 @@ class FavoriteGroupViewSet(APIViewSet):
         """
         data = self.params_valid(FavoriteGroupListSerializer)
         return Response(
-            FavoriteGroupHandler(space_uid=data.get("space_uid")).list(source_type=data["source_type"])
+            FavoriteGroupHandler(space_uid=data.get("space_uid")).list(
+                source_type=data["source_type"],
+                scope=data["scope"],
+            )
         )
 
     def create(self, request, *args, **kwargs):
@@ -655,6 +667,7 @@ class FavoriteGroupViewSet(APIViewSet):
         @apiParam {String} space_uid 空间唯一标识
         @apiParam {String} name 收藏组名
         @apiParam {String} [source_type=index_set] 收藏来源类型：index_set(默认) | scene
+        @apiParam {Json} [scope] 收藏组作用域
         @apiParamExample {json} 请求参数
         {
             "space_uid": "bkcc__2",
@@ -684,7 +697,9 @@ class FavoriteGroupViewSet(APIViewSet):
         """
         data = self.params_valid(CreateFavoriteGroupSerializer)
         favorite_search = FavoriteGroupHandler(space_uid=data["space_uid"]).create_or_update(
-            name=data["name"], source_type=data["source_type"]
+            name=data["name"],
+            source_type=data["source_type"],
+            scope=data["scope"],
         )
         return Response(favorite_search)
 
@@ -695,6 +710,7 @@ class FavoriteGroupViewSet(APIViewSet):
         @apiName create_favorite_group
         @apiGroup 21_Favorite
         @apiParam {String} name 收藏组名
+        @apiParam {Json} [scope] 增量更新的收藏组作用域
         @apiParamExample {json} 请求参数
         {
             "name": "收藏组名"
@@ -721,7 +737,10 @@ class FavoriteGroupViewSet(APIViewSet):
         }
         """
         data = self.params_valid(UpdateFavoriteGroupSerializer)
-        favorite_search = FavoriteGroupHandler(group_id=kwargs["id"]).create_or_update(name=data["name"])
+        favorite_search = FavoriteGroupHandler(group_id=kwargs["id"]).create_or_update(
+            name=data["name"],
+            scope=data.get("scope"),
+        )
         return Response(favorite_search)
 
     def destroy(self, request, *args, **kwargs):

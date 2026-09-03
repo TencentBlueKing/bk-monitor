@@ -304,7 +304,10 @@ export default defineComponent({
         for (const val of visibleConfig.visible_bk_biz ?? []) {
           const target = mySpaceList.value.find(project => project.bk_biz_id === String(val.bk_biz_id));
           if (target) {
-            target.is_use = val.is_use;
+            store.commit('patchMySpaceListItem', {
+              bkBizId: String(val.bk_biz_id),
+              patch: { is_use: val.is_use },
+            });
             const targetObj = {
               id: String(val.bk_biz_id),
               name: target.space_full_code_name,
@@ -493,6 +496,10 @@ export default defineComponent({
             data: {
               bk_biz_id: Number(bkBizId.value),
               visible_config: visibleConfig,
+              setup_config: {
+                retention_days_max: Number(formData.value.setup_config.retention_days_max),
+                retention_days_default: Number(formData.value.setup_config.retention_days_default),
+              },
             },
           });
           Message({ theme: 'success', message: t('保存成功'), delay: 1500 });
@@ -927,6 +934,93 @@ export default defineComponent({
       </bk-form-item>
     );
 
+    const renderRetentionDays = () => (
+      <bk-form-item
+        label={t('过期时间')}
+        required
+      >
+        <div class='flex-space'>
+          <div class='flex-space-item'>
+            <div class='space-item-label'>{t('默认')}</div>
+            <bk-select
+              clearable={false}
+              data-test-id='storageBox_select_selectExpiration'
+              value={formData.value.setup_config.retention_days_default}
+              onChange={(val: string) => (formData.value.setup_config.retention_days_default = val)}
+            >
+              {retentionDaysList.value.map((option, index) => (
+                <bk-option
+                  id={option.id}
+                  key={index}
+                  disabled={option.disabled}
+                  name={option.name}
+                />
+              ))}
+              <div
+                class='bk-select-name'
+                slot='trigger'
+              >
+                {String(formData.value.setup_config.retention_days_default) + t('天')}
+              </div>
+              <div
+                style='padding: 8px 0'
+                slot='extension'
+              >
+                <bk-input
+                  placeholder={t('输入自定义天数，按 Enter 确认')}
+                  show-controls={false}
+                  size='small'
+                  type='number'
+                  value={customRetentionDay.value}
+                  onChange={(val: string) => (customRetentionDay.value = val)}
+                  onEnter={(val: string) => enterCustomDay(val, 'retention')}
+                />
+              </div>
+            </bk-select>
+          </div>
+
+          <div class='flex-space-item'>
+            <div class='space-item-label'>{t('最大')}</div>
+            <bk-select
+              clearable={false}
+              data-test-id='storageBox_select_selectExpiration'
+              value={formData.value.setup_config.retention_days_max}
+              onChange={(val: string) => (formData.value.setup_config.retention_days_max = val)}
+            >
+              {maxDaysList.value.map((option, index) => (
+                <bk-option
+                  id={option.id}
+                  key={index}
+                  disabled={option.disabled}
+                  name={option.name}
+                />
+              ))}
+              <div
+                style='padding: 8px 0'
+                slot='extension'
+              >
+                <bk-input
+                  placeholder={t('输入自定义天数，按 Enter 确认')}
+                  show-controls={false}
+                  size='small'
+                  type='number'
+                  value={customMaxDay.value}
+                  onChange={(val: string) => (customMaxDay.value = val)}
+                  onEnter={(val: string) => enterCustomDay(val, 'max')}
+                />
+              </div>
+              <div
+                class='bk-select-name'
+                slot='trigger'
+              >
+                {String(formData.value.setup_config.retention_days_max) + t('天')}
+              </div>
+            </bk-select>
+          </div>
+        </div>
+      </bk-form-item>
+    );
+
     const renderManagementToggle = () => (
       <bk-form-item>
         <div
@@ -1192,97 +1286,19 @@ export default defineComponent({
                   {isDoris.value && renderManagementToggle()}
                   {!isDoris.value && connectResult.value === 'success' && renderManagementToggle()}
 
-                  {isDoris.value && isShowManagement.value && <div>{renderVisibleScope()}</div>}
+                  {isDoris.value && isShowManagement.value && (
+                    <div>
+                      {renderVisibleScope()}
+                      {renderRetentionDays()}
+                    </div>
+                  )}
                   {/* 管理区块 */}
                   {!isDoris.value && isShowManagement.value && connectResult.value === 'success' && (
                     <div>
                       {renderVisibleScope()}
 
                       {/* 过期时间 */}
-                      <bk-form-item
-                        label={t('过期时间')}
-                        required
-                      >
-                        <div class='flex-space'>
-                          <div class='flex-space-item'>
-                            <div class='space-item-label'>{t('默认')}</div>
-                            <bk-select
-                              clearable={false}
-                              data-test-id='storageBox_select_selectExpiration'
-                              value={formData.value.setup_config.retention_days_default}
-                              onChange={(val: string) => (formData.value.setup_config.retention_days_default = val)}
-                            >
-                              {retentionDaysList.value.map((option, index) => (
-                                <bk-option
-                                  id={option.id}
-                                  key={index}
-                                  disabled={option.disabled}
-                                  name={option.name}
-                                />
-                              ))}
-                              <div
-                                class='bk-select-name'
-                                slot='trigger'
-                              >
-                                {String(formData.value.setup_config.retention_days_default) + t('天')}
-                              </div>
-                              <div
-                                style='padding: 8px 0'
-                                slot='extension'
-                              >
-                                <bk-input
-                                  placeholder={t('输入自定义天数，按 Enter 确认')}
-                                  show-controls={false}
-                                  size='small'
-                                  type='number'
-                                  value={customRetentionDay.value}
-                                  onChange={(val: string) => (customRetentionDay.value = val)}
-                                  onEnter={(val: string) => enterCustomDay(val, 'retention')}
-                                />
-                              </div>
-                            </bk-select>
-                          </div>
-
-                          <div class='flex-space-item'>
-                            <div class='space-item-label'>{t('最大')}</div>
-                            <bk-select
-                              clearable={false}
-                              data-test-id='storageBox_select_selectExpiration'
-                              value={formData.value.setup_config.retention_days_max}
-                              onChange={(val: string) => (formData.value.setup_config.retention_days_max = val)}
-                            >
-                              {maxDaysList.value.map((option, index) => (
-                                <bk-option
-                                  id={option.id}
-                                  key={index}
-                                  disabled={option.disabled}
-                                  name={option.name}
-                                />
-                              ))}
-                              <div
-                                style='padding: 8px 0'
-                                slot='extension'
-                              >
-                                <bk-input
-                                  placeholder={t('输入自定义天数，按 Enter 确认')}
-                                  show-controls={false}
-                                  size='small'
-                                  type='number'
-                                  value={customMaxDay.value}
-                                  onChange={(val: string) => (customMaxDay.value = val)}
-                                  onEnter={(val: string) => enterCustomDay(val, 'max')}
-                                />
-                              </div>
-                              <div
-                                class='bk-select-name'
-                                slot='trigger'
-                              >
-                                {String(formData.value.setup_config.retention_days_max) + t('天')}
-                              </div>
-                            </bk-select>
-                          </div>
-                        </div>
-                      </bk-form-item>
+                      {renderRetentionDays()}
 
                       {/* 副本数 */}
                       <bk-form-item

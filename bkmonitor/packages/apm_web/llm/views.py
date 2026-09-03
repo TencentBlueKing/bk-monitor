@@ -1,0 +1,24 @@
+from apm_web.models import Application
+from apm_web.llm.resources import ListSpansResource, ListTracesResource
+from bkmonitor.iam import ActionEnum, ResourceEnum
+from bkmonitor.iam.drf import InstanceActionForDataPermission
+from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
+
+
+class LLMViewSet(ResourceViewSet):
+    INSTANCE_ID = "app_name"
+
+    def get_permissions(self) -> list[InstanceActionForDataPermission]:
+        return [
+            InstanceActionForDataPermission(
+                self.INSTANCE_ID,
+                [ActionEnum.VIEW_APM_APPLICATION],
+                ResourceEnum.APM_APPLICATION,
+                get_instance_id=Application.get_application_id_by_app_name,
+            )
+        ]
+
+    resource_routes = [
+        ResourceRoute("POST", ListTracesResource, endpoint="list_traces"),
+        ResourceRoute("POST", ListSpansResource, endpoint="list_spans"),
+    ]

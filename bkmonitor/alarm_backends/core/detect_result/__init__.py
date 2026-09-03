@@ -12,11 +12,14 @@ specific language governing permissions and limitations under the License.
 
 import json
 
+from django.conf import settings
+
 from alarm_backends.constants import (
     LATEST_NO_DATA_CHECK_POINT,
     LATEST_POINT_WITH_ALL_KEY,
 )
 from alarm_backends.core.cache import key
+from alarm_backends.core.detect_result_retention import rank_trim_stop
 
 CONST_MAX_LEN_CHECK_RESULT = 30  # 检测结果缓存，默认只保留30条数据
 
@@ -120,10 +123,25 @@ class CheckResult(Result):
         return self.CHECK_RESULT.expire(self.check_result_cache_key, ttl)
 
     def remove_old_check_result_cache(self, point_remains=0):
-        point_remains = point_remains or 0
-        return self.CHECK_RESULT.zremrangebyrank(
-            self.check_result_cache_key, 0, -point_remains or -CONST_MAX_LEN_CHECK_RESULT
-        )
+        point_remains = point_remains or CONST_MAX_LEN_CHECK_RESULT
+        return self.CHECK_RESULT.zremrangebyrank(self.check_result_cache_key, 0, rank_trim_stop(point_remains))
+
+    @classmethod
+    def trim_check_result_caches(cls, cache_keys, point_remains):
+        """Trim each key once with bounded pipelines isolated from write batches."""
+        cache_keys = tuple(dict.fromkeys(cache_keys))
+        if not cache_keys:
+            return []
+
+        command_limit = settings.CHECK_RESULT_CLEAN_PIPELINE_COMMAND_LIMIT
+        stop = rank_trim_stop(point_remains)
+        results = []
+        for start in range(0, len(cache_keys), command_limit):
+            pipeline = key.CHECK_RESULT_CACHE_KEY.client.pipeline(transaction=False)
+            for cache_key in cache_keys[start : start + command_limit]:
+                pipeline.zremrangebyrank(cache_key, 0, stop)
+            results.extend(pipeline.execute())
+        return results
 
     def remove_expired_check_result_cache(self, expired_timestamp):
         return self.CHECK_RESULT.zremrangebyscore(self.check_result_cache_key, 0, expired_timestamp)

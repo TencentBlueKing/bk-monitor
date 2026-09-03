@@ -11,6 +11,7 @@ specific language governing permissions and limitations under the License.
 """
 
 import importlib
+import json
 import ntpath
 import os
 import sys
@@ -364,10 +365,12 @@ ACTIVE_VIEWS = {
         "apm_profile": "apm_web.profile.views",
         "apm_container": "apm_web.container.views",
         "apm_strategy": "apm_web.strategy.views",
+        "llm_web": "apm_web.llm.views",
     },
     "rum_web": {
         "rum_meta": "rum_web.meta.views",
         "rum_metric": "rum_web.metric.views",
+        "rum_query": "rum_web.query.views",
     },
 }
 
@@ -388,6 +391,9 @@ TS_DATA_SAVED_DAYS = 30
 
 ENABLE_RESOURCE_DATA_COLLECT = False
 RESOURCE_DATA_COLLECT_RATIO = 0
+
+# Redis 自监控收尾阶段的策略成本周期快照，按环境通过 GlobalConfig 显式开启。
+ENABLE_REDIS_STRATEGY_COST_SNAPSHOT = False
 
 # 告警汇总配置
 DIMENSION_COLLECT_THRESHOLD = 2
@@ -805,6 +811,15 @@ ACCESS_LATENCY_THRESHOLD_CONSTANT = 180
 # 灰度策略 ID 列表（可选）
 # 仅对列表中的策略启用合并处理，为空时对所有静态阈值策略生效
 ACCESS_DETECT_MERGE_STRATEGY_IDS = []
+
+# Detect 完成后是否同步执行 Trigger；默认开启，Access-Detect 合并路径共用此开关
+ENABLE_DETECT_INLINE_TRIGGER = True
+
+# Event 完成后是否同步执行 Trigger；默认开启，从旧版本升级时需先完成 Event 和 Trigger worker 滚动更新
+ENABLE_EVENT_INLINE_TRIGGER = True
+
+# 单个 Event 策略项最多占用的内联 Trigger 并发数
+EVENT_INLINE_TRIGGER_MAX_CONCURRENCY_PER_ITEM = 1
 
 # kafka是否自动提交配置
 KAFKA_AUTO_COMMIT = True
@@ -1275,13 +1290,13 @@ BKCHAT_MANAGE_URL = os.getenv("BKAPP_BKCHAT_MANAGE_URL", "")
 # aidev的apigw地址
 AIDEV_API_BASE_URL = os.getenv("BKAPP_AIDEV_API_BASE_URL", "")
 
-# TAPD API 基础URL
-TAPD_API_BASE_URL = os.getenv("BKAPP_TAPD_API_BASE_URL", os.getenv("TAPD_API_BASE_URL", "http://apiv2.tapd.woa.com"))
+# TAPD API 基础URL（部署环境通过 BKAPP_TAPD_API_BASE_URL / TAPD_API_BASE_URL 注入，公开仓不放默认主机）
+TAPD_API_BASE_URL = os.getenv("BKAPP_TAPD_API_BASE_URL", os.getenv("TAPD_API_BASE_URL", ""))
 # 对于 TAPD API 有权限的应用ID和密钥
 TAPD_APP_ID = os.getenv("BKAPP_TAPD_APP_ID", os.getenv("TAPD_APP_ID", ""))
 TAPD_APP_SECRET = os.getenv("BKAPP_TAPD_APP_SECRET", os.getenv("TAPD_APP_SECRET", ""))
-# TAPD OAuth 授权基础URL（用户态授权跳转、code换token）
-TAPD_OAUTH_BASE_URL = os.getenv("BKAPP_TAPD_OAUTH_BASE_URL", os.getenv("TAPD_OAUTH_BASE_URL", "https://tapd.woa.com"))
+# TAPD OAuth 授权基础URL（用户态授权跳转、code换token；同样只从环境变量读取）
+TAPD_OAUTH_BASE_URL = os.getenv("BKAPP_TAPD_OAUTH_BASE_URL", os.getenv("TAPD_OAUTH_BASE_URL", ""))
 
 BK_NODEMAN_HOST = AGENT_SETUP_URL = os.getenv("BK_NODEMAN_SITE_URL") or os.getenv(
     "BKAPP_NODEMAN_OUTER_HOST", get_service_url("bk_nodeman", bk_paas_host=BK_PAAS_HOST)
@@ -1319,7 +1334,7 @@ BK_CI_URL = os.getenv("BK_CI_URL") or os.getenv("BKAPP_BK_CI_URL", "")
 BKCI_APP_CODE = os.getenv("BKCI_APP_CODE")
 BKCI_APP_SECRET = os.getenv("BKCI_APP_SECRET")
 BK_MONITOR_HOST = os.getenv("BK_MONITOR_HOST", "{}/o/bk_monitorv3/".format(BK_PAAS_HOST.rstrip("/")))
-ACTION_DETAIL_URL = f"{BK_MONITOR_HOST}?bizId={{bk_biz_id}}/#/event-center/action-detail/{{action_id}}"
+ACTION_DETAIL_URL = f"{BK_MONITOR_HOST}?bizId={{bk_biz_id}}#/event-center/action-detail/{{action_id}}"
 EVENT_CENTER_URL = urljoin(
     BK_MONITOR_HOST,
     "?bizId={bk_biz_id}#/trace/alarm-center?queryString=action_id%20%3A%20{collect_id}&filterMode=queryString",
@@ -1361,6 +1376,17 @@ AGGREGATION_BIZ_ID = int(os.getenv("BKAPP_AGGREGATION_BIZ_ID", 2))
 PUSH_MONITOR_EVENT_TO_FTA = True
 # 监控推送事件数据给自愈的 kafka topic
 MONITOR_EVENT_KAFKA_TOPIC = os.getenv("BK_MONITOR_EVENT_KAFKA_TOPIC", "0bkmonitor_backend_event")
+# alarmd Detect→Trigger Shadow 默认关闭；所有旁路发布由一个总开关控制。
+ALARMD_SHADOW_ENABLED = False
+ALARMD_V2_SHADOW_KAFKA_CONFIG = {}
+ALARMD_V2_SHADOW_ALLOWED_TOPICS = ()
+ALARMD_V2_SHADOW_ASYNC_MAX_JOBS = 0
+ALARMD_V2_SHADOW_ASYNC_MAX_RECORDS = 0
+ALARMD_V2_SHADOW_ASYNC_MAX_BYTES = 0
+ALARMD_V2_SHADOW_DRAIN_TIMEOUT_SECONDS = 1
+ALARMD_TRIGGER_REFERENCE_SHADOW_KAFKA_CONFIG = {}
+ALARMD_TRIGGER_REFERENCE_SHADOW_ALLOWED_TOPICS = ()
+ALARMD_TRIGGER_REFERENCE_SHADOW_ASYNC_QUEUE_SIZE = 16
 # 监控推送事件数据给自愈的 插件ID
 MONITOR_EVENT_PLUGIN_ID = "bkmonitor"
 # 主机监控获取单个进程支持最多port数
@@ -1770,6 +1796,12 @@ ENABLE_UPTIMECHECK_TEST = True
 # 检测结果缓存 TTL(小时)
 CHECK_RESULT_TTL_HOURS = 1
 
+# 是否使用 HSCAN 分页清理检测结果缓存
+ENABLE_CHECK_RESULT_CLEAN_HSCAN = False
+CHECK_RESULT_CLEAN_HSCAN_COUNT = 256
+CHECK_RESULT_CLEAN_HSCAN_MAX_FIELDS = 2048
+CHECK_RESULT_CLEAN_PIPELINE_COMMAND_LIMIT = 256
+
 # 支持来源 APIGW 列表
 FROM_APIGW_NAME = os.getenv("FROM_APIGW_NAME", "bk-monitor")
 # 网关环境，prod 表示生产环境，stage 表示测试环境
@@ -1890,6 +1922,8 @@ HOME_PAGE_ALARM_GRAPH_LIMIT = 10
 
 # 是否启用多租户模式
 ENABLE_MULTI_TENANT_MODE = os.getenv("ENABLE_MULTI_TENANT_MODE", "false").lower() == "true"
+# 自定义格式 VM 链路使用的 inner KafkaChannel，key 为 "<tenant>:<namespace>"。
+BKBASE_INNER_KAFKA_CHANNEL_MAP = json.loads(os.getenv("BKBASE_INNER_KAFKA_CHANNEL_MAP", "{}"))
 # 是否启用全局租户（blueapps依赖）
 IS_GLOBAL_TENANT = True
 # IAM多租户配置
