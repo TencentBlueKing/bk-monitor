@@ -1421,7 +1421,7 @@ class CollectorViewSet(ModelViewSet):
         data = self.params_valid(CollectorEtlStorageSerializer)
         etl_handler = EtlHandler.get_instance(collector_config_id)
         collector_handler = CollectorHandler.get_instance(collector_config_id)
-        labels = collector_handler._build_scene_labels()
+        labels = collector_handler.build_scene_labels()
         data["labels"] = labels
         data, can_apply = etl_handler.itsm_pre_hook(data, collector_config_id)
         if not can_apply:

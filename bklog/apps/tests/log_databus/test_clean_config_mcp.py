@@ -67,7 +67,7 @@ class CleanConfigMcpPermissionTests(SimpleTestCase):
         handler.update_or_create.return_value = {"collector_config_id": 101, "index_set_id": 202}
         mock_get_instance.return_value = handler
         collector_handler = MagicMock()
-        collector_handler._build_scene_labels.return_value = {"scene": "host"}
+        collector_handler.build_scene_labels.return_value = {"scene": "host"}
         mock_collector_handler.return_value = collector_handler
         view = CollectorViewSet()
         view.params_valid = MagicMock(return_value=request_data.copy())

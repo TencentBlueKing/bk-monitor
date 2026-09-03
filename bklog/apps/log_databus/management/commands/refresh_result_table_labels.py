@@ -12,7 +12,7 @@ from django.core.management.base import BaseCommand, CommandError
 from apps.api import TransferApi
 from apps.feature_toggle.models import FeatureToggle
 from apps.feature_toggle.plugins.constants import SCENE_SEARCH
-from apps.log_databus.constants import build_collector_scene_labels, detect_container_stream
+from apps.log_databus.constants import ADMIN_REQUEST_USER, build_collector_scene_labels, detect_container_stream
 from apps.log_databus.handlers.collector.base import CollectorHandler
 from apps.log_databus.models import CollectorConfig, ContainerCollectorConfig
 from apps.utils.log import logger
@@ -41,7 +41,7 @@ class Command(BaseCommand):
             raise CommandError("batch-size must be greater than 0")
         if enable_scene_search and dry_run:
             raise CommandError("enable-scene-search cannot be used with dry-run")
-        if enable_scene_search and any(options.get(key) is not None for key in ["bk_biz_id", "start_id", "end_id"]):
+        if enable_scene_search and options.get("bk_biz_id") is not None:
             raise CommandError("enable-scene-search requires a full refresh without scope filters")
         if enable_scene_search and FeatureToggle.objects.filter(name=SCENE_SEARCH, status="on").exists():
             self.stdout.write(
@@ -85,7 +85,7 @@ class Command(BaseCommand):
                         {
                             "table_id": cfg.table_id,
                             "bk_biz_id": cfg.bk_biz_id,
-                            "operator": "admin",
+                            "operator": ADMIN_REQUEST_USER,
                             "labels": labels,
                         }
                     )

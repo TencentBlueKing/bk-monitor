@@ -108,7 +108,7 @@ class TestCollectorHandlerSceneLabels(TestCase):
 
         for attrs, expected in cases:
             with self.subTest(attrs=attrs):
-                self.assertEqual(self._new_handler(**attrs)._build_scene_labels(), expected)
+                self.assertEqual(self._new_handler(**attrs).build_scene_labels(), expected)
 
     def test_paas_precedes_custom_container_judgement(self):
         handler = self._new_handler(
@@ -120,7 +120,7 @@ class TestCollectorHandlerSceneLabels(TestCase):
         )
 
         with patch.object(handler, "_detect_container_stream") as mock_detect:
-            self.assertEqual(handler._build_scene_labels()["scene"], "bk_paas")
+            self.assertEqual(handler.build_scene_labels()["scene"], "bk_paas")
 
         mock_detect.assert_not_called()
 
@@ -147,7 +147,7 @@ class TestCollectorHandlerSceneLabels(TestCase):
 
         for attrs, expected_scene in cases:
             with self.subTest(attrs=attrs):
-                self.assertEqual(self._new_handler(**attrs)._build_scene_labels()["scene"], expected_scene)
+                self.assertEqual(self._new_handler(**attrs).build_scene_labels()["scene"], expected_scene)
 
 
 class TestRefreshResultTableLabelsCommand(TestCase):
@@ -360,7 +360,10 @@ class TestSyncBcsSceneLabels(TestCase):
         path_collector = self._create_collector("bcs_path", ContainerCollectorType.CONTAINER)
         std_collector = self._create_collector("bcs_std", ContainerCollectorType.STDOUT)
 
-        K8sCollectorHandler._sync_bcs_scene_labels(path_collector, std_collector)
+        K8sCollectorHandler._sync_bcs_scene_labels(
+            path_collector.collector_config_id,
+            std_collector.collector_config_id,
+        )
 
         expected_labels = {
             path_collector.table_id: {"scene": "k8s", "cluster_id": "BCS-NEW", "stream": "file"},
@@ -374,6 +377,30 @@ class TestSyncBcsSceneLabels(TestCase):
             [call.args[0] for call in mock_sync_tags.call_args_list],
             list(expected_labels.values()),
         )
+
+    def test_sync_metadata_failure_does_not_propagate_or_update_local_tags(self):
+        collector = self._create_collector("bcs_failed", ContainerCollectorType.CONTAINER)
+
+        with patch(
+            "apps.log_databus.handlers.collector.k8s.TransferApi.switch_result_table",
+            side_effect=RuntimeError("metadata unavailable"),
+        ):
+            with patch.object(K8sCollectorHandler, "_sync_scene_tags_to_index_set") as mock_sync_tags:
+                K8sCollectorHandler._sync_bcs_scene_labels(collector.collector_config_id)
+
+        mock_sync_tags.assert_not_called()
+
+    def test_schedule_defers_bcs_sync_until_transaction_commit(self):
+        handler = K8sCollectorHandler()
+        collector = self._create_collector("bcs_deferred", ContainerCollectorType.CONTAINER)
+
+        with self.captureOnCommitCallbacks(execute=False) as callbacks:
+            handler._schedule_bcs_scene_label_sync(collector)
+
+        self.assertEqual(len(callbacks), 1)
+        with patch.object(K8sCollectorHandler, "_sync_bcs_scene_labels") as mock_sync_labels:
+            callbacks[0]()
+        mock_sync_labels.assert_called_once_with(collector.collector_config_id)
 
     @patch("apps.log_databus.handlers.collector.k8s.IndexSetHandler")
     def test_update_syncs_existing_and_new_collectors(self, _mock_index_set_handler):
@@ -443,7 +470,7 @@ class TestSyncBcsSceneLabels(TestCase):
                 }
             ],
         }
-        with patch.object(handler, "_sync_bcs_scene_labels") as mock_sync_labels:
+        with patch.object(handler, "_schedule_bcs_scene_label_sync") as mock_sync_labels:
             with (
                 patch.object(handler, "_get_bcs_config", return_value={"data_link_id": 0, "storage_cluster_id": 1}),
                 patch.object(handler, "_create_bcs_collector", side_effect=create_stdout_collector),

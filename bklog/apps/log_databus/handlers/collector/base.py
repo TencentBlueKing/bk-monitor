@@ -658,7 +658,7 @@ class CollectorHandler:
                 "fields": fields,
                 "sort_fields": sort_fields,
                 "target_fields": target_fields,
-                "labels": self._build_scene_labels(),
+                "labels": self.build_scene_labels(),
                 "is_platform_index": is_platform_index,
                 "platform_index_visibility": platform_index_visibility,
                 "platform_index_filter": platform_index_filter,
@@ -1609,7 +1609,7 @@ class CollectorHandler:
                 "fields": custom_config.fields,
                 "sort_fields": sort_fields,
                 "target_fields": target_fields,
-                "labels": self._build_scene_labels(),
+                "labels": self.build_scene_labels(),
                 "is_platform_index": is_platform_index,
                 "platform_index_visibility": platform_index_visibility,
                 "platform_index_filter": platform_index_filter,
@@ -1699,7 +1699,7 @@ class CollectorHandler:
             for label_key, label_valus in obj_item["metadata"]["labels"].items()
         ]
 
-    def _build_scene_labels(self) -> dict:
+    def build_scene_labels(self) -> dict:
         """Build ResultTable.labels based on collector scenario and environment.
 
         场景优先级由无模型依赖的共享函数统一维护，在线路径仅负责补充
@@ -1807,7 +1807,7 @@ class CollectorHandler:
             default_etl_params.update(params)
             params = default_etl_params
 
-        params.setdefault("labels", self._build_scene_labels())
+        params.setdefault("labels", self.build_scene_labels())
 
         from apps.log_databus.handlers.etl import EtlHandler
 
