@@ -53,6 +53,7 @@ import {
 } from './composables';
 import { RUM_COLUMN_CONFIG_KEY, RUM_COLUMN_LAYOUT_PRESET, RUM_RESIDENT_SETTING_KEY, RumModeEnum } from './constants';
 import { getApplicationList } from './services/rum-application';
+import EmptyStatus from '@/components/empty-status/empty-status';
 
 import type { ConditionChangeEvent } from '../trace-explore/typing';
 import type { IRumApplication, IRumColumnLayoutPreset } from './typings';
@@ -75,6 +76,7 @@ export default defineComponent({
     const { handleGetUserConfig: getResidentConfig, handleSetUserConfig: setResidentConfig } = useUserConfig();
 
     const isCollapsed = shallowRef(false);
+    const applicationLoading = shallowRef(false);
     const applicationList = shallowRef<IRumApplication[]>([]);
     const thumbtackList = shallowRef<string[]>([]);
     const defaultApplication = shallowRef('');
@@ -157,7 +159,9 @@ export default defineComponent({
     );
 
     async function fetchApplicationList() {
-      const list = await getApplicationList();
+      applicationLoading.value = true;
+      const list = await getApplicationList().catch(() => []);
+      applicationLoading.value = false;
       applicationList.value = list;
       store.appList = list;
       if (store.appName && list.some(item => item.app_name === store.appName)) return;
@@ -233,6 +237,11 @@ export default defineComponent({
       queryCtx.setUrlParams();
     }
 
+    function handleCreateApp() {
+      const url = location.href.replace(location.hash, '#/apm/home');
+      window.open(url, '_blank');
+    }
+
     onMounted(async () => {
       updateTimezone(store.timezone);
       await fetchUserConfig();
@@ -249,6 +258,7 @@ export default defineComponent({
       route,
       store,
       applicationList,
+      applicationLoading,
       columnConfig,
       emptyType,
       layoutPreset,
@@ -273,6 +283,7 @@ export default defineComponent({
       handleSortChange,
       handleSpanTypeChange,
       handleThumbtackChange,
+      handleCreateApp,
     };
   },
   render() {
@@ -350,8 +361,21 @@ export default defineComponent({
                 onWhereChange={queryCtx.whereChange}
               />
             )}
-
-            {this.isSpanMode ? (
+            {!this.applicationLoading && !this.applicationList.length && (
+              <div class='create-app-guide'>
+                <EmptyStatus
+                  textMap={{ 'empty-app': this.t('暂无应用') }}
+                  type='empty-app'
+                >
+                  <p class='subTitle'>
+                    <i18n-t keypath='无法查询调用链，请先 {0}'>
+                      <span onClick={() => this.handleCreateApp()}>{this.t('创建应用')}</span>
+                    </i18n-t>
+                  </p>
+                </EmptyStatus>
+              </div>
+            )}
+            {!this.applicationLoading && !!this.applicationList.length && (
               <TraceExploreLayout
                 isCollapsed={this.isCollapsed}
                 onUpdate:isCollapsed={value => {
@@ -415,9 +439,6 @@ export default defineComponent({
                   ),
                 }}
               </TraceExploreLayout>
-            ) : (
-              // Session / View 视角本期不实现，先留空占位
-              <div class='rum-explore-mode-placeholder' />
             )}
           </div>
         </div>
