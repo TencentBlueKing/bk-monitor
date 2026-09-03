@@ -22,6 +22,7 @@ from bkmonitor.models import (
     StrategyModel,
 )
 from bkmonitor.strategy.new_strategy import Strategy
+from core.errors.strategy import CreateStrategyError
 
 pytestmark = pytest.mark.django_db(databases="__all__")
 
@@ -444,6 +445,53 @@ def test_update_rejects_multiple_notice_relations(existing_strategy: dict[str, A
     strategy.refresh_from_db()
     assert strategy.name == "original strategy"
     assert StrategyHistoryModel.objects.filter(strategy_id=strategy.id).count() == 0
+
+
+def test_update_name_conflict_preserves_strategy_and_records_failed_history(
+    existing_strategy: dict[str, Any],
+) -> None:
+    strategy: StrategyModel = existing_strategy["strategy"]
+    StrategyModel.objects.create(
+        bk_biz_id=BK_BIZ_ID,
+        name="updated strategy",
+        scenario="apm",
+        type=StrategyModel.StrategyType.Monitor,
+    )
+
+    with pytest.raises(CreateStrategyError, match="不能重复"):
+        StrategyTemplateUpdater.update(BK_BIZ_ID, strategy.id, build_candidate_params())
+
+    strategy.refresh_from_db()
+    assert (strategy.name, strategy.scenario, strategy.hash, strategy.snippet) == (
+        "original strategy",
+        "apm",
+        "preserved-hash",
+        "preserved-snippet",
+    )
+    history: StrategyHistoryModel = StrategyHistoryModel.objects.get(strategy_id=strategy.id)
+    assert history.status is False
+    assert "策略名称(updated strategy)不能重复" in history.message
+    assert history.content["name"] == "original strategy"
+
+
+def test_update_removes_duplicate_managed_labels(existing_strategy: dict[str, Any]) -> None:
+    strategy: StrategyModel = existing_strategy["strategy"]
+    retained_label = StrategyLabel.objects.create(
+        bk_biz_id=BK_BIZ_ID,
+        strategy_id=strategy.id,
+        label_name="/APM-APP(app-a)/",
+    )
+    duplicate_label = StrategyLabel.objects.create(
+        bk_biz_id=BK_BIZ_ID,
+        strategy_id=strategy.id,
+        label_name="/APM-APP(app-a)/",
+    )
+
+    StrategyTemplateUpdater.update(BK_BIZ_ID, strategy.id, build_candidate_params())
+
+    assert StrategyLabel.objects.filter(id=retained_label.id).exists()
+    assert not StrategyLabel.objects.filter(id=duplicate_label.id).exists()
+    assert StrategyLabel.objects.filter(strategy_id=strategy.id, label_name="/APM-APP(app-a)/").count() == 1
 
 
 def test_persistence_failure_rolls_back_template_fields(
