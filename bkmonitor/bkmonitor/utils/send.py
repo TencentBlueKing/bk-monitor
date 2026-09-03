@@ -29,6 +29,7 @@ from bkmonitor.utils.text import (
     cut_str_by_max_bytes,
     get_content_length,
 )
+from bkmonitor.utils.user import get_wxwork_mention_names
 from common.context_processors import Platform
 from constants.action import ActionPluginType, NoticeChannel, NoticeType, NoticeWay
 from core.drf_resource import api
@@ -651,9 +652,13 @@ class Sender(BaseSender):
             return requests.post(url, json=_construct_params(content, chat_ids)).json()
 
         send_result: dict[str, Any] = {"errcode": 0, "errmsg": []}
+        mention_map = get_wxwork_mention_names(
+            [user for chat_id in chat_ids for user in mentioned_users.get(chat_id, [])]
+        )
         for chat_id in chat_ids:
             send_content: str = content
             chat_mentioned_users: list[str] = mentioned_users.get(chat_id, [])
+            chat_mentioned_users = [mention_map.get(user, user) for user in chat_mentioned_users]
             if chat_mentioned_users:
                 mentioned_users_string: str = "".join([f"<@{user}>" for user in chat_mentioned_users])
                 mentioned_users_string = f"**{mentioned_title or _('告警接收人')}: **{mentioned_users_string}"
@@ -680,9 +685,13 @@ class Sender(BaseSender):
             return r.json()
 
         send_result = {"errcode": 0, "errmsg": []}
+        mention_map = get_wxwork_mention_names(
+            [user for chat_id in chat_ids for user in mentioned_users.get(chat_id, [])]
+        )
         for chat_id in chat_ids:
             params = {"msgtype": msgtype, "chatid": chat_id}
             chat_mentioned_users = mentioned_users.get(chat_id, [])
+            chat_mentioned_users = [mention_map.get(user, user) for user in chat_mentioned_users]
             msg_content = {}
             send_content = content.rstrip("\n")
             if chat_mentioned_users:
