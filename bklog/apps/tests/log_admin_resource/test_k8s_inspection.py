@@ -1,5 +1,6 @@
 import json
 from types import SimpleNamespace
+from typing import Any
 from unittest.mock import MagicMock, call, patch
 
 from django.core.cache import caches
@@ -1242,12 +1243,16 @@ class FixedK8sProbeTest(SimpleTestCase):
             source="/var/host/data/app.log",
             include_source_sample=True,
             config_map_main="path.data: /data/lib\n",
-            expected_specs=[{"path": ["/var/host/data/*.log"]}],
+            expected_specs=[
+                {"logConfigType": ContainerCollectorType.NODE, "path": ["/var/host/data/*.log"]},
+            ],
         )
 
         config_evidence = probes["main_config_mounted"]["evidence"]
         self.assertEqual(config_evidence["matching_patterns"], ["/var/host/data/*.log"])
         self.assertTrue(config_evidence["render_comparison"]["equivalent"])
+        # Node collection names a host path in the CRD, so path stays comparable.
+        self.assertIn("path", config_evidence["render_comparison"]["compared_fields"])
         self.assertEqual(config_evidence["child_configs"][0]["mtime_epoch"], 100)
         self.assertNotIn("/var/host/other", json.dumps(config_evidence))
         self.assertEqual(probes["source_path"]["evidence"]["files"][0]["sample"]["lines"], ["one", "two"])
@@ -1259,6 +1264,147 @@ class FixedK8sProbeTest(SimpleTestCase):
             "4096",
         )
         self.assertEqual(probes["sidecar_process"]["evidence"]["delta"]["threads"], 1)
+
+    @staticmethod
+    def _stdout_render_parsed(*container_logs: str) -> dict[str, Any]:
+        rendered = "".join(
+            f"  - dataid: 1001\n    paths: ['{path}']\n    docker-json: {{cri_flags: true, stream: all}}\n"
+            for path in container_logs
+        )
+        return {
+            "values": {"first.source_count": "0", "second.source_count": "0"},
+            "streams": {
+                "child_config.0": {
+                    "path": "/data/etc/bkunifylogbeat/a.conf",
+                    "content": "local:\n" + rendered,
+                }
+            },
+        }
+
+    def _render_comparison(self, parsed: dict[str, Any], expected_specs: list[dict[str, Any]]) -> dict[str, Any]:
+        probes = build_probe_evidence(
+            parsed,
+            bk_data_id=1001,
+            source=None,
+            include_source_sample=False,
+            config_map_main=None,
+            expected_specs=expected_specs,
+        )
+        return probes["main_config_mounted"]
+
+    def test_render_comparison_skips_sidecar_translated_path_for_stdout(self):
+        container_log = (
+            "/var/host/data/bcs/lib/docker/containers/"
+            "5307d87087fcd13941ffe974a71c1ab47a833995647ce774e891ad9cefc648d3/"
+            "5307d87087fcd13941ffe974a71c1ab47a833995647ce774e891ad9cefc648d3-json.log"
+        )
+
+        probe = self._render_comparison(
+            self._stdout_render_parsed(container_log),
+            [
+                {
+                    "logConfigType": ContainerCollectorType.STDOUT,
+                    "path": [""],
+                    "exclude_files": [],
+                    "multiline": {"pattern": None, "maxLines": None, "timeout": None},
+                }
+            ],
+        )
+        comparison = probe["evidence"]["render_comparison"]
+
+        # A stdout spec carries no path; the sidecar resolves it to the host-side container
+        # log. Comparing the two verbatim reported a drift on every healthy inspection, as did
+        # reading an explicitly empty exclude_files or an all-null multiline as a difference.
+        self.assertTrue(comparison["equivalent"])
+        self.assertEqual(probe["code"], "child_config_rendered")
+        self.assertNotIn("path", comparison["compared_fields"])
+        self.assertEqual(comparison["skipped_fields"][0]["field"], "path")
+        self.assertEqual(comparison["skipped_fields"][0]["reason"], "path_translated_by_sidecar")
+
+    def test_render_comparison_keeps_a_real_encoding_difference(self):
+        probe = self._render_comparison(
+            self._stdout_render_parsed("/var/host/data/bcs/lib/docker/containers/abc/abc-json.log"),
+            [{"logConfigType": ContainerCollectorType.STDOUT, "path": [""], "encoding": "GBK"}],
+        )
+        comparison = probe["evidence"]["render_comparison"]
+
+        # The rendered input carries no encoding at all, which is a genuine signal and has to
+        # survive the normalisation that silences the empty-versus-absent noise.
+        self.assertFalse(comparison["equivalent"])
+        self.assertEqual([item["field"] for item in comparison["differences"]], ["encoding"])
+        self.assertEqual(probe["code"], "child_config_rendered_drift")
+
+    def test_render_comparison_collapses_one_spec_rendered_into_many_inputs(self):
+        parsed = self._stdout_render_parsed(
+            "/var/host/data/bcs/lib/docker/containers/aaa/aaa-json.log",
+            "/var/host/data/bcs/lib/docker/containers/bbb/bbb-json.log",
+        )
+        parsed["streams"]["child_config.0"]["content"] = parsed["streams"]["child_config.0"]["content"].replace(
+            "docker-json: {cri_flags: true, stream: all}",
+            "docker-json: {cri_flags: true, stream: all}\n    encoding: UTF-8",
+        )
+
+        probe = self._render_comparison(
+            parsed,
+            [{"logConfigType": ContainerCollectorType.STDOUT, "path": [""], "encoding": "UTF-8"}],
+        )
+        comparison = probe["evidence"]["render_comparison"]
+
+        # One spec matching two containers renders two inputs. Comparing the per-spec and
+        # per-input lists would differ on length alone even though every value agrees.
+        self.assertTrue(comparison["equivalent"])
+
+    def test_render_comparison_compares_path_for_container_collection(self):
+        parsed = {
+            "values": {"first.source_count": "0", "second.source_count": "0"},
+            "streams": {
+                "child_config.0": {
+                    "path": "/data/etc/bkunifylogbeat/a.conf",
+                    "content": (
+                        "local:\n"
+                        "  - dataid: 1001\n"
+                        "    paths: ['/data/app/*.log']\n"
+                        "    root_fs: /var/host/var/lib/docker/overlay2/abc/merged\n"
+                        "    mounts:\n"
+                        "      - {container_path: /data/app, host_path: /var/host/var/lib/kubelet/pods/uid/x}\n"
+                    ),
+                }
+            },
+        }
+
+        probe = self._render_comparison(
+            parsed,
+            [{"logConfigType": ContainerCollectorType.CONTAINER, "path": ["/data/app/*.log"]}],
+        )
+        comparison = probe["evidence"]["render_comparison"]
+
+        # Container collection keeps the configured path verbatim and maps it through mounts and
+        # root_fs, so the path stays comparable and skipping it would drop a real drift signal.
+        self.assertIn("path", comparison["compared_fields"])
+        self.assertEqual(comparison["skipped_fields"], [])
+        self.assertTrue(comparison["equivalent"])
+
+    def test_render_comparison_still_reports_a_node_path_drift(self):
+        parsed = {
+            "values": {"first.source_count": "0", "second.source_count": "0"},
+            "streams": {
+                "child_config.0": {
+                    "path": "/data/etc/bkunifylogbeat/a.conf",
+                    "content": "local:\n  - dataid: 1001\n    paths: ['/var/host/data/actual.log']\n",
+                }
+            },
+        }
+
+        probe = self._render_comparison(
+            parsed,
+            [{"logConfigType": ContainerCollectorType.NODE, "path": ["/var/host/data/expected.log"]}],
+        )
+        comparison = probe["evidence"]["render_comparison"]
+
+        self.assertFalse(comparison["equivalent"])
+        self.assertEqual(comparison["differences"][0]["field"], "path")
+        self.assertEqual(comparison["differences"][0]["expected"], ["/var/host/data/expected.log"])
+        self.assertEqual(comparison["differences"][0]["actual"], ["/var/host/data/actual.log"])
 
     def test_probe_evidence_rejects_source_outside_selected_data_id(self):
         parsed = {

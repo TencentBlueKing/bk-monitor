@@ -968,7 +968,8 @@ class FixedRemoteScriptTest(SimpleTestCase):
         self.assertEqual(completed.returncode, 0, completed.stderr)
         self.assertNotIn("syntax error", completed.stderr)
 
-    def test_shared_probe_extracts_source_paths_from_inline_and_block_yaml(self):
+    def _extract_source_patterns(self, *configs: str) -> tuple[dict[str, str], str]:
+        """Replay the probe's path extraction, mapping each configured path to its host path."""
         script = fixed_probe_script().decode("utf-8")
         extraction_start = script.index("child_index=0")
         extraction_end = script.index('\nemit_kv "source_pattern_count"', extraction_start)
@@ -976,22 +977,11 @@ class FixedRemoteScriptTest(SimpleTestCase):
 
         with tempfile.TemporaryDirectory() as directory:
             config_directory = Path(directory)
-            inline_path = config_directory / "inline.conf"
-            inline_path.write_text(
-                "local:\n    - dataid: 1001\n      paths: [\"/var/log/app/*.log\", '/data/logs/biz.log']\n",
-                encoding="utf-8",
-            )
-            block_path = config_directory / "block.conf"
-            block_path.write_text(
-                "local:\n"
-                "    - dataid: 1001\n"
-                "      paths:\n"
-                "        - /var/lib/docker/containers/abc/abc-json.log\n"
-                '        - "/var/host/data/bcs/lib/docker/containers/def/def-json.log"\n',
-                encoding="utf-8",
-            )
-
-            child_paths = "\n".join(str(path) for path in (inline_path, block_path))
+            config_paths = []
+            for index, content in enumerate(configs):
+                config_path = config_directory / f"child{index}.conf"
+                config_path.write_text(content, encoding="utf-8")
+                config_paths.append(str(config_path))
             harness = "\n".join(
                 (
                     "set -u",
@@ -1000,7 +990,8 @@ class FixedRemoteScriptTest(SimpleTestCase):
                     "MAX_SOURCES=50",
                     "tab=$(printf '\\t')",
                     "emit_blob() { :; }",
-                    f"child_paths='{child_paths}'",
+                    "emit_kv() { :; }",
+                    "child_paths='{}'".format("\n".join(config_paths)),
                     extraction_script,
                     "printf '%s\\n' \"$source_patterns\"",
                     "printf '%s\\n' \"$source_pattern_count\"",
@@ -1014,17 +1005,117 @@ class FixedRemoteScriptTest(SimpleTestCase):
                 check=True,
             )
 
-            *patterns, pattern_count = completed.stdout.splitlines()
-            self.assertEqual(
-                set(patterns),
-                {
-                    "/data/logs/biz.log",
-                    "/var/host/data/bcs/lib/docker/containers/def/def-json.log",
-                    "/var/lib/docker/containers/abc/abc-json.log",
-                    "/var/log/app/*.log",
-                },
-            )
-            self.assertEqual(pattern_count, "4")
+        self.assertNotIn("syntax error", completed.stderr)
+        *rows, pattern_count = completed.stdout.splitlines()
+        resolved = {}
+        for row in rows:
+            config_pattern, _, resolved_pattern = row.partition("\t")
+            resolved[config_pattern] = resolved_pattern
+        return resolved, pattern_count
+
+    def test_shared_probe_extracts_source_paths_from_inline_and_block_yaml(self):
+        inline_config = "local:\n    - dataid: 1001\n      paths: [\"/var/log/app/*.log\", '/data/logs/biz.log']\n"
+        block_config = (
+            "local:\n"
+            "    - dataid: 1001\n"
+            "      paths:\n"
+            "        - /var/lib/docker/containers/abc/abc-json.log\n"
+            '        - "/var/host/data/bcs/lib/docker/containers/def/def-json.log"\n'
+        )
+
+        resolved, pattern_count = self._extract_source_patterns(inline_config, block_config)
+
+        self.assertEqual(pattern_count, "4")
+        self.assertEqual(
+            set(resolved),
+            {
+                "/data/logs/biz.log",
+                "/var/host/data/bcs/lib/docker/containers/def/def-json.log",
+                "/var/lib/docker/containers/abc/abc-json.log",
+                "/var/log/app/*.log",
+            },
+        )
+        # Host collection carries neither mounts nor a container root, so nothing is translated.
+        self.assertEqual(set(resolved), set(resolved.values()))
+
+    def test_shared_probe_resolves_container_path_through_longest_matching_mount(self):
+        config = (
+            "local:\n"
+            "    - dataid: 1001\n"
+            "      mounts:\n"
+            "        - container_path: /data/app\n"
+            "          host_path: /var/host/volumes/layer-app\n"
+            "        - container_path: /data/app/deep\n"
+            "          host_path: /var/host/volumes/layer-deep\n"
+            "        - container_path: /data\n"
+            "          host_path: /var/host/volumes/layer-root\n"
+            "      paths:\n"
+            "        - /data/*.log\n"
+            "        - /data/app/*.log\n"
+            "        - /data/app/deep/*.log\n"
+            "      root_fs: /var/host/overlay/merged\n"
+        )
+
+        resolved, pattern_count = self._extract_source_patterns(config)
+
+        self.assertEqual(pattern_count, "3")
+        # Nested mounts are rendered in no useful order, so a file only turns up under the
+        # deepest volume covering it. Losing any single mount silently reroutes its paths onto a
+        # shorter one, which resolves to a directory the volume never fills.
+        self.assertEqual(
+            resolved,
+            {
+                "/data/*.log": "/var/host/volumes/layer-root/*.log",
+                "/data/app/*.log": "/var/host/volumes/layer-app/*.log",
+                "/data/app/deep/*.log": "/var/host/volumes/layer-deep/*.log",
+            },
+        )
+
+    def test_shared_probe_prefixes_root_fs_only_when_the_path_sits_outside_it(self):
+        node_config = (
+            "local:\n    - dataid: 1001\n      paths:\n        - /var/log/app/*.log\n      root_fs: /var/host\n"
+        )
+        stdout_config = (
+            "local:\n"
+            "    - dataid: 1001\n"
+            "      paths:\n"
+            "        - /var/host/var/lib/docker/containers/abc/abc-json.log\n"
+            "      root_fs: /var/host\n"
+        )
+
+        resolved, pattern_count = self._extract_source_patterns(node_config, stdout_config)
+
+        self.assertEqual(pattern_count, "2")
+        # Node collection names a path inside the node, which the collector reaches through the
+        # mounted root.
+        self.assertEqual(resolved["/var/log/app/*.log"], "/var/host/var/log/app/*.log")
+        # Stdout collection is already rendered below root_fs, and prefixing it again would look
+        # for /var/host/var/host/...
+        self.assertEqual(
+            resolved["/var/host/var/lib/docker/containers/abc/abc-json.log"],
+            "/var/host/var/lib/docker/containers/abc/abc-json.log",
+        )
+
+    def test_shared_probe_matches_a_mount_only_on_a_path_boundary(self):
+        config = (
+            "local:\n"
+            "    - dataid: 1001\n"
+            "      mounts:\n"
+            "        - container_path: /data\n"
+            "          host_path: /var/host/volumes/data\n"
+            "      paths:\n"
+            "        - /data/app.log\n"
+            "        - /database/app.log\n"
+            "      root_fs: /var/host/overlay/merged\n"
+        )
+
+        resolved, pattern_count = self._extract_source_patterns(config)
+
+        self.assertEqual(pattern_count, "2")
+        self.assertEqual(resolved["/data/app.log"], "/var/host/volumes/data/app.log")
+        # /data must not claim /database, or the probe reads a volume that never holds the file
+        # while the real one sits in the container root.
+        self.assertEqual(resolved["/database/app.log"], "/var/host/overlay/merged/database/app.log")
 
     def test_shared_probe_registrar_stream_splits_single_key_array_before_filtering(self):
         script = fixed_probe_script().decode("utf-8")

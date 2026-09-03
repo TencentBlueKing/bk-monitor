@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import fnmatch
 import hashlib
+import json
 import os
+from collections.abc import Iterable
 from typing import Any
 
 import yaml
@@ -15,6 +17,7 @@ from apps.log_admin_resource.collector_probe_parsers import (
     parse_registrar_strings_with_stats,
     state_for_file,
 )
+from apps.log_databus.constants import ContainerCollectorType
 
 
 MAX_SOURCE_SAMPLE_BYTES = 64 * 1024
@@ -213,34 +216,101 @@ def _rendered_configs(
     return configs, matching_inputs
 
 
+def _normalized_config_value(value: Any) -> Any:
+    """Collapse an explicitly empty setting into the same shape as an absent one.
+
+    A CRD spec spells "not configured" out in full (``[]``, ``[""]``, or a mapping whose values
+    are all null), while the rendered beat input simply omits the key. Comparing the two
+    verbatim reports a difference on every healthy inspection.
+    """
+    if isinstance(value, str):
+        return value or None
+    if isinstance(value, list | tuple):
+        items = [item for item in (_normalized_config_value(item) for item in value) if item is not None]
+        return items or None
+    if isinstance(value, dict):
+        items = {
+            key: normalized
+            for key, normalized in ((key, _normalized_config_value(child)) for key, child in value.items())
+            if normalized is not None
+        }
+        return items or None
+    return value
+
+
+def _distinct_config_values(values: Iterable[Any]) -> list[Any]:
+    """Deduplicate configured values so both sides stay comparable.
+
+    One CRD spec renders into one input per matched container, so comparing the raw per-spec
+    and per-input lists would differ on length alone even when every value agrees.
+    """
+    collected: dict[str, Any] = {}
+    for value in values:
+        normalized = _normalized_config_value(value)
+        if normalized is None:
+            continue
+        collected[json.dumps(normalized, sort_keys=True, default=str)] = normalized
+    return [collected[key] for key in sorted(collected)]
+
+
+# Stdout collection is the only type without a path of its own: the CRD leaves it empty and the
+# sidecar resolves it to the host-side container log file, so the two can never match verbatim.
+# Container and node collection keep their configured path unchanged in the rendered input and
+# rely on mounts and root_fs for the host mapping, which keeps their path worth comparing.
+_PATH_TRANSLATED_LOG_CONFIG_TYPES = frozenset({ContainerCollectorType.STDOUT})
+
+
 def _rendered_config_comparison(
     expected_specs: list[dict[str, Any]], matching_inputs: list[dict[str, Any]]
 ) -> dict[str, Any]:
     if not expected_specs:
-        return {"equivalent": True, "compared_fields": [], "differences": []}
-    expected_paths = sorted(
-        {str(path) for spec in expected_specs for path in (spec.get("path") or []) if isinstance(path, str)}
-    )
-    actual_paths = sorted(
-        {
-            str(path)
-            for input_config in matching_inputs
-            for path in (input_config.get("paths") or [])
-            if isinstance(path, str)
-        }
-    )
+        return {"equivalent": True, "compared_fields": [], "differences": [], "skipped_fields": []}
     differences = []
-    if expected_paths != actual_paths:
-        differences.append({"field": "path", "expected": expected_paths, "actual": actual_paths})
+    skipped_fields = []
+    compared_fields = []
+
+    log_config_types = sorted({str(spec.get("logConfigType") or "") for spec in expected_specs})
+    if set(log_config_types) & _PATH_TRANSLATED_LOG_CONFIG_TYPES:
+        skipped_fields.append(
+            {
+                "field": "path",
+                "reason": "path_translated_by_sidecar",
+                "log_config_types": log_config_types,
+            }
+        )
+    else:
+        compared_fields.append("path")
+        expected_paths = sorted(
+            {
+                str(path)
+                for spec in expected_specs
+                for path in (_normalized_config_value(spec.get("path")) or [])
+                if isinstance(path, str)
+            }
+        )
+        actual_paths = sorted(
+            {
+                str(path)
+                for input_config in matching_inputs
+                for path in (_normalized_config_value(input_config.get("paths")) or [])
+                if isinstance(path, str)
+            }
+        )
+        if expected_paths != actual_paths:
+            differences.append({"field": "path", "expected": expected_paths, "actual": actual_paths})
+
     for field in ("encoding", "exclude_files", "multiline"):
-        expected_values = [spec.get(field) for spec in expected_specs if spec.get(field) is not None]
-        actual_values = [item.get(field) for item in matching_inputs if item.get(field) is not None]
+        compared_fields.append(field)
+        expected_values = _distinct_config_values(spec.get(field) for spec in expected_specs)
+        actual_values = _distinct_config_values(item.get(field) for item in matching_inputs)
         if expected_values and expected_values != actual_values:
             differences.append({"field": field, "expected": expected_values, "actual": actual_values})
+
     return {
         "equivalent": not differences,
-        "compared_fields": ["path", "encoding", "exclude_files", "multiline"],
+        "compared_fields": compared_fields,
         "differences": differences,
+        "skipped_fields": skipped_fields,
     }
 
 

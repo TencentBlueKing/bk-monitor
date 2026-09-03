@@ -31,7 +31,7 @@ if [ "$target_config_hint_count" -gt 20 ]; then
 fi
 
 PROTOCOL="bklog.collector.inspection.probe.v1"
-PROBE_VERSION="137865321.2"
+PROBE_VERSION="137865321.3"
 # Stay below BK-JOB/GSE's 5 MiB atomic script-task log limit.
 OUTPUT_BUDGET_BYTES=4194304
 OUTPUT_FINAL_RESERVE_BYTES=4096
@@ -583,7 +583,30 @@ while IFS= read -r child_path && [ "$child_index" -lt "$MAX_MATCHED_CHILD_CONFIG
         *"$tab"*) continue ;;
     esac
     emit_blob "child_config.$child_index" "$child_path" "$MAX_CHILD_CONFIG_BYTES"
+    # A rendered path is written from inside the container. Reaching the same file from the
+    # collector means replaying what the collector itself does: resolve it through the mount
+    # table when the path sits on a mounted volume, otherwise through the container root.
     extracted_patterns=$(awk '
+        function scalar(value) {
+            sub(/^[^:]*:[[:space:]]*/, "", value)
+            gsub(/^[[:space:]\047\"]+|[[:space:]\047\"]+$/, "", value)
+            return value
+        }
+        # An unset variable subscripts an array by its string value, which is "" and not 0, so
+        # the first mount would land outside the range the loop below walks and disappear.
+        BEGIN { mount_count = 0; path_count = 0 }
+        /^[[:space:]]*root_fs[[:space:]]*:/ { root_fs = scalar($0); next }
+        /^[[:space:]]*-?[[:space:]]*container_path[[:space:]]*:/ { pending = scalar($0); next }
+        /^[[:space:]]*host_path[[:space:]]*:/ {
+            value = scalar($0)
+            if (pending != "" && value != "") {
+                mount_container[mount_count] = pending
+                mount_host[mount_count] = value
+                mount_count++
+            }
+            pending = ""
+            next
+        }
         /^[[:space:]]*paths[[:space:]]*:[[:space:]]*\[/ {
             line=$0
             sub("^[^[]*\\[", "", line)
@@ -592,7 +615,7 @@ while IFS= read -r child_path && [ "$child_index" -lt "$MAX_MATCHED_CHILD_CONFIG
             for (idx=1; idx<=count; idx++) {
                 value=values[idx]
                 gsub(/^[[:space:]\047\"]+|[[:space:]\047\"]+$/, "", value)
-                if (value ~ /^\//) print value
+                if (value ~ /^\//) paths[path_count++] = value
             }
             inside=0
             next
@@ -602,11 +625,55 @@ while IFS= read -r child_path && [ "$child_index" -lt "$MAX_MATCHED_CHILD_CONFIG
             line=$0
             sub("^[[:space:]]*-[[:space:]]*", "", line)
             gsub(/^[\047\"]|[\047\"]$/, "", line)
-            if (line ~ /^\//) print line
+            if (line ~ /^\//) paths[path_count++] = line
             next
         }
         inside && $0 !~ /^[[:space:]]/ { inside=0 }
+        END {
+            for (idx = 0; idx < path_count; idx++) {
+                source = paths[idx]
+                best = -1
+                best_length = -1
+                for (m = 0; m < mount_count; m++) {
+                    mount_length = length(mount_container[m])
+                    # Only treat a mount as a prefix on a path boundary, so /data never claims
+                    # /database. Nested mounts overlap and are not rendered in any useful order,
+                    # so the longest match is the volume that actually holds the file.
+                    if (substr(source, 1, mount_length) == mount_container[m] &&
+                        (length(source) == mount_length || substr(source, mount_length + 1, 1) == "/")) {
+                        if (mount_length > best_length) {
+                            best_length = mount_length
+                            best = m
+                        }
+                    }
+                }
+                if (best >= 0) {
+                    resolved = mount_host[best] substr(source, best_length + 1)
+                } else if (root_fs != "" && root_fs != "/" &&
+                           substr(source, 1, length(root_fs)) != root_fs) {
+                    resolved = root_fs source
+                } else {
+                    # stdout collection already renders a host path below root_fs; prefixing it
+                    # again would look for /var/host/var/host/...
+                    resolved = source
+                }
+                printf "%s\t%s\n", source, resolved
+            }
+        }
     ' "$child_path" 2>/dev/null)
+    emit_kv "child_config.$child_index.root_fs" "$(awk '
+        /^[[:space:]]*root_fs[[:space:]]*:/ {
+            value = $0
+            sub(/^[^:]*:[[:space:]]*/, "", value)
+            gsub(/^[[:space:]\047\"]+|[[:space:]\047\"]+$/, "", value)
+            print value
+            exit
+        }
+    ' "$child_path" 2>/dev/null)"
+    emit_kv "child_config.$child_index.mount_count" "$(awk '
+        /^[[:space:]]*host_path[[:space:]]*:/ {count++}
+        END {print count+0}
+    ' "$child_path" 2>/dev/null)"
     if [ -n "$extracted_patterns" ]; then
         source_patterns="$source_patterns
 $extracted_patterns"
@@ -720,7 +787,7 @@ snapshot_sources() {
     phase=$1
     index=0
     source_limit_exceeded=false
-    while IFS= read -r pattern; do
+    while IFS="$tab" read -r config_pattern pattern; do
         case "$pattern" in
             /*) ;;
             *) continue ;;
@@ -739,6 +806,9 @@ snapshot_sources() {
             mtime_epoch=$(printf '%s\n' "$metadata" | awk '{print $4}')
             resolved_path=$(readlink -f "$source_path" 2>/dev/null)
             emit_kv "$phase.source.$index.pattern" "$pattern"
+            if [ "$config_pattern" != "$pattern" ]; then
+                emit_kv "$phase.source.$index.config_pattern" "$config_pattern"
+            fi
             emit_kv "$phase.source.$index.path" "$source_path"
             emit_kv "$phase.source.$index.resolved_path" "$resolved_path"
             add_registrar_filter_key "$source_path"
