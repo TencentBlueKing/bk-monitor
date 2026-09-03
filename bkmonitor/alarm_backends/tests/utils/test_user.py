@@ -1,4 +1,4 @@
-from unittest.mock import Mock
+from unittest.mock import Mock, call
 
 import pytest
 
@@ -30,7 +30,7 @@ def test_get_wxwork_mention_names_does_not_query_in_single_tenant_mode(settings,
     query_display_info.assert_not_called()
 
 
-def test_get_wxwork_mention_names_queries_all_users_at_once(settings, monkeypatch):
+def test_get_wxwork_mention_names_queries_users_in_batches(settings, monkeypatch):
     settings.ENABLE_MULTI_TENANT_MODE = True
     usernames = [f"xxx_id_{index}" for index in range(101)]
 
@@ -51,5 +51,8 @@ def test_get_wxwork_mention_names_queries_all_users_at_once(settings, monkeypatc
     assert len(result) == 101
     assert result["xxx_id_0"] == "xxx_login_0"
     assert result["xxx_id_100"] == "xxx_login_100"
-    query_display_info_mock.assert_called_once_with(bk_usernames=usernames)
+    assert query_display_info_mock.call_args_list == [
+        call(bk_usernames=usernames[:100]),
+        call(bk_usernames=usernames[100:]),
+    ]
     assert "all" not in result

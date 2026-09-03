@@ -14,6 +14,7 @@ from functools import lru_cache
 from django.conf import settings
 from django.utils.translation import gettext as _
 
+from bkmonitor.utils.common_utils import chunks
 from bkmonitor.utils.local import local
 from bkmonitor.utils.request import get_request, get_request_tenant_id
 from constants.common import DEFAULT_TENANT_ID
@@ -143,8 +144,10 @@ def get_wxwork_mention_names(usernames: list[str]) -> dict[str, str]:
 
     from core.drf_resource import api
 
+    user_display_info = []
     try:
-        user_display_info = api.bk_login.batch_query_user_display_info(bk_usernames=unique_usernames)
+        for username_chunk in chunks(unique_usernames, 100):
+            user_display_info.extend(api.bk_login.batch_query_user_display_info(bk_usernames=username_chunk) or [])
     except BKAPIError:
         return {}
 
