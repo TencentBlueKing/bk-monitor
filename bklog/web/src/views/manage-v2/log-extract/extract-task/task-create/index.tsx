@@ -68,7 +68,7 @@ export default defineComponent({
     const downloadFiles = ref<any[]>([]); // 下载的文件
     const remark = ref(''); // 备注
     const extractLinks = ref<any[]>([]); // 提取链路
-    const linkId = ref<null | number>(null);
+    const link_id = ref<null | number>(null);
     const ipSelectorOriginalValue = ref<any>(null); // 编辑态ip选择器初始值
     const ipSelectNewNameList = ref<any[]>([]); // 生成新的展示所用的预览地址列表
     const isSubmitLoading = ref(false); // 提交按钮loading状态
@@ -78,11 +78,13 @@ export default defineComponent({
     const previewRef = ref<any>(null);
 
     const selectedCount = computed(() => {
-      return targetNodeType.value === 'INSTANCE' ? ipList.value.length : targetNodes.value.length;
+      return targetNodeType.value === 'INSTANCE'
+        ? ipList.value.length
+        : targetNodes.value.length;
     });
 
     const canSubmit = computed(() => {
-      return !(selectedCount.value > 0 && downloadFiles.value.length && linkId.value !== null);
+      return !(selectedCount.value > 0 && downloadFiles.value.length) && link_id.value != null;
     });
 
     const isClone = computed(() => {
@@ -108,7 +110,7 @@ export default defineComponent({
       if (isClone.value) {
         let cloneData = JSON.parse(sessionStorage.getItem('cloneData') || '{}');
         if (!Object.keys(cloneData).length) {
-          cloneData = (await manageDraftCacheService.get('cloneData')) || {};
+          cloneData = await manageDraftCacheService.get('cloneData') || {};
         }
         sessionStorage.removeItem('cloneData');
         manageDraftCacheService.remove('cloneData').catch(() => {});
@@ -151,7 +153,7 @@ export default defineComponent({
 
     // 初始化克隆模式的显示名称
     const initCloneDisplayName = () => {
-      const requestIpList = ipList.value.map((item) => {
+      const requestIpList = ipList.value.map(item => {
         if (item?.bk_host_id) {
           return {
             host_id: item.bk_host_id,
@@ -171,10 +173,10 @@ export default defineComponent({
             bk_biz_id: store.state.bkBizId,
           },
         })
-        .then((res) => {
+        .then(res => {
           initSelectNewNameList(res.data, true);
         })
-        .catch((err) => {
+        .catch(err => {
           console.warn(err);
           ipSelectNewNameList.value = [];
         });
@@ -186,11 +188,11 @@ export default defineComponent({
         .request('extract/getExtractLinkList', {
           data: { bk_biz_id: store.state.bkBizId },
         })
-        .then((res) => {
+        .then(res => {
           extractLinks.value = res.data;
-          linkId.value = extractLinks.value[0]?.link_id || null;
+          link_id.value = extractLinks.value[0]?.link_id || null;
         })
-        .catch((e) => {
+        .catch(e => {
           console.warn(e);
         });
     };
@@ -211,13 +213,13 @@ export default defineComponent({
         .request('extract/getAvailableExplorerPath', {
           data: requestData,
         })
-        .then((res) => {
+        .then(res => {
           availablePaths.value = (res.data.strategies ?? []).map((item: any) => item.file_path);
           if (cloneNodeType !== 'INSTANCE' && res.data.ip_list?.length) {
             ipList.value = res.data.ip_list;
           }
         })
-        .catch((e) => {
+        .catch(e => {
           console.warn(e);
         });
     };
@@ -234,7 +236,7 @@ export default defineComponent({
 
     // 根据 strategies 接口返回的 ip_list 请求 displayName 并设置预览地址列表
     const initDisplayNameFromIpList = (responseIpList: any[]) => {
-      const requestIpList = responseIpList.map((item) => {
+      const requestIpList = responseIpList.map(item => {
         if (item?.bk_host_id) {
           return { host_id: item.bk_host_id };
         }
@@ -248,10 +250,10 @@ export default defineComponent({
           data: { host_list: requestIpList },
           params: { bk_biz_id: store.state.bkBizId },
         })
-        .then((res) => {
+        .then(res => {
           initSelectNewNameList(res.data, true);
         })
-        .catch((err) => {
+        .catch(err => {
           console.warn(err);
           ipSelectNewNameList.value = [];
         });
@@ -360,7 +362,7 @@ export default defineComponent({
         filter_type: textFilterRef.value.filterType,
         filter_content: textFilterRef.value.filterContent,
         remark: remark.value,
-        link_id: linkId.value,
+        link_id: link_id.value,
       };
       http
         .request('extract/createDownloadTask', {
@@ -370,7 +372,7 @@ export default defineComponent({
           isSubmitLoading.value = false;
           goToHome();
         })
-        .catch((err) => {
+        .catch(err => {
           console.warn(err);
           emit('loading', false);
           isSubmitLoading.value = false;
@@ -460,7 +462,6 @@ export default defineComponent({
                 on: {
                   'update:value': (val: string) => (fileOrPath.value = val),
                   'update:select': handleFilesSelect,
-                  'manual-add': (val: string) => previewRef.value?.addFilePath(val),
                 },
               }}
             />
@@ -517,10 +518,10 @@ export default defineComponent({
               style='width: 250px; margin-right: 20px; background-color: #fff'
               clearable={false}
               data-test-id='addNewExtraction_select_selectLink'
-              value={linkId.value}
+              value={link_id.value}
               {...{
                 on: {
-                  change: (val: number) => (linkId.value = val),
+                  change: (val: number) => (link_id.value = val),
                 },
               }}
             >
