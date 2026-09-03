@@ -749,8 +749,7 @@ export default class UseJsonFormatter {
       depth: depth ?? '',
       segmentRole: segmentRole ?? '',
       parsedFromJsonString:
-        !!this.config.options?.parsedFromJsonString ||
-        clickTarget.closest('[data-json-string-parsed="true"]') !== null,
+        !!this.config.options?.parsedFromJsonString || clickTarget.closest('[data-json-string-parsed="true"]') !== null,
       rootFieldName: this.config.field?.field_name ?? '',
       rootFieldType: this.config.field?.field_type ?? '',
       isVirtualObjNode: !!this.config.field?.is_virtual_obj_node,

@@ -83,9 +83,7 @@ export default defineComponent({
 
     const canSubmit = computed(() => {
       return (
-        !(selectedCount.value > 0 && downloadFiles.value.length) &&
-        linkId.value !== null &&
-        linkId.value !== undefined
+        !(selectedCount.value > 0 && downloadFiles.value.length) && linkId.value !== null && linkId.value !== undefined
       );
     });
 

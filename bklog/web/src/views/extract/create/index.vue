@@ -207,9 +207,7 @@
       }),
       canSubmit() {
         return (
-          (!this.ipList.length || !this.downloadFiles.length) &&
-          this.link_id !== null &&
-          this.link_id !== undefined
+          (!this.ipList.length || !this.downloadFiles.length) && this.link_id !== null && this.link_id !== undefined
         );
       },
       isClone() {

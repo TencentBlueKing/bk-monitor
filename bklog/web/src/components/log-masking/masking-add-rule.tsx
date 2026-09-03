@@ -617,9 +617,7 @@ export default class MaskingAddRule extends tsc<IProps> {
                     <span>
                       {`${this.$t('支持引用正则表达式中的命名分组。如正则表达式为 ')}(?P<` +
                         'phone' +
-                        `>\\w{6,16})${
-                          this.$t('，可通过 ${phone} 进行引用')
-                        }`}
+                        `>\\w{6,16})${this.$t('，可通过 ${phone} 进行引用')}`}
                     </span>
                   </div>
                 </div>

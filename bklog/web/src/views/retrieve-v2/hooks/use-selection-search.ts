@@ -322,8 +322,7 @@ export default (options: UseSelectionSearchOptions) => {
       return false;
     }
     return (
-      el.closest(`[${JSON_TEXT_VALUE_ATTR}="true"]`) !== null ||
-      el.closest('[data-json-string-parsed="true"]') !== null
+      el.closest(`[${JSON_TEXT_VALUE_ATTR}="true"]`) !== null || el.closest('[data-json-string-parsed="true"]') !== null
     );
   };
 
