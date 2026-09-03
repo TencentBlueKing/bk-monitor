@@ -138,6 +138,7 @@ export default defineComponent({
       },
       handleTimezoneChange: (val: string) => {
         store.timezone = val;
+        emit('setUrlParams');
       },
       handleRefreshChange: (val: number) => {
         store.refreshInterval = val;

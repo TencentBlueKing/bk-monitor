@@ -104,5 +104,7 @@ export default {
   关联已有单据: 'Relate Existing Ticket',
   状态不同步: 'Status is not synced',
   状态同步: 'Status Synced',
-  '/ 快速唤起，请输入': 'Press / to input',
+  '/ 唤起，输入检索内容': 'Press / to input',
+  原始字段: 'Original Field',
+  类型选择: 'Type Select',
 };
