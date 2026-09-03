@@ -115,6 +115,8 @@ export default defineComponent({
     });
 
     const favoriteBoxRef = useTemplateRef<InstanceType<typeof FavoriteBox>>('favoriteBoxRef');
+    /** 检索视图容器 ref，其根节点即表格的滚动容器 */
+    const rumExploreViewRef = useTemplateRef<InstanceType<typeof RumExploreView>>('rumExploreViewRef');
     const favoriteCtx = useRumFavorite({
       where: queryCtx.where,
       commonWhere: queryCtx.commonWhere,
@@ -266,6 +268,7 @@ export default defineComponent({
       favoriteBoxRef,
       favoriteCtx,
       favoriteList,
+      rumExploreViewRef,
       isCollapsed,
       isSpanMode,
       queryCtx,
@@ -399,6 +402,7 @@ export default defineComponent({
                   default: () => (
                     <div class='result-panel'>
                       <RumExploreView
+                        ref='rumExploreViewRef'
                         v-slots={{
                           affixedTop: () => (
                             <RumSpanTypeFilter
@@ -410,6 +414,11 @@ export default defineComponent({
                           ),
                           default: () => (
                             <RumExploreTable
+                              headerAffixedTop={{
+                                container: () => this.rumExploreViewRef?.$el,
+                                // span 模式下表格上方有 RumSpanTypeFilter 吸顶区域（高度 56px：padding 12 + chip 32 + padding 12）
+                                offsetTop: this.isSpanMode ? 56 : 0,
+                              }}
                               baseColumns={this.columnConfig.baseColumns.value}
                               commonParams={queryCtx.commonParams.value}
                               data={tableCtx.tableData.value}
@@ -418,12 +427,14 @@ export default defineComponent({
                               fieldMap={this.columnConfig.fieldMap.value}
                               fixedDisplayList={this.layoutPreset.leftFixedColumns}
                               hasMore={tableCtx.hasMore.value}
+                              horizontalScrollAffixedBottom={{ container: () => this.rumExploreViewRef?.$el }}
                               loading={tableCtx.loading.value}
                               mode={this.store.mode}
                               scrollLoading={tableCtx.scrollLoading.value}
                               showSettings={!this.isSpanSpecialPerspective}
                               sort={tableCtx.sortParams.value}
                               timeRange={this.store.timeRange}
+                              timezone={this.store.timezone}
                               onClearFilter={queryCtx.clearQuery}
                               onColumnResizeChange={width => this.columnConfig.updateColumnResizeWidth(width)}
                               onConditionChange={this.handleConditionChange}
