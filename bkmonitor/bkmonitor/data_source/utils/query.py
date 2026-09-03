@@ -419,6 +419,7 @@ class BaseQuery:
         :param end_time: 结束时间戳（秒级，缺省时按 retention 自动补齐后统一转为毫秒级）
         :return: field_name 到字段详情字典的映射，每项包含以下键：
             - field_name: 实际字段名，用于查询、过滤、聚合
+            - field_alias: 字段别名，无别名时与 field_name 相同
             - field_type: ES 字段类型，如 keyword、text、long 等；多表类型冲突时为 "conflict"
             - origin_field: 原始顶层字段名，嵌套字段时为顶层字段（如 attributes.http.url 对应 attributes）
             - is_searchable: 是否可搜索（object/nested 类型为 False）
@@ -438,7 +439,7 @@ class BaseQuery:
         for field_list in ThreadPool().map_ignore_exception(self._query_info_fields, param_list):
             for field_dict in field_list:
                 field_name = field_dict.get("field_name", "")
-                field_dict.pop("alias_name", None)
+                field_dict["field_alias"] = field_dict.pop("alias_name", None) or field_name
 
                 current = field_map.get(field_name)
                 if current is None:

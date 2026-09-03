@@ -350,9 +350,10 @@ class TestRemovedFieldEnrichmentAttributes:
 
         field = result["cpu_usage"]
         # 旧补充逻辑遗留的键不应出现
-        assert "field_alias" not in field
         assert "field_unit" not in field
         assert "option_values" not in field
+        # field_alias 直接由 alias_name / field_name 映射得到
+        assert field["field_alias"] == "cpu_usage"
         # 底层字段详情键仍按预期产出
         assert field["field_name"] == "cpu_usage"
         assert field["is_searchable"] is True
