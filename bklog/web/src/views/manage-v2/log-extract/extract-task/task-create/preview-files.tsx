@@ -165,7 +165,7 @@ export default defineComponent({
     // 监听IP列表变化
     watch(
       () => props.ipList,
-      (val) => {
+      val => {
         previewIp.value.splice(0);
         if (val.length) {
           previewIp.value.push(getIpListID(val[0]));
@@ -209,7 +209,7 @@ export default defineComponent({
             is_search_child: isSearchChild.value,
           },
         })
-        .then((res) => {
+        .then(res => {
           if (path) {
             // 指定目录搜索
             historyStack.value.push(cacheList);
@@ -229,7 +229,7 @@ export default defineComponent({
             explorerList.value = res.data;
           }
         })
-        .catch((err) => {
+        .catch(err => {
           console.warn(err);
           emptyType.value = '500';
         })
@@ -279,13 +279,13 @@ export default defineComponent({
             is_search_child: isSearchChildVal,
           },
         })
-        .then((res) => {
+        .then(res => {
           historyStack.value = [];
           explorerList.value = res.data;
           setSelectedFilePaths(downloadFiles);
           syncTableSelection();
         })
-        .catch((e) => {
+        .catch(e => {
           console.warn(e);
           emptyType.value = '500';
         })
@@ -298,8 +298,8 @@ export default defineComponent({
     const findPreviewIpListValue = (previewIpList: any[], ipList: any[]) => {
       // 获取previewIpList对应的ipList参数
       if (previewIpList?.length) {
-        return previewIpList.map((item) => {
-          return ipList.find((dItem) => {
+        return previewIpList.map(item => {
+          return ipList.find(dItem => {
             const hostMatch = item.bk_host_id === dItem.bk_host_id;
             const ipMatch = `${item.ip}_${item.bk_cloud_id}` === `${dItem.ip}_${dItem.bk_cloud_id}`;
             if (item?.bk_host_id) {
@@ -366,7 +366,7 @@ export default defineComponent({
 
     watch(
       () => props.downloadFiles,
-      (val) => {
+      val => {
         setSelectedFilePaths((val as string[]) || []);
         syncTableSelection();
       },

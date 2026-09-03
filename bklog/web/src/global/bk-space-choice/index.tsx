@@ -130,7 +130,7 @@ export default defineComponent({
     };
 
     // 监听showBizList
-    watch(showBizList, async (val) => {
+    watch(showBizList, async val => {
       if (val) {
         document.addEventListener('click', handleGlobalClick);
         document.addEventListener('keydown', handleKeyDown);
@@ -155,12 +155,13 @@ export default defineComponent({
 
     // 先进行类型过滤和权限过滤，得到基础列表
     const baseFilteredList = computed(() => {
-      return mySpaceList.value.filter((item) => {
+      return mySpaceList.value.filter(item => {
         // 类型过滤
         if (searchTypeId.value) {
-          const typeMatch =            searchTypeId.value === 'bcs'
-            ? item.space_type_id === 'bkci' && !!item.space_code
-            : item.space_type_id === searchTypeId.value;
+          const typeMatch =
+            searchTypeId.value === 'bcs'
+              ? item.space_type_id === 'bkci' && !!item.space_code
+              : item.space_type_id === searchTypeId.value;
           if (!typeMatch) {
             return false;
           }
@@ -188,7 +189,7 @@ export default defineComponent({
     // 监听基础列表变化，更新排序列表
     watch(
       baseFilteredList,
-      (newList) => {
+      newList => {
         updateList(newList);
       },
       { immediate: true },
@@ -197,7 +198,7 @@ export default defineComponent({
     // 监听搜索关键词变化，更新搜索文本
     watch(
       keyword,
-      async (newKeyword) => {
+      async newKeyword => {
         updateSearchText(newKeyword);
         // 搜索时重置选中索引
         selectedIndex.value = -1;
@@ -209,7 +210,8 @@ export default defineComponent({
           const listContainer = bizListRef.value?.$el || bizListRef.value;
           if (listContainer) {
             // 查找 RecycleScroller 的滚动容器
-            const scroller =              listContainer.querySelector('.vue-recycle-scroller') || listContainer.querySelector('.list-scroller');
+            const scroller =
+              listContainer.querySelector('.vue-recycle-scroller') || listContainer.querySelector('.list-scroller');
 
             const scrollElement = scroller || listContainer;
 
@@ -227,8 +229,9 @@ export default defineComponent({
     );
 
     const commonList = computed(
-      () => commonListIdsLog.value.map(id => authorizedList.value.find(item => Number(item.id) === id)).filter(Boolean)
-        || [],
+      () =>
+        commonListIdsLog.value.map(id => authorizedList.value.find(item => Number(item.id) === id)).filter(Boolean) ||
+        [],
     );
 
     // 初始化业务列表
@@ -269,7 +272,8 @@ export default defineComponent({
             e.preventDefault();
             e.stopPropagation();
             if (selectableItems.value.length > 0) {
-              selectedIndex.value =                selectedIndex.value < selectableItems.value.length - 1 ? selectedIndex.value + 1 : 0;
+              selectedIndex.value =
+                selectedIndex.value < selectableItems.value.length - 1 ? selectedIndex.value + 1 : 0;
               scrollToSelectedItem();
             }
             break;
@@ -277,7 +281,8 @@ export default defineComponent({
             e.preventDefault();
             e.stopPropagation();
             if (selectableItems.value.length > 0) {
-              selectedIndex.value =                selectedIndex.value > 0 ? selectedIndex.value - 1 : selectableItems.value.length - 1;
+              selectedIndex.value =
+                selectedIndex.value > 0 ? selectedIndex.value - 1 : selectableItems.value.length - 1;
               scrollToSelectedItem();
             }
             break;
@@ -343,7 +348,8 @@ export default defineComponent({
         let targetItem: Element | null = null;
         for (let i = 0; i < items.length; i++) {
           const item = items[i];
-          const itemId =            item.getAttribute('data-id') || item.querySelector('[data-space-uid]')?.getAttribute('data-space-uid');
+          const itemId =
+            item.getAttribute('data-id') || item.querySelector('[data-space-uid]')?.getAttribute('data-space-uid');
 
           if (itemId && (itemId === String(selectedItem.id) || itemId === selectedItem.space_uid)) {
             targetItem = item;
@@ -405,14 +411,14 @@ export default defineComponent({
       const bizId = isSetBizIdDefault.value ? Number(defaultSpace.value?.id) : 'undefined';
       userConfigMixin
         .handleSetUserConfig(DEFAULT_BIZ_ID_KEY, `${bizId}`, '')
-        .then((result) => {
+        .then(result => {
           if (result) {
             store.commit('SET_APP_STATE', {
               defaultBizId: bizId,
             });
           }
         })
-        .catch((e) => {
+        .catch(e => {
           console.log(e);
         })
         .finally(() => {
@@ -433,9 +439,10 @@ export default defineComponent({
       if (`${space.bk_biz_id}` !== route.query.bizId || space.space_uid !== route.query.spaceUid) {
         const routeName = route.name === 'un-authorized' ? (route.query.page_from as string) : undefined;
         const appendOptions = routeName ? { name: routeName } : {};
-        const nextParams =          route.name === 'retrieve'
-          ? omitRouteIndexId(route.params ?? {})
-          : { ...(route.params ?? {}), indexId: undefined };
+        const nextParams =
+          route.name === 'retrieve'
+            ? omitRouteIndexId(route.params ?? {})
+            : { ...(route.params ?? {}), indexId: undefined };
 
         router.push({
           ...appendOptions,
@@ -554,7 +561,7 @@ export default defineComponent({
               {!isExternal.value && demoUid.value && (
                 <div
                   class='menu-select-extension-item'
-                  onMousedown={(e) => {
+                  onMousedown={e => {
                     e.stopPropagation();
                     handleClickMenuItem(demoSpace.value);
                   }}

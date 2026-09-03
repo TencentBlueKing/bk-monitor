@@ -107,13 +107,6 @@ type EditableFieldSnapshot = Pick<
   'field_name' | 'field_type' | 'is_analyzed' | 'is_case_sensitive' | 'tokenize_on_chars'
 >;
 
-/** 是否为空值（视为空值冲突） */
-const isEmptyValue = (value: unknown): boolean => {
-  if (value === null || value === undefined) return true;
-  if (typeof value === 'string') return value.trim() === '';
-  return false;
-};
-
 /** 数值字段类型（无调试值时按模板既定类型推断 verdict 使用） */
 const NUMERIC_FIELD_TYPES = ['int', 'long', 'double', 'float'];
 
@@ -662,21 +655,25 @@ export default defineComponent({
         ...props.template,
         etl_config: props.template.clean_type,
         etl_fields: [
-          ...tableData.value.map(({
-            inferredType: _inferredType,
-            empty: _empty,
-            typeErr: _typeErr,
-            status: _status,
-            errorType: _errorType,
-            errorMessage: _errorMessage,
-            ...field
-          }) => ({
-            ...field,
-            // 生成 verdict 供 FieldList 类型禁用判断：有调试结果按真实值；无调试结果按模板既定类型推断（非数值类型禁选数值类型）
-            verdict: previewMode.value === 'debug'
-              ? judgeNumber(field.value)
-              : !NUMERIC_FIELD_TYPES.includes(field.field_type),
-          }) as TemplateFieldItem),
+          ...tableData.value.map(
+            ({
+              inferredType: _inferredType,
+              empty: _empty,
+              typeErr: _typeErr,
+              status: _status,
+              errorType: _errorType,
+              errorMessage: _errorMessage,
+              ...field
+            }) =>
+              ({
+                ...field,
+                // 生成 verdict 供 FieldList 类型禁用判断：有调试结果按真实值；无调试结果按模板既定类型推断（非数值类型禁选数值类型）
+                verdict:
+                  previewMode.value === 'debug'
+                    ? judgeNumber(field.value)
+                    : !NUMERIC_FIELD_TYPES.includes(field.field_type),
+              }) as TemplateFieldItem,
+          ),
           ...deletedFields.map(item => ({
             ...item,
             verdict: !NUMERIC_FIELD_TYPES.includes(item.field_type),

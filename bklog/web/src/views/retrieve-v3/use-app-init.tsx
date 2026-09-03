@@ -120,19 +120,19 @@ export default () => {
 
   RetrieveHelper.setScrollSelector('.v3-bklog-content');
 
-  const handleSearchBarHeightChange = (height) => {
+  const handleSearchBarHeightChange = height => {
     searchBarHeight.value = height;
   };
 
-  const handleFavoriteWidthChange = (width) => {
+  const handleFavoriteWidthChange = width => {
     favoriteWidth.value = width;
   };
 
-  const hanldeFavoriteShown = (isShown) => {
+  const hanldeFavoriteShown = isShown => {
     isFavoriteShown.value = isShown;
   };
 
-  const handleGraphHeightChange = (height) => {
+  const handleGraphHeightChange = height => {
     trendGraphHeight.value = height;
   };
 
@@ -198,13 +198,13 @@ export default () => {
           .request('retrieve/generateQueryString', {
             data: { addition: target.addition },
           })
-          .then((res) => {
+          .then(res => {
             if (res.result) {
               const newKeyword = `${keyword} AND ${res.data?.querystring}`;
               store.commit('updateIndexItemParams', { keyword: newKeyword });
             }
           })
-          .catch((err) => {
+          .catch(err => {
             console.error(err);
           });
       }
@@ -393,7 +393,7 @@ export default () => {
         const indexSetIds = [];
 
         if (indexSetIdList.value.length) {
-          indexSetIdList.value.forEach((id) => {
+          indexSetIdList.value.forEach(id => {
             const item = flatIndexSetList.value.find(item => filterFn(id, item));
             if (!item) {
               emptyIndexSetList.push(id);
@@ -417,9 +417,10 @@ export default () => {
 
         // 如果经过上述逻辑，缓存中没有索引信息，则默认取第一个有数据的索引
         if (!indexSetIdList.value.length) {
-          const defIndexItem =            flatIndexSetList.value.find(
-            item => item.permission?.[VIEW_BUSINESS] && item.tags.every(tag => tag.tag_id !== 4),
-          ) ?? flatIndexSetList.value[0];
+          const defIndexItem =
+            flatIndexSetList.value.find(
+              item => item.permission?.[VIEW_BUSINESS] && item.tags.every(tag => tag.tag_id !== 4),
+            ) ?? flatIndexSetList.value[0];
           const defaultId = [defIndexItem?.index_set_id];
 
           if (defaultId) {
@@ -429,10 +430,12 @@ export default () => {
           }
         }
 
-        const indexId =          store.state.storage[BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB] === 'single'
-          ? store.state.indexItem.ids[0]
-          : undefined;
-        const unionList =          store.state.storage[BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB] === 'union' ? store.state.indexItem.ids : undefined;
+        const indexId =
+          store.state.storage[BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB] === 'single'
+            ? store.state.indexItem.ids[0]
+            : undefined;
+        const unionList =
+          store.state.storage[BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB] === 'union' ? store.state.indexItem.ids : undefined;
 
         // 修复：当 URL 中的 indexId 无效时，已经在上面选择了默认索引
         // 这里应该判断当前是否有有效的索引ID，而不是判断 emptyIndexSetList
@@ -495,20 +498,20 @@ export default () => {
 
             store
               .dispatch('requestIndexSetFieldInfo')
-              .then((resp) => {
+              .then(resp => {
                 RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_SEARCH);
                 RetrieveHelper.fire(RetrieveEvent.LEFT_FIELD_INFO_UPDATE);
 
                 if (
-                  route.query.tab === 'origin'
-                  || route.query.tab === undefined
-                  || route.query.tab === null
-                  || route.query.tab === ''
+                  route.query.tab === 'origin' ||
+                  route.query.tab === undefined ||
+                  route.query.tab === null ||
+                  route.query.tab === ''
                 ) {
                   if (resp?.data?.fields?.length) {
                     store
                       .dispatch('requestIndexSetQuery')
-                      .catch((err) => {
+                      .catch(err => {
                         console.error('requestIndexSetQuery failed:', err);
                       })
                       .finally(() => {
@@ -534,7 +537,7 @@ export default () => {
                 setDefaultRouteUrl();
                 syncIndexIdToRoute(indexId, unionList, queryTab);
               })
-              .catch((err) => {
+              .catch(err => {
                 console.error('requestIndexSetFieldInfo failed:', err);
                 RetrieveHelper.setSearchingValue(false);
                 setSearchMode();
@@ -562,7 +565,7 @@ export default () => {
           store.getters.isUnionSearch,
         );
       })
-      .catch((err) => {
+      .catch(err => {
         // 任何异常（请求失败 / then 内同步代码抛错）都要确保 loading 能退出
         // 否则 isPreApiLoaded 永远为 false，页面 v-bkloading 会一直转圈
         console.error('getIndexSetList failed:', err);
@@ -779,7 +782,7 @@ export default () => {
     return !store.getters.isSceneFilterEmpty;
   });
 
-  addEvent(RetrieveEvent.GLOBAL_SCROLL, (event) => {
+  addEvent(RetrieveEvent.GLOBAL_SCROLL, event => {
     const scrollTop = (event.target as HTMLElement).scrollTop;
     paddingTop.value = scrollTop > subBarHeight.value ? subBarHeight.value : scrollTop;
 
@@ -792,7 +795,7 @@ export default () => {
 
   useResizeObserve(
     RetrieveHelper.getScrollSelector(),
-    (entry) => {
+    entry => {
       scrollContainerHeight.value = (entry.target as HTMLElement).offsetHeight;
     },
     0,
@@ -818,8 +821,8 @@ export default () => {
     if (isSceneMode.value) {
       // 场景模式下，表头吸顶时机：字段筛选面板 + 趋势图都滚出后
       return (
-        sceneFilterPanelHeight.value > 0
-        && sceneScrollTop.value >= sceneFilterPanelHeight.value + trendGraphHeight.value
+        sceneFilterPanelHeight.value > 0 &&
+        sceneScrollTop.value >= sceneFilterPanelHeight.value + trendGraphHeight.value
       );
     }
     return searchResultTop.value === subBarHeight.value + trendGraphHeight.value;

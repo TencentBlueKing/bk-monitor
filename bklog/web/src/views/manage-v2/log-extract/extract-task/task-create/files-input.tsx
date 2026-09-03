@@ -54,7 +54,8 @@ export default defineComponent({
 
     // 过滤后的文件路径列表
     const filesSearchedPath = computed(() => {
-      return props.availablePaths.filter((item: string) => item.toLowerCase().includes(searchValue.value.toLowerCase()),
+      return props.availablePaths.filter((item: string) =>
+        item.toLowerCase().includes(searchValue.value.toLowerCase()),
       );
     });
 
@@ -71,7 +72,7 @@ export default defineComponent({
     // 监听value值变化
     watch(
       () => props.value,
-      (val) => {
+      val => {
         showValue.value = val;
       },
       { immediate: true },
@@ -101,7 +102,7 @@ export default defineComponent({
     };
 
     const isMatchedAvailablePath = (val: string) => {
-      return (props.availablePaths as string[]).some((path) => {
+      return (props.availablePaths as string[]).some(path => {
         const normalizedPath = String(path ?? '').trim();
         if (!normalizedPath) {
           return false;
@@ -117,11 +118,12 @@ export default defineComponent({
 
     // 验证路径是否有效
     const validate = (val: string) => {
-      const isValidated =        Boolean(val)
-        && isMatchedAvailablePath(val)
-        && !/\/\//.test(val)
-        && !val.split('/').some(segment => segment === '.' || segment === '..' || segment.startsWith('.'))
-        && PATH_PATTERN.test(val);
+      const isValidated =
+        Boolean(val) &&
+        isMatchedAvailablePath(val) &&
+        !/\/\//.test(val) &&
+        !val.split('/').some(segment => segment === '.' || segment === '..' || segment.startsWith('.')) &&
+        PATH_PATTERN.test(val);
       isError.value = !isValidated;
       return isValidated;
     };
@@ -155,7 +157,7 @@ export default defineComponent({
                   data-test-id='addNewExtraction_input_specifyFolder'
                   placeholder={activeTab.value === 'manual' ? t('比如：/var/log/application/error.log') : ''}
                   value={showValue.value}
-                  onChange={(val) => {
+                  onChange={val => {
                     showValue.value = val;
                     handleChange(val);
                   }}

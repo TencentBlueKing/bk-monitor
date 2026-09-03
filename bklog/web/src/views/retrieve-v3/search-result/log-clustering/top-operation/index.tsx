@@ -24,12 +24,12 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, ref } from "vue";
-import Stratege from "./strategy";
-import QuickFilter from "./quick-filter";
-import useLocale from "@/hooks/use-locale";
-import EmailSubscription from "./email-subscription";
-import ClusterConfig from "./cluster-config";
+import { computed, defineComponent, ref } from 'vue';
+import Stratege from './strategy';
+import QuickFilter from './quick-filter';
+import useLocale from '@/hooks/use-locale';
+import EmailSubscription from './email-subscription';
+import ClusterConfig from './cluster-config';
 import ClusterDownload from './cluster-download';
 
 import './index.scss';
@@ -87,27 +87,23 @@ export default defineComponent({
 
     const getDimensionStr = computed(() =>
       props.fingerOperateData?.dimensionList.length
-        ? `${t("聚合维度")} : ${props.fingerOperateData.dimensionList.join(
-            ", "
-          )}`
-        : ""
+        ? `${t('聚合维度')} : ${props.fingerOperateData.dimensionList.join(', ')}`
+        : '',
     );
     const getGroupStr = computed(() =>
       props.fingerOperateData?.selectGroupList.length
-        ? `${t("分组")} : ${props.fingerOperateData.selectGroupList.join(", ")}`
-        : ""
+        ? `${t('分组')} : ${props.fingerOperateData.selectGroupList.join(', ')}`
+        : '',
     );
     const getYearStr = computed(() =>
-      props.requestData?.year_on_year_hour
-        ? `${t("同比")} : ${props.requestData.year_on_year_hour}h`
-        : ""
+      props.requestData?.year_on_year_hour ? `${t('同比')} : ${props.requestData.year_on_year_hour}h` : '',
     );
 
     const isShowGroupTag = computed(
       () =>
         props.clusterSwitch &&
         !props.isShowClusterStep &&
-        (getGroupStr.value || getDimensionStr.value || getYearStr.value)
+        (getGroupStr.value || getDimensionStr.value || getYearStr.value),
     );
 
     const isExternal = window.IS_EXTERNAL === true;
