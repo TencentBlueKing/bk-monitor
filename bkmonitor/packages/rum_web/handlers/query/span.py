@@ -171,7 +171,7 @@ class SpanQuery(APMQueryFilterMixin, BaseQuery):
                 "field_name": spec.field_name,
                 "is_searchable": True,
                 "is_agg": True,
-                "is_list": True,
+                "is_list": False,
                 "origin_field": spec.field_name.split(".")[0],
                 "supported_operations": self.FIELD_OPERATIONS.get(spec.field_type, []),
             }

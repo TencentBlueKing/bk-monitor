@@ -10,16 +10,15 @@ specific language governing permissions and limitations under the License.
 
 import pytest
 
-from semconv.constants import (
-    SpanKind,
-    SpanStatusCode,
+from semconv.constants import SpanKind, SpanStatusCode
+from semconv.rum.constants import (
+    RumSpanType,
     SdkLanguage,
     VitalMetric,
     OutcomeType,
     NetworkStatus,
     NetworkConnectionType,
 )
-from semconv.rum.constants import RumSpanType
 from semconv.rum.attributes import (
     span_attributes,
     common_attributes,
@@ -30,7 +29,6 @@ from semconv.rum.attributes import (
     session_attributes,
 )
 from semconv.rum.field import FieldSpec, RatingLevel
-from semconv.rum.metric import web_vitals
 from semconv.rum.registry import FieldRegistry
 from semconv.rum.trace import SpanSpec
 from semconv.rum.trace.status import Status
@@ -172,11 +170,11 @@ class TestSpanSpec:
 
     def test_vital_fields_at_root(self):
         """Web Vitals 虚拟字段注册在根级。"""
-        assert SpanSpec.from_field("LCP") is SpanSpec.LCP is web_vitals.LCP
-        assert SpanSpec.from_field("CLS") is SpanSpec.CLS is web_vitals.CLS
-        assert SpanSpec.from_field("INP") is SpanSpec.INP is web_vitals.INP
-        assert SpanSpec.from_field("FCP") is SpanSpec.FCP is web_vitals.FCP
-        assert SpanSpec.from_field("TTFB") is SpanSpec.TTFB is web_vitals.TTFB
+        assert SpanSpec.from_field("LCP") is SpanSpec.LCP is vital_attributes.LCP
+        assert SpanSpec.from_field("CLS") is SpanSpec.CLS is vital_attributes.CLS
+        assert SpanSpec.from_field("INP") is SpanSpec.INP is vital_attributes.INP
+        assert SpanSpec.from_field("FCP") is SpanSpec.FCP is vital_attributes.FCP
+        assert SpanSpec.from_field("TTFB") is SpanSpec.TTFB is vital_attributes.TTFB
 
     def test_vital_field_unit(self):
         """Web Vitals 字段携带正确单位。"""
