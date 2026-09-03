@@ -210,7 +210,7 @@ class SourceAnalysisInputsSerializer(serializers.Serializer):
         default=list,
         max_length=50,
     )
-    issue_context = serializers.DictField(label="Issue 上下文", required=False)
+    alert_id = serializers.CharField(label="告警 ID", max_length=64)
 
     def to_internal_value(self, data):
         if isinstance(data, dict):

@@ -1135,7 +1135,7 @@ class SourceAnalysisExecutionBaseResource(Resource):
                 "agent_id": execution.agent_id,
                 "skill_ids": list(execution.skill_ids),
                 "knowledge_base_ids": list(execution.knowledge_base_ids),
-                "issue_context": {"alert_ids": [execution.alert_id]},
+                "alert_id": execution.alert_id,
             },
         }
 

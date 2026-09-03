@@ -78,7 +78,7 @@ class TestSourceAnalysisContract(TestCase):
                     "agent_id": "agent-a",
                     "skill_ids": ["skill-a"],
                     "knowledge_base_ids": [],
-                    "issue_context": {"alert_ids": ["alert-1"]},
+                    "alert_id": "alert-1",
                 },
             }
         )
@@ -242,7 +242,7 @@ class TestSourceAnalysisOrchestration(TestCase):
                 "agent_id": "agent-a",
                 "skill_ids": ["skill-a", "skill-b"],
                 "knowledge_base_ids": ["knowledge-a"],
-                "issue_context": {"alert_ids": ["alert-1"]},
+                "alert_id": "alert-1",
             },
         )
 
