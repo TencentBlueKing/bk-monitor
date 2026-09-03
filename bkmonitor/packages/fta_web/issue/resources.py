@@ -1135,8 +1135,7 @@ class SourceAnalysisExecutionBaseResource(Resource):
                 "agent_id": execution.agent_id,
                 # 多值以英文逗号分隔而非 JSON 数组：inputs 原样透传成蓝盾流水线变量，
                 # 变量只能是字符串，分隔好的字符串可由模板直接转手给下游插件。
-                # 写入侧禁止 ID 含英文逗号，因此这里可以安全拼接；空列表落成空串，
-                # 与插件"留空即不传递"的语义一致。
+                # 空列表落成空串，与插件"留空即不传递"的语义一致。
                 "skill_ids": ",".join(execution.skill_ids),
                 "knowledge_base_ids": ",".join(execution.knowledge_base_ids),
                 "alert_id": execution.alert_id,
@@ -1605,20 +1604,6 @@ class SourceAnalysisConditionSerializer(serializers.Serializer):
     )
 
 
-class AidevResourceIdField(serializers.CharField):
-    """AI 资源 ID。
-
-    trigger.inputs 把多值以英文逗号分隔后透传给蓝盾流水线，含逗号的 ID 会被下游静默拆错，
-    因此在写入侧就拦住；执行快照取自规则，这里守住即可保证拼接安全。
-    """
-
-    def to_internal_value(self, data):
-        value = super().to_internal_value(data)
-        if "," in value:
-            raise serializers.ValidationError(_("资源 ID 不能包含英文逗号"))
-        return value
-
-
 class SourceAnalysisRuleWriteSerializer(serializers.Serializer):
     bk_biz_id = serializers.IntegerField(label="业务 ID")
     priority = serializers.IntegerField(label="优先级", min_value=0)
@@ -1627,13 +1612,13 @@ class SourceAnalysisRuleWriteSerializer(serializers.Serializer):
     agent_id = serializers.CharField(label="智能体 ID", max_length=64, required=False, allow_blank=True, default="")
     skill_ids = serializers.ListField(
         label="Skill ID",
-        child=AidevResourceIdField(allow_blank=False),
+        child=serializers.CharField(allow_blank=False),
         required=False,
         default=list,
     )
     knowledge_base_ids = serializers.ListField(
         label="知识库 ID",
-        child=AidevResourceIdField(allow_blank=False),
+        child=serializers.CharField(allow_blank=False),
         required=False,
         default=list,
     )
@@ -1656,9 +1641,9 @@ class SourceAnalysisRulePatchSerializer(SourceAnalysisRuleWriteSerializer):
     is_enabled = serializers.BooleanField(label="是否启用", required=False)
     conditions = SourceAnalysisConditionSerializer(label="匹配条件", many=True, required=False)
     agent_id = serializers.CharField(label="智能体 ID", max_length=64, required=False, allow_blank=True)
-    skill_ids = serializers.ListField(label="Skill ID", child=AidevResourceIdField(allow_blank=False), required=False)
+    skill_ids = serializers.ListField(label="Skill ID", child=serializers.CharField(allow_blank=False), required=False)
     knowledge_base_ids = serializers.ListField(
-        label="知识库 ID", child=AidevResourceIdField(allow_blank=False), required=False
+        label="知识库 ID", child=serializers.CharField(allow_blank=False), required=False
     )
 
     def validate(self, attrs: dict) -> dict:

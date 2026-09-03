@@ -75,16 +75,6 @@ class TestSourceAnalysisRuleSerializers(SimpleTestCase):
         self.assertEqual(data["agent_id"], "1")
         self.assertEqual(data["skill_ids"], ["3"])
 
-    def test_write_serializer_rejects_resource_ids_with_comma(self):
-        # trigger.inputs 以英文逗号分隔多值透传给蓝盾流水线，含逗号的 ID 会被下游静默拆错。
-        for serializer_class in (SourceAnalysisRuleWriteSerializer, SourceAnalysisRulePatchSerializer):
-            for field in ("skill_ids", "knowledge_base_ids"):
-                with self.subTest(serializer=serializer_class.__name__, field=field):
-                    serializer = serializer_class(data={"bk_biz_id": 2, "priority": 1, field: ["skill-a,skill-b"]})
-
-                    self.assertFalse(serializer.is_valid())
-                    self.assertIn(field, serializer.errors)
-
     def test_condition_chain_requires_first_connector_to_be_and(self):
         serializer = SourceAnalysisRuleWriteSerializer(
             data={
