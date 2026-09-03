@@ -123,7 +123,7 @@ const getByPath = (obj: any, path: string) => {
   const keys = path.split('.');
   let current = obj;
   for (const key of keys) {
-    if (current == null) return undefined;
+    if (current === null || current === undefined) return undefined;
     current = current[key];
   }
   return current;
@@ -135,8 +135,8 @@ const sortByPath = <T>(list: T[], path: string, order: 'asc' | 'desc'): T[] => {
     const va = getByPath(left, path);
     const vb = getByPath(right, path);
     if (va === vb) return 0;
-    if (va == null) return 1;
-    if (vb == null) return -1;
+    if (va === null || va === undefined) return 1;
+    if (vb === null || vb === undefined) return -1;
     if (va > vb) return dir;
     if (va < vb) return -dir;
     return 0;

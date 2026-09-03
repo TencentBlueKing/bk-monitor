@@ -66,7 +66,7 @@ axiosInstance.interceptors.request.use(
   config => {
     if (!/^(https|http)?:\/\//.test(config.url)) {
       // const prefix = config.url.indexOf('?') === -1 ? '?' : '&';
-      config.url = config.url;
+      // config.url = config.url;
     }
     // 外部版后端需要读取header里的 spaceUid
     if (window.IS_EXTERNAL && JSON.parse(window.IS_EXTERNAL) && store.state.spaceUid) {
@@ -97,7 +97,7 @@ axiosInstance.interceptors.response.use(
   async response => {
     const responsePromise = (respData = undefined, cfg = undefined) => {
       const config = response.config;
-      return new Promise(async (resolve, reject) => {
+      return new Promise((resolve, reject) => {
         try {
           handleResponse({
             config: { ...config, ...(cfg ?? {}) },
@@ -201,15 +201,22 @@ async function getPromise(method, url, data, userConfig = {}) {
     return promise;
   }
 
-  promise = new Promise(async (resolve, reject) => {
-    try {
-      const axiosRequest = http.$request.request(url, data, config);
-      const response = await axiosRequest;
-      Object.assign(config, response.config || {});
-      handleResponse({ config, response, resolve, reject });
-    } catch (error) {
+  promise = new Promise((resolve, reject) => {
+    const handleRequestError = error => {
       Object.assign(config, error.config);
       reject(error);
+    };
+
+    try {
+      http.$request
+        .request(url, data, config)
+        .then(response => {
+          Object.assign(config, response.config || {});
+          handleResponse({ config, response, resolve, reject });
+        })
+        .catch(handleRequestError);
+    } catch (error) {
+      handleRequestError(error);
     }
   });
 

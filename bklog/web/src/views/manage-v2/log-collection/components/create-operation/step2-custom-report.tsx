@@ -155,21 +155,22 @@ export default defineComponent({
           },
         });
         loading.value = false;
+        const responseData = res?.data ?? {};
         const {
           collector_config_name: collectorConfigName,
           index_set_id: indexSetId,
           target_fields: targetFields,
           sort_fields: sortFields,
-        } = res?.data;
+        } = responseData;
         configData.value = {
           ...configData.value,
-          ...res?.data,
+          ...responseData,
           index_set_name: collectorConfigName,
           target_fields: targetFields || [],
           sort_fields: sortFields || [],
           index_set_id: indexSetId || '',
         };
-        store.commit('collect/setCurCollect', res.data);
+        store.commit('collect/setCurCollect', responseData);
         // 保存初始表单数据快照
         saveInitialFormData();
         emit('detail', configData.value);

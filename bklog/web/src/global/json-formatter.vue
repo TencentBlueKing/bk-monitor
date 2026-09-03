@@ -23,6 +23,7 @@
         :key="item.name"
         class="bklog-root-field"
       >
+        <!-- eslint-disable vue/no-v-html -- Raw field names are escaped before controlled highlight markup is added. -->
         <span
           class="field-name"
           :data-is-virtual-root="item.__is_virtual_root__"
@@ -32,6 +33,7 @@
             v-html="getHighlightedFieldNameHtml(item.name)"
           ></span
         ></span>
+        <!-- eslint-enable vue/no-v-html -->
         <span
           :ref="item.formatter.ref"
           class="field-value"

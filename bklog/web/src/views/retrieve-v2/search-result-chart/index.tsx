@@ -322,7 +322,6 @@ export default defineComponent({
     };
 
     // 趋势图数据请求生成器
-    // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: reason
     function* getGenFn({ startTimeStamp, endTimeStamp, requestInterval }) {
       const { interval } = initChartData(); // 获取趋势图汇聚周期
       runningInterval = interval;

@@ -79,11 +79,11 @@
   });
 
   const retrieveDropdownData = computed(() => {
-    store.state.retrieveDropdownDataVersion;
+    void store.state.retrieveDropdownDataVersion;
     return storeRuntimeCacheService.getRetrieveDropdownData(store.state.indexId || 'default');
   });
   const fieldAggsItems = computed(() => {
-    store.state.fieldAggsItemsVersion;
+    void store.state.fieldAggsItemsVersion;
     return storeRuntimeCacheService.getFieldAggsItems(store.state.indexId || 'default');
   });
   const totalFields: ComputedRef<FieldInfoItem[]> = computed(() => store.getters.filteredFieldList);

@@ -685,8 +685,8 @@ export default class UseJsonFormatter {
       !isObjectLikeField &&
       (valueElement?.getAttribute('data-json-text-value') === 'true' ||
         !!this.config.options?.parsedFromJsonString ||
-        clickTarget.closest('[data-json-text-value="true"]') != null ||
-        clickTarget.closest('[data-json-string-parsed="true"]') != null);
+        clickTarget.closest('[data-json-text-value="true"]') !== null ||
+        clickTarget.closest('[data-json-string-parsed="true"]') !== null);
     // Text/String JSON：检索字段固定为外层字段；Object 使用叶子 segment 路径并回归 Fields 列表
     const rawSearchFieldName = isJsonTextValue
       ? valueElement?.getAttribute('data-search-field-name') ||
@@ -749,7 +749,8 @@ export default class UseJsonFormatter {
       depth: depth ?? '',
       segmentRole: segmentRole ?? '',
       parsedFromJsonString:
-        !!this.config.options?.parsedFromJsonString || clickTarget.closest('[data-json-string-parsed="true"]') != null,
+        !!this.config.options?.parsedFromJsonString ||
+        clickTarget.closest('[data-json-string-parsed="true"]') !== null,
       rootFieldName: this.config.field?.field_name ?? '',
       rootFieldType: this.config.field?.field_type ?? '',
       isVirtualObjNode: !!this.config.field?.is_virtual_obj_node,

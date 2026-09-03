@@ -187,7 +187,7 @@
         setRouteQuery({
           ...route.query,
           indexId: undefined,
-          unionList: JSON.stringify(ids),
+          unionList: JSON.stringify(payload.ids),
           clusterParams: undefined,
         });
         return;
@@ -257,8 +257,8 @@
     () => props.timezone,
     val => {
       if (!val) return;
-      store.commit('updateIndexItemParams', { timezone });
-      updateTimezone(timezone);
+      store.commit('updateIndexItemParams', { timezone: val });
+      updateTimezone(val);
       store.dispatch('requestIndexSetQuery');
     },
   );

@@ -1,6 +1,6 @@
 import { defineComponent, ref, watch } from 'vue';
 
-import { ContextLogDialogPanel } from '../standalone-tab/related-log-dialog-panel';
+import { RelatedLogDialogPanel } from '../standalone-tab/related-log-dialog-panel';
 
 import '../standalone-tab/index.scss';
 import './index.scss';
@@ -79,7 +79,7 @@ export default defineComponent({
         }}
       >
         {visible.value && (
-          <ContextLogDialogPanel
+          <RelatedLogDialogPanel
             key={mountKey.value}
             indexSetId={props.indexSetId}
             logParams={props.logParams}

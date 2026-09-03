@@ -39,6 +39,7 @@
         <template v-if="mode === 'json' && jsonRenderRows.length">
           <div class="json-kv-content">
             <div class="json-struct-line">{</div>
+            <!-- eslint-disable vue/no-v-html -- Raw log text is escaped before controlled highlight markup is added. -->
             <div
               v-for="row in jsonRenderRows"
               :key="row.key"
@@ -59,6 +60,7 @@
                 >,</span
               >
             </div>
+            <!-- eslint-enable vue/no-v-html -->
             <div class="json-struct-line">}</div>
           </div>
         </template>
@@ -74,6 +76,7 @@
               >{{ lineNumber }}</span
             >
           </div>
+          <!-- eslint-disable vue/no-v-html -- Raw log text is escaped before controlled highlight markup is added. -->
           <div class="text-content-wrap">
             <pre class="content-text"><span
               v-for="chunk in textRenderChunks"
@@ -82,6 +85,7 @@
               v-html="chunk.html"
             ></span></pre>
           </div>
+          <!-- eslint-enable vue/no-v-html -->
         </template>
       </div>
       <div
@@ -414,8 +418,8 @@
         return this.textVisibleText.split('\n').map((_, index) => index + 1);
       },
       matches() {
-        this.searchVersion;
-        pageHighlightState.version;
+        void this.searchVersion;
+        void pageHighlightState.version;
         if (!this.searchKeywordRegExp) return [];
         return this.allSearchMatches.slice(0, MAX_SEARCH_MATCHES);
       },
@@ -686,7 +690,7 @@
       },
       buildHighlightedHtml({ text, markRanges = [], globalOffset = 0 }) {
         if (!text) return '';
-        pageHighlightState.version;
+        void pageHighlightState.version;
         const searchRanges = this.matches
           .map((range, index) => ({ ...range, searchIndex: index }))
           .filter(range => range.end > globalOffset && range.start < globalOffset + text.length)

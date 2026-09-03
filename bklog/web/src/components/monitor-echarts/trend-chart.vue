@@ -2,6 +2,7 @@
   import { ref, computed, onBeforeUnmount, inject } from 'vue';
   import useStore from '@/hooks/use-store';
   import useTrendChart from '@/hooks/use-trend-chart';
+  import useRetrieveEvent from '@/hooks/use-retrieve-event';
   import { useRoute } from 'vue-router/composables';
   import { getCommonFilterAdditionWithValues } from '../../store/helper';
   import { RetrieveEvent } from '../../views/retrieve-helper';

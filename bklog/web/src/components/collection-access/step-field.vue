@@ -2457,12 +2457,12 @@ __ext_json.service.labels   ${this.$t('动态对象字段')}`;
               this.pathExample = this.jsonText.filename;
               this.logOriginal = data.etl.data || '';
               if (this.logOriginal) {
-                this.requestEtlPreview(isInit);
+                this.requestEtlPreview(type);
               }
               this.copyBuiltField.forEach(item => {
                 const fieldName = item.field_name;
                 if (fieldName) {
-                  if (item.hasOwnProperty('value')) {
+                  if (Object.prototype.hasOwnProperty.call(item, 'value')) {
                     item.value = this.copysText[fieldName];
                   } else {
                     this.$set(item, 'value', this.copysText[fieldName]);

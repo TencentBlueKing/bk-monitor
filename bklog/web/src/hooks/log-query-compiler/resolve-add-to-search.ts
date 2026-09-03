@@ -66,7 +66,7 @@ export const resolveAddToSearch = (input: AddToSearchInput): AddToSearchPayload 
     .trim();
   const fieldType = input.fieldType;
   const fullPlainRaw =
-    input.fullText == null
+    input.fullText === null || input.fullText === undefined
       ? ''
       : String(input.fullText)
           .replace(/<\/?mark>/gim, '')

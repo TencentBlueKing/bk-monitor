@@ -247,7 +247,9 @@
           return;
         }
 
-        const nextValues = (Array.isArray(values) ? values : value != null ? [value] : [])
+        const nextValues = (
+          Array.isArray(values) ? values : value !== null && value !== undefined ? [value] : []
+        )
           .map(item => String(item ?? '').trim())
           .filter(item => item.length > 0 && !this.highlightValue.includes(item));
 

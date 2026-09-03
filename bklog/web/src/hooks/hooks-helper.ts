@@ -253,7 +253,6 @@ export const setScrollLoadCell = (
   };
 
   const reset = list => {
-    // biome-ignore lint/style/noParameterAssign: reason
     wordList = list;
     startIndex = 0;
     contentElement.innerHTML = '';

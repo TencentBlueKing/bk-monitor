@@ -203,7 +203,6 @@ export default defineComponent({
           wordList,
           refContent.value,
           refSegmentContent.value,
-          // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: reason
           (item: WordListItem, index?: number) => {
             const child = document.createElement(getTagName(item));
             child.classList.add(item.isCursorText ? 'valid-text' : 'others-text');

@@ -165,7 +165,6 @@ export default defineComponent({
           <RecycleScroller
             class={['list-scroller']}
             scopedSlots={{
-              // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: reason
               default: ({ item, index }: { item: IListItem; index: number }) => (
                 <div
                   key={item.id || item.name + index}

@@ -109,7 +109,7 @@
   // 如果不是采集下发和自定义上报则不展示
   const hasCollectorConfigId = computed(() => {
     const indexSetId = route.params?.indexId;
-    const currentIndexSet = flatIndexSetList.value.find(item => item.index_set_id == indexSetId);
+    const currentIndexSet = flatIndexSetList.value.find(item => String(item.index_set_id) === String(indexSetId));
     return currentIndexSet?.collector_config_id;
   });
 

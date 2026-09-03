@@ -46,7 +46,7 @@
   const activeIndex = ref(-1);
 
   const operatorDictionary = computed(() => {
-    store.state.operatorDictionaryVersion;
+    void store.state.operatorDictionaryVersion;
     const defVal = {
       [getOperatorKey(FulltextOperatorKey)]: { label: $t('包含'), operator: FulltextOperator },
     };
@@ -57,7 +57,7 @@
   });
 
   const fieldAggsItems = computed(() => {
-    store.state.fieldAggsItemsVersion;
+    void store.state.fieldAggsItemsVersion;
     return storeRuntimeCacheService.getFieldAggsItems(store.state.indexId || 'default');
   });
 
@@ -189,6 +189,7 @@
     >
       <div
         v-for="(item, index) in filterFieldsList"
+        :key="item.field_name"
         :class="['filter-select-wrap', { 'is-focus': focusIndex === index }]"
       >
         <div

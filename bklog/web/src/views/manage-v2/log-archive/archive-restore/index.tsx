@@ -208,7 +208,6 @@ export default defineComponent({
     };
 
     // 状态处理
-    // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: reason
     const statusHandler = (data: any[]) => {
       for (const item of data) {
         for (const row of dataList.value) {

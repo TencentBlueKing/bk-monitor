@@ -241,9 +241,8 @@ export default defineComponent({
     // 获取选中的IP列表
     const getFindIpList = () => {
       const ipList: any[] = [];
-      let i = 0;
-      for (; i < previewIp.value.length; i++) {
-        const target = props.ipList.find(item => getIpListID(item) === previewIp.value[i]);
+      for (const previewIpId of previewIp.value) {
+        const target = props.ipList.find(item => getIpListID(item) === previewIpId);
         ipList.push(target);
       }
       return ipList;

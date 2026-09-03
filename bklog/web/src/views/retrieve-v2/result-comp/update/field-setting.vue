@@ -175,7 +175,7 @@
     if (shadowTotal?.value?.length) {
       return '';
     }
-    if (searchKeyword.value == '') {
+    if (searchKeyword.value === '') {
       return 'empty';
     }
     return 'search-empty';

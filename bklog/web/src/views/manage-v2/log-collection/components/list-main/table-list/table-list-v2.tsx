@@ -1710,7 +1710,7 @@ export default defineComponent({
           const usageMap = new Map<number | string, IStorageUsageItem>();
           // 构建使用量映射表，提高查找效率
           for (const item of res.data || []) {
-            if (item.index_set_id != null) {
+            if (item.index_set_id !== null && item.index_set_id !== undefined) {
               usageMap.set(Number(item.index_set_id), item);
             }
           }

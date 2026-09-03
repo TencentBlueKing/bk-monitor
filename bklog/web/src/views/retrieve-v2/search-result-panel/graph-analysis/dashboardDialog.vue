@@ -67,7 +67,7 @@
 </script>
 <template>
   <bk-dialog
-    v-model:is-show="isShow"
+    v-model="isShow"
     theme="primary"
     :width="480"
     header-position="left"

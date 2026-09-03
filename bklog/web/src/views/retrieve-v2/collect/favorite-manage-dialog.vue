@@ -26,7 +26,7 @@
 
 <template>
   <bk-dialog
-    v-model="modelValue"
+    :value="modelValue"
     width="100%"
     :position="{
       top: 50,

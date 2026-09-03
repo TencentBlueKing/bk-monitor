@@ -29,5 +29,5 @@
  * @author <>
  */
 
-// eslint-disable-next-line camelcase -- Webpack requires this exact global variable name.
+// eslint-disable-next-line camelcase, no-global-assign -- Webpack requires assigning this exact runtime variable.
 __webpack_public_path__ = process.env.NODE_ENV === 'production' ? `${window.BK_STATIC_URL}/` : '/';

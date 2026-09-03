@@ -205,7 +205,7 @@
 
             scheduleCalculation(() => {
               // 触发 computed 计算，生成缓存
-              this.jsonShowData;
+              void this.jsonShowData;
               // 提取所有 keys（异步执行，避免阻塞）
               this.allKeys = this.extractKeys(this.jsonShowDataCache);
               // 重置分页状态

@@ -28,7 +28,7 @@
     },
     activeFavorite: {
       default: true,
-      type: Boolean | String,
+      type: [Boolean, String],
     },
     matchSQLStr: {
       default: false,
@@ -60,7 +60,7 @@
     }
     const indexSetList = store.state.retrieve.flatIndexSetList || [];
     const indexSetId = store.state.indexId;
-    const indexSet = indexSetList.find(item => item.index_set_id == indexSetId);
+    const indexSet = indexSetList.find(item => String(item.index_set_id) === String(indexSetId));
     return indexSet ? indexSet.index_set_name : ''; // 提供一个默认名称或处理
   });
   const collectGroupList = computed(() => store.state.favoriteList);

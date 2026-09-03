@@ -313,8 +313,8 @@ const mutations = {
     state.demoUid = demoProject ? demoProject.space_uid : '';
   },
   patchMySpaceListItem(state, { bkBizId, spaceUid, patch } = {}) {
-    const bizId = bkBizId != null ? `${bkBizId}` : '';
-    const uid = spaceUid != null ? `${spaceUid}` : '';
+    const bizId = bkBizId !== null && bkBizId !== undefined ? `${bkBizId}` : '';
+    const uid = spaceUid !== null && spaceUid !== undefined ? `${spaceUid}` : '';
     state.mySpaceList = patchNormalizedSpaceItem(
       state.mySpaceList,
       item => (uid ? item.space_uid === uid : item.bk_biz_id === bizId),

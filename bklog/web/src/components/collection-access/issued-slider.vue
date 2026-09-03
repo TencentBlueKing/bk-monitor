@@ -163,11 +163,12 @@
                       <template #title>
                         <div class="header-info">
                           <div class="header-title fl">{{ cluster.node_path }}</div>
-                          <!-- eslint-disable-next-line vue/no-v-html -->
+                          <!-- eslint-disable vue/no-v-html -- Generated status markup is sanitized by DOMPurify via $xss. -->
                           <p
                             class="fl"
                             v-html="$xss(collaspseHeadInfo(cluster))"
                           ></p>
+                          <!-- eslint-enable vue/no-v-html -->
                         </div>
                       </template>
                       <template #default>
@@ -251,10 +252,12 @@
                       {{ $t('刷新') }}
                     </bk-button>
                   </div>
+                  <!-- eslint-disable vue/no-v-html -- API log detail is sanitized by DOMPurify via $xss. -->
                   <div
                     class="detail-content"
                     v-html="$xss(detail.content)"
                   ></div>
+                  <!-- eslint-enable vue/no-v-html -->
                 </div>
               </div>
             </template>

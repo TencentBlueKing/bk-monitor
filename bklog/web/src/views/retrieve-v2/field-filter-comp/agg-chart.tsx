@@ -253,11 +253,9 @@ export default class AggChart extends tsc<object> {
       return formatResult;
     };
 
-    // biome-ignore lint/nursery/noShadow: reason
     const getSqlAdditionMappingOperator = ({ operator, field }) => {
       const textType = this.fieldType;
 
-      // biome-ignore lint/nursery/noShadow: reason
       const formatValue = value => {
         let formatResult = value;
         if (['text', 'string', 'keyword'].includes(textType)) {

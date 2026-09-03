@@ -38,17 +38,17 @@
       }),
     },
 
-    result_schema: {
+    resultSchema: {
       type: Array,
     },
   });
 
   const emit = defineEmits(['update']);
-  const list = computed(() => props.result_schema.map(item => item.field_alias));
+  const list = computed(() => props.resultSchema.map(item => item.field_alias));
 
   const excludeList = computed(() => [...props.options.yFields, ...props.options.dimensions, ...props.options.xFields]);
   const xFieldOptions = computed(() =>
-    props.result_schema
+    props.resultSchema
       .filter(item => !excludeList.value.includes(item.field_alias) || props.options.xFields.includes(item.field_alias))
       .map(item => {
         return {
@@ -59,7 +59,7 @@
   );
 
   const yFieldOptions = computed(() =>
-    props.result_schema
+    props.resultSchema
       .filter(
         item =>
           /long|number|int|float|bigint|double/.test(item.field_type) &&
@@ -74,7 +74,7 @@
   );
 
   const dimensionsOptions = computed(() =>
-    props.result_schema
+    props.resultSchema
       .filter(
         item => !excludeList.value.includes(item.field_alias) || props.options.dimensions.includes(item.field_alias),
       )

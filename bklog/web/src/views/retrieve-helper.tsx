@@ -579,7 +579,7 @@ class RetrieveHelper extends RetrieveBase {
    */
   private convertToMatchableString(value: any): null | string {
     // 如果值为 null 或 undefined，返回 null
-    if (value == null) {
+    if (value === null || value === undefined) {
       return null;
     }
 

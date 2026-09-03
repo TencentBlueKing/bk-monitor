@@ -1245,7 +1245,7 @@
       },
       filterIsNotCompared(val) {
         if (typeof val === 'string' && val === '') return true;
-        if (typeof val === 'obj' && JSON.stringify(val) === '{}') return true;
+        if (typeof val === 'object' && JSON.stringify(val) === '{}') return true;
         if (Array.isArray(val) && !val.length) return true;
         return false;
       },

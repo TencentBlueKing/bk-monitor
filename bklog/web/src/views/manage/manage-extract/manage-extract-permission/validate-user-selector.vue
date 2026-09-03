@@ -66,7 +66,7 @@
       },
       disabled: {
         type: Boolean,
-        type: false,
+        default: false,
       },
     },
     data() {

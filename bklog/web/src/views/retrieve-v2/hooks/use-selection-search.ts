@@ -322,7 +322,8 @@ export default (options: UseSelectionSearchOptions) => {
       return false;
     }
     return (
-      el.closest(`[${JSON_TEXT_VALUE_ATTR}="true"]`) != null || el.closest('[data-json-string-parsed="true"]') != null
+      el.closest(`[${JSON_TEXT_VALUE_ATTR}="true"]`) !== null ||
+      el.closest('[data-json-string-parsed="true"]') !== null
     );
   };
 
@@ -2074,10 +2075,11 @@ export default (options: UseSelectionSearchOptions) => {
     const pathInfos = intersectedNodes
       .map(el => {
         const path = resolveFieldPathFromElement(el);
+        const parsedFromJsonStringElement = el.closest?.('[data-json-string-parsed="true"]');
         return {
           path: normalizeArrayFieldPath(path),
           parsedFromJsonString:
-            el.closest?.('[data-json-string-parsed="true"]') != null ||
+            (parsedFromJsonStringElement !== null && parsedFromJsonStringElement !== undefined) ||
             el.getAttribute('data-json-string-parsed') === 'true',
         };
       })
@@ -2550,7 +2552,7 @@ export default (options: UseSelectionSearchOptions) => {
     if (startEl?.closest?.('[data-segment-field-name]') || endEl?.closest?.('[data-segment-field-name]')) {
       return [];
     }
-    if (startBlob.getAttribute('data-blob-text-offset') == null) {
+    if (startBlob.getAttribute('data-blob-text-offset') === null) {
       return [];
     }
 
@@ -2588,7 +2590,7 @@ export default (options: UseSelectionSearchOptions) => {
       }));
 
     // Text/String JSON 外观：截断尾巴仍归属外层字段
-    if (startBlob.closest(`[${JSON_TEXT_VALUE_ATTR}="true"]`) != null || isStringRuntimeValue(rootField, row)) {
+    if (startBlob.closest(`[${JSON_TEXT_VALUE_ATTR}="true"]`) !== null || isStringRuntimeValue(rootField, row)) {
       const resolved = resolveSelectionByFieldType(selectionText, rootField, row);
       const nestedFlag = resolveIsNestedSearchField(rootField.field_name, row);
       return withType(

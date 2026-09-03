@@ -1,6 +1,6 @@
 <template>
   <bk-dialog
-    v-model="isShow"
+    :value="isShow"
     width="640"
     :title="$t('预览查询 SQL')"
     class="bv-preview-sql"
@@ -12,6 +12,7 @@
         class="per"
         style="height: 424px; white-space: pre-wrap; background: #f5f7fa"
       >
+        <!-- eslint-disable-next-line vue/no-v-html -- Generated SQL line markup is sanitized by DOMPurify via $xss. -->
         <code class="flex-column" v-html="$xss(highlightedCode)" />
         <div class="vertical"></div>
       </pre>

@@ -140,7 +140,7 @@
 
     const objectFieldMap = new Map();
     fields.value.forEach(field => {
-      if (field.field_name.includes('.') || field.field_type == 'object') {
+      if (field.field_name.includes('.') || field.field_type === 'object') {
         const fieldNamePrefix = field.field_name.split('.')[0].replace(/^_+|_+$/g, '');
         if (!objectFieldMap.has(fieldNamePrefix)) {
           objectFieldMap.set(fieldNamePrefix, {
@@ -204,12 +204,12 @@
     if (queryAlias) {
       // 设置了别名
       if (!/^(?!^\d)[\w]+$/gi.test(queryAlias)) {
-        row.aliasErr = $t('别名只支持【英文、数字、下划线】，并且不能以数字开头');
+        row.aliasErr = t('别名只支持【英文、数字、下划线】，并且不能以数字开头');
 
         return false;
       }
       if (queryAlias === fieldName) {
-        row.aliasErr = $t('别名与字段名重复');
+        row.aliasErr = t('别名与字段名重复');
         return false;
       }
       // if (

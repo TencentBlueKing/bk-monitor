@@ -94,10 +94,12 @@
               class="field-type-icon mr5"
               :class="getFieldIcon(field.field_name)"
             ></span>
+            <!-- eslint-disable vue/no-v-html -- Raw field names are escaped before controlled highlight markup is added. -->
             <span
               class="field-text"
               v-html="getHighlightedFieldNameHtml(field)"
             ></span>
+            <!-- eslint-enable vue/no-v-html -->
           </div>
           <div class="field-value">
             <span

@@ -64,7 +64,7 @@ export function requestStorageUsage(bkBizId, arr, type = false, callbackFn) {
   } else {
     indexSetIds = arr
       .filter(item => {
-        return item.index_set_id && item.is_active && item.apply_status == 'normal';
+        return item.index_set_id && item.is_active && item.apply_status === 'normal';
       })
       .map(item => item.index_set_id);
   }

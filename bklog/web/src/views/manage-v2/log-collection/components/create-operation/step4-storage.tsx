@@ -360,7 +360,11 @@ export default defineComponent({
       clusterSelect.value = row.storage_cluster_id;
       clusterData.value = row;
       // doris集群编辑时，接口返回的retention可能为null，使用选中集群的max_retention兜底
-      if (isDorisMode.value && props.isEdit && formData.value.retention == null) {
+      if (
+        isDorisMode.value &&
+        props.isEdit &&
+        (formData.value.retention === null || formData.value.retention === undefined)
+      ) {
         formData.value.retention = row.max_retention ?? STORAGE_DEFAULTS.retention;
       }
       // 如果开启了冷热集群，天数不能为0

@@ -141,7 +141,6 @@ export default defineComponent({
       nextTick(() => {
         const inputList = document.querySelectorAll('.visible-dir input');
         if (inputList.length > 0) {
-          // biome-ignore lint/style/useAtIndex: reason
           (inputList[inputList.length - 1] as HTMLInputElement).focus();
         }
       });
@@ -154,7 +153,6 @@ export default defineComponent({
       nextTick(() => {
         const inputList = document.querySelectorAll('.file-type input');
         if (inputList.length > 0) {
-          // biome-ignore lint/style/useAtIndex: reason
           (inputList[inputList.length - 1] as HTMLInputElement).focus();
         }
       });

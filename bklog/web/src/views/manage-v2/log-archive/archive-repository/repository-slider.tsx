@@ -363,8 +363,6 @@ export default defineComponent({
           onClick={() => changeRepository(card)}
         >
           <span class='repository-name'>{card.name}</span>
-          {/** biome-ignore lint/performance/noImgElement: reason */}
-          {/** biome-ignore lint/nursery/useImageSize: reason */}
           <img
             class='card-image'
             alt={card.name}

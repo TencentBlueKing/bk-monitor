@@ -431,7 +431,10 @@
           subTitle: this.$t('确定要删除配置项{n}？', { n: this.getFromCharCode(letterIndex) }),
           type: 'warning',
           confirmFn: () => {
-            this.formData.configs.splice(index, 1);
+            this.$emit('update:formData', {
+              ...this.formData,
+              configs: this.formData.configs.filter((_, configIndex) => configIndex !== index),
+            });
           },
         });
       },

@@ -488,7 +488,6 @@ export default class MaskingField extends tsc<IProps> {
       .concat(selectIdList)
       .filter(v => !(curIdList.includes(v) && selectIdList.includes(v))); // 获取新增差集的rule_id
 
-    // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: reason
     this.tableValueChange(this.currentOperateField, async (fItem: IFieldItem) => {
       for (const dItem of differenceIdList) {
         const newRule = selectList.find((sItem: IRuleItem) => sItem.id === dItem);
@@ -692,7 +691,6 @@ export default class MaskingField extends tsc<IProps> {
     for (const cItem of this.tableList) {
       for (const field of cItem.fieldList) {
         const spliceIDList: any[] = [];
-        // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: reason
         field.rules.forEach((item, index) => {
           if (syncID >= 0) {
             // 有同步规则
@@ -962,7 +960,6 @@ export default class MaskingField extends tsc<IProps> {
         },
       ];
 
-      // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: reason
       const initFieldList = maskingList.reduce((pre, cur) => {
         // 分类下标
         let preIndex = 1;

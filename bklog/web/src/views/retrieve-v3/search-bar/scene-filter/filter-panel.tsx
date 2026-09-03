@@ -119,7 +119,7 @@ export default defineComponent({
           if (f.key === field.key) continue;
           const fieldValue = props.filterValues[f.key];
           const val = fieldValue?.value;
-          if (val == null || val === '' || (Array.isArray(val) && val.length === 0)) continue;
+          if (val === null || val === undefined || val === '' || (Array.isArray(val) && val.length === 0)) continue;
           filters.push({
             field_name: f.key,
             value: Array.isArray(val) ? val.map(String) : [String(val)],
@@ -419,7 +419,7 @@ export default defineComponent({
         if (f.choicesType !== 'free_input') continue;
         const fieldValue = props.filterValues[f.key];
         const val = fieldValue?.value;
-        if (val == null || val === '' || (Array.isArray(val) && val.length === 0)) continue;
+        if (val === null || val === undefined || val === '' || (Array.isArray(val) && val.length === 0)) continue;
 
         const valueArray = Array.isArray(val) ? val.map(String) : [String(val)];
         // 只有 op 为 eq 时才传递 condition
@@ -755,7 +755,7 @@ export default defineComponent({
     /** 获取 bk-select 的 value，确保多选字段值为数组 */
     const getSelectValue = (field: FilterFieldConfig) => {
       const raw = props.filterValues[field.key]?.value;
-      if (raw == null || raw === '') return field.multiple ? [] : '';
+      if (raw === null || raw === undefined || raw === '') return field.multiple ? [] : '';
       if (field.multiple) {
         const arr = Array.isArray(raw) ? raw : [raw];
         return arr.map(v => String(v));
@@ -771,7 +771,10 @@ export default defineComponent({
 
       const currentValue = props.filterValues[field.key]?.value;
       const currentIds =
-        currentValue == null || currentValue === '' || (Array.isArray(currentValue) && currentValue.length === 0)
+        currentValue === null ||
+        currentValue === undefined ||
+        currentValue === '' ||
+        (Array.isArray(currentValue) && currentValue.length === 0)
           ? []
           : (Array.isArray(currentValue) ? currentValue : [currentValue]).map(id => String(id));
 

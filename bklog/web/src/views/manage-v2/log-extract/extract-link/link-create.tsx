@@ -84,7 +84,6 @@ export default defineComponent({
     const isShowCommon = computed(() => router.currentRoute?.params?.linkId && editInitLinkType.value === 'common'); // 是否展示内网链路
 
     // 初始化表单数据
-    // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: reason
     const init = async () => {
       const linkId = router.currentRoute?.params?.linkId;
       if (linkId) {

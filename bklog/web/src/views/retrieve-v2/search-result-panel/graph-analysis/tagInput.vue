@@ -94,6 +94,7 @@
 
   //   return null;
   // };
+  /* eslint-disable no-undef -- Legacy graph-analysis prototype depends on an unfinished field model and event contract. */
   function addFormField(data) {
     if (!data?.name) return;
     const item = new QueryColumn(data);
@@ -141,6 +142,7 @@
     formData.value.push(item);
     emit('change', item);
   }
+  /* eslint-enable no-undef */
   const namesMap = computed(() => {
     const names = new Map();
     const displayNames = [];

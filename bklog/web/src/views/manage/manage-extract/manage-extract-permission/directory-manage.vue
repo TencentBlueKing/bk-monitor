@@ -292,7 +292,7 @@
     },
     data() {
       // 避免后台造的数据为空数组
-      const strategyData = structuredCloney(this.strategyData);
+      const strategyData = structuredClone(this.strategyData);
       if (!strategyData.visible_dir?.length) {
         strategyData.visible_dir = [''];
       }

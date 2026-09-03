@@ -95,7 +95,7 @@ export default class FieldFilterComp extends tsc<object> {
   }
   get statisticalFieldsData() {
     // 版本号用于触发视图更新，实际大对象存放在 runtime cache / IndexedDB 镜像中。
-    this.$store.state.retrieveDropdownDataVersion;
+    void this.$store.state.retrieveDropdownDataVersion;
     return storeRuntimeCacheService.getRetrieveDropdownData(this.$store.state.indexId || 'default');
   }
 

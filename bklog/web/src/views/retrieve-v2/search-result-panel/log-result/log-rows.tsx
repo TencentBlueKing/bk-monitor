@@ -827,9 +827,9 @@ export default defineComponent({
     // 性能优化：使用 computed 缓存列配置，避免每次渲染都重新计算
     /** 字段列配置：table 模式走可见字段，否则走原始日志双列 */
     const getFieldColumns = computed(() => {
-      columnLayoutVersion.value;
+      void columnLayoutVersion.value;
       // 别名开关变化时重建 title / header 文案，不改 column key
-      showFieldAlias.value;
+      void showFieldAlias.value;
 
       if (showCtxType.value === 'table') {
         const columnList: Record<string, any>[] = [];
@@ -1028,7 +1028,6 @@ export default defineComponent({
 
       return preferredFields.length ? preferredFields : renderableFields.slice(0, 4);
     };
-    // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: reason
     /**
      * 构建 fullColumns：时间 → log → 其它索引字段，并基于样本行估算默认列宽。
      * 清空全部可见字段后表格依赖此列表兜底展示。
@@ -2313,7 +2312,6 @@ export default defineComponent({
       );
     };
 
-    // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: reason
     /** 空态 / 异常态展示类型，供 LogResultException 消费 */
     const exceptionType = computed(() => {
       if (tableDataSize.value === 0 || indexFieldInfo.value.is_loading) {

@@ -83,7 +83,7 @@ export const normalizeSpaceListItem = (item: Record<string, any> = {}): SpaceLis
     id: item.id ?? item.bk_biz_id,
     bk_biz_id: `${item.bk_biz_id ?? ''}`,
     space_uid: `${item.space_uid ?? ''}`,
-    space_id: item.space_id != null ? `${item.space_id}` : '',
+    space_id: item.space_id !== null && item.space_id !== undefined ? `${item.space_id}` : '',
     space_code: item.space_code ?? '',
     space_name: spaceName,
     space_type_id: spaceTypeId,

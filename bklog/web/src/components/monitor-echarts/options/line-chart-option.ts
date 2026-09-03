@@ -284,12 +284,13 @@ export default class MonitorLineSeries extends MonitorBaseSeries implements ICha
     sampling.push(data[len - 1]);
     sampling = Array.from(new Set(sampling.filter(n => n !== undefined)));
     while (precision < 5) {
+      const currentPrecision = precision;
       const samp = sampling.reduce((pre, cur) => {
-        pre[formattter(cur, precision).text] = 1;
+        pre[formattter(cur, currentPrecision).text] = 1;
         return pre;
       }, {});
       if (Object.keys(samp).length >= sampling.length) {
-        return precision;
+        return currentPrecision;
       }
       precision += 1;
     }

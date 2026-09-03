@@ -1224,7 +1224,6 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
             jsonText.value = data.origin || {};
             pathExample.value = jsonText.value.filename;
             logOriginal.value = data.etl.data || '';
-            // biome-ignore lint/complexity/noForEach: <explanation>
             copyBuiltField.value.forEach(item => {
               const fieldName = item.field_name;
               if (fieldName) {

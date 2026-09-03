@@ -24,6 +24,7 @@
 * IN THE SOFTWARE.
 -->
 <script setup>
+  /* eslint-disable vue/no-dupe-keys -- Legacy graph-analysis prototype keeps placeholder state beside its unfinished prop contract. */
   import { ref, computed } from 'vue';
   import useLocale from '@/hooks/use-locale';
   const { $t } = useLocale();
@@ -53,6 +54,7 @@
     },
     preferRawData: Boolean,
   });
+  /* eslint-enable vue/no-dupe-keys */
   const filteredFields = computed(() => {
     if (!keyword.value) {
       return fields.value;

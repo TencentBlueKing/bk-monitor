@@ -716,6 +716,7 @@
             break;
           case 'update':
             this.handleUpdateTemplateName(configItem);
+            break;
           case 'edit':
             this.handleEditTemplateName(configItem.index);
             break;

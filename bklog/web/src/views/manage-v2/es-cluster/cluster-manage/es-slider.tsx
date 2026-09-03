@@ -244,7 +244,6 @@ export default defineComponent({
     };
 
     // 编辑：获取集群信息并回填
-    // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: reason
     const editDataSource = async () => {
       try {
         sliderLoading.value = true;
@@ -469,7 +468,6 @@ export default defineComponent({
     };
 
     // 提交新增/提交编辑
-    // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: reason
     const handleConfirm = async () => {
       const isCanSubmit = checkSelectItem();
       if (!isCanSubmit) {
@@ -640,7 +638,6 @@ export default defineComponent({
     };
 
     // 判断过期时间输入的值
-    // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: reason
     const enterCustomDay = (val, type) => {
       const numberVal = Number.parseInt(val.trim(), 10);
       const stringVal = numberVal.toString();
@@ -1031,7 +1028,6 @@ export default defineComponent({
     );
 
     // 主渲染
-    // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: reason
     return () => (
       <div
         class='es-access-slider-container'
@@ -1480,7 +1476,6 @@ export default defineComponent({
                                 onClick={() => ManageHelper.handleGotoLink('logArchive')}
                               >
                                 <span class='bk-icon icon-text-file' />
-                                {/** biome-ignore lint/nursery/useAnchorHref: reason */}
                                 <a>{t('查看说明文档')}</a>
                               </div>
                             )}

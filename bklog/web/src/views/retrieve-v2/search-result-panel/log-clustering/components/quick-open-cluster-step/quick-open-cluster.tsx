@@ -336,8 +336,6 @@ export default class QuickOpenCluster extends tsc<IProps> {
           </bk-button>
         </div>
         <div class='right-box'>
-          {/** biome-ignore lint/performance/noImgElement: reason */}
-          {/** biome-ignore lint/nursery/useImageSize: reason */}
           <img
             alt='日志聚类'
             src={clusterImg}

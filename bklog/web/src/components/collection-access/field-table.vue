@@ -898,23 +898,23 @@
       getData() {
         const data = structuredClone(this.formData.tableList);
         data.forEach(item => {
-          if (item.hasOwnProperty('fieldErr')) {
+          if (Object.prototype.hasOwnProperty.call(item, 'fieldErr')) {
             delete item.fieldErr;
           }
 
-          if (item.hasOwnProperty('aliasErr')) {
+          if (Object.prototype.hasOwnProperty.call(item, 'aliasErr')) {
             delete item.aliasErr;
           }
 
-          if (item.hasOwnProperty('typeErr')) {
+          if (Object.prototype.hasOwnProperty.call(item, 'typeErr')) {
             delete item.typeErr;
           }
 
-          if (item.hasOwnProperty('fieldAliasErr')) {
+          if (Object.prototype.hasOwnProperty.call(item, 'fieldAliasErr')) {
             delete item.fieldAliasErr;
           }
 
-          if (item.hasOwnProperty('alias_name_show')) {
+          if (Object.prototype.hasOwnProperty.call(item, 'alias_name_show')) {
             delete item.alias_name_show;
           }
         });
@@ -924,23 +924,23 @@
         const data = structuredClone(this.formData.tableList);
 
         data.forEach(item => {
-          if (item.hasOwnProperty('fieldErr')) {
+          if (Object.prototype.hasOwnProperty.call(item, 'fieldErr')) {
             delete item.fieldErr;
           }
 
-          if (item.hasOwnProperty('aliasErr')) {
+          if (Object.prototype.hasOwnProperty.call(item, 'aliasErr')) {
             delete item.aliasErr;
           }
 
-          if (item.hasOwnProperty('typeErr')) {
+          if (Object.prototype.hasOwnProperty.call(item, 'typeErr')) {
             delete item.typeErr;
           }
 
-          if (item.hasOwnProperty('fieldAliasErr')) {
+          if (Object.prototype.hasOwnProperty.call(item, 'fieldAliasErr')) {
             delete item.fieldAliasErr;
           }
 
-          if (item.hasOwnProperty('alias_name_show')) {
+          if (Object.prototype.hasOwnProperty.call(item, 'alias_name_show')) {
             delete item.alias_name_show;
           }
         });
@@ -1013,7 +1013,7 @@
                 ? this.$t('字段名与系统字段重复，必须修改正则表达式')
                 : this.$t('字段名与系统内置字段重复');
           } else if (
-            this.extractMethod == 'bk_log_json' &&
+            this.extractMethod === 'bk_log_json' &&
             this.globalsData.field_built_in.find(item => item.id === fieldName.toLocaleLowerCase())
           ) {
             btnShow = true;

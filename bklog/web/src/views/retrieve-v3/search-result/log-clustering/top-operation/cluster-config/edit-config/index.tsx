@@ -367,7 +367,7 @@ export default defineComponent({
 
         <RuleConfigOperate
           ref={ruleConfigOperateRef}
-          max_log_length={formData.value.max_log_length}
+          maxLogLength={formData.value.max_log_length}
           ruleList={ruleList.value}
           on-reset={handleReset}
           on-submit={handleSubmit}

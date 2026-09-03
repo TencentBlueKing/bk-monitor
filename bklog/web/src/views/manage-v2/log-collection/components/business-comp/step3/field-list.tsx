@@ -509,7 +509,7 @@ export default defineComponent({
     };
     /** 销毁所有tippy */
     const destroyTippyInstances = () => {
-      // biome-ignore lint/complexity/noForEach: 需要遍历数组并执行销毁操作，forEach 更简洁
+      // 需要遍历数组并执行销毁操作，forEach 更简洁
       tippyInstances.forEach(i => {
         try {
           i.hide();
@@ -803,7 +803,6 @@ export default defineComponent({
      * 注意：此函数保留用于 API 兼容性，可能被父组件通过 ref 调用
      * @returns Promise，校验通过 resolve，失败 reject
      */
-    // biome-ignore lint/correctness/noUnusedVariables: 保留用于 API 兼容性，可能被父组件通过 ref 调用
     const checkFieldName = (): Promise<void> => {
       return new Promise((resolve, reject) => {
         try {
@@ -843,7 +842,6 @@ export default defineComponent({
      * 注意：此函数保留用于 API 兼容性，可能被父组件通过 ref 调用
      * @returns Promise，校验通过 resolve，失败 reject
      */
-    // biome-ignore lint/correctness/noUnusedVariables: 保留用于 API 兼容性，可能被父组件通过 ref 调用
     const checkAliasName = (): Promise<void> => {
       return new Promise((resolve, reject) => {
         try {
@@ -901,7 +899,6 @@ export default defineComponent({
      * 注意：此函数保留用于 API 兼容性，可能被父组件通过 ref 调用
      * @returns Promise，校验通过 resolve，失败 reject
      */
-    // biome-ignore lint/correctness/noUnusedVariables: 保留用于 API 兼容性，可能被父组件通过 ref 调用
     const checkType = (): Promise<void> => {
       return new Promise((resolve, reject) => {
         try {

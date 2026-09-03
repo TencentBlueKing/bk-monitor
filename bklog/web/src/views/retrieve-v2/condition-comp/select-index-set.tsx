@@ -461,7 +461,6 @@ export default class SelectIndexSet extends tsc<object> {
     }
   }
 
-  // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: reason
   toggleSelect(val: boolean) {
     // 当前是否展示下拉列表
     this.isShowSelectPopover = val;

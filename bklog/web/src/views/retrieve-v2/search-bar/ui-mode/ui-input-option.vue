@@ -717,7 +717,7 @@
   });
 
   const fieldAggsItems = computed(() => {
-    store.state.fieldAggsItemsVersion;
+    void store.state.fieldAggsItemsVersion;
     return storeRuntimeCacheService.getFieldAggsItems(store.state.indexId || 'default');
   });
 

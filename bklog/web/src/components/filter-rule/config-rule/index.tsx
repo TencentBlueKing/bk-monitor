@@ -102,7 +102,7 @@ export default defineComponent({
     const isConfirmEnable = computed(() => formData.value.op && formData.value.values.length);
     const currentFieldInfo = computed(() => filterFieldList.value[activeIndex.value]);
     const fieldAggsItems = computed(() => {
-      store.state.fieldAggsItemsVersion;
+      void store.state.fieldAggsItemsVersion;
       return storeRuntimeCacheService.getFieldAggsItems(store.state.indexId || 'default');
     });
 

@@ -268,7 +268,6 @@ class QuickCreateSubscription extends tsc<IProps> {
       ],
       channels: [
         {
-          // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: reason
           validator: () => {
             if (this.formData.subscriber_type === 'self') {
               return true;
@@ -699,7 +698,6 @@ class QuickCreateSubscription extends tsc<IProps> {
     this.formData.scenario = this.scenario;
   }
 
-  // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: reason
   render() {
     return (
       <div class='create-subscription-form-container'>

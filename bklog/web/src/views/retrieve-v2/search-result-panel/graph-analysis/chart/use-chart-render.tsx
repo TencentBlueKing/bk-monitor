@@ -35,7 +35,6 @@ export default ({ target, type }: { target: Ref<any>; type: string }) => {
 
   type DataItem = Record<string, any>;
 
-  // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: reason
   const aggregateDataByDimensions = (data: DataItem[], dimensionFields: string[], metricFields: string[]) => {
     const groupedData = {};
     const reservedFields = dimensionFields;
@@ -60,7 +59,6 @@ export default ({ target, type }: { target: Ref<any>; type: string }) => {
       }
     }
 
-    // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: reason
     const getNewGroup = (index, group) => {
       const field = reservedFields[index];
       if (field) {
@@ -107,7 +105,6 @@ export default ({ target, type }: { target: Ref<any>; type: string }) => {
     return timeValue || value;
   };
 
-  // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: reason
   const aggregateData = (data, dimensions, metrics, newType, timeField?) => {
     const dimFields = dimensions.length > 0 ? dimensions : [timeField];
     if (timeField && dimensions.length > 0) {

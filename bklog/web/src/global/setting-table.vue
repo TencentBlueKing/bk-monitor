@@ -642,7 +642,7 @@
       batchAddField() {
         const indexSetList = this.$store.state.retrieve.flatIndexSetList;
         const indexSetId = this.$route.params?.indexId;
-        const currentIndexSet = indexSetList.find(item => `${item.index_set_id}` == indexSetId);
+        const currentIndexSet = indexSetList.find(item => `${item.index_set_id}` === indexSetId);
 
         if (!this.collectorConfigId) return;
         const newURL = this.$router.resolve({
@@ -761,14 +761,14 @@
         const data = structuredClone(this.changeTableList);
 
         data.forEach(item => {
-          if (item.hasOwnProperty('fieldErr')) {
+          if (Object.prototype.hasOwnProperty.call(item, 'fieldErr')) {
             delete item.fieldErr;
           }
-          if (item.hasOwnProperty('aliasErr')) {
+          if (Object.prototype.hasOwnProperty.call(item, 'aliasErr')) {
             delete item.aliasErr;
           }
 
-          if (item.hasOwnProperty('typeErr')) {
+          if (Object.prototype.hasOwnProperty.call(item, 'typeErr')) {
             delete item.typeErr;
           }
         });
@@ -777,22 +777,22 @@
       getAllData() {
         const data = structuredClone(this.tableAllList);
         data.forEach(field => {
-          if (field.hasOwnProperty('expand')) {
+          if (Object.prototype.hasOwnProperty.call(field, 'expand')) {
             if (field.expand === false) {
               data.push(...field.children);
             }
           }
         });
         data.forEach(item => {
-          if (item.hasOwnProperty('fieldErr')) {
+          if (Object.prototype.hasOwnProperty.call(item, 'fieldErr')) {
             delete item.fieldErr;
           }
 
-          if (item.hasOwnProperty('aliasErr')) {
+          if (Object.prototype.hasOwnProperty.call(item, 'aliasErr')) {
             delete item.aliasErr;
           }
 
-          if (item.hasOwnProperty('typeErr')) {
+          if (Object.prototype.hasOwnProperty.call(item, 'typeErr')) {
             delete item.typeErr;
           }
         });

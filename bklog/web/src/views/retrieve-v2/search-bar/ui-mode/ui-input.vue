@@ -114,7 +114,7 @@
   };
 
   const operatorDictionary = computed(() => {
-    store.state.operatorDictionaryVersion;
+    void store.state.operatorDictionaryVersion;
     const defVal = {
       [getOperatorKey(FulltextOperatorKey)]: {
         label: t('包含'),

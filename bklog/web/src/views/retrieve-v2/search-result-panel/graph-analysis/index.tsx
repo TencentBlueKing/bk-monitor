@@ -329,9 +329,6 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
           onClick={item.click}
         >
           <div class='category-img'>
-            {/** biome-ignore lint/performance/noImgElement: reason */}
-            {/** biome-ignore lint/nursery/useImageSize: reason */}
-            {/** biome-ignore lint/a11y/useAltText: reason */}
             <img src={imgHref} />
           </div>
           <div class='category-text'>{item.text}</div>
@@ -478,7 +475,6 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
     this.rightOptionWidth = target;
   }
 
-  // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: reason
   getChartConfigValidate() {
     let showException = false;
     const message =
@@ -780,7 +776,7 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
                   <FieldSettings
                     slot='content'
                     options={this.chartOptions}
-                    result_schema={this.resultSchema}
+                    resultSchema={this.resultSchema}
                     on-update={this.updateChartData}
                   />
                 </bk-collapse-item>

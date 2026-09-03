@@ -342,7 +342,6 @@ export default class FilterRule extends tsc<IProps> {
               </div>
             ))}
             {this.isShowAddFilterIcon && (
-              // biome-ignore lint/a11y/useButtonType: reason
               <button
                 class='icon-box'
                 onClick={this.handleAddFilterRule}

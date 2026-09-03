@@ -687,7 +687,6 @@ export default class FieldAnalysis extends Vue {
     }
   }
 
-  // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: reason
   render() {
     const {
       isPillarChart,

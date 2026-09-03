@@ -41,7 +41,7 @@ export default defineComponent({
     DebugTool,
   },
   props: {
-    max_log_length: {
+    maxLogLength: {
       type: Number,
       default: 10_000,
     },
@@ -101,7 +101,7 @@ export default defineComponent({
         {showDebug.value && (
           <debug-tool
             collectorConfigId={props.collectorConfigId}
-            maxLogLength={props.max_log_length}
+            maxLogLength={props.maxLogLength}
             ruleList={props.ruleList}
           />
         )}

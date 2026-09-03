@@ -111,7 +111,6 @@ export default defineComponent({
       return parent;
     };
 
-    // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: reason
     const setTableData = () => {
       if (showTable.value || showNumber.value) {
         if (props.chartOptions.category === 'table') {

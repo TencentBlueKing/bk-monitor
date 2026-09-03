@@ -49,7 +49,7 @@
       return [];
     }
     const folderId = formData.value.directory.replace('folder_', '');
-    const folder = directoryRawData.value.find(item => item.id == folderId);
+    const folder = directoryRawData.value.find(item => String(item.id) === folderId);
 
     if (!folder || !folder.dashboards) {
       return [];
@@ -205,7 +205,7 @@
         if (res.result) {
           const newDashboard = res.data;
           // 在对应目录中添加新的仪表盘
-          const folderIndex = directoryRawData.value.findIndex(item => item.id == folderId);
+          const folderIndex = directoryRawData.value.findIndex(item => String(item.id) === folderId);
           if (folderIndex !== -1) {
             // 确保dashboards数组存在
             if (!directoryRawData.value[folderIndex].dashboards) {

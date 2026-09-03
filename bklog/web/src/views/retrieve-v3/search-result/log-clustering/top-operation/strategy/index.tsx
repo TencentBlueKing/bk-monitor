@@ -60,7 +60,7 @@ export default defineComponent({
       require: true,
     },
   },
-  setup(props, {}) {
+  setup(props) {
     const baseAlarmConfigData = {
       interval: '30',
       threshold: '1',

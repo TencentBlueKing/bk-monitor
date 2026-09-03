@@ -23,7 +23,6 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-/** biome-ignore-all lint/style/useForOf: 需要使用索引进行精确控制 */
 import { computed, defineComponent, nextTick, onBeforeUnmount, onMounted, ref, watch, type Ref, type VNode } from 'vue';
 
 import tippy, { type Instance, type SingleTarget } from 'tippy.js';
