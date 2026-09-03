@@ -1465,6 +1465,52 @@ class FixedK8sProbeTest(SimpleTestCase):
         )
         self.assertEqual(source_probe["warnings"][0]["code"], "source_sample_unavailable")
 
+    def test_probe_evidence_bounds_a_recursive_pattern_at_every_depth(self):
+        paths = [
+            "/var/host/vol/rec/depth0.log",
+            "/var/host/vol/rec/l1/depth1.log",
+            "/var/host/vol/rec/l1/l2/depth2.log",
+        ]
+        values = {}
+        for phase in ("first", "second"):
+            values[f"{phase}.source_count"] = str(len(paths))
+            for index, path in enumerate(paths):
+                values[f"{phase}.source.{index}.pattern"] = "/var/host/vol/rec/**/*.log"
+                values[f"{phase}.source.{index}.path"] = path
+                values[f"{phase}.source.{index}.inode"] = str(100 + index)
+                values[f"{phase}.source.{index}.device"] = "2049"
+        parsed = {
+            "values": values,
+            "streams": {
+                "child_config.0": {
+                    "path": "/data/etc/bkunifylogbeat/a.conf",
+                    "content": (
+                        "local:\n"
+                        "  - dataid: 1001\n"
+                        "    mounts:\n"
+                        "      - container_path: /data/rec\n"
+                        "        host_path: /var/host/vol/rec\n"
+                        "    paths: ['/data/rec/**/*.log']\n"
+                    ),
+                }
+            },
+        }
+
+        probes = build_probe_evidence(
+            parsed,
+            bk_data_id=1001,
+            source=None,
+            include_source_sample=False,
+            config_map_main=None,
+        )
+
+        source_probe = probes["source_path"]
+        # fnmatch does not treat / specially, so a literal ** matches every nested level but
+        # never the zero-level file, dropping the shallowest file the collector reads.
+        self.assertEqual([entry["first"]["path"] for entry in source_probe["evidence"]["files"]], paths)
+        # The allow-list itself stays in its configured form so the evidence remains readable.
+        self.assertEqual(source_probe["evidence"]["allowed_patterns"], ["/var/host/vol/rec/**/*.log"])
+
     def test_probe_evidence_reports_a_source_whose_link_target_cannot_be_resolved(self):
         parsed = {
             "values": {

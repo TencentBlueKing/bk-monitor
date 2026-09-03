@@ -22,6 +22,9 @@ from apps.log_databus.constants import ContainerCollectorType
 
 MAX_SOURCE_SAMPLE_BYTES = 64 * 1024
 MAX_SOURCE_SAMPLE_LINES = 50
+# Mirrors filebeat's recursive_glob.max_depth default and the probe script's own limit.
+RECURSIVE_GLOB_MAX_DEPTH = 8
+RECURSIVE_GLOB_MARKER = "**/"
 
 
 def build_probe_evidence(
@@ -433,14 +436,32 @@ def _source_rows(values: dict[str, str], phase: str) -> list[dict[str, Any]]:
     return rows
 
 
+def _expand_recursive_glob(pattern: str) -> list[str]:
+    """Expand ``**`` the way the collector's recursive glob does.
+
+    filebeat rewrites ``**`` into an increasing run of single-level wildcards rather than
+    walking the tree, so ``/data/**/*.log`` also covers ``/data/*.log``. fnmatch has no notion
+    of a path separator, which leaves a literal ``**`` pattern matching every nested level but
+    never the zero-level case.
+    """
+    if RECURSIVE_GLOB_MARKER not in pattern:
+        return [pattern]
+    prefix, _, suffix = pattern.partition(RECURSIVE_GLOB_MARKER)
+    return [prefix + "*/" * depth + suffix for depth in range(RECURSIVE_GLOB_MAX_DEPTH + 1)]
+
+
 def _select_sources(
     first_rows: list[dict[str, Any]],
     second_rows: list[dict[str, Any]],
     allowed_patterns: list[str],
     source: str | None,
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]], str | None]:
+    # The allow-list stays in its configured form for the evidence, while matching runs against
+    # the expansion so a recursive pattern bounds exactly the files the collector reads.
+    expanded_patterns = [candidate for pattern in allowed_patterns for candidate in _expand_recursive_glob(pattern)]
+
     def allowed(row: dict[str, Any]) -> bool:
-        return any(fnmatch.fnmatchcase(row["path"], pattern) for pattern in allowed_patterns)
+        return any(fnmatch.fnmatchcase(row["path"], pattern) for pattern in expanded_patterns)
 
     first = [row for row in first_rows if allowed(row)]
     second = [row for row in second_rows if allowed(row)]
@@ -448,7 +469,7 @@ def _select_sources(
         normalized = os.path.normpath(source)
         if normalized != source or not source.startswith("/"):
             return [], [], "source_not_in_rendered_config"
-        if not any(fnmatch.fnmatchcase(source, pattern) for pattern in allowed_patterns):
+        if not any(fnmatch.fnmatchcase(source, pattern) for pattern in expanded_patterns):
             return [], [], "source_not_in_rendered_config"
         first = [row for row in first if row["path"] == source]
         second = [row for row in second if row["path"] == source]

@@ -21,7 +21,11 @@ from apps.log_admin_resource.collector_probe import (
     fixed_probe_script,
     parse_probe_output,
 )
-from apps.log_admin_resource.collector_probe_evidence import _host_visible_path, build_probe_evidence
+from apps.log_admin_resource.collector_probe_evidence import (
+    _expand_recursive_glob,
+    _host_visible_path,
+    build_probe_evidence,
+)
 from apps.log_admin_resource.collector_probe_parsers import (
     classify_registrar_progress,
     fallback_matching_inputs,
@@ -1146,9 +1150,89 @@ class FixedRemoteScriptTest(SimpleTestCase):
         # returns and reads as though the configured files were never present.
         self.assertEqual(resolved, {path: _host_visible_path(path, mounts, root_fs) for path in paths})
 
+    def test_probe_and_server_expand_a_recursive_pattern_identically(self):
+        script = fixed_probe_script().decode("utf-8")
+        start = script.index("expand_recursive_glob() {")
+        end = script.index("\nsnapshot_sources() {", start)
+        pattern = "/data/rec/**/*.log"
+
+        completed = subprocess.run(
+            ["/bin/sh"],
+            input="\n".join(
+                (
+                    "set -u",
+                    "MAX_RECURSIVE_GLOB_DEPTH=8",
+                    script[start:end],
+                    f"expand_recursive_glob '{pattern}'",
+                )
+            ),
+            text=True,
+            capture_output=True,
+            check=True,
+        )
+
+        expanded = completed.stdout.splitlines()
+        # The zero-level case is the one a literal ** silently drops on both sides.
+        self.assertEqual(expanded[0], "/data/rec/*.log")
+        self.assertEqual(expanded[1], "/data/rec/*/*.log")
+        self.assertEqual(len(expanded), 9)
+        self.assertEqual(expanded, _expand_recursive_glob(pattern))
+
+    def test_shared_probe_finds_every_depth_of_a_recursive_pattern(self):
+        script = fixed_probe_script().decode("utf-8")
+        start = script.index("expand_recursive_glob() {")
+        end = script.index("\nsnapshot_registrar() {", start)
+        snapshot_script = script[start:end]
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            expected = set()
+            for depth in range(4):
+                leaf = root.joinpath(*[f"l{level}" for level in range(1, depth + 1)])
+                leaf.mkdir(parents=True, exist_ok=True)
+                target = leaf / f"depth{depth}.log"
+                target.write_text("payload", encoding="utf-8")
+                expected.add(str(target))
+            pattern = f"{root}/**/*.log"
+
+            harness = "\n".join(
+                (
+                    "set -u",
+                    "MAX_SOURCES=50",
+                    "MAX_RECURSIVE_GLOB_DEPTH=8",
+                    "INCLUDE_SOURCE_SAMPLE=0",
+                    "tab=$(printf '\\t')",
+                    'emit_kv() { printf \'%s\\t%s\\n\' "$1" "${2-}"; }',
+                    "emit_sample_stream() { :; }",
+                    "add_registrar_filter_key() { :; }",
+                    "stat() { [ -e \"$3\" ] || return 1; printf '2049 4242 7 1700000000\\n'; }",
+                    f"source_patterns=$(printf '%s\\t%s' '{pattern}' '{pattern}')",
+                    snapshot_script,
+                    "snapshot_sources first",
+                )
+            )
+            completed = subprocess.run(
+                ["/bin/sh"],
+                input=harness,
+                text=True,
+                capture_output=True,
+                check=True,
+            )
+
+            emitted = {}
+            for line in completed.stdout.splitlines():
+                key, _, value = line.partition("\t")
+                emitted[key] = value
+            found = {value for key, value in emitted.items() if key.endswith(".path")}
+
+            # POSIX sh has no globstar, so ** collapses to a single * and reports only the
+            # one-level file while the collector reads all four.
+            self.assertEqual(found, expected)
+            self.assertEqual(emitted["first.source_count"], "4")
+
     def test_shared_probe_keeps_a_source_whose_link_target_cannot_be_resolved(self):
         script = fixed_probe_script().decode("utf-8")
-        snapshot_start = script.index("snapshot_sources() {")
+        snapshot_start = script.index("expand_recursive_glob() {")
         snapshot_end = script.index("\nsnapshot_registrar() {", snapshot_start)
         snapshot_script = script[snapshot_start:snapshot_end]
 
@@ -1163,6 +1247,7 @@ class FixedRemoteScriptTest(SimpleTestCase):
                 (
                     "set -u",
                     "MAX_SOURCES=50",
+                    "MAX_RECURSIVE_GLOB_DEPTH=8",
                     "INCLUDE_SOURCE_SAMPLE=0",
                     "tab=$(printf '\\t')",
                     'emit_kv() { printf \'%s\\t%s\\n\' "$1" "${2-}"; }',

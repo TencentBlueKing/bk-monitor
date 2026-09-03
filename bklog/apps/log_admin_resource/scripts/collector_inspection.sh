@@ -31,7 +31,7 @@ if [ "$target_config_hint_count" -gt 20 ]; then
 fi
 
 PROTOCOL="bklog.collector.inspection.probe.v1"
-PROBE_VERSION="137865321.4"
+PROBE_VERSION="137865321.5"
 # Stay below BK-JOB/GSE's 5 MiB atomic script-task log limit.
 OUTPUT_BUDGET_BYTES=4194304
 OUTPUT_FINAL_RESERVE_BYTES=4096
@@ -43,6 +43,8 @@ MAX_COLLECTOR_FILE_LOG_BYTES=1048576
 MAX_CHILD_CONFIG_SCAN=1000
 MAX_MATCHED_CHILD_CONFIGS=5
 MAX_SOURCES=50
+# Matches filebeat's recursive_glob.max_depth default, which is what renders these patterns.
+MAX_RECURSIVE_GLOB_DEPTH=8
 output_used_bytes=0
 content_kv_count=0
 stream_count=0
@@ -687,6 +689,7 @@ source_patterns=$(printf '%s\n' "$source_patterns" | awk 'NF' | sort -u | sed -n
 source_pattern_count=$(printf '%s\n' "$source_patterns" | awk 'NF {count++} END {print count+0}')
 case "$source_pattern_count" in ''|*[!0-9]*) source_pattern_count=0 ;; esac
 emit_kv "source_pattern_count" "$source_pattern_count"
+emit_kv "recursive_glob_max_depth" "$MAX_RECURSIVE_GLOB_DEPTH"
 if [ "$source_pattern_count" -gt "$MAX_SOURCES" ]; then
     emit_kv "source_narrowing_required" "true"
 fi
@@ -783,6 +786,27 @@ snapshot_processes() {
     snapshot_one_process "$phase" "sidecar" "$sidecar_pid"
 }
 
+# filebeat rewrites ** into an increasing run of single-level wildcards rather than walking the
+# tree, so /data/**/*.log also covers /data/*.log. POSIX sh has no globstar: ** collapses to a
+# single *, which silently narrows the pattern to exactly one level and hides every other file
+# the collector is actually reading.
+expand_recursive_glob() {
+    recursive_pattern=$1
+    case "$recursive_pattern" in
+        *'**/'*) ;;
+        *) printf '%s\n' "$recursive_pattern"; return 0 ;;
+    esac
+    recursive_prefix=${recursive_pattern%%'**/'*}
+    recursive_suffix=${recursive_pattern#*'**/'}
+    recursive_level=""
+    recursive_depth=0
+    while [ "$recursive_depth" -le "$MAX_RECURSIVE_GLOB_DEPTH" ]; do
+        printf '%s%s%s\n' "$recursive_prefix" "$recursive_level" "$recursive_suffix"
+        recursive_level="$recursive_level*/"
+        recursive_depth=$((recursive_depth + 1))
+    done
+}
+
 snapshot_sources() {
     phase=$1
     index=0
@@ -792,7 +816,7 @@ snapshot_sources() {
             /*) ;;
             *) continue ;;
         esac
-        for source_path in $pattern; do
+        for source_path in $(expand_recursive_glob "$pattern"); do
             # -e follows the link, so a dangling symlink fails it. Skipping here would make a
             # broken link indistinguishable from a path that was never configured, which is the
             # same silent loss this probe exists to remove.
