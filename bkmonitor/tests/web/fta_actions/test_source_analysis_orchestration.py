@@ -72,6 +72,8 @@ class TestSourceAnalysisContract(TestCase):
                 "devops_project_id": "project-a",
                 "client_request_id": self.CLIENT_REQUEST_ID,
                 "inputs": {
+                    "bk_biz_id": 2,
+                    "bk_tenant_id": "system",
                     "repository_alias": "repo-a",
                     "agent_id": "agent-a",
                     "skill_ids": ["skill-a"],
@@ -109,6 +111,8 @@ class TestSourceAnalysisContract(TestCase):
                 "devops_project_id": "project-a",
                 "client_request_id": self.CLIENT_REQUEST_ID,
                 "inputs": {
+                    "bk_biz_id": 2,
+                    "bk_tenant_id": "system",
                     "repository_alias": "repo-a",
                     "agent_id": "agent-a",
                     "source_analysis_raw": {},
@@ -231,6 +235,9 @@ class TestSourceAnalysisOrchestration(TestCase):
             devops_project_id="project-a",
             client_request_id=build_bkfara_client_request_id("trigger", execution.analysis_id),
             inputs={
+                # 业务与租户标识和顶层重复：inputs 会被 BKFara 整体透传给蓝盾流水线。
+                "bk_biz_id": 2,
+                "bk_tenant_id": "system",
                 "repository_alias": "repo-a",
                 "agent_id": "agent-a",
                 "skill_ids": ["skill-a", "skill-b"],

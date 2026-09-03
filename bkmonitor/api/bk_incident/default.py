@@ -190,6 +190,10 @@ class UUIDStringField(serializers.CharField):
 
 
 class SourceAnalysisInputsSerializer(serializers.Serializer):
+    # inputs 由 BKFara 原样透传给蓝盾流水线，因此流水线自身回调 BKM 所需的业务与租户标识
+    # 也放在这一层，与顶层同名字段重复是有意的。
+    bk_biz_id = serializers.IntegerField(label="业务 ID")
+    bk_tenant_id = serializers.CharField(label="租户 ID", max_length=64)
     repository_alias = serializers.CharField(label="蓝盾代码库别名", max_length=255)
     agent_id = serializers.CharField(label="智能体 ID", max_length=64)
     skill_ids = serializers.ListField(
