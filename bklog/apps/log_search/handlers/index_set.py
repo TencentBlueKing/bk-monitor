@@ -35,7 +35,8 @@ from apps.api import BkLogApi, TransferApi
 from apps.constants import SpacePropertyEnum, UserOperationActionEnum, UserOperationTypeEnum
 from apps.decorators import user_operation_record
 from apps.exceptions import CreateOrUpdateLogRouterException
-from apps.feature_toggle.handlers.toggle import feature_switch
+from apps.feature_toggle.handlers.toggle import FeatureToggleObject, feature_switch
+from apps.feature_toggle.plugins.constants import UNIFY_QUERY_SEARCH
 from apps.iam import Permission, ResourceEnum
 from apps.log_databus.handlers.doris_cluster import DorisClusterHandler
 from apps.log_databus.handlers.storage import StorageHandler
@@ -96,6 +97,7 @@ from apps.log_search.exceptions import (
 )
 from apps.log_search.handlers.search.mapping_handlers import MappingHandlers
 from apps.log_search.handlers.search.search_handlers_esquery import SearchHandler
+from apps.log_unifyquery.handler.mapping import UnifyQueryMappingHandler
 from apps.log_search.models import (
     TAG_TYPE_INNER,
     TAG_TYPE_SCENE,
@@ -207,9 +209,7 @@ class IndexSetHandler(APIModel):
     @classmethod
     def get_user_index_set(cls, space_uid, is_group=False, scenarios=None):
         space_uids = cls.get_all_related_space_uids(space_uid)
-        index_sets = LogIndexSet.get_index_set(
-            scenarios=scenarios, space_uids=space_uids, current_space_uid=space_uid
-        )
+        index_sets = LogIndexSet.get_index_set(scenarios=scenarios, space_uids=space_uids, current_space_uid=space_uid)
         # 补充采集场景
         collector_config_ids = [
             index_set["collector_config_id"] for index_set in index_sets if index_set["collector_config_id"]
@@ -1521,12 +1521,8 @@ class IndexSetHandler(APIModel):
         }
 
     @staticmethod
-    def get_rt_alias_settings(index_set_id, alias_settings):
-        """
-        获取每个RT对应的别名配置列表
-        """
-        search_handler_esquery = SearchHandler(index_set_id, {})
-        multi_result = search_handler_esquery.get_all_fields_by_index_id(need_merge=False)
+    def _build_rt_alias_settings(multi_result, alias_settings):
+        """根据按 RT 拆分的字段结果生成别名配置。"""
         result_table_mappings = defaultdict(list)
         field_name_mappings = {}
         query_alias_mappings = defaultdict(list)
@@ -1558,6 +1554,20 @@ class IndexSetHandler(APIModel):
                     query_alias_mappings[_result_table_id].append(alias_setting)
 
         return query_alias_mappings, alias_field_map
+
+    @classmethod
+    def get_rt_alias_settings(cls, index_set_id, alias_settings):
+        """获取每个 RT 对应的别名配置列表。"""
+        index_set = LogIndexSet.objects.filter(index_set_id=index_set_id).first()
+        # 手工接入 Doris 的别名不按 RT 过滤，字段 mapping 无需在此解析。
+        if index_set and str(IndexSetTag.get_tag_id("Doris", tag_type=TAG_TYPE_INNER)) in list(index_set.tag_ids):
+            return defaultdict(list), defaultdict(list)
+        bk_biz_id = space_uid_to_bk_biz_id(index_set.space_uid)
+        if index_set.is_native_doris() or FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, bk_biz_id):
+            multi_result = UnifyQueryMappingHandler.get_fields_by_result_tables(index_set)
+        else:
+            multi_result = SearchHandler(index_set_id, {}).get_all_fields_by_index_id(need_merge=False)
+        return cls._build_rt_alias_settings(multi_result, alias_settings)
 
     @transaction.atomic()
     def update_alias_settings(self, alias_settings):

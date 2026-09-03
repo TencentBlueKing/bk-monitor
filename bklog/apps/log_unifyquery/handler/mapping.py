@@ -45,6 +45,7 @@ from apps.log_search.constants import (
     SearchScopeEnum,
     DorisFieldTypeEnum,
 )
+from apps.log_search.exceptions import GetAllFieldsException
 from apps.log_search.models import (
     TAG_TYPE_INNER,
     IndexSetFieldsConfig,
@@ -61,7 +62,9 @@ from apps.utils.local import (
     get_request_external_username,
     get_request_username,
 )
+from apps.utils.log import logger
 from apps.utils.thread import MultiExecuteFunc
+from bkm_space.utils import space_uid_to_bk_biz_id
 
 INNER_COMMIT_FIELDS = ["dteventtime", "report_time"]
 INNER_PRODUCE_FIELDS = [
@@ -477,6 +480,62 @@ class UnifyQueryMappingHandler:
         }
         result = UnifyQueryApi.query_field_map(params)
         return result.get("data", [])
+
+    @staticmethod
+    def get_fields_by_table_id(bk_biz_id: int, table_id: str):
+        """通过 UQ metadata 路由查询单个 RT 的 mapping。"""
+        params = {
+            "bk_biz_id": bk_biz_id,
+            "data_source": settings.UNIFY_QUERY_DATA_SOURCE,
+            "table_id": table_id,
+        }
+        result = UnifyQueryApi.query_field_map(params)
+        return result.get("data", [])
+
+    @classmethod
+    def get_fields_by_result_tables(cls, index_set: LogIndexSet) -> dict:
+        """按 RT 查询 UQ mapping，返回与 ES mapping 的非合并结果一致的结构。"""
+        from apps.log_search.handlers.index_set import BaseIndexSetHandler
+
+        indexes = index_set.get_indexes(has_applied=True)
+        if not indexes:
+            return {}
+
+        default_bk_biz_id = space_uid_to_bk_biz_id(index_set.space_uid)
+        multi_execute_func = MultiExecuteFunc()
+
+        for index in indexes:
+            result_table_id = index["result_table_id"]
+            multi_execute_func.append(
+                result_key=result_table_id,
+                func=cls.get_fields_by_table_id,
+                params={
+                    "bk_biz_id": index.get("bk_biz_id") or default_bk_biz_id,
+                    "table_id": BaseIndexSetHandler.get_rt_id(index_set.index_set_id, result_table_id),
+                },
+                multi_func_params=True,
+            )
+
+        multi_result = multi_execute_func.run(return_exception=True)
+        successful_result = {}
+        first_exception = None
+        for result_table_id, field_result in multi_result.items():
+            if isinstance(field_result, Exception):
+                first_exception = first_exception or field_result
+                logger.warning(
+                    "get fields from unifyquery for result table(%s) of index set(%s) failed: %s",
+                    result_table_id,
+                    index_set.index_set_id,
+                    field_result,
+                )
+                continue
+            successful_result[result_table_id] = (field_result, [])
+
+        if not successful_result and first_exception:
+            raise GetAllFieldsException(
+                GetAllFieldsException.MESSAGE.format(index_set_id=index_set.index_set_id, e=first_exception)
+            )
+        return successful_result
 
     def _combine_description_field(self, fields_list=None, scope=None):
         if fields_list is None:
