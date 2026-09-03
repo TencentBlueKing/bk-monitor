@@ -44,7 +44,7 @@ import type { TimeRangeType } from '../../../../components/time-range/utils';
 import type { BaseTableColumn } from '../../../trace-explore/components/trace-explore-table/typing';
 import type { IRumCommonParams, IRumField, IRumSpanRecord, RumModeType } from '../../typings';
 import type { ConditionChangeEvent } from '@/pages/trace-explore/typing';
-import type { SlotReturnValue } from 'tdesign-vue-next';
+import type { SlotReturnValue, TdAffixProps } from 'tdesign-vue-next';
 
 import './rum-explore-table.scss';
 
@@ -115,6 +115,11 @@ export default defineComponent({
       type: Array as PropType<TimeRangeType>,
       default: () => [],
     },
+    /** 当前时区：时间列按 dayjs 全局时区格式化，时区非响应式，需显式传入以驱动时间列重渲染 */
+    timezone: {
+      type: String,
+      default: '',
+    },
     /** 字段映射表：按字段名快速查找字段元数据（性能优化方案，非必填） */
     fieldMap: {
       type: Object as PropType<Map<string, IRumField>>,
@@ -124,6 +129,14 @@ export default defineComponent({
     emptyType: {
       type: String as PropType<'empty' | 'search-empty'>,
       default: 'search-empty',
+    },
+    /** 表头吸顶配置，需注意表格相对于哪个容器滚动 */
+    headerAffixedTop: {
+      type: [Boolean, Object] as PropType<boolean | TdAffixProps>,
+    },
+    /** 横向滚动条吸底配置，需注意表格相对于哪个容器滚动 */
+    horizontalScrollAffixedBottom: {
+      type: [Boolean, Object] as PropType<boolean | TdAffixProps>,
     },
   },
   emits: {
@@ -162,11 +175,14 @@ export default defineComponent({
       useFieldStatisticsPopover('bottom');
 
     /** 场景渲染器：按检索模式选择场景实例，负责产出声明式列配置与表头渲染 */
-    const { transformColumns, tableScenarioClassName, tableRowKey } = useScenarioRenderer(toRef(props, 'mode'), {
-      fieldMap,
-      onCellFilter: (colKey, value) => emit('conditionChange', { key: colKey, method: 'equal', value }),
-      onFieldAnalysis: (trigger, field) => openPopover(trigger, field as unknown as IStatisticsFieldItem),
-    });
+    const { defaultGetCellValue, transformColumns, tableScenarioClassName, tableRowKey } = useScenarioRenderer(
+      toRef(props, 'mode'),
+      {
+        fieldMap,
+        onCellFilter: (colKey, value) => emit('conditionChange', { key: colKey, method: 'equal', value }),
+        onFieldAnalysis: (trigger, field) => openPopover(trigger, field as unknown as IStatisticsFieldItem),
+      }
+    );
 
     /**
      * 单元格检索条件菜单：普通单元格左键点击弹出菜单，CLICK 类型列（左键已用于直接加为检索条件）右键弹出同一个菜单。
@@ -178,8 +194,15 @@ export default defineComponent({
       rowKey: tableRowKey,
     });
 
-    /** 列展示逻辑：基础列（含列宽覆盖）-> 场景渲染注入 -> 拼接设置列 */
-    const columns = computed<BaseTableColumn[]>(() => transformColumns(props.baseColumns));
+    /**
+     * 列展示逻辑：基础列（含列宽覆盖）-> 场景渲染注入 -> 拼接设置列。
+     * 时间列的格式化依赖 dayjs 的全局时区（由 updateTimezone 副作用设置，本身非响应式），
+     * 这里显式读取 timezone 把时区纳入依赖，时区切换后时间列才会按新时区重新格式化。
+     */
+    const columns = computed<BaseTableColumn[]>(() => {
+      void props.timezone;
+      return transformColumns(props.baseColumns);
+    });
 
     /** 当前展示列的字段 key 列表，供字段设置组件使用 */
     const displayFieldKeys = computed(() => props.baseColumns.map(col => col.colKey));
@@ -264,6 +287,7 @@ export default defineComponent({
       activeFieldName,
       closeMenu,
       columns,
+      defaultGetCellValue,
       displayFieldKeys,
       selectField,
       showPopover,
@@ -316,14 +340,6 @@ export default defineComponent({
               />
             ) as unknown as SlotReturnValue
           }
-          headerAffixedTop={{
-            container: this.scrollContainerSelector,
-            // span 模式下表格上方有 RumSpanTypeFilter 吸顶区域（高度 56px：padding 12 + chip 32 + padding 12）
-            offsetTop: this.mode === RumModeEnum.SPAN ? 56 : 0,
-          }}
-          horizontalScrollAffixedBottom={{
-            container: this.scrollContainerSelector,
-          }}
           lastFullRow={(): SlotReturnValue =>
             this.data?.length
               ? ((
@@ -340,7 +356,10 @@ export default defineComponent({
               : null
           }
           autoFillSpace={!this.data?.length}
+          customDefaultGetRenderValue={this.defaultGetCellValue}
           data={this.data}
+          headerAffixedTop={this.headerAffixedTop}
+          horizontalScrollAffixedBottom={this.horizontalScrollAffixedBottom}
           loading={this.loading}
           rowKey={this.tableRowKey}
           sort={this.sort}

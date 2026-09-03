@@ -128,6 +128,10 @@ export default defineComponent({
     customCellRenderMap: {
       type: Object as PropType<Record<string, TableCellRenderer>>,
     },
+    /** 表格单元格默认取值逻辑（列自身配置了 getRenderValue 时，以列配置为准） */
+    customDefaultGetRenderValue: {
+      type: Function as PropType<(row: Record<string, unknown>, column: BaseTableColumn) => unknown>,
+    },
     /** 表格默认选中高亮的行 */
     defaultActiveRowKeys: {
       type: Array as PropType<(number | string)[]>,
@@ -184,6 +188,7 @@ export default defineComponent({
     const { tableCellRender, renderContext } = useTableCell({
       rowKeyField: props.rowKey,
       customCellRenderMap: props.customCellRenderMap,
+      customDefaultGetRenderValue: props.customDefaultGetRenderValue,
       cellEllipsisClass: COMMON_TABLE_ELLIPSIS_CLASS_NAME,
     });
     /** 表格功能单元格内容溢出弹出 popover 功能（绑定到包裹层，避免表格重建时事件委托丢失） */
