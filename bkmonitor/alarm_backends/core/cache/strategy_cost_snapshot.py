@@ -11,6 +11,7 @@ from typing import Any
 from uuid import uuid4
 
 import redis
+from django.conf import settings
 from redis.sentinel import Sentinel, SentinelConnectionPool
 
 from alarm_backends.core.cache.key import (
@@ -22,11 +23,14 @@ from alarm_backends.core.cache.strategy import StrategyCacheManager
 from alarm_backends.core.cluster import get_cluster
 from alarm_backends.core.control.item import detect_result_point_required
 from alarm_backends.core.control.strategy import Strategy as ControlStrategy
-from bkmonitor.models import CacheRouter
+from bkmonitor.models import CacheNode, CacheRouter
 
 SNAPSHOT_HISTORY_LIMIT = 6
 SNAPSHOT_INTERVAL_SECONDS = 3600
 SNAPSHOT_TOTAL_BUDGET_SECONDS = 20
+SNAPSHOT_TOTAL_BUDGET_SECONDS_MIN = 5
+SNAPSHOT_TOTAL_BUDGET_SECONDS_MAX = 30
+SNAPSHOT_MAX_NODES_PER_ROUND = 1
 SNAPSHOT_REDIS_SOCKET_TIMEOUT_SECONDS = 1.0
 CHECK_RESULT_CLEAN_INTERVAL_SECONDS = 7200
 GROUP_RESERVED_FIELDS = {"interval_list", "strategy_source", "bk_biz_id"}
@@ -39,7 +43,7 @@ class SnapshotBudgetExceeded(Exception):
 
 
 class IsolatedSnapshotRedisClient:
-    """复制现有连接参数，创建不修改共享连接池的快照专用客户端。"""
+    """复制连接参数并限制单次 IO 超时，专供 HLEN 测量；预检与写回不得使用。"""
 
     def __init__(self, source_client, remaining_seconds: float):
         raw_client = getattr(source_client, "_instance", source_client)
@@ -123,6 +127,14 @@ class StrategyCostSnapshotStore:
 
     def try_lock(self, token: str) -> bool:
         return bool(self.client.set(self.lock_key, token, nx=True, ex=self.LOCK_TTL_SECONDS))
+
+    def release_lock(self, token: str) -> None:
+        if not token:
+            return
+        current = self.client.get(self.lock_key)
+        expected = token.encode() if isinstance(current, (bytes, bytearray)) else token
+        if current == expected:
+            self.client.delete(self.lock_key)
 
     def read(self, limit: int = 1) -> list[dict[str, Any]]:
         limit = min(max(int(limit), 1), SNAPSHOT_HISTORY_LIMIT)
@@ -227,6 +239,19 @@ def _is_fresh(snapshots: list[dict[str, Any]], now: datetime) -> bool:
     return (now - finished_at).total_seconds() < SNAPSHOT_INTERVAL_SECONDS
 
 
+def resolve_snapshot_total_budget_seconds() -> int:
+    """整轮墙钟预算只允许在采集节拍内微调，不随节点数放大。"""
+
+    raw = getattr(
+        settings, "REDIS_STRATEGY_COST_SNAPSHOT_TOTAL_BUDGET_SECONDS", SNAPSHOT_TOTAL_BUDGET_SECONDS
+    )
+    try:
+        value = int(raw)
+    except (TypeError, ValueError):
+        value = SNAPSHOT_TOTAL_BUDGET_SECONDS
+    return min(SNAPSHOT_TOTAL_BUDGET_SECONDS_MAX, max(SNAPSHOT_TOTAL_BUDGET_SECONDS_MIN, value))
+
+
 def load_positive_routes() -> list[dict[str, int]]:
     """读取并规范化当前集群正数路由，供扫描与消费端对账。"""
 
@@ -237,25 +262,46 @@ def load_positive_routes() -> list[dict[str, int]]:
     )
 
 
+def load_routed_snapshot_node_ids() -> set[int]:
+    """只扫描当前集群路由引用节点，并始终包含默认节点。"""
+
+    cluster_name = get_cluster().name
+    node_ids = set(
+        CacheRouter.objects.filter(cluster_name=cluster_name).values_list("node_id", flat=True)
+    )
+    node_ids.update(
+        CacheNode.objects.filter(cluster_name=cluster_name, is_default=True, is_enable=True).values_list(
+            "id", flat=True
+        )
+    )
+    return node_ids
+
+
 def _routing_digest(positive_routes: list[dict[str, int]]) -> str:
     payload = json.dumps(positive_routes, sort_keys=True, separators=(",", ":")).encode()
     return f"sha256:{sha256(payload).hexdigest()}"
 
 
 class RedisStrategyCostSnapshotCollector:
-    """一次 selfmonitor 收尾调用中，为到期节点生成成本快照。"""
+    """一次 selfmonitor 收尾调用中，为有限个到期路由节点生成成本快照。"""
 
     def __init__(
         self,
         *,
         client_factory=None,
         catalog_client_factory=None,
-        total_budget_seconds: int = SNAPSHOT_TOTAL_BUDGET_SECONDS,
+        total_budget_seconds: int | None = None,
+        max_nodes_per_round: int = SNAPSHOT_MAX_NODES_PER_ROUND,
+        routed_node_ids: set[int] | None = None,
         monotonic_fn=monotonic,
     ):
         self.client_factory = client_factory
         self.catalog_client_factory = catalog_client_factory
-        self.total_budget_seconds = total_budget_seconds
+        self.total_budget_seconds = (
+            resolve_snapshot_total_budget_seconds() if total_budget_seconds is None else total_budget_seconds
+        )
+        self.max_nodes_per_round = max(1, int(max_nodes_per_round))
+        self.routed_node_ids = routed_node_ids
         self.monotonic = monotonic_fn
 
     def collect(self, nodes_info: list[tuple[Any, dict[str, Any]]]) -> dict[str, Any]:
@@ -268,45 +314,62 @@ class RedisStrategyCostSnapshotCollector:
             "failed": 0,
             "skipped_fresh": 0,
             "skipped_locked": 0,
+            "skipped_unrouted": 0,
             "budget_exhausted": False,
         }
-        due: list[tuple[Any, dict[str, Any], StrategyCostSnapshotStore]] = []
+        due: list[tuple[Any, dict[str, Any], StrategyCostSnapshotStore, str]] = []
+        try:
+            routed_ids = (
+                self.routed_node_ids if self.routed_node_ids is not None else load_routed_snapshot_node_ids()
+            )
+        except Exception:
+            logger.exception("load routed snapshot node ids failed")
+            result["failed"] += 1
+            return result
 
         for node, node_info in nodes_info:
-            client = None
+            if getattr(node, "id", None) not in routed_ids:
+                result["skipped_unrouted"] += 1
+                continue
+            if len(due) >= self.max_nodes_per_round:
+                break
+            store = None
+            token = ""
             try:
-                client = self._node_client(node, deadline)
-                store = StrategyCostSnapshotStore(node, client=client)
-                self._check_io_budget(client, deadline)
+                shared_client = self._shared_node_client(node, deadline)
+                store = StrategyCostSnapshotStore(node, client=shared_client)
+                self._check_io_budget(shared_client, deadline)
                 snapshots = store.read(1)
                 self._check_budget(deadline)
                 if _is_fresh(snapshots, now):
                     result["skipped_fresh"] += 1
-                    self._close_client(client)
                     continue
-                self._check_io_budget(client, deadline)
-                if not store.try_lock(uuid4().hex):
+                self._check_io_budget(shared_client, deadline)
+                token = uuid4().hex
+                if not store.try_lock(token):
                     result["skipped_locked"] += 1
-                    self._close_client(client)
+                    token = ""
                     continue
                 self._check_budget(deadline)
                 # 多个 selfmonitor 实例可能同时看到旧快照；锁后必须复查。
-                self._check_io_budget(client, deadline)
+                self._check_io_budget(shared_client, deadline)
                 snapshots = store.read(1)
                 self._check_budget(deadline)
                 if _is_fresh(snapshots, now):
                     result["skipped_fresh"] += 1
-                    self._close_client(client)
+                    self._release_lock(store, token)
                     continue
-                due.append((node, node_info, store))
+                due.append((node, node_info, store, token))
+                token = ""
             except SnapshotBudgetExceeded:
                 result["budget_exhausted"] = True
                 self._record(node, "budget_exhausted", self.monotonic() - started)
-                self._close_client(client)
+                self._release_lock(store, token)
+                break
             except Exception:
                 result["failed"] += 1
                 self._record(node, "failed", 0)
-                self._close_client(client)
+                self._release_lock(store, token)
                 logger.exception("redis strategy cost snapshot precheck failed: node_id=%s", getattr(node, "id", ""))
 
         if not due:
@@ -319,28 +382,28 @@ class RedisStrategyCostSnapshotCollector:
             self._check_budget(deadline)
             positive_routes = load_positive_routes()
             self._check_budget(deadline)
-            by_node = self._route_population(population, positive_routes, {node.id for node, _, _ in due})
+            by_node = self._route_population(population, positive_routes, {node.id for node, _, _, _ in due})
         except SnapshotBudgetExceeded:
             result["budget_exhausted"] = True
-            for node, _, store in due:
+            for node, _, store, token in due:
                 self._record(node, "budget_exhausted", self.monotonic() - started)
-                self._close_client(store.client)
+                self._release_lock(store, token)
             return result
         except Exception:
             logger.exception("load redis strategy cost snapshot catalog failed")
-            for node, _, store in due:
+            for node, _, store, token in due:
                 result["failed"] += 1
                 self._record(node, "failed", 0)
-                self._close_client(store.client)
+                self._release_lock(store, token)
             return result
         finally:
             self._close_client(catalog_client)
 
-        for node, node_info, store in due:
+        for node, node_info, store, token in due:
             if self.monotonic() >= deadline:
                 result["budget_exhausted"] = True
                 self._record(node, "budget_exhausted", self.monotonic() - started)
-                self._close_client(store.client)
+                self._release_lock(store, token)
                 continue
             result["attempted"] += 1
             node_started = self.monotonic()
@@ -358,11 +421,13 @@ class RedisStrategyCostSnapshotCollector:
                 target_items,
                 max(deadline - node_started, 0),
             )
+            measure_client = None
             try:
+                measure_client = self._measure_node_client(node, store.client, deadline)
                 snapshot = self._build_node_snapshot(
                     node,
                     node_info,
-                    store.client,
+                    measure_client,
                     target_strategy_ids,
                     len(population),
                     group_index,
@@ -377,31 +442,38 @@ class RedisStrategyCostSnapshotCollector:
                 result["budget_exhausted"] = True
                 self._record(node, "budget_exhausted", self.monotonic() - node_started)
                 logger.warning("redis strategy cost snapshot ended: node_id=%s status=budget_exhausted", node.id)
-                self._close_client(store.client)
-                continue
             except Exception:
                 result["failed"] += 1
                 self._record(node, "failed", self.monotonic() - node_started)
                 logger.exception("redis strategy cost snapshot ended: node_id=%s status=failed", node.id)
-                self._close_client(store.client)
-                continue
-            result["succeeded"] += 1
-            self._record(node, "success", self.monotonic() - node_started)
-            logger.info(
-                "redis strategy cost snapshot ended: node_id=%s status=success strategies=%s payload_bytes=%s "
-                "db8_config_batches=%s db10_hlen_requested=%s db10_hlen_measured=%s "
-                "db10_hlen_failed=%s duration=%.3fs",
-                node.id,
-                len(snapshot["strategies"]),
-                snapshot["snapshot_payload_bytes"],
-                snapshot["commands"]["db8"]["config_mget_batches"],
-                snapshot["commands"]["db10"]["hlen_requested"],
-                snapshot["commands"]["db10"]["hlen_measured"],
-                snapshot["commands"]["db10"]["hlen_failed"],
-                self.monotonic() - node_started,
-            )
-            self._close_client(store.client)
+            else:
+                result["succeeded"] += 1
+                self._record(node, "success", self.monotonic() - node_started)
+                logger.info(
+                    "redis strategy cost snapshot ended: node_id=%s status=success strategies=%s payload_bytes=%s "
+                    "db8_config_batches=%s db10_hlen_requested=%s db10_hlen_measured=%s "
+                    "db10_hlen_failed=%s duration=%.3fs",
+                    node.id,
+                    len(snapshot["strategies"]),
+                    snapshot["snapshot_payload_bytes"],
+                    snapshot["commands"]["db8"]["config_mget_batches"],
+                    snapshot["commands"]["db10"]["hlen_requested"],
+                    snapshot["commands"]["db10"]["hlen_measured"],
+                    snapshot["commands"]["db10"]["hlen_failed"],
+                    self.monotonic() - node_started,
+                )
+            finally:
+                self._close_client(measure_client)
+                self._release_lock(store, token)
         return result
+
+    def _release_lock(self, store, token: str) -> None:
+        if store is None or not token:
+            return
+        try:
+            store.release_lock(token)
+        except Exception:
+            logger.debug("release redis strategy cost snapshot lock failed", exc_info=True)
 
     def _load_catalog(self, client, deadline):
         if client is None:
@@ -438,18 +510,22 @@ class RedisStrategyCostSnapshotCollector:
         }
         return population, group_index, config_map
 
-    def _node_client(self, node, deadline):
+    def _shared_node_client(self, node, deadline):
         if self.client_factory is not None:
             return self.client_factory(node)
         self._check_budget(deadline)
-        source_client = REDIS_STRATEGY_COST_SNAPSHOT_KEY.client.get_client(node)
-        return IsolatedSnapshotRedisClient(source_client, deadline - self.monotonic())
+        return REDIS_STRATEGY_COST_SNAPSHOT_KEY.client.get_client(node)
 
-    def _catalog_client(self, deadline):
+    def _measure_node_client(self, node, shared_client, deadline):
+        if self.client_factory is not None:
+            return shared_client
+        self._check_budget(deadline)
+        return IsolatedSnapshotRedisClient(shared_client, deadline - self.monotonic())
+
+    def _catalog_client(self, _deadline):
         if self.catalog_client_factory is not None:
             return self.catalog_client_factory()
-        self._check_budget(deadline)
-        return IsolatedSnapshotRedisClient(StrategyCacheManager.cache, deadline - self.monotonic())
+        return None
 
     def _redis_call(self, client, deadline, command, *args):
         self._check_io_budget(client, deadline)
