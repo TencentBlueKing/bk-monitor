@@ -30,6 +30,7 @@ from apps.log_admin_resource.collector_probe_parsers import (
     classify_registrar_progress,
     fallback_matching_inputs,
     parse_registrar_strings,
+    parse_registrar_strings_with_stats,
     state_for_file,
 )
 from apps.log_admin_resource.handlers.host_inspection import (
@@ -1230,6 +1231,57 @@ class FixedRemoteScriptTest(SimpleTestCase):
             self.assertEqual(found, expected)
             self.assertEqual(emitted["first.source_count"], "4")
 
+    def test_shared_probe_counts_the_sources_the_limit_left_out(self):
+        script = fixed_probe_script().decode("utf-8")
+        start = script.index("expand_recursive_glob() {")
+        end = script.index("\nsnapshot_registrar() {", start)
+        snapshot_script = script[start:end]
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            for depth in range(7):
+                leaf = root.joinpath(*[f"l{level}" for level in range(1, depth + 1)])
+                leaf.mkdir(parents=True, exist_ok=True)
+                (leaf / f"depth{depth}.log").write_text("payload", encoding="utf-8")
+            pattern = f"{root}/**/*.log"
+
+            harness = "\n".join(
+                (
+                    "set -u",
+                    "MAX_SOURCES=3",
+                    "MAX_RECURSIVE_GLOB_DEPTH=8",
+                    "INCLUDE_SOURCE_SAMPLE=0",
+                    "tab=$(printf '\\t')",
+                    'emit_kv() { printf \'%s\\t%s\\n\' "$1" "${2-}"; }',
+                    "emit_sample_stream() { :; }",
+                    "add_registrar_filter_key() { :; }",
+                    "stat() { [ -e \"$3\" ] || return 1; printf '2049 4242 7 1700000000\\n'; }",
+                    f"source_patterns=$(printf '%s\\t%s' '{pattern}' '{pattern}')",
+                    snapshot_script,
+                    "snapshot_sources first",
+                )
+            )
+            completed = subprocess.run(
+                ["/bin/sh"],
+                input=harness,
+                text=True,
+                capture_output=True,
+                check=True,
+            )
+
+            emitted = {}
+            for line in completed.stdout.splitlines():
+                key, _, value = line.partition("\t")
+                emitted[key] = value
+
+            # Stopping at the limit would report 3 of 7 with no way to tell whether the rest are
+            # four files or four hundred, which is the difference between narrowing by one
+            # subdirectory and narrowing by depth.
+            self.assertEqual(emitted["first.source_count"], "3")
+            self.assertEqual(emitted["first.source_skipped_count"], "4")
+            self.assertEqual(emitted["first.source_limit"], "3")
+            self.assertEqual(emitted["source_narrowing_required"], "true")
+
     def test_shared_probe_keeps_a_source_whose_link_target_cannot_be_resolved(self):
         script = fixed_probe_script().decode("utf-8")
         snapshot_start = script.index("expand_recursive_glob() {")
@@ -1643,6 +1695,29 @@ class FixedRemoteScriptTest(SimpleTestCase):
         self.assertEqual(registrar["status"], "warning")
         self.assertFalse(registrar["evidence"]["first_sampling"]["record_split"])
         self.assertIn("records_not_split", registrar["warnings"][0]["reasons"])
+
+    def test_registrar_snapshots_are_parsed_once_for_every_probe_that_reads_them(self):
+        parsed = parsed_probe()
+        state = '{"source":"/data/app/service.log","offset":10,"FileStateOS":{"inode":7,"device":8}}'
+        for phase in ("first", "second"):
+            parsed["streams"][f"{phase}.registrar_strings"] = {"content": state}
+
+        with patch(
+            "apps.log_admin_resource.collector_probe_evidence.parse_registrar_strings_with_stats",
+            side_effect=parse_registrar_strings_with_stats,
+        ) as parse:
+            build_probe_evidence(
+                parsed,
+                bk_data_id=1001,
+                source=None,
+                include_source_sample=False,
+                config_map_main=None,
+                sidecar_required=False,
+            )
+
+        # The registrar and progress probes both read the same two snapshots. Parsing per probe
+        # walks a several-hundred-KB line four times for one inspection.
+        self.assertEqual(parse.call_count, 2)
 
     def test_registrar_parser_keeps_every_record_sharing_a_line(self):
         text = (

@@ -1587,6 +1587,37 @@ class FixedK8sProbeTest(SimpleTestCase):
         )
         self.assertEqual(requested["source_path"]["code"], "source_narrowing_required")
 
+    def test_probe_evidence_reports_how_many_sources_the_limit_left_out(self):
+        parsed = {
+            "values": {
+                "source_narrowing_required": "true",
+                "first.source_count": "50",
+                "first.source_limit": "50",
+                "first.source_skipped_count": "412",
+                "second.source_count": "50",
+            },
+            "streams": {
+                "child_config.0": {
+                    "path": "/data/etc/bkunifylogbeat/a.conf",
+                    "content": "local:\n  - dataid: 1001\n    paths: ['/data/allowed/**/*.log']\n",
+                }
+            },
+        }
+
+        probes = build_probe_evidence(
+            parsed,
+            bk_data_id=1001,
+            source=None,
+            include_source_sample=False,
+            config_map_main=None,
+        )
+
+        evidence = probes["source_path"]["evidence"]
+        # Reporting only the 50 that fit leaves the operator guessing at the scale of the
+        # overflow, which is what decides whether narrowing by directory is even enough.
+        self.assertEqual(evidence["source_limit"], 50)
+        self.assertEqual(evidence["matched_count"], 462)
+
     def test_fixed_collector_file_logs_are_only_a_bounded_fallback(self):
         parsed = {
             "values": {"collector_file_log_count": "1"},

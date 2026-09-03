@@ -185,7 +185,10 @@ def _json_values_with_stats(text: str) -> tuple[list[Any], dict[str, int]]:
             position = min(starts)
             candidate = True
             try:
-                value, end = decoder.raw_decode(line[position:])
+                # Decoding from an index rather than a slice matters here: the fallback path
+                # ships the whole registrar as one several-hundred-KB line, where slicing per
+                # record would copy the remainder of the line once per record.
+                value, end = decoder.raw_decode(line, position)
             except ValueError:
                 position += 1
                 continue
@@ -194,7 +197,7 @@ def _json_values_with_stats(text: str) -> tuple[list[Any], dict[str, int]]:
             # raw_decode reports where the value ended. Resuming there keeps every record on
             # a line holding several of them, which is also what rescues a truncated array:
             # the opening bracket fails to decode, but each complete object after it does not.
-            position += end
+            position = end
         if candidate:
             candidate_line_count += 1
             if not parsed_on_line:

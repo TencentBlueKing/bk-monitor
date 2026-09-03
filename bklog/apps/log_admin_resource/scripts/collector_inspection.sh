@@ -31,7 +31,7 @@ if [ "$target_config_hint_count" -gt 20 ]; then
 fi
 
 PROTOCOL="bklog.collector.inspection.probe.v1"
-PROBE_VERSION="137865321.5"
+PROBE_VERSION="137865321.6"
 # Stay below BK-JOB/GSE's 5 MiB atomic script-task log limit.
 OUTPUT_BUDGET_BYTES=4194304
 OUTPUT_FINAL_RESERVE_BYTES=4096
@@ -810,6 +810,7 @@ expand_recursive_glob() {
 snapshot_sources() {
     phase=$1
     index=0
+    skipped=0
     source_limit_exceeded=false
     while IFS="$tab" read -r config_pattern pattern; do
         case "$pattern" in
@@ -824,8 +825,12 @@ snapshot_sources() {
                 continue
             fi
             if [ "$index" -ge "$MAX_SOURCES" ]; then
+                # Keep counting past the limit. A recursive pattern can match hundreds of files,
+                # and knowing how many were left out is what tells the operator whether to narrow
+                # by subdirectory or by depth.
                 source_limit_exceeded=true
-                break
+                skipped=$((skipped + 1))
+                continue
             fi
             emit_kv "$phase.source.$index.pattern" "$pattern"
             if [ "$config_pattern" != "$pattern" ]; then
@@ -869,7 +874,9 @@ snapshot_sources() {
 $source_patterns
 EOF
     emit_kv "$phase.source_count" "$index"
+    emit_kv "$phase.source_limit" "$MAX_SOURCES"
     if [ "$source_limit_exceeded" = "true" ]; then
+        emit_kv "$phase.source_skipped_count" "$skipped"
         emit_kv "source_narrowing_required" "true"
     fi
 }

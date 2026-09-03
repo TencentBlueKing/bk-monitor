@@ -177,8 +177,9 @@ def build_probe_evidence(
         include_sample=include_source_sample,
         error=source_error,
     )
-    registrar_probe = _registrar_probe(values, streams, selected_first, selected_second)
-    progress_probe = _progress_probe(values, streams, selected_first, selected_second)
+    registrar_evidence = _parsed_registrar(values, streams)
+    registrar_probe = _registrar_probe(values, registrar_evidence, selected_first, selected_second)
+    progress_probe = _progress_probe(values, registrar_evidence, selected_first, selected_second)
     return {
         "main_config_mounted": config_probe,
         "collector_process": collector_process_probe,
@@ -650,7 +651,16 @@ def _source_probe(
             "status": "warning",
             "code": "source_narrowing_required",
             "summary": "the bounded remote source set cannot prove the requested source state",
-            "evidence": {"requested_source": source, "allowed_patterns": allowed_patterns, "files": []},
+            "evidence": {
+                "requested_source": source,
+                "allowed_patterns": allowed_patterns,
+                "files": [],
+                "source_limit": _integer(values.get("first.source_limit")),
+                # A recursive pattern can match far more than the limit, so report the full
+                # match count rather than only the truncated one.
+                "matched_count": (_integer(values.get("first.source_count")) or 0)
+                + (_integer(values.get("first.source_skipped_count")) or 0),
+            },
             "warnings": [],
         }
     second_by_path = {row["path"]: row for row in second_rows}
@@ -771,9 +781,27 @@ def _registrar_sampling(
     }
 
 
+def _parsed_registrar(values: dict[str, str], streams: dict[str, dict[str, Any]]) -> dict[str, Any]:
+    """Parse both registrar snapshots once for the two probes that read them.
+
+    The fallback path ships the whole registrar as one large line, so parsing it separately in
+    each probe would repeat the same work four times over a single inspection.
+    """
+    first_stream = streams.get("first.registrar_strings") or {}
+    second_stream = streams.get("second.registrar_strings") or {}
+    first_states, first_stats = parse_registrar_strings_with_stats(str(first_stream.get("content") or ""))
+    second_states, second_stats = parse_registrar_strings_with_stats(str(second_stream.get("content") or ""))
+    return {
+        "first_states": first_states,
+        "second_states": second_states,
+        "first_sampling": _registrar_sampling(values, first_stream, first_stats, "first"),
+        "second_sampling": _registrar_sampling(values, second_stream, second_stats, "second"),
+    }
+
+
 def _registrar_probe(
     values: dict[str, str],
-    streams: dict[str, dict[str, Any]],
+    registrar: dict[str, Any],
     first_rows: list[dict[str, Any]],
     second_rows: list[dict[str, Any]],
 ) -> dict[str, Any]:
@@ -787,14 +815,12 @@ def _registrar_probe(
             "evidence": {"reason": unavailable, "registrar_path": values.get("registrar_path")},
             "warnings": [],
         }
-    first_stream = streams.get("first.registrar_strings") or {}
-    second_stream = streams.get("second.registrar_strings") or {}
-    first_states, first_stats = parse_registrar_strings_with_stats(str(first_stream.get("content") or ""))
-    second_states, second_stats = parse_registrar_strings_with_stats(str(second_stream.get("content") or ""))
+    first_states = registrar["first_states"]
+    second_states = registrar["second_states"]
     first_matches = {row["path"]: state_for_file(first_states, row) for row in first_rows}
     second_matches = {row["path"]: state_for_file(second_states, row) for row in second_rows}
-    first_sampling = _registrar_sampling(values, first_stream, first_stats, "first")
-    second_sampling = _registrar_sampling(values, second_stream, second_stats, "second")
+    first_sampling = registrar["first_sampling"]
+    second_sampling = registrar["second_sampling"]
     incomplete_reasons = sorted(set(first_sampling["incomplete_reasons"]) | set(second_sampling["incomplete_reasons"]))
     return {
         "status": "warning" if incomplete_reasons else "success",
@@ -831,17 +857,14 @@ def _registrar_probe(
 
 def _progress_probe(
     values: dict[str, str],
-    streams: dict[str, dict[str, Any]],
+    registrar: dict[str, Any],
     first_rows: list[dict[str, Any]],
     second_rows: list[dict[str, Any]],
 ) -> dict[str, Any]:
-    first_stream = streams.get("first.registrar_strings") or {}
-    second_stream = streams.get("second.registrar_strings") or {}
-    first_states, first_stats = parse_registrar_strings_with_stats(str(first_stream.get("content") or ""))
-    second_states, second_stats = parse_registrar_strings_with_stats(str(second_stream.get("content") or ""))
+    first_states = registrar["first_states"]
+    second_states = registrar["second_states"]
     evidence_incomplete = bool(
-        _registrar_sampling(values, first_stream, first_stats, "first")["incomplete_reasons"]
-        or _registrar_sampling(values, second_stream, second_stats, "second")["incomplete_reasons"]
+        registrar["first_sampling"]["incomplete_reasons"] or registrar["second_sampling"]["incomplete_reasons"]
     )
     second_by_path = {row["path"]: row for row in second_rows}
     results = []
