@@ -2014,6 +2014,69 @@ class TestSyncRouter(TestCase):
         for params in routers:
             self.assertNotIn("cluster_id", params)
 
+    @patch("apps.log_search.handlers.index_set.FeatureToggleObject.switch", return_value=False)
+    @patch(
+        "apps.log_search.handlers.index_set.UnifyQueryMappingHandler.get_fields_directly",
+        return_value=[{"field_name": "message", "field_type": "keyword"}],
+    )
+    def test_native_doris_alias_mapping_uses_unifyquery(self, mock_uq_fields, mock_switch):
+        """原生 Doris 无 Doris 标签时也不能请求 ES mapping。"""
+        index_set = self._build_native_doris_index_set(storage_cluster_id=162877)
+        LogIndexSetData.objects.filter(index_set_id=index_set.index_set_id).update(
+            apply_status=LogIndexSetData.Status.NORMAL,
+            storage_cluster_id=162877,
+        )
+        aliases = [{"field_name": "message", "query_alias": "msg"}]
+
+        rt_alias_mappings, alias_field_map = IndexSetHandler.get_rt_alias_settings(index_set.index_set_id, aliases)
+
+        self.assertEqual(rt_alias_mappings["591_native"], aliases)
+        self.assertEqual(alias_field_map["msg"][0]["rt_list"], ["591_native"])
+        mock_uq_fields.assert_called_once()
+        mock_switch.assert_not_called()
+
+    @patch("apps.log_search.handlers.index_set.FeatureToggleObject.switch", return_value=True)
+    @patch(
+        "apps.log_search.handlers.index_set.UnifyQueryMappingHandler.get_fields_directly",
+        return_value=[{"field_name": "message", "field_type": "keyword"}],
+    )
+    def test_es_alias_mapping_uses_unifyquery_when_feature_enabled(self, mock_uq_fields, mock_switch):
+        """普通索引集在 UQ 开关开启时走 UQ。"""
+        index_set = self._build_es_doris_index_set(storage_cluster_id=1, doris_table_id=None, support_doris=False)
+        LogIndexSetData.objects.filter(index_set_id=index_set.index_set_id).update(
+            apply_status=LogIndexSetData.Status.NORMAL,
+            storage_cluster_id=1,
+        )
+        aliases = [{"field_name": "message", "query_alias": "msg"}]
+
+        rt_alias_mappings, _ = IndexSetHandler.get_rt_alias_settings(index_set.index_set_id, aliases)
+
+        self.assertEqual(rt_alias_mappings["591_xx"], aliases)
+        mock_uq_fields.assert_called_once()
+        mock_switch.assert_called_once_with("unify_query_search", 2)
+
+    @patch("apps.log_search.handlers.index_set.SearchHandler")
+    @patch("apps.log_search.handlers.index_set.FeatureToggleObject.switch", return_value=False)
+    def test_es_alias_mapping_uses_esquery_when_feature_disabled(self, mock_switch, mock_search_handler):
+        """普通索引集在 UQ 开关关闭时保留 ESQuery 行为。"""
+        index_set = self._build_es_doris_index_set(storage_cluster_id=1, doris_table_id=None, support_doris=False)
+        LogIndexSetData.objects.filter(index_set_id=index_set.index_set_id).update(
+            apply_status=LogIndexSetData.Status.NORMAL,
+            storage_cluster_id=1,
+        )
+        mock_search_handler.return_value.get_all_fields_by_index_id.return_value = {
+            "591_xx": ([{"field_name": "message", "field_type": "keyword"}], [])
+        }
+
+        rt_alias_mappings, _ = IndexSetHandler.get_rt_alias_settings(
+            index_set.index_set_id, [{"field_name": "message", "query_alias": "msg"}]
+        )
+
+        self.assertEqual(rt_alias_mappings["591_xx"], [{"field_name": "message", "query_alias": "msg"}])
+        mock_switch.assert_called_once_with("unify_query_search", 2)
+        mock_search_handler.assert_called_once_with(index_set.index_set_id, {})
+        mock_search_handler.return_value.get_all_fields_by_index_id.assert_called_once_with(need_merge=False)
+
     # ==================================================================
     # 更新别名配置时的聚类结果表路由
     # ==================================================================
@@ -3064,9 +3127,7 @@ class TestPlatformIndexListAndRouter(TestCase):
         self.addCleanup(space_detail_patcher.stop)
         # 跨空间检索要求目标业务开启统一查询，这里按现网常态默认打开，
         # 关闭态由 test_cross_space_requires_unify_query 单独覆盖
-        unify_query_patcher = patch(
-            "apps.log_search.views.search_views.FeatureToggleObject.switch", return_value=True
-        )
+        unify_query_patcher = patch("apps.log_search.views.search_views.FeatureToggleObject.switch", return_value=True)
         unify_query_patcher.start()
         self.addCleanup(unify_query_patcher.stop)
 
@@ -3371,9 +3432,7 @@ class TestPlatformIndexListAndRouter(TestCase):
             platform_index_visibility=self.PLATFORM_VISIBILITY,
             platform_index_filter=self.PLATFORM_FILTER,
         )
-        with patch.object(
-            BaseIndexSetHandler, "get_index_set_table_info_list", side_effect=Exception("build failed")
-        ):
+        with patch.object(BaseIndexSetHandler, "get_index_set_table_info_list", side_effect=Exception("build failed")):
             with self.assertRaises(PlatformIndexRouterSyncException):
                 BaseIndexSetHandler.sync_router(platform)
 
