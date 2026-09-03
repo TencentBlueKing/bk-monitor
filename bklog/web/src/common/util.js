@@ -215,7 +215,7 @@ export function json2Query(param, key) {
   } else {
     Object.keys(param).forEach((p) => {
       const value = param[p];
-      const k = key === null || key === '' || key === undefined ? p : key + (param instanceof Array ? `[${p}]` : `.${p}`);
+      const k =        key === null || key === '' || key === undefined ? p : key + (param instanceof Array ? `[${p}]` : `.${p}`);
       paramStr += separator + json2Query(value, k);
     });
   }
@@ -347,7 +347,7 @@ export function getScrollTop() {
  * @return {number} 浏览器视口的高度
  */
 export function getWindowHeight() {
-  const windowHeight = document.compatMode === 'CSS1Compat' ? document.documentElement.clientHeight : document.body.clientHeight;
+  const windowHeight =    document.compatMode === 'CSS1Compat' ? document.documentElement.clientHeight : document.body.clientHeight;
 
   return windowHeight;
 }
@@ -474,9 +474,7 @@ export function formatDate(val, isTimzone = false, formatMilliseconds = false) {
       const date = dayjs.tz(timestamp);
 
       // 如果毫秒部分不为 000，展示毫秒精度的时间
-      const formatStr = formatMilliseconds && milliseconds !== 0
-        ? 'YYYY-MM-DD HH:mm:ss.SSSZZ'
-        : 'YYYY-MM-DD HH:mm:ssZZ';
+      const formatStr =        formatMilliseconds && milliseconds !== 0 ? 'YYYY-MM-DD HH:mm:ss.SSSZZ' : 'YYYY-MM-DD HH:mm:ssZZ';
 
       return date.format(formatStr);
     }
@@ -525,15 +523,12 @@ export function formatDateNanos(val, isTimzone = true) {
   }
 
   // 使用dayjs解析字符串到毫秒 包含时区处理
-  const dateTimeToMilliseconds = dateValue.tz(window.timezone)
-    .format('YYYY-MM-DD HH:mm:ss.SSS');
+  const dateTimeToMilliseconds = dateValue.tz(window.timezone).format('YYYY-MM-DD HH:mm:ss.SSS');
   // 获取微秒并且判断是否是000，也就是纳秒部分的最后三位
   const nanosecondsNum = nanoseconds ? parseInt(nanoseconds, 10) : 0;
   const microseconds = nanosecondsNum % 1000;
   // 如果纳秒部分的最后三位（微秒部分）是000，只保留前3位；否则保留全部
-  const newNanoseconds = microseconds !== 0
-    ? nanoseconds
-    : (nanoseconds.length > 3 ? nanoseconds.slice(0, 3) : nanoseconds);
+  const newNanoseconds =    microseconds !== 0 ? nanoseconds : nanoseconds.length > 3 ? nanoseconds.slice(0, 3) : nanoseconds;
 
   // 组合dayjs格式化的日期时间到毫秒和独立处理的纳秒部分
   const formattedDateTimeWithNanoseconds = `${dateTimeToMilliseconds}${newNanoseconds}`;
@@ -579,7 +574,7 @@ export function sanitizeBidi(str) {
   const len = str.length;
   for (let i = 0; i < len; i++) {
     const code = str.charCodeAt(i);
-    if ((code >= 0x202A && code <= 0x202E) || (code >= 0x2066 && code <= 0x2069)) {
+    if ((code >= 0x202a && code <= 0x202e) || (code >= 0x2066 && code <= 0x2069)) {
       if (result === null) result = '';
       result += str.slice(lastIndex, i);
       lastIndex = i + 1;
@@ -611,9 +606,11 @@ export function createSanitizeTransform() {
 }
 
 function supportsStreamPipeline() {
-  return typeof TextDecoderStream !== 'undefined'
+  return (
+    typeof TextDecoderStream !== 'undefined'
     && typeof TransformStream !== 'undefined'
-    && typeof ReadableStream !== 'undefined';
+    && typeof ReadableStream !== 'undefined'
+  );
 }
 
 function readBlobByFileReader(blob) {
@@ -648,20 +645,17 @@ async function collectStringStream(stream) {
  * @returns {Promise<string>}
  */
 export function readBlobResponse(response) {
-  const canStream = supportsStreamPipeline()
-    && response
-    && typeof response.stream === 'function';
+  const canStream = supportsStreamPipeline() && response && typeof response.stream === 'function';
 
   if (!canStream) {
     return readBlobByFileReader(response).then(sanitizeBidi);
   }
 
   try {
-    const stream = response.stream()
-      .pipeThrough(new TextDecoderStream())
+    const stream = response.stream().pipeThrough(new TextDecoderStream())
       .pipeThrough(createSanitizeTransform());
     return collectStringStream(stream);
-  } catch (e) {
+  } catch {
     return readBlobByFileReader(response).then(sanitizeBidi);
   }
 }
@@ -706,9 +700,9 @@ export async function* parseJSONArrayStream(stream) {
           inString = true;
         } else if (ch === '{') {
           if (depth === 0) start = i;
-          depth++;
+          depth += 1;
         } else if (ch === '}') {
-          depth--;
+          depth -= 1;
           if (depth === 0 && start >= 0) {
             yield JSONBigNumber.parse(buffer.slice(start, i + 1));
             start = -1;
@@ -737,9 +731,7 @@ export async function* parseJSONArrayStream(stream) {
  * @param {(item: any) => void} onItem
  */
 export async function processHugeJSON(response, onItem) {
-  const canStream = supportsStreamPipeline()
-    && response
-    && typeof response.stream === 'function';
+  const canStream = supportsStreamPipeline() && response && typeof response.stream === 'function';
 
   if (!canStream) {
     const text = await readBlobByFileReader(response).then(sanitizeBidi);
@@ -755,8 +747,7 @@ export async function processHugeJSON(response, onItem) {
     return;
   }
 
-  const stream = response.stream()
-    .pipeThrough(new TextDecoderStream())
+  const stream = response.stream().pipeThrough(new TextDecoderStream())
     .pipeThrough(createSanitizeTransform());
 
   let count = 0;
@@ -780,7 +771,7 @@ export function formatBigNumListValue(value) {
       return (obj[value] = parseBigNumberList(value));
     }
     Object.keys(value).forEach((opt) => {
-      obj[opt] = Object.prototype.toString.call(obj[opt]) === '[object Object]' && obj[opt] !== null && !obj[opt]._isBigNumber
+      obj[opt] =        Object.prototype.toString.call(obj[opt]) === '[object Object]' && obj[opt] !== null && !obj[opt]._isBigNumber
         ? formatBigNumListValue(obj[opt])
         : bigNumberToString(value[opt] ?? '');
     });
@@ -820,28 +811,65 @@ export const random = (n = 8, str = 'abcdefghijklmnopqrstuvwxyz0123456789') => {
  * @param {*} alertMsg 弹窗文案
  */
 export const copyMessage = (val, alertMsg = undefined) => {
+  const text = val === null || val === undefined ? '' : String(val);
+  const successText = alertMsg ? alertMsg : window.mainComponent.$t('复制成功');
+  let notified = false;
+  const notifySuccess = () => {
+    if (notified) return;
+    notified = true;
+    window.mainComponent.messageSuccess(successText);
+  };
+  const notifyFail = () => {
+    if (notified) return;
+    notified = true;
+    const failText = window.mainComponent.$t('复制失败');
+    if (typeof window.mainComponent.messageError === 'function') {
+      window.mainComponent.messageError(failText);
+      return;
+    }
+    window.mainComponent.messageSuccess(failText);
+  };
+  const fallbackCopy = () => {
+    const textarea = document.createElement('textarea');
+    textarea.value = text;
+    textarea.setAttribute('readonly', '');
+    textarea.style.cssText = 'position:fixed;top:-9999px;left:-9999px;';
+    document.body.appendChild(textarea);
+    textarea.focus();
+    textarea.select();
+    textarea.setSelectionRange(0, textarea.value.length);
+    const ok = document.execCommand('copy');
+    document.body.removeChild(textarea);
+    return ok;
+  };
+
   try {
+    // 点击当帧先走 execCommand，避免只等 clipboard Promise 时用户手势已丢失
+    const fallbackOk = fallbackCopy();
+    if (fallbackOk) notifySuccess();
 
-    if (navigator.clipboard) {
-      navigator.clipboard.writeText(val);
-      window.mainComponent.messageSuccess(
-        alertMsg ? (alertMsg ?? window.mainComponent.$t('复制失败')) : window.mainComponent.$t('复制成功'),
-      );
-
+    if (navigator.clipboard?.writeText) {
+      const result = navigator.clipboard.writeText(text);
+      if (result && typeof result.then === 'function') {
+        result.then(notifySuccess).catch(() => {
+          if (!fallbackOk) notifyFail();
+        });
+        return;
+      }
+      notifySuccess();
       return;
     }
 
-    const input = document.createElement('input');
-    input.setAttribute('value', val);
-    document.body.appendChild(input);
-    input.select();
-    document.execCommand('copy');
-    document.body.removeChild(input);
-    window.mainComponent.messageSuccess(
-      alertMsg ? (alertMsg ?? window.mainComponent.$t('复制失败')) : window.mainComponent.$t('复制成功'),
-    );
+    if (!fallbackOk) notifyFail();
   } catch (e) {
     console.warn(e);
+    try {
+      if (fallbackCopy()) notifySuccess();
+      else notifyFail();
+    } catch (error) {
+      console.warn(error);
+      notifyFail();
+    }
   }
 };
 
@@ -925,7 +953,7 @@ export const deepClone = (obj, hash = new WeakMap()) => {
   if (Object(obj) !== obj) return obj;
   if (obj instanceof Set) return new Set(obj);
   if (hash.has(obj)) return hash.get(obj);
-  const result = obj instanceof Date
+  const result =    obj instanceof Date
     ? new Date(obj)
     : obj instanceof RegExp
       ? new RegExp(obj.source, obj.flags)
@@ -1054,7 +1082,7 @@ export const setDefaultSettingSelectFiled = (key, filed) => {
  * 防抖装饰器
  * @param delay
  */
-export const Debounce = (delay = 200) => (target, key, descriptor) => {
+export const Debounce =  (delay = 200) => (target, key, descriptor) => {
   const originFunction = descriptor.value;
   const getNewFunction = () => {
     let timer;
@@ -1115,7 +1143,7 @@ export const parseTableRowData = (
       // 不能先按 attributes -> line 路径解析，否则 row['attributes.line'] 会显示为空。
       data = row[key];
     } else if (keyArr.length === 1) {
-      const prefix = key + '.';
+      const prefix = `${key}.`;
       const matchedKeys = Object.keys(row).filter(rowKey => rowKey.startsWith(prefix));
 
       if (matchedKeys.length) {
@@ -1209,7 +1237,7 @@ export const parseTableRowData = (
 export const getRowFieldValue = (row, field) => {
   const showFieldAlias = store.state.storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS];
   const fieldList = showFieldAlias
-    ? [field.query_alias, field.field_name, ...(field.is_virtual_alias_field ? (field.source_field_names || []) : [])]
+    ? [field.query_alias, field.field_name, ...(field.is_virtual_alias_field ? field.source_field_names || [] : [])]
     : [field.field_name];
 
   for (const fieldName of [...new Set(fieldList.filter(Boolean))]) {
@@ -1378,7 +1406,7 @@ export const utcFormatDate = (val, formatTimezone = false) => {
 };
 
 // 首次加载设置表格默认宽度自适应
-export const setDefaultTableWidth = (visibleFields, tableData, catchFieldsWidthObj = null, staticWidth = 50) => {
+export const setDefaultTableWidth = (visibleFields, tableData, catchFieldsWidthObj = null, _staticWidth = 50) => {
   try {
     const widthSnapshot = Object.create(null);
     if (tableData.length && visibleFields.length) {
@@ -1401,7 +1429,6 @@ export const setDefaultTableWidth = (visibleFields, tableData, catchFieldsWidthO
           widthSnapshot[item.field_name] = Object.assign({}, { computedWidth: width, minWidth });
         });
       });
-
 
       // Keep only default/user configured base width here.
       // Extra width is distributed at render time based on the current result container.

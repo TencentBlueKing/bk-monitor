@@ -907,6 +907,16 @@
        * @desc 复制字段值（优先取 IndexedDB 原始数据，与整行复制逻辑一致）
        * @param { Object } field 字段对象
        */
+      isCopyableFieldValue(value) {
+        return value !== null && value !== undefined && value !== '' && value !== '--';
+      },
+      copyOriginFieldValue(originRow, field) {
+        if (!originRow) return false;
+        const originValue = getRowFieldValue(originRow, field);
+        if (!this.isCopyableFieldValue(originValue)) return false;
+        copyMessage(stringifyCopyValue(originValue));
+        return true;
+      },
       async handleCopyFieldValue(field) {
         if (!field) return;
 
@@ -916,26 +926,25 @@
           ...(field.is_virtual_alias_field ? (field.source_field_names || []) : []),
         ].filter(Boolean);
 
+        if (this.rowKey) {
+          const [memoryRow] = retrieveRowCacheService.getCopyRowsFromMemory([this.rowKey], { includeFields });
+          if (this.copyOriginFieldValue(memoryRow, field)) return;
+        }
+
+        const fallbackValue = stripMarkFromCopyValue(getRowFieldValue(this.listData, field));
+        if (this.isCopyableFieldValue(fallbackValue)) {
+          copyMessage(stringifyCopyValue(fallbackValue));
+          return;
+        }
+
         try {
           if (this.rowKey) {
             const [originRow] = await retrieveRowCacheService.getCopyRows([this.rowKey], { includeFields });
-            if (originRow) {
-              const originValue = getRowFieldValue(originRow, field);
-              if (originValue !== null && originValue !== undefined && originValue !== '' && originValue !== '--') {
-                copyMessage(stringifyCopyValue(originValue));
-                return;
-              }
-            }
+            if (this.copyOriginFieldValue(originRow, field)) return;
           }
         } catch (error) {
           console.warn('[kv-list] copy origin field value failed', error);
         }
-
-        const fallbackValue = stripMarkFromCopyValue(getRowFieldValue(this.listData, field));
-        if (fallbackValue === null || fallbackValue === undefined || fallbackValue === '' || fallbackValue === '--') {
-          return;
-        }
-        copyMessage(stringifyCopyValue(fallbackValue));
       },
 
       /**
@@ -1092,6 +1101,16 @@
     font-family: var(--table-fount-family);
     font-size: var(--table-fount-size);
 
+    @keyframes shimmer {
+      0% {
+        background-position: 200% 0;
+      }
+
+      100% {
+        background-position: -200% 0;
+      }
+    }
+
     .log-item:nth-child(even) {
       background-color: #f5f7fa;
     }
@@ -1112,6 +1131,7 @@
         align-items: flex-start;
         color: #16171a;
         word-break: break-all;
+
         :deep(.valid-text) {
           &:hover {
             text-decoration: underline; /* 悬停时添加下划线 */
@@ -1125,11 +1145,11 @@
         flex-shrink: 0;
         flex-wrap: nowrap;
         align-items: stretch;
+        align-self: flex-start;
+        width: 300px;
         height: 100%;
         margin: 5px 0;
         margin-right: 18px;
-        align-self: flex-start;
-        width: 300px;
 
         .field-eye-icon {
           display: inline-flex;
@@ -1139,8 +1159,8 @@
           margin-right: 4px;
           font-size: 12px;
           color: #4d4f56;
-          border-radius: 2px;
           cursor: pointer;
+          border-radius: 2px;
 
           &:hover {
             color: #3a84ff;
@@ -1155,8 +1175,8 @@
           margin-right: 4px;
           font-size: 12px;
           color: #4d4f56;
-          border-radius: 2px;
           cursor: pointer;
+          border-radius: 2px;
 
           &:hover {
             color: #3a84ff;
@@ -1180,7 +1200,7 @@
           display: block;
           width: auto;
           overflow: hidden;
-          font-family: Roboto-Regular;
+          font-family: Roboto-Regular, sans-serif;
           color: #313238;
           word-break: normal;
           word-wrap: break-word;
@@ -1220,11 +1240,11 @@
     .load-more-btn {
       display: flex;
       align-items: center;
-      color: #3a84ff;
       margin-top: 8px;
       margin-left: 4px;
-      cursor: pointer;
       font-size: 12px;
+      color: #3a84ff;
+      cursor: pointer;
 
       span {
         font-size: 12px;
@@ -1269,11 +1289,11 @@
           flex-shrink: 0;
           flex-wrap: nowrap;
           align-items: center;
+          align-self: flex-start;
+          width: 300px;
           height: 100%;
           margin: 5px 0;
           margin-right: 18px;
-          align-self: flex-start;
-          width: 300px;
 
           // 模拟眼睛图标
           .skeleton-icon {
@@ -1286,42 +1306,42 @@
 
           // 模拟字段类型图标
           &::before {
-            content: '';
             display: inline-block;
             width: 16px;
             min-width: 16px;
             height: 16px;
             margin-right: 5px;
-            border-radius: 2px;
+            content: '';
             background: linear-gradient(90deg, #f0f2f5 25%, #e6e9ed 50%, #f0f2f5 70%);
             background-size: 400% 100%;
+            border-radius: 2px;
             animation: shimmer 1.8s infinite linear;
           }
 
           // 模拟字段名称文本
           .skeleton-text {
             flex: 1;
-            height: 14px;
             min-width: 80px;
             max-width: 200px;
+            height: 14px;
             border-radius: 2px;
           }
         }
 
         .skeleton-field-value {
           display: flex;
-          align-items: flex-start;
           flex: 1;
+          align-items: flex-start;
           min-width: 0;
           color: #16171a;
           word-break: break-all;
 
           // 模拟字段值
           .skeleton-value {
-            height: 14px;
             width: 100%;
             min-width: 100px;
             max-width: 500px;
+            height: 14px;
             border-radius: 2px;
           }
         }
@@ -1331,15 +1351,6 @@
           background-size: 400% 100%;
           animation: shimmer 1.8s infinite linear;
         }
-      }
-    }
-
-    @keyframes shimmer {
-      0% {
-        background-position: 200% 0;
-      }
-      100% {
-        background-position: -200% 0;
       }
     }
   }

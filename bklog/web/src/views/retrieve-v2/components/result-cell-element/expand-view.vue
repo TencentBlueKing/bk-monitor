@@ -353,15 +353,44 @@
         }
         return data;
       },
-      async handleCopy() {
+      collectCopyIncludeFields() {
+        return (this.kvListData || [])
+          .flatMap(field => [
+            field.field_name,
+            field.query_alias,
+            ...(field.is_virtual_alias_field ? (field.source_field_names || []) : []),
+          ])
+          .filter(Boolean);
+      },
+      hasCopyableRow(row) {
+        return Boolean(row && typeof row === 'object' && Object.keys(row).length);
+      },
+      copyRowPayload(row) {
+        if (!this.hasCopyableRow(row)) return false;
+        copyMessage(JSON.stringify(row));
+        return true;
+      },
+      resolveCopyPayloadFromMemory(includeFields) {
+        if (!this.rowKey) return undefined;
+        const [filteredRow] = retrieveRowCacheService.getCopyRowsFromMemory([this.rowKey], { includeFields });
+        if (this.hasCopyableRow(filteredRow)) return filteredRow;
+        const [fullRow] = retrieveRowCacheService.getCopyRowsFromMemory([this.rowKey]);
+        return this.hasCopyableRow(fullRow) ? fullRow : undefined;
+      },
+      handleCopy() {
+        const includeFields = this.collectCopyIncludeFields();
+        // 先走同步内存/展示数据，避免 await IndexedDB 后丢失点击手势导致剪贴板写入失败
+        if (this.copyRowPayload(this.resolveCopyPayloadFromMemory(includeFields))) return;
+        if (this.copyRowPayload(this.jsonShowData)) return;
+        this.copyOriginRowAsync(includeFields);
+      },
+      async copyOriginRowAsync(includeFields) {
         try {
           if (this.rowKey) {
-            const includeFields = this.kvListData.map(field => field.field_name).filter(Boolean);
             const [originRow] = await retrieveRowCacheService.getCopyRows([this.rowKey], { includeFields });
-            if (originRow) {
-              copyMessage(JSON.stringify(originRow));
-              return;
-            }
+            if (this.copyRowPayload(originRow)) return;
+            const [fullRow] = await retrieveRowCacheService.getCopyRows([this.rowKey]);
+            if (this.copyRowPayload(fullRow)) return;
           }
         } catch (error) {
           console.warn('[expand-view] copy origin row failed', error);
@@ -489,17 +518,19 @@
             :deep(.bk-form-input) {
               width: 200px;
               height: 22px;
-              background: #F5F7FA;
               padding: 0;
+              background: #F5F7FA;
               border: none;
               border-bottom: 1px solid #c4c6cc;
 
               &:focus {
+                /* stylelint-disable-next-line declaration-no-important */
                 background: #F5F7FA !important;
               }
             }
 
             :deep(.right-icon) {
+              /* stylelint-disable-next-line declaration-no-important */
               right: 0px !important;
             }
           }
@@ -526,6 +557,7 @@
 
         .vjs-tree-node {
           line-height: 22px;
+
           .vjs-value {
             &.vjs-value-string {
               white-space: pre-wrap;
