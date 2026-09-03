@@ -53,7 +53,7 @@ export interface UseTableCellOptions {
   /** 表格行数据唯一key字段名 */
   rowKeyField: MaybeRef<string>;
   /** 默认单元格数据取值逻辑 */
-  customDefaultGetRenderValue?: (row, column: BaseTableColumn<any, any>) => string | string[];
+  customDefaultGetRenderValue?: (row, column: BaseTableColumn<any, any>) => unknown;
 }
 export function useTableCell({
   rowKeyField,
