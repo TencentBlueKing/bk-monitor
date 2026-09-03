@@ -24,9 +24,9 @@
  * IN THE SOFTWARE.
  */
 
-import { autoDecodeString } from './utils/formatter-utils';
 import { createDecodeContent, createMenuContent } from './utils/dom';
-import { isPointerDragSelect } from './utils/geometry';
+import { autoDecodeString, detectEncodingType } from './utils/formatter-utils';
+import { isPointerDragSelect, isSelectionDecoderTrigger } from './utils/geometry';
 import { copyToClipboard } from './utils/message';
 import { hideSelectionDecoder, prepareDecoderPopover, showPopover } from './utils/popover';
 import { type SelectionDecoderPlacement, type SelectionDecoderTarget, DEFAULT_PLACEMENT } from './utils/typing';
@@ -45,7 +45,7 @@ const showDecodeResult = (text: string) => {
 
 export type { SelectionDecoderPlacement, SelectionDecoderTarget };
 
-export { hideSelectionDecoder, isPointerDragSelect };
+export { hideSelectionDecoder, isPointerDragSelect, isSelectionDecoderTrigger };
 
 /**
  * 展示选中文本的复制 / 自动解码 tippy 操作弹窗
@@ -62,7 +62,11 @@ export const showSelectionDecoder = (
     return;
   }
 
-  showPopover(createMenuContent(text, copyToClipboard, showDecodeResult));
+  showPopover(
+    createMenuContent(text, copyToClipboard, showDecodeResult, {
+      canDecode: !!detectEncodingType(text),
+    })
+  );
 };
 
 /**
@@ -78,7 +82,6 @@ export const showSelectionDecodeResult = (
 ) => {
   if (
     !prepareDecoderPopover(text, target, placement, {
-      requireEncoding: false,
       fallbackCenter: true,
     })
   ) {

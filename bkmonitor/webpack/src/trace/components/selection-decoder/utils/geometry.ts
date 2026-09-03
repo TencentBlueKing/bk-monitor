@@ -121,3 +121,11 @@ export const isPointerDragSelect = (event: MouseEvent): boolean => {
   const dragRect = resolveDragRect(event);
   return !!dragRect && isMeaningfulRect(dragRect);
 };
+
+/**
+ * 是否应弹出划词菜单：有位移的划选，或双击 / 三击产生选区。
+ * 纯单击已选文本时选区往往仍在，不能仅凭选区判断。
+ */
+export const isSelectionDecoderTrigger = (event: MouseEvent): boolean => {
+  return event.detail >= 2 || isPointerDragSelect(event);
+};

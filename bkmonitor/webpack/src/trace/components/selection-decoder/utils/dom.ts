@@ -32,7 +32,14 @@ export const createIcon = (iconName: string, className: string) => {
   return iconEl;
 };
 
-const createMenuItem = (icon: string, label: string, onClick: () => void) => {
+const createMenuItem = (
+  icon: string,
+  label: string,
+  onClick?: () => void,
+  options?: {
+    disabled?: boolean;
+  }
+) => {
   const item = document.createElement('li');
   item.className = 'selection-decoder-menu-item';
 
@@ -40,23 +47,43 @@ const createMenuItem = (icon: string, label: string, onClick: () => void) => {
   textEl.textContent = label;
 
   item.append(createIcon(icon, 'selection-decoder-menu-icon'), textEl);
+
+  if (options?.disabled) {
+    item.classList.add('is-disabled');
+    item.setAttribute('aria-disabled', 'true');
+    return item;
+  }
+
   item.addEventListener('click', event => {
     event.stopPropagation();
-    onClick();
+    onClick?.();
   });
   return item;
 };
 
-export const createMenuContent = (text: string, onCopy: (text: string) => void, onDecode: (text: string) => void) => {
+export const createMenuContent = (
+  text: string,
+  onCopy: (text: string) => void,
+  onDecode: (text: string) => void,
+  options?: {
+    canDecode?: boolean;
+  }
+) => {
+  const canDecode = options?.canDecode !== false;
   const menu = document.createElement('ul');
   menu.className = 'selection-decoder-menu';
   menu.append(
     createMenuItem('icon-mc-copy', t('复制'), () => {
       onCopy(text);
     }),
-    createMenuItem('icon-mc-decode', t('自动解码'), () => {
-      onDecode(text);
-    })
+    createMenuItem(
+      'icon-mc-decode',
+      canDecode ? t('自动解码') : t('自动解码（未识别到可解码内容）'),
+      () => {
+        onDecode(text);
+      },
+      { disabled: !canDecode }
+    )
   );
   return menu;
 };
