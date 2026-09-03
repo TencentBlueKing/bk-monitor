@@ -951,6 +951,81 @@ class FixedRemoteScriptTest(SimpleTestCase):
 
             self.assertEqual(completed.stdout.splitlines(), [str(path) for path in expected_paths])
 
+    def test_shared_probe_source_path_awk_program_parses(self):
+        script = fixed_probe_script().decode("utf-8")
+        program_prefix = "extracted_patterns=$(awk '"
+        program_start = script.index(program_prefix) + len(program_prefix)
+        program_end = script.index('\' "$child_path" 2>/dev/null)', program_start)
+
+        completed = subprocess.run(
+            ["awk", script[program_start:program_end], "/dev/null"],
+            text=True,
+            capture_output=True,
+        )
+
+        # gawk warns about regexp escapes that BWK awk accepts silently, so assert on parse failure
+        # rather than on empty stderr.
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        self.assertNotIn("syntax error", completed.stderr)
+
+    def test_shared_probe_extracts_source_paths_from_inline_and_block_yaml(self):
+        script = fixed_probe_script().decode("utf-8")
+        extraction_start = script.index("child_index=0")
+        extraction_end = script.index('\nemit_kv "source_pattern_count"', extraction_start)
+        extraction_script = script[extraction_start:extraction_end]
+
+        with tempfile.TemporaryDirectory() as directory:
+            config_directory = Path(directory)
+            inline_path = config_directory / "inline.conf"
+            inline_path.write_text(
+                "local:\n    - dataid: 1001\n      paths: [\"/var/log/app/*.log\", '/data/logs/biz.log']\n",
+                encoding="utf-8",
+            )
+            block_path = config_directory / "block.conf"
+            block_path.write_text(
+                "local:\n"
+                "    - dataid: 1001\n"
+                "      paths:\n"
+                "        - /var/lib/docker/containers/abc/abc-json.log\n"
+                '        - "/var/host/data/bcs/lib/docker/containers/def/def-json.log"\n',
+                encoding="utf-8",
+            )
+
+            child_paths = "\n".join(str(path) for path in (inline_path, block_path))
+            harness = "\n".join(
+                (
+                    "set -u",
+                    "MAX_MATCHED_CHILD_CONFIGS=5",
+                    "MAX_CHILD_CONFIG_BYTES=65536",
+                    "MAX_SOURCES=50",
+                    "tab=$(printf '\\t')",
+                    "emit_blob() { :; }",
+                    f"child_paths='{child_paths}'",
+                    extraction_script,
+                    "printf '%s\\n' \"$source_patterns\"",
+                    "printf '%s\\n' \"$source_pattern_count\"",
+                )
+            )
+            completed = subprocess.run(
+                ["/bin/sh"],
+                input=harness,
+                text=True,
+                capture_output=True,
+                check=True,
+            )
+
+            *patterns, pattern_count = completed.stdout.splitlines()
+            self.assertEqual(
+                set(patterns),
+                {
+                    "/data/logs/biz.log",
+                    "/var/host/data/bcs/lib/docker/containers/def/def-json.log",
+                    "/var/lib/docker/containers/abc/abc-json.log",
+                    "/var/log/app/*.log",
+                },
+            )
+            self.assertEqual(pattern_count, "4")
+
     def test_shared_probe_rejects_caller_shaped_config_hints(self):
         for hint in ("../secret.conf", "/data/etc/secret.conf", "*.conf", "a,b.conf"):
             with self.subTest(hint=hint), self.assertRaises(ValueError):
