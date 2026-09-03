@@ -217,7 +217,7 @@ export default defineComponent({
                     key={item.app_name}
                     name={item.app_alias}
                   >
-                    <div class={['application-item-name', { is_top: item.isTop }]}>
+                    <div class={['application-item-name', { 'is-top': item.isTop }]}>
                       <i
                         class={['icon-monitor', 'thumbtack', item.isTop ? 'icon-a-pinnedtuding' : 'icon-a-pintuding']}
                         onClick={event => this.handleThumbtack(event, item)}

@@ -58,9 +58,15 @@ export interface IDimensionField {
   is_dimensions: boolean;
   is_option_enabled: boolean;
   name: string;
+  option_values?: IDimensionFieldOptionValue[];
   pinyinStr?: string;
   support_operations: IDimensionOperation[];
   type: DimensionType;
+}
+
+export interface IDimensionFieldOptionValue {
+  alias: string;
+  value: string;
 }
 
 /** 维度列表树形结构 */

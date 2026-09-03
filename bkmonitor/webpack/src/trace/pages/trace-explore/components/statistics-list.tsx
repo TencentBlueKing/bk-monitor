@@ -136,6 +136,15 @@ export default defineComponent({
       type: Array as PropType<TimeRangeType>,
       default: null,
     },
+    optionValues: {
+      type: Array as PropType<
+        {
+          alias?: string;
+          value: string;
+        }[]
+      >,
+      default: null,
+    },
   },
   emits: {
     conditionChange: (_condition: ConditionChangeEvent) => true,
@@ -291,10 +300,15 @@ export default defineComponent({
       statisticsList.distinct_count = data[0]?.distinct_count || 0;
       statisticsList.field = data[0]?.field || '';
       const list = data[0]?.list || [];
-      statisticsList.list = list.map(item => ({
-        ...item,
-        alias: transformFieldName(localField.value, item.value),
-      }));
+      statisticsList.list = list.map(item => {
+        const alias =
+          props.optionValues?.find(option => option.value === item.value)?.alias ||
+          transformFieldName(localField.value, item.value);
+        return {
+          ...item,
+          alias,
+        };
+      });
       popoverLoading.value = false;
       await getStatisticsGraphData();
     }

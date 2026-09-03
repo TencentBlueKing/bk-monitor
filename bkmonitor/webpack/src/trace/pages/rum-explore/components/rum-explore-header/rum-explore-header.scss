@@ -56,8 +56,8 @@
 
   .mode-tab {
     display: flex;
-    align-items: center;
     gap: 1px;
+    align-items: center;
     height: 32px;
     padding: 4px;
     background: #f0f1f5;
@@ -78,13 +78,14 @@
 
     & + .mode-tab-item {
       position: relative;
+
       &::before {
         position: absolute;
         top: 6px;
         left: -1px;
-        content: '';
         width: 1px;
         height: 12px;
+        content: '';
         background: #dcdee5;
       }
     }
@@ -100,8 +101,8 @@
     }
 
     &.active {
-      background: #fff;
       color: #3a84ff;
+      background: #fff;
     }
 
     &.disabled {
@@ -129,10 +130,10 @@
       }
 
       .application-name {
+        margin-right: auto;
         overflow: hidden;
         text-overflow: ellipsis;
         font-size: 12px;
-        margin-right: auto;
         color: #313238;
         white-space: nowrap;
       }
@@ -140,6 +141,7 @@
       .select-shortcut-keys {
         flex-shrink: 0;
         padding: 0 4px;
+        margin-left: auto;
         font-family: Menlo, monospace;
         font-size: 12px;
         font-weight: 700;
@@ -189,7 +191,7 @@
       }
     }
 
-    &.is_top .thumbtack {
+    &.is-top .thumbtack {
       visibility: visible;
       color: #3a84ff;
     }

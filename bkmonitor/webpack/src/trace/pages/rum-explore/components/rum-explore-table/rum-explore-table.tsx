@@ -356,6 +356,7 @@ export default defineComponent({
           commonParams={this.commonParams as any}
           fieldType={this.selectField?.type}
           isShow={this.showPopover}
+          optionValues={this.selectField?.option_values}
           selectField={this.selectField?.name}
           timeRange={this.timeRange as any}
           unit={this.selectField?.field_unit}
