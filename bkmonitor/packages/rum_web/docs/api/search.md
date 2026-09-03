@@ -141,6 +141,7 @@ GET /rum/search/view_config/?app_name=rum-demo&bk_biz_id=2
 | is_list              | Boolean            | 是否支持在列表中展示                                                                   |
 | supported_operations | Array[Operation]   | 支持的操作符列表                                                                     |
 | option_values        | Array[OptionValue] | 预设枚举值列表（可选，分析/候选值显示 {alias}（{value}），列表只显示 {alias}）                          |
+| rating_config        | Array[RatingConfig] | 字段评级配置（可选，如 Web Vitals 指标的好坏评定阈值）；每个元素含 `rating`（评级标识）与 `value`（该评级的阈值上限，可选，最大/最差评级可不传 `value`） |
 
 - Operation
 
@@ -156,6 +157,13 @@ GET /rum/search/view_config/?app_name=rum-demo&bk_biz_id=2
 |-------|--------|-----------------------------------|
 | value | String | 枚举值                               |
 | alias | String | 枚举别名，有别名时 UI 展示格式为 `alias(value)` |
+
+- RatingConfig
+
+| 参数名称  | 类型     | 描述                                                                    |
+|-------|--------|-----------------------------------------------------------------------|
+| rating | String | 评级标识（如 `good` / `needs_improvement` / `poor`）                          |
+| value  | Double | 该评级的阈值上限（可选，按阈值从小到大排列，最大/最差评级可不传 `value`）                      |
 
 - Group
 
@@ -205,67 +213,6 @@ GET /rum/search/view_config/?app_name=rum-demo&bk_biz_id=2
       "attributes.user.id",
       "attributes.resource.type",
       "attributes.http.request.method"
-    ],
-    "error": [
-      "span_name",
-      "attributes.span_type",
-      "end_time",
-      "elapsed_time",
-      "status.code",
-      "attributes.view.url_template",
-      "attributes.user.id",
-      "attributes.error.source"
-    ],
-    "vital": [
-      "span_name",
-      "attributes.span_type",
-      "end_time",
-      "elapsed_time",
-      "status.code",
-      "attributes.view.url_template",
-      "attributes.user.id",
-      "attributes.vital.metric",
-      "attributes.vital.value"
-    ],
-    "long_task": [
-      "span_name",
-      "attributes.span_type",
-      "end_time",
-      "elapsed_time",
-      "status.code",
-      "attributes.view.url_template",
-      "attributes.user.id",
-      "attributes.long_task.name",
-      "attributes.long_task.entry_type"
-    ],
-    "action": [
-      "span_name",
-      "attributes.span_type",
-      "end_time",
-      "elapsed_time",
-      "status.code",
-      "attributes.view.url_template",
-      "attributes.user.id",
-      "attributes.action.id",
-      "attributes.action.type"
-    ],
-    "websocket": [
-      "span_name",
-      "attributes.span_type",
-      "end_time",
-      "elapsed_time",
-      "status.code",
-      "attributes.view.url_template",
-      "attributes.user.id"
-    ],
-    "custom": [
-      "span_name",
-      "attributes.span_type",
-      "end_time",
-      "elapsed_time",
-      "status.code",
-      "attributes.view.url_template",
-      "attributes.user.id"
     ]
   },
   "fields": [
@@ -274,6 +221,19 @@ GET /rum/search/view_config/?app_name=rum-demo&bk_biz_id=2
       "field_alias": "Span 名称",
       "field_type": "keyword",
       "origin_field": "span_name",
+      "is_real": true,
+      "is_searchable": true,
+      "is_agg": true,
+      "is_list": true,
+      "supported_operations": []
+    },
+    {
+      "field_name": "end_time",
+      "field_alias": "结束时间",
+      "field_type": "long",
+      "field_unit": "us",
+      "field_display_type": "datetime",
+      "origin_field": "end_time",
       "is_real": true,
       "is_searchable": true,
       "is_agg": true,
@@ -330,12 +290,26 @@ GET /rum/search/view_config/?app_name=rum-demo&bk_biz_id=2
       "field_alias": "最大内容绘制",
       "field_type": "double",
       "field_unit": "ms",
+      "field_display_type": "duration",
       "origin_field": "LCP",
       "is_real": false,
       "is_searchable": true,
       "is_agg": true,
       "is_list": false,
-      "supported_operations": []
+      "supported_operations": [],
+      "rating_config": [
+        {
+          "rating": "good",
+          "value": 2500
+        },
+        {
+          "rating": "needs_improvement",
+          "value": 4000
+        },
+        {
+          "rating": "poor"
+        }
+      ]
     }
   ],
   "groups": [

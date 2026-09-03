@@ -11,7 +11,10 @@ specific language governing permissions and limitations under the License.
 from django.utils.translation import gettext_lazy as _
 
 from semconv.rum.field import FieldSpec
+from semconv.rum.constants import BlankScreenReason
 
-BLANK_SCREEN_REASON = FieldSpec(field_name="blank_screen.reason", field_alias=_("白屏原因"))
+BLANK_SCREEN_REASON = FieldSpec(
+    field_name="blank_screen.reason", field_alias=_("白屏原因"), option_values=BlankScreenReason
+)
 BLANK_SCREEN_EMPTY_RATIO = FieldSpec(field_name="blank_screen.empty_ratio", field_alias=_("白屏比例"))
 BLANK_SCREEN_EMPTY_SAMPLE_COUNT = FieldSpec(field_name="blank_screen.empty_sample_count", field_alias=_("白屏样本数"))

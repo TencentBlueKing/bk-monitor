@@ -10,8 +10,9 @@ specific language governing permissions and limitations under the License.
 
 from django.utils.translation import gettext_lazy as _
 
-from semconv.constants import FieldDisplayType, FieldUnit, VitalMetric
-from semconv.rum.field import FieldSpec
+from semconv.constants import FieldDisplayType, FieldUnit
+from semconv.rum.constants import VitalInpInteractionType, VitalMetric
+from semconv.rum.field import FieldSpec, RatingLevel
 
 
 VITAL_ID = FieldSpec(field_name="vital.id", field_alias=_("Vital 唯一标识"))
@@ -27,7 +28,9 @@ VITAL_INP_INPUT_DELAY = FieldSpec(
     field_display_type=FieldDisplayType.DURATION.value,
 )
 VITAL_INP_INTERACTION_TARGET = FieldSpec(field_name="vital.inp.interaction_target", field_alias=_("交互目标元素标识"))
-VITAL_INP_INTERACTION_TYPE = FieldSpec(field_name="vital.inp.interaction_type", field_alias=_("交互类型"))
+VITAL_INP_INTERACTION_TYPE = FieldSpec(
+    field_name="vital.inp.interaction_type", field_alias=_("交互类型"), option_values=VitalInpInteractionType
+)
 VITAL_INP_PROCESSING_DURATION = FieldSpec(
     field_name="vital.inp.processing_duration",
     field_alias=_("处理耗时"),
@@ -43,7 +46,7 @@ VITAL_INP_PRESENTATION_DELAY = FieldSpec(
 
 # LCP 相关字段
 VITAL_LCP_TARGET = FieldSpec(field_name="vital.lcp.target", field_alias=_("DOM 选择器"))
-VITAL_LCP_URL = FieldSpec(field_name="vital.lcp.url", field_alias=_("元素对应资源 URL（已脱敏）"))
+VITAL_LCP_URL = FieldSpec(field_name="vital.lcp.url", field_alias=_("元素对应资源 URL"))
 VITAL_LCP_RESOURCE_LOAD_DURATION = FieldSpec(
     field_name="vital.lcp.resource_load_duration",
     field_alias=_("资源加载耗时"),
@@ -81,4 +84,73 @@ VITAL_TTFB_REQUEST_DURATION = FieldSpec(
     field_alias=_("请求发送后等待首字节耗时"),
     field_unit=FieldUnit.MS.value,
     field_display_type=FieldDisplayType.DURATION.value,
+)
+
+
+CLS = FieldSpec(
+    field_name="CLS",
+    field_alias=_("累积布局偏移"),
+    field_type="double",
+    is_real=False,
+    rating_config=(
+        RatingLevel(rating="good", value=0.1),
+        RatingLevel(rating="needs_improvement", value=0.25),
+        RatingLevel(rating="poor"),
+    ),
+)
+
+INP = FieldSpec(
+    field_name="INP",
+    field_alias=_("交互到下一次绘制"),
+    field_unit=FieldUnit.MS.value,
+    field_type="double",
+    field_display_type=FieldDisplayType.DURATION.value,
+    is_real=False,
+    rating_config=(
+        RatingLevel(rating="good", value=200),
+        RatingLevel(rating="needs_improvement", value=500),
+        RatingLevel(rating="poor"),
+    ),
+)
+
+LCP = FieldSpec(
+    field_name="LCP",
+    field_alias=_("最大内容绘制"),
+    field_unit=FieldUnit.MS.value,
+    field_type="double",
+    field_display_type=FieldDisplayType.DURATION.value,
+    is_real=False,
+    rating_config=(
+        RatingLevel(rating="good", value=2500),
+        RatingLevel(rating="needs_improvement", value=4000),
+        RatingLevel(rating="poor"),
+    ),
+)
+
+FCP = FieldSpec(
+    field_name="FCP",
+    field_alias=_("首次内容绘制"),
+    field_unit=FieldUnit.MS.value,
+    field_type="double",
+    field_display_type=FieldDisplayType.DURATION.value,
+    is_real=False,
+    rating_config=(
+        RatingLevel(rating="good", value=1800),
+        RatingLevel(rating="needs_improvement", value=3000),
+        RatingLevel(rating="poor"),
+    ),
+)
+
+TTFB = FieldSpec(
+    field_name="TTFB",
+    field_alias=_("首字节耗时"),
+    field_unit=FieldUnit.MS.value,
+    field_type="double",
+    field_display_type=FieldDisplayType.DURATION.value,
+    is_real=False,
+    rating_config=(
+        RatingLevel(rating="good", value=800),
+        RatingLevel(rating="needs_improvement", value=1800),
+        RatingLevel(rating="poor"),
+    ),
 )

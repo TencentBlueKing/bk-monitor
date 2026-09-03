@@ -11,12 +11,15 @@ specific language governing permissions and limitations under the License.
 from django.utils.translation import gettext_lazy as _
 
 from semconv.rum.field import FieldSpec
-from semconv.constants import ViewLoadingTimeSource, ViewPhase, FieldUnit, FieldDisplayType
+from semconv.rum.constants import ViewLoadingTimeSource, ViewPhase, ViewLoadingType
+from semconv.constants import FieldUnit, FieldDisplayType
 
 
 VIEW_ID = FieldSpec(field_name="view.id", field_alias=_("视图 ID"))
 VIEW_NAME = FieldSpec(field_name="view.name", field_alias=_("视图名称"))
-VIEW_LOADING_TYPE = FieldSpec(field_name="view.loading_type", field_alias=_("视图加载类型"))
+VIEW_LOADING_TYPE = FieldSpec(
+    field_name="view.loading_type", field_alias=_("视图加载类型"), option_values=ViewLoadingType
+)
 VIEW_URL = FieldSpec(field_name="view.url", field_alias=_("视图 URL"))
 VIEW_PREVIOUS = FieldSpec(field_name="view.previous", field_alias=_("视图 URL（前一个）"))
 VIEW_PREVIOUS_URL_TEMPLATE = FieldSpec(field_name="view.previous_url_template", field_alias=_("前序视图路径模板"))

@@ -50,67 +50,6 @@ class SpanLevelHandler(BaseRumLevelHandler):
         "attributes.view.url_template",
         "attributes.user.id",
     ]
-    VIRTUAL_FIELDS = {
-        "CLS": {
-            "field_name": "CLS",
-            "field_alias": "累积布局偏移",
-            "field_type": "double",
-            "origin_field": "CLS",
-            "is_searchable": True,
-            "is_agg": True,
-            "is_list": False,
-            "is_real": False,
-            "supported_operations": [],
-        },
-        "INP": {
-            "field_name": "INP",
-            "field_alias": "交互到下一次绘制",
-            "field_type": "double",
-            "field_unit": "ms",
-            "origin_field": "INP",
-            "is_searchable": True,
-            "is_agg": True,
-            "is_list": False,
-            "is_real": False,
-            "supported_operations": [],
-        },
-        "LCP": {
-            "field_name": "LCP",
-            "field_alias": "最大内容绘制",
-            "field_type": "double",
-            "field_unit": "ms",
-            "origin_field": "LCP",
-            "is_searchable": True,
-            "is_agg": True,
-            "is_list": False,
-            "is_real": False,
-            "supported_operations": [],
-        },
-        "FCP": {
-            "field_name": "FCP",
-            "field_alias": "首次内容绘制",
-            "field_type": "double",
-            "field_unit": "ms",
-            "origin_field": "FCP",
-            "is_searchable": True,
-            "is_agg": True,
-            "is_list": False,
-            "is_real": False,
-            "supported_operations": [],
-        },
-        "TTFB": {
-            "field_name": "TTFB",
-            "field_alias": "首字节耗时",
-            "field_type": "double",
-            "field_unit": "ms",
-            "origin_field": "TTFB",
-            "is_searchable": True,
-            "is_agg": True,
-            "is_list": False,
-            "is_real": False,
-            "supported_operations": [],
-        },
-    }
     VIEW_CONFIG_IGNORE_KEYS = ["is_case_sensitive", "is_analyzed", "wildcard_case_insensitive", "tokenize_on_chars"]
 
     #: 数值类型字段集合
@@ -163,9 +102,6 @@ class SpanLevelHandler(BaseRumLevelHandler):
         for field_name, field_dict in field_map.items():
             for key in self.VIEW_CONFIG_IGNORE_KEYS:
                 field_dict.pop(key, None)
-        # mapping 没有的虚拟字段，先补进 field_map，WEB_VITALS 才组得起来
-        for name, meta in self.VIRTUAL_FIELDS.items():
-            field_map.setdefault(name, meta)
 
         return {
             "default_sort": list(self.query.DEFAULT_SORT),

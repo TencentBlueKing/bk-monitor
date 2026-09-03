@@ -27,6 +27,7 @@ from semconv.rum.attributes import (
     device_attributes,
     vital_attributes,
     http_attributes,
+    session_attributes,
 )
 from semconv.rum.field import FieldSpec, RatingLevel
 from semconv.rum.metric import web_vitals
@@ -167,6 +168,7 @@ class TestSpanSpec:
             is SpanSpec.RESOURCE.DEVICE_TYPE
             is device_attributes.DEVICE_TYPE
         )
+        assert SpanSpec.from_field("resource.session.sample_rate") is session_attributes.SESSION_SAMPLE_RATE
 
     def test_vital_fields_at_root(self):
         """Web Vitals 虚拟字段注册在根级。"""

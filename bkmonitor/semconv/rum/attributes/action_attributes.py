@@ -10,7 +10,7 @@ specific language governing permissions and limitations under the License.
 
 from django.utils.translation import gettext_lazy as _
 
-from semconv.constants import FrustrationType
+from semconv.rum.constants import FrustrationType
 from semconv.rum.field import FieldSpec
 
 
