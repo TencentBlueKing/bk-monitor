@@ -881,7 +881,10 @@ def get_host_alarm_count(
     统计口径：「未恢复」是存量状态语义——只统计 begin_time 不晚于 end_time（缺省为当前时刻）且当前
     仍未恢复（status=ABNORMAL）的告警，不限制告警的触发起点，避免更早触发的存量告警随查询窗口
     起点收缩而被误显示为 0。
-    受 ES 按天索引选择限制，begin_time 早于索引回溯窗口（缺省 days 天）的告警统计不到，属既有上限。
+
+    索引选择：不向 search 传 end_time，索引窗口恒为 [now-days, now]。ABNORMAL 文档每日被 rollover
+    reindex 搬运到当天索引（见 AlertDocument.REINDEX_QUERY 与 alert.get/mget 注释），上界必须延伸到
+    now 才能命中；end_time 仅做 begin_time lte 的文档级过滤，不参与索引选择。
 
     :param bk_biz_id: 业务ID
     :param hosts: 主机列表
@@ -899,13 +902,10 @@ def get_host_alarm_count(
         if inner_ip:
             host_ips.update(ip.strip() for ip in inner_ip.split(",") if ip.strip())
 
-    # end_time 早于索引回溯窗口起点时，向左扩展回溯天数，保证索引覆盖到 end_time 当天
-    lookback_days = days
-    if end_time is not None:
-        lookback_days = max(days, int((time.time() - end_time) // 86400) + 1)
-
+    # 索引上界固定 now：ABNORMAL 文档每天被 reindex 搬运到当天索引，不能把 end_time 传给 search
+    # 收窄索引窗口，否则历史截止时间会因漏掉当天索引而把未恢复计数误判为 0
     search_object = (
-        AlertDocument.search(days=lookback_days, end_time=end_time)
+        AlertDocument.search(days=days)
         .filter("term", status=EventStatus.ABNORMAL)
         .filter("term", **{"event.bk_biz_id": bk_biz_id})
         .source(["event.ip", "event.bk_cloud_id", "severity", "dimensions"])
@@ -928,7 +928,14 @@ def get_host_alarm_count(
                 ip_to_host_id[(ip, bk_cloud_id)] = host.bk_host_id
 
     alarm_count_info = {host.bk_host_id: {1: 0, 2: 0, 3: 0} for host in hosts}
+    # reindex 过渡期同一告警可能在新旧索引各存一份（同 _id），按 id 去重防重复计数（同 AlertDocument.mget）
+    counted_alert_ids = set()
     for alert in search_object.scan():
+        alert_id = getattr(getattr(alert, "meta", None), "id", None)
+        if alert_id is not None:
+            if alert_id in counted_alert_ids:
+                continue
+            counted_alert_ids.add(alert_id)
         host_id = _resolve_host_id_from_alert(alert, ip_to_host_id)
         if host_id is None:
             continue
