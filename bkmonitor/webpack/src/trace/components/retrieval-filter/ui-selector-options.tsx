@@ -147,6 +147,10 @@ export default defineComponent({
     const isTextarea = computed(() => {
       return checkedItem.value?.name === '*' || [EFieldType.all, EFieldType.text].includes(checkedItem.value?.type);
     });
+    /* 是否为 textWithMethods 类型（文本输入框，带有方法选择） */
+    const isTextareaWithMethods = computed(() => {
+      return checkedItem.value?.type === EFieldType.textWithMethods;
+    });
     /** 是否为 numberInput 数字输入框类型（直接输入数值，不走候选项列表） */
     const isNumberInput = computed(() => {
       return checkedItem.value?.type === EFieldType.numberInput;
@@ -283,7 +287,7 @@ export default defineComponent({
       isWildcard.value = options?.isWildcard || false;
       groupRelation.value = options?.groupRelation || DEFAULT_GROUP_RELATION;
       const index = searchLocalFields.value.findIndex(f => f.name === item.name) || 0;
-      if (isTextarea.value) {
+      if (isTextarea.value || isTextareaWithMethods.value) {
         queryString.value = value[0]?.id || '';
       } else {
         if (cacheCheckedName.value !== item.name) {
@@ -318,13 +322,13 @@ export default defineComponent({
         emit('confirm', value);
         return;
       }
-
       if (
         noValueMethods.value.includes(method.value) ||
         values.value.length ||
         (isDurationKey.value && timeConsumingValue.value.value.length) ||
         (isNumberInput.value && isNumeric(numberInputValue.value)) ||
-        (isCascade.value && cascadeSelectorValue.value.length)
+        (isCascade.value && cascadeSelectorValue.value.length) ||
+        (isTextareaWithMethods.value && queryString.value)
       ) {
         const methodName = checkedItem.value.methods.find(item => item.value === method.value)?.alias;
         const opt = {};
@@ -363,6 +367,11 @@ export default defineComponent({
               name: setCascadeValueSplit(item),
             };
           });
+          emit('confirm', value);
+          return;
+        }
+        if (isTextareaWithMethods.value) {
+          value.value = [{ id: queryString.value, name: queryString.value }];
           emit('confirm', value);
           return;
         }
@@ -603,6 +612,7 @@ export default defineComponent({
       notValueOfMethod,
       isDurationKey,
       isTextarea,
+      isTextareaWithMethods,
       numberInputValue,
       cascadeSelectorValue,
       isCascade,
@@ -739,6 +749,20 @@ export default defineComponent({
                               }
                             }}
                             onUpdate:modelValue={this.handleCascadeSelectorChange}
+                          />
+                        );
+                      }
+                      if (this.isTextareaWithMethods) {
+                        return (
+                          <Input
+                            ref={'allInput'}
+                            v-model={this.queryString}
+                            placeholder={this.t('请输入')}
+                            rows={5}
+                            onBlur={this.handleValueSelectorBlur}
+                            onFocus={this.handleSelectorFocus}
+                            type={'textarea'}
+                            onKeydown={this.handleTextAreaKeydown}
                           />
                         );
                       }

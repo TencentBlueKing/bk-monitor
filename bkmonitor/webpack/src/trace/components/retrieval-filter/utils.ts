@@ -102,6 +102,12 @@ export const fieldTypeMap = {
     color: 'rgb(232, 234, 240)',
     bgColor: 'rgb(151, 155, 165)',
   },
+  text_with_methods: {
+    name: window.i18n.t('文本'),
+    icon: 'icon-monitor icon-text1',
+    color: '#508CC8',
+    bgColor: '#E1E7F2',
+  },
 };
 
 export const RETRIEVAL_FILTER_UI_DATA_CACHE_KEY = '__vue3_RETRIEVAL_FILTER_UI_DATA_CACHE_KEY__';
