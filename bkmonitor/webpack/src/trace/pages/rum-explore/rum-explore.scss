@@ -62,4 +62,26 @@
     background: #fff;
     border-radius: 2px;
   }
+
+  .create-app-guide {
+    flex: 1;
+    margin-top: 8px;
+    background: #fff;
+    border-radius: 2px;
+    box-shadow: 0 2px 4px 0 #1919291f;
+
+    .empty-status-container {
+      margin-top: 170px;
+    }
+
+    .subTitle {
+      margin: 0;
+      color: #979ba5;
+
+      span {
+        color: #3a84ff;
+        cursor: pointer;
+      }
+    }
+  }
 }
