@@ -81,6 +81,27 @@ export abstract class BaseScenario {
   }
 
   /**
+   * @description 场景默认单元格取值：字段元数据声明了枚举值（option_values）时把原始值映射为别名，其余原样取值。
+   *              对象/数组等结构化值统一 JSON 序列化后按纯文本展示（与 trace 检索表格默认取值一致）；
+   *              空值统一返回空串，由表格渲染为空占位符。由表格以「默认取值逻辑」兜底执行，
+   *              列自身配置了 getRenderValue 时以列配置为准。
+   * @param {Record<string, unknown>} row 当前行数据
+   * @param {BaseTableColumn} column 当前列配置
+   * @returns {unknown} 单元格渲染值
+   */
+  getDefaultRenderValue(row: Record<string, unknown>, column: BaseTableColumn): unknown {
+    const value = row?.[column.colKey];
+    if (value === null || value === undefined || value === '') return '';
+    /** 结构化值若原样返回会被 Vue 当作片段或 vnode 处理，渲染成无分隔文本或空白，故统一序列化 */
+    if (typeof value === 'object') return JSON.stringify(value);
+    /** 枚举 value 声明为 string，行数据实际可能是 number / boolean，统一字符串化比较，避免类型差异导致别名静默失效 */
+    const option = get(this.context.fieldMap)
+      .get(column.colKey)
+      ?.option_values?.find(item => `${item.value}` === `${value}`);
+    return option?.alias ?? value;
+  }
+
+  /**
    * @description 场景私有钩子：由子类按需基于字段元数据（fieldMap）推导本场景的渲染语义，
    *              基类默认空实现（无公共推导）。读取 fieldMap 即满足「动态/响应式」：后台字段变更时随之变化。
    *              若某场景无需元数据推导，可直接复用默认实现。
@@ -92,12 +113,16 @@ export abstract class BaseScenario {
   }
 
   /**
-   * @description 通用表头渲染：字段类型图标 + 标题 + 统计分析入口，各场景表头渲染一致，子类可按需覆盖
+   * @description 通用表头渲染：字段类型图标 + 标题 + 统计分析入口，各场景表头渲染一致，子类可按需覆盖。
+   *              字段元数据缺失（本地列配置缓存了后端已下线的字段）时降级为空对象：标题回落为字段名，
+   *              类型图标走 other 兜底，且不展示统计分析入口，避免整列表头渲染抛错。
    * @param {string} colKey 字段名（列键）
    * @returns {BaseTableColumn['title']} 表头渲染函数
    */
   renderHeader(colKey: string): BaseTableColumn['title'] {
-    const field = get(this.context.fieldMap).get(colKey);
+    /** 字段元数据缺失（本地列配置缓存了后端已下线的字段）时降级为空对象，仅取用到的字段有兜底 */
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+    const field = get(this.context.fieldMap).get(colKey) ?? ({} as IRumField);
     return (() => (
       <div class='rum-table-header-cell'>
         <FieldTypeIcon
@@ -111,7 +136,7 @@ export abstract class BaseScenario {
             theme: 'dark text-wrap',
           }}
         >
-          <span class='th-label'>{field.alias}</span>
+          <span class='th-label'>{field.alias ?? colKey}</span>
         </div>
         {field.is_dimensions && (
           <i

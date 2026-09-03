@@ -91,10 +91,6 @@ export class SpanScenario extends BaseScenario {
       renderType: ExploreTableColumnTypeEnum.TAGS,
       getRenderValue: row => this.getExceptionTypeRenderValue(row['events.attributes.exception.type']),
     },
-    /** attributes.action.frustration.type 列：按字段元数据的 option_values 把原始值映射为别名 */
-    'attributes.action.frustration.type': {
-      getRenderValue: (row, column) => this.getOptionValueAlias(column.colKey, row[column.colKey]),
-    },
   };
 
   constructor(
@@ -187,18 +183,6 @@ export class SpanScenario extends BaseScenario {
       alias: 'HIT',
       prefixIcon: 'icon-monitor icon-mc-check-small',
     };
-  }
-
-  /**
-   * @description 枚举字段列渲染值：用原始值在字段元数据的 option_values 中查到对应 Option，展示其 alias
-   * @param {string} colKey 列键（字段名）
-   * @param {unknown} value 当前行原始值
-   */
-  private getOptionValueAlias(colKey: string, value: unknown) {
-    if (value === null || value === undefined || value === '') return '';
-    const options = get(this.context.fieldMap).get(colKey)?.option_values ?? [];
-    const option = options.find(item => item.value === value);
-    return option?.alias || value;
   }
 
   /**
