@@ -987,7 +987,11 @@ class FixedK8sProbeTest(SimpleTestCase):
         self.assertNotIn("kubectl", script)
         self.assertNotIn("eval ", script)
         self.assertNotIn(' > "', script)
-        self.assertNotIn('[ ! -L "$source_path" ]', script)
+        # A source must never be skipped for being a symlink. Only a path that is neither
+        # present nor a link is dropped, which keeps a dangling link reportable instead of
+        # indistinguishable from a path that was never configured. The resulting behaviour is
+        # covered by FixedRemoteScriptTest in test_host_inspection.
+        self.assertIn('if [ ! -e "$source_path" ] && [ ! -L "$source_path" ]; then', script)
 
     def test_line_protocol_parser_reconstructs_bounded_streams(self):
         parsed = parse_probe_output(
@@ -1460,6 +1464,47 @@ class FixedK8sProbeTest(SimpleTestCase):
             "output_budget_exhausted",
         )
         self.assertEqual(source_probe["warnings"][0]["code"], "source_sample_unavailable")
+
+    def test_probe_evidence_reports_a_source_whose_link_target_cannot_be_resolved(self):
+        parsed = {
+            "values": {
+                "first.source_count": "1",
+                "first.source.0.pattern": "/data/*.log",
+                "first.source.0.path": "/data/current.log",
+                "first.source.0.symlink": "true",
+                "first.source.0.symlink_target": "/data/app/real.log",
+                "first.source.0.unreadable": "true",
+                "second.source_count": "1",
+                "second.source.0.pattern": "/data/*.log",
+                "second.source.0.path": "/data/current.log",
+                "second.source.0.symlink": "true",
+                "second.source.0.unreadable": "true",
+            },
+            "streams": {
+                "child_config.0": {
+                    "path": "/data/etc/bkunifylogbeat/a.conf",
+                    "content": "local:\n  - dataid: 1001\n    paths: ['/data/*.log']\n",
+                }
+            },
+        }
+
+        probes = build_probe_evidence(
+            parsed,
+            bk_data_id=1001,
+            source=None,
+            include_source_sample=False,
+            config_map_main=None,
+        )
+
+        source_probe = probes["source_path"]
+        # An absolute link target is written from inside the collected container, so it rarely
+        # resolves in the collector namespace. The collector opens the same path from that same
+        # namespace, which makes this a real collection failure rather than a probe limitation.
+        self.assertEqual(source_probe["status"], "warning")
+        self.assertEqual(source_probe["code"], "source_unreadable")
+        self.assertEqual(source_probe["warnings"][0]["code"], "source_unreadable")
+        self.assertEqual(source_probe["warnings"][0]["paths"], ["/data/current.log"])
+        self.assertEqual(source_probe["evidence"]["files"][0]["first"]["symlink_target"], "/data/app/real.log")
 
     def test_probe_evidence_requires_narrowing_when_remote_source_limit_is_exceeded(self):
         parsed = {

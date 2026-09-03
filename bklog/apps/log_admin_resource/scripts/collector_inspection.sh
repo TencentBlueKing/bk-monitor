@@ -31,7 +31,7 @@ if [ "$target_config_hint_count" -gt 20 ]; then
 fi
 
 PROTOCOL="bklog.collector.inspection.probe.v1"
-PROBE_VERSION="137865321.3"
+PROBE_VERSION="137865321.4"
 # Stay below BK-JOB/GSE's 5 MiB atomic script-task log limit.
 OUTPUT_BUDGET_BYTES=4194304
 OUTPUT_FINAL_RESERVE_BYTES=4096
@@ -793,31 +793,45 @@ snapshot_sources() {
             *) continue ;;
         esac
         for source_path in $pattern; do
-            [ -e "$source_path" ] || continue
+            # -e follows the link, so a dangling symlink fails it. Skipping here would make a
+            # broken link indistinguishable from a path that was never configured, which is the
+            # same silent loss this probe exists to remove.
+            if [ ! -e "$source_path" ] && [ ! -L "$source_path" ]; then
+                continue
+            fi
             if [ "$index" -ge "$MAX_SOURCES" ]; then
                 source_limit_exceeded=true
                 break
             fi
-            metadata=$(stat -Lc '%d %i %s %Y' "$source_path" 2>/dev/null)
-            [ -n "$metadata" ] || continue
-            device=$(printf '%s\n' "$metadata" | awk '{print $1}')
-            inode=$(printf '%s\n' "$metadata" | awk '{print $2}')
-            size_bytes=$(printf '%s\n' "$metadata" | awk '{print $3}')
-            mtime_epoch=$(printf '%s\n' "$metadata" | awk '{print $4}')
-            resolved_path=$(readlink -f "$source_path" 2>/dev/null)
             emit_kv "$phase.source.$index.pattern" "$pattern"
             if [ "$config_pattern" != "$pattern" ]; then
                 emit_kv "$phase.source.$index.config_pattern" "$config_pattern"
             fi
             emit_kv "$phase.source.$index.path" "$source_path"
-            emit_kv "$phase.source.$index.resolved_path" "$resolved_path"
             add_registrar_filter_key "$source_path"
-            add_registrar_filter_key "$resolved_path"
             add_registrar_filter_key "${source_path##*/}"
-            add_registrar_filter_key "${resolved_path##*/}"
             if [ -L "$source_path" ]; then
                 emit_kv "$phase.source.$index.symlink" "true"
+                # An absolute link target is written from inside the collected container and
+                # rarely resolves the same way here, so report it verbatim.
+                emit_kv "$phase.source.$index.symlink_target" "$(readlink "$source_path" 2>/dev/null)"
             fi
+            metadata=$(stat -Lc '%d %i %s %Y' "$source_path" 2>/dev/null)
+            if [ -z "$metadata" ]; then
+                # The collector opens this path from this same mount namespace, so a target it
+                # cannot reach is a real collection failure rather than a probe limitation.
+                emit_kv "$phase.source.$index.unreadable" "true"
+                index=$((index + 1))
+                continue
+            fi
+            device=$(printf '%s\n' "$metadata" | awk '{print $1}')
+            inode=$(printf '%s\n' "$metadata" | awk '{print $2}')
+            size_bytes=$(printf '%s\n' "$metadata" | awk '{print $3}')
+            mtime_epoch=$(printf '%s\n' "$metadata" | awk '{print $4}')
+            resolved_path=$(readlink -f "$source_path" 2>/dev/null)
+            emit_kv "$phase.source.$index.resolved_path" "$resolved_path"
+            add_registrar_filter_key "$resolved_path"
+            add_registrar_filter_key "${resolved_path##*/}"
             emit_kv "$phase.source.$index.device" "$device"
             emit_kv "$phase.source.$index.inode" "$inode"
             emit_kv "$phase.source.$index.size_bytes" "$size_bytes"

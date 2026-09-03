@@ -21,7 +21,7 @@ from apps.log_admin_resource.collector_probe import (
     fixed_probe_script,
     parse_probe_output,
 )
-from apps.log_admin_resource.collector_probe_evidence import build_probe_evidence
+from apps.log_admin_resource.collector_probe_evidence import _host_visible_path, build_probe_evidence
 from apps.log_admin_resource.collector_probe_parsers import (
     classify_registrar_progress,
     fallback_matching_inputs,
@@ -1116,6 +1116,103 @@ class FixedRemoteScriptTest(SimpleTestCase):
         # /data must not claim /database, or the probe reads a volume that never holds the file
         # while the real one sits in the container root.
         self.assertEqual(resolved["/database/app.log"], "/var/host/overlay/merged/database/app.log")
+
+    def test_probe_and_server_resolve_collection_paths_identically(self):
+        mounts = [
+            {"container_path": "/data/app", "host_path": "/var/host/volumes/layer-app"},
+            {"container_path": "/data/app/deep", "host_path": "/var/host/volumes/layer-deep"},
+            {"container_path": "/data", "host_path": "/var/host/volumes/layer-root"},
+        ]
+        root_fs = "/var/host/overlay/merged"
+        paths = [
+            "/data/*.log",
+            "/data/app/*.log",
+            "/data/app/deep/*.log",
+            "/database/app.log",
+            "/var/host/overlay/merged/already/below/root.log",
+        ]
+        config = ["local:", "    - dataid: 1001", "      mounts:"]
+        for mount in mounts:
+            config.append(f"        - container_path: {mount['container_path']}")
+            config.append(f"          host_path: {mount['host_path']}")
+        config.append("      paths:")
+        config.extend(f"        - {path}" for path in paths)
+        config.append(f"      root_fs: {root_fs}")
+
+        resolved, _ = self._extract_source_patterns("\n".join(config) + "\n")
+
+        # The server derives the allow-list itself rather than trusting the probe, so the two
+        # resolvers must agree exactly. Any divergence filters out every source the probe
+        # returns and reads as though the configured files were never present.
+        self.assertEqual(resolved, {path: _host_visible_path(path, mounts, root_fs) for path in paths})
+
+    def test_shared_probe_keeps_a_source_whose_link_target_cannot_be_resolved(self):
+        script = fixed_probe_script().decode("utf-8")
+        snapshot_start = script.index("snapshot_sources() {")
+        snapshot_end = script.index("\nsnapshot_registrar() {", snapshot_start)
+        snapshot_script = script[snapshot_start:snapshot_end]
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "plain.log").write_text("payload", encoding="utf-8")
+            (root / "relative.log").symlink_to("plain.log")
+            (root / "dangling.log").symlink_to(root / "missing.log")
+            pattern = f"{root}/*.log"
+
+            harness = "\n".join(
+                (
+                    "set -u",
+                    "MAX_SOURCES=50",
+                    "INCLUDE_SOURCE_SAMPLE=0",
+                    "tab=$(printf '\\t')",
+                    'emit_kv() { printf \'%s\\t%s\\n\' "$1" "${2-}"; }',
+                    "emit_sample_stream() { :; }",
+                    "add_registrar_filter_key() { :; }",
+                    # BSD stat spells this query differently than the GNU form the probe uses, so
+                    # stand in for it while keeping the behaviour the probe depends on: following
+                    # the link and failing when the target is absent.
+                    "stat() { [ -e \"$3\" ] || return 1; printf '2049 4242 7 1700000000\\n'; }",
+                    f"source_patterns=$(printf '%s\\t%s' '{pattern}' '{pattern}')",
+                    snapshot_script,
+                    "snapshot_sources first",
+                )
+            )
+            completed = subprocess.run(
+                ["/bin/sh"],
+                input=harness,
+                text=True,
+                capture_output=True,
+                check=True,
+            )
+
+            emitted = {}
+            for line in completed.stdout.splitlines():
+                key, _, value = line.partition("\t")
+                emitted[key] = value
+            prefixes = {
+                value.rsplit("/", 1)[-1]: key[: -len("path")] for key, value in emitted.items() if key.endswith(".path")
+            }
+
+            # A dangling link fails -e, and dropping it would be indistinguishable from a source
+            # that was never configured.
+            self.assertEqual(emitted["first.source_count"], "3")
+
+            dangling = prefixes["dangling.log"]
+            self.assertEqual(emitted[dangling + "symlink"], "true")
+            self.assertEqual(emitted[dangling + "symlink_target"], str(root / "missing.log"))
+            self.assertEqual(emitted[dangling + "unreadable"], "true")
+            # A broken link has no identity to report, and inventing one would let the server
+            # match it against an unrelated registrar state.
+            self.assertNotIn(dangling + "inode", emitted)
+
+            relative = prefixes["relative.log"]
+            self.assertEqual(emitted[relative + "symlink_target"], "plain.log")
+            self.assertEqual(emitted[relative + "inode"], "4242")
+            self.assertNotIn(relative + "unreadable", emitted)
+
+            plain = prefixes["plain.log"]
+            self.assertNotIn(plain + "symlink", emitted)
+            self.assertEqual(emitted[plain + "inode"], "4242")
 
     def test_shared_probe_registrar_stream_splits_single_key_array_before_filtering(self):
         script = fixed_probe_script().decode("utf-8")

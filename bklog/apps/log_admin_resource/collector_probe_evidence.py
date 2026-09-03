@@ -42,7 +42,7 @@ def build_probe_evidence(
     second_sources = _source_rows(values, "second")
     allowed_patterns = sorted(
         {
-            str(path)
+            _host_visible_path(str(path), input_config.get("mounts") or [], input_config.get("root_fs"))
             for input_config in matching_inputs
             for path in input_config.get("paths") or []
             if isinstance(path, str) and path.startswith("/")
@@ -216,6 +216,41 @@ def _rendered_configs(
     return configs, matching_inputs
 
 
+def _host_visible_path(path: str, mounts: Any, root_fs: Any) -> str:
+    """Resolve a rendered collection path the way the collector reaches it.
+
+    The path is written from inside the collected container, while the collector and the probe
+    both open it from the collector's own mount namespace. One on a mounted volume is reached
+    through that volume, anything else through the container root. Deriving this server-side
+    rather than trusting the probe keeps the allow-list an independent bound on what may be
+    returned.
+    """
+    best_host = None
+    best_length = -1
+    for mount in mounts if isinstance(mounts, list) else []:
+        if not isinstance(mount, dict):
+            continue
+        container_path = str(mount.get("container_path") or "")
+        host_path = str(mount.get("host_path") or "")
+        if not container_path or not host_path:
+            continue
+        length = len(container_path)
+        # Match on a path boundary so /data never claims /database, and keep the longest match
+        # because nested mounts overlap and the deepest one is what holds the file.
+        if path.startswith(container_path) and (len(path) == length or path[length] == "/"):
+            if length > best_length:
+                best_length = length
+                best_host = host_path
+    if best_host is not None:
+        return best_host + path[best_length:]
+    root = str(root_fs or "")
+    # stdout collection already renders a path below the container root; prefixing it again
+    # would build /var/host/var/host/...
+    if root and root != "/" and not path.startswith(root):
+        return root + path
+    return path
+
+
 def _normalized_config_value(value: Any) -> Any:
     """Collapse an explicitly empty setting into the same shape as an absent one.
 
@@ -387,6 +422,8 @@ def _source_rows(values: dict[str, str], phase: str) -> list[dict[str, Any]]:
                 "path": path,
                 "normalized_path": values.get(prefix + "resolved_path") or os.path.normpath(path),
                 "symlink": values.get(prefix + "symlink") == "true",
+                "symlink_target": values.get(prefix + "symlink_target"),
+                "unreadable": values.get(prefix + "unreadable") == "true",
                 "device": _integer(values.get(prefix + "device")),
                 "inode": _integer(values.get(prefix + "inode")),
                 "size_bytes": _integer(values.get(prefix + "size_bytes")),
@@ -621,9 +658,38 @@ def _source_probe(
             returned_lines += len(lines)
             returned_bytes += returned_sample_bytes
         files.append(row)
+    unreadable_paths = sorted({row["path"] for row in first_rows if row.get("unreadable")})
+    if not files:
+        status, code = "warning", "configured_source_not_present"
+    elif unreadable_paths:
+        status, code = "warning", "source_unreadable"
+    else:
+        status, code = "success", "source_paths_inspected"
+    warnings = []
+    if unreadable_paths:
+        warnings.append(
+            {
+                "code": "source_unreadable",
+                "message": (
+                    "a configured source exists but its target cannot be resolved from the collector "
+                    "mount namespace, which is what the collector sees when it opens the same path"
+                ),
+                "retryable": False,
+                "paths": unreadable_paths,
+            }
+        )
+    if sample_unavailable_reasons:
+        warnings.append(
+            {
+                "code": "source_sample_unavailable",
+                "message": "the requested source sample could not be returned within the fixed probe bounds",
+                "retryable": False,
+                "reasons": sorted(set(sample_unavailable_reasons)),
+            }
+        )
     return {
-        "status": "success" if files else "warning",
-        "code": "source_paths_inspected" if files else "configured_source_not_present",
+        "status": status,
+        "code": code,
         "summary": "configured source paths were bounded and sampled by file identity",
         "evidence": {
             "requested_source": source,
@@ -636,18 +702,7 @@ def _source_probe(
                 "returned_bytes": returned_bytes,
             },
         },
-        "warnings": (
-            [
-                {
-                    "code": "source_sample_unavailable",
-                    "message": "the requested source sample could not be returned within the fixed probe bounds",
-                    "retryable": False,
-                    "reasons": sorted(set(sample_unavailable_reasons)),
-                }
-            ]
-            if sample_unavailable_reasons
-            else []
-        ),
+        "warnings": warnings,
     }
 
 
