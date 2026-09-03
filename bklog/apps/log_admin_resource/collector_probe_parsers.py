@@ -176,23 +176,30 @@ def _json_values_with_stats(text: str) -> tuple[list[Any], dict[str, int]]:
     for line in text.splitlines():
         line_count += 1
         candidate = False
-        parsed = False
-        for index, character in enumerate(line):
-            if character not in "[{":
-                continue
+        parsed_on_line = 0
+        position = 0
+        while True:
+            starts = [start for start in (line.find("{", position), line.find("[", position)) if start != -1]
+            if not starts:
+                break
+            position = min(starts)
             candidate = True
             try:
-                value, _end = decoder.raw_decode(line[index:])
+                value, end = decoder.raw_decode(line[position:])
             except ValueError:
+                position += 1
                 continue
             values.append(value)
-            parsed = True
-            break
+            parsed_on_line += 1
+            # raw_decode reports where the value ended. Resuming there keeps every record on
+            # a line holding several of them, which is also what rescues a truncated array:
+            # the opening bracket fails to decode, but each complete object after it does not.
+            position += end
         if candidate:
             candidate_line_count += 1
-            if not parsed:
-                # Records cut by a BoltDB page boundary land here; counting them keeps the
-                # bounded evidence honest instead of silently dropping the line.
+            if not parsed_on_line:
+                # Records cut mid-object land here; counting them keeps the bounded evidence
+                # honest instead of silently dropping the line.
                 unparsed_line_count += 1
     return values, {
         "line_count": line_count,

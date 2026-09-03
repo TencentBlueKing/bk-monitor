@@ -593,7 +593,9 @@ def _registrar_sampling(
     unparsed_line_count = stats.get("unparsed_line_count") or 0
     partial_state_count = stats.get("partial_state_count") or 0
     returned_line_count = stats.get("line_count") or 0
-    filtered_line_count = _integer(values.get(prefix + "filtered_line_count"))
+    raw_line_count = _integer(values.get(prefix + "raw_line_count"))
+    record_count = _integer(values.get(prefix + "record_count"))
+    filtered_record_count = _integer(values.get(prefix + "filtered_record_count"))
     incomplete_reasons = []
     if truncated:
         incomplete_reasons.append("stream_truncated")
@@ -601,13 +603,19 @@ def _registrar_sampling(
         incomplete_reasons.append("unparsed_lines")
     if partial_state_count:
         incomplete_reasons.append("partial_states")
-    if filtered_line_count is not None and filtered_line_count > returned_line_count:
-        incomplete_reasons.append("lines_missing_from_sample")
+    if filtered_record_count is not None and filtered_record_count > returned_line_count:
+        incomplete_reasons.append("records_missing_from_sample")
+    if values.get(prefix + "record_split") == "false" and (raw_line_count or 0) > 0:
+        # The registrar is one JSON array under a single key. Without the record split the
+        # whole array arrives as one line, so the byte budget can cut it at any point.
+        incomplete_reasons.append("records_not_split")
     return {
         "filtered": values.get(prefix + "filtered") == "true",
         "filter_key_count": _integer(values.get(prefix + "filter_key_count")),
-        "total_line_count": _integer(values.get(prefix + "total_line_count")),
-        "filtered_line_count": filtered_line_count,
+        "record_split": values.get(prefix + "record_split") == "true",
+        "raw_line_count": raw_line_count,
+        "record_count": record_count,
+        "filtered_record_count": filtered_record_count,
         "returned_line_count": returned_line_count,
         "returned_size_bytes": stream.get("returned_size_bytes"),
         "truncated": truncated,
@@ -648,7 +656,8 @@ def _registrar_probe(
         "summary": (
             "bounded strings evidence is incomplete, so an absent state does not prove the file is untracked"
             if incomplete_reasons
-            else "live BoltDB was not opened; bounded strings evidence was matched by source, inode and device"
+            else "live BoltDB was not opened; the single-key JSON array was split per record "
+            "and matched by source, inode and device"
         ),
         "evidence": {
             "path": values.get("registrar_path"),

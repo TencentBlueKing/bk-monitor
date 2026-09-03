@@ -1026,7 +1026,7 @@ class FixedRemoteScriptTest(SimpleTestCase):
             )
             self.assertEqual(pattern_count, "4")
 
-    def test_shared_probe_registrar_stream_narrows_to_inspected_sources(self):
+    def test_shared_probe_registrar_stream_splits_single_key_array_before_filtering(self):
         script = fixed_probe_script().decode("utf-8")
         snippet_start = script.index('registrar_filter_keys=""')
         snippet_end = script.index("\nemit_sample_stream() {", snippet_start)
@@ -1034,10 +1034,13 @@ class FixedRemoteScriptTest(SimpleTestCase):
 
         with tempfile.TemporaryDirectory() as directory:
             registrar_path = Path(directory) / "bkunifylogbeat.bkpipe.db"
+            # bkunifylogbeat json.Marshal()s every state into one array under a single key, so
+            # the whole registrar reaches `strings` as one line and has to be split per record
+            # before a filter or a byte budget means anything.
             registrar_path.write_text(
-                '{"source":"/data/app.log","offset":10,"FileStateOS":{"inode":7,"device":8}}\n'
-                '{"source":"/data/other.log","offset":20,"FileStateOS":{"inode":9,"device":8}}\n'
-                '{"source":"/var/log/noise.log","offset":30,"FileStateOS":{"inode":11,"device":8}}\n',
+                '[{"source":"/data/app.log","offset":10,"FileStateOS":{"inode":7,"device":8}},'
+                '{"source":"/data/other.log","offset":20,"FileStateOS":{"inode":9,"device":8}},'
+                '{"source":"/var/log/noise.log","offset":30,"FileStateOS":{"inode":11,"device":8}}]',
                 encoding="utf-8",
             )
 
@@ -1074,11 +1077,15 @@ class FixedRemoteScriptTest(SimpleTestCase):
             elif kind == "STREAM":
                 stream_truncated, _, stream_payload = rest.partition("\t")
 
+        self.assertNotIn("syntax error", completed.stderr)
+        # One physical line in, three records out.
+        self.assertEqual(emitted["first.registrar_strings.raw_line_count"], "1")
+        self.assertEqual(emitted["first.registrar_strings.record_split"], "true")
+        self.assertEqual(emitted["first.registrar_strings.record_count"], "3")
         # The repeated key collapses, so grep only receives the path and the basename.
         self.assertEqual(emitted["first.registrar_strings.filter_key_count"], "2")
         self.assertEqual(emitted["first.registrar_strings.filtered"], "true")
-        self.assertEqual(emitted["first.registrar_strings.total_line_count"], "3")
-        self.assertEqual(emitted["first.registrar_strings.filtered_line_count"], "1")
+        self.assertEqual(emitted["first.registrar_strings.filtered_record_count"], "1")
         self.assertEqual(stream_truncated, "false")
         decoded = base64.b64decode(stream_payload).decode("utf-8")
         self.assertIn("/data/app.log", decoded)
@@ -1094,7 +1101,7 @@ class FixedRemoteScriptTest(SimpleTestCase):
         with tempfile.TemporaryDirectory() as directory:
             registrar_path = Path(directory) / "bkunifylogbeat.bkpipe.db"
             registrar_path.write_text(
-                '{"source":"/data/app.log","offset":10}\n{"source":"/data/other.log","offset":20}\n',
+                '[{"source":"/data/app.log","offset":10},{"source":"/data/other.log","offset":20}]',
                 encoding="utf-8",
             )
 
@@ -1129,7 +1136,10 @@ class FixedRemoteScriptTest(SimpleTestCase):
 
         self.assertEqual(emitted["first.registrar_strings.filtered"], "false")
         self.assertEqual(emitted["first.registrar_strings.filter_key_count"], "0")
-        self.assertEqual(emitted["first.registrar_strings.filtered_line_count"], "2")
+        # Splitting still happens without keys, so the record count stays meaningful.
+        self.assertEqual(emitted["first.registrar_strings.record_split"], "true")
+        self.assertEqual(emitted["first.registrar_strings.record_count"], "2")
+        self.assertEqual(emitted["first.registrar_strings.filtered_record_count"], "2")
         decoded = base64.b64decode(stream_payload).decode("utf-8")
         self.assertIn("/data/other.log", decoded)
 
@@ -1291,8 +1301,10 @@ class FixedRemoteScriptTest(SimpleTestCase):
             }
             parsed["values"][f"{phase}.registrar_strings.filtered"] = "true"
             parsed["values"][f"{phase}.registrar_strings.filter_key_count"] = "2"
-            parsed["values"][f"{phase}.registrar_strings.total_line_count"] = "1430"
-            parsed["values"][f"{phase}.registrar_strings.filtered_line_count"] = "4"
+            parsed["values"][f"{phase}.registrar_strings.record_split"] = "true"
+            parsed["values"][f"{phase}.registrar_strings.raw_line_count"] = "1"
+            parsed["values"][f"{phase}.registrar_strings.record_count"] = "1430"
+            parsed["values"][f"{phase}.registrar_strings.filtered_record_count"] = "4"
 
         registrar = build_probe_evidence(
             parsed,
@@ -1308,10 +1320,10 @@ class FixedRemoteScriptTest(SimpleTestCase):
         self.assertEqual(registrar["code"], "registrar_strings_incomplete")
         self.assertTrue(sampling["truncated"])
         self.assertEqual(sampling["returned_size_bytes"], 524288)
-        self.assertEqual(sampling["total_line_count"], 1430)
-        self.assertEqual(sampling["filtered_line_count"], 4)
-        # Three of the four matched lines never made it past the byte budget.
-        self.assertIn("lines_missing_from_sample", sampling["incomplete_reasons"])
+        self.assertEqual(sampling["record_count"], 1430)
+        self.assertEqual(sampling["filtered_record_count"], 4)
+        # Three of the four matched records never made it past the byte budget.
+        self.assertIn("records_missing_from_sample", sampling["incomplete_reasons"])
         self.assertIn("stream_truncated", registrar["warnings"][0]["reasons"])
 
     def test_registrar_probe_counts_records_it_could_not_parse(self):
@@ -1333,6 +1345,56 @@ class FixedRemoteScriptTest(SimpleTestCase):
         self.assertEqual(registrar["status"], "warning")
         self.assertEqual(registrar["evidence"]["first_sampling"]["unparsed_line_count"], 1)
         self.assertIn("unparsed_lines", registrar["warnings"][0]["reasons"])
+
+    def test_registrar_probe_flags_an_unsplit_single_key_array(self):
+        parsed = parsed_probe()
+        for phase in ("first", "second"):
+            parsed["streams"][f"{phase}.registrar_strings"] = {
+                "content": '[{"source":"/data/app/service.log","offset":10,"FileStateOS":{"inode":7,"device":8}}]'
+            }
+            parsed["values"][f"{phase}.registrar_strings.record_split"] = "false"
+            parsed["values"][f"{phase}.registrar_strings.raw_line_count"] = "1"
+            parsed["values"][f"{phase}.registrar_strings.record_count"] = "1"
+
+        registrar = build_probe_evidence(
+            parsed,
+            bk_data_id=1001,
+            source=None,
+            include_source_sample=False,
+            config_map_main=None,
+            sidecar_required=False,
+        )["registrar"]
+
+        # Without the split the byte budget can cut the array at any point, so the sample
+        # cannot be read as complete even though everything that came back did parse.
+        self.assertEqual(registrar["status"], "warning")
+        self.assertFalse(registrar["evidence"]["first_sampling"]["record_split"])
+        self.assertIn("records_not_split", registrar["warnings"][0]["reasons"])
+
+    def test_registrar_parser_keeps_every_record_sharing_a_line(self):
+        text = (
+            '{"source":"/data/a.log","offset":1,"FileStateOS":{"inode":7,"device":8}}'
+            '{"source":"/data/b.log","offset":2,"FileStateOS":{"inode":9,"device":8}}'
+        )
+
+        states = parse_registrar_strings(text)
+
+        # `strings` merges adjacent records when no unprintable byte separates them, so
+        # stopping at the first decoded value would drop the rest of the line.
+        self.assertEqual([state["source"] for state in states], ["/data/a.log", "/data/b.log"])
+
+    def test_registrar_parser_recovers_records_from_a_truncated_array(self):
+        text = (
+            '[{"source":"/data/a.log","offset":1,"FileStateOS":{"inode":7,"device":8}},'
+            '{"source":"/data/b.log","offset":2,"FileStateOS":{"inode":9,"device":8}},'
+            '{"source":"/data/c.log","offset":3,"FileStateOS":{"inode":11,"dev'
+        )
+
+        states = parse_registrar_strings(text)
+
+        # The unterminated array itself cannot decode, but every complete object inside it
+        # must still be recovered rather than collapsing to the first record.
+        self.assertEqual([state["source"] for state in states], ["/data/a.log", "/data/b.log"])
 
     def test_progress_reports_incomplete_evidence_instead_of_missing_state(self):
         parsed = parsed_probe()

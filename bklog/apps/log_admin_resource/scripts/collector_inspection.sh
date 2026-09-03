@@ -31,7 +31,7 @@ if [ "$target_config_hint_count" -gt 20 ]; then
 fi
 
 PROTOCOL="bklog.collector.inspection.probe.v1"
-PROBE_VERSION="137865321.1"
+PROBE_VERSION="137865321.2"
 # Stay below BK-JOB/GSE's 5 MiB atomic script-task log limit.
 OUTPUT_BUDGET_BYTES=4194304
 OUTPUT_FINAL_RESERVE_BYTES=4096
@@ -173,6 +173,23 @@ registrar_filter_keys=""
 registrar_filter_separator='
 '
 
+# bkunifylogbeat json.Marshal()s the entire []file.State slice and stores it under a single
+# "registrar" key, so the whole database is one compact JSON array. `strings` therefore emits
+# one enormous line rather than one line per record, and a line-oriented filter would return
+# either everything or nothing. Splitting on the record boundary first is what makes both the
+# filter and the byte budget meaningful. Source is the first field of file.State, so
+# `},{"source":` is a stable boundary; index/substr avoid the ERE quantifier meaning of braces.
+registrar_split_program='
+{
+    line = $0
+    while ((boundary = index(line, "},{\"source\":")) > 0) {
+        print substr(line, 1, boundary)
+        line = substr(line, boundary + 2)
+    }
+    print line
+}
+'
+
 # Keys stay deliberately loose (source path, resolved path and both basenames) because
 # the server still matches registrar states on path plus inode and device. Filtering the
 # probe side on the full path alone would turn a server-side path mismatch into missing
@@ -190,6 +207,14 @@ add_registrar_filter_key() {
     fi
 }
 
+registrar_record_stream() {
+    if [ "$registrar_split" = true ]; then
+        strings -n 4 -- "$1" 2>/dev/null | awk "$registrar_split_program" 2>/dev/null
+    else
+        strings -n 4 -- "$1" 2>/dev/null
+    fi
+}
+
 emit_registrar_stream() {
     stream_name=$1
     registrar_path=$2
@@ -197,37 +222,54 @@ emit_registrar_stream() {
         emit_kv "${stream_name}.unavailable" "base64_missing"
         return
     fi
-    registrar_total_lines=$(strings -n 4 -- "$registrar_path" 2>/dev/null | wc -l | tr -d ' ')
-    case "$registrar_total_lines" in
-        ''|*[!0-9]*) registrar_total_lines=0 ;;
+    registrar_raw_lines=$(strings -n 4 -- "$registrar_path" 2>/dev/null | wc -l | tr -d ' ')
+    case "$registrar_raw_lines" in
+        ''|*[!0-9]*) registrar_raw_lines=0 ;;
     esac
+    registrar_split=false
+    registrar_record_count=$registrar_raw_lines
+    if command -v awk >/dev/null 2>&1; then
+        registrar_split=true
+        registrar_record_count=$(registrar_record_stream "$registrar_path" | wc -l | tr -d ' ')
+        case "$registrar_record_count" in
+            ''|*[!0-9]*) registrar_record_count=0 ;;
+        esac
+        # An awk that chokes on a multi-hundred-KB line yields nothing; fall back rather than
+        # reporting an empty registrar.
+        if [ "$registrar_record_count" -lt "$registrar_raw_lines" ]; then
+            registrar_split=false
+            registrar_record_count=$registrar_raw_lines
+        fi
+    fi
     registrar_filter_key_count=0
     if [ -n "$registrar_filter_keys" ]; then
         registrar_filter_key_count=$(printf '%s\n' "$registrar_filter_keys" | wc -l | tr -d ' ')
     fi
     registrar_filtered=false
-    registrar_filtered_lines=$registrar_total_lines
+    registrar_filtered_records=$registrar_record_count
     encoded=""
     if [ "$registrar_filter_key_count" -gt 0 ] && command -v grep >/dev/null 2>&1; then
         registrar_filtered=true
         # grep -F reads the pattern operand as one fixed string per line.
-        registrar_filtered_content=$(strings -n 4 -- "$registrar_path" 2>/dev/null | \
+        registrar_filtered_content=$(registrar_record_stream "$registrar_path" | \
             grep -F "$registrar_filter_keys" 2>/dev/null)
         if [ -n "$registrar_filtered_content" ]; then
-            registrar_filtered_lines=$(printf '%s\n' "$registrar_filtered_content" | wc -l | tr -d ' ')
+            registrar_filtered_records=$(printf '%s\n' "$registrar_filtered_content" | wc -l | tr -d ' ')
             encoded=$(printf '%s\n' "$registrar_filtered_content" | \
                 dd bs=1 count="$MAX_REGISTRAR_BYTES" 2>/dev/null | base64 | tr -d '\r\n')
         else
-            registrar_filtered_lines=0
+            registrar_filtered_records=0
         fi
     else
-        encoded=$(strings -n 4 -- "$registrar_path" 2>/dev/null | \
+        encoded=$(registrar_record_stream "$registrar_path" | \
             dd bs=1 count="$MAX_REGISTRAR_BYTES" 2>/dev/null | base64 | tr -d '\r\n')
     fi
-    emit_kv "${stream_name}.total_line_count" "$registrar_total_lines"
+    emit_kv "${stream_name}.raw_line_count" "$registrar_raw_lines"
+    emit_kv "${stream_name}.record_split" "$registrar_split"
+    emit_kv "${stream_name}.record_count" "$registrar_record_count"
     emit_kv "${stream_name}.filtered" "$registrar_filtered"
     emit_kv "${stream_name}.filter_key_count" "$registrar_filter_key_count"
-    emit_kv "${stream_name}.filtered_line_count" "$registrar_filtered_lines"
+    emit_kv "${stream_name}.filtered_record_count" "$registrar_filtered_records"
     actual_returned=$(decoded_base64_size "$encoded")
     registrar_truncated=false
     if [ "$actual_returned" -ge "$MAX_REGISTRAR_BYTES" ]; then
