@@ -767,12 +767,12 @@ class TestProcessor(TestCase):
     def test_enrich_host_alert_fallback_to_target_ip_when_cmdb_missing(self):
         processor, alerts = self.get_alert_processor(
             {
-                "target": "192.0.2.1|0",
+                "target": "192.0.0.1|0",
                 "extra_info": {
                     "origin_alarm": {
                         "data": {
                             "dimension_fields": ["bk_target_ip"],
-                            "dimensions": {"bk_target_ip": "192.0.2.1"},
+                            "dimensions": {"bk_target_ip": "192.0.0.1"},
                         }
                     }
                 },
@@ -784,7 +784,7 @@ class TestProcessor(TestCase):
         alert = alerts[0]
         dimensions = {d["key"]: d["value"] for d in alert.dimensions}
 
-        self.assertEqual("192.0.2.1", dimensions["ip"])
+        self.assertEqual("192.0.0.1", dimensions["ip"])
         self.assertNotIn("bk_cloud_id", dimensions)
         self.assertNotIn("ip", alert.top_event)
         self.assertNotIn("bk_cloud_id", alert.top_event)
@@ -792,12 +792,12 @@ class TestProcessor(TestCase):
     def test_enrich_host_alert_fallback_to_target_cloud_id_when_dimension_exists(self):
         processor, alerts = self.get_alert_processor(
             {
-                "target": "192.0.2.1|0",
+                "target": "192.0.0.1|0",
                 "extra_info": {
                     "origin_alarm": {
                         "data": {
                             "dimension_fields": ["bk_target_ip", "bk_target_cloud_id"],
-                            "dimensions": {"bk_target_ip": "192.0.2.1", "bk_target_cloud_id": 0},
+                            "dimensions": {"bk_target_ip": "192.0.0.1", "bk_target_cloud_id": 0},
                         }
                     }
                 },
@@ -809,7 +809,7 @@ class TestProcessor(TestCase):
         alert = alerts[0]
         dimensions = {d["key"]: d["value"] for d in alert.dimensions}
 
-        self.assertEqual("192.0.2.1", dimensions["ip"])
+        self.assertEqual("192.0.0.1", dimensions["ip"])
         self.assertEqual(0, dimensions["bk_cloud_id"])
         self.assertNotIn("ip", alert.top_event)
         self.assertNotIn("bk_cloud_id", alert.top_event)
