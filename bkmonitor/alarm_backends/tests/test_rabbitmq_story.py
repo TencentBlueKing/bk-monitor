@@ -97,3 +97,58 @@ def test_other_queue_keeps_total_blocking_rule(rabbitmq_story_module):
 
     assert isinstance(problem, rabbitmq_story_module.Blocking)
     assert str(problem) == "queue[celery_service] maybe blocking: message total: 20001"
+
+
+def test_get_rabbitmq_management_host_falls_back_to_amqp_host(monkeypatch):
+    from config.tools.rabbitmq import get_rabbitmq_management_host
+
+    monkeypatch.delenv("BK_MONITOR_RABBITMQ_MANAGEMENT_HOST", raising=False)
+    monkeypatch.delenv("RABBITMQ_MANAGEMENT_HOST", raising=False)
+
+    assert get_rabbitmq_management_host("amqp.example.com", backend=True) == "amqp.example.com"
+
+
+def test_get_rabbitmq_management_host_uses_backend_env(monkeypatch):
+    from config.tools.rabbitmq import get_rabbitmq_management_host
+
+    monkeypatch.setenv("BK_MONITOR_RABBITMQ_MANAGEMENT_HOST", "mgmt.example.com")
+    monkeypatch.setenv("RABBITMQ_MANAGEMENT_HOST", "other.example.com")
+
+    assert get_rabbitmq_management_host("amqp.example.com", backend=True) == "mgmt.example.com"
+
+
+def test_get_rabbitmq_management_host_backend_falls_back_to_shared_env(monkeypatch):
+    from config.tools.rabbitmq import get_rabbitmq_management_host
+
+    monkeypatch.delenv("BK_MONITOR_RABBITMQ_MANAGEMENT_HOST", raising=False)
+    monkeypatch.setenv("RABBITMQ_MANAGEMENT_HOST", "mgmt.example.com")
+
+    assert get_rabbitmq_management_host("amqp.example.com", backend=True) == "mgmt.example.com"
+
+
+def test_healthz_uses_management_host_for_queues_url(rabbitmq_story_module):
+    step = rabbitmq_story_module.TableSpace(mock.Mock())
+    story = mock.Mock()
+    step.story = story
+    response = mock.Mock()
+    response.status_code = 200
+    response.json.return_value = []
+
+    with mock.patch.object(
+        rabbitmq_story_module,
+        "settings",
+        mock.Mock(
+            RABBITMQ_HOST="amqp.example.com",
+            RABBITMQ_MANAGEMENT_HOST="mgmt.example.com",
+            RABBITMQ_VHOST="bkmonitor",
+            RABBITMQ_USER="user",
+            RABBITMQ_PASS="pass",
+            IS_CONTAINER_MODE=True,
+        ),
+    ), mock.patch.object(rabbitmq_story_module.requests, "get", return_value=response) as get_mock, mock.patch.object(
+        rabbitmq_story_module.StrategyCacheManager, "get_strategy_ids", return_value=[]
+    ):
+        step.check()
+
+    get_mock.assert_called_once()
+    assert get_mock.call_args[0][0] == "http://mgmt.example.com:15672/api/queues/bkmonitor"

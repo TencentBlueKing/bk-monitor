@@ -17,7 +17,7 @@ from urllib.parse import quote
 import requests
 from django.conf import settings
 
-from config.tools.rabbitmq import get_rabbitmq_settings
+from config.tools.rabbitmq import get_rabbitmq_management_host, get_rabbitmq_settings
 from core.drf_resource.exceptions import CustomException
 from kernel_api.rpc import KernelRPCRegistry
 from kernel_api.rpc.functions.admin.common import (
@@ -68,6 +68,7 @@ class RabbitMqTargetConfig:
     label: str
     host: str
     amqp_port: int | None
+    management_host: str
     management_port: int
     vhost: str
     username: str
@@ -154,11 +155,13 @@ def _get_target_config(target: str) -> RabbitMqTargetConfig:
         backend=(target == TARGET_BACKEND),
     )
     normalized_vhost = vhost or "/"
+    amqp_host = str(host or "").strip()
     return RabbitMqTargetConfig(
         target=target,
         label=TARGET_LABELS[target],
-        host=str(host or "").strip(),
+        host=amqp_host,
         amqp_port=port,
+        management_host=get_rabbitmq_management_host(amqp_host, backend=(target == TARGET_BACKEND)),
         management_port=_get_management_port(target, port),
         vhost=str(normalized_vhost).strip() or "/",
         username=str(user or ""),
@@ -175,7 +178,7 @@ def _encoded_queue_name(queue_name: str) -> str:
 
 
 def _build_url(config: RabbitMqTargetConfig, path: str) -> str:
-    return f"http://{config.host}:{config.management_port}{path}"
+    return f"http://{config.management_host}:{config.management_port}{path}"
 
 
 def _request_rabbitmq(
@@ -187,7 +190,7 @@ def _request_rabbitmq(
     parse_json: bool = True,
     params: dict[str, Any] | None = None,
 ) -> Any:
-    if not config.host:
+    if not config.management_host:
         raise CustomException(message=f"{config.label} 未配置 host，无法调用 RabbitMQ HTTP API")
 
     url = _build_url(config, path)
@@ -347,6 +350,7 @@ def _build_target_error_payload(config: RabbitMqTargetConfig, error: Exception) 
         "label": config.label,
         "host": config.host,
         "amqp_port": config.amqp_port,
+        "management_host": config.management_host,
         "management_port": config.management_port,
         "vhost": config.vhost,
         "username": config.username,
@@ -420,6 +424,7 @@ def _fetch_target_overview(
             "label": config.label,
             "host": config.host,
             "amqp_port": config.amqp_port,
+            "management_host": config.management_host,
             "management_port": config.management_port,
             "vhost": config.vhost,
             "username": config.username,
