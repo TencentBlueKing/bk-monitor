@@ -1,5 +1,6 @@
 import json
 from types import SimpleNamespace
+from typing import Any
 from unittest.mock import MagicMock, call, patch
 
 from django.core.cache import caches
@@ -986,7 +987,11 @@ class FixedK8sProbeTest(SimpleTestCase):
         self.assertNotIn("kubectl", script)
         self.assertNotIn("eval ", script)
         self.assertNotIn(' > "', script)
-        self.assertNotIn('[ ! -L "$source_path" ]', script)
+        # A source must never be skipped for being a symlink. Only a path that is neither
+        # present nor a link is dropped, which keeps a dangling link reportable instead of
+        # indistinguishable from a path that was never configured. The resulting behaviour is
+        # covered by FixedRemoteScriptTest in test_host_inspection.
+        self.assertIn('if [ ! -e "$source_path" ] && [ ! -L "$source_path" ]; then', script)
 
     def test_line_protocol_parser_reconstructs_bounded_streams(self):
         parsed = parse_probe_output(
@@ -1242,12 +1247,16 @@ class FixedK8sProbeTest(SimpleTestCase):
             source="/var/host/data/app.log",
             include_source_sample=True,
             config_map_main="path.data: /data/lib\n",
-            expected_specs=[{"path": ["/var/host/data/*.log"]}],
+            expected_specs=[
+                {"logConfigType": ContainerCollectorType.NODE, "path": ["/var/host/data/*.log"]},
+            ],
         )
 
         config_evidence = probes["main_config_mounted"]["evidence"]
         self.assertEqual(config_evidence["matching_patterns"], ["/var/host/data/*.log"])
         self.assertTrue(config_evidence["render_comparison"]["equivalent"])
+        # Node collection names a host path in the CRD, so path stays comparable.
+        self.assertIn("path", config_evidence["render_comparison"]["compared_fields"])
         self.assertEqual(config_evidence["child_configs"][0]["mtime_epoch"], 100)
         self.assertNotIn("/var/host/other", json.dumps(config_evidence))
         self.assertEqual(probes["source_path"]["evidence"]["files"][0]["sample"]["lines"], ["one", "two"])
@@ -1259,6 +1268,147 @@ class FixedK8sProbeTest(SimpleTestCase):
             "4096",
         )
         self.assertEqual(probes["sidecar_process"]["evidence"]["delta"]["threads"], 1)
+
+    @staticmethod
+    def _stdout_render_parsed(*container_logs: str) -> dict[str, Any]:
+        rendered = "".join(
+            f"  - dataid: 1001\n    paths: ['{path}']\n    docker-json: {{cri_flags: true, stream: all}}\n"
+            for path in container_logs
+        )
+        return {
+            "values": {"first.source_count": "0", "second.source_count": "0"},
+            "streams": {
+                "child_config.0": {
+                    "path": "/data/etc/bkunifylogbeat/a.conf",
+                    "content": "local:\n" + rendered,
+                }
+            },
+        }
+
+    def _render_comparison(self, parsed: dict[str, Any], expected_specs: list[dict[str, Any]]) -> dict[str, Any]:
+        probes = build_probe_evidence(
+            parsed,
+            bk_data_id=1001,
+            source=None,
+            include_source_sample=False,
+            config_map_main=None,
+            expected_specs=expected_specs,
+        )
+        return probes["main_config_mounted"]
+
+    def test_render_comparison_skips_sidecar_translated_path_for_stdout(self):
+        container_log = (
+            "/var/host/data/bcs/lib/docker/containers/"
+            "5307d87087fcd13941ffe974a71c1ab47a833995647ce774e891ad9cefc648d3/"
+            "5307d87087fcd13941ffe974a71c1ab47a833995647ce774e891ad9cefc648d3-json.log"
+        )
+
+        probe = self._render_comparison(
+            self._stdout_render_parsed(container_log),
+            [
+                {
+                    "logConfigType": ContainerCollectorType.STDOUT,
+                    "path": [""],
+                    "exclude_files": [],
+                    "multiline": {"pattern": None, "maxLines": None, "timeout": None},
+                }
+            ],
+        )
+        comparison = probe["evidence"]["render_comparison"]
+
+        # A stdout spec carries no path; the sidecar resolves it to the host-side container
+        # log. Comparing the two verbatim reported a drift on every healthy inspection, as did
+        # reading an explicitly empty exclude_files or an all-null multiline as a difference.
+        self.assertTrue(comparison["equivalent"])
+        self.assertEqual(probe["code"], "child_config_rendered")
+        self.assertNotIn("path", comparison["compared_fields"])
+        self.assertEqual(comparison["skipped_fields"][0]["field"], "path")
+        self.assertEqual(comparison["skipped_fields"][0]["reason"], "path_translated_by_sidecar")
+
+    def test_render_comparison_keeps_a_real_encoding_difference(self):
+        probe = self._render_comparison(
+            self._stdout_render_parsed("/var/host/data/bcs/lib/docker/containers/abc/abc-json.log"),
+            [{"logConfigType": ContainerCollectorType.STDOUT, "path": [""], "encoding": "GBK"}],
+        )
+        comparison = probe["evidence"]["render_comparison"]
+
+        # The rendered input carries no encoding at all, which is a genuine signal and has to
+        # survive the normalisation that silences the empty-versus-absent noise.
+        self.assertFalse(comparison["equivalent"])
+        self.assertEqual([item["field"] for item in comparison["differences"]], ["encoding"])
+        self.assertEqual(probe["code"], "child_config_rendered_drift")
+
+    def test_render_comparison_collapses_one_spec_rendered_into_many_inputs(self):
+        parsed = self._stdout_render_parsed(
+            "/var/host/data/bcs/lib/docker/containers/aaa/aaa-json.log",
+            "/var/host/data/bcs/lib/docker/containers/bbb/bbb-json.log",
+        )
+        parsed["streams"]["child_config.0"]["content"] = parsed["streams"]["child_config.0"]["content"].replace(
+            "docker-json: {cri_flags: true, stream: all}",
+            "docker-json: {cri_flags: true, stream: all}\n    encoding: UTF-8",
+        )
+
+        probe = self._render_comparison(
+            parsed,
+            [{"logConfigType": ContainerCollectorType.STDOUT, "path": [""], "encoding": "UTF-8"}],
+        )
+        comparison = probe["evidence"]["render_comparison"]
+
+        # One spec matching two containers renders two inputs. Comparing the per-spec and
+        # per-input lists would differ on length alone even though every value agrees.
+        self.assertTrue(comparison["equivalent"])
+
+    def test_render_comparison_compares_path_for_container_collection(self):
+        parsed = {
+            "values": {"first.source_count": "0", "second.source_count": "0"},
+            "streams": {
+                "child_config.0": {
+                    "path": "/data/etc/bkunifylogbeat/a.conf",
+                    "content": (
+                        "local:\n"
+                        "  - dataid: 1001\n"
+                        "    paths: ['/data/app/*.log']\n"
+                        "    root_fs: /var/host/var/lib/docker/overlay2/abc/merged\n"
+                        "    mounts:\n"
+                        "      - {container_path: /data/app, host_path: /var/host/var/lib/kubelet/pods/uid/x}\n"
+                    ),
+                }
+            },
+        }
+
+        probe = self._render_comparison(
+            parsed,
+            [{"logConfigType": ContainerCollectorType.CONTAINER, "path": ["/data/app/*.log"]}],
+        )
+        comparison = probe["evidence"]["render_comparison"]
+
+        # Container collection keeps the configured path verbatim and maps it through mounts and
+        # root_fs, so the path stays comparable and skipping it would drop a real drift signal.
+        self.assertIn("path", comparison["compared_fields"])
+        self.assertEqual(comparison["skipped_fields"], [])
+        self.assertTrue(comparison["equivalent"])
+
+    def test_render_comparison_still_reports_a_node_path_drift(self):
+        parsed = {
+            "values": {"first.source_count": "0", "second.source_count": "0"},
+            "streams": {
+                "child_config.0": {
+                    "path": "/data/etc/bkunifylogbeat/a.conf",
+                    "content": "local:\n  - dataid: 1001\n    paths: ['/var/host/data/actual.log']\n",
+                }
+            },
+        }
+
+        probe = self._render_comparison(
+            parsed,
+            [{"logConfigType": ContainerCollectorType.NODE, "path": ["/var/host/data/expected.log"]}],
+        )
+        comparison = probe["evidence"]["render_comparison"]
+
+        self.assertFalse(comparison["equivalent"])
+        self.assertEqual(comparison["differences"][0]["field"], "path")
+        self.assertEqual(comparison["differences"][0]["expected"], ["/var/host/data/expected.log"])
+        self.assertEqual(comparison["differences"][0]["actual"], ["/var/host/data/actual.log"])
 
     def test_probe_evidence_rejects_source_outside_selected_data_id(self):
         parsed = {
@@ -1315,6 +1465,93 @@ class FixedK8sProbeTest(SimpleTestCase):
         )
         self.assertEqual(source_probe["warnings"][0]["code"], "source_sample_unavailable")
 
+    def test_probe_evidence_bounds_a_recursive_pattern_at_every_depth(self):
+        paths = [
+            "/var/host/vol/rec/depth0.log",
+            "/var/host/vol/rec/l1/depth1.log",
+            "/var/host/vol/rec/l1/l2/depth2.log",
+        ]
+        values = {}
+        for phase in ("first", "second"):
+            values[f"{phase}.source_count"] = str(len(paths))
+            for index, path in enumerate(paths):
+                values[f"{phase}.source.{index}.pattern"] = "/var/host/vol/rec/**/*.log"
+                values[f"{phase}.source.{index}.path"] = path
+                values[f"{phase}.source.{index}.inode"] = str(100 + index)
+                values[f"{phase}.source.{index}.device"] = "2049"
+        parsed = {
+            "values": values,
+            "streams": {
+                "child_config.0": {
+                    "path": "/data/etc/bkunifylogbeat/a.conf",
+                    "content": (
+                        "local:\n"
+                        "  - dataid: 1001\n"
+                        "    mounts:\n"
+                        "      - container_path: /data/rec\n"
+                        "        host_path: /var/host/vol/rec\n"
+                        "    paths: ['/data/rec/**/*.log']\n"
+                    ),
+                }
+            },
+        }
+
+        probes = build_probe_evidence(
+            parsed,
+            bk_data_id=1001,
+            source=None,
+            include_source_sample=False,
+            config_map_main=None,
+        )
+
+        source_probe = probes["source_path"]
+        # fnmatch does not treat / specially, so a literal ** matches every nested level but
+        # never the zero-level file, dropping the shallowest file the collector reads.
+        self.assertEqual([entry["first"]["path"] for entry in source_probe["evidence"]["files"]], paths)
+        # The allow-list itself stays in its configured form so the evidence remains readable.
+        self.assertEqual(source_probe["evidence"]["allowed_patterns"], ["/var/host/vol/rec/**/*.log"])
+
+    def test_probe_evidence_reports_a_source_whose_link_target_cannot_be_resolved(self):
+        parsed = {
+            "values": {
+                "first.source_count": "1",
+                "first.source.0.pattern": "/data/*.log",
+                "first.source.0.path": "/data/current.log",
+                "first.source.0.symlink": "true",
+                "first.source.0.symlink_target": "/data/app/real.log",
+                "first.source.0.unreadable": "true",
+                "second.source_count": "1",
+                "second.source.0.pattern": "/data/*.log",
+                "second.source.0.path": "/data/current.log",
+                "second.source.0.symlink": "true",
+                "second.source.0.unreadable": "true",
+            },
+            "streams": {
+                "child_config.0": {
+                    "path": "/data/etc/bkunifylogbeat/a.conf",
+                    "content": "local:\n  - dataid: 1001\n    paths: ['/data/*.log']\n",
+                }
+            },
+        }
+
+        probes = build_probe_evidence(
+            parsed,
+            bk_data_id=1001,
+            source=None,
+            include_source_sample=False,
+            config_map_main=None,
+        )
+
+        source_probe = probes["source_path"]
+        # An absolute link target is written from inside the collected container, so it rarely
+        # resolves in the collector namespace. The collector opens the same path from that same
+        # namespace, which makes this a real collection failure rather than a probe limitation.
+        self.assertEqual(source_probe["status"], "warning")
+        self.assertEqual(source_probe["code"], "source_unreadable")
+        self.assertEqual(source_probe["warnings"][0]["code"], "source_unreadable")
+        self.assertEqual(source_probe["warnings"][0]["paths"], ["/data/current.log"])
+        self.assertEqual(source_probe["evidence"]["files"][0]["first"]["symlink_target"], "/data/app/real.log")
+
     def test_probe_evidence_requires_narrowing_when_remote_source_limit_is_exceeded(self):
         parsed = {
             "values": {
@@ -1349,6 +1586,37 @@ class FixedK8sProbeTest(SimpleTestCase):
             config_map_main=None,
         )
         self.assertEqual(requested["source_path"]["code"], "source_narrowing_required")
+
+    def test_probe_evidence_reports_how_many_sources_the_limit_left_out(self):
+        parsed = {
+            "values": {
+                "source_narrowing_required": "true",
+                "first.source_count": "50",
+                "first.source_limit": "50",
+                "first.source_skipped_count": "412",
+                "second.source_count": "50",
+            },
+            "streams": {
+                "child_config.0": {
+                    "path": "/data/etc/bkunifylogbeat/a.conf",
+                    "content": "local:\n  - dataid: 1001\n    paths: ['/data/allowed/**/*.log']\n",
+                }
+            },
+        }
+
+        probes = build_probe_evidence(
+            parsed,
+            bk_data_id=1001,
+            source=None,
+            include_source_sample=False,
+            config_map_main=None,
+        )
+
+        evidence = probes["source_path"]["evidence"]
+        # Reporting only the 50 that fit leaves the operator guessing at the scale of the
+        # overflow, which is what decides whether narrowing by directory is even enough.
+        self.assertEqual(evidence["source_limit"], 50)
+        self.assertEqual(evidence["matched_count"], 462)
 
     def test_fixed_collector_file_logs_are_only_a_bounded_fallback(self):
         parsed = {

@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import fnmatch
 import hashlib
+import json
 import os
+from collections.abc import Iterable
 from typing import Any
 
 import yaml
@@ -12,13 +14,17 @@ import yaml
 from apps.log_admin_resource.collector_probe_parsers import (
     classify_registrar_progress,
     fallback_matching_inputs,
-    parse_registrar_strings,
+    parse_registrar_strings_with_stats,
     state_for_file,
 )
+from apps.log_databus.constants import ContainerCollectorType
 
 
 MAX_SOURCE_SAMPLE_BYTES = 64 * 1024
 MAX_SOURCE_SAMPLE_LINES = 50
+# Mirrors filebeat's recursive_glob.max_depth default and the probe script's own limit.
+RECURSIVE_GLOB_MAX_DEPTH = 8
+RECURSIVE_GLOB_MARKER = "**/"
 
 
 def build_probe_evidence(
@@ -39,7 +45,7 @@ def build_probe_evidence(
     second_sources = _source_rows(values, "second")
     allowed_patterns = sorted(
         {
-            str(path)
+            _host_visible_path(str(path), input_config.get("mounts") or [], input_config.get("root_fs"))
             for input_config in matching_inputs
             for path in input_config.get("paths") or []
             if isinstance(path, str) and path.startswith("/")
@@ -171,8 +177,9 @@ def build_probe_evidence(
         include_sample=include_source_sample,
         error=source_error,
     )
-    registrar_probe = _registrar_probe(values, streams, selected_first, selected_second)
-    progress_probe = _progress_probe(values, streams, selected_first, selected_second)
+    registrar_evidence = _parsed_registrar(values, streams)
+    registrar_probe = _registrar_probe(values, registrar_evidence, selected_first, selected_second)
+    progress_probe = _progress_probe(values, registrar_evidence, selected_first, selected_second)
     return {
         "main_config_mounted": config_probe,
         "collector_process": collector_process_probe,
@@ -213,34 +220,136 @@ def _rendered_configs(
     return configs, matching_inputs
 
 
+def _host_visible_path(path: str, mounts: Any, root_fs: Any) -> str:
+    """Resolve a rendered collection path the way the collector reaches it.
+
+    The path is written from inside the collected container, while the collector and the probe
+    both open it from the collector's own mount namespace. One on a mounted volume is reached
+    through that volume, anything else through the container root. Deriving this server-side
+    rather than trusting the probe keeps the allow-list an independent bound on what may be
+    returned.
+    """
+    best_host = None
+    best_length = -1
+    for mount in mounts if isinstance(mounts, list) else []:
+        if not isinstance(mount, dict):
+            continue
+        container_path = str(mount.get("container_path") or "")
+        host_path = str(mount.get("host_path") or "")
+        if not container_path or not host_path:
+            continue
+        length = len(container_path)
+        # Match on a path boundary so /data never claims /database, and keep the longest match
+        # because nested mounts overlap and the deepest one is what holds the file.
+        if path.startswith(container_path) and (len(path) == length or path[length] == "/"):
+            if length > best_length:
+                best_length = length
+                best_host = host_path
+    if best_host is not None:
+        return best_host + path[best_length:]
+    root = str(root_fs or "")
+    # stdout collection already renders a path below the container root; prefixing it again
+    # would build /var/host/var/host/...
+    if root and root != "/" and not path.startswith(root):
+        return root + path
+    return path
+
+
+def _normalized_config_value(value: Any) -> Any:
+    """Collapse an explicitly empty setting into the same shape as an absent one.
+
+    A CRD spec spells "not configured" out in full (``[]``, ``[""]``, or a mapping whose values
+    are all null), while the rendered beat input simply omits the key. Comparing the two
+    verbatim reports a difference on every healthy inspection.
+    """
+    if isinstance(value, str):
+        return value or None
+    if isinstance(value, list | tuple):
+        items = [item for item in (_normalized_config_value(item) for item in value) if item is not None]
+        return items or None
+    if isinstance(value, dict):
+        items = {
+            key: normalized
+            for key, normalized in ((key, _normalized_config_value(child)) for key, child in value.items())
+            if normalized is not None
+        }
+        return items or None
+    return value
+
+
+def _distinct_config_values(values: Iterable[Any]) -> list[Any]:
+    """Deduplicate configured values so both sides stay comparable.
+
+    One CRD spec renders into one input per matched container, so comparing the raw per-spec
+    and per-input lists would differ on length alone even when every value agrees.
+    """
+    collected: dict[str, Any] = {}
+    for value in values:
+        normalized = _normalized_config_value(value)
+        if normalized is None:
+            continue
+        collected[json.dumps(normalized, sort_keys=True, default=str)] = normalized
+    return [collected[key] for key in sorted(collected)]
+
+
+# Stdout collection is the only type without a path of its own: the CRD leaves it empty and the
+# sidecar resolves it to the host-side container log file, so the two can never match verbatim.
+# Container and node collection keep their configured path unchanged in the rendered input and
+# rely on mounts and root_fs for the host mapping, which keeps their path worth comparing.
+_PATH_TRANSLATED_LOG_CONFIG_TYPES = frozenset({ContainerCollectorType.STDOUT})
+
+
 def _rendered_config_comparison(
     expected_specs: list[dict[str, Any]], matching_inputs: list[dict[str, Any]]
 ) -> dict[str, Any]:
     if not expected_specs:
-        return {"equivalent": True, "compared_fields": [], "differences": []}
-    expected_paths = sorted(
-        {str(path) for spec in expected_specs for path in (spec.get("path") or []) if isinstance(path, str)}
-    )
-    actual_paths = sorted(
-        {
-            str(path)
-            for input_config in matching_inputs
-            for path in (input_config.get("paths") or [])
-            if isinstance(path, str)
-        }
-    )
+        return {"equivalent": True, "compared_fields": [], "differences": [], "skipped_fields": []}
     differences = []
-    if expected_paths != actual_paths:
-        differences.append({"field": "path", "expected": expected_paths, "actual": actual_paths})
+    skipped_fields = []
+    compared_fields = []
+
+    log_config_types = sorted({str(spec.get("logConfigType") or "") for spec in expected_specs})
+    if set(log_config_types) & _PATH_TRANSLATED_LOG_CONFIG_TYPES:
+        skipped_fields.append(
+            {
+                "field": "path",
+                "reason": "path_translated_by_sidecar",
+                "log_config_types": log_config_types,
+            }
+        )
+    else:
+        compared_fields.append("path")
+        expected_paths = sorted(
+            {
+                str(path)
+                for spec in expected_specs
+                for path in (_normalized_config_value(spec.get("path")) or [])
+                if isinstance(path, str)
+            }
+        )
+        actual_paths = sorted(
+            {
+                str(path)
+                for input_config in matching_inputs
+                for path in (_normalized_config_value(input_config.get("paths")) or [])
+                if isinstance(path, str)
+            }
+        )
+        if expected_paths != actual_paths:
+            differences.append({"field": "path", "expected": expected_paths, "actual": actual_paths})
+
     for field in ("encoding", "exclude_files", "multiline"):
-        expected_values = [spec.get(field) for spec in expected_specs if spec.get(field) is not None]
-        actual_values = [item.get(field) for item in matching_inputs if item.get(field) is not None]
+        compared_fields.append(field)
+        expected_values = _distinct_config_values(spec.get(field) for spec in expected_specs)
+        actual_values = _distinct_config_values(item.get(field) for item in matching_inputs)
         if expected_values and expected_values != actual_values:
             differences.append({"field": field, "expected": expected_values, "actual": actual_values})
+
     return {
         "equivalent": not differences,
-        "compared_fields": ["path", "encoding", "exclude_files", "multiline"],
+        "compared_fields": compared_fields,
         "differences": differences,
+        "skipped_fields": skipped_fields,
     }
 
 
@@ -317,6 +426,8 @@ def _source_rows(values: dict[str, str], phase: str) -> list[dict[str, Any]]:
                 "path": path,
                 "normalized_path": values.get(prefix + "resolved_path") or os.path.normpath(path),
                 "symlink": values.get(prefix + "symlink") == "true",
+                "symlink_target": values.get(prefix + "symlink_target"),
+                "unreadable": values.get(prefix + "unreadable") == "true",
                 "device": _integer(values.get(prefix + "device")),
                 "inode": _integer(values.get(prefix + "inode")),
                 "size_bytes": _integer(values.get(prefix + "size_bytes")),
@@ -326,14 +437,32 @@ def _source_rows(values: dict[str, str], phase: str) -> list[dict[str, Any]]:
     return rows
 
 
+def _expand_recursive_glob(pattern: str) -> list[str]:
+    """Expand ``**`` the way the collector's recursive glob does.
+
+    filebeat rewrites ``**`` into an increasing run of single-level wildcards rather than
+    walking the tree, so ``/data/**/*.log`` also covers ``/data/*.log``. fnmatch has no notion
+    of a path separator, which leaves a literal ``**`` pattern matching every nested level but
+    never the zero-level case.
+    """
+    if RECURSIVE_GLOB_MARKER not in pattern:
+        return [pattern]
+    prefix, _, suffix = pattern.partition(RECURSIVE_GLOB_MARKER)
+    return [prefix + "*/" * depth + suffix for depth in range(RECURSIVE_GLOB_MAX_DEPTH + 1)]
+
+
 def _select_sources(
     first_rows: list[dict[str, Any]],
     second_rows: list[dict[str, Any]],
     allowed_patterns: list[str],
     source: str | None,
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]], str | None]:
+    # The allow-list stays in its configured form for the evidence, while matching runs against
+    # the expansion so a recursive pattern bounds exactly the files the collector reads.
+    expanded_patterns = [candidate for pattern in allowed_patterns for candidate in _expand_recursive_glob(pattern)]
+
     def allowed(row: dict[str, Any]) -> bool:
-        return any(fnmatch.fnmatchcase(row["path"], pattern) for pattern in allowed_patterns)
+        return any(fnmatch.fnmatchcase(row["path"], pattern) for pattern in expanded_patterns)
 
     first = [row for row in first_rows if allowed(row)]
     second = [row for row in second_rows if allowed(row)]
@@ -341,7 +470,7 @@ def _select_sources(
         normalized = os.path.normpath(source)
         if normalized != source or not source.startswith("/"):
             return [], [], "source_not_in_rendered_config"
-        if not any(fnmatch.fnmatchcase(source, pattern) for pattern in allowed_patterns):
+        if not any(fnmatch.fnmatchcase(source, pattern) for pattern in expanded_patterns):
             return [], [], "source_not_in_rendered_config"
         first = [row for row in first if row["path"] == source]
         second = [row for row in second if row["path"] == source]
@@ -522,7 +651,16 @@ def _source_probe(
             "status": "warning",
             "code": "source_narrowing_required",
             "summary": "the bounded remote source set cannot prove the requested source state",
-            "evidence": {"requested_source": source, "allowed_patterns": allowed_patterns, "files": []},
+            "evidence": {
+                "requested_source": source,
+                "allowed_patterns": allowed_patterns,
+                "files": [],
+                "source_limit": _integer(values.get("first.source_limit")),
+                # A recursive pattern can match far more than the limit, so report the full
+                # match count rather than only the truncated one.
+                "matched_count": (_integer(values.get("first.source_count")) or 0)
+                + (_integer(values.get("first.source_skipped_count")) or 0),
+            },
             "warnings": [],
         }
     second_by_path = {row["path"]: row for row in second_rows}
@@ -551,9 +689,38 @@ def _source_probe(
             returned_lines += len(lines)
             returned_bytes += returned_sample_bytes
         files.append(row)
+    unreadable_paths = sorted({row["path"] for row in first_rows if row.get("unreadable")})
+    if not files:
+        status, code = "warning", "configured_source_not_present"
+    elif unreadable_paths:
+        status, code = "warning", "source_unreadable"
+    else:
+        status, code = "success", "source_paths_inspected"
+    warnings = []
+    if unreadable_paths:
+        warnings.append(
+            {
+                "code": "source_unreadable",
+                "message": (
+                    "a configured source exists but its target cannot be resolved from the collector "
+                    "mount namespace, which is what the collector sees when it opens the same path"
+                ),
+                "retryable": False,
+                "paths": unreadable_paths,
+            }
+        )
+    if sample_unavailable_reasons:
+        warnings.append(
+            {
+                "code": "source_sample_unavailable",
+                "message": "the requested source sample could not be returned within the fixed probe bounds",
+                "retryable": False,
+                "reasons": sorted(set(sample_unavailable_reasons)),
+            }
+        )
     return {
-        "status": "success" if files else "warning",
-        "code": "source_paths_inspected" if files else "configured_source_not_present",
+        "status": status,
+        "code": code,
         "summary": "configured source paths were bounded and sampled by file identity",
         "evidence": {
             "requested_source": source,
@@ -566,24 +733,75 @@ def _source_probe(
                 "returned_bytes": returned_bytes,
             },
         },
-        "warnings": (
-            [
-                {
-                    "code": "source_sample_unavailable",
-                    "message": "the requested source sample could not be returned within the fixed probe bounds",
-                    "retryable": False,
-                    "reasons": sorted(set(sample_unavailable_reasons)),
-                }
-            ]
-            if sample_unavailable_reasons
-            else []
-        ),
+        "warnings": warnings,
+    }
+
+
+def _registrar_sampling(
+    values: dict[str, str],
+    stream: dict[str, Any],
+    stats: dict[str, int],
+    phase: str,
+) -> dict[str, Any]:
+    """Report how much of the registrar the bounded sample actually accounts for."""
+    prefix = f"{phase}.registrar_strings."
+    truncated = bool(stream.get("truncated"))
+    unparsed_line_count = stats.get("unparsed_line_count") or 0
+    partial_state_count = stats.get("partial_state_count") or 0
+    returned_line_count = stats.get("line_count") or 0
+    raw_line_count = _integer(values.get(prefix + "raw_line_count"))
+    record_count = _integer(values.get(prefix + "record_count"))
+    filtered_record_count = _integer(values.get(prefix + "filtered_record_count"))
+    incomplete_reasons = []
+    if truncated:
+        incomplete_reasons.append("stream_truncated")
+    if unparsed_line_count:
+        incomplete_reasons.append("unparsed_lines")
+    if partial_state_count:
+        incomplete_reasons.append("partial_states")
+    if filtered_record_count is not None and filtered_record_count > returned_line_count:
+        incomplete_reasons.append("records_missing_from_sample")
+    if values.get(prefix + "record_split") == "false" and (raw_line_count or 0) > 0:
+        # The registrar is one JSON array under a single key. Without the record split the
+        # whole array arrives as one line, so the byte budget can cut it at any point.
+        incomplete_reasons.append("records_not_split")
+    return {
+        "filtered": values.get(prefix + "filtered") == "true",
+        "filter_key_count": _integer(values.get(prefix + "filter_key_count")),
+        "record_split": values.get(prefix + "record_split") == "true",
+        "raw_line_count": raw_line_count,
+        "record_count": record_count,
+        "filtered_record_count": filtered_record_count,
+        "returned_line_count": returned_line_count,
+        "returned_size_bytes": stream.get("returned_size_bytes"),
+        "truncated": truncated,
+        "unparsed_line_count": unparsed_line_count,
+        "partial_state_count": partial_state_count,
+        "incomplete_reasons": incomplete_reasons,
+    }
+
+
+def _parsed_registrar(values: dict[str, str], streams: dict[str, dict[str, Any]]) -> dict[str, Any]:
+    """Parse both registrar snapshots once for the two probes that read them.
+
+    The fallback path ships the whole registrar as one large line, so parsing it separately in
+    each probe would repeat the same work four times over a single inspection.
+    """
+    first_stream = streams.get("first.registrar_strings") or {}
+    second_stream = streams.get("second.registrar_strings") or {}
+    first_states, first_stats = parse_registrar_strings_with_stats(str(first_stream.get("content") or ""))
+    second_states, second_stats = parse_registrar_strings_with_stats(str(second_stream.get("content") or ""))
+    return {
+        "first_states": first_states,
+        "second_states": second_states,
+        "first_sampling": _registrar_sampling(values, first_stream, first_stats, "first"),
+        "second_sampling": _registrar_sampling(values, second_stream, second_stats, "second"),
     }
 
 
 def _registrar_probe(
     values: dict[str, str],
-    streams: dict[str, dict[str, Any]],
+    registrar: dict[str, Any],
     first_rows: list[dict[str, Any]],
     second_rows: list[dict[str, Any]],
 ) -> dict[str, Any]:
@@ -597,33 +815,57 @@ def _registrar_probe(
             "evidence": {"reason": unavailable, "registrar_path": values.get("registrar_path")},
             "warnings": [],
         }
-    first_states = parse_registrar_strings(str((streams.get("first.registrar_strings") or {}).get("content") or ""))
-    second_states = parse_registrar_strings(str((streams.get("second.registrar_strings") or {}).get("content") or ""))
+    first_states = registrar["first_states"]
+    second_states = registrar["second_states"]
     first_matches = {row["path"]: state_for_file(first_states, row) for row in first_rows}
     second_matches = {row["path"]: state_for_file(second_states, row) for row in second_rows}
+    first_sampling = registrar["first_sampling"]
+    second_sampling = registrar["second_sampling"]
+    incomplete_reasons = sorted(set(first_sampling["incomplete_reasons"]) | set(second_sampling["incomplete_reasons"]))
     return {
-        "status": "success",
-        "code": "registrar_strings_inspected",
-        "summary": "live BoltDB was not opened; bounded strings evidence was matched by source, inode and device",
+        "status": "warning" if incomplete_reasons else "success",
+        "code": "registrar_strings_incomplete" if incomplete_reasons else "registrar_strings_inspected",
+        "summary": (
+            "bounded strings evidence is incomplete, so an absent state does not prove the file is untracked"
+            if incomplete_reasons
+            else "live BoltDB was not opened; the single-key JSON array was split per record "
+            "and matched by source, inode and device"
+        ),
         "evidence": {
             "path": values.get("registrar_path"),
             "first_state_count": len(first_states),
             "second_state_count": len(second_states),
             "first_matches": first_matches,
             "second_matches": second_matches,
+            "first_sampling": first_sampling,
+            "second_sampling": second_sampling,
         },
-        "warnings": [],
+        "warnings": (
+            [
+                {
+                    "code": "registrar_evidence_incomplete",
+                    "message": "registrar evidence is bounded; an absent state cannot be read as an untracked file",
+                    "retryable": False,
+                    "reasons": incomplete_reasons,
+                }
+            ]
+            if incomplete_reasons
+            else []
+        ),
     }
 
 
 def _progress_probe(
     values: dict[str, str],
-    streams: dict[str, dict[str, Any]],
+    registrar: dict[str, Any],
     first_rows: list[dict[str, Any]],
     second_rows: list[dict[str, Any]],
 ) -> dict[str, Any]:
-    first_states = parse_registrar_strings(str((streams.get("first.registrar_strings") or {}).get("content") or ""))
-    second_states = parse_registrar_strings(str((streams.get("second.registrar_strings") or {}).get("content") or ""))
+    first_states = registrar["first_states"]
+    second_states = registrar["second_states"]
+    evidence_incomplete = bool(
+        registrar["first_sampling"]["incomplete_reasons"] or registrar["second_sampling"]["incomplete_reasons"]
+    )
     second_by_path = {row["path"]: row for row in second_rows}
     results = []
     insufficient = values.get("insufficient_observation_window") == "true"
@@ -640,6 +882,7 @@ def _progress_probe(
                     state_for_file(first_states, first),
                     state_for_file(second_states, second),
                     insufficient=insufficient,
+                    evidence_incomplete=evidence_incomplete,
                 ),
             }
         )
@@ -651,6 +894,7 @@ def _progress_probe(
             "items": results,
             "observation_required_seconds": _number(values.get("observation_required_seconds")),
             "observation_seconds": _number(values.get("observation_seconds")),
+            "registrar_evidence_incomplete": evidence_incomplete,
             "scope_statement": "Registrar progress proves only local collector read/ACK state",
         },
         "warnings": [],
