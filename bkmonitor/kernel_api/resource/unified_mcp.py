@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from jsonschema import Draft7Validator
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
@@ -185,21 +186,20 @@ class LookupPermissionsResource(Resource):
             if category and category != tool.category:
                 raise ValidationError({"category": f"{tool_name} belongs to category {tool.category}."})
 
-        action_ids = (
-            [tool.iam_action] if tool else [CATEGORY_ACTIONS[category]] if category else list(CATEGORY_ACTIONS.values())
+        permission_targets = (
+            [(tool.category, tool.iam_action)]
+            if tool
+            else [(category, CATEGORY_ACTIONS[category])]
+            if category
+            else list(CATEGORY_ACTIONS.items())
         )
         permission = get_permission_client()
         bk_biz_id = validated_request_data.get("bk_biz_id")
         scopes = []
         missing_permissions = []
 
-        for action_id in action_ids:
+        for action_category, action_id in permission_targets:
             action = get_action_by_id(action_id)
-            action_category = (
-                tool.category
-                if tool and action_id == tool.iam_action
-                else next(key for key, value in CATEGORY_ACTIONS.items() if value == action_id)
-            )
             if bk_biz_id is None:
                 spaces = permission.filter_space_list_by_action(action_id)
                 for space in spaces:
@@ -265,6 +265,15 @@ class ExecuteToolResource(Resource):
             tool = registry.get(tool_name)
         except KeyError as exc:
             raise ValidationError({"tool_name": str(exc)}) from exc
+
+        errors = sorted(
+            Draft7Validator(tool.input_schema).iter_errors(tool_args),
+            key=lambda error: ".".join(str(part) for part in error.absolute_path),
+        )
+        if errors:
+            error = errors[0]
+            path = ".".join(str(part) for part in error.absolute_path)
+            raise ValidationError({f"tool_args.{path}" if path else "tool_args": error.message})
 
         if tool.resource_arg not in tool_args:
             raise ValidationError({f"tool_args.{tool.resource_arg}": "This space-scoped argument is required."})

@@ -24,7 +24,7 @@ paths:
                   description: Number of items to retrieve 获取的条数
                 is_platform:
                   type: boolean
-                  default: 'false'
+                  default: false
                   description: Whether to query platform-level data ID 是否查询公共数据
         required: false
         description: ''
