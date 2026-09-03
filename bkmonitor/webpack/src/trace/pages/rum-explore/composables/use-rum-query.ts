@@ -100,17 +100,18 @@ export function useRumQuery({ extraFilters }: IUseRumQueryOptions) {
   function setUrlParams() {
     const query: Record<string, string> = {
       mode: store.mode,
-      app_name: store.appName || '',
-      timeRange: JSON.stringify(store.timeRange),
+      app_name: encodeURIComponent(store.appName || ''),
+      timeRange: encodeURIComponent(JSON.stringify(store.timeRange)),
       refreshInterval: `${store.refreshInterval}`,
       filterMode: filterMode.value,
       spanType: store.spanType,
-      where: JSON.stringify(where.value),
-      commonWhere: JSON.stringify(commonWhere.value),
-      queryString: queryString.value,
+      timezone: encodeURIComponent(store.timezone),
+      where: encodeURIComponent(JSON.stringify(where.value)),
+      commonWhere: encodeURIComponent(JSON.stringify(commonWhere.value)),
+      queryString: encodeURIComponent(queryString.value),
       showResidentBtn: `${showResidentBtn.value}`,
       // 记录用户意图而非当前生效值，避免把回落的 default_sort 固化成显式排序
-      sortBy: JSON.stringify(store.userSort),
+      sortBy: encodeURIComponent(JSON.stringify(store.userSort)),
     };
     if (urlFavoriteId.value) {
       query.favorite_id = `${urlFavoriteId.value}`;
@@ -126,9 +127,9 @@ export function useRumQuery({ extraFilters }: IUseRumQueryOptions) {
     const urlSort = tryURLDecodeParse<null | string[]>(query.sortBy, null);
     store.init({
       mode: (query.mode as RumModeType) || RumModeEnum.SPAN,
-      appName: query.app_name || '',
+      appName: decodeURIComponent(query.app_name) || '',
       timeRange: query.timeRange ? tryURLDecodeParse<TimeRangeType>(query.timeRange, undefined) : undefined,
-      timezone: window.timezone,
+      timezone: decodeURIComponent(query.timezone) || window.timezone,
       refreshInterval: query.refreshInterval ? Number(query.refreshInterval) : -1,
       spanType: query.spanType || '',
       // 三态透传：null 待视图配置就绪后回落 default_sort，[] 表示明确不排序
@@ -137,8 +138,12 @@ export function useRumQuery({ extraFilters }: IUseRumQueryOptions) {
     filterMode.value = (query.filterMode as EMode) || EMode.ui;
     where.value = tryURLDecodeParse<IWhereItem[]>(query.where, []);
     commonWhere.value = tryURLDecodeParse<IWhereItem[]>(query.commonWhere, []);
-    queryString.value = query.queryString || '';
-    showResidentBtn.value = tryURLDecodeParse<boolean>(query.showResidentBtn, false);
+    queryString.value = decodeURIComponent(query.queryString || '');
+    if (typeof query.showResidentBtn === 'undefined') {
+      showResidentBtn.value = true;
+    } else {
+      showResidentBtn.value = tryURLDecodeParse<boolean>(query.showResidentBtn, false);
+    }
     urlFavoriteId.value = query.favorite_id ? Number(query.favorite_id) : null;
   }
 

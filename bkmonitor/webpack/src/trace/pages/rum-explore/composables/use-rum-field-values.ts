@@ -25,7 +25,6 @@ import type { Ref } from 'vue';
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { NULL_VALUE_ID, NULL_VALUE_NAME } from '../../../components/retrieval-filter/utils';
 import { handleTransformToTimestamp } from '../../../components/time-range/utils';
 import { useRumExploreStore } from '../../../store/modules/rum-explore';
 import { getFieldsOptionValues } from '../services/rum-search';
@@ -54,8 +53,10 @@ export function useRumFieldValues(fields: Ref<IRumField[]>) {
     return `${store.appName}__${store.mode}__${field}`;
   }
 
-  function withNullOption(list: Array<{ id: string; name: string }>, isKeyword: boolean) {
-    return isKeyword ? [{ id: NULL_VALUE_ID, name: NULL_VALUE_NAME }, ...list] : list;
+  function withNullOption(list: Array<{ id: string; name: string }>, _isKeyword: boolean) {
+    // return isKeyword ? [{ id: NULL_VALUE_ID, name: NULL_VALUE_NAME }, ...list] : list;
+    // 暂时不需要空选项
+    return list;
   }
 
   async function getFieldValues(params: IGetValueFnParams): Promise<IWhereValueOptionsItem> {
