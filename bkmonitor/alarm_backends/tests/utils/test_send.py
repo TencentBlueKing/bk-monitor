@@ -87,21 +87,33 @@ def test_channel_bkchat_sender_never_enables_layouts(settings, monkeypatch):
 def test_send_wxwork_markdown_uses_login_name_in_multi_tenant_mode(settings, monkeypatch):
     settings.ENABLE_MULTI_TENANT_MODE = True
     settings.WXWORK_BOT_WEBHOOK_URL = "https://example.com/webhook"
+    query_display_info = Mock(
+        return_value=[
+            {"bk_username": "xxx_id_1", "display_name": "xxx_login_1(xxx_name)"},
+            {"bk_username": "xxx_id_2", "display_name": "xxx_login_2(xxx_name)"},
+        ]
+    )
     monkeypatch.setattr(
         "core.drf_resource.api.bk_login.batch_query_user_display_info",
-        Mock(return_value=[{"bk_username": "xxx_id_1", "display_name": "xxx_login_1(xxx_name)"}]),
+        query_display_info,
     )
     post = mock_wxwork_post(monkeypatch)
 
     result = Sender.send_wxwork_content(
         "markdown",
         "告警内容\n--mention-users--\n",
-        ["xxx_chat_id"],
-        {"xxx_chat_id": ["xxx_id_1"]},
+        ["xxx_chat_id_1", "xxx_chat_id_2"],
+        {
+            "xxx_chat_id_1": ["xxx_id_1", "xxx_id_2"],
+            "xxx_chat_id_2": ["xxx_id_1"],
+        },
     )
 
     assert result["errcode"] == 0
-    assert "<@xxx_login_1>" in post.call_args.kwargs["json"]["markdown"]["content"]
+    query_display_info.assert_called_once_with(bk_usernames=["xxx_id_1", "xxx_id_2"])
+    assert "<@xxx_login_1><@xxx_login_2>" in post.call_args_list[0].kwargs["json"]["markdown"]["content"]
+    assert "<@xxx_login_1>" in post.call_args_list[1].kwargs["json"]["markdown"]["content"]
+    assert "<@xxx_login_2>" not in post.call_args_list[1].kwargs["json"]["markdown"]["content"]
 
 
 def test_send_wxwork_text_uses_login_name_in_multi_tenant_mode(settings, monkeypatch):
@@ -121,20 +133,32 @@ def test_send_wxwork_text_uses_login_name_in_multi_tenant_mode(settings, monkeyp
 def test_send_wxwork_layouts_uses_login_name_in_multi_tenant_mode(settings, monkeypatch):
     settings.ENABLE_MULTI_TENANT_MODE = True
     settings.WXWORK_BOT_WEBHOOK_URL = "https://example.com/webhook"
+    query_display_info = Mock(
+        return_value=[
+            {"bk_username": "xxx_id_1", "display_name": "xxx_login_1(xxx_name)"},
+            {"bk_username": "xxx_id_2", "display_name": "xxx_login_2(xxx_name)"},
+        ]
+    )
     monkeypatch.setattr(
         "core.drf_resource.api.bk_login.batch_query_user_display_info",
-        Mock(return_value=[{"bk_username": "xxx_id_1", "display_name": "xxx_login_1(xxx_name)"}]),
+        query_display_info,
     )
     post = mock_wxwork_post(monkeypatch)
 
     Sender.send_wxwork_layouts(
         "markdown",
         json.dumps([{"type": "markdown", "text": "--mention-users--"}]),
-        ["xxx_chat_id"],
-        {"xxx_chat_id": ["xxx_id_1"]},
+        ["xxx_chat_id_1", "xxx_chat_id_2"],
+        {
+            "xxx_chat_id_1": ["xxx_id_1", "xxx_id_2"],
+            "xxx_chat_id_2": ["xxx_id_1"],
+        },
     )
 
-    assert "<@xxx_login_1>" in post.call_args.kwargs["json"]["layouts"][0]["text"]
+    query_display_info.assert_called_once_with(bk_usernames=["xxx_id_1", "xxx_id_2"])
+    assert "<@xxx_login_1><@xxx_login_2>" in post.call_args_list[0].kwargs["json"]["layouts"][0]["text"]
+    assert "<@xxx_login_1>" in post.call_args_list[1].kwargs["json"]["layouts"][0]["text"]
+    assert "<@xxx_login_2>" not in post.call_args_list[1].kwargs["json"]["layouts"][0]["text"]
 
 
 def test_send_wxwork_keeps_username_in_single_tenant_mode(settings, monkeypatch):
