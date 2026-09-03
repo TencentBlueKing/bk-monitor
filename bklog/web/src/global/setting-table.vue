@@ -394,6 +394,7 @@
 </template>
 <script>
   import { mapGetters } from 'vuex';
+  import { isFieldTypeDisabled, judgeNumber } from '@/common/util';
   import BklogPopover from '@/components/bklog-popover';
 
   export default {
@@ -656,15 +657,8 @@
         });
         window.open(newURL.href, '_blank', 'noopener,noreferrer');
       },
-      // 当前字段类型是否禁用
-      isTypeDisabled(row, option) {
-        if (row.verdict) {
-          // 不是数值，相关数值类型选项被禁用
-          return ['int', 'long', 'double', 'float'].includes(option.id);
-        }
-        // 是数值，如果值大于 2147483647 即 2^31 - 1，int 选项被禁用
-        return option.id === 'int' && row.value > 2147483647;
-      },
+      // 当前字段类型是否禁用（公共实现见 @/common/util）
+      isTypeDisabled: isFieldTypeDisabled,
       fieldTypeSelect(val, $row, $index) {
         const fieldName = $row.field_name;
         const fieldType = $row.field_type;
@@ -752,11 +746,7 @@
         this.currentParticipleState = state;
         this.currentTokenizeOnChars = state === 'custom' ? this.originalTextTokenizeOnChars : '';
       },
-      judgeNumber(value) {
-        if (value === 0) return false;
-
-        return value && value !== ' ' ? isNaN(value) : true;
-      },
+      judgeNumber,
       getData() {
         const data = structuredClone(this.changeTableList);
 

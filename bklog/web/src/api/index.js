@@ -68,8 +68,8 @@ axiosInstance.interceptors.request.use(
       // const prefix = config.url.indexOf('?') === -1 ? '?' : '&';
       // config.url = config.url;
     }
-    // 外部版后端需要读取header里的 spaceUid
-    if (window.IS_EXTERNAL && JSON.parse(window.IS_EXTERNAL) && store.state.spaceUid) {
+    // 平台级索引集的所有检索子接口都需要请求空间，统一通过 header 传递
+    if (store.state.spaceUid) {
       config.headers['X-Bk-Space-Uid'] = store.state.spaceUid;
     }
     // if (window.__IS_MONITOR_COMPONENT__) {

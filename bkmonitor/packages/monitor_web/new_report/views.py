@@ -8,16 +8,65 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-from bkmonitor.iam import ActionEnum
-from bkmonitor.iam.drf import BusinessActionPermission
+from bkmonitor.iam import ActionEnum, ResourceEnum
+from bkmonitor.iam.drf import IAMPermission
+from bkmonitor.models import Report
 from core.drf_resource import resource
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
 
 
+class ReportManagePermission(IAMPermission):
+    def __init__(self):
+        super().__init__([ActionEnum.MANAGE_REPORT])
+
+    def has_permission(self, request, view):
+        try:
+            report_id = int(request.data.get("report_id"))
+        except (AttributeError, TypeError, ValueError):
+            return False
+        if report_id <= 0:
+            return False
+        bk_biz_id = Report.objects.filter(id=report_id).values_list("bk_biz_id", flat=True).first()
+        if bk_biz_id is None:
+            return False
+        self.resources = [ResourceEnum.BUSINESS.create_instance(bk_biz_id)]
+        return super().has_permission(request, view)
+
+
+class ReportSendPermission(IAMPermission):
+    """发送订阅：有订阅 ID 时按库存业务做 VIEW_BUSINESS；否则要求请求带业务 ID。"""
+
+    def __init__(self):
+        super().__init__([ActionEnum.VIEW_BUSINESS])
+
+    def has_permission(self, request, view):
+        data = request.data if isinstance(getattr(request, "data", None), dict) else {}
+        raw_id = data.get("report_id") or data.get("id")
+        try:
+            report_id = int(raw_id)
+        except (TypeError, ValueError):
+            report_id = 0
+        if report_id > 0:
+            bk_biz_id = Report.objects.filter(id=report_id).values_list("bk_biz_id", flat=True).first()
+            if not bk_biz_id:
+                return False
+        else:
+            try:
+                bk_biz_id = int(data.get("bk_biz_id") or 0)
+            except (TypeError, ValueError):
+                bk_biz_id = 0
+            if bk_biz_id <= 0:
+                return False
+        self.resources = [ResourceEnum.BUSINESS.create_instance(bk_biz_id)]
+        return super().has_permission(request, view)
+
+
 class NewReportViewSet(ResourceViewSet):
     def get_permissions(self):
-        if self.action == ["clone_report", "delete_report"]:
-            return [BusinessActionPermission([ActionEnum.MANAGE_REPORT])]
+        if self.action in ("clone_report", "delete_report"):
+            return [ReportManagePermission()]
+        if self.action == "send_report":
+            return [ReportSendPermission()]
         return []
 
     resource_routes = [

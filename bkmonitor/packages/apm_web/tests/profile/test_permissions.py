@@ -8,12 +8,19 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+from unittest import mock
+
 import pytest
 from rest_framework.request import Request
 from rest_framework.test import APIRequestFactory
 
 from apm_web.models import ProfileUploadRecord, UploadedFileStatus
-from apm_web.profile.serializers import ProfileListFileSerializer
+from apm_web.profile.serializers import (
+    ProfileListFileSerializer,
+    ProfileQuerySerializer,
+    ProfileQueryLabelsSerializer,
+    ProfileQueryLabelValuesSerializer,
+)
 from apm_web.profile.views import ProfileQueryViewSet, ProfileUploadViewSet
 from bkmonitor.iam.drf import InstanceActionForDataPermission, ViewBusinessPermission
 
@@ -106,9 +113,68 @@ def test_global_query_accepts_own_profile_id_without_diff():
     )
 
 
-def test_global_query_skips_serializers_without_profile_id():
-    # labels/label_values 没有 profile_id 字段，保持原有的全局聚合行为
-    ProfileQueryViewSet._examine_global_query_scope({"bk_biz_id": BK_BIZ_ID})
+@pytest.mark.parametrize("diff_profile_id", [None, ""])
+@mock.patch("apm_web.profile.views.ProfileUploadRecord.objects.filter")
+def test_global_compare_query_requires_diff_profile_id(filter_mock, diff_profile_id):
+    filter_mock.return_value.exists.return_value = True
+    data = {
+        "bk_biz_id": BK_BIZ_ID,
+        "global_query": True,
+        "start": 1,
+        "end": 2,
+        "profile_id": "own-profile-id",
+        "is_compared": True,
+    }
+    if diff_profile_id is not None:
+        data["diff_profile_id"] = diff_profile_id
+
+    serializer = ProfileQuerySerializer(data=data)
+    serializer.is_valid(raise_exception=True)
+
+    with pytest.raises(ValueError, match="diff_profile_id"):
+        ProfileQueryViewSet._examine_global_query_scope(serializer.validated_data)
+
+
+@pytest.mark.parametrize("serializer_class", [ProfileQueryLabelsSerializer, ProfileQueryLabelValuesSerializer])
+def test_global_label_query_requires_profile_id(serializer_class):
+    data = {"bk_biz_id": BK_BIZ_ID, "global_query": True, "start": 1, "end": 2}
+    if serializer_class is ProfileQueryLabelValuesSerializer:
+        data["label_key"] = "service"
+    serializer = serializer_class(data=data)
+    serializer.is_valid(raise_exception=True)
+
+    with pytest.raises(ValueError, match="profile_id"):
+        ProfileQueryViewSet._examine_global_query_scope(serializer.validated_data)
+
+
+@pytest.mark.parametrize(
+    ("action", "extra_params"),
+    [("labels", {}), ("label_values", {"label_key": "service"})],
+)
+@mock.patch.object(ProfileQueryViewSet, "query")
+@mock.patch.object(ProfileQueryViewSet, "get_essentials")
+def test_global_label_query_filters_by_profile_id(essentials_mock, query_mock, action, extra_params):
+    essentials_mock.return_value = {
+        "bk_biz_id": 1,
+        "app_name": "builtin",
+        "service_name": "builtin",
+        "result_table_id": "1_profile_builtin",
+        "is_ebpf": False,
+    }
+    query_mock.return_value = {"list": []}
+    params = {
+        "bk_biz_id": BK_BIZ_ID,
+        "global_query": True,
+        "start": 1,
+        "end": 2,
+        "profile_id": "own-profile",
+    }
+    params.update(extra_params)
+    viewset = build_viewset(ProfileQueryViewSet, params)
+
+    getattr(viewset, action)(viewset.request)
+
+    assert query_mock.call_args[1]["profile_id"] == "own-profile"
 
 
 def test_list_file_serializer_requires_bk_biz_id():

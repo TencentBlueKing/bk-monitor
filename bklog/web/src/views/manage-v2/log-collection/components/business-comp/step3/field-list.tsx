@@ -28,6 +28,7 @@ import { defineComponent, ref, computed, onBeforeUnmount, onMounted, nextTick, t
 
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
+import { isFieldTypeDisabled } from '@/common/util';
 import tippy, { type Instance } from 'tippy.js';
 import InfoTips from '../../common-comp/info-tips';
 import TableComponent from '../../common-comp/table-component';
@@ -165,8 +166,6 @@ export default defineComponent({
   setup(props, { emit, expose }) {
     const { t } = useLocale();
     const store = useStore();
-    // 最大 int 类型值
-    const MAX_INT_VALUE = 2_147_483_647;
     const REQUIRED_FIELD_MSG = t('必填项');
     const INVALID_FIELD_NAME_MSG = t('只能包含a - z、A - Z、0 - 9和_，且不能以_开头和结尾');
     const INVALID_ALIAS_NAME_MSG = t('重命名只能包含a - z、A - Z、0 - 9和_');
@@ -474,23 +473,35 @@ export default defineComponent({
           // 如果有行数据，初始化 cacheData
           if (currentRow) {
             cacheData.value = {
-              is_analyzed: currentRow.is_analyzed,
+              is_analyzed: Boolean(currentRow.is_analyzed),
               tokenize_on_chars: currentRow.tokenize_on_chars || '',
-              is_case_sensitive: currentRow.is_case_sensitive,
+              is_case_sensitive: Boolean(currentRow.is_case_sensitive),
             };
             currentParticipleState.value = currentRow.tokenize_on_chars ? 'custom' : 'default';
+          }
+
+          const container = reference.nextElementSibling as HTMLElement | null;
+          const contentNode = container?.querySelector('.word-breaker-menu-content') as HTMLElement | null;
+          if (contentNode) {
+            instance.setContent(contentNode);
           }
         },
         onHide(instance) {
           (instance.reference as HTMLElement).classList.remove('is-hover');
         },
-        content(reference) {
-          const btn = reference as HTMLElement;
-          // 约定：内容紧跟在按钮后的兄弟元素中
-          const container = btn.nextElementSibling as HTMLElement | null;
-          const contentNode = container?.querySelector('.word-breaker-menu-content') as HTMLElement | null;
-          return (contentNode ?? container ?? document.createElement('div')) as unknown as Element;
+        onHidden(instance) {
+          const reference = instance.reference as HTMLElement;
+          const container = reference.nextElementSibling as HTMLElement | null;
+          if (container) {
+            const tippyContentEl = instance.popper?.querySelector('.tippy-content');
+            const menuContent = tippyContentEl?.querySelector('.word-breaker-menu-content') as HTMLElement | null;
+            if (menuContent && menuContent.parentElement !== container) {
+              container.appendChild(menuContent);
+            }
+          }
+          instance.setContent(document.createElement('div'));
         },
+        content: document.createElement('div'),
       });
 
       // tippy 返回单个或数组，这里统一转为数组
@@ -568,21 +579,6 @@ export default defineComponent({
      * 刷新值
      */ const handleFreshValue = () => {
       emit('refresh');
-    };
-
-    /**
-     * 当前字段类型是否禁用
-     * @param row
-     * @param option
-     * @returns
-     */
-    const isTypeDisabled = (row, option) => {
-      if (row.verdict) {
-        // 不是数值，相关数值类型选项被禁用
-        return ['int', 'long', 'double', 'float'].includes(option.id);
-      }
-      // 是数值，如果值大于 MAX_INT_VALUE 即 2^31 - 1，int 选项被禁用
-      return option.id === 'int' && row.value > MAX_INT_VALUE;
     };
 
     /**
@@ -1165,36 +1161,32 @@ export default defineComponent({
         className: () => 'fields-table-column',
         cell: (h, { row }) => (
           <div class='type-select-wrapper'>
-            {row.field_type === 'flattened' ? (
-              <span class='overflow-tips'>{t('动态对象字段')}</span>
-            ) : (
-              <bk-select
-                class={{ 'type-error': row.typeErr }}
-                clearable={false}
-                disabled={props.isTemplateSource || row.is_built_in}
-                value={row.field_type}
-                on-change={value => {
-                  if (value === 'string') {
-                    scheduleInitMenuPop(1000);
-                  }
-                  const newList = updateList(props.data, row, item => ({
-                    ...item,
-                    field_type: value,
-                    typeErr: false, // 选择类型后清除错误状态
-                  }));
-                  emit('change', newList);
-                }}
-              >
-                {(globalsData.value.field_data_type || []).map(option => (
-                  <bk-option
-                    id={option.id}
-                    key={option.id}
-                    disabled={isTypeDisabled(row, option)}
-                    name={option.name}
-                  />
-                ))}
-              </bk-select>
-            )}
+            <bk-select
+              class={{ 'type-error': row.typeErr }}
+              clearable={false}
+              disabled={props.isTemplateSource || row.is_built_in}
+              value={row.field_type}
+              on-change={value => {
+                if (value === 'string') {
+                  scheduleInitMenuPop(1000);
+                }
+                const newList = updateList(props.data, row, item => ({
+                  ...item,
+                  field_type: value,
+                  typeErr: false, // 选择类型后清除错误状态
+                }));
+                emit('change', newList);
+              }}
+            >
+              {(globalsData.value.field_data_type || []).map(option => (
+                <bk-option
+                  id={option.id}
+                  key={option.id}
+                  disabled={isFieldTypeDisabled(row, option)}
+                  name={option.name}
+                />
+              ))}
+            </bk-select>
             {row.typeErr && (
               <i
                 class='bk-icon icon-exclamation-circle-shape tooltips-icon type-error-icon'

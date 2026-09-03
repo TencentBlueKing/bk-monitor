@@ -365,6 +365,7 @@ ACTIVE_VIEWS = {
         "apm_profile": "apm_web.profile.views",
         "apm_container": "apm_web.container.views",
         "apm_strategy": "apm_web.strategy.views",
+        "llm_web": "apm_web.llm.views",
     },
     "rum_web": {
         "rum_meta": "rum_web.meta.views",
@@ -811,11 +812,11 @@ ACCESS_LATENCY_THRESHOLD_CONSTANT = 180
 # 仅对列表中的策略启用合并处理，为空时对所有静态阈值策略生效
 ACCESS_DETECT_MERGE_STRATEGY_IDS = []
 
-# Detect 完成后是否同步执行 Trigger；Access-Detect 合并路径共用此开关
-ENABLE_DETECT_INLINE_TRIGGER = False
+# Detect 完成后是否同步执行 Trigger；默认开启，Access-Detect 合并路径共用此开关
+ENABLE_DETECT_INLINE_TRIGGER = True
 
-# Event 完成后是否同步执行 Trigger；开启前需要先完成 Event 和 Trigger worker 滚动更新
-ENABLE_EVENT_INLINE_TRIGGER = False
+# Event 完成后是否同步执行 Trigger；默认开启，从旧版本升级时需先完成 Event 和 Trigger worker 滚动更新
+ENABLE_EVENT_INLINE_TRIGGER = True
 
 # 单个 Event 策略项最多占用的内联 Trigger 并发数
 EVENT_INLINE_TRIGGER_MAX_CONCURRENCY_PER_ITEM = 1
@@ -1333,7 +1334,7 @@ BK_CI_URL = os.getenv("BK_CI_URL") or os.getenv("BKAPP_BK_CI_URL", "")
 BKCI_APP_CODE = os.getenv("BKCI_APP_CODE")
 BKCI_APP_SECRET = os.getenv("BKCI_APP_SECRET")
 BK_MONITOR_HOST = os.getenv("BK_MONITOR_HOST", "{}/o/bk_monitorv3/".format(BK_PAAS_HOST.rstrip("/")))
-ACTION_DETAIL_URL = f"{BK_MONITOR_HOST}?bizId={{bk_biz_id}}/#/event-center/action-detail/{{action_id}}"
+ACTION_DETAIL_URL = f"{BK_MONITOR_HOST}?bizId={{bk_biz_id}}#/event-center/action-detail/{{action_id}}"
 EVENT_CENTER_URL = urljoin(
     BK_MONITOR_HOST,
     "?bizId={bk_biz_id}#/trace/alarm-center?queryString=action_id%20%3A%20{collect_id}&filterMode=queryString",
@@ -1377,11 +1378,15 @@ PUSH_MONITOR_EVENT_TO_FTA = True
 MONITOR_EVENT_KAFKA_TOPIC = os.getenv("BK_MONITOR_EVENT_KAFKA_TOPIC", "0bkmonitor_backend_event")
 # alarmd Detect→Trigger Shadow 默认关闭；所有旁路发布由一个总开关控制。
 ALARMD_SHADOW_ENABLED = False
-ALARMD_SHADOW_ASYNC_QUEUE_SIZE = 16
-ALARMD_DETECT_INPUT_SHADOW_KAFKA_CONFIG = {}
-ALARMD_DETECT_INPUT_SHADOW_ALLOWED_TOPICS = ()
+ALARMD_V2_SHADOW_KAFKA_CONFIG = {}
+ALARMD_V2_SHADOW_ALLOWED_TOPICS = ()
+ALARMD_V2_SHADOW_ASYNC_MAX_JOBS = 0
+ALARMD_V2_SHADOW_ASYNC_MAX_RECORDS = 0
+ALARMD_V2_SHADOW_ASYNC_MAX_BYTES = 0
+ALARMD_V2_SHADOW_DRAIN_TIMEOUT_SECONDS = 1
 ALARMD_TRIGGER_REFERENCE_SHADOW_KAFKA_CONFIG = {}
 ALARMD_TRIGGER_REFERENCE_SHADOW_ALLOWED_TOPICS = ()
+ALARMD_TRIGGER_REFERENCE_SHADOW_ASYNC_QUEUE_SIZE = 16
 # 监控推送事件数据给自愈的 插件ID
 MONITOR_EVENT_PLUGIN_ID = "bkmonitor"
 # 主机监控获取单个进程支持最多port数

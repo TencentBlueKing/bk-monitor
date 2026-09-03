@@ -159,54 +159,6 @@ export function isNumeric(str) {
 }
 
 /**
- * 从 where 项中移除指定值；若无剩余值则从列表中删除该项
- */
-function removeWhereValue(list: IWhereItem[], whereItem: IWhereItem, value: number | string) {
-  const valueStr = (whereItem.value || []).map(String);
-  const valueIndex = valueStr.indexOf(String(value));
-  if (valueIndex === -1) {
-    return;
-  }
-
-  if (valueStr.length === 1) {
-    const index = list.findIndex(v => v === whereItem);
-    if (index !== -1) {
-      list.splice(index, 1);
-    }
-  } else {
-    whereItem.value.splice(valueIndex, 1);
-    if (whereItem.value.length === 1 && whereItem.options) {
-      // 只剩一个值时，删除 OR 关系
-      delete whereItem.options.group_relation;
-    }
-  }
-}
-
-/**
- * 将值追加到已有 where 项（多选 OR）
- */
-function appendWhereValue(whereItem: IWhereItem, values: number[] | string[]) {
-  const valueStr = (whereItem.value || []).map(String);
-  if (valueStr.includes(String(values[0]))) {
-    return;
-  }
-
-  if (whereItem.options?.group_relation === DEFAULT_GROUP_RELATION) {
-    Object.assign(whereItem, {
-      value: [...whereItem.value, ...values],
-    });
-  } else {
-    Object.assign(whereItem, {
-      value: [...whereItem.value, ...values],
-      options: {
-        ...whereItem.options,
-        group_relation: DEFAULT_GROUP_RELATION,
-      },
-    });
-  }
-}
-
-/**
  * @description 合并where条件 （不相同的条件往后添加）
  * @param source
  * @param target
@@ -214,7 +166,8 @@ function appendWhereValue(whereItem: IWhereItem, values: number[] | string[]) {
  * @returns
  */
 export function mergeWhereList(source: IWhereItem[], target: IWhereItem[], isMergeSameKey = false) {
-  const cloneSource = structuredClone(source);
+  // where 可能是 Vue Proxy（Pinia deepRef 等），structuredClone 无法克隆
+  const cloneSource = JSON.parse(JSON.stringify(source)) as IWhereItem[];
   let result: IWhereItem[] = [];
   const localTarget = [];
   if (
@@ -275,6 +228,7 @@ export function mergeWhereList(source: IWhereItem[], target: IWhereItem[], isMer
   result = [...cloneSource, ...localTarget];
   return result;
 }
+
 export function onClickOutside(element, callback, { once = false } = {}) {
   const handler = (event: MouseEvent) => {
     let isInside = false;
@@ -298,6 +252,53 @@ export function onClickOutside(element, callback, { once = false } = {}) {
  */
 export function setCacheUIData(v: IFilterItem[]) {
   localStorage.setItem(RETRIEVAL_FILTER_UI_DATA_CACHE_KEY, JSON.stringify(v));
+}
+/**
+ * 将值追加到已有 where 项（多选 OR）
+ */
+function appendWhereValue(whereItem: IWhereItem, values: number[] | string[]) {
+  const valueStr = (whereItem.value || []).map(String);
+  if (valueStr.includes(String(values[0]))) {
+    return;
+  }
+
+  if (whereItem.options?.group_relation === DEFAULT_GROUP_RELATION) {
+    Object.assign(whereItem, {
+      value: [...whereItem.value, ...values],
+    });
+  } else {
+    Object.assign(whereItem, {
+      value: [...whereItem.value, ...values],
+      options: {
+        ...whereItem.options,
+        group_relation: DEFAULT_GROUP_RELATION,
+      },
+    });
+  }
+}
+
+/**
+ * 从 where 项中移除指定值；若无剩余值则从列表中删除该项
+ */
+function removeWhereValue(list: IWhereItem[], whereItem: IWhereItem, value: number | string) {
+  const valueStr = (whereItem.value || []).map(String);
+  const valueIndex = valueStr.indexOf(String(value));
+  if (valueIndex === -1) {
+    return;
+  }
+
+  if (valueStr.length === 1) {
+    const index = list.indexOf(whereItem);
+    if (index !== -1) {
+      list.splice(index, 1);
+    }
+  } else {
+    whereItem.value.splice(valueIndex, 1);
+    if (whereItem.value.length === 1 && whereItem.options) {
+      // 只剩一个值时，删除 OR 关系
+      delete whereItem.options.group_relation;
+    }
+  }
 }
 
 export const traceWhereFormatter = (where: IWhereItem[]) => {
@@ -417,7 +418,6 @@ export const DEFAULT_GROUP_RELATION = 'OR';
 export const NULL_VALUE_NAME = `- ${window.i18n.t('空')} -`;
 export const NULL_VALUE_ID = '';
 
-
 /** 将级联选择器的二维数组值序列化为 JSON 字符串（用于存储到 filter item 的 id） */
 export const setCascadeValueSplit = (value: string[]): string => {
   try {
@@ -425,7 +425,7 @@ export const setCascadeValueSplit = (value: string[]): string => {
   } catch (_error) {
     return '';
   }
-}
+};
 /** 将级联选择器存储的 JSON 字符串反序列化为二维数组 */
 export const getCascadeValueSplit = (value: string): string[] => {
   try {
@@ -433,4 +433,4 @@ export const getCascadeValueSplit = (value: string): string[] => {
   } catch (_error) {
     return [];
   }
-}
+};

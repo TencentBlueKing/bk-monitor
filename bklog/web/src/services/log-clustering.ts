@@ -167,6 +167,11 @@ const debug = {
   url: '/clustering_config/debug/',
   method: 'post',
 };
+
+const sampleLog = {
+  url: '/clustering_config/:index_set_id/sample_log/',
+  method: 'get',
+};
 export interface LogPattern {
   pattern: string; // 格式化后的日志模式（包含占位符如 #NUMBER#）
   origin_pattern: string; // 原始日志模式
@@ -312,6 +317,7 @@ export {
   getConfig,
   getDefaultConfig,
   debug,
+  sampleLog,
   clusterSearch,
   closeClean,
   updateStrategies,

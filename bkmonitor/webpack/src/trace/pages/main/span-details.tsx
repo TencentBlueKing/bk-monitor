@@ -31,6 +31,7 @@ import {
   computed,
   defineComponent,
   inject,
+  onBeforeUnmount,
   onMounted,
   provide,
   reactive,
@@ -52,6 +53,11 @@ import VueJsonPretty from 'vue-json-pretty';
 
 import ExceptionGuide, { type IGuideInfo } from '../../components/exception-guide/exception-guide';
 import MonitorTab from '../../components/monitor-tab/monitor-tab';
+import {
+  hideSelectionDecoder,
+  isPointerDragSelect,
+  showSelectionDecoder,
+} from '../../components/selection-decoder';
 import transformTraceTree from '../../components/trace-view/model/transform-trace-data';
 import { formatDate, formatDuration, formatTime } from '../../components/trace-view/utils/date';
 import ProfilingFlameGraph from '../../plugins/charts/profiling-graph/profiling-flame-graph/flame-graph';
@@ -81,7 +87,6 @@ import { TRACE_SPAN_DETAIL_BASIC_INFO_EXPAND_KEY } from './constants';
 import DashboardPanel from './dashboard-panel/dashboard-panel';
 import K8sContainer from './k8s-container';
 import { formatSpanLinks } from './utils/format-span-links';
-import DecodeDialog from '@/components/decode-dialog/decode-dialog';
 
 import type { Span } from '../../components/trace-view/typings';
 import type { IFlameGraphDataItem } from 'monitor-ui/chart-plugins/hooks/profiling-graph/types';
@@ -810,8 +815,29 @@ export default defineComponent({
 
     /* 关闭侧栏 */
     const handleHiddenChange = () => {
+      hideSelectionDecoder();
       localShow.value = false;
       emit('show', localShow.value);
+    };
+
+    /** 划选 .right 区域文本后弹出复制 / 自动解码，纯点击忽略 */
+    const handleRightTextSelect = (event: MouseEvent) => {
+      const selection = window.getSelection();
+      const text = selection?.toString() ?? '';
+      if (!selection || !text.trim()) {
+        hideSelectionDecoder();
+        return;
+      }
+
+      if (!isPointerDragSelect(event)) {
+        return;
+      }
+
+      if (!event.currentTarget) {
+        return;
+      }
+
+      showSelectionDecoder(text, event);
     };
 
     /* 上一跳/下一跳 */
@@ -1035,8 +1061,7 @@ export default defineComponent({
       if ((typeof content === 'number' && content.toString().length < 10) || typeof content === 'undefined')
         return content;
       if (!isJson(content?.toString())) {
-        const str = typeof content === 'string' ? content : JSON.stringify(content);
-        return <DecodeDialog content={str} />;
+        return typeof content === 'string' ? content : JSON.stringify(content);
       }
       const data = JSON.parse(content?.toString() || '');
       return isFormat ? <VueJsonPretty data={handleFormatJson(data)} /> : content;
@@ -1089,12 +1114,18 @@ export default defineComponent({
                 </div>
               </span>
               {item.type === 'error' ? (
-                <div class='right'>
+                <div
+                  class='right'
+                  onMouseup={handleRightTextSelect}
+                >
                   <span class='error-text'>{formatContent(item.content, item.isFormat)}</span>
                   <span class='icon-monitor icon-mind-fill' />
                 </div>
               ) : (
-                <div class='right'>
+                <div
+                  class='right'
+                  onMouseup={handleRightTextSelect}
+                >
                   {UNDECODED_PROPERTY_NAMES_WHITELIST.includes(item.label)
                     ? item.content
                     : formatContent(item.content, item.isFormat)}
@@ -1996,6 +2027,7 @@ export default defineComponent({
             document.querySelector('.span-details-sideslider')?.appendChild(maskEle);
           }
         } else {
+          hideSelectionDecoder();
           resetSpanLinksRequestState();
           isInvokeOnceFlag = true;
           activeTab.value = 'BasicInfo';
@@ -2040,6 +2072,10 @@ export default defineComponent({
 
     onMounted(() => {
       getSpanDetailExpandUserConfig();
+    });
+
+    onBeforeUnmount(() => {
+      hideSelectionDecoder();
     });
 
     return {

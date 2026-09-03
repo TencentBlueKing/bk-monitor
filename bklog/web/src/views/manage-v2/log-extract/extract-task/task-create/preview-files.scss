@@ -46,6 +46,51 @@
   }
 }
 
+.selected-files-panel {
+  width: calc(100% - 140px);
+  max-width: 1000px;
+  padding: 12px;
+  margin-top: 12px;
+  background: #f5f7fa;
+  border: 1px solid #dcdee5;
+
+  .selected-files-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    color: #313238;
+  }
+
+  .selected-files-tip,
+  .selected-files-empty {
+    font-size: 12px;
+    color: #979ba5;
+  }
+
+  .selected-files-tip {
+    margin: 8px 0;
+  }
+
+  .selected-file-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 28px;
+    padding: 0 8px;
+    background: #fff;
+
+    span {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .icon-close {
+      cursor: pointer;
+    }
+  }
+}
+
 .preview-scroll-table {
   .bk-table-body-wrapper {
     overflow-y: auto;

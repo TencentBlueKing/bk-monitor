@@ -389,7 +389,7 @@ def _with_compose_nullable_fields(configs: list[dict] | dict) -> list[dict] | di
         if config.get("kind") == DataLinkKind.RESULTTABLE.value:
             spec.setdefault("fields", None)
         elif config.get("kind") == DataLinkKind.ESSTORAGEBINDING.value:
-            spec.setdefault("json_field_list", None)
+            spec.setdefault("json_field_list", [])
         elif config.get("kind") == DataLinkKind.VMSTORAGEBINDING.value:
             for field in ("filter", "metricGroupDimensions", "ddVersion"):
                 spec.setdefault(field, None)
@@ -1654,7 +1654,8 @@ def test_merge_existing_component_configs_reraises_non_not_found_errors(create_o
 
 
 @pytest.mark.django_db(databases="__all__")
-def test_merge_existing_component_configs_accepts_bkbase_v4_not_found(create_or_delete_records):
+@pytest.mark.parametrize("resource_error_detail", ["resource not found", "Resource not found."])
+def test_merge_existing_component_configs_accepts_bkbase_v4_not_found(create_or_delete_records, resource_error_detail):
     data_link_ins = DataLink.objects.create(
         data_link_name="data_link_test",
         namespace="bkmonitor",
@@ -1670,7 +1671,7 @@ def test_merge_existing_component_configs_accepts_bkbase_v4_not_found(create_or_
         url="/v4/namespaces/{namespace}/{kind}/{name}/",
         result={
             "code": "1558025",
-            "data": "resource not found",
+            "data": resource_error_detail,
             "message": "resource not found",
         },
     )
@@ -5256,7 +5257,7 @@ def test_get_bkbase_components_config_extracts_databus_consumer_group():
 
 
 def test_get_bkbase_components_config_defaults_databus_consumer_group():
-    """同步 Databus 时，缺省 consumerGroup 应落为空字符串。"""
+    """同步 Databus 时，缺省或 null consumerGroup 应落为空字符串。"""
     config = {
         "kind": "Databus",
         "metadata": {"name": "l_1575784", "namespace": "bkmonitor", "labels": {"bk_biz_id": "7"}},
@@ -5267,6 +5268,16 @@ def test_get_bkbase_components_config_defaults_databus_consumer_group():
         "status": {"phase": "Ok"},
     }
 
+    _, extra_config = _get_bkbase_components_config(
+        bk_tenant_id="default",
+        kind=DataLinkKind.DATABUS.value,
+        namespace="bkmonitor",
+        config=config,
+    )
+
+    assert extra_config["consumer_group"] == ""
+
+    config["spec"]["consumerGroup"] = None
     _, extra_config = _get_bkbase_components_config(
         bk_tenant_id="default",
         kind=DataLinkKind.DATABUS.value,
@@ -5326,6 +5337,7 @@ def test_create_base_event_datalink_for_bkcc_metadata_part(create_or_delete_reco
         patch.object(
             DataLink, "apply_data_link_with_retry", return_value={"status": "success"}
         ) as mock_apply_with_retry,
+        patch.object(DataLink, "get_existing_component_config", return_value=None),
         patch("bkmonitor.utils.tenant.get_tenant_default_biz_id", return_value=2),
     ):  # noqa
         # 调用多租户基础采集数据链路创建方法
@@ -5378,6 +5390,7 @@ def test_create_base_event_datalink_for_bkcc_bkbase_part(create_or_delete_record
         patch.object(
             DataLink, "apply_data_link_with_retry", return_value={"status": "success"}
         ) as mock_apply_with_retry,
+        patch.object(DataLink, "get_existing_component_config", return_value=None),
         patch("bkmonitor.utils.tenant.get_tenant_default_biz_id", return_value=2),
     ):  # noqa
         # 调用多租户基础采集数据链路创建方法
@@ -5398,7 +5411,7 @@ def test_create_base_event_datalink_for_bkcc_bkbase_part(create_or_delete_record
             "metadata": {
                 "labels": {"bk_biz_id": "1"},
                 "name": "base_1_agent_event",
-                "namespace": "bkmonitor",
+                "namespace": "bklog",
                 "tenant": "system",
             },
             "spec": {
@@ -5451,21 +5464,22 @@ def test_create_base_event_datalink_for_bkcc_bkbase_part(create_or_delete_record
             "metadata": {
                 "labels": {"bk_biz_id": "1"},
                 "name": "base_1_agent_event",
-                "namespace": "bkmonitor",
+                "namespace": "bklog",
                 "tenant": "system",
             },
             "spec": {
                 "data": {
                     "kind": "ResultTable",
                     "name": "base_1_agent_event",
-                    "namespace": "bkmonitor",
+                    "namespace": "bklog",
                     "tenant": "system",
                 },
+                "doc_type": "base_system_1_event",
                 "maintainers": ["admin"],
                 "storage": {
                     "kind": "ElasticSearch",
                     "name": "es_default",
-                    "namespace": "bkmonitor",
+                    "namespace": "bklog",
                     "tenant": "system",
                 },
                 "unique_field_list": ["event", "target", "dimensions", "event_name", "time"],
@@ -5477,7 +5491,7 @@ def test_create_base_event_datalink_for_bkcc_bkbase_part(create_or_delete_record
             "metadata": {
                 "labels": {"bk_biz_id": "1"},
                 "name": "base_1_agent_event",
-                "namespace": "bkmonitor",
+                "namespace": "bklog",
                 "tenant": "system",
             },
             "spec": {
@@ -5486,19 +5500,29 @@ def test_create_base_event_datalink_for_bkcc_bkbase_part(create_or_delete_record
                     {
                         "kind": "ElasticSearchBinding",
                         "name": "base_1_agent_event",
-                        "namespace": "bkmonitor",
+                        "namespace": "bklog",
                         "tenant": "system",
                     }
                 ],
-                "sources": [
-                    {"kind": "DataId", "name": "base_1_agent_event", "namespace": "bkmonitor", "tenant": "system"}
-                ],
+                "sources": [{"kind": "DataId", "name": "base_1_agent_event", "namespace": "bklog", "tenant": "system"}],
                 "transforms": [{"kind": "PreDefinedLogic", "name": "gse_system_event"}],
             },
         },
     ]
 
     assert actual_configs == _with_compose_nullable_fields(expected_configs)
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_create_base_event_datalink_for_bkcc_does_not_log_success_after_apply_failure(create_or_delete_records, mocker):
+    settings.ENABLE_MULTI_TENANT_MODE = True
+    mocker.patch.object(DataLink, "apply_data_link", side_effect=ValueError("apply failed"))
+    task_logger = mocker.patch("metadata.task.tasks.logger")
+
+    create_base_event_datalink_for_bkcc(bk_tenant_id="system", bk_biz_id=1)
+
+    task_logger.exception.assert_called_once()
+    assert not any(" success" in call.args[0] for call in task_logger.info.call_args_list)
 
 
 @pytest.mark.django_db(databases="__all__")

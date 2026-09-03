@@ -132,7 +132,10 @@ const mountedVueInstance = () => {
     let externalMenu = [];
     if (window.IS_EXTERNAL && space) {
       externalMenu = getExternalMenuListBySpace(space) ?? [];
-      store.commit('updateState', { externalMenu });
+      store.commit('updateState', {
+        externalMenu,
+        externalPermissions: space.external_permission ?? [],
+      });
     }
 
     const router = getRouter(spaceUid, bkBizId, externalMenu);

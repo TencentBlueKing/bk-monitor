@@ -53,6 +53,14 @@ export default defineComponent({
       type: String,
       default: '',
     },
+    indexSetId: {
+      type: [String, Number],
+      default: '',
+    },
+    isExternal: {
+      type: Boolean,
+      default: false,
+    },
   },
   setup(props, { emit, expose }) {
     const { t } = useLocale();
@@ -101,6 +109,8 @@ export default defineComponent({
         {showDebug.value && (
           <debug-tool
             collectorConfigId={props.collectorConfigId}
+            indexSetId={props.indexSetId}
+            isExternal={props.isExternal}
             maxLogLength={props.maxLogLength}
             ruleList={props.ruleList}
           />

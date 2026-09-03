@@ -14,7 +14,7 @@ from bkmonitor.data_source.utils import types
 from bkmonitor.data_source.utils.base import sort_fields
 from bkmonitor.data_source.utils.query import BaseQuery
 from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQuerySet
-from bkmonitor.data_source.utils.apm import TraceDatasourceTarget, APMQueryFilterMixin
+from bkmonitor.data_source.utils.apm import APMQueryFilterMixin
 from bkm_space.utils import bk_biz_id_to_space_uid
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from constants.otel_query import FIELD_OPERATIONS, OTEL_SPAN_COMMON_FIELD_ALIAS
@@ -28,9 +28,7 @@ class SpanQuery(APMQueryFilterMixin, BaseQuery):
     DEFAULT_SORT = ["-end_time"]
     FIELD_ALIAS_MAP_LIST = [OTEL_SPAN_COMMON_FIELD_ALIAS, RUM_FIELD_ALIAS]
     FIELD_OPERATIONS = FIELD_OPERATIONS
-    FIELD_UNITS = {
-        "elapsed_time": "us",
-    }
+    FIELD_UNITS = {"elapsed_time": "us", "start_time": "us", "end_time": "us", "time": "ms"}
     ENUM_FIELD_OPTION_VALUES = {
         field_name: [{"value": value, "alias": alias} for value, alias in enum_class.choices()]
         for field_name, enum_class in [
@@ -40,9 +38,6 @@ class SpanQuery(APMQueryFilterMixin, BaseQuery):
             ("resource.device.type", RumDeviceType),
         ]
     }
-
-    def __init__(self, data_sources: list[TraceDatasourceTarget]):
-        self.data_sources = data_sources
 
     @classmethod
     def build_query_q(cls, q: QueryConfigBuilder, filters: list[types.Filter] | None, query_string: str = ""):
@@ -120,7 +115,30 @@ class SpanQuery(APMQueryFilterMixin, BaseQuery):
             self.get_queries(filters, query_string), start_time, end_time, fields, limit
         )
 
-    def query_fields(self, start_time: int, end_time: int) -> dict[str, dict[str, Any]]:
+    def query_graph_config(
+        self,
+        start_time: int,
+        end_time: int,
+        field: str,
+        filters: list[types.Filter],
+        query_string: str,
+    ):
+        return super()._query_graph_config(self.get_queries(filters, query_string), start_time, end_time, field)
+
+    def query_field_aggregated_value(
+        self,
+        start_time: int,
+        end_time: int,
+        field: str,
+        method: str,
+        filters: list[types.Filter],
+        query_string: str,
+    ):
+        return super()._query_field_aggregated_value(
+            self.get_queries(filters, query_string), start_time, end_time, field, method
+        )
+
+    def query_fields(self, start_time: int | None, end_time: int | None) -> dict[str, dict[str, Any]]:
         return super()._query_fields(
             [(target.table_id, bk_biz_id_to_space_uid(target.app.bk_biz_id)) for target in self.data_sources],
             start_time,

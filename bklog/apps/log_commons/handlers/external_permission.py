@@ -1,7 +1,12 @@
 from collections import defaultdict
 from django.utils import timezone
 
-from apps.constants import ViewTypeEnum, TokenStatusEnum, ExternalPermissionActionEnum
+from apps.constants import (
+    INDEX_SET_SCOPED_EXTERNAL_ACTIONS,
+    ViewTypeEnum,
+    TokenStatusEnum,
+    ExternalPermissionActionEnum,
+)
 from apps.log_commons.models import AuthorizerSettings, ExternalPermission
 from bkm_space.api import SpaceApi
 
@@ -37,10 +42,9 @@ class ExternalPermissionHandler:
         index_set_ids_map = defaultdict(set)
 
         for permission in permission_qs_list:
-            if permission.action_id in (
-                ExternalPermissionActionEnum.LOG_EXTRACT.value,
-                ExternalPermissionActionEnum.CLIENT_LOG.value,
-            ):
+            # 只有索引集维度的授权项需要按索引集批量预取授权人的 SEARCH_LOG 权限,
+            # 其余授权项在 get_status 里按业务维度单独校验
+            if permission.action_id not in INDEX_SET_SCOPED_EXTERNAL_ACTIONS:
                 continue
             index_set_ids_map[permission.space_uid].update(permission.resources)
 
@@ -141,8 +145,8 @@ class ExternalPermissionHandler:
                 ):
                     # 如果授权者没有或失去该 bk_biz_id 下的日志提取管理权限, 则状态设为无效
                     status = TokenStatusEnum.INVALID.value
-            elif obj.action_id == ExternalPermissionActionEnum.LOG_SEARCH.value:
-                # 日志检索权限维度是索引集
+            elif obj.action_id in INDEX_SET_SCOPED_EXTERNAL_ACTIONS:
+                # 日志检索、聚类配置的权限维度都是索引集
                 permission_info_map = {}
                 for index_set_id in obj.resources:
                     permission_info_map[index_set_id] = self.get_permission_info(

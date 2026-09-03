@@ -39,8 +39,8 @@ export default class Rotation extends tsc<object> {
   }
   get rotationUrl() {
     return process.env.NODE_ENV === 'development'
-      ? `${this.rotationHost}/?bizId=${this.$store.getters.bizId}/#/trace/rotation`
-      : `${location.origin}${window.site_url}trace/?bizId=${this.$store.getters.bizId}/#/trace/rotation`;
+      ? `${this.rotationHost}/?bizId=${this.$store.getters.bizId}#/trace/rotation`
+      : `${location.origin}${window.site_url}trace/?bizId=${this.$store.getters.bizId}#/trace/rotation`;
   }
   get rotationData() {
     return JSON.stringify({

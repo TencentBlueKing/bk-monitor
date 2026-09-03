@@ -115,7 +115,7 @@
     "webpack-sources": "3.2.3"
   },
   "devDependencies": {
-    "@aafe/agent-runtime": "^0.2.11",
+    "@aafe/agent-runtime": "^0.2.20",
     "@eslint/js": "9.39.4",
     "@commitlint/cli": "19.2.1",
     "@commitlint/config-conventional": "12.1.4",

@@ -2032,6 +2032,7 @@ def create_base_event_datalink_for_bkcc(bk_tenant_id: str, bk_biz_id: int, stora
             bk_biz_id,
             e,
         )
+        return
 
     logger.info(
         "create_base_event_datalink_for_bkcc: create base event datalink for bk_biz_id->[%s] success", bk_biz_id

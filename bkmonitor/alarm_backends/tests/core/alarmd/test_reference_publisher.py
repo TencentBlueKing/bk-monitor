@@ -16,14 +16,13 @@ import pytest
 
 from alarm_backends.core.alarmd import reference_publisher as reference_publisher_module
 from alarm_backends.core.alarmd.encoder import decode_trigger_decision_batch
-from alarm_backends.core.alarmd.reference import build_terminal_reference_decision_batches
+from alarm_backends.core.alarmd.reference import build_reference_trigger_decision_candidate
 from alarm_backends.core.alarmd.reference_publisher import (
     KafkaReferenceDecisionPublisher,
     ReferenceDecisionPublishError,
     build_kafka_reference_decision_publisher,
 )
-from alarm_backends.core.alarmd.runtime import prepare_finalized_threshold_batch
-from alarm_backends.tests.alarmd_fixtures import DETECT_RECORDS, DETECT_STRATEGY
+from alarm_backends.tests.alarmd_fixtures import TRIGGER_POINT, TRIGGER_STRATEGY
 
 
 class FakeProducer:
@@ -57,14 +56,14 @@ def test_reference_publisher_uses_official_codec_partition_key_and_broker_ack():
         topic="alarmd-reference-shadow",
         flush_timeout=4,
     )
-    batch = _normal_reference_batch()
+    batch = _trigger_reference_batch()
 
     assert publisher.publish_batch(batch) == 1
     assert producer.flush_timeout == 4
     assert len(producer.messages) == 1
     message = producer.messages[0]
     assert message["topic"] == "alarmd-reference-shadow"
-    assert message["key"].hex() == "76822eff60b83ab18de1ec5ecf6c194f6e933f12af8b28e199f2a43f8a730c27"
+    assert message["key"].hex() == "d59d72356eecbb9f60b48ea1c80fd0c23c51e21da5185009580084806ba472bc"
     assert decode_trigger_decision_batch(message["value"]) == batch
 
 
@@ -75,7 +74,7 @@ def test_reference_publisher_batches_share_one_broker_ack_barrier():
         topic="alarmd-reference-shadow",
         flush_timeout=4,
     )
-    first = _normal_reference_batch()
+    first = _trigger_reference_batch()
     second = copy.deepcopy(first)
     second["batch_id"] = "batch-2"
 
@@ -91,7 +90,7 @@ def test_reference_publisher_bounds_each_ack_group_by_encoded_bytes():
         topic="alarmd-reference-shadow",
         flush_timeout=4,
     )
-    first = _normal_reference_batch()
+    first = _trigger_reference_batch()
     second = copy.deepcopy(first)
     second["batch_id"] = "batch-2"
     for batch in (first, second):
@@ -112,7 +111,7 @@ def test_reference_publisher_does_not_consume_past_one_size_lookahead_after_ack_
     )
     batches = []
     for index in range(3):
-        batch = _normal_reference_batch()
+        batch = _trigger_reference_batch()
         batch["batch_id"] = f"batch-{index}"
         batch["schema"]["minor"] = 1
         batch["padding"] = "x" * (300 * 1024)
@@ -150,7 +149,7 @@ def test_reference_publisher_reports_records_from_complete_ack_groups_before_lat
     )
     batches = []
     for index in range(2):
-        batch = _normal_reference_batch()
+        batch = _trigger_reference_batch()
         batch["batch_id"] = f"batch-{index}"
         batch["schema"]["minor"] = 1
         batch["padding"] = "x" * (300 * 1024)
@@ -178,7 +177,7 @@ def test_reference_publisher_requires_broker_ack(producer, error):
     )
 
     with pytest.raises(ReferenceDecisionPublishError, match=error):
-        publisher.publish_batch(_normal_reference_batch())
+        publisher.publish_batch(_trigger_reference_batch())
 
 
 def test_reference_publisher_config_uses_all_acks_without_idempotence():
@@ -229,7 +228,7 @@ def test_reference_publisher_rejects_unsafe_config(config):
         )
 
 
-@pytest.mark.parametrize("forbidden_topic", ["alarmd-detection-shadow", "monitor-event-nondefault"])
+@pytest.mark.parametrize("forbidden_topic", ["monitor-event", "monitor-event-nondefault"])
 def test_reference_publisher_rejects_topics_that_are_explicitly_forbidden(forbidden_topic):
     with pytest.raises(ValueError, match="allowlist must not contain forbidden"):
         build_kafka_reference_decision_publisher(
@@ -281,19 +280,22 @@ def test_cached_reference_publisher_reuses_process_producer_and_logs_enabled_onc
     reference_publisher_module.get_cached_kafka_reference_decision_publisher.cache_clear()
 
 
-def _normal_reference_batch():
-    strategy = copy.deepcopy(DETECT_STRATEGY)
-    detection = prepare_finalized_threshold_batch(
-        tenant_id="default",
+def _trigger_reference_batch():
+    point = copy.deepcopy(TRIGGER_POINT)
+    strategy = copy.deepcopy(TRIGGER_STRATEGY)
+    strategy["update_time"] = 1569246480
+    source_time = point["data"]["time"]
+    event_record = copy.deepcopy(point)
+    event_record["trigger"] = {
+        "level": "3",
+        "anomaly_ids": [f"55a76cf628e46c04a052f4e19bdb9dbf.{source_time}.1.1.3"],
+    }
+    return build_reference_trigger_decision_candidate(
         strategy=strategy,
-        item_id=2,
-        legacy_json=json.dumps(strategy).encode(),
-        batch_id="batch-1",
-        data_points=[copy.deepcopy(DETECT_RECORDS[1])],
-        anomaly_outputs=[],
-        finalized=True,
+        legacy_json=json.dumps(strategy, ensure_ascii=False, separators=(",", ":")).encode("utf-8"),
+        strategy_snapshot_key=point["strategy_snapshot_key"],
+        tenant_id_resolver=lambda _bk_biz_id: "default",
+        item_id=1,
+        point=point,
+        event_record=event_record,
     )
-    return build_terminal_reference_decision_batches(
-        strategy_ir=detection["strategy_ir"],
-        detection_outcomes=detection["outcomes"],
-    )[0]

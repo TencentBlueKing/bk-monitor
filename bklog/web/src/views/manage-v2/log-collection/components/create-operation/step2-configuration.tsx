@@ -51,8 +51,8 @@ import type { IFormData, IValueItem, IContainerConfigItem, ISubmitOptions } from
 import DeviceMetadata from '../business-comp/step2/device-metadata'; // 设备元数据组件
 import EventFilter from '../business-comp/step2/event-filter'; // 事件过滤器组件
 import type { EventType, IEventFilterItem } from '../business-comp/step2/event-filter';
+import LineRuleConfig from '../business-comp/step2/line-rule-config'; // 段日志配置组件
 import LogFilter from '../business-comp/step2/log-filter'; // 日志过滤器组件
-import MultilineRegDialog from '../business-comp/step2/multiline-reg-dialog'; // 多行正则对话框组件
 import InfoTips from '../common-comp/info-tips'; // 信息提示组件
 import InputAddGroup from '../common-comp/input-add-group'; // 输入框组组件
 import AppendLogTags from '../business-comp/step2/container-collection/append-log-tags'; // 附加日志标签组件
@@ -138,7 +138,6 @@ export default defineComponent({
     const { bkBizId, goListPage } = useCollectList();
     const { cardRender } = useOperation();
     const baseInfoRef = ref();
-    const showMultilineRegDialog = ref(false);
     const isBlacklist = ref(false);
     const logType = ref('row');
     const showSelectDialog = ref(false);
@@ -167,11 +166,6 @@ export default defineComponent({
       // separator: '|',
       // separator_filters: [{ fieldindex: '', word: '', op: '=', logic_op: 'and' }],
     };
-    /**
-     * 行首正则是否为空
-     */
-    const isSegmentError = ref(false);
-
     /**
      * 日志种类
      */
@@ -208,6 +202,7 @@ export default defineComponent({
      * 选择目标是否为空
      */
     const isTargetNodesEmpty = ref(false);
+    const lineRuleRef = ref(); // 段日志配置ref
     const pathRef = ref(); // 日志路径ref
     const excludeFilesRef = ref(); // 黑名单路径ref
     const logFilterRef = ref(); // 日志过滤器ref
@@ -437,18 +432,6 @@ export default defineComponent({
       formData.value.extra_labels = data;
     };
     /**
-     * 显示行首正则调试弹窗
-     */
-    const handleDebugReg = () => {
-      showMultilineRegDialog.value = true;
-    };
-    /**
-     * 关闭行首正则调试弹窗
-     */
-    const handleCancelMultilineReg = (val: boolean) => {
-      showMultilineRegDialog.value = val;
-    };
-    /**
      * 修改过滤内容
      * @param data
      */
@@ -504,10 +487,15 @@ export default defineComponent({
     /**
      * 将字符串数组转换为输入框组件的值格式
      * @param items - 字符串数组
-     * @returns 转换后的值数组，如果为空则返回包含空字符串的数组
+     * @param ensureEditableRow - 空数组时是否保留一条可编辑输入
+     * @returns 转换后的输入框值数组
      */
-    const transformStringArrayToInputValue = (items?: string[]): Array<{ value: string }> => {
-      return items?.map(item => ({ value: item })) || [{ value: '' }];
+    const transformStringArrayToInputValue = (
+      items?: string[],
+      ensureEditableRow = false,
+    ): Array<{ value: string }> => {
+      const valueList = items?.map(item => ({ value: item })) || [];
+      return ensureEditableRow && valueList.length === 0 ? [{ value: '' }] : valueList;
     };
 
     /**
@@ -564,7 +552,7 @@ export default defineComponent({
       } = configItem;
 
       // 转换路径和排除文件格式
-      const paths = transformStringArrayToInputValue(itemParams.paths);
+      const paths = transformStringArrayToInputValue(itemParams.paths, true);
       const excludeFiles = transformStringArrayToInputValue(itemParams.exclude_files);
 
       // 构建标签选择器和注解选择器
@@ -655,7 +643,7 @@ export default defineComponent({
       const { collector_config_name: collectorConfigName, params } = detailData;
 
       // 转换路径和排除文件格式
-      const paths = transformStringArrayToInputValue(params.paths);
+      const paths = transformStringArrayToInputValue(params.paths, true);
       const excludeFiles = transformStringArrayToInputValue(params.exclude_files);
       isBlacklist.value = excludeFiles.length > 0;
       formData.value = {
@@ -775,66 +763,14 @@ export default defineComponent({
      * 行首正则
      */
     const renderSegment = data => (
-      <div class='line-rule'>
-        <div class='label-title text-left'>{t('行首正则')}</div>
-        <div class='rule-reg'>
-          <bk-input
-            class={{
-              'reg-input': true,
-              'is-error': isSegmentError.value,
-            }}
-            value={data.multiline_pattern}
-            on-input={val => {
-              isConfigChange.value = true;
-              data.multiline_pattern = val;
-            }}
-          />
-          <span
-            class='form-link debug'
-            on-Click={handleDebugReg}
-          >
-            {t('调试')}
-          </span>
-        </div>
-        <div class='line-rule-box'>
-          <div class='line-rule-box-item'>
-            <div class='label-title no-require text-left'>{t('最多匹配')}</div>
-            <bk-input
-              value={data.multiline_max_lines}
-              on-input={val => {
-                isConfigChange.value = true;
-                data.multiline_max_lines = val;
-              }}
-            >
-              <div
-                class='group-text'
-                slot='append'
-              >
-                {t('行')}
-              </div>
-            </bk-input>
-          </div>
-          <div class='line-rule-box-right'>
-            <div class='label-title no-require text-left'>{t('最大耗时')}</div>
-            <bk-input
-              class='time-box'
-              value={data.multiline_timeout}
-              on-input={val => {
-                isConfigChange.value = true;
-                data.multiline_timeout = val;
-              }}
-            >
-              <div
-                class='group-text'
-                slot='append'
-              >
-                {t('秒')}
-              </div>
-            </bk-input>
-            <InfoTips tips={t('建议配置 1s, 配置过长时间可能会导致日志积压')} />
-          </div>
-        </div>
-      </div>
+      <LineRuleConfig
+        ref={lineRuleRef}
+        data={data}
+        on-update={val => {
+          isConfigChange.value = true;
+          formData.value.params = val;
+        }}
+      />
     );
     /**
      * 日志过滤
@@ -1582,9 +1518,9 @@ export default defineComponent({
       }
 
       /**
-       * 行首正则是否为空
+       * 段日志配置校验
        */
-      isSegmentError.value = isSectionLog.value && !formData.value.params?.multiline_pattern;
+      const isLineRuleValid = !isSectionLog.value || lineRuleRef.value?.validate?.() === true;
       /**
        * 当为文件采集和标准输出时，配置项校验
        */
@@ -1606,6 +1542,10 @@ export default defineComponent({
       baseInfoRef.value
         .validate()
         .then(() => {
+          if (props.scenarioId !== 'winevent' && !isLineRuleValid) {
+            callback?.(false);
+            return;
+          }
           /**
            * 判断用户是否有修改行为，如果没有则直接跳转到下一步
            */
@@ -1626,14 +1566,7 @@ export default defineComponent({
             setCollection({ action, callback });
             return;
           }
-          if (
-            !isTargetNodesEmpty.value &&
-            isErr &&
-            isLogFilterErr &&
-            !isSegmentError.value &&
-            isConfigError &&
-            isMetadataValid
-          ) {
+          if (!isTargetNodesEmpty.value && isErr && isLogFilterErr && isConfigError && isMetadataValid) {
             setCollection({ action, callback });
           } else {
             callback?.(false);
@@ -1675,17 +1608,6 @@ export default defineComponent({
             },
           }}
         />
-        {props.scenarioId !== 'winevent' && (
-          <MultilineRegDialog
-            oldPattern={formData.value.params?.multiline_pattern}
-            showDialog={showMultilineRegDialog.value}
-            on-cancel={handleCancelMultilineReg}
-            on-update={(val: string) => {
-              isConfigChange.value = true;
-              formData.value.params.multiline_pattern = val;
-            }}
-          />
-        )}
         <div class='classify-btns-fixed'>
           {!isCloneOrUpdate.value && (
             <bk-button

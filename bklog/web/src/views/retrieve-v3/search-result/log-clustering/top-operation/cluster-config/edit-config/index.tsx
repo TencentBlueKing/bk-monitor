@@ -59,6 +59,10 @@ export default defineComponent({
       type: Array,
       default: () => [],
     },
+    isExternal: {
+      type: Boolean,
+      default: false,
+    },
   },
   setup(props, { emit }) {
     const { t } = useLocale();
@@ -114,7 +118,7 @@ export default defineComponent({
       () => {
         clusterField.value = props.totalFields
           .filter((item: { is_analyzed: boolean }) => item.is_analyzed)
-          .map(el => {
+          .map((el) => {
             const { field_name: id, field_alias: alias } = el as any;
             return { id, name: alias ? `${id}(${alias})` : id };
           });
@@ -149,9 +153,9 @@ export default defineComponent({
           regex_rule_type,
           regex_template_id,
         } = res.data;
-        const newFilterRules = filterRules.map(item => {
-          const sameFieldItem: any =
-            props.totalFields.find((tItem: any) => tItem.field_name === item.fields_name) || {};
+        const newFilterRules = filterRules.map((item) => {
+          const fieldName = item.fields_name;
+          const sameFieldItem: any = props.totalFields.find((tItem: any) => tItem.field_name === fieldName) || {};
           return {
             ...sameFieldItem,
             ...item,
@@ -237,7 +241,7 @@ export default defineComponent({
               ruleConfigOperateRef.value?.setSaveLoading(false);
             });
         })
-        .catch(e => {
+        .catch((e) => {
           console.error(e);
         });
     };
@@ -282,7 +286,7 @@ export default defineComponent({
                   style='width: 482px'
                   clearable={false}
                   value={formData.value.clustering_fields}
-                  on-change={value => {
+                  on-change={(value) => {
                     formData.value.clustering_fields = value;
                   }}
                 >
@@ -317,7 +321,7 @@ export default defineComponent({
                     precision={0}
                     type='number'
                     value={formData.value.max_log_length}
-                    on-change={value => {
+                    on-change={(value) => {
                       formData.value.max_log_length = Number(value);
                     }}
                   />
@@ -347,8 +351,9 @@ export default defineComponent({
                 defaultValue={defaultData.value}
                 ruleList={ruleList.value}
                 templateSpaceUid={indexSetItem.value?.space_uid}
+                isExternal={props.isExternal}
                 on-rule-list-change={handleRuleListChange}
-                on-rule-type-change={rule => {
+                on-rule-type-change={(rule) => {
                   currentRuleType.value = rule;
                 }}
                 on-search={handleSearchRuleList}
@@ -357,7 +362,7 @@ export default defineComponent({
                 ref={ruleTableRef}
                 readonly={isRuleTableReadonly.value}
                 ruleList={ruleList.value}
-                on-rule-list-change={list => {
+                on-rule-list-change={(list) => {
                   ruleList.value = list;
                 }}
               />
@@ -367,6 +372,8 @@ export default defineComponent({
 
         <RuleConfigOperate
           ref={ruleConfigOperateRef}
+          indexSetId={props.indexId}
+          isExternal={props.isExternal}
           maxLogLength={formData.value.max_log_length}
           ruleList={ruleList.value}
           on-reset={handleReset}

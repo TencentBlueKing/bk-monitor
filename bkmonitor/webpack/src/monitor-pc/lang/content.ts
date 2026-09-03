@@ -369,6 +369,7 @@ export default {
   超时: 'Timeout',
   解码结果: 'Decode result',
   解码: 'Decode',
+  自动解码: 'Auto decode',
   上报类型: 'Report type',
   查询参数: 'Query parameters',
   '请输入Profiling 查询参数': 'Please enter the Profiling query parameters',

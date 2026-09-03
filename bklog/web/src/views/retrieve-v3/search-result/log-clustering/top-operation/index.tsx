@@ -24,12 +24,12 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, ref } from 'vue';
-import Stratege from './strategy';
-import QuickFilter from './quick-filter';
-import useLocale from '@/hooks/use-locale';
-import EmailSubscription from './email-subscription';
-import ClusterConfig from './cluster-config';
+import { computed, defineComponent, ref } from "vue";
+import Stratege from "./strategy";
+import QuickFilter from "./quick-filter";
+import useLocale from "@/hooks/use-locale";
+import EmailSubscription from "./email-subscription";
+import ClusterConfig from "./cluster-config";
 import ClusterDownload from './cluster-download';
 
 import './index.scss';
@@ -79,6 +79,7 @@ export default defineComponent({
   },
   setup(props, { emit, expose }) {
     const { t } = useLocale();
+    const store = useStore();
 
     const clusterConfigRef = ref<any>(null);
     /** 是否创建过策略 */
@@ -86,26 +87,41 @@ export default defineComponent({
 
     const getDimensionStr = computed(() =>
       props.fingerOperateData?.dimensionList.length
-        ? `${t('聚合维度')} : ${props.fingerOperateData.dimensionList.join(', ')}`
-        : '',
+        ? `${t("聚合维度")} : ${props.fingerOperateData.dimensionList.join(
+            ", "
+          )}`
+        : ""
     );
     const getGroupStr = computed(() =>
       props.fingerOperateData?.selectGroupList.length
-        ? `${t('分组')} : ${props.fingerOperateData.selectGroupList.join(', ')}`
-        : '',
+        ? `${t("分组")} : ${props.fingerOperateData.selectGroupList.join(", ")}`
+        : ""
     );
     const getYearStr = computed(() =>
-      props.requestData?.year_on_year_hour ? `${t('同比')} : ${props.requestData.year_on_year_hour}h` : '',
+      props.requestData?.year_on_year_hour
+        ? `${t("同比")} : ${props.requestData.year_on_year_hour}h`
+        : ""
     );
 
     const isShowGroupTag = computed(
       () =>
         props.clusterSwitch &&
         !props.isShowClusterStep &&
-        (getGroupStr.value || getDimensionStr.value || getYearStr.value),
+        (getGroupStr.value || getDimensionStr.value || getYearStr.value)
     );
 
     const isExternal = window.IS_EXTERNAL === true;
+
+    // PO 环境进入聚类设置需同时具备 log_search 与 log_clustering。
+    // 只授聚类配置不能隐式获得检索权；只授检索能看结果但看不到设置入口。
+    // externalPermissions 在空间加载完成后才写入，不能在 setup 里取一次快照
+    const isClusterConfigVisible = computed(() => {
+      if (!isExternal) {
+        return true;
+      }
+      const permissions = store.state.externalPermissions ?? [];
+      return permissions.includes('log_search') && permissions.includes('log_clustering');
+    });
 
     const handleStrategySubmitStatus = v => {
       strategyHaveSubmit.value = v;
@@ -159,11 +175,12 @@ export default defineComponent({
               isClusterActive={props.isClusterActive}
               logTableRef={props.logTableRef}
             />
-            {!isExternal && (
+            {isClusterConfigVisible.value && (
               <ClusterConfig
                 ref={clusterConfigRef}
                 indexId={props.indexId}
                 total-fields={props.totalFields}
+                isExternal={isExternal}
               />
             )}
           </div>

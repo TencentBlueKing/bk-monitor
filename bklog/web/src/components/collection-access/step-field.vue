@@ -994,7 +994,7 @@
   </section>
 </template>
 <script>
-  import { projectManages } from '@/common/util';
+  import { projectManages, judgeNumber } from '@/common/util';
   import AuthContainerPage from '@/components/common/auth-container-page';
   import { isFeatureToggleOn } from '@/hooks/use-feature-toggle';
   import SpaceSelectorMixin from '@/mixins/space-selector-mixin';
@@ -2307,7 +2307,7 @@ __ext_json.service.labels   ${this.$t('动态对象字段')}`;
                   item.field_name = JSON.stringify(item.field_name);
                 }
                 item.field_index = itemIndex + 1;
-                item.verdict = this.judgeNumber(item);
+                item.verdict = judgeNumber(item.value);
               });
               const fields = this.formData.fields;
               if (!type) {
@@ -2485,12 +2485,6 @@ __ext_json.service.labels   ${this.$t('动态对象字段')}`;
       },
       visibleHandle(val) {
         this.deletedVisible = val;
-      },
-      judgeNumber(val) {
-        const { value } = val;
-        if (value === 0) return false;
-
-        return value && value !== ' ' ? isNaN(value) : true;
       },
       // 模板弹窗确认
       handleTemplConfirm() {

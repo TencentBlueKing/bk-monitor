@@ -38,6 +38,7 @@ import V3Searchbar from './search-bar';
 import V3SearchResult from './search-result';
 import V3Toolbar from './toolbar';
 import useAppInit from './use-app-init';
+import { resolveSceneEmptyView } from './scene-empty-view';
 import RetrieveHelper, { RetrieveEvent } from '@/views/retrieve-helper';
 
 import './global-en.scss';
@@ -52,11 +53,11 @@ export default defineComponent({
     const { t } = useLocale();
     const aiAssitantRef = RetrieveHelper.aiAssitantHelper.getAiAssitantInstance();
 
-    const { isSearchContextStickyTop, isSearchResultStickyTop, stickyStyle, contentStyle, isPreApiLoaded } =
-      useAppInit();
+    const { isSearchContextStickyTop, isSearchResultStickyTop, stickyStyle, contentStyle, isPreApiLoaded } =      useAppInit();
 
     const isStartTextEllipsis = computed(() => store.state.storage[BK_LOG_STORAGE.TEXT_ELLIPSIS_DIR] === 'start');
     const isSceneMode = computed(() => store.getters.isSceneMode);
+    const isSceneFilterEmpty = computed(() => store.getters.isSceneFilterEmpty);
     const isSceneLoading = computed(
       () => store.state.indexFieldInfo.is_loading || store.state.indexSetQueryResult.is_loading,
     );
@@ -84,12 +85,28 @@ export default defineComponent({
         isFieldListFetched.value = false;
       },
     );
+    // 切业务后旧业务字段态失效，必须回到「未过滤」空态，不能沿用 isFieldListFetched
+    watch(
+      () => store.state.spaceUid,
+      () => {
+        isFieldListFetched.value = false;
+      },
+    );
 
     // 字段列表已请求完成但返回为空
     const isFieldListEmpty = computed(() => isFieldListFetched.value && store.getters.rawFieldList.length === 0);
 
-    // 场景化模式下：字段未就绪或为空时隐藏检索结果（含趋势图）
-    const hideSearchResult = computed(() => isSceneMode.value && (!isFieldListFetched.value || isFieldListEmpty.value));
+    const sceneEmptyView = computed(() => resolveSceneEmptyView({
+      isSceneMode: isSceneMode.value,
+      isSceneFilterEmpty: isSceneFilterEmpty.value,
+      isFieldListFetched: isFieldListFetched.value,
+      isFieldListEmpty: isFieldListEmpty.value,
+      isSceneLoading: isSceneLoading.value,
+    }),
+    );
+
+    // 场景化模式下：未过滤 / 字段未就绪 / 字段为空时隐藏检索结果（含趋势图）
+    const hideSearchResult = computed(() => sceneEmptyView.value.hideSearchResult);
 
     /**
      * 场景结果区从隐藏变为显示时，补发趋势图刷新。
@@ -150,7 +167,7 @@ export default defineComponent({
     const renderSceneEmptyTip = () => (
       <div
         class='scene-empty-tip'
-        v-bkloading={{ isLoading: isSceneLoading.value }}
+        v-bkloading={{ isLoading: sceneEmptyView.value.sceneEmptyTipLoading }}
       >
         <bk-exception
           class='exception-wrap-item'
@@ -199,12 +216,11 @@ export default defineComponent({
     const renderResultContent = () => {
       if (isPreApiLoaded.value) {
         // 场景化模式下渲染逻辑：
-        // 1. 字段列表未获取 → 显示 renderSceneEmptyTip，隐藏检索结果
-        // 2. 字段列表已获取但为空 → 显示 renderFieldEmptyTip，隐藏检索结果
-        // 3. 字段列表已获取且有数据 → 显示检索结果
-        // 使用 v-if 而非 v-show：避免趋势图在 display:none 容器内初始化导致尺寸为 0、切换后仍空白
-        const showSceneEmptyTip = isSceneMode.value && !isFieldListFetched.value;
-        const showFieldEmptyTip = isSceneMode.value && isFieldListEmpty.value;
+        // 1. 未选过滤条件 → 显示「当前日志未过滤」，不转圈
+        // 2. 已过滤但字段列表未获取 → 显示空态并 loading
+        // 3. 已过滤且字段为空 → 显示「未匹配到索引集」
+        // 4. 字段已获取且有数据 → 显示检索结果
+        const { showSceneEmptyTip, showFieldEmptyTip } = sceneEmptyView.value;
 
         return [
           <V3Toolbar></V3Toolbar>,

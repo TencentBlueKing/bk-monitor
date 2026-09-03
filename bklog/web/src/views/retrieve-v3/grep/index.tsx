@@ -173,7 +173,7 @@ export default defineComponent({
         },
       };
 
-      if (store.state.isExternal) {
+      if (store.state.spaceUid) {
         Object.assign(params, {
           headers: {
             'X-Bk-Space-Uid': store.state.spaceUid,

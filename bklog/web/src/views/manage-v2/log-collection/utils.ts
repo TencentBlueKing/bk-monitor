@@ -434,9 +434,31 @@ export const btnGroupList: Array<ISelectItem> = [
   },
 ];
 
-/** 操作符映射 */
+/** 操作符映射（数据层旧写法 -> 规范名） */
 export const operatorMapping = {
   '!=': 'neq',
+};
+
+/**
+ * 将数据层操作符归一化为展示层操作符。
+ *
+ * 展示层会把「当前过滤模式的主操作符」统一改写成 '='（见 log-filter 的 operatorOptions）：
+ * - 字符串（match）模式：'include'（包含）改写为 '='
+ * - 分隔符（separator）模式：'eq'（等于）改写为 '='
+ *
+ * 而数据层（后端 PluginParamOpEnum：= / != / eq / neq / include / exclude / regex / nregex，
+ * 以及旧数据的 match_type）使用的是规范名 include / eq，二者并不一致。
+ * 因此读入数据时必须按当前过滤模式做一次逆向归一化，
+ * 否则下拉框匹配不到任何 bk-option，操作符单元格会显示为空。
+ *
+ * @param op 数据层操作符
+ * @param isMatchType 当前是否为字符串（match）过滤模式
+ */
+export const normalizeOperator = (op: string, isMatchType: boolean): string => {
+  const base = operatorMapping[op as keyof typeof operatorMapping] ?? op;
+  if (isMatchType && base === 'include') return '=';
+  if (!isMatchType && base === 'eq') return '=';
+  return base;
 };
 
 export const tableRowBaseObj: ITableRowItem = {

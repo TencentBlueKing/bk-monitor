@@ -82,9 +82,7 @@ export default defineComponent({
     });
 
     const canSubmit = computed(() => {
-      return (
-        !(selectedCount.value > 0 && downloadFiles.value.length) && linkId.value !== null && linkId.value !== undefined
-      );
+      return !(selectedCount.value > 0 && downloadFiles.value.length && linkId.value !== null);
     });
 
     const isClone = computed(() => {
@@ -153,7 +151,7 @@ export default defineComponent({
 
     // 初始化克隆模式的显示名称
     const initCloneDisplayName = () => {
-      const requestIpList = ipList.value.map(item => {
+      const requestIpList = ipList.value.map((item) => {
         if (item?.bk_host_id) {
           return {
             host_id: item.bk_host_id,
@@ -173,10 +171,10 @@ export default defineComponent({
             bk_biz_id: store.state.bkBizId,
           },
         })
-        .then(res => {
+        .then((res) => {
           initSelectNewNameList(res.data, true);
         })
-        .catch(err => {
+        .catch((err) => {
           console.warn(err);
           ipSelectNewNameList.value = [];
         });
@@ -188,11 +186,11 @@ export default defineComponent({
         .request('extract/getExtractLinkList', {
           data: { bk_biz_id: store.state.bkBizId },
         })
-        .then(res => {
+        .then((res) => {
           extractLinks.value = res.data;
           linkId.value = extractLinks.value[0]?.link_id || null;
         })
-        .catch(e => {
+        .catch((e) => {
           console.warn(e);
         });
     };
@@ -213,13 +211,13 @@ export default defineComponent({
         .request('extract/getAvailableExplorerPath', {
           data: requestData,
         })
-        .then(res => {
+        .then((res) => {
           availablePaths.value = (res.data.strategies ?? []).map((item: any) => item.file_path);
           if (cloneNodeType !== 'INSTANCE' && res.data.ip_list?.length) {
             ipList.value = res.data.ip_list;
           }
         })
-        .catch(e => {
+        .catch((e) => {
           console.warn(e);
         });
     };
@@ -236,7 +234,7 @@ export default defineComponent({
 
     // 根据 strategies 接口返回的 ip_list 请求 displayName 并设置预览地址列表
     const initDisplayNameFromIpList = (responseIpList: any[]) => {
-      const requestIpList = responseIpList.map(item => {
+      const requestIpList = responseIpList.map((item) => {
         if (item?.bk_host_id) {
           return { host_id: item.bk_host_id };
         }
@@ -250,10 +248,10 @@ export default defineComponent({
           data: { host_list: requestIpList },
           params: { bk_biz_id: store.state.bkBizId },
         })
-        .then(res => {
+        .then((res) => {
           initSelectNewNameList(res.data, true);
         })
-        .catch(err => {
+        .catch((err) => {
           console.warn(err);
           ipSelectNewNameList.value = [];
         });
@@ -372,7 +370,7 @@ export default defineComponent({
           isSubmitLoading.value = false;
           goToHome();
         })
-        .catch(err => {
+        .catch((err) => {
           console.warn(err);
           emit('loading', false);
           isSubmitLoading.value = false;
@@ -462,6 +460,7 @@ export default defineComponent({
                 on: {
                   'update:value': (val: string) => (fileOrPath.value = val),
                   'update:select': handleFilesSelect,
+                  'manual-add': (val: string) => previewRef.value?.addFilePath(val),
                 },
               }}
             />

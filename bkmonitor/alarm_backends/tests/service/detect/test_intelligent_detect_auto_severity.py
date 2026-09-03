@@ -170,7 +170,7 @@ def test_auto_level_calls_sas_only_for_kpi_anomalies():
         "predict_args": {"predict_start_time": anomaly.timestamp * 1000},
         "interval": 60,
         "extra_data": {},
-        "serving_config": {"pre_service_name": "default", "serving_with_ts_depend": True},
+        "serving_config": {"pre_service_name": "default", "serving_with_ts_depend": False},
         "bk_tenant_id": "tenant",
     }
     extra_info = json.loads(anomaly_points[0].data_point.values["extra_info"])

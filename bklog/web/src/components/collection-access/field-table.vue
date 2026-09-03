@@ -264,7 +264,7 @@
                   v-bk-overflow-tips
                   class="overflow-tips"
                 >
-                  <span>{{ getFieldTypeDisplay(props.row.field_type) }}</span>
+                  <span>{{ props.row.field_type }}</span>
                 </div>
                 <!-- <bk-form-item v-else
                   :required="true"
@@ -293,16 +293,7 @@
                   v-else
                   :class="{ 'is-required is-error': props.row.typeErr }"
                 >
-                  <!-- 动态对象边界字段只展示用户文案，不暴露 flattened -->
-                  <span
-                    v-if="props.row.field_type === 'flattened'"
-                    v-bk-overflow-tips
-                    class="overflow-tips"
-                  >
-                    {{ getFieldTypeDisplay(props.row.field_type) }}
-                  </span>
                   <bk-select
-                    v-else
                     v-model="props.row.field_type"
                     :clearable="false"
                     :disabled="props.row.is_delete || isSetDisabled || props.row.is_built_in"
@@ -574,6 +565,7 @@
 
 <script>
   import { mapGetters } from 'vuex';
+  import { isFieldTypeDisabled, judgeNumber } from '@/common/util';
   export default {
     name: 'FieldTable',
     props: {
@@ -788,15 +780,8 @@
       resetField() {
         this.$emit('reset');
       },
-      // 当前字段类型是否禁用
-      isTypeDisabled(row, option) {
-        if (row.verdict) {
-          // 不是数值，相关数值类型选项被禁用
-          return ['int', 'long', 'double', 'float'].includes(option.id);
-        }
-        // 是数值，如果值大于 2147483647 即 2^31 - 1，int 选项被禁用
-        return option.id === 'int' && row.value > 2147483647;
-      },
+      // 当前字段类型是否禁用（公共实现见 @/common/util）
+      isTypeDisabled: isFieldTypeDisabled,
       fieldTypeSelect(val, $row, $index) {
         const fieldName = $row.field_name;
         const fieldType = $row.field_type;
@@ -890,11 +875,7 @@
 
       //   this.$emit('standard');
       // },
-      judgeNumber(value) {
-        if (value === 0) return false;
-
-        return value && value !== ' ' ? isNaN(value) : true;
-      },
+      judgeNumber,
       getData() {
         const data = structuredClone(this.formData.tableList);
         data.forEach(item => {
@@ -1208,12 +1189,6 @@
       /** 动态对象边界字段不展开内部 mapping */
       canExpandObjectField(row) {
         return row.field_type === 'object' && !!row.children?.length;
-      },
-      getFieldTypeDisplay(fieldType) {
-        if (fieldType === 'flattened') {
-          return this.$t('动态对象字段');
-        }
-        return fieldType;
       },
       expandObject(row, show) {
         if (!this.canExpandObjectField(row)) {

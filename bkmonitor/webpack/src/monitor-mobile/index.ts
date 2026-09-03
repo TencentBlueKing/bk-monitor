@@ -30,6 +30,7 @@ import i18n from './i18n/i18n';
 import Vue from 'vue';
 
 import { register, unregister } from 'monitor-common/service-worker/service-worker';
+import { parseBizId } from 'monitor-common/utils';
 import { getUrlParam } from 'monitor-common/utils/utils';
 import Notify from 'vant/lib/notify';
 
@@ -47,7 +48,7 @@ interface IMessageParam {
   theme: 'danger' | 'error' | 'primary' | 'success' | 'warning';
 }
 Vue.config.devtools = process.env.NODE_ENV === 'development';
-const bizId = getUrlParam('bizId')?.replace(/\//gim, '');
+const bizId = parseBizId(getUrlParam('bizId'));
 const enableConsole = getUrlParam('console');
 window.cc_biz_id = bizId;
 if (process.env.NODE_ENV !== 'production') {
