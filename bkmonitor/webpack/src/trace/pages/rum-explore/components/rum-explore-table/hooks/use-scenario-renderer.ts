@@ -42,6 +42,8 @@ export interface ScenarioRenderer {
   tableRowKey: ComputedRef<string>;
   /** 当前场景私有类名 */
   tableScenarioClassName: ComputedRef<string>;
+  /** 场景默认单元格取值：随当前场景切换，供表格作为默认取值逻辑兜底 */
+  defaultGetCellValue: (row: Record<string, unknown>, column: BaseTableColumn) => unknown;
   /** 转换列配置：将场景声明式配置注入基础列 */
   transformColumns: (baseColumns: BaseTableColumn[]) => BaseTableColumn[];
 }
@@ -101,6 +103,13 @@ export const useScenarioRenderer = (
     }));
   };
 
+  /**
+   * @description 场景默认单元格取值：委托给当前场景实例，保证切换视角时取值逻辑随之切换，
+   *              对外保持引用稳定，便于作为表格的默认取值逻辑传入
+   */
+  const defaultGetCellValue = (row: Record<string, unknown>, column: BaseTableColumn) =>
+    currentScenario.value.getDefaultRenderValue(row, column);
+
   watch(
     () => currentScenario.value,
     (newScenario, oldScenario) => {
@@ -124,6 +133,7 @@ export const useScenarioRenderer = (
     currentScenario,
     tableScenarioClassName,
     tableRowKey,
+    defaultGetCellValue,
     transformColumns,
   };
 };
