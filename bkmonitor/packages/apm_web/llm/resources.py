@@ -313,16 +313,40 @@ class ListFlowsResource(Resource):
         group_id = serializers.CharField(required=True, label="分组值")
 
     @staticmethod
-    def _build_flow(spans: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    def _build_flow(
+        raw_spans: list[dict[str, Any]],
+        spans: list[dict[str, Any]],
+    ) -> list[dict[str, Any]]:
         nodes = [{**span, "childs": []} for span in spans]
         nodes_by_span_id = {node[OtlpKey.SPAN_ID]: node for node in nodes if node.get(OtlpKey.SPAN_ID)}
-        roots = []
-        for node in nodes:
-            parent = nodes_by_span_id.get(node.get(OtlpKey.PARENT_SPAN_ID))
-            if parent is None or parent is node:
-                roots.append(node)
+        raw_spans_by_span_id = {span[OtlpKey.SPAN_ID]: span for span in raw_spans if span.get(OtlpKey.SPAN_ID)}
+        raw_children_by_parent_id: dict[str, list[dict[str, Any]]] = defaultdict(list)
+        raw_roots = []
+        for span in raw_spans:
+            span_id = span.get(OtlpKey.SPAN_ID)
+            parent_span_id = span.get(OtlpKey.PARENT_SPAN_ID)
+            if parent_span_id and parent_span_id in raw_spans_by_span_id and parent_span_id != span_id:
+                raw_children_by_parent_id[parent_span_id].append(span)
             else:
-                parent["childs"].append(node)
+                raw_roots.append(span)
+
+        roots = []
+
+        def project(span: dict[str, Any], parent: dict[str, Any] | None) -> None:
+            node = nodes_by_span_id.get(span.get(OtlpKey.SPAN_ID))
+            if node is not None:
+                if parent is None:
+                    roots.append(node)
+                else:
+                    parent["childs"].append(node)
+                parent = node
+
+            for child in raw_children_by_parent_id.get(span.get(OtlpKey.SPAN_ID), []):
+                project(child, parent)
+
+        for raw_root in raw_roots:
+            project(raw_root, None)
+
         return roots
 
     def perform_request(self, validated_request_data):
@@ -357,13 +381,14 @@ class ListFlowsResource(Resource):
             if trace_id := span.get(OtlpKey.TRACE_ID):
                 spans_by_trace[trace_id].append(span)
 
-        result["traces"] = [
-            {
-                "trace_id": trace_id,
-                "flow": self._build_flow(adapt_spans(spans_by_trace[trace_id])),
-            }
-            for trace_id in trace_ids
-        ]
+        for trace_id in trace_ids:
+            raw_trace_spans = spans_by_trace[trace_id]
+            result["traces"].append(
+                {
+                    "trace_id": trace_id,
+                    "flow": self._build_flow(raw_trace_spans, adapt_spans(raw_trace_spans)),
+                }
+            )
         return result
 
 

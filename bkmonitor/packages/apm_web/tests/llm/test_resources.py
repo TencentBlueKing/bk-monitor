@@ -640,6 +640,34 @@ class ListSpansResourceTestCase(TestCase):
 
 
 class ListFlowsResourceTestCase(TestCase):
+    def test_build_flow_links_span_to_nearest_gen_ai_ancestor(self):
+        raw_spans = [
+            {
+                "trace_id": "trace-1",
+                "span_id": "agent",
+                "parent_span_id": "",
+                "start_time": 100,
+            },
+            {
+                "trace_id": "trace-1",
+                "span_id": "framework",
+                "parent_span_id": "agent",
+                "start_time": 110,
+            },
+            {
+                "trace_id": "trace-1",
+                "span_id": "tool",
+                "parent_span_id": "framework",
+                "start_time": 120,
+            },
+        ]
+
+        flow = ListFlowsResource._build_flow(raw_spans, [raw_spans[0], raw_spans[2]])
+
+        self.assertEqual([span["span_id"] for span in flow], ["agent"])
+        self.assertEqual([span["span_id"] for span in flow[0]["childs"]], ["tool"])
+        self.assertEqual(flow[0]["childs"][0]["parent_span_id"], "framework")
+
     def test_builds_span_tree_for_each_trace(self):
         group_field = "attributes.gen_ai.conversation.id"
         application = mock.Mock()
