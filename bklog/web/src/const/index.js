@@ -59,7 +59,7 @@ export const getBuiltInInitHiddenList = () => {
  * 更新内置隐藏字段列表
  * @param {string[]} newList - 新的字段列表
  */
-export const updateBuiltInInitHiddenList = (newList) => {
+export const updateBuiltInInitHiddenList = newList => {
   if (Array.isArray(newList) && newList.length > 0) {
     _builtInInitHiddenList.splice(0, _builtInInitHiddenList.length);
     newList.forEach(item => {

@@ -76,11 +76,8 @@ export default defineComponent({
 
     // 获取最近一周的起始和结束时间戳 { start: 第一天00:00, end: 第七天23:59 }
     const getCurrentWeekRange = () => {
-      const start = dayjs().subtract(6, 'day')
-        .startOf('day')
-        .valueOf();
-      const end = dayjs().endOf('day')
-        .valueOf();
+      const start = dayjs().subtract(6, 'day').startOf('day').valueOf();
+      const end = dayjs().endOf('day').valueOf();
       return { start, end };
     };
 
@@ -96,9 +93,10 @@ export default defineComponent({
     };
 
     const getLast7Days = (format = 'M-D') => {
-      return Array.from({ length: 7 }, (_, i) => dayjs()
-        .subtract(i + 1, 'day')
-        .format(format),
+      return Array.from({ length: 7 }, (_, i) =>
+        dayjs()
+          .subtract(i + 1, 'day')
+          .format(format),
       ).reverse();
     };
 

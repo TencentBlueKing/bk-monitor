@@ -63,7 +63,7 @@ const convertFileListToTree = (fileList: string[]): FileTreeNode[] => {
   // 用 Map 存储已创建的目录节点，避免重复
   const folderMap = new Map<string, FileTreeNode>();
 
-  fileList.forEach((filePath) => {
+  fileList.forEach(filePath => {
     const parts = filePath.split('/');
     let currentParent = root;
 
@@ -249,9 +249,11 @@ export default defineComponent({
 
     /** 展示用的日志列表 */
     const filteredLogList = computed(() => {
-      return logList.value.filter(item => item?.message).map(item => ({
-        message: item.message,
-      }));
+      return logList.value
+        .filter(item => item?.message)
+        .map(item => ({
+          message: item.message,
+        }));
     });
 
     /** 过滤结果是否为空 */
@@ -338,7 +340,7 @@ export default defineComponent({
     );
 
     /** 监听 fileList 变化，转换树形数据并收集文件夹 ID */
-    watch(fileList, (list) => {
+    watch(fileList, list => {
       if (list.length === 0) {
         fileTreeData.value = [];
         allFolderIds.value = [];
@@ -351,7 +353,7 @@ export default defineComponent({
       // 收集所有文件夹节点 ID（有 children 且 children 非空的节点）
       const folderIds: string[] = [];
       const collectFolders = (nodes: FileTreeNode[]) => {
-        nodes.forEach((node) => {
+        nodes.forEach(node => {
           if (node.children && node.children.length > 0) {
             folderIds.push(node.id);
             collectFolders(node.children);
@@ -419,11 +421,13 @@ export default defineComponent({
      */
     const getMessageAddition = () => {
       if (!filterKey.value.length) return [];
-      return [{
-        field: 'message',
-        operator: filterType.value === 'include' ? 'all contains match phrase' : 'all not contains match phrase',
-        value: filterKey.value,
-      }];
+      return [
+        {
+          field: 'message',
+          operator: filterType.value === 'include' ? 'all contains match phrase' : 'all not contains match phrase',
+          value: filterKey.value,
+        },
+      ];
     };
 
     /**
@@ -463,12 +467,7 @@ export default defineComponent({
           },
           ...getMessageAddition(),
         ],
-        sort_list: [
-          [
-            'lineno',
-            'asc',
-          ],
-        ],
+        sort_list: [['lineno', 'asc']],
         time_zone: props.timezone,
       };
 
@@ -514,7 +513,7 @@ export default defineComponent({
     };
 
     /** 监听选中文件变化，加载对应日志内容 */
-    watch(selectedFileId, (fileId) => {
+    watch(selectedFileId, fileId => {
       if (skipNextResetFilters) {
         // URL 回填阶段跳过 resetFilters，保留已设置的过滤/高亮值
         skipNextResetFilters = false;
@@ -726,11 +725,7 @@ export default defineComponent({
       const isFolder = data.children && data.children.length;
       if (isFolder) {
         const isExpanded = expandedNodeIds.value.has(data.id);
-        return (
-          <i
-            class={`bklog-icon ${isExpanded ? 'bklog-file-open' : 'bklog-file-close'}`}
-          />
-        );
+        return <i class={`bklog-icon ${isExpanded ? 'bklog-file-open' : 'bklog-file-close'}`} />;
       }
       return <i class='bklog-icon bklog-file-wenjian' />;
     };
@@ -749,28 +744,21 @@ export default defineComponent({
 
     /** 渲染设备信息标签 */
     const renderDeviceInfo = () => [
-      props.selectedLogItem?.model && (
-        <span class='device-info'>
-          {props.selectedLogItem.model}
-        </span>
-      ),
-      props.selectedLogItem?.os_version && (
-        <span class='device-info'>{props.selectedLogItem.os_version}</span>
-      ),
-      props.selectedLogItem?.sdk_version && (
-        <span class='device-info'>
-          {props.selectedLogItem.sdk_version}
-        </span>
-      ),
+      props.selectedLogItem?.model && <span class='device-info'>{props.selectedLogItem.model}</span>,
+      props.selectedLogItem?.os_version && <span class='device-info'>{props.selectedLogItem.os_version}</span>,
+      props.selectedLogItem?.sdk_version && <span class='device-info'>{props.selectedLogItem.sdk_version}</span>,
     ];
 
     /** 渲染未采集状态内容 */
     const renderUncollectedContent = () => (
       <div class='uncollected-content'>
-        <bk-exception type="empty">
+        <bk-exception type='empty'>
           <div class='tip'>{t('暂未采集，无法获取日志')}</div>
           {!props.hideCollectButton && (
-            <bk-button theme='primary' onClick={() => emit('collect', props.selectedLogItem)}>
+            <bk-button
+              theme='primary'
+              onClick={() => emit('collect', props.selectedLogItem)}
+            >
               {t('立即采集')}
             </bk-button>
           )}
@@ -791,10 +779,13 @@ export default defineComponent({
     /** 渲染采集失败状态内容 */
     const renderCollectFailedContent = () => (
       <div class='uncollected-content'>
-        <bk-exception type="empty">
+        <bk-exception type='empty'>
           <div class='tip'>{t('日志采集失败，请重新采集')}</div>
           {!props.hideCollectButton && (
-            <bk-button theme='primary' onClick={() => emit('collect', props.selectedLogItem)}>
+            <bk-button
+              theme='primary'
+              onClick={() => emit('collect', props.selectedLogItem)}
+            >
               {t('立即采集')}
             </bk-button>
           )}
@@ -804,7 +795,10 @@ export default defineComponent({
 
     /** 渲染原始日志面板内容 */
     const renderOriginalLogContent = () => (
-      <div class='original-log-content' v-bkloading={{ isLoading: isFileLoading.value || isLogLoading.value, color: '#212429' }}>
+      <div
+        class='original-log-content'
+        v-bkloading={{ isLoading: isFileLoading.value || isLogLoading.value, color: '#212429' }}
+      >
         {/* 左侧文件树 */}
         <div class={['file-tree-sidebar', { 'is-collapsed': isFileTreeCollapsed.value }]}>
           <bk-big-tree
@@ -825,16 +819,26 @@ export default defineComponent({
         {/* 右侧文件内容展示：上部工具栏 + 下部日志内容 */}
         <div class='file-content-area'>
           {/* 工具栏 */}
-          <div class='toolbar-wrapper' key='toolbar'>
+          <div
+            class='toolbar-wrapper'
+            key='toolbar'
+          >
             <ClientLogToolbar
               ref={toolbarRef}
               isFileTreeCollapsed={isFileTreeCollapsed.value}
               on-handle-filter={handleFilter}
-              on-toggle-file-tree={() => { isFileTreeCollapsed.value = !isFileTreeCollapsed.value; }}
+              on-toggle-file-tree={() => {
+                isFileTreeCollapsed.value = !isFileTreeCollapsed.value;
+              }}
             />
           </div>
           {/* 日志内容区 */}
-          <div class='log-content-scroll' key='log-content' ref={logContentScrollRef} onScroll={handleLogScroll}>
+          <div
+            class='log-content-scroll'
+            key='log-content'
+            ref={logContentScrollRef}
+            onScroll={handleLogScroll}
+          >
             {logList.value.some(item => item?.message) ? (
               isFilterEmpty.value ? (
                 <bk-exception
@@ -862,9 +866,7 @@ export default defineComponent({
               </bk-exception>
             ) : null}
             {/* 触底加载状态 */}
-            {isLoadMore.value && (
-              <div class='log-load-more'>loading...</div>
-            )}
+            {isLoadMore.value && <div class='log-load-more'>loading...</div>}
           </div>
           {/* 回到顶部按钮 */}
           {showScrollTop.value && (
@@ -915,8 +917,7 @@ export default defineComponent({
                   </div>
                 )}
               >
-                {activeTab.value === 'original-log'
-                  && renderOriginalLogContent()}
+                {activeTab.value === 'original-log' && renderOriginalLogContent()}
               </bk-tab-panel>
             ))}
           </bk-tab>
@@ -928,7 +929,10 @@ export default defineComponent({
       <div class={['card-base', 'log-detail-panel', { 'is-fullscreen': isFullscreen.value }]}>
         {/* 左上角展开图标 - 仅在左侧列表收起时显示 */}
         {props.isTaskListCollapsed && (
-          <span class='expand-icon' onClick={handleExpand}>
+          <span
+            class='expand-icon'
+            onClick={handleExpand}
+          >
             <i class='bklog-icon bklog-collapse'></i>
           </span>
         )}
@@ -963,9 +967,7 @@ export default defineComponent({
                   <i class='bklog-icon bklog-share-fenxiang'></i>
                   {t('分享')}
                 </bk-button>
-                <bk-button
-                  onClick={handleFullscreen}
-                >
+                <bk-button onClick={handleFullscreen}>
                   <i class={`bk-icon ${isFullscreen.value ? 'icon-unfull-screen' : 'icon-full-screen'}`}></i>
                   {isFullscreen.value ? t('退出') : t('全屏')}
                 </bk-button>

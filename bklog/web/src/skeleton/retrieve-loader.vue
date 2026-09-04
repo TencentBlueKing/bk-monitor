@@ -85,8 +85,8 @@
         default: false,
       },
       maxLength: {
-        type: Number
-      }
+        type: Number,
+      },
     },
     data() {
       return {

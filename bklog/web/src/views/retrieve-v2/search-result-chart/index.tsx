@@ -100,7 +100,7 @@ export default defineComponent({
     };
 
     // 初始化、设置、重绘图表
-    const handleChartDataZoom = inject('handleChartDataZoom', () => { });
+    const handleChartDataZoom = inject('handleChartDataZoom', () => {});
     const {
       initChartData,
       setChartData,
@@ -120,7 +120,7 @@ export default defineComponent({
     // 监听store中interval变化，自动同步到chartInterval
     watch(
       () => store.getters.retrieveParams.interval,
-      (newVal) => {
+      newVal => {
         chartInterval.value = newVal;
       },
       { immediate: true },
@@ -140,9 +140,9 @@ export default defineComponent({
     const beforePopoverHide = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
       if (
-        ((target.classList.contains('bk-option-name') || target.classList.contains('bk-option-content-default'))
-          && target.closest('.bk-select-dropdown-content.bklog-popover-stop'))
-        || target.classList.contains('bklog-popover-stop')
+        ((target.classList.contains('bk-option-name') || target.classList.contains('bk-option-content-default')) &&
+          target.closest('.bk-select-dropdown-content.bklog-popover-stop')) ||
+        target.classList.contains('bklog-popover-stop')
       ) {
         return false;
       }
@@ -322,7 +322,6 @@ export default defineComponent({
     };
 
     // 趋势图数据请求生成器
-    // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: reason
     function* getGenFn({ startTimeStamp, endTimeStamp, requestInterval }) {
       const { interval } = initChartData(); // 获取趋势图汇聚周期
       runningInterval = interval;
@@ -355,10 +354,10 @@ export default defineComponent({
         }
 
         if (
-          gradeOptions.value
-          && !gradeOptions.value.disabled
-          && gradeOptions.value.type === 'custom'
-          && gradeOptions.value.field
+          gradeOptions.value &&
+          !gradeOptions.value.disabled &&
+          gradeOptions.value.type === 'custom' &&
+          gradeOptions.value.field
         ) {
           Object.assign(queryData, { group_field: gradeOptions.value.field });
         }
@@ -386,7 +385,11 @@ export default defineComponent({
         // 获取请求参数
         const params = buildQueryParams(startTime, endTime);
 
-        if (store.getters.isSceneMode || (!isUnionSearch.value && !!params.indexId) || (isUnionSearch.value && unionIndexList.value?.length)) {
+        if (
+          store.getters.isSceneMode ||
+          (!isUnionSearch.value && !!params.indexId) ||
+          (isUnionSearch.value && unionIndexList.value?.length)
+        ) {
           yield { ...params, isInit: localIsInit };
 
           // 更新isInit状态
@@ -419,13 +422,9 @@ export default defineComponent({
         requestConfig.params = { index_set_id: indexId };
       }
 
-      return http.request(
-        urlStr,
-        requestConfig,
-        {
-          signal: controller.signal,
-        },
-      );
+      return http.request(urlStr, requestConfig, {
+        signal: controller.signal,
+      });
     };
 
     // 结算为空态：仅当前代次、且请求结束后才展示
@@ -665,7 +664,9 @@ export default defineComponent({
               class='exception-wrap-item exception-part trend-chart-empty'
               scene='part'
               type='search-empty'
-            ><span>检索无数据</span></bk-exception>
+            >
+              <span>检索无数据</span>
+            </bk-exception>
           ) : (
             <div
               ref={trendChartCanvas}

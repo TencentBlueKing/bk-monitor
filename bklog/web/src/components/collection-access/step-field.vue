@@ -35,8 +35,8 @@
     ></auth-container-page>
     <div
       v-else
-      class="step-field"
       v-bkloading="{ isLoading: basicLoading }"
+      class="step-field"
     >
       <bk-alert
         v-if="!isCleanField && !isTempField && !isSetEdit"
@@ -75,8 +75,8 @@
             :label="$t('采集项')"
           >
             <bk-select
-              style="width: 520px"
               v-model="cleanCollector"
+              style="width: 520px"
               :clearable="false"
               :disabled="isEditCleanItem"
               searchable
@@ -105,8 +105,8 @@
                 </div>
                 <div
                   v-else
-                  class="option-slot-container"
                   v-bk-overflow-tips
+                  class="option-slot-container"
                 >
                   <span>{{ option.collector_config_name }}</span>
                   <span style="color: #979ba5">（{{ `#${option.collector_config_id}` }}）</span>
@@ -136,14 +136,14 @@
                 </bk-radio>
               </bk-radio-group>
               <div
-                class="flex-box select-container"
                 v-show="formData.etl_params.retain_original_text"
+                class="flex-box select-container"
               >
                 <div class="flex-box">
                   <div class="select-title">{{ $t('分词符') }}</div>
                   <bk-select
-                    ext-cls="origin-select-custom"
                     v-model="originParticipleState"
+                    ext-cls="origin-select-custom"
                     :clearable="false"
                     :popover-min-width="160"
                     @change="handleChangeParticipleState"
@@ -159,13 +159,13 @@
                 </div>
                 <bk-input
                   v-if="originParticipleState === 'custom'"
-                  style="width: 170px; margin-left: 8px"
                   v-model="formData.etl_params.original_text_tokenize_on_chars"
+                  style="width: 170px; margin-left: 8px"
                 >
                 </bk-input>
                 <bk-checkbox
-                  style="margin-left: 24px"
                   v-model="formData.etl_params.original_text_is_case_sensitive"
+                  style="margin-left: 24px"
                 >
                   <span>{{ $t('大小写敏感') }}</span>
                 </bk-checkbox>
@@ -189,8 +189,8 @@
                   @click="openTemplateDialog(false)"
                 >
                   <i
-                    class="bk-icon bklog-icon bklog-app-store"
                     v-bk-tooltips.top="$t('隐藏')"
+                    class="bk-icon bklog-icon bklog-app-store"
                   ></i>
                   {{ $t('应用模版') }}
                 </span>
@@ -200,8 +200,8 @@
                   @click="handleGotoLink('logExtract')"
                 >
                   <i
-                    class="bk-icon bklog-icon bklog-help"
                     v-bk-tooltips.top="$t('隐藏')"
+                    class="bk-icon bklog-icon bklog-help"
                   ></i>
                   {{ $t('说明文档') }}
                 </span>
@@ -212,10 +212,10 @@
                 <div class="bk-button-group">
                   <bk-button
                     v-for="option in globalsData.etl_config"
+                    :key="option.id"
                     :class="params.etl_config === option.id ? 'is-selected' : ''"
                     :data-test-id="`fieldExtractionBox_button_filterMethod${option.id}`"
                     :disabled="(isCleanField && !cleanCollector) || isSetDisabled"
-                    :key="option.id"
                     class="bklog-button"
                     @click="handleSelectConfig(option.id)"
                   >
@@ -224,9 +224,9 @@
                 </div>
                 <template v-if="params.etl_config === 'bk_log_regexp'">
                   <span
+                    v-bk-tooltips="{ allowHtml: true, placement: 'right', content: '#reg-tip' }"
                     style="margin-left: 10px; color: #979ba5; cursor: pointer"
                     class="bklog-icon bklog-info-fill fl"
-                    v-bk-tooltips="{ allowHtml: true, placement: 'right', content: '#reg-tip' }"
                   ></span>
                   <div id="reg-tip">
                     <p>{{ $t('正则表达式(golang语法)需要匹配日志全文，如以下DEMO将从日志内容提取请求时间与内容') }}</p>
@@ -237,8 +237,8 @@
                 <!-- 分隔符选择 -->
                 <bk-select
                   v-if="params.etl_config === 'bk_log_delimiter'"
-                  style="width: 120px; margin-left: 10px"
                   v-model="params.etl_params.separator"
+                  style="width: 120px; margin-left: 10px"
                   :clearable="false"
                   :disabled="isExtracting"
                   data-test-id="fieldExtractionBox_div_selectSeparator"
@@ -271,8 +271,8 @@
             </div>
           </bk-form-item>
           <bk-form-item
-            ext-cls="en-bk-form"
             v-bkloading="{ isLoading: logOriginalLoding }"
+            ext-cls="en-bk-form"
             :label="$t('日志样例')"
             :property="'log_original'"
             :rules="rules.log_original"
@@ -285,9 +285,9 @@
               {{ $t('查看上报日志') }}
             </div>
             <bk-input
+              v-model="logOriginal"
               style="margin-top: -20px"
               class="log-textarea"
-              v-model="logOriginal"
               :right-icon="'bk-icon icon-refresh'"
               :rows="3"
               :type="'textarea'"
@@ -310,8 +310,8 @@
                 {{ params.etl_params.separator_regexp }}
                 </pre>
                 <bk-input
-                  class="regex-textarea"
                   v-model="params.etl_params.separator_regexp"
+                  class="regex-textarea"
                   :placeholder="defaultRegex"
                   :type="'textarea'"
                   data-test-id="fieldExtractionBox_input_regular"
@@ -343,6 +343,7 @@
             >
               <field-table
                 ref="fieldTable"
+                :key="renderKey"
                 :deleted-visible="deletedVisible"
                 :extract-method="formData.etl_config"
                 :fields="formData.fields"
@@ -350,7 +351,6 @@
                 :is-extracting="isExtracting"
                 :is-set-disabled="isSetDisabled"
                 :is-temp-field="isTempField"
-                :key="renderKey"
                 :original-text-tokenize-on-chars="defaultParticipleStr"
                 :built-field-show="builtFieldShow"
                 :select-etl-config="params.etl_config"
@@ -394,9 +394,7 @@
                   <span v-bk-tooltips="$t('你可以自行指定日志展示时间，勾选前请提前清洗日志时间')">{{
                     $t('指定字段为日志时间')
                   }}</span>
-                  <span style=" font-size: 12px;color: #000;">
-                    (切换时间为纳秒，历史数据将无法查询，请谨慎切换)
-                  </span>
+                  <span style="font-size: 12px; color: #000"> (切换时间为纳秒，历史数据将无法查询，请谨慎切换) </span>
                 </bk-radio>
               </bk-radio-group>
             </div>
@@ -416,8 +414,8 @@
               <div class="flex-box">
                 <div class="select-title">{{ $t('字段') }}</div>
                 <bk-select
-                  ext-cls="log-time-select"
                   v-model="formData.field_name"
+                  ext-cls="log-time-select"
                   :popover-min-width="160"
                   clearable
                   searchable
@@ -444,8 +442,8 @@
               <div class="flex-box">
                 <div class="select-title">{{ $t('时间格式') }}</div>
                 <bk-select
-                  ext-cls="log-time-select"
                   v-model="formData.time_format"
+                  ext-cls="log-time-select"
                   :popover-min-width="360"
                   clearable
                   searchable
@@ -472,8 +470,8 @@
               <div class="flex-box">
                 <div class="select-title">{{ $t('时区选择') }}</div>
                 <bk-select
-                  ext-cls="log-time-select"
                   v-model="formData.time_zone"
+                  ext-cls="log-time-select"
                   :popover-min-width="160"
                   clearable
                   searchable
@@ -536,7 +534,7 @@
                 <i class="bk-icon icon-info-circle" />
                 <span>
                   {{
-                    this.$t(
+                    $t(
                       '在日志采集中，若您的日志中产生新的JSON字段，我们会自动采集并合入 __ext_json 字段中，您可以通过 __ext_json.xxx 检索该数据',
                     )
                   }}
@@ -607,14 +605,14 @@
           </bk-form-item>
           <bk-form-item
             v-if="enableMetaData"
-            ext-cls="en-bk-form"
             v-bkloading="{ isLoading: pathExampleLoading }"
+            ext-cls="en-bk-form"
             :label="$t('路径样例')"
           >
             <div class="origin-log-config">
               <bk-input
-                style="width: 520px"
                 v-model="pathExample"
+                style="width: 520px"
               >
               </bk-input>
               <i
@@ -633,8 +631,8 @@
           >
             <div class="origin-log-config">
               <bk-input
-                style="width: 520px"
                 v-model="formData.etl_params.path_regexp"
+                style="width: 520px"
                 :placeholder="defaultRegex"
               >
               </bk-input>
@@ -656,20 +654,20 @@
             >
               <div
                 v-for="item in metaDataList"
-                style="margin-bottom: 10px"
                 :key="`${item.field_index}${item.field_name}`"
+                style="margin-bottom: 10px"
               >
                 <bk-input
-                  style="width: 110px"
                   v-model="item.field_name"
+                  style="width: 110px"
                   :placeholder="' '"
                   :title="item.field_name"
                   disabled
                 ></bk-input>
                 <span>: </span>
                 <bk-input
-                  style="width: 400px"
                   v-model="item.value"
+                  style="width: 400px"
                   :placeholder="' '"
                   :title="item.value"
                   disabled
@@ -692,17 +690,17 @@
               <bk-radio-group v-model="formData.visible_type">
                 <bk-radio
                   v-for="item of visibleScopeSelectList"
-                  class="scope-radio"
                   :key="item.id"
+                  class="scope-radio"
                   :value="item.id"
                 >
                   {{ item.name }}
                 </bk-radio>
               </bk-radio-group>
               <bk-select
-                style="width: 500px; margin-top: 10px"
-                v-model="visibleBkBiz"
                 v-show="scopeValueType"
+                v-model="visibleBkBiz"
+                style="width: 500px; margin-top: 10px"
                 :list="mySpaceList"
                 :virtual-scroll-render="virtualscrollSpaceList"
                 display-key="space_full_code_name"
@@ -908,8 +906,8 @@
       </bk-sideslider>
 
       <bk-dialog
-        width="1200"
         v-model="dialogVisible"
+        width="1200"
         :draggable="false"
         :header-position="'left'"
         :mask-close="false"
@@ -930,8 +928,8 @@
 
       <!-- 选择模版 -->
       <bk-dialog
-        width="480"
         v-model="templateDialogVisible"
+        width="480"
         :confirm-fn="handleTemplConfirm"
         :draggable="false"
         :header-position="'left'"
@@ -942,14 +940,14 @@
           <div v-if="isSaveTempDialog">
             <label style="color: #63656e">{{ $t('模板名称') }}</label>
             <bk-input
-              style="margin-top: 8px"
               v-model="saveTempName"
+              style="margin-top: 8px"
             ></bk-input>
           </div>
           <div v-else>
             <bk-input
-              style="margin-top: 8px"
               v-model="templateKeyWord"
+              style="margin-top: 8px"
               :right-icon="'bk-icon icon-search'"
               data-test-id="fieldExtractionBox_select_selectTemplate"
               clearable
@@ -958,8 +956,8 @@
             <div class="template-list-wrap">
               <div
                 v-for="option in currentTemplateList"
-                :class="{ 'template-item': true, active: option.clean_template_id === selectTemplate }"
                 :key="option.clean_template_id"
+                :class="{ 'template-item': true, active: option.clean_template_id === selectTemplate }"
                 :title="option.name"
                 @click="handleSelectTemplate(option.clean_template_id, option.name)"
               >
@@ -1041,7 +1039,7 @@
     data() {
       return {
         refresh: false,
-        defaultRegex: '(?P<request_ip>[\d\.]+)[^[]+\[(?P<request_time>[^]]+)\]',
+        defaultRegex: '(?P<request_ip>[\\d.]+)[^[]+\\[(?P<request_time>[^]]+)\\]',
         isLoading: false,
         basicLoading: false,
         logOriginalLoding: false,
@@ -1320,10 +1318,9 @@
         );
       },
       advanceDisableTips() {
-        if (!isFeatureToggleOn('scenario_bkdata', [
-          String(this.$store.state.bkBizId),
-          String(this.$store.state.spaceUid),
-        ])) {
+        if (
+          !isFeatureToggleOn('scenario_bkdata', [String(this.$store.state.bkBizId), String(this.$store.state.spaceUid)])
+        ) {
           return '';
         }
         if (this.curCollect.bkdata_data_id === null) {
@@ -1449,10 +1446,10 @@ __ext_json.service.labels   ${this.$t('动态对象字段')}`;
 
         return this.globalsData.field_date_format.map(item => {
           return Object.assign(item, {
-            disabled: false, //isNanoTimeFormat(item),
+            disabled: false, // isNanoTimeFormat(item),
           });
         });
-      }
+      },
     },
     watch: {
       'formData.fields'() {
@@ -1648,7 +1645,7 @@ __ext_json.service.labels   ${this.$t('动态对象字段')}`;
       setTempDetail(data) {
         const {
           name,
-          clean_type,
+          clean_type: cleanType,
           etl_params: etlParams,
           etl_fields: etlFields,
           visible_type,
@@ -1656,8 +1653,8 @@ __ext_json.service.labels   ${this.$t('动态对象字段')}`;
         } = data;
         this.saveTempName = name;
 
-        this.params.etl_config = clean_type;
-        this.catchEtlConfig = clean_type;
+        this.params.etl_config = cleanType;
+        this.catchEtlConfig = cleanType;
         Object.assign(this.params.etl_params, {
           separator_regexp: etlParams.separator_regexp || '',
           separator: etlParams.separator || '',
@@ -1677,8 +1674,8 @@ __ext_json.service.labels   ${this.$t('动态对象字段')}`;
 
         this.visibleBkBiz = visibleBkBizList;
         this.cacheVisibleList = visibleBkBizList;
-        this.fieldType = clean_type;
-        this.enableMetaData = etlParams.path_regexp ? true : false;
+        this.fieldType = cleanType;
+        this.enableMetaData = !!etlParams.path_regexp;
         Object.assign(this.formData, {
           etl_config: this.fieldType,
           etl_params: Object.assign(
@@ -1928,9 +1925,7 @@ __ext_json.service.labels   ${this.$t('动态对象字段')}`;
               // 仅后台确认索引轮转成功后，才提示层级已生效
               if (showedDepthSuccess) {
                 const depthLabel = getExpandDepthLabel(this.expandDepthSelect, key => this.$t(key));
-                this.messageSuccess(
-                  this.$t('动态字段解析层级已生效，新写入数据将按 {n} 解析。', { n: depthLabel }),
-                );
+                this.messageSuccess(this.$t('动态字段解析层级已生效，新写入数据将按 {n} 解析。', { n: depthLabel }));
                 this.originHadExtJsonConfig = true;
                 this.originRetainExtraJson = true;
                 this.originExpandDepthSelect = this.expandDepthSelect;
@@ -2171,10 +2166,7 @@ __ext_json.service.labels   ${this.$t('动态对象字段')}`;
         copyFields.forEach(row => {
           row.value = '';
           if (row.is_delete) {
-            const copyRow = Object.assign(
-              structuredClone(this.rowTemplate),
-              structuredClone(row),
-            );
+            const copyRow = Object.assign(structuredClone(this.rowTemplate), structuredClone(row));
             Object.assign(row, copyRow);
           }
           if (row.option) {
@@ -2295,7 +2287,8 @@ __ext_json.service.labels   ${this.$t('动态对象字段')}`;
         if (this.isTempField) {
           requestUrl = 'clean/getEtlPreview';
         } else {
-          (urlParams.collector_config_id = this.curCollect.collector_config_id), (requestUrl = 'collect/getEtlPreview');
+          ((urlParams.collector_config_id = this.curCollect.collector_config_id),
+            (requestUrl = 'collect/getEtlPreview'));
         }
         const updateData = { params: urlParams, data };
         this.$http
@@ -2310,10 +2303,10 @@ __ext_json.service.labels   ${this.$t('动态对象字段')}`;
               const dataFields = res.data.fields;
               const validFieldPattern = /^[A-Za-z_][0-9A-Za-z_]*$/;
               dataFields.forEach((item, itemIndex) => {
-                if(item.field_name && !validFieldPattern.test(item.field_name)){
-                  item.field_name = JSON.stringify(item.field_name)
+                if (item.field_name && !validFieldPattern.test(item.field_name)) {
+                  item.field_name = JSON.stringify(item.field_name);
                 }
-                item.field_index = itemIndex +1;
+                item.field_index = itemIndex + 1;
                 item.verdict = judgeNumber(item.value);
               });
               const fields = this.formData.fields;
@@ -2464,12 +2457,12 @@ __ext_json.service.labels   ${this.$t('动态对象字段')}`;
               this.pathExample = this.jsonText.filename;
               this.logOriginal = data.etl.data || '';
               if (this.logOriginal) {
-                this.requestEtlPreview(isInit);
+                this.requestEtlPreview(type);
               }
               this.copyBuiltField.forEach(item => {
                 const fieldName = item.field_name;
                 if (fieldName) {
-                  if (item.hasOwnProperty('value')) {
+                  if (Object.prototype.hasOwnProperty.call(item, 'value')) {
                     item.value = this.copysText[fieldName];
                   } else {
                     this.$set(item, 'value', this.copysText[fieldName]);
@@ -2562,10 +2555,10 @@ __ext_json.service.labels   ${this.$t('动态对象字段')}`;
           })
           .then(res => {
             if (res.data) {
-              const { clean_type, etl_params: etlParams, etl_fields: etlFields } = res.data;
+              const { clean_type: cleanType, etl_params: etlParams, etl_fields: etlFields } = res.data;
               this.formData.fields.splice(0, this.formData.fields.length);
 
-              this.params.etl_config = clean_type;
+              this.params.etl_config = cleanType;
               const logTimeOption = {};
               const previousStateFields = etlFields.map(item => {
                 if (item.is_time) {
@@ -2585,7 +2578,7 @@ __ext_json.service.labels   ${this.$t('动态对象字段')}`;
                 separator_regexp: etlParams.separator_regexp || '',
                 separator: etlParams.separator || '',
               });
-              this.fieldType = clean_type;
+              this.fieldType = cleanType;
               this.enableMetaData = !!etlParams.path_regexp;
 
               Object.assign(this.formData, {
@@ -2758,8 +2751,7 @@ __ext_json.service.labels   ${this.$t('动态对象字段')}`;
           return;
         }
         if (val) {
-          this.expandDepthSelect =
-            this.sessionLastExpandDepth ?? DEFAULT_EXPAND_DEPTH;
+          this.expandDepthSelect = this.sessionLastExpandDepth ?? DEFAULT_EXPAND_DEPTH;
         } else {
           this.sessionLastExpandDepth = this.expandDepthSelect;
         }
@@ -2876,7 +2868,7 @@ __ext_json.service.labels   ${this.$t('动态对象字段')}`;
       getNotParticipleFieldTableData() {
         const fieldsData = this.$refs.fieldTable.getData() || [];
 
-        const { field_name, time_zone, time_format } = this.formData;
+        const { field_name: fieldName, time_zone: timeZone, time_format: timeFormat } = this.formData;
         const isReportingTime = this.formData.log_reporting_time;
         const result = fieldsData.map(item => {
           // 通用的删除操作
@@ -2889,12 +2881,12 @@ __ext_json.service.labels   ${this.$t('动态对象字段')}`;
               item.option.time_zone = '';
               item.option.time_format = '';
             }
-          } else if (item.field_name === field_name) {
+          } else if (item.field_name === fieldName) {
             // 当不是日志上报时间时
             item.is_time = true;
             if (item.option) {
-              item.option.time_zone = time_zone;
-              item.option.time_format = time_format;
+              item.option.time_zone = timeZone;
+              item.option.time_format = timeFormat;
             }
           }
 
@@ -2946,7 +2938,7 @@ __ext_json.service.labels   ${this.$t('动态对象字段')}`;
           });
           this.fieldsObjectData = res.data.fields.filter(item => item.field_name.includes('.'));
           this.fieldsObjectData.forEach(item => {
-            let name = item.field_name.split('.')[0];
+            const name = item.field_name.split('.')[0];
             // flattened 边界字段保持类型，页面展示为「动态对象字段」，不继续挂载子 mapping
             if (item.field_type !== 'flattened') {
               item.field_type = typeConversion[item.field_type] || item.field_type;
@@ -2968,13 +2960,13 @@ __ext_json.service.labels   ${this.$t('动态对象字段')}`;
         });
       },
       addChildrenToBuiltField(builtFieldList, item, name) {
-        const field_name = name.split('.')[0].replace(/^_+|_+$/g, '');
+        const fieldName = name.split('.')[0].replace(/^_+|_+$/g, '');
         builtFieldList.forEach(builtField => {
           // 动态对象边界字段（flattened）不再递归挂载内部 mapping 字段
           if (builtField.field_type === 'flattened') {
             return;
           }
-          if (builtField.field_type === 'object' && field_name === builtField.field_name?.split('.')[0]) {
+          if (builtField.field_type === 'object' && fieldName === builtField.field_name?.split('.')[0]) {
             if (!Array.isArray(builtField.children)) {
               builtField.children = [];
               this.$set(builtField, 'expand', false);

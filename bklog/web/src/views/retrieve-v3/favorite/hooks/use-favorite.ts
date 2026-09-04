@@ -173,7 +173,7 @@ export const useFavorite = () => {
    */
   const setRouteParams = (item: IFavoriteItem): void => {
     const { ids, isUnionIndex } = store.state.indexItem;
-    const search_mode = SEARCH_MODE_DIC[store.state.storage[BK_LOG_STORAGE.SEARCH_TYPE]] ?? 'ui';
+    const searchMode = SEARCH_MODE_DIC[store.state.storage[BK_LOG_STORAGE.SEARCH_TYPE]] ?? 'ui';
     const unionList = store.state.unionIndexList;
     const clusterParams = store.state.clusterParams;
     const { start_time, end_time, addition, begin, size, ip_chooser, host_scopes, interval, sort_list } =
@@ -191,7 +191,7 @@ export const useFavorite = () => {
       host_scopes,
       interval,
       bk_biz_id: store.state.bkBizId,
-      search_mode,
+      search_mode: searchMode,
       sort_list,
       clusterParams,
       pid,
@@ -209,9 +209,10 @@ export const useFavorite = () => {
       Object.assign(routeParams, { retrieve_type: 'normal', ids, isUnionIndex, unionList });
     }
 
-    const params = isSceneMode.value || isUnionIndex
-      ? { ...route.params, indexId: undefined }
-      : { ...route.params, indexId: ids?.[0] ? `${ids?.[0]}` : route.params?.indexId };
+    const params =
+      isSceneMode.value || isUnionIndex
+        ? { ...route.params, indexId: undefined }
+        : { ...route.params, indexId: ids?.[0] ? `${ids?.[0]}` : route.params?.indexId };
 
     const query = { ...route.query };
 
@@ -255,7 +256,7 @@ export const useFavorite = () => {
 
     const keyword = cloneValue.params?.keyword || '';
     const addition = cloneValue.params?.addition ?? [];
-    const search_mode = getSearchMode(cloneValue);
+    const searchMode = getSearchMode(cloneValue);
     const isSceneSource = cloneValue.source_type === 'scene';
 
     // 场景化模式下解析 table_id_conditions
@@ -284,11 +285,11 @@ export const useFavorite = () => {
     store.commit('updateIsSetDefaultTableColumn', false);
     store.commit('updateStorage', {
       [BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB]: isSceneSource ? 'single' : item.index_set_type,
-      [BK_LOG_STORAGE.SEARCH_TYPE]: ['ui', 'sql'].indexOf(search_mode ?? 'ui'),
+      [BK_LOG_STORAGE.SEARCH_TYPE]: ['ui', 'sql'].indexOf(searchMode ?? 'ui'),
     });
 
     // 处理 IP 选择器
-    const ip_chooser = { ...(cloneValue.params?.ip_chooser ?? {}) };
+    const ipChooser = { ...(cloneValue.params?.ip_chooser ?? {}) };
     // 索引集模式下处理联合索引
     if (!isSceneSource && isUnionIndex) {
       store.commit(
@@ -297,11 +298,11 @@ export const useFavorite = () => {
       );
     }
 
-    if (JSON.stringify(ip_chooser) !== '{}') {
+    if (JSON.stringify(ipChooser) !== '{}') {
       addition.push({
         field: '_ip-select_',
         operator: '',
-        value: [ip_chooser],
+        value: [ipChooser],
       });
     }
 
@@ -309,8 +310,8 @@ export const useFavorite = () => {
     const indexItemUpdate: Record<string, any> = {
       keyword,
       addition,
-      ip_chooser,
-      search_mode,
+      ip_chooser: ipChooser,
+      search_mode: searchMode,
     };
 
     if (isSceneSource) {
@@ -344,7 +345,7 @@ export const useFavorite = () => {
     });
 
     store.dispatch('requestIndexSetFieldInfo').then(() => {
-      RetrieveHelper.setFavoriteActive({ ...activeFavorite.value, search_mode });
+      RetrieveHelper.setFavoriteActive({ ...activeFavorite.value, search_mode: searchMode });
       store.dispatch('requestIndexSetQuery');
     });
   };
@@ -385,10 +386,10 @@ export const useFavorite = () => {
     callback?: (res: any) => void,
   ): Promise<void> => {
     try {
-      const { group_id, group_new_name } = groupData;
+      const { group_id, group_new_name: groupNewName } = groupData;
       const sourceType = store.getters.isSceneMode ? 'scene' : 'index_set';
       const params = { group_id };
-      const data = { name: group_new_name, space_uid: spaceUid, source_type: sourceType };
+      const data = { name: groupNewName, space_uid: spaceUid, source_type: sourceType };
       const requestStr = isCreate ? 'createGroup' : 'updateGroupName';
 
       await $http.request(`favorite/${requestStr}`, { params, data }).then(res => {
@@ -404,9 +405,7 @@ export const useFavorite = () => {
   const handleNewLink = (item: IFavoriteItem, type: string) => {
     // const { RetrieveUrlResolver } = require('@/store/url-resolver');
     const isSceneSource = item.source_type === 'scene';
-    const routePathParams = isSceneSource
-      ? { indexId: undefined }
-      : { indexId: item.index_set_id };
+    const routePathParams = isSceneSource ? { indexId: undefined } : { indexId: item.index_set_id };
 
     // 公共路由参数
     const routeParams: Record<string, any> = {
@@ -422,7 +421,8 @@ export const useFavorite = () => {
       Object.assign(routeParams, {
         retrieve_type: 'scene',
         scene_active: item.scene_id,
-        scene_filter_values: parseTableIdConditions(item.table_id_conditions, item.scene_filter_values).scene_filter_values,
+        scene_filter_values: parseTableIdConditions(item.table_id_conditions, item.scene_filter_values)
+          .scene_filter_values,
       });
     } else {
       Object.assign(routeParams, {
@@ -485,7 +485,7 @@ export const useFavorite = () => {
       index_set_type,
       index_set_ids,
       space_uid,
-      source_type,
+      source_type: sourceType,
       scene_id,
       table_id_conditions,
       scene_filter_values: itemSceneFilterValues,
@@ -504,7 +504,7 @@ export const useFavorite = () => {
       space_uid,
     };
 
-    if (source_type === 'scene') {
+    if (sourceType === 'scene') {
       // 场景化收藏克隆
       Object.assign(data, {
         source_type: 'scene',
@@ -573,23 +573,23 @@ export const useFavorite = () => {
     const {
       params,
       name,
-      search_mode,
+      search_mode: searchMode,
       group_id,
       display_fields,
       visible_type,
       id,
       index_set_id,
       index_set_ids,
-      index_set_type,
+      index_set_type: indexSetType,
       is_enable_display_fields,
-      source_type,
+      source_type: sourceType,
       scene_id,
       table_id_conditions,
       scene_filter_values: itemSceneFilterValues,
     } = item;
     const { ip_chooser, addition, keyword, search_fields } = params;
     const searchParams =
-      search_mode === 'sql'
+      searchMode === 'sql'
         ? { keyword, addition: [] }
         : { addition: (addition || []).filter(v => v.field !== '_ip-select_'), keyword: '*' };
 
@@ -605,7 +605,7 @@ export const useFavorite = () => {
       is_enable_display_fields,
     };
 
-    if (source_type === 'scene') {
+    if (sourceType === 'scene') {
       // 场景化收藏更新
       Object.assign(data, {
         source_type: 'scene',
@@ -615,7 +615,11 @@ export const useFavorite = () => {
       });
     } else {
       // 索引集收藏更新（原有逻辑）
-      Object.assign(data, { index_set_type }, index_set_type === 'union' ? { index_set_ids } : { index_set_id });
+      Object.assign(
+        data,
+        { index_set_type: indexSetType },
+        indexSetType === 'union' ? { index_set_ids } : { index_set_id },
+      );
     }
 
     try {

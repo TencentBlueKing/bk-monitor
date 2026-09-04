@@ -158,13 +158,15 @@ export default defineComponent({
 
     // 获取聚类配置（只调用一次）
     onMounted(() => {
-      $http.request('/logClustering/getConfig', {
-        params: {
-          index_set_id: props.indexId,
-        },
-      }).then((res) => {
-        clusteringConfigData.value = res.data as ClusteringConfigData;
-      });
+      $http
+        .request('/logClustering/getConfig', {
+          params: {
+            index_set_id: props.indexId,
+          },
+        })
+        .then(res => {
+          clusteringConfigData.value = res.data as ClusteringConfigData;
+        });
     });
 
     const handleMarkClick = (markIndex: number, markText: string, row: ITableItem) => {
@@ -188,16 +190,10 @@ export default defineComponent({
     // );
 
     /** 获取当前编辑操作的数据 */
-    const currentRowValue = computed(() => props.tableList.find(item => item.data?.id === currentRowId.value),
-    );
-    const showGroupBy = computed(
-      () => props.requestData?.group_by.length > 0 && props.displayMode === 'group',
-    );
-    const isFlattenMode = computed(
-      () => props.requestData?.group_by.length > 0 && props.displayMode !== 'group',
-    );
-    const columnWidth = computed(() => Object.assign({}, props.tableColumnWidth ?? {}, props.widthList ?? {}),
-    );
+    const currentRowValue = computed(() => props.tableList.find(item => item.data?.id === currentRowId.value));
+    const showGroupBy = computed(() => props.requestData?.group_by.length > 0 && props.displayMode === 'group');
+    const isFlattenMode = computed(() => props.requestData?.group_by.length > 0 && props.displayMode !== 'group');
+    const columnWidth = computed(() => Object.assign({}, props.tableColumnWidth ?? {}, props.widthList ?? {}));
 
     /**
      * 当前窗口数据由父组件 walkVisibleWindow 产出，这里不再对全量列表 filter。
@@ -213,9 +209,7 @@ export default defineComponent({
       const showYOYLen = showYOY.value ? 2 : 0;
 
       // groupBy 列数
-      const groupByLen = isFlattenMode.value
-        ? props.requestData.group_by?.length ?? 0
-        : 0;
+      const groupByLen = isFlattenMode.value ? (props.requestData.group_by?.length ?? 0) : 0;
 
       // 创建告警策略列
       const externalLen = isExternal ? 0 : 1;
@@ -269,26 +263,19 @@ export default defineComponent({
       store.commit('updateIndexItem', { search_mode: 'ui' });
       // 新开页打开首页是原始日志，不需要传聚类参数，如果传了则会初始化为聚类
       store.commit('updateState', { key: 'clusterParams', value: null });
-      store
-        .dispatch('setQueryCondition', additionList)
-        .then(([newSearchList, searchMode, isNewSearchPage]) => {
-          if (isLink) {
-            const openUrl = getConditionRouterParams(
-              newSearchList,
-              searchMode,
-              isNewSearchPage,
-              { tab: 'origin' },
-            );
-            window.open(openUrl, '_blank', 'noopener,noreferrer');
-            // 新开页后当前页面回填聚类参数
-            store.commit('updateState', {
-              key: 'clusterParams',
-              value: props.requestData,
-            });
-            return;
-          }
-          emit('show-change', 'origin');
-        });
+      store.dispatch('setQueryCondition', additionList).then(([newSearchList, searchMode, isNewSearchPage]) => {
+        if (isLink) {
+          const openUrl = getConditionRouterParams(newSearchList, searchMode, isNewSearchPage, { tab: 'origin' });
+          window.open(openUrl, '_blank', 'noopener,noreferrer');
+          // 新开页后当前页面回填聚类参数
+          store.commit('updateState', {
+            key: 'clusterParams',
+            value: props.requestData,
+          });
+          return;
+        }
+        emit('show-change', 'origin');
+      });
     };
 
     const handleMenuClick = (row, isLink = false) => {
@@ -302,7 +289,7 @@ export default defineComponent({
     // };
 
     /** 将分组的数组改成对像 */
-    const getGroupsValue = (group) => {
+    const getGroupsValue = group => {
       if (!props.requestData?.group_by.length) return {};
       return props.requestData.group_by.reduce((acc, cur, index) => {
         acc[cur] = group?.[index] ?? '';
@@ -333,7 +320,7 @@ export default defineComponent({
             groups: getGroupsValue(row.group),
           },
         })
-        .then((res) => {
+        .then(res => {
           if (res.result) {
             const { owners } = res.data;
             updateTableRowData(row, 'owners', owners);
@@ -366,7 +353,7 @@ export default defineComponent({
             groups: getGroupsValue(row.group),
           },
         })
-        .then((res) => {
+        .then(res => {
           if (res.result) {
             const { strategy_id } = res.data;
             bkMessage({
@@ -388,16 +375,16 @@ export default defineComponent({
       });
     };
 
-    const handleStrategyInfoClick = (row) => {
+    const handleStrategyInfoClick = row => {
       currentRowId.value = row.id;
       window.open(
         `${window.MONITOR_URL}/?bizId=${store.state.bkBizId}#/strategy-config/detail/${row.strategy_id}`,
         '_blank',
-        'noopener,noreferrer'
+        'noopener,noreferrer',
       );
     };
 
-    const remarkContent = (remarkList) => {
+    const remarkContent = remarkList => {
       if (!remarkList.length) return '--';
       const maxTimestamp = remarkList.reduce((pre, cur) => {
         return cur.create_time > pre.create_time ? cur : pre;
@@ -499,9 +486,7 @@ export default defineComponent({
             >
               <log-icon type='sousuo-' />
             </div>
-            <div class='count-display'>
-              （{t('共有 {0} 条数据', [row.childCount])}）
-            </div>
+            <div class='count-display'>（{t('共有 {0} 条数据', [row.childCount])}）</div>
           </div>
         );
       }
@@ -522,10 +507,7 @@ export default defineComponent({
      */
     const renderGroupRow = (row: ITableItem) => {
       // 平铺模式
-      if (
-        (isFlattenMode.value || props.requestData?.group_by.length === 0)
-        && row.index === 1
-      ) {
+      if ((isFlattenMode.value || props.requestData?.group_by.length === 0) && row.index === 1) {
         return (
           <tr class='is-row-group is-flatten-count'>
             <td colspan={columnLength.value}>{renderGroupItem(row)}</td>
@@ -555,10 +537,16 @@ export default defineComponent({
         <tr>
           <td>
             <div class='signature-box'>
-              <div class='signature' v-bk-overflow-tips>
+              <div
+                class='signature'
+                v-bk-overflow-tips
+              >
                 {row.data?.signature}
               </div>
-              <div class='new-finger' v-show={row.data?.is_new_class}>
+              <div
+                class='new-finger'
+                v-show={row.data?.is_new_class}
+              >
                 New
               </div>
             </div>
@@ -581,9 +569,7 @@ export default defineComponent({
           </td>
           {showYOY.value && (
             <td>
-              <span style='padding-left:6px'>
-                {row.data?.year_on_year_count}
-              </span>
+              <span style='padding-left:6px'>{row.data?.year_on_year_count}</span>
             </td>
           )}
           {showYOY.value && (
@@ -603,30 +589,30 @@ export default defineComponent({
                 {row.data?.year_on_year_percentage !== 0 ? (
                   <log-icon
                     style='font-size: 16px;'
-                    type={
-                      row.data?.year_on_year_percentage < 0 ? 'down-4' : 'up-2'
-                    }
+                    type={row.data?.year_on_year_percentage < 0 ? 'down-4' : 'up-2'}
                   />
                 ) : (
-                  <log-icon style='font-size: 16px;' type='--2' />
+                  <log-icon
+                    style='font-size: 16px;'
+                    type='--2'
+                  />
                 )}
               </div>
             </td>
           )}
-          {isFlattenMode.value
-          && props.requestData.group_by.map((_: any, index: number) => (
-            <td>
-              <div class='dynamic-column' v-bk-overflow-tips>
-                {row.data?.group?.[index] || '--'}
-              </div>
-            </td>
-          ))}
+          {isFlattenMode.value &&
+            props.requestData.group_by.map((_: any, index: number) => (
+              <td>
+                <div
+                  class='dynamic-column'
+                  v-bk-overflow-tips
+                >
+                  {row.data?.group?.[index] || '--'}
+                </div>
+              </td>
+            ))}
           <td>
-            <div
-              class={[
-                'pattern-content',
-              ]}
-            >
+            <div class={['pattern-content']}>
               <ClusterEventPopover
                 indexId={props.indexId}
                 rowData={row.data}
@@ -671,7 +657,7 @@ export default defineComponent({
               class='principal-main'
               v-bk-tooltips={{
                 placement: 'top',
-                content: getOwners(row.data).join(', ') ,
+                content: getOwners(row.data).join(', '),
                 delay: 300,
                 disabled: !getOwners(row.data).length || editingOwnerRowId.value === row.data?.id,
               }}
@@ -685,7 +671,7 @@ export default defineComponent({
                     placeholder='--'
                     value={getOwners(row.data)}
                     multiple
-                    on-change={(val) => {
+                    on-change={val => {
                       handleChangePrincipal(val, row.data);
                       editingOwnerRowId.value = null;
                     }}
@@ -711,7 +697,7 @@ export default defineComponent({
                   allow-create
                   has-delete-icon
                   on-blur={() => handleChangePrincipal(null, row.data)}
-                  on-change={(value) => {
+                  on-change={value => {
                     row.data.owners = value;
                     emit('row-updated');
                   }}
@@ -731,7 +717,10 @@ export default defineComponent({
                     />
                     {row.data?.strategy_id > 0 && (
                       <span on-click={() => handleStrategyInfoClick(row.data)}>
-                        <log-icon style='font-size: 16px' type='audit' />
+                        <log-icon
+                          style='font-size: 16px'
+                          type='audit'
+                        />
                       </span>
                     )}
                   </div>
@@ -793,19 +782,16 @@ export default defineComponent({
         class='log-content-table-main'
         v-show={props.tableList.length > 0}
       >
-        <div ref={tableWraperRef} class='log-content-table-wraper'>
+        <div
+          ref={tableWraperRef}
+          class='log-content-table-wraper'
+        >
           <table class='log-content-table'>
             <thead class='hide-header'>
               <tr ref={headRowRef}>
-                <th
-                  style={{ width: `${columnWidth.value.signature ?? 125}px` }}
-                >
-                  数据指纹
-                </th>
+                <th style={{ width: `${columnWidth.value.signature ?? 125}px` }}>数据指纹</th>
                 <th style={{ width: `${columnWidth.value.number}px` }}>数量</th>
-                <th style={{ width: `${columnWidth.value.percentage}px` }}>
-                  占比
-                </th>
+                <th style={{ width: `${columnWidth.value.percentage}px` }}>占比</th>
                 {showYOY.value && (
                   <th
                     style={{
@@ -824,20 +810,12 @@ export default defineComponent({
                     同比变化
                   </th>
                 )}
-                {isFlattenMode.value
-                  && props.requestData.group_by.map(item => (
-                    <th
-                      style={{ width: `${columnWidth.value[item] ?? 100}px` }}
-                    >
-                      {item}
-                    </th>
+                {isFlattenMode.value &&
+                  props.requestData.group_by.map(item => (
+                    <th style={{ width: `${columnWidth.value[item] ?? 100}px` }}>{item}</th>
                   ))}
-                <th style={{ width: `${columnWidth.value.pattern ?? 350}px` }}>
-                  Pattern
-                </th>
-                <th style={{ width: `${columnWidth.value.owners ?? 200}px` }}>
-                  责任人
-                </th>
+                <th style={{ width: `${columnWidth.value.pattern ?? 350}px` }}>Pattern</th>
+                <th style={{ width: `${columnWidth.value.owners ?? 200}px` }}>责任人</th>
                 {!isExternal && (
                   <th
                     style={{
@@ -847,9 +825,7 @@ export default defineComponent({
                     创建告警策略
                   </th>
                 )}
-                <th style={{ width: `${columnWidth.value.remark ?? 200}px` }}>
-                  备注
-                </th>
+                <th style={{ width: `${columnWidth.value.remark ?? 200}px` }}>备注</th>
                 {/* {isAiAssistanceActive.value && <th style="width:60px">ai</th>} */}
               </tr>
             </thead>

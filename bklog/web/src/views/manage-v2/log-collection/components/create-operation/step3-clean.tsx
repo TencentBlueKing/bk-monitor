@@ -151,7 +151,7 @@ export default defineComponent({
     const store = useStore();
     const { t } = useLocale();
     const route = useRoute();
-    const defaultRegex = '(?P<request_ip>[d.]+)[^[]+[(?P<request_time>[^]]+)]';
+    const defaultRegex = '(?P<request_ip>[\\d.]+)[^[]+\\[(?P<request_time>[^]]+)\\]';
     const { cardRender } = useOperation();
     const { goListPage } = useCollectList();
     const showReportLogSlider = ref(false);
@@ -362,13 +362,13 @@ export default defineComponent({
     });
 
     /** 将接口清洗配置统一转换为表单数据及其派生 UI 状态 */
-    const applyEtlConfigToForm = <T extends EtlConfigInput, >(data: T): T => {
+    const applyEtlConfigToForm = <T extends EtlConfigInput>(data: T): T => {
       const appliedConfig = structuredClone(data);
       const cleanType = appliedConfig.clean_type ?? appliedConfig.etl_config ?? formData.value.etl_config;
       const sourceEtlParams = appliedConfig.etl_params ?? {};
       if (
-        typeof sourceEtlParams.enable_retain_content !== 'boolean'
-        && typeof sourceEtlParams.record_parse_failure === 'boolean'
+        typeof sourceEtlParams.enable_retain_content !== 'boolean' &&
+        typeof sourceEtlParams.record_parse_failure === 'boolean'
       ) {
         sourceEtlParams.enable_retain_content = sourceEtlParams.record_parse_failure;
       }
@@ -400,9 +400,7 @@ export default defineComponent({
       cleaningMode.value = cleanType;
       delimiter.value = etlParams.separator ?? '';
       enableMetaData.value = !!etlParams.path_regexp;
-      originParticipleState.value = etlParams.original_text_tokenize_on_chars
-        ? 'custom'
-        : 'default';
+      originParticipleState.value = etlParams.original_text_tokenize_on_chars ? 'custom' : 'default';
       grokModeEnabled.value = etlParams.is_grok ?? true;
       timeCheckErrContent.value = '';
       return appliedConfig;
@@ -546,9 +544,8 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
     const isTemplateBound = computed(() => cleanRuleMode.value === 'template' && cleanTemplateId.value !== null);
 
     /** 获取保存时需要提交的模板关联 ID */
-    const getSubmitCleanTemplateId = () => (
-      isClean.value && cleanRuleMode.value === 'template' ? cleanTemplateId.value : null
-    );
+    const getSubmitCleanTemplateId = () =>
+      isClean.value && cleanRuleMode.value === 'template' ? cleanTemplateId.value : null;
 
     /** 根据采集项返回的模板 ID 恢复关联，并加载当前绑定模板详情 */
     const restoreCleanTemplateAssociation = async (templateId: number | null) => {
@@ -603,21 +600,22 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
     };
 
     /** 提取实际生效的字段配置，排除日志样例值及表格 UI 状态 */
-    const buildTemplateEtlFieldsSnapshot = (fields: EtlField[]): EtlField[] => fields.map(field => ({
-      field_index: field.field_index,
-      field_name: field.field_name,
-      alias_name: field.alias_name,
-      field_type: field.field_type,
-      description: field.description,
-      is_analyzed: field.is_analyzed,
-      is_dimension: field.is_dimension,
-      is_time: field.is_time,
-      is_delete: field.is_delete,
-      is_built_in: field.is_built_in,
-      option: structuredClone(field.option ?? {}),
-      is_case_sensitive: field.is_case_sensitive,
-      tokenize_on_chars: field.tokenize_on_chars,
-    }));
+    const buildTemplateEtlFieldsSnapshot = (fields: EtlField[]): EtlField[] =>
+      fields.map(field => ({
+        field_index: field.field_index,
+        field_name: field.field_name,
+        alias_name: field.alias_name,
+        field_type: field.field_type,
+        description: field.description,
+        is_analyzed: field.is_analyzed,
+        is_dimension: field.is_dimension,
+        is_time: field.is_time,
+        is_delete: field.is_delete,
+        is_built_in: field.is_built_in,
+        option: structuredClone(field.option ?? {}),
+        is_case_sensitive: field.is_case_sensitive,
+        tokenize_on_chars: field.tokenize_on_chars,
+      }));
 
     /** 提取会影响清洗结果的模板核心配置 */
     const getTemplateConfigSnapshot = (): TemplateConfigSnapshot => ({
@@ -630,20 +628,18 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
       initialTemplateConfigSnapshot.value = getTemplateConfigSnapshot();
     };
 
-    const hasTemplateCoreConfigChanged = () => (
-      initialTemplateConfigSnapshot.value === null
-      || !deepEqual(getTemplateConfigSnapshot(), initialTemplateConfigSnapshot.value)
-    );
+    const hasTemplateCoreConfigChanged = () =>
+      initialTemplateConfigSnapshot.value === null ||
+      !deepEqual(getTemplateConfigSnapshot(), initialTemplateConfigSnapshot.value);
 
     /**
      * 判断配置是否有变更
      */
     const hasConfigChanged = () => {
-      return !deepEqual(
-        { ...formData.value, expandDepthSelect: expandDepthSelect.value },
-        initialFormData.value,
-      )
-        || getSubmitCleanTemplateId() !== initialCleanTemplateId.value;
+      return (
+        !deepEqual({ ...formData.value, expandDepthSelect: expandDepthSelect.value }, initialFormData.value) ||
+        getSubmitCleanTemplateId() !== initialCleanTemplateId.value
+      );
     };
 
     const isEditCleanItem = computed(() => route.name === 'clean-edit' || route.name === 'v2-clean-edit');
@@ -800,11 +796,7 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
             builtInFieldsList.value = (fieldsSource || []).filter(item => item.is_built_in);
 
             // 从 curCollect 获取详情数据并回填到 formData，与旧版 getDetail 保持一致
-            const {
-              etl_config,
-              etl_params: etlParams,
-              fields,
-            } = curCollect.value;
+            const { etl_config: etlConfig, etl_params: etlParams, fields } = curCollect.value;
 
             // 处理 fields：清空 value、处理 is_delete、确保 option 存在
             const option = { time_zone: '', time_format: '' };
@@ -812,10 +804,7 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
             copyFields.forEach(row => {
               row.value = '';
               if (row.is_delete) {
-                const copyRow = Object.assign(
-                  structuredClone(rowTemplate.value),
-                  structuredClone(row),
-                );
+                const copyRow = Object.assign(structuredClone(rowTemplate.value), structuredClone(row));
                 Object.assign(row, copyRow);
               }
               if (row.option) {
@@ -826,16 +815,14 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
             });
 
             // 更新 cleaningMode 和 enableMetaData
-            cleaningMode.value = etl_config || 'bk_log_text';
+            cleaningMode.value = etlConfig || 'bk_log_text';
             enableMetaData.value = !!etlParams?.path_regexp;
 
             // 更新 delimiter 和 originParticipleState
             if (cleaningMode.value === 'bk_log_delimiter') {
               delimiter.value = etlParams?.separator;
             }
-            originParticipleState.value = etlParams?.original_text_tokenize_on_chars
-              ? 'custom'
-              : 'default';
+            originParticipleState.value = etlParams?.original_text_tokenize_on_chars ? 'custom' : 'default';
 
             // 合并 etl_params 默认值并更新 formData
             formData.value = {
@@ -855,9 +842,9 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
                 },
                 etlParams
                   ? {
-                    ...structuredClone(etlParams),
-                    metadata_fields: etlParams.metadata_fields || [],
-                  }
+                      ...structuredClone(etlParams),
+                      metadata_fields: etlParams.metadata_fields || [],
+                    }
                   : {},
               ),
               etl_fields: copyFields.filter(item => !item.is_built_in),
@@ -934,7 +921,7 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
      */
     const debugHandler = (type = 'default') => {
       const isRefresh = type === 'refresh';
-      const { etl_params } = formData.value;
+      const { etl_params: etlParams } = formData.value;
       const data = {
         etl_config: cleaningMode.value,
         etl_params: {},
@@ -944,7 +931,7 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
         data.etl_params.separator = delimiter.value;
       }
       if (cleaningMode.value === 'bk_log_regexp') {
-        data.etl_params.separator_regexp = etl_params.separator_regexp;
+        data.etl_params.separator_regexp = etlParams.separator_regexp;
         data.etl_params.is_grok = grokModeEnabled.value;
         data.bk_biz_id = bkBizId.value;
       }
@@ -995,17 +982,13 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
            */
           if (isRefresh) {
             const valueMap = dataFields.reduce((map, item, index) => {
-              const key = cleaningMode.value === 'bk_log_delimiter'
-                ? (item.field_index ?? index + 1)
-                : item.field_name;
+              const key = cleaningMode.value === 'bk_log_delimiter' ? (item.field_index ?? index + 1) : item.field_name;
               map[key] = item.value;
               return map;
             }, {});
             formData.value.etl_fields = fields.map(item => {
               if (item.is_built_in) return item;
-              const key = cleaningMode.value === 'bk_log_delimiter'
-                ? item.field_index
-                : item.field_name;
+              const key = cleaningMode.value === 'bk_log_delimiter' ? item.field_index : item.field_name;
               return {
                 ...item,
                 value: valueMap[key] ?? '',
@@ -1015,9 +998,8 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
           }
 
           // 判断是否为首次清洗（无提取方式 || 提取方式变化 || 无已有字段配置）
-          const isFirstClean = !formData.value.etl_config
-            || formData.value.etl_config !== cleaningMode.value
-            || !existingFields.length;
+          const isFirstClean =
+            !formData.value.etl_config || formData.value.etl_config !== cleaningMode.value || !existingFields.length;
 
           if (isFirstClean) {
             // 首次清洗：对每个字段应用 detectFieldType 推断类型
@@ -1066,9 +1048,7 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
             formData.value.etl_config = cleaningMode.value;
           } else if (etlConfig === 'bk_log_delimiter') {
             // 分隔符模式：按 field_index 匹配已有字段，保留旧配置
-            const nonDeletedFields = existingFields.filter(
-              item => item.field_name && !item.is_delete,
-            );
+            const nonDeletedFields = existingFields.filter(item => item.field_name && !item.is_delete);
             const deletedFields = existingFields.filter(item => item.is_delete);
             const list = [...deletedFields];
 
@@ -1177,7 +1157,7 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
                     '正则表达式(golang语法)需要匹配日志全文，如以下DEMO将从日志内容提取请求时间与内容',
                   )}<br />${t(' - 日志内容：[2006-01-02 15:04:05] content')}<br /> ${t(
                     ' - 表达式：',
-                  )} \[(?P<request_time>[^]]+)\] (?P<content>.+)`,
+                  )} \\[(?P<request_time>[^]]+)\\] (?P<content>.+)`,
                 }}
               />
               <GrokModeSwitch
@@ -1190,7 +1170,7 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
             <GrokInput
               grokMode={grokModeEnabled.value}
               popoverPosition='cursor'
-              placeholder={'(?P<request_ip>[d.]+)[^[]+[(?P<request_time>[^]]+)]'}
+              placeholder={'(?P<request_ip>[\\d.]+)[^[]+\\[(?P<request_time>[^]]+)\\]'}
               type='textarea'
               value={formData.value.etl_params.separator_regexp}
               on-input={(val: string) => {
@@ -1232,7 +1212,6 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
             jsonText.value = data.origin || {};
             pathExample.value = jsonText.value.filename;
             logOriginal.value = data.etl.data || '';
-            // biome-ignore lint/complexity/noForEach: <explanation>
             copyBuiltField.value.forEach(item => {
               const fieldName = item.field_name;
               if (fieldName) {
@@ -1334,9 +1313,9 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
 
     // 对时间格式做校验逻辑
     const requestCheckTime = async () => {
-      const { time_format, time_zone, field_name } = formData.value;
+      const { time_format, time_zone, field_name: fieldName } = formData.value;
       const fieldsData = formData.value.etl_fields;
-      const timeValueItem = fieldsData.find(item => field_name === item.field_name);
+      const timeValueItem = fieldsData.find(item => fieldName === item.field_name);
       let result = false;
       await $http
         .request('collect/getCheckTime', {
@@ -1452,9 +1431,7 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
             <span class='row-label'>{t('模板名称：')}</span>
             <span class='row-value'>{currentSelectedTemplate.value?.name}</span>
           </div>
-          <div class='unbind-popover-desc'>
-            {t('解除绑定后，将实例化为手动配置的清洗规则，不再随模板更新。')}
-          </div>
+          <div class='unbind-popover-desc'>{t('解除绑定后，将实例化为手动配置的清洗规则，不再随模板更新。')}</div>
           <div class='unbind-popover-footer'>
             <bk-button
               theme='primary'
@@ -1478,36 +1455,37 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
       </div>
     );
 
-    const renderCollectorOptions = () => cleanCollectorList.value.map(option => (
-      <bk-option
-        id={option.collector_config_id}
-        key={option.collector_config_id}
-        name={option.collector_config_name}
-      >
-        {!option.permission?.[authorityMap.MANAGE_COLLECTION_AUTH] ? (
-          <div class='option-slot-container no-authority'>
-            <span class='text'>
+    const renderCollectorOptions = () =>
+      cleanCollectorList.value.map(option => (
+        <bk-option
+          id={option.collector_config_id}
+          key={option.collector_config_id}
+          name={option.collector_config_name}
+        >
+          {!option.permission?.[authorityMap.MANAGE_COLLECTION_AUTH] ? (
+            <div class='option-slot-container no-authority'>
+              <span class='text'>
+                <span>{option.collector_config_name}</span>
+                <span style='color: #979ba5'>（{`#${option.collector_config_id}`}）</span>
+              </span>
+              <span
+                class='apply-text'
+                on-click={() => applyProjectAccess(option)}
+              >
+                {t('申请权限')}
+              </span>
+            </div>
+          ) : (
+            <div
+              class='option-slot-container'
+              v-bk-overflow-tips
+            >
               <span>{option.collector_config_name}</span>
               <span style='color: #979ba5'>（{`#${option.collector_config_id}`}）</span>
-            </span>
-            <span
-              class='apply-text'
-              on-click={() => applyProjectAccess(option)}
-            >
-              {t('申请权限')}
-            </span>
-          </div>
-        ) : (
-          <div
-            class='option-slot-container'
-            v-bk-overflow-tips
-          >
-            <span>{option.collector_config_name}</span>
-            <span style='color: #979ba5'>（{`#${option.collector_config_id}`}）</span>
-          </div>
-        )}
-      </bk-option>
-    ));
+            </div>
+          )}
+        </bk-option>
+      ));
 
     /** 清洗设置 */
     const renderSetting = () => (
@@ -1675,7 +1653,9 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
                         </span>
                         <span class='template-card-tag'>
                           <i class='bklog-icon bklog-feature-tezheng' />
-                          {(currentSelectedTemplate.value.etl_fields ?? []).filter(field => !field.is_delete).length} | {getCleanTypeLabel(currentSelectedTemplate.value.clean_type)}
+                          {
+                            (currentSelectedTemplate.value.etl_fields ?? []).filter(field => !field.is_delete).length
+                          } | {getCleanTypeLabel(currentSelectedTemplate.value.clean_type)}
                         </span>
                       </div>
                       {currentSelectedTemplate.value.description && (
@@ -1700,13 +1680,15 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
                     <BklogPopover
                       ref={unbindPopoverRef}
                       trigger='click'
-                      options={{
-                        placement: 'bottom-end',
-                        theme: 'bklog-light',
-                        appendTo: document.body,
-                        arrow: false,
-                        hideOnClick: false,
-                      } as any}
+                      options={
+                        {
+                          placement: 'bottom-end',
+                          theme: 'bklog-light',
+                          appendTo: document.body,
+                          arrow: false,
+                          hideOnClick: false,
+                        } as any
+                      }
                       content={renderUnbindPopoverContent}
                     >
                       <span class='action-link'>
@@ -1790,9 +1772,7 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
               </bk-option>
             ))}
           </bk-select>
-          <p class='expand-depth-tips'>
-            {t('解析层级越大，可直接检索的字段越多，但也更容易达到 ES 字段数量上限。')}
-          </p>
+          <p class='expand-depth-tips'>{t('解析层级越大，可直接检索的字段越多，但也更容易达到 ES 字段数量上限。')}</p>
           {expandDepthSelect.value === UNLIMITED_EXPAND_DEPTH && (
             <bk-alert
               class='expand-depth-alert'
@@ -2036,7 +2016,9 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
               />
               <InfoTips
                 class='ml-12'
-                tips={t('在日志采集中，若您的日志中产生新的JSON字段，我们会自动采集并合入 __ext_json 字段中，您可以通过 __ext_json.xxx 检索该数据')}
+                tips={t(
+                  '在日志采集中，若您的日志中产生新的JSON字段，我们会自动采集并合入 __ext_json 字段中，您可以通过 __ext_json.xxx 检索该数据',
+                )}
               />
             </div>
           </div>
@@ -2162,12 +2144,14 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
           ref={advancedTemplateBoundPopoverRef}
           trigger='hover'
           hideDelay={600}
-          options={{
-            placement: 'top',
-            theme: 'bklog-dark',
-            appendTo: document.body,
-            offset: [0, 8],
-          } as any}
+          options={
+            {
+              placement: 'top',
+              theme: 'bklog-dark',
+              appendTo: document.body,
+              offset: [0, 8],
+            } as any
+          }
           content={renderTemplateBoundTipContent}
         >
           <div class='template-bound-advanced-target'>{advancedContent}</div>
@@ -2361,9 +2345,9 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
         }
       }
       syncLogTimeFields();
-      const { etl_fields } = formData.value;
+      const { etl_fields: etlFields } = formData.value;
 
-      if (isClean.value && etl_fields.length === 0) {
+      if (isClean.value && etlFields.length === 0) {
         showMessage(t('请完成相关的清洗配置'), 'error');
         loading.value = false;
         failedCallback?.();
@@ -2377,193 +2361,190 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
      * @param options.action 操作类型: 'next'(默认) | 'back' | 'saveOnly'
      * @param options.callback 保存完成后的回调函数
      */
-    const handleSubmitSave = async ({
-      action = 'next',
-      callback,
-    }: ISubmitOptions = {}) => {
-      handleSubmitValidate(async () => {
-        isChangingExpandDepth.value =
-          isExtJsonExpandDepthEnabled.value &&
-          !!formData.value.etl_params?.retain_extra_json &&
-          isExpandDepthChanged(
-            expandDepthSelect.value,
-            originExpandDepthSelect.value,
-            originHadExtJsonConfig.value,
-            originRetainExtraJson.value,
-          );
-        const confirmed = await confirmExpandDepthChange();
-        if (!confirmed) {
-          isChangingExpandDepth.value = false;
-          loading.value = false;
-          callback?.(false);
-          return;
-        }
-
-        // 提交前按当前时间选项重新同步 is_time，确保切换「日志上报时间」后提交数据生效
-        syncLogTimeFields();
-
-        const { etl_params: etlParams, etl_fields } = formData.value;
-        const submitEtlParams = structuredClone(etlParams);
-        if (enableMetaData.value) {
-          // 为 metadata_fields 每项补充 metadata_type（对齐旧版）
-          const metadataFields = submitEtlParams.metadata_fields?.map((item) => {
-            item.metadata_type = 'path';
-            return item;
-          }) ?? [];
-          submitEtlParams.metadata_fields = metadataFields;
-        } else {
-          submitEtlParams.path_regexp = null;
-          submitEtlParams.metadata_fields = [];
-        }
-        const {
-          storage_cluster_id,
-          allocation_min_days,
-          storage_replies,
-          es_shards,
-          table_id,
-          retention,
-          storage_shards_nums,
-        } = curCollect.value;
-        /**
-         * 编辑/创建清洗
-         * 未完成的情况下，调用创建清洗配置接口 （storage_cluster_id = -1 或者为空，都代表未完成）
-         */
-        const isNeedCreate = (isUpdate.value && !!storage_cluster_id) || props.isCleanField;
-        const url = isNeedCreate ? 'collect/fieldCollection' : 'clean/updateCleanStash';
-        // 构建 payload（对齐旧版逻辑）
-        const payload: Record<string, any> = {
-          retain_original_text: submitEtlParams.retain_original_text,
-          original_text_is_case_sensitive: submitEtlParams.original_text_is_case_sensitive ?? false,
-          original_text_tokenize_on_chars: submitEtlParams.original_text_tokenize_on_chars ?? '',
-          retain_extra_json: submitEtlParams.retain_extra_json ?? false,
-          path_regexp: submitEtlParams.path_regexp,
-          enable_retain_content: submitEtlParams.enable_retain_content,
-          record_parse_failure: submitEtlParams.enable_retain_content,
-          metadata_fields: submitEtlParams.metadata_fields,
-        };
-        if (
-          shouldSubmitExtJsonConfig({
-            retainExtraJson: !!payload.retain_extra_json,
-            featureEnabled: isExtJsonExpandDepthEnabled.value,
-            currentSelect: expandDepthSelect.value,
-            originHadConfig: originHadExtJsonConfig.value,
-            originRetainExtraJson: originRetainExtraJson.value,
-          })
-        ) {
-          // 仅提交 expand_depth，不覆盖后台隐藏的 overflow_strategy
-          payload.ext_json_config = {
-            expand_depth: toSubmitExpandDepth(expandDepthSelect.value),
-          };
-          // 同步到 formData，供存储步骤透传
-          formData.value.etl_params = {
-            ...formData.value.etl_params,
-            ext_json_config: { expand_depth: payload.ext_json_config.expand_depth },
-          };
-        } else if (formData.value.etl_params.ext_json_config) {
-          // 存量无限场景：不主动改写，同时避免把 overflow_strategy 透传到下一步
-          const { ext_json_config: _ignored, ...rest } = formData.value.etl_params as any;
-          formData.value.etl_params = rest;
-        }
-        const data = {
-          bk_biz_id: bkBizId.value,
-          etl_params: {
-            separator_regexp: cleaningMode.value === 'bk_log_regexp' ? submitEtlParams.separator_regexp : '',
-            separator: submitEtlParams.separator,
-            ...payload,
-            ...(cleaningMode.value === 'bk_log_regexp'
-              ? { is_grok: grokModeEnabled.value }
-              : {}),
-          },
-        };
-        const fieldsList = cleaningMode.value === 'bk_log_text' ? [] : etl_fields;
-        const isDorisEdit = isUpdate.value && curCollect.value.storage_cluster_type === 'doris';
-        const requestData = isNeedCreate
-          ? {
-            ...data,
-            clean_template_id: getSubmitCleanTemplateId(),
-            fields: fieldsList,
-            storage_cluster_id,
-            allocation_min_days: allocation_min_days ?? (isDorisEdit ? 0 : undefined),
-            storage_replies,
-            es_shards: es_shards ?? storage_shards_nums,
-            table_id,
-            retention: retention ?? (isDorisEdit ? 7 : undefined),
-            etl_config: cleaningMode.value,
-          }
-          : {
-            ...data,
-            clean_template_id: getSubmitCleanTemplateId(),
-            etl_fields: fieldsList,
-            clean_type: cleaningMode.value,
-          };
-        $http
-          .request(url, {
-            params: {
-              collector_config_id: curCollect.value.collector_config_id,
-            },
-            data: requestData,
-          })
-          .then(res => {
+    const handleSubmitSave = async ({ action = 'next', callback }: ISubmitOptions = {}) => {
+      handleSubmitValidate(
+        async () => {
+          isChangingExpandDepth.value =
+            isExtJsonExpandDepthEnabled.value &&
+            !!formData.value.etl_params?.retain_extra_json &&
+            isExpandDepthChanged(
+              expandDepthSelect.value,
+              originExpandDepthSelect.value,
+              originHadExtJsonConfig.value,
+              originRetainExtraJson.value,
+            );
+          const confirmed = await confirmExpandDepthChange();
+          if (!confirmed) {
+            isChangingExpandDepth.value = false;
             loading.value = false;
-            if (res?.result) {
-              const showedDepthSuccess = isChangingExpandDepth.value && isNeedCreate;
-              if (showedDepthSuccess) {
-                const depthLabel = getExpandDepthLabel(expandDepthSelect.value, key => t(key));
-                showMessage(
-                  t('动态字段解析层级已生效，新写入数据将按 {n} 解析。', { n: depthLabel }),
-                );
-                originHadExtJsonConfig.value = true;
-                originRetainExtraJson.value = true;
-                originExpandDepthSelect.value = expandDepthSelect.value;
-                isChangingExpandDepth.value = false;
+            callback?.(false);
+            return;
+          }
+
+          // 提交前按当前时间选项重新同步 is_time，确保切换「日志上报时间」后提交数据生效
+          syncLogTimeFields();
+
+          const { etl_params: etlParams, etl_fields: etlFields } = formData.value;
+          const submitEtlParams = structuredClone(etlParams);
+          if (enableMetaData.value) {
+            // 为 metadata_fields 每项补充 metadata_type（对齐旧版）
+            const metadataFields =
+              submitEtlParams.metadata_fields?.map(item => {
+                item.metadata_type = 'path';
+                return item;
+              }) ?? [];
+            submitEtlParams.metadata_fields = metadataFields;
+          } else {
+            submitEtlParams.path_regexp = null;
+            submitEtlParams.metadata_fields = [];
+          }
+          const {
+            storage_cluster_id: storageClusterId,
+            allocation_min_days: allocationMinDays,
+            storage_replies,
+            es_shards: esShards,
+            table_id,
+            retention,
+            storage_shards_nums: storageShardsNums,
+          } = curCollect.value;
+          /**
+           * 编辑/创建清洗
+           * 未完成的情况下，调用创建清洗配置接口 （storage_cluster_id = -1 或者为空，都代表未完成）
+           */
+          const isNeedCreate = (isUpdate.value && !!storageClusterId) || props.isCleanField;
+          const url = isNeedCreate ? 'collect/fieldCollection' : 'clean/updateCleanStash';
+          // 构建 payload（对齐旧版逻辑）
+          const payload: Record<string, any> = {
+            retain_original_text: submitEtlParams.retain_original_text,
+            original_text_is_case_sensitive: submitEtlParams.original_text_is_case_sensitive ?? false,
+            original_text_tokenize_on_chars: submitEtlParams.original_text_tokenize_on_chars ?? '',
+            retain_extra_json: submitEtlParams.retain_extra_json ?? false,
+            path_regexp: submitEtlParams.path_regexp,
+            enable_retain_content: submitEtlParams.enable_retain_content,
+            record_parse_failure: submitEtlParams.enable_retain_content,
+            metadata_fields: submitEtlParams.metadata_fields,
+          };
+          if (
+            shouldSubmitExtJsonConfig({
+              retainExtraJson: !!payload.retain_extra_json,
+              featureEnabled: isExtJsonExpandDepthEnabled.value,
+              currentSelect: expandDepthSelect.value,
+              originHadConfig: originHadExtJsonConfig.value,
+              originRetainExtraJson: originRetainExtraJson.value,
+            })
+          ) {
+            // 仅提交 expand_depth，不覆盖后台隐藏的 overflow_strategy
+            payload.ext_json_config = {
+              expand_depth: toSubmitExpandDepth(expandDepthSelect.value),
+            };
+            // 同步到 formData，供存储步骤透传
+            formData.value.etl_params = {
+              ...formData.value.etl_params,
+              ext_json_config: { expand_depth: payload.ext_json_config.expand_depth },
+            };
+          } else if (formData.value.etl_params.ext_json_config) {
+            // 存量无限场景：不主动改写，同时避免把 overflow_strategy 透传到下一步
+            const { ext_json_config: _ignored, ...rest } = formData.value.etl_params as any;
+            formData.value.etl_params = rest;
+          }
+          const data = {
+            bk_biz_id: bkBizId.value,
+            etl_params: {
+              separator_regexp: cleaningMode.value === 'bk_log_regexp' ? submitEtlParams.separator_regexp : '',
+              separator: submitEtlParams.separator,
+              ...payload,
+              ...(cleaningMode.value === 'bk_log_regexp' ? { is_grok: grokModeEnabled.value } : {}),
+            },
+          };
+          const fieldsList = cleaningMode.value === 'bk_log_text' ? [] : etlFields;
+          const isDorisEdit = isUpdate.value && curCollect.value.storage_cluster_type === 'doris';
+          const requestData = isNeedCreate
+            ? {
+                ...data,
+                clean_template_id: getSubmitCleanTemplateId(),
+                fields: fieldsList,
+                storage_cluster_id: storageClusterId,
+                allocation_min_days: allocationMinDays ?? (isDorisEdit ? 0 : undefined),
+                storage_replies,
+                es_shards: esShards ?? storageShardsNums,
+                table_id,
+                retention: retention ?? (isDorisEdit ? 7 : undefined),
+                etl_config: cleaningMode.value,
               }
-              if (action === 'saveOnly') {
-                // 只保存，不跳转
-                if (!showedDepthSuccess) {
-                  showMessage(t('保存成功'));
+            : {
+                ...data,
+                clean_template_id: getSubmitCleanTemplateId(),
+                etl_fields: fieldsList,
+                clean_type: cleaningMode.value,
+              };
+          $http
+            .request(url, {
+              params: {
+                collector_config_id: curCollect.value.collector_config_id,
+              },
+              data: requestData,
+            })
+            .then(res => {
+              loading.value = false;
+              if (res?.result) {
+                const showedDepthSuccess = isChangingExpandDepth.value && isNeedCreate;
+                if (showedDepthSuccess) {
+                  const depthLabel = getExpandDepthLabel(expandDepthSelect.value, key => t(key));
+                  showMessage(t('动态字段解析层级已生效，新写入数据将按 {n} 解析。', { n: depthLabel }));
+                  originHadExtJsonConfig.value = true;
+                  originRetainExtraJson.value = true;
+                  originExpandDepthSelect.value = expandDepthSelect.value;
+                  isChangingExpandDepth.value = false;
                 }
-                callback?.(true);
-              } else if (action === 'back') {
-                if (!showedDepthSuccess) {
-                  showMessage(t('保存成功'));
-                }
-                // 保存成功后跳转到列表页
-                goListPage();
-              } else {
-                const data = isNeedCreate
-                  ? {
-                    ...formData.value,
-                    ...curCollect.value,
-                    clean_template_id: getSubmitCleanTemplateId(),
-                    etl_config: cleaningMode.value,
+                if (action === 'saveOnly') {
+                  // 只保存，不跳转
+                  if (!showedDepthSuccess) {
+                    showMessage(t('保存成功'));
                   }
-                  : {
-                    ...formData.value,
-                    clean_template_id: getSubmitCleanTemplateId(),
-                    etl_config: cleaningMode.value,
-                  };
-                emit('next', data);
-                if (props.isCleanField) {
-                  emit('change-submit', true);
+                  callback?.(true);
+                } else if (action === 'back') {
+                  if (!showedDepthSuccess) {
+                    showMessage(t('保存成功'));
+                  }
+                  // 保存成功后跳转到列表页
+                  goListPage();
+                } else {
+                  const data = isNeedCreate
+                    ? {
+                        ...formData.value,
+                        ...curCollect.value,
+                        clean_template_id: getSubmitCleanTemplateId(),
+                        etl_config: cleaningMode.value,
+                      }
+                    : {
+                        ...formData.value,
+                        clean_template_id: getSubmitCleanTemplateId(),
+                        etl_config: cleaningMode.value,
+                      };
+                  emit('next', data);
+                  if (props.isCleanField) {
+                    emit('change-submit', true);
+                  }
                 }
+              } else {
+                if (isChangingExpandDepth.value && isNeedCreate) {
+                  showMessage(t('配置未生效，创建新索引失败，请重试或联系管理员。'), 'error');
+                  isChangingExpandDepth.value = false;
+                }
+                callback?.(false);
               }
-            } else {
+            })
+            .catch(() => {
+              loading.value = false;
               if (isChangingExpandDepth.value && isNeedCreate) {
                 showMessage(t('配置未生效，创建新索引失败，请重试或联系管理员。'), 'error');
                 isChangingExpandDepth.value = false;
               }
               callback?.(false);
-            }
-          })
-          .catch(() => {
-            loading.value = false;
-            if (isChangingExpandDepth.value && isNeedCreate) {
-              showMessage(t('配置未生效，创建新索引失败，请重试或联系管理员。'), 'error');
-              isChangingExpandDepth.value = false;
-            }
-            callback?.(false);
-          });
-      }, () => callback?.(false));
+            });
+        },
+        () => callback?.(false),
+      );
     };
 
     expose({
@@ -2798,7 +2779,9 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
                 <strong class='collector-count'>{templateCollectorCount.value}</strong>
                 <strong>{templateIndexSetCount.value}</strong>
               </i18n>
-              <div>{t('选择<同步所有采集项> 后，系统会将最新配置更新到全部关联采集项，可能会影响线上日志字段解析结果。')}</div>
+              <div>
+                {t('选择<同步所有采集项> 后，系统会将最新配置更新到全部关联采集项，可能会影响线上日志字段解析结果。')}
+              </div>
             </div>
             <div class='confirm-actions'>
               <bk-button

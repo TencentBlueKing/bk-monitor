@@ -110,7 +110,7 @@ export const buildRetrieveParams = (state, getters, rootGetters) => {
     ip_chooser,
     host_scopes,
     interval,
-    sort_list,
+    sort_list: sortList,
     format,
     timezone,
   } = state.indexItem;
@@ -129,13 +129,13 @@ export const buildRetrieveParams = (state, getters, rootGetters) => {
     searchParams.keyword = '*';
   }
 
-  let local_sort_list = [];
+  let localSortList = [];
   if (state.dateTimeSort) {
-    local_sort_list = state.dateTimeSortList;
+    localSortList = state.dateTimeSortList;
   } else if (state.localSort) {
-    local_sort_list = sort_list;
+    localSortList = sortList;
   } else {
-    local_sort_list = getters.custom_sort_list;
+    localSortList = getters.custom_sort_list;
   }
 
   const baseParams = {
@@ -149,7 +149,7 @@ export const buildRetrieveParams = (state, getters, rootGetters) => {
     host_scopes,
     interval,
     search_mode: searchMode,
-    sort_list: local_sort_list,
+    sort_list: localSortList,
     bk_biz_id: state.bkBizId,
     time_zone: timezone,
     ...searchParams,

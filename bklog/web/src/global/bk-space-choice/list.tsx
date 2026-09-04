@@ -33,15 +33,10 @@ import './list.scss';
 import 'vue-virtual-scroller/dist/vue-virtual-scroller.css';
 
 export enum ETagsType {
-  // eslint-disable-next-line no-unused-vars
   BCS = 'bcs',
-  // eslint-disable-next-line no-unused-vars
   BKCC = 'bkcc',
-  // eslint-disable-next-line no-unused-vars
   BKCI = 'bkci',
-  // eslint-disable-next-line no-unused-vars
   BKSAAS = 'bksaas',
-  // eslint-disable-next-line no-unused-vars
   MONITOR = 'monitor',
 }
 
@@ -170,7 +165,6 @@ export default defineComponent({
           <RecycleScroller
             class={['list-scroller']}
             scopedSlots={{
-              // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: reason
               default: ({ item, index }: { item: IListItem; index: number }) => (
                 <div
                   key={item.id || item.name + index}

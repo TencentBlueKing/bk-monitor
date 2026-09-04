@@ -32,7 +32,7 @@ export function getMonitorTopOrigin() {
     if (topLocation?.host) {
       return `${topLocation.protocol}//${topLocation.host}`.replace(/\/$/, '');
     }
-  } catch (_error) {
+  } catch {
     // 跨域 iframe 无法读 window.top.location
   }
   return String(window.MONITOR_URL || '').replace(/\/$/, '');

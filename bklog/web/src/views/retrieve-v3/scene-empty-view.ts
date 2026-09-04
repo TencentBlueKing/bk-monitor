@@ -57,4 +57,5 @@ export const resolveSceneEmptyView = (input: SceneEmptyViewInput): SceneEmptyVie
 };
 
 /** 首屏空筛选保留分享 URL；只有切业务时才摘掉旧业务 indexId。 */
-export const shouldStripIndexIdOnEmptyScene = (input: EmptySceneRouteActionInput): boolean => input.isSpaceChanging && input.hasRouteIndexId;
+export const shouldStripIndexIdOnEmptyScene = (input: EmptySceneRouteActionInput): boolean =>
+  input.isSpaceChanging && input.hasRouteIndexId;

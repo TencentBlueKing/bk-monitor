@@ -33,8 +33,8 @@
     <section class="operation">
       <div class="top-operation">
         <bk-button
-          class="fl"
           v-cursor="{ active: isAllowedCreate === false }"
+          class="fl"
           :disabled="!collectProject || isAllowedCreate === null || isRequest"
           data-test-id="customContainer_button_addNewCustom"
           theme="primary"
@@ -61,8 +61,8 @@
         data-test-id="customContainer_table_container"
       >
         <bk-table
-          class="custom-table"
           v-bkloading="{ isLoading: isRequest }"
+          class="custom-table"
           :data="collectList"
           :limit-list="pagination.limitList"
           :pagination="pagination"
@@ -96,8 +96,8 @@
                 </span>
                 <span
                   v-if="props.row.is_desensitize"
-                  class="bk-icon bklog-icon bklog-masking"
                   v-bk-tooltips.top="$t('已脱敏')"
+                  class="bk-icon bklog-icon bklog-masking"
                 >
                 </span>
               </div>
@@ -195,8 +195,8 @@
             <template #default="props">
               <div class="collect-table-operate">
                 <bk-button
-                  class="king-button"
                   v-cursor="{ active: !(props.row.permission && props.row.permission[authorityMap.SEARCH_LOG_AUTH]) }"
+                  class="king-button"
                   :disabled="
                     !props.row.is_active || (!props.row.index_set_id && !props.row.bkdata_index_set_ids.length)
                   "
@@ -207,10 +207,10 @@
                   {{ $t('检索') }}</bk-button
                 >
                 <bk-button
-                  class="king-button"
                   v-cursor="{
                     active: !(props.row.permission && props.row.permission[authorityMap.MANAGE_COLLECTION_AUTH]),
                   }"
+                  class="king-button"
                   theme="primary"
                   text
                   @click="operateHandler(props.row, 'edit')"
@@ -397,22 +397,15 @@
         return authorityMap;
       },
     },
-    created() {
-      !this.authGlobalInfo && this.checkCreateAuth();
-    },
-    mounted() {
-      !this.authGlobalInfo && this.initLabelSelectList();
-      !this.authGlobalInfo && this.search();
-    },
-    watch:{
-      collectList:{
+    watch: {
+      collectList: {
         handler(val) {
           if (val) {
             const callbackFn = (item, key, value) => {
-                this.$set(item, key, value[key]);
+              this.$set(item, key, value[key]);
             };
             requestStorageUsage(this.bkBizId, val, true, callbackFn)
-              .catch((error) => {
+              .catch(error => {
                 console.error('Error loading data:', error);
               })
               .finally(() => {
@@ -420,7 +413,14 @@
               });
           }
         },
-      }
+      },
+    },
+    created() {
+      !this.authGlobalInfo && this.checkCreateAuth();
+    },
+    mounted() {
+      !this.authGlobalInfo && this.initLabelSelectList();
+      !this.authGlobalInfo && this.search();
     },
     methods: {
       search() {
@@ -459,7 +459,7 @@
         };
 
         if (operateType === 'search') {
-         updateLastSelectedIndexId(this.spaceUid, row.index_set_id)
+          updateLastSelectedIndexId(this.spaceUid, row.index_set_id);
           if (!row.index_set_id && !row.bkdata_index_set_ids.length) return;
           params.indexId = row.index_set_id ? row.index_set_id : row.bkdata_index_set_ids[0];
         }
@@ -549,12 +549,14 @@
               const indexIdList = resList.filter(item => !!item.index_set_id).map(item => item.index_set_id);
               const { data: desensitizeStatus } = await this.getDesensitizeStatus(indexIdList);
 
-              const formattedList = formatResponseListTimeZoneString(resList, (item) => ({ is_desensitize: desensitizeStatus[item.index_set_id]?.is_desensitize ?? false, }));
+              const formattedList = formatResponseListTimeZoneString(resList, item => ({
+                is_desensitize: desensitizeStatus[item.index_set_id]?.is_desensitize ?? false,
+              }));
               this.collectList.splice(0, this.collectList.length, ...formattedList);
               this.pagination.count = data.total;
             }
           })
-          .catch((err) => {
+          .catch(err => {
             console.warn(err);
             this.emptyType = '500';
           })
@@ -594,7 +596,7 @@
           return await this.$http.request('masking/getDesensitizeState', {
             data: { index_set_ids: indexIdList },
           });
-        } catch (error) {
+        } catch {
           return [];
         }
       },
@@ -607,13 +609,13 @@
             },
           });
           this.selectLabelList = res.data;
-        } catch (error) {
+        } catch {
           this.selectLabelList = [];
         }
       },
       formatUsage(dailyUsage, totalUsage) {
         return `${formatBytes(dailyUsage)} / ${formatBytes(totalUsage)}`;
-      }
+      },
     },
   };
 </script>

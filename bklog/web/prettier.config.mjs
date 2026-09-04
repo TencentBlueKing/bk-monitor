@@ -23,6 +23,19 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-module.exports = {
-  extends: ['@blueking/bkui-lint/stylelint.js'],
+
+export default {
+  arrowParens: 'avoid',
+  bracketSameLine: false,
+  endOfLine: 'auto',
+  jsxSingleQuote: true,
+  printWidth: 120,
+  quoteProps: 'as-needed',
+  semi: true,
+  singleAttributePerLine: true,
+  singleQuote: true,
+  tabWidth: 2,
+  trailingComma: 'all',
+  useTabs: false,
+  vueIndentScriptAndStyle: true,
 };

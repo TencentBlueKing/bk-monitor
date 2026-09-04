@@ -27,7 +27,6 @@ import { Component, Vue } from 'vue-property-decorator';
 // import * as authorityMap from '../common/authority-map';
 
 // import { createUserConfig, listUserConfig, partialUpdateUserConfig } from 'monitor-api/modules/model';
-/** biome-ignore-start lint/suspicious/useAwait: reason */
 // 1、函数作用：创建一组新的个性化配置项（增）
 const createUserConfig = async (...args: any[]) => {
   console.warn('createUserConfig函数暂未实现', args);
@@ -43,7 +42,6 @@ const partialUpdateUserConfig = async (...args: any[]) => {
   console.warn('partialUpdateUserConfig函数暂未实现:', args);
   return true;
 };
-/** biome-ignore-end lint/suspicious/useAwait: reason */
 @Component
 // 设置全局通用的Loading
 export default class UserConfigMixin extends Vue {

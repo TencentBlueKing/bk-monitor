@@ -25,7 +25,6 @@
  */
 
 /** 场景类型枚举（值对应接口返回的 id） */
-/* eslint-disable no-unused-vars */
 export enum SceneType {
   Container = 'k8s',
   Host = 'host',

@@ -68,7 +68,7 @@ export default defineComponent({
     const downloadFiles = ref<any[]>([]); // 下载的文件
     const remark = ref(''); // 备注
     const extractLinks = ref<any[]>([]); // 提取链路
-    const link_id = ref<null | number>(null);
+    const linkId = ref<null | number>(null);
     const ipSelectorOriginalValue = ref<any>(null); // 编辑态ip选择器初始值
     const ipSelectNewNameList = ref<any[]>([]); // 生成新的展示所用的预览地址列表
     const isSubmitLoading = ref(false); // 提交按钮loading状态
@@ -78,13 +78,11 @@ export default defineComponent({
     const previewRef = ref<any>(null);
 
     const selectedCount = computed(() => {
-      return targetNodeType.value === 'INSTANCE'
-        ? ipList.value.length
-        : targetNodes.value.length;
+      return targetNodeType.value === 'INSTANCE' ? ipList.value.length : targetNodes.value.length;
     });
 
     const canSubmit = computed(() => {
-      return !(selectedCount.value > 0 && downloadFiles.value.length) && link_id.value != null;
+      return !(selectedCount.value > 0 && downloadFiles.value.length) && linkId.value !== null;
     });
 
     const isClone = computed(() => {
@@ -110,7 +108,7 @@ export default defineComponent({
       if (isClone.value) {
         let cloneData = JSON.parse(sessionStorage.getItem('cloneData') || '{}');
         if (!Object.keys(cloneData).length) {
-          cloneData = await manageDraftCacheService.get('cloneData') || {};
+          cloneData = (await manageDraftCacheService.get('cloneData')) || {};
         }
         sessionStorage.removeItem('cloneData');
         manageDraftCacheService.remove('cloneData').catch(() => {});
@@ -190,7 +188,7 @@ export default defineComponent({
         })
         .then(res => {
           extractLinks.value = res.data;
-          link_id.value = extractLinks.value[0]?.link_id || null;
+          linkId.value = extractLinks.value[0]?.link_id || null;
         })
         .catch(e => {
           console.warn(e);
@@ -362,7 +360,7 @@ export default defineComponent({
         filter_type: textFilterRef.value.filterType,
         filter_content: textFilterRef.value.filterContent,
         remark: remark.value,
-        link_id: link_id.value,
+        link_id: linkId.value,
       };
       http
         .request('extract/createDownloadTask', {
@@ -518,10 +516,10 @@ export default defineComponent({
               style='width: 250px; margin-right: 20px; background-color: #fff'
               clearable={false}
               data-test-id='addNewExtraction_select_selectLink'
-              value={link_id.value}
+              value={linkId.value}
               {...{
                 on: {
-                  change: (val: number) => (link_id.value = val),
+                  change: (val: number) => (linkId.value = val),
                 },
               }}
             >

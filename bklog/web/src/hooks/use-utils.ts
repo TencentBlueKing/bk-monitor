@@ -1,14 +1,13 @@
-import useStore from "./use-store";
-import { computed } from "vue";
-import { formatTimeZoneString } from "@/global/utils/time";
-
+import useStore from './use-store';
+import { computed } from 'vue';
+import { formatTimeZoneString } from '@/global/utils/time';
 
 export default () => {
   const store = useStore();
 
   const timezone = computed(() => {
     return store.state.userMeta.time_zone;
-  })
+  });
 
   /**
    * 格式化时间字符串
@@ -17,7 +16,7 @@ export default () => {
    */
   const formatTimeZone = (time: number | string) => {
     return formatTimeZoneString(time, timezone.value);
-  }
+  };
 
   const defaultTimeFields = ['created_at', 'updated_at'];
 
@@ -29,7 +28,6 @@ export default () => {
   const formatResponseListTimeZoneString = (list: any[], appendVlaue = {}, timeFields?: string[]) => {
     const formatTimeFields = timeFields || defaultTimeFields;
     return list.map(item => {
-
       const formattedValue = {};
 
       formatTimeFields.forEach(field => {
@@ -45,12 +43,12 @@ export default () => {
       }
 
       return Object.assign(item, formattedValue);
-    })
-  }
+    });
+  };
 
   return {
     timezone,
     formatTimeZone,
     formatResponseListTimeZoneString,
-  }
-}
+  };
+};

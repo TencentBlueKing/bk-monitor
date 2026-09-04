@@ -100,7 +100,9 @@ export default defineComponent({
 
     const updateFilterKeyword = debounce((val: string) => {
       isSwitchingFilterData = true;
-      filterKeyword.value = String(val ?? '').trim().toLowerCase();
+      filterKeyword.value = String(val ?? '')
+        .trim()
+        .toLowerCase();
     }, 200);
 
     const handleFilterChange = (val: string) => {
@@ -238,13 +240,7 @@ export default defineComponent({
 
     // 获取选中的IP列表
     const getFindIpList = () => {
-      const ipList: any[] = [];
-      let i = 0;
-      for (; i < previewIp.value.length; i++) {
-        const target = props.ipList.find(item => getIpListID(item) === previewIp.value[i]);
-        ipList.push(target);
-      }
-      return ipList;
+      return previewIp.value.map(id => props.ipList.find(item => getIpListID(item) === id));
     };
 
     // 拼接预览地址唯一key
@@ -338,9 +334,7 @@ export default defineComponent({
 
       const nextSelectedPathSet = new Set(selectedFilePathSet.value);
       const visibleSelectablePathSet = new Set(
-        filteredExplorerList.value
-          .filter(item => isSelectableFile(item))
-          .map(item => getFilePath(item)),
+        filteredExplorerList.value.filter(item => isSelectableFile(item)).map(item => getFilePath(item)),
       );
 
       for (const path of visibleSelectablePathSet) {

@@ -357,7 +357,7 @@ export default class OptimizedHighlighter {
 
     const normalizedText = text.trim();
     // 首先尝试精确匹配
-    const exactMatch = this.currentKeywords.find((k) => {
+    const exactMatch = this.currentKeywords.find(k => {
       const normalizedKeyword = k.text.trim();
       return normalizedText === normalizedKeyword || normalizedText.toLowerCase() === normalizedKeyword.toLowerCase();
     });
@@ -479,7 +479,7 @@ export default class OptimizedHighlighter {
             } else {
               // 多个元素且不能匹配
               // 检查是否每个元素单独都能匹配（独立关键词的情况）
-              const allSeparateMatch = group.every((el) => {
+              const allSeparateMatch = group.every(el => {
                 const elText = el.textContent || '';
                 return this.findMatchedKeyword(elText) !== null;
               });
@@ -657,7 +657,7 @@ export default class OptimizedHighlighter {
           // 禁止给内层 mark 打 valid-text：closest 会命中残缺片段，污染点击/划词解析
           // 初始颜色设置，后续会在 processConsecutiveMarks 中统一处理
           const matchedText = element.textContent || '';
-          const matchedKeywordItem = this.currentKeywords.find((k) => {
+          const matchedKeywordItem = this.currentKeywords.find(k => {
             const normalizedText = matchedText.trim();
             const normalizedKeyword = k.text.trim();
             return (
@@ -719,7 +719,7 @@ export default class OptimizedHighlighter {
       return Promise.resolve();
     }
 
-    return new Promise((resolve) => {
+    return new Promise(resolve => {
       this.instanceExecMark(instance, resolve);
     });
   }
@@ -730,7 +730,7 @@ export default class OptimizedHighlighter {
     }
 
     // 首先尝试精确匹配（文本内容与关键字文本完全相等）
-    const exactMatch = this.currentKeywords.find((k) => {
+    const exactMatch = this.currentKeywords.find(k => {
       const normalizedText = keyword.trim();
       const normalizedKeyword = k.text.trim();
       return normalizedText === normalizedKeyword || normalizedText.toLowerCase() === normalizedKeyword.toLowerCase();

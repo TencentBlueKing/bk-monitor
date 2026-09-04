@@ -17,7 +17,7 @@ import { BK_LOG_STORAGE } from '../store.type';
 import { storeRuntimeCacheService } from '../services/runtime-cache.service.js';
 
 const cacheApi = (name, scope, data, meta = {}) => {
-  storeCacheService.setApiCache(name, scope || 'default', data, meta).catch((error) => {
+  storeCacheService.setApiCache(name, scope || 'default', data, meta).catch(error => {
     console.warn('[store-cache] cache api failed', name, error);
   });
 };
@@ -40,7 +40,7 @@ export function requestIndexSetValueListAction({ commit, state, getters }, paylo
   const rawFieldList = retrieveFieldCacheService.getFieldList(fieldScope, false);
   if (payload.force) {
     const emptyAggsItems = {};
-    (payloadFields.length ? payloadFields : rawFieldList).forEach((field) => {
+    (payloadFields.length ? payloadFields : rawFieldList).forEach(field => {
       emptyAggsItems[field.field_name] = [];
     });
     storeRuntimeCacheService.patchFieldAggsItems(state.indexId || 'default', emptyAggsItems);
@@ -51,11 +51,12 @@ export function requestIndexSetValueListAction({ commit, state, getters }, paylo
   const filterBuildIn = field => (isDefaultQuery ? !field.is_built_in : true);
 
   const cachedAggsItems = storeRuntimeCacheService.getFieldAggsItems(state.indexId || 'default');
-  const filterFn = field => !cachedAggsItems[field.field_name]?.length
-    && field.es_doc_values
-    && filterBuildIn(field)
-    && ['keyword'].includes(field.field_type)
-    && !/^__dist_/.test(field.field_name);
+  const filterFn = field =>
+    !cachedAggsItems[field.field_name]?.length &&
+    field.es_doc_values &&
+    filterBuildIn(field) &&
+    ['keyword'].includes(field.field_type) &&
+    !/^__dist_/.test(field.field_name);
 
   // 配置了别名的字段，请求时必须使用别名（query_alias），否则存储侧无法识别该字段，导致聚合无结果
   // 与 formatAdditionalFields 中 addition 字段的别名转换口径保持一致
@@ -91,9 +92,9 @@ export function requestIndexSetValueListAction({ commit, state, getters }, paylo
     addition: state.storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS]
       ? formatAdditionalFields(state, payload?.addition ?? [])
       : (payload?.addition ?? []).map(item => ({
-        ...item,
-        field: rawFieldList.find(f => f.field_name === item.field)?.query_alias || item.field,
-      })),
+          ...item,
+          field: rawFieldList.find(f => f.field_name === item.field)?.query_alias || item.field,
+        })),
     start_time: formatDate(startTime),
     end_time: formatDate(endTime),
     size: payload?.size ?? 100,
@@ -118,15 +119,13 @@ export function requestIndexSetValueListAction({ commit, state, getters }, paylo
     };
   }
 
-  const body = isScene
-    ? { data: queryData }
-    : { params: { index_set_id: state.indexId }, data: queryData };
+  const body = isScene ? { data: queryData } : { params: { index_set_id: state.indexId }, data: queryData };
 
   return http
     .request(urlStr, body, {
       cancelToken: requestCancelToken,
     })
-    .then((resp) => {
+    .then(resp => {
       // 接口按请求字段（别名）返回 aggs_items，这里将 key 还原为 field_name
       // 保证 fieldAggsItems 缓存与各消费方（统一按 field_name 取值）逻辑无需改动
       const aggsItems = resp.data?.aggs_items ?? {};
@@ -134,7 +133,7 @@ export function requestIndexSetValueListAction({ commit, state, getters }, paylo
         ...(resp.data ?? {}),
         aggs_items: Object.keys(aggsItems).reduce((acc, key) => {
           // 同一别名对应多个真实字段时扇出还原，保证每个字段的缓存都能填充
-          (requestFieldNameMap[key] ?? [key]).forEach((fieldName) => {
+          (requestFieldNameMap[key] ?? [key]).forEach(fieldName => {
             acc[fieldName] = aggsItems[key];
           });
           return acc;
@@ -152,8 +151,8 @@ export function requestIndexSetValueListAction({ commit, state, getters }, paylo
 export function requestSearchTotalAction({ state, getters }) {
   const retrieveParams = getters.retrieveParams;
   const isScene = isSceneRetrieve(state);
-  const shouldSkipEmptySceneSearch = isScene
-    && (getters.isSceneFilterEmpty || !retrieveParams.table_id_conditions?.length);
+  const shouldSkipEmptySceneSearch =
+    isScene && (getters.isSceneFilterEmpty || !retrieveParams.table_id_conditions?.length);
   if (shouldSkipEmptySceneSearch) {
     return Promise.resolve({ result: false, ignored: true, reason: 'empty-scene-filter' });
   }
@@ -172,10 +171,7 @@ export function requestSearchTotalAction({ state, getters }) {
     ...(isScene ? {} : { index_set_ids: state.indexItem.ids }),
     start_time: startTime,
     end_time: endTime,
-    addition: formatAdditionalFields(state, [
-      ...getters.requestAddition,
-      ...getCommonFilterAdditionWithValues(state),
-    ]),
+    addition: formatAdditionalFields(state, [...getters.requestAddition, ...getCommonFilterAdditionWithValues(state)]),
   };
 
   return http
@@ -187,7 +183,7 @@ export function requestSearchTotalAction({ state, getters }) {
         cancelToken: requestCancelToken,
       },
     )
-    .then((res) => {
+    .then(res => {
       const { data } = res;
       if (res.result === true) {
         // Total 接口是总趋势展示总数的权威来源，包含 0 结果场景
@@ -196,7 +192,7 @@ export function requestSearchTotalAction({ state, getters }) {
       cacheApi(urlStr, `${state.indexId}:${startTime}:${endTime}`, data || {});
       return res;
     })
-    .catch((err) => {
+    .catch(err => {
       if (axios.isCancel(err)) return;
       console.error(err);
       return Promise.reject(err);
@@ -251,7 +247,7 @@ export function userFieldConfigChangeAction({ state, getters, commit }, userConf
 
   return http
     .request(requestName, { data: queryParams })
-    .then((res) => {
+    .then(res => {
       if (res.code === 0 && !userConfig.isUpdate) {
         const updatedUserConfig = getters.isSceneMode ? res.data : res.data.index_set_config;
         commit('retrieve/updateCatchFieldCustomConfig', updatedUserConfig);

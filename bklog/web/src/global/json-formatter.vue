@@ -20,9 +20,10 @@
   >
     <template v-for="item in rootList">
       <span
-        class="bklog-root-field"
         :key="item.name"
+        class="bklog-root-field"
       >
+        <!-- eslint-disable vue/no-v-html -- Raw field names are escaped before controlled highlight markup is added. -->
         <span
           class="field-name"
           :data-is-virtual-root="item.__is_virtual_root__"
@@ -32,14 +33,17 @@
             v-html="getHighlightedFieldNameHtml(item.name)"
           ></span
         ></span>
+        <!-- eslint-enable vue/no-v-html -->
         <span
+          :ref="item.formatter.ref"
           class="field-value"
           :data-with-intersection="true"
           :data-field-name="item.name"
           :data-search-field-name="item.name"
           :data-field-type="item.type"
-          :data-json-text-value="item.formatter.parsedFromJsonString && item.type !== 'object' && item.type !== 'nested' ? 'true' : undefined"
-          :ref="item.formatter.ref"
+          :data-json-text-value="
+            item.formatter.parsedFromJsonString && item.type !== 'object' && item.type !== 'nested' ? 'true' : undefined
+          "
           >{{ item.formatter.stringValue }}</span
         >
         <button
@@ -216,9 +220,7 @@
   });
 
   const originalValueFieldsSignature = computed(() =>
-    fieldList.value
-      .map((item: any) => String(item.field_name) + ':' + String(item.field_type ?? ''))
-      .join('\u0001'),
+    fieldList.value.map((item: any) => `${String(item.field_name)}:${String(item.field_type ?? '')}`).join('\u0001'),
   );
 
   const clearOriginalValueRenderCache = () => {
@@ -253,9 +255,7 @@
 
   const restoreOriginalValueExpandedFields = () => {
     const stateKey = getOriginalValueExpandStateKey();
-    expandedOriginalValueFields.value = stateKey
-      ? { ...(originalValueExpandStateCache.get(stateKey) ?? {}) }
-      : {};
+    expandedOriginalValueFields.value = stateKey ? { ...(originalValueExpandStateCache.get(stateKey) ?? {}) } : {};
   };
 
   const resetOriginalValueState = () => {
@@ -312,7 +312,6 @@
     return (showMoreAction.value && showAllText.value) || isLimitExpandText.value;
   });
 
-
   const btnText = computed(() => {
     if (showAllText.value) {
       return ` ...${$t('收起')}`;
@@ -346,7 +345,7 @@
       // 必须使用 resultRanges 恢复命中的局部范围，否则点击“更多”后会把
       // 命中点之后的整段内容误认为检索命中（尤其是 Origin 模式）。
       const markedFromSegments = metaSegments
-        .map((segment) => {
+        .map(segment => {
           const text = String(segment?.text ?? '');
           const ranges = Array.isArray(segment?.resultRanges)
             ? segment.resultRanges
@@ -365,7 +364,7 @@
 
           let result = '';
           let cursor = 0;
-          ranges.forEach((range) => {
+          ranges.forEach(range => {
             // 防止重叠 range 产生非法/嵌套 mark；重叠命中合并为一个连续范围。
             const start = Math.max(cursor, range.start);
             if (range.end <= start) return;
@@ -387,9 +386,7 @@
       return truncatedByField;
     }
 
-    const row = props.jsonValue !== null && typeof props.jsonValue === 'object'
-      ? props.jsonValue
-      : null;
+    const row = props.jsonValue !== null && typeof props.jsonValue === 'object' ? props.jsonValue : null;
 
     // 3) __highlight 原始命中文本
     if (row) {
@@ -402,7 +399,7 @@
 
     // 4) 字段值本身可能已叠加 mark overlay
     const renderText = getDateFieldValue(field, getCellRender(getRawFieldValue(field)), isFormatDateField.value);
-    return renderText?.replace?.(/<\/mark>/igm, '</mark>') ?? String(renderText ?? '');
+    return renderText?.replace?.(/<\/mark>/gim, '</mark>') ?? String(renderText ?? '');
   };
 
   /** 截断判定仍基于字段展示原文长度，避免因 mark 源切换改变「是否展示更多」 */
@@ -410,7 +407,7 @@
     const field = fieldList.value.find((item: any) => item.field_name === fieldName) ?? { field_name: fieldName };
     // 只需原始展示文本，不能走 JSON 解析：否则每个字段每轮重算都会多一次 JSONBig.parse
     const renderText = getDateFieldValue(field, getCellRender(getRawFieldValue(field)), isFormatDateField.value);
-    return renderText?.replace?.(/<\/mark>/igm, '</mark>') ?? String(renderText ?? '');
+    return renderText?.replace?.(/<\/mark>/gim, '</mark>') ?? String(renderText ?? '');
   };
 
   const getOriginalValueRenderText = (fieldName: string) => {
@@ -547,7 +544,7 @@
 
     // 模板初始展示去掉 mark 标签，避免出现原始 <mark> 文本闪烁；
     // 检索高亮由 precomputedSegments.isMark 在分词渲染阶段恢复。
-    return renderText?.replace?.(/<\/?mark>/igm, '') ?? fallback;
+    return renderText?.replace?.(/<\/?mark>/gim, '') ?? fallback;
   };
 
   const resetWordSplitFlag = (element: HTMLElement) => {
@@ -575,18 +572,18 @@
     }
   };
 
-  const resetOriginalValueRenderedFlags = () => {
-    if (!isOriginalMode.value) return;
+  // const resetOriginalValueRenderedFlags = () => {
+  //   if (!isOriginalMode.value) return;
 
-    const root = refJsonFormatterCell.value as HTMLElement | undefined;
-    const elements = root?.querySelectorAll?.('.field-value[data-field-name][data-has-word-split]') ?? [];
-    for (const element of Array.from(elements) as HTMLElement[]) {
-      const fieldName = element.getAttribute('data-field-name');
-      if (fieldName && isOriginalValueTruncated(fieldName)) {
-        resetWordSplitFlag(element);
-      }
-    }
-  };
+  //   const root = refJsonFormatterCell.value as HTMLElement | undefined;
+  //   const elements = root?.querySelectorAll?.('.field-value[data-field-name][data-has-word-split]') ?? [];
+  //   for (const element of Array.from(elements) as HTMLElement[]) {
+  //     const fieldName = element.getAttribute('data-field-name');
+  //     if (fieldName && isOriginalValueTruncated(fieldName)) {
+  //       resetWordSplitFlag(element);
+  //     }
+  //   }
+  // };
 
   const handleOriginalValueActionClick = (e: MouseEvent, fieldName: string) => {
     stopOriginalValueActionEvent(e);
@@ -742,9 +739,8 @@
     const [objValue, val, primitiveMarks] = getFieldValue(field);
     const isJsonValue = objValue !== null && typeof objValue === 'object' && objValue !== undefined;
     // 仅 String/Text 等非 Object 字段「看起来像 JSON」时才算 parsedFromJsonString
-    const isObjectLikeField = field?.field_type === 'object'
-      || field?.field_type === 'nested'
-      || !!field?.is_virtual_obj_node;
+    const isObjectLikeField =
+      field?.field_type === 'object' || field?.field_type === 'nested' || !!field?.is_virtual_obj_node;
     const parsedFromJsonString = !isObjectLikeField && typeof val === 'string' && isJsonValue;
     const strVal = getDateFieldValue(field, getCellRender(val, isJsonValue), formatDate);
     return {
@@ -752,7 +748,7 @@
       isJson: isJsonValue,
       // value 必须保留原始值：时间格式化只影响展示；添加到检索时回取时间戳
       value: formatEmptyObject(objValue),
-      stringValue: strVal?.replace?.(/<\/?mark>/igm, '') ?? strVal,
+      stringValue: strVal?.replace?.(/<\/?mark>/gim, '') ?? strVal,
       field,
       parsedFromJsonString,
       primitiveMarks,
@@ -781,9 +777,7 @@
        * - 截断展示时，KEY/VALUE 字段归属仍用完整原文解析（segmentResolveText）
        */
       const shouldUseOriginalValueText =
-        isOriginalMode.value
-        && isOriginalValueTruncated(f.field_name)
-        && !(formatJson.value && formatter.isJson);
+        isOriginalMode.value && isOriginalValueTruncated(f.field_name) && !(formatJson.value && formatter.isJson);
       /**
        * precomputedSegments 策略：
        * 时间格式化只应让 date/date_nanos 跳过预分词（展示值已重算）。
@@ -797,16 +791,16 @@
         formatter: {
           ...formatter,
           isJson: shouldUseOriginalValueText ? false : formatter.isJson,
-          value: shouldUseOriginalValueText ? getOriginalValueDisplayText(f.field_name, formatter.stringValue) : formatter.value,
+          value: shouldUseOriginalValueText
+            ? getOriginalValueDisplayText(f.field_name, formatter.stringValue)
+            : formatter.value,
           stringValue: shouldUseOriginalValueText
             ? getOriginalValueDisplayText(f.field_name, formatter.stringValue)
             : formatter.stringValue,
           // 与截断展示同源的完整原文：仅用于分词→字段路径绑定，不参与 DOM 截断渲染。
           // 惰性求值，避免每轮 rootList 重算都把全部 segment 拼成带 mark 的长串
           segmentResolveText: () => getSegmentResolveText(f.field_name),
-          precomputedSegments: shouldSkipPrecomputedSegments
-            ? undefined
-            : getOriginalValueSegments(f),
+          precomputedSegments: shouldSkipPrecomputedSegments ? undefined : getOriginalValueSegments(f),
           // JSON 解析开启时：叶子长字符串启用 1000/更多（Origin & Table 均生效）
           enableLeafTruncate: formatJson.value,
           parsedFromJsonString: formatter.parsedFromJsonString,
@@ -1063,7 +1057,14 @@
   );
 
   watch(
-    () => [props.jsonValue, props.fields, props.renderMeta, formatJson.value, pageHighlightState.version, expandedOriginalValueFields.value],
+    () => [
+      props.jsonValue,
+      props.fields,
+      props.renderMeta,
+      formatJson.value,
+      pageHighlightState.version,
+      expandedOriginalValueFields.value,
+    ],
     () => {
       if (isResolved.value) {
         // 内容 / 高亮版本变化后必须清掉分词标记再重绘。

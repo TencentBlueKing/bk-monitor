@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-misused-promises */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -252,17 +251,17 @@ export default class MaskingSetting extends tsc<IProps> {
   get authorityData() {
     return this.isPublicList
       ? {
-        action_ids: [authorityMap.MANAGE_GLOBAL_DESENSITIZE_RULE],
-      }
+          action_ids: [authorityMap.MANAGE_GLOBAL_DESENSITIZE_RULE],
+        }
       : {
-        action_ids: [authorityMap.MANAGE_DESENSITIZE_RULE],
-        resources: [
-          {
-            type: 'space',
-            id: this.spaceUid,
-          },
-        ],
-      };
+          action_ids: [authorityMap.MANAGE_DESENSITIZE_RULE],
+          resources: [
+            {
+              type: 'space',
+              id: this.spaceUid,
+            },
+          ],
+        };
   }
 
   created() {
@@ -573,7 +572,7 @@ export default class MaskingSetting extends tsc<IProps> {
   async getOptionApplyData() {
     try {
       const res = await this.$store.dispatch('getApplyData', this.authorityData);
-      this.$store.commit('updateState', { 'authDialogData': res.data });
+      this.$store.commit('updateState', { authDialogData: res.data });
     } catch (err) {
       console.warn(err);
     }

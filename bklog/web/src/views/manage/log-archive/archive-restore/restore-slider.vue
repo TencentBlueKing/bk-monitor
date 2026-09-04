@@ -37,8 +37,8 @@
     >
       <template #content>
         <div
-          class="restore-slider-content"
           v-bkloading="{ isLoading: sliderLoading }"
+          class="restore-slider-content"
         >
           <bk-form
             v-if="!sliderLoading"
@@ -75,9 +75,9 @@
               >
                 <bk-option
                   v-for="option in archiveList"
-                  :disabled="!option.permission[authorityMap.MANAGE_COLLECTION_AUTH]"
                   :id="option.archive_config_id"
                   :key="option.archive_config_id"
+                  :disabled="!option.permission[authorityMap.MANAGE_COLLECTION_AUTH]"
                   :name="option.instance_name"
                 >
                 </bk-option>
@@ -118,8 +118,8 @@
               required
             >
               <validate-user-selector
-                style="width: 500px"
                 v-model="formData.notice_user"
+                style="width: 500px"
                 :api="userApi"
                 :disabled="isEdit"
                 data-test-id="addNewRestore_input_notifiedUser"
@@ -229,18 +229,18 @@
               archive_config_id,
               expired_time: expiredTime,
               notice_user,
-              start_time,
-              end_time,
+              start_time: startTime,
+              end_time: endTime,
             } = this.editRestore;
             Object.assign(this.formData, {
               index_set_name,
               archive_config_id,
               expired_time: expiredTime,
               notice_user,
-              start_time,
-              end_time,
+              start_time: startTime,
+              end_time: endTime,
 
-              datePickerValue: [start_time, end_time],
+              datePickerValue: [startTime, endTime],
               datePickerExpired: expiredTime,
             });
           } else {
@@ -382,14 +382,14 @@
           if (this.isEdit) {
             url = '/archive/editRestore';
             const { expired_time } = this.formData;
-            const { restore_config_id } = this.editRestore;
+            const { restore_config_id: restoreConfigId } = this.editRestore;
 
             paramsData = {
               expired_time,
-              restore_config_id,
+              restore_config_id: restoreConfigId,
             };
 
-            params.restore_config_id = restore_config_id;
+            params.restore_config_id = restoreConfigId;
           }
 
           await this.$http.request(url, {

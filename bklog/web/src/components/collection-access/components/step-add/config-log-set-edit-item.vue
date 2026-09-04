@@ -61,8 +61,8 @@
       :label-selector="config[selectorType]"
       :submit-edit="handleSubmitExpressions"
       :is-label-edit="isLabelEdit"
-      @cancel-edit="handleEdit = false"
       only-show-select-edit
+      @cancel-edit="handleEdit = false"
     />
     <div class="specify-domain">
       <template>
@@ -81,13 +81,11 @@
   </div>
 </template>
 <script>
-  import EmptyStatus from '@/components/empty-status';
   import matchLabelItem from './match-label-item';
   import { random } from '@/common/util';
 
   export default {
     components: {
-      EmptyStatus,
       matchLabelItem,
     },
     props: {

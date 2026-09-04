@@ -24,7 +24,6 @@
  * IN THE SOFTWARE.
  */
 
-/* eslint-disable no-unused-vars */
 enum BK_LOG_STORAGE {
   /**
    * 当前 bk_biz_id

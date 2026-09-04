@@ -26,8 +26,8 @@
 
 <template>
   <section
-    class="log-button"
     v-bk-tooltips="tooltips"
+    class="log-button"
   >
     <bk-button
       v-cursor="{ active: cursorActive }"

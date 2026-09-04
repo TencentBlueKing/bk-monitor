@@ -285,7 +285,7 @@
       align-items: center;
       justify-content: center;
       display: inline-flex;
-      
+
       &:hover {
         color: #3a84ff;
         border-color: #3a84ff;

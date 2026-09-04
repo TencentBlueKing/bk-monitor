@@ -98,7 +98,7 @@ export default defineComponent({
 
     watch(
       () => props.timeRange,
-      async (val) => {
+      async val => {
         if (!val) return;
         getIndexSetList();
         store.commit('updateIsSetDefaultTableColumn', false);
@@ -115,7 +115,7 @@ export default defineComponent({
 
     watch(
       () => props.timezone,
-      (val) => {
+      val => {
         if (!val) return;
         store.commit('updateIndexItemParams', { timezone: val });
         updateTimezone(val);

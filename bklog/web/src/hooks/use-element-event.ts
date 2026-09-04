@@ -28,10 +28,12 @@ import { onBeforeUnmount, onMounted } from 'vue';
 
 export default () => {
   const events = [];
-  const addElementEvent = (element: HTMLElement | Document,
+  const addElementEvent = (
+    element: HTMLElement | Document,
     eventName: string,
-    callback: ((e: MouseEvent | KeyboardEvent) => void),
-    options?: AddEventListenerOptions) => {
+    callback: (e: MouseEvent | KeyboardEvent) => void,
+    options?: AddEventListenerOptions,
+  ) => {
     events.push({ element, eventName, callback, options: options || false });
   };
 

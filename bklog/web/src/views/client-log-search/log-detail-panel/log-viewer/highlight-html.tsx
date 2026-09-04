@@ -88,7 +88,7 @@ export const highlightStringToArray = (
     const re = new RegExp(searchStr.replace(/[-[\]{}()*+?.,\\^$|#\s*]/g, '\\$&'), regexFlags);
     const tempResultArray: HighlightSegment[] = [];
 
-    resultArray.forEach((segment) => {
+    resultArray.forEach(segment => {
       if (segment.style === null) {
         const match = re.exec(segment.str);
         if (match) {
@@ -118,14 +118,14 @@ export const highlightStringToArray = (
   // 再处理 isUnique 为 false 的高亮项
   highlights
     .filter(h => !h.isUnique)
-    .forEach((highlight) => {
+    .forEach(highlight => {
       const { str: searchStr, style } = highlight;
       const regexFlags = caseInsensitive ? 'g' : 'gi';
 
       const re = new RegExp(searchStr.replace(/[-[\]{}()*+?.,\\^$|#\s*]/g, '\\$&'), regexFlags);
       const tempResultArray: HighlightSegment[] = [];
 
-      resultArray.forEach((segment) => {
+      resultArray.forEach(segment => {
         if (segment.style === null) {
           let matchIndex = 0;
           let match: RegExpExecArray | null;
@@ -193,10 +193,17 @@ export const renderHighlightHtml = (
               {'\u00a0'}
             </span>
           )}
-          {entry.val.map((seg) =>
-            seg.style
-              ? <span style={seg.style} data-index={seg?.isHighLight ? 'light' : 'filter'}>{seg.str}</span>
-              : seg.str
+          {entry.val.map(seg =>
+            seg.style ? (
+              <span
+                style={seg.style}
+                data-index={seg?.isHighLight ? 'light' : 'filter'}
+              >
+                {seg.str}
+              </span>
+            ) : (
+              seg.str
+            ),
           )}
           {'\u00a0'}
         </span>

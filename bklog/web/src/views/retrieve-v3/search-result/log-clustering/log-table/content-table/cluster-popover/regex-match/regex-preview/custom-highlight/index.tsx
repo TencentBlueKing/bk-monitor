@@ -24,11 +24,11 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent } from "vue";
-import "./index.scss";
+import { defineComponent } from 'vue';
+import './index.scss';
 
 export default defineComponent({
-  name: "CustomHighlight",
+  name: 'CustomHighlight',
   props: {
     text: String,
     colorMap: {
@@ -40,7 +40,7 @@ export default defineComponent({
     return () => (
       <span
         style={{
-          backgroundColor: props.colorMap[props.text!] || "transparent",
+          backgroundColor: props.colorMap[props.text!] || 'transparent',
         }}
       >
         {props.text}

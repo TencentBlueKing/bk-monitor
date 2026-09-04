@@ -72,7 +72,7 @@ export default defineComponent({
 
     const cleanConfig = computed(() => store.state.indexSetFieldConfig.clean_config);
 
-    const fillLogOriginal = (res) => {
+    const fillLogOriginal = res => {
       if (res.data?.length) {
         const data = res.data[0];
         logOriginal.value = data.etl.data || '';
@@ -91,7 +91,7 @@ export default defineComponent({
             },
           })
           .then(fillLogOriginal)
-          .catch((e) => {
+          .catch(e => {
             console.error(e);
           })
           .finally(() => {
@@ -112,7 +112,7 @@ export default defineComponent({
           },
         })
         .then(fillLogOriginal)
-        .catch((e) => {
+        .catch(e => {
           console.error(e);
         })
         .finally(() => {
@@ -147,7 +147,7 @@ export default defineComponent({
       };
       $http
         .request('/logClustering/debug', { data: { ...query } })
-        .then((res) => {
+        .then(res => {
           effectOriginal.value = res.data;
         })
         .finally(() => {

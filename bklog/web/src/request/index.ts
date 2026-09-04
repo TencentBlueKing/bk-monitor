@@ -104,7 +104,7 @@ const buildRequestConfig = (
     method,
     headers: { ...headers, ...appendHeaders },
     credentials: 'include', // 对应 axios withCredentials: true
-    body: ['GET', 'HEAD'].includes(method) ? undefined : (params ? JSON.stringify(params) : undefined),
+    body: ['GET', 'HEAD'].includes(method) ? undefined : params ? JSON.stringify(params) : undefined,
     signal, // 支持 AbortController
   };
 

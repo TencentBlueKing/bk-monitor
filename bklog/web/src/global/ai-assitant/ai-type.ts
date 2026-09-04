@@ -60,8 +60,7 @@ export const AI_BLUEKING_SHORTCUTS_ID = {
   QUERY_STRING_GENERATE: 'querystring_generate',
 } as const;
 
-export type AIBluekingShortcutId =
-  (typeof AI_BLUEKING_SHORTCUTS_ID)[keyof typeof AI_BLUEKING_SHORTCUTS_ID];
+export type AIBluekingShortcutId = (typeof AI_BLUEKING_SHORTCUTS_ID)[keyof typeof AI_BLUEKING_SHORTCUTS_ID];
 
 /**
  * 日志解读快捷方式

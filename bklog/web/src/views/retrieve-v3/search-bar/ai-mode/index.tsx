@@ -270,7 +270,10 @@ export default defineComponent({
                   onClick={handleClearInputText}
                 ></span>
               ) : null}
-              <div class='ai-mode-toggle-btn' onClick={handleChangeAIMode}>
+              <div
+                class='ai-mode-toggle-btn'
+                onClick={handleChangeAIMode}
+              >
                 <img
                   src={aiBluekingSvg}
                   alt='AI 模式'

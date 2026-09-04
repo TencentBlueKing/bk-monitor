@@ -53,7 +53,8 @@ export default defineComponent({
     const { t } = useLocale();
     const aiAssitantRef = RetrieveHelper.aiAssitantHelper.getAiAssitantInstance();
 
-    const { isSearchContextStickyTop, isSearchResultStickyTop, stickyStyle, contentStyle, isPreApiLoaded } =      useAppInit();
+    const { isSearchContextStickyTop, isSearchResultStickyTop, stickyStyle, contentStyle, isPreApiLoaded } =
+      useAppInit();
 
     const isStartTextEllipsis = computed(() => store.state.storage[BK_LOG_STORAGE.TEXT_ELLIPSIS_DIR] === 'start');
     const isSceneMode = computed(() => store.getters.isSceneMode);
@@ -96,13 +97,14 @@ export default defineComponent({
     // 字段列表已请求完成但返回为空
     const isFieldListEmpty = computed(() => isFieldListFetched.value && store.getters.rawFieldList.length === 0);
 
-    const sceneEmptyView = computed(() => resolveSceneEmptyView({
-      isSceneMode: isSceneMode.value,
-      isSceneFilterEmpty: isSceneFilterEmpty.value,
-      isFieldListFetched: isFieldListFetched.value,
-      isFieldListEmpty: isFieldListEmpty.value,
-      isSceneLoading: isSceneLoading.value,
-    }),
+    const sceneEmptyView = computed(() =>
+      resolveSceneEmptyView({
+        isSceneMode: isSceneMode.value,
+        isSceneFilterEmpty: isSceneFilterEmpty.value,
+        isFieldListFetched: isFieldListFetched.value,
+        isFieldListEmpty: isFieldListEmpty.value,
+        isSceneLoading: isSceneLoading.value,
+      }),
     );
 
     // 场景化模式下：未过滤 / 字段未就绪 / 字段为空时隐藏检索结果（含趋势图）

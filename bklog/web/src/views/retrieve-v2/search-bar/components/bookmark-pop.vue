@@ -28,7 +28,7 @@
     },
     activeFavorite: {
       default: true,
-      type: Boolean | String,
+      type: [Boolean, String],
     },
     matchSQLStr: {
       default: false,
@@ -39,7 +39,7 @@
       type: Array,
     },
   });
-  const emit = defineEmits(['refresh', 'save-current-active-favorite','instanceShow']);
+  const emit = defineEmits(['refresh', 'save-current-active-favorite', 'instanceShow']);
   const { $t } = useLocale();
   const store = useStore();
 
@@ -60,7 +60,7 @@
     }
     const indexSetList = store.state.retrieve.flatIndexSetList || [];
     const indexSetId = store.state.indexId;
-    const indexSet = indexSetList.find(item => item.index_set_id == indexSetId);
+    const indexSet = indexSetList.find(item => String(item.index_set_id) === String(indexSetId));
     return indexSet ? indexSet.index_set_name : ''; // 提供一个默认名称或处理
   });
   const collectGroupList = computed(() => store.state.favoriteList);
@@ -101,7 +101,7 @@
   }); // 组名称
   const checkName = () => {
     if (verifyData.value.groupName.trim() === '') return true;
-    return /^[\u4e00-\u9fa5_a-zA-Z0-9`~!@#$%^&*()_\-+=<>?:"{}|\s,.\/;'\\[\]·~！@#￥%……&*（）——\-+={}|《》？：“”【】、；‘'，。、]+$/im.test(
+    return /^[\u4e00-\u9fa5_a-zA-Z0-9`~!@#$%^&*()_\-+=<>?:"{}|\s,./;'\\[\]·~！@#￥%……&*（）——\-+={}|《》？：“”【】、；‘'，。、]+$/im.test(
       verifyData.value.groupName.trim(),
     );
   };
@@ -110,7 +110,7 @@
     return !collectGroupList.value.some(item => item.name === verifyData.value.groupName);
   };
   const checkSpecification = () => {
-    return /^[\u4e00-\u9fa5_a-zA-Z0-9`~!@#$%^&*()_\-+=<>?:"{}|\s,.\/;'\\[\]·~！@#￥%……&*（）——\-+={}|《》？：“”【】、；‘'，。、]+$/im.test(
+    return /^[\u4e00-\u9fa5_a-zA-Z0-9`~!@#$%^&*()_\-+=<>?:"{}|\s,./;'\\[\]·~！@#￥%……&*（）——\-+={}|《》？：“”【】、；‘'，。、]+$/im.test(
       favoriteData.value.name.trim(),
     );
   };
@@ -183,7 +183,11 @@
   // 确认新增组事件
   const handleCreateGroup = () => {
     checkInputFormRef.value.validate().then(async () => {
-      const data = { name: verifyData.value.groupName, space_uid: spaceUid.value, source_type: store.getters.isSceneMode ? 'scene' : 'index_set' };
+      const data = {
+        name: verifyData.value.groupName,
+        space_uid: spaceUid.value,
+        source_type: store.getters.isSceneMode ? 'scene' : 'index_set',
+      };
       try {
         const res = await $http.request('favorite/createGroup', {
           data,
@@ -195,7 +199,8 @@
           window.mainComponent.messageSuccess($t('操作成功'));
           favoriteGroupSelectRef.value?.close();
         }
-      } catch (error) {
+      } catch {
+        // 分组创建失败时保留当前状态，错误由请求层统一处理
       } finally {
         isShowAddGroup.value = true;
         verifyData.value.groupName = '';
@@ -219,7 +224,7 @@
       }),
   );
 
-  const formatValueStr = (value) => {
+  const formatValueStr = value => {
     if (Array.isArray(value)) {
       return `[${value.map(v => `'${v}'`).join(',')}]`;
     }
@@ -262,16 +267,16 @@
   const sceneFilterString = computed(() => {
     if (!store.getters.isSceneMode) return '';
 
-    const {
-      table_id_conditions: tableIdConditions, scene_filter_values: sceneFilterValues,
-    } = store.getters.retrieveParams;
+    const { table_id_conditions: tableIdConditions, scene_filter_values: sceneFilterValues } =
+      store.getters.retrieveParams;
 
     const staticParts = (tableIdConditions?.[0] ?? [])
       .filter(item => item.field_name !== 'scene')
       .map(item => `${item.field_name} ${item.op} ${item.value.join(',')}`);
 
-    const freeInputParts = (sceneFilterValues ?? [])
-      .map(item => `(${item.field} ${item.operator} [${item.value.join(',')}])`);
+    const freeInputParts = (sceneFilterValues ?? []).map(
+      item => `(${item.field} ${item.operator} [${item.value.join(',')}])`,
+    );
 
     const segments = [];
     if (staticParts.length > 0) {
@@ -292,15 +297,11 @@
     }
 
     if (['sql'].includes(props.searchMode)) {
-    if (['sql'].includes(props.searchMode)) {
-      const sql = commonFilterAdditionString.value
-        ? `${props.sql} ${commonFilterAdditionString.value}`
-        : props.sql;
+      if (['sql'].includes(props.searchMode)) {
+        const sql = commonFilterAdditionString.value ? `${props.sql} ${commonFilterAdditionString.value}` : props.sql;
 
-      return scenePrefix
-        ? `${scenePrefix} AND ${sql}`
-        : sql;
-}
+        return scenePrefix ? `${scenePrefix} AND ${sql}` : sql;
+      }
     }
 
     return scenePrefix ? `${scenePrefix} AND ${additionString.value}` : additionString.value;
@@ -308,7 +309,7 @@
 
   // 新建提交逻辑
   const handleCreateRequest = async () => {
-    const { name, group_id, display_fields, id, is_enable_display_fields } = favoriteData.value;
+    const { name, group_id: groupId, display_fields, id, is_enable_display_fields } = favoriteData.value;
 
     const searchParams = ['sql', 'sqlChart'].includes(props.searchMode)
       ? {
@@ -317,18 +318,15 @@
           ...(props.extendParams ?? {}),
         }
       : {
-          addition: [
-            ...formatAddition.value.filter(v => v.field !== '_ip-select_'),
-            ...props.commonFilterAddition,
-          ],
+          addition: [...formatAddition.value.filter(v => v.field !== '_ip-select_'), ...props.commonFilterAddition],
           keyword: '*',
         };
 
     const data = {
       name,
-      group_id,
+      group_id: groupId,
       display_fields,
-      visible_type: group_id === privateGroupID.value ? 'private' : 'public',
+      visible_type: groupId === privateGroupID.value ? 'private' : 'public',
       is_enable_display_fields,
       search_mode: props.searchMode,
       ip_chooser: formatAddition.value.find(item => item.field === '_ip-select_')?.value?.[0] ?? {},
@@ -377,7 +375,9 @@
         verifyData.value.groupName = '';
         emit('refresh', true);
       }
-    } catch (error) {}
+    } catch {
+      // 收藏保存失败时保留当前输入，错误由请求层统一处理
+    }
   };
   const saveCurrentFavorite = () => {
     emit('save-current-active-favorite');
@@ -402,7 +402,7 @@
     favoriteData.value.name = '';
     favoriteData.value.group_id = undefined;
     verifyData.value.groupName = '';
-    emit('instanceShow',false);
+    emit('instanceShow', false);
     nextTick(() => {
       popoverContentRef.value?.clearError?.();
     });
@@ -417,7 +417,7 @@
   };
   // 历史记录弹窗按钮打开逻辑
   const handleHistoryCollection = () => {
-    emit('instanceShow',true);
+    emit('instanceShow', true);
     popoverShow.value ? hidePopover() : showPopover();
   };
   const showPopover = () => {
@@ -445,7 +445,7 @@
   };
   const tippyOptions = {
     theme: 'light',
-    placement: props.activeFavorite === 'history'? 'right' : 'bottom-end',
+    placement: props.activeFavorite === 'history' ? 'right' : 'bottom-end',
     offset: '22',
     interactive: true,
     trigger: 'manual',
@@ -475,11 +475,11 @@
     </span>
     <span
       v-else-if="activeFavorite"
+      v-bk-tooltips="$t('收藏当前查询')"
       :style="{
         color: popoverShow ? '#3a84ff' : '',
       }"
       class="bklog-icon bklog-star-line"
-      v-bk-tooltips="$t('收藏当前查询')"
       @click="handleCollection"
       ><slot></slot
     ></span>
@@ -489,9 +489,9 @@
     >
       <template #dropdown-trigger>
         <div
+          v-bk-tooltips="$t('收藏')"
           style="font-size: 18px"
           class="icon bklog-icon bklog-save"
-          v-bk-tooltips="$t('收藏')"
         ></div>
       </template>
       <template #dropdown-content>
@@ -543,8 +543,8 @@
           >
             <bk-select
               ref="favoriteGroupSelectRef"
-              ext-cls="add-popover-new-page-container"
               v-model="favoriteData.group_id"
+              ext-cls="add-popover-new-page-container"
               :placeholder="$t('未编组')"
               :popover-options="{ appendTo: 'parent' }"
               :search-placeholder="$t('请输入关键字')"

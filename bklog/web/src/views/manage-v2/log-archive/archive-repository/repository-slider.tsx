@@ -340,7 +340,7 @@ export default defineComponent({
               </span>
               <span
                 class='apply-text'
-                onClick={() => applyProjectAccess(option)} // eslint-disable-line @typescript-eslint/no-misused-promises
+                onClick={() => applyProjectAccess(option)}
               >
                 {t('申请权限')}
               </span>
@@ -363,8 +363,6 @@ export default defineComponent({
           onClick={() => changeRepository(card)}
         >
           <span class='repository-name'>{card.name}</span>
-          {/** biome-ignore lint/performance/noImgElement: reason */}
-          {/** biome-ignore lint/nursery/useImageSize: reason */}
           <img
             class='card-image'
             alt={card.name}

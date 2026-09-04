@@ -88,9 +88,12 @@ export default defineComponent({
     expose({ resetScroll });
 
     /** 监听外部 collapsed 变化，同步内部状态 */
-    watch(() => props.collapsed, (val) => {
-      isCollapsed.value = val;
-    });
+    watch(
+      () => props.collapsed,
+      val => {
+        isCollapsed.value = val;
+      },
+    );
 
     /**
      * 切换收起/展开
@@ -173,22 +176,34 @@ export default defineComponent({
           style={{ width: `${isCollapsed.value ? 0 : EXPANDED_WIDTH}px` }}
         >
           {/* 标题栏：收起箭头 + 标题 */}
-          <div class='panel-header' onClick={handleToggle}>
+          <div
+            class='panel-header'
+            onClick={handleToggle}
+          >
             <i class='bklog-icon bklog-collapse'></i>
             <span class='panel-title'>{t('任务列表')}</span>
           </div>
 
           {/* 选项卡：全部 / 用户上报 / 主动采集 */}
           <div class='task-source-tabs'>
-            <div class='tab-slider' style={{ transform: `translateX(${tabIndex * 100}%)` }}></div>
             <div
-              class={['tab-item', { active: props.activeSource === '', 'hide-divider': tabIndex === 0 || tabIndex === 1 }]}
+              class='tab-slider'
+              style={{ transform: `translateX(${tabIndex * 100}%)` }}
+            ></div>
+            <div
+              class={[
+                'tab-item',
+                { active: props.activeSource === '', 'hide-divider': tabIndex === 0 || tabIndex === 1 },
+              ]}
               onClick={() => handleTabChange('')}
             >
               {t('全部')}
             </div>
             <div
-              class={['tab-item', { active: props.activeSource === 'report', 'hide-divider': tabIndex === 1 || tabIndex === 2 }]}
+              class={[
+                'tab-item',
+                { active: props.activeSource === 'report', 'hide-divider': tabIndex === 1 || tabIndex === 2 },
+              ]}
               onClick={() => handleTabChange('report')}
             >
               {t('用户上报')}
@@ -202,46 +217,57 @@ export default defineComponent({
           </div>
 
           {/* 日志条目列表 */}
-          <div class='task-list' ref={scrollContainerRef} onScroll={handleScroll}>
-          {props.taskList.map((item, index) => (
-            <div
-              key={`${item.file_name}_${index}`}
-              class={['task-item', { active: props.selectedLogItem === item }]}
-              onClick={() => handleLogItemSelect(item)}
-            >
-              {/* 第一行：时间 + 状态标签 */}
-              <div class='task-header'>
-                <span class='task-time'>{item.report_time ?? item.processed_at}</span>
-                <span class={`task-status ${mapToCollectionStatus(item.process_status)}`}>
-                  {item.process_status === 'running'
-                    ? <bk-spin size='mini'></bk-spin> : <i class='status-dot'></i>}
-                  {t(mapToCollectionStatusText(item.process_status))}
-                </span>
-              </div>
+          <div
+            class='task-list'
+            ref={scrollContainerRef}
+            onScroll={handleScroll}
+          >
+            {props.taskList.map((item, index) => (
+              <div
+                key={`${item.file_name}_${index}`}
+                class={['task-item', { active: props.selectedLogItem === item }]}
+                onClick={() => handleLogItemSelect(item)}
+              >
+                {/* 第一行：时间 + 状态标签 */}
+                <div class='task-header'>
+                  <span class='task-time'>{item.report_time ?? item.processed_at}</span>
+                  <span class={`task-status ${mapToCollectionStatus(item.process_status)}`}>
+                    {item.process_status === 'running' ? <bk-spin size='mini'></bk-spin> : <i class='status-dot'></i>}
+                    {t(mapToCollectionStatusText(item.process_status))}
+                  </span>
+                </div>
 
-              {/* 第二行：文件名 + openid */}
-              <div class='task-title-row'>
-                <span class='task-title' v-bk-overflow-tips>{item.file_name}</span>
-                {item.openid && (
-                  <span class='task-id' v-bk-overflow-tips>{item.openid}</span>
-                )}
+                {/* 第二行：文件名 + openid */}
+                <div class='task-title-row'>
+                  <span
+                    class='task-title'
+                    v-bk-overflow-tips
+                  >
+                    {item.file_name}
+                  </span>
+                  {item.openid && (
+                    <span
+                      class='task-id'
+                      v-bk-overflow-tips
+                    >
+                      {item.openid}
+                    </span>
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
-          {props.taskList.length === 0 && !props.isLoading && (
-            <bk-exception
-              style='margin-top: 80px'
-              scene='part'
-              type='empty'
-            >
-              <span>{t('暂无数据')}</span>
-            </bk-exception>
-          )}
-          {props.isLoading && props.hasMore && (
-            <div class='task-list-loading'>loading...</div>
-          )}
+            ))}
+            {props.taskList.length === 0 && !props.isLoading && (
+              <bk-exception
+                style='margin-top: 80px'
+                scene='part'
+                type='empty'
+              >
+                <span>{t('暂无数据')}</span>
+              </bk-exception>
+            )}
+            {props.isLoading && props.hasMore && <div class='task-list-loading'>loading...</div>}
+          </div>
         </div>
-      </div>
       );
     };
   },

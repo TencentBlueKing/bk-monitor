@@ -30,8 +30,8 @@ import { history, defaultKeymap, historyKeymap } from '@codemirror/commands';
 import { bracketMatching, indentOnInput } from '@codemirror/language';
 import { searchKeymap, highlightSelectionMatches } from '@codemirror/search';
 import { EditorState } from '@codemirror/state';
-import { placeholder } from '@codemirror/view';
 import {
+  placeholder,
   keymap,
   highlightSpecialChars,
   drawSelection,
@@ -39,6 +39,7 @@ import {
   rectangularSelection,
   crosshairCursor,
 } from '@codemirror/view';
+
 import { EditorView } from 'codemirror';
 
 import { grepSyntaxHighlighting } from './grep-highlighter';

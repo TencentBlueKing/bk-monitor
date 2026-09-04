@@ -179,7 +179,7 @@ export default defineComponent({
     // 监听显示状态变化
     watch(
       () => props.isShowCollect,
-      (value) => {
+      value => {
         if (value) {
           getFavoriteList();
         } else {

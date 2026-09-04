@@ -28,9 +28,9 @@
   <div :class="['handle-content', { 'fix-content': showAllHandle, 'origin-content': logType === 'origin' }]">
     <template v-if="!isUnionSearch">
       <button
+        v-bk-tooltips="{ allowHtml: true, content: '#realTimeLog-html', delay: 500, disabled: isActiveLog }"
         :class="['handle-item', { 'is-disable': !isActiveLog }]"
         type="button"
-        v-bk-tooltips="{ allowHtml: true, content: '#realTimeLog-html', delay: 500, disabled: isActiveLog }"
         @click.stop="handleCheckClick('realTimeLog', isActiveLog)"
         @mouseup.stop
       >
@@ -39,9 +39,9 @@
       </button>
       <span class="handle-divider" />
       <button
+        v-bk-tooltips="{ allowHtml: true, content: '#contextLog-html', delay: 500, disabled: isActiveLog }"
         :class="['handle-item', { 'is-disable': !isActiveLog }]"
         type="button"
-        v-bk-tooltips="{ allowHtml: true, content: '#contextLog-html', delay: 500, disabled: isActiveLog }"
         @click.stop="handleCheckClick('contextLog', isActiveLog)"
         @mouseup.stop
       >
@@ -88,9 +88,9 @@
     </template>
     <template v-else>
       <button
+        v-bk-tooltips="{ allowHtml: true, content: '#contextLog-html', delay: 500, disabled: isActiveLog }"
         :class="['handle-item', { 'is-disable': !isActiveLog }]"
         type="button"
-        v-bk-tooltips="{ allowHtml: true, content: '#contextLog-html', delay: 500, disabled: isActiveLog }"
         @click.stop="handleCheckClick('contextLog', isActiveLog)"
         @mouseup.stop
       >

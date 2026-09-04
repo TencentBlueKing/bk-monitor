@@ -26,8 +26,8 @@
 
 <template>
   <div
-    class="clean-template-container"
     v-bkloading="{ isLoading: loading }"
+    class="clean-template-container"
   >
     <article class="article">
       <step-field

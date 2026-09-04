@@ -102,7 +102,6 @@ export default defineComponent({
       abortController = new AbortController();
       const { signal } = abortController;
 
-
       const { start_time, end_time, keyword } = retrieveParams.value;
       const requestParams = {
         start_time,
@@ -117,10 +116,13 @@ export default defineComponent({
 
       emit('error', { code: 200, message: '请求中', result: true });
 
-      RetrieveHelper.reportLog({
-        trigger_source: 'graph_analysis',
-        action: 'request',
-      }, store.state);
+      RetrieveHelper.reportLog(
+        {
+          trigger_source: 'graph_analysis',
+          action: 'request',
+        },
+        store.state,
+      );
 
       return requestBlob({
         url: `/search/index_set/${indexSetId.value}/chart/`,
@@ -211,7 +213,7 @@ export default defineComponent({
     // 使用示例
     const extendedTsql = createExtendedTSQL();
 
-    const getFormatValue = (sql) => {
+    const getFormatValue = sql => {
       try {
         // @ts-ignore - extendedTsql 的类型定义与 formatDialect 期望的类型不完全匹配，但运行时正常
         return formatDialect(sql, { dialect: extendedTsql });
@@ -240,7 +242,7 @@ export default defineComponent({
             alias_settings: alias_settings.value,
           },
         })
-        .then((resp) => {
+        .then(resp => {
           editorInstance.value.setValue(resp.data.sql);
           editorInstance.value.focus();
           onValueChange(resp.data.sql);
@@ -252,7 +254,7 @@ export default defineComponent({
           isPreviewSqlShow.value = true;
           callback?.();
         })
-        .catch((err) => {
+        .catch(err => {
           console.error(err);
         })
         .finally(() => {
@@ -375,7 +377,7 @@ export default defineComponent({
     /**
      * 监听关联数据变化
      */
-    const onRefereceChange = (args) => {
+    const onRefereceChange = args => {
       // 这里表示数据来自图表分析收藏点击回填数据
       if (args?.params?.chart_params?.sql?.length) {
         const old = editorInstance.value?.getValue();

@@ -308,7 +308,7 @@ export default class AuthorizationList extends tsc<object> {
         return statusPick;
       }
       // 关键字匹配
-      const { status: _status, expire_time: _expire_time, created_at: _created_at, ...searchKey } = TableColumnEnum;
+      const { status: _status, expire_time: _expireTime, created_at: _createdAt, ...searchKey } = TableColumnEnum;
       return Object.keys(searchKey).some(key => {
         if (!item[key]) {
           return false;
@@ -820,7 +820,9 @@ export default class AuthorizationList extends tsc<object> {
         },
       });
       this.getListData();
-    } catch {}
+    } catch {
+      // 删除失败时保留当前列表，错误由请求层统一处理
+    }
   }
 
   showDialog(row = null) {
