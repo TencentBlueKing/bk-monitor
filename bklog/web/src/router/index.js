@@ -175,7 +175,9 @@ export default (spaceId, bkBizId, externalMenu) => {
     if (
       window.IS_EXTERNAL &&
       JSON.parse(window.IS_EXTERNAL) &&
-      !['retrieve', 'client-log-search', 'extract-home', 'extract-create', 'extract-clone'].includes(to.name)
+      !['retrieve', 'client-log-search', 'extract-home', 'extract-create', 'extract-clone', 'un-authorized'].includes(
+        to.name,
+      )
     ) {
       // 非外部版路由重定向，保留 query 和 params 参数
       const routeName = getExternalDefaultRoute(store.state.externalMenu || []);
