@@ -1,5 +1,3 @@
-import type { Ref } from 'vue';
-
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -25,6 +23,10 @@ import type { Ref } from 'vue';
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import { type Ref, shallowRef, watch } from 'vue';
+
+import { byteConvert } from 'monitor-common/utils';
+
 import { handleTransformToTimestamp } from '../../../components/time-range/utils';
 import { useRumExploreStore } from '../../../store/modules/rum-explore';
 import { getFieldsOptionValues } from '../services/rum-search';
@@ -37,6 +39,9 @@ const BOOLEAN_OPTIONS = [
   { id: 'false', name: 'false' },
 ];
 
+/** 非负数字（byteConvert 仅支持非负字节数，负数会算出 NaN） */
+const NON_NEGATIVE_NUMBER_REG = /^\d+(\.\d+)?$/;
+
 /**
  * 检索条件区的候选值获取。
  *
@@ -48,6 +53,27 @@ export function useRumFieldValues(fields: Ref<IRumField[]>) {
 
   let cache: null | { key: string; values: Array<{ id: string; name: string }> } = null;
   let abortController = new AbortController();
+
+  /**
+   * 字段名 -> { unit, values } 的索引表，供已选条件 tag 的展示格式化使用。
+   *
+   * 数据全部来自 view_config 的字段元信息（field_unit / option_values），
+   * 只在字段列表变化时重建；格式化函数是同步读取，因此用 shallowRef 即可。
+   */
+  const fieldOptionsMap = shallowRef<
+    Map<
+      string,
+      {
+        unit: string;
+        values: Array<{ id: string; name: string }>;
+      }
+    >
+  >(new Map());
+
+  /** 登记单个字段的单位与枚举别名（key 为字段名） */
+  function setFieldOptionsMap(key: string, unit: string, values: Array<{ id: string; name: string }>) {
+    fieldOptionsMap.value.set(key, { unit, values });
+  }
 
   function getCacheKey(field: string) {
     return `${store.appName}__${store.mode}__${field}`;
@@ -121,9 +147,58 @@ export function useRumFieldValues(fields: Ref<IRumField[]>) {
         }))
       : (res?.[field] || []).filter(Boolean).map(value => ({ id: `${value}`, name: `${value}` }));
     cache = !search && values.length < limit ? { key: cacheKey, values } : null;
-
     return { count: values.length, list: withNullOption(values, isKeyword) };
   }
 
-  return { getFieldValues };
+  // 字段列表随应用 / 模式 / span 类型变化，需同步刷新索引表；
+  // immediate 保证首屏渲染时已存在的条件 tag 就能按单位与别名展示
+  watch(
+    () => fields.value,
+    () => {
+      if (fields.value.length) {
+        for (const field of fields.value) {
+          setFieldOptionsMap(
+            field.name,
+            field?.field_unit || '',
+            field?.option_values?.map(v => ({
+              id: v.value,
+              name: v.alias,
+            })) || []
+          );
+        }
+      }
+    },
+    { immediate: true }
+  );
+
+  /**
+   * 已选条件 tag 中 value 的展示格式化，按以下顺序处理：
+   *
+   * 1. 悬浮提示（isTips）直接透传原始值，避免提示里混入单位影响阅读与复制；
+   * 2. 字段已登记进索引表时，先把取值换成枚举 alias（查不到就回退到取值本身），
+   *    让用户看到可读名称而非存储值；
+   * 3. 字段带单位时拼接单位，其中 bytes 走 byteConvert 换算（如 1048576 -> 1 MB）；
+   * 4. 字段未登记进索引表（取值来自接口动态返回）时原样返回 val。
+   */
+  function tagValueDisplayFormatter(val, { value, key, isTips }) {
+    if (isTips) {
+      return val;
+    }
+    const fieldOptions = fieldOptionsMap.value.get(key);
+    if (fieldOptions) {
+      // 枚举里查不到时（用户手输、或候选值来自接口）回退到原始取值
+      const name = fieldOptions.values.find(v => v.id === value.id)?.name || value.id;
+      // 字节数直接展示原始值不直观，按 1024 进制换算成 KB/MB/...（转换结果自带单位，无需再拼接）
+      if (fieldOptions.unit === 'bytes' && NON_NEGATIVE_NUMBER_REG.test(name)) {
+        return byteConvert(Number(name));
+      }
+      if (fieldOptions.unit) {
+        return `${name}${fieldOptions.unit}`;
+      }
+      return name;
+    }
+    return val;
+  }
+
+  return { getFieldValues, tagValueDisplayFormatter };
 }
