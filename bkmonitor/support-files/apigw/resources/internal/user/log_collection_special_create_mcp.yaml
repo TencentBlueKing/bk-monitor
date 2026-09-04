@@ -24,7 +24,7 @@ paths:
               properties:
                 bk_biz_id:
                   type: integer
-                  minimum: 1
+                  description: Business ID. 业务ID。
                 collector_config_name:
                   type: string
                   maxLength: 50
@@ -155,7 +155,6 @@ paths:
               properties:
                 bk_biz_id:
                   type: integer
-                  minimum: 1
                   description: Business ID. 业务ID。
                 index_set_name:
                   type: string
@@ -176,7 +175,6 @@ paths:
                         description: BkBase result table ID. 数据平台结果表名。
                       bk_biz_id:
                         type: integer
-                        minimum: 1
                         nullable: true
                         description: Optional result-table business ID; defaults to the outer bk_biz_id. 可选，默认使用外层业务ID。
                 category_id:
@@ -259,7 +257,7 @@ paths:
               properties:
                 bk_biz_id:
                   type: integer
-                  minimum: 1
+                  description: Business ID. 业务ID。
                 index_set_name:
                   type: string
                   maxLength: 64
@@ -279,7 +277,6 @@ paths:
                         maxLength: 255
                       bk_biz_id:
                         type: integer
-                        minimum: 1
                         nullable: true
                       time_field:
                         type: string

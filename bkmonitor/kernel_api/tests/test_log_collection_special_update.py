@@ -1,12 +1,27 @@
 from types import SimpleNamespace
 from unittest.mock import Mock
 
+import pytest
+from rest_framework.exceptions import PermissionDenied, ValidationError
+
 from kernel_api.resource import log_collection_special_update as special_update_module
 from kernel_api.resource.log_collection_special_update import (
     UpdateBkDataResource,
     UpdateCustomReportResource,
     UpdateThirdPartyESResource,
 )
+
+
+@pytest.mark.parametrize(
+    "serializer_class",
+    [
+        UpdateCustomReportResource.RequestSerializer,
+        UpdateThirdPartyESResource.RequestSerializer,
+        UpdateBkDataResource.RequestSerializer,
+    ],
+)
+def test_update_business_ids_allow_negative_business_ids(serializer_class):
+    assert serializer_class().fields["bk_biz_id"].run_validation(-2) == -2
 
 
 def test_update_custom_report_forwards_parent_index_set_ids(monkeypatch):
@@ -63,7 +78,7 @@ def test_update_third_party_es_forwards_space_and_parent_index_set_ids(monkeypat
         "api",
         SimpleNamespace(
             log_search=SimpleNamespace(
-                search_index_set=Mock(return_value=[{"index_set_id": 51, "scenario_id": "es"}]),
+                get_index_set=Mock(return_value={"index_set_id": 51, "scenario_id": "es", "space_uid": "bkcc__2"}),
                 update_index_set=update_index_set,
             )
         ),
@@ -95,6 +110,7 @@ def test_update_third_party_es_forwards_space_and_parent_index_set_ids(monkeypat
     assert update_index_set.call_args.kwargs["scenario_id"] == "es"
     assert update_index_set.call_args.kwargs["indexes"] == [{"result_table_id": "logs-*", "bk_biz_id": 2}]
     assert update_index_set.call_args.kwargs["parent_index_set_ids"] == [11, 12]
+    assert update_index_set.call_args.kwargs["enforce_permission"] is True
 
 
 def test_update_third_party_es_leaves_parent_index_set_ids_unchanged_when_omitted(monkeypatch):
@@ -104,7 +120,7 @@ def test_update_third_party_es_leaves_parent_index_set_ids_unchanged_when_omitte
         "api",
         SimpleNamespace(
             log_search=SimpleNamespace(
-                search_index_set=Mock(return_value=[{"index_set_id": 51, "scenario_id": "es"}]),
+                get_index_set=Mock(return_value={"index_set_id": 51, "scenario_id": "es", "space_uid": "bkcc__2"}),
                 update_index_set=update_index_set,
             )
         ),
@@ -147,7 +163,7 @@ def test_update_bkdata_forwards_space_and_result_tables(monkeypatch):
         "api",
         SimpleNamespace(
             log_search=SimpleNamespace(
-                search_index_set=Mock(return_value=[{"index_set_id": 61, "scenario_id": "bkdata"}]),
+                get_index_set=Mock(return_value={"index_set_id": 61, "scenario_id": "bkdata", "space_uid": "bkcc__2"}),
                 update_index_set=update_index_set,
             )
         ),
@@ -185,6 +201,81 @@ def test_update_bkdata_forwards_space_and_result_tables(monkeypatch):
     assert update_index_set.call_args.kwargs["time_field_unit"] is None
     assert update_index_set.call_args.kwargs["target_fields"] == ["host"]
     assert update_index_set.call_args.kwargs["sort_fields"] == ["dtEventTime"]
+    assert update_index_set.call_args.kwargs["enforce_permission"] is True
+
+
+def test_update_index_set_rejects_cross_business_detail(monkeypatch):
+    update_index_set = Mock()
+    monkeypatch.setattr(
+        special_update_module,
+        "api",
+        SimpleNamespace(
+            log_search=SimpleNamespace(
+                get_index_set=Mock(return_value={"index_set_id": 51, "scenario_id": "es", "space_uid": "bkcc__3"}),
+                update_index_set=update_index_set,
+            )
+        ),
+    )
+    serializer = UpdateThirdPartyESResource.RequestSerializer(
+        data={
+            "bk_biz_id": 2,
+            "index_set_id": 51,
+            "index_set_name": "external-es",
+            "storage_cluster_id": 61,
+            "indexes": [{"result_table_id": "logs-*"}],
+            "time_field": "@timestamp",
+            "time_field_type": "date",
+            "time_field_unit": None,
+            "category_id": "application",
+            "is_trace_log": False,
+            "target_fields": [],
+            "sort_fields": [],
+            "confirm": True,
+        }
+    )
+    assert serializer.is_valid(), serializer.errors
+
+    with pytest.raises(PermissionDenied):
+        UpdateThirdPartyESResource().perform_request(serializer.validated_data)
+
+    update_index_set.assert_not_called()
+
+
+def test_update_index_set_rejects_access_type_mismatch(monkeypatch):
+    update_index_set = Mock()
+    monkeypatch.setattr(
+        special_update_module,
+        "api",
+        SimpleNamespace(
+            log_search=SimpleNamespace(
+                get_index_set=Mock(return_value={"index_set_id": 51, "scenario_id": "bkdata", "space_uid": "bkcc__2"}),
+                update_index_set=update_index_set,
+            )
+        ),
+    )
+    serializer = UpdateThirdPartyESResource.RequestSerializer(
+        data={
+            "bk_biz_id": 2,
+            "index_set_id": 51,
+            "index_set_name": "not-es",
+            "storage_cluster_id": 61,
+            "indexes": [{"result_table_id": "logs-*"}],
+            "time_field": "@timestamp",
+            "time_field_type": "date",
+            "time_field_unit": None,
+            "category_id": "application",
+            "is_trace_log": False,
+            "target_fields": [],
+            "sort_fields": [],
+            "confirm": True,
+        }
+    )
+    assert serializer.is_valid(), serializer.errors
+
+    with pytest.raises(ValidationError):
+        UpdateThirdPartyESResource().perform_request(serializer.validated_data)
+
+    update_index_set.assert_not_called()
 
 
 def test_update_bkdata_requires_time_field():

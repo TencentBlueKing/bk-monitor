@@ -24,6 +24,8 @@ WINDOWS_COLLECTOR_SCENARIO = "wineventlog"
 LINUX_COLLECTOR_SCENARIOS = {"row", "section"}
 CUSTOM_COLLECTOR_SCENARIO = "custom"
 CUSTOM_CONTAINER_TYPE = "log"
+# 与 bklog/apps/log_databus/constants.py 的 LOG_COLLECTOR_ORDERING_CHOICES 保持同步；
+# MCP 故意排除高耗时的 daily_usage / total_usage 排序。
 LOG_COLLECTOR_ORDERING_CHOICES = (
     "name",
     "-name",
@@ -33,6 +35,33 @@ LOG_COLLECTOR_ORDERING_CHOICES = (
     "-updated_at",
     "created_at",
     "-created_at",
+)
+# 与 bklog/apps/log_search/constants.py 的 LogAccessTypeEnum 保持同步。
+LOG_ACCESS_TYPE_CHOICES = (
+    "linux",
+    "winevent",
+    "container_file",
+    "container_stdout",
+    "bkdata",
+    "es",
+    "custom_report",
+)
+# 与 bklog/apps/log_databus/handlers/collector_handler/log.py::get_log_collectors 保持同步。
+LOG_COLLECTOR_CONDITION_CHOICES = (
+    "scenario_id",
+    "name",
+    "bk_data_name",
+    "name_en",
+    "bk_data_id",
+    "collector_scenario_id",
+    "created_by",
+    "updated_by",
+    "status",
+    "storage_display_name",
+    "log_access_type",
+    "tags",
+    "collector_source",
+    "query",
 )
 SENSITIVE_KEYWORDS = (
     "password",
@@ -149,8 +178,18 @@ def get_log_access_type(collector: dict[str, Any]) -> str:
         return log_access_type
     if collector.get("scenario_id") in {"bkdata", "es"}:
         return collector["scenario_id"]
-    if collector.get("collector_scenario_id") == CUSTOM_COLLECTOR_SCENARIO:
+    if collector.get("environment") == ENVIRONMENT_CONTAINER:
+        if collector.get("container_collector_type") in {"container_log_config", "node_log_config"}:
+            return "container_file"
+        if collector.get("container_collector_type") == "std_log_config":
+            return "container_stdout"
+    collector_scenario_id = collector.get("collector_scenario_id")
+    if collector_scenario_id == CUSTOM_COLLECTOR_SCENARIO:
         return "custom_report"
+    if collector_scenario_id in LINUX_COLLECTOR_SCENARIOS:
+        return "linux"
+    if collector_scenario_id == WINDOWS_COLLECTOR_SCENARIO:
+        return "winevent"
     return ""
 
 
@@ -225,7 +264,7 @@ class ListLogCollectorsResource(Resource):
 
     class RequestSerializer(serializers.Serializer):
         class ConditionSerializer(serializers.Serializer):
-            key = serializers.CharField(required=True, allow_blank=False, label="过滤字段")
+            key = serializers.ChoiceField(required=True, choices=LOG_COLLECTOR_CONDITION_CHOICES, label="过滤字段")
             value = serializers.ListField(required=True, allow_empty=False, label="过滤值列表")
 
         bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
@@ -236,9 +275,7 @@ class ListLogCollectorsResource(Resource):
         )
         collector_scenario_id = serializers.CharField(required=False, label="采集场景")
         log_access_type = serializers.ListField(
-            child=serializers.ChoiceField(
-                choices=["linux", "winevent", "container_file", "container_stdout", "bkdata", "es", "custom_report"]
-            ),
+            child=serializers.ChoiceField(choices=LOG_ACCESS_TYPE_CHOICES),
             required=False,
             allow_empty=False,
             label="日志接入类型",
@@ -260,9 +297,16 @@ class ListLogCollectorsResource(Resource):
 
         def validate(self, attrs):
             condition_keys = {condition["key"] for condition in attrs.get("conditions", [])}
-            duplicate_keys = condition_keys.intersection({"collector_scenario_id", "log_access_type"})
-            explicit_keys = {key for key in ("collector_scenario_id", "log_access_type") if key in attrs}
-            if conflict_keys := duplicate_keys.intersection(explicit_keys):
+            shortcut_condition_keys = {
+                "collector_scenario_id": "collector_scenario_id",
+                "log_access_type": "log_access_type",
+            }
+            conflict_keys = {
+                shortcut
+                for shortcut, condition_key in shortcut_condition_keys.items()
+                if shortcut in attrs and condition_key in condition_keys
+            }
+            if conflict_keys:
                 raise serializers.ValidationError(
                     {"conditions": f"请勿同时通过 conditions 和快捷参数过滤 {', '.join(sorted(conflict_keys))}。"}
                 )
@@ -325,4 +369,4 @@ class GetLogIndexSetResource(Resource):
         expected_space_uid = bk_biz_id_to_space_uid(bk_biz_id)
         if not isinstance(detail, Mapping) or detail.get("space_uid") != expected_space_uid:
             raise PermissionDenied("Index set does not belong to the requested business.")
-        return result
+        return detail

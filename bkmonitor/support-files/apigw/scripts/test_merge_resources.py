@@ -208,6 +208,8 @@ def test_log_collection_mcp_exposes_index_groups_and_mixed_access_types():
     assert method_data["x-bk-apigateway-resource"]["backend"]["path"] == (
         "/api/v4/log_collection/list_index_set_groups/"
     )
+    bk_biz_id_parameter = next(parameter for parameter in method_data["parameters"] if parameter["name"] == "bk_biz_id")
+    assert "minimum" not in bk_biz_id_parameter["schema"]
 
     special_paths = _load_paths(_LOG_COLLECTION_SPECIAL_CREATE_MCP_FILE)
     assert set(special_paths) == {
@@ -226,13 +228,14 @@ def test_log_collection_mcp_exposes_index_groups_and_mixed_access_types():
         parent_ids_schema = schema["properties"]["parent_index_set_ids"]
         assert parent_ids_schema["type"] == "array"
         assert parent_ids_schema["items"]["minimum"] == 1
+        assert "minimum" not in schema["properties"]["bk_biz_id"]
         assert schema["properties"]["confirm"]["enum"] == [True]
         assert method_data["tags"] == ["log_collection_mcp"]
     third_party_index_schema = special_paths["/mcp/create_third_party_es/"]["post"]["requestBody"]["content"][
         "application/json"
     ]["schema"]["properties"]["indexes"]["items"]["properties"]
     assert third_party_index_schema["result_table_id"]["maxLength"] == 255
-    assert third_party_index_schema["bk_biz_id"]["minimum"] == 1
+    assert "minimum" not in third_party_index_schema["bk_biz_id"]
 
     special_update_paths = _load_paths(_LOG_COLLECTION_SPECIAL_UPDATE_MCP_FILE)
     assert set(special_update_paths) == {
@@ -251,13 +254,14 @@ def test_log_collection_mcp_exposes_index_groups_and_mixed_access_types():
         parent_ids_schema = schema["properties"]["parent_index_set_ids"]
         assert parent_ids_schema["type"] == "array"
         assert parent_ids_schema["items"]["minimum"] == 1
+        assert "minimum" not in schema["properties"]["bk_biz_id"]
         assert schema["properties"]["confirm"]["enum"] == [True]
         assert method_data["tags"] == ["log_collection_mcp"]
     third_party_update_index_schema = special_update_paths["/mcp/update_third_party_es/"]["post"]["requestBody"][
         "content"
     ]["application/json"]["schema"]["properties"]["indexes"]["items"]["properties"]
     assert third_party_update_index_schema["result_table_id"]["maxLength"] == 255
-    assert third_party_update_index_schema["bk_biz_id"]["minimum"] == 1
+    assert "minimum" not in third_party_update_index_schema["bk_biz_id"]
     required_full_update_fields = {
         "time_field",
         "time_field_type",

@@ -3,8 +3,8 @@ paths:
     get:
       operationId: list_log_collectors
       description: >-
-        List log access entries in a business with stable pagination. The response is passed through from the new
-        log-access API as {total, list}; each entry includes its type-specific ID and permission. The list includes
+        List log access entries in a business with stable pagination. The response is passed through unchanged from
+        the new log-access API as {total, list}. Each list entry includes its type-specific ID and permission. The list includes
         host/container collectors, custom reports, bkdata and third-party Elasticsearch index sets. Call this first to obtain collector_config_id
         before collector operations; index-set entries have collector_config_id=null and expose index_set_id instead.
         Call get_log_index_set before updating an index-set entry to obtain its complete detail.
@@ -91,8 +91,13 @@ paths:
         schema:
           type: string
         description: >-
-          JSON array of advanced filters, such as [{"key":"name","value":["nginx"]}]. Each item requires a string key and a non-empty value list.
-          Do not repeat collector_scenario_id or log_access_type when using their dedicated parameters. 高级过滤条件 JSON 数组，每项包含 key 和非空 value 列表；使用快捷参数时不要重复传对应条件。
+          JSON array of advanced filters, such as [{"key":"name","value":["nginx"]}]. Supported keys:
+          scenario_id, name, bk_data_name, name_en, bk_data_id, collector_scenario_id, created_by, updated_by,
+          status, storage_display_name, log_access_type, tags, collector_source, query. Other keys are rejected.
+          status accepts running, success, failed, or terminated; terminated means the collector is disabled.
+          Each item requires a non-empty value list. Do not repeat collector_scenario_id or log_access_type when using
+          their dedicated parameters. 高级过滤条件 JSON 数组；仅支持上述 key，其他 key 会被拒绝。status 支持 running、success、failed、terminated，
+          其中 terminated 表示采集项已停用；每项包含非空 value 列表，使用快捷参数时不要重复传对应条件。
       - in: query
         name: ordering
         required: false

@@ -7,18 +7,17 @@ import pytest
 import yaml
 from rest_framework.exceptions import PermissionDenied
 
-from bkmonitor.iam import ActionEnum
 from core.drf_resource import api
 from kernel_api.resource.log_collection import (
     GetLogCollectorResource,
     GetLogIndexSetResource,
     LOG_COLLECTOR_ORDERING_CHOICES,
     ListLogCollectorsResource,
+    get_log_access_type,
     mask_sensitive,
     normalize_environment,
     normalize_index_set,
 )
-from kernel_api.views.v4.log_collection import CanonicalBusinessActionPermission, LogCollectionViewSet
 
 
 @pytest.mark.parametrize(
@@ -62,6 +61,7 @@ def test_list_request_serializer_exposes_useful_filters_and_conditions():
     serializer = ListLogCollectorsResource.RequestSerializer()
 
     assert {"conditions", "ordering"}.issubset(serializer.fields)
+    assert "enabled" not in serializer.fields
     assert {
         "parent_index_set_id",
         "exclude_parent_index_set_id",
@@ -93,8 +93,34 @@ def test_list_request_serializer_accepts_json_encoded_conditions():
     assert serializer.validated_data["conditions"] == [{"key": "name", "value": ["nginx"]}]
 
 
+def test_list_request_serializer_rejects_unknown_condition_key():
+    serializer = ListLogCollectorsResource.RequestSerializer(
+        data={"bk_biz_id": 7, "conditions": [{"key": "environment", "value": ["linux"]}]}
+    )
+
+    assert not serializer.is_valid()
+    assert "conditions" in serializer.errors
+
+
+@pytest.mark.parametrize(
+    ("collector", "expected"),
+    [
+        ({"environment": "container", "container_collector_type": "container_log_config"}, "container_file"),
+        ({"environment": "container", "container_collector_type": "node_log_config"}, "container_file"),
+        ({"environment": "container", "container_collector_type": "std_log_config"}, "container_stdout"),
+        ({"collector_scenario_id": "row"}, "linux"),
+        ({"collector_scenario_id": "wineventlog"}, "winevent"),
+    ],
+)
+def test_get_log_access_type_fallback_covers_all_collector_types(collector, expected):
+    assert get_log_access_type(collector) == expected
+
+
 @pytest.mark.parametrize("action", ["list_collectors", "get_collector", "get_index_set", "list_index_set_groups"])
 def test_log_collection_view_requires_view_business_permission(action):
+    from bkmonitor.iam import ActionEnum
+    from kernel_api.views.v4.log_collection import LogCollectionViewSet
+
     view = LogCollectionViewSet()
     view.action = action
     permissions = view.get_permissions()
@@ -104,6 +130,9 @@ def test_log_collection_view_requires_view_business_permission(action):
 
 
 def test_log_collection_permission_rejects_conflicting_business_alias():
+    from bkmonitor.iam import ActionEnum
+    from kernel_api.views.v4.log_collection import CanonicalBusinessActionPermission
+
     permission = CanonicalBusinessActionPermission([ActionEnum.VIEW_BUSINESS])
     request = SimpleNamespace(
         query_params={"bk_biz_id": "2", "biz_id": "3"},
@@ -195,7 +224,7 @@ def test_list_collectors_forwards_useful_filters_and_preserves_mixed_api_respons
     assert serializer.is_valid(), serializer.errors
     result = ListLogCollectorsResource().perform_request(serializer.validated_data)
 
-    assert result == api_resource.return_value
+    assert result is api_resource.return_value
     assert result["list"][0]["permission"] == {"manage_collection": True}
     assert result["list"][0]["name_en"] == "linux_app"
     api_resource.assert_called_once_with(
@@ -217,6 +246,7 @@ def test_list_collectors_uses_mixed_log_access_api_for_es_and_custom_report(monk
             "total": 2,
             "list": [
                 {
+                    "collector_config_id": None,
                     "index_set_id": 301,
                     "index_set_name": "third-party-es",
                     "scenario_id": "es",
@@ -404,6 +434,15 @@ def test_get_index_set_returns_detail_from_new_api(monkeypatch):
 
     assert result is detail
     get_index_set.assert_called_once_with(index_set_id=301)
+
+
+def test_get_index_set_unwraps_legacy_data_response(monkeypatch):
+    detail = {"index_set_id": 301, "space_uid": "bkcc__7"}
+    monkeypatch.setattr(api.log_search, "get_index_set", Mock(return_value={"data": detail}))
+
+    result = GetLogIndexSetResource().perform_request({"bk_biz_id": 7, "index_set_id": 301})
+
+    assert result is detail
 
 
 def test_get_index_set_rejects_cross_business_result(monkeypatch):

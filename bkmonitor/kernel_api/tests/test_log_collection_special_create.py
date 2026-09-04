@@ -4,12 +4,28 @@ from unittest.mock import Mock
 from core.drf_resource import api
 from kernel_api.resource import log_collection_special_create as special_create_module
 from kernel_api.resource.log_collection_special_create import (
+    BkDataIndexSerializer,
     CreateBkDataResource,
     CreateCustomReportResource,
     CreateThirdPartyESResource,
+    ThirdPartyESIndexSerializer,
 )
 from kernel_api.resource import log_index_set as log_index_set_module
 from kernel_api.resource.log_index_set import ListLogIndexSetGroupsResource
+
+
+def test_create_and_index_group_business_ids_allow_negative_business_ids():
+    serializers = [
+        ListLogIndexSetGroupsResource.RequestSerializer(),
+        CreateCustomReportResource.RequestSerializer(),
+        CreateThirdPartyESResource.RequestSerializer(),
+        CreateBkDataResource.RequestSerializer(),
+        ThirdPartyESIndexSerializer(),
+        BkDataIndexSerializer(),
+    ]
+
+    for serializer in serializers:
+        assert serializer.fields["bk_biz_id"].run_validation(-2) == -2
 
 
 def test_list_index_set_groups_uses_dedicated_group_api(monkeypatch):
@@ -91,7 +107,7 @@ def test_create_third_party_es_forwards_space_and_parent_index_set_ids(monkeypat
     assert create_index_set.call_args.kwargs["indexes"] == [{"result_table_id": "logs-*", "bk_biz_id": 2}]
     assert create_index_set.call_args.kwargs["parent_index_set_ids"] == [11, 12]
     assert "parent_index_set_id" not in create_index_set.call_args.kwargs
-    assert "enforce_permission" not in create_index_set.call_args.kwargs
+    assert create_index_set.call_args.kwargs["enforce_permission"] is True
 
 
 def test_create_third_party_es_explicit_null_biz_falls_back_to_outer(monkeypatch):
@@ -179,7 +195,7 @@ def test_create_bkdata_index_set_forwards_space_scenario_and_business(monkeypatc
     assert create_index_set.call_args.kwargs["scenario_id"] == "bkdata"
     assert create_index_set.call_args.kwargs["indexes"] == [{"result_table_id": "2_demo_table", "bk_biz_id": 2}]
     assert create_index_set.call_args.kwargs["parent_index_set_ids"] == [11, 12]
-    assert "enforce_permission" not in create_index_set.call_args.kwargs
+    assert create_index_set.call_args.kwargs["enforce_permission"] is True
 
 
 def test_create_bkdata_index_set_rejects_cross_business_result_table(monkeypatch):

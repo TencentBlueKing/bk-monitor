@@ -28,18 +28,19 @@ def ensure_custom_report(collector: dict) -> None:
         raise ValidationError("The collector config is not a custom-report collector.")
 
 
-def find_index_set(index_sets: list[dict], index_set_id: int) -> dict:
-    for index_set in index_sets:
-        if str(index_set.get("index_set_id")) == str(index_set_id):
-            return index_set
-    raise PermissionDenied("Index set does not belong to the requested business.")
+def get_index_set_for_business(index_set_id: int, bk_biz_id: int) -> dict:
+    """从无缓存详情接口读取索引集，并校验其空间归属。"""
+    index_set = api.log_search.get_index_set(index_set_id=index_set_id)
+    if index_set.get("space_uid") != bk_biz_id_to_space_uid(bk_biz_id):
+        raise PermissionDenied("Index set does not belong to the requested business.")
+    return index_set
 
 
 class UpdateCustomReportResource(Resource):
     """更新自定义上报采集项。"""
 
     class RequestSerializer(StrictUpdateSerializer):
-        bk_biz_id = serializers.IntegerField(required=True, min_value=1, label="业务ID")
+        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
         collector_config_id = serializers.IntegerField(required=True, min_value=1, label="采集项ID")
         collector_config_name = serializers.CharField(required=True, max_length=50, label="采集项名称")
         category_id = serializers.CharField(required=False, max_length=64, label="分类ID")
@@ -100,7 +101,7 @@ class UpdateThirdPartyESResource(Resource):
     """更新第三方 ES 索引集。"""
 
     class RequestSerializer(StrictUpdateSerializer):
-        bk_biz_id = serializers.IntegerField(required=True, min_value=1, label="业务ID")
+        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
         index_set_id = serializers.IntegerField(required=True, min_value=1, label="索引集ID")
         index_set_name = serializers.CharField(required=True, max_length=64, label="索引集名称")
         storage_cluster_id = serializers.IntegerField(required=True, min_value=1, label="存储集群ID")
@@ -140,7 +141,7 @@ class UpdateThirdPartyESResource(Resource):
         bk_biz_id = request_data.pop("bk_biz_id")
         index_set_id = request_data.pop("index_set_id")
 
-        index_set = find_index_set(api.log_search.search_index_set(bk_biz_id=bk_biz_id), index_set_id)
+        index_set = get_index_set_for_business(index_set_id, bk_biz_id)
         if get_log_access_type(index_set) != "es":
             raise ValidationError("The index set is not a third-party ES index set.")
 
@@ -151,14 +152,14 @@ class UpdateThirdPartyESResource(Resource):
                 "scenario_id": "es",
             }
         )
-        return api.log_search.update_index_set(index_set_id=index_set_id, **request_data)
+        return api.log_search.update_index_set(index_set_id=index_set_id, enforce_permission=True, **request_data)
 
 
 class UpdateBkDataResource(Resource):
     """更新计算平台 bkdata 索引集。"""
 
     class RequestSerializer(StrictUpdateSerializer):
-        bk_biz_id = serializers.IntegerField(required=True, min_value=1, label="业务ID")
+        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
         index_set_id = serializers.IntegerField(required=True, min_value=1, label="索引集ID")
         index_set_name = serializers.CharField(required=True, max_length=64, label="索引集名称")
         indexes = serializers.ListField(
@@ -205,7 +206,7 @@ class UpdateBkDataResource(Resource):
         bk_biz_id = request_data.pop("bk_biz_id")
         index_set_id = request_data.pop("index_set_id")
 
-        index_set = find_index_set(api.log_search.search_index_set(bk_biz_id=bk_biz_id), index_set_id)
+        index_set = get_index_set_for_business(index_set_id, bk_biz_id)
         if get_log_access_type(index_set) != "bkdata":
             raise ValidationError("The index set is not a bkdata index set.")
 
@@ -216,4 +217,4 @@ class UpdateBkDataResource(Resource):
                 "scenario_id": "bkdata",
             }
         )
-        return api.log_search.update_index_set(index_set_id=index_set_id, **request_data)
+        return api.log_search.update_index_set(index_set_id=index_set_id, enforce_permission=True, **request_data)

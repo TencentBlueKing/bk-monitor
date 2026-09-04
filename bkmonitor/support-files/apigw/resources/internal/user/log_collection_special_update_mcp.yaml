@@ -23,7 +23,6 @@ paths:
               properties:
                 bk_biz_id:
                   type: integer
-                  minimum: 1
                   description: Business ID. 业务ID。
                 collector_config_id:
                   type: integer
@@ -157,7 +156,6 @@ paths:
               properties:
                 bk_biz_id:
                   type: integer
-                  minimum: 1
                   description: Business ID. 业务ID。
                 index_set_id:
                   type: integer
@@ -185,7 +183,6 @@ paths:
                         maxLength: 255
                       bk_biz_id:
                         type: integer
-                        minimum: 1
                         nullable: true
                       time_field:
                         type: string
@@ -282,7 +279,6 @@ paths:
               properties:
                 bk_biz_id:
                   type: integer
-                  minimum: 1
                   description: Business ID. 业务ID。
                 index_set_id:
                   type: integer
@@ -306,7 +302,6 @@ paths:
                         maxLength: 255
                       bk_biz_id:
                         type: integer
-                        minimum: 1
                         nullable: true
                 time_field:
                   type: string

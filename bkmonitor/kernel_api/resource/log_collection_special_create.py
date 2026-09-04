@@ -20,7 +20,7 @@ class CreateCustomReportResource(Resource):
     """创建自定义上报采集项，并可将新索引集加入指定索引组。"""
 
     class RequestSerializer(StrictCreateSerializer):
-        bk_biz_id = serializers.IntegerField(required=True, min_value=1, label="业务ID")
+        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
         collector_config_name = serializers.CharField(required=True, max_length=50, label="采集项名称")
         collector_config_name_en = serializers.RegexField(
             required=True, min_length=5, max_length=50, regex=r"^[A-Za-z0-9_]+$", label="采集项英文名"
@@ -70,9 +70,7 @@ class CreateCustomReportResource(Resource):
 
 class ThirdPartyESIndexSerializer(serializers.Serializer):
     result_table_id = serializers.CharField(required=True, max_length=255, label="第三方索引名")
-    bk_biz_id = serializers.IntegerField(
-        required=False, min_value=1, allow_null=True, default=None, label="索引所属业务ID"
-    )
+    bk_biz_id = serializers.IntegerField(required=False, allow_null=True, default=None, label="索引所属业务ID")
     time_field = serializers.CharField(required=False, allow_blank=False, label="时间字段")
     time_field_type = serializers.ChoiceField(required=False, choices=["date", "long"], label="时间字段类型")
     time_field_unit = serializers.ChoiceField(
@@ -85,7 +83,7 @@ class CreateThirdPartyESResource(Resource):
     """创建第三方 ES 索引集，并可将其加入指定索引组。"""
 
     class RequestSerializer(StrictCreateSerializer):
-        bk_biz_id = serializers.IntegerField(required=True, min_value=1, label="业务ID")
+        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
         index_set_name = serializers.CharField(required=True, max_length=64, label="索引集名称")
         storage_cluster_id = serializers.IntegerField(required=True, min_value=1, label="存储集群ID")
         indexes = ThirdPartyESIndexSerializer(many=True, required=True, allow_empty=False, label="第三方索引列表")
@@ -130,19 +128,19 @@ class CreateThirdPartyESResource(Resource):
                 "scenario_id": "es",
             }
         )
-        return api.log_search.create_index_set(**request_data)
+        return api.log_search.create_index_set(enforce_permission=True, **request_data)
 
 
 class BkDataIndexSerializer(serializers.Serializer):
     result_table_id = serializers.CharField(required=True, max_length=255, label="数据平台结果表名")
-    bk_biz_id = serializers.IntegerField(required=False, min_value=1, allow_null=True, label="索引所属业务ID")
+    bk_biz_id = serializers.IntegerField(required=False, allow_null=True, label="索引所属业务ID")
 
 
 class CreateBkDataResource(Resource):
     """创建数据平台 bkdata 索引集，并可将其加入指定索引组。"""
 
     class RequestSerializer(StrictCreateSerializer):
-        bk_biz_id = serializers.IntegerField(required=True, min_value=1, label="业务ID")
+        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
         index_set_name = serializers.CharField(required=True, max_length=64, label="索引集名称")
         indexes = BkDataIndexSerializer(many=True, required=True, allow_empty=False, label="数据平台结果表列表")
         category_id = serializers.CharField(required=False, max_length=64, label="分类ID")
@@ -185,4 +183,4 @@ class CreateBkDataResource(Resource):
                 "scenario_id": "bkdata",
             }
         )
-        return api.log_search.create_index_set(**request_data)
+        return api.log_search.create_index_set(enforce_permission=True, **request_data)

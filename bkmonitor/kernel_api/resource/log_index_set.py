@@ -10,7 +10,7 @@ class ListLogIndexSetGroupsResource(Resource):
     """查询当前业务可用的索引组列表。"""
 
     class RequestSerializer(serializers.Serializer):
-        bk_biz_id = serializers.IntegerField(required=True, min_value=1, label="业务ID")
+        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
 
     def perform_request(self, validated_request_data):
         space_uid = bk_biz_id_to_space_uid(validated_request_data["bk_biz_id"])

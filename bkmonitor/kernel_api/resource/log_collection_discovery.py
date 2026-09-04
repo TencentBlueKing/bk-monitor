@@ -9,7 +9,7 @@ class ListThirdPartyESClustersResource(Resource):
     """查询当前业务可用的第三方 ES 存储集群列表。"""
 
     class RequestSerializer(serializers.Serializer):
-        bk_biz_id = serializers.IntegerField(required=True, min_value=1, label="业务ID")
+        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
 
     def perform_request(self, validated_request_data):
         return api.log_search.list_log_cluster(bk_biz_id=validated_request_data["bk_biz_id"])
@@ -19,7 +19,7 @@ class ListResultTablesResource(Resource):
     """查询可接入的结果表/索引列表，用于创建 bkdata 或第三方 ES 索引集。"""
 
     class RequestSerializer(serializers.Serializer):
-        bk_biz_id = serializers.IntegerField(required=True, min_value=1, label="业务ID")
+        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
         scenario_id = serializers.ChoiceField(required=True, choices=["bkdata", "es"], label="接入场景")
         storage_cluster_id = serializers.IntegerField(required=False, min_value=1, label="存储集群ID")
         result_table_id = serializers.CharField(required=False, allow_blank=True, label="索引名")
