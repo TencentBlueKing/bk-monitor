@@ -3,6 +3,7 @@ from unittest.mock import patch
 from django.test import TestCase
 
 from apps.log_search.constants import IndexSetDataType
+from apps.log_search.exceptions import ParentIndexSetNotExistException
 from apps.log_search.handlers.index_set import IndexSetHandler
 from apps.log_search.models import LogIndexSet, LogIndexSetData, Scenario
 
@@ -115,3 +116,50 @@ class IndexSetGroupListTestCase(TestCase):
         group_item = self._get_item(index_sets, self.group.index_set_id)
         result_table_ids = {index["result_table_id"] for index in group_item["indices"]}
         self.assertEqual(result_table_ids, {"2_bklog.ugc_cpp", "2_bklog.ugc_go"})
+
+
+class ParentIndexSetScopeTestCase(TestCase):
+    @staticmethod
+    def _create_index_set(name, space_uid, is_group=False):
+        return LogIndexSet.objects.create(
+            index_set_name=name,
+            space_uid=space_uid,
+            scenario_id=Scenario.LOG,
+            is_group=is_group,
+        )
+
+    @patch("apps.log_search.handlers.index_set.BaseIndexSetHandler.sync_router")
+    @patch("apps.log_search.handlers.index_set.space_uid_to_bk_biz_id", return_value=-2)
+    @patch("apps.log_search.handlers.index_set.IndexSetHandler.get_all_related_space_uids")
+    def test_related_space_child_can_join_bkcc_parent(self, get_related_spaces, _convert_biz_id, _sync_router):
+        get_related_spaces.return_value = ["bkcc__2", "bcs__cluster-a"]
+        parent = self._create_index_set("parent", "bkcc__2", is_group=True)
+        child = self._create_index_set("child", "bcs__cluster-a")
+
+        IndexSetHandler(child.index_set_id).add_to_parent_index_sets([parent.index_set_id])
+
+        # 关联空间以父组所在空间为基准查询（与索引组列表的可见范围一致）
+        get_related_spaces.assert_called_once_with("bkcc__2")
+        self.assertTrue(
+            LogIndexSetData.objects.filter(
+                index_set_id=parent.index_set_id,
+                result_table_id=str(child.index_set_id),
+                type=IndexSetDataType.INDEX_SET.value,
+            ).exists()
+        )
+
+    @patch("apps.log_search.handlers.index_set.IndexSetHandler.get_all_related_space_uids")
+    def test_unrelated_space_child_cannot_join_parent(self, get_related_spaces):
+        get_related_spaces.return_value = ["bkcc__3"]
+        parent = self._create_index_set("parent", "bkcc__3", is_group=True)
+        child = self._create_index_set("child", "bcs__cluster-a")
+
+        with self.assertRaises(ParentIndexSetNotExistException):
+            IndexSetHandler(child.index_set_id).add_to_parent_index_sets([parent.index_set_id])
+
+        self.assertFalse(
+            LogIndexSetData.objects.filter(
+                index_set_id=parent.index_set_id,
+                result_table_id=str(child.index_set_id),
+            ).exists()
+        )

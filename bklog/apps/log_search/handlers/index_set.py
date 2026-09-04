@@ -1652,7 +1652,16 @@ class IndexSetHandler(APIModel):
         """
 
         # 检查所有父索引集是否存在
-        parent_index_sets = LogIndexSet.objects.filter(index_set_id__in=parent_index_set_ids, is_group=True)
+        child_space_uid = self.data.space_uid
+        parents = list(LogIndexSet.objects.filter(index_set_id__in=parent_index_set_ids, is_group=True))
+        # 同空间父组直接放行，跨空间父组需把子索引集空间作为关联空间（与索引组列表的可见范围一致）；
+        # 其余按不存在处理，避免泄露其他空间索引组的存在。仅在存在跨空间父组时查询关联空间。
+        allowed_space_uids = {child_space_uid} | {
+            space_uid
+            for space_uid in {parent.space_uid for parent in parents} - {child_space_uid}
+            if child_space_uid in self.get_all_related_space_uids(space_uid)
+        }
+        parent_index_sets = [parent for parent in parents if parent.space_uid in allowed_space_uids]
         existing_parent_ids = {index_set.index_set_id for index_set in parent_index_sets}
         missing_parents = set(parent_index_set_ids) - existing_parent_ids
         if missing_parents:

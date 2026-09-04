@@ -7,6 +7,7 @@ from bkm_space.utils import bk_biz_id_to_space_uid
 from core.drf_resource import Resource, api
 from kernel_api.resource.log_collection import get_log_access_type
 from kernel_api.resource.log_collection_common import StrictMCPSerializer
+from kernel_api.resource.log_collection_discovery import ensure_storage_clusters_visible
 from kernel_api.resource.log_collection_special_create import (
     BkDataIndexSerializer,
     ThirdPartyESIndexSerializer,
@@ -145,6 +146,11 @@ class UpdateThirdPartyESResource(Resource):
         if get_log_access_type(index_set) != "es":
             raise ValidationError("The index set is not a third-party ES index set.")
 
+        ensure_storage_clusters_visible(
+            bk_biz_id,
+            {request_data["storage_cluster_id"]}
+            | {index["storage_cluster_id"] for index in request_data["indexes"] if index.get("storage_cluster_id")},
+        )
         request_data["indexes"] = fill_index_business_ids(request_data["indexes"], bk_biz_id)
         request_data.update(
             {

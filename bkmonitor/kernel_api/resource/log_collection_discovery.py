@@ -1,8 +1,22 @@
 """日志采集 MCP 使用的发现类资源：存储集群列表、结果表/索引列表。"""
 
 from rest_framework import serializers
+from rest_framework.exceptions import PermissionDenied
 
 from core.drf_resource import Resource, api
+
+
+def ensure_storage_clusters_visible(bk_biz_id: int, storage_cluster_ids: set[int]) -> None:
+    """确保请求中所有第三方 ES 集群对当前业务可见。"""
+    visible_cluster_ids = {
+        cluster["storage_cluster_id"] for cluster in api.log_search.list_log_cluster(bk_biz_id=bk_biz_id)
+    }
+    invisible_cluster_ids = storage_cluster_ids - visible_cluster_ids
+    if invisible_cluster_ids:
+        raise PermissionDenied(
+            f"Storage clusters are not visible to business {bk_biz_id}: "
+            f"{', '.join(str(cluster_id) for cluster_id in sorted(invisible_cluster_ids))}."
+        )
 
 
 class ListThirdPartyESClustersResource(Resource):
@@ -30,4 +44,8 @@ class ListResultTablesResource(Resource):
             return attrs
 
     def perform_request(self, validated_request_data):
+        if validated_request_data["scenario_id"] == "es":
+            ensure_storage_clusters_visible(
+                validated_request_data["bk_biz_id"], {validated_request_data["storage_cluster_id"]}
+            )
         return api.log_search.list_result_tables(**validated_request_data)

@@ -12,6 +12,13 @@ from kernel_api.resource.log_collection_special_update import (
 )
 
 
+@pytest.fixture(autouse=True)
+def mock_storage_cluster_visibility(monkeypatch):
+    validator = Mock()
+    monkeypatch.setattr(special_update_module, "ensure_storage_clusters_visible", validator)
+    return validator
+
+
 @pytest.mark.parametrize(
     "serializer_class",
     [

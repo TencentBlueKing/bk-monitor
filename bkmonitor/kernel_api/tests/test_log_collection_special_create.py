@@ -1,6 +1,9 @@
 from types import SimpleNamespace
 from unittest.mock import Mock
 
+import pytest
+from rest_framework.exceptions import PermissionDenied
+
 from core.drf_resource import api
 from kernel_api.resource import log_collection_special_create as special_create_module
 from kernel_api.resource.log_collection_special_create import (
@@ -12,6 +15,13 @@ from kernel_api.resource.log_collection_special_create import (
 )
 from kernel_api.resource import log_index_set as log_index_set_module
 from kernel_api.resource.log_index_set import ListLogIndexSetGroupsResource
+
+
+@pytest.fixture(autouse=True)
+def mock_storage_cluster_visibility(monkeypatch):
+    validator = Mock()
+    monkeypatch.setattr(special_create_module, "ensure_storage_clusters_visible", validator)
+    return validator
 
 
 def test_create_and_index_group_business_ids_allow_negative_business_ids():
@@ -139,6 +149,35 @@ def test_create_third_party_es_explicit_null_biz_falls_back_to_outer(monkeypatch
         {"result_table_id": "logs-*", "bk_biz_id": 2},
         {"result_table_id": "logs-2024", "bk_biz_id": 2},
     ]
+
+
+def test_create_third_party_es_rejects_invisible_index_storage_cluster(
+    monkeypatch, mock_storage_cluster_visibility
+):
+    create_index_set = Mock()
+    mock_storage_cluster_visibility.side_effect = PermissionDenied()
+    monkeypatch.setattr(
+        special_create_module,
+        "api",
+        SimpleNamespace(log_search=SimpleNamespace(create_index_set=create_index_set)),
+    )
+    serializer = CreateThirdPartyESResource.RequestSerializer(
+        data={
+            "bk_biz_id": 2,
+            "index_set_name": "external-es",
+            "storage_cluster_id": 61,
+            "indexes": [{"result_table_id": "logs-*", "storage_cluster_id": 62}],
+            "time_field": "@timestamp",
+            "confirm": True,
+        }
+    )
+    assert serializer.is_valid(), serializer.errors
+
+    with pytest.raises(PermissionDenied):
+        CreateThirdPartyESResource().perform_request(serializer.validated_data)
+
+    mock_storage_cluster_visibility.assert_called_once_with(2, {61, 62})
+    create_index_set.assert_not_called()
 
 
 def test_create_bkdata_explicit_null_biz_falls_back_to_outer(monkeypatch):
