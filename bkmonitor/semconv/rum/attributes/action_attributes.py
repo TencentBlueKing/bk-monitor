@@ -19,5 +19,5 @@ ACTION_TYPE = FieldSpec(field_name="action.type", field_alias=_("动作类型"))
 ACTION_TARGET_NAME = FieldSpec(field_name="action.target.name", field_alias=_("目标元素名称"))
 ACTION_TARGET_TAG = FieldSpec(field_name="action.target.tag", field_alias=_("目标元素标签"))
 ACTION_FRUSTRATION_TYPE = FieldSpec(
-    field_name="action.frustration.type", field_alias=_("挫败类型"), option_values=FrustrationType
+    field_name="action.frustration.type", field_alias=_("挫败感"), option_values=FrustrationType
 )

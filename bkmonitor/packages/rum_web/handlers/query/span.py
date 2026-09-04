@@ -17,10 +17,11 @@ from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQ
 from bkmonitor.data_source.utils.apm import APMQueryFilterMixin
 from bkm_space.utils import bk_biz_id_to_space_uid
 from constants.data_source import DataSourceLabel, DataTypeLabel
-from constants.otel_query import FIELD_OPERATIONS
+from constants.otel_query import FIELD_OPERATIONS, EnabledStatisticsDimension
 
 from semconv.rum.field import FieldSpec
 from semconv.rum.trace import SpanSpec
+from semconv.constants import FieldDisplayType
 
 
 class SpanQuery(APMQueryFilterMixin, BaseQuery):
@@ -28,6 +29,12 @@ class SpanQuery(APMQueryFilterMixin, BaseQuery):
     DEFAULT_TIME_FIELD = "end_time"
     DEFAULT_SORT = ["-end_time"]
     FIELD_OPERATIONS = FIELD_OPERATIONS
+
+    NON_DIMENSION_FIELDS = {
+        "trace_id",
+        "span_id",
+        "parent_span_id",
+    }
 
     @classmethod
     def build_query_q(cls, q: QueryConfigBuilder, filters: list[types.Filter] | None, query_string: str = ""):
@@ -128,8 +135,8 @@ class SpanQuery(APMQueryFilterMixin, BaseQuery):
             self.get_queries(filters, query_string), start_time, end_time, field, method
         )
 
-    @staticmethod
-    def _apply_field_spec(field_dict: dict[str, Any], spec: FieldSpec) -> dict[str, Any]:
+    @classmethod
+    def _apply_field_spec(cls, field_dict: dict[str, Any], spec: FieldSpec) -> dict[str, Any]:
         """将 FieldSpec 中的数据（单位、展示类型、枚举候选值）填充到字段字典中。
 
         仅当 spec 显式提供对应值时才写入，避免覆盖 data_source 返回的原始值；
@@ -154,6 +161,12 @@ class SpanQuery(APMQueryFilterMixin, BaseQuery):
                 if config.value is not None:
                     item["value"] = config.value
                 field_dict["rating_config"].append(item)
+        field_dict["is_agg"] = (
+            field_dict["is_agg"]
+            and field_dict["field_type"] in EnabledStatisticsDimension.values()
+            and spec.field_display_type not in {FieldDisplayType.DATETIME.value}
+            and field_dict["field_name"] not in cls.NON_DIMENSION_FIELDS
+        )
         return field_dict
 
     def query_fields(self, start_time: int | None, end_time: int | None) -> dict[str, dict[str, Any]]:

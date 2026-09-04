@@ -2349,11 +2349,7 @@ class QueryFieldStatisticsInfoResource(Resource):
     @classmethod
     def _is_number_field(cls, field: dict[str, Any]) -> bool:
         """判断一个字段是否为数值类型。"""
-        return field["field_type"] in [
-            EnabledStatisticsDimension.LONG.value,
-            EnabledStatisticsDimension.DOUBLE.value,
-            EnabledStatisticsDimension.INTEGER.value,
-        ]
+        return EnabledStatisticsDimension.from_value(field["field_type"]).is_numeric()
 
     def perform_request(self, validated_data):
         proxy = QueryProxy(validated_data["bk_biz_id"], validated_data["app_name"])
@@ -2463,7 +2459,7 @@ class QueryFieldStatisticsGraphResource(Resource):
             "filters": validated_data["filters"],
             "field": field["field_name"],
         }
-        if field["field_type"] == EnabledStatisticsDimension.KEYWORD.value:
+        if not EnabledStatisticsDimension.from_value(field["field_type"]).is_numeric():
             base_query_params["filters"].append(
                 {
                     "key": field["field_name"],
@@ -2492,7 +2488,7 @@ class QueryFieldStatisticsGraphResource(Resource):
             distinct_count <= interval_num or (max_value - min_value + 1) <= interval_num
         ):
             field_topk = proxy.query_field_topk(**base_query_params, limit=distinct_count)
-            value_parser = float if field["field_type"] == EnabledStatisticsDimension.DOUBLE.value else int
+            value_parser = float if EnabledStatisticsDimension.from_value(field["field_type"]).is_float() else int
             return self.process_graph_info(
                 [
                     [topk_item["count"], value_parser(topk_item["field_value"])]

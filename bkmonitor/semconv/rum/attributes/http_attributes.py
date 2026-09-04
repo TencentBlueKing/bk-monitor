@@ -17,8 +17,8 @@ URL_FULL = FieldSpec(field_name="url.full", field_alias=_("完整 URL"))
 URL_SCHEME = FieldSpec(field_name="url.scheme", field_alias=_("协议"))
 URL_TEMPLATE = FieldSpec(field_name="url.template", field_alias=_("请求路径"))
 
-HTTP_REQUEST_METHOD = FieldSpec(field_name="http.request.method", field_alias=_("请求方法"))
-HTTP_RESPONSE_STATUS_CODE = FieldSpec(field_name="http.response.status_code", field_alias=_("返回码"))
+HTTP_REQUEST_METHOD = FieldSpec(field_name="http.request.method", field_alias=_("Method"))
+HTTP_RESPONSE_STATUS_CODE = FieldSpec(field_name="http.response.status_code", field_alias=_("状态码"))
 
 SERVER_ADDRESS = FieldSpec(field_name="server.address", field_alias=_("地址"))
 SERVER_PORT = FieldSpec(field_name="server.port", field_alias=_("端口"))

@@ -29,7 +29,7 @@ TELEMETRY_SDK_LANGUAGE = FieldSpec(
 TELEMETRY_SDK_NAME = FieldSpec(field_name="telemetry.sdk.name", field_alias=_("SDK 名称"))
 
 # user_agent
-USER_AGENT_NAME = FieldSpec(field_name="user_agent.name", field_alias=_("代理名称"))
+USER_AGENT_NAME = FieldSpec(field_name="user_agent.name", field_alias=_("浏览器"))
 USER_AGENT_VERSION = FieldSpec(field_name="user_agent.version", field_alias=_("代理版本"))
 USER_AGENT_OS_NAME = FieldSpec(field_name="user_agent.os.name", field_alias=_("操作系统名称"))
 
@@ -39,6 +39,6 @@ EXCEPTION_MESSAGE = FieldSpec(field_name="exception.message", field_alias=_("异
 EXCEPTION_STACKTRACE = FieldSpec(field_name="exception.stacktrace", field_alias=_("异常堆栈"))
 
 # user
-USER_ID = FieldSpec(field_name="user.id", field_alias=_("用户 ID"))
+USER_ID = FieldSpec(field_name="user.id", field_alias=_("用户"))
 SPAN_TYPE = FieldSpec(field_name="span_type", field_alias=_("Span 类型"), option_values=RumSpanType)
-OUTCOME_TYPE = FieldSpec(field_name="outcome.type", field_alias=_("执行结果"), option_values=OutcomeType)
+OUTCOME_TYPE = FieldSpec(field_name="outcome.type", field_alias=_("结果"), option_values=OutcomeType)

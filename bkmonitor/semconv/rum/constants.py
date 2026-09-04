@@ -18,10 +18,6 @@ SPAN_TYPE_COMMON_DISPLAY_FIELDS = [
     "span_name",
     "attributes.span_type",
     "end_time",
-    "elapsed_time",
-    "status.code",
-    "attributes.view.url_template",
-    "attributes.user.id",
 ]
 
 
@@ -63,22 +59,69 @@ class RumSpanType(CachedEnum):
     @cached_property
     def display_fields(self) -> list[str]:
         return {
-            self.VIEW: [*SPAN_TYPE_COMMON_DISPLAY_FIELDS],
+            self.VIEW: [
+                *SPAN_TYPE_COMMON_DISPLAY_FIELDS,
+                "elapsed_time",  # 耗时
+                "attributes.outcome.type",  # 结果
+                "attributes.view.name",  # 所在视图
+                "resource.user_agent.name",  # 浏览器
+                "attributes.user.id",  # 用户
+            ],
             self.RESOURCE: [
                 *SPAN_TYPE_COMMON_DISPLAY_FIELDS,
-                "attributes.resource.type",
-                "attributes.http.request.method",
+                "elapsed_time",
+                "attributes.outcome.type",
+                "attributes.http.request.method",  # Method
+                "attributes.http.response.status_code",  # 状态码
+                "attributes.view.name",
+                "resource.user_agent.name",
+                "attributes.user.id",
             ],
-            self.ERROR: [*SPAN_TYPE_COMMON_DISPLAY_FIELDS, "attributes.error.source"],
-            self.VITAL: [*SPAN_TYPE_COMMON_DISPLAY_FIELDS, "attributes.vital.metric", "attributes.vital.value"],
+            self.ERROR: [
+                *SPAN_TYPE_COMMON_DISPLAY_FIELDS,
+                "attributes.outcome.type",
+                "events.attributes.exception.type",
+                "resource.user_agent.name",
+                "attributes.user.id",
+            ],
+            self.VITAL: [
+                *SPAN_TYPE_COMMON_DISPLAY_FIELDS,
+                "attributes.outcome.type",
+                "attributes.view.name",
+                "resource.user_agent.name",
+                "attributes.user.id",
+            ],
             self.LONG_TASK: [
                 *SPAN_TYPE_COMMON_DISPLAY_FIELDS,
-                "attributes.long_task.name",
-                "attributes.long_task.entry_type",
+                "attributes.long_task.blocking_duration",  # 阻塞时长
+                "attributes.outcome.type",
+                "attributes.view.name",
+                "resource.user_agent.name",
+                "attributes.user.id",
             ],
-            self.ACTION: [*SPAN_TYPE_COMMON_DISPLAY_FIELDS, "attributes.action.id", "attributes.action.type"],
-            self.WEBSOCKET: [*SPAN_TYPE_COMMON_DISPLAY_FIELDS],
-            self.CUSTOM: [*SPAN_TYPE_COMMON_DISPLAY_FIELDS],
+            self.ACTION: [
+                *SPAN_TYPE_COMMON_DISPLAY_FIELDS,
+                "elapsed_time",
+                "attributes.outcome.type",
+                "attributes.action.frustration.type",  # 挫败感
+                "attributes.view.name",
+                "resource.user_agent.name",
+                "attributes.user.id",
+            ],
+            self.WEBSOCKET: [
+                *SPAN_TYPE_COMMON_DISPLAY_FIELDS,
+                "attributes.outcome.type",
+                "attributes.view.name",
+                "resource.user_agent.name",
+                "attributes.user.id",
+            ],
+            self.CUSTOM: [
+                *SPAN_TYPE_COMMON_DISPLAY_FIELDS,
+                "elapsed_time",
+                "attributes.outcome.type",
+                "resource.user_agent.name",
+                "attributes.user.id",
+            ],
         }.get(self, SPAN_TYPE_COMMON_DISPLAY_FIELDS)
 
 
@@ -419,8 +462,8 @@ class OutcomeType(CachedEnum):
     def label(self) -> str:
         return {
             self.SUCCESS: _("成功"),
-            self.WARNING: _("警告"),
-            self.ERROR: _("错误"),
+            self.WARNING: _("异常"),
+            self.ERROR: _("失败"),
             self.TIMEOUT: _("超时"),
             self.ABORT: _("中止"),
         }.get(self, self.value)

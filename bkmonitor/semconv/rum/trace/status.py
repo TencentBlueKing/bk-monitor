@@ -17,5 +17,5 @@ from semconv.rum.field import FieldSpec
 class Status(FieldSpec):
     """status.*（Span 状态字段）"""
 
-    CODE = FieldSpec(field_name="code", field_alias=_("状态码"), option_values=SpanStatusCode)
+    CODE = FieldSpec(field_name="code", field_alias=_("状态"), option_values=SpanStatusCode)
     MESSAGE = FieldSpec(field_name="message", field_alias=_("状态消息"))
