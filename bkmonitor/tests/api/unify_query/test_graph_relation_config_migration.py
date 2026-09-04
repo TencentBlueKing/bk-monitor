@@ -36,7 +36,7 @@ class FakeApps:
         return self.model
 
 
-def test_migrate_graph_relation_whitelists_unions_old_and_new_values():
+def test_migrate_graph_relation_whitelists_intersects_old_values():
     apps = FakeApps(
         [
             FakeConfig(migration.OLD_SYNC_KEY, [2, "3", "invalid"]),
@@ -48,12 +48,12 @@ def test_migrate_graph_relation_whitelists_unions_old_and_new_values():
     migration.migrate_graph_relation_v4_biz_id_white_list(apps, None)
 
     new_config = apps.model.objects.configs[migration.NEW_KEY]
-    assert new_config.value == [2, 3, 4, 5]
+    assert new_config.value == [3]
     assert new_config.saved_update_fields == ["value"]
 
 
-def test_migrate_graph_relation_whitelists_creates_empty_new_config():
-    apps = FakeApps([])
+def test_migrate_graph_relation_whitelists_creates_empty_new_config_when_one_old_config_is_missing():
+    apps = FakeApps([FakeConfig(migration.OLD_SYNC_KEY, [2])])
 
     migration.migrate_graph_relation_v4_biz_id_white_list(apps, None)
 
