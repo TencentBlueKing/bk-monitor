@@ -90,12 +90,18 @@ class CleanConfigMcpPermissionTests(SimpleTestCase):
         self.assertEqual(response.data, {"collector_config_id": 101, "index_set_id": 202})
 
     @patch("apps.log_databus.handlers.collector.base.CollectorHandler.sync_scene_tags_to_index_set")
+    @patch("apps.log_databus.handlers.collector.base.CollectorHandler.get_instance")
     @patch("apps.log_databus.handlers.etl.EtlHandler.get_instance")
     @patch("apps.log_databus.handlers.itsm.ItsmEtlConfig.objects.filter")
-    def test_approved_itsm_task_syncs_scene_labels(self, mock_filter, mock_get_instance, mock_sync_scene_tags):
+    def test_approved_itsm_task_syncs_current_scene_labels(
+        self,
+        mock_filter,
+        mock_get_etl_handler,
+        mock_get_collector_handler,
+        mock_sync_scene_tags,
+    ):
         itsm_config = MagicMock(
             request_param={
-                "labels": {"scene": "host"},
                 "need_assessment": False,
                 "assessment_config": {},
             }
@@ -104,9 +110,12 @@ class CleanConfigMcpPermissionTests(SimpleTestCase):
         etl_handler = MagicMock()
         etl_handler.data.index_set_id = 101
         etl_handler.update_or_create.return_value = {"index_set_id": 202}
-        mock_get_instance.return_value = etl_handler
+        mock_get_etl_handler.return_value = etl_handler
+        collector_handler = MagicMock()
+        collector_handler.build_scene_labels.return_value = {"scene": "k8s", "stream": "stdout"}
+        mock_get_collector_handler.return_value = collector_handler
 
         ItsmHandler()._create_task(collect_id=1, sn="ticket-sn")
 
-        etl_handler.update_or_create.assert_called_once_with(labels={"scene": "host"})
-        mock_sync_scene_tags.assert_called_once_with(202, {"scene": "host"})
+        etl_handler.update_or_create.assert_called_once_with(labels={"scene": "k8s", "stream": "stdout"})
+        mock_sync_scene_tags.assert_called_once_with(202, {"scene": "k8s", "stream": "stdout"})

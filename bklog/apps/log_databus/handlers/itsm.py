@@ -160,10 +160,12 @@ class ItsmHandler:
         for key in ["need_assessment", "assessment_config"]:
             request_param.pop(key, None)
         etl_handler = EtlHandler.get_instance(collect_id)
+        collector_handler = CollectorHandler.get_instance(collect_id)
+        labels = collector_handler.build_scene_labels()
+        request_param["labels"] = labels
         result = etl_handler.update_or_create(**request_param)
-        if "labels" in request_param:
-            index_set_id = (result or {}).get("index_set_id") or etl_handler.data.index_set_id
-            CollectorHandler.sync_scene_tags_to_index_set(index_set_id, request_param["labels"])
+        index_set_id = (result or {}).get("index_set_id") or etl_handler.data.index_set_id
+        CollectorHandler.sync_scene_tags_to_index_set(index_set_id, labels)
 
     def _ticket_is_finish(self, ticket_info: dict):
         return "RUNNING" != ticket_info["current_status"]
