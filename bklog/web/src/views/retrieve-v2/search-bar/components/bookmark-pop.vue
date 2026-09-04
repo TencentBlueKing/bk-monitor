@@ -188,6 +188,14 @@
         space_uid: spaceUid.value,
         source_type: store.getters.isSceneMode ? 'scene' : 'index_set',
       };
+      if (window.__IS_MONITOR_APM__) {
+        Object.assign(data, {
+          scope: {
+            app_name: window.MONITOR_APM_APP_NAME,
+            service_name: window.MONITOR_APM_SERVICE_NAME,
+          },
+        });
+      }
       try {
         const res = await $http.request('favorite/createGroup', {
           data,
@@ -358,9 +366,17 @@
       });
     }
 
-    const requestStr = 'createFavorite';
+    if (window.__IS_MONITOR_APM__) {
+      Object.assign(data, {
+        scope: {
+          app_name: window.MONITOR_APM_APP_NAME,
+          service_name: window.MONITOR_APM_SERVICE_NAME,
+        },
+      });
+    }
+
     try {
-      const res = await $http.request(`favorite/${requestStr}`, {
+      const res = await $http.request('favorite/createFavorite', {
         params: { id },
         data,
       });

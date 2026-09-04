@@ -124,7 +124,8 @@
               </div>
             </template>
             <div class="add-group-btn">
-              <i class="bk-icon icon-plus-line" />
+              <i v-if="!isAPM" class="bk-icon icon-plus-line" />
+              <i v-else class="icon-monitor icon-plus-line" />
             </div>
           </bk-popover>
 
@@ -372,6 +373,7 @@
   const editFavoriteNameInputRef = ref(null);
   const editFavoriteNameSelectRef = ref(null);
 
+  const isAPM = window.__IS_MONITOR_APM__;
   const rules = {
     name: [
       {
@@ -447,12 +449,19 @@
   /** 获取组列表 */
   const getGroupList = async () => {
     try {
-      const res = await $http.request('favorite/getGroupList', {
-        query: {
-          space_uid: spaceUid.value,
-          source_type: store.getters.isSceneMode ? 'scene' : 'index_set',
-        },
-      });
+      const query = {
+        space_uid: spaceUid.value,
+        source_type: store.getters.isSceneMode ? 'scene' : 'index_set',
+      };
+      if (window.__IS_MONITOR_APM__) {
+        Object.assign(query, {
+          scope: JSON.stringify({
+            app_name: window.MONITOR_APM_APP_NAME,
+            service_name: window.MONITOR_APM_SERVICE_NAME,
+          }),
+        });
+      }
+      const res = await $http.request('favorite/getGroupList', { query });
       otherGroupList.value = res.data
         .filter(item => item.name !== '未分组' && item.name !== '个人收藏')
         .map(item => {
@@ -475,13 +484,20 @@
   const getFavoriteList = async () => {
     try {
       // this.tableLoading = true;
-      const res = await $http.request('favorite/getFavoriteList', {
-        query: {
-          space_uid: spaceUid.value,
-          order_type: 'NAME_ASC',
-          source_type: store.getters.isSceneMode ? 'scene' : 'index_set',
-        },
-      });
+      const query = {
+        space_uid: spaceUid.value,
+        order_type: 'NAME_ASC',
+        source_type: store.getters.isSceneMode ? 'scene' : 'index_set',
+      };
+      if (window.__IS_MONITOR_APM__) {
+        Object.assign(query, {
+          scope: JSON.stringify({
+            app_name: window.MONITOR_APM_APP_NAME,
+            service_name: window.MONITOR_APM_SERVICE_NAME,
+          }),
+        });
+      }
+      const res = await $http.request('favorite/getFavoriteList', { query });
       const data = formatResponseListTimeZoneString(res.data, () => {
         return {
           editName: false,
@@ -570,6 +586,14 @@
         space_uid: spaceUid.value,
         source_type: store.getters.isSceneMode ? 'scene' : 'index_set',
       };
+      if (window.__IS_MONITOR_APM__) {
+        Object.assign(data, {
+          scope: {
+            app_name: window.MONITOR_APM_APP_NAME,
+            service_name: window.MONITOR_APM_SERVICE_NAME,
+          },
+        });
+      }
       await $http.request(`favorite/createGroup`, {
         data,
       });
@@ -663,6 +687,14 @@
         search_mode: row.search_mode,
       },
     ];
+    if (window.__IS_MONITOR_APM__) {
+      Object.assign(params, {
+        scope: {
+          app_name: window.MONITOR_APM_APP_NAME,
+          service_name: window.MONITOR_APM_SERVICE_NAME,
+        },
+      });
+    }
 
     return $http
       .request('favorite/batchFavoriteUpdate', {

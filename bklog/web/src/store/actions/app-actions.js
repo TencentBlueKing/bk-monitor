@@ -180,20 +180,28 @@ export function requestFavoriteListAction({ commit, state }, payload) {
   commit('updateFavoriteList', []);
   const favoriteSortType = payload?.sort ?? (localStorage.getItem('favoriteSortType') || 'NAME_ASC');
   storeCacheService.setLocalStorageMirror('favoriteSortType', favoriteSortType).catch(() => {});
+  const timeZone = state.userMeta.time_zone || 'Asia/Shanghai';
+  const query = {
+    space_uid: payload?.spaceUid ?? state.spaceUid,
+    order_type: favoriteSortType,
+    source_type: isSceneRetrieve(state) ? 'scene' : 'index_set',
+  };
+  if (window.__IS_MONITOR_APM__) {
+    Object.assign(query, {
+      scope: JSON.stringify({
+        app_name: window.MONITOR_APM_APP_NAME,
+        service_name: window.MONITOR_APM_SERVICE_NAME,
+      }),
+    });
+  }
   return http
-    .request('favorite/getFavoriteByGroupList', {
-      query: {
-        space_uid: payload?.spaceUid ?? state.spaceUid,
-        order_type: favoriteSortType,
-        source_type: isSceneRetrieve(state) ? 'scene' : 'index_set',
-      },
-    })
+    .request('favorite/getFavoriteByGroupList', { query })
     .then(resp => {
       const results = (resp.data || []).map(item => {
         item.favorites?.forEach(sub => {
           sub.full_name = `${item.group_name}/${sub.name}`;
-          sub.created_at = formatTimeZoneString(sub.created_at, state.userMeta.time_zone);
-          sub.updated_at = formatTimeZoneString(sub.updated_at, state.userMeta.time_zone);
+          sub.created_at = formatTimeZoneString(sub.created_at, timeZone);
+          sub.updated_at = formatTimeZoneString(sub.updated_at, timeZone);
         });
         return item;
       });

@@ -15,7 +15,7 @@ export default () => {
    * @returns 格式化后的时间字符串，格式：2025-11-04 21:44:38+0800
    */
   const formatTimeZone = (time: number | string) => {
-    return formatTimeZoneString(time, timezone.value);
+    return formatTimeZoneString(time, timezone.value || 'Asia/Shanghai');
   };
 
   const defaultTimeFields = ['created_at', 'updated_at'];
