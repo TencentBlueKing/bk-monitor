@@ -11,11 +11,12 @@ specific language governing permissions and limitations under the License.
 from django.utils.translation import gettext_lazy as _
 
 from semconv.rum.field import FieldSpec
+from semconv.rum.constants import ErrorSource
 
 # error
 ERROR_MESSAGE = FieldSpec(field_name="error.message", field_alias=_("错误信息"))
 ERROR_HANDLED = FieldSpec(field_name="error.handled", field_alias=_("错误是否被捕获"))
-ERROR_SOURCE = FieldSpec(field_name="error.source", field_alias=_("错误来源"))
+ERROR_SOURCE = FieldSpec(field_name="error.source", field_alias=_("错误来源"), option_values=ErrorSource)
 
 # code
 ERROR_COLUMN = FieldSpec(field_name="code.column", field_alias=_("代码列号"))

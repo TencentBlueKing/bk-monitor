@@ -8,7 +8,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field, replace
 from collections.abc import Iterator
 from typing import Protocol
 
@@ -53,8 +53,12 @@ class FieldSpec:
         field_name: 字段在存储中的实际名称（不含父级前缀）。
         field_alias: 字段展示别名，默认空串（由消费方按需填充）。
         field_unit: 字段计量单位，取值为 ``FieldUnit`` 枚举成员的 ``value``，无单位时为 ``None``。
+        field_type: 字段存储类型，如 ``"keyword"``、``"double"``、``"long"``；
+            ``None`` 表示由 data_source 返回值决定，仅虚拟字段需显式设置。
         field_display_type: 可选展示类型，取值为 ``FieldDisplayType`` 枚举成员的 ``value``；
             消费方根据 ``field_unit`` 换算原始值。
+        is_real: 是否为真实存储字段；``False`` 表示虚拟字段（由预计算层或前端提供），
+            默认 ``True``。
         option_values: 枚举候选值类型，为 ``CachedEnum`` 子类，无枚举时为 ``None``。
         rating_config: 评级阈值配置，按数组顺序匹配。
     """
@@ -62,9 +66,12 @@ class FieldSpec:
     field_name: str
     field_alias: str = ""
     field_unit: str | None = None
+    field_type: str | None = None
     field_display_type: str | None = None
+    is_real: bool = True
     option_values: type[HasChoicesCachedEnum] | None = None
     rating_config: tuple[RatingLevel, ...] = ()
+    _full_field_name: str = field(default="", init=False, repr=False, compare=False)
 
     def children(self) -> Iterator["FieldSpec"]:
         """遍历本字段的直接子字段（类属性中名称全大写的 FieldSpec 实例）。"""
@@ -73,3 +80,11 @@ class FieldSpec:
             for name, candidate in vars(type(self)).items()
             if name.isupper() and isinstance(candidate, FieldSpec)
         )
+
+    def get_full_field_name(self) -> str:
+        return self._full_field_name or self.field_name
+
+    def bind(self, full_field_name: str) -> "FieldSpec":
+        bound = replace(self)
+        object.__setattr__(bound, "_full_field_name", full_field_name)
+        return bound

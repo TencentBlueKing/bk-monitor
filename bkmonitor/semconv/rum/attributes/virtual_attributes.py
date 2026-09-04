@@ -13,13 +13,11 @@ from django.utils.translation import gettext_lazy as _
 from semconv.constants import FieldDisplayType, FieldUnit
 from semconv.rum.field import FieldSpec, RatingLevel
 
-# ── Web Vitals 虚拟指标字段（非存储字段，由前端计算或预计算层提供）──────────────
-# 注册在 SpanSpec 根级，可直接通过字段名查找，如 SpanSpec.from_field("LCP")。
-
-#: 累积布局偏移（无单位，数值越小越好）
 CLS = FieldSpec(
     field_name="CLS",
     field_alias=_("累积布局偏移"),
+    field_type="double",
+    is_real=False,
     rating_config=(
         RatingLevel(rating="good", value=0.1),
         RatingLevel(rating="needs_improvement", value=0.25),
@@ -27,12 +25,13 @@ CLS = FieldSpec(
     ),
 )
 
-#: 交互到下一次绘制
 INP = FieldSpec(
     field_name="INP",
     field_alias=_("交互到下一次绘制"),
     field_unit=FieldUnit.MS.value,
+    field_type="double",
     field_display_type=FieldDisplayType.DURATION.value,
+    is_real=False,
     rating_config=(
         RatingLevel(rating="good", value=200),
         RatingLevel(rating="needs_improvement", value=500),
@@ -40,12 +39,13 @@ INP = FieldSpec(
     ),
 )
 
-#: 最大内容绘制
 LCP = FieldSpec(
     field_name="LCP",
     field_alias=_("最大内容绘制"),
     field_unit=FieldUnit.MS.value,
+    field_type="double",
     field_display_type=FieldDisplayType.DURATION.value,
+    is_real=False,
     rating_config=(
         RatingLevel(rating="good", value=2500),
         RatingLevel(rating="needs_improvement", value=4000),
@@ -53,12 +53,13 @@ LCP = FieldSpec(
     ),
 )
 
-#: 首次内容绘制
 FCP = FieldSpec(
     field_name="FCP",
     field_alias=_("首次内容绘制"),
     field_unit=FieldUnit.MS.value,
+    field_type="double",
     field_display_type=FieldDisplayType.DURATION.value,
+    is_real=False,
     rating_config=(
         RatingLevel(rating="good", value=1800),
         RatingLevel(rating="needs_improvement", value=3000),
@@ -66,12 +67,13 @@ FCP = FieldSpec(
     ),
 )
 
-#: 首字节耗时
 TTFB = FieldSpec(
     field_name="TTFB",
     field_alias=_("首字节耗时"),
     field_unit=FieldUnit.MS.value,
+    field_type="double",
     field_display_type=FieldDisplayType.DURATION.value,
+    is_real=False,
     rating_config=(
         RatingLevel(rating="good", value=800),
         RatingLevel(rating="needs_improvement", value=1800),

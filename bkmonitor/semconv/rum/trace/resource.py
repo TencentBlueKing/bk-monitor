@@ -8,7 +8,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from semconv.rum.attributes import common_attributes, device_attributes
+from semconv.rum.attributes import common_attributes, device_attributes, session_attributes
 from semconv.rum.field import FieldSpec
 
 
@@ -21,6 +21,9 @@ class Resource(FieldSpec):
 
     # deployment
     DEPLOYMENT_ENVIRONMENT_NAME = common_attributes.DEPLOYMENT_ENVIRONMENT_NAME
+
+    # session
+    SESSION_SAMPLE_RATE = session_attributes.SESSION_SAMPLE_RATE
 
     # telemetry
     TELEMETRY_SDK_VERSION = common_attributes.TELEMETRY_SDK_VERSION

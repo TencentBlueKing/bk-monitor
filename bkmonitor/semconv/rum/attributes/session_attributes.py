@@ -10,7 +10,7 @@ specific language governing permissions and limitations under the License.
 
 from django.utils.translation import gettext_lazy as _
 
-from semconv.constants import SessionType, SessionPhase
+from semconv.rum.constants import SessionType, SessionPhase
 from semconv.rum.field import FieldSpec
 
 SESSION_SAMPLE_RATE = FieldSpec(field_name="session.sample_rate", field_alias=_("Session 采样率"))

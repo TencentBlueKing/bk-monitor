@@ -11,11 +11,10 @@ specific language governing permissions and limitations under the License.
 from django.utils.translation import gettext_lazy as _
 
 from semconv.rum.field import FieldSpec
+from semconv.rum.constants import ResourceType, ResourceRenderBlockingStatus
 from semconv.constants import (
     FieldUnit,
     FieldDisplayType,
-    ResourceType,
-    ResourceRenderBlockingStatus,
 )
 
 
