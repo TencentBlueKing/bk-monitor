@@ -925,14 +925,23 @@
         const maxScroll = Math.max(0, container.scrollHeight - container.clientHeight);
         container.scrollTop = Math.max(0, Math.min(targetScrollTop, maxScroll));
       },
-      async copyContent() {
-        const originRow = await this.getOriginCopyRow();
-        if (!originRow) {
-          this.$bkMessage?.({ theme: 'warning', message: this.$t('正在读取全量数据...') });
-          return;
-        }
+      writeCopyContent(originRow) {
+        if (!originRow || typeof originRow !== 'object' || !Object.keys(originRow).length) return false;
         const copyData = stripMarkFromCopyValue(this.buildOrderedRow(originRow, false));
         copyMessage(stringifyContentValue(copyData, this.mode === 'json'), this.$t('复制成功'));
+        return true;
+      },
+      copyContent() {
+        const [memoryRow] = this.rowKey
+          ? retrieveRowCacheService.getCopyRowsFromMemory([this.rowKey])
+          : [];
+        if (this.writeCopyContent(memoryRow) || this.writeCopyContent(this.originRow)) return;
+        this.copyContentAsync();
+      },
+      async copyContentAsync() {
+        const originRow = await this.getOriginCopyRow();
+        if (this.writeCopyContent(originRow)) return;
+        this.$bkMessage?.({ theme: 'warning', message: this.$t('正在读取全量数据...') });
       },
     },
   };
@@ -949,9 +958,9 @@
 
   .full-row-toolbar {
     display: flex;
+    flex-shrink: 0;
     gap: 16px;
     align-items: center;
-    flex-shrink: 0;
     font-size: 12px;
   }
 
@@ -972,8 +981,8 @@
     border: 0;
 
     &.active {
-      color: #3a84ff;
       font-weight: 600;
+      color: #3a84ff;
     }
   }
 
@@ -1067,8 +1076,8 @@
     width: 100%;
     padding: 8px 12px;
     margin: 0;
-    white-space: pre-wrap;
     word-break: break-all;
+    white-space: pre-wrap;
   }
 
 
