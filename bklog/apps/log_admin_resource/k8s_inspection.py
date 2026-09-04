@@ -52,9 +52,6 @@ PROJECTED_SPEC_FIELDS = (
     "addPodLabel",
     "addPodAnnotation",
 )
-# Every spec key the platform can send. A CRD whose schema omits one of these has the apiserver
-# prune it on write, so the field never reaches the collector and no error is ever raised.
-PLATFORM_SPEC_FIELDS = frozenset({*PROJECTED_SPEC_FIELDS, "extMeta", "extOptions"})
 
 
 @dataclass(frozen=True)
@@ -275,7 +272,9 @@ def desired_config_evidence(
         "crd_schema": {
             "readable": declared_fields is not None,
             "preserves_unknown_fields": preserve_unknown,
-            "unsupported_platform_fields": sorted(PLATFORM_SPEC_FIELDS - declared_fields)
+            # Taken from the specs the platform is about to send rather than a hand-kept list,
+            # so a field added to the delivery side is covered here the day it ships.
+            "unsupported_platform_fields": sorted({key for item in expected for key in item["spec"]} - declared_fields)
             if declared_fields is not None and not preserve_unknown
             else [],
             "pruned_fields_in_use": sorted(

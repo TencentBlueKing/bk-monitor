@@ -753,6 +753,7 @@ class K8sInspectionDomainTest(SimpleTestCase):
                 "path": ["/data/*.log"],
                 "addPodAnnotation": True,
                 "exclude_files": ["/data/skip.log"],
+                "annotationSelector": {"matchExpressions": []},
             }
         )
         actual = {"metadata": {"name": "demo-2-44"}, "spec": {"dataId": 1001, "path": ["/data/*.log"]}}
@@ -769,8 +770,29 @@ class K8sInspectionDomainTest(SimpleTestCase):
         self.assertEqual(reasons["value_drift"], [])
         self.assertFalse(result["all_material_match"])
         self.assertEqual(result["crd_schema"]["pruned_fields_in_use"], ["addPodAnnotation", "exclude_files"])
-        # The cluster-level gap covers every field the platform can send, not just this config's.
-        self.assertIn("annotationSelector", result["crd_schema"]["unsupported_platform_fields"])
+        # The cluster gap is wider than the fields that actually hurt this config: an empty
+        # annotationSelector changes nothing today but would be dropped just the same.
+        self.assertEqual(
+            result["crd_schema"]["unsupported_platform_fields"],
+            ["addPodAnnotation", "annotationSelector", "exclude_files"],
+        )
+
+    def test_control_plane_flags_a_field_the_delivery_side_only_just_started_sending(self):
+        # The gap list is derived from the outgoing specs, so a field added on the delivery
+        # side is covered the day it ships without anyone updating this module.
+        expected = expected_config({"dataId": 1001, "brandNewOption": "enabled"})
+        actual = {"metadata": {"name": "demo-2-44"}, "spec": {"dataId": 1001}}
+
+        result = desired_config_evidence(
+            expected=expected,
+            actual_items=[actual],
+            configured_namespace="default",
+            crd=crd_declaring("dataId"),
+        )
+
+        self.assertEqual(result["crd_schema"]["unsupported_platform_fields"], ["brandNewOption"])
+        self.assertEqual(result["crd_schema"]["pruned_fields_in_use"], ["brandNewOption"])
+        self.assertFalse(result["all_material_match"])
 
     def test_control_plane_still_reports_real_drift_when_the_crd_declares_the_field(self):
         expected = expected_config({"dataId": 1001, "path": ["/data/*.log"]})
