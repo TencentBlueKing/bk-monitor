@@ -24,6 +24,63 @@ def _collector(**kwargs):
     return RedisStrategyCostSnapshotCollector(**kwargs)
 
 
+def _hlen_client(hlen_fn=None, default=10):
+    client = mock.Mock()
+    client.lrange.return_value = []
+    client.set.return_value = True
+    client.get.side_effect = lambda *_args, **_kwargs: client.set.call_args.args[1]
+    pipes = []
+
+    def resolve(key):
+        if hlen_fn is not None:
+            return hlen_fn(key)
+        return default
+
+    def new_pipeline(*_args, **_kwargs):
+        pipe = mock.Mock()
+        queued = []
+
+        def queue_hlen(key):
+            queued.append(key)
+            return pipe
+
+        def execute(raise_on_error=True):
+            values = []
+            for key in queued:
+                try:
+                    values.append(resolve(key))
+                except Exception as exc:
+                    if raise_on_error:
+                        queued.clear()
+                        raise
+                    values.append(exc)
+            queued.clear()
+            return values
+
+        pipe.hlen.side_effect = queue_hlen
+        pipe.execute.side_effect = execute
+        pipes.append(pipe)
+        return pipe
+
+    client.pipeline.side_effect = new_pipeline
+    client._pipes = pipes
+    return client
+
+
+def _saved_snapshot(client):
+    for pipe in getattr(client, "_pipes", []):
+        if pipe.lpush.called:
+            return json.loads(pipe.lpush.call_args.args[1])
+    raise AssertionError("snapshot was not saved")
+
+
+def _hlen_keys(client):
+    keys = []
+    for pipe in getattr(client, "_pipes", []):
+        keys.extend(call.args[0] for call in pipe.hlen.call_args_list)
+    return keys
+
+
 def test_store_success_keeps_latest_six_and_refreshes_ttl():
     client = mock.Mock()
     pipeline = client.pipeline.return_value
@@ -129,12 +186,7 @@ def test_collector_rechecks_freshness_after_node_local_lock(mocker):
 def test_collector_loads_population_once_and_uses_each_strategy_target_node(mocker):
     node_1 = _node(1)
     node_2 = _node(2)
-    clients = {1: mock.Mock(), 2: mock.Mock()}
-    for client in clients.values():
-        client.lrange.return_value = []
-        client.set.return_value = True
-    clients[1].hlen.return_value = 10
-    clients[2].hlen.return_value = 20
+    clients = {1: _hlen_client(default=10), 2: _hlen_client(default=20)}
 
     strategy_manager = mocker.patch("alarm_backends.core.cache.strategy_cost_snapshot.StrategyCacheManager")
     strategy_manager.get_strategy_ids.return_value = [1, 2]
@@ -165,27 +217,23 @@ def test_collector_loads_population_once_and_uses_each_strategy_target_node(mock
     assert result["succeeded"] == 2
     strategy_manager.get_strategy_ids.assert_called_once_with()
     strategy_manager.get_all_groups.assert_called_once_with()
-    strategy_manager.get_strategy_by_ids.assert_called_once_with([1, 2])
+    assert strategy_manager.get_strategy_by_ids.call_args_list == [mock.call([1]), mock.call([2])]
     load_routes.assert_called_once_with()
-    clients[1].hlen.assert_called_once()
-    clients[2].hlen.assert_called_once()
-    assert ".1.101" in str(clients[1].hlen.call_args.args[0])
-    assert ".2.202" in str(clients[2].hlen.call_args.args[0])
+    assert any(".1.101" in str(key) for key in _hlen_keys(clients[1]))
+    assert any(".2.202" in str(key) for key in _hlen_keys(clients[2]))
+    assert clients[1].hlen.call_count == 0
+    assert clients[2].hlen.call_count == 0
 
 
 def test_collector_preserves_measured_no_group_config_missing_and_failed_coverage(mocker):
     node = _node()
-    client = mock.Mock()
-    client.lrange.return_value = []
-    client.set.return_value = True
-    client.get.side_effect = lambda *_args, **_kwargs: client.set.call_args.args[1]
 
     def hlen(key):
         if ".4.404" in str(key):
             raise RuntimeError("redis unavailable")
         return {"1": 10, "3": 30}.get(str(key).split(".")[-2], 0)
 
-    client.hlen.side_effect = hlen
+    client = _hlen_client(hlen_fn=hlen)
     strategy_manager = mocker.patch("alarm_backends.core.cache.strategy_cost_snapshot.StrategyCacheManager")
     strategy_manager.get_strategy_ids.return_value = [1, 2, 3, 4]
     strategy_manager.get_all_groups.return_value = {
@@ -207,7 +255,7 @@ def test_collector_preserves_measured_no_group_config_missing_and_failed_coverag
 
     collector.collect([(node, {"used_memory": 123, "config_maxmemory": 456})])
 
-    snapshot = json.loads(client.pipeline.return_value.lpush.call_args.args[1])
+    snapshot = _saved_snapshot(client)
     assert snapshot["coverage"] == {
         "population_total": 4,
         "route_matched": 4,
@@ -240,7 +288,7 @@ def test_collector_preserves_measured_no_group_config_missing_and_failed_coverag
     assert snapshot["routing"]["digest"].startswith("sha256:")
     assert snapshot["commands"] == {
         "db8": {
-            "scope": "shared_once_per_selfmonitor_call",
+            "scope": "ids_groups_once_configs_due_node",
             "population_reads": 1,
             "group_reads": 1,
             "config_mget_batches": 1,
@@ -265,9 +313,7 @@ def test_collector_node_failure_is_fail_open_for_later_nodes(mocker):
     healthy_node = _node(2)
     failed_client = mock.Mock()
     failed_client.lrange.side_effect = RuntimeError("node down")
-    healthy_client = mock.Mock()
-    healthy_client.lrange.return_value = []
-    healthy_client.set.return_value = True
+    healthy_client = _hlen_client()
     strategy_manager = mocker.patch("alarm_backends.core.cache.strategy_cost_snapshot.StrategyCacheManager")
     strategy_manager.get_strategy_ids.return_value = []
     strategy_manager.get_all_groups.return_value = {}
@@ -282,21 +328,13 @@ def test_collector_node_failure_is_fail_open_for_later_nodes(mocker):
 
     assert result["failed"] == 1
     assert result["succeeded"] == 1
-    healthy_client.pipeline.return_value.execute.assert_called_once_with()
+    assert any(pipe.lpush.called for pipe in healthy_client._pipes)
 
 
 def test_collector_budget_expiry_during_hlen_does_not_write_partial_snapshot(mocker):
     node = _node()
     clock = [0.0]
-    client = mock.Mock()
-    client.lrange.return_value = []
-    client.set.return_value = True
-
-    def hlen(_key):
-        clock[0] = 21.0
-        return 10
-
-    client.hlen.side_effect = hlen
+    client = _hlen_client(hlen_fn=lambda _key: clock.__setitem__(0, 21.0) or 10)
     strategy_manager = mocker.patch("alarm_backends.core.cache.strategy_cost_snapshot.StrategyCacheManager")
     strategy_manager.get_strategy_ids.return_value = [1]
     strategy_manager.get_all_groups.return_value = {"group": json.dumps({"bk_biz_id": 7, "1": [101]})}
@@ -320,7 +358,7 @@ def test_collector_budget_expiry_during_hlen_does_not_write_partial_snapshot(moc
 
     assert result["budget_exhausted"] is True
     assert result["succeeded"] == 0
-    client.pipeline.assert_not_called()
+    assert all(not pipe.lpush.called for pipe in client._pipes)
 
 
 def test_isolated_client_bounds_io_without_mutating_shared_pool(mocker):
@@ -452,15 +490,8 @@ def test_collector_budget_covers_precheck_before_lock_write():
 def test_collector_budget_covers_save_before_pipeline_execute(mocker):
     node = _node()
     clock = [0.0]
-    node_client = mock.Mock(snapshot_max_io_seconds=1)
-    node_client.lrange.return_value = []
-    node_client.set.return_value = True
-
-    def finish_hlen(_key):
-        clock[0] = 19.5
-        return 10
-
-    node_client.hlen.side_effect = finish_hlen
+    node_client = _hlen_client(hlen_fn=lambda _key: clock.__setitem__(0, 19.5) or 10)
+    node_client.snapshot_max_io_seconds = 1
     catalog_client = mock.Mock(snapshot_max_io_seconds=1)
     catalog_client.get.return_value = json.dumps([1])
     catalog_client.hgetall.return_value = {"group": json.dumps({"bk_biz_id": 7, "1": [101]})}
@@ -484,17 +515,13 @@ def test_collector_budget_covers_save_before_pipeline_execute(mocker):
 
     assert result["budget_exhausted"] is True
     assert result["succeeded"] == 0
-    node_client.pipeline.return_value.execute.assert_not_called()
+    assert all(not pipe.lpush.called for pipe in node_client._pipes)
 
 
 def test_collector_default_round_scans_one_due_node(mocker):
     node_1 = _node(1)
     node_2 = _node(2)
-    clients = {1: mock.Mock(), 2: mock.Mock()}
-    for client in clients.values():
-        client.lrange.return_value = []
-        client.set.return_value = True
-        client.hlen.return_value = 10
+    clients = {1: _hlen_client(), 2: _hlen_client()}
     strategy_manager = mocker.patch("alarm_backends.core.cache.strategy_cost_snapshot.StrategyCacheManager")
     strategy_manager.get_strategy_ids.return_value = [1, 2]
     strategy_manager.get_all_groups.return_value = {"group": json.dumps({"bk_biz_id": 7, "1": [101], "2": [202]})}
@@ -512,10 +539,36 @@ def test_collector_default_round_scans_one_due_node(mocker):
     result = collector.collect([(node_1, {}), (node_2, {})])
 
     assert result["succeeded"] == 1
-    clients[1].hlen.assert_called_once()
+    strategy_manager.get_strategy_by_ids.assert_called_once_with([1])
+    assert any(".1.101" in str(key) for key in _hlen_keys(clients[1]))
     clients[2].lrange.assert_not_called()
     clients[2].set.assert_not_called()
-    clients[2].hlen.assert_not_called()
+    assert _hlen_keys(clients[2]) == []
+
+
+def test_collector_hlens_in_pipeline_batches(mocker):
+    node = _node()
+    client = _hlen_client()
+    strategy_ids = list(range(1, 102))
+    detail = {"bk_biz_id": 7, **{str(strategy_id): [strategy_id] for strategy_id in strategy_ids}}
+    strategy_manager = mocker.patch("alarm_backends.core.cache.strategy_cost_snapshot.StrategyCacheManager")
+    strategy_manager.get_strategy_ids.return_value = strategy_ids
+    strategy_manager.get_all_groups.return_value = {"group": json.dumps(detail)}
+    strategy_manager.get_strategy_by_ids.side_effect = lambda ids: [{"id": strategy_id} for strategy_id in ids]
+    mocker.patch(
+        "alarm_backends.core.cache.strategy_cost_snapshot.build_strategy_cost_profile",
+        return_value={"peak_members_per_series": 100},
+    )
+    mocker.patch(
+        "alarm_backends.core.cache.strategy_cost_snapshot.load_positive_routes",
+        return_value=[{"strategy_score": 1000, "node_id": 1}],
+    )
+    collector = _collector(client_factory=lambda _node: client, catalog_client_factory=lambda: None)
+
+    result = collector.collect([(node, {})])
+
+    assert result["succeeded"] == 1
+    assert [len(pipe.hlen.call_args_list) for pipe in client._pipes if pipe.hlen.called] == [100, 1]
 
 
 def test_collector_skips_nodes_outside_router_without_redis_calls():
