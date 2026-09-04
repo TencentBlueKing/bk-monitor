@@ -51,10 +51,7 @@ import CollectIssuedSlider from '../../business-comp/step3/collect-issued-slider
 import $http from '@/api';
 import { useCollectList } from '../../../hook/useCollectList';
 import { useTableLocalSetting } from '../../../hook/use-table-local-setting';
-import TagMore, {
-  type ITagMoreContentBounds,
-  type ITagMoreTriggerSlotData,
-} from '../../common-comp/tag-more';
+import TagMore, { type ITagMoreContentBounds, type ITagMoreTriggerSlotData } from '../../common-comp/tag-more';
 import type { IListItemData } from '../../../type';
 import StopTypeDialog from '../stop-type-dialog';
 import AddExistingCollectDialog from '../add-existing-collect-dialog';
@@ -99,14 +96,14 @@ interface ITableRowData {
   /** 数据名（采集项英文名） */
   name_en?: string;
   bk_data_id?: number | string;
-  parent_index_sets?: Array<{ index_set_id?: number | string; index_set_name: string;[key: string]: unknown }>;
+  parent_index_sets?: Array<{ index_set_id?: number | string; index_set_name: string; [key: string]: unknown }>;
   parent_index_set_ids?: Array<number | string>;
   scenario_id?: string;
   scenario_name?: string;
   collector_scenario_id?: string;
   collector_scenario_name?: string;
   retention?: number;
-  tags?: Array<{ name: string;[key: string]: unknown }>;
+  tags?: Array<{ name: string; [key: string]: unknown }>;
   created_by?: string;
   created_at?: string;
   updated_by?: string;
@@ -301,7 +298,15 @@ export default defineComponent({
     const checkInfo = ref('');
 
     // 使用自定义 hook 管理状态
-    const { authGlobalInfo, operateHandler, checkCreateAuth, spaceUid, bkBizId, isAllowedCreate } = useCollectList();
+    const {
+      authGlobalInfo,
+      operateHandler,
+      checkCreateAuth,
+      spaceUid,
+      bkBizId,
+      isAllowedCreate,
+      isShowMaskingTemplate,
+    } = useCollectList();
     // 个人设置本地存储（归属、排序、字段设置、列宽、页大小）
     const { getSetting, updateSetting } = useTableLocalSetting();
     // 初始化时读取一次缓存，各设置项在使用前逐项校验合法性
@@ -316,9 +321,7 @@ export default defineComponent({
     const cachedSelectedFields = Array.isArray(cachedTableSetting?.selectedFields)
       ? cachedTableSetting.selectedFields.filter(id => SETTING_FIELDS.some(field => field.id === id))
       : null;
-    const selectedFieldIds = ref<string[]>(
-      cachedSelectedFields ?? SETTING_FIELDS.map(field => field.id),
-    );
+    const selectedFieldIds = ref<string[]>(cachedSelectedFields ?? SETTING_FIELDS.map(field => field.id));
     /** 列宽个人设置 { [colKey]: number } */
     const columnsWidthSetting = ref<Record<string, number>>(
       (() => {
@@ -371,7 +374,7 @@ export default defineComponent({
         const updateFilterItems = (items: FilterItem[] | undefined): FilterItem[] | undefined => {
           if (!items || items.length === 0) return items;
           let changed = false;
-          const next = items.map(item => {
+          const next = items.map((item) => {
             const displayName = newMap.get(item.key || '');
             if (displayName && displayName !== item.label) {
               changed = true;
@@ -402,10 +405,15 @@ export default defineComponent({
     const editingIndexSetRowId = ref<number | string>('');
     const updatingIndexSetRowId = ref<number | string>('');
     const editingIndexSetDraftIds = ref<Record<string, Array<number | string>>>({});
-    const localParentIndexSetMap = ref<Record<string, {
-      ids: Array<number | string>;
-      sets: ITableRowData['parent_index_sets'];
-    }>>({});
+    const localParentIndexSetMap = ref<
+      Record<
+        string,
+        {
+          ids: Array<number | string>;
+          sets: ITableRowData['parent_index_sets'];
+        }
+      >
+    >({});
     const indexSetOptionList = ref<IListItemData[]>([...(props.indexGroupList || [])]);
     const isAddIndexSet = ref(false);
     const addIndexSetRef = ref<{ autoFocus?:() => void } | null>(null);
@@ -612,23 +620,29 @@ export default defineComponent({
       const type = row?.log_access_type || 'linux';
       // status 是异步获取的，可能暂时为空，默认按非 terminated 状态处理
       const status = row?.status || '';
+      const maskingKey = isShowMaskingTemplate.value ? 'masking' : '';
+      const filterMaskingByToggle = (list: IMenuItem[]) => {
+        return isShowMaskingTemplate.value ? list : list.filter(item => item.key !== 'masking');
+      };
 
       if (!type) {
-        return MENU_LIST.filter(item => item.key !== (status !== 'terminated' ? 'start' : 'stop'));
+        return filterMaskingByToggle(
+          MENU_LIST.filter(item => item.key !== (status !== 'terminated' ? 'start' : 'stop')),
+        );
       }
 
       if (type === 'custom_report') {
         const excludeKey = status !== 'terminated' ? 'start' : 'stop';
         return MENU_LIST.filter(
-          item => ['clean', 'desensitization', 'stop', 'start', 'delete'].includes(item.key) && item.key !== excludeKey,
+          item => ['clean', maskingKey, 'stop', 'start', 'delete'].includes(item.key) && item.key !== excludeKey,
         );
       }
 
       if (['bkdata', 'es'].includes(type)) {
-        return MENU_LIST.filter(item => ['desensitization', 'delete'].includes(item.key));
+        return MENU_LIST.filter(item => [maskingKey, 'delete'].includes(item.key));
       }
 
-      return MENU_LIST.filter(item => item.key !== (status !== 'terminated' ? 'start' : 'stop'));
+      return filterMaskingByToggle(MENU_LIST.filter(item => item.key !== (status !== 'terminated' ? 'start' : 'stop')));
     };
 
     /**
@@ -664,9 +678,7 @@ export default defineComponent({
       return <span>{displayName}</span>;
     };
 
-    const getRowUniqueId = (row: ITableRowData) => (
-      row.collector_config_id || row.index_set_id || row.bk_data_id || row.name
-    );
+    const getRowUniqueId = (row: ITableRowData) => row.collector_config_id || row.index_set_id || row.bk_data_id || row.name;
 
     const getLocalParentIndexSet = (row: ITableRowData) => {
       return localParentIndexSetMap.value[String(getRowUniqueId(row))];
@@ -778,7 +790,8 @@ export default defineComponent({
           data: {
             child_index_set_ids: [childIndexSetId],
           },
-        })),
+        }),
+        ),
         ...removeIds.map(indexSetId => $http.request('collect/removeIndexSetsFromGroup', {
           params: {
             index_set_id: indexSetId,
@@ -786,7 +799,8 @@ export default defineComponent({
           data: {
             child_index_set_ids: [childIndexSetId],
           },
-        })),
+        }),
+        ),
       ];
 
       if (!requestList.length) {
@@ -922,8 +936,7 @@ export default defineComponent({
               ),
             },
           }}
-        >
-        </TagMore>
+        ></TagMore>
       );
 
       if (!canEdit) {
@@ -934,7 +947,9 @@ export default defineComponent({
                 maxRows={2}
                 tags={indexSetName}
               />
-            ) : <span>--</span>}
+            ) : (
+              <span>--</span>
+            )}
           </div>
         );
       }
@@ -1011,17 +1026,13 @@ export default defineComponent({
 
     const settingFields = computed(() => {
       const indexSetId = (props.indexSet as IListItemData)?.index_set_id;
-      return indexSetId === 'all'
-        ? SETTING_FIELDS.filter(field => field.id !== 'is_related_space')
-        : SETTING_FIELDS;
+      return indexSetId === 'all' ? SETTING_FIELDS.filter(field => field.id !== 'is_related_space') : SETTING_FIELDS;
     });
 
     /** 传给表格组件的受控可见列 colKey 列表：按当前视图可用字段过滤（「全部」视图无采集项来源列） */
     const visibleColKeys = computed(() => {
       const availableIds = new Set(settingFields.value.map(field => field.id));
-      return selectedFieldIds.value
-        .filter(id => availableIds.has(id))
-        .map(id => FIELD_ID_TO_COL_KEY_MAP[id] || id);
+      return selectedFieldIds.value.filter(id => availableIds.has(id)).map(id => FIELD_ID_TO_COL_KEY_MAP[id] || id);
     });
 
     // 所有列定义
@@ -1038,9 +1049,7 @@ export default defineComponent({
             const logTypeIcon = LOG_TYPE_ICON_MAP[row.log_access_type || ''] || '';
             return (
               <div class='collection-name-cell'>
-                {showSpaceSource && (
-                  <span class={['space-source-bar', row.is_related_space ? 'related' : 'current']} />
-                )}
+                {showSpaceSource && <span class={['space-source-bar', row.is_related_space ? 'related' : 'current']} />}
                 {logTypeIcon && (
                   <span class='collection-type-icon'>
                     <i class={logTypeIcon} />
@@ -1087,7 +1096,10 @@ export default defineComponent({
           colKey: 'daily_usage',
           width: 150,
           cell: (h, { row }: { row: ITableRowData }) => (
-            <span class='storage-usage-cell' v-bk-overflow-tips>
+            <span
+              class='storage-usage-cell'
+              v-bk-overflow-tips
+            >
               {formatBytes(row.daily_usage)} / {formatBytes(row.total_usage)}
             </span>
           ),
@@ -1143,7 +1155,9 @@ export default defineComponent({
             <span
               class='cell-overflow-text'
               v-bk-overflow-tips
-            >{row.log_access_type_name || '--'}</span>
+            >
+              {row.log_access_type_name || '--'}
+            </span>
           ),
           filter: getColumnsFilter(GLOBAL_CATEGORIES_ENUM),
         },
@@ -1151,17 +1165,17 @@ export default defineComponent({
           title: (_h) => {
             const isActive = filterValue.value.tags.length > 0;
             return (
-            <ClusterFilter
-              title={t('标签')}
-              searchable
-              popoverMinWidth={200}
-              select={tagSelect.value}
-              selectList={filterLabelList.value}
-              toggle={() => handleToggleTagSelect()}
-              isActive={isActive}
-              on-selected={(v: string[]) => handleTagSelectChange(v)}
-              on-submit={(v: string[]) => handleTagSubmit(v)}
-            />
+              <ClusterFilter
+                title={t('标签')}
+                searchable
+                popoverMinWidth={200}
+                select={tagSelect.value}
+                selectList={filterLabelList.value}
+                toggle={() => handleToggleTagSelect()}
+                isActive={isActive}
+                on-selected={(v: string[]) => handleTagSelectChange(v)}
+                on-submit={(v: string[]) => handleTagSubmit(v)}
+              />
             );
           },
           colKey: 'tags',
@@ -1175,10 +1189,17 @@ export default defineComponent({
               rowData={row}
               selectLabelList={selectLabelList.value}
               on-refresh-label-list={() => fetchLabelList()}
-              on-update-tags={(newTags) => handleUpdateTags(row, newTags)}
+              on-update-tags={newTags => handleUpdateTags(row, newTags)}
               {...{
                 scopedSlots: {
-                  trigger: ({ content, contentBounds, disabled, isEmpty, isOpen, triggerRef }: ITagMoreTriggerSlotData) => {
+                  trigger: ({
+                    content,
+                    contentBounds,
+                    disabled,
+                    isEmpty,
+                    isOpen,
+                    triggerRef,
+                  }: ITagMoreTriggerSlotData) => {
                     if (disabled) {
                       return (
                         <div
@@ -1283,19 +1304,19 @@ export default defineComponent({
               colKey: 'is_related_space',
               width: 120,
               cell: (h, { row }: { row: ITableRowData }) => (
-                <span class='space-tag-wrapper'>
-                  {!row.is_related_space && <span class='space-tag current'>{t('当前空间')}</span>}
-                  {row.is_related_space && (
-                    <span
-                      class='space-tag related'
-                      v-bk-tooltips={{
-                        content: t('关联空间') + (row?.space_name ? `: ${row?.space_name}` : ''),
-                      }}
-                    >
-                      {t('关联空间')}
-                    </span>
-                  )}
-                </span>
+                  <span class='space-tag-wrapper'>
+                    {!row.is_related_space && <span class='space-tag current'>{t('当前空间')}</span>}
+                    {row.is_related_space && (
+                      <span
+                        class='space-tag related'
+                        v-bk-tooltips={{
+                          content: t('关联空间') + (row?.space_name ? `: ${row?.space_name}` : ''),
+                        }}
+                      >
+                        {t('关联空间')}
+                      </span>
+                    )}
+                  </span>
               ),
               filter: getColumnsFilter(IS_RELATED_SPACE_ENUM),
             },
@@ -1309,7 +1330,9 @@ export default defineComponent({
             <span
               class='cell-overflow-text'
               v-bk-overflow-tips
-            >{row.collector_scenario_name || '--'}</span>
+            >
+              {row.collector_scenario_name || '--'}
+            </span>
           ),
           filter: getColumnsFilter(COLLECTOR_SCENARIO_ENUM),
         },
@@ -1336,68 +1359,70 @@ export default defineComponent({
             const searchKey = isBkDataOrEs ? authorityMap.MANAGE_INDICES_AUTH : authorityMap.SEARCH_LOG_AUTH;
             const isRelatedSpace = !!row.is_related_space;
             return (
-            <div class='table-operation'>
-              <span
-                class={{
-                  'link mr-6': true,
-                  disabled: !getOperatorCanClick(row, 'search'),
-                }}
-                v-cursor={{ active: !row.permission?.[searchKey] }}
-                on-click={() => handleEditOperation(row, 'search')}
-              >
-                {t('检索')}
-              </span>
-              {isRelatedSpace ? (
-                <BklogPopover
-                  options={{
-                    placement: 'top',
-                    theme: 'dark',
-                    appendTo: document.body,
-                  } as any}
-                  trigger='hover'
-                  content={() => renderRelatedSpaceTipContent(row)}
-                >
-                  <span
-                    class={{ link: true, disabled: true }}
-                    v-cursor={{ active: !row.permission?.[editKey] }}
-                  >
-                    {t('编辑')}
-                    </span>
-                </BklogPopover>
-              ) : (
+              <div class='table-operation'>
                 <span
                   class={{
-                    link: true,
-                    disabled: !getOperatorCanClick(row, 'edit'),
+                    'link mr-6': true,
+                    disabled: !getOperatorCanClick(row, 'search'),
                   }}
-                  v-cursor={{ active: !row.permission?.[editKey] }}
-                  on-click={() => handleEditOperation(row, 'edit')}
+                  v-cursor={{ active: !row.permission?.[searchKey] }}
+                  on-click={() => handleEditOperation(row, 'search')}
                 >
-                  {t('编辑')}
+                  {t('检索')}
                 </span>
-              )}
-              {!isRelatedSpace && <span class='bk-icon icon-more more-btn table-more-btn' />}
-              <div
-                style={{ display: 'none' }}
-                class='row-menu-popover'
-              >
-                <div class='row-menu-content'>
-                  {renderMenu(row).map(item => (
+                {isRelatedSpace ? (
+                  <BklogPopover
+                    options={
+                      {
+                        placement: 'top',
+                        theme: 'dark',
+                        appendTo: document.body,
+                      } as any
+                    }
+                    trigger='hover'
+                    content={() => renderRelatedSpaceTipContent(row)}
+                  >
                     <span
-                      key={item.key}
+                      class={{ link: true, disabled: true }}
                       v-cursor={{ active: !row.permission?.[editKey] }}
-                      class={{
-                        'menu-item': true,
-                        disabled: !getOperatorCanClick(row, item.key),
-                      }}
-                      on-Click={() => handleMenuClick(item.key, row)}
                     >
-                      {item.label}
+                      {t('编辑')}
                     </span>
-                  ))}
+                  </BklogPopover>
+                ) : (
+                  <span
+                    class={{
+                      link: true,
+                      disabled: !getOperatorCanClick(row, 'edit'),
+                    }}
+                    v-cursor={{ active: !row.permission?.[editKey] }}
+                    on-click={() => handleEditOperation(row, 'edit')}
+                  >
+                    {t('编辑')}
+                  </span>
+                )}
+                {!isRelatedSpace && <span class='bk-icon icon-more more-btn table-more-btn' />}
+                <div
+                  style={{ display: 'none' }}
+                  class='row-menu-popover'
+                >
+                  <div class='row-menu-content'>
+                    {renderMenu(row).map(item => (
+                      <span
+                        key={item.key}
+                        v-cursor={{ active: !row.permission?.[editKey] }}
+                        class={{
+                          'menu-item': true,
+                          disabled: !getOperatorCanClick(row, item.key),
+                        }}
+                        on-Click={() => handleMenuClick(item.key, row)}
+                      >
+                        {item.label}
+                      </span>
+                    ))}
+                  </div>
                 </div>
               </div>
-            </div>
             );
           },
         },
@@ -1586,25 +1611,27 @@ export default defineComponent({
 
     /** 获取全量标签列表 */
     const fetchLabelList = () => {
-      $http.request('unionSearch/unionLabelList', {
-        query: {
-          space_uid: spaceUid.value,
-        },
-      }).then(res => {
-        selectLabelList.value = res.data || [];
-        // 构建过滤列表："全部"选项 + 非内置标签
-        const notBuiltInList = (res.data || [])
-          .filter(item => !item.is_built_in)
-          .map(item => ({
-            id: item.tag_id,
-            name: item.name,
-          }));
-        filterLabelList.value = [{ id: 'all', name: t('全部') }, ...notBuiltInList];
-      });
+      $http
+        .request('unionSearch/unionLabelList', {
+          query: {
+            space_uid: spaceUid.value,
+          },
+        })
+        .then((res) => {
+          selectLabelList.value = res.data || [];
+          // 构建过滤列表："全部"选项 + 非内置标签
+          const notBuiltInList = (res.data || [])
+            .filter(item => !item.is_built_in)
+            .map(item => ({
+              id: item.tag_id,
+              name: item.name,
+            }));
+          filterLabelList.value = [{ id: 'all', name: t('全部') }, ...notBuiltInList];
+        });
     };
 
     /** 更新行数据中的标签 */
-    const handleUpdateTags = (row: ITableRowData, newTags: Array<{ name: string;[key: string]: unknown }>) => {
+    const handleUpdateTags = (row: ITableRowData, newTags: Array<{ name: string; [key: string]: unknown }>) => {
       row.tags = newTags;
     };
 
@@ -1881,7 +1908,7 @@ export default defineComponent({
      * @param items - 过滤选项数组
      * @returns 用户ID数组
      */
-    const extractUserIds = (items: Array<{ key?: string;[key: string]: unknown }>): string[] => {
+    const extractUserIds = (items: Array<{ key?: string; [key: string]: unknown }>): string[] => {
       return (items || []).map(item => item.key).filter(Boolean) as string[];
     };
 
@@ -1892,7 +1919,7 @@ export default defineComponent({
      * @returns 处理后的过滤选项数组
      */
     const processFilterItemsWithUserInfo = (
-      items: Array<{ key?: string; label?: string;[key: string]: unknown }>,
+      items: Array<{ key?: string; label?: string; [key: string]: unknown }>,
       userInfoMap: Map<string, { display_name: string }>,
     ) => {
       return (items || []).map(item => ({
@@ -2152,9 +2179,7 @@ export default defineComponent({
     const handleJumpToRelatedSpace = (row: ITableRowData) => {
       // 1. 获取权限 key
       const isBkDataOrEs = ['bkdata', 'es'].includes(row.log_access_type);
-      const editKey = isBkDataOrEs
-        ? authorityMap.MANAGE_INDICES_AUTH
-        : authorityMap.MANAGE_COLLECTION_AUTH;
+      const editKey = isBkDataOrEs ? authorityMap.MANAGE_INDICES_AUTH : authorityMap.MANAGE_COLLECTION_AUTH;
 
       // 2. 检查权限
       if (!row.permission?.[editKey]) {
@@ -2168,9 +2193,7 @@ export default defineComponent({
         name: 'collectEdit',
         params: {
           // bkdata/es 类型没有 collector_config_id，使用 index_set_id
-          collectorId: String(
-            isBkDataOrEs ? (row.index_set_id ?? '') : (row.collector_config_id ?? '')
-          ),
+          collectorId: String(isBkDataOrEs ? (row.index_set_id ?? '') : (row.collector_config_id ?? '')),
         },
         query: {
           typeKey: String(row.log_access_type),
@@ -2192,12 +2215,12 @@ export default defineComponent({
           <div>{t('关联空间的索引集，无法编辑')}</div>
           <div>
             <i18n path='请{0}编辑。'>
-                <span
-                  class='link-to-space'
-                  on-click={() => {
-                    handleJumpToRelatedSpace(row);
-                  }}
-                >
+              <span
+                class='link-to-space'
+                on-click={() => {
+                  handleJumpToRelatedSpace(row);
+                }}
+              >
                 {t('前往对应的空间')}
                 <i class='bklog-icon bklog-jump'></i>
               </span>
@@ -2270,13 +2293,12 @@ export default defineComponent({
      * @param sortInfo - 排序信息
      */
     const sortChange = (sortInfo: ISortConfig): void => {
-      const isSameSort = sortInfo.sortBy === sortConfig.value.sortBy
-        && !!sortInfo.descending === !!sortConfig.value.descending;
+      const isSameSort =        sortInfo.sortBy === sortConfig.value.sortBy && !!sortInfo.descending === !!sortConfig.value.descending;
       if (isSameSort) {
         return;
       }
 
-      const isSwitchingToUsageSort = sortInfo.sortBy
+      const isSwitchingToUsageSort =        sortInfo.sortBy
         && ['daily_usage', 'total_usage'].includes(sortInfo.sortBy)
         && sortInfo.sortBy !== sortConfig.value.sortBy;
       if (isSwitchingToUsageSort) {
@@ -2337,8 +2359,7 @@ export default defineComponent({
     const handleColumnResizeChange = (columnsWidth: Record<string, number>) => {
       const prev = columnsWidthSetting.value;
       const keys = Object.keys(columnsWidth);
-      const isUnchanged = keys.length === Object.keys(prev).length
-        && keys.every(key => prev[key] === columnsWidth[key]);
+      const isUnchanged =        keys.length === Object.keys(prev).length && keys.every(key => prev[key] === columnsWidth[key]);
       if (isUnchanged) {
         return;
       }
@@ -2437,7 +2458,8 @@ export default defineComponent({
                       class={{
                         'source-filter-tab': true,
                         active: filterValue.value.is_related_space === item.value,
-                        'hide-divider': filterValue.value.is_related_space === item.value
+                        'hide-divider':
+                          filterValue.value.is_related_space === item.value
                           || filterValue.value.is_related_space === sourceFilterOptions[index + 1]?.value,
                       }}
                       on-click={() => handleSourceFilterChange(item.value)}
@@ -2456,17 +2478,19 @@ export default defineComponent({
                 ref={usageSortPopoverRef}
                 trigger='manual'
                 contentClass='usage-sort-confirm'
-                options={{
-                  placement: 'top',
-                  theme: 'bklog-basic-light',
-                  interactive: true,
-                  maxWidth: 288,
-                  appendTo: document.body,
-                  onHidden: () => {
-                    pendingUsageSortInfo.value = null;
-                    syncSortFieldDraft(sortConfig.value.sortBy || 'name');
-                  },
-                } as any}
+                options={
+                  {
+                    placement: 'top',
+                    theme: 'bklog-basic-light',
+                    interactive: true,
+                    maxWidth: 288,
+                    appendTo: document.body,
+                    onHidden: () => {
+                      pendingUsageSortInfo.value = null;
+                      syncSortFieldDraft(sortConfig.value.sortBy || 'name');
+                    },
+                  } as any
+                }
                 {...{
                   scopedSlots: {
                     content: () => (
