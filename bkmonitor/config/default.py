@@ -1380,7 +1380,9 @@ SKIP_IAM_PERMISSION_CHECK = False
 # ---- IAM Provider 客户端凭据 ----
 #
 # 新配置按 Provider 区分；BK_IAM_APP_CODE/BK_IAM_APP_SECRET 是当前新框架
-# 早期配置使用的共享变量，继续作为兼容回退。BK_IAM_V4_APP_CODE/SECRET
+# 早期配置使用的共享变量，继续作为兼容回退（不再作为 Provider 优先取值来源）。
+# V3/V4 Provider 各自读取 BK_IAM_V*_CLIENT_APP_CODE/SECRET，缺失时才回退到
+# 这里的共享变量，再回退到应用自身的 APP_CODE / SECRET_KEY。
 _BK_IAM_COMPAT_APP_CODE = os.getenv("BK_IAM_APP_CODE", APP_CODE)
 _BK_IAM_COMPAT_APP_SECRET = os.getenv("BK_IAM_APP_SECRET", SECRET_KEY)
 
@@ -1419,8 +1421,11 @@ IAM_V4_CALLBACK = {
 }
 
 # 以下仅用于旧 IAM 调用方的兼容，不是 V4 callback 的配置来源。
-BK_IAM_APP_CODE = BK_IAM_V4_CLIENT_APP_CODE
-BK_IAM_APP_SECRET = BK_IAM_V4_CLIENT_APP_SECRET
+# 绑到共享兼容值（即用户显式的 BK_IAM_APP_CODE 或 APP_CODE），而不是绑到 V4 客户端凭据；
+# 后者在 V3 单栈部署下没有实际意义，容易误导。测试与外部旧 SDK 仅需要一个稳定的
+# `settings.BK_IAM_APP_CODE` 存在性判据，此处保持向后兼容。
+BK_IAM_APP_CODE = _BK_IAM_COMPAT_APP_CODE
+BK_IAM_APP_SECRET = _BK_IAM_COMPAT_APP_SECRET
 
 # ---- IAM v3 鉴权 ----
 BK_IAM_V3_CLIENT_APP_CODE = os.getenv("BK_IAM_V3_CLIENT_APP_CODE", _BK_IAM_COMPAT_APP_CODE)
@@ -1507,40 +1512,64 @@ _IAM_V4_PROVIDER = {
 
 # ---- IAM 读写后端独立配置 ----
 #
-# Provider 目录、进程装配集合、读策略与写目标各自独立。此处只声明环境变量
-# 的原始值；名称、引用关系和策略语义由 iam_engine 加载框架时统一校验。
+# 部署侧原则上只需要显式配置 BK_IAM_PROVIDERS（当前进程装配的后端）。其余读/写/
+# 策略变量都会基于它派生一个合理默认，仅在需要精细化区分“读走 A、写走 A+B”或
+# 强制指定组合策略时才需要显式设置。
 #
-#   BK_IAM_PROVIDERS                    当前进程装配的后端，默认 v4,v3
-#   BK_IAM_READ_PROVIDERS               读鉴权后端，默认 v4,v3
-#   BK_IAM_READ_POLICY                  single/any_of/all_of/primary/dynamic，默认 dynamic
-#   BK_IAM_READ_STRATEGY                dynamic 当前候选；可由 GlobalConfig 动态覆盖
-#   BK_IAM_READ_OPTIONS                 当前读策略的 JSON 参数；默认是 dynamic 策略参数
-#   BK_IAM_WRITE_PROVIDERS              通用权限写后端，默认 v4,v3
-#   BK_IAM_WRITE_ON_FAILURE             当前仅支持 log（逐后端详细失败日志）
+#   BK_IAM_PROVIDERS         当前进程装配的后端，默认 v3（V3 单栈）
+#   BK_IAM_READ_PROVIDERS    读鉴权后端；默认继承 BK_IAM_PROVIDERS
+#   BK_IAM_WRITE_PROVIDERS   通用权限写后端；默认继承 BK_IAM_PROVIDERS
+#   BK_IAM_READ_POLICY       single/any_of/all_of/primary/dynamic；
+#                            单栈默认 single、多栈默认 dynamic
+#   BK_IAM_READ_STRATEGY     dynamic 当前候选，仅在 READ_POLICY=dynamic 时生效；
+#                            可由 GlobalConfig 动态覆盖
+#   BK_IAM_READ_OPTIONS      读策略私有 JSON 参数；dynamic 时默认构造带 selector
+#                            的规范化 JSON，其它策略默认空
+#   BK_IAM_WRITE_ON_FAILURE  当前仅支持 log（逐后端详细失败日志）
 _IAM_PROVIDER_CATALOG = {
     "v3": _IAM_V3_PROVIDER,
     "v4": _IAM_V4_PROVIDER,
 }
 
-BK_IAM_PROVIDERS = get_env_or_raise("BK_IAM_PROVIDERS", default="v4,v3")
-BK_IAM_READ_PROVIDERS = get_env_or_raise("BK_IAM_READ_PROVIDERS", default="v4,v3")
-BK_IAM_READ_POLICY = get_env_or_raise("BK_IAM_READ_POLICY", default="dynamic")
-BK_IAM_READ_STRATEGY = get_env_or_raise("BK_IAM_READ_STRATEGY", default="any_of")
-BK_IAM_READ_OPTIONS = get_env_or_raise(
+# 装配集合：默认 V3 单栈；用户只需要覆盖此项即可从 V3 单栈切到 V4 单栈或双栈。
+BK_IAM_PROVIDERS = os.getenv("BK_IAM_PROVIDERS", "v3")
+_BK_IAM_ENABLED_PROVIDER_LIST = [n.strip() for n in BK_IAM_PROVIDERS.split(",") if n.strip()]
+_BK_IAM_IS_MULTI_STACK = len(_BK_IAM_ENABLED_PROVIDER_LIST) > 1
+
+# 读/写 Provider：默认跟随装配集合，避免用户在“单栈切换”时还要额外覆盖两行。
+BK_IAM_READ_PROVIDERS = os.getenv("BK_IAM_READ_PROVIDERS", BK_IAM_PROVIDERS)
+BK_IAM_WRITE_PROVIDERS = os.getenv("BK_IAM_WRITE_PROVIDERS", BK_IAM_PROVIDERS)
+
+# 读策略：单栈直通 single；多栈动态 dynamic（配合 selector 支持运行时切换主后端）。
+BK_IAM_READ_POLICY = os.getenv(
+    "BK_IAM_READ_POLICY",
+    "dynamic" if _BK_IAM_IS_MULTI_STACK else "single",
+)
+
+# 仅 dynamic 策略读取；single/any_of/all_of/primary 均忽略。
+BK_IAM_READ_STRATEGY = os.getenv("BK_IAM_READ_STRATEGY", "any_of")
+
+# READ_OPTIONS：dynamic 时构造带 selector 的默认 JSON；其它策略默认空字符串，
+# 让 core.config._parse_options 视为“无自定义参数”。
+BK_IAM_READ_OPTIONS = os.getenv(
     "BK_IAM_READ_OPTIONS",
-    default=json.dumps(
-        {
-            "selector": {
-                "type": "django_setting",
-                "attr": "BK_IAM_READ_STRATEGY",
-                "default": BK_IAM_READ_STRATEGY,
-            },
-            "fallback_key": "any_of",
-        }
+    (
+        json.dumps(
+            {
+                "selector": {
+                    "type": "django_setting",
+                    "attr": "BK_IAM_READ_STRATEGY",
+                    "default": BK_IAM_READ_STRATEGY,
+                },
+                "fallback_key": "any_of",
+            }
+        )
+        if BK_IAM_READ_POLICY == "dynamic"
+        else ""
     ),
 )
-BK_IAM_WRITE_PROVIDERS = get_env_or_raise("BK_IAM_WRITE_PROVIDERS", default="v4,v3")
-BK_IAM_WRITE_ON_FAILURE = get_env_or_raise("BK_IAM_WRITE_ON_FAILURE", default="log")
+
+BK_IAM_WRITE_ON_FAILURE = os.getenv("BK_IAM_WRITE_ON_FAILURE", "log")
 
 IAM_FRAMEWORK = {
     # 操作定义
