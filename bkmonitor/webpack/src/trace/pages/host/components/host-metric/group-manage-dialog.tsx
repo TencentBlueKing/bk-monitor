@@ -46,10 +46,6 @@ export const convertToOrderData = (
   ungroupTitle: string
 ): MetricGroupPanelOrder[] => {
   const groupMap = new Map<string, MetricItemModel[]>();
-  for (const group of groups) {
-    groupMap.set(group.id, []);
-  }
-
   for (const m of metrics) {
     const list = groupMap.get(m.groupId) ?? [];
     list.push(m);
