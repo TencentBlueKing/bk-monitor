@@ -50,6 +50,15 @@ ADVANCED_OPTIONS = OrderedDict(
             "ENABLE_REDIS_STRATEGY_COST_SNAPSHOT",
             slz.BooleanField(label="是否开启Redis策略成本周期快照", default=False),
         ),
+        (
+            "REDIS_STRATEGY_COST_SNAPSHOT_TOTAL_BUDGET_SECONDS",
+            slz.IntegerField(
+                label="Redis策略成本快照命令间软预算(秒)",
+                default=20,
+                min_value=5,
+                max_value=30,
+            ),
+        ),
         ("DIMENSION_COLLECT_THRESHOLD", slz.IntegerField(label="同维度汇总阈值", default=2)),
         ("DIMENSION_COLLECT_WINDOW", slz.IntegerField(label="同维度汇总时间窗口", default=120)),
         ("MULTI_STRATEGY_COLLECT_THRESHOLD", slz.IntegerField(label="多策略汇总阈值", default=3)),

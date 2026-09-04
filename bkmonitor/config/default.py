@@ -394,6 +394,8 @@ RESOURCE_DATA_COLLECT_RATIO = 0
 
 # Redis 自监控收尾阶段的策略成本周期快照，按环境通过 GlobalConfig 显式开启。
 ENABLE_REDIS_STRATEGY_COST_SNAPSHOT = False
+# 命令之间检查的软预算（秒），不能中断在途 Redis 命令。取值夹在 5–30，不随节点数放大。
+REDIS_STRATEGY_COST_SNAPSHOT_TOTAL_BUDGET_SECONDS = 20
 
 # 告警汇总配置
 DIMENSION_COLLECT_THRESHOLD = 2
