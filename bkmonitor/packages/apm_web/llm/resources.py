@@ -253,24 +253,43 @@ class ListTracesResource(Resource):
 
 
 class ListSpansResource(Resource):
-    """查询指定 Trace 的 Span 列表。"""
+    """根据 Trace ID 或 Span ID 查询 Span 列表。"""
 
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
         app_name = serializers.CharField(required=True, label="应用名称")
-        trace_id = serializers.CharField(required=True, label="trace_id")
+        trace_id = serializers.CharField(required=False, allow_blank=True, default="", label="trace_id")
+        span_id = serializers.CharField(required=False, allow_blank=True, default="", label="span_id")
+
+        def validate(self, attrs):
+            if not attrs["trace_id"] and not attrs["span_id"]:
+                raise serializers.ValidationError("trace_id 和 span_id 至少传一个")
+            return attrs
 
     def perform_request(self, validated_request_data):
-        params = {
-            "bk_biz_id": validated_request_data["bk_biz_id"],
-            "app_name": validated_request_data["app_name"],
-            "filters": [
+        trace_id = validated_request_data["trace_id"]
+        span_id = validated_request_data["span_id"]
+        filters = []
+        if trace_id:
+            filters.append(
                 {
                     "key": OtlpKey.TRACE_ID,
                     "operator": OperatorEnum.EQUAL["operator"],
-                    "value": [validated_request_data["trace_id"]],
+                    "value": [trace_id],
                 }
-            ],
+            )
+        if span_id:
+            filters.append(
+                {
+                    "key": OtlpKey.SPAN_ID,
+                    "operator": OperatorEnum.EQUAL["operator"],
+                    "value": [span_id],
+                }
+            )
+        params = {
+            "bk_biz_id": validated_request_data["bk_biz_id"],
+            "app_name": validated_request_data["app_name"],
+            "filters": filters,
             "limit": 10000,
             "exclude_field": ["bk_app_code"],
         }
@@ -278,10 +297,74 @@ class ListSpansResource(Resource):
         raw_spans = response["data"]
         spans = adapt_spans(raw_spans)
         return {
-            "trace_id": validated_request_data["trace_id"],
+            "trace_id": trace_id or (raw_spans[0].get(OtlpKey.TRACE_ID, "") if raw_spans else ""),
             "total": len(spans),
             "spans": spans,
         }
+
+
+class ListFlowsResource(Resource):
+    """按会话或 Trace 查询层级 Span。"""
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
+        app_name = serializers.CharField(required=True, label="应用名称")
+        group_field = serializers.CharField(required=True, label="分组字段")
+        group_id = serializers.CharField(required=True, label="分组值")
+
+    @staticmethod
+    def _build_flow(spans: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        nodes = [{**span, "childs": []} for span in spans]
+        nodes_by_span_id = {node[OtlpKey.SPAN_ID]: node for node in nodes if node.get(OtlpKey.SPAN_ID)}
+        roots = []
+        for node in nodes:
+            parent = nodes_by_span_id.get(node.get(OtlpKey.PARENT_SPAN_ID))
+            if parent is None or parent is node:
+                roots.append(node)
+            else:
+                parent["childs"].append(node)
+        return roots
+
+    def perform_request(self, validated_request_data):
+        application = Application.objects.get(
+            bk_biz_id=validated_request_data["bk_biz_id"],
+            app_name=validated_request_data["app_name"],
+        )
+        span_query = get_query(application.build_data_sources())
+        group_field = validated_request_data["group_field"]
+        group_id = validated_request_data["group_id"]
+        group_trace_records = span_query.query_group_trace_list(
+            group_field=group_field,
+            group_ids=[group_id],
+        )
+        trace_ids = list(
+            dict.fromkeys(record[OtlpKey.TRACE_ID] for record in group_trace_records if record.get(OtlpKey.TRACE_ID))
+        )
+        result = {
+            "group_field": group_field,
+            "group_id": group_id,
+            "traces": [],
+        }
+        if not trace_ids:
+            return result
+
+        spans = span_query.query_by_group_ids(
+            group_field=OtlpKey.TRACE_ID,
+            group_ids=trace_ids,
+        )
+        spans_by_trace: dict[str, list[dict[str, Any]]] = defaultdict(list)
+        for span in spans:
+            if trace_id := span.get(OtlpKey.TRACE_ID):
+                spans_by_trace[trace_id].append(span)
+
+        result["traces"] = [
+            {
+                "trace_id": trace_id,
+                "flow": self._build_flow(adapt_spans(spans_by_trace[trace_id])),
+            }
+            for trace_id in trace_ids
+        ]
+        return result
 
 
 class TimeSeriesResource(Resource):

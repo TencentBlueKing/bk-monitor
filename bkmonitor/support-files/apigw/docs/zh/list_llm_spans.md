@@ -1,6 +1,6 @@
 ### 功能描述
 
-根据 Trace ID 查询完整 Span，并将 AgentLens、Galileo、BKAIDev 等来源转换为统一的 OTel GenAI Span 结构。该接口用于 Trace 详情展示；只返回转换后与 Agent/LLM 观测有关的字段。
+根据 Trace ID 或 Span ID 查询 Span，并将 AgentLens、Galileo、BKAIDev 等来源转换为统一的 OTel GenAI Span 结构。该接口用于 Trace 详情展示；只返回转换后与 Agent/LLM 观测有关的字段。
 
 ### 请求参数
 
@@ -8,9 +8,12 @@
 |---|---|---|---|
 | bk_biz_id | int | 是 | 业务 ID |
 | app_name | string | 是 | APM 应用名称 |
-| trace_id | string | 是 | Trace ID，精确匹配 |
+| trace_id | string | 否 | Trace ID，精确匹配；与 `span_id` 至少传一个 |
+| span_id | string | 否 | Span ID，精确匹配；与 `trace_id` 至少传一个 |
 
 ### 请求参数示例
+
+查询 Trace 下的全部标准化 Span：
 
 ```json
 {
@@ -19,6 +22,18 @@
     "trace_id": "9519ce8934ad4c2f04753eef6ce44b08"
 }
 ```
+
+按 Span ID 精确查询：
+
+```json
+{
+    "bk_biz_id": 100147,
+    "app_name": "bkfara",
+    "span_id": "30e66c2d28e1bfd8"
+}
+```
+
+只传 `trace_id` 时返回该 Trace 下的全部标准化 Span；只传 `span_id` 时按 Span ID 查询；两者同时传入时两个精确条件同时生效。
 
 ### 响应参数
 
@@ -33,7 +48,7 @@
 
 | 字段名 | 类型 | 描述 |
 |---|---|---|
-| trace_id | string | Trace ID |
+| trace_id | string | Trace ID；只传 `span_id` 时取匹配结果中的 Trace ID，未匹配时为空字符串 |
 | total | int | 转换后返回的 Span 数量 |
 | spans | list | 按 `start_time` 正序排列的标准化 Span |
 
@@ -86,7 +101,7 @@
 
 ### 响应参数示例
 
-以下示例基于 Agent Trace 的实际返回结构整理，会话标识、资源信息、工具参数和对话正文已替换为示例值；Span 关系、时间和字段集合保持真实结构。
+以下响应对应未传 `span_id` 的完整 Trace 查询示例。示例基于 Agent Trace 的实际返回结构整理，会话标识、资源信息、工具参数和对话正文已替换为示例值；Span 关系、时间和字段集合保持真实结构。
 
 ```json
 {
