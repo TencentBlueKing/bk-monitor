@@ -1,5 +1,6 @@
 <template>
   <div
+    ref="warnTriggerRef"
     class="warn-table-wrap"
     @click="isShowList"
   >
@@ -233,6 +234,7 @@
   const { resolveQueryParams, resolveCommonParams } = useRetrieveHook();
 
   const refWarningSettingElement = ref(null);
+  const warnTriggerRef = ref(null);
 
   const PopInstanceUtilInstance = new PopInstanceUtil({
     refContent: refWarningSettingElement,
@@ -367,9 +369,22 @@
         : b.first_anomaly_time - a.first_anomaly_time;
     });
   };
-  const isShowList = e => {
+  const isShowList = () => {
+    // 固定挂载参照元素为按钮根节点，避免 e.target 在图标/文字子元素间漂移，
+    // 导致 newInstance:false 复用的 tippy 实例永久锚定在首次点击的子元素上。
+    const target = warnTriggerRef.value;
+    if (!target) {
+      return;
+    }
+
+    // 防御性修复：tippy 已隐藏但内部 isShowing 标志位未同步复位时，
+    // show() 里的 `if (this.isShowing) return` 会静默吞掉点击，表现为按钮失效。
+    if (!PopInstanceUtilInstance.isShown() && PopInstanceUtilInstance.isInstanceShowing()) {
+      PopInstanceUtilInstance.setIsShowing(false);
+    }
+
     if (!PopInstanceUtilInstance.isShown()) {
-      PopInstanceUtilInstance.show(e.target);
+      PopInstanceUtilInstance.show(target);
     }
   };
 
