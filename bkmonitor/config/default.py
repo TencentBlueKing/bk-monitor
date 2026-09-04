@@ -1396,7 +1396,7 @@ BK_IAM_V4_CLIENT_APP_SECRET = os.getenv(
     os.getenv("BK_IAM_V4_APP_SECRET", _BK_IAM_COMPAT_APP_SECRET),
 )
 BK_IAM_V4_API_BASE_URL = os.getenv("BK_IAM_V4_API_BASE_URL", "")
-BK_IAM_V4_SYSTEM_ID = os.getenv("BK_IAM_V4_SYSTEM_ID", "bk_monitor")
+BK_IAM_V4_SYSTEM_ID = os.getenv("BK_IAM_V4_SYSTEM_ID", "bk_monitor_iam_v4")
 BK_IAM_V4_SYSTEM_NAME = os.getenv("BK_IAM_V4_SYSTEM_NAME", "蓝鲸监控平台")
 BK_IAM_V4_SYSTEM_DESCRIPTION = os.getenv("BK_IAM_V4_SYSTEM_DESCRIPTION", "蓝鲸监控平台-IAMv4 权限系统")
 # 默认直接回调监控 Web 服务，不依赖 IAM API 网关；特殊网络拓扑仍可显式覆盖。
