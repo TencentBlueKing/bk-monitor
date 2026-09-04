@@ -128,7 +128,6 @@ export default defineComponent({
           isShow={groupsCtrl.settingShow.value}
           orderData={groupsCtrl.orderData.value}
           submitLoading={groupsCtrl.loading.value}
-          onReset={groupsCtrl.handleReset}
           onSave={groupsCtrl.handleSave}
           onUpdate:isShow={(v: boolean) => (groupsCtrl.settingShow.value = v)}
         />

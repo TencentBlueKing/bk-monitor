@@ -46,6 +46,10 @@ export const convertToOrderData = (
   ungroupTitle: string
 ): MetricGroupPanelOrder[] => {
   const groupMap = new Map<string, MetricItemModel[]>();
+  for (const group of groups) {
+    groupMap.set(group.id, []);
+  }
+
   for (const m of metrics) {
     const list = groupMap.get(m.groupId) ?? [];
     list.push(m);
@@ -53,13 +57,11 @@ export const convertToOrderData = (
   }
 
   const orderedIds = [...groups.map(g => g.id), UNGROUP_ID];
-  return orderedIds
-    .filter(id => groupMap.has(id))
-    .map(id => ({
-      id,
-      title: id === UNGROUP_ID ? ungroupTitle : groups.find(g => g.id === id)?.title || '',
-      panels: (groupMap.get(id) ?? []).map(m => ({ id: m.id, title: m.title, hidden: m.hidden })),
-    }));
+  return orderedIds.map(id => ({
+    id,
+    title: id === UNGROUP_ID ? ungroupTitle : groups.find(g => g.id === id)?.title || '',
+    panels: (groupMap.get(id) ?? []).map(m => ({ id: m.id, title: m.title, hidden: m.hidden })),
+  }));
 };
 
 export default defineComponent({
@@ -83,7 +85,6 @@ export default defineComponent({
   emits: {
     'update:isShow': (_v: boolean) => true,
     success: () => true,
-    reset: () => true,
     save: (_value: MetricGroupPanelOrder[]) => true,
   },
   setup(props, { emit }) {
@@ -224,10 +225,6 @@ export default defineComponent({
       emit('save', convertToOrderData(localGroups.value, localMetrics.value, unGroup.value.title));
     };
 
-    const handleReset = () => {
-      emit('reset');
-    };
-
     const renderFooter = () => (
       <div class='group-manage-dialog-footer'>
         <Button
@@ -236,12 +233,6 @@ export default defineComponent({
           onClick={handleSave}
         >
           {t('保存')}
-        </Button>
-        <Button
-          loading={props.submitLoading}
-          onClick={handleReset}
-        >
-          {t('恢复默认')}
         </Button>
         <Button onClick={handleClose}>{t('取消')}</Button>
       </div>
