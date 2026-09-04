@@ -24,14 +24,14 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, isRef, onMounted, ref, type PropType } from 'vue';
+import { computed, defineComponent, isRef, nextTick, onMounted, ref, type PropType } from 'vue';
 import TextHighlight from 'vue-text-highlight';
 
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
 // import { BK_LOG_STORAGE } from '@/store/store.type';
 import BkUserSelector from '@blueking/user-selector';
-import { bkMessage } from 'bk-magic-vue';
+import { bkInfoBox, bkMessage } from 'bk-magic-vue';
 import tippy from 'tippy.js';
 
 import ClusterEventPopover from './cluster-popover';
@@ -137,6 +137,12 @@ export default defineComponent({
   },
   setup(props, { emit }) {
     const { t } = useLocale();
+    const getOwners = (row?: LogPattern | null) => {
+      const owners = row?.owners as any;
+      if (Array.isArray(owners)) return owners as string[];
+      if (owners && Array.isArray(owners.value)) return owners.value as string[];
+      return [] as string[];
+    };
     const store = useStore();
     let activeMarkElement: HTMLElement | null = null;
     const isExternal = window.IS_EXTERNAL === true;
@@ -172,6 +178,7 @@ export default defineComponent({
     const remarkTipsRef = ref<any>(null);
     const tableWraperRef = ref<HTMLElement>();
     const currentRowId = ref(0);
+    const editingOwnerRowId = ref<number | null>(null);
     // const cacheExpandStr = ref<any[]>([]); // 展示pattern按钮数组
 
     const groupState = computed(() => props.groupListState);
@@ -193,40 +200,9 @@ export default defineComponent({
     );
 
     /**
-     * 过滤所有可见行数据
-     * 针对所有的数据
+     * 当前窗口数据由父组件 walkVisibleWindow 产出，这里不再对全量列表 filter。
      */
-    const visibleList = computed(() => props.tableList.filter(d => !d.hidden),
-    );
-
-    /**
-     * 所有可见分组数据
-     * 针对分组的展开收起
-     */
-    const visibleGroupData = computed(() => visibleList.value.filter((d) => {
-      if (showGroupBy.value) {
-        // 如果是分组展示，则需要展示分组行和已经展开的分组行下的数据
-        return d.isGroupRow || groupState.value[d.hashKey]?.isOpen;
-      }
-
-      return !d.isGroupRow;
-    }),
-    );
-
-    /**
-     * 获取当前页的数据
-     */
-    const tablePageData = computed(() => {
-      const lastIndex = Math.min(
-        props.pagination.current * props.pagination.limit,
-        visibleGroupData.value.length,
-      );
-      const lastItem = visibleGroupData.value[lastIndex - 1];
-      const lastItemIndex = visibleList.value.findIndex(
-        item => item === lastItem,
-      );
-      return visibleList.value.slice(0, lastItemIndex + 1);
-    });
+    const tablePageData = computed(() => props.tableList);
 
     // 计算展示列数量
     const columnLength = computed(() => {
@@ -263,6 +239,7 @@ export default defineComponent({
         } else {
           row[key] = value;
         }
+        emit('row-updated');
       }
     };
 
@@ -337,7 +314,7 @@ export default defineComponent({
     const handleChangePrincipal = (val: null | string[], row: LogPattern) => {
       currentRowId.value = row.id;
       // 当创建告警策略开启时，不允许删掉最后一个责任人
-      if (row.strategy_enabled && !val.length) {
+      if (row.strategy_enabled && !val?.length) {
         bkMessage({
           theme: 'error',
           message: t('删除失败，开启告警时，需要至少一个责任人'),
@@ -351,7 +328,7 @@ export default defineComponent({
           },
           data: {
             signature: row.signature,
-            owners: val ?? row.owners.value,
+            owners: val ?? getOwners(row),
             origin_pattern: row.origin_pattern,
             groups: getGroupsValue(row.group),
           },
@@ -368,7 +345,14 @@ export default defineComponent({
         });
     };
 
-    const changeStrategy = (enabled: boolean, row: LogPattern) => {
+    const revertStrategySwitcher = (row: LogPattern, enabled: boolean) => {
+      updateTableRowData(row, 'strategy_enabled', enabled);
+      nextTick(() => {
+        updateTableRowData(row, 'strategy_enabled', !enabled);
+      });
+    };
+
+    const requestChangeStrategy = (enabled: boolean, row: LogPattern) => {
       currentRowId.value = row.id;
       $http
         .request('/logClustering/updatePatternStrategy', {
@@ -393,6 +377,15 @@ export default defineComponent({
             updateTableRowData(row, 'strategy_enabled', enabled);
           }
         });
+    };
+
+    const changeStrategy = (enabled: boolean, row: LogPattern) => {
+      currentRowId.value = row.id;
+      bkInfoBox({
+        title: enabled ? t('确认开启告警策略？') : t('确认关闭告警策略？'),
+        confirmFn: () => requestChangeStrategy(enabled, row),
+        cancelFn: () => revertStrategySwitcher(row, enabled),
+      });
     };
 
     const handleStrategyInfoClick = (row) => {
@@ -571,26 +564,20 @@ export default defineComponent({
             </div>
           </td>
           <td>
-            <bk-button
-              style='padding: 0px'
-              size='small'
-              theme='primary'
-              text
+            <span
+              class='count-link'
               on-click={() => handleMenuBatchClick(row.data)}
             >
               {row.data?.count}
-            </bk-button>
+            </span>
           </td>
           <td>
-            <bk-button
-              style='padding: 0px'
-              size='small'
-              theme='primary'
-              text
+            <span
+              class='count-link'
               on-click={() => handleMenuBatchClick(row.data)}
             >
               {`${row.data?.percentage.toFixed(2)}%`}
-            </bk-button>
+            </span>
           </td>
           {showYOY.value && (
             <td>
@@ -680,38 +667,53 @@ export default defineComponent({
           </td>
           <td style='padding-left: 0px'>
             <div
-              // 组件样式有问题，暂时这样处理
               style={{ padding: isExternal && '5px 0' }}
               class='principal-main'
               v-bk-tooltips={{
                 placement: 'top',
-                content: row.data?.owners?.value?.join(', ') ?? '',
+                content: getOwners(row.data).join(', ') ,
                 delay: 300,
-                disabled: !(row.data?.owners?.value?.length),
+                disabled: !getOwners(row.data).length || editingOwnerRowId.value === row.data?.id,
               }}
             >
               {!isExternal ? (
-                <bk-user-selector
-                  class='principal-input'
-                  api={window.BK_LOGIN_URL}
-                  empty-text={t('无匹配人员')}
-                  placeholder='--'
-                  value={row.data?.owners?.value ?? []}
-                  multiple
-                  on-change={val => handleChangePrincipal(val, row.data)}
-                />
+                editingOwnerRowId.value === row.data?.id ? (
+                  <bk-user-selector
+                    class='principal-input'
+                    api={window.BK_LOGIN_URL}
+                    empty-text={t('无匹配人员')}
+                    placeholder='--'
+                    value={getOwners(row.data)}
+                    multiple
+                    on-change={(val) => {
+                      handleChangePrincipal(val, row.data);
+                      editingOwnerRowId.value = null;
+                    }}
+                  />
+                ) : (
+                  <button
+                    class='principal-display'
+                    type='button'
+                    onClick={() => {
+                      editingOwnerRowId.value = row.data?.id ?? null;
+                    }}
+                  >
+                    {getOwners(row.data).length ? getOwners(row.data).join(', ') : '--'}
+                  </button>
+                )
               ) : (
                 <bk-tag-input
                   style='width: 100%'
                   class='principal-tag-input'
                   clearable={false}
                   placeholder='--'
-                  value={row.data?.owners?.value ?? []}
+                  value={getOwners(row.data)}
                   allow-create
                   has-delete-icon
                   on-blur={() => handleChangePrincipal(null, row.data)}
                   on-change={(value) => {
-                    row.data.owners.value = value;
+                    row.data.owners = value;
+                    emit('row-updated');
                   }}
                 />
               )}
@@ -720,7 +722,7 @@ export default defineComponent({
           {!isExternal && (
             <td>
               <div class='create-strategy-main'>
-                {(row.data?.owners?.value?.length ?? 0) > 0 ? (
+                {getOwners(row.data).length > 0 ? (
                   <div class='is-able'>
                     <bk-switcher
                       theme='primary'
@@ -768,7 +770,7 @@ export default defineComponent({
       }
 
       if (showGroupBy.value) {
-        if (groupState.value[row.hashKey].isOpen ?? false) {
+        if (groupState.value[row.hashKey]?.isOpen ?? false) {
           return renderDataRow(row);
         }
 

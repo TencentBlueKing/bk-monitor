@@ -1,0 +1,161 @@
+$text-color: #313238;
+$text-secondary: #979ba5;
+
+@mixin text-x-ellipsis {
+  overflow-x: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.plugin-metric-detail {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 14px 12px 8px 24px;
+  overflow: hidden;
+
+  .card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 16px;
+    margin-bottom: 8px;
+
+    .icon-mc-close {
+      width: 14px;
+      font-size: 26px;
+      color: #979ba5;
+
+      &:hover {
+        cursor: pointer;
+      }
+    }
+
+    .card-title {
+      margin: 0;
+      font-size: 12px;
+      font-weight: 700;
+      color: $text-color;
+    }
+  }
+
+  .card-body {
+    flex: 1;
+    overflow-y: auto;
+  }
+
+  .info-column {
+    padding-right: 28px;
+
+    .info-item {
+      display: flex;
+      align-items: flex-start;
+      font-size: 12px;
+      line-height: 32px;
+
+      &.is-group-item {
+        .bk-select-name {
+          padding-left: 6px;
+        }
+      }
+
+      .info-label {
+        flex-shrink: 0;
+        min-width: 58px;
+        color: $text-secondary;
+        text-align: end;
+      }
+
+      .info-content {
+        position: relative;
+        width: 100%;
+        height: 34px;
+        max-height: 34px;
+        padding: 5px 6px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        line-height: 22px;
+        color: $text-color;
+        white-space: nowrap;
+
+        &:hover:not(.readonly) {
+          cursor: pointer;
+          background: #eaebf0;
+          border-radius: 2px;
+        }
+
+        .group-list {
+          position: absolute;
+          top: 0;
+          left: 0;
+          display: flex;
+          width: 100%;
+          padding: 0;
+
+          &:has(.is-focus) {
+            z-index: 999;
+            background-color: #fff;
+          }
+
+          .bk-select {
+            width: 100%;
+            border: 1px solid transparent;
+
+            &.is-disabled {
+              background-color: transparent !important;
+            }
+
+            .icon-angle-down {
+              display: none;
+            }
+          }
+
+          &:has(.tippy-active) {
+            .bk-select {
+              border: 1px solid #3a84ff;
+            }
+          }
+        }
+      }
+
+      .info-text {
+        @include text-x-ellipsis;
+      }
+
+      .switcher-btn {
+        margin: 8px;
+      }
+
+      .unit-content {
+        width: 40%;
+
+        &.unit-ext {
+          width: 40%;
+          border: none;
+
+          .bk-select-name {
+            background-color: #f5f7fa;
+
+            &:hover {
+              cursor: pointer;
+              background-color: #eaebf0;
+            }
+          }
+
+          &.is-focus {
+            z-index: 999;
+            border: 1px solid #3a84ff;
+
+            .bk-select-name {
+              background-color: #fff;
+
+              &:hover {
+                background-color: #fff;
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,37 @@
+name: named_outputs
+version: "1.1"
+
+query:
+  data_source: bk_monitor
+  data_type: time_series
+  expression: a / b * 100
+  query_configs:
+  - metric: system.cpu_detail.usage
+    method: avg
+    interval: 60
+    alias: a
+  - metric: system.cpu_detail.usage
+    method: avg
+    interval: 60
+    alias: b
+  query_output_config:
+    response_contract: named_outputs/v1
+    legacy_output_ref: C
+    output_list:
+    - reference_name: A
+      expression: a
+    - reference_name: B
+      expression: b
+    - reference_name: C
+      expression: a / b * 100
+
+detect:
+  algorithm:
+    fatal:
+    - type: Threshold
+      config: ">1"
+  trigger: 1/5/5
+
+notice:
+  user_groups:
+  - ops.yaml

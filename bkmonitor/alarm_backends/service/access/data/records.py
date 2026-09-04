@@ -8,6 +8,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import copy
 import logging
 import time
 from collections import defaultdict
@@ -18,6 +19,7 @@ from django.utils.functional import cached_property
 
 from alarm_backends import constants
 from alarm_backends.service.access import base
+from bkmonitor.data_source.unify_query.constants import REF_VALUES_RESERVED_FIELD
 from bkmonitor.utils.common_utils import count_md5, number_format
 from constants.strategy import (
     SYSTEM_PROC_PORT_DYNAMIC_DIMENSIONS,
@@ -58,7 +60,7 @@ def calculate_record_id(raw_data: dict, item: "Item") -> tuple[str, int]:
     dimensions = {}
     if item.query.dimensions is None:
         for k, value in raw_data.items():
-            if k not in ["_time_", "_result_"] and not k.startswith("bk_task_index_"):
+            if k not in ["_time_", "_result_", REF_VALUES_RESERVED_FIELD] and not k.startswith("bk_task_index_"):
                 dimensions[k] = value
     else:
         for field in item.query.dimensions:
@@ -226,6 +228,14 @@ class DataRecord(base.BaseRecord):
             standard_prop[prop] = clean_value
         self.data.update(standard_prop)
 
+        ref_values = copy.deepcopy(self.raw_data.get(REF_VALUES_RESERVED_FIELD))
+        if isinstance(ref_values, dict):
+            query_output_config = getattr(self._item, "query_output_config", None) or {}
+            legacy_output_ref = query_output_config.get("legacy_output_ref")
+            if legacy_output_ref and isinstance(ref_values.get(legacy_output_ref), dict):
+                ref_values[legacy_output_ref]["value"] = self.data["value"]
+            self.data["ref_values"] = ref_values
+
         # partial 只在异常查询批次出现；按需透传，避免给正常大批量数据增加字段开销。
         if self._item.query.is_partial:
             self.data["is_partial"] = True
@@ -274,7 +284,9 @@ class DataRecord(base.BaseRecord):
         dimensions = {}
         if self._item.query.dimensions is None:
             for key, value in self.raw_data.items():
-                if key not in ["_time_", "_result_"] and not key.startswith("bk_task_index_"):
+                if key not in ["_time_", "_result_", REF_VALUES_RESERVED_FIELD] and not key.startswith(
+                    "bk_task_index_"
+                ):
                     dimensions[key] = value
         else:
             for field in self._item.query.dimensions:

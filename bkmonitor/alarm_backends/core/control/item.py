@@ -72,6 +72,7 @@ class Item(DetectMixin, CheckMixin, DoubleCheckMixin):
         self.query_configs = item_config.get("query_configs", [])
         self.no_data_config = item_config.get("no_data_config", {})
         self.target = item_config.get("target", [[]])
+        self.query_output_config = item_config.get("query_output_config")
 
         self.item_config = item_config
         self.strategy: Strategy = strategy
@@ -101,6 +102,7 @@ class Item(DetectMixin, CheckMixin, DoubleCheckMixin):
             data_sources=self.data_sources,
             expression=self.expression,
             functions=self.functions,
+            query_output_config=self.query_output_config,
         )
 
     def get_detect_result_expire_ttl(self):

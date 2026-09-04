@@ -39,8 +39,8 @@ export default class TraceRetrieval extends tsc<object> {
   }
   get alarmShieldUrl() {
     return process.env.NODE_ENV === 'development'
-      ? `${this.alarmShieldHost}/?bizId=${this.$store.getters.bizId}/#/trace/alarm-shield`
-      : `${location.origin}${window.site_url}trace/?bizId=${this.$store.getters.bizId}/#/trace/alarm-shield`;
+      ? `${this.alarmShieldHost}/?bizId=${this.$store.getters.bizId}#/trace/alarm-shield`
+      : `${location.origin}${window.site_url}trace/?bizId=${this.$store.getters.bizId}#/trace/alarm-shield`;
   }
   get alarmShieldData() {
     return JSON.stringify({

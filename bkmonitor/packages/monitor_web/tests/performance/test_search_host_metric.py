@@ -1,3 +1,4 @@
+import time
 from types import SimpleNamespace
 from unittest.mock import Mock
 
@@ -454,3 +455,121 @@ def test_realtime_agent_query_keeps_failed_nodeman_batch_unknown(mocker):
 
 def test_search_host_metric_response_uses_gzip():
     assert SearchHostMetricViewSet.resource_routes[0].content_encoding == "gzip"
+
+
+def test_search_host_metric_alarm_count_only_constrained_by_end_time(mocker):
+    """未恢复告警是存量状态语义：透传 end_time，但不透传窗口起点 start_time"""
+    mocker.patch("monitor_web.performance.resources.api.cmdb.get_host_by_id", return_value=HOSTS[:1])
+    for section in ("agent_status", "performance_data", "process_status"):
+        mocker.patch.object(SearchHostMetricResource, f"get_{section}")
+    alarm_count = mocker.patch(
+        "monitor_web.performance.resources.resource.cc.get_host_alarm_count",
+        return_value={HOSTS[0].bk_host_id: {}},
+    )
+
+    SearchHostMetricResource().perform_request(
+        {"bk_biz_id": 2, "bk_host_ids": [HOSTS[0].bk_host_id], "start_time": 100, "end_time": 200}
+    )
+
+    assert alarm_count.call_args.kwargs["end_time"] == 200
+    assert "start_time" not in alarm_count.call_args.kwargs
+
+
+def test_get_host_alarm_count_only_limits_begin_time_by_end_time(mocker):
+    """begin_time 只受 end_time 上界约束（文档级过滤），不限制触发起点；end_time 不参与索引选择"""
+    search = mocker.patch("monitor_web.cc.resources.cmdb.AlertDocument.search")
+    search.return_value.filter.return_value = search.return_value
+    search.return_value.source.return_value = search.return_value
+    search.return_value.scan.return_value = []
+
+    resource.cc.get_host_alarm_count(bk_biz_id=2, hosts=HOSTS[:1], end_time=100)
+
+    assert search.call_args.kwargs["days"] == 7
+    assert "end_time" not in search.call_args.kwargs
+    range_calls = [c for c in search.return_value.filter.call_args_list if c.args and c.args[0] == "range"]
+    assert len(range_calls) == 1
+    assert range_calls[0].kwargs == {"begin_time": {"lte": 100}}
+
+
+def test_get_host_alarm_count_default_looks_back_by_days_without_end_time(mocker):
+    """不传 end_time 时保持旧版口径：按 days 回溯索引窗口，不加 begin_time range 过滤"""
+    search = mocker.patch("monitor_web.cc.resources.cmdb.AlertDocument.search")
+    search.return_value.filter.return_value = search.return_value
+    search.return_value.source.return_value = search.return_value
+    search.return_value.scan.return_value = []
+
+    resource.cc.get_host_alarm_count(bk_biz_id=2, hosts=HOSTS[:1])
+
+    assert search.call_args.kwargs["days"] == 7
+    assert "end_time" not in search.call_args.kwargs
+    range_calls = [c for c in search.return_value.filter.call_args_list if c.args and c.args[0] == "range"]
+    assert range_calls == []
+
+
+def test_get_host_alarm_count_old_end_time_keeps_current_index_window(mocker):
+    """历史 end_time 不收窄索引窗口：search 不收 end_time、days 不变，上界保持 now（覆盖当天索引）"""
+    search = mocker.patch("monitor_web.cc.resources.cmdb.AlertDocument.search")
+    search.return_value.filter.return_value = search.return_value
+    search.return_value.source.return_value = search.return_value
+    search.return_value.scan.return_value = []
+
+    old_end_time = time.time() - 30 * 86400
+    resource.cc.get_host_alarm_count(bk_biz_id=2, hosts=HOSTS[:1], end_time=old_end_time)
+
+    assert search.call_args.kwargs["days"] == 7
+    assert "end_time" not in search.call_args.kwargs
+
+
+def _make_alert(ip=None, bk_cloud_id=0, severity=1, dimensions=None, alert_id=None):
+    return SimpleNamespace(
+        event=SimpleNamespace(ip=ip, bk_cloud_id=bk_cloud_id),
+        severity=severity,
+        dimensions=dimensions or [],
+        meta=SimpleNamespace(id=alert_id or f"alert-{ip}-{bk_cloud_id}-{severity}"),
+    )
+
+
+def _mock_alert_search(mocker, alerts):
+    search = mocker.patch("monitor_web.cc.resources.cmdb.AlertDocument.search")
+    search.return_value.filter.return_value = search.return_value
+    search.return_value.source.return_value = search.return_value
+    search.return_value.scan.return_value = alerts
+    return search
+
+
+def test_get_host_alarm_count_multi_ip_host_matches_each_ip(mocker):
+    """多 IP 主机：event.ip 命中任一拆分 IP 即可归属到该主机"""
+    host = SimpleNamespace(bk_host_id=111, bk_cloud_id=0, bk_host_innerip="127.0.0.1,127.0.0.2")
+    _mock_alert_search(mocker, [_make_alert(ip="127.0.0.2", bk_cloud_id=0, severity=2)])
+
+    result = resource.cc.get_host_alarm_count(bk_biz_id=2, hosts=[host])
+
+    assert result == {111: {1: 0, 2: 1, 3: 0}}
+
+
+def test_get_host_alarm_count_invalid_severity_skipped_without_breaking_section(mocker):
+    """severity 缺失/越界的脏数据告警跳过计数，不影响其余告警统计（不炸分区）"""
+    host = SimpleNamespace(bk_host_id=111, bk_cloud_id=0, bk_host_innerip="127.0.0.1")
+    _mock_alert_search(
+        mocker,
+        [
+            _make_alert(ip="127.0.0.1", bk_cloud_id=0, severity=1),
+            _make_alert(ip="127.0.0.1", bk_cloud_id=0, severity=None),
+            _make_alert(ip="127.0.0.1", bk_cloud_id=0, severity=9),
+        ],
+    )
+
+    result = resource.cc.get_host_alarm_count(bk_biz_id=2, hosts=[host])
+
+    assert result == {111: {1: 1, 2: 0, 3: 0}}
+
+
+def test_get_host_alarm_count_dedups_same_alert_during_reindex(mocker):
+    """reindex 过渡期同一告警在新旧索引各存一份：按 alert id 去重，不重复计数"""
+    host = SimpleNamespace(bk_host_id=111, bk_cloud_id=0, bk_host_innerip="127.0.0.1")
+    duplicated_alert = _make_alert(ip="127.0.0.1", bk_cloud_id=0, severity=2, alert_id="alert-dup")
+    _mock_alert_search(mocker, [duplicated_alert, duplicated_alert])
+
+    result = resource.cc.get_host_alarm_count(bk_biz_id=2, hosts=[host])
+
+    assert result == {111: {1: 0, 2: 1, 3: 0}}

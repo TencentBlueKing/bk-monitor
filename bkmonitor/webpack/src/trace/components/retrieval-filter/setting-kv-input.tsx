@@ -88,12 +88,22 @@ export default defineComponent({
       }
     }, 100);
 
+    const handleEnter = () => {
+      emit('enter', {
+        ...props.value,
+        key: props.fieldInfo.field,
+        method: localMethod.value,
+        value: localValue.value?.trim().length ? [localValue.value.trim()] : [],
+      });
+    };
+
     return {
       localMethod,
       methodMap,
       localValue,
       handleMethodChange,
       handleChange,
+      handleEnter,
     };
   },
   render() {
@@ -105,7 +115,7 @@ export default defineComponent({
           clearable={true}
           onBlur={this.handleChange}
           onClear={this.handleChange}
-          onEnter={this.handleChange}
+          onEnter={this.handleEnter}
         >
           {{
             label: () => (

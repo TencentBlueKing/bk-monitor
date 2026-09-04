@@ -20,6 +20,7 @@ the project delivered to anyone in the future.
 """
 
 import re
+from enum import Enum
 
 import markdown
 from django.conf import settings
@@ -309,6 +310,32 @@ V4_RESERVED_FIELD_NAMES = {
 class AsyncStatus:
     RUNNING = "RUNNING"
     DONE = "DONE"
+
+
+class CleanTemplateStatus(ChoicesEnum):
+    DRAFT = "DRAFT"
+    PUBLISHED = "PUBLISHED"
+
+    _choices_labels = (
+        (DRAFT, _("草稿")),
+        (PUBLISHED, _("已发布")),
+    )
+
+
+class CleanTemplateSyncStatus(ChoicesEnum):
+    SUCCESS = "SUCCESS"
+    FAILED = "FAILED"
+
+    _choices_labels = (
+        (SUCCESS, _("同步成功")),
+        (FAILED, _("同步失败")),
+    )
+
+
+class CleanTemplateSyncMessage(Enum):
+    SUCCESS = _("清洗模板同步成功")
+    FAILED = _("清洗模板同步失败，请稍后重试")
+    ASSOCIATION_CHANGED = _("同步前清洗模板关联关系已发生变化，本次同步已跳过")
 
 
 FIELD_TEMPLATE = {

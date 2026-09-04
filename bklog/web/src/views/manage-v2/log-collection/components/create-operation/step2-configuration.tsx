@@ -50,8 +50,9 @@ import BaseInfo from '../business-comp/step2/base-info';
 import type { IFormData, IValueItem, IContainerConfigItem, ISubmitOptions } from '../../type'; // 基础信息组件
 import DeviceMetadata from '../business-comp/step2/device-metadata'; // 设备元数据组件
 import EventFilter from '../business-comp/step2/event-filter'; // 事件过滤器组件
+import type { EventType, IEventFilterItem } from '../business-comp/step2/event-filter';
+import LineRuleConfig from '../business-comp/step2/line-rule-config'; // 段日志配置组件
 import LogFilter from '../business-comp/step2/log-filter'; // 日志过滤器组件
-import MultilineRegDialog from '../business-comp/step2/multiline-reg-dialog'; // 多行正则对话框组件
 import InfoTips from '../common-comp/info-tips'; // 信息提示组件
 import InputAddGroup from '../common-comp/input-add-group'; // 输入框组组件
 import AppendLogTags from '../business-comp/step2/container-collection/append-log-tags'; // 附加日志标签组件
@@ -59,6 +60,7 @@ import ConfigurationItemList from '../business-comp/step2/container-collection/c
 import { HOST_COLLECTION_CONFIG, initContainerConfig } from './defaultConfig'; // 默认配置
 import IndexConfigImportDialog from '../business-comp/step2/index-config-import-dialog';
 import $http from '@/api'; // API请求封装
+import { isCollectionEditRoute } from './route-utils';
 
 import './step2-configuration.scss'; // 样式文件
 
@@ -85,6 +87,27 @@ type TargetSelectionResult = {
   // 目标类型
   type: TargetType;
   nodes: any[];
+};
+
+const WINLOG_FILTER_TYPES: EventType[] = [
+  'winlog_event_id',
+  'winlog_level',
+  'winlog_source',
+  'winlog_content',
+];
+
+const createEmptyEventFilter = (): IEventFilterItem => ({
+  type: 'winlog_event_id',
+  list: [],
+  isCorrect: true,
+});
+
+const normalizeEventFilterList = (value: unknown): string[] => {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter(item => item !== undefined && item !== null)
+    .map(item => String(item))
+    .filter(item => item.trim() !== '');
 };
 
 export default defineComponent({
@@ -120,7 +143,6 @@ export default defineComponent({
     const { bkBizId, goListPage } = useCollectList();
     const { cardRender } = useOperation();
     const baseInfoRef = ref();
-    const showMultilineRegDialog = ref(false);
     const isBlacklist = ref(false);
     const logType = ref('row');
     const showSelectDialog = ref(false);
@@ -149,11 +171,6 @@ export default defineComponent({
       // separator: '|',
       // separator_filters: [{ fieldindex: '', word: '', op: '=', logic_op: 'and' }],
     };
-    /**
-     * 行首正则是否为空
-     */
-    const isSegmentError = ref(false);
-
     /**
      * 日志种类
      */
@@ -190,6 +207,7 @@ export default defineComponent({
      * 选择目标是否为空
      */
     const isTargetNodesEmpty = ref(false);
+    const lineRuleRef = ref(); // 段日志配置ref
     const pathRef = ref(); // 日志路径ref
     const excludeFilesRef = ref(); // 黑名单路径ref
     const logFilterRef = ref(); // 日志过滤器ref
@@ -209,7 +227,14 @@ export default defineComponent({
      */
     const showClusterListKeys = ['container_stdout', 'container_file'];
 
-    const eventSettingList = ref([{ type: 'winlog_event_id', list: [], isCorrect: true }]);
+    const eventSettingList = ref<IEventFilterItem[]>([createEmptyEventFilter()]);
+    const getEventFilterParams = (data: IEventFilterItem[]): Record<string, string[]> =>
+      data.reduce<Record<string, string[]>>((result, item) => {
+        if (!WINLOG_FILTER_TYPES.includes(item.type)) return result;
+        const list = normalizeEventFilterList(item.list);
+        if (list.length > 0) result[item.type] = list;
+        return result;
+      }, {});
     const isClone = computed(() => route.query.type === 'clone');
     // 获取全局数据
     const globalsData = computed(() => store.getters['globals/globalsData']);
@@ -226,9 +251,9 @@ export default defineComponent({
      */
     const isUpdate = computed(
       () =>
-        !isClone.value &&
-        ((route.name === 'collectEdit' && props.isEdit) ||
-          (route.name === 'collectAdd' && !!formData.value?.collector_config_id)),
+        !isClone.value
+        && ((isCollectionEditRoute(route.name) && props.isEdit)
+          || (route.name === 'collectAdd' && !!formData.value?.collector_config_id)),
     );
     /**
      * 是否为采集主机日志
@@ -412,27 +437,22 @@ export default defineComponent({
       formData.value.extra_labels = data;
     };
     /**
-     * 显示行首正则调试弹窗
-     */
-    const handleDebugReg = () => {
-      showMultilineRegDialog.value = true;
-    };
-    /**
-     * 关闭行首正则调试弹窗
-     */
-    const handleCancelMultilineReg = (val: boolean) => {
-      showMultilineRegDialog.value = val;
-    };
-    /**
      * 修改过滤内容
      * @param data
      */
-    const handleFilterChange = data => {
+    const handleFilterChange = (data: IEventFilterItem[] = []) => {
       isConfigChange.value = true;
       eventSettingList.value = data;
-      (data || []).map(item => {
-        formData.value.params[item.type] = item.list;
-      });
+      const params = { ...formData.value.params };
+      WINLOG_FILTER_TYPES.forEach(type => delete params[type]);
+      const eventFilterParams = getEventFilterParams(data);
+      formData.value.params = {
+        ...params,
+        ...eventFilterParams,
+      };
+      if (!eventFilterParams.winlog_content?.length) {
+        delete formData.value.params.winlog_match_op;
+      }
     };
     /**
      * 修改日志种类 - 其他 输入框内容
@@ -472,38 +492,51 @@ export default defineComponent({
     /**
      * 将字符串数组转换为输入框组件的值格式
      * @param items - 字符串数组
-     * @returns 转换后的值数组，如果为空则返回包含空字符串的数组
+     * @param ensureEditableRow - 空数组时是否保留一条可编辑输入
+     * @returns 转换后的输入框值数组
      */
-    const transformStringArrayToInputValue = (items?: string[]): Array<{ value: string }> => {
-      return items?.map(item => ({ value: item })) || [{ value: '' }];
+    const transformStringArrayToInputValue = (
+      items?: string[],
+      ensureEditableRow = false,
+    ): Array<{ value: string }> => {
+      const valueList = items?.map(item => ({ value: item })) || [];
+      return ensureEditableRow && valueList.length === 0 ? [{ value: '' }] : valueList;
     };
 
     /**
      * 处理 Windows 事件日志的配置数据
      * @param params - 参数对象
      */
-    const handleWindowsEventLogConfig = (params: any) => {
-      const { paths, exclude_files, winlog_match_op, winlog_name, ...restParams } = params;
+    const handleWindowsEventLogConfig = (params: IFormData['params'] = {}) => {
+      const normalizedParams = params || {};
+      const { paths, exclude_files, winlog_match_op, winlog_name, ...restParams } = normalizedParams;
 
-      // 构建事件设置列表，排除已处理的字段
-      eventSettingList.value = Object.keys(restParams).map(key => ({
-        type: key,
-        list: restParams[key],
-        isCorrect: true,
-      }));
+      // 仅回填有效的事件过滤条件，空值时保留一个可编辑的占位行
+      const eventSettings = WINLOG_FILTER_TYPES.reduce<IEventFilterItem[]>((list, type) => {
+        const values = normalizeEventFilterList(restParams[type]);
+        if (values.length > 0) {
+          list.push({ type, list: values, isCorrect: true });
+        }
+        return list;
+      }, []);
+      eventSettingList.value = eventSettings.length > 0 ? eventSettings : [createEmptyEventFilter()];
 
+      // 同步清理详情中已存在的空过滤字段，避免后续提交透传旧值
+      const cleanedParams = { ...formData.value.params };
+      WINLOG_FILTER_TYPES.forEach(type => delete cleanedParams[type]);
+      formData.value.params = {
+        ...cleanedParams,
+        ...getEventFilterParams(eventSettingList.value),
+      };
+
+      const logSpecies = Array.isArray(winlog_name) ? winlog_name : [];
       // 过滤出自定义的日志种类（不在预定义列表中的）
-      otherSpeciesList.value = winlog_name.filter(item => LOG_SPECIES_LIST.findIndex(i => i.id === item) === -1);
+      otherSpeciesList.value = logSpecies.filter(item => LOG_SPECIES_LIST.findIndex(i => i.id === item) === -1);
 
       // 从 winlog_name 中筛选出属于预定义列表的项，正确回填 selectLogSpeciesList
-      selectLogSpeciesList.value = winlog_name.filter(item =>
+      selectLogSpeciesList.value = logSpecies.filter(item =>
         LOG_SPECIES_LIST.some(species => species.id === item)
       );
-
-      // 如果没有自定义种类，从选择列表中移除 'Other' 选项
-      if (otherSpeciesList.value.length === 0) {
-        selectLogSpeciesList.value = selectLogSpeciesList.value.filter(item => item !== 'Other');
-      }
     };
 
     /**
@@ -526,7 +559,7 @@ export default defineComponent({
       } = configItem;
 
       // 转换路径和排除文件格式
-      const paths = transformStringArrayToInputValue(itemParams.paths);
+      const paths = transformStringArrayToInputValue(itemParams.paths, true);
       const excludeFiles = transformStringArrayToInputValue(itemParams.exclude_files);
 
       // 构建标签选择器和注解选择器
@@ -616,7 +649,7 @@ export default defineComponent({
       const { collector_config_name, params } = detailData;
 
       // 转换路径和排除文件格式
-      const paths = transformStringArrayToInputValue(params.paths);
+      const paths = transformStringArrayToInputValue(params.paths, true);
       const excludeFiles = transformStringArrayToInputValue(params.exclude_files);
       isBlacklist.value = excludeFiles.length > 0;
       formData.value = {
@@ -731,66 +764,14 @@ export default defineComponent({
      * 行首正则
      */
     const renderSegment = data => (
-      <div class='line-rule'>
-        <div class='label-title text-left'>{t('行首正则')}</div>
-        <div class='rule-reg'>
-          <bk-input
-            class={{
-              'reg-input': true,
-              'is-error': isSegmentError.value,
-            }}
-            value={data.multiline_pattern}
-            on-input={val => {
-              isConfigChange.value = true;
-              data.multiline_pattern = val;
-            }}
-          />
-          <span
-            class='form-link debug'
-            on-Click={handleDebugReg}
-          >
-            {t('调试')}
-          </span>
-        </div>
-        <div class='line-rule-box'>
-          <div class='line-rule-box-item'>
-            <div class='label-title no-require text-left'>{t('最多匹配')}</div>
-            <bk-input
-              value={data.multiline_max_lines}
-              on-input={val => {
-                isConfigChange.value = true;
-                data.multiline_max_lines = val;
-              }}
-            >
-              <div
-                class='group-text'
-                slot='append'
-              >
-                {t('行')}
-              </div>
-            </bk-input>
-          </div>
-          <div class='line-rule-box-right'>
-            <div class='label-title no-require text-left'>{t('最大耗时')}</div>
-            <bk-input
-              class='time-box'
-              value={data.multiline_timeout}
-              on-input={val => {
-                isConfigChange.value = true;
-                data.multiline_timeout = val;
-              }}
-            >
-              <div
-                class='group-text'
-                slot='append'
-              >
-                {t('秒')}
-              </div>
-            </bk-input>
-            <InfoTips tips={t('建议配置 1s, 配置过长时间可能会导致日志积压')} />
-          </div>
-        </div>
-      </div>
+      <LineRuleConfig
+        ref={lineRuleRef}
+        data={data}
+        on-update={val => {
+          isConfigChange.value = true;
+          formData.value.params = val;
+        }}
+      />
     );
     /**
      * 日志过滤
@@ -1256,9 +1237,19 @@ export default defineComponent({
     // 处理winevent场景的请求数据
     const handleWineventlogRequestData = (baseParam, newParams, dataEncoding) => {
       const { paths, exclude_files, winlog_match_op, ...rect } = newParams;
+      WINLOG_FILTER_TYPES.forEach(type => delete rect[type]);
+      const eventFilterParams = getEventFilterParams(eventSettingList.value);
+      const params = {
+        ...rect,
+        ...eventFilterParams,
+      };
+      const matchOp = Array.isArray(winlog_match_op) ? winlog_match_op[0] : winlog_match_op;
+      if (eventFilterParams.winlog_content?.length && matchOp) {
+        params.winlog_match_op = matchOp;
+      }
       return {
         ...baseParam,
-        params: rect,
+        params,
         data_encoding: dataEncoding,
       };
     };
@@ -1470,6 +1461,7 @@ export default defineComponent({
         })
         .then(res => {
           if (!res?.result) {
+            callback?.(false);
             return;
           }
           const newConfig = {
@@ -1524,9 +1516,9 @@ export default defineComponent({
       }
 
       /**
-       * 行首正则是否为空
+       * 段日志配置校验
        */
-      isSegmentError.value = isSectionLog.value && !formData.value.params?.multiline_pattern;
+      const isLineRuleValid = !isSectionLog.value || lineRuleRef.value?.validate?.() === true;
       /**
        * 当为文件采集和标准输出时，配置项校验
        */
@@ -1548,6 +1540,10 @@ export default defineComponent({
       baseInfoRef.value
         .validate()
         .then(() => {
+          if (props.scenarioId !== 'winevent' && !isLineRuleValid) {
+            callback?.(false);
+            return;
+          }
           /**
            * 判断用户是否有修改行为，如果没有则直接跳转到下一步
            */
@@ -1567,8 +1563,10 @@ export default defineComponent({
             setCollection({ action, callback });
             return;
           }
-          if (!isTargetNodesEmpty.value && isErr && isLogFilterErr && !isSegmentError.value && isConfigError && isMetadataValid) {
+          if (!isTargetNodesEmpty.value && isErr && isLogFilterErr && isConfigError && isMetadataValid) {
             setCollection({ action, callback });
+          } else {
+            callback?.(false);
           }
         })
         .catch(() => {
@@ -1607,16 +1605,6 @@ export default defineComponent({
             },
           }}
         />
-        {props.scenarioId !== 'winevent' && (
-          <MultilineRegDialog
-            oldPattern={formData.value.params?.multiline_pattern}
-            showDialog={showMultilineRegDialog.value}
-            on-cancel={handleCancelMultilineReg}
-            on-update={(val: string) => {
-              formData.value.params.multiline_pattern = val;
-            }}
-          />
-        )}
         <div class='classify-btns-fixed'>
           {!isCloneOrUpdate.value && (
             <bk-button

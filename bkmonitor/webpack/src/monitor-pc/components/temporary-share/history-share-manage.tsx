@@ -248,7 +248,7 @@ export default class HistoryShareManage extends tsc<IProps> {
     }).catch(() => []);
     this.urlList = data.map(item => ({
       ...item,
-      link: `${location.origin}${location.pathname}?bizId=${this.$store.getters.bizId}/#/share/${item.token || ''}`,
+      link: `${location.origin}${location.pathname}?bizId=${this.$store.getters.bizId}#/share/${item.token || ''}`,
       accessCount: item.access_info?.total || 0,
       isCheck: false,
       expireTimeStr: item.params_info?.[0]?.expire_period

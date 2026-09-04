@@ -14,35 +14,19 @@ from bkmonitor.data_source.utils import types
 from bkmonitor.data_source.utils.base import sort_fields
 from bkmonitor.data_source.utils.query import BaseQuery
 from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQuerySet
-from bkmonitor.data_source.utils.apm import TraceDatasourceTarget, APMQueryFilterMixin
+from bkmonitor.data_source.utils.apm import APMQueryFilterMixin
 from bkm_space.utils import bk_biz_id_to_space_uid
 from constants.data_source import DataSourceLabel, DataTypeLabel
-from constants.otel_query import FIELD_OPERATIONS, OTEL_SPAN_COMMON_FIELD_ALIAS
+from constants.otel_query import FIELD_OPERATIONS
 
-from rum_web.constants import RUM_FIELD_ALIAS, RumSpanType, RumSpanKind, RumSpanStatusCode, RumDeviceType
+from semconv.rum.trace import SpanSpec
 
 
 class SpanQuery(APMQueryFilterMixin, BaseQuery):
     USING: tuple[str, str] = (DataTypeLabel.LOG, DataSourceLabel.BK_RUM)
     DEFAULT_TIME_FIELD = "end_time"
     DEFAULT_SORT = ["-end_time"]
-    FIELD_ALIAS_MAP_LIST = [OTEL_SPAN_COMMON_FIELD_ALIAS, RUM_FIELD_ALIAS]
     FIELD_OPERATIONS = FIELD_OPERATIONS
-    FIELD_UNITS = {
-        "elapsed_time": "us",
-    }
-    ENUM_FIELD_OPTION_VALUES = {
-        field_name: [{"value": value, "alias": alias} for value, alias in enum_class.choices()]
-        for field_name, enum_class in [
-            ("attributes.span_type", RumSpanType),
-            ("kind", RumSpanKind),
-            ("status.code", RumSpanStatusCode),
-            ("resource.device.type", RumDeviceType),
-        ]
-    }
-
-    def __init__(self, data_sources: list[TraceDatasourceTarget]):
-        self.data_sources = data_sources
 
     @classmethod
     def build_query_q(cls, q: QueryConfigBuilder, filters: list[types.Filter] | None, query_string: str = ""):
@@ -120,9 +104,46 @@ class SpanQuery(APMQueryFilterMixin, BaseQuery):
             self.get_queries(filters, query_string), start_time, end_time, fields, limit
         )
 
-    def query_fields(self, start_time: int, end_time: int) -> dict[str, dict[str, Any]]:
-        return super()._query_fields(
+    def query_graph_config(
+        self,
+        start_time: int,
+        end_time: int,
+        field: str,
+        filters: list[types.Filter],
+        query_string: str,
+    ):
+        return super()._query_graph_config(self.get_queries(filters, query_string), start_time, end_time, field)
+
+    def query_field_aggregated_value(
+        self,
+        start_time: int,
+        end_time: int,
+        field: str,
+        method: str,
+        filters: list[types.Filter],
+        query_string: str,
+    ):
+        return super()._query_field_aggregated_value(
+            self.get_queries(filters, query_string), start_time, end_time, field, method
+        )
+
+    def query_fields(self, start_time: int | None, end_time: int | None) -> dict[str, dict[str, Any]]:
+        """查询字段元数据，并通过 SpanSpec 补充别名、单位和枚举候选值。"""
+        field_map = super()._query_fields(
             [(target.table_id, bk_biz_id_to_space_uid(target.app.bk_biz_id)) for target in self.data_sources],
             start_time,
             end_time,
         )
+        for field_name, field_dict in field_map.items():
+            spec = SpanSpec.from_field(field_name)
+            field_dict["field_alias"] = spec.field_alias or field_name
+            field_dict["is_real"] = True
+            if spec.field_unit is not None:
+                field_dict["field_unit"] = spec.field_unit
+            if spec.field_display_type is not None:
+                field_dict["field_display_type"] = spec.field_display_type
+            if spec.option_values is not None:
+                field_dict["option_values"] = [
+                    {"value": value, "alias": alias} for value, alias in spec.option_values.choices()
+                ]
+        return field_map

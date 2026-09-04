@@ -957,7 +957,10 @@
           (res.data.cluster_config.custom_option.visible_config?.visible_bk_biz ?? []).forEach(val => {
             const target = this.mySpaceList.find(project => project.bk_biz_id === String(val.bk_biz_id));
             if (target) {
-              target.is_use = val.is_use;
+              this.$store.commit('patchMySpaceListItem', {
+                bkBizId: String(val.bk_biz_id),
+                patch: { is_use: val.is_use },
+              });
               const targetObj = {
                 id: String(val.bk_biz_id),
                 name: target.space_full_code_name,

@@ -13,6 +13,7 @@ from . import (  # noqa
     assignment,
     bcs_metadata,
     cache,
+    cache_cost_snapshot,
     cache_routing,
     commands,
     db,
@@ -23,6 +24,7 @@ from . import (  # noqa
     platform_source,
     space_router,
     strategy,
+    unify_query,
 )
 
 __all__ = [
@@ -30,6 +32,7 @@ __all__ = [
     "assignment",
     "bcs_metadata",
     "cache",
+    "cache_cost_snapshot",
     "cache_routing",
     "commands",
     "db",
@@ -40,4 +43,5 @@ __all__ = [
     "platform_source",
     "space_router",
     "strategy",
+    "unify_query",
 ]

@@ -27,5 +27,5 @@
 /** 构造新版主机微应用地址，保留外层路由中的主机 ID 与查询参数。 */
 export const buildHostAppUrl = (baseUrl: string, bkBizId: number | string, routeFullPath: string) => {
   const hostRoute = routeFullPath || '/trace/host';
-  return `${baseUrl}?bizId=${bkBizId}/#${hostRoute}`;
+  return `${baseUrl}?bizId=${bkBizId}#${hostRoute}`;
 };

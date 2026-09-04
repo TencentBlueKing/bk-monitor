@@ -302,6 +302,18 @@ class MappingHandlers:
 
         return fields_list
 
+    def get_mapping_field_names(self) -> set[str]:
+        """
+        获取索引真实 mapping 中的字段名集合，包含 nested 子字段的完整路径
+        与 get_final_fields 不同，这里不做 fields_snapshot 兜底、不追加虚拟字段，只反映物理 mapping，
+        供路由注册判断别名指向的字段是否真实存在
+        """
+        mapping_list: list = self._get_mapping()
+        if not mapping_list:
+            return set()
+        property_dict: dict = self.find_merged_property(mapping_list)
+        return {field["field_name"] for field in self.get_all_index_fields_by_mapping(property_dict)}
+
     def get_all_fields_by_index_id(self, scope=SearchScopeEnum.DEFAULT.value, is_union_search=False):
         """
         get_all_fields_by_index_id

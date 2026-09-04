@@ -162,6 +162,79 @@ def test_dispatch_supports_json_response_and_enables_upstream_streaming(query_st
     assert request_kwargs["headers"]["X-SOURCE-APP-CODE"] == "bk_monitor"
 
 
+@override_settings(BKLOGSEARCH_INNER_HOST="https://bklog.example")
+@pytest.mark.parametrize(
+    ("request_path", "expected_url"),
+    [
+        # 基础路径映射，兼容 BKLOGSEARCH_INNER_HOST 结尾无斜杠的配置。
+        (
+            "/apm_log_forward/bklog/api/v1/search/index_set/291/search/",
+            "https://bklog.example/api/v1/search/index_set/291/search/",
+        ),
+        # 前导 `//` 会被 urljoin 当作协议相对 URL，必须回落到日志平台自身。
+        ("/apm_log_forward/bklog//probehostxyz123/x/", "https://bklog.example/probehostxyz123/x/"),
+        ("/apm_log_forward/bklog////1270001/x/", "https://bklog.example/1270001/x/"),
+        # 接口路径本身含 bklog 时，应按首个前缀切分而不是最后一个。
+        ("/apm_log_forward/bklog/api/v1/bklog/config/", "https://bklog.example/api/v1/bklog/config/"),
+    ],
+)
+def test_build_target_url_never_leaves_bklog_host(request_path: str, expected_url: str) -> None:
+    assert BkLogForwardingView._build_target_url(request_path) == expected_url
+
+
+@override_settings(BKLOGSEARCH_INNER_HOST="https://bklog.example/")
+@pytest.mark.parametrize(
+    "request_path",
+    [
+        # 目录穿越，避免绕出日志平台的接口前缀。
+        "/apm_log_forward/bklog/api/../../admin/",
+        # 未经过代理路由前缀，不应该被转发。
+        "/apm_log_forward/api/v1/search/",
+    ],
+)
+def test_build_target_url_rejects_unsafe_path(request_path: str) -> None:
+    assert BkLogForwardingView._build_target_url(request_path) is None
+
+
+@override_settings(BKLOGSEARCH_INNER_HOST="https://bklog.example/", APP_CODE="bk_monitor")
+def test_dispatch_keeps_host_swap_attempt_on_bklog() -> None:
+    upstream_response: mock.Mock = build_upstream_response(json_data={"result": False}, status_code=404)
+    request = RequestFactory().get("/apm_log_forward/bklog//probehostxyz123/x/")
+
+    with mock.patch("apm_web.log_proxy.views.requests.request", return_value=upstream_response) as request_mock:
+        BkLogForwardingView().dispatch(request)
+
+    assert request_mock.call_args.kwargs["url"] == "https://bklog.example/probehostxyz123/x/"
+
+
+@override_settings(BKLOGSEARCH_INNER_HOST="https://bklog.example/", APP_CODE="bk_monitor")
+def test_dispatch_rejects_path_outside_bklog_api_without_forwarding() -> None:
+    request = RequestFactory().get("/apm_log_forward/bklog/api/../../admin/")
+
+    with mock.patch("apm_web.log_proxy.views.requests.request") as request_mock:
+        response = BkLogForwardingView().dispatch(request)
+
+    assert response.status_code == 500
+    assert json.loads(response.content)["result"] is False
+    request_mock.assert_not_called()
+
+
+def test_desensitize_headers_masks_session_credentials() -> None:
+    headers: dict[str, str] = {
+        "Authorization": "Bearer secret-token",
+        "Cookie": "bk_token=secret",
+        "X-Csrftoken": "secret-csrf",
+        "X-SOURCE-APP-CODE": "bk_monitor",
+    }
+
+    assert BkLogForwardingView._desensitize_headers(headers) == {
+        "Authorization": "******",
+        "Cookie": "******",
+        "X-Csrftoken": "******",
+        "X-SOURCE-APP-CODE": "bk_monitor",
+    }
+
+
 @override_settings(BKLOGSEARCH_INNER_HOST="https://bklog.example/", APP_CODE="bk_monitor")
 def test_dispatch_forwards_ndjson_response_as_stream() -> None:
     upstream_response: mock.Mock = build_upstream_response(content_type="application/x-ndjson; charset=utf-8")

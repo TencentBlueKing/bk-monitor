@@ -23,9 +23,9 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, ref, watch, onMounted, onBeforeUnmount, shallowRef, set } from 'vue';
+import { computed, defineComponent, ref, watch, onMounted, onBeforeUnmount, shallowRef, set, markRaw } from 'vue';
 import useStore from '@/hooks/use-store';
-import { moduleLargeDataCacheService } from '@/storage';
+import { moduleLargeDataCacheService, clusterTableWorkerService } from '@/storage';
 import useLocale from '@/hooks/use-locale';
 import MainHeader from './main-header';
 import $http from '@/api';
@@ -37,27 +37,26 @@ import { type IResponseData } from '@/services/type';
 import useRetrieveEvent from '@/hooks/use-retrieve-event';
 import { RetrieveEvent } from '@/views/retrieve-helper';
 
-import { orderBy, debounce } from 'lodash-es';
+import { debounce } from 'lodash-es';
 import useIntersectionObserver from '@/hooks/use-intersection-observer';
 import ScrollTop from '@/views/retrieve-v2/components/scroll-top';
 import ScrollXBar from '@/views/retrieve-v2/components/scroll-x-bar';
 import useWheel from '@/hooks/use-wheel';
+import {
+  getOwnerList,
+  toPlainOpenMap,
+  type ClusterPipelineInput,
+  type ClusterViewResult,
+  type ITableItem,
+  type WalkVisibleWindowOptions,
+} from './cluster-table-pipeline';
 import './index.scss';
+
+export type { ITableItem } from './cluster-table-pipeline';
 
 export interface TableInfo {
   group: string[];
   dataList: LogPattern[];
-}
-
-export interface ITableItem {
-  groupKey: string;
-  hashKey: string;
-  isGroupRow: boolean;
-  index: number;
-  group?: string[];
-  data?: LogPattern;
-  childCount?: number;
-  hidden?: boolean;
 }
 
 export default defineComponent({
@@ -132,7 +131,98 @@ export default defineComponent({
     const groupListState = ref<GroupListState>({});
     const rawDataScope = ref(''); // 原始接口数据 IndexedDB 分块缓存 scope
     const rawDataCount = ref(0);
+    const clusterRequestException = ref('');
     const { addEvent } = useRetrieveEvent();
+    let rawSnapshot: LogPattern[] = [];
+    let pipelineToken = 0;
+    let clusterRequesting = false;
+    let pendingRefresh = false;
+    let isUnmounted = false;
+
+    const buildPipelineInput = (): ClusterPipelineInput => ({
+      displayType: displayType.value,
+      filterSort: {
+        filter: {
+          owners: [...(filterSortMap.value.filter.owners ?? [])],
+          remark: [...(filterSortMap.value.filter.remark ?? [])],
+        },
+        sort: { ...filterSortMap.value.sort },
+      },
+      groupBy: [...(props.requestData?.group_by ?? [])],
+      raw: rawSnapshot,
+    });
+
+    const getWindowOptions = (): WalkVisibleWindowOptions => ({
+      displayType: displayType.value,
+      groupByLength: props.requestData?.group_by?.length ?? 0,
+      limit: Math.max(pagination.value.current, 1) * pagination.value.limit,
+      openMap: toPlainOpenMap(groupListState.value),
+    });
+
+    const syncGroupStateFromMeta = (openMap: ClusterViewResult['openMap'] = {}) => {
+      const next: GroupListState = {};
+      Object.keys(groupListState.value).forEach((key) => {
+        if (groupListState.value[key]?.isOpen) {
+          next[key] = { isOpen: true };
+        }
+      });
+      Object.keys(openMap).forEach((key) => {
+        if (openMap[key]?.isOpen) {
+          next[key] = { isOpen: true };
+        }
+      });
+      groupListState.value = next;
+    };
+
+    const applyViewResult = (view: ClusterViewResult) => {
+      pagination.value.groupCount = view.groupCount;
+      pagination.value.childCount = view.childCount;
+      pagination.value.visibleCount = view.visibleCount;
+      setPaginationCount();
+      syncGroupStateFromMeta(view.openMap);
+      tableList.value = (view.window ?? []).map(item => markRaw(item));
+    };
+
+    const ensureRawSnapshot = async () => {
+      if (rawSnapshot.length) return rawSnapshot;
+      if (!rawDataScope.value || !rawDataCount.value) return [];
+      rawSnapshot = await moduleLargeDataCacheService.getSlice(rawDataScope.value, 0, rawDataCount.value);
+      return rawSnapshot;
+    };
+
+    const applyWindow = async () => {
+      const { view, viaWorker } = await clusterTableWorkerService.walk(getWindowOptions());
+      if (!viaWorker && !(view.window ?? []).length) {
+        await ensureRawSnapshot();
+        if (rawSnapshot.length) {
+          await runPipeline(false);
+          return;
+        }
+      }
+      tableList.value = (view.window ?? []).map(item => markRaw(item));
+    };
+
+    const runPipeline = async (resetWindow = true) => {
+      pipelineToken += 1;
+      const token = pipelineToken;
+      if (resetWindow) {
+        pagination.value.current = 1;
+      }
+      const input = buildPipelineInput();
+      const { view, viaWorker } = await clusterTableWorkerService.run(input, getWindowOptions());
+      if (token !== pipelineToken) return;
+      if (!viaWorker && !(view.window ?? []).length && !input.raw?.length) {
+        await ensureRawSnapshot();
+        if (rawSnapshot.length && token === pipelineToken) {
+          await runPipeline(resetWindow);
+          return;
+        }
+      }
+      if (viaWorker) {
+        rawSnapshot = [];
+      }
+      applyViewResult(view);
+    };
 
     const retrieveParams = computed(() => store.getters.retrieveParams);
     const showGroupBy = computed(() => props.requestData?.group_by.length > 0 && displayType.value === 'group');
@@ -188,6 +278,7 @@ export default defineComponent({
         (paginationRef.value?.childNodes[0] as HTMLElement)?.style?.setProperty('visibility', 'visible');
         if (pagination.value.current * pagination.value.limit < pagination.value.count) {
           pagination.value.current += 1;
+          void applyWindow();
         }
       }
 
@@ -203,165 +294,10 @@ export default defineComponent({
     };
 
     /**
-     * 快速哈希
-     * @param text
-     * @param length
-     * @returns
-     */
-    function fastHash(text, length = 16) {
-      let h1 = 0xdeadbeef;
-      let h2 = 0x41c6ce57;
-
-      for (let i = 0; i < text.length; i++) {
-        const char = text.charCodeAt(i);
-        h1 = Math.imul(h1 ^ char, 2654435761);
-        h2 = Math.imul(h2 ^ char, 1597334677);
-
-        // 32 位循环移位
-        h1 = (h1 << 13) | (h1 >>> 19);
-        h2 = (h2 << 17) | (h2 >>> 15);
-      }
-
-      // 组合为 53 位整数（JavaScript 安全整数范围）
-      const combined = (h1 & 0x1fffff) * 0x1000000000 + (h2 & 0xfffffff);
-      return combined.toString(36).padStart(length, '0')
-        .slice(-length);
-    }
-
-    /**
-     * 分组模式排序
-     */
-    const sortGroupList = (targetList: ITableItem[], filterFn: (_arg: ITableItem) => boolean) => {
-      const groupList: ITableItem[] = [];
-      const sortObj = Object.entries(filterSortMap.value.sort).find(item => !!item[1]);
-      const groupMap = new Map<string, ITableItem[]>();
-      pagination.value.visibleCount = 0;
-
-      for (const item of targetList) {
-        if (!groupMap.has(item.hashKey)) {
-          groupMap.set(item.hashKey, []);
-        }
-        if (item.isGroupRow) {
-          groupList.push(item);
-        } else {
-          groupMap.get(item.hashKey).push(item);
-        }
-      }
-
-      const resultList: ITableItem[] = [];
-      for (const group of groupList) {
-        resultList.push(group);
-        let childList = groupMap.get(group.hashKey);
-
-        if (sortObj) {
-          const [field, order] = sortObj;
-          const sortField = order === 'none' ? 'index' : `data.${field}`;
-          const orders = (order === 'none' ? 'asc' : order) as 'asc' | 'desc';
-          childList = orderBy(childList, [sortField], orders);
-        }
-
-        let isHiddenGroup = true;
-        for (const c of childList) {
-          c.hidden = !filterFn(c);
-          resultList.push(c);
-
-          if (!c.hidden) {
-            isHiddenGroup = false;
-            pagination.value.visibleCount += 1;
-          }
-        }
-        group.hidden = isHiddenGroup;
-      }
-
-      groupMap.clear();
-      return resultList;
-    };
-
-    /**
-     * 平铺模式排序
-     * @param targetList
-     * @param filterFn
-     */
-    const sortFlattenList = (targetList: ITableItem[], filterFn: (_arg: ITableItem) => boolean) => {
-      const copyList = [];
-      let childList = [];
-      pagination.value.visibleCount = 0;
-
-      const sortObj = Object.entries(filterSortMap.value.sort).find(item => !!item[1]);
-
-      for (let i = 0; i < targetList.length; i++) {
-        const item = targetList[i];
-        if (item.isGroupRow) {
-          copyList.push(item);
-        } else {
-          childList.push(item);
-        }
-      }
-
-      // 未设置排序或取消排序时，默认按数量降序排列
-      if (sortObj) {
-        const [field, order] = sortObj;
-        const sortField = order === 'none' ? 'data.count' : `data.${field}`;
-        const orders = (order === 'none' ? 'desc' : order) as 'asc' | 'desc';
-
-        childList = orderBy(childList, [sortField], orders);
-      } else {
-        childList = orderBy(childList, ['data.count'], 'desc');
-      }
-
-      for (const c of childList) {
-        c.hidden = !filterFn(c);
-        copyList.push(c);
-
-        if (!c.hidden) {
-          pagination.value.visibleCount += 1;
-        }
-      }
-
-      return copyList;
-    };
-
-    /**
      * 排序 | 过滤时更新列表数据
-     * @param list
      */
-    const updateTableList = (list?: ITableItem[]) => {
-      const targetList = list ?? tableList.value;
-      const owners = filterSortMap.value.filter.owners;
-      const remark = filterSortMap.value.filter.remark;
-      const isRemarked = remark[0] === 'remarked';
-      const ownersMap = owners.reduce<Record<string, boolean>>((map, item) => Object.assign(map, { [item]: true }), {});
-
-      const filterOwners = owners.length > 0;
-      const filterRemark = remark.length > 0;
-      const noOwner = owners.length === 1 && owners[0] === 'no_owner';
-
-      /**
-       * 检索当前行是否满足过滤条件
-       * @param item
-       * @returns
-       */
-      const filterFn = (item: ITableItem) => {
-        let result = true;
-        if (filterOwners) {
-          result = noOwner
-            ? (item.data?.owners?.value.length ?? 0) > 0
-            : (item.data?.owners.value ?? []).some(item => !!ownersMap[item]);
-        }
-
-        if (filterRemark && result) {
-          result = isRemarked ? (item.data?.remark ?? []).length > 0 : !item.data?.remark.length;
-        }
-
-        return result;
-      };
-
-      if (displayType.value === 'group' && props.requestData.group_by?.length > 0) {
-        tableList.value = sortGroupList(targetList, filterFn);
-        return;
-      }
-
-      tableList.value = sortFlattenList(targetList, filterFn);
+    const updateTableList = () => {
+      void runPipeline(true);
     };
 
     /**
@@ -403,9 +339,12 @@ export default defineComponent({
         host_scopes,
         interval,
         timezone,
+        scene_filter_values,
+        table_id_conditions,
+        space_uid,
       } = retrieveParams.value;
 
-      return {
+      const data: Record<string, any> = {
         bk_biz_id: store.state.bkBizId,
         addition: getClusterSearchAddition(),
         size,
@@ -419,6 +358,13 @@ export default defineComponent({
         ...props.requestData,
         ...overrides,
       };
+
+      // 场景化检索模式：传递场景过滤参数，聚类结果才能随场景条件刷新
+      if (store.getters.isSceneMode) {
+        Object.assign(data, { scene_filter_values, table_id_conditions, space_uid });
+      }
+
+      return data;
     };
 
     const getPatternOriginLog = async (row: LogPattern) => {
@@ -455,14 +401,25 @@ export default defineComponent({
     };
 
     const refreshTable = () => {
-      // loading中，或者没有开启数据指纹功能，或当前页面初始化或者切换索引集时不允许起请求
-      if (tableLoading.value || !props.clusterSwitch || !props.isClusterActive) {
+      // 没有开启数据指纹功能，或当前页面初始化 / 切换索引集时不允许起请求。
+      if (isUnmounted || !props.clusterSwitch || !props.isClusterActive) {
+        pendingRefresh = false;
         return;
       }
+      if (clusterRequesting) {
+        pendingRefresh = true;
+        return;
+      }
+      clusterRequesting = true;
+      pendingRefresh = false;
+      clusterRequestException.value = '';
       tableList.value = [];
       tableLoading.value = true;
       pagination.value.current = 1;
       pagination.value.count = 0;
+      pagination.value.groupCount = 0;
+      pagination.value.childCount = 0;
+      pagination.value.visibleCount = 0;
       (
         $http.request(
           '/logClustering/clusterSearch',
@@ -475,9 +432,21 @@ export default defineComponent({
           { cancelWhenRouteChange: false },
         ) as Promise<IResponseData<LogPattern[]>>
       ) // 由于回填指纹的数据导致路由变化，故路由变化时不取消请求
-        .then((res) => {
+        .then(async (res) => {
+          if (!Array.isArray(res.data)) {
+            clusterRequestException.value = t('聚类结果数据格式异常，请重新发起查询');
+            rawSnapshot = [];
+            rawDataCount.value = 0;
+            return;
+          }
           // 原始接口数据不再 structuredClone 到响应式内存，分块镜像到 IndexedDB，下载时按需读取。
-          const responseList = Array.isArray(res.data) ? res.data : [];
+          const responseList = res.data.map((item) => {
+            const nextItem = {
+              ...item,
+              owners: getOwnerList(item.owners),
+            };
+            return markRaw(nextItem);
+          });
           const nextScope = moduleLargeDataCacheService.createScope('log-clustering', {
             indexId: props.indexId,
             requestData: props.requestData,
@@ -485,88 +454,27 @@ export default defineComponent({
           const prevScope = rawDataScope.value;
           rawDataScope.value = nextScope;
           rawDataCount.value = responseList.length;
-          moduleLargeDataCacheService.replaceList(nextScope, responseList, 50).catch(error => {
+          moduleLargeDataCacheService.replaceList(nextScope, responseList, 50).catch((error) => {
             console.warn('[cluster-cache] persist raw data failed', error);
           });
           if (prevScope) {
             moduleLargeDataCacheService.clear(prevScope).catch(() => {});
           }
-          let listMap = new Map<string, LogPattern[]>();
-          let groupKeys = [];
-
-          responseList.forEach((item) => {
-            const groupList = item.group?.map((g, i) => `${props.requestData?.group_by[i] ?? '#'}=${g}`) ?? ['#'];
-
-            const groupKey = groupList.length ? groupList.join(' | ') : '#';
-            if (!listMap.has(groupKey)) {
-              listMap.set(groupKey, []);
-              groupKeys.push(groupKey);
-            }
-
-            listMap.get(groupKey).push(item);
-          });
-
-          let index = 0;
-          const groupState: GroupListState = {};
-          const tempList: ITableItem[] = [];
-          let hasOpenedGroup = false;
-
-          groupKeys.forEach((key) => {
-            const children = listMap.get(key) ?? [];
-            const hashKey = fastHash(key);
-            index += 1;
-            tempList.push({
-              groupKey: key,
-              isGroupRow: true,
-              group: children[0].group,
-              childCount: children.length,
-              hashKey,
-              index,
-            });
-
-            const isOpen = groupListState.value[hashKey]?.isOpen ?? false;
-            Object.assign(groupState, {
-              [hashKey]: {
-                isOpen,
-              },
-            });
-
-            if (isOpen) {
-              hasOpenedGroup = true;
-            }
-
-            children.forEach((item) => {
-              index += 1;
-              tempList.push({
-                groupKey: key,
-                hashKey,
-                isGroupRow: false,
-                data: Object.assign(item, {
-                  id: index,
-                  owners: ref(item.owners),
-                }),
-                index,
-              });
-            });
-          });
-
-          updateTableList(tempList);
-
-          if (!hasOpenedGroup && tempList.length > 0) {
-            groupState[tempList[0].hashKey]!.isOpen = true;
-          }
-
-          groupListState.value = groupState;
-          pagination.value.groupCount = groupKeys.length;
-          pagination.value.childCount = responseList.length;
-          setPaginationCount();
+          rawSnapshot = responseList;
+          await runPipeline(true);
           setTimeout(computedScrollXWidth);
-          listMap.clear();
-          listMap = null;
-          groupKeys = null;
+        })
+        .catch(() => {
+          clusterRequestException.value = t('聚类结果获取异常，请重新发起查询');
+          rawSnapshot = [];
+          rawDataCount.value = 0;
         })
         .finally(() => {
+          clusterRequesting = false;
           tableLoading.value = false;
+          if (!isUnmounted && pendingRefresh && props.clusterSwitch && props.isClusterActive) {
+            refreshTable();
+          }
         });
     };
 
@@ -678,24 +586,35 @@ export default defineComponent({
      * @param row
      */
     const handleGroupStateChange = (row: ITableItem) => {
-      if (groupListState.value[row.hashKey] === undefined) {
-        set(groupListState.value, row.hashKey, {
-          isOpen: false,
-        });
+      const isOpen = !groupListState.value[row.hashKey]?.isOpen;
+      if (isOpen) {
+        set(groupListState.value, row.hashKey, { isOpen: true });
+      } else {
+        const next = { ...groupListState.value };
+        delete next[row.hashKey];
+        groupListState.value = next;
       }
+      void applyWindow();
+    };
 
-      groupListState.value[row.hashKey].isOpen = !groupListState.value[row.hashKey].isOpen;
+    const handleRowUpdated = () => {
+      tableList.value = tableList.value.slice();
     };
 
     onMounted(() => {
+      isUnmounted = false;
       refreshTable();
     });
 
     onBeforeUnmount(() => {
+      isUnmounted = true;
+      pendingRefresh = false;
       if (rawDataScope.value) {
         moduleLargeDataCacheService.clear(rawDataScope.value).catch(() => {});
       }
+      void clusterTableWorkerService.clear();
       tableList.value = [];
+      rawSnapshot = [];
       groupListState.value = {};
       rawDataCount.value = 0;
     });
@@ -724,7 +643,10 @@ export default defineComponent({
         text: t('暂无数据'),
       };
 
-      if (retrieveParams.value.addition.length > 0 || owners.length > 0 || remark.length > 0) {
+      if (clusterRequestException.value) {
+        option.type = '500';
+        option.text = clusterRequestException.value;
+      } else if (retrieveParams.value.addition.length > 0 || owners.length > 0 || remark.length > 0) {
         option.type = 'search-empty';
         option.text = t('搜索结果为空');
       }
@@ -793,6 +715,7 @@ export default defineComponent({
                 getPatternOriginLog={getPatternOriginLog}
                 on-open-cluster-config={() => emit('open-cluster-config')}
                 on-group-state-change={handleGroupStateChange}
+                on-row-updated={handleRowUpdated}
               />,
             ]
           ) : (

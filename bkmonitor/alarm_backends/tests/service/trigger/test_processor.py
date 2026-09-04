@@ -133,15 +133,15 @@ class TestProcessor(TestCase):
 
     def test_pull(self):
         def _fake_redis_delay(*args, **kwargs):
-            ANOMALY_SIGNAL_KEY.client.rpush(ANOMALY_SIGNAL_KEY.get_key(), "1.1")
+            ANOMALY_SIGNAL_KEY.client.lpush(ANOMALY_SIGNAL_KEY.get_key(), "1.1")
 
         anomaly_list_key = ANOMALY_LIST_KEY.get_key(strategy_id=1, item_id=1)
         for i in range(10):
             ANOMALY_LIST_KEY.client.lpush(anomaly_list_key, json.dumps(POINT))
-        TriggerProcessor.MAX_PROCESS_COUNT = 6
-        processor = TriggerProcessor(1, 1)
+        with mock.patch.object(TriggerProcessor, "MAX_PROCESS_COUNT", 6):
+            processor = TriggerProcessor(1, 1)
 
-        # 除了 pull 分片拉取逻辑，trigger 信号一般先进先出，此处检测分片拉取将信号直接插入到右侧
+        # 分片续处理信号回到队尾，避免热点策略抢占已经排队的其他策略。
         ANOMALY_SIGNAL_KEY.client.lpush(ANOMALY_SIGNAL_KEY.get_key(), "1.2")
 
         with mock.patch(
@@ -152,7 +152,7 @@ class TestProcessor(TestCase):
 
         self.assertEqual(len(processor.anomaly_points), 6)
         self.assertEqual(ANOMALY_LIST_KEY.client.llen(anomaly_list_key), 4)
-        self.assertEqual(ANOMALY_SIGNAL_KEY.client.lindex(ANOMALY_SIGNAL_KEY.get_key(), -1), "1.1")
+        self.assertEqual(ANOMALY_SIGNAL_KEY.client.lindex(ANOMALY_SIGNAL_KEY.get_key(), -1), "1.2")
 
         with mock.patch(
             "alarm_backends.service.trigger.processor.ANOMALY_SIGNAL_KEY.client.delay", side_effect=_fake_redis_delay
@@ -163,7 +163,6 @@ class TestProcessor(TestCase):
         self.assertEqual(len(processor.anomaly_points), 4)
         self.assertEqual(ANOMALY_LIST_KEY.client.llen(anomaly_list_key), 0)
 
-        TriggerProcessor.MAX_PROCESS_COUNT = 0
         ANOMALY_LIST_KEY.client.delete(anomaly_list_key)
 
     def test_process_point(self):

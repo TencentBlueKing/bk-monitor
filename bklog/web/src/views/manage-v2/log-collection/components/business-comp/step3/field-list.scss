@@ -5,6 +5,7 @@
     font-size: 12px;
     color: #4d4f56;
     display: flex;
+    align-items: center;
 
     .tab-list {
       background: #f0f1f5;
@@ -25,11 +26,36 @@
         color: #3a84ff;
       }
     }
+
+    .template-bind-tips {
+      display: inline-flex;
+      align-items: center;
+      margin-left: 16px;
+
+      .info-tips-box {
+        margin-top: 0;
+      }
+
+      .template-unbind-link {
+        margin-left: 4px;
+        color: #3a84ff;
+        cursor: pointer;
+      }
+    }
   }
 
   .add-btn {
     font-size: 20px !important;
     top: -3px !important;
+  }
+
+  .example-box .form-link.is-disabled[aria-disabled='true'] {
+    color: #c4c6cc;
+    cursor: not-allowed;
+
+    .link-icon {
+      color: #c4c6cc;
+    }
   }
 
   .fields-table-box {
@@ -232,15 +258,15 @@
     .fields-analyzed-column {
       .bk-form-input {
         border: none;
-        height: 42px;
-        line-height: 42px;
+        height: 48px;
+        line-height: 48px;
       }
 
       .bk-select {
         background: #fff;
         border: none;
-        height: 42px;
-        line-height: 42px;
+        height: 48px;
+        line-height: 48px;
 
         .bk-select-angle {
           top: 11px;
@@ -305,6 +331,11 @@
       color: #3a84ff;
     }
 
+    .source-template {
+      color: #e38b02;
+      background: #fdeed8;
+    }
+
     .value-box {
       display: inline-block;
       width: 100%;
@@ -356,6 +387,26 @@
       }
     }
 
+    .word-breaker-display {
+      display: block;
+      width: 100%;
+      height: 100%;
+      min-height: 32px;
+      font-size: 11px;
+      line-height: 48px;
+
+      .analyzed-box {
+        padding: 6px 0;
+        line-height: 18px;
+      }
+    }
+
+    .word-breaker.is-template-disabled {
+      color: #c4c6cc;
+      cursor: not-allowed;
+      background: #fafbfd;
+    }
+
     .bg-gray {
       background: #FAFBFD;
       line-height: 42px;
@@ -390,6 +441,11 @@
       .del-icon {
         color: #ea3636;
         // margin-left: 12px;
+      }
+
+      .is-disabled {
+        color: #c4c6cc;
+        cursor: not-allowed;
       }
     }
   }

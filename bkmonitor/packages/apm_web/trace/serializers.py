@@ -12,8 +12,8 @@ from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 
 from apm_web.constants import QueryMode
-from apm_web.trace.constants import EnabledStatisticsDimension
 from constants.apm import OperatorGroupRelation
+from constants.otel_query import EnabledStatisticsDimension
 
 
 class FilterSerializer(serializers.Serializer):

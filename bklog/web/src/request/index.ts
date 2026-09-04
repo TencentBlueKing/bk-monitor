@@ -88,8 +88,8 @@ const buildRequestConfig = (
     headers[xsrfHeaderName] = csrfToken;
   }
 
-  // 外部版后端需要读取header里的 spaceUid（对应 axios 拦截器）
-  if (window.IS_EXTERNAL && JSON.parse(window.IS_EXTERNAL as string) && store.state.spaceUid) {
+  // 平台级索引集的所有检索子接口都需要请求空间，统一通过 header 传递
+  if (store.state.spaceUid) {
     headers['X-Bk-Space-Uid'] = store.state.spaceUid;
   }
 

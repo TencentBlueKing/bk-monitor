@@ -40,13 +40,15 @@
     "analyze:fta": "npm run clean && bkmonitor-cli build -f -a",
     "replace": "cross-env execMode=move node ./webpack/exec-shell.js",
     "test:alarm-center-async-relevance": "node --test ./tests/alarm-center-async-relevance.test.cjs",
-    "test:strategy-text-display": "node --test ./tests/strategy-text-display.test.cjs",
+    "test:strategy-text-display": "node --test ./tests/strategy-text-display.test.cjs ./tests/strategy-label-event-text-display.test.cjs",
+    "test:event-table-text-display": "node --test ./tests/event-table-text-display.test.cjs",
     "test:intelligent-detect-alert-level": "node --test ./tests/intelligent-detect-alert-level.test.cjs",
     "test:new-series-alert-mode": "node --test ./tests/new-series-alert-mode.test.cjs",
     "test:k8s-sidecar-limit": "node --test ./tests/k8s-sidecar-limit-promql.test.cjs",
     "test:host-process-metrics": "node --test ./tests/host-process-metrics.test.cjs",
     "test:host-direct-route": "node --test ./tests/host-direct-route.test.cjs",
     "test:host-share-readonly": "node --test ./tests/host-share-readonly.test.cjs",
+    "test:redis-management": "node --test ./tests/redis-management-route.test.cjs",
     "iconfont": "node ./webpack/update-iconfont.js"
   },
   "simple-git-hooks": {

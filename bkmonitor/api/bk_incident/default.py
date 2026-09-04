@@ -14,6 +14,7 @@ from django.conf import settings
 
 from rest_framework import serializers
 
+from bkm_space.scope import bk_biz_id_to_scope_id
 from core.drf_resource.contrib.api import APIResource
 
 
@@ -28,17 +29,35 @@ class IncidentBaseResource(APIResource, metaclass=abc.ABCMeta):
 
     @staticmethod
     def is_standard_scope_id(value):
-        return isinstance(value, str) and value.startswith(("bkcc_", "bkci_", "bksaas_"))
+        return isinstance(value, str) and value.startswith(("bkcc_", "bcs_", "bkci_", "bksaas_"))
 
-    def convert_bk_biz_id_list_to_scope_id_list(self, params, bk_biz_id_list):
-        return [
-            bk_biz_id
-            if self.is_standard_scope_id(bk_biz_id)
-            else params.get("scope_type", "bkcc") + "_" + str(bk_biz_id)
-            for bk_biz_id in bk_biz_id_list
-        ]
+    @classmethod
+    def convert_bk_biz_id_to_scope_id(cls, params, bk_biz_id, scope_id_cache=None):
+        """将监控 bk_biz_id 转成 BKFara 标准 scope_id。
 
-    def convert_bk_biz_id_to_scope_value(self, params):
+        每个 ID 按监控协议独立判断，不能复用请求里已被第一个空间改写的 scope_type：
+        正数是 BKCC；其它负数按空间自增 ID 反查。-1/-2 查询哨兵必须由调用方先展开。
+        """
+        if cls.is_standard_scope_id(bk_biz_id):
+            return bk_biz_id
+
+        # params 仅保持调用签名兼容；转换不能读取可能已被首个空间改写的请求级 scope_type。
+        _ = params
+
+        cache_key = str(bk_biz_id)
+        if scope_id_cache is not None and cache_key in scope_id_cache:
+            return scope_id_cache[cache_key]
+
+        scope_id = bk_biz_id_to_scope_id(bk_biz_id)
+
+        if scope_id_cache is not None:
+            scope_id_cache[cache_key] = scope_id
+        return scope_id
+
+    def convert_bk_biz_id_list_to_scope_id_list(self, params, bk_biz_id_list, scope_id_cache=None):
+        return [self.convert_bk_biz_id_to_scope_id(params, bk_biz_id, scope_id_cache) for bk_biz_id in bk_biz_id_list]
+
+    def convert_bk_biz_id_to_scope_value(self, params, scope_id_cache=None):
         """
         将 bk_biz_id 转换为 scope_value
 
@@ -52,37 +71,47 @@ class IncidentBaseResource(APIResource, metaclass=abc.ABCMeta):
 
         # 将 bk_biz_id 转换为 scope_value
         if "bk_biz_id" in params and "scope_value" not in params:
-            params["scope_value"] = str(params.pop("bk_biz_id"))
+            # QueryDict.pop() 返回值列表；先按标量读取，避免单业务 GET 被转换成无效 scope。
+            bk_biz_id = params["bk_biz_id"]
+            params.pop("bk_biz_id")
+            scope_id = self.convert_bk_biz_id_to_scope_id(params, bk_biz_id, scope_id_cache)
+            params["scope_type"], params["scope_value"] = scope_id.split("_", 1)
         elif "bk_biz_id" in params and "scope_value" in params:
             params.pop("bk_biz_id")
 
-        # 如果没有指定 scope_type，默认设置为 bkcc
-        # TODO 后续支持BKCI & BKSAAS
+        # 显式传入 scope_value 但未指定类型时，保持原有的 bkcc 默认值。
         if "scope_value" in params and "scope_type" not in params:
             params["scope_type"] = "bkcc"
 
         return params
 
-    def convert_scope_id_list(self, params):
+    def convert_scope_id_list(self, params, scope_id_cache=None):
         bk_biz_id_list = params.pop("bk_biz_id_list", [])
 
         if bk_biz_id_list:
-            params["scope_id_list"] = self.convert_bk_biz_id_list_to_scope_id_list(params, bk_biz_id_list)
+            params["scope_id_list"] = self.convert_bk_biz_id_list_to_scope_id_list(
+                params, bk_biz_id_list, scope_id_cache
+            )
 
-        bk_biz_id_config = params.pop("bk_biz_id_config", {})
+        # list_configs 的 IncidentConfigSearchSerializer 没有 scope_id_config；
+        # 只有 create_list_config 才需要，未传入时不要补空字典，避免多余字段干扰校验。
+        bk_biz_id_config = params.pop("bk_biz_id_config", None)
 
         if bk_biz_id_config:
             if bk_biz_id_config.get("scope_id_list_open", []):
                 bk_biz_id_config["scope_id_list_open"] = self.convert_bk_biz_id_list_to_scope_id_list(
-                    params, bk_biz_id_config.get("scope_id_list_open", [])
+                    params,
+                    bk_biz_id_config.get("scope_id_list_open", []),
+                    scope_id_cache,
                 )
 
             if bk_biz_id_config.get("scope_id_list_close", []):
                 bk_biz_id_config["scope_id_list_close"] = self.convert_bk_biz_id_list_to_scope_id_list(
-                    params, bk_biz_id_config.get("scope_id_list_close", [])
+                    params,
+                    bk_biz_id_config.get("scope_id_list_close", []),
+                    scope_id_cache,
                 )
-
-        params["scope_id_config"] = bk_biz_id_config
+            params["scope_id_config"] = bk_biz_id_config
 
         return params
 
@@ -90,10 +119,11 @@ class IncidentBaseResource(APIResource, metaclass=abc.ABCMeta):
         """
         重写请求执行方法，在发送请求前转换参数
         """
+        scope_id_cache = {}
         # 转换 bk_biz_id 为 scope_value
-        validated_request_data = self.convert_bk_biz_id_to_scope_value(validated_request_data)
+        validated_request_data = self.convert_bk_biz_id_to_scope_value(validated_request_data, scope_id_cache)
         # 转换 bk_biz_id_list 为 scope_id_list
-        validated_request_data = self.convert_scope_id_list(validated_request_data)
+        validated_request_data = self.convert_scope_id_list(validated_request_data, scope_id_cache)
         return super().perform_request(validated_request_data)
 
 
@@ -269,6 +299,9 @@ class GetConfigResource(IncidentBaseResource):
         scope_value = serializers.CharField(label="空间ID", required=False)
         bk_biz_id = serializers.IntegerField(label="业务ID", required=False)
         bk_biz_id_list = serializers.ListField(label="业务ID列表", required=False)
+        scope_id_list = serializers.ListField(child=serializers.CharField(), label="作用域ID列表", required=False)
+        page = serializers.IntegerField(label="页码", required=False, default=1)
+        page_size = serializers.IntegerField(label="每页大小", required=False, default=1000)
 
 
 class CreateListConfigResource(IncidentBaseResource):

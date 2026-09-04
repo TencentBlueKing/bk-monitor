@@ -152,15 +152,6 @@ class QueryEndpointResource(ApmAPIGWResource):
     method = "POST"
 
 
-class QueryFieldsResource(ApmAPIGWResource):
-    """
-    查询应用入口接口
-    """
-
-    action = "/app/apm/query_apm_fields/"
-    method = "GET"
-
-
 class UpdateMetricFieldsResource(ApmAPIGWResource):
     """
     查询应用入口接口
@@ -285,15 +276,6 @@ class QueryTraceByHostInstance(ApmAPIGWResource):
     """
 
     action = "/app/apm/query_trace_by_host_instance/"
-    method = "POST"
-
-
-class QueryEsMapping(ApmAPIGWResource):
-    """
-    获取es mapping信息
-    """
-
-    action = "/app/apm/query_apm_es_mapping/"
     method = "POST"
 
 

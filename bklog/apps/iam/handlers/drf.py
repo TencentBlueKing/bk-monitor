@@ -31,11 +31,13 @@ from collections.abc import Callable
 from django.conf import settings  # noqa
 from iam import Resource  # noqa
 from rest_framework import permissions  # noqa
+from rest_framework.exceptions import PermissionDenied
 
 from ..exceptions import NotHaveInstanceIdError  # noqa
 from . import Permission  # noqa
 from .actions import ActionEnum, ActionMeta  # noqa
 from .resources import ResourceEnum, ResourceMeta  # noqa
+from apps.log_search.utils import get_search_request_scope
 
 
 class IAMPermission(permissions.BasePermission):
@@ -134,8 +136,7 @@ class InstanceActionPermission(IAMPermission):
         if settings.IGNORE_IAM_PERMISSION:
             return True
         instance_id = view.kwargs[self.get_look_url_kwarg(view)]
-        resource = self.resource_meta.create_instance(instance_id)
-        self.resources = [resource]
+        self.resources = [self.resource_meta.create_instance(instance_id)]
         return super().has_permission(request, view)
 
     def get_look_url_kwarg(self, view):
@@ -143,11 +144,82 @@ class InstanceActionPermission(IAMPermission):
         lookup_url_kwarg = view.lookup_url_kwarg or view.lookup_field
 
         assert lookup_url_kwarg in view.kwargs, (
-            "Expected view %s to be called with a URL keyword argument "
-            'named "%s". Fix your URL conf, or set the `.lookup_field` '
-            "attribute on the view correctly." % (self.__class__.__name__, lookup_url_kwarg)
+            f"Expected view {self.__class__.__name__} to be called with a URL keyword argument "
+            f'named "{lookup_url_kwarg}". Fix your URL conf, or set the `.lookup_field` '
+            "attribute on the view correctly."
         )
         return lookup_url_kwarg
+
+
+class PlatformAwareIndexSearchPermission(InstanceActionPermission):
+    """
+    平台级索引集检索鉴权：跨空间入口用请求方业务拼 IAM path，沿用 SEARCH_LOG，不新增动作。
+    """
+
+    def __init__(self, *args, iam_instance_id_key=None, **kwargs):
+        self.iam_instance_id_key = iam_instance_id_key
+        super().__init__(*args, **kwargs)
+
+    def get_instance_id(self, request, view):
+        if not self.iam_instance_id_key:
+            return view.kwargs[self.get_look_url_kwarg(view)]
+        data = request.query_params if request.method == "GET" else request.data
+        instance_id = data.get(self.iam_instance_id_key) or view.kwargs.get(self.iam_instance_id_key)
+        if instance_id is None:
+            raise NotHaveInstanceIdError
+        return instance_id
+
+    def has_permission(self, request, view):
+        if settings.IGNORE_IAM_PERMISSION:
+            return True
+        instance_id = self.get_instance_id(request, view)
+        from apps.log_search.models import LogIndexSet
+
+        # 非 None 表示本次是跨空间检索，需要在标准鉴权之外再要求该业务下的不限实例授权
+        unlimited_required_biz_id = None
+        try:
+            index_set = LogIndexSet.objects.get(pk=instance_id)
+        except LogIndexSet.DoesNotExist:
+            resource = self.resource_meta.create_instance(instance_id)
+        else:
+            request_bk_biz_id, request_space_uid = get_search_request_scope(request)
+            bk_biz_id, search_space_uid = LogIndexSet.resolve_search_scope(
+                index_set, request_bk_biz_id, request_space_uid
+            )
+            if index_set.is_platform_index:
+                if bk_biz_id is None or not search_space_uid:
+                    raise PermissionDenied("平台级索引集检索缺少请求空间")
+                if not LogIndexSet.is_platform_index_visible_to_space(index_set, search_space_uid):
+                    raise PermissionDenied("当前空间不在平台级索引集的可见范围内")
+                # 传入非空 attribute 后 Indices 不再回查归属业务；name/id 一并带上，
+                # 避免申请权限页索引集名称为空（同 scene_search 的处理）
+                resource = self.resource_meta.create_simple_instance(
+                    instance_id,
+                    {
+                        "bk_biz_id": bk_biz_id,
+                        "id": str(instance_id),
+                        "name": index_set.index_set_name,
+                    },
+                )
+                if search_space_uid != index_set.space_uid:
+                    unlimited_required_biz_id = bk_biz_id
+            else:
+                resource = self.resource_meta.create_instance(instance_id)
+        self.resources = [resource]
+        # 先跑标准鉴权，完全没有权限的用户由它抛出带申请链接的异常，保住申请权限跳转
+        result = super(InstanceActionPermission, self).has_permission(request, view)
+        if unlimited_required_biz_id is not None:
+            # 分发到别的空间后，这个索引集在对方权限中心的实例列表里根本选不到，单独授权它就等于
+            # 绕开「该用户是否被信任看这个空间的日志」，所以跨空间必须再要求一次空间级不限实例授权。
+            # 归属空间不受此限：索引集在自己空间能正常选到，实例级授权是正当授权方式。
+            self._assert_unlimited_search_in_space(unlimited_required_biz_id)
+        return result
+
+    def _assert_unlimited_search_in_space(self, bk_biz_id):
+        client = Permission()
+        for action in self.actions:
+            if not client.has_unlimited_action_in_space(action, bk_biz_id, self.resource_meta):
+                raise PermissionDenied("跨空间检索平台级索引集需要该空间下不限索引集的权限")
 
 
 class InstanceActionForDataPermission(InstanceActionPermission):
@@ -164,8 +236,7 @@ class InstanceActionForDataPermission(InstanceActionPermission):
         instance_id = data.get(self.iam_instance_id_key) or view.kwargs.get(self.get_look_url_kwarg(view))
         if instance_id is None:
             raise NotHaveInstanceIdError
-        resource = self.resource_meta.create_instance(self.get_instance_id(instance_id))
-        self.resources = [resource]
+        self.resources = [self.resource_meta.create_instance(self.get_instance_id(instance_id))]
         return super(InstanceActionPermission, self).has_permission(request, view)
 
 
@@ -192,7 +263,18 @@ class BatchIAMPermission(IAMPermission):
             raise NotHaveInstanceIdError
 
         self.resources = [self.resource_meta.create_instance(instance_id) for instance_id in instance_ids]
-        return super().has_permission(request, view)
+        if not self.actions:
+            return True
+
+        # 同类型的多个实例必须每个单独成组：单点 is_allowed 的语义是“一个动作 + 一次判定所需的关联资源”，
+        # 同类型资源在两代实现里都只会有一个参与求值（V4 取首个，V3 SDK 的 ObjectSet 按类型存放导致后者覆盖前者），
+        # 直接把列表塞进去会让列表中其余实例完全跳过校验。
+        Permission().batch_is_allowed(
+            self.actions,
+            [[resource] for resource in self.resources],
+            raise_exception=True,
+        )
+        return True
 
 
 def insert_permission_field(

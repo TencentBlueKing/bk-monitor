@@ -18,7 +18,13 @@ from alarm_backends.core.alarmd.encoder import (
     decode_json_document,
     encode_trigger_decision_batch,
 )
-from alarm_backends.core.alarmd.publisher import DEFAULT_DELIVERY_TIMEOUT_MS, trigger_partition_key
+from alarm_backends.core.alarmd.publisher import (
+    DEFAULT_DELIVERY_TIMEOUT_MS,
+    KafkaPublishReceipt,
+    PRODUCER_SCOPE_TRIGGER_REFERENCE,
+    _build_kafka_producer,
+    trigger_partition_key,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -45,33 +51,6 @@ class KafkaReferenceDecisionPublisher:
         return self.publish_batches([batch])
 
     def publish_batches(self, batches: Iterable[Mapping]) -> int:
-        def publish_prepared(prepared):
-            delivery_errors = []
-
-            def on_delivery(error, _message):
-                if error is not None:
-                    delivery_errors.append(error)
-
-            for partition_key, payload, _decision_count in prepared:
-                self.producer.produce(
-                    topic=self.topic,
-                    key=partition_key,
-                    value=payload,
-                    on_delivery=on_delivery,
-                )
-                if hasattr(self.producer, "poll"):
-                    self.producer.poll(0)
-            remaining = self.producer.flush(timeout=self.flush_timeout)
-            if remaining:
-                raise ReferenceDecisionPublishError(
-                    f"reference decision publish flush timeout: {remaining} message(s) unacknowledged"
-                )
-            if delivery_errors:
-                raise ReferenceDecisionPublishError(
-                    f"reference decision publish broker rejected message: {delivery_errors[0]}"
-                )
-            return sum(decision_count for _partition_key, _payload, decision_count in prepared)
-
         published = 0
         prepared = []
         prepared_bytes = 0
@@ -81,13 +60,13 @@ class KafkaReferenceDecisionPublisher:
                 # official per-message validation bounds both the group and lookahead to 512 KiB each.
                 payload = encode_trigger_decision_batch(batch)
                 if prepared and prepared_bytes + len(payload) > MAX_TRIGGER_DECISION_BATCH_BYTES:
-                    published += publish_prepared(prepared)
+                    published += self._publish_prepared(prepared)
                     prepared = []
                     prepared_bytes = 0
                 prepared.append((trigger_partition_key(batch), payload, len(batch["decisions"])))
                 prepared_bytes += len(payload)
             if prepared:
-                published += publish_prepared(prepared)
+                published += self._publish_prepared(prepared)
         except ReferenceDecisionPublishError as error:
             raise ReferenceDecisionPublishError(
                 str(error),
@@ -99,6 +78,65 @@ class KafkaReferenceDecisionPublisher:
                 acknowledged_records=published,
             ) from error
         return published
+
+    def prepare_single_ack_group(self, batches: Iterable[Mapping]):
+        prepared = []
+        prepared_bytes = 0
+        for batch in batches:
+            payload = encode_trigger_decision_batch(batch)
+            if prepared and prepared_bytes + len(payload) > MAX_TRIGGER_DECISION_BATCH_BYTES:
+                return None
+            prepared.append((trigger_partition_key(batch), payload, len(batch["decisions"])))
+            prepared_bytes += len(payload)
+        return prepared
+
+    def enqueue_prepared(self, prepared) -> KafkaPublishReceipt:
+        receipt = KafkaPublishReceipt()
+        for partition_key, payload, decision_count in prepared:
+            on_delivery, cancel = receipt.reserve(decision_count)
+            try:
+                self.producer.produce(
+                    topic=self.topic,
+                    key=partition_key,
+                    value=payload,
+                    on_delivery=on_delivery,
+                )
+                if hasattr(self.producer, "poll"):
+                    self.producer.poll(0)
+            except Exception as error:
+                cancel()
+                receipt.fail_enqueue(error)
+                break
+        return receipt
+
+    def resolve_receipt(self, receipt: KafkaPublishReceipt, *, remaining=None) -> int:
+        if receipt.enqueue_error is not None:
+            raise ReferenceDecisionPublishError(
+                f"reference decision publish failed: {receipt.enqueue_error}",
+            )
+        if remaining and receipt.pending_messages:
+            raise ReferenceDecisionPublishError(
+                f"reference decision publish flush timeout: {remaining} message(s) unacknowledged",
+            )
+        if receipt.first_delivery_error is not None:
+            raise ReferenceDecisionPublishError(
+                f"reference decision publish broker rejected message: {receipt.first_delivery_error}",
+            )
+        if receipt.pending_messages:
+            raise ReferenceDecisionPublishError(
+                f"reference decision publish flush timeout: {receipt.pending_messages} message(s) unacknowledged",
+            )
+        return receipt.acknowledged_records
+
+    def _publish_prepared(self, prepared) -> int:
+        receipt = self.enqueue_prepared(prepared)
+        try:
+            remaining = self.producer.flush(timeout=self.flush_timeout)
+        except Exception as error:
+            raise ReferenceDecisionPublishError(
+                f"reference decision publish failed: {error}",
+            ) from error
+        return self.resolve_receipt(receipt, remaining=remaining)
 
 
 def build_kafka_reference_decision_publisher(
@@ -145,14 +183,15 @@ def build_kafka_reference_decision_publisher(
         producer_config["message.timeout.ms"] = timeout_ms
 
     flush_timeout = producer_config.pop("alarm.engine.flush.timeout.seconds", timeout_ms / 1000 + 1)
-    if producer_config.get("enable.idempotence", True) is not True:
-        raise ValueError("reference decision Kafka producer idempotence must be enabled")
-    producer_config["enable.idempotence"] = True
-    if producer_factory is None:
-        from confluent_kafka import Producer
-
-        producer_factory = Producer
-    producer = producer_factory(producer_config)
+    if producer_config.get("enable.idempotence", False) is not False:
+        raise ValueError("reference decision Kafka producer idempotence must be disabled")
+    producer_config["enable.idempotence"] = False
+    producer_config["acks"] = "all"
+    producer = _build_kafka_producer(
+        producer_config,
+        producer_factory=producer_factory,
+        producer_scope=PRODUCER_SCOPE_TRIGGER_REFERENCE,
+    )
     return KafkaReferenceDecisionPublisher(producer=producer, topic=topic, flush_timeout=flush_timeout)
 
 

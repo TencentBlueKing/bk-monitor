@@ -57,7 +57,7 @@ export default defineComponent({
     const store = useAppStore();
     // 分享链接
     const shareUrl = computed(
-      () => `${location.origin}${location.pathname}?bizId=${store.bizId}/#/share/${token.value || ''}`
+      () => `${location.origin}${location.pathname}?bizId=${store.bizId}#/share/${token.value || ''}`
     );
 
     async function handleShowDialog() {

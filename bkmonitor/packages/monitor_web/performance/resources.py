@@ -552,15 +552,14 @@ class SearchHostMetricResource(ApiAuthResource):
             ]
 
     @staticmethod
-    def get_alarm_count(
-        bk_biz_id: int, hosts: list[Host], data: dict[int, dict], start_time: int = None, end_time: int = None
-    ):
+    def get_alarm_count(bk_biz_id: int, hosts: list[Host], data: dict[int, dict], end_time: int = None):
         """
-        获取告警信息
+        获取告警信息。
+
+        「未恢复告警」是存量状态语义：统计 begin_time ≤ end_time 且当前仍未恢复的告警，不透传查询窗口
+        起点（start_time）——否则早于窗口起点触发的存量告警会在短窗口下被错误地显示为 0。
         """
-        result = resource.cc.get_host_alarm_count(
-            bk_biz_id=bk_biz_id, hosts=hosts, start_time=start_time, end_time=end_time
-        )
+        result = resource.cc.get_host_alarm_count(bk_biz_id=bk_biz_id, hosts=hosts, end_time=end_time)
         for host in hosts:
             bk_host_id = host.bk_host_id
             if bk_host_id not in data:
@@ -625,11 +624,13 @@ class SearchHostMetricResource(ApiAuthResource):
         # 主机列表优先返回 UQ 已取得的记录；partial 或单指标失败时，未取得的字段保持未知，
         # 不能因为少量缺失丢弃同一分区内已经可用的数据。
         metric_kwargs = {**section_kwargs, "fail_on_incomplete": False, "push_host_target": push_host_target}
+        # 「未恢复告警」是存量状态语义，只受截止时间约束，不透传窗口起点（见 get_alarm_count docstring）
+        alarm_kwargs = {"bk_biz_id": bk_biz_id, "hosts": hosts, "data": data, "end_time": params.get("end_time")}
         futures = {
             "agent_status": pool.apply_async(self.get_agent_status, kwds=metric_kwargs),
             "performance_data": pool.apply_async(self.get_performance_data, kwds=metric_kwargs),
             "process_status": pool.apply_async(self.get_process_status, kwds=metric_kwargs),
-            "alarm_count": pool.apply_async(self.get_alarm_count, kwds=section_kwargs),
+            "alarm_count": pool.apply_async(self.get_alarm_count, kwds=alarm_kwargs),
         }
         pool.close()
         for section, future in futures.items():

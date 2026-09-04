@@ -495,15 +495,6 @@ export default class AlarmDetail extends Vue {
       });
       return;
     }
-    // 无维度告警渲染不出 checkbox，selectedDimension 恒为空；拦截会让用户无法提交。
-    if (this.shieldType === 'event' && this.dimensions.length > 0 && !this.selectedDimension.length) {
-      Toast({
-        message: this.$tc('请选择屏蔽维度'),
-        duration: 2000,
-        position: 'bottom',
-      });
-      return;
-    }
     this.loading = true;
     const params: Record<string, any> = {
       event_id: this.eventId,
@@ -512,7 +503,7 @@ export default class AlarmDetail extends Vue {
       desc: this.reason,
     };
     if (this.shieldType === 'event') {
-      // 同时提交 dimension_keys，兼容尚未升级的后台
+      // 空选也走事件屏蔽：keys=[] 时后台只留 strategy_id，与勾选同一条写路径
       params.dimension_keys = this.selectedDimension;
       params.dimension_conditions = this.selectedDimension.map(item => {
         const dimension = this.dimensions.find(dimension => dimension.key === item);
@@ -557,6 +548,7 @@ export default class AlarmDetail extends Vue {
 </script>
 
 <style lang="scss" scoped>
+/* stylelint-disable selector-class-pattern -- vant / BEM :deep selectors */
 @import '../../static/scss/variate';
 
 .quick-alarm-shield {
@@ -641,8 +633,8 @@ export default class AlarmDetail extends Vue {
 
         .dimension-row {
           display: flex;
-          align-items: center;
           gap: 4px;
+          align-items: center;
           border-bottom: 1px solid #ebecf1;
         }
 
@@ -654,16 +646,16 @@ export default class AlarmDetail extends Vue {
         .dimension-key {
           flex-shrink: 0;
           width: 88px;
-          font-size: 12px;
-          color: #323438;
           overflow: hidden;
           text-overflow: ellipsis;
+          font-size: 12px;
+          color: #323438;
           white-space: nowrap;
         }
 
         .dimension-operator {
-          flex-shrink: 0;
           display: flex;
+          flex-shrink: 0;
           align-items: center;
           justify-content: center;
           width: 62px;
@@ -680,15 +672,15 @@ export default class AlarmDetail extends Vue {
           min-width: 0;
           height: 32px;
           padding: 0 8px;
+          overflow: hidden;
+          text-overflow: ellipsis;
           font-size: 12px;
           line-height: 32px;
           color: #4d4f56;
+          white-space: nowrap;
           background: #fff;
           border: 1px solid #c4c6cc;
           border-radius: 2px;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
         }
       }
     }

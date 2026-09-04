@@ -37,15 +37,15 @@ import 'monitor-ui/directive/index';
 import Api from 'monitor-api/api';
 import { type VueInstance, setVue } from 'monitor-api/utils/index';
 import { immediateRegister } from 'monitor-common/service-worker/service-worker';
-import { getUrlParam, mergeSpaceList, setGlobalBizId } from 'monitor-common/utils';
+import { getUrlParam, mergeSpaceList, parseBizId, setGlobalBizId } from 'monitor-common/utils';
 import { assignWindowField } from 'monitor-common/utils/assign-window';
 import { userDisplayNameConfigure } from 'monitor-pc/common/user-display-name';
+import { dispatchApmK8sCacheFlush } from 'monitor-pc/pages/monitor-k8s/monitor-k8s-apm';
 
 import App from './pages/app';
 import router from './router/router';
 import Authority from './store/modules/authority';
 import store from './store/store';
-import { dispatchApmK8sCacheFlush } from 'monitor-pc/pages/monitor-k8s/monitor-k8s-apm';
 import 'monitor-pc/common/global-login';
 
 import './static/scss/global.scss';
@@ -55,7 +55,7 @@ import 'monitor-static/icons/monitor-icons.css';
 Vue.config.devtools = process.env.NODE_ENV === 'development';
 window.source_app = 'apm';
 const spaceUid = getUrlParam('space_uid');
-const bizId = getUrlParam('bizId')?.replace(/\//gim, '');
+const bizId = parseBizId(getUrlParam('bizId'));
 
 setVue(Vue as VueInstance);
 if (process.env.NODE_ENV === 'development') {
@@ -99,7 +99,7 @@ if (window.__POWERED_BY_BK_WEWEB__) {
       mergeSpaceList(window.space_list);
       window.username = window.uin;
       window.user_name = window.uin;
-      window.cc_biz_id = +window.bk_biz_id;
+      window.cc_biz_id = parseBizId(window.bk_biz_id);
       window.bk_log_search_url = data.BKLOGSEARCH_HOST;
       const bizId = setGlobalBizId();
       if (bizId === false) return;

@@ -49,6 +49,8 @@ export enum EFieldType {
   numberInput = 'number_input',
   // textarea 输入框
   text = 'text',
+  // 带操作符选择的textarea 输入框（区别于 text：额外展示操作符下拉）
+  textWithMethods = 'text_with_methods',
 }
 
 export enum EMethod {
@@ -928,6 +930,7 @@ export const SETTING_KV_INPUT_PROPS = {
 };
 export const SETTING_KV_INPUT_EMITS = {
   change: (_v: INormalWhere) => true,
+  enter: (_v: INormalWhere) => true,
 } as const;
 export const RESIDENT_SETTING_PROPS = {
   fields: {

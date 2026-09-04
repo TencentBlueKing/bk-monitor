@@ -57,6 +57,7 @@ _ALERT_HANDLING_OPERATION_IDS = {
     "update_alarm_shield",
     "disable_alarm_shield",
     "search_alarm_notice_groups",
+    "create_alarm_notice_group",
     "update_alarm_notice_group",
     "search_alarm_action_configs",
     "get_alarm_action_config",
@@ -114,10 +115,10 @@ def test_alert_mcp_resource_groups_are_disjoint():
 
 
 def test_alert_handling_mcp_contract():
-    """告警处置 MCP 必须精确包含 17 个资源并使用独立标签。"""
+    """告警处置 MCP 必须精确包含 18 个资源并使用独立标签。"""
     paths = _load_paths(_ALERT_HANDLING_MCP_FILE)
 
-    assert len(paths) == 17
+    assert len(paths) == 18
     assert set(paths) == {f"/mcp/{operation_id}/" for operation_id in _ALERT_HANDLING_OPERATION_IDS}
     assert _operation_ids(paths) == _ALERT_HANDLING_OPERATION_IDS
     for path_data in paths.values():
@@ -332,6 +333,78 @@ def test_apm_platform_integration_apigw_contract() -> None:
         gateway_resource = method_data["x-bk-apigateway-resource"]
         assert method_data["operationId"] == operation_id
         assert gateway_resource["isPublic"] is True
+        assert gateway_resource["backend"] == {
+            "name": "default",
+            "method": "post",
+            "path": backend_path,
+            "matchSubpath": False,
+        }
+        assert (_DOCS_DIR / f"{operation_id}.md").is_file()
+
+
+def test_llm_observability_apigw_contract() -> None:
+    """旧 APM Trace API 保持不变，新增 LLM API 转发到 V4 Resource。"""
+    paths = _load_paths(_INTERNAL_APM_FILE)
+    expected_legacy_resources = {
+        "/app/apm/list_spans/": {
+            "post": {
+                "operationId": "list_spans",
+                "description": "查询 span",
+                "x-bk-apigateway-resource": {
+                    "isPublic": False,
+                    "allowApplyPermission": True,
+                    "matchSubpath": False,
+                    "backend": {
+                        "name": "default",
+                        "method": "post",
+                        "path": "/api/v4/trace_query_web/list_spans/",
+                        "matchSubpath": False,
+                    },
+                    "authConfig": {
+                        "appVerifiedRequired": True,
+                        "userVerifiedRequired": False,
+                        "resourcePermissionRequired": True,
+                    },
+                    "descriptionEn": "query span list",
+                },
+            }
+        },
+        "/app/apm/list_traces/": {
+            "post": {
+                "operationId": "list_traces",
+                "description": "查询 span",
+                "x-bk-apigateway-resource": {
+                    "isPublic": False,
+                    "allowApplyPermission": True,
+                    "matchSubpath": False,
+                    "backend": {
+                        "name": "default",
+                        "method": "post",
+                        "path": "/api/v4/trace_query_web/list_traces/",
+                        "matchSubpath": False,
+                    },
+                    "authConfig": {
+                        "appVerifiedRequired": True,
+                        "userVerifiedRequired": False,
+                        "resourcePermissionRequired": True,
+                    },
+                    "descriptionEn": "query span list",
+                },
+            }
+        },
+    }
+    for path, expected_resource in expected_legacy_resources.items():
+        assert paths[path] == expected_resource
+
+    expected_resources: dict[str, tuple[str, str]] = {
+        "/app/apm/list_llm_spans/": ("list_llm_spans", "/api/v4/apm_llm_web/list_spans/"),
+        "/app/apm/list_llm_traces/": ("list_llm_traces", "/api/v4/apm_llm_web/list_traces/"),
+    }
+
+    for path, (operation_id, backend_path) in expected_resources.items():
+        method_data = paths[path]["post"]
+        gateway_resource = method_data["x-bk-apigateway-resource"]
+        assert method_data["operationId"] == operation_id
         assert gateway_resource["backend"] == {
             "name": "default",
             "method": "post",

@@ -34,7 +34,15 @@ import { messageWarn } from '@/common/bkmagic';
 import BklogPopover from '@/components/bklog-popover';
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
-import { SceneType, type FilterFieldConfig, type FilterValues, type SceneDimensionValuesResponse, type SceneConfig, type FieldCandidateCondition, type ListFieldCandidatesParams } from './types';
+import {
+  SceneType,
+  type FilterFieldConfig,
+  type FilterValues,
+  type SceneDimensionValuesResponse,
+  type SceneConfig,
+  type FieldCandidateCondition,
+  type ListFieldCandidatesParams,
+} from './types';
 import { getOperatorDisplay, getDefaultOp, TABLE_ID_CONDITION_SCENES } from './scene-config';
 import { buildTableIdConditions } from '@/store/helper';
 
@@ -93,8 +101,7 @@ export default defineComponent({
     /** 标签输入框组件引用 */
     const tagInputRefs = ref<Record<string, any>>({});
 
-    const currentScene = computed<SceneConfig | undefined>(() => sceneConfigs.value
-      .find((scene: { type: string; }) => scene.type === props.activeScene),
+    const currentScene = computed<SceneConfig | undefined>(() => sceneConfigs.value.find((scene: { type: string }) => scene.type === props.activeScene),
     );
 
     /** 拉取 dynamic 类型维度的可选值 */
@@ -177,7 +184,7 @@ export default defineComponent({
         if (props.displayFields) {
           editDisplayFields.value = [...props.displayFields];
         } else {
-          editDisplayFields.value = allFieldsOfScene.value.map(f => {
+          editDisplayFields.value = allFieldsOfScene.value.map((f) => {
             const storedOp = props.filterValues[f.key]?.op;
             return [f.key, storedOp || getDefaultOp(f.ops)] as [string, string];
           });
@@ -206,15 +213,14 @@ export default defineComponent({
 
     /** 字段设置中操作符变更（仅修改 editDisplayFields，确认后才同步） */
     const handleEditOperatorChange = (fieldKey: string, newOp: string) => {
-      editDisplayFields.value = editDisplayFields.value.map(([k, op]) => (
-        k === fieldKey ? [k, newOp] as [string, string] : [k, op] as [string, string]
-      ),
+      editDisplayFields.value = editDisplayFields.value.map(([k, op]) => (k === fieldKey ? ([k, newOp] as [string, string]) : ([k, op] as [string, string])),
       );
     };
 
     const handleAddAllFields = () => {
-      const toAdd: Array<[string, string]> = editRestFields.value.map(f => [
-        f.key, getDefaultOp(f.ops)] as [string, string]);
+      const toAdd: Array<[string, string]> = editRestFields.value.map(
+        f => [f.key, getDefaultOp(f.ops)] as [string, string],
+      );
       editDisplayFields.value = [...editDisplayFields.value, ...toAdd];
     };
 
@@ -230,12 +236,12 @@ export default defineComponent({
       const allNames = allFieldsOfScene.value.map(f => f.key);
       const editFieldKeys = editDisplayFields.value.map(([k]) => k);
       // 字段 key 顺序与默认一致 且 每个字段的操作符也是默认值时，才算 isDefault
-      const isDefaultOrder = editFieldKeys.length === allNames.length
-        && editFieldKeys.every((name, i) => name === allNames[i]);
-      const isDefault = isDefaultOrder && editDisplayFields.value.every(([k, op]) => {
-        const field = allFieldsOfScene.value.find(f => f.key === k);
-        return op === getDefaultOp(field?.ops);
-      });
+      const isDefaultOrder =        editFieldKeys.length === allNames.length && editFieldKeys.every((name, i) => name === allNames[i]);
+      const isDefault =        isDefaultOrder
+        && editDisplayFields.value.every(([k, op]) => {
+          const field = allFieldsOfScene.value.find(f => f.key === k);
+          return op === getDefaultOp(field?.ops);
+        });
 
       // 找出被移除的字段，清除其选中值
       const prevFieldKeys = props.displayFields ? props.displayFields.map(([k]) => k) : allNames;
@@ -428,35 +434,48 @@ export default defineComponent({
     /** 渲染联想弹窗内容 */
     const renderSuggestionDropdown = (fieldKey: string) => {
       if (suggestionState.items.length === 0) {
-        return <li class='field-suggestion-empty' onMousedown={(e: MouseEvent) => e.preventDefault()}>{t('暂无数据')}</li>;
-      }
-      return suggestionState.items.map((item, index) => {
-        const isSelected = suggestionState.selectedItems.has(item);
         return (
           <li
-            key={`${fieldKey}-${index}-${item}`}
-            title={item}
-            class={['field-suggestion-item', { 'is-selected': isSelected }]}
-            onMousedown={(e: MouseEvent) => {
-              e.preventDefault();
-            }}
-            onClick={(e: MouseEvent) => {
-              handleSelectSuggestion(item);
-            }}
+            class='field-suggestion-empty'
+            onMousedown={(e: MouseEvent) => e.preventDefault()}
           >
-            <div class='suggestion-item-content'>{item}</div>
-            {isSelected && <i class='bk-icon icon-check-1 suggestion-item-check' />}
+            {t('暂无数据')}
           </li>
         );
-      }).concat(
-        suggestionState.items.length < suggestionState.count && suggestionState.loading
-          ? [
-              <li key={`${fieldKey}-loading`} class='field-suggestion-loading' onMousedown={(e: MouseEvent) => e.preventDefault()}>
-                {t('loading...')}
-              </li>,
+      }
+      return suggestionState.items
+        .map((item, index) => {
+          const isSelected = suggestionState.selectedItems.has(item);
+          return (
+            <li
+              key={`${fieldKey}-${index}-${item}`}
+              title={item}
+              class={['field-suggestion-item', { 'is-selected': isSelected }]}
+              onMousedown={(e: MouseEvent) => {
+                e.preventDefault();
+              }}
+              onClick={() => {
+                handleSelectSuggestion(item);
+              }}
+            >
+              <div class='suggestion-item-content'>{item}</div>
+              {isSelected && <i class='bk-icon icon-check-1 suggestion-item-check' />}
+            </li>
+          );
+        })
+        .concat(
+          suggestionState.items.length < suggestionState.count && suggestionState.loading
+            ? [
+                <li
+                  key={`${fieldKey}-loading`}
+                  class='field-suggestion-loading'
+                  onMousedown={(e: MouseEvent) => e.preventDefault()}
+                >
+                  {t('loading...')}
+                </li>,
             ]
-          : [],
-      );
+            : [],
+        );
     };
 
     /** 请求字段联想数据 */
@@ -532,9 +551,13 @@ export default defineComponent({
         });
 
         try {
-          const res = await http.request('retrieve/listSceneFieldCandidates', {
-            data: params,
-          }, { cancelToken });
+          const res = await http.request(
+            'retrieve/listSceneFieldCandidates',
+            {
+              data: params,
+            },
+            { cancelToken },
+          );
 
           const data = res.data ?? res;
           suggestionState.items = [...suggestionState.items, ...(data.items ?? [])];
@@ -686,8 +709,10 @@ export default defineComponent({
     );
 
     const getLocalTagValues = (fieldName: string) => {
-      return localTagValues.value[fieldName]
-        ?? (Array.isArray(props.filterValues[fieldName]?.value) ? props.filterValues[fieldName].value : []);
+      return (
+        localTagValues.value[fieldName]
+        ?? (Array.isArray(props.filterValues[fieldName]?.value) ? props.filterValues[fieldName].value : [])
+      );
     };
 
     const handleTagChange = (fieldName: string, tags: string[]) => {
@@ -740,19 +765,20 @@ export default defineComponent({
         return field.choices ?? [];
       }
 
-      // dynamic：接口已返回数据时优先使用
+      const currentValue = props.filterValues[field.key]?.value;
+      const currentIds =        currentValue == null || currentValue === '' || (Array.isArray(currentValue) && currentValue.length === 0)
+        ? []
+        : (Array.isArray(currentValue) ? currentValue : [currentValue]).map(id => String(id));
+
+      // dynamic：接口已返回数据时优先使用，并合并手输值以便回显
       const loadedOptions = getApiFieldState(field.key).options;
       if (loadedOptions.length > 0) {
-        return loadedOptions;
+        const known = new Set(loadedOptions.map(opt => String(opt.id)));
+        const extra = currentIds.filter(id => !known.has(id)).map(id => ({ id, name: id }));
+        return extra.length ? [...loadedOptions, ...extra] : loadedOptions;
       }
 
-      // 接口未返回时，从当前值组装临时 options 以支持回显
-      const currentValue = props.filterValues[field.key]?.value;
-      if (currentValue == null || currentValue === '' || (Array.isArray(currentValue) && currentValue.length === 0)) {
-        return [];
-      }
-      const ids = Array.isArray(currentValue) ? currentValue : [currentValue];
-      return ids.map(id => ({ id: String(id), name: String(id) }));
+      return currentIds.map(id => ({ id, name: id }));
     };
 
     /** 操作符选择器渲染 */
@@ -816,15 +842,21 @@ export default defineComponent({
         const loading = field.choicesType === 'dynamic' ? (getApiFieldState(field.key).loading ?? false) : false;
 
         return (
-          <div class='filter-field-item' key={field.key}>
+          <div
+            class='filter-field-item'
+            key={field.key}
+          >
             <div class='field-label-row'>
-              <span class='field-label' v-bk-overflow-tips>{field.name}</span>
-              {renderOperatorSelector(
-                currentOp,
-                field.ops,
-                newOp => handleOperatorChange(field.key, newOp),
-                { choicesType: field.choicesType, fieldType: field.fieldType },
-              )}
+              <span
+                class='field-label'
+                v-bk-overflow-tips
+              >
+                {field.name}
+              </span>
+              {renderOperatorSelector(currentOp, field.ops, newOp => handleOperatorChange(field.key, newOp), {
+                choicesType: field.choicesType,
+                fieldType: field.fieldType,
+              })}
             </div>
             <div class={['field-input', 'is-fixed-layout', { 'is-active': isFieldActive }]}>
               <div class='field-input-placeholder' />
@@ -833,11 +865,13 @@ export default defineComponent({
                 placeholder={field.placeholder || t('请选择')}
                 multiple={field.multiple}
                 clearable={true}
+                searchable={field.searchable}
+                allow-create={field.allowCreate}
                 loading={loading}
                 display-tag
                 ext-popover-cls={props.isSticky ? 'is-sticky-hidden' : ''}
                 on-change={(val: any) => {
-                  const selectedIds = Array.isArray(val) ? val : (val !== null && val !== '' ? [val] : []);
+                  const selectedIds = Array.isArray(val) ? val : val !== null && val !== '' ? [val] : [];
                   handleFieldChange(field.key, val, buildLabels(selectedIds, options));
                 }}
                 on-toggle={(open: boolean) => {
@@ -852,7 +886,11 @@ export default defineComponent({
                 }}
               >
                 {options.map(opt => (
-                  <bk-option id={opt.id} name={opt.name} key={opt.id} />
+                  <bk-option
+                    id={opt.id}
+                    name={opt.name}
+                    key={opt.id}
+                  />
                 ))}
               </bk-select>
             </div>
@@ -861,21 +899,29 @@ export default defineComponent({
       }
 
       return (
-        <div class='filter-field-item' key={field.key}>
+        <div
+          class='filter-field-item'
+          key={field.key}
+        >
           <div class='field-label-row'>
-            <span class='field-label' v-bk-overflow-tips>{field.name}</span>
-            {renderOperatorSelector(
-              currentOp,
-              field.ops,
-              newOp => handleOperatorChange(field.key, newOp),
-              { choicesType: field.choicesType, fieldType: field.fieldType },
-            )}
+            <span
+              class='field-label'
+              v-bk-overflow-tips
+            >
+              {field.name}
+            </span>
+            {renderOperatorSelector(currentOp, field.ops, newOp => handleOperatorChange(field.key, newOp), {
+              choicesType: field.choicesType,
+              fieldType: field.fieldType,
+            })}
           </div>
           <div class={['field-input', 'is-fixed-layout', { 'is-active': isFieldActive }]}>
             <div class='field-input-placeholder' />
             <div class='tag-input-wrapper'>
               <bk-tag-input
-                ref={(el: any) => { tagInputRefs.value[field.key] = el; }}
+                ref={(el: any) => {
+                  tagInputRefs.value[field.key] = el;
+                }}
                 value={getLocalTagValues(field.key)}
                 placeholder={field.placeholder}
                 allow-create={true}
@@ -925,18 +971,32 @@ export default defineComponent({
             <div class='setting-body'>
               <div class='setting-column'>
                 <div class='setting-column-title'>
-                  <span>{t('待选字段')}({editRestFields.value.length})</span>
-                  <span class='text-action' onClick={handleAddAllFields}>{t('全部添加')}</span>
+                  <span>
+                    {t('待选字段')}({editRestFields.value.length})
+                  </span>
+                  <span
+                    class='text-action'
+                    onClick={handleAddAllFields}
+                  >
+                    {t('全部添加')}
+                  </span>
                 </div>
                 <ul class='setting-field-list'>
                   {editRestFields.value.map(field => (
-                    <li class='setting-field-item bklog-v3-popover-tag' key={field.key} onClick={() => handleAddField(field.key)}>
+                    <li
+                      class='setting-field-item bklog-v3-popover-tag'
+                      key={field.key}
+                      onClick={() => handleAddField(field.key)}
+                    >
                       <span class='field-name'>{field.name}</span>
                       <i class='bklog-icon bklog-filled-right-arrow add-icon' />
                     </li>
                   ))}
                   {editRestFields.value.length === 0 && (
-                    <bk-exception type='empty' scene='part' />
+                    <bk-exception
+                      type='empty'
+                      scene='part'
+                    />
                   )}
                 </ul>
               </div>
@@ -945,8 +1005,15 @@ export default defineComponent({
               </div>
               <div class='setting-column'>
                 <div class='setting-column-title'>
-                  <span>{t('已选字段')}({editDisplayFields.value.length})</span>
-                  <span class='text-action' onClick={handleClearAllFields}>{t('清空')}</span>
+                  <span>
+                    {t('已选字段')}({editDisplayFields.value.length})
+                  </span>
+                  <span
+                    class='text-action'
+                    onClick={handleClearAllFields}
+                  >
+                    {t('清空')}
+                  </span>
                 </div>
                 <draggable
                   class='setting-field-list'
@@ -962,16 +1029,26 @@ export default defineComponent({
                   {editDisplayFields.value.map(([name, op]) => {
                     const field = allFieldsOfScene.value.find(f => f.key === name);
                     return (
-                      <li class='setting-field-item is-selected bklog-v3-popover-tag' key={name} onClick={() => handleRemoveField(name)}>
-                        <i class='bklog-icon bklog-ketuodong drag-handle' onClick={e => e.stopPropagation()} />
+                      <li
+                        class='setting-field-item is-selected bklog-v3-popover-tag'
+                        key={name}
+                        onClick={() => handleRemoveField(name)}
+                      >
+                        <i
+                          class='bklog-icon bklog-ketuodong drag-handle'
+                          onClick={e => e.stopPropagation()}
+                        />
                         <span class='field-name'>{getFieldLabel(name)}</span>
-                        <span class='setting-field-operator' onClick={e => e.stopPropagation()}>
-                          {renderOperatorSelector(
-                            op,
-                            field?.ops,
-                            newOp => handleEditOperatorChange(name, newOp),
-                            { label: `${t('默认操作符')}：`, placement: 'bottom-end', choicesType: field?.choicesType, fieldType: field?.fieldType },
-                          )}
+                        <span
+                          class='setting-field-operator'
+                          onClick={e => e.stopPropagation()}
+                        >
+                          {renderOperatorSelector(op, field?.ops, newOp => handleEditOperatorChange(name, newOp), {
+                            label: `${t('默认操作符')}：`,
+                            placement: 'bottom-end',
+                            choicesType: field?.choicesType,
+                            fieldType: field?.fieldType,
+                          })}
                         </span>
                         <i class='bk-icon icon-close-circle-shape remove-icon' />
                       </li>
@@ -981,8 +1058,19 @@ export default defineComponent({
               </div>
             </div>
             <div class='setting-actions'>
-              <bk-button theme='primary' size='small' onClick={handleSettingConfirm}>{t('确定')}</bk-button>
-              <bk-button size='small' onClick={handleSettingCancel}>{t('取消')}</bk-button>
+              <bk-button
+                theme='primary'
+                size='small'
+                onClick={handleSettingConfirm}
+              >
+                {t('确定')}
+              </bk-button>
+              <bk-button
+                size='small'
+                onClick={handleSettingCancel}
+              >
+                {t('取消')}
+              </bk-button>
             </div>
           </div>
         )}
@@ -1013,16 +1101,17 @@ export default defineComponent({
             </span>
           </div>
           <div class='top-right'>
-            <span class='filter-clear-btn' onClick={handleClear}>
+            <span
+              class='filter-clear-btn'
+              onClick={handleClear}
+            >
               {t('清空查询')}
             </span>
             {renderSettingPopover()}
           </div>
         </div>
 
-        <div class='scene-filter-grid'>
-          {visibleFields.value.map(field => renderFilterField(field))}
-        </div>
+        <div class='scene-filter-grid'>{visibleFields.value.map(field => renderFilterField(field))}</div>
       </div>
     );
   },

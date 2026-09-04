@@ -11,7 +11,10 @@ specific language governing permissions and limitations under the License.
 
 from unittest import mock
 
+from django.conf import settings
+
 from alarm_backends.service.selfmonitor.collect.redis import RedisMetricCollectReport
+from bkmonitor.define import global_config
 
 
 class FakeRedisClient:
@@ -139,3 +142,52 @@ def test_set_instance_info_tolerates_missing_info_fields():
     assert labels["maxmemory_policy"] == ""
     assert labels["redis_version"] == ""
     assert labels["mastername"] == "mymaster"
+
+
+def test_strategy_cost_snapshot_switch_is_dynamic_and_default_off():
+    assert settings.ENABLE_REDIS_STRATEGY_COST_SNAPSHOT is False
+    serializer = global_config.ADVANCED_OPTIONS["ENABLE_REDIS_STRATEGY_COST_SNAPSHOT"]
+    assert serializer.default is False
+
+
+def test_collect_runs_snapshot_once_after_all_regular_metrics(mocker, settings):
+    settings.ENABLE_REDIS_STRATEGY_COST_SNAPSHOT = True
+    report = _make_report()
+    node = mock.Mock(id=1)
+    node_info = {"node": "node-1"}
+    report.successful_nodes_info = [(node, node_info)]
+    report.get_redis_info = mock.Mock(return_value=[node_info, {"node": "node-2"}])
+    events = []
+    report.set_redis_metric_data = mock.Mock(side_effect=lambda info: events.append(("metric", info["node"])))
+    collector_cls = mocker.patch("alarm_backends.service.selfmonitor.collect.redis.RedisStrategyCostSnapshotCollector")
+    collector_cls.return_value.collect.side_effect = lambda nodes: events.append(("snapshot", len(nodes)))
+
+    report.collect_redis_metric_data()
+
+    assert events == [("metric", "node-1"), ("metric", "node-2"), ("snapshot", 1)]
+    collector_cls.return_value.collect.assert_called_once_with([(node, node_info)])
+
+
+def test_collect_snapshot_failure_does_not_break_regular_metrics(mocker, settings):
+    settings.ENABLE_REDIS_STRATEGY_COST_SNAPSHOT = True
+    report = _make_report()
+    report.successful_nodes_info = []
+    report.get_redis_info = mock.Mock(return_value=[{"node": "node-1"}])
+    report.set_redis_metric_data = mock.Mock()
+    collector_cls = mocker.patch("alarm_backends.service.selfmonitor.collect.redis.RedisStrategyCostSnapshotCollector")
+    collector_cls.return_value.collect.side_effect = RuntimeError("snapshot failed")
+
+    report.collect_redis_metric_data()
+
+    report.set_redis_metric_data.assert_called_once_with({"node": "node-1"})
+
+
+def test_collect_switch_off_does_not_create_snapshot_collector(mocker, settings):
+    settings.ENABLE_REDIS_STRATEGY_COST_SNAPSHOT = False
+    report = _make_report()
+    report.get_redis_info = mock.Mock(return_value=[])
+    collector_cls = mocker.patch("alarm_backends.service.selfmonitor.collect.redis.RedisStrategyCostSnapshotCollector")
+
+    report.collect_redis_metric_data()
+
+    collector_cls.assert_not_called()

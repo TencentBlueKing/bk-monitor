@@ -28,7 +28,9 @@ import { defineComponent, ref, computed, onBeforeUnmount, onMounted, nextTick, t
 
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
+import { isFieldTypeDisabled } from '@/common/util';
 import tippy, { type Instance } from 'tippy.js';
+import InfoTips from '../../common-comp/info-tips';
 import TableComponent from '../../common-comp/table-component';
 
 import './field-list.scss';
@@ -72,6 +74,7 @@ export type GlobalsData = {
 
 // Props类型定义
 export type Props = {
+  isTemplateSource?: boolean;
   isEditJson?: boolean;
   tableType: 'edit' | 'preview';
   extractMethod: 'bk_log_delimiter' | 'bk_log_json' | 'bk_log_regexp';
@@ -95,6 +98,10 @@ export default defineComponent({
     data: {
       type: Array as PropType<FieldItem[]>,
       default: () => [],
+    },
+    isTemplateSource: {
+      type: Boolean,
+      default: false,
     },
     tableType: {
       type: String,
@@ -154,13 +161,11 @@ export default defineComponent({
       default: false,
     },
   },
-  emits: ['change', 'refresh'],
+  emits: ['change', 'refresh', 'unbind-template'],
 
   setup(props, { emit, expose }) {
     const { t } = useLocale();
     const store = useStore();
-    // 最大 int 类型值
-    const MAX_INT_VALUE = 2_147_483_647;
     const REQUIRED_FIELD_MSG = t('必填项');
     const INVALID_FIELD_NAME_MSG = t('只能包含a - z、A - Z、0 - 9和_，且不能以_开头和结尾');
     const INVALID_ALIAS_NAME_MSG = t('重命名只能包含a - z、A - Z、0 - 9和_');
@@ -234,7 +239,8 @@ export default defineComponent({
       const info = row.is_add_in
         ? { label: t('添加'), class: 'source-add' }
         : { label: t('调试'), class: 'source-debug' };
-      const sourceInfo = row.is_built_in ? { label: t('内置'), class: 'source-built' } : info;
+      const templateInfo = props.isTemplateSource ? { label: t('模板'), class: 'source-template' } : info;
+      const sourceInfo = row.is_built_in ? { label: t('内置'), class: 'source-built' } : templateInfo;
 
       return <span class={`source-box ${sourceInfo.class}`}>{sourceInfo.label}</span>;
     };
@@ -274,8 +280,27 @@ export default defineComponent({
      * @param row
      * @returns
      */
+    const renderWordBreakerValue = row => (
+      row.is_analyzed ? (
+        <div class='analyzed-box'>
+          <div>{row.tokenize_on_chars ? row.tokenize_on_chars : t('自然语言分词')}</div>
+          <div>{t('大小写敏感')}: {row.is_case_sensitive ? t('是') : t('否')}</div>
+        </div>
+      ) : (
+        <span>{t('不分词')}</span>
+      )
+    );
+
     const renderWordBreaker = (h, { row }) => {
       if (row.field_type === 'string' && !row.is_built_in) {
+        if (props.isTemplateSource) {
+          return (
+            <div class='word-breaker is-template-disabled'>
+              <span class='word-breaker-display'>{renderWordBreakerValue(row)}</span>
+            </div>
+          );
+        }
+
         return (
           <div class='word-breaker'>
             <span
@@ -283,14 +308,7 @@ export default defineComponent({
               data-field-index={row.field_index}
               data-field-name={row.field_name}
             >
-              {row.is_analyzed ? (
-                <div class='analyzed-box'>
-                  <div>{row.tokenize_on_chars ? row.tokenize_on_chars : t('自然语言分词')}</div>
-                  <div>{t('大小写敏感')}: {row.is_case_sensitive ? t('是') : t('否')}</div>
-                </div>
-              ) : (
-                <span>{t('不分词')}</span>
-              )}
+              {renderWordBreakerValue(row)}
               <i class='select-angle bk-icon icon-angle-down' />
             </span>
             <div
@@ -420,7 +438,7 @@ export default defineComponent({
      * @returns
      */
     const initMenuPop = () => {
-      if (isDestroyed) {
+      if (isDestroyed || props.isTemplateSource) {
         return;
       }
       // 销毁旧实例，避免重复绑定
@@ -454,23 +472,35 @@ export default defineComponent({
           // 如果有行数据，初始化 cacheData
           if (currentRow) {
             cacheData.value = {
-              is_analyzed: currentRow.is_analyzed,
+              is_analyzed: Boolean(currentRow.is_analyzed),
               tokenize_on_chars: currentRow.tokenize_on_chars || '',
-              is_case_sensitive: currentRow.is_case_sensitive,
+              is_case_sensitive: Boolean(currentRow.is_case_sensitive),
             };
             currentParticipleState.value = currentRow.tokenize_on_chars ? 'custom' : 'default';
+          }
+
+          const container = reference.nextElementSibling as HTMLElement | null;
+          const contentNode = container?.querySelector('.word-breaker-menu-content') as HTMLElement | null;
+          if (contentNode) {
+            instance.setContent(contentNode);
           }
         },
         onHide(instance) {
           (instance.reference as HTMLElement).classList.remove('is-hover');
         },
-        content(reference) {
-          const btn = reference as HTMLElement;
-          // 约定：内容紧跟在按钮后的兄弟元素中
-          const container = btn.nextElementSibling as HTMLElement | null;
-          const contentNode = container?.querySelector('.word-breaker-menu-content') as HTMLElement | null;
-          return (contentNode ?? container ?? document.createElement('div')) as unknown as Element;
+        onHidden(instance) {
+          const reference = instance.reference as HTMLElement;
+          const container = reference.nextElementSibling as HTMLElement | null;
+          if (container) {
+            const tippyContentEl = instance.popper?.querySelector('.tippy-content');
+            const menuContent = tippyContentEl?.querySelector('.word-breaker-menu-content') as HTMLElement | null;
+            if (menuContent && menuContent.parentElement !== container) {
+              container.appendChild(menuContent);
+            }
+          }
+          instance.setContent(document.createElement('div'));
         },
+        content: document.createElement('div'),
       });
 
       // tippy 返回单个或数组，这里统一转为数组
@@ -514,7 +544,7 @@ export default defineComponent({
     watch(
       () => props.loading,
       (val: boolean) => {
-        if (!val) {
+        if (!val && !props.isTemplateSource) {
           scheduleInitMenuPop(1000);
         }
       },
@@ -524,8 +554,21 @@ export default defineComponent({
       (newVal, oldVal) => {
         const [newLen, loadingVal] = newVal;
         const oldLen = oldVal?.[0];
-        if (!loadingVal && newLen !== oldLen) {
+        if (!loadingVal && newLen !== oldLen && !props.isTemplateSource) {
           scheduleInitMenuPop(1000);
+        }
+      },
+    );
+    watch(
+      () => props.isTemplateSource,
+      isTemplateSource => {
+        if (menuInitTimer) {
+          clearTimeout(menuInitTimer);
+          menuInitTimer = null;
+        }
+        destroyTippyInstances();
+        if (!isTemplateSource) {
+          nextTick(() => scheduleInitMenuPop());
         }
       },
     );
@@ -533,21 +576,6 @@ export default defineComponent({
      * 刷新值
      */ const handleFreshValue = () => {
       emit('refresh');
-    };
-
-    /**
-     * 当前字段类型是否禁用
-     * @param row
-     * @param option
-     * @returns
-     */
-    const isTypeDisabled = (row, option) => {
-      if (row.verdict) {
-        // 不是数值，相关数值类型选项被禁用
-        return ['int', 'long', 'double', 'float'].includes(option.id);
-      }
-      // 是数值，如果值大于 MAX_INT_VALUE 即 2^31 - 1，int 选项被禁用
-      return option.id === 'int' && row.value > MAX_INT_VALUE;
     };
 
     /**
@@ -901,19 +929,12 @@ export default defineComponent({
       // 执行所有校验（校验逻辑是同步的，会立即设置错误状态）
       const promises = [checkAliasName(), checkFieldName(), checkType()];
 
-      // 使用 nextTick 确保在所有校验方法执行完成后再触发更新
-      // 这样可以让错误样式正确显示
-      nextTick(() => {
-        // 触发更新，确保 UI 反映最新的错误状态
-        emit('change', [...props.data]);
-      });
-
-      // 在所有 Promise 完成后也触发一次更新（处理异步情况）
-      Promise.allSettled(promises).then(() => {
-        nextTick(() => {
-          emit('change', [...props.data]);
-        });
-      });
+      // 校验同步执行完毕后立即触发一次更新，让错误样式正确显示。
+      // 禁止在 nextTick / Promise 异步回调里 emit props.data 快照：
+      // 异步回写时 props.data 可能仍是父组件更新前的旧数组，
+      // 会覆盖父组件在提交校验阶段写入的 is_time / option 等状态，
+      // 导致「指定日志时间」切换为「日志上报时间」后提交数据未变更。
+      emit('change', [...props.data]);
 
       return promises;
     };
@@ -931,6 +952,10 @@ export default defineComponent({
      * @param row 字段行数据
      */
     const handlePopoverRename = (row: FieldItem): void => {
+      if (props.isTemplateSource) {
+        return;
+      }
+
       // 从 props.data 中获取最新的行数据，确保使用的是最新数据
       const currentRow = props.data.find(
         item => item.field_index === row.field_index && item.field_name === row.field_name,
@@ -957,7 +982,7 @@ export default defineComponent({
      */
 
     const getFieldEditDisabled = (row: FieldItem) => {
-      if (row.is_delete || row.is_built_in || row.field_type === 'object') {
+      if (props.isTemplateSource || row.is_delete || row.is_built_in || row.field_type === 'object') {
         return true;
       }
       if (props.selectEtlConfig === 'bk_log_json') {
@@ -1091,9 +1116,13 @@ export default defineComponent({
               v-bk-tooltips={{ content: row.fieldErr, placement: 'top' }}
             />
           )}
-          {props.selectEtlConfig === 'bk_log_json' && row.fieldAliasErr && !row.alias_name && !row.alias_name_show && (
+          {props.selectEtlConfig === 'bk_log_json'
+            && row.fieldAliasErr
+            && !row.alias_name
+            && !row.alias_name_show && (
             <bk-button
               class='tooltips-btn'
+              disabled={props.isTemplateSource}
               on-click={() => handlePopoverRename(row)}
               v-bk-tooltips={{
                 width: row.width,
@@ -1135,36 +1164,32 @@ export default defineComponent({
         className: () => 'fields-table-column',
         cell: (h, { row }) => (
           <div class='type-select-wrapper'>
-            {row.field_type === 'flattened' ? (
-              <span class='overflow-tips'>{t('动态对象字段')}</span>
-            ) : (
-              <bk-select
-                class={{ 'type-error': row.typeErr }}
-                clearable={false}
-                disabled={row.is_built_in}
-                value={row.field_type}
-                on-change={value => {
-                  if (value === 'string') {
-                    scheduleInitMenuPop(1000);
-                  }
-                  const newList = updateList(props.data, row, item => ({
-                    ...item,
-                    field_type: value,
-                    typeErr: false, // 选择类型后清除错误状态
-                  }));
-                  emit('change', newList);
-                }}
-              >
-                {(globalsData.value.field_data_type || []).map(option => (
-                  <bk-option
-                    id={option.id}
-                    key={option.id}
-                    disabled={isTypeDisabled(row, option)}
-                    name={option.name}
-                  />
-                ))}
-              </bk-select>
-            )}
+            <bk-select
+              class={{ 'type-error': row.typeErr }}
+              clearable={false}
+              disabled={props.isTemplateSource || row.is_built_in}
+              value={row.field_type}
+              on-change={value => {
+                if (value === 'string') {
+                  scheduleInitMenuPop(1000);
+                }
+                const newList = updateList(props.data, row, item => ({
+                  ...item,
+                  field_type: value,
+                  typeErr: false, // 选择类型后清除错误状态
+                }));
+                emit('change', newList);
+              }}
+            >
+              {(globalsData.value.field_data_type || []).map(option => (
+                <bk-option
+                  id={option.id}
+                  key={option.id}
+                  disabled={isFieldTypeDisabled(row, option)}
+                  name={option.name}
+                />
+              ))}
+            </bk-select>
             {row.typeErr && (
               <i
                 class='bk-icon icon-exclamation-circle-shape tooltips-icon type-error-icon'
@@ -1192,19 +1217,28 @@ export default defineComponent({
         width: 60,
         cell: (h, { row }) => (
           <div class='table-operation'>
-            {(isLogDelimiter.value || isLogRegexp.value) &&
-              !row.is_built_in && (
+            {(isLogDelimiter.value || isLogRegexp.value)
+              && !row.is_built_in && (
                 <i
-                  class={`bklog-icon bklog-${row.is_delete ? 'visible' : 'invisible'} icons`}
-                  v-bk-tooltips={row.is_delete ? t('复原') : t('隐藏')}
-                  on-click={() => isDisableOperate(row)}
+                  class={{
+                    [`bklog-icon bklog-${row.is_delete ? 'visible' : 'invisible'} icons`]: true,
+                    'is-disabled': props.isTemplateSource,
+                  }}
+                  v-bk-tooltips={{
+                    content: row.is_delete ? t('复原') : t('隐藏'),
+                    disabled: props.isTemplateSource,
+                  }}
+                  on-click={() => !props.isTemplateSource && isDisableOperate(row)}
                 />
-              )}
+            )}
             {isLogJson.value && !row.is_built_in && (
               <i
-                class='bklog-icon bklog-log-delete icons del-icon'
-                v-bk-tooltips={t('删除')}
-                on-click={() => deleteField(row)}
+                class={{
+                  'bklog-icon bklog-log-delete icons del-icon': true,
+                  'is-disabled': props.isTemplateSource,
+                }}
+                v-bk-tooltips={{ content: t('删除'), disabled: props.isTemplateSource }}
+                on-click={() => !props.isTemplateSource && deleteField(row)}
               />
             )}
           </div>
@@ -1250,6 +1284,10 @@ export default defineComponent({
      * @param row 行数据
      */
     const deleteField = (row: FieldItem) => {
+      if (props.isTemplateSource) {
+        return;
+      }
+
       // 从列表中过滤掉要删除的字段
       const newList = props.data.filter(
         item => !(item.field_index === row.field_index && item.field_name === row.field_name),
@@ -1261,6 +1299,10 @@ export default defineComponent({
      * @param row
      */
     const isDisableOperate = (row: FieldItem) => {
+      if (props.isTemplateSource) {
+        return;
+      }
+
       const newList = updateList(props.data, row, item => ({ ...item, is_delete: !item.is_delete }));
       emit('change', newList);
     };
@@ -1303,6 +1345,10 @@ export default defineComponent({
      * 新增字段
      */
     const handleAddField = () => {
+      if (props.isTemplateSource) {
+        return;
+      }
+
       // 查找最大 field_index，确保新字段的索引唯一
       const maxIndex: number = props.data.reduce((max: number, item: FieldItem) => {
         return Math.max(max, item.field_index || 0);
@@ -1343,12 +1389,27 @@ export default defineComponent({
             />
             {t('显示内置字段')}
           </span>
+          {props.isTemplateSource && (
+            <span class='template-bind-tips'>
+              <InfoTips tips={t('当前清洗配置处于模板绑定状态，无法修改采集配置。如需修改，请点击')} />
+              <span
+                class='template-unbind-link'
+                on-click={() => emit('unbind-template')}
+              >
+                {t('解除绑定')}
+              </span>
+            </span>
+          )}
         </div>
         {renderTable()}
         {isAdd.value && (
           <div class='example-box'>
             <span
-              class='form-link'
+              aria-disabled={String(props.isTemplateSource)}
+              class={{
+                'form-link': true,
+                'is-disabled': props.isTemplateSource,
+              }}
               on-click={handleAddField}
             >
               <i class='bk-icon icon-plus link-icon add-btn' />

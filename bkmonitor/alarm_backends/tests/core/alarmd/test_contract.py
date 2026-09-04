@@ -644,7 +644,9 @@ def test_strategy_ir_adapter_rejects_boolean_integer_type_drift():
     [
         lambda strategy: strategy["items"][0]["algorithms"][0].update(type="IntelligentDetect"),
         lambda strategy: strategy["items"][0]["no_data_config"].update(is_enabled=True),
-        lambda strategy: strategy["detects"][0]["trigger_config"].update(uptime={"time_ranges": []}),
+        lambda strategy: strategy["detects"][0]["trigger_config"].update(
+            uptime={"time_ranges": [{"start": "09:00", "end": "18:00"}], "calendars": [], "active_calendars": []}
+        ),
     ],
 )
 def test_strategy_ir_adapter_rejects_features_outside_first_threshold_slice(mutate):
@@ -672,3 +674,40 @@ def test_strategy_ir_adapter_rejects_features_outside_first_threshold_slice(muta
             item_id=1,
             legacy_json=legacy_json,
         )
+
+
+@pytest.mark.parametrize(
+    "uptime",
+    [
+        {"time_ranges": [], "calendars": [], "active_calendars": []},
+        {
+            "time_ranges": [{"start": "00:00", "end": "23:59"}],
+            "calendars": [],
+            "active_calendars": [],
+        },
+    ],
+)
+def test_strategy_ir_adapter_accepts_legacy_always_active_uptime(uptime):
+    strategy = {
+        "id": 1,
+        "update_time": SOURCE_TIME,
+        "items": [
+            {
+                "id": 1,
+                "query_configs": [{"agg_interval": 60}],
+                "algorithms": [{"level": 1, "type": "Threshold", "config": [[{"method": "gte", "threshold": 1}]]}],
+                "no_data_config": {"is_enabled": False},
+            }
+        ],
+        "detects": [{"level": 1, "trigger_config": {"count": 1, "check_window": 5, "uptime": uptime}}],
+    }
+
+    strategy_ir = build_trigger_strategy_ir_from_legacy_config(
+        tenant_id="default",
+        purpose="DETECT",
+        strategy=strategy,
+        item_id=1,
+        legacy_json=encode_json_document(strategy),
+    )
+
+    assert strategy_ir["required_levels"] == [1]
