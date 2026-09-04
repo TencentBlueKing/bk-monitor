@@ -127,8 +127,6 @@ class UnifyQueryAPIResource(Resource):
             self.path,
             self.v1beta3_path,
             bk_biz_id,
-            space_uid=space_uid,
-            bk_tenant_id=bk_tenant_id,
         )
         url = urljoin(get_unify_query_url(space_uid), request_path.format(**params))
 

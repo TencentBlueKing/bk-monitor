@@ -1,6 +1,5 @@
 import ast
 import importlib.util
-import json
 import sys
 from pathlib import Path
 from types import ModuleType, SimpleNamespace
@@ -12,7 +11,6 @@ if not settings.configured:
     settings.configure(
         APP_CODE="bk_monitorv3",
         ENABLE_MULTI_TENANT_MODE=True,
-        GRAPH_RELATION_V4_BINDING_REDIS_KEY="test:surrealdb_binding",
         GRAPH_RELATION_V4_BIZ_ID_WHITE_LIST=[],
         REST_FRAMEWORK={},
         UNIFY_QUERY_ROUTING_RULES=[],
@@ -26,7 +24,6 @@ from api.unify_query.relation_routing import (  # noqa: E402
     RELATION_MULTI_RESOURCE_RANGE_PATH,
     RELATION_MULTI_RESOURCE_RANGE_V1BETA3_PATH,
     RELATION_MULTI_RESOURCE_V1BETA3_PATH,
-    is_graph_relation_v4_query_ready,
     resolve_relation_query_path,
 )
 from bkmonitor.utils.graph_relation import get_graph_relation_v4_biz_ids  # noqa: E402
@@ -41,45 +38,22 @@ from bkmonitor.utils.graph_relation import get_graph_relation_v4_biz_ids  # noqa
 )
 @pytest.mark.parametrize(("bk_biz_id", "use_v1beta3"), [(2, True), (3, False)])
 @override_settings(GRAPH_RELATION_V4_BIZ_ID_WHITE_LIST=[2])
-def test_relation_query_uses_v4_whitelist_for_v1beta3_routing(
-    monkeypatch, legacy_path, v1beta3_path, bk_biz_id, use_v1beta3
-):
-    binding_route = {
-        "bk_biz_id": str(bk_biz_id),
-        "database": f"{bk_biz_id}_graph_rt",
-        "namespace": f"mapleleaf_{bk_biz_id}",
-        "phase": "Ok",
-    }
-    monkeypatch.setattr(
-        "api.unify_query.relation_routing.get_graph_relation_v4_binding_route",
-        lambda *args: json.dumps(binding_route),
-    )
-
+def test_relation_query_uses_v4_whitelist_for_v1beta3_routing(legacy_path, v1beta3_path, bk_biz_id, use_v1beta3):
     path = resolve_relation_query_path(
         legacy_path,
         v1beta3_path,
         bk_biz_id,
-        space_uid=f"bkcc__{bk_biz_id}",
-        bk_tenant_id="tenant-a",
     )
 
     assert path == (v1beta3_path if use_v1beta3 else legacy_path)
 
 
 @override_settings(GRAPH_RELATION_V4_BIZ_ID_WHITE_LIST=[2])
-def test_relation_query_returns_to_v1_after_biz_removed_from_whitelist(monkeypatch):
-    monkeypatch.setattr(
-        "api.unify_query.relation_routing.get_graph_relation_v4_binding_route",
-        lambda *args: json.dumps(
-            {"bk_biz_id": "2", "database": "2_graph_rt", "namespace": "mapleleaf_2", "phase": "Ok"}
-        ),
-    )
+def test_relation_query_returns_to_v1_after_biz_removed_from_whitelist():
     path = resolve_relation_query_path(
         RELATION_MULTI_RESOURCE_PATH,
         RELATION_MULTI_RESOURCE_V1BETA3_PATH,
         2,
-        space_uid="bkcc__2",
-        bk_tenant_id="tenant-a",
     )
     assert path == RELATION_MULTI_RESOURCE_V1BETA3_PATH
 
@@ -88,8 +62,6 @@ def test_relation_query_returns_to_v1_after_biz_removed_from_whitelist(monkeypat
             RELATION_MULTI_RESOURCE_PATH,
             RELATION_MULTI_RESOURCE_V1BETA3_PATH,
             2,
-            space_uid="bkcc__2",
-            bk_tenant_id="tenant-a",
         )
 
     assert path == RELATION_MULTI_RESOURCE_PATH
@@ -100,62 +72,15 @@ def test_graph_relation_v4_whitelist_ignores_invalid_values():
     assert get_graph_relation_v4_biz_ids() == {2, 3}
 
 
-@pytest.mark.parametrize(
-    "binding_route",
-    [
-        None,
-        "not-json",
-        json.dumps({"bk_biz_id": "2", "database": "2_graph_rt", "namespace": "mapleleaf_2", "phase": "Pending"}),
-        json.dumps({"bk_biz_id": "3", "database": "2_graph_rt", "namespace": "mapleleaf_2", "phase": "Ok"}),
-        json.dumps({"bk_biz_id": "2", "database": "", "namespace": "mapleleaf_2", "phase": "Ok"}),
-    ],
-)
 @override_settings(GRAPH_RELATION_V4_BIZ_ID_WHITE_LIST=[2])
-def test_relation_query_falls_back_until_binding_route_is_ready(monkeypatch, binding_route):
-    monkeypatch.setattr(
-        "api.unify_query.relation_routing.get_graph_relation_v4_binding_route", lambda *args: binding_route
-    )
-
+def test_relation_query_uses_v1beta3_for_whitelisted_biz_without_binding_lookup():
     path = resolve_relation_query_path(
         RELATION_MULTI_RESOURCE_PATH,
         RELATION_MULTI_RESOURCE_V1BETA3_PATH,
         2,
-        space_uid="bkcc__2",
-        bk_tenant_id="tenant-a",
     )
 
-    assert path == RELATION_MULTI_RESOURCE_PATH
-
-
-@override_settings(GRAPH_RELATION_V4_BIZ_ID_WHITE_LIST=[2])
-def test_relation_query_falls_back_when_binding_redis_is_unavailable(monkeypatch):
-    def raise_redis_error(*args):
-        raise ConnectionError("redis unavailable")
-
-    monkeypatch.setattr("api.unify_query.relation_routing.get_graph_relation_v4_binding_route", raise_redis_error)
-
-    path = resolve_relation_query_path(
-        RELATION_MULTI_RESOURCE_PATH,
-        RELATION_MULTI_RESOURCE_V1BETA3_PATH,
-        2,
-        space_uid="bkcc__2",
-        bk_tenant_id="tenant-a",
-    )
-
-    assert path == RELATION_MULTI_RESOURCE_PATH
-
-
-def test_binding_readiness_uses_same_tenant_field_as_unify_query(monkeypatch):
-    calls = []
-
-    def get_binding_route(key, field):
-        calls.append((key, field))
-        return json.dumps({"bk_biz_id": "2", "database": "2_graph_rt", "namespace": "mapleleaf_2", "phase": "Ok"})
-
-    monkeypatch.setattr("api.unify_query.relation_routing.get_graph_relation_v4_binding_route", get_binding_route)
-
-    assert is_graph_relation_v4_query_ready("bkcc__2", 2, "tenant-a") is True
-    assert calls == [("test:surrealdb_binding", "bkcc__2|tenant-a")]
+    assert path == RELATION_MULTI_RESOURCE_V1BETA3_PATH
 
 
 def test_perform_request_routes_after_resolving_space_biz_and_tenant(monkeypatch):
@@ -173,8 +98,8 @@ def test_perform_request_routes_after_resolving_space_biz_and_tenant(monkeypatch
 
     route_context = {}
 
-    def resolve_path(legacy_path, v1beta3_path, bk_biz_id, **kwargs):
-        route_context.update(bk_biz_id=bk_biz_id, **kwargs)
+    def resolve_path(legacy_path, v1beta3_path, bk_biz_id):
+        route_context["bk_biz_id"] = bk_biz_id
         return v1beta3_path
 
     sent_request = {}
@@ -202,7 +127,7 @@ def test_perform_request_routes_after_resolving_space_biz_and_tenant(monkeypatch
     )
 
     assert result == {"result": True}
-    assert route_context == {"bk_biz_id": 2, "space_uid": "bkcc__2", "bk_tenant_id": "tenant-a"}
+    assert route_context == {"bk_biz_id": 2}
     assert sent_request["url"] == "http://unify-query/api/v1/relation/v1beta3/multi_resource"
     assert sent_request["headers"]["X-Bk-Tenant-Id"] == "tenant-a"
 

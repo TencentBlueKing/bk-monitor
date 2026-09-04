@@ -1744,10 +1744,6 @@ if _graph_relation_v4_biz_id_white_list_env is None:
 GRAPH_RELATION_V4_BIZ_ID_WHITE_LIST = [
     int(biz_id.strip()) for biz_id in _graph_relation_v4_biz_id_white_list_env.split(",") if biz_id.strip().isdigit()
 ]
-# 与 Unify Query cmdb.v1beta3.binding_redis_key、BMW surrealDBBindingKey 保持一致。
-GRAPH_RELATION_V4_BINDING_REDIS_KEY = os.getenv(
-    "GRAPH_RELATION_V4_BINDING_REDIS_KEY", "bkmonitorv3:spaces:surrealdb_binding"
-)
 
 # 特殊的可以不被禁用的BCS集群ID
 ALWAYS_RUNNING_FAKE_BCS_CLUSTER_ID_LIST = []
