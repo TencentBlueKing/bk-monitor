@@ -85,7 +85,10 @@ export default defineComponent({
     const spanTypeCtx = useRumSpanType(viewConfigCtx.viewConfig);
     const queryCtx = useRumQuery({ extraFilters: spanTypeCtx.spanTypeFilters });
     const tableCtx = useRumTableData(queryCtx.commonParams);
-    const { getFieldValues } = useRumFieldValues(computed(() => viewConfigCtx.viewConfig.value.fields));
+    // tagValueDisplayFormatter 用于让已选条件 tag 按字段单位与枚举别名展示
+    const { getFieldValues, tagValueDisplayFormatter } = useRumFieldValues(
+      computed(() => viewConfigCtx.viewConfig.value.fields)
+    );
     /** 是否处于 span 视角下「指定具体类型」的特殊态 */
     const isSpanSpecialPerspective = computed(() => store.mode === RumModeEnum.SPAN && store.spanType);
     /** 是否存在检索条件，决定表格空状态类型 */
@@ -287,6 +290,7 @@ export default defineComponent({
       handleSpanTypeChange,
       handleThumbtackChange,
       handleCreateApp,
+      tagValueDisplayFormatter,
     };
   },
   render() {
@@ -349,6 +353,7 @@ export default defineComponent({
                 queryString={queryCtx.queryString.value}
                 residentSettingOnlyId={this.residentSettingOnlyId}
                 selectFavorite={favoriteCtx.selectedFavorite.value}
+                tagValueDisplayFormatter={this.tagValueDisplayFormatter}
                 where={queryCtx.where.value}
                 whereFormatter={traceWhereFormatter}
                 onCommonWhereChange={value => {
