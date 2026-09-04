@@ -43,6 +43,40 @@ import $http from '@/api';
 import type { IFavoriteItem, IGroupItem, SearchMode } from '../types';
 
 /**
+ * APM 页为 `/?bizId=#/apm/service?...&addition=`，仅替换 hash query 中的 addition
+ */
+const replaceApmHashAddition = (href: string, addition: unknown): string => {
+  const rawAddition = addition ?? [];
+  const additionValue = encodeURIComponent(
+    typeof rawAddition === 'string' ? rawAddition : JSON.stringify(rawAddition),
+  );
+
+  const hashIndex = href.indexOf('#');
+  if (hashIndex === -1) {
+    if (/[?&]addition=/.test(href)) {
+      return href.replace(/([?&])addition=[^&]*/, `$1addition=${additionValue}`);
+    }
+    return `${href}${href.includes('?') ? '&' : '?'}addition=${additionValue}`;
+  }
+
+  const beforeHash = href.slice(0, hashIndex);
+  const hash = href.slice(hashIndex + 1);
+  const hashQueryIndex = hash.indexOf('?');
+
+  if (hashQueryIndex === -1) {
+    return `${beforeHash}#${hash}?addition=${additionValue}`;
+  }
+
+  const hashPath = hash.slice(0, hashQueryIndex);
+  const hashQuery = hash.slice(hashQueryIndex + 1);
+  const nextQuery = /(?:^|&)addition=/.test(hashQuery)
+    ? hashQuery.replace(/(^|&)addition=[^&]*/, `$1addition=${additionValue}`)
+    : `${hashQuery}${hashQuery ? '&' : ''}addition=${additionValue}`;
+
+  return `${beforeHash}#${hashPath}?${nextQuery}`;
+};
+
+/**
  * 收藏功能的自定义 Hook
  */
 export const useFavorite = () => {
@@ -390,6 +424,14 @@ export const useFavorite = () => {
       const sourceType = store.getters.isSceneMode ? 'scene' : 'index_set';
       const params = { group_id };
       const data = { name: groupNewName, space_uid: spaceUid, source_type: sourceType };
+      if (window.__IS_MONITOR_APM__) {
+        Object.assign(data, {
+          scope: {
+            app_name: window.MONITOR_APM_APP_NAME,
+            service_name: window.MONITOR_APM_SERVICE_NAME,
+          },
+        });
+      }
       const requestStr = isCreate ? 'createGroup' : 'updateGroupName';
 
       await $http.request(`favorite/${requestStr}`, { params, data }).then(res => {
@@ -439,15 +481,19 @@ export const useFavorite = () => {
       query: resolver.resolveParamsToUrl(),
     } as any;
 
-    let shareUrl = (window as any).SITE_URL;
+    let shareUrl = (window as any).SITE_URL || '';
     if (!shareUrl.startsWith('/')) {
       shareUrl = `/${shareUrl}`;
     }
     if (!shareUrl.endsWith('/')) {
-      shareUrl += '/';
+      shareUrl += '/'
     }
-
-    shareUrl = `${window.location.origin + shareUrl}${router.resolve(routeData).href}`;
+    if (window.__IS_MONITOR_APM__) {
+      // 保留当前 APM 页路径和其余 hash 参数，只替换 addition
+      shareUrl = replaceApmHashAddition(window.location.href, item.params?.addition);
+    } else {
+      shareUrl = `${window.location.origin + shareUrl}${router.resolve(routeData).href}`;
+    }
     if (type === 'new-link') {
       window.open(shareUrl, '_blank', 'noopener,noreferrer');
     } else {
@@ -524,6 +570,14 @@ export const useFavorite = () => {
         });
       }
     }
+    if (window.__IS_MONITOR_APM__) {
+      Object.assign(data, {
+        scope: {
+          app_name: window.MONITOR_APM_APP_NAME,
+          service_name: window.MONITOR_APM_SERVICE_NAME,
+        },
+      });
+    }
     $http
       .request('favorite/createFavorite', { data })
       .then(() => {
@@ -551,11 +605,20 @@ export const useFavorite = () => {
   const requestGroupList = async (spaceUid: number, callback?: (res: any) => void) => {
     try {
       const sourceType = store.getters.isSceneMode ? 'scene' : 'index_set';
+      const query = {
+        space_uid: spaceUid,
+        source_type: sourceType,
+      };
+      if (window.__IS_MONITOR_APM__) {
+        Object.assign(query, {
+          scope: JSON.stringify({
+            app_name: window.MONITOR_APM_APP_NAME,
+            service_name: window.MONITOR_APM_SERVICE_NAME,
+          }),
+        });
+      }
       const res = await $http.request('favorite/getGroupList', {
-        query: {
-          space_uid: spaceUid,
-          source_type: sourceType,
-        },
+        query,
       });
       callback?.(res || {});
     } catch (error) {
@@ -622,10 +685,20 @@ export const useFavorite = () => {
       );
     }
 
+    const dataBody = isGroup ? { ...data, ...searchParams } : data;
+    if (window.__IS_MONITOR_APM__) {
+      Object.assign(dataBody, {
+        scope: {
+          app_name: window.MONITOR_APM_APP_NAME,
+          service_name: window.MONITOR_APM_SERVICE_NAME,
+        },
+      });
+    }
+
     try {
       const res = await $http.request('favorite/updateFavorite', {
         params: { id },
-        data: isGroup ? { ...data, ...searchParams } : data,
+        data: dataBody,
       });
       if (res.result) {
         showMessage(tips || window.$t('保存成功'));

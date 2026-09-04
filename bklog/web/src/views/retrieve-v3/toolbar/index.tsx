@@ -49,7 +49,7 @@ export default defineComponent({
 
     return () => (
       <div class='v3-bklog-toolbar'>
-        {!window.__IS_MONITOR_COMPONENT__ && (
+        {!window.__IS_MONITOR_TRACE__ && (
           <div
             class={`collection-box ${isFavoriteShown.value ? 'active' : ''}`}
             onClick={handleCollectionShowChange}

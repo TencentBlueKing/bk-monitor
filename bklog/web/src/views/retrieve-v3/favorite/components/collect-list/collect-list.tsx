@@ -76,36 +76,6 @@ export default defineComponent({
     const { handleNewLink, handleDeleteApi, handleCreateCopy, handleUpdateFavorite } = useFavorite();
     /** 删除操作相关key list */
     const deleteKey = ['dismiss-group', 'delete'];
-    const childMenu = ref([
-      {
-        key: 'share',
-        label: t('分享'),
-      },
-      {
-        key: 'edit',
-        label: t('编辑'),
-      },
-      {
-        key: 'create-copy',
-        label: t('克隆'),
-      },
-      {
-        key: 'move-group',
-        label: t('移动至分组'),
-      },
-      {
-        key: 'remove-group',
-        label: t('从该组移除'),
-      },
-      {
-        key: 'new-link',
-        label: t('新开标签页'),
-      },
-      {
-        key: 'delete',
-        label: t('删除'),
-      },
-    ]);
     const groupMenu = ref([
       {
         key: 'reset-group-name',
@@ -136,6 +106,44 @@ export default defineComponent({
       },
     };
     const isShowEdit = ref(false);
+
+    const childMenu = computed(() => {
+      const list =  [
+        {
+          key: 'share',
+          label: t('分享'),
+        },
+        {
+          key: 'edit',
+          label: t('编辑'),
+        },
+        {
+          key: 'create-copy',
+          label: t('克隆'),
+        },
+        {
+          key: 'move-group',
+          label: t('移动至分组'),
+        },
+        {
+          key: 'remove-group',
+          label: t('从该组移除'),
+        },
+        {
+          key: 'new-link',
+          label: t('新开标签页'),
+        },
+        {
+          key: 'delete',
+          label: t('删除'),
+        },
+      ];
+      if (window.__IS_MONITOR_APM__) {
+        return list.filter(item => item.key !== 'new-link');
+      }
+      return list;
+    });
+
     // 用户信息
     const userMeta = computed(() => store.state.userMeta);
     // 去掉个人收藏的组列表
