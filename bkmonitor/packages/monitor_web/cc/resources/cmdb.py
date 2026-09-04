@@ -867,7 +867,7 @@ def get_host_strategy_count(bk_biz_id: int, host: Host = None) -> tuple[int, int
 
 # 获取主机告警事件
 def get_host_alarm_count(
-    bk_biz_id: int, hosts: list[Host], days: int = 7, start_time: int = None, end_time: int = None
+    bk_biz_id: int, hosts: list[Host], days: int = 7, end_time: int = None
 ) -> dict[int, dict[int, int]]:
     """
     获取主机关联告警数量，当不传主机时，统计所有主机数据
@@ -877,12 +877,19 @@ def get_host_alarm_count(
     2. dimensions 中提取 ip + bk_cloud_id 匹配（K8s告警）
     优化：传入主机时按 event.ip 做 terms 过滤，避免全索引扫描；
          无 event.ip 的 K8s 告警（仅 dimensions 匹配）可能被遗漏，属已知权衡。
+
+    统计口径：「未恢复」是存量状态语义——只统计 begin_time 不晚于 end_time（缺省为当前时刻）且当前
+    仍未恢复（status=ABNORMAL）的告警，不限制告警的触发起点，避免更早触发的存量告警随查询窗口
+    起点收缩而被误显示为 0。
+
+    索引选择：不向 search 传 end_time，索引窗口恒为 [now-days, now]。ABNORMAL 文档每日被 rollover
+    reindex 搬运到当天索引（见 AlertDocument.REINDEX_QUERY 与 alert.get/mget 注释），上界必须延伸到
+    now 才能命中；end_time 仅做 begin_time lte 的文档级过滤，不参与索引选择。
+
     :param bk_biz_id: 业务ID
     :param hosts: 主机列表
-    :param days: 查询范围（天），仅在未传 start_time/end_time 时生效
-    :param start_time: 查询起始时间（秒级 Unix 时间戳，可选）。与 end_time 同时传入时，按精确时间范围
-                      构建 ES 索引，覆盖 days 参数。
-    :param end_time: 查询结束时间（秒级 Unix 时间戳，可选）。
+    :param days: 索引回溯天数（天）
+    :param end_time: 统计截止时间（秒级 Unix 时间戳，可选），只统计 begin_time ≤ end_time 的未恢复告警
     :return: Dict[bk_host_id, Dict[severity, count]]
     """
     if not hosts:
@@ -895,32 +902,54 @@ def get_host_alarm_count(
         if inner_ip:
             host_ips.update(ip.strip() for ip in inner_ip.split(",") if ip.strip())
 
-    is_historical = start_time is not None and end_time is not None
+    # 索引上界固定 now：ABNORMAL 文档每天被 reindex 搬运到当天索引，不能把 end_time 传给 search
+    # 收窄索引窗口，否则历史截止时间会因漏掉当天索引而把未恢复计数误判为 0
     search_object = (
-        AlertDocument.search(
-            start_time=start_time if is_historical else None,
-            end_time=end_time if is_historical else None,
-            days=None if is_historical else days,
-        )
+        AlertDocument.search(days=days)
         .filter("term", status=EventStatus.ABNORMAL)
         .filter("term", **{"event.bk_biz_id": bk_biz_id})
         .source(["event.ip", "event.bk_cloud_id", "severity", "dimensions"])
     )
-    if is_historical:
-        # 补充 ES range 过滤，按告警开始时间精确约束，避免索引按天选择带来的边界数据
-        search_object = search_object.filter("range", begin_time={"gte": start_time, "lte": end_time})
+    if end_time is not None:
+        # 「未恢复」是存量状态语义：只约束告警触发时间不晚于 end_time，不限制触发起点
+        search_object = search_object.filter("range", begin_time={"lte": end_time})
 
     if host_ips:
         search_object = search_object.filter("terms", **{"event.ip": list(host_ips)})
 
-    ip_to_host_id = {(host.bk_host_innerip, int(host.bk_cloud_id or 0)): host.bk_host_id for host in hosts}
+    ip_to_host_id = {}
+    for host in hosts:
+        bk_cloud_id = int(host.bk_cloud_id or 0)
+        inner_ip = host.bk_host_innerip or ""
+        # innerip 可能为逗号分隔多 IP：拆分后逐个建索引，另保留原始串兼容 event.ip 存完整串的历史数据
+        for ip in [inner_ip] + [item.strip() for item in inner_ip.split(",")]:
+            ip = ip.strip()
+            if ip:
+                ip_to_host_id[(ip, bk_cloud_id)] = host.bk_host_id
 
     alarm_count_info = {host.bk_host_id: {1: 0, 2: 0, 3: 0} for host in hosts}
+    # reindex 过渡期同一告警可能在新旧索引各存一份（同 _id），按 id 去重防重复计数（同 AlertDocument.mget）
+    counted_alert_ids = set()
     for alert in search_object.scan():
+        alert_id = getattr(getattr(alert, "meta", None), "id", None)
+        if alert_id is not None:
+            if alert_id in counted_alert_ids:
+                continue
+            counted_alert_ids.add(alert_id)
         host_id = _resolve_host_id_from_alert(alert, ip_to_host_id)
         if host_id is None:
             continue
-        alarm_count_info[host_id][int(alert.severity)] += 1
+        try:
+            severity = int(alert.severity)
+        except (TypeError, ValueError):
+            logger.warning(
+                "alert(%s) has invalid severity %r, skip counting", getattr(alert, "id", None), alert.severity
+            )
+            continue
+        if severity not in alarm_count_info[host_id]:
+            # severity 越界（不在 1-3 值域）时跳过，避免脏数据炸掉整个告警统计分区
+            continue
+        alarm_count_info[host_id][severity] += 1
     return alarm_count_info
 
 

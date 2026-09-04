@@ -82,24 +82,57 @@ paths:
               properties:
                 sort:
                   type: array
-                  default: '["-elapsed_time"]'
-                  description: 'Sort conditions array. Each item is a field name, prefix with - for descending. Default: []. 排序条件数组。每项为字段名，前缀-表示降序。默认: []。'
+                  default: [-elapsed_time]
+                  items:
+                    type: string
+                  description: 'Sort conditions array. Each item is a field name, prefix with - for descending. Default: ["-elapsed_time"]. 排序条件数组。每项为字段名，前缀-表示降序。默认: ["-elapsed_time"]。'
                 limit:
-                  type: string
-                  default: '10'
+                  type: integer
+                  default: 10
                   description: 'Maximum number of spans to return. Default: 10. 返回的最大Span数量。默认: 10。'
                 query:
                   type: string
-                  default: '""'
+                  default: ''
                   description: 'Query string for full-text search. Default: "". 全文搜索查询字符串。默认: ""。'
                 offset:
-                  type: string
-                  default: '0'
+                  type: integer
+                  default: 0
                   description: 'Offset for pagination. Default: 0. 分页偏移量。默认: 0。'
                 filters:
                   type: array
-                  default: '// 示例 1：查询 POST 请求 {   "key": "attributes.http.method",   "operator": "equal",   "value": ["POST"],   "options": {"group_relation": "OR"} }  // 示例 2：查询 HTTP 状态码为 500 的请求 {   "key": "attributes.http.status_code",   "operator": "equal",   "value": ["500"] }'
+                  default: []
                   description: 'Filter conditions array. Each filter has: key (field name from get_apm_filter_fields), operator (equal/not_equal/like/etc), value (array of values), options (optional, e.g., group_relation). Default: []. 过滤条件数组。每个filter包含: key(字段名,从get_apm_filter_fields获取), operator(equal/not_equal/like等), value(值数组), options(可选)。默认: []。'
+                  items:
+                    type: object
+                    additionalProperties: false
+                    required: [key, operator, value]
+                    properties:
+                      key:
+                        type: string
+                        description: Filter field returned by get_apm_filter_fields. get_apm_filter_fields 返回的过滤字段。
+                      operator:
+                        type: string
+                        description: Filter operator, such as equal, not_equal or like. 过滤操作符，例如 equal、not_equal 或 like。
+                      value:
+                        type: array
+                        description: String values matched against the selected field. 与所选字段匹配的字符串值列表。
+                        items:
+                          type: string
+                      options:
+                        type: object
+                        default: {}
+                        additionalProperties: false
+                        description: Optional wildcard and group-relation settings. 可选的通配符及组内关系配置。
+                        properties:
+                          is_wildcard:
+                            type: boolean
+                            default: false
+                            description: Whether values use wildcard matching. 是否使用通配符匹配。
+                          group_relation:
+                            type: string
+                            enum: [OR, AND]
+                            default: OR
+                            description: Logical relation between multiple values. 多个值之间的逻辑关系。
                 app_name:
                   type: string
                   description: APM application name. Must be obtained from list_apm_applications. APM应用名称。必须从 list_apm_applications 获取。
@@ -325,6 +358,8 @@ paths:
               - bk_biz_id
               - app_name
               - service_name
+              - start_time
+              - end_time
               properties:
                 bk_biz_id:
                   type: integer
@@ -380,10 +415,17 @@ paths:
               type: object
               required:
               - bk_biz_id
-              - app_name
-              - service_name
               - start_time
               - end_time
+              oneOf:
+              - required: [app_name, service_name]
+                properties:
+                  global_query:
+                    enum: [false]
+              - required: [global_query, profile_id]
+                properties:
+                  global_query:
+                    enum: [true]
               properties:
                 bk_biz_id:
                   type: integer
@@ -409,7 +451,8 @@ paths:
                   description: 'Aggregation method across samples. "AVG" (average across the time window), "SUM" (sum across the time window), or "LAST" (keep only samples in the most recent aggregation interval, useful for instantaneous metrics like goroutine count / inuse_*). Recommended to use the default_agg_method returned by get_profile_type for the chosen data_type. If omitted, the backend picks a sensible default. 跨样本聚合方法: AVG(平均)/SUM(求和)/LAST(只保留最近一个聚合窗口, 适用于 goroutine、inuse_* 等瞬时型指标)。建议使用 get_profile_type 返回的 default_agg_method; 不传则后端按数据类型自动选择。'
                 filter_labels:
                   type: object
-                  default: '{}'
+                  default: {}
+                  additionalProperties: true
                   description: 'Profile label filters, e.g. {"profile_id":"xxx"} to inspect the profile of a specific span/trace, {"endpoint":"/api/foo"} to filter by endpoint. Use get_profile_label to discover available label keys. Default {}. profile 标签过滤, 例如 {"profile_id":"xxx"} 定位某次 span 的 profile, {"endpoint":"/api/foo"} 按接口过滤。可用的 label key 通过 get_profile_label 获取。默认 {}。'
                 profile_id:
                   type: string
@@ -429,7 +472,8 @@ paths:
                   description: Only used when is_compared=true. The other profile_id to compare against. 仅在 is_compared=true 时生效, 指定对比的另一个 profile_id。
                 diff_filter_labels:
                   type: object
-                  default: '{}'
+                  default: {}
+                  additionalProperties: true
                   description: Only used when is_compared=true. The other label-filter set to compare against. 仅在 is_compared=true 时生效, 对比侧的 label 过滤条件。
         required: false
         description: ''
@@ -490,23 +534,51 @@ paths:
                   description: 'Baseline time shift for growth rate calculation. Format: "0s" (current), "1h", "1d", "1w", "1M". Default: "0s". 增长率计算的基准时间偏移。默认:"0s"。'
                 time_shifts:
                   type: array
-                  default: '[]'
+                  default: []
+                  items:
+                    type: string
                   description: Time shift list for comparison. Max 2 comparison points. E.g. ["0s","1d"] for day-over-day. "0s" is auto-added if missing. 时间偏移列表,最多2个对比点。如["0s","1d"]表示日环比。
                 filter_dict:
                   type: object
-                  default: '{}'
+                  default: {}
+                  additionalProperties: true
                   description: Filter conditions dict. Merged with where conditions. 过滤条件字典。与where合并生效。
                 where:
                   type: array
-                  default: '[]'
+                  default: []
                   description: 'Filter conditions list. Each item: {"key":"field","value":["val"],"method":"eq","condition":"and"}. method: eq/neq/include/exclude/reg. 过滤条件列表。'
+                  items:
+                    type: object
+                    additionalProperties: false
+                    required: [key, value]
+                    properties:
+                      key:
+                        type: string
+                        description: Metric or dimension field name. 指标或维度字段名。
+                      value:
+                        type: array
+                        description: Values matched against the selected field. 与所选字段匹配的值列表。
+                        items: {}
+                      method:
+                        type: string
+                        enum: [eq, neq, include, exclude, reg]
+                        default: eq
+                        description: Field matching method. 字段匹配方式。
+                      condition:
+                        type: string
+                        enum: [and, or, '']
+                        default: ''
+                        description: Logical operator joining this condition to the next one. 当前条件与下一条件之间的逻辑操作符。
                 group_by:
                   type: array
-                  default: '[]'
+                  default: []
+                  items:
+                    type: string
                   description: Group-by fields for dimension aggregation. E.g. ["callee_method","service_name"]. 分组字段列表。如["callee_method"]。
                 options:
                   type: object
-                  default: '{}'
+                  default: {}
+                  additionalProperties: true
                   description: Extra options. For trpc metrics, set options.trpc with kind ("caller"/"callee") and temporality ("cumulative"/"delta"). 额外配置。trpc指标需设置options.trpc,含kind和temporality。
         required: false
         description: ''
@@ -551,7 +623,7 @@ paths:
                   type: array
                   items:
                     type: string
-                  default: '[]'
+                  default: []
                   description: Optional service name list; when empty or omitted, returns all services under the app. 可选服务名列表；为空或不传则返回该应用下全部服务。
         required: false
         description: ''

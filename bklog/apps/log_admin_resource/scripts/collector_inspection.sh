@@ -31,7 +31,7 @@ if [ "$target_config_hint_count" -gt 20 ]; then
 fi
 
 PROTOCOL="bklog.collector.inspection.probe.v1"
-PROBE_VERSION="137707063.11"
+PROBE_VERSION="137865321.6"
 # Stay below BK-JOB/GSE's 5 MiB atomic script-task log limit.
 OUTPUT_BUDGET_BYTES=4194304
 OUTPUT_FINAL_RESERVE_BYTES=4096
@@ -43,6 +43,8 @@ MAX_COLLECTOR_FILE_LOG_BYTES=1048576
 MAX_CHILD_CONFIG_SCAN=1000
 MAX_MATCHED_CHILD_CONFIGS=5
 MAX_SOURCES=50
+# Matches filebeat's recursive_glob.max_depth default, which is what renders these patterns.
+MAX_RECURSIVE_GLOB_DEPTH=8
 output_used_bytes=0
 content_kv_count=0
 stream_count=0
@@ -169,6 +171,52 @@ emit_tail_blob() {
     emit_encoded_stream "$blob_name" "$blob_path" "$actual_returned" "$total" "$truncated" "$encoded" || true
 }
 
+registrar_filter_keys=""
+registrar_filter_separator='
+'
+
+# bkunifylogbeat json.Marshal()s the entire []file.State slice and stores it under a single
+# "registrar" key, so the whole database is one compact JSON array. `strings` therefore emits
+# one enormous line rather than one line per record, and a line-oriented filter would return
+# either everything or nothing. Splitting on the record boundary first is what makes both the
+# filter and the byte budget meaningful. Source is the first field of file.State, so
+# `},{"source":` is a stable boundary; index/substr avoid the ERE quantifier meaning of braces.
+registrar_split_program='
+{
+    line = $0
+    while ((boundary = index(line, "},{\"source\":")) > 0) {
+        print substr(line, 1, boundary)
+        line = substr(line, boundary + 2)
+    }
+    print line
+}
+'
+
+# Keys stay deliberately loose (source path, resolved path and both basenames) because
+# the server still matches registrar states on path plus inode and device. Filtering the
+# probe side on the full path alone would turn a server-side path mismatch into missing
+# evidence, which is harder to diagnose than a mismatch.
+add_registrar_filter_key() {
+    candidate=$1
+    [ -n "$candidate" ] || return 0
+    case "$registrar_filter_separator$registrar_filter_keys$registrar_filter_separator" in
+        *"$registrar_filter_separator$candidate$registrar_filter_separator"*) return 0 ;;
+    esac
+    if [ -n "$registrar_filter_keys" ]; then
+        registrar_filter_keys="$registrar_filter_keys$registrar_filter_separator$candidate"
+    else
+        registrar_filter_keys=$candidate
+    fi
+}
+
+registrar_record_stream() {
+    if [ "$registrar_split" = true ]; then
+        strings -n 4 -- "$1" 2>/dev/null | awk "$registrar_split_program" 2>/dev/null
+    else
+        strings -n 4 -- "$1" 2>/dev/null
+    fi
+}
+
 emit_registrar_stream() {
     stream_name=$1
     registrar_path=$2
@@ -176,8 +224,54 @@ emit_registrar_stream() {
         emit_kv "${stream_name}.unavailable" "base64_missing"
         return
     fi
-    encoded=$(strings -n 4 -- "$registrar_path" 2>/dev/null | \
-        dd bs=1 count="$MAX_REGISTRAR_BYTES" 2>/dev/null | base64 | tr -d '\r\n')
+    registrar_raw_lines=$(strings -n 4 -- "$registrar_path" 2>/dev/null | wc -l | tr -d ' ')
+    case "$registrar_raw_lines" in
+        ''|*[!0-9]*) registrar_raw_lines=0 ;;
+    esac
+    registrar_split=false
+    registrar_record_count=$registrar_raw_lines
+    if command -v awk >/dev/null 2>&1; then
+        registrar_split=true
+        registrar_record_count=$(registrar_record_stream "$registrar_path" | wc -l | tr -d ' ')
+        case "$registrar_record_count" in
+            ''|*[!0-9]*) registrar_record_count=0 ;;
+        esac
+        # An awk that chokes on a multi-hundred-KB line yields nothing; fall back rather than
+        # reporting an empty registrar.
+        if [ "$registrar_record_count" -lt "$registrar_raw_lines" ]; then
+            registrar_split=false
+            registrar_record_count=$registrar_raw_lines
+        fi
+    fi
+    registrar_filter_key_count=0
+    if [ -n "$registrar_filter_keys" ]; then
+        registrar_filter_key_count=$(printf '%s\n' "$registrar_filter_keys" | wc -l | tr -d ' ')
+    fi
+    registrar_filtered=false
+    registrar_filtered_records=$registrar_record_count
+    encoded=""
+    if [ "$registrar_filter_key_count" -gt 0 ] && command -v grep >/dev/null 2>&1; then
+        registrar_filtered=true
+        # grep -F reads the pattern operand as one fixed string per line.
+        registrar_filtered_content=$(registrar_record_stream "$registrar_path" | \
+            grep -F "$registrar_filter_keys" 2>/dev/null)
+        if [ -n "$registrar_filtered_content" ]; then
+            registrar_filtered_records=$(printf '%s\n' "$registrar_filtered_content" | wc -l | tr -d ' ')
+            encoded=$(printf '%s\n' "$registrar_filtered_content" | \
+                dd bs=1 count="$MAX_REGISTRAR_BYTES" 2>/dev/null | base64 | tr -d '\r\n')
+        else
+            registrar_filtered_records=0
+        fi
+    else
+        encoded=$(registrar_record_stream "$registrar_path" | \
+            dd bs=1 count="$MAX_REGISTRAR_BYTES" 2>/dev/null | base64 | tr -d '\r\n')
+    fi
+    emit_kv "${stream_name}.raw_line_count" "$registrar_raw_lines"
+    emit_kv "${stream_name}.record_split" "$registrar_split"
+    emit_kv "${stream_name}.record_count" "$registrar_record_count"
+    emit_kv "${stream_name}.filtered" "$registrar_filtered"
+    emit_kv "${stream_name}.filter_key_count" "$registrar_filter_key_count"
+    emit_kv "${stream_name}.filtered_record_count" "$registrar_filtered_records"
     actual_returned=$(decoded_base64_size "$encoded")
     registrar_truncated=false
     if [ "$actual_returned" -ge "$MAX_REGISTRAR_BYTES" ]; then
@@ -491,16 +585,39 @@ while IFS= read -r child_path && [ "$child_index" -lt "$MAX_MATCHED_CHILD_CONFIG
         *"$tab"*) continue ;;
     esac
     emit_blob "child_config.$child_index" "$child_path" "$MAX_CHILD_CONFIG_BYTES"
+    # A rendered path is written from inside the container. Reaching the same file from the
+    # collector means replaying what the collector itself does: resolve it through the mount
+    # table when the path sits on a mounted volume, otherwise through the container root.
     extracted_patterns=$(awk '
+        function scalar(value) {
+            sub(/^[^:]*:[[:space:]]*/, "", value)
+            gsub(/^[[:space:]\047\"]+|[[:space:]\047\"]+$/, "", value)
+            return value
+        }
+        # An unset variable subscripts an array by its string value, which is "" and not 0, so
+        # the first mount would land outside the range the loop below walks and disappear.
+        BEGIN { mount_count = 0; path_count = 0 }
+        /^[[:space:]]*root_fs[[:space:]]*:/ { root_fs = scalar($0); next }
+        /^[[:space:]]*-?[[:space:]]*container_path[[:space:]]*:/ { pending = scalar($0); next }
+        /^[[:space:]]*host_path[[:space:]]*:/ {
+            value = scalar($0)
+            if (pending != "" && value != "") {
+                mount_container[mount_count] = pending
+                mount_host[mount_count] = value
+                mount_count++
+            }
+            pending = ""
+            next
+        }
         /^[[:space:]]*paths[[:space:]]*:[[:space:]]*\[/ {
             line=$0
             sub("^[^[]*\\[", "", line)
             sub("\\].*$", "", line)
             count=split(line, values, ",")
-            for (index=1; index<=count; index++) {
-                value=values[index]
+            for (idx=1; idx<=count; idx++) {
+                value=values[idx]
                 gsub(/^[[:space:]\047\"]+|[[:space:]\047\"]+$/, "", value)
-                if (value ~ /^\//) print value
+                if (value ~ /^\//) paths[path_count++] = value
             }
             inside=0
             next
@@ -510,11 +627,55 @@ while IFS= read -r child_path && [ "$child_index" -lt "$MAX_MATCHED_CHILD_CONFIG
             line=$0
             sub("^[[:space:]]*-[[:space:]]*", "", line)
             gsub(/^[\047\"]|[\047\"]$/, "", line)
-            if (line ~ /^\//) print line
+            if (line ~ /^\//) paths[path_count++] = line
             next
         }
         inside && $0 !~ /^[[:space:]]/ { inside=0 }
+        END {
+            for (idx = 0; idx < path_count; idx++) {
+                source = paths[idx]
+                best = -1
+                best_length = -1
+                for (m = 0; m < mount_count; m++) {
+                    mount_length = length(mount_container[m])
+                    # Only treat a mount as a prefix on a path boundary, so /data never claims
+                    # /database. Nested mounts overlap and are not rendered in any useful order,
+                    # so the longest match is the volume that actually holds the file.
+                    if (substr(source, 1, mount_length) == mount_container[m] &&
+                        (length(source) == mount_length || substr(source, mount_length + 1, 1) == "/")) {
+                        if (mount_length > best_length) {
+                            best_length = mount_length
+                            best = m
+                        }
+                    }
+                }
+                if (best >= 0) {
+                    resolved = mount_host[best] substr(source, best_length + 1)
+                } else if (root_fs != "" && root_fs != "/" &&
+                           substr(source, 1, length(root_fs)) != root_fs) {
+                    resolved = root_fs source
+                } else {
+                    # stdout collection already renders a host path below root_fs; prefixing it
+                    # again would look for /var/host/var/host/...
+                    resolved = source
+                }
+                printf "%s\t%s\n", source, resolved
+            }
+        }
     ' "$child_path" 2>/dev/null)
+    emit_kv "child_config.$child_index.root_fs" "$(awk '
+        /^[[:space:]]*root_fs[[:space:]]*:/ {
+            value = $0
+            sub(/^[^:]*:[[:space:]]*/, "", value)
+            gsub(/^[[:space:]\047\"]+|[[:space:]\047\"]+$/, "", value)
+            print value
+            exit
+        }
+    ' "$child_path" 2>/dev/null)"
+    emit_kv "child_config.$child_index.mount_count" "$(awk '
+        /^[[:space:]]*host_path[[:space:]]*:/ {count++}
+        END {print count+0}
+    ' "$child_path" 2>/dev/null)"
     if [ -n "$extracted_patterns" ]; then
         source_patterns="$source_patterns
 $extracted_patterns"
@@ -528,6 +689,7 @@ source_patterns=$(printf '%s\n' "$source_patterns" | awk 'NF' | sort -u | sed -n
 source_pattern_count=$(printf '%s\n' "$source_patterns" | awk 'NF {count++} END {print count+0}')
 case "$source_pattern_count" in ''|*[!0-9]*) source_pattern_count=0 ;; esac
 emit_kv "source_pattern_count" "$source_pattern_count"
+emit_kv "recursive_glob_max_depth" "$MAX_RECURSIVE_GLOB_DEPTH"
 if [ "$source_pattern_count" -gt "$MAX_SOURCES" ]; then
     emit_kv "source_narrowing_required" "true"
 fi
@@ -624,33 +786,81 @@ snapshot_processes() {
     snapshot_one_process "$phase" "sidecar" "$sidecar_pid"
 }
 
+# filebeat rewrites ** into an increasing run of single-level wildcards rather than walking the
+# tree, so /data/**/*.log also covers /data/*.log. POSIX sh has no globstar: ** collapses to a
+# single *, which silently narrows the pattern to exactly one level and hides every other file
+# the collector is actually reading.
+expand_recursive_glob() {
+    recursive_pattern=$1
+    case "$recursive_pattern" in
+        *'**/'*) ;;
+        *) printf '%s\n' "$recursive_pattern"; return 0 ;;
+    esac
+    recursive_prefix=${recursive_pattern%%'**/'*}
+    recursive_suffix=${recursive_pattern#*'**/'}
+    recursive_level=""
+    recursive_depth=0
+    while [ "$recursive_depth" -le "$MAX_RECURSIVE_GLOB_DEPTH" ]; do
+        printf '%s%s%s\n' "$recursive_prefix" "$recursive_level" "$recursive_suffix"
+        recursive_level="$recursive_level*/"
+        recursive_depth=$((recursive_depth + 1))
+    done
+}
+
 snapshot_sources() {
     phase=$1
     index=0
+    skipped=0
     source_limit_exceeded=false
-    while IFS= read -r pattern; do
+    while IFS="$tab" read -r config_pattern pattern; do
         case "$pattern" in
             /*) ;;
             *) continue ;;
         esac
-        for source_path in $pattern; do
-            [ -e "$source_path" ] || continue
+        for source_path in $(expand_recursive_glob "$pattern"); do
+            # -e follows the link, so a dangling symlink fails it. Skipping here would make a
+            # broken link indistinguishable from a path that was never configured, which is the
+            # same silent loss this probe exists to remove.
+            if [ ! -e "$source_path" ] && [ ! -L "$source_path" ]; then
+                continue
+            fi
             if [ "$index" -ge "$MAX_SOURCES" ]; then
+                # Keep counting past the limit. A recursive pattern can match hundreds of files,
+                # and knowing how many were left out is what tells the operator whether to narrow
+                # by subdirectory or by depth.
                 source_limit_exceeded=true
-                break
+                skipped=$((skipped + 1))
+                continue
+            fi
+            emit_kv "$phase.source.$index.pattern" "$pattern"
+            if [ "$config_pattern" != "$pattern" ]; then
+                emit_kv "$phase.source.$index.config_pattern" "$config_pattern"
+            fi
+            emit_kv "$phase.source.$index.path" "$source_path"
+            add_registrar_filter_key "$source_path"
+            add_registrar_filter_key "${source_path##*/}"
+            if [ -L "$source_path" ]; then
+                emit_kv "$phase.source.$index.symlink" "true"
+                # An absolute link target is written from inside the collected container and
+                # rarely resolves the same way here, so report it verbatim.
+                emit_kv "$phase.source.$index.symlink_target" "$(readlink "$source_path" 2>/dev/null)"
             fi
             metadata=$(stat -Lc '%d %i %s %Y' "$source_path" 2>/dev/null)
-            [ -n "$metadata" ] || continue
+            if [ -z "$metadata" ]; then
+                # The collector opens this path from this same mount namespace, so a target it
+                # cannot reach is a real collection failure rather than a probe limitation.
+                emit_kv "$phase.source.$index.unreadable" "true"
+                index=$((index + 1))
+                continue
+            fi
             device=$(printf '%s\n' "$metadata" | awk '{print $1}')
             inode=$(printf '%s\n' "$metadata" | awk '{print $2}')
             size_bytes=$(printf '%s\n' "$metadata" | awk '{print $3}')
             mtime_epoch=$(printf '%s\n' "$metadata" | awk '{print $4}')
-            emit_kv "$phase.source.$index.pattern" "$pattern"
-            emit_kv "$phase.source.$index.path" "$source_path"
-            emit_kv "$phase.source.$index.resolved_path" "$(readlink -f "$source_path" 2>/dev/null)"
-            if [ -L "$source_path" ]; then
-                emit_kv "$phase.source.$index.symlink" "true"
-            fi
+            resolved_path=$(readlink -f "$source_path" 2>/dev/null)
+            emit_kv "$phase.source.$index.resolved_path" "$resolved_path"
+            add_registrar_filter_key "$resolved_path"
+            add_registrar_filter_key "${resolved_path##*/}"
             emit_kv "$phase.source.$index.device" "$device"
             emit_kv "$phase.source.$index.inode" "$inode"
             emit_kv "$phase.source.$index.size_bytes" "$size_bytes"
@@ -664,7 +874,9 @@ snapshot_sources() {
 $source_patterns
 EOF
     emit_kv "$phase.source_count" "$index"
+    emit_kv "$phase.source_limit" "$MAX_SOURCES"
     if [ "$source_limit_exceeded" = "true" ]; then
+        emit_kv "$phase.source_skipped_count" "$skipped"
         emit_kv "source_narrowing_required" "true"
     fi
 }

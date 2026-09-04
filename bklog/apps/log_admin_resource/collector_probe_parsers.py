@@ -64,9 +64,16 @@ def fallback_matching_inputs(text: str, expected_data_id: int) -> list[dict[str,
 
 
 def parse_registrar_strings(text: str) -> list[dict[str, Any]]:
-    states = []
-    for value in _json_values(text):
-        _collect_registrar_states(value, states)
+    states, _ = parse_registrar_strings_with_stats(text)
+    return states
+
+
+def parse_registrar_strings_with_stats(text: str) -> tuple[list[dict[str, Any]], dict[str, int]]:
+    states: list[dict[str, Any]] = []
+    values, stats = _json_values_with_stats(text)
+    partial_state_count = 0
+    for value in values:
+        partial_state_count += _collect_registrar_states(value, states)
     deduplicated = {}
     for item in states:
         key = (
@@ -77,7 +84,8 @@ def parse_registrar_strings(text: str) -> list[dict[str, Any]]:
             str(item.get("timestamp")),
         )
         deduplicated[key] = item
-    return list(deduplicated.values())
+    stats["partial_state_count"] = partial_state_count
+    return list(deduplicated.values()), stats
 
 
 def state_for_file(states: list[dict[str, Any]], file_info: dict[str, Any]) -> dict[str, Any]:
@@ -110,11 +118,19 @@ def classify_registrar_progress(
     second_match: dict[str, Any],
     *,
     insufficient: bool = False,
+    evidence_incomplete: bool = False,
 ) -> dict[str, Any]:
     if first_file.get("inode") != second_file.get("inode") or first_file.get("device") != second_file.get("device"):
         observed = "file_rotated_during_sampling"
     elif not second_match.get("current"):
-        observed = "historical_state_only" if second_match.get("historical") else "registrar_state_not_found"
+        if second_match.get("historical"):
+            observed = "historical_state_only"
+        elif evidence_incomplete:
+            # Truncated or partially parsed registrar evidence cannot tell an untracked
+            # file apart from a record that never made it into the bounded sample.
+            observed = "registrar_evidence_incomplete"
+        else:
+            observed = "registrar_state_not_found"
     else:
         before_state = first_match.get("current") or second_match.get("current")
         after_state = second_match.get("current")
@@ -147,19 +163,52 @@ def classify_registrar_progress(
 
 
 def _json_values(text: str) -> list[Any]:
+    values, _ = _json_values_with_stats(text)
+    return values
+
+
+def _json_values_with_stats(text: str) -> tuple[list[Any], dict[str, int]]:
     decoder = json.JSONDecoder()
     values = []
+    line_count = 0
+    candidate_line_count = 0
+    unparsed_line_count = 0
     for line in text.splitlines():
-        for index, character in enumerate(line):
-            if character not in "[{":
-                continue
+        line_count += 1
+        candidate = False
+        parsed_on_line = 0
+        position = 0
+        while True:
+            starts = [start for start in (line.find("{", position), line.find("[", position)) if start != -1]
+            if not starts:
+                break
+            position = min(starts)
+            candidate = True
             try:
-                value, _end = decoder.raw_decode(line[index:])
+                # Decoding from an index rather than a slice matters here: the fallback path
+                # ships the whole registrar as one several-hundred-KB line, where slicing per
+                # record would copy the remainder of the line once per record.
+                value, end = decoder.raw_decode(line, position)
             except ValueError:
+                position += 1
                 continue
             values.append(value)
-            break
-    return values
+            parsed_on_line += 1
+            # raw_decode reports where the value ended. Resuming there keeps every record on
+            # a line holding several of them, which is also what rescues a truncated array:
+            # the opening bracket fails to decode, but each complete object after it does not.
+            position = end
+        if candidate:
+            candidate_line_count += 1
+            if not parsed_on_line:
+                # Records cut mid-object land here; counting them keeps the bounded evidence
+                # honest instead of silently dropping the line.
+                unparsed_line_count += 1
+    return values, {
+        "line_count": line_count,
+        "json_candidate_line_count": candidate_line_count,
+        "unparsed_line_count": unparsed_line_count,
+    }
 
 
 def _case_get(value: dict[str, Any], *keys: str) -> Any:
@@ -180,7 +229,9 @@ def _identity_from_state(value: dict[str, Any]) -> tuple[int | None, int | None]
     return _integer(inode), _integer(device)
 
 
-def _collect_registrar_states(value: Any, results: list[dict[str, Any]]) -> None:
+def _collect_registrar_states(value: Any, results: list[dict[str, Any]]) -> int:
+    """Collect registrar states and return how many looked like a state but were incomplete."""
+    partial_state_count = 0
     if isinstance(value, dict):
         source = _case_get(value, "source")
         offset = _case_get(value, "offset")
@@ -198,11 +249,14 @@ def _collect_registrar_states(value: Any, results: list[dict[str, Any]]) -> None
                     "device": device,
                 }
             )
+        elif source is not None or offset is not None:
+            partial_state_count += 1
         for child in value.values():
-            _collect_registrar_states(child, results)
+            partial_state_count += _collect_registrar_states(child, results)
     elif isinstance(value, list):
         for child in value:
-            _collect_registrar_states(child, results)
+            partial_state_count += _collect_registrar_states(child, results)
+    return partial_state_count
 
 
 def _integer(value: Any) -> int | None:

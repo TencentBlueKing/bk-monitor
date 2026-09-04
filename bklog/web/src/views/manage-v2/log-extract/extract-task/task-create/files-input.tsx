@@ -28,8 +28,6 @@ import { defineComponent, ref, computed, watch } from 'vue';
 
 import useLocale from '@/hooks/use-locale';
 
-const PATH_PATTERN = /^[():@[\]a-zA-Z0-9._/*\-~]+$/u;
-
 export default defineComponent({
   name: 'FilesInput',
   props: {
@@ -48,7 +46,6 @@ export default defineComponent({
     const isError = ref(false); // 输入错误状态
     const showValue = ref(''); // 显示的输入值
     const searchValue = ref(''); // 搜索框的值
-    const activeTab = ref('explorer');
 
     const selectDropdownRef = ref<any>(null);
 
@@ -80,9 +77,11 @@ export default defineComponent({
 
     // 处理输入值变化
     const handleChange = (val: string) => {
-      showValue.value = val;
-      validate(val);
-      emit('update:value', val);
+      if (validate(val)) {
+        emit('update:value', val);
+      } else {
+        emit('update:value', '');
+      }
     };
 
     // 处理选择选项
@@ -102,7 +101,7 @@ export default defineComponent({
     };
 
     const isMatchedAvailablePath = (val: string) => {
-      return (props.availablePaths as string[]).some(path => {
+      return (props.availablePaths as string[]).some((path) => {
         const normalizedPath = String(path ?? '').trim();
         if (!normalizedPath) {
           return false;
@@ -118,12 +117,11 @@ export default defineComponent({
 
     // 验证路径是否有效
     const validate = (val: string) => {
-      const isValidated =
-        Boolean(val) &&
-        isMatchedAvailablePath(val) &&
-        !/\/\//.test(val) &&
-        !val.split('/').some(segment => segment === '.' || segment === '..' || segment.startsWith('.')) &&
-        PATH_PATTERN.test(val);
+      const isValidated =        Boolean(val)
+        && isMatchedAvailablePath(val)
+        && !/\/\//.test(val)
+        && !val.split('/').some(segment => segment === '.' || segment === '..' || segment.startsWith('.'))
+        && PATH_PATTERN.test(val);
       isError.value = !isValidated;
       return isValidated;
     };
@@ -134,6 +132,7 @@ export default defineComponent({
         ref={selectDropdownRef}
         class='bk-select-dropdown'
         scopedSlots={{
+          // 默认插槽：输入框
           default: () => (
             <div class='files-input-wrapper'>
               <div class='files-input-tabs'>
@@ -157,7 +156,7 @@ export default defineComponent({
                   data-test-id='addNewExtraction_input_specifyFolder'
                   placeholder={activeTab.value === 'manual' ? t('比如：/var/log/application/error.log') : ''}
                   value={showValue.value}
-                  onChange={val => {
+                  onChange={(val) => {
                     showValue.value = val;
                     handleChange(val);
                   }}

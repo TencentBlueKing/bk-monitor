@@ -44,11 +44,16 @@ export default defineComponent({
   },
   setup(props) {
     const { t } = useI18n();
-    /** 跳转 TAPD 原始单据页面 */
+    /** 跳转 TAPD 原始单据页面（主机来自运行时配置，源码不写死） */
     const handleGoTapd = () => {
-      window.open(
-        `https://tapd.woa.com/tapd_fe/${props.value?.workspace_id}/${props.value?.tapd_type}/detail/${props.value?.tapd_id}`
-      );
+      const base = String(window.tapd_oauth_base_url || '').replace(/\/$/, '');
+      const workspaceId = props.value?.workspace_id;
+      const tapdType = props.value?.tapd_type;
+      const tapdId = props.value?.tapd_id;
+      if (!base || !workspaceId || !tapdType || !tapdId) {
+        return;
+      }
+      window.open(`${base}/tapd_fe/${workspaceId}/${tapdType}/detail/${tapdId}`);
     };
     return {
       t,

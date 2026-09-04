@@ -240,6 +240,8 @@ export const getRouteConfig = () => {
               href: '#/trace/host',
               canStore: false,
               isBeta: true,
+              // 新版主机监控暂不在侧栏展示，路由仍可直链访问
+              hidden: true,
             },
           ],
         },

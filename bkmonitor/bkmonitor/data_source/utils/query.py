@@ -38,14 +38,8 @@ class BaseQuery:
     # 查询字段映射
     KEY_REPLACE_FIELDS: dict[str, str] = {}
 
-    # 字段别名映射，[{field_name: alias}]
-    FIELD_ALIAS_MAP_LIST: list[dict[str, Any]] = []
     # 字段操作符映射，{field_type: operations}
     FIELD_OPERATIONS: dict[str, list[dict[str, Any]]] = {}
-    # 字段单位映射，｛field_name: unit｝
-    FIELD_UNITS: dict[str, str] = {}
-    # 枚举字段选项值映射，{field_name: [{"value": "", "alias": ""}]}
-    ENUM_FIELD_OPTION_VALUES: dict[str, list[dict[str, Any]]] = {}
 
     def __init__(self, data_sources: list[DataSourceTarget]):
         self.data_sources = data_sources
@@ -272,9 +266,7 @@ class BaseQuery:
             .instant()
             .limit(min(query_limit, self.QUERY_MAX_LIMIT))
         )
-        option_values: dict[str, list[str]] = {
-            field: [d["value"] for d in self.ENUM_FIELD_OPTION_VALUES.get(field, [])] for field in fields
-        }
+        option_values: dict[str, list[str]] = {field: [] for field in fields}
         ThreadPool().map_ignore_exception(
             self._collect_option_values,
             [
@@ -417,13 +409,6 @@ class BaseQuery:
             "is_case_sensitive": bool(current["is_case_sensitive"] and field_dict["is_case_sensitive"]),
         }
 
-    @classmethod
-    def _resolve_field_alias(cls, field_name: str) -> str:
-        for mapping in reversed(cls.FIELD_ALIAS_MAP_LIST):
-            if field_name in mapping:
-                return mapping[field_name]
-        return field_name
-
     def _query_fields(
         self, targets: list[tuple[types.TableId, types.SpaceUid]], start_time: int | None, end_time: int | None
     ) -> dict[str, dict[str, Any]]:
@@ -436,7 +421,6 @@ class BaseQuery:
             - field_name: 实际字段名，用于查询、过滤、聚合
             - field_alias: 字段别名，无别名时与 field_name 相同
             - field_type: ES 字段类型，如 keyword、text、long 等；多表类型冲突时为 "conflict"
-            - field_unit: 字段单位（可选，仅在 FIELD_UNITS 中有配置时存在）
             - origin_field: 原始顶层字段名，嵌套字段时为顶层字段（如 attributes.http.url 对应 attributes）
             - is_searchable: 是否可搜索（object/nested 类型为 False）
             - is_agg: 是否支持聚合、分组、排序
@@ -446,8 +430,6 @@ class BaseQuery:
             - wildcard_case_insensitive(bool): 通配符查询是否忽略大小写（查询层私有键，接口层应忽略）
             - tokenize_on_chars (list): 自定义分词字符列表（查询层私有键，接口层应忽略）
             - supported_operations: 该字段类型支持的操作符列表
-            - option_values: 字段可选值列表[{"value": "", "alias": ""}]（可选）
-
         """
         start_time, end_time = self._get_time_range(start_time, end_time)
         param_list: list[tuple[types.TableId, types.SpaceUid, int, int]] = [
@@ -457,8 +439,7 @@ class BaseQuery:
         for field_list in ThreadPool().map_ignore_exception(self._query_info_fields, param_list):
             for field_dict in field_list:
                 field_name = field_dict.get("field_name", "")
-                field_dict.pop("alias_name", None)
-                field_dict["field_alias"] = self._resolve_field_alias(field_name)
+                field_dict["field_alias"] = field_dict.pop("alias_name", None) or field_name
 
                 current = field_map.get(field_name)
                 if current is None:
@@ -481,10 +462,6 @@ class BaseQuery:
                     "object",
                     "nested",
                 }
-                if field_name in self.FIELD_UNITS:
-                    _field_dict["field_unit"] = self.FIELD_UNITS[field_name]
-                if field_name in self.ENUM_FIELD_OPTION_VALUES:
-                    _field_dict["option_values"] = self.ENUM_FIELD_OPTION_VALUES[field_name]
         return field_map
 
     @classmethod

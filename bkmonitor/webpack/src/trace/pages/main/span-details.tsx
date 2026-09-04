@@ -55,7 +55,7 @@ import ExceptionGuide, { type IGuideInfo } from '../../components/exception-guid
 import MonitorTab from '../../components/monitor-tab/monitor-tab';
 import {
   hideSelectionDecoder,
-  isPointerDragSelect,
+  isSelectionDecoderTrigger,
   showSelectionDecoder,
 } from '../../components/selection-decoder';
 import transformTraceTree from '../../components/trace-view/model/transform-trace-data';
@@ -820,7 +820,7 @@ export default defineComponent({
       emit('show', localShow.value);
     };
 
-    /** 划选 .right 区域文本后弹出复制 / 自动解码，纯点击忽略 */
+    /** 划选或双击选中 .right 区域文本后弹出复制 / 自动解码，纯单击忽略 */
     const handleRightTextSelect = (event: MouseEvent) => {
       const selection = window.getSelection();
       const text = selection?.toString() ?? '';
@@ -829,7 +829,7 @@ export default defineComponent({
         return;
       }
 
-      if (!isPointerDragSelect(event)) {
+      if (!isSelectionDecoderTrigger(event)) {
         return;
       }
 

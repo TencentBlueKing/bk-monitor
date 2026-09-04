@@ -173,6 +173,10 @@ export default class RedisManagement extends Vue {
     return this.data?.nodes ?? [];
   }
 
+  get visibleNodes() {
+    return this.nodes.filter(node => node.is_enable);
+  }
+
   get maxStrategyId() {
     return Math.max(this.data?.routing.max_strategy_id ?? 1, 1);
   }
@@ -216,7 +220,7 @@ export default class RedisManagement extends Vue {
 
   get usageScale() {
     return calculateUsageScale(
-      this.nodes.flatMap(node =>
+      this.visibleNodes.flatMap(node =>
         node.memory.usage_trend.map(([value]) => value).filter(value => value !== null)
       ) as number[]
     );
@@ -615,9 +619,21 @@ export default class RedisManagement extends Vue {
             <em>新增策略 → {this.futureRoute?.node ? this.nodeName(this.futureRoute.node.id) : '未覆盖'}</em>
           </div>
         </div>
+        <div class='redis-route-ranges'>
+          <strong>{this.draft ? '调整后路由区间' : '当前路由区间'}</strong>
+          <div>
+            {this.displayRoutes.map(route => (
+              <span key={`${route.from}-${route.to}-${route.nodeId}`}>
+                <i style={{ background: this.nodeColor(route.nodeId) }} />
+                <b>{this.nodeName(route.nodeId)}</b>
+                策略 ID {formatInteger(route.from)}–{formatInteger(route.to)}
+              </span>
+            ))}
+          </div>
+        </div>
         {this.renderRouteLivePreview()}
         <div class='redis-route-legend'>
-          {this.nodes.map(node => (
+          {this.visibleNodes.map(node => (
             <span key={node.id}>
               <i style={{ background: this.nodeColor(node.id) }} />
               {node.node_alias}
@@ -757,7 +773,7 @@ export default class RedisManagement extends Vue {
         )}
         {this.data && (
           <div>
-            <div class='redis-node-grid'>{this.nodes.map(node => this.renderNodeCard(node))}</div>
+            <div class='redis-node-grid'>{this.visibleNodes.map(node => this.renderNodeCard(node))}</div>
             {this.renderRouteAxis()}
             {this.renderDraft()}
           </div>

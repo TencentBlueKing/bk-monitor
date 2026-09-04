@@ -21,11 +21,16 @@ from apps.log_admin_resource.collector_probe import (
     fixed_probe_script,
     parse_probe_output,
 )
-from apps.log_admin_resource.collector_probe_evidence import build_probe_evidence
+from apps.log_admin_resource.collector_probe_evidence import (
+    _expand_recursive_glob,
+    _host_visible_path,
+    build_probe_evidence,
+)
 from apps.log_admin_resource.collector_probe_parsers import (
     classify_registrar_progress,
     fallback_matching_inputs,
     parse_registrar_strings,
+    parse_registrar_strings_with_stats,
     state_for_file,
 )
 from apps.log_admin_resource.handlers.host_inspection import (
@@ -951,6 +956,518 @@ class FixedRemoteScriptTest(SimpleTestCase):
 
             self.assertEqual(completed.stdout.splitlines(), [str(path) for path in expected_paths])
 
+    def test_shared_probe_source_path_awk_program_parses(self):
+        script = fixed_probe_script().decode("utf-8")
+        program_prefix = "extracted_patterns=$(awk '"
+        program_start = script.index(program_prefix) + len(program_prefix)
+        program_end = script.index('\' "$child_path" 2>/dev/null)', program_start)
+
+        completed = subprocess.run(
+            ["awk", script[program_start:program_end], "/dev/null"],
+            text=True,
+            capture_output=True,
+        )
+
+        # gawk warns about regexp escapes that BWK awk accepts silently, so assert on parse failure
+        # rather than on empty stderr.
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        self.assertNotIn("syntax error", completed.stderr)
+
+    def _extract_source_patterns(self, *configs: str) -> tuple[dict[str, str], str]:
+        """Replay the probe's path extraction, mapping each configured path to its host path."""
+        script = fixed_probe_script().decode("utf-8")
+        extraction_start = script.index("child_index=0")
+        extraction_end = script.index('\nemit_kv "source_pattern_count"', extraction_start)
+        extraction_script = script[extraction_start:extraction_end]
+
+        with tempfile.TemporaryDirectory() as directory:
+            config_directory = Path(directory)
+            config_paths = []
+            for index, content in enumerate(configs):
+                config_path = config_directory / f"child{index}.conf"
+                config_path.write_text(content, encoding="utf-8")
+                config_paths.append(str(config_path))
+            harness = "\n".join(
+                (
+                    "set -u",
+                    "MAX_MATCHED_CHILD_CONFIGS=5",
+                    "MAX_CHILD_CONFIG_BYTES=65536",
+                    "MAX_SOURCES=50",
+                    "tab=$(printf '\\t')",
+                    "emit_blob() { :; }",
+                    "emit_kv() { :; }",
+                    "child_paths='{}'".format("\n".join(config_paths)),
+                    extraction_script,
+                    "printf '%s\\n' \"$source_patterns\"",
+                    "printf '%s\\n' \"$source_pattern_count\"",
+                )
+            )
+            completed = subprocess.run(
+                ["/bin/sh"],
+                input=harness,
+                text=True,
+                capture_output=True,
+                check=True,
+            )
+
+        self.assertNotIn("syntax error", completed.stderr)
+        *rows, pattern_count = completed.stdout.splitlines()
+        resolved = {}
+        for row in rows:
+            config_pattern, _, resolved_pattern = row.partition("\t")
+            resolved[config_pattern] = resolved_pattern
+        return resolved, pattern_count
+
+    def test_shared_probe_extracts_source_paths_from_inline_and_block_yaml(self):
+        inline_config = "local:\n    - dataid: 1001\n      paths: [\"/var/log/app/*.log\", '/data/logs/biz.log']\n"
+        block_config = (
+            "local:\n"
+            "    - dataid: 1001\n"
+            "      paths:\n"
+            "        - /var/lib/docker/containers/abc/abc-json.log\n"
+            '        - "/var/host/data/bcs/lib/docker/containers/def/def-json.log"\n'
+        )
+
+        resolved, pattern_count = self._extract_source_patterns(inline_config, block_config)
+
+        self.assertEqual(pattern_count, "4")
+        self.assertEqual(
+            set(resolved),
+            {
+                "/data/logs/biz.log",
+                "/var/host/data/bcs/lib/docker/containers/def/def-json.log",
+                "/var/lib/docker/containers/abc/abc-json.log",
+                "/var/log/app/*.log",
+            },
+        )
+        # Host collection carries neither mounts nor a container root, so nothing is translated.
+        self.assertEqual(set(resolved), set(resolved.values()))
+
+    def test_shared_probe_resolves_container_path_through_longest_matching_mount(self):
+        config = (
+            "local:\n"
+            "    - dataid: 1001\n"
+            "      mounts:\n"
+            "        - container_path: /data/app\n"
+            "          host_path: /var/host/volumes/layer-app\n"
+            "        - container_path: /data/app/deep\n"
+            "          host_path: /var/host/volumes/layer-deep\n"
+            "        - container_path: /data\n"
+            "          host_path: /var/host/volumes/layer-root\n"
+            "      paths:\n"
+            "        - /data/*.log\n"
+            "        - /data/app/*.log\n"
+            "        - /data/app/deep/*.log\n"
+            "      root_fs: /var/host/overlay/merged\n"
+        )
+
+        resolved, pattern_count = self._extract_source_patterns(config)
+
+        self.assertEqual(pattern_count, "3")
+        # Nested mounts are rendered in no useful order, so a file only turns up under the
+        # deepest volume covering it. Losing any single mount silently reroutes its paths onto a
+        # shorter one, which resolves to a directory the volume never fills.
+        self.assertEqual(
+            resolved,
+            {
+                "/data/*.log": "/var/host/volumes/layer-root/*.log",
+                "/data/app/*.log": "/var/host/volumes/layer-app/*.log",
+                "/data/app/deep/*.log": "/var/host/volumes/layer-deep/*.log",
+            },
+        )
+
+    def test_shared_probe_prefixes_root_fs_only_when_the_path_sits_outside_it(self):
+        node_config = (
+            "local:\n    - dataid: 1001\n      paths:\n        - /var/log/app/*.log\n      root_fs: /var/host\n"
+        )
+        stdout_config = (
+            "local:\n"
+            "    - dataid: 1001\n"
+            "      paths:\n"
+            "        - /var/host/var/lib/docker/containers/abc/abc-json.log\n"
+            "      root_fs: /var/host\n"
+        )
+
+        resolved, pattern_count = self._extract_source_patterns(node_config, stdout_config)
+
+        self.assertEqual(pattern_count, "2")
+        # Node collection names a path inside the node, which the collector reaches through the
+        # mounted root.
+        self.assertEqual(resolved["/var/log/app/*.log"], "/var/host/var/log/app/*.log")
+        # Stdout collection is already rendered below root_fs, and prefixing it again would look
+        # for /var/host/var/host/...
+        self.assertEqual(
+            resolved["/var/host/var/lib/docker/containers/abc/abc-json.log"],
+            "/var/host/var/lib/docker/containers/abc/abc-json.log",
+        )
+
+    def test_shared_probe_matches_a_mount_only_on_a_path_boundary(self):
+        config = (
+            "local:\n"
+            "    - dataid: 1001\n"
+            "      mounts:\n"
+            "        - container_path: /data\n"
+            "          host_path: /var/host/volumes/data\n"
+            "      paths:\n"
+            "        - /data/app.log\n"
+            "        - /database/app.log\n"
+            "      root_fs: /var/host/overlay/merged\n"
+        )
+
+        resolved, pattern_count = self._extract_source_patterns(config)
+
+        self.assertEqual(pattern_count, "2")
+        self.assertEqual(resolved["/data/app.log"], "/var/host/volumes/data/app.log")
+        # /data must not claim /database, or the probe reads a volume that never holds the file
+        # while the real one sits in the container root.
+        self.assertEqual(resolved["/database/app.log"], "/var/host/overlay/merged/database/app.log")
+
+    def test_probe_and_server_resolve_collection_paths_identically(self):
+        mounts = [
+            {"container_path": "/data/app", "host_path": "/var/host/volumes/layer-app"},
+            {"container_path": "/data/app/deep", "host_path": "/var/host/volumes/layer-deep"},
+            {"container_path": "/data", "host_path": "/var/host/volumes/layer-root"},
+        ]
+        root_fs = "/var/host/overlay/merged"
+        paths = [
+            "/data/*.log",
+            "/data/app/*.log",
+            "/data/app/deep/*.log",
+            "/database/app.log",
+            "/var/host/overlay/merged/already/below/root.log",
+        ]
+        config = ["local:", "    - dataid: 1001", "      mounts:"]
+        for mount in mounts:
+            config.append(f"        - container_path: {mount['container_path']}")
+            config.append(f"          host_path: {mount['host_path']}")
+        config.append("      paths:")
+        config.extend(f"        - {path}" for path in paths)
+        config.append(f"      root_fs: {root_fs}")
+
+        resolved, _ = self._extract_source_patterns("\n".join(config) + "\n")
+
+        # The server derives the allow-list itself rather than trusting the probe, so the two
+        # resolvers must agree exactly. Any divergence filters out every source the probe
+        # returns and reads as though the configured files were never present.
+        self.assertEqual(resolved, {path: _host_visible_path(path, mounts, root_fs) for path in paths})
+
+    def test_probe_and_server_expand_a_recursive_pattern_identically(self):
+        script = fixed_probe_script().decode("utf-8")
+        start = script.index("expand_recursive_glob() {")
+        end = script.index("\nsnapshot_sources() {", start)
+        pattern = "/data/rec/**/*.log"
+
+        completed = subprocess.run(
+            ["/bin/sh"],
+            input="\n".join(
+                (
+                    "set -u",
+                    "MAX_RECURSIVE_GLOB_DEPTH=8",
+                    script[start:end],
+                    f"expand_recursive_glob '{pattern}'",
+                )
+            ),
+            text=True,
+            capture_output=True,
+            check=True,
+        )
+
+        expanded = completed.stdout.splitlines()
+        # The zero-level case is the one a literal ** silently drops on both sides.
+        self.assertEqual(expanded[0], "/data/rec/*.log")
+        self.assertEqual(expanded[1], "/data/rec/*/*.log")
+        self.assertEqual(len(expanded), 9)
+        self.assertEqual(expanded, _expand_recursive_glob(pattern))
+
+    def test_shared_probe_finds_every_depth_of_a_recursive_pattern(self):
+        script = fixed_probe_script().decode("utf-8")
+        start = script.index("expand_recursive_glob() {")
+        end = script.index("\nsnapshot_registrar() {", start)
+        snapshot_script = script[start:end]
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            expected = set()
+            for depth in range(4):
+                leaf = root.joinpath(*[f"l{level}" for level in range(1, depth + 1)])
+                leaf.mkdir(parents=True, exist_ok=True)
+                target = leaf / f"depth{depth}.log"
+                target.write_text("payload", encoding="utf-8")
+                expected.add(str(target))
+            pattern = f"{root}/**/*.log"
+
+            harness = "\n".join(
+                (
+                    "set -u",
+                    "MAX_SOURCES=50",
+                    "MAX_RECURSIVE_GLOB_DEPTH=8",
+                    "INCLUDE_SOURCE_SAMPLE=0",
+                    "tab=$(printf '\\t')",
+                    'emit_kv() { printf \'%s\\t%s\\n\' "$1" "${2-}"; }',
+                    "emit_sample_stream() { :; }",
+                    "add_registrar_filter_key() { :; }",
+                    "stat() { [ -e \"$3\" ] || return 1; printf '2049 4242 7 1700000000\\n'; }",
+                    f"source_patterns=$(printf '%s\\t%s' '{pattern}' '{pattern}')",
+                    snapshot_script,
+                    "snapshot_sources first",
+                )
+            )
+            completed = subprocess.run(
+                ["/bin/sh"],
+                input=harness,
+                text=True,
+                capture_output=True,
+                check=True,
+            )
+
+            emitted = {}
+            for line in completed.stdout.splitlines():
+                key, _, value = line.partition("\t")
+                emitted[key] = value
+            found = {value for key, value in emitted.items() if key.endswith(".path")}
+
+            # POSIX sh has no globstar, so ** collapses to a single * and reports only the
+            # one-level file while the collector reads all four.
+            self.assertEqual(found, expected)
+            self.assertEqual(emitted["first.source_count"], "4")
+
+    def test_shared_probe_counts_the_sources_the_limit_left_out(self):
+        script = fixed_probe_script().decode("utf-8")
+        start = script.index("expand_recursive_glob() {")
+        end = script.index("\nsnapshot_registrar() {", start)
+        snapshot_script = script[start:end]
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            for depth in range(7):
+                leaf = root.joinpath(*[f"l{level}" for level in range(1, depth + 1)])
+                leaf.mkdir(parents=True, exist_ok=True)
+                (leaf / f"depth{depth}.log").write_text("payload", encoding="utf-8")
+            pattern = f"{root}/**/*.log"
+
+            harness = "\n".join(
+                (
+                    "set -u",
+                    "MAX_SOURCES=3",
+                    "MAX_RECURSIVE_GLOB_DEPTH=8",
+                    "INCLUDE_SOURCE_SAMPLE=0",
+                    "tab=$(printf '\\t')",
+                    'emit_kv() { printf \'%s\\t%s\\n\' "$1" "${2-}"; }',
+                    "emit_sample_stream() { :; }",
+                    "add_registrar_filter_key() { :; }",
+                    "stat() { [ -e \"$3\" ] || return 1; printf '2049 4242 7 1700000000\\n'; }",
+                    f"source_patterns=$(printf '%s\\t%s' '{pattern}' '{pattern}')",
+                    snapshot_script,
+                    "snapshot_sources first",
+                )
+            )
+            completed = subprocess.run(
+                ["/bin/sh"],
+                input=harness,
+                text=True,
+                capture_output=True,
+                check=True,
+            )
+
+            emitted = {}
+            for line in completed.stdout.splitlines():
+                key, _, value = line.partition("\t")
+                emitted[key] = value
+
+            # Stopping at the limit would report 3 of 7 with no way to tell whether the rest are
+            # four files or four hundred, which is the difference between narrowing by one
+            # subdirectory and narrowing by depth.
+            self.assertEqual(emitted["first.source_count"], "3")
+            self.assertEqual(emitted["first.source_skipped_count"], "4")
+            self.assertEqual(emitted["first.source_limit"], "3")
+            self.assertEqual(emitted["source_narrowing_required"], "true")
+
+    def test_shared_probe_keeps_a_source_whose_link_target_cannot_be_resolved(self):
+        script = fixed_probe_script().decode("utf-8")
+        snapshot_start = script.index("expand_recursive_glob() {")
+        snapshot_end = script.index("\nsnapshot_registrar() {", snapshot_start)
+        snapshot_script = script[snapshot_start:snapshot_end]
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "plain.log").write_text("payload", encoding="utf-8")
+            (root / "relative.log").symlink_to("plain.log")
+            (root / "dangling.log").symlink_to(root / "missing.log")
+            pattern = f"{root}/*.log"
+
+            harness = "\n".join(
+                (
+                    "set -u",
+                    "MAX_SOURCES=50",
+                    "MAX_RECURSIVE_GLOB_DEPTH=8",
+                    "INCLUDE_SOURCE_SAMPLE=0",
+                    "tab=$(printf '\\t')",
+                    'emit_kv() { printf \'%s\\t%s\\n\' "$1" "${2-}"; }',
+                    "emit_sample_stream() { :; }",
+                    "add_registrar_filter_key() { :; }",
+                    # BSD stat spells this query differently than the GNU form the probe uses, so
+                    # stand in for it while keeping the behaviour the probe depends on: following
+                    # the link and failing when the target is absent.
+                    "stat() { [ -e \"$3\" ] || return 1; printf '2049 4242 7 1700000000\\n'; }",
+                    f"source_patterns=$(printf '%s\\t%s' '{pattern}' '{pattern}')",
+                    snapshot_script,
+                    "snapshot_sources first",
+                )
+            )
+            completed = subprocess.run(
+                ["/bin/sh"],
+                input=harness,
+                text=True,
+                capture_output=True,
+                check=True,
+            )
+
+            emitted = {}
+            for line in completed.stdout.splitlines():
+                key, _, value = line.partition("\t")
+                emitted[key] = value
+            prefixes = {
+                value.rsplit("/", 1)[-1]: key[: -len("path")] for key, value in emitted.items() if key.endswith(".path")
+            }
+
+            # A dangling link fails -e, and dropping it would be indistinguishable from a source
+            # that was never configured.
+            self.assertEqual(emitted["first.source_count"], "3")
+
+            dangling = prefixes["dangling.log"]
+            self.assertEqual(emitted[dangling + "symlink"], "true")
+            self.assertEqual(emitted[dangling + "symlink_target"], str(root / "missing.log"))
+            self.assertEqual(emitted[dangling + "unreadable"], "true")
+            # A broken link has no identity to report, and inventing one would let the server
+            # match it against an unrelated registrar state.
+            self.assertNotIn(dangling + "inode", emitted)
+
+            relative = prefixes["relative.log"]
+            self.assertEqual(emitted[relative + "symlink_target"], "plain.log")
+            self.assertEqual(emitted[relative + "inode"], "4242")
+            self.assertNotIn(relative + "unreadable", emitted)
+
+            plain = prefixes["plain.log"]
+            self.assertNotIn(plain + "symlink", emitted)
+            self.assertEqual(emitted[plain + "inode"], "4242")
+
+    def test_shared_probe_registrar_stream_splits_single_key_array_before_filtering(self):
+        script = fixed_probe_script().decode("utf-8")
+        snippet_start = script.index('registrar_filter_keys=""')
+        snippet_end = script.index("\nemit_sample_stream() {", snippet_start)
+        snippet = script[snippet_start:snippet_end]
+
+        with tempfile.TemporaryDirectory() as directory:
+            registrar_path = Path(directory) / "bkunifylogbeat.bkpipe.db"
+            # bkunifylogbeat json.Marshal()s every state into one array under a single key, so
+            # the whole registrar reaches `strings` as one line and has to be split per record
+            # before a filter or a byte budget means anything.
+            registrar_path.write_text(
+                '[{"source":"/data/app.log","offset":10,"FileStateOS":{"inode":7,"device":8}},'
+                '{"source":"/data/other.log","offset":20,"FileStateOS":{"inode":9,"device":8}},'
+                '{"source":"/var/log/noise.log","offset":30,"FileStateOS":{"inode":11,"device":8}}]',
+                encoding="utf-8",
+            )
+
+            harness = "\n".join(
+                (
+                    "set -u",
+                    "MAX_REGISTRAR_BYTES=524288",
+                    'emit_kv() { printf \'KV\\t%s\\t%s\\n\' "$1" "$2"; }',
+                    'emit_encoded_stream() { printf \'STREAM\\t%s\\t%s\\n\' "$5" "$6"; }',
+                    "decoded_base64_size() { printf '%s' \"$1\" | base64 -d 2>/dev/null | wc -c | tr -d ' '; }",
+                    snippet,
+                    'add_registrar_filter_key "/data/app.log"',
+                    'add_registrar_filter_key "/data/app.log"',
+                    'add_registrar_filter_key "app.log"',
+                    f'emit_registrar_stream "first.registrar_strings" "{registrar_path}"',
+                )
+            )
+            completed = subprocess.run(
+                ["/bin/sh"],
+                input=harness,
+                text=True,
+                capture_output=True,
+                check=True,
+            )
+
+        emitted = {}
+        stream_truncated = None
+        stream_payload = ""
+        for line in completed.stdout.splitlines():
+            kind, _, rest = line.partition("\t")
+            if kind == "KV":
+                key, _, value = rest.partition("\t")
+                emitted[key] = value
+            elif kind == "STREAM":
+                stream_truncated, _, stream_payload = rest.partition("\t")
+
+        self.assertNotIn("syntax error", completed.stderr)
+        # One physical line in, three records out.
+        self.assertEqual(emitted["first.registrar_strings.raw_line_count"], "1")
+        self.assertEqual(emitted["first.registrar_strings.record_split"], "true")
+        self.assertEqual(emitted["first.registrar_strings.record_count"], "3")
+        # The repeated key collapses, so grep only receives the path and the basename.
+        self.assertEqual(emitted["first.registrar_strings.filter_key_count"], "2")
+        self.assertEqual(emitted["first.registrar_strings.filtered"], "true")
+        self.assertEqual(emitted["first.registrar_strings.filtered_record_count"], "1")
+        self.assertEqual(stream_truncated, "false")
+        decoded = base64.b64decode(stream_payload).decode("utf-8")
+        self.assertIn("/data/app.log", decoded)
+        self.assertNotIn("/data/other.log", decoded)
+        self.assertNotIn("/var/log/noise.log", decoded)
+
+    def test_shared_probe_registrar_stream_falls_back_to_full_scan_without_keys(self):
+        script = fixed_probe_script().decode("utf-8")
+        snippet_start = script.index('registrar_filter_keys=""')
+        snippet_end = script.index("\nemit_sample_stream() {", snippet_start)
+        snippet = script[snippet_start:snippet_end]
+
+        with tempfile.TemporaryDirectory() as directory:
+            registrar_path = Path(directory) / "bkunifylogbeat.bkpipe.db"
+            registrar_path.write_text(
+                '[{"source":"/data/app.log","offset":10},{"source":"/data/other.log","offset":20}]',
+                encoding="utf-8",
+            )
+
+            harness = "\n".join(
+                (
+                    "set -u",
+                    "MAX_REGISTRAR_BYTES=524288",
+                    'emit_kv() { printf \'KV\\t%s\\t%s\\n\' "$1" "$2"; }',
+                    'emit_encoded_stream() { printf \'STREAM\\t%s\\t%s\\n\' "$5" "$6"; }',
+                    "decoded_base64_size() { printf '%s' \"$1\" | base64 -d 2>/dev/null | wc -c | tr -d ' '; }",
+                    snippet,
+                    f'emit_registrar_stream "first.registrar_strings" "{registrar_path}"',
+                )
+            )
+            completed = subprocess.run(
+                ["/bin/sh"],
+                input=harness,
+                text=True,
+                capture_output=True,
+                check=True,
+            )
+
+        emitted = {}
+        stream_payload = ""
+        for line in completed.stdout.splitlines():
+            kind, _, rest = line.partition("\t")
+            if kind == "KV":
+                key, _, value = rest.partition("\t")
+                emitted[key] = value
+            elif kind == "STREAM":
+                _, _, stream_payload = rest.partition("\t")
+
+        self.assertEqual(emitted["first.registrar_strings.filtered"], "false")
+        self.assertEqual(emitted["first.registrar_strings.filter_key_count"], "0")
+        # Splitting still happens without keys, so the record count stays meaningful.
+        self.assertEqual(emitted["first.registrar_strings.record_split"], "true")
+        self.assertEqual(emitted["first.registrar_strings.record_count"], "2")
+        self.assertEqual(emitted["first.registrar_strings.filtered_record_count"], "2")
+        decoded = base64.b64decode(stream_payload).decode("utf-8")
+        self.assertIn("/data/other.log", decoded)
+
     def test_shared_probe_rejects_caller_shaped_config_hints(self):
         for hint in ("../secret.conf", "/data/etc/secret.conf", "*.conf", "a,b.conf"):
             with self.subTest(hint=hint), self.assertRaises(ValueError):
@@ -1097,6 +1614,162 @@ class FixedRemoteScriptTest(SimpleTestCase):
 
         self.assertEqual(result["status"], "insufficient_observation_window")
         self.assertEqual(result["observed_status"], "progress_advancing")
+
+    def test_registrar_probe_surfaces_bounded_evidence_limits(self):
+        parsed = parsed_probe()
+        state = '{"source":"/data/app/service.log","offset":10,"FileStateOS":{"inode":7,"device":8}}'
+        for phase in ("first", "second"):
+            parsed["streams"][f"{phase}.registrar_strings"] = {
+                "content": state,
+                "returned_size_bytes": 524288,
+                "truncated": True,
+            }
+            parsed["values"][f"{phase}.registrar_strings.filtered"] = "true"
+            parsed["values"][f"{phase}.registrar_strings.filter_key_count"] = "2"
+            parsed["values"][f"{phase}.registrar_strings.record_split"] = "true"
+            parsed["values"][f"{phase}.registrar_strings.raw_line_count"] = "1"
+            parsed["values"][f"{phase}.registrar_strings.record_count"] = "1430"
+            parsed["values"][f"{phase}.registrar_strings.filtered_record_count"] = "4"
+
+        registrar = build_probe_evidence(
+            parsed,
+            bk_data_id=1001,
+            source=None,
+            include_source_sample=False,
+            config_map_main=None,
+            sidecar_required=False,
+        )["registrar"]
+        sampling = registrar["evidence"]["first_sampling"]
+
+        self.assertEqual(registrar["status"], "warning")
+        self.assertEqual(registrar["code"], "registrar_strings_incomplete")
+        self.assertTrue(sampling["truncated"])
+        self.assertEqual(sampling["returned_size_bytes"], 524288)
+        self.assertEqual(sampling["record_count"], 1430)
+        self.assertEqual(sampling["filtered_record_count"], 4)
+        # Three of the four matched records never made it past the byte budget.
+        self.assertIn("records_missing_from_sample", sampling["incomplete_reasons"])
+        self.assertIn("stream_truncated", registrar["warnings"][0]["reasons"])
+
+    def test_registrar_probe_counts_records_it_could_not_parse(self):
+        parsed = parsed_probe()
+        for phase in ("first", "second"):
+            parsed["streams"][f"{phase}.registrar_strings"] = {
+                "content": '{"source":"/data/app/service.log","offset":10,"FileStateOS":{"inode":7,"dev'
+            }
+
+        registrar = build_probe_evidence(
+            parsed,
+            bk_data_id=1001,
+            source=None,
+            include_source_sample=False,
+            config_map_main=None,
+            sidecar_required=False,
+        )["registrar"]
+
+        self.assertEqual(registrar["status"], "warning")
+        self.assertEqual(registrar["evidence"]["first_sampling"]["unparsed_line_count"], 1)
+        self.assertIn("unparsed_lines", registrar["warnings"][0]["reasons"])
+
+    def test_registrar_probe_flags_an_unsplit_single_key_array(self):
+        parsed = parsed_probe()
+        for phase in ("first", "second"):
+            parsed["streams"][f"{phase}.registrar_strings"] = {
+                "content": '[{"source":"/data/app/service.log","offset":10,"FileStateOS":{"inode":7,"device":8}}]'
+            }
+            parsed["values"][f"{phase}.registrar_strings.record_split"] = "false"
+            parsed["values"][f"{phase}.registrar_strings.raw_line_count"] = "1"
+            parsed["values"][f"{phase}.registrar_strings.record_count"] = "1"
+
+        registrar = build_probe_evidence(
+            parsed,
+            bk_data_id=1001,
+            source=None,
+            include_source_sample=False,
+            config_map_main=None,
+            sidecar_required=False,
+        )["registrar"]
+
+        # Without the split the byte budget can cut the array at any point, so the sample
+        # cannot be read as complete even though everything that came back did parse.
+        self.assertEqual(registrar["status"], "warning")
+        self.assertFalse(registrar["evidence"]["first_sampling"]["record_split"])
+        self.assertIn("records_not_split", registrar["warnings"][0]["reasons"])
+
+    def test_registrar_snapshots_are_parsed_once_for_every_probe_that_reads_them(self):
+        parsed = parsed_probe()
+        state = '{"source":"/data/app/service.log","offset":10,"FileStateOS":{"inode":7,"device":8}}'
+        for phase in ("first", "second"):
+            parsed["streams"][f"{phase}.registrar_strings"] = {"content": state}
+
+        with patch(
+            "apps.log_admin_resource.collector_probe_evidence.parse_registrar_strings_with_stats",
+            side_effect=parse_registrar_strings_with_stats,
+        ) as parse:
+            build_probe_evidence(
+                parsed,
+                bk_data_id=1001,
+                source=None,
+                include_source_sample=False,
+                config_map_main=None,
+                sidecar_required=False,
+            )
+
+        # The registrar and progress probes both read the same two snapshots. Parsing per probe
+        # walks a several-hundred-KB line four times for one inspection.
+        self.assertEqual(parse.call_count, 2)
+
+    def test_registrar_parser_keeps_every_record_sharing_a_line(self):
+        text = (
+            '{"source":"/data/a.log","offset":1,"FileStateOS":{"inode":7,"device":8}}'
+            '{"source":"/data/b.log","offset":2,"FileStateOS":{"inode":9,"device":8}}'
+        )
+
+        states = parse_registrar_strings(text)
+
+        # `strings` merges adjacent records when no unprintable byte separates them, so
+        # stopping at the first decoded value would drop the rest of the line.
+        self.assertEqual([state["source"] for state in states], ["/data/a.log", "/data/b.log"])
+
+    def test_registrar_parser_recovers_records_from_a_truncated_array(self):
+        text = (
+            '[{"source":"/data/a.log","offset":1,"FileStateOS":{"inode":7,"device":8}},'
+            '{"source":"/data/b.log","offset":2,"FileStateOS":{"inode":9,"device":8}},'
+            '{"source":"/data/c.log","offset":3,"FileStateOS":{"inode":11,"dev'
+        )
+
+        states = parse_registrar_strings(text)
+
+        # The unterminated array itself cannot decode, but every complete object inside it
+        # must still be recovered rather than collapsing to the first record.
+        self.assertEqual([state["source"] for state in states], ["/data/a.log", "/data/b.log"])
+
+    def test_progress_reports_incomplete_evidence_instead_of_missing_state(self):
+        parsed = parsed_probe()
+        for phase in ("first", "second"):
+            parsed["values"][f"{phase}.source_count"] = "1"
+            parsed["values"][f"{phase}.source.0.pattern"] = "/data/app/*.log"
+            parsed["values"][f"{phase}.source.0.path"] = "/data/app/service.log"
+            parsed["values"][f"{phase}.source.0.resolved_path"] = "/data/app/service.log"
+            parsed["values"][f"{phase}.source.0.device"] = "8"
+            parsed["values"][f"{phase}.source.0.inode"] = "7"
+            parsed["values"][f"{phase}.source.0.size_bytes"] = "100"
+            parsed["values"][f"{phase}.source.0.mtime_epoch"] = "1700000000"
+            parsed["streams"][f"{phase}.registrar_strings"] = {
+                "content": '{"source":"/data/app/service.log","offset":10,"FileStateOS":{"inode":7,"dev'
+            }
+
+        progress = build_probe_evidence(
+            parsed,
+            bk_data_id=1001,
+            source=None,
+            include_source_sample=False,
+            config_map_main=None,
+            sidecar_required=False,
+        )["progress"]
+
+        self.assertTrue(progress["evidence"]["registrar_evidence_incomplete"])
+        self.assertEqual(progress["evidence"]["items"][0]["observed_status"], "registrar_evidence_incomplete")
 
     def test_host_and_k8s_use_the_same_evidence_engine(self):
         parsed = parsed_probe()

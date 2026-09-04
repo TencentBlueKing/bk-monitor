@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 import shutil
 from pathlib import Path
 from types import SimpleNamespace
@@ -12,10 +13,26 @@ import yaml
 from django.test import RequestFactory
 from rest_framework.exceptions import ValidationError
 
+from bkmonitor.iam import ActionEnum
 from kernel_api.middlewares.authentication import AuthenticationMiddleware
 from kernel_api.resource import unified_mcp
-from kernel_api.unified_mcp import dispatcher
-from kernel_api.unified_mcp.registry import load_tool_registry
+from kernel_api.unified_mcp import dispatcher, registry as unified_registry
+from kernel_api.unified_mcp.registry import SOURCE_FILES, load_tool_registry
+
+
+def _assert_complete_bilingual_schema(schema, path):
+    if schema.get("type") == "object" and "properties" not in schema:
+        assert schema.get("additionalProperties") is True, f"{path} must define properties or allow arbitrary fields"
+
+    for name, property_schema in (schema.get("properties") or {}).items():
+        description = property_schema.get("description", "")
+        assert re.search(r"[A-Za-z]", description), f"{path}.{name} is missing an English description"
+        assert re.search(r"[\u4e00-\u9fff]", description), f"{path}.{name} is missing a Chinese description"
+        _assert_complete_bilingual_schema(property_schema, f"{path}.{name}")
+
+    if schema.get("type") == "array":
+        assert "items" in schema, f"{path} is missing its item schema"
+        _assert_complete_bilingual_schema(schema["items"], f"{path}[]")
 
 
 class FakePermission:
@@ -38,20 +55,48 @@ class FakePermission:
         return "https://iam.example.test/apply"
 
 
-def test_registry_loads_exact_phase_one_catalog():
+def test_registry_loads_all_query_domains():
     root = Path(__file__).resolve().parents[2] / "support-files" / "apigw" / "resources" / "internal" / "user"
     registry = load_tool_registry(root)
 
-    assert len(registry) == 25
+    assert len(registry) == 43
     assert len(registry.list(category="metrics")) == 4
     assert len(registry.list(category="log")) == 9
     assert len(registry.list(category="alert")) == 12
+    assert len(registry.list(category="event")) == 3
+    assert len(registry.list(category="apm")) == 11
+    assert len(registry.list(category="dashboard")) == 2
+    assert len(registry.list(category="relation")) == 2
     assert registry.get("search_logs").prerequisites == ("list_index_sets", "get_index_set_fields")
+    assert registry.get("calculate_by_range").iam_action == "using_apm_mcp"
+    assert "apm_mcp_calculate_by_range" not in registry.names
+    assert "create_dashboard" not in registry.names
+    assert "update_dashboard" not in registry.names
+
+
+def test_public_mcp_contracts_have_complete_bilingual_descriptions():
+    root = Path(__file__).resolve().parents[2] / "support-files" / "apigw" / "resources" / "internal" / "user"
+    document = yaml.safe_load((root / "unified_mcp.yaml").read_text())
+    for path, path_item in document["paths"].items():
+        operation = path_item["post"]
+        description = operation.get("description", "")
+        assert re.search(r"[A-Za-z]", description), f"{path} is missing an English description"
+        assert re.search(r"[\u4e00-\u9fff]", description), f"{path} is missing a Chinese description"
+        _assert_complete_bilingual_schema(
+            operation["requestBody"]["content"]["application/json"]["schema"],
+            path,
+        )
+
+    registry = load_tool_registry(root)
+    for tool in registry.list():
+        assert re.search(r"[A-Za-z]", tool.description), f"{tool.name} is missing an English description"
+        assert re.search(r"[\u4e00-\u9fff]", tool.description), f"{tool.name} is missing a Chinese description"
+        _assert_complete_bilingual_schema(tool.input_schema, tool.name)
 
 
 def test_registry_rejects_source_tool_without_product_metadata(tmp_path):
     source_root = Path(__file__).resolve().parents[2] / "support-files" / "apigw" / "resources" / "internal" / "user"
-    for filename in ("metrics_mcp.yaml", "log_mcp.yaml", "alert_mcp.yaml"):
+    for filename in SOURCE_FILES.values():
         shutil.copy2(source_root / filename, tmp_path / filename)
     log_path = tmp_path / "log_mcp.yaml"
     document = yaml.safe_load(log_path.read_text())
@@ -66,6 +111,67 @@ def test_registry_rejects_source_tool_without_product_metadata(tmp_path):
 
     with pytest.raises(RuntimeError, match="missing_metadata"):
         load_tool_registry(tmp_path)
+
+
+def test_registry_rejects_duplicate_public_tool_name(tmp_path):
+    source_root = Path(__file__).resolve().parents[2] / "support-files" / "apigw" / "resources" / "internal" / "user"
+    for filename in SOURCE_FILES.values():
+        shutil.copy2(source_root / filename, tmp_path / filename)
+    event_path = tmp_path / "event_mcp.yaml"
+    document = yaml.safe_load(event_path.read_text())
+    document["paths"]["/mcp/list_events/"]["post"]["operationId"] = "list_index_sets"
+    event_path.write_text(yaml.safe_dump(document, sort_keys=False))
+
+    with pytest.raises(RuntimeError, match="duplicate unified MCP tool name"):
+        load_tool_registry(tmp_path)
+
+
+def test_catalog_version_includes_product_metadata(monkeypatch):
+    root = Path(__file__).resolve().parents[2] / "support-files" / "apigw" / "resources" / "internal" / "user"
+    original_version = load_tool_registry(root).catalog_version
+
+    monkeypatch.setitem(unified_registry.TITLES, "list_events", "更新后的事件标题")
+
+    assert load_tool_registry(root).catalog_version != original_version
+
+
+def test_registry_excludes_dashboard_writes():
+    registry = load_tool_registry(
+        Path(__file__).resolve().parents[2] / "support-files" / "apigw" / "resources" / "internal" / "user"
+    )
+
+    with pytest.raises(KeyError):
+        registry.get("create_dashboard")
+    with pytest.raises(KeyError):
+        registry.get("update_dashboard")
+
+
+def test_new_query_schemas_match_backend_constraints():
+    root = Path(__file__).resolve().parents[2] / "support-files" / "apigw" / "resources" / "internal" / "user"
+    apm = yaml.safe_load((root / "apm_mcp.yaml").read_text())
+    relation = yaml.safe_load((root / "relation_mcp.yaml").read_text())
+
+    profile_label_schema = apm["paths"]["/mcp/get_profile_label/"]["post"]["requestBody"]["content"][
+        "application/json"
+    ]["schema"]
+    service_list_schema = apm["paths"]["/mcp/list_apm_services/"]["post"]["requestBody"]["content"]["application/json"][
+        "schema"
+    ]
+
+    assert {"start_time", "end_time"} <= set(profile_label_schema["required"])
+    assert service_list_schema["properties"]["service_names"]["default"] == []
+    assert (
+        relation["paths"]["/mcp/find_relations/"]["post"]["requestBody"]["content"]["application/json"]["schema"][
+            "properties"
+        ]["query_list"]["minItems"]
+        == 1
+    )
+    assert (
+        relation["paths"]["/mcp/find_relations_range/"]["post"]["requestBody"]["content"]["application/json"]["schema"][
+            "properties"
+        ]["query_list"]["minItems"]
+        == 1
+    )
 
 
 def test_registry_hides_backend_derived_alert_fields():
@@ -104,6 +210,143 @@ def test_alert_dispatcher_derives_backend_biz_array(monkeypatch):
     assert result == {"ok": True}
     assert captured["bk_biz_id"] == "789"
     assert captured["bk_biz_ids"] == ["789"]
+
+
+@pytest.mark.parametrize(
+    ("tool_name", "resource_class", "tool_args"),
+    [
+        (
+            "list_events",
+            dispatcher.ListEventsResource,
+            {"bk_biz_id": "789", "data_source_label": "custom", "data_type_label": "event"},
+        ),
+        (
+            "search_spans",
+            dispatcher.ListApmSpanResource,
+            {"bk_biz_id": "789", "app_name": "demo", "start_time": "1", "end_time": "2"},
+        ),
+        (
+            "get_profile_type",
+            dispatcher.GetProfileTypeResource,
+            {
+                "bk_biz_id": "789",
+                "app_name": "demo",
+                "service_name": "api",
+                "start_time": "1",
+                "end_time": "2",
+            },
+        ),
+        (
+            "get_dashboard_detail_by_uid",
+            dispatcher.GetDashboardDetail,
+            {"bk_biz_id": "789", "dashboard_uid": "demo-dashboard"},
+        ),
+        (
+            "find_relations",
+            dispatcher.QueryMultiResourceRelationResource,
+            {"bk_biz_id": "789", "query_list": [{"timestamp": 1, "source_info": {"pod": "demo"}}]},
+        ),
+    ],
+)
+def test_new_query_domain_dispatchers_reuse_existing_resources(monkeypatch, tool_name, resource_class, tool_args):
+    captured = {}
+
+    def fake_request(_self, **kwargs):
+        captured.update(kwargs)
+        return {"ok": True}
+
+    monkeypatch.setattr(resource_class, "request", fake_request)
+
+    assert dispatcher.dispatch_tool(tool_name, tool_args) == {"ok": True}
+    assert captured == tool_args
+
+
+def test_event_dispatcher_rejects_cross_space_table(monkeypatch):
+    backend_called = False
+    monkeypatch.setattr(
+        dispatcher.ListEventsResource,
+        "request",
+        lambda _self, **_kwargs: [{"id": "allowed.event"}],
+    )
+
+    def fake_backend(_self, **_kwargs):
+        nonlocal backend_called
+        backend_called = True
+
+    monkeypatch.setattr(dispatcher.SearchEventLogResource, "request", fake_backend)
+
+    with pytest.raises(ValidationError):
+        dispatcher.dispatch_tool(
+            "search_event_log",
+            {
+                "bk_biz_id": "789",
+                "data_source_label": "custom",
+                "data_type_label": "event",
+                "table": "other.event",
+                "start_time": "1",
+                "end_time": "2",
+            },
+        )
+
+    assert backend_called is False
+
+
+def test_apm_event_dispatcher_preserves_application_permission(monkeypatch):
+    captured = {}
+    monkeypatch.setattr(
+        dispatcher,
+        "_ensure_apm_application_permission",
+        lambda tool_args: captured.update(tool_args),
+    )
+    monkeypatch.setattr(
+        dispatcher.SearchEventLogResource,
+        "request",
+        lambda _self, **kwargs: kwargs,
+    )
+    tool_args = {
+        "bk_biz_id": "789",
+        "data_source_label": "custom",
+        "data_type_label": "event",
+        "table": "apm.event",
+        "start_time": "1",
+        "end_time": "2",
+        "app_name": "demo",
+        "service_name": "api",
+    }
+
+    assert dispatcher.dispatch_tool("search_event_log", tool_args) == tool_args
+    assert captured == tool_args
+
+
+@pytest.mark.parametrize(
+    ("tool_name", "resource_class"),
+    [
+        ("calculate_by_range", dispatcher.CalculateByRangeResource),
+        ("list_apm_services", dispatcher.ServiceListResource),
+    ],
+)
+def test_apm_web_dispatchers_preserve_application_permission(monkeypatch, tool_name, resource_class):
+    captured = {}
+    app_query = SimpleNamespace(
+        values_list=lambda *_args, **_kwargs: SimpleNamespace(first=lambda: 9),
+    )
+    monkeypatch.setattr(dispatcher.Application.objects, "filter", lambda **kwargs: app_query)
+
+    class FakeAPMPermission:
+        def is_allowed(self, action, resources, raise_exception=False):
+            captured["action"] = action.id
+            captured["resources"] = resources
+            captured["raise_exception"] = raise_exception
+            return True
+
+    monkeypatch.setattr(dispatcher, "Permission", FakeAPMPermission)
+    monkeypatch.setattr(resource_class, "request", lambda _self, **kwargs: kwargs)
+    tool_args = {"bk_biz_id": "789", "app_name": "demo"}
+
+    assert dispatcher.dispatch_tool(tool_name, tool_args) == tool_args
+    assert captured["action"] == ActionEnum.VIEW_APM_APPLICATION.id
+    assert len(captured["resources"]) == 1
+    assert captured["raise_exception"] is True
 
 
 def test_lookup_tool_is_deterministic_and_permission_filtered(monkeypatch):
@@ -184,6 +427,24 @@ def test_lookup_permissions_lists_current_user_scope(monkeypatch):
         }
     ]
     assert result["missing_permissions"] == []
+
+
+@pytest.mark.parametrize(
+    ("category", "action_id"),
+    [
+        ("event", "using_log_mcp"),
+        ("relation", "using_metrics_mcp"),
+    ],
+)
+def test_lookup_permissions_preserves_categories_that_share_actions(monkeypatch, category, action_id):
+    permission = FakePermission(allowed_biz={(789, action_id)})
+    monkeypatch.setattr(unified_mcp, "get_permission_client", lambda: permission)
+
+    result = unified_mcp.LookupPermissionsResource().request(category=category, bk_biz_id=789)
+
+    assert result["scopes"][0]["category"] == category
+    assert result["scopes"][0]["action_id"] == action_id
+    assert result["authorized"] is True
 
 
 def test_lookup_permissions_returns_apply_guide_for_missing_scope(monkeypatch):
@@ -289,6 +550,59 @@ def test_execute_tool_rejects_invalid_business_id(monkeypatch):
             tool_name="list_index_sets",
             tool_args={"bk_biz_id": "not-an-id"},
         )
+
+
+def test_execute_tool_rejects_undeclared_nested_arguments(monkeypatch):
+    monkeypatch.setattr(unified_mcp, "get_permission_client", lambda: FakePermission())
+
+    with pytest.raises(ValidationError, match="target_info_show"):
+        unified_mcp.ExecuteToolResource().request(
+            tool_name="find_relations",
+            tool_args={
+                "bk_biz_id": "789",
+                "query_list": [
+                    {
+                        "timestamp": 1,
+                        "source_info": {"pod": "demo"},
+                        "target_info_show": True,
+                    }
+                ],
+            },
+        )
+
+
+def test_execute_tool_accepts_apm_event_scope(monkeypatch):
+    permission = FakePermission(allowed_biz={(789, "using_log_mcp")})
+    monkeypatch.setattr(unified_mcp, "get_permission_client", lambda: permission)
+    monkeypatch.setattr(unified_mcp, "dispatch_tool", lambda tool_name, tool_args: tool_args)
+    tool_args = {
+        "bk_biz_id": "789",
+        "data_source_label": "custom",
+        "data_type_label": "event",
+        "table": "apm.event",
+        "start_time": "1",
+        "end_time": "2",
+        "app_name": "demo",
+        "service_name": "api",
+    }
+
+    result = unified_mcp.ExecuteToolResource().request(tool_name="search_event_log", tool_args=tool_args)
+
+    assert result["data"] == tool_args
+
+
+def test_execute_tool_rejects_global_profile_label_scope():
+    tool_args = {
+        "bk_biz_id": "789",
+        "app_name": "demo",
+        "service_name": "api",
+        "start_time": 1,
+        "end_time": 2,
+        "global_query": True,
+    }
+
+    with pytest.raises(ValidationError, match="global_query"):
+        unified_mcp.ExecuteToolResource().request(tool_name="get_profile_label", tool_args=tool_args)
 
 
 def test_middleware_exempts_only_unified_facade_lookup_path(monkeypatch):
