@@ -40,20 +40,20 @@ def migrate_graph_relation_v4_biz_id_white_list(apps, schema_editor):
     keys = [OLD_SYNC_KEY, OLD_QUERY_KEY, NEW_KEY]
     configs = {config.key: config for config in global_config.objects.filter(key__in=keys)}
 
-    biz_ids = set()
-    for key in keys:
-        config = configs.get(key)
-        if config:
-            biz_ids.update(_normalize_biz_ids(config.value))
-    merged_value = sorted(biz_ids)
+    old_sync_config = configs.get(OLD_SYNC_KEY)
+    old_query_config = configs.get(OLD_QUERY_KEY)
+    old_sync_biz_ids = _normalize_biz_ids(old_sync_config.value if old_sync_config else None)
+    old_query_biz_ids = _normalize_biz_ids(old_query_config.value if old_query_config else None)
+    # 仅保留原本已同时开启写入和查询的业务，避免迁移扩大灰度范围。
+    migrated_value = sorted(old_sync_biz_ids & old_query_biz_ids)
 
     new_config = configs.get(NEW_KEY)
     if new_config:
-        if new_config.value != merged_value:
-            new_config.value = merged_value
+        if new_config.value != migrated_value:
+            new_config.value = migrated_value
             new_config.save(update_fields=["value"])
     else:
-        global_config.objects.create(key=NEW_KEY, value=merged_value)
+        global_config.objects.create(key=NEW_KEY, value=migrated_value)
 
 
 class Migration(migrations.Migration):

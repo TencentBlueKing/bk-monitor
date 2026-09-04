@@ -1733,15 +1733,7 @@ BKBASE_REDIS_LOCK_NAME = "watch_bkbase_meta_redis_lock"
 # 是否同步数据至DB
 ENABLE_SYNC_BKBASE_METADATA_TO_DB = False
 # Graph Relation V4 业务灰度白名单，同时控制双写链路自动 apply 和 v1beta3 查询切流
-_graph_relation_v4_biz_id_white_list_env = os.getenv("GRAPH_RELATION_V4_BIZ_ID_WHITE_LIST")
-if _graph_relation_v4_biz_id_white_list_env is None:
-    # 兼容升级前的双写、查询独立环境变量；显式配置新变量（包括空值）时以新变量为准。
-    _graph_relation_v4_biz_id_white_list_env = ",".join(
-        [
-            os.getenv("GRAPH_RELATION_BKBASE_SYNC_BIZ_ID_WHITE_LIST", ""),
-            os.getenv("GRAPH_RELATION_QUERY_V1BETA3_BIZ_ID_WHITE_LIST", ""),
-        ]
-    )
+_graph_relation_v4_biz_id_white_list_env = os.getenv("GRAPH_RELATION_V4_BIZ_ID_WHITE_LIST", "")
 GRAPH_RELATION_V4_BIZ_ID_WHITE_LIST = [
     int(biz_id.strip()) for biz_id in _graph_relation_v4_biz_id_white_list_env.split(",") if biz_id.strip().isdigit()
 ]
