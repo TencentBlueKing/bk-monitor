@@ -13,13 +13,15 @@ from apm_web.llm.adapter import adapt_spans
 from apm_web.llm.query import get_query
 from apm_web.metric.resources import CalculateByRangeResource as MetricCalculateByRangeResource
 from apm_web.models import Application
+from apm_web.strategy.dispatch.entity import EntitySet
 from bkmonitor.utils.time_tools import parse_time_compare_abbreviation
 
 AGENT_CANDIDATE_QUERY = (
     "_exists_:attributes.gen_ai.span.kind "
     "OR _exists_:attributes.gen_ai.operation.name "
     "OR _exists_:attributes.agent.info.id "
-    "OR _exists_:attributes.agent.info.name"
+    "OR _exists_:attributes.agent.info.name "
+    "OR _exists_:attributes.langfuse.observation.type"
 )
 
 MOCK_TIME_SERIES_GROUP_BY_FIELDS = {"gen_ai.operation.name", "gen_ai.response.model"}
@@ -112,8 +114,8 @@ class ListTracesResource(Resource):
         return ""
 
     @classmethod
-    def _trace_item(cls, trace_id: str, raw_spans: list[dict[str, Any]]) -> dict[str, Any]:
-        converted_spans = adapt_spans(raw_spans)
+    def _trace_item(cls, trace_id: str, raw_spans: list[dict[str, Any]], entity_set: EntitySet) -> dict[str, Any]:
+        converted_spans = adapt_spans(raw_spans, entity_set)
         converted_attributes = [
             attributes for span in converted_spans if isinstance((attributes := span.get(OtlpKey.ATTRIBUTES)), dict)
         ]
@@ -156,6 +158,7 @@ class ListTracesResource(Resource):
         group_ids: list[str],
         trace_group_map: dict[str, str],
         raw_spans: list[dict[str, Any]],
+        entity_set: EntitySet,
     ) -> list[dict[str, Any]]:
         spans_by_group: dict[str, dict[str, list[dict[str, Any]]]] = defaultdict(lambda: defaultdict(list))
         for span in raw_spans:
@@ -166,7 +169,9 @@ class ListTracesResource(Resource):
 
         items: list[dict[str, Any]] = []
         for group_id in group_ids:
-            childs = [cls._trace_item(trace_id, spans) for trace_id, spans in spans_by_group[group_id].items()]
+            childs = [
+                cls._trace_item(trace_id, spans, entity_set) for trace_id, spans in spans_by_group[group_id].items()
+            ]
             if not childs:
                 continue
             childs.sort(key=lambda child: child["start_time"])
@@ -243,11 +248,16 @@ class ListTracesResource(Resource):
             group_field=OtlpKey.TRACE_ID,
             group_ids=list(trace_group_map),
         )
+        entity_set: EntitySet = EntitySet(
+            bk_biz_id=validated_request_data["bk_biz_id"],
+            app_name=validated_request_data["app_name"],
+        )
         result["items"] = self._group_spans(
             validated_request_data["group_field"],
             group_ids,
             trace_group_map,
             spans,
+            entity_set,
         )
         return result
 
@@ -276,7 +286,11 @@ class ListSpansResource(Resource):
         }
         response = api.apm_api.query_span_list(params)
         raw_spans = response["data"]
-        spans = adapt_spans(raw_spans)
+        entity_set: EntitySet = EntitySet(
+            bk_biz_id=validated_request_data["bk_biz_id"],
+            app_name=validated_request_data["app_name"],
+        )
+        spans = adapt_spans(raw_spans, entity_set)
         return {
             "trace_id": validated_request_data["trace_id"],
             "total": len(spans),

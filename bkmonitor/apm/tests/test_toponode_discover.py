@@ -10,12 +10,15 @@ specific language governing permissions and limitations under the License.
 
 from unittest import mock
 
+import pytest
+
 from apm.core.discover.node import NodeDiscover
 from apm.models import ApmTopoDiscoverRule
 from constants.apm import TelemetryDataType
 
 BK_BIZ_ID = 2
 APP_NAME = "demo_app"
+AIDEV_APP_NAME = "bkapp_ai_devops"
 SERVICE_NAME = "demo-service"
 BCS_CLUSTER_ID = "BCS-K8S-DEMO"
 NAMESPACE = "demo-namespace"
@@ -110,11 +113,11 @@ def build_rules():
     return [ApmTopoDiscoverRule(bk_biz_id=0, app_name="", **rule) for rule in ApmTopoDiscoverRule.COMMON_RULE]
 
 
-def build_topo_node(extra_data, platform=None, source=None):
+def build_topo_node(extra_data, platform=None, source=None, app_name=APP_NAME):
     return {
         "id": 1,
         "bk_biz_id": BK_BIZ_ID,
-        "app_name": APP_NAME,
+        "app_name": app_name,
         "topo_key": SERVICE_NAME,
         "extra_data": extra_data,
         "platform": platform or {},
@@ -179,7 +182,14 @@ def build_other_span_without_platform():
     return span
 
 
-def run_discover(existing_node, spans, pods=None, discover_cls=NodeDiscover):
+def build_llm_span(attributes, sdk_name="opentelemetry"):
+    span = build_other_span_without_platform()
+    span["attributes"].update(attributes)
+    span["resource"]["telemetry.sdk.name"] = sdk_name
+    return span
+
+
+def run_discover(existing_node, spans, pods=None, discover_cls=NodeDiscover, app_name=APP_NAME):
     if isinstance(spans, dict):
         spans = [spans]
 
@@ -195,7 +205,7 @@ def run_discover(existing_node, spans, pods=None, discover_cls=NodeDiscover):
         mock.patch.object(discover_cls, "_validate_bk_biz_id", return_value=BK_BIZ_ID),
         mock.patch.object(ApmTopoDiscoverRule, "get_application_rule", return_value=build_rules()),
     ):
-        discover_cls(BK_BIZ_ID, APP_NAME).discover(spans)
+        discover_cls(BK_BIZ_ID, app_name).discover(spans)
 
     return topo_manager.nodes[SERVICE_NAME], pod_manager
 
@@ -322,3 +332,72 @@ def test_existing_other_topo_node_keeps_platform_when_span_has_no_platform_field
     topo_node, _ = run_discover(existing_node, build_other_span_without_platform())
 
     assert topo_node["platform"] == existing_platform
+
+
+@pytest.mark.parametrize(
+    ("app_name", "attributes", "product"),
+    [
+        (APP_NAME, {"gen_ai.operation.name": "chat"}, "default"),
+        (APP_NAME, {"gen_ai.system": "trpc.go.agent"}, "default"),
+        (APP_NAME, {"gen_ai.span.kind": "LLM"}, "agentlens"),
+        (APP_NAME, {"langfuse.observation.type": "generation"}, "langfuse"),
+        (AIDEV_APP_NAME, {"traceloop.span.kind": "workflow"}, "aidev"),
+        (AIDEV_APP_NAME, {"langfuse.observation.type": "generation"}, "aidev"),
+    ],
+)
+def test_discovers_llm_product(app_name, attributes, product):
+    existing_node = build_topo_node(
+        {
+            "category": ApmTopoDiscoverRule.APM_TOPO_CATEGORY_OTHER,
+            "kind": ApmTopoDiscoverRule.TOPO_SERVICE,
+            "predicate_value": None,
+            "service_language": "python",
+        },
+        app_name=app_name,
+    )
+
+    topo_node, _ = run_discover(existing_node, build_llm_span(attributes), app_name=app_name)
+
+    assert topo_node["extra_data"]["llm"]["product"] == product
+    assert isinstance(topo_node["extra_data"]["llm"]["updated_at"], int)
+
+
+def test_galileo_reuses_existing_sdk_field():
+    existing_node = build_topo_node(
+        {
+            "category": ApmTopoDiscoverRule.APM_TOPO_CATEGORY_OTHER,
+            "kind": ApmTopoDiscoverRule.TOPO_SERVICE,
+            "predicate_value": None,
+            "service_language": "go",
+        }
+    )
+
+    topo_node, _ = run_discover(
+        existing_node,
+        build_llm_span({"gen_ai.operation.name": "invoke_agent"}, sdk_name="galileo"),
+    )
+
+    assert topo_node["extra_data"]["llm"]["product"] == "default"
+    assert topo_node["sdk"][0]["name"] == "galileo"
+
+
+def test_llm_metadata_survives_discovery_batches():
+    existing_node = build_topo_node(
+        {
+            "category": ApmTopoDiscoverRule.APM_TOPO_CATEGORY_RPC,
+            "kind": ApmTopoDiscoverRule.TOPO_SERVICE,
+            "predicate_value": "grpc",
+            "service_language": "python",
+        }
+    )
+    rpc_span = build_llm_span({"rpc.system": "grpc"})
+    agentlens_span = build_llm_span({"gen_ai.span.kind": "AGENT"})
+
+    topo_node, _ = run_discover(
+        existing_node,
+        [agentlens_span, rpc_span],
+        discover_cls=OneSpanPerBatchNodeDiscover,
+    )
+
+    assert topo_node["extra_data"]["category"] == ApmTopoDiscoverRule.APM_TOPO_CATEGORY_RPC
+    assert topo_node["extra_data"]["llm"]["product"] == "agentlens"

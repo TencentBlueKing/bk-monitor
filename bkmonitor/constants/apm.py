@@ -2020,6 +2020,14 @@ class Vendor:
         return any(cls.equal(expect_sdk, i.get("name")) for i in service_sdk)
 
 
+class LLMProduct(TextChoices):
+    DEFAULT = "default"
+    AGENTLENS = "agentlens"
+    AIDEV = "aidev"
+    GALILEO = "galileo"
+    LANGFUSE = "langfuse"
+
+
 class SpanKindCachedEnum(CachedEnum):
     SPAN_KIND_UNSPECIFIED = 0
     SPAN_KIND_INTERNAL = 1

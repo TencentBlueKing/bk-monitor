@@ -19,6 +19,7 @@ class ListTracesResourceTestCase(TestCase):
             "agentlens": ({"gen_ai.span.kind": "LLM"}, True),
             "galileo": ({"gen_ai.operation.name": "chat"}, True),
             "bkaidev": ({"agent.info.id": 3129, "agent.info.name": "demo"}, True),
+            "langfuse": ({"langfuse.observation.type": "generation"}, True),
             "http": ({"http.method": "GET", "http.route": "/api/orders"}, False),
         }
 
@@ -50,7 +51,7 @@ class ListTracesResourceTestCase(TestCase):
         self.assertIn("limit", serializer.errors)
 
     @staticmethod
-    def convert_spans(raw_spans):
+    def convert_spans(raw_spans, _entity_set):
         return [
             {
                 "trace_id": span["trace_id"],
@@ -128,10 +129,12 @@ class ListTracesResourceTestCase(TestCase):
             },
         ]
         span_query.query_by_group_ids.return_value = raw_spans
+        entity_set = mock.sentinel.entity_set
 
         with (
             mock.patch("apm_web.llm.resources.Application.objects.get", return_value=application) as get_application,
             mock.patch("apm_web.llm.resources.get_query", return_value=span_query) as get_query,
+            mock.patch("apm_web.llm.resources.EntitySet", return_value=entity_set),
             mock.patch("apm_web.llm.resources.adapt_spans", side_effect=self.convert_spans),
         ):
             result = ListTracesResource().request(
@@ -279,10 +282,12 @@ class ListTracesResourceTestCase(TestCase):
             },
         ]
         span_query.query_by_group_ids.return_value = raw_spans
+        entity_set = mock.sentinel.entity_set
 
         with (
             mock.patch("apm_web.llm.resources.Application.objects.get", return_value=application) as get_application,
             mock.patch("apm_web.llm.resources.get_query", return_value=span_query) as get_query,
+            mock.patch("apm_web.llm.resources.EntitySet", return_value=entity_set),
             mock.patch("apm_web.llm.resources.adapt_spans", side_effect=self.convert_spans),
         ):
             result = ListTracesResource().request(
@@ -385,7 +390,7 @@ class ListTracesResourceTestCase(TestCase):
         ]
 
         with mock.patch("apm_web.llm.resources.adapt_spans", return_value=converted_spans):
-            item = ListTracesResource._trace_item("trace-1", raw_spans)
+            item = ListTracesResource._trace_item("trace-1", raw_spans, mock.sentinel.entity_set)
 
         self.assertEqual(item["start_time"], 100)
         self.assertEqual(item["elapsed_time"], 200)
@@ -453,7 +458,7 @@ class ListTracesResourceTestCase(TestCase):
         ]
 
         with mock.patch("apm_web.llm.resources.adapt_spans", return_value=converted_spans):
-            item = ListTracesResource._trace_item("trace-1", raw_spans)
+            item = ListTracesResource._trace_item("trace-1", raw_spans, mock.sentinel.entity_set)
 
         self.assertEqual(item["input"], "最新问题")
         self.assertEqual(item["output"], "最终回答")
@@ -484,7 +489,7 @@ class ListTracesResourceTestCase(TestCase):
         ]
 
         with mock.patch("apm_web.llm.resources.adapt_spans", return_value=converted_spans):
-            item = ListTracesResource._trace_item("trace-1", raw_spans)
+            item = ListTracesResource._trace_item("trace-1", raw_spans, mock.sentinel.entity_set)
 
         self.assertEqual(item["input"], "")
         self.assertEqual(item["output"], "")
@@ -515,8 +520,14 @@ class ListSpansResourceTestCase(TestCase):
                 }
             ],
         }
+        entity_set = mock.Mock()
+        entity_set.service_names = ["demo"]
+        entity_set.get_system.return_value = {"is_support_llm": True, "product": "default"}
 
-        with mock.patch("core.drf_resource.api.apm_api.query_span_list", return_value=response):
+        with (
+            mock.patch("core.drf_resource.api.apm_api.query_span_list", return_value=response),
+            mock.patch("apm_web.llm.resources.EntitySet", return_value=entity_set),
+        ):
             result = ListSpansResource().request(
                 {
                     "bk_biz_id": 11,
@@ -539,9 +550,11 @@ class ListSpansResourceTestCase(TestCase):
             "span_id": "span-1",
             "attributes": {"gen_ai.operation.name": "chat"},
         }
+        entity_set = mock.sentinel.entity_set
 
         with (
             mock.patch("core.drf_resource.api.apm_api.query_span_list", return_value=response) as query_span_list,
+            mock.patch("apm_web.llm.resources.EntitySet", return_value=entity_set),
             mock.patch(
                 "apm_web.llm.resources.adapt_spans",
                 return_value=[converted_span],
@@ -559,7 +572,7 @@ class ListSpansResourceTestCase(TestCase):
             result,
             {"trace_id": "trace-1", "total": 1, "spans": [converted_span]},
         )
-        adapt_spans.assert_called_once_with(response["data"])
+        adapt_spans.assert_called_once_with(response["data"], entity_set)
         query_span_list.assert_called_once_with(
             {
                 "bk_biz_id": 11,
