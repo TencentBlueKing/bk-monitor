@@ -588,7 +588,7 @@ class TestEntityHandlerRedisSync:
         assert result["metadata"]["name"] == "test_err"
         assert ResourceDefinition.objects.filter(name="test_err").exists()
 
-    @override_settings(GRAPH_RELATION_BKBASE_SYNC_BIZ_ID_WHITE_LIST=[2])
+    @override_settings(GRAPH_RELATION_V4_BIZ_ID_WHITE_LIST=[2])
     @patch("metadata.resources.entity_relation.transaction.on_commit", side_effect=lambda func: func())
     @patch("alarm_backends.service.scheduler.app.app.send_task")
     @patch("metadata.resources.entity_relation.RedisTools")
@@ -606,7 +606,7 @@ class TestEntityHandlerRedisSync:
         mock_send_task.assert_not_called()
         mock_on_commit.assert_not_called()
 
-    @override_settings(GRAPH_RELATION_BKBASE_SYNC_BIZ_ID_WHITE_LIST=[])
+    @override_settings(GRAPH_RELATION_V4_BIZ_ID_WHITE_LIST=[])
     @patch("metadata.resources.entity_relation.transaction.on_commit", side_effect=lambda func: func())
     @patch("alarm_backends.service.scheduler.app.app.send_task")
     @patch("metadata.resources.entity_relation.RedisTools")
@@ -624,7 +624,7 @@ class TestEntityHandlerRedisSync:
         mock_send_task.assert_not_called()
         mock_on_commit.assert_not_called()
 
-    @override_settings(GRAPH_RELATION_BKBASE_SYNC_BIZ_ID_WHITE_LIST=[2])
+    @override_settings(GRAPH_RELATION_V4_BIZ_ID_WHITE_LIST=[2])
     @patch("metadata.resources.entity_relation.transaction.on_commit", side_effect=lambda func: func())
     @patch("alarm_backends.service.scheduler.app.app.send_task")
     @patch("metadata.resources.entity_relation.RedisTools")
@@ -642,7 +642,7 @@ class TestEntityHandlerRedisSync:
         mock_send_task.assert_not_called()
         mock_on_commit.assert_not_called()
 
-    @override_settings(GRAPH_RELATION_BKBASE_SYNC_BIZ_ID_WHITE_LIST=[2])
+    @override_settings(GRAPH_RELATION_V4_BIZ_ID_WHITE_LIST=[2])
     @patch("alarm_backends.service.scheduler.app.app.send_task")
     @patch("metadata.resources.entity_relation.RedisTools")
     def test_apply_unchanged_definition_does_not_schedule_bkbase_sync(

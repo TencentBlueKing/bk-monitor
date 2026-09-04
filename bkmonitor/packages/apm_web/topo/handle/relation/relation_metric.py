@@ -8,6 +8,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 from apm_web.constants import TopoNodeKind
 from apm_web.handlers.service_handler import ServiceHandler
 from core.drf_resource import api
@@ -25,7 +26,6 @@ class RelationMetricHandler:
         if service_name:
             source_params["apm_service_name"] = service_name
         params = {
-            "bk_biz_ids": [bk_biz_id],
             "start_time": start_time,
             "end_time": end_time,
             "step": f"{end_time - start_time}s",
@@ -33,7 +33,7 @@ class RelationMetricHandler:
             "target_type": "apm_service_instance",
             "source_info": source_params,
         }
-        response = api.unify_query.query_multi_resource_range(**{"query_list": [params]})
+        response = api.unify_query.query_multi_resource_range(bk_biz_ids=[bk_biz_id], query_list=[params])
         res = []
 
         for item in response.get("data", []):
