@@ -8,7 +8,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from semconv.rum.attributes import span_attributes, vital_attributes
+from semconv.rum.attributes import span_attributes, virtual_attributes
 from semconv.rum.field import FieldSpec
 from semconv.rum.registry import FieldRegistry
 from semconv.rum.trace.attributes import Attributes
@@ -53,11 +53,11 @@ class SpanSpec(FieldSpec):
     ELAPSED_TIME = span_attributes.ELAPSED_TIME
 
     # ── Web Vitals 虚拟字段（根级，非嵌套）────────────────────────────────────
-    CLS = vital_attributes.CLS
-    INP = vital_attributes.INP
-    LCP = vital_attributes.LCP
-    FCP = vital_attributes.FCP
-    TTFB = vital_attributes.TTFB
+    CLS = virtual_attributes.CLS
+    INP = virtual_attributes.INP
+    LCP = virtual_attributes.LCP
+    FCP = virtual_attributes.FCP
+    TTFB = virtual_attributes.TTFB
 
     # ── 复合字段 ───────────────────────────────────────────────────────────────
     STATUS = Status(field_name="status")

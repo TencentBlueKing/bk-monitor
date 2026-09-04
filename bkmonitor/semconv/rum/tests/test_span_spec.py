@@ -25,6 +25,7 @@ from semconv.rum.attributes import (
     error_attributes,
     device_attributes,
     vital_attributes,
+    virtual_attributes,
     http_attributes,
     session_attributes,
 )
@@ -170,11 +171,11 @@ class TestSpanSpec:
 
     def test_vital_fields_at_root(self):
         """Web Vitals 虚拟字段注册在根级。"""
-        assert SpanSpec.from_field("LCP") is SpanSpec.LCP is vital_attributes.LCP
-        assert SpanSpec.from_field("CLS") is SpanSpec.CLS is vital_attributes.CLS
-        assert SpanSpec.from_field("INP") is SpanSpec.INP is vital_attributes.INP
-        assert SpanSpec.from_field("FCP") is SpanSpec.FCP is vital_attributes.FCP
-        assert SpanSpec.from_field("TTFB") is SpanSpec.TTFB is vital_attributes.TTFB
+        assert SpanSpec.from_field("LCP") is SpanSpec.LCP is virtual_attributes.LCP
+        assert SpanSpec.from_field("CLS") is SpanSpec.CLS is virtual_attributes.CLS
+        assert SpanSpec.from_field("INP") is SpanSpec.INP is virtual_attributes.INP
+        assert SpanSpec.from_field("FCP") is SpanSpec.FCP is virtual_attributes.FCP
+        assert SpanSpec.from_field("TTFB") is SpanSpec.TTFB is virtual_attributes.TTFB
 
     def test_vital_field_unit(self):
         """Web Vitals 字段携带正确单位。"""

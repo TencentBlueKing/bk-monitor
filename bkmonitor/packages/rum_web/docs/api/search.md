@@ -213,7 +213,13 @@ GET /rum/search/view_config/?app_name=rum-demo&bk_biz_id=2
       "attributes.user.id",
       "attributes.resource.type",
       "attributes.http.request.method"
-    ]
+    ],
+    "error": [],
+    "vital": [],
+    "long_task": [],
+    "action": [],
+    "websocket": [],
+    "custom": []
   },
   "fields": [
     {

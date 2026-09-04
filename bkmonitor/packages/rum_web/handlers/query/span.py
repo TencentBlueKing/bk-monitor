@@ -9,7 +9,6 @@ specific language governing permissions and limitations under the License.
 """
 
 from typing import Any
-from dataclasses import asdict
 
 from bkmonitor.data_source.utils import types
 from bkmonitor.data_source.utils.base import sort_fields
@@ -149,7 +148,12 @@ class SpanQuery(APMQueryFilterMixin, BaseQuery):
                 {"value": value, "alias": alias} for value, alias in spec.option_values.choices()
             ]
         if spec.rating_config:
-            field_dict["rating_config"] = [asdict(config) for config in spec.rating_config]
+            field_dict["rating_config"] = []
+            for config in spec.rating_config:
+                item = {"rating": config.rating}
+                if config.value is not None:
+                    item["value"] = config.value
+                field_dict["rating_config"].append(item)
         return field_dict
 
     def query_fields(self, start_time: int | None, end_time: int | None) -> dict[str, dict[str, Any]]:
@@ -165,16 +169,17 @@ class SpanQuery(APMQueryFilterMixin, BaseQuery):
 
         # 虚拟字段
         for spec in SpanSpec.fields():
-            if spec.is_real:
+            field_name = spec.get_full_field_name()
+            if spec.is_real or field_name in field_map:
                 continue
             field_dict = {
-                "field_name": spec.field_name,
+                "field_name": field_name,
                 "is_searchable": True,
                 "is_agg": True,
                 "is_list": False,
-                "origin_field": spec.field_name.split(".")[0],
+                "origin_field": field_name.split(".", 1)[0],
                 "supported_operations": self.FIELD_OPERATIONS.get(spec.field_type, []),
             }
             self._apply_field_spec(field_dict, spec)
-            field_map[spec.field_name] = field_dict
+            field_map[field_name] = field_dict
         return field_map
