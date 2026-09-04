@@ -3,7 +3,9 @@
 
 .trace-wrap {
   width: 100vw;
-  height: 100vh;
+
+  // 独立运行时扣掉主壳系统公告高度，避免底部分页被挡
+  height: calc(100vh - var(--notice-alert-height, 0px));
   font-size: $font-size-base;
   color: $font-color-base;
 
@@ -227,6 +229,8 @@
   }
 
   .container-content {
+    // 覆盖 bkui Navigation 内联样式，补扣 --notice-alert-height（默认 0px）
+    max-height: calc(100vh - 52px - var(--notice-alert-height, 0px)) !important;
     padding: 0 !important;
     overflow: inherit !important;
 
@@ -253,6 +257,11 @@
         height: 100%;
       }
     }
+  }
+
+  // 微应用宿主已扣除公告高度，用 100% 覆盖内联 calc(100vh - 52px)
+  &.is-micro-app .container-content {
+    max-height: 100% !important;
   }
 
   .navigation-nav {
