@@ -17,6 +17,8 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from bkmonitor.views.renderers import UJSONRenderer
+
 from .auth import MonitorIamCallbackAuthentication
 from .handlers import get_callback_service
 from .service import V4CallbackService
@@ -33,6 +35,8 @@ class V4ResourceCallbackView(APIView):
 
     authentication_classes = []
     permission_classes = []
+    # IAM callback 有独立协议，不能被 Web/API 角色的全局 renderer 再包一层。
+    renderer_classes = [UJSONRenderer]
     callback_service: V4CallbackService | None = None
 
     def get(self, request: Request) -> Response:

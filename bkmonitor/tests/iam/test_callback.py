@@ -9,6 +9,7 @@ specific language governing permissions and limitations under the License.
 """
 
 import base64
+import json
 import warnings
 
 import pytest
@@ -290,6 +291,27 @@ class TestV4CallbackView:
 
         assert response.status_code == 200
         assert response.data == {"code": 0, "data": {"count": 0, "results": []}}
+        response.render()
+        rendered = json.loads(response.content)
+        assert rendered == {"code": 0, "data": {"count": 0, "results": []}}
+        assert "result" not in rendered
+
+    def test_monitor_view_renders_health_response_without_monitor_envelope(self, monkeypatch):
+        class StaticTokenProvider:
+            def get_system_token(self) -> str:
+                return "callback-token"
+
+        monkeypatch.setattr(callback_auth, "get_callback_token_provider", lambda: StaticTokenProvider())
+        credential = base64.b64encode(b"bk_iam:callback-token").decode()
+        request = APIRequestFactory().get("/", HTTP_AUTHORIZATION=f"Basic {credential}")
+
+        response = MonitorV4ResourceCallbackView.as_view()(request)
+
+        assert response.status_code == 200
+        response.render()
+        rendered = json.loads(response.content)
+        assert rendered == {"code": 0, "data": {"status": "ok"}}
+        assert "result" not in rendered
 
 
 class TestV4CallbackRouting:

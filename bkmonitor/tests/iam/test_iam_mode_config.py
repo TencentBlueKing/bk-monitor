@@ -108,6 +108,31 @@ class TestIamReadWriteEnvironmentConfig:
 
         assert settings_module.IAM_FRAMEWORK["ENABLED_PROVIDERS"] == "v3"
 
+    @pytest.mark.parametrize("configured", (None, ""))
+    def test_v4_callback_url_defaults_to_monitor_web_endpoint(self, monkeypatch, configured):
+        if configured is None:
+            monkeypatch.delenv("BK_IAM_V4_CALLBACK_URL", raising=False)
+        else:
+            monkeypatch.setenv("BK_IAM_V4_CALLBACK_URL", configured)
+        monkeypatch.setenv("BK_MONITOR_HOST", "https://monitor.example.test/app/")
+
+        settings_module = self._reload_default(monkeypatch, {})
+
+        expected = "https://monitor.example.test/app/rest/v2/iam/v4/callback/"
+        assert settings_module.BK_IAM_V4_CALLBACK_URL == expected
+        system = settings_module.IAM_FRAMEWORK["PROVIDER_CATALOG"]["v4"]["options"]["system"]
+        assert system["callback_url"] == expected
+
+    def test_v4_callback_url_can_be_overridden(self, monkeypatch):
+        monkeypatch.setenv("BK_MONITOR_HOST", "https://monitor.example.test/")
+        monkeypatch.setenv("BK_IAM_V4_CALLBACK_URL", "http://bk-monitor-web/iam-callback/")
+
+        settings_module = self._reload_default(monkeypatch, {})
+
+        assert settings_module.BK_IAM_V4_CALLBACK_URL == "http://bk-monitor-web/iam-callback/"
+        system = settings_module.IAM_FRAMEWORK["PROVIDER_CATALOG"]["v4"]["options"]["system"]
+        assert system["callback_url"] == "http://bk-monitor-web/iam-callback/"
+
 
 class TestIamFrameworkLoading:
     """引用、策略和失败策略都在框架加载期验证。"""

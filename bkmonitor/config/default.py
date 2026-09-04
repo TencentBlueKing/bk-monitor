@@ -1399,7 +1399,10 @@ BK_IAM_V4_API_BASE_URL = os.getenv("BK_IAM_V4_API_BASE_URL", "")
 BK_IAM_V4_SYSTEM_ID = os.getenv("BK_IAM_V4_SYSTEM_ID", "bk_monitor")
 BK_IAM_V4_SYSTEM_NAME = os.getenv("BK_IAM_V4_SYSTEM_NAME", "蓝鲸监控平台")
 BK_IAM_V4_SYSTEM_DESCRIPTION = os.getenv("BK_IAM_V4_SYSTEM_DESCRIPTION", "蓝鲸监控平台-IAMv4 权限系统")
-BK_IAM_V4_CALLBACK_URL = os.getenv("BK_IAM_V4_CALLBACK_URL", "")
+# 默认直接回调监控 Web 服务，不依赖 IAM API 网关；特殊网络拓扑仍可显式覆盖。
+BK_IAM_V4_CALLBACK_URL = os.getenv("BK_IAM_V4_CALLBACK_URL") or (
+    f"{BK_MONITOR_HOST.rstrip('/')}/rest/v2/iam/v4/callback/"
+)
 
 # ---- IAM v4 资源 callback ----
 # callback 可独立部署
