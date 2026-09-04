@@ -617,6 +617,17 @@ STANDARD_CONFIGS = OrderedDict(
         ("CUSTOM_REPORT_DEFAULT_PROXY_DOMAIN", slz.ListField(label=_("自定义上报默认服务器(域名显示)"), default=[])),
         ("CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER", slz.ListField(label=_("自定义上报默认部署K8S集群"), default=[])),
         (
+            "CUSTOM_REPORT_DEFAULT_DEPLOY_NAMESPACES",
+            slz.DictField(
+                label=_("公共 collector 下发命名空间"),
+                child=slz.ListField(
+                    child=slz.RegexField(r"^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$", max_length=63),
+                    allow_empty=False,
+                ),
+                default={},
+            ),
+        ),
+        (
             "CUSTOM_REPORT_DEFAULT_K8S_CLUSTER_SERVICE",
             slz.CharField(label=_("集群内服务域名"), default="bkm-collector.bkmonitor-operator"),
         ),

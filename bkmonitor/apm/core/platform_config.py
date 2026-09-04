@@ -73,7 +73,7 @@ class PlatformConfig(BkCollectorConfig):
     @classmethod
     def refresh_k8s(cls):
         """
-        下发平台默认配置到 K8S 集群（不区分租户，每个集群一份平台配置）
+        下发平台默认配置到 K8S 部署（不区分租户，每个目标 namespace 一份平台配置）
 
         # 1. 获取所有集群ID列表
         # 2. 针对每一个集群
@@ -83,19 +83,14 @@ class PlatformConfig(BkCollectorConfig):
 
         from metadata.models.bcs.cluster import BCSClusterInfo
 
-        cluster_mapping = BkCollectorClusterConfig.get_cluster_mapping()
-
-        if settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER:
-            # 补充中心化集群
-            for cluster_id in settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER:
-                cluster_mapping[cluster_id] = [0]
+        deploy_mapping = BkCollectorClusterConfig.get_deploy_mapping()
 
         # 获取BCS集群与业务ID的映射关系
         bcs_cluster_to_biz_ids: dict[str, int] = {}
         for bcs_cluster in BCSClusterInfo.objects.all().only("cluster_id", "bk_biz_id"):
             bcs_cluster_to_biz_ids[bcs_cluster.cluster_id] = bcs_cluster.bk_biz_id
 
-        for cluster_id, cc_bk_biz_ids in cluster_mapping.items():
+        for cluster_id, namespace in deploy_mapping:
             # 如果集群不在BCS集群中，则不下发该集群的配置
             if cluster_id not in bcs_cluster_to_biz_ids:
                 continue
@@ -106,24 +101,24 @@ class PlatformConfig(BkCollectorConfig):
                 continue
 
             try:
-                platform_config_tpl = BkCollectorClusterConfig.platform_config_tpl(cluster_id)
+                platform_config_tpl = BkCollectorClusterConfig.platform_config_tpl(cluster_id, namespace=namespace)
                 if platform_config_tpl is None:
                     # 如果集群中不存在 bk-collector 的平台配置模版，则不下发
                     continue
 
-                platform_config_context = PlatformConfig.get_platform_config(cluster_id)
+                platform_config_context = PlatformConfig.get_platform_config(cluster_id, namespace=namespace)
 
                 platform_config = Environment().from_string(platform_config_tpl).render(platform_config_context)
-                PlatformConfig.deploy_to_k8s(cluster_id, platform_config)
+                PlatformConfig.deploy_to_k8s(cluster_id, platform_config, namespace=namespace)
             except Exception as e:  # pylint: disable=broad-except
-                logger.error(f"refresh platform config to cluster: {cluster_id} failed, error: {e}")
+                logger.error(f"refresh platform config to target: {cluster_id}/{namespace} failed, error: {e}")
 
     @classmethod
-    def get_platform_config(cls, bcs_cluster_id=None):
+    def get_platform_config(cls, bcs_cluster_id=None, namespace=None):
         plat_config = {
             "apdex_config": cls.get_apdex_config(),
             "sampler_config": cls.get_sampler_config(),
-            "token_checker_config": cls.get_token_checker_config(bcs_cluster_id),
+            "token_checker_config": cls.get_token_checker_config(bcs_cluster_id, namespace=namespace),
             "resource_filter_config": cls.get_resource_filter_config(),
             "qps_config": cls.get_qps_config(),
             "metric_configs": cls.list_metric_config(),
@@ -134,8 +129,10 @@ class PlatformConfig(BkCollectorConfig):
         if settings.APM_FIELD_NORMALIZER_ENABLED:
             plat_config["field_normalizer_config"] = cls.get_field_normalizer_config()
 
-        if bcs_cluster_id and bcs_cluster_id not in settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER:
-            resource_fill_dimensions_config = cls.get_resource_fill_dimensions_config(bcs_cluster_id)
+        if bcs_cluster_id and not BkCollectorClusterConfig.is_global_target(bcs_cluster_id, namespace):
+            resource_fill_dimensions_config = cls.get_resource_fill_dimensions_config(
+                bcs_cluster_id, namespace=namespace
+            )
             if resource_fill_dimensions_config:
                 plat_config["resource_fill_dimensions_config"] = resource_fill_dimensions_config
 
@@ -294,7 +291,7 @@ class PlatformConfig(BkCollectorConfig):
         return {"name": "field_normalizer/otel_mapping", "fields": fields}
 
     @classmethod
-    def get_token_checker_config(cls, bcs_cluster_id=None):
+    def get_token_checker_config(cls, bcs_cluster_id=None, namespace=None):
         x_key = get_bk_data_token_aes_key()
 
         token_checker_config = {
@@ -309,7 +306,7 @@ class PlatformConfig(BkCollectorConfig):
             else settings.BK_DATA_AES_IV,
         }
 
-        if bcs_cluster_id and bcs_cluster_id not in settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER:
+        if bcs_cluster_id and not BkCollectorClusterConfig.is_global_target(bcs_cluster_id, namespace):
             # 集群内默认上报 APM 应用
             default_app_relation = BcsClusterDefaultApplicationRelation.objects.filter(
                 cluster_id=bcs_cluster_id
@@ -348,7 +345,7 @@ class PlatformConfig(BkCollectorConfig):
         return data_ids
 
     @classmethod
-    def get_resource_fill_dimensions_config(cls, bcs_cluster_id=None):
+    def get_resource_fill_dimensions_config(cls, bcs_cluster_id=None, namespace=None):
         """
         维度补充配置（目前先固定返回，暂不支持可配置）
         第一层，先根据上报的客户端IP，填充 resource 下的 net.host.ip 字段（如果不存在则赋值）
@@ -357,14 +354,16 @@ class PlatformConfig(BkCollectorConfig):
         if bcs_cluster_id is None:
             return {}
 
-        if bcs_cluster_id in settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER:
-            # 中心化集群，可以接收到所有的数据，不对中心化集群做维度补充逻辑
+        if BkCollectorClusterConfig.is_global_target(bcs_cluster_id, namespace):
+            # 公共部署接收全局数据，不使用所在集群的维度缓存。
             return {}
 
+        if namespace is None:
+            namespace = BkCollectorClusterConfig.bk_collector_namespace(bcs_cluster_id)
         bcs_client = BcsKubeClient(bcs_cluster_id)
         svc = bcs_client.client_request(
             bcs_client.core_api.list_namespaced_service,
-            namespace=BkCollectorClusterConfig.bk_collector_namespace(bcs_cluster_id),
+            namespace=namespace,
             label_selector="app.kubernetes.io/bk-component=bkmonitor-operator",
         )
         count = len(svc.items)
@@ -503,7 +502,7 @@ class PlatformConfig(BkCollectorConfig):
                 logger.exception(f"create apm platform config subscription error{e}, params:{subscription_params}")
 
     @classmethod
-    def deploy_to_k8s(cls, cluster_id, platform_config):
+    def deploy_to_k8s(cls, cluster_id, platform_config, namespace=None):
         secret_info_platform = BkCollectorComp.get_secrets_config_map_by_protocol(cluster_id, "platform") or {}
         secret_name = secret_info_platform.get("secret_name_tpl")
         secret_data_key = secret_info_platform.get("secret_data_key_tpl")
@@ -515,11 +514,13 @@ class PlatformConfig(BkCollectorConfig):
         b64_content = base64.b64encode(gzip_content).decode()
 
         bcs_client = BcsKubeClient(cluster_id)
-        namespace = BkCollectorClusterConfig.bk_collector_namespace(cluster_id)
+        if namespace is None:
+            namespace = BkCollectorClusterConfig.bk_collector_namespace(cluster_id)
         secret_label_selector = (
             f"{BkCollectorComp.SECRET_COMMON_LABELS},{secret_info_platform.get('secret_extra_label')}"
         )
-        secrets = bcs_client.client_request(
+        secrets = BkCollectorClusterConfig.request_k8s(
+            bcs_client,
             bcs_client.core_api.list_namespaced_secret,
             namespace=namespace,
             label_selector=secret_label_selector,
@@ -540,7 +541,8 @@ class PlatformConfig(BkCollectorConfig):
             if need_update:
                 logger.info(f"{cluster_id} apm platform config has changed, update it.")
                 sec.data = {secret_data_key: b64_content}
-                bcs_client.client_request(
+                BkCollectorClusterConfig.request_k8s(
+                    bcs_client,
                     bcs_client.core_api.patch_namespaced_secret,
                     name=secret_name,
                     namespace=namespace,
@@ -560,7 +562,8 @@ class PlatformConfig(BkCollectorConfig):
                 data={secret_data_key: b64_content},
             )
 
-            bcs_client.client_request(
+            BkCollectorClusterConfig.request_k8s(
+                bcs_client,
                 bcs_client.core_api.create_namespaced_secret,
                 namespace=namespace,
                 body=sec,

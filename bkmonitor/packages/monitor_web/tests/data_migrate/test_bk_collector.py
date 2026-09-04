@@ -1899,7 +1899,7 @@ def test_custom_report_k8s_refresh_reports_deploy_failures_in_summary(monkeypatc
     monkeypatch.setattr(
         subscription_config.BkCollectorClusterConfig,
         "sub_config_tpl",
-        lambda cluster_id, tpl_name: "data_id={{ bk_data_id }}",
+        lambda cluster_id, tpl_name, namespace=None: "data_id={{ bk_data_id }}",
     )
     monkeypatch.setattr(
         subscription_config.BkCollectorClusterConfig,
@@ -1953,7 +1953,7 @@ def test_refresh_k8s_custom_config_by_biz_keeps_render_failure(monkeypatch):
     monkeypatch.setattr(
         subscription_config.BkCollectorClusterConfig,
         "sub_config_tpl",
-        lambda cluster_id, tpl_name: "tpl",
+        lambda cluster_id, tpl_name, namespace=None: "tpl",
     )
     monkeypatch.setattr(subscription_config.jinja_env, "from_string", lambda tpl: BadTemplate())
     monkeypatch.setattr(

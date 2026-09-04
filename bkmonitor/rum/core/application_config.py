@@ -9,7 +9,6 @@ specific language governing permissions and limitations under the License.
 """
 
 import logging
-from django.conf import settings
 from opentelemetry import trace
 
 from jinja2.sandbox import SandboxedEnvironment as Environment
@@ -46,17 +45,14 @@ class RumApplicationConfig(BkCollectorConfig):
         cluster_mapping = BkCollectorClusterConfig.get_cluster_mapping()
         cluster_mapping = {k: v for k, v in cluster_mapping.items() if set(need_deploy_all_biz_ids) & set(v)}
 
-        # 补充默认部署集群
-        if settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER:
-            for cluster_id in settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER:
-                cluster_mapping[cluster_id] = [BkCollectorClusterConfig.GLOBAL_CONFIG_BK_BIZ_ID]
+        deploy_mapping = BkCollectorClusterConfig.get_deploy_mapping(cluster_mapping)
 
         # 按集群分组配置，实现批量下发
-        for cluster_id, cc_bk_biz_ids in cluster_mapping.items():
-            with tracer.start_as_current_span(f"cluster-id: {cluster_id}") as s:
+        for (cluster_id, namespace), cc_bk_biz_ids in deploy_mapping.items():
+            with tracer.start_as_current_span(f"collector-target: {cluster_id}/{namespace}") as s:
                 try:
                     application_tpl = BkCollectorClusterConfig.sub_config_tpl(
-                        cluster_id, BkCollectorComp.CONFIG_MAP_APPLICATION_TPL_NAME
+                        cluster_id, BkCollectorComp.CONFIG_MAP_APPLICATION_TPL_NAME, namespace=namespace
                     )
                     if not application_tpl:
                         continue
@@ -86,12 +82,14 @@ class RumApplicationConfig(BkCollectorConfig):
 
                     # 批量下发该集群的所有配置
                     if cluster_config_map:
-                        BkCollectorClusterConfig.deploy_to_k8s_with_hash(cluster_id, cluster_config_map, "rum")
-                        logger.info(f"batch deploy {len(cluster_config_map)} rum configs to k8s cluster({cluster_id})")
+                        BkCollectorClusterConfig.deploy_to_k8s_with_hash(
+                            cluster_id, cluster_config_map, "rum", namespace=namespace
+                        )
+                        logger.info(f"batch deploy {len(cluster_config_map)} rum configs to {cluster_id}/{namespace}")
 
                 except Exception as e:  # pylint: disable=broad-except
                     s.record_exception(exception=e)
-                    logger.exception(f"batch refresh rum application config to k8s({cluster_id})")
+                    logger.exception(f"batch refresh rum application config to k8s({cluster_id}/{namespace})")
 
     def get_application_config(self):
         """获取应用配置上下文"""

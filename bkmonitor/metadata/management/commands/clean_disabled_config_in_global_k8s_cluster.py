@@ -11,7 +11,7 @@ specific language governing permissions and limitations under the License.
 from collections import defaultdict
 
 from django.conf import settings
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandError
 
 from bkmonitor.utils.bk_collector_config import BkCollectorClusterConfig
 from constants.common import DEFAULT_TENANT_ID
@@ -53,6 +53,10 @@ class Command(BaseCommand):
             help="K8S 集群 ID，支持传入多次；不传则默认使用 CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER",
         )
         parser.add_argument(
+            "--namespace",
+            help="显式指定清理命名空间，须同时指定一个 --cluster-id；默认清理配置的公共部署目标",
+        )
+        parser.add_argument(
             "--execute",
             action="store_true",
             default=False,
@@ -65,6 +69,23 @@ class Command(BaseCommand):
         bk_data_ids = set(options.get("bk_data_id") or [])
         clean_type = options["type"]
         cluster_ids = self._get_target_cluster_ids(options.get("cluster_id") or [])
+        namespace = options.get("namespace")
+        if namespace is not None and len(set(options.get("cluster_id") or [])) != 1:
+            raise CommandError("--namespace requires exactly one explicit --cluster-id")
+        try:
+            if namespace is not None:
+                BkCollectorClusterConfig.validate_namespace(namespace)
+                targets = [(cluster_id, namespace) for cluster_id in sorted(cluster_ids)]
+            else:
+                global_targets = BkCollectorClusterConfig.global_deploy_targets()
+                targets = []
+                for cluster_id in sorted(cluster_ids):
+                    targets.extend(
+                        [target for target in global_targets if target[0] == cluster_id]
+                        or [(cluster_id, BkCollectorClusterConfig.bk_collector_namespace(cluster_id))]
+                    )
+        except ValueError as error:
+            raise CommandError(str(error)) from error
         dry_run = not options["execute"]
 
         if not cluster_ids:
@@ -82,9 +103,9 @@ class Command(BaseCommand):
             return
 
         self.stdout.write(
-            "[{}] clean disabled collector config in k8s cluster, clusters={}, protocols={}".format(
+            "[{}] clean disabled collector config in k8s targets, targets={}, protocols={}".format(
                 "DRY-RUN" if dry_run else "EXECUTE",
-                sorted(cluster_ids),
+                targets,
                 sorted(protocol_to_configs.keys()),
             )
         )
@@ -105,13 +126,14 @@ class Command(BaseCommand):
                 )
 
         total_plan_count = 0
-        for cluster_id in sorted(cluster_ids):
+        for cluster_id, namespace in targets:
             for protocol, config_infos in sorted(protocol_to_configs.items()):
                 config_ids = {config_info["bk_data_id"] for config_info in config_infos}
                 plans = BkCollectorClusterConfig.clean_sub_configs(
                     cluster_id=cluster_id,
                     protocol=protocol,
                     config_ids=config_ids,
+                    namespace=namespace,
                     dry_run=dry_run,
                 )
                 total_plan_count += len(plans)

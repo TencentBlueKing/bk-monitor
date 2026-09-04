@@ -288,13 +288,9 @@ class CustomReportSubscription(models.Model):
             "cluster_count": 0,
             "failed_count": 0,
         }
-        cluster_mapping = BkCollectorClusterConfig.get_cluster_mapping()
-        if settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER:
-            # 补充中心化集群
-            for cluster_id in settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER:
-                cluster_mapping[cluster_id] = [BkCollectorClusterConfig.GLOBAL_CONFIG_BK_BIZ_ID]
+        deploy_mapping = BkCollectorClusterConfig.get_deploy_mapping()
 
-        for cluster_id, cc_bk_biz_ids in cluster_mapping.items():
+        for (cluster_id, namespace), cc_bk_biz_ids in deploy_mapping.items():
             if str(bk_biz_id) not in cc_bk_biz_ids and int(bk_biz_id) not in cc_bk_biz_ids:
                 continue
 
@@ -303,6 +299,7 @@ class CustomReportSubscription(models.Model):
             config_id_to_protocol: dict[int, str] = {}
             cluster_record = {
                 "cluster_id": cluster_id,
+                "namespace": namespace,
                 "related_bk_biz_ids": sorted(cc_bk_biz_ids, key=str),
                 "protocols": [],
                 "config_count": 0,
@@ -319,7 +316,7 @@ class CustomReportSubscription(models.Model):
                         continue
 
                     if protocol not in protocol_tpl:
-                        tpl_str = BkCollectorClusterConfig.sub_config_tpl(cluster_id, tpl_name)
+                        tpl_str = BkCollectorClusterConfig.sub_config_tpl(cluster_id, tpl_name, namespace=namespace)
                         if not tpl_str:
                             protocol_tpl[protocol] = None
                         else:
@@ -351,21 +348,26 @@ class CustomReportSubscription(models.Model):
 
                 # 分别按协议调用deploy_to_k8s_with_hash
                 for protocol, config_map in protocol_config_maps.items():
-                    BkCollectorClusterConfig.deploy_to_k8s_with_hash(cluster_id, config_map, protocol)
+                    BkCollectorClusterConfig.deploy_to_k8s_with_hash(
+                        cluster_id, config_map, protocol, namespace=namespace
+                    )
 
                 # 在所有协议下执行清理，同一个 config_id(data_id) 只允许有一份配置存在
                 BkCollectorClusterConfig.clean_dup_secrets_in_multi_protocol(
-                    cluster_id, protocol_config_maps.keys(), config_id_to_protocol
+                    cluster_id, protocol_config_maps.keys(), config_id_to_protocol, namespace=namespace
                 )
             except Exception as e:  # pylint: disable=broad-except
                 cluster_record.update({"result": False, "message": str(e)})
-                logger.exception(f"refresh custom report ({bk_biz_id}) config to k8s({cluster_id}) error({e})")
+                logger.exception(
+                    f"refresh custom report ({bk_biz_id}) config to k8s({cluster_id}/{namespace}) error({e})"
+                )
             result["clusters"].append(cluster_record)
 
-        result["cluster_count"] = len(result["clusters"])
+        result["cluster_count"] = len({record["cluster_id"] for record in result["clusters"]})
+        result["target_count"] = len(result["clusters"])
         result["failed_count"] = sum(1 for cluster in result["clusters"] if cluster["result"] is False)
         if result["failed_count"]:
-            result.update({"result": False, "message": f"failed clusters: {result['failed_count']}"})
+            result.update({"result": False, "message": f"failed targets: {result['failed_count']}"})
         elif not result["clusters"]:
             result.update({"action": "skip", "result": True, "message": "no matched k8s cluster"})
         return result
@@ -803,11 +805,7 @@ class LogSubscriptionConfig(models.Model):
             bk_biz_id = log_group.bk_biz_id
             biz_log_groups.setdefault(bk_biz_id, []).append(log_group)
 
-        cluster_mapping: dict = BkCollectorClusterConfig.get_cluster_mapping()
-        if settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER:
-            # 补充中心化集群
-            for cluster_id in settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER:
-                cluster_mapping[cluster_id] = [BkCollectorClusterConfig.GLOBAL_CONFIG_BK_BIZ_ID]
+        deploy_mapping = BkCollectorClusterConfig.get_deploy_mapping()
 
         from metadata.models.bcs.cluster import BCSClusterInfo
 
@@ -817,9 +815,9 @@ class LogSubscriptionConfig(models.Model):
             bcs_cluster_to_biz_ids[bcs_cluster.cluster_id] = bcs_cluster.bk_biz_id
 
         # 按集群分组配置，实现批量下发
-        for cluster_id, cc_bk_biz_ids in cluster_mapping.items():
+        for (cluster_id, namespace), cc_bk_biz_ids in deploy_mapping.items():
             # 如果集群是默认部署集群, 则必须下发
-            if cluster_id not in settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER:
+            if not BkCollectorClusterConfig.is_global_target(cluster_id, namespace):
                 # 如果集群不在BCS集群中，则不下发该集群的配置
                 if cluster_id not in bcs_cluster_to_biz_ids:
                     continue
@@ -834,7 +832,7 @@ class LogSubscriptionConfig(models.Model):
 
             try:
                 tpl = BkCollectorClusterConfig.sub_config_tpl(
-                    cluster_id, BkCollectorComp.CONFIG_MAP_APPLICATION_TPL_NAME
+                    cluster_id, BkCollectorComp.CONFIG_MAP_APPLICATION_TPL_NAME, namespace=namespace
                 )
                 if not tpl:
                     continue
@@ -863,11 +861,13 @@ class LogSubscriptionConfig(models.Model):
                             logger.exception(f"generate config for log_group({log_group.log_group_name})")
 
                 # 批量下发该集群的所有配置
-                BkCollectorClusterConfig.deploy_to_k8s_with_hash(cluster_id, cluster_config_map, "log")
-                logger.info(f"batch deploy {len(cluster_config_map)} log configs to k8s cluster({cluster_id})")
+                BkCollectorClusterConfig.deploy_to_k8s_with_hash(
+                    cluster_id, cluster_config_map, "log", namespace=namespace
+                )
+                logger.info(f"batch deploy {len(cluster_config_map)} log configs to {cluster_id}/{namespace}")
 
             except Exception:  # pylint: disable=broad-except
-                logger.exception(f"batch refresh custom report config to k8s({cluster_id})")
+                logger.exception(f"batch refresh custom report config to k8s({cluster_id}/{namespace})")
 
     @classmethod
     def get_log_config(cls, log_group: "LogGroup") -> dict:
