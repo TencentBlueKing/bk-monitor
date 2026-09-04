@@ -6,6 +6,7 @@ from unittest.mock import MagicMock, call, patch
 from django.core.cache import caches
 from django.test import SimpleTestCase, override_settings
 from django.utils import timezone
+from kubernetes import client as k8s_client
 
 from apps.exceptions import PermissionError as BklogPermissionError
 from apps.exceptions import ValidationError
@@ -38,6 +39,7 @@ from apps.log_admin_resource.k8s_inspection import (
     CollectorCandidate,
     collector_child_config_hints,
     collector_daemon_set_contract,
+    crd_spec_schema,
     desired_config_evidence,
     discover_collector_candidates,
     discover_inspection_targets,
@@ -47,7 +49,7 @@ from apps.log_admin_resource.k8s_inspection import (
     target_config_matches,
     target_identity,
 )
-from apps.log_admin_resource.k8s_inspection_client import K8sInspectionClient, bounded_text
+from apps.log_admin_resource.k8s_inspection_client import K8sInspectionClient, bounded_text, object_to_dict
 from apps.log_admin_resource.collector_probe import (
     MAX_PROBE_OUTPUT_BYTES,
     PROBE_PROTOCOL,
@@ -284,6 +286,80 @@ def crd_declaring(*fields, preserve_unknown=False):
             ]
         },
     }
+
+
+def typed_v1_crd_declaring(*fields):
+    spec_schema = k8s_client.V1JSONSchemaProps(
+        type="object",
+        properties={name: k8s_client.V1JSONSchemaProps(type="string") for name in fields},
+    )
+    validation = k8s_client.V1CustomResourceValidation(
+        open_apiv3_schema=k8s_client.V1JSONSchemaProps(
+            type="object",
+            properties={"spec": spec_schema},
+        )
+    )
+    return object_to_dict(
+        k8s_client.V1CustomResourceDefinition(
+            api_version="apiextensions.k8s.io/v1",
+            kind="CustomResourceDefinition",
+            metadata=k8s_client.V1ObjectMeta(name=BKLOG_CONFIG_CRD_NAME),
+            spec=k8s_client.V1CustomResourceDefinitionSpec(
+                group="bk.tencent.com",
+                names=k8s_client.V1CustomResourceDefinitionNames(
+                    kind="BkLogConfig",
+                    plural="bklogconfigs",
+                ),
+                preserve_unknown_fields=False,
+                scope="Namespaced",
+                versions=[
+                    k8s_client.V1CustomResourceDefinitionVersion(
+                        name="v1alpha1",
+                        served=True,
+                        storage=True,
+                        schema=validation,
+                    )
+                ],
+            ),
+        )
+    )
+
+
+def typed_v1beta1_crd_declaring(*fields, preserve_unknown=False):
+    spec_schema = k8s_client.V1beta1JSONSchemaProps(
+        type="object",
+        properties={name: k8s_client.V1beta1JSONSchemaProps(type="string") for name in fields},
+    )
+    return object_to_dict(
+        k8s_client.V1beta1CustomResourceDefinition(
+            api_version="apiextensions.k8s.io/v1beta1",
+            kind="CustomResourceDefinition",
+            metadata=k8s_client.V1ObjectMeta(name=BKLOG_CONFIG_CRD_NAME),
+            spec=k8s_client.V1beta1CustomResourceDefinitionSpec(
+                group="bk.tencent.com",
+                names=k8s_client.V1CustomResourceDefinitionNames(
+                    kind="BkLogConfig",
+                    plural="bklogconfigs",
+                ),
+                preserve_unknown_fields=preserve_unknown,
+                scope="Namespaced",
+                validation=k8s_client.V1beta1CustomResourceValidation(
+                    open_apiv3_schema=k8s_client.V1beta1JSONSchemaProps(
+                        type="object",
+                        properties={"spec": spec_schema},
+                    )
+                ),
+                version="v1alpha1",
+                versions=[
+                    k8s_client.V1beta1CustomResourceDefinitionVersion(
+                        name="v1alpha1",
+                        served=True,
+                        storage=True,
+                    )
+                ],
+            ),
+        )
+    )
 
 
 def expected_config(spec):
@@ -746,6 +822,69 @@ class K8sInspectionDomainTest(SimpleTestCase):
         self.assertNotIn("password", json.dumps(result["items"][0]["safe_expected_spec"]))
         self.assertEqual(result["required_bk_envs"], ["bkte"])
 
+    def test_crd_schema_reads_typed_v1_sdk_shape(self):
+        crd = typed_v1_crd_declaring(
+            "dataId",
+            "addPodLabel",
+            "addPodAnnotation",
+            "annotationSelector",
+            "exclude_files",
+        )
+
+        self.assertIn("open_apiv3_schema", crd["spec"]["versions"][0]["schema"])
+        declared_fields, preserve_unknown = crd_spec_schema(crd)
+
+        self.assertEqual(
+            declared_fields,
+            frozenset({"dataId", "addPodLabel", "addPodAnnotation", "annotationSelector", "exclude_files"}),
+        )
+        self.assertFalse(preserve_unknown)
+
+        evidence = desired_config_evidence(
+            expected=expected_config({"dataId": 1001}),
+            actual_items=[{"metadata": {"name": "demo-2-44"}, "spec": {"dataId": 1001}}],
+            configured_namespace="default",
+            crd=crd,
+        )["crd_schema"]
+        self.assertEqual(evidence["source"], "storage_version")
+        self.assertEqual(evidence["storage_version"], "v1alpha1")
+        self.assertIsNone(evidence["unreadable_reason"])
+
+    def test_crd_schema_reads_typed_v1beta1_legacy_validation_shape(self):
+        crd = typed_v1beta1_crd_declaring("dataId", "addPodAnnotation")
+
+        self.assertIn("open_apiv3_schema", crd["spec"]["validation"])
+        declared_fields, preserve_unknown = crd_spec_schema(crd)
+
+        self.assertEqual(declared_fields, frozenset({"dataId", "addPodAnnotation"}))
+        self.assertFalse(preserve_unknown)
+
+        evidence = desired_config_evidence(
+            expected=expected_config({"dataId": 1001}),
+            actual_items=[{"metadata": {"name": "demo-2-44"}, "spec": {"dataId": 1001}}],
+            configured_namespace="default",
+            crd=crd,
+        )["crd_schema"]
+        self.assertEqual(evidence["source"], "legacy_validation")
+        self.assertEqual(evidence["storage_version"], "v1alpha1")
+        self.assertIsNone(evidence["unreadable_reason"])
+
+    def test_control_plane_respects_typed_crd_top_level_preserve_unknown_fields(self):
+        expected = expected_config({"dataId": 1001, "addPodAnnotation": True})
+        actual = {"metadata": {"name": "demo-2-44"}, "spec": {"dataId": 1001}}
+
+        result = desired_config_evidence(
+            expected=expected,
+            actual_items=[actual],
+            configured_namespace="default",
+            crd=typed_v1beta1_crd_declaring("dataId", preserve_unknown=True),
+        )
+
+        self.assertEqual(result["items"][0]["difference_reasons"]["schema_pruned"], [])
+        self.assertEqual(result["items"][0]["difference_reasons"]["value_drift"], ["$.addPodAnnotation"])
+        self.assertTrue(result["crd_schema"]["preserves_unknown_fields"])
+        self.assertEqual(result["crd_schema"]["unsupported_platform_fields"], [])
+
     def test_control_plane_names_the_fields_an_outdated_crd_silently_prunes(self):
         expected = expected_config(
             {
@@ -873,7 +1012,23 @@ class K8sInspectionDomainTest(SimpleTestCase):
         self.assertEqual(reasons["value_drift"], ["$.addPodAnnotation"])
         self.assertEqual(reasons["schema_pruned"], [])
         self.assertFalse(result["crd_schema"]["readable"])
+        self.assertEqual(result["crd_schema"]["unreadable_reason"], "crd_spec_missing")
         self.assertEqual(result["crd_schema"]["unsupported_platform_fields"], [])
+
+    def test_control_plane_explains_missing_storage_version_schema(self):
+        expected = expected_config({"dataId": 1001, "addPodAnnotation": True})
+        actual = {"metadata": {"name": "demo-2-44"}, "spec": {"dataId": 1001}}
+
+        result = desired_config_evidence(
+            expected=expected,
+            actual_items=[actual],
+            configured_namespace="default",
+            crd={"spec": {"versions": [{"name": "v1alpha1", "served": True, "storage": True}]}},
+        )
+
+        self.assertFalse(result["crd_schema"]["readable"])
+        self.assertEqual(result["crd_schema"]["storage_version"], "v1alpha1")
+        self.assertEqual(result["crd_schema"]["unreadable_reason"], "schema_missing")
 
     def test_business_pod_target_matches_actual_config_without_exposing_env(self):
         target = {
