@@ -11,7 +11,9 @@ from core.drf_resource import Resource, api
 
 from apm_web.llm.adapter import adapt_spans
 from apm_web.llm.query import get_query
+from apm_web.metric.resources import CalculateByRangeResource as MetricCalculateByRangeResource
 from apm_web.models import Application
+from bkmonitor.utils.time_tools import parse_time_compare_abbreviation
 
 AGENT_CANDIDATE_QUERY = (
     "_exists_:attributes.gen_ai.span.kind "
@@ -391,10 +393,12 @@ class TimeSeriesResource(Resource):
         }
 
 
-class CalculateByRangeResource(Resource):
+class CalculateByRangeResource(MetricCalculateByRangeResource):
     """临时 LLM 指标区间聚合 mock 接口。"""
 
     class RequestSerializer(serializers.Serializer):
+        ZERO_TIME_SHIFT = "0s"
+
         bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
         app_name = serializers.CharField(required=True, label="应用名称")
         service_name = serializers.CharField(required=False, allow_blank=True, default="", label="服务名称")
@@ -411,6 +415,13 @@ class CalculateByRangeResource(Resource):
             child=serializers.CharField(),
             label="聚合字段",
         )
+        baseline = serializers.CharField(required=False, default=ZERO_TIME_SHIFT, label="对比基准")
+        time_shifts = serializers.ListField(
+            required=False,
+            default=list,
+            child=serializers.CharField(),
+            label="时间偏移",
+        )
 
         def validate(self, attrs):
             if attrs["start_time"] >= attrs["end_time"]:
@@ -422,6 +433,12 @@ class CalculateByRangeResource(Resource):
             unsupported_group_by = set(attrs["group_by"]) - MOCK_TIME_SERIES_GROUP_BY_FIELDS
             if unsupported_group_by:
                 raise serializers.ValidationError(f"暂不支持按 {sorted(unsupported_group_by)} 聚合")
+
+            attrs["time_shifts"] = list(dict.fromkeys([*attrs["time_shifts"], self.ZERO_TIME_SHIFT]))
+            if len(attrs["time_shifts"]) > 3:
+                raise serializers.ValidationError("最多支持两次时间对比")
+            if attrs["baseline"] not in attrs["time_shifts"]:
+                raise serializers.ValidationError("baseline 必须包含在 time_shifts 中")
             return attrs
 
     @staticmethod
@@ -442,13 +459,13 @@ class CalculateByRangeResource(Resource):
             base = minutes * (160 + series_index * 48) + (start_time // 60 % 7) * 21
             return int(base)
         if cal_type == "request_count":
-            base = minutes * (17 + series_index * 4) + (start_time // 60 % 5)
+            base = minutes * (17 + series_index * 4) + (start_time // 60 % 23)
             return int(base)
         if cal_type == "model_call_count":
             base = minutes * (34 + series_index * 8) + (start_time // 60 % 7) * 2
             return int(base)
         if cal_type == "operation_count":
-            base = minutes * (43 + series_index * 13) + (start_time // 60 % 9) * 3
+            base = minutes * (43 + series_index * 13) + (start_time // 60 % 29) * 3
             return int(base)
 
         base = 830000 + series_index * 230000 + min(minutes, 180) * 1600 + (start_time // 60 % 13) * 4200
@@ -457,19 +474,21 @@ class CalculateByRangeResource(Resource):
     def perform_request(self, validated_request_data):
         cal_type = validated_request_data["cal_type"]
         group_by = validated_request_data["group_by"]
+        aliases = validated_request_data["time_shifts"]
 
-        records = []
+        records: list[dict[str, Any]] = []
         for series_index, dimensions in enumerate(TimeSeriesResource._dimensions(group_by)):
-            records.append(
-                {
-                    "dimensions": dimensions,
-                    "0s": self._range_value(
-                        cal_type,
-                        validated_request_data["start_time"],
-                        validated_request_data["end_time"],
-                        series_index,
-                    ),
-                }
-            )
+            record: dict[str, Any] = {"dimensions": dimensions}
+            for alias in aliases:
+                time_offset = parse_time_compare_abbreviation(alias)
+                record[alias] = self._range_value(
+                    cal_type,
+                    validated_request_data["start_time"] + time_offset,
+                    validated_request_data["end_time"] + time_offset,
+                    series_index,
+                )
+            records.append(record)
+
+        self._process_growth_rates(validated_request_data["baseline"], aliases, records)
 
         return {"total": len(records), "data": records}

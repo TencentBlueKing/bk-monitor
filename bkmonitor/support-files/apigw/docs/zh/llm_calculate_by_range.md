@@ -15,6 +15,8 @@
 | end_time | int | 是 | 查询结束时间，Unix 时间戳，单位为秒，必须大于 `start_time` |
 | cal_type | string | 是 | 指标类型，见下方支持范围 |
 | group_by | list | 否 | 聚合字段，默认 `[]` |
+| baseline | string | 否 | 增长率计算基准，默认 `0s`，必须包含在 `time_shifts` 中 |
+| time_shifts | list | 否 | 时间偏移，例如 `["0s", "1d"]`；自动补入 `0s`，最多支持两个对比时段 |
 
 当前支持的 `cal_type`：
 
@@ -51,9 +53,32 @@
     "start_time": 1788364800,
     "end_time": 1788368400,
     "cal_type": "input_tokens",
-    "group_by": []
+    "group_by": [],
+    "baseline": "0s",
+    "time_shifts": ["0s", "1d"]
 }
 ```
+
+对应响应中的 `data`：
+
+```json
+{
+    "total": 1,
+    "data": [
+        {
+            "dimensions": {},
+            "0s": 72130,
+            "1d": 69220,
+            "growth_rates": {
+                "0s": 0,
+                "1d": 4.2
+            }
+        }
+    ]
+}
+```
+
+前端读取 `0s` 展示当前值，读取 `growth_rates["1d"]` 展示 `+4.2%`。
 
 **输出 Token 总数**
 
@@ -65,7 +90,9 @@
     "start_time": 1788364800,
     "end_time": 1788368400,
     "cal_type": "output_tokens",
-    "group_by": []
+    "group_by": [],
+    "baseline": "0s",
+    "time_shifts": ["0s", "1d"]
 }
 ```
 
@@ -79,7 +106,9 @@
     "start_time": 1788364800,
     "end_time": 1788368400,
     "cal_type": "total_tokens",
-    "group_by": []
+    "group_by": [],
+    "baseline": "0s",
+    "time_shifts": ["0s", "1d"]
 }
 ```
 
@@ -93,7 +122,9 @@
     "start_time": 1788364800,
     "end_time": 1788368400,
     "cal_type": "cache_tokens",
-    "group_by": []
+    "group_by": [],
+    "baseline": "0s",
+    "time_shifts": ["0s", "1d"]
 }
 ```
 
@@ -107,7 +138,9 @@
     "start_time": 1788364800,
     "end_time": 1788368400,
     "cal_type": "request_count",
-    "group_by": []
+    "group_by": [],
+    "baseline": "0s",
+    "time_shifts": ["0s", "1d"]
 }
 ```
 
@@ -121,25 +154,13 @@
     "start_time": 1788364800,
     "end_time": 1788368400,
     "cal_type": "model_call_count",
-    "group_by": []
+    "group_by": [],
+    "baseline": "0s",
+    "time_shifts": ["0s", "1d"]
 }
 ```
 
-卡片右侧的环比百分比不由当前接口直接返回。如需计算，可使用相同的 `cal_type` 和 `group_by` 请求上一等长时间范围。例如当前范围为 `1788364800`～`1788368400`，上一时段请求为：
-
-```json
-{
-    "bk_biz_id": 11,
-    "app_name": "sand_local_dev",
-    "service_name": "sand_local_dev",
-    "start_time": 1788361200,
-    "end_time": 1788364800,
-    "cal_type": "input_tokens",
-    "group_by": []
-}
-```
-
-前端使用当前值和上一时段值计算环比；其他指标卡只需替换 `cal_type`。
+指标卡通过一次请求同时获得当前值、对比时段值和增长率。前端读取 `0s` 展示当前值，读取 `growth_rates["1d"]` 展示与前一天相同时间范围相比的增长率，例如 `+4.2%`；其他指标卡只需替换 `cal_type`。
 
 #### 分布和排行
 
@@ -209,6 +230,8 @@
 |---|---|---|
 | dimensions | object | 分组维度；不分组时为空对象 |
 | 0s | number | 当前时间范围内的聚合值；`duration` 的值单位为微秒（μs） |
+| 时间偏移字段 | number | 对应偏移时间范围内的聚合值，字段名来自 `time_shifts`，例如 `1d` |
+| growth_rates | object | 各时间偏移相对 `baseline` 的增长率；无可计算值时为 `null` |
 
 ### 响应参数示例
 
@@ -224,7 +247,12 @@
         "data": [
             {
                 "dimensions": {},
-                "0s": 72130
+                "0s": 72130,
+                "1d": 69220,
+                "growth_rates": {
+                    "0s": 0,
+                    "1d": 4.2
+                }
             }
         ]
     }
@@ -245,19 +273,28 @@
                 "dimensions": {
                     "gen_ai.response.model": "hunyuan-turbo"
                 },
-                "0s": 947000
+                "0s": 947000,
+                "growth_rates": {
+                    "0s": 0
+                }
             },
             {
                 "dimensions": {
                     "gen_ai.response.model": "deepseek-r1"
                 },
-                "0s": 1177000
+                "0s": 1177000,
+                "growth_rates": {
+                    "0s": 0
+                }
             },
             {
                 "dimensions": {
                     "gen_ai.response.model": "qwen3-32b"
                 },
-                "0s": 1407000
+                "0s": 1407000,
+                "growth_rates": {
+                    "0s": 0
+                }
             }
         ]
     }
@@ -267,6 +304,6 @@
 ### 使用说明
 
 1. 当前接口用于 LLM 概览页指标卡片、饼图和排行图联调，数据为 mock。
-2. 返回结构对齐 APM 通用 `calculate_by_range` 的核心结构，`0s` 表示当前时间范围的聚合值。
-3. 当前不返回 `time_shifts`、`growth_rates`、`proportions`。
+2. 返回结构对齐 APM 通用 `calculate_by_range`，`0s` 表示当前时间范围的聚合值。
+3. 当前返回 `time_shifts` 对应的聚合值和 `growth_rates`，暂不返回 `proportions`。
 4. 当前只支持单字段聚合，不支持同时按多个字段分组。

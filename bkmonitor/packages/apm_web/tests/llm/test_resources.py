@@ -725,7 +725,31 @@ class CalculateByRangeResourceTestCase(TestCase):
         self.assertEqual(list(result), ["total", "data"])
         self.assertEqual(result["data"][0]["dimensions"], {})
         self.assertIn("0s", result["data"][0])
-        self.assertNotIn("growth_rates", result["data"][0])
+        self.assertEqual(result["data"][0]["growth_rates"], {"0s": 0})
+
+    def test_mock_returns_time_shift_and_growth_rate(self):
+        result = CalculateByRangeResource().request(
+            {
+                "bk_biz_id": 11,
+                "app_name": "sand_local_dev",
+                "start_time": 1788364800,
+                "end_time": 1788368400,
+                "cal_type": "request_count",
+                "group_by": [],
+                "baseline": "0s",
+                "time_shifts": ["0s", "1d", "1d"],
+            }
+        )
+
+        record = result["data"][0]
+        self.assertEqual(set(record), {"dimensions", "0s", "1d", "growth_rates"})
+        self.assertNotEqual(record["0s"], record["1d"])
+        self.assertEqual(record["growth_rates"]["0s"], 0)
+        self.assertAlmostEqual(
+            record["growth_rates"]["1d"],
+            (record["0s"] - record["1d"]) / record["1d"] * 100,
+            delta=0.01,
+        )
 
     def test_duration_mock_groups_by_model(self):
         result = CalculateByRangeResource().request(
@@ -747,7 +771,7 @@ class CalculateByRangeResourceTestCase(TestCase):
         for record in result["data"]:
             self.assertIn("0s", record)
             self.assertNotIn("1d", record)
-            self.assertNotIn("growth_rates", record)
+            self.assertEqual(record["growth_rates"], {"0s": 0})
 
     def test_operation_count_mock_groups_by_operation_name(self):
         result = CalculateByRangeResource().request(
@@ -768,7 +792,7 @@ class CalculateByRangeResourceTestCase(TestCase):
         )
         for record in result["data"]:
             self.assertIn("0s", record)
-            self.assertNotIn("growth_rates", record)
+            self.assertEqual(record["growth_rates"], {"0s": 0})
 
     def test_rejects_unsupported_group_by(self):
         serializer = CalculateByRangeResource.RequestSerializer(
@@ -784,3 +808,33 @@ class CalculateByRangeResourceTestCase(TestCase):
 
         self.assertFalse(serializer.is_valid())
         self.assertIn("暂不支持", str(serializer.errors))
+
+    def test_rejects_more_than_two_comparison_time_shifts(self):
+        serializer = CalculateByRangeResource.RequestSerializer(
+            data={
+                "bk_biz_id": 11,
+                "app_name": "sand_local_dev",
+                "start_time": 1700000000,
+                "end_time": 1700001800,
+                "cal_type": "input_tokens",
+                "time_shifts": ["1h", "1d", "1w"],
+            }
+        )
+
+        self.assertFalse(serializer.is_valid())
+        self.assertIn("最多支持两次时间对比", str(serializer.errors))
+
+    def test_rejects_baseline_not_in_time_shifts(self):
+        serializer = CalculateByRangeResource.RequestSerializer(
+            data={
+                "bk_biz_id": 11,
+                "app_name": "sand_local_dev",
+                "start_time": 1700000000,
+                "end_time": 1700001800,
+                "cal_type": "input_tokens",
+                "baseline": "1d",
+            }
+        )
+
+        self.assertFalse(serializer.is_valid())
+        self.assertIn("baseline 必须包含在 time_shifts 中", str(serializer.errors))
