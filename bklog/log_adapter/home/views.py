@@ -19,7 +19,6 @@ from django.http import HttpResponseForbidden, JsonResponse
 from django.shortcuts import render
 from django.test import RequestFactory
 from django.urls import Resolver404, resolve
-from django.utils import timezone
 from django.utils.decorators import method_decorator
 from django.utils.translation import gettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
@@ -27,20 +26,22 @@ from django.views.decorators.http import require_POST
 from rest_framework.fields import BooleanField
 from rest_framework.response import Response
 
-from apps.constants import (
-    ACTIONS_IMPLYING_LOG_SEARCH,
-    INDEX_SET_SCOPED_EXTERNAL_ACTIONS,
-    ExternalPermissionActionEnum,
-    ViewSetAction,
-    ViewSetActionEnum,
-)
+from apps.constants import ExternalPermissionActionEnum, ViewSetAction, ViewSetActionEnum
 from apps.iam import ActionEnum
 from apps.log_audit.external import ExternalAuditRecorder, resolve_exception_status_code
-from apps.log_commons.models import (
-    AuthorizerSettings,
-    ExternalPermission,
-    ExternalPermissionApplyRecord,
+from apps.log_commons.external_auth import (
+    ExternalRequestContext,
+    IdentityContext,
+    authorize,
+    has_space_access,
+    is_default_allowed,
+    list_authorized_space_actions,
+    list_authorized_space_uids,
+    resolve_declared_action_id,
+    resolve_execution_user,
+    resolve_resource,
 )
+from apps.log_commons.models import AuthorizerSettings, ExternalPermissionApplyRecord
 from apps.utils.db import get_toggle_data
 from apps.utils.local import set_local_param
 from apps.utils.log import logger
@@ -128,17 +129,16 @@ class RequestProcessor:
 
     @classmethod
     def get_resource(cls, action_id: str, kwargs: dict[str, Any], json_data_str: str):
-        """获取请求中的资源"""
-        if action_id in INDEX_SET_SCOPED_EXTERNAL_ACTIONS:
-            if "index_set_id" in kwargs:
-                return int(kwargs.get("index_set_id", ""))
-            try:
-                json_data = json.loads(json_data_str)
-                if "index_set_id" in json_data:
-                    return int(json_data.get("index_set_id", ""))
-            except json.decoder.JSONDecodeError:
-                logger.exception(f"解析请求数据({json_data_str})失败")
-        return None
+        """兼容旧调用点：资源解析已迁到 view_mapping.resolve_resource。"""
+        return resolve_resource(action_id, kwargs, json_data_str)
+
+    @classmethod
+    def is_default_allowed(cls, view_set: str, view_action: str):
+        return is_default_allowed(view_set, view_action)
+
+    @classmethod
+    def get_action_id(cls, view_set: str, view_action: str) -> str:
+        return resolve_declared_action_id(view_set=view_set, view_action=view_action)
 
     @classmethod
     def filter_response_resource(
@@ -198,33 +198,6 @@ class RequestProcessor:
                 return response
         return response
 
-    @classmethod
-    def is_default_allowed(cls, view_set: str, view_action: str):
-        """
-        是否是默认允许的接口
-        """
-        for _d in ViewSetActionEnum.get_keys():
-            if _d.view_set != view_set:
-                continue
-            if not _d.view_action or _d.view_action == view_action:
-                if _d.action_id == ExternalPermissionActionEnum.LOG_COMMON.value or _d.default_permission:
-                    return True
-        return False
-
-    @classmethod
-    def get_action_id(cls, view_set: str, view_action: str) -> str:
-        """
-        获取接口声明的action_id
-
-        默认允许的接口不走权限校验，拿不到授权命中的action_id，审计需要以此兜底
-        """
-        for _d in ViewSetActionEnum.get_keys():
-            if _d.view_set != view_set:
-                continue
-            if not _d.view_action or _d.view_action == view_action:
-                return _d.action_id
-        return ExternalPermissionActionEnum.LOG_COMMON.value
-
 
 @login_exempt
 def external(request):
@@ -234,7 +207,9 @@ def external(request):
     space_uid = request.GET.get("space_uid", "")
     external_user_info = RequestProcessor.get_request_user_info(request)
     external_user = external_user_info.get("username", "")
-    space_uid_list = ExternalPermission.get_authorized_user_space_list(authorized_user=external_user)
+    # 页面入口只判断能进哪些空间，此时还没有确定授权人，执行身份留空
+    identity = IdentityContext.for_external_request(external_user=external_user, authorizer="")
+    space_uid_list = list_authorized_space_uids(identity)
     if space_uid:
         try:
             SpaceApi.get_space_detail(space_uid)
@@ -247,10 +222,7 @@ def external(request):
         space_uid = space_uid_list[0]
     request.space_uid = space_uid
     if request.space_uid and external_user:
-        qs = ExternalPermission.objects.filter(
-            authorized_user=external_user, space_uid=space_uid, expire_time__gt=timezone.now()
-        )
-        if not qs:
+        if not has_space_access(identity, space_uid):
             logger.error(f"外部用户{external_user}无访问权限(空间ID:{space_uid})")
             return HttpResponseForbidden(f"外部用户{external_user}无访问权限(空间ID:{space_uid})")
         authorizer = AuthorizerSettings.get_authorizer(space_uid=space_uid)
@@ -280,7 +252,8 @@ def dispatch_list_user_spaces(request):
     if not external_user:
         return HttpResponseForbidden("请求缺少HTTP_USER或USER请求头")
 
-    external_user_permission = ExternalPermission.get_authorizer_permission(authorizer=external_user)
+    identity = IdentityContext.for_external_request(external_user=external_user, authorizer="")
+    external_user_permission = list_authorized_space_actions(identity)
     if not external_user_permission:
         logger.error(f"外部用户{external_user}无访问权限")
         return HttpResponseForbidden(f"外部用户{external_user}无访问权限")
@@ -362,74 +335,42 @@ def dispatch_external_proxy(request):
         # 获取对应的视图集和视图函数
         view_set = RequestProcessor.get_view_set(view_func=view_func)
         view_action = RequestProcessor.get_view_action(view_func=view_func, method=method.lower())
-        # 内部定义的action_id, ActionEnum
-        action_id = ""
         external_user_info = RequestProcessor.get_request_user_info(request)
         external_user = external_user_info.get("username", "")
-        audit_recorder.external_user = external_user
+        # 判权和审计用外部用户；执行身份等决策出来后再解析，这里先不写死授权人
+        identity = IdentityContext.for_external_request(external_user=external_user, authorizer="")
+        audit_recorder.external_user = identity.audit_user
         audit_recorder.view_set = view_set
         audit_recorder.view_action = view_action
-        audit_recorder.action_id = RequestProcessor.get_action_id(view_set=view_set, view_action=view_action)
-        allow_resources_result = {"allowed": False, "resources": []}
-        # 判断是否是默认允许的接口, 默认允许的接口不需要进行权限校验
-        if not RequestProcessor.is_default_allowed(view_set=view_set, view_action=view_action):
-            # transfer request.user 进行外部权限替换
-            external_user_allowed_action_id_list = ExternalPermission.get_authorizer_permission(
-                space_uid=space_uid, authorizer=external_user
-            ).get(space_uid, [])
-            # 仅 client_log 这类特例会隐式放通 log_search；log_clustering 不合成检索权限
-            if ExternalPermissionActionEnum.LOG_SEARCH.value not in external_user_allowed_action_id_list and any(
-                implying_action_id in external_user_allowed_action_id_list
-                for implying_action_id in ACTIONS_IMPLYING_LOG_SEARCH
-            ):
-                external_user_allowed_action_id_list.append(ExternalPermissionActionEnum.LOG_SEARCH.value)
-            # 判断接口是否在管理范围内
-            if not external_user_allowed_action_id_list:
-                message = f"dispatch_plugin_query: external_user:{external_user} has no permission."
-                audit_recorder.set_result(403, message)
-                return JsonResponse({"result": False, "message": message}, status=403)
-            is_allowed = False
-            for _action_id in external_user_allowed_action_id_list:
-                if ExternalPermission.is_action_valid(view_set=view_set, view_action=view_action, action_id=_action_id):
-                    is_allowed = True
-                    action_id = _action_id
-                    audit_recorder.action_id = action_id
-                    break
-            if not is_allowed:
-                message = f"external_user:{external_user} has not enough permission."
-                audit_recorder.set_result(403, message)
-                return JsonResponse({"result": False, "message": message}, status=403)
-            allow_resources_result = ExternalPermission.get_resources(
-                space_uid=space_uid, action_id=action_id, authorized_user=external_user
+        audit_recorder.action_id = resolve_declared_action_id(view_set=view_set, view_action=view_action)
+
+        decision = authorize(
+            ExternalRequestContext(
+                identity=identity,
+                space_uid=space_uid,
+                view_set=view_set,
+                view_action=view_action,
+                declared_action_id=audit_recorder.action_id,
+                url_kwargs=kwargs,
+                json_data_str=json_data_str,
             )
-            if allow_resources_result["allowed"]:
-                allow_resources = allow_resources_result["resources"]
-                resource = RequestProcessor.get_resource(
-                    action_id=action_id, kwargs=kwargs, json_data_str=json_data_str
-                )
-                audit_recorder.resource = resource
-                if resource and resource not in allow_resources:
-                    message = f"external_user:{external_user} cannot access resource(ID:{resource})."
-                    audit_recorder.set_result(403, message)
-                    return JsonResponse({"result": False, "message": message}, status=403)
-                # 聚类设置写入链路必须同时具备该索引集的日志检索权限，避免只授聚类配置即可改配置
-                if (
-                    action_id == ExternalPermissionActionEnum.LOG_CLUSTERING.value
-                    and resource
-                    and not ExternalPermission.can_access_clustering_settings(
-                        space_uid=space_uid, authorized_user=external_user, index_set_id=resource
-                    )
-                ):
-                    message = (
-                        f"external_user:{external_user} cannot access clustering settings "
-                        f"without log_search on resource(ID:{resource})."
-                    )
-                    audit_recorder.set_result(403, message)
-                    return JsonResponse({"result": False, "message": message}, status=403)
+        )
+        if decision.matched_action_id:
+            audit_recorder.action_id = decision.matched_action_id
+        audit_recorder.resource = decision.resource_id
+        if not decision.allowed:
+            audit_recorder.set_result(403, decision.reject_reason)
+            return JsonResponse({"result": False, "message": decision.reject_reason}, status=403)
+        # 命中的授权项，默认放行的接口没有授权项，保持为空
+        action_id = decision.matched_action_id
+        allow_resources_result = decision.allow_resources_result
+        identity = identity.with_execution_user(resolve_execution_user(decision, identity, authorizer or ""))
+
         setattr(fake_request, "space_uid", space_uid)
         setattr(request, "space_uid", space_uid)
-        if authorizer:
-            user = auth.authenticate(username=authorizer)
+        # 换人登录，不是跳过登录：下游 Permission() 与 DRF 都从 request.user 取主体
+        if identity.execution_user:
+            user = auth.authenticate(username=identity.execution_user)
             auth.login(request, user)
             setattr(fake_request, "user", request.user)
         logger.info(
