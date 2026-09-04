@@ -94,11 +94,22 @@ export abstract class BaseScenario {
     if (value === null || value === undefined || value === '') return '';
     /** 结构化值若原样返回会被 Vue 当作片段或 vnode 处理，渲染成无分隔文本或空白，故统一序列化 */
     if (typeof value === 'object') return JSON.stringify(value);
+    return this.getFieldOptionAlias(column.colKey, value) ?? value;
+  }
+
+  /**
+   * @description 取字段元数据声明的枚举别名（option_values），未声明枚举或无匹配项时返回 undefined，
+   *              供本场景内需要「后台映射值优先」的列在自定义取值中复用。
+   * @param {string} colKey 列键（字段名）
+   * @param {unknown} value 原始值
+   * @returns {string | undefined} 后台映射别名
+   */
+  protected getFieldOptionAlias(colKey: string, value: unknown): string | undefined {
     /** 枚举 value 声明为 string，行数据实际可能是 number / boolean，统一字符串化比较，避免类型差异导致别名静默失效 */
     const option = get(this.context.fieldMap)
-      .get(column.colKey)
+      .get(colKey)
       ?.option_values?.find(item => `${item.value}` === `${value}`);
-    return option?.alias ?? value;
+    return option?.alias;
   }
 
   /**

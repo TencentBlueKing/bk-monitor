@@ -42,6 +42,8 @@ import { ArrowsRight, Close, Transfer } from 'bkui-vue/lib/icon';
 import tippy, { type Instance, type SingleTarget } from 'tippy.js';
 import { useI18n } from 'vue-i18n';
 
+import { isEllipsisActiveSingleLine } from '../../../../utils/dom-helper';
+import { usePopover } from '../../../alarm-center/components/alarm-table/hooks/use-popover';
 import FieldTypeIcon from '../field-type-icon';
 
 import type { IDimensionField } from '../../typing';
@@ -81,6 +83,11 @@ export default defineComponent({
     sourceMap: {
       type: Object as PropType<{ [key: string]: FieldSettingItem }>,
     },
+    /** 是否在展示名后面显示字段名（settingKey 对应值） */
+    showFieldName: {
+      type: Boolean,
+      default: false,
+    },
   },
   emits: {
     confirm: (targetList: string[]) => Array.isArray(targetList),
@@ -92,6 +99,14 @@ export default defineComponent({
 
     /** popover tippy 实例 */
     const popoverInstance = shallowRef<Instance | null>(null);
+    /** 字段文本溢出 tooltip（单例） */
+    const { showPopover: showTextTooltip, hidePopover: hideTextTooltip } = usePopover({
+      tippyOptions: {
+        theme: 'dark text-wrap',
+        placement: 'top',
+        maxWidth: 400,
+      },
+    });
     /** popover 弹出显示内容容器 */
     const containerRef = useTemplateRef<HTMLElement | null>('containerRef');
     /** input搜索框输入的值 */
@@ -115,7 +130,7 @@ export default defineComponent({
         const field = item[props.settingKey];
         const label = item[props.displayKey];
         const matchReg = new RegExp(`${searchKeyword.value}`.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&'), 'ig');
-        return !selectedSet.value.has(field) && matchReg.test(label);
+        return !selectedSet.value.has(field) && (matchReg.test(label) || matchReg.test(field));
       });
     });
     const selectedListLen = computed(() => selectedList.value.length);
@@ -166,6 +181,19 @@ export default defineComponent({
       removeDragListener();
       handlePopoverHide();
     });
+
+    /**
+     * @description 字段文本溢出时鼠标移入显示完整内容 tooltip（usePopover 自带延迟显示与卸载清理）
+     *
+     */
+    function handleTextTooltipShow(e: MouseEvent) {
+      const itemTextDom = e.currentTarget as HTMLElement;
+      const { content, isEllipsisActive } = isEllipsisActiveSingleLine(itemTextDom);
+      if (!isEllipsisActive) {
+        return;
+      }
+      showTextTooltip(e, content);
+    }
 
     /** 添加监听事件(消除拖拽元素拖拽时鼠标图标变为黑色的禁止图标的默认行为) */
     function addDragListener() {
@@ -401,7 +429,7 @@ export default defineComponent({
                 onDragover={e => debounceDragover(e, field)}
                 onDragstart={e => handleDragstart(e, field)}
               >
-                <div class='list-item-left'>
+                <div class={{ 'list-item-left': true, 'show-field-name': props.showFieldName }}>
                   <i
                     class='icon-monitor icon-mc-tuozhuai'
                     onMousedown={e => dragHandleMouseOperation(e, true)}
@@ -411,7 +439,14 @@ export default defineComponent({
                     class='item-prefix'
                     type={fieldType}
                   />
-                  <span class='item-label'>{label}</span>
+                  <div
+                    class='item-text'
+                    onMouseenter={handleTextTooltipShow}
+                    onMouseleave={hideTextTooltip}
+                  >
+                    <span class='item-label'>{label}</span>
+                    {props.showFieldName ? <span class='item-field'>({field})</span> : null}
+                  </div>
                 </div>
                 {!fixedDisplaySet.value.has(field) ? (
                   <div
@@ -445,12 +480,19 @@ export default defineComponent({
                 class='list-item source-item'
                 onClick={() => handleSelectedField(field)}
               >
-                <div class='list-item-left'>
+                <div class={{ 'list-item-left': true, 'show-field-name': props.showFieldName }}>
                   <FieldTypeIcon
                     class='item-prefix'
                     type={fieldType}
                   />
-                  <span class='item-label'>{label}</span>
+                  <div
+                    class='item-text'
+                    onMouseenter={handleTextTooltipShow}
+                    onMouseleave={hideTextTooltip}
+                  >
+                    <span class='item-label'>{label}</span>
+                    {props.showFieldName ? <span class='item-field'>({field})</span> : null}
+                  </div>
                 </div>
                 <div class='item-suffix'>
                   <ArrowsRight />

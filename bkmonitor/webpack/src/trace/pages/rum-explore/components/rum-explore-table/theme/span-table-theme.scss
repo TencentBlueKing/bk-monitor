@@ -27,6 +27,43 @@
           font-size: 20px;
         }
       }
+
+      /* 结果状态列：按状态类名着色（色值对齐设计稿/项目状态配色） */
+      &:has([data-col-id='attributes.outcome.type']) {
+        column-gap: 4px;
+
+        .prefix-icon {
+          display: flex;
+          flex-shrink: 0;
+          align-items: center;
+          justify-content: center;
+          width: 20px;
+          height: 20px;
+          font-size: 16px;
+        }
+
+        .outcome-type-icon-success {
+          color: #21a380;
+        }
+
+        .outcome-type-icon-warning {
+          color: #f59500;
+        }
+
+        .outcome-type-icon-error {
+          color: #ea3636;
+        }
+
+        .outcome-type-icon-timeout {
+          font-size: 18px;
+          color: #ff701e;
+        }
+
+        .outcome-type-icon-abort {
+          color: #8f9fbd;
+          transform: rotate(45deg);
+        }
+      }
     }
 
     &.explore-tags-col {
