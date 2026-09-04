@@ -135,7 +135,7 @@ class SpanQuery(APMQueryFilterMixin, BaseQuery):
         仅当 spec 显式提供对应值时才写入，避免覆盖 data_source 返回的原始值；
         枚举候选值统一转换为 ``{"value": ..., "alias": ...}`` 列表以便 JSON 序列化。
         """
-        field_dict["field_alias"] = spec.field_alias or field_dict.get("field_alias", spec.field_name)
+        field_dict["field_alias"] = spec.field_alias or field_dict.get("field_alias") or spec.get_full_field_name()
         field_dict["is_real"] = spec.is_real
         if spec.field_unit is not None:
             field_dict["field_unit"] = spec.field_unit

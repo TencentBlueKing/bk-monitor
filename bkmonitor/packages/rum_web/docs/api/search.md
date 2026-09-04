@@ -214,12 +214,67 @@ GET /rum/search/view_config/?app_name=rum-demo&bk_biz_id=2
       "attributes.resource.type",
       "attributes.http.request.method"
     ],
-    "error": [],
-    "vital": [],
-    "long_task": [],
-    "action": [],
-    "websocket": [],
-    "custom": []
+    "error": [
+      "span_name",
+      "attributes.span_type",
+      "end_time",
+      "elapsed_time",
+      "status.code",
+      "attributes.view.url_template",
+      "attributes.user.id",
+      "attributes.error.source"
+    ],
+    "vital": [
+      "span_name",
+      "attributes.span_type",
+      "end_time",
+      "elapsed_time",
+      "status.code",
+      "attributes.view.url_template",
+      "attributes.user.id",
+      "attributes.vital.metric",
+      "attributes.vital.value"
+    ],
+    "long_task": [
+      "span_name",
+      "attributes.span_type",
+      "end_time",
+      "elapsed_time",
+      "status.code",
+      "attributes.view.url_template",
+      "attributes.user.id",
+      "attributes.long_task.name",
+      "attributes.long_task.entry_type"
+    ],
+    "action": [
+      "span_name",
+      "attributes.span_type",
+      "end_time",
+      "elapsed_time",
+      "status.code",
+      "attributes.view.url_template",
+      "attributes.user.id",
+      "attributes.action.id",
+      "attributes.action.type"
+    ],
+    "websocket": [
+      "span_name",
+      "attributes.span_type",
+      "end_time",
+      "elapsed_time",
+      "status.code",
+      "attributes.view.url_template",
+      "attributes.user.id"
+    ],
+    "custom": [
+      "span_name",
+      "attributes.span_type",
+      "end_time",
+      "elapsed_time",
+      "status.code",
+      "attributes.view.url_template",
+      "attributes.user.id"
+    ]
   },
   "fields": [
     {

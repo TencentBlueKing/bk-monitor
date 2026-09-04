@@ -43,9 +43,10 @@ class FieldRegistry:
         """按完整路径查找字段描述符。
 
         :param field_name: 字段完整路径，如 ``"attributes.span_type"``。
-        :return: 已注册的共享 ``FieldSpec`` 对象；未注册时返回仅含原始字段名的新 ``FieldSpec``。
+        :return: 已注册的 bound ``FieldSpec`` 对象（``get_full_field_name()`` 返回完整路径）；
+            未注册时返回仅含原始字段名的新 ``FieldSpec``。
         """
-        spec = self.originals.get(field_name)
+        spec = self.bound_fields.get(field_name)
         return spec if spec is not None else FieldSpec(field_name)
 
     def fields(self) -> list[FieldSpec]:
