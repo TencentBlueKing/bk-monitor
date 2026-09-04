@@ -763,6 +763,11 @@ class EtlStorage:
             return False
         return bool(etl_params.get("enable_retain_content"))
 
+    @classmethod
+    def get_v4_parse_error_strategy(cls, etl_params: dict) -> str:
+        """获取 V4 业务解析算子的失败策略。"""
+        return "null" if cls.is_retain_content_enabled(etl_params) else "drop"
+
     def _build_parse_failure_field_v4(self, etl_params: dict) -> list:
         """
         构建V4版本的清洗失败标记字段规则
