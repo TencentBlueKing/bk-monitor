@@ -37,4 +37,28 @@
         color: #4D4F56;
         gap: 30px;
     }
+    .filter-keys-group {
+        display: flex;
+        align-items: flex-start;
+        margin-top: 10px;
+        gap: 8px;
+        .filter-keys-label {
+            font-size: 12px;
+            color: #63656E;
+            line-height: 32px;
+            white-space: nowrap;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            .filter-tip-icon {
+                font-size: 14px;
+                color: #979BA5;
+                cursor: pointer;
+            }
+        }
+        .filter-keys-input {
+            flex: 1;
+            min-width: 200px;
+        }
+    }
 }
