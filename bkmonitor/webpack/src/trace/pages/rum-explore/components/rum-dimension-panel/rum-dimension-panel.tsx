@@ -108,6 +108,24 @@ export default defineComponent({
       );
     }
 
+    /** 节点排序权重：其他类型 < object < nested，值越大排越后 */
+    function getFieldSortWeight(node: IDimensionFieldTreeItem) {
+      const fieldTypeSortWeightMap = {
+        object: 1,
+        nested: 2,
+      };
+      return fieldTypeSortWeightMap[node.type] || 0;
+    }
+
+    /** 递归排序：每一层节点都按 其他类型 > object > nested 排序 */
+    function sortTreeNodes(nodes: IDimensionFieldTreeItem[]) {
+      nodes.sort((a, b) => getFieldSortWeight(a) - getFieldSortWeight(b));
+      nodes.forEach(node => {
+        if (node.children) sortTreeNodes(node.children);
+      });
+      return nodes;
+    }
+
     const renderGroups = computed<IRenderGroup[]>(() => {
       const keyword = searchVal.value.trim();
       return props.groups
@@ -123,10 +141,16 @@ export default defineComponent({
               !group.supported_span_types?.length ||
               group.supported_span_types.includes(props.activeSpanType),
             icon: isRawGroup ? RAW_FIELD_GROUP_ICON : RUM_FIELD_GROUP_ICON_MAP[group.name] || DEFAULT_FIELD_GROUP_ICON,
-            // 原始字段按 `.` 分层展示成树，业务分组保持平铺
-            nodes: isRawGroup
-              ? convertToTree(fields as unknown as IDimensionFieldTreeItem[])
-              : (fields.map(field => ({ ...field, levelName: field.alias })) as IDimensionFieldTreeItem[]),
+            // 原始字段按 `.` 分层展示成树，业务分组保持平铺；每层节点按 其他类型 > object > nested 排序
+            nodes: sortTreeNodes(
+              isRawGroup
+                ? convertToTree(fields as unknown as IDimensionFieldTreeItem[], false)
+                : (fields.map(field => ({
+                    ...field,
+                    levelAlias: field.alias,
+                    levelName: field.name,
+                  })) as IDimensionFieldTreeItem[])
+            ),
           };
         })
         .filter(group => group.nodes.length);

@@ -36,7 +36,6 @@ import { useI18n } from 'vue-i18n';
 import BaseEchart from '../../../plugins/base-echart';
 import PageLegend from '../../../plugins/components/page-legend';
 import { useChartResize } from '../../../plugins/hooks';
-import { formatDurationWithUnit } from '@/components/trace-view/utils/date';
 
 import type { ILegendItem, LegendActionType } from '../../../plugins/typings';
 import type { IStatisticsGraph } from '../typing';
@@ -54,11 +53,6 @@ export default defineComponent({
     isDuration: {
       type: Boolean,
       default: false,
-    },
-    /** 字段单位，us / ms 视为耗时字段，用于 tooltip 按单位换算 */
-    unit: {
-      type: String,
-      default: '',
     },
     data: {
       type: Array as PropType<IStatisticsGraph[]>,
@@ -121,22 +115,11 @@ export default defineComponent({
     }
 
     function customTooltips(params) {
-      let name = params[0].axisValue;
-      let value = params[0].value[1];
-      if (props.isDuration) {
-        const nameVal = params[0].name.split('-');
-        const [start, end] = nameVal;
-        const startLabel = formatDurationWithUnit(Number(start || 0), '', props.unit);
-        const endLabel = formatDurationWithUnit(Number(end || 0), '', props.unit);
-        name = `${startLabel} - ${endLabel}`;
-        value = params[0].value[1];
-      }
-
       return `<div class="monitor-chart-tooltips">
               <ul class="tooltips-content">
                  <li class="tooltips-content-item" style="--series-color: ${params[0].color}">
-                    <span class="item-name" style="color: #fff;font-weight: bold;">${name}:</span>
-                    <span class="item-value" style="color: #fff;font-weight: bold;">${value}</span>
+                    <span class="item-name" style="color: #fff;font-weight: bold;">${params[0].axisValue}:</span>
+                    <span class="item-value" style="color: #fff;font-weight: bold;">${params[0].value[1]}</span>
                  </li>
               </ul>
               </div>`;
