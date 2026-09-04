@@ -32,6 +32,7 @@ from apps.log_admin_resource.inspection_tasks import (
     ResourceInspectionTaskRecord,
 )
 from apps.log_admin_resource.k8s_inspection import (
+    BKLOG_CONFIG_CRD_NAME,
     COLLECTOR_CONTAINER_NAME,
     SIDECAR_CONTAINER_NAME,
     CollectorCandidate,
@@ -261,6 +262,32 @@ def business_target_expected():
             },
         }
     ]
+
+
+def crd_declaring(*fields, preserve_unknown=False):
+    spec_schema = {"type": "object", "properties": {name: {"type": "string"} for name in fields}}
+    if preserve_unknown:
+        spec_schema["x-kubernetes-preserve-unknown-fields"] = True
+    return {
+        "metadata": {"name": BKLOG_CONFIG_CRD_NAME},
+        "spec": {
+            "versions": [
+                # A served-but-not-storage version first: only the storage one describes what
+                # the apiserver actually persists.
+                {"name": "v1alpha1", "served": True, "storage": False, "schema": {"openAPIV3Schema": {}}},
+                {
+                    "name": "v1",
+                    "served": True,
+                    "storage": True,
+                    "schema": {"openAPIV3Schema": {"type": "object", "properties": {"spec": spec_schema}}},
+                },
+            ]
+        },
+    }
+
+
+def expected_config(spec):
+    return [{"name": "demo-2-44", "container_config_id": 44, "spec": spec, "safe_spec": dict(spec)}]
 
 
 def candidate(**overrides):
@@ -718,6 +745,113 @@ class K8sInspectionDomainTest(SimpleTestCase):
         self.assertIn("$.path[0]", result["items"][0]["different_paths"])
         self.assertNotIn("password", json.dumps(result["items"][0]["safe_expected_spec"]))
         self.assertEqual(result["required_bk_envs"], ["bkte"])
+
+    def test_control_plane_names_the_fields_an_outdated_crd_silently_prunes(self):
+        expected = expected_config(
+            {
+                "dataId": 1001,
+                "path": ["/data/*.log"],
+                "addPodAnnotation": True,
+                "exclude_files": ["/data/skip.log"],
+            }
+        )
+        actual = {"metadata": {"name": "demo-2-44"}, "spec": {"dataId": 1001, "path": ["/data/*.log"]}}
+
+        result = desired_config_evidence(
+            expected=expected,
+            actual_items=[actual],
+            configured_namespace="default",
+            crd=crd_declaring("dataId", "path"),
+        )
+
+        reasons = result["items"][0]["difference_reasons"]
+        self.assertEqual(sorted(reasons["schema_pruned"]), ["$.addPodAnnotation", "$.exclude_files"])
+        self.assertEqual(reasons["value_drift"], [])
+        self.assertFalse(result["all_material_match"])
+        self.assertEqual(result["crd_schema"]["pruned_fields_in_use"], ["addPodAnnotation", "exclude_files"])
+        # The cluster-level gap covers every field the platform can send, not just this config's.
+        self.assertIn("annotationSelector", result["crd_schema"]["unsupported_platform_fields"])
+
+    def test_control_plane_still_reports_real_drift_when_the_crd_declares_the_field(self):
+        expected = expected_config({"dataId": 1001, "path": ["/data/*.log"]})
+        actual = {"metadata": {"name": "demo-2-44"}, "spec": {"dataId": 1001, "path": ["/data/other.log"]}}
+
+        result = desired_config_evidence(
+            expected=expected,
+            actual_items=[actual],
+            configured_namespace="default",
+            crd=crd_declaring("dataId", "path"),
+        )
+
+        reasons = result["items"][0]["difference_reasons"]
+        self.assertEqual(reasons["value_drift"], ["$.path[0]"])
+        self.assertEqual(reasons["schema_pruned"], [])
+        self.assertFalse(result["all_material_match"])
+        self.assertEqual(result["crd_schema"]["pruned_fields_in_use"], [])
+
+    def test_control_plane_does_not_blame_the_schema_when_it_keeps_unknown_fields(self):
+        expected = expected_config({"dataId": 1001, "addPodAnnotation": True})
+        actual = {"metadata": {"name": "demo-2-44"}, "spec": {"dataId": 1001}}
+
+        result = desired_config_evidence(
+            expected=expected,
+            actual_items=[actual],
+            configured_namespace="default",
+            crd=crd_declaring("dataId", preserve_unknown=True),
+        )
+
+        reasons = result["items"][0]["difference_reasons"]
+        # The apiserver stores undeclared fields here, so a missing one is a delivery problem
+        # and pointing at the CRD would send the operator to upgrade something that works.
+        self.assertEqual(reasons["value_drift"], ["$.addPodAnnotation"])
+        self.assertEqual(reasons["schema_pruned"], [])
+        self.assertEqual(result["crd_schema"]["unsupported_platform_fields"], [])
+        self.assertTrue(result["crd_schema"]["preserves_unknown_fields"])
+
+    def test_control_plane_ignores_pruned_fields_that_ask_the_collector_for_nothing(self):
+        expected = expected_config(
+            {
+                "dataId": 1001,
+                "exclude_files": [],
+                "annotationSelector": {"matchExpressions": []},
+                "addPodAnnotation": False,
+            }
+        )
+        actual = {"metadata": {"name": "demo-2-44"}, "spec": {"dataId": 1001}}
+
+        result = desired_config_evidence(
+            expected=expected,
+            actual_items=[actual],
+            configured_namespace="default",
+            crd=crd_declaring("dataId"),
+        )
+
+        reasons = result["items"][0]["difference_reasons"]
+        self.assertEqual(
+            sorted(reasons["ignorable"]),
+            ["$.addPodAnnotation", "$.annotationSelector", "$.exclude_files"],
+        )
+        self.assertEqual(reasons["schema_pruned"], [])
+        self.assertEqual(reasons["value_drift"], [])
+        self.assertFalse(result["all_exact_match"])
+        self.assertTrue(result["all_material_match"])
+        self.assertEqual(result["crd_schema"]["pruned_fields_in_use"], [])
+
+    def test_control_plane_makes_no_schema_claim_when_the_crd_cannot_be_parsed(self):
+        expected = expected_config({"dataId": 1001, "addPodAnnotation": True})
+        actual = {"metadata": {"name": "demo-2-44"}, "spec": {"dataId": 1001}}
+
+        result = desired_config_evidence(
+            expected=expected, actual_items=[actual], configured_namespace="default", crd={"spec": {}}
+        )
+
+        reasons = result["items"][0]["difference_reasons"]
+        # An unreadable schema looks exactly like one missing every field. Guessing here would
+        # tell operators to upgrade a CRD that may already be current.
+        self.assertEqual(reasons["value_drift"], ["$.addPodAnnotation"])
+        self.assertEqual(reasons["schema_pruned"], [])
+        self.assertFalse(result["crd_schema"]["readable"])
+        self.assertEqual(result["crd_schema"]["unsupported_platform_fields"], [])
 
     def test_business_pod_target_matches_actual_config_without_exposing_env(self):
         target = {
@@ -1787,6 +1921,50 @@ class K8sInspectionWorkerTest(SimpleTestCase):
         )
 
         self.assertEqual(required_envs, ["bkte"])
+
+    @patch("apps.log_admin_resource.k8s_tasks.BcsHandler.list_bcs_cluster", return_value=[])
+    def test_control_plane_blames_the_crd_when_the_cluster_cannot_store_a_sent_field(self, _clusters):
+        client = SimpleNamespace(
+            read_crd=lambda _name: crd_declaring("dataId", "path"),
+            list_bklog_configs=lambda _namespace: {
+                "items": [{"metadata": {"name": "demo-2-44"}, "spec": {"dataId": 1001, "path": ["/data/*.log"]}}]
+            },
+        )
+
+        result, _node_name, _envs = _control_plane_probe(
+            record={"request_options": {}},
+            collector=collector(),
+            expected=expected_config({"dataId": 1001, "path": ["/data/*.log"], "addPodAnnotation": True}),
+            client=client,
+        )
+
+        self.assertEqual(result["status"], "warning")
+        self.assertEqual(result["code"], "crd_schema_outdated")
+        self.assertEqual(result["evidence"]["crd"]["schema"]["pruned_fields_in_use"], ["addPodAnnotation"])
+        self.assertIn("upgrade the CRD", result["warnings"][-1]["message"])
+
+    @patch("apps.log_admin_resource.k8s_tasks.BcsHandler.list_bcs_cluster", return_value=[])
+    def test_control_plane_stays_clean_when_the_only_gap_asks_the_collector_for_nothing(self, _clusters):
+        client = SimpleNamespace(
+            read_crd=lambda _name: crd_declaring("dataId"),
+            list_bklog_configs=lambda _namespace: {
+                "items": [{"metadata": {"name": "demo-2-44"}, "spec": {"dataId": 1001}}]
+            },
+        )
+
+        result, _node_name, _envs = _control_plane_probe(
+            record={"request_options": {}},
+            collector=collector(),
+            expected=expected_config({"dataId": 1001, "exclude_files": []}),
+            client=client,
+        )
+
+        self.assertEqual(result["status"], "success")
+        self.assertEqual(result["code"], "control_plane_resolved")
+        self.assertNotIn("crd_schema_outdated", [warning["code"] for warning in result["warnings"]])
+        # The cluster still cannot store the field. Keeping that visible is what warns whoever
+        # later configures a real blacklist that it would silently do nothing.
+        self.assertIn("exclude_files", result["evidence"]["crd"]["schema"]["unsupported_platform_fields"])
 
     def test_pod_logs_read_only_fixed_collector_container_and_bound_total(self):
         calls = []

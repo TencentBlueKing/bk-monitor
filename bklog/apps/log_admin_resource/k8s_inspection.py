@@ -33,6 +33,28 @@ BKLOG_CONFIG_NAMESPACE = "default"
 MAX_CANDIDATES = 20
 MAX_CONTRACT_EVIDENCE = 100
 MAX_CHILD_CONFIG_HINTS = 20
+PROJECTED_SPEC_FIELDS = (
+    "dataId",
+    "path",
+    "exclude_files",
+    "encoding",
+    "logConfigType",
+    "allContainer",
+    "namespaceSelector",
+    "workloadType",
+    "workloadName",
+    "containerNameMatch",
+    "containerNameExclude",
+    "labelSelector",
+    "annotationSelector",
+    "multiline",
+    "delimiter",
+    "addPodLabel",
+    "addPodAnnotation",
+)
+# Every spec key the platform can send. A CRD whose schema omits one of these has the apiserver
+# prune it on write, so the field never reaches the collector and no error is ever raised.
+PLATFORM_SPEC_FIELDS = frozenset({*PROJECTED_SPEC_FIELDS, "extMeta", "extOptions"})
 
 
 @dataclass(frozen=True)
@@ -99,40 +121,112 @@ def expected_bklog_configs(collector: Any, container_configs: Iterable[Any]) -> 
 
 
 def safe_spec_projection(spec: dict[str, Any]) -> dict[str, Any]:
-    keys = (
-        "dataId",
-        "path",
-        "exclude_files",
-        "encoding",
-        "logConfigType",
-        "allContainer",
-        "namespaceSelector",
-        "workloadType",
-        "workloadName",
-        "containerNameMatch",
-        "containerNameExclude",
-        "labelSelector",
-        "annotationSelector",
-        "multiline",
-        "delimiter",
-        "addPodLabel",
-        "addPodAnnotation",
-    )
-    result = {key: copy.deepcopy(spec.get(key)) for key in keys if key in spec}
+    result = {key: copy.deepcopy(spec.get(key)) for key in PROJECTED_SPEC_FIELDS if key in spec}
     ext_options = spec.get("extOptions") or {}
     if "tail_files" in ext_options:
         result["tail_files"] = ext_options["tail_files"]
     return result
 
 
+def crd_spec_schema(crd: dict[str, Any] | None) -> tuple[frozenset[str] | None, bool]:
+    """Read which spec fields the cluster's CRD actually declares, and whether it keeps the rest.
+
+    A ``None`` field set means the schema could not be read. Callers must not conclude anything
+    about pruning in that case: an unreadable schema and a schema that genuinely omits fields
+    look identical from the outside but mean opposite things.
+    """
+    schema = None
+    for version in ((crd or {}).get("spec") or {}).get("versions") or []:
+        if not isinstance(version, dict) or not version.get("storage"):
+            continue
+        holder = version.get("schema") or {}
+        # The typed Kubernetes client exposes snake_case attributes while a raw dict keeps the
+        # apiserver's camelCase, and object_to_dict passes either through untouched.
+        schema = holder.get("openAPIV3Schema") or holder.get("open_api_v3_schema")
+        break
+    if not isinstance(schema, dict):
+        return None, False
+    spec_schema = (schema.get("properties") or {}).get("spec")
+    if not isinstance(spec_schema, dict):
+        return None, False
+    preserve_unknown = bool(
+        spec_schema.get("x-kubernetes-preserve-unknown-fields")
+        or spec_schema.get("x_kubernetes_preserve_unknown_fields")
+    )
+    properties = spec_schema.get("properties")
+    if not isinstance(properties, dict):
+        return None, preserve_unknown
+    return frozenset(properties), preserve_unknown
+
+
+def _top_level_field(path: str) -> str | None:
+    """Pull the spec key out of a difference path such as ``$.multiline.maxLines``."""
+    if not path.startswith("$."):
+        return None
+    return re.split(r"[.\[]", path[2:], maxsplit=1)[0] or None
+
+
+def _semantically_empty(value: Any) -> bool:
+    """Whether a value asks the collector for nothing, so its absence changes no behaviour."""
+    if value is None or value is False or value == "":
+        return True
+    if isinstance(value, dict):
+        return all(_semantically_empty(item) for item in value.values())
+    if isinstance(value, list | tuple):
+        return all(_semantically_empty(item) for item in value)
+    return False
+
+
+def classify_spec_differences(
+    paths: Iterable[str],
+    expected_spec: dict[str, Any],
+    actual_spec: dict[str, Any],
+    declared_fields: frozenset[str] | None,
+    preserve_unknown: bool,
+) -> dict[str, list[str]]:
+    """Split raw difference paths into what the cluster cannot store and what was sent wrong.
+
+    A field the CRD schema never declares is pruned by the apiserver on write, so re-releasing
+    the collector can never make it stick; only upgrading the CRD can. Separating the two is the
+    difference between an actionable finding and an operator re-pushing the same config all day.
+    """
+    pruned: list[str] = []
+    drift: list[str] = []
+    ignorable: list[str] = []
+    for path in paths:
+        field = _top_level_field(path)
+        is_pruned = (
+            field is not None
+            and declared_fields is not None
+            and not preserve_unknown
+            and field not in declared_fields
+            and field in expected_spec
+            and field not in actual_spec
+        )
+        if not is_pruned:
+            drift.append(path)
+        elif _semantically_empty(expected_spec.get(field)):
+            # The platform asked for nothing here, so a pruned field and a sent one behave the
+            # same. Counting it as drift buries the fields that do change collection.
+            ignorable.append(path)
+        else:
+            pruned.append(path)
+    return {"schema_pruned": pruned, "value_drift": drift, "ignorable": ignorable}
+
+
 def desired_config_evidence(
-    *, expected: list[dict[str, Any]], actual_items: Iterable[dict[str, Any]], configured_namespace: str
+    *,
+    expected: list[dict[str, Any]],
+    actual_items: Iterable[dict[str, Any]],
+    configured_namespace: str,
+    crd: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     actual_by_name = {
         str((item.get("metadata") or {}).get("name")): item
         for item in actual_items
         if isinstance(item, dict) and (item.get("metadata") or {}).get("name")
     }
+    declared_fields, preserve_unknown = crd_spec_schema(crd)
     rows = []
     required_bk_envs = set()
     for item in expected:
@@ -143,6 +237,8 @@ def desired_config_evidence(
         if labels.get("bk_env"):
             required_bk_envs.add(str(labels["bk_env"]))
         exact = bool(actual is not None and actual_spec == item["spec"])
+        paths = different_paths(item["spec"], actual_spec) if actual is not None else ["$"]
+        reasons = classify_spec_differences(paths, item["spec"], actual_spec, declared_fields, preserve_unknown)
         rows.append(
             {
                 "name": item["name"],
@@ -158,7 +254,8 @@ def desired_config_evidence(
                 "expected_spec_sha256": sha256_json(item["spec"]),
                 "actual_spec_sha256": sha256_json(actual_spec) if actual is not None else None,
                 "exact_match": exact,
-                "different_paths": different_paths(item["spec"], actual_spec) if actual is not None else ["$"],
+                "different_paths": paths,
+                "difference_reasons": reasons,
                 "safe_expected_spec": item["safe_spec"],
                 "safe_actual_spec": safe_spec_projection(actual_spec) if actual is not None else None,
                 "conditions": _safe_conditions((actual or {}).get("status") or {}),
@@ -169,6 +266,27 @@ def desired_config_evidence(
         "items": rows,
         "all_present": all(item["present"] for item in rows),
         "all_exact_match": all(item["exact_match"] for item in rows),
+        # Unlike all_exact_match, this ignores differences that change no collection behaviour,
+        # so a cluster whose only drift is an empty field it cannot store still reads as healthy.
+        "all_material_match": all(
+            not row["difference_reasons"]["schema_pruned"] and not row["difference_reasons"]["value_drift"]
+            for row in rows
+        ),
+        "crd_schema": {
+            "readable": declared_fields is not None,
+            "preserves_unknown_fields": preserve_unknown,
+            "unsupported_platform_fields": sorted(PLATFORM_SPEC_FIELDS - declared_fields)
+            if declared_fields is not None and not preserve_unknown
+            else [],
+            "pruned_fields_in_use": sorted(
+                {
+                    field
+                    for row in rows
+                    for path in row["difference_reasons"]["schema_pruned"]
+                    if (field := _top_level_field(path))
+                }
+            ),
+        },
         "required_bk_envs": sorted(required_bk_envs),
     }
 
