@@ -46,18 +46,9 @@ class TestIamReadWriteEnvironmentConfig:
 
         framework = settings_module.IAM_FRAMEWORK
         assert set(framework["PROVIDER_CATALOG"]) == {"v3", "v4"}
-        assert framework["ENABLED_PROVIDERS"] == "v4,v3"
-        assert framework["READ"]["PROVIDERS"] == "v4,v3"
-        assert framework["READ"]["POLICY"] == "dynamic"
-        assert json.loads(framework["READ"]["OPTIONS"]) == {
-            "selector": {
-                "type": "django_setting",
-                "attr": "BK_IAM_READ_STRATEGY",
-                "default": "any_of",
-            },
-            "fallback_key": "any_of",
-        }
-        assert framework["WRITE"] == {"PROVIDERS": "v4,v3", "ON_FAILURE": "log"}
+        assert framework["ENABLED_PROVIDERS"] == "v3"
+        assert framework["READ"] == {"PROVIDERS": "v3", "POLICY": "single", "OPTIONS": ""}
+        assert framework["WRITE"] == {"PROVIDERS": "v3", "ON_FAILURE": "log"}
 
     def test_single_read_can_keep_dual_write_targets(self, monkeypatch):
         settings_module = self._reload_default(

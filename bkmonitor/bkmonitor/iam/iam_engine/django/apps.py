@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import logging
 
-from django.apps import AppConfig
+from django.apps import AppConfig, apps
 
 from ..django.conf import load_framework
 from .migration_logging import summarize_system_migration
@@ -80,9 +80,21 @@ class IamEngineConfig(AppConfig):
         if mode == "semi_auto":
             from django.db.models.signals import post_migrate
 
+            migration_database = migration_cfg.get("database", "default")
+
+            def run_auto_migration(**kwargs) -> None:
+                if kwargs.get("using", "default") != migration_database:
+                    return
+                self._run_auto_migration(fw, migration_cfg)
+
+            # Django 只会为存在 models_module 的 App 发送 post_migrate。
+            # iam_engine.django 自身没有 models.py，因此沿用老版迁移的可靠触发边界：
+            # 监听主 bkmonitor App 的 post_migrate，再由本 App 执行新引擎迁移。
             post_migrate.connect(
-                lambda **kw: self._run_auto_migration(fw, migration_cfg),
-                sender=self,
+                run_auto_migration,
+                sender=apps.get_app_config("bkmonitor"),
+                dispatch_uid="iam_engine auto migration",
+                weak=False,
             )
             return
 
