@@ -53,7 +53,7 @@ ADVANCED_OPTIONS = OrderedDict(
         (
             "REDIS_STRATEGY_COST_SNAPSHOT_TOTAL_BUDGET_SECONDS",
             slz.IntegerField(
-                label="Redis策略成本快照整轮预算(秒)",
+                label="Redis策略成本快照命令间软预算(秒)",
                 default=20,
                 min_value=5,
                 max_value=30,

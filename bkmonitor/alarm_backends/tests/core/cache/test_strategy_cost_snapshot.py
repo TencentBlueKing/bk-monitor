@@ -12,6 +12,8 @@ from alarm_backends.core.cache.strategy_cost_snapshot import (
     StrategyCostSnapshotStore,
     build_strategy_cost_profile,
     resolve_snapshot_total_budget_seconds,
+    select_round_target,
+    snapshot_collect_round_index,
 )
 
 
@@ -21,6 +23,7 @@ def _node(node_id=1):
 
 def _collector(**kwargs):
     kwargs.setdefault("routed_node_ids", {1, 2, 7})
+    kwargs.setdefault("round_index", 0)
     return RedisStrategyCostSnapshotCollector(**kwargs)
 
 
@@ -183,7 +186,39 @@ def test_collector_rechecks_freshness_after_node_local_lock(mocker):
     strategy_manager.get_strategy_ids.assert_not_called()
 
 
-def test_collector_loads_population_once_and_uses_each_strategy_target_node(mocker):
+def test_select_round_target_sorts_by_node_id_and_rotates():
+    node_2 = _node(2)
+    node_1 = _node(1)
+    node_7 = _node(7)
+    nodes_info = [(node_2, {"n": 2}), (node_1, {"n": 1}), (node_7, {"n": 7})]
+
+    first, skipped = select_round_target(nodes_info, {1, 2, 7}, 0)
+    second, _ = select_round_target(nodes_info, {1, 2, 7}, 1)
+    third, _ = select_round_target(nodes_info, {1, 2, 7}, 2)
+    wrapped, skipped_again = select_round_target(nodes_info, {1, 2, 7}, 3)
+
+    assert skipped == 0
+    assert first[0].id == 1
+    assert second[0].id == 2
+    assert third[0].id == 7
+    assert wrapped[0].id == 1
+    assert skipped_again == 0
+
+
+def test_select_round_target_counts_unrouted_without_selecting_them():
+    target, skipped = select_round_target([(_node(1), {}), (_node(2), {})], {2}, 0)
+
+    assert skipped == 1
+    assert target[0].id == 2
+
+
+def test_snapshot_collect_round_index_uses_thirty_second_buckets():
+    assert snapshot_collect_round_index(0) == 0
+    assert snapshot_collect_round_index(29.9) == 0
+    assert snapshot_collect_round_index(30) == 1
+
+
+def test_collector_loads_due_node_configs_for_the_selected_round_target(mocker):
     node_1 = _node(1)
     node_2 = _node(2)
     clients = {1: _hlen_client(default=10), 2: _hlen_client(default=20)}
@@ -191,7 +226,7 @@ def test_collector_loads_population_once_and_uses_each_strategy_target_node(mock
     strategy_manager = mocker.patch("alarm_backends.core.cache.strategy_cost_snapshot.StrategyCacheManager")
     strategy_manager.get_strategy_ids.return_value = [1, 2]
     strategy_manager.get_all_groups.return_value = {"group": json.dumps({"bk_biz_id": 7, "1": [101], "2": [202]})}
-    strategy_manager.get_strategy_by_ids.return_value = [{"id": 1}, {"id": 2}]
+    strategy_manager.get_strategy_by_ids.side_effect = lambda ids: [{"id": strategy_id} for strategy_id in ids]
     mocker.patch(
         "alarm_backends.core.cache.strategy_cost_snapshot.build_strategy_cost_profile",
         return_value={
@@ -202,27 +237,52 @@ def test_collector_loads_population_once_and_uses_each_strategy_target_node(mock
             "peak_members_per_series": 150,
         },
     )
-    load_routes = mocker.patch(
+    mocker.patch(
         "alarm_backends.core.cache.strategy_cost_snapshot.load_positive_routes",
         return_value=[{"strategy_score": 2, "node_id": 1}, {"strategy_score": 3, "node_id": 2}],
     )
-    collector = _collector(
+
+    first = _collector(
         client_factory=lambda node: clients[node.id],
         catalog_client_factory=lambda: None,
-        max_nodes_per_round=2,
-    )
+        round_index=0,
+    ).collect([(node_2, {}), (node_1, {})])
+    second = _collector(
+        client_factory=lambda node: clients[node.id],
+        catalog_client_factory=lambda: None,
+        round_index=1,
+    ).collect([(node_2, {}), (node_1, {})])
 
-    result = collector.collect([(node_1, {}), (node_2, {})])
-
-    assert result["succeeded"] == 2
-    strategy_manager.get_strategy_ids.assert_called_once_with()
-    strategy_manager.get_all_groups.assert_called_once_with()
+    assert first["succeeded"] == 1
+    assert second["succeeded"] == 1
     assert strategy_manager.get_strategy_by_ids.call_args_list == [mock.call([1]), mock.call([2])]
-    load_routes.assert_called_once_with()
     assert any(".1.101" in str(key) for key in _hlen_keys(clients[1]))
     assert any(".2.202" in str(key) for key in _hlen_keys(clients[2]))
     assert clients[1].hlen.call_count == 0
     assert clients[2].hlen.call_count == 0
+
+
+def test_collector_uses_wall_clock_round_when_round_index_is_omitted(mocker):
+    mocker.patch("alarm_backends.core.cache.strategy_cost_snapshot.time", return_value=30)
+    node_1 = _node(1)
+    node_2 = _node(2)
+    clients = {1: _hlen_client(), 2: _hlen_client()}
+    strategy_manager = mocker.patch("alarm_backends.core.cache.strategy_cost_snapshot.StrategyCacheManager")
+    strategy_manager.get_strategy_ids.return_value = []
+    strategy_manager.get_all_groups.return_value = {}
+    strategy_manager.get_strategy_by_ids.return_value = []
+    mocker.patch("alarm_backends.core.cache.strategy_cost_snapshot.load_positive_routes", return_value=[])
+    collector = RedisStrategyCostSnapshotCollector(
+        client_factory=lambda node: clients[node.id],
+        catalog_client_factory=lambda: None,
+        routed_node_ids={1, 2},
+    )
+
+    result = collector.collect([(node_1, {}), (node_2, {})])
+
+    assert result["succeeded"] == 1
+    clients[1].lrange.assert_not_called()
+    clients[2].lrange.assert_called()
 
 
 def test_collector_preserves_measured_no_group_config_missing_and_failed_coverage(mocker):
@@ -308,27 +368,82 @@ def test_collector_preserves_measured_no_group_config_missing_and_failed_coverag
     client.delete.assert_called_once()
 
 
-def test_collector_node_failure_is_fail_open_for_later_nodes(mocker):
+def test_collector_selected_node_failure_ends_the_round(mocker):
     failed_node = _node(1)
     healthy_node = _node(2)
     failed_client = mock.Mock()
     failed_client.lrange.side_effect = RuntimeError("node down")
     healthy_client = _hlen_client()
-    strategy_manager = mocker.patch("alarm_backends.core.cache.strategy_cost_snapshot.StrategyCacheManager")
-    strategy_manager.get_strategy_ids.return_value = []
-    strategy_manager.get_all_groups.return_value = {}
-    strategy_manager.get_strategy_by_ids.return_value = []
-    mocker.patch("alarm_backends.core.cache.strategy_cost_snapshot.load_positive_routes", return_value=[])
+    mocker.patch("alarm_backends.core.cache.strategy_cost_snapshot.StrategyCacheManager")
     collector = _collector(
         client_factory=lambda node: failed_client if node.id == 1 else healthy_client,
         catalog_client_factory=lambda: None,
+        round_index=0,
     )
 
     result = collector.collect([(failed_node, {}), (healthy_node, {})])
 
     assert result["failed"] == 1
-    assert result["succeeded"] == 1
+    assert result["succeeded"] == 0
+    healthy_client.lrange.assert_not_called()
+    healthy_client.set.assert_not_called()
+
+
+def test_collector_rotates_to_next_node_after_selected_node_fails(mocker):
+    node_1 = _node(1)
+    node_2 = _node(2)
+    failed_client = _hlen_client()
+    healthy_client = _hlen_client()
+    strategy_manager = mocker.patch("alarm_backends.core.cache.strategy_cost_snapshot.StrategyCacheManager")
+    strategy_manager.get_strategy_ids.side_effect = RuntimeError("catalog down")
+    strategy_manager.get_all_groups.return_value = {}
+    strategy_manager.get_strategy_by_ids.return_value = []
+    mocker.patch("alarm_backends.core.cache.strategy_cost_snapshot.load_positive_routes", return_value=[])
+    nodes = [(node_1, {}), (node_2, {})]
+    first = _collector(
+        client_factory=lambda node: failed_client if node.id == 1 else healthy_client,
+        catalog_client_factory=lambda: None,
+        round_index=0,
+    ).collect(nodes)
+
+    assert first["failed"] == 1
+    assert first["succeeded"] == 0
+    failed_client.set.assert_called()
+    failed_client.delete.assert_called()
+    healthy_client.lrange.assert_not_called()
+
+    strategy_manager.get_strategy_ids.side_effect = None
+    strategy_manager.get_strategy_ids.return_value = []
+    second = _collector(
+        client_factory=lambda node: failed_client if node.id == 1 else healthy_client,
+        catalog_client_factory=lambda: None,
+        round_index=1,
+    ).collect(nodes)
+
+    assert second["succeeded"] == 1
+    healthy_client.lrange.assert_called()
     assert any(pipe.lpush.called for pipe in healthy_client._pipes)
+
+
+def test_collector_fresh_selected_node_does_not_scan_others_same_round(mocker):
+    fresh_node = _node(1)
+    due_node = _node(2)
+    fresh_client = mock.Mock()
+    fresh_client.lrange.return_value = [json.dumps({"finished_at": datetime.now(UTC).isoformat()})]
+    due_client = _hlen_client()
+    strategy_manager = mocker.patch("alarm_backends.core.cache.strategy_cost_snapshot.StrategyCacheManager")
+    collector = _collector(
+        client_factory=lambda node: fresh_client if node.id == 1 else due_client,
+        catalog_client_factory=lambda: None,
+        round_index=0,
+    )
+
+    result = collector.collect([(fresh_node, {}), (due_node, {})])
+
+    assert result["skipped_fresh"] == 1
+    assert result["succeeded"] == 0
+    due_client.lrange.assert_not_called()
+    strategy_manager.get_strategy_ids.assert_not_called()
 
 
 def test_collector_budget_expiry_during_hlen_does_not_write_partial_snapshot(mocker):
@@ -518,7 +633,7 @@ def test_collector_budget_covers_save_before_pipeline_execute(mocker):
     assert all(not pipe.lpush.called for pipe in node_client._pipes)
 
 
-def test_collector_default_round_scans_one_due_node(mocker):
+def test_collector_round_scans_only_selected_node(mocker):
     node_1 = _node(1)
     node_2 = _node(2)
     clients = {1: _hlen_client(), 2: _hlen_client()}

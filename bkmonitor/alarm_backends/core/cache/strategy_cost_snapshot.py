@@ -6,7 +6,7 @@ import json
 import logging
 from hashlib import sha256
 from datetime import UTC, datetime
-from time import monotonic
+from time import monotonic, time
 from typing import Any
 from uuid import uuid4
 
@@ -30,9 +30,10 @@ SNAPSHOT_INTERVAL_SECONDS = 3600
 SNAPSHOT_TOTAL_BUDGET_SECONDS = 20
 SNAPSHOT_TOTAL_BUDGET_SECONDS_MIN = 5
 SNAPSHOT_TOTAL_BUDGET_SECONDS_MAX = 30
-SNAPSHOT_MAX_NODES_PER_ROUND = 1
+# 与 celery_report_cron 的 collector_interval 对齐：每 30 秒一次采集即一轮。
+SNAPSHOT_COLLECT_ROUND_SECONDS = 30
 SNAPSHOT_REDIS_SOCKET_TIMEOUT_SECONDS = 1.0
-# bkte alarm-02 串行 HLEN 约 1.5ms/条；隔离客户端 socket_timeout=1s，100 条一批留出余量。
+# 大规模分片串行 HLEN 约 1.5ms/条；隔离客户端 socket_timeout=1s，100 条一批留出余量。
 SNAPSHOT_HLEN_PIPELINE_SIZE = 100
 SNAPSHOT_CONFIG_MGET_SIZE = 1000
 CHECK_RESULT_CLEAN_INTERVAL_SECONDS = 7200
@@ -243,7 +244,10 @@ def _is_fresh(snapshots: list[dict[str, Any]], now: datetime) -> bool:
 
 
 def resolve_snapshot_total_budget_seconds() -> int:
-    """整轮墙钟预算只允许在采集节拍内微调，不随节点数放大。"""
+    """命令之间检查的软预算（秒）。
+
+    不能中断正在执行的 Redis 命令；配置值夹在 5–30，不随节点数放大。
+    """
 
     raw = getattr(
         settings, "REDIS_STRATEGY_COST_SNAPSHOT_TOTAL_BUDGET_SECONDS", SNAPSHOT_TOTAL_BUDGET_SECONDS
@@ -285,8 +289,32 @@ def _routing_digest(positive_routes: list[dict[str, int]]) -> str:
     return f"sha256:{sha256(payload).hexdigest()}"
 
 
+def snapshot_collect_round_index(now: float | None = None) -> int:
+    return int((time() if now is None else now) // SNAPSHOT_COLLECT_ROUND_SECONDS)
+
+
+def select_round_target(
+    nodes_info: list[tuple[Any, dict[str, Any]]],
+    routed_ids: set[int],
+    round_index: int,
+) -> tuple[tuple[Any, dict[str, Any]] | None, int]:
+    """按 node_id 排序后取本轮唯一目标。公平性由轮次保证，失败也立刻释放锁。"""
+
+    skipped_unrouted = 0
+    candidates: list[tuple[Any, dict[str, Any]]] = []
+    for node, node_info in nodes_info:
+        if getattr(node, "id", None) not in routed_ids:
+            skipped_unrouted += 1
+            continue
+        candidates.append((node, node_info))
+    if not candidates:
+        return None, skipped_unrouted
+    candidates.sort(key=lambda item: item[0].id)
+    return candidates[round_index % len(candidates)], skipped_unrouted
+
+
 class RedisStrategyCostSnapshotCollector:
-    """一次 selfmonitor 收尾调用中，为有限个到期路由节点生成成本快照。"""
+    """一次 selfmonitor 收尾调用中，按轮次只尝试一个路由节点生成成本快照。"""
 
     def __init__(
         self,
@@ -294,8 +322,8 @@ class RedisStrategyCostSnapshotCollector:
         client_factory=None,
         catalog_client_factory=None,
         total_budget_seconds: int | None = None,
-        max_nodes_per_round: int = SNAPSHOT_MAX_NODES_PER_ROUND,
         routed_node_ids: set[int] | None = None,
+        round_index: int | None = None,
         monotonic_fn=monotonic,
     ):
         self.client_factory = client_factory
@@ -303,9 +331,14 @@ class RedisStrategyCostSnapshotCollector:
         self.total_budget_seconds = (
             resolve_snapshot_total_budget_seconds() if total_budget_seconds is None else total_budget_seconds
         )
-        self.max_nodes_per_round = max(1, int(max_nodes_per_round))
         self.routed_node_ids = routed_node_ids
+        self.round_index = round_index
         self.monotonic = monotonic_fn
+
+    def _resolve_round_index(self) -> int:
+        if self.round_index is not None:
+            return self.round_index
+        return snapshot_collect_round_index()
 
     def collect(self, nodes_info: list[tuple[Any, dict[str, Any]]]) -> dict[str, Any]:
         started = self.monotonic()
@@ -330,52 +363,50 @@ class RedisStrategyCostSnapshotCollector:
             result["failed"] += 1
             return result
 
-        for node, node_info in nodes_info:
-            if getattr(node, "id", None) not in routed_ids:
-                result["skipped_unrouted"] += 1
-                continue
-            if len(due) >= self.max_nodes_per_round:
-                break
-            store = None
-            token = ""
-            try:
-                shared_client = self._shared_node_client(node, deadline)
-                store = StrategyCostSnapshotStore(node, client=shared_client)
-                self._check_io_budget(shared_client, deadline)
-                snapshots = store.read(1)
-                self._check_budget(deadline)
-                if _is_fresh(snapshots, now):
-                    result["skipped_fresh"] += 1
-                    continue
-                self._check_io_budget(shared_client, deadline)
-                token = uuid4().hex
-                if not store.try_lock(token):
-                    result["skipped_locked"] += 1
-                    token = ""
-                    continue
-                self._check_budget(deadline)
-                # 多个 selfmonitor 实例可能同时看到旧快照；锁后必须复查。
-                self._check_io_budget(shared_client, deadline)
-                snapshots = store.read(1)
-                self._check_budget(deadline)
-                if _is_fresh(snapshots, now):
-                    result["skipped_fresh"] += 1
-                    self._release_lock(store, token)
-                    continue
-                due.append((node, node_info, store, token))
-                token = ""
-            except SnapshotBudgetExceeded:
-                result["budget_exhausted"] = True
-                self._record(node, "budget_exhausted", self.monotonic() - started)
-                self._release_lock(store, token)
-                break
-            except Exception:
-                result["failed"] += 1
-                self._record(node, "failed", 0)
-                self._release_lock(store, token)
-                logger.exception("redis strategy cost snapshot precheck failed: node_id=%s", getattr(node, "id", ""))
+        target, result["skipped_unrouted"] = select_round_target(
+            nodes_info, routed_ids, self._resolve_round_index()
+        )
+        if target is None:
+            return result
 
-        if not due:
+        node, node_info = target
+        store = None
+        token = ""
+        try:
+            shared_client = self._shared_node_client(node, deadline)
+            store = StrategyCostSnapshotStore(node, client=shared_client)
+            self._check_io_budget(shared_client, deadline)
+            snapshots = store.read(1)
+            self._check_budget(deadline)
+            if _is_fresh(snapshots, now):
+                result["skipped_fresh"] += 1
+                return result
+            self._check_io_budget(shared_client, deadline)
+            token = uuid4().hex
+            if not store.try_lock(token):
+                result["skipped_locked"] += 1
+                return result
+            self._check_budget(deadline)
+            # 多个 selfmonitor 实例可能同时看到旧快照；锁后必须复查。
+            self._check_io_budget(shared_client, deadline)
+            snapshots = store.read(1)
+            self._check_budget(deadline)
+            if _is_fresh(snapshots, now):
+                result["skipped_fresh"] += 1
+                self._release_lock(store, token)
+                return result
+            due.append((node, node_info, store, token))
+            token = ""
+        except SnapshotBudgetExceeded:
+            result["budget_exhausted"] = True
+            self._record(node, "budget_exhausted", self.monotonic() - started)
+            self._release_lock(store, token)
+            return result
+        except Exception:
+            result["failed"] += 1
+            self._record(node, "failed", 0)
+            self._release_lock(store, token)
+            logger.exception("redis strategy cost snapshot precheck failed: node_id=%s", getattr(node, "id", ""))
             return result
 
         catalog_client = None
@@ -541,6 +572,7 @@ class RedisStrategyCostSnapshotCollector:
         return IsolatedSnapshotRedisClient(shared_client, deadline - self.monotonic())
 
     def _catalog_client(self, _deadline):
+        # 共享 DB8：软预算不能打断在途命令。目录超时后续单独做，勿复用 HLEN 的 1 秒上限。
         if self.catalog_client_factory is not None:
             return self.catalog_client_factory()
         return None
@@ -731,6 +763,7 @@ class RedisStrategyCostSnapshotCollector:
         return row
 
     def _check_budget(self, deadline: float) -> None:
+        # 软预算：只能拦下一跳命令，不能掐断正在执行的 Redis 调用。
         if self.monotonic() >= deadline:
             raise SnapshotBudgetExceeded
 
