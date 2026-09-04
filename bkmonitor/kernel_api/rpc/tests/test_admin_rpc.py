@@ -2414,8 +2414,7 @@ def test_bcs_cluster_bk_collector_config_detail_masks_platform_secret_by_default
 
 
 def test_bcs_cluster_bk_collector_config_inspection_supports_explicit_public_namespace(settings):
-    settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER = ["BCS-K8S-00001"]
-    settings.CUSTOM_REPORT_DEFAULT_DEPLOY_NAMESPACES = {"BCS-K8S-00001": ["public-1", "public-2"]}
+    settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER = ["BCS-K8S-00001/public-1", "BCS-K8S-00001/public-2"]
     cluster = SimpleNamespace(cluster_id="BCS-K8S-00001", api_client=object(), operator_ns="operator-ns")
     core_client = Mock()
     core_client.list_namespaced_secret.side_effect = _collector_secret_list_side_effect()

@@ -514,11 +514,10 @@ DATETIME_FORMAT = "%Y-%m-%d %H:%M:%S%z"
 # 自定义上报服务器IP
 CUSTOM_REPORT_DEFAULT_PROXY_IP = []
 CUSTOM_REPORT_DEFAULT_PROXY_DOMAIN = []
-CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER = []  # 当接收端为 k8s 集群部署时，需要配置这个，支持部署在多个集群内
-# 公共 collector 的下发命名空间，不影响 K8S_OPERATOR_DEPLOY_NAMESPACE 指定的业务部署。
-# 未配置的集群沿用原默认命名空间；配置后只下发到列出的命名空间。
-# 例如：{"XX-K8S-00000": ["collector-public-1", "collector-public-2"]}
-CUSTOM_REPORT_DEFAULT_DEPLOY_NAMESPACES = {}
+# 公共 collector 下发目标，支持同集群多个 namespace 及多个集群。
+# 例如：["XX-K8S-00000/public-1", "XX-K8S-00000/public-2", "XX-K8S-00001/public-1"]。
+# 兼容纯集群 ID：未指定 namespace 时沿用 K8S_OPERATOR_DEPLOY_NAMESPACE 或代码默认值。
+CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER = []
 CUSTOM_REPORT_K8S_SECRETS_CONFIG = {}  # 自定义上报 K8S 集群中 Secrets 分配逻辑默认配置
 
 # 外部监控页面资源转发接口鉴权 Token，由网关注入 BKMONITOR-EXTERNAL-TOKEN 请求头

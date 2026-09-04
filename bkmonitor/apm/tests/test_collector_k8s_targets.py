@@ -8,7 +8,6 @@ from types import SimpleNamespace
 import pytest
 from django.core.management.base import CommandError
 from kubernetes import client
-from rest_framework.exceptions import ValidationError
 
 from apm.core.application_config import ApplicationConfig
 from apm.core.platform_config import PlatformConfig
@@ -24,7 +23,6 @@ from rum.core.application_config import RumApplicationConfig
 @pytest.fixture(autouse=True)
 def collector_settings(settings):
     settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER = ["cluster-a"]
-    settings.CUSTOM_REPORT_DEFAULT_DEPLOY_NAMESPACES = {}
     settings.K8S_OPERATOR_DEPLOY_NAMESPACE = {"cluster-a": "operator-ns"}
     settings.CUSTOM_REPORT_K8S_SECRETS_CONFIG = {}
 
@@ -41,11 +39,12 @@ def test_legacy_mapping_keeps_public_precedence_without_mutating_discovery():
 
 
 def test_public_namespaces_keep_business_target_and_support_multiple_clusters(settings):
-    settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER = ["cluster-a", "cluster-b", "cluster-a"]
-    settings.CUSTOM_REPORT_DEFAULT_DEPLOY_NAMESPACES = {
-        "cluster-a": ["public-1", "public-2", "public-1"],
-        "cluster-b": ["public-1"],
-    }
+    settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER = [
+        "cluster-a/public-1",
+        "cluster-a/public-2",
+        "cluster-b/public-1",
+        "cluster-a/public-1",
+    ]
     assert ClusterConfig.get_deploy_mapping({"cluster-a": [1]}) == {
         ("cluster-a", "operator-ns"): [1],
         ("cluster-a", "public-1"): [0],
@@ -57,8 +56,12 @@ def test_public_namespaces_keep_business_target_and_support_multiple_clusters(se
 
 
 def test_namespace_override_is_per_cluster_and_same_target_is_not_duplicated(settings):
-    settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER = ["cluster-a", "cluster-b"]
-    settings.CUSTOM_REPORT_DEFAULT_DEPLOY_NAMESPACES = {"cluster-a": ["operator-ns", "public-1"]}
+    settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER = [
+        "cluster-a",
+        "cluster-a/operator-ns",
+        "cluster-a/public-1",
+        "cluster-b",
+    ]
     assert ClusterConfig.get_deploy_mapping({"cluster-a": [1]}) == {
         ("cluster-a", "operator-ns"): [0],
         ("cluster-a", "public-1"): [0],
@@ -66,31 +69,46 @@ def test_namespace_override_is_per_cluster_and_same_target_is_not_duplicated(set
     }
 
 
-@pytest.mark.parametrize("namespaces", [[], "public", None, [""], ["*"], ["Upper"], ["a/b"], ["a" * 64], [1]])
-def test_invalid_public_namespaces_fail_without_falling_back(settings, namespaces):
-    settings.CUSTOM_REPORT_DEFAULT_DEPLOY_NAMESPACES = {"cluster-a": namespaces}
+@pytest.mark.parametrize(
+    "target",
+    [
+        "",
+        None,
+        1,
+        "/public",
+        " /public",
+        "cluster a/public",
+        "cluster-a/",
+        "cluster-a/*",
+        "cluster-a/Upper",
+        "cluster-a/a/b",
+        "cluster-a/" + "a" * 64,
+    ],
+)
+def test_invalid_public_targets_fail_without_falling_back(settings, target):
+    settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER = [target]
     with pytest.raises(ValueError):
         ClusterConfig.global_deploy_targets()
 
 
-@pytest.mark.parametrize("mapping", [None, [], "public"])
-def test_invalid_namespace_mapping(settings, mapping):
-    settings.CUSTOM_REPORT_DEFAULT_DEPLOY_NAMESPACES = mapping
+@pytest.mark.parametrize("targets", ["cluster-a/public", {"cluster-a": "public"}, 1])
+def test_invalid_public_target_list(settings, targets):
+    settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER = targets
     with pytest.raises(ValueError):
         ClusterConfig.global_deploy_targets()
 
 
-def test_public_namespaces_are_registered_as_global_config():
-    field = STANDARD_CONFIGS["CUSTOM_REPORT_DEFAULT_DEPLOY_NAMESPACES"]
-    assert field.get_default() == {}
-    value = {"cluster-a": ["public-1", "public-2"]}
+def test_public_targets_reuse_existing_global_config():
+    field = STANDARD_CONFIGS["CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER"]
+    assert field.get_default() == []
+    value = ["cluster-a/public-1", "cluster-a/public-2", "cluster-b"]
     assert field.run_validation(value) == value
 
 
-@pytest.mark.parametrize("namespaces", [[], "public", [""], ["*"], ["a" * 64]])
-def test_global_config_rejects_invalid_public_namespaces(namespaces):
-    with pytest.raises(ValidationError):
-        STANDARD_CONFIGS["CUSTOM_REPORT_DEFAULT_DEPLOY_NAMESPACES"].run_validation({"cluster-a": namespaces})
+@pytest.mark.parametrize("targets", [[], None])
+def test_no_public_targets_keeps_business_delivery(settings, targets):
+    settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER = targets
+    assert ClusterConfig.get_deploy_mapping({"cluster-a": [1]}) == {("cluster-a", "operator-ns"): [1]}
 
 
 @pytest.mark.parametrize("namespace,expected", [(None, "operator-ns"), ("public-1", "public-1")])
@@ -183,7 +201,7 @@ def test_platform_secret_is_written_to_explicit_namespace(mocker):
 
 
 def test_application_dimension_fill_is_scoped_to_deployment(settings):
-    settings.CUSTOM_REPORT_DEFAULT_DEPLOY_NAMESPACES = {"cluster-a": ["public-1"]}
+    settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER = ["cluster-a/public-1"]
     enabled = {"1": ["app"]}
     assert ApplicationConfig.is_resource_filter_enabled("cluster-a", 1, "app", enabled, namespace="operator-ns")
     assert not ApplicationConfig.is_resource_filter_enabled("cluster-a", 1, "app", enabled, namespace="public-1")
@@ -191,7 +209,7 @@ def test_application_dimension_fill_is_scoped_to_deployment(settings):
 
 
 def test_platform_default_application_and_dimensions_keep_business_semantics(settings, mocker):
-    settings.CUSTOM_REPORT_DEFAULT_DEPLOY_NAMESPACES = {"cluster-a": ["public-1"]}
+    settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER = ["cluster-a/public-1"]
     relation = mocker.patch("apm.core.platform_config.BcsClusterDefaultApplicationRelation.objects.filter")
     relation.return_value.first.return_value = SimpleNamespace(application=object())
     mocker.patch.object(PlatformConfig, "get_dataids_config_from_application", return_value={"fixed_token": "business"})
@@ -211,7 +229,7 @@ def test_platform_default_application_and_dimensions_keep_business_semantics(set
 
 @pytest.fixture
 def multi_target_delivery(settings, mocker):
-    settings.CUSTOM_REPORT_DEFAULT_DEPLOY_NAMESPACES = {"cluster-a": ["public-1", "public-2"]}
+    settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER = ["cluster-a/public-1", "cluster-a/public-2"]
     mocker.patch.object(ClusterConfig, "get_cluster_mapping", return_value={"cluster-a": [1]})
     mocker.patch.object(BCSClusterInfo.objects, "all").return_value.only.return_value = [
         SimpleNamespace(cluster_id="cluster-a", bk_biz_id=1)
@@ -230,15 +248,14 @@ def multi_target_delivery(settings, mocker):
 
 @pytest.mark.parametrize("protocol", ["apm", "rum", "log"])
 @pytest.mark.parametrize("extra_cluster", [False, True])
+@pytest.mark.parametrize("business_public_target", [None, "cluster-a", "cluster-a/operator-ns"])
 def test_application_delivery_keeps_business_scope_and_fans_out_public_configs(
-    protocol, extra_cluster, multi_target_delivery, mocker, settings
+    protocol, extra_cluster, business_public_target, multi_target_delivery, mocker, settings
 ):
     if extra_cluster:
-        settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER = ["cluster-a", "cluster-b"]
-        settings.CUSTOM_REPORT_DEFAULT_DEPLOY_NAMESPACES = {
-            "cluster-a": ["public-1", "public-2"],
-            "cluster-b": ["public-1"],
-        }
+        settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER += ["cluster-b/public-1"]
+    if business_public_target:
+        settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER += [business_public_target]
     applications = [
         SimpleNamespace(id=biz, bk_biz_id=biz, bk_tenant_id="system", app_name=f"app-{biz}", token=f"token-{biz}")
         for biz in [1, 2]
@@ -266,7 +283,10 @@ def test_application_delivery_keeps_business_scope_and_fans_out_public_configs(
     }
     if extra_cluster:
         expected[("cluster-b", "public-1")] = {1: "public-1:1", 2: "public-1:2"}
+    if business_public_target:
+        expected[("cluster-a", "operator-ns")] = {1: "operator-ns:1", 2: "operator-ns:2"}
     assert actual == expected
+    assert multi_target_delivery.call_count == len(expected)
     assert all(call.args[2] == protocol for call in multi_target_delivery.call_args_list)
 
 
@@ -287,16 +307,23 @@ def test_platform_refresh_renders_each_target_and_continues_after_one_failure(mu
 
 
 @pytest.mark.parametrize("protocol", ["json", "prometheus"])
-def test_custom_report_global_batch_and_business_batch_are_separate(protocol, multi_target_delivery, mocker):
+@pytest.mark.parametrize("business_is_public", [False, True])
+def test_custom_report_global_batch_and_business_batch_are_separate(
+    protocol, business_is_public, multi_target_delivery, mocker, settings
+):
+    if business_is_public:
+        settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER += ["cluster-a/operator-ns"]
+    public_namespaces = ["operator-ns", "public-1", "public-2"] if business_is_public else ["public-1", "public-2"]
     clean = mocker.patch.object(ClusterConfig, "clean_dup_secrets_in_multi_protocol")
     result = CustomReportSubscription._refresh_k8s_custom_config_by_biz(0, [({"bk_data_id": 10, "biz": 1}, protocol)])
     assert result["cluster_count"] == 1
-    assert result["target_count"] == 2
-    assert [record["namespace"] for record in result["clusters"]] == ["public-1", "public-2"]
-    assert [call.kwargs["namespace"] for call in clean.call_args_list] == ["public-1", "public-2"]
+    assert result["target_count"] == len(public_namespaces)
+    assert [record["namespace"] for record in result["clusters"]] == public_namespaces
+    assert [call.kwargs["namespace"] for call in clean.call_args_list] == public_namespaces
     multi_target_delivery.reset_mock()
     result = CustomReportSubscription._refresh_k8s_custom_config_by_biz(1, [({"bk_data_id": 10, "biz": 1}, protocol)])
-    assert [record["namespace"] for record in result["clusters"]] == ["operator-ns"]
+    business_namespaces = [] if business_is_public else ["operator-ns"]
+    assert [record["namespace"] for record in result["clusters"]] == business_namespaces
 
 
 def test_failed_target_does_not_clean_or_block_other_targets(multi_target_delivery, mocker):
@@ -314,7 +341,12 @@ def test_failed_target_does_not_clean_or_block_other_targets(multi_target_delive
 
 
 def test_cleanup_command_defaults_to_public_targets_and_remains_dry_run(settings, mocker):
-    settings.CUSTOM_REPORT_DEFAULT_DEPLOY_NAMESPACES = {"cluster-a": ["public-1", "public-2"]}
+    settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER = [
+        "cluster-a/public-1",
+        "cluster-a/public-2",
+        "cluster-b/public-1",
+        "cluster-a/public-1",
+    ]
     command = Command()
     mocker.patch.object(
         command,
@@ -334,11 +366,24 @@ def test_cleanup_command_defaults_to_public_targets_and_remains_dry_run(settings
     )
     clean = mocker.patch.object(ClusterConfig, "clean_sub_configs", return_value=[])
     command.handle(bk_tenant_id="system", type="all", execute=False)
-    assert [call.kwargs["namespace"] for call in clean.call_args_list] == ["public-1", "public-2"]
+    assert [(call.kwargs["cluster_id"], call.kwargs["namespace"]) for call in clean.call_args_list] == [
+        ("cluster-a", "public-1"),
+        ("cluster-a", "public-2"),
+        ("cluster-b", "public-1"),
+    ]
     assert all(call.kwargs["dry_run"] for call in clean.call_args_list)
+    clean.reset_mock()
+    command.handle(bk_tenant_id="system", type="all", execute=False, cluster_id=["cluster-a"])
+    assert [call.kwargs["namespace"] for call in clean.call_args_list] == ["public-1", "public-2"]
     clean.reset_mock()
     command.handle(bk_tenant_id="system", type="all", execute=False, cluster_id=["cluster-a"], namespace="old-public")
     assert clean.call_args.kwargs["namespace"] == "old-public"
+
+
+def test_cleanup_invalid_public_target_is_a_command_error(settings):
+    settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER = ["cluster-a/"]
+    with pytest.raises(CommandError):
+        Command().handle(bk_tenant_id="system", type="all", execute=False)
 
 
 @pytest.mark.parametrize("cluster_ids", [[], ["cluster-a", "cluster-b"]])

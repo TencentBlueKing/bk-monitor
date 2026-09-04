@@ -615,16 +615,12 @@ STANDARD_CONFIGS = OrderedDict(
         ("IS_AUTO_DEPLOY_CUSTOM_REPORT_SERVER", slz.BooleanField(label=_("是否自动部署自定义上报服务"), default=True)),
         ("CUSTOM_REPORT_DEFAULT_PROXY_IP", slz.ListField(label=_("自定义上报默认服务器"), default=[])),
         ("CUSTOM_REPORT_DEFAULT_PROXY_DOMAIN", slz.ListField(label=_("自定义上报默认服务器(域名显示)"), default=[])),
-        ("CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER", slz.ListField(label=_("自定义上报默认部署K8S集群"), default=[])),
         (
-            "CUSTOM_REPORT_DEFAULT_DEPLOY_NAMESPACES",
-            slz.DictField(
-                label=_("公共 collector 下发命名空间"),
-                child=slz.ListField(
-                    child=slz.RegexField(r"^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$", max_length=63),
-                    allow_empty=False,
-                ),
-                default={},
+            "CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER",
+            slz.ListField(
+                label=_("自定义上报默认部署K8S集群"),
+                help_text=_("公共下发目标列表，格式为集群ID/namespace；兼容纯集群ID，使用原默认namespace"),
+                default=[],
             ),
         ),
         (

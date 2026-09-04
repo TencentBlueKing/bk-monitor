@@ -10,7 +10,6 @@ specific language governing permissions and limitations under the License.
 
 from collections import defaultdict
 
-from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
 
 from bkmonitor.utils.bk_collector_config import BkCollectorClusterConfig
@@ -68,11 +67,11 @@ class Command(BaseCommand):
         bk_biz_id = options.get("bk_biz_id")
         bk_data_ids = set(options.get("bk_data_id") or [])
         clean_type = options["type"]
-        cluster_ids = self._get_target_cluster_ids(options.get("cluster_id") or [])
         namespace = options.get("namespace")
         if namespace is not None and len(set(options.get("cluster_id") or [])) != 1:
             raise CommandError("--namespace requires exactly one explicit --cluster-id")
         try:
+            cluster_ids = self._get_target_cluster_ids(options.get("cluster_id") or [])
             if namespace is not None:
                 BkCollectorClusterConfig.validate_namespace(namespace)
                 targets = [(cluster_id, namespace) for cluster_id in sorted(cluster_ids)]
@@ -161,7 +160,7 @@ class Command(BaseCommand):
     def _get_target_cluster_ids(self, input_cluster_ids: list[str]) -> set[str]:
         if input_cluster_ids:
             return set(input_cluster_ids)
-        return set(settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER or [])
+        return {cluster_id for cluster_id, _ in BkCollectorClusterConfig.global_deploy_targets()}
 
     def _get_disabled_configs(
         self,

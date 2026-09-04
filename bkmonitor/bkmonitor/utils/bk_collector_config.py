@@ -154,20 +154,23 @@ class BkCollectorClusterConfig:
 
     @classmethod
     def global_deploy_targets(cls) -> list[tuple[str, str]]:
-        """公共部署目标；未配置新映射时保留原有单 namespace 行为。"""
-        namespace_mapping = settings.CUSTOM_REPORT_DEFAULT_DEPLOY_NAMESPACES
-        if not isinstance(namespace_mapping, dict):
-            raise ValueError("CUSTOM_REPORT_DEFAULT_DEPLOY_NAMESPACES must be a dict")
+        """解析公共集群ID/namespace列表；兼容纯集群ID使用原默认 namespace。"""
+        configured_targets = settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER
+        if configured_targets is None:
+            return []
+        if not isinstance(configured_targets, list):
+            raise ValueError("CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER must be a list")
         targets = {}
-        for cluster_id in settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER or []:
-            if not isinstance(cluster_id, str) or not cluster_id.strip():
-                raise ValueError("public collector cluster_id must be a non-empty string")
-            namespaces = namespace_mapping.get(cluster_id, [cls.bk_collector_namespace(cluster_id)])
-            if not isinstance(namespaces, list) or not namespaces:
-                raise ValueError(f"public collector namespaces for {cluster_id} must be a non-empty list")
-            for namespace in namespaces:
-                cls.validate_namespace(namespace)
-                targets[(cluster_id, namespace)] = None
+        for target in configured_targets:
+            if not isinstance(target, str):
+                raise ValueError("public collector target must be a cluster_id/namespace string")
+            cluster_id, separator, namespace = target.partition("/")
+            if not re.fullmatch(r"[^/\s]+", cluster_id):
+                raise ValueError(f"invalid public collector cluster_id: {cluster_id!r}")
+            if not separator:
+                namespace = cls.bk_collector_namespace(cluster_id)
+            cls.validate_namespace(namespace)
+            targets[(cluster_id, namespace)] = None
         return list(targets)
 
     @staticmethod
