@@ -142,6 +142,7 @@ export default defineComponent({
             )}
           </div>
           <HostListTable
+            columnWidths={ctx.fieldsWidthConfig.value}
             data={ctx.pagedRows.value}
             emptyType={ctx.rawRowCount.value > 0 && ctx.total.value === 0 ? 'search-empty' : 'empty'}
             markValue={ctx.stickyValue.value}
@@ -156,6 +157,7 @@ export default defineComponent({
             total={ctx.total.value}
             visibleColumns={ctx.visibleColumns.value}
             onClearFilter={ctx.handleClearFilter}
+            onColumnResize={(widths: Record<string, number>) => (ctx.fieldsWidthConfig.value = widths)}
             onColumnsChange={ctx.handleColumnsChange}
             onHeaderSelect={ctx.handleHeaderSelect}
             onIpMark={ctx.handleIpMark}
