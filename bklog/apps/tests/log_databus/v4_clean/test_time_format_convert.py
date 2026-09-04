@@ -5,6 +5,7 @@
 """
 from unittest import TestCase
 
+from apps.log_databus.constants import DORIS_CLUSTER_TYPE
 from apps.log_databus.handlers.etl_storage.base import EtlStorage
 
 
@@ -88,3 +89,28 @@ class TestConvertV3ToV4TimeFormat(TestCase):
         """空字符串应回退到默认"""
         result = EtlStorage._convert_v3_to_v4_time_format("")
         self.assertEqual(result["from"]["format"], "%Y-%m-%d %H:%M:%S")
+
+    def test_doris_known_format_returns_flat_structure(self):
+        """doris 使用扁平的 time_format 结构，不含 ES 的 in_place_time_parsing 键"""
+        for v3_fmt, expected_format, expected_zone in self.TIME_FORMAT_CASES:
+            with self.subTest(v3_format=v3_fmt):
+                result = EtlStorage._convert_v3_to_v4_time_format(
+                    v3_fmt, storage_cluster_type=DORIS_CLUSTER_TYPE
+                )
+                self.assertEqual(result, {"format": expected_format, "zone": expected_zone})
+
+    def test_doris_unknown_format_fallback_returns_flat_structure(self):
+        """未知格式在 doris 下同样回退为扁平结构，不能落回 ES 形态"""
+        for unknown_fmt in ("xyz_unknown_format", ""):
+            with self.subTest(v3_format=unknown_fmt):
+                result = EtlStorage._convert_v3_to_v4_time_format(
+                    unknown_fmt, storage_cluster_type=DORIS_CLUSTER_TYPE
+                )
+                self.assertEqual(result, {"format": "%Y-%m-%d %H:%M:%S", "zone": 0})
+
+    def test_doris_unknown_format_fallback_respects_time_zone(self):
+        """未知格式回退时用户配置的时区仍然生效"""
+        result = EtlStorage._convert_v3_to_v4_time_format(
+            "xyz_unknown_format", time_zone=8, storage_cluster_type=DORIS_CLUSTER_TYPE
+        )
+        self.assertEqual(result, {"format": "%Y-%m-%d %H:%M:%S", "zone": 8})
