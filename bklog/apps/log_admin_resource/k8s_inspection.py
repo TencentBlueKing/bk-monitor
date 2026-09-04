@@ -125,6 +125,65 @@ def safe_spec_projection(spec: dict[str, Any]) -> dict[str, Any]:
     return result
 
 
+@dataclass(frozen=True)
+class CrdSpecSchemaEvidence:
+    declared_fields: frozenset[str] | None
+    preserves_unknown_fields: bool
+    source: str | None
+    storage_version: str | None
+    unreadable_reason: str | None
+
+
+def _crd_spec_schema_evidence(crd: dict[str, Any] | None) -> CrdSpecSchemaEvidence:
+    """Read the effective spec schema and explain why it is unavailable when it cannot be read."""
+    if not isinstance(crd, dict) or not isinstance(crd.get("spec"), dict) or not crd["spec"]:
+        return CrdSpecSchemaEvidence(None, False, None, None, "crd_spec_missing")
+
+    crd_spec = crd["spec"]
+    preserve_unknown = bool(crd_spec.get("preserveUnknownFields") or crd_spec.get("preserve_unknown_fields"))
+    schema = None
+    source = None
+    storage_version = None
+    for version in crd_spec.get("versions") or []:
+        if not isinstance(version, dict) or not version.get("storage"):
+            continue
+        storage_version = str(version.get("name") or "") or None
+        holder = version.get("schema") or {}
+        # The typed Kubernetes client exposes snake_case attributes while a raw dict keeps the
+        # apiserver's camelCase, and object_to_dict passes either through untouched.
+        schema = holder.get("openAPIV3Schema") or holder.get("open_apiv3_schema") or holder.get("open_api_v3_schema")
+        if isinstance(schema, dict):
+            source = "storage_version"
+        break
+    if not isinstance(schema, dict):
+        # apiextensions/v1beta1 stores one shared schema under spec.validation instead of
+        # versions[].schema. The current transport uses the v1 API, but accepting the legacy
+        # shape keeps exported CRD evidence and older clients diagnosable as well.
+        holder = crd_spec.get("validation") or {}
+        schema = holder.get("openAPIV3Schema") or holder.get("open_apiv3_schema") or holder.get("open_api_v3_schema")
+        if isinstance(schema, dict):
+            source = "legacy_validation"
+    if not isinstance(schema, dict):
+        reason = (
+            "storage_version_not_found" if crd_spec.get("versions") and storage_version is None else "schema_missing"
+        )
+        return CrdSpecSchemaEvidence(None, preserve_unknown, None, storage_version, reason)
+    properties = schema.get("properties")
+    if not isinstance(properties, dict):
+        return CrdSpecSchemaEvidence(None, preserve_unknown, source, storage_version, "root_properties_missing")
+    spec_schema = properties.get("spec")
+    if not isinstance(spec_schema, dict):
+        return CrdSpecSchemaEvidence(None, preserve_unknown, source, storage_version, "spec_schema_missing")
+    preserve_unknown = preserve_unknown or bool(
+        spec_schema.get("x-kubernetes-preserve-unknown-fields")
+        or spec_schema.get("x_kubernetes_preserve_unknown_fields")
+    )
+    properties = spec_schema.get("properties")
+    if not isinstance(properties, dict):
+        return CrdSpecSchemaEvidence(None, preserve_unknown, source, storage_version, "spec_properties_missing")
+    return CrdSpecSchemaEvidence(frozenset(properties), preserve_unknown, source, storage_version, None)
+
+
 def crd_spec_schema(crd: dict[str, Any] | None) -> tuple[frozenset[str] | None, bool]:
     """Read which spec fields the cluster's CRD actually declares, and whether it keeps the rest.
 
@@ -132,28 +191,8 @@ def crd_spec_schema(crd: dict[str, Any] | None) -> tuple[frozenset[str] | None, 
     about pruning in that case: an unreadable schema and a schema that genuinely omits fields
     look identical from the outside but mean opposite things.
     """
-    schema = None
-    for version in ((crd or {}).get("spec") or {}).get("versions") or []:
-        if not isinstance(version, dict) or not version.get("storage"):
-            continue
-        holder = version.get("schema") or {}
-        # The typed Kubernetes client exposes snake_case attributes while a raw dict keeps the
-        # apiserver's camelCase, and object_to_dict passes either through untouched.
-        schema = holder.get("openAPIV3Schema") or holder.get("open_api_v3_schema")
-        break
-    if not isinstance(schema, dict):
-        return None, False
-    spec_schema = (schema.get("properties") or {}).get("spec")
-    if not isinstance(spec_schema, dict):
-        return None, False
-    preserve_unknown = bool(
-        spec_schema.get("x-kubernetes-preserve-unknown-fields")
-        or spec_schema.get("x_kubernetes_preserve_unknown_fields")
-    )
-    properties = spec_schema.get("properties")
-    if not isinstance(properties, dict):
-        return None, preserve_unknown
-    return frozenset(properties), preserve_unknown
+    evidence = _crd_spec_schema_evidence(crd)
+    return evidence.declared_fields, evidence.preserves_unknown_fields
 
 
 def _top_level_field(path: str) -> str | None:
@@ -223,7 +262,9 @@ def desired_config_evidence(
         for item in actual_items
         if isinstance(item, dict) and (item.get("metadata") or {}).get("name")
     }
-    declared_fields, preserve_unknown = crd_spec_schema(crd)
+    schema_evidence = _crd_spec_schema_evidence(crd)
+    declared_fields = schema_evidence.declared_fields
+    preserve_unknown = schema_evidence.preserves_unknown_fields
     rows = []
     required_bk_envs = set()
     for item in expected:
@@ -272,6 +313,9 @@ def desired_config_evidence(
         "crd_schema": {
             "readable": declared_fields is not None,
             "preserves_unknown_fields": preserve_unknown,
+            "source": schema_evidence.source,
+            "storage_version": schema_evidence.storage_version,
+            "unreadable_reason": schema_evidence.unreadable_reason,
             # Taken from the specs the platform is about to send rather than a hand-kept list,
             # so a field added to the delivery side is covered here the day it ships.
             "unsupported_platform_fields": sorted({key for item in expected for key in item["spec"]} - declared_fields)
