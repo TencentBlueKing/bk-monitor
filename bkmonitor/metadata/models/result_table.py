@@ -1739,7 +1739,18 @@ class ResultTable(models.Model):
                 switched,
             )
 
-        # 异步执行时，需要在commit之后，以保证所有操作都提交
+        # 如果结果表启用，则刷新清洗配置
+        if self.is_enable:
+            self.apply_datalink(force_update=force_update_datalink)
+        else:
+            try:
+                self.delete_datalink()
+            except Exception as e:  # pylint: disable=broad-except
+                logger.error("delete datalink error, table_id: %s, %s", self.table_id, e)
+
+        # Graph V4 的 SurrealDB Binding 在 apply_datalink 中创建；路由必须在
+        # 链路配置完成后刷新，否则首次接入会把空 namespace 写入 Redis。
+        # 异步执行时，需要在 commit 之后，以保证所有操作都提交。
         try:
             from metadata.models.space.utils import get_space_by_table_id
             from metadata.task.tasks import push_and_publish_space_router
@@ -1758,15 +1769,6 @@ class ResultTable(models.Model):
                     )
         except Exception as e:  # pylint: disable=broad-except
             logger.error("push and publish redis error, table_id: %s, %s", self.table_id, e)
-
-        # 如果结果表启用，则刷新清洗配置
-        if self.is_enable:
-            self.apply_datalink(force_update=force_update_datalink)
-        else:
-            try:
-                self.delete_datalink()
-            except Exception as e:  # pylint: disable=broad-except
-                logger.error("delete datalink error, table_id: %s, %s", self.table_id, e)
 
         logger.info("table_id->[%s] of bk_tenant_id->[%s] updated success.", self.table_id, self.bk_tenant_id)
 
