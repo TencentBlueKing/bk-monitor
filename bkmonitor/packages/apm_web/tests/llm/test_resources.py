@@ -751,6 +751,36 @@ class CalculateByRangeResourceTestCase(TestCase):
             delta=0.01,
         )
 
+    def test_documented_input_tokens_example_matches_mock(self):
+        result = CalculateByRangeResource().request(
+            {
+                "bk_biz_id": 11,
+                "app_name": "sand_local_dev",
+                "service_name": "sand_local_dev",
+                "start_time": 1788364800,
+                "end_time": 1788368400,
+                "cal_type": "input_tokens",
+                "group_by": [],
+                "baseline": "0s",
+                "time_shifts": ["0s", "1d"],
+            }
+        )
+
+        self.assertEqual(
+            result,
+            {
+                "total": 1,
+                "data": [
+                    {
+                        "dimensions": {},
+                        "0s": 72130,
+                        "1d": 70990,
+                        "growth_rates": {"0s": 0, "1d": 1.6},
+                    }
+                ],
+            },
+        )
+
     def test_duration_mock_groups_by_model(self):
         result = CalculateByRangeResource().request(
             {
