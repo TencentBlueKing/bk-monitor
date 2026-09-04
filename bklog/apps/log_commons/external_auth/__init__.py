@@ -36,6 +36,7 @@ from apps.log_commons.external_auth.decision import (
     SourceResult,
     empty_resources_result,
 )
+from apps.log_commons.external_auth.execution import SELF_EXECUTED_SOURCES, resolve_execution_user
 from apps.log_commons.external_auth.pipeline import HARD_CONSTRAINTS, authorize, combine_or
 from apps.log_commons.external_auth.space_access import (
     SPACE_ACCESS_SOURCES,
@@ -61,10 +62,12 @@ __all__ = [
     "ExternalRequestContext",
     "HardConstraint",
     "IdentityContext",
+    "SELF_EXECUTED_SOURCES",
     "SourceResult",
     "SpaceAccessSource",
     "authorize",
     "combine_or",
+    "resolve_execution_user",
     "empty_resources_result",
     "get_capability",
     "has_space_access",

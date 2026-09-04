@@ -121,7 +121,7 @@ class ProxyIdentitySeparationTest(TestCase):
             expire_time=timezone.now() + timedelta(days=30),
         )
 
-    def _call_proxy(self, captured, capability=None):
+    def _call_proxy(self, captured, capability=None, authorizer=AUTHORIZER):
         def wrapped_resolve(path, urlconf=None):
             match = real_resolve(path, urlconf=urlconf)
 
@@ -144,7 +144,7 @@ class ProxyIdentitySeparationTest(TestCase):
         patches = [
             patch("log_adapter.home.views.resolve", side_effect=wrapped_resolve),
             patch("log_adapter.home.views.ExternalAuditRecorder", RecordingRecorder),
-            patch("log_adapter.home.views.AuthorizerSettings.get_authorizer", return_value=AUTHORIZER),
+            patch("log_adapter.home.views.AuthorizerSettings.get_authorizer", return_value=authorizer),
             patch("log_adapter.home.views.auth.authenticate", side_effect=fake_authenticate),
             patch("log_adapter.home.views.auth.login", side_effect=fake_login),
         ]
@@ -161,7 +161,7 @@ class ProxyIdentitySeparationTest(TestCase):
                 HTTP_USER=json.dumps({"username": EXTERNAL_USER}),
             )
 
-    def test_execution_uses_the_authorizer_while_audit_records_the_external_user(self):
+    def test_legacy_only_execution_uses_the_authorizer_while_audit_records_the_external_user(self):
         captured = {}
 
         response = self._call_proxy(captured)
@@ -175,7 +175,7 @@ class ProxyIdentitySeparationTest(TestCase):
         self.assertEqual(recorder.authorizer, AUTHORIZER)
 
     def test_auth_sources_receive_the_external_user_as_authorization_subject(self):
-        """新侧接入后判权主体必须仍是外部用户，而不是即将登录的内部授权人。"""
+        """判权发生在 login 之前：来源看到的执行身份仍是空的，真正 login 的人由决策解析。"""
         source = SubjectCapturingSource()
         captured = {}
 
@@ -185,8 +185,18 @@ class ProxyIdentitySeparationTest(TestCase):
         self.assertEqual(len(source.identities), 1)
         identity = source.identities[0]
         self.assertEqual(identity.authorization_subject, EXTERNAL_USER)
-        self.assertEqual(identity.execution_user, AUTHORIZER)
+        self.assertEqual(identity.execution_user, "")
         self.assertEqual(identity.audit_user, EXTERNAL_USER)
         self.assertEqual(identity.bk_tenant_id, "system")
-        # 判权发生在 login 之前，此刻请求还没有被换成授权人
-        self.assertEqual(captured["execution_user"], AUTHORIZER)
+        self.assertEqual(captured["authenticated_username"], EXTERNAL_USER)
+        self.assertEqual(captured["execution_user"], EXTERNAL_USER)
+
+    def test_iam_source_without_authorizer_logs_in_the_external_user(self):
+        source = SubjectCapturingSource()
+        captured = {}
+
+        response = self._call_proxy(captured, capability=Capability(action_id="", sources=(source,)), authorizer="")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(captured["authenticated_username"], EXTERNAL_USER)
+        self.assertEqual(captured["execution_user"], EXTERNAL_USER)

@@ -273,6 +273,35 @@ class LegacyTicketSourceTest(TestCase):
         self.assertTrue(decision.allowed)
         self.assertEqual(decision.matched_action_id, ExternalPermissionActionEnum.LOG_SEARCH.value)
 
+    def test_clustering_ticket_does_not_imply_log_search(self):
+        self._create_ticket(ExternalPermissionActionEnum.LOG_CLUSTERING.value, [ALLOWED_INDEX_SET_ID])
+
+        decision = authorize(build_context(url_kwargs={"index_set_id": ALLOWED_INDEX_SET_ID}))
+
+        self.assertFalse(decision.allowed)
+        self.assertEqual(
+            decision.reject_reason,
+            f"external_user:{EXTERNAL_USER} has not enough permission.",
+        )
+
+    def test_clustering_settings_require_both_tickets_on_the_same_index_set(self):
+        self._create_ticket(ExternalPermissionActionEnum.LOG_CLUSTERING.value, [ALLOWED_INDEX_SET_ID])
+        ctx = build_context(
+            view_set="ClusteringConfigViewSet",
+            view_action="update_access",
+            declared_action_id=ExternalPermissionActionEnum.LOG_CLUSTERING.value,
+            url_kwargs={"index_set_id": ALLOWED_INDEX_SET_ID},
+        )
+
+        denied = authorize(ctx)
+        self.assertFalse(denied.allowed)
+        self.assertIn("cannot access clustering settings", denied.reject_reason)
+
+        self._create_ticket(ExternalPermissionActionEnum.LOG_SEARCH.value, [ALLOWED_INDEX_SET_ID])
+        allowed = authorize(ctx)
+        self.assertTrue(allowed.allowed)
+        self.assertEqual(allowed.matched_action_id, ExternalPermissionActionEnum.LOG_CLUSTERING.value)
+
     def test_capability_without_resource_scope_allows_without_resource_check(self):
         """log_common 授权项没有资源维度，get_resources 返回 allowed=False，此时直接放行。"""
         self._create_ticket(ExternalPermissionActionEnum.LOG_COMMON.value, [])
@@ -342,3 +371,10 @@ class ResolveResourceTest(SimpleTestCase):
 
     def test_capabilities_without_instance_scope_have_no_resource(self):
         self.assertIsNone(resolve_resource(ExternalPermissionActionEnum.LOG_EXTRACT.value, {"index_set_id": "1"}, ""))
+
+    def test_clustering_action_resolves_index_set_id(self):
+        resource_id = resolve_resource(
+            ExternalPermissionActionEnum.LOG_CLUSTERING.value, {"index_set_id": "628108"}, ""
+        )
+
+        self.assertEqual(resource_id, ALLOWED_INDEX_SET_ID)

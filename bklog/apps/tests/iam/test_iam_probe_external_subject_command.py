@@ -25,6 +25,7 @@ from types import SimpleNamespace
 from unittest.mock import Mock, PropertyMock, patch
 
 from django.conf import settings
+from django.contrib.auth import get_user_model
 from django.core.management import call_command
 from django.core.management.base import CommandError
 from django.test import TestCase, override_settings
@@ -202,6 +203,13 @@ class IamProbeExternalSubjectCommandTest(TestCase):
 
         self.router.is_allowed.assert_not_called()
 
+    def test_probe_requires_action_or_django_user_flag(self):
+        with self.assertRaises(CommandError) as ctx:
+            self.run_command("--username", EXTERNAL_USER)
+
+        self.assertIn("--check-django-user", str(ctx.exception))
+        self.router.is_allowed.assert_not_called()
+
     def test_probe_fails_loudly_when_the_explicit_identity_is_not_honoured(self):
         """判权主体被换掉时必须报错，否则探测出来的是另一个人的权限。"""
         with patch(
@@ -244,3 +252,45 @@ class IamProbeExternalSubjectCommandTest(TestCase):
         )
 
         self.assertIn("IGNORE_IAM_PERMISSION is on", output)
+
+    def test_django_user_probe_reports_missing_user_without_writing(self):
+        user_model = get_user_model()
+        before = user_model.objects.count()
+
+        output = self.run_command("--username", EXTERNAL_USER, "--check-django-user", "--json")
+
+        summary = json.loads(output.strip().splitlines()[-1])
+        self.assertFalse(summary["django_user"]["exists"])
+        self.assertIsNone(summary["django_user"]["is_superuser"])
+        self.assertFalse(summary["django_user"]["authenticate_called"])
+        self.assertTrue(summary["django_user"]["authenticate_creates_user"])
+        self.assertIn(
+            "apps.middleware.api_token_middleware.ApiTokenAuthBackend", summary["django_user"]["authenticate_backend"]
+        )
+        self.assertIn("not called", output)
+        self.assertEqual(user_model.objects.count(), before)
+        self.router.is_allowed.assert_not_called()
+
+    def test_django_user_probe_warns_when_an_internal_admin_already_exists(self):
+        user_model = get_user_model()
+        user_model.objects.create(username=EXTERNAL_USER, is_superuser=True, is_staff=True)
+        before = user_model.objects.count()
+
+        output = self.run_command("--username", EXTERNAL_USER, "--check-django-user", "--json")
+
+        summary = json.loads(output.strip().splitlines()[-1])
+        self.assertTrue(summary["django_user"]["exists"])
+        self.assertTrue(summary["django_user"]["is_superuser"])
+        self.assertTrue(summary["django_user"]["is_staff"])
+        self.assertFalse(summary["django_user"]["authenticate_called"])
+        self.assertIn("would reuse this User record", output)
+        self.assertEqual(user_model.objects.count(), before)
+        self.router.is_allowed.assert_not_called()
+
+    @override_settings(AUTHENTICATION_BACKENDS=("apps.middleware.apigw.UserModelBackend",))
+    def test_django_user_probe_skips_backends_that_do_not_accept_username(self):
+        output = self.run_command("--username", EXTERNAL_USER, "--check-django-user", "--json")
+
+        summary = json.loads(output.strip().splitlines()[-1])
+        self.assertEqual(summary["django_user"]["authenticate_backend"], "")
+        self.assertFalse(summary["django_user"]["authenticate_creates_user"])

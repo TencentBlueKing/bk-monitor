@@ -19,7 +19,7 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Any
 
 from apps.iam import Permission
@@ -32,7 +32,7 @@ class IdentityContext:
 
     这三者在 PO 场景下不是同一个人，混用任意两个都会造成越权或审计失真：
     - authorization_subject：判权主体，外部用户本人；
-    - execution_user：下游视图实际执行的内部授权人，代理仍以它登录；
+    - execution_user：下游视图实际 login 的人，由 resolve_execution_user 在决策后解析；
     - audit_user：审计留痕对象，必须是外部用户，否则查不到真实操作人。
 
     bk_tenant_id 是必填字段而不是让调用方各自补：apps.iam.handlers.permission.Permission
@@ -58,6 +58,10 @@ class IdentityContext:
             audit_user=external_user,
             bk_tenant_id=bk_tenant_id or get_request_tenant_id(),
         )
+
+    def with_execution_user(self, execution_user: str) -> "IdentityContext":
+        """决策后再写入执行身份。构造期的 authorizer 只是占位，不能当成最终契约。"""
+        return replace(self, execution_user=execution_user)
 
     def permission_for_subject(self) -> Permission:
         """构造以判权主体发起的权限中心客户端。

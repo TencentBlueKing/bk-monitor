@@ -34,9 +34,12 @@ from apps.log_commons.external_auth import (
     IdentityContext,
     authorize,
     has_space_access,
+    is_default_allowed,
     list_authorized_space_actions,
     list_authorized_space_uids,
     resolve_declared_action_id,
+    resolve_execution_user,
+    resolve_resource,
 )
 from apps.log_commons.models import AuthorizerSettings, ExternalPermissionApplyRecord
 from apps.utils.db import get_toggle_data
@@ -123,6 +126,19 @@ class RequestProcessor:
         if hasattr(view_func, "actions"):
             return view_func.actions.get(method, "")
         return ""
+
+    @classmethod
+    def get_resource(cls, action_id: str, kwargs: dict[str, Any], json_data_str: str):
+        """兼容旧调用点：资源解析已迁到 view_mapping.resolve_resource。"""
+        return resolve_resource(action_id, kwargs, json_data_str)
+
+    @classmethod
+    def is_default_allowed(cls, view_set: str, view_action: str):
+        return is_default_allowed(view_set, view_action)
+
+    @classmethod
+    def get_action_id(cls, view_set: str, view_action: str) -> str:
+        return resolve_declared_action_id(view_set=view_set, view_action=view_action)
 
     @classmethod
     def filter_response_resource(
@@ -321,8 +337,8 @@ def dispatch_external_proxy(request):
         view_action = RequestProcessor.get_view_action(view_func=view_func, method=method.lower())
         external_user_info = RequestProcessor.get_request_user_info(request)
         external_user = external_user_info.get("username", "")
-        # 判权用外部用户、执行用内部授权人、审计记外部用户，三者从这里开始就分开取
-        identity = IdentityContext.for_external_request(external_user=external_user, authorizer=authorizer or "")
+        # 判权和审计用外部用户；执行身份等决策出来后再解析，这里先不写死授权人
+        identity = IdentityContext.for_external_request(external_user=external_user, authorizer="")
         audit_recorder.external_user = identity.audit_user
         audit_recorder.view_set = view_set
         audit_recorder.view_action = view_action
@@ -348,10 +364,11 @@ def dispatch_external_proxy(request):
         # 命中的授权项，默认放行的接口没有授权项，保持为空
         action_id = decision.matched_action_id
         allow_resources_result = decision.allow_resources_result
+        identity = identity.with_execution_user(resolve_execution_user(decision, identity, authorizer or ""))
 
         setattr(fake_request, "space_uid", space_uid)
         setattr(request, "space_uid", space_uid)
-        # 鉴权已经用外部用户判完，这里才把请求登录成内部授权人去执行下游视图
+        # 换人登录，不是跳过登录：下游 Permission() 与 DRF 都从 request.user 取主体
         if identity.execution_user:
             user = auth.authenticate(username=identity.execution_user)
             auth.login(request, user)
