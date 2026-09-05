@@ -3,6 +3,7 @@ from unittest import TestCase, mock
 from apm_web.llm.resources import (
     AGENT_CANDIDATE_QUERY,
     CalculateByRangeResource,
+    ListFlowsResource,
     ListSpansResource,
     ListTracesResource,
     MOCK_TIME_SERIES_MAX_POINTS,
@@ -582,6 +583,205 @@ class ListSpansResourceTestCase(TestCase):
                 "exclude_field": ["bk_app_code"],
             }
         )
+
+    def test_filters_by_trace_and_span_id(self):
+        response = {"total": 1, "data": [{"trace_id": "trace-1", "span_id": "span-1"}]}
+
+        with (
+            mock.patch("core.drf_resource.api.apm_api.query_span_list", return_value=response) as query_span_list,
+            mock.patch("apm_web.llm.resources.adapt_spans", return_value=response["data"]),
+        ):
+            result = ListSpansResource().request(
+                {
+                    "bk_biz_id": 11,
+                    "app_name": "sand_local_dev",
+                    "trace_id": "trace-1",
+                    "span_id": "span-1",
+                }
+            )
+
+        self.assertEqual(result["total"], 1)
+        query_span_list.assert_called_once_with(
+            {
+                "bk_biz_id": 11,
+                "app_name": "sand_local_dev",
+                "filters": [
+                    {"key": "trace_id", "operator": "equal", "value": ["trace-1"]},
+                    {"key": "span_id", "operator": "equal", "value": ["span-1"]},
+                ],
+                "limit": 10000,
+                "exclude_field": ["bk_app_code"],
+            }
+        )
+
+    def test_allows_span_id_without_trace_id(self):
+        response = {"total": 1, "data": [{"trace_id": "trace-1", "span_id": "span-1"}]}
+
+        with (
+            mock.patch("core.drf_resource.api.apm_api.query_span_list", return_value=response) as query_span_list,
+            mock.patch("apm_web.llm.resources.adapt_spans", return_value=response["data"]),
+        ):
+            result = ListSpansResource().request(
+                {
+                    "bk_biz_id": 11,
+                    "app_name": "sand_local_dev",
+                    "span_id": "span-1",
+                }
+            )
+
+        self.assertEqual(result, {"trace_id": "trace-1", "total": 1, "spans": response["data"]})
+        query_span_list.assert_called_once_with(
+            {
+                "bk_biz_id": 11,
+                "app_name": "sand_local_dev",
+                "filters": [{"key": "span_id", "operator": "equal", "value": ["span-1"]}],
+                "limit": 10000,
+                "exclude_field": ["bk_app_code"],
+            }
+        )
+
+    def test_requires_trace_id_or_span_id(self):
+        serializer = ListSpansResource.RequestSerializer(
+            data={
+                "bk_biz_id": 11,
+                "app_name": "sand_local_dev",
+            }
+        )
+
+        self.assertFalse(serializer.is_valid())
+        self.assertIn("non_field_errors", serializer.errors)
+
+
+class ListFlowsResourceTestCase(TestCase):
+    def test_build_flow_links_span_to_nearest_gen_ai_ancestor(self):
+        raw_spans = [
+            {
+                "trace_id": "trace-1",
+                "span_id": "agent",
+                "parent_span_id": "",
+                "start_time": 100,
+            },
+            {
+                "trace_id": "trace-1",
+                "span_id": "framework",
+                "parent_span_id": "agent",
+                "start_time": 110,
+            },
+            {
+                "trace_id": "trace-1",
+                "span_id": "tool",
+                "parent_span_id": "framework",
+                "start_time": 120,
+            },
+        ]
+
+        flow = ListFlowsResource._build_flow(raw_spans, [raw_spans[0], raw_spans[2]])
+
+        self.assertEqual([span["span_id"] for span in flow], ["agent"])
+        self.assertEqual([span["span_id"] for span in flow[0]["childs"]], ["tool"])
+        self.assertEqual(flow[0]["childs"][0]["parent_span_id"], "framework")
+
+    def test_builds_span_tree_for_each_trace(self):
+        group_field = "attributes.gen_ai.conversation.id"
+        application = mock.Mock()
+        data_sources = [mock.sentinel.data_source]
+        application.build_data_sources.return_value = data_sources
+        span_query = mock.Mock()
+        span_query.query_group_trace_list.return_value = [
+            {group_field: "conversation-1", "trace_id": "trace-1"},
+            {group_field: "conversation-1", "trace_id": "trace-2"},
+        ]
+        spans = [
+            {
+                "trace_id": "trace-1",
+                "span_id": "root-1",
+                "parent_span_id": "",
+                "start_time": 100,
+                "attributes": {"gen_ai.operation.name": "invoke_agent"},
+            },
+            {
+                "trace_id": "trace-1",
+                "span_id": "child-1",
+                "parent_span_id": "root-1",
+                "start_time": 110,
+                "attributes": {"gen_ai.operation.name": "chat"},
+            },
+            {
+                "trace_id": "trace-2",
+                "span_id": "root-2",
+                "parent_span_id": "external-parent",
+                "start_time": 200,
+                "attributes": {"gen_ai.operation.name": "invoke_agent"},
+            },
+        ]
+        span_query.query_by_group_ids.return_value = spans
+
+        with (
+            mock.patch("apm_web.llm.resources.Application.objects.get", return_value=application) as get_application,
+            mock.patch("apm_web.llm.resources.get_query", return_value=span_query) as get_query,
+            mock.patch("apm_web.llm.resources.adapt_spans", side_effect=lambda raw_spans: raw_spans) as adapt_spans,
+        ):
+            result = ListFlowsResource().request(
+                {
+                    "bk_biz_id": 11,
+                    "app_name": "sand_local_dev",
+                    "group_field": group_field,
+                    "group_id": "conversation-1",
+                }
+            )
+
+        self.assertEqual(result["group_field"], group_field)
+        self.assertEqual(result["group_id"], "conversation-1")
+        self.assertEqual([trace["trace_id"] for trace in result["traces"]], ["trace-1", "trace-2"])
+        self.assertEqual(result["traces"][0]["flow"][0]["span_id"], "root-1")
+        self.assertEqual(result["traces"][0]["flow"][0]["childs"][0]["span_id"], "child-1")
+        self.assertEqual(result["traces"][0]["flow"][0]["childs"][0]["parent_span_id"], "root-1")
+        self.assertEqual(result["traces"][1]["flow"][0]["span_id"], "root-2")
+        self.assertEqual(result["traces"][1]["flow"][0]["parent_span_id"], "external-parent")
+        get_application.assert_called_once_with(bk_biz_id=11, app_name="sand_local_dev")
+        application.build_data_sources.assert_called_once_with()
+        get_query.assert_called_once_with(data_sources)
+        span_query.query_group_trace_list.assert_called_once_with(
+            group_field=group_field,
+            group_ids=["conversation-1"],
+        )
+        span_query.query_by_group_ids.assert_called_once_with(
+            group_field="trace_id",
+            group_ids=["trace-1", "trace-2"],
+        )
+        self.assertEqual(
+            adapt_spans.call_args_list,
+            [mock.call(spans[:2]), mock.call(spans[2:])],
+        )
+
+    def test_returns_empty_traces_when_group_does_not_exist(self):
+        application = mock.Mock()
+        application.build_data_sources.return_value = []
+        span_query = mock.Mock()
+        span_query.query_group_trace_list.return_value = []
+
+        with (
+            mock.patch("apm_web.llm.resources.Application.objects.get", return_value=application),
+            mock.patch("apm_web.llm.resources.get_query", return_value=span_query),
+        ):
+            result = ListFlowsResource().request(
+                {
+                    "bk_biz_id": 11,
+                    "app_name": "sand_local_dev",
+                    "group_field": "trace_id",
+                    "group_id": "missing-trace",
+                }
+            )
+
+        self.assertEqual(
+            result,
+            {
+                "group_field": "trace_id",
+                "group_id": "missing-trace",
+                "traces": [],
+            },
+        )
+        span_query.query_by_group_ids.assert_not_called()
 
 
 class TimeSeriesResourceTestCase(TestCase):

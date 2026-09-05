@@ -398,6 +398,7 @@ def test_llm_observability_apigw_contract() -> None:
 
     expected_resources: dict[str, tuple[str, str]] = {
         "/app/apm/list_llm_spans/": ("list_llm_spans", "/api/v4/apm_llm_web/list_spans/"),
+        "/app/apm/list_llm_flows/": ("list_llm_flows", "/api/v4/apm_llm_web/list_flows/"),
         "/app/apm/list_llm_traces/": ("list_llm_traces", "/api/v4/apm_llm_web/list_traces/"),
         "/app/apm/llm_time_series/": ("llm_time_series", "/api/v4/apm_llm_web/time_series/"),
         "/app/apm/llm_calculate_by_range/": (

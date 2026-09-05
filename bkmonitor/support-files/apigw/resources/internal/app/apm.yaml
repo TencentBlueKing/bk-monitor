@@ -1133,6 +1133,24 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: "query normalized Agent spans"
+  /app/apm/list_llm_flows/:
+    post:
+      operationId: list_llm_flows
+      description: 按会话或 Trace 查询层级 Agent Span
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/apm_llm_web/list_flows/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: "query hierarchical Agent spans by group"
   /app/apm/list_llm_traces/:
     post:
       operationId: list_llm_traces
