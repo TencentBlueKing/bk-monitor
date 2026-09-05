@@ -381,6 +381,25 @@ def test_galileo_reuses_existing_sdk_field():
     assert topo_node["sdk"][0]["name"] == "galileo"
 
 
+def test_existing_rpc_node_adds_llm_metadata_from_later_discovery():
+    existing_node = build_topo_node(
+        {
+            "category": ApmTopoDiscoverRule.APM_TOPO_CATEGORY_RPC,
+            "kind": ApmTopoDiscoverRule.TOPO_SERVICE,
+            "predicate_value": "grpc",
+            "service_language": "go",
+        }
+    )
+
+    topo_node, _ = run_discover(
+        existing_node,
+        build_llm_span({"gen_ai.operation.name": "invoke_agent"}, sdk_name="galileo"),
+    )
+
+    assert topo_node["extra_data"]["category"] == ApmTopoDiscoverRule.APM_TOPO_CATEGORY_RPC
+    assert topo_node["extra_data"]["llm"]["product"] == "default"
+
+
 def test_llm_metadata_survives_discovery_batches():
     existing_node = build_topo_node(
         {
