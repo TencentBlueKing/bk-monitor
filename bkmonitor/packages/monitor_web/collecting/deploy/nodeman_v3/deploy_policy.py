@@ -12,8 +12,7 @@ from bkmonitor.nodeman_integration.v3.client import (
     NodeManV3UnknownResultError,
 )
 from bkmonitor.nodeman_integration.v3.client.deploy_policy import DeployPolicyClient
-from bkmonitor.nodeman_integration.v3.exceptions import NodeManV3AdapterPending, NodeManV3PayloadError
-from constants.cmdb import TargetObjectType
+from bkmonitor.nodeman_integration.v3.exceptions import NodeManV3PayloadError
 from monitor_web.collecting.constant import OperationType
 from monitor_web.models.node_man import NodeManIntegrationBinding
 from monitor_web.plugin.constant import ParamMode, PluginType
@@ -33,16 +32,22 @@ class CollectDeployPolicyPayloadBuilder:
 
     def build(self, collect_config) -> dict:
         deployment = collect_config.deployment_config
-        if deployment.remote_collecting_host:
+        remote_collecting_host = deployment.remote_collecting_host
+        if remote_collecting_host and collect_config.plugin.plugin_type != PluginType.EXPORTER:
             raise NodeManV3CapabilityBlocked(
-                "remote collection requires the agreed cross-spec context protocol before deployment"
+                "only remote Exporter collection has a confirmed DeployPolicy projection contract"
             )
         if collect_config.last_operation == OperationType.STOP:
             raise NodeManV3CapabilityBlocked("collection enable/disable requires the DeployPolicy reverse protocol")
 
         scopes = self.scope_builder.build(collect_config, deployment)
         steps = self.step_builder(collect_config, deployment)
-        specs = self._build_specs(collect_config, steps)
+        placement_host_ids = None
+        if remote_collecting_host:
+            placement_host_ids = self.scope_builder._host_ids(
+                [remote_collecting_host], bk_biz_id=collect_config.bk_biz_id
+            )
+        specs = self._build_specs(collect_config, steps, placement_host_ids=placement_host_ids)
         if not specs:
             raise NodeManV3PayloadError("collect deployment produced no deploy-policy specs")
 
@@ -176,8 +181,15 @@ class CollectDeployPolicyPayloadBuilder:
         }
 
     @classmethod
-    def _build_specs(cls, collect_config, steps: Sequence[dict]) -> list[dict]:
+    def _build_specs(
+        cls,
+        collect_config,
+        steps: Sequence[dict],
+        *,
+        placement_host_ids: Sequence[int] | None = None,
+    ) -> list[dict]:
         specs = []
+        remote_projection = bool(placement_host_ids)
         for step in steps:
             config = step.get("config", {})
             plugin_name = config.get("plugin_name")
@@ -200,9 +212,14 @@ class CollectDeployPolicyPayloadBuilder:
                 ]
                 if not details:
                     raise NodeManV3PayloadError("bkmonitorbeat deploy-policy has no config template")
+                spec_type = (
+                    "project_plugin_config_template_to_hosts"
+                    if remote_projection
+                    else "specify_plugin_sub_config_template"
+                )
                 specs.append(
                     {
-                        "type": "specify_plugin_sub_config_template",
+                        "type": spec_type,
                         "param": {
                             "plugin_name": plugin_name,
                             "config_files_detail": details,
@@ -217,21 +234,22 @@ class CollectDeployPolicyPayloadBuilder:
                 raise NodeManV3PayloadError(f"plugin version is missing for {plugin_name}")
             if any("content" in template for template in config.get("config_templates", ())):
                 raise NodeManV3CapabilityBlocked(
-                    f"deploy-policy cannot preserve dynamic config file templates for {plugin_name}"
+                    f"dynamic config file templates for isolated plugin {plugin_name} "
+                    "have no confirmed target identity contract"
                 )
             if collect_config.plugin.plugin_type in {PluginType.EXPORTER, PluginType.JMX}:
-                if collect_config.target_object_type != TargetObjectType.SERVICE:
-                    raise NodeManV3AdapterPending(
-                        "specify_plugin_pkg currently requires service-instance scope with a module identity"
-                    )
+                spec_type = "project_plugin_pkg_to_hosts" if remote_projection else "specify_plugin_pkg"
+                param = {
+                    "plugin_pkg_name": plugin_name,
+                    "version": version,
+                    "custom_config_context": context,
+                }
+                if remote_projection:
+                    param["placement_host_ids"] = list(placement_host_ids or ())
                 specs.append(
                     {
-                        "type": "specify_plugin_pkg",
-                        "param": {
-                            "plugin_pkg_name": plugin_name,
-                            "version": version,
-                            "custom_config_context": context,
-                        },
+                        "type": spec_type,
+                        "param": param,
                     }
                 )
             else:

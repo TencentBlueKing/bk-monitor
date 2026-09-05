@@ -4,7 +4,7 @@ import pytest
 from django.db import transaction
 
 from bkmonitor.nodeman_integration.v3.client import NodeManV3UnknownResultError
-from bkmonitor.nodeman_integration.v3.exceptions import NodeManV3AdapterPending, NodeManV3ResultState
+from bkmonitor.nodeman_integration.v3.exceptions import NodeManV3PayloadError, NodeManV3ResultState
 from monitor_web.collecting.deploy.nodeman_v3.deploy_policy import (
     CollectDeployPolicyPayloadBuilder,
     NodeManV3DeployPolicyGateway,
@@ -222,7 +222,7 @@ def test_existing_target_policies_require_explicit_migration(policy_case, django
         plugin_name="bkmonitorbeat",
         node_man_deploy_policy_id=99,
     )
-    with pytest.raises(NodeManV3AdapterPending, match="require migration"):
+    with pytest.raises(NodeManV3CapabilityBlocked, match="DeployPolicy delete contract"):
         submit(case, django_capture_on_commit_callbacks)
     assert case.client.calls == []
 
@@ -232,7 +232,7 @@ def test_inactive_binding_is_not_silently_reactivated(policy_case, django_captur
     case = policy_case
     case.binding.state = state
     case.binding.save()
-    with pytest.raises(NodeManV3AdapterPending, match="cleanup"):
+    with pytest.raises(NodeManV3PayloadError, match="must be active"):
         submit(case, django_capture_on_commit_callbacks)
     assert case.client.calls == []
 

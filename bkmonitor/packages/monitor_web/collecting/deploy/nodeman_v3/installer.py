@@ -3,7 +3,7 @@ from typing import Any
 from django.db import transaction
 from django.utils.translation import gettext as _
 
-from bkmonitor.nodeman_integration.v3.exceptions import NodeManV3AdapterPending, NodeManV3DefiniteFailure
+from bkmonitor.nodeman_integration.v3.exceptions import NodeManV3DefiniteFailure, NodeManV3PayloadError
 from core.errors.collecting import CollectConfigNeedUpgrade
 from monitor_web.collecting.deploy.base import BaseInstaller
 from monitor_web.collecting.constant import OperationResult, OperationType
@@ -118,9 +118,7 @@ class NodeManV3Installer(BaseInstaller):
     def _packaged_release_version(self):
         release_version = self.plugin.packaged_release_version
         if not release_version or not release_version.is_packaged:
-            raise NodeManV3AdapterPending(
-                "NodeMan V3 package import protocol is available but not wired into the collecting adapter"
-            )
+            raise NodeManV3PayloadError("the collection plugin has no packaged NodeMan V3 release")
         return release_version
 
     def _validate_active_collection(self):

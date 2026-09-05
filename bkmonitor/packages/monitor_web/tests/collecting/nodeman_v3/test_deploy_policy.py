@@ -3,11 +3,7 @@ from types import SimpleNamespace
 import pytest
 
 from bkmonitor.nodeman_integration.v3.client import NodeManV3RequestContext, NodeManV3UnknownResultError
-from bkmonitor.nodeman_integration.v3.exceptions import (
-    NodeManV3AdapterPending,
-    NodeManV3PayloadError,
-    NodeManV3ResultState,
-)
+from bkmonitor.nodeman_integration.v3.exceptions import NodeManV3PayloadError, NodeManV3ResultState
 from monitor_web.collecting.deploy.nodeman_v3.deploy_policy import (
     CollectDeployPolicyPayloadBuilder,
     NodeManV3DeployPolicyGateway,
@@ -104,10 +100,44 @@ def test_dynamic_plugin_config_file_template_is_blocked_instead_of_dropped():
         CollectDeployPolicyPayloadBuilder._build_specs(config, steps)
 
 
-def test_host_package_scope_keeps_the_documented_module_identity_boundary():
+def test_host_package_scope_uses_documented_zero_module_identity():
     config = SimpleNamespace(target_object_type="HOST", plugin=SimpleNamespace(plugin_type=PluginType.EXPORTER))
-    with pytest.raises(NodeManV3AdapterPending, match="module identity"):
-        CollectDeployPolicyPayloadBuilder._build_specs(config, _exporter_steps())
+    assert CollectDeployPolicyPayloadBuilder._build_specs(config, _exporter_steps())[0]["type"] == "specify_plugin_pkg"
+
+
+def test_remote_exporter_uses_package_and_config_projection_specs():
+    config = SimpleNamespace(target_object_type="SERVICE", plugin=SimpleNamespace(plugin_type=PluginType.EXPORTER))
+    specs = CollectDeployPolicyPayloadBuilder._build_specs(
+        config,
+        _exporter_steps(),
+        placement_host_ids=[100, 101],
+    )
+
+    assert specs == [
+        {
+            "type": "project_plugin_pkg_to_hosts",
+            "param": {
+                "plugin_pkg_name": "mysql_exporter",
+                "version": "1.2.3",
+                "custom_config_context": {"listen": ":9107"},
+                "placement_host_ids": [100, 101],
+            },
+        },
+        {
+            "type": "project_plugin_config_template_to_hosts",
+            "param": {
+                "plugin_name": "bkmonitorbeat",
+                "config_files_detail": [
+                    {
+                        "template_name": "bkmonitorbeat_prometheus.conf",
+                        "content": "",
+                        "is_main_config": False,
+                    }
+                ],
+                "custom_config_context": {"port": "9107"},
+            },
+        },
+    ]
 
 
 def test_v2_cross_step_context_is_blocked_instead_of_sent_unresolved():

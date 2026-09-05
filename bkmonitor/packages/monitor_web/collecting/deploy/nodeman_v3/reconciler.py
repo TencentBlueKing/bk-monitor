@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from django.db import transaction
 
 from bkmonitor.nodeman_integration.v3.client import NodeManV3UnknownResultError
-from bkmonitor.nodeman_integration.v3.exceptions import NodeManV3AdapterPending, NodeManV3DefiniteFailure
+from bkmonitor.nodeman_integration.v3.exceptions import NodeManV3DefiniteFailure, NodeManV3PayloadError
 from monitor_web.collecting.constant import OperationResult
 from monitor_web.models import CollectConfigMeta
 from monitor_web.models.node_man import (
@@ -26,6 +26,7 @@ from monitor_web.nodeman_integration.v3.operation import (
 )
 
 from .deploy_policy import CollectDeployPolicyPayloadBuilder, NodeManV3DeployPolicyGateway
+from .validation import NodeManV3CapabilityBlocked
 
 
 logger = logging.getLogger(__name__)
@@ -72,10 +73,10 @@ class CollectDeployPolicyReconciler:
             if locked.generation != binding.generation:
                 raise NodeManExecutionLeaseConflict("collection policy generation changed; reload before submitting")
             if locked.state != NodeManBindingState.ACTIVE:
-                raise NodeManV3AdapterPending("collection binding cleanup must finish before submitting a policy")
+                raise NodeManV3PayloadError("collection binding must be active before submitting a policy")
             if locked.collect_targets.filter(node_man_deploy_policy_id__isnull=False).exists():
-                raise NodeManV3AdapterPending(
-                    "existing per-target deploy policies require migration before creating a collection policy"
+                raise NodeManV3CapabilityBlocked(
+                    "existing per-target deploy policies cannot be replaced until the DeployPolicy delete contract is defined"
                 )
             if locked.operations.filter(result_state=NodeManV3ResultState.WRITE_RESULT_UNKNOWN).exists():
                 raise NodeManV3UnknownResultError("an earlier collection policy write is unresolved; do not replay it")
