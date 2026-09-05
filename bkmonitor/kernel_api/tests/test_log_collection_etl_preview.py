@@ -4,6 +4,7 @@ from unittest.mock import Mock
 import pytest
 
 from api.log_search.default import LogEtlPreviewResource
+from bkmonitor.iam import ActionEnum
 from bkmonitor.iam.drf import BusinessActionPermission
 from constants.log_collection import (
     ETL_PREVIEW_MAX_EXPRESSION_LENGTH,
@@ -14,7 +15,10 @@ from constants.log_collection import (
 from core.drf_resource import api
 from core.errors.api import BKAPIError
 from kernel_api.resource.log_collection_etl_preview import PreviewLogEtlResource
-from kernel_api.views.v4.log_collection_etl_preview import EtlPreviewBusinessActionPermission
+from kernel_api.views.v4.log_collection_etl_preview import (
+    EtlPreviewBusinessActionPermission,
+    LogCollectionEtlPreviewViewSet,
+)
 
 
 @pytest.mark.parametrize(
@@ -150,9 +154,7 @@ def test_preview_supported_etl_types(monkeypatch, request_data, bklog_response, 
             "bk_biz_id": 2,
             "etl_config": "bk_log_regexp",
             "etl_params": {
-                "separator_regexp": "".join(
-                    f"(?P<field_{index}>x)" for index in range(ETL_PREVIEW_MAX_FIELDS + 1)
-                )
+                "separator_regexp": "".join(f"(?P<field_{index}>x)" for index in range(ETL_PREVIEW_MAX_FIELDS + 1))
             },
             "data": "x" * (ETL_PREVIEW_MAX_FIELDS + 1),
         },
@@ -205,10 +207,7 @@ def test_delimiter_field_limit_is_checked_before_calling_bklog(monkeypatch):
 def test_backend_field_limit_rejects_json_result(monkeypatch):
     api_resource = Mock(
         return_value={
-            "fields": [
-                {"field_name": f"field_{index}", "value": index}
-                for index in range(ETL_PREVIEW_MAX_FIELDS + 1)
-            ]
+            "fields": [{"field_name": f"field_{index}", "value": index} for index in range(ETL_PREVIEW_MAX_FIELDS + 1)]
         }
     )
     monkeypatch.setattr(api.log_search, "log_etl_preview", api_resource)
@@ -327,3 +326,10 @@ def test_permission_uses_body_business_for_iam_check(monkeypatch):
     assert allowed is True
     assert request.biz_id == 2
     base_permission.assert_called_once_with(request, None)
+
+
+def test_etl_preview_view_requires_view_collection_permission():
+    permissions = LogCollectionEtlPreviewViewSet().get_permissions()
+
+    assert len(permissions) == 1
+    assert permissions[0].actions[0].id == ActionEnum.VIEW_COLLECTION.id

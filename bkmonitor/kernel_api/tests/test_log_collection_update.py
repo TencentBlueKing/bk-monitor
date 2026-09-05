@@ -8,7 +8,7 @@ from rest_framework.exceptions import PermissionDenied, ValidationError
 from bkmonitor.iam import ActionEnum
 from kernel_api.resource import log_collection_update as update_module
 from kernel_api.resource.log_collection_update import FastUpdateLogCollectorResource
-from kernel_api.views.v4.log_collection_update import LogCollectionUpdateViewSet
+from kernel_api.views.v4.log_collection_update import CanonicalBusinessActionPermission, LogCollectionUpdateViewSet
 
 
 @pytest.mark.parametrize("field", ["environment", "etl_config", "fields", "storage_cluster_id"])
@@ -21,9 +21,7 @@ def test_serializer_rejects_environment_clean_and_storage_fields(field):
 
 
 def test_serializer_requires_at_least_one_update_field():
-    serializer = FastUpdateLogCollectorResource.RequestSerializer(
-        data={"bk_biz_id": 2, "collector_config_id": 1}
-    )
+    serializer = FastUpdateLogCollectorResource.RequestSerializer(data={"bk_biz_id": 2, "collector_config_id": 1})
     assert not serializer.is_valid()
     assert "non_field_errors" in serializer.errors
 
@@ -78,6 +76,16 @@ def test_update_view_requires_manage_collection_permission():
     assert permissions[0].actions == [ActionEnum.MANAGE_COLLECTION]
 
 
+def test_update_permission_rejects_conflicting_business_alias():
+    permission = CanonicalBusinessActionPermission([ActionEnum.MANAGE_COLLECTION])
+    request = SimpleNamespace(
+        data={"bk_biz_id": "2", "biz_id": "3"},
+        biz_id="3",
+    )
+
+    assert permission.has_permission(request, None) is False
+
+
 def test_host_update_injects_clean_switch_and_returns_tasks(monkeypatch):
     captured = {}
 
@@ -115,6 +123,23 @@ def test_host_update_injects_clean_switch_and_returns_tasks(monkeypatch):
         "updated_fields": ["description", "target_nodes"],
         "clean_config_updated": False,
     }
+
+
+def test_update_forwards_parent_index_set_ids(monkeypatch):
+    captured = {}
+    log_search = SimpleNamespace(
+        log_collector_update_context=lambda **kwargs: {"bk_biz_id": 2, "environment": "linux"},
+        fast_update_log_collector=lambda **kwargs: captured.update(kwargs) or {"collector_config_id": 10},
+    )
+    monkeypatch.setattr(update_module, "api", SimpleNamespace(log_search=log_search))
+
+    result = FastUpdateLogCollectorResource().perform_request(
+        {"bk_biz_id": 2, "collector_config_id": 10, "parent_index_set_ids": [901, 902]}
+    )
+
+    assert captured["parent_index_set_ids"] == [901, 902]
+    assert "parent_index_set_id" not in captured
+    assert result["updated_fields"] == ["parent_index_set_ids"]
 
 
 def test_container_update_uses_container_fields(monkeypatch):
@@ -155,8 +180,9 @@ def test_legacy_null_environment_routes_to_host_even_with_bcs_cluster_id(monkeyp
             "bcs_cluster_id": "0",
             "collector_scenario_id": "row",
         },
-        fast_update_log_collector=lambda **kwargs: captured.update(kwargs)
-        or {"collector_config_id": 15, "subscription_id": 21, "task_id_list": [41]},
+        fast_update_log_collector=lambda **kwargs: (
+            captured.update(kwargs) or {"collector_config_id": 15, "subscription_id": 21, "task_id_list": [41]}
+        ),
     )
     monkeypatch.setattr(update_module, "api", SimpleNamespace(log_search=log_search))
 
@@ -247,8 +273,9 @@ def test_deployment_update_falls_back_to_latest_detail_for_old_backend_response(
             "environment": "linux",
             "subscription_id": 21,
         },
-        data_bus_collectors=lambda **kwargs: calls.update(detail=calls["detail"] + 1)
-        or {"subscription_id": 21, "task_id_list": "41,42"},
+        data_bus_collectors=lambda **kwargs: (
+            calls.update(detail=calls["detail"] + 1) or {"subscription_id": 21, "task_id_list": "41,42"}
+        ),
         fast_update_log_collector=lambda **kwargs: {"collector_config_id": 14},
     )
     monkeypatch.setattr(update_module, "api", SimpleNamespace(log_search=log_search))

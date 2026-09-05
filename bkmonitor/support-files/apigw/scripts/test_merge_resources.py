@@ -31,6 +31,9 @@ _ALARM_STRATEGY_FILE = _RESOURCES_DIR / "external/app/alarm_strategy.yaml"
 _ALERT_MCP_FILE = _RESOURCES_DIR / "internal/user/alert_mcp.yaml"
 _ALERT_HANDLING_MCP_FILE = _RESOURCES_DIR / "internal/user/alert_handling_mcp.yaml"
 _LOG_COLLECTION_MCP_FILE = _RESOURCES_DIR / "internal/user/log_collection_mcp.yaml"
+_LOG_COLLECTION_INDEX_SET_MCP_FILE = _RESOURCES_DIR / "internal/user/log_collection_index_set_mcp.yaml"
+_LOG_COLLECTION_SPECIAL_CREATE_MCP_FILE = _RESOURCES_DIR / "internal/user/log_collection_special_create_mcp.yaml"
+_LOG_COLLECTION_SPECIAL_UPDATE_MCP_FILE = _RESOURCES_DIR / "internal/user/log_collection_special_update_mcp.yaml"
 
 _ALERT_QUERY_OPERATION_IDS = {
     "list_alerts",
@@ -158,14 +161,32 @@ def test_log_collection_clean_config_mcp_contract():
 
 
 def test_log_collection_mcp_contract():
-    """日志采集 MCP 首期只暴露分页列表和详情查询。"""
+    """日志采集 MCP 暴露列表、采集器详情和索引集详情查询。"""
     paths = _load_paths(_LOG_COLLECTION_MCP_FILE)
 
     assert set(paths) == {
         "/mcp/list_log_collectors/",
         "/mcp/get_log_collector/",
+        "/mcp/get_log_index_set/",
     }
-    assert _operation_ids(paths) == {"list_log_collectors", "get_log_collector"}
+    assert _operation_ids(paths) == {"list_log_collectors", "get_log_collector", "get_log_index_set"}
+    list_schema = paths["/mcp/list_log_collectors/"]["get"]["parameters"]
+    list_parameter_names = {parameter["name"] for parameter in list_schema}
+    assert {"conditions", "ordering"}.issubset(list_parameter_names)
+    assert {
+        "parent_index_set_id",
+        "exclude_parent_index_set_id",
+        "exclude_not_completed",
+        "exclude_not_data",
+        "include_related_spaces",
+    }.isdisjoint(list_parameter_names)
+    access_type_parameter = next(parameter for parameter in list_schema if parameter["name"] == "log_access_type")
+    assert "bkdata" in access_type_parameter["schema"]["items"]["enum"]
+    index_set_parameters = paths["/mcp/get_log_index_set/"]["get"]["parameters"]
+    assert {parameter["name"] for parameter in index_set_parameters} == {"bk_biz_id", "index_set_id"}
+    assert paths["/mcp/get_log_index_set/"]["get"]["x-bk-apigateway-resource"]["backend"]["path"] == (
+        "/api/v4/log_collection/get_index_set/"
+    )
     for path_data in paths.values():
         for method_data in path_data.values():
             assert method_data["tags"] == ["log_collection_mcp"]
@@ -176,6 +197,102 @@ def test_log_collection_mcp_contract():
                 "appVerifiedRequired": False,
                 "resourcePermissionRequired": True,
             }
+
+
+def test_log_collection_mcp_exposes_index_groups_and_mixed_access_types():
+    index_set_paths = _load_paths(_LOG_COLLECTION_INDEX_SET_MCP_FILE)
+    assert set(index_set_paths) == {"/mcp/list_log_index_set_groups/"}
+    method_data = index_set_paths["/mcp/list_log_index_set_groups/"]["get"]
+    assert method_data["operationId"] == "list_log_index_set_groups"
+    assert method_data["tags"] == ["log_collection_mcp"]
+    assert method_data["x-bk-apigateway-resource"]["backend"]["path"] == (
+        "/api/v4/log_collection/list_index_set_groups/"
+    )
+    bk_biz_id_parameter = next(parameter for parameter in method_data["parameters"] if parameter["name"] == "bk_biz_id")
+    assert "minimum" not in bk_biz_id_parameter["schema"]
+
+    special_paths = _load_paths(_LOG_COLLECTION_SPECIAL_CREATE_MCP_FILE)
+    assert set(special_paths) == {
+        "/mcp/create_custom_report/",
+        "/mcp/create_third_party_es/",
+        "/mcp/create_bkdata_index_set/",
+    }
+    assert _operation_ids(special_paths) == {
+        "create_custom_report",
+        "create_third_party_es",
+        "create_bkdata_index_set",
+    }
+    for path_data in special_paths.values():
+        method_data = path_data["post"]
+        schema = method_data["requestBody"]["content"]["application/json"]["schema"]
+        parent_ids_schema = schema["properties"]["parent_index_set_ids"]
+        assert parent_ids_schema["type"] == "array"
+        assert parent_ids_schema["items"]["minimum"] == 1
+        assert "minimum" not in schema["properties"]["bk_biz_id"]
+        assert schema["properties"]["confirm"]["enum"] == [True]
+        assert method_data["tags"] == ["log_collection_mcp"]
+    third_party_index_schema = special_paths["/mcp/create_third_party_es/"]["post"]["requestBody"]["content"][
+        "application/json"
+    ]["schema"]["properties"]["indexes"]["items"]["properties"]
+    assert third_party_index_schema["result_table_id"]["maxLength"] == 255
+    assert "minimum" not in third_party_index_schema["bk_biz_id"]
+
+    special_update_paths = _load_paths(_LOG_COLLECTION_SPECIAL_UPDATE_MCP_FILE)
+    assert set(special_update_paths) == {
+        "/mcp/update_custom_report/",
+        "/mcp/update_third_party_es/",
+        "/mcp/update_bkdata_index_set/",
+    }
+    assert _operation_ids(special_update_paths) == {
+        "update_custom_report",
+        "update_third_party_es",
+        "update_bkdata_index_set",
+    }
+    for path_data in special_update_paths.values():
+        method_data = path_data["post"]
+        schema = method_data["requestBody"]["content"]["application/json"]["schema"]
+        parent_ids_schema = schema["properties"]["parent_index_set_ids"]
+        assert parent_ids_schema["type"] == "array"
+        assert parent_ids_schema["items"]["minimum"] == 1
+        assert "minimum" not in schema["properties"]["bk_biz_id"]
+        assert schema["properties"]["confirm"]["enum"] == [True]
+        assert method_data["tags"] == ["log_collection_mcp"]
+    third_party_update_index_schema = special_update_paths["/mcp/update_third_party_es/"]["post"]["requestBody"][
+        "content"
+    ]["application/json"]["schema"]["properties"]["indexes"]["items"]["properties"]
+    assert third_party_update_index_schema["result_table_id"]["maxLength"] == 255
+    assert "minimum" not in third_party_update_index_schema["bk_biz_id"]
+    required_full_update_fields = {
+        "time_field",
+        "time_field_type",
+        "time_field_unit",
+        "category_id",
+        "is_trace_log",
+        "target_fields",
+        "sort_fields",
+    }
+    for path in ("/mcp/update_third_party_es/", "/mcp/update_bkdata_index_set/"):
+        schema = special_update_paths[path]["post"]["requestBody"]["content"]["application/json"]["schema"]
+        assert required_full_update_fields.issubset(schema["required"])
+    bkdata_update_schema = special_update_paths["/mcp/update_bkdata_index_set/"]["post"]["requestBody"]["content"][
+        "application/json"
+    ]["schema"]
+    assert bkdata_update_schema["properties"]["indexes"]["minItems"] == 1
+    assert bkdata_update_schema["properties"]["indexes"]["items"]["properties"]["result_table_id"]["maxLength"] == 255
+    assert "time_field" in bkdata_update_schema["required"]
+
+
+def test_log_collection_create_and_update_support_parent_index_set_ids():
+    create_schema = _load_paths(_RESOURCES_DIR / "internal/user/log_collection_create_mcp.yaml")[
+        "/mcp/fast_create_log_collector/"
+    ]["post"]["requestBody"]["content"]["application/json"]["schema"]
+    update_schema = _load_paths(_RESOURCES_DIR / "internal/user/log_collection_update_mcp.yaml")[
+        "/mcp/fast_update_log_collector/"
+    ]["post"]["requestBody"]["content"]["application/json"]["schema"]
+    for schema in (create_schema, update_schema):
+        parent_ids_schema = schema["properties"]["parent_index_set_ids"]
+        assert parent_ids_schema["type"] == "array"
+        assert parent_ids_schema["items"]["minimum"] == 1
 
 
 def test_log_collection_status_mcp_contract():

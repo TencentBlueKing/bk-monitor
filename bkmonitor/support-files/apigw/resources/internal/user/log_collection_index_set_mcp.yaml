@@ -1,0 +1,33 @@
+paths:
+  /mcp/list_log_index_set_groups/:
+    get:
+      operationId: list_log_index_set_groups
+      description: >-
+        List index groups available to a business. Use index_set_id from this response as
+        parent_index_set_ids when creating or updating a collector, custom report, or third-party ES index set.
+        查询业务可用的索引组。创建或更新采集、自定义上报、第三方 ES 索引集时，使用返回的 index_set_id 填入 parent_index_set_ids 列表。
+      tags:
+      - log_collection_mcp
+      parameters:
+      - in: query
+        name: bk_biz_id
+        required: true
+        schema:
+          type: integer
+        description: Business ID. 业务ID。
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        enableWebsocket: false
+        backend:
+          name: default
+          method: get
+          path: /api/v4/log_collection/list_index_set_groups/
+          matchSubpath: false
+          timeout: 30
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: false
+          resourcePermissionRequired: true

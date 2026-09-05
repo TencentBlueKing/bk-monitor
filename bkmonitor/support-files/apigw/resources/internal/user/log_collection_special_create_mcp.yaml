@@ -1,0 +1,358 @@
+paths:
+  /mcp/create_custom_report/:
+    post:
+      operationId: create_custom_report
+      description: >-
+        Create a custom-report collector. Requires confirm=true. Set parent_index_set_ids to attach its generated
+        index set to existing index groups; omit it or send [] to leave the index set ungrouped. 创建自定义上报采集项，必须确认
+        confirm=true。可用 parent_index_set_ids 将生成的索引集加入已有索引组。
+      tags:
+      - log_collection_mcp
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - bk_biz_id
+              - collector_config_name
+              - collector_config_name_en
+              - custom_type
+              - confirm
+              properties:
+                bk_biz_id:
+                  type: integer
+                  description: Business ID. 业务ID。
+                collector_config_name:
+                  type: string
+                  maxLength: 50
+                collector_config_name_en:
+                  type: string
+                  minLength: 5
+                  maxLength: 50
+                  pattern: ^[A-Za-z0-9_]+$
+                custom_type:
+                  type: string
+                  enum: [log, otlp_trace, otlp_log]
+                data_link_id:
+                  type: string
+                  nullable: true
+                category_id:
+                  type: string
+                  maxLength: 64
+                description:
+                  type: string
+                  maxLength: 64
+                  nullable: true
+                etl_config:
+                  type: string
+                etl_params:
+                  type: object
+                fields:
+                  type: array
+                  items:
+                    type: object
+                storage_cluster_id:
+                  type: integer
+                  minimum: 1
+                storage_cluster_type:
+                  type: string
+                retention:
+                  type: integer
+                  minimum: 1
+                allocation_min_days:
+                  type: integer
+                  minimum: 0
+                storage_replies:
+                  type: integer
+                  minimum: 0
+                es_shards:
+                  type: integer
+                  minimum: 1
+                is_display:
+                  type: boolean
+                  default: true
+                owners:
+                  type: array
+                  items:
+                    type: string
+                sort_fields:
+                  type: array
+                  items:
+                    type: string
+                  description: >-
+                    Field names that control log sorting. The first field has the highest priority and also
+                    serves as the range field for real-time (tail) queries. sort_fields together with
+                    target_fields determine whether context search is supported. 排序字段，字段名列表，用于控制日志排序；第一个字段优先级最高并作为实时日志
+                    （tail）的范围查询字段；与定位字段共同决定是否支持上下文检索。
+                target_fields:
+                  type: array
+                  items:
+                    type: string
+                  description: >-
+                    Field names that identify the log source file and ensure uniqueness, e.g. file path or
+                    a unique ID. They are matched as equality (eq) conditions in context and real-time (tail)
+                    queries to locate the exact row. 定位字段，字段名列表，用于标识日志文件来源及唯一性（如文件路径或唯一ID）；在上下文与实时日志（tail）检索中作为等值条件精确定位到具体日志。
+                ignore_exists:
+                  type: boolean
+                  default: false
+                parent_index_set_ids:
+                  type: array
+                  nullable: true
+                  items:
+                    type: integer
+                    minimum: 1
+                  description: >-
+                    IDs of the index groups (LogIndexSet with is_group=true) to attach this collector / index set
+                    to. An index group is a container that holds child index sets; only a group (is_group=true) can
+                    be a parent, an ordinary index set (is_group=false) cannot. In user wording, "index set" often
+                    means an index group. 归属索引组ID列表（is_group=true）。用于把当前采集项/索引集（is_group=false）挂到索引组下；
+                    索引组是可容纳多个子采集项/索引集的容器，只有索引组（is_group=true）能作为父级，普通索引集（is_group=false）不能。注意：口语中的“索引集”常指“索引组”。
+                confirm:
+                  type: boolean
+                  enum: [true]
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        enableWebsocket: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/log_collection_create/create_custom_report/
+          matchSubpath: false
+          timeout: 30
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: false
+          resourcePermissionRequired: true
+
+  /mcp/create_bkdata_index_set/:
+    post:
+      operationId: create_bkdata_index_set
+      description: >-
+        Create a bkdata index set from existing BkBase result tables. Requires confirm=true and at least one
+        result table. The business ID is used as the index-set space and each result table must belong to that
+        business. parent_index_set_ids may attach the index set to existing index groups. 基于已有数据平台结果表创建
+        bkdata 索引集，必须确认 confirm=true 并至少提供一个结果表；结果表所属业务必须与 bk_biz_id 一致。
+      tags:
+      - log_collection_mcp
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - bk_biz_id
+              - index_set_name
+              - indexes
+              - confirm
+              properties:
+                bk_biz_id:
+                  type: integer
+                  description: Business ID. 业务ID。
+                index_set_name:
+                  type: string
+                  maxLength: 64
+                  description: Index set name. 索引集名称。
+                indexes:
+                  type: array
+                  minItems: 1
+                  description: BkBase result tables. 数据平台结果表列表。
+                  items:
+                    type: object
+                    additionalProperties: false
+                    required: [result_table_id]
+                    properties:
+                      result_table_id:
+                        type: string
+                        maxLength: 255
+                        description: BkBase result table ID. 数据平台结果表名。
+                      bk_biz_id:
+                        type: integer
+                        nullable: true
+                        description: Optional result-table business ID; defaults to the outer bk_biz_id. 可选，默认使用外层业务ID。
+                category_id:
+                  type: string
+                  maxLength: 64
+                  description: Data category. 数据分类。
+                target_fields:
+                  type: array
+                  items:
+                    type: string
+                  description: >-
+                    Field names that identify the log source file and ensure uniqueness, e.g. file path or
+                    a unique ID. They are matched as equality (eq) conditions in context and real-time (tail)
+                    queries to locate the exact row. 定位字段，字段名列表，用于标识日志文件来源及唯一性（如文件路径或唯一ID）；在上下文与实时日志（tail）检索中作为等值条件精确定位到具体日志。
+                sort_fields:
+                  type: array
+                  items:
+                    type: string
+                  description: >-
+                    Field names that control log sorting. The first field has the highest priority and also
+                    serves as the range field for real-time (tail) queries. sort_fields together with
+                    target_fields determine whether context search is supported. 排序字段，字段名列表，用于控制日志排序；第一个字段优先级最高并作为实时日志
+                    （tail）的范围查询字段；与定位字段共同决定是否支持上下文检索。
+                parent_index_set_ids:
+                  type: array
+                  nullable: true
+                  items:
+                    type: integer
+                    minimum: 1
+                  description: >-
+                    IDs of the index groups (LogIndexSet with is_group=true) to attach this collector / index set
+                    to. An index group is a container that holds child index sets; only a group (is_group=true) can
+                    be a parent, an ordinary index set (is_group=false) cannot. In user wording, "index set" often
+                    means an index group. 归属索引组ID列表（is_group=true）。用于把当前采集项/索引集（is_group=false）挂到索引组下；
+                    索引组是可容纳多个子采集项/索引集的容器，只有索引组（is_group=true）能作为父级，普通索引集（is_group=false）不能。注意：口语中的“索引集”常指“索引组”。
+                confirm:
+                  type: boolean
+                  enum: [true]
+                  description: Must be true for this write. 写操作必须为 true。
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        enableWebsocket: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/log_collection_create/create_bkdata_index_set/
+          matchSubpath: false
+          timeout: 30
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: false
+          resourcePermissionRequired: true
+
+  /mcp/create_third_party_es/:
+    post:
+      operationId: create_third_party_es
+      description: >-
+        Create a third-party Elasticsearch index set. Requires confirm=true, an existing storage_cluster_id,
+        at least one index and its time_field. Set parent_index_set_ids to attach it to index groups.
+        创建第三方 ES 索引集，必须确认 confirm=true，填写已有存储集群、至少一个索引和时间字段；可用 parent_index_set_ids 加入索引组。
+      tags:
+      - log_collection_mcp
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - bk_biz_id
+              - index_set_name
+              - storage_cluster_id
+              - indexes
+              - time_field
+              - confirm
+              properties:
+                bk_biz_id:
+                  type: integer
+                  description: Business ID. 业务ID。
+                index_set_name:
+                  type: string
+                  maxLength: 64
+                storage_cluster_id:
+                  type: integer
+                  minimum: 1
+                indexes:
+                  type: array
+                  minItems: 1
+                  items:
+                    type: object
+                    additionalProperties: false
+                    required: [result_table_id]
+                    properties:
+                      result_table_id:
+                        type: string
+                        maxLength: 255
+                      bk_biz_id:
+                        type: integer
+                        nullable: true
+                      time_field:
+                        type: string
+                      time_field_type:
+                        type: string
+                        enum: [date, long]
+                      time_field_unit:
+                        type: string
+                        enum: [second, millisecond, microsecond]
+                      storage_cluster_id:
+                        type: integer
+                        minimum: 1
+                time_field:
+                  type: string
+                time_field_type:
+                  type: string
+                  enum: [date, long]
+                  default: date
+                time_field_unit:
+                  type: string
+                  enum: [second, millisecond, microsecond]
+                  nullable: true
+                category_id:
+                  type: string
+                  maxLength: 64
+                is_trace_log:
+                  type: boolean
+                  default: false
+                is_editable:
+                  type: boolean
+                  default: true
+                target_fields:
+                  type: array
+                  items:
+                    type: string
+                  description: >-
+                    Field names that identify the log source file and ensure uniqueness, e.g. file path or
+                    a unique ID. They are matched as equality (eq) conditions in context and real-time (tail)
+                    queries to locate the exact row. 定位字段，字段名列表，用于标识日志文件来源及唯一性（如文件路径或唯一ID）；在上下文与实时日志（tail）检索中作为等值条件精确定位到具体日志。
+                sort_fields:
+                  type: array
+                  items:
+                    type: string
+                  description: >-
+                    Field names that control log sorting. The first field has the highest priority and also
+                    serves as the range field for real-time (tail) queries. sort_fields together with
+                    target_fields determine whether context search is supported. 排序字段，字段名列表，用于控制日志排序；第一个字段优先级最高并作为实时日志
+                    （tail）的范围查询字段；与定位字段共同决定是否支持上下文检索。
+                parent_index_set_ids:
+                  type: array
+                  nullable: true
+                  items:
+                    type: integer
+                    minimum: 1
+                  description: >-
+                    IDs of the index groups (LogIndexSet with is_group=true) to attach this collector / index set
+                    to. An index group is a container that holds child index sets; only a group (is_group=true) can
+                    be a parent, an ordinary index set (is_group=false) cannot. In user wording, "index set" often
+                    means an index group. 归属索引组ID列表（is_group=true）。用于把当前采集项/索引集（is_group=false）挂到索引组下；
+                    索引组是可容纳多个子采集项/索引集的容器，只有索引组（is_group=true）能作为父级，普通索引集（is_group=false）不能。注意：口语中的“索引集”常指“索引组”。
+                confirm:
+                  type: boolean
+                  enum: [true]
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        enableWebsocket: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/log_collection_create/create_third_party_es/
+          matchSubpath: false
+          timeout: 30
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: false
+          resourcePermissionRequired: true
