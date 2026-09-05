@@ -22,7 +22,9 @@ from apps.log_admin_resource.handlers.log_query import (
     _bounded_items,
     _context_time_bounds,
     _index_set_fields,
+    _resolve_field_type,
     _resolve_source,
+    _result_table_index_set_map,
     _route_evidence,
     _run_query,
     _scene_candidates,
@@ -482,6 +484,270 @@ class LogQueryHandlerTest(TestCase):
         self.assertEqual(called_query["addition"][0]["condition"], "and")
         self.assertTrue(called_query["is_desensitize"])
 
+    def test_scene_search_pins_valid_routes_before_pagination(self):
+        source = {
+            "type": "scene",
+            "space_uid": "bkcc__2",
+            "bk_biz_id": 2,
+            "table_id_conditions": [[{"field_name": "scene", "op": "eq", "value": ["k8s"]}]],
+            "scene_filter_values": [],
+            "related_space_uids": ["bkcc__2"],
+        }
+        warning = {
+            "code": "scene_stale_routes_excluded",
+            "message": "1 stale scene routes were excluded",
+            "scope": "scene.result_tables",
+            "retryable": False,
+        }
+        route_plan = {
+            "runtime": {},
+            "scope": {},
+            "result_table_ids": ["2_bklog_app"],
+            "index_set_ids": [300],
+            "warnings": [warning],
+        }
+        scene_result = {
+            "list": [{**copy.deepcopy(self.record), "__result_table": "2_bklog_app", "__index_set_id__": 300}],
+            "origin_log_list": [],
+            "result_table_id": ["2_bklog_app"],
+            "total": 1,
+            "took": 0.1,
+            "fields": {},
+        }
+        with (
+            patch("apps.log_admin_resource.handlers.log_query._resolve_source", return_value=source),
+            patch("apps.log_admin_resource.handlers.log_query._resolve_scene_route_plan", return_value=route_plan),
+            patch("apps.log_admin_resource.handlers.log_query.ResourceSceneUnifyQueryHandler") as mock_handler,
+        ):
+            mock_handler.return_value.search.return_value = scene_result
+
+            result = search_logs(
+                {
+                    "source": {"type": "scene"},
+                    "start_time": 1767225600000,
+                    "end_time": 1767229200000,
+                    "keyword": "*",
+                    "addition": [],
+                    "begin": 0,
+                    "size": 1,
+                    "is_desensitize": True,
+                }
+            )
+
+        self.assertEqual(mock_handler.call_args.kwargs["resolved_index_set_ids"], [300])
+        self.assertEqual(result["status"], "partial")
+        self.assertEqual(result["route"]["actual_index_set_ids"], [300])
+        self.assertEqual(result["route"]["result_table_ids"], ["2_bklog_app"])
+        self.assertEqual(result["total"], 1)
+        self.assertFalse(result["pagination"]["has_more"])
+
+    def test_scene_terms_aggregation_excludes_stale_routes_before_query(self):
+        source = {
+            "type": "scene",
+            "space_uid": "bkcc__2",
+            "bk_biz_id": 2,
+            "table_id_conditions": [[{"field_name": "scene", "op": "eq", "value": ["k8s"]}]],
+            "scene_filter_values": [],
+            "related_space_uids": ["bkcc__2"],
+        }
+        route_plan = {
+            "runtime": {},
+            "scope": {},
+            "result_table_ids": ["2_bklog_app"],
+            "index_set_ids": [300],
+            "warnings": [
+                {
+                    "code": "scene_stale_routes_excluded",
+                    "message": "1 stale scene routes were excluded",
+                    "scope": "scene.result_tables",
+                    "retryable": False,
+                }
+            ],
+        }
+        with (
+            patch("apps.log_admin_resource.handlers.log_query._resolve_source", return_value=source),
+            patch("apps.log_admin_resource.handlers.log_query._resolve_scene_route_plan", return_value=route_plan),
+            patch("apps.log_admin_resource.handlers.log_query._resolve_field_type", return_value="keyword"),
+            patch("apps.log_admin_resource.handlers.log_query.ResourceSceneTermsAggsHandler") as mock_handler,
+        ):
+            mock_handler.return_value.terms.return_value = {
+                "aggs": {"level": {"buckets": [{"key": "ERROR", "doc_count": 3}]}},
+                "aggs_items": {"level": ["ERROR"]},
+            }
+
+            result = aggregate_logs(
+                {
+                    "source": {"type": "scene"},
+                    "start_time": 1767225600000,
+                    "end_time": 1767229200000,
+                    "keyword": "*",
+                    "addition": [],
+                    "aggregation": {"type": "terms", "field": "level", "size": 20},
+                }
+            )
+
+        self.assertEqual(mock_handler.call_args.kwargs["resolved_index_set_ids"], [300])
+        self.assertEqual(result["status"], "partial")
+        self.assertEqual(result["buckets"], [{"key": "ERROR", "doc_count": 3}])
+        self.assertEqual(result["route"]["result_table_ids"], ["2_bklog_app"])
+
+    def test_scene_aggregation_field_type_uses_only_verified_runtime_routes(self):
+        create_index_set(
+            301,
+            fields_snapshot={
+                "fields": [
+                    {"field_name": "dtEventTimeStamp", "field_type": "long"},
+                    {"field_name": "level", "field_type": "long"},
+                ]
+            },
+        )
+        create_result_table(301, "2_bklog_nonmatching", index_id=1301)
+        source = {
+            "type": "scene",
+            "space_uid": "bkcc__2",
+            "bk_biz_id": 2,
+            "table_id_conditions": [[{"field_name": "scene", "op": "req", "value": ["^k8s$"]}]],
+            "scene_filter_values": [],
+            "related_space_uids": ["bkcc__2"],
+        }
+        route_plan = {
+            "runtime": {},
+            "scope": {},
+            "result_table_ids": ["2_bklog_app"],
+            "index_set_ids": [300],
+            "warnings": [],
+        }
+        with (
+            patch("apps.log_admin_resource.handlers.log_query._resolve_source", return_value=source),
+            patch("apps.log_admin_resource.handlers.log_query._resolve_scene_route_plan", return_value=route_plan),
+            patch("apps.log_admin_resource.handlers.log_query.ResourceSceneTermsAggsHandler") as mock_handler,
+        ):
+            mock_handler.return_value.terms.return_value = {
+                "aggs": {"level": {"buckets": [{"key": "ERROR", "doc_count": 3}]}},
+                "aggs_items": {"level": ["ERROR"]},
+            }
+
+            result = aggregate_logs(
+                {
+                    "source": {"type": "scene"},
+                    "start_time": 1767225600000,
+                    "end_time": 1767229200000,
+                    "keyword": "*",
+                    "addition": [],
+                    "aggregation": {"type": "terms", "field": "level", "size": 20},
+                }
+            )
+
+        self.assertEqual(mock_handler.call_args.kwargs["resolved_index_set_ids"], [300])
+        self.assertEqual(result["status"], "success")
+        self.assertEqual(result["buckets"], [{"key": "ERROR", "doc_count": 3}])
+
+    @patch(
+        "apps.log_admin_resource.handlers.log_query._index_set_fields",
+        return_value={"fields": [{"field_name": "dynamic_level", "field_type": "keyword"}]},
+    )
+    def test_scene_field_type_runtime_fallback_queries_only_verified_routes(self, mock_fields):
+        source = {
+            "type": "scene",
+            "space_uid": "bkcc__2",
+            "bk_biz_id": 2,
+            "table_id_conditions": [[{"field_name": "scene", "op": "nreq", "value": ["legacy"]}]],
+            "scene_filter_values": [],
+            "related_space_uids": ["bkcc__2"],
+        }
+
+        field_type = _resolve_field_type(source, "dynamic_level", {}, scene_index_set_ids=[300])
+
+        self.assertEqual(field_type, "keyword")
+        self.assertEqual(mock_fields.call_count, 1)
+        self.assertEqual(mock_fields.call_args.args[0]["index_set_id"], 300)
+
+    def test_scene_histogram_aggregation_uses_verified_route_plan(self):
+        source = {
+            "type": "scene",
+            "space_uid": "bkcc__2",
+            "bk_biz_id": 2,
+            "table_id_conditions": [[{"field_name": "scene", "op": "eq", "value": ["k8s"]}]],
+            "scene_filter_values": [],
+            "related_space_uids": ["bkcc__2"],
+        }
+        route_plan = {
+            "runtime": {},
+            "scope": {},
+            "result_table_ids": ["2_bklog_app"],
+            "index_set_ids": [300],
+            "warnings": [],
+        }
+        with (
+            patch("apps.log_admin_resource.handlers.log_query._resolve_source", return_value=source),
+            patch("apps.log_admin_resource.handlers.log_query._resolve_scene_route_plan", return_value=route_plan),
+            patch("apps.log_admin_resource.handlers.log_query.ResourceSceneUnifyQueryHandler") as mock_handler,
+        ):
+            mock_handler.return_value.aggs_date_histogram.return_value = {
+                "aggs": {"group_by_histogram": {"buckets": [{"key": 1767225600000, "doc_count": 3}]}}
+            }
+
+            result = aggregate_logs(
+                {
+                    "source": {"type": "scene"},
+                    "start_time": 1767225600000,
+                    "end_time": 1767229200000,
+                    "keyword": "*",
+                    "addition": [],
+                    "aggregation": {"type": "histogram", "interval": "1m"},
+                }
+            )
+
+        self.assertEqual(mock_handler.call_args.kwargs["resolved_index_set_ids"], [300])
+        self.assertEqual(result["status"], "success")
+        self.assertEqual(result["buckets"], [{"key": 1767225600000, "doc_count": 3}])
+
+    def test_scene_field_stats_aggregation_keeps_partial_status_for_valid_data(self):
+        source = {
+            "type": "scene",
+            "space_uid": "bkcc__2",
+            "bk_biz_id": 2,
+            "table_id_conditions": [[{"field_name": "scene", "op": "eq", "value": ["k8s"]}]],
+            "scene_filter_values": [],
+            "related_space_uids": ["bkcc__2"],
+        }
+        route_plan = {
+            "runtime": {},
+            "scope": {},
+            "result_table_ids": ["2_bklog_app"],
+            "index_set_ids": [300],
+            "warnings": [
+                {
+                    "code": "scene_stale_routes_excluded",
+                    "message": "1 stale scene routes were excluded",
+                    "scope": "scene.result_tables",
+                    "retryable": False,
+                }
+            ],
+        }
+        stats = {"total_count": 10, "field_count": 8, "distinct_count": 3, "field_percent": 0.8}
+        with (
+            patch("apps.log_admin_resource.handlers.log_query._resolve_source", return_value=source),
+            patch("apps.log_admin_resource.handlers.log_query._resolve_scene_route_plan", return_value=route_plan),
+            patch("apps.log_admin_resource.handlers.log_query._resolve_field_type", return_value="keyword"),
+            patch("apps.log_admin_resource.handlers.log_query._field_statistics", return_value=stats),
+            patch("apps.log_admin_resource.handlers.log_query.ResourceSceneFieldHandler") as mock_handler,
+        ):
+            result = aggregate_logs(
+                {
+                    "source": {"type": "scene"},
+                    "start_time": 1767225600000,
+                    "end_time": 1767229200000,
+                    "keyword": "*",
+                    "addition": [],
+                    "aggregation": {"type": "field_stats", "field": "level"},
+                }
+            )
+
+        self.assertEqual(mock_handler.call_args.kwargs["resolved_index_set_ids"], [300])
+        self.assertEqual(result["status"], "partial")
+        self.assertEqual(result["stats"], stats)
+
     @patch("apps.log_admin_resource.handlers.log_query.FeatureToggleObject.switch", return_value=True)
     @patch("apps.log_admin_resource.handlers.log_query.ResourceUnifyQueryContextHandler")
     def test_context_replays_service_generated_anchor_with_zero_mode(self, mock_handler, _mock_switch):
@@ -608,6 +874,34 @@ class LogQueryHandlerTest(TestCase):
 
         self.assertEqual(handler._init_scene_base_dict()["timezone"], "UTC")
 
+    @patch.object(
+        SceneUnifyQueryHandler,
+        "_init_scene_base_dict",
+        return_value={
+            "query_list": [
+                {
+                    "table_id": "",
+                    "table_id_conditions": [[{"field_name": "scene", "op": "eq", "value": ["k8s"]}]],
+                    "reference_name": "a",
+                }
+            ],
+            "metric_merge": "a",
+        },
+    )
+    def test_verified_scene_route_plan_rewrites_query_to_explicit_data_labels(self, _mock_scene_base):
+        handler = ResourceSceneUnifyQueryHandler.__new__(ResourceSceneUnifyQueryHandler)
+        handler.search_params = {}
+        handler._resource_resolved_index_set_ids = (300, 302)
+
+        base_dict = handler._init_scene_base_dict()
+
+        self.assertEqual(
+            [(query["table_id"], query["reference_name"]) for query in base_dict["query_list"]],
+            [("bklog_index_set_300", "a"), ("bklog_index_set_302", "b")],
+        )
+        self.assertTrue(all("table_id_conditions" not in query for query in base_dict["query_list"]))
+        self.assertEqual(base_dict["metric_merge"], "a + b")
+
     @patch.object(UnifyQueryHandler, "query_ts_reference", return_value={"series": []})
     def test_resource_aggregation_does_not_swallow_downstream_reference_errors(self, mock_query):
         handler = ResourceUnifyQueryTermsAggsHandler.__new__(ResourceUnifyQueryTermsAggsHandler)
@@ -642,6 +936,10 @@ class LogQueryHandlerTest(TestCase):
         create_result_table(302, "2_bklog_inactive", index_id=1302)
         inactive_index_set.is_active = False
         inactive_index_set.save(update_fields=["is_active"])
+        create_index_set(303)
+        abnormal_result_table = create_result_table(303, "2_bklog_abnormal", index_id=1303)
+        abnormal_result_table.apply_status = LogIndexSetData.Status.ABNORMAL
+        abnormal_result_table.save(update_fields=["apply_status"])
 
         result = _scene_result_table_scope(
             [
@@ -650,6 +948,8 @@ class LogQueryHandlerTest(TestCase):
                 "2_bklog_deleted",
                 "bklog_index_set_302",
                 "2_bklog_inactive",
+                "bklog_index_set_303",
+                "2_bklog_abnormal",
                 "2_bklog_unmapped",
                 "3_bklog_other",
                 "bklog_index_set_999",
@@ -661,10 +961,35 @@ class LogQueryHandlerTest(TestCase):
         self.assertEqual(result["result_table_index_set_map"], {"2_bklog_app": 300})
         self.assertEqual(
             result["stale_result_tables"],
-            ["2_bklog_deleted", "2_bklog_inactive", "bklog_index_set_301", "bklog_index_set_302"],
+            [
+                "2_bklog_abnormal",
+                "2_bklog_deleted",
+                "2_bklog_inactive",
+                "bklog_index_set_301",
+                "bklog_index_set_302",
+                "bklog_index_set_303",
+            ],
         )
         self.assertEqual(result["unmapped_result_tables"], ["2_bklog_unmapped"])
         self.assertEqual(result["rejected_result_tables"], ["3_bklog_other", "bklog_index_set_999"])
+
+    def test_scene_result_table_mapping_excludes_non_normal_routes(self):
+        create_index_set(303)
+        abnormal_result_table = create_result_table(303, "2_bklog_abnormal", index_id=1303)
+        abnormal_result_table.apply_status = LogIndexSetData.Status.ABNORMAL
+        abnormal_result_table.save(update_fields=["apply_status"])
+        source = {"type": "scene", "related_space_uids": ["bkcc__2"]}
+
+        result = _result_table_index_set_map(
+            source,
+            [
+                {"__result_table": "2_bklog_app"},
+                {"__result_table": "2_bklog_abnormal"},
+                {"__result_table": "bklog_index_set_303"},
+            ],
+        )
+
+        self.assertEqual(result, {"2_bklog_app": 300})
 
     @patch.object(SceneUnifyQueryHandler, "_deal_query_result")
     def test_scene_search_excludes_records_without_active_index_set_mapping(self, mock_parent_deal):
