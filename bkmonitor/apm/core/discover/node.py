@@ -123,8 +123,7 @@ class NodeDiscover(DiscoverBase):
         for instances_mapping in results:
             for topo_key, topo_value in (instances_mapping or {}).items():
                 product: str | None = topo_value["extra_data"].get("llm", {}).get("product")
-                if product and llm_products.get(topo_key) in (None, LLMProduct.DEFAULT.value):
-                    llm_products[topo_key] = product
+                self.set_preferred_llm_product(llm_products, topo_key, product)
         llm_updated_at: int = int(datetime.now().timestamp())
 
         # 结合发现的数据和已有数据判断 创建/更新
@@ -231,17 +230,21 @@ class NodeDiscover(DiscoverBase):
         return sources
 
     @staticmethod
+    def set_preferred_llm_product(products: dict[str, str], key: str, product: str | None) -> None:
+        if product and products.get(key) in (None, LLMProduct.DEFAULT.value):
+            products[key] = product
+
+    @staticmethod
     def merge_other_extra_data_preserving_category(
         target: dict[str, Any] | None, source: dict[str, Any]
     ) -> dict[str, Any]:
         if not target:
             return source
 
-        if target.get("category") and target["category"] != ApmTopoDiscoverRule.APM_TOPO_CATEGORY_OTHER:
-            return target
-
         merged: dict[str, Any] = target.copy()
         merged.update({key: value for key, value in source.items() if value not in ("", None)})
+        if target.get("category") and target["category"] != ApmTopoDiscoverRule.APM_TOPO_CATEGORY_OTHER:
+            merged.update({key: target[key] for key in ("category", "kind", "predicate_value") if key in target})
         return merged
 
     @classmethod
@@ -339,8 +342,7 @@ class NodeDiscover(DiscoverBase):
             product: str | None = self.get_llm_product(span)
             if product:
                 llm: dict[str, str] = instance_mapping[topo_key]["extra_data"].setdefault("llm", {})
-                if llm.get("product") in (None, LLMProduct.DEFAULT.value):
-                    llm["product"] = product
+                self.set_preferred_llm_product(llm, "product", product)
 
             # 后续的规则基于上一步发现的 topo_key 来补充数据
             for item in rules:
