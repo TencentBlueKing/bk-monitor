@@ -87,24 +87,8 @@ def test_operation_poller_cursor_pages_cover_all_records_without_fixed_head_star
     }
 
 
-def test_binding_reconciler_cursor_pages_use_one_bounded_round(monkeypatch):
-    binding_ids = list(range(1, 452))
-    monkeypatch.setattr(tasks, "NodeManIntegrationBinding", SimpleNamespace(objects=FakeManager(binding_ids)))
-    reconciled = []
-    continuations = []
-    monkeypatch.setattr(tasks.reconcile_binding, "apply_async", lambda **kwargs: reconciled.append(kwargs))
-    monkeypatch.setattr(tasks.reconcile_active_bindings, "apply_async", lambda **kwargs: continuations.append(kwargs))
-
-    tasks.reconcile_active_bindings.run(limit=200)
-    first = continuations.pop()
-    tasks.reconcile_active_bindings.run(**first["kwargs"])
-    second = continuations.pop()
-    tasks.reconcile_active_bindings.run(**second["kwargs"])
-
-    assert [call["args"][0] for call in reconciled] == binding_ids
-    assert all(call["args"][1] == "periodic" for call in reconciled)
-    assert continuations == []
-    assert first["kwargs"] == {"limit": 200, "cursor": "200", "upper_bound": "451"}
+def test_monitor_does_not_register_a_periodic_target_reconciliation_loop():
+    assert not hasattr(tasks, "reconcile_active_bindings")
 
 
 class FakeOperationLookup:

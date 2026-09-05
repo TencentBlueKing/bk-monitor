@@ -2,32 +2,15 @@ from types import SimpleNamespace
 
 import pytest
 
-from bkmonitor.nodeman_integration.v3.client import NodeManV3RequestContext
-from bkmonitor.nodeman_integration.v3.exceptions import (
-    NodeManV3AdapterPending,
-    NodeManV3PayloadError,
-    NodeManV3ResultState,
-)
+from bkmonitor.nodeman_integration.v3.client import NodeManV3RequestContext, NodeManV3UnknownResultError
+from bkmonitor.nodeman_integration.v3.exceptions import NodeManV3PayloadError, NodeManV3ResultState
 from monitor_web.collecting.deploy.nodeman_v3.deploy_policy import (
     CollectDeployPolicyPayloadBuilder,
     NodeManV3DeployPolicyGateway,
 )
 from monitor_web.collecting.deploy.nodeman_v3.validation import NodeManV3CapabilityBlocked
+from monitor_web.models.node_man import NodeManIntegrationBinding, NodeManResourceType
 from monitor_web.plugin.constant import PluginType
-
-
-def _target(*, identity_key="service:101", service_instance_id=101, deploy_policy_id=None):
-    return SimpleNamespace(
-        pk=1,
-        config_meta_id=7,
-        identity_key=identity_key,
-        observed_target={"bk_host_id": 41, "service_instance_id": service_instance_id},
-        execution_bk_host_id=41,
-        remote_target={},
-        service_instance_id=service_instance_id,
-        desired_enabled=True,
-        node_man_deploy_policy_id=deploy_policy_id,
-    )
 
 
 def _exporter_steps(*, collector_port="9107"):
@@ -86,26 +69,62 @@ def test_step_builder_uses_plugin_manager_extension_point_without_v2_installer(m
     assert collector["labels"]["$body"]["bk_target_service_instance_id"] == "{{ cmdb_instance.service.id }}"
 
 
-def test_exporter_service_instance_maps_to_package_and_independent_subconfig_specs():
-    collect_config = SimpleNamespace(plugin=SimpleNamespace(plugin_type=PluginType.EXPORTER))
+@pytest.mark.parametrize("plugin_type", [PluginType.EXPORTER, PluginType.JMX])
+def test_custom_collectors_use_isolated_package_and_subconfig_specs(plugin_type):
+    collect_config = SimpleNamespace(target_object_type="SERVICE", plugin=SimpleNamespace(plugin_type=plugin_type))
+    specs = CollectDeployPolicyPayloadBuilder._build_specs(collect_config, _exporter_steps())
+    assert specs[0] == {
+        "type": "specify_plugin_pkg",
+        "param": {
+            "plugin_pkg_name": "mysql_exporter",
+            "version": "1.2.3",
+            "custom_config_context": {"listen": ":9107"},
+        },
+    }
+    assert specs[1]["type"] == "specify_plugin_sub_config_template"
+    assert specs[1]["param"]["plugin_name"] == "bkmonitorbeat"
+    assert specs[1]["param"]["config_files_detail"] == [
+        {
+            "template_name": "bkmonitorbeat_prometheus.conf",
+            "content": "",
+            "is_main_config": False,
+        }
+    ]
 
+
+def test_dynamic_plugin_config_file_template_is_blocked_instead_of_dropped():
+    config = SimpleNamespace(plugin=SimpleNamespace(plugin_type=PluginType.EXPORTER))
+    steps = _exporter_steps()
+    steps[0]["config"]["config_templates"] = [{"name": "{{file1}}", "content": "{{file1_content}}"}]
+    with pytest.raises(NodeManV3CapabilityBlocked, match="dynamic config file templates"):
+        CollectDeployPolicyPayloadBuilder._build_specs(config, steps)
+
+
+def test_host_package_scope_uses_documented_zero_module_identity():
+    config = SimpleNamespace(target_object_type="HOST", plugin=SimpleNamespace(plugin_type=PluginType.EXPORTER))
+    assert CollectDeployPolicyPayloadBuilder._build_specs(config, _exporter_steps())[0]["type"] == "specify_plugin_pkg"
+
+
+def test_remote_exporter_uses_package_and_config_projection_specs():
+    config = SimpleNamespace(target_object_type="SERVICE", plugin=SimpleNamespace(plugin_type=PluginType.EXPORTER))
     specs = CollectDeployPolicyPayloadBuilder._build_specs(
-        collect_config,
-        _target(),
+        config,
         _exporter_steps(),
+        placement_host_ids=[100, 101],
     )
 
     assert specs == [
         {
-            "type": "specify_plugin_pkg",
+            "type": "project_plugin_pkg_to_hosts",
             "param": {
                 "plugin_pkg_name": "mysql_exporter",
                 "version": "1.2.3",
                 "custom_config_context": {"listen": ":9107"},
+                "placement_host_ids": [100, 101],
             },
         },
         {
-            "type": "specify_plugin_sub_config_template",
+            "type": "project_plugin_config_template_to_hosts",
             "param": {
                 "plugin_name": "bkmonitorbeat",
                 "config_files_detail": [
@@ -121,66 +140,36 @@ def test_exporter_service_instance_maps_to_package_and_independent_subconfig_spe
     ]
 
 
-def test_exporter_host_scope_is_blocked_before_sending_invalid_package_policy():
-    collect_config = SimpleNamespace(plugin=SimpleNamespace(plugin_type=PluginType.EXPORTER))
-    host_target = _target(identity_key="host:41", service_instance_id=None)
-
-    with pytest.raises(NodeManV3AdapterPending, match="service-instance scope"):
-        CollectDeployPolicyPayloadBuilder._build_specs(collect_config, host_target, _exporter_steps())
-
-
-def test_dynamic_plugin_config_file_template_is_blocked_instead_of_being_dropped():
-    collect_config = SimpleNamespace(plugin=SimpleNamespace(plugin_type=PluginType.EXPORTER))
-    steps = _exporter_steps()
-    steps[0]["config"]["config_templates"] = [
-        {"name": "env.yaml", "version": "1"},
-        {"name": "{{file1}}", "version": "1", "content": "{{file1_content}}"},
-    ]
-
-    with pytest.raises(NodeManV3CapabilityBlocked, match="dynamic config file templates"):
-        CollectDeployPolicyPayloadBuilder._build_specs(collect_config, _target(), steps)
-
-
-def test_v2_cross_step_context_is_blocked_instead_of_being_sent_unresolved():
-    collect_config = SimpleNamespace(plugin=SimpleNamespace(plugin_type=PluginType.EXPORTER))
-
-    with pytest.raises(NodeManV3CapabilityBlocked, match="step_data"):
+def test_v2_cross_step_context_is_blocked_instead_of_sent_unresolved():
+    config = SimpleNamespace(target_object_type="SERVICE", plugin=SimpleNamespace(plugin_type=PluginType.EXPORTER))
+    with pytest.raises(NodeManV3CapabilityBlocked, match="step_data") as error:
         CollectDeployPolicyPayloadBuilder._build_specs(
-            collect_config,
-            _target(),
+            config,
             _exporter_steps(collector_port="{{ step_data.mysql_exporter.control_info.listen_port }}"),
+        )
+    assert error.value.result_state == NodeManV3ResultState.UNSUPPORTED
+
+
+def test_bkmonitorbeat_requires_a_config_template():
+    config = SimpleNamespace(plugin=SimpleNamespace(plugin_type=PluginType.SCRIPT))
+    with pytest.raises(NodeManV3PayloadError, match="no config template"):
+        CollectDeployPolicyPayloadBuilder._build_specs(
+            config,
+            [{"config": {"plugin_name": "bkmonitorbeat", "config_templates": []}}],
         )
 
 
-def test_protocol_capability_block_exposes_machine_readable_result_state():
-    error = NodeManV3CapabilityBlocked("missing protocol field")
-
-    assert error.code == 3311014
-    assert error.data == {"result_state": NodeManV3ResultState.UNSUPPORTED}
-    assert error.extra == {"nodeman_v3_result_state": NodeManV3ResultState.UNSUPPORTED}
+def test_policy_identity_is_the_collection_not_its_current_members():
+    assert CollectDeployPolicyPayloadBuilder.policy_name(SimpleNamespace(pk=7)) == "bkm-collect-7"
+    assert CollectDeployPolicyPayloadBuilder.policy_name(SimpleNamespace(pk=8)) == "bkm-collect-8"
 
 
-def test_bkmonitorbeat_without_config_template_is_blocked_instead_of_succeeding_without_effect():
-    collect_config = SimpleNamespace(plugin=SimpleNamespace(plugin_type=PluginType.SCRIPT))
-    steps = [
-        {
-            "config": {"plugin_name": "bkmonitorbeat", "config_templates": []},
-            "params": {"context": {"dataid": "1001"}},
-        }
-    ]
+def test_policy_update_rejects_disabling_reconciliation():
+    payload = policy_payload()
+    payload["enabled"] = False
 
-    with pytest.raises(NodeManV3PayloadError, match="no config template"):
-        CollectDeployPolicyPayloadBuilder._build_specs(collect_config, _target(), steps)
-
-
-def test_policy_name_is_stable_without_relying_on_database_primary_key():
-    first = _target(identity_key="service:101")
-    first.pk = None
-    second = _target(identity_key="service:101")
-    second.pk = 999
-
-    assert CollectDeployPolicyPayloadBuilder.policy_name(first) == CollectDeployPolicyPayloadBuilder.policy_name(second)
-    assert CollectDeployPolicyPayloadBuilder.policy_name(first).startswith("bkm-collect-7-")
+    with pytest.raises(NodeManV3PayloadError, match="must keep enabled=true"):
+        CollectDeployPolicyPayloadBuilder.update_payload(301, payload)
 
 
 class FakeDeployPolicyClient:
@@ -198,111 +187,103 @@ class FakeDeployPolicyClient:
 
     def update(self, payload, *, context):
         self.calls.append(("update", payload, context))
-        return {"deploy_policy_id": 301}
+        return {}
 
     def execute(self, payload, *, context):
         self.calls.append(("execute", payload, context))
         return {"trigger_id": "trigger-301"}
 
 
-def test_gateway_creates_persists_and_executes_policy(monkeypatch):
-    target = _target()
-    client = FakeDeployPolicyClient()
-    payload = {
-        "name": "bkm-collect-7-stable",
-        "description": "collect target",
+def policy_payload():
+    return {
+        "name": "bkm-collect-7",
+        "description": "collect config",
         "enabled": True,
-        "specs": [],
-        "scopes": [],
+        "specs": [{"type": "specify_plugin", "param": {"plugin_name": "bkmonitorbeat", "version": "latest"}}],
+        "scopes": [{"type": "instance", "scope": {"granularity": "host", "bk_biz_id": 2, "instance_ids": [41, 42]}}],
     }
-    builder = SimpleNamespace(
-        build=lambda current_target: payload,
-        update_payload=CollectDeployPolicyPayloadBuilder.update_payload,
+
+
+@pytest.fixture
+def binding(db):
+    return NodeManIntegrationBinding.objects.create(
+        resource_type=NodeManResourceType.COLLECT_CONFIG,
+        resource_key="7",
+        owner_bk_tenant_id="tenant-a",
+        execution_bk_tenant_id="tenant-a",
+        bk_biz_id=2,
     )
-    persisted = []
-    monkeypatch.setattr(
-        NodeManV3DeployPolicyGateway,
-        "_persist_policy_id",
-        staticmethod(lambda current_target, policy_id: persisted.append((current_target, policy_id))),
+
+
+@pytest.fixture
+def context():
+    return NodeManV3RequestContext(bk_tenant_id="tenant-a", bk_biz_id=2, monitor_operation_id="operation-1")
+
+
+@pytest.mark.parametrize("existing", [None, "recovered", "bound"])
+def test_gateway_creates_or_updates_one_policy_then_persists_before_execute(binding, context, existing):
+    payload = policy_payload()
+    client = FakeDeployPolicyClient(
+        listed=[{"deploy_policy_id": 301, "meta": {"name": payload["name"]}}] if existing == "recovered" else []
     )
-    gateway = NodeManV3DeployPolicyGateway(client=client, payload_builder=builder)
+    if existing == "bound":
+        binding.node_man_deploy_policy_id = 301
+        binding.save()
+
+    original_execute = client.execute
+
+    def execute(payload, *, context):
+        current = NodeManIntegrationBinding.objects.get(pk=binding.pk)
+        assert current.node_man_deploy_policy_id == 301
+        assert current.node_man_policy_fingerprint == CollectDeployPolicyPayloadBuilder.fingerprint(policy_payload())
+        return original_execute(payload, context=context)
+
+    client.execute = execute
+
+    result = NodeManV3DeployPolicyGateway(client=client).ensure_policy(binding, payload, context=context)
+    assert result == {"trigger_id": "trigger-301"}
+    assert [call[0] for call in client.calls] == (
+        ["update", "execute"] if existing == "bound" else ["list", "update" if existing else "create", "execute"]
+    )
+    assert all(call[2] == context for call in client.calls)
+
+
+def test_gateway_rejects_disabled_policy_before_any_remote_write():
+    payload = policy_payload()
+    payload["enabled"] = False
+    client = FakeDeployPolicyClient()
     context = NodeManV3RequestContext(
         bk_tenant_id="tenant-a",
         bk_biz_id=2,
         monitor_operation_id="operation-1",
     )
 
-    assert gateway.ensure_target(target, context=context) == {"trigger_id": "trigger-301"}
-    assert persisted == [(target, 301)]
-    assert [call[0] for call in client.calls] == ["list", "create", "execute"]
-    assert client.calls[0][1] == {
-        "page": {"offset": 0, "limit": 2},
-        "exact_include_conditions": {"deploy_policy_name": ["bkm-collect-7-stable"]},
-    }
+    with pytest.raises(NodeManV3PayloadError, match="must keep enabled=true"):
+        NodeManV3DeployPolicyGateway(client=client).ensure_policy(SimpleNamespace(), payload, context=context)
+
+    assert client.calls == []
 
 
-def test_gateway_recovers_existing_policy_by_exact_stable_name_and_updates_it(monkeypatch):
-    target = _target()
-    payload = {
-        "name": "bkm-collect-7-stable",
-        "description": "collect target",
-        "enabled": True,
-        "specs": [{"type": "specify_plugin", "param": {}}],
-        "scopes": [],
-    }
-    client = FakeDeployPolicyClient(listed=[{"deploy_policy_id": 301, "meta": {"name": "bkm-collect-7-stable"}}])
-    builder = SimpleNamespace(
-        build=lambda current_target: payload,
-        update_payload=CollectDeployPolicyPayloadBuilder.update_payload,
-    )
-    persisted = []
-    monkeypatch.setattr(
-        NodeManV3DeployPolicyGateway,
-        "_persist_policy_id",
-        staticmethod(lambda current_target, policy_id: persisted.append((current_target, policy_id))),
-    )
-    gateway = NodeManV3DeployPolicyGateway(client=client, payload_builder=builder)
-    context = NodeManV3RequestContext(
-        bk_tenant_id="tenant-a",
-        bk_biz_id=2,
-        monitor_operation_id="operation-1",
-    )
-
-    assert gateway.ensure_target(target, context=context) == {"trigger_id": "trigger-301"}
-    assert [call[0] for call in client.calls] == ["list", "update", "execute"]
-    assert client.calls[1][1]["deploy_policies"][0]["deploy_policy_id"] == 301
-    assert persisted == [(target, 301)]
-
-
-def test_gateway_updates_and_executes_existing_target_policy(monkeypatch):
-    target = _target(deploy_policy_id=301)
+def test_generation_conflict_after_create_is_unknown_and_does_not_execute(binding, context):
     client = FakeDeployPolicyClient()
-    payload = {
-        "name": "bkm-collect-7-stable",
-        "description": "updated collect target",
-        "enabled": True,
-        "specs": [{"type": "specify_plugin", "param": {"version": "2.0"}}],
-        "scopes": [],
-    }
-    builder = SimpleNamespace(
-        build=lambda current_target: payload,
-        update_payload=CollectDeployPolicyPayloadBuilder.update_payload,
-    )
-    persisted = []
-    monkeypatch.setattr(
-        NodeManV3DeployPolicyGateway,
-        "_persist_policy_id",
-        staticmethod(lambda current_target, policy_id: persisted.append((current_target, policy_id))),
-    )
-    gateway = NodeManV3DeployPolicyGateway(client=client, payload_builder=builder)
-    context = NodeManV3RequestContext(
-        bk_tenant_id="tenant-a",
-        bk_biz_id=2,
-        monitor_operation_id="operation-2",
-    )
+    NodeManIntegrationBinding.objects.filter(pk=binding.pk).update(generation=binding.generation + 1)
+    with pytest.raises(NodeManV3UnknownResultError, match="changed while"):
+        NodeManV3DeployPolicyGateway(client=client).ensure_policy(binding, policy_payload(), context=context)
+    assert [call[0] for call in client.calls] == ["list", "create"]
 
-    assert gateway.update_target(target, context=context) == {"trigger_id": "trigger-301"}
 
-    assert [call[0] for call in client.calls] == ["update", "execute"]
-    assert client.calls[0][1] == CollectDeployPolicyPayloadBuilder.update_payload(301, payload)
-    assert persisted == [(target, 301)]
+@pytest.mark.parametrize("stage", ["create", "execute"])
+def test_malformed_write_response_is_unknown(binding, context, stage):
+    client = FakeDeployPolicyClient()
+    setattr(client, stage, lambda *args, **kwargs: {})
+    with pytest.raises(NodeManV3UnknownResultError):
+        NodeManV3DeployPolicyGateway(client=client).ensure_policy(binding, policy_payload(), context=context)
+
+
+def test_duplicate_stable_names_do_not_create_or_execute(binding, context):
+    client = FakeDeployPolicyClient(
+        listed=[{"deploy_policy_id": value, "meta": {"name": "bkm-collect-7"}} for value in (301, 302)]
+    )
+    with pytest.raises(NodeManV3PayloadError, match="multiple deploy policies"):
+        NodeManV3DeployPolicyGateway(client=client).ensure_policy(binding, policy_payload(), context=context)
+    assert [call[0] for call in client.calls] == ["list"]

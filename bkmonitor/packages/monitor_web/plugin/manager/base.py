@@ -676,6 +676,10 @@ class PluginManager(BasePluginManager):
         super()._update_version_params(data, version, current_version, stag)
         # 如果是官方插件，且当前版本不是官方版本，则删除当前版本的所有历史版本
         if version.is_official and not current_version.is_official:
+            from bkmonitor.nodeman_integration.mode import get_nodeman_integration_mode
+
+            if get_nodeman_integration_mode() == "v3_fresh":
+                return
             try:
                 api.node_man.delete_plugin(name=version.plugin.plugin_id)
             except BKAPIError:
@@ -871,6 +875,19 @@ class PluginManager(BasePluginManager):
         """
         开始插件调试
         """
+        from bkmonitor.nodeman_integration.mode import get_nodeman_integration_mode
+
+        if get_nodeman_integration_mode() == "v3_fresh":
+            from monitor_web.plugin.nodeman_v3 import NodeManV3PluginDebugService
+
+            return NodeManV3PluginDebugService().start(
+                self,
+                config_version=config_version,
+                info_version=info_version,
+                param=param,
+                host_info=host_info,
+                target_nodes=target_nodes,
+            )
         all_context = self._get_debug_config_context(config_version, info_version, param, target_nodes)
 
         # 将配置模板渲染为配置实例，并获取配置实例ID
@@ -886,13 +903,26 @@ class PluginManager(BasePluginManager):
         """
         停止插件调试
         """
+        from bkmonitor.nodeman_integration.mode import get_nodeman_integration_mode
+
+        if get_nodeman_integration_mode() == "v3_fresh":
+            from monitor_web.plugin.nodeman_v3 import NodeManV3PluginDebugService
+
+            return NodeManV3PluginDebugService().stop(self.plugin, task_id)
         return api.node_man.stop_debug(task_id=task_id)
 
     def query_debug(self, task_id):
         """
         获取调试信息
         """
-        result = api.node_man.query_debug(task_id=task_id)
+        from bkmonitor.nodeman_integration.mode import get_nodeman_integration_mode
+
+        if get_nodeman_integration_mode() == "v3_fresh":
+            from monitor_web.plugin.nodeman_v3 import NodeManV3PluginDebugService
+
+            result = NodeManV3PluginDebugService().query(self.plugin, task_id)
+        else:
+            result = api.node_man.query_debug(task_id=task_id)
 
         metric_json, last_time = self._parser_log_content(result["message"])
         log_content = self._parser_log_error(result["message"])
@@ -948,17 +978,23 @@ class PluginManager(BasePluginManager):
             else:
                 release_version = current_version
 
-            # 调用节点管理接口，发布配置文件
-            release_config = partial(self._release_config, release_version.config_version, release_version.info_version)
-            list(map(release_config, self.config_files))
-            # 调用节点管理接口，发布插件包
-            api.node_man.release_plugin(
-                {
-                    "name": self.plugin.plugin_id,
-                    "version": f"{release_version.config_version}.{release_version.info_version}",
-                    "md5_list": token,
-                }
-            )
+            from bkmonitor.nodeman_integration.mode import get_nodeman_integration_mode
+
+            if get_nodeman_integration_mode() != "v3_fresh":
+                # V3 package/workflow/import/v3/plugin has already published and enabled the release.
+                release_config = partial(
+                    self._release_config,
+                    release_version.config_version,
+                    release_version.info_version,
+                )
+                list(map(release_config, self.config_files))
+                api.node_man.release_plugin(
+                    {
+                        "name": self.plugin.plugin_id,
+                        "version": f"{release_version.config_version}.{release_version.info_version}",
+                        "md5_list": token,
+                    }
+                )
             # 将插件版本状态置为release
             release_version.stage = "release"
             release_version.save()
@@ -1091,6 +1127,13 @@ class PluginManager(BasePluginManager):
         release_version = self.plugin.release_version
         if not release_version:
             raise ExportPluginError({"msg": gettext("该插件没有release版本可导出")})
+
+        from bkmonitor.nodeman_integration.mode import get_nodeman_integration_mode
+
+        if get_nodeman_integration_mode() == "v3_fresh":
+            from monitor_web.plugin.nodeman_v3 import NodeManV3PackageWorkflowService
+
+            return NodeManV3PackageWorkflowService().export(self.plugin, release_version.version)
 
         param = {
             "category": "gse_plugin",

@@ -378,12 +378,10 @@ def test_v3_process_contract_contains_all_declared_tasks_and_beat_entries():
     assert contract["v3_task_names"] == [
         "monitor_web.nodeman_integration.v3.tasks.poll_operation",
         "monitor_web.nodeman_integration.v3.tasks.poll_pending_operations",
-        "monitor_web.nodeman_integration.v3.tasks.reconcile_active_bindings",
         "monitor_web.nodeman_integration.v3.tasks.reconcile_binding",
     ]
     assert contract["v3_beat_names"] == [
         "nodeman_v3_poll_pending_operations",
-        "nodeman_v3_reconcile_active_bindings",
     ]
     assert contract["role_checks"]["all_declared_tasks_registered"] is True
     assert contract["runtime_attestation_requirements"] == ["active_worker_celery_queue"]

@@ -14,10 +14,12 @@ from collections import defaultdict
 
 from api.cmdb.define import Host, ServiceInstance, TopoTree
 from bkm_ipchooser import constants
+from bkmonitor.nodeman_integration.mode import get_nodeman_integration_mode
 from bkmonitor.commons.tools import is_ipv6_biz
 from bkmonitor.data_source import UnifyQuery, load_data_source
 from bkmonitor.documents import AlertDocument
 from bkmonitor.utils.common_utils import to_dict
+from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from bkmonitor.utils.thread_backend import ThreadPool
 from constants.alert import EventStatus
 from constants.cmdb import TargetNodeType
@@ -155,15 +157,30 @@ def get_agent_status(
     futures = []
     for index in range(0, len(host_list), 1000):
         batch = host_list[index : index + 1000]
+        if get_nodeman_integration_mode() == "v3_fresh":
+            from bkmonitor.nodeman_integration.v3.compat import ipchooser_host_detail
+
+            status_query = ipchooser_host_detail
+            status_query_kwargs = {
+                "params": {
+                    "bk_tenant_id": bk_biz_id_to_bk_tenant_id(bk_biz_id),
+                    "host_list": batch,
+                    "scope_list": scope_list,
+                    "agent_realtime_state": True,
+                }
+            }
+        else:
+            status_query = api.node_man.ipchooser_host_detail
+            status_query_kwargs = {
+                "host_list": batch,
+                "scope_list": scope_list,
+                "agent_realtime_state": True,
+            }
         futures.append(
             (
                 pool.apply_async(
-                    api.node_man.ipchooser_host_detail,
-                    kwds={
-                        "host_list": batch,
-                        "scope_list": scope_list,
-                        "agent_realtime_state": True,
-                    },
+                    status_query,
+                    kwds=status_query_kwargs,
                 ),
                 {item["host_id"] for item in batch},
             )
