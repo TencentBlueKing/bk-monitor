@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -11,7 +10,6 @@ specific language governing permissions and limitations under the License.
 
 import inspect
 import logging
-from typing import Optional
 
 from django.http import Http404
 from django.utils.translation import gettext_lazy as _lazy
@@ -52,13 +50,16 @@ def custom_exception_handler(exc, context):
     """
     针对CustomException返回的错误进行特殊处理，增加了传递数据的特性
     """
+    # 延迟导入避免框架与 Django 启动顺序的循环依赖
+    from bkmonitor.iam.iam_engine.core.exceptions import PermissionDenied  # noqa: F811
+
     response = None
     if isinstance(exc, Error):
         headers = {}
         if getattr(exc, "auth_header", None):
             headers["WWW-Authenticate"] = exc.auth_header
         if getattr(exc, "wait", None):
-            headers["Retry-After"] = "%d" % exc.wait
+            headers["Retry-After"] = f"{exc.wait}"
         result = {
             "result": False,
             "code": exc.code,
@@ -69,12 +70,30 @@ def custom_exception_handler(exc, context):
         }
         result.update(getattr(exc, "extra", {}))
         response = Response(result, status=exc.status_code, headers=headers)
+    elif isinstance(exc, PermissionDenied):
+        headers = {}
+        result = {
+            "result": False,
+            "code": PermissionDenied.code,
+            "name": PermissionDenied.default_detail,
+            "message": str(exc),
+            "data": {"apply_url": exc.apply_url},
+            "error_details": ErrorDetails(
+                exc_type=type(exc).__name__,
+                exc_code=PermissionDenied.code,
+                overview=str(exc),
+                detail=exc.apply_url,
+                popup_message="primary",
+            ).to_dict(),
+        }
+        result.update(exc.detail_data)
+        response = Response(result, status=PermissionDenied.status_code, headers=headers)
     elif isinstance(exc, APIException):
         headers = {}
         if getattr(exc, "auth_header", None):
             headers["WWW-Authenticate"] = exc.auth_header
         if getattr(exc, "wait", None):
-            headers["Retry-After"] = "%d" % exc.wait
+            headers["Retry-After"] = f"{exc.wait}"
         msg = DrfApiError.drf_error_processor(exc.detail)
         error_detail = ErrorDetails(
             exc_type=type(exc).__name__,
@@ -132,7 +151,7 @@ def record_exception(
     span: Span,
     exception: Exception,
     attributes: types.Attributes = None,
-    timestamp: Optional[int] = None,
+    timestamp: int | None = None,
     escaped: bool = False,
     out_limit: int = None,
 ) -> None:
@@ -146,18 +165,18 @@ def record_exception(
         if out_limit and out_limit > 0:
             out_frames = out_frames[:out_limit]
         for item in reversed(out_frames):
-            row.append('  File "{}", line {}, in {}\n'.format(item.filename, item.lineno, item.function))
+            row.append(f'  File "{item.filename}", line {item.lineno}, in {item.function}\n')
             for line in item.code_context:
                 if line:
-                    row.append('    {}\n'.format(line.strip()))
+                    row.append(f"    {line.strip()}\n")
 
         for item in inspect.getinnerframes(tb):
-            row.append('  File "{}", line {}, in {}\n'.format(item.filename, item.lineno, item.function))
+            row.append(f'  File "{item.filename}", line {item.lineno}, in {item.function}\n')
             for line in item.code_context:
                 if line:
-                    row.append('    {}\n'.format(line.strip()))
+                    row.append(f"    {line.strip()}\n")
 
-        stacktrace = ''.join(row)
+        stacktrace = "".join(row)
     except Exception:  # pylint: disable=broad-except
         # workaround for python 3.4, format_exc can raise
         # an AttributeError if the __context__ on

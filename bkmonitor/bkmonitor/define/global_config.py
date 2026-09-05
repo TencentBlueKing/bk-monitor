@@ -556,6 +556,17 @@ ADVANCED_OPTIONS = OrderedDict(
             "OPERATION_MCP_STAT_BIZ_IDS",
             slz.JSONField(label="运营MCP按指标族的统计业务ID(形如{default:id,logbeat:id})", default={}),
         ),
+        # ------------------------------------------------------------------
+        # IAM 动态读策略。Provider 的装配、读集合和写集合由启动环境变量分别
+        # 决定；本项仅在 BK_IAM_READ_POLICY=dynamic 且 READ.OPTIONS selector
+        # 引用本项时选择候选读策略。默认值来自 BK_IAM_READ_STRATEGY 环境变量。
+        # READ.OPTIONS 未提供 policies 时，可写值为框架自动生成的候选 key（例如
+        # single_<provider-name> / any_of / all_of / primary_<provider-name>）；提供 policies 时使用其 key。
+        # 未知值由动态策略使用 READ.OPTIONS 中的 fallback_key 回退，避免全局配置短暂脏值中断鉴权。
+        (
+            "BK_IAM_READ_STRATEGY",
+            slz.CharField(label="IAM动态读策略", default=settings.BK_IAM_READ_STRATEGY),
+        ),
     ]
 )
 
