@@ -7,10 +7,11 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import arrow
 from django.conf import settings
-from django.db.models import Q
+from django.db.models import Q, Subquery
 from django.utils import timezone
 from elasticsearch_dsl import Search
 
+from apps.api.modules.utils import result_table_id_to_bk_biz_id
 from apps.exceptions import PermissionError as BklogPermissionError
 from apps.exceptions import ValidationError
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
@@ -629,6 +630,32 @@ class ResourceUnifyQueryContextHandler(ResourceTimeZoneMixin, UnifyQueryContextH
 class ResourceScenePermissionMixin:
     """Replace the user-IAM hook with Resource Call's tenant and scene-space boundary."""
 
+    def __init__(self, *args, resolved_index_set_ids=None, **kwargs):
+        self._resource_resolved_index_set_ids = (
+            None
+            if resolved_index_set_ids is None
+            else tuple(sorted(set(int(index_set_id) for index_set_id in resolved_index_set_ids)))
+        )
+        super().__init__(*args, **kwargs)
+
+    def _init_scene_base_dict(self):
+        base_dict = super()._init_scene_base_dict()
+        resolved_index_set_ids = getattr(self, "_resource_resolved_index_set_ids", None)
+        if resolved_index_set_ids is None:
+            return base_dict
+
+        query_template = copy.deepcopy(base_dict["query_list"][0])
+        query_template.pop("table_id_conditions", None)
+        query_list = []
+        for position, index_set_id in enumerate(resolved_index_set_ids):
+            query = copy.deepcopy(query_template)
+            query["table_id"] = BaseIndexSetHandler.get_data_label(index_set_id)
+            query["reference_name"] = self.generate_reference_name(position)
+            query_list.append(query)
+        base_dict["query_list"] = query_list
+        base_dict["metric_merge"] = " + ".join(query["reference_name"] for query in query_list)
+        return base_dict
+
     def _resource_allowed_space_uids(self):
         return set(_related_space_uids(self.space_uid))
 
@@ -666,27 +693,86 @@ class ResourceScenePermissionMixin:
     def _map_result_tables_to_index_sets(self, result_table_ids):
         return sorted(set(self._get_result_table_index_set_map(result_table_ids).values()))
 
-    def verify_result_table_search_permission(self, result_table_ids: list[str]) -> None:
+    def verify_result_table_search_permission(self, result_table_ids: list[str]) -> dict:
         result_table_ids = [value for value in result_table_ids or [] if value]
         if not result_table_ids:
-            return
-        allowed_spaces = self._resource_allowed_space_uids()
-        index_set_ids, unknown_result_tables = _resource_index_set_ids_for_result_tables(
-            result_table_ids, allowed_spaces
+            return {
+                "result_table_index_set_map": {},
+                "stale_result_tables": [],
+                "unmapped_result_tables": [],
+                "rejected_result_tables": [],
+            }
+        route_scope = _scene_result_table_scope(
+            result_table_ids,
+            self._resource_allowed_space_uids(),
+            bk_biz_id=getattr(self, "bk_biz_id", None),
         )
-        if unknown_result_tables:
-            raise BklogPermissionError("scene result contains an unmapped result table")
-        visible_ids = set(
-            scope_space_queryset(LogIndexSet.objects)
-            .filter(index_set_id__in=index_set_ids, space_uid__in=allowed_spaces)
-            .values_list("index_set_id", flat=True)
-        )
-        if index_set_ids != visible_ids:
-            raise BklogPermissionError("scene result contains an index set outside the Resource Call source scope")
+        if route_scope["rejected_result_tables"]:
+            raise BklogPermissionError("scene result contains a result table outside the Resource Call source scope")
+        resolved_index_set_ids = getattr(self, "_resource_resolved_index_set_ids", None)
+        if resolved_index_set_ids is not None:
+            unexpected_index_set_ids = set(route_scope["result_table_index_set_map"].values()) - set(
+                resolved_index_set_ids
+            )
+            if route_scope["stale_result_tables"] or route_scope["unmapped_result_tables"] or unexpected_index_set_ids:
+                raise BklogPermissionError("resolved scene query returned a route outside the verified route plan")
+        return route_scope
+
+    def _verify_scene_permission(self, result) -> None:
+        route_scope = self.verify_result_table_search_permission((result or {}).get("result_table_id"))
+        degraded_count = len(route_scope["stale_result_tables"]) + len(route_scope["unmapped_result_tables"])
+        if degraded_count and isinstance(result, dict) and not result.get("status"):
+            result["status"] = {
+                "code": "scene_routes_excluded",
+                "message": f"{degraded_count} stale or unmapped scene routes were excluded",
+            }
 
 
 class ResourceSceneUnifyQueryHandler(ResourceTimeZoneMixin, ResourceScenePermissionMixin, SceneUnifyQueryHandler):
-    pass
+    def _deal_query_result(self, result_dict: dict, add_index_set_id: bool = False) -> dict:
+        result = super()._deal_query_result(result_dict, add_index_set_id=add_index_set_id)
+        if not add_index_set_id:
+            return result
+
+        original_result_table_ids = _string_list(result.get("result_table_id"))
+        result_table_index_set_map = self._get_result_table_index_set_map(original_result_table_ids)
+        valid_result_table_ids = set(result_table_index_set_map)
+        kept_indices = [
+            index for index, item in enumerate(result.get("list") or []) if item.get("__index_set_id__") is not None
+        ]
+        original_list = result.get("list") or []
+        original_origin_log_list = result.get("origin_log_list") or []
+        if getattr(self, "_resource_resolved_index_set_ids", None) is not None:
+            record_result_table_ids = _string_list(
+                [item.get("__result_table") for item in original_list if item.get("__result_table")]
+            )
+            record_result_table_map = self._get_result_table_index_set_map(record_result_table_ids)
+            unexpected_index_set_ids = set(record_result_table_map.values()) - set(
+                self._resource_resolved_index_set_ids
+            )
+            if (
+                len(record_result_table_map) != len(record_result_table_ids)
+                or unexpected_index_set_ids
+                or any(item.get("__index_set_id__") is None for item in original_list)
+            ):
+                raise BklogPermissionError("resolved scene query returned records outside the verified route plan")
+        result["list"] = [original_list[index] for index in kept_indices]
+        result["origin_log_list"] = [
+            original_origin_log_list[index] for index in kept_indices if index < len(original_origin_log_list)
+        ]
+        result["result_table_id"] = [
+            result_table_id
+            for result_table_id in original_result_table_ids
+            if result_table_id in valid_result_table_ids
+        ]
+        excluded_count = len(original_list) - len(result["list"])
+        excluded_route_count = len(original_result_table_ids) - len(result["result_table_id"])
+        if (excluded_count or excluded_route_count) and not result.get("status"):
+            result["status"] = {
+                "code": "scene_routes_excluded",
+                "message": f"{excluded_route_count} stale or unmapped scene routes and {excluded_count} records were excluded",
+            }
+        return result
 
 
 class ResourceSceneTermsAggsHandler(ResourceTimeZoneMixin, ResourceScenePermissionMixin, SceneTermsAggsHandler):
@@ -772,6 +858,13 @@ class ResourcePatternHandler(PatternHandler):
         self._index_set_id = entry_index_set_id
         self._clustering_config = clustering_config
 
+    def _run_multi_execute(self, multi_execute_func):
+        result = multi_execute_func.run(return_exception=True)
+        for value in result.values():
+            if isinstance(value, Exception):
+                raise value
+        return result
+
     def _get_pattern_aggs_result(self, index_set_id, query):
         pattern_aggs_field = self.pattern_aggs_field
         use_unify_query = self._clustering_config.storage_type == StorageTypeEnum.DORIS.value or (
@@ -829,6 +922,65 @@ def get_log_fields(params):
     )
 
 
+def _resolve_scene_route_plan(source, query, *, time_zone=None):
+    """Resolve a scene once, then pin every data query to the verified active index sets."""
+
+    handler = ResourceSceneUnifyQueryHandler(query)
+    runtime_query = copy.deepcopy(handler.base_dict)
+    runtime_query.update({"from": 0, "limit": 1, "highlight": {"enable": False}})
+    runtime = _run_query(lambda: handler.query_ts_raw(runtime_query), time_zone=time_zone)
+    route_scope = _scene_result_table_scope(
+        _string_list(runtime.get("result_table_id")),
+        set(source["related_space_uids"]),
+        bk_biz_id=source["bk_biz_id"],
+    )
+    if route_scope["rejected_result_tables"]:
+        raise BklogPermissionError("scene result contains a result table outside the Resource Call source scope")
+
+    result_table_ids = [
+        result_table_id
+        for result_table_id in _string_list(runtime.get("result_table_id"))
+        if result_table_id in route_scope["result_table_index_set_map"]
+    ]
+    warnings = [
+        warning for warning in _downstream_warnings(runtime) if warning["code"] != "downstream_scene_routes_excluded"
+    ]
+    warnings.extend(_scene_route_warnings(route_scope))
+    return {
+        "runtime": runtime,
+        "scope": route_scope,
+        "result_table_ids": result_table_ids,
+        "index_set_ids": sorted(set(route_scope["result_table_index_set_map"].values())),
+        "warnings": warnings,
+    }
+
+
+def _scene_route_warnings(route_scope):
+    warnings = []
+    if route_scope["stale_result_tables"]:
+        warnings.append(
+            {
+                "code": "scene_stale_routes_excluded",
+                "message": f"{len(route_scope['stale_result_tables'])} stale scene routes were excluded",
+                "scope": "scene.result_tables",
+                "retryable": False,
+            }
+        )
+    if route_scope["unmapped_result_tables"]:
+        warnings.append(
+            {
+                "code": "scene_result_table_unmapped",
+                "message": (
+                    f"{len(route_scope['unmapped_result_tables'])} same-business result tables "
+                    "could not be mapped to an active index set"
+                ),
+                "scope": "scene.result_tables",
+                "retryable": False,
+            }
+        )
+    return warnings
+
+
 def search_logs(params):
     source = _resolve_source(params["source"])
     start_time, end_time = _time_range(params)
@@ -838,12 +990,23 @@ def search_logs(params):
         _error("log_query_limit_exceeded", f"query exceeds the existing result window of {MAX_RESULT_WINDOW}")
     query = _base_query_params(params, start_time, end_time)
     query.update({"begin": begin, "size": size})
+    scene_plan = None
 
     if source["type"] == SOURCE_INDEX_SET:
         data = _run_query(lambda: _index_set_search(source, query), time_zone=params.get("time_zone"))
     elif source["type"] == SOURCE_SCENE:
         query.update(_scene_query_params(source, params))
-        data = _run_query(lambda: ResourceSceneUnifyQueryHandler(query).search(), time_zone=params.get("time_zone"))
+        scene_plan = _resolve_scene_route_plan(source, query, time_zone=params.get("time_zone"))
+        if scene_plan["index_set_ids"]:
+            data = _run_query(
+                lambda: ResourceSceneUnifyQueryHandler(
+                    query,
+                    resolved_index_set_ids=scene_plan["index_set_ids"],
+                ).search(),
+                time_zone=params.get("time_zone"),
+            )
+        else:
+            data = {"list": [], "origin_log_list": [], "result_table_id": [], "total": 0, "took": 0, "fields": {}}
     else:
         data = _run_query(
             lambda: _clustering_search(source, query),
@@ -851,7 +1014,8 @@ def search_logs(params):
             time_zone=params.get("time_zone"),
         )
 
-    warnings = _downstream_warnings(data)
+    warnings = list(scene_plan["warnings"] if scene_plan else [])
+    warnings.extend(_downstream_warnings(data))
     normalized_items = _search_result_items(source, data.get("list") or [], params.get("fields"))
     items, truncation = _bounded_items(normalized_items)
     if truncation["truncated"]:
@@ -864,6 +1028,12 @@ def search_logs(params):
             }
         )
     result_table_ids = _string_list(data.get("result_table_id"))
+    route_index_set_ids = _result_index_set_ids(source, data.get("list") or [])
+    configured_route_fallback = True
+    if scene_plan:
+        result_table_ids = scene_plan["result_table_ids"]
+        route_index_set_ids = scene_plan["index_set_ids"]
+        configured_route_fallback = False
     if source["type"] == SOURCE_CLUSTERING:
         result_table_ids = [source["route"]["clustered_rt"]]
     total = _total_value(data.get("total"))
@@ -873,8 +1043,9 @@ def search_logs(params):
         route=_route_evidence(
             source,
             result_table_ids=result_table_ids,
-            index_set_ids=_result_index_set_ids(source, data.get("list") or []),
+            index_set_ids=route_index_set_ids,
             partial=bool(warnings),
+            configured_route_fallback=configured_route_fallback,
         ),
         warnings=warnings,
         items=items,
@@ -885,7 +1056,7 @@ def search_logs(params):
             "begin": begin,
             "size": size,
             "returned": len(items),
-            "has_more": begin + len(items) < total,
+            "has_more": begin + size < total,
         },
         truncation=truncation,
     )
@@ -897,21 +1068,41 @@ def aggregate_logs(params):
     query = _base_query_params(params, start_time, end_time)
     aggregation = params["aggregation"]
     aggregation_type = aggregation["type"]
+    scene_plan = None
+    if source["type"] == SOURCE_SCENE:
+        query.update(_scene_query_params(source, params))
+        scene_plan = _resolve_scene_route_plan(source, query, time_zone=params.get("time_zone"))
 
     if aggregation_type == "terms":
-        _resolve_field_type(source, aggregation["field"], params)
+        if source["type"] == SOURCE_INDEX_SET or scene_plan["index_set_ids"]:
+            _resolve_field_type(
+                source,
+                aggregation["field"],
+                params,
+                scene_index_set_ids=scene_plan["index_set_ids"] if scene_plan else None,
+            )
         query.update({"fields": [aggregation["field"]], "size": aggregation.get("size", 20)})
         if source["type"] == SOURCE_INDEX_SET:
             data = _run_query(lambda: _index_set_terms(source, query), time_zone=params.get("time_zone"))
+        elif not scene_plan["index_set_ids"]:
+            data = {"aggs": {}, "aggs_items": {}}
         else:
-            query.update(_scene_query_params(source, params))
             data = _run_query(
-                lambda: ResourceSceneTermsAggsHandler(query["fields"], query).terms(),
+                lambda: ResourceSceneTermsAggsHandler(
+                    query["fields"],
+                    query,
+                    resolved_index_set_ids=scene_plan["index_set_ids"],
+                ).terms(),
                 time_zone=params.get("time_zone"),
             )
     elif aggregation_type == "histogram":
-        if aggregation.get("group_field"):
-            _resolve_field_type(source, aggregation["group_field"], params)
+        if aggregation.get("group_field") and (source["type"] == SOURCE_INDEX_SET or scene_plan["index_set_ids"]):
+            _resolve_field_type(
+                source,
+                aggregation["group_field"],
+                params,
+                scene_index_set_ids=scene_plan["index_set_ids"] if scene_plan else None,
+            )
         query.update(
             {
                 "interval": aggregation.get("interval", "auto"),
@@ -921,32 +1112,57 @@ def aggregate_logs(params):
         )
         if source["type"] == SOURCE_INDEX_SET:
             data = _run_query(lambda: _index_set_histogram(source, query), time_zone=params.get("time_zone"))
+        elif not scene_plan["index_set_ids"]:
+            data = {"aggs": {}}
         else:
-            query.update(_scene_query_params(source, params))
             data = _run_query(
-                lambda: ResourceSceneUnifyQueryHandler(query).aggs_date_histogram(
-                    interval=query["interval"], group_field=query.get("group_field")
-                ),
+                lambda: ResourceSceneUnifyQueryHandler(
+                    query,
+                    resolved_index_set_ids=scene_plan["index_set_ids"],
+                ).aggs_date_histogram(interval=query["interval"], group_field=query.get("group_field")),
                 time_zone=params.get("time_zone"),
             )
     else:
-        field_type = _resolve_field_type(source, aggregation["field"], params)
+        field_type = (
+            _resolve_field_type(
+                source,
+                aggregation["field"],
+                params,
+                scene_index_set_ids=scene_plan["index_set_ids"] if scene_plan else None,
+            )
+            if source["type"] == SOURCE_INDEX_SET or scene_plan["index_set_ids"]
+            else None
+        )
         query.update({"agg_field": aggregation["field"], "field_type": field_type})
         if source["type"] == SOURCE_INDEX_SET:
             query["index_set_ids"] = [source["index_set_id"]]
             query["bk_biz_id"] = source["bk_biz_id"]
             handler = ResourceUnifyQueryFieldHandler(query)
+        elif not scene_plan["index_set_ids"]:
+            handler = None
         else:
-            query.update(_scene_query_params(source, params))
-            handler = ResourceSceneFieldHandler(query)
-        data = _run_query(lambda: _field_statistics(handler, field_type), time_zone=params.get("time_zone"))
+            handler = ResourceSceneFieldHandler(query, resolved_index_set_ids=scene_plan["index_set_ids"])
+        data = (
+            _run_query(lambda: _field_statistics(handler, field_type), time_zone=params.get("time_zone"))
+            if handler
+            else {"total_count": 0, "field_count": 0, "distinct_count": 0, "field_percent": 0}
+        )
 
-    warnings = _downstream_warnings(data)
+    warnings = list(scene_plan["warnings"] if scene_plan else [])
+    warnings.extend(_downstream_warnings(data))
     buckets, stats = _normalize_aggregation_result(aggregation, data)
+    result_table_ids = scene_plan["result_table_ids"] if scene_plan else _configured_result_table_ids(source)
+    route_index_set_ids = scene_plan["index_set_ids"] if scene_plan else None
     return _result(
         source,
         status=_downstream_status(data, warnings),
-        route=_route_evidence(source, result_table_ids=_configured_result_table_ids(source), partial=bool(warnings)),
+        route=_route_evidence(
+            source,
+            result_table_ids=result_table_ids,
+            index_set_ids=route_index_set_ids,
+            partial=bool(warnings),
+            configured_route_fallback=scene_plan is None,
+        ),
         warnings=warnings,
         aggregation=aggregation,
         buckets=buckets,
@@ -1051,14 +1267,10 @@ def resolve_log_scene(params):
     start_time, end_time = _time_range(params)
     query = _base_query_params(params, start_time, end_time)
     query.update(_scene_query_params(source, params))
-    handler = ResourceSceneUnifyQueryHandler(query)
-    runtime_query = copy.deepcopy(handler.base_dict)
-    runtime_query.update({"from": 0, "limit": 1, "highlight": {"enable": False}})
-    runtime = _run_query(lambda: handler.query_ts_raw(runtime_query), time_zone=params.get("time_zone"))
-    actual_result_tables = _string_list(runtime.get("result_table_id"))
-    actual_index_set_ids, unknown_result_tables = _resource_index_set_ids_for_result_tables(
-        actual_result_tables, set(source["related_space_uids"])
-    )
+    scene_plan = _resolve_scene_route_plan(source, query, time_zone=params.get("time_zone"))
+    runtime = scene_plan["runtime"]
+    actual_result_tables = scene_plan["result_table_ids"]
+    actual_index_set_ids = set(scene_plan["index_set_ids"])
     candidates = _scene_candidates(source)
 
     matched_targets = []
@@ -1074,7 +1286,7 @@ def resolve_log_scene(params):
             target["reason"] = "no_data_or_runtime_condition_excluded"
             excluded_targets.append(target)
 
-    warnings = _downstream_warnings(runtime)
+    warnings = list(scene_plan["warnings"])
     if source.get("candidates_truncated"):
         warnings.append(
             {
@@ -1093,15 +1305,6 @@ def resolve_log_scene(params):
                 "retryable": False,
             }
         )
-    if unknown_result_tables:
-        warnings.append(
-            {
-                "code": "scene_result_table_unmapped",
-                "message": f"{len(unknown_result_tables)} result tables could not be mapped to an index set",
-                "scope": "scene.result_tables",
-                "retryable": False,
-            }
-        )
     compatibility = _field_compatibility(
         [item["index_set"] for item in candidates if item["index_set"].index_set_id in actual_index_set_ids]
     )
@@ -1113,6 +1316,7 @@ def resolve_log_scene(params):
             result_table_ids=actual_result_tables,
             index_set_ids=sorted(actual_index_set_ids),
             partial=bool(warnings),
+            configured_route_fallback=False,
         ),
         warnings=warnings,
         targets=matched_targets,
@@ -1138,8 +1342,8 @@ def search_clustering_patterns(params):
             }
         )
     query = {
-        "start_time": arrow.get(start_time / 1000).datetime,
-        "end_time": arrow.get(end_time / 1000).datetime,
+        "start_time": _format_query_datetime(start_time, params.get("time_zone")),
+        "end_time": _format_query_datetime(end_time, params.get("time_zone")),
         "time_range": "customized",
         "keyword": params.get("keyword") or "",
         "addition": addition,
@@ -1529,9 +1733,16 @@ def _configured_result_table_ids(source):
     return list(dict.fromkeys(result_table_ids))
 
 
-def _route_evidence(source, *, result_table_ids=None, index_set_ids=None, partial=False):
+def _route_evidence(
+    source,
+    *,
+    result_table_ids=None,
+    index_set_ids=None,
+    partial=False,
+    configured_route_fallback=True,
+):
     result_table_ids = list(dict.fromkeys(str(value) for value in result_table_ids or [] if value))
-    if not result_table_ids:
+    if not result_table_ids and configured_route_fallback:
         result_table_ids = _configured_result_table_ids(source)
     if index_set_ids is None:
         index_set_ids = (
@@ -1597,6 +1808,17 @@ def _route_evidence(source, *, result_table_ids=None, index_set_ids=None, partia
     }
 
 
+def _usable_scene_index_set_id_queryset():
+    return (
+        LogIndexSetData.objects.filter(
+            type=IndexSetDataType.RESULT_TABLE.value,
+            apply_status=LogIndexSetData.Status.NORMAL,
+        )
+        .order_by()
+        .values("index_set_id")
+    )
+
+
 def _result_table_index_set_map(source, records):
     if source["type"] != SOURCE_SCENE:
         return {}
@@ -1620,7 +1842,9 @@ def _result_table_index_set_map(source, records):
             .filter(
                 index_set_id__in=set(logical_result_tables.values()),
                 space_uid__in=allowed_spaces,
+                is_active=True,
             )
+            .filter(index_set_id__in=Subquery(_usable_scene_index_set_id_queryset()))
             .values_list("index_set_id", flat=True)
         )
         mapping.update(
@@ -1633,7 +1857,7 @@ def _result_table_index_set_map(source, records):
     if physical_result_table_ids:
         visible_ids = set(
             scope_space_queryset(LogIndexSet.objects)
-            .filter(space_uid__in=allowed_spaces)
+            .filter(space_uid__in=allowed_spaces, is_active=True)
             .values_list("index_set_id", flat=True)
         )
         mapping.update(
@@ -1643,6 +1867,7 @@ def _result_table_index_set_map(source, records):
                     result_table_id__in=physical_result_table_ids,
                     index_set_id__in=visible_ids,
                     type=IndexSetDataType.RESULT_TABLE.value,
+                    apply_status=LogIndexSetData.Status.NORMAL,
                 ).values_list("result_table_id", "index_set_id")
             }
         )
@@ -1735,14 +1960,36 @@ def _flatten_context_anchor(context_anchor):
     }
     anchor.update(context_anchor.get("sort_values") or {})
     anchor.update(context_anchor.get("identity") or {})
+    for field in ("gseIndex", "iterationIndex", "gseindex", "_iteration_idx"):
+        if anchor.get(field) not in (None, ""):
+            anchor[field] = str(anchor[field])
     if anchor.get("dtEventTimeStamp") in (None, ""):
         _error("log_context_anchor_invalid", "context anchor is missing dtEventTimeStamp")
     return anchor
 
 
-def _resolve_field_type(source, field_name, params):
+def _format_query_datetime(timestamp_ms, time_zone=None):
+    return arrow.get(timestamp_ms / 1000).to(time_zone or settings.TIME_ZONE).format("YYYY-MM-DD HH:mm:ss")
+
+
+def _resolve_field_type(source, field_name, params, *, scene_index_set_ids=None):
     if source["type"] == SOURCE_INDEX_SET:
         index_sets = [source["index_set"]]
+    elif scene_index_set_ids is not None:
+        requested_index_set_ids = set(scene_index_set_ids)
+        index_set_map = {
+            index_set.index_set_id: index_set
+            for index_set in scope_space_queryset(LogIndexSet.objects)
+            .filter(
+                index_set_id__in=requested_index_set_ids,
+                space_uid__in=source["related_space_uids"],
+                is_active=True,
+            )
+            .filter(index_set_id__in=Subquery(_usable_scene_index_set_id_queryset()))
+        }
+        if set(index_set_map) != requested_index_set_ids:
+            raise BklogPermissionError("resolved scene route is no longer visible to Resource Call")
+        index_sets = [index_set_map[index_set_id] for index_set_id in scene_index_set_ids]
     else:
         index_sets = [item["index_set"] for item in _scene_candidates(source) if item["matched"] is not False]
     field_types = {
@@ -1757,6 +2004,34 @@ def _resolve_field_type(source, field_name, params):
                 lambda: _index_set_fields(source, params, SearchScopeEnum.DEFAULT.value),
                 time_zone=params.get("time_zone"),
             )
+            field_types = {
+                field.get("field_type")
+                for field in (runtime_fields or {}).get("fields", [])
+                if field.get("field_name") == field_name and field.get("field_type")
+            }
+        elif scene_index_set_ids is not None:
+            for index_set in index_sets:
+                runtime_fields = _run_query(
+                    lambda index_set=index_set: _index_set_fields(
+                        {
+                            "type": SOURCE_INDEX_SET,
+                            "index_set_id": index_set.index_set_id,
+                            "index_set": index_set,
+                            "space_uid": index_set.space_uid,
+                            "bk_biz_id": space_uid_to_bk_biz_id(index_set.space_uid),
+                        },
+                        params,
+                        SearchScopeEnum.DEFAULT.value,
+                    ),
+                    time_zone=params.get("time_zone"),
+                )
+                field_types.update(
+                    field.get("field_type")
+                    for field in (runtime_fields or {}).get("fields", [])
+                    if field.get("field_name") == field_name and field.get("field_type")
+                )
+                if len(field_types) > 1:
+                    break
         else:
             runtime_fields = _run_query(
                 lambda: ResourceSceneUnifyQueryHandler(_scene_query_params(source, params)).fields(
@@ -1764,11 +2039,11 @@ def _resolve_field_type(source, field_name, params):
                 ),
                 time_zone=params.get("time_zone"),
             )
-        field_types = {
-            field.get("field_type")
-            for field in (runtime_fields or {}).get("fields", [])
-            if field.get("field_name") == field_name and field.get("field_type")
-        }
+            field_types = {
+                field.get("field_type")
+                for field in (runtime_fields or {}).get("fields", [])
+                if field.get("field_name") == field_name and field.get("field_type")
+            }
     if not field_types:
         _error("log_source_invalid", f"aggregation field does not exist: {field_name}")
     if len(field_types) != 1:
@@ -1914,7 +2189,14 @@ def _resolve_scene_anchor(source, anchor):
 
 
 def _scene_candidates(source):
-    queryset = scope_space_queryset(LogIndexSet.objects).filter(space_uid__in=source["related_space_uids"])
+    queryset = scope_space_queryset(LogIndexSet.objects).filter(
+        space_uid__in=source["related_space_uids"],
+        is_active=True,
+        index_set_id__in=Subquery(_usable_scene_index_set_id_queryset()),
+    )
+    condition_filter = _scene_candidate_filter(source["table_id_conditions"])
+    if condition_filter is not None:
+        queryset = queryset.filter(condition_filter)
     index_sets = list(queryset.order_by("index_set_id")[: MAX_SCENE_TARGETS + 1])
     source["candidates_truncated"] = len(index_sets) > MAX_SCENE_TARGETS
     index_sets = index_sets[:MAX_SCENE_TARGETS]
@@ -1952,6 +2234,44 @@ def _scene_candidates(source):
             reason = "result_table_missing"
         candidates.append({"index_set": index_set, "matched": matched, "reason": reason})
     return candidates
+
+
+def _scene_candidate_filter(condition_groups):
+    group_filters = []
+    for group in condition_groups:
+        group_filter = Q()
+        group_restricted = False
+        for condition in group:
+            op = condition.get("op", "eq")
+            if op not in {"eq", "ne"}:
+                continue
+            tag_ids = list(
+                IndexSetTag.objects.filter(
+                    name=condition["field_name"],
+                    value__in=[str(value) for value in condition.get("value") or []],
+                    tag_type=TAG_TYPE_SCENE,
+                ).values_list("tag_id", flat=True)
+            )
+            if op == "eq":
+                group_restricted = True
+                tag_filter = Q(index_set_id__in=[])
+                for tag_id in tag_ids:
+                    tag_filter |= Q(tag_ids__contains=f",{tag_id},")
+                group_filter &= tag_filter
+            elif tag_ids:
+                group_restricted = True
+                for tag_id in tag_ids:
+                    group_filter &= ~Q(tag_ids__contains=f",{tag_id},")
+        if not group_restricted:
+            return None
+        group_filters.append(group_filter)
+
+    if not group_filters:
+        return None
+    condition_filter = group_filters[0]
+    for group_filter in group_filters[1:]:
+        condition_filter |= group_filter
+    return condition_filter
 
 
 def _scene_condition_matches(tag_values, condition):
@@ -2004,6 +2324,126 @@ def _resource_index_set_ids_for_result_tables(result_table_ids, allowed_spaces):
         remaining -= visible_result_tables
 
     return index_set_ids, sorted(remaining)
+
+
+def _scene_result_table_scope(result_table_ids, allowed_spaces, *, bk_biz_id=None):
+    result_table_ids = _string_list(result_table_ids)
+    allowed_spaces = set(allowed_spaces)
+    allowed_biz_ids = set(
+        scope_space_queryset(Space.objects).filter(space_uid__in=allowed_spaces).values_list("bk_biz_id", flat=True)
+    )
+    try:
+        if bk_biz_id is not None:
+            allowed_biz_ids.add(int(bk_biz_id))
+    except (TypeError, ValueError):
+        pass
+
+    prefix = "bklog_index_set_"
+    logical_result_tables = {}
+    physical_result_table_ids = []
+    for result_table_id in result_table_ids:
+        if result_table_id.startswith(prefix):
+            try:
+                logical_result_tables[result_table_id] = int(result_table_id.removeprefix(prefix).split("_", 1)[0])
+                continue
+            except (TypeError, ValueError, IndexError):
+                pass
+        physical_result_table_ids.append(result_table_id)
+
+    logical_rows = {
+        row["index_set_id"]: row
+        for row in scope_space_queryset(LogIndexSet.origin_objects)
+        .filter(index_set_id__in=set(logical_result_tables.values()), space_uid__in=allowed_spaces)
+        .values("index_set_id", "is_active", "is_deleted")
+    }
+    usable_logical_index_set_ids = set(
+        _usable_scene_index_set_id_queryset()
+        .filter(index_set_id__in=set(logical_result_tables.values()))
+        .values_list("index_set_id", flat=True)
+    )
+    result_table_index_set_map = {}
+    stale_result_tables = []
+    unmapped_result_tables = []
+    rejected_result_tables = []
+    for result_table_id, index_set_id in logical_result_tables.items():
+        index_set_row = logical_rows.get(index_set_id)
+        if (
+            index_set_row
+            and index_set_row["is_active"]
+            and not index_set_row["is_deleted"]
+            and index_set_id in usable_logical_index_set_ids
+        ):
+            result_table_index_set_map[result_table_id] = index_set_id
+        elif index_set_row:
+            stale_result_tables.append(result_table_id)
+        else:
+            rejected_result_tables.append(result_table_id)
+
+    physical_rows = list(
+        LogIndexSetData.origin_objects.filter(
+            result_table_id__in=physical_result_table_ids,
+            type=IndexSetDataType.RESULT_TABLE.value,
+        )
+        .order_by("result_table_id", "index_set_id")
+        .values("result_table_id", "index_set_id", "apply_status", "is_deleted")
+    )
+    physical_index_set_ids = {row["index_set_id"] for row in physical_rows}
+    physical_index_sets = {
+        row["index_set_id"]: row
+        for row in LogIndexSet.origin_objects.filter(index_set_id__in=physical_index_set_ids).values(
+            "index_set_id", "space_uid", "is_active", "is_deleted"
+        )
+    }
+    rows_by_result_table = defaultdict(list)
+    for row in physical_rows:
+        index_set_row = physical_index_sets.get(row["index_set_id"])
+        if index_set_row:
+            rows_by_result_table[row["result_table_id"]].append((row, index_set_row))
+
+    for result_table_id in physical_result_table_ids:
+        related_rows = rows_by_result_table[result_table_id]
+        active_allowed = [
+            index_set_row
+            for data_row, index_set_row in related_rows
+            if index_set_row["space_uid"] in allowed_spaces
+            and index_set_row["is_active"]
+            and not index_set_row["is_deleted"]
+            and not data_row["is_deleted"]
+            and data_row["apply_status"] == LogIndexSetData.Status.NORMAL
+        ]
+        if active_allowed:
+            result_table_index_set_map[result_table_id] = active_allowed[0]["index_set_id"]
+            continue
+        if any(
+            index_set_row["space_uid"] in allowed_spaces
+            and (
+                index_set_row["is_deleted"]
+                or not index_set_row["is_active"]
+                or data_row["is_deleted"]
+                or data_row["apply_status"] != LogIndexSetData.Status.NORMAL
+            )
+            for data_row, index_set_row in related_rows
+        ):
+            stale_result_tables.append(result_table_id)
+            continue
+        if related_rows:
+            rejected_result_tables.append(result_table_id)
+            continue
+        try:
+            result_table_biz_id = result_table_id_to_bk_biz_id(result_table_id)
+        except (TypeError, ValueError):
+            result_table_biz_id = None
+        if result_table_biz_id and result_table_biz_id in allowed_biz_ids:
+            unmapped_result_tables.append(result_table_id)
+        else:
+            rejected_result_tables.append(result_table_id)
+
+    return {
+        "result_table_index_set_map": result_table_index_set_map,
+        "stale_result_tables": sorted(stale_result_tables),
+        "unmapped_result_tables": sorted(unmapped_result_tables),
+        "rejected_result_tables": sorted(rejected_result_tables),
+    }
 
 
 def _scene_target(index_set):
@@ -2218,7 +2658,16 @@ def _downstream_status(data, warnings):
     if not warnings:
         return "success"
     has_data = bool(
-        isinstance(data, dict) and (data.get("list") or data.get("series") or data.get("aggs") or data.get("total"))
+        isinstance(data, dict)
+        and (
+            data.get("list")
+            or data.get("series")
+            or data.get("aggs")
+            or data.get("total")
+            or data.get("total_count")
+            or data.get("field_count")
+            or data.get("distinct_count")
+        )
     )
     return "partial" if has_data else "failed"
 
