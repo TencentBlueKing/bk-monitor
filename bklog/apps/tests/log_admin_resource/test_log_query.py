@@ -15,6 +15,7 @@ from apps.log_admin_resource.handlers.log_query import (
     ResourceClusteringSearchHandler,
     ResourceClusteringUnifyQueryHandler,
     ResourceMappingHandlers,
+    ResourcePatternHandler,
     ResourceSceneUnifyQueryHandler,
     ResourceSearchHandler,
     ResourceUnifyQueryTermsAggsHandler,
@@ -24,6 +25,8 @@ from apps.log_admin_resource.handlers.log_query import (
     _resolve_source,
     _route_evidence,
     _run_query,
+    _scene_candidates,
+    _scene_result_table_scope,
     _scene_target,
     _validate_context_anchor,
     aggregate_logs,
@@ -39,7 +42,7 @@ from apps.log_search.constants import IndexSetDataType
 from apps.log_search.handlers.search.aggs_handlers import AggsHandlers, AggsViewAdapter
 from apps.log_search.handlers.search.mapping_handlers import MappingHandlers
 from apps.log_search.handlers.search.search_handlers_esquery import SearchHandler as SearchHandlerEsquery
-from apps.log_search.models import LogIndexSet, LogIndexSetData, Scenario, Space
+from apps.log_search.models import IndexSetTag, LogIndexSet, LogIndexSetData, Scenario, Space, TAG_TYPE_SCENE
 from apps.log_unifyquery.builder.context import CreateSearchContextBodyScenarioLog
 from apps.log_unifyquery.handler.scene_search import SceneUnifyQueryHandler
 from apps.log_unifyquery.handler.base import UnifyQueryHandler
@@ -512,7 +515,8 @@ class LogQueryHandlerTest(TestCase):
         query = mock_handler.call_args.args[0]
         self.assertTrue(query["zero"])
         self.assertEqual(query["size"], 20)
-        self.assertEqual(query["gseIndex"], 100)
+        self.assertEqual(query["gseIndex"], "100")
+        self.assertEqual(query["iterationIndex"], "1")
         self.assertEqual(result["anchor_index"], 0)
         self.assertFalse(result["pagination"]["has_before"])
         validate_params(result, FUNCTIONS["bklog.log.context"]["response_schema"], "response")
@@ -630,6 +634,79 @@ class LogQueryHandlerTest(TestCase):
 
         self.assertEqual(target["result_table_ids"], ["2_bklog_app"])
 
+    def test_scene_scope_degrades_stale_and_same_business_unmapped_routes(self):
+        deleted_index_set = create_index_set(301)
+        create_result_table(301, "2_bklog_deleted", index_id=1301)
+        LogIndexSet.origin_objects.filter(index_set_id=deleted_index_set.index_set_id).update(is_deleted=True)
+        inactive_index_set = create_index_set(302)
+        create_result_table(302, "2_bklog_inactive", index_id=1302)
+        inactive_index_set.is_active = False
+        inactive_index_set.save(update_fields=["is_active"])
+
+        result = _scene_result_table_scope(
+            [
+                "2_bklog_app",
+                "bklog_index_set_301",
+                "2_bklog_deleted",
+                "bklog_index_set_302",
+                "2_bklog_inactive",
+                "2_bklog_unmapped",
+                "3_bklog_other",
+                "bklog_index_set_999",
+            ],
+            {"bkcc__2"},
+            bk_biz_id=2,
+        )
+
+        self.assertEqual(result["result_table_index_set_map"], {"2_bklog_app": 300})
+        self.assertEqual(
+            result["stale_result_tables"],
+            ["2_bklog_deleted", "2_bklog_inactive", "bklog_index_set_301", "bklog_index_set_302"],
+        )
+        self.assertEqual(result["unmapped_result_tables"], ["2_bklog_unmapped"])
+        self.assertEqual(result["rejected_result_tables"], ["3_bklog_other", "bklog_index_set_999"])
+
+    @patch.object(SceneUnifyQueryHandler, "_deal_query_result")
+    def test_scene_search_excludes_records_without_active_index_set_mapping(self, mock_parent_deal):
+        mapped_record = {"__result_table": "2_bklog_app", "__index_set_id__": 300, "log": "kept"}
+        unmapped_record = {"__result_table": "2_bklog_unmapped", "__index_set_id__": None, "log": "removed"}
+        mock_parent_deal.return_value = {
+            "list": [mapped_record, unmapped_record],
+            "origin_log_list": [copy.deepcopy(mapped_record), copy.deepcopy(unmapped_record)],
+            "result_table_id": ["2_bklog_app", "2_bklog_unmapped"],
+        }
+        handler = ResourceSceneUnifyQueryHandler.__new__(ResourceSceneUnifyQueryHandler)
+        handler.space_uid = "bkcc__2"
+        handler._resource_allowed_space_uids = lambda: {"bkcc__2"}
+
+        result = handler._deal_query_result({}, add_index_set_id=True)
+
+        self.assertEqual(result["list"], [mapped_record])
+        self.assertEqual(result["origin_log_list"], [mapped_record])
+        self.assertEqual(result["result_table_id"], ["2_bklog_app"])
+        self.assertEqual(result["status"]["code"], "scene_routes_excluded")
+
+    def test_scene_candidate_limit_is_applied_after_exact_route_filter(self):
+        scene_tag = IndexSetTag.objects.create(
+            name="scene",
+            value="k8s",
+            tag_type=TAG_TYPE_SCENE,
+        )
+        self.index_set.tag_ids = [scene_tag.tag_id]
+        self.index_set.save(update_fields=["tag_ids"])
+        for index_set_id in range(1, 102):
+            create_index_set(index_set_id)
+            create_result_table(index_set_id, f"2_bklog_unrelated_{index_set_id}", index_id=2000 + index_set_id)
+        source = {
+            "related_space_uids": ["bkcc__2"],
+            "table_id_conditions": [[{"field_name": "scene", "value": ["k8s"], "op": "eq"}]],
+        }
+
+        candidates = _scene_candidates(source)
+
+        self.assertEqual([item["index_set"].index_set_id for item in candidates], [300])
+        self.assertFalse(source["candidates_truncated"])
+
     def test_millisecond_context_timestamp_does_not_overflow(self):
         start_time, end_time = _context_time_bounds(1767227400000)
 
@@ -695,6 +772,8 @@ class PatternResourceHandlerTest(TestCase):
         )
 
         query = mock_handler.call_args.args[1]
+        self.assertEqual(query["start_time"], "2026-01-01 00:00:00")
+        self.assertEqual(query["end_time"], "2026-01-01 01:00:00")
         self.assertEqual(query["pattern_level"], PatternEnum.LEVEL_05.value)
         self.assertFalse(query["include_origin_log"])
         self.assertEqual(query["addition"], [])
@@ -703,6 +782,32 @@ class PatternResourceHandlerTest(TestCase):
         self.assertEqual(result["route"]["data_labels"], ["bklog_index_set_400_clustered"])
         self.assertEqual(result["items"][0]["signature"], "signature-1")
         validate_params(result, FUNCTIONS["bklog.clustering.pattern.search"]["response_schema"], "response")
+
+    @patch.object(ResourcePatternHandler, "_get_new_class", return_value=set())
+    @patch.object(ResourcePatternHandler, "_get_year_on_year_aggs_result", return_value={})
+    @patch.object(ResourcePatternHandler, "_get_pattern_aggs_result", side_effect=TypeError("invalid query time"))
+    def test_pattern_thread_exception_returns_stable_failure(
+        self,
+        _mock_pattern_aggs,
+        _mock_year_on_year,
+        _mock_new_class,
+    ):
+        with self.assertRaises(ValidationError) as error:
+            search_clustering_patterns(
+                {
+                    "source": {"type": "clustering", "index_set_id": 400},
+                    "start_time": 1767225600000,
+                    "end_time": 1767229200000,
+                    "keyword": "*",
+                    "addition": [],
+                    "time_zone": "UTC",
+                    "filter_not_clustering": False,
+                    "show_new_pattern": False,
+                    "size": 100,
+                }
+            )
+
+        self.assertEqual(str(error.exception.code), "3624116")
 
 
 @override_settings(ENABLE_MULTI_TENANT_MODE=True, BK_APP_TENANT_ID="tenant-a")
@@ -767,3 +872,5 @@ class LogQueryTenantScopeTest(TestCase):
 
         self.assertEqual(handler._map_result_tables_to_index_sets(["2_bklog_tenant_a"]), [502])
         self.assertEqual(handler._map_result_tables_to_index_sets(["3_bklog_tenant_b"]), [])
+        with self.assertRaises(BklogPermissionError):
+            handler.verify_result_table_search_permission(["3_bklog_tenant_b"])

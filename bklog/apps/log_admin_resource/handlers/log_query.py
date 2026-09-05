@@ -7,10 +7,11 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import arrow
 from django.conf import settings
-from django.db.models import Q
+from django.db.models import Q, Subquery
 from django.utils import timezone
 from elasticsearch_dsl import Search
 
+from apps.api.modules.utils import result_table_id_to_bk_biz_id
 from apps.exceptions import PermissionError as BklogPermissionError
 from apps.exceptions import ValidationError
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
@@ -666,27 +667,65 @@ class ResourceScenePermissionMixin:
     def _map_result_tables_to_index_sets(self, result_table_ids):
         return sorted(set(self._get_result_table_index_set_map(result_table_ids).values()))
 
-    def verify_result_table_search_permission(self, result_table_ids: list[str]) -> None:
+    def verify_result_table_search_permission(self, result_table_ids: list[str]) -> dict:
         result_table_ids = [value for value in result_table_ids or [] if value]
         if not result_table_ids:
-            return
-        allowed_spaces = self._resource_allowed_space_uids()
-        index_set_ids, unknown_result_tables = _resource_index_set_ids_for_result_tables(
-            result_table_ids, allowed_spaces
+            return {
+                "result_table_index_set_map": {},
+                "stale_result_tables": [],
+                "unmapped_result_tables": [],
+                "rejected_result_tables": [],
+            }
+        route_scope = _scene_result_table_scope(
+            result_table_ids,
+            self._resource_allowed_space_uids(),
+            bk_biz_id=getattr(self, "bk_biz_id", None),
         )
-        if unknown_result_tables:
-            raise BklogPermissionError("scene result contains an unmapped result table")
-        visible_ids = set(
-            scope_space_queryset(LogIndexSet.objects)
-            .filter(index_set_id__in=index_set_ids, space_uid__in=allowed_spaces)
-            .values_list("index_set_id", flat=True)
-        )
-        if index_set_ids != visible_ids:
-            raise BklogPermissionError("scene result contains an index set outside the Resource Call source scope")
+        if route_scope["rejected_result_tables"]:
+            raise BklogPermissionError("scene result contains a result table outside the Resource Call source scope")
+        return route_scope
+
+    def _verify_scene_permission(self, result) -> None:
+        route_scope = self.verify_result_table_search_permission((result or {}).get("result_table_id"))
+        degraded_count = len(route_scope["stale_result_tables"]) + len(route_scope["unmapped_result_tables"])
+        if degraded_count and isinstance(result, dict) and not result.get("status"):
+            result["status"] = {
+                "code": "scene_routes_excluded",
+                "message": f"{degraded_count} stale or unmapped scene routes were excluded",
+            }
 
 
 class ResourceSceneUnifyQueryHandler(ResourceTimeZoneMixin, ResourceScenePermissionMixin, SceneUnifyQueryHandler):
-    pass
+    def _deal_query_result(self, result_dict: dict, add_index_set_id: bool = False) -> dict:
+        result = super()._deal_query_result(result_dict, add_index_set_id=add_index_set_id)
+        if not add_index_set_id:
+            return result
+
+        original_result_table_ids = _string_list(result.get("result_table_id"))
+        result_table_index_set_map = self._get_result_table_index_set_map(original_result_table_ids)
+        valid_result_table_ids = set(result_table_index_set_map)
+        kept_indices = [
+            index for index, item in enumerate(result.get("list") or []) if item.get("__index_set_id__") is not None
+        ]
+        original_list = result.get("list") or []
+        original_origin_log_list = result.get("origin_log_list") or []
+        result["list"] = [original_list[index] for index in kept_indices]
+        result["origin_log_list"] = [
+            original_origin_log_list[index] for index in kept_indices if index < len(original_origin_log_list)
+        ]
+        result["result_table_id"] = [
+            result_table_id
+            for result_table_id in original_result_table_ids
+            if result_table_id in valid_result_table_ids
+        ]
+        excluded_count = len(original_list) - len(result["list"])
+        excluded_route_count = len(original_result_table_ids) - len(result["result_table_id"])
+        if (excluded_count or excluded_route_count) and not result.get("status"):
+            result["status"] = {
+                "code": "scene_routes_excluded",
+                "message": f"{excluded_route_count} stale or unmapped scene routes and {excluded_count} records were excluded",
+            }
+        return result
 
 
 class ResourceSceneTermsAggsHandler(ResourceTimeZoneMixin, ResourceScenePermissionMixin, SceneTermsAggsHandler):
@@ -771,6 +810,13 @@ class ResourcePatternHandler(PatternHandler):
         super().__init__(clustering_config.index_set_id, query)
         self._index_set_id = entry_index_set_id
         self._clustering_config = clustering_config
+
+    def _run_multi_execute(self, multi_execute_func):
+        result = multi_execute_func.run(return_exception=True)
+        for value in result.values():
+            if isinstance(value, Exception):
+                raise value
+        return result
 
     def _get_pattern_aggs_result(self, index_set_id, query):
         pattern_aggs_field = self.pattern_aggs_field
@@ -1056,9 +1102,17 @@ def resolve_log_scene(params):
     runtime_query.update({"from": 0, "limit": 1, "highlight": {"enable": False}})
     runtime = _run_query(lambda: handler.query_ts_raw(runtime_query), time_zone=params.get("time_zone"))
     actual_result_tables = _string_list(runtime.get("result_table_id"))
-    actual_index_set_ids, unknown_result_tables = _resource_index_set_ids_for_result_tables(
-        actual_result_tables, set(source["related_space_uids"])
+    route_scope = _scene_result_table_scope(
+        actual_result_tables,
+        set(source["related_space_uids"]),
+        bk_biz_id=source["bk_biz_id"],
     )
+    actual_result_tables = [
+        result_table_id
+        for result_table_id in actual_result_tables
+        if result_table_id in route_scope["result_table_index_set_map"]
+    ]
+    actual_index_set_ids = set(route_scope["result_table_index_set_map"].values())
     candidates = _scene_candidates(source)
 
     matched_targets = []
@@ -1074,7 +1128,9 @@ def resolve_log_scene(params):
             target["reason"] = "no_data_or_runtime_condition_excluded"
             excluded_targets.append(target)
 
-    warnings = _downstream_warnings(runtime)
+    warnings = [
+        warning for warning in _downstream_warnings(runtime) if warning["code"] != "downstream_scene_routes_excluded"
+    ]
     if source.get("candidates_truncated"):
         warnings.append(
             {
@@ -1093,11 +1149,23 @@ def resolve_log_scene(params):
                 "retryable": False,
             }
         )
-    if unknown_result_tables:
+    if route_scope["stale_result_tables"]:
+        warnings.append(
+            {
+                "code": "scene_stale_routes_excluded",
+                "message": f"{len(route_scope['stale_result_tables'])} stale scene routes were excluded",
+                "scope": "scene.result_tables",
+                "retryable": False,
+            }
+        )
+    if route_scope["unmapped_result_tables"]:
         warnings.append(
             {
                 "code": "scene_result_table_unmapped",
-                "message": f"{len(unknown_result_tables)} result tables could not be mapped to an index set",
+                "message": (
+                    f"{len(route_scope['unmapped_result_tables'])} same-business result tables "
+                    "could not be mapped to an active index set"
+                ),
                 "scope": "scene.result_tables",
                 "retryable": False,
             }
@@ -1113,6 +1181,7 @@ def resolve_log_scene(params):
             result_table_ids=actual_result_tables,
             index_set_ids=sorted(actual_index_set_ids),
             partial=bool(warnings),
+            configured_route_fallback=False,
         ),
         warnings=warnings,
         targets=matched_targets,
@@ -1138,8 +1207,8 @@ def search_clustering_patterns(params):
             }
         )
     query = {
-        "start_time": arrow.get(start_time / 1000).datetime,
-        "end_time": arrow.get(end_time / 1000).datetime,
+        "start_time": _format_query_datetime(start_time, params.get("time_zone")),
+        "end_time": _format_query_datetime(end_time, params.get("time_zone")),
         "time_range": "customized",
         "keyword": params.get("keyword") or "",
         "addition": addition,
@@ -1529,9 +1598,16 @@ def _configured_result_table_ids(source):
     return list(dict.fromkeys(result_table_ids))
 
 
-def _route_evidence(source, *, result_table_ids=None, index_set_ids=None, partial=False):
+def _route_evidence(
+    source,
+    *,
+    result_table_ids=None,
+    index_set_ids=None,
+    partial=False,
+    configured_route_fallback=True,
+):
     result_table_ids = list(dict.fromkeys(str(value) for value in result_table_ids or [] if value))
-    if not result_table_ids:
+    if not result_table_ids and configured_route_fallback:
         result_table_ids = _configured_result_table_ids(source)
     if index_set_ids is None:
         index_set_ids = (
@@ -1620,6 +1696,7 @@ def _result_table_index_set_map(source, records):
             .filter(
                 index_set_id__in=set(logical_result_tables.values()),
                 space_uid__in=allowed_spaces,
+                is_active=True,
             )
             .values_list("index_set_id", flat=True)
         )
@@ -1633,7 +1710,7 @@ def _result_table_index_set_map(source, records):
     if physical_result_table_ids:
         visible_ids = set(
             scope_space_queryset(LogIndexSet.objects)
-            .filter(space_uid__in=allowed_spaces)
+            .filter(space_uid__in=allowed_spaces, is_active=True)
             .values_list("index_set_id", flat=True)
         )
         mapping.update(
@@ -1735,9 +1812,16 @@ def _flatten_context_anchor(context_anchor):
     }
     anchor.update(context_anchor.get("sort_values") or {})
     anchor.update(context_anchor.get("identity") or {})
+    for field in ("gseIndex", "iterationIndex", "gseindex", "_iteration_idx"):
+        if anchor.get(field) not in (None, ""):
+            anchor[field] = str(anchor[field])
     if anchor.get("dtEventTimeStamp") in (None, ""):
         _error("log_context_anchor_invalid", "context anchor is missing dtEventTimeStamp")
     return anchor
+
+
+def _format_query_datetime(timestamp_ms, time_zone=None):
+    return arrow.get(timestamp_ms / 1000).to(time_zone or settings.TIME_ZONE).format("YYYY-MM-DD HH:mm:ss")
 
 
 def _resolve_field_type(source, field_name, params):
@@ -1914,7 +1998,22 @@ def _resolve_scene_anchor(source, anchor):
 
 
 def _scene_candidates(source):
-    queryset = scope_space_queryset(LogIndexSet.objects).filter(space_uid__in=source["related_space_uids"])
+    usable_index_set_ids = (
+        LogIndexSetData.objects.filter(
+            type=IndexSetDataType.RESULT_TABLE.value,
+            apply_status=LogIndexSetData.Status.NORMAL,
+        )
+        .order_by()
+        .values("index_set_id")
+    )
+    queryset = scope_space_queryset(LogIndexSet.objects).filter(
+        space_uid__in=source["related_space_uids"],
+        is_active=True,
+        index_set_id__in=Subquery(usable_index_set_ids),
+    )
+    condition_filter = _scene_candidate_filter(source["table_id_conditions"])
+    if condition_filter is not None:
+        queryset = queryset.filter(condition_filter)
     index_sets = list(queryset.order_by("index_set_id")[: MAX_SCENE_TARGETS + 1])
     source["candidates_truncated"] = len(index_sets) > MAX_SCENE_TARGETS
     index_sets = index_sets[:MAX_SCENE_TARGETS]
@@ -1952,6 +2051,44 @@ def _scene_candidates(source):
             reason = "result_table_missing"
         candidates.append({"index_set": index_set, "matched": matched, "reason": reason})
     return candidates
+
+
+def _scene_candidate_filter(condition_groups):
+    group_filters = []
+    for group in condition_groups:
+        group_filter = Q()
+        group_restricted = False
+        for condition in group:
+            op = condition.get("op", "eq")
+            if op not in {"eq", "ne"}:
+                continue
+            tag_ids = list(
+                IndexSetTag.objects.filter(
+                    name=condition["field_name"],
+                    value__in=[str(value) for value in condition.get("value") or []],
+                    tag_type=TAG_TYPE_SCENE,
+                ).values_list("tag_id", flat=True)
+            )
+            if op == "eq":
+                group_restricted = True
+                tag_filter = Q(index_set_id__in=[])
+                for tag_id in tag_ids:
+                    tag_filter |= Q(tag_ids__contains=f",{tag_id},")
+                group_filter &= tag_filter
+            elif tag_ids:
+                group_restricted = True
+                for tag_id in tag_ids:
+                    group_filter &= ~Q(tag_ids__contains=f",{tag_id},")
+        if not group_restricted:
+            return None
+        group_filters.append(group_filter)
+
+    if not group_filters:
+        return None
+    condition_filter = group_filters[0]
+    for group_filter in group_filters[1:]:
+        condition_filter |= group_filter
+    return condition_filter
 
 
 def _scene_condition_matches(tag_values, condition):
@@ -2004,6 +2141,103 @@ def _resource_index_set_ids_for_result_tables(result_table_ids, allowed_spaces):
         remaining -= visible_result_tables
 
     return index_set_ids, sorted(remaining)
+
+
+def _scene_result_table_scope(result_table_ids, allowed_spaces, *, bk_biz_id=None):
+    result_table_ids = _string_list(result_table_ids)
+    allowed_spaces = set(allowed_spaces)
+    allowed_biz_ids = set(
+        scope_space_queryset(Space.objects).filter(space_uid__in=allowed_spaces).values_list("bk_biz_id", flat=True)
+    )
+    try:
+        if bk_biz_id is not None:
+            allowed_biz_ids.add(int(bk_biz_id))
+    except (TypeError, ValueError):
+        pass
+
+    prefix = "bklog_index_set_"
+    logical_result_tables = {}
+    physical_result_table_ids = []
+    for result_table_id in result_table_ids:
+        if result_table_id.startswith(prefix):
+            try:
+                logical_result_tables[result_table_id] = int(result_table_id.removeprefix(prefix).split("_", 1)[0])
+                continue
+            except (TypeError, ValueError, IndexError):
+                pass
+        physical_result_table_ids.append(result_table_id)
+
+    logical_rows = {
+        row["index_set_id"]: row
+        for row in scope_space_queryset(LogIndexSet.origin_objects)
+        .filter(index_set_id__in=set(logical_result_tables.values()), space_uid__in=allowed_spaces)
+        .values("index_set_id", "is_active", "is_deleted")
+    }
+    result_table_index_set_map = {}
+    stale_result_tables = []
+    unmapped_result_tables = []
+    rejected_result_tables = []
+    for result_table_id, index_set_id in logical_result_tables.items():
+        index_set_row = logical_rows.get(index_set_id)
+        if index_set_row and index_set_row["is_active"] and not index_set_row["is_deleted"]:
+            result_table_index_set_map[result_table_id] = index_set_id
+        elif index_set_row:
+            stale_result_tables.append(result_table_id)
+        else:
+            rejected_result_tables.append(result_table_id)
+
+    physical_rows = list(
+        LogIndexSetData.objects.filter(
+            result_table_id__in=physical_result_table_ids,
+            type=IndexSetDataType.RESULT_TABLE.value,
+            apply_status=LogIndexSetData.Status.NORMAL,
+        ).values("result_table_id", "index_set_id")
+    )
+    physical_index_set_ids = {row["index_set_id"] for row in physical_rows}
+    physical_index_sets = {
+        row["index_set_id"]: row
+        for row in LogIndexSet.origin_objects.filter(index_set_id__in=physical_index_set_ids).values(
+            "index_set_id", "space_uid", "is_active", "is_deleted"
+        )
+    }
+    rows_by_result_table = defaultdict(list)
+    for row in physical_rows:
+        rows_by_result_table[row["result_table_id"]].append(physical_index_sets.get(row["index_set_id"]))
+
+    for result_table_id in physical_result_table_ids:
+        related_index_sets = [row for row in rows_by_result_table[result_table_id] if row]
+        active_allowed = [
+            row
+            for row in related_index_sets
+            if row["space_uid"] in allowed_spaces and row["is_active"] and not row["is_deleted"]
+        ]
+        if active_allowed:
+            result_table_index_set_map[result_table_id] = active_allowed[0]["index_set_id"]
+            continue
+        if any(
+            row["space_uid"] in allowed_spaces and (row["is_deleted"] or not row["is_active"])
+            for row in related_index_sets
+        ):
+            stale_result_tables.append(result_table_id)
+            continue
+        if related_index_sets:
+            rejected_result_tables.append(result_table_id)
+            continue
+        try:
+            result_table_biz_id = result_table_id_to_bk_biz_id(result_table_id)
+        except (TypeError, ValueError):
+            result_table_biz_id = None
+        if result_table_biz_id and result_table_biz_id in allowed_biz_ids:
+            unmapped_result_tables.append(result_table_id)
+        else:
+            rejected_result_tables.append(result_table_id)
+
+    return {
+        "result_table_index_set_map": result_table_index_set_map,
+        "stale_result_tables": sorted(stale_result_tables),
+        "unmapped_result_tables": sorted(unmapped_result_tables),
+        "rejected_result_tables": sorted(rejected_result_tables),
+    }
 
 
 def _scene_target(index_set):
