@@ -9,13 +9,10 @@ from bkmonitor.nodeman_integration.v3.client import (
     NodeManV3TransportError,
 )
 from bkmonitor.nodeman_integration.v3.client.workflow import WorkflowClient
-from monitor_web.collecting.deploy.nodeman_v3.reconciler import CollectTargetReconciler
+from monitor_web.collecting.deploy.nodeman_v3.reconciler import CollectDeployPolicyReconciler
 from monitor_web.models.node_man import (
     MonitorNodeManOperation,
-    NodeManBindingState,
-    NodeManIntegrationBinding,
     NodeManOperationStatus,
-    NodeManResourceType,
 )
 from monitor_web.nodeman_integration.v3.status import refresh_operation_status
 from monitor_web.nodeman_integration.v3.operation import (
@@ -122,41 +119,11 @@ def poll_pending_operations(self, limit: int = 200, cursor=None, upper_bound=Non
 
 @shared_task(name="monitor_web.nodeman_integration.v3.tasks.reconcile_binding")
 def reconcile_binding(binding_id: int, trigger: str = "event"):
-    result = CollectTargetReconciler().reconcile_binding(binding_id, trigger=trigger)
+    result = CollectDeployPolicyReconciler().reconcile_binding(binding_id, trigger=trigger)
     return {
         "binding_id": result.binding_id,
         "generation": result.generation,
         "trigger": result.trigger,
-        "added": result.added,
-        "removed": result.removed,
-        "changed": result.changed,
-        "unchanged": result.unchanged,
-        "inflight": result.inflight,
-        "blocked": result.blocked,
+        "operation_id": result.operation_id,
+        "prepared": result.prepared,
     }
-
-
-@shared_task(bind=True, name="monitor_web.nodeman_integration.v3.tasks.reconcile_active_bindings")
-def reconcile_active_bindings(self, limit: int = 200, cursor=None, upper_bound=None):
-    queryset = NodeManIntegrationBinding.objects.filter(
-        resource_type=NodeManResourceType.COLLECT_CONFIG,
-        state__in=(NodeManBindingState.ACTIVE, NodeManBindingState.ORPHANED),
-    )
-    binding_ids, upper_bound = _bounded_primary_key_page(
-        queryset,
-        cursor=cursor,
-        upper_bound=upper_bound,
-        limit=limit,
-    )
-    for binding_id in binding_ids:
-        reconcile_binding.apply_async(args=(binding_id, "periodic"), queue=V3_TASK_QUEUE)
-    if binding_ids and str(binding_ids[-1]) != str(upper_bound):
-        self.apply_async(
-            kwargs={
-                "limit": limit,
-                "cursor": str(binding_ids[-1]),
-                "upper_bound": str(upper_bound),
-            },
-            queue=V3_TASK_QUEUE,
-        )
-    return len(binding_ids)

@@ -9,14 +9,13 @@ from monitor_web.collecting.deploy.base import BaseInstaller
 from monitor_web.collecting.constant import OperationResult, OperationType
 from monitor_web.models import CollectConfigMeta, DeploymentConfigVersion
 from monitor_web.models.node_man import (
-    NodeManBindingState,
     NodeManIntegrationBinding,
     NodeManResourceType,
     build_nodeman_resource_key,
 )
 
 from .orchestrator import NodeManV3Orchestrator
-from .reconciler import CollectTargetReconciler, NodeManV3TargetExecutor
+from .reconciler import CollectDeployPolicyReconciler
 from .validation import NodeManV3CapabilityBlocked
 
 
@@ -27,22 +26,22 @@ class NodeManV3Installer(BaseInstaller):
         topo_tree=None,
         *,
         orchestrator: NodeManV3Orchestrator | None = None,
-        reconciler: CollectTargetReconciler | None = None,
+        reconciler: CollectDeployPolicyReconciler | None = None,
     ):
         super().__init__(collect_config)
         self.topo_tree = topo_tree
         self.orchestrator = orchestrator or NodeManV3Orchestrator()
-        self.reconciler = reconciler or CollectTargetReconciler(
-            executor=NodeManV3TargetExecutor(orchestrator=self.orchestrator)
-        )
+        self.reconciler = reconciler or CollectDeployPolicyReconciler()
 
+    @transaction.atomic
     def install(self, install_config: dict, operation: str | None) -> dict:
-        if self.collect_config.pk and self.collect_config.need_upgrade:
+        self._validate_active_collection()
+        release_version = self._packaged_release_version()
+        current_version = self.collect_config.deployment_config if self.collect_config.deployment_config_id else None
+        if current_version and current_version.plugin_version.config_version < release_version.config_version:
             raise CollectConfigNeedUpgrade({"msg": self.collect_config.name})
 
         is_create = not self.collect_config.pk
-        release_version = self._packaged_release_version()
-        current_version = self.collect_config.deployment_config if self.collect_config.deployment_config_id else None
         new_version = self._create_deployment_version(
             plugin_version=release_version,
             target_node_type=install_config["target_node_type"],
@@ -62,14 +61,18 @@ class NodeManV3Installer(BaseInstaller):
             "deployment_id": new_version.pk,
         }
 
+    @transaction.atomic
     def upgrade(self, params: dict) -> dict:
-        if not self.collect_config.need_upgrade:
-            raise CollectConfigNeedUpgrade({"msg": _("采集配置无需升级")})
+        self._validate_active_collection()
+        release_version = self._packaged_release_version()
         current_version = self.collect_config.deployment_config
+        # V2 need_upgrade depends on cached member counts. NodeMan now owns those members.
+        if current_version.plugin_version.config_version >= release_version.config_version:
+            raise CollectConfigNeedUpgrade({"msg": _("采集配置无需升级")})
         params["collector"]["period"] = current_version.params["collector"]["period"]
         params["collector"]["timeout"] = current_version.params["collector"].get("timeout", 60)
         new_version = self._create_deployment_version(
-            plugin_version=self._packaged_release_version(),
+            plugin_version=release_version,
             target_node_type=current_version.target_node_type,
             target_nodes=current_version.target_nodes,
             params=params,
@@ -96,12 +99,9 @@ class NodeManV3Installer(BaseInstaller):
         return self.orchestrator.start(collect_config=self.collect_config, topo_tree=self.topo_tree)
 
     def run(self, action: str | None = None, scope: dict[str, Any] | None = None):
-        return self.orchestrator.run(
-            collect_config=self.collect_config,
-            action=action,
-            scope=scope,
-            topo_tree=self.topo_tree,
-        )
+        if scope or (action or "INSTALL").upper() != "INSTALL":
+            raise NodeManV3CapabilityBlocked("DeployPolicy execute has no scoped execution or action override protocol")
+        return self._reconcile(trigger="run", force=True)
 
     def retry(self, instance_ids: list[str] | None = None):
         return self.orchestrator.retry(collect_config=self.collect_config, instance_ids=instance_ids)
@@ -122,6 +122,12 @@ class NodeManV3Installer(BaseInstaller):
                 "NodeMan V3 package import protocol is available but not wired into the collecting adapter"
             )
         return release_version
+
+    def _validate_active_collection(self):
+        if self.collect_config.last_operation == OperationType.STOP:
+            raise NodeManV3CapabilityBlocked(
+                "editing or upgrading a stopped collection awaits the DeployPolicy reverse protocol"
+            )
 
     def _create_deployment_version(
         self,
@@ -167,26 +173,20 @@ class NodeManV3Installer(BaseInstaller):
             execution_bk_tenant_id=self.collect_config.bk_tenant_id,
             bk_biz_id=self.collect_config.bk_biz_id,
         )
-        if binding.state != NodeManBindingState.ACTIVE:
-            binding.state = NodeManBindingState.ACTIVE
-            binding.save(update_fields=("state", "updated_at"))
         return binding
 
-    def _reconcile(self, *, trigger: str):
+    def _reconcile(self, *, trigger: str, force: bool = False):
         try:
             result = self.reconciler.reconcile(
                 binding=self._binding(),
                 collect_config=self.collect_config,
                 trigger=trigger,
+                force=force,
             )
         except NodeManV3DefiniteFailure:
             self.collect_config.operation_result = OperationResult.FAILED
             self.collect_config.save(update_fields=("operation_result", "update_time"))
             raise
-        if not (result.added or result.changed or result.removed or result.inflight):
-            self.collect_config.operation_result = OperationResult.SUCCESS
-            self.collect_config.cache_data = {"error_instance_count": 0, "total_instance_count": 0}
-            self.collect_config.save(update_fields=("operation_result", "cache_data", "update_time"))
         return result
 
     @staticmethod

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import copy
 import hashlib
+import json
 from collections.abc import Callable, Sequence
 from typing import cast
 
@@ -12,63 +13,54 @@ from bkmonitor.nodeman_integration.v3.client import (
 )
 from bkmonitor.nodeman_integration.v3.client.deploy_policy import DeployPolicyClient
 from bkmonitor.nodeman_integration.v3.exceptions import NodeManV3AdapterPending, NodeManV3PayloadError
-from monitor_web.models import CollectConfigMeta
-from monitor_web.models.node_man import CollectDeploymentTarget
+from constants.cmdb import TargetObjectType
+from monitor_web.collecting.constant import OperationType
+from monitor_web.models.node_man import NodeManIntegrationBinding
 from monitor_web.plugin.constant import ParamMode, PluginType
 from monitor_web.plugin.manager import PluginManagerFactory
 from monitor_web.plugin.manager.process import ProcessPluginManager
 
 from .validation import NodeManV3CapabilityBlocked
+from .scopes import CollectDeployPolicyScopeBuilder
 
 
 class CollectDeployPolicyPayloadBuilder:
     """Translate the existing plugin-manager step contract into NodeMan V3 deploy-policy specs."""
 
-    def __init__(self, *, step_builder: Callable | None = None):
+    def __init__(self, *, step_builder: Callable | None = None, scope_builder=None):
         self.step_builder = step_builder or self._build_existing_steps
+        self.scope_builder = scope_builder or CollectDeployPolicyScopeBuilder()
 
-    def build(self, target: CollectDeploymentTarget) -> dict:
-        collect_config = CollectConfigMeta.objects.select_related(
-            "deployment_config__plugin_version",
-            "plugin",
-        ).get(pk=target.config_meta_id)
+    def build(self, collect_config) -> dict:
         deployment = collect_config.deployment_config
-        if target.remote_target or target.execution_bk_host_id != target.observed_target.get("bk_host_id"):
-            raise NodeManV3AdapterPending("remote collection protocol is not wired into the host adapter")
+        if deployment.remote_collecting_host:
+            raise NodeManV3CapabilityBlocked(
+                "remote collection requires the agreed cross-spec context protocol before deployment"
+            )
+        if collect_config.last_operation == OperationType.STOP:
+            raise NodeManV3CapabilityBlocked("collection enable/disable requires the DeployPolicy reverse protocol")
 
+        scopes = self.scope_builder.build(collect_config, deployment)
         steps = self.step_builder(collect_config, deployment)
-        specs = self._build_specs(collect_config, target, steps)
+        specs = self._build_specs(collect_config, steps)
         if not specs:
             raise NodeManV3PayloadError("collect deployment produced no deploy-policy specs")
 
-        if target.service_instance_id:
-            granularity = "service_instance"
-            instance_id = target.service_instance_id
-        else:
-            granularity = "host"
-            instance_id = target.execution_bk_host_id
-
         return {
-            "name": self.policy_name(target),
-            "description": f"bk-monitor collect config {collect_config.pk}, target {target.identity_key}",
-            "enabled": bool(target.desired_enabled),
+            "name": self.policy_name(collect_config),
+            "description": f"bk-monitor collect config {collect_config.pk}",
+            "enabled": True,
             "specs": specs,
-            "scopes": [
-                {
-                    "type": "instance",
-                    "scope": {
-                        "granularity": granularity,
-                        "bk_biz_id": collect_config.bk_biz_id,
-                        "instance_ids": [instance_id],
-                    },
-                }
-            ],
+            "scopes": scopes,
         }
 
     @staticmethod
-    def policy_name(target: CollectDeploymentTarget) -> str:
-        identity_digest = hashlib.sha256(target.identity_key.encode()).hexdigest()[:16]
-        return f"bkm-collect-{target.config_meta_id}-{identity_digest}"
+    def policy_name(collect_config) -> str:
+        return f"bkm-collect-{collect_config.pk}"
+
+    @staticmethod
+    def fingerprint(payload: dict) -> str:
+        return hashlib.sha256(json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
 
     @staticmethod
     def update_payload(deploy_policy_id: int, create_payload: dict) -> dict:
@@ -184,7 +176,7 @@ class CollectDeployPolicyPayloadBuilder:
         }
 
     @classmethod
-    def _build_specs(cls, collect_config, target, steps: Sequence[dict]) -> list[dict]:
+    def _build_specs(cls, collect_config, steps: Sequence[dict]) -> list[dict]:
         specs = []
         for step in steps:
             config = step.get("config", {})
@@ -227,10 +219,10 @@ class CollectDeployPolicyPayloadBuilder:
                 raise NodeManV3CapabilityBlocked(
                     f"deploy-policy cannot preserve dynamic config file templates for {plugin_name}"
                 )
-            if collect_config.plugin.plugin_type == PluginType.EXPORTER:
-                if not target.service_instance_id:
+            if collect_config.plugin.plugin_type in {PluginType.EXPORTER, PluginType.JMX}:
+                if collect_config.target_object_type != TargetObjectType.SERVICE:
                     raise NodeManV3AdapterPending(
-                        "specify_plugin_pkg requires a service-instance scope with a module identity"
+                        "specify_plugin_pkg currently requires service-instance scope with a module identity"
                     )
                 specs.append(
                     {
@@ -271,9 +263,12 @@ class NodeManV3DeployPolicyGateway:
         self.client = client or DeployPolicyClient(NodeManV3HTTPClient())
         self.payload_builder = payload_builder or CollectDeployPolicyPayloadBuilder()
 
-    def ensure_target(self, target: CollectDeploymentTarget, *, context: NodeManV3RequestContext) -> dict:
-        payload = self.payload_builder.build(target)
-        deploy_policy_id = target.node_man_deploy_policy_id or self._recover_policy_id(payload["name"], context=context)
+    def ensure_policy(
+        self, binding: NodeManIntegrationBinding, payload: dict, *, context: NodeManV3RequestContext
+    ) -> dict:
+        deploy_policy_id = binding.node_man_deploy_policy_id or self._recover_policy_id(
+            payload["name"], context=context
+        )
         if deploy_policy_id:
             self.client.update(
                 self.payload_builder.update_payload(deploy_policy_id, payload),
@@ -284,15 +279,18 @@ class NodeManV3DeployPolicyGateway:
             deploy_policy_id = result.get("deploy_policy_id") if isinstance(result, dict) else None
             if not deploy_policy_id:
                 raise NodeManV3UnknownResultError("NodeMan V3 deploy-policy create response has no deploy_policy_id")
-        self._persist_policy_id(target, int(deploy_policy_id))
+        self._persist_policy_id(binding, int(deploy_policy_id), self.payload_builder.fingerprint(payload))
+        return self.execute_policy(binding, context=context)
+
+    def execute_policy(self, binding, *, context: NodeManV3RequestContext) -> dict:
+        deploy_policy_id = binding.node_man_deploy_policy_id
+        if not deploy_policy_id:
+            raise NodeManV3PayloadError("collection has no NodeMan deploy policy to execute")
         result = self.client.execute({"deploy_policy_id": int(deploy_policy_id)}, context=context)
         trigger_id = result.get("trigger_id") if isinstance(result, dict) else None
         if not trigger_id:
             raise NodeManV3UnknownResultError("NodeMan V3 deploy-policy execute response has no trigger_id")
         return {"trigger_id": str(trigger_id)}
-
-    def update_target(self, target: CollectDeploymentTarget, *, context: NodeManV3RequestContext) -> dict:
-        return self.ensure_target(target, context=context)
 
     def _recover_policy_id(self, name: str, *, context: NodeManV3RequestContext) -> int | None:
         result = self.client.list(
@@ -302,27 +300,26 @@ class NodeManV3DeployPolicyGateway:
             },
             context=context,
         )
-        items = result.get("items", []) if isinstance(result, dict) else []
+        items = result.get("items") if isinstance(result, dict) else None
+        if not isinstance(items, list):
+            raise NodeManV3PayloadError("NodeMan deploy-policy list response has no items list")
         exact = [item for item in items if item.get("meta", {}).get("name") == name]
         if len(exact) > 1:
             raise NodeManV3PayloadError(f"multiple deploy policies found for stable name {name}")
         return int(exact[0]["deploy_policy_id"]) if exact else None
 
     @staticmethod
-    def _persist_policy_id(target: CollectDeploymentTarget, deploy_policy_id: int) -> None:
-        if target.node_man_deploy_policy_id and target.node_man_deploy_policy_id != deploy_policy_id:
+    def _persist_policy_id(binding: NodeManIntegrationBinding, deploy_policy_id: int, fingerprint: str) -> None:
+        if binding.node_man_deploy_policy_id and binding.node_man_deploy_policy_id != deploy_policy_id:
             raise NodeManV3UnknownResultError(
-                f"target {target.identity_key} is already bound to deploy policy {target.node_man_deploy_policy_id}"
+                f"binding {binding.pk} is already bound to deploy policy {binding.node_man_deploy_policy_id}"
             )
-        updated = CollectDeploymentTarget.objects.filter(
-            pk=target.pk,
-            node_man_deploy_policy_id__isnull=True,
-        ).update(node_man_deploy_policy_id=deploy_policy_id)
+        updated = NodeManIntegrationBinding.objects.filter(
+            pk=binding.pk,
+            generation=binding.generation,
+            node_man_deploy_policy_id=binding.node_man_deploy_policy_id,
+        ).update(node_man_deploy_policy_id=deploy_policy_id, node_man_policy_fingerprint=fingerprint)
         if not updated:
-            stored = CollectDeploymentTarget.objects.only("node_man_deploy_policy_id").get(pk=target.pk)
-            if stored.node_man_deploy_policy_id != deploy_policy_id:
-                raise NodeManV3UnknownResultError(
-                    f"target {target.identity_key} was concurrently bound to deploy policy "
-                    f"{stored.node_man_deploy_policy_id}"
-                )
-        target.node_man_deploy_policy_id = deploy_policy_id
+            raise NodeManV3UnknownResultError(f"binding {binding.pk} changed while its policy was submitted")
+        binding.node_man_deploy_policy_id = deploy_policy_id
+        binding.node_man_policy_fingerprint = fingerprint

@@ -1,491 +1,415 @@
 from types import SimpleNamespace
 
 import pytest
+from django.db import transaction
 
-from bkmonitor.nodeman_integration.v3.exceptions import NodeManV3AdapterPending
-from constants.cmdb import TargetNodeType, TargetObjectType
-from monitor_web.collecting.deploy.nodeman_v3.reconciler import (
-    CollectTargetReconciler,
-    DjangoCollectTargetSnapshotStore,
-    NodeManV3TargetExecutor,
-    StoredTargetState,
-    calculate_reconcile_diff,
+from bkmonitor.nodeman_integration.v3.client import NodeManV3UnknownResultError
+from bkmonitor.nodeman_integration.v3.exceptions import NodeManV3AdapterPending, NodeManV3ResultState
+from monitor_web.collecting.deploy.nodeman_v3.deploy_policy import (
+    CollectDeployPolicyPayloadBuilder,
+    NodeManV3DeployPolicyGateway,
 )
-from monitor_web.collecting.deploy.nodeman_v3.targets import CMDBCollectTargetResolver, ResolvedCollectTarget
+from monitor_web.collecting.deploy.nodeman_v3.reconciler import CollectDeployPolicyReconciler
 from monitor_web.collecting.deploy.nodeman_v3.validation import NodeManV3CapabilityBlocked
+from monitor_web.models import CollectConfigMeta, DeploymentConfigVersion
+from monitor_web.models.plugin import (
+    CollectorPluginMeta,
+    CollectorPluginConfig,
+    CollectorPluginInfo,
+    PluginVersionHistory,
+)
 from monitor_web.models.node_man import (
     CollectDeploymentTarget,
+    MonitorNodeManOperation,
+    NodeManBindingState,
     NodeManIntegrationBinding,
+    NodeManOperationStatus,
+    NodeManOperationType,
     NodeManResourceType,
 )
-from monitor_web.nodeman_integration.v3.operation import NodeManExecutionLeaseConflict
+from monitor_web.nodeman_integration.v3.operation import NodeManExecutionLeaseConflict, NodeManV3OperationService
+from monitor_web.tests.collecting.nodeman_v3.test_deploy_policy import FakeDeployPolicyClient
 
 
-def _host(host_id):
-    return SimpleNamespace(bk_host_id=host_id)
+@pytest.fixture
+def collection(db):
+    plugin = CollectorPluginMeta.objects.create(bk_tenant_id="tenant-a", plugin_id="test-script", plugin_type="Script")
+    version = PluginVersionHistory.objects.create(
+        bk_tenant_id="tenant-a",
+        plugin_id=plugin.plugin_id,
+        config=CollectorPluginConfig.objects.create(),
+        info=CollectorPluginInfo.objects.create(),
+        stage="release",
+        is_packaged=True,
+    )
+    deployment = DeploymentConfigVersion.objects.create(
+        plugin_version=version,
+        config_meta_id=0,
+        target_node_type="INSTANCE",
+        target_nodes=[{"bk_host_id": 41}, {"bk_host_id": 42}],
+        params={"collector": {"period": 60}, "plugin": {}},
+    )
+    collection = CollectConfigMeta.objects.create(
+        bk_tenant_id="tenant-a",
+        bk_biz_id=2,
+        name="test collection",
+        plugin_id=plugin.plugin_id,
+        collect_type="Script",
+        target_object_type="HOST",
+        deployment_config=deployment,
+        last_operation="CREATE",
+        operation_result="PREPARING",
+    )
+    deployment.config_meta_id = collection.pk
+    deployment.save()
+    return collection
 
 
-def _service(service_instance_id, host_id):
-    return SimpleNamespace(service_instance_id=service_instance_id, bk_host_id=host_id)
-
-
-class FakeCMDB:
-    def __init__(self):
-        self.calls = []
-
-    def get_host_by_id(self, **kwargs):
-        self.calls.append(("get_host_by_id", kwargs))
-        return [_host(host_id) for host_id in kwargs["bk_host_ids"]]
-
-    def get_host_by_ip(self, **kwargs):
-        self.calls.append(("get_host_by_ip", kwargs))
-        return [_host(900)]
-
-    def get_host_by_topo_node(self, **kwargs):
-        self.calls.append(("get_host_by_topo_node", kwargs))
-        return [_host(11), _host(12)]
-
-    def get_host_by_template(self, **kwargs):
-        self.calls.append(("get_host_by_template", kwargs))
-        return [_host(21)]
-
-    def batch_execute_dynamic_group(self, **kwargs):
-        self.calls.append(("batch_execute_dynamic_group", kwargs))
-        return {"group-a": [_host(31)], "group-b": [_host(32), _host(31)]}
-
-    def get_service_instance_by_topo_node(self, **kwargs):
-        self.calls.append(("get_service_instance_by_topo_node", kwargs))
-        return [_service(101, 41)]
-
-    def get_service_instance_by_template(self, **kwargs):
-        self.calls.append(("get_service_instance_by_template", kwargs))
-        return [_service(102, 42)]
-
-
-def _collect_config(*, target_object_type, target_node_type, target_nodes, remote=None):
-    deployment = SimpleNamespace(
-        id=80,
-        target_node_type=target_node_type,
-        target_nodes=target_nodes,
-        remote_collecting_host=remote,
-        params={"collector": {"period": 60}},
-        plugin_version=SimpleNamespace(config_version=3, info_version=2),
+@pytest.fixture
+def policy_case(collection):
+    binding = NodeManIntegrationBinding.objects.create(
+        resource_type=NodeManResourceType.COLLECT_CONFIG,
+        resource_key=str(collection.pk),
+        owner_bk_tenant_id="tenant-a",
+        execution_bk_tenant_id="tenant-a",
+        bk_biz_id=2,
+    )
+    client = FakeDeployPolicyClient()
+    builder = CollectDeployPolicyPayloadBuilder(
+        step_builder=lambda config, deployment: [
+            {
+                "config": {
+                    "plugin_name": "bkmonitorbeat",
+                    "config_templates": [{"name": "test.conf", "content": "{{ period }}"}],
+                },
+                "params": {
+                    "context": {
+                        **deployment.params["collector"],
+                        "version": deployment.plugin_version.config_version,
+                    }
+                },
+            }
+        ]
+    )
+    scheduled = []
+    service = NodeManV3OperationService(poll_scheduler=lambda operation_id: scheduled.append(operation_id))
+    reconciler = CollectDeployPolicyReconciler(
+        payload_builder=builder,
+        gateway=NodeManV3DeployPolicyGateway(client=client, payload_builder=builder),
+        operation_service=service,
     )
     return SimpleNamespace(
-        id=7,
-        bk_biz_id=2,
-        plugin_id="mysql_exporter",
-        target_object_type=target_object_type,
-        deployment_config=deployment,
+        binding=binding,
+        collection=collection,
+        client=client,
+        builder=builder,
+        reconciler=reconciler,
+        scheduled=scheduled,
     )
 
 
-def test_host_target_types_have_stable_sorted_identity_keys():
-    cmdb = FakeCMDB()
-    resolver = CMDBCollectTargetResolver(cmdb=cmdb)
-    cases = [
-        (TargetNodeType.INSTANCE, [{"bk_host_id": 2}, {"bk_host_id": 1}], ["host:1", "host:2"]),
-        (TargetNodeType.TOPO, [{"bk_obj_id": "module", "bk_inst_id": 3}], ["host:11", "host:12"]),
-        (TargetNodeType.SET_TEMPLATE, [{"bk_inst_id": 4}], ["host:21"]),
-        (TargetNodeType.SERVICE_TEMPLATE, [{"bk_inst_id": 5}], ["host:21"]),
-        (
-            TargetNodeType.DYNAMIC_GROUP,
-            [{"bk_inst_id": "group-a"}, {"bk_inst_id": "group-b"}],
-            ["host:31", "host:32"],
-        ),
-    ]
+def submit(case, callbacks, *, force=False):
+    case.binding.refresh_from_db()
+    with callbacks(execute=True):
+        return case.reconciler.reconcile(
+            binding=case.binding,
+            collect_config=case.collection,
+            trigger="test",
+            force=force,
+        )
 
-    for node_type, target_nodes, expected in cases:
-        targets = resolver.resolve(
-            _collect_config(
-                target_object_type=TargetObjectType.HOST,
-                target_node_type=node_type,
-                target_nodes=target_nodes,
+
+def test_many_hosts_create_one_policy_and_keep_trigger_distinct(policy_case, django_capture_on_commit_callbacks):
+    case = policy_case
+    result = submit(case, django_capture_on_commit_callbacks)
+    assert result.prepared is True
+    assert [call[0] for call in case.client.calls] == ["list", "create", "execute"]
+    payload = case.client.calls[1][1]
+    assert payload["scopes"][0]["scope"]["instance_ids"] == [41, 42]
+    assert payload["name"] == f"bkm-collect-{case.collection.pk}"
+    operation = MonitorNodeManOperation.objects.get(pk=result.operation_id)
+    assert operation.status == NodeManOperationStatus.RUNNING
+    assert operation.target_count == 0
+    workflow = operation.workflows.get()
+    assert workflow.trigger_id == "trigger-301"
+    assert workflow.workflow_id is None
+    assert CollectDeploymentTarget.objects.count() == 0
+    assert case.scheduled == [operation.pk]
+    assert "period" not in operation.request_summary  # do not persist secret-bearing full contexts
+
+
+def test_no_remote_write_until_outer_transaction_commits(policy_case, django_capture_on_commit_callbacks):
+    case = policy_case
+    with django_capture_on_commit_callbacks(execute=True):
+        with transaction.atomic():
+            result = case.reconciler.reconcile(binding=case.binding, collect_config=case.collection, trigger="test")
+            assert MonitorNodeManOperation.objects.filter(pk=result.operation_id).exists()
+            assert case.client.calls == []
+        assert case.client.calls == []
+    assert len(case.client.calls) == 3
+
+
+def test_transaction_rollback_discards_submission(policy_case, django_capture_on_commit_callbacks):
+    case = policy_case
+    with django_capture_on_commit_callbacks(execute=True):
+        with pytest.raises(ValueError, match="rollback"):
+            with transaction.atomic():
+                case.reconciler.reconcile(binding=case.binding, collect_config=case.collection, trigger="test")
+                raise ValueError("rollback")
+    assert case.client.calls == []
+    assert MonitorNodeManOperation.objects.count() == 0
+
+
+def test_unchanged_policy_is_not_reexecuted_but_explicit_run_is(policy_case, django_capture_on_commit_callbacks):
+    case = policy_case
+    submit(case, django_capture_on_commit_callbacks)
+    assert submit(case, django_capture_on_commit_callbacks).prepared is False
+    assert len(case.client.calls) == 3
+    assert submit(case, django_capture_on_commit_callbacks, force=True).prepared is True
+    assert [call[0] for call in case.client.calls[3:]] == ["update", "execute"]
+
+
+@pytest.mark.parametrize("change", ["shrink", "context", "dynamic_group"])
+def test_edits_reuse_same_policy_and_replace_desired_scope_or_specs(
+    policy_case,
+    django_capture_on_commit_callbacks,
+    change,
+):
+    case = policy_case
+    submit(case, django_capture_on_commit_callbacks)
+    deployment = case.collection.deployment_config
+    if change == "shrink":
+        deployment.target_nodes = [{"bk_host_id": 42}]
+    elif change == "context":
+        deployment.params["collector"]["period"] = 30
+    else:
+        deployment.target_node_type = "DYNAMIC_GROUP"
+        deployment.target_nodes = [{"bk_inst_id": "group-1"}]
+    deployment.save()
+    submit(case, django_capture_on_commit_callbacks)
+    assert [call[0] for call in case.client.calls] == ["list", "create", "execute", "update", "execute"]
+    updated = case.client.calls[3][1]["deploy_policies"][0]
+    assert updated["deploy_policy_id"] == 301
+    if change == "shrink":
+        assert updated["scopes"][0]["scope"]["instance_ids"] == [42]
+    elif change == "context":
+        assert updated["specs"][0]["param"]["custom_config_context"]["period"] == 30
+    else:
+        assert updated["scopes"][0]["scope"]["dynamic_group_ids"] == ["group-1"]
+
+
+def test_unknown_write_is_durable_and_blocks_later_replay(policy_case, django_capture_on_commit_callbacks):
+    case = policy_case
+    case.client.execute = lambda *args, **kwargs: {}  # NodeMan may have accepted the write.
+    result = submit(case, django_capture_on_commit_callbacks)
+    operation = MonitorNodeManOperation.objects.get(pk=result.operation_id)
+    assert operation.result_state == NodeManV3ResultState.WRITE_RESULT_UNKNOWN
+    assert operation.status == NodeManOperationStatus.UNKNOWN
+    calls = len(case.client.calls)
+    with pytest.raises(NodeManV3UnknownResultError, match="unresolved"):
+        submit(case, django_capture_on_commit_callbacks, force=True)
+    assert len(case.client.calls) == calls
+
+
+def test_existing_target_policies_require_explicit_migration(policy_case, django_capture_on_commit_callbacks):
+    case = policy_case
+    CollectDeploymentTarget.objects.create(
+        binding=case.binding,
+        config_meta_id=case.collection.pk,
+        generation=case.binding.generation,
+        identity_key="host:41",
+        execution_bk_host_id=41,
+        plugin_name="bkmonitorbeat",
+        node_man_deploy_policy_id=99,
+    )
+    with pytest.raises(NodeManV3AdapterPending, match="require migration"):
+        submit(case, django_capture_on_commit_callbacks)
+    assert case.client.calls == []
+
+
+@pytest.mark.parametrize("state", [NodeManBindingState.DELETING, NodeManBindingState.ORPHANED])
+def test_inactive_binding_is_not_silently_reactivated(policy_case, django_capture_on_commit_callbacks, state):
+    case = policy_case
+    case.binding.state = state
+    case.binding.save()
+    with pytest.raises(NodeManV3AdapterPending, match="cleanup"):
+        submit(case, django_capture_on_commit_callbacks)
+    assert case.client.calls == []
+
+
+def test_concurrent_dispatch_is_rejected(policy_case, django_capture_on_commit_callbacks):
+    case = policy_case
+    MonitorNodeManOperation.objects.create(
+        binding=case.binding,
+        generation=case.binding.generation,
+        operation_type=NodeManOperationType.RECONCILE,
+        status=NodeManOperationStatus.DISPATCHING,
+    )
+    with pytest.raises(NodeManExecutionLeaseConflict, match="already in progress"):
+        submit(case, django_capture_on_commit_callbacks)
+    assert case.client.calls == []
+
+
+def test_stale_desired_version_cannot_overwrite_newer_policy(policy_case, django_capture_on_commit_callbacks):
+    case = policy_case
+    stale = CollectConfigMeta.objects.get(pk=case.collection.pk)
+    deployment = case.collection.deployment_config
+    deployment.pk = None
+    deployment.save()
+    CollectConfigMeta.objects.filter(pk=case.collection.pk).update(deployment_config=deployment)
+    case.collection = stale
+    with pytest.raises(NodeManExecutionLeaseConflict, match="deployment version changed"):
+        submit(case, django_capture_on_commit_callbacks)
+    assert case.client.calls == []
+
+
+@pytest.mark.parametrize("condition", ["remote", "stopped"])
+def test_unsupported_collection_is_blocked_before_policy_submission(
+    policy_case,
+    django_capture_on_commit_callbacks,
+    condition,
+):
+    case = policy_case
+    if condition == "remote":
+        case.collection.deployment_config.remote_collecting_host = {"bk_host_id": 100}
+    else:
+        case.collection.last_operation = "STOP"
+    with pytest.raises(NodeManV3CapabilityBlocked):
+        submit(case, django_capture_on_commit_callbacks)
+    assert case.client.calls == []
+    assert MonitorNodeManOperation.objects.count() == 0
+
+
+def test_poll_scheduler_failure_does_not_reclassify_a_known_write(policy_case, django_capture_on_commit_callbacks):
+    case = policy_case
+
+    def fail_schedule(operation_id):
+        raise RuntimeError("broker unavailable")
+
+    case.reconciler.operation_service.poll_scheduler = fail_schedule
+    result = submit(case, django_capture_on_commit_callbacks)
+    operation = MonitorNodeManOperation.objects.get(pk=result.operation_id)
+    assert operation.status == NodeManOperationStatus.RUNNING
+    assert operation.result_state == ""
+    assert operation.workflows.get().trigger_id == "trigger-301"
+
+
+def test_installer_edit_and_upgrade_submit_committed_deployment_versions(
+    policy_case,
+    django_capture_on_commit_callbacks,
+    monkeypatch,
+):
+    from monitor_web.collecting.deploy.nodeman_v3.installer import NodeManV3Installer
+
+    case = policy_case
+    submit(case, django_capture_on_commit_callbacks)
+    installer = NodeManV3Installer(case.collection, reconciler=case.reconciler)
+    monkeypatch.setattr(installer, "_node_diff", lambda *args: {"is_modified": True})
+    with django_capture_on_commit_callbacks(execute=True):
+        response = installer.install(
+            {
+                "target_node_type": "TOPO",
+                "target_nodes": [{"bk_obj_id": "module", "bk_inst_id": 8}],
+                "params": {"collector": {"period": 30}},
+            },
+            "EDIT",
+        )
+        assert len(case.client.calls) == 3
+    assert len(case.client.calls) == 5
+    case.collection.refresh_from_db()
+    assert case.collection.deployment_config_id == response["deployment_id"]
+    assert case.collection.deployment_config.subscription_id == 0
+    assert case.collection.deployment_config.task_ids == []
+    assert case.client.calls[-2][1]["deploy_policies"][0]["scopes"][0]["type"] == "topo"
+
+    release = PluginVersionHistory.objects.get(pk=case.collection.deployment_config.plugin_version_id)
+    release.pk = None
+    release.config_version = 2
+    release.save()
+    with django_capture_on_commit_callbacks(execute=True):
+        result = installer.upgrade({"collector": {"period": 60}, "plugin": {}})
+    assert len(case.client.calls) == 7
+    case.collection.refresh_from_db()
+    assert case.collection.deployment_config_id == result["deployment_id"]
+    assert case.collection.deployment_config.plugin_version_id == release.pk
+    assert case.client.calls[-2][1]["deploy_policies"][0]["deploy_policy_id"] == 301
+
+
+def test_installer_invalid_edit_rolls_back_version_and_sends_nothing(
+    policy_case,
+    django_capture_on_commit_callbacks,
+    monkeypatch,
+):
+    from monitor_web.collecting.deploy.nodeman_v3.installer import NodeManV3Installer
+    from bkmonitor.nodeman_integration.v3.exceptions import NodeManV3PayloadError
+
+    case = policy_case
+    original_version = case.collection.deployment_config_id
+    installer = NodeManV3Installer(case.collection, reconciler=case.reconciler)
+    monkeypatch.setattr(installer, "_node_diff", lambda *args: {})
+    with django_capture_on_commit_callbacks(execute=True):
+        with pytest.raises(NodeManV3PayloadError):
+            installer.install(
+                {
+                    "target_node_type": "INSTANCE",
+                    "target_nodes": [],
+                    "params": {"collector": {"period": 60}},
+                },
+                "EDIT",
             )
-        )
-        assert [target.identity_key for target in targets] == expected
+    case.collection.refresh_from_db()
+    assert case.collection.deployment_config_id == original_version
+    assert DeploymentConfigVersion.objects.count() == 1
+    assert case.client.calls == []
 
 
-def test_service_target_identity_survives_host_movement_and_marks_execution_change():
-    cmdb = FakeCMDB()
-    resolver = CMDBCollectTargetResolver(cmdb=cmdb)
-    config = _collect_config(
-        target_object_type=TargetObjectType.SERVICE,
-        target_node_type=TargetNodeType.TOPO,
-        target_nodes=[{"bk_obj_id": "module", "bk_inst_id": 3}],
-    )
+def test_installer_creates_new_collection_and_policy_in_one_committed_operation(
+    policy_case,
+    django_capture_on_commit_callbacks,
+):
+    from monitor_web.collecting.deploy.nodeman_v3.installer import NodeManV3Installer
 
-    before = resolver.resolve(config)[0]
-    cmdb.get_service_instance_by_topo_node = lambda **kwargs: [_service(101, 99)]
-    after = resolver.resolve(config)[0]
-
-    assert before.identity_key == after.identity_key == "service:101"
-    assert before.execution_bk_host_id == 41
-    assert after.execution_bk_host_id == 99
-    assert before.fingerprint != after.fingerprint
-
-
-def test_template_service_and_remote_collection_keep_observed_identity_separate_from_execution_host():
-    cmdb = FakeCMDB()
-    resolver = CMDBCollectTargetResolver(cmdb=cmdb)
-    config = _collect_config(
-        target_object_type=TargetObjectType.SERVICE,
-        target_node_type=TargetNodeType.SERVICE_TEMPLATE,
-        target_nodes=[{"bk_inst_id": 5}],
-        remote={"bk_host_id": 900, "is_collecting_only": True},
-    )
-
-    target = resolver.resolve(config)[0]
-
-    assert target.identity_key == "service:102"
-    assert target.service_instance_id == 102
-    assert target.observed_target == {"bk_host_id": 42, "service_instance_id": 102}
-    assert target.execution_bk_host_id == 900
-    assert target.remote_target == {"bk_host_id": 42, "service_instance_id": 102}
-
-
-def _desired(identity, fingerprint):
-    return SimpleNamespace(identity_key=identity, fingerprint=fingerprint)
-
-
-def test_diff_uses_applied_fingerprint_and_preserves_inflight_targets():
-    stored = {
-        "add": StoredTargetState("add", desired_present=True, applied_present=None),
-        "change": StoredTargetState(
-            "change", desired_present=True, applied_present=True, desired_fingerprint="old", applied_fingerprint="old"
-        ),
-        "same": StoredTargetState(
-            "same", desired_present=True, applied_present=True, desired_fingerprint="same", applied_fingerprint="same"
-        ),
-        "remove": StoredTargetState("remove", desired_present=True, applied_present=True),
-        "inflight": StoredTargetState("inflight", desired_present=True, applied_present=None, operation_inflight=True),
-        "blocked": StoredTargetState("blocked", desired_present=True, applied_present=None, operation_blocked=True),
-    }
-    desired = {
-        target.identity_key: target
-        for target in [
-            _desired("add", "new"),
-            _desired("change", "new"),
-            _desired("same", "same"),
-            _desired("inflight", "new"),
-            _desired("blocked", "new"),
-        ]
-    }
-
-    diff = calculate_reconcile_diff(stored, desired)
-
-    assert diff.added == ("add",)
-    assert diff.changed == ("change",)
-    assert diff.removed == ("remove",)
-    assert diff.unchanged == ("same",)
-    assert diff.inflight == ("inflight",)
-    assert diff.blocked == ("blocked",)
-
-
-class FakeSnapshotStore:
-    def __init__(self, plans):
-        self.plans = list(plans)
-        self.calls = []
-
-    def prepare(self, binding_id, desired):
-        self.calls.append((binding_id, tuple(target.identity_key for target in desired)))
-        return self.plans.pop(0)
-
-    def mark_applied(self, prepared, identity_keys):
-        self.calls.append(("applied", prepared.generation, tuple(identity_keys)))
-
-    def mark_error(self, prepared, identity_keys, error):
-        self.calls.append(("error", prepared.generation, tuple(identity_keys), str(error)))
-
-
-class FakeExecutor:
-    def __init__(self):
-        self.calls = []
-
-    def execute(self, category, targets, prepared):
-        self.calls.append((category, tuple(target.identity_key for target in targets), prepared))
-
-
-class FakeCoordinator:
-    def __init__(self):
-        self.calls = []
-
-    def prepare_action(self, **kwargs):
-        self.calls.append(kwargs)
-        return SimpleNamespace(
-            operation=SimpleNamespace(
-                binding=kwargs["binding"],
-                operation_type=kwargs["operation_type"],
-                generation=kwargs["generation"],
-                request_summary=kwargs["request_summary"],
-            ),
-            workflows=(SimpleNamespace(),),
-        )
-
-
-def test_event_and_periodic_paths_share_idempotent_reconciler_and_restart_from_store():
-    desired = [_desired("host:1", "a")]
-    plan = SimpleNamespace(
-        generation=3,
-        added=(desired[0],),
-        changed=(),
-        removed=(),
-        unchanged=(),
-        inflight=(),
-        blocked=(),
-    )
-    no_op = SimpleNamespace(
-        generation=3,
-        added=(),
-        changed=(),
-        removed=(),
-        unchanged=(desired[0],),
-        inflight=(),
-        blocked=(),
-    )
-    store = FakeSnapshotStore([plan, no_op])
-    executor = FakeExecutor()
-    coordinator = FakeCoordinator()
-    resolver = SimpleNamespace(resolve=lambda collect_config: desired)
-    reconciler = CollectTargetReconciler(
-        resolver=resolver,
-        store=store,
-        executor=executor,
-        coordinator=coordinator,
-    )
-    binding = SimpleNamespace(id=8, resource_key="7")
-    collect_config = SimpleNamespace(id=7)
-
-    event_result = reconciler.reconcile(binding=binding, collect_config=collect_config, trigger="event")
-    periodic_result = reconciler.reconcile(binding=binding, collect_config=collect_config, trigger="periodic")
-
-    assert event_result.trigger == "event"
-    assert periodic_result.trigger == "periodic"
-    assert executor.calls[0][:2] == ("added", ("host:1",))
-    assert len(coordinator.calls) == 1
-    assert not any(call[0] == "applied" for call in store.calls)
-    assert store.calls[-1] == (8, ("host:1",))
-
-
-def test_scale_down_removes_only_the_exact_stored_target():
-    mysql0 = SimpleNamespace(identity_key="service:100", node_man_plugin_instance_id="plugin-a")
-    mysql1 = SimpleNamespace(identity_key="service:101", node_man_plugin_instance_id="plugin-b")
-    plan = SimpleNamespace(
-        generation=4,
-        added=(),
-        changed=(),
-        removed=(mysql0,),
-        unchanged=(mysql1,),
-        inflight=(),
-        blocked=(),
-    )
-    store = FakeSnapshotStore([plan])
-    executor = FakeExecutor()
-    coordinator = FakeCoordinator()
-    reconciler = CollectTargetReconciler(
-        resolver=SimpleNamespace(resolve=lambda collect_config: []),
-        store=store,
-        executor=executor,
-        coordinator=coordinator,
-    )
-
-    reconciler.reconcile(
-        binding=SimpleNamespace(id=8, resource_key="7"),
-        collect_config=SimpleNamespace(id=7),
-        trigger="periodic",
-    )
-
-    assert executor.calls[0][:2] == ("removed", ("service:100",))
-
-
-def test_unsupported_removal_fails_before_supported_writes_in_same_generation():
-    added = SimpleNamespace(identity_key="host:2")
-    removed = SimpleNamespace(identity_key="host:1")
-    plan = SimpleNamespace(
-        generation=4,
-        added=(added,),
-        changed=(),
-        removed=(removed,),
-        unchanged=(),
-        inflight=(),
-        blocked=(),
-    )
-    store = FakeSnapshotStore([plan])
-
-    class RemovalBlockingExecutor(FakeExecutor):
-        def execute(self, category, targets, prepared):
-            super().execute(category, targets, prepared)
-            if category == "removed":
-                raise NodeManV3CapabilityBlocked("target removal protocol is missing")
-
-    executor = RemovalBlockingExecutor()
-    reconciler = CollectTargetReconciler(
-        resolver=SimpleNamespace(resolve=lambda collect_config: [added]),
-        store=store,
-        executor=executor,
-        coordinator=FakeCoordinator(),
-    )
-
-    with pytest.raises(NodeManV3CapabilityBlocked, match="target removal"):
-        reconciler.reconcile(
-            binding=SimpleNamespace(id=8, resource_key="7"),
-            collect_config=SimpleNamespace(id=7),
-            trigger="edit",
-        )
-
-    assert [call[0] for call in executor.calls] == ["removed"]
-
-
-def test_concurrent_reconcile_lease_conflict_defers_without_marking_target_error():
-    target = SimpleNamespace(identity_key="host:1")
-    plan = SimpleNamespace(
-        generation=3,
-        added=(target,),
-        changed=(),
-        removed=(),
-        unchanged=(),
-        inflight=(),
-        blocked=(),
-    )
-    store = FakeSnapshotStore([plan])
-    executor = FakeExecutor()
-    coordinator = SimpleNamespace(
-        prepare_action=lambda **kwargs: (_ for _ in ()).throw(
-            NodeManExecutionLeaseConflict("held by concurrent reconcile")
-        )
-    )
-    reconciler = CollectTargetReconciler(
-        resolver=SimpleNamespace(resolve=lambda collect_config: [target]),
-        store=store,
-        executor=executor,
-        coordinator=coordinator,
-    )
-
-    reconciler.reconcile(
-        binding=SimpleNamespace(id=8, resource_key="7"),
-        collect_config=SimpleNamespace(id=7),
-        trigger="periodic",
-    )
-
-    assert executor.calls == []
-    assert not any(call[0] == "error" for call in store.calls)
-
-
-@pytest.mark.parametrize(
-    ("error", "expected_method"),
-    [
-        (NodeManV3CapabilityBlocked("missing contract"), "definite"),
-        (NodeManV3AdapterPending("monitor adapter pending"), "definite"),
-        (RuntimeError("write outcome is not classified"), "unknown"),
-    ],
-)
-def test_target_executor_classifies_only_proven_local_blockers_as_definite(error, expected_method):
-    class RaisingOperationService:
-        def dispatch_batches(self, **kwargs):
-            del kwargs
-            raise error
-
-    calls = []
-    coordinator = SimpleNamespace(
-        mark_definite_failure=lambda *args: calls.append("definite"),
-        mark_unknown=lambda *args: calls.append("unknown"),
-    )
-    executor = NodeManV3TargetExecutor(
-        orchestrator=SimpleNamespace(
-            ensure_targets=lambda targets, **kwargs: None,
-            update_targets=lambda targets, **kwargs: None,
-            uninstall_targets=lambda targets, **kwargs: None,
-        ),
-        operation_service=RaisingOperationService(),
-        coordinator=coordinator,
-    )
-    prepared = SimpleNamespace(
-        operation=SimpleNamespace(
-            binding=SimpleNamespace(),
-            operation_type="reconcile",
-            generation=1,
-            request_summary={},
-        ),
-        workflows=(SimpleNamespace(),),
-    )
-
-    with pytest.raises(type(error), match=str(error)):
-        executor.execute("added", [SimpleNamespace(identity_key="host:1")], prepared)
-
-    assert calls == [expected_method]
-
-
-def _resolved_target(*, host_id=1, service_instance_id=None):
-    identity_key = f"service:{service_instance_id}" if service_instance_id else f"host:{host_id}"
-    observed_target = {"bk_host_id": host_id}
-    if service_instance_id:
-        observed_target["service_instance_id"] = service_instance_id
-    return ResolvedCollectTarget(
-        identity_key=identity_key,
-        observed_target=observed_target,
-        service_instance_id=service_instance_id,
-        execution_bk_host_id=host_id,
-        remote_target={},
-        plugin_name="mysql_exporter",
-        desired_enabled=True,
-        desired_revision="3.2:revision",
-    )
-
-
-@pytest.mark.django_db(transaction=True)
-def test_snapshot_store_is_idempotent_and_old_generation_cannot_ack_new_desire():
-    binding = NodeManIntegrationBinding.objects.create(
-        resource_type=NodeManResourceType.COLLECT_CONFIG,
-        resource_key="7",
-        owner_bk_tenant_id="tenant-a",
-        execution_bk_tenant_id="tenant-a",
+    case = policy_case
+    collection = CollectConfigMeta(
+        bk_tenant_id="tenant-a",
         bk_biz_id=2,
+        name="new collection",
+        plugin_id=case.collection.plugin_id,
+        collect_type="Script",
+        target_object_type="HOST",
     )
-    store = DjangoCollectTargetSnapshotStore()
-    first_target = _resolved_target(host_id=1)
-
-    first = store.prepare(binding.id, [first_target])
-    store.mark_applied(first, [first_target.identity_key])
-    repeated = store.prepare(binding.id, [first_target])
-
-    assert first.generation == repeated.generation == 1
-    assert repeated.added == ()
-    assert [target.identity_key for target in repeated.unchanged] == ["host:1"]
-
-    moved_target = _resolved_target(host_id=1)
-    object.__setattr__(moved_target, "execution_bk_host_id", 9)
-    changed = store.prepare(binding.id, [moved_target])
-    store.mark_applied(first, [first_target.identity_key])
-    target = CollectDeploymentTarget.objects.get(binding=binding, identity_key="host:1")
-
-    assert changed.generation == 2
-    assert [item.identity_key for item in changed.changed] == ["host:1"]
-    assert target.applied_fingerprint == first_target.fingerprint
-    assert target.desired_fingerprint == moved_target.fingerprint
+    installer = NodeManV3Installer(collection, reconciler=case.reconciler)
+    with django_capture_on_commit_callbacks(execute=True):
+        result = installer.install(
+            {
+                "target_node_type": "INSTANCE",
+                "target_nodes": [{"bk_host_id": 41}, {"bk_host_id": 42}],
+                "params": {"collector": {"period": 60}},
+            },
+            "CREATE",
+        )
+        assert case.client.calls == []
+    assert collection.pk == result["id"]
+    assert [call[0] for call in case.client.calls] == ["list", "create", "execute"]
+    assert case.client.calls[1][1]["name"] == f"bkm-collect-{collection.pk}"
+    binding = NodeManIntegrationBinding.objects.get(resource_key=str(collection.pk))
+    assert binding.node_man_deploy_policy_id == 301
+    assert binding.operations.get().deployment_config_version_id == result["deployment_id"]
 
 
-@pytest.mark.django_db(transaction=True)
-def test_removed_snapshot_preserves_exact_external_instance_id_for_scale_down():
-    binding = NodeManIntegrationBinding.objects.create(
-        resource_type=NodeManResourceType.COLLECT_CONFIG,
-        resource_key="8",
-        owner_bk_tenant_id="tenant-a",
-        execution_bk_tenant_id="tenant-a",
-        bk_biz_id=2,
-    )
-    store = DjangoCollectTargetSnapshotStore()
-    target = _resolved_target(host_id=41, service_instance_id=101)
-    first = store.prepare(binding.id, [target])
-    store.mark_applied(first, [target.identity_key])
-    CollectDeploymentTarget.objects.filter(binding=binding).update(
-        node_man_plugin_instance_id="plugin-instance-a",
-        bkmonitorbeat_config_instance_id="config-instance-a",
-    )
+@pytest.mark.parametrize("method", ["install", "upgrade"])
+def test_stopped_collection_is_not_reenabled_by_edit_or_upgrade(policy_case, method):
+    from monitor_web.collecting.deploy.nodeman_v3.installer import NodeManV3Installer
 
-    removed = store.prepare(binding.id, [])
-
-    assert removed.generation == 2
-    assert len(removed.removed) == 1
-    assert removed.removed[0].identity_key == "service:101"
-    assert removed.removed[0].node_man_plugin_instance_id == "plugin-instance-a"
-    assert removed.removed[0].bkmonitorbeat_config_instance_id == "config-instance-a"
+    case = policy_case
+    case.collection.last_operation = "STOP"
+    case.collection.save()
+    installer = NodeManV3Installer(case.collection, reconciler=case.reconciler)
+    with pytest.raises(NodeManV3CapabilityBlocked, match="stopped collection"):
+        if method == "install":
+            installer.install({}, "EDIT")
+        else:
+            installer.upgrade({})
+    case.collection.refresh_from_db()
+    assert case.collection.last_operation == "STOP"
+    assert case.client.calls == []

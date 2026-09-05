@@ -10,60 +10,17 @@ from monitor_web.collecting.deploy.nodeman_v3.orchestrator import NodeManV3Orche
 from monitor_web.collecting.deploy.nodeman_v3.validation import NodeManV3CapabilityBlocked
 
 
-class FakeGateway:
-    def __init__(self):
-        self.calls = []
-
-    def ensure_target(self, target, *, context):
-        self.calls.append(("ensure_target", target.identity_key, context))
-        return {"trigger_id": "trigger-1"}
-
-    def update_target(self, target, *, context):
-        self.calls.append(("update_target", target.identity_key, context))
-        return {"trigger_id": "trigger-2"}
+@pytest.mark.parametrize("method", ["stop", "start", "uninstall"])
+def test_stop_start_and_delete_await_reverse_protocol(method):
+    with pytest.raises(NodeManV3CapabilityBlocked, match="reverse protocol") as error:
+        getattr(NodeManV3Orchestrator(), method)()
+    assert error.value.result_state == NodeManV3ResultState.UNSUPPORTED
 
 
-def _target(identity, plugin_instance, config_instance):
-    return SimpleNamespace(
-        identity_key=identity,
-        node_man_plugin_instance_id=plugin_instance,
-        bkmonitorbeat_config_instance_id=config_instance,
-    )
-
-
-def test_deploy_policy_target_submission_keeps_each_target_isolated():
-    gateway = FakeGateway()
-    orchestrator = NodeManV3Orchestrator(gateway=gateway)
-    mysql0 = _target("mysql0", "plugin-instance-a", "config-instance-a")
-    context = SimpleNamespace(monitor_operation_id="operation-1")
-
-    assert orchestrator.ensure_targets([mysql0], context=context) == {"trigger_id": "trigger-1"}
-    assert orchestrator.update_targets([mysql0], context=context) == {"trigger_id": "trigger-2"}
-
-    assert gateway.calls == [
-        ("ensure_target", "mysql0", context),
-        ("update_target", "mysql0", context),
-    ]
-
-
-def test_stop_and_delete_remain_explicit_protocol_blockers():
-    gateway = FakeGateway()
-    orchestrator = NodeManV3Orchestrator(gateway=gateway)
-    target = _target("mysql0", "", "")
-
-    with pytest.raises(NodeManV3CapabilityBlocked, match="sub-config removal") as stop_error:
-        orchestrator.stop_targets([target])
-    with pytest.raises(NodeManV3CapabilityBlocked, match="target removal") as delete_error:
-        orchestrator.uninstall_targets([target])
-
-    assert stop_error.value.result_state == NodeManV3ResultState.UNSUPPORTED
-    assert delete_error.value.result_state == NodeManV3ResultState.UNSUPPORTED
-    assert gateway.calls == []
-
-
+@pytest.mark.django_db
 def test_installer_create_persists_desired_version_then_reconciles(monkeypatch):
     calls = []
-    packaged_release = SimpleNamespace(is_packaged=True)
+    packaged_release = SimpleNamespace(is_packaged=True, config_version=1)
     orchestrator = SimpleNamespace(
         uninstall=lambda **kwargs: calls.append(("uninstall", kwargs)),
         stop=lambda **kwargs: calls.append(("stop", kwargs)),
@@ -77,7 +34,7 @@ def test_installer_create_persists_desired_version_then_reconciles(monkeypatch):
     collect_config = SimpleNamespace(
         pk=None,
         name="mysql",
-        need_upgrade=False,
+        last_operation="CREATE",
         deployment_config_id=None,
         deployment_config=None,
         plugin=SimpleNamespace(plugin_type="Exporter", packaged_release_version=packaged_release),
@@ -113,14 +70,15 @@ def test_installer_create_persists_desired_version_then_reconciles(monkeypatch):
     assert calls == [("activate", new_version, "CREATE"), ("reconcile", "install:create")]
 
 
+@pytest.mark.django_db
 def test_installer_edit_persists_desired_version_then_updates_targets(monkeypatch):
     calls = []
-    packaged_release = SimpleNamespace(is_packaged=True)
-    current_version = SimpleNamespace(pk=6, target_nodes=[{"bk_inst_id": 2}])
+    packaged_release = SimpleNamespace(is_packaged=True, config_version=1)
+    current_version = SimpleNamespace(pk=6, target_nodes=[{"bk_inst_id": 2}], plugin_version=packaged_release)
     collect_config = SimpleNamespace(
         pk=7,
         name="mysql",
-        need_upgrade=False,
+        last_operation="CREATE",
         deployment_config_id=6,
         deployment_config=current_version,
         plugin=SimpleNamespace(plugin_type="Exporter", packaged_release_version=packaged_release),
@@ -154,11 +112,13 @@ def test_installer_edit_persists_desired_version_then_updates_targets(monkeypatc
     assert calls == [("activate", new_version, "EDIT"), ("reconcile", "install:edit")]
 
 
+@pytest.mark.django_db
 def test_installer_upgrade_persists_desired_version_then_updates_targets(monkeypatch):
     calls = []
-    packaged_release = SimpleNamespace(is_packaged=True)
+    packaged_release = SimpleNamespace(is_packaged=True, config_version=1)
     current_version = SimpleNamespace(
         pk=6,
+        plugin_version=SimpleNamespace(config_version=0),
         target_node_type="TOPO",
         target_nodes=[{"bk_inst_id": 2}],
         params={"collector": {"period": 60, "timeout": 30}},
@@ -167,7 +127,7 @@ def test_installer_upgrade_persists_desired_version_then_updates_targets(monkeyp
     collect_config = SimpleNamespace(
         pk=7,
         name="mysql",
-        need_upgrade=True,
+        last_operation="EDIT",
         deployment_config=current_version,
         plugin=SimpleNamespace(plugin_type="Exporter", packaged_release_version=packaged_release),
     )
@@ -201,7 +161,7 @@ def test_installer_marks_rollback_as_unsupported_before_mutating_desired_version
     collect_config = SimpleNamespace(
         pk=7,
         name="mysql",
-        need_upgrade=False,
+        last_operation="CREATE",
         plugin=SimpleNamespace(plugin_type="Exporter"),
     )
     installer = NodeManV3Installer(collect_config, reconciler=SimpleNamespace())
@@ -212,7 +172,7 @@ def test_installer_marks_rollback_as_unsupported_before_mutating_desired_version
     assert error.value.result_state == NodeManV3ResultState.UNSUPPORTED
 
 
-@pytest.mark.parametrize("method", ["start", "run", "retry", "revoke", "status", "instance_status"])
+@pytest.mark.parametrize("method", ["retry", "revoke", "status", "instance_status"])
 def test_protocol_backed_lifecycle_remains_adapter_pending(method):
     orchestrator = NodeManV3Orchestrator()
 
@@ -242,7 +202,6 @@ def test_installer_keeps_unclosed_lifecycle_methods_blocked_by_orchestrator():
     installer.uninstall()
     installer.stop()
     installer.start()
-    installer.run("restart", {"host_ids": [1]})
     installer.retry(["instance-1"])
     installer.revoke([1])
     assert installer.status(diff=False) == {"status": "running"}
@@ -251,7 +210,6 @@ def test_installer_keeps_unclosed_lifecycle_methods_blocked_by_orchestrator():
         "uninstall",
         "stop",
         "start",
-        "run",
         "retry",
         "revoke",
         "status",
@@ -260,14 +218,14 @@ def test_installer_keeps_unclosed_lifecycle_methods_blocked_by_orchestrator():
 
 
 def test_real_v3_route_returns_real_v3_installer():
-    with override_settings(NODEMAN_INTEGRATION_MODE="v3_fresh"):
+    with override_settings(NODEMAN_INTEGRATION_MODE="v3_fresh", BKNODEMAN_API_BASE_URL="https://nodeman.invalid"):
         mode_module = importlib.import_module("bkmonitor.nodeman_integration.mode")
         importlib.reload(mode_module)
         deploy_module = importlib.import_module("monitor_web.collecting.deploy")
         importlib.reload(deploy_module)
 
-    collect_config = SimpleNamespace(plugin=SimpleNamespace(plugin_type="Exporter"))
-    installer = deploy_module.get_collect_installer(collect_config)
+        collect_config = SimpleNamespace(plugin=SimpleNamespace(plugin_type="Exporter"))
+        installer = deploy_module.get_collect_installer(collect_config)
 
     current_installer_class = importlib.import_module(
         "monitor_web.collecting.deploy.nodeman_v3.installer"
@@ -277,3 +235,20 @@ def test_real_v3_route_returns_real_v3_installer():
     with override_settings(NODEMAN_INTEGRATION_MODE="v2"):
         importlib.reload(mode_module)
         importlib.reload(deploy_module)
+
+
+def test_installer_explicit_run_submits_whole_policy(monkeypatch):
+    config = SimpleNamespace(plugin=SimpleNamespace(plugin_type="Script"))
+    installer = NodeManV3Installer(config, reconciler=SimpleNamespace())
+    calls = []
+    monkeypatch.setattr(installer, "_reconcile", lambda **kwargs: calls.append(kwargs))
+    installer.run("install")
+    assert calls == [{"trigger": "run", "force": True}]
+
+
+@pytest.mark.parametrize("action, scope", [("restart", None), ("stop", None), ("install", {"nodes": [1]})])
+def test_run_never_discards_scoped_or_action_specific_intent(action, scope):
+    config = SimpleNamespace(plugin=SimpleNamespace(plugin_type="Script"))
+    installer = NodeManV3Installer(config, reconciler=SimpleNamespace())
+    with pytest.raises(NodeManV3CapabilityBlocked, match="action override"):
+        installer.run(action, scope)
