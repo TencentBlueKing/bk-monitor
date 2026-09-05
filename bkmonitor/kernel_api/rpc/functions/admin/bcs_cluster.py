@@ -33,6 +33,7 @@ from kernel_api.rpc.functions.admin.common import (
 from kubernetes import client as k8s_client
 
 from constants.bk_collector import BkCollectorComp
+from bkmonitor.utils.bk_collector_config import BkCollectorClusterConfig
 from metadata import config, models
 
 FUNC_BCS_CLUSTER_LIST = "admin.bcs_cluster.list"
@@ -400,19 +401,28 @@ def _get_bk_collector_namespace_context(
     cluster: models.BCSClusterInfo,
     *,
     use_config_namespace: bool = False,
+    namespace: str | None = None,
 ) -> dict[str, Any]:
     operator_namespace = getattr(cluster, "operator_ns", None) or BkCollectorComp.NAMESPACE
     cluster_namespace = settings.K8S_OPERATOR_DEPLOY_NAMESPACE or {}
     configured_namespace = cluster_namespace.get(cluster.cluster_id)
     can_use_configured_namespace = bool(configured_namespace)
-    using_configured_namespace = bool(use_config_namespace and can_use_configured_namespace)
-    namespace = configured_namespace if using_configured_namespace else operator_namespace
+    using_configured_namespace = bool(namespace is None and use_config_namespace and can_use_configured_namespace)
+    if namespace is None:
+        namespace = configured_namespace if using_configured_namespace else operator_namespace
+    elif not BkCollectorClusterConfig.validate_namespace(namespace):
+        raise CustomException(message=f"invalid collector namespace: {namespace!r}")
     return {
         "namespace": namespace,
         "operator_namespace": operator_namespace,
         "configured_namespace": configured_namespace,
         "can_use_configured_namespace": can_use_configured_namespace,
         "using_configured_namespace": using_configured_namespace,
+        "public_namespaces": [
+            target_namespace
+            for cluster_id, target_namespace in BkCollectorClusterConfig.global_deploy_targets()
+            if cluster_id == cluster.cluster_id
+        ],
     }
 
 
@@ -1139,6 +1149,7 @@ def get_bcs_cluster_data_id_detail(params: dict[str, Any]) -> dict[str, Any]:
         "type": "暂不支持；列表不解码也不查询关联模型，无法区分 json 上报中的指标/事件",
         "keyword": "可选，按 DataID/APM 应用 ID 精确匹配，也支持 Secret 名称或配置 key 包含匹配",
         "use_config_namespace": "可选，默认 false；true 时使用 K8S_OPERATOR_DEPLOY_NAMESPACE 中配置的命名空间",
+        "namespace": "可选，显式选择 collector 命名空间，优先于 use_config_namespace；查询详情时应传入相同值",
         "page": "可选，默认 1",
         "page_size": "可选，默认 20，最大 10000；列表页通常一次获取当前分类摘要全集后在前端分页",
     },
@@ -1162,7 +1173,9 @@ def list_bcs_cluster_bk_collector_configs(params: dict[str, Any]) -> dict[str, A
     use_config_namespace = _normalize_include_sensitive(params.get("use_config_namespace"))
     _page, page_size = normalize_pagination(params, max_page_size=10000)
     cluster = _get_bcs_cluster_or_raise(bk_tenant_id, cluster_id)
-    namespace_context = _get_bk_collector_namespace_context(cluster, use_config_namespace=use_config_namespace)
+    namespace_context = _get_bk_collector_namespace_context(
+        cluster, use_config_namespace=use_config_namespace, namespace=params.get("namespace")
+    )
     protocols = _get_bk_collector_protocols_by_category(category)
 
     entries, warnings = _collect_bk_collector_config_entries(
@@ -1210,6 +1223,7 @@ def list_bcs_cluster_bk_collector_configs(params: dict[str, Any]) -> dict[str, A
         "config_ref": "必填，列表返回的配置引用",
         "include_sensitive": "可选，默认 false；仅 APM 平台配置使用，true 时返回平台 secret 明文",
         "use_config_namespace": "可选，默认 false；true 时使用 K8S_OPERATOR_DEPLOY_NAMESPACE 中配置的命名空间",
+        "namespace": "可选，应与配置列表查询使用同一命名空间，优先于 use_config_namespace",
     },
     example_params={
         "bk_tenant_id": "system",
@@ -1227,7 +1241,9 @@ def get_bcs_cluster_bk_collector_config_detail(params: dict[str, Any]) -> dict[s
     include_sensitive = _normalize_include_sensitive(params.get("include_sensitive"))
     use_config_namespace = _normalize_include_sensitive(params.get("use_config_namespace"))
     cluster = _get_bcs_cluster_or_raise(bk_tenant_id, cluster_id)
-    namespace_context = _get_bk_collector_namespace_context(cluster, use_config_namespace=use_config_namespace)
+    namespace_context = _get_bk_collector_namespace_context(
+        cluster, use_config_namespace=use_config_namespace, namespace=params.get("namespace")
+    )
 
     entries, warnings = _collect_bk_collector_config_entries(
         cluster,

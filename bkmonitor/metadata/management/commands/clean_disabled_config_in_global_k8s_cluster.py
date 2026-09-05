@@ -10,8 +10,7 @@ specific language governing permissions and limitations under the License.
 
 from collections import defaultdict
 
-from django.conf import settings
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandError
 
 from bkmonitor.utils.bk_collector_config import BkCollectorClusterConfig
 from constants.common import DEFAULT_TENANT_ID
@@ -53,6 +52,10 @@ class Command(BaseCommand):
             help="K8S 集群 ID，支持传入多次；不传则默认使用 CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER",
         )
         parser.add_argument(
+            "--namespace",
+            help="显式指定清理命名空间，须同时指定一个 --cluster-id；默认清理配置的公共部署目标",
+        )
+        parser.add_argument(
             "--execute",
             action="store_true",
             default=False,
@@ -64,10 +67,10 @@ class Command(BaseCommand):
         bk_biz_id = options.get("bk_biz_id")
         bk_data_ids = set(options.get("bk_data_id") or [])
         clean_type = options["type"]
-        cluster_ids = self._get_target_cluster_ids(options.get("cluster_id") or [])
+        targets = self._get_target_cluster_ids(options.get("cluster_id") or [], options.get("namespace"))
         dry_run = not options["execute"]
 
-        if not cluster_ids:
+        if not targets:
             self.stdout.write("no target k8s cluster configured, skip")
             return
 
@@ -82,9 +85,9 @@ class Command(BaseCommand):
             return
 
         self.stdout.write(
-            "[{}] clean disabled collector config in k8s cluster, clusters={}, protocols={}".format(
+            "[{}] clean disabled collector config in k8s targets, targets={}, protocols={}".format(
                 "DRY-RUN" if dry_run else "EXECUTE",
-                sorted(cluster_ids),
+                targets,
                 sorted(protocol_to_configs.keys()),
             )
         )
@@ -105,13 +108,14 @@ class Command(BaseCommand):
                 )
 
         total_plan_count = 0
-        for cluster_id in sorted(cluster_ids):
+        for cluster_id, namespace in targets:
             for protocol, config_infos in sorted(protocol_to_configs.items()):
                 config_ids = {config_info["bk_data_id"] for config_info in config_infos}
                 plans = BkCollectorClusterConfig.clean_sub_configs(
                     cluster_id=cluster_id,
                     protocol=protocol,
                     config_ids=config_ids,
+                    namespace=namespace,
                     dry_run=dry_run,
                 )
                 total_plan_count += len(plans)
@@ -136,10 +140,28 @@ class Command(BaseCommand):
             )
         )
 
-    def _get_target_cluster_ids(self, input_cluster_ids: list[str]) -> set[str]:
-        if input_cluster_ids:
-            return set(input_cluster_ids)
-        return set(settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER or [])
+    def _get_target_cluster_ids(
+        self, input_cluster_ids: list[str], namespace: str | None = None
+    ) -> list[tuple[str, str]]:
+        cluster_ids = sorted(set(input_cluster_ids))
+        if namespace is not None:
+            if len(cluster_ids) != 1:
+                raise CommandError("--namespace requires exactly one explicit --cluster-id")
+            if not BkCollectorClusterConfig.validate_namespace(namespace):
+                raise CommandError(f"invalid collector namespace: {namespace!r}")
+            return [(cluster_ids[0], namespace)]
+
+        global_targets = BkCollectorClusterConfig.global_deploy_targets()
+        if not cluster_ids:
+            return sorted(global_targets, key=lambda target: target[0])
+
+        targets = []
+        for cluster_id in cluster_ids:
+            targets.extend(
+                [target for target in global_targets if target[0] == cluster_id]
+                or [(cluster_id, BkCollectorClusterConfig.bk_collector_namespace(cluster_id))]
+            )
+        return targets
 
     def _get_disabled_configs(
         self,
