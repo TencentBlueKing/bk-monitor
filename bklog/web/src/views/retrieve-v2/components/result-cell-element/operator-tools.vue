@@ -48,6 +48,19 @@
         <span class="icon bklog-icon bklog-shangxiawen" />
         <span class="handle-label">{{ $t('上下文') }}</span>
       </button>
+      <template v-if="isActiveWebConsole && !isMonitorApm">
+        <span class="handle-divider" />
+        <button
+          v-bk-tooltips="{ allowHtml: true, content: '#webConsole-html', delay: 500, disabled: isCanClickWebConsole }"
+          :class="['handle-item', { 'is-disable': !isCanClickWebConsole }]"
+          type="button"
+          @click.stop="handleCheckClick('webConsole', isCanClickWebConsole)"
+          @mouseup.stop
+        >
+          <span class="icon bklog-icon bklog-consola" />
+          <span class="handle-label">WebConsole</span>
+        </button>
+      </template>
       <template v-if="showTraceInput">
         <span class="handle-divider" />
         <button
@@ -144,6 +157,17 @@
         </span>
       </div>
     </div>
+    <div v-show="false">
+      <div id="webConsole-html">
+        <span>
+          <span
+            v-if="!isCanClickWebConsole"
+            class="bk-icon icon-exclamation-circle-shape"
+          ></span>
+          <span>{{ toolMessage.webConsole }}</span>
+        </span>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -195,6 +219,36 @@
       },
       isActiveLog() {
         return this.operatorConfig?.contextAndRealtime?.is_active ?? false;
+      },
+      isActiveWebConsole() {
+        return this.operatorConfig?.bcsWebConsole?.is_active ?? false;
+      },
+      /** 判断 webConsole 是否能点击：行数据需具备集群与容器 ID */
+      isCanClickWebConsole() {
+        if (!this.isActiveWebConsole) return false;
+        const { cluster, container_id: containerID, __ext } = this.rowData;
+        let queryData = {};
+        if (cluster && containerID) {
+          queryData = {
+            cluster,
+            container_id: containerID,
+          };
+        } else {
+          if (!__ext) return false;
+          if (!__ext.container_id) return false;
+          queryData = { container_id: __ext.container_id };
+          if (__ext.io_tencent_bcs_cluster) {
+            Object.assign(queryData, {
+              cluster: __ext.io_tencent_bcs_cluster,
+            });
+          } else if (__ext.bk_bcs_cluster_id) {
+            Object.assign(queryData, {
+              cluster: __ext.bk_bcs_cluster_id,
+            });
+          }
+        }
+        if (!queryData.cluster || !queryData.container_id) return false;
+        return true;
       },
       isAiAssistanceActive() {
         return this.$store.getters.isAiAssistantActive;
@@ -371,11 +425,11 @@
 
         .ai-label {
           font-weight: 600;
+          color: transparent;
           background: linear-gradient(118deg, #235dfa 0%, #e28bed 100%);
-          -webkit-background-clip: text;
+          background-clip: text;
           background-clip: text;
           -webkit-text-fill-color: transparent;
-          color: transparent;
         }
       }
     }
@@ -406,7 +460,10 @@
 
     &:hover,
     &:focus-visible {
+      /* stylelint-disable-next-line declaration-no-important */
       color: #c4c6cc !important;
+
+      /* stylelint-disable-next-line declaration-no-important */
       background: transparent !important;
     }
   }
