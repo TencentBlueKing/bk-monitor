@@ -410,11 +410,8 @@ def _get_bk_collector_namespace_context(
     using_configured_namespace = bool(namespace is None and use_config_namespace and can_use_configured_namespace)
     if namespace is None:
         namespace = configured_namespace if using_configured_namespace else operator_namespace
-    else:
-        try:
-            BkCollectorClusterConfig.validate_namespace(namespace)
-        except ValueError as error:
-            raise CustomException(message=str(error)) from error
+    elif not BkCollectorClusterConfig.validate_namespace(namespace):
+        raise CustomException(message=f"invalid collector namespace: {namespace!r}")
     return {
         "namespace": namespace,
         "operator_namespace": operator_namespace,

@@ -67,27 +67,10 @@ class Command(BaseCommand):
         bk_biz_id = options.get("bk_biz_id")
         bk_data_ids = set(options.get("bk_data_id") or [])
         clean_type = options["type"]
-        namespace = options.get("namespace")
-        if namespace is not None and len(set(options.get("cluster_id") or [])) != 1:
-            raise CommandError("--namespace requires exactly one explicit --cluster-id")
-        try:
-            cluster_ids = self._get_target_cluster_ids(options.get("cluster_id") or [])
-            if namespace is not None:
-                BkCollectorClusterConfig.validate_namespace(namespace)
-                targets = [(cluster_id, namespace) for cluster_id in sorted(cluster_ids)]
-            else:
-                global_targets = BkCollectorClusterConfig.global_deploy_targets()
-                targets = []
-                for cluster_id in sorted(cluster_ids):
-                    targets.extend(
-                        [target for target in global_targets if target[0] == cluster_id]
-                        or [(cluster_id, BkCollectorClusterConfig.bk_collector_namespace(cluster_id))]
-                    )
-        except ValueError as error:
-            raise CommandError(str(error)) from error
+        targets = self._get_target_cluster_ids(options.get("cluster_id") or [], options.get("namespace"))
         dry_run = not options["execute"]
 
-        if not cluster_ids:
+        if not targets:
             self.stdout.write("no target k8s cluster configured, skip")
             return
 
@@ -157,10 +140,28 @@ class Command(BaseCommand):
             )
         )
 
-    def _get_target_cluster_ids(self, input_cluster_ids: list[str]) -> set[str]:
-        if input_cluster_ids:
-            return set(input_cluster_ids)
-        return {cluster_id for cluster_id, _ in BkCollectorClusterConfig.global_deploy_targets()}
+    def _get_target_cluster_ids(
+        self, input_cluster_ids: list[str], namespace: str | None = None
+    ) -> list[tuple[str, str]]:
+        cluster_ids = sorted(set(input_cluster_ids))
+        if namespace is not None:
+            if len(cluster_ids) != 1:
+                raise CommandError("--namespace requires exactly one explicit --cluster-id")
+            if not BkCollectorClusterConfig.validate_namespace(namespace):
+                raise CommandError(f"invalid collector namespace: {namespace!r}")
+            return [(cluster_ids[0], namespace)]
+
+        global_targets = BkCollectorClusterConfig.global_deploy_targets()
+        if not cluster_ids:
+            return sorted(global_targets, key=lambda target: target[0])
+
+        targets = []
+        for cluster_id in cluster_ids:
+            targets.extend(
+                [target for target in global_targets if target[0] == cluster_id]
+                or [(cluster_id, BkCollectorClusterConfig.bk_collector_namespace(cluster_id))]
+            )
+        return targets
 
     def _get_disabled_configs(
         self,

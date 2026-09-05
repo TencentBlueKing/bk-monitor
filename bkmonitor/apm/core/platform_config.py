@@ -90,7 +90,7 @@ class PlatformConfig(BkCollectorConfig):
         for bcs_cluster in BCSClusterInfo.objects.all().only("cluster_id", "bk_biz_id"):
             bcs_cluster_to_biz_ids[bcs_cluster.cluster_id] = bcs_cluster.bk_biz_id
 
-        for cluster_id, namespace in deploy_mapping:
+        for cluster_id, namespace, is_global in deploy_mapping:
             # 如果集群不在BCS集群中，则不下发该集群的配置
             if cluster_id not in bcs_cluster_to_biz_ids:
                 continue
@@ -106,7 +106,9 @@ class PlatformConfig(BkCollectorConfig):
                     # 如果集群中不存在 bk-collector 的平台配置模版，则不下发
                     continue
 
-                platform_config_context = PlatformConfig.get_platform_config(cluster_id, namespace=namespace)
+                platform_config_context = PlatformConfig.get_platform_config(
+                    cluster_id, namespace=namespace, is_global=is_global
+                )
 
                 platform_config = Environment().from_string(platform_config_tpl).render(platform_config_context)
                 PlatformConfig.deploy_to_k8s(cluster_id, platform_config, namespace=namespace)
@@ -114,11 +116,15 @@ class PlatformConfig(BkCollectorConfig):
                 logger.error(f"refresh platform config to target: {cluster_id}/{namespace} failed, error: {e}")
 
     @classmethod
-    def get_platform_config(cls, bcs_cluster_id=None, namespace=None):
+    def get_platform_config(cls, bcs_cluster_id=None, namespace=None, is_global: bool | None = None):
+        if is_global is None:
+            is_global = BkCollectorClusterConfig.is_global_target(bcs_cluster_id, namespace)
         plat_config = {
             "apdex_config": cls.get_apdex_config(),
             "sampler_config": cls.get_sampler_config(),
-            "token_checker_config": cls.get_token_checker_config(bcs_cluster_id, namespace=namespace),
+            "token_checker_config": cls.get_token_checker_config(
+                bcs_cluster_id, namespace=namespace, is_global=is_global
+            ),
             "resource_filter_config": cls.get_resource_filter_config(),
             "qps_config": cls.get_qps_config(),
             "metric_configs": cls.list_metric_config(),
@@ -129,9 +135,9 @@ class PlatformConfig(BkCollectorConfig):
         if settings.APM_FIELD_NORMALIZER_ENABLED:
             plat_config["field_normalizer_config"] = cls.get_field_normalizer_config()
 
-        if bcs_cluster_id and not BkCollectorClusterConfig.is_global_target(bcs_cluster_id, namespace):
+        if bcs_cluster_id and not is_global:
             resource_fill_dimensions_config = cls.get_resource_fill_dimensions_config(
-                bcs_cluster_id, namespace=namespace
+                bcs_cluster_id, namespace=namespace, is_global=is_global
             )
             if resource_fill_dimensions_config:
                 plat_config["resource_fill_dimensions_config"] = resource_fill_dimensions_config
@@ -291,7 +297,7 @@ class PlatformConfig(BkCollectorConfig):
         return {"name": "field_normalizer/otel_mapping", "fields": fields}
 
     @classmethod
-    def get_token_checker_config(cls, bcs_cluster_id=None, namespace=None):
+    def get_token_checker_config(cls, bcs_cluster_id=None, namespace=None, is_global: bool | None = None):
         x_key = get_bk_data_token_aes_key()
 
         token_checker_config = {
@@ -306,7 +312,9 @@ class PlatformConfig(BkCollectorConfig):
             else settings.BK_DATA_AES_IV,
         }
 
-        if bcs_cluster_id and not BkCollectorClusterConfig.is_global_target(bcs_cluster_id, namespace):
+        if is_global is None:
+            is_global = BkCollectorClusterConfig.is_global_target(bcs_cluster_id, namespace)
+        if bcs_cluster_id and not is_global:
             # 集群内默认上报 APM 应用
             default_app_relation = BcsClusterDefaultApplicationRelation.objects.filter(
                 cluster_id=bcs_cluster_id
@@ -345,7 +353,7 @@ class PlatformConfig(BkCollectorConfig):
         return data_ids
 
     @classmethod
-    def get_resource_fill_dimensions_config(cls, bcs_cluster_id=None, namespace=None):
+    def get_resource_fill_dimensions_config(cls, bcs_cluster_id=None, namespace=None, is_global: bool | None = None):
         """
         维度补充配置（目前先固定返回，暂不支持可配置）
         第一层，先根据上报的客户端IP，填充 resource 下的 net.host.ip 字段（如果不存在则赋值）
@@ -354,7 +362,9 @@ class PlatformConfig(BkCollectorConfig):
         if bcs_cluster_id is None:
             return {}
 
-        if BkCollectorClusterConfig.is_global_target(bcs_cluster_id, namespace):
+        if is_global is None:
+            is_global = BkCollectorClusterConfig.is_global_target(bcs_cluster_id, namespace)
+        if is_global:
             # 公共部署接收全局数据，不使用所在集群的维度缓存。
             return {}
 
@@ -519,8 +529,7 @@ class PlatformConfig(BkCollectorConfig):
         secret_label_selector = (
             f"{BkCollectorComp.SECRET_COMMON_LABELS},{secret_info_platform.get('secret_extra_label')}"
         )
-        secrets = BkCollectorClusterConfig.request_k8s(
-            bcs_client,
+        secrets = bcs_client.client_request(
             bcs_client.core_api.list_namespaced_secret,
             namespace=namespace,
             label_selector=secret_label_selector,
@@ -541,8 +550,7 @@ class PlatformConfig(BkCollectorConfig):
             if need_update:
                 logger.info(f"{cluster_id} apm platform config has changed, update it.")
                 sec.data = {secret_data_key: b64_content}
-                BkCollectorClusterConfig.request_k8s(
-                    bcs_client,
+                bcs_client.client_request(
                     bcs_client.core_api.patch_namespaced_secret,
                     name=secret_name,
                     namespace=namespace,
@@ -562,8 +570,7 @@ class PlatformConfig(BkCollectorConfig):
                 data={secret_data_key: b64_content},
             )
 
-            BkCollectorClusterConfig.request_k8s(
-                bcs_client,
+            bcs_client.client_request(
                 bcs_client.core_api.create_namespaced_secret,
                 namespace=namespace,
                 body=sec,

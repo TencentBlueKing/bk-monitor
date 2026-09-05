@@ -19,6 +19,7 @@ from kubernetes import client
 from apm.core.handlers.apm_cache_handler import ApmCacheHandler
 from bkm_space.utils import bk_biz_id_to_space_uid, is_bk_saas_space
 from bkmonitor.utils.bcs import BcsKubeClient
+from bkmonitor.utils.cache import lru_cache_with_ttl
 from bkmonitor.utils.common_utils import count_md5, safe_int
 from bkmonitor.utils.new_env import is_biz_id_in_black_list
 from constants.bk_collector import BkCollectorComp
@@ -153,49 +154,48 @@ class BkCollectorClusterConfig:
         return cluster_namespace.get(cluster_id, BkCollectorComp.NAMESPACE)
 
     @classmethod
+    @lru_cache_with_ttl(ttl=60)
     def global_deploy_targets(cls) -> list[tuple[str, str]]:
         """解析公共集群ID/namespace列表；兼容纯集群ID使用原默认 namespace。"""
-        configured_targets = settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER
-        if configured_targets is None:
-            return []
+        configured_targets = settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER or []
         if not isinstance(configured_targets, list):
-            raise ValueError("CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER must be a list")
-        targets = {}
+            logger.warning("CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER must be a list, skip public targets")
+            return []
+        targets = []
         for target in configured_targets:
-            if not isinstance(target, str):
-                raise ValueError("public collector target must be a cluster_id/namespace string")
             cluster_id, separator, namespace = target.partition("/")
-            if not re.fullmatch(r"[^/\s]+", cluster_id):
-                raise ValueError(f"invalid public collector cluster_id: {cluster_id!r}")
             if not separator:
                 namespace = cls.bk_collector_namespace(cluster_id)
-            cls.validate_namespace(namespace)
-            targets[(cluster_id, namespace)] = None
-        return list(targets)
+            if not cluster_id or not namespace:
+                logger.warning("invalid public collector target: %r, skip it", target)
+                continue
+            targets.append((cluster_id, namespace))
+        return list(dict.fromkeys(targets))
 
     @staticmethod
-    def validate_namespace(namespace: str) -> str:
-        if (
-            not isinstance(namespace, str)
-            or len(namespace) > 63
-            or not re.fullmatch(r"[a-z0-9](?:[a-z0-9-]*[a-z0-9])?", namespace)
-        ):
-            raise ValueError(f"invalid collector namespace: {namespace!r}")
-        return namespace
+    def validate_namespace(namespace: str) -> bool:
+        return (
+            isinstance(namespace, str)
+            and len(namespace) <= 63
+            and re.fullmatch(r"[a-z0-9](?:[a-z0-9-]*[a-z0-9])?", namespace) is not None
+        )
 
     @classmethod
-    def get_deploy_mapping(cls, cluster_mapping=None) -> dict[tuple[str, str], list | set]:
-        """保留业务默认部署，按 (cluster_id, namespace) 合并公共部署。"""
+    def get_deploy_mapping(cls, cluster_mapping=None) -> dict[tuple[str, str, bool], list | set]:
+        """按 (cluster_id, namespace) 合并部署目标，返回带 is_global 标记的映射。"""
         if cluster_mapping is None:
             cluster_mapping = cls.get_cluster_mapping()
         targets = {
-            (cluster_id, cls.bk_collector_namespace(cluster_id)): biz_ids
+            (cluster_id, cls.bk_collector_namespace(cluster_id)): (biz_ids, False)
             for cluster_id, biz_ids in cluster_mapping.items()
         }
         # 同一物理目标仍按公共部署处理，兼容旧版本默认 namespace 承载公共上报。
         for target in cls.global_deploy_targets():
-            targets[target] = [cls.GLOBAL_CONFIG_BK_BIZ_ID]
-        return targets
+            targets[target] = ([cls.GLOBAL_CONFIG_BK_BIZ_ID], True)
+        return {
+            (cluster_id, namespace, is_global): biz_ids
+            for (cluster_id, namespace), (biz_ids, is_global) in targets.items()
+        }
 
     @classmethod
     def is_global_target(cls, cluster_id, namespace=None) -> bool:
@@ -205,23 +205,12 @@ class BkCollectorClusterConfig:
             namespace = cls.bk_collector_namespace(cluster_id)
         return (cluster_id, namespace) in cls.global_deploy_targets()
 
-    @staticmethod
-    def request_k8s(bcs_client, client_api, **kwargs):
-        """捕获 BCS 客户端吞掉的 API 异常。"""
-        result = bcs_client.client_request(client_api, **kwargs)
-        if result is None:
-            raise RuntimeError(
-                f"collector k8s request failed: cluster({bcs_client.cluster_id}), namespace({kwargs.get('namespace')})"
-            )
-        return result
-
     @classmethod
     def platform_config_tpl(cls, cluster_id, namespace=None):
         if namespace is None:
             namespace = cls.bk_collector_namespace(cluster_id)
         bcs_client = BcsKubeClient(cluster_id)
-        config_maps = cls.request_k8s(
-            bcs_client,
+        config_maps = bcs_client.client_request(
             bcs_client.core_api.list_namespaced_config_map,
             namespace=namespace,
             label_selector="component=bk-collector,template=true,type=platform",
@@ -249,8 +238,7 @@ class BkCollectorClusterConfig:
         if namespace is None:
             namespace = cls.bk_collector_namespace(cluster_id)
         bcs_client = BcsKubeClient(cluster_id)
-        config_maps = cls.request_k8s(
-            bcs_client,
+        config_maps = bcs_client.client_request(
             bcs_client.core_api.list_namespaced_config_map,
             namespace=namespace,
             label_selector="component=bk-collector,template=true,type=subconfig",
@@ -368,8 +356,7 @@ class BkCollectorClusterConfig:
         # 一次性查询所有相关的secret
         existing_secrets = {}
         try:
-            secrets_list = cls.request_k8s(
-                bcs_client,
+            secrets_list = bcs_client.client_request(
                 bcs_client.core_api.list_namespaced_secret,
                 namespace=namespace,
                 label_selector=secret_label_selector,
@@ -379,7 +366,7 @@ class BkCollectorClusterConfig:
                     existing_secrets[secret.metadata.name] = secret
         except Exception as e:
             logger.warning(f"Failed to list secrets in namespace {namespace}: {e}")
-            raise
+            existing_secrets = {}
 
         for secret_name, group_info in secret_groups.items():
             configs = group_info["configs"]
@@ -407,8 +394,7 @@ class BkCollectorClusterConfig:
                     data=secret_data,
                 )
 
-                cls.request_k8s(
-                    bcs_client,
+                bcs_client.client_request(
                     bcs_client.core_api.create_namespaced_secret,
                     namespace=namespace,
                     body=sec,
@@ -450,8 +436,7 @@ class BkCollectorClusterConfig:
                             need_update = True
 
                 if need_update:
-                    cls.request_k8s(
-                        bcs_client,
+                    bcs_client.client_request(
                         bcs_client.core_api.patch_namespaced_secret,
                         name=sec.metadata.name,
                         namespace=namespace,

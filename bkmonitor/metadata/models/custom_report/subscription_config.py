@@ -290,7 +290,7 @@ class CustomReportSubscription(models.Model):
         }
         deploy_mapping = BkCollectorClusterConfig.get_deploy_mapping()
 
-        for (cluster_id, namespace), cc_bk_biz_ids in deploy_mapping.items():
+        for (cluster_id, namespace, _is_global), cc_bk_biz_ids in deploy_mapping.items():
             if str(bk_biz_id) not in cc_bk_biz_ids and int(bk_biz_id) not in cc_bk_biz_ids:
                 continue
 
@@ -815,9 +815,9 @@ class LogSubscriptionConfig(models.Model):
             bcs_cluster_to_biz_ids[bcs_cluster.cluster_id] = bcs_cluster.bk_biz_id
 
         # 按集群分组配置，实现批量下发
-        for (cluster_id, namespace), cc_bk_biz_ids in deploy_mapping.items():
+        for (cluster_id, namespace, is_global), cc_bk_biz_ids in deploy_mapping.items():
             # 如果集群是默认部署集群, 则必须下发
-            if not BkCollectorClusterConfig.is_global_target(cluster_id, namespace):
+            if not is_global:
                 # 如果集群不在BCS集群中，则不下发该集群的配置
                 if cluster_id not in bcs_cluster_to_biz_ids:
                     continue

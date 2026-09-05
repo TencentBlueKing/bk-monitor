@@ -247,9 +247,9 @@ class ApplicationConfig(BkCollectorConfig):
             bcs_cluster_to_biz_ids[bcs_cluster.cluster_id] = bcs_cluster.bk_biz_id
 
         # 按集群分组配置，实现批量下发
-        for (cluster_id, namespace), cc_bk_biz_ids in deploy_mapping.items():
+        for (cluster_id, namespace, is_global), cc_bk_biz_ids in deploy_mapping.items():
             # 如果集群是默认部署集群, 则必须下发
-            if not BkCollectorClusterConfig.is_global_target(cluster_id, namespace):
+            if not is_global:
                 # 如果集群不在BCS集群中，则不下发该集群的配置
                 if cluster_id not in bcs_cluster_to_biz_ids:
                     continue
@@ -287,7 +287,9 @@ class ApplicationConfig(BkCollectorConfig):
                             try:
                                 application_config_context = {
                                     **app_config_obj.application_config,
-                                    **app_config_obj.get_cluster_application_config(cluster_id, namespace=namespace),
+                                    **app_config_obj.get_cluster_application_config(
+                                        cluster_id, namespace=namespace, is_global=is_global
+                                    ),
                                 }
                                 application_config = compiled_template.render(application_config_context)
                                 cluster_config_map[app_config_obj.application_id] = application_config
@@ -307,12 +309,18 @@ class ApplicationConfig(BkCollectorConfig):
                     s.record_exception(exception=e)
                     logger.exception(f"batch refresh apm application config to k8s({cluster_id}/{namespace})")
 
-    def get_cluster_application_config(self, bcs_cluster_id: str | None = None, namespace: str | None = None):
+    def get_cluster_application_config(
+        self, bcs_cluster_id: str | None = None, namespace: str | None = None, is_global: bool | None = None
+    ):
         """获取集群应用配置"""
+        if is_global is None:
+            is_global = BkCollectorClusterConfig.is_global_target(bcs_cluster_id, namespace)
         return {
-            "resource_filter_config_logs": self.get_resource_filter_config_logs(bcs_cluster_id, namespace=namespace),
+            "resource_filter_config_logs": self.get_resource_filter_config_logs(
+                bcs_cluster_id, namespace=namespace, is_global=is_global
+            ),
             "resource_filter_config_metrics": self.get_resource_filter_config_metrics(
-                bcs_cluster_id, namespace=namespace
+                bcs_cluster_id, namespace=namespace, is_global=is_global
             ),
         }
 
@@ -694,14 +702,21 @@ class ApplicationConfig(BkCollectorConfig):
         app_name: str,
         enabled_apps: dict,
         namespace: str | None = None,
+        is_global: bool | None = None,
     ) -> bool:
-        if not bcs_cluster_id or BkCollectorClusterConfig.is_global_target(bcs_cluster_id, namespace):
+        if not bcs_cluster_id:
+            return False
+        if is_global is None:
+            is_global = BkCollectorClusterConfig.is_global_target(bcs_cluster_id, namespace)
+        if is_global:
             # 公共部署接收全局数据，不使用所在集群的维度缓存。
             return False
 
         return bool(enabled_apps and app_name in enabled_apps.get(str(bk_biz_id), []))
 
-    def get_resource_filter_config_logs(self, bcs_cluster_id: str | None = None, namespace: str | None = None):
+    def get_resource_filter_config_logs(
+        self, bcs_cluster_id: str | None = None, namespace: str | None = None, is_global: bool | None = None
+    ):
         """
         针对日志数据源 resource 字段处理逻辑
         """
@@ -716,11 +731,14 @@ class ApplicationConfig(BkCollectorConfig):
             self._application.app_name,
             settings.APM_RESOURCE_FILTER_LOGS_ENABLED_APPS,
             namespace=namespace,
+            is_global=is_global,
         ):
             return {**default_logs_config, **self.get_k8s_dimension_fill_config()}
         return default_logs_config
 
-    def get_resource_filter_config_metrics(self, bcs_cluster_id: str | None = None, namespace: str | None = None):
+    def get_resource_filter_config_metrics(
+        self, bcs_cluster_id: str | None = None, namespace: str | None = None, is_global: bool | None = None
+    ):
         """
         维度补充配置
         """
@@ -737,6 +755,7 @@ class ApplicationConfig(BkCollectorConfig):
             self._application.app_name,
             settings.APM_RESOURCE_FILTER_METRICS_ENABLED_APPS,
             namespace=namespace,
+            is_global=is_global,
         ):
             return {**self.get_k8s_dimension_fill_config(), **default_metrics_config}
         return default_metrics_config

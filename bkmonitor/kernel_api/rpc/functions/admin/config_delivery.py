@@ -1236,7 +1236,6 @@ def get_runtime_settings(params: dict[str, Any]) -> dict[str, Any]:
         "IS_AUTO_DEPLOY_CUSTOM_REPORT_SERVER": _setting_value("IS_AUTO_DEPLOY_CUSTOM_REPORT_SERVER", False),
         "CUSTOM_REPORT_DEFAULT_PROXY_IP": _setting_value("CUSTOM_REPORT_DEFAULT_PROXY_IP", []),
         "CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER": _setting_value("CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER", []),
-        "CUSTOM_REPORT_DEFAULT_DEPLOY_NAMESPACES": _setting_value("CUSTOM_REPORT_DEFAULT_DEPLOY_NAMESPACES", {}),
         "APM_APP_QPS": _setting_value("APM_APP_QPS", None),
         "APM_SAMPLING_PERCENTAGE": _setting_value("APM_SAMPLING_PERCENTAGE", None),
     }

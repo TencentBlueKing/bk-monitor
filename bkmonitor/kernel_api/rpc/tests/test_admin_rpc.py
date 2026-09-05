@@ -2413,7 +2413,16 @@ def test_bcs_cluster_bk_collector_config_detail_masks_platform_secret_by_default
     assert "******" in result["data"]["config"]
 
 
-def test_bcs_cluster_bk_collector_config_inspection_supports_explicit_public_namespace(settings):
+@pytest.fixture
+def collector_target_cache():
+    admin_bcs_cluster.BkCollectorClusterConfig.global_deploy_targets.cache_clear()
+    yield
+    admin_bcs_cluster.BkCollectorClusterConfig.global_deploy_targets.cache_clear()
+
+
+def test_bcs_cluster_bk_collector_config_inspection_supports_explicit_public_namespace(
+    settings, collector_target_cache
+):
     settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER = ["BCS-K8S-00001/public-1", "BCS-K8S-00001/public-2"]
     cluster = SimpleNamespace(cluster_id="BCS-K8S-00001", api_client=object(), operator_ns="operator-ns")
     core_client = Mock()
@@ -2430,6 +2439,14 @@ def test_bcs_cluster_bk_collector_config_inspection_supports_explicit_public_nam
     assert listing["data"]["namespace"] == detail["data"]["namespace"] == "public-2"
     assert {call.kwargs["namespace"] for call in core_client.list_namespaced_secret.call_args_list} == {"public-2"}
     assert "real-key" not in detail["data"]["config"]
+
+
+def test_bcs_cluster_bk_collector_namespace_context_skips_invalid_public_targets(settings, collector_target_cache):
+    settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER = ["cluster-a/", "cluster-a/public"]
+    cluster = SimpleNamespace(cluster_id="cluster-a", operator_ns="operator-ns")
+    context = admin_bcs_cluster._get_bk_collector_namespace_context(cluster, namespace="public")
+    assert context["namespace"] == "public"
+    assert context["public_namespaces"] == ["public"]
 
 
 @pytest.mark.parametrize("namespace", ["", "*", "invalid/namespace"])
