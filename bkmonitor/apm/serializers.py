@@ -71,7 +71,7 @@ class TraceFieldStatisticsGraphRequestSerializer(BaseTraceRequestSerializer, Bas
         time_alignment: bool = attrs.get("time_alignment", False)
         attrs["query_method"] = ("query_reference", "query_data")[time_alignment]
         field = attrs["field"]
-        if field["field_type"] != EnabledStatisticsDimension.INTEGER.value:
+        if not EnabledStatisticsDimension.from_value(field["field_type"]).is_numeric():
             return attrs
         if len(field["values"]) < 4:
             raise ValueError(_("数值类型查询条件不足"))

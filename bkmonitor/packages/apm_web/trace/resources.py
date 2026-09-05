@@ -986,11 +986,7 @@ class TraceFieldStatisticsGraphResource(BaseTraceFaultTolerantResource):
     def perform_request(self, validated_data):
         field_info = validated_data["field"]
         # 边界场景，数值字段最小值，最大值为 None 时，直接返回空数据
-        if field_info["field_type"] in {
-            EnabledStatisticsDimension.INTEGER.value,
-            EnabledStatisticsDimension.LONG.value,
-            EnabledStatisticsDimension.DOUBLE.value,
-        }:
+        if EnabledStatisticsDimension.from_value(field_info["field_type"]).is_numeric():
             min_value, max_value, *_ = field_info["values"][:4]
             if min_value is None or max_value is None:
                 return self.EMPTY_DATA

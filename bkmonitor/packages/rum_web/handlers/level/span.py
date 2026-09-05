@@ -52,13 +52,6 @@ class SpanLevelHandler(BaseRumLevelHandler):
     ]
     VIEW_CONFIG_IGNORE_KEYS = ["is_case_sensitive", "is_analyzed", "wildcard_case_insensitive", "tokenize_on_chars"]
 
-    #: 数值类型字段集合
-    NUMERIC_FIELD_TYPES = {
-        EnabledStatisticsDimension.INTEGER.value,
-        EnabledStatisticsDimension.LONG.value,
-        EnabledStatisticsDimension.DOUBLE.value,
-    }
-
     BASE_STATISTICS_PROPERTIES: set[str] = {
         StatisticsProperty.TOTAL_COUNT.value,
         StatisticsProperty.FIELD_COUNT.value,
@@ -152,7 +145,7 @@ class SpanLevelHandler(BaseRumLevelHandler):
 
         def _query_total():
             results["total"] = self.query.query_field_aggregated_value(
-                start_time, end_time, "_index", "count", filters, query_string
+                start_time, end_time, field, "count", filters, query_string
             )
 
         def _query_distinct():
@@ -182,11 +175,6 @@ class SpanLevelHandler(BaseRumLevelHandler):
 
         return {"field": field, "distinct_count": distinct_count, "list": topk_list}
 
-    @classmethod
-    def _is_number_field(cls, field: dict[str, Any]) -> bool:
-        """判断字段是否为数值类型。"""
-        return field["field_type"] in cls.NUMERIC_FIELD_TYPES
-
     def field_statistics_info(
         self,
         start_time: int,
@@ -209,7 +197,7 @@ class SpanLevelHandler(BaseRumLevelHandler):
         # 基础统计属性
         statistics_properties: set[str] = (
             self.BASE_STATISTICS_PROPERTIES | self.NUMERIC_STATISTICS_PROPERTIES
-            if self._is_number_field(field)
+            if EnabledStatisticsDimension.from_value(field["field_type"]).is_numeric()
             else self.BASE_STATISTICS_PROPERTIES
         )
         target_properties: set[str] = statistics_properties - set(exclude_property)
@@ -241,7 +229,11 @@ class SpanLevelHandler(BaseRumLevelHandler):
         query_filters: list[types.Filter] = copy.deepcopy(filters)
         # 字段计数：排除空值。数值类型使用 exists 判断，其他类型排除空字符串。
         if property_name == StatisticsProperty.FIELD_COUNT.value:
-            exclude_empty_operator = FilterOperator.EXISTS if self._is_number_field(field) else FilterOperator.NOT_EQUAL
+            exclude_empty_operator = (
+                FilterOperator.EXISTS
+                if EnabledStatisticsDimension.from_value(field["field_type"]).is_numeric()
+                else FilterOperator.NOT_EQUAL
+            )
             query_filters.append({"key": field_name, "value": [""], "operator": exclude_empty_operator})
 
         # TOTAL_COUNT 使用 _index 计数，确保分母包含所有 Span（含缺失该字段的记录）
@@ -296,8 +288,9 @@ class SpanLevelHandler(BaseRumLevelHandler):
         field_name: str = field["field_name"]
         values: list[Any] = field.get("values") or []
 
-        # keyword 类型：按取值分组构建时序图
-        if field["field_type"] == EnabledStatisticsDimension.KEYWORD.value:
+        field_type_enum = EnabledStatisticsDimension.from_value(field["field_type"])
+        # 非数值类型（keyword）：按取值分组构建时序图
+        if not field_type_enum.is_numeric():
             keyword_filters = filters + [{"key": field_name, "value": values, "operator": FilterOperator.EQUAL}]
             config = self.query.query_graph_config(start_time, end_time, field_name, keyword_filters, query_string)
             config.update(
@@ -318,17 +311,14 @@ class SpanLevelHandler(BaseRumLevelHandler):
 
         # 字段枚举数量小于等于区间数量，或 INTEGER / LONG 类型的区间最大数量小于等于区间数，直接查询枚举值返回
         use_discrete_values = distinct_count is not None and distinct_count <= interval_num
-        if field["field_type"] in {
-            EnabledStatisticsDimension.INTEGER.value,
-            EnabledStatisticsDimension.LONG.value,
-        }:
+        if field_type_enum.is_integer():
             use_discrete_values |= (max_value - min_value + 1) <= interval_num
 
         if use_discrete_values:
             topk_buckets = self.query.query_field_topk(
                 start_time, end_time, field_name, distinct_count, filters, query_string
             )
-            value_parser = float if field["field_type"] == EnabledStatisticsDimension.DOUBLE.value else int
+            value_parser = float if field_type_enum.is_float() else int
             datapoints: list[list[int | float]] = [
                 [bucket.get("_result_", 0), value_parser(bucket[field_name])] for bucket in topk_buckets
             ]
@@ -369,9 +359,9 @@ class SpanLevelHandler(BaseRumLevelHandler):
         """计算区间列表，每个元素为 [左闭右开) 区间 (min, max)。
 
         - integer / long：使用整数 nice number 生成器。
-        - double：使用 Decimal 计算支持小数的 nice bucket size，避免精度丢失。
+        - double / float：使用 Decimal 计算支持小数的 nice bucket size，避免精度丢失。
         """
-        if field_type != EnabledStatisticsDimension.DOUBLE.value:
+        if EnabledStatisticsDimension.from_value(field_type).is_integer():
             left_x, _right_x, bucket_size, num_buckets = HistogramNiceNumberGenerator.align_histogram_bounds(
                 min_value, max_value, interval_num
             )

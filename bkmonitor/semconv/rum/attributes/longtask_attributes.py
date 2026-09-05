@@ -65,7 +65,7 @@ LONG_TASK_ENTRY_TYPE = FieldSpec(
 )
 LONG_TASK_BLOCKING_DURATION = FieldSpec(
     field_name="long_task.blocking_duration",
-    field_alias=_("主线程阻塞耗时"),
+    field_alias=_("阻塞时长"),
     field_unit=FieldUnit.MS.value,
     field_display_type=FieldDisplayType.DURATION.value,
 )

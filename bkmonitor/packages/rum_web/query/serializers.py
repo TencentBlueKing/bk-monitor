@@ -114,7 +114,7 @@ class RumStatisticsFieldSerializer(serializers.Serializer):
     values = serializers.ListField(label=_("查询过滤条件值列表"), allow_empty=True, default=list)
 
     def validate(self, attrs):
-        if attrs["field_type"] not in [dimension.value for dimension in EnabledStatisticsDimension]:
+        if attrs["field_type"] not in EnabledStatisticsDimension.values():
             raise serializers.ValidationError(_("不支持的字段类型"))
         return attrs
 
@@ -133,7 +133,7 @@ class RumFieldStatisticsGraphRequestSerializer(BaseRumSearchSerializer):
     def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
         attrs = super().validate(attrs)
         field = attrs["field"]
-        if field["field_type"] == EnabledStatisticsDimension.KEYWORD.value:
+        if not EnabledStatisticsDimension.from_value(field["field_type"]).is_numeric():
             return attrs
         if len(field["values"]) < 4:
             raise serializers.ValidationError(_("数值类型查询条件不足"))
