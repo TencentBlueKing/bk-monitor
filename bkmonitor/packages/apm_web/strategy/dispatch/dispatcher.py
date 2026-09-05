@@ -21,7 +21,8 @@ from bkmonitor.query_template.core import QueryTemplateWrapper
 from bkmonitor.utils.thread_backend import InheritParentThread, run_threads
 from django.utils.translation import gettext_lazy as _
 from core.drf_resource import resource
-from . import entity, enricher, builder, base
+from . import base, builder, entity, enricher
+from .updater import StrategyTemplateUpdater
 from .. import helper, serializers
 
 logger = logging.getLogger(__name__)
@@ -205,8 +206,11 @@ class StrategyDispatcher:
                 if instance["strategy_id"] in id_strategy_map:
                     service_delete_strategy_ids[service_name].append(instance["strategy_id"])
 
-        def _save_strategy(_params: dict[str, Any]):
-            _strategy_id: int = resource.strategies.save_strategy_v2(**_params)["id"]
+        def _save_strategy(_params: dict[str, Any]) -> None:
+            if "id" in _params:
+                _strategy_id: int = StrategyTemplateUpdater.update(self.bk_biz_id, _params["id"], _params)
+            else:
+                _strategy_id = resource.strategies.save_strategy_v2(**_params)["id"]
             with lock:
                 service_strategy_id_map[_params["service_name"]] = _strategy_id
 
