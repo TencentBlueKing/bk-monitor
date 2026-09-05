@@ -1439,12 +1439,12 @@ class TestSceneSearchViewSetDimensionValues(TestCase):
 
 
 # =========================================================================
-# 8. _build_scene_labels / _detect_container_stream tests
+# 8. build_scene_labels / _detect_container_stream tests
 # =========================================================================
 
 
 class TestBuildSceneLabelsExtended(TestCase):
-    """Test the extended _build_scene_labels with stream detection."""
+    """Test build_scene_labels with stream detection."""
 
     def test_build_scene_labels_k8s_stdout(self):
         from apps.log_databus.constants import build_scene_labels
@@ -1504,7 +1504,7 @@ class TestBuildSceneLabelsExtended(TestCase):
 
 
 class TestBuildSceneLabelsBranchSelection(TestCase):
-    """_build_scene_labels 应通过 is_container_collector 综合判定，
+    """build_scene_labels 应通过 is_container_collector 综合判定，
     既覆盖 BCS 容器采集（is_container_environment），也覆盖
     自定义上报的容器日志（is_custom_container = custom + custom_type=log）。
     """
@@ -1536,20 +1536,20 @@ class TestBuildSceneLabelsBranchSelection(TestCase):
             is_container_environment=True,
             bcs_cluster_id="BCS-OTLP-001",
         )
-        labels = handler._build_scene_labels()
+        labels = handler.build_scene_labels()
         self.assertEqual(labels, {"scene": "trpc"})
 
     def test_otlp_trace_falls_back_to_host(self):
         """custom + otlp_trace 不在 trpc / k8s 分支，走 fallback。
 
-        trace 实际不应该走到 _build_scene_labels（不创建 ResultTable.labels），
+        trace 实际不应该走到 build_scene_labels（不创建 ResultTable.labels），
         这里只断言不会被误归到 trpc。
         """
         handler = self._new_handler(
             collector_scenario_id="custom",
             custom_type="otlp_trace",
         )
-        labels = handler._build_scene_labels()
+        labels = handler.build_scene_labels()
         self.assertEqual(labels["scene"], "host")
 
     @patch("apps.log_databus.handlers.collector.base.CollectorHandler._detect_container_stream")
@@ -1560,7 +1560,7 @@ class TestBuildSceneLabelsBranchSelection(TestCase):
             is_container_collector=True,
             bcs_cluster_id="BCS-K8S-12345",
         )
-        labels = handler._build_scene_labels()
+        labels = handler.build_scene_labels()
         self.assertEqual(labels["scene"], "k8s")
         self.assertEqual(labels["cluster_id"], "BCS-K8S-12345")
         self.assertEqual(labels["stream"], "stdout")
@@ -1576,7 +1576,7 @@ class TestBuildSceneLabelsBranchSelection(TestCase):
             bcs_cluster_id="",
             collector_scenario_id="custom",
         )
-        labels = handler._build_scene_labels()
+        labels = handler.build_scene_labels()
         self.assertEqual(labels["scene"], "k8s")
         # cluster_id / stream 为空时不写入 labels
         self.assertNotIn("cluster_id", labels)
@@ -1584,17 +1584,17 @@ class TestBuildSceneLabelsBranchSelection(TestCase):
 
     def test_non_container_falls_back_to_scenario_mapping(self):
         handler = self._new_handler(collector_scenario_id="syslog")
-        labels = handler._build_scene_labels()
+        labels = handler.build_scene_labels()
         self.assertEqual(labels["scene"], "host")
 
     def test_unknown_scenario_defaults_to_host(self):
         handler = self._new_handler(collector_scenario_id="some_future_type")
-        labels = handler._build_scene_labels()
+        labels = handler.build_scene_labels()
         self.assertEqual(labels["scene"], "host")
 
     def test_client_scenario_maps_to_client(self):
         handler = self._new_handler(collector_scenario_id="client")
-        labels = handler._build_scene_labels()
+        labels = handler.build_scene_labels()
         self.assertEqual(labels["scene"], "client")
 
 

@@ -7,10 +7,13 @@ BK-LOG 蓝鲸日志平台 is licensed under the MIT License.
 import time
 from collections import defaultdict
 
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandError
 
 from apps.api import TransferApi
-from apps.log_databus.constants import build_collector_scene_labels, detect_container_stream
+from apps.feature_toggle.models import FeatureToggle
+from apps.feature_toggle.plugins.constants import SCENE_SEARCH
+from apps.log_databus.constants import ADMIN_REQUEST_USER, build_collector_scene_labels, detect_container_stream
+from apps.log_databus.handlers.collector.base import CollectorHandler
 from apps.log_databus.models import CollectorConfig, ContainerCollectorConfig
 from apps.utils.log import logger
 
@@ -22,17 +25,34 @@ class Command(BaseCommand):
         parser.add_argument("--batch-size", type=int, default=50, help="Number of records per batch")
         parser.add_argument("--sleep", type=float, default=0.5, help="Sleep seconds between batches")
         parser.add_argument("--dry-run", action="store_true", help="Only print labels without calling API")
+        parser.add_argument("--bk-biz-id", type=int, help="Only process one business")
+        parser.add_argument(
+            "--enable-scene-search",
+            action="store_true",
+            help="Enable scene search after all selected labels are refreshed successfully",
+        )
 
     def handle(self, *args, **options):
         batch_size = options["batch_size"]
-        sleep_sec = options["sleep"]
+        sleep_sec = max(options["sleep"], 0)
         dry_run = options["dry_run"]
+        enable_scene_search = options["enable_scene_search"]
+        if batch_size <= 0:
+            raise CommandError("batch-size must be greater than 0")
+        if enable_scene_search and dry_run:
+            raise CommandError("enable-scene-search cannot be used with dry-run")
+        if enable_scene_search and options.get("bk_biz_id") is not None:
+            raise CommandError("enable-scene-search requires a full refresh without scope filters")
+        if enable_scene_search and FeatureToggle.objects.filter(name=SCENE_SEARCH, status="on").exists():
+            self.stdout.write(
+                self.style.SUCCESS("Scene search is already enabled, skip refreshing result table labels.")
+            )
+            return
 
-        qs = (
-            CollectorConfig.objects.filter(table_id__isnull=False)
-            .exclude(table_id="")
-            .order_by("collector_config_id")
-        )
+        qs = CollectorConfig.objects.filter(table_id__isnull=False).exclude(table_id="").order_by("collector_config_id")
+        if options.get("bk_biz_id") is not None:
+            qs = qs.filter(bk_biz_id=options["bk_biz_id"])
+
         total = qs.count()
         self.stdout.write(f"Total collector configs with table_id: {total}")
 
@@ -46,6 +66,8 @@ class Command(BaseCommand):
             "environment",
             "bcs_cluster_id",
             "bk_app_code",
+            "bk_biz_id",
+            "index_set_id",
             named=True,
         )
 
@@ -59,11 +81,15 @@ class Command(BaseCommand):
                     success += 1
                     continue
                 try:
-                    TransferApi.switch_result_table({
-                        "table_id": cfg.table_id,
-                        "operator": "admin",
-                        "labels": labels,
-                    })
+                    TransferApi.switch_result_table(
+                        {
+                            "table_id": cfg.table_id,
+                            "bk_biz_id": cfg.bk_biz_id,
+                            "operator": ADMIN_REQUEST_USER,
+                            "labels": labels,
+                        }
+                    )
+                    CollectorHandler.sync_scene_tags_to_index_set(cfg.index_set_id, labels)
                     success += 1
                     logger.info("[refresh_labels] %s -> %s", cfg.table_id, labels)
                 except Exception as e:
@@ -73,7 +99,15 @@ class Command(BaseCommand):
             if not dry_run and i + batch_size < total:
                 time.sleep(sleep_sec)
 
-        self.stdout.write(self.style.SUCCESS(f"Done. success={success}, failed={failed}, total={total}"))
+        summary = f"Done. success={success}, failed={failed}, total={total}"
+        if failed and enable_scene_search:
+            raise CommandError(summary)
+        if enable_scene_search:
+            updated = FeatureToggle.objects.filter(name=SCENE_SEARCH).update(status="on")
+            if updated != 1:
+                raise CommandError(f"{summary}; failed to enable feature toggle: {SCENE_SEARCH}")
+            self.stdout.write(self.style.SUCCESS(f"Enabled feature toggle: {SCENE_SEARCH}"))
+        self.stdout.write(self.style.SUCCESS(summary))
 
     @staticmethod
     def _get_container_streams(collector_config_ids: list[int]) -> dict[int, str]:

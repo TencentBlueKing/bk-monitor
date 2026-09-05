@@ -28,11 +28,14 @@ from django.db import connection
 from django.test import TestCase
 from django.test.utils import CaptureQueriesContext
 
+from apps.feature_toggle.models import FeatureToggle
+from apps.feature_toggle.plugins.constants import SCENE_SEARCH
 from apps.log_databus.constants import (
     SCENE_SEARCH_DIMENSIONS,
     ContainerCollectorType,
 )
 from apps.log_databus.handlers.collector.base import CollectorHandler
+from apps.log_databus.handlers.collector.k8s import K8sCollectorHandler
 from apps.log_databus.models import CollectorConfig, ContainerCollectorConfig
 from apps.log_search.models import (
     TAG_TYPE_INNER,
@@ -105,7 +108,7 @@ class TestCollectorHandlerSceneLabels(TestCase):
 
         for attrs, expected in cases:
             with self.subTest(attrs=attrs):
-                self.assertEqual(self._new_handler(**attrs)._build_scene_labels(), expected)
+                self.assertEqual(self._new_handler(**attrs).build_scene_labels(), expected)
 
     def test_paas_precedes_custom_container_judgement(self):
         handler = self._new_handler(
@@ -117,7 +120,7 @@ class TestCollectorHandlerSceneLabels(TestCase):
         )
 
         with patch.object(handler, "_detect_container_stream") as mock_detect:
-            self.assertEqual(handler._build_scene_labels()["scene"], "bk_paas")
+            self.assertEqual(handler.build_scene_labels()["scene"], "bk_paas")
 
         mock_detect.assert_not_called()
 
@@ -144,7 +147,7 @@ class TestCollectorHandlerSceneLabels(TestCase):
 
         for attrs, expected_scene in cases:
             with self.subTest(attrs=attrs):
-                self.assertEqual(self._new_handler(**attrs)._build_scene_labels()["scene"], expected_scene)
+                self.assertEqual(self._new_handler(**attrs).build_scene_labels()["scene"], expected_scene)
 
 
 class TestRefreshResultTableLabelsCommand(TestCase):
@@ -164,9 +167,28 @@ class TestRefreshResultTableLabelsCommand(TestCase):
         fields.update(overrides)
         return CollectorConfig.objects.create(**fields)
 
-    @patch(
-        "apps.log_databus.management.commands.refresh_result_table_labels.TransferApi.switch_result_table"
-    )
+    @staticmethod
+    def _get_scene_tags(index_set: LogIndexSet) -> set[tuple[str, str]]:
+        index_set.refresh_from_db()
+        return set(
+            IndexSetTag.objects.filter(
+                tag_id__in=index_set.tag_ids,
+                tag_type=TAG_TYPE_SCENE,
+            ).values_list("name", "value")
+        )
+
+    @patch("apps.log_databus.management.commands.refresh_result_table_labels.TransferApi.switch_result_table")
+    def test_skip_refresh_when_scene_search_is_already_enabled(self, mock_switch_result_table):
+        FeatureToggle.objects.update_or_create(name=SCENE_SEARCH, defaults={"status": "on"})
+        self._create_collector("already_enabled")
+        output = StringIO()
+
+        call_command("refresh_result_table_labels", enable_scene_search=True, sleep=0, stdout=output)
+
+        mock_switch_result_table.assert_not_called()
+        self.assertIn("already enabled", output.getvalue())
+
+    @patch("apps.log_databus.management.commands.refresh_result_table_labels.TransferApi.switch_result_table")
     def test_backfill_reuses_all_scene_branches_without_n_plus_one(self, mock_switch_result_table):
         paas = self._create_collector(
             "paas",
@@ -185,7 +207,17 @@ class TestRefreshResultTableLabelsCommand(TestCase):
             collector_scenario_id="custom",
             custom_type="log",
         )
-        regular = self._create_collector("regular", collector_scenario_id="client")
+        index_set = LogIndexSet.objects.create(
+            index_set_name="regular",
+            space_uid="bkcc__2",
+            scenario_id="log",
+            is_active=True,
+        )
+        regular = self._create_collector(
+            "regular",
+            collector_scenario_id="client",
+            index_set_id=index_set.index_set_id,
+        )
         ContainerCollectorConfig.objects.create(
             collector_config_id=custom_container.collector_config_id,
             collector_type=ContainerCollectorType.CONTAINER,
@@ -222,6 +254,34 @@ class TestRefreshResultTableLabelsCommand(TestCase):
         container_table = ContainerCollectorConfig._meta.db_table.lower()
         container_queries = [query for query in queries if container_table in query["sql"].lower()]
         self.assertEqual(len(container_queries), 2)
+        self.assertEqual(self._get_scene_tags(index_set), {("scene", "client")})
+
+    @patch(
+        "apps.log_databus.management.commands.refresh_result_table_labels.TransferApi.switch_result_table",
+        side_effect=RuntimeError("metadata unavailable"),
+    )
+    def test_backfill_fails_without_updating_local_tags(self, _mock_switch_result_table):
+        old_scene_tag_id = IndexSetTag.get_tag_id("scene", value="host", tag_type=TAG_TYPE_SCENE)
+        index_set = LogIndexSet.objects.create(
+            index_set_name="failed_backfill",
+            space_uid="bkcc__2",
+            scenario_id="log",
+            tag_ids=[str(old_scene_tag_id)],
+            is_active=True,
+        )
+        self._create_collector(
+            "failed_backfill",
+            collector_scenario_id="client",
+            index_set_id=index_set.index_set_id,
+        )
+
+        call_command(
+            "refresh_result_table_labels",
+            sleep=0,
+            stdout=StringIO(),
+        )
+
+        self.assertEqual(self._get_scene_tags(index_set), {("scene", "host")})
 
 
 class TestSyncSceneTagsToIndexSet(TestCase):
@@ -229,9 +289,7 @@ class TestSyncSceneTagsToIndexSet(TestCase):
         user_tag_id = IndexSetTag.get_tag_id("team", value="blue", tag_type=TAG_TYPE_USER)
         inner_tag_id = IndexSetTag.get_tag_id("trace", tag_type=TAG_TYPE_INNER)
         old_scene_tag_id = IndexSetTag.get_tag_id("scene", value="k8s", tag_type=TAG_TYPE_SCENE)
-        old_cluster_tag_id = IndexSetTag.get_tag_id(
-            "cluster_id", value="BCS-OLD", tag_type=TAG_TYPE_SCENE
-        )
+        old_cluster_tag_id = IndexSetTag.get_tag_id("cluster_id", value="BCS-OLD", tag_type=TAG_TYPE_SCENE)
         index_set = LogIndexSet.objects.create(
             index_set_name="replace_scene_tags",
             space_uid="bkcc__2",
@@ -274,6 +332,160 @@ class TestSyncSceneTagsToIndexSet(TestCase):
                 ("stream", "json"),
             },
         )
+
+
+class TestSyncBcsSceneLabels(TestCase):
+    @staticmethod
+    def _create_collector(name: str, collector_type: str) -> CollectorConfig:
+        collector = CollectorConfig.objects.create(
+            collector_config_name=name,
+            collector_config_name_en=name,
+            bk_biz_id=2,
+            category_id="os",
+            collector_scenario_id="row",
+            custom_type="log",
+            environment="container",
+            bcs_cluster_id="BCS-NEW",
+            table_id=f"2_bklog.{name}",
+        )
+        ContainerCollectorConfig.objects.create(
+            collector_config_id=collector.collector_config_id,
+            collector_type=collector_type,
+        )
+        return collector
+
+    @patch.object(K8sCollectorHandler, "_sync_scene_tags_to_index_set")
+    @patch("apps.log_databus.handlers.collector.k8s.TransferApi.switch_result_table")
+    def test_sync_updates_result_tables_and_index_sets(self, mock_switch_result_table, mock_sync_tags):
+        path_collector = self._create_collector("bcs_path", ContainerCollectorType.CONTAINER)
+        std_collector = self._create_collector("bcs_std", ContainerCollectorType.STDOUT)
+
+        K8sCollectorHandler._sync_bcs_scene_labels(
+            path_collector.collector_config_id,
+            std_collector.collector_config_id,
+        )
+
+        expected_labels = {
+            path_collector.table_id: {"scene": "k8s", "cluster_id": "BCS-NEW", "stream": "file"},
+            std_collector.table_id: {"scene": "k8s", "cluster_id": "BCS-NEW", "stream": "stdout"},
+        }
+        self.assertEqual(
+            {call.args[0]["table_id"]: call.args[0]["labels"] for call in mock_switch_result_table.call_args_list},
+            expected_labels,
+        )
+        self.assertEqual(
+            [call.args[0] for call in mock_sync_tags.call_args_list],
+            list(expected_labels.values()),
+        )
+
+    def test_sync_metadata_failure_does_not_propagate_or_update_local_tags(self):
+        collector = self._create_collector("bcs_failed", ContainerCollectorType.CONTAINER)
+
+        with patch(
+            "apps.log_databus.handlers.collector.k8s.TransferApi.switch_result_table",
+            side_effect=RuntimeError("metadata unavailable"),
+        ):
+            with patch.object(K8sCollectorHandler, "_sync_scene_tags_to_index_set") as mock_sync_tags:
+                K8sCollectorHandler._sync_bcs_scene_labels(collector.collector_config_id)
+
+        mock_sync_tags.assert_not_called()
+
+    def test_schedule_defers_bcs_sync_until_transaction_commit(self):
+        handler = K8sCollectorHandler()
+        collector = self._create_collector("bcs_deferred", ContainerCollectorType.CONTAINER)
+
+        with self.captureOnCommitCallbacks(execute=False) as callbacks:
+            handler._schedule_bcs_scene_label_sync(collector)
+
+        self.assertEqual(len(callbacks), 1)
+        with patch.object(K8sCollectorHandler, "_sync_bcs_scene_labels") as mock_sync_labels:
+            callbacks[0]()
+        mock_sync_labels.assert_called_once_with(collector.collector_config_id)
+
+    @patch("apps.log_databus.handlers.collector.k8s.IndexSetHandler")
+    def test_update_syncs_existing_and_new_collectors(self, _mock_index_set_handler):
+        rule_id = 100
+        handler = K8sCollectorHandler()
+        names = handler._generate_collector_config_name("BCS-NEW", "rule", "rule")
+        path_name = names["bcs_path_collector"]
+        path_collector = CollectorConfig.objects.create(
+            collector_config_name=path_name["collector_config_name"],
+            collector_config_name_en=path_name["collector_config_name_en"],
+            bk_biz_id=2,
+            category_id="os",
+            collector_scenario_id="row",
+            custom_type="log",
+            environment="container",
+            bcs_cluster_id="BCS-OLD",
+            table_id="2_bklog.rule_path",
+            index_set_id=1,
+            rule_id=rule_id,
+            is_active=False,
+        )
+        ContainerCollectorConfig.objects.create(
+            collector_config_id=path_collector.collector_config_id,
+            collector_type=ContainerCollectorType.CONTAINER,
+            rule_id=rule_id,
+        )
+
+        std_name = names["bcs_std_collector"]
+
+        def create_stdout_collector(params, **_kwargs):
+            return CollectorConfig.objects.create(
+                collector_config_name=std_name["collector_config_name"],
+                collector_config_name_en=std_name["collector_config_name_en"],
+                bk_biz_id=2,
+                category_id="os",
+                collector_scenario_id="row",
+                custom_type="log",
+                environment="container",
+                bcs_cluster_id=params["bcs_cluster_id"],
+                table_id="2_bklog.rule_std",
+                index_set_id=2,
+                rule_id=rule_id,
+                is_active=False,
+            )
+
+        data = {
+            "bk_biz_id": 2,
+            "bcs_cluster_id": "BCS-NEW",
+            "collector_config_name": "rule",
+            "collector_config_name_en": "rule",
+            "custom_type": "log",
+            "category_id": "os",
+            "description": "updated",
+            "add_pod_label": False,
+            "extra_labels": [],
+            "config": [
+                {
+                    "paths": ["/var/log/app.log"],
+                    "enable_stdout": True,
+                    "namespaces": [],
+                    "namespaces_exclude": [],
+                    "data_encoding": "UTF-8",
+                    "conditions": {},
+                    "container": {},
+                    "label_selector": {},
+                    "annotation_selector": {},
+                }
+            ],
+        }
+        with patch.object(handler, "_schedule_bcs_scene_label_sync") as mock_sync_labels:
+            with (
+                patch.object(handler, "_get_bcs_config", return_value={"data_link_id": 0, "storage_cluster_id": 1}),
+                patch.object(handler, "_create_bcs_collector", side_effect=create_stdout_collector),
+                patch.object(handler, "compare_config"),
+                patch.object(handler, "_send_create_notify"),
+            ):
+                handler.update_bcs_container_config(data, rule_id)
+
+        path_collector.refresh_from_db()
+        std_collector = CollectorConfig.objects.get(
+            rule_id=rule_id,
+            collector_config_name_en=std_name["collector_config_name_en"],
+        )
+        self.assertEqual(path_collector.bcs_cluster_id, "BCS-NEW")
+        mock_sync_labels.assert_called_once_with(path_collector, std_collector)
 
 
 class TestPaasSceneDimensions(TestCase):
