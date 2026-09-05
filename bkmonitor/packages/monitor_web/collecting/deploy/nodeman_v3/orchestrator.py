@@ -52,18 +52,21 @@ class NodeManV3Orchestrator:
     def uninstall(self, **kwargs):
         del kwargs
         raise NodeManV3CapabilityBlocked(
-            "policy uninstall awaits the DeployPolicy reverse protocol; resource Delete is already idempotent"
+            "collection deletion requires the DeployPolicy reverse field while enabled remains true; "
+            "DeployPolicy Delete only detaches management and must not be used"
         )
 
     def stop(self, **kwargs):
         del kwargs
         raise NodeManV3CapabilityBlocked(
-            "stop awaits the DeployPolicy reverse protocol; keep Scope unchanged while resources remain removed"
+            "stop requires the DeployPolicy reverse field while enabled remains true and Scope stays unchanged"
         )
 
     def start(self, **kwargs):
         del kwargs
-        raise NodeManV3CapabilityBlocked("start awaits the DeployPolicy reverse protocol to restore the same Scope")
+        raise NodeManV3CapabilityBlocked(
+            "start requires the DeployPolicy forward field while enabled remains true and Scope stays unchanged"
+        )
 
     def retry(self, *, collect_config, instance_ids: list[str] | None = None):
         workflow_operations = self._workflow_operations(collect_config)

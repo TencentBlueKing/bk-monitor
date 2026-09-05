@@ -125,6 +125,7 @@ def test_many_hosts_create_one_policy_and_keep_trigger_distinct(policy_case, dja
     assert result.prepared is True
     assert [call[0] for call in case.client.calls] == ["list", "create", "execute"]
     payload = case.client.calls[1][1]
+    assert payload["enabled"] is True
     assert payload["scopes"][0]["scope"]["instance_ids"] == [41, 42]
     assert payload["name"] == f"bkm-collect-{case.collection.pk}"
     operation = MonitorNodeManOperation.objects.get(pk=result.operation_id)
@@ -222,7 +223,7 @@ def test_existing_target_policies_require_explicit_migration(policy_case, django
         plugin_name="bkmonitorbeat",
         node_man_deploy_policy_id=99,
     )
-    with pytest.raises(NodeManV3CapabilityBlocked, match="DeployPolicy delete contract"):
+    with pytest.raises(NodeManV3CapabilityBlocked, match="reverse-converged before they are detached"):
         submit(case, django_capture_on_commit_callbacks)
     assert case.client.calls == []
 

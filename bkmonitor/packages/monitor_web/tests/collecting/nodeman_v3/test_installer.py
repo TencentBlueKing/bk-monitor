@@ -20,9 +20,16 @@ from monitor_web.models.node_man import (
 )
 
 
-@pytest.mark.parametrize("method", ["stop", "start", "uninstall"])
-def test_stop_start_and_delete_await_reverse_protocol(method):
-    with pytest.raises(NodeManV3CapabilityBlocked, match="reverse protocol") as error:
+@pytest.mark.parametrize(
+    ("method", "message"),
+    [
+        ("stop", "reverse field while enabled remains true"),
+        ("start", "forward field while enabled remains true"),
+        ("uninstall", "DeployPolicy Delete only detaches management"),
+    ],
+)
+def test_stop_start_and_delete_wait_for_policy_direction_field(method, message):
+    with pytest.raises(NodeManV3CapabilityBlocked, match=message) as error:
         getattr(NodeManV3Orchestrator(), method)()
     assert error.value.result_state == NodeManV3ResultState.UNSUPPORTED
 

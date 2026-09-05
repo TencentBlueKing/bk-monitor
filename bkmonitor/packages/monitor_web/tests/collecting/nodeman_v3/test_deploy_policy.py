@@ -164,6 +164,14 @@ def test_policy_identity_is_the_collection_not_its_current_members():
     assert CollectDeployPolicyPayloadBuilder.policy_name(SimpleNamespace(pk=8)) == "bkm-collect-8"
 
 
+def test_policy_update_rejects_disabling_reconciliation():
+    payload = policy_payload()
+    payload["enabled"] = False
+
+    with pytest.raises(NodeManV3PayloadError, match="must keep enabled=true"):
+        CollectDeployPolicyPayloadBuilder.update_payload(301, payload)
+
+
 class FakeDeployPolicyClient:
     def __init__(self, *, listed=None):
         self.listed = listed or []
@@ -238,6 +246,22 @@ def test_gateway_creates_or_updates_one_policy_then_persists_before_execute(bind
         ["update", "execute"] if existing == "bound" else ["list", "update" if existing else "create", "execute"]
     )
     assert all(call[2] == context for call in client.calls)
+
+
+def test_gateway_rejects_disabled_policy_before_any_remote_write():
+    payload = policy_payload()
+    payload["enabled"] = False
+    client = FakeDeployPolicyClient()
+    context = NodeManV3RequestContext(
+        bk_tenant_id="tenant-a",
+        bk_biz_id=2,
+        monitor_operation_id="operation-1",
+    )
+
+    with pytest.raises(NodeManV3PayloadError, match="must keep enabled=true"):
+        NodeManV3DeployPolicyGateway(client=client).ensure_policy(SimpleNamespace(), payload, context=context)
+
+    assert client.calls == []
 
 
 def test_generation_conflict_after_create_is_unknown_and_does_not_execute(binding, context):

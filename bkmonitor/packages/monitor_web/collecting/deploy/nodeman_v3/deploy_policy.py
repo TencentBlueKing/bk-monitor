@@ -26,6 +26,10 @@ from .scopes import CollectDeployPolicyScopeBuilder
 class CollectDeployPolicyPayloadBuilder:
     """Translate the existing plugin-manager step contract into NodeMan V3 deploy-policy specs."""
 
+    # Collection lifecycle is represented by the policy direction.  Monitor keeps
+    # reconciliation enabled for both the forward and reverse desired states.
+    ENABLED = True
+
     def __init__(self, *, step_builder: Callable | None = None, scope_builder=None):
         self.step_builder = step_builder or self._build_existing_steps
         self.scope_builder = scope_builder or CollectDeployPolicyScopeBuilder()
@@ -38,7 +42,9 @@ class CollectDeployPolicyPayloadBuilder:
                 "only remote Exporter collection has a confirmed DeployPolicy projection contract"
             )
         if collect_config.last_operation == OperationType.STOP:
-            raise NodeManV3CapabilityBlocked("collection enable/disable requires the DeployPolicy reverse protocol")
+            raise NodeManV3CapabilityBlocked(
+                "stopped collection requires the DeployPolicy reverse field; enabled must remain true"
+            )
 
         scopes = self.scope_builder.build(collect_config, deployment)
         steps = self.step_builder(collect_config, deployment)
@@ -54,7 +60,7 @@ class CollectDeployPolicyPayloadBuilder:
         return {
             "name": self.policy_name(collect_config),
             "description": f"bk-monitor collect config {collect_config.pk}",
-            "enabled": True,
+            "enabled": self.ENABLED,
             "specs": specs,
             "scopes": scopes,
         }
@@ -67,8 +73,10 @@ class CollectDeployPolicyPayloadBuilder:
     def fingerprint(payload: dict) -> str:
         return hashlib.sha256(json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
 
-    @staticmethod
-    def update_payload(deploy_policy_id: int, create_payload: dict) -> dict:
+    @classmethod
+    def update_payload(cls, deploy_policy_id: int, create_payload: dict) -> dict:
+        if create_payload.get("enabled") is not cls.ENABLED:
+            raise NodeManV3PayloadError("bk-monitor deploy policies must keep enabled=true")
         return {
             "deploy_policies": [
                 {
@@ -77,7 +85,7 @@ class CollectDeployPolicyPayloadBuilder:
                         "name": create_payload["name"],
                         "description": create_payload["description"],
                     },
-                    "enabled": create_payload["enabled"],
+                    "enabled": cls.ENABLED,
                     "specs": create_payload["specs"],
                     "scopes": create_payload["scopes"],
                 }
@@ -284,6 +292,8 @@ class NodeManV3DeployPolicyGateway:
     def ensure_policy(
         self, binding: NodeManIntegrationBinding, payload: dict, *, context: NodeManV3RequestContext
     ) -> dict:
+        if payload.get("enabled") is not self.payload_builder.ENABLED:
+            raise NodeManV3PayloadError("bk-monitor deploy policies must keep enabled=true")
         deploy_policy_id = binding.node_man_deploy_policy_id or self._recover_policy_id(
             payload["name"], context=context
         )

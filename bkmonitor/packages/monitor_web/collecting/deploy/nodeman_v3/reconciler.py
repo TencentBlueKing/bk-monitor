@@ -76,7 +76,8 @@ class CollectDeployPolicyReconciler:
                 raise NodeManV3PayloadError("collection binding must be active before submitting a policy")
             if locked.collect_targets.filter(node_man_deploy_policy_id__isnull=False).exists():
                 raise NodeManV3CapabilityBlocked(
-                    "existing per-target deploy policies cannot be replaced until the DeployPolicy delete contract is defined"
+                    "existing per-target deploy policies must be reverse-converged before they are detached; "
+                    "the DeployPolicy reverse field is not defined"
                 )
             if locked.operations.filter(result_state=NodeManV3ResultState.WRITE_RESULT_UNKNOWN).exists():
                 raise NodeManV3UnknownResultError("an earlier collection policy write is unresolved; do not replay it")

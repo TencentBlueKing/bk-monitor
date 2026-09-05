@@ -124,7 +124,8 @@ class NodeManV3Installer(BaseInstaller):
     def _validate_active_collection(self):
         if self.collect_config.last_operation == OperationType.STOP:
             raise NodeManV3CapabilityBlocked(
-                "editing or upgrading a stopped collection awaits the DeployPolicy reverse protocol"
+                "editing or upgrading a stopped collection must preserve its reverse desired state; "
+                "the DeployPolicy reverse field is not defined"
             )
 
     def _create_deployment_version(
