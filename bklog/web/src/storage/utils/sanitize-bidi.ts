@@ -13,7 +13,7 @@ export function sanitizeBidi(str: string) {
   const len = str.length;
   for (let i = 0; i < len; i++) {
     const code = str.charCodeAt(i);
-    if ((code >= 0x202A && code <= 0x202E) || (code >= 0x2066 && code <= 0x2069)) {
+    if ((code >= 0x202a && code <= 0x202e) || (code >= 0x2066 && code <= 0x2069)) {
       if (result === null) result = '';
       result += str.slice(lastIndex, i);
       lastIndex = i + 1;

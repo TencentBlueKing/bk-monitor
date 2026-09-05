@@ -19,7 +19,7 @@ const SLOT = (index: number) => `§${index}`;
  */
 export const shieldProtectedSpans = (input: string): ShieldResult => {
   const slots: ShieldSlot[] = [];
-  let text = String(input ?? '');
+  const text = String(input ?? '');
   let i = 0;
   let out = '';
 
@@ -75,7 +75,7 @@ export const shieldProtectedSpans = (input: string): ShieldResult => {
       if (depth === 0) {
         const raw = text.slice(i, j);
         // 仅当像 JSON 结构时保护
-        if (/^[\{\[]/.test(raw) && /[\}\]]$/.test(raw) && /[:,"]/.test(raw)) {
+        if (/^[{[]/.test(raw) && /[}\]]$/.test(raw) && /[:,"]/.test(raw)) {
           const id = SLOT(slots.length);
           slots.push({ id, value: raw, kind: 'json' });
           out += id;

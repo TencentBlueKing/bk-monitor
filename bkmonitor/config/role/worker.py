@@ -15,7 +15,7 @@ import sys
 from jinja2 import DebugUndefined
 
 from config.tools.consul import get_consul_settings
-from config.tools.rabbitmq import get_rabbitmq_settings
+from config.tools.rabbitmq import get_rabbitmq_management_host, get_rabbitmq_settings
 from config.tools.redis import get_cache_redis_settings, get_redis_settings
 
 from ..tools.environment import (
@@ -140,7 +140,6 @@ DEFAULT_CRONTAB = [
     ("alarm_backends.core.cache.models.custom_ts_group", "*/10 * * * *", "global"),
     ("alarm_backends.core.cache.models.uptimecheck", "* * * * *", "global"),
     ("alarm_backends.core.cache.action_config.refresh_total", "*/60 * * * *", "global"),
-    ("alarm_backends.core.cache.action_config.refresh_latest_5_minutes", "* * * * *", "global"),
     ("alarm_backends.core.cache.assign", "* * * * *", "global"),
     # alarm_backends.core.cache.issue (StrategyIssueConfigCache) 已废弃，issue_config 合并进策略缓存
     ("alarm_backends.core.cache.calendar", "* * * * *", "global"),
@@ -480,6 +479,7 @@ RABBITMQ_HOST, RABBITMQ_PORT, RABBITMQ_VHOST, RABBITMQ_USER, RABBITMQ_PASS, _ = 
     app_code=APP_CODE,  # noqa: F821
     backend=True,
 )
+RABBITMQ_MANAGEMENT_HOST = get_rabbitmq_management_host(RABBITMQ_HOST, backend=True)
 
 # esb组件地址
 COMMON_USERNAME = os.environ.get("BK_ESB_SUPER_USER", "admin")

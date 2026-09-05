@@ -124,31 +124,28 @@ export default defineComponent({
     const isLoading = ref(false);
     const keyword = ref('');
     const detail = ref<CleanTemplateDetail | null>(null);
-    const {
-      collectors,
-      isCollectorsLoading,
-      requestCollectors,
-      resetCollectors,
-    } = useTemplateCollectors();
+    const { collectors, isCollectorsLoading, requestCollectors, resetCollectors } = useTemplateCollectors();
 
     const currentTemplate = computed(() => detail.value ?? props.template);
     const fields = computed(() => detail.value?.etl_fields?.filter(item => !item.is_delete) ?? []);
     const globalsData = computed(() => store.getters['globals/globalsData'] ?? {});
-    const canSync = computed(() => (
-      collectors.value.length > 0
-      && props.template?.status === 'DRAFT'
-      && !isCollectorsLoading.value
-    ));
+    const canSync = computed(
+      () => collectors.value.length > 0 && props.template?.status === 'DRAFT' && !isCollectorsLoading.value,
+    );
     const timeField = computed(() => fields.value.find(item => item.is_time));
     const etlParams = computed(() => detail.value?.etl_params ?? {});
 
     const getCleanTypeName = () => {
-      return (globalsData.value.etl_config || [])
-        .find((item: { id: string }) => item.id === currentTemplate.value?.clean_type)?.name || '--';
+      return (
+        (globalsData.value.etl_config || []).find(
+          (item: { id: string }) => item.id === currentTemplate.value?.clean_type,
+        )?.name || '--'
+      );
     };
     const getTimeZoneName = (timeZone?: number | string) => {
-      return (globalsData.value.time_zone || [])
-        .find((item: { id: number | string }) => String(item.id) === String(timeZone))?.name;
+      return (globalsData.value.time_zone || []).find(
+        (item: { id: number | string }) => String(item.id) === String(timeZone),
+      )?.name;
     };
     const renderParticiple = (field: DetailField) => {
       if (!field.is_analyzed) {
@@ -157,7 +154,9 @@ export default defineComponent({
       return (
         <div class='participle-text'>
           <div>{field.tokenize_on_chars || t('自然语言分词')}</div>
-          <div>{t('大小写敏感')}: {field.is_case_sensitive ? t('是') : t('否')}</div>
+          <div>
+            {t('大小写敏感')}: {field.is_case_sensitive ? t('是') : t('否')}
+          </div>
         </div>
       );
     };
@@ -200,8 +199,17 @@ export default defineComponent({
           outer-border={true}
           header-border={false}
         >
-          <bk-table-column label={t('字段名')} prop='field_name' min-width='200' show-overflow-tooltip />
-          <bk-table-column label={t('类型')} prop='field_type' width='120' />
+          <bk-table-column
+            label={t('字段名')}
+            prop='field_name'
+            min-width='200'
+            show-overflow-tooltip
+          />
+          <bk-table-column
+            label={t('类型')}
+            prop='field_type'
+            width='120'
+          />
           <bk-table-column
             class-name='participle-column'
             label={t('分词')}
@@ -210,14 +218,22 @@ export default defineComponent({
               default: ({ row }: { row: DetailField }) => renderParticiple(row),
             }}
           />
-          <bk-table-column label={t('示例值')} prop='value' min-width='240' show-overflow-tooltip />
+          <bk-table-column
+            label={t('示例值')}
+            prop='value'
+            min-width='240'
+            show-overflow-tooltip
+          />
         </bk-table>
       </div>
     );
     const renderValueParts = (parts: SettingValuePart[]) => (
       <div class='setting-value-parts'>
         {parts.map((part, index) => (
-          <span key={`${part.label}-${index}`} class='setting-value-part'>
+          <span
+            key={`${part.label}-${index}`}
+            class='setting-value-part'
+          >
             {part.label && <span class='setting-value-label'>{part.label}</span>}
             <span>{part.value || '--'}</span>
           </span>
@@ -232,9 +248,7 @@ export default defineComponent({
     );
     const renderSettings = () => {
       const retainOriginalText = Boolean(etlParams.value.retain_original_text);
-      const originalTextParts: SettingValuePart[] = [
-        { value: retainOriginalText ? t('保留') : t('丢弃') },
-      ];
+      const originalTextParts: SettingValuePart[] = [{ value: retainOriginalText ? t('保留') : t('丢弃') }];
       if (retainOriginalText) {
         originalTextParts.push({
           label: `${t('分词符')}：`,
@@ -246,9 +260,7 @@ export default defineComponent({
       }
 
       const enablePathMetadata = Boolean(etlParams.value.path_regexp);
-      const pathMetadataParts: SettingValuePart[] = [
-        { value: getBooleanText(enablePathMetadata) },
-      ];
+      const pathMetadataParts: SettingValuePart[] = [{ value: getBooleanText(enablePathMetadata) }];
       if (enablePathMetadata) {
         pathMetadataParts.push({
           label: `${t('采集路径分割正则')}：`,
@@ -259,17 +271,22 @@ export default defineComponent({
       return (
         <div class='detail-card setting-card'>
           {renderSettingRow(t('原始日志'), renderValueParts(originalTextParts))}
-          {renderSettingRow(t('指定日志时间'), timeField.value ? renderValueParts([
-            { label: `${t('指定字段')}：`, value: timeField.value.field_name },
-            { label: `${t('时间格式')}：`, value: timeField.value.option?.time_format },
-            { label: `${t('时区选择')}：`, value: getTimeZoneName(timeField.value.option?.time_zone) },
-          ]) : t('日志上报时间'))}
+          {renderSettingRow(
+            t('指定日志时间'),
+            timeField.value
+              ? renderValueParts([
+                  { label: `${t('指定字段')}：`, value: timeField.value.field_name },
+                  { label: `${t('时间格式')}：`, value: timeField.value.option?.time_format },
+                  { label: `${t('时区选择')}：`, value: getTimeZoneName(timeField.value.option?.time_zone) },
+                ])
+              : t('日志上报时间'),
+          )}
           {renderSettingRow(
             t('失败日志'),
             (etlParams.value.enable_retain_content ?? etlParams.value.record_parse_failure) ? t('保留') : t('丢弃'),
           )}
-          {currentTemplate.value?.clean_type === 'bk_log_json'
-            && renderSettingRow(t('JSON 字段动态新增'), getBooleanText(etlParams.value.retain_extra_json))}
+          {currentTemplate.value?.clean_type === 'bk_log_json' &&
+            renderSettingRow(t('JSON 字段动态新增'), getBooleanText(etlParams.value.retain_extra_json))}
           {renderSettingRow(t('路径元数据'), renderValueParts(pathMetadataParts))}
         </div>
       );
@@ -338,11 +355,18 @@ export default defineComponent({
                   </div>
                   <div class='detail-summary-text'>
                     <strong title={currentTemplate.value?.name || ''}>{currentTemplate.value?.name || '--'}</strong>
-                    <span><b>[{getCleanTypeName()}]</b> {currentTemplate.value?.description || '--'}</span>
+                    <span>
+                      <b>[{getCleanTypeName()}]</b> {currentTemplate.value?.description || '--'}
+                    </span>
                   </div>
                 </div>
                 <div class='detail-actions'>
-                  <bk-button icon='edit-line' onClick={handleEdit}>{t('编辑')}</bk-button>
+                  <bk-button
+                    icon='edit-line'
+                    onClick={handleEdit}
+                  >
+                    {t('编辑')}
+                  </bk-button>
                   <DeleteConfirmPopover
                     templateName={currentTemplate.value?.name || '--'}
                     on-confirm={handleDelete}
@@ -362,20 +386,25 @@ export default defineComponent({
                   name='fields'
                   label={t('输出字段')}
                   renderLabel={() => renderTabLabel('bklog-icon bklog-feature-tezheng', t('输出字段'))}
-                >{activeTab.value === 'fields' && renderFields()}</bk-tab-panel>
+                >
+                  {activeTab.value === 'fields' && renderFields()}
+                </bk-tab-panel>
                 <bk-tab-panel
                   name='settings'
                   label={t('高级设置')}
                   renderLabel={() => renderTabLabel('bklog-icon bklog-configuration', t('高级设置'))}
-                >{activeTab.value === 'settings' && renderSettings()}</bk-tab-panel>
+                >
+                  {activeTab.value === 'settings' && renderSettings()}
+                </bk-tab-panel>
                 <bk-tab-panel
                   name='collectors'
                   label={t('关联采集项')}
-                  renderLabel={() => renderTabLabel(
-                    'bklog-icon bklog-link-guanlian',
-                    `${t('关联采集项')} (${collectors.value.length})`,
-                  )}
-                >{activeTab.value === 'collectors' && renderCollectors()}</bk-tab-panel>
+                  renderLabel={() =>
+                    renderTabLabel('bklog-icon bklog-link-guanlian', `${t('关联采集项')} (${collectors.value.length})`)
+                  }
+                >
+                  {activeTab.value === 'collectors' && renderCollectors()}
+                </bk-tab-panel>
               </bk-tab>
             </div>
           </template>

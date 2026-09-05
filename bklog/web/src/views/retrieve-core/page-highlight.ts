@@ -14,13 +14,7 @@ import {
 import StaticUtil from './static.util';
 
 // 纯计算部分独立在 highlight-range.ts，Worker 侧只引那一份以避开 vue。
-export {
-  escapeHtml,
-  mapGlobalRangesToSegments,
-  parseResultMarkedText,
-  type HighlightRange,
-  type HighlightSegment,
-};
+export { escapeHtml, mapGlobalRangesToSegments, parseResultMarkedText, type HighlightRange, type HighlightSegment };
 
 export type PageHighlightAccuracy = 'exactly' | 'partially';
 
@@ -87,7 +81,9 @@ export const buildPageHighlightKeyword = (
   }
 };
 
-export const setPageHighlightOptions = (options: Partial<Omit<PageHighlightState, 'keywords' | 'version' | 'colors'>>) => {
+export const setPageHighlightOptions = (
+  options: Partial<Omit<PageHighlightState, 'keywords' | 'version' | 'colors'>>,
+) => {
   let changed = false;
   if (typeof options.caseSensitive === 'boolean' && pageHighlightState.caseSensitive !== options.caseSensitive) {
     pageHighlightState.caseSensitive = options.caseSensitive;
@@ -168,7 +164,7 @@ export const buildSegmentPageHighlightRanges = (
   segments: Array<{ text?: string } | string>,
   keywords = pageHighlightState.keywords,
 ): HighlightRange[][] => {
-  const texts = segments.map((segment) => {
+  const texts = segments.map(segment => {
     const text = typeof segment === 'string' ? segment : String(segment?.text ?? '');
     return text.length ? text : '""';
   });
@@ -177,11 +173,7 @@ export const buildSegmentPageHighlightRanges = (
     return [];
   }
 
-  return mapGlobalRangesToSegments(
-    segments,
-    collectPageHighlightRanges(texts.join(''), keywords),
-    true,
-  );
+  return mapGlobalRangesToSegments(segments, collectPageHighlightRanges(texts.join(''), keywords), true);
 };
 
 export const mergeHighlightSegments = ({
@@ -241,33 +233,36 @@ export const buildHighlightHtml = ({
   text: string;
   resultRanges?: HighlightRange[];
   pageRanges?: HighlightRange[];
-}) => mergeHighlightSegments({ text, resultRanges, pageRanges }).map((segment) => {
-  const classes = [];
-  const styles: string[] = [];
-  if (segment.resultHighlighted) {
-    classes.push('result-highlight');
-  }
-  if (segment.pageHighlighted) {
-    classes.push('page-highlight');
-    if (typeof segment.pageHighlightIndex === 'number') {
-      classes.push(`page-highlight-${segment.pageHighlightIndex}`);
-      const keyword = pageHighlightState.keywords[segment.pageHighlightIndex];
-      if (keyword?.backgroundColor) {
-        styles.push(`background-color:${keyword.backgroundColor}`);
+}) =>
+  mergeHighlightSegments({ text, resultRanges, pageRanges })
+    .map(segment => {
+      const classes = [];
+      const styles: string[] = [];
+      if (segment.resultHighlighted) {
+        classes.push('result-highlight');
       }
-      if (keyword?.color) {
-        styles.push(`color:${keyword.color}`);
+      if (segment.pageHighlighted) {
+        classes.push('page-highlight');
+        if (typeof segment.pageHighlightIndex === 'number') {
+          classes.push(`page-highlight-${segment.pageHighlightIndex}`);
+          const keyword = pageHighlightState.keywords[segment.pageHighlightIndex];
+          if (keyword?.backgroundColor) {
+            styles.push(`background-color:${keyword.backgroundColor}`);
+          }
+          if (keyword?.color) {
+            styles.push(`color:${keyword.color}`);
+          }
+        }
       }
-    }
-  }
 
-  const content = escapeHtml(segment.text);
-  if (!classes.length) {
-    return content;
-  }
-  const styleAttr = styles.length ? ` style="${styles.join(';')}"` : '';
-  return `<mark class="${classes.join(' ')}"${styleAttr}>${content}</mark>`;
-}).join('');
+      const content = escapeHtml(segment.text);
+      if (!classes.length) {
+        return content;
+      }
+      const styleAttr = styles.length ? ` style="${styles.join(';')}"` : '';
+      return `<mark class="${classes.join(' ')}"${styleAttr}>${content}</mark>`;
+    })
+    .join('');
 
 export const highlightPlainTextIntoFragment = ({
   text,
@@ -281,11 +276,10 @@ export const highlightPlainTextIntoFragment = ({
   pageRanges?: HighlightRange[];
 }) => {
   const fragment = document.createDocumentFragment();
-  const resultRanges = explicitResultRanges
-    ?? (resultHighlighted && text ? [{ start: 0, end: text.length }] : []);
+  const resultRanges = explicitResultRanges ?? (resultHighlighted && text ? [{ start: 0, end: text.length }] : []);
   const segments = mergeHighlightSegments({ text, resultRanges, pageRanges });
 
-  segments.forEach((segment) => {
+  segments.forEach(segment => {
     const tagName = segment.resultHighlighted || segment.pageHighlighted ? 'mark' : 'span';
     const child = document.createElement(tagName);
     child.textContent = segment.text?.length ? segment.text : '""';

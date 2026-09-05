@@ -50,6 +50,15 @@ ADVANCED_OPTIONS = OrderedDict(
             "ENABLE_REDIS_STRATEGY_COST_SNAPSHOT",
             slz.BooleanField(label="是否开启Redis策略成本周期快照", default=False),
         ),
+        (
+            "REDIS_STRATEGY_COST_SNAPSHOT_TOTAL_BUDGET_SECONDS",
+            slz.IntegerField(
+                label="Redis策略成本快照命令间软预算(秒)",
+                default=20,
+                min_value=5,
+                max_value=30,
+            ),
+        ),
         ("DIMENSION_COLLECT_THRESHOLD", slz.IntegerField(label="同维度汇总阈值", default=2)),
         ("DIMENSION_COLLECT_WINDOW", slz.IntegerField(label="同维度汇总时间窗口", default=120)),
         ("MULTI_STRATEGY_COLLECT_THRESHOLD", slz.IntegerField(label="多策略汇总阈值", default=3)),
@@ -435,12 +444,8 @@ ADVANCED_OPTIONS = OrderedDict(
         ("BKBASE_REDIS_LOCK_NAME", slz.CharField(label="计算平台Redis锁名称", default="watch_bkbase_meta_redis_lock")),
         ("ENABLE_SYNC_BKBASE_METADATA_TO_DB", slz.BooleanField(label="是否同步bkbase元数据至DB", default=False)),
         (
-            "GRAPH_RELATION_BKBASE_SYNC_BIZ_ID_WHITE_LIST",
-            slz.ListField(label="自动同步计算平台图关系链路业务白名单", default=[]),
-        ),
-        (
-            "GRAPH_RELATION_QUERY_V1BETA3_BIZ_ID_WHITE_LIST",
-            slz.ListField(label="图关系 v1beta3 查询灰度业务白名单", default=[]),
+            "GRAPH_RELATION_V4_BIZ_ID_WHITE_LIST",
+            slz.ListField(label="Graph Relation V4 双写与 v1beta3 查询灰度业务白名单", default=[]),
         ),
         (
             "ACCESS_DATA_BATCH_PROCESS_THRESHOLD",

@@ -38,6 +38,7 @@ from bkmonitor.data_source.unify_query.functions import (
     Functions,
     Params,
     SubQueryFunctions,
+    normalize_metric_method,
 )
 from bkmonitor.utils.common_utils import to_bk_data_rt_id
 from bkmonitor.utils.range import load_agg_condition_instance
@@ -1093,7 +1094,8 @@ class TimeSeriesDataSource(DataSource):
             }
 
             if metric.get("method") and metric["method"] != AGG_METHOD_REAL_TIME:
-                method = metric["method"].lower()
+                # 归一化方法名（大小写/未解析占位符兜底，如 MAX_without_time / ${method}_without_time）
+                method = normalize_metric_method(metric["method"])
 
                 # 分位数method特殊处理
                 cp_agg_method = CpAggMethods.get(method)

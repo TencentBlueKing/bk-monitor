@@ -1,0 +1,5 @@
+node_modules/**
+packages/web-v1/**
+monitor-*/**
+.aafe/**
+src/static/**

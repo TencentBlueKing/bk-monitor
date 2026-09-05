@@ -150,9 +150,6 @@ export default class QuickClusterStep extends tsc<IProps> {
           <div class='step-container'>
             <div class='step-item'>
               <div class='image-content'>
-                {/** biome-ignore lint/performance/noImgElement: reason */}
-                {/** biome-ignore lint/nursery/useImageSize: reason */}
-                {/** biome-ignore lint/a11y/useAltText: reason */}
                 <img src={this.getImageSrc(1)} />
               </div>
               <div class='step-description'>
@@ -168,9 +165,6 @@ export default class QuickClusterStep extends tsc<IProps> {
             <span class={this.getStepStyleClass(1, 'bk-icon icon-angle-double-right-line')} />
             <div class='step-item'>
               <div class='image-content'>
-                {/** biome-ignore lint/performance/noImgElement: reason */}
-                {/** biome-ignore lint/nursery/useImageSize: reason */}
-                {/** biome-ignore lint/a11y/useAltText: reason */}
                 <img src={this.getImageSrc(2)} />
               </div>
               <div class='step-description'>
@@ -186,8 +180,6 @@ export default class QuickClusterStep extends tsc<IProps> {
             <span class={this.getStepStyleClass(2, 'bk-icon icon-angle-double-right-line')} />
             <div class='step-item'>
               <div class='image-content'>
-                {/** biome-ignore lint/performance/noImgElement: reason */}
-                {/** biome-ignore lint/nursery/useImageSize: reason */}
                 <img
                   alt=''
                   src={this.getImageSrc(3)}

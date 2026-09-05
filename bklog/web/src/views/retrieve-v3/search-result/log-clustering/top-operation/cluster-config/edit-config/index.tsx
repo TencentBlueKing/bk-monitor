@@ -59,6 +59,10 @@ export default defineComponent({
       type: Array,
       default: () => [],
     },
+    isExternal: {
+      type: Boolean,
+      default: false,
+    },
   },
   setup(props, { emit }) {
     const { t } = useLocale();
@@ -150,8 +154,8 @@ export default defineComponent({
           regex_template_id,
         } = res.data;
         const newFilterRules = filterRules.map(item => {
-          const sameFieldItem: any =
-            props.totalFields.find((tItem: any) => tItem.field_name === item.fields_name) || {};
+          const fieldName = item.fields_name;
+          const sameFieldItem: any = props.totalFields.find((tItem: any) => tItem.field_name === fieldName) || {};
           return {
             ...sameFieldItem,
             ...item,
@@ -195,14 +199,14 @@ export default defineComponent({
             fields_name: item.field_name,
           }));
           const { index_set_id, bk_biz_id } = indexSetItem.value;
-          const { max_dist_list, max_log_length, clustering_fields, filter_rules } = formData.value;
+          const { max_dist_list, max_log_length, clustering_fields, filter_rules: filterRules } = formData.value;
           const ruleInfo = ruleOperateRef.value.getRuleInfo();
           const paramsData = {
             max_dist_list,
             predefined_varibles: ruleTableRef.value.getRuleListBase64(),
             max_log_length,
             clustering_fields,
-            filter_rules: filter_rules.map(item => ({
+            filter_rules: filterRules.map(item => ({
               fields_name: item.fields_name,
               logic_operator: item.logic_operator,
               op: item.op,
@@ -347,6 +351,7 @@ export default defineComponent({
                 defaultValue={defaultData.value}
                 ruleList={ruleList.value}
                 templateSpaceUid={indexSetItem.value?.space_uid}
+                isExternal={props.isExternal}
                 on-rule-list-change={handleRuleListChange}
                 on-rule-type-change={rule => {
                   currentRuleType.value = rule;
@@ -367,7 +372,9 @@ export default defineComponent({
 
         <RuleConfigOperate
           ref={ruleConfigOperateRef}
-          max_log_length={formData.value.max_log_length}
+          indexSetId={props.indexId}
+          isExternal={props.isExternal}
+          maxLogLength={formData.value.max_log_length}
           ruleList={ruleList.value}
           on-reset={handleReset}
           on-submit={handleSubmit}

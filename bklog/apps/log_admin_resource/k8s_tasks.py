@@ -14,6 +14,7 @@ from django.utils import timezone
 
 from apps.log_admin_resource.handlers.inspection import sanitize_json, sanitize_sensitive_text
 from apps.log_admin_resource.inspection_runtime import apply_runtime_log_filter
+from apps.log_admin_resource.collector_probe_evidence import build_collector_file_log_probe, build_probe_evidence
 from apps.log_admin_resource.inspection_tasks import (
     TASK_TYPE_K8S_INSPECTION,
     K8sCollectorCandidateStore,
@@ -27,6 +28,7 @@ from apps.log_admin_resource.k8s_inspection import (
     COLLECTOR_CONTAINER_NAME,
     SIDECAR_CONTAINER_NAME,
     CollectorCandidate,
+    collector_child_config_hints,
     collector_daemon_set_contract,
     desired_config_evidence,
     discover_collector_candidates,
@@ -39,7 +41,6 @@ from apps.log_admin_resource.k8s_inspection import (
 )
 from apps.log_admin_resource.k8s_inspection_client import K8sInspectionClient, bounded_text, object_to_dict
 from apps.log_admin_resource.k8s_probe import FixedProbeError, run_fixed_collector_probe
-from apps.log_admin_resource.k8s_probe_evidence import build_collector_file_log_probe, build_probe_evidence
 from apps.log_bcs.handlers.bcs_handler import BcsHandler
 from apps.log_databus.models import CollectorConfig, ContainerCollectorConfig
 from apps.log_search.models import Space
@@ -213,7 +214,13 @@ def run_k8s_inspection(task_id: str) -> None:
             )
             _save_probe(task_id, "collector_logs", collector_logs)
 
-            parsed_probe = run_fixed_collector_probe(client, selected)
+            parsed_probe = run_fixed_collector_probe(
+                client,
+                selected,
+                bk_data_id=collector.bk_data_id,
+                include_source_sample=bool(options.get("include_source_sample")),
+                child_config_hints=collector_child_config_hints(control_evidence.get("target"), expected),
+            )
             _daemon_after, _pod_after = _revalidate_candidate(client, selected, required_bk_envs)
             if collector_logs["status"] == "failed":
                 collector_logs = _timed_probe(build_collector_file_log_probe(parsed_probe))
@@ -364,7 +371,7 @@ def _control_plane_probe(
             [],
         )
     desired = desired_config_evidence(
-        expected=expected, actual_items=actual_items, configured_namespace=BKLOG_CONFIG_NAMESPACE
+        expected=expected, actual_items=actual_items, configured_namespace=BKLOG_CONFIG_NAMESPACE, crd=crd
     )
     configured_bk_env = str(getattr(settings, "CONTAINER_COLLECTOR_CR_LABEL_BKENV", "") or "").strip()
     if configured_bk_env:
@@ -479,6 +486,9 @@ def _control_plane_probe(
             "versions": [
                 {key: item.get(key) for key in ("name", "served", "storage")} for item in crd_spec.get("versions") or []
             ],
+            # Field names only. The full openAPIV3Schema runs to tens of kilobytes and would
+            # crowd out the rest of the evidence for something no operator reads in full.
+            "schema": desired["crd_schema"],
             "conditions": [
                 {
                     key: condition.get(key)
@@ -493,8 +503,28 @@ def _control_plane_probe(
         "target": target_snapshot,
         "target_events": target_events,
     }
-    status = "success" if desired["all_present"] and desired["all_exact_match"] else "warning"
-    code = "control_plane_resolved" if status == "success" else "desired_config_drift"
+    pruned_fields = desired["crd_schema"]["pruned_fields_in_use"]
+    if pruned_fields:
+        warnings.append(
+            {
+                "code": "crd_schema_outdated",
+                "message": (
+                    f"the cluster BkLogConfig CRD does not declare {', '.join(pruned_fields)}, so the apiserver "
+                    "prunes these fields on write and re-releasing the collector cannot make them take effect; "
+                    "upgrade the CRD to the version shipped with the current chart"
+                ),
+                "retryable": False,
+            }
+        )
+    status = "success" if desired["all_present"] and desired["all_material_match"] else "warning"
+    if status == "success":
+        code = "control_plane_resolved"
+    elif any(row["difference_reasons"]["value_drift"] for row in desired["items"]):
+        # Real drift outranks a stale schema: it can be fixed by re-releasing, and saying so
+        # keeps the operator from waiting on a CRD upgrade that would not have helped.
+        code = "desired_config_drift"
+    else:
+        code = "crd_schema_outdated"
     probe = _probe(
         status,
         code,

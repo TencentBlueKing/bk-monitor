@@ -10,7 +10,7 @@ const DEFAULT_TTL = 30 * 60 * 1000;
 
 export class ApiCacheRepository {
   async set(key: string, data: any, meta: Record<string, any> = {}, ttl = DEFAULT_TTL) {
-    if (!await storageHealthService.ensureIndexedDBUsable()) return;
+    if (!(await storageHealthService.ensureIndexedDBUsable())) return;
     const now = Date.now();
     try {
       await db.apiCaches.put({
@@ -27,7 +27,7 @@ export class ApiCacheRepository {
   }
 
   async get<T = any>(key: string): Promise<T | undefined> {
-    if (!await storageHealthService.ensureIndexedDBUsable()) return undefined;
+    if (!(await storageHealthService.ensureIndexedDBUsable())) return undefined;
     try {
       const item = await db.apiCaches.get(key);
       if (!item) return undefined;
@@ -44,7 +44,7 @@ export class ApiCacheRepository {
   }
 
   async remove(key: string) {
-    if (!await storageHealthService.ensureIndexedDBUsable()) return;
+    if (!(await storageHealthService.ensureIndexedDBUsable())) return;
     try {
       await db.apiCaches.delete(key);
     } catch (error) {
@@ -54,7 +54,7 @@ export class ApiCacheRepository {
   }
 
   async gc() {
-    if (!await storageHealthService.ensureIndexedDBUsable()) return;
+    if (!(await storageHealthService.ensureIndexedDBUsable())) return;
     try {
       await db.apiCaches.where('expireAt').below(Date.now()).delete();
     } catch (error) {

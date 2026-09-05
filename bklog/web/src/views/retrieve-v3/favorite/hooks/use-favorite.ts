@@ -43,6 +43,40 @@ import $http from '@/api';
 import type { IFavoriteItem, IGroupItem, SearchMode } from '../types';
 
 /**
+ * APM 页为 `/?bizId=#/apm/service?...&addition=`，仅替换 hash query 中的 addition
+ */
+const replaceApmHashAddition = (href: string, addition: unknown): string => {
+  const rawAddition = addition ?? [];
+  const additionValue = encodeURIComponent(
+    typeof rawAddition === 'string' ? rawAddition : JSON.stringify(rawAddition),
+  );
+
+  const hashIndex = href.indexOf('#');
+  if (hashIndex === -1) {
+    if (/[?&]addition=/.test(href)) {
+      return href.replace(/([?&])addition=[^&]*/, `$1addition=${additionValue}`);
+    }
+    return `${href}${href.includes('?') ? '&' : '?'}addition=${additionValue}`;
+  }
+
+  const beforeHash = href.slice(0, hashIndex);
+  const hash = href.slice(hashIndex + 1);
+  const hashQueryIndex = hash.indexOf('?');
+
+  if (hashQueryIndex === -1) {
+    return `${beforeHash}#${hash}?addition=${additionValue}`;
+  }
+
+  const hashPath = hash.slice(0, hashQueryIndex);
+  const hashQuery = hash.slice(hashQueryIndex + 1);
+  const nextQuery = /(?:^|&)addition=/.test(hashQuery)
+    ? hashQuery.replace(/(^|&)addition=[^&]*/, `$1addition=${additionValue}`)
+    : `${hashQuery}${hashQuery ? '&' : ''}addition=${additionValue}`;
+
+  return `${beforeHash}#${hashPath}?${nextQuery}`;
+};
+
+/**
  * 收藏功能的自定义 Hook
  */
 export const useFavorite = () => {
@@ -173,7 +207,7 @@ export const useFavorite = () => {
    */
   const setRouteParams = (item: IFavoriteItem): void => {
     const { ids, isUnionIndex } = store.state.indexItem;
-    const search_mode = SEARCH_MODE_DIC[store.state.storage[BK_LOG_STORAGE.SEARCH_TYPE]] ?? 'ui';
+    const searchMode = SEARCH_MODE_DIC[store.state.storage[BK_LOG_STORAGE.SEARCH_TYPE]] ?? 'ui';
     const unionList = store.state.unionIndexList;
     const clusterParams = store.state.clusterParams;
     const { start_time, end_time, addition, begin, size, ip_chooser, host_scopes, interval, sort_list } =
@@ -191,7 +225,7 @@ export const useFavorite = () => {
       host_scopes,
       interval,
       bk_biz_id: store.state.bkBizId,
-      search_mode,
+      search_mode: searchMode,
       sort_list,
       clusterParams,
       pid,
@@ -209,9 +243,10 @@ export const useFavorite = () => {
       Object.assign(routeParams, { retrieve_type: 'normal', ids, isUnionIndex, unionList });
     }
 
-    const params = isSceneMode.value || isUnionIndex
-      ? { ...route.params, indexId: undefined }
-      : { ...route.params, indexId: ids?.[0] ? `${ids?.[0]}` : route.params?.indexId };
+    const params =
+      isSceneMode.value || isUnionIndex
+        ? { ...route.params, indexId: undefined }
+        : { ...route.params, indexId: ids?.[0] ? `${ids?.[0]}` : route.params?.indexId };
 
     const query = { ...route.query };
 
@@ -255,7 +290,7 @@ export const useFavorite = () => {
 
     const keyword = cloneValue.params?.keyword || '';
     const addition = cloneValue.params?.addition ?? [];
-    const search_mode = getSearchMode(cloneValue);
+    const searchMode = getSearchMode(cloneValue);
     const isSceneSource = cloneValue.source_type === 'scene';
 
     // 场景化模式下解析 table_id_conditions
@@ -284,11 +319,11 @@ export const useFavorite = () => {
     store.commit('updateIsSetDefaultTableColumn', false);
     store.commit('updateStorage', {
       [BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB]: isSceneSource ? 'single' : item.index_set_type,
-      [BK_LOG_STORAGE.SEARCH_TYPE]: ['ui', 'sql'].indexOf(search_mode ?? 'ui'),
+      [BK_LOG_STORAGE.SEARCH_TYPE]: ['ui', 'sql'].indexOf(searchMode ?? 'ui'),
     });
 
     // 处理 IP 选择器
-    const ip_chooser = { ...(cloneValue.params?.ip_chooser ?? {}) };
+    const ipChooser = { ...(cloneValue.params?.ip_chooser ?? {}) };
     // 索引集模式下处理联合索引
     if (!isSceneSource && isUnionIndex) {
       store.commit(
@@ -297,11 +332,11 @@ export const useFavorite = () => {
       );
     }
 
-    if (JSON.stringify(ip_chooser) !== '{}') {
+    if (JSON.stringify(ipChooser) !== '{}') {
       addition.push({
         field: '_ip-select_',
         operator: '',
-        value: [ip_chooser],
+        value: [ipChooser],
       });
     }
 
@@ -309,8 +344,8 @@ export const useFavorite = () => {
     const indexItemUpdate: Record<string, any> = {
       keyword,
       addition,
-      ip_chooser,
-      search_mode,
+      ip_chooser: ipChooser,
+      search_mode: searchMode,
     };
 
     if (isSceneSource) {
@@ -344,7 +379,7 @@ export const useFavorite = () => {
     });
 
     store.dispatch('requestIndexSetFieldInfo').then(() => {
-      RetrieveHelper.setFavoriteActive({ ...activeFavorite.value, search_mode });
+      RetrieveHelper.setFavoriteActive({ ...activeFavorite.value, search_mode: searchMode });
       store.dispatch('requestIndexSetQuery');
     });
   };
@@ -385,10 +420,18 @@ export const useFavorite = () => {
     callback?: (res: any) => void,
   ): Promise<void> => {
     try {
-      const { group_id, group_new_name } = groupData;
+      const { group_id, group_new_name: groupNewName } = groupData;
       const sourceType = store.getters.isSceneMode ? 'scene' : 'index_set';
       const params = { group_id };
-      const data = { name: group_new_name, space_uid: spaceUid, source_type: sourceType };
+      const data = { name: groupNewName, space_uid: spaceUid, source_type: sourceType };
+      if (window.__IS_MONITOR_APM__) {
+        Object.assign(data, {
+          scope: {
+            app_name: window.MONITOR_APM_APP_NAME,
+            service_name: window.MONITOR_APM_SERVICE_NAME,
+          },
+        });
+      }
       const requestStr = isCreate ? 'createGroup' : 'updateGroupName';
 
       await $http.request(`favorite/${requestStr}`, { params, data }).then(res => {
@@ -404,9 +447,7 @@ export const useFavorite = () => {
   const handleNewLink = (item: IFavoriteItem, type: string) => {
     // const { RetrieveUrlResolver } = require('@/store/url-resolver');
     const isSceneSource = item.source_type === 'scene';
-    const routePathParams = isSceneSource
-      ? { indexId: undefined }
-      : { indexId: item.index_set_id };
+    const routePathParams = isSceneSource ? { indexId: undefined } : { indexId: item.index_set_id };
 
     // 公共路由参数
     const routeParams: Record<string, any> = {
@@ -422,7 +463,8 @@ export const useFavorite = () => {
       Object.assign(routeParams, {
         retrieve_type: 'scene',
         scene_active: item.scene_id,
-        scene_filter_values: parseTableIdConditions(item.table_id_conditions, item.scene_filter_values).scene_filter_values,
+        scene_filter_values: parseTableIdConditions(item.table_id_conditions, item.scene_filter_values)
+          .scene_filter_values,
       });
     } else {
       Object.assign(routeParams, {
@@ -439,15 +481,19 @@ export const useFavorite = () => {
       query: resolver.resolveParamsToUrl(),
     } as any;
 
-    let shareUrl = (window as any).SITE_URL;
+    let shareUrl = (window as any).SITE_URL || '';
     if (!shareUrl.startsWith('/')) {
       shareUrl = `/${shareUrl}`;
     }
     if (!shareUrl.endsWith('/')) {
-      shareUrl += '/';
+      shareUrl += '/'
     }
-
-    shareUrl = `${window.location.origin + shareUrl}${router.resolve(routeData).href}`;
+    if (window.__IS_MONITOR_APM__) {
+      // 保留当前 APM 页路径和其余 hash 参数，只替换 addition
+      shareUrl = replaceApmHashAddition(window.location.href, item.params?.addition);
+    } else {
+      shareUrl = `${window.location.origin + shareUrl}${router.resolve(routeData).href}`;
+    }
     if (type === 'new-link') {
       window.open(shareUrl, '_blank', 'noopener,noreferrer');
     } else {
@@ -485,7 +531,7 @@ export const useFavorite = () => {
       index_set_type,
       index_set_ids,
       space_uid,
-      source_type,
+      source_type: sourceType,
       scene_id,
       table_id_conditions,
       scene_filter_values: itemSceneFilterValues,
@@ -504,7 +550,7 @@ export const useFavorite = () => {
       space_uid,
     };
 
-    if (source_type === 'scene') {
+    if (sourceType === 'scene') {
       // 场景化收藏克隆
       Object.assign(data, {
         source_type: 'scene',
@@ -523,6 +569,14 @@ export const useFavorite = () => {
           index_set_ids,
         });
       }
+    }
+    if (window.__IS_MONITOR_APM__) {
+      Object.assign(data, {
+        scope: {
+          app_name: window.MONITOR_APM_APP_NAME,
+          service_name: window.MONITOR_APM_SERVICE_NAME,
+        },
+      });
     }
     $http
       .request('favorite/createFavorite', { data })
@@ -551,11 +605,20 @@ export const useFavorite = () => {
   const requestGroupList = async (spaceUid: number, callback?: (res: any) => void) => {
     try {
       const sourceType = store.getters.isSceneMode ? 'scene' : 'index_set';
+      const query = {
+        space_uid: spaceUid,
+        source_type: sourceType,
+      };
+      if (window.__IS_MONITOR_APM__) {
+        Object.assign(query, {
+          scope: JSON.stringify({
+            app_name: window.MONITOR_APM_APP_NAME,
+            service_name: window.MONITOR_APM_SERVICE_NAME,
+          }),
+        });
+      }
       const res = await $http.request('favorite/getGroupList', {
-        query: {
-          space_uid: spaceUid,
-          source_type: sourceType,
-        },
+        query,
       });
       callback?.(res || {});
     } catch (error) {
@@ -573,23 +636,23 @@ export const useFavorite = () => {
     const {
       params,
       name,
-      search_mode,
+      search_mode: searchMode,
       group_id,
       display_fields,
       visible_type,
       id,
       index_set_id,
       index_set_ids,
-      index_set_type,
+      index_set_type: indexSetType,
       is_enable_display_fields,
-      source_type,
+      source_type: sourceType,
       scene_id,
       table_id_conditions,
       scene_filter_values: itemSceneFilterValues,
     } = item;
     const { ip_chooser, addition, keyword, search_fields } = params;
     const searchParams =
-      search_mode === 'sql'
+      searchMode === 'sql'
         ? { keyword, addition: [] }
         : { addition: (addition || []).filter(v => v.field !== '_ip-select_'), keyword: '*' };
 
@@ -605,7 +668,7 @@ export const useFavorite = () => {
       is_enable_display_fields,
     };
 
-    if (source_type === 'scene') {
+    if (sourceType === 'scene') {
       // 场景化收藏更新
       Object.assign(data, {
         source_type: 'scene',
@@ -615,13 +678,27 @@ export const useFavorite = () => {
       });
     } else {
       // 索引集收藏更新（原有逻辑）
-      Object.assign(data, { index_set_type }, index_set_type === 'union' ? { index_set_ids } : { index_set_id });
+      Object.assign(
+        data,
+        { index_set_type: indexSetType },
+        indexSetType === 'union' ? { index_set_ids } : { index_set_id },
+      );
+    }
+
+    const dataBody = isGroup ? { ...data, ...searchParams } : data;
+    if (window.__IS_MONITOR_APM__) {
+      Object.assign(dataBody, {
+        scope: {
+          app_name: window.MONITOR_APM_APP_NAME,
+          service_name: window.MONITOR_APM_SERVICE_NAME,
+        },
+      });
     }
 
     try {
       const res = await $http.request('favorite/updateFavorite', {
         params: { id },
-        data: isGroup ? { ...data, ...searchParams } : data,
+        data: dataBody,
       });
       if (res.result) {
         showMessage(tips || window.$t('保存成功'));

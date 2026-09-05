@@ -62,8 +62,10 @@ export interface MergeIssueParams {
 export interface MergeIssueResponseData {
   /** 主 Issue ID */
   main_issue_id: string;
-  /** 实际并入的 Issue ID 列表（去重并剔除 main_issue_id 后） */
+  /** 实际并入的 Issue ID 列表（去重并剔除 main_issue_id 后，不含被改挂的） */
   members: string[];
+  /** 随已成组的主 Issue 一起平移过来的子 Issue ID；普通合并时为空数组 */
+  reparented_members?: string[];
   /** 操作结果，成功时固定为 'ok' */
   status: 'ok';
 }
@@ -80,9 +82,15 @@ export interface MergeMember {
   merge_time: number;
 }
 
+/** 成员 Issue 在 ES 中的真实状态；查不到时为 null */
+export type MergeMemberEsStatus = 'archived' | 'pending_review' | 'resolved' | 'unresolved';
+
+/** 合并关系状态（新代码优先用 relation_status，status 过渡期仍可能返回） */
+export type MergeRelationStatus = 'active' | 'split';
+
 /** 合并来源 - 活跃成员详情（merge_sources 响应中 active_members 条目） */
 export interface MergeSourceActiveMember extends MergeSourceMemberBase {
-  /** 关系状态，活跃成员固定为 'active' */
+  /** 关系状态，活跃成员固定为 'active'（过渡字段，新代码请用 relation_status） */
   status: 'active';
 }
 
@@ -90,6 +98,8 @@ export interface MergeSourceActiveMember extends MergeSourceMemberBase {
 export interface MergeSourceMemberBase {
   /** 异常信息 */
   anomaly_message: string;
+  /** 成员 Issue 在 ES 中的真实状态；查不到时为 null，按已删除占位 */
+  member_es_status?: MergeMemberEsStatus | null;
   /** 成员 Issue ID */
   member_issue_id: string;
   /** 成员 Issue 名称，ES 中不存在时显示 '{issue_id} (已删除)' */
@@ -100,6 +110,10 @@ export interface MergeSourceMemberBase {
   merge_reasons: string[];
   /** 合并时间（Unix 秒级时间戳） */
   merge_time: number;
+  /** 关系状态，与 status 同义；新代码优先使用本字段 */
+  relation_status?: MergeRelationStatus;
+  /** 上一跳主 Issue ID；非空表示随原主一并平移而来，仅作溯源展示，不可用来跳转或判断是否仍在本组 */
+  via_issue_id?: null | string;
 }
 
 /** 合并来源 - 拆分历史条目（merge_sources 响应中 split_history 条目） */
@@ -112,7 +126,7 @@ export interface MergeSourceSplitHistoryItem extends MergeSourceMemberBase {
   split_reasons: null | string[];
   /** 拆分时间（Unix 秒级时间戳），无则 0 */
   split_time: number;
-  /** 关系状态，已拆分固定为 'split' */
+  /** 关系状态，已拆分固定为 'split'（过渡字段，新代码请用 relation_status） */
   status: 'split';
 }
 

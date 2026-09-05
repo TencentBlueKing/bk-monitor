@@ -99,6 +99,20 @@ def parse_event_messages(detail: Any, default_role: str) -> list[dict[str, Any]]
     return [message for value in values if (message := parse_event_message(value, default_role))]
 
 
+def parse_choice_message(detail: Any) -> dict[str, Any] | None:
+    parsed = parse_event_detail(detail)
+    source = parsed
+    if isinstance(parsed, dict) and isinstance(parsed.get("message"), dict):
+        source = dict(parsed["message"])
+        if parsed.get("finish_reason") not in (None, ""):
+            source["finish_reason"] = parsed["finish_reason"]
+    message = parse_event_message(source, "assistant")
+    if message and isinstance(source, dict) and source.get("finish_reason") not in (None, ""):
+        reason = str(source["finish_reason"])
+        message["finish_reason"] = "tool_call" if reason in {"tool_call", "tool_calls"} else reason
+    return message
+
+
 def parse_event_definitions(detail: Any) -> list[dict[str, Any]]:
     groups = safe_parse(detail)
     if not isinstance(groups, list):
@@ -125,7 +139,7 @@ def parse_event_definitions(detail: Any) -> list[dict[str, Any]]:
 
 
 def convert_content(span: dict[str, Any]) -> dict[str, Any]:
-    """迁移 Galileo events；gen_ai.choice 按第一版规则丢弃。"""
+    """迁移 Galileo events。"""
     content = standard_content(span["attributes"])
     instructions: list[dict[str, Any]] = []
     inputs: list[dict[str, Any]] = []
@@ -149,6 +163,9 @@ def convert_content(span: dict[str, Any]) -> dict[str, Any]:
             case "gen_ai.tool.message":
                 if message := parse_event_message(detail, "tool"):
                     inputs.append(message)
+            case "gen_ai.choice":
+                if message := parse_choice_message(detail):
+                    outputs.append(message)
             case "gen_ai.invoke_agent_request":
                 inputs.extend(parse_event_messages(detail, "user"))
             case "gen_ai.invoke_agent_response":
@@ -163,6 +180,12 @@ def convert_content(span: dict[str, Any]) -> dict[str, Any]:
     put(content, "gen_ai.system_instructions", instructions)
     put(content, "gen_ai.input.messages", inputs)
     put(content, "gen_ai.output.messages", outputs)
+    if span["attributes"].get("gen_ai.response.finish_reasons") in (None, "", []):
+        put(
+            content,
+            "gen_ai.response.finish_reasons",
+            [message["finish_reason"] for message in outputs if message.get("finish_reason") not in (None, "")],
+        )
     put(content, "gen_ai.tool.definitions", definitions)
     return content
 

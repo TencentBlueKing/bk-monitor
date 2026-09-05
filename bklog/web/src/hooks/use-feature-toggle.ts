@@ -55,11 +55,7 @@ export const getFeatureToggleStatus = (key: string) => {
   return window.FEATURE_TOGGLE?.[key];
 };
 
-export const isFeatureToggleOn = (
-  key: string,
-  value?: FeatureToggleValues,
-  options: FeatureToggleOptions = {},
-) => {
+export const isFeatureToggleOn = (key: string, value?: FeatureToggleValues, options: FeatureToggleOptions = {}) => {
   const status = getFeatureToggleStatus(key);
   const values = normalizeFeatureToggleValues(value);
   const whiteList = normalizeFeatureToggleList(window.FEATURE_TOGGLE_WHITE_LIST?.[key]);

@@ -26,8 +26,8 @@
 
 <template>
   <div
-    class="update-fields-setting"
     v-bkloading="{ isLoading: isLoading }"
+    class="update-fields-setting"
   >
     <!-- 设置列表字段 -->
     <div class="fields-container">
@@ -37,8 +37,8 @@
       >
         <div class="config-container-header">
           <div
-            class="header-config-operation"
             v-show="!isShowAddInput"
+            class="header-config-operation"
           >
             <bk-button
               class="config-btn"
@@ -57,8 +57,8 @@
             </log-export>
           </div>
           <div
-            class="header-config-new-input"
             v-show="isShowAddInput"
+            class="header-config-new-input"
           >
             <bk-input
               v-model="newConfigStr"
@@ -168,7 +168,6 @@
   import fieldSetting from './field-setting';
   import fieldsSettingOperate from './fields-setting-operate';
   import tableSort from './table-sort';
-
 
   /** 导出配置字段文件名前缀 */
   const FIELD_CONFIG_FILENAME_PREFIX = 'log-field-';
@@ -347,7 +346,7 @@
         // 在数据初始化后缓存，使用深拷贝
         this.cachedVisibleFields = structuredClone(this.shadowVisible);
         this.cachedSortFields = structuredClone(this.shadowSort);
-     },
+      },
       /** 保存或应用 */
       async confirmModifyFields() {
         const currentVisibleList = this.$refs.fieldSettingRef.shadowVisible.map(item => item.field_name);
@@ -389,7 +388,6 @@
           // 更新本地显示字段状态
           this.$store.commit('resetVisibleFields', currentVisibleList);
           this.$store.commit('updateIsSetDefaultTableColumn');
-
         } catch (error) {
           console.warn(error);
         } finally {
@@ -409,11 +407,9 @@
               sort_list: this.cachedSortFields,
               config_id: configID,
             };
-        await this.$http
-          .request(requestName, { data })
-          .catch(e => {
-            console.warn(e);
-          });
+        await this.$http.request(requestName, { data }).catch(e => {
+          console.warn(e);
+        });
       },
       cancelModifyFields() {
         this.$emit('cancel');
@@ -466,7 +462,7 @@
           const fieldConfig = JSON.parse(fieldContent);
           fieldConfig.editStr = `导入模板-${random(3)}`;
           this.handleUpdateConfig(fieldConfig, true, this.$t('导入成功'));
-        } catch (error) {
+        } catch {
           this.messageWarn(this.$t('请导入正确的JSON格式文件~'));
           return;
         }
@@ -477,7 +473,7 @@
        *
        */
       handleFieldConfigExport(updateItem) {
-        let fieldName = `${updateItem.name}`;
+        const fieldName = `${updateItem.name}`;
         const fieldConfigParam = {
           name: fieldName,
           sort_list: updateItem.sort_list,
@@ -558,7 +554,8 @@
           if (successMsg) {
             isCreate ? this.messageSuccess(successMsg) : this.messageInfo(successMsg);
           }
-        } catch (error) {
+        } catch {
+          // 配置保存失败时不执行成功态处理，错误由请求层统一处理
         } finally {
           if (!this.isConfirmSubmit) this.initRequestConfigListShow();
           this.newConfigStr = '';
@@ -578,7 +575,8 @@
                 index_set_type: this.isUnionSearch ? 'union' : 'single',
               };
           await this.$http.request(requestName, { data });
-        } catch (error) {
+        } catch {
+          // 删除失败时保留当前配置，错误由请求层统一处理
         } finally {
           this.initRequestConfigListShow();
           this.newConfigStr = '';
@@ -655,7 +653,8 @@
             isShowEdit: false,
             editStr: item.name,
           }));
-        } catch (error) {
+        } catch {
+          // 配置列表加载失败时保留当前列表，错误由请求层统一处理
         } finally {
           this.isLoading = false;
         }
@@ -689,7 +688,7 @@
         });
 
         return currentSortList;
-      }
+      },
     },
   };
 </script>

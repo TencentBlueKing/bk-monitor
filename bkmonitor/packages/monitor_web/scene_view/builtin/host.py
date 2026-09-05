@@ -107,12 +107,17 @@ DEFAULT_PROCESS_ORDER = [
 
 # 聚合方法
 DEFAULT_METHOD = "MAX"
+# 进程指标聚合方法使用变量占位符拼接：前端工具栏选择 MAX/AVG/SUM/MIN 后，
+# 由前端变量解析为 MAX_WITHOUT_TIME 等大写变体（后缀统一大写，与前端选项风格一致），
+# 查询侧 normalize_metric_method 归一为 max_without_time（保留 without_time 语义：不做时间桶内聚合，仅跨 series 聚合）。
+# 注意：多实例分线（实例维度在 group_by）场景下，组内单 series，切换聚合方法数值无明显差异，
+# 切换主要服务于按维度聚合（收敛实例维度）的场景。
 METRIC_METHOD = {
-    "bk_monitor.time_series.system.proc.cpu_usage_pct": "sum_without_time",
-    "bk_monitor.time_series.system.proc.mem_usage_pct": "sum_without_time",
-    "bk_monitor.time_series.system.proc.mem_res": "sum_without_time",
-    "bk_monitor.time_series.system.proc.mem_virt": "sum_without_time",
-    "bk_monitor.time_series.system.proc.fd_num": "sum_without_time",
+    "bk_monitor.time_series.system.proc.cpu_usage_pct": "${method}_WITHOUT_TIME",
+    "bk_monitor.time_series.system.proc.mem_usage_pct": "${method}_WITHOUT_TIME",
+    "bk_monitor.time_series.system.proc.mem_res": "${method}_WITHOUT_TIME",
+    "bk_monitor.time_series.system.proc.mem_virt": "${method}_WITHOUT_TIME",
+    "bk_monitor.time_series.system.proc.fd_num": "${method}_WITHOUT_TIME",
     "bk_monitor.time_series.system.proc.uptime": "MAX",
 }
 METRIC_OS_TYPE = {"bk_monitor.time_series.system.load.load5": "linux"}

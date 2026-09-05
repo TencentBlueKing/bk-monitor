@@ -145,6 +145,8 @@ def get_core_context(request):
         "BK_PAAS_HOST": settings.BK_PAAS_HOST,
         # bkchat 用户管理接口
         "BKCHAT_MANAGE_URL": settings.BKCHAT_MANAGE_URL,
+        # TAPD 前端跳转 / OAuth 基址，由环境变量注入，公开仓不写死主机
+        "TAPD_OAUTH_BASE_URL": getattr(settings, "TAPD_OAUTH_BASE_URL", "") or "",
         "CE_URL": settings.CE_URL,
         "BKLOGSEARCH_HOST": settings.BKLOGSEARCH_HOST,
         "BK_NODEMAN_HOST": settings.BK_NODEMAN_HOST,

@@ -222,7 +222,7 @@ export default defineComponent({
 
         // 处理返回的权限数据
         if (response.data && Array.isArray(response.data)) {
-          response.data.forEach((item) => {
+          response.data.forEach(item => {
             if (item.action_id === authorityMap.CREATE_CLIENT_COLLECTION_AUTH) {
               isAllowedCreate.value = item.is_allowed;
             }

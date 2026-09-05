@@ -27,8 +27,8 @@
 
 <template>
   <div
-    class="field-table-container"
     v-bkloading="{ isLoading: isExtracting }"
+    class="field-table-container"
   >
     <div
       v-if="!isPreviewMode"
@@ -51,7 +51,6 @@
             >
               <span style="margin-right: 20px; line-height: 30px">{{ $t('显示内置字段') }}</span>
             </bk-checkbox>
-
           </div>
         </div>
         <!-- <bk-switcher
@@ -138,8 +137,8 @@
               <template #default="props">
                 <div
                   v-if="isPreviewMode || props.row.is_objectKey"
-                  class="overflow-tips-field-name"
                   v-bk-tooltips.top="props.row.field_name"
+                  class="overflow-tips-field-name"
                 >
                   <span
                     v-if="props.row.is_objectKey"
@@ -154,13 +153,13 @@
                 >
                   <span
                     v-if="canExpandObjectField(props.row) && !props.row.expand"
-                    @click="expandObject(props.row, true)"
                     class="ext-btn rotate bklog-icon bklog-arrow-down-filled"
+                    @click="expandObject(props.row, true)"
                   ></span>
                   <span
                     v-if="canExpandObjectField(props.row) && props.row.expand"
-                    @click="expandObject(props.row, false)"
                     class="ext-btn bklog-icon bklog-arrow-down-filled"
+                    @click="expandObject(props.row, false)"
                   ></span>
                   <!-- 如果为内置字段且有alias_name则优先展示alias_name -->
                   <bk-input
@@ -172,8 +171,8 @@
                   ></bk-input>
                   <bk-input
                     v-else
-                    :class="props.row.alias_name || props.row.alias_name_show ? 'participle-field-name-input' : ''"
                     v-model.trim="props.row.field_name"
+                    :class="props.row.alias_name || props.row.alias_name_show ? 'participle-field-name-input' : ''"
                     class="participle-field-name-input-pl5"
                     :disabled="getFieldEditDisabled(props.row)"
                     @blur="checkFieldNameItem(props.row)"
@@ -189,17 +188,17 @@
                       ></i>
                     </div>
                     <bk-input
-                      class="participle-alias-name-input"
                       v-model.trim="props.row.alias_name"
+                      class="participle-alias-name-input"
                       :disabled="getFieldEditDisabled(props.row)"
                       @blur="checkAliasNameItem(props.row)"
                     ></bk-input>
                   </template>
                   <template v-if="props.row.fieldErr && !props.row.btnShow">
                     <i
+                      v-bk-tooltips.top="props.row.fieldErr"
                       style="right: 8px"
                       class="bk-icon icon-exclamation-circle-shape tooltips-icon"
-                      v-bk-tooltips.top="props.row.fieldErr"
                     >
                     </i>
                   </template>
@@ -214,15 +213,15 @@
                     "
                   >
                     <bk-button
-                      :theme="'danger'"
-                      class="tooltips-btn"
-                      @click="handlePopoverRename(props.row)"
                       v-bk-tooltips.top="
                         {
                           width: props.row.width,
                           content: props.row.fieldAliasErr,
                         } || '点击定义字段名映射'
                       "
+                      :theme="'danger'"
+                      class="tooltips-btn"
+                      @click="handlePopoverRename(props.row)"
                     >
                       {{ $t('字段映射') }}
                     </bk-button>
@@ -230,7 +229,7 @@
                 </bk-form-item>
               </template>
             </bk-table-column>
-           
+
             <!-- 字段说明 -->
             <!-- <bk-table-column
               :render-header="renderHeaderDescription"
@@ -262,10 +261,10 @@
               <template #default="props">
                 <div
                   v-if="isPreviewMode"
-                  class="overflow-tips"
                   v-bk-overflow-tips
+                  class="overflow-tips"
                 >
-                  <span>{{ getFieldTypeDisplay(props.row.field_type) }}</span>
+                  <span>{{ props.row.field_type }}</span>
                 </div>
                 <!-- <bk-form-item v-else
                   :required="true"
@@ -294,16 +293,7 @@
                   v-else
                   :class="{ 'is-required is-error': props.row.typeErr }"
                 >
-                  <!-- 动态对象边界字段只展示用户文案，不暴露 flattened -->
-                  <span
-                    v-if="props.row.field_type === 'flattened'"
-                    class="overflow-tips"
-                    v-bk-overflow-tips
-                  >
-                    {{ getFieldTypeDisplay(props.row.field_type) }}
-                  </span>
                   <bk-select
-                    v-else
                     v-model="props.row.field_type"
                     :clearable="false"
                     :disabled="props.row.is_delete || isSetDisabled || props.row.is_built_in"
@@ -315,18 +305,18 @@
                   >
                     <bk-option
                       v-for="option in globalsData.field_data_type"
-                      :disabled="isTypeDisabled(props.row, option)"
                       :id="option.id"
                       :key="option.id"
+                      :disabled="isTypeDisabled(props.row, option)"
                       :name="option.name"
                     >
                     </bk-option>
                   </bk-select>
                   <template v-if="props.row.typeErr">
                     <i
+                      v-bk-tooltips.top="$t('必填项')"
                       style="right: 8px"
                       class="bk-icon icon-exclamation-circle-shape tooltips-icon"
-                      v-bk-tooltips.top="$t('必填项')"
                     ></i>
                   </template>
                 </bk-form-item>
@@ -414,11 +404,11 @@
                               <div class="bk-button-group">
                                 <bk-button
                                   v-for="option in participleList"
+                                  :key="option.id"
                                   class="participle-btn"
                                   :class="currentParticipleState === option.id ? 'is-selected' : ''"
                                   :data-test-id="`fieldExtractionBox_button_filterMethod${option.id}`"
                                   :disabled="getCustomizeDisabled(props.row)"
-                                  :key="option.id"
                                   @click="handleChangeParticipleState(option.id, props.$index)"
                                 >
                                   {{ option.name }}
@@ -426,8 +416,8 @@
                               </div>
                               <bk-input
                                 v-if="currentParticipleState === 'custom'"
-                                style="margin-top: 10px"
                                 v-model="currentTokenizeOnChars"
+                                style="margin-top: 10px"
                                 :disabled="getCustomizeDisabled(props.row)"
                               >
                               </bk-input>
@@ -454,10 +444,10 @@
                           style="width: 85%"
                         >
                           <div
-                            class="participle_content"
                             v-bk-tooltips="
                               props.row.participleState === 'custom' ? props.row.tokenize_on_chars : '自然语言分词'
                             "
+                            class="participle_content"
                           >
                             {{ props.row.participleState === 'custom' ? props.row.tokenize_on_chars : '自然语言分词' }}
                           </div>
@@ -505,27 +495,27 @@
                   <!-- {{ props.row.is_delete ? $t('复原') : $t('隐藏') }} -->
                   <i
                     v-if="props.row.is_delete"
-                    class="bk-icon bklog-icon bklog-eye"
                     v-bk-tooltips.top="$t('复原')"
+                    class="bk-icon bklog-icon bklog-eye"
                   ></i>
                   <i
                     v-else
-                    class="bk-icon bklog-icon bklog-eye-slash"
                     v-bk-tooltips.top="$t('隐藏')"
+                    class="bk-icon bklog-icon bklog-eye-slash"
                   ></i>
                 </span>
 
                 <i
                   v-if="props.row.is_add_in"
-                  class="bk-icon bklog-icon bklog-log-delete"
                   v-bk-tooltips.top="$t('删除')"
+                  class="bk-icon bklog-icon bklog-log-delete"
                   @click="deleteField(props.row)"
                 ></i>
               </template>
             </bk-table-column>
             <div
-              class="empty-text"
               slot="empty"
+              class="empty-text"
             >
               {{ $t('请先选择字段提取模式') }}
             </div>
@@ -541,10 +531,10 @@
       <template v-if="deletedVisible">
         <div
           v-for="(row, index) in hideDeletedTable"
-          :style="!isPreviewMode ? { height: '51px', 'line-height': '51px' } : ''"
-          class="preview-item"
           :key="index"
           v-bk-tooltips.top="{ content: row.value || $t('暂无数据'), allowHTML: false }"
+          :style="!isPreviewMode ? { height: '51px', 'line-height': '51px' } : ''"
+          class="preview-item"
         >
           {{ row.value }}
         </div>
@@ -552,10 +542,10 @@
       <template v-else>
         <div
           v-for="(row, index) in tableList"
-          :style="!isPreviewMode ? { height: '51px', 'line-height': '51px' } : ''"
-          class="preview-item"
           :key="index"
           v-bk-tooltips.top="{ content: row.value || $t('暂无数据'), allowHTML: false }"
+          :style="!isPreviewMode ? { height: '51px', 'line-height': '51px' } : ''"
+          class="preview-item"
         >
           {{ row.value }}
         </div>
@@ -575,6 +565,7 @@
 
 <script>
   import { mapGetters } from 'vuex';
+  import { isFieldTypeDisabled, judgeNumber } from '@/common/util';
   export default {
     name: 'FieldTable',
     props: {
@@ -745,7 +736,7 @@
     },
     methods: {
       reset() {
-        let arr = [];
+        const arr = [];
         const copyFields = structuredClone(this.fields); // option指向地址bug
         const errTemp = {
           fieldErr: '',
@@ -775,29 +766,22 @@
 
         // 根据预览值 value 判断不是数字，则默认为字符串
         arr.forEach(item => {
-          const { value, field_type } = item;
+          const { value, field_type: fieldType } = item;
           item.participleState = item.tokenize_on_chars ? 'custom' : 'default';
 
-          if (field_type === '' && value !== '' && this.judgeNumber(value)) {
+          if (fieldType === '' && value !== '' && this.judgeNumber(value)) {
             item.field_type = 'string';
             item.previous_type = 'string';
           }
-          this.validateInput(item)
+          this.validateInput(item);
         });
         this.formData.tableList.splice(0, this.formData.tableList.length, ...arr);
       },
       resetField() {
         this.$emit('reset');
       },
-      // 当前字段类型是否禁用
-      isTypeDisabled(row, option) {
-        if (row.verdict) {
-          // 不是数值，相关数值类型选项被禁用
-          return ['int', 'long', 'double', 'float'].includes(option.id);
-        }
-        // 是数值，如果值大于 2147483647 即 2^31 - 1，int 选项被禁用
-        return option.id === 'int' && row.value > 2147483647;
-      },
+      // 当前字段类型是否禁用（公共实现见 @/common/util）
+      isTypeDisabled: isFieldTypeDisabled,
       fieldTypeSelect(val, $row, $index) {
         const fieldName = $row.field_name;
         const fieldType = $row.field_type;
@@ -891,31 +875,27 @@
 
       //   this.$emit('standard');
       // },
-      judgeNumber(value) {
-        if (value === 0) return false;
-
-        return value && value !== ' ' ? isNaN(value) : true;
-      },
+      judgeNumber,
       getData() {
         const data = structuredClone(this.formData.tableList);
         data.forEach(item => {
-          if (item.hasOwnProperty('fieldErr')) {
+          if (Object.prototype.hasOwnProperty.call(item, 'fieldErr')) {
             delete item.fieldErr;
           }
 
-          if (item.hasOwnProperty('aliasErr')) {
+          if (Object.prototype.hasOwnProperty.call(item, 'aliasErr')) {
             delete item.aliasErr;
           }
 
-          if (item.hasOwnProperty('typeErr')) {
+          if (Object.prototype.hasOwnProperty.call(item, 'typeErr')) {
             delete item.typeErr;
           }
 
-          if (item.hasOwnProperty('fieldAliasErr')) {
+          if (Object.prototype.hasOwnProperty.call(item, 'fieldAliasErr')) {
             delete item.fieldAliasErr;
           }
 
-          if (item.hasOwnProperty('alias_name_show')) {
+          if (Object.prototype.hasOwnProperty.call(item, 'alias_name_show')) {
             delete item.alias_name_show;
           }
         });
@@ -925,23 +905,23 @@
         const data = structuredClone(this.formData.tableList);
 
         data.forEach(item => {
-          if (item.hasOwnProperty('fieldErr')) {
+          if (Object.prototype.hasOwnProperty.call(item, 'fieldErr')) {
             delete item.fieldErr;
           }
 
-          if (item.hasOwnProperty('aliasErr')) {
+          if (Object.prototype.hasOwnProperty.call(item, 'aliasErr')) {
             delete item.aliasErr;
           }
 
-          if (item.hasOwnProperty('typeErr')) {
+          if (Object.prototype.hasOwnProperty.call(item, 'typeErr')) {
             delete item.typeErr;
           }
 
-          if (item.hasOwnProperty('fieldAliasErr')) {
+          if (Object.prototype.hasOwnProperty.call(item, 'fieldAliasErr')) {
             delete item.fieldAliasErr;
           }
 
-          if (item.hasOwnProperty('alias_name_show')) {
+          if (Object.prototype.hasOwnProperty.call(item, 'alias_name_show')) {
             delete item.alias_name_show;
           }
         });
@@ -983,19 +963,19 @@
         });
       },
       checkFieldNameItem(row) {
-        this.validateInput(row)
+        this.validateInput(row);
         if (row.alias_name) {
           return;
         }
-        const { field_name, is_delete, field_index, is_time } = row;
+        const { field_name: fieldName, is_delete: isDelete, field_index, is_time } = row;
         let result = '';
         let aliasResult = '';
         let width = 220;
         let btnShow = false;
-        if (!is_delete) {
-          if (!field_name) {
+        if (!isDelete) {
+          if (!fieldName) {
             result = this.$t('必填项');
-          } else if (!/^(?!_)(?!.*?_$)^[A-Za-z0-9_]+$/gi.test(field_name)) {
+          } else if (!/^(?!_)(?!.*?_$)^[A-Za-z0-9_]+$/gi.test(fieldName)) {
             if (this.selectEtlConfig === 'bk_log_json') {
               btnShow = true;
               aliasResult = this.$t(
@@ -1007,21 +987,21 @@
             }
           } else if (
             this.extractMethod !== 'bk_log_json' &&
-            this.globalsData.field_built_in.find(item => item.id === field_name.toLocaleLowerCase())
+            this.globalsData.field_built_in.find(item => item.id === fieldName.toLocaleLowerCase())
           ) {
             result =
               this.extractMethod === 'bk_log_regexp'
                 ? this.$t('字段名与系统字段重复，必须修改正则表达式')
                 : this.$t('字段名与系统内置字段重复');
           } else if (
-            this.extractMethod == 'bk_log_json' &&
-            this.globalsData.field_built_in.find(item => item.id === field_name.toLocaleLowerCase())
+            this.extractMethod === 'bk_log_json' &&
+            this.globalsData.field_built_in.find(item => item.id === fieldName.toLocaleLowerCase())
           ) {
             btnShow = true;
             aliasResult = this.$t('检测到字段名与系统内置名称冲突。请重命名,命名后原字段将被覆盖');
             width = 220;
           } else if (this.extractMethod === 'bk_log_delimiter' || this.selectEtlConfig === 'bk_log_json') {
-            result = this.filedNameIsConflict(field_index, field_name, is_time) ? this.$t('字段名称冲突, 请调整') : '';
+            result = this.filedNameIsConflict(field_index, fieldName, is_time) ? this.$t('字段名称冲突, 请调整') : '';
           } else {
             result = '';
           }
@@ -1038,27 +1018,25 @@
         return result || aliasResult;
       },
       checkAliasNameItem(row) {
-        let { alias_name, is_delete, field_index } = row;
+        const { alias_name: aliasName, is_delete: isDelete, field_index } = row;
         let queryResult = '';
         row.btnShow = false;
-        if (!alias_name) {
+        if (!aliasName) {
           this.$set(row, 'alias_name_show', false);
           row.btnShow = true;
           return false;
         }
-        if (!is_delete) {
-          if (!/^[A-Za-z0-9_]+$/g.test(alias_name)) {
+        if (!isDelete) {
+          if (!/^[A-Za-z0-9_]+$/g.test(aliasName)) {
             queryResult = this.$t('重命名只能包含a-z、A-Z、0-9和_');
-          } else if (this.globalsData.field_built_in.find(item => item.id === alias_name.toLocaleLowerCase())) {
+          } else if (this.globalsData.field_built_in.find(item => item.id === aliasName.toLocaleLowerCase())) {
             queryResult = this.$t('重命名与系统内置字段重复');
-          } else if (alias_name === row.field_name) {
+          } else if (aliasName === row.field_name) {
             queryResult = this.$t('重命名与字段名重复');
-          }  else if (this.selectEtlConfig === 'bk_log_json') {
+          } else if (this.selectEtlConfig === 'bk_log_json') {
             // 此处对比还是字段名，要改成重名间对比
 
-            queryResult = this.filedNameIsConflict(field_index, alias_name)
-              ? this.$t('重命名字段名称冲突, 请调整')
-              : '';
+            queryResult = this.filedNameIsConflict(field_index, aliasName) ? this.$t('重命名字段名称冲突, 请调整') : '';
           } else {
             queryResult = '';
           }
@@ -1139,7 +1117,7 @@
         this.$emit('handle-built-field', value);
         this.builtFieldVisible = !this.builtFieldVisible;
       },
-   
+
       renderHeaderDescription(h) {
         return h(
           'div',
@@ -1180,13 +1158,13 @@
         row.is_delete = !row.is_delete;
         this.$emit('handle-table-data', this.changeTableList);
       },
-      
-      filedNameIsConflict(fieldIndex, fieldName, is_time = false) {
+
+      filedNameIsConflict(fieldIndex, fieldName, isTime = false) {
         const otherFieldNameList = this.formData.tableList.filter(item => {
           // 指定日志时间的字段名会重复
-          return item.field_index !== fieldIndex && (!is_time || !item.is_time);
+          return item.field_index !== fieldIndex && (!isTime || !item.is_time);
         });
-        return otherFieldNameList.some(item => item.field_name === fieldName );
+        return otherFieldNameList.some(item => item.field_name === fieldName);
       },
       /** 当前字段是否禁用 */
       getFieldEditDisabled(row) {
@@ -1211,12 +1189,6 @@
       /** 动态对象边界字段不展开内部 mapping */
       canExpandObjectField(row) {
         return row.field_type === 'object' && !!row.children?.length;
-      },
-      getFieldTypeDisplay(fieldType) {
-        if (fieldType === 'flattened') {
-          return this.$t('动态对象字段');
-        }
-        return fieldType;
       },
       expandObject(row, show) {
         if (!this.canExpandObjectField(row)) {
@@ -1243,8 +1215,8 @@
       // },
       // 不满足特定正则表达式时添加双引号，并且确保已经添加过的不会再重复添加
       validateInput(row) {
-        if(!row.field_name || this.extractMethod !== 'bk_log_json'){
-          return
+        if (!row.field_name || this.extractMethod !== 'bk_log_json') {
+          return;
         }
         const quotedPattern = /^".*"$/;
         // 定义正则，用于检测字段名称的合法性
@@ -1257,7 +1229,7 @@
             row.field_name = `"${row.field_name}"`; // 则添加引号
           }
         }
-    }
+      },
     },
   };
 </script>

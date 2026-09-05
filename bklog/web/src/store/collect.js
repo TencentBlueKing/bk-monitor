@@ -48,7 +48,7 @@ export default {
     },
     updateCurCollect(state, collect) {
       for (const key in collect) {
-        if (state.curCollect.hasOwnProperty(key)) {
+        if (Object.prototype.hasOwnProperty.call(state.curCollect, key)) {
           state.curCollect[key] = collect[key];
         } else {
           vue.set(state.curCollect, key, collect[key]);

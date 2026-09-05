@@ -31,12 +31,14 @@ import http from '@/api';
 import { useRoute, useRouter } from 'vue-router/composables';
 import RetrieveHelper, { RetrieveEvent } from '../../retrieve-helper';
 import { getAllSceneFieldOpKeys } from '../../retrieve-v3/search-bar/scene-filter/scene-config';
-import { cancelPendingRetrieveRequests, resetRetrieveData } from '../../retrieve-v3/search-bar/scene-filter/scene-retrieve-utils';
+import {
+  cancelPendingRetrieveRequests,
+  resetRetrieveData,
+} from '../../retrieve-v3/search-bar/scene-filter/scene-retrieve-utils';
 import { SceneType } from '../../retrieve-v3/search-bar/scene-filter/types';
 import { BK_LOG_STORAGE } from '@/store/store.type';
 import './retrieve-type-switch.scss';
 
-/* eslint-disable no-unused-vars */
 export enum RetrieveType {
   Normal = 'normal',
   Scene = 'scene',
@@ -78,7 +80,7 @@ export default defineComponent({
 
         // 清空检索数据后重新请求
         resetRetrieveData(store);
-        store.dispatch('requestIndexSetFieldInfo').then((resp) => {
+        store.dispatch('requestIndexSetFieldInfo').then(resp => {
           RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_SEARCH);
 
           if (resp?.data?.fields?.length) {
@@ -118,14 +120,16 @@ export default defineComponent({
         RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_CLEAR);
 
         // 获取场景化检索用户自定义配置
-        http.request('retrieve/getSceneUserCustomConfig', {
-          query: {
-            bk_biz_id: store.state.bkBizId,
-            scene_id: SceneType.Container,
-          },
-        }).then((res) => {
-          store.commit('retrieve/updateCatchFieldCustomConfig', res.data);
-        });
+        http
+          .request('retrieve/getSceneUserCustomConfig', {
+            query: {
+              bk_biz_id: store.state.bkBizId,
+              scene_id: SceneType.Container,
+            },
+          })
+          .then(res => {
+            store.commit('retrieve/updateCatchFieldCustomConfig', res.data);
+          });
 
         router.replace({
           query: {

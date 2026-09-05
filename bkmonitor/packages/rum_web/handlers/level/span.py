@@ -29,9 +29,10 @@ from bkmonitor.data_source.utils.apm import FilterOperator, TraceDatasourceTarge
 from bkmonitor.utils.common_utils import format_percent
 from bkmonitor.utils.thread_backend import ThreadPool
 from core.drf_resource import resource
+from semconv.rum.constants import RumSpanType
 from rum_web.handlers.level.base import BaseRumLevelHandler
 from rum_web.handlers.query.span import SpanQuery
-from rum_web.constants import RUM_SEARCH_PAGE_GROUPS, RumSpanType, FieldDisplayType
+from rum_web.constants import RUM_SEARCH_PAGE_GROUPS
 
 
 class SpanLevelHandler(BaseRumLevelHandler):
@@ -49,62 +50,6 @@ class SpanLevelHandler(BaseRumLevelHandler):
         "attributes.view.url_template",
         "attributes.user.id",
     ]
-    VIRTUAL_FIELDS = {
-        "CLS": {
-            "field_name": "CLS",
-            "field_alias": "累积布局偏移",
-            "field_type": "double",
-            "origin_field": "CLS",
-            "is_searchable": True,
-            "is_agg": True,
-            "is_list": False,
-            "supported_operations": [],
-        },
-        "INP": {
-            "field_name": "INP",
-            "field_alias": "交互到下一次绘制",
-            "field_type": "double",
-            "field_unit": "ms",
-            "origin_field": "INP",
-            "is_searchable": True,
-            "is_agg": True,
-            "is_list": False,
-            "supported_operations": [],
-        },
-        "LCP": {
-            "field_name": "LCP",
-            "field_alias": "最大内容绘制",
-            "field_type": "double",
-            "field_unit": "ms",
-            "origin_field": "LCP",
-            "is_searchable": True,
-            "is_agg": True,
-            "is_list": False,
-            "supported_operations": [],
-        },
-        "FCP": {
-            "field_name": "FCP",
-            "field_alias": "首次内容绘制",
-            "field_type": "double",
-            "field_unit": "ms",
-            "origin_field": "FCP",
-            "is_searchable": True,
-            "is_agg": True,
-            "is_list": False,
-            "supported_operations": [],
-        },
-        "TTFB": {
-            "field_name": "TTFB",
-            "field_alias": "首字节耗时",
-            "field_type": "double",
-            "field_unit": "ms",
-            "origin_field": "TTFB",
-            "is_searchable": True,
-            "is_agg": True,
-            "is_list": False,
-            "supported_operations": [],
-        },
-    }
     VIEW_CONFIG_IGNORE_KEYS = ["is_case_sensitive", "is_analyzed", "wildcard_case_insensitive", "tokenize_on_chars"]
 
     #: 数值类型字段集合
@@ -126,12 +71,6 @@ class SpanLevelHandler(BaseRumLevelHandler):
         StatisticsProperty.MIN.value,
         StatisticsProperty.MEDIAN.value,
         StatisticsProperty.AVG.value,
-    }
-
-    #: 字段 -> 展示类型映射（仅需特殊渲染的字段才需声明）
-    FIELD_DISPLAY_TYPE_MAP: dict[str, str] = {
-        FieldDisplayType.DURATION.value: {"elapsed_time"},
-        FieldDisplayType.DATETIME.value: {"start_time", "end_time", "time"},
     }
 
     def __init__(self, data_sources: list[TraceDatasourceTarget]):
@@ -163,15 +102,6 @@ class SpanLevelHandler(BaseRumLevelHandler):
         for field_name, field_dict in field_map.items():
             for key in self.VIEW_CONFIG_IGNORE_KEYS:
                 field_dict.pop(key, None)
-        # mapping 没有的虚拟字段，先补进 field_map，WEB_VITALS 才组得起来
-        for name, meta in self.VIRTUAL_FIELDS.items():
-            field_map.setdefault(name, meta)
-
-        for field_display_type, field_names in self.FIELD_DISPLAY_TYPE_MAP.items():
-            for field_name in field_names:
-                if field_name not in field_map:
-                    continue
-                field_map[field_name]["field_display_type"] = field_display_type
 
         return {
             "default_sort": list(self.query.DEFAULT_SORT),

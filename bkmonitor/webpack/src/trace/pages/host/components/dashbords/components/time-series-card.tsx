@@ -109,7 +109,7 @@ export default defineComponent({
     const isShowStatistics = computed(() => toValue(viewOptions)?.showStatistics ?? false);
 
     /** 图表区域高度 */
-    const chartHeight = shallowRef(200);
+    const chartHeight = shallowRef(120);
     /** 最大拉伸高度 */
     const layoutDragMaxHeight = shallowRef(300);
     const handleResizing = (height: number) => {
@@ -319,7 +319,7 @@ export default defineComponent({
               ref='resizeLayout'
               class='time-series-card__resize-layout'
               border={false}
-              initialDivide={`${this.chartHeight}px`}
+              initialDivide={this.chartHeight}
               max={this.layoutDragMaxHeight}
               min={100}
               placement='top'

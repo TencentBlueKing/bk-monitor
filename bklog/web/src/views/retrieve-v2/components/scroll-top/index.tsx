@@ -30,7 +30,6 @@ import useLocale from '@/hooks/use-locale';
 import useRetrieveEvent from '@/hooks/use-retrieve-event';
 import RetrieveHelper, { RetrieveEvent } from '@/views/retrieve-helper';
 
-
 import './index.scss';
 
 export default defineComponent({

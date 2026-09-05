@@ -12,6 +12,8 @@ from __future__ import annotations
 
 from unittest.mock import Mock
 
+from jsonschema import Draft7Validator
+
 from kernel_api.resource.bkm_cli import BkmCliOpCallResource
 from kernel_api.rpc import KernelRPCRegistry
 from kernel_api.rpc.bkm_cli_registry import BkmCliOpRegistry
@@ -64,6 +66,29 @@ def _query_raw_params(**overrides):
     return params
 
 
+def _invoke_discovery(**overrides):
+    params = {"query": "CPU", "page": 1, "page_size": 20}
+    params.update(overrides)
+    return query_unify_query(
+        {"mode": "invoke", "operation": "discover_query_ts_metrics", "bk_biz_id": 2, "params": params}
+    )
+
+
+def _invoke_query_ts(**overrides):
+    return query_unify_query(
+        {"mode": "invoke", "operation": "query_ts", "bk_biz_id": 2, "params": _query_ts_params(**overrides)}
+    )
+
+
+def _mock_query_ts_response(monkeypatch, raw):
+    monkeypatch.setattr(
+        "kernel_api.rpc.functions.bkm_cli.unify_query.api.unify_query.query_data", Mock(return_value=raw)
+    )
+    monkeypatch.setattr(
+        "kernel_api.rpc.functions.bkm_cli.unify_query.bk_biz_id_to_space_uid", lambda bk_biz_id: "bkcc__2"
+    )
+
+
 def test_discover_lists_only_server_allowlisted_uq_operations():
     out = query_unify_query({"mode": "discover"})
 
@@ -71,6 +96,7 @@ def test_discover_lists_only_server_allowlisted_uq_operations():
     assert out["kind"] == "discovery"
     assert [operation["id"] for operation in out["operations"]] == [
         "check_query_ts",
+        "discover_query_ts_metrics",
         "query_relation_range_v1",
         "query_relation_v1",
         "query_ts",
@@ -79,6 +105,9 @@ def test_discover_lists_only_server_allowlisted_uq_operations():
     ]
     assert out["meta"]["channel_version"] == "uq-query/v1"
     assert out["meta"]["catalog_revision"]
+    discovery = next(operation for operation in out["operations"] if operation["id"] == "discover_query_ts_metrics")
+    assert discovery["limits"]["max_page"] == 100
+    assert discovery["limits"]["max_page_size"] == 100
 
 
 def test_describe_returns_external_schema_and_server_derived_scope():
@@ -102,6 +131,162 @@ def test_describe_returns_external_schema_and_server_derived_scope():
     assert out["next_call"]["params"]["query_list"][0]["table_id"] == "system.cpu_summary"
     query_references = {item["reference_name"] for item in out["next_call"]["params"]["query_list"]}
     assert query_references == {"A"}
+    assert out["parameter_sources"]["query_list"] == {"operation": "discover_query_ts_metrics"}
+
+
+def test_describe_query_ts_schema_matches_named_output_runtime_contract():
+    schema = query_unify_query({"mode": "describe", "operation": "query_ts"})["params_schema"]
+    validator = Draft7Validator(schema)
+
+    named_params = _query_ts_params()
+    assert not list(validator.iter_errors(named_params))
+    for missing_field in ("legacy_output_ref", "output_list"):
+        invalid_params = dict(named_params)
+        invalid_params.pop(missing_field)
+        assert list(validator.iter_errors(invalid_params))
+
+    legacy_params = {
+        key: value
+        for key, value in named_params.items()
+        if key not in {"response_contract", "legacy_output_ref", "output_list"}
+    }
+    assert not list(validator.iter_errors(legacy_params))
+    for forbidden_field in ("legacy_output_ref", "output_list"):
+        invalid_params = legacy_params | {forbidden_field: named_params[forbidden_field]}
+        assert list(validator.iter_errors(invalid_params))
+
+
+def test_discover_query_ts_metrics_projects_query_template_and_forwards_scope_and_page(monkeypatch):
+    metric_resource = Mock(
+        return_value={
+            "metric_list": [
+                {
+                    "bk_biz_id": 2,
+                    "result_table_id": "system.cpu_summary",
+                    "metric_field": "usage",
+                    "metric_field_name": "CPU 使用率",
+                    "dimensions": [{"id": "bk_target_ip", "name": "目标 IP"}],
+                    "data_source_label": "bk_monitor",
+                }
+            ],
+            "count": 21,
+        }
+    )
+    monkeypatch.setattr("kernel_api.rpc.functions.bkm_cli.unify_query.GetMetricListV2Resource.request", metric_resource)
+
+    out = _invoke_discovery(query="CPU 使用率", page=2, page_size=10)
+
+    assert out["status"] == "ok"
+    assert out["partial"] is False
+    assert "next_actions" not in out
+    assert out["result"] | {"items": []} == {
+        "items": [],
+        "total": 21,
+        "page": 2,
+        "page_size": 10,
+        "has_next": True,
+    }
+    item = out["result"]["items"][0]
+    assert item | {"query_template": {}} == {
+        "table_id": "system.cpu_summary",
+        "field_name": "usage",
+        "dimensions": ["bk_target_ip"],
+        "display_name": "CPU 使用率",
+        "data_source": "bkmonitor",
+        "query_template": {},
+    }
+    assert item["query_template"]["table_id"] == "system.cpu_summary"
+    assert item["query_template"]["field_name"] == "usage"
+    assert item["query_template"]["reference_name"] == "A"
+    metric_resource.assert_called_once_with(
+        bk_biz_id=2,
+        data_type_label="time_series",
+        conditions=[{"key": "query", "value": ["CPU 使用率"]}],
+        page=2,
+        page_size=10,
+    )
+
+
+def test_discover_query_ts_metrics_empty_page_returns_narrower_query_guidance(monkeypatch):
+    monkeypatch.setattr(
+        "kernel_api.rpc.functions.bkm_cli.unify_query.GetMetricListV2Resource.request",
+        Mock(return_value={"metric_list": [], "count": 0}),
+    )
+    first_page = _invoke_discovery()
+    later_page = _invoke_discovery(page=3, page_size=5)
+
+    assert first_page["next_actions"] == ["缩短 query 关键词后重试 discover_query_ts_metrics。"]
+    assert later_page["result"]["items"] == []
+    assert "next_actions" not in later_page["result"]
+    assert later_page["next_actions"] == ["减小 page 或缩短 query 后重试 discover_query_ts_metrics。"]
+
+
+def test_discover_query_ts_metrics_last_allowed_page_never_advertises_next_page(monkeypatch):
+    monkeypatch.setattr(
+        "kernel_api.rpc.functions.bkm_cli.unify_query.GetMetricListV2Resource.request",
+        Mock(return_value={"metric_list": [], "count": 10001}),
+    )
+
+    out = _invoke_discovery(page=100, page_size=100)
+
+    assert out["result"]["has_next"] is False
+
+
+def test_discover_query_ts_metrics_rejects_non_integer_and_out_of_range_page_values(monkeypatch):
+    metric_resource = Mock()
+    monkeypatch.setattr("kernel_api.rpc.functions.bkm_cli.unify_query.GetMetricListV2Resource.request", metric_resource)
+
+    for field, value in (
+        ("page", True),
+        ("page", 1.5),
+        ("page", "1"),
+        ("page", 101),
+        ("page_size", True),
+        ("page_size", 1.5),
+        ("page_size", "1"),
+        ("page_size", 101),
+    ):
+        params = {"query": "CPU", "page": 1, "page_size": 20, field: value}
+        out = _invoke_discovery(**params)
+
+        assert out["status"] == "error"
+        assert out["error"]["code"] == "unsafe_action_blocked"
+        assert field in out["error"]["message"]
+    metric_resource.assert_not_called()
+
+
+def test_discover_query_ts_metrics_container_template_is_accepted_by_query_ts(monkeypatch):
+    monkeypatch.setattr(
+        "kernel_api.rpc.functions.bkm_cli.unify_query.GetMetricListV2Resource.request",
+        Mock(
+            return_value={
+                "metric_list": [
+                    {
+                        "result_table_id": "",
+                        "metric_field": "container_cpu_usage_seconds_total",
+                        "metric_field_name": "容器 CPU 使用量",
+                        "dimensions": [{"id": "pod_name"}],
+                        "data_source_label": "bk_monitor",
+                    }
+                ],
+                "count": 1,
+            }
+        ),
+    )
+    query_data = Mock(return_value={"series": [], "is_partial": False})
+    monkeypatch.setattr("kernel_api.rpc.functions.bkm_cli.unify_query.api.unify_query.query_data", query_data)
+    monkeypatch.setattr(
+        "kernel_api.rpc.functions.bkm_cli.unify_query.bk_biz_id_to_space_uid", lambda bk_biz_id: "bkcc__2"
+    )
+
+    discovered = _invoke_discovery(query="container_cpu")
+    template = discovered["result"]["items"][0]["query_template"]
+    assert template["table_id"] == ""
+
+    out = _invoke_query_ts(query_list=[template])
+
+    assert out["status"] == "ok"
+    query_data.assert_called_once_with(**_query_ts_params(query_list=[template], space_uid="bkcc__2"))
 
 
 def test_all_query_ts_descriptions_include_an_executable_standard_metric_item():
@@ -150,7 +335,77 @@ def test_invoke_query_ts_derives_scope_and_preserves_raw_uq_response(monkeypatch
     assert out["status"] == "ok"
     assert out["kind"] == "invocation"
     assert out["result"] == raw
+    assert "next_actions" not in out
+    assert "next_call" not in out
     query_data.assert_called_once_with(**_query_ts_params(space_uid="bkcc__2"))
+
+
+def test_query_ts_partial_missing_metric_returns_server_side_discovery_recovery(monkeypatch):
+    raw = {
+        "is_partial": True,
+        "outputs": [
+            {
+                "reference_name": "A",
+                "state": "PARTIAL",
+                "status": {"code": "SPACE_TABLE_ID_FIELD_IS_NOT_EXISTS", "message": "query route unavailable"},
+            }
+        ],
+    }
+    _mock_query_ts_response(monkeypatch, raw)
+
+    out = _invoke_query_ts()
+
+    assert out["status"] == "ok"
+    assert out["partial"] is True
+    assert "discover_query_ts_metrics" in " ".join(out["next_actions"])
+    assert out["next_call"] == {
+        "mode": "invoke",
+        "operation": "discover_query_ts_metrics",
+        "bk_biz_id": 2,
+        "params": {"query": "system.cpu_summary.usage", "page": 1, "page_size": 20},
+    }
+
+
+def test_query_ts_partial_uses_failing_output_reference_for_discovery(monkeypatch):
+    raw = {
+        "is_partial": True,
+        "outputs": [
+            {"reference_name": "A", "state": "SUCCESS", "status": {"code": "OK"}},
+            {
+                "reference_name": "B",
+                "state": "PARTIAL",
+                "status": {"code": "SPACE_TABLE_ID_FIELD_IS_NOT_EXISTS"},
+            },
+        ],
+    }
+    _mock_query_ts_response(monkeypatch, raw)
+    query_list = _query_ts_params()["query_list"] + [
+        {
+            "reference_name": "B",
+            "data_source": "bkmonitor",
+            "table_id": "system.mem",
+            "field_name": "pct_used",
+        }
+    ]
+
+    out = _invoke_query_ts(query_list=query_list)
+
+    assert out["next_call"]["params"]["query"] == "system.mem.pct_used"
+
+
+def test_query_ts_partial_without_locatable_reference_does_not_fabricate_next_call(monkeypatch):
+    raw = {
+        "is_partial": True,
+        "status": {"code": "SPACE_TABLE_ID_FIELD_IS_NOT_EXISTS"},
+        "outputs": 1,
+    }
+    _mock_query_ts_response(monkeypatch, raw)
+
+    out = _invoke_query_ts()
+
+    assert out["partial"] is True
+    assert "next_actions" in out
+    assert "next_call" not in out
 
 
 def test_invoke_relation_range_derives_biz_scope(monkeypatch):
@@ -168,6 +423,8 @@ def test_invoke_relation_range_derives_biz_scope(monkeypatch):
             "target_type": "pod",
             "source_type": "service",
             "source_info": {"service_name": "api"},
+            "target_info_show": True,
+            "look_back_delta": "1440m",
         }
     ]
     out = query_unify_query(
@@ -181,6 +438,84 @@ def test_invoke_relation_range_derives_biz_scope(monkeypatch):
 
     assert out["status"] == "ok"
     query_relation_range.assert_called_once_with(bk_biz_ids=["2"], query_list=query_list)
+
+
+def test_describe_relation_schema_includes_expand_and_lookback_fields():
+    for operation in ("query_relation_v1", "query_relation_range_v1"):
+        out = query_unify_query({"mode": "describe", "operation": operation})
+        item_properties = out["params_schema"]["properties"]["query_list"]["items"]["properties"]
+        assert "target_info_show" in item_properties
+        assert item_properties["target_info_show"]["type"] == "boolean"
+        assert "look_back_delta" in item_properties
+        assert item_properties["look_back_delta"]["type"] == "string"
+        assert out["example_params"]["params"]["query_list"][0]["target_info_show"] is True
+
+
+def test_invoke_relation_forwards_expand_and_lookback_fields(monkeypatch):
+    query_relation = Mock(return_value={"data": [], "trace_id": "uq-relation-expand"})
+    monkeypatch.setattr(
+        "kernel_api.rpc.functions.bkm_cli.unify_query.api.unify_query.query_multi",
+        query_relation,
+    )
+
+    query_list = [
+        {
+            "timestamp": 1725066000,
+            "target_type": "container",
+            "source_type": "pod",
+            "source_info": {"pod": "api-0"},
+            "target_info_show": True,
+            "look_back_delta": "1440m",
+        }
+    ]
+    out = query_unify_query(
+        {
+            "mode": "invoke",
+            "operation": "query_relation_v1",
+            "bk_biz_id": 2,
+            "params": {"query_list": query_list},
+        }
+    )
+
+    assert out["status"] == "ok"
+    query_relation.assert_called_once_with(bk_biz_ids=["2"], query_list=query_list)
+
+
+def test_relation_caller_serializers_keep_expand_and_lookback_fields():
+    from api.unify_query.default import QueryMultiResource, QueryMultiResourceRange
+    from kernel_api.resource.relation import (
+        QueryMultiResourceRelationRangeResource,
+        QueryMultiResourceRelationResource,
+    )
+
+    instant_item = {
+        "timestamp": 1725066000,
+        "target_type": "container",
+        "source_info": {"pod": "api-0"},
+        "target_info_show": True,
+        "look_back_delta": "1440m",
+    }
+    range_item = {
+        "start_time": 1725062400,
+        "end_time": 1725066000,
+        "step": "60s",
+        "target_type": "container",
+        "source_info": {"pod": "api-0"},
+        "target_info_show": True,
+        "look_back_delta": "1440m",
+    }
+    cases = (
+        (QueryMultiResource.RequestSerializer, {"bk_biz_ids": ["2"], "query_list": [instant_item]}),
+        (QueryMultiResourceRange.RequestSerializer, {"bk_biz_ids": ["2"], "query_list": [range_item]}),
+        (QueryMultiResourceRelationResource.RequestSerializer, {"bk_biz_id": 2, "query_list": [instant_item]}),
+        (QueryMultiResourceRelationRangeResource.RequestSerializer, {"bk_biz_id": 2, "query_list": [range_item]}),
+    )
+    for serializer_cls, payload in cases:
+        serializer = serializer_cls(data=payload)
+        assert serializer.is_valid(), serializer.errors
+        item = serializer.validated_data["query_list"][0]
+        assert item["target_info_show"] is True
+        assert item["look_back_delta"] == "1440m"
 
 
 def test_relation_partial_is_normalized_in_channel_envelope(monkeypatch):
@@ -267,8 +602,8 @@ def test_invoke_rejects_incomplete_named_output_contract(monkeypatch):
 
 
 def test_service_bridge_rejects_tenant_override(monkeypatch):
-    query_data = Mock()
-    monkeypatch.setattr("kernel_api.rpc.functions.bkm_cli.unify_query.api.unify_query.query_data", query_data)
+    metric_resource = Mock()
+    monkeypatch.setattr("kernel_api.rpc.functions.bkm_cli.unify_query.GetMetricListV2Resource.request", metric_resource)
     monkeypatch.setattr(
         "kernel_api.rpc.functions.bkm_cli.unify_query.bk_biz_id_to_bk_tenant_id", lambda bk_biz_id: "system"
     )
@@ -278,10 +613,10 @@ def test_service_bridge_rejects_tenant_override(monkeypatch):
             "op_id": "query-unify-query",
             "params": {
                 "mode": "invoke",
-                "operation": "query_ts",
+                "operation": "discover_query_ts_metrics",
                 "bk_biz_id": 2,
                 "bk_tenant_id": "other",
-                "params": _query_ts_params(),
+                "params": {"query": "CPU", "page": 1, "page_size": 20},
             },
         }
     )
@@ -289,7 +624,43 @@ def test_service_bridge_rejects_tenant_override(monkeypatch):
     assert result["result"]["status"] == "error"
     assert result["result"]["error"]["code"] == "unsafe_action_blocked"
     assert "bk_tenant_id" in result["result"]["error"]["message"]
-    query_data.assert_not_called()
+    metric_resource.assert_not_called()
+
+
+def test_discover_query_ts_metrics_rejects_request_tenant_conflict(monkeypatch):
+    metric_resource = Mock()
+    request_tenant = Mock(return_value="tenant-b")
+    monkeypatch.setattr("kernel_api.rpc.functions.bkm_cli.unify_query.GetMetricListV2Resource.request", metric_resource)
+    monkeypatch.setattr(
+        "kernel_api.rpc.functions.bkm_cli.unify_query.bk_biz_id_to_bk_tenant_id", lambda bk_biz_id: "tenant-a"
+    )
+    monkeypatch.setattr("kernel_api.rpc.functions.bkm_cli.unify_query.get_request_tenant_id", request_tenant)
+
+    out = _invoke_discovery()
+
+    assert out["status"] == "error"
+    assert out["error"]["code"] == "unsafe_action_blocked"
+    assert "租户" in out["error"]["message"]
+    request_tenant.assert_called_once_with(peaceful=True)
+    metric_resource.assert_not_called()
+
+
+def test_discover_query_ts_metrics_rejects_missing_request_tenant(monkeypatch):
+    metric_resource = Mock(return_value={"metric_list": [], "count": 0})
+    request_tenant = Mock(return_value=None)
+    monkeypatch.setattr("kernel_api.rpc.functions.bkm_cli.unify_query.GetMetricListV2Resource.request", metric_resource)
+    monkeypatch.setattr(
+        "kernel_api.rpc.functions.bkm_cli.unify_query.bk_biz_id_to_bk_tenant_id", lambda bk_biz_id: "tenant-a"
+    )
+    monkeypatch.setattr("kernel_api.rpc.functions.bkm_cli.unify_query.get_request_tenant_id", request_tenant)
+
+    out = _invoke_discovery()
+
+    assert out["status"] == "error"
+    assert out["error"]["code"] == "unsafe_action_blocked"
+    assert "租户" in out["error"]["message"]
+    request_tenant.assert_called_once_with(peaceful=True)
+    metric_resource.assert_not_called()
 
 
 def test_invoke_rejects_time_range_over_24_hours(monkeypatch):

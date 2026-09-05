@@ -138,7 +138,7 @@ export default defineComponent({
     },
     config: {
       type: Object,
-      default: () => { },
+      default: () => {},
     },
     collectorConfigId: {
       type: Number,
@@ -666,13 +666,14 @@ export default defineComponent({
               </span>
             ))}
           </span>
-          <bk-button on-click={() => containerRetry()}>
-            {t('失败批量重试')}
-          </bk-button>
+          <bk-button on-click={() => containerRetry()}>{t('失败批量重试')}</bk-button>
         </div>
         <div class='container-table-section'>
           {containerRenderList.value.map((renderItem, renderIndex) => (
-            <div class='container-table-item' key={renderIndex}>
+            <div
+              class='container-table-item'
+              key={renderIndex}
+            >
               <div
                 class={`container-table-title ${renderItem.isShowTable ? '' : 'close-table'}`}
                 on-click={() => {
@@ -718,7 +719,7 @@ export default defineComponent({
                   <bk-table-column
                     width={80}
                     scopedSlots={{
-                      default: ({ row }: { row: IContainerConfigItem }) => (
+                      default: ({ row }: { row: IContainerConfigItem }) =>
                         row.status === 'failed' ? (
                           <a
                             class='container-retry-link'
@@ -730,8 +731,7 @@ export default defineComponent({
                           >
                             {t('重试')}
                           </a>
-                        ) : null
-                      ),
+                        ) : null,
                     }}
                   />
                 </bk-table>

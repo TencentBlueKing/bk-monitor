@@ -34,12 +34,12 @@
     @value-change="handleValueChange"
   >
     <div
-      class="module-select-container"
       v-bkloading="{ isLoading }"
+      class="module-select-container"
     >
       <bk-radio-group
-        style="margin-bottom: 20px"
         v-model="selectedTypeData"
+        style="margin-bottom: 20px"
       >
         <bk-radio
           style="margin-right: 16px"
@@ -49,8 +49,8 @@
         <bk-radio value="module">{{ $t('按模块选择') }}</bk-radio>
       </bk-radio-group>
       <div
-        class="tree-container"
         v-show="selectedTypeData === 'topo'"
+        class="tree-container"
       >
         <bk-big-tree
           ref="topoTreeRef"
@@ -64,8 +64,8 @@
         </bk-big-tree>
       </div>
       <div
-        class="tree-container"
         v-show="selectedTypeData === 'module'"
+        class="tree-container"
       >
         <div class="checkbox-container">
           <bk-checkbox

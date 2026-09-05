@@ -64,8 +64,8 @@
       @leave-cancelled="afterLeave"
     >
       <div
-        class="right-panel-content"
         v-show="collapse"
+        class="right-panel-content"
       >
         <slot> </slot>
       </div>

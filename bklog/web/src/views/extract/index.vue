@@ -26,8 +26,8 @@
 
 <template>
   <div
-    class="log-extract-container"
     v-bkloading="{ isLoading }"
+    class="log-extract-container"
   >
     <router-view></router-view>
   </div>
@@ -60,6 +60,18 @@
         }, 400);
       },
     },
+    mounted() {
+      const bkBizId = this.$store.state.bkBizId;
+      const spaceUid = this.$store.state.spaceUid;
+
+      this.$router.replace({
+        query: {
+          bizId: bkBizId,
+          spaceUid,
+          ...this.$route.query,
+        },
+      });
+    },
     methods: {
       backHome() {
         this.$router.push({
@@ -72,18 +84,6 @@
       handleLoading(bool) {
         this.isLoading = bool;
       },
-    },
-    mounted() {
-      const bkBizId = this.$store.state.bkBizId;
-      const spaceUid = this.$store.state.spaceUid;
-
-      this.$router.replace({
-        query: {
-          bizId: bkBizId,
-          spaceUid: spaceUid,
-          ...this.$route.query,
-        },
-      });
     },
   };
 </script>

@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-misused-promises */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -462,7 +461,6 @@ export default class SelectIndexSet extends tsc<object> {
     }
   }
 
-  // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: reason
   toggleSelect(val: boolean) {
     // 当前是否展示下拉列表
     this.isShowSelectPopover = val;
@@ -672,7 +670,9 @@ export default class SelectIndexSet extends tsc<object> {
         .then(() => {
           this.getIndexSetHistoryList(this.indexSearchType, true);
         });
-    } catch {}
+    } catch {
+      // 删除失败时保留当前历史记录，错误由请求层统一处理
+    }
   }
 
   /** 点击历史记录 */

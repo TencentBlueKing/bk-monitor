@@ -22,13 +22,12 @@ export const normalizeBigNumberForStorage = (value: any): number | string => {
     return stringValue;
   }
 
-  const isWithinSafeRange = typeof value.isLessThanOrEqualTo === 'function'
-    && typeof value.isGreaterThanOrEqualTo === 'function'
-    ? value.isLessThanOrEqualTo(Number.MAX_SAFE_INTEGER) && value.isGreaterThanOrEqualTo(Number.MIN_SAFE_INTEGER)
-    : Math.abs(numberValue) <= Number.MAX_SAFE_INTEGER;
-  const canBeRepresentedAsNumber = typeof value.isEqualTo === 'function'
-    ? value.isEqualTo(numberValue)
-    : String(numberValue) === stringValue;
+  const isWithinSafeRange =
+    typeof value.isLessThanOrEqualTo === 'function' && typeof value.isGreaterThanOrEqualTo === 'function'
+      ? value.isLessThanOrEqualTo(Number.MAX_SAFE_INTEGER) && value.isGreaterThanOrEqualTo(Number.MIN_SAFE_INTEGER)
+      : Math.abs(numberValue) <= Number.MAX_SAFE_INTEGER;
+  const canBeRepresentedAsNumber =
+    typeof value.isEqualTo === 'function' ? value.isEqualTo(numberValue) : String(numberValue) === stringValue;
 
   return isWithinSafeRange && canBeRepresentedAsNumber ? numberValue : stringValue;
 };
@@ -41,7 +40,7 @@ export const normalizeStorageValue = <T = any>(value: T): T => {
 
   if (Array.isArray(value)) {
     let changed = false;
-    const output = value.map((item) => {
+    const output = value.map(item => {
       const normalizedItem = normalizeStorageValue(item);
       changed = changed || normalizedItem !== item;
       return normalizedItem;

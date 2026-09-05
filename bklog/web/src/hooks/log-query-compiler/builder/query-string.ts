@@ -14,11 +14,7 @@ import {
 } from '../lexer/escape';
 import type { AstNode, QueryCompilerOptions, SelectionContext } from '../types';
 
-const buildLeaf = (
-  node: AstNode,
-  ctx: SelectionContext,
-  options: QueryCompilerOptions,
-): string => {
+const buildLeaf = (node: AstNode, ctx: SelectionContext, options: QueryCompilerOptions): string => {
   const value = String(node.value ?? '');
   if (!value) return '';
 
@@ -56,11 +52,7 @@ const buildLeaf = (
   return `${neg}${buildPhraseQuery(node.field, value)}`;
 };
 
-const buildNode = (
-  node: AstNode,
-  ctx: SelectionContext,
-  options: QueryCompilerOptions,
-): string => {
+const buildNode = (node: AstNode, ctx: SelectionContext, options: QueryCompilerOptions): string => {
   if (node.type === 'Root') {
     const parts = (node.children ?? []).map(child => buildNode(child, ctx, options)).filter(Boolean);
     return parts.join(` ${options.defaultBoolean} `);
@@ -112,15 +104,7 @@ const collapseOutsideQuotes = (input: string): string => {
 };
 
 /** Query String Builder（语句模式主输出；转义仅在 leaf 发生一次） */
-export const buildQueryString = (
-  ast: AstNode,
-  ctx: SelectionContext,
-  options: QueryCompilerOptions,
-): string => collapseOutsideQuotes(buildNode(ast, ctx, options));
+export const buildQueryString = (ast: AstNode, ctx: SelectionContext, options: QueryCompilerOptions): string =>
+  collapseOutsideQuotes(buildNode(ast, ctx, options));
 
-export {
-  escapeQueryStringPhraseLiteral,
-  escapeQueryStringWildcardLiteral,
-  buildContainsQuery,
-  buildPhraseQuery,
-};
+export { escapeQueryStringPhraseLiteral, escapeQueryStringWildcardLiteral, buildContainsQuery, buildPhraseQuery };

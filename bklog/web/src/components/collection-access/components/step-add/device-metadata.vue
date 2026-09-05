@@ -46,65 +46,70 @@
     >
       <bk-select
         ref="select"
+        v-model="selectValue"
         searchable
         multiple
         selected-style="checkbox"
-        v-model="selectValue"
         :display-tag="true"
         :show-empty="false"
         :auto-height="true"
       >
         <bk-option
           v-for="option in groupList"
-          :key="option.field"
           :id="option.field"
+          :key="option.field"
           :name="`${option.field}(${option.name})`"
         >
         </bk-option>
       </bk-select>
       <div>
-      <span class='addTagBtn' @click="handleAddExtraLabel">{{ $t('添加自定义标签') }}</span>
-      <span>{{ $t('如果CMDB的元数据无法满足您的需求，可以自行定义匹配想要的结果') }}</span>
-      <template v-if="extraLabelList.length">
-        <div
-          v-for="(item, index) in extraLabelList"
-          class="add-log-label form-div"
-          :key="index"
+        <span
+          class="addTagBtn"
+          @click="handleAddExtraLabel"
+          >{{ $t('添加自定义标签') }}</span
         >
-          <div class="keyInputBox">
+        <span>{{ $t('如果CMDB的元数据无法满足您的需求，可以自行定义匹配想要的结果') }}</span>
+        <template v-if="extraLabelList.length">
+          <div
+            v-for="(item, index) in extraLabelList"
+            :key="index"
+            class="add-log-label form-div"
+          >
+            <div class="keyInputBox">
+              <bk-input
+                v-model.trim="item.key"
+                :class="{ 'extra-error': item.key === '' && isExtraError }"
+                @blur="
+                  isExtraError = false;
+                  item.duplicateKey = false;
+                "
+              ></bk-input>
+              <template v-if="item.duplicateKey">
+                <i
+                  v-bk-tooltips.top="$t('自定义标签key与元数据key重复')"
+                  style="right: 8px"
+                  class="bk-icon icon-exclamation-circle-shape tooltips-icon"
+                ></i>
+              </template>
+            </div>
+            <span>=</span>
             <bk-input
-              v-model.trim="item.key"
-              :class="{ 'extra-error': item.key === '' && isExtraError }"
-              @blur="isExtraError = false;item.duplicateKey=false"
+              v-model.trim="item.value"
+              :class="{ 'extra-error': item.value === '' && isExtraError }"
+              @blur="isExtraError = false"
             ></bk-input>
-            <template v-if="item.duplicateKey">
+            <div class="ml9">
               <i
-                style="right: 8px"
-                class="bk-icon icon-exclamation-circle-shape tooltips-icon"
-                v-bk-tooltips.top="$t('自定义标签key与元数据key重复')"
+                :class="['bk-icon icon-plus-circle-shape icons']"
+                @click="handleAddExtraLabel"
               ></i>
-            </template>
+              <i
+                :class="['bk-icon icon-minus-circle-shape icons ml9']"
+                @click="handleDeleteExtraLabel(index)"
+              ></i>
+            </div>
           </div>
-          <span>=</span>
-          <bk-input
-            v-model.trim="item.value"
-            :class="{ 'extra-error': item.value === '' && isExtraError }"
-            @blur="isExtraError = false"
-          ></bk-input>
-          <div class="ml9">
-            <i
-              :class="['bk-icon icon-plus-circle-shape icons']"
-              @click="handleAddExtraLabel"
-            ></i>
-            <i
-              :class="[
-                'bk-icon icon-minus-circle-shape icons ml9',
-              ]"
-              @click="handleDeleteExtraLabel(index)"
-            ></i>
-          </div>
-        </div>
-      </template>
+        </template>
       </div>
     </div>
   </div>
@@ -140,7 +145,6 @@
     }
   };
 
-
   // 获取元数据
   const getDeviceMetaData = async () => {
     try {
@@ -161,20 +165,20 @@
       selectValue.value = props.metadata.map(item => {
         if (item.key.startsWith('host.')) {
           return item.key.slice(5);
-        } 
+        }
       });
-      extraLabelList.value = props.metadata.filter(metadataItem => {
-        const isDuplicate = groupList.value.some(
-          groupItem => groupItem.field === metadataItem.key.slice(5)
-        );
-        return !isDuplicate;
-      }).map( item => {
-        return { 
-          key: item.key, 
-          value: item.value,
-          duplicateKey: false,
-        };
-      });
+      extraLabelList.value = props.metadata
+        .filter(metadataItem => {
+          const isDuplicate = groupList.value.some(groupItem => groupItem.field === metadataItem.key.slice(5));
+          return !isDuplicate;
+        })
+        .map(item => {
+          return {
+            key: item.key,
+            value: item.value,
+            duplicateKey: false,
+          };
+        });
     } catch (e) {
       console.warn(e);
     }
@@ -182,13 +186,13 @@
 
   const handleAddExtraLabel = () => {
     extraLabelList.value.push({ key: '', value: '' });
-  }
-  const handleDeleteExtraLabel = (index) => {
+  };
+  const handleDeleteExtraLabel = index => {
     extraLabelList.value.splice(index, 1);
-  }
-  
+  };
+
   const extraLabelsValidate = () => {
-    if(!switcherValue.value){
+    if (!switcherValue.value) {
       return true;
     }
     isExtraError.value = false;
@@ -204,11 +208,11 @@
       });
     }
     if (isExtraError.value) {
-      throw new Error
+      throw new Error();
     }
-    handleExtraLabelsChange()
-    return true
-  }
+    handleExtraLabelsChange();
+    return true;
+  };
   const handleExtraLabelsChange = () => {
     if (extraLabelList.value.length) {
       const result = groupList.value.reduce((accumulator, item) => {
@@ -220,7 +224,7 @@
       result.push(...extraLabelList.value);
       emit('extra-labels-change', result);
     }
-  }
+  };
   onMounted(() => {
     getDeviceMetaData();
     if (props.metadata.filter(item => item.key).length) {
@@ -241,13 +245,13 @@
     margin-top: 10px;
     color: #63656e;
 
-    .bk-select{
+    .bk-select {
       width: 518px;
     }
 
-    .addTagBtn{
+    .addTagBtn {
       margin-right: 10px;
-      color:#2b7cc7;
+      color: #2b7cc7;
       cursor: pointer;
     }
 
@@ -255,9 +259,8 @@
       display: flex;
       align-items: center;
 
-      .keyInputBox{
+      .keyInputBox {
         position: relative;
- 
       }
 
       span {

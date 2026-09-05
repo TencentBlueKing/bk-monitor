@@ -91,8 +91,8 @@
           <div class="fl-ac signature-box">
             <span v-bk-overflow-tips>{{ row.signature }}</span>
             <div
-              class="new-finger"
               v-show="row.is_new_class"
+              class="new-finger"
             >
               New
             </div>
@@ -209,8 +209,8 @@
       <template v-if="isGroupSearch">
         <bk-table-column
           v-for="(item, index) of requestData.group_by"
-          width="130"
           :key="index"
+          width="130"
           :label="item"
           :render-header="$renderHeader"
           class-name="symbol-column"
@@ -250,8 +250,8 @@
             </bk-user-selector>
             <bk-tag-input
               v-else
-              style="margin-top: 4px"
               v-model="row.owners"
+              style="margin-top: 4px"
               placeholder=" "
               :allow-create="true"
               :clearable="false"
@@ -280,18 +280,18 @@
                 @change="val => changeStrategy(val, row)"
               ></bk-switcher>
               <span
+                v-if="row.strategy_id"
                 class="button-view"
                 @click="handleStrategyInfoClick(row)"
-                v-if="row.strategy_id"
                 >{{ $t('前往查看') }} <span class="bklog-icon bklog-jump"></span
               ></span>
             </div>
             <bk-switcher
               v-else
               v-model="row.strategy_enabled"
+              v-bk-tooltips="$t('暂无配置责任人，无法自动创建告警策略')"
               theme="primary"
               :disabled="true"
-              v-bk-tooltips="$t('暂无配置责任人，无法自动创建告警策略')"
             ></bk-switcher>
           </div>
         </template>
@@ -360,8 +360,8 @@
         ref="remarkTips"
       >
         <div
-          class="remark-list"
           v-show="currentRemarkList.length"
+          class="remark-list"
         >
           <div
             v-for="(remark, index) in currentRemarkList"
@@ -681,17 +681,16 @@
         // 聚类下钻只能使用ui模式
         this.$store.commit('updateIndexItem', { search_mode: 'ui' });
         // 新开页打开首页是原始日志，不需要传聚类参数，如果传了则会初始化为聚类
-        this.$store.commit('updateState', {'clusterParams': null});
+        this.$store.commit('updateState', { clusterParams: null });
         this.$store.dispatch('setQueryCondition', additionList).then(([newSearchList, searchMode, isNewSearchPage]) => {
           if (isLink) {
             const openUrl = getConditionRouterParams(newSearchList, searchMode, isNewSearchPage, { tab: 'origin' });
             window.open(openUrl, '_blank', 'noopener,noreferrer');
             // 新开页后当前页面回填聚类参数
-            this.$store.commit('updateState', {'clusterParams': this.requestData});
-            return
-          } else {
-            this.$emit('show-change', 'origin');
+            this.$store.commit('updateState', { clusterParams: this.requestData });
+            return;
           }
+          this.$emit('show-change', 'origin');
 
           const query = { ...route.query };
 
@@ -924,7 +923,7 @@
         this.$easeScroll(0, 300, el);
       },
       getHeightLightStr(str) {
-        return !!str ? str : this.$t('未匹配');
+        return str ? str : this.$t('未匹配');
       },
       getHeightLightList(str) {
         return str.match(/#.*?#/g) || [];
@@ -1037,7 +1036,7 @@
       checkName() {
         if (this.verifyData.textInputStr.trim() === '') return true;
 
-        return /^[\u4e00-\u9fa5_a-zA-Z0-9`~!\s@#$%^&*()_\-+=<>?:"{}|,.\/;'\\[\]·~！@#￥%……&*（）——\-+={}|《》？：“”【】、；‘'，。、]+$/im.test(
+        return /^[\u4e00-\u9fa5_a-zA-Z0-9`~!\s@#$%^&*()_\-+=<>?:"{}|,./;'\\[\]·~！@#￥%……&*（）——\-+={}|《》？：“”【】、；‘'，。、]+$/im.test(
           this.verifyData.textInputStr.trim(),
         );
       },
@@ -1081,7 +1080,7 @@
           const queryType = Object.keys(this.catchOperatorVal).length ? 'update' : 'add';
           this.remarkQuery(queryType);
           this.isShowStrInputDialog = false;
-        } catch (err) {
+        } catch {
           return false;
         }
       },
@@ -1190,7 +1189,7 @@
        * @desc: 初始化责任人选择的数据和初始化责任人列表
        */
       handleToggleUserSelect(v) {
-        this.ownerSelect = !!this.requestData.owners.length ? this.requestData.owners : [this.requestData.owner_config];
+        this.ownerSelect = this.requestData.owners.length ? this.requestData.owners : [this.requestData.owner_config];
         if (v) this.getUserList();
       },
       /**

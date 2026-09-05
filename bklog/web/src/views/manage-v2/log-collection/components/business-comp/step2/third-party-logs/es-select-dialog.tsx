@@ -232,7 +232,7 @@ export default defineComponent({
           },
         };
 
-        const result = await handleMultipleSelected(param, false, (res) => {
+        const result = await handleMultipleSelected(param, false, res => {
           /**
            * 筛选出时间相关字段（date 和 long 类型）
            * 并进行类型校验，确保字段结构正确
@@ -240,11 +240,7 @@ export default defineComponent({
           const responseData = res.data as { fields?: ITimeField[] } | undefined;
           const fields = (responseData?.fields || [])
             .filter((item: ITimeField) => {
-              return (
-                item?.field_name
-                && item?.field_type
-                && (item.field_type === 'date' || item.field_type === 'long')
-              );
+              return item?.field_name && item?.field_type && (item.field_type === 'date' || item.field_type === 'long');
             })
             .map((item: ITimeField) => ({
               field_name: item.field_name,

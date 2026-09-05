@@ -151,7 +151,7 @@ export default defineComponent({
 
     const { t } = useLocale();
 
-    useResizeObserve(refRootElement, (entry) => {
+    useResizeObserve(refRootElement, entry => {
       const newWidth = (entry.target as HTMLElement).offsetWidth;
 
       if (newWidth !== containerWidth.value) {
@@ -186,7 +186,7 @@ export default defineComponent({
       };
     });
 
-    const stopDefaultPrevented = (e) => {
+    const stopDefaultPrevented = e => {
       e.stopPropagation?.();
       e.stopImmediatePropagation?.();
       e.preventDefault?.();
@@ -254,9 +254,9 @@ export default defineComponent({
 
     const valueWithInputList = computed(() => {
       if (
-        typeof tagInputIndex.value === 'number'
-        && tagInputIndex.value >= 0
-        && tagInputIndex.value < valueList.value.length
+        typeof tagInputIndex.value === 'number' &&
+        tagInputIndex.value >= 0 &&
+        tagInputIndex.value < valueList.value.length
       ) {
         return [
           ...valueList.value.slice(0, tagInputIndex.value),
@@ -271,7 +271,7 @@ export default defineComponent({
     const optionList = computed(() => {
       return (props.list ?? [])
         .filter(({ selected }) => !selected)
-        .map((item) => {
+        .map(item => {
           return {
             item,
             selected: valueList.value.some(v => getListItemId(v) === getListItemId(item)),
@@ -297,7 +297,7 @@ export default defineComponent({
      * 获取抛出事件
      * @param value
      */
-    const emitValue = (value) => {
+    const emitValue = value => {
       const itemId = getListItemId(value);
       // 避免重复添加
       if (valueList.value.some(item => getListItemId(item) === itemId)) {
@@ -318,7 +318,7 @@ export default defineComponent({
      * 鼠标点击空白位置执行当前focused的 edit input blur行为
      */
     const handleEditInputBlur = (editIndexOverride: number | null = null) => {
-      return new Promise((resolve) => {
+      return new Promise(resolve => {
         // 如果传入了索引覆盖，优先使用；否则使用 editItemOption.value.index；如果都是 null，尝试从 DOM 获取
         const currentEditIndex = editIndexOverride !== null ? editIndexOverride : editItemOption.value.index;
 
@@ -360,7 +360,7 @@ export default defineComponent({
      * 当绑定的数据改变时，销毁当前弹出内容，根据Vue渲染出来的结果进行弹出内容的更新
      */
     const updateFiexedInstanceContent = () => {
-      return new Promise((resolve) => {
+      return new Promise(resolve => {
         nextTick(() => {
           setFixedValueContent();
           fixedInstance.setContent(focusFixedElement);
@@ -374,7 +374,7 @@ export default defineComponent({
       });
     };
 
-    const emitDeleteItem = (val) => {
+    const emitDeleteItem = val => {
       const targetValue: any[] = [];
       for (const v of valueList.value) {
         if (v !== val) {
@@ -391,7 +391,7 @@ export default defineComponent({
       refTagInputElement.value?.focus();
     };
 
-    const handleOptionItemClick = (val) => {
+    const handleOptionItemClick = val => {
       emitValue(getListItemId(val));
       if (props.foucsFixed) {
         updateFiexedInstanceContent();
@@ -455,7 +455,7 @@ export default defineComponent({
       }
     };
 
-    const handleDeleteAllClick = (e) => {
+    const handleDeleteAllClick = e => {
       stopDefaultPrevented(e);
       emit('change', []);
     };
@@ -588,7 +588,9 @@ export default defineComponent({
             const currentValue = (e.target as HTMLInputElement).value;
             // 从 DOM 元素获取编辑索引，而不是依赖可能被重置的 editItemOption.value.index
             const itemElement = editInput.closest('[data-item-index]') as HTMLElement;
-            const editIndexFromDOM = itemElement ? Number.parseInt(itemElement.getAttribute('data-item-index') ?? '-1', 10) : -1;
+            const editIndexFromDOM = itemElement
+              ? Number.parseInt(itemElement.getAttribute('data-item-index') ?? '-1', 10)
+              : -1;
 
             inputTagValue.value = currentValue;
 
@@ -616,7 +618,9 @@ export default defineComponent({
             const currentValue = (e.target as HTMLInputElement).value;
             // 从 DOM 元素获取编辑索引，而不是依赖可能被重置的 editItemOption.value.index
             const itemElement = editInput.closest('[data-item-index]') as HTMLElement;
-            const editIndexFromDOM = itemElement ? Number.parseInt(itemElement.getAttribute('data-item-index') ?? '-1', 10) : -1;
+            const editIndexFromDOM = itemElement
+              ? Number.parseInt(itemElement.getAttribute('data-item-index') ?? '-1', 10)
+              : -1;
 
             inputTagValue.value = currentValue;
 
@@ -709,8 +713,8 @@ export default defineComponent({
 
       const target = e?.target as HTMLElement;
       if (
-        target.hasAttribute('data-bklog-choice-text-input')
-        || target?.classList.contains('bklog-choice-value-edit-input')
+        target.hasAttribute('data-bklog-choice-text-input') ||
+        target?.classList.contains('bklog-choice-value-edit-input')
       ) {
         return;
       }
@@ -829,7 +833,7 @@ export default defineComponent({
       hiddenItemIndex.value.length = 0;
       hiddenItemIndex.value = [];
 
-      return new Promise((resolve) => {
+      return new Promise(resolve => {
         nextTick(() => {
           const maxWidth = getMaxWidth();
           const { offsetHeight, scrollHeight } = (refRootElement.value ?? {}) as HTMLElement;
@@ -1074,7 +1078,7 @@ export default defineComponent({
             onInput={handleEditInputChange}
             onBlur={handleEditInputBlurEvent}
             onKeyup={handleEditInputKeyup}
-            onKeydown={(e) => {
+            onKeydown={e => {
               // 阻止事件冒泡，避免触发容器的点击事件
               e.stopPropagation();
             }}

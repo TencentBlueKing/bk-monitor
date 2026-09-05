@@ -131,9 +131,13 @@ export default defineComponent({
     const groupListState = ref<GroupListState>({});
     const rawDataScope = ref(''); // 原始接口数据 IndexedDB 分块缓存 scope
     const rawDataCount = ref(0);
+    const clusterRequestException = ref('');
     const { addEvent } = useRetrieveEvent();
     let rawSnapshot: LogPattern[] = [];
     let pipelineToken = 0;
+    let clusterRequesting = false;
+    let pendingRefresh = false;
+    let isUnmounted = false;
 
     const buildPipelineInput = (): ClusterPipelineInput => ({
       displayType: displayType.value,
@@ -155,16 +159,14 @@ export default defineComponent({
       openMap: toPlainOpenMap(groupListState.value),
     });
 
-    const syncGroupStateFromMeta = (
-      openMap: ClusterViewResult['openMap'] = {},
-    ) => {
+    const syncGroupStateFromMeta = (openMap: ClusterViewResult['openMap'] = {}) => {
       const next: GroupListState = {};
-      Object.keys(groupListState.value).forEach((key) => {
+      Object.keys(groupListState.value).forEach(key => {
         if (groupListState.value[key]?.isOpen) {
           next[key] = { isOpen: true };
         }
       });
-      Object.keys(openMap).forEach((key) => {
+      Object.keys(openMap).forEach(key => {
         if (openMap[key]?.isOpen) {
           next[key] = { isOpen: true };
         }
@@ -201,7 +203,8 @@ export default defineComponent({
     };
 
     const runPipeline = async (resetWindow = true) => {
-      const token = ++pipelineToken;
+      pipelineToken += 1;
+      const token = pipelineToken;
       if (resetWindow) {
         pagination.value.current = 1;
       }
@@ -270,7 +273,7 @@ export default defineComponent({
     /**
      * 分页器观察器
      */
-    useIntersectionObserver(paginationRef, (entry) => {
+    useIntersectionObserver(paginationRef, entry => {
       if (entry.isIntersecting) {
         (paginationRef.value?.childNodes[0] as HTMLElement)?.style?.setProperty('visibility', 'visible');
         if (pagination.value.current * pagination.value.limit < pagination.value.count) {
@@ -336,9 +339,12 @@ export default defineComponent({
         host_scopes,
         interval,
         timezone,
+        scene_filter_values,
+        table_id_conditions,
+        space_uid,
       } = retrieveParams.value;
 
-      return {
+      const data: Record<string, any> = {
         bk_biz_id: store.state.bkBizId,
         addition: getClusterSearchAddition(),
         size,
@@ -352,6 +358,13 @@ export default defineComponent({
         ...props.requestData,
         ...overrides,
       };
+
+      // 场景化检索模式：传递场景过滤参数，聚类结果才能随场景条件刷新
+      if (store.getters.isSceneMode) {
+        Object.assign(data, { scene_filter_values, table_id_conditions, space_uid });
+      }
+
+      return data;
     };
 
     const getPatternOriginLog = async (row: LogPattern) => {
@@ -388,14 +401,25 @@ export default defineComponent({
     };
 
     const refreshTable = () => {
-      // loading中，或者没有开启数据指纹功能，或当前页面初始化或者切换索引集时不允许起请求
-      if (tableLoading.value || !props.clusterSwitch || !props.isClusterActive) {
+      // 没有开启数据指纹功能，或当前页面初始化 / 切换索引集时不允许起请求。
+      if (isUnmounted || !props.clusterSwitch || !props.isClusterActive) {
+        pendingRefresh = false;
         return;
       }
+      if (clusterRequesting) {
+        pendingRefresh = true;
+        return;
+      }
+      clusterRequesting = true;
+      pendingRefresh = false;
+      clusterRequestException.value = '';
       tableList.value = [];
       tableLoading.value = true;
       pagination.value.current = 1;
       pagination.value.count = 0;
+      pagination.value.groupCount = 0;
+      pagination.value.childCount = 0;
+      pagination.value.visibleCount = 0;
       (
         $http.request(
           '/logClustering/clusterSearch',
@@ -408,9 +432,15 @@ export default defineComponent({
           { cancelWhenRouteChange: false },
         ) as Promise<IResponseData<LogPattern[]>>
       ) // 由于回填指纹的数据导致路由变化，故路由变化时不取消请求
-        .then(async (res) => {
+        .then(async res => {
+          if (!Array.isArray(res.data)) {
+            clusterRequestException.value = t('聚类结果数据格式异常，请重新发起查询');
+            rawSnapshot = [];
+            rawDataCount.value = 0;
+            return;
+          }
           // 原始接口数据不再 structuredClone 到响应式内存，分块镜像到 IndexedDB，下载时按需读取。
-          const responseList = (Array.isArray(res.data) ? res.data : []).map((item) => {
+          const responseList = res.data.map(item => {
             const nextItem = {
               ...item,
               owners: getOwnerList(item.owners),
@@ -434,9 +464,17 @@ export default defineComponent({
           await runPipeline(true);
           setTimeout(computedScrollXWidth);
         })
-        .catch(() => {})
+        .catch(() => {
+          clusterRequestException.value = t('聚类结果获取异常，请重新发起查询');
+          rawSnapshot = [];
+          rawDataCount.value = 0;
+        })
         .finally(() => {
+          clusterRequesting = false;
           tableLoading.value = false;
+          if (!isUnmounted && pendingRefresh && props.clusterSwitch && props.isClusterActive) {
+            refreshTable();
+          }
         });
     };
 
@@ -451,7 +489,7 @@ export default defineComponent({
     };
 
     const handleColumnSort = (field: string, order: string) => {
-      Object.keys(filterSortMap.value.sort).forEach((key) => {
+      Object.keys(filterSortMap.value.sort).forEach(key => {
         if (key !== field) {
           filterSortMap.value.sort[key] = '';
         }
@@ -477,7 +515,7 @@ export default defineComponent({
       pagination.value.current = 1;
     };
 
-    const handleScrollXChange = (event) => {
+    const handleScrollXChange = event => {
       const scrollLeft = (event.target as HTMLElement)?.scrollLeft || 0;
       for (const element of rootElement.value.querySelectorAll('.bklog-fill-offset-x')) {
         element.scrollLeft = scrollLeft;
@@ -564,10 +602,13 @@ export default defineComponent({
     };
 
     onMounted(() => {
+      isUnmounted = false;
       refreshTable();
     });
 
     onBeforeUnmount(() => {
+      isUnmounted = true;
+      pendingRefresh = false;
       if (rawDataScope.value) {
         moduleLargeDataCacheService.clear(rawDataScope.value).catch(() => {});
       }
@@ -602,7 +643,10 @@ export default defineComponent({
         text: t('暂无数据'),
       };
 
-      if (retrieveParams.value.addition.length > 0 || owners.length > 0 || remark.length > 0) {
+      if (clusterRequestException.value) {
+        option.type = '500';
+        option.text = clusterRequestException.value;
+      } else if (retrieveParams.value.addition.length > 0 || owners.length > 0 || remark.length > 0) {
         option.type = 'search-empty';
         option.text = t('搜索结果为空');
       }

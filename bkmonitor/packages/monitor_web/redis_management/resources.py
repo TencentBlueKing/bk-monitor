@@ -316,9 +316,12 @@ def build_cost_evidence(
     stale_strategy_count = 0
     node_evidence = []
     missing_snapshot_count = 0
+    routed_node_ids = {route["node_id"] for route in _current_positive_routes(routing_snapshot)}
 
     for node in routing_snapshot.get("nodes") or []:
         node_id = int(node["id"])
+        if node_id not in routed_node_ids:
+            continue
         snapshot = node_snapshots.get(node_id)
         if not snapshot:
             missing_snapshot_count += 1

@@ -360,9 +360,12 @@ class TraceSearchItem(SearchItem):
             q: QueryConfigBuilder = QueryConfigBuilder((DataTypeLabel.LOG, DataSourceLabel.BK_APM)).table(table_id)
         else:
             q: QueryConfigBuilder = TraceQueryGuard.get_q([target])
-        qs: UnifyQuerySet = (
-            UnifyQuerySet()
-            .add_query(q.filter(trace_id__eq=trace_id).time_field(time_field).values(*fields))
+        qs: UnifyQuerySet = UnifyQuerySet()
+        if target is not None:
+            # 适配多租户场景，严格传入 scope，用于推导租户。
+            qs = qs.scope(target.app.bk_biz_id)
+        qs = (
+            qs.add_query(q.filter(trace_id__eq=trace_id).time_field(time_field).values(*fields))
             .time_align(False)
             .start_time(int((now - timedelta(days=7).total_seconds()) * 1000))
             .end_time(now * 1000)

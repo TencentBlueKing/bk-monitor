@@ -134,7 +134,7 @@ export default defineComponent({
       const userInfo = data.userInfo;
 
       // 更新 updatedBys 中的 text 为 display_name
-      updatedBys.value = updatedBys.value.map((item) => {
+      updatedBys.value = updatedBys.value.map(item => {
         const info = userInfo.get(item.value);
         if (info && info.display_name) {
           return {
@@ -229,7 +229,7 @@ export default defineComponent({
 
     // 筛选变化处理
     const handleFilterChange = (filters: { is_builtin?: boolean[]; updated_by?: string[] }) => {
-      Object.keys(filters).forEach((key) => {
+      Object.keys(filters).forEach(key => {
         filterParams.value[key] = filters[key]?.[0];
       });
       pagination.value.current = 1;

@@ -24,7 +24,7 @@
 * IN THE SOFTWARE.
 -->
 <script setup>
-  import { ref, defineProps, watch, computed, defineEmits } from 'vue';
+  import { defineProps, computed, defineEmits } from 'vue';
 
   const props = defineProps({
     options: {
@@ -38,17 +38,17 @@
       }),
     },
 
-    result_schema: {
+    resultSchema: {
       type: Array,
     },
   });
 
   const emit = defineEmits(['update']);
-  const list = computed(() => props.result_schema.map(item => item.field_alias));
+  const list = computed(() => props.resultSchema.map(item => item.field_alias));
 
   const excludeList = computed(() => [...props.options.yFields, ...props.options.dimensions, ...props.options.xFields]);
   const xFieldOptions = computed(() =>
-    props.result_schema
+    props.resultSchema
       .filter(item => !excludeList.value.includes(item.field_alias) || props.options.xFields.includes(item.field_alias))
       .map(item => {
         return {
@@ -59,7 +59,7 @@
   );
 
   const yFieldOptions = computed(() =>
-    props.result_schema
+    props.resultSchema
       .filter(
         item =>
           /long|number|int|float|bigint|double/.test(item.field_type) &&
@@ -74,7 +74,7 @@
   );
 
   const dimensionsOptions = computed(() =>
-    props.result_schema
+    props.resultSchema
       .filter(
         item => !excludeList.value.includes(item.field_alias) || props.options.dimensions.includes(item.field_alias),
       )
@@ -93,18 +93,18 @@
 <template>
   <div class="bklog-chart-field">
     <div v-show="options.category !== 'table'">
-      <div class="title">{{ this.$t('指标') }}</div>
+      <div class="title">{{ $t('指标') }}</div>
       <bk-select
         :value="options.yFields"
         searchable
-        @change="change('yFields', $event)"
         :clearable="false"
         multiple
+        @change="change('yFields', $event)"
       >
         <bk-option
           v-for="option in yFieldOptions"
-          :key="option.item"
           :id="option.item"
+          :key="option.item"
           :name="option.item"
           :disabled="option.disabled"
         >
@@ -112,18 +112,18 @@
       </bk-select>
     </div>
     <div v-show="options.category !== 'table' && options.category !== 'number'">
-      <div class="title">{{ this.$t('维度') }}</div>
+      <div class="title">{{ $t('维度') }}</div>
       <bk-select
         :value="options.xFields"
         searchable
-        @change="change('xFields', $event)"
         :clearable="false"
         multiple
+        @change="change('xFields', $event)"
       >
         <bk-option
           v-for="option in xFieldOptions"
-          :key="option.item"
           :id="option.item"
+          :key="option.item"
           :name="option.item"
           :disabled="option.disabled"
         >
@@ -131,16 +131,16 @@
       </bk-select>
     </div>
     <div v-show="options.category == 'bar' || options.category == 'line'">
-      <div class="title">{{ this.$t('时间维度') }}</div>
+      <div class="title">{{ $t('时间维度') }}</div>
       <bk-select
         :value="options.dimensions"
-        @change="change('dimensions', $event)"
         searchable
+        @change="change('dimensions', $event)"
       >
         <bk-option
           v-for="option in dimensionsOptions"
-          :key="option.item"
           :id="option.item"
+          :key="option.item"
           :name="option.item"
           :disabled="option.disabled"
         >
@@ -148,18 +148,18 @@
       </bk-select>
     </div>
     <div v-show="options.category == 'table'">
-      <div class="title">{{ this.$t('隐藏字段') }}</div>
+      <div class="title">{{ $t('隐藏字段') }}</div>
       <bk-select
         :value="options.hiddenFields"
         :clearable="true"
         multiple
-        @change="change('hiddenFields', $event)"
         searchable
+        @change="change('hiddenFields', $event)"
       >
         <bk-option
           v-for="option in list"
-          :key="option"
           :id="option"
+          :key="option"
           :name="option"
           :disabled="list.length - options.hiddenFields.length === 1 && !options.hiddenFields.includes(option)"
         >

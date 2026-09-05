@@ -32,7 +32,8 @@ interface SearchStreamMessage {
   writeMode?: 'append' | 'replace';
 }
 
-const resolveRowRepository = (message: SearchStreamMessage) => getRetrieveRowRepository(message.rowStore || 'retrieveRows');
+const resolveRowRepository = (message: SearchStreamMessage) =>
+  getRetrieveRowRepository(message.rowStore || 'retrieveRows');
 
 interface ActiveSearchTask {
   abortController: AbortController;
@@ -51,7 +52,8 @@ const random = (n = 8, str = 'abcdefghijklmnopqrstuvwxyz0123456789') => {
 
 const createTraceparent = () => `00-${random(32, 'abcdef0123456789')}-${random(16, 'abcdef0123456789')}-01`;
 
-const taskKey = (message: Pick<SearchStreamMessage, 'id' | 'pageInstanceId'>) => [message.pageInstanceId || 'legacy', message.id].join(':');
+const taskKey = (message: Pick<SearchStreamMessage, 'id' | 'pageInstanceId'>) =>
+  [message.pageInstanceId || 'legacy', message.id].join(':');
 
 const postMessageSafe = (payload: Record<string, any>) => {
   self.postMessage(payload);
@@ -116,17 +118,18 @@ const ingestJsonEnvelopeRows = async (
 
   const writeStartedAt = Date.now();
   const rowRepository = resolveRowRepository(message);
-  const rowKeys =    message.writeMode === 'append'
-    ? await rowRepository.appendRows(message.queryKey!, originRows, message.startSeq || 0, {
-      fieldMetadata: message.fieldMetadata || {},
-      fieldNames: message.fieldNames || [],
-      renderRows,
-    })
-    : await rowRepository.replaceRows(message.queryKey!, originRows, message.startSeq || 0, {
-      fieldMetadata: message.fieldMetadata || {},
-      fieldNames: message.fieldNames || [],
-      renderRows,
-    });
+  const rowKeys =
+    message.writeMode === 'append'
+      ? await rowRepository.appendRows(message.queryKey!, originRows, message.startSeq || 0, {
+          fieldMetadata: message.fieldMetadata || {},
+          fieldNames: message.fieldNames || [],
+          renderRows,
+        })
+      : await rowRepository.replaceRows(message.queryKey!, originRows, message.startSeq || 0, {
+          fieldMetadata: message.fieldMetadata || {},
+          fieldNames: message.fieldNames || [],
+          renderRows,
+        });
   timings.write = Date.now() - writeStartedAt;
 
   const meta = { ...data };

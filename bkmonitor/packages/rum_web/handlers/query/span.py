@@ -17,27 +17,17 @@ from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQ
 from bkmonitor.data_source.utils.apm import APMQueryFilterMixin
 from bkm_space.utils import bk_biz_id_to_space_uid
 from constants.data_source import DataSourceLabel, DataTypeLabel
-from constants.otel_query import FIELD_OPERATIONS, OTEL_SPAN_COMMON_FIELD_ALIAS
+from constants.otel_query import FIELD_OPERATIONS
 
-from rum_web.constants import RUM_FIELD_ALIAS, RumSpanType, RumSpanKind, RumSpanStatusCode, RumDeviceType
+from semconv.rum.field import FieldSpec
+from semconv.rum.trace import SpanSpec
 
 
 class SpanQuery(APMQueryFilterMixin, BaseQuery):
     USING: tuple[str, str] = (DataTypeLabel.LOG, DataSourceLabel.BK_RUM)
     DEFAULT_TIME_FIELD = "end_time"
     DEFAULT_SORT = ["-end_time"]
-    FIELD_ALIAS_MAP_LIST = [OTEL_SPAN_COMMON_FIELD_ALIAS, RUM_FIELD_ALIAS]
     FIELD_OPERATIONS = FIELD_OPERATIONS
-    FIELD_UNITS = {"elapsed_time": "us", "start_time": "us", "end_time": "us", "time": "ms"}
-    ENUM_FIELD_OPTION_VALUES = {
-        field_name: [{"value": value, "alias": alias} for value, alias in enum_class.choices()]
-        for field_name, enum_class in [
-            ("attributes.span_type", RumSpanType),
-            ("kind", RumSpanKind),
-            ("status.code", RumSpanStatusCode),
-            ("resource.device.type", RumDeviceType),
-        ]
-    }
 
     @classmethod
     def build_query_q(cls, q: QueryConfigBuilder, filters: list[types.Filter] | None, query_string: str = ""):
@@ -138,9 +128,58 @@ class SpanQuery(APMQueryFilterMixin, BaseQuery):
             self.get_queries(filters, query_string), start_time, end_time, field, method
         )
 
+    @staticmethod
+    def _apply_field_spec(field_dict: dict[str, Any], spec: FieldSpec) -> dict[str, Any]:
+        """将 FieldSpec 中的数据（单位、展示类型、枚举候选值）填充到字段字典中。
+
+        仅当 spec 显式提供对应值时才写入，避免覆盖 data_source 返回的原始值；
+        枚举候选值统一转换为 ``{"value": ..., "alias": ...}`` 列表以便 JSON 序列化。
+        """
+        field_dict["field_alias"] = spec.field_alias or field_dict.get("field_alias") or spec.get_full_field_name()
+        field_dict["is_real"] = spec.is_real
+        if spec.field_unit is not None:
+            field_dict["field_unit"] = spec.field_unit
+        if spec.field_type is not None:
+            field_dict["field_type"] = spec.field_type
+        if spec.field_display_type is not None:
+            field_dict["field_display_type"] = spec.field_display_type
+        if spec.option_values is not None:
+            field_dict["option_values"] = [
+                {"value": value, "alias": alias} for value, alias in spec.option_values.choices()
+            ]
+        if spec.rating_config:
+            field_dict["rating_config"] = []
+            for config in spec.rating_config:
+                item = {"rating": config.rating}
+                if config.value is not None:
+                    item["value"] = config.value
+                field_dict["rating_config"].append(item)
+        return field_dict
+
     def query_fields(self, start_time: int | None, end_time: int | None) -> dict[str, dict[str, Any]]:
-        return super()._query_fields(
+        """查询字段元数据，并通过 SpanSpec 补充别名、单位和枚举候选值。"""
+        field_map = super()._query_fields(
             [(target.table_id, bk_biz_id_to_space_uid(target.app.bk_biz_id)) for target in self.data_sources],
             start_time,
             end_time,
         )
+        # 真实字段
+        for field_name, field_dict in field_map.items():
+            self._apply_field_spec(field_dict, SpanSpec.from_field(field_name))
+
+        # 虚拟字段
+        for spec in SpanSpec.fields():
+            field_name = spec.get_full_field_name()
+            if spec.is_real or field_name in field_map:
+                continue
+            field_dict = {
+                "field_name": field_name,
+                "is_searchable": True,
+                "is_agg": True,
+                "is_list": False,
+                "origin_field": field_name.split(".", 1)[0],
+                "supported_operations": self.FIELD_OPERATIONS.get(spec.field_type, []),
+            }
+            self._apply_field_spec(field_dict, spec)
+            field_map[field_name] = field_dict
+        return field_map

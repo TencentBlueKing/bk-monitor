@@ -64,9 +64,7 @@ export default defineComponent({
     const CLIENT_LOG_DEFAULT_TIME_RANGE: [string, string] = ['now-6h', 'now'];
 
     const timeRange = ref<[string, string]>(
-      urlState.startTime && urlState.endTime
-        ? [urlState.startTime, urlState.endTime]
-        : CLIENT_LOG_DEFAULT_TIME_RANGE,
+      urlState.startTime && urlState.endTime ? [urlState.startTime, urlState.endTime] : CLIENT_LOG_DEFAULT_TIME_RANGE,
     );
 
     /** 时区 — 优先使用 URL 回填值 */
@@ -92,10 +90,14 @@ export default defineComponent({
     let lastSearchedKeyword = '';
 
     /** 当前值的类型 */
-    const currentValueType = ref<SearchValueType | undefined>(urlState.valueType || (!urlState.keyword && urlState.fileName ? 'file_name' : undefined));
+    const currentValueType = ref<SearchValueType | undefined>(
+      urlState.valueType || (!urlState.keyword && urlState.fileName ? 'file_name' : undefined),
+    );
 
     /** 搜索按钮是否禁用（联想请求进行中且类型未确定，或面板加载中时禁用） */
-    const isSearchDisabled = computed(() => props.loading || (isRequesting.value && keyword.value.trim() !== '' && !currentValueType.value));
+    const isSearchDisabled = computed(
+      () => props.loading || (isRequesting.value && keyword.value.trim() !== '' && !currentValueType.value),
+    );
 
     /**
      * 请求 openid 列表
@@ -131,7 +133,7 @@ export default defineComponent({
 
         const [startTime, endTime] = handleTransformToTimestamp(timeRange.value);
 
-        const cancelToken = new axios.CancelToken((c) => {
+        const cancelToken = new axios.CancelToken(c => {
           cancelExecutor = c;
         });
 
@@ -151,11 +153,15 @@ export default defineComponent({
         }
 
         $http
-          .request('clientLog/getOpenidList', {
-            query,
-          }, {
-            cancelToken,
-          })
+          .request(
+            'clientLog/getOpenidList',
+            {
+              query,
+            },
+            {
+              cancelToken,
+            },
+          )
           .then((res: any) => {
             openidList.value = res.data ?? [];
             lastKeyword = searchVal;
@@ -163,7 +169,7 @@ export default defineComponent({
             if (!currentValueType.value && keyword.value.trim()) {
               const trimmedVal = keyword.value.trim();
               const isNumeric = !Number.isNaN(Number(trimmedVal));
-              currentValueType.value = (openidList.value.includes(trimmedVal) || !isNumeric) ? 'openid' : 'task_id';
+              currentValueType.value = openidList.value.includes(trimmedVal) || !isNumeric ? 'openid' : 'task_id';
             }
           })
           .catch((err: any) => {
@@ -328,18 +334,19 @@ export default defineComponent({
                   {t('暂无数据')}
                 </li>
               ) : null}
-              {!isRequesting.value && openidList.value.map((item, _index) => (
-                <li
-                  key={item}
-                  title={item}
-                  onClick={(e: MouseEvent) => {
-                    e.stopPropagation();
-                    handleSelectOpenid(item);
-                  }}
-                >
-                  <div>{item}</div>
-                </li>
-              ))}
+              {!isRequesting.value &&
+                openidList.value.map((item, _index) => (
+                  <li
+                    key={item}
+                    title={item}
+                    onClick={(e: MouseEvent) => {
+                      e.stopPropagation();
+                      handleSelectOpenid(item);
+                    }}
+                  >
+                    <div>{item}</div>
+                  </li>
+                ))}
             </ul>
           )}
         </div>

@@ -48,7 +48,7 @@ from apps.iam.backends.v4.config import resolve_v4_gateway_url
 from apps.iam.exceptions import IAMDependencyError, PermissionDeniedError
 from apps.iam.handlers.actions import ActionMeta, get_action_by_id
 from apps.iam.handlers.resources import Business as BusinessResource
-from apps.iam.handlers.resources import ResourceEnum, get_resource_by_id
+from apps.iam.handlers.resources import ResourceEnum, ResourceMeta, get_resource_by_id
 from apps.iam.iam_engine.core.config import AuthMode, DEFAULT_DUAL_STACK
 from apps.iam.iam_engine.core.exceptions import InvalidAuthModeError
 from apps.iam.iam_engine.core.requests import (
@@ -71,6 +71,12 @@ from apps.iam.iam_engine.provider.router import ModeRouter
 from apps.iam.mode import get_mode_provider
 from apps.utils.local import get_request, get_request_username, get_local_username, get_request_tenant_id
 from apps.utils.log import logger
+
+# 探测「不限实例」授权用的哨兵实例 ID。真实资源 ID 都是自增整数，
+# 这个串不可能命中任何实例，因此只有不带实例白名单的策略才会放行它。
+# 必须以字母或数字开头：V4 codec 对非根资源不做任何编码、原样下发，
+# 下划线开头会违反 IAM V4 的资源 ID 契约（见 apps/iam/backends/v4/codec.py）
+UNLIMITED_INSTANCE_PROBE_ID = "bklog_unlimited_probe"
 
 
 class Permission:
@@ -424,6 +430,23 @@ class Permission:
 
         resources = [ResourceEnum.BUSINESS.create_simple_instance(bk_biz_id)]
         return self.is_allowed(action, resources, raise_exception)
+
+    def has_unlimited_action_in_space(
+        self, action: ActionMeta | str, bk_biz_id: int, resource_meta: type[ResourceMeta]
+    ) -> bool:
+        """
+        判断用户在某空间下是否持有该动作的「不限实例」权限。
+
+        拿一个必然不存在的实例 ID 配上该空间的 IAM path 去问 IAM：只按空间路径授权的策略会
+        放行，带实例白名单（id in [...]）的策略不会，以此把空间级授权与实例级授权区分开。
+        """
+        if settings.IGNORE_IAM_PERMISSION or self.skip_check:
+            return True
+
+        probe = resource_meta.create_simple_instance(
+            UNLIMITED_INSTANCE_PROBE_ID, {"bk_biz_id": bk_biz_id}
+        )
+        return self.is_allowed(action, [probe])
 
     def batch_is_allowed(
         self,

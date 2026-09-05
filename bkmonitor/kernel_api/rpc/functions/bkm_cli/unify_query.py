@@ -24,10 +24,14 @@ from typing import Any
 import requests
 
 from bkm_space.utils import bk_biz_id_to_space_uid
+from bkmonitor.utils.metric_id import PROMQL_DATA_SOURCE_PREFIXES
+from bkmonitor.utils.request import get_request_tenant_id
 from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
+from constants.data_source import DataTypeLabel
 from core.drf_resource import api
 from kernel_api.rpc import KernelRPCRegistry
 from kernel_api.rpc.bkm_cli_registry import BkmCliOpRegistry
+from monitor_web.strategies.resources.v2 import GetMetricListV2Resource
 
 logger = logging.getLogger("bkmonitor")
 
@@ -36,10 +40,13 @@ MAX_TIME_RANGE_SECONDS = 24 * 60 * 60
 MAX_QUERY_REFS = 20
 MAX_OUTPUTS = 4
 MAX_RAW_LIMIT = 100
+MAX_DISCOVERY_PAGE = 100
+MAX_DISCOVERY_PAGE_SIZE = 100
 MAX_REQUEST_BYTES = 256 * 1024
 MAX_RESPONSE_BYTES = 10 * 1024 * 1024
 VALID_MODES = {"discover", "describe", "invoke"}
 SERVER_DERIVED_FIELDS = {"space_uid", "bk_biz_ids", "bk_tenant_id"}
+QUERY_TS_METRIC_NOT_FOUND_CODE = "SPACE_TABLE_ID_FIELD_IS_NOT_EXISTS"
 
 
 @dataclass(frozen=True)
@@ -67,6 +74,10 @@ class UQOperationSpec:
             limits["max_limit"] = self.max_limit
         if "output_list" in self.params_schema.get("properties", {}):
             limits["max_outputs"] = MAX_OUTPUTS
+        if "page" in self.params_schema.get("properties", {}):
+            limits["max_page"] = MAX_DISCOVERY_PAGE
+        if "page_size" in self.params_schema.get("properties", {}):
+            limits["max_page_size"] = MAX_DISCOVERY_PAGE_SIZE
         return limits
 
 
@@ -127,6 +138,24 @@ def _named_output_list_schema() -> dict[str, Any]:
     }
 
 
+def _metric_discovery_schema() -> dict[str, Any]:
+    return {
+        "type": "object",
+        "required": ["query"],
+        "properties": {
+            "query": {"type": "string", "description": "指标名、结果表或展示名关键词"},
+            "page": {"type": "integer", "minimum": 1, "maximum": MAX_DISCOVERY_PAGE, "default": 1},
+            "page_size": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": MAX_DISCOVERY_PAGE_SIZE,
+                "default": 20,
+            },
+        },
+        "additionalProperties": False,
+    }
+
+
 def _query_ts_schema(*, raw: bool = False, reference: bool = False, check: bool = False) -> dict[str, Any]:
     properties: dict[str, Any] = {
         "query_list": {
@@ -179,7 +208,23 @@ def _query_ts_schema(*, raw: bool = False, reference: bool = False, check: bool 
             }
         )
         required.append("down_sample_range")
-    return {"type": "object", "required": required, "properties": properties, "additionalProperties": False}
+    schema = {"type": "object", "required": required, "properties": properties, "additionalProperties": False}
+    if not any((raw, reference, check)):
+        schema["allOf"] = [
+            {
+                "if": {"required": ["response_contract"]},
+                "then": {"required": ["legacy_output_ref", "output_list"]},
+                "else": {
+                    "not": {
+                        "anyOf": [
+                            {"required": ["legacy_output_ref"]},
+                            {"required": ["output_list"]},
+                        ]
+                    }
+                },
+            }
+        ]
+    return schema
 
 
 def _relation_schema(*, ranged: bool) -> dict[str, Any]:
@@ -188,6 +233,14 @@ def _relation_schema(*, ranged: bool) -> dict[str, Any]:
         "source_type": {"type": "string"},
         "source_info": {"type": "object"},
         "path_resource": {"type": "array", "items": {"type": "string"}},
+        "target_info_show": {
+            "type": "boolean",
+            "description": "为 true 时展开目标资源扩展信息（如 container version）",
+        },
+        "look_back_delta": {
+            "type": "string",
+            "description": "instant 回看窗口，例如 1440m；未传则沿用 UQ 默认",
+        },
     }
     required = ["target_type", "source_info"]
     if ranged:
@@ -232,6 +285,71 @@ def _call_check_query_ts(params: dict[str, Any]) -> Any:
     return api.unify_query.check_query_ts(**params)
 
 
+def _dimension_ids(metric: dict[str, Any]) -> list[str]:
+    dimensions = []
+    for dimension in metric.get("dimensions") or []:
+        dimension_id = dimension.get("id") if isinstance(dimension, dict) else dimension
+        if dimension_id is not None and str(dimension_id):
+            dimensions.append(str(dimension_id))
+    return dimensions
+
+
+def _metric_query_template(metric: dict[str, Any]) -> dict[str, Any]:
+    query_template = _example_query_item()
+    query_template.update(
+        {
+            "data_source": PROMQL_DATA_SOURCE_PREFIXES.get(metric.get("data_source_label"), ""),
+            "table_id": str(metric.get("result_table_id") or ""),
+            "field_name": str(metric.get("metric_field") or ""),
+        }
+    )
+    return query_template
+
+
+def _call_discover_query_ts_metrics(params: dict[str, Any]) -> Any:
+    bk_biz_id = int(params["bk_biz_id"])
+    query = str(params["query"]).strip()
+    page = int(params.get("page", 1))
+    page_size = int(params.get("page_size", 20))
+    response = GetMetricListV2Resource().request(
+        bk_biz_id=bk_biz_id,
+        data_type_label=DataTypeLabel.TIME_SERIES,
+        conditions=[{"key": "query", "value": [query]}],
+        page=page,
+        page_size=page_size,
+    )
+
+    items = []
+    for metric in response.get("metric_list") or []:
+        if not isinstance(metric, dict):
+            continue
+        query_template = _metric_query_template(metric)
+        if not query_template["data_source"] or not query_template["field_name"]:
+            continue
+        items.append(
+            {
+                "table_id": query_template["table_id"],
+                "field_name": query_template["field_name"],
+                "dimensions": _dimension_ids(metric),
+                "display_name": str(
+                    metric.get("metric_field_name") or metric.get("name") or metric.get("readable_name") or ""
+                ),
+                "data_source": query_template["data_source"],
+                "query_template": query_template,
+            }
+        )
+
+    total = int(response.get("count") or 0)
+    result = {
+        "items": items,
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+        "has_next": page < MAX_DISCOVERY_PAGE and page * page_size < total,
+    }
+    return result
+
+
 def _call_query_relation(params: dict[str, Any]) -> Any:
     return api.unify_query.query_multi(**params)
 
@@ -243,6 +361,15 @@ def _call_query_relation_range(params: dict[str, Any]) -> Any:
 OPERATIONS = {
     spec.id: spec
     for spec in (
+        UQOperationSpec(
+            id="discover_query_ts_metrics",
+            summary="按业务和关键词发现可直接用于 QueryTs 的时序指标",
+            handler=_call_discover_query_ts_metrics,
+            params_schema=_metric_discovery_schema(),
+            example_params={"query": "CPU 使用率", "page": 1, "page_size": 20},
+            scope_style="bk_biz_id",
+            time_range_style="none",
+        ),
         UQOperationSpec(
             id="query_ts",
             summary="执行结构化 QueryTs；支持 named_outputs/v1 并原样返回 UQ 响应",
@@ -324,6 +451,7 @@ OPERATIONS = {
                         "target_type": "pod",
                         "source_type": "service",
                         "source_info": {"service_name": "api"},
+                        "target_info_show": True,
                     }
                 ]
             },
@@ -344,6 +472,7 @@ OPERATIONS = {
                         "target_type": "pod",
                         "source_type": "service",
                         "source_info": {"service_name": "api"},
+                        "target_info_show": True,
                     }
                 ]
             },
@@ -460,10 +589,25 @@ def _guard_params(spec: UQOperationSpec, params: dict[str, Any]) -> dict[str, An
         raise ValueError(f"params 大小不能超过 {MAX_REQUEST_BYTES} 字节")
 
     query_list = params.get("query_list")
-    if not isinstance(query_list, list) or not query_list:
-        raise ValueError("query_list 必须是非空数组")
-    if len(query_list) > MAX_QUERY_REFS:
-        raise ValueError(f"query_list 最多允许 {MAX_QUERY_REFS} 项")
+    if "query_list" in allowed:
+        if not isinstance(query_list, list) or not query_list:
+            raise ValueError("query_list 必须是非空数组")
+        if len(query_list) > MAX_QUERY_REFS:
+            raise ValueError(f"query_list 最多允许 {MAX_QUERY_REFS} 项")
+
+    if spec.id == "discover_query_ts_metrics":
+        query = params.get("query")
+        if not isinstance(query, str) or not query.strip():
+            raise ValueError("query 必须是非空字符串")
+        for field, default, maximum in (
+            ("page", 1, MAX_DISCOVERY_PAGE),
+            ("page_size", 20, MAX_DISCOVERY_PAGE_SIZE),
+        ):
+            value = params.get(field, default)
+            if type(value) is not int:  # JSON boolean is also a Python int subclass and must be rejected.
+                raise ValueError(f"{field} 必须是整数")
+            if value < 1 or value > maximum:
+                raise ValueError(f"{field} 必须在 1 到 {maximum} 之间")
 
     output_list = params.get("output_list")
     if output_list is not None:
@@ -509,6 +653,8 @@ def _build_provider_params(
         provider_params["bk_tenant_id"] = bk_tenant_id
     if spec.scope_style == "bk_biz_ids":
         provider_params["bk_biz_ids"] = [str(bk_biz_id)]
+    if spec.scope_style == "bk_biz_id":
+        provider_params["bk_biz_id"] = bk_biz_id
     return provider_params
 
 
@@ -541,6 +687,39 @@ def _response_is_partial(raw: Any) -> bool:
     return False
 
 
+def _metric_not_found_references(raw: Any) -> tuple[bool, set[str]]:
+    if not isinstance(raw, dict):
+        return False, set()
+    status = raw.get("status")
+    found = isinstance(status, dict) and status.get("code") == QUERY_TS_METRIC_NOT_FOUND_CODE
+    references = set()
+    outputs = raw.get("outputs")
+    if not isinstance(outputs, list):
+        return found, references
+    for output in outputs:
+        if not isinstance(output, dict):
+            continue
+        status = output.get("status")
+        if isinstance(status, dict) and status.get("code") == QUERY_TS_METRIC_NOT_FOUND_CODE:
+            found = True
+            if output.get("reference_name"):
+                references.add(str(output["reference_name"]))
+    return found, references
+
+
+def _query_discovery_term(params: dict[str, Any], reference_name: str) -> str:
+    query_list = params.get("query_list") or []
+    matches = [
+        query
+        for query in query_list
+        if isinstance(query, dict) and str(query.get("reference_name") or "") == reference_name
+    ]
+    if len(matches) != 1:
+        return ""
+    query = matches[0]
+    return ".".join(value for value in (str(query.get("table_id") or ""), str(query.get("field_name") or "")) if value)
+
+
 def _discover() -> dict[str, Any]:
     operations = [
         {
@@ -562,8 +741,11 @@ def _discover() -> dict[str, Any]:
 
 def _describe(spec: UQOperationSpec) -> dict[str, Any]:
     derived_params = ["bk_tenant_id"]
-    derived_params.insert(0, "bk_biz_ids" if spec.scope_style == "bk_biz_ids" else "space_uid")
-    return {
+    if spec.scope_style == "bk_biz_ids":
+        derived_params.insert(0, "bk_biz_ids")
+    elif spec.scope_style in {"space_uid", "space_uid_with_tenant"}:
+        derived_params.insert(0, "space_uid")
+    result = {
         "status": "ok",
         "kind": "schema",
         "operation": spec.id,
@@ -581,6 +763,9 @@ def _describe(spec: UQOperationSpec) -> dict[str, Any]:
         },
         "meta": _meta(),
     }
+    if spec.id == "query_ts":
+        result["parameter_sources"] = {"query_list": {"operation": "discover_query_ts_metrics"}}
+    return result
 
 
 def _invoke(spec: UQOperationSpec, request_params: dict[str, Any]) -> dict[str, Any]:
@@ -595,6 +780,14 @@ def _invoke(spec: UQOperationSpec, request_params: dict[str, Any]) -> dict[str, 
 
     try:
         derived_bk_tenant_id = bk_biz_id_to_bk_tenant_id(bk_biz_id)
+        if spec.scope_style == "bk_biz_id":
+            request_bk_tenant_id = get_request_tenant_id(peaceful=True)
+            if not request_bk_tenant_id:
+                raise ValueError("无法解析当前请求租户")
+            if request_bk_tenant_id != derived_bk_tenant_id:
+                raise ValueError(
+                    f"当前请求租户与 bk_biz_id 派生租户不一致: {request_bk_tenant_id} != {derived_bk_tenant_id}"
+                )
         injected_bk_tenant_id = str(request_params.get("bk_tenant_id") or "").strip()
         if injected_bk_tenant_id and injected_bk_tenant_id != derived_bk_tenant_id:
             raise ValueError(
@@ -626,14 +819,38 @@ def _invoke(spec: UQOperationSpec, request_params: dict[str, Any]) -> dict[str, 
     if response_size > MAX_RESPONSE_BYTES:
         return _error("unsafe_action_blocked", f"UQ 响应超过 {MAX_RESPONSE_BYTES} 字节上限")
 
-    return {
+    partial = _response_is_partial(raw)
+    response = {
         "status": "ok",
         "kind": "invocation",
         "operation": spec.id,
         "result": raw,
-        "partial": _response_is_partial(raw),
+        "partial": partial,
         "meta": _meta(),
     }
+    if spec.id == "discover_query_ts_metrics" and isinstance(raw, dict) and not raw.get("items"):
+        action = (
+            "减小 page 或缩短 query 后重试 discover_query_ts_metrics。"
+            if raw.get("page", 1) > 1
+            else "缩短 query 关键词后重试 discover_query_ts_metrics。"
+        )
+        response["next_actions"] = [action]
+    if partial and spec.id == "query_ts":
+        metric_not_found, failing_references = _metric_not_found_references(raw)
+        if metric_not_found:
+            response["next_actions"] = [
+                "调用 discover_query_ts_metrics 校验目标业务可用的结果表与指标字段，再使用返回的 query_template 重试。"
+            ]
+            if len(failing_references) == 1:
+                query = _query_discovery_term(invoke_params, next(iter(failing_references)))
+                if query:
+                    response["next_call"] = {
+                        "mode": "invoke",
+                        "operation": "discover_query_ts_metrics",
+                        "bk_biz_id": bk_biz_id,
+                        "params": {"query": query, "page": 1, "page_size": 20},
+                    }
+    return response
 
 
 def query_unify_query(params: dict[str, Any]) -> dict[str, Any]:

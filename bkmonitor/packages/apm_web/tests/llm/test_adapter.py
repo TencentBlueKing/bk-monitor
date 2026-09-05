@@ -6,12 +6,35 @@ import json
 import time
 from unittest import TestCase
 
-from apm_web.llm.adapter import adapt_spans
+from apm_web.handlers.service_handler import ServiceHandler
+from apm_web.llm.adapter import adapt_spans as adapt_spans_with_entity_set
 from apm_web.llm.adapter.fields import detect_product
 
 TRACE_ID = "a" * 32
 SPAN_ID = "b" * 16
 NOW = int(time.time())
+
+
+class FakeEntitySet:
+    def __init__(self, product: str, *, is_support_llm: bool = True):
+        extra_data = {}
+        if is_support_llm:
+            extra_data["llm"] = {"product": "default" if product == "galileo" else product}
+        node = {
+            "extra_data": extra_data,
+            "sdk": [{"name": "galileo"}] if product == "galileo" else [],
+        }
+        self.service_names = ["demo"]
+        self.system = ServiceHandler.get_system(node)
+
+    def get_system(self, service_name: str) -> dict:
+        return self.system if service_name == "demo" else {}
+
+
+def adapt_spans(raw_spans: list[dict], product: str = "agentlens") -> list[dict]:
+    for span in raw_spans:
+        span["resource"].setdefault("service.name", "demo")
+    return adapt_spans_with_entity_set(raw_spans, FakeEntitySet(product))
 
 
 def agentlens_span(span_id: str = SPAN_ID, *, start_time: int = NOW - 60) -> dict:
@@ -66,21 +89,16 @@ def seedance_poll_span(span_id: str = "d" * 16, *, trace_id: str = "e" * 32) -> 
 
 
 class AdapterTests(TestCase):
-    def test_product_routing_uses_span_data(self) -> None:
+    def test_product_routing_uses_entity_set(self) -> None:
         span = agentlens_span()
-        self.assertEqual(detect_product([span]), "agentlens")
+        for product in ("agentlens", "galileo", "aidev", "langfuse", "default"):
+            with self.subTest(product=product):
+                self.assertEqual(detect_product(FakeEntitySet(product), [span]), product)
 
-        span["resource"]["telemetry.sdk.name"] = "galileo"
-        self.assertEqual(detect_product([span]), "galileo")
+    def test_galileo_routing_requires_llm_service(self) -> None:
+        entity_set = FakeEntitySet("galileo", is_support_llm=False)
 
-        span["resource"] = {"telemetry.sdk.name": "opentelemetry"}
-        span["span_name"] = "agent.execution"
-        span["attributes"] = {"agent.info.name": "demo"}
-        self.assertEqual(detect_product([span]), "bkaidev")
-
-        span["span_name"] = "chat demo-model"
-        span["attributes"] = {"gen_ai.operation.name": "chat"}
-        self.assertEqual(detect_product([span]), "default")
+        self.assertEqual(detect_product(entity_set, [agentlens_span()]), "default")
 
     def test_default_adapter_keeps_only_standard_fields(self) -> None:
         span = agentlens_span()
@@ -96,7 +114,7 @@ class AdapterTests(TestCase):
             "vendor.debug": "drop-me",
         }
 
-        attributes = adapt_spans([span])[0]["attributes"]
+        attributes = adapt_spans([span], "default")[0]["attributes"]
 
         self.assertEqual(attributes["gen_ai.operation.name"], "chat")
         self.assertEqual(attributes["gen_ai.provider.name"], "openai")
@@ -124,7 +142,7 @@ class AdapterTests(TestCase):
                 span = agentlens_span(f"{index:016x}")
                 span["span_name"] = "generic-span"
                 span["attributes"] = {field: value}
-                spans = adapt_spans([span])
+                spans = adapt_spans([span], "default")
                 self.assertEqual(len(spans), 1)
                 self.assertEqual(spans[0]["attributes"], {field: value})
 
@@ -154,7 +172,7 @@ class AdapterTests(TestCase):
 
         for product, span in (("default", default), ("agentlens", agentlens), ("galileo", galileo)):
             with self.subTest(product=product):
-                self.assertNotIn("gen_ai.tool.type", adapt_spans([span])[0]["attributes"])
+                self.assertNotIn("gen_ai.tool.type", adapt_spans([span], product)[0]["attributes"])
 
     def test_explicit_tool_type_is_preserved(self) -> None:
         span = agentlens_span()
@@ -186,7 +204,7 @@ class AdapterTests(TestCase):
         span["attributes"] = {"gen_ai.operation.name": "vendor.magic"}
         span["status"] = {"code": 1, "message": ""}
 
-        attributes = adapt_spans([span])[0]["attributes"]
+        attributes = adapt_spans([span], "default")[0]["attributes"]
 
         self.assertEqual(attributes["gen_ai.operation.name"], "vendor.magic")
         self.assertNotIn("gen_ai.response.status", attributes)
@@ -222,16 +240,16 @@ class AdapterTests(TestCase):
         span["attributes"] = {"rpc.system": "trpc"}
         span["events"] = [{"name": "SENT", "attributes": {"message.detail": "opaque-rpc-body"}}]
 
-        self.assertEqual(adapt_spans([span]), [])
+        self.assertEqual(adapt_spans([span], "galileo"), [])
 
     def test_non_ai_span_is_dropped(self) -> None:
         span = agentlens_span()
         span["span_name"] = "GET /healthz"
         span["attributes"] = {"http.request.method": "GET"}
-        self.assertEqual(adapt_spans([span]), [])
+        self.assertEqual(adapt_spans([span], "default"), [])
 
     def test_async_tool_poll_is_kept_as_tool(self) -> None:
-        step = adapt_spans([seedance_poll_span()])[0]
+        step = adapt_spans([seedance_poll_span()], "default")[0]
         self.assertEqual(step["attributes"]["gen_ai.operation.name"], "execute_tool")
         self.assertNotIn("correlation", step)
 
@@ -272,7 +290,7 @@ class AdapterTests(TestCase):
         child["parent_span_id"] = parent["span_id"]
         child["attributes"] = {"gen_ai.operation.name": "chat"}
 
-        spans = adapt_spans([parent, child])
+        spans = adapt_spans([parent, child], "default")
 
         self.assertEqual(len(spans), 1)
         self.assertEqual(spans[0]["span_id"], child["span_id"])
@@ -292,7 +310,7 @@ class AdapterTests(TestCase):
             {"name": "gen_ai.tool_response", "timestamp": 4, "attributes": {}},
         ]
 
-        step = adapt_spans([span])[0]
+        step = adapt_spans([span], "galileo")[0]
 
         self.assertEqual(step["attributes"]["gen_ai.operation.name"], "chat")
         self.assertNotIn("gen_ai.input.messages", step["attributes"])
@@ -352,7 +370,14 @@ class AdapterTests(TestCase):
             },
             {
                 "name": "gen_ai.choice",
-                "attributes": {"message.detail": '{"ignored":true}'},
+                "attributes": {
+                    "message.detail": json.dumps(
+                        {
+                            "role": "assistant",
+                            "parts": [{"type": "text", "content": "choice response"}],
+                        }
+                    )
+                },
             },
             {
                 "name": "gen_ai.unknown",
@@ -360,7 +385,7 @@ class AdapterTests(TestCase):
             },
         ]
 
-        attributes = adapt_spans([span])[0]["attributes"]
+        attributes = adapt_spans([span], "galileo")[0]["attributes"]
 
         self.assertEqual(
             attributes["gen_ai.system_instructions"],
@@ -371,8 +396,8 @@ class AdapterTests(TestCase):
             ["user", "assistant", "tool", "user"],
         )
         self.assertEqual(
-            attributes["gen_ai.output.messages"][0]["parts"][0]["content"],
-            "agent response",
+            [message["parts"][0]["content"] for message in attributes["gen_ai.output.messages"]],
+            ["agent response", "choice response"],
         )
         self.assertEqual(attributes["gen_ai.tool.definitions"][0]["name"], "add")
         self.assertEqual(
@@ -488,7 +513,7 @@ class AdapterTests(TestCase):
                     },
                 ]
             spans.append(span)
-        converted = adapt_spans(spans)
+        converted = adapt_spans(spans, "galileo")
         operations = {step["span_name"]: step["attributes"]["gen_ai.operation.name"] for step in converted}
         self.assertEqual(
             operations,
@@ -501,9 +526,11 @@ class AdapterTests(TestCase):
         llm = next(step for step in converted if step["attributes"]["gen_ai.operation.name"] == "chat")
         self.assertEqual(llm["attributes"]["gen_ai.usage.cache_read.input_tokens"], 3)
         self.assertEqual(llm["attributes"]["gen_ai.usage.cache_creation.input_tokens"], 2)
-        # 第一版明确丢弃 gen_ai.choice，不从它生成 output/finish_reason。
-        self.assertNotIn("gen_ai.output.messages", llm["attributes"])
-        self.assertNotIn("gen_ai.response.finish_reasons", llm["attributes"])
+        output = llm["attributes"]["gen_ai.output.messages"][0]
+        self.assertEqual(output["role"], "assistant")
+        self.assertEqual(output["parts"], [{"type": "text", "content": "hi"}])
+        self.assertEqual(output["finish_reason"], "stop")
+        self.assertEqual(llm["attributes"]["gen_ai.response.finish_reasons"], ["stop"])
 
     def test_galileo_drops_stream_ttft_and_cached_alias(self) -> None:
         span = agentlens_span()
@@ -517,7 +544,7 @@ class AdapterTests(TestCase):
             "gen_ai.usage.reasoning_tokens": 3,
         }
 
-        attributes = adapt_spans([span])[0]["attributes"]
+        attributes = adapt_spans([span], "galileo")[0]["attributes"]
 
         self.assertNotIn("gen_ai.request.stream", attributes)
         self.assertNotIn("gen_ai.response.time_to_first_chunk", attributes)
@@ -533,13 +560,13 @@ class AdapterTests(TestCase):
             "gen_ai.request.model": "requested-model",
         }
 
-        attributes = adapt_spans([span])[0]["attributes"]
+        attributes = adapt_spans([span], "galileo")[0]["attributes"]
 
         self.assertEqual(attributes["gen_ai.request.model"], "requested-model")
         self.assertNotIn("gen_ai.response.model", attributes)
 
         span["attributes"]["gen_ai.response.model"] = "actual-model"
-        attributes = adapt_spans([span])[0]["attributes"]
+        attributes = adapt_spans([span], "galileo")[0]["attributes"]
         self.assertEqual(attributes["gen_ai.response.model"], "actual-model")
 
     def test_trace_does_not_copy_agent_context_between_spans(self) -> None:
@@ -563,7 +590,7 @@ class AdapterTests(TestCase):
             "gen_ai.tool.name": "add",
         }
 
-        spans = {span["span_id"]: span for span in adapt_spans([parent, chat, tool])}
+        spans = {span["span_id"]: span for span in adapt_spans([parent, chat, tool], "galileo")}
 
         self.assertNotIn("gen_ai.conversation.id", spans[chat["span_id"]]["attributes"])
         self.assertNotIn("user.id", spans[chat["span_id"]]["attributes"])
@@ -599,7 +626,7 @@ class AdapterTests(TestCase):
             "gen_ai.tool.name": "add",
         }
 
-        converted = adapt_spans([llm, tool])
+        converted = adapt_spans([llm, tool], "default")
         converted_tool = next(span for span in converted if span["span_id"] == tool["span_id"])
 
         self.assertNotIn("gen_ai.tool.call.id", converted_tool["attributes"])
@@ -632,7 +659,7 @@ class AdapterTests(TestCase):
             ],
         }
 
-        attributes = adapt_spans([span])[0]["attributes"]
+        attributes = adapt_spans([span], "default")[0]["attributes"]
         parts = attributes["gen_ai.output.messages"][0]["parts"]
 
         self.assertEqual(parts, [{"type": "tool_call", "id": "canonical-call", "name": "canonical", "arguments": {}}])
@@ -679,9 +706,14 @@ class AdapterTests(TestCase):
             }
         ]
 
-        for source in (default, agentlens, bkaidev, galileo):
+        for product, source in (
+            ("default", default),
+            ("agentlens", agentlens),
+            ("aidev", bkaidev),
+            ("galileo", galileo),
+        ):
             with self.subTest(span_name=source["span_name"]):
-                attributes = adapt_spans([source])[0]["attributes"]
+                attributes = adapt_spans([source], product)[0]["attributes"]
                 self.assertEqual(attributes["gen_ai.system_instructions"], standard)
 
     def test_bkaidev_llm_spans_are_not_deduplicated(self) -> None:
@@ -716,7 +748,7 @@ class AdapterTests(TestCase):
             "span_name": "model.task",
             "attributes": {"traceloop.span.kind": "TASK"},
         }
-        spans = adapt_spans([business, traceloop, wrapper])
+        spans = adapt_spans([business, traceloop, wrapper], "aidev")
         self.assertEqual(len(spans), 2)
         self.assertEqual(
             {span["span_id"] for span in spans},
@@ -758,7 +790,7 @@ class AdapterTests(TestCase):
             },
         }
 
-        spans = adapt_spans([workflow, workflow_wrapper, tool, tool_wrapper])
+        spans = adapt_spans([workflow, workflow_wrapper, tool, tool_wrapper], "aidev")
 
         self.assertEqual(len(spans), 3)
         self.assertEqual(
@@ -778,7 +810,7 @@ class AdapterTests(TestCase):
             "agent.status": "completed",
         }
 
-        spans = adapt_spans([span])
+        spans = adapt_spans([span], "aidev")
 
         self.assertEqual(len(spans), 1)
         agent = spans[0]
@@ -832,7 +864,7 @@ class AdapterTests(TestCase):
             ),
         }
 
-        spans = adapt_spans([span])
+        spans = adapt_spans([span], "aidev")
         step = spans[0]
         inputs = step["attributes"]["gen_ai.input.messages"]
         output = step["attributes"]["gen_ai.output.messages"][0]

@@ -62,8 +62,8 @@
           :rules="rules.collector_config_name"
         >
           <bk-input
-            class="w520"
             v-model="formData.collector_config_name"
+            class="w520"
             data-test-id="baseMessage_input_fillName"
             maxlength="50"
             show-word-limit
@@ -81,8 +81,8 @@
           <div class="en-name-box">
             <div>
               <bk-input
-                class="w520"
                 v-model="formData.collector_config_name_en"
+                class="w520"
                 :disabled="isUpdate && !!formData.collector_config_name_en"
                 :placeholder="$t('支持数字、字母、下划线，长短5～50字符')"
                 data-test-id="baseMessage_input_fillEnglishName"
@@ -113,8 +113,8 @@
         </bk-form-item>
         <bk-form-item :label="$t('备注说明')">
           <bk-input
-            class="w520"
             v-model="formData.description"
+            class="w520"
             data-test-id="baseMessage_input_fillDetails"
             maxlength="100"
             type="textarea"
@@ -128,8 +128,8 @@
         <div class="add-collection-title original-title">
           <span>{{ $t('源日志信息') }}</span>
           <div
-            class="flex-ac"
             v-show="!isPhysicsEnvironment"
+            class="flex-ac"
           >
             <span>{{ $t('Yaml模式') }}</span>
             <div
@@ -137,8 +137,8 @@
               :disabled="!!formData.bcs_cluster_id"
             >
               <bk-switcher
-                class="ml10"
                 v-model="isYaml"
+                class="ml10"
                 :disabled="!formData.bcs_cluster_id"
                 :pre-check="handelChangeYaml"
                 theme="primary"
@@ -165,19 +165,19 @@
           <div class="environment-box">
             <div
               v-for="(fItem, fIndex) of environmentList"
-              class="environment-container"
               :key="fIndex"
+              class="environment-container"
             >
               <span class="environment-category">{{ fItem.category }}</span>
               <div class="button-box">
                 <div
                   v-for="(sItem, index) of fItem.btnList"
+                  :key="index"
                   :class="{
                     'environment-button': true,
                     active: sItem.id === currentEnvironment,
                     disable: sItem.isDisable,
                   }"
-                  :key="index"
                   @click="handleSelectEnvironment(sItem.id, sItem.isDisable)"
                 >
                   <img :src="sItem.img" />
@@ -195,8 +195,8 @@
           required
         >
           <bk-select
-            style="width: 320px"
             v-model="formData.category_id"
+            style="width: 320px"
             :disabled="isUpdate"
             data-test-id="sourceLogBox_div_selectDataClassification"
             @selected="chooseDataClass"
@@ -258,13 +258,13 @@
           <div class="bk-button-group log-type">
             <bk-button
               v-for="(item, index) in getCollectorScenario"
+              :key="index"
               :class="{
                 disable: !item.is_active,
                 'is-selected': item.id === formData.collector_scenario_id,
               }"
               :data-test-id="`sourceLogBox_button_checkoutType${item.id}`"
               :disabled="isUpdate && isUpdateAndSelectedWinEvent && isWinEventLog"
-              :key="index"
               @click="chooseLogType(item)"
               >{{ item.name }}
             </bk-button>
@@ -279,11 +279,11 @@
           <div class="bk-button-group log-type">
             <bk-button
               v-for="(item, index) in getCollectorScenario"
+              :key="index"
               :class="{
                 'is-selected': item.id === formData.collector_scenario_id,
               }"
               :data-test-id="`sourceLogBox_buttom_checkoutType${item.id}`"
-              :key="index"
               @click="chooseLogType(item)"
               >{{ item.name }}
             </bk-button>
@@ -332,8 +332,8 @@
           <template v-if="formData.category_id">
             <!-- 目标选择器 -->
             <log-ip-selector
-              :height="670"
               :key="bkBizId"
+              :height="670"
               :original-value="ipSelectorOriginalValue"
               :show-dialog.sync="showIpSelectorDialog"
               :show-view-diff="isUpdate"
@@ -407,8 +407,8 @@
             <bk-form-item :label="$t('附加日志标签')">
               <div
                 v-for="(item, index) in formData.extra_labels"
-                class="add-log-label form-div"
                 :key="index"
+                class="add-log-label form-div"
               >
                 <bk-input
                   v-model.trim="item.key"
@@ -438,14 +438,14 @@
                 </div>
               </div>
               <bk-checkbox
-                class="mt8"
                 v-model="formData.add_pod_label"
+                class="mt8"
               >
                 {{ $t('自动添加Pod中的{n}', { n: 'label' }) }}
               </bk-checkbox>
               <bk-checkbox
-                class="mt8 ml10"
                 v-model="formData.add_pod_annotation"
+                class="mt8 ml10"
               >
                 {{ $t('自动添加Pod中的{n}', { n: 'annotation' }) }}
               </bk-checkbox>
@@ -464,8 +464,8 @@
           required
         >
           <bk-select
-            class="w520"
             v-model="formData.data_link_id"
+            class="w520"
             :clearable="false"
             :disabled="isUpdate"
             data-test-id="acquisitionConfig_div_selectReportLink"
@@ -560,7 +560,10 @@
       return {
         guideUrl: window.COLLECTOR_GUIDE_URL,
         colorRules: false,
-        isItsm: isFeatureToggleOn('collect_itsm', [String(this.$store.state.bkBizId), String(this.$store.state.spaceUid)]),
+        isItsm: isFeatureToggleOn('collect_itsm', [
+          String(this.$store.state.bkBizId),
+          String(this.$store.state.spaceUid),
+        ]),
         showRegDialog: false, // 显示段日志调试弹窗
         linkConfigurationList: [], // 链路配置列表
         formData: {
@@ -788,7 +791,14 @@
         isExtraError: false, // 附加标签是否有出错
         uiconfigToYamlData: {}, // 切换成yaml时当前保存的ui配置
         // ip选择器面板
-        ipSelectorPanelList: ['staticTopo', 'dynamicTopo', 'dynamicGroup', 'serviceTemplate', 'setTemplate', 'manualInput'],
+        ipSelectorPanelList: [
+          'staticTopo',
+          'dynamicTopo',
+          'dynamicGroup',
+          'serviceTemplate',
+          'setTemplate',
+          'manualInput',
+        ],
         // 编辑态ip选择器初始值
         ipSelectorOriginalValue: null,
         enLabelWidth: 180,
@@ -849,7 +859,7 @@
           const winIndex = activeScenario.findIndex(item => item.id === 'wineventlog');
           activeScenario.splice(winIndex, 1);
           return activeScenario;
-        } catch (error) {
+        } catch {
           return [];
         }
       },
@@ -867,7 +877,7 @@
       updateCollectorConfigID() {
         // 若是新增容器日志 返回上一步 则使用curCollect缓存的collector_config_id更新;
         const { collectorId } = this.$route.params;
-        return !!collectorId ? Number(collectorId) : Number(this.curCollect.collector_config_id);
+        return collectorId ? Number(collectorId) : Number(this.curCollect.collector_config_id);
       },
       labelWidth() {
         return this.$store.state.isEnLanguage ? this.enLabelWidth : 115;
@@ -910,7 +920,7 @@
     },
     created() {
       this.isClone = this.$route.query?.type === 'clone';
-      this.$store.commit('updateState', { 'showRouterLeaveTip': false});
+      this.$store.commit('updateState', { showRouterLeaveTip: false });
       this.configBaseObj = structuredClone(this.formData.configs[0]); // 生成配置项的基础对象
       this.getLinkData();
       // 克隆与编辑均进行数据回填
@@ -1048,7 +1058,7 @@
               params.conditions.separator_filters = [{ fieldindex: '', word: '', op: '=', logic_op: 'and' }];
             }
           }
-          const containerExclude = !!containerNameExclude ? '!=' : '=';
+          const containerExclude = containerNameExclude ? '!=' : '=';
           const namespacesExclude = itemNamespacesExclude?.length ? '!=' : '=';
           const namespaceStr = this.getNameSpaceStr(namespaces);
           return {
@@ -1056,11 +1066,11 @@
             noQuestParams: {
               letterIndex: index, // 配置项字母下标
               scopeSelectShow: {
-                namespace: !Boolean(namespaces.length),
-                label: !Boolean(labelSelector.length),
+                namespace: !namespaces.length,
+                label: !labelSelector.length,
                 load: !(Boolean(container.workload_type) || Boolean(container.workload_name)),
-                containerName: !Boolean(containerNameList.length),
-                annotation: !Boolean(annotationSelector.length),
+                containerName: !containerNameList.length,
+                annotation: !annotationSelector.length,
               },
               namespaceStr,
               containerExclude,
@@ -1151,7 +1161,9 @@
         try {
           // 基础信息表格验证
           await this.$refs.validateForm.validate();
-        } catch (error) {}
+        } catch {
+          // 基础表单错误由组件展示，继续执行其他配置校验
+        }
         // win日志类型验证
         if (this.$refs.formConfigRef?.winCannotPass && this.isWinEventLog) return false;
         // 物理环境验证
@@ -1557,7 +1569,7 @@
             this.enNameErrorMessage = res.data.message;
             return res.data.allowed;
           }
-        } catch (error) {
+        } catch {
           return false;
         }
       },
@@ -1652,7 +1664,7 @@
                 Object.assign(this.formData, assignData);
               }
               resolve(true);
-            } catch (error) {
+            } catch {
               resolve(false);
             }
           }
@@ -1769,7 +1781,7 @@
           collector_config_name_en,
           description,
         };
-        let collectConfig = {};
+        const collectConfig = {};
         this.initFromData(collect);
         if (everyExport.every(item => syncType.includes(item))) {
           if (!this.isPhysicsEnvironment) {

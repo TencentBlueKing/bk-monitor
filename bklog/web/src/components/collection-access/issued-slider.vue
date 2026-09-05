@@ -42,8 +42,8 @@
         <!-- 当采集下发 -->
         <div
           v-if="!isFinishStep"
-          class="step-issued-wrapper"
           v-bkloading="{ isLoading: loading | (hasRunning && !tableList.length) }"
+          class="step-issued-wrapper"
           data-test-id="addNewCollectionItem_div_collectionDistribution"
         >
           <!-- 容器日志显示状态页信息 -->
@@ -94,8 +94,8 @@
                 <div class="nav-btn-box">
                   <div
                     v-for="tabItem in tabList"
-                    :class="`nav-btn ${tabItem.type === curTab ? 'active' : ''}`"
                     :key="tabItem.type"
+                    :class="`nav-btn ${tabItem.type === curTab ? 'active' : ''}`"
                     href="javascript:void(0);"
                     @click="tabHandler(tabItem)"
                   >
@@ -137,10 +137,10 @@
                   <template v-for="cluster in tableList">
                     <right-panel
                       v-if="cluster.child.length"
+                      :key="cluster.id"
                       :class="['cluster-menu', { 'has-title-sign': cluster.is_label && isEdit }]"
                       :collapse.sync="cluster.collapse"
                       :collapse-color="'#313238'"
-                      :key="cluster.id"
                       :need-border="true"
                       :title="getRightPanelTitle(cluster)"
                       :title-bg-color="'#F0F1F5'"
@@ -163,18 +163,19 @@
                       <template #title>
                         <div class="header-info">
                           <div class="header-title fl">{{ cluster.node_path }}</div>
-                          <!-- eslint-disable-next-line vue/no-v-html -->
+                          <!-- eslint-disable vue/no-v-html -- Generated status markup is sanitized by DOMPurify via $xss. -->
                           <p
                             class="fl"
                             v-html="$xss(collaspseHeadInfo(cluster))"
                           ></p>
+                          <!-- eslint-enable vue/no-v-html -->
                         </div>
                       </template>
                       <template #default>
                         <div class="cluster-table-wrapper">
                           <bk-table
-                            class="cluster-table"
                             v-bkloading="{ isLoading: loading }"
+                            class="cluster-table"
                             :cell-class-name="tableRowClassName"
                             :data="cluster.child"
                             :empty-text="$t('暂无内容')"
@@ -231,14 +232,14 @@
                   v-else
                   class="exception-wrap-item exception-part"
                   scene="part"
-                  style="margin-top: 240px;"
+                  style="margin-top: 240px"
                   type="empty"
                 >
                 </bk-exception>
                 <div
                   v-if="tableList.length"
-                  class="detail-wrap"
                   v-bkloading="{ isLoading: detail.loading }"
+                  class="detail-wrap"
                 >
                   <div class="detail-header">
                     <div class="detail-title">{{ $t('采集详情') }}</div>
@@ -251,10 +252,12 @@
                       {{ $t('刷新') }}
                     </bk-button>
                   </div>
+                  <!-- eslint-disable vue/no-v-html -- API log detail is sanitized by DOMPurify via $xss. -->
                   <div
                     class="detail-content"
                     v-html="$xss(detail.content)"
                   ></div>
+                  <!-- eslint-enable vue/no-v-html -->
                 </div>
               </div>
             </template>
@@ -491,7 +494,7 @@
       },
       prevHandler() {
         if (this.operateType === 'add') {
-          this.$store.commit('updateState', {'showRouterLeaveTip': true});
+          this.$store.commit('updateState', { showRouterLeaveTip: true });
           this.$router.replace({
             name: 'collectEdit',
             params: {

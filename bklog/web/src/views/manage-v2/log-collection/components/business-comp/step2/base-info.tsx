@@ -153,7 +153,7 @@ export default defineComponent({
           enNameErrorMessage.value = res.data.message;
           return res.data.allowed;
         }
-      } catch (error) {
+      } catch {
         return false;
       }
     };
@@ -469,9 +469,11 @@ export default defineComponent({
       );
     };
 
-    return () => <div class='base-info'>
-      <div class='base-info-box'>{renderBaseInfo()}</div>
-      <div class='help-panel-box'>{renderHelpPanel()}</div>
-    </div>;
+    return () => (
+      <div class='base-info'>
+        <div class='base-info-box'>{renderBaseInfo()}</div>
+        <div class='help-panel-box'>{renderHelpPanel()}</div>
+      </div>
+    );
   },
 });

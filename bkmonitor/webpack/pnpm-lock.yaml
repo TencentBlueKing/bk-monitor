@@ -23,6 +23,7 @@ overrides:
   serialize-javascript: '>=7.0.3'
   path-to-regexp: '>=0.1.13'
   lodash: '>=4.18.0'
+  dayjs: 1.11.18
 
 importers:
 
@@ -182,8 +183,8 @@ importers:
         specifier: 2.5.10-beta.18
         version: 2.5.10-beta.18(vue@2.7.16)
       dayjs:
-        specifier: ^1.11.18
-        version: 1.11.20
+        specifier: 1.11.18
+        version: 1.11.18
       deepmerge:
         specifier: ^4.3.1
         version: 4.3.1
@@ -261,8 +262,8 @@ importers:
         specifier: 2.5.10-beta.18
         version: 2.5.10-beta.18(vue@2.7.16)
       dayjs:
-        specifier: ^1.11.18
-        version: 1.11.20
+        specifier: 1.11.18
+        version: 1.11.18
       deepmerge:
         specifier: ^4.3.1
         version: 4.3.1
@@ -340,8 +341,8 @@ importers:
         specifier: ^0.0.2
         version: 0.0.2
       dayjs:
-        specifier: ^1.11.18
-        version: 1.11.20
+        specifier: 1.11.18
+        version: 1.11.18
       deepmerge:
         specifier: ^4.3.1
         version: 4.3.1
@@ -390,7 +391,7 @@ importers:
     dependencies:
       '@blueking/ai-blueking':
         specifier: 1.3.0-beta.7
-        version: 1.3.0-beta.7(dayjs@1.11.20)(markdown-it@14.1.1)(supports-color@5.5.0)(vue-router@3.6.5(vue@2.7.16))(vue@2.7.16)
+        version: 1.3.0-beta.7(dayjs@1.11.18)(markdown-it@14.1.1)(supports-color@5.5.0)(vue-router@3.6.5(vue@2.7.16))(vue@2.7.16)
       '@blueking/bk-user-display-name':
         specifier: 1.0.3-beta.5
         version: 1.0.3-beta.5
@@ -405,7 +406,7 @@ importers:
         version: 0.0.0-beta.4
       '@blueking/date-picker':
         specifier: 4.0.0-beta.7
-        version: 4.0.0-beta.7(@blueking/bkui-library@0.0.0-beta.4)(dayjs@1.11.20)(vue@2.7.16)
+        version: 4.0.0-beta.7(@blueking/bkui-library@0.0.0-beta.4)(dayjs@1.11.18)(vue@2.7.16)
       '@blueking/fork-resize-detector':
         specifier: ^0.0.2
         version: 0.0.2
@@ -446,8 +447,8 @@ importers:
         specifier: 2.5.10-beta.18
         version: 2.5.10-beta.18(vue@2.7.16)
       dayjs:
-        specifier: ^1.11.18
-        version: 1.11.20
+        specifier: 1.11.18
+        version: 1.11.18
       deepmerge:
         specifier: ^4.3.1
         version: 4.3.1
@@ -543,8 +544,8 @@ importers:
         specifier: ^0.0.2
         version: 0.0.2
       '@blueking/monitor-apm-log':
-        specifier: 2.3.31
-        version: 2.3.31
+        specifier: 2.3.33
+        version: 2.3.33
       '@blueking/monitor-resource-topo':
         specifier: 0.0.1-beta.36
         version: 0.0.1-beta.36(@blueking/bkui-library@0.0.0-beta.6)(vue@2.7.16)
@@ -594,8 +595,8 @@ importers:
         specifier: ^3.0.1
         version: 3.0.1(d3-selection@3.0.0)
       dayjs:
-        specifier: ^1.11.18
-        version: 1.11.20
+        specifier: 1.11.18
+        version: 1.11.18
       deepmerge:
         specifier: ^4.3.1
         version: 4.3.1
@@ -659,7 +660,7 @@ importers:
         version: 0.1.8(highlight.js@11.11.1)(vue@3.5.30(typescript@5.9.3))
       '@blueking/date-picker':
         specifier: 4.0.0-beta.7
-        version: 4.0.0-beta.7(@blueking/bkui-library@0.0.0-beta.6)(bkui-vue@2.0.2-beta.97(highlight.js@11.11.1)(vue@3.5.30(typescript@5.9.3)))(dayjs@1.11.20)(vue@3.5.30(typescript@5.9.3))
+        version: 4.0.0-beta.7(@blueking/bkui-library@0.0.0-beta.6)(bkui-vue@2.0.2-beta.97(highlight.js@11.11.1)(vue@3.5.30(typescript@5.9.3)))(dayjs@1.11.18)(vue@3.5.30(typescript@5.9.3))
       '@blueking/fork-resize-detector':
         specifier: ^0.0.2
         version: 0.0.2
@@ -754,8 +755,8 @@ importers:
         specifier: ^3.0.1
         version: 3.0.1(d3-selection@3.0.0)
       dayjs:
-        specifier: ^1.11.18
-        version: 1.11.20
+        specifier: 1.11.18
+        version: 1.11.18
       deep-freeze:
         specifier: ^0.0.1
         version: 0.0.1
@@ -1566,14 +1567,14 @@ packages:
   '@blueking/ai-blueking@1.3.0-beta.7':
     resolution: {integrity: sha512-03td/Zd8ax4LXi72R1iqVn8Sz92bXZUqSnt1Ixa4UDFADT5hZ7M3Ksl1F8Rj2nqYnGZ2c9gIWsxwX6gbviCJ+A==}
     peerDependencies:
-      dayjs: ^1.10.7
+      dayjs: 1.11.18
       markdown-it: ^13.0.1
 
   '@blueking/ai-ui-sdk@0.1.18-beta.25':
     resolution: {integrity: sha512-1B4Vq+N634rQXq07i0UV6PiuEY0OA1OM2o3/8JFGWoAd2U/pL3tARQYlWZap/4Dm3aWwte7IrPeq6faZsq6LIg==}
     peerDependencies:
       bkui-vue: '*'
-      dayjs: ^1.11.13
+      dayjs: 1.11.18
       vue: ^3.5.13
       vue-router: ^4.5.1
       x-mavon-editor: 0.0.20
@@ -1617,7 +1618,7 @@ packages:
     peerDependencies:
       '@blueking/bkui-library': ^0.0.0-beta.4
       bkui-vue: ^2.0.1
-      dayjs: ^1.11.10
+      dayjs: 1.11.18
       vue: ^3
 
   '@blueking/fork-resize-detector@0.0.2':
@@ -1653,8 +1654,8 @@ packages:
   '@blueking/monitor-alarm-center@0.0.14':
     resolution: {integrity: sha512-vCH+Iu9S6lOhvsByPotMpSxcRQo6jaTRVeQgNiB93io28vtr1mUUz+i2/KavvTdgDB9Tb93LW4k2emj+P46YHw==}
 
-  '@blueking/monitor-apm-log@2.3.31':
-    resolution: {integrity: sha512-q976G4evUr8SRnuCi7Zu9JJlXpwz11JVjQBKVjZ0mPqojNKVwBF44ts+OIHt6SU4OidYYFvzPV43yhvNZT2jDQ==}
+  '@blueking/monitor-apm-log@2.3.33':
+    resolution: {integrity: sha512-Jq31CCGLMocyagofNwNCfq3cXmSADB09g9k4kPowOs2UMBpaycWkUEBSNyPU23E1WnjKlQKI88D6i/FqSIInHA==}
 
   '@blueking/monitor-resource-topo@0.0.1-beta.36':
     resolution: {integrity: sha512-Bfe2w5AnFKX35zuu9Y0f4B6e4nkEjRRFvnvXfi5xxfzNkSmhjk4plWh+iOgxUJF6BA3qyCkhSCszjjzLUeheFw==}
@@ -3539,20 +3540,20 @@ packages:
   '@vue/reactivity@3.5.30':
     resolution: {integrity: sha512-179YNgKATuwj9gB+66snskRDOitDiuOZqkYia7mHKJaidOMo/WJxHKF8DuGc4V4XbYTJANlfEKb0yxTQotnx4Q==}
 
-  '@vue/reactivity@3.5.41':
-    resolution: {integrity: sha512-rznsqKM0np0x18EjzF8x88MpEhdNsffbvFbckLL5+oUKz1BxAImEmO7J1ArRYSyo6aQaVoBDp7jEkT91OOxydA==}
+  '@vue/reactivity@3.5.42':
+    resolution: {integrity: sha512-TzNNfKpb7hDxbQltwAut8VDQA5YP+BuRlxntHUuRjyKwlMvmAPbs3unhCvieijifY6vFfVBwsS7wG/C7uq+bEQ==}
 
   '@vue/runtime-core@3.5.30':
     resolution: {integrity: sha512-e0Z+8PQsUTdwV8TtEsLzUM7SzC7lQwYKePydb7K2ZnmS6jjND+WJXkmmfh/swYzRyfP1EY3fpdesyYoymCzYfg==}
 
-  '@vue/runtime-core@3.5.41':
-    resolution: {integrity: sha512-Vcry58hiAKwGen9Z1jUZE0feFsNArPCMOImYI8el48A9Idf6DuQYD0U05zZIF2Iad1hGhPSvcbBbAOhNr55fhg==}
+  '@vue/runtime-core@3.5.42':
+    resolution: {integrity: sha512-9uACtuHs7vJGkm5Bp3xu4xRDLFTIYy5DgxpToVjqGIAhAEKwQfsaLvKINhM6nFVp6bZPRFGdDqd1g52MqKsotA==}
 
   '@vue/runtime-dom@3.5.30':
     resolution: {integrity: sha512-2UIGakjU4WSQ0T4iwDEW0W7vQj6n7AFn7taqZ9Cvm0Q/RA2FFOziLESrDL4GmtI1wV3jXg5nMoJSYO66egDUBw==}
 
-  '@vue/runtime-dom@3.5.41':
-    resolution: {integrity: sha512-3vVBahVBS9+U6cmXBLyb8nE6/yYo4J/CGI9eVFs3KiMc0YHuudwKyShTD65jtJy/L9PUUxNAFu4cj4LiJ0UFbw==}
+  '@vue/runtime-dom@3.5.42':
+    resolution: {integrity: sha512-rsCmhiWLaRxGltLwhlCWyYkFn7WAbKRh0q17eZ1A6Dq6eqc2ACQ61IIryxz0LrsvCzHSilLA9JHovVwM8CNE2g==}
 
   '@vue/server-renderer@3.5.30':
     resolution: {integrity: sha512-v+R34icapydRwbZRD0sXwtHqrQJv38JuMB4JxbOxd8NEpGLny7cncMp53W9UH/zo4j8eDHjQ1dEJXwzFQknjtQ==}
@@ -3562,8 +3563,8 @@ packages:
   '@vue/shared@3.5.30':
     resolution: {integrity: sha512-YXgQ7JjaO18NeK2K9VTbDHaFy62WrObMa6XERNfNOkAhD1F1oDSf3ZJ7K6GqabZ0BvSDHajp8qfS5Sa2I9n8uQ==}
 
-  '@vue/shared@3.5.41':
-    resolution: {integrity: sha512-IOnwSCma8j+9xJT6b8H0dEYidC80NsYmNMlZxRsukYcSoGaDBohog5hDxzeUXdFeGWFA++vWvxqOmrr96VlqMA==}
+  '@vue/shared@3.5.42':
+    resolution: {integrity: sha512-2rPxex1jQf4jvl9MOHl6YaXCPcrNqz/FstMOEh3QWY+/OME9nQTvl9WYeCwhW7AFjaR0SnngZGlp/wkR6rkI6g==}
 
   '@vueuse/core@10.11.1':
     resolution: {integrity: sha512-guoy26JQktXPcz+0n3GukWIy/JDNKti9v6VEMu6kV2sYBsWuGiTU8OWdg+ADfUbHg3/3DlqySDe7JmdHrktiww==}
@@ -4833,11 +4834,8 @@ packages:
     resolution: {integrity: sha512-fnULvOpxnC5/Vg3NCiWelDsLiUc9bRwAPs/+LfTLNvetFCtCTN+yQz15C/fs4AwX1R9K5GLtLfn8QW+dWisaAw==}
     engines: {node: '>=0.11'}
 
-  dayjs@1.11.10:
-    resolution: {integrity: sha512-vjAczensTgRcqDERK0SR2XMwsF/tSvnvlv6VcF2GIhg6Sx4yOIt/irsr1RDJsKiIyBzJDpCoXiWWq28MqH2cnQ==}
-
-  dayjs@1.11.20:
-    resolution: {integrity: sha512-YbwwqR/uYpeoP4pu043q+LTDLFBLApUP6VxRihdfNTqu4ubqMlGDLd6ErXhEgsyvY0K6nCs7nggYumAN+9uEuQ==}
+  dayjs@1.11.18:
+    resolution: {integrity: sha512-zFBQ7WFRvVRhKcWoUh+ZA1g2HVgUbsZm9sbddh8EC5iv93sui8DVVz1Npvz+r6meo9VKfa8NyLWBsQK1VvIKPA==}
 
   debounce@1.2.1:
     resolution: {integrity: sha512-XRRe6Glud4rd/ZGQfiV1ruXSfbvfJedlV9Y6zOlP+2K04vBYiJEte6stfFkCP03aMnY5tsipamumUjL14fofug==}
@@ -10533,11 +10531,11 @@ snapshots:
   '@biomejs/cli-win32-x64@2.4.15':
     optional: true
 
-  '@blueking/ai-blueking@1.3.0-beta.7(dayjs@1.11.20)(markdown-it@14.1.1)(supports-color@5.5.0)(vue-router@3.6.5(vue@2.7.16))(vue@2.7.16)':
+  '@blueking/ai-blueking@1.3.0-beta.7(dayjs@1.11.18)(markdown-it@14.1.1)(supports-color@5.5.0)(vue-router@3.6.5(vue@2.7.16))(vue@2.7.16)':
     dependencies:
-      '@blueking/ai-ui-sdk': 0.1.18-beta.25(dayjs@1.11.20)(vue-router@3.6.5(vue@2.7.16))(vue@2.7.16)(x-mavon-editor@0.0.20)
+      '@blueking/ai-ui-sdk': 0.1.18-beta.25(dayjs@1.11.18)(vue-router@3.6.5(vue@2.7.16))(vue@2.7.16)(x-mavon-editor@0.0.20)
       '@blueking/bkui-library': 0.0.0-beta.6
-      dayjs: 1.11.20
+      dayjs: 1.11.18
       dompurify: 3.4.2
       highlight.js: 11.11.1
       markdown-it: 14.1.1
@@ -10557,9 +10555,9 @@ snapshots:
       - vue
       - vue-router
 
-  '@blueking/ai-ui-sdk@0.1.18-beta.25(dayjs@1.11.20)(vue-router@3.6.5(vue@2.7.16))(vue@2.7.16)(x-mavon-editor@0.0.20)':
+  '@blueking/ai-ui-sdk@0.1.18-beta.25(dayjs@1.11.18)(vue-router@3.6.5(vue@2.7.16))(vue@2.7.16)(x-mavon-editor@0.0.20)':
     dependencies:
-      dayjs: 1.11.20
+      dayjs: 1.11.18
       vue: 2.7.16
       vue-router: 3.6.5(vue@2.7.16)
       x-mavon-editor: 0.0.20
@@ -10743,24 +10741,24 @@ snapshots:
 
   '@blueking/bkui-library@0.0.0-beta.4':
     dependencies:
-      '@vue/runtime-dom': 3.5.41
+      '@vue/runtime-dom': 3.5.42
 
   '@blueking/bkui-library@0.0.0-beta.6':
     dependencies:
       '@vue/runtime-dom': 3.5.30
 
-  '@blueking/date-picker@4.0.0-beta.7(@blueking/bkui-library@0.0.0-beta.4)(dayjs@1.11.20)(vue@2.7.16)':
+  '@blueking/date-picker@4.0.0-beta.7(@blueking/bkui-library@0.0.0-beta.4)(dayjs@1.11.18)(vue@2.7.16)':
     dependencies:
       '@blueking/bkui-library': 0.0.0-beta.4
-      dayjs: 1.11.20
+      dayjs: 1.11.18
       vue: 2.7.16
       vue-tippy: 6.7.1(vue@2.7.16)
 
-  '@blueking/date-picker@4.0.0-beta.7(@blueking/bkui-library@0.0.0-beta.6)(bkui-vue@2.0.2-beta.97(highlight.js@11.11.1)(vue@3.5.30(typescript@5.9.3)))(dayjs@1.11.20)(vue@3.5.30(typescript@5.9.3))':
+  '@blueking/date-picker@4.0.0-beta.7(@blueking/bkui-library@0.0.0-beta.6)(bkui-vue@2.0.2-beta.97(highlight.js@11.11.1)(vue@3.5.30(typescript@5.9.3)))(dayjs@1.11.18)(vue@3.5.30(typescript@5.9.3))':
     dependencies:
       '@blueking/bkui-library': 0.0.0-beta.6
       bkui-vue: 2.0.2-beta.97(highlight.js@11.11.1)(vue@3.5.30(typescript@5.9.3))
-      dayjs: 1.11.20
+      dayjs: 1.11.18
       vue: 3.5.30(typescript@5.9.3)
       vue-tippy: 6.7.1(vue@3.5.30(typescript@5.9.3))
 
@@ -10819,7 +10817,7 @@ snapshots:
       '@blueking/tdesign-ui': 0.0.1(vue@3.5.30(typescript@5.9.3))
       '@prometheus-io/lezer-promql': 0.305.0(@lezer/highlight@1.2.3)(@lezer/lr@1.4.10)
       bkui-vue: 2.0.2-beta.97(highlight.js@11.11.1)(vue@3.5.30(typescript@5.9.3))
-      dayjs: 1.11.20
+      dayjs: 1.11.18
       monaco-editor: 0.44.0
       vue: 3.5.30(typescript@5.9.3)
       vue-tippy: 6.7.1(vue@3.5.30(typescript@5.9.3))
@@ -10829,7 +10827,7 @@ snapshots:
       - highlight.js
       - typescript
 
-  '@blueking/monitor-apm-log@2.3.31': {}
+  '@blueking/monitor-apm-log@2.3.33': {}
 
   '@blueking/monitor-resource-topo@0.0.1-beta.36(@blueking/bkui-library@0.0.0-beta.6)(vue@2.7.16)':
     dependencies:
@@ -10840,7 +10838,7 @@ snapshots:
     dependencies:
       '@blueking/tdesign-ui': 0.0.1(vue@3.5.30(typescript@5.9.3))
       bkui-vue: 2.0.2-beta.97(highlight.js@11.11.1)(vue@3.5.30(typescript@5.9.3))
-      dayjs: 1.11.20
+      dayjs: 1.11.18
       vue: 3.5.30(typescript@5.9.3)
       vue-tippy: 6.7.1(vue@3.5.30(typescript@5.9.3))
     transitivePeerDependencies:
@@ -10853,7 +10851,7 @@ snapshots:
     dependencies:
       '@babel/runtime': 7.29.2
       core-js: 3.49.0
-      dayjs: 1.11.20
+      dayjs: 1.11.18
 
   '@blueking/notice-component-vue2@2.0.7(dompurify@3.4.2)':
     dependencies:
@@ -10908,7 +10906,7 @@ snapshots:
       '@types/sortablejs': 1.15.9
       '@types/tinycolor2': 1.4.6
       '@types/validator': 13.15.10
-      dayjs: 1.11.10
+      dayjs: 1.11.18
       lodash-es: 4.18.1
       mitt: 3.0.1
       sortablejs: 1.15.7
@@ -10926,7 +10924,7 @@ snapshots:
       '@types/sortablejs': 1.15.9
       '@types/tinycolor2': 1.4.6
       '@types/validator': 13.15.10
-      dayjs: 1.11.10
+      dayjs: 1.11.18
       lodash-es: 4.18.1
       mitt: 3.0.1
       sortablejs: 1.15.7
@@ -12967,19 +12965,19 @@ snapshots:
     dependencies:
       '@vue/shared': 3.5.30
 
-  '@vue/reactivity@3.5.41':
+  '@vue/reactivity@3.5.42':
     dependencies:
-      '@vue/shared': 3.5.41
+      '@vue/shared': 3.5.42
 
   '@vue/runtime-core@3.5.30':
     dependencies:
       '@vue/reactivity': 3.5.30
       '@vue/shared': 3.5.30
 
-  '@vue/runtime-core@3.5.41':
+  '@vue/runtime-core@3.5.42':
     dependencies:
-      '@vue/reactivity': 3.5.41
-      '@vue/shared': 3.5.41
+      '@vue/reactivity': 3.5.42
+      '@vue/shared': 3.5.42
 
   '@vue/runtime-dom@3.5.30':
     dependencies:
@@ -12988,11 +12986,11 @@ snapshots:
       '@vue/shared': 3.5.30
       csstype: 3.2.3
 
-  '@vue/runtime-dom@3.5.41':
+  '@vue/runtime-dom@3.5.42':
     dependencies:
-      '@vue/reactivity': 3.5.41
-      '@vue/runtime-core': 3.5.41
-      '@vue/shared': 3.5.41
+      '@vue/reactivity': 3.5.42
+      '@vue/runtime-core': 3.5.42
+      '@vue/shared': 3.5.42
       csstype: 3.2.3
 
   '@vue/server-renderer@3.5.30(vue@3.5.30(typescript@5.9.3))':
@@ -13003,7 +13001,7 @@ snapshots:
 
   '@vue/shared@3.5.30': {}
 
-  '@vue/shared@3.5.41': {}
+  '@vue/shared@3.5.42': {}
 
   '@vueuse/core@10.11.1(vue@2.7.16)':
     dependencies:
@@ -14286,9 +14284,7 @@ snapshots:
     dependencies:
       '@babel/runtime': 7.29.2
 
-  dayjs@1.11.10: {}
-
-  dayjs@1.11.20: {}
+  dayjs@1.11.18: {}
 
   debounce@1.2.1: {}
 
@@ -15144,7 +15140,7 @@ snapshots:
       cytoscape-fcose: 2.2.0(cytoscape@3.33.3)
       d3: 7.9.0
       dagre-d3-es: 7.0.10
-      dayjs: 1.11.20
+      dayjs: 1.11.18
       dompurify: 3.4.2
       elkjs: 0.8.2
       khroma: 2.1.0
@@ -16232,7 +16228,7 @@ snapshots:
       d3: 7.9.0
       d3-sankey: 0.12.3
       dagre-d3-es: 7.0.10
-      dayjs: 1.11.20
+      dayjs: 1.11.18
       dompurify: 3.4.2
       elkjs: 0.9.3
       katex: 0.16.45
@@ -17097,7 +17093,7 @@ snapshots:
     dependencies:
       urijs: 1.19.11
 
-  postcss-html@0.36.0(postcss-syntax@0.36.2(postcss-html@1.8.1)(postcss-scss@4.0.9(postcss@8.5.14))(postcss@8.5.14))(postcss@7.0.39):
+  postcss-html@0.36.0(postcss-syntax@0.36.2(postcss-html@1.8.1)(postcss-less@3.1.4)(postcss-scss@4.0.9(postcss@8.5.14))(postcss@8.5.14))(postcss@7.0.39):
     dependencies:
       htmlparser2: 3.10.1
       postcss: 7.0.39
@@ -18501,7 +18497,7 @@ snapshots:
       micromatch: 4.0.8
       normalize-selector: 0.2.0
       postcss: 7.0.39
-      postcss-html: 0.36.0(postcss-syntax@0.36.2(postcss-html@1.8.1)(postcss-scss@4.0.9(postcss@8.5.14))(postcss@8.5.14))(postcss@7.0.39)
+      postcss-html: 0.36.0(postcss-syntax@0.36.2(postcss-html@1.8.1)(postcss-less@3.1.4)(postcss-scss@4.0.9(postcss@8.5.14))(postcss@8.5.14))(postcss@7.0.39)
       postcss-less: 3.1.4
       postcss-media-query-parser: 0.2.3
       postcss-resolve-nested-selector: 0.1.6
@@ -18749,7 +18745,7 @@ snapshots:
       '@types/sortablejs': 1.15.9
       '@types/tinycolor2': 1.4.6
       '@types/validator': 13.15.10
-      dayjs: 1.11.20
+      dayjs: 1.11.18
       lodash-es: 4.18.1
       mitt: 3.0.1
       sortablejs: 1.15.7
@@ -18768,7 +18764,7 @@ snapshots:
       '@types/tinycolor2': 1.4.6
       '@types/validator': 13.15.10
       clipboard: 2.0.11
-      dayjs: 1.11.10
+      dayjs: 1.11.18
       lodash-es: 4.18.1
       mitt: 3.0.1
       raf: 3.4.1

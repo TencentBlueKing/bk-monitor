@@ -55,8 +55,8 @@
           <div class="field-label">
             <span
               v-if="hiddenFieldsSet.has(field.field_name)"
-              class="field-eye-icon bklog-icon bklog-eye-slash"
               v-bk-tooltips="{ content: $t('展示') }"
+              class="field-eye-icon bklog-icon bklog-eye-slash"
               @click="
                 e => {
                   e.stopPropagation();
@@ -66,8 +66,8 @@
             ></span>
             <span
               v-else
-              class="field-eye-icon bklog-icon bklog-eye"
               v-bk-tooltips="{ content: $t('隐藏') }"
+              class="field-eye-icon bklog-icon bklog-eye"
               @click="
                 e => {
                   e.stopPropagation();
@@ -76,23 +76,30 @@
               "
             ></span>
             <span
-              class="field-copy-icon bklog-icon bklog-data-copy"
               v-bk-tooltips="{ content: $t('复制') }"
-              @click="e => { e.stopPropagation(); handleCopyFieldValue(field); }"
+              class="field-copy-icon bklog-icon bklog-data-copy"
+              @click="
+                e => {
+                  e.stopPropagation();
+                  handleCopyFieldValue(field);
+                }
+              "
             ></span>
             <span
+              v-bk-tooltips="fieldTypePopover(field.field_name)"
               :style="{
                 backgroundColor: getFieldIconColor(field.field_type),
                 color: getFieldIconTextColor(field.field_type),
               }"
               class="field-type-icon mr5"
-              v-bk-tooltips="fieldTypePopover(field.field_name)"
               :class="getFieldIcon(field.field_name)"
             ></span>
+            <!-- eslint-disable vue/no-v-html -- Raw field names are escaped before controlled highlight markup is added. -->
             <span
               class="field-text"
               v-html="getHighlightedFieldNameHtml(field)"
             ></span>
+            <!-- eslint-enable vue/no-v-html -->
           </div>
           <div class="field-value">
             <span
@@ -116,7 +123,7 @@
           class="load-more-btn"
           @click="handleLoadMore"
         >
-          <span class='bklog-icon bklog-more'></span>
+          <span class="bklog-icon bklog-more"></span>
           <span>{{ $t('点击加载更多') }}</span>
         </div>
       </template>
@@ -139,11 +146,12 @@
   import RetrieveHelper, { RetrieveEvent } from '@/views/retrieve-helper';
   import { buildHighlightHtml, pageHighlightState } from '@/views/retrieve-core/page-highlight';
 
-  const stripMarkTags = value => String(value)
-    .replace(/<mark>/gi, '')
-    .replace(/<\/mark>/gi, '');
+  const stripMarkTags = value =>
+    String(value)
+      .replace(/<mark>/gi, '')
+      .replace(/<\/mark>/gi, '');
 
-  const stripMarkFromCopyValue = (value) => {
+  const stripMarkFromCopyValue = value => {
     if (typeof value === 'string') return stripMarkTags(value);
     if (Array.isArray(value)) return value.map(item => stripMarkFromCopyValue(item));
     if (value && Object.prototype.toString.call(value) === '[object Object]') {
@@ -155,7 +163,7 @@
     return value;
   };
 
-  const stringifyCopyValue = (value) => {
+  const stringifyCopyValue = value => {
     if (value === null || value === undefined) return '';
     if (typeof value === 'string') return value;
     if (typeof value === 'bigint') return value.toString();
@@ -306,9 +314,7 @@
         return set;
       },
       fieldKeyMap() {
-        return this.totalFields
-          .filter(item => this.kvShowFieldsSet.has(item.field_name))
-          .map(el => el.field_name);
+        return this.totalFields.filter(item => this.kvShowFieldsSet.has(item.field_name)).map(el => el.field_name);
       },
 
       hiddenFields() {
@@ -357,19 +363,18 @@
         // 直接同步执行计算和渲染
         this.showFieldListCache = this.calcShowFieldList();
         this.renderList = this.showFieldListCache.slice(0, this.initialRenderCount);
-
-        } else {
-          // 字段数量 >= 100，使用异步处理，避免阻塞主线程
-          // 记录骨架屏开始显示的时间
-          this.skeletonStartTime = Date.now();
-          // 先渲染容器和骨架屏，然后异步执行计算
-          // 使用 nextTick 确保 Vue 完成首次渲染
-          this.$nextTick(() => {
+      } else {
+        // 字段数量 >= 100，使用异步处理，避免阻塞主线程
+        // 记录骨架屏开始显示的时间
+        this.skeletonStartTime = Date.now();
+        // 先渲染容器和骨架屏，然后异步执行计算
+        // 使用 nextTick 确保 Vue 完成首次渲染
+        this.$nextTick(() => {
           // 使用双重异步确保真正不阻塞主线程
           // 第一层：setTimeout 确保脱离当前执行栈
           setTimeout(() => {
             // 第二层：requestIdleCallback 在浏览器空闲时执行（如果支持）
-            const scheduleCalculation = (callback) => {
+            const scheduleCalculation = callback => {
               if (typeof requestIdleCallback !== 'undefined') {
                 // 优先使用 requestIdleCallback，在浏览器空闲时执行
                 requestIdleCallback(callback, { timeout: 50 });
@@ -403,11 +408,10 @@
     methods: {
       calcShowFieldList() {
         // 原 showFieldList 逻辑完整迁移为 method
-        const startTime = Date.now();
         const kvShowFieldsSet = this.kvShowFieldsSet;
         const emptyValues = ['--', '{}', '[]'];
         const totalFields = this.totalFields;
-        
+
         // 步骤1：快速过滤出候选字段
         const candidateFields = [];
         for (let i = 0; i < totalFields.length; i++) {
@@ -415,7 +419,7 @@
             candidateFields.push(totalFields[i]);
           }
         }
-        
+
         // 如果允许空字段，仍需隐藏可展开 Object 父字段，再按搜索关键字过滤
         if (this.isAllowEmptyField) {
           const filteredList = [];
@@ -432,30 +436,26 @@
           }
           return filteredList;
         }
-        
+
         // 步骤2：检查空值（需要调用 formatterStr）
         const list = [];
         const rowData = this.listData;
-        let skippedExpandableObject = 0;
-        let skippedEmpty = 0;
-        
         for (let i = 0; i < candidateFields.length; i++) {
           const item = candidateFields[i];
           const fieldName = item.field_name;
 
           // 可解析 Object 父字段直接隐藏，避免与子字段重复，也避免与空字段 -- 歧义
           if (this.isExpandableObjectField(fieldName)) {
-            skippedExpandableObject += 1;
             continue;
           }
-          
+
           // 性能优化：先快速检查字段是否为空，避免调用 formatterStr
           let shouldSkip = false;
-          
+
           if (fieldName.indexOf('.') === -1 && fieldName.indexOf('[') === -1) {
             // 简单字段：直接检查原始值
             const rawValue = rowData[fieldName];
-            
+
             // 快速检查：如果是明显的空值，直接跳过
             if (rawValue === null || rawValue === undefined || rawValue === '') {
               shouldSkip = true;
@@ -474,7 +474,7 @@
             if (firstDotIndex > 0) {
               const firstPart = fieldName.substring(0, firstDotIndex);
               const firstValue = rowData[firstPart];
-              
+
               // 如果第一层就是空值，直接跳过
               if (firstValue === null || firstValue === undefined || firstValue === '') {
                 shouldSkip = true;
@@ -505,14 +505,17 @@
                       }
                       // 如果成功访问到最终值，检查是否为空
                       if (shouldSkip === false && currentValue !== undefined) {
-                        if (currentValue === null || currentValue === '' || 
-                            (typeof currentValue === 'object' && 
-                             ((Array.isArray(currentValue) && currentValue.length === 0) ||
-                              (!Array.isArray(currentValue) && Object.keys(currentValue).length === 0)))) {
+                        if (
+                          currentValue === null ||
+                          currentValue === '' ||
+                          (typeof currentValue === 'object' &&
+                            ((Array.isArray(currentValue) && currentValue.length === 0) ||
+                              (!Array.isArray(currentValue) && Object.keys(currentValue).length === 0)))
+                        ) {
                           shouldSkip = true;
                         }
                       }
-                    } catch (e) {
+                    } catch {
                       // 访问失败，需要调用 formatterStr
                     }
                   }
@@ -520,12 +523,11 @@
               }
             }
           }
-          
+
           if (shouldSkip) {
-            skippedEmpty += 1;
             continue;
           }
-          
+
           // 使用缓存，避免重复计算
           let formattedValue;
           if (this.formattedValueCache.has(fieldName)) {
@@ -540,7 +542,7 @@
                 const pathParts = fieldName.split('.');
                 let currentValue = rowData;
                 let canAccess = true;
-                
+
                 for (let j = 0; j < pathParts.length && canAccess; j++) {
                   const part = pathParts[j];
                   if (currentValue === null || currentValue === undefined) {
@@ -573,36 +575,36 @@
                     break;
                   }
                 }
-                
+
                 // 如果成功访问到最终值，检查是否为空
                 if (canAccess && currentValue !== undefined) {
-                  if (currentValue === null || currentValue === '' || 
-                      (typeof currentValue === 'object' && 
-                       ((Array.isArray(currentValue) && currentValue.length === 0) ||
-                        (!Array.isArray(currentValue) && Object.keys(currentValue).length === 0)))) {
+                  if (
+                    currentValue === null ||
+                    currentValue === '' ||
+                    (typeof currentValue === 'object' &&
+                      ((Array.isArray(currentValue) && currentValue.length === 0) ||
+                        (!Array.isArray(currentValue) && Object.keys(currentValue).length === 0)))
+                  ) {
                     isDefinitelyEmpty = true;
                   }
                 }
-              } catch (e) {
+              } catch {
                 // 检查失败，需要调用 formatterStr
               }
             }
-            
+
             if (isDefinitelyEmpty) {
               formattedValue = '--';
               this.formattedValueCache.set(fieldName, formattedValue);
-              skippedEmpty += 1;
               continue; // 直接跳过，不加入列表
             }
-            
+
             formattedValue = this.formatterStr(this.data, fieldName);
             this.formattedValueCache.set(fieldName, formattedValue);
           }
-          
+
           if (!emptyValues.includes(formattedValue)) {
             list.push(item);
-          } else {
-            skippedEmpty += 1;
           }
         }
 
@@ -628,13 +630,13 @@
           clearTimeout(this.batchProcessingTimer);
           this.batchProcessingTimer = null;
         }
-        
+
         // 根据预估字段数量决定处理策略
         const estimatedFieldCount = this.kvShowFieldsList ? this.kvShowFieldsList.length : this.totalFields.length;
-        
+
         this.renderCount = this.initialRenderCount; // 重置为首屏数量
         this.processedCount = 0; // 重置已处理数量
-        
+
         if (estimatedFieldCount < this.batchThreshold) {
           // 字段数量 < 100，数据量小，直接同步处理，避免异步导致的闪烁
           this.isCalculating = false; // 不显示骨架屏
@@ -648,7 +650,7 @@
           this.skeletonStartTime = Date.now();
           // 异步重新计算字段列表，使用 setTimeout 确保真正异步
           setTimeout(() => {
-            const scheduleCalculation = (callback) => {
+            const scheduleCalculation = callback => {
               if (typeof requestIdleCallback !== 'undefined') {
                 requestIdleCallback(callback, { timeout: 50 });
               } else {
@@ -667,7 +669,7 @@
       // 开始分批处理初始渲染
       startBatchProcessing() {
         const totalFields = this.showFieldListCache.length;
-        
+
         // 如果字段数量 <= 阈值，直接渲染，不需要分批处理
         if (totalFields <= this.batchThreshold) {
           this.renderList = this.showFieldListCache.slice(0, this.initialRenderCount);
@@ -677,7 +679,7 @@
           });
           return;
         }
-        
+
         // 字段数量 > 阈值，执行分批渲染逻辑
         this.processedCount = 0;
         // 处理第一批次，立即显示并停止骨架屏
@@ -687,13 +689,13 @@
       processBatch(isFirstBatch = false) {
         const targetCount = Math.min(this.initialRenderCount, this.showFieldListCache.length);
         const endIndex = Math.min(this.processedCount + this.batchSize, targetCount);
-        
+
         // 更新已处理的数量
         this.processedCount = endIndex;
-        
+
         // 更新渲染列表
         this.renderList = this.showFieldListCache.slice(0, endIndex);
-        
+
         // 如果是第一批次，立即显示并停止骨架屏
         if (isFirstBatch) {
           this.$nextTick(() => {
@@ -716,9 +718,12 @@
       continueBatchProcessing() {
         // 使用 requestIdleCallback 或 setTimeout 在空闲时处理下一批次
         if (typeof requestIdleCallback !== 'undefined') {
-          this.batchProcessingTimer = requestIdleCallback(() => {
-            this.processBatch(false);
-          }, { timeout: 50 });
+          this.batchProcessingTimer = requestIdleCallback(
+            () => {
+              this.processBatch(false);
+            },
+            { timeout: 50 },
+          );
         } else {
           this.batchProcessingTimer = setTimeout(() => {
             this.processBatch(false);
@@ -732,10 +737,10 @@
           if (callback) callback();
           return;
         }
-        
+
         const elapsed = Date.now() - this.skeletonStartTime;
         const remaining = Math.max(0, this.skeletonMinDuration - elapsed);
-        
+
         if (remaining > 0) {
           // 如果显示时间不足200ms，延迟隐藏
           setTimeout(() => {
@@ -760,14 +765,14 @@
       },
       formatterStr(row, field) {
         let result;
-        
+
         // 性能优化：对于简单字段（无嵌套），直接访问，避免调用 parseTableRowData
         // 这样可以显著提升性能，特别是当字段数量很大时
         if (field.indexOf('.') === -1 && field.indexOf('[') === -1) {
           // 简单字段：直接访问
           const rowData = this.listData;
           const value = rowData[field];
-          
+
           // 快速检查空值（与 parseTableRowData 的逻辑保持一致）
           if (value === null || value === undefined || value === '') {
             result = '--';
@@ -796,7 +801,7 @@
           const rowData = this.listData;
           result = this.tableRowDeepView(rowData, field, fieldType) ?? '--';
         }
-        
+
         return result;
       },
       /**
@@ -836,12 +841,7 @@
       },
       /** VALUE 为可解析非空 Object（非 JSON 字符串、非数组）时，KV 中隐藏该父字段 */
       isExpandableObjectValue(value) {
-        return (
-          value !== null &&
-          typeof value === 'object' &&
-          !Array.isArray(value) &&
-          Object.keys(value).length > 0
-        );
+        return value !== null && typeof value === 'object' && !Array.isArray(value) && Object.keys(value).length > 0;
       },
       /**
        * 可展开 Object 父字段：有子字段时隐藏，避免与子字段重复。
@@ -913,7 +913,7 @@
         const includeFields = [
           field.field_name,
           field.query_alias,
-          ...(field.is_virtual_alias_field ? (field.source_field_names || []) : []),
+          ...(field.is_virtual_alias_field ? field.source_field_names || [] : []),
         ].filter(Boolean);
 
         try {
@@ -946,7 +946,7 @@
         const key = field.toLowerCase();
         // 提取最后一段字段名，仅用于trace检索的嵌套字段匹配
         const lastSegment = key.includes('.') ? key.split('.').pop() : key;
-        const trace_id = String(this.data[field])
+        const traceId = String(this.data[field])
           .replace(/<mark>/g, '')
           .replace(/<\/mark>/g, '');
         let path = '';
@@ -982,7 +982,7 @@
             case 'ip':
             case 'bk_host_id':
               {
-                const endStr = `${trace_id}${field === 'bk_host_id' && this.isHaveBkHostIDAndHaveValue ? '' : '-0'}`;
+                const endStr = `${traceId}${field === 'bk_host_id' && this.isHaveBkHostIDAndHaveValue ? '' : '-0'}`;
                 path = `/?bizId=${this.bkBizId}#/performance/detail/${endStr}`;
               }
               break;
@@ -1027,7 +1027,7 @@
               pre[curKey.toLowerCase()] = curVal;
               return pre;
             }, {});
-            return !!lowerKeyData[key] ? this.$t('主机') : null; // 判断ip和serverIp是否有值 无值则不显示主机
+            return lowerKeyData[key] ? this.$t('主机') : null; // 判断ip和serverIp是否有值 无值则不显示主机
           }
           // 容器
           case 'container_id':

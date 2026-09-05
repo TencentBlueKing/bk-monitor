@@ -458,10 +458,10 @@ export default class MonitorIpSelector extends tsc<IMonitorIpSelectorProps> {
 
   // 选中节点(根据多个拓扑节点与搜索条件批量分页查询所包含的主机信息)
   async fetchTopologyHostsNodes(params: IQuery) {
-    const { search_content, ...p } = params;
+    const { search_content: searchContent, ...p } = params;
     const data = {
       scope_list: this.scopeList,
-      ...(search_content ? params : p),
+      ...(searchContent ? params : p),
     };
     const serviceModule = this.extractScene ? 'extract' : 'ipChooser';
     const res = await $http.request(`${serviceModule}/queryHosts`, { data });
@@ -469,10 +469,10 @@ export default class MonitorIpSelector extends tsc<IMonitorIpSelectorProps> {
   }
 
   async fetchTopologyHostIdsNodes(params: IQuery) {
-    const { search_content, ...p } = params;
+    const { search_content: searchContent, ...p } = params;
     const data = {
       scope_list: this.scopeList,
-      ...(search_content ? params : p),
+      ...(searchContent ? params : p),
     };
     const serviceModule = this.extractScene ? 'extract' : 'ipChooser';
     const res = await $http.request(`${serviceModule}/queryHostIdInfos`, { data });

@@ -21,12 +21,12 @@ logger = logging.getLogger("detect")
 
 
 @app.task(ignore_result=True, queue="celery_service")
-def run_detect(strategy_id):
+def run_detect(strategy_id, inline_trigger_enabled=None):
     client = key.DATA_SIGNAL_KEY.client
     data_signal_key = key.DATA_SIGNAL_KEY.get_key()
     exc = None
     try:
-        processor = DetectProcess(strategy_id)
+        processor = DetectProcess(strategy_id, inline_trigger_enabled=inline_trigger_enabled)
         processor.process()
     except LockError:
         logger.info("Failed to acquire lock. on strategy({})".format(strategy_id))
@@ -49,4 +49,5 @@ def run_detect(strategy_id):
 
 @app.task(ignore_result=True, queue="celery_service_aiops")
 def run_detect_with_sdk(strategy_id):
-    return run_detect(strategy_id)
+    # AIOPS worker only performs detection; Kafka delivery stays on the dedicated Trigger worker.
+    return run_detect(strategy_id, inline_trigger_enabled=False)

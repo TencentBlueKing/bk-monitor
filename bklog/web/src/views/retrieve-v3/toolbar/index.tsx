@@ -33,7 +33,6 @@ import './index.scss';
 
 export default defineComponent({
   name: 'V3Toolbar',
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   setup() {
     const isFavoriteShown = ref(RetrieveHelper.isFavoriteShown);
     const onFavoriteShowChange = (val: boolean) => {
@@ -50,7 +49,7 @@ export default defineComponent({
 
     return () => (
       <div class='v3-bklog-toolbar'>
-        {!window.__IS_MONITOR_COMPONENT__ && (
+        {!window.__IS_MONITOR_TRACE__ && (
           <div
             class={`collection-box ${isFavoriteShown.value ? 'active' : ''}`}
             onClick={handleCollectionShowChange}

@@ -13,6 +13,7 @@ from functools import cached_property
 from django.utils.translation import gettext_lazy as _
 
 from constants.apm import CachedEnum
+from semconv.rum.constants import RumSpanType
 
 
 # 告警级别常量
@@ -157,166 +158,6 @@ class RumQueryMode(CachedEnum):
         return [(member.value, member.label) for member in cls]
 
 
-class FieldDisplayType(CachedEnum):
-    """字段展示类型，用于告知前端如何渲染字段值"""
-
-    DATETIME = "datetime"
-    DURATION = "duration"
-
-    @cached_property
-    def label(self) -> str:
-        return {
-            self.DATETIME: _("日期"),
-            self.DURATION: _("持续时长"),
-        }.get(self, self.value)
-
-    @classmethod
-    def choices(cls) -> list[tuple[str, str]]:
-        return [(member.value, member.label) for member in cls]
-
-
-SPAN_TYPE_COMMON_DISPLAY_FIELDS = [
-    "span_name",
-    "attributes.span_type",
-    "end_time",
-    "elapsed_time",
-    "status.code",
-    "attributes.view.url_template",
-    "attributes.user.id",
-]
-
-
-class RumSpanType(CachedEnum):
-    """RUM Span 数据类型"""
-
-    VIEW = "view"
-    RESOURCE = "resource"
-    ERROR = "error"
-    VITAL = "vital"
-    LONG_TASK = "long_task"
-    ACTION = "action"
-    WEBSOCKET = "websocket"
-    CUSTOM = "custom"
-
-    @cached_property
-    def label(self) -> str:
-        return str(
-            {
-                self.VIEW: _("视图"),
-                self.RESOURCE: _("资源"),
-                self.ERROR: _("错误"),
-                self.VITAL: _("网页指标"),
-                self.LONG_TASK: _("长任务"),
-                self.ACTION: _("用户交互"),
-                self.WEBSOCKET: "WebSocket",
-                self.CUSTOM: _("自定义事件"),
-            }.get(self, str(self.value))
-        )
-
-    @classmethod
-    def choices(cls) -> list[tuple[str, str]]:
-        return [(member.value, member.label) for member in cls]
-
-    @classmethod
-    def values(cls) -> list[str]:
-        return [member.value for member in cls]
-
-    @cached_property
-    def display_fields(self) -> list[str]:
-        return {
-            self.VIEW: [*SPAN_TYPE_COMMON_DISPLAY_FIELDS],
-            self.RESOURCE: [
-                *SPAN_TYPE_COMMON_DISPLAY_FIELDS,
-                "attributes.resource.type",
-                "attributes.http.request.method",
-            ],
-            self.ERROR: [*SPAN_TYPE_COMMON_DISPLAY_FIELDS, "attributes.error.source"],
-            self.VITAL: [*SPAN_TYPE_COMMON_DISPLAY_FIELDS, "attributes.vital.metric", "attributes.vital.value"],
-            self.LONG_TASK: [
-                *SPAN_TYPE_COMMON_DISPLAY_FIELDS,
-                "attributes.long_task.name",
-                "attributes.long_task.entry_type",
-            ],
-            self.ACTION: [*SPAN_TYPE_COMMON_DISPLAY_FIELDS, "attributes.action.id", "attributes.action.type"],
-            self.WEBSOCKET: [*SPAN_TYPE_COMMON_DISPLAY_FIELDS],
-            self.CUSTOM: [*SPAN_TYPE_COMMON_DISPLAY_FIELDS],
-        }.get(self, SPAN_TYPE_COMMON_DISPLAY_FIELDS)
-
-
-class RumSpanKind(CachedEnum):
-    """RUM Span 类型"""
-
-    UNSPECIFIED = 0
-    INTERNAL = 1
-    SERVER = 2
-    CLIENT = 3
-    PRODUCER = 4
-    CONSUMER = 5
-
-    @cached_property
-    def label(self) -> str:
-        return str(
-            {
-                self.UNSPECIFIED: _("未定义"),
-                self.INTERNAL: _("内部调用"),
-                self.SERVER: _("同步被调"),
-                self.CLIENT: _("同步主调"),
-                self.PRODUCER: _("异步主调"),
-                self.CONSUMER: _("异步被调"),
-            }.get(self, str(self.value))
-        )
-
-    @classmethod
-    def choices(cls) -> list[tuple[str, str]]:
-        return [(member.value, member.label) for member in cls]
-
-
-class RumSpanStatusCode(CachedEnum):
-    """RUM Span 状态码"""
-
-    UNSET = 0
-    OK = 1
-    ERROR = 2
-
-    @cached_property
-    def label(self) -> str:
-        return str(
-            {
-                self.UNSET: _("未设置"),
-                self.OK: _("正常"),
-                self.ERROR: _("异常"),
-            }.get(self, str(self.value))
-        )
-
-    @classmethod
-    def choices(cls) -> list[tuple[str, str]]:
-        return [(member.value, member.label) for member in cls]
-
-
-class RumDeviceType(CachedEnum):
-    """RUM 设备类型"""
-
-    DESKTOP = "desktop"
-    MOBILE = "mobile"
-    TABLET = "tablet"
-    OTHER = "other"
-
-    @cached_property
-    def label(self) -> str:
-        return str(
-            {
-                self.DESKTOP: _("桌面设备"),
-                self.MOBILE: _("移动设备"),
-                self.TABLET: _("平板设备"),
-                self.OTHER: _("其他设备"),
-            }.get(self, str(self.value))
-        )
-
-    @classmethod
-    def choices(cls) -> list[tuple[str, str]]:
-        return [(member.value, member.label) for member in cls]
-
-
 # RUM 检索页分组配置（新协议：每个分组含 name、alias、fields 列表）
 # fields 列表中每项为字段名，view_config 构建时会从 query_fields 结果中填充完整字段信息
 # supported_span_types：该分组适用的 Span 类型列表，前端据此在切换类型时折叠不相关分组
@@ -423,6 +264,3 @@ RUM_SEARCH_PAGE_GROUPS: dict[str, list[dict]] = {
     "view": [],
     "session": [],
 }
-
-# RUM 字段别名
-RUM_FIELD_ALIAS = {}

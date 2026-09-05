@@ -27,4 +27,3 @@
 import EditInput from './index.tsx';
 
 export default EditInput;
-

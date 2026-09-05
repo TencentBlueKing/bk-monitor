@@ -98,8 +98,8 @@
           <template #default="{ row }">
             <div class="table-ceil-container">
               <span
-                class="table-view-span-detail"
                 v-bk-overflow-tips
+                class="table-view-span-detail"
                 >{{ row.query_string }}</span
               >
             </div>

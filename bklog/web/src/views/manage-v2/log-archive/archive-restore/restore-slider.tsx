@@ -189,12 +189,12 @@ export default defineComponent({
         if (isEdit.value) {
           url = '/archive/editRestore';
           const { expired_time } = formData;
-          const { restore_config_id } = props.editRestore;
+          const { restore_config_id: restoreConfigId } = props.editRestore;
           paramsData = {
             expired_time,
-            restore_config_id,
+            restore_config_id: restoreConfigId,
           };
-          params.restore_config_id = restore_config_id;
+          params.restore_config_id = restoreConfigId;
         }
 
         // 设置提交按钮为加载状态
@@ -253,8 +253,8 @@ export default defineComponent({
               archive_config_id,
               expired_time: expiredTime,
               notice_user,
-              start_time,
-              end_time,
+              start_time: startTime,
+              end_time: endTime,
             } = props.editRestore;
 
             Object.assign(formData, {
@@ -262,9 +262,9 @@ export default defineComponent({
               archive_config_id,
               expired_time: expiredTime,
               notice_user,
-              start_time,
-              end_time,
-              datePickerValue: [start_time, end_time],
+              start_time: startTime,
+              end_time: endTime,
+              datePickerValue: [startTime, endTime],
               datePickerExpired: expiredTime,
             });
           } else {

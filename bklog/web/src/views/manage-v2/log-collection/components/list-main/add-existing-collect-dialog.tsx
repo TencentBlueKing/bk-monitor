@@ -77,9 +77,9 @@ export default defineComponent({
     const hideNoData = ref(true);
     const availableList = ref<IAvailableItem[]>([]);
     // 三部分已选列表
-    const addedItems = ref<IAvailableItem[]>([]);      // 新增采集项
-    const existingItems = ref<IAvailableItem[]>([]);   // 默认已有采集项
-    const removedItems = ref<IAvailableItem[]>([]);    // 删除的采集项
+    const addedItems = ref<IAvailableItem[]>([]); // 新增采集项
+    const existingItems = ref<IAvailableItem[]>([]); // 默认已有采集项
+    const removedItems = ref<IAvailableItem[]>([]); // 删除的采集项
     const addListLoading = ref(false);
     const selectedListLoading = ref(false);
     const submitting = ref(false);
@@ -94,7 +94,9 @@ export default defineComponent({
     /** 新增+已有采集项总数 */
     const totalSelectedCount = computed(() => addedItems.value.length + existingItems.value.length);
     /** 是否有选中项 */
-    const hasSelectedItems = computed(() => addedItems.value.length + existingItems.value.length + removedItems.value.length > 0);
+    const hasSelectedItems = computed(
+      () => addedItems.value.length + existingItems.value.length + removedItems.value.length > 0,
+    );
 
     /** 获取可选采集项列表 */
     const fetchAvailableList = async (isLoadMore = false) => {
@@ -124,7 +126,7 @@ export default defineComponent({
             'collect/newCollectList',
             { data: params },
             {
-              cancelToken: new CancelToken((c) => {
+              cancelToken: new CancelToken(c => {
                 addListInterfaceCancel.value = c;
               }),
             },
@@ -176,7 +178,7 @@ export default defineComponent({
           'collect/newCollectList',
           { data: params },
           {
-            cancelToken: new CancelToken((c) => {
+            cancelToken: new CancelToken(c => {
               selectedListInterfaceCancel.value = c;
             }),
           },
@@ -238,8 +240,10 @@ export default defineComponent({
 
     /** 检查采集项是否已在已选列表中（新增或已有） */
     const isInSelectedList = (indexSetId: number) => {
-      return addedItems.value.some(item => item.index_set_id === indexSetId)
-        || existingItems.value.some(item => item.index_set_id === indexSetId);
+      return (
+        addedItems.value.some(item => item.index_set_id === indexSetId) ||
+        existingItems.value.some(item => item.index_set_id === indexSetId)
+      );
     };
 
     /** 检查采集项是否在新增列表中 */
@@ -315,18 +319,20 @@ export default defineComponent({
       submitting.value = true;
       try {
         // 并行提交新增和删除的采集项
-        const addPromise = addedItems.value.length > 0
-          ? $http.request('collect/addIndexSetsToGroup', {
-            params: { index_set_id: props.indexSetId },
-            data: { child_index_set_ids: addedItems.value.map(item => item.index_set_id) },
-          })
-          : Promise.resolve();
-        const removePromise = removedItems.value.length > 0
-          ? $http.request('collect/removeIndexSetsFromGroup', {
-            params: { index_set_id: props.indexSetId },
-            data: { child_index_set_ids: removedItems.value.map(item => item.index_set_id) },
-          })
-          : Promise.resolve();
+        const addPromise =
+          addedItems.value.length > 0
+            ? $http.request('collect/addIndexSetsToGroup', {
+                params: { index_set_id: props.indexSetId },
+                data: { child_index_set_ids: addedItems.value.map(item => item.index_set_id) },
+              })
+            : Promise.resolve();
+        const removePromise =
+          removedItems.value.length > 0
+            ? $http.request('collect/removeIndexSetsFromGroup', {
+                params: { index_set_id: props.indexSetId },
+                data: { child_index_set_ids: removedItems.value.map(item => item.index_set_id) },
+              })
+            : Promise.resolve();
         await Promise.all([addPromise, removePromise]);
         emit('confirm');
         popoverRef.value?.hide();
@@ -387,7 +393,8 @@ export default defineComponent({
                 {t('隐藏无数据')} / {t('停用')}
               </bk-checkbox>
             </div>
-            <div class='popover-field-list-wrapper'
+            <div
+              class='popover-field-list-wrapper'
               v-bkloading={{ isLoading: addListLoading.value && currentPage.value === 1 }}
             >
               <div
@@ -400,66 +407,65 @@ export default defineComponent({
                   }
                 }}
               >
-              {availableList.value.map((item) => {
-                const isSelected = isInSelectedList(item.index_set_id);
-                const logTypeIcon = LOG_TYPE_ICON_MAP[item.log_access_type || ''] || '';
-                return (
-                  <div
-                    class={{
-                      'popover-field-item': true,
-                      'is-selected': isSelected,
-                    }}
-                    key={item.index_set_id}
-                    onClick={() => toggleSelect(item)}
-                  >
-                    {/* 左侧：多选框、日志类型图标和详细信息 */}
-                    <div class='field-left-content'>
-                      <bk-checkbox
-                        value={isSelected}
-                      />
-                      {logTypeIcon && (
-                        <div class='log-type-icon'>
-                          <i class={logTypeIcon} />
-                        </div>
-                      )}
-                      <div class='field-details'>
-                        {/* 第一行：name */}
-                        <div class='field-row-name'>
-                          <span class='field-name-text'>{item.name}</span>
-                        </div>
-                        {/* 第二行：数据id和数据名 */}
-                        {(item.bk_data_id || item.name_en) && (
-                          <div class='field-row-id'>
-                            {item.bk_data_id && <span class='field-id-text'>[{item.bk_data_id}]</span>}
-                            {item.name_en && <span class='field-table-id-text'>{item.name_en}</span>}
+                {availableList.value.map(item => {
+                  const isSelected = isInSelectedList(item.index_set_id);
+                  const logTypeIcon = LOG_TYPE_ICON_MAP[item.log_access_type || ''] || '';
+                  return (
+                    <div
+                      class={{
+                        'popover-field-item': true,
+                        'is-selected': isSelected,
+                      }}
+                      key={item.index_set_id}
+                      onClick={() => toggleSelect(item)}
+                    >
+                      {/* 左侧：多选框、日志类型图标和详细信息 */}
+                      <div class='field-left-content'>
+                        <bk-checkbox value={isSelected} />
+                        {logTypeIcon && (
+                          <div class='log-type-icon'>
+                            <i class={logTypeIcon} />
                           </div>
+                        )}
+                        <div class='field-details'>
+                          {/* 第一行：name */}
+                          <div class='field-row-name'>
+                            <span class='field-name-text'>{item.name}</span>
+                          </div>
+                          {/* 第二行：数据id和数据名 */}
+                          {(item.bk_data_id || item.name_en) && (
+                            <div class='field-row-id'>
+                              {item.bk_data_id && <span class='field-id-text'>[{item.bk_data_id}]</span>}
+                              {item.name_en && <span class='field-table-id-text'>{item.name_en}</span>}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      {/* 右侧：空间类型标签 */}
+                      <div class='field-right-content'>
+                        {!item.is_related_space && <span class='space-tag current'>{t('当前空间')}</span>}
+                        {item.is_related_space && (
+                          <span
+                            class='space-tag related'
+                            v-bk-tooltips={{
+                              content: t('关联空间') + (item.space_name ? `: ${item.space_name}` : ''),
+                              placements: ['right'],
+                            }}
+                          >
+                            {t('关联空间')}
+                          </span>
                         )}
                       </div>
                     </div>
-                    {/* 右侧：空间类型标签 */}
-                    <div class='field-right-content'>
-                      {!item.is_related_space && <span class='space-tag current'>{t('当前空间')}</span>}
-                      {item.is_related_space && (
-                        <span
-                          class='space-tag related'
-                          v-bk-tooltips={{
-                            content: t('关联空间') + (item.space_name ? `: ${item.space_name}` : ''),
-                            placements: ['right'],
-                          }}
-                        >
-                          {t('关联空间')}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-              {!addListLoading.value && availableList.value.length === 0 && (
-                <bk-exception type='empty' scene='part' />
-              )}
-              {addListLoading.value && currentPage.value > 1 && (
-                <div class='list-loading'>loading...</div>
-              )}
+                  );
+                })}
+                {!addListLoading.value && availableList.value.length === 0 && (
+                  <bk-exception
+                    type='empty'
+                    scene='part'
+                  />
+                )}
+                {addListLoading.value && currentPage.value > 1 && <div class='list-loading'>loading...</div>}
               </div>
             </div>
           </div>
@@ -469,8 +475,13 @@ export default defineComponent({
             <div class='selected-column-header'>
               <div class='header-left'>
                 <span class='header-title'>{t('关联预览')}</span>
-                <i18n path='共 {0} 个' class='header-count'>
-                  <span class={['count-num', { 'is-zero': totalSelectedCount.value === 0 }]}>{totalSelectedCount.value}</span>
+                <i18n
+                  path='共 {0} 个'
+                  class='header-count'
+                >
+                  <span class={['count-num', { 'is-zero': totalSelectedCount.value === 0 }]}>
+                    {totalSelectedCount.value}
+                  </span>
                 </i18n>
               </div>
               <bk-button
@@ -489,45 +500,55 @@ export default defineComponent({
             <div class='selected-field-list'>
               {/* 新增采集项 */}
               {addedItems.value.map(item => (
-                <div class='selected-tag bklog-v3-popover-tag' key={item.index_set_id} onClick={(e: MouseEvent) => {
-                  e.stopPropagation();
-                  removeFromAdded(item.index_set_id);
-                }}>
+                <div
+                  class='selected-tag bklog-v3-popover-tag'
+                  key={item.index_set_id}
+                  onClick={(e: MouseEvent) => {
+                    e.stopPropagation();
+                    removeFromAdded(item.index_set_id);
+                  }}
+                >
                   <span class='tag-label tag-added'>{t('新增')}</span>
                   <span class='tag-name'>{item.name}</span>
-                  <i
-                    class='bk-icon icon-close-circle-shape tag-remove'
-                  />
+                  <i class='bk-icon icon-close-circle-shape tag-remove' />
                 </div>
               ))}
               {/* 已关联的采集项 */}
               {existingItems.value.map(item => (
-                <div class='selected-tag bklog-v3-popover-tag' key={item.index_set_id} onClick={(e: MouseEvent) => {
-                  e.stopPropagation();
-                  removeFromExisting(item);
-                }}>
+                <div
+                  class='selected-tag bklog-v3-popover-tag'
+                  key={item.index_set_id}
+                  onClick={(e: MouseEvent) => {
+                    e.stopPropagation();
+                    removeFromExisting(item);
+                  }}
+                >
                   <span class='tag-name'>{item.name}</span>
-                  <i
-                    class='bk-icon icon-close-circle-shape tag-remove'
-                  />
+                  <i class='bk-icon icon-close-circle-shape tag-remove' />
                 </div>
               ))}
               {/* 删除的采集项 */}
               {removedItems.value.map(item => (
-                <div class='selected-tag bklog-v3-popover-tag' key={item.index_set_id} onClick={(e: MouseEvent) => {
-                  e.stopPropagation();
-                  restoreFromRemoved(item.index_set_id);
-                }}>
+                <div
+                  class='selected-tag bklog-v3-popover-tag'
+                  key={item.index_set_id}
+                  onClick={(e: MouseEvent) => {
+                    e.stopPropagation();
+                    restoreFromRemoved(item.index_set_id);
+                  }}
+                >
                   <span class='tag-label tag-removed'>{t('移除')}</span>
                   <span class='tag-name name-removed'>{item.name}</span>
-                  <i
-                    class='bk-icon bklog-icon bklog-return'
-                  />
+                  <i class='bk-icon bklog-icon bklog-return' />
                 </div>
               ))}
               {/* 未选择采集项 */}
               {!hasSelectedItems.value && (
-                <bk-exception class='exception-wrap-item exception-part' type='empty' scene='part'>
+                <bk-exception
+                  class='exception-wrap-item exception-part'
+                  type='empty'
+                  scene='part'
+                >
                   <span>{t('请先在左侧选择')}</span>
                 </bk-exception>
               )}
@@ -537,10 +558,19 @@ export default defineComponent({
 
         {/* 底部按钮 */}
         <div class='popover-actions'>
-          <bk-button theme='primary' onClick={handleConfirm} loading={submitting.value || selectedListLoading.value}>
+          <bk-button
+            theme='primary'
+            onClick={handleConfirm}
+            loading={submitting.value || selectedListLoading.value}
+          >
             {t('确定')}
           </bk-button>
-          <bk-button onClick={handleCancel} disabled={submitting.value}>{t('取消')}</bk-button>
+          <bk-button
+            onClick={handleCancel}
+            disabled={submitting.value}
+          >
+            {t('取消')}
+          </bk-button>
         </div>
       </div>
     );

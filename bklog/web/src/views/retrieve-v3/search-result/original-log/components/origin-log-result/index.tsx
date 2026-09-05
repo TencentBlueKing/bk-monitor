@@ -79,10 +79,11 @@ export default defineComponent({
     const isCollapsed = ref(false);
     const exceptionMsg = ref('');
 
-    const fieldsMap = computed(() => store.getters.rawFieldList.reduce((dataMap, item) => {
-      dataMap[item.field_name] = item;
-      return dataMap;
-    }, {}),
+    const fieldsMap = computed(() =>
+      store.getters.rawFieldList.reduce((dataMap, item) => {
+        dataMap[item.field_name] = item;
+        return dataMap;
+      }, {}),
     );
 
     const timeField = computed(() => store.state.indexFieldInfo.time_field);
@@ -137,10 +138,11 @@ export default defineComponent({
       exceptionMsg.value = message || '';
     };
 
-    const isRequestCanceled = (error: any) => error?.code === 'ERR_CANCELED'
-      || error?.name === 'CanceledError'
-      || error?.name === 'AbortError'
-      || error?.message === 'Search request canceled';
+    const isRequestCanceled = (error: any) =>
+      error?.code === 'ERR_CANCELED' ||
+      error?.name === 'CanceledError' ||
+      error?.name === 'AbortError' ||
+      error?.message === 'Search request canceled';
 
     /** 取消进行中的本地 Stream，不影响主检索 requestId */
     const cancelPendingRequest = () => {
@@ -163,7 +165,7 @@ export default defineComponent({
       appliedStreamRowCount = 0;
       // 本地检索只清理 relatedLogSearchRows，绝不碰主检索 retrieveRows
       relatedLogSearchRowCacheService.releaseQuery(key);
-      relatedLogSearchRowCacheService.clearQuery(key).catch((error) => {
+      relatedLogSearchRowCacheService.clearQuery(key).catch(error => {
         console.warn('[origin-log-result] clear local query rows failed', error);
       });
     };
@@ -262,7 +264,8 @@ export default defineComponent({
       const { fieldMetadata, fieldNames } = buildOriginLogSearchFieldPayload(store.state);
       let thisRequestId = '';
 
-      const isCurrentRequest = () => !isUnmounted && currentRequestSeq === requestSeq && requestQueryKey === localQueryKey;
+      const isCurrentRequest = () =>
+        !isUnmounted && currentRequestSeq === requestSeq && requestQueryKey === localQueryKey;
 
       const handleProgress = async (progress: SearchStreamProgress) => {
         if (!isCurrentRequest() || progress.queryKey !== requestQueryKey) return;
@@ -299,11 +302,11 @@ export default defineComponent({
           fieldMetadata,
           fieldNames,
           headers: buildOriginLogSearchHeaders(store.state),
-          onRequestId: (requestId) => {
+          onRequestId: requestId => {
             thisRequestId = requestId;
             activeLocalSearchRequestId = requestId;
           },
-          onProgress: (progress) => {
+          onProgress: progress => {
             void handleProgress(progress);
           },
           queryKey: requestQueryKey,
@@ -390,19 +393,20 @@ export default defineComponent({
       }
     };
 
-    const getValidUISearchValue = (searchValue: any[]) => searchValue.reduce((addtions, item) => {
-      if (!item.disabled) {
-        addtions.push({
-          field: item.field,
-          operator: item.operator,
-          value:
+    const getValidUISearchValue = (searchValue: any[]) =>
+      searchValue.reduce((addtions, item) => {
+        if (!item.disabled) {
+          addtions.push({
+            field: item.field,
+            operator: item.operator,
+            value:
               item.hidden_values?.length > 0
                 ? item.value.filter(value => !item.hidden_values.includes(value))
                 : item.value,
-        });
-      }
-      return addtions;
-    }, []);
+          });
+        }
+        return addtions;
+      }, []);
 
     /**
      * UI 操作符落地映射（与 setQueryCondition.getAdditionMappingOperator 对齐）。
@@ -436,9 +440,10 @@ export default defineComponent({
         'is not': `is ${/true/i.test(value[0]) ? 'false' : 'true'}`,
       };
 
-      const targetField =        fieldsMap.value[field]
-        ?? store.state.visibleFields?.find?.(item => item.field_name === field)
-        ?? store.state.indexFieldInfo?.fields?.find?.(item => item.field_name === field);
+      const targetField =
+        fieldsMap.value[field] ??
+        store.state.visibleFields?.find?.(item => item.field_name === field) ??
+        store.state.indexFieldInfo?.fields?.find?.(item => item.field_name === field);
       const textType = targetField?.field_type ?? '';
       const isVirtualObjNode = targetField?.is_virtual_obj_node ?? false;
 
@@ -483,16 +488,18 @@ export default defineComponent({
     }) => {
       const searchMode = requestOtherparams.search_mode === 'sql' ? 'sql' : 'ui';
       const fieldName = data.option.fieldName || '*';
-      const fieldType =        fieldsMap.value[fieldName]?.field_type
-        ?? store.state.indexFieldInfo?.fields?.find?.(item => item.field_name === fieldName)?.field_type
-        ?? data.option.fieldType;
+      const fieldType =
+        fieldsMap.value[fieldName]?.field_type ??
+        store.state.indexFieldInfo?.fields?.find?.(item => item.field_name === fieldName)?.field_type ??
+        data.option.fieldType;
       /** 对象/数组不能 String()，否则会得到 "[object Object]" */
       const toScalarPlain = (val: any): string => {
         if (val === undefined || val === null || val === '') return '';
         if (typeof val === 'object') {
-          if (val._isBigNumber) return String(val)
-            .replace(/<\/?mark>/gim, '')
-            .trim();
+          if (val._isBigNumber)
+            return String(val)
+              .replace(/<\/?mark>/gim, '')
+              .trim();
           return '';
         }
         return String(val)
@@ -501,18 +508,19 @@ export default defineComponent({
       };
       const row = logList.value[choosedIndex.value];
       const fromRow = row
-        ? (row[fieldName]
-          ?? fieldName
+        ? (row[fieldName] ??
+          fieldName
             .split('.')
             .reduce((cur: any, key: string) => (cur === null || cur === undefined ? undefined : cur[key]), row))
         : undefined;
       // 时间格式化只影响展示；date 字段必须回取行内原始时间戳
       const isDateField = ['date', 'date_nanos'].includes(fieldType);
-      const rawValue =        isDateField && fromRow !== undefined && fromRow !== null && fromRow !== ''
-        ? toScalarPlain(fromRow)
-        : String(data.option.value ?? '')
-          .replace(/<\/?mark>/gim, '')
-          .trim();
+      const rawValue =
+        isDateField && fromRow !== undefined && fromRow !== null && fromRow !== ''
+          ? toScalarPlain(fromRow)
+          : String(data.option.value ?? '')
+              .replace(/<\/?mark>/gim, '')
+              .trim();
       let fullPlain = toScalarPlain(data.option.fullPlain);
       // 已污染的 "[object Object]" 视为缺失，回退行数据或放弃完整值
       if (isDateField || !fullPlain || fullPlain === '--' || fullPlain === '[object Object]') {
@@ -523,9 +531,9 @@ export default defineComponent({
       }
       const soleByValue = Boolean(fullPlain && fullPlain === rawValue);
       const isSoleToken = Boolean(
-        data.option.isSoleToken
-          || (typeof data.option.tokenCount === 'number' && data.option.tokenCount === 1 && (!fullPlain || soleByValue))
-          || soleByValue,
+        data.option.isSoleToken ||
+        (typeof data.option.tokenCount === 'number' && data.option.tokenCount === 1 && (!fullPlain || soleByValue)) ||
+        soleByValue,
       );
       const payload = resolveAddToSearch({
         field: fieldName,
@@ -704,7 +712,7 @@ export default defineComponent({
               relation: 'OR',
               showAll: true,
             }));
-            addAdditionList.forEach((addition) => {
+            addAdditionList.forEach(addition => {
               searchBarRef.value.addValue(addition);
             });
           }
@@ -813,8 +821,8 @@ export default defineComponent({
               </tr>
             </thead>
             <tbody v-bkloading={{ isLoading: listLoading.value, opacity: 0.6 }}>
-              {logList.value.length > 0
-                && logList.value.map((row, index) => (
+              {logList.value.length > 0 &&
+                logList.value.map((row, index) => (
                   <tr
                     key={`${index}_${row.time}`}
                     class={{ 'is-choosed': choosedIndex.value === index }}

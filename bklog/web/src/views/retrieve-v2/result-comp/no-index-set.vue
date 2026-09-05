@@ -94,10 +94,9 @@
         });
       },
       goToCreateCollection() {
-        if (isFeatureToggleOn('scenario_log', [
-          String(this.$store.state.bkBizId),
-          String(this.$store.state.spaceUid),
-        ])) {
+        if (
+          isFeatureToggleOn('scenario_log', [String(this.$store.state.bkBizId), String(this.$store.state.spaceUid)])
+        ) {
           this.$router.push({
             path: '/manage/log-collection',
             query: {

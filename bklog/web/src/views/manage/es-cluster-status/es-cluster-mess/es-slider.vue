@@ -41,8 +41,8 @@
     >
       <template #content>
         <div
-          class="king-slider-content"
           v-bkloading="{ isLoading: sliderLoading }"
+          class="king-slider-content"
         >
           <bk-form
             v-if="!sliderLoading"
@@ -75,8 +75,8 @@
               >
                 <div class="source-item">
                   <bk-select
-                    style="width: 154px; margin-right: 10px"
                     v-model="basicFormData.source_type"
+                    style="width: 154px; margin-right: 10px"
                     @change="handleChangeSource"
                   >
                     <bk-option
@@ -96,8 +96,8 @@
                 required
               >
                 <bk-input
-                  class="address-input"
                   v-model="basicFormData.domain_name"
+                  class="address-input"
                   :readonly="isEdit"
                   data-test-id="esAccessFromBox_input_fillDomainName"
                 ></bk-input>
@@ -209,16 +209,16 @@
                 <bk-radio-group v-model="formData.visible_config.visible_type">
                   <bk-radio
                     v-for="item of visibleScopeSelectList"
-                    class="scope-radio"
                     :key="item.id"
+                    class="scope-radio"
                     :value="item.id"
                   >
                     {{ item.name }}
                   </bk-radio>
                 </bk-radio-group>
                 <bk-select
-                  v-model="visibleBkBiz"
                   v-show="!scopeValueType"
+                  v-model="visibleBkBiz"
                   :list="mySpaceList"
                   :virtual-scroll-render="virtualscrollSpaceList"
                   display-key="space_full_code_name"
@@ -234,10 +234,10 @@
                       <div class="selected-tag">
                         <bk-tag
                           v-for="(tag, index) in visibleList"
+                          :key="tag.id"
                           v-bk-tooltips="inUseProjectPopover(tag.is_use)"
                           :class="`tag-icon ${tag.is_use ? 'is-active' : 'is-normal'}`"
                           :closable="!tag.is_use"
-                          :key="tag.id"
                           @close="handleDeleteTag(index)"
                         >
                           {{ tag.name }}
@@ -253,9 +253,9 @@
                   </template>
                 </bk-select>
                 <bk-search-select
+                  v-show="isBizAttr"
                   ref="searchSelectRef"
                   v-model="bkBizLabelsList"
-                  v-show="isBizAttr"
                   :data="bizParentList"
                   :popover-zindex="selectZIndex"
                   :remote-method="handleRemoteMethod"
@@ -290,9 +290,9 @@
                       <template>
                         <bk-option
                           v-for="(option, index) in retentionDaysList"
-                          :disabled="option.disabled"
                           :id="option.id"
                           :key="index"
+                          :disabled="option.disabled"
                           :name="option.name"
                         >
                         </bk-option>
@@ -326,9 +326,9 @@
                       <template>
                         <bk-option
                           v-for="(option, index) in maxDaysList"
-                          :disabled="option.disabled"
                           :id="option.id"
                           :key="index"
+                          :disabled="option.disabled"
                           :name="option.name"
                         >
                         </bk-option>
@@ -451,9 +451,9 @@
                     <template>
                       <bk-option
                         v-for="option in hotColdAttrSet"
-                        :disabled="option.isSelected"
                         :id="option.computedId"
                         :key="option.computedId"
+                        :disabled="option.isSelected"
                         :name="`${option.computedName}(${option.computedCounts})`"
                       >
                       </bk-option>
@@ -481,9 +481,9 @@
                     <template>
                       <bk-option
                         v-for="option in hotColdAttrSet"
-                        :disabled="option.isSelected"
                         :id="option.computedId"
                         :key="option.computedId"
+                        :disabled="option.isSelected"
                         :name="`${option.computedName}(${option.computedCounts})`"
                       >
                       </bk-option>
@@ -588,7 +588,6 @@
   import SidebarDiffMixin from '@/mixins/sidebar-diff-mixin';
   import SpaceSelectorMixin from '@/mixins/space-selector-mixin';
   import { isFeatureToggleOn } from '@/hooks/use-feature-toggle';
-  import BkUserSelector from '@blueking/user-selector';
   import { mapState, mapGetters } from 'vuex';
   import ValidateUserSelector from '@/components/user-selector';
 
@@ -597,7 +596,6 @@
   export default {
     components: {
       EsDialog,
-      BkUserSelector,
       ValidateUserSelector,
     },
     mixins: [SidebarDiffMixin, SpaceSelectorMixin],
@@ -615,7 +613,10 @@
       return {
         configDocUrl: window.BK_HOT_WARM_CONFIG_URL,
         archiveDocUrl: window.BK_ARCHIVE_DOC_URL, // 日志归档跳转链接
-        isItsm: isFeatureToggleOn('collect_itsm', [String(this.$store.state.bkBizId), String(this.$store.state.spaceUid)]), // 容量评估全局参数
+        isItsm: isFeatureToggleOn('collect_itsm', [
+          String(this.$store.state.bkBizId),
+          String(this.$store.state.spaceUid),
+        ]), // 容量评估全局参数
         confirmLoading: false,
         sliderLoading: false,
         formData: {
@@ -755,9 +756,9 @@
         return this.hotColdAttrSet.length < 2;
       },
       sourceNameCheck() {
-        const { source_type, source_name } = this.formData;
+        const { source_type: sourceType, source_name: sourceName } = this.formData;
 
-        if (source_type === 'other' && source_name.trim() === '') return true;
+        if (sourceType === 'other' && sourceName.trim() === '') return true;
         return false;
       },
       // 可见范围单选判断，禁用下拉框
@@ -1243,7 +1244,7 @@
         return new Promise(resolve => {
           setTimeout(() => {
             // 空值返回全部，搜索返回部分
-            if (!!this.bizInputStr) {
+            if (this.bizInputStr) {
               resolve(this.bizChildrenList[this.bizSelectID].filter(item => item.name.includes(this.bizInputStr)));
             } else {
               resolve(this.bizChildrenList[this.bizSelectID]);
@@ -1313,7 +1314,7 @@
         visibleType === 'biz_attr' &&
           !this.bkBizLabelsList.length &&
           (messageType = this.$t('可见类型为多业务时，可见业务范围不能为空'));
-        if (!!messageType) {
+        if (messageType) {
           this.$bkMessage({
             theme: 'error',
             message: messageType,
