@@ -15,7 +15,6 @@ from unittest.mock import patch
 import pytest
 from django.conf import settings
 from django.db.utils import IntegrityError
-from tenacity import RetryError
 
 from bkmonitor.utils.tenant import get_tenant_datalink_biz_id
 from core.errors.api import BKAPIError
@@ -1767,9 +1766,39 @@ def test_Standard_V2_Time_Series_apply_data_link_with_failure(create_or_delete_r
         == DataLinkResourceStatus.INITIALIZING.value
     )
 
-    # 验证重试装饰器是否正常工作，重试四次 间隔 1->2->4->8秒
-    with pytest.raises(RetryError):
-        data_link_ins.apply_data_link_with_retry(configs="")
+    # 验证瞬时错误重试四次，间隔 1->2->4 秒，并透传最后一次底层异常。
+    transient_error = BKAPIError(
+        system_name="bkdata",
+        url="/v4/apply/",
+        result={"message": "service unavailable"},
+        status_code=503,
+    )
+    with (
+        patch(
+            "metadata.models.data_link.data_link.api.bkdata.apply_data_link",
+            side_effect=transient_error,
+        ) as mock_apply,
+        patch("metadata.data_link_lifecycle.time.sleep"),
+        pytest.raises(BKAPIError) as exc_info,
+    ):
+        data_link_ins.apply_data_link_with_retry(configs=expected_config_list)
+
+    assert exc_info.value is transient_error
+    assert mock_apply.call_count == 4
+
+
+def test_apply_data_link_with_retry_uses_terminating_lifecycle(mocker):
+    configs = [{"kind": "ResultTable", "metadata": {"namespace": "bkmonitor", "name": "metric"}}]
+    lifecycle_apply = mocker.patch(
+        "metadata.models.data_link.data_link.apply_after_terminating_resources_deleted",
+        return_value={"status": "success"},
+    )
+    instance = DataLink(bk_tenant_id="system")
+
+    assert instance.apply_data_link_with_retry(configs) == {"status": "success"}
+    lifecycle_apply.assert_called_once()
+    assert lifecycle_apply.call_args.kwargs["configs"] == configs
+    assert lifecycle_apply.call_args.kwargs["get_resource"] == instance.get_existing_component_config
 
 
 @pytest.mark.django_db(databases="__all__")
