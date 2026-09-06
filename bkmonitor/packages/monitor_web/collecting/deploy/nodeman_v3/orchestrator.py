@@ -26,7 +26,8 @@ from monitor_web.models.node_man import (
     NodeManWorkflowStatus,
     build_nodeman_resource_key,
 )
-from monitor_web.nodeman_integration.v3.operation import NodeManV3OperationService
+from monitor_web.nodeman_integration.v3.operation import NodeManExecutionLeaseConflict, NodeManV3OperationService
+from monitor_web.nodeman_integration.v3.status import TERMINAL_OPERATION_STATUSES
 
 from .validation import NodeManV3CapabilityBlocked
 
@@ -69,7 +70,7 @@ class NodeManV3Orchestrator:
         )
 
     def retry(self, *, collect_config, instance_ids: list[str] | None = None):
-        workflow_operations = self._workflow_operations(collect_config)
+        source_operation, workflow_operations = self._workflow_operations(collect_config)
         selected = self._select_retry_operations(workflow_operations, instance_ids)
         if not selected:
             return None
@@ -86,10 +87,11 @@ class NodeManV3Orchestrator:
             operation_type=NodeManOperationType.RETRY,
             requests=requests,
             submit=lambda payload, context: self.workflow_client.retry_operation(payload, context=context),
+            source_operation=source_operation,
         )
 
     def revoke(self, *, collect_config, instance_ids: list[int] | None = None):
-        workflow_operations = self._workflow_operations(collect_config)
+        source_operation, workflow_operations = self._workflow_operations(collect_config)
         selected = self._select_terminate_operations(workflow_operations, instance_ids)
         if not selected:
             return None
@@ -105,11 +107,12 @@ class NodeManV3Orchestrator:
             operation_type=NodeManOperationType.TERMINATE,
             requests=requests,
             submit=lambda payload, context: self.workflow_client.terminate_operation(payload, context=context),
+            source_operation=source_operation,
         )
 
     def status(self, *, collect_config, args=(), kwargs=None):
         del args, kwargs
-        workflow_operations = self._workflow_operations(collect_config)
+        _source_operation, workflow_operations = self._workflow_operations(collect_config)
         instances = []
         for workflow_id, operations in workflow_operations.items():
             for operation in operations:
@@ -149,23 +152,26 @@ class NodeManV3Orchestrator:
         )
         return {"log_detail": self._format_log(result)}
 
-    def _workflow_operations(self, collect_config) -> dict[str, list[dict]]:
-        source_workflows = self._source_workflows(collect_config)
+    def _workflow_operations(self, collect_config) -> tuple[MonitorNodeManOperation | None, dict[str, list[dict]]]:
+        source_operation, source_workflows = self._source_workflows(collect_config)
         result = {}
         for workflow in source_workflows:
             result[workflow.workflow_id] = self._list_operations(
                 workflow.workflow_id,
                 context=self._read_context(collect_config),
             )
-        return result
+        return source_operation, result
 
-    def _source_workflows(self, collect_config) -> list[MonitorNodeManWorkflow]:
+    def _source_workflows(
+        self,
+        collect_config,
+    ) -> tuple[MonitorNodeManOperation | None, list[MonitorNodeManWorkflow]]:
         binding = self._binding(collect_config)
         if binding is None:
-            return []
+            return None, []
         operation = binding.operations.order_by("-created_at").first()
         if operation is None:
-            return []
+            return None, []
         if operation.result_state == NodeManV3ResultState.WRITE_RESULT_UNKNOWN:
             raise NodeManV3UnknownResultError(
                 "the latest NodeMan write result is unknown; workflow control cannot be replayed safely"
@@ -173,12 +179,12 @@ class NodeManV3Orchestrator:
         workflows = list(operation.workflows.order_by("batch_index"))
         direct = [workflow for workflow in workflows if workflow.workflow_id]
         if direct:
-            return direct
+            return operation, direct
         if any(workflow.trigger_id for workflow in workflows):
             raise NodeManV3CapabilityBlocked(
                 "DeployPolicy Execute returns trigger_id, but the aggregate DeployPolicy Workflow contract is not defined"
             )
-        return []
+        return operation, []
 
     def _list_operations(self, workflow_id: str, *, context: NodeManV3RequestContext) -> list[dict]:
         operations = []
@@ -236,12 +242,37 @@ class NodeManV3Orchestrator:
             ((operation.get("latest_oper_inst_brief_data") or {}).get("life_cycle") or {}).get("state") or ""
         ).lower()
 
-    def _dispatch_control(self, collect_config, *, operation_type: str, requests: Sequence[dict], submit: Callable):
+    def _dispatch_control(
+        self,
+        collect_config,
+        *,
+        operation_type: str,
+        requests: Sequence[dict],
+        submit: Callable,
+        source_operation: MonitorNodeManOperation | None,
+    ):
         binding = self._binding(collect_config)
-        if binding is None:
+        if binding is None or source_operation is None:
             return None
         with transaction.atomic():
             locked = NodeManIntegrationBinding.objects.select_for_update().get(pk=binding.pk)
+            latest = locked.operations.order_by("-created_at").first()
+            if latest is None or latest.pk != source_operation.pk:
+                raise NodeManExecutionLeaseConflict(
+                    "collection workflow changed before the control request was submitted"
+                )
+            if locked.operations.filter(result_state=NodeManV3ResultState.WRITE_RESULT_UNKNOWN).exists():
+                raise NodeManV3UnknownResultError(
+                    "an earlier NodeMan write result is unknown; workflow control cannot be replayed safely"
+                )
+            if (
+                locked.operations.filter(
+                    operation_type__in=(NodeManOperationType.RETRY, NodeManOperationType.TERMINATE)
+                )
+                .exclude(status__in=TERMINAL_OPERATION_STATUSES)
+                .exists()
+            ):
+                raise NodeManExecutionLeaseConflict("a collection workflow control operation is already in progress")
             operation = MonitorNodeManOperation.objects.create(
                 binding=locked,
                 config_meta_id=collect_config.pk,

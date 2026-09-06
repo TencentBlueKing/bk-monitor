@@ -210,10 +210,65 @@ def test_transaction_rollback_discards_submission(policy_case, django_capture_on
 
 def test_unchanged_policy_is_not_reexecuted_but_explicit_run_is(policy_case, django_capture_on_commit_callbacks):
     case = policy_case
-    submit(case, django_capture_on_commit_callbacks)
+    initial = submit(case, django_capture_on_commit_callbacks)
+    operation = MonitorNodeManOperation.objects.get(pk=initial.operation_id)
+    operation.transition_to(NodeManOperationStatus.SUCCESS)
     assert submit(case, django_capture_on_commit_callbacks).prepared is False
     assert len(case.client.calls) == 3
     assert submit(case, django_capture_on_commit_callbacks, force=True).prepared is True
+    assert [call[0] for call in case.client.calls[3:]] == ["update", "execute"]
+
+
+def test_unchanged_installer_edit_keeps_success_on_the_new_version(
+    policy_case,
+    django_capture_on_commit_callbacks,
+):
+    from monitor_web.collecting.deploy.nodeman_v3.installer import NodeManV3Installer
+
+    case = policy_case
+    initial = submit(case, django_capture_on_commit_callbacks)
+    operation = MonitorNodeManOperation.objects.get(pk=initial.operation_id)
+    operation.transition_to(NodeManOperationStatus.SUCCESS)
+    assert finalize_collect_policy_operation(operation, list(operation.workflows.all())) is True
+    previous_deployment_id = case.collection.deployment_config_id
+
+    installer = NodeManV3Installer(case.collection, reconciler=case.reconciler)
+    with django_capture_on_commit_callbacks(execute=True):
+        response = installer.install(
+            {
+                "target_node_type": "INSTANCE",
+                "target_nodes": [{"bk_host_id": 41}, {"bk_host_id": 42}],
+                "params": {"collector": {"period": 60}, "plugin": {}},
+            },
+            "EDIT",
+        )
+
+    case.collection.refresh_from_db()
+    assert response["deployment_id"] != previous_deployment_id
+    assert case.collection.deployment_config_id == response["deployment_id"]
+    assert case.collection.operation_result == "SUCCESS"
+    assert MonitorNodeManOperation.objects.count() == 1
+    assert [call[0] for call in case.client.calls] == ["list", "create", "execute"]
+
+
+def test_control_success_does_not_hide_a_failed_policy_reconcile(
+    policy_case,
+    django_capture_on_commit_callbacks,
+):
+    case = policy_case
+    initial = submit(case, django_capture_on_commit_callbacks)
+    reconcile_operation = MonitorNodeManOperation.objects.get(pk=initial.operation_id)
+    reconcile_operation.transition_to(NodeManOperationStatus.FAILED)
+    MonitorNodeManOperation.objects.create(
+        binding=case.binding,
+        generation=case.binding.generation,
+        operation_type=NodeManOperationType.TERMINATE,
+        status=NodeManOperationStatus.SUCCESS,
+    )
+
+    result = submit(case, django_capture_on_commit_callbacks)
+
+    assert result.prepared is True
     assert [call[0] for call in case.client.calls[3:]] == ["update", "execute"]
 
 
@@ -224,7 +279,9 @@ def test_edits_reuse_same_policy_and_replace_desired_scope_or_specs(
     change,
 ):
     case = policy_case
-    submit(case, django_capture_on_commit_callbacks)
+    initial = submit(case, django_capture_on_commit_callbacks)
+    operation = MonitorNodeManOperation.objects.get(pk=initial.operation_id)
+    operation.transition_to(NodeManOperationStatus.SUCCESS)
     deployment = case.collection.deployment_config
     if change == "shrink":
         deployment.target_nodes = [{"bk_host_id": 42}]
@@ -285,15 +342,28 @@ def test_inactive_binding_is_not_silently_reactivated(policy_case, django_captur
     assert case.client.calls == []
 
 
-def test_concurrent_dispatch_is_rejected(policy_case, django_capture_on_commit_callbacks):
+@pytest.mark.parametrize(
+    "status",
+    [
+        NodeManOperationStatus.PENDING,
+        NodeManOperationStatus.DISPATCHING,
+        NodeManOperationStatus.RUNNING,
+        NodeManOperationStatus.UNKNOWN,
+    ],
+)
+def test_non_terminal_policy_operation_blocks_another_submission(
+    policy_case,
+    django_capture_on_commit_callbacks,
+    status,
+):
     case = policy_case
     MonitorNodeManOperation.objects.create(
         binding=case.binding,
         generation=case.binding.generation,
         operation_type=NodeManOperationType.RECONCILE,
-        status=NodeManOperationStatus.DISPATCHING,
+        status=status,
     )
-    with pytest.raises(NodeManExecutionLeaseConflict, match="already in progress"):
+    with pytest.raises(NodeManExecutionLeaseConflict, match="not reached a terminal state"):
         submit(case, django_capture_on_commit_callbacks)
     assert case.client.calls == []
 
@@ -311,15 +381,17 @@ def test_stale_desired_version_cannot_overwrite_newer_policy(policy_case, django
     assert case.client.calls == []
 
 
-@pytest.mark.parametrize("condition", ["remote", "stopped"])
+@pytest.mark.parametrize("condition", ["remote", "remote_exporter", "stopped"])
 def test_unsupported_collection_is_blocked_before_policy_submission(
     policy_case,
     django_capture_on_commit_callbacks,
     condition,
 ):
     case = policy_case
-    if condition == "remote":
+    if condition in {"remote", "remote_exporter"}:
         case.collection.deployment_config.remote_collecting_host = {"bk_host_id": 100}
+        if condition == "remote_exporter":
+            case.collection.plugin.plugin_type = "Exporter"
     else:
         case.collection.last_operation = "STOP"
     with pytest.raises(NodeManV3CapabilityBlocked):
@@ -350,7 +422,9 @@ def test_installer_edit_and_upgrade_submit_committed_deployment_versions(
     from monitor_web.collecting.deploy.nodeman_v3.installer import NodeManV3Installer
 
     case = policy_case
-    submit(case, django_capture_on_commit_callbacks)
+    initial = submit(case, django_capture_on_commit_callbacks)
+    operation = MonitorNodeManOperation.objects.get(pk=initial.operation_id)
+    operation.transition_to(NodeManOperationStatus.SUCCESS)
     installer = NodeManV3Installer(case.collection, reconciler=case.reconciler)
     monkeypatch.setattr(installer, "_node_diff", lambda *args: {"is_modified": True})
     with django_capture_on_commit_callbacks(execute=True):
@@ -369,6 +443,9 @@ def test_installer_edit_and_upgrade_submit_committed_deployment_versions(
     assert case.collection.deployment_config.subscription_id == 0
     assert case.collection.deployment_config.task_ids == []
     assert case.client.calls[-2][1]["deploy_policies"][0]["scopes"][0]["type"] == "topo"
+
+    operation = case.binding.operations.order_by("-created_at").first()
+    operation.transition_to(NodeManOperationStatus.SUCCESS)
 
     release = PluginVersionHistory.objects.get(pk=case.collection.deployment_config.plugin_version_id)
     release.pk = None

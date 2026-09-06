@@ -140,6 +140,21 @@ def test_remote_exporter_uses_package_and_config_projection_specs():
     ]
 
 
+def test_remote_exporter_is_blocked_before_building_a_partial_policy():
+    collect_config = SimpleNamespace(
+        plugin=SimpleNamespace(plugin_type=PluginType.EXPORTER),
+        deployment_config=SimpleNamespace(remote_collecting_host={"bk_host_id": 100}),
+    )
+    builder = CollectDeployPolicyPayloadBuilder(
+        step_builder=lambda config, deployment: _exporter_steps(),
+    )
+
+    with pytest.raises(NodeManV3CapabilityBlocked, match="cross-spec listen_port and placement") as error:
+        builder.build(collect_config)
+
+    assert error.value.result_state == NodeManV3ResultState.UNSUPPORTED
+
+
 def test_v2_cross_step_context_is_blocked_instead_of_sent_unresolved():
     config = SimpleNamespace(target_object_type="SERVICE", plugin=SimpleNamespace(plugin_type=PluginType.EXPORTER))
     with pytest.raises(NodeManV3CapabilityBlocked, match="step_data") as error:

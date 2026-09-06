@@ -25,6 +25,7 @@ from monitor_web.nodeman_integration.v3.operation import (
     NodeManV3TargetOperationCoordinator,
     PreparedTargetOperation,
 )
+from monitor_web.nodeman_integration.v3.status import TERMINAL_OPERATION_STATUSES
 
 from .deploy_policy import CollectDeployPolicyPayloadBuilder, NodeManV3DeployPolicyGateway
 from .validation import NodeManV3CapabilityBlocked
@@ -119,18 +120,22 @@ class CollectDeployPolicyReconciler:
                 )
             if locked.operations.filter(result_state=NodeManV3ResultState.WRITE_RESULT_UNKNOWN).exists():
                 raise NodeManV3UnknownResultError("an earlier collection policy write is unresolved; do not replay it")
-            if locked.operations.filter(
-                status__in=(NodeManOperationStatus.PENDING, NodeManOperationStatus.DISPATCHING)
-            ).exists():
-                raise NodeManExecutionLeaseConflict("a collection policy submission is already in progress")
-            latest = locked.operations.order_by("-created_at").first()
+            if locked.operations.exclude(status__in=TERMINAL_OPERATION_STATUSES).exists():
+                raise NodeManExecutionLeaseConflict("a collection policy operation has not reached a terminal state")
+            latest = (
+                locked.operations.filter(operation_type=NodeManOperationType.RECONCILE).order_by("-created_at").first()
+            )
             if (
                 not force
                 and locked.node_man_deploy_policy_id
                 and locked.node_man_policy_fingerprint == fingerprint
                 and latest
-                and latest.status in (NodeManOperationStatus.RUNNING, NodeManOperationStatus.SUCCESS)
+                and latest.status == NodeManOperationStatus.SUCCESS
             ):
+                if current.operation_result != OperationResult.SUCCESS:
+                    current.operation_result = OperationResult.SUCCESS
+                    current.save(update_fields=("operation_result", "update_time"))
+                collect_config.operation_result = OperationResult.SUCCESS
                 return None
 
             locked.advance_generation(expected_generation=locked.generation)

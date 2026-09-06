@@ -41,6 +41,10 @@ class CollectDeployPolicyPayloadBuilder:
             raise NodeManV3CapabilityBlocked(
                 "only remote Exporter collection has a confirmed DeployPolicy projection contract"
             )
+        if remote_collecting_host:
+            raise NodeManV3CapabilityBlocked(
+                "remote Exporter collection requires a confirmed cross-spec listen_port and placement contract"
+            )
         if collect_config.last_operation == OperationType.STOP:
             raise NodeManV3CapabilityBlocked(
                 "stopped collection requires the DeployPolicy reverse field; enabled must remain true"

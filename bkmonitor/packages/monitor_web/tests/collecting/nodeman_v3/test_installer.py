@@ -9,6 +9,7 @@ from bkmonitor.nodeman_integration.v3.exceptions import NodeManV3ResultState
 from monitor_web.collecting.deploy.nodeman_v3.installer import NodeManV3Installer
 from monitor_web.collecting.deploy.nodeman_v3.orchestrator import NodeManV3Orchestrator
 from monitor_web.collecting.deploy.nodeman_v3.validation import NodeManV3CapabilityBlocked
+from monitor_web.nodeman_integration.v3.operation import NodeManExecutionLeaseConflict
 from monitor_web.models.node_man import (
     MonitorNodeManOperation,
     MonitorNodeManWorkflow,
@@ -297,6 +298,8 @@ def test_direct_workflow_status_retry_terminate_and_log_are_wired(direct_workflo
         "retry_mod": "PARTIAL",
         "operation_ids": ["operation-failed"],
     }
+    retry_operation = MonitorNodeManOperation.objects.get(pk=retry["operation_id"])
+    retry_operation.transition_to(NodeManOperationStatus.SUCCESS)
 
     revoke = orchestrator.revoke(
         collect_config=direct_workflow_case.config,
@@ -315,6 +318,20 @@ def test_direct_workflow_status_retry_terminate_and_log_are_wired(direct_workflo
         instance_id="instance-failed",
     )
     assert detail == {"log_detail": "====================安装插件====================\n安装完成\nretried"}
+
+
+@pytest.mark.django_db(transaction=True)
+def test_running_control_operation_blocks_an_overlapping_write(direct_workflow_case):
+    client = FakeWorkflowClient(operations=[_workflow_operation("operation-failed", "instance-failed", "failed")])
+    orchestrator = NodeManV3Orchestrator(workflow_client=client, poll_scheduler=lambda operation_id: None)
+
+    result = orchestrator.retry(collect_config=direct_workflow_case.config)
+    assert result["operation_id"]
+
+    with pytest.raises(NodeManExecutionLeaseConflict, match="already in progress"):
+        orchestrator.retry(collect_config=direct_workflow_case.config)
+
+    assert [call[0] for call in client.calls].count("retry_operation") == 1
 
 
 @pytest.mark.django_db
