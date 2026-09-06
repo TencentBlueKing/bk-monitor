@@ -42,8 +42,9 @@ def test_v2_celery_config_is_exactly_the_frozen_baseline():
     assert V3_TASK_MODULE not in sys.modules
 
 
-def test_v3_worker_and_beat_use_the_same_explicit_queue():
-    config = _reload_config("v3_fresh")
+@pytest.mark.parametrize("mode", ["v3_fresh", "v3_gray"])
+def test_v3_worker_and_beat_use_the_same_explicit_queue(mode):
+    config = _reload_config(mode)
     task_names = {
         "monitor_web.nodeman_integration.v3.tasks.poll_operation",
         "monitor_web.nodeman_integration.v3.tasks.poll_pending_operations",

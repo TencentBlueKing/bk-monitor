@@ -12,6 +12,7 @@ import yaml
 from django.conf import settings
 from django.test import override_settings
 
+from monitor_web.models.collecting import CollectConfigMeta
 from monitor_web.plugin.constant import PluginType
 
 
@@ -29,8 +30,12 @@ class FakeV3Installer:
         self.kwargs = kwargs
 
 
-def _collect_config(plugin_type="Script"):
-    return SimpleNamespace(plugin=SimpleNamespace(plugin_type=plugin_type))
+def _collect_config(plugin_type="Script", node_man_backend="v2"):
+    return SimpleNamespace(
+        pk=42,
+        plugin=SimpleNamespace(plugin_type=plugin_type),
+        node_man_backend=node_man_backend,
+    )
 
 
 def _clear_v3_modules():
@@ -160,9 +165,9 @@ print("NODEMAN_V2_CONTRACT=" + json.dumps(payload))
     }
 
 
-@pytest.mark.parametrize("mode", ["v2", "v3_fresh"])
+@pytest.mark.parametrize("mode", ["v2", "v3_fresh", "v3_gray"])
 def test_k8s_always_uses_current_k8s_installer(mode, monkeypatch):
-    if mode == "v3_fresh":
+    if mode in {"v3_fresh", "v3_gray"}:
         _install_fake_v3_module(monkeypatch)
     _, deploy_module = _reload_route(mode)
 
@@ -182,6 +187,110 @@ def test_v3_fresh_route_is_bound_at_module_load(monkeypatch):
     assert installer.__class__ is FakeV3Installer
     assert installer.args == ("arg",)
     assert installer.kwargs == {"key": "value"}
+
+
+@pytest.mark.parametrize(
+    ("mode", "gray_biz_ids", "bk_biz_id", "expected_backend"),
+    [
+        ("v2", [2], 2, "v2"),
+        ("v3_fresh", [], 2, "v3"),
+        ("v3_gray", [2], 2, "v3"),
+        ("v3_gray", [2], 3, "v2"),
+        ("v3_gray", ["2"], 2, "v3"),
+    ],
+)
+def test_new_collect_config_backend_is_selected_once(mode, gray_biz_ids, bk_biz_id, expected_backend):
+    with override_settings(NODEMAN_INTEGRATION_MODE=mode, NODEMAN_V3_GRAY_BIZ_LIST=gray_biz_ids):
+        mode_module = importlib.import_module(MODE_MODULE)
+        importlib.reload(mode_module)
+
+        assert mode_module.get_new_collect_config_backend(bk_biz_id) == expected_backend
+
+
+def test_existing_rows_default_to_v2_backend():
+    field = CollectConfigMeta._meta.get_field("node_man_backend")
+
+    assert field.get_default() == "v2"
+    assert list(field.choices) == [("v2", "NodeMan V2"), ("v3", "NodeMan V3")]
+
+
+def test_v3_gray_routes_by_persisted_collect_config_backend(monkeypatch):
+    _install_fake_v3_module(monkeypatch)
+    _, deploy_module = _reload_route("v3_gray")
+
+    assert (
+        deploy_module.get_collect_installer(_collect_config(node_man_backend="v2")).__class__
+        is deploy_module.node_man_v2.NodeManInstaller
+    )
+    assert deploy_module.get_collect_installer(_collect_config(node_man_backend="v3")).__class__ is FakeV3Installer
+
+
+def test_v3_gray_does_not_reroute_existing_config_when_gray_list_changes(monkeypatch):
+    _install_fake_v3_module(monkeypatch)
+    _, deploy_module = _reload_route("v3_gray")
+    collect_config = _collect_config(node_man_backend="v2")
+
+    with override_settings(NODEMAN_V3_GRAY_BIZ_LIST=[2]):
+        installer = deploy_module.get_collect_installer(collect_config)
+
+    assert installer.__class__ is deploy_module.node_man_v2.NodeManInstaller
+
+
+def test_v3_gray_rejects_unknown_persisted_backend(monkeypatch):
+    _install_fake_v3_module(monkeypatch)
+    _, deploy_module = _reload_route("v3_gray")
+
+    with pytest.raises(ValueError, match="unsupported NodeMan backend"):
+        deploy_module.get_collect_installer(_collect_config(node_man_backend="unknown"))
+
+
+def test_save_collect_config_persists_selected_backend_before_install(monkeypatch):
+    from monitor_web.collecting.resources import backend as backend_resources
+
+    captured = {}
+
+    class FakeInstaller:
+        def __init__(self, collect_config):
+            captured["collect_config"] = collect_config
+
+        def install(self, data, operation):
+            return {"operation": operation}
+
+    class FakeStrategyLoader:
+        def __init__(self, **kwargs):
+            pass
+
+        def run(self):
+            return None
+
+    save_resource = backend_resources.SaveCollectConfigResource()
+    monkeypatch.setattr(
+        save_resource,
+        "get_collector_plugin",
+        lambda data: SimpleNamespace(plugin_id="test_plugin"),
+    )
+    monkeypatch.setattr(save_resource, "update_metric_cache", lambda plugin: None)
+    monkeypatch.setattr(backend_resources, "get_request_tenant_id", lambda: "system")
+    monkeypatch.setattr(backend_resources, "get_global_user", lambda: "admin")
+    monkeypatch.setattr(backend_resources, "get_new_collect_config_backend", lambda bk_biz_id: "v3")
+    monkeypatch.setattr(backend_resources, "get_collect_installer", FakeInstaller)
+    monkeypatch.setattr(backend_resources, "DatalinkDefaultAlarmStrategyLoader", FakeStrategyLoader)
+
+    result = save_resource.perform_request(
+        {
+            "bk_biz_id": 2,
+            "name": "gray-config",
+            "collect_type": "Script",
+            "target_object_type": "HOST",
+            "target_node_type": "INSTANCE",
+            "label": "component",
+            "metric_relabel_configs": [],
+            "params": {"collector": {}},
+        }
+    )
+
+    assert result == {"operation": "CREATE"}
+    assert captured["collect_config"].node_man_backend == "v3"
 
 
 def test_invalid_mode_fails_during_django_startup():

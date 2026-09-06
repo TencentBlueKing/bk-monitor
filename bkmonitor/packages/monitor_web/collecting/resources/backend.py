@@ -19,6 +19,7 @@ from django.db.models import Max, Q
 from django.utils.translation import gettext as _
 
 from bkm_space.api import SpaceApi
+from bkmonitor.nodeman_integration.mode import get_new_collect_config_backend
 from bkmonitor.utils import shortuuid
 from bkmonitor.utils.request import get_request, get_request_tenant_id
 from bkmonitor.utils.user import get_global_user
@@ -716,6 +717,7 @@ class CloneCollectConfigResource(Resource):
             # 克隆采集配置
             collect_config.id = None
             collect_config.deployment_config = deployment_config
+            collect_config.node_man_backend = get_new_collect_config_backend(collect_config.bk_biz_id)
 
             #  判断重名
             new_name = name = collect_config.name + "_copy"
@@ -1054,6 +1056,7 @@ class SaveCollectConfigResource(Resource):
                 operation_result=OperationResult.PREPARING,
                 collect_type=data["collect_type"],
                 plugin_id=collector_plugin.plugin_id,
+                node_man_backend=get_new_collect_config_backend(data["bk_biz_id"]),
                 target_object_type=data["target_object_type"],
                 label=data["label"],
             )

@@ -19,6 +19,7 @@ from api.grafana.exporter import DashboardExporter
 from bk_dataview.api import get_or_create_org
 from bkmonitor.action.serializers import DutyRuleDetailSlz, ExecuteConfigSlz, UserGroupDetailSlz
 from bkmonitor.models import ActionConfig, DutyRule, StrategyModel, UserGroup
+from bkmonitor.nodeman_integration.mode import get_new_collect_config_backend
 from bkmonitor.utils.local import local
 from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from constants.data_source import DataSourceLabel
@@ -192,6 +193,7 @@ def import_collect(bk_biz_id, import_history_instance, collect_config_list):
                 operation_result=OperationResult.PREPARING,
                 collect_type=config["collect_type"],
                 plugin_id=plugin_obj.plugin_id,
+                node_man_backend=get_new_collect_config_backend(config["bk_biz_id"]),
                 target_object_type=config["target_object_type"],
                 label=config["label"],
             )

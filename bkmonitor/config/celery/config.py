@@ -11,7 +11,7 @@ specific language governing permissions and limitations under the License.
 from celery.schedules import crontab
 from django.conf import settings
 
-from bkmonitor.nodeman_integration.mode import get_nodeman_integration_mode
+from bkmonitor.nodeman_integration.mode import is_nodeman_v3_runtime_enabled
 from config.tools.rabbitmq import get_rabbitmq_settings
 
 *_, celery_broker_url = get_rabbitmq_settings(settings.APP_CODE)
@@ -158,7 +158,7 @@ class Config:
         },
     }
 
-    if get_nodeman_integration_mode() == "v3_fresh":
+    if is_nodeman_v3_runtime_enabled():
         imports = ("monitor_web.nodeman_integration.v3.tasks",)
         task_routes = {
             "monitor_web.nodeman_integration.v3.tasks.poll_operation": {"queue": "celery"},
