@@ -494,6 +494,7 @@ ADVANCED_OPTIONS = OrderedDict(
         ("RUM_APP_DEFAULT_ES_REPLICAS", slz.IntegerField(label="RUM应用默认副本数", default=0)),
         ("RUM_APP_DEFAULT_ES_SHARDS", slz.IntegerField(label="RUM应用默认索引分片数", default=3)),
         ("COLLECTING_UPGRADE_WITH_UPDATE_BIZ", slz.ListField(label="采集升级使用订阅更新模式的业务列表", default=[0])),
+        ("NODEMAN_V3_GRAY_BIZ_LIST", slz.ListField(label="新增采集项使用 NodeMan V3 的灰度业务列表", default=[])),
         ("EXCLUDE_WORKER_TASKS", slz.ListField(label="排除特定的worker任务(需要重启alarm-beat生效)", default=[])),
         (
             "NEW_ENV_BIZ_BLACK_LIST",

@@ -69,6 +69,10 @@ class CollectConfigMeta(OperateRecordModelBase):
         LOG = "Log"
         SNMP_TRAP = "SNMP_Trap"
 
+    class NodeManBackend(models.TextChoices):
+        V2 = "v2", "NodeMan V2"
+        V3 = "v3", "NodeMan V3"
+
     COLLECT_TYPE_CHOICES = CollectorPluginMeta.PLUGIN_TYPE_CHOICES
 
     TARGET_OBJECT_TYPE_CHOICES = (
@@ -84,6 +88,9 @@ class CollectConfigMeta(OperateRecordModelBase):
     # 采集插件相关配置
     collect_type = models.CharField("采集方式", max_length=32, choices=COLLECT_TYPE_CHOICES, db_index=True)
     plugin_id = models.CharField("插件ID", max_length=64)
+    node_man_backend = models.CharField(
+        "NodeMan 执行后端", max_length=8, choices=NodeManBackend.choices, default=NodeManBackend.V2
+    )
 
     # 采集目标相关配置
     # 取值范围
