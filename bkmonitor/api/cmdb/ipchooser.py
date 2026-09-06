@@ -49,6 +49,12 @@ class IpChooserApi(AbstractBkApi):
 
     @staticmethod
     def get_agent_status(params: dict = None):
+        from bkmonitor.nodeman_integration.mode import get_nodeman_integration_mode
+
+        if get_nodeman_integration_mode() == "v3_fresh":
+            from bkmonitor.nodeman_integration.v3.compat import ipchooser_host_detail
+
+            return ipchooser_host_detail(params or {})
         from core.drf_resource import api
 
         return api.node_man.ipchooser_host_detail(params)

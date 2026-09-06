@@ -35,6 +35,7 @@ from django.utils.translation import gettext_lazy as _lazy
 from rest_framework import serializers
 
 from bkmonitor.utils.common_utils import safe_int
+from bkmonitor.nodeman_integration.mode import get_nodeman_integration_mode
 from bkmonitor.utils.request import get_request, get_request_tenant_id
 from bkmonitor.utils.serializers import MetricJsonBaseSerializer
 from constants.result_table import (
@@ -300,15 +301,21 @@ class PluginRegisterResource(Resource):
 
         # 尝试进行打包、上传和注册操作
         try:
-            tar_name = self.make_package()
-            file_name = self.upload_file(tar_name)
-            self.register_package(file_name)
-            plugin_info = api.node_man.plugin_info(name=self.plugin_id, version=version.version)
-            token_list = [i["md5"] for i in plugin_info]
-            token_list.sort()
-            release_version = self.plugin_manager.plugin.release_version
-            if release_version is None or release_version.config_version != config_version:
-                self.register_template(tar_name)
+            if get_nodeman_integration_mode() == "v3_fresh":
+                from monitor_web.plugin.nodeman_v3 import NodeManV3PackageWorkflowService
+
+                NodeManV3PackageWorkflowService().register(self.plugin_manager)
+                token_list = []
+            else:
+                tar_name = self.make_package()
+                file_name = self.upload_file(tar_name)
+                self.register_package(file_name)
+                plugin_info = api.node_man.plugin_info(name=self.plugin_id, version=version.version)
+                token_list = [i["md5"] for i in plugin_info]
+                token_list.sort()
+                release_version = self.plugin_manager.plugin.release_version
+                if release_version is None or release_version.config_version != config_version:
+                    self.register_template(tar_name)
 
             version.stage = "debug"
             version.is_packaged = True
@@ -668,16 +675,25 @@ class CheckPluginIDResource(Resource):
         ).exists():
             raise PluginIDExist({"msg": plugin_id})
 
+        if get_nodeman_integration_mode() == "v3_fresh":
+            from bkmonitor.nodeman_integration.v3.compat import plugin_exists
+
+            exists = plugin_exists(
+                bk_tenant_id=get_request_tenant_id(),
+                bk_biz_id=0,
+                plugin_name=plugin_id,
+            )
+            if not exists:
+                return None
+            raise PluginIDExist({"msg": plugin_id})
         try:
             api.node_man.plugin_info({"name": plugin_id})
         except BKAPIError as e:
             if isinstance(e.data, dict) and e.data.get("code", "") == 3800100:
                 # 当code==VALIDATE_REEOR时视为，当前plugin_id在节点管理中不存在
                 return None
-            else:
-                raise e
-        else:
-            raise PluginIDExist({"msg": plugin_id})
+            raise e
+        raise PluginIDExist({"msg": plugin_id})
 
 
 class SaveAndReleasePluginResource(Resource):

@@ -61,10 +61,7 @@ def _classify(path: str) -> str:
 
 def _coverage(path: str, category: str) -> list[str]:
     coverage = ["tests/nodeman_v3/test_v2_call_manifest.py::test_v2_call_manifest_matches_baseline"]
-    if (
-        category == "production_request_or_async_task"
-        and path != "packages/monitor_web/collecting/deploy/__init__.py"
-    ):
+    if category == "production_request_or_async_task" and path != "packages/monitor_web/collecting/deploy/__init__.py":
         coverage.append(
             "tests/nodeman_v3/test_v2_call_manifest.py::test_untouched_v2_production_callsite_sources_match_baseline"
         )
@@ -216,7 +213,15 @@ def _baseline_source(relative_path: str) -> str:
 
 def test_untouched_v2_production_callsite_sources_match_baseline():
     manifest = yaml.safe_load(MANIFEST_PATH.read_text(encoding="utf-8"))
-    modified_routing_files = {"packages/monitor_web/collecting/deploy/__init__.py"}
+    modified_routing_files = {
+        "api/cmdb/ipchooser.py",
+        "bkm_ipchooser/tools/gse_tool.py",
+        "packages/monitor_web/cc/resources/cmdb.py",
+        "packages/monitor_web/collecting/deploy/__init__.py",
+        "packages/monitor_web/plugin/manager/base.py",
+        "packages/monitor_web/plugin/resources.py",
+        "packages/monitor_web/plugin/views.py",
+    }
     production_paths = {
         site["path"] for site in manifest["call_sites"] if site["category"] == "production_request_or_async_task"
     }

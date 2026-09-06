@@ -1,6 +1,7 @@
 import logging
 
 from bkm_ipchooser.constants import ScopeType
+from bkmonitor.nodeman_integration.mode import get_nodeman_integration_mode
 from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from core.drf_resource import api
 
@@ -28,7 +29,12 @@ def fill_agent_status(cc_hosts: list[dict], bk_biz_id: int) -> list[dict]:
         "agent_realtime_state": True,
     }
     try:
-        host_info = api.node_man.ipchooser_host_detail(request_params)
+        if get_nodeman_integration_mode() == "v3_fresh":
+            from bkmonitor.nodeman_integration.v3.compat import ipchooser_host_detail
+
+            host_info = ipchooser_host_detail(request_params)
+        else:
+            host_info = api.node_man.ipchooser_host_detail(request_params)
     except Exception as e:
         logger.error("获取主机agent状态失败: %s", e)
         return cc_hosts

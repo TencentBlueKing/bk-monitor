@@ -9,13 +9,13 @@ from bkmonitor.nodeman_integration.v3.client import (
     NodeManV3TransportError,
 )
 from bkmonitor.nodeman_integration.v3.client.workflow import WorkflowClient
-from monitor_web.collecting.deploy.nodeman_v3.reconciler import CollectTargetReconciler
+from monitor_web.collecting.deploy.nodeman_v3.reconciler import (
+    CollectDeployPolicyReconciler,
+    finalize_collect_policy_operation,
+)
 from monitor_web.models.node_man import (
     MonitorNodeManOperation,
-    NodeManBindingState,
-    NodeManIntegrationBinding,
     NodeManOperationStatus,
-    NodeManResourceType,
 )
 from monitor_web.nodeman_integration.v3.status import refresh_operation_status
 from monitor_web.nodeman_integration.v3.operation import (
@@ -27,6 +27,12 @@ from monitor_web.nodeman_integration.v3.status import TERMINAL_OPERATION_STATUSE
 
 V3_TASK_QUEUE = "celery"
 logger = logging.getLogger(__name__)
+
+
+def _finalize_operation(operation, workflows):
+    if "policy_fingerprint" in (getattr(operation, "request_summary", None) or {}):
+        return finalize_collect_policy_operation(operation, workflows)
+    return finalize_target_operation(operation, workflows)
 
 
 def _bounded_primary_key_page(queryset, *, cursor=None, upper_bound=None, limit: int = 200):
@@ -45,15 +51,15 @@ def _bounded_primary_key_page(queryset, *, cursor=None, upper_bound=None, limit:
 def poll_operation(self, operation_id: str):
     operation = MonitorNodeManOperation.objects.select_related("binding").get(pk=operation_id)
     if operation.status in TERMINAL_OPERATION_STATUSES:
-        finalized = finalize_target_operation(operation, list(operation.workflows.all()))
+        finalized = _finalize_operation(operation, list(operation.workflows.all()))
         if finalized or not operation.execution_leases.exists():
             return {"operation_id": operation_id, "status": operation.status, "finalized": finalized}
 
     if operation.status == NodeManOperationStatus.DISPATCHING:
-        recover_submitting_batches(operation)
+        recover_submitting_batches(operation, terminal_handler=_finalize_operation)
         operation.refresh_from_db()
         if operation.status in TERMINAL_OPERATION_STATUSES:
-            finalized = finalize_target_operation(operation, list(operation.workflows.all()))
+            finalized = _finalize_operation(operation, list(operation.workflows.all()))
             return {"operation_id": operation_id, "status": operation.status, "finalized": finalized}
         if operation.status == NodeManOperationStatus.DISPATCHING:
             return {"operation_id": operation_id, "status": operation.status, "skipped": "dispatch_active"}
@@ -70,7 +76,7 @@ def poll_operation(self, operation_id: str):
             operation,
             WorkflowClient(NodeManV3HTTPClient()),
             context=context,
-            on_terminal=finalize_target_operation,
+            on_terminal=_finalize_operation,
         )
     except NodeManV3TransportError as error:
         raise self.retry(exc=error, countdown=min(300, 2 ** (self.request.retries + 1))) from error
@@ -122,41 +128,11 @@ def poll_pending_operations(self, limit: int = 200, cursor=None, upper_bound=Non
 
 @shared_task(name="monitor_web.nodeman_integration.v3.tasks.reconcile_binding")
 def reconcile_binding(binding_id: int, trigger: str = "event"):
-    result = CollectTargetReconciler().reconcile_binding(binding_id, trigger=trigger)
+    result = CollectDeployPolicyReconciler().reconcile_binding(binding_id, trigger=trigger)
     return {
         "binding_id": result.binding_id,
         "generation": result.generation,
         "trigger": result.trigger,
-        "added": result.added,
-        "removed": result.removed,
-        "changed": result.changed,
-        "unchanged": result.unchanged,
-        "inflight": result.inflight,
-        "blocked": result.blocked,
+        "operation_id": result.operation_id,
+        "prepared": result.prepared,
     }
-
-
-@shared_task(bind=True, name="monitor_web.nodeman_integration.v3.tasks.reconcile_active_bindings")
-def reconcile_active_bindings(self, limit: int = 200, cursor=None, upper_bound=None):
-    queryset = NodeManIntegrationBinding.objects.filter(
-        resource_type=NodeManResourceType.COLLECT_CONFIG,
-        state__in=(NodeManBindingState.ACTIVE, NodeManBindingState.ORPHANED),
-    )
-    binding_ids, upper_bound = _bounded_primary_key_page(
-        queryset,
-        cursor=cursor,
-        upper_bound=upper_bound,
-        limit=limit,
-    )
-    for binding_id in binding_ids:
-        reconcile_binding.apply_async(args=(binding_id, "periodic"), queue=V3_TASK_QUEUE)
-    if binding_ids and str(binding_ids[-1]) != str(upper_bound):
-        self.apply_async(
-            kwargs={
-                "limit": limit,
-                "cursor": str(binding_ids[-1]),
-                "upper_bound": str(upper_bound),
-            },
-            queue=V3_TASK_QUEUE,
-        )
-    return len(binding_ids)

@@ -164,18 +164,11 @@ class Config:
             "monitor_web.nodeman_integration.v3.tasks.poll_operation": {"queue": "celery"},
             "monitor_web.nodeman_integration.v3.tasks.poll_pending_operations": {"queue": "celery"},
             "monitor_web.nodeman_integration.v3.tasks.reconcile_binding": {"queue": "celery"},
-            "monitor_web.nodeman_integration.v3.tasks.reconcile_active_bindings": {"queue": "celery"},
         }
         beat_schedule = {
             **beat_schedule,
             "nodeman_v3_poll_pending_operations": {
                 "task": "monitor_web.nodeman_integration.v3.tasks.poll_pending_operations",
-                "schedule": crontab(minute="*/1"),
-                "enabled": True,
-                "options": {"queue": "celery"},
-            },
-            "nodeman_v3_reconcile_active_bindings": {
-                "task": "monitor_web.nodeman_integration.v3.tasks.reconcile_active_bindings",
                 "schedule": crontab(minute="*/1"),
                 "enabled": True,
                 "options": {"queue": "celery"},

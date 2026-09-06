@@ -21,14 +21,12 @@ EXPECTED_V3_TASK_NAMES = frozenset(
     {
         "monitor_web.nodeman_integration.v3.tasks.poll_operation",
         "monitor_web.nodeman_integration.v3.tasks.poll_pending_operations",
-        "monitor_web.nodeman_integration.v3.tasks.reconcile_active_bindings",
         "monitor_web.nodeman_integration.v3.tasks.reconcile_binding",
     }
 )
 EXPECTED_V3_BEAT_NAMES = frozenset(
     {
         "nodeman_v3_poll_pending_operations",
-        "nodeman_v3_reconcile_active_bindings",
     }
 )
 
@@ -50,7 +48,7 @@ def _schedule_contract(schedule) -> dict:
 
 
 def _string_set(value) -> set[str] | None:
-    if not isinstance(value, (list, tuple)) or not all(isinstance(item, str) for item in value):
+    if not isinstance(value, list | tuple) or not all(isinstance(item, str) for item in value):
         return None
     return set(value)
 

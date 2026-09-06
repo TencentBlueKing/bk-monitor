@@ -151,6 +151,8 @@ class NodeManIntegrationBinding(models.Model):
         "状态", max_length=16, choices=NodeManBindingState.choices, default=NodeManBindingState.ACTIVE
     )
     generation = models.PositiveBigIntegerField("期望代次", default=1)
+    node_man_deploy_policy_id = models.BigIntegerField("NodeMan 部署策略 ID", null=True, blank=True)
+    node_man_policy_fingerprint = models.CharField("最近提交的策略指纹", max_length=64, blank=True, default="")
     created_at = models.DateTimeField("创建时间", auto_now_add=True)
     updated_at = models.DateTimeField("更新时间", auto_now=True)
 

@@ -13,7 +13,7 @@ from bkmonitor.nodeman_integration.v3.client import (
 )
 from bkmonitor.nodeman_integration.v3.client.host import HostClient, NetworkUnitClient, ProxyClient
 from bkmonitor.nodeman_integration.v3.client.deploy_policy import DeployPolicyClient
-from bkmonitor.nodeman_integration.v3.client.package import PackageClient, PluginClient
+from bkmonitor.nodeman_integration.v3.client.package import PackageClient, PackageWorkflowClient, PluginClient
 from bkmonitor.nodeman_integration.v3.client.process import ProcessClient
 from bkmonitor.nodeman_integration.v3.client.workflow import WorkflowClient
 from bkmonitor.nodeman_integration.v3.exceptions import NodeManV3ResultState
@@ -100,6 +100,35 @@ def test_plugin_write_contract_uses_v3_path_service_identity_and_audit(monkeypat
     ("invoke", "expected_action", "write"),
     [
         (
+            lambda client, context: PackageWorkflowClient(client).import_plugin_v3(
+                {"filename": "mysql.tgz", "download_url": "https://files.example/mysql.tgz", "md5": "abc"},
+                context=context,
+            ),
+            "api/v3/package/workflow/import/v3/plugin",
+            True,
+        ),
+        (
+            lambda client, context: PackageWorkflowClient(client).import_result(
+                {"workflow_id": "workflow-1"}, context=context
+            ),
+            "api/v3/package/workflow/import_result",
+            False,
+        ),
+        (
+            lambda client, context: PackageWorkflowClient(client).export_plugin(
+                {"plugin_pkg_name": "mysql", "plugin_pkg_version": "1.0.0"}, context=context
+            ),
+            "api/v3/package/workflow/export/plugin",
+            True,
+        ),
+        (
+            lambda client, context: PackageWorkflowClient(client).export_result(
+                {"workflow_id": "workflow-2"}, context=context
+            ),
+            "api/v3/package/workflow/export_result",
+            False,
+        ),
+        (
             lambda client, context: PackageClient(client).publish_plugin_v3(
                 {"upload_id": "upload-id", "version": "1.0.0"}, context=context
             ),
@@ -112,6 +141,26 @@ def test_plugin_write_contract_uses_v3_path_service_identity_and_audit(monkeypat
             ),
             "api/v3/package/release/plugin/list",
             False,
+        ),
+        (
+            lambda client, context: PluginClient(client).start_debug(
+                {
+                    "debug_info": {
+                        "scope": {"bk_host_id": 1},
+                        "plugin_name": "mysql",
+                        "version": "1.0.0",
+                        "config_template_name": ["env.yaml"],
+                    }
+                },
+                context=context,
+            ),
+            "api/v3/plugin/start_debug",
+            True,
+        ),
+        (
+            lambda client, context: PluginClient(client).stop_debug({"workflow_id": "workflow-3"}, context=context),
+            "api/v3/plugin/stop_debug",
+            True,
         ),
         (
             lambda client, context: WorkflowClient(client).list_workflows(

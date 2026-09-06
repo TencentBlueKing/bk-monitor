@@ -48,19 +48,14 @@ def test_v3_worker_and_beat_use_the_same_explicit_queue():
         "monitor_web.nodeman_integration.v3.tasks.poll_operation",
         "monitor_web.nodeman_integration.v3.tasks.poll_pending_operations",
         "monitor_web.nodeman_integration.v3.tasks.reconcile_binding",
-        "monitor_web.nodeman_integration.v3.tasks.reconcile_active_bindings",
     }
 
     assert config.imports == (V3_TASK_MODULE,)
     assert {config.task_routes[name]["queue"] for name in task_names} == {V3_QUEUE}
     assert config.beat_schedule["nodeman_v3_poll_pending_operations"]["task"] in task_names
     assert config.beat_schedule["nodeman_v3_poll_pending_operations"]["options"] == {"queue": V3_QUEUE}
-    assert config.beat_schedule["nodeman_v3_reconcile_active_bindings"] == {
-        "task": "monitor_web.nodeman_integration.v3.tasks.reconcile_active_bindings",
-        "schedule": config.beat_schedule["nodeman_v3_reconcile_active_bindings"]["schedule"],
-        "enabled": True,
-        "options": {"queue": V3_QUEUE},
-    }
+    assert "nodeman_v3_reconcile_active_bindings" not in config.beat_schedule
+    assert f"{V3_TASK_MODULE}.reconcile_active_bindings" not in config.task_routes
     supervisor_config = SUPERVISOR_CONFIG_PATH.read_text(encoding="utf-8")
     default_worker_command = next(
         line for line in supervisor_config.splitlines() if "manage.py celery worker" in line and "-Q" not in line

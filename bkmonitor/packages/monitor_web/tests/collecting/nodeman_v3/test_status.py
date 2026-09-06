@@ -110,7 +110,7 @@ def test_stale_generation_cannot_write_current_configuration_state():
     [
         ({"not_inited_count": 1, "state_counts": {}}, "running"),
         ({"not_inited_count": 0, "state_counts": {"running": 1}}, "running"),
-        ({"not_inited_count": 0, "state_counts": {"success": 2}}, "running"),
+        ({"not_inited_count": 0, "state_counts": {"success": 2}}, "success"),
         ({"not_inited_count": 0, "state_counts": {"failed": 1}}, "failed"),
         ({"not_inited_count": 0, "state_counts": {"timeout": 1}}, "failed"),
         ({"not_inited_count": 0, "state_counts": {"terminated": 1}}, "cancelled"),
@@ -133,11 +133,11 @@ def test_trigger_status_query_uses_exact_trigger_ids():
 
     result = fetch_trigger_statuses(client, ["trigger-1"], context=context)
 
-    assert result["trigger-1"]["status"] == "running"
+    assert result["trigger-1"]["status"] == "success"
     assert client.calls == [(({"trigger_id": ["trigger-1"]}), context)]
 
 
-def test_deploy_policy_trigger_success_does_not_close_operation_without_convergence_evidence(monkeypatch):
+def test_deploy_policy_trigger_success_closes_operation(monkeypatch):
     workflow = SimpleNamespace(
         workflow_id=None,
         trigger_id="trigger-1",
@@ -172,9 +172,20 @@ def test_deploy_policy_trigger_success_does_not_close_operation_without_converge
         on_terminal=lambda *args: callbacks.append(args),
     )
 
-    assert result.status == NodeManOperationStatus.RUNNING
-    assert workflow.raw_status == "running"
-    assert callbacks == []
+    assert result.status == NodeManOperationStatus.SUCCESS
+    assert workflow.raw_status == "success"
+    assert callbacks == [(operation, [workflow])]
+
+
+@pytest.mark.parametrize(
+    ("state_counts", "expected"),
+    [
+        ({"partial_failed": 1}, NodeManWorkflowStatus.PARTIAL_FAILED),
+        ({"cancelled": 1}, NodeManWorkflowStatus.CANCELLED),
+    ],
+)
+def test_deploy_policy_trigger_other_terminal_states_are_normalized(state_counts, expected):
+    assert normalize_trigger_status({"not_inited_count": 0, "state_counts": state_counts}) == expected
 
 
 @pytest.mark.parametrize(("binding_generation", "callback_count"), [(3, 1), (4, 0)])
