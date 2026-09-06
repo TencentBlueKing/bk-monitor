@@ -2,6 +2,7 @@ import logging
 from dataclasses import dataclass
 
 from django.db import transaction
+from django.utils import timezone
 
 from bkmonitor.nodeman_integration.v3.client import NodeManV3UnknownResultError
 from bkmonitor.nodeman_integration.v3.exceptions import NodeManV3DefiniteFailure, NodeManV3PayloadError
@@ -32,6 +33,41 @@ from .validation import NodeManV3CapabilityBlocked
 logger = logging.getLogger(__name__)
 
 
+POLICY_OPERATION_RESULTS = {
+    NodeManOperationStatus.SUCCESS: OperationResult.SUCCESS,
+    NodeManOperationStatus.PARTIAL_FAILED: OperationResult.WARNING,
+    NodeManOperationStatus.FAILED: OperationResult.FAILED,
+    NodeManOperationStatus.CANCELLED: OperationResult.FAILED,
+}
+
+
+def finalize_collect_policy_operation(operation, workflows) -> bool:
+    """Publish a current policy operation's terminal state to its collection."""
+
+    del workflows
+    if operation.status not in POLICY_OPERATION_RESULTS:
+        return False
+    with transaction.atomic():
+        locked_operation = (
+            MonitorNodeManOperation.objects.select_for_update().select_related("binding").get(pk=operation.pk)
+        )
+        operation_result = POLICY_OPERATION_RESULTS.get(locked_operation.status)
+        binding = locked_operation.binding
+        if (
+            not operation_result
+            or not binding
+            or binding.resource_type != NodeManResourceType.COLLECT_CONFIG
+            or binding.generation != locked_operation.generation
+            or locked_operation.config_meta_id is None
+        ):
+            return False
+        updated = CollectConfigMeta.objects.filter(
+            pk=locked_operation.config_meta_id,
+            deployment_config_id=locked_operation.deployment_config_version_id,
+        ).update(operation_result=operation_result, update_time=timezone.now())
+    return updated == 1
+
+
 @dataclass(frozen=True)
 class ReconcileResult:
     binding_id: int
@@ -47,7 +83,9 @@ class CollectDeployPolicyReconciler:
     def __init__(self, *, payload_builder=None, gateway=None, operation_service=None):
         self.payload_builder = payload_builder or CollectDeployPolicyPayloadBuilder()
         self.gateway = gateway or NodeManV3DeployPolicyGateway(payload_builder=self.payload_builder)
-        self.operation_service = operation_service or NodeManV3OperationService()
+        self.operation_service = operation_service or NodeManV3OperationService(
+            terminal_handler=finalize_collect_policy_operation
+        )
 
     def reconcile(self, *, binding, collect_config, trigger: str, force: bool = False) -> ReconcileResult:
         # Complete validation before recording or issuing any NodeMan write.
@@ -130,7 +168,11 @@ class CollectDeployPolicyReconciler:
                 prepared_workflows=prepared.workflows,
             )
         except NodeManV3DefiniteFailure as error:
-            NodeManV3TargetOperationCoordinator.mark_definite_failure(prepared, error)
+            NodeManV3TargetOperationCoordinator.mark_definite_failure(
+                prepared,
+                error,
+                terminal_handler=finalize_collect_policy_operation,
+            )
             raise
         except Exception as error:
             if all(

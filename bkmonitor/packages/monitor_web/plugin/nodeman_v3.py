@@ -16,13 +16,14 @@ from django.utils import timezone
 
 from bkmonitor.nodeman_integration.v3.client import (
     NodeManV3HTTPClient,
+    NodeManV3ClientError,
     NodeManV3RequestContext,
     NodeManV3UnknownResultError,
 )
 from bkmonitor.nodeman_integration.v3.client.package import PackageClient, PackageWorkflowClient, PluginClient
 from bkmonitor.nodeman_integration.v3.client.workflow import WorkflowClient
 from bkmonitor.nodeman_integration.v3.exceptions import NodeManV3PayloadError, NodeManV3ResultState
-from core.errors.plugin import ExportPluginError, ExportPluginTimeout, RegisterPackageError
+from core.errors.plugin import ExportPluginError, RegisterPackageError
 from monitor_web.models.node_man import (
     MonitorNodeManOperation,
     MonitorNodeManWorkflow,
@@ -34,7 +35,7 @@ from monitor_web.models.node_man import (
     NodeManWorkflowStatus,
     build_nodeman_resource_key,
 )
-from monitor_web.nodeman_integration.v3.operation import NodeManV3OperationService
+from monitor_web.nodeman_integration.v3.operation import NodeManExecutionLeaseConflict, NodeManV3OperationService
 from monitor_web.plugin.constant import DebugStatus
 
 
@@ -183,7 +184,11 @@ class NodeManV3PluginOperationRecorder:
         self.plugin = plugin
 
     def prepare(
-        self, operation_type: str, request_summary: dict
+        self,
+        operation_type: str,
+        request_summary: dict,
+        *,
+        resume_running: bool = False,
     ) -> tuple[MonitorNodeManOperation, MonitorNodeManWorkflow]:
         with transaction.atomic():
             binding, _ = NodeManIntegrationBinding.objects.get_or_create(
@@ -196,6 +201,39 @@ class NodeManV3PluginOperationRecorder:
                 execution_bk_tenant_id=self.plugin.bk_tenant_id,
                 bk_biz_id=self.plugin.bk_biz_id,
             )
+            binding = NodeManIntegrationBinding.objects.select_for_update().get(pk=binding.pk)
+            unresolved = binding.operations.filter(result_state=NodeManV3ResultState.WRITE_RESULT_UNKNOWN).first()
+            if unresolved:
+                raise NodeManV3UnknownResultError(
+                    f"an earlier plugin write is unresolved for operation {unresolved.pk}; do not replay it"
+                )
+            active = (
+                binding.operations.filter(
+                    operation_type=operation_type,
+                    status__in=(
+                        NodeManOperationStatus.PENDING,
+                        NodeManOperationStatus.DISPATCHING,
+                        NodeManOperationStatus.RUNNING,
+                        NodeManOperationStatus.UNKNOWN,
+                    ),
+                )
+                .order_by("-created_at")
+                .first()
+            )
+            if active:
+                workflow = active.workflows.order_by("batch_index").first()
+                if (
+                    resume_running
+                    and active.status == NodeManOperationStatus.RUNNING
+                    and workflow
+                    and workflow.workflow_id
+                    and workflow.dispatch_status == NodeManWorkflowDispatchStatus.SUBMITTED
+                    and self._same_resumable_request(active.request_summary, request_summary)
+                ):
+                    return active, workflow
+                raise NodeManExecutionLeaseConflict(
+                    f"plugin operation {active.pk} is still {active.status}; do not submit another {operation_type}"
+                )
             operation = MonitorNodeManOperation.objects.create(
                 binding=binding,
                 operation_type=operation_type,
@@ -211,6 +249,13 @@ class NodeManV3PluginOperationRecorder:
                 dispatch_status=NodeManWorkflowDispatchStatus.PREPARED,
             )
         return operation, workflow
+
+    @staticmethod
+    def _same_resumable_request(existing: dict, requested: dict) -> bool:
+        for key in ("version", "plugin_pkg_version"):
+            if key in requested:
+                return existing.get(key) == requested[key]
+        return existing == requested
 
     @staticmethod
     def submit(operation, workflow, submit: Callable, *, source_workflow_id: str | None = None) -> str:
@@ -282,9 +327,17 @@ class NodeManV3PluginOperationRecorder:
         return str(workflow_id)
 
     @staticmethod
-    def finish(operation, workflow, *, success: bool, error: str = "") -> None:
-        workflow.normalized_status = NodeManWorkflowStatus.SUCCESS if success else NodeManWorkflowStatus.FAILED
-        workflow.raw_status = "success" if success else "failed"
+    def finish(
+        operation,
+        workflow,
+        *,
+        success: bool,
+        error: str = "",
+        workflow_success: bool | None = None,
+    ) -> None:
+        workflow_success = success if workflow_success is None else workflow_success
+        workflow.normalized_status = NodeManWorkflowStatus.SUCCESS if workflow_success else NodeManWorkflowStatus.FAILED
+        workflow.raw_status = "success" if workflow_success else "failed"
         workflow.dispatch_error = error
         workflow.last_synced_at = timezone.now()
         workflow.save(
@@ -293,6 +346,14 @@ class NodeManV3PluginOperationRecorder:
         operation.error_summary = error
         operation.save(update_fields=("error_summary", "updated_at"))
         operation.transition_to(NodeManOperationStatus.SUCCESS if success else NodeManOperationStatus.FAILED)
+
+    @staticmethod
+    def defer(operation, workflow, error: Exception) -> None:
+        workflow.dispatch_error = str(error)
+        workflow.last_synced_at = timezone.now()
+        workflow.save(update_fields=("dispatch_error", "last_synced_at", "updated_at"))
+        operation.error_summary = str(error)
+        operation.save(update_fields=("error_summary", "updated_at"))
 
 
 class NodeManV3PackageWorkflowService:
@@ -337,27 +398,43 @@ class NodeManV3PackageWorkflowService:
     def register(self, plugin_manager) -> dict:
         archive = self.package_builder.build(plugin_manager)
         expected_platforms = self.package_builder.expected_platforms(archive)
-        storage_name = self._save_for_download(plugin_manager.plugin, archive)
-        payload = {
-            "filename": os.path.basename(archive),
-            "download_url": self.storage.url(storage_name),
-            "md5": self._md5(archive),
-        }
+        filename = os.path.basename(archive)
+        md5 = self._md5(archive)
         recorder = NodeManV3PluginOperationRecorder(plugin_manager.plugin)
         operation, workflow = recorder.prepare(
             NodeManOperationType.PACKAGE_IMPORT,
-            {"filename": payload["filename"], "md5": payload["md5"], "version": plugin_manager.version.version},
+            {"filename": filename, "md5": md5, "version": plugin_manager.version.version},
+            resume_running=True,
         )
-        workflow_id = recorder.submit(
-            operation,
-            workflow,
-            lambda context: self.workflow_client.import_plugin_v3(payload, context=context),
-        )
+        if workflow.workflow_id:
+            workflow_id = str(workflow.workflow_id)
+        else:
+            storage_name = self._save_for_download(plugin_manager.plugin, archive)
+            payload = {
+                "filename": filename,
+                "download_url": self.storage.url(storage_name),
+                "md5": md5,
+            }
+            workflow_id = recorder.submit(
+                operation,
+                workflow,
+                lambda context: self.workflow_client.import_plugin_v3(payload, context=context),
+            )
         try:
             result = self._wait_result(workflow_id, export=False, context=self._read_context(plugin_manager.plugin))
-            self._verify_registration(plugin_manager, expected_platforms)
+        except NodeManV3ClientError as error:
+            recorder.defer(operation, workflow, error)
+            raise
         except Exception as error:
             recorder.finish(operation, workflow, success=False, error=str(error))
+            raise
+        try:
+            self._verify_registration(plugin_manager, expected_platforms)
+        except NodeManV3ClientError as error:
+            recorder.defer(operation, workflow, error)
+            raise
+        except Exception as error:
+            recorder.finish(operation, workflow, success=False, error=str(error), workflow_success=True)
             raise
         recorder.finish(operation, workflow, success=True)
         return result
@@ -367,22 +444,29 @@ class NodeManV3PackageWorkflowService:
         operation, workflow = recorder.prepare(
             NodeManOperationType.PLUGIN_EXPORT,
             {"plugin_pkg_name": plugin.plugin_id, "plugin_pkg_version": version},
+            resume_running=True,
         )
         payload = {"plugin_pkg_name": plugin.plugin_id, "plugin_pkg_version": version}
-        workflow_id = recorder.submit(
-            operation,
-            workflow,
-            lambda context: self.workflow_client.export_plugin(payload, context=context),
-        )
+        if workflow.workflow_id:
+            workflow_id = str(workflow.workflow_id)
+        else:
+            workflow_id = recorder.submit(
+                operation,
+                workflow,
+                lambda context: self.workflow_client.export_plugin(payload, context=context),
+            )
         try:
             result = self._wait_result(workflow_id, export=True, context=self._read_context(plugin))
+        except NodeManV3ClientError as error:
+            recorder.defer(operation, workflow, error)
+            raise
         except Exception as error:
             recorder.finish(operation, workflow, success=False, error=str(error))
             raise
         download_url = result.get("download_url")
         if not download_url:
             error = ExportPluginError({"msg": "NodeMan V3 export succeeded without download_url"})
-            recorder.finish(operation, workflow, success=False, error=str(error))
+            recorder.finish(operation, workflow, success=False, error=str(error), workflow_success=True)
             raise error
         recorder.finish(operation, workflow, success=True)
         return download_url
@@ -399,9 +483,8 @@ class NodeManV3PackageWorkflowService:
                     raise error_type({"msg": self._result_error(result)})
                 return result
             self.sleeper(self.POLL_INTERVAL)
-        if export:
-            raise ExportPluginTimeout
-        raise RegisterPackageError({"msg": "NodeMan V3 插件包导入任务轮询超时"})
+        operation = "导出" if export else "导入"
+        raise NodeManV3ClientError(f"NodeMan V3 插件包{operation}任务尚未进入终态，请按原 workflow_id 继续查询")
 
     def _verify_registration(self, plugin_manager, expected_platforms: set[tuple[str, str]]) -> None:
         context = self._read_context(plugin_manager.plugin)

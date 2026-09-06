@@ -4,7 +4,7 @@ from types import SimpleNamespace
 import pytest
 import yaml
 
-from bkmonitor.nodeman_integration.v3.client import NodeManV3UnknownResultError
+from bkmonitor.nodeman_integration.v3.client import NodeManV3TransportError, NodeManV3UnknownResultError
 from monitor_web.models.node_man import (
     MonitorNodeManOperation,
     MonitorNodeManWorkflow,
@@ -19,6 +19,7 @@ from monitor_web.plugin.nodeman_v3 import (
     NodeManV3PackageWorkflowService,
     NodeManV3PluginDebugService,
 )
+from monitor_web.nodeman_integration.v3.operation import NodeManExecutionLeaseConflict
 
 
 class FakeStorage:
@@ -35,8 +36,9 @@ class FakeStorage:
 
 
 class FakePackageWorkflowClient:
-    def __init__(self, *, unknown=False):
+    def __init__(self, *, unknown=False, read_error=False):
         self.unknown = unknown
+        self.read_error = read_error
         self.calls = []
 
     def import_plugin_v3(self, payload, *, context):
@@ -47,6 +49,8 @@ class FakePackageWorkflowClient:
 
     def import_result(self, payload, *, context):
         self.calls.append(("import_result", payload, context))
+        if self.read_error:
+            raise NodeManV3TransportError("temporary read failure")
         return {"status": "success", "is_finish": True, "operations": []}
 
     def export_plugin(self, payload, *, context):
@@ -55,6 +59,8 @@ class FakePackageWorkflowClient:
 
     def export_result(self, payload, *, context):
         self.calls.append(("export_result", payload, context))
+        if self.read_error:
+            raise NodeManV3TransportError("temporary read failure")
         return {"status": "success", "is_finish": True, "download_url": "https://files.example/export.tgz"}
 
 
@@ -230,8 +236,9 @@ def test_package_import_preserves_unknown_write_result(plugin, tmp_path):
         build=lambda plugin_manager: str(archive),
         expected_platforms=lambda path: {("linux", "x86_64")},
     )
+    workflow_client = FakePackageWorkflowClient(unknown=True)
     service = NodeManV3PackageWorkflowService(
-        workflow_client=FakePackageWorkflowClient(unknown=True),
+        workflow_client=workflow_client,
         package_client=FakePackageClient(),
         plugin_client=FakeLogicalPluginClient(),
         package_builder=package_builder,
@@ -247,6 +254,48 @@ def test_package_import_preserves_unknown_write_result(plugin, tmp_path):
     assert workflow.dispatch_status == NodeManWorkflowDispatchStatus.UNKNOWN
     assert operation.result_state == "write_result_unknown"
 
+    with pytest.raises(NodeManV3UnknownResultError, match="earlier plugin write is unresolved"):
+        service.register(manager)
+    assert [call[0] for call in workflow_client.calls] == ["import"]
+    assert MonitorNodeManOperation.objects.count() == 1
+
+
+@pytest.mark.django_db(transaction=True)
+def test_package_import_read_failure_resumes_known_workflow_without_replay(plugin, tmp_path):
+    archive = tmp_path / "mysql_exporter.tgz"
+    archive.write_bytes(b"package")
+    workflow_client = FakePackageWorkflowClient(read_error=True)
+    package_client = FakePackageClient()
+    plugin_client = FakeLogicalPluginClient()
+    manager = SimpleNamespace(plugin=plugin, version=SimpleNamespace(version="1.2"))
+    package_builder = SimpleNamespace(
+        build=lambda plugin_manager: str(archive),
+        expected_platforms=lambda path: {("linux", "x86_64")},
+    )
+    storage = FakeStorage()
+    service = NodeManV3PackageWorkflowService(
+        workflow_client=workflow_client,
+        package_client=package_client,
+        plugin_client=plugin_client,
+        package_builder=package_builder,
+        storage=storage,
+        sleeper=lambda _: None,
+    )
+
+    with pytest.raises(NodeManV3TransportError, match="temporary read failure"):
+        service.register(manager)
+
+    operation = MonitorNodeManOperation.objects.get(operation_type=NodeManOperationType.PACKAGE_IMPORT)
+    assert operation.status == NodeManOperationStatus.RUNNING
+    assert operation.workflows.get().workflow_id == "package-workflow"
+
+    workflow_client.read_error = False
+    assert service.register(manager)["status"] == "success"
+    operation.refresh_from_db()
+    assert operation.status == NodeManOperationStatus.SUCCESS
+    assert [call[0] for call in workflow_client.calls].count("import") == 1
+    assert len(storage.saved) == 1
+
 
 @pytest.mark.django_db(transaction=True)
 def test_package_export_uses_v3_workflow(plugin):
@@ -261,6 +310,30 @@ def test_package_export_uses_v3_workflow(plugin):
     operation = MonitorNodeManOperation.objects.get(operation_type=NodeManOperationType.PLUGIN_EXPORT)
     assert operation.status == NodeManOperationStatus.SUCCESS
     assert operation.workflows.get().workflow_id == "export-workflow"
+
+
+@pytest.mark.django_db(transaction=True)
+def test_package_export_read_failure_resumes_known_workflow_without_replay(plugin):
+    workflow_client = FakePackageWorkflowClient(read_error=True)
+    service = NodeManV3PackageWorkflowService(
+        workflow_client=workflow_client,
+        package_client=FakePackageClient(),
+        plugin_client=FakeLogicalPluginClient(),
+        sleeper=lambda _: None,
+    )
+
+    with pytest.raises(NodeManV3TransportError, match="temporary read failure"):
+        service.export(plugin, "1.2")
+
+    operation = MonitorNodeManOperation.objects.get(operation_type=NodeManOperationType.PLUGIN_EXPORT)
+    assert operation.status == NodeManOperationStatus.RUNNING
+    assert operation.workflows.get().workflow_id == "export-workflow"
+
+    workflow_client.read_error = False
+    assert service.export(plugin, "1.2") == "https://files.example/export.tgz"
+    operation.refresh_from_db()
+    assert operation.status == NodeManOperationStatus.SUCCESS
+    assert [call[0] for call in workflow_client.calls].count("export") == 1
 
 
 class FakePluginClient:
@@ -344,3 +417,25 @@ def test_plugin_debug_uses_host_scope_and_direct_workflow_query(plugin):
     terminate = MonitorNodeManOperation.objects.get(operation_type=NodeManOperationType.TERMINATE)
     assert terminate.status == NodeManOperationStatus.RUNNING
     assert scheduled == [str(terminate.pk)]
+
+
+@pytest.mark.django_db(transaction=True)
+def test_plugin_debug_rejects_another_start_while_the_first_is_running(plugin):
+    plugin_client = FakePluginClient()
+    service = NodeManV3PluginDebugService(plugin_client=plugin_client, workflow_client=FakeWorkflowClient())
+    manager = SimpleNamespace(
+        plugin=plugin,
+        _get_debug_config_context=lambda *args: {"env.yaml": {"port": 9102}},
+    )
+    plugin.get_debug_version = lambda config_version: SimpleNamespace(version="1.2")
+    request = {
+        "config_version": 1,
+        "info_version": 2,
+        "param": {},
+        "host_info": {"bk_biz_id": 2, "bk_host_id": 101},
+    }
+
+    assert service.start(manager, **request) == "debug-workflow"
+    with pytest.raises(NodeManExecutionLeaseConflict, match="do not submit another plugin_debug"):
+        service.start(manager, **request)
+    assert [call[0] for call in plugin_client.calls] == ["start"]

@@ -98,18 +98,16 @@ def normalize_trigger_status(distribution: dict | None) -> str:
         return "running"
     success = counts.get("success", 0)
     failed = counts.get("failed", 0) + counts.get("timeout", 0)
-    terminated = counts.get("terminated", 0)
-    if success and (failed or terminated):
+    partial_failed = counts.get("partial_failed", 0)
+    terminated = counts.get("terminated", 0) + counts.get("cancelled", 0)
+    if partial_failed or (success and (failed or terminated)):
         return "partial_failed"
     if failed:
         return "failed"
     if terminated:
         return "cancelled"
     if success:
-        # Deploy-policy trigger success only proves that its child plugin
-        # workflows were launched.  Keep the monitor-side operation open until
-        # NodeMan exposes final convergence evidence for those child workflows.
-        return "running"
+        return "success"
     return ""
 
 

@@ -135,3 +135,22 @@ def test_terminal_operation_with_held_lease_is_finalized_without_remote_query(mo
         "finalized": True,
     }
     assert finalized == [(operation, workflows)]
+
+
+def test_policy_operation_uses_collection_finalizer(monkeypatch):
+    operation = SimpleNamespace(request_summary={"policy_fingerprint": "fingerprint"})
+    workflows = [SimpleNamespace(trigger_id="trigger-1")]
+    finalized = []
+    monkeypatch.setattr(
+        tasks,
+        "finalize_collect_policy_operation",
+        lambda current, current_workflows: finalized.append(("policy", current, current_workflows)) or True,
+    )
+    monkeypatch.setattr(
+        tasks,
+        "finalize_target_operation",
+        lambda current, current_workflows: finalized.append(("target", current, current_workflows)) or True,
+    )
+
+    assert tasks._finalize_operation(operation, workflows) is True
+    assert finalized == [("policy", operation, workflows)]

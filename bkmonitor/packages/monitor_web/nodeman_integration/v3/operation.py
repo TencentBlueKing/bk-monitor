@@ -246,7 +246,12 @@ class NodeManV3TargetOperationCoordinator:
         )
 
     @staticmethod
-    def mark_definite_failure(prepared: PreparedTargetOperation, error: Exception) -> None:
+    def mark_definite_failure(
+        prepared: PreparedTargetOperation,
+        error: Exception,
+        *,
+        terminal_handler: Callable | None = None,
+    ) -> None:
         _mark_all_submitting_batches(
             prepared.workflows,
             dispatch_status=NodeManWorkflowDispatchStatus.DEFINITE_FAILED,
@@ -257,7 +262,7 @@ class NodeManV3TargetOperationCoordinator:
             NodeManV3OperationService._schedule_poll(prepared.operation.id)
         else:
             _set_operation_status(prepared.operation, NodeManOperationStatus.FAILED, error=error)
-            finalize_target_operation(prepared.operation, prepared.workflows)
+            (terminal_handler or finalize_target_operation)(prepared.operation, prepared.workflows)
 
 
 class NodeManV3OperationService:
@@ -518,7 +523,7 @@ class NodeManV3OperationService:
         poll_operation.apply_async(args=(str(operation_id),), countdown=5, queue=V3_TASK_QUEUE)
 
 
-def recover_submitting_batches(operation, *, recovery_before=None) -> bool:
+def recover_submitting_batches(operation, *, recovery_before=None, terminal_handler: Callable | None = None) -> bool:
     """Conservatively close the crash window without replaying a possible write."""
 
     if recovery_before is None:
@@ -579,7 +584,7 @@ def recover_submitting_batches(operation, *, recovery_before=None) -> bool:
     else:
         operation.status = NodeManOperationStatus.RUNNING if submitted_exists else NodeManOperationStatus.FAILED
     if not unknown_exists and not submitted_exists:
-        finalize_target_operation(operation, list(operation.workflows.all()))
+        (terminal_handler or finalize_target_operation)(operation, list(operation.workflows.all()))
     return recovered
 
 

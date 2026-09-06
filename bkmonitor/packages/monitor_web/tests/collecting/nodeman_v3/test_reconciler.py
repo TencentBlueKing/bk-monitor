@@ -9,7 +9,10 @@ from monitor_web.collecting.deploy.nodeman_v3.deploy_policy import (
     CollectDeployPolicyPayloadBuilder,
     NodeManV3DeployPolicyGateway,
 )
-from monitor_web.collecting.deploy.nodeman_v3.reconciler import CollectDeployPolicyReconciler
+from monitor_web.collecting.deploy.nodeman_v3.reconciler import (
+    CollectDeployPolicyReconciler,
+    finalize_collect_policy_operation,
+)
 from monitor_web.collecting.deploy.nodeman_v3.validation import NodeManV3CapabilityBlocked
 from monitor_web.models import CollectConfigMeta, DeploymentConfigVersion
 from monitor_web.models.plugin import (
@@ -92,7 +95,10 @@ def policy_case(collection):
         ]
     )
     scheduled = []
-    service = NodeManV3OperationService(poll_scheduler=lambda operation_id: scheduled.append(operation_id))
+    service = NodeManV3OperationService(
+        poll_scheduler=lambda operation_id: scheduled.append(operation_id),
+        terminal_handler=finalize_collect_policy_operation,
+    )
     reconciler = CollectDeployPolicyReconciler(
         payload_builder=builder,
         gateway=NodeManV3DeployPolicyGateway(client=client, payload_builder=builder),
@@ -137,6 +143,47 @@ def test_many_hosts_create_one_policy_and_keep_trigger_distinct(policy_case, dja
     assert CollectDeploymentTarget.objects.count() == 0
     assert case.scheduled == [operation.pk]
     assert "period" not in operation.request_summary  # do not persist secret-bearing full contexts
+
+
+@pytest.mark.parametrize(
+    ("operation_status", "expected_result"),
+    [
+        (NodeManOperationStatus.SUCCESS, "SUCCESS"),
+        (NodeManOperationStatus.PARTIAL_FAILED, "WARNING"),
+        (NodeManOperationStatus.FAILED, "FAILED"),
+        (NodeManOperationStatus.CANCELLED, "FAILED"),
+    ],
+)
+def test_policy_terminal_status_is_published_to_collection(
+    policy_case,
+    django_capture_on_commit_callbacks,
+    operation_status,
+    expected_result,
+):
+    case = policy_case
+    result = submit(case, django_capture_on_commit_callbacks)
+    operation = MonitorNodeManOperation.objects.get(pk=result.operation_id)
+    operation.transition_to(operation_status)
+
+    assert finalize_collect_policy_operation(operation, list(operation.workflows.all())) is True
+    case.collection.refresh_from_db()
+    assert case.collection.operation_result == expected_result
+
+
+def test_stale_policy_terminal_status_does_not_overwrite_current_collection(
+    policy_case,
+    django_capture_on_commit_callbacks,
+):
+    case = policy_case
+    result = submit(case, django_capture_on_commit_callbacks)
+    operation = MonitorNodeManOperation.objects.get(pk=result.operation_id)
+    operation.transition_to(NodeManOperationStatus.SUCCESS)
+    case.binding.refresh_from_db()
+    case.binding.advance_generation(expected_generation=case.binding.generation)
+
+    assert finalize_collect_policy_operation(operation, list(operation.workflows.all())) is False
+    case.collection.refresh_from_db()
+    assert case.collection.operation_result == "PREPARING"
 
 
 def test_no_remote_write_until_outer_transaction_commits(policy_case, django_capture_on_commit_callbacks):
