@@ -121,6 +121,46 @@ class DataIdConfig(DataLinkResourceConfigBase):
         verbose_name_plural = verbose_name
         unique_together = (("bk_tenant_id", "namespace", "name"),)
 
+    def compose_data_source_config(
+        self,
+        data_source_alias: str | None = None,
+        description: str | None = None,
+    ) -> dict[str, Any]:
+        """组装引用当前 DataId 的 BKBase DataSource 资源配置。"""
+        basic_info = {
+            "data_source_name": self.name,
+            "data_source_alias": self.name if data_source_alias is None else data_source_alias,
+            "data_encoding": "UTF-8",
+            "bk_biz_id": self.datalink_biz_ids.data_biz_id,
+            "time_zone": settings.TIME_ZONE,
+            "tags": [],
+            "description": self.name if description is None else description,
+            "access_channel": "bkbase",
+            "access_channel_alias": "计算平台",
+        }
+        data_id = {
+            "kind": DataLinkKind.DATAID.value,
+            "namespace": self.namespace,
+            "name": self.name,
+        }
+        metadata = {
+            "namespace": self.namespace,
+            "name": self.name,
+        }
+        if settings.ENABLE_MULTI_TENANT_MODE:
+            metadata["tenant"] = self.bk_tenant_id
+            data_id["tenant"] = self.bk_tenant_id
+
+        return {
+            "kind": "DataSource",
+            "metadata": metadata,
+            "spec": {
+                "basic_info": basic_info,
+                "report_config": {"type": "custom"},
+                "data_id": data_id,
+            },
+        }
+
     def compose_predefined_config(self, data_source: "DataSource") -> dict[str, Any]:
         """
         组装预定义数据源配置
