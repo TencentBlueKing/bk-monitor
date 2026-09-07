@@ -792,19 +792,51 @@ class ApmApplicationSearchItem(SearchItem):
 
 
 class ApmServiceSearchItem(SearchItem):
-    """在有应用查看权限的范围内搜索服务，与应用名称是否命中无关。"""
+    """在有应用查看权限的范围内搜索服务，与应用名称是否命中无关。
+
+    先搜最近访问过的应用；不够再列出其余应用一次鉴权后补搜。
+    """
 
     @classmethod
     def match(cls, query: str) -> bool:
         return ApmApplicationSearchItem.match(query)
 
     @classmethod
-    def _get_allowed_applications(cls, bk_tenant_id: str, username: str) -> list[dict[str, Any]]:
-        applications = list(
+    def _list_visited_applications(cls, bk_tenant_id: str, username: str) -> list[dict[str, Any]]:
+        since = timezone.now() - timedelta(days=30)
+        rows = UserVisitRecord.objects.filter(created_by=username, created_at__gte=since).values(
+            "bk_biz_id", "app_name"
+        )
+        visit_keys = {(row["bk_biz_id"], row["app_name"]) for row in rows if row["app_name"]}
+        if not visit_keys:
+            return []
+        # IN 会带出业务名和应用名的交叉组合，再用访问记录精确留下。
+        return [
+            app
+            for app in Application.objects.filter(
+                bk_tenant_id=bk_tenant_id,
+                bk_biz_id__in={biz_id for biz_id, _ in visit_keys},
+                app_name__in={app_name for _, app_name in visit_keys},
+            )
+            .order_by("application_id")
+            .values("bk_biz_id", "app_name", "application_id")
+            if (app["bk_biz_id"], app["app_name"]) in visit_keys
+        ]
+
+    @classmethod
+    def _list_applications(cls, bk_tenant_id: str) -> list[dict[str, Any]]:
+        return list(
             Application.objects.filter(bk_tenant_id=bk_tenant_id)
-            .order_by("bk_biz_id", "application_id")
+            .order_by("application_id")
             .values("bk_biz_id", "app_name", "application_id")
         )
+
+    @classmethod
+    def _filter_allowed_applications(
+        cls, bk_tenant_id: str, username: str, applications: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
+        if not applications:
+            return []
         return filter_data_by_permission(
             bk_tenant_id=bk_tenant_id,
             data=applications,
@@ -815,6 +847,17 @@ class ApmServiceSearchItem(SearchItem):
             mode="any",
             username=username,
         )
+
+    @classmethod
+    def _iter_biz_batches(
+        cls, applications: list[dict[str, Any]]
+    ) -> Generator[tuple[int, list[dict[str, Any]]], None, None]:
+        grouped: dict[int, list[dict[str, Any]]] = defaultdict(list)
+        for app in applications:
+            grouped[app["bk_biz_id"]].append(app)
+        for bk_biz_id, apps in grouped.items():
+            for batch in chunks(apps, 100):
+                yield bk_biz_id, batch
 
     @classmethod
     def _search_services(cls, bk_biz_id: int, applications: list[dict], query: str, limit: int) -> list[dict]:
@@ -848,14 +891,15 @@ class ApmServiceSearchItem(SearchItem):
         current_bk_biz_id: int | None = None,
         stop_event: threading.Event | None = None,
     ) -> Generator[dict[str, Any], None, None]:
-        biz_applications = defaultdict(list)
-        for app in cls._get_allowed_applications(bk_tenant_id, username):
-            biz_applications[app["bk_biz_id"]].append(app)
+        visited = cls._list_visited_applications(bk_tenant_id, username)
+        items: list[dict[str, Any]] = []
+        seen: set[tuple[int, str, str]] = set()
 
-        items = []
-        seen = set()
-        for bk_biz_id, applications in biz_applications.items():
-            for batch in chunks(applications, 100):
+        def search_apps(applications: list[dict[str, Any]]) -> Generator[dict[str, Any], None, None]:
+            if not applications or (stop_event is not None and stop_event.is_set()):
+                return
+            allowed = cls._filter_allowed_applications(bk_tenant_id, username, applications)
+            for bk_biz_id, batch in cls._iter_biz_batches(allowed):
                 if stop_event is not None and stop_event.is_set():
                     return
                 app_map = {app["app_name"]: app for app in batch}
@@ -883,6 +927,16 @@ class ApmServiceSearchItem(SearchItem):
                     yield {"type": "apm_service", "name": _("APM服务"), "items": list(items)}
                 if len(items) >= limit:
                     return
+
+        yield from search_apps(visited)
+        if len(items) >= limit or (stop_event is not None and stop_event.is_set()):
+            return
+
+        visit_keys = {(app["bk_biz_id"], app["app_name"]) for app in visited}
+        remaining = [
+            app for app in cls._list_applications(bk_tenant_id) if (app["bk_biz_id"], app["app_name"]) not in visit_keys
+        ]
+        yield from search_apps(remaining)
 
 
 class HostSearchItem(SearchItem):

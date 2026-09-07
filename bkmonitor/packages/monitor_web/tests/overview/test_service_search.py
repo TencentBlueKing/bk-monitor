@@ -1,4 +1,5 @@
 import threading
+from contextlib import contextmanager
 from unittest import mock
 
 import pytest
@@ -20,27 +21,77 @@ def service(name="demo_v4_test", application="unrelated_app"):
     return {"app_name": application, "service_name": name}
 
 
-def test_service_search_uses_application_permission_without_application_name_filter():
+def allow_stage(_tenant, _user, stage):
+    return stage
+
+
+@contextmanager
+def patch_search(applications, visits=None, iam=allow_stage):
+    visits = visits or set()
+    visited = [item for item in applications if (item["bk_biz_id"], item["app_name"]) in visits]
+    with (
+        mock.patch.object(ApmServiceSearchItem, "_list_visited_applications", return_value=visited),
+        mock.patch.object(ApmServiceSearchItem, "_list_applications", return_value=applications),
+        mock.patch.object(ApmServiceSearchItem, "_filter_allowed_applications", side_effect=iam),
+    ):
+        yield
+
+
+def test_list_applications_does_not_filter_by_application_name():
     applications = [app(), app(3, "private", 2)]
     qs = mock.MagicMock()
     qs.order_by.return_value.values.return_value = applications
-    with (
-        mock.patch("monitor_web.overview.search.Application.objects.filter", return_value=qs) as query,
-        mock.patch(
-            "monitor_web.overview.search.filter_data_by_permission", return_value=applications[:1]
-        ) as permission,
-    ):
-        assert ApmServiceSearchItem._get_allowed_applications("tenant", "user") == applications[:1]
+    with mock.patch("monitor_web.overview.search.Application.objects.filter", return_value=qs) as query:
+        assert ApmServiceSearchItem._list_applications("tenant") == applications
     query.assert_called_once_with(bk_tenant_id="tenant")
+
+
+def test_empty_visits_skip_application_query():
+    visits = mock.MagicMock()
+    visits.filter.return_value.values.return_value = [{"bk_biz_id": 2, "app_name": ""}]
+    with (
+        mock.patch("monitor_web.overview.search.UserVisitRecord.objects", visits),
+        mock.patch("monitor_web.overview.search.Application.objects.filter") as query,
+    ):
+        assert ApmServiceSearchItem._list_visited_applications("tenant", "user") == []
+    query.assert_not_called()
+    assert visits.filter.call_args.kwargs["created_by"] == "user"
+
+
+def test_list_visited_applications_keeps_exact_visit_pairs():
+    visits = mock.MagicMock()
+    visits.filter.return_value.values.return_value = [{"bk_biz_id": 2, "app_name": "visited"}]
+    qs = mock.MagicMock()
+    qs.order_by.return_value.values.return_value = [app(2, "visited", 1), app(3, "visited", 2)]
+    with (
+        mock.patch("monitor_web.overview.search.UserVisitRecord.objects", visits),
+        mock.patch("monitor_web.overview.search.Application.objects.filter", return_value=qs) as query,
+    ):
+        assert ApmServiceSearchItem._list_visited_applications("tenant", "user") == [app(2, "visited", 1)]
+    query.assert_called_once_with(bk_tenant_id="tenant", bk_biz_id__in={2}, app_name__in={"visited"})
+
+
+def test_filter_allowed_applications_uses_view_permission():
+    applications = [app(), app(3, "private", 2)]
+    with mock.patch(
+        "monitor_web.overview.search.filter_data_by_permission", return_value=applications[:1]
+    ) as permission:
+        assert ApmServiceSearchItem._filter_allowed_applications("tenant", "user", applications) == applications[:1]
     assert permission.call_args.kwargs["data"] == applications
     assert permission.call_args.kwargs["actions"] == [ActionEnum.VIEW_APM_APPLICATION]
     assert permission.call_args.kwargs["username"] == "user"
     assert permission.call_args.kwargs["bk_tenant_id"] == "tenant"
 
 
+def test_empty_application_stage_skips_iam():
+    with mock.patch("monitor_web.overview.search.filter_data_by_permission") as permission:
+        assert ApmServiceSearchItem._filter_allowed_applications("tenant", "user", []) == []
+    permission.assert_not_called()
+
+
 def test_service_search_is_cross_business_and_merges_duplicate_sources():
     with (
-        mock.patch.object(ApmServiceSearchItem, "_get_allowed_applications", return_value=[app(), app(3, app_id=2)]),
+        patch_search([app(), app(3, app_id=2)]),
         mock.patch.object(
             ApmServiceSearchItem,
             "_search_services",
@@ -61,17 +112,66 @@ def test_service_search_is_cross_business_and_merges_duplicate_sources():
 
 def test_permission_denied_does_not_query_services():
     with (
-        mock.patch.object(ApmServiceSearchItem, "_get_allowed_applications", return_value=[]),
+        patch_search([app()], iam=lambda *_: []),
         mock.patch.object(ApmServiceSearchItem, "_search_services") as search,
     ):
         assert list(ApmServiceSearchItem.search("tenant", "user", "demo_v4")) == []
     search.assert_not_called()
 
 
+def test_recent_visits_are_searched_before_remaining_apps():
+    applications = [app(4, "other", 1), app(3, "visited", 2)]
+    authorized = []
+
+    def iam(_tenant, _user, stage):
+        authorized.append([item["app_name"] for item in stage])
+        return stage
+
+    with (
+        patch_search(applications, visits={(3, "visited")}, iam=iam),
+        mock.patch.object(
+            ApmServiceSearchItem,
+            "_search_services",
+            side_effect=lambda _biz, apps, _query, _limit: [service(application=apps[0]["app_name"])],
+        ),
+        mock.patch.object(ApmServiceSearchItem, "_get_biz_name", return_value="业务"),
+    ):
+        snapshots = list(ApmServiceSearchItem.search("tenant", "user", "demo", limit=2))
+    assert authorized == [["visited"], ["other"]]
+    assert [item["app_name"] for item in snapshots[-1]["items"]] == ["visited", "other"]
+
+
+def test_visit_results_skip_remaining_application_query():
+    with (
+        mock.patch.object(ApmServiceSearchItem, "_list_visited_applications", return_value=[app(2, "visited", 1)]),
+        mock.patch.object(ApmServiceSearchItem, "_list_applications") as list_all,
+        mock.patch.object(ApmServiceSearchItem, "_filter_allowed_applications", side_effect=allow_stage) as iam,
+        mock.patch.object(ApmServiceSearchItem, "_search_services", return_value=[service(application="visited")]),
+        mock.patch.object(ApmServiceSearchItem, "_get_biz_name", return_value="业务"),
+    ):
+        result = list(ApmServiceSearchItem.search("tenant", "user", "demo", limit=1))
+    assert len(result[-1]["items"]) == 1
+    assert iam.call_count == 1
+    assert iam.call_args.args[2] == [app(2, "visited", 1)]
+    list_all.assert_not_called()
+
+
+def test_remaining_apps_are_authorized_once():
+    applications = [app(name=f"app_{i}", app_id=i) for i in range(3)]
+    with (
+        patch_search(applications),
+        mock.patch.object(ApmServiceSearchItem, "_filter_allowed_applications", side_effect=allow_stage) as iam,
+        mock.patch.object(ApmServiceSearchItem, "_search_services", return_value=[]),
+    ):
+        assert list(ApmServiceSearchItem.search("tenant", "user", "demo")) == []
+    assert iam.call_count == 1
+    assert iam.call_args.args[2] == applications
+
+
 def test_batch_query_keeps_business_scope_and_stops_at_limit():
     applications = [app(name=f"app_{i}", app_id=i) for i in range(101)] + [app(3, app_id=200)]
     with (
-        mock.patch.object(ApmServiceSearchItem, "_get_allowed_applications", return_value=applications),
+        patch_search(applications),
         mock.patch.object(
             ApmServiceSearchItem, "_search_services", side_effect=[[], [service(application="app_100")]]
         ) as search,
@@ -94,7 +194,7 @@ def test_search_cancellation_stops_subsequent_batches(already_stopped):
         return [service()]
 
     with (
-        mock.patch.object(ApmServiceSearchItem, "_get_allowed_applications", return_value=[app(), app(3, app_id=2)]),
+        patch_search([app(), app(3, app_id=2)]),
         mock.patch.object(ApmServiceSearchItem, "_search_services", side_effect=cancel) as search,
         mock.patch.object(ApmServiceSearchItem, "_get_biz_name", return_value="业务"),
     ):
@@ -135,6 +235,7 @@ def test_failed_service_search_does_not_block_other_categories():
 
     with (
         mock.patch.object(Searcher, "search_items", [ApmServiceSearchItem, OtherItem]),
-        mock.patch.object(ApmServiceSearchItem, "_get_allowed_applications", side_effect=RuntimeError("unavailable")),
+        mock.patch.object(ApmServiceSearchItem, "_list_visited_applications", return_value=[]),
+        mock.patch.object(ApmServiceSearchItem, "_list_applications", side_effect=RuntimeError("unavailable")),
     ):
         assert list(Searcher("tenant", "user").search("demo_v4")) == [{"type": "other", "items": []}]
