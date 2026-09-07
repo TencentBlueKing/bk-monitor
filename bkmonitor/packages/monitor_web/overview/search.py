@@ -803,7 +803,7 @@ class ApmServiceSearchItem(SearchItem):
         applications = list(
             Application.objects.filter(bk_tenant_id=bk_tenant_id)
             .order_by("bk_biz_id", "application_id")
-            .values("bk_biz_id", "app_name", "application_id", "is_enabled_profiling")
+            .values("bk_biz_id", "app_name", "application_id")
         )
         return filter_data_by_permission(
             bk_tenant_id=bk_tenant_id,
@@ -822,7 +822,6 @@ class ApmServiceSearchItem(SearchItem):
         services = api.apm_api.search_service_names(
             bk_biz_id=bk_biz_id,
             app_names=app_names,
-            profiling_app_names=[app["app_name"] for app in applications if app["is_enabled_profiling"]],
             query=query,
             limit=limit,
         )

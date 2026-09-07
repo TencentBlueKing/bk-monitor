@@ -8,12 +8,11 @@ from bkmonitor.iam.action import ActionEnum
 from monitor_web.overview.search import ApmServiceSearchItem, Searcher
 
 
-def app(biz=2, name="unrelated_app", app_id=1, profiling=True):
+def app(biz=2, name="unrelated_app", app_id=1):
     return {
         "bk_biz_id": biz,
         "app_name": name,
         "application_id": app_id,
-        "is_enabled_profiling": profiling,
     }
 
 
@@ -105,7 +104,7 @@ def test_search_cancellation_stops_subsequent_batches(already_stopped):
     assert search.call_count == (0 if already_stopped else 1)
 
 
-def test_batch_queries_only_authorized_apps_and_enabled_profiling():
+def test_batch_queries_only_authorized_apps():
     custom_qs = mock.MagicMock()
     custom_qs.annotate.return_value.filter.return_value.order_by.return_value.values.return_value.distinct.return_value.__getitem__.return_value = [
         service("http:demo_v4")
@@ -116,18 +115,15 @@ def test_batch_queries_only_authorized_apps_and_enabled_profiling():
             "monitor_web.overview.search.ApplicationCustomService.objects.filter", return_value=custom_qs
         ) as custom,
     ):
-        result = ApmServiceSearchItem._search_services(
-            2, [app(), app(name="trace_only", profiling=False)], "demo_v4", 20
-        )
+        result = ApmServiceSearchItem._search_services(2, [app(), app(name="another_app")], "demo_v4", 20)
     backend.assert_called_once_with(
         bk_biz_id=2,
-        app_names=["unrelated_app", "trace_only"],
-        profiling_app_names=["unrelated_app"],
+        app_names=["unrelated_app", "another_app"],
         query="demo_v4",
         limit=20,
     )
     custom.assert_called_once_with(
-        bk_biz_id=2, app_name__in=["unrelated_app", "trace_only"], match_type=CustomServiceMatchType.MANUAL
+        bk_biz_id=2, app_name__in=["unrelated_app", "another_app"], match_type=CustomServiceMatchType.MANUAL
     )
     assert result == [service(), service("http:demo_v4")]
 

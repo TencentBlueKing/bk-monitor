@@ -821,16 +821,8 @@ class SearchServiceNamesResource(Resource):
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(label="业务ID")
         app_names = serializers.ListField(child=serializers.CharField(max_length=50), allow_empty=False, max_length=100)
-        profiling_app_names = serializers.ListField(
-            child=serializers.CharField(max_length=50), required=False, default=[], max_length=100
-        )
         query = serializers.CharField(label="服务名称关键字")
         limit = serializers.IntegerField(default=20, min_value=1, max_value=100)
-
-        def validate(self, attrs):
-            if not set(attrs["profiling_app_names"]).issubset(attrs["app_names"]):
-                raise serializers.ValidationError("profiling_app_names must be a subset of app_names")
-            return attrs
 
     def perform_request(self, data):
         scope = {"bk_biz_id": data["bk_biz_id"], "app_name__in": data["app_names"]}
@@ -864,22 +856,20 @@ class SearchServiceNamesResource(Resource):
                     return list(services.values())
             last_id = batch[-1]["id"]
 
-        if data["profiling_app_names"]:
-            profiles = (
-                ProfileService.objects.filter(
-                    bk_biz_id=data["bk_biz_id"],
-                    app_name__in=data["profiling_app_names"],
-                    name__icontains=data["query"],
-                )
-                .order_by("app_name", "name")
-                .values("app_name", "name")
-                .distinct()[: data["limit"]]
+        profiles = (
+            ProfileService.objects.filter(
+                **scope,
+                name__icontains=data["query"],
             )
-            for profile in profiles:
-                key = (profile["app_name"], profile["name"])
-                services[key] = {"app_name": key[0], "service_name": key[1]}
-                if len(services) >= data["limit"]:
-                    break
+            .order_by("app_name", "name")
+            .values("app_name", "name")
+            .distinct()[: data["limit"]]
+        )
+        for profile in profiles:
+            key = (profile["app_name"], profile["name"])
+            services[key] = {"app_name": key[0], "service_name": key[1]}
+            if len(services) >= data["limit"]:
+                break
         return list(services.values())
 
 

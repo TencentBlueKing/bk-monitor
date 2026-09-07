@@ -16,7 +16,6 @@ def query_data(**kwargs):
     return {
         "bk_biz_id": 2,
         "app_names": ["app"],
-        "profiling_app_names": ["app"],
         "query": "demo",
         "limit": 20,
         **kwargs,
@@ -40,6 +39,7 @@ def test_search_service_names_preserves_node_filter_and_deduplicates_profiling()
     ]
     with (
         mock.patch("apm.resources.TopoNode.objects.filter", return_value=nodes) as topo_filter,
+        mock.patch("apm.resources.ApmApplication.objects.filter") as app_filter,
         mock.patch("apm.resources.ProfileService.objects.filter", return_value=profiles) as profile_filter,
     ):
         result = SearchServiceNamesResource().perform_request(query_data())
@@ -49,21 +49,23 @@ def test_search_service_names_preserves_node_filter_and_deduplicates_profiling()
     assert filters["app_name__in"] == ["app"]
     assert filters["topo_key__icontains"] == "demo"
     assert abs((datetime.datetime.now() - filters["updated_at__gte"]).days - TopoNode.EXPIRED_DAYS) <= 1
+    app_filter.assert_not_called()
     profile_filter.assert_called_once_with(bk_biz_id=2, app_name__in=["app"], name__icontains="demo")
 
 
-@pytest.mark.parametrize("limit,profiling", [(1, ["app"]), (20, [])])
-def test_no_unnecessary_profile_query(limit, profiling):
+def test_no_profile_query_when_topology_fills_limit():
     nodes = mock.MagicMock()
     nodes.order_by.return_value.values.return_value.filter.return_value.__getitem__.side_effect = [[node("demo")], []]
     with (
         mock.patch("apm.resources.TopoNode.objects.filter", return_value=nodes),
+        mock.patch("apm.resources.ApmApplication.objects.filter") as app_filter,
         mock.patch("apm.resources.ProfileService.objects.filter") as profiles,
     ):
-        assert SearchServiceNamesResource().perform_request(query_data(limit=limit, profiling_app_names=profiling)) == [
+        assert SearchServiceNamesResource().perform_request(query_data(limit=1)) == [
             {"app_name": "app", "service_name": "demo"}
         ]
     profiles.assert_not_called()
+    app_filter.assert_not_called()
 
 
 @pytest.mark.parametrize(
@@ -71,7 +73,6 @@ def test_no_unnecessary_profile_query(limit, profiling):
     [
         {"app_names": []},
         {"app_names": [str(i) for i in range(101)]},
-        {"profiling_app_names": ["unauthorized"]},
         {"limit": 0},
         {"limit": 101},
         {"query": ""},
