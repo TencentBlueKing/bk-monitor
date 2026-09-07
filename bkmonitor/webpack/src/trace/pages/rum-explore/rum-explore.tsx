@@ -333,6 +333,7 @@ export default defineComponent({
               <div class='skeleton-element filter-skeleton' />
             ) : (
               <RetrievalFilter
+                key={`__${this.store.timezone}__`}
                 changeWhereFormatter={traceWhereChangeFormatter}
                 commonWhere={queryCtx.commonWhere.value}
                 copyLoading={queryCtx.generateQueryStringLoading.value}

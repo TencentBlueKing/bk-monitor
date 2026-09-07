@@ -136,6 +136,7 @@ function toFilterFieldType(field: IRumField): EFieldType {
     case 'double':
     case 'integer':
     case 'long':
+    case 'float':
       return EFieldType.integer;
     case 'text':
       return EFieldType.text;
