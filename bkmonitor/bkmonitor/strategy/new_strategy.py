@@ -2804,20 +2804,20 @@ class Strategy(AbstractConfig):
         )
         self.id = strategy.id
 
-    def save_labels(self):
-        """
-        保存策略标签
-        """
-        labels = [f"/{label.strip('/')}/" for label in self.labels]
+    @staticmethod
+    def normalize_labels(labels: list[str]) -> list[str]:
+        """规范化标签并过滤冗余父标签，保留输入顺序及重复项。"""
+        normalized_labels: list[str] = [f"/{label.strip('/')}/" for label in labels]
+        max_length: int = StrategyLabel._meta.get_field("label_name").max_length
 
         # 校验标签长度
-        for label in labels:
-            if len(label) > 128:
+        for label in normalized_labels:
+            if len(label) > max_length:
                 raise ValidationError(_("标签长度超长，请调整后重试"))
 
         # 如果某个标签是另一个标签的父标签，则抛弃该标签
-        redundant_labels = set()
-        for label1, label2 in permutations(labels, 2):
+        redundant_labels: set[str] = set()
+        for label1, label2 in permutations(normalized_labels, 2):
             if label1 == label2:
                 continue
 
@@ -2825,7 +2825,11 @@ class Strategy(AbstractConfig):
                 redundant_labels.add(label2)
             elif label2.startswith(label1):
                 redundant_labels.add(label1)
-        self.labels = [label for label in labels if label not in redundant_labels]
+        return [label for label in normalized_labels if label not in redundant_labels]
+
+    def save_labels(self) -> None:
+        """保存策略标签。"""
+        self.labels = self.normalize_labels(self.labels)
 
         # 清理旧标签
         StrategyLabel.objects.filter(bk_biz_id=self.bk_biz_id, strategy_id=self.id).delete()

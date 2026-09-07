@@ -14,6 +14,8 @@ from typing import Any
 from unittest import mock
 
 import pytest
+from django.db import connections, router, transaction
+from django.test.utils import CaptureQueriesContext
 from rest_framework.exceptions import ValidationError
 
 from bkmonitor.models import (
@@ -28,6 +30,7 @@ from bkmonitor.models import (
     StrategyModel,
 )
 from bkmonitor.strategy.new_strategy import Algorithm, Detect, QueryConfig, Strategy
+from bkmonitor.strategy.partial_update import StrategyConfigUpdater
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.drf_resource.exceptions import CustomException
 from monitor_web.strategies.resources.v2 import UpdatePartialStrategyV2Resource
@@ -35,6 +38,85 @@ from monitor_web.strategies.resources.v2 import UpdatePartialStrategyV2Resource
 pytestmark = pytest.mark.django_db(databases="__all__")
 
 BK_BIZ_ID = 2
+
+
+def test_full_and_partial_label_saves_preserve_their_order_and_duplicate_contracts(
+    strategy_config_fixture: dict[str, Any],
+) -> None:
+    model: StrategyModel = strategy_config_fixture["strategy"]
+    strategy: Strategy = Strategy.from_models([model])[0]
+    labels: list[str] = ["z", "/a/", "a", "parent", "parent/child", "parentish"]
+    strategy.labels = list(labels)
+    strategy.save_labels()
+    assert strategy.labels == ["/z/", "/a/", "/a/", "/parent/child/", "/parentish/"]
+    assert (
+        list(StrategyLabel.objects.filter(strategy_id=model.id).order_by("id").values_list("label_name", flat=True))
+        == strategy.labels
+    )
+
+    perform_strategy_config_patch([model.id], {"labels": labels})
+    assert_labels(model.id, ["z", "a", "parent/child", "parentish"])
+    assert labels == ["z", "/a/", "a", "parent", "parent/child", "parentish"]
+    model.refresh_from_db()
+    updated_at: datetime.datetime = model.update_time
+    perform_strategy_config_patch([model.id], {"labels": labels[::-1]})
+    model.refresh_from_db()
+    assert model.update_time == updated_at
+    assert StrategyHistoryModel.objects.filter(strategy_id=model.id).count() == 1
+
+
+@pytest.mark.parametrize("partial", [False, True])
+@pytest.mark.parametrize("length", [126, 127])
+def test_label_length_boundary_is_shared_by_save_paths(
+    strategy_config_fixture: dict[str, Any], partial: bool, length: int
+) -> None:
+    model: StrategyModel = strategy_config_fixture["strategy"]
+    original_labels: list[str] = list(
+        StrategyLabel.objects.filter(strategy_id=model.id).order_by("id").values_list("label_name", flat=True)
+    )
+    labels: list[str] = ["x" * length]
+
+    def save_labels() -> None:
+        if partial:
+            perform_strategy_config_patch([model.id], {"labels": labels})
+        else:
+            strategy: Strategy = Strategy.from_models([model])[0]
+            strategy.labels = labels
+            strategy.save_labels()
+
+    if length == 127:
+        with pytest.raises(ValidationError, match="标签长度超长"):
+            save_labels()
+        assert (
+            list(StrategyLabel.objects.filter(strategy_id=model.id).order_by("id").values_list("label_name", flat=True))
+            == original_labels
+        )
+    else:
+        save_labels()
+        assert_labels(model.id, labels)
+
+
+@pytest.mark.parametrize(
+    ("patch", "query_count"),
+    [
+        ({}, 0),
+        ({"items": []}, 0),
+        ({"notice": {}}, 0),
+        ({"items": [{"name": "updated"}]}, 3),
+        ({"notice": {"user_groups": []}}, 1),
+        ({"labels": []}, 1),
+        ({"detects": []}, 1),
+    ],
+)
+def test_empty_patch_skips_only_unnecessary_child_locks(
+    strategy_config_fixture: dict[str, Any], patch: dict[str, Any], query_count: int
+) -> None:
+    strategy: StrategyModel = strategy_config_fixture["strategy"]
+    database: str = router.db_for_write(StrategyModel)
+    with transaction.atomic(using=database):
+        with CaptureQueriesContext(connections[database]) as queries:
+            StrategyConfigUpdater.lock_related(strategy.id, patch)
+    assert len(queries) == query_count
 
 
 def make_query_config_payload(alias: str, metric_field: str, *, query_config_id: int | None = None) -> dict[str, Any]:

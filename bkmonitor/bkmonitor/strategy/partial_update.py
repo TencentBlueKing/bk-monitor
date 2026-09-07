@@ -11,7 +11,6 @@ specific language governing permissions and limitations under the License.
 import copy
 import json
 from dataclasses import dataclass, field
-from itertools import permutations
 from typing import Any
 
 from django.utils.translation import gettext_lazy as _
@@ -178,13 +177,13 @@ class StrategyConfigUpdater:
     def lock_related(strategy_id: int, patch: dict[str, Any]) -> None:
         """在外层事务内锁住本次 patch 可能读写的子配置。"""
 
-        if "items" in patch:
+        if patch.get("items"):
             list(ItemModel.objects.select_for_update().filter(strategy_id=strategy_id).order_by("id"))
             list(QueryConfigModel.objects.select_for_update().filter(strategy_id=strategy_id).order_by("id"))
             list(AlgorithmModel.objects.select_for_update().filter(strategy_id=strategy_id).order_by("id"))
         if "detects" in patch:
             list(DetectModel.objects.select_for_update().filter(strategy_id=strategy_id).order_by("id"))
-        if "notice" in patch:
+        if patch.get("notice"):
             list(
                 StrategyActionConfigRelation.objects.select_for_update()
                 .filter(
@@ -383,7 +382,7 @@ class StrategyConfigUpdater:
             return
 
         current_labels: list[str] = [f"/{label.strip('/')}/" for label in plan.current.labels]
-        plan.labels = sorted(current_labels) != cls._normalize_labels(plan.candidate.labels)
+        plan.labels = sorted(current_labels) != sorted(set(Strategy.normalize_labels(plan.candidate.labels)))
 
     @classmethod
     def _fill_priority_group_key(cls, plan: StrategyConfigPatch) -> None:
@@ -433,7 +432,7 @@ class StrategyConfigUpdater:
 
     @classmethod
     def _save_labels(cls, strategy: Strategy) -> None:
-        desired_labels = {f"/{label.strip('/')}/" for label in cls._normalize_labels(strategy.labels)}
+        desired_labels: set[str] = set(Strategy.normalize_labels(strategy.labels))
         current_labels: list[StrategyLabel] = list(
             StrategyLabel.objects.filter(bk_biz_id=strategy.bk_biz_id, strategy_id=strategy.id).order_by("id")
         )
@@ -468,20 +467,3 @@ class StrategyConfigUpdater:
     @staticmethod
     def _normalize_collection(configs: list[dict[str, Any]]) -> list[dict[str, Any]]:
         return sorted(configs, key=lambda config: json.dumps(config, ensure_ascii=False, sort_keys=True))
-
-    @staticmethod
-    def _normalize_labels(labels: list[str]) -> list[str]:
-        normalized_labels = [f"/{label.strip('/')}/" for label in labels]
-        for label in normalized_labels:
-            if len(label) > StrategyLabel._meta.get_field("label_name").max_length:
-                raise ValidationError(_("标签长度超长，请调整后重试"))
-
-        redundant_labels: set[str] = set()
-        for label1, label2 in permutations(normalized_labels, 2):
-            if label1 == label2:
-                continue
-            if label1.startswith(label2):
-                redundant_labels.add(label2)
-            elif label2.startswith(label1):
-                redundant_labels.add(label1)
-        return sorted(set(normalized_labels) - redundant_labels)
