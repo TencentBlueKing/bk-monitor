@@ -2124,16 +2124,20 @@ class CollectStatusEnum(ChoicesEnum):
     采集状态枚举
     """
 
+    PREPARE = "prepare"
     RUNNING = "running"
     SUCCESS = "success"
     FAILED = "failed"
     TERMINATED = "terminated"
+    UNKNOWN = "unknown"
 
     _choices_labels = (
+        (PREPARE, _("准备中")),
         (RUNNING, _("部署中")),
         (SUCCESS, _("正常")),
         (FAILED, _("异常")),
         (TERMINATED, _("停用")),
+        (UNKNOWN, _("未知")),
     )
 
     @classmethod
@@ -2147,5 +2151,11 @@ class CollectStatusEnum(ChoicesEnum):
             return cls.FAILED.value
         elif original_status == CollectStatus.TERMINATED:
             return cls.TERMINATED.value
+        elif original_status == CollectStatus.PREPARE:
+            return cls.PREPARE.value
+        # 订阅范围为空（如目标主机已从 CMDB 移除）时后端给出 UNKNOWN，
+        # 兜底成 RUNNING 会让采集项永远停在“部署中”，并使前端状态轮询无法结束
+        elif original_status == CollectStatus.UNKNOWN:
+            return cls.UNKNOWN.value
         else:
             return cls.RUNNING.value
