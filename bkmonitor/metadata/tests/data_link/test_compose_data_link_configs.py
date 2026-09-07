@@ -8,6 +8,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import datetime
 import json
 
 import pytest
@@ -123,9 +124,9 @@ def test_compose_data_source_config(mocker):
         data_source_alias="data_link_test",
         description="test description",
         created_by="creator",
-        created_at="2026-09-03 20:06:34",
+        created_at=datetime.datetime(2026, 9, 3, 12, 6, 34, tzinfo=datetime.timezone.utc),
         updated_by="updater",
-        updated_at="2026-09-04 10:00:00",
+        updated_at=datetime.datetime(2026, 9, 4, 2, 0, tzinfo=datetime.timezone.utc),
     ) == {
         "kind": "DataSource",
         "metadata": {

@@ -8,6 +8,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import datetime
 import json
 import logging
 from typing import TYPE_CHECKING, Any, ClassVar, Literal, cast
@@ -25,6 +26,15 @@ from metadata.models.data_link.constants import BKBASE_NAMESPACE_BK_LOG, BKBASE_
 from metadata.models.space.constants import LOG_EVENT_ETL_CONFIGS
 
 logger = logging.getLogger("metadata")
+
+
+def _format_data_source_datetime(value: datetime.datetime | str) -> str:
+    if isinstance(value, str):
+        return value
+    if timezone.is_aware(value):
+        value = timezone.localtime(value)
+    return value.strftime("%Y-%m-%d %H:%M:%S")
+
 
 if TYPE_CHECKING:
     from metadata.models.data_source import DataSource
@@ -127,13 +137,15 @@ class DataIdConfig(DataLinkResourceConfigBase):
         data_source_alias: str | None = None,
         description: str | None = None,
         created_by: str | None = None,
-        created_at: str | None = None,
+        created_at: datetime.datetime | str | None = None,
         updated_by: str | None = None,
-        updated_at: str | None = None,
+        updated_at: datetime.datetime | str | None = None,
     ) -> dict[str, Any]:
         """组装引用当前 DataId 的 BKBase DataSource 资源配置。"""
         default_operator = settings.BK_DATA_PROJECT_MAINTAINER.split(",")[0]
-        default_time = timezone.localtime().strftime("%Y-%m-%d %H:%M:%S")
+        default_time = timezone.now()
+        created_at = created_at or self.create_time or default_time
+        updated_at = updated_at or self.last_modify_time or default_time
         basic_info = {
             "data_source_name": self.name,
             "data_source_alias": self.name if data_source_alias is None else data_source_alias,
@@ -170,9 +182,9 @@ class DataIdConfig(DataLinkResourceConfigBase):
                 "data_id": data_id,
                 "data_conn": None,
                 "created_by": created_by or default_operator,
-                "created_at": created_at or default_time,
+                "created_at": _format_data_source_datetime(created_at),
                 "updated_by": updated_by or default_operator,
-                "updated_at": updated_at or default_time,
+                "updated_at": _format_data_source_datetime(updated_at),
                 "desired_status": "Running",
             },
         }
