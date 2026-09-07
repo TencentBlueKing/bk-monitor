@@ -21,12 +21,13 @@ from django.core.cache import caches
 from django.utils.translation import gettext as _
 from rest_framework import serializers
 
-from apm_web.constants import ApmCacheKey, HostAddressType
+from apm_web.constants import ApmCacheKey, HostAddressType, TopoNodeKind
 from apm_web.handlers import metric_group
 from apm_web.handlers.component_handler import ComponentHandler
 from apm_web.handlers.host_handler import HostHandler
 from apm_web.handlers.service_handler import ServiceHandler
 from apm_web.models import Application
+from apm_web.strategy.dispatch.entity import EntitySet
 from bkmonitor.models import MetricListCache
 from bkmonitor.utils.cache import CacheType, using_cache
 from bkmonitor.utils.common_utils import deserialize_and_decompress
@@ -172,6 +173,8 @@ class ApmBuiltinProcessor(BuiltinProcessor):
         "apm_service-service-default-instance",
         "apm_service-service-default-log",
         "apm_service-service-default-trace",
+        "apm_service-service-llm_overview",
+        "apm_service-service-llm_session",
         "apm_service-service-default-event",
         "apm_service-service-default-overview",
         "apm_service-service-default-profiling",
@@ -199,7 +202,11 @@ class ApmBuiltinProcessor(BuiltinProcessor):
         "service-default-caller_callee",
         "service-default-custom_metric",
         "service-default-container",
+        "service-llm_overview",
+        "service-llm_session",
     ]
+
+    LLM_VIEW_IDS = {"service-llm_overview", "service-llm_session"}
 
     # 只需要列表信息时，需要进一步进行渲染的 Tab
     # 列表只关注需要展示哪些 Tab，可以跳过具体的 view_config 生成逻辑，以加快页面渲染
@@ -730,6 +737,8 @@ class ApmBuiltinProcessor(BuiltinProcessor):
                 defaults={
                     "config": [
                         "overview",
+                        "llm_overview",
+                        "llm_session",
                         "caller_callee",
                         "topo",
                         "endpoint",
@@ -961,6 +970,16 @@ class ApmBuiltinProcessor(BuiltinProcessor):
             ignore_tabs = ["db", "instance", "profiling", "container"]
             res = [i for i in res if i.id.split("-")[-1] not in ignore_tabs]
 
+        if node and node.get("extra_data", {}).get("kind") == TopoNodeKind.SERVICE:
+            service_name = params["apm_service_name"]
+            entity_set = EntitySet(
+                bk_biz_id=params["bk_biz_id"],
+                app_name=params["apm_app_name"],
+                service_names=[service_name],
+            )
+            system = entity_set.get_system(service_name)
+            if system.get("is_support_llm", False):
+                res.extend(i for i in views if i.id in cls.LLM_VIEW_IDS)
         return res
 
     @classmethod
