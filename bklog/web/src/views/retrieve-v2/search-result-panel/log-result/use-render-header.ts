@@ -28,6 +28,7 @@ import { h, computed } from 'vue';
 import { getFieldNameByField } from '@/hooks/use-field-name';
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
+import RetrieveHelper, { RetrieveEvent } from '@/views/retrieve-helper';
 
 export default () => {
   const store = useStore();
@@ -174,6 +175,7 @@ export default () => {
                 });
                 store.commit('resetVisibleFields', displayFieldNames);
                 store.commit('updateIsSetDefaultTableColumn');
+                RetrieveHelper.fire(RetrieveEvent.VISIBLE_FIELD_COLUMN_LAYOUT_CHANGE);
               },
             },
           }),
