@@ -20,6 +20,7 @@ the project delivered to anyone in the future.
 """
 
 import base64
+import re
 
 from django.conf import settings
 from django.utils.translation import gettext
@@ -595,6 +596,23 @@ def validate_param_value(value):
     return True
 
 
+# 节点管理 V3 的任务标识（trigger_id / workflow_id）是字符串而非自增整数，
+# 形如 trigger-xxxx。这里限定可见字符集，避免放开校验后把任意内容透传给下游接口。
+TASK_ID_PATTERN = re.compile(r"^[A-Za-z0-9_.:-]{1,128}$")
+
+
+def validate_task_id_value(value):
+    """
+    校验任务 ID 列表。V2 只接受整数 ID；V3-only 模式下额外接受字符串形态的任务标识。
+    """
+    from apps.log_databus.nodeman_v3.mode import is_nodeman_v3_only
+
+    if not is_nodeman_v3_only():
+        return validate_param_value(value)
+
+    return all(TASK_ID_PATTERN.match(value_obj) for value_obj in value.split(","))
+
+
 class RunSubscriptionSerializer(serializers.Serializer):
     """
     任务重试序列化
@@ -630,7 +648,7 @@ class TaskStatusSerializer(serializers.Serializer):
         # 当task_is_list为空的情况不需要做相关验证
         if not attrs["task_id_list"]:
             return attrs
-        if not validate_param_value(attrs["task_id_list"]):
+        if not validate_task_id_value(attrs["task_id_list"]):
             raise ValidationError(_("task_id_list不符合格式，部署任务ID（多个ID用半角,分隔）"))
         return attrs
 
@@ -646,6 +664,14 @@ class TaskDetailSerializer(serializers.Serializer):
     task_id = serializers.CharField(label=_("任务ID"), required=False)
 
     def validate_task_id(self, value):
+        from apps.log_databus.nodeman_v3.mode import is_nodeman_v3_only
+
+        if is_nodeman_v3_only():
+            # V3 的任务标识是字符串，转成整数会直接把 ID 破坏掉
+            if not TASK_ID_PATTERN.match(value):
+                raise ValidationError(_("task_id不符合格式"))
+            return value
+
         if not value.isdigit():
             raise ValidationError(_("task_id请填写合法的整数值"))
         return int(value)
