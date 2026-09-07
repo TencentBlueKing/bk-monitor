@@ -176,7 +176,7 @@ class RequestProcessor:
     def filter_log_search_response_resource(
         cls, response: Response, action_id: str, view_set: str, view_action: str, allow_resources_result: dict[str, Any]
     ):
-        allow_resources = allow_resources_result["resources"]
+        allow_resources = set(allow_resources_result["resources"])
         view_set_class: ViewSetAction = ViewSetAction(action_id=action_id, view_set=view_set, view_action=view_action)
         if view_set_class.is_one_of(
             [ViewSetActionEnum.SEARCH_VIEWSET_LIST.value, ViewSetActionEnum.FAVORITE_VIEWSET_LIST.value]
@@ -185,20 +185,16 @@ class RequestProcessor:
             if isinstance(data, dict) and "data" in data:
                 # 先收集所有已授权父索引组中的子项，避免依赖列表顺序：同一个子项
                 # 即使先在未授权组中出现，也不应在随后可见的已授权组之外再上提一次。
-                visible_in_authorized_group_ids = {
+                visible_child_ids = {
                     child["index_set_id"]
                     for index_set in data["data"]
                     if index_set["index_set_id"] in allow_resources
                     for child in index_set.get("children", [])
                 }
                 filtered_index_sets = []
-                filtered_index_set_ids = set()
+                promoted_ids = set()
                 for index_set in data["data"]:
                     if index_set["index_set_id"] in allow_resources:
-                        filtered_index_set_ids.add(index_set["index_set_id"])
-                        # 已授权父索引组中的子项已经可见，不能再因其归属的其他
-                        # 未授权索引组而被上提为顶层项。
-                        filtered_index_set_ids.update(child["index_set_id"] for child in index_set.get("children", []))
                         filtered_index_sets.append(index_set)
                         continue
 
@@ -208,11 +204,11 @@ class RequestProcessor:
                         child_index_set_id = child["index_set_id"]
                         if (
                             child_index_set_id not in allow_resources
-                            or child_index_set_id in visible_in_authorized_group_ids
-                            or child_index_set_id in filtered_index_set_ids
+                            or child_index_set_id in visible_child_ids
+                            or child_index_set_id in promoted_ids
                         ):
                             continue
-                        filtered_index_set_ids.add(child_index_set_id)
+                        promoted_ids.add(child_index_set_id)
                         filtered_index_sets.append(child)
                 data["data"] = filtered_index_sets
                 response.data = data
