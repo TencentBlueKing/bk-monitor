@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING, Any, ClassVar, Literal, cast
 
 from django.conf import settings
 from django.db import models
+from django.utils import timezone
 from typing_extensions import deprecated
 
 from bkmonitor.utils.db.fields import SymmetricJsonField
@@ -125,8 +126,14 @@ class DataIdConfig(DataLinkResourceConfigBase):
         self,
         data_source_alias: str | None = None,
         description: str | None = None,
+        created_by: str | None = None,
+        created_at: str | None = None,
+        updated_by: str | None = None,
+        updated_at: str | None = None,
     ) -> dict[str, Any]:
         """组装引用当前 DataId 的 BKBase DataSource 资源配置。"""
+        default_operator = settings.BK_DATA_PROJECT_MAINTAINER.split(",")[0]
+        default_time = timezone.localtime().strftime("%Y-%m-%d %H:%M:%S")
         basic_info = {
             "data_source_name": self.name,
             "data_source_alias": self.name if data_source_alias is None else data_source_alias,
@@ -146,7 +153,10 @@ class DataIdConfig(DataLinkResourceConfigBase):
         metadata = {
             "namespace": self.namespace,
             "name": self.name,
+            "labels": {},
         }
+        if self.bk_data_id > 0:
+            metadata["labels"]["raw_data_id"] = str(self.bk_data_id)
         if settings.ENABLE_MULTI_TENANT_MODE:
             metadata["tenant"] = self.bk_tenant_id
             data_id["tenant"] = self.bk_tenant_id
@@ -158,6 +168,12 @@ class DataIdConfig(DataLinkResourceConfigBase):
                 "basic_info": basic_info,
                 "report_config": {"type": "custom"},
                 "data_id": data_id,
+                "data_conn": None,
+                "created_by": created_by or default_operator,
+                "created_at": created_at or default_time,
+                "updated_by": updated_by or default_operator,
+                "updated_at": updated_at or default_time,
+                "desired_status": "Running",
             },
         }
 

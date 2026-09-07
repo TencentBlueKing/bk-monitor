@@ -21,6 +21,7 @@ from django.conf import settings
 from django.db import models
 from django.db.models import Q
 from django.db.transaction import atomic
+from django.utils import timezone
 from django.utils.translation import gettext as _
 
 from bkmonitor.utils import consul
@@ -377,6 +378,10 @@ class DataSource(models.Model):
         data_source_config = data_id_config_ins.compose_data_source_config(
             data_source_alias=self.data_name,
             description=self.data_description,
+            created_by=self.creator,
+            created_at=timezone.localtime(self.create_time).strftime("%Y-%m-%d %H:%M:%S"),
+            updated_by=self.last_modify_user,
+            updated_at=timezone.localtime(self.last_modify_time).strftime("%Y-%m-%d %H:%M:%S"),
         )
         api.bkdata.apply_data_link(config=[data_id_config], bk_tenant_id=self.bk_tenant_id)
         apply_data_source_config(bk_tenant_id=self.bk_tenant_id, data_source_config=data_source_config)

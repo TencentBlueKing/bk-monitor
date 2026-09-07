@@ -122,11 +122,16 @@ def test_compose_data_source_config(mocker):
     assert data_id_config.compose_data_source_config(
         data_source_alias="data_link_test",
         description="test description",
+        created_by="creator",
+        created_at="2026-09-03 20:06:34",
+        updated_by="updater",
+        updated_at="2026-09-04 10:00:00",
     ) == {
         "kind": "DataSource",
         "metadata": {
             "namespace": "bkmonitor",
             "name": "bkm_data_link_test",
+            "labels": {},
         },
         "spec": {
             "basic_info": {
@@ -146,6 +151,12 @@ def test_compose_data_source_config(mocker):
                 "namespace": "bkmonitor",
                 "name": "bkm_data_link_test",
             },
+            "data_conn": None,
+            "created_by": "creator",
+            "created_at": "2026-09-03 20:06:34",
+            "updated_by": "updater",
+            "updated_at": "2026-09-04 10:00:00",
+            "desired_status": "Running",
         },
     }
 
@@ -154,6 +165,11 @@ def test_compose_data_source_config(mocker):
     assert content["metadata"]["tenant"] == "system"
     assert content["spec"]["data_id"]["tenant"] == "system"
     assert content["spec"]["basic_info"]["bk_biz_id"] == 111
+    assert content["spec"]["desired_status"] == "Running"
+
+    data_id_config.bk_data_id = 525323
+    content = data_id_config.compose_data_source_config()
+    assert content["metadata"]["labels"] == {"raw_data_id": "525323"}
 
 
 @pytest.mark.django_db(databases="__all__")
