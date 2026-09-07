@@ -1434,6 +1434,37 @@ class TestCustomCreateIdempotent(TestCase):
         mock_get_cluster.assert_not_called()
 
     @patch(
+        "apps.log_databus.handlers.collector.base.CollectorHandler.get_random_public_cluster_id",
+        return_value=0,
+    )
+    @patch(
+        "apps.log_databus.handlers.collector.base.CollectorHandler._pre_check_collector_config_en",
+        return_value=True,
+    )
+    @patch("apps.log_databus.handlers.collector.base.CollectorConfig.objects.get")
+    def test_custom_create_idempotent_retry_skips_auto_storage_selection(
+        self, mock_get, mock_pre_check, mock_get_cluster
+    ):
+        from apps.log_databus.handlers.collector.base import CollectorHandler
+
+        existing = MagicMock()
+        existing.collector_config_id = 100
+        existing.index_set_id = 200
+        existing.bk_data_id = 300
+        mock_get.return_value = existing
+
+        result = CollectorHandler().custom_create(
+            auto_select_storage_cluster=True,
+            ignore_exists=True,
+            **self._build_params(),
+        )
+
+        self.assertFalse(result["created"])
+        mock_pre_check.assert_called_once()
+        mock_get.assert_called_once()
+        mock_get_cluster.assert_not_called()
+
+    @patch(
         "apps.log_databus.handlers.collector.base.CollectorHandler._pre_check_collector_config_en",
         return_value=True,
     )
