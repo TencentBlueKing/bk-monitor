@@ -375,8 +375,8 @@ export default defineComponent({
           api={statisticsApi}
           commonParams={this.commonParams as any}
           fieldType={this.selectField?.type}
-          isDuration={['us', 'ms', 'μs'].includes(this.selectField?.field_unit)}
-          isInteger={['double', 'long', 'integer', 'float', 'boolean'].includes(this.selectField?.type)}
+          isDuration={this.selectField?.field_display_type === 'duration' || this.selectField?.field_unit === 'bytes'}
+          isInteger={['double', 'long', 'integer', 'float'].includes(this.selectField?.type)}
           isShow={this.showPopover}
           optionValues={this.selectField?.option_values}
           selectField={this.selectField?.name}
