@@ -15,6 +15,7 @@ from bkmonitor.utils.request import get_request
 from core.drf_resource import Resource
 from kernel_api.unified_mcp.dispatcher import dispatch_tool
 from kernel_api.unified_mcp.registry import CATEGORY_ACTIONS, get_tool_registry
+from kernel_api.unified_mcp.permissions import execute_native_tool, permission_state
 from metadata.resources import ListBCSClusterInfoByBizResource, ListSpacesResource
 
 CATEGORIES = tuple(CATEGORY_ACTIONS)
@@ -47,6 +48,69 @@ def _permission_state_by_action(
     return states
 
 
+def _mixed_permission_scopes(tools, params, permission):
+    """Only used when native tools are selected; keep the legacy-only response unchanged."""
+    request = get_request()
+    bk_biz_id = params.get("bk_biz_id")
+    scopes, missing = [], []
+    legacy_spaces = {}
+    legacy_states = (
+        _permission_state_by_action(permission, {t.iam_action for t in tools if not t.native_permission}, bk_biz_id)
+        if bk_biz_id is not None
+        else {}
+    )
+    for tool in tools:
+        if tool.native_permission:
+            scope = permission_state(
+                tool, request, bk_biz_id, params.get("resource_context"), params["include_apply_guide"]
+            )
+            scope["category"] = tool.category
+            scopes.append(scope)
+            if scope["state"] == "missing":
+                missing.append(scope)
+        elif bk_biz_id is None:
+            if tool.iam_action not in legacy_spaces:
+                legacy_spaces[tool.iam_action] = permission.filter_space_list_by_action(tool.iam_action)
+            for space in legacy_spaces[tool.iam_action]:
+                scopes.append(
+                    {
+                        "category": tool.category,
+                        "tool_name": tool.name,
+                        "action_id": tool.iam_action,
+                        "resource": {"bk_biz_id": str(space["bk_biz_id"]), "space_name": space.get("display_name", "")},
+                        "authorized": True,
+                    }
+                )
+        else:
+            allowed = legacy_states[tool.iam_action] == "granted"
+            scope = {
+                "category": tool.category,
+                "tool_name": tool.name,
+                "action_id": tool.iam_action,
+                "resource": {"bk_biz_id": str(bk_biz_id)},
+                "authorized": allowed,
+            }
+            scopes.append(scope)
+            if not allowed:
+                item = {**scope, "action_name": str(get_action_by_id(tool.iam_action).name)}
+                if params["include_apply_guide"]:
+                    item["apply_url"] = permission.get_apply_url(
+                        [tool.iam_action], [ResourceEnum.BUSINESS.create_simple_instance(bk_biz_id)]
+                    )
+                missing.append(item)
+    unresolved = any(scope.get("state") == "requires_resource" for scope in scopes)
+    return {
+        "authorized": bool(scopes) and all(scope["authorized"] for scope in scopes),
+        "scopes": scopes,
+        "missing_permissions": missing,
+        "next_step": "补充目标业务或资源上下文后重查"
+        if unresolved
+        else "申请原生权限或旧 MCP 权限后重试"
+        if missing
+        else "",
+    }
+
+
 class LookupToolResource(Resource):
     """Return deterministic catalog entries; no semantic search is performed."""
 
@@ -72,11 +136,18 @@ class LookupToolResource(Resource):
         permission = get_permission_client()
         permission_states = _permission_state_by_action(
             permission,
-            {tool.iam_action for tool in tools},
+            {tool.iam_action for tool in tools if not tool.native_permission},
             validated_request_data.get("bk_biz_id"),
         )
+        states_by_tool = {
+            tool.name: permission_state(tool, get_request(), validated_request_data.get("bk_biz_id"))["state"]
+            if tool.native_permission
+            else permission_states[tool.iam_action]
+            for tool in tools
+        }
         if validated_request_data["available_only"]:
-            tools = [tool for tool in tools if permission_states[tool.iam_action] == "granted"]
+            # Unknown instance scope is not denial. Keep it discoverable with requires_resource.
+            tools = [tool for tool in tools if states_by_tool[tool.name] != "missing"]
 
         total = len(tools)
         page = validated_request_data["page"]
@@ -90,7 +161,7 @@ class LookupToolResource(Resource):
                 for key in ("tool_name", "category", "capability", "bk_biz_id", "available_only")
                 if key in validated_request_data
             },
-            "tools": [tool.summary(permission_states[tool.iam_action]) for tool in page_tools],
+            "tools": [tool.summary(states_by_tool[tool.name]) for tool in page_tools],
             "pagination": {"page": page, "page_size": page_size, "total": total},
         }
 
@@ -172,6 +243,18 @@ class LookupPermissionsResource(Resource):
         category = serializers.ChoiceField(required=False, choices=CATEGORIES)
         tool_name = serializers.CharField(required=False, allow_blank=False)
         include_apply_guide = serializers.BooleanField(required=False, default=True)
+        resource_context = serializers.DictField(required=False, default=dict)
+
+        def validate(self, attrs):
+            context = attrs["resource_context"]
+            if context and not attrs.get("tool_name"):
+                raise serializers.ValidationError("resource_context requires an exact tool_name")
+            if (
+                set(context) - {"index_set_id", "target_type", "id", "alert_id"}
+                or context.get("target_type", "index_set") != "index_set"
+            ):
+                raise serializers.ValidationError("Unsupported permission resource_context")
+            return attrs
 
     def perform_request(self, validated_request_data):
         registry = get_tool_registry()
@@ -185,6 +268,22 @@ class LookupPermissionsResource(Resource):
                 raise ValidationError({"tool_name": str(exc)}) from exc
             if category and category != tool.category:
                 raise ValidationError({"category": f"{tool_name} belongs to category {tool.category}."})
+
+        context = validated_request_data.get("resource_context")
+        if context:
+            spec = tool.native_permission if tool else None
+            allowed_keys = (
+                {"index_set_id", "target_type"}
+                if spec and spec["resource_type"] == "indices"
+                else {spec["target_arg"]}
+                if spec and spec.get("target_arg")
+                else set()
+            )
+            if set(context) - allowed_keys:
+                raise ValidationError("resource_context does not match the selected tool")
+        selected_tools = registry.list(tool_name=tool_name, category=category)
+        if any(item.native_permission for item in selected_tools):
+            return _mixed_permission_scopes(selected_tools, validated_request_data, get_permission_client())
 
         permission_targets = (
             [(tool.category, tool.iam_action)]
@@ -266,28 +365,31 @@ class ExecuteToolResource(Resource):
         except KeyError as exc:
             raise ValidationError({"tool_name": str(exc)}) from exc
 
-        errors = sorted(
-            Draft7Validator(tool.input_schema).iter_errors(tool_args),
-            key=lambda error: ".".join(str(part) for part in error.absolute_path),
-        )
-        if errors:
-            error = errors[0]
-            path = ".".join(str(part) for part in error.absolute_path)
-            raise ValidationError({f"tool_args.{path}" if path else "tool_args": error.message})
-
-        if tool.resource_arg not in tool_args:
-            raise ValidationError({f"tool_args.{tool.resource_arg}": "This space-scoped argument is required."})
-        try:
-            bk_biz_id = int(tool_args[tool.resource_arg])
-        except (TypeError, ValueError) as exc:
-            raise ValidationError(
-                {f"tool_args.{tool.resource_arg}": "A valid integer business ID is required."}
-            ) from exc
         request = get_request(peaceful=True)
-        if not getattr(request, "unified_mcp_permission_checked", False):
-            get_permission_client().is_allowed_by_biz(bk_biz_id, tool.iam_action, raise_exception=True)
-
-        data = dispatch_tool(tool_name, tool_args)
+        if tool.native_permission:
+            # Share validation, native-first authorization and execution with standalone MCP.
+            # A legacy checked marker is never a grant for this path.
+            data = execute_native_tool(tool, tool_args, request)
+        else:
+            errors = sorted(
+                Draft7Validator(tool.input_schema).iter_errors(tool_args),
+                key=lambda error: ".".join(str(part) for part in error.absolute_path),
+            )
+            if errors:
+                error = errors[0]
+                path = ".".join(str(part) for part in error.absolute_path)
+                raise ValidationError({f"tool_args.{path}" if path else "tool_args": error.message})
+            if tool.resource_arg not in tool_args:
+                raise ValidationError({f"tool_args.{tool.resource_arg}": "This space-scoped argument is required."})
+            try:
+                bk_biz_id = int(tool_args[tool.resource_arg])
+            except (TypeError, ValueError) as exc:
+                raise ValidationError(
+                    {f"tool_args.{tool.resource_arg}": "A valid integer business ID is required."}
+                ) from exc
+            if not getattr(request, "unified_mcp_permission_checked", False):
+                get_permission_client().is_allowed_by_biz(bk_biz_id, tool.iam_action, raise_exception=True)
+            data = dispatch_tool(tool_name, tool_args)
         return {
             "status": "success",
             "tool_name": tool_name,
