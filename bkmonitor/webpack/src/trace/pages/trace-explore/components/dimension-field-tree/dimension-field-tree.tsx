@@ -83,7 +83,7 @@ export default defineComponent({
     }
 
     function handleItemClick(event: MouseEvent, item: IDimensionFieldTreeItem, nodeKey: string) {
-      if (item.children) {
+      if (item.children && item.children.length > 0) {
         toggleExpand(nodeKey);
         return;
       }
@@ -91,10 +91,10 @@ export default defineComponent({
     }
 
     function renderItem(item: IDimensionFieldTreeItem, level: number, parentKey: string) {
-      const nodeKey = `${parentKey}/${item.levelName}`;
-      const isObjectNode = !!item.children;
-      const expanded = isObjectNode && isExpanded(nodeKey);
-      const disabled = !isObjectNode && !item.is_dimensions;
+      const nodeKey = `${parentKey}/${item.levelAlias}`;
+      const isTreeNode = item.children && item.children.length > 0;
+      const expanded = isTreeNode && isExpanded(nodeKey);
+      const disabled = !isTreeNode && !item.is_dimensions;
 
       return (
         <div
@@ -112,7 +112,7 @@ export default defineComponent({
               'dimension-item': true,
               active: props.activeField === item.name,
               disabled,
-              'leaf-item': !isObjectNode,
+              'leaf-item': !isTreeNode,
             }}
             onClick={event => handleItemClick(event, item, nodeKey)}
           >
@@ -121,10 +121,12 @@ export default defineComponent({
               class='dimension-name'
               v-overflow-tips={OVERFLOW_TIPS_OPTIONS}
             >
-              {item.levelName}
-              {item?.name && item.type !== 'object' ? <span class='subtitle'>({item.name})</span> : ''}
+              {item.levelAlias}
+              {item?.levelName && !isTreeNode && item.name !== item.alias && (
+                <span class='subtitle'>({item.levelName})</span>
+              )}
             </span>
-            {isObjectNode && [
+            {isTreeNode && [
               <span
                 key='object-count'
                 class='object-count'
@@ -136,10 +138,10 @@ export default defineComponent({
                 class={['icon-monitor icon-arrow-right object-arrow', { expand: expanded }]}
               />,
             ]}
-            {item.is_dimensions && !isObjectNode && <i class='icon-monitor icon-Chart statistics-icon' />}
+            {item.is_dimensions && !isTreeNode && <i class='icon-monitor icon-Chart statistics-icon' />}
           </div>
 
-          {isObjectNode && expanded && (
+          {isTreeNode && expanded && (
             <div class='leaf-content'>{item.children.map(child => renderItem(child, level + 1, nodeKey))}</div>
           )}
         </div>

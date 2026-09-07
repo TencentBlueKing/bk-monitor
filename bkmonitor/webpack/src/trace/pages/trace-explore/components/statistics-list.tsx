@@ -46,13 +46,14 @@ import {
   handleTransformTime,
   handleTransformToTimestamp,
 } from '../../../components/time-range/utils';
-import { formatDuration, formatDurationWithUnit } from '../../../components/trace-view/utils/date';
+import { formatDuration } from '../../../components/trace-view/utils/date';
 import { transformTableDataToCsvStr } from '../../../plugins/utls/menu';
 import { useAppStore } from '../../../store/modules/app';
 import { useTraceExploreStore } from '../../../store/modules/explore';
 import { topKColorList } from '../utils';
 import DimensionEcharts from './dimension-echarts';
 import { transformFieldName } from './trace-explore-table/constants';
+import { transformByte } from '@/utils';
 
 import type {
   ConditionChangeEvent,
@@ -113,7 +114,7 @@ export default defineComponent({
       type: String,
       default: '',
     },
-    /** 字段单位，单位为 us / ms 的字段按耗时维度处理 */
+    /** 字段单位 */
     unit: {
       type: String,
       default: '',
@@ -215,50 +216,33 @@ export default defineComponent({
       popoverLoading.value = true;
       await getStatisticsGraphData();
       popoverLoading.value = false;
-      const { min, max, avg, median } = statisticsInfo.value.value_analysis || {};
-      statisticsInfo.value.value_analysis = {
-        min: formatDurationValue(min),
-        max: formatDurationValue(max),
-        avg: formatDurationValue(avg),
-        median,
-      };
       getDurationTopkList();
       rangeText.value = [durationTopkList.value.min, durationTopkList.value.max];
-      statisticsList.distinct_count = durationTopkList.value.distinct_count;
-      statisticsList.field = durationTopkList.value.field;
-      statisticsList.list = durationTopkList.value.list.slice(0, 5);
+      setTopKData(statisticsList, {
+        ...durationTopkList.value,
+        list: durationTopkList.value.list.slice(0, 5),
+      });
     }
 
     /** 弹窗关闭：清空统计数据 */
     function resetStatisticsState() {
-      statisticsList.distinct_count = 0;
-      statisticsList.field = '';
-      statisticsList.list = [];
+      setTopKData(statisticsList);
       statisticsInfo.value = { ...EMPTY_STATISTICS_INFO };
       chartData.value = [];
-    }
-
-    /** 耗时统计值格式化为无空格的紧凑文本 */
-    function formatDurationValue(value: number | string) {
-      return formatDuration(Number(value) || 0, '', 3, props.unit).replace(/ /g, '');
     }
 
     /** 耗时topK列表逻辑特殊，通过traceFieldStatisticsGraph接口返回的数据由前端生成 */
     function getDurationTopkList() {
       const data = (chartData.value[0]?.datapoints as [number, string][]) || [];
       const total = data.reduce((pre, cur) => pre + cur[0], 0);
-      let min = 0;
-      let max = 0;
+      let min = '';
+      let max = '';
       const list = data.map((item, index) => {
         const [start, end] = item[1].split('-');
-        if (index === 0) min = Number(start);
-        if (index === data.length - 1) max = Number(end);
+        if (index === 0) min = start;
+        if (index === data.length - 1) max = end;
         return {
-          alias: `${formatDurationWithUnit(Number(start), '', props.unit)} - ${formatDurationWithUnit(
-            Number(end),
-            '',
-            props.unit
-          )}`,
+          alias: item[1],
           count: item[0],
           proportions: formatPercent((item[0] / total) * 100, 3, 3, 3),
           value: item[1],
@@ -268,9 +252,45 @@ export default defineComponent({
         distinct_count: list.length,
         field: localField.value,
         list: list.sort((a, b) => b.count - a.count),
-        min: formatDurationWithUnit(min, '', props.unit),
-        max: formatDurationWithUnit(max, '', props.unit),
+        min,
+        max,
       };
+    }
+
+    function parseRange(str: string) {
+      if (typeof str !== 'string') return topKAliasFormatter(str) || str;
+      const m = str.match(/^(-?\d+)-(-?\d+)$/);
+      if (!m) return topKAliasFormatter(str) || str;
+      return `${topKAliasFormatter(m[1]) || m[1]}-${topKAliasFormatter(m[2]) || m[2]}`;
+    }
+
+    function topKValueFormatter(value: number | string) {
+      switch (props.unit) {
+        case 'bytes':
+          return transformByte(Number(value));
+        case 'us':
+        case 'μs':
+        case 'ms':
+          return formatDuration(Number(value) || 0, '', 3, props.unit).replace(/ /g, '');
+        default:
+          return '';
+      }
+    }
+
+    // 计算展示别名：优先选项值别名，其次字段名转换，最后按单位格式化 */
+    function topKAliasFormatter(value: string) {
+      return (
+        props.optionValues?.find(option => option.value === value)?.alias ||
+        transformFieldName(localField.value, value) ||
+        topKValueFormatter(value)
+      );
+    }
+
+    /** 将 topk 数据写入目标容器；不传 data 时清空 */
+    function setTopKData(target: ITopKField, data?: Partial<ITopKField>) {
+      target.distinct_count = data?.distinct_count || 0;
+      target.field = data?.field || '';
+      target.list = data?.list || [];
     }
 
     /** 获取topk列表 */
@@ -297,17 +317,9 @@ export default defineComponent({
         )
         .catch(() => [{ ...EMPTY_TOPK_FIELD }]);
       if (count !== getStatisticsListCount.value) return;
-      statisticsList.distinct_count = data[0]?.distinct_count || 0;
-      statisticsList.field = data[0]?.field || '';
-      const list = data[0]?.list || [];
-      statisticsList.list = list.map(item => {
-        const alias =
-          props.optionValues?.find(option => option.value === item.value)?.alias ||
-          transformFieldName(localField.value, item.value);
-        return {
-          ...item,
-          alias,
-        };
+      setTopKData(statisticsList, {
+        ...data[0],
+        list: data[0]?.list.map(item => ({ ...item, alias: topKAliasFormatter(item.value) })) || [],
       });
       popoverLoading.value = false;
       await getStatisticsGraphData();
@@ -344,8 +356,16 @@ export default defineComponent({
         infoLoading.value = false;
         return;
       }
-      statisticsInfo.value = info;
-      const { min, max } = statisticsInfo.value.value_analysis || {};
+      const { min, max, avg, median } = info.value_analysis || {};
+      statisticsInfo.value = {
+        ...info,
+        value_analysis: {
+          min: topKValueFormatter(min),
+          max: topKValueFormatter(max),
+          avg: topKValueFormatter(avg),
+          median: topKValueFormatter(median),
+        },
+      };
       const values = isInteger.value
         ? [min, max, statisticsInfo.value.distinct_count, isDuration.value ? 15 : 10]
         : statisticsList.list.map(item => item.value);
@@ -374,10 +394,7 @@ export default defineComponent({
       chartData.value = series.map(item => {
         if (isInteger.value) {
           return {
-            datapoints: item.datapoints.map(point => [
-              point[0],
-              transformFieldName(localField.value, point[1]) || point[1],
-            ]),
+            datapoints: item.datapoints.map(point => [point[0], parseRange(point[1])]),
             color: '#5AB8A8',
             name: localField.value,
           };
@@ -389,7 +406,7 @@ export default defineComponent({
         );
         return {
           color: topKColorList[index],
-          name: transformFieldName(localField.value, name) || name || NULL_VALUE_NAME,
+          name: parseRange(name) || NULL_VALUE_NAME,
           ...item,
         };
       });
@@ -412,9 +429,7 @@ export default defineComponent({
       if (!isDuration.value) {
         await loadMore();
       } else {
-        sliderDimensionList.distinct_count = durationTopkList.value.distinct_count;
-        sliderDimensionList.field = durationTopkList.value.field;
-        sliderDimensionList.list = durationTopkList.value.list;
+        setTopKData(sliderDimensionList, durationTopkList.value);
       }
       sliderLoading.value = false;
     }
@@ -432,13 +447,10 @@ export default defineComponent({
           fields: [localField.value],
         })
         .catch(() => []);
-      sliderDimensionList.distinct_count = data[0]?.distinct_count || 0;
-      sliderDimensionList.field = data[0]?.field || '';
-      const list = data[0]?.list || [];
-      sliderDimensionList.list = list.map(item => ({
-        ...item,
-        alias: transformFieldName(localField.value, item.value),
-      }));
+      setTopKData(sliderDimensionList, {
+        ...data[0],
+        list: data[0]?.list.map(item => ({ ...item, alias: topKAliasFormatter(item.value) })),
+      });
       sliderLoadMoreLoading.value = false;
       sliderListPage.value += 1;
     }
@@ -448,9 +460,7 @@ export default defineComponent({
       sliderShowChange();
       if (!show) {
         sliderListPage.value = 1;
-        sliderDimensionList.distinct_count = 0;
-        sliderDimensionList.field = '';
-        sliderDimensionList.list = [];
+        setTopKData(sliderDimensionList);
       }
     }
 
@@ -639,6 +649,30 @@ export default defineComponent({
       );
     }
 
+    /** 下载入口：loading 时显示转圈图标；showText 带文字（侧栏），showTooltips 带悬浮提示（弹层） */
+    function renderDownloadTool(options: { showText?: boolean; showTooltips?: boolean } = {}) {
+      const { showText = false, showTooltips = true } = options;
+      if (downloadLoading.value) {
+        return (
+          <img
+            class='loading-icon'
+            alt=''
+            src={loadingIcon}
+          />
+        );
+      }
+      return (
+        <div
+          class='download-tool'
+          v-bk-tooltips={{ content: t('下载'), boundary: 'parent', disabled: !showTooltips }}
+          onClick={handleDownload}
+        >
+          <i class='icon-monitor icon-xiazai2' />
+          {showText && <span class='text'>{t('下载')}</span>}
+        </div>
+      );
+    }
+
     return {
       t,
       localField,
@@ -668,6 +702,7 @@ export default defineComponent({
       renderSkeleton,
       renderInfoSkeleton,
       renderTopKTitle,
+      renderDownloadTool,
     };
   },
 
@@ -741,27 +776,12 @@ export default defineComponent({
                     data={this.chartData}
                     isDuration={this.isDuration}
                     seriesType={this.isInteger ? 'histogram' : 'line'}
-                    unit={this.unit}
                   />
                 </div>
               )}
               <div class='top-k-list-header'>
                 {this.renderTopKTitle(this.statisticsList?.distinct_count)}
-                {this.downloadLoading ? (
-                  <img
-                    class='loading-icon'
-                    alt=''
-                    src={loadingIcon}
-                  />
-                ) : (
-                  <div
-                    class='download-tool'
-                    v-bk-tooltips={{ content: this.t('下载'), boundary: 'parent' }}
-                    onClick={this.handleDownload}
-                  >
-                    <i class='icon-monitor icon-xiazai2' />
-                  </div>
-                )}
+                {this.renderDownloadTool()}
               </div>
               {this.popoverLoading
                 ? this.renderSkeleton()
@@ -792,23 +812,7 @@ export default defineComponent({
             header: () => (
               <div class='dimension-slider-header'>
                 {this.renderTopKTitle(this.sliderDimensionList.distinct_count)}
-                {this.downloadLoading ? (
-                  <img
-                    class='loading-icon'
-                    alt=''
-                    src={loadingIcon}
-                  />
-                ) : (
-                  !this.isDuration && (
-                    <div
-                      class='download-tool'
-                      onClick={this.handleDownload}
-                    >
-                      <i class='icon-monitor icon-xiazai2' />
-                      <span class='text'>{this.t('下载')}</span>
-                    </div>
-                  )
-                )}
+                {!this.isDuration && this.renderDownloadTool({ showText: true, showTooltips: false })}
               </div>
             ),
             default: () => (
