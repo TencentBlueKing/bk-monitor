@@ -28,7 +28,16 @@ import type { IWhereItem } from '../../components/retrieval-filter/typing';
 
 export type ConditionChangeEvent = Pick<IWhereItem, 'key' | 'method'> & { value: string };
 
-export type DimensionType = 'boolean' | 'date' | 'double' | 'integer' | 'keyword' | 'long' | 'object' | 'text';
+export type DimensionType =
+  | 'boolean'
+  | 'date'
+  | 'double'
+  | 'float'
+  | 'integer'
+  | 'keyword'
+  | 'long'
+  | 'object'
+  | 'text';
 
 export type ExploreFieldList = {
   span: IDimensionField[];

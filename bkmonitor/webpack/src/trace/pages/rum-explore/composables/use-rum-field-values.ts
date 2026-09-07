@@ -25,14 +25,16 @@
  */
 import { type Ref, shallowRef, watch } from 'vue';
 
-import { byteConvert } from 'monitor-common/utils';
+import { formatTraceTableDate } from 'trace/components/trace-view/utils/date';
 
 import { handleTransformToTimestamp } from '../../../components/time-range/utils';
 import { useRumExploreStore } from '../../../store/modules/rum-explore';
+import { RumFieldDisplayEnum } from '../constants';
 import { getFieldsOptionValues } from '../services/rum-search';
+import { formatUnitValue } from '../utils';
 
 import type { IGetValueFnParams, IWhereValueOptionsItem } from '../../../components/retrieval-filter/typing';
-import type { IRumField } from '../typings';
+import type { IRumField, RumFieldDisplayType } from '../typings';
 
 const BOOLEAN_OPTIONS = [
   { id: 'true', name: 'true' },
@@ -41,6 +43,9 @@ const BOOLEAN_OPTIONS = [
 
 /** 非负数字（byteConvert 仅支持非负字节数，负数会算出 NaN） */
 const NON_NEGATIVE_NUMBER_REG = /^\d+(\.\d+)?$/;
+
+/** 微秒级时间戳的量级下限：1e15 µs ≈ 2001-09-09，低于该量级的取值是耗时或脏数据而非时间 */
+const MIN_MICROSECOND_TIMESTAMP = 1e15;
 
 /**
  * 检索条件区的候选值获取。
@@ -64,6 +69,7 @@ export function useRumFieldValues(fields: Ref<IRumField[]>) {
     Map<
       string,
       {
+        fieldDisplayType?: RumFieldDisplayType;
         unit: string;
         values: Array<{ id: string; name: string }>;
       }
@@ -71,8 +77,12 @@ export function useRumFieldValues(fields: Ref<IRumField[]>) {
   >(new Map());
 
   /** 登记单个字段的单位与枚举别名（key 为字段名） */
-  function setFieldOptionsMap(key: string, unit: string, values: Array<{ id: string; name: string }>) {
-    fieldOptionsMap.value.set(key, { unit, values });
+  function setFieldOptionsMap(field: IRumField) {
+    fieldOptionsMap.value.set(field.name, {
+      unit: field.field_unit,
+      values: field.option_values.map(item => ({ id: `${item.value}`, name: `${item.alias}` })),
+      fieldDisplayType: field.field_display_type,
+    });
   }
 
   function getCacheKey(field: string) {
@@ -157,14 +167,7 @@ export function useRumFieldValues(fields: Ref<IRumField[]>) {
     () => {
       if (fields.value.length) {
         for (const field of fields.value) {
-          setFieldOptionsMap(
-            field.name,
-            field?.field_unit || '',
-            field?.option_values?.map(v => ({
-              id: v.value,
-              name: v.alias,
-            })) || []
-          );
+          setFieldOptionsMap(field);
         }
       }
     },
@@ -177,7 +180,8 @@ export function useRumFieldValues(fields: Ref<IRumField[]>) {
    * 1. 悬浮提示（isTips）直接透传原始值，避免提示里混入单位影响阅读与复制；
    * 2. 字段已登记进索引表时，先把取值换成枚举 alias（查不到就回退到取值本身），
    *    让用户看到可读名称而非存储值；
-   * 3. 字段带单位时拼接单位，其中 bytes 走 byteConvert 换算（如 1048576 -> 1 MB）；
+   * 3. 字段带单位时拼接单位，其中 bytes 走 byteConvert 换算（如 1048576 -> 1 MB），
+   *    微秒级时间戳字段（us + datetime）走日期格式化；
    * 4. 字段未登记进索引表（取值来自接口动态返回）时原样返回 val。
    */
   function tagValueDisplayFormatter(val, { value, key, isTips }) {
@@ -190,7 +194,15 @@ export function useRumFieldValues(fields: Ref<IRumField[]>) {
       const name = fieldOptions.values.find(v => v.id === value.id)?.name || value.id;
       // 字节数直接展示原始值不直观，按 1024 进制换算成 KB/MB/...（转换结果自带单位，无需再拼接）
       if (fieldOptions.unit === 'bytes' && NON_NEGATIVE_NUMBER_REG.test(name)) {
-        return byteConvert(Number(name));
+        return formatUnitValue(name, fieldOptions.unit);
+      }
+      // 时间字段的取值是微秒级时间戳时才转日期，手输的耗时等小数值仍按单位展示
+      if (
+        fieldOptions.unit === 'us' &&
+        fieldOptions.fieldDisplayType === RumFieldDisplayEnum.DATETIME &&
+        isMicrosecondTimestamp(val)
+      ) {
+        return formatTraceTableDate(val);
       }
       if (fieldOptions.unit) {
         return `${name}${fieldOptions.unit}`;
@@ -201,4 +213,13 @@ export function useRumFieldValues(fields: Ref<IRumField[]>) {
   }
 
   return { getFieldValues, tagValueDisplayFormatter };
+}
+
+/**
+ * 判断取值是否为微秒级时间戳。
+ * 按数值量级判断而非字符串长度，科学计数法、小数、正负号都不会干扰结果。
+ */
+function isMicrosecondTimestamp(val: unknown): boolean {
+  const num = Number(val);
+  return Number.isFinite(num) && num >= MIN_MICROSECOND_TIMESTAMP;
 }
