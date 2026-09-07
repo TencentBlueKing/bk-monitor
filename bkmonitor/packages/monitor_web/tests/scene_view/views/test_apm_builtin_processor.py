@@ -21,9 +21,10 @@ from monitor_web.scene_view.builtin.apm import ApmBuiltinProcessor
 
 class TestApmBuiltinProcessor:
     @pytest.mark.parametrize(
-        ("is_support_llm", "expected_ids"),
+        ("llm_biz_list", "is_support_llm", "expected_ids"),
         [
             (
+                [2],
                 True,
                 [
                     "service-default-overview",
@@ -32,10 +33,11 @@ class TestApmBuiltinProcessor:
                     "service-llm_session",
                 ],
             ),
-            (False, ["service-default-overview", "service-default-trace"]),
+            ([2], False, ["service-default-overview", "service-default-trace"]),
+            ([3], True, ["service-default-overview", "service-default-trace"]),
         ],
     )
-    def test_list_view_list_filters_llm_tabs(self, monkeypatch, is_support_llm, expected_ids):
+    def test_list_view_list_filters_llm_tabs(self, monkeypatch, llm_biz_list, is_support_llm, expected_ids):
         node = {
             "topo_key": "service-a",
             "extra_data": {"kind": TopoNodeKind.SERVICE, "category": "default"},
@@ -48,6 +50,7 @@ class TestApmBuiltinProcessor:
         ]
 
         monkeypatch.setattr(ServiceHandler, "get_node", lambda *_args, **_kwargs: node)
+        monkeypatch.setattr(apm, "settings", SimpleNamespace(LLM_BIZ_LIST=llm_biz_list))
 
         class FakeEntitySet:
             def __init__(self, bk_biz_id, app_name, service_names):

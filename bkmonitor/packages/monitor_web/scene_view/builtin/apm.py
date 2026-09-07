@@ -970,7 +970,11 @@ class ApmBuiltinProcessor(BuiltinProcessor):
             ignore_tabs = ["db", "instance", "profiling", "container"]
             res = [i for i in res if i.id.split("-")[-1] not in ignore_tabs]
 
-        if node and node.get("extra_data", {}).get("kind") == TopoNodeKind.SERVICE:
+        if (
+            params["bk_biz_id"] in settings.LLM_BIZ_LIST
+            and node
+            and node.get("extra_data", {}).get("kind") == TopoNodeKind.SERVICE
+        ):
             service_name = params["apm_service_name"]
             entity_set = EntitySet(
                 bk_biz_id=params["bk_biz_id"],
