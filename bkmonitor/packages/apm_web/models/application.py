@@ -9,6 +9,7 @@ specific language governing permissions and limitations under the License.
 """
 
 import json
+from contextlib import nullcontext
 
 from celery import shared_task
 from django.conf import settings
@@ -563,9 +564,25 @@ class Application(AbstractRecordModel):
 
         output_param = self.get_output_param(self.bk_biz_id, self.app_name)
         if not output_param.get("host"):
+            from bkmonitor.nodeman_integration.mode import get_nodeman_integration_mode
+
+            if get_nodeman_integration_mode() == "v3_fresh" and (plugin_config or {}).get("subscription_id"):
+                from monitor_web.collecting.deploy.nodeman_v3.validation import NodeManV3CapabilityBlocked
+
+                raise NodeManV3CapabilityBlocked(
+                    "APM log-trace target removal requires the DeployPolicy reverse field while enabled remains true"
+                )
             return
-        plugin_config = LogTracePluginConfig().release_log_trace_config(plugin_config, output_param)
-        Application.objects.filter(application_id=self.application_id).update(plugin_config=plugin_config)
+        from bkmonitor.nodeman_integration.mode import get_nodeman_integration_mode
+
+        is_v3 = get_nodeman_integration_mode() == "v3_fresh"
+        with atomic() if is_v3 else nullcontext():
+            plugin_config = LogTracePluginConfig().release_log_trace_config(
+                plugin_config,
+                output_param,
+                application=self,
+            )
+            Application.objects.filter(application_id=self.application_id).update(plugin_config=plugin_config)
         return plugin_config
 
     @classmethod
@@ -591,6 +608,7 @@ class Application(AbstractRecordModel):
     def stop_plugin_config(cls, application_id):
         app = Application.objects.filter(application_id=application_id).first()
         if app.plugin_id == LOG_TRACE:
+            cls._block_v3_log_trace_lifecycle("stop")
             # 停止节点管理采集任务
             api.node_man.switch_subscription(
                 {"subscription_id": app.plugin_config["subscription_id"], "action": "disable"}
@@ -601,6 +619,7 @@ class Application(AbstractRecordModel):
     def start_plugin_config(cls, application_id):
         app = Application.objects.filter(application_id=application_id).first()
         if app.plugin_id == LOG_TRACE:
+            cls._block_v3_log_trace_lifecycle("start")
             # 开始节点管理采集任务
             api.node_man.switch_subscription(
                 {"subscription_id": app.plugin_config["subscription_id"], "action": "enable"}
@@ -611,6 +630,7 @@ class Application(AbstractRecordModel):
     def delete_plugin_config(cls, application_id):
         app = Application.objects.filter(application_id=application_id).first()
         if app.plugin_id == LOG_TRACE:
+            cls._block_v3_log_trace_lifecycle("delete")
             # 停止节点管理采集任务
             api.node_man.switch_subscription(
                 {"subscription_id": app.plugin_config["subscription_id"], "action": "disable"}
@@ -619,6 +639,18 @@ class Application(AbstractRecordModel):
             return LogTracePluginConfig().run_subscription_task(
                 app.plugin_config["subscription_id"], "UNINSTALL_AND_DELETE"
             )
+
+    @staticmethod
+    def _block_v3_log_trace_lifecycle(action: str) -> None:
+        from bkmonitor.nodeman_integration.mode import get_nodeman_integration_mode
+
+        if get_nodeman_integration_mode() != "v3_fresh":
+            return
+        from monitor_web.collecting.deploy.nodeman_v3.validation import NodeManV3CapabilityBlocked
+
+        raise NodeManV3CapabilityBlocked(
+            f"APM log-trace {action} requires the DeployPolicy reverse field while enabled remains true"
+        )
 
     def set_init_datasource(self, datasource_option, enabled_profiling, enabled_trace, enabled_metric, enabled_log):
         # 更新数据源开关
@@ -790,9 +822,7 @@ class Application(AbstractRecordModel):
                 owners=owners,
             )
         except Exception as e:  # pylint: disable=broad-except
-            logger.warning(
-                f"application->({self.application_id}) grant log owners({owners}) failed, reason: {e}"
-            )
+            logger.warning(f"application->({self.application_id}) grant log owners({owners}) failed, reason: {e}")
 
     @property
     def is_create_finished(self):

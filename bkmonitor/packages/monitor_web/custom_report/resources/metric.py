@@ -172,12 +172,25 @@ class ProxyHostInfo(Resource):
         proxy_host_info = []
         bk_biz_id = validated_request_data["bk_biz_id"]
         proxy_hosts = []
+        from bkmonitor.nodeman_integration.mode import get_nodeman_integration_mode
+
+        is_v3 = get_nodeman_integration_mode() == "v3_fresh"
         try:
-            proxy_hosts = api.node_man.get_proxies_by_biz(bk_biz_id=bk_biz_id)
+            if is_v3:
+                from bkmonitor.nodeman_integration.v3.compat import get_proxies_by_biz
+
+                proxy_hosts = get_proxies_by_biz(
+                    bk_tenant_id=get_request_tenant_id(),
+                    bk_biz_id=bk_biz_id,
+                )
+            else:
+                proxy_hosts = api.node_man.get_proxies_by_biz(bk_biz_id=bk_biz_id)
         except NoRelatedResourceError:
             logger.warning("bk_biz_id: %s not found related resource", bk_biz_id)
         except Exception as e:
             logger.warning("get proxies by bk_biz_id(%s) error, %s", bk_biz_id, e)
+            if is_v3:
+                raise
 
         for host in proxy_hosts:
             bk_cloud_id = int(host["bk_cloud_id"])

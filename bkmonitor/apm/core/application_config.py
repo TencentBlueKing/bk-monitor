@@ -12,8 +12,10 @@ import copy
 import json
 import logging
 from collections import defaultdict
+from contextlib import nullcontext
 
 from django.conf import settings
+from django.db import transaction
 from jinja2.sandbox import SandboxedEnvironment as Environment
 from opentelemetry import trace
 
@@ -184,25 +186,83 @@ class ApplicationConfig(BkCollectorConfig):
         # 2.2 获取默认租户下全局配置中主机配置列表，全部配置的主机一定是默认租户下的主机
         default_target_hosts = self.get_target_host_in_default_cloud_area()
 
+        from bkmonitor.nodeman_integration.mode import get_nodeman_integration_mode
+
+        is_v3 = get_nodeman_integration_mode() == "v3_fresh"
+        if is_v3:
+            if bk_tenant_id == DEFAULT_TENANT_ID:
+                execution_targets = {DEFAULT_TENANT_ID: default_target_hosts + proxy_target_hosts}
+            else:
+                execution_targets = {
+                    DEFAULT_TENANT_ID: default_target_hosts,
+                    bk_tenant_id: proxy_target_hosts,
+                }
+
+            from monitor_web.models.node_man import NodeManResourceType, build_nodeman_resource_key
+            from monitor_web.nodeman_integration.v3.policy import ensure_v3_record_ownership
+
+            resource_key = build_nodeman_resource_key(
+                NodeManResourceType.APM_APPLICATION_CONFIG,
+                object_id=self._application.pk,
+            )
+            stale_tenants = []
+            for execution_tenant_id, targets in execution_targets.items():
+                existing = SubscriptionConfig.objects.filter(
+                    bk_tenant_id=execution_tenant_id,
+                    bk_biz_id=bk_biz_id,
+                    app_name=self._application.app_name,
+                ).first()
+                if not existing:
+                    continue
+                if not targets:
+                    stale_tenants.append(execution_tenant_id)
+                    continue
+                ensure_v3_record_ownership(
+                    config=existing.config,
+                    persisted_identifier=existing.subscription_id,
+                    resource=f"APM application config {self._application.pk}",
+                    binding_identity={
+                        "resource_type": NodeManResourceType.APM_APPLICATION_CONFIG,
+                        "resource_key": resource_key,
+                        "owner_bk_tenant_id": self._application.bk_tenant_id,
+                        "execution_bk_tenant_id": execution_tenant_id,
+                        "bk_biz_id": bk_biz_id,
+                    },
+                )
+            if stale_tenants:
+                from monitor_web.collecting.deploy.nodeman_v3.validation import NodeManV3CapabilityBlocked
+
+                raise NodeManV3CapabilityBlocked(
+                    f"APM application config target removal for execution tenants {stale_tenants} "
+                    "requires the DeployPolicy reverse field while enabled remains true"
+                )
+
         # 2.3 如果没有任何主机需要下发, 则跳过流程
         if not default_target_hosts and not proxy_target_hosts:
             logger.info("no bk-collector node, otlp is disabled")
             return
 
         try:
-            # 3. 下发给指定租户下
-            if bk_tenant_id == DEFAULT_TENANT_ID:
-                # 下发到默认租户下全局配置主机和指定租户下业务代理主机上
-                self.deploy(bk_tenant_id, application_config, list(set(default_target_hosts + proxy_target_hosts)))
-            else:
-                if default_target_hosts:
-                    # 下发到默认租户下全局配置主机
-                    self.deploy(DEFAULT_TENANT_ID, application_config, default_target_hosts)
-                if proxy_target_hosts:
-                    # 下发到指定租户下业务代理主机
-                    self.deploy(bk_tenant_id, application_config, proxy_target_hosts)
+            with transaction.atomic() if is_v3 else nullcontext():
+                # 3. 下发给指定租户下
+                if bk_tenant_id == DEFAULT_TENANT_ID:
+                    # 下发到默认租户下全局配置主机和指定租户下业务代理主机上
+                    self.deploy(
+                        bk_tenant_id,
+                        application_config,
+                        list(set(default_target_hosts + proxy_target_hosts)),
+                    )
+                else:
+                    if default_target_hosts:
+                        # 下发到默认租户下全局配置主机
+                        self.deploy(DEFAULT_TENANT_ID, application_config, default_target_hosts)
+                    if proxy_target_hosts:
+                        # 下发到指定租户下业务代理主机
+                        self.deploy(bk_tenant_id, application_config, proxy_target_hosts)
         except Exception:  # noqa
             logger.exception("auto deploy bk-collector application config error")
+            if is_v3:
+                raise
 
     @classmethod
     def refresh_k8s(cls, applications: list[ApmApplication], need_config_cache=False) -> None:
@@ -911,6 +971,61 @@ class ApplicationConfig(BkCollectorConfig):
                 }
             ],
         }
+
+        from bkmonitor.nodeman_integration.mode import get_nodeman_integration_mode
+
+        if get_nodeman_integration_mode() == "v3_fresh":
+            from monitor_web.models.node_man import (
+                NodeManResourceType,
+                build_nodeman_resource_key,
+            )
+            from monitor_web.nodeman_integration.v3.policy import (
+                NodeManV3PolicyService,
+                ensure_v3_record_ownership,
+                mark_v3_config,
+            )
+
+            application_subscription = SubscriptionConfig.objects.filter(
+                bk_tenant_id=bk_tenant_id,
+                bk_biz_id=self._application.bk_biz_id,
+                app_name=self._application.app_name,
+            )
+            existing = application_subscription.first()
+            resource_key = build_nodeman_resource_key(
+                NodeManResourceType.APM_APPLICATION_CONFIG,
+                object_id=self._application.pk,
+            )
+            ensure_v3_record_ownership(
+                config=existing.config if existing else None,
+                persisted_identifier=existing.subscription_id if existing else None,
+                resource=f"APM application config {self._application.pk}",
+                binding_identity={
+                    "resource_type": NodeManResourceType.APM_APPLICATION_CONFIG,
+                    "resource_key": resource_key,
+                    "owner_bk_tenant_id": self._application.bk_tenant_id,
+                    "execution_bk_tenant_id": bk_tenant_id,
+                    "bk_biz_id": self._application.bk_biz_id,
+                },
+            )
+            submission = NodeManV3PolicyService().ensure(
+                resource_type=NodeManResourceType.APM_APPLICATION_CONFIG,
+                resource_key=resource_key,
+                owner_bk_tenant_id=self._application.bk_tenant_id,
+                execution_bk_tenant_id=bk_tenant_id,
+                bk_biz_id=self._application.bk_biz_id,
+                policy_name=f"bkm-apm-application-{self._application.pk}",
+                description=f"bk-monitor APM application config {self._application.pk}",
+                scope=subscription_params["scope"],
+                steps=subscription_params["steps"],
+            )
+            stored_config = mark_v3_config({**subscription_params, "subscription_id": submission.binding_id})
+            application_subscription.update_or_create(
+                bk_tenant_id=bk_tenant_id,
+                bk_biz_id=self._application.bk_biz_id,
+                app_name=self._application.app_name,
+                defaults={"config": stored_config, "subscription_id": submission.binding_id},
+            )
+            return submission.binding_id
 
         application_subscription = SubscriptionConfig.objects.filter(
             bk_tenant_id=bk_tenant_id, bk_biz_id=self._application.bk_biz_id, app_name=self._application.app_name

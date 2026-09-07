@@ -5,8 +5,6 @@ from django.db import models
 from django.db.models import F
 from django.utils import timezone
 
-from bkmonitor.nodeman_integration.v3.exceptions import NodeManV3ResultState as V3ResultState
-
 
 class NodeManResourceType(models.TextChoices):
     COLLECT_CONFIG = "COLLECT_CONFIG", "采集配置"
@@ -77,8 +75,8 @@ class NodeManWorkflowDispatchStatus(models.TextChoices):
 
 
 class NodeManV3ResultState(models.TextChoices):
-    UNSUPPORTED = V3ResultState.UNSUPPORTED, "接口协议确定不支持"
-    WRITE_RESULT_UNKNOWN = V3ResultState.WRITE_RESULT_UNKNOWN, "写请求结果不确定"
+    UNSUPPORTED = "unsupported", "接口协议确定不支持"
+    WRITE_RESULT_UNKNOWN = "write_result_unknown", "写请求结果不确定"
 
 
 class StaleNodeManGenerationError(RuntimeError):

@@ -11,8 +11,10 @@ specific language governing permissions and limitations under the License.
 import base64
 import gzip
 import logging
+from contextlib import nullcontext
 
 from django.conf import settings
+from django.db import transaction
 from jinja2.sandbox import SandboxedEnvironment as Environment
 from kubernetes import client
 from opentelemetry import trace
@@ -62,13 +64,19 @@ class PlatformConfig(BkCollectorConfig):
 
         # 2. 下发给给定租户下
         proxy_bk_host_ids = cls.get_target_host_ids_by_bk_tenant_id(bk_tenant_id)
+        from bkmonitor.nodeman_integration.mode import get_nodeman_integration_mode
+
+        is_v3 = get_nodeman_integration_mode() == "v3_fresh"
         try:
-            if bk_tenant_id == DEFAULT_TENANT_ID:
-                # 如果是 默认租户，需要增加全局配置中的主机
-                proxy_bk_host_ids += cls.get_target_host_in_default_cloud_area()
-            cls.deploy_to_nodeman(bk_tenant_id, platform_config, proxy_bk_host_ids)
+            with transaction.atomic() if is_v3 else nullcontext():
+                if bk_tenant_id == DEFAULT_TENANT_ID:
+                    # 如果是 默认租户，需要增加全局配置中的主机
+                    proxy_bk_host_ids += cls.get_target_host_in_default_cloud_area()
+                cls.deploy_to_nodeman(bk_tenant_id, platform_config, proxy_bk_host_ids)
         except Exception:  # noqa
             logger.exception(f"auto deploy TENANT_ID({bk_tenant_id}) bk-collector platform config error")
+            if is_v3:
+                raise
 
     @classmethod
     def refresh_k8s(cls):
@@ -434,6 +442,22 @@ class PlatformConfig(BkCollectorConfig):
         下发bk-collector的平台配置
         """
         if not bk_host_ids:
+            from bkmonitor.nodeman_integration.mode import get_nodeman_integration_mode
+
+            if (
+                get_nodeman_integration_mode() == "v3_fresh"
+                and SubscriptionConfig.objects.filter(
+                    bk_tenant_id=bk_tenant_id,
+                    bk_biz_id=GLOBAL_CONFIG_BK_BIZ_ID,
+                    app_name="",
+                ).exists()
+            ):
+                from monitor_web.collecting.deploy.nodeman_v3.validation import NodeManV3CapabilityBlocked
+
+                raise NodeManV3CapabilityBlocked(
+                    "APM platform config target removal requires the DeployPolicy reverse field "
+                    "while enabled remains true"
+                )
             logger.info("no bk-collector node, otlp is disabled")
             return
 
@@ -458,6 +482,58 @@ class PlatformConfig(BkCollectorConfig):
                 }
             ],
         }
+
+        from bkmonitor.nodeman_integration.mode import get_nodeman_integration_mode
+
+        if get_nodeman_integration_mode() == "v3_fresh":
+            from monitor_web.models.node_man import (
+                NodeManResourceType,
+                build_nodeman_resource_key,
+            )
+            from monitor_web.nodeman_integration.v3.policy import (
+                NodeManV3PolicyService,
+                ensure_v3_record_ownership,
+                mark_v3_config,
+            )
+
+            platform_subscription = SubscriptionConfig.objects.filter(
+                bk_tenant_id=bk_tenant_id,
+                bk_biz_id=GLOBAL_CONFIG_BK_BIZ_ID,
+                app_name="",
+            )
+            existing = platform_subscription.first()
+            resource_key = build_nodeman_resource_key(NodeManResourceType.APM_PLATFORM_CONFIG)
+            ensure_v3_record_ownership(
+                config=existing.config if existing else None,
+                persisted_identifier=existing.subscription_id if existing else None,
+                resource="APM platform config",
+                binding_identity={
+                    "resource_type": NodeManResourceType.APM_PLATFORM_CONFIG,
+                    "resource_key": resource_key,
+                    "owner_bk_tenant_id": bk_tenant_id,
+                    "execution_bk_tenant_id": bk_tenant_id,
+                    "bk_biz_id": GLOBAL_CONFIG_BK_BIZ_ID,
+                },
+            )
+            submission = NodeManV3PolicyService().ensure(
+                resource_type=NodeManResourceType.APM_PLATFORM_CONFIG,
+                resource_key=resource_key,
+                owner_bk_tenant_id=bk_tenant_id,
+                execution_bk_tenant_id=bk_tenant_id,
+                bk_biz_id=GLOBAL_CONFIG_BK_BIZ_ID,
+                policy_name="bkm-apm-platform",
+                description="bk-monitor APM platform config",
+                scope=subscription_params["scope"],
+                steps=subscription_params["steps"],
+            )
+            stored_config = mark_v3_config({**subscription_params, "subscription_id": submission.binding_id})
+            platform_subscription.update_or_create(
+                bk_tenant_id=bk_tenant_id,
+                bk_biz_id=GLOBAL_CONFIG_BK_BIZ_ID,
+                app_name="",
+                defaults={"config": stored_config, "subscription_id": submission.binding_id},
+            )
+            return submission.binding_id
 
         platform_subscription = SubscriptionConfig.objects.filter(
             bk_tenant_id=bk_tenant_id, bk_biz_id=GLOBAL_CONFIG_BK_BIZ_ID, app_name=""

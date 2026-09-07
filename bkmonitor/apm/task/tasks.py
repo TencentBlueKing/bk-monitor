@@ -180,14 +180,21 @@ def refresh_apm_config_to_k8s():
 
 def refresh_apm_platform_config():
     # 每个租户下发一份平台配置
+    failures = []
     for tenant in api.bk_login.list_tenant():
         try:
             PlatformConfig.refresh(tenant["id"])
         except Exception as e:  # pylint: disable=broad-except
             logger.error(f"[refresh_apm_platform_config]: refresh tenant_id({tenant}) platform config error({e})")
+            failures.append(tenant["id"])
 
     # 每个集群下发一份平台配置
     PlatformConfig.refresh_k8s()
+
+    from bkmonitor.nodeman_integration.mode import get_nodeman_integration_mode
+
+    if failures and get_nodeman_integration_mode() == "v3_fresh":
+        raise RuntimeError(f"NodeMan V3 APM platform refresh failed for tenants: {failures}")
 
 
 @app.task(ignore_result=True, queue="celery_cron")

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -18,7 +17,7 @@ DATA_TYPE = "log_v2"
 OUTPUT_TYPE = "otlp_trace"
 
 
-class LogPluginInfo(object):
+class LogPluginInfo:
     """
     采集插件信息
     """
@@ -27,7 +26,7 @@ class LogPluginInfo(object):
     VERSION = "latest"
 
 
-class LogTracePluginConfig(object):
+class LogTracePluginConfig:
     """
     行日志采集
     """
@@ -75,7 +74,7 @@ class LogTracePluginConfig(object):
         ]
         return steps
 
-    def release_log_trace_config(self, plugin_config, output_param):
+    def release_log_trace_config(self, plugin_config, output_param, *, application=None):
         steps = self.get_subscription_steps(plugin_config, output_param)
         subscription_params = {
             "scope": {
@@ -86,6 +85,53 @@ class LogTracePluginConfig(object):
             },
             "steps": steps,
         }
+        from bkmonitor.nodeman_integration.mode import get_nodeman_integration_mode
+
+        if get_nodeman_integration_mode() == "v3_fresh":
+            if application is None:
+                raise ValueError("application is required for NodeMan V3 log-trace config")
+
+            from monitor_web.models.node_man import (
+                NodeManResourceType,
+                build_nodeman_resource_key,
+            )
+            from monitor_web.nodeman_integration.v3.policy import (
+                NodeManV3PolicyService,
+                ensure_v3_record_ownership,
+                mark_v3_config,
+            )
+
+            resource_key = build_nodeman_resource_key(
+                NodeManResourceType.APM_LOG_TRACE_CONFIG,
+                object_id=application.pk,
+            )
+            ensure_v3_record_ownership(
+                config=plugin_config,
+                persisted_identifier=plugin_config.get("subscription_id"),
+                resource=f"APM log-trace config {application.pk}",
+                binding_identity={
+                    "resource_type": NodeManResourceType.APM_LOG_TRACE_CONFIG,
+                    "resource_key": resource_key,
+                    "owner_bk_tenant_id": application.bk_tenant_id,
+                    "execution_bk_tenant_id": application.bk_tenant_id,
+                    "bk_biz_id": application.bk_biz_id,
+                },
+            )
+
+            submission = NodeManV3PolicyService().ensure(
+                resource_type=NodeManResourceType.APM_LOG_TRACE_CONFIG,
+                resource_key=resource_key,
+                owner_bk_tenant_id=application.bk_tenant_id,
+                execution_bk_tenant_id=application.bk_tenant_id,
+                bk_biz_id=application.bk_biz_id,
+                policy_name=f"bkm-apm-log-trace-{application.pk}",
+                description=f"bk-monitor APM log-trace config {application.pk}",
+                scope=subscription_params["scope"],
+                steps=subscription_params["steps"],
+            )
+            plugin_config = mark_v3_config({**plugin_config, "subscription_id": submission.binding_id})
+            return plugin_config
+
         if plugin_config.get("subscription_id"):
             # 修改订阅配置
             subscription_params["subscription_id"] = plugin_config["subscription_id"]
@@ -106,7 +152,7 @@ class LogTracePluginConfig(object):
         return api.node_man.run_subscription(params)
 
 
-class EncodingsEnum(object):
+class EncodingsEnum:
     """
     字符编码枚举
     """

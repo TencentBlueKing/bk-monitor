@@ -1694,14 +1694,27 @@ class PushUrlResource(Resource):
     @classmethod
     def get_proxy_infos(cls, bk_biz_id):
         proxy_host_infos = []
+        from bkmonitor.nodeman_integration.mode import get_nodeman_integration_mode
+
+        is_v3 = get_nodeman_integration_mode() == "v3_fresh"
         try:
-            proxy_hosts = api.node_man.get_proxies_by_biz(bk_biz_id=bk_biz_id)
+            if is_v3:
+                from bkmonitor.nodeman_integration.v3.compat import get_proxies_by_biz
+
+                proxy_hosts = get_proxies_by_biz(
+                    bk_tenant_id=get_request_tenant_id(),
+                    bk_biz_id=bk_biz_id,
+                )
+            else:
+                proxy_hosts = api.node_man.get_proxies_by_biz(bk_biz_id=bk_biz_id)
             for host in proxy_hosts:
                 bk_cloud_id = int(host["bk_cloud_id"])
                 ip = host.get("conn_ip") or host.get("inner_ip")
                 proxy_host_infos.append({"ip": ip, "bk_cloud_id": bk_cloud_id})
         except Exception as e:
             logger.exception(e)
+            if is_v3:
+                raise
 
         default_cloud_display = settings.CUSTOM_REPORT_DEFAULT_PROXY_IP
         if settings.CUSTOM_REPORT_DEFAULT_PROXY_DOMAIN:

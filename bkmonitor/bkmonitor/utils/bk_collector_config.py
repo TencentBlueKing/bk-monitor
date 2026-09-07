@@ -62,7 +62,14 @@ class BkCollectorConfig:
                 continue
 
             try:
-                proxy_list = api.node_man.get_proxies(bk_tenant_id=bk_tenant_id, bk_cloud_id=bk_cloud_id)
+                from bkmonitor.nodeman_integration.mode import get_nodeman_integration_mode
+
+                if get_nodeman_integration_mode() == "v3_fresh":
+                    from bkmonitor.nodeman_integration.v3.compat import get_proxies
+
+                    proxy_list = get_proxies(bk_tenant_id=bk_tenant_id, bk_cloud_id=bk_cloud_id)
+                else:
+                    proxy_list = api.node_man.get_proxies(bk_tenant_id=bk_tenant_id, bk_cloud_id=bk_cloud_id)
             except APIPermissionDeniedError as error:
                 logger.warning(
                     "get proxies permission denied, skip bk_tenant_id(%s), bk_cloud_id(%s), error: %s",
@@ -96,9 +103,19 @@ class BkCollectorConfig:
         if is_bk_saas_space(space_uid):
             return []
 
+        from bkmonitor.nodeman_integration.mode import get_nodeman_integration_mode
+
+        is_v3 = get_nodeman_integration_mode() == "v3_fresh"
         try:
-            proxies = api.node_man.get_proxies_by_biz(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id)
+            if is_v3:
+                from bkmonitor.nodeman_integration.v3.compat import get_proxies_by_biz
+
+                proxies = get_proxies_by_biz(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id)
+            else:
+                proxies = api.node_man.get_proxies_by_biz(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id)
         except Exception as e:  # pylint: disable=broad-except
+            if is_v3:
+                raise
             proxies = []
             logger.info(f"get_proxies_by_biz({bk_biz_id}) error ({e})")
 

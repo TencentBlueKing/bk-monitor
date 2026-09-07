@@ -11,13 +11,16 @@ specific language governing permissions and limitations under the License.
 import logging
 import time
 from collections import defaultdict
+from contextlib import nullcontext
 from typing import Any
 
 from django.conf import settings
+from django.db import transaction
 
 from alarm_backends.management.hashring import HashRing
 from api.cmdb.define import Host
 from bkmonitor.commons.tools import is_ipv6_biz
+from bkmonitor.nodeman_integration.mode import get_nodeman_integration_mode
 from bkmonitor.utils.tenant import get_tenant_default_biz_id
 from bkmonitor.utils.new_env import is_biz_id_in_black_list
 from constants.common import DEFAULT_TENANT_ID
@@ -68,17 +71,20 @@ def refresh_ping_conf(plugin_name: str):
     4. 通过节点管理订阅任务将分配好的ip下发到机器
     """
     if not settings.ENABLE_PING_ALARM:
+        is_v3 = get_nodeman_integration_mode() == "v3_fresh"
         for tenant in api.bk_login.list_tenant():
             cloud_areas: list[dict[str, Any]] = api.cmdb.search_cloud_area(bk_tenant_id=tenant["id"])
             for cloud_area in cloud_areas:
-                PingServerSubscriptionConfig.create_subscription(
-                    tenant["id"], cloud_area["bk_cloud_id"], {}, [], plugin_name
-                )
+                with transaction.atomic() if is_v3 else nullcontext():
+                    PingServerSubscriptionConfig.create_subscription(
+                        tenant["id"], cloud_area["bk_cloud_id"], {}, [], plugin_name
+                    )
         return
 
     # metadata模块不应该引入alarm_backends下的文件，这里通过函数内引用，避免循环引用问题
     from alarm_backends.core.cache.cmdb.host import HostManager
 
+    failures = []
     for tenant in api.bk_login.list_tenant():
         bk_tenant_id: str = tenant["id"]
 
@@ -90,6 +96,8 @@ def refresh_ping_conf(plugin_name: str):
             all_hosts: list[Host] = HostManager.all(bk_tenant_id=bk_tenant_id)
         except Exception:  # noqa
             logger.exception("CMDB的主机缓存获取失败。获取不到主机，有可能会导致pingserver不执行")
+            if get_nodeman_integration_mode() == "v3_fresh":
+                failures.append((bk_tenant_id, "cmdb"))
             continue
 
         for h in all_hosts:
@@ -115,6 +123,10 @@ def refresh_ping_conf(plugin_name: str):
                 logger.exception(
                     f"refresh ping server config error, bk_tenant_id({bk_tenant_id}), bk_cloud_id({bk_cloud_id}), error({e})"
                 )
+                failures.append((bk_tenant_id, bk_cloud_id))
+
+    if failures and get_nodeman_integration_mode() == "v3_fresh":
+        raise RuntimeError(f"NodeMan V3 ping-server refresh failed: {failures}")
 
 
 def refresh_biz_ping_conf(*, bk_tenant_id: str, bk_biz_ids: list[int], plugin_name: str):
@@ -160,6 +172,7 @@ def refresh_biz_ping_conf(*, bk_tenant_id: str, bk_biz_ids: list[int], plugin_na
         )
         exists_host_ids.add(host.bk_host_id)
 
+    failures = []
     for bk_cloud_id in sorted(related_cloud_ids):
         try:
             _refresh_ping_conf_by_cloud_id(
@@ -177,6 +190,10 @@ def refresh_biz_ping_conf(*, bk_tenant_id: str, bk_biz_ids: list[int], plugin_na
                 bk_cloud_id,
                 error,
             )
+            failures.append(bk_cloud_id)
+
+    if failures and get_nodeman_integration_mode() == "v3_fresh":
+        raise RuntimeError(f"NodeMan V3 business ping-server refresh failed for cloud areas: {failures}")
 
 
 def _refresh_ping_conf_by_cloud_id(
@@ -190,6 +207,7 @@ def _refresh_ping_conf_by_cloud_id(
     3. 根据Hash环，将同一云区域下的ip分配到不同的Proxy
     4. 通过节点管理订阅任务将分配好的ip下发到机器
     """
+    is_v3 = get_nodeman_integration_mode() == "v3_fresh"
     # 如果云区域小于0，代表未分配云区域，则不进行下发
     if bk_cloud_id < 0:
         return
@@ -213,9 +231,16 @@ def _refresh_ping_conf_by_cloud_id(
         ]
     else:
         try:
-            proxy_list = api.node_man.get_proxies(bk_tenant_id=bk_tenant_id, bk_cloud_id=bk_cloud_id)
+            if is_v3:
+                from bkmonitor.nodeman_integration.v3.compat import get_proxies
+
+                proxy_list = get_proxies(bk_tenant_id=bk_tenant_id, bk_cloud_id=bk_cloud_id)
+            else:
+                proxy_list = api.node_man.get_proxies(bk_tenant_id=bk_tenant_id, bk_cloud_id=bk_cloud_id)
         except Exception:  # noqa
             logger.exception(f"从节点管理获取云区域({bk_cloud_id})下的ProxyIP列表失败")
+            if is_v3:
+                raise
             return
 
         # 过滤掉不可用的proxy
@@ -240,6 +265,15 @@ def _refresh_ping_conf_by_cloud_id(
                 )
     if not proxies:
         logger.error(f"云区域({bk_cloud_id})下无可用proxy节点，相关pingserver服务不可用")
+        if is_v3:
+            with transaction.atomic():
+                PingServerSubscriptionConfig.create_subscription(
+                    bk_tenant_id,
+                    bk_cloud_id,
+                    {},
+                    [],
+                    plugin_name,
+                )
         return
 
     proxies_host_ids = [p["bk_host_id"] for p in proxies]
@@ -265,22 +299,25 @@ def _refresh_ping_conf_by_cloud_id(
 
     # 4. 通过节点管理订阅任务将分配好的ip下发到机器
     try:
-        if settings.ENABLE_MULTI_TENANT_MODE:
-            _create_multi_tenant_ping_subscription(
-                bk_tenant_id=bk_tenant_id,
-                bk_cloud_id=bk_cloud_id,
-                items=host_info,
-                target_hosts=target_hosts,
-                plugin_name=plugin_name,
-            )
-        else:
-            PingServerSubscriptionConfig.create_subscription(
-                bk_tenant_id, bk_cloud_id, host_info, target_hosts, plugin_name
-            )
+        with transaction.atomic() if is_v3 else nullcontext():
+            if settings.ENABLE_MULTI_TENANT_MODE:
+                _create_multi_tenant_ping_subscription(
+                    bk_tenant_id=bk_tenant_id,
+                    bk_cloud_id=bk_cloud_id,
+                    items=host_info,
+                    target_hosts=target_hosts,
+                    plugin_name=plugin_name,
+                )
+            else:
+                PingServerSubscriptionConfig.create_subscription(
+                    bk_tenant_id, bk_cloud_id, host_info, target_hosts, plugin_name
+                )
     except Exception:  # noqa
         logger.exception(
             f"下发pingserver订阅任务失败， bk_tenant_id({bk_tenant_id}), bk_cloud_id({bk_cloud_id}), proxies_ips({proxies_host_ids}), plugin({plugin_name})"
         )
+        if is_v3:
+            raise
 
 
 def _get_multi_tenant_ping_data_id(bk_tenant_id: str, target_bk_biz_id: int) -> int | None:

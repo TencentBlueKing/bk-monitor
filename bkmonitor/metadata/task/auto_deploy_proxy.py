@@ -48,6 +48,31 @@ class AutoDeployProxy:
         logger.info(
             f"update proxy on bk_cloud_id({bk_cloud_id}), get host_ids->[{','.join([str(h) for h in bk_host_ids])}]"
         )
+        from bkmonitor.nodeman_integration.mode import get_nodeman_integration_mode
+
+        if get_nodeman_integration_mode() == "v3_fresh":
+            from monitor_web.models.node_man import NodeManResourceType
+            from monitor_web.nodeman_integration.v3.plugin_deployment import NodeManV3PluginDeploymentService
+
+            deployments = NodeManV3PluginDeploymentService().ensure_hosts(
+                resource_type=NodeManResourceType.PROXY_PLUGIN_DEPLOYMENT,
+                owner_bk_tenant_id=bk_tenant_id,
+                execution_bk_tenant_id=bk_tenant_id,
+                bk_biz_id=0,
+                plugin_name=plugin_name,
+                plugin_version=plugin_version,
+                bk_cloud_id=bk_cloud_id,
+                bk_host_ids=bk_host_ids,
+            )
+            logger.info(
+                "submitted NodeMan V3 proxy plugin policies, bk_cloud_id(%s), plugin(%s@%s), hosts(%s)",
+                bk_cloud_id,
+                plugin_name,
+                plugin_version,
+                [deployment.bk_host_id for deployment in deployments],
+            )
+            return
+
         # 查询当前版本
         params = {"page": 1, "pagesize": len(bk_host_ids), "conditions": [], "bk_host_id": bk_host_ids}
         plugin_info_list = api.node_man.plugin_search(bk_tenant_id=bk_tenant_id, **params)["list"]
@@ -96,7 +121,14 @@ class AutoDeployProxy:
         :return: 代理主机列表
         """
         bk_host_ids = []
-        proxies = api.node_man.get_proxies(bk_tenant_id=bk_tenant_id, bk_cloud_id=bk_cloud_id)
+        from bkmonitor.nodeman_integration.mode import get_nodeman_integration_mode
+
+        if get_nodeman_integration_mode() == "v3_fresh":
+            from bkmonitor.nodeman_integration.v3.compat import get_proxies
+
+            proxies = get_proxies(bk_tenant_id=bk_tenant_id, bk_cloud_id=bk_cloud_id)
+        else:
+            proxies = api.node_man.get_proxies(bk_tenant_id=bk_tenant_id, bk_cloud_id=bk_cloud_id)
         logger.info("bk_cloud_id->[%d] has %d proxies", bk_cloud_id, len(proxies))
         # 获取全体proxy主机列表
         for proxy in proxies:
@@ -165,6 +197,13 @@ class AutoDeployProxy:
         :return: 最新版本
         """
         default_version = "0.0.0"
+        from bkmonitor.nodeman_integration.mode import get_nodeman_integration_mode
+
+        if get_nodeman_integration_mode() == "v3_fresh":
+            from bkmonitor.nodeman_integration.v3.compat import latest_enabled_plugin_version
+
+            return latest_enabled_plugin_version(bk_tenant_id=bk_tenant_id, plugin_name=plugin_name)
+
         plugin_infos = api.node_man.plugin_info(name=plugin_name, bk_tenant_id=bk_tenant_id)
         version_str_list = [p.get("version", default_version) for p in plugin_infos if p.get("is_ready", True)]
         return get_max_version(default_version, version_str_list)
@@ -183,6 +222,7 @@ class AutoDeployProxy:
 
         # 云区域
         cloud_infos = api.cmdb.search_cloud_area(bk_tenant_id=bk_tenant_id)
+        failures = []
         for cloud_info in cloud_infos:
             bk_cloud_id = cloud_info.get("bk_cloud_id", -1)
             if int(bk_cloud_id) <= 0:
@@ -197,6 +237,7 @@ class AutoDeployProxy:
                 )
             except Exception as e:
                 logger.exception(f"Auto deploy {plugin_name} error, with bk_cloud_id({bk_cloud_id}), error({e}).")
+                failures.append((bk_cloud_id, e))
 
         # 仅在默认租户下部署直连区域
         if bk_tenant_id == DEFAULT_TENANT_ID:
@@ -206,6 +247,13 @@ class AutoDeployProxy:
                 )
             except Exception as e:
                 logger.exception(f"Auto deploy {plugin_name} error, with direct area, error({e}).")
+                failures.append((0, e))
+
+        from bkmonitor.nodeman_integration.mode import get_nodeman_integration_mode
+
+        if failures and get_nodeman_integration_mode() == "v3_fresh":
+            failed_cloud_ids = [bk_cloud_id for bk_cloud_id, _error in failures]
+            raise RuntimeError(f"NodeMan V3 proxy plugin deployment failed for cloud areas: {failed_cloud_ids}")
 
     @classmethod
     def refresh(cls, plugin_name: str) -> None:
@@ -219,11 +267,19 @@ class AutoDeployProxy:
             return
 
         # 遍历所有租户，自动部署插件
+        failures = []
         for tenant in api.bk_login.list_tenant():
             try:
                 cls._refresh(bk_tenant_id=tenant["id"], plugin_name=plugin_name)
             except Exception as e:
                 logger.exception(f"Auto deploy {plugin_name} error, with bk_tenant_id({tenant['id']}), error({e}).")
+                failures.append((tenant["id"], e))
+
+        from bkmonitor.nodeman_integration.mode import get_nodeman_integration_mode
+
+        if failures and get_nodeman_integration_mode() == "v3_fresh":
+            failed_tenant_ids = [tenant_id for tenant_id, _error in failures]
+            raise RuntimeError(f"NodeMan V3 proxy plugin deployment failed for tenants: {failed_tenant_ids}")
 
 
 def main():
