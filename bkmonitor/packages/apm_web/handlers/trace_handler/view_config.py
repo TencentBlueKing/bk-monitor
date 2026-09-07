@@ -29,6 +29,12 @@ from constants.apm import PreCalculateSpecificField, SpanStandardField, Precalcu
 from constants.otel_query import FIELD_OPERATIONS, EnabledStatisticsDimension
 
 NON_SEARCHABLE_FIELD_TYPES = {"object", "nested"}
+DIMENSION_FIELD_TYPES = {
+    EnabledStatisticsDimension.KEYWORD.value,
+    EnabledStatisticsDimension.INTEGER.value,
+    EnabledStatisticsDimension.DOUBLE.value,
+    EnabledStatisticsDimension.LONG.value,
+}
 TRACE_NON_DIMENSION_FIELDS = {
     PreCalculateSpecificField.MIN_START_TIME.value,
     PreCalculateSpecificField.MAX_END_TIME.value,
@@ -194,7 +200,7 @@ class TraceFieldsHandler:
     def is_dimensions(mode: str, field_name: str, field_type: str) -> bool:
         """判断字段是否支持当前查询视角的统计分析。"""
 
-        if field_type not in EnabledStatisticsDimension.values():
+        if field_type not in DIMENSION_FIELD_TYPES:
             return False
         if mode == QueryMode.TRACE:
             return field_name not in TRACE_NON_DIMENSION_FIELDS

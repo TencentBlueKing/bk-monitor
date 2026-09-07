@@ -162,10 +162,10 @@ class SpanQuery(APMQueryFilterMixin, BaseQuery):
                     item["value"] = config.value
                 field_dict["rating_config"].append(item)
         field_dict["is_agg"] = (
-            field_dict["is_agg"]
-            and field_dict["field_type"] in EnabledStatisticsDimension.values()
-            and spec.field_display_type not in {FieldDisplayType.DATETIME.value}
-            and field_dict["field_name"] not in cls.NON_DIMENSION_FIELDS
+            field_dict.get("is_agg", False)
+            and field_dict.get("field_type") in EnabledStatisticsDimension.values()
+            and spec.field_display_type != FieldDisplayType.DATETIME.value
+            and field_dict.get("field_name") not in cls.NON_DIMENSION_FIELDS
         )
         return field_dict
 
