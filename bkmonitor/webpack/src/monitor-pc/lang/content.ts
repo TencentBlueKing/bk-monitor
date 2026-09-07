@@ -513,4 +513,5 @@ export default {
   '内网 IPv6': 'Inner IPv6',
   '磁盘 IO 使用率': 'Disk IO usage',
   '搜索 名称、别名、单位、类型、启/停': 'Search name, alias, unit, type, start/stop',
+  中止: 'Abort',
 };
