@@ -289,8 +289,11 @@ class EtlStorage:
             "yyyyMMddTHHmmssZ": {"format": "%Y%m%dT%H%M%S%:z", "zone": None},
             "yyyyMMddTHHmmss.SSSSSSZ": {"format": "%Y%m%dT%H%M%S.%6f%:z", "zone": None},
             "yyyy-MM-ddTHH:mm:ss.SSSZ": {"format": "%Y-%m-%dT%H:%M:%S.%3f%:z", "zone": None},
-            "yyyy-MM-ddTHH:mm:ss.SSSSSSZ": {"format": "%Y-%m-%dT%H:%M:%S.%6fZ", "zone": None},
-            "YYYY-MM-DDTHH:mm:ss.SSSSSSZ": {"format": "%Y-%m-%dT%H:%M:%S.%6fZ", "zone": None},
+            # 这两条的 format 以字面量 Z 结尾（不是 %z/%:z 时区占位），bkbase 无从推断时区，
+            # zone 必须给值，否则 zone=None 会被判解析失败：ES 侧静默回退 utctime（时间全错），
+            # doris 侧 time_fallback 不生效直接零入库
+            "yyyy-MM-ddTHH:mm:ss.SSSSSSZ": {"format": "%Y-%m-%dT%H:%M:%S.%6fZ", "zone": 0},
+            "YYYY-MM-DDTHH:mm:ss.SSSSSSZ": {"format": "%Y-%m-%dT%H:%M:%S.%6fZ", "zone": 0},
             "ISO8601": {"format": "%+", "zone": None},
             "yyyy-MM-ddTHH:mm:ssZ": {"format": "%Y-%m-%dT%H:%M:%S%:z", "zone": None},
             "yyyy-MM-ddTHH:mm:ss.SSSSSSZZ": {"format": "%Y-%m-%dT%H:%M:%S.%6f%:z", "zone": None},
@@ -326,6 +329,7 @@ class EtlStorage:
 
         # zone=None表示格式本身内嵌了时区信息（如%z、%:z），此时忽略用户time_zone
         # zone=0表示格式不含时区信息，可被用户time_zone覆盖
+        # 注意 zone 一旦给了非 None 值就会覆盖串内偏移，所以真时区占位格式必须保持 None
         zone = format_config["zone"]
         if zone is not None and time_zone is not None:
             zone = time_zone
