@@ -543,3 +543,21 @@ class FrustrationType(CachedEnum):
     @classmethod
     def choices(cls) -> list[tuple[str, str]]:
         return [(member.value, member.label) for member in cls]
+
+
+class ResourceCacheHit(CachedEnum):
+    """布尔值"""
+
+    TRUE = True
+    FALSE = False
+
+    @cached_property
+    def label(self) -> str:
+        return {
+            self.TRUE: _("缓存命中"),
+            self.FALSE: _("缓存未命中"),
+        }.get(self, str(self.value))
+
+    @classmethod
+    def choices(cls) -> list[tuple[bool, str]]:
+        return [(member.value, member.label) for member in cls]

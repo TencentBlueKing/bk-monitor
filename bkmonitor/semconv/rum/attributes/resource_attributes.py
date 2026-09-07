@@ -11,11 +11,8 @@ specific language governing permissions and limitations under the License.
 from django.utils.translation import gettext_lazy as _
 
 from semconv.rum.field import FieldSpec
-from semconv.rum.constants import ResourceType, ResourceRenderBlockingStatus
-from semconv.constants import (
-    FieldUnit,
-    FieldDisplayType,
-)
+from semconv.rum.constants import ResourceType, ResourceRenderBlockingStatus, ResourceCacheHit
+from semconv.constants import FieldUnit, FieldDisplayType, FieldType
 
 
 RESOURCE_TYPE = FieldSpec(field_name="resource.type", field_alias=_("资源类型"), option_values=ResourceType)
@@ -30,7 +27,12 @@ RESOURCE_ENCODED_BODY_SIZE = FieldSpec(
     field_name="resource.encoded_body_size", field_alias=_("编码后正文大小"), field_unit=FieldUnit.BYTES.value
 )
 RESOURCE_PROTOCOL = FieldSpec(field_name="resource.protocol", field_alias=_("传输协议"))
-RESOURCE_CACHE_HIT = FieldSpec(field_name="resource.cache.hit", field_alias=_("缓存命中标记"))
+RESOURCE_CACHE_HIT = FieldSpec(
+    field_name="resource.cache.hit",
+    field_type=FieldType.BOOLEAN.value,
+    field_alias=_("缓存命中标记"),
+    option_values=ResourceCacheHit,
+)
 RESOURCE_DELIVERY_TYPE = FieldSpec(field_name="resource.delivery_type", field_alias=_("交付类型"))
 RESOURCE_RENDER_BLOCKING_STATUS = FieldSpec(
     field_name="resource.render_blocking_status",
