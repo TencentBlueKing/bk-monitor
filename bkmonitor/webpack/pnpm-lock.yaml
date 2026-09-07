@@ -544,8 +544,8 @@ importers:
         specifier: ^0.0.2
         version: 0.0.2
       '@blueking/monitor-apm-log':
-        specifier: 2.3.33
-        version: 2.3.33
+        specifier: 2.3.34
+        version: 2.3.34
       '@blueking/monitor-resource-topo':
         specifier: 0.0.1-beta.36
         version: 0.0.1-beta.36(@blueking/bkui-library@0.0.0-beta.6)(vue@2.7.16)
@@ -1654,8 +1654,8 @@ packages:
   '@blueking/monitor-alarm-center@0.0.14':
     resolution: {integrity: sha512-vCH+Iu9S6lOhvsByPotMpSxcRQo6jaTRVeQgNiB93io28vtr1mUUz+i2/KavvTdgDB9Tb93LW4k2emj+P46YHw==}
 
-  '@blueking/monitor-apm-log@2.3.33':
-    resolution: {integrity: sha512-Jq31CCGLMocyagofNwNCfq3cXmSADB09g9k4kPowOs2UMBpaycWkUEBSNyPU23E1WnjKlQKI88D6i/FqSIInHA==}
+  '@blueking/monitor-apm-log@2.3.34':
+    resolution: {integrity: sha512-PNovJS0WVzneE4RUUA0VJJi9YRvjZmPyGwwG+VUWvlR8GICiKoVMVDQ9hx8pvP/uYsRtiRQSopMFQbEW/ZPNyg==}
 
   '@blueking/monitor-resource-topo@0.0.1-beta.36':
     resolution: {integrity: sha512-Bfe2w5AnFKX35zuu9Y0f4B6e4nkEjRRFvnvXfi5xxfzNkSmhjk4plWh+iOgxUJF6BA3qyCkhSCszjjzLUeheFw==}
@@ -10827,7 +10827,7 @@ snapshots:
       - highlight.js
       - typescript
 
-  '@blueking/monitor-apm-log@2.3.33': {}
+  '@blueking/monitor-apm-log@2.3.34': {}
 
   '@blueking/monitor-resource-topo@0.0.1-beta.36(@blueking/bkui-library@0.0.0-beta.6)(vue@2.7.16)':
     dependencies:

@@ -47,9 +47,7 @@ import type { IFavoriteItem, IGroupItem, SearchMode } from '../types';
  */
 const replaceApmHashAddition = (href: string, addition: unknown): string => {
   const rawAddition = addition ?? [];
-  const additionValue = encodeURIComponent(
-    typeof rawAddition === 'string' ? rawAddition : JSON.stringify(rawAddition),
-  );
+  const additionValue = encodeURIComponent(typeof rawAddition === 'string' ? rawAddition : JSON.stringify(rawAddition));
 
   const hashIndex = href.indexOf('#');
   if (hashIndex === -1) {
@@ -87,7 +85,7 @@ export const useFavorite = () => {
   // 响应式状态
   const favoriteLoading = ref(false);
   const activeTab = ref('origin');
-  const isShowCurrentIndexList = ref(RetrieveHelper.isViewCurrentIndex);
+  const isShowCurrentIndexList = ref(window.__IS_MONITOR_APM__ ? true : RetrieveHelper.isViewCurrentIndex);
   const searchValue = ref('');
   const isCollapseList = ref(true);
   const activeFavorite = ref<IFavoriteItem | null>(null);
@@ -486,7 +484,7 @@ export const useFavorite = () => {
       shareUrl = `/${shareUrl}`;
     }
     if (!shareUrl.endsWith('/')) {
-      shareUrl += '/'
+      shareUrl += '/';
     }
     if (window.__IS_MONITOR_APM__) {
       // 保留当前 APM 页路径和其余 hash 参数，只替换 addition
