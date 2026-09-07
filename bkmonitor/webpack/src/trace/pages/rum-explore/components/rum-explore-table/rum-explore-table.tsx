@@ -29,7 +29,7 @@ import { Loading } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
 
 import ExploreFieldSetting from '../../../trace-explore/components/explore-field-setting/explore-field-setting';
-import StatisticsList from '../../../trace-explore/components/statistics-list';
+import StatisticsList from '../../../trace-explore/components/statistics-list/statistics-list';
 import ExploreConditionMenu from '../../../trace-explore/components/trace-explore-table/components/explore-condition-menu';
 import { type IStatisticsFieldItem, useFieldStatisticsPopover } from '../../composables/use-field-statistics-popover';
 import { RUM_EXPLORE_VIEW_CLASS, RumModeEnum } from '../../constants';
@@ -375,6 +375,8 @@ export default defineComponent({
           api={statisticsApi}
           commonParams={this.commonParams as any}
           fieldType={this.selectField?.type}
+          isDuration={['us', 'ms', 'μs'].includes(this.selectField?.field_unit)}
+          isInteger={['double', 'long', 'integer', 'float', 'boolean'].includes(this.selectField?.type)}
           isShow={this.showPopover}
           optionValues={this.selectField?.option_values}
           selectField={this.selectField?.name}
