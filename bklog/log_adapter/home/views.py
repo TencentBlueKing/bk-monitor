@@ -183,7 +183,23 @@ class RequestProcessor:
         ):
             data = response.data
             if isinstance(data, dict) and "data" in data:
-                data["data"] = [d for d in data["data"] if d["index_set_id"] in allow_resources]
+                filtered_index_sets = []
+                filtered_index_set_ids = set()
+                for index_set in data["data"]:
+                    if index_set["index_set_id"] in allow_resources:
+                        filtered_index_set_ids.add(index_set["index_set_id"])
+                        filtered_index_sets.append(index_set)
+                        continue
+
+                    # 分组展示时，未授权的父索引集会将已授权子索引一并过滤掉。
+                    # 子索引上提为顶层项，避免为展示而授权整个索引组导致越权。
+                    for child in index_set.get("children", []):
+                        child_index_set_id = child["index_set_id"]
+                        if child_index_set_id not in allow_resources or child_index_set_id in filtered_index_set_ids:
+                            continue
+                        filtered_index_set_ids.add(child_index_set_id)
+                        filtered_index_sets.append(child)
+                data["data"] = filtered_index_sets
                 response.data = data
                 return response
         if view_set_class.eq(ViewSetActionEnum.FAVORITE_VIEWSET_LIST_BY_GROUP.value):
