@@ -69,6 +69,7 @@ export interface ISearchItem {
   height?: string;
   name?: string;
   project_name?: string;
+  service_name?: string;
   strategy_id?: number;
   trace_id?: string;
   type?: string;

@@ -815,6 +815,74 @@ class QueryTopoNodeResource(Resource):
         return res
 
 
+class SearchServiceNamesResource(Resource):
+    """按授权应用批量搜索服务名称，不加载指标和实例信息。"""
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(label="业务ID")
+        app_names = serializers.ListField(child=serializers.CharField(max_length=50), allow_empty=False, max_length=100)
+        profiling_app_names = serializers.ListField(
+            child=serializers.CharField(max_length=50), required=False, default=[], max_length=100
+        )
+        query = serializers.CharField(label="服务名称关键字")
+        limit = serializers.IntegerField(default=20, min_value=1, max_value=100)
+
+        def validate(self, attrs):
+            if not set(attrs["profiling_app_names"]).issubset(attrs["app_names"]):
+                raise serializers.ValidationError("profiling_app_names must be a subset of app_names")
+            return attrs
+
+    def perform_request(self, data):
+        scope = {"bk_biz_id": data["bk_biz_id"], "app_name__in": data["app_names"]}
+        services = {}
+        nodes = (
+            TopoNode.objects.filter(
+                **scope,
+                topo_key__icontains=data["query"],
+                updated_at__gte=datetime.datetime.now() - datetime.timedelta(days=TopoNode.EXPIRED_DAYS),
+            )
+            .order_by("id")
+            .values("id", "app_name", "topo_key", "extra_data")
+        )
+        last_id = 0
+        while True:
+            # MySQL iterator 仍可能在驱动层缓冲全部结果，使用主键游标限制每次读取量。
+            batch = list(nodes.filter(id__gt=last_id)[:100])
+            if not batch:
+                break
+            for node in batch:
+                extra = node["extra_data"]
+                # 与 QueryTopoNodeResource 保持一致：排除尚不支持的非 HTTP 远程服务。
+                if (
+                    extra.get("kind") == ApmTopoDiscoverRule.TOPO_REMOTE_SERVICE
+                    and extra.get("category") != ApmTopoDiscoverRule.APM_TOPO_CATEGORY_HTTP
+                ):
+                    continue
+                key = (node["app_name"], node["topo_key"])
+                services[key] = {"app_name": key[0], "service_name": key[1]}
+                if len(services) >= data["limit"]:
+                    return list(services.values())
+            last_id = batch[-1]["id"]
+
+        if data["profiling_app_names"]:
+            profiles = (
+                ProfileService.objects.filter(
+                    bk_biz_id=data["bk_biz_id"],
+                    app_name__in=data["profiling_app_names"],
+                    name__icontains=data["query"],
+                )
+                .order_by("app_name", "name")
+                .values("app_name", "name")
+                .distinct()[: data["limit"]]
+            )
+            for profile in profiles:
+                key = (profile["app_name"], profile["name"])
+                services[key] = {"app_name": key[0], "service_name": key[1]}
+                if len(services) >= data["limit"]:
+                    break
+        return list(services.values())
+
+
 class DiscoverQueryResource(Resource):
     many_response_data = True
     model = None

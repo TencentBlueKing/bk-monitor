@@ -2147,6 +2147,16 @@
   method: GET
 - api_type: query
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /apm_api/v1/topo/search_service_names/
+  is_hidden: true
+  label: 批量搜索服务名称
+  label_en: search apm service names
+  name: search_apm_service_names
+  path: /v2/monitor_v3/apm/search_service_names/
+  method: POST
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
   dest_http_method: GET
   dest_path: /apm_api/v1/profiling/services_detail/
   is_hidden: true

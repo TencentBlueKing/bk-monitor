@@ -233,6 +233,24 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: query apm topo node
+  /app/apm/search_service_names/:
+    post:
+      operationId: search_apm_service_names
+      description: 批量搜索服务名称
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /apm_api/v1/topo/search_service_names/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: search apm service names
   /app/apm/profiling/services_detail/:
     get:
       operationId: query_apm_profile_service_detail

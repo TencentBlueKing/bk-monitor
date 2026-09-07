@@ -6,17 +6,20 @@ import queue
 import re
 import threading
 import time
+from collections import defaultdict
 from collections.abc import Callable, Generator, Iterable, Sequence
 from datetime import timedelta
 from multiprocessing.pool import ApplyResult
 from typing import Any, TypeVar
 
-from django.db.models import Count, Q
+from django.db.models import Count, Q, Value
+from django.db.models.functions import Concat
 from django.utils import timezone
 from django.utils.translation import gettext as _
 
 from apm.models import DataLink
-from apm_web.models import Application, UserVisitRecord
+from apm_web.constants import CustomServiceMatchType
+from apm_web.models import Application, ApplicationCustomService, UserVisitRecord
 from bkm_space.api import SpaceApi
 from bkm_space.define import Space
 from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQuerySet
@@ -28,6 +31,7 @@ from bkmonitor.iam.drf import filter_data_by_permission
 from bkmonitor.iam.resource import ResourceEnum
 from bkmonitor.models import StrategyModel
 from bkmonitor.models.bcs_cluster import BCSCluster
+from bkmonitor.utils.common_utils import chunks
 from bkmonitor.utils.thread_backend import ThreadPool
 from bkmonitor.utils.time_tools import time_interval_align
 from constants.apm import OtlpKey, PreCalculateSpecificField
@@ -787,6 +791,101 @@ class ApmApplicationSearchItem(SearchItem):
         return [{"type": "apm_application", "name": _("APM应用"), "items": items}]
 
 
+class ApmServiceSearchItem(SearchItem):
+    """在有应用查看权限的范围内搜索服务，与应用名称是否命中无关。"""
+
+    @classmethod
+    def match(cls, query: str) -> bool:
+        return ApmApplicationSearchItem.match(query)
+
+    @classmethod
+    def _get_allowed_applications(cls, bk_tenant_id: str, username: str) -> list[dict[str, Any]]:
+        applications = list(
+            Application.objects.filter(bk_tenant_id=bk_tenant_id)
+            .order_by("bk_biz_id", "application_id")
+            .values("bk_biz_id", "app_name", "application_id", "is_enabled_profiling")
+        )
+        return filter_data_by_permission(
+            bk_tenant_id=bk_tenant_id,
+            data=applications,
+            actions=[ActionEnum.VIEW_APM_APPLICATION],
+            resource_meta=ResourceEnum.APM_APPLICATION,
+            id_field=lambda d: d["application_id"],
+            instance_create_func=ResourceEnum.APM_APPLICATION.create_instance_by_info,
+            mode="any",
+            username=username,
+        )
+
+    @classmethod
+    def _search_services(cls, bk_biz_id: int, applications: list[dict], query: str, limit: int) -> list[dict]:
+        app_names = [app["app_name"] for app in applications]
+        services = api.apm_api.search_service_names(
+            bk_biz_id=bk_biz_id,
+            app_names=app_names,
+            profiling_app_names=[app["app_name"] for app in applications if app["is_enabled_profiling"]],
+            query=query,
+            limit=limit,
+        )
+        # 手动配置尚未发现的远程服务，与服务列表使用相同的 type:name 标识。
+        custom_services = (
+            ApplicationCustomService.objects.filter(
+                bk_biz_id=bk_biz_id, app_name__in=app_names, match_type=CustomServiceMatchType.MANUAL
+            )
+            .annotate(service_name=Concat("type", Value(":"), "name"))
+            .filter(service_name__icontains=query)
+            .order_by("app_name", "service_name")
+            .values("app_name", "service_name")
+            .distinct()[:limit]
+        )
+        return [*services, *custom_services]
+
+    @classmethod
+    def search(
+        cls,
+        bk_tenant_id: str,
+        username: str,
+        query: str,
+        limit: int = 5,
+        current_bk_biz_id: int | None = None,
+        stop_event: threading.Event | None = None,
+    ) -> Generator[dict[str, Any], None, None]:
+        biz_applications = defaultdict(list)
+        for app in cls._get_allowed_applications(bk_tenant_id, username):
+            biz_applications[app["bk_biz_id"]].append(app)
+
+        items = []
+        seen = set()
+        for bk_biz_id, applications in biz_applications.items():
+            for batch in chunks(applications, 100):
+                if stop_event is not None and stop_event.is_set():
+                    return
+                app_map = {app["app_name"]: app for app in batch}
+                services = cls._search_services(bk_biz_id, batch, query, limit - len(items))
+                previous_count = len(items)
+                for service in services:
+                    key = (bk_biz_id, service["app_name"], service["service_name"])
+                    if key in seen:
+                        continue
+                    seen.add(key)
+                    app = app_map[service["app_name"]]
+                    items.append(
+                        {
+                            "bk_biz_id": bk_biz_id,
+                            "bk_biz_name": cls._get_biz_name(bk_biz_id),
+                            "application_id": app["application_id"],
+                            "app_name": app["app_name"],
+                            "service_name": service["service_name"],
+                            "name": service["service_name"],
+                        }
+                    )
+                    if len(items) >= limit:
+                        break
+                if len(items) > previous_count:
+                    yield {"type": "apm_service", "name": _("APM服务"), "items": list(items)}
+                if len(items) >= limit:
+                    return
+
+
 class HostSearchItem(SearchItem):
     """
     Search item for host.
@@ -951,6 +1050,7 @@ class Searcher:
         StrategySearchItem,
         TraceSearchItem,
         ApmApplicationSearchItem,
+        ApmServiceSearchItem,
         HostSearchItem,
         BCSClusterSearchItem,
     ]
