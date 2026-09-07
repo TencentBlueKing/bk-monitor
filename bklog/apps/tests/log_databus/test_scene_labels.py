@@ -175,6 +175,15 @@ class TestRefreshResultTableLabelsCommand(TestCase):
         return CollectorConfig.objects.create(**fields)
 
     @staticmethod
+    def _create_index_set(name: str) -> LogIndexSet:
+        return LogIndexSet.objects.create(
+            index_set_name=name,
+            space_uid="bkcc__2",
+            scenario_id="log",
+            is_active=True,
+        )
+
+    @staticmethod
     def _get_scene_tags(index_set: LogIndexSet) -> set[tuple[str, str]]:
         index_set.refresh_from_db()
         return set(
@@ -186,29 +195,30 @@ class TestRefreshResultTableLabelsCommand(TestCase):
 
     @patch("apps.log_databus.handlers.scene.TransferApi.switch_result_table")
     def test_backfill_reuses_all_scene_branches_without_n_plus_one(self, mock_switch_result_table):
+        paas_index_set = self._create_index_set("paas")
         paas = self._create_collector(
             "paas",
             collector_scenario_id="custom",
             bk_app_code="bk_paas3",
             table_id="space_10438_bklog.bkai_cli__default__json",
+            index_set_id=paas_index_set.index_set_id,
         )
+        otlp_index_set = self._create_index_set("otlp")
         otlp = self._create_collector(
             "otlp",
             collector_scenario_id="custom",
             custom_type="otlp_log",
             environment="container",
+            index_set_id=otlp_index_set.index_set_id,
         )
+        custom_container_index_set = self._create_index_set("custom_container")
         custom_container = self._create_collector(
             "custom_container",
             collector_scenario_id="custom",
             custom_type="log",
+            index_set_id=custom_container_index_set.index_set_id,
         )
-        index_set = LogIndexSet.objects.create(
-            index_set_name="regular",
-            space_uid="bkcc__2",
-            scenario_id="log",
-            is_active=True,
-        )
+        index_set = self._create_index_set("regular")
         regular = self._create_collector(
             "regular",
             collector_scenario_id="client",
@@ -251,6 +261,14 @@ class TestRefreshResultTableLabelsCommand(TestCase):
         container_queries = [query for query in queries if container_table in query["sql"].lower()]
         self.assertEqual(len(container_queries), 2)
         self.assertEqual(self._get_scene_tags(index_set), {("scene", "client")})
+
+    @patch("apps.log_databus.handlers.scene.TransferApi.switch_result_table")
+    def test_backfill_skips_collector_without_index_set(self, mock_switch_result_table):
+        self._create_collector("without_index_set", collector_scenario_id="client")
+
+        call_command("refresh_result_table_labels", sleep=0, stdout=StringIO())
+
+        mock_switch_result_table.assert_not_called()
 
     @patch(
         "apps.log_databus.handlers.scene.TransferApi.get_result_table",

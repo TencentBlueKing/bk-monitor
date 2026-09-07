@@ -74,7 +74,7 @@ def refresh_scene_labels(
     if compare_mode not in {COMPARE_MODE_LOCAL, COMPARE_MODE_REMOTE}:
         raise ValueError(f"unsupported scene label compare mode: {compare_mode}")
 
-    qs = CollectorConfig.objects.filter(table_id__isnull=False).exclude(table_id="")
+    qs = CollectorConfig.objects.filter(table_id__isnull=False, index_set_id__isnull=False).exclude(table_id="")
     qs = qs.filter(is_active=True).exclude(custom_type=CustomTypeEnum.OTLP_TRACE.value)
     if bk_biz_id is not None:
         qs = qs.filter(bk_biz_id=bk_biz_id)
