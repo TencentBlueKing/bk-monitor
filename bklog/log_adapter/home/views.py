@@ -188,6 +188,9 @@ class RequestProcessor:
                 for index_set in data["data"]:
                     if index_set["index_set_id"] in allow_resources:
                         filtered_index_set_ids.add(index_set["index_set_id"])
+                        # 已授权父索引组中的子项已经可见，不能再因其归属的其他
+                        # 未授权索引组而被上提为顶层项。
+                        filtered_index_set_ids.update(child["index_set_id"] for child in index_set.get("children", []))
                         filtered_index_sets.append(index_set)
                         continue
 
