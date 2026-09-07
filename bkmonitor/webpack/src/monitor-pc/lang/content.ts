@@ -511,4 +511,5 @@ export default {
   'CPU 五分钟负载': 'CPU 5 minute load',
   '内网 IPv6': 'Inner IPv6',
   '磁盘 IO 使用率': 'Disk IO usage',
+  中止: 'Abort',
 };

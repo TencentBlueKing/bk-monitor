@@ -34,11 +34,13 @@ import {
 import {
   RUM_HTTP_STATUS_CODE_MAP,
   RUM_LINK_FIELDS,
+  RUM_OUTCOME_TYPE_MAP,
   RUM_STATUS_CODE_MAP,
   RumFieldDisplayEnum,
   SPAN_TYPE_FIELD,
   SPAN_TYPE_META,
 } from '../../../constants';
+import { formatUnitValue } from '../../../utils';
 import { BaseScenario } from './base-scenario';
 
 import type { SlotReturnValue } from 'tdesign-vue-next';
@@ -87,9 +89,15 @@ export class SpanScenario extends BaseScenario {
       renderType: ExploreTableColumnTypeEnum.PREFIX_ICON,
       getRenderValue: row => this.getCacheHitRenderValue(row['attributes.resource.cache.hit']),
     },
+    /** events.attributes.exception.type 列：异常类型（图标 + 异常类型） */
     'events.attributes.exception.type': {
       renderType: ExploreTableColumnTypeEnum.TAGS,
       getRenderValue: row => this.getExceptionTypeRenderValue(row['events.attributes.exception.type']),
+    },
+    /** attributes.outcome.type 列：结果状态（图标 + 状态文案） */
+    'attributes.outcome.type': {
+      renderType: ExploreTableColumnTypeEnum.PREFIX_ICON,
+      getRenderValue: row => this.getOutcomeTypeRenderValue(row['attributes.outcome.type']),
     },
   };
 
@@ -103,9 +111,10 @@ export class SpanScenario extends BaseScenario {
   }
 
   /**
-   * @description 场景元数据推导：根据 field_display_type 派发对应渲染类型
+   * @description 场景元数据推导：根据 field_display_type / field_unit 派发对应渲染类型
    * - datetime → 时间列
    * - duration → 耗时列（透传原始单位供 formatDuration 量纲换算）
+   * - 其余带 field_unit 的字段 → 按单位自适应换算展示（复用图表的 getValueFormat 量纲表）
    */
   protected buildBaseline(colKey: string): Partial<BaseTableColumn> {
     const field = get(this.context.fieldMap).get(colKey);
@@ -117,8 +126,11 @@ export class SpanScenario extends BaseScenario {
           renderType: ExploreTableColumnTypeEnum.DURATION,
           cellSpecificProps: { durationUnit: field?.field_unit as 'ms' | 'us' },
         };
-      default:
-        return {};
+      default: {
+        const unit = field?.field_unit;
+        if (!unit) return {};
+        return { getRenderValue: row => formatUnitValue(row[colKey], unit) };
+      }
     }
   }
 
@@ -183,6 +195,19 @@ export class SpanScenario extends BaseScenario {
       alias: 'HIT',
       prefixIcon: 'icon-monitor icon-mc-check-small',
     };
+  }
+
+  /**
+   * @description 结果状态列渲染值：状态图标 + 状态文案（复用内置前置图标渲染，图标配色见 span-table-theme.scss）
+   * @param {unknown} value 当前行结果状态值
+   */
+  private getOutcomeTypeRenderValue(value: unknown) {
+    const meta = RUM_OUTCOME_TYPE_MAP[value as string];
+    /** 未命中枚举时回退展示原始值，不渲染图标 */
+    if (!meta) return { alias: value ? String(value) : '', prefixIcon: '' };
+    /** 后台字段元数据声明了枚举别名时优先取后台映射值，兜底用本地枚举文案 */
+    const alias = this.getFieldOptionAlias('attributes.outcome.type', value);
+    return { alias: alias || meta.label, prefixIcon: meta.icon };
   }
 
   /**

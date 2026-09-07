@@ -321,6 +321,7 @@ export default defineComponent({
                         <ExploreFieldSetting
                           class='table-field-setting'
                           fixedDisplayList={this.fixedDisplayList}
+                          showFieldName={true}
                           sourceList={this.displayableFields}
                           targetList={this.displayFieldKeys}
                           onConfirm={fields => this.$emit('displayFieldChange', fields)}
