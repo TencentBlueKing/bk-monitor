@@ -76,6 +76,10 @@ class EtlStorage:
     path_separator_node_name = "bk_separator_object_path"
     separator_key_is_index = False
 
+    # 会被清洗引擎写成 JSON 容器的用户字段类型，Doris 需要把它们声明为 JSON 列。
+    # 取值走 _get_output_type 换算：object / flattened -> dict，nested -> nested。
+    V4_JSON_FIELD_TYPES = ("object", "flattened", "nested")
+
     @classmethod
     def get_instance(cls, etl_config=None):
         mapping = {
@@ -747,6 +751,50 @@ class EtlStorage:
                 }
             )
         return rules
+
+    def _build_storage_config_v4(
+        self,
+        rules: list,
+        field_list: list,
+        built_in_config: dict,
+        storage_cluster_type: str = STORAGE_CLUSTER_TYPE,
+    ) -> dict:
+        """
+        构建V4数据链路的存储配置，ES与Doris二选一
+        :param rules: 已生成的clean_rules
+        :param field_list: 结果表字段列表
+        :param built_in_config: 内置配置
+        :param storage_cluster_type: 存储类型
+        :return: 待合入log_v4_data_link的存储配置；非ES/Doris时返回空字典
+        """
+        if storage_cluster_type == STORAGE_CLUSTER_TYPE:
+            return {
+                "es_storage_config": {
+                    "unique_field_list": built_in_config["option"]["es_unique_field_list"],
+                    "timezone": 8,
+                }
+            }
+
+        if storage_cluster_type != DORIS_CLUSTER_TYPE:
+            return {}
+
+        json_output_types = {self._get_output_type(field_type) for field_type in self.V4_JSON_FIELD_TYPES}
+        json_fields = {rule["output_id"] for rule in rules if rule["operator"].get("output_type") in json_output_types}
+
+        # 聚类场景（etl_flat）的字段是原样透传的，option 里没有 es_type，不能直接下标取值
+        need_analysis_fields = {
+            field["field_name"] for field in field_list if (field.get("option") or {}).get("es_type") == "text"
+        }
+
+        return {
+            "doris_storage_config": {
+                "storage_keys": built_in_config["option"]["es_unique_field_list"],
+                # 集合迭代顺序随进程变化，排序后下发避免同一份配置在bkbase侧反复产生无意义变更
+                "json_fields": sorted(json_fields),
+                "field_config_group": {"search_zh": sorted(need_analysis_fields)},
+                # "flush_timeout": None
+            }
+        }
 
     @staticmethod
     def is_retain_content_enabled(etl_params: dict) -> bool:
