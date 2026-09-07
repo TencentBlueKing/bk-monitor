@@ -8,7 +8,7 @@ from rest_framework.exceptions import ValidationError
 
 from apm_web.models import StrategyInstance
 from apm_web.strategy import dispatch
-from apm_web.strategy.dispatch import StrategyTemplateUpdater
+from apm_web.strategy.dispatch.builder import build_template_patch
 from apm_web.strategy.dispatch import dispatcher as dispatcher_module
 from bkmonitor.models import (
     ActionConfig,
@@ -21,12 +21,29 @@ from bkmonitor.models import (
     StrategyLabel,
     StrategyModel,
 )
-from bkmonitor.strategy.new_strategy import Strategy
+from bkmonitor.strategy.new_strategy import Algorithm, Strategy
 from core.errors.strategy import CreateStrategyError
+from monitor_web.strategies.resources.v2 import UpdatePartialStrategyV2Resource
 
 pytestmark = pytest.mark.django_db(databases="__all__")
 
 BK_BIZ_ID = 2
+
+
+def apply_template(bk_biz_id: int, strategy_id: int, params: dict[str, Any]) -> int:
+    labels: list[str] = list(
+        StrategyLabel.objects.filter(bk_biz_id=bk_biz_id, strategy_id=strategy_id).values_list("label_name", flat=True)
+    )
+    update_resource = UpdatePartialStrategyV2Resource()
+    serializer = update_resource.RequestSerializer(
+        data={
+            "bk_biz_id": bk_biz_id,
+            "ids": [strategy_id],
+            "edit_data": {"strategy_config": build_template_patch(labels, params)},
+        }
+    )
+    serializer.is_valid(raise_exception=True)
+    return update_resource.perform_request(serializer.validated_data)[0]
 
 
 def build_candidate_params() -> dict[str, Any]:
@@ -178,7 +195,7 @@ def existing_strategy() -> dict[str, Any]:
             "template_detail": {
                 "need_poll": False,
                 "notify_interval": 600,
-                "interval_notify_mode": "fixed",
+                "interval_notify_mode": "increasing",
                 "template": [{"signal": "abnormal", "message_tmpl": "preserved message"}],
             }
         },
@@ -252,7 +269,7 @@ def test_update_only_changes_template_managed_fields(existing_strategy: dict[str
         ActionConfig.objects.filter(id=existing_strategy["notice_config"].id).values().get()
     )
 
-    assert StrategyTemplateUpdater.update(BK_BIZ_ID, strategy.id, build_candidate_params()) == strategy.id
+    assert apply_template(BK_BIZ_ID, strategy.id, build_candidate_params()) == strategy.id
 
     strategy.refresh_from_db()
     assert (strategy.name, strategy.scenario) == ("updated strategy", "application_check")
@@ -308,7 +325,7 @@ def test_update_only_changes_template_managed_fields(existing_strategy: dict[str
 def test_repeated_update_is_idempotent(existing_strategy: dict[str, Any]) -> None:
     strategy: StrategyModel = existing_strategy["strategy"]
     params: dict[str, Any] = build_candidate_params()
-    StrategyTemplateUpdater.update(BK_BIZ_ID, strategy.id, params)
+    apply_template(BK_BIZ_ID, strategy.id, params)
     strategy.refresh_from_db()
     first_update_time = strategy.update_time
     child_ids: tuple[list[int], list[int], list[int]] = (
@@ -317,7 +334,7 @@ def test_repeated_update_is_idempotent(existing_strategy: dict[str, Any]) -> Non
         list(DetectModel.objects.filter(strategy_id=strategy.id).values_list("id", flat=True)),
     )
 
-    StrategyTemplateUpdater.update(BK_BIZ_ID, strategy.id, params)
+    apply_template(BK_BIZ_ID, strategy.id, params)
 
     strategy.refresh_from_db()
     assert strategy.update_time == first_update_time
@@ -333,7 +350,7 @@ def test_update_recalculates_automatic_priority_group_key(existing_strategy: dic
     strategy: StrategyModel = existing_strategy["strategy"]
     StrategyModel.objects.filter(id=strategy.id).update(priority_group_key="stale-auto-key")
 
-    StrategyTemplateUpdater.update(BK_BIZ_ID, strategy.id, build_candidate_params())
+    apply_template(BK_BIZ_ID, strategy.id, build_candidate_params())
 
     strategy.refresh_from_db()
     persisted_strategy: Strategy = Strategy.from_models([strategy])[0]
@@ -342,7 +359,7 @@ def test_update_recalculates_automatic_priority_group_key(existing_strategy: dic
     assert strategy.priority_group_key != "stale-auto-key"
 
     first_update_time = strategy.update_time
-    StrategyTemplateUpdater.update(BK_BIZ_ID, strategy.id, build_candidate_params())
+    apply_template(BK_BIZ_ID, strategy.id, build_candidate_params())
 
     strategy.refresh_from_db()
     assert strategy.update_time == first_update_time
@@ -378,7 +395,7 @@ def test_update_removes_extra_template_child_configs(existing_strategy: dict[str
         recovery_config={"check_window": 1, "status_setter": "recovery"},
     )
 
-    StrategyTemplateUpdater.update(BK_BIZ_ID, strategy.id, build_candidate_params())
+    apply_template(BK_BIZ_ID, strategy.id, build_candidate_params())
 
     assert list(QueryConfigModel.objects.filter(strategy_id=strategy.id).values_list("id", flat=True)) == [
         existing_strategy["query_config"].id
@@ -407,7 +424,7 @@ def test_invalid_item_structure_rolls_back(existing_strategy: dict[str, Any]) ->
     )
 
     with pytest.raises(ValidationError, match="单监控项"):
-        StrategyTemplateUpdater.update(BK_BIZ_ID, strategy.id, build_candidate_params())
+        apply_template(BK_BIZ_ID, strategy.id, build_candidate_params())
 
     strategy.refresh_from_db()
     assert strategy.name == original_name
@@ -420,7 +437,7 @@ def test_existing_notice_upgrade_groups_are_validated(existing_strategy: dict[st
     params["notice"]["user_groups"] = [202]
 
     with pytest.raises(ValidationError, match="通知升级"):
-        StrategyTemplateUpdater.update(BK_BIZ_ID, strategy.id, params)
+        apply_template(BK_BIZ_ID, strategy.id, params)
 
     strategy.refresh_from_db()
     assert strategy.name == "original strategy"
@@ -440,7 +457,7 @@ def test_update_rejects_multiple_notice_relations(existing_strategy: dict[str, A
     )
 
     with pytest.raises(ValidationError, match="唯一通知关系"):
-        StrategyTemplateUpdater.update(BK_BIZ_ID, strategy.id, build_candidate_params())
+        apply_template(BK_BIZ_ID, strategy.id, build_candidate_params())
 
     strategy.refresh_from_db()
     assert strategy.name == "original strategy"
@@ -459,7 +476,7 @@ def test_update_name_conflict_preserves_strategy_and_records_failed_history(
     )
 
     with pytest.raises(CreateStrategyError, match="不能重复"):
-        StrategyTemplateUpdater.update(BK_BIZ_ID, strategy.id, build_candidate_params())
+        apply_template(BK_BIZ_ID, strategy.id, build_candidate_params())
 
     strategy.refresh_from_db()
     assert (strategy.name, strategy.scenario, strategy.hash, strategy.snippet) == (
@@ -487,7 +504,7 @@ def test_update_removes_duplicate_managed_labels(existing_strategy: dict[str, An
         label_name="/APM-APP(app-a)/",
     )
 
-    StrategyTemplateUpdater.update(BK_BIZ_ID, strategy.id, build_candidate_params())
+    apply_template(BK_BIZ_ID, strategy.id, build_candidate_params())
 
     assert StrategyLabel.objects.filter(id=retained_label.id).exists()
     assert not StrategyLabel.objects.filter(id=duplicate_label.id).exists()
@@ -506,10 +523,10 @@ def test_persistence_failure_rolls_back_template_fields(
     def raise_persistence_error(*args: Any, **kwargs: Any) -> None:
         raise RuntimeError("persistence failed")
 
-    monkeypatch.setattr(StrategyTemplateUpdater, "_save_algorithms", raise_persistence_error)
+    monkeypatch.setattr(Algorithm, "save", raise_persistence_error)
 
     with pytest.raises(RuntimeError, match="persistence failed"):
-        StrategyTemplateUpdater.update(BK_BIZ_ID, strategy.id, build_candidate_params())
+        apply_template(BK_BIZ_ID, strategy.id, build_candidate_params())
 
     strategy.refresh_from_db()
     item.refresh_from_db()
@@ -530,7 +547,7 @@ def test_persistence_failure_rolls_back_template_fields(
     assert history.content["actions"][0]["config_id"] == existing_strategy["action_config"].id
 
 
-def test_dispatcher_routes_existing_strategy_to_template_updater(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_dispatcher_routes_existing_strategy_to_partial_update(monkeypatch: pytest.MonkeyPatch) -> None:
     template = SimpleNamespace(bk_biz_id=BK_BIZ_ID, app_name="app-a", id=10, root_id=0)
     query_template_wrapper = SimpleNamespace(bk_biz_id=BK_BIZ_ID, name="query-template")
     strategy_dispatcher = dispatch.StrategyDispatcher(template, query_template_wrapper)
@@ -555,7 +572,7 @@ def test_dispatcher_routes_existing_strategy_to_template_updater(monkeypatch: py
     monkeypatch.setattr(
         dispatcher_module.builder,
         "StrategyBuilder",
-        lambda **kwargs: SimpleNamespace(build=lambda: {"bk_biz_id": BK_BIZ_ID, "service_name": "service-a"}),
+        lambda **kwargs: SimpleNamespace(build=build_candidate_params),
     )
     monkeypatch.setattr(dispatcher_module.helper, "get_id_strategy_map", lambda *args, **kwargs: {100: {"id": 100}})
     monkeypatch.setattr(
@@ -564,13 +581,17 @@ def test_dispatcher_routes_existing_strategy_to_template_updater(monkeypatch: py
         lambda threads: [thread._target(*thread._args, **thread._kwargs) for thread in threads],
     )
 
-    def fake_update(_bk_biz_id: int, strategy_id: int, params: dict[str, Any]) -> int:
+    def fake_update(**params: Any) -> list[int]:
         captured_params.append(copy.deepcopy(params))
-        return strategy_id
+        return params["ids"]
 
     monkeypatch.setattr(
-        dispatcher_module.StrategyTemplateUpdater,
-        "update",
+        dispatcher_module.resource.strategies, "get_strategy_v2", mock.Mock(return_value={"labels": ["/custom/"]})
+    )
+
+    monkeypatch.setattr(
+        dispatcher_module.resource.strategies,
+        "update_partial_strategy_v2",
         fake_update,
     )
     save_strategy = mock.Mock()
@@ -579,7 +600,13 @@ def test_dispatcher_routes_existing_strategy_to_template_updater(monkeypatch: py
     result = strategy_dispatcher.dispatch(SimpleNamespace(service_names=["service-a"]))
 
     assert result == {"service-a": 100}
-    assert captured_params == [{"bk_biz_id": BK_BIZ_ID, "service_name": "service-a", "id": 100}]
+    assert captured_params == [
+        {
+            "bk_biz_id": BK_BIZ_ID,
+            "ids": [100],
+            "edit_data": {"strategy_config": build_template_patch(["/custom/"], build_candidate_params())},
+        }
+    ]
     save_strategy.assert_not_called()
     strategy_instance.refresh_from_db()
     assert strategy_instance.strategy_id == 100
@@ -610,7 +637,7 @@ def test_dispatcher_reuses_same_origin_strategy_for_template_update(monkeypatch:
     monkeypatch.setattr(
         dispatcher_module.builder,
         "StrategyBuilder",
-        lambda **kwargs: SimpleNamespace(build=lambda: {"bk_biz_id": BK_BIZ_ID, "service_name": "service-a"}),
+        lambda **kwargs: SimpleNamespace(build=build_candidate_params),
     )
     monkeypatch.setattr(dispatcher_module.helper, "get_id_strategy_map", lambda *args, **kwargs: {100: {"id": 100}})
     monkeypatch.setattr(
@@ -619,18 +646,28 @@ def test_dispatcher_reuses_same_origin_strategy_for_template_update(monkeypatch:
         lambda threads: [thread._target(*thread._args, **thread._kwargs) for thread in threads],
     )
 
-    def fake_update(_bk_biz_id: int, strategy_id: int, params: dict[str, Any]) -> int:
+    def fake_update(**params: Any) -> list[int]:
         captured_params.append(copy.deepcopy(params))
-        return strategy_id
+        return params["ids"]
 
-    monkeypatch.setattr(dispatcher_module.StrategyTemplateUpdater, "update", fake_update)
+    monkeypatch.setattr(
+        dispatcher_module.resource.strategies, "get_strategy_v2", mock.Mock(return_value={"labels": ["/custom/"]})
+    )
+
+    monkeypatch.setattr(dispatcher_module.resource.strategies, "update_partial_strategy_v2", fake_update)
     save_strategy = mock.Mock()
     monkeypatch.setattr(dispatcher_module.resource.strategies, "save_strategy_v2", save_strategy)
 
     result = strategy_dispatcher.dispatch(SimpleNamespace(service_names=["service-a"]))
 
     assert result == {"service-a": 100}
-    assert captured_params == [{"bk_biz_id": BK_BIZ_ID, "service_name": "service-a", "id": 100}]
+    assert captured_params == [
+        {
+            "bk_biz_id": BK_BIZ_ID,
+            "ids": [100],
+            "edit_data": {"strategy_config": build_template_patch(["/custom/"], build_candidate_params())},
+        }
+    ]
     save_strategy.assert_not_called()
     assert not StrategyInstance.objects.filter(id=old_instance.id).exists()
     assert StrategyInstance.objects.filter(
@@ -669,7 +706,7 @@ def test_dispatcher_keeps_full_save_for_new_strategy(monkeypatch: pytest.MonkeyP
         lambda threads: [thread._target(*thread._args, **thread._kwargs) for thread in threads],
     )
     update_strategy = mock.Mock()
-    monkeypatch.setattr(dispatcher_module.StrategyTemplateUpdater, "update", update_strategy)
+    monkeypatch.setattr(dispatcher_module.resource.strategies, "update_partial_strategy_v2", update_strategy)
     save_strategy = mock.Mock(return_value={"id": 101})
     monkeypatch.setattr(dispatcher_module.resource.strategies, "save_strategy_v2", save_strategy)
 

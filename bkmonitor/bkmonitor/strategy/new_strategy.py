@@ -1799,10 +1799,10 @@ class Item(AbstractConfig):
         self.id = item.id
         return item
 
-    def save_algorithms(self):
+    def save_algorithms(self) -> None:
         self.reuse_exists_records(
             AlgorithmModel,
-            AlgorithmModel.objects.filter(strategy_id=self.strategy_id, item_id=self.id).only("id"),
+            AlgorithmModel.objects.filter(strategy_id=self.strategy_id, item_id=self.id).only("id").order_by("id"),
             self.algorithms,
             Algorithm,
         )
@@ -1810,10 +1810,10 @@ class Item(AbstractConfig):
         for algo in self.algorithms:
             algo.save()
 
-    def save_query_configs(self):
+    def save_query_configs(self) -> None:
         self.reuse_exists_records(
             QueryConfigModel,
-            QueryConfigModel.objects.filter(strategy_id=self.strategy_id, item_id=self.id).only("id"),
+            QueryConfigModel.objects.filter(strategy_id=self.strategy_id, item_id=self.id).only("id").order_by("id"),
             self.query_configs,
             QueryConfig,
         )
@@ -2315,15 +2315,15 @@ class Strategy(AbstractConfig):
 
         return converted_config
 
-    def to_dict(self, convert_dashboard: bool = True) -> dict:
+    def to_dict(self, convert_dashboard: bool = True, *, generate_priority_group_key: bool = True) -> dict:
         """
         转换为JSON字典
         """
         if self.priority is None:
             priority_group_key = ""
         else:
-            if self.priority_group_key:
-                priority_group_key = self.priority_group_key
+            if self.priority_group_key or not generate_priority_group_key:
+                priority_group_key = self.priority_group_key or ""
             else:
                 # 自动生成优先级分组key
                 priority_group_key = self.get_priority_group_key(self.bk_biz_id, self.items)
@@ -2930,9 +2930,9 @@ class Strategy(AbstractConfig):
 
         return create_or_update_datas
 
-    def get_history_content(self) -> dict:
+    def get_history_content(self, *, generate_priority_group_key: bool = True) -> dict:
         """生成包含省略字段有效值的完整历史快照。"""
-        content = self.to_dict()
+        content = self.to_dict(generate_priority_group_key=generate_priority_group_key)
         if self.id <= 0:
             return content
 
@@ -3284,7 +3284,7 @@ class Strategy(AbstractConfig):
         content = json.dumps(query, sort_keys=True)
         return xxhash.xxh64(content).hexdigest()
 
-    def supplement_inst_target_dimension(self):
+    def supplement_inst_target_dimension(self, items: list[Item] | None = None) -> None:
         """
         静态目标补全静态维度
         """
@@ -3294,7 +3294,7 @@ class Strategy(AbstractConfig):
         else:
             host_dimensions = {"bk_target_ip"}
 
-        for item in self.items:
+        for item in self.items if items is None else items:
             if not item.target or not item.target[0]:
                 return
 

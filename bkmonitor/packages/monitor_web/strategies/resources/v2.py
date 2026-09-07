@@ -3,6 +3,7 @@ import logging
 import operator
 import re
 import time
+import traceback
 from collections import defaultdict
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
@@ -57,6 +58,7 @@ from bkmonitor.strategy.new_strategy import (
     get_metric_id,
     parse_metric_id,
 )
+from bkmonitor.strategy.partial_update import StrategyConfigPatch, StrategyConfigPatchSerializer, StrategyConfigUpdater
 from bkmonitor.utils.cache import CacheType
 from bkmonitor.utils.metric_id import build_metric_id_filter_queries
 from bkmonitor.utils.request import get_request_tenant_id, get_request_username, get_source_app
@@ -74,7 +76,7 @@ from core.drf_resource import api, resource
 from core.drf_resource.base import Resource
 from core.drf_resource.contrib.cache import CacheResource
 from core.errors.bkmonitor.data_source import CmdbLevelValidateError
-from core.errors.strategy import StrategyNameExist
+from core.errors.strategy import CreateStrategyError, StrategyNameExist
 from monitor.models import ApplicationConfig
 from monitor_web.models import (
     CollectorPluginMeta,
@@ -2187,11 +2189,23 @@ class UpdatePartialStrategyV2Resource(Resource):
             )
             actions = serializers.ListField(required=False, child=serializers.DictField(), allow_empty=True)
             algorithms = Algorithm.Serializer(many=True, required=False)
+            strategy_config = StrategyConfigPatchSerializer(required=False)
 
             def validate_target(self, target):
                 if target and target[0]:
                     handle_target(target)
                 return target
+
+            def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+                if "strategy_config" not in attrs:
+                    return attrs
+
+                overlap_fields: set[str] = set(attrs) - {"strategy_config"}
+                if overlap_fields:
+                    raise ValidationError(
+                        detail=_("strategy_config 不能与以下字段同时更新: {}").format(", ".join(sorted(overlap_fields)))
+                    )
+                return attrs
 
         bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
         ids = serializers.ListField(required=True, label="批量修改的策略ID列表")
@@ -2499,9 +2513,120 @@ class UpdatePartialStrategyV2Resource(Resource):
                 create_datas[f"extra_{key}_relation"]["cls"] = data["cls"]
                 create_datas[f"extra_{key}_relation"]["objs"].extend(data["objs"])
 
-    def perform_request(self, params):
+    @classmethod
+    def _validate_strategy_config_patch(cls, patch: StrategyConfigPatch) -> None:
+        SaveStrategyV2Resource.validate_realtime_kafka(patch.candidate)
+        SaveStrategyV2Resource.validate_cmdb_level(patch.candidate)
+        SaveStrategyV2Resource.validate_upgrade_user_groups(patch.candidate)
+
+    @staticmethod
+    def update_strategy_config(strategy: Strategy, patch: dict[str, Any]) -> StrategyConfigPatch:
+        """为复合字段生成公共策略组件保存计划。"""
+        return StrategyConfigPatch.prepare(strategy, patch)
+
+    @staticmethod
+    def _validate_strategy_config_name(bk_biz_id: int, strategy_id: int, name: str) -> None:
+        if StrategyModel.objects.filter(bk_biz_id=bk_biz_id, name=name).exclude(id=strategy_id).exists():
+            raise CreateStrategyError(msg=_("策略名称({})不能重复").format(name))
+
+    @staticmethod
+    def _validate_strategy_config_notice(strategy_id: int, patch: dict[str, Any]) -> None:
+        if not patch.get("notice"):
+            return
+
+        notice_count: int = StrategyActionConfigRelation.objects.filter(
+            strategy_id=strategy_id,
+            relate_type=StrategyActionConfigRelation.RelateType.NOTICE,
+        ).count()
+        if notice_count != 1:
+            raise ValidationError(detail=_("策略配置局部更新要求策略存在唯一通知关系"))
+
+    @staticmethod
+    def _record_strategy_config_failed_history(
+        bk_biz_id: int,
+        strategy_id: int,
+        username: str,
+        message: str,
+    ) -> None:
+        """事务回滚后记录失败历史，不覆盖原始异常。"""
+
+        try:
+            persisted_strategy: Strategy = Strategy.from_models(
+                [StrategyModel.objects.get(id=strategy_id, bk_biz_id=bk_biz_id)]
+            )[0]
+            StrategyHistoryModel.objects.create(
+                create_user=username,
+                strategy_id=strategy_id,
+                operate="update",
+                status=False,
+                content=persisted_strategy.get_history_content(generate_priority_group_key=False),
+                message=message,
+            )
+        except Exception:  # pylint: disable=broad-except
+            logger.exception(
+                "记录策略配置局部更新失败历史失败: bk_biz_id=%s, strategy_id=%s",
+                bk_biz_id,
+                strategy_id,
+            )
+
+    def _perform_strategy_config_request(self, params: dict[str, Any]) -> list[int]:
+        bk_biz_id: int = params["bk_biz_id"]
+        patch_data: dict[str, Any] = params["edit_data"]["strategy_config"]
+        username: str = Strategy._get_username()
+        update_time = datetime.datetime.now(tz=pytz.timezone(settings.TIME_ZONE))
+
+        for strategy_id in params["ids"]:
+            # 前置结构和通知校验失败不重复留痕，实际更新失败在回滚后记录历史。
+            should_record_failure: bool = False
+            try:
+                with transaction.atomic(settings.BACKEND_DATABASE_NAME):
+                    strategy_model: StrategyModel = StrategyModel.objects.select_for_update().get(
+                        bk_biz_id=bk_biz_id,
+                        id=strategy_id,
+                    )
+                    StrategyConfigUpdater.lock_related(strategy_id, patch_data)
+                    self._validate_strategy_config_notice(strategy_id, patch_data)
+                    patch: StrategyConfigPatch = self.update_strategy_config(
+                        Strategy.from_models([strategy_model])[0], patch_data
+                    )
+                    if not patch.changed:
+                        continue
+                    self._validate_strategy_config_patch(patch)
+
+                    should_record_failure = True
+                    self._validate_strategy_config_name(bk_biz_id, strategy_id, patch.candidate.name)
+                    patch.save()
+                    StrategyModel.objects.filter(id=strategy_id, bk_biz_id=bk_biz_id).update(
+                        update_time=update_time, update_user=username, hash="", snippet=""
+                    )
+                    persisted_strategy: Strategy = Strategy.from_models(
+                        [StrategyModel.objects.get(id=strategy_id, bk_biz_id=bk_biz_id)]
+                    )[0]
+                    StrategyHistoryModel.objects.create(
+                        create_user=username,
+                        strategy_id=strategy_id,
+                        operate="update",
+                        status=True,
+                        content=persisted_strategy.get_history_content(generate_priority_group_key=False),
+                    )
+            except Exception:  # pylint: disable=broad-except
+                if should_record_failure:
+                    self._record_strategy_config_failed_history(
+                        bk_biz_id,
+                        strategy_id,
+                        username,
+                        traceback.format_exc(),
+                    )
+                raise
+
+        return params["ids"]
+
+    def perform_request(self, params: dict[str, Any]) -> list[int]:
         bk_biz_id = params["bk_biz_id"]
         config: dict = params["edit_data"]
+        if set(config) == {"strategy_config"}:
+            return self._perform_strategy_config_request(params)
+
         username = get_global_user()
         strategy_ids = params["ids"]
         strategies = StrategyModel.objects.filter(bk_biz_id=bk_biz_id, id__in=strategy_ids)
