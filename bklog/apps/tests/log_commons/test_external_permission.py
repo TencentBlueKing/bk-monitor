@@ -88,6 +88,17 @@ class TestExternalIndexSetListFilter(SimpleTestCase):
 
         self.assertEqual(response.data["data"], [{"index_set_id": 100, "children": [{"index_set_id": 101}]}])
 
+    def test_authorized_child_is_not_promoted_when_unauthorized_group_is_listed_first(self):
+        response = self.filter_response(
+            index_sets=[
+                {"index_set_id": 200, "children": [{"index_set_id": 101}]},
+                {"index_set_id": 100, "children": [{"index_set_id": 101}]},
+            ],
+            allowed_resources=[100, 101],
+        )
+
+        self.assertEqual(response.data["data"], [{"index_set_id": 100, "children": [{"index_set_id": 101}]}])
+
 
 class TestExternalPermissionCreate(TestCase):
     SPACE_UID = "bkcc__2"
