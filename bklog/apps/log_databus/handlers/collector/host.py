@@ -37,6 +37,8 @@ from apps.log_databus.serializers import (
     CollectorCreateSerializer,
     CollectorUpdateSerializer,
 )
+from apps.log_databus.nodeman_v3.exceptions import NodeManV3CapabilityBlocked
+from apps.log_databus.nodeman_v3.mode import is_nodeman_v3_only
 from apps.log_databus.tasks.bkdata import async_create_bkdata_data_id
 from apps.log_databus.constants import (
     CC_HOST_FIELDS,
@@ -86,7 +88,21 @@ class HostCollectorHandler(CollectorHandler):
     CREATE_SERIALIZER = CollectorCreateSerializer
     UPDATE_SERIALIZER = CollectorUpdateSerializer
 
+    @property
+    def nodeman_v3_installer(self):
+        """
+        V3-only 模式下的采集下发入口。
+
+        在属性内部导入，保证 V2 模式的进程不加载任何 V3 出站代码。
+        """
+        from apps.log_databus.nodeman_v3.installer import NodeManV3CollectorInstaller
+
+        return NodeManV3CollectorInstaller(self.data)
+
     def _pre_start(self):
+        if is_nodeman_v3_only():
+            # V3 没有订阅开关这一层，启用动作由 start() 的期望态收敛完成
+            return
         # 启动节点管理订阅功能
         if self.data.subscription_id:
             NodeApi.switch_subscription(
@@ -96,11 +112,18 @@ class HostCollectorHandler(CollectorHandler):
     @transaction.atomic
     def start(self, **kwargs):
         super().start()
+        if is_nodeman_v3_only():
+            self.nodeman_v3_installer.start()
+            return True
         if self.data.subscription_id:
             return self._run_subscription_task()
         return True
 
     def _pre_stop(self):
+        if is_nodeman_v3_only():
+            # 停用在 stop() 中通过清空目标范围表达，不能 disable 策略：
+            # 被 disable 的策略不再参与收敛，已下发的子配置会残留在主机上继续采集
+            return
         if self.data.subscription_id:
             # 停止节点管理订阅功能
             NodeApi.switch_subscription(
@@ -110,6 +133,9 @@ class HostCollectorHandler(CollectorHandler):
     @transaction.atomic
     def stop(self, is_stop_index_set=True, **kwargs):
         super().stop(is_stop_index_set=is_stop_index_set)
+        if is_nodeman_v3_only():
+            self.nodeman_v3_installer.stop()
+            return True
         if self.data.subscription_id:
             return self._run_subscription_task("STOP")
         return True
@@ -125,13 +151,16 @@ class HostCollectorHandler(CollectorHandler):
             "result": true
         }
         """
+        if is_nodeman_v3_only():
+            self.nodeman_v3_installer.destroy()
+            return
         if not self.data.subscription_id:
             return
         subscription_params = {"subscription_id": self.data.subscription_id, "bk_biz_id": self.data.bk_biz_id}
         return NodeApi.delete_subscription(subscription_params)
 
     def run(self, action, scope):
-        if self.data.subscription_id:
+        if is_nodeman_v3_only() or self.data.subscription_id:
             return self._run_subscription_task(action=action, scope=scope)
         return True
 
@@ -1225,6 +1254,9 @@ class HostCollectorHandler(CollectorHandler):
         return return_data
 
     def _update_or_create_subscription(self, collector_scenario, params: dict, is_create=False):
+        if is_nodeman_v3_only():
+            return self._update_nodeman_v3_policy(params)
+
         try:
             self.data.subscription_id = collector_scenario.update_or_create_subscription(self.data, params)
             self.data.save()
@@ -1240,6 +1272,28 @@ class HostCollectorHandler(CollectorHandler):
                 raise CollectorCreateOrUpdateSubscriptionException(
                     CollectorCreateOrUpdateSubscriptionException.MESSAGE.format(err=error)
                 )
+
+    def _update_nodeman_v3_policy(self, params: dict):
+        """
+        V3 下发：改写部署策略期望态并触发一次收敛，V2 的 create/update/enable 三步合一。
+
+        与 V2 路径不同，这里的失败一律抛出。V2 在 is_create 为真时只记日志不抛，
+        采集项会以「已创建但未下发」的状态留在库里；V3-only 环境要求失败关闭，
+        不能让用户以为下发成功。
+        """
+        installer = self.nodeman_v3_installer
+        try:
+            installer.apply(params)
+        except Exception as error:  # pylint: disable=broad-except
+            logger.exception(f"[nodeman_v3] apply collector policy failed => [{error}]")
+            raise CollectorCreateOrUpdateSubscriptionException(
+                CollectorCreateOrUpdateSubscriptionException.MESSAGE.format(err=error)
+            )
+
+        # subscription_id 保持为空（IntegerField 存不下字符串 trigger_id），
+        # 任务标识写入 task_id_list（sub_type 默认 str，可存字符串 ID）
+        self.data.task_id_list = installer.latest_task_ids()
+        self.data.save()
 
     def fast_create(self, params: dict) -> dict:
         params["params"]["encoding"] = params["data_encoding"]
@@ -1419,6 +1473,9 @@ class HostCollectorHandler(CollectorHandler):
         :param: nodes 需要重试的实例
         :return: task_id 任务ID
         """
+        if is_nodeman_v3_only():
+            return self._run_nodeman_v3_reconcile(action=action, scope=scope)
+
         collector_scenario = CollectorScenario.get_instance(collector_scenario_id=self.data.collector_scenario_id)
         params = {"subscription_id": self.data.subscription_id, "bk_biz_id": self.data.bk_biz_id}
         if action:
@@ -1433,6 +1490,29 @@ class HostCollectorHandler(CollectorHandler):
         task_id = NodeApi.run_subscription_task(params).get("task_id")
         if scope is None and task_id:
             self.data.task_id_list = [str(task_id)]
+        self.data.save()
+        return self.data.task_id_list
+
+    def _run_nodeman_v3_reconcile(self, action=None, scope: dict[str, Any] = None) -> list[str]:
+        """
+        V3 下的重新下发。
+
+        V2 的 action 与 scope 在 V3 里没有对应物：一次收敛总是把整个策略的期望态推平，
+        无法只对指定主机做 START/STOP。按指定主机重试属于 workflow operation 的能力，
+        与状态查询一起在后续子需求实现，这里先失败关闭而不是悄悄退化成全量下发。
+        """
+        if scope:
+            raise NodeManV3CapabilityBlocked(
+                NodeManV3CapabilityBlocked.MESSAGE.format(err=_("V3 暂不支持按指定实例重新下发"))
+            )
+
+        installer = self.nodeman_v3_installer
+        if action in ("STOP", "UNINSTALL"):
+            installer.stop()
+        else:
+            installer.rerun()
+
+        self.data.task_id_list = installer.latest_task_ids()
         self.data.save()
         return self.data.task_id_list
 
