@@ -21,8 +21,8 @@ paths:
                   description: Exact tool name. 精确工具名，不支持模糊匹配。
                 category:
                   type: string
-                  enum: [metrics, log, alert]
-                  description: Tool domain. 工具领域。
+                  enum: [metrics, log, alert, event, apm, dashboard, relation]
+                  description: Tool domain for metrics, logs, alerts, events, APM, dashboards or resource relations. 工具领域，可选指标、日志、告警、事件、APM、仪表盘或资源关联。
                 capability:
                   type: string
                   enum: [discovery, query, analysis, detail, relation]
@@ -34,8 +34,17 @@ paths:
                   type: boolean
                   default: true
                   description: Return only tools available to the current user. 是否只返回当前用户可用工具。
-                page: {type: integer, minimum: 1, default: 1}
-                page_size: {type: integer, minimum: 1, maximum: 100, default: 50}
+                page:
+                  type: integer
+                  minimum: 1
+                  default: 1
+                  description: Page number, starting from 1. 页码，从 1 开始。
+                page_size:
+                  type: integer
+                  minimum: 1
+                  maximum: 100
+                  default: 50
+                  description: Number of tools per page, from 1 to 100. 每页工具数，范围为 1 到 100。
       x-bk-apigateway-resource:
         isPublic: false
         allowApplyPermission: false
@@ -78,6 +87,8 @@ paths:
         Execute one registered underlying tool. The Server validates the exact tool name, tool_args,
         original IAM action and target space before calling the existing business API. Agent only
         supplies tool_name and business tool_args; permission and backend routing come from the registry.
+        执行一个已注册的底层工具。服务端在调用现有业务 API 前校验精确工具名、工具参数、原始 IAM
+        权限点和目标空间；Agent 只需提供工具名和业务参数，权限及后端路由由工具目录确定。
       tags: [unified_mcp]
       requestBody:
         required: true
@@ -89,7 +100,10 @@ paths:
               required: [tool_name, tool_args]
               properties:
                 tool_name: {type: string, description: Exact underlying tool name. 底层工具精确名称。}
-                tool_args: {type: object, description: Arguments matching lookup_tool_schema.input_schema.}
+                tool_args:
+                  type: object
+                  additionalProperties: true
+                  description: Arguments matching lookup_tool_schema.input_schema. 必须符合 lookup_tool_schema.input_schema 的业务参数。
       x-bk-apigateway-resource:
         isPublic: false
         allowApplyPermission: false
@@ -104,7 +118,9 @@ paths:
       operationId: lookup_metadata
       description: >-
         Query observability spaces or BCS clusters through existing metadata APIs. metadata_type=spaces
-        requires space_name; metadata_type=bcs_clusters requires bk_biz_id. 查询空间及基础元数据。
+        requires space_name; metadata_type=bcs_clusters requires bk_biz_id. 通过现有元数据 API
+        查询观测空间或 BCS 集群；metadata_type=spaces 时需要 space_name，
+        metadata_type=bcs_clusters 时需要 bk_biz_id。
       tags: [unified_mcp]
       requestBody:
         required: true
@@ -115,11 +131,27 @@ paths:
               additionalProperties: false
               required: [metadata_type]
               properties:
-                metadata_type: {type: string, enum: [spaces, bcs_clusters]}
-                space_name: {type: string}
-                bk_biz_id: {type: string}
-                page: {type: integer, minimum: 1, default: 1}
-                page_size: {type: integer, minimum: 1, maximum: 100, default: 10}
+                metadata_type:
+                  type: string
+                  enum: [spaces, bcs_clusters]
+                  description: Metadata resource type, either spaces or bcs_clusters. 元数据资源类型，可选空间或 BCS 集群。
+                space_name:
+                  type: string
+                  description: Space name keyword; required when metadata_type=spaces. 空间名称关键字，metadata_type=spaces 时必填。
+                bk_biz_id:
+                  type: string
+                  description: Target business/space ID; required when metadata_type=bcs_clusters. 目标业务或空间 ID，metadata_type=bcs_clusters 时必填。
+                page:
+                  type: integer
+                  minimum: 1
+                  default: 1
+                  description: Page number, starting from 1; used for spaces lookup. 页码，从 1 开始，仅用于空间查询。
+                page_size:
+                  type: integer
+                  minimum: 1
+                  maximum: 100
+                  default: 10
+                  description: Number of spaces per page, from 1 to 100. 每页空间数，范围为 1 到 100。
       x-bk-apigateway-resource:
         isPublic: false
         allowApplyPermission: false
@@ -136,6 +168,8 @@ paths:
         Query the current user's observability permission scopes. Can check by space, category or exact
         tool name and return missing IAM actions plus an application URL. Read-only: it never grants
         permission and never replaces execute_tool's final authorization check.
+        查询当前用户的可观测权限范围。可按空间、领域或精确工具名检查，并返回缺失的 IAM 权限点及申请入口；
+        本工具只读，不授予权限，也不替代 execute_tool 的最终鉴权。
       tags: [unified_mcp]
       requestBody:
         required: false
@@ -146,9 +180,15 @@ paths:
               additionalProperties: false
               properties:
                 bk_biz_id: {type: string, description: Target business/space ID. 目标业务 ID。}
-                category: {type: string, enum: [metrics, log, alert]}
+                category:
+                  type: string
+                  enum: [metrics, log, alert, event, apm, dashboard, relation]
+                  description: Tool domain used to select the corresponding IAM action. 工具领域，用于选择对应的 IAM 权限点；事件复用日志权限，资源关联复用指标权限。
                 tool_name: {type: string, description: Exact underlying tool name. 底层工具精确名称。}
-                include_apply_guide: {type: boolean, default: true}
+                include_apply_guide:
+                  type: boolean
+                  default: true
+                  description: Return an IAM application URL when permission is missing. 缺少权限时是否返回 IAM 权限申请入口。
       x-bk-apigateway-resource:
         isPublic: false
         allowApplyPermission: false

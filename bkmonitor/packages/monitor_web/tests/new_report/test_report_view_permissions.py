@@ -12,7 +12,7 @@ from types import SimpleNamespace
 from unittest import TestCase, mock
 
 from bkmonitor.iam import ActionEnum
-from monitor_web.new_report.views import NewReportViewSet, ReportManagePermission
+from monitor_web.new_report.views import NewReportViewSet, ReportManagePermission, ReportSendPermission
 
 
 class TestNewReportViewSetPermissions(TestCase):
@@ -27,9 +27,17 @@ class TestNewReportViewSetPermissions(TestCase):
 
     def test_self_service_write_actions_do_not_require_manage_report(self):
         view = NewReportViewSet()
-        for action in ("create_or_update_report", "send_report"):
-            view.action = action
-            self.assertEqual(view.get_permissions(), [])
+        view.action = "create_or_update_report"
+        self.assertEqual(view.get_permissions(), [])
+
+    def test_send_report_requires_view_business_on_report(self):
+        view = NewReportViewSet()
+        view.action = "send_report"
+        permissions = view.get_permissions()
+        self.assertEqual(len(permissions), 1)
+        self.assertIsInstance(permissions[0], ReportSendPermission)
+        self.assertEqual(permissions[0].actions, [ActionEnum.VIEW_BUSINESS])
+        self.assertNotEqual(permissions[0].actions, [ActionEnum.MANAGE_REPORT])
 
     def test_manage_permission_denies_invalid_report_id(self):
         perm = ReportManagePermission()
@@ -63,3 +71,26 @@ class TestNewReportViewSetPermissions(TestCase):
         request = SimpleNamespace(data={"report_id": 100})
 
         self.assertFalse(perm.has_permission(request, None))
+
+    def test_send_permission_denies_missing_report_and_biz(self):
+        perm = ReportSendPermission()
+        self.assertFalse(perm.has_permission(SimpleNamespace(data={}), None))
+        self.assertFalse(perm.has_permission(SimpleNamespace(data={"report_id": 0}), None))
+
+    @mock.patch("monitor_web.new_report.views.ResourceEnum.BUSINESS.create_instance")
+    @mock.patch("monitor_web.new_report.views.Report.objects.filter")
+    @mock.patch("bkmonitor.iam.drf.Permission")
+    def test_send_permission_uses_stored_business(self, perm_cls, report_filter, create_instance):
+        report_filter.return_value.values_list.return_value.first.return_value = 2
+        resource = create_instance.return_value
+        perm = ReportSendPermission()
+        request = SimpleNamespace(data={"report_id": 100})
+
+        perm_cls.return_value.is_allowed.return_value = True
+        self.assertTrue(perm.has_permission(request, None))
+        create_instance.assert_called_once_with(2)
+        perm_cls.return_value.is_allowed.assert_called_once_with(
+            action=ActionEnum.VIEW_BUSINESS,
+            resources=[resource],
+            raise_exception=True,
+        )

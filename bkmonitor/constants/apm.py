@@ -1903,7 +1903,7 @@ class ApmAlertHelper:
         filters: list[dict[str, Any]] | None = cls.build_trace_filters(strategy, target, dimensions)
         params: dict[str, Any] = cls.build_trace_query_params(target, filters or [], timestamp, duration)
         encoded_params: str = urllib.parse.urlencode(params)
-        return urllib.parse.urljoin(settings.BK_MONITOR_HOST, f"/?bizId={bk_biz_id}/#/trace/home/?{encoded_params}")
+        return urllib.parse.urljoin(settings.BK_MONITOR_HOST, f"?bizId={bk_biz_id}#/trace/home/?{encoded_params}")
 
 
 class OtlpProtocol:
@@ -2018,6 +2018,14 @@ class Vendor:
         if not service_sdk:
             return False
         return any(cls.equal(expect_sdk, i.get("name")) for i in service_sdk)
+
+
+class LLMProduct(TextChoices):
+    DEFAULT = "default"
+    AGENTLENS = "agentlens"
+    AIDEV = "aidev"
+    GALILEO = "galileo"
+    LANGFUSE = "langfuse"
 
 
 class SpanKindCachedEnum(CachedEnum):

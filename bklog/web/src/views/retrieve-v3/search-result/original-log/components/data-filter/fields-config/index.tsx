@@ -50,9 +50,8 @@ export default defineComponent({
     const confirmLoading = ref(false);
 
     const totalFiels = computed(() => store.getters.filteredFieldList);
-    const restFieldNames = computed(() => totalFiels.value
-      .map(item => item.field_name)
-      .filter(field => !displayFieldNames.value.includes(field)),
+    const restFieldNames = computed(() =>
+      totalFiels.value.map(item => item.field_name).filter(field => !displayFieldNames.value.includes(field)),
     );
     const disabledRemove = computed(() => displayFieldNames.value.length <= 1);
 
@@ -65,7 +64,7 @@ export default defineComponent({
 
     watch(
       () => store.state.retrieve.catchFieldCustomConfig,
-      (config) => {
+      config => {
         displayFieldNames.value = getDefaultDisplayFields(store, config.contextDisplayFields);
         cachedDisplayFieldNames = [...displayFieldNames.value];
 

@@ -4,7 +4,7 @@ Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 
-AST 守卫测试：bkm_cli/*.py（排除 platform_source.py 与 platform_catalog/*）
+AST 守卫测试：bkm_cli/*.py（排除显式目录入口与 platform_catalog/*）
 不得有 api.<x>.<y>(...) 形态的 Call 节点。
 """
 
@@ -59,10 +59,11 @@ def test_scan_ignores_module_import(tmp_path):
     assert violations == []
 
 
-def test_scan_bkm_cli_dir_allows_platform_source(tmp_path):
+def test_scan_bkm_cli_dir_allows_explicit_catalog_entrypoints(tmp_path):
     bkm_cli = tmp_path / "bkm_cli"
     bkm_cli.mkdir()
     (bkm_cli / "platform_source.py").write_text("import api  # type: ignore\napi.cmdb.get_host_by_ip(bk_biz_id=1)\n")
+    (bkm_cli / "unify_query.py").write_text("import api  # type: ignore\napi.unify_query.query_data(query_list=[])\n")
     (bkm_cli / "strategy.py").write_text("import api  # type: ignore\napi.cmdb.get_host_by_ip(bk_biz_id=1)\n")
     catalog = bkm_cli / "platform_catalog"
     catalog.mkdir()
@@ -71,13 +72,14 @@ def test_scan_bkm_cli_dir_allows_platform_source(tmp_path):
     paths = [v[0] for v in violations]
     # strategy.py 违规
     assert any("strategy.py" in p for p in paths)
-    # platform_source.py 与 platform_catalog/* 放行
+    # 两个显式目录入口与 platform_catalog/* 放行
     assert not any("platform_source.py" in p for p in paths)
+    assert not any("unify_query.py" in p for p in paths)
     assert not any("platform_catalog" in p for p in paths)
 
 
 def test_real_bkm_cli_directory_passes():
-    """现状 bkm_cli/*（不含 platform_source.py 与 platform_catalog/）不应有 api.<x>.<y>(...) 违规。"""
+    """现状 bkm_cli/*（不含显式目录入口与 platform_catalog/）不应有 api.<x>.<y>(...) 违规。"""
     bkm_cli_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "functions", "bkm_cli"))
     violations = scan_bkm_cli_for_violations(bkm_cli_dir)
     assert violations == [], f"existing bkm_cli/* has api.* Call violations: {violations}"

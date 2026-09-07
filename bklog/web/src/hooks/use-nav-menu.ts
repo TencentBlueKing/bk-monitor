@@ -35,10 +35,10 @@ import reportLogStore from '@/store/modules/report-log';
 import { BK_LOG_STORAGE } from '@/store/store.type';
 
 export function useNavMenu(options: {
-  t: (msg: string) => string;
+  t: (_msg: string) => string;
   bkInfo: any;
   http: any;
-  emit?: (event: string, ...args: any[]) => void;
+  emit?: (_event: string, ..._args: any[]) => void;
 }) {
   const { t, bkInfo } = options;
   const store = useStore();
@@ -92,7 +92,8 @@ export function useNavMenu(options: {
   const updateExternalMenuBySpace = (newSpaceUid: string) => {
     const list: string[] = [];
     const curSpace = (mySpaceList.value || []).find((item: any) => item.space_uid === newSpaceUid);
-    for (const permission of curSpace?.external_permission || []) {
+    const externalPermissions: string[] = curSpace?.external_permission || [];
+    for (const permission of externalPermissions) {
       if (permission === 'log_search') {
         list.push('retrieve');
       } else if (permission === 'log_extract') {
@@ -101,7 +102,8 @@ export function useNavMenu(options: {
         list.push('client-log-search');
       }
     }
-    store.commit('updateState', { externalMenu: list });
+    // 聚类配置等功能级授权项不对应菜单，需要保留原始授权项供页面内判断
+    store.commit('updateState', { externalMenu: list, externalPermissions });
   };
 
   const setRouter = async (newSpaceUid: string) => {

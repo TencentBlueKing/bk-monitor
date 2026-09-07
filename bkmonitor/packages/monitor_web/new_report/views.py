@@ -33,10 +33,40 @@ class ReportManagePermission(IAMPermission):
         return super().has_permission(request, view)
 
 
+class ReportSendPermission(IAMPermission):
+    """发送订阅：有订阅 ID 时按库存业务做 VIEW_BUSINESS；否则要求请求带业务 ID。"""
+
+    def __init__(self):
+        super().__init__([ActionEnum.VIEW_BUSINESS])
+
+    def has_permission(self, request, view):
+        data = request.data if isinstance(getattr(request, "data", None), dict) else {}
+        raw_id = data.get("report_id") or data.get("id")
+        try:
+            report_id = int(raw_id)
+        except (TypeError, ValueError):
+            report_id = 0
+        if report_id > 0:
+            bk_biz_id = Report.objects.filter(id=report_id).values_list("bk_biz_id", flat=True).first()
+            if not bk_biz_id:
+                return False
+        else:
+            try:
+                bk_biz_id = int(data.get("bk_biz_id") or 0)
+            except (TypeError, ValueError):
+                bk_biz_id = 0
+            if bk_biz_id <= 0:
+                return False
+        self.resources = [ResourceEnum.BUSINESS.create_instance(bk_biz_id)]
+        return super().has_permission(request, view)
+
+
 class NewReportViewSet(ResourceViewSet):
     def get_permissions(self):
         if self.action in ("clone_report", "delete_report"):
             return [ReportManagePermission()]
+        if self.action == "send_report":
+            return [ReportSendPermission()]
         return []
 
     resource_routes = [

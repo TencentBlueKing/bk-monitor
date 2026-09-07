@@ -828,7 +828,7 @@ def _get_bkbase_components_config(
                 else "main"
             )
             extra_config["sink_names"] = [f"{sink['kind']}:{sink['name']}" for sink in spec["sinks"]]
-            extra_config["consumer_group"] = spec.get("consumerGroup", "")
+            extra_config["consumer_group"] = spec.get("consumerGroup") or ""
         case DataLinkKind.BASEREPORTSINK.value:
             vm_storage_binding_names = []
             for mapping in spec.get("mappings", []):

@@ -199,6 +199,28 @@ paths:
           appVerifiedRequired: true
           resourcePermissionRequired: true
         descriptionEn:
+  /index_group/:
+    get:
+      operationId: list_index_groups
+      description: 索引组列表
+      tags:
+      - 索引集
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: get
+          path: /api/v1/index_group/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: false
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn:
   /search_index_set/:
     get:
       operationId: search_index_set
@@ -931,6 +953,28 @@ paths:
           name: default
           method: get
           path: /api/v1/grafana/options/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: false
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn:
+  /databus/log_access/collector/:
+    post:
+      operationId: databus_log_access_collector
+      description: 日志平台-新版日志接入列表（采集项与独立索引集混合分页）
+      tags:
+      - 采集项
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v1/databus/log_access/collector/
           matchSubpath: false
           timeout: 0
         pluginConfigs: []
@@ -1827,6 +1871,28 @@ paths:
           name: default
           method: get
           path: /api/v1/databus/storage/cluster_groups/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: false
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn:
+  /databus_storage/log_cluster/:
+    get:
+      operationId: list_log_cluster
+      description: 日志平台-获取第三方ES存储集群列表
+      tags:
+      - 存储
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: get
+          path: /api/v1/databus/storage/log_cluster/
           matchSubpath: false
           timeout: 0
         pluginConfigs: []

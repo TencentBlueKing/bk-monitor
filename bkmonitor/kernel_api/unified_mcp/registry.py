@@ -22,13 +22,24 @@ CATEGORY_ACTIONS = {
     "metrics": "using_metrics_mcp",
     "log": "using_log_mcp",
     "alert": "using_alarm_mcp",
+    "event": "using_log_mcp",
+    "apm": "using_apm_mcp",
+    "dashboard": "using_dashboard_mcp",
+    "relation": "using_metrics_mcp",
 }
 
 SOURCE_FILES = {
     "metrics": "metrics_mcp.yaml",
     "log": "log_mcp.yaml",
     "alert": "alert_mcp.yaml",
+    "event": "event_mcp.yaml",
+    "apm": "apm_mcp.yaml",
+    "dashboard": "dashboard_mcp.yaml",
+    "relation": "relation_mcp.yaml",
 }
+
+EXCLUDED_OPERATION_IDS = {"create_dashboard", "update_dashboard"}
+PUBLIC_TOOL_NAMES = {"apm_mcp_calculate_by_range": "calculate_by_range"}
 
 CAPABILITIES = {
     # Metrics
@@ -59,6 +70,28 @@ CAPABILITIES = {
     "get_alert_host_target": ("relation",),
     "get_alert_traces": ("relation",),
     "get_alert_log_relations": ("relation",),
+    # Events
+    "list_events": ("discovery",),
+    "get_event_view_config": ("discovery",),
+    "search_event_log": ("query",),
+    # APM tracing and profiling
+    "list_apm_applications": ("discovery",),
+    "get_apm_filter_fields": ("discovery",),
+    "search_spans": ("query",),
+    "get_trace_detail": ("detail",),
+    "get_span_detail": ("detail",),
+    "get_profile_application_service": ("discovery",),
+    "get_profile_type": ("discovery",),
+    "get_profile_label": ("discovery",),
+    "query_graph_profile": ("query", "analysis"),
+    "calculate_by_range": ("analysis",),
+    "list_apm_services": ("discovery",),
+    # Dashboards
+    "get_dashboard_tree_list": ("discovery",),
+    "get_dashboard_detail_by_uid": ("detail",),
+    # Resource relations
+    "find_relations": ("relation",),
+    "find_relations_range": ("relation",),
 }
 
 TITLES = {
@@ -87,6 +120,24 @@ TITLES = {
     "get_alert_host_target": "获取告警主机目标",
     "get_alert_traces": "获取告警关联 Trace",
     "get_alert_log_relations": "获取告警关联日志",
+    "list_events": "列出事件源",
+    "get_event_view_config": "获取事件视图配置",
+    "search_event_log": "查询事件",
+    "list_apm_applications": "列出 APM 应用",
+    "get_apm_filter_fields": "获取 APM 过滤字段",
+    "search_spans": "查询 Span",
+    "get_trace_detail": "获取 Trace 详情",
+    "get_span_detail": "获取 Span 详情",
+    "get_profile_application_service": "列出 Profile 应用与服务",
+    "get_profile_type": "获取 Profile 数据类型",
+    "get_profile_label": "获取 Profile 标签",
+    "query_graph_profile": "查询 Profile 火焰图",
+    "calculate_by_range": "分析 APM 指标",
+    "list_apm_services": "列出 APM 服务",
+    "get_dashboard_tree_list": "获取仪表盘目录树",
+    "get_dashboard_detail_by_uid": "获取仪表盘详情",
+    "find_relations": "查询资源关联",
+    "find_relations_range": "查询资源关联变化",
 }
 
 PREREQUISITES: dict[str, tuple[str, ...]] = {
@@ -111,11 +162,28 @@ PREREQUISITES: dict[str, tuple[str, ...]] = {
     "get_alert_host_target": ("list_alerts", "get_alert_info"),
     "get_alert_traces": ("list_alerts", "get_alert_info"),
     "get_alert_log_relations": ("list_alerts", "get_alert_info"),
+    "get_event_view_config": ("list_events",),
+    "search_event_log": ("list_events", "get_event_view_config"),
+    "get_apm_filter_fields": ("list_apm_applications",),
+    "search_spans": ("list_apm_applications", "get_apm_filter_fields"),
+    "get_trace_detail": ("search_spans",),
+    "get_span_detail": ("search_spans",),
+    "get_profile_type": ("get_profile_application_service",),
+    "get_profile_label": ("get_profile_application_service",),
+    "query_graph_profile": ("get_profile_application_service", "get_profile_type"),
+    "calculate_by_range": ("list_apm_applications",),
+    "list_apm_services": ("list_apm_applications",),
+    "get_dashboard_detail_by_uid": ("get_dashboard_tree_list",),
 }
 
 BACKEND_DERIVED_FIELDS = {
     "list_alerts": ("bk_biz_ids",),
     "get_alert_top_n": ("bk_biz_ids",),
+}
+
+UNIFIED_HIDDEN_FIELDS = {
+    # ponytail: Global labels lack profile_id scoping; remove this override after APM Web owns that validation.
+    "get_profile_label": ("global_query",),
 }
 
 
@@ -250,12 +318,30 @@ def _normalize_public_schema(tool_name: str, schema: dict[str, Any]) -> dict[str
     for field_name in BACKEND_DERIVED_FIELDS.get(tool_name, ()):
         properties.pop(field_name, None)
         required = [name for name in required if name != field_name]
+    for field_name in UNIFIED_HIDDEN_FIELDS.get(tool_name, ()):
+        properties.pop(field_name, None)
+        required = [name for name in required if name != field_name]
 
     if required:
         result["required"] = required
     else:
         result.pop("required", None)
+    _close_object_schemas(result)
     return result
+
+
+def _close_object_schemas(schema: dict[str, Any]) -> None:
+    if schema.get("type") == "object" and "properties" in schema:
+        schema.setdefault("additionalProperties", False)
+    for child in (schema.get("properties") or {}).values():
+        if isinstance(child, dict):
+            _close_object_schemas(child)
+    if isinstance(schema.get("items"), dict):
+        _close_object_schemas(schema["items"])
+    for keyword in ("allOf", "anyOf", "oneOf"):
+        for child in schema.get(keyword) or []:
+            if isinstance(child, dict):
+                _close_object_schemas(child)
 
 
 def _extract_limits(schema: dict[str, Any]) -> dict[str, Any]:
@@ -304,10 +390,15 @@ def load_tool_registry(root: Path | None = None) -> ToolRegistry:
             for method, operation in path_item.items():
                 if method.lower() not in {"get", "post", "put", "patch", "delete"}:
                     continue
-                tool_name = operation.get("operationId")
-                if not tool_name:
+                operation_id = operation.get("operationId")
+                if not operation_id:
                     continue
+                tool_name = PUBLIC_TOOL_NAMES.get(operation_id, operation_id)
+                if tool_name in discovered_operation_ids:
+                    raise RuntimeError(f"duplicate unified MCP tool name: {tool_name}")
                 discovered_operation_ids.add(tool_name)
+                if operation_id in EXCLUDED_OPERATION_IDS:
+                    continue
                 if tool_name not in CAPABILITIES:
                     continue
                 backend = (operation.get("x-bk-apigateway-resource") or {}).get("backend") or {}
@@ -327,13 +418,31 @@ def load_tool_registry(root: Path | None = None) -> ToolRegistry:
 
     expected = set(CAPABILITIES)
     actual = set(tools)
-    if actual != expected or discovered_operation_ids != expected:
+    expected_source = expected | EXCLUDED_OPERATION_IDS
+    if actual != expected or discovered_operation_ids != expected_source:
         raise RuntimeError(
             "unified MCP registry drift: "
-            f"missing_metadata={sorted(discovered_operation_ids - expected)}, "
+            f"missing_metadata={sorted(discovered_operation_ids - expected_source)}, "
             f"missing_source={sorted(expected - discovered_operation_ids)}, "
             f"missing_tools={sorted(expected - actual)}, extra_tools={sorted(actual - expected)}"
         )
+    digest.update(
+        yaml.safe_dump(
+            {
+                "category_actions": CATEGORY_ACTIONS,
+                "source_files": SOURCE_FILES,
+                "excluded_operation_ids": sorted(EXCLUDED_OPERATION_IDS),
+                "public_tool_names": PUBLIC_TOOL_NAMES,
+                "capabilities": CAPABILITIES,
+                "titles": TITLES,
+                "prerequisites": PREREQUISITES,
+                "backend_derived_fields": BACKEND_DERIVED_FIELDS,
+                "unified_hidden_fields": UNIFIED_HIDDEN_FIELDS,
+            },
+            allow_unicode=True,
+            sort_keys=True,
+        ).encode()
+    )
     return ToolRegistry(tools, digest.hexdigest()[:12])
 
 

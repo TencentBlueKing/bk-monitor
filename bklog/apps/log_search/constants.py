@@ -46,6 +46,7 @@ from apps.log_search.exceptions import (
 )
 from apps.utils import ChoicesEnum
 from apps.utils.custom_report import render_otlp_report_config
+from bkm_space.define import SpaceTypeEnum
 
 
 class InnerTag(ChoicesEnum):
@@ -1501,6 +1502,46 @@ class IndexSetDataType(ChoicesEnum):
     _choices_labels = ((RESULT_TABLE, _("结果表")), (INDEX_SET, _("索引集")))
 
 
+class PlatformIndexVisibleType(ChoicesEnum):
+    """
+    平台级索引集可见范围类型
+    """
+
+    MULTI_BIZ = "multi_biz"
+    BIZ_ATTR = "biz_attr"
+
+    _choices_labels = ((MULTI_BIZ, _("指定业务")), (BIZ_ATTR, _("业务属性")))
+
+
+class PlatformIndexFilterValueRef(ChoicesEnum):
+    """
+    平台级数据隔离维度取值来源，与 metadata query_router_config 的 filter_value 对齐
+    """
+
+    SPACE_ID = "space_id"
+    BK_BIZ_ID = "bk_biz_id"
+
+    _choices_labels = ((SPACE_ID, _("空间ID")), (BK_BIZ_ID, _("业务ID")))
+
+
+# metadata ResultTableOption 中承载跨空间路由过滤的 option 名
+QUERY_ROUTER_CONFIG_OPTION_NAME = "query_router_config"
+
+# query_router_config.space_type 取该值时 metadata 不限空间类型，对所有空间组装路由
+ROUTER_SPACE_TYPE_ALL = "all"
+
+# metadata SpaceTableIDRedis.SUPPORT_SPACE_TYPES，注意不含 bcs：
+# 下发 metadata 不认识的类型会让它跳过整张表，该表在所有空间都拿不到路由
+METADATA_ROUTER_SPACE_TYPES = {
+    SpaceTypeEnum.BKCC.value,
+    SpaceTypeEnum.BKCI.value,
+    SpaceTypeEnum.BKSAAS.value,
+}
+
+# 检索索引集列表中标记「本条是从其它空间分发过来的」，值为归属空间
+PLATFORM_INDEX_OWNER_SPACE_UID_FIELD = "platform_index_owner_space_uid"
+
+
 class SearchMode(ChoicesEnum):
     """
     检索模式
@@ -1847,12 +1888,14 @@ class DataFlowResourceUsageType:
 
 class AlertStatusEnum(ChoicesEnum):
     ALL = "ALL"
+    ABNORMAL = "ABNORMAL"
     NOT_SHIELDED_ABNORMAL = "NOT_SHIELDED_ABNORMAL"
     MY_ASSIGNEE = "MY_ASSIGNEE"
 
     _choices_labels = (
         (ALL, _("全部")),
-        (NOT_SHIELDED_ABNORMAL, _("未恢复")),
+        (ABNORMAL, _("未恢复")),
+        (NOT_SHIELDED_ABNORMAL, _("未恢复（未屏蔽）")),
         (MY_ASSIGNEE, _("我收到的")),
     )
 

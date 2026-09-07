@@ -109,6 +109,17 @@ export default defineComponent({
         <IssueInfoItem
           key={issue.member_issue_id}
           v-slots={{
+            prefix: () =>
+              issue.via_issue_id ? (
+                <span
+                  class='tag-item via-issue-tag'
+                  v-bk-tooltips={{
+                    content: t('该 Issue 原挂在 {id} 下，随其合并平移而来', { id: issue.via_issue_id }),
+                  }}
+                >
+                  {t('随合并平移')}
+                </span>
+              ) : null,
             actions: () => (
               <Button
                 class='split-btn'
@@ -127,7 +138,7 @@ export default defineComponent({
           }}
           desc={issue.anomaly_message}
           list={getMetricList(issue)}
-          name={issue.member_name}
+          name={issue.member_es_status === null ? `${issue.member_issue_id} (${t('已删除')})` : issue.member_name}
         />
       ));
     };

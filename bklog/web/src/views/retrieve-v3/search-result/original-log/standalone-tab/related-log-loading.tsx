@@ -27,7 +27,10 @@ export default defineComponent({
           <div class='standalone-related-log-loading-spinner' />
           <div class='standalone-related-log-loading-title'>{props.title}</div>
           <div class='standalone-related-log-loading-text'>
-            <transition name='standalone-related-log-loading-text-fade' mode='out-in'>
+            <transition
+              name='standalone-related-log-loading-text-fade'
+              mode='out-in'
+            >
               <span key={props.text}>{props.text}</span>
             </transition>
           </div>

@@ -116,7 +116,7 @@ export default class TemporaryShareNew extends tsc<ITemporaryShareProps> {
   validityPeriodErr = false;
   // 分享链接
   get shareUrl() {
-    return `${location.origin}${location.pathname}?bizId=${this.$store.getters.bizId}/#/share/${this.token || ''}`;
+    return `${location.origin}${location.pathname}?bizId=${this.$store.getters.bizId}#/share/${this.token || ''}`;
   }
   get onlyCopy() {
     return this.navMode === 'copy';
@@ -246,16 +246,14 @@ export default class TemporaryShareNew extends tsc<ITemporaryShareProps> {
     // 最大有效期90天
     const num = Number(v.replace(/(m|h|d|w|M|y)$/, '') || 0);
     const unit = v.replace(/^([1-9][0-9]*)+/, '');
-    if (
-      !(
-        (unit === 'm' && num <= 129600) ||
-        (unit === 'h' && num <= 2160) ||
-        (unit === 'd' && num <= 90) ||
-        (unit === 'w' && num < 13) ||
-        (unit === 'M' && num <= 3) ||
-        (unit === 'y' && num <= 0.25)
-      )
-    ) {
+    if (!(
+      (unit === 'm' && num <= 129600) ||
+      (unit === 'h' && num <= 2160) ||
+      (unit === 'd' && num <= 90) ||
+      (unit === 'w' && num < 13) ||
+      (unit === 'M' && num <= 3) ||
+      (unit === 'y' && num <= 0.25)
+    )) {
       this.validityPeriodErr = true;
       return;
     }

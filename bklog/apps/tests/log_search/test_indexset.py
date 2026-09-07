@@ -27,14 +27,18 @@ import arrow
 from blueapps.account.models import User
 from django.conf import settings
 from django.test import TestCase, override_settings
+from rest_framework.test import APIRequestFactory
 
+from apps.log_clustering.constants import StorageTypeEnum
+from apps.log_clustering.models import ClusteringConfig
 from apps.log_databus.constants import DORIS_CLUSTER_TYPE, STORAGE_CLUSTER_TYPE
 from apps.log_databus.models import CollectorConfig, DataLinkConfig
-from apps.log_search.constants import IndexSetDataType
+from apps.log_search.constants import IndexSetDataType, IndexSetType
 from apps.log_search.exceptions import IndexSetDorisQueryException
 from apps.log_search.handlers.index_set import BaseIndexSetHandler, IndexSetHandler
 from apps.log_search.handlers.search.chart_handlers import ChartHandler
-from apps.log_search.models import IndexSetTag, LogIndexSet, LogIndexSetData, Scenario, TAG_TYPE_INNER
+from apps.log_search.handlers.search.mapping_handlers import MappingHandlers
+from apps.log_search.models import BizProperty, IndexSetTag, LogIndexSet, LogIndexSetData, Scenario, TAG_TYPE_INNER
 from apps.log_unifyquery.handler.chart import UnifyQueryChartHandler
 from apps.tests.utils import FakeRedis
 from bkm_space.define import Space
@@ -1015,8 +1019,14 @@ class TestPlatformIndexSerializer(TestCase):
         ser = PlatformIndexVisibilitySerializer(data={"type": "multi_biz", "bk_biz_ids": [1, 2, 3]})
         self.assertTrue(ser.is_valid(), msg=ser.errors)
 
-        ser = PlatformIndexVisibilitySerializer(data={"type": "biz_attr", "bk_biz_labels": {"env": "prod"}})
+        ser = PlatformIndexVisibilitySerializer(data={"type": "biz_attr", "bk_biz_labels": {"env": ["prod"]}})
         self.assertTrue(ser.is_valid(), msg=ser.errors)
+
+    def test_visibility_biz_attr_rejects_empty_label_values(self):
+        from apps.log_databus.serializers import PlatformIndexVisibilitySerializer
+
+        ser = PlatformIndexVisibilitySerializer(data={"type": "biz_attr", "bk_biz_labels": {"env": []}})
+        self.assertFalse(ser.is_valid())
 
 
 PLATFORM_VISIBILITY = {"type": "multi_biz", "bk_biz_ids": [1, 2]}
@@ -1174,6 +1184,67 @@ class TestPlatformIndexHandler(TestCase):
     @patch("apps.api.TransferApi.create_or_update_log_router", return_value=None)
     @patch("apps.log_search.handlers.index_set.sync_index_set_archive.delay", return_value=None)
     @override_settings(MIDDLEWARE=(OVERRIDE_MIDDLEWARE,))
+    def test_update_rolls_back_platform_fields_when_router_sync_fails(self, *args, **kwargs):
+        """
+        普通索引集切换为平台级时，路由下发失败必须连同 is_platform_index 一起回滚，
+        否则跨空间列表和 IAM 入口已开放、过滤却没生效，形成越权窗口。
+        """
+        from apps.log_search.exceptions import PlatformIndexRouterSyncException
+
+        create_payload = self._build_create_payload()
+        response = self.client.post(
+            path="/api/v1/index_set/",
+            data=json.dumps(create_payload),
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, SUCCESS_STATUS_CODE)
+
+        index_set = LogIndexSet.objects.all().order_by("-index_set_id").first()
+        index_set_id = index_set.index_set_id
+        self.assertFalse(index_set.is_platform_index)
+
+        update_payload = {
+            "space_uid": index_set.space_uid,
+            "scenario_id": index_set.scenario_id,
+            "index_set_name": index_set.index_set_name,
+            "view_roles": [],
+            "storage_cluster_id": index_set.storage_cluster_id,
+            "category_id": "host",
+            "indexes": [
+                {"bk_biz_id": BK_BIZ_ID, "result_table_id": "591_xx", "time_field": "timestamp"},
+                {"bk_biz_id": None, "result_table_id": "log_xxx", "time_field": "timestamp"},
+            ],
+            "time_field": "abc",
+            "time_field_type": "date",
+            "time_field_unit": "millisecond",
+            "is_platform_index": True,
+            "platform_index_visibility": PLATFORM_VISIBILITY,
+            "platform_index_filter": PLATFORM_FILTER,
+        }
+        with patch.object(
+            BaseIndexSetHandler,
+            "sync_router",
+            side_effect=PlatformIndexRouterSyncException("router sync failed"),
+        ):
+            self.client.patch(
+                path=f"/api/v1/index_set/{index_set_id}/",
+                data=json.dumps(update_payload),
+                content_type="application/json",
+            )
+
+        index_set.refresh_from_db()
+        self.assertFalse(index_set.is_platform_index)
+        self.assertIsNone(index_set.platform_index_visibility)
+        self.assertIsNone(index_set.platform_index_filter)
+
+    @patch("apps.log_search.tasks.mapping.sync_index_set_mapping_snapshot.delay", return_value=None)
+    @patch("apps.api.TransferApi.get_cluster_info", return_value=CLUSTER_INFO_WITH_AUTH)
+    @patch("apps.log_search.models.LogIndexSetData.objects.filter", return_value=LogIndexSetData.objects.none())
+    @patch("apps.api.BkLogApi.mapping", return_value=MAPPING_LIST)
+    @patch("apps.api.TransferApi.get_result_table_storage", lambda _: CLUSTER_INFOS)
+    @patch("apps.api.TransferApi.create_or_update_log_router", return_value=None)
+    @patch("apps.log_search.handlers.index_set.sync_index_set_archive.delay", return_value=None)
+    @override_settings(MIDDLEWARE=(OVERRIDE_MIDDLEWARE,))
     def test_update_without_is_platform_index_keeps_existing_fields(self, *args, **kwargs):
         """
         IndexSetHandler.update 不传 is_platform_index (None) → 保留现有 visibility/filter 不被清空
@@ -1254,7 +1325,7 @@ class TestPlatformIndexHandler(TestCase):
         index_set_id = index_set.index_set_id
         original_storage_cluster_id = index_set.storage_cluster_id
 
-        new_visibility = {"type": "biz_attr", "bk_biz_labels": {"env": "prod"}}
+        new_visibility = {"type": "biz_attr", "bk_biz_labels": {"env": ["prod"]}}
         update_payload = {
             "space_uid": index_set.space_uid,
             "scenario_id": index_set.scenario_id,
@@ -1414,6 +1485,8 @@ class TestSyncRouter(TestCase):
     """
 
     DORIS_CLUSTER_ID = 77
+    # 聚类结果表在 ES 上的真实字段，注意不含 missingField
+    CLUSTERED_ES_FIELD_NAMES = {"log", "level", "__dist_05"}
 
     def setUp(self):
         super().setUp()
@@ -1471,7 +1544,7 @@ class TestSyncRouter(TestCase):
         )
         return index_set
 
-    def _build_es_doris_index_set(self, **extra) -> LogIndexSet:
+    def _build_es_doris_index_set(self, collector_is_nanos=False, **extra) -> LogIndexSet:
         """创建一个存量 ES + Doris 采集项（开启了 sql/grep）：
         - 无 Doris 标签
         - doris_table_id 有值，support_doris=True（开启了 sql/grep 能力）
@@ -1494,6 +1567,7 @@ class TestSyncRouter(TestCase):
             collector_scenario_id="log",
             category_id="other_rt",
             storage_cluster_type=STORAGE_CLUSTER_TYPE,
+            is_nanos=collector_is_nanos,
         )
         params["collector_config_id"] = collector_config.collector_config_id
         index_set = LogIndexSet.objects.create(**params)
@@ -1506,6 +1580,7 @@ class TestSyncRouter(TestCase):
             result_table_id="591_xx",
             scenario_id=Scenario.LOG,
             bk_biz_id=2,
+            apply_status=LogIndexSetData.Status.NORMAL,
         )
         return index_set
 
@@ -1633,6 +1708,142 @@ class TestSyncRouter(TestCase):
             f"bklog_index_set_{index_set.index_set_id}_591_xx.__default__",
         )
         self.assertEqual(info["source_type"], Scenario.LOG)
+
+    def test_route_sync_sends_empty_alias_settings_to_clear_stale_aliases(self):
+        """路由同步必须用空数组通知 metadata 清理已删除的别名。"""
+        index_set = self._build_es_doris_index_set(query_alias_settings=[])
+
+        result = BaseIndexSetHandler.get_index_set_table_info_list(index_set, is_analysis=False)
+
+        self.assertEqual(result[0]["query_alias_settings"], [])
+
+    def test_route_sync_clears_auto_nanos_alias_after_switching_to_non_nanos(self):
+        """纳秒时间切换为普通时间后，最终路由 payload 不应保留自动纳秒别名。"""
+        index_set = self._build_es_doris_index_set(collector_is_nanos=True)
+
+        nanos_result = BaseIndexSetHandler.get_index_set_table_info_list(index_set, is_analysis=False)
+        self.assertEqual(
+            nanos_result[0]["query_alias_settings"],
+            [{"field_name": "dtEventTimeStampNanos", "query_alias": "dtEventTimeStamp"}],
+        )
+
+        collector_config = CollectorConfig.objects.get(table_id="591_xx")
+        collector_config.is_nanos = False
+        collector_config.save(update_fields=["is_nanos"])
+
+        non_nanos_result = BaseIndexSetHandler.get_index_set_table_info_list(index_set, is_analysis=False)
+        self.assertEqual(non_nanos_result[0]["query_alias_settings"], [])
+
+    def test_route_sync_keeps_user_alias_with_auto_nanos_alias(self):
+        """纳秒时间字段应同时保留用户别名和自动纳秒别名。"""
+        user_alias = {"field_name": "log", "query_alias": "message"}
+        index_set = self._build_es_doris_index_set(
+            query_alias_settings=[user_alias],
+            collector_is_nanos=True,
+        )
+
+        result = BaseIndexSetHandler.get_index_set_table_info_list(
+            index_set,
+            is_analysis=False,
+            rt_alias_mappings={"591_xx": [user_alias]},
+        )
+
+        self.assertEqual(
+            result[0]["query_alias_settings"],
+            [user_alias, {"field_name": "dtEventTimeStampNanos", "query_alias": "dtEventTimeStamp"}],
+        )
+
+    def test_doris_route_sync_clears_unconfigured_alias_settings(self):
+        """Doris 路由未配置查询别名时下发空数组，清理 metadata 中的历史别名。"""
+        index_set = self._build_manual_doris_index_set()
+
+        result = BaseIndexSetHandler.get_index_set_table_info_list(index_set, is_analysis=False)
+
+        self.assertEqual(result[0]["query_alias_settings"], [])
+
+    def test_route_sync_sends_empty_rt_alias_settings(self):
+        """RT 粒度别名配置为空时也必须传空数组，而不是省略参数。"""
+        index_set = self._build_es_doris_index_set(
+            query_alias_settings=[{"field_name": "missing_field", "query_alias": "stale_alias"}]
+        )
+
+        result = BaseIndexSetHandler.get_index_set_table_info_list(
+            index_set,
+            is_analysis=False,
+            rt_alias_mappings={"591_xx": []},
+        )
+
+        self.assertEqual(result[0]["query_alias_settings"], [])
+
+    @patch(
+        "apps.log_search.handlers.index_set.SearchHandler.get_all_fields_by_index_id",
+        return_value={
+            "591_xx": ([{"field_name": "log"}], []),
+            "empty_fields": ([], []),
+        },
+    )
+    def test_sync_router_skips_aliases_for_rt_with_failed_field_query(self, mock_get_all_fields):
+        """部分 RT 字段查询失败时，不应给失败 RT 下发空数组覆盖已有别名。"""
+        user_alias = {"field_name": "log", "query_alias": "message"}
+        index_set = self._build_es_doris_index_set(query_alias_settings=[user_alias])
+        self.assertEqual(index_set.query_alias_settings, [user_alias])
+        LogIndexSetData.objects.create(
+            index_set_id=index_set.index_set_id,
+            result_table_id="log_failed",
+            scenario_id=Scenario.LOG,
+            apply_status=LogIndexSetData.Status.NORMAL,
+        )
+        LogIndexSetData.objects.create(
+            index_set_id=index_set.index_set_id,
+            result_table_id="empty_fields",
+            scenario_id=Scenario.LOG,
+            apply_status=LogIndexSetData.Status.NORMAL,
+        )
+        append_calls = []
+
+        def _capture_append(result_key, func, params=None, use_request=True, multi_func_params=False):
+            append_calls.append((result_key, func, params))
+
+        with patch("apps.utils.thread.MultiExecuteFunc.append", side_effect=_capture_append):
+            with patch("apps.utils.thread.MultiExecuteFunc.run", return_value={}):
+                with patch("apps.log_search.handlers.index_set.SearchHandler.__init__", return_value=None):
+                    BaseIndexSetHandler.sync_router(index_set)
+
+        mock_get_all_fields.assert_called_once_with(need_merge=False)
+        default_router = next(
+            params for key, _, params in append_calls if key == f"bklog_index_set_{index_set.index_set_id}"
+        )
+        success_info = next(info for info in default_router["table_info"] if info["index_set"].startswith("591_xx"))
+        failed_info = next(info for info in default_router["table_info"] if info["index_set"].startswith("log_failed"))
+        empty_info = next(info for info in default_router["table_info"] if info["index_set"].startswith("empty_fields"))
+        self.assertEqual(success_info["query_alias_settings"], [user_alias])
+        self.assertNotIn("query_alias_settings", failed_info)
+        self.assertNotIn("query_alias_settings", empty_info)
+
+    @patch(
+        "apps.log_search.handlers.index_set.SearchHandler.get_all_fields_by_index_id",
+        side_effect=RuntimeError("mapping unavailable"),
+    )
+    def test_sync_router_skips_aliases_when_all_rt_field_queries_fail(self, mock_get_all_fields):
+        """所有 RT 字段查询失败时，不应把完整别名配置下发到任一 RT。"""
+        user_alias = {"field_name": "log", "query_alias": "message"}
+        index_set = self._build_es_doris_index_set(query_alias_settings=[user_alias])
+        append_calls = []
+
+        def _capture_append(result_key, func, params=None, use_request=True, multi_func_params=False):
+            append_calls.append((result_key, func, params))
+
+        with patch("apps.utils.thread.MultiExecuteFunc.append", side_effect=_capture_append):
+            with patch("apps.utils.thread.MultiExecuteFunc.run", return_value={}):
+                with patch("apps.log_search.handlers.index_set.SearchHandler.__init__", return_value=None):
+                    BaseIndexSetHandler.sync_router(index_set)
+
+        mock_get_all_fields.assert_called_once_with(need_merge=False)
+        default_router = next(
+            params for key, _, params in append_calls if key == f"bklog_index_set_{index_set.index_set_id}"
+        )
+        for info in default_router["table_info"]:
+            self.assertNotIn("query_alias_settings", info)
 
     def test_es_doris_analysis(self):
         """
@@ -1802,6 +2013,199 @@ class TestSyncRouter(TestCase):
         self.assertEqual(len(routers), 4)
         for params in routers:
             self.assertNotIn("cluster_id", params)
+
+    @patch("apps.log_search.handlers.index_set.FeatureToggleObject.switch", return_value=False)
+    @patch(
+        "apps.log_search.handlers.index_set.UnifyQueryMappingHandler.get_fields_by_table_id",
+        return_value=[{"field_name": "message", "field_type": "keyword"}],
+    )
+    def test_native_doris_alias_mapping_uses_unifyquery(self, mock_uq_fields, mock_switch):
+        """原生 Doris 无 Doris 标签时也不能请求 ES mapping。"""
+        index_set = self._build_native_doris_index_set(storage_cluster_id=162877)
+        LogIndexSetData.objects.filter(index_set_id=index_set.index_set_id).update(
+            apply_status=LogIndexSetData.Status.NORMAL,
+            storage_cluster_id=162877,
+        )
+        aliases = [{"field_name": "message", "query_alias": "msg"}]
+
+        rt_alias_mappings, alias_field_map = IndexSetHandler.get_rt_alias_settings(index_set.index_set_id, aliases)
+
+        self.assertEqual(rt_alias_mappings["591_native"], aliases)
+        self.assertEqual(alias_field_map["msg"][0]["rt_list"], ["591_native"])
+        mock_uq_fields.assert_called_once_with(
+            bk_biz_id=2,
+            table_id=BaseIndexSetHandler.get_rt_id(index_set.index_set_id, "591_native"),
+        )
+        mock_switch.assert_not_called()
+
+    @patch("apps.log_search.handlers.index_set.FeatureToggleObject.switch", return_value=True)
+    @patch(
+        "apps.log_search.handlers.index_set.UnifyQueryMappingHandler.get_fields_by_table_id",
+        return_value=[{"field_name": "message", "field_type": "keyword"}],
+    )
+    def test_es_alias_mapping_uses_unifyquery_when_feature_enabled(self, mock_uq_fields, mock_switch):
+        """普通索引集在 UQ 开关开启时走 UQ。"""
+        index_set = self._build_es_doris_index_set(storage_cluster_id=1, doris_table_id=None, support_doris=False)
+        LogIndexSetData.objects.filter(index_set_id=index_set.index_set_id).update(
+            apply_status=LogIndexSetData.Status.NORMAL,
+            storage_cluster_id=1,
+        )
+        aliases = [{"field_name": "message", "query_alias": "msg"}]
+
+        rt_alias_mappings, _ = IndexSetHandler.get_rt_alias_settings(index_set.index_set_id, aliases)
+
+        self.assertEqual(rt_alias_mappings["591_xx"], aliases)
+        mock_uq_fields.assert_called_once_with(
+            bk_biz_id=2,
+            table_id=BaseIndexSetHandler.get_rt_id(index_set.index_set_id, "591_xx"),
+        )
+        mock_switch.assert_called_once_with("unify_query_search", 2)
+
+    @patch("apps.log_search.handlers.index_set.SearchHandler")
+    @patch("apps.log_search.handlers.index_set.FeatureToggleObject.switch", return_value=False)
+    def test_es_alias_mapping_uses_esquery_when_feature_disabled(self, mock_switch, mock_search_handler):
+        """普通索引集在 UQ 开关关闭时保留 ESQuery 行为。"""
+        index_set = self._build_es_doris_index_set(storage_cluster_id=1, doris_table_id=None, support_doris=False)
+        LogIndexSetData.objects.filter(index_set_id=index_set.index_set_id).update(
+            apply_status=LogIndexSetData.Status.NORMAL,
+            storage_cluster_id=1,
+        )
+        mock_search_handler.return_value.get_all_fields_by_index_id.return_value = {
+            "591_xx": ([{"field_name": "message", "field_type": "keyword"}], [])
+        }
+
+        rt_alias_mappings, _ = IndexSetHandler.get_rt_alias_settings(
+            index_set.index_set_id, [{"field_name": "message", "query_alias": "msg"}]
+        )
+
+        self.assertEqual(rt_alias_mappings["591_xx"], [{"field_name": "message", "query_alias": "msg"}])
+        mock_switch.assert_called_once_with("unify_query_search", 2)
+        mock_search_handler.assert_called_once_with(index_set.index_set_id, {})
+        mock_search_handler.return_value.get_all_fields_by_index_id.assert_called_once_with(need_merge=False)
+
+    # ==================================================================
+    # 更新别名配置时的聚类结果表路由
+    # ==================================================================
+
+    def _build_plain_es_index_set(self, **extra) -> LogIndexSet:
+        """创建一个普通 ES 采集项：无 Doris 标签、无 doris_table_id，走非 Doris 的别名更新分支"""
+        collector_config = CollectorConfig.objects.create(
+            table_id="591_es",
+            bk_biz_id=2,
+            collector_config_name="plain_es_cc",
+            collector_scenario_id="log",
+            category_id="other_rt",
+            storage_cluster_type=STORAGE_CLUSTER_TYPE,
+        )
+        params = dict(
+            index_set_name="plain_es",
+            space_uid="bkcc__2",
+            scenario_id=Scenario.LOG,
+            storage_cluster_id=STORAGE_CLUSTER_ID,
+            collector_config_id=collector_config.collector_config_id,
+            doris_table_id=None,
+            support_doris=False,
+        )
+        params.update(extra)
+        index_set = LogIndexSet.objects.create(**params)
+        collector_config.index_set_id = index_set.index_set_id
+        collector_config.save(update_fields=["index_set_id"])
+        LogIndexSetData.objects.create(
+            index_set_id=index_set.index_set_id,
+            result_table_id="591_es",
+            scenario_id=Scenario.LOG,
+            bk_biz_id=2,
+            apply_status=LogIndexSetData.Status.NORMAL,
+        )
+        return index_set
+
+    def _create_clustering_config(self, index_set: LogIndexSet) -> ClusteringConfig:
+        """给索引集挂一个 ES 存储的聚类配置"""
+        return ClusteringConfig.objects.create(
+            index_set_id=index_set.index_set_id,
+            bk_biz_id=2,
+            min_members=1,
+            max_dist_list="0.5",
+            predefined_varibles="",
+            delimeter="",
+            max_log_length=1000,
+            clustering_fields="log",
+            signature_enable=True,
+            storage_type=StorageTypeEnum.ELASTICSEARCH.value,
+            clustered_rt=f"2_bklog_{index_set.index_set_id}_clustered",
+        )
+
+    def _capture_clustered_route(self, index_set: LogIndexSet, alias_settings: list) -> dict:
+        """跑一次别名更新，返回聚类路由实际下发的 table_info"""
+        with (
+            patch.object(IndexSetHandler, "get_rt_alias_settings", return_value=({}, {})),
+            patch.object(MappingHandlers, "get_mapping_field_names", return_value=self.CLUSTERED_ES_FIELD_NAMES),
+            patch("apps.utils.thread.MultiExecuteFunc.append"),
+            patch("apps.utils.thread.MultiExecuteFunc.run", return_value={}),
+            patch(
+                "apps.log_clustering.handlers.dataflow.dataflow_handler.TransferApi.bulk_create_or_update_log_router"
+            ) as mock_bulk_router,
+        ):
+            IndexSetHandler(index_set.index_set_id).update_alias_settings(alias_settings)
+
+        mock_bulk_router.assert_called_once()
+        return mock_bulk_router.call_args.args[0]["table_info"][0]
+
+    def test_update_alias_settings_syncs_clustered_route_for_es_index_set(self):
+        """
+        聚类结果表是独立的一条路由，不会随源表路由一起刷新
+        期望：别名变更时下发聚类路由，内容是本次生效的别名，并按聚类结果表真实字段裁剪
+        """
+        index_set = self._build_plain_es_index_set()
+        self._create_clustering_config(index_set)
+
+        table_info = self._capture_clustered_route(
+            index_set,
+            [
+                {"field_name": "log", "query_alias": "message", "path_type": "text"},
+                # 聚类结果表没有 missingField，这条继承下去改写后必然查不到数据
+                {"field_name": "missingField", "query_alias": "ignored", "path_type": "string"},
+            ],
+        )
+
+        self.assertEqual(
+            table_info["query_alias_settings"],
+            [
+                {"field_name": "__dist_05", "query_alias": "signature"},
+                {"field_name": "log", "query_alias": "message", "path_type": "text"},
+            ],
+        )
+        self.assertEqual(
+            table_info["table_id"],
+            f"bklog_index_set_{index_set.index_set_id}_2_bklog_{index_set.index_set_id}_clustered.__default__",
+        )
+
+    def test_update_alias_settings_syncs_clustered_route_for_doris_tagged_index_set(self):
+        """
+        带 Doris 标签的索引集不会把别名落到 LogIndexSet.query_alias_settings
+        期望：聚类路由用本次生效的别名，而不是回读数据库拿到的旧值
+        """
+        index_set = self._build_manual_doris_index_set(
+            query_alias_settings=[{"field_name": "log", "query_alias": "stale_alias", "path_type": "text"}]
+        )
+        self._create_clustering_config(index_set)
+
+        table_info = self._capture_clustered_route(
+            index_set, [{"field_name": "log", "query_alias": "message", "path_type": "text"}]
+        )
+
+        # stale_alias 指向的 log 字段在聚类结果表里同样存在，出现在路由上只能说明读了数据库旧值
+        self.assertEqual(
+            table_info["query_alias_settings"],
+            [
+                {"field_name": "__dist_05", "query_alias": "signature"},
+                {"field_name": "log", "query_alias": "message", "path_type": "text"},
+            ],
+        )
+        self.assertEqual(
+            LogIndexSet.objects.get(index_set_id=index_set.index_set_id).query_alias_settings,
+            [{"field_name": "log", "query_alias": "stale_alias", "path_type": "text"}],
+        )
 
     # ==================================================================
     # 边界情况
@@ -2704,3 +3108,695 @@ class TestSqlAndGrepApi(TestCase):
         # 校验在 View 层处理，generator 构造应不抛
         gen = handler.export_chart_data()
         self.assertTrue(hasattr(gen, "__next__"), "export_chart_data 应返回生成器")
+
+
+class TestPlatformIndexListAndRouter(TestCase):
+    """平台级索引集：列表入口、query_router_config、检索 bk_biz_id。"""
+
+    OWNER_SPACE = "bkcc__2"
+    TARGET_SPACE = "bkcc__7"
+    OTHER_SPACE = "bkcc__8"
+    PLATFORM_VISIBILITY = {"type": "multi_biz", "bk_biz_ids": [7]}
+    PLATFORM_FILTER = {"field": "app_code", "value_ref": "space_id"}
+
+    def setUp(self):
+        cache_patcher = patch("apps.log_search.models.cache.get", return_value=None)
+        cache_patcher.start()
+        self.addCleanup(cache_patcher.stop)
+        space_detail = MagicMock()
+        space_detail.space_type_id = "bkcc"
+        space_detail.extend = {}
+        space_detail_patcher = patch(
+            "apps.log_search.handlers.index_set.SpaceApi.get_space_detail", return_value=space_detail
+        )
+        space_detail_patcher.start()
+        self.addCleanup(space_detail_patcher.stop)
+        # 跨空间检索要求目标业务开启统一查询，这里按现网常态默认打开，
+        # 关闭态由 test_cross_space_requires_unify_query 单独覆盖
+        unify_query_patcher = patch("apps.log_search.views.search_views.FeatureToggleObject.switch", return_value=True)
+        unify_query_patcher.start()
+        self.addCleanup(unify_query_patcher.stop)
+
+    def _create_index_set(self, space_uid, **extra):
+        result_table_id = extra.pop("result_table_id", None)
+        params = {
+            "index_set_name": extra.pop("index_set_name", f"idx_{space_uid}"),
+            "space_uid": space_uid,
+            "scenario_id": Scenario.LOG,
+            "is_active": True,
+        }
+        params.update(extra)
+        index_set = LogIndexSet.objects.create(**params)
+        LogIndexSetData.objects.create(
+            index_set_id=index_set.index_set_id,
+            result_table_id=result_table_id or f"rt_{index_set.index_set_id}",
+            scenario_id=Scenario.LOG,
+            bk_biz_id=2,
+            apply_status=LogIndexSetData.Status.NORMAL,
+        )
+        return index_set
+
+    @patch("bkm_space.api.SpaceApi.get_related_space", return_value=None)
+    def test_false_flag_ignores_dirty_visibility(self, _mock_related):
+        dirty = self._create_index_set(
+            self.OWNER_SPACE,
+            index_set_name="dirty",
+            is_platform_index=False,
+            platform_index_visibility=self.PLATFORM_VISIBILITY,
+            platform_index_filter=self.PLATFORM_FILTER,
+        )
+        result = LogIndexSet.get_index_set(space_uids=[self.TARGET_SPACE], current_space_uid=self.TARGET_SPACE)
+        self.assertNotIn(dirty.index_set_id, [item["index_set_id"] for item in result])
+        self.assertIsNone(BaseIndexSetHandler.build_query_router_config_option(dirty))
+
+    @patch("bkm_space.api.SpaceApi.get_related_space", return_value=None)
+    def test_true_multi_biz_hit_and_miss(self, _mock_related):
+        platform = self._create_index_set(
+            self.OWNER_SPACE,
+            index_set_name="platform",
+            is_platform_index=True,
+            platform_index_visibility=self.PLATFORM_VISIBILITY,
+            platform_index_filter=self.PLATFORM_FILTER,
+        )
+        hit = LogIndexSet.get_index_set(space_uids=[self.TARGET_SPACE], current_space_uid=self.TARGET_SPACE)
+        hit_ids = [item["index_set_id"] for item in hit]
+        self.assertIn(platform.index_set_id, hit_ids)
+        item = next(x for x in hit if x["index_set_id"] == platform.index_set_id)
+        self.assertEqual(item["space_uid"], self.TARGET_SPACE)
+        self.assertEqual(item["bk_biz_id"], 7)
+        self.assertEqual(item["platform_index_owner_space_uid"], self.OWNER_SPACE)
+
+        miss = LogIndexSet.get_index_set(space_uids=[self.OTHER_SPACE], current_space_uid=self.OTHER_SPACE)
+        self.assertNotIn(platform.index_set_id, [x["index_set_id"] for x in miss])
+
+        owner = LogIndexSet.get_index_set(space_uids=[self.OWNER_SPACE], current_space_uid=self.OWNER_SPACE)
+        owner_item = next(x for x in owner if x["index_set_id"] == platform.index_set_id)
+        self.assertEqual(owner_item["space_uid"], self.OWNER_SPACE)
+        self.assertNotIn("platform_index_owner_space_uid", owner_item)
+
+    @patch("bkm_space.api.SpaceApi.get_related_space")
+    def test_bksaas_hits_via_related_bkcc_biz(self, mock_related):
+        mock_related.return_value = MagicMock(bk_biz_id=7)
+        platform = self._create_index_set(
+            self.OWNER_SPACE,
+            index_set_name="paas_platform",
+            is_platform_index=True,
+            platform_index_visibility=self.PLATFORM_VISIBILITY,
+            platform_index_filter=self.PLATFORM_FILTER,
+        )
+        target_space = "bksaas__myapp"
+        result = LogIndexSet.get_index_set(space_uids=[target_space], current_space_uid=target_space)
+        self.assertIn(platform.index_set_id, [item["index_set_id"] for item in result])
+
+    @patch("bkm_space.api.SpaceApi.get_related_space", return_value=None)
+    def test_space_type_only_matches_current_space(self, _mock_related):
+        platform = self._create_index_set(
+            self.OWNER_SPACE,
+            index_set_name="bksaas_only",
+            is_platform_index=True,
+            platform_index_visibility={"type": "biz_attr", "bk_biz_labels": {"space_type": ["bksaas"]}},
+            platform_index_filter=self.PLATFORM_FILTER,
+        )
+        related_space = "bksaas__myapp"
+
+        # 当前空间是 BKCC 时，关联的 bksaas 空间不能放大 SPACE_TYPE 可见范围
+        miss = LogIndexSet.get_index_set(
+            space_uids=[self.TARGET_SPACE, related_space], current_space_uid=self.TARGET_SPACE
+        )
+        self.assertNotIn(platform.index_set_id, [item["index_set_id"] for item in miss])
+
+        hit = LogIndexSet.get_index_set(space_uids=[related_space], current_space_uid=related_space)
+        self.assertIn(platform.index_set_id, [item["index_set_id"] for item in hit])
+
+    def test_empty_biz_attr_values_are_not_visible(self):
+        context = {"bk_biz_ids": {"7"}, "current_space_type": "bkcc", "cmdb_biz_ids": {7}}
+        visibility = {"type": "biz_attr", "bk_biz_labels": {"env": []}}
+        self.assertFalse(LogIndexSet.is_platform_index_visible(visibility, context))
+
+    def test_multiple_biz_attr_keys_require_all_of_them(self):
+        """每条 BizProperty 只有一个 biz_property_id，多个属性 key 必须按业务取交集而不是 AND 同一行。"""
+        context = {"bk_biz_ids": {"7"}, "current_space_type": "bkcc", "cmdb_biz_ids": {7}}
+        visibility = {"type": "biz_attr", "bk_biz_labels": {"environment": ["prod"], "region": ["apac"]}}
+
+        BizProperty.objects.create(bk_biz_id=7, biz_property_id="environment", biz_property_value="prod")
+        BizProperty.objects.create(bk_biz_id=7, biz_property_id="region", biz_property_value="apac")
+        self.assertTrue(LogIndexSet.is_platform_index_visible(visibility, context))
+
+        # 同 key 多取值之间是「或」
+        multi_value = {"type": "biz_attr", "bk_biz_labels": {"environment": ["prod", "gray"], "region": ["apac"]}}
+        self.assertTrue(LogIndexSet.is_platform_index_visible(multi_value, context))
+
+        # 缺少任一属性就不可见，不能因为命中了另一个 key 就放行
+        BizProperty.objects.filter(bk_biz_id=7, biz_property_id="region").delete()
+        self.assertFalse(LogIndexSet.is_platform_index_visible(visibility, context))
+
+    def test_multiple_biz_attr_keys_reject_partial_match_across_biz(self):
+        """两个 key 分别由不同业务命中时不能算命中，交集必须落在同一个业务上。"""
+        context = {"bk_biz_ids": {"7", "8"}, "current_space_type": "bkcc", "cmdb_biz_ids": {7, 8}}
+        visibility = {"type": "biz_attr", "bk_biz_labels": {"environment": ["prod"], "region": ["apac"]}}
+
+        BizProperty.objects.create(bk_biz_id=7, biz_property_id="environment", biz_property_value="prod")
+        BizProperty.objects.create(bk_biz_id=8, biz_property_id="region", biz_property_value="apac")
+        self.assertFalse(LogIndexSet.is_platform_index_visible(visibility, context))
+
+        BizProperty.objects.create(bk_biz_id=7, biz_property_id="region", biz_property_value="apac")
+        self.assertTrue(LogIndexSet.is_platform_index_visible(visibility, context))
+
+    @patch("bkm_space.api.SpaceApi.get_related_space", return_value=None)
+    def test_cross_space_requires_unify_query(self, _mock_related):
+        """ESQuery 链路不认识 platform_index_filter，未开统一查询的业务必须 fail closed。"""
+        from rest_framework import serializers as drf_serializers
+
+        from apps.log_search.views.search_views import _apply_index_set_search_bk_biz_id
+
+        platform = LogIndexSet(
+            is_platform_index=True,
+            space_uid=self.OWNER_SPACE,
+            platform_index_visibility=self.PLATFORM_VISIBILITY,
+        )
+        with patch("apps.log_search.views.search_views.FeatureToggleObject.switch", return_value=False):
+            with self.assertRaises(drf_serializers.ValidationError):
+                _apply_index_set_search_bk_biz_id(platform, {"bk_biz_id": 7})
+
+            # 归属空间在 metadata 侧本就是全量，走哪条链路都不算越权，不受此限
+            owner_data = {"bk_biz_id": 2}
+            _apply_index_set_search_bk_biz_id(platform, owner_data)
+            self.assertEqual(owner_data["bk_biz_id"], 2)
+
+            # 普通索引集不受影响
+            plain = LogIndexSet(is_platform_index=False, space_uid=self.OWNER_SPACE)
+            plain_data = {}
+            _apply_index_set_search_bk_biz_id(plain, plain_data)
+            self.assertEqual(plain_data["bk_biz_id"], 2)
+
+    @patch("bkm_space.api.SpaceApi.get_related_space", return_value=None)
+    def test_cross_space_scroll_falls_back_to_unify_query(self, _mock_related):
+        """scroll 是 ESQuery 独有能力，跨空间时退回普通 UnifyQuery 检索而不是报错。"""
+        from apps.log_search.views.search_views import _apply_index_set_search_bk_biz_id
+
+        platform = LogIndexSet(
+            is_platform_index=True,
+            space_uid=self.OWNER_SPACE,
+            platform_index_visibility=self.PLATFORM_VISIBILITY,
+        )
+        # 关掉 scroll 才能让检索落到 UnifyQuery 分支，否则会走没有 platform_index_filter 的 ESQuery
+        data = {"bk_biz_id": 7, "is_scroll_search": True}
+        _apply_index_set_search_bk_biz_id(platform, data)
+        self.assertEqual(data["bk_biz_id"], 7)
+        self.assertFalse(data["is_scroll_search"])
+
+        # 非 scroll 的跨空间检索照常放行
+        plain_data = {"bk_biz_id": 7, "is_scroll_search": False}
+        _apply_index_set_search_bk_biz_id(platform, plain_data)
+        self.assertEqual(plain_data["bk_biz_id"], 7)
+
+        # 归属空间不加过滤，走哪条链路都是全量，scroll 保持可用
+        owner_data = {"bk_biz_id": 2, "is_scroll_search": True}
+        _apply_index_set_search_bk_biz_id(platform, owner_data)
+        self.assertEqual(owner_data["bk_biz_id"], 2)
+        self.assertTrue(owner_data["is_scroll_search"])
+
+        # 普通索引集的 scroll 不受影响
+        plain_index_set = LogIndexSet(is_platform_index=False, space_uid=self.OWNER_SPACE)
+        plain_index_set_data = {"is_scroll_search": True}
+        _apply_index_set_search_bk_biz_id(plain_index_set, plain_index_set_data)
+        self.assertTrue(plain_index_set_data["is_scroll_search"])
+
+    def test_query_router_config_option_reads_effective_index_set(self):
+        platform_group = LogIndexSet.objects.create(
+            index_set_name="group",
+            space_uid=self.OWNER_SPACE,
+            scenario_id=Scenario.LOG,
+            is_platform_index=True,
+            is_group=True,
+            platform_index_visibility=self.PLATFORM_VISIBILITY,
+            platform_index_filter=self.PLATFORM_FILTER,
+        )
+        child = LogIndexSet.objects.create(
+            index_set_name="child",
+            space_uid=self.OWNER_SPACE,
+            scenario_id=Scenario.LOG,
+            is_platform_index=False,
+        )
+        option = BaseIndexSetHandler.build_query_router_config_option(platform_group)
+        self.assertIsNotNone(option)
+        self.assertEqual(option["name"], "query_router_config")
+        self.assertIn("app_code", option["value"])
+
+        self.assertIsNone(BaseIndexSetHandler.build_query_router_config_option(child))
+        # 组场景必须以组（table_id 主体）为准，不能被子索引集带着走
+        LogIndexSetData.objects.create(
+            index_set_id=child.index_set_id,
+            result_table_id="591_child",
+            scenario_id=Scenario.ES,
+            bk_biz_id=2,
+            apply_status=LogIndexSetData.Status.NORMAL,
+        )
+        table_infos = BaseIndexSetHandler.get_index_set_table_info_list(
+            index_set=child, parent_index_set=platform_group
+        )
+        option_names = [opt["name"] for item in table_infos for opt in item.get("options") or []]
+        self.assertIn("query_router_config", option_names)
+
+        platform_child = LogIndexSet.objects.create(
+            index_set_name="platform_child",
+            space_uid=self.OWNER_SPACE,
+            scenario_id=Scenario.LOG,
+            is_platform_index=True,
+            platform_index_visibility=self.PLATFORM_VISIBILITY,
+            platform_index_filter=self.PLATFORM_FILTER,
+        )
+        plain_group = LogIndexSet.objects.create(
+            index_set_name="plain_group",
+            space_uid=self.OWNER_SPACE,
+            scenario_id=Scenario.LOG,
+            is_platform_index=False,
+            is_group=True,
+        )
+        LogIndexSetData.objects.create(
+            index_set_id=platform_child.index_set_id,
+            result_table_id="591_platform_child",
+            scenario_id=Scenario.ES,
+            bk_biz_id=2,
+            apply_status=LogIndexSetData.Status.NORMAL,
+        )
+        child_as_member = BaseIndexSetHandler.get_index_set_table_info_list(
+            index_set=platform_child, parent_index_set=plain_group
+        )
+        option_names = [opt["name"] for item in child_as_member for opt in item.get("options") or []]
+        self.assertNotIn("query_router_config", option_names)
+
+    def _index_set_with_rt(self, **extra):
+        index_set = LogIndexSet.objects.create(
+            index_set_name=extra.pop("index_set_name", "router_sync"),
+            space_uid=self.OWNER_SPACE,
+            scenario_id=Scenario.ES,
+            **extra,
+        )
+        LogIndexSetData.objects.create(
+            index_set_id=index_set.index_set_id,
+            result_table_id=f"rt_{index_set.index_set_id}",
+            scenario_id=Scenario.ES,
+            bk_biz_id=2,
+            apply_status=LogIndexSetData.Status.NORMAL,
+        )
+        return index_set
+
+    def test_platform_router_sync_failure_raises(self):
+        """跨空间隔离全靠 query_router_config，下发失败必须抛出，不能静默放行已开放的入口。"""
+        from apps.log_search.exceptions import PlatformIndexRouterSyncException
+
+        platform = self._index_set_with_rt(
+            index_set_name="router_platform",
+            is_platform_index=True,
+            platform_index_visibility=self.PLATFORM_VISIBILITY,
+            platform_index_filter=self.PLATFORM_FILTER,
+        )
+        with patch(
+            "apps.log_search.handlers.index_set.TransferApi.bulk_create_or_update_log_router",
+            side_effect=Exception("metadata unavailable"),
+        ):
+            with self.assertRaises(PlatformIndexRouterSyncException):
+                BaseIndexSetHandler.sync_router(platform)
+
+    def test_plain_index_set_router_sync_failure_stays_silent(self):
+        """普通索引集没有跨空间入口，保持原有「记日志并继续」的行为，避免 metadata 抖动打挂全部更新。"""
+        plain = self._index_set_with_rt(index_set_name="router_plain", is_platform_index=False)
+        with patch(
+            "apps.log_search.handlers.index_set.TransferApi.bulk_create_or_update_log_router",
+            side_effect=Exception("metadata unavailable"),
+        ):
+            BaseIndexSetHandler.sync_router(plain)
+
+    def test_platform_router_sync_failure_during_build_also_raises(self):
+        """失败发生在组装阶段（进不到并发写入）时同样要抛出。"""
+        from apps.log_search.exceptions import PlatformIndexRouterSyncException
+
+        platform = self._index_set_with_rt(
+            index_set_name="router_platform_build",
+            is_platform_index=True,
+            platform_index_visibility=self.PLATFORM_VISIBILITY,
+            platform_index_filter=self.PLATFORM_FILTER,
+        )
+        with patch.object(BaseIndexSetHandler, "get_index_set_table_info_list", side_effect=Exception("build failed")):
+            with self.assertRaises(PlatformIndexRouterSyncException):
+                BaseIndexSetHandler.sync_router(platform)
+
+    def test_platform_router_sync_success_does_not_raise(self):
+        platform = self._index_set_with_rt(
+            index_set_name="router_platform_ok",
+            is_platform_index=True,
+            platform_index_visibility=self.PLATFORM_VISIBILITY,
+            platform_index_filter=self.PLATFORM_FILTER,
+        )
+        with patch(
+            "apps.log_search.handlers.index_set.TransferApi.bulk_create_or_update_log_router", return_value={}
+        ) as mock_router:
+            BaseIndexSetHandler.sync_router(platform)
+        self.assertTrue(mock_router.called)
+
+    def test_resolve_search_bk_biz_id(self):
+        platform = LogIndexSet(
+            is_platform_index=True,
+            space_uid=self.OWNER_SPACE,
+        )
+        self.assertEqual(LogIndexSet.resolve_search_bk_biz_id(platform, 7), 7)
+        self.assertEqual(LogIndexSet.resolve_search_bk_biz_id(platform, request_space_uid=self.TARGET_SPACE), 7)
+        self.assertIsNone(LogIndexSet.resolve_search_bk_biz_id(platform, None))
+        plain = LogIndexSet(is_platform_index=False, space_uid=self.OWNER_SPACE)
+        self.assertEqual(LogIndexSet.resolve_search_bk_biz_id(plain, 7), 2)
+
+    @patch("bkm_space.api.SpaceApi.get_related_space", return_value=None)
+    def test_get_user_index_set_does_not_merge_platform_by_rt(self, _mock_related):
+        shared_rt = "2_bklog_shared"
+        platform = self._create_index_set(
+            self.OWNER_SPACE,
+            index_set_name="platform_shared",
+            is_platform_index=True,
+            platform_index_visibility=self.PLATFORM_VISIBILITY,
+            platform_index_filter=self.PLATFORM_FILTER,
+            collector_config_id=101,
+        )
+        LogIndexSetData.objects.filter(index_set_id=platform.index_set_id).update(result_table_id=shared_rt)
+        local = self._create_index_set(
+            self.TARGET_SPACE,
+            index_set_name="local_shared",
+            collector_config_id=None,
+        )
+        LogIndexSetData.objects.filter(index_set_id=local.index_set_id).update(result_table_id=shared_rt)
+
+        result = IndexSetHandler.get_user_index_set(self.TARGET_SPACE, is_group=True)
+        result_ids = {item["index_set_id"] for item in result}
+        self.assertIn(platform.index_set_id, result_ids)
+        self.assertIn(local.index_set_id, result_ids)
+        local_item = next(item for item in result if item["index_set_id"] == local.index_set_id)
+        child_ids = [child["index_set_id"] for child in local_item.get("children") or []]
+        self.assertNotIn(platform.index_set_id, child_ids)
+
+    @patch("bkm_space.api.SpaceApi.get_related_space", return_value=None)
+    def test_true_to_false_drops_list_entry(self, _mock_related):
+        platform = self._create_index_set(
+            self.OWNER_SPACE,
+            index_set_name="toggle_off",
+            is_platform_index=True,
+            platform_index_visibility=self.PLATFORM_VISIBILITY,
+            platform_index_filter=self.PLATFORM_FILTER,
+        )
+        hit = LogIndexSet.get_index_set(space_uids=[self.TARGET_SPACE], current_space_uid=self.TARGET_SPACE)
+        self.assertIn(platform.index_set_id, [item["index_set_id"] for item in hit])
+
+        platform.is_platform_index = False
+        platform.save(update_fields=["is_platform_index"])
+        miss = LogIndexSet.get_index_set(space_uids=[self.TARGET_SPACE], current_space_uid=self.TARGET_SPACE)
+        self.assertNotIn(platform.index_set_id, [item["index_set_id"] for item in miss])
+
+    def test_es_table_info_appends_query_router_config(self):
+        platform = LogIndexSet.objects.create(
+            index_set_name="es_platform",
+            space_uid=self.OWNER_SPACE,
+            scenario_id=Scenario.ES,
+            is_platform_index=True,
+            platform_index_visibility=self.PLATFORM_VISIBILITY,
+            platform_index_filter=self.PLATFORM_FILTER,
+        )
+        LogIndexSetData.objects.create(
+            index_set_id=platform.index_set_id,
+            result_table_id="es_rt",
+            scenario_id=Scenario.ES,
+            bk_biz_id=2,
+            apply_status=LogIndexSetData.Status.NORMAL,
+        )
+        table_infos = BaseIndexSetHandler.get_index_set_table_info_list(index_set=platform)
+        option_names = [opt["name"] for item in table_infos for opt in item.get("options") or []]
+        self.assertIn("query_router_config", option_names)
+
+        plain = LogIndexSet.objects.create(
+            index_set_name="es_plain",
+            space_uid=self.OWNER_SPACE,
+            scenario_id=Scenario.ES,
+            is_platform_index=False,
+        )
+        LogIndexSetData.objects.create(
+            index_set_id=plain.index_set_id,
+            result_table_id="es_plain_rt",
+            scenario_id=Scenario.ES,
+            bk_biz_id=2,
+            apply_status=LogIndexSetData.Status.NORMAL,
+        )
+        plain_infos = BaseIndexSetHandler.get_index_set_table_info_list(index_set=plain)
+        option_names = [opt["name"] for item in plain_infos for opt in item.get("options") or []]
+        self.assertNotIn("query_router_config", option_names)
+
+    @patch("bkm_space.api.SpaceApi.get_related_space", return_value=None)
+    def test_apply_search_bk_biz_id(self, _mock_related):
+        from rest_framework import serializers as drf_serializers
+        from rest_framework.exceptions import PermissionDenied
+
+        from apps.log_search.views.search_views import _apply_index_set_search_bk_biz_id
+
+        platform = LogIndexSet(
+            is_platform_index=True,
+            space_uid=self.OWNER_SPACE,
+            platform_index_visibility=self.PLATFORM_VISIBILITY,
+        )
+        data = {"bk_biz_id": 7}
+        _apply_index_set_search_bk_biz_id(platform, data)
+        self.assertEqual(data["bk_biz_id"], 7)
+
+        request = MagicMock()
+        request.data = {}
+        request.query_params = {}
+        request.headers = {"X-Bk-Space-Uid": self.TARGET_SPACE}
+        request.META = {}
+        data = {}
+        _apply_index_set_search_bk_biz_id(platform, data, request)
+        self.assertEqual(data["bk_biz_id"], 7)
+
+        with self.assertRaises(drf_serializers.ValidationError):
+            _apply_index_set_search_bk_biz_id(platform, {})
+        with self.assertRaises(PermissionDenied):
+            _apply_index_set_search_bk_biz_id(platform, {"bk_biz_id": 8})
+        self.assertIsNone(LogIndexSet.resolve_search_bk_biz_id(platform, "not-a-biz"))
+
+        plain = LogIndexSet(is_platform_index=False, space_uid=self.OWNER_SPACE)
+        data = {}
+        _apply_index_set_search_bk_biz_id(plain, data)
+        self.assertEqual(data["bk_biz_id"], 2)
+
+    @override_settings(IGNORE_IAM_PERMISSION=False)
+    @patch("bkm_space.api.SpaceApi.get_related_space", return_value=None)
+    @patch("apps.iam.handlers.drf.Permission")
+    def test_iam_uses_request_biz_only_for_platform(self, mock_perm_cls, _mock_related):
+        from apps.iam.handlers.actions import ActionEnum
+        from apps.iam.handlers.drf import PlatformAwareIndexSearchPermission
+        from apps.iam.handlers.resources import Business, ResourceEnum
+        from rest_framework.exceptions import PermissionDenied
+
+        mock_perm_cls.return_value.is_allowed.return_value = True
+        platform = self._create_index_set(
+            self.OWNER_SPACE,
+            index_set_name="iam_platform",
+            is_platform_index=True,
+            platform_index_visibility=self.PLATFORM_VISIBILITY,
+            platform_index_filter=self.PLATFORM_FILTER,
+        )
+        view = MagicMock()
+        view.kwargs = {"index_set_id": platform.index_set_id}
+        view.lookup_url_kwarg = None
+        view.lookup_field = "index_set_id"
+        request = MagicMock()
+        request.method = "POST"
+        request.data = {"bk_biz_id": 7}
+        request.query_params = {}
+        request.headers = {}
+        request.META = {}
+        perm = PlatformAwareIndexSearchPermission([ActionEnum.SEARCH_LOG], ResourceEnum.INDICES)
+        self.assertTrue(perm.has_permission(request, view))
+        self.assertEqual(perm.resources[0].attribute["_bk_iam_path_"], f"/{Business.id},7/")
+
+        request.data = {}
+        request.headers = {"X-Bk-Space-Uid": self.OWNER_SPACE}
+        perm = PlatformAwareIndexSearchPermission([ActionEnum.SEARCH_LOG], ResourceEnum.INDICES)
+        perm.has_permission(request, view)
+        self.assertEqual(perm.resources[0].attribute["_bk_iam_path_"], f"/{Business.id},2/")
+
+        request.headers = {}
+        perm = PlatformAwareIndexSearchPermission([ActionEnum.SEARCH_LOG], ResourceEnum.INDICES)
+        with self.assertRaises(PermissionDenied):
+            perm.has_permission(request, view)
+
+        request.data = {"bk_biz_id": 8}
+        perm = PlatformAwareIndexSearchPermission([ActionEnum.SEARCH_LOG], ResourceEnum.INDICES)
+        with self.assertRaises(PermissionDenied):
+            perm.has_permission(request, view)
+
+        plain = self._create_index_set(self.OWNER_SPACE, index_set_name="iam_plain")
+        view.kwargs = {"index_set_id": plain.index_set_id}
+        request.data = {"bk_biz_id": 7}
+        perm = PlatformAwareIndexSearchPermission([ActionEnum.SEARCH_LOG], ResourceEnum.INDICES)
+        perm.has_permission(request, view)
+        self.assertEqual(perm.resources[0].attribute["_bk_iam_path_"], f"/{Business.id},2/")
+
+    @override_settings(IGNORE_IAM_PERMISSION=True)
+    @patch("bkm_space.api.SpaceApi.get_related_space", return_value=None)
+    @patch("apps.log_search.views.search_views.IndexSetCustomConfigHandler.get_index_set_config", return_value={})
+    @patch("apps.log_search.views.search_views.UserIndexSetConfigHandler.get_index_set_config", return_value={})
+    @patch.object(LogIndexSet, "get_fields", return_value={})
+    def test_fields_endpoint_falls_back_to_space_header(self, *_mocks):
+        from apps.log_search.views.search_views import SearchViewSet
+
+        platform = self._create_index_set(
+            self.OWNER_SPACE,
+            index_set_name="fields_platform",
+            is_platform_index=True,
+            platform_index_visibility=self.PLATFORM_VISIBILITY,
+            platform_index_filter=self.PLATFORM_FILTER,
+        )
+        view = SearchViewSet.as_view({"get": "fields"})
+        request = APIRequestFactory().get(
+            f"/api/v1/search/index_set/{platform.index_set_id}/fields/",
+            HTTP_X_BK_SPACE_UID=self.TARGET_SPACE,
+        )
+        response = view(request, index_set_id=platform.index_set_id)
+        self.assertEqual(response.status_code, 200)
+
+        request_without_scope = APIRequestFactory().get(f"/api/v1/search/index_set/{platform.index_set_id}/fields/")
+        response = view(request_without_scope, index_set_id=platform.index_set_id)
+        self.assertEqual(response.status_code, 200)
+        payload = json.loads(response.content)
+        self.assertFalse(payload["result"])
+        self.assertIn("必须传入 bk_biz_id 或请求空间", payload["message"])
+
+    def test_union_search_rejects_platform_index_sets(self):
+        from rest_framework import serializers as drf_serializers
+
+        from apps.log_search.views.search_views import _reject_platform_index_sets
+
+        platform = self._create_index_set(
+            self.OWNER_SPACE,
+            index_set_name="union_platform",
+            is_platform_index=True,
+            platform_index_visibility=self.PLATFORM_VISIBILITY,
+            platform_index_filter=self.PLATFORM_FILTER,
+        )
+        with self.assertRaises(drf_serializers.ValidationError):
+            _reject_platform_index_sets([platform.index_set_id])
+
+    def test_single_index_search_actions_use_platform_aware_permission(self):
+        from apps.iam.handlers.drf import PlatformAwareIndexSearchPermission
+        from apps.log_search.views.search_views import SearchViewSet
+
+        view = SearchViewSet()
+        view.request = MagicMock()
+        for action in ["original_search", "quick_export", "async_export", "fields", "context", "tailf"]:
+            view.action = action
+            self.assertIsInstance(view.get_permissions()[0], PlatformAwareIndexSearchPermission)
+
+        view.action = "config"
+        view.request.data = {"index_set_type": IndexSetType.SINGLE.value, "index_set_id": 1}
+        permission = view.get_permissions()[0]
+        self.assertIsInstance(permission, PlatformAwareIndexSearchPermission)
+        self.assertEqual(permission.iam_instance_id_key, "index_set_id")
+
+    # ==================================================================
+    # query_router_config.space_type 跟随可见范围里的空间类型
+    # ==================================================================
+
+    def _platform_index_set(self, visibility):
+        return LogIndexSet(
+            is_platform_index=True,
+            space_uid=self.OWNER_SPACE,
+            platform_index_visibility=visibility,
+            platform_index_filter=self.PLATFORM_FILTER,
+        )
+
+    def test_router_space_type_follows_single_space_type_label(self):
+        index_set = self._platform_index_set({"type": "biz_attr", "bk_biz_labels": {"space_type": ["bksaas"]}})
+        self.assertEqual(BaseIndexSetHandler.resolve_router_space_type(index_set), "bksaas")
+        option = BaseIndexSetHandler.build_query_router_config_option(index_set)
+        self.assertEqual(json.loads(option["value"])["space_type"], "bksaas")
+
+    def test_router_space_type_falls_back_to_all(self):
+        cases = {
+            "多值映射不成单值": {"type": "biz_attr", "bk_biz_labels": {"space_type": ["bksaas", "bkci"]}},
+            "metadata 不认识 bcs，下发会让整张表在所有空间都没路由": {
+                "type": "biz_attr",
+                "bk_biz_labels": {"space_type": ["bcs"]},
+            },
+            "按业务属性而非空间类型配置": {"type": "biz_attr", "bk_biz_labels": {"env": ["prod"]}},
+            "指定业务模式": self.PLATFORM_VISIBILITY,
+            "可见范围为空": {},
+        }
+        for reason, visibility in cases.items():
+            with self.subTest(reason=reason):
+                index_set = self._platform_index_set(visibility)
+                self.assertEqual(BaseIndexSetHandler.resolve_router_space_type(index_set), "all")
+                option = BaseIndexSetHandler.build_query_router_config_option(index_set)
+                self.assertEqual(json.loads(option["value"])["space_type"], "all")
+
+    # ==================================================================
+    # 平台级索引集检索：额外要求请求空间下的不限实例授权
+    # ==================================================================
+
+    @override_settings(IGNORE_IAM_PERMISSION=False)
+    @patch("bkm_space.api.SpaceApi.get_related_space", return_value=None)
+    @patch("apps.iam.handlers.drf.Permission")
+    def test_platform_search_requires_unlimited_action(self, mock_perm_cls, _mock_related):
+        from rest_framework.exceptions import PermissionDenied
+
+        from apps.iam.handlers.actions import ActionEnum
+        from apps.iam.handlers.drf import PlatformAwareIndexSearchPermission
+        from apps.iam.handlers.resources import ResourceEnum
+
+        client = mock_perm_cls.return_value
+        client.is_allowed.return_value = True
+        platform = self._create_index_set(
+            self.OWNER_SPACE,
+            index_set_name="iam_unlimited",
+            is_platform_index=True,
+            platform_index_visibility=self.PLATFORM_VISIBILITY,
+            platform_index_filter=self.PLATFORM_FILTER,
+        )
+        view = MagicMock(lookup_url_kwarg=None, lookup_field="index_set_id")
+        view.kwargs = {"index_set_id": platform.index_set_id}
+        request = MagicMock(method="POST", data={"bk_biz_id": 7}, query_params={}, headers={}, META={})
+
+        # 空间级不限实例授权：放行，且判定用的是请求方业务而不是归属业务
+        client.has_unlimited_action_in_space.return_value = True
+        perm = PlatformAwareIndexSearchPermission([ActionEnum.SEARCH_LOG], ResourceEnum.INDICES)
+        self.assertTrue(perm.has_permission(request, view))
+        client.has_unlimited_action_in_space.assert_called_once_with(ActionEnum.SEARCH_LOG, 7, ResourceEnum.INDICES)
+
+        # 只单独授权了这一个索引集：标准鉴权能过，但平台级索引集不认实例级授权
+        client.has_unlimited_action_in_space.return_value = False
+        perm = PlatformAwareIndexSearchPermission([ActionEnum.SEARCH_LOG], ResourceEnum.INDICES)
+        with self.assertRaises(PermissionDenied):
+            perm.has_permission(request, view)
+
+        # 归属空间自己检索不受影响：索引集在自己空间的权限中心能正常选到，实例级授权是正当的
+        client.has_unlimited_action_in_space.reset_mock()
+        client.has_unlimited_action_in_space.return_value = False
+        owner_request = MagicMock(method="POST", data={"bk_biz_id": 2}, query_params={}, headers={}, META={})
+        perm = PlatformAwareIndexSearchPermission([ActionEnum.SEARCH_LOG], ResourceEnum.INDICES)
+        self.assertTrue(perm.has_permission(owner_request, view))
+        client.has_unlimited_action_in_space.assert_not_called()
+
+    @override_settings(IGNORE_IAM_PERMISSION=False)
+    @patch("bkm_space.api.SpaceApi.get_related_space", return_value=None)
+    @patch("apps.iam.handlers.drf.Permission")
+    def test_plain_index_set_keeps_instance_level_grant(self, mock_perm_cls, _mock_related):
+        from apps.iam.handlers.actions import ActionEnum
+        from apps.iam.handlers.drf import PlatformAwareIndexSearchPermission
+        from apps.iam.handlers.resources import ResourceEnum
+
+        client = mock_perm_cls.return_value
+        client.is_allowed.return_value = True
+        client.has_unlimited_action_in_space.return_value = False
+        plain = self._create_index_set(self.OWNER_SPACE, index_set_name="iam_plain_unlimited")
+        view = MagicMock(lookup_url_kwarg=None, lookup_field="index_set_id")
+        view.kwargs = {"index_set_id": plain.index_set_id}
+        request = MagicMock(method="POST", data={"bk_biz_id": 7}, query_params={}, headers={}, META={})
+
+        perm = PlatformAwareIndexSearchPermission([ActionEnum.SEARCH_LOG], ResourceEnum.INDICES)
+        self.assertTrue(perm.has_permission(request, view))
+        client.has_unlimited_action_in_space.assert_not_called()

@@ -23,13 +23,12 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-// 转换graph id string
+// 图表 ID：`{bizId}-{dashboardUid}-{panelId}`。容器/研发等空间 bizId 为负数（如 `-123-uid-*`），不能按第一个 `-` 切分。
 export const splitGraphId = (graphId: string) => {
-  const firstIndex = graphId.indexOf('-');
-  const lastIndex = graphId.lastIndexOf('-');
+  const [, bizId = '', dashboardId = '', panelId = ''] = graphId.match(/^(-?\d+)-(.+)-(.+)$/) || [];
   return {
-    bizId: +graphId.slice(0, firstIndex),
-    dashboardId: graphId.slice(firstIndex + 1, lastIndex),
-    panelId: graphId.slice(lastIndex + 1),
+    bizId,
+    dashboardId,
+    panelId,
   };
 };

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 import json
 
 from django.conf import settings
@@ -14,16 +13,13 @@ class ParamInjectMiddleware(MiddlewareMixin):
     """
 
     def __init__(self, *args, **kwargs):
-        super(ParamInjectMiddleware, self).__init__(*args, **kwargs)
-        self.inject_request_enabled = getattr(
-            settings, "BKM_SPACE_INJECT_REQUEST_ENABLED", True
-        )
-        self.inject_response_enabled = getattr(
-            settings, "BKM_SPACE_INJECT_RESPONSE_ENABLED", False
-        )
+        super().__init__(*args, **kwargs)
+        self.inject_request_enabled = getattr(settings, "BKM_SPACE_INJECT_REQUEST_ENABLED", True)
+        self.inject_request_excluded_paths = frozenset(getattr(settings, "BKM_SPACE_INJECT_REQUEST_EXCLUDED_PATHS", ()))
+        self.inject_response_enabled = getattr(settings, "BKM_SPACE_INJECT_RESPONSE_ENABLED", False)
 
     def process_request(self, request, **kwargs):
-        if not self.inject_request_enabled:
+        if not self.inject_request_enabled or request.path_info in self.inject_request_excluded_paths:
             return
 
         request.GET = inject_space_field(request.GET.copy())
@@ -43,9 +39,7 @@ class ParamInjectMiddleware(MiddlewareMixin):
         if isinstance(response, Response):
             try:
                 content = json.loads(request.content)
-                request.content = json.dumps(inject_space_field(content)).encode(
-                    "utf-8"
-                )
+                request.content = json.dumps(inject_space_field(content)).encode("utf-8")
             except Exception:
                 pass
         return response

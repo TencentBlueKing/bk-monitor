@@ -87,9 +87,7 @@ export default defineComponent({
       Object.fromEntries(
         Object.entries(item).map(([key, val]) => [
           key,
-          typeof val !== 'string'
-            ? String(val ?? ' ')
-            : val.replace(entityRegex, match => entityMap[match]),
+          typeof val !== 'string' ? String(val ?? ' ') : val.replace(entityRegex, match => entityMap[match]),
         ]),
       );
 
@@ -103,7 +101,7 @@ export default defineComponent({
     const getViewLightList = computed<HighlightItem[]>(() => {
       const list: HighlightItem[] = [];
       if (props.filterKey.length && isIncludeFilter.value) {
-        props.filterKey.forEach((key) => {
+        props.filterKey.forEach(key => {
           list.push({
             str: key,
             style: 'color: #FF5656; font-size: 12px; font-weight: 700;',
@@ -129,7 +127,7 @@ export default defineComponent({
     const handleMatch = (item: Record<string, any>): boolean => {
       const valStr = Object.values(item).join(' ');
       const keyVal = props.ignoreCase ? valStr : valStr.toLowerCase();
-      return props.filterKey.every((key) => {
+      return props.filterKey.every(key => {
         const filterKeyVal = props.ignoreCase ? key : key.toLowerCase();
         return keyVal.includes(filterKeyVal);
       });
@@ -162,14 +160,18 @@ export default defineComponent({
     return () => (
       <div class='client-log-viewer'>
         <pre class='log-content'>
-              {escapedLogList.value.map(
-                (item, index) => checkLineShow(item) && (
-                    <div class='line' key={index}>
-                      {renderHighlightHtml(item, getViewLightList.value, props.ignoreCase, false)}
-                    </div>
-                ),
-              )}
-            </pre>
+          {escapedLogList.value.map(
+            (item, index) =>
+              checkLineShow(item) && (
+                <div
+                  class='line'
+                  key={index}
+                >
+                  {renderHighlightHtml(item, getViewLightList.value, props.ignoreCase, false)}
+                </div>
+              ),
+          )}
+        </pre>
       </div>
     );
   },

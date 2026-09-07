@@ -56,7 +56,6 @@ class RouteUrlResolver {
 
   constructor({ route, resolveFieldList }: { route: Route; resolveFieldList?: string[] }) {
     this.route = route;
-    // eslint-disable-next-line
     this.resolver = new Map<string, (_str: string) => unknown>();
     this.paramSanitizers = new Map<string, (val: unknown) => unknown>();
     this.resolveFieldList = resolveFieldList ?? this.getDefaultResolveFieldList();
@@ -115,7 +114,9 @@ class RouteUrlResolver {
   public getDefUrlQuery(ignoreList: string[] = []) {
     const routeQuery = this.query;
     const allSceneFieldKeys = getAllSceneFieldOpKeys(getStoreSceneConfigs());
-    const appendParamKeys = [...this.resolveFieldList, 'end_time', ...allSceneFieldKeys].filter(f => !(ignoreList ?? []).includes(f));
+    const appendParamKeys = [...this.resolveFieldList, 'end_time', ...allSceneFieldKeys].filter(
+      f => !(ignoreList ?? []).includes(f),
+    );
     const undefinedQuery = appendParamKeys.reduce((out, key) => {
       out[key] = undefined;
       return out;
@@ -194,14 +195,14 @@ class RouteUrlResolver {
     for (let i = 0; i <= maxDepth; i++) {
       try {
         return JSON.parse(current) as T;
-      } catch (e) {
+      } catch {
         // parse 失败再尝试 decode；decode 失败直接返回 fallback
       }
 
       let decoded: string;
       try {
         decoded = decodeURIComponent(current);
-      } catch (e) {
+      } catch {
         return fallback;
       }
 
@@ -216,7 +217,7 @@ class RouteUrlResolver {
   }
 
   private objectResolver(str) {
-    return this.commonResolver(str, (val) => {
+    return this.commonResolver(str, val => {
       try {
         if (typeof val !== 'string') {
           return val;
@@ -247,7 +248,7 @@ class RouteUrlResolver {
    * 注意：Vue Router 已自动解码，无需再次 decodeURIComponent
    */
   private dateTimeRangeResolver(timeRange: string[]) {
-    const decodeValue = timeRange.map((t) => {
+    const decodeValue = timeRange.map(t => {
       let r = t;
       try {
         r = decodeURIComponent(t);
@@ -267,7 +268,7 @@ class RouteUrlResolver {
    * Vue Router 已自动解码，无需再次 decodeURIComponent
    */
   private additionResolver(str) {
-    return this.commonResolver(str, (value) => {
+    return this.commonResolver(str, value => {
       if (value === undefined || value === null || value === '') {
         return [];
       }
@@ -277,7 +278,7 @@ class RouteUrlResolver {
           return [];
         }
         const parsed = this.parseJsonParam<any[]>(value, []);
-        return (parsed ?? []).map((val) => {
+        return (parsed ?? []).map(val => {
           const instance = new ConditionOperator(val);
           return instance.formatApiOperatorToFront(true);
         });
@@ -289,7 +290,7 @@ class RouteUrlResolver {
   }
 
   private datePickerValueResolver() {
-    return this.commonResolver(this.query.start_time, (value) => {
+    return this.commonResolver(this.query.start_time, value => {
       const endTime = this.commonResolver(this.query.end_time) ?? value;
       return [intTimestampStr(value), intTimestampStr(endTime)];
     });
@@ -358,15 +359,15 @@ class RouteUrlResolver {
     // datePicker默认直接获取URL中的 start_time, end_time
     this.resolver.set('datePickerValue', this.datePickerValueResolver.bind(this));
 
-    this.resolver.set('start_time', (val) => {
-      return this.commonResolver(val, (value) => {
+    this.resolver.set('start_time', val => {
+      return this.commonResolver(val, value => {
         const endTime = this.commonResolver(this.query?.end_time) ?? value;
         return this.dateTimeRangeResolver([value, endTime]).start_time;
       });
     });
 
-    this.resolver.set('end_time', (val) => {
-      return this.commonResolver(val, (value) => {
+    this.resolver.set('end_time', val => {
+      return this.commonResolver(val, value => {
         const startTime = this.commonResolver(this.query?.start_time) ?? value;
         return this.dateTimeRangeResolver([startTime, value]).end_time;
       });
@@ -389,7 +390,7 @@ class RouteUrlResolver {
   private setDefaultSanitizers() {
     // timezone: IANA 时区格式 Region/City 或缩写如 UTC
     const timezonePattern = /^[A-Za-z][A-Za-z0-9_+-]*(\/[A-Za-z][A-Za-z0-9_+-]*)*$/;
-    this.paramSanitizers.set('timezone', (val) => {
+    this.paramSanitizers.set('timezone', val => {
       if (typeof val !== 'string') return undefined;
       if (timezonePattern.test(val)) return val;
       const cleaned = this.stripQuoteArtifacts(val);
@@ -397,7 +398,7 @@ class RouteUrlResolver {
     });
 
     // bizId: 数字，支持负数
-    this.paramSanitizers.set('bizId', (val) => {
+    this.paramSanitizers.set('bizId', val => {
       if (typeof val !== 'string') return val;
       if (/^-?\d+$/.test(val)) return val;
       const cleaned = this.stripQuoteArtifacts(val);
@@ -405,7 +406,7 @@ class RouteUrlResolver {
     });
 
     // spaceUid: 字母、数字、下划线、连字符
-    this.paramSanitizers.set('spaceUid', (val) => {
+    this.paramSanitizers.set('spaceUid', val => {
       if (typeof val !== 'string') return val;
       if (/^[a-zA-Z0-9_-]+$/.test(val)) return val;
       const cleaned = this.stripQuoteArtifacts(val);
@@ -413,14 +414,14 @@ class RouteUrlResolver {
     });
 
     // search_mode: 白名单
-    this.paramSanitizers.set('search_mode', (val) => {
+    this.paramSanitizers.set('search_mode', val => {
       if (typeof val !== 'string') return undefined;
       return ['sql', 'ui'].includes(val) ? val : undefined;
     });
 
     // format: 日期格式仅允许合法字符集
     const formatPattern = /^[YMDHhmsS\-/:. ]+$/;
-    this.paramSanitizers.set('format', (val) => {
+    this.paramSanitizers.set('format', val => {
       if (typeof val !== 'string') return val;
       if (formatPattern.test(val)) return val;
       const cleaned = this.stripQuoteArtifacts(val);
@@ -428,13 +429,13 @@ class RouteUrlResolver {
     });
 
     // retrieve_type: 白名单
-    this.paramSanitizers.set('retrieve_type', (val) => {
+    this.paramSanitizers.set('retrieve_type', val => {
       if (typeof val !== 'string') return undefined;
       return ['normal', 'scene'].includes(val) ? val : undefined;
     });
 
     // scene_active: 字母、数字、下划线
-    this.paramSanitizers.set('scene_active', (val) => {
+    this.paramSanitizers.set('scene_active', val => {
       if (typeof val !== 'string') return undefined;
       if (/^[a-zA-Z0-9_]+$/.test(val)) return val;
       const cleaned = this.stripQuoteArtifacts(val);
@@ -442,7 +443,7 @@ class RouteUrlResolver {
     });
 
     // index_id: 纯数字或数字字符串
-    this.paramSanitizers.set('index_id', (val) => {
+    this.paramSanitizers.set('index_id', val => {
       if (typeof val !== 'string') return val;
       if (/^\d+$/.test(val)) return val;
       const cleaned = val.replace(/[^\d]/g, '');
@@ -480,8 +481,8 @@ class RetrieveUrlResolver {
      * Vue Router 会自动编码，无需手动 encodeURIComponent
      */
     const routeQueryMap = {
-      host_scopes: (val) => {
-        const isEmpty = !Object.keys(val ?? {}).some((k) => {
+      host_scopes: val => {
+        const isEmpty = !Object.keys(val ?? {}).some(k => {
           if (typeof val[k] === 'object') {
             return Array.isArray(val[k]) ? val[k].length : Object.keys(val[k] ?? {}).length;
           }
@@ -496,7 +497,7 @@ class RetrieveUrlResolver {
       start_time: () => this.routeQueryParams.datePickerValue[0],
       end_time: () => this.routeQueryParams.datePickerValue[1],
       keyword: val => (/^\s*\*\s*$/.test(val) ? undefined : val),
-      unionList: (val) => {
+      unionList: val => {
         if (this.routeQueryParams.isUnionIndex && val?.length) {
           return getJsonString(val);
         }
@@ -506,7 +507,7 @@ class RetrieveUrlResolver {
       scene_filter_values: () => {
         return undefined;
       },
-      default: (val) => {
+      default: val => {
         if (typeof val === 'object' && val !== null) {
           if (Array.isArray(val) && val.length) {
             return getJsonString(val);
@@ -525,7 +526,7 @@ class RetrieveUrlResolver {
 
     const getRouteQueryValue = () => {
       const result = Object.keys(this.routeQueryParams)
-        .filter((key) => {
+        .filter(key => {
           return !['ids', 'isUnionIndex', 'datePickerValue', 'scene_filter_values'].includes(key);
         })
         .reduce((out, key) => {

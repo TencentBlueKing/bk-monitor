@@ -51,9 +51,7 @@ class EtlPreviewParamsSerializer(serializers.Serializer):
         if isinstance(data, dict):
             unknown_fields = sorted(set(data) - set(self.fields))
             if unknown_fields:
-                raise serializers.ValidationError(
-                    f"Unsupported etl_params fields: {', '.join(unknown_fields)}."
-                )
+                raise serializers.ValidationError(f"Unsupported etl_params fields: {', '.join(unknown_fields)}.")
         return super().to_internal_value(data)
 
 
@@ -234,6 +232,27 @@ class SearchIndexSetResource(LogSearchAPIGWResource):
 
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(label="业务ID")
+        is_group = serializers.BooleanField(required=False, default=False, label="是否按索引组展示")
+
+
+class ListIndexGroupsResource(LogSearchAPIGWResource):
+    """索引组列表。"""
+
+    action = "/index_group/"
+    method = "GET"
+
+    class RequestSerializer(serializers.Serializer):
+        space_uid = serializers.CharField(required=True, label="空间唯一标识")
+
+
+class GetIndexSetResource(IndexSetResource):
+    """获取单个索引集详情，包括归属索引组。"""
+
+    action = "/index_set/{index_set_id}/"
+    method = "GET"
+
+    class RequestSerializer(serializers.Serializer):
+        index_set_id = serializers.IntegerField(required=True, min_value=1, label="索引集ID")
 
 
 class ListScenesResource(LogSearchAPIGWResource):
@@ -451,6 +470,30 @@ class BkLogSearchClusterGroupsResource(LogSearchAPIGWResource):
         bk_username = serializers.CharField(required=False, allow_blank=True, label="用户名")
 
 
+class ListResultTablesResource(LogSearchAPIGWResource):
+    """结果表/索引列表。"""
+
+    action = "/result_table/"
+    method = "GET"
+
+    class RequestSerializer(serializers.Serializer):
+        scenario_id = serializers.CharField(required=True, label="接入场景")
+        bk_biz_id = serializers.IntegerField(required=False, label="业务ID")
+        storage_cluster_id = serializers.IntegerField(required=False, label="存储集群ID")
+        result_table_id = serializers.CharField(required=False, allow_blank=True, label="索引")
+
+
+class ListLogClusterResource(LogSearchAPIGWResource):
+    """第三方 ES 存储集群列表。"""
+
+    action = "/databus_storage/log_cluster/"
+    method = "GET"
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
+        enable_archive = serializers.BooleanField(required=False, default=False, label="是否启用归档")
+
+
 class CreateIndexSetResource(LogSearchAPIGWResource):
     """
     创建索引集
@@ -524,6 +567,26 @@ class DataBusCollectorsResource(LogSearchAPIGWResource):
         """
         url = self.base_url.rstrip("/") + "/" + self.action.lstrip("/")
         return url.format(collector_config_id=validated_request_data.pop("collector_config_id"))
+
+
+class LogAccessCollectorResource(LogSearchAPIGWResource):
+    """通过新版日志接入列表接口获取采集项和独立索引集。"""
+
+    action = "/databus/log_access/collector/"
+    method = "POST"
+
+    class RequestSerializer(serializers.Serializer):
+        space_uid = serializers.CharField(required=True, label="空间唯一标识")
+        page = serializers.IntegerField(required=True, min_value=1, label="页码")
+        pagesize = serializers.IntegerField(required=True, min_value=1, label="分页大小")
+        conditions = serializers.ListField(child=serializers.DictField(), required=False, default=list)
+        keyword = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+        ordering = serializers.CharField(required=False, default="-updated_at")
+        parent_index_set_id = serializers.IntegerField(required=False, allow_null=True)
+        exclude_parent_index_set_id = serializers.IntegerField(required=False, allow_null=True)
+        exclude_not_completed = serializers.BooleanField(required=False, default=False)
+        exclude_not_data = serializers.BooleanField(required=False, default=False)
+        include_related_spaces = serializers.BooleanField(required=False, default=False)
 
 
 class LogCollectorTaskStatusResource(LogSearchAPIGWResource):
@@ -617,6 +680,9 @@ class FastUpdateLogCollectorResource(LogSearchAPIGWResource):
         extra_labels = serializers.ListField(child=serializers.DictField(), required=False, label="额外标签")
         yaml_config_enabled = serializers.BooleanField(required=False, label="是否使用 YAML 配置")
         yaml_config = serializers.CharField(required=False, allow_blank=True, label="YAML 配置内容")
+        parent_index_set_ids = serializers.ListField(
+            child=serializers.IntegerField(min_value=1), required=False, allow_null=True, label="归属索引组ID列表"
+        )
 
     def get_request_url(self, validated_request_data):
         url = self.base_url.rstrip("/") + "/" + self.action.lstrip("/")
@@ -714,6 +780,9 @@ class FastCreateLogCollectorResource(LogSearchAPIGWResource):
         )
         yaml_config_enabled = serializers.BooleanField(required=False, label="是否使用YAML配置")
         yaml_config = serializers.CharField(required=False, allow_blank=True, label="YAML配置内容")
+        parent_index_set_ids = serializers.ListField(
+            child=serializers.IntegerField(min_value=1), required=False, allow_null=True, label="归属索引组ID列表"
+        )
         enforce_permission = serializers.BooleanField(required=False, default=False, label="是否强制用户权限校验")
 
 
@@ -793,9 +862,7 @@ class PagedCollectorConfigsResource(LogSearchAPIGWResource):
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
         page = serializers.IntegerField(required=False, default=1, min_value=1, label="页码")
-        pagesize = serializers.IntegerField(
-            required=False, default=20, min_value=1, max_value=100, label="每页数量"
-        )
+        pagesize = serializers.IntegerField(required=False, default=20, min_value=1, max_value=100, label="每页数量")
         keyword = serializers.CharField(
             required=False, default="", allow_blank=True, allow_null=True, label="搜索关键字"
         )

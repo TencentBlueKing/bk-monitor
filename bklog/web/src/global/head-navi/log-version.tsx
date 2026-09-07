@@ -71,7 +71,7 @@ export default defineComponent({
     // watch dialogShow -> open & preload list
     watch(
       () => props.dialogShow,
-      async (v) => {
+      async v => {
         show.value = !!v;
         if (v) {
           loading.value = true;
@@ -117,7 +117,7 @@ export default defineComponent({
       if (isExternal.value) {
         params.headers = { 'X-Bk-Space-Uid': spaceUid.value };
       }
-      const response = await axiosInstance(params).catch((_) => {
+      const response = await axiosInstance(params).catch(_ => {
         console.warn(_);
         return { data: [] } as any;
       });
@@ -142,7 +142,7 @@ export default defineComponent({
       if (isExternal.value) {
         params.headers = { 'X-Bk-Space-Uid': spaceUid.value };
       }
-      const response = await axiosInstance(params).catch((_) => {
+      const response = await axiosInstance(params).catch(_ => {
         console.warn(_);
         return { data: '' } as any;
       });

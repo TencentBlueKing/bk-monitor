@@ -91,6 +91,12 @@ export default defineComponent({
     const { urlParams, getUrlParams, setUrlParams, handleSelectNode } = useHostUrlParams();
     // 主机详情数据（基于选中节点动态生成）
     const { detailData, loading: detailLoading } = useHostDetail(topoTree.selectedNode);
+    /** 主机详情侧栏是否折叠（默认折叠） */
+    const detailCollapsed = shallowRef(true);
+    /** 同步详情侧栏折叠状态（点击 ResizeLayout 折叠触发器时触发） */
+    const handleDetailCollapseChange = (collapsed: boolean) => {
+      detailCollapsed.value = collapsed;
+    };
 
     /** 时间范围选择器禁用提示文案（分享链接锁定搜索时显示） */
     const timeRangeDisabledTip = computed(() => {
@@ -127,10 +133,12 @@ export default defineComponent({
       topoTree,
       detailData,
       detailLoading,
+      detailCollapsed,
       readonly,
       timeRangeDisabledTip,
       handleSelectNode,
       handleSelectIpCell,
+      handleDetailCollapseChange,
     };
   },
   render() {
@@ -184,7 +192,9 @@ export default defineComponent({
                   <HostTopoTree
                     context={this.topoTree}
                     readonly={this.readonly}
-                    onSelectNode={node => this.handleSelectNode(node)}
+                    onSelectNode={node => {
+                      this.handleSelectNode(node);
+                    }}
                   />
                 ),
                 main: () => (
@@ -212,11 +222,13 @@ export default defineComponent({
                     }}
                     border={false}
                     initialDivide={undefined}
+                    isCollapsed={this.detailCollapsed}
                     max={600}
                     min={300}
                     placement='right'
                     collapsible
                     immediate
+                    onCollapse-change={this.handleDetailCollapseChange}
                   />
                 ),
               }}

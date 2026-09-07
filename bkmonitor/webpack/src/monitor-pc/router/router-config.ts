@@ -232,16 +232,17 @@ export const getRouteConfig = () => {
               href: '#/performance',
               canStore: true,
             },
-            // TODO(story=137075720): 临时隐藏新版主机监控导航入口（路由仍保留可访问），恢复上线时取消注释
-            // {
-            //   name: '主机监控',
-            //   icon: 'icon-monitor icon-zhuji menu-icon',
-            //   id: 'host',
-            //   path: '/trace/host',
-            //   href: '#/trace/host',
-            //   canStore: false,
-            //   isBeta: true,
-            // },
+            {
+              name: '主机监控',
+              icon: 'icon-monitor icon-zhuji menu-icon',
+              id: 'host',
+              path: '/trace/host',
+              href: '#/trace/host',
+              canStore: false,
+              isBeta: true,
+              // 新版主机监控暂不在侧栏展示，路由仍可直链访问
+              hidden: true,
+            },
           ],
         },
         // {

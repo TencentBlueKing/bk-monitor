@@ -1115,6 +1115,78 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: "query span list"
+  /app/apm/list_llm_spans/:
+    post:
+      operationId: list_llm_spans
+      description: 查询 Agent Trace 的标准化 Span
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/apm_llm_web/list_spans/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: "query normalized Agent spans"
+  /app/apm/list_llm_traces/:
+    post:
+      operationId: list_llm_traces
+      description: 分页查询 Agent Trace 或会话
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/apm_llm_web/list_traces/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: "query Agent traces or conversations"
+  /app/apm/llm_time_series/:
+    post:
+      operationId: llm_time_series
+      description: 查询 Agent LLM 指标时序
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/apm_llm_web/time_series/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: "query Agent LLM metric time series"
+  /app/apm/llm_calculate_by_range/:
+    post:
+      operationId: llm_calculate_by_range
+      description: 查询 Agent LLM 指标区间聚合
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/apm_llm_web/calculate_by_range/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: "query Agent LLM metric aggregated value by range"
   /app/apm/application_info_by_id/:
     get:
       operationId: apm_application_info_by_id

@@ -28,6 +28,7 @@ import { defineComponent, ref, computed, onBeforeUnmount, onMounted, nextTick, t
 
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
+import { isFieldTypeDisabled } from '@/common/util';
 import tippy, { type Instance } from 'tippy.js';
 import InfoTips from '../../common-comp/info-tips';
 import TableComponent from '../../common-comp/table-component';
@@ -165,8 +166,6 @@ export default defineComponent({
   setup(props, { emit, expose }) {
     const { t } = useLocale();
     const store = useStore();
-    // 最大 int 类型值
-    const MAX_INT_VALUE = 2_147_483_647;
     const REQUIRED_FIELD_MSG = t('必填项');
     const INVALID_FIELD_NAME_MSG = t('只能包含a - z、A - Z、0 - 9和_，且不能以_开头和结尾');
     const INVALID_ALIAS_NAME_MSG = t('重命名只能包含a - z、A - Z、0 - 9和_');
@@ -281,16 +280,17 @@ export default defineComponent({
      * @param row
      * @returns
      */
-    const renderWordBreakerValue = row => (
+    const renderWordBreakerValue = row =>
       row.is_analyzed ? (
         <div class='analyzed-box'>
           <div>{row.tokenize_on_chars ? row.tokenize_on_chars : t('自然语言分词')}</div>
-          <div>{t('大小写敏感')}: {row.is_case_sensitive ? t('是') : t('否')}</div>
+          <div>
+            {t('大小写敏感')}: {row.is_case_sensitive ? t('是') : t('否')}
+          </div>
         </div>
       ) : (
         <span>{t('不分词')}</span>
-      )
-    );
+      );
 
     const renderWordBreaker = (h, { row }) => {
       if (row.field_type === 'string' && !row.is_built_in) {
@@ -326,7 +326,7 @@ export default defineComponent({
                     on-change={value => {
                       cacheData.value.is_analyzed = value;
                     }}
-                  // on-change={handelChangeAnalyzed}
+                    // on-change={handelChangeAnalyzed}
                   />
                 </div>
                 <div class='menu-item'>
@@ -473,23 +473,35 @@ export default defineComponent({
           // 如果有行数据，初始化 cacheData
           if (currentRow) {
             cacheData.value = {
-              is_analyzed: currentRow.is_analyzed,
+              is_analyzed: Boolean(currentRow.is_analyzed),
               tokenize_on_chars: currentRow.tokenize_on_chars || '',
-              is_case_sensitive: currentRow.is_case_sensitive,
+              is_case_sensitive: Boolean(currentRow.is_case_sensitive),
             };
             currentParticipleState.value = currentRow.tokenize_on_chars ? 'custom' : 'default';
+          }
+
+          const container = reference.nextElementSibling as HTMLElement | null;
+          const contentNode = container?.querySelector('.word-breaker-menu-content') as HTMLElement | null;
+          if (contentNode) {
+            instance.setContent(contentNode);
           }
         },
         onHide(instance) {
           (instance.reference as HTMLElement).classList.remove('is-hover');
         },
-        content(reference) {
-          const btn = reference as HTMLElement;
-          // 约定：内容紧跟在按钮后的兄弟元素中
-          const container = btn.nextElementSibling as HTMLElement | null;
-          const contentNode = container?.querySelector('.word-breaker-menu-content') as HTMLElement | null;
-          return (contentNode ?? container ?? document.createElement('div')) as unknown as Element;
+        onHidden(instance) {
+          const reference = instance.reference as HTMLElement;
+          const container = reference.nextElementSibling as HTMLElement | null;
+          if (container) {
+            const tippyContentEl = instance.popper?.querySelector('.tippy-content');
+            const menuContent = tippyContentEl?.querySelector('.word-breaker-menu-content') as HTMLElement | null;
+            if (menuContent && menuContent.parentElement !== container) {
+              container.appendChild(menuContent);
+            }
+          }
+          instance.setContent(document.createElement('div'));
         },
+        content: document.createElement('div'),
       });
 
       // tippy 返回单个或数组，这里统一转为数组
@@ -508,12 +520,14 @@ export default defineComponent({
     };
     /** 销毁所有tippy */
     const destroyTippyInstances = () => {
-      // biome-ignore lint/complexity/noForEach: 需要遍历数组并执行销毁操作，forEach 更简洁
+      // 需要遍历数组并执行销毁操作，forEach 更简洁
       tippyInstances.forEach(i => {
         try {
           i.hide();
           i.destroy();
-        } catch (_) { }
+        } catch {
+          // 单个实例销毁失败不阻断其余实例清理
+        }
       });
       tippyInstances = [];
     };
@@ -565,21 +579,6 @@ export default defineComponent({
      * 刷新值
      */ const handleFreshValue = () => {
       emit('refresh');
-    };
-
-    /**
-     * 当前字段类型是否禁用
-     * @param row
-     * @param option
-     * @returns
-     */
-    const isTypeDisabled = (row, option) => {
-      if (row.verdict) {
-        // 不是数值，相关数值类型选项被禁用
-        return ['int', 'long', 'double', 'float'].includes(option.id);
-      }
-      // 是数值，如果值大于 MAX_INT_VALUE 即 2^31 - 1，int 选项被禁用
-      return option.id === 'int' && row.value > MAX_INT_VALUE;
     };
 
     /**
@@ -662,14 +661,14 @@ export default defineComponent({
         return '';
       }
 
-      const { field_name, is_delete, field_index, is_time } = currentRow;
+      const { field_name: fieldName, is_delete: isDelete, field_index, is_time } = currentRow;
       let result = ''; // 字段名错误信息
       let aliasResult = ''; // 别名提示信息
       let width = 220; // 提示框宽度
       let btnShow = false; // 是否显示字段映射按钮
 
       // 已删除的字段不需要校验
-      if (is_delete) {
+      if (isDelete) {
         currentRow.fieldErr = '';
         currentRow.fieldAliasErr = '';
         currentRow.width = width;
@@ -680,15 +679,15 @@ export default defineComponent({
       }
 
       // 校验字段名是否为空
-      if (!field_name) {
+      if (!fieldName) {
         result = REQUIRED_FIELD_MSG;
       }
       // 校验是否包含不完整的引号
-      else if (hasIncompleteQuotes(field_name)) {
+      else if (hasIncompleteQuotes(fieldName)) {
         result = t('字段名包含不完整的引号，请补全或删除引号');
       }
       // 校验字段名格式：只能包含 a-z、A-Z、0-9 和 _，且不能以 _ 开头和结尾（或被完整引号包裹）
-      else if (!/^(?!_)(?!.*?_$)^[A-Za-z0-9_]+$/gi.test(field_name) && !/^[""].*[""]$/.test(field_name)) {
+      else if (!/^(?!_)(?!.*?_$)^[A-Za-z0-9_]+$/gi.test(fieldName) && !/^[""].*[""]$/.test(fieldName)) {
         if (props.selectEtlConfig === 'bk_log_json') {
           // JSON 模式下，格式错误时提示用户重命名
           btnShow = true;
@@ -701,7 +700,7 @@ export default defineComponent({
         }
       }
       // 校验是否与系统内置字段重复
-      else if (isBuiltInFieldConflict(field_name)) {
+      else if (isBuiltInFieldConflict(fieldName)) {
         if (props.extractMethod !== 'bk_log_json') {
           // 非 JSON 模式下，直接报错
           result =
@@ -717,7 +716,7 @@ export default defineComponent({
       }
       // 校验字段名是否与其他字段冲突（分隔符模式或 JSON 模式）
       else if (props.extractMethod === 'bk_log_delimiter' || props.selectEtlConfig === 'bk_log_json') {
-        result = filedNameIsConflict(field_index, field_name, is_time) ? FIELD_CONFLICT_MSG : '';
+        result = filedNameIsConflict(field_index, fieldName, is_time) ? FIELD_CONFLICT_MSG : '';
       }
 
       // 更新行数据的错误信息
@@ -745,12 +744,12 @@ export default defineComponent({
         return '';
       }
 
-      const { alias_name, is_delete, field_index } = currentRow;
+      const { alias_name: aliasName, is_delete: isDelete, field_index } = currentRow;
       let queryResult = '';
       currentRow.btnShow = false;
 
       // 如果别名为空，显示重命名输入框
-      if (!alias_name) {
+      if (!aliasName) {
         currentRow.alias_name_show = false;
         currentRow.btnShow = true;
         // 别名为空时，需要重新校验字段名，因为字段名的问题可能仍然存在
@@ -759,27 +758,27 @@ export default defineComponent({
       }
 
       // 已删除的字段不需要校验
-      if (is_delete) {
+      if (isDelete) {
         currentRow.fieldErr = '';
         currentRow.fieldAliasErr = '';
         return '';
       }
 
       // 校验别名格式：只能包含 a-z、A-Z、0-9 和 _
-      if (!/^[A-Za-z0-9_]+$/g.test(alias_name)) {
+      if (!/^[A-Za-z0-9_]+$/g.test(aliasName)) {
         queryResult = INVALID_ALIAS_NAME_MSG;
       }
       // 校验别名是否与系统内置字段重复
-      else if (isBuiltInFieldConflict(alias_name)) {
+      else if (isBuiltInFieldConflict(aliasName)) {
         queryResult = DUPLICATE_BUILT_IN_MSG;
       }
       // 校验别名是否与字段名重复
-      else if (alias_name === currentRow.field_name) {
+      else if (aliasName === currentRow.field_name) {
         queryResult = ALIAS_FIELD_DUPLICATE_MSG;
       }
       // JSON 模式下，校验别名是否与其他字段冲突
       else if (props.selectEtlConfig === 'bk_log_json') {
-        queryResult = filedNameIsConflict(field_index, alias_name) ? t('重命名字段名称冲突, 请调整') : '';
+        queryResult = filedNameIsConflict(field_index, aliasName) ? t('重命名字段名称冲突, 请调整') : '';
       }
 
       // 更新行数据的错误信息
@@ -800,7 +799,6 @@ export default defineComponent({
      * 注意：此函数保留用于 API 兼容性，可能被父组件通过 ref 调用
      * @returns Promise，校验通过 resolve，失败 reject
      */
-    // biome-ignore lint/correctness/noUnusedVariables: 保留用于 API 兼容性，可能被父组件通过 ref 调用
     const checkFieldName = (): Promise<void> => {
       return new Promise((resolve, reject) => {
         try {
@@ -840,7 +838,6 @@ export default defineComponent({
      * 注意：此函数保留用于 API 兼容性，可能被父组件通过 ref 调用
      * @returns Promise，校验通过 resolve，失败 reject
      */
-    // biome-ignore lint/correctness/noUnusedVariables: 保留用于 API 兼容性，可能被父组件通过 ref 调用
     const checkAliasName = (): Promise<void> => {
       return new Promise((resolve, reject) => {
         try {
@@ -898,7 +895,6 @@ export default defineComponent({
      * 注意：此函数保留用于 API 兼容性，可能被父组件通过 ref 调用
      * @returns Promise，校验通过 resolve，失败 reject
      */
-    // biome-ignore lint/correctness/noUnusedVariables: 保留用于 API 兼容性，可能被父组件通过 ref 调用
     const checkType = (): Promise<void> => {
       return new Promise((resolve, reject) => {
         try {
@@ -1120,10 +1116,7 @@ export default defineComponent({
               v-bk-tooltips={{ content: row.fieldErr, placement: 'top' }}
             />
           )}
-          {props.selectEtlConfig === 'bk_log_json'
-            && row.fieldAliasErr
-            && !row.alias_name
-            && !row.alias_name_show && (
+          {props.selectEtlConfig === 'bk_log_json' && row.fieldAliasErr && !row.alias_name && !row.alias_name_show && (
             <bk-button
               class='tooltips-btn'
               disabled={props.isTemplateSource}
@@ -1168,36 +1161,32 @@ export default defineComponent({
         className: () => 'fields-table-column',
         cell: (h, { row }) => (
           <div class='type-select-wrapper'>
-            {row.field_type === 'flattened' ? (
-              <span class='overflow-tips'>{t('动态对象字段')}</span>
-            ) : (
-              <bk-select
-                class={{ 'type-error': row.typeErr }}
-                clearable={false}
-                disabled={props.isTemplateSource || row.is_built_in}
-                value={row.field_type}
-                on-change={value => {
-                  if (value === 'string') {
-                    scheduleInitMenuPop(1000);
-                  }
-                  const newList = updateList(props.data, row, item => ({
-                    ...item,
-                    field_type: value,
-                    typeErr: false, // 选择类型后清除错误状态
-                  }));
-                  emit('change', newList);
-                }}
-              >
-                {(globalsData.value.field_data_type || []).map(option => (
-                  <bk-option
-                    id={option.id}
-                    key={option.id}
-                    disabled={isTypeDisabled(row, option)}
-                    name={option.name}
-                  />
-                ))}
-              </bk-select>
-            )}
+            <bk-select
+              class={{ 'type-error': row.typeErr }}
+              clearable={false}
+              disabled={props.isTemplateSource || row.is_built_in}
+              value={row.field_type}
+              on-change={value => {
+                if (value === 'string') {
+                  scheduleInitMenuPop(1000);
+                }
+                const newList = updateList(props.data, row, item => ({
+                  ...item,
+                  field_type: value,
+                  typeErr: false, // 选择类型后清除错误状态
+                }));
+                emit('change', newList);
+              }}
+            >
+              {(globalsData.value.field_data_type || []).map(option => (
+                <bk-option
+                  id={option.id}
+                  key={option.id}
+                  disabled={isFieldTypeDisabled(row, option)}
+                  name={option.name}
+                />
+              ))}
+            </bk-select>
             {row.typeErr && (
               <i
                 class='bk-icon icon-exclamation-circle-shape tooltips-icon type-error-icon'
@@ -1225,19 +1214,18 @@ export default defineComponent({
         width: 60,
         cell: (h, { row }) => (
           <div class='table-operation'>
-            {(isLogDelimiter.value || isLogRegexp.value)
-              && !row.is_built_in && (
-                <i
-                  class={{
-                    [`bklog-icon bklog-${row.is_delete ? 'visible' : 'invisible'} icons`]: true,
-                    'is-disabled': props.isTemplateSource,
-                  }}
-                  v-bk-tooltips={{
-                    content: row.is_delete ? t('复原') : t('隐藏'),
-                    disabled: props.isTemplateSource,
-                  }}
-                  on-click={() => !props.isTemplateSource && isDisableOperate(row)}
-                />
+            {(isLogDelimiter.value || isLogRegexp.value) && !row.is_built_in && (
+              <i
+                class={{
+                  [`bklog-icon bklog-${row.is_delete ? 'visible' : 'invisible'} icons`]: true,
+                  'is-disabled': props.isTemplateSource,
+                }}
+                v-bk-tooltips={{
+                  content: row.is_delete ? t('复原') : t('隐藏'),
+                  disabled: props.isTemplateSource,
+                }}
+                on-click={() => !props.isTemplateSource && isDisableOperate(row)}
+              />
             )}
             {isLogJson.value && !row.is_built_in && (
               <i

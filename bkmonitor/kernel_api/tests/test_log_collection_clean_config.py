@@ -60,9 +60,7 @@ def test_request_serializer_rejects_missing_clean_or_storage_fields(field):
 
 
 def test_request_serializer_requires_explicit_confirmation():
-    serializer = UpdateLogCollectorCleanConfigResource.RequestSerializer(
-        data=build_request_data(confirm=False)
-    )
+    serializer = UpdateLogCollectorCleanConfigResource.RequestSerializer(data=build_request_data(confirm=False))
 
     assert not serializer.is_valid()
     assert "confirm" in serializer.errors

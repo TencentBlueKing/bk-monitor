@@ -23,7 +23,6 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-/** biome-ignore-all lint/suspicious/noTemplateCurlyInString: reason */
 
 export default {
   '正则匹配：': 'Regex matching:',
@@ -1061,9 +1060,8 @@ export default {
     'A larger parse depth enables more fields for direct search, but is also more likely to hit the ES field limit.',
   '只展开 __ext_json 下第一层字段': 'Only expand the first-level fields under __ext_json',
   '展开到第二层，推荐': 'Expand to the second level (recommended)',
-  '展开到第三层': 'Expand to the third level',
-  '保持完整动态展开，存在字段膨胀风险':
-    'Keep full dynamic expansion; there is a risk of field explosion',
+  展开到第三层: 'Expand to the third level',
+  '保持完整动态展开，存在字段膨胀风险': 'Keep full dynamic expansion; there is a risk of field explosion',
   '无限解析可能产生大量动态字段，达到 ES 字段上限后，相关日志可能写入失败。建议仅在字段结构稳定时使用。':
     'Unlimited parsing may generate a large number of dynamic fields. After the ES field limit is reached, related logs may fail to write. It is recommended only when the field structure is stable.',
   查看解析示例: 'View parse example',
@@ -1336,10 +1334,12 @@ export default {
   前往日志检索: 'Go to Log Search',
   整体趋势: 'Overall Trend',
   相关样本: 'Related Samples',
-  '当前选中日志暂无trace字段，请检查日志内容': 'The currently selected log has no trace field. Please check the log content',
+  '当前选中日志暂无trace字段，请检查日志内容':
+    'The currently selected log has no trace field. Please check the log content',
   '未找到与 "{keyword}" 匹配的用户或任务': 'No user or task matching "{keyword}" was found',
   请检查任务ID和用户ID是否输入错误: 'Please check if the task ID and user ID are entered incorrectly',
-  '平台默认保存 90 天的任务记录，请检查 ID 是否过期': 'The platform keeps task records for 90 days by default, please check if the ID has expired',
+  '平台默认保存 90 天的任务记录，请检查 ID 是否过期':
+    'The platform keeps task records for 90 days by default, please check if the ID has expired',
   '若检查均无问题，请联系': 'If no issues are found after checking, please contact',
   蓝鲸助手: 'BlueKing Assistant',
   未找到匹配的用户或任务: 'No matching user or task found',
@@ -1371,19 +1371,20 @@ export default {
   输出结果: 'Output result',
   暂无调试结果: 'No debugging results yet',
   解析结果: 'Parsing result',
-  '请先按照 {0} 日志范围后，再进行日志检索！': 'Please narrow down the log range using {0} before performing a log search!',
+  '请先按照 {0} 日志范围后，再进行日志检索！':
+    'Please narrow down the log range using {0} before performing a log search!',
   场景过滤: 'Scene Filter',
   筛选字段不能为空: 'The filter field cannot be empty',
   请先通过过滤缩小范围: 'Please narrow down the scope using filters first',
   '检索条件有变更，请点击{icon}按钮{shortcut}':
     'The search criteria have changed. Please click the {icon} button {shortcut}',
   当前日志未过滤: 'The current log is not filtered',
-  '请先按照标签过滤日志范围后，再进行日志检索':
-    'Please filter the log range by tags before performing log retrieval',
+  '请先按照标签过滤日志范围后，再进行日志检索': 'Please filter the log range by tags before performing log retrieval',
   '场景化检索默认搜索全量日志，为保证检索体验及集群稳定性，请通过顶部标签过滤数据后查看日志。可随时修改标签过滤内容':
     'Contextualized search defaults to searching the entire log. To ensure a better search experience and cluster stability, please filter data using the tags at the top and then view the logs. You can modify the tag filters at any time',
   未匹配到索引集: 'No index set matched',
-  '根据过滤条件未匹配到索引集，请修改过滤条件': 'No index set matched the filter criteria. Please modify the filter criteria',
+  '根据过滤条件未匹配到索引集，请修改过滤条件':
+    'No index set matched the filter criteria. Please modify the filter criteria',
   '若仍无结果返回，可点击联系': 'If there are still no results, you can click to contact',
   全量日志: 'Full log',
   全量: 'Full',
@@ -1394,7 +1395,8 @@ export default {
   分块: 'Chunks',
   正在读取全量数据: 'Reading full data...',
   '正在读取全量数据...': 'Reading full data...',
-  '未找到当前行全量数据，已显示当前渲染数据': 'Full data for the current row was not found. Showing rendered data instead.',
+  '未找到当前行全量数据，已显示当前渲染数据':
+    'Full data for the current row was not found. Showing rendered data instead.',
   '读取全量数据失败，已显示当前渲染数据': 'Failed to read full data. Showing rendered data instead.',
   BK助手: 'BK Assistant',
   '搜索 采集项': 'Search collection item',
@@ -1418,23 +1420,29 @@ export default {
   '复制 {0} 成功': 'Copied {0} successfully',
   '按用量排序需要实时请求集群使用情况，需等待较长时间，点击确认执行':
     'Sorting by usage requires a real-time request for cluster usage and may take a while. Click Confirm to proceed.',
-  '搜索 数据 ID、采集名、数据名、存储集群、存储名': 'Search by Data ID, Collection Name, Data Name, Storage Cluster, or Storage Name',
+  '搜索 数据 ID、采集名、数据名、存储集群、存储名':
+    'Search by Data ID, Collection Name, Data Name, Storage Cluster, or Storage Name',
   '确认同步后，会将模板最新清洗配置同步到以下所有采集项。该操作会影响线上日志字段解析结果。':
     'After confirmation, the latest cleaning configuration will be synced to all collection items below. This may affect online log field parsing.',
   '选择<同步所有采集项> 后，系统会将最新配置更新到全部关联采集项，可能会影响线上日志字段解析结果。':
     'After selecting <Sync All Collection Items>, the latest configuration will be applied to all related collection items and may affect online log field parsing results.',
-  '当前模板已生效到{0}个采集项，关联{1}个索引集': 'The current template is active in {0} collection items and related to {1} index sets',
+  '当前模板已生效到{0}个采集项，关联{1}个索引集':
+    'The current template is active in {0} collection items and related to {1} index sets',
   '您已修改过模板配置，确认后将和模板解除绑定关系，本次清洗配置将保存并单独生效该索引集，是否确认。':
     'You have modified the template configuration. After confirmation, it will be unbound from the template and saved as an independent cleaning configuration for this index set. Continue?',
   '当前清洗配置处于模板绑定状态，无法修改采集配置。如需修改，请点击':
     'The current cleaning configuration is bound to a template and cannot be modified. To make changes, click',
-  '解除绑定后，将实例化为手动配置的清洗规则，不再随模板更新。': 'After unbinding, it will be instantiated as a manually configured scrubbing rule and will no longer update with the template.',
+  '解除绑定后，将实例化为手动配置的清洗规则，不再随模板更新。':
+    'After unbinding, it will be instantiated as a manually configured scrubbing rule and will no longer update with the template.',
   请选择采集项: 'Please select the data collection items.',
   请选择左侧模板: 'Please select a template from the left.',
-  '如果在下方列表编辑了内容，将自动脱离模板，转为手动配置清洗规则。': 'If you edit the content in the list below, it will automatically detach from the template and switch to manual configuration of cleaning rules.',
-  '该模板已同步至关联采集项，无需同步': 'This template has already been synchronized to the associated collection items; no further synchronization is required.',
+  '如果在下方列表编辑了内容，将自动脱离模板，转为手动配置清洗规则。':
+    'If you edit the content in the list below, it will automatically detach from the template and switch to manual configuration of cleaning rules.',
+  '该模板已同步至关联采集项，无需同步':
+    'This template has already been synchronized to the associated collection items; no further synchronization is required.',
   '确定删除该清洗模板？': 'Are you sure you want to delete this cleaning template?',
-  '删除模板后，原来关联的采集项，将实例化为手动配置的清洗规则。': 'After deleting the template, the previously associated data collection items will be instantiated as manually configured cleaning rules.',
+  '删除模板后，原来关联的采集项，将实例化为手动配置的清洗规则。':
+    'After deleting the template, the previously associated data collection items will be instantiated as manually configured cleaning rules.',
   '模板名称：': 'Template Name:',
   '确定解除与模板的关联关系？': 'Are you sure you want to remove the association with the template?',
   忽略冲突并继续填入: 'Ignore conflicts and continue filling in',

@@ -60,9 +60,6 @@ def _get_app_meta(bk_biz_id: int, app_name: str) -> dict[str, Any]:
 
 
 class QueryProxy:
-    # 大部分 Trace 详情查询发生在数据写入后不久，先查近 1 天可大幅收敛索引扫描范围
-    RECENT_RETENTION: int = 1
-
     def __init__(self, bk_biz_id: int, app_name: str):
         self.bk_biz_id: int = bk_biz_id
         self.app_name: str = app_name
@@ -225,16 +222,13 @@ class QueryProxy:
     def _query_cross_trace_detail(self, trace_id: str) -> list[dict[str, Any]]:
         """跨应用查询 Trace 详情
 
-        预计算按近 1 天、数据过期时间两个范围查询，索引集、ES 索引直查按数据过期时间查询，
-        四者竞速取最先返回且有数据的结果。
+        索引集、ES 索引直查按数据过期时间查询，两者竞速取最先返回且有数据的结果。
         """
         retention: int = self.span_query.retention
         paths: list[tuple[Callable[[str, int], list[dict[str, Any]]], int]] = [
-            (self._query_cross_trace_detail_by_precalc, precalc_retention)
-            for precalc_retention in sorted({min(self.RECENT_RETENTION, retention), retention})
+            (self._query_cross_trace_detail_by_index_set, retention),
+            (self._query_cross_trace_detail_by_prefix, retention),
         ]
-        paths.append((self._query_cross_trace_detail_by_index_set, retention))
-        paths.append((self._query_cross_trace_detail_by_prefix, retention))
 
         start_at: float = time.time()
         pool: ThreadPool = ThreadPool(len(paths))
@@ -293,64 +287,6 @@ class QueryProxy:
         """基于 ES 索引前缀查询 Trace 详情"""
         start_time: int = self._get_retention_start_time(retention)
         return self.span_query.prefix_query_by_trace_id(trace_id, start_time)
-
-    def _query_cross_trace_detail_by_precalc(self, trace_id: str, retention: int) -> list[dict[str, Any]]:
-        """基于预计算的应用分布查询 Trace 详情"""
-        result_table_ids: list[str] = PrecalculateStorage.fetch_result_table_ids(self.bk_biz_id)
-        if not result_table_ids:
-            return []
-
-        trace_infos: list[dict[str, Any]] = TraceQuery.query_by_trace_ids(
-            result_table_ids,
-            [trace_id],
-            retention,
-            select_fields=["biz_id", "app_name", "min_start_time", "max_end_time"],
-            # 一个 Trace 可能分布在多个应用，需要返回全部分布记录
-            limit=100,
-        )
-        if not trace_infos:
-            return []
-
-        # 预计算时间字段精度为微秒，Span 查询时间范围精度为秒，结束时间向上取整避免丢失边界 Span
-        start_time: int = min(trace_info["min_start_time"] for trace_info in trace_infos) // 10**6
-        end_time: int = max(trace_info["max_end_time"] for trace_info in trace_infos) // 10**6 + 1
-        if end_time > int(time.time()) - 30 * 60:
-            # 预计算写入存在延迟，近 30min 的 Trace 应用分布可能不完整，交由其他路径查询
-            return []
-
-        data_sources: list[TraceDatasourceTarget] = self._build_precalc_data_sources(trace_infos)
-        if not data_sources:
-            return []
-
-        # 做一次扩窗，避免预计算存在误差。
-        start_time, end_time = start_time - 3600, end_time + 3600
-
-        return SpanQuery(data_sources).query_by_trace_id(trace_id, start_time, end_time)
-
-    def _build_precalc_data_sources(self, trace_infos: list[dict[str, Any]]) -> list[TraceDatasourceTarget]:
-        """按预计算的应用分布构造多 Target 数据源，当前应用置首，查询沿用当前应用的数据过期时间"""
-        apps: list[tuple[int, str]] = [(self.bk_biz_id, self.app_name)]
-        for trace_info in trace_infos:
-            try:
-                # 预计算 Schema 中业务字段为 biz_id，查询返回可能为 bk_biz_id，两者都做兼容
-                app: tuple[int, str] = (
-                    int(trace_info.get("biz_id") or trace_info["bk_biz_id"]),
-                    trace_info["app_name"],
-                )
-            except (KeyError, TypeError, ValueError):
-                logger.warning("[QueryProxy] invalid precalculate trace info: %s", trace_info)
-                continue
-
-            if app not in apps:
-                apps.append(app)
-
-        data_sources: list[TraceDatasourceTarget] = []
-        for bk_biz_id, app_name in apps:
-            try:
-                data_sources.append(TraceDatasourceTarget.build(**_get_app_meta(bk_biz_id, app_name)))
-            except ValueError:
-                logger.warning("[QueryProxy] skipped application without trace datasource: %s:%s", bk_biz_id, app_name)
-        return data_sources
 
     def query_span_detail(self, span_id: str) -> dict[str, Any] | None:
         return self.span_query.query_by_span_id(span_id)

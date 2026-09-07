@@ -28,6 +28,8 @@ from rest_framework.fields import BooleanField
 from rest_framework.response import Response
 
 from apps.constants import (
+    ACTIONS_IMPLYING_LOG_SEARCH,
+    INDEX_SET_SCOPED_EXTERNAL_ACTIONS,
     ExternalPermissionActionEnum,
     ViewSetAction,
     ViewSetActionEnum,
@@ -127,7 +129,7 @@ class RequestProcessor:
     @classmethod
     def get_resource(cls, action_id: str, kwargs: dict[str, Any], json_data_str: str):
         """获取请求中的资源"""
-        if action_id == ExternalPermissionActionEnum.LOG_SEARCH.value:
+        if action_id in INDEX_SET_SCOPED_EXTERNAL_ACTIONS:
             if "index_set_id" in kwargs:
                 return int(kwargs.get("index_set_id", ""))
             try:
@@ -375,10 +377,10 @@ def dispatch_external_proxy(request):
             external_user_allowed_action_id_list = ExternalPermission.get_authorizer_permission(
                 space_uid=space_uid, authorizer=external_user
             ).get(space_uid, [])
-            # 拥有客户端日志权限的用户，自动拥有客户端日志索引集的日志检索权限
-            if (
-                ExternalPermissionActionEnum.CLIENT_LOG.value in external_user_allowed_action_id_list
-                and ExternalPermissionActionEnum.LOG_SEARCH.value not in external_user_allowed_action_id_list
+            # 仅 client_log 这类特例会隐式放通 log_search；log_clustering 不合成检索权限
+            if ExternalPermissionActionEnum.LOG_SEARCH.value not in external_user_allowed_action_id_list and any(
+                implying_action_id in external_user_allowed_action_id_list
+                for implying_action_id in ACTIONS_IMPLYING_LOG_SEARCH
             ):
                 external_user_allowed_action_id_list.append(ExternalPermissionActionEnum.LOG_SEARCH.value)
             # 判断接口是否在管理范围内
@@ -408,6 +410,20 @@ def dispatch_external_proxy(request):
                 audit_recorder.resource = resource
                 if resource and resource not in allow_resources:
                     message = f"external_user:{external_user} cannot access resource(ID:{resource})."
+                    audit_recorder.set_result(403, message)
+                    return JsonResponse({"result": False, "message": message}, status=403)
+                # 聚类设置写入链路必须同时具备该索引集的日志检索权限，避免只授聚类配置即可改配置
+                if (
+                    action_id == ExternalPermissionActionEnum.LOG_CLUSTERING.value
+                    and resource
+                    and not ExternalPermission.can_access_clustering_settings(
+                        space_uid=space_uid, authorized_user=external_user, index_set_id=resource
+                    )
+                ):
+                    message = (
+                        f"external_user:{external_user} cannot access clustering settings "
+                        f"without log_search on resource(ID:{resource})."
+                    )
                     audit_recorder.set_result(403, message)
                     return JsonResponse({"result": False, "message": message}, status=403)
         setattr(fake_request, "space_uid", space_uid)

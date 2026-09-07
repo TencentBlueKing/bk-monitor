@@ -610,6 +610,15 @@ class IssueQueryHandler(BaseBizQueryHandler):
                     if merge_status.get("role") == "main" and issue.get("impact_scope"):
                         self.enrich_impact_scope(issue["impact_scope"])
 
+                # 合并视图展示与 ES 排序口径对齐（TAPD 1010158081137884678 时间排序问题）：
+                # hydrate_aggregations 把成员的 first/last_alert_time min/max 并入主 Issue 行（仅展示层），
+                # 而 ES 排序用的是主 Issue 文档存储值，导致"成员有新告警的合并主 Issue"
+                # 在时间降序时沉底、升序时浮顶。这里在 hydrate 改写展示值之后，按当前
+                # ordering 对页内行重排一次，使列表顺序与屏幕展示的时间一致。
+                # fail-safe：排序值缺失统一沉底（有意偏离 ES 默认，理由见重排方法 docstring）；
+                # 首个排序键为 first/last_alert_time 之一时才触发（其它字段 ES 已排好，无需重排）。
+                self._reorder_issues_by_aggregated_time(issues)
+
         # 拆分溯源注入：被拆出的独立 Issue 注入 split_info（前端常驻展示「由合并拆分 +
         # 拆分依据」标签，split_time 另供"刚拆出"瞬态高亮）。split member 已恢复独立、不在
         # active 集，不受上面 hydrate 影响；此处独立批量查 status='split'，无时间窗（标签
@@ -666,6 +675,46 @@ class IssueQueryHandler(BaseBizQueryHandler):
             raise exc
 
         return result
+
+    def _reorder_issues_by_aggregated_time(self, issues: list[dict]) -> None:
+        """按聚合后的 first/last_alert_time 对页内 issues 重排（原地修改）。
+
+        背景：``IssueMergeResolver.hydrate_aggregations`` 仅在展示层把成员告警时间
+        min/max 并入主 Issue 行，ES 排序仍用主 Issue 存储值 → 合并主 Issue 的
+        展示时间与排序依据不一致。本方法在 hydrate 之后用改写后的展示值重排页内行，
+        对齐"看到什么顺序就按什么时间排序"。
+
+        约束与边界：
+        - 仅当 self.ordering 的首个排序键为 first_alert_time / last_alert_time 时生效；
+          其余字段（priority/status/create_time 等）ES 排序与展示值无分化，不重排。
+        - 页内排序（只影响当前页行的相对顺序），不改变 total / 分页成员集。
+        - 排序稳定：主键相同的行保持 ES 返回的既有相对顺序（次级排序键不乱）。
+        - 排序值缺失（None/空/非数值）统一沉到页内最后。注：这是有意偏离 ES sort
+          missing 默认（ES 降序默认 _first 会把缺失行排最前）；产品语义上无告警时间的
+          行不应占据列表顶部，故无论升降序均沉底。
+        """
+        if not issues or not self.ordering:
+            return
+
+        primary = self.ordering[0]
+        desc = primary.startswith("-")
+        field = primary.lstrip("+-")
+        if field not in ("first_alert_time", "last_alert_time"):
+            return
+
+        def sort_key(issue: dict):
+            value = issue.get(field)
+            if value is None or value == "":
+                # ES missing=_last 默认：缺失值在升序/降序中都排最后
+                return float("inf")
+            try:
+                value = int(value)
+            except (TypeError, ValueError):
+                return float("inf")
+            # 降序取负实现反转（时间越大 → key 越小 → 排越前）
+            return -value if desc else value
+
+        issues.sort(key=sort_key)
 
     def add_aggs(self, search_object: Search) -> Search:
         """高级筛选聚合"""

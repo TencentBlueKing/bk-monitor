@@ -31,7 +31,7 @@ from bkm_space.validate import validate_bk_biz_id
 from bkmonitor.models import BCSPod
 from bkmonitor.utils.cache import lru_cache_with_ttl
 from bkmonitor.utils.thread_backend import ThreadPool
-from constants.apm import OtlpKey, TelemetryDataType, Vendor
+from constants.apm import LLMProduct, OtlpKey, TelemetryDataType, Vendor
 
 
 logger = logging.getLogger(__name__)
@@ -119,6 +119,14 @@ class NodeDiscover(DiscoverBase):
             [(spans, category_rules, rules) for spans in divide_biscuit(origin_data, self.HANDLE_SPANS_BATCH_SIZE)],
         )
 
+        llm_products: dict[str, str] = {}
+        for instances_mapping in results:
+            for topo_key, topo_value in (instances_mapping or {}).items():
+                product: str | None = topo_value["extra_data"].get("llm", {}).get("product")
+                if product and llm_products.get(topo_key) in (None, LLMProduct.DEFAULT.value):
+                    llm_products[topo_key] = product
+        llm_updated_at: int = int(datetime.now().timestamp())
+
         # 结合发现的数据和已有数据判断 创建/更新
         exists_instances = self.list_exists()
 
@@ -140,6 +148,11 @@ class NodeDiscover(DiscoverBase):
                     continue
 
                 exists_instance = exists_instances.get(k)
+                if v["extra_data"].get("kind") == ApmTopoDiscoverRule.TOPO_SERVICE:
+                    if product := llm_products.get(k):
+                        v["extra_data"]["llm"] = {"product": product, "updated_at": llm_updated_at}
+                    elif exists_instance and exists_instance["extra_data"].get("llm"):
+                        v["extra_data"]["llm"] = exists_instance["extra_data"]["llm"]
                 v.update({"system": list(v["system"].values()), "sdk": list(v["sdk"].values())})
                 if v["extra_data"]["category"] == ApmTopoDiscoverRule.APM_TOPO_CATEGORY_OTHER:
                     if k in update_instances:
@@ -323,6 +336,12 @@ class NodeDiscover(DiscoverBase):
             if not topo_key:
                 continue
 
+            product: str | None = self.get_llm_product(span)
+            if product:
+                llm: dict[str, str] = instance_mapping[topo_key]["extra_data"].setdefault("llm", {})
+                if llm.get("product") in (None, LLMProduct.DEFAULT.value):
+                    llm["product"] = product
+
             # 后续的规则基于上一步发现的 topo_key 来补充数据
             for item in rules:
                 item_rule_type = item[0]
@@ -344,6 +363,39 @@ class NodeDiscover(DiscoverBase):
                         self.find_sdk(instance_mapping, match_rule, span, topo_key)
 
         return instance_mapping
+
+    def get_llm_product(self, span: dict[str, Any]) -> str | None:
+        attributes: dict[str, Any] = span.get(OtlpKey.ATTRIBUTES) or {}
+        is_gen_ai: bool = any(
+            key.startswith("gen_ai.") and value not in (None, "") for key, value in attributes.items()
+        )
+        is_langfuse: bool = attributes.get("langfuse.observation.type") not in (None, "")
+        is_agentlens: bool = str(attributes.get("gen_ai.span.kind", "")).lower() in {"agent", "llm", "tool"}
+        is_aidev: bool = self.app_name.startswith("bkapp_ai") and (
+            is_gen_ai
+            or is_langfuse
+            or attributes.get("chain.type") == "workflow"
+            or any(
+                attributes.get(key) not in (None, "")
+                for key in (
+                    "agent.info.code",
+                    "agent.info.id",
+                    "agent.info.name",
+                    "traceloop.span.kind",
+                    "llm.request.type",
+                )
+            )
+        )
+
+        if is_aidev:
+            return LLMProduct.AIDEV.value
+        if is_langfuse:
+            return LLMProduct.LANGFUSE.value
+        if is_agentlens:
+            return LLMProduct.AGENTLENS.value
+        if is_gen_ai:
+            return LLMProduct.DEFAULT.value
+        return None
 
     def find_category(self, instance_mapping, match_rule, other_rule, span):
         self.find_remote_service(span, match_rule, instance_mapping)

@@ -93,7 +93,12 @@ def test_builds_query_group_data_once_plans_many_with_item_selectors():
     item_a, selected_a = _strategy(1001, 11, threshold=1)
     item_b, selected_b = _strategy(1002, 22, threshold=2, selected=False)
     record = SimpleNamespace(
-        data={"time": 1725000000, "value": 3.0, "dimensions": {"host": "127.0.0.1"}},
+        data={
+            "time": 1725000000,
+            "value": 3.0,
+            "ref_values": {"A": {"value": 6.0, "state": "SUCCESS"}, "C": {"value": 3.0, "state": "SUCCESS"}},
+            "dimensions": {"host": "127.0.0.1"},
+        },
         is_retains={11: selected_a, 22: selected_b},
         inhibitions={11: False, 22: False},
         clean_dimension_fields=lambda: ["host"],
@@ -120,6 +125,53 @@ def test_builds_query_group_data_once_plans_many_with_item_selectors():
     assert envelope["selectors"][1]["selector"]["ranges"] == []
     assert envelope["records"][0]["values"] == {"value": 3.0}
     assert envelope["records"][0]["business_id"] == "2"
+
+
+def test_ref_values_do_not_change_alarmd_v2_projection_digests_or_message_size():
+    item, selected = _strategy(1001, 11, threshold=1)
+    base_data = {"time": 1725000000, "value": 3.0, "dimensions": {"host": "127.0.0.1"}}
+    baseline = SimpleNamespace(
+        data=base_data,
+        is_retains={11: selected},
+        inhibitions={11: False},
+        clean_dimension_fields=lambda: ["host"],
+    )
+    with_snapshot = SimpleNamespace(
+        data={
+            **base_data,
+            "ref_values": {
+                "A": {"value": 6.0, "state": "SUCCESS"},
+                "C": {"value": 3.0, "state": "SUCCESS"},
+            },
+        },
+        is_retains={11: selected},
+        inhibitions={11: False},
+        clean_dimension_fields=lambda: ["host"],
+    )
+    processor = SimpleNamespace(
+        items=[item],
+        strategy_group_key="query-group-1",
+        from_timestamp=1724999700,
+        until_timestamp=1725000060,
+        alarmd_v2_execution_id="execution-1",
+        alarmd_v2_evaluation_time=1725000060,
+        alarmd_v2_query_result={"completeness": "FULL"},
+    )
+
+    payloads = []
+    for record in [baseline, with_snapshot]:
+        job = build_access_publish_jobs(processor, [record], received_time=1725000061)[0]
+        message = build_execution_messages(
+            job, max_records=10, max_envelope_bytes=64 * 1024, message_id_factory=lambda: "message-1"
+        )[0][0]
+        payloads.append(message.payload)
+
+    baseline_envelope, snapshot_envelope = map(json.loads, payloads)
+    assert snapshot_envelope["records"][0]["values"] == {"value": 3.0}
+    assert snapshot_envelope["records"] == baseline_envelope["records"]
+    assert snapshot_envelope["dataset_contract"] == baseline_envelope["dataset_contract"]
+    assert snapshot_envelope["plan_set"]["plan_set_digest"] == baseline_envelope["plan_set"]["plan_set_digest"]
+    assert len(payloads[1]) == len(payloads[0])
 
 
 def test_configured_missing_dimension_is_preserved_as_explicit_null_identity():

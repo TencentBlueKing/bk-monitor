@@ -45,10 +45,11 @@ class AlertStrategyHandler:
 
         conditions = [{"key": "metric", "value": [f"bk_log_search.index_set.{self.index_set_id}"]}]
         username = get_request_username()
-        if status == AlertStatusEnum.NOT_SHIELDED_ABNORMAL.value:
-            alert_status = [status]
-        elif status == AlertStatusEnum.MY_ASSIGNEE.value:
+        if status == AlertStatusEnum.MY_ASSIGNEE.value:
             conditions.append({"key": "assignee", "value": [username]})
+        elif status and status != AlertStatusEnum.ALL.value:
+            # ABNORMAL / NOT_SHIELDED_ABNORMAL 等筛选值原样透传给监控搜索接口
+            alert_status = [status]
 
         current_time = arrow.now()
         start_time = int(current_time.shift(days=-self.DAYS).timestamp())

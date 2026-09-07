@@ -41,7 +41,12 @@ import useLocale from '@/hooks/use-locale';
 import useResizeObserve from '@/hooks/use-resize-observe';
 import UseTextSegmentation from '@/hooks/use-text-segmentation';
 import RetrieveHelper from '@/views/retrieve-helper';
-import { highlightPlainTextIntoFragment, pageHighlightState, buildSegmentPageHighlightRanges, type HighlightRange } from '@/views/retrieve-core/page-highlight';
+import {
+  highlightPlainTextIntoFragment,
+  pageHighlightState,
+  buildSegmentPageHighlightRanges,
+  type HighlightRange,
+} from '@/views/retrieve-core/page-highlight';
 import { debounce } from 'lodash-es';
 
 import type { WordListItem } from '@/hooks/use-text-segmentation';
@@ -198,7 +203,6 @@ export default defineComponent({
           wordList,
           refContent.value,
           refSegmentContent.value,
-          // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: reason
           (item: WordListItem, index?: number) => {
             const child = document.createElement(getTagName(item));
             child.classList.add(item.isCursorText ? 'valid-text' : 'others-text');
@@ -213,14 +217,14 @@ export default defineComponent({
             }
 
             const text = item.text?.length ? item.text : '""';
-            child.appendChild(highlightPlainTextIntoFragment({
-              text,
-              resultRanges: item.resultRanges?.length
-                ? item.resultRanges
-                : undefined,
-              resultHighlighted: !item.resultRanges?.length && item.isMark,
-              pageRanges: typeof index === 'number' ? segmentPageRanges[index] : undefined,
-            }));
+            child.appendChild(
+              highlightPlainTextIntoFragment({
+                text,
+                resultRanges: item.resultRanges?.length ? item.resultRanges : undefined,
+                resultHighlighted: !item.resultRanges?.length && item.isMark,
+                pageRanges: typeof index === 'number' ? segmentPageRanges[index] : undefined,
+              }),
+            );
             return child;
           },
         );

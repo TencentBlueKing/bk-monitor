@@ -31,9 +31,9 @@
       class="edit-btn-container"
     >
       <bk-button
+        v-cursor="{ active: !editAuth }"
         style="min-width: 88px; color: #3a84ff"
         class="mr10"
-        v-cursor="{ active: !editAuth }"
         :theme="'default'"
         @click="handleClickEdit"
       >
@@ -184,7 +184,7 @@
       },
       handleClickEdit() {
         if (!this.editAuth && this.editAuthData) {
-          this.$store.commit('updateState', { 'authDialogData': this.editAuthData});
+          this.$store.commit('updateState', { authDialogData: this.editAuthData });
           return;
         }
         const params = {

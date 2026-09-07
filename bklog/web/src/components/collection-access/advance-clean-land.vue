@@ -26,8 +26,8 @@
 
 <template>
   <div
-    class="advance-clean-land"
     v-bkloading="{ isLoading: loading }"
+    class="advance-clean-land"
   >
     <span class="bklog-icon bklog-shijian"></span>
     <p class="title">{{ $t('高级清洗中') }}</p>

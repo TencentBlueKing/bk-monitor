@@ -27,8 +27,8 @@
 <template>
   <div class="basic-info-container">
     <div
-      class="deploy-sub"
       v-en-class="'en-deploy'"
+      class="deploy-sub"
     >
       <!-- 数据ID -->
       <div>
@@ -82,8 +82,8 @@
         <div>
           <div
             v-for="(configItem, configIndex) in collectorConfigs"
-            class="config-box"
             :key="configIndex"
+            class="config-box"
           >
             <div class="config-title">{{ getFromCharCode(configIndex) }}</div>
             <div class="deploy-sub">
@@ -120,19 +120,19 @@
                   <template v-for="(labItem, labKey) in configItem.label_selector">
                     <div
                       v-for="(matchItem, matchKey) of labItem"
-                      class="specify-box"
                       :key="`${labKey}_${matchKey}`"
+                      class="specify-box"
                     >
                       <div
-                        class="specify-container justify-bt"
                         v-bk-overflow-tips
+                        class="specify-container justify-bt"
                       >
                         <span>{{ matchItem.key }}</span>
                         <div class="operator">{{ matchItem.operator }}</div>
                       </div>
                       <div
-                        class="specify-container"
                         v-bk-overflow-tips
+                        class="specify-container"
                       >
                         <span>{{ matchItem.value }}</span>
                       </div>
@@ -150,19 +150,19 @@
                   <template v-for="(labItem, labKey) in configItem.match_annotations">
                     <div
                       v-for="(matchItem, matchKey) of labItem"
-                      class="specify-box"
                       :key="`${labKey}_${matchKey}`"
+                      class="specify-box"
                     >
                       <div
-                        class="specify-container justify-bt"
                         v-bk-overflow-tips
+                        class="specify-container justify-bt"
                       >
                         <span>{{ matchItem.key }}</span>
                         <div class="operator">{{ matchItem.operator }}</div>
                       </div>
                       <div
-                        class="specify-container"
                         v-bk-overflow-tips
+                        class="specify-container"
                       >
                         <span>{{ matchItem.value }}</span>
                       </div>
@@ -181,8 +181,8 @@
                   <template v-for="([speKey, speValue], speIndex) in Object.entries(configItem.container)">
                     <div
                       v-if="speValue"
-                      class="container-item"
                       :key="speIndex"
+                      class="container-item"
                     >
                       {{ specifyName[speKey] }} : {{ speValue }}
                     </div>
@@ -200,8 +200,8 @@
                   <template>
                     <div
                       v-for="(conItem, conIndex) in configItem.containerName"
-                      class="container-item"
                       :key="conIndex"
+                      class="container-item"
                     >
                       {{ conItem }}
                     </div>
@@ -233,7 +233,9 @@
               <!-- 采集范围 -->
               <div>
                 <span>{{ $t('采集范围') }}</span>
-                <span>{{ configItem.params?.tail_files === false ? $t('采集全量日志') : $t('仅采集下发后的日志') }}</span>
+                <span>{{
+                  configItem.params?.tail_files === false ? $t('采集全量日志') : $t('仅采集下发后的日志')
+                }}</span>
               </div>
               <!-- 过滤内容 -->
               <div
@@ -327,15 +329,15 @@
             >
               <div class="specify-box">
                 <div
-                  class="specify-container justify-bt"
                   v-bk-overflow-tips
+                  class="specify-container justify-bt"
                 >
                   <span>{{ extraItem.key }}</span>
                   <div class="operator">=</div>
                 </div>
                 <div
-                  class="specify-container"
                   v-bk-overflow-tips
+                  class="specify-container"
                 >
                   <span>{{ extraItem.value }}</span>
                 </div>
@@ -543,7 +545,7 @@
           const query = { bk_biz_id: this.$store.state.bkBizId };
           const res = await this.$http.request('container/getBcsList', { query });
           return res.data.find(item => item.id === bcsID)?.name || '--';
-        } catch (error) {
+        } catch {
           return '--';
         }
       },

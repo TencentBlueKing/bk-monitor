@@ -136,7 +136,7 @@ router.beforeEach(async (to, from, next) => {
   store.commit('app/SET_NAV_ID', to.meta.navId);
   // 无业务页面跳转处理
   if (hasEmailSubscriptions(from)) {
-    const bizId = getUrlParam('bizId')?.replace(/\//gim, '');
+    const bizId = getUrlParam('bizId');
     if (hasEmailSubscriptions(to) || isValidBizId(bizId)) {
       next();
     } else {

@@ -27,6 +27,8 @@
 import { defineComponent, ref, computed, watch, onBeforeUnmount, onMounted, nextTick } from 'vue';
 
 import useLocale from '@/hooks/use-locale';
+import useStore from '@/hooks/use-store';
+import { isFieldTypeDisabled, judgeNumber } from '@/common/util';
 import $http from '@/api';
 import tippy, { type Instance } from 'tippy.js';
 import TableComponent from '../../common-comp/table-component';
@@ -105,21 +107,8 @@ type EditableFieldSnapshot = Pick<
   'field_name' | 'field_type' | 'is_analyzed' | 'is_case_sensitive' | 'tokenize_on_chars'
 >;
 
-/** 是否为空值（视为空值冲突） */
-const isEmptyValue = (value: unknown): boolean => {
-  if (value === null || value === undefined) return true;
-  if (typeof value === 'string') return value.trim() === '';
-  return false;
-};
-
-/** 字段类型选项（与原 FieldList 保持一致） */
-const FIELD_TYPE_OPTIONS = [
-  { id: 'string', name: 'string' },
-  { id: 'int', name: 'int' },
-  { id: 'long', name: 'long' },
-  { id: 'double', name: 'double' },
-  { id: 'object', name: 'object' },
-];
+/** 数值字段类型（无调试值时按模板既定类型推断 verdict 使用） */
+const NUMERIC_FIELD_TYPES = ['int', 'long', 'double', 'float'];
 
 /** 分词设置选项（tippy 弹窗内使用） */
 const participleList = [
@@ -186,6 +175,15 @@ export default defineComponent({
   emits: ['close', 'confirm', 'refresh'],
   setup(props, { emit }) {
     const { t } = useLocale();
+    const store = useStore();
+    /** 字段类型选项：与 FieldList 一致，取自 global 接口（globals.field_data_type） */
+    const fieldTypeOptions = computed(() => store.getters['globals/globalsData']?.field_data_type || []);
+    /** 当前字段类型是否禁用（与 FieldList 一致，基于字段预览值判断） */
+    const isTypeDisabled = (row: PreviewFieldRow, option: { id: string }) => {
+      // 无调试结果（template 回填）时没有真实预览值，不做类型禁用，对齐 FieldList 新增行
+      if (previewMode.value !== 'debug') return false;
+      return isFieldTypeDisabled({ verdict: judgeNumber(row.value), value: row.value }, option);
+    };
 
     /** 当前显示的日志样例（可编辑） */
     const logExampleText = ref(props.logExample || '');
@@ -351,7 +349,7 @@ export default defineComponent({
      * 初始字段类型、推断类型和冲突状态均以后端返回为准。
      */
     const buildTableFromDebug = (previewData?: DebugPreviewData) => {
-      const list: PreviewFieldRow[] = (previewData?.fields || []).map((item) => {
+      const list: PreviewFieldRow[] = (previewData?.fields || []).map(item => {
         const templateField = templateFieldMap.value.get(item.field_name);
         const empty = item.error_type === 'EMPTY_VALUE';
         const typeErr = item.error_type === 'TYPE_MISMATCH';
@@ -448,14 +446,19 @@ export default defineComponent({
             {row.is_analyzed ? (
               <div class='analyzed-box'>
                 <div>{row.tokenize_on_chars || t('自然语言分词')}</div>
-                <div>{t('大小写敏感')}: {row.is_case_sensitive ? t('是') : t('否')}</div>
+                <div>
+                  {t('大小写敏感')}: {row.is_case_sensitive ? t('是') : t('否')}
+                </div>
               </div>
             ) : (
               <span>{t('不分词')}</span>
             )}
             <i class='select-angle bk-icon icon-angle-down' />
           </span>
-          <div style={{ display: 'none' }} class='word-breaker-popover'>
+          <div
+            style={{ display: 'none' }}
+            class='word-breaker-popover'
+          >
             <div class='word-breaker-menu-content'>
               <div class='menu-item'>
                 <span class='menu-item-label'>{t('分词')}</span>
@@ -520,7 +523,10 @@ export default defineComponent({
                 >
                   {t('确定')}
                 </bk-button>
-                <bk-button size='small' on-click={handleWordBreakerCancelClick}>
+                <bk-button
+                  size='small'
+                  on-click={handleWordBreakerCancelClick}
+                >
                   {t('取消')}
                 </bk-button>
               </div>
@@ -602,7 +608,7 @@ export default defineComponent({
 
     /** 销毁所有 tippy 实例 */
     const destroyTippyInstances = () => {
-      tippyInstances.forEach((i) => {
+      tippyInstances.forEach(i => {
         try {
           i.hide();
           i.destroy();
@@ -649,16 +655,29 @@ export default defineComponent({
         ...props.template,
         etl_config: props.template.clean_type,
         etl_fields: [
-          ...tableData.value.map(({
-            inferredType: _inferredType,
-            empty: _empty,
-            typeErr: _typeErr,
-            status: _status,
-            errorType: _errorType,
-            errorMessage: _errorMessage,
-            ...field
-          }) => field as TemplateFieldItem),
-          ...deletedFields,
+          ...tableData.value.map(
+            ({
+              inferredType: _inferredType,
+              empty: _empty,
+              typeErr: _typeErr,
+              status: _status,
+              errorType: _errorType,
+              errorMessage: _errorMessage,
+              ...field
+            }) =>
+              ({
+                ...field,
+                // 生成 verdict 供 FieldList 类型禁用判断：有调试结果按真实值；无调试结果按模板既定类型推断（非数值类型禁选数值类型）
+                verdict:
+                  previewMode.value === 'debug'
+                    ? judgeNumber(field.value)
+                    : !NUMERIC_FIELD_TYPES.includes(field.field_type),
+              }) as TemplateFieldItem,
+          ),
+          ...deletedFields.map(item => ({
+            ...item,
+            verdict: !NUMERIC_FIELD_TYPES.includes(item.field_type),
+          })),
         ],
       };
       emit('confirm', templateData, logExampleText.value, hasTemplateConfigModified.value);
@@ -668,9 +687,9 @@ export default defineComponent({
     const hasException = computed(() => tableData.value.some(row => row.status === 'error'));
 
     /** 模板字段配置是否相对本次调试结果发生净变化 */
-    const hasTemplateConfigModified = computed(() => (
-      serializeEditableFields(tableData.value) !== initialEditableFieldsSnapshot.value
-    ));
+    const hasTemplateConfigModified = computed(
+      () => serializeEditableFields(tableData.value) !== initialEditableFieldsSnapshot.value,
+    );
 
     /** 仅在采集下发中且尚无调试样例时显示提示 */
     const showCollectingTip = computed(() => props.collectStatus === 'running' && !logExampleText.value);
@@ -753,10 +772,11 @@ export default defineComponent({
               value={row.field_type}
               on-change={(val: string) => handleTypeChange(row, val)}
             >
-              {FIELD_TYPE_OPTIONS.map(opt => (
+              {fieldTypeOptions.value.map(opt => (
                 <bk-option
                   key={opt.id}
                   id={opt.id}
+                  disabled={isTypeDisabled(row, opt)}
                   name={opt.name}
                 />
               ))}
@@ -783,9 +803,16 @@ export default defineComponent({
         className: () => 'preview-disabled-column',
         cell: (_h: any, { row }: { row: PreviewFieldRow }) => (
           <div class='value-cell'>
-            {row.empty
-              ? <span class='value-empty'>{t('空值')}</span>
-              : <span class='value-text' title={formatDisplayValue(row.value)}>{formatDisplayValue(row.value)}</span>}
+            {row.empty ? (
+              <span class='value-empty'>{t('空值')}</span>
+            ) : (
+              <span
+                class='value-text'
+                title={formatDisplayValue(row.value)}
+              >
+                {formatDisplayValue(row.value)}
+              </span>
+            )}
             {row.empty && (
               <i
                 class='bk-icon icon-exclamation-circle-shape value-empty-icon'
@@ -813,7 +840,9 @@ export default defineComponent({
               {hasTemplateConfigModified.value ? (
                 <bk-popconfirm
                   width={288}
-                  content={t('您已修改过模板配置，确认后将和模板解除绑定关系，本次清洗配置将保存并单独生效该索引集，是否确认。')}
+                  content={t(
+                    '您已修改过模板配置，确认后将和模板解除绑定关系，本次清洗配置将保存并单独生效该索引集，是否确认。',
+                  )}
                   trigger='click'
                   on-confirm={handleConfirm}
                 >
@@ -920,7 +949,9 @@ export default defineComponent({
               slot='title'
               class='exception-title'
             >
-              <div class='exception-header'>{t('如果在下方列表编辑了内容，将自动脱离模板，转为手动配置清洗规则。')}</div>
+              <div class='exception-header'>
+                {t('如果在下方列表编辑了内容，将自动脱离模板，转为手动配置清洗规则。')}
+              </div>
             </div>
           </bk-alert>
 
@@ -930,21 +961,23 @@ export default defineComponent({
             loading={isDebugLoading.value}
             data={tableData.value}
             bordered={true}
-            columns={previewMode.value === 'template'
-              ? columns.value.filter(col => col.colKey !== 'status')
-              : columns.value}
+            columns={
+              previewMode.value === 'template' ? columns.value.filter(col => col.colKey !== 'status') : columns.value
+            }
             maxHeight={300}
-            skeletonConfig={previewMode.value === 'template'
-              ? {
-                columns: 5,
-                rows: 2,
-                widths: ['5%', '18%', '15%', '15%', '47%'],
-              }
-              : {
-                columns: 6,
-                rows: 2,
-                widths: ['5%', '10%', '18%', '15%', '15%', '37%'],
-              }}
+            skeletonConfig={
+              previewMode.value === 'template'
+                ? {
+                    columns: 5,
+                    rows: 2,
+                    widths: ['5%', '18%', '15%', '15%', '47%'],
+                  }
+                : {
+                    columns: 6,
+                    rows: 2,
+                    widths: ['5%', '10%', '18%', '15%', '15%', '37%'],
+                  }
+            }
           />
         </div>
       </bk-dialog>

@@ -2424,7 +2424,7 @@ class QueryEndpointStatisticsResource(PageListResource):
                     LinkTableFormat(
                         id="trace",
                         name=_("调用链"),
-                        url_format="/?bizId={bk_biz_id}/#/trace/home/?app_name={app_name}"
+                        url_format="/?bizId={bk_biz_id}#/trace/home/?app_name={app_name}"
                         + "&search_type=scope"
                         + "&start_time={start_time}&end_time={end_time}"
                         + "&sceneMode=span&filterMode=ui",

@@ -19,6 +19,7 @@ paths:
                   description: Business ID in BlueKing Monitor. Identifies the business space (similar to tenant or project). 业务ID,用于标识业务空间(类似租户或项目)。
                 query_list:
                   type: array
+                  minItems: 1
                   items:
                     type: object
                     required:
@@ -30,6 +31,7 @@ paths:
                         description: 'Timestamp in seconds (Unix). CRITICAL: MUST use real timestamp - avoid fixed values! If not specified, calculate current time dynamically. Python: int(time.time()), JavaScript: Math.floor(Date.now()/1000), Bash: date +%s. 时间戳(秒)。关键:必须使用真实时间戳！Python: int(time.time()), JavaScript: Math.floor(Date.now()/1000), Bash: date +%s。'
                       source_info:
                         type: object
+                        additionalProperties: true
                         description: 'Source resource dimensional info (key-value mapping). For Pod: include bcs_cluster_id, namespace, pod. For Node: include bcs_cluster_id, node. 源资源维度信息(键值映射)。Pod需包含bcs_cluster_id、namespace、pod。Node需包含bcs_cluster_id、node。'
                       source_type:
                         type: string
@@ -83,6 +85,7 @@ paths:
                   description: Business ID in BlueKing Monitor. Identifies the business space (similar to tenant or project). 业务ID,用于标识业务空间(类似租户或项目)。
                 query_list:
                   type: array
+                  minItems: 1
                   items:
                     type: object
                     required:
@@ -102,6 +105,7 @@ paths:
                         description: 'Start timestamp in seconds (Unix). MUST calculate dynamically! If user requests relative time (e.g., "last 1 hour"), calculate as: end_time - 3600. Python: int(time.time()) - 3600, JavaScript: Math.floor(Date.now()/1000) - 3600. 开始时间戳(秒)。必须动态计算！如用户请求相对时间(如"最近1小时"),计算方式: end_time - 3600。'
                       source_info:
                         type: object
+                        additionalProperties: true
                         description: 'Source resource dimensional info (key-value mapping). For Pod: include bcs_cluster_id, namespace, pod. For Node: include bcs_cluster_id, node. 源资源维度信息(键值映射)。Pod需包含bcs_cluster_id、namespace、pod。Node需包含bcs_cluster_id、node。'
                       source_type:
                         type: string

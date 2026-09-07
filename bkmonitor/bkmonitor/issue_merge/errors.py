@@ -175,11 +175,18 @@ class MergeMemberStatusForbiddenError(IssuesMergeError):
 
 
 class MergeMemberIsAnotherMainError(IssuesMergeError):
-    """部分 member Issue 自身是别的活跃合并关系的主 Issue（防链式合并的对称校验）。
+    """⚠ 已废弃，不再 raise（保留仅为错误码 3337108 占位 + 历史兼容）。
 
-    与 ``MergeTargetIsMemberError`` 对称：那个校验"目标主自身被合并"，这个校验
-    "目标 member 自己是别人的主"——都是为了拒绝链式合并，否则 hydrate 视图层会陷入
-    "主 → member → member 的 member"递归。
+    曾用于拒绝把"自身是别组 active main"的 Issue 作为 member 并入，理由是防止 hydrate 视图层
+    陷入"主 → member → member 的 member"递归。该理由只在**真嵌套**下成立。
+
+    现已放开：把已成组的主 A 并入 B 时，``MergeResource`` 在同一写事务内把 A 的 active 成员
+    **改挂**（reparent）到 B，令其成为 B 的平级 member——关系深度仍恒为 1，视图层不会递归。
+    环由 ``MergeTargetIsMemberError``（校验 2）天然拦住：若 B 本就是 A 的 member，
+    merge(main=B, members=[A]) 在校验 2 即被拒。
+
+    保留本类避免错误码回收造成的客户端兼容问题；如需彻底移除，同步删 `__init__`/`__all__`
+    导出与单测。
     """
 
     status_code = 409
@@ -224,5 +231,67 @@ class IssueFrozenError(IssuesMergeError):
                 "business_code": "MERGE_FREEZE_VIOLATION",
                 "issue_id": issue_id,
                 "conflicting_main_issue_id": conflicting_main_issue_id,
+            },
+        )
+
+
+class MergeGroupTooLargeError(IssuesMergeError):
+    """合并后组成员总数超过上限。
+
+    把已成组的主并入另一主时，被并入主的成员会一起改挂过来，组规模可成倍增长。
+    ``IssueMergeResolver.hydrate_aggregations`` 与 ``IssueDocument.bulk_follow_status`` 的
+    ES 查询是 ``size=len(member_ids)``，无界组会退化成慢查询，故设上限。
+
+    与"单策略活跃 Issue 数"的 warn-only 不同，这里**拒绝**而非放行：那边放行是因为阻塞会让
+    告警永久失联（数据代价），这里超限只是一次交互失败，用户先拆分再合并即可。
+    """
+
+    status_code = 409
+    code = 3337110
+    name = _lazy("合并组过大")
+    message_tpl = _lazy("合并后组成员数 {total} 超过上限 {limit}，请先拆分部分成员再合并")
+
+    def __init__(self, current: int, incoming: int, carried: int, limit: int):
+        self.current = current
+        self.incoming = incoming
+        self.carried = carried
+        self.limit = limit
+        super().__init__(
+            context={"total": current + incoming + carried, "limit": limit},
+            extra={
+                "business_code": "MERGE_GROUP_TOO_LARGE",
+                "current": current,
+                "incoming": incoming,
+                "carried": carried,
+                "limit": limit,
+            },
+        )
+
+
+class MergeGroupInconsistentError(IssuesMergeError):
+    """待改挂的成员本身处于不一致状态，拒绝合并（失败关闭）。
+
+    两种情形，都意味着**改动前**关系表已有不一致：
+    - 待改挂成员已经是目标主的 active 成员（等价于已存在 duplicate_active_members）；
+    - 待改挂成员自身还带着 active 成员（等价于已存在深度违例）。
+
+    刻意不静默跳过、不自动修复：掩盖会把已存在的不一致扩散到更大的组，事后更难对账。
+    运维用 bkm-cli ``inspect-issue list_conflicts`` 发现 + ``repair_issue_merge_state`` 修复后重试。
+    """
+
+    status_code = 409
+    code = 3337111
+    name = _lazy("合并组状态不一致")
+    message_tpl = _lazy("以下 Issue 合并关系状态不一致（{reason}），请先修复再合并: {issue_ids_summary}")
+
+    def __init__(self, issue_ids: list[str], reason: str):
+        self.issue_ids = list(issue_ids)
+        self.reason = reason
+        super().__init__(
+            context={"issue_ids_summary": ", ".join(self.issue_ids), "reason": reason},
+            extra={
+                "business_code": "MERGE_GROUP_INCONSISTENT",
+                "issue_ids": self.issue_ids,
+                "reason": reason,
             },
         )

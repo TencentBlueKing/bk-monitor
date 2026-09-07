@@ -18,5 +18,5 @@ export const findFirstFieldColonIndex = (tokens: LexToken[]): number => {
 };
 
 export const isValueToken = (token: LexToken) =>
-  !['Whitespace', 'Operator', 'Keyword'].includes(token.kind)
-  || (token.kind === 'Keyword' && !['AND', 'OR', 'NOT', 'and', 'or', 'not'].includes(token.value));
+  !['Whitespace', 'Operator', 'Keyword'].includes(token.kind) ||
+  (token.kind === 'Keyword' && !['AND', 'OR', 'NOT', 'and', 'or', 'not'].includes(token.value));

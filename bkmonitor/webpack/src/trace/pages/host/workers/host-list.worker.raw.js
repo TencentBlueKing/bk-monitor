@@ -228,7 +228,14 @@ const matchWhereItem = (row, item) => {
   ) {
     const curValue = row?.[item.key];
     if (curValue && ['number', 'string'].includes(typeof curValue)) {
-      return `${curValue}`.includes(item.value?.[0] || '');
+      const isMatch = `${curValue}`.includes(item.value?.[0] || '');
+      if (method === 'include') {
+        return isMatch;
+      }
+      if (method === 'exclude') {
+        return !isMatch;
+      }
+      return isMatch;
     }
     return false;
   }

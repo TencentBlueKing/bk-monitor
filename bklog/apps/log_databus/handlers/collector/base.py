@@ -1232,7 +1232,9 @@ class CollectorHandler:
         )
         return return_data, subscription_id_list, subscription_collector_map
 
-    def get_subscription_status_by_list(self, collector_id_list: list) -> list:
+    def get_subscription_status_by_list(
+        self, collector_id_list: list, *, no_request: bool = False, bk_tenant_id: str | None = None
+    ) -> list:
         """
         批量获取采集项订阅状态
         :param  [list] collector_id_list: 采集项ID列表
@@ -1260,10 +1262,15 @@ class CollectorHandler:
         status_result = []
         multi_execute_func = MultiExecuteFunc(max_workers=10)
         for subscription_id in subscription_id_list:
+            request_params = {"subscription_id_list": [subscription_id], "plugin_name": LogPluginInfo.NAME}
+            if no_request:
+                request_params["no_request"] = True
+                if bk_tenant_id:
+                    request_params["bk_tenant_id"] = bk_tenant_id
             multi_execute_func.append(
                 result_key=subscription_id,
                 func=NodeApi.subscription_statistic,
-                params={"subscription_id_list": [subscription_id], "plugin_name": LogPluginInfo.NAME},
+                params=request_params,
             )
 
         multi_result = multi_execute_func.run(return_exception=True)

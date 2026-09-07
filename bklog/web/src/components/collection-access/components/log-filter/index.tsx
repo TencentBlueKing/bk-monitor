@@ -303,7 +303,7 @@ export default class LogFilter extends tsc<object> {
           catchIsShowMessage: false,
         },
       )
-      .then((res) => {
+      .then(res => {
         if (res.data?.length) {
           const firstData = res.data[0];
           this.logOriginal = firstData.etl.data || '';
@@ -342,7 +342,7 @@ export default class LogFilter extends tsc<object> {
   }
 
   render() {
-    const fieldIndexInputSlot = (groupid) => {
+    const fieldIndexInputSlot = groupid => {
       return {
         default: ({ $index, row }) => (
           <ValidatorInput
@@ -358,7 +358,7 @@ export default class LogFilter extends tsc<object> {
         ),
       };
     };
-    const valueInputSlot = (groupId) => {
+    const valueInputSlot = groupId => {
       return {
         default: ({ $index, row }) => (
           <div>

@@ -82,6 +82,30 @@
 
       .configs-expression {
       }
+
+      &.is-query-string {
+        flex: 1 1 100%;
+        align-items: flex-start;
+        width: 100%;
+        margin-right: 0;
+        white-space: normal;
+
+        .configs-label {
+          flex-shrink: 0;
+        }
+
+        .configs-value {
+          flex: 1;
+          width: 100%;
+          min-width: 0;
+
+          .promql-editor-component {
+            .resize-vertical-drop {
+              display: none;
+            }
+          }
+        }
+      }
     }
 
     .flex-item {
