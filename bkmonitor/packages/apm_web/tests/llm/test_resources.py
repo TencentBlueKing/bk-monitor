@@ -640,6 +640,208 @@ class ListSpansResourceTestCase(TestCase):
 
 
 class ListFlowsResourceTestCase(TestCase):
+    def test_list_spans_and_flows_share_complete_agent_trace_contract(self):
+        trace_id = "trace-agent-tool-call"
+        tool_call_id = "tool-call-1"
+        resource = {"service.name": "agent-service"}
+        status = {"code": 1, "message": ""}
+        raw_spans = [
+            {
+                "trace_id": trace_id,
+                "span_id": "agent",
+                "parent_span_id": "",
+                "span_name": "invoke_agent troubleshooting",
+                "start_time": 100,
+                "end_time": 500,
+                "elapsed_time": 400,
+                "status": status,
+                "resource": resource,
+                "attributes": {
+                    "gen_ai.operation.name": "invoke_agent",
+                    "gen_ai.input.messages": [{"role": "user", "parts": [{"type": "text", "content": "检查当前故障"}]}],
+                    "gen_ai.output.messages": [
+                        {"role": "assistant", "parts": [{"type": "text", "content": "CPU 使用率持续升高"}]}
+                    ],
+                },
+                "events": [],
+            },
+            {
+                "trace_id": trace_id,
+                "span_id": "chat-tool-call",
+                "parent_span_id": "agent",
+                "span_name": "chat demo-model",
+                "start_time": 110,
+                "end_time": 200,
+                "elapsed_time": 90,
+                "status": status,
+                "resource": resource,
+                "attributes": {
+                    "gen_ai.operation.name": "chat",
+                    "gen_ai.response.finish_reasons": ["tool_call"],
+                    "gen_ai.tool.definitions": [
+                        {
+                            "type": "function",
+                            "name": "list_incident_events",
+                            "description": "查询故障关联事件",
+                            "parameters": {
+                                "type": "object",
+                                "properties": {"incident_id": {"type": "string"}},
+                                "required": ["incident_id"],
+                                "additionalProperties": False,
+                            },
+                        }
+                    ],
+                    "gen_ai.output.messages": [
+                        {
+                            "role": "assistant",
+                            "parts": [
+                                {"type": "reasoning", "content": "需要先查询故障事件"},
+                                {
+                                    "type": "tool_call",
+                                    "id": tool_call_id,
+                                    "name": "list_incident_events",
+                                    "arguments": {"incident_id": "incident-1"},
+                                },
+                            ],
+                        }
+                    ],
+                    "gen_ai.usage.input_tokens": 120,
+                    "gen_ai.usage.output_tokens": 32,
+                },
+                "events": [],
+            },
+            {
+                "trace_id": trace_id,
+                "span_id": "tool",
+                "parent_span_id": "chat-tool-call",
+                "span_name": "execute_tool list_incident_events",
+                "start_time": 210,
+                "end_time": 250,
+                "elapsed_time": 40,
+                "status": status,
+                "resource": resource,
+                "attributes": {
+                    "gen_ai.operation.name": "execute_tool",
+                    "gen_ai.tool.name": "list_incident_events",
+                    "gen_ai.tool.call.id": tool_call_id,
+                    "gen_ai.tool.call.arguments": {"incident_id": "incident-1"},
+                    "gen_ai.tool.call.result": {"status": "ABNORMAL"},
+                },
+                "events": [],
+            },
+            {
+                "trace_id": trace_id,
+                "span_id": "chat-final-answer",
+                "parent_span_id": "agent",
+                "span_name": "chat demo-model",
+                "start_time": 260,
+                "end_time": 490,
+                "elapsed_time": 230,
+                "status": status,
+                "resource": resource,
+                "attributes": {
+                    "gen_ai.operation.name": "chat",
+                    "gen_ai.response.finish_reasons": ["stop"],
+                    "gen_ai.input.messages": [
+                        {
+                            "role": "tool",
+                            "parts": [
+                                {
+                                    "type": "tool_call_response",
+                                    "id": tool_call_id,
+                                    "response": {"status": "ABNORMAL"},
+                                }
+                            ],
+                        }
+                    ],
+                    "gen_ai.output.messages": [
+                        {
+                            "role": "assistant",
+                            "parts": [
+                                {"type": "reasoning", "content": "事件仍处于异常状态"},
+                                {"type": "text", "content": "CPU 使用率持续升高"},
+                            ],
+                        }
+                    ],
+                    "gen_ai.usage.input_tokens": 180,
+                    "gen_ai.usage.output_tokens": 84,
+                },
+                "events": [],
+            },
+        ]
+        application = mock.Mock()
+        application.build_data_sources.return_value = [mock.sentinel.data_source]
+        span_query = mock.Mock()
+        span_query.query_group_trace_list.return_value = [{"trace_id": trace_id}]
+        span_query.query_by_group_ids.return_value = raw_spans
+
+        with (
+            mock.patch(
+                "core.drf_resource.api.apm_api.query_span_list",
+                return_value={"total": len(raw_spans), "data": raw_spans},
+            ),
+            mock.patch("apm_web.llm.resources.Application.objects.get", return_value=application),
+            mock.patch("apm_web.llm.resources.get_query", return_value=span_query),
+        ):
+            spans_result = ListSpansResource().request({"bk_biz_id": 11, "app_name": "agent-app", "trace_id": trace_id})
+            flows_result = ListFlowsResource().request(
+                {
+                    "bk_biz_id": 11,
+                    "app_name": "agent-app",
+                    "group_field": "trace_id",
+                    "group_id": trace_id,
+                }
+            )
+
+        def flatten(nodes):
+            flattened = []
+            for node in nodes:
+                flattened.append({key: value for key, value in node.items() if key != "childs"})
+                flattened.extend(flatten(node["childs"]))
+            return flattened
+
+        spans = spans_result["spans"]
+        flow = flows_result["traces"][0]["flow"]
+        self.assertEqual(spans_result["total"], 4)
+        self.assertEqual(flatten(flow), spans)
+        self.assertEqual(
+            [span["attributes"]["gen_ai.operation.name"] for span in spans],
+            ["invoke_agent", "chat", "execute_tool", "chat"],
+        )
+        self.assertEqual([child["span_id"] for child in flow[0]["childs"]], ["chat-tool-call", "chat-final-answer"])
+        self.assertEqual([child["span_id"] for child in flow[0]["childs"][0]["childs"]], ["tool"])
+        self.assertEqual(spans[1]["attributes"]["gen_ai.response.finish_reasons"], ["tool_call"])
+        self.assertEqual(spans[3]["attributes"]["gen_ai.response.finish_reasons"], ["stop"])
+        self.assertEqual(
+            [
+                (span["attributes"]["gen_ai.usage.input_tokens"], span["attributes"]["gen_ai.usage.output_tokens"])
+                for span in (spans[1], spans[3])
+            ],
+            [(120, 32), (180, 84)],
+        )
+
+        tool_call = next(
+            part
+            for message in spans[1]["attributes"]["gen_ai.output.messages"]
+            for part in message["parts"]
+            if part["type"] == "tool_call"
+        )
+        tool_response = next(
+            part
+            for message in spans[3]["attributes"]["gen_ai.input.messages"]
+            for part in message["parts"]
+            if part["type"] == "tool_call_response"
+        )
+        tool_attributes = spans[2]["attributes"]
+        self.assertEqual(tool_call["id"], tool_attributes["gen_ai.tool.call.id"])
+        self.assertEqual(tool_response["id"], tool_attributes["gen_ai.tool.call.id"])
+        self.assertEqual(tool_call["arguments"], tool_attributes["gen_ai.tool.call.arguments"])
+        self.assertEqual(tool_response["response"], tool_attributes["gen_ai.tool.call.result"])
+        self.assertIn(
+            tool_attributes["gen_ai.tool.name"],
+            {definition["name"] for definition in spans[1]["attributes"]["gen_ai.tool.definitions"]},
+        )
+
     def test_build_flow_links_span_to_nearest_gen_ai_ancestor(self):
         raw_spans = [
             {
