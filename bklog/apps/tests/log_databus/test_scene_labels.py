@@ -28,6 +28,7 @@ from django.db import connection
 from django.test import TestCase
 from django.test.utils import CaptureQueriesContext
 
+from apps.exceptions import ApiResultError
 from apps.feature_toggle.models import FeatureToggle
 from apps.feature_toggle.plugins.constants import SCENE_SEARCH
 from apps.log_databus.constants import (
@@ -36,6 +37,12 @@ from apps.log_databus.constants import (
 )
 from apps.log_databus.handlers.collector.base import CollectorHandler
 from apps.log_databus.handlers.collector.k8s import K8sCollectorHandler
+from apps.log_databus.handlers.scene import (
+    is_scene_search_released,
+    refresh_scene_labels,
+    release_scene_search,
+    run_scene_search_sync,
+)
 from apps.log_databus.models import CollectorConfig, ContainerCollectorConfig
 from apps.log_search.models import (
     TAG_TYPE_INNER,
@@ -177,18 +184,7 @@ class TestRefreshResultTableLabelsCommand(TestCase):
             ).values_list("name", "value")
         )
 
-    @patch("apps.log_databus.management.commands.refresh_result_table_labels.TransferApi.switch_result_table")
-    def test_skip_refresh_when_scene_search_is_already_enabled(self, mock_switch_result_table):
-        FeatureToggle.objects.update_or_create(name=SCENE_SEARCH, defaults={"status": "on"})
-        self._create_collector("already_enabled")
-        output = StringIO()
-
-        call_command("refresh_result_table_labels", enable_scene_search=True, sleep=0, stdout=output)
-
-        mock_switch_result_table.assert_not_called()
-        self.assertIn("already enabled", output.getvalue())
-
-    @patch("apps.log_databus.management.commands.refresh_result_table_labels.TransferApi.switch_result_table")
+    @patch("apps.log_databus.handlers.scene.TransferApi.switch_result_table")
     def test_backfill_reuses_all_scene_branches_without_n_plus_one(self, mock_switch_result_table):
         paas = self._create_collector(
             "paas",
@@ -257,10 +253,14 @@ class TestRefreshResultTableLabelsCommand(TestCase):
         self.assertEqual(self._get_scene_tags(index_set), {("scene", "client")})
 
     @patch(
-        "apps.log_databus.management.commands.refresh_result_table_labels.TransferApi.switch_result_table",
+        "apps.log_databus.handlers.scene.TransferApi.get_result_table",
+        return_value={"table_id": "2_bklog.failed_backfill"},
+    )
+    @patch(
+        "apps.log_databus.handlers.scene.TransferApi.switch_result_table",
         side_effect=RuntimeError("metadata unavailable"),
     )
-    def test_backfill_fails_without_updating_local_tags(self, _mock_switch_result_table):
+    def test_backfill_fails_without_updating_local_tags(self, _mock_switch_result_table, _mock_get_result_table):
         old_scene_tag_id = IndexSetTag.get_tag_id("scene", value="host", tag_type=TAG_TYPE_SCENE)
         index_set = LogIndexSet.objects.create(
             index_set_name="failed_backfill",
@@ -282,6 +282,198 @@ class TestRefreshResultTableLabelsCommand(TestCase):
         )
 
         self.assertEqual(self._get_scene_tags(index_set), {("scene", "host")})
+
+
+class TestRefreshSceneLabelsHandler(TestCase):
+    """场景标签回填公共函数与转正逻辑的单元测试。"""
+
+    @staticmethod
+    def _create_collector(name: str, **overrides) -> CollectorConfig:
+        fields = {
+            "collector_config_name": name,
+            "collector_config_name_en": name,
+            "bk_biz_id": 2,
+            "category_id": "os",
+            "collector_scenario_id": "row",
+            "custom_type": "log",
+            "environment": "linux",
+            "bk_app_code": "bk_log_search",
+            "table_id": f"2_bklog.{name}",
+        }
+        fields.update(overrides)
+        return CollectorConfig.objects.create(**fields)
+
+    @staticmethod
+    def _create_index_set(name: str, scene_tags: dict) -> LogIndexSet:
+        tag_ids = [
+            str(IndexSetTag.get_tag_id(name=key, value=value, tag_type=TAG_TYPE_SCENE))
+            for key, value in scene_tags.items()
+        ]
+        return LogIndexSet.objects.create(
+            index_set_name=name,
+            space_uid="bkcc__2",
+            scenario_id="log",
+            tag_ids=tag_ids,
+            is_active=True,
+        )
+
+    def test_refresh_records_missing_result_table_as_failure(self):
+        """RT 不存在同样记录为失败，由人工通过远端比较命令处理。"""
+        index_set = self._create_index_set("missing_rt", {"scene": "host"})
+        collector = self._create_collector(
+            "missing_rt", collector_scenario_id="client", index_set_id=index_set.index_set_id
+        )
+
+        with patch(
+            "apps.log_databus.handlers.scene.TransferApi.switch_result_table",
+            side_effect=ApiResultError("result table not exist", code="RESULT_TABLE_NOT_FOUND"),
+        ):
+            result = refresh_scene_labels(sleep=0)
+
+        self.assertEqual(result["failed"], 1)
+        self.assertEqual(result["failed_result_table_ids"], [collector.table_id])
+
+    def test_scene_refresh_task_is_registered(self):
+        from django.conf import settings
+
+        self.assertIn("apps.log_databus.tasks.scene", settings.CELERY_IMPORTS)
+
+    def test_steady_mode_skips_when_local_tags_match(self):
+        """稳态：本地已一致则跳过，不写远端。"""
+        index_set = self._create_index_set("steady_match", {"scene": "client"})
+        self._create_collector("steady_match", collector_scenario_id="client", index_set_id=index_set.index_set_id)
+
+        with patch("apps.log_databus.handlers.scene.TransferApi.switch_result_table") as mock_switch:
+            result = refresh_scene_labels(sleep=0)
+
+        mock_switch.assert_not_called()
+        self.assertEqual(result["skipped"], 1)
+        self.assertEqual(result["success"], 0)
+
+    def test_steady_mode_writes_when_local_tags_differ(self):
+        """稳态：本地不一致才写远端。"""
+        index_set = self._create_index_set("steady_diff", {"scene": "host"})
+        self._create_collector("steady_diff", collector_scenario_id="client", index_set_id=index_set.index_set_id)
+
+        with patch("apps.log_databus.handlers.scene.TransferApi.switch_result_table") as mock_switch:
+            result = refresh_scene_labels(sleep=0)
+
+        self.assertEqual(mock_switch.call_count, 1)
+        self.assertEqual(result["success"], 1)
+        self.assertEqual(result["skipped"], 0)
+
+    def test_manual_remote_compare_skips_when_result_table_labels_match(self):
+        """手动命令可用远端 RT 标签判断，无须依赖本地标签是否已修复。"""
+        index_set = self._create_index_set("remote_match", {"scene": "host"})
+        collector = self._create_collector(
+            "remote_match", collector_scenario_id="client", index_set_id=index_set.index_set_id
+        )
+
+        with (
+            patch(
+                "apps.log_databus.handlers.scene.TransferApi.get_result_table",
+                return_value={"table_id": collector.table_id, "labels": {"scene": "client"}},
+            ),
+            patch("apps.log_databus.handlers.scene.TransferApi.switch_result_table") as mock_switch,
+        ):
+            call_command("refresh_result_table_labels", compare_remote=True, sleep=0, stdout=StringIO())
+
+        mock_switch.assert_not_called()
+
+    def test_first_sync_uses_local_compare_without_remote_read(self):
+        """首次定时任务也只依赖本地标签，避免全量远端读写。"""
+        FeatureToggle.objects.update_or_create(name=SCENE_SEARCH, defaults={"status": "debug"})
+        index_set = self._create_index_set("first_local_match", {"scene": "client"})
+        self._create_collector("first_local_match", collector_scenario_id="client", index_set_id=index_set.index_set_id)
+
+        with (
+            patch("apps.log_databus.handlers.scene.TransferApi.switch_result_table") as mock_switch,
+            patch("apps.log_databus.handlers.scene.TransferApi.get_result_table") as mock_get_result_table,
+        ):
+            run_scene_search_sync()
+
+        mock_switch.assert_not_called()
+        mock_get_result_table.assert_not_called()
+        self.assertEqual(FeatureToggle.objects.get(name=SCENE_SEARCH).status, "on")
+
+    def test_release_scene_search_sets_status_and_mark(self):
+        FeatureToggle.objects.update_or_create(name=SCENE_SEARCH, defaults={"status": "debug"})
+
+        self.assertTrue(release_scene_search())
+
+        toggle = FeatureToggle.objects.get(name=SCENE_SEARCH)
+        self.assertEqual(toggle.status, "on")
+        self.assertTrue(toggle.feature_config.get("scene_search_released"))
+        self.assertTrue(is_scene_search_released())
+
+    def test_run_first_sync_releases_when_no_failure(self):
+        """周期任务首次：全量校正无失败 → 翻开关并打标记。"""
+        FeatureToggle.objects.update_or_create(name=SCENE_SEARCH, defaults={"status": "debug"})
+        index_set = self._create_index_set("first_sync", {"scene": "host"})
+        self._create_collector("first_sync", collector_scenario_id="client", index_set_id=index_set.index_set_id)
+
+        with patch("apps.log_databus.handlers.scene.TransferApi.switch_result_table"):
+            run_scene_search_sync()
+
+        toggle = FeatureToggle.objects.get(name=SCENE_SEARCH)
+        self.assertEqual(toggle.status, "on")
+        self.assertTrue(toggle.feature_config.get("scene_search_released"))
+
+    def test_run_first_sync_releases_after_recording_failures(self):
+        """失败 RT 会记录日志，但不阻塞首次转正。"""
+        FeatureToggle.objects.update_or_create(name=SCENE_SEARCH, defaults={"status": "debug"})
+        index_set = self._create_index_set("first_sync_accepted_failure", {"scene": "host"})
+        self._create_collector(
+            "first_sync_accepted_failure", collector_scenario_id="client", index_set_id=index_set.index_set_id
+        )
+
+        with (
+            patch(
+                "apps.log_databus.handlers.scene.TransferApi.switch_result_table",
+                side_effect=RuntimeError("metadata unavailable"),
+            ),
+            patch(
+                "apps.log_databus.handlers.scene.TransferApi.get_result_table",
+                return_value={"table_id": "2_bklog.first_sync_accepted_failure"},
+            ),
+        ):
+            result = run_scene_search_sync()
+
+        toggle = FeatureToggle.objects.get(name=SCENE_SEARCH)
+        self.assertEqual(result["failed_result_table_ids"], ["2_bklog.first_sync_accepted_failure"])
+        self.assertEqual(toggle.status, "on")
+        self.assertTrue((toggle.feature_config or {}).get("scene_search_released"))
+
+    def test_run_first_sync_does_not_override_manual_off(self):
+        """首次校正完成也必须保留人工 off 的止血语义。"""
+        FeatureToggle.objects.update_or_create(name=SCENE_SEARCH, defaults={"status": "off"})
+        index_set = self._create_index_set("first_sync_manual_off", {"scene": "host"})
+        self._create_collector(
+            "first_sync_manual_off",
+            collector_scenario_id="client",
+            index_set_id=index_set.index_set_id,
+        )
+
+        with patch("apps.log_databus.handlers.scene.TransferApi.switch_result_table"):
+            run_scene_search_sync()
+
+        toggle = FeatureToggle.objects.get(name=SCENE_SEARCH)
+        self.assertEqual(toggle.status, "off")
+        self.assertFalse((toggle.feature_config or {}).get("scene_search_released"))
+
+    def test_run_steady_uses_local_compare_after_release(self):
+        """周期任务已 released：走稳态本地对比，不再翻开关。"""
+        FeatureToggle.objects.update_or_create(
+            name=SCENE_SEARCH,
+            defaults={"status": "on", "feature_config": {"scene_search_released": True}},
+        )
+        index_set = self._create_index_set("steady_released", {"scene": "client"})
+        self._create_collector("steady_released", collector_scenario_id="client", index_set_id=index_set.index_set_id)
+
+        with patch("apps.log_databus.handlers.scene.TransferApi.switch_result_table") as mock_switch:
+            run_scene_search_sync()
+
+        mock_switch.assert_not_called()
 
 
 class TestSyncSceneTagsToIndexSet(TestCase):
