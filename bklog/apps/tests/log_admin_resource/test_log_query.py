@@ -21,6 +21,7 @@ from apps.log_admin_resource.handlers.log_query import (
     ResourceUnifyQueryTermsAggsHandler,
     _bounded_items,
     _context_time_bounds,
+    _field_compatibility,
     _index_set_fields,
     _resolve_field_type,
     _resolve_source,
@@ -33,6 +34,7 @@ from apps.log_admin_resource.handlers.log_query import (
     _validate_context_anchor,
     aggregate_logs,
     get_log_context,
+    resolve_log_scene,
     search_clustering_patterns,
     search_logs,
 )
@@ -407,6 +409,101 @@ class LogQueryHandlerTest(TestCase):
 
         self.assertEqual(result, {"fields": []})
         mock_handler.assert_called_once()
+
+    def test_default_fields_reads_empty_persisted_snapshot_without_refresh(self):
+        self.index_set.fields_snapshot = {}
+        self.index_set.save(update_fields=["fields_snapshot"])
+
+        with patch.object(LogIndexSet, "get_fields", side_effect=AssertionError("snapshot refresh is not read-only")):
+            with self.assertNumQueries(0):
+                result = _index_set_fields(
+                    {
+                        "type": "index_set",
+                        "bk_biz_id": 2,
+                        "index_set_id": self.index_set.index_set_id,
+                        "index_set": self.index_set,
+                    },
+                    {},
+                    "default",
+                )
+
+        self.assertEqual(result, {})
+
+    def test_scene_resolve_reports_empty_snapshot_without_refresh(self):
+        empty_index_set = create_index_set(301)
+        empty_index_set.fields_snapshot = {}
+        empty_index_set.save(update_fields=["fields_snapshot"])
+        create_result_table(301, "2_bklog_empty", index_id=1301)
+        source = {
+            "type": "scene",
+            "space_uid": "bkcc__2",
+            "bk_biz_id": 2,
+            "table_id_conditions": [[{"field_name": "scene", "op": "eq", "value": ["k8s"]}]],
+            "scene_filter_values": [],
+            "related_space_uids": ["bkcc__2"],
+        }
+        route_plan = {
+            "runtime": {"list": [{"log": "sample"}]},
+            "scope": {},
+            "result_table_ids": ["2_bklog_app", "2_bklog_empty"],
+            "index_set_ids": [300, 301],
+            "warnings": [],
+        }
+        candidates = [
+            {"index_set": self.index_set, "matched": True, "reason": None},
+            {"index_set": empty_index_set, "matched": True, "reason": None},
+        ]
+
+        with (
+            patch("apps.log_admin_resource.handlers.log_query._resolve_source", return_value=source),
+            patch("apps.log_admin_resource.handlers.log_query._resolve_scene_route_plan", return_value=route_plan),
+            patch("apps.log_admin_resource.handlers.log_query._scene_candidates", return_value=candidates),
+            patch.object(LogIndexSet, "get_fields", side_effect=AssertionError("snapshot refresh is not read-only")),
+        ):
+            result = resolve_log_scene(
+                {
+                    "source": {"type": "scene"},
+                    "start_time": 1767225600000,
+                    "end_time": 1767229200000,
+                }
+            )
+
+        self.assertEqual(result["status"], "partial")
+        self.assertEqual(result["missing_snapshot_index_set_ids"], [301])
+        self.assertIn("scene_field_snapshot_missing", {warning["code"] for warning in result["warnings"]})
+        self.assertTrue(result["route"]["partial"])
+        validate_params(result, FUNCTIONS["bklog.log.scene.resolve"]["response_schema"], "response")
+
+    def test_field_compatibility_preserves_non_empty_snapshot_semantics(self):
+        second_index_set = create_index_set(
+            301,
+            fields_snapshot={
+                "fields": [
+                    {"field_name": "dtEventTimeStamp", "field_type": "long"},
+                    {"field_name": "level", "field_type": "long"},
+                ]
+            },
+        )
+
+        result = _field_compatibility([self.index_set, second_index_set])
+
+        self.assertIn("dtEventTimeStamp", result["common_fields"])
+        self.assertEqual(result["missing_snapshot_index_set_ids"], [])
+        level_conflict = next(item for item in result["differences"] if item["field_name"] == "level")
+        self.assertTrue(level_conflict["present_in_all"])
+
+    def test_field_type_reads_persisted_snapshot_without_refresh(self):
+        source = {
+            "type": "index_set",
+            "bk_biz_id": 2,
+            "index_set_id": self.index_set.index_set_id,
+            "index_set": self.index_set,
+        }
+
+        with patch.object(LogIndexSet, "get_fields", side_effect=AssertionError("snapshot refresh is not read-only")):
+            field_type = _resolve_field_type(source, "level", {})
+
+        self.assertEqual(field_type, "keyword")
 
     def test_context_anchor_accepts_unifyquery_route_label_and_container_path(self):
         anchor = {

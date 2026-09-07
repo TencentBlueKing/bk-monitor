@@ -578,6 +578,7 @@ SCENE_RESOLVE_RESPONSE_SCHEMA = _response_schema(
         "excluded": {"type": "array", "items": {"type": "object", "additionalProperties": True}},
         "field_conflicts": {"type": "array", "items": {"type": "object", "additionalProperties": True}},
         "common_fields": {"type": "array", "items": {"type": "string"}},
+        "missing_snapshot_index_set_ids": {"type": "array", "items": {"type": "integer"}},
     },
 )
 
@@ -1308,6 +1309,18 @@ def resolve_log_scene(params):
     compatibility = _field_compatibility(
         [item["index_set"] for item in candidates if item["index_set"].index_set_id in actual_index_set_ids]
     )
+    missing_snapshot_index_set_ids = compatibility["missing_snapshot_index_set_ids"]
+    if missing_snapshot_index_set_ids:
+        warnings.append(
+            {
+                "code": "scene_field_snapshot_missing",
+                "message": (
+                    f"{len(missing_snapshot_index_set_ids)} matched scene targets have no persisted field snapshot"
+                ),
+                "scope": "scene.fields",
+                "retryable": False,
+            }
+        )
     return _result(
         source,
         status=_downstream_status(runtime, warnings),
@@ -1323,6 +1336,7 @@ def resolve_log_scene(params):
         excluded=excluded_targets,
         common_fields=compatibility["common_fields"],
         field_conflicts=compatibility["differences"],
+        missing_snapshot_index_set_ids=missing_snapshot_index_set_ids,
     )
 
 
@@ -1544,6 +1558,13 @@ def _related_space_uids(space_uid):
     return list(Space.objects.filter(space_uid__in=related, bk_tenant_id=tenant_id).values_list("space_uid", flat=True))
 
 
+def _persisted_field_snapshot(index_set):
+    """Read Resource Call evidence without triggering snapshot refresh or database writes."""
+
+    snapshot = index_set.fields_snapshot
+    return snapshot if isinstance(snapshot, dict) else {}
+
+
 def _index_set_fields(source, params, scope):
     index_set = source["index_set"]
     start_time = params.get("start_time")
@@ -1551,7 +1572,7 @@ def _index_set_fields(source, params, scope):
     if (start_time is None) != (end_time is None):
         _error("log_time_range_invalid", "start_time and end_time must be provided together")
     if start_time is None and scope == SearchScopeEnum.DEFAULT.value:
-        return index_set.get_fields(use_snapshot=True)
+        return _persisted_field_snapshot(index_set)
     if start_time is None:
         end_time = arrow.now().int_timestamp * 1000
         start_time = arrow.now().shift(days=-1).int_timestamp * 1000
@@ -1995,7 +2016,7 @@ def _resolve_field_type(source, field_name, params, *, scene_index_set_ids=None)
     field_types = {
         field.get("field_type")
         for index_set in index_sets
-        for field in (index_set.get_fields(use_snapshot=True) or {}).get("fields", [])
+        for field in _persisted_field_snapshot(index_set).get("fields", [])
         if field.get("field_name") == field_name and field.get("field_type")
     }
     if not field_types:
@@ -2466,7 +2487,7 @@ def _field_compatibility(index_sets):
     field_variants = defaultdict(lambda: defaultdict(list))
     missing_snapshots = []
     for index_set in index_sets[:MAX_SCENE_TARGETS]:
-        snapshot = index_set.get_fields(use_snapshot=True) or {}
+        snapshot = _persisted_field_snapshot(index_set)
         fields = snapshot.get("fields") or []
         if not fields:
             missing_snapshots.append(index_set.index_set_id)
