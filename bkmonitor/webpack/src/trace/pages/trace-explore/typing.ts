@@ -74,6 +74,7 @@ export interface IDimensionFieldTreeItem extends IDimensionField {
   children?: IDimensionFieldTreeItem[];
   count?: number;
   expand?: boolean;
+  levelAlias?: string;
   levelName?: string;
 }
 

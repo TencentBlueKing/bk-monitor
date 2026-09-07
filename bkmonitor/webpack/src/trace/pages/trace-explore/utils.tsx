@@ -114,25 +114,29 @@ const checkboxFilterMapByMode = {
 };
 
 /** 维度列表转换tree结构 */
-export function convertToTree(data: IDimensionField[]): IDimensionFieldTreeItem[] {
+export function convertToTree(data: IDimensionField[], leafNodeIsPrefix = true): IDimensionFieldTreeItem[] {
   const root: IDimensionFieldTreeItem[] = [];
   for (const item of data) {
     const parts = item.name.split('.');
     if (parts.length < 2) {
-      root.push({ ...item, levelName: item.alias });
+      root.push({ ...item, levelAlias: item.alias, levelName: item.name, children: [] });
       continue;
     }
 
     let currentLevel = root;
     for (let i = 0; i < parts.length; i++) {
       const part = parts[i];
-      let node = currentLevel.find(n => n.levelName === part);
+      let node = currentLevel.find(n => n.levelAlias === part);
       if (!node) {
         // 若非末层节点，初始化
         if (i < parts.length - 1) {
-          node = { ...item, type: 'object', levelName: part, name: part, alias: part, children: [] };
+          node = { ...item, type: 'object', levelAlias: part, levelName: part, name: part, alias: part, children: [] };
         } else {
-          node = { ...item, levelName: item.alias };
+          node = {
+            ...item,
+            levelAlias: item.alias !== item.name ? item.alias : leafNodeIsPrefix ? item.name : part,
+            levelName: leafNodeIsPrefix ? item.name : part,
+          };
         }
         currentLevel.push(node);
       }
