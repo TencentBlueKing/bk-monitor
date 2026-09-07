@@ -214,7 +214,7 @@ class PingServerSubscriptionConfig(models.Model):
                     owner_bk_tenant_id=bk_tenant_id,
                     execution_bk_tenant_id=bk_tenant_id,
                     bk_biz_id=record_bk_biz_id,
-                    policy_name=f"bkm-ping-server-{bk_cloud_id}-{bk_host_id}-{plugin_name}",
+                    policy_name=f"bkm-ping-server-{record_bk_biz_id}-{bk_cloud_id}-{bk_host_id}-{plugin_name}",
                     description=f"bk-monitor ping-server config on host {bk_host_id}",
                     scope=scope,
                     steps=subscription_params["steps"],

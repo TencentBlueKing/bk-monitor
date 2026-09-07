@@ -7,7 +7,6 @@ from apm.core.application_config import ApplicationConfig, SubscriptionConfig
 from bkmonitor.nodeman_integration.v3.exceptions import NodeManV3PayloadError
 from metadata.models.custom_report.subscription_config import CustomReportSubscription
 from metadata.models.ping_server import PingServerSubscriptionConfig
-from monitor_web.collecting.deploy.nodeman_v3.validation import NodeManV3CapabilityBlocked
 from monitor_web.nodeman_integration.v3.policy import DeployPolicySubmission
 
 
@@ -107,6 +106,16 @@ class IterablePingQuerySet:
         return iter(self.configs)
 
 
+class RecordingPingManager(IterablePingQuerySet):
+    def __init__(self):
+        super().__init__([])
+        self.created = []
+
+    def create(self, **kwargs):
+        self.created.append(kwargs)
+        return SimpleNamespace(**kwargs)
+
+
 def test_ping_server_batch_preflights_every_host_before_first_v3_write(monkeypatch):
     monkeypatch.setattr("bkmonitor.nodeman_integration.mode.get_nodeman_integration_mode", lambda: "v3_fresh")
     monkeypatch.setattr(
@@ -151,8 +160,45 @@ def test_ping_server_batch_preflights_every_host_before_first_v3_write(monkeypat
     service.assert_not_called()
 
 
+def test_ping_server_policy_name_isolated_by_target_business(monkeypatch):
+    monkeypatch.setattr("bkmonitor.nodeman_integration.mode.get_nodeman_integration_mode", lambda: "v3_fresh")
+    monkeypatch.setattr(
+        "metadata.models.ping_server.transaction.get_connection",
+        lambda: SimpleNamespace(in_atomic_block=True),
+    )
+    monkeypatch.setattr("metadata.models.ping_server.is_ipv6_biz", lambda _bk_biz_id: False)
+    monkeypatch.setattr(
+        "metadata.models.ping_server.api.cmdb.get_host_without_biz",
+        lambda **_kwargs: {"hosts": []},
+    )
+    manager = RecordingPingManager()
+    monkeypatch.setattr(PingServerSubscriptionConfig, "objects", manager)
+    service = RecordingPolicyService()
+    monkeypatch.setattr(
+        "monitor_web.nodeman_integration.v3.policy.NodeManV3PolicyService",
+        lambda: service,
+    )
+    host = {"bk_host_id": 11, "bk_biz_id": 2, "ip": "host-11.example", "ipv6": ""}
+
+    for bk_biz_id in (11, 12):
+        PingServerSubscriptionConfig.create_subscription(
+            bk_tenant_id="tenant-a",
+            bk_cloud_id=3,
+            items={11: []},
+            target_hosts=[host],
+            plugin_name="bk-collector",
+            bk_biz_id=bk_biz_id,
+        )
+
+    assert [call["policy_name"] for call in service.calls] == [
+        "bkm-ping-server-11-3-11-bk-collector",
+        "bkm-ping-server-12-3-11-bk-collector",
+    ]
+
+
 def test_log_trace_lifecycle_remains_fail_closed_until_reverse_contract_lands(monkeypatch):
     monkeypatch.setattr("bkmonitor.nodeman_integration.mode.get_nodeman_integration_mode", lambda: "v3_fresh")
+    from monitor_web.collecting.deploy.nodeman_v3.validation import NodeManV3CapabilityBlocked
 
     with pytest.raises(NodeManV3CapabilityBlocked, match="reverse field"):
         from apm_web.models.application import Application

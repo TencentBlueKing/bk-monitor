@@ -95,6 +95,7 @@ class NodeManV3PluginDeploymentService:
         }
 
         deployments = []
+        binding_bk_biz_id = 0 if resource_type == NodeManResourceType.OFFICIAL_PLUGIN_DEPLOYMENT else bk_biz_id
         for host_id in host_ids:
             host_scope = {
                 "object_type": "HOST",
@@ -122,7 +123,7 @@ class NodeManV3PluginDeploymentService:
                 resource_key=build_nodeman_resource_key(resource_type, **key_components),
                 owner_bk_tenant_id=owner_bk_tenant_id,
                 execution_bk_tenant_id=execution_bk_tenant_id,
-                bk_biz_id=bk_biz_id,
+                bk_biz_id=binding_bk_biz_id,
                 policy_name="-".join(policy_name_parts),
                 description=f"bk-monitor ensures {plugin_name}@{plugin_version} on host {host_id}",
                 scope=host_scope,

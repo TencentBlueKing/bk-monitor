@@ -6,6 +6,7 @@ from dataclasses import dataclass
 
 from django.db import transaction
 
+from bkmonitor.nodeman_integration.v3.compat import latest_enabled_plugin_version
 from bkmonitor.nodeman_integration.v3.client import (
     NodeManV3HTTPClient,
     NodeManV3RequestContext,
@@ -21,6 +22,7 @@ from monitor_web.models.node_man import (
     NodeManIntegrationBinding,
     NodeManOperationStatus,
     NodeManOperationType,
+    NodeManResourceType,
     NodeManV3ResultState,
 )
 from monitor_web.nodeman_integration.v3.operation import (
@@ -295,11 +297,20 @@ class DeployPolicySubmission:
 class NodeManV3PolicyService:
     """Persist and submit a stable DeployPolicy for a non-collection monitor resource."""
 
-    def __init__(self, *, payload_builder=None, gateway=None, operation_service=None, scope_resolver=None):
+    def __init__(
+        self,
+        *,
+        payload_builder=None,
+        gateway=None,
+        operation_service=None,
+        scope_resolver=None,
+        plugin_version_resolver=None,
+    ):
         self.payload_builder = payload_builder or SubscriptionDeployPolicyPayloadBuilder()
         self.gateway = gateway or NodeManV3DeployPolicyGateway(payload_builder=self.payload_builder)
         self.operation_service = operation_service or NodeManV3OperationService(terminal_handler=lambda *_args: True)
         self.scope_resolver = scope_resolver or NodeManV3HostScopeResolver()
+        self.plugin_version_resolver = plugin_version_resolver or latest_enabled_plugin_version
 
     def ensure(
         self,
@@ -337,6 +348,13 @@ class NodeManV3PolicyService:
             steps=steps,
             resolved_scopes=resolved_scopes,
         )
+        self._ensure_plugin_prerequisites(
+            owner_bk_tenant_id=owner_bk_tenant_id,
+            execution_bk_tenant_id=execution_bk_tenant_id,
+            bk_biz_id=bk_biz_id,
+            steps=steps,
+            resolved_scopes=resolved_scopes,
+        )
         binding, _created = NodeManIntegrationBinding.objects.get_or_create(
             resource_type=resource_type,
             resource_key=resource_key,
@@ -350,6 +368,69 @@ class NodeManV3PolicyService:
         transaction.on_commit(lambda: self._dispatch(prepared, payload))
         return DeployPolicySubmission(binding.pk, str(prepared.operation.pk), True)
 
+    def _ensure_plugin_prerequisites(
+        self,
+        *,
+        owner_bk_tenant_id: str,
+        execution_bk_tenant_id: str,
+        bk_biz_id: int,
+        steps: list[dict],
+        resolved_scopes: list[dict],
+    ) -> None:
+        plugin_versions = {}
+        for step in steps:
+            config = step.get("config") or {}
+            if not config.get("config_templates"):
+                continue
+            plugin_name = config.get("plugin_name")
+            plugin_version = config.get("plugin_version")
+            if not plugin_version:
+                raise NodeManV3PayloadError(
+                    f"subscription config step for {plugin_name or '<missing>'} requires plugin_version"
+                )
+            if plugin_version == "latest":
+                plugin_version = self.plugin_version_resolver(
+                    bk_tenant_id=execution_bk_tenant_id,
+                    plugin_name=plugin_name,
+                )
+            previous_version = plugin_versions.setdefault(plugin_name, plugin_version)
+            if previous_version != plugin_version:
+                raise NodeManV3PayloadError(
+                    f"subscription config steps require conflicting versions for plugin {plugin_name}"
+                )
+
+        if not plugin_versions:
+            return
+
+        host_ids = self._host_ids_from_resolved_scopes(resolved_scopes)
+        from monitor_web.nodeman_integration.v3.plugin_deployment import NodeManV3PluginDeploymentService
+
+        deployment_service = NodeManV3PluginDeploymentService(policy_service=self)
+        for plugin_name, plugin_version in sorted(plugin_versions.items()):
+            # A template-config spec is config-only in NodeMan V3. Keep plugin installation as one
+            # host-level desired-state policy so overlapping config policies cannot compete for it.
+            deployment_service.ensure_hosts(
+                resource_type=NodeManResourceType.OFFICIAL_PLUGIN_DEPLOYMENT,
+                owner_bk_tenant_id=owner_bk_tenant_id,
+                execution_bk_tenant_id=execution_bk_tenant_id,
+                bk_biz_id=bk_biz_id,
+                plugin_name=plugin_name,
+                plugin_version=plugin_version,
+                bk_host_ids=host_ids,
+            )
+
+    def _host_ids_from_resolved_scopes(self, resolved_scopes: list[dict]) -> list[int]:
+        host_ids = set()
+        for item in resolved_scopes:
+            scope = item.get("scope") or {}
+            instance_ids = scope.get("instance_ids")
+            if scope.get("granularity") != "host" or not isinstance(instance_ids, list) or not instance_ids:
+                raise NodeManV3PayloadError(
+                    "template configuration requires explicit host targets so its plugin prerequisite can be managed"
+                )
+            host_ids.update(self.payload_builder._positive_id(host_id) for host_id in instance_ids)
+        return sorted(host_ids)
+
     def _prepare(self, binding, payload: dict, *, force: bool) -> PreparedTargetOperation | None:
         fingerprint = self.payload_builder.fingerprint(payload)
         with transaction.atomic():
@@ -358,7 +439,10 @@ class NodeManV3PolicyService:
                 raise NodeManV3PayloadError("NodeMan V3 policy binding must be active")
             if locked.operations.filter(result_state=NodeManV3ResultState.WRITE_RESULT_UNKNOWN).exists():
                 raise NodeManV3UnknownResultError("an earlier NodeMan V3 policy write is unresolved")
-            if locked.operations.exclude(status__in=TERMINAL_OPERATION_STATUSES).exists():
+            active = locked.operations.exclude(status__in=TERMINAL_OPERATION_STATUSES).order_by("-created_at").first()
+            if active and not force and active.request_summary.get("deploy_policy_fingerprint") == fingerprint:
+                return None
+            if active:
                 raise NodeManExecutionLeaseConflict("a NodeMan V3 policy operation has not reached a terminal state")
             latest = (
                 locked.operations.filter(operation_type=NodeManOperationType.RECONCILE).order_by("-created_at").first()

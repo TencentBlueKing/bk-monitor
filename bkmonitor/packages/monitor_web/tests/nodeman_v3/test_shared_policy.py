@@ -4,7 +4,8 @@ from types import SimpleNamespace
 import pytest
 
 from bkmonitor.nodeman_integration.v3.exceptions import NodeManV3PayloadError
-from monitor_web.models.node_man import NodeManResourceType
+from monitor_web.models.node_man import NodeManBindingState, NodeManOperationStatus, NodeManResourceType
+from monitor_web.nodeman_integration.v3.operation import NodeManExecutionLeaseConflict
 from monitor_web.nodeman_integration.v3.plugin_deployment import NodeManV3PluginDeploymentService
 from monitor_web.nodeman_integration.v3.policy import (
     DeployPolicySubmission,
@@ -249,7 +250,20 @@ def test_shared_policy_validates_payload_then_persists_and_dispatches(monkeypatc
         "monitor_web.nodeman_integration.v3.policy.transaction.on_commit",
         lambda callback: callbacks.append(callback),
     )
-    service = RecordingPolicyService(scope_resolver=FakeScopeResolver())
+    monkeypatch.setattr(
+        "monitor_web.nodeman_integration.v3.plugin_deployment.transaction.atomic",
+        nullcontext,
+    )
+    resolved_versions = []
+
+    def resolve_version(**kwargs):
+        resolved_versions.append(kwargs)
+        return "1.2.3"
+
+    service = RecordingPolicyService(
+        scope_resolver=FakeScopeResolver(),
+        plugin_version_resolver=resolve_version,
+    )
 
     submission = service.ensure(
         resource_type=NodeManResourceType.CUSTOM_REPORT,
@@ -264,11 +278,97 @@ def test_shared_policy_validates_payload_then_persists_and_dispatches(monkeypatc
     )
 
     assert submission == DeployPolicySubmission(binding_id=9, operation_id="operation-1", prepared=True)
-    assert len(binding_manager.calls) == 1
-    assert len(service.prepared_calls) == 1
+    assert resolved_versions == [{"bk_tenant_id": "tenant-a", "plugin_name": "bk-collector"}]
+    assert [call["resource_type"] for call in binding_manager.calls] == [
+        NodeManResourceType.OFFICIAL_PLUGIN_DEPLOYMENT,
+        NodeManResourceType.CUSTOM_REPORT,
+    ]
+    assert binding_manager.calls[0]["bk_biz_id"] == 0
+    assert [call[1]["specs"][0]["type"] for call in service.prepared_calls] == [
+        "specify_plugin",
+        "specify_plugin_sub_config_template",
+    ]
+    assert service.prepared_calls[0][1]["specs"][0]["param"]["version"] == "1.2.3"
     assert service.dispatched == []
-    callbacks[0]()
-    assert service.dispatched == [(service.prepared, service.prepared_calls[0][1])]
+    for callback in callbacks:
+        callback()
+    assert service.dispatched == [
+        (service.prepared, service.prepared_calls[0][1]),
+        (service.prepared, service.prepared_calls[1][1]),
+    ]
+
+
+class FakeOperationLookup:
+    def __init__(self, active_operation):
+        self.active_operation = active_operation
+
+    def filter(self, **kwargs):
+        assert kwargs == {"result_state": "write_result_unknown"}
+        return SimpleNamespace(exists=lambda: False)
+
+    def exclude(self, **kwargs):
+        assert set(kwargs["status__in"]) == {"success", "partial_failed", "failed", "cancelled"}
+        return self
+
+    def order_by(self, *fields):
+        assert fields == ("-created_at",)
+        return self
+
+    def first(self):
+        return self.active_operation
+
+
+class FakeLockedBindingManager:
+    def __init__(self, binding):
+        self.binding = binding
+
+    def select_for_update(self):
+        return self
+
+    def get(self, **kwargs):
+        assert kwargs == {"pk": self.binding.pk}
+        return self.binding
+
+
+def test_shared_policy_reuses_identical_inflight_reconciliation(monkeypatch):
+    service = NodeManV3PolicyService(
+        gateway=SimpleNamespace(),
+        operation_service=SimpleNamespace(),
+        scope_resolver=FakeScopeResolver(),
+    )
+    payload = SubscriptionDeployPolicyPayloadBuilder().build(
+        name="bkm-official-plugin",
+        description="plugin",
+        bk_biz_id=2,
+        scope=_host_scope(11),
+        steps=[
+            {
+                "type": "PLUGIN",
+                "config": {"plugin_name": "bk-collector", "plugin_version": "1.2.3"},
+                "params": {"context": {}},
+            }
+        ],
+    )
+    active = SimpleNamespace(
+        status=NodeManOperationStatus.DISPATCHING,
+        request_summary={"deploy_policy_fingerprint": service.payload_builder.fingerprint(payload)},
+    )
+    locked = SimpleNamespace(
+        pk=9,
+        state=NodeManBindingState.ACTIVE,
+        operations=FakeOperationLookup(active),
+    )
+    monkeypatch.setattr(
+        "monitor_web.nodeman_integration.v3.policy.NodeManIntegrationBinding",
+        SimpleNamespace(objects=FakeLockedBindingManager(locked)),
+    )
+    monkeypatch.setattr("monitor_web.nodeman_integration.v3.policy.transaction.atomic", nullcontext)
+
+    assert service._prepare(SimpleNamespace(pk=9), payload, force=False) is None
+
+    changed_payload = {**payload, "description": "changed"}
+    with pytest.raises(NodeManExecutionLeaseConflict, match="not reached a terminal state"):
+        service._prepare(SimpleNamespace(pk=9), changed_payload, force=False)
 
 
 class RejectingScopeResolver:
@@ -381,3 +481,24 @@ def test_plugin_deployment_keeps_one_policy_identity_per_host(monkeypatch):
         {"granularity": "host", "bk_biz_id": 2, "instance_ids": [11]},
         {"granularity": "host", "bk_biz_id": 3, "instance_ids": [12]},
     ]
+
+
+def test_official_plugin_deployment_uses_host_global_binding_identity(monkeypatch):
+    monkeypatch.setattr(
+        "monitor_web.nodeman_integration.v3.plugin_deployment.transaction.atomic",
+        nullcontext,
+    )
+    policy_service = FakePolicyService()
+
+    NodeManV3PluginDeploymentService(policy_service=policy_service).ensure_hosts(
+        resource_type=NodeManResourceType.OFFICIAL_PLUGIN_DEPLOYMENT,
+        owner_bk_tenant_id="tenant-a",
+        execution_bk_tenant_id="tenant-a",
+        bk_biz_id=2,
+        plugin_name="bk-collector",
+        plugin_version="1.2.3",
+        bk_host_ids=[11],
+    )
+
+    assert policy_service.calls[0]["resource_key"] == "host:11:plugin:bk-collector"
+    assert policy_service.calls[0]["bk_biz_id"] == 0
