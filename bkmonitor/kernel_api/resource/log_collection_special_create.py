@@ -37,12 +37,6 @@ class CreateCustomReportResource(Resource):
         etl_config = serializers.CharField(required=False, label="清洗类型")
         etl_params = serializers.DictField(required=False, label="清洗参数")
         fields = serializers.ListField(child=serializers.DictField(), required=False, label="清洗字段")
-        storage_cluster_id = serializers.IntegerField(required=False, min_value=1, label="存储集群ID")
-        storage_cluster_type = serializers.CharField(required=False, label="存储集群类型")
-        retention = serializers.IntegerField(required=False, min_value=1, label="保留天数")
-        allocation_min_days = serializers.IntegerField(required=False, min_value=0, label="冷热数据生效天数")
-        storage_replies = serializers.IntegerField(required=False, min_value=0, label="ES副本数")
-        es_shards = serializers.IntegerField(required=False, min_value=1, label="ES分片数")
         is_display = serializers.BooleanField(required=False, default=True, label="是否展示")
         owners = serializers.ListField(
             child=serializers.CharField(max_length=64), required=False, default=list, label="授权用户列表"
@@ -66,6 +60,9 @@ class CreateCustomReportResource(Resource):
     def perform_request(self, validated_request_data):
         request_data = dict(validated_request_data)
         request_data.pop("confirm")
+        # MCP 创建自定义上报时沿用 Fast Create 的公共存储集群选择策略。
+        # 该参数只由 MCP 注入，普通 custom_create 调用仍保持原有行为。
+        request_data["auto_select_storage_cluster"] = True
         return api.log_search.create_custom_report(enforce_permission=True, **request_data)
 
 

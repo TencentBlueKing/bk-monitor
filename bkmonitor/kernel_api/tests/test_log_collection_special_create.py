@@ -80,6 +80,46 @@ def test_create_custom_report_forwards_parent_index_set_ids(monkeypatch):
     assert create_custom_report.call_args.kwargs["parent_index_set_ids"] == [11, 12]
     assert "parent_index_set_id" not in create_custom_report.call_args.kwargs
     assert "confirm" not in create_custom_report.call_args.kwargs
+    assert create_custom_report.call_args.kwargs["auto_select_storage_cluster"] is True
+
+
+def test_create_custom_report_rejects_explicit_storage_settings():
+    serializer = CreateCustomReportResource.RequestSerializer(
+        data={
+            "bk_biz_id": 2,
+            "collector_config_name": "custom",
+            "collector_config_name_en": "custom_report",
+            "custom_type": "log",
+            "storage_cluster_id": 1,
+            "confirm": True,
+        }
+    )
+
+    assert not serializer.is_valid()
+    assert "storage_cluster_id" in serializer.errors
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("collector_config_name_en", "custom-report"),
+        ("description", "x" * 65),
+    ],
+)
+def test_create_custom_report_enforces_name_and_description_limits(field, value):
+    serializer = CreateCustomReportResource.RequestSerializer(
+        data={
+            "bk_biz_id": 2,
+            "collector_config_name": "custom",
+            "collector_config_name_en": "custom_report",
+            "custom_type": "log",
+            field: value,
+            "confirm": True,
+        }
+    )
+
+    assert not serializer.is_valid()
+    assert field in serializer.errors
 
 
 def test_create_third_party_es_forwards_space_and_parent_index_set_ids(monkeypatch):
@@ -151,9 +191,7 @@ def test_create_third_party_es_explicit_null_biz_falls_back_to_outer(monkeypatch
     ]
 
 
-def test_create_third_party_es_rejects_invisible_index_storage_cluster(
-    monkeypatch, mock_storage_cluster_visibility
-):
+def test_create_third_party_es_rejects_invisible_index_storage_cluster(monkeypatch, mock_storage_cluster_visibility):
     create_index_set = Mock()
     mock_storage_cluster_visibility.side_effect = PermissionDenied()
     monkeypatch.setattr(

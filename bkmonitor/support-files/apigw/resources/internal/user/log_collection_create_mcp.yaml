@@ -55,8 +55,8 @@ paths:
                   pattern: ^[A-Za-z0-9_]+$
                   description: >-
                     Stable English identifier used as the result-table name without the business prefix.
-                    5-50 characters, letters/digits/underscore only. Cannot be renamed after create. 采集项英文标识，作为结果表名（不含业务前缀）。5-50
-                    位字母数字下划线，创建后不可改名。
+                    5-50 characters, letters/digits/underscore only; hyphens are not allowed. Cannot be renamed after create. 采集项英文标识，作为结果表名（不含业务前缀）。5-50
+                    位字母数字下划线，不允许连字符，创建后不可改名。
                 collector_scenario_id:
                   type: string
                   enum:
@@ -397,7 +397,8 @@ paths:
                   type: string
                   description: >-
                     Log character encoding. Common values: UTF-8 (default), GBK, GB18030, BIG5, ISO8859-1.
-                    Backend accepts 50+ encodings. 日志字符集。常用 UTF-8（默认）/ GBK / GB18030 / BIG5 / ISO8859-1。
+                    Backend accepts 50+ encodings. Available only for Linux/Windows collectors; container
+                    collectors must set configs[].data_encoding instead. 日志字符集。仅 Linux/Windows 采集项可传；容器采集必须改传 configs[].data_encoding。
                 bcs_cluster_id:
                   type: string
                   description: >-
@@ -409,8 +410,11 @@ paths:
                   minItems: 1
                   description: >-
                     Container log-config list. Fast Update replaces the entire list; omitted configs are
-                    deleted. Each item requires params and collector_type. Mutually exclusive pairs: namespaces
-                    vs namespaces_exclude, container_name vs container_name_exclude. 容器日志配置列表，更新时整体替换。namespaces
+                    deleted. Each item requires params and collector_type. Put workload_type, workload_name,
+                    container_name and container_name_exclude inside configs[].container. all_container is a
+                    calculated response-only field and must not be sent. Mutually exclusive pairs: namespaces
+                    vs namespaces_exclude, container_name vs container_name_exclude. 容器日志配置列表，更新时整体替换。workload_type、workload_name、
+                    container_name、container_name_exclude 必须放在 configs[].container 内；all_container 为计算出的只读返回字段，不能传入。namespaces
                     与 namespaces_exclude、container_name 与 container_name_exclude 互斥。
                   items:
                     type: object
@@ -459,8 +463,11 @@ paths:
                               Excluded container names, comma-separated exact match. Mutually exclusive
                               with container_name. 排除的容器名，逗号分隔精确匹配，与 container_name 互斥。
                         description: >-
-                          Workload / container-name filter. Leave empty to match all containers in the
-                          selected namespaces. 指定工作负载或容器名；不填表示命中命名空间内全部容器。
+                          Workload / container-name filter. This object is the only valid location for
+                          workload_type, workload_name, container_name and container_name_exclude. Leave
+                          empty to match all containers in the selected namespaces; do not send all_container,
+                          which is calculated by the service. 工作负载或容器名筛选对象；上述字段必须在此对象内传入。不填表示命中命名空间内全部容器；
+                          不要传 all_container，它由服务端计算。
                       label_selector:
                         type: object
                         additionalProperties: false
