@@ -12,13 +12,22 @@
 | app_name | string | 是 | APM 应用名称 |
 | start_time | int | 是 | 查询开始时间，Unix 时间戳，单位为秒 |
 | end_time | int | 是 | 查询结束时间，Unix 时间戳，单位为秒，不能小于 `start_time` |
-| group_field | string | 否 | ES 原始 Span 的分组字段，默认 `trace_id`。会话视图可传实际存在的会话字段，例如 `attributes.gen_ai.conversation.id` |
-| service_name | string | 否 | OTel 服务名称，精确匹配原始 Span 的 `resource.service.name` |
+| group_field | string | 否 | 标准分组字段，默认 `trace_id`。会话视图传 `attributes.gen_ai.conversation.id` |
+| service_name | string | 否 | OTel 服务名称，精确匹配原始 Span 的 `resource.service.name`；会话查询时也用于缩小产品字段范围 |
 | keyword | string | 否 | 高级搜索关键词，可匹配 Trace ID、Span ID、用户 ID 或会话 ID |
 | offset | int | 否 | 分页偏移量，默认 `0`，最小为 `0` |
 | limit | int | 否 | 每页分组数量，默认 `20`，取值范围为 `1`～`100` |
 
-`group_field` 用于查询 ES 中的原始字段，不会先执行 Adapter 转换。不同 SDK 使用的会话字段不一致时，应传对应数据源实际上报的字段。
+会话视图统一传标准字段 `attributes.gen_ai.conversation.id`。后端复用服务拓扑中的 LLM 产品识别结果，将标准字段映射为对应产品的原始字段：
+
+| 产品 | 产品原始字段 |
+|---|---|
+| Default、Langfuse | `attributes.gen_ai.conversation.id` |
+| AgentLens | `attributes.gen_ai.session.id` |
+| Galileo | `attributes.gen_ai.session_id` |
+| BKAIDev | `attributes.agent.session.session_code` |
+
+接口按映射后的原始字段聚合，以每个会话中最新 Span 的 `end_time` 排序，再合并同名会话并分页。查询窗口内不同产品字段的分组结果会统一合并，某个日索引没有候选字段 mapping 时也不会导致整次查询失败。未传 `service_name` 时会合并应用内已识别产品的原始字段；产品尚未识别时查询全部候选字段。响应中的 `group_field` 始终保留调用方传入的标准字段。
 
 ### 请求参数示例
 
@@ -172,5 +181,6 @@
 
 1. 默认 `group_field=trace_id` 时，`items` 直接返回 Trace，不包含 `childs`。
 2. 指定会话字段后，外层 `items` 表示会话，`childs` 表示该会话中的多轮 Trace。
-3. Token 数量为当前 Trace 或会话内所有已标准化 Span 的求和结果。
-4. 接口不返回 `total`。调用方按 `offset + limit` 拉取下一页，直到 `items` 为空。
+3. `keyword` 会同时匹配标准字段及各产品实际上报的会话字段。
+4. Token 数量为当前 Trace 或会话内所有已标准化 Span 的求和结果。
+5. 接口不返回 `total`。调用方按 `offset + limit` 拉取下一页，直到 `items` 为空。

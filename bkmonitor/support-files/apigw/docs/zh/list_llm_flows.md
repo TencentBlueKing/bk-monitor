@@ -12,6 +12,9 @@
 | app_name | string | 是 | APM 应用名称 |
 | group_field | string | 是 | 分组字段，例如 `trace_id`、`attributes.gen_ai.conversation.id` |
 | group_id | string | 是 | 分组值，精确匹配 |
+| service_name | string | 否 | OTel 服务名称；会话查询时用于缩小产品字段范围 |
+
+会话查询统一传标准字段 `attributes.gen_ai.conversation.id`。接口使用与 `list_llm_traces` 相同的产品识别结果，查询映射后的产品原始字段并按 `trace_id` 合并去重；产品尚未识别时才查询全部候选字段。响应仍返回调用方传入的标准字段。
 
 ### 请求参数示例
 
@@ -22,7 +25,8 @@
     "bk_biz_id": 11,
     "app_name": "demo_app",
     "group_field": "attributes.gen_ai.conversation.id",
-    "group_id": "conversation-demo-01"
+    "group_id": "conversation-demo-01",
+    "service_name": "agent-demo-service"
 }
 ```
 
@@ -50,7 +54,7 @@
 
 | 字段名 | 类型 | 描述 |
 |---|---|---|
-| group_field | string | 本次查询的分组字段 |
+| group_field | string | 调用方传入的分组字段，不返回内部映射后的 ES 字段 |
 | group_id | string | 本次查询的分组值 |
 | traces | list | 分组内的 Trace 列表；没有匹配结果时为空列表 |
 

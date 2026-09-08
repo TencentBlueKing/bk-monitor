@@ -1,5 +1,11 @@
 from unittest import TestCase, mock
 
+from constants.apm import LLMProduct
+from apm_web.llm.constants import (
+    CONVERSATION_QUERY_FIELDS,
+    PRODUCT_CONVERSATION_FIELDS,
+    STANDARD_CONVERSATION_FIELD,
+)
 from apm_web.llm.resources import (
     AGENT_CANDIDATE_QUERY,
     CalculateByRangeResource,
@@ -8,10 +14,109 @@ from apm_web.llm.resources import (
     ListTracesResource,
     MOCK_TIME_SERIES_MAX_POINTS,
     TimeSeriesResource,
+    query_trace_group_map,
+    resolve_query_group_fields,
 )
 
 
 class ListTracesResourceTestCase(TestCase):
+    def test_resolves_standard_conversation_field_by_product(self):
+        cases = {
+            LLMProduct.DEFAULT.value: "attributes.gen_ai.conversation.id",
+            LLMProduct.AGENTLENS.value: "attributes.gen_ai.session.id",
+            LLMProduct.AIDEV.value: "attributes.agent.session.session_code",
+            LLMProduct.GALILEO.value: "attributes.gen_ai.session_id",
+            LLMProduct.LANGFUSE.value: "attributes.gen_ai.conversation.id",
+        }
+        self.assertEqual(PRODUCT_CONVERSATION_FIELDS, cases)
+
+        entity_set = mock.Mock(service_names=["agent-service"])
+        for product, expected_field in cases.items():
+            with self.subTest(product=product):
+                entity_set.get_system.return_value = {
+                    "is_support_llm": True,
+                    "product": product,
+                }
+
+                self.assertEqual(
+                    resolve_query_group_fields(STANDARD_CONVERSATION_FIELD, entity_set, "agent-service"),
+                    (expected_field,),
+                )
+
+    def test_resolves_unique_conversation_field_without_service_name(self):
+        entity_set = mock.Mock(service_names=["agent-service", "http-service"])
+        entity_set.get_system.side_effect = {
+            "agent-service": {"is_support_llm": True, "product": LLMProduct.AGENTLENS.value},
+            "http-service": {},
+        }.get
+
+        self.assertEqual(
+            resolve_query_group_fields(STANDARD_CONVERSATION_FIELD, entity_set),
+            (PRODUCT_CONVERSATION_FIELDS[LLMProduct.AGENTLENS.value],),
+        )
+
+    def test_combines_conversation_fields_for_multiple_products(self):
+        entity_set = mock.Mock(service_names=["agent-service", "aidev-service"])
+        entity_set.get_system.side_effect = {
+            "agent-service": {"is_support_llm": True, "product": LLMProduct.AGENTLENS.value},
+            "aidev-service": {"is_support_llm": True, "product": LLMProduct.AIDEV.value},
+        }.get
+
+        self.assertEqual(
+            resolve_query_group_fields(STANDARD_CONVERSATION_FIELD, entity_set),
+            (
+                PRODUCT_CONVERSATION_FIELDS[LLMProduct.AGENTLENS.value],
+                PRODUCT_CONVERSATION_FIELDS[LLMProduct.AIDEV.value],
+            ),
+        )
+
+    def test_allows_products_using_same_conversation_field_without_service_name(self):
+        entity_set = mock.Mock(service_names=["default-service", "langfuse-service"])
+        entity_set.get_system.side_effect = {
+            "default-service": {"is_support_llm": True, "product": LLMProduct.DEFAULT.value},
+            "langfuse-service": {"is_support_llm": True, "product": LLMProduct.LANGFUSE.value},
+        }.get
+
+        self.assertEqual(
+            resolve_query_group_fields(STANDARD_CONVERSATION_FIELD, entity_set),
+            (STANDARD_CONVERSATION_FIELD,),
+        )
+
+    def test_unknown_service_uses_all_conversation_fields(self):
+        entity_set = mock.Mock(service_names=["agent-service"])
+
+        self.assertEqual(
+            resolve_query_group_fields(STANDARD_CONVERSATION_FIELD, entity_set, "missing-service"),
+            CONVERSATION_QUERY_FIELDS,
+        )
+        entity_set.get_system.assert_not_called()
+
+    def test_query_trace_group_map_merges_all_candidate_fields(self):
+        alias_field = PRODUCT_CONVERSATION_FIELDS[LLMProduct.AGENTLENS.value]
+        span_query = mock.Mock()
+        span_query.query_group_trace_list.side_effect = [
+            [{STANDARD_CONVERSATION_FIELD: "conversation-1", "trace_id": "trace-1"}],
+            [
+                {"attributes": {"gen_ai.session.id": "conversation-1"}, "trace_id": "trace-1"},
+                {"attributes": {"gen_ai.session.id": "conversation-1"}, "trace_id": "trace-2"},
+            ],
+        ]
+
+        result = query_trace_group_map(
+            span_query,
+            (STANDARD_CONVERSATION_FIELD, alias_field),
+            ["conversation-1"],
+        )
+
+        self.assertEqual(result, {"trace-1": "conversation-1", "trace-2": "conversation-1"})
+        self.assertEqual(
+            span_query.query_group_trace_list.call_args_list,
+            [
+                mock.call(group_field=STANDARD_CONVERSATION_FIELD, group_ids=["conversation-1"]),
+                mock.call(group_field=alias_field, group_ids=["conversation-1"]),
+            ],
+        )
+
     def test_agent_candidate_query_covers_supported_sources(self):
         candidate_fields = {
             condition.removeprefix("_exists_:attributes.") for condition in AGENT_CANDIDATE_QUERY.split(" OR ")
@@ -213,9 +318,9 @@ class ListTracesResourceTestCase(TestCase):
         span_query = mock.Mock(QUERY_MAX_LIMIT=10000)
         span_query.query_group_list.return_value = ["session-2", "session-1"]
         span_query.query_group_trace_list.return_value = [
-            {group_field: "session-2", "trace_id": "trace-2"},
-            {group_field: "session-2", "trace_id": "trace-3"},
-            {group_field: "session-1", "trace_id": "trace-1"},
+            {"attributes": {"session.id": "session-2"}, "trace_id": "trace-2"},
+            {"attributes": {"session.id": "session-2"}, "trace_id": "trace-3"},
+            {"attributes": {"session.id": "session-1"}, "trace_id": "trace-1"},
         ]
         application = mock.Mock()
         data_sources = [mock.sentinel.data_source]
@@ -368,6 +473,63 @@ class ListTracesResourceTestCase(TestCase):
         get_application.assert_called_once_with(bk_biz_id=11, app_name="sand_local_dev")
         application.build_data_sources.assert_called_once_with()
         get_query.assert_called_once_with(data_sources)
+
+    def test_conversation_group_uses_detected_product_fields(self):
+        query_group_field = "attributes.gen_ai.session.id"
+        span_query = mock.Mock(QUERY_MAX_LIMIT=10000)
+        span_query.query_group_aggregate_list.return_value = ["session-1"]
+        span_query.query_group_trace_list.return_value = [
+            {"attributes": {"gen_ai.session.id": "session-1"}, "trace_id": "trace-1"}
+        ]
+        span_query.query_by_group_ids.return_value = [
+            {
+                "trace_id": "trace-1",
+                "span_id": "span-1",
+                "parent_span_id": "",
+                "input": "问题",
+                "output": "回答",
+                "start_time": 100,
+                "end_time": 160,
+            }
+        ]
+        application = mock.Mock()
+        application.build_data_sources.return_value = [mock.sentinel.data_source]
+        entity_set = mock.Mock(service_names=["agent-service"])
+        entity_set.get_system.return_value = {
+            "is_support_llm": True,
+            "product": LLMProduct.AGENTLENS.value,
+        }
+        with (
+            mock.patch("apm_web.llm.resources.Application.objects.get", return_value=application),
+            mock.patch("apm_web.llm.resources.get_query", return_value=span_query),
+            mock.patch("apm_web.llm.resources.EntitySet", return_value=entity_set),
+            mock.patch("apm_web.llm.resources.adapt_spans", side_effect=self.convert_spans),
+        ):
+            result = ListTracesResource().request(
+                {
+                    "bk_biz_id": 11,
+                    "app_name": "sand_local_dev",
+                    "start_time": 1,
+                    "end_time": 2,
+                    "group_field": STANDARD_CONVERSATION_FIELD,
+                }
+            )
+
+        self.assertEqual(result["items"][0]["group_id"], "session-1")
+        self.assertEqual(result["items"][0]["group_field"], STANDARD_CONVERSATION_FIELD)
+        span_query.query_group_aggregate_list.assert_called_once_with(
+            start_time=1,
+            end_time=2,
+            group_fields=(query_group_field,),
+            offset=0,
+            limit=20,
+            filters=[],
+            query_string=AGENT_CANDIDATE_QUERY,
+        )
+        self.assertEqual(
+            span_query.query_group_trace_list.call_args_list,
+            [mock.call(group_field=query_group_field, group_ids=["session-1"])],
+        )
 
     def test_trace_time_uses_raw_root_span(self):
         raw_spans = [
@@ -586,10 +748,12 @@ class ListSpansResourceTestCase(TestCase):
 
     def test_filters_by_trace_and_span_id(self):
         response = {"total": 1, "data": [{"trace_id": "trace-1", "span_id": "span-1"}]}
+        entity_set = mock.sentinel.entity_set
 
         with (
             mock.patch("core.drf_resource.api.apm_api.query_span_list", return_value=response) as query_span_list,
-            mock.patch("apm_web.llm.resources.adapt_spans", return_value=response["data"]),
+            mock.patch("apm_web.llm.resources.EntitySet", return_value=entity_set),
+            mock.patch("apm_web.llm.resources.adapt_spans", return_value=response["data"]) as adapt_spans,
         ):
             result = ListSpansResource().request(
                 {
@@ -601,6 +765,7 @@ class ListSpansResourceTestCase(TestCase):
             )
 
         self.assertEqual(result["total"], 1)
+        adapt_spans.assert_called_once_with(response["data"], entity_set)
         query_span_list.assert_called_once_with(
             {
                 "bk_biz_id": 11,
@@ -616,10 +781,12 @@ class ListSpansResourceTestCase(TestCase):
 
     def test_allows_span_id_without_trace_id(self):
         response = {"total": 1, "data": [{"trace_id": "trace-1", "span_id": "span-1"}]}
+        entity_set = mock.sentinel.entity_set
 
         with (
             mock.patch("core.drf_resource.api.apm_api.query_span_list", return_value=response) as query_span_list,
-            mock.patch("apm_web.llm.resources.adapt_spans", return_value=response["data"]),
+            mock.patch("apm_web.llm.resources.EntitySet", return_value=entity_set),
+            mock.patch("apm_web.llm.resources.adapt_spans", return_value=response["data"]) as adapt_spans,
         ):
             result = ListSpansResource().request(
                 {
@@ -630,6 +797,7 @@ class ListSpansResourceTestCase(TestCase):
             )
 
         self.assertEqual(result, {"trace_id": "trace-1", "total": 1, "spans": response["data"]})
+        adapt_spans.assert_called_once_with(response["data"], entity_set)
         query_span_list.assert_called_once_with(
             {
                 "bk_biz_id": 11,
@@ -787,6 +955,11 @@ class ListFlowsResourceTestCase(TestCase):
         span_query = mock.Mock()
         span_query.query_group_trace_list.return_value = [{"trace_id": trace_id}]
         span_query.query_by_group_ids.return_value = raw_spans
+        entity_set = mock.Mock(service_names=["agent-service"])
+        entity_set.get_system.return_value = {
+            "is_support_llm": True,
+            "product": LLMProduct.DEFAULT.value,
+        }
 
         with (
             mock.patch(
@@ -795,6 +968,7 @@ class ListFlowsResourceTestCase(TestCase):
             ),
             mock.patch("apm_web.llm.resources.Application.objects.get", return_value=application),
             mock.patch("apm_web.llm.resources.get_query", return_value=span_query),
+            mock.patch("apm_web.llm.resources.EntitySet", return_value=entity_set),
         ):
             spans_result = ListSpansResource().request({"bk_biz_id": 11, "app_name": "agent-app", "trace_id": trace_id})
             flows_result = ListFlowsResource().request(
@@ -885,13 +1059,14 @@ class ListFlowsResourceTestCase(TestCase):
 
     def test_builds_span_tree_for_each_trace(self):
         group_field = "attributes.gen_ai.conversation.id"
+        query_group_field = PRODUCT_CONVERSATION_FIELDS[LLMProduct.AGENTLENS.value]
         application = mock.Mock()
         data_sources = [mock.sentinel.data_source]
         application.build_data_sources.return_value = data_sources
         span_query = mock.Mock()
         span_query.query_group_trace_list.return_value = [
-            {group_field: "conversation-1", "trace_id": "trace-1"},
-            {group_field: "conversation-1", "trace_id": "trace-2"},
+            {"attributes": {"gen_ai.session.id": "conversation-1"}, "trace_id": "trace-1"},
+            {"attributes": {"gen_ai.session.id": "conversation-1"}, "trace_id": "trace-2"},
         ]
         spans = [
             {
@@ -917,11 +1092,19 @@ class ListFlowsResourceTestCase(TestCase):
             },
         ]
         span_query.query_by_group_ids.return_value = spans
+        entity_set = mock.Mock(service_names=["agent-service"])
+        entity_set.get_system.return_value = {
+            "is_support_llm": True,
+            "product": LLMProduct.AGENTLENS.value,
+        }
 
         with (
             mock.patch("apm_web.llm.resources.Application.objects.get", return_value=application) as get_application,
             mock.patch("apm_web.llm.resources.get_query", return_value=span_query) as get_query,
-            mock.patch("apm_web.llm.resources.adapt_spans", side_effect=lambda raw_spans: raw_spans) as adapt_spans,
+            mock.patch("apm_web.llm.resources.EntitySet", return_value=entity_set),
+            mock.patch(
+                "apm_web.llm.resources.adapt_spans", side_effect=lambda raw_spans, _entity_set: raw_spans
+            ) as adapt_spans,
         ):
             result = ListFlowsResource().request(
                 {
@@ -943,9 +1126,9 @@ class ListFlowsResourceTestCase(TestCase):
         get_application.assert_called_once_with(bk_biz_id=11, app_name="sand_local_dev")
         application.build_data_sources.assert_called_once_with()
         get_query.assert_called_once_with(data_sources)
-        span_query.query_group_trace_list.assert_called_once_with(
-            group_field=group_field,
-            group_ids=["conversation-1"],
+        self.assertEqual(
+            span_query.query_group_trace_list.call_args_list,
+            [mock.call(group_field=query_group_field, group_ids=["conversation-1"])],
         )
         span_query.query_by_group_ids.assert_called_once_with(
             group_field="trace_id",
@@ -953,7 +1136,7 @@ class ListFlowsResourceTestCase(TestCase):
         )
         self.assertEqual(
             adapt_spans.call_args_list,
-            [mock.call(spans[:2]), mock.call(spans[2:])],
+            [mock.call(spans[:2], entity_set), mock.call(spans[2:], entity_set)],
         )
 
     def test_returns_empty_traces_when_group_does_not_exist(self):

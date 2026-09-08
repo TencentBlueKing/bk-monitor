@@ -10,7 +10,12 @@ from constants.otel_query import OperatorEnum
 from core.drf_resource import Resource, api
 
 from apm_web.llm.adapter import adapt_spans
-from apm_web.llm.query import get_query
+from apm_web.llm.constants import (
+    CONVERSATION_QUERY_FIELDS,
+    PRODUCT_CONVERSATION_FIELDS,
+    STANDARD_CONVERSATION_FIELD,
+)
+from apm_web.llm.query import LLMQuery, get_query, get_span_field_value
 from apm_web.metric.resources import CalculateByRangeResource as MetricCalculateByRangeResource
 from apm_web.models import Application
 from apm_web.strategy.dispatch.entity import EntitySet
@@ -40,8 +45,45 @@ MOCK_TIME_SERIES_CAL_TYPES = (
 )
 
 
+def resolve_query_group_fields(group_field: str, entity_set: EntitySet, service_name: str = "") -> tuple[str, ...]:
+    """根据服务产品返回可能的原始分组字段。"""
+
+    if group_field != STANDARD_CONVERSATION_FIELD:
+        return (group_field,)
+
+    known_service_names = set(entity_set.service_names)
+    if service_name and service_name not in known_service_names:
+        return CONVERSATION_QUERY_FIELDS
+
+    target_service_names = [service_name] if service_name else entity_set.service_names
+    product_fields: set[str] = set()
+    for target_service_name in target_service_names:
+        system = entity_set.get_system(target_service_name)
+        if system.get("is_support_llm") and (product := system.get("product")):
+            product_fields.add(PRODUCT_CONVERSATION_FIELDS.get(product, STANDARD_CONVERSATION_FIELD))
+
+    if not product_fields:
+        return CONVERSATION_QUERY_FIELDS
+    return tuple(field for field in CONVERSATION_QUERY_FIELDS if field in product_fields)
+
+
+def query_trace_group_map(span_query: LLMQuery, group_fields: tuple[str, ...], group_ids: list[str]) -> dict[str, str]:
+    """使用所有候选原始字段查询 Trace，并合并为 Trace 到分组值的映射。"""
+
+    trace_group_map: dict[str, str] = {}
+    for group_field in group_fields:
+        records = span_query.query_group_trace_list(group_field=group_field, group_ids=group_ids)
+        for record in records:
+            trace_id = get_span_field_value(record, OtlpKey.TRACE_ID)
+            group_id = get_span_field_value(record, group_field)
+            normalized_group_id = str(group_id)
+            if trace_id and normalized_group_id in group_ids:
+                trace_group_map.setdefault(str(trace_id), normalized_group_id)
+    return trace_group_map
+
+
 class ListTracesResource(Resource):
-    """按指定字段折叠查询 Agent Trace。"""
+    """按指定字段聚合查询 Agent Trace。"""
 
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
@@ -58,18 +100,6 @@ class ListTracesResource(Resource):
             if attrs["start_time"] > attrs["end_time"]:
                 raise serializers.ValidationError("start_time 不能大于 end_time")
             return attrs
-
-    @staticmethod
-    def _span_field_value(span: dict[str, Any], field: str) -> str:
-        section, separator, name = field.partition(".")
-        if separator and section in {OtlpKey.ATTRIBUTES, OtlpKey.RESOURCE}:
-            values = span.get(section)
-            value = values.get(name, "") if isinstance(values, dict) else ""
-        else:
-            value = span.get(field, "")
-        if isinstance(value, list):
-            return value[0] if value else ""
-        return value
 
     @staticmethod
     def _preview_root(spans: list[dict[str, Any]]) -> dict[str, Any]:
@@ -162,7 +192,7 @@ class ListTracesResource(Resource):
     ) -> list[dict[str, Any]]:
         spans_by_group: dict[str, dict[str, list[dict[str, Any]]]] = defaultdict(lambda: defaultdict(list))
         for span in raw_spans:
-            trace_id = cls._span_field_value(span, OtlpKey.TRACE_ID)
+            trace_id = get_span_field_value(span, OtlpKey.TRACE_ID)
             group_id = trace_group_map.get(trace_id, "")
             if group_id and trace_id:
                 spans_by_group[group_id][trace_id].append(span)
@@ -200,6 +230,11 @@ class ListTracesResource(Resource):
         return items
 
     def perform_request(self, validated_request_data):
+        result = {
+            "offset": validated_request_data["offset"],
+            "limit": validated_request_data["limit"],
+            "items": [],
+        }
         filters = []
         if service_name := validated_request_data["service_name"]:
             filters.append(
@@ -216,31 +251,40 @@ class ListTracesResource(Resource):
             bk_biz_id=validated_request_data["bk_biz_id"],
             app_name=validated_request_data["app_name"],
         )
+        requested_group_field = validated_request_data["group_field"]
+        entity_set: EntitySet | None = None
+        if requested_group_field == STANDARD_CONVERSATION_FIELD:
+            entity_set = EntitySet(
+                bk_biz_id=validated_request_data["bk_biz_id"],
+                app_name=validated_request_data["app_name"],
+            )
         span_query = get_query(application.build_data_sources())
-        group_ids = span_query.query_group_list(
-            start_time=validated_request_data["start_time"],
-            end_time=validated_request_data["end_time"],
-            group_field=validated_request_data["group_field"],
-            offset=validated_request_data["offset"],
-            limit=validated_request_data["limit"],
-            filters=filters,
-            query_string=AGENT_CANDIDATE_QUERY,
-        )
-        result = {
-            "offset": validated_request_data["offset"],
-            "limit": validated_request_data["limit"],
-            "items": [],
-        }
+        query_group_fields = (requested_group_field,)
+        if entity_set is not None:
+            query_group_fields = resolve_query_group_fields(requested_group_field, entity_set, service_name)
+            group_ids = span_query.query_group_aggregate_list(
+                start_time=validated_request_data["start_time"],
+                end_time=validated_request_data["end_time"],
+                group_fields=query_group_fields,
+                offset=validated_request_data["offset"],
+                limit=validated_request_data["limit"],
+                filters=filters,
+                query_string=AGENT_CANDIDATE_QUERY,
+            )
+        else:
+            group_ids = span_query.query_group_list(
+                start_time=validated_request_data["start_time"],
+                end_time=validated_request_data["end_time"],
+                group_field=requested_group_field,
+                offset=validated_request_data["offset"],
+                limit=validated_request_data["limit"],
+                filters=filters,
+                query_string=AGENT_CANDIDATE_QUERY,
+            )
         if not group_ids:
             return result
 
-        group_trace_records = span_query.query_group_trace_list(
-            group_field=validated_request_data["group_field"],
-            group_ids=group_ids,
-        )
-        trace_group_map = {
-            record[OtlpKey.TRACE_ID]: record[validated_request_data["group_field"]] for record in group_trace_records
-        }
+        trace_group_map = query_trace_group_map(span_query, query_group_fields, group_ids)
         if not trace_group_map:
             return result
 
@@ -248,12 +292,13 @@ class ListTracesResource(Resource):
             group_field=OtlpKey.TRACE_ID,
             group_ids=list(trace_group_map),
         )
-        entity_set: EntitySet = EntitySet(
-            bk_biz_id=validated_request_data["bk_biz_id"],
-            app_name=validated_request_data["app_name"],
-        )
+        if entity_set is None:
+            entity_set = EntitySet(
+                bk_biz_id=validated_request_data["bk_biz_id"],
+                app_name=validated_request_data["app_name"],
+            )
         result["items"] = self._group_spans(
-            validated_request_data["group_field"],
+            requested_group_field,
             group_ids,
             trace_group_map,
             spans,
@@ -325,6 +370,7 @@ class ListFlowsResource(Resource):
         app_name = serializers.CharField(required=True, label="应用名称")
         group_field = serializers.CharField(required=True, label="分组字段")
         group_id = serializers.CharField(required=True, label="分组值")
+        service_name = serializers.CharField(required=False, allow_blank=True, default="", label="服务名称")
 
     @staticmethod
     def _build_flow(
@@ -371,21 +417,34 @@ class ListFlowsResource(Resource):
         span_query = get_query(application.build_data_sources())
         group_field = validated_request_data["group_field"]
         group_id = validated_request_data["group_id"]
-        group_trace_records = span_query.query_group_trace_list(
-            group_field=group_field,
-            group_ids=[group_id],
-        )
-        trace_ids = list(
-            dict.fromkeys(record[OtlpKey.TRACE_ID] for record in group_trace_records if record.get(OtlpKey.TRACE_ID))
-        )
+        service_name = validated_request_data["service_name"]
         result = {
             "group_field": group_field,
             "group_id": group_id,
             "traces": [],
         }
+        entity_set: EntitySet | None = None
+        if group_field == STANDARD_CONVERSATION_FIELD:
+            entity_set = EntitySet(
+                bk_biz_id=validated_request_data["bk_biz_id"],
+                app_name=validated_request_data["app_name"],
+            )
+        query_group_fields = (group_field,)
+        if entity_set is not None:
+            query_group_fields = resolve_query_group_fields(
+                group_field,
+                entity_set,
+                service_name,
+            )
+        trace_ids = list(query_trace_group_map(span_query, query_group_fields, [group_id]))
         if not trace_ids:
             return result
 
+        if entity_set is None:
+            entity_set = EntitySet(
+                bk_biz_id=validated_request_data["bk_biz_id"],
+                app_name=validated_request_data["app_name"],
+            )
         spans = span_query.query_by_group_ids(
             group_field=OtlpKey.TRACE_ID,
             group_ids=trace_ids,
@@ -400,7 +459,7 @@ class ListFlowsResource(Resource):
             result["traces"].append(
                 {
                     "trace_id": trace_id,
-                    "flow": self._build_flow(raw_trace_spans, adapt_spans(raw_trace_spans)),
+                    "flow": self._build_flow(raw_trace_spans, adapt_spans(raw_trace_spans, entity_set)),
                 }
             )
         return result
