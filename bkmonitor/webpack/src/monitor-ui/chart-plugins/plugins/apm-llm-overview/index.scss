@@ -1,0 +1,299 @@
+#apm-llm-overview-main {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  height: 100%;
+  padding: 16px;
+  overflow: auto;
+  background: #f5f7fa;
+}
+
+.llm-overview-metrics,
+.llm-overview-trends,
+.llm-overview-analysis {
+  display: flex;
+  gap: 12px;
+  width: 100%;
+}
+
+.llm-overview-metrics {
+  flex-shrink: 0;
+}
+
+.llm-overview-trends {
+  flex-shrink: 0;
+  height: 360px;
+}
+
+.llm-overview-analysis {
+  flex: 1;
+  min-height: 280px;
+}
+
+.llm-overview-metric-card,
+.llm-overview-card {
+  background: #fff;
+  border-radius: 4px;
+  box-shadow: 0 2px 4px 0 rgb(25 25 41 / 5%);
+}
+
+.llm-overview-metric-card {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  padding: 12px 16px;
+
+  .metric-card-title {
+    font-family: 'Microsoft YaHei', sans-serif;
+    font-size: 12px;
+    line-height: 20px;
+    color: #4d4f56;
+  }
+
+  .metric-card-body {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+  }
+
+  .metric-card-value {
+    font-family: Arial, sans-serif;
+    font-size: 24px;
+    font-weight: 700;
+    line-height: 32px;
+    color: #313238;
+  }
+
+  .metric-card-trend {
+    font-family: Arial, sans-serif;
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 22px;
+
+    &.is-brand {
+      color: #3a84ff;
+    }
+
+    &.is-success {
+      color: #21a380;
+    }
+
+    &.is-warn {
+      color: #f59500;
+    }
+  }
+}
+
+.llm-overview-card {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+  height: 100%;
+  padding: 12px 16px;
+  overflow: hidden;
+}
+
+.llm-overview-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.llm-overview-card-title {
+  font-family: 'PingFang SC', sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 22px;
+  color: #313238;
+}
+
+.llm-overview-card-extra {
+  font-size: 12px;
+  line-height: 20px;
+  color: #979ba5;
+}
+
+.llm-overview-card-chart {
+  flex: 1;
+  min-height: 0;
+}
+
+.llm-overview-chart {
+  width: 100%;
+  height: 100%;
+
+  .llm-overview-chart-instance {
+    width: 100%;
+    height: 100%;
+  }
+}
+
+.llm-overview-pie-card {
+  gap: 30px;
+}
+
+.llm-overview-pie {
+  display: flex;
+  flex: 1;
+  gap: 16px;
+  align-items: center;
+  min-height: 0;
+}
+
+.llm-overview-pie-chart {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  max-height: 240px;
+}
+
+.llm-overview-pie-center {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+
+  .pie-center-label {
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 22px;
+    color: #313238;
+  }
+
+  .pie-center-value {
+    font-family: Arial, sans-serif;
+    font-size: 32px;
+    font-weight: 700;
+    line-height: 42px;
+    color: #313238;
+  }
+}
+
+.llm-overview-pie-legend {
+  display: flex;
+  flex-shrink: 0;
+  flex-direction: column;
+  gap: 8px;
+  width: 134px;
+}
+
+.pie-legend-item {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  width: 100%;
+
+  .pie-legend-dot {
+    flex-shrink: 0;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+  }
+
+  .pie-legend-name {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 12px;
+    line-height: 20px;
+    color: #4d4f56;
+    white-space: nowrap;
+  }
+
+  .pie-legend-value {
+    width: 46px;
+    font-family: Arial, sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 20px;
+    color: #4d4f56;
+    text-align: right;
+  }
+}
+
+.llm-overview-empty {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  min-height: 120px;
+  font-size: 12px;
+  color: #979ba5;
+}
+
+.llm-overview-rank-list {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+  overflow: auto;
+}
+
+.llm-overview-rank-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+
+  .rank-item-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+  }
+
+  .rank-item-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-family: Menlo, Monaco, Consolas, monospace;
+    font-size: 13px;
+    line-height: 20px;
+    color: #4e5e7a;
+    white-space: nowrap;
+  }
+
+  .rank-item-value {
+    flex-shrink: 0;
+    margin-left: 8px;
+    font-family: Arial, sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 20px;
+    color: #4d4f56;
+  }
+
+  .rank-item-track {
+    width: 100%;
+    height: 8px;
+    overflow: hidden;
+    background: #eaebf0;
+    border-radius: 999px;
+  }
+
+  .rank-item-bar {
+    height: 100%;
+    border-radius: 999px;
+
+    &.is-brand {
+      background: #3a84ff;
+    }
+
+    &.is-warn {
+      background: #f8b64f;
+    }
+  }
+}
