@@ -173,7 +173,7 @@ export function useStatisticsData(props: IStatisticsDataProps, callbacks: IStati
   function applyTopKData(target: ITopKField, data?: ITopKField) {
     setTopKData(target, {
       ...data,
-      list: data?.list.map(item => ({ ...item, alias: aliasFormatter(item.value) })) || [],
+      list: data?.list.map(item => ({ ...item, value: String(item.value), alias: aliasFormatter(item.value) })) || [],
     });
   }
 
@@ -217,7 +217,11 @@ export function useStatisticsData(props: IStatisticsDataProps, callbacks: IStati
 
     durationTopkList.value = {
       ...result,
-      list: result.list.map(item => ({ ...item, alias: parseRangeText(item.value, aliasFormatter) as string })),
+      list: result.list.map(item => ({
+        ...item,
+        value: String(item.value),
+        alias: parseRangeText(item.value, aliasFormatter) as string,
+      })),
     };
   }
 
@@ -280,11 +284,11 @@ export function useStatisticsData(props: IStatisticsDataProps, callbacks: IStati
       mode.value === 'text'
         ? statisticsList.list.map(item => item.value)
         : [
-          min,
-          max,
-          statisticsInfo.value.distinct_count,
-          mode.value === 'duration' ? DURATION_GRAPH_BUCKET_COUNT : INTEGER_GRAPH_BUCKET_COUNT,
-        ];
+            min,
+            max,
+            statisticsInfo.value.distinct_count,
+            mode.value === 'duration' ? DURATION_GRAPH_BUCKET_COUNT : INTEGER_GRAPH_BUCKET_COUNT,
+          ];
     topKChartCancelFn?.();
     const data = await props.api
       .fieldStatisticsGraph(

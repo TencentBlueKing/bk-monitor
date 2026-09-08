@@ -95,7 +95,7 @@ export function buildDurationTopK(datapoints: [number, string][], field: string)
   };
 }
 
-/** 按字段单位格式化数值（bytes / us / μs / ms），其他单位返回空串 */
+/** 按字段单位格式化数值（bytes / us / μs / ms），其他单位返回原值 */
 export function formatUnitValue(value: number | string, unit: string) {
   switch (unit) {
     case 'bytes':
@@ -105,7 +105,7 @@ export function formatUnitValue(value: number | string, unit: string) {
     case 'ms':
       return formatDuration(Number(value) || 0, '', 3, unit).replace(/ /g, '');
     default:
-      return '';
+      return value;
   }
 }
 
@@ -133,11 +133,11 @@ export function resolveTopKAlias(
   }
 ) {
   const { fieldName, optionValues, unit } = options;
-  return (
+  const alias =
     optionValues?.find(option => option.value === value)?.alias ||
     transformFieldName(fieldName, value) ||
-    formatUnitValue(value, unit)
-  );
+    formatUnitValue(value, unit);
+  return alias === value ? '' : alias;
 }
 
 /** 将 topk 数据写入目标容器；不传 data 时清空 */
