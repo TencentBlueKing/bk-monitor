@@ -37,6 +37,7 @@ import {
   RUM_OUTCOME_TYPE_MAP,
   RUM_STATUS_CODE_MAP,
   RumFieldDisplayEnum,
+  SPAN_KIND_MAPS,
   SPAN_TYPE_FIELD,
   SPAN_TYPE_META,
 } from '../../../constants';
@@ -65,6 +66,11 @@ export class SpanScenario extends BaseScenario {
         },
       ])
     ),
+    /** kind 列：Span 调用类型（图标 + 类型名，展示语义与 trace 检索 kind 列一致） */
+    kind: {
+      renderType: ExploreTableColumnTypeEnum.PREFIX_ICON,
+      getRenderValue: row => this.getSpanKindRenderValue(row.kind),
+    },
     /** Span 类型列：类型图标 + 类型名 */
     [SPAN_TYPE_FIELD]: {
       renderType: ExploreTableColumnTypeEnum.PREFIX_ICON,
@@ -155,6 +161,18 @@ export class SpanScenario extends BaseScenario {
             ) as unknown as SlotReturnValue
         : '',
     };
+  }
+
+  /**
+   * @description Span 调用类型列渲染值：类型图标 + 类型别名（复用 trace 检索 kind 列配置）
+   * @param {unknown} value 当前行 kind 值
+   */
+  private getSpanKindRenderValue(value: unknown) {
+    if (value === null || value === undefined || value === '') return { alias: '', prefixIcon: '' };
+    const meta = SPAN_KIND_MAPS[Number(value)];
+    /** 未命中枚举时回退展示后台枚举别名或原始值，不渲染图标 */
+    if (!meta) return { alias: this.getFieldOptionAlias('kind', value) ?? String(value), prefixIcon: '' };
+    return { ...meta };
   }
 
   /**

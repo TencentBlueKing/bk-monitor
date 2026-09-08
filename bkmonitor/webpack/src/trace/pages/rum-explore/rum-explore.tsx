@@ -209,7 +209,7 @@ export default defineComponent({
     }
 
     /** 维度面板与表格单元格触发的条件追加 */
-    function handleConditionChange(condition: ConditionChangeEvent, isFromDimensionFilterPanel = false) {
+    function handleConditionChange(condition: ConditionChangeEvent, isFromDimensionFilterPanel = true) {
       const { key, method: operator, value } = condition;
       const field = viewConfigCtx.viewConfig.value.fields.find(item => item.name === key);
       /** 范围值 */

@@ -37,6 +37,9 @@ import WebsocketIcon from '../../static/img/rum-explore/span-type/websocket.svg'
 
 import type { IRumColumnLayoutPreset, RumModeType } from './typings';
 
+/** Span 调用类型（kind）列展示配置：与 trace 检索 kind 列同源，RUM 侧统一从此处引入 */
+export { SPAN_KIND_MAPS } from '../trace-explore/components/trace-explore-table/constants';
+
 /** 检索视角，取值需与检索接口的 mode 字段对齐（当前仅 span 有实现） */
 export const RumModeEnum = {
   /** 会话视角 */
