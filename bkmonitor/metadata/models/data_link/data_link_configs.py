@@ -1420,6 +1420,17 @@ class ClusterConfig(models.Model):
                     raise ValueError("Doris 配置字段 expires.maxExpire 必须是无符号整数")
 
     def compose_doris_config(self, cluster):
+        """校验并组装 Doris 集群配置，保留原始配置中非本地管理的扩展字段。
+
+        Args:
+            cluster: 提供公共连接字段和 default_settings 专属参数的集群信息。
+
+        Returns:
+            dict[str, Any]: 用于下发到 BKBase 的完整 Doris 集群配置。
+
+        Raises:
+            ValueError: 本地必需配置缺失或字段类型、取值不合法。
+        """
         self.validate_doris_config(cluster)
         config = copy.deepcopy(self.origin_config or {})
         config.pop("status", None)
