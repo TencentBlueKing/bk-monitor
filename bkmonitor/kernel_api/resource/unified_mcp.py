@@ -272,6 +272,17 @@ class LookupPermissionsResource(Resource):
         context = validated_request_data.get("resource_context")
         if context:
             spec = tool.native_permission if tool else None
+            if tool and not spec:
+                raise ValidationError(
+                    {
+                        "resource_context": (
+                            f"{tool.name} is using legacy MCP permissions ({tool.iam_action}); "
+                            "resource-level permission checks require native mode. "
+                            "For supported tools, enable MCP_NATIVE_PERMISSION_TOOLS; "
+                            "omit resource_context to check legacy space permissions only."
+                        )
+                    }
+                )
             allowed_keys = (
                 {"index_set_id", "target_type"}
                 if spec and spec["resource_type"] == "indices"

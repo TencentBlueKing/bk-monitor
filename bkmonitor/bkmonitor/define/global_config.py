@@ -182,6 +182,16 @@ ADVANCED_OPTIONS = OrderedDict(
         ("BIZ_WHITE_LIST_FOR_3RD_EVENT", slz.ListField(label="第三方事件接入业务白名单", default=[])),
         ("TIME_SERIES_METRIC_EXPIRED_SECONDS", slz.IntegerField(label="自定义指标过期时间", default=30 * 24 * 3600)),
         ("AIDEV_AGENT_LLM_DEFAULT_TEMPERATURE", slz.IntegerField(label="LLM默认温度参数", default=0.3)),
+        # Keep defaults aligned with config/default.py; empty means legacy-only permissions.
+        # Do not add serializer instances to field kwargs: options are persisted as JSON.
+        (
+            "MCP_NATIVE_PERMISSION_TOOLS",
+            slz.ListField(label="启用原生权限优先的MCP工具列表（空列表使用旧权限）", default=[]),
+        ),
+        (
+            "MCP_LOG_IAM_PROFILE",
+            slz.DictField(label="MCP原生日志IAM配置（mode=v3-current及gateway_url）", default={}),
+        ),
         ("MCP_MAX_TIME_SPAN_SECONDS", slz.IntegerField(label="MCP查询跨度限制", default=86400)),
         (
             "APM_PROFILING_MCP_MAX_TIME_SPAN_SECONDS",

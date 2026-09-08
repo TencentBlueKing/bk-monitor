@@ -22,10 +22,12 @@ import django
 import pytest
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
+from django.core.cache.backends.locmem import LocMemCache
 from django.http import HttpResponse, HttpResponseForbidden, JsonResponse
 from django.test import RequestFactory
 from jsonschema import Draft7Validator
 from iam import Action, Request, Resource, Subject
+from rest_framework import serializers
 from rest_framework.exceptions import PermissionDenied, ValidationError
 
 BASE = Path(__file__).resolve().parents[2]
@@ -174,6 +176,218 @@ def test_invalid_opt_in_does_not_silently_fall_back(monkeypatch, names):
     monkeypatch.setattr(settings, "MCP_NATIVE_PERMISSION_TOOLS", names)
     with pytest.raises(ImproperlyConfigured):
         registry.get_tool_registry()
+
+
+@pytest.mark.parametrize("redis_enabled", [False, True])
+def test_dynamic_configuration_round_trip_rebuilds_catalog(monkeypatch, redis_enabled):
+    # Evaluate only the two real registrations, without unrelated project settings.
+    tree = ast.parse((BASE / "bkmonitor/define/global_config.py").read_text())
+    defaults = {"MCP_NATIVE_PERMISSION_TOOLS": [], "MCP_LOG_IAM_PROFILE": {}}
+    fields = {}
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Tuple) and len(node.elts) == 2:
+            key = node.elts[0]
+            if isinstance(key, ast.Constant) and key.value in defaults:
+                fields[key.value] = eval(
+                    compile(ast.Expression(node.elts[1]), "global_config.py", "eval"), {"slz": serializers}
+                )
+    assert set(fields) == set(defaults)
+    for name, field in fields.items():
+        assert field.default == defaults[name]
+        # init_or_update_global_config persists these kwargs into GlobalConfig.options.
+        assert json.loads(json.dumps(field._kwargs))["default"] == defaults[name]
+    static_tree = ast.parse((BASE / "config/default.py").read_text())
+    for node in static_tree.body:
+        if isinstance(node, ast.AnnAssign) and getattr(node.target, "id", None) in defaults:
+            assert ast.literal_eval(node.value) == defaults[node.target.id]
+
+    module = ModuleType("bkmonitor.define.global_config")
+    module.GLOBAL_CONFIGS = list(fields)
+    monkeypatch.setitem(sys.modules, module.__name__, module)
+    import bkmonitor.define
+
+    monkeypatch.setattr(bkmonitor.define, "global_config", module, raising=False)
+    locmem = LocMemCache("mcp-dynamic-test", {})
+    redis = LocMemCache("mcp-dynamic-redis-test", {}) if redis_enabled else None
+    locmem.clear()
+    if redis is not None:
+        redis.clear()
+    dynamic_class = source_method(
+        "bkmonitor/utils/dynamic_settings.py",
+        "DynamicSettings",
+        locmem_cache=locmem,
+        redis_cache=redis,
+        json=json,
+        logger=logging.getLogger("test"),
+    )
+    db = {}
+    model = NS(get=lambda key, default, **kwargs: db.get(key, default), set=lambda key, value: db.update({key: value}))
+    wrapped = NS(**defaults, BASE_DIR=str(BASE), BK_IAM_SYSTEM_ID="bk_monitorv3")
+    dynamic = dynamic_class(wrapped, model)
+    monkeypatch.setattr(registry, "settings", dynamic)
+
+    legacy = registry.get_tool_registry()
+    enabled = ["execute_range_query", "search_logs", "search_index_set_context"]
+    dynamic.MCP_NATIVE_PERMISSION_TOOLS = enabled
+    assert db["MCP_NATIVE_PERMISSION_TOOLS"] == enabled
+    assert locmem.get("MCP_NATIVE_PERMISSION_TOOLS") is None
+    if redis is not None:
+        assert redis.get("MCP_NATIVE_PERMISSION_TOOLS") is None
+    native = registry.get_tool_registry()
+    if redis is not None:
+        assert json.loads(redis.get("MCP_NATIVE_PERMISSION_TOOLS")) == enabled
+        locmem.clear()
+        assert dynamic.MCP_NATIVE_PERMISSION_TOOLS == enabled
+    assert native.catalog_version != legacy.catalog_version
+    for name in enabled:
+        assert native.get(name).permission_payload()["mode"] == "native_then_legacy"
+    assert native.get("search_logs").input_schema["properties"]["target_type"]["enum"] == ["index_set"]
+    assert not native.get("execute_sql_query").native_permission
+
+    profile = {"mode": "v3-current", "gateway_url": "https://iam.invalid/"}
+    dynamic.MCP_LOG_IAM_PROFILE = profile
+    assert dynamic.MCP_LOG_IAM_PROFILE == db["MCP_LOG_IAM_PROFILE"] == profile
+    dynamic.MCP_NATIVE_PERMISSION_TOOLS = []
+    rollback = registry.get_tool_registry()
+    assert rollback.catalog_version == legacy.catalog_version
+    assert all(not tool.native_permission for tool in rollback.list())
+    assert "scene" in rollback.get("search_logs").input_schema["properties"]["target_type"]["enum"]
+
+
+@pytest.fixture
+def permission_lookup(request_factory, io):
+    request = request_factory()
+    mixed = source_method(
+        "kernel_api/resource/unified_mcp.py",
+        "_mixed_permission_scopes",
+        get_request=lambda: request,
+        _permission_state_by_action=source_method("kernel_api/resource/unified_mcp.py", "_permission_state_by_action"),
+        permission_state=auth.permission_state,
+    )
+    cls = source_method(
+        "kernel_api/resource/unified_mcp.py",
+        "LookupPermissionsResource",
+        Resource=object,
+        serializers=serializers,
+        CATEGORIES=tuple(registry.CATEGORY_ACTIONS),
+        CATEGORY_ACTIONS=registry.CATEGORY_ACTIONS,
+        get_tool_registry=registry.get_tool_registry,
+        ValidationError=ValidationError,
+        get_permission_client=lambda: io.monitor,
+        _mixed_permission_scopes=mixed,
+        get_action_by_id=lambda action: NS(name=action),
+        ResourceEnum=NS(BUSINESS=NS(create_simple_instance=auth._business_resource)),
+    )
+
+    def lookup(**params):
+        serializer = cls.RequestSerializer(data=params)
+        serializer.is_valid(raise_exception=True)
+        return cls().perform_request(serializer.validated_data)
+
+    return lookup
+
+
+@pytest.mark.parametrize("tool_name", ["search_logs", "search_index_set_context"])
+def test_permission_context_explains_disabled_native_mode(monkeypatch, permission_lookup, io, tool_name):
+    monkeypatch.setattr(settings, "MCP_NATIVE_PERMISSION_TOOLS", [])
+    with pytest.raises(ValidationError) as error:
+        permission_lookup(bk_biz_id=2, tool_name=tool_name, resource_context={"index_set_id": 123})
+    assert "MCP_NATIVE_PERMISSION_TOOLS" in str(error.value.detail)
+    assert "using_log_mcp" in str(error.value.detail)
+    io.iam.is_allowed.assert_not_called()
+    io.monitor.is_allowed_by_biz.assert_not_called()
+    # Omitting instance context remains a legacy permission probe, not a native grant.
+    io.monitor.is_allowed_by_biz.return_value = True
+    result = permission_lookup(bk_biz_id=2, tool_name=tool_name)
+    assert result["authorized"] is True
+    assert result["scopes"][0]["action_id"] == "using_log_mcp"
+
+
+@pytest.mark.parametrize("tool_name", ["search_logs", "search_index_set_context"])
+@pytest.mark.parametrize("native_allowed,legacy_allowed", [(True, False), (False, True), (False, False)])
+def test_permission_context_reports_source_and_apply_links(
+    permission_lookup, io, tool_name, native_allowed, legacy_allowed
+):
+    io.iam.is_allowed.return_value = native_allowed
+    io.monitor.iam_client.is_allowed.side_effect = lambda query: legacy_allowed
+    result = permission_lookup(
+        bk_biz_id=2,
+        tool_name=tool_name,
+        resource_context={"target_type": "index_set", "index_set_id": 123},
+        include_apply_guide=True,
+    )
+    scope = result["scopes"][0]
+    assert scope["resource"] == {"bk_biz_id": "2", "index_set_id": "123"}
+    assert scope["authorization_source"] == ("native" if native_allowed else "legacy" if legacy_allowed else "none")
+    assert result["authorized"] == (native_allowed or legacy_allowed)
+    assert bool(result["missing_permissions"]) == (not result["authorized"])
+    if not result["authorized"]:
+        assert scope["action_id"] == "search_log_v2"
+        assert scope["apply_url"] == "https://iam.invalid/log-apply"
+        assert scope["legacy_permission"]["apply_url"] == "https://iam.invalid/monitor-apply"
+    else:
+        assert "apply_url" not in scope
+    if native_allowed:
+        io.monitor.iam_client.is_allowed.assert_not_called()
+
+
+def test_permission_context_rejects_mismatch_and_keeps_missing_instance_unresolved(permission_lookup, io):
+    with pytest.raises(ValidationError, match="does not match"):
+        permission_lookup(bk_biz_id=2, tool_name="search_logs", resource_context={"alert_id": "123"})
+    result = permission_lookup(bk_biz_id=2, tool_name="search_logs")
+    assert result["authorized"] is False
+    assert result["scopes"][0]["state"] == "requires_resource"
+    io.iam.is_allowed.assert_not_called()
+    io.monitor.iam_client.is_allowed.assert_not_called()
+
+
+@pytest.mark.parametrize("begin", [-10, 0, 10])
+def test_log_context_preserves_position_and_checks_space_before_backend(begin):
+    params = {
+        "bk_biz_id": "2",
+        "index_set_id": 123,
+        "zero": True,
+        "begin": str(begin),
+        "size": "10",
+        "dtEventTimeStamp": "1788783672000",
+        "serverIp": "localhost",
+        "gseIndex": "12",
+        "iterationIndex": "1",
+        "path": "/logs/app.log",
+    }
+    backend = Mock(return_value={"list": []})
+    resource = source_method(
+        "kernel_api/resource/log_search.py",
+        "SearchIndexSetContextResource",
+        Resource=object,
+        serializers=serializers,
+        logger=logging.getLogger("test"),
+        call_log_api=backend,
+    )
+    serializer = resource.RequestSerializer(data=params)
+    serializer.is_valid(raise_exception=True)
+    catalog = Mock(return_value=[{"index_set_id": 123}])
+    ensure_scope = source_method(
+        "kernel_api/unified_mcp/dispatcher.py",
+        "_ensure_index_set_belongs_to_biz",
+        GetIndexSetListResource=lambda: NS(request=catalog),
+        ValidationError=ValidationError,
+        _index_set_ids=source_method("kernel_api/unified_mcp/dispatcher.py", "_index_set_ids"),
+    )
+    dispatch = source_method(
+        "kernel_api/unified_mcp/dispatcher.py",
+        "_log_resource_executor",
+        _ensure_index_set_belongs_to_biz=ensure_scope,
+    )(lambda: NS(request=lambda **kwargs: resource().perform_request(kwargs)))
+    assert dispatch(serializer.validated_data) == {"list": []}
+    backend.assert_called_once_with("search_index_set_context", **serializer.validated_data)
+    assert backend.call_args.kwargs["begin"] == begin
+    assert backend.call_args.kwargs["gseIndex"] == "12"
+    backend.reset_mock()
+    catalog.return_value = []
+    with pytest.raises(ValidationError, match="does not belong"):
+        dispatch(serializer.validated_data)
+    backend.assert_not_called()
 
 
 def test_log_uses_native_system_subject_instance_and_path(request_factory, io):
@@ -505,7 +719,11 @@ def test_lookup_permission_uses_native_instance_and_apply_guide(request_factory,
     assert result["missing_permissions"][0]["apply_url"] == "https://iam.invalid/log-apply"
 
 
-def test_native_log_api_uses_new_instance_and_current_identity(monkeypatch, request_factory):
+@pytest.mark.parametrize(
+    "api_name,tool_name",
+    [("log_search_index_set", "get_index_set_fields"), ("search_index_set_context", "search_index_set_context")],
+)
+def test_native_log_api_uses_new_instance_and_current_identity(monkeypatch, request_factory, api_name, tool_name):
     from bkmonitor.utils import request as request_utils
 
     instances = []
@@ -522,14 +740,14 @@ def test_native_log_api_uses_new_instance_and_current_identity(monkeypatch, requ
 
     pooled = FakeAPI()
     module = ModuleType("core.drf_resource")
-    module.api = NS(log_search=NS(log_search_index_set=pooled))
+    module.api = NS(log_search=NS(**{api_name: pooled}))
     monkeypatch.setitem(sys.modules, module.__name__, module)
     request = request_factory()
     monkeypatch.setattr(request_utils, "get_request", lambda **kwargs: request)
-    assert auth.call_log_api("log_search_index_set", index_set_id=123) == {"legacy": True}
+    assert auth.call_log_api(api_name, index_set_id=123) == {"legacy": True}
     assert len(instances) == 1
-    request.native_mcp_tool = "get_index_set_fields"
-    assert auth.call_log_api("log_search_index_set", index_set_id=123) == {"ok": True}
+    request.native_mcp_tool = tool_name
+    assert auth.call_log_api(api_name, index_set_id=123) == {"ok": True}
     instances[-1].request.cacheless.assert_called_once_with(
         index_set_id=123, bk_username="alice", bk_tenant_id="system"
     )
@@ -550,6 +768,28 @@ def audit_records(caplog):
     "tool_name,args,native_action,legacy_action",
     [
         ("search_logs", log_args(), "search_log_v2", "using_log_mcp"),
+        (
+            "search_index_set_context",
+            {
+                "bk_biz_id": "2",
+                "index_set_id": 123,
+                "zero": True,
+                "begin": "-10",
+                "size": "10",
+                "dtEventTimeStamp": "1788783672000",
+                "serverIp": "localhost",
+                "gseIndex": "12",
+                "iterationIndex": "1",
+            },
+            "search_log_v2",
+            "using_log_mcp",
+        ),
+        (
+            "execute_range_query",
+            {"bk_biz_id": "2", "start_time": "1", "end_time": "2", "promql": "test_metric"},
+            "explore_metric_v2",
+            "using_metrics_mcp",
+        ),
         ("list_time_series_groups", {"bk_biz_id": "2"}, "explore_metric_v2", "using_metrics_mcp"),
         ("list_alerts", {"bk_biz_id": "2", "start_time": "1", "end_time": "2"}, "view_event_v2", "using_alarm_mcp"),
     ],
