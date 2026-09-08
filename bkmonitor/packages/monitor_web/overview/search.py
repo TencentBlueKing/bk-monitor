@@ -788,7 +788,7 @@ class ApmApplicationSearchItem(SearchItem):
 
 
 class ApmServiceSearchItem(ApmApplicationSearchItem):
-    """在授权业务中匹配服务，再校验命中应用的查看权限。"""
+    """在授权业务中匹配服务，有查看权限的应用排在前面，无权限的也一并返回。"""
 
     @classmethod
     def _list_applications(cls, bk_tenant_id: str, services: list[dict]) -> list[dict[str, Any]]:
@@ -820,7 +820,9 @@ class ApmServiceSearchItem(ApmApplicationSearchItem):
         if not bk_biz_ids:
             return
         # 业务超过 100 个时省略业务过滤。
-        services = api.apm_api.search_service_names(bk_biz_ids=[] if len(bk_biz_ids) > 100 else bk_biz_ids, query=query)
+        services = api.apm_api.search_service_names(
+            bk_biz_ids=[] if len(bk_biz_ids) > 100 else bk_biz_ids, query=query, limit=limit
+        )
         if not services:
             return
 
@@ -835,8 +837,18 @@ class ApmServiceSearchItem(ApmApplicationSearchItem):
             mode="any",
             username=username,
         )
-        app_map = {(app["bk_biz_id"], app["app_name"]): app for app in allowed}
-        services = [service for service in services if (service["bk_biz_id"], service["app_name"]) in app_map][:limit]
+        allowed_keys = {(app["bk_biz_id"], app["app_name"]) for app in allowed}
+        app_map = {(app["bk_biz_id"], app["app_name"]): app for app in applications}
+        ranked, others = [], []
+        for service in services:
+            key = (service["bk_biz_id"], service["app_name"])
+            if key not in app_map:
+                continue
+            if key in allowed_keys:
+                ranked.append(service)
+            else:
+                others.append(service)
+        services = [*ranked, *others][:limit]
         if not services:
             return
         items = [

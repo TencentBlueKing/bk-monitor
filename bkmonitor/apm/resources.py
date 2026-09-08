@@ -822,10 +822,21 @@ class SearchServiceNamesResource(Resource):
         bk_biz_ids = serializers.ListField(
             label="业务ID列表，空列表表示全量授权", child=serializers.IntegerField(), allow_empty=True
         )
+        app_names = serializers.ListField(
+            label="应用名称列表",
+            child=serializers.CharField(max_length=50),
+            required=False,
+            allow_empty=True,
+            max_length=100,
+        )
         query = serializers.CharField(label="服务名称关键字")
+        limit = serializers.IntegerField(label="返回数量", min_value=1, max_value=100, default=20)
 
     def perform_request(self, data):
         scope = {"bk_biz_id__in": data["bk_biz_ids"]} if data["bk_biz_ids"] else {}
+        if data.get("app_names"):
+            scope["app_name__in"] = data["app_names"]
+        limit = data.get("limit", 20)
         services = {}
         nodes = (
             TopoNode.objects.filter(
@@ -834,25 +845,25 @@ class SearchServiceNamesResource(Resource):
                 updated_at__gte=datetime.datetime.now() - datetime.timedelta(days=TopoNode.EXPIRED_DAYS),
             )
             .order_by("id")
-            .values("bk_biz_id", "app_name", "topo_key", "extra_data")
+            .values("bk_biz_id", "app_name", "topo_key")[:limit]
         )
         for node in nodes:
-            extra = node["extra_data"]
-            # 远程服务不属于应用自身，排除出全站搜索范围。
-            if extra.get("kind") == ApmTopoDiscoverRule.TOPO_REMOTE_SERVICE:
-                continue
             key = (node["bk_biz_id"], node["app_name"], node["topo_key"])
             services[key] = {"bk_biz_id": key[0], "app_name": key[1], "service_name": key[2]}
+            if len(services) >= limit:
+                return list(services.values())
 
         profiles = (
             ProfileService.objects.filter(**scope, name__icontains=data["query"])
             .order_by("bk_biz_id", "app_name", "name")
             .values("bk_biz_id", "app_name", "name")
-            .distinct()
+            .distinct()[:limit]
         )
         for profile in profiles:
             key = (profile["bk_biz_id"], profile["app_name"], profile["name"])
             services[key] = {"bk_biz_id": key[0], "app_name": key[1], "service_name": key[2]}
+            if len(services) >= limit:
+                break
         return list(services.values())
 
 
