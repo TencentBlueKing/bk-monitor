@@ -28,17 +28,17 @@ import { BkOpenTelemetry } from '@blueking/open-telemetry';
 /** 日志提取任务轮询：不采集、不计入页面活动窗口 */
 const EXTRACT_POLLING_URL = 'log_extract/tasks/polling/';
 
-/** 开发态环境变量接口只下发 BKAPP_RUM_*，生产态 HTML 已注入 window.rum */
+/** 开发态环境变量接口只下发 BKLOG_RUM_*，生产态 HTML 已注入 window.BKLOG_RUM */
 export const hydrateRumWindow = () => {
-  if (window.rum) {
+  if (window.BKLOG_RUM) {
     return;
   }
 
-  window.rum = {
-    enabled: String(window.BKAPP_RUM_ENABLED).toLowerCase() === 'true',
-    sdk: window.BKAPP_RUM_SDK || 'otlp',
-    endpoint: window.BKAPP_RUM_ENDPOINT || '',
-    token: window.BKAPP_RUM_TOKEN || '',
+  window.BKLOG_RUM = {
+    enabled: String(window.BKLOG_RUM_ENABLED).toLowerCase() === 'true',
+    sdk: window.BKLOG_RUM_SDK || 'otlp',
+    endpoint: window.BKLOG_RUM_ENDPOINT || '',
+    token: window.BKLOG_RUM_TOKEN || '',
   };
 };
 
@@ -57,12 +57,12 @@ export const redactRumUrl = (url: string): string =>
 
 export const canStartRum = (): boolean => {
   hydrateRumWindow();
-  return Boolean(!window.__IS_MONITOR_COMPONENT__ && window.rum?.enabled && window.rum.endpoint);
+  return Boolean(!window.__IS_MONITOR_COMPONENT__ && window.BKLOG_RUM?.enabled && window.BKLOG_RUM.endpoint);
 };
 
 export let bkOTInstance: BkOpenTelemetry | undefined;
 
-// 初始化蓝鲸 RUM 上报 SDK，仅在后端下发 window.rum.enabled 且提供 endpoint 时启用
+// 初始化蓝鲸 RUM 上报 SDK，仅在后端下发 window.BKLOG_RUM.enabled 且提供 endpoint 时启用
 export const initOpenTelemetry = (): BkOpenTelemetry | undefined => {
   if (!canStartRum()) {
     return;
@@ -80,8 +80,8 @@ export const initOpenTelemetry = (): BkOpenTelemetry | undefined => {
       version: window.VERSION,
     },
     transport: {
-      endpoint: window.rum.endpoint,
-      token: window.rum.token,
+      endpoint: window.BKLOG_RUM.endpoint,
+      token: window.BKLOG_RUM.token,
     },
     privacy: {
       redactUrl: redactRumUrl,
