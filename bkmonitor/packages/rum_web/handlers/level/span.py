@@ -53,7 +53,7 @@ class SpanLevelHandler(BaseRumLevelHandler):
         "attributes.user.id",
     ]
     #: 常驻筛选字段，前端置顶展示并默认带出的筛选维度
-    RESIDENT_FIELDS = ["trace_id", "span_id", "kind", "elapsed_timespan_name", "attributes.view.name"]
+    RESIDENT_FIELDS = ["trace_id", "span_id", "kind", "elapsed_time", "span_name", "attributes.view.name"]
     VIEW_CONFIG_IGNORE_KEYS = ["is_case_sensitive", "is_analyzed", "wildcard_case_insensitive", "tokenize_on_chars"]
 
     BASE_STATISTICS_PROPERTIES: set[str] = {

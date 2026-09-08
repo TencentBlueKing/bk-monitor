@@ -2399,9 +2399,9 @@ class QueryFieldStatisticsInfoResource(Resource):
         field: dict[str, Any] = validated_data["field"]
         filters: list[dict[str, Any]] = copy.deepcopy(validated_data["filters"])
         if property_name == StatisticsProperty.FIELD_COUNT.value:
-            exclude_empty_operator: str = (
-                FilterOperator.EXISTS if cls._is_number_field(validated_data["field"]) else FilterOperator.NOT_EQUAL
-            )
+            # 数值类型与布尔类型使用 exists 判断，其余类型排除空字符串
+            use_exists = cls._is_number_field(field) or field["field_type"] == EnabledStatisticsDimension.BOOLEAN.value
+            exclude_empty_operator: str = FilterOperator.EXISTS if use_exists else FilterOperator.NOT_EQUAL
             filters.append({"key": field["field_name"], "value": [""], "operator": exclude_empty_operator})
 
         statistics_info[property_name] = proxy.query_field_aggregated_value(
