@@ -41,7 +41,8 @@ import TopKListHeader from './topk-list-header';
 import { type IStatisticsApi, useStatisticsData } from './use-statistics-data';
 
 import type { TimeRangeType } from '../../../../components/time-range/utils';
-import type { ConditionChangeEvent, DimensionType, ICommonParams } from '../../typing';
+import type { IStatisticsFieldItem } from '../../../rum-explore/composables/use-field-statistics-popover';
+import type { ConditionChangeEvent, ICommonParams } from '../../typing';
 
 import './statistics-list.scss';
 
@@ -56,7 +57,7 @@ const DEFAULT_STATISTICS_API: IStatisticsApi = {
  * 维度字段统计分析弹层 + TopK 全量侧栏。
  *
  * 上层分发组件：通过 isDuration / isInteger 归一化为 mode（duration/integer/text），
- * 数据流收敛在 useStatisticsData，展示差异收敛在各子组件；对外 props / emits / $refs.dimensionPopover 保持不变。
+ * 字段名/单位/类型/枚举值统一从 field prop 取值；数据流收敛在 useStatisticsData，展示差异收敛在各子组件。
  */
 export default defineComponent({
   name: 'StatisticsList',
@@ -65,18 +66,10 @@ export default defineComponent({
       type: Object as PropType<ICommonParams>,
       default: () => ({}),
     },
-    selectField: {
-      type: String,
-      default: '',
-    },
-    /** 字段单位 */
-    unit: {
-      type: String,
-      default: '',
-    },
-    fieldType: {
-      type: String as PropType<DimensionType>,
-      default: 'text',
+    /** 统计分析的字段对象，字段名/单位/类型/枚举值等均从这里取值 */
+    field: {
+      type: Object as PropType<IStatisticsFieldItem | null>,
+      default: null,
     },
     isShow: {
       type: Boolean,
@@ -90,15 +83,6 @@ export default defineComponent({
     /** 查询时间范围，不传则取 trace 检索 store 中的时间 */
     timeRange: {
       type: Array as PropType<TimeRangeType>,
-      default: null,
-    },
-    optionValues: {
-      type: Array as PropType<
-        {
-          alias?: string;
-          value: string;
-        }[]
-      >,
       default: null,
     },
     isDuration: {
@@ -186,9 +170,9 @@ export default defineComponent({
               />
               <div class='top-k-list-header'>
                 <TopKListHeader
+                  displayName={this.field?.levelAlias || this.field?.name || ''}
                   distinctCount={this.statisticsList?.distinct_count}
                   downloadLoading={this.downloadLoading}
-                  fieldName={this.localField}
                   onDownload={this.handleDownload}
                 />
               </div>

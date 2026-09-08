@@ -254,12 +254,10 @@ export default defineComponent({
         <StatisticsList
           ref='statisticsListRef'
           commonParams={this.params}
-          fieldType={this.selectField?.type}
+          field={this.selectField ? { ...this.selectField, field_unit: this.selectFieldUnit } : null}
           isDuration={['us', 'ms', 'μs'].includes(this.selectFieldUnit)}
           isInteger={['double', 'long', 'integer'].includes(this.selectField?.type)}
           isShow={this.showStatisticsPopover}
-          selectField={this.selectField?.name}
-          unit={this.selectFieldUnit}
           onConditionChange={this.handleConditionChange}
           onShowMore={this.destroyPopover}
         />

@@ -39,7 +39,7 @@ export default defineComponent({
   name: 'TopKListHeader',
   props: {
     /** 字段名 */
-    fieldName: {
+    displayName: {
       type: String,
       default: '',
     },
@@ -88,7 +88,7 @@ export default defineComponent({
             class='field-name'
             v-overflow-tips
           >
-            {this.fieldName}
+            {this.displayName}
           </span>
           <span class='divider' />
           <span class='desc'>

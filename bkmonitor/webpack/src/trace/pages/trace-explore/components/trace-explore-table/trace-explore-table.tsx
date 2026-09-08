@@ -550,12 +550,10 @@ export default defineComponent({
           key='statisticsList'
           ref='statisticsListRef'
           commonParams={props.commonParams}
-          fieldType={fieldOptions?.type}
+          field={fieldOptions ? { ...fieldOptions, field_unit: selectFieldUnit } : null}
           isDuration={['us', 'ms', 'μs'].includes(selectFieldUnit)}
           isInteger={['double', 'long', 'integer'].includes(fieldOptions?.name)}
           isShow={showStatisticsPopover.value}
-          selectField={fieldOptions?.name}
-          unit={selectFieldUnit}
           onConditionChange={handleConditionChange}
           onShowMore={() => handleStatisticsPopoverHide(false)}
           onSliderShowChange={handleStatisticsSliderShow}

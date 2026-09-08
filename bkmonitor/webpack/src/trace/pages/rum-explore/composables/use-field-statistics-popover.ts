@@ -32,7 +32,7 @@ import type { IDimensionFieldTreeItem } from '../../trace-explore/typing';
 import type { IRumField } from '../typings';
 
 /** 统计分析弹层展示的字段，RUM 检索的字段会额外携带 field_unit */
-export type IStatisticsFieldItem = IDimensionFieldTreeItem & IRumField;
+export type IStatisticsFieldItem = IDimensionFieldTreeItem & Pick<IRumField, 'field_display_type' | 'field_unit'>;
 
 /**
  * 字段统计分析弹层。
