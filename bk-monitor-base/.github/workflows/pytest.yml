@@ -1,0 +1,60 @@
+name: pytest
+
+# 在每次 Pull Request 时触发
+on:
+  pull_request:
+    branches:
+      - main
+      - master
+      - develop
+    paths:
+      - 'src/**'
+      - 'pyproject.toml'
+      - 'uv.lock'
+      - '.github/workflows/pytest.yml'
+
+# 避免重复运行，新提交会取消旧的运行
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: 运行 pytest 测试
+    runs-on: ubuntu-latest
+    
+    permissions:
+      contents: read
+    
+    env:
+      TZ: Asia/Shanghai
+    
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+      
+      - name: 设置 Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: 安装 uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+      
+      - name: 同步依赖
+        run: uv sync --all-groups --all-extras
+      
+      - name: 运行测试
+        run: uv run pytest
+      
+      - name: 上传覆盖率报告（可选）
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: .coverage
+          retention-days: 7
+          if-no-files-found: ignore

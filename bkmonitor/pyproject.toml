@@ -214,7 +214,7 @@ docstring-code-format = true
 
 [tool.pyright]
 exclude = ["tests"]
-extraPaths = ["packages"]
+extraPaths = ["packages", "../bk-monitor-base/src"]
 stubPath = "typings"
 typeCheckingMode = "standard"
 reportIncompatibleVariableOverride = false

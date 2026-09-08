@@ -1,0 +1,28 @@
+[
+  {
+    "description": "init kafka cluster",
+    "cluster_type": "kafka",
+    "domain_name": "kafka.service.consul",
+    "cluster_name": "kafka_cluster1",
+    "is_default_cluster": true,
+    "is_register_to_gse": true,
+    "port": 9092
+  },
+  {
+    "description": "init influx cluster",
+    "cluster_type": "influxdb",
+    "domain_name": "10.1.1.1",
+    "cluster_name": "influx_cluster1",
+    "is_default_cluster": true,
+    "port": 8086
+  },
+  {
+    "description": "init es cluster",
+    "cluster_type": "elasticsearch",
+    "domain_name": "10.1.1.1",
+    "cluster_name": "es_cluster1",
+    "is_default_cluster": true,
+    "port": 9200,
+    "version": "7.2"
+  }
+]
