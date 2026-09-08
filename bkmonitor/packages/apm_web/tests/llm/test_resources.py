@@ -35,6 +35,21 @@ class ListTracesResourceTestCase(TestCase):
         self.assertIn("service_name", fields)
         self.assertNotIn("filters", fields)
 
+    def test_span_field_value_can_read_nested_path(self):
+        span = {
+            "attributes": {
+                "gen_ai": {
+                    "conversation": {
+                        "id": "conversation-1",
+                    },
+                }
+            }
+        }
+
+        self.assertEqual(
+            ListTracesResource._span_field_value(span, "attributes.gen_ai.conversation.id"), "conversation-1"
+        )
+
     def test_limit_max_value(self):
         request_data = {
             "bk_biz_id": 11,

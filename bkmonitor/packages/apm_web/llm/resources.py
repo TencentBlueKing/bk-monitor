@@ -10,7 +10,7 @@ from constants.otel_query import OperatorEnum
 from core.drf_resource import Resource, api
 
 from apm_web.llm.adapter import adapt_spans
-from apm_web.llm.query import get_query
+from apm_web.llm.query import LLMQuery, get_query
 from apm_web.metric.resources import CalculateByRangeResource as MetricCalculateByRangeResource
 from apm_web.models import Application
 from apm_web.strategy.dispatch.entity import EntitySet
@@ -61,12 +61,7 @@ class ListTracesResource(Resource):
 
     @staticmethod
     def _span_field_value(span: dict[str, Any], field: str) -> str:
-        section, separator, name = field.partition(".")
-        if separator and section in {OtlpKey.ATTRIBUTES, OtlpKey.RESOURCE}:
-            values = span.get(section)
-            value = values.get(name, "") if isinstance(values, dict) else ""
-        else:
-            value = span.get(field, "")
+        value = LLMQuery._get_field_value(span, field)
         if isinstance(value, list):
             return value[0] if value else ""
         return value
@@ -216,11 +211,12 @@ class ListTracesResource(Resource):
             bk_biz_id=validated_request_data["bk_biz_id"],
             app_name=validated_request_data["app_name"],
         )
+        group_field = validated_request_data["group_field"]
         span_query = get_query(application.build_data_sources())
         group_ids = span_query.query_group_list(
             start_time=validated_request_data["start_time"],
             end_time=validated_request_data["end_time"],
-            group_field=validated_request_data["group_field"],
+            group_field=group_field,
             offset=validated_request_data["offset"],
             limit=validated_request_data["limit"],
             filters=filters,
@@ -235,12 +231,18 @@ class ListTracesResource(Resource):
             return result
 
         group_trace_records = span_query.query_group_trace_list(
-            group_field=validated_request_data["group_field"],
+            group_field=group_field,
             group_ids=group_ids,
         )
-        trace_group_map = {
-            record[OtlpKey.TRACE_ID]: record[validated_request_data["group_field"]] for record in group_trace_records
-        }
+        trace_group_map: dict[str, str] = {}
+        for record in group_trace_records:
+            trace_id = record.get(OtlpKey.TRACE_ID, "")
+            if not trace_id:
+                continue
+
+            group_id = LLMQuery._get_field_value(record, group_field)
+            if group_id and trace_id not in trace_group_map:
+                trace_group_map[trace_id] = str(group_id)
         if not trace_group_map:
             return result
 

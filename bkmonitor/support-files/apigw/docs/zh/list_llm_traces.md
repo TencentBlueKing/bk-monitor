@@ -20,6 +20,10 @@
 
 `group_field` 用于查询 ES 中的原始字段，不会先执行 Adapter 转换。不同 SDK 使用的会话字段不一致时，应传对应数据源实际上报的字段。
 
+注意：`group_field` 必须在所查索引中存在 `mapping`。如果字段不存在，会在 ES 聚合阶段直接返回查询错误（例如 `no mapping found for ... in order to collapse on`）。该接口返回 `result: false` 并带有相应 `code` 与 `message`。
+
+接口会忽略查询结果中不带 `group_field` 的记录，避免因字段缺失导致整页接口 500。
+
 ### 请求参数示例
 
 按 Trace 查询：
@@ -174,3 +178,4 @@
 2. 指定会话字段后，外层 `items` 表示会话，`childs` 表示该会话中的多轮 Trace。
 3. Token 数量为当前 Trace 或会话内所有已标准化 Span 的求和结果。
 4. 接口不返回 `total`。调用方按 `offset + limit` 拉取下一页，直到 `items` 为空。
+5. 调用前请先确认 `group_field` 在索引里确实存在，避免在 `collapse` 阶段返回查询错误。

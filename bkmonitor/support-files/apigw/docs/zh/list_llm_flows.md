@@ -13,6 +13,9 @@
 | group_field | string | 是 | 分组字段，例如 `trace_id`、`attributes.gen_ai.conversation.id` |
 | group_id | string | 是 | 分组值，精确匹配 |
 
+注意：`group_field` 必须是该索引已建映射的字段。若字段不存在，在
+`query` 的 `collapse` 阶段可能返回 ES 报错（如 `no mapping found ... in order to collapse on`），前端将收到 `result: false` 的错误响应。
+
 ### 请求参数示例
 
 按会话查看其中所有 Trace 的事件线：
