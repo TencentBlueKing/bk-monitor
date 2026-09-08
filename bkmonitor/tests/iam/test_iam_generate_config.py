@@ -11,11 +11,19 @@ specific language governing permissions and limitations under the License.
 import json
 from io import StringIO
 
+import pytest
+
 from django.core.management import call_command
+from django.test import override_settings
 
 
 class TestIamGenerateConfigCommand:
     """iam_generate_config：--provider 指定时按 provider 可见性过滤 schema。"""
+
+    @pytest.fixture(autouse=True)
+    def saas_credentials(self):
+        with override_settings(SAAS_APP_CODE="test-saas", SAAS_SECRET_KEY="test-secret"):
+            yield
 
     def test_with_provider_v4_filters_hidden_actions(self):
         out = StringIO()

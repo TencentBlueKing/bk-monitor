@@ -19,6 +19,8 @@ specific language governing permissions and limitations under the License.
 
 from __future__ import annotations
 
+from dataclasses import replace
+
 import logging
 from typing import TYPE_CHECKING, Any
 
@@ -118,23 +120,29 @@ class V3PermissionProvider(PermissionProvider):
         self.MAX_WORKERS = self._cfg.max_workers
 
         self._default_tenant_id = self._cfg.bk_tenant_id
-        self._clients: dict[str, V3Client] = {}
-        # 默认 client（系统级操作：health_check / migration / make_* 工厂方法）
-        self._iam_client = self._get_client("")
+        self._clients: dict[tuple[str, str, str], V3Client] = {}
+
+    @property
+    def _iam_client(self):
+        """系统操作同样在调用时解析凭据，不在 Django ready 阶段固定客户端。"""
+        return self._get_client("")
 
     def _get_client(self, tenant_id: str = ""):
         """按租户 ID 获取或创建 V3Client。"""
         tid = tenant_id or self._default_tenant_id
-        if tid not in self._clients:
-            self._clients[tid] = V3Client(
-                self._cfg.credentials.app_code,
-                self._cfg.credentials.app_secret,
+        app_code = str(self._cfg.credentials.app_code)
+        app_secret = str(self._cfg.credentials.app_secret)
+        key = (tid, app_code, app_secret)
+        if key not in self._clients:
+            self._clients[key] = V3Client(
+                app_code,
+                app_secret,
                 self._cfg.base_url,
                 system_id=self._cfg.system.id,
                 codec=self.codec,
                 bk_tenant_id=tid,
             )
-        return self._clients[tid]
+        return self._clients[key]
 
     # ================================================================
     # 系统信息（供命令行/诊断使用）
@@ -148,7 +156,7 @@ class V3PermissionProvider(PermissionProvider):
         Returns:
             V3SystemInfo: V3 平台的系统注册信息。
         """
-        return self._cfg.system
+        return replace(self._cfg.system, clients=tuple(dict.fromkeys(str(c) for c in self._cfg.system.clients)))
 
     # ================================================================
     # 方言层：单次鉴权

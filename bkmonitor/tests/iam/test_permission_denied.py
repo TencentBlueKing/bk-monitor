@@ -21,8 +21,7 @@ specific language governing permissions and limitations under the License.
 # 前置条件：.env 中配置好以下环境变量
 #   BK_IAM_V4_API_BASE_URL = https://xxxxxxx
 #   BK_IAM_V4_SYSTEM_ID = bk_monitor_v4
-#   BK_IAM_APP_CODE = <your_app_code>
-#   BK_IAM_APP_SECRET = <your_app_secret>
+#   GlobalConfig 中已配置 SAAS_APP_CODE / SAAS_SECRET_KEY
 #   IAM_V4_TEST_USER = <your_username>  （可选）
 #   IAM_V4_TEST_SPACE_ID = <space_id>   （可选）
 # ==============================================================================
@@ -49,10 +48,10 @@ from bkmonitor.iam.iam_engine.django.facade import get_framework
 
 _MISSING_CONFIG = (
     not getattr(settings, "BK_IAM_V4_API_BASE_URL", "")
-    or not getattr(settings, "BK_IAM_APP_CODE", "")
-    or not getattr(settings, "BK_IAM_APP_SECRET", "")
+    or not getattr(settings, "SAAS_APP_CODE", "")
+    or not getattr(settings, "SAAS_SECRET_KEY", "")
 )
-SKIP_REASON = "IAM v4 API 未配置（BK_IAM_V4_API_BASE_URL / BK_IAM_APP_CODE / BK_IAM_APP_SECRET）"
+SKIP_REASON = "IAM v4 API 未配置（BK_IAM_V4_API_BASE_URL / SAAS_APP_CODE / SAAS_SECRET_KEY）"
 
 TEST_USER = os.getenv("IAM_V4_TEST_USER", "admin")
 TEST_SPACE_ID = os.getenv("IAM_V4_TEST_SPACE_ID", "2")

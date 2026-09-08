@@ -11,6 +11,7 @@ specific language governing permissions and limitations under the License.
 import base64
 import json
 import warnings
+from unittest.mock import MagicMock
 
 import pytest
 from django.core.exceptions import ImproperlyConfigured
@@ -22,12 +23,13 @@ from rest_framework.test import APIRequestFactory
 
 from bkmonitor.iam.adapters.v4.callback import auth as callback_auth
 from bkmonitor.iam.adapters.v4.callback.auth import IamCallbackAuthentication, V4SystemTokenProvider
-from bkmonitor.iam.adapters.v4.callback.config import V4CallbackConfig, get_v4_callback_config
+from bkmonitor.iam.adapters.v4.callback.config import get_v4_callback_config
 from bkmonitor.iam.adapters.v4.callback.registry import V4CallbackRegistry
 from bkmonitor.iam.adapters.v4.callback.service import V4CallbackService
 from bkmonitor.iam.adapters.v4.callback.views import MonitorV4ResourceCallbackView, V4ResourceCallbackView
 from bkmonitor.iam.adapters.v4.codec import MonitorV4Codec
 from bkmonitor.iam.iam_engine.provider.codec import IdentityCodec
+from bkmonitor.iam.iam_v4.config import V4Options
 
 
 class PrefixTypeCodec(IdentityCodec):
@@ -332,18 +334,21 @@ class TestV4CallbackRouting:
 
 
 class TestCallbackAuth:
-    """验证 callback 使用独立 token provider，不读取 Provider 配置。"""
+    """验证 callback 复用 V4 配置，同时独立获取和缓存系统 token。"""
 
     @staticmethod
-    def _config() -> V4CallbackConfig:
-        return V4CallbackConfig.from_dict(
-            {
-                "base_url": "https://callback-iam.example.com",
-                "system_id": "callback-system",
-                "credentials": {"app_code": "callback-app", "app_secret": "callback-secret"},
-                "bk_tenant_id": "callback-tenant",
-            }
-        )
+    def _options():
+        return {
+            "base_url": "https://iam.example.com",
+            "system": {"id": "monitor-system", "name": "Monitor"},
+            "credentials": {"app_code": "monitor-app", "app_secret": "monitor-secret"},
+            "timeout": 15,
+            "bk_tenant_id": "system-tenant",
+        }
+
+    @classmethod
+    def _config(cls) -> V4Options:
+        return V4Options.from_dict(cls._options())
 
     def test_token_cache_hit(self):
         call_count = 0
@@ -391,37 +396,45 @@ class TestCallbackAuth:
                 factory.get("/", HTTP_AUTHORIZATION=f"Basic {wrong_token}")
             )
 
-    @override_settings(
-        IAM_V4_CALLBACK={
-            "base_url": "https://callback-iam.example.com",
-            "system_id": "callback-system",
-            "credentials": {"app_code": "callback-app", "app_secret": "callback-secret"},
-            "bk_tenant_id": "callback-tenant",
-        }
-    )
-    def test_callback_config_is_independent_from_provider_options(self):
-        config = get_v4_callback_config()
+    @pytest.mark.parametrize("enabled", ("v3", "v4", "v4,v3"))
+    def test_callback_uses_catalog_connection_even_when_v4_is_disabled(self, monkeypatch, enabled):
+        options = self._options()
+        client_factory = MagicMock()
+        client_factory.return_value.get_auth_token.return_value = "shared-system-token"
+        monkeypatch.setattr(callback_auth, "V4Client", client_factory)
+        monkeypatch.setattr(callback_auth, "_token_provider", None)
 
-        assert config.base_url == "https://callback-iam.example.com"
-        assert config.system_id == "callback-system"
-        assert config.credentials.app_code == "callback-app"
-        assert config.credentials.app_secret == "callback-secret"
+        with override_settings(
+            IAM_FRAMEWORK={
+                "PROVIDER_CATALOG": {"v4": {"options": options}},
+                "ENABLED_PROVIDERS": enabled,
+            },
+            # 旧配置即使仍被部署侧设置，也不能再覆盖 V4 的共享连接配置。
+            IAM_V4_CALLBACK={"base_url": "https://obsolete.example.com"},
+        ):
+            assert get_v4_callback_config() == V4Options.from_dict(options)
+            token_provider = callback_auth.get_callback_token_provider()
+            assert token_provider.get_system_token() == "shared-system-token"
+            assert callback_auth.get_callback_token_provider() is token_provider
+            assert token_provider.get_system_token() == "shared-system-token"
 
-    @override_settings(
-        IAM_V4_CALLBACK={},
-        IAM_FRAMEWORK={
-            "PROVIDERS": [
-                {
-                    "class": "bkmonitor.iam.iam_v4.provider.V4PermissionProvider",
-                    "options": {
-                        "base_url": "https://provider-iam.example.com",
-                        "system": {"id": "provider-system", "name": "Provider"},
-                        "credentials": {"app_code": "provider-app", "app_secret": "provider-secret"},
-                    },
-                }
-            ]
-        },
-    )
-    def test_callback_config_never_falls_back_to_provider_options(self):
-        with pytest.raises(ImproperlyConfigured, match="Invalid IAM_V4_CALLBACK configuration"):
+        client_factory.assert_called_once_with(
+            base_url=options["base_url"],
+            system_id=options["system"]["id"],
+            app_code=options["credentials"]["app_code"],
+            app_secret=options["credentials"]["app_secret"],
+            timeout=options["timeout"],
+            bk_tenant_id=options["bk_tenant_id"],
+        )
+        client_factory.return_value.get_auth_token.assert_called_once_with()
+
+    @pytest.mark.parametrize("options", (None, {}, {"base_url": ""}))
+    def test_callback_rejects_missing_or_invalid_shared_config(self, options):
+        with override_settings(IAM_FRAMEWORK={"PROVIDER_CATALOG": {"v4": {"options": options}}}):
+            with pytest.raises(ImproperlyConfigured, match="Invalid IAM_FRAMEWORK.PROVIDER_CATALOG"):
+                get_v4_callback_config()
+
+    @override_settings(IAM_FRAMEWORK={})
+    def test_callback_requires_v4_catalog_config(self):
+        with pytest.raises(ImproperlyConfigured, match="Invalid IAM_FRAMEWORK.PROVIDER_CATALOG"):
             get_v4_callback_config()

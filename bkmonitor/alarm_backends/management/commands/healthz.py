@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import datetime
 import logging
 import re
@@ -30,7 +30,7 @@ class Command(BaseCommand):
     help = "运维小帮手"
 
     def add_arguments(self, parser):
-        super(Command, self).add_arguments(parser)
+        super().add_arguments(parser)
         parser.add_argument(
             "-t",
             action="store_true",
@@ -66,7 +66,7 @@ class Command(BaseCommand):
         )
 
     def __init__(self, *args, **kwargs):
-        super(Command, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def handle(self, *args, **options):
         self.pre_handle()
@@ -90,7 +90,7 @@ class Command(BaseCommand):
         loop.run()
 
 
-class IntervalLoop(object):
+class IntervalLoop:
     def __init__(self, interval):
         self.shutdown = False
         self.last_at = None
@@ -108,12 +108,12 @@ class IntervalLoop(object):
                     start = time.time()
                     self.on_start()
                     self.on_stop()
-                    logger.info("check done in {}, found {}problems".format(time.time() - start, len(sc.problems)))
+                    logger.info(f"check done in {time.time() - start}, found {len(sc.problems)}problems")
                     sys.stdout.truncate(0)
                 else:
                     logger.info("I'm not leader, do nothing.")
             except Exception as e:
-                logger.exception("self monitor error: %s" % e)
+                logger.exception(f"self monitor error: {e}")
                 # 自监控未捕获异常，自动退出。由托管进程重新拉起
                 break
 
@@ -130,7 +130,7 @@ class IntervalLoop(object):
 
     def _onsignal(self, signum, frame):
         self.shutdown = True
-        print("receive signal: %s" % signum, file=sys.__stdout__)
+        print(f"receive signal: {signum}", file=sys.__stdout__)
 
     def on_destroy(self):
         print("bye!", file=sys.__stdout__)
@@ -161,9 +161,7 @@ class HealthzLoop(IntervalLoop):
         super().__init__(interval)
         self.cmd = cmd
         self.content = ""
-        self.suffix = "({})".format(
-            getattr(settings, "WXWORK_BOT_NAME", None) or getattr(settings, "BK_IAM_SYSTEM_NAME", "监控平台")
-        )
+        self.suffix = "({})".format(getattr(settings, "WXWORK_BOT_NAME", None) or "监控平台")
         # 跑一天
         self.max_cycle = int(60 * 60 * 24 / interval)
 
@@ -171,7 +169,7 @@ class HealthzLoop(IntervalLoop):
         self.cmd.run_once(t=True)
 
     def on_stop(self):
-        print("Report at %s" % datetime.datetime.now())
+        print(f"Report at {datetime.datetime.now()}")
         self.content = self.output.getvalue()
         print(self.content, file=sys.__stdout__)
         if sc.problems:
@@ -189,7 +187,7 @@ class HealthzLoop(IntervalLoop):
             return
 
         for notice_way in alarm_config["alarm_type"]:
-            send = getattr(self, "send_{}".format(notice_way), None)
+            send = getattr(self, f"send_{notice_way}", None)
             if not send:
                 continue
             send(alarm_config["alarm_role"])
@@ -205,10 +203,10 @@ class HealthzLoop(IntervalLoop):
                 is_content_base64=True,
             )
         except Exception as e:
-            logger.error("send.sms failed, {}".format(e))
+            logger.error(f"send.sms failed, {e}")
 
     def send_wechat(self, notice_receivers):
-        title = "{}发现{}个问题".format(self.suffix, len(sc.problems))
+        title = f"{self.suffix}发现{len(sc.problems)}个问题"
         message = "| ".join(map(str, sc.problems))
         logger.info("send.weixin({}): \ntitle: {}\ncontent: {}".format(",".join(notice_receivers), title, message))
 
@@ -220,16 +218,16 @@ class HealthzLoop(IntervalLoop):
                 is_message_base64=True,
             )
         except Exception as e:
-            logger.error("send.weixin failed, {}".format(e))
+            logger.error(f"send.weixin failed, {e}")
 
     def send_mail(self, notice_receivers):
-        title = "{}发现{}个问题".format(self.suffix, len(sc.problems))
+        title = f"{self.suffix}发现{len(sc.problems)}个问题"
         content = self.content.replace("\033", "")
         content = re.sub(r"\[\d{1,2}m", "", content)
         params = {
             "receiver__username": ",".join(notice_receivers),
             "title": title,
-            "content": "<pre>%s</pre>" % content,
+            "content": f"<pre>{content}</pre>",
             "is_content_base64": True,
         }
         logger.info("send.mail({}): \ntitle: {}".format(",".join(notice_receivers), title))
@@ -237,10 +235,10 @@ class HealthzLoop(IntervalLoop):
         try:
             api.cmsi.send_mail(**params)
         except Exception as e:
-            logger.error("send.mail failed, {}".format(e))
+            logger.error(f"send.mail failed, {e}")
 
     def send_phone(self, notice_receivers):
-        message = "自监控发现%s个异常" % len(sc.problems)
+        message = f"自监控发现{len(sc.problems)}个异常"
         logger.info("send.voice({}): \ncontent: {}".format(",".join(notice_receivers), message))
         try:
             api.cmsi.send_voice(
@@ -248,4 +246,4 @@ class HealthzLoop(IntervalLoop):
                 auto_read_message=message,
             )
         except Exception as e:
-            logger.error("send.voice failed, {}".format(e))
+            logger.error(f"send.voice failed, {e}")

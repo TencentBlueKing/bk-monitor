@@ -21,7 +21,8 @@ from rest_framework.authentication import BaseAuthentication
 from rest_framework.exceptions import AuthenticationFailed
 
 from ....iam_v4.client import V4Client
-from .config import V4CallbackConfig, get_v4_callback_config
+from ....iam_v4.config import V4Options
+from .config import get_v4_callback_config
 
 logger = logging.getLogger(__name__)
 
@@ -44,10 +45,10 @@ class AuthTokenClient(Protocol):
         """向 IAM 获取系统 auth token。"""
 
 
-def _build_v4_client(config: V4CallbackConfig) -> V4Client:
+def _build_v4_client(config: V4Options) -> V4Client:
     return V4Client(
         base_url=config.base_url,
-        system_id=config.system_id,
+        system_id=config.system.id,
         app_code=config.credentials.app_code,
         app_secret=config.credentials.app_secret,
         timeout=config.timeout,
@@ -56,12 +57,12 @@ def _build_v4_client(config: V4CallbackConfig) -> V4Client:
 
 
 class V4SystemTokenProvider:
-    """使用 callback 自己的 IAM 配置获取并缓存系统 auth token。"""
+    """使用共享 V4 配置获取并独立缓存系统 auth token。"""
 
     def __init__(
         self,
-        config: V4CallbackConfig,
-        client_factory: Callable[[V4CallbackConfig], AuthTokenClient] = _build_v4_client,
+        config: V4Options,
+        client_factory: Callable[[V4Options], AuthTokenClient] = _build_v4_client,
     ) -> None:
         self.config = config
         self._client_factory = client_factory
@@ -121,7 +122,7 @@ class IamCallbackAuthentication(BaseAuthentication):
 
 
 class MonitorIamCallbackAuthentication(IamCallbackAuthentication):
-    """监控项目绑定独立 callback 配置后的认证实现。"""
+    """监控项目复用 V4 连接配置的 callback 认证实现。"""
 
     def __init__(self) -> None:
         super().__init__(get_callback_token_provider())

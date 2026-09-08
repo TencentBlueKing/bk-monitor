@@ -67,12 +67,29 @@ class TestV3SystemInfo:
             "description": "蓝鲸监控 V3",
             "managers": ["admin"],
             "clients": ["bk_monitor", "bk_log"],
+            "provider_config": {"host": "https://monitor.example.com", "auth": "basic"},
         }
         s = V3SystemInfo.from_dict(raw)
         assert s.description == "蓝鲸监控 V3"
         # managers 不在配置契约中，多余字段被忽略
         assert not hasattr(s, "managers")
         assert s.clients == ("bk_monitor", "bk_log")
+        assert s.provider_config.host == "https://monitor.example.com"
+        assert s.provider_config.auth == "basic"
+
+    @pytest.mark.parametrize(
+        "provider_config",
+        (
+            None,
+            {},
+            {"host": ""},
+            {"host": "/relative/path"},
+            {"host": "https://monitor.example.com", "auth": "invalid"},
+        ),
+    )
+    def test_invalid_callback_config(self, provider_config):
+        with pytest.raises(ValueError, match="provider_config"):
+            V3SystemInfo.from_dict({"id": "monitor", "name": "Monitor", "provider_config": provider_config})
 
     def test_missing_id(self):
         with pytest.raises(ValueError):

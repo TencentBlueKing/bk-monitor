@@ -18,6 +18,8 @@ specific language governing permissions and limitations under the License.
 
 from __future__ import annotations
 
+from dataclasses import replace
+
 import logging
 from typing import TYPE_CHECKING, Any
 
@@ -121,23 +123,29 @@ class V4PermissionProvider(PermissionProvider):
         self.CHUNK_SIZE = self._cfg.chunk_size
         self.MAX_WORKERS = self._cfg.max_workers
         # 按租户 ID 维护客户端池（多租户模式下鉴权按 subject 租户选择，与 V3 Provider 对齐）
-        self._clients: dict[str, V4Client] = {}
-        # 默认 client（系统级操作：health_check / 迁移 / 模型管理）
-        self._client = self._get_client("")
+        self._clients: dict[tuple[str, str, str], V4Client] = {}
+
+    @property
+    def _client(self):
+        """系统操作同样在调用时解析凭据，不在 Django ready 阶段固定客户端。"""
+        return self._get_client("")
 
     def _get_client(self, tenant_id: str = "") -> V4Client:
         """按租户 ID 获取或创建 V4Client（空租户使用配置的默认租户）。"""
         tid = tenant_id or self._cfg.bk_tenant_id
-        if tid not in self._clients:
-            self._clients[tid] = V4Client(
+        app_code = str(self._cfg.credentials.app_code)
+        app_secret = str(self._cfg.credentials.app_secret)
+        key = (tid, app_code, app_secret)
+        if key not in self._clients:
+            self._clients[key] = V4Client(
                 base_url=self._cfg.base_url,
                 system_id=self._cfg.system.id,
-                app_code=self._cfg.credentials.app_code,
-                app_secret=self._cfg.credentials.app_secret,
+                app_code=app_code,
+                app_secret=app_secret,
                 timeout=self._cfg.timeout,
                 bk_tenant_id=tid,
             )
-        return self._clients[tid]
+        return self._clients[key]
 
     # ================================================================
     # 系统信息（供命令行/诊断使用）
@@ -151,7 +159,7 @@ class V4PermissionProvider(PermissionProvider):
         Returns:
             V4SystemInfo: v4 平台的系统注册信息。
         """
-        return self._cfg.system
+        return replace(self._cfg.system, clients=tuple(dict.fromkeys(str(c) for c in self._cfg.system.clients)))
 
     # ================================================================
     # 方言层：单次鉴权
@@ -629,7 +637,7 @@ class V4PermissionProvider(PermissionProvider):
         """
         from .migrator import V4Migrator
 
-        migrator = V4Migrator(self._client, schema, self._cfg.system, self.codec)
+        migrator = V4Migrator(self._client, schema, self.get_system_info(), self.codec)
         return migrator.plan_migration(scope=scope)
 
     def apply_migration(
@@ -648,7 +656,7 @@ class V4PermissionProvider(PermissionProvider):
         """
         from .migrator import V4Migrator
 
-        migrator = V4Migrator(self._client, self.schema, self._cfg.system, self.codec)
+        migrator = V4Migrator(self._client, self.schema, self.get_system_info(), self.codec)
         return migrator.apply_migration(
             plan,
             dry_run=dry_run,

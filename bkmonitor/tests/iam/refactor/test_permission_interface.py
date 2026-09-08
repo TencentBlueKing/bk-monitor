@@ -140,8 +140,10 @@ class TestPermissionSurface:
         with pytest.raises(ValueError):
             Permission(username="", bk_tenant_id="")
 
-    def test_get_iam_client_shape(self):
+    def test_get_iam_client_shape(self, settings):
         """get_iam_client 返回 V3Client（替代旧 CompatibleIAM），系统/租户一致。"""
+        settings.SAAS_APP_CODE = "test-saas"
+        settings.SAAS_SECRET_KEY = "test-secret"
         client = Permission.get_iam_client("system")
         assert isinstance(client, V3Client)
         assert client._system_id == "bk_monitorv3"

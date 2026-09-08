@@ -18,6 +18,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from typing import Any
+from urllib.parse import urlsplit
 
 
 @dataclass(frozen=True)
@@ -41,6 +42,30 @@ class V3Credentials:
 
 
 @dataclass(frozen=True)
+class V3SystemProviderConfig:
+    """系统级资源回调连接配置；资源类型的 path 另行配置。"""
+
+    host: str
+    auth: str = "basic"
+
+    @classmethod
+    def from_dict(cls, raw: dict[str, Any]) -> V3SystemProviderConfig:
+        if not isinstance(raw, dict):
+            raise ValueError("V3 system.provider_config must be a dict")
+        host = raw.get("host")
+        if not isinstance(host, str) or not host.strip():
+            raise ValueError("V3 system.provider_config.host must be a non-empty HTTP(S) URL")
+        host = host.strip()
+        parsed = urlsplit(host)
+        if parsed.scheme not in ("http", "https") or not parsed.hostname or any(c.isspace() for c in host):
+            raise ValueError("V3 system.provider_config.host must be a non-empty HTTP(S) URL")
+        auth = raw.get("auth", "basic")
+        if auth not in ("none", "basic"):
+            raise ValueError("V3 system.provider_config.auth must be none or basic")
+        return cls(host=host, auth=auth)
+
+
+@dataclass(frozen=True)
 class V3SystemInfo:
     """V3 Provider 的接入系统信息契约（对齐平台 system 模型字段）。
 
@@ -51,6 +76,7 @@ class V3SystemInfo:
         name_en:        系统英文名；空串 = 未配置（系统迁移不管理，保留远端值）
         description_en: 系统英文描述；空串 = 未配置（同上）
         clients:        允许调用该系统权限的蓝鲸应用列表
+        provider_config: 系统资源回调 host/auth；模型迁移时必须配置
 
     注：平台 system 模型无 managers 字段（老版本迁移 json 亦无），
     故配置契约中不提供；老 json 的 name_en/description_en 由远端保留，
@@ -63,6 +89,7 @@ class V3SystemInfo:
     name_en: str = ""
     description_en: str = ""
     clients: tuple[str, ...] = ()
+    provider_config: V3SystemProviderConfig | None = None
 
     @classmethod
     def from_dict(cls, raw: dict[str, Any]) -> V3SystemInfo:
@@ -74,11 +101,14 @@ class V3SystemInfo:
                 name_en=raw.get("name_en", ""),
                 description_en=raw.get("description_en", ""),
                 clients=tuple(raw.get("clients", ())),
+                provider_config=(
+                    V3SystemProviderConfig.from_dict(raw["provider_config"]) if "provider_config" in raw else None
+                ),
             )
         except KeyError as exc:
             raise ValueError(
                 f"V3 system 缺少必填字段 {exc.args[0]!r}; "
-                "需要: id, name (可选: description, name_en, description_en, clients)"
+                "需要: id, name (可选: description, name_en, description_en, clients, provider_config)"
             ) from exc
 
 

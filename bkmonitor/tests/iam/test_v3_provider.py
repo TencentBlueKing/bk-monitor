@@ -21,6 +21,8 @@ specific language governing permissions and limitations under the License.
 
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from iam.exceptions import AuthAPIError
 
 from bkmonitor.iam.iam_engine.core.types import (
@@ -56,7 +58,13 @@ def _valid_options() -> dict:
         },
         "base_url": "https://iam.example.com",
         "credentials": {"app_code": "test_app", "app_secret": "test_secret"},
-        "system": {"id": "bk_monitorv3", "name": "监控平台"},
+        "system": {
+            "id": "bk_monitorv3",
+            "name": "监控平台",
+            "name_en": "BKMonitor",
+            "clients": ["test_app", "bkci"],
+            "provider_config": {"host": "https://monitor.example.com", "auth": "basic"},
+        },
         "bk_tenant_id": "default",
         "chunk_size": 8,
         "max_workers": 1,
@@ -114,7 +122,6 @@ def _make_provider(**overrides) -> V3PermissionProvider:
     options.update(overrides)
     provider = V3PermissionProvider(_build_test_schema(), **options)
     mock_client = MagicMock()
-    provider._iam_client = mock_client
     # 方言方法通过 _get_client(tenant_id) 获取 client，统一返回 mock
     provider._get_client = MagicMock(return_value=mock_client)
     return provider
@@ -464,7 +471,7 @@ class TestV3ProviderDialectMethods:
         )
         schema.freeze()
         options = _valid_options()
-        options["system"] = {"id": "custom_v3_system", "name": "自定义系统"}
+        options["system"].update({"id": "custom_v3_system", "name": "自定义系统"})
         provider = V3PermissionProvider(schema, **options)
 
         plan = provider.plan_migration(schema, scope="full")
@@ -487,19 +494,7 @@ class TestV3ProviderDialectMethods:
         # 远端系统查询：系统不存在（query_system 委托 V3Client）
         p._iam_client.query_system.return_value = (False, "not found", None)
 
-        from bkmonitor.iam.iam_engine.schema.diff import Change, ChangeType, EntityKind, MigrationPlan
-
-        plan = MigrationPlan(
-            provider_name="v3",
-            changes=[
-                Change(
-                    kind=EntityKind.SYSTEM,
-                    change_type=ChangeType.CREATE,
-                    entity_id="bk_monitorv3",
-                    after={"id": "bk_monitorv3", "name": "监控平台", "description": "", "managers": [], "clients": []},
-                ),
-            ],
-        )
+        plan = p.plan_migration(p.schema, scope="system")
         # mock 迁移执行用的 IamMigrateClient（migrator 模块内以该名字引用；
         # patch 源模块属性不会影响 migrator 已绑定的引用），避免真实网络调用
         with patch("bkmonitor.iam.iam_v3.migrator.IamMigrateClient") as mock_client_cls:
@@ -551,3 +546,106 @@ class TestV3ProviderDialectMethods:
         assert report.success is True
         assert report.applied == []  # 远端已有，跳过
         mock_migration_client.add_action.assert_not_called()
+
+
+class TestV3SystemRegistration:
+    """通过真实 SDK Client 检查 HTTP 请求数据，避免 mock add_system 掩盖必填字段缺失。"""
+
+    @staticmethod
+    def _remote_system(**callback_overrides):
+        return {
+            "id": "bk_monitorv3",
+            "name": "监控平台",
+            "name_en": "BKMonitor",
+            "description": "",
+            "clients": "bkci,test_app",
+            "provider_config": {
+                "host": "https://monitor.example.com",
+                "auth": "basic",
+                "token": "server-owned-token",
+                "healthz": "/healthz",
+                **callback_overrides,
+            },
+        }
+
+    def test_create_sends_callback_host_auth_and_csv_clients(self):
+        provider = _make_provider()
+        provider._iam_client.query_system.return_value = (False, "not found", None)
+        plan = provider.plan_migration(provider.schema, scope="system")
+
+        with patch("iam.contrib.iam_migration.utils.do_migrate.http_post") as post:
+            post.return_value = (True, {"code": 0, "data": {}})
+            report = provider.apply_migration(plan)
+
+        assert report.success
+        post.assert_called_once()
+        url, payload = post.call_args.args
+        assert url == "https://iam.example.com/api/v1/model/systems"
+        assert payload["provider_config"] == {"host": "https://monitor.example.com", "auth": "basic"}
+        assert payload["clients"] == "test_app,bkci"
+        assert payload["name_en"] == "BKMonitor"
+
+    @pytest.mark.parametrize(
+        "remote_callback",
+        (
+            {"host": "https://old-monitor.example.com", "auth": "basic"},
+            {"host": "https://monitor.example.com", "auth": "none"},
+            {},
+        ),
+    )
+    def test_update_corrects_callback_config_without_writing_server_owned_fields(self, remote_callback):
+        provider = _make_provider()
+        remote = self._remote_system()
+        remote["provider_config"].update(remote_callback)
+        if not remote_callback:
+            remote.pop("provider_config")
+        provider._iam_client.query_system.return_value = (True, "ok", {"base_info": remote})
+        plan = provider.plan_migration(provider.schema, scope="system")
+
+        with patch("iam.contrib.iam_migration.utils.do_migrate.http_put") as put:
+            put.return_value = (True, {"code": 0, "data": {}})
+            report = provider.apply_migration(plan)
+
+        assert report.success
+        put.assert_called_once()
+        url, payload = put.call_args.args
+        assert url == "https://iam.example.com/api/v1/model/systems/bk_monitorv3"
+        assert payload["provider_config"] == {"host": "https://monitor.example.com", "auth": "basic"}
+        assert "token" not in payload["provider_config"]
+        assert "healthz" not in payload["provider_config"]
+
+    def test_matching_callback_is_noop_despite_server_owned_fields(self):
+        provider = _make_provider()
+        provider._iam_client.query_system.return_value = (True, "ok", {"base_info": self._remote_system()})
+        plan = provider.plan_migration(provider.schema, scope="system")
+
+        with patch("bkmonitor.iam.iam_v3.migrator.IamMigrateClient") as client:
+            report = provider.apply_migration(plan)
+
+        assert report.success
+        assert not report.applied
+        client.return_value.add_system.assert_not_called()
+        client.return_value.update_system.assert_not_called()
+
+    def test_dry_run_reports_host_change_without_http_write(self):
+        provider = _make_provider()
+        provider._iam_client.query_system.return_value = (
+            True,
+            "ok",
+            {"base_info": self._remote_system(host="https://old-monitor.example.com")},
+        )
+        plan = provider.plan_migration(provider.schema, scope="system")
+        with patch("bkmonitor.iam.iam_v3.migrator.IamMigrateClient") as client:
+            report = provider.apply_migration(plan, dry_run=True)
+        assert report.success
+        assert len(report.would_apply) == 1
+        assert report.would_apply[0].after["provider_config"]["host"] == "https://monitor.example.com"
+        client.return_value.update_system.assert_not_called()
+
+    def test_migration_rejects_missing_callback_config_before_network(self):
+        from bkmonitor.iam.iam_engine.core.exceptions import MigrationFailed
+
+        provider = _make_provider(system={"id": "bk_monitorv3", "name": "监控平台"})
+        with pytest.raises(MigrationFailed, match="system.provider_config"):
+            provider.plan_migration(provider.schema, scope="system")
+        provider._iam_client.query_system.assert_not_called()

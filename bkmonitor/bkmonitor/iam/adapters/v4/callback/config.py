@@ -10,74 +10,23 @@ specific language governing permissions and limitations under the License.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Any
+from dataclasses import replace
 
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
 
-# V4 callback 项目的独立 IAM 客户端配置。
+from ....iam_v4.config import V4Credentials, V4Options
 
 
-def _required_string(raw: dict[str, Any], field: str, *, context: str) -> str:
-    value = raw.get(field)
-    if not isinstance(value, str) or not value.strip():
-        raise ValueError(f"{context}.{field} must be a non-empty string")
-    return value
-
-
-@dataclass(frozen=True)
-class V4CallbackCredentials:
-    """callback 查询 IAM 系统 auth token 使用的客户端凭据。"""
-
-    app_code: str
-    app_secret: str
-
-    @classmethod
-    def from_dict(cls, raw: dict[str, Any]) -> V4CallbackCredentials:
-        if not isinstance(raw, dict):
-            raise ValueError("IAM_V4_CALLBACK.credentials must be a dict")
-        return cls(
-            app_code=_required_string(raw, "app_code", context="IAM_V4_CALLBACK.credentials"),
-            app_secret=_required_string(raw, "app_secret", context="IAM_V4_CALLBACK.credentials"),
-        )
-
-
-@dataclass(frozen=True)
-class V4CallbackConfig:
-    """callback 项目连接 IAM 的配置，不读取 IAM_FRAMEWORK Provider options。"""
-
-    base_url: str
-    system_id: str
-    credentials: V4CallbackCredentials
-    timeout: int = 30
-    bk_tenant_id: str = "system"
-
-    @classmethod
-    def from_dict(cls, raw: dict[str, Any]) -> V4CallbackConfig:
-        if not isinstance(raw, dict):
-            raise ValueError("IAM_V4_CALLBACK must be a dict")
-
-        credentials = V4CallbackCredentials.from_dict(raw.get("credentials", {}))
-        try:
-            timeout = int(raw.get("timeout", 30))
-        except (TypeError, ValueError) as exc:
-            raise ValueError("IAM_V4_CALLBACK.timeout must be an integer") from exc
-        if timeout <= 0:
-            raise ValueError("IAM_V4_CALLBACK.timeout must be greater than zero")
-
-        return cls(
-            base_url=_required_string(raw, "base_url", context="IAM_V4_CALLBACK"),
-            system_id=_required_string(raw, "system_id", context="IAM_V4_CALLBACK"),
-            credentials=credentials,
-            timeout=timeout,
-            bk_tenant_id=str(raw.get("bk_tenant_id", "system")),
-        )
-
-
-def get_v4_callback_config() -> V4CallbackConfig:
-    """从 callback 项目自己的 Django setting 构造配置。"""
+def get_v4_callback_config() -> V4Options:
+    """复用 V4 目录配置，不依赖 Provider 的启用状态或运行期实例。"""
     try:
-        return V4CallbackConfig.from_dict(getattr(settings, "IAM_V4_CALLBACK", {}))
-    except ValueError as exc:
-        raise ImproperlyConfigured(f"Invalid IAM_V4_CALLBACK configuration: {exc}") from exc
+        options = settings.IAM_FRAMEWORK["PROVIDER_CATALOG"]["v4"]["options"]
+        config = V4Options.from_dict(options)
+        # 固化本次凭据快照，让 SaaS 凭据变化能够使 callback token 缓存失效。
+        return replace(
+            config,
+            credentials=V4Credentials(str(config.credentials.app_code), str(config.credentials.app_secret)),
+        )
+    except (AttributeError, KeyError, TypeError, ValueError) as exc:
+        raise ImproperlyConfigured(f"Invalid IAM_FRAMEWORK.PROVIDER_CATALOG['v4'].options for callback: {exc}") from exc

@@ -98,18 +98,7 @@ class V3Migrator:
         changes: list[Change] = []
 
         # ---- System ----
-        # 只含"已配置"字段：name_en/description_en 为空串表示未配置（不管理，
-        # 远端保留既有值）；实际注册以 _reconcile_system_changes 为准。
-        system_info: dict = {
-            "id": self._cfg.system.id,
-            "name": self._cfg.system.name,
-            "description": self._cfg.system.description,
-            "clients": list(self._cfg.system.clients),
-        }
-        if self._cfg.system.name_en:
-            system_info["name_en"] = self._cfg.system.name_en
-        if self._cfg.system.description_en:
-            system_info["description_en"] = self._cfg.system.description_en
+        system_info = self._system_payload()
         changes.append(
             Change(
                 kind=EntityKind.SYSTEM,
@@ -240,8 +229,8 @@ class V3Migrator:
 
         # 迁移执行 client（SDK 返回码风格，非异常风格）
         client = IamMigrateClient(
-            self._cfg.credentials.app_code,
-            self._cfg.credentials.app_secret,
+            str(self._cfg.credentials.app_code),
+            str(self._cfg.credentials.app_secret),
             self._cfg.base_url,
             bk_tenant_id=self._cfg.bk_tenant_id,
         )
@@ -299,6 +288,25 @@ class V3Migrator:
     # 内部：reconcile
     # ================================================================
 
+    def _system_payload(self) -> dict:
+        """创建和更新使用同一份 V3 系统注册数据。"""
+        system = self._cfg.system
+        callback = system.provider_config
+        if callback is None:
+            raise MigrationFailed("V3 system migration requires system.provider_config with host/auth")
+        data = {
+            "id": system.id,
+            "name": system.name,
+            "description": system.description,
+            "clients": ",".join(dict.fromkeys(str(c) for c in system.clients if c)),
+            "provider_config": {"host": callback.host, "auth": callback.auth},
+        }
+        if system.name_en:
+            data["name_en"] = system.name_en
+        if system.description_en:
+            data["description_en"] = system.description_en
+        return data
+
     def _reconcile_system_changes(self, system_changes: list, remote_system: dict | None) -> list:
         """用远端系统信息 reconcile 本地的 SYSTEM Change。
 
@@ -307,39 +315,36 @@ class V3Migrator:
         remote_system 已存在但不同 → 替换为 UPDATE。
 
         全部由 default 配置驱动（配置即权威，不做本地∪平台合并）：
-          * id/name/description/name_en/description_en/clients 均为配置字段；
-          * clients 以配置为准整体比较与同步（默认值即老版本 json 的
-            "bk_monitorv3,bkci,bk_paas3,paasv3cli"），部署方通过环境变量
-            BK_IAM_V3_SYSTEM_CLIENTS 控制白名单；
+          * id/name/description/name_en/description_en/clients/provider_config 均为配置字段；
+          * clients 以配置为准整体比较与同步，项目在 Provider 的 system 中
+            声明白名单（沿用老版本 json 的 "bk_monitorv3,bkci,bk_paas3,paasv3cli"）；
           * name_en/description_en 默认取老版本 json 既有值（非空），
             显式配空串 = 不管理该字段；
           * 平台 system 模型无 managers 字段，配置契约中已移除。
         """
 
-        def _to_csv(items) -> str:
-            return ",".join(x for x in items if x)
-
         def _csv_set(raw) -> set:
             return {x for x in (raw or "").split(",") if x}
 
-        # 只含已配置字段：name_en/description_en 空串时不加入（不管理）
-        local: dict = {
-            "id": self._cfg.system.id,
-            "name": self._cfg.system.name,
-            "description": self._cfg.system.description,
-            "clients": _to_csv(self._cfg.system.clients),
-        }
-        if self._cfg.system.name_en:
-            local["name_en"] = self._cfg.system.name_en
-        if self._cfg.system.description_en:
-            local["description_en"] = self._cfg.system.description_en
+        local = self._system_payload()
         if remote_system is None:
-            return system_changes  # 系统未注册，保留原样（CREATE）
+            return [
+                Change(
+                    kind=EntityKind.SYSTEM,
+                    change_type=ChangeType.CREATE,
+                    entity_id=self._cfg.system.id,
+                    after=local,
+                    reason="System registration (current config)",
+                )
+            ]
 
         # 已配置字段（clients 按集合比较，顺序无关）与远端一致 → NOOP
-        meta_ok = self._system_dicts_equal(local, remote_system, set(local) - {"clients"})
+        meta_ok = self._system_dicts_equal(local, remote_system, set(local) - {"clients", "provider_config"})
         clients_ok = _csv_set(local["clients"]) == _csv_set(remote_system.get("clients"))
-        if meta_ok and clients_ok:
+        # IAM 保存的 token/healthz 等字段不归此处管理，不参与比较或写回。
+        remote_callback = remote_system.get("provider_config") or {}
+        callback_ok = all(remote_callback.get(k) == v for k, v in local["provider_config"].items())
+        if meta_ok and clients_ok and callback_ok:
             return [Change(kind=EntityKind.SYSTEM, change_type=ChangeType.NOOP, entity_id=self._cfg.system.id)]
 
         # UPDATE：以本地配置为准整体同步（clients 不做合并，按配置覆盖）

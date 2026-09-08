@@ -221,18 +221,21 @@ class Permission:
         非 provider 中立鉴权入口——业务鉴权一律走框架（is_allowed /
         filter_visible_resources 等），禁止新增调用方。
         """
-        app_code, secret_key = settings.APP_CODE, settings.SECRET_KEY
-        if settings.ROLE in ["api", "worker"]:
-            # 后台api模式下使用SaaS身份
-            app_code, secret_key = settings.SAAS_APP_CODE, settings.SAAS_SECRET_KEY
+        from django.utils.functional import SimpleLazyObject
 
-        return V3Client(
-            app_code,
-            secret_key,
-            settings.BK_IAM_APIGATEWAY_URL,
-            system_id=settings.BK_IAM_SYSTEM_ID,
-            codec=MonitorV3Codec(),
-            bk_tenant_id=bk_tenant_id,
+        from config.tools.iam_credentials import get_saas_setting
+
+        # V3 资源 dispatcher 在 URLConf 导入时创建；推迟到首次调用，避免 migrate
+        # 的 URL 检查阶段读取尚未准备好的 GlobalConfig。
+        return SimpleLazyObject(
+            lambda: V3Client(
+                get_saas_setting("SAAS_APP_CODE"),
+                get_saas_setting("SAAS_SECRET_KEY"),
+                settings.BK_IAM_APIGATEWAY_URL,
+                system_id=settings.BK_IAM_SYSTEM_ID,
+                codec=MonitorV3Codec(),
+                bk_tenant_id=bk_tenant_id,
+            )
         )
 
     # ================================================================

@@ -55,10 +55,10 @@ from bkmonitor.iam.definitions.roles import Roles
 
 _MISSING_CONFIG = (
     not getattr(settings, "BK_IAM_V4_API_BASE_URL", "")
-    or not getattr(settings, "BK_IAM_APP_CODE", "")
-    or not getattr(settings, "BK_IAM_APP_SECRET", "")
+    or not getattr(settings, "SAAS_APP_CODE", "")
+    or not getattr(settings, "SAAS_SECRET_KEY", "")
 )
-SKIP_REASON = "IAM v4 API 未配置（BK_IAM_V4_API_BASE_URL / BK_IAM_APP_CODE / BK_IAM_APP_SECRET）"
+SKIP_REASON = "IAM v4 API 未配置（BK_IAM_V4_API_BASE_URL / SAAS_APP_CODE / SAAS_SECRET_KEY）"
 
 TEST_USER = os.getenv("IAM_V4_TEST_USER", "admin")
 TEST_SPACE_ID = os.getenv("IAM_V4_TEST_SPACE_ID", "2")

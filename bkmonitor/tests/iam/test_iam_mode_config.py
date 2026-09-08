@@ -99,6 +99,36 @@ class TestIamReadWriteEnvironmentConfig:
 
         assert settings_module.IAM_FRAMEWORK["ENABLED_PROVIDERS"] == "v3"
 
+    @pytest.mark.parametrize("role", ("web", "worker"))
+    def test_providers_and_callback_use_saas_credentials_despite_backend_and_legacy_environment(
+        self, monkeypatch, role
+    ):
+        from bkmonitor.iam.adapters.v4.callback.config import get_v4_callback_config
+        from config.tools import environment
+
+        monkeypatch.setattr(environment, "ROLE", role)
+        for key in ("BKPAAS_APP_ID", "APP_ID", "APP_CODE", "BK_MONITOR_APP_CODE"):
+            monkeypatch.setenv(key, "monitor-app")
+        for key in ("BKPAAS_APP_SECRET", "APP_TOKEN", "SECRET_KEY", "BK_MONITOR_APP_SECRET"):
+            monkeypatch.setenv(key, "monitor-secret")
+        legacy_env = {
+            f"{prefix}_{suffix}": "obsolete-credential"
+            for prefix in ("BK_IAM", "BK_IAM_V3_CLIENT", "BK_IAM_V4_CLIENT", "BK_IAM_V4")
+            for suffix in ("APP_CODE", "APP_SECRET")
+        }
+        settings_module = self._reload_default(monkeypatch, legacy_env)
+        framework = settings_module.IAM_FRAMEWORK
+        with override_settings(IAM_FRAMEWORK=framework, SAAS_APP_CODE="saas-app", SAAS_SECRET_KEY="saas-secret"):
+            for provider in ("v3", "v4"):
+                assert framework["PROVIDER_CATALOG"][provider]["options"]["credentials"] == {
+                    "app_code": "saas-app",
+                    "app_secret": "saas-secret",
+                }
+            assert framework["PROVIDER_CATALOG"]["v4"]["options"]["system"]["clients"] == ["saas-app"]
+            callback_config = get_v4_callback_config()
+            assert callback_config.credentials.app_code == "saas-app"
+            assert callback_config.credentials.app_secret == "saas-secret"
+
     @pytest.mark.parametrize("configured", (None, ""))
     def test_v4_callback_url_defaults_to_monitor_web_endpoint(self, monkeypatch, configured):
         if configured is None:
@@ -113,6 +143,17 @@ class TestIamReadWriteEnvironmentConfig:
         assert settings_module.BK_IAM_V4_CALLBACK_URL == expected
         system = settings_module.IAM_FRAMEWORK["PROVIDER_CATALOG"]["v4"]["options"]["system"]
         assert system["callback_url"] == expected
+
+    def test_v3_system_callback_uses_resource_api_host(self, monkeypatch):
+        from bkmonitor.iam.iam_v3.config import V3Options
+
+        settings_module = self._reload_default(
+            monkeypatch, {"BKAPP_IAM_RESOURCE_API_HOST": "https://monitor.example.test/"}
+        )
+        options = settings_module.IAM_FRAMEWORK["PROVIDER_CATALOG"]["v3"]["options"]
+        config = V3Options.from_dict(options)
+        assert config.system.provider_config.host == "https://monitor.example.test/"
+        assert config.system.provider_config.auth == "basic"
 
     def test_v4_callback_url_can_be_overridden(self, monkeypatch):
         monkeypatch.setenv("BK_MONITOR_HOST", "https://monitor.example.test/")

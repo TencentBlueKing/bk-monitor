@@ -885,8 +885,8 @@ class TestQueryUserPermissions:
 
 
 @pytest.mark.skipif(
-    not __import__("django").conf.settings.BK_IAM_APP_CODE,
-    reason="IAM 未配置（BK_IAM_APP_CODE 为空）",
+    not __import__("django").conf.settings.SAAS_APP_CODE,
+    reason="IAM 未配置（SAAS_APP_CODE 为空）",
 )
 class TestRealFrameworkQuery:
     """连接真实 IAM v3 服务器，调用 query_user_permissions 获取实际权限数据。"""
