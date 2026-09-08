@@ -6,20 +6,17 @@ import queue
 import re
 import threading
 import time
-from collections import defaultdict
 from collections.abc import Callable, Generator, Iterable, Sequence
 from datetime import timedelta
 from multiprocessing.pool import ApplyResult
 from typing import Any, TypeVar
 
-from django.db.models import Count, Q, Value
-from django.db.models.functions import Concat
+from django.db.models import Count, Q
 from django.utils import timezone
 from django.utils.translation import gettext as _
 
 from apm.models import DataLink
-from apm_web.constants import CustomServiceMatchType
-from apm_web.models import Application, ApplicationCustomService, UserVisitRecord
+from apm_web.models import Application, UserVisitRecord
 from bkm_space.api import SpaceApi
 from bkm_space.define import Space
 from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQuerySet
@@ -795,38 +792,17 @@ class ApmServiceSearchItem(ApmApplicationSearchItem):
 
     @classmethod
     def _list_applications(cls, bk_tenant_id: str, services: list[dict]) -> list[dict[str, Any]]:
-        biz_app_names = defaultdict(set)
-        for service in services:
-            biz_app_names[service["bk_biz_id"]].add(service["app_name"])
-        query_filter = Q()
-        for bk_biz_id, app_names in biz_app_names.items():
-            query_filter |= Q(bk_biz_id=bk_biz_id, app_name__in=app_names)
-        return list(
-            Application.objects.filter(query_filter, bk_tenant_id=bk_tenant_id)
+        app_keys = {(service["bk_biz_id"], service["app_name"]) for service in services}
+        applications = (
+            Application.objects.filter(
+                bk_tenant_id=bk_tenant_id,
+                bk_biz_id__in={bk_biz_id for bk_biz_id, _ in app_keys},
+                app_name__in={app_name for _, app_name in app_keys},
+            )
             .order_by()
             .values("bk_biz_id", "app_name", "application_id")
         )
-
-    @classmethod
-    def _search_services(cls, bk_biz_ids: list[int], query: str) -> list[dict]:
-        services = api.apm_api.search_service_names(bk_biz_ids=bk_biz_ids, query=query)
-        # 空业务列表仅用于已确认的全量授权，与后台服务查询保持相同范围。
-        scope = {"bk_biz_id__in": bk_biz_ids} if bk_biz_ids else {}
-        # 手动配置尚未发现的远程服务，与服务列表使用相同的 type:name 标识。
-        custom_services = (
-            ApplicationCustomService.objects.filter(**scope, match_type=CustomServiceMatchType.MANUAL)
-            .annotate(service_name=Concat("type", Value(":"), "name"))
-            .filter(service_name__icontains=query)
-            .order_by("bk_biz_id", "app_name", "service_name")
-            .values("bk_biz_id", "app_name", "service_name")
-            .distinct()
-        )
-        return list(
-            {
-                (service["bk_biz_id"], service["app_name"], service["service_name"]): service
-                for service in [*services, *custom_services]
-            }.values()
-        )
+        return [app for app in applications if (app["bk_biz_id"], app["app_name"]) in app_keys]
 
     @classmethod
     def search(
@@ -846,7 +822,7 @@ class ApmServiceSearchItem(ApmApplicationSearchItem):
             return
         cls._bk_biz_names_cache.update({space["bk_biz_id"]: space["space_name"] for space in spaces})
         bk_biz_ids = [] if wide_authorized else [space["bk_biz_id"] for space in spaces]
-        services = cls._search_services(bk_biz_ids, query)
+        services = api.apm_api.search_service_names(bk_biz_ids=bk_biz_ids, query=query)
         if not services:
             return
 

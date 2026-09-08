@@ -838,11 +838,8 @@ class SearchServiceNamesResource(Resource):
         )
         for node in nodes:
             extra = node["extra_data"]
-            # 与 QueryTopoNodeResource 保持一致：排除尚不支持的非 HTTP 远程服务。
-            if (
-                extra.get("kind") == ApmTopoDiscoverRule.TOPO_REMOTE_SERVICE
-                and extra.get("category") != ApmTopoDiscoverRule.APM_TOPO_CATEGORY_HTTP
-            ):
+            # 远程服务不属于应用自身，排除出全站搜索范围。
+            if extra.get("kind") == ApmTopoDiscoverRule.TOPO_REMOTE_SERVICE:
                 continue
             key = (node["bk_biz_id"], node["app_name"], node["topo_key"])
             services[key] = {"bk_biz_id": key[0], "app_name": key[1], "service_name": key[2]}
