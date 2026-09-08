@@ -694,6 +694,7 @@ class SearchViewSet(APIViewSet):
             data["is_desensitize"] = True
         index_set_id = int(index_set_id)
         request_data = copy.deepcopy(data)
+        request_data["bk_biz_id"] = request_bk_biz_id
 
         tmp_index_obj = LogIndexSet.objects.filter(index_set_id=index_set_id).first()
         if tmp_index_obj:

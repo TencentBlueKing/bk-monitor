@@ -187,6 +187,7 @@ class TestAsyncExportProgress(TestCase):
         async_task = AsyncTask.objects.get(id=task_id)
         self.assertEqual(total_count, SEARCH_DICT["size"])
         self.assertEqual(async_task.bk_biz_id, 7)
+        self.assertEqual(async_task.request_param["bk_biz_id"], 7)
         self.assertEqual(async_task.export_total_count, SEARCH_DICT["size"])
         self.assertEqual(async_task.exported_count, 0)
         self.assertEqual(async_task.download_count, 0)
