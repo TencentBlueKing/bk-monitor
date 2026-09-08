@@ -182,22 +182,30 @@ class AsyncExportHandlers:
         start_time=None,
         end_time=None,
     ):
-        # 这里当show_all为true的时候则给前端返回当前业务全部导出历史
         source_app_code = get_request_app_code()
         external_username = get_request_external_username()
-        query_set = AsyncTask.objects.filter(bk_biz_id=self.bk_biz_id, source_app_code=source_app_code)
+        query_set = AsyncTask.objects.filter(source_app_code=source_app_code)
         # 外部用户只能看到自己的导出历史
         if external_username:
             query_set = query_set.filter(created_by=external_username)
         if is_union_search:
+            query_set = query_set.filter(bk_biz_id=self.bk_biz_id)
             query_set = query_set.filter(index_set_type=IndexSetType.UNION.value)
             if not show_all:
                 query_set = query_set.filter(index_set_ids=self.index_set_ids)
         else:
-            # 这里当show_all为true的时候则给前端返回当前业务全部导出历史
             query_set = query_set.filter(index_set_type=IndexSetType.SINGLE.value)
             if not show_all:
                 query_set = query_set.filter(index_set_id=self.index_set_id)
+                if LogIndexSet.objects.filter(
+                    index_set_id=self.index_set_id,
+                    is_platform_index=True,
+                ).exists():
+                    query_set = query_set.filter(bk_biz_id=self.bk_biz_id)
+            else:
+                # TODO: show_all 当前仍表示当前业务的全部下载历史，不包含跨业务索引集任务。
+                # 扩大查询范围会改变产品语义，需要后续单独评审。
+                query_set = query_set.filter(bk_biz_id=self.bk_biz_id)
         if start_time is not None:
             query_set = query_set.filter(created_at__gte=arrow.get(start_time / 1000).datetime)
         if end_time is not None:
