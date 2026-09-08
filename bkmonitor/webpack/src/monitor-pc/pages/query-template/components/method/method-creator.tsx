@@ -38,6 +38,7 @@ import './method-creator.scss';
 
 interface IProps {
   allVariables?: { name: string }[];
+  createVariableFn?: (onCreated: (name: string) => void) => void;
   options?: IMethodOptionsItem[];
   showLabel?: boolean;
   showVariables?: boolean;
@@ -60,6 +61,8 @@ export default class MethodCreator extends tsc<IProps> {
   /* 是否展示变量 */
   @Prop({ default: false }) showVariables: boolean;
   @Prop({ default: '' }) value: string;
+  /* 由外部接管变量创建（如宿主自带变量面板），传入时不再展开内置的命名输入面板 */
+  @Prop({ default: null, type: Function }) createVariableFn: (onCreated: (name: string) => void) => void;
 
   showSelect = false;
   /* 所有可选项（包含变量） */
@@ -161,6 +164,7 @@ export default class MethodCreator extends tsc<IProps> {
             {this.showVariables && (
               <AddVariableOption
                 allVariables={this.allVariables}
+                createVariableFn={this.createVariableFn}
                 onAdd={this.handleAddVar}
                 onOpenChange={this.handleAddVariableOpenChange}
               />

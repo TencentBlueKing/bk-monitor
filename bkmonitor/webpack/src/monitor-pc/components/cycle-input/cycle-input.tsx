@@ -200,7 +200,7 @@ export default class CycleInput extends tsc<IProps, IEvent> {
           offset={-1}
           placement='bottom-start'
           theme='light cycle-list-wrapper'
-          tippyOptions={{ appendTo: this.appendTo === 'parent' ? 'parent' : document.body }}
+          tippyOptions={this.appendTo === 'parent' ? { appendTo: 'parent' } : {}}
           trigger='click'
         >
           <slot name='trigger'>
@@ -243,7 +243,7 @@ export default class CycleInput extends tsc<IProps, IEvent> {
           offset={-1}
           placement='bottom-end'
           theme='light cycle-list-wrapper'
-          tippyOptions={{ appendTo: this.appendTo === 'parent' ? 'parent' : document.body }}
+          tippyOptions={this.appendTo === 'parent' ? { appendTo: 'parent' } : {}}
           trigger='click'
           onHide={() => {
             this.unitActive = false;
