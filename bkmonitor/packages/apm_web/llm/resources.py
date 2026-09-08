@@ -10,6 +10,7 @@ from constants.otel_query import OperatorEnum
 from core.drf_resource import Resource, api
 
 from apm_web.llm.adapter import adapt_spans
+from apm_web.llm.adapter.fields import resolve_query_field
 from apm_web.llm.query import LLMQuery, get_query
 from apm_web.metric.resources import CalculateByRangeResource as MetricCalculateByRangeResource
 from apm_web.models import Application
@@ -49,7 +50,7 @@ class ListTracesResource(Resource):
         start_time = serializers.IntegerField(required=True, label="开始时间")
         end_time = serializers.IntegerField(required=True, label="结束时间")
         group_field = serializers.CharField(required=False, default=OtlpKey.TRACE_ID, label="分组字段")
-        service_name = serializers.CharField(required=False, allow_blank=True, default="", label="服务名称")
+        service_name = serializers.CharField(required=True, label="服务名称")
         keyword = serializers.CharField(required=False, allow_blank=True, default="", label="关键词")
         offset = serializers.IntegerField(required=False, min_value=0, default=0, label="分页偏移")
         limit = serializers.IntegerField(required=False, min_value=1, max_value=100, default=20, label="分页大小")
@@ -58,6 +59,13 @@ class ListTracesResource(Resource):
             if attrs["start_time"] > attrs["end_time"]:
                 raise serializers.ValidationError("start_time 不能大于 end_time")
             return attrs
+
+    @classmethod
+    def _resolve_group_field(cls, entity_set: EntitySet, service_name: str, group_field: str) -> str:
+        """分组字段命中映射表时按服务产品换算为存储中的原始字段，未命中时透传。"""
+        system: dict[str, Any] = entity_set.get_system(service_name)
+        product: str | None = system.get("product") if system.get("is_support_llm") else None
+        return resolve_query_field(product, group_field)
 
     @staticmethod
     def _span_field_value(span: dict[str, Any], field: str) -> Any:
@@ -195,15 +203,16 @@ class ListTracesResource(Resource):
         return items
 
     def perform_request(self, validated_request_data):
-        filters = []
-        if service_name := validated_request_data["service_name"]:
-            filters.append(
-                {
-                    "key": OtlpKey.get_resource_key(ResourceAttributes.SERVICE_NAME),
-                    "operator": OperatorEnum.EQUAL["operator"],
-                    "value": [service_name],
-                }
-            )
+        group_field = validated_request_data["group_field"]
+
+        service_name = validated_request_data["service_name"]
+        filters = [
+            {
+                "key": OtlpKey.get_resource_key(ResourceAttributes.SERVICE_NAME),
+                "operator": OperatorEnum.EQUAL["operator"],
+                "value": [service_name],
+            }
+        ]
         if keyword := validated_request_data["keyword"]:
             filters.append({"key": "keyword", "operator": "logic", "value": [keyword]})
 
@@ -211,12 +220,17 @@ class ListTracesResource(Resource):
             bk_biz_id=validated_request_data["bk_biz_id"],
             app_name=validated_request_data["app_name"],
         )
-        group_field = validated_request_data["group_field"]
+        entity_set: EntitySet = EntitySet(
+            bk_biz_id=validated_request_data["bk_biz_id"],
+            app_name=validated_request_data["app_name"],
+            service_names=[service_name],
+        )
+        query_group_field = self._resolve_group_field(entity_set, service_name, group_field)
         span_query = get_query(application.build_data_sources())
         group_ids = span_query.query_group_list(
             start_time=validated_request_data["start_time"],
             end_time=validated_request_data["end_time"],
-            group_field=group_field,
+            group_field=query_group_field,
             offset=validated_request_data["offset"],
             limit=validated_request_data["limit"],
             filters=filters,
@@ -231,7 +245,7 @@ class ListTracesResource(Resource):
             return result
 
         group_trace_records = span_query.query_group_trace_list(
-            group_field=group_field,
+            group_field=query_group_field,
             group_ids=group_ids,
         )
         trace_group_map: dict[str, Any] = {}
@@ -240,7 +254,7 @@ class ListTracesResource(Resource):
             if not trace_id:
                 continue
 
-            group_id = LLMQuery._get_field_value(record, group_field)
+            group_id = LLMQuery._get_field_value(record, query_group_field)
             if group_id is not None and group_id != "" and trace_id not in trace_group_map:
                 trace_group_map[trace_id] = group_id
         if not trace_group_map:
@@ -250,12 +264,8 @@ class ListTracesResource(Resource):
             group_field=OtlpKey.TRACE_ID,
             group_ids=list(trace_group_map),
         )
-        entity_set: EntitySet = EntitySet(
-            bk_biz_id=validated_request_data["bk_biz_id"],
-            app_name=validated_request_data["app_name"],
-        )
         result["items"] = self._group_spans(
-            validated_request_data["group_field"],
+            group_field,
             group_ids,
             trace_group_map,
             spans,

@@ -54,6 +54,7 @@ class ListTracesResourceTestCase(TestCase):
         request_data = {
             "bk_biz_id": 11,
             "app_name": "sand_local_dev",
+            "service_name": "agent-service",
             "start_time": 1,
             "end_time": 2,
             "limit": 100,
@@ -145,7 +146,8 @@ class ListTracesResourceTestCase(TestCase):
             },
         ]
         span_query.query_by_group_ids.return_value = raw_spans
-        entity_set = mock.sentinel.entity_set
+        entity_set = mock.Mock()
+        entity_set.get_system.return_value = {"is_support_llm": True, "product": "agentlens"}
 
         with (
             mock.patch("apm_web.llm.resources.Application.objects.get", return_value=application) as get_application,
@@ -223,14 +225,14 @@ class ListTracesResourceTestCase(TestCase):
             group_ids=["trace-2", "trace-1"],
         )
 
-    def test_custom_group_keeps_trace_children(self):
-        group_field = "attributes.session.id"
+    def test_conversation_group_maps_field_by_product(self):
         span_query = mock.Mock(QUERY_MAX_LIMIT=10000)
         span_query.query_group_list.return_value = ["session-2", "session-1"]
+        query_field = "attributes.agent.session.session_code"
         span_query.query_group_trace_list.return_value = [
-            {group_field: "session-2", "trace_id": "trace-2"},
-            {group_field: "session-2", "trace_id": "trace-3"},
-            {group_field: "session-1", "trace_id": "trace-1"},
+            {query_field: "session-2", "trace_id": "trace-2"},
+            {query_field: "session-2", "trace_id": "trace-3"},
+            {query_field: "session-1", "trace_id": "trace-1"},
         ]
         application = mock.Mock()
         data_sources = [mock.sentinel.data_source]
@@ -240,7 +242,7 @@ class ListTracesResourceTestCase(TestCase):
                 "trace_id": "trace-1",
                 "span_id": "span-1",
                 "parent_span_id": "",
-                "attributes": {"session.id": "session-1"},
+                "attributes": {"agent.session.session_code": "session-1"},
                 "input": "问一",
                 "output": "答一",
                 "start_time": 300,
@@ -255,7 +257,7 @@ class ListTracesResourceTestCase(TestCase):
                 "trace_id": "trace-3",
                 "span_id": "span-3",
                 "parent_span_id": "",
-                "attributes": {"session.id": "session-2"},
+                "attributes": {"agent.session.session_code": "session-2"},
                 "input": "问三",
                 "output": "答三",
                 "start_time": 200,
@@ -270,7 +272,7 @@ class ListTracesResourceTestCase(TestCase):
                 "trace_id": "trace-2",
                 "span_id": "span-2",
                 "parent_span_id": "",
-                "attributes": {"session.id": "session-2"},
+                "attributes": {"agent.session.session_code": "session-2"},
                 "input": "问二",
                 "output": "答二",
                 "start_time": 100,
@@ -298,7 +300,8 @@ class ListTracesResourceTestCase(TestCase):
             },
         ]
         span_query.query_by_group_ids.return_value = raw_spans
-        entity_set = mock.sentinel.entity_set
+        entity_set = mock.Mock()
+        entity_set.get_system.return_value = {"is_support_llm": True, "product": "aidev"}
 
         with (
             mock.patch("apm_web.llm.resources.Application.objects.get", return_value=application) as get_application,
@@ -312,7 +315,8 @@ class ListTracesResourceTestCase(TestCase):
                     "app_name": "sand_local_dev",
                     "start_time": 1,
                     "end_time": 2,
-                    "group_field": group_field,
+                    "service_name": "agent-service",
+                    "group_field": "attributes.gen_ai.conversation.id",
                 }
             )
 
@@ -321,7 +325,7 @@ class ListTracesResourceTestCase(TestCase):
             result["items"][0],
             {
                 "group_id": "session-2",
-                "group_field": group_field,
+                "group_field": "attributes.gen_ai.conversation.id",
                 "input": "",
                 "output": "",
                 "input_tokens": 30,
@@ -366,10 +370,10 @@ class ListTracesResourceTestCase(TestCase):
         span_query.query_group_list.assert_called_once_with(
             start_time=1,
             end_time=2,
-            group_field=group_field,
+            group_field=query_field,
             offset=0,
             limit=20,
-            filters=[],
+            filters=[{"key": "resource.service.name", "operator": "equal", "value": ["agent-service"]}],
             query_string=AGENT_CANDIDATE_QUERY,
         )
         span_query.query_by_group_ids.assert_called_once_with(
@@ -377,12 +381,34 @@ class ListTracesResourceTestCase(TestCase):
             group_ids=["trace-2", "trace-3", "trace-1"],
         )
         span_query.query_group_trace_list.assert_called_once_with(
-            group_field=group_field,
+            group_field=query_field,
             group_ids=["session-2", "session-1"],
         )
         get_application.assert_called_once_with(bk_biz_id=11, app_name="sand_local_dev")
         application.build_data_sources.assert_called_once_with()
         get_query.assert_called_once_with(data_sources)
+        entity_set.get_system.assert_called_once_with("agent-service")
+
+    def test_unmapped_group_field_passes_through(self):
+        serializer = ListTracesResource.RequestSerializer(
+            data={
+                "bk_biz_id": 11,
+                "app_name": "sand_local_dev",
+                "service_name": "agent-service",
+                "start_time": 1,
+                "end_time": 2,
+                "group_field": "attributes.session.id",
+            }
+        )
+        serializer.is_valid(raise_exception=True)
+
+        entity_set = mock.Mock()
+        entity_set.get_system.return_value = {"is_support_llm": True, "product": "aidev"}
+        resolved = ListTracesResource._resolve_group_field(
+            entity_set, "agent-service", serializer.validated_data["group_field"]
+        )
+
+        self.assertEqual(resolved, "attributes.session.id")
 
     def test_trace_time_uses_raw_root_span(self):
         raw_spans = [

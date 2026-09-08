@@ -31,6 +31,25 @@ def detect_product(entity_set: EntitySet, spans: list[dict[str, Any]]) -> str:
     return LLMProduct.DEFAULT.value
 
 
+# 查询侧字段映射：标准字段 -> 产品 -> 原始字段。
+# 标准化转换发生在代码层，存储中存的是原始字段，仅命中映射表的分组字段才需要做产品识别后换算。
+# 已知限制：aidev 为双插桩（业务埋点 + Traceloop），会话字段 agent.session.session_code
+# 仅存在于业务埋点 span，Traceloop 埋点 span（-default 服务）无会话字段，按会话分组时只能聚合到业务埋点侧。
+QUERY_FIELD_MAPPING: dict[str, dict[str, str]] = {
+    "attributes.gen_ai.conversation.id": {
+        LLMProduct.AIDEV.value: "attributes.agent.session.session_code",
+        LLMProduct.AGENTLENS.value: "attributes.gen_ai.session.id",
+    },
+}
+
+
+def resolve_query_field(product: str | None, field: str) -> str:
+    """命中映射表时按产品换算为存储中的原始字段，未命中时原样透传。"""
+    if product is None:
+        return field
+    return QUERY_FIELD_MAPPING.get(field, {}).get(product, field)
+
+
 STANDARD_FIELDS = {
     "error.type",
     "user.id",
