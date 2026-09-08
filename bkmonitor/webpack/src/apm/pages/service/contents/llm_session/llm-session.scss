@@ -1,0 +1,61 @@
+.llm-session {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  background-color: #fff;
+  border-radius: 4px;
+  box-shadow: 0 2px 4px 0 rgba(25, 25, 41, 5%);
+
+  .llm-session-header {
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+    padding: 12px;
+  }
+
+  .llm-session-view-mode {
+    display: flex;
+    align-items: center;
+    height: 32px;
+    padding: 4px;
+    background-color: #f0f1f5;
+    border-radius: 4px;
+  }
+
+  .view-mode-item {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 116px;
+    height: 24px;
+    font-size: 12px;
+    color: #313238;
+    cursor: pointer;
+    border-radius: 2px;
+
+    i {
+      margin-right: 4px;
+      font-size: 14px;
+    }
+
+    &.is-active {
+      color: #3a84ff;
+      background-color: #fff;
+      box-shadow: 0 2px 2px 0 rgba(0, 0, 0, 10%);
+    }
+  }
+
+  .llm-session-search {
+    width: 480px;
+    margin-left: 12px;
+  }
+
+  .llm-session-table-wrap {
+    flex: 1;
+    min-height: 0;
+    padding: 0 12px 12px;
+    overflow: hidden;
+  }
+}

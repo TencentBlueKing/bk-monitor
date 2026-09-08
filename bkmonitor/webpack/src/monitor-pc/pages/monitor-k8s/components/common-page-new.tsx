@@ -139,6 +139,8 @@ interface ICommonPageEvent {
 interface ICommonPageProps {
   // 详情返回操作
   backToOverviewKey?: string;
+  // 内容区由 customContent 插槽自行渲染的面板类型，命中时不渲染 DashboardPanel
+  customContentPanelTypes?: string[];
   // 默认汇聚方法
   defalutMethod?: string;
   defaultDashboardId?: string;
@@ -203,6 +205,8 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
   @Prop({ default: () => [], type: Array }) readonly toggleTabSearchFilterKeys: string[];
   // 默认汇聚方法
   @Prop({ default: '' }) readonly defalutMethod: string;
+  // 内容区交由 customContent 插槽渲染的面板类型
+  @Prop({ default: () => [], type: Array }) readonly customContentPanelTypes: string[];
 
   // 监控左侧栏是否收缩配置 自愈默认未收缩
   @InjectReactive('toggleSet') toggleSet: boolean;
@@ -506,6 +510,13 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
   /** apm服务 */
   get isApmServiceOverview() {
     return this.sceneId === 'apm_service';
+  }
+  /**
+   * 内容区是否由 customContent 插槽渲染。
+   * 分发依据与 ChartWrapper 一致（视图配置里的面板类型），只是提升到内容区一层，跳过图表包装。
+   */
+  get isCustomContentPanel() {
+    return this.customContentPanelTypes.includes(this.localPanels?.[0]?.type);
   }
   /** 是否需要额外的参数 */
   get hasOtherParams() {
@@ -2123,19 +2134,23 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
                     <div class='view-has-no-data-main'>{this.$slots.noData}</div>
                   )}
                   {this.filtersReady ? (
-                    <DashboardPanel
-                      id={this.dashboardPanelId}
-                      key={this.sceneData.id}
-                      column={this.sceneData.mode === 'custom' ? 'custom' : this.columns + 1}
-                      dashboardId={this.dashboardId}
-                      isSingleChart={this.isSingleChart}
-                      needOverviewBtn={!!this.sceneData?.list?.length}
-                      panels={this.dashbordMode === 'chart' ? this.preciseFilteringPanels : this.sceneData.list}
-                      singleChartNoPadding={this.isSingleChartNoPadding}
-                      // onLinkTo={this.handleUpdateCurrentData}
-                      onBackToOverview={this.handleBackToOverview}
-                      onLintToDetail={this.handleLinkToDetail}
-                    />
+                    this.isCustomContentPanel ? (
+                      <div class='dashboard-custom-content'>{this.$slots.customContent}</div>
+                    ) : (
+                      <DashboardPanel
+                        id={this.dashboardPanelId}
+                        key={this.sceneData.id}
+                        column={this.sceneData.mode === 'custom' ? 'custom' : this.columns + 1}
+                        dashboardId={this.dashboardId}
+                        isSingleChart={this.isSingleChart}
+                        needOverviewBtn={!!this.sceneData?.list?.length}
+                        panels={this.dashbordMode === 'chart' ? this.preciseFilteringPanels : this.sceneData.list}
+                        singleChartNoPadding={this.isSingleChartNoPadding}
+                        // onLinkTo={this.handleUpdateCurrentData}
+                        onBackToOverview={this.handleBackToOverview}
+                        onLintToDetail={this.handleLinkToDetail}
+                      />
+                    )
                   ) : (
                     <div class='empty-wrapper'>{this.$t('加载中...')}</div>
                   )}

@@ -1,0 +1,92 @@
+.llm-table {
+  .bk-table {
+    th {
+      background-color: #fafbfd;
+
+      .cell {
+        font-weight: 500;
+        color: #313238;
+      }
+    }
+
+    td {
+      .cell {
+        color: #4d4f56;
+      }
+    }
+  }
+
+  .llm-table-text {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .llm-table-link {
+    color: #3a84ff;
+
+    &.is-strong {
+      font-weight: 700;
+    }
+  }
+
+  .llm-table-tokens-badge {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    .tokens-total {
+      font-weight: 700;
+      color: #4e5e7a;
+    }
+
+    .tokens-tag {
+      display: flex;
+      align-items: center;
+      height: 22px;
+      padding: 0 4px;
+      background-color: #f7f9fc;
+      border: 1px solid #dde3f0;
+      border-radius: 4px;
+    }
+
+    .tokens-tag-icon {
+      margin-right: 3px;
+      font-size: 12px;
+      color: #4e5e7a;
+
+      &.is-output {
+        color: #7269f0;
+      }
+    }
+
+    .tokens-tag-value {
+      font-weight: 700;
+      color: #4e5e7a;
+
+      &.is-output {
+        color: #7269f0;
+      }
+    }
+
+    .tokens-tag-divider {
+      width: 1px;
+      height: 12px;
+      margin: 0 3px;
+      background-color: #e4e9f2;
+    }
+  }
+}
+
+.llm-table-expand {
+  padding: 16px;
+  background-color: #f5f7fa;
+
+  .bk-table {
+    th,
+    td {
+      background-color: transparent;
+    }
+  }
+}
