@@ -1,14 +1,103 @@
 from datetime import timedelta
 from unittest.mock import patch
 
-from django.test import TestCase
+from django.test import SimpleTestCase, TestCase
 from django.utils import timezone
+from rest_framework.response import Response
 
 from apps.constants import ExternalPermissionActionEnum, TokenStatusEnum
 from apps.iam.handlers.actions import ActionEnum
 from apps.log_commons.constants import DEFAULT_EXTERNAL_PERMISSION_EXPIRE_DAYS
 from apps.log_commons.handlers.external_permission import ExternalPermissionHandler
 from apps.log_commons.models import ExternalPermission
+
+
+class TestExternalIndexSetListFilter(SimpleTestCase):
+    """外部版索引列表不能因未授权父索引组隐藏已授权子索引。"""
+
+    def filter_response(self, index_sets, allowed_resources):
+        from log_adapter.home.views import RequestProcessor
+
+        response = Response({"data": index_sets})
+        return RequestProcessor.filter_response_resource(
+            external_user="external_user",
+            response=response,
+            action_id=ExternalPermissionActionEnum.LOG_SEARCH.value,
+            view_set="SearchViewSet",
+            view_action="list",
+            allow_resources_result={"allowed": True, "resources": allowed_resources},
+        )
+
+    def test_authorized_child_of_unauthorized_group_is_exposed_at_top_level(self):
+        response = self.filter_response(
+            index_sets=[
+                {
+                    "index_set_id": 100,
+                    "index_set_name": "unauthorized group",
+                    "children": [
+                        {"index_set_id": 101, "index_set_name": "authorized child"},
+                        {"index_set_id": 102, "index_set_name": "unauthorized child"},
+                    ],
+                },
+                {"index_set_id": 200, "index_set_name": "authorized standalone"},
+            ],
+            allowed_resources=[101, 200],
+        )
+
+        self.assertEqual(
+            response.data["data"],
+            [
+                {"index_set_id": 101, "index_set_name": "authorized child"},
+                {"index_set_id": 200, "index_set_name": "authorized standalone"},
+            ],
+        )
+
+    def test_unauthorized_group_and_children_are_not_exposed(self):
+        response = self.filter_response(
+            index_sets=[
+                {
+                    "index_set_id": 100,
+                    "index_set_name": "unauthorized group",
+                    "children": [{"index_set_id": 101, "index_set_name": "unauthorized child"}],
+                }
+            ],
+            allowed_resources=[],
+        )
+
+        self.assertEqual(response.data["data"], [])
+
+    def test_authorized_child_in_multiple_unauthorized_groups_is_exposed_once(self):
+        response = self.filter_response(
+            index_sets=[
+                {"index_set_id": 100, "children": [{"index_set_id": 101}]},
+                {"index_set_id": 200, "children": [{"index_set_id": 101}]},
+            ],
+            allowed_resources=[101],
+        )
+
+        self.assertEqual(response.data["data"], [{"index_set_id": 101}])
+
+    def test_authorized_child_already_visible_in_authorized_group_is_not_promoted(self):
+        response = self.filter_response(
+            index_sets=[
+                {"index_set_id": 100, "children": [{"index_set_id": 101}]},
+                {"index_set_id": 200, "children": [{"index_set_id": 101}]},
+            ],
+            allowed_resources=[100, 101],
+        )
+
+        self.assertEqual(response.data["data"], [{"index_set_id": 100, "children": [{"index_set_id": 101}]}])
+
+    def test_authorized_child_is_not_promoted_when_unauthorized_group_is_listed_first(self):
+        response = self.filter_response(
+            index_sets=[
+                {"index_set_id": 200, "children": [{"index_set_id": 101}]},
+                {"index_set_id": 100, "children": [{"index_set_id": 101}]},
+            ],
+            allowed_resources=[100, 101],
+        )
+
+        self.assertEqual(response.data["data"], [{"index_set_id": 100, "children": [{"index_set_id": 101}]}])
 
 
 class TestExternalPermissionCreate(TestCase):
@@ -77,7 +166,7 @@ class TestClusteringConfigActionValid(TestCase):
     LOG_CLUSTERING = ExternalPermissionActionEnum.LOG_CLUSTERING.value
 
     # view_action 是 ViewSet 的方法名，check 对应 url_path check_regexp
-    WRITE_VIEW_ACTIONS = ["update_access", "get_default_config", "debug", "check"]
+    WRITE_VIEW_ACTIONS = ["update_access", "get_default_config", "debug", "check", "sample_log"]
 
     def _is_valid(self, view_set, view_action, action_id=None):
         return ExternalPermission.is_action_valid(
@@ -122,6 +211,24 @@ class TestClusteringConfigActionValid(TestCase):
     # ---------- 其它授权项不得越界访问聚类配置 ----------
     def test_log_extract_cannot_update_clustering_config(self):
         self.assertFalse(self._is_valid("ClusteringConfigViewSet", "update_access", action_id=self.LOG_EXTRACT))
+
+    def test_collector_tail_remains_unexposed(self):
+        # 采集抽样不得直接挂 CollectorViewSet.tail / LogESBViewSet.call，否则会跳过索引集校验
+        for view_set, view_action in [
+            ("CollectorViewSet", "tail"),
+            ("LogESBViewSet", "call"),
+        ]:
+            with self.subTest(view_set=view_set, view_action=view_action):
+                self.assertFalse(self._is_valid(view_set, view_action))
+                self.assertFalse(self._is_valid(view_set, view_action, action_id=self.LOG_SEARCH))
+
+    def test_sample_log_action_id_is_log_clustering(self):
+        from log_adapter.home.views import RequestProcessor
+
+        self.assertEqual(
+            RequestProcessor.get_action_id("ClusteringConfigViewSet", "sample_log"),
+            self.LOG_CLUSTERING,
+        )
 
 
 class TestLogClusteringIndependentFromLogSearch(TestCase):

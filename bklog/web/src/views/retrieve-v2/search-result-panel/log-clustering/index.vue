@@ -91,8 +91,8 @@
         />
         <quick-cluster-step
           v-else-if="isShowClusterStep"
-          style="min-height: calc(100vh - 410px)"
           ref="stepRef"
+          style="min-height: calc(100vh - 410px)"
           :cluster-step-data="clusterStepData"
         />
         <quick-open-cluster
@@ -106,13 +106,13 @@
           v-else-if="dataFingerprintShow"
           v-bind="$attrs"
           ref="fingerTableRef"
-          v-on="$listeners"
           :all-finger-list="allFingerList"
           :clustering-config="clusteringConfig"
           :finger-list="fingerList"
           :is-page-over="isPageOver"
           :loader-width-list="smallLoaderWidthList"
           :request-data="requestData"
+          v-on="$listeners"
           @handle-finger-operate="handleFingerOperate"
           @handle-scroll-is-show="handleScrollIsShow"
           @pagination-options="paginationOptions"
@@ -157,8 +157,8 @@
       </bk-table>
 
       <div
-        class="fixed-scroll-top-btn"
         v-show="showScrollTop"
+        class="fixed-scroll-top-btn"
         @click="scrollToTop"
       >
         <i class="bk-icon icon-angle-up"></i>
@@ -378,11 +378,29 @@
         this.confirmClusterStepStatus();
       },
       isShowClusterStep(v) {
-        this.$store.commit('updateState', {'storeIsShowClusterStep': v});
+        this.$store.commit('updateState', { storeIsShowClusterStep: v });
       },
       showFieldAlias() {
         this.filterGroupList();
       },
+    },
+    async mounted() {
+      await this.onMountedLoad();
+    },
+    async activated() {
+      this.dataFingerprintShow = true;
+      await this.onMountedLoad();
+    },
+    deactivated() {
+      this.onUnMountedLoad();
+      this.dataFingerprintShow = false;
+    },
+    unmounted() {
+      this.onUnMountedLoad();
+    },
+    beforeDestroy() {
+      this.$store.commit('updateState', { clusterParams: null });
+      this.stopPolling(); // 停止状态轮询
     },
     methods: {
       setRouteParams() {
@@ -458,7 +476,7 @@
           });
         }
         Object.assign(this.requestData, queryRequestData);
-        this.$store.commit('updateState', {'clusterParams': this.requestData});
+        this.$store.commit('updateState', { clusterParams: this.requestData });
         this.setRouteParams();
         this.isInitPage = false;
       },
@@ -490,7 +508,7 @@
           case 'requestData': // 数据指纹的请求参数
             Object.assign(this.requestData, val);
             // 数据指纹对请求参数修改过的操作将数据回填到url上
-            this.$store.commit('updateState', {'clusterParams': this.requestData});
+            this.$store.commit('updateState', { clusterParams: this.requestData });
             this.setRouteParams();
             break;
           case 'fingerOperateData': // 数据指纹操作的参数
@@ -516,7 +534,7 @@
           return;
         }
         // 无清洗 去清洗
-        if (!!this.collectorConfigId) {
+        if (this.collectorConfigId) {
           this.$router.push({
             name: 'clean-edit',
             params: { collectorId: this.collectorConfigId },
@@ -657,7 +675,7 @@
             this.isShowClusterStep = !res.data.access_finished;
             return res.data.access_finished;
           }
-        } catch (error) {
+        } catch {
           // 报错就证明没开日志聚类
           this.isShowClusterStep = false;
           this.stopPolling();
@@ -704,7 +722,7 @@
           await this.confirmClusterStepStatus();
           if (this.isClickSearch && !this.isInitPage) this.requestFinger();
           if (!this.isInitPage) {
-            this.$store.commit('updateState', {'clusterParams': this.requestData});
+            this.$store.commit('updateState', { clusterParams: this.requestData });
             this.setRouteParams();
           }
         }
@@ -712,29 +730,11 @@
       async onUnMountedLoad() {
         if (this.isClusterActive) {
           this.isClusterActive = false;
-          this.$store.commit('updateState', {'clusterParams': null});
+          this.$store.commit('updateState', { clusterParams: null });
           this.setRouteParams();
           this.stopPolling(); // 停止状态轮询
         }
       },
-    },
-    async mounted() {
-      await this.onMountedLoad();
-    },
-    async activated() {
-      this.dataFingerprintShow = true;
-      await this.onMountedLoad();
-    },
-    deactivated() {
-      this.onUnMountedLoad();
-      this.dataFingerprintShow = false;
-    },
-    unmounted() {
-      this.onUnMountedLoad();
-    },
-    beforeDestroy() {
-      this.$store.commit('updateState', {'clusterParams': null});
-      this.stopPolling(); // 停止状态轮询
     },
   };
 </script>

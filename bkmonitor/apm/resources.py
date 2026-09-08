@@ -815,6 +815,58 @@ class QueryTopoNodeResource(Resource):
         return res
 
 
+class SearchServiceNamesResource(Resource):
+    """在业务范围内匹配服务名称，由调用方校验命中应用的权限。"""
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_ids = serializers.ListField(
+            label="业务ID列表，空列表表示全量授权", child=serializers.IntegerField(), allow_empty=True
+        )
+        app_names = serializers.ListField(
+            label="应用名称列表",
+            child=serializers.CharField(max_length=50),
+            required=False,
+            allow_empty=True,
+            max_length=100,
+        )
+        query = serializers.CharField(label="服务名称关键字")
+        limit = serializers.IntegerField(label="返回数量", min_value=1, max_value=100, default=20)
+
+    def perform_request(self, data):
+        scope = {"bk_biz_id__in": data["bk_biz_ids"]} if data["bk_biz_ids"] else {}
+        if data.get("app_names"):
+            scope["app_name__in"] = data["app_names"]
+        limit = data.get("limit", 20)
+        services = {}
+        nodes = (
+            TopoNode.objects.filter(
+                **scope,
+                topo_key__icontains=data["query"],
+                updated_at__gte=datetime.datetime.now() - datetime.timedelta(days=TopoNode.EXPIRED_DAYS),
+            )
+            .order_by("id")
+            .values("bk_biz_id", "app_name", "topo_key")[:limit]
+        )
+        for node in nodes:
+            key = (node["bk_biz_id"], node["app_name"], node["topo_key"])
+            services[key] = {"bk_biz_id": key[0], "app_name": key[1], "service_name": key[2]}
+            if len(services) >= limit:
+                return list(services.values())
+
+        profiles = (
+            ProfileService.objects.filter(**scope, name__icontains=data["query"])
+            .order_by("bk_biz_id", "app_name", "name")
+            .values("bk_biz_id", "app_name", "name")
+            .distinct()[:limit]
+        )
+        for profile in profiles:
+            key = (profile["bk_biz_id"], profile["app_name"], profile["name"])
+            services[key] = {"bk_biz_id": key[0], "app_name": key[1], "service_name": key[2]}
+            if len(services) >= limit:
+                break
+        return list(services.values())
+
+
 class DiscoverQueryResource(Resource):
     many_response_data = True
     model = None
@@ -2349,11 +2401,7 @@ class QueryFieldStatisticsInfoResource(Resource):
     @classmethod
     def _is_number_field(cls, field: dict[str, Any]) -> bool:
         """判断一个字段是否为数值类型。"""
-        return field["field_type"] in [
-            EnabledStatisticsDimension.LONG.value,
-            EnabledStatisticsDimension.DOUBLE.value,
-            EnabledStatisticsDimension.INTEGER.value,
-        ]
+        return EnabledStatisticsDimension.from_value(field["field_type"]).is_numeric()
 
     def perform_request(self, validated_data):
         proxy = QueryProxy(validated_data["bk_biz_id"], validated_data["app_name"])
@@ -2403,9 +2451,9 @@ class QueryFieldStatisticsInfoResource(Resource):
         field: dict[str, Any] = validated_data["field"]
         filters: list[dict[str, Any]] = copy.deepcopy(validated_data["filters"])
         if property_name == StatisticsProperty.FIELD_COUNT.value:
-            exclude_empty_operator: str = (
-                FilterOperator.EXISTS if cls._is_number_field(validated_data["field"]) else FilterOperator.NOT_EQUAL
-            )
+            # 数值类型与布尔类型使用 exists 判断，其余类型排除空字符串
+            use_exists = cls._is_number_field(field) or field["field_type"] == EnabledStatisticsDimension.BOOLEAN.value
+            exclude_empty_operator: str = FilterOperator.EXISTS if use_exists else FilterOperator.NOT_EQUAL
             filters.append({"key": field["field_name"], "value": [""], "operator": exclude_empty_operator})
 
         statistics_info[property_name] = proxy.query_field_aggregated_value(
@@ -2463,7 +2511,7 @@ class QueryFieldStatisticsGraphResource(Resource):
             "filters": validated_data["filters"],
             "field": field["field_name"],
         }
-        if field["field_type"] == EnabledStatisticsDimension.KEYWORD.value:
+        if not EnabledStatisticsDimension.from_value(field["field_type"]).is_numeric():
             base_query_params["filters"].append(
                 {
                     "key": field["field_name"],
@@ -2492,7 +2540,7 @@ class QueryFieldStatisticsGraphResource(Resource):
             distinct_count <= interval_num or (max_value - min_value + 1) <= interval_num
         ):
             field_topk = proxy.query_field_topk(**base_query_params, limit=distinct_count)
-            value_parser = float if field["field_type"] == EnabledStatisticsDimension.DOUBLE.value else int
+            value_parser = float if EnabledStatisticsDimension.from_value(field["field_type"]).is_float() else int
             return self.process_graph_info(
                 [
                     [topk_item["count"], value_parser(topk_item["field_value"])]

@@ -43,3 +43,17 @@ def get_rabbitmq_settings(app_code: str, backend=False):
         user=user, password=password, host=host, port=port, vhost=vhost
     )
     return host, port, vhost, user, password, broker_url
+
+
+def get_rabbitmq_management_host(host: str, backend=False) -> str:
+    """HTTP management host. Falls back to the AMQP host when unset."""
+    env_names = (
+        ("BK_MONITOR_RABBITMQ_MANAGEMENT_HOST", "RABBITMQ_MANAGEMENT_HOST")
+        if backend
+        else ("RABBITMQ_MANAGEMENT_HOST",)
+    )
+    for env_name in env_names:
+        value = os.environ.get(env_name, "").strip()
+        if value:
+            return value
+    return host

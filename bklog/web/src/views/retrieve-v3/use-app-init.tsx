@@ -50,6 +50,7 @@ import {
   omitRouteIndexId,
   shouldKeepSceneOnSpaceChange,
 } from '@/global/bk-space-choice/space-switch-route';
+import { shouldStripIndexIdOnEmptyScene } from './scene-empty-view';
 
 import $http from '@/api';
 import { RetrieveType } from '../retrieve-v2/sub-bar/retrieve-type-switch';
@@ -119,19 +120,19 @@ export default () => {
 
   RetrieveHelper.setScrollSelector('.v3-bklog-content');
 
-  const handleSearchBarHeightChange = (height) => {
+  const handleSearchBarHeightChange = height => {
     searchBarHeight.value = height;
   };
 
-  const handleFavoriteWidthChange = (width) => {
+  const handleFavoriteWidthChange = width => {
     favoriteWidth.value = width;
   };
 
-  const hanldeFavoriteShown = (isShown) => {
+  const hanldeFavoriteShown = isShown => {
     isFavoriteShown.value = isShown;
   };
 
-  const handleGraphHeightChange = (height) => {
+  const handleGraphHeightChange = height => {
     trendGraphHeight.value = height;
   };
 
@@ -197,13 +198,13 @@ export default () => {
           .request('retrieve/generateQueryString', {
             data: { addition: target.addition },
           })
-          .then((res) => {
+          .then(res => {
             if (res.result) {
               const newKeyword = `${keyword} AND ${res.data?.querystring}`;
               store.commit('updateIndexItemParams', { keyword: newKeyword });
             }
           })
-          .catch((err) => {
+          .catch(err => {
             console.error(err);
           });
       }
@@ -247,7 +248,7 @@ export default () => {
    * 拉取索引集列表
    * @param beforeResolveFn 在结果返回解析之后，尚未进行路由解析之前的处理函数
    */
-  const getIndexSetList = (beforeResolveFn?: () => void) => {
+  const getIndexSetList = (beforeResolveFn?: () => void, options: { isSpaceChanging?: boolean } = {}) => {
     store.commit('updateIndexSetQueryResult', {
       row_keys: [],
       row_query_key: '',
@@ -392,7 +393,7 @@ export default () => {
         const indexSetIds = [];
 
         if (indexSetIdList.value.length) {
-          indexSetIdList.value.forEach((id) => {
+          indexSetIdList.value.forEach(id => {
             const item = flatIndexSetList.value.find(item => filterFn(id, item));
             if (!item) {
               emptyIndexSetList.push(id);
@@ -416,9 +417,10 @@ export default () => {
 
         // 如果经过上述逻辑，缓存中没有索引信息，则默认取第一个有数据的索引
         if (!indexSetIdList.value.length) {
-          const defIndexItem =            flatIndexSetList.value.find(
-            item => item.permission?.[VIEW_BUSINESS] && item.tags.every(tag => tag.tag_id !== 4),
-          ) ?? flatIndexSetList.value[0];
+          const defIndexItem =
+            flatIndexSetList.value.find(
+              item => item.permission?.[VIEW_BUSINESS] && item.tags.every(tag => tag.tag_id !== 4),
+            ) ?? flatIndexSetList.value[0];
           const defaultId = [defIndexItem?.index_set_id];
 
           if (defaultId) {
@@ -428,10 +430,12 @@ export default () => {
           }
         }
 
-        const indexId =          store.state.storage[BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB] === 'single'
-          ? store.state.indexItem.ids[0]
-          : undefined;
-        const unionList =          store.state.storage[BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB] === 'union' ? store.state.indexItem.ids : undefined;
+        const indexId =
+          store.state.storage[BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB] === 'single'
+            ? store.state.indexItem.ids[0]
+            : undefined;
+        const unionList =
+          store.state.storage[BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB] === 'union' ? store.state.indexItem.ids : undefined;
 
         // 修复：当 URL 中的 indexId 无效时，已经在上面选择了默认索引
         // 这里应该判断当前是否有有效的索引ID，而不是判断 emptyIndexSetList
@@ -464,16 +468,24 @@ export default () => {
           resolveAdditionKeyword().then(async () => {
             const isExternal = store.state.isExternal;
             if (
-              !isExternal
-              && isFeatureToggleOn('scene_search', [String(store.state.bkBizId), String(store.state.spaceUid)])
+              !isExternal &&
+              isFeatureToggleOn('scene_search', [String(store.state.bkBizId), String(store.state.spaceUid)])
             ) {
               if (store.state.indexItem.retrieve_type === RetrieveType.Scene) {
                 // 场景化检索：请求场景配置，从URL获取筛选参数
                 const sceneCleared = await requestSceneConfigs();
                 if (!sceneCleared && store.getters.isSceneFilterEmpty) {
                   RetrieveHelper.setSearchingValue(false);
-                  // 切业务后旧 indexId 仍挂在路由上时，子组件会用它打字段接口导致 404
-                  syncIndexIdToRoute(indexId, unionList, queryTab);
+                  resetRetrieveData(store);
+                  // 首屏/刷新保留分享 URL；切业务才摘旧业务 indexId，避免子组件用旧 ID 拉数。
+                  if (
+                    shouldStripIndexIdOnEmptyScene({
+                      hasRouteIndexId: !!route.params?.indexId,
+                      isSpaceChanging: !!options.isSpaceChanging,
+                    })
+                  ) {
+                    stripRouteIndexId();
+                  }
                   return;
                 }
               } else {
@@ -486,20 +498,20 @@ export default () => {
 
             store
               .dispatch('requestIndexSetFieldInfo')
-              .then((resp) => {
+              .then(resp => {
                 RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_SEARCH);
                 RetrieveHelper.fire(RetrieveEvent.LEFT_FIELD_INFO_UPDATE);
 
                 if (
-                  route.query.tab === 'origin'
-                  || route.query.tab === undefined
-                  || route.query.tab === null
-                  || route.query.tab === ''
+                  route.query.tab === 'origin' ||
+                  route.query.tab === undefined ||
+                  route.query.tab === null ||
+                  route.query.tab === ''
                 ) {
                   if (resp?.data?.fields?.length) {
                     store
                       .dispatch('requestIndexSetQuery')
-                      .catch((err) => {
+                      .catch(err => {
                         console.error('requestIndexSetQuery failed:', err);
                       })
                       .finally(() => {
@@ -525,7 +537,7 @@ export default () => {
                 setDefaultRouteUrl();
                 syncIndexIdToRoute(indexId, unionList, queryTab);
               })
-              .catch((err) => {
+              .catch(err => {
                 console.error('requestIndexSetFieldInfo failed:', err);
                 RetrieveHelper.setSearchingValue(false);
                 setSearchMode();
@@ -553,7 +565,7 @@ export default () => {
           store.getters.isUnionSearch,
         );
       })
-      .catch((err) => {
+      .catch(err => {
         // 任何异常（请求失败 / then 内同步代码抛错）都要确保 loading 能退出
         // 否则 isPreApiLoaded 永远为 false，页面 v-bkloading 会一直转圈
         console.error('getIndexSetList failed:', err);
@@ -570,6 +582,16 @@ export default () => {
    * 同步索引集到路由：有新 indexId 则写入，否则从 params 删除旧 indexId。
    * Vue Router 3 对 params.indexId = undefined 不会摘掉路径参数，必须 delete。
    */
+  const stripRouteIndexId = () => {
+    if (!route.params?.indexId) {
+      return;
+    }
+    router.replace({
+      params: omitRouteIndexId(route.params ?? {}),
+      query: route.query,
+    });
+  };
+
   const syncIndexIdToRoute = (indexId?: string, unionList?: string[], queryTab: Record<string, any> = {}) => {
     const nextParams = indexId ? { ...(route.params ?? {}), indexId } : omitRouteIndexId(route.params ?? {});
 
@@ -684,6 +706,8 @@ export default () => {
 
   const handleSpaceIdChange = () => {
     cancelPendingRetrieveRequests();
+    // 与切换场景 tab 相同：取消请求后必须清字段/结果 loading，否则空筛选提前返回会永久转圈
+    resetRetrieveData(store);
 
     const keepScene = shouldKeepSceneOnSpaceChange(store.state.indexItem.retrieve_type, route.query.retrieve_type);
 
@@ -701,7 +725,7 @@ export default () => {
     store.commit('updateUnionIndexList', []);
     RetrieveHelper.setIndexsetId([], null);
 
-    getIndexSetList();
+    getIndexSetList(undefined, { isSpaceChanging: true });
     store.dispatch('requestFavoriteList');
   };
 
@@ -758,7 +782,7 @@ export default () => {
     return !store.getters.isSceneFilterEmpty;
   });
 
-  addEvent(RetrieveEvent.GLOBAL_SCROLL, (event) => {
+  addEvent(RetrieveEvent.GLOBAL_SCROLL, event => {
     const scrollTop = (event.target as HTMLElement).scrollTop;
     paddingTop.value = scrollTop > subBarHeight.value ? subBarHeight.value : scrollTop;
 
@@ -771,7 +795,7 @@ export default () => {
 
   useResizeObserve(
     RetrieveHelper.getScrollSelector(),
-    (entry) => {
+    entry => {
       scrollContainerHeight.value = (entry.target as HTMLElement).offsetHeight;
     },
     0,
@@ -797,8 +821,8 @@ export default () => {
     if (isSceneMode.value) {
       // 场景模式下，表头吸顶时机：字段筛选面板 + 趋势图都滚出后
       return (
-        sceneFilterPanelHeight.value > 0
-        && sceneScrollTop.value >= sceneFilterPanelHeight.value + trendGraphHeight.value
+        sceneFilterPanelHeight.value > 0 &&
+        sceneScrollTop.value >= sceneFilterPanelHeight.value + trendGraphHeight.value
       );
     }
     return searchResultTop.value === subBarHeight.value + trendGraphHeight.value;

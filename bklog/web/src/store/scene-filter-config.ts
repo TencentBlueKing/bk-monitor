@@ -63,17 +63,17 @@ export const transformSceneConfigItem = (item: SceneConfigItem, disabled = false
   const fields = disabled
     ? []
     : (item.dimensions ?? []).map(dim => ({
-      name: dim.name,
-      key: dim.key,
-      fieldType: dim.type,
-      choicesType: dim.choices_type,
-      choices: dim.choices,
-      required: dim.required,
-      ops: dim.ops,
-      multiple: dim.multiple ?? true,
-      searchable: dim.choices_type === 'dynamic' || dim.key === 'cluster_id',
-      allowCreate: dim.key === 'cluster_id',
-    }));
+        name: dim.name,
+        key: dim.key,
+        fieldType: dim.type,
+        choicesType: dim.choices_type,
+        choices: dim.choices,
+        required: dim.required,
+        ops: dim.ops,
+        multiple: dim.multiple ?? true,
+        searchable: dim.choices_type === 'dynamic' || dim.key === 'cluster_id',
+        allowCreate: dim.key === 'cluster_id',
+      }));
 
   return {
     type: item.id,
@@ -89,7 +89,7 @@ export const transformSceneConfigs = (items: SceneConfigItem[]): SceneConfig[] =
   const apiItems = items ?? [];
   const apiIdSet = new Set(apiItems.map(item => item.id));
 
-  return Object.keys(sceneMetaMap).map((id) => {
+  return Object.keys(sceneMetaMap).map(id => {
     if (apiIdSet.has(id)) {
       const apiItem = apiItems.find(item => item.id === id)!;
       return transformSceneConfigItem(apiItem, false);
@@ -138,10 +138,11 @@ export const TABLE_ID_CONDITION_SCENES: SceneType[] = [SceneType.Host, SceneType
 
 export const getAllSceneFieldOpKeys = (sceneConfigs: SceneConfig[]): string[] => {
   const keys = new Set<string>();
-  (sceneConfigs ?? []).forEach(scene => scene.fields.forEach((field) => {
-    keys.add(field.key);
-    keys.add(`${field.key}[op]`);
-  }),
+  (sceneConfigs ?? []).forEach(scene =>
+    scene.fields.forEach(field => {
+      keys.add(field.key);
+      keys.add(`${field.key}[op]`);
+    }),
   );
   return Array.from(keys);
 };

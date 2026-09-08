@@ -86,7 +86,8 @@ export default class MonitorLineSeries extends MonitorBaseSeries implements ICha
               }
             : this.handleYxisLabelFormatter,
         },
-        max: (v: { min: number; max: number }) => Math.max(v.max + (Math.abs(v.max - v.min) || Math.abs(v.max) || 1) * 0.1, maxThreshold),
+        max: (v: { min: number; max: number }) =>
+          Math.max(v.max + (Math.abs(v.max - v.min) || Math.abs(v.max) || 1) * 0.1, maxThreshold),
         min: (v: { min: number; max: number }) => Math.min(v.min, minThreshold),
         splitNumber: 4,
         minInterval: 1,
@@ -283,12 +284,13 @@ export default class MonitorLineSeries extends MonitorBaseSeries implements ICha
     sampling.push(data[len - 1]);
     sampling = Array.from(new Set(sampling.filter(n => n !== undefined)));
     while (precision < 5) {
+      const currentPrecision = precision;
       const samp = sampling.reduce((pre, cur) => {
-        pre[formattter(cur, precision).text] = 1;
+        pre[formattter(cur, currentPrecision).text] = 1;
         return pre;
       }, {});
       if (Object.keys(samp).length >= sampling.length) {
-        return precision;
+        return currentPrecision;
       }
       precision += 1;
     }

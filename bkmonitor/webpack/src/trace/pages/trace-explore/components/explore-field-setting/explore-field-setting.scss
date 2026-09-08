@@ -106,7 +106,6 @@
           min-height: 0;
           padding: 4px 8px;
           overflow-y: auto;
-          overflow-y: auto;
 
           .list-item {
             display: flex;
@@ -129,12 +128,21 @@
                 flex-shrink: 0;
               }
 
-              .item-label {
+              .item-text {
                 flex: 1;
                 min-width: 0;
                 overflow: hidden;
                 text-overflow: ellipsis;
                 white-space: nowrap;
+
+                .item-field {
+                  margin-left: 4px;
+                  color: #8f9fbd;
+                }
+              }
+
+              &.show-field-name .item-text {
+                flex: 0 1 auto;
               }
             }
 

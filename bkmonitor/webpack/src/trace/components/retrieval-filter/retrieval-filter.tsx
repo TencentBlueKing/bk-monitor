@@ -29,7 +29,7 @@ import { shallowRef } from 'vue';
 import { computed } from 'vue';
 
 import { useResizeObserver } from '@vueuse/core';
-import { Message, Popover } from 'bkui-vue';
+import { Loading, Message, Popover } from 'bkui-vue';
 import { copyText, deepClone, random } from 'monitor-common/utils/utils';
 import { MODE_LIST } from 'monitor-pc/components/retrieval-filter/utils';
 import overflowTips from 'trace/directive/overflow-tips';
@@ -180,6 +180,9 @@ export default defineComponent({
     }
 
     function handleChangeMode() {
+      if (props.modeChangeLoading) {
+        return;
+      }
       mode.value = mode.value === EMode.ui ? EMode.queryString : EMode.ui;
       emit('modeChange', mode.value);
     }
@@ -418,6 +421,9 @@ export default defineComponent({
       }
     }
     function handleCopy(_event: MouseEvent) {
+      if (props.copyLoading) {
+        return;
+      }
       if (mode.value === EMode.queryString && qsValue.value) {
         copyText(qsValue.value, msg => {
           Message({
@@ -474,20 +480,27 @@ export default defineComponent({
               class='component-left'
               onClick={() => this.handleChangeMode()}
             >
-              {MODE_LIST.filter(item => item.id === this.mode).map(item => [
-                <span
-                  key={`${item.id}_0`}
-                  class='text'
-                >
-                  {item.name}
-                </span>,
-                <div
-                  key={`${item.id}_1`}
-                  class='mode-icon'
-                >
-                  <span class='icon-monitor icon-switch' />
-                </div>,
-              ])}
+              <Loading
+                loading={this.modeChangeLoading}
+                mode='spin'
+                size={'mini'}
+                theme='primary'
+              >
+                {MODE_LIST.filter(item => item.id === this.mode).map(item => [
+                  <span
+                    key={`${item.id}_0`}
+                    class='text'
+                  >
+                    {item.name}
+                  </span>,
+                  <div
+                    key={`${item.id}_1`}
+                    class='mode-icon'
+                  >
+                    <span class='icon-monitor icon-switch' />
+                  </div>,
+                ])}
+              </Loading>
             </div>
           )}
           {this.$slots?.default?.()}
@@ -555,7 +568,7 @@ export default defineComponent({
               )}
               {this.isShowCopy && (
                 <div
-                  class={['copy-btn', { disabled: this.operatorBtnDisabled }]}
+                  class={['copy-btn', { disabled: this.operatorBtnDisabled || this.copyLoading }]}
                   v-bk-tooltips={{
                     content: this.t('复制'),
                     delay: 300,

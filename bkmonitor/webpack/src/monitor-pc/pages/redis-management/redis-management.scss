@@ -350,6 +350,42 @@
   }
 }
 
+.redis-route-ranges {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  margin-top: 16px;
+  font-size: 12px;
+  color: #63656e;
+
+  > strong {
+    flex: 0 0 auto;
+    color: #313238;
+  }
+
+  > div {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 18px;
+  }
+
+  span {
+    display: flex;
+    gap: 5px;
+    align-items: center;
+  }
+
+  i {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+  }
+
+  b {
+    color: #313238;
+  }
+}
+
 .redis-route-legend {
   display: flex;
   gap: 18px;

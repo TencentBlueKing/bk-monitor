@@ -322,6 +322,31 @@ test('节点卡片解释使用趋势、峰值时间与样本覆盖', () => {
   assert.match(source, /刷新失败，当前展示仍为上次数据/);
 });
 
+test('停用节点不展示在节点卡片和路由图例中', () => {
+  const source = fs.readFileSync(
+    path.resolve(__dirname, '../src/monitor-pc/pages/redis-management/redis-management.tsx'),
+    'utf8'
+  );
+  assert.match(source, /get visibleNodes\(\)[\s\S]*?filter\(node => node\.is_enable\)/);
+  assert.match(source, /get usageScale\(\)[\s\S]*?this\.visibleNodes\.flatMap/);
+  assert.match(source, /redis-node-grid[\s\S]*?this\.visibleNodes\.map/);
+  const routeAxis = source.match(/renderRouteAxis\(\)\s*\{([\s\S]*?)\n\s*renderMemoryChange\(\)/)?.[1] ?? '';
+  assert.match(routeAxis, /redis-route-legend[\s\S]*?this\.visibleNodes\.map/);
+});
+
+test('策略路由区间明细始终展示全部节点范围并随草稿更新', () => {
+  const source = fs.readFileSync(
+    path.resolve(__dirname, '../src/monitor-pc/pages/redis-management/redis-management.tsx'),
+    'utf8'
+  );
+  const routeAxis = source.match(/renderRouteAxis\(\)\s*\{([\s\S]*?)\n\s*renderMemoryChange\(\)/)?.[1] ?? '';
+  assert.match(routeAxis, /redis-route-ranges/);
+  assert.match(routeAxis, /this\.displayRoutes\.map\(route/);
+  assert.match(routeAxis, /formatInteger\(route\.from\)/);
+  assert.match(routeAxis, /formatInteger\(route\.to\)/);
+  assert.match(routeAxis, /this\.draft\s*\?\s*'调整后路由区间'\s*:\s*'当前路由区间'/);
+});
+
 test('Redis 管理菜单具备正式路由翻译', () => {
   const source = fs.readFileSync(path.resolve(__dirname, '../src/monitor-pc/lang/route.ts'), 'utf8');
   assert.match(source, /'route-Redis 节点管理':\s*'Redis Node Management'/);

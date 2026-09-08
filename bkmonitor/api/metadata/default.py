@@ -1057,6 +1057,7 @@ class RegisterClusterResource(MetaDataAPIGWResource):
     method = "POST"
 
     class RequestSerializer(serializers.Serializer):
+        default_settings = serializers.JSONField(required=False, label="默认集群配置")
         cluster_name = serializers.CharField(label="集群名称")
         cluster_type = serializers.CharField(label="集群类型")
         domain = serializers.CharField(label="集群域名")
@@ -1079,14 +1080,14 @@ class UpdateRegisteredClusterResource(MetaDataAPIGWResource):
     class RequestSerializer(serializers.Serializer):
         cluster_id = serializers.IntegerField(label="集群 ID")
         operator = serializers.CharField(label="创建者")
-        description = serializers.CharField(label="描述", default="", allow_blank=True)
-        username = serializers.CharField(label="访问集群的用户名", default="", allow_blank=True)
-        password = serializers.CharField(label="访问集群的密码", default="", allow_blank=True)
-        version = serializers.CharField(label="集群版本", default="", allow_blank=True)
-        schema = serializers.CharField(label="访问协议", default="", allow_blank=True)
-        is_ssl_verify = serializers.BooleanField(label="是否 ssl 验证", default=False)
-        label = serializers.CharField(label="标签", default="", allow_blank=True)
-        default_settings = serializers.JSONField(required=False, label="默认集群配置", default={})
+        description = serializers.CharField(required=False, label="描述", allow_blank=True)
+        username = serializers.CharField(required=False, label="访问集群的用户名", allow_blank=True)
+        password = serializers.CharField(required=False, label="访问集群的密码", allow_blank=True)
+        version = serializers.CharField(required=False, label="集群版本", allow_blank=True)
+        schema = serializers.CharField(required=False, label="访问协议", allow_blank=True)
+        is_ssl_verify = serializers.BooleanField(label="是否 ssl 验证", required=False)
+        label = serializers.CharField(required=False, label="标签", allow_blank=True)
+        default_settings = serializers.JSONField(required=False, label="默认集群配置")
 
 
 class CustomTimeSeriesDetailResource(MetaDataAPIGWResource):

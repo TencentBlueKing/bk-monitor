@@ -26,6 +26,7 @@ from bkm_space.api import SpaceApi
 from django.conf import settings
 
 from alarm_backends.constants import CONST_ONE_DAY
+from alarm_backends.core.cache.action_config import ActionConfigCacheManager
 from alarm_backends.core.cache.base import CacheManager
 from alarm_backends.core.cache.cmdb import (
     BusinessManager,
@@ -342,7 +343,7 @@ class StrategyCacheManager(CacheManager):
                     else:
                         query_config["agg_dimension"].extend(["bk_target_ip", "bk_target_cloud_id"])
 
-                query_config["agg_dimension"] = list(set(query_config["agg_dimension"]))
+                query_config["agg_dimension"] = sorted(set(query_config["agg_dimension"]))
 
             # 日志关键字告警按节点聚合需要使用bk_obj_id和bk_inst_id
             if data_source_label == DataSourceLabel.BK_MONITOR_COLLECTOR and data_type_label == DataTypeLabel.LOG:
@@ -1587,6 +1588,8 @@ class TargetShieldProcessor:
 
 
 def smart_refresh():
+    # 先刷新近期变更套餐，再发布增量策略，避免新策略先读到尚未更新的套餐缓存。
+    ActionConfigCacheManager.refresh(minutes=5)
     StrategyCacheManager.smart_refresh()
 
 

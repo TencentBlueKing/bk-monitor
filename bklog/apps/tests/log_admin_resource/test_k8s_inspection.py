@@ -1,10 +1,12 @@
 import json
 from types import SimpleNamespace
+from typing import Any
 from unittest.mock import MagicMock, call, patch
 
 from django.core.cache import caches
 from django.test import SimpleTestCase, override_settings
 from django.utils import timezone
+from kubernetes import client as k8s_client
 
 from apps.exceptions import PermissionError as BklogPermissionError
 from apps.exceptions import ValidationError
@@ -31,10 +33,13 @@ from apps.log_admin_resource.inspection_tasks import (
     ResourceInspectionTaskRecord,
 )
 from apps.log_admin_resource.k8s_inspection import (
+    BKLOG_CONFIG_CRD_NAME,
     COLLECTOR_CONTAINER_NAME,
     SIDECAR_CONTAINER_NAME,
     CollectorCandidate,
+    collector_child_config_hints,
     collector_daemon_set_contract,
+    crd_spec_schema,
     desired_config_evidence,
     discover_collector_candidates,
     discover_inspection_targets,
@@ -44,14 +49,20 @@ from apps.log_admin_resource.k8s_inspection import (
     target_config_matches,
     target_identity,
 )
-from apps.log_admin_resource.k8s_inspection_client import K8sInspectionClient, bounded_text
-from apps.log_admin_resource.k8s_probe import (
+from apps.log_admin_resource.k8s_inspection_client import K8sInspectionClient, bounded_text, object_to_dict
+from apps.log_admin_resource.collector_probe import (
+    MAX_PROBE_OUTPUT_BYTES,
+    PROBE_PROTOCOL,
     PROBE_SCRIPT_PATH,
-    FixedProbeError,
+    PROBE_VERSION,
+    parse_and_validate_probe_output,
     parse_probe_output,
+)
+from apps.log_admin_resource.k8s_probe import (
+    FixedProbeError,
     run_fixed_collector_probe,
 )
-from apps.log_admin_resource.k8s_probe_evidence import build_collector_file_log_probe, build_probe_evidence
+from apps.log_admin_resource.collector_probe_evidence import build_collector_file_log_probe, build_probe_evidence
 from apps.log_admin_resource.k8s_tasks import (
     _control_plane_probe,
     _load_bound_collector,
@@ -255,6 +266,106 @@ def business_target_expected():
     ]
 
 
+def crd_declaring(*fields, preserve_unknown=False):
+    spec_schema = {"type": "object", "properties": {name: {"type": "string"} for name in fields}}
+    if preserve_unknown:
+        spec_schema["x-kubernetes-preserve-unknown-fields"] = True
+    return {
+        "metadata": {"name": BKLOG_CONFIG_CRD_NAME},
+        "spec": {
+            "versions": [
+                # A served-but-not-storage version first: only the storage one describes what
+                # the apiserver actually persists.
+                {"name": "v1alpha1", "served": True, "storage": False, "schema": {"openAPIV3Schema": {}}},
+                {
+                    "name": "v1",
+                    "served": True,
+                    "storage": True,
+                    "schema": {"openAPIV3Schema": {"type": "object", "properties": {"spec": spec_schema}}},
+                },
+            ]
+        },
+    }
+
+
+def typed_v1_crd_declaring(*fields):
+    spec_schema = k8s_client.V1JSONSchemaProps(
+        type="object",
+        properties={name: k8s_client.V1JSONSchemaProps(type="string") for name in fields},
+    )
+    validation = k8s_client.V1CustomResourceValidation(
+        open_apiv3_schema=k8s_client.V1JSONSchemaProps(
+            type="object",
+            properties={"spec": spec_schema},
+        )
+    )
+    return object_to_dict(
+        k8s_client.V1CustomResourceDefinition(
+            api_version="apiextensions.k8s.io/v1",
+            kind="CustomResourceDefinition",
+            metadata=k8s_client.V1ObjectMeta(name=BKLOG_CONFIG_CRD_NAME),
+            spec=k8s_client.V1CustomResourceDefinitionSpec(
+                group="bk.tencent.com",
+                names=k8s_client.V1CustomResourceDefinitionNames(
+                    kind="BkLogConfig",
+                    plural="bklogconfigs",
+                ),
+                preserve_unknown_fields=False,
+                scope="Namespaced",
+                versions=[
+                    k8s_client.V1CustomResourceDefinitionVersion(
+                        name="v1alpha1",
+                        served=True,
+                        storage=True,
+                        schema=validation,
+                    )
+                ],
+            ),
+        )
+    )
+
+
+def typed_v1beta1_crd_declaring(*fields, preserve_unknown=False):
+    spec_schema = k8s_client.V1beta1JSONSchemaProps(
+        type="object",
+        properties={name: k8s_client.V1beta1JSONSchemaProps(type="string") for name in fields},
+    )
+    return object_to_dict(
+        k8s_client.V1beta1CustomResourceDefinition(
+            api_version="apiextensions.k8s.io/v1beta1",
+            kind="CustomResourceDefinition",
+            metadata=k8s_client.V1ObjectMeta(name=BKLOG_CONFIG_CRD_NAME),
+            spec=k8s_client.V1beta1CustomResourceDefinitionSpec(
+                group="bk.tencent.com",
+                names=k8s_client.V1CustomResourceDefinitionNames(
+                    kind="BkLogConfig",
+                    plural="bklogconfigs",
+                ),
+                preserve_unknown_fields=preserve_unknown,
+                scope="Namespaced",
+                validation=k8s_client.V1beta1CustomResourceValidation(
+                    open_apiv3_schema=k8s_client.V1beta1JSONSchemaProps(
+                        type="object",
+                        properties={"spec": spec_schema},
+                    )
+                ),
+                version="v1alpha1",
+                versions=[
+                    k8s_client.V1beta1CustomResourceDefinitionVersion(
+                        name="v1alpha1",
+                        served=True,
+                        storage=True,
+                    )
+                ],
+            ),
+        )
+    )
+
+
+def expected_config(spec):
+    return [{"name": "demo-2-44", "container_config_id": 44, "spec": spec, "safe_spec": dict(spec)}]
+
+
 def candidate(**overrides):
     values = {
         "cluster_id": "BCS-K8S-1",
@@ -270,6 +381,20 @@ def candidate(**overrides):
     }
     values.update(overrides)
     return CollectorCandidate(**values)
+
+
+def valid_probe_output() -> str:
+    return "\n".join(
+        [
+            f"BKLOG_KV\tprotocol\t{PROBE_PROTOCOL}",
+            f"BKLOG_KV\tprobe_version\t{PROBE_VERSION}",
+            "BKLOG_KV\tmanifest_kv_count\t2",
+            "BKLOG_KV\tmanifest_stream_count\t0",
+            f"BKLOG_KV\toutput_budget_bytes\t{MAX_PROBE_OUTPUT_BYTES}",
+            "BKLOG_KV\toutput_budget_exhausted\tfalse",
+            "BKLOG_KV\tcompleted\ttrue",
+        ]
+    )
 
 
 @override_settings(CACHES=TEST_CACHES, BK_APP_TENANT_ID="tenant-a", ENVIRONMENT="bkte")
@@ -697,6 +822,214 @@ class K8sInspectionDomainTest(SimpleTestCase):
         self.assertNotIn("password", json.dumps(result["items"][0]["safe_expected_spec"]))
         self.assertEqual(result["required_bk_envs"], ["bkte"])
 
+    def test_crd_schema_reads_typed_v1_sdk_shape(self):
+        crd = typed_v1_crd_declaring(
+            "dataId",
+            "addPodLabel",
+            "addPodAnnotation",
+            "annotationSelector",
+            "exclude_files",
+        )
+
+        self.assertIn("open_apiv3_schema", crd["spec"]["versions"][0]["schema"])
+        declared_fields, preserve_unknown = crd_spec_schema(crd)
+
+        self.assertEqual(
+            declared_fields,
+            frozenset({"dataId", "addPodLabel", "addPodAnnotation", "annotationSelector", "exclude_files"}),
+        )
+        self.assertFalse(preserve_unknown)
+
+        evidence = desired_config_evidence(
+            expected=expected_config({"dataId": 1001}),
+            actual_items=[{"metadata": {"name": "demo-2-44"}, "spec": {"dataId": 1001}}],
+            configured_namespace="default",
+            crd=crd,
+        )["crd_schema"]
+        self.assertEqual(evidence["source"], "storage_version")
+        self.assertEqual(evidence["storage_version"], "v1alpha1")
+        self.assertIsNone(evidence["unreadable_reason"])
+
+    def test_crd_schema_reads_typed_v1beta1_legacy_validation_shape(self):
+        crd = typed_v1beta1_crd_declaring("dataId", "addPodAnnotation")
+
+        self.assertIn("open_apiv3_schema", crd["spec"]["validation"])
+        declared_fields, preserve_unknown = crd_spec_schema(crd)
+
+        self.assertEqual(declared_fields, frozenset({"dataId", "addPodAnnotation"}))
+        self.assertFalse(preserve_unknown)
+
+        evidence = desired_config_evidence(
+            expected=expected_config({"dataId": 1001}),
+            actual_items=[{"metadata": {"name": "demo-2-44"}, "spec": {"dataId": 1001}}],
+            configured_namespace="default",
+            crd=crd,
+        )["crd_schema"]
+        self.assertEqual(evidence["source"], "legacy_validation")
+        self.assertEqual(evidence["storage_version"], "v1alpha1")
+        self.assertIsNone(evidence["unreadable_reason"])
+
+    def test_control_plane_respects_typed_crd_top_level_preserve_unknown_fields(self):
+        expected = expected_config({"dataId": 1001, "addPodAnnotation": True})
+        actual = {"metadata": {"name": "demo-2-44"}, "spec": {"dataId": 1001}}
+
+        result = desired_config_evidence(
+            expected=expected,
+            actual_items=[actual],
+            configured_namespace="default",
+            crd=typed_v1beta1_crd_declaring("dataId", preserve_unknown=True),
+        )
+
+        self.assertEqual(result["items"][0]["difference_reasons"]["schema_pruned"], [])
+        self.assertEqual(result["items"][0]["difference_reasons"]["value_drift"], ["$.addPodAnnotation"])
+        self.assertTrue(result["crd_schema"]["preserves_unknown_fields"])
+        self.assertEqual(result["crd_schema"]["unsupported_platform_fields"], [])
+
+    def test_control_plane_names_the_fields_an_outdated_crd_silently_prunes(self):
+        expected = expected_config(
+            {
+                "dataId": 1001,
+                "path": ["/data/*.log"],
+                "addPodAnnotation": True,
+                "exclude_files": ["/data/skip.log"],
+                "annotationSelector": {"matchExpressions": []},
+            }
+        )
+        actual = {"metadata": {"name": "demo-2-44"}, "spec": {"dataId": 1001, "path": ["/data/*.log"]}}
+
+        result = desired_config_evidence(
+            expected=expected,
+            actual_items=[actual],
+            configured_namespace="default",
+            crd=crd_declaring("dataId", "path"),
+        )
+
+        reasons = result["items"][0]["difference_reasons"]
+        self.assertEqual(sorted(reasons["schema_pruned"]), ["$.addPodAnnotation", "$.exclude_files"])
+        self.assertEqual(reasons["value_drift"], [])
+        self.assertFalse(result["all_material_match"])
+        self.assertEqual(result["crd_schema"]["pruned_fields_in_use"], ["addPodAnnotation", "exclude_files"])
+        # The cluster gap is wider than the fields that actually hurt this config: an empty
+        # annotationSelector changes nothing today but would be dropped just the same.
+        self.assertEqual(
+            result["crd_schema"]["unsupported_platform_fields"],
+            ["addPodAnnotation", "annotationSelector", "exclude_files"],
+        )
+
+    def test_control_plane_flags_a_field_the_delivery_side_only_just_started_sending(self):
+        # The gap list is derived from the outgoing specs, so a field added on the delivery
+        # side is covered the day it ships without anyone updating this module.
+        expected = expected_config({"dataId": 1001, "brandNewOption": "enabled"})
+        actual = {"metadata": {"name": "demo-2-44"}, "spec": {"dataId": 1001}}
+
+        result = desired_config_evidence(
+            expected=expected,
+            actual_items=[actual],
+            configured_namespace="default",
+            crd=crd_declaring("dataId"),
+        )
+
+        self.assertEqual(result["crd_schema"]["unsupported_platform_fields"], ["brandNewOption"])
+        self.assertEqual(result["crd_schema"]["pruned_fields_in_use"], ["brandNewOption"])
+        self.assertFalse(result["all_material_match"])
+
+    def test_control_plane_still_reports_real_drift_when_the_crd_declares_the_field(self):
+        expected = expected_config({"dataId": 1001, "path": ["/data/*.log"]})
+        actual = {"metadata": {"name": "demo-2-44"}, "spec": {"dataId": 1001, "path": ["/data/other.log"]}}
+
+        result = desired_config_evidence(
+            expected=expected,
+            actual_items=[actual],
+            configured_namespace="default",
+            crd=crd_declaring("dataId", "path"),
+        )
+
+        reasons = result["items"][0]["difference_reasons"]
+        self.assertEqual(reasons["value_drift"], ["$.path[0]"])
+        self.assertEqual(reasons["schema_pruned"], [])
+        self.assertFalse(result["all_material_match"])
+        self.assertEqual(result["crd_schema"]["pruned_fields_in_use"], [])
+
+    def test_control_plane_does_not_blame_the_schema_when_it_keeps_unknown_fields(self):
+        expected = expected_config({"dataId": 1001, "addPodAnnotation": True})
+        actual = {"metadata": {"name": "demo-2-44"}, "spec": {"dataId": 1001}}
+
+        result = desired_config_evidence(
+            expected=expected,
+            actual_items=[actual],
+            configured_namespace="default",
+            crd=crd_declaring("dataId", preserve_unknown=True),
+        )
+
+        reasons = result["items"][0]["difference_reasons"]
+        # The apiserver stores undeclared fields here, so a missing one is a delivery problem
+        # and pointing at the CRD would send the operator to upgrade something that works.
+        self.assertEqual(reasons["value_drift"], ["$.addPodAnnotation"])
+        self.assertEqual(reasons["schema_pruned"], [])
+        self.assertEqual(result["crd_schema"]["unsupported_platform_fields"], [])
+        self.assertTrue(result["crd_schema"]["preserves_unknown_fields"])
+
+    def test_control_plane_ignores_pruned_fields_that_ask_the_collector_for_nothing(self):
+        expected = expected_config(
+            {
+                "dataId": 1001,
+                "exclude_files": [],
+                "annotationSelector": {"matchExpressions": []},
+                "addPodAnnotation": False,
+            }
+        )
+        actual = {"metadata": {"name": "demo-2-44"}, "spec": {"dataId": 1001}}
+
+        result = desired_config_evidence(
+            expected=expected,
+            actual_items=[actual],
+            configured_namespace="default",
+            crd=crd_declaring("dataId"),
+        )
+
+        reasons = result["items"][0]["difference_reasons"]
+        self.assertEqual(
+            sorted(reasons["ignorable"]),
+            ["$.addPodAnnotation", "$.annotationSelector", "$.exclude_files"],
+        )
+        self.assertEqual(reasons["schema_pruned"], [])
+        self.assertEqual(reasons["value_drift"], [])
+        self.assertFalse(result["all_exact_match"])
+        self.assertTrue(result["all_material_match"])
+        self.assertEqual(result["crd_schema"]["pruned_fields_in_use"], [])
+
+    def test_control_plane_makes_no_schema_claim_when_the_crd_cannot_be_parsed(self):
+        expected = expected_config({"dataId": 1001, "addPodAnnotation": True})
+        actual = {"metadata": {"name": "demo-2-44"}, "spec": {"dataId": 1001}}
+
+        result = desired_config_evidence(
+            expected=expected, actual_items=[actual], configured_namespace="default", crd={"spec": {}}
+        )
+
+        reasons = result["items"][0]["difference_reasons"]
+        # An unreadable schema looks exactly like one missing every field. Guessing here would
+        # tell operators to upgrade a CRD that may already be current.
+        self.assertEqual(reasons["value_drift"], ["$.addPodAnnotation"])
+        self.assertEqual(reasons["schema_pruned"], [])
+        self.assertFalse(result["crd_schema"]["readable"])
+        self.assertEqual(result["crd_schema"]["unreadable_reason"], "crd_spec_missing")
+        self.assertEqual(result["crd_schema"]["unsupported_platform_fields"], [])
+
+    def test_control_plane_explains_missing_storage_version_schema(self):
+        expected = expected_config({"dataId": 1001, "addPodAnnotation": True})
+        actual = {"metadata": {"name": "demo-2-44"}, "spec": {"dataId": 1001}}
+
+        result = desired_config_evidence(
+            expected=expected,
+            actual_items=[actual],
+            configured_namespace="default",
+            crd={"spec": {"versions": [{"name": "v1alpha1", "served": True, "storage": True}]}},
+        )
+
+        self.assertFalse(result["crd_schema"]["readable"])
+        self.assertEqual(result["crd_schema"]["storage_version"], "v1alpha1")
+        self.assertEqual(result["crd_schema"]["unreadable_reason"], "schema_missing")
+
     def test_business_pod_target_matches_actual_config_without_exposing_env(self):
         target = {
             "type": "pod_container",
@@ -951,24 +1284,31 @@ class K8sInspectionClientTest(SimpleTestCase):
 
 
 class FixedK8sProbeTest(SimpleTestCase):
-    def test_script_accepts_no_arguments_and_performs_no_file_writes(self):
+    def test_script_accepts_only_typed_server_arguments_and_performs_no_file_writes(self):
         script = PROBE_SCRIPT_PATH.read_text(encoding="utf-8")
 
-        self.assertIn("intentionally accepts no arguments", script)
-        self.assertIn('[ "$#" -ne 0 ]', script)
+        self.assertIn("accepts only server-controlled typed arguments", script)
+        self.assertIn('[ "$#" -ne 3 ]', script)
+        self.assertIn("TARGET_DATA_ID=$1", script)
+        self.assertIn("INCLUDE_SOURCE_SAMPLE=$2", script)
+        self.assertIn("TARGET_CONFIG_HINTS=$3", script)
         self.assertNotIn("$@", script)
         self.assertNotIn("/tmp", script)
         self.assertNotIn("mktemp", script)
         self.assertNotIn("kubectl", script)
         self.assertNotIn("eval ", script)
         self.assertNotIn(' > "', script)
-        self.assertNotIn('[ ! -L "$source_path" ]', script)
+        # A source must never be skipped for being a symlink. Only a path that is neither
+        # present nor a link is dropped, which keeps a dangling link reportable instead of
+        # indistinguishable from a path that was never configured. The resulting behaviour is
+        # covered by FixedRemoteScriptTest in test_host_inspection.
+        self.assertIn('if [ ! -e "$source_path" ] && [ ! -L "$source_path" ]; then', script)
 
     def test_line_protocol_parser_reconstructs_bounded_streams(self):
         parsed = parse_probe_output(
             "\n".join(
                 [
-                    "BKLOG_KV\tprotocol\tbklog.collector.k8s_inspection.probe.v1",
+                    "BKLOG_KV\tprotocol\tbklog.collector.inspection.probe.v1",
                     "BKLOG_STREAM\tmain_config\t/data/etc/bkunifylogbeat.conf\t10\t10\tfalse",
                     "BKLOG_LINE\tmain_config\tpath.data: /data/lib/",
                     "BKLOG_END_STREAM\tmain_config",
@@ -976,14 +1316,14 @@ class FixedK8sProbeTest(SimpleTestCase):
             )
         )
 
-        self.assertEqual(parsed["values"]["protocol"], "bklog.collector.k8s_inspection.probe.v1")
+        self.assertEqual(parsed["values"]["protocol"], "bklog.collector.inspection.probe.v1")
         self.assertEqual(parsed["streams"]["main_config"]["content"], "path.data: /data/lib/")
 
     def test_base64_protocol_preserves_exact_stream_bytes(self):
         parsed = parse_probe_output(
             "\n".join(
                 [
-                    "BKLOG_STREAM\tmain_config\t/data/etc/bkunifylogbeat.conf\t17\t17\tfalse",
+                    "BKLOG_STREAM\tmain_config\t/data/etc/bkunifylogbeat.conf\t17\t17\tfalse\t24",
                     "BKLOG_B64\tmain_config\tcGF0aC5kYXRhOiAvZGF0YS8K",
                     "BKLOG_END_STREAM\tmain_config",
                 ]
@@ -1003,9 +1343,7 @@ class FixedK8sProbeTest(SimpleTestCase):
         response = MagicMock()
         response.is_open.side_effect = [True, False, False, False]
         response.peek_stdout.return_value = True
-        response.read_stdout.return_value = (
-            "BKLOG_KV\tprotocol\tbklog.collector.k8s_inspection.probe.v1\nBKLOG_KV\tcompleted\ttrue\n"
-        )
+        response.read_stdout.return_value = valid_probe_output()
         response.peek_stderr.return_value = False
         response.returncode = 0
         mock_stream.return_value = response
@@ -1013,20 +1351,55 @@ class FixedK8sProbeTest(SimpleTestCase):
             bcs=SimpleNamespace(api_instance_core_v1=SimpleNamespace(connect_get_namespaced_pod_exec=object()))
         )
 
-        result = run_fixed_collector_probe(client, candidate())
+        result = run_fixed_collector_probe(
+            client,
+            candidate(),
+            bk_data_id=1001,
+            include_source_sample=False,
+            child_config_hints=(value for value in ["node_log_config_default_demo-node.conf"]),
+        )
 
         kwargs = mock_stream.call_args.kwargs
         self.assertEqual(kwargs["container"], COLLECTOR_CONTAINER_NAME)
-        self.assertEqual(kwargs["command"], ["/bin/sh", "-s"])
+        self.assertEqual(
+            kwargs["command"],
+            ["/bin/sh", "-s", "--", "1001", "0", "node_log_config_default_demo-node.conf"],
+        )
         self.assertEqual(kwargs["name"], "collector-node-a")
-        self.assertEqual(result["values"]["protocol"], "bklog.collector.k8s_inspection.probe.v1")
+        self.assertEqual(result["values"]["protocol"], "bklog.collector.inspection.probe.v1")
+        self.assertEqual(result["metadata"]["child_config_hint_count"], 1)
+
+    def test_sidecar_config_hints_are_stable_suffixes_for_node_and_pod_targets(self):
+        expected = [
+            {"name": "demo-node", "container_config_id": 44, "collector_type": ContainerCollectorType.NODE},
+            {
+                "name": "demo-container",
+                "container_config_id": 45,
+                "collector_type": ContainerCollectorType.CONTAINER,
+            },
+        ]
+
+        node_hints = collector_child_config_hints({"type": "node", "matched_container_config_ids": [44]}, expected)
+        pod_hints = collector_child_config_hints(
+            {
+                "type": "pod_container",
+                "matched_container_config_ids": [45],
+                "container": {"container_id": "containerd://abc123"},
+            },
+            expected,
+        )
+
+        self.assertEqual(node_hints, ["node_log_config_default_demo-node.conf"])
+        self.assertEqual(pod_hints, ["abc123_container_log_config_default_demo-container.conf"])
 
     @patch("apps.log_admin_resource.k8s_probe.stream")
     def test_exec_rejects_protocol_header_without_completion_marker(self, mock_stream):
         response = MagicMock()
         response.is_open.side_effect = [True, False, False, False]
         response.peek_stdout.return_value = True
-        response.read_stdout.return_value = "BKLOG_KV\tprotocol\tbklog.collector.k8s_inspection.probe.v1\n"
+        response.read_stdout.return_value = (
+            f"BKLOG_KV\tprotocol\t{PROBE_PROTOCOL}\nBKLOG_KV\tprobe_version\t{PROBE_VERSION}\n"
+        )
         response.peek_stderr.return_value = False
         response.returncode = 0
         mock_stream.return_value = response
@@ -1035,14 +1408,16 @@ class FixedK8sProbeTest(SimpleTestCase):
         )
 
         with self.assertRaisesRegex(FixedProbeError, "completion marker"):
-            run_fixed_collector_probe(client, candidate())
+            run_fixed_collector_probe(client, candidate(), bk_data_id=1001, include_source_sample=False)
 
     @patch("apps.log_admin_resource.k8s_probe.stream")
     def test_exec_reports_missing_shell_as_dependency_degradation(self, mock_stream):
         response = MagicMock()
         response.is_open.side_effect = [True, False, False, False]
         response.peek_stdout.return_value = True
-        response.read_stdout.return_value = "BKLOG_KV\tprotocol\tbklog.collector.k8s_inspection.probe.v1\n"
+        response.read_stdout.return_value = (
+            f"BKLOG_KV\tprotocol\t{PROBE_PROTOCOL}\nBKLOG_KV\tprobe_version\t{PROBE_VERSION}\n"
+        )
         response.peek_stderr.return_value = True
         response.read_stderr.return_value = "/bin/sh: not found"
         response.returncode = 127
@@ -1052,14 +1427,58 @@ class FixedK8sProbeTest(SimpleTestCase):
         )
 
         with self.assertRaisesRegex(FixedProbeError, "probe dependency") as context:
-            run_fixed_collector_probe(client, candidate())
+            run_fixed_collector_probe(client, candidate(), bk_data_id=1001, include_source_sample=False)
         self.assertEqual(context.exception.code, "probe_dependency_missing")
 
     def test_fixed_script_static_raw_budget_stays_below_transport_limit(self):
         script = PROBE_SCRIPT_PATH.read_text(encoding="utf-8")
         self.assertIn("MAX_CHILD_CONFIG_BYTES=65536", script)
+        self.assertIn('-name "$hint" -o -name "*_$hint"', script)
         self.assertIn("MAX_REGISTRAR_BYTES=524288", script)
+        self.assertIn(f"OUTPUT_BUDGET_BYTES={MAX_PROBE_OUTPUT_BYTES}", script)
         self.assertIn("BKLOG_B64", script)
+
+    def test_probe_manifest_rejects_a_whole_stream_removed_from_the_middle(self):
+        output = valid_probe_output().replace(
+            "BKLOG_KV\tmanifest_stream_count\t0", "BKLOG_KV\tmanifest_stream_count\t1"
+        )
+
+        with self.assertRaisesRegex(FixedProbeError, "stream manifest"):
+            parse_and_validate_probe_output(output)
+
+    def test_probe_manifest_rejects_truncated_base64_stream(self):
+        output = "\n".join(
+            [
+                f"BKLOG_KV\tprotocol\t{PROBE_PROTOCOL}",
+                f"BKLOG_KV\tprobe_version\t{PROBE_VERSION}",
+                "BKLOG_STREAM\tmain_config\t/data/etc/bkunifylogbeat.conf\t3\t3\tfalse\t4",
+                "BKLOG_B64\tmain_config\tYW",
+                "BKLOG_END_STREAM\tmain_config",
+                "BKLOG_KV\tmanifest_kv_count\t2",
+                "BKLOG_KV\tmanifest_stream_count\t1",
+                f"BKLOG_KV\toutput_budget_bytes\t{MAX_PROBE_OUTPUT_BYTES}",
+                "BKLOG_KV\toutput_budget_exhausted\tfalse",
+                "BKLOG_KV\tcompleted\ttrue",
+            ]
+        )
+
+        with self.assertRaises(FixedProbeError):
+            parse_and_validate_probe_output(output)
+
+    def test_probe_rejects_output_above_the_transport_safe_budget(self):
+        output = valid_probe_output() + ("x" * MAX_PROBE_OUTPUT_BYTES)
+
+        with self.assertRaisesRegex(FixedProbeError, "4 MiB"):
+            parse_and_validate_probe_output(output)
+
+    def test_probe_accepts_the_exact_transport_safe_budget_boundary(self):
+        valid = valid_probe_output()
+        filler = "x" * (MAX_PROBE_OUTPUT_BYTES - len(valid.encode("utf-8")) - 1)
+        output = f"{filler}\n{valid}"
+
+        parsed = parse_and_validate_probe_output(output)
+
+        self.assertEqual(parsed["returned_size_bytes"], MAX_PROBE_OUTPUT_BYTES)
 
     def test_probe_evidence_filters_rendered_config_by_data_id_and_explicit_source(self):
         config = """local:
@@ -1073,7 +1492,7 @@ class FixedK8sProbeTest(SimpleTestCase):
         registrar = '{"source":"/var/host/data/app.log","offset":10,"FileStateOS":{"inode":7,"device":8}}'
         parsed = {
             "values": {
-                "protocol": "bklog.collector.k8s_inspection.probe.v1",
+                "protocol": "bklog.collector.inspection.probe.v1",
                 "main_config_path": "/data/etc/bkunifylogbeat.conf",
                 "first.source_count": "1",
                 "first.source.0.pattern": "/var/host/data/*.log",
@@ -1087,14 +1506,14 @@ class FixedK8sProbeTest(SimpleTestCase):
                 "second.source.0.device": "8",
                 "second.source.0.inode": "7",
                 "second.source.0.size_bytes": "30",
-                "first.process_pid": "1",
-                "first.start_ticks": "10",
-                "first.cpu_ticks": "10",
-                "first.rss_pages": "2",
-                "second.process_pid": "1",
-                "second.start_ticks": "10",
-                "second.cpu_ticks": "20",
-                "second.rss_pages": "3",
+                "first.collector.process_pid": "1",
+                "first.collector.start_ticks": "10",
+                "first.collector.cpu_ticks": "10",
+                "first.collector.rss_pages": "2",
+                "second.collector.process_pid": "1",
+                "second.collector.start_ticks": "10",
+                "second.collector.cpu_ticks": "20",
+                "second.collector.rss_pages": "3",
                 "page_size": "4096",
                 "observation_seconds": "5",
                 "observation_required_seconds": "4",
@@ -1139,12 +1558,16 @@ class FixedK8sProbeTest(SimpleTestCase):
             source="/var/host/data/app.log",
             include_source_sample=True,
             config_map_main="path.data: /data/lib\n",
-            expected_specs=[{"path": ["/var/host/data/*.log"]}],
+            expected_specs=[
+                {"logConfigType": ContainerCollectorType.NODE, "path": ["/var/host/data/*.log"]},
+            ],
         )
 
         config_evidence = probes["main_config_mounted"]["evidence"]
         self.assertEqual(config_evidence["matching_patterns"], ["/var/host/data/*.log"])
         self.assertTrue(config_evidence["render_comparison"]["equivalent"])
+        # Node collection names a host path in the CRD, so path stays comparable.
+        self.assertIn("path", config_evidence["render_comparison"]["compared_fields"])
         self.assertEqual(config_evidence["child_configs"][0]["mtime_epoch"], 100)
         self.assertNotIn("/var/host/other", json.dumps(config_evidence))
         self.assertEqual(probes["source_path"]["evidence"]["files"][0]["sample"]["lines"], ["one", "two"])
@@ -1156,6 +1579,147 @@ class FixedK8sProbeTest(SimpleTestCase):
             "4096",
         )
         self.assertEqual(probes["sidecar_process"]["evidence"]["delta"]["threads"], 1)
+
+    @staticmethod
+    def _stdout_render_parsed(*container_logs: str) -> dict[str, Any]:
+        rendered = "".join(
+            f"  - dataid: 1001\n    paths: ['{path}']\n    docker-json: {{cri_flags: true, stream: all}}\n"
+            for path in container_logs
+        )
+        return {
+            "values": {"first.source_count": "0", "second.source_count": "0"},
+            "streams": {
+                "child_config.0": {
+                    "path": "/data/etc/bkunifylogbeat/a.conf",
+                    "content": "local:\n" + rendered,
+                }
+            },
+        }
+
+    def _render_comparison(self, parsed: dict[str, Any], expected_specs: list[dict[str, Any]]) -> dict[str, Any]:
+        probes = build_probe_evidence(
+            parsed,
+            bk_data_id=1001,
+            source=None,
+            include_source_sample=False,
+            config_map_main=None,
+            expected_specs=expected_specs,
+        )
+        return probes["main_config_mounted"]
+
+    def test_render_comparison_skips_sidecar_translated_path_for_stdout(self):
+        container_log = (
+            "/var/host/data/bcs/lib/docker/containers/"
+            "5307d87087fcd13941ffe974a71c1ab47a833995647ce774e891ad9cefc648d3/"
+            "5307d87087fcd13941ffe974a71c1ab47a833995647ce774e891ad9cefc648d3-json.log"
+        )
+
+        probe = self._render_comparison(
+            self._stdout_render_parsed(container_log),
+            [
+                {
+                    "logConfigType": ContainerCollectorType.STDOUT,
+                    "path": [""],
+                    "exclude_files": [],
+                    "multiline": {"pattern": None, "maxLines": None, "timeout": None},
+                }
+            ],
+        )
+        comparison = probe["evidence"]["render_comparison"]
+
+        # A stdout spec carries no path; the sidecar resolves it to the host-side container
+        # log. Comparing the two verbatim reported a drift on every healthy inspection, as did
+        # reading an explicitly empty exclude_files or an all-null multiline as a difference.
+        self.assertTrue(comparison["equivalent"])
+        self.assertEqual(probe["code"], "child_config_rendered")
+        self.assertNotIn("path", comparison["compared_fields"])
+        self.assertEqual(comparison["skipped_fields"][0]["field"], "path")
+        self.assertEqual(comparison["skipped_fields"][0]["reason"], "path_translated_by_sidecar")
+
+    def test_render_comparison_keeps_a_real_encoding_difference(self):
+        probe = self._render_comparison(
+            self._stdout_render_parsed("/var/host/data/bcs/lib/docker/containers/abc/abc-json.log"),
+            [{"logConfigType": ContainerCollectorType.STDOUT, "path": [""], "encoding": "GBK"}],
+        )
+        comparison = probe["evidence"]["render_comparison"]
+
+        # The rendered input carries no encoding at all, which is a genuine signal and has to
+        # survive the normalisation that silences the empty-versus-absent noise.
+        self.assertFalse(comparison["equivalent"])
+        self.assertEqual([item["field"] for item in comparison["differences"]], ["encoding"])
+        self.assertEqual(probe["code"], "child_config_rendered_drift")
+
+    def test_render_comparison_collapses_one_spec_rendered_into_many_inputs(self):
+        parsed = self._stdout_render_parsed(
+            "/var/host/data/bcs/lib/docker/containers/aaa/aaa-json.log",
+            "/var/host/data/bcs/lib/docker/containers/bbb/bbb-json.log",
+        )
+        parsed["streams"]["child_config.0"]["content"] = parsed["streams"]["child_config.0"]["content"].replace(
+            "docker-json: {cri_flags: true, stream: all}",
+            "docker-json: {cri_flags: true, stream: all}\n    encoding: UTF-8",
+        )
+
+        probe = self._render_comparison(
+            parsed,
+            [{"logConfigType": ContainerCollectorType.STDOUT, "path": [""], "encoding": "UTF-8"}],
+        )
+        comparison = probe["evidence"]["render_comparison"]
+
+        # One spec matching two containers renders two inputs. Comparing the per-spec and
+        # per-input lists would differ on length alone even though every value agrees.
+        self.assertTrue(comparison["equivalent"])
+
+    def test_render_comparison_compares_path_for_container_collection(self):
+        parsed = {
+            "values": {"first.source_count": "0", "second.source_count": "0"},
+            "streams": {
+                "child_config.0": {
+                    "path": "/data/etc/bkunifylogbeat/a.conf",
+                    "content": (
+                        "local:\n"
+                        "  - dataid: 1001\n"
+                        "    paths: ['/data/app/*.log']\n"
+                        "    root_fs: /var/host/var/lib/docker/overlay2/abc/merged\n"
+                        "    mounts:\n"
+                        "      - {container_path: /data/app, host_path: /var/host/var/lib/kubelet/pods/uid/x}\n"
+                    ),
+                }
+            },
+        }
+
+        probe = self._render_comparison(
+            parsed,
+            [{"logConfigType": ContainerCollectorType.CONTAINER, "path": ["/data/app/*.log"]}],
+        )
+        comparison = probe["evidence"]["render_comparison"]
+
+        # Container collection keeps the configured path verbatim and maps it through mounts and
+        # root_fs, so the path stays comparable and skipping it would drop a real drift signal.
+        self.assertIn("path", comparison["compared_fields"])
+        self.assertEqual(comparison["skipped_fields"], [])
+        self.assertTrue(comparison["equivalent"])
+
+    def test_render_comparison_still_reports_a_node_path_drift(self):
+        parsed = {
+            "values": {"first.source_count": "0", "second.source_count": "0"},
+            "streams": {
+                "child_config.0": {
+                    "path": "/data/etc/bkunifylogbeat/a.conf",
+                    "content": "local:\n  - dataid: 1001\n    paths: ['/var/host/data/actual.log']\n",
+                }
+            },
+        }
+
+        probe = self._render_comparison(
+            parsed,
+            [{"logConfigType": ContainerCollectorType.NODE, "path": ["/var/host/data/expected.log"]}],
+        )
+        comparison = probe["evidence"]["render_comparison"]
+
+        self.assertFalse(comparison["equivalent"])
+        self.assertEqual(comparison["differences"][0]["field"], "path")
+        self.assertEqual(comparison["differences"][0]["expected"], ["/var/host/data/expected.log"])
+        self.assertEqual(comparison["differences"][0]["actual"], ["/var/host/data/actual.log"])
 
     def test_probe_evidence_rejects_source_outside_selected_data_id(self):
         parsed = {
@@ -1177,6 +1741,193 @@ class FixedK8sProbeTest(SimpleTestCase):
         )
 
         self.assertEqual(probes["source_path"]["code"], "source_not_in_rendered_config")
+
+    def test_probe_evidence_reports_sample_omitted_by_output_budget(self):
+        parsed = {
+            "values": {
+                "first.source_count": "1",
+                "first.source.0.pattern": "/data/*.log",
+                "first.source.0.path": "/data/app.log",
+                "second.source_count": "1",
+                "second.source.0.pattern": "/data/*.log",
+                "second.source.0.path": "/data/app.log",
+                "second.source.0.sample.unavailable": "output_budget_exhausted",
+            },
+            "streams": {
+                "child_config.0": {
+                    "path": "/data/etc/bkunifylogbeat/a.conf",
+                    "content": "local:\n  - dataid: 1001\n    paths: ['/data/*.log']\n",
+                }
+            },
+        }
+
+        probes = build_probe_evidence(
+            parsed,
+            bk_data_id=1001,
+            source="/data/app.log",
+            include_source_sample=True,
+            config_map_main=None,
+        )
+
+        source_probe = probes["source_path"]
+        self.assertEqual(
+            source_probe["evidence"]["files"][0]["sample"]["unavailable_reason"],
+            "output_budget_exhausted",
+        )
+        self.assertEqual(source_probe["warnings"][0]["code"], "source_sample_unavailable")
+
+    def test_probe_evidence_bounds_a_recursive_pattern_at_every_depth(self):
+        paths = [
+            "/var/host/vol/rec/depth0.log",
+            "/var/host/vol/rec/l1/depth1.log",
+            "/var/host/vol/rec/l1/l2/depth2.log",
+        ]
+        values = {}
+        for phase in ("first", "second"):
+            values[f"{phase}.source_count"] = str(len(paths))
+            for index, path in enumerate(paths):
+                values[f"{phase}.source.{index}.pattern"] = "/var/host/vol/rec/**/*.log"
+                values[f"{phase}.source.{index}.path"] = path
+                values[f"{phase}.source.{index}.inode"] = str(100 + index)
+                values[f"{phase}.source.{index}.device"] = "2049"
+        parsed = {
+            "values": values,
+            "streams": {
+                "child_config.0": {
+                    "path": "/data/etc/bkunifylogbeat/a.conf",
+                    "content": (
+                        "local:\n"
+                        "  - dataid: 1001\n"
+                        "    mounts:\n"
+                        "      - container_path: /data/rec\n"
+                        "        host_path: /var/host/vol/rec\n"
+                        "    paths: ['/data/rec/**/*.log']\n"
+                    ),
+                }
+            },
+        }
+
+        probes = build_probe_evidence(
+            parsed,
+            bk_data_id=1001,
+            source=None,
+            include_source_sample=False,
+            config_map_main=None,
+        )
+
+        source_probe = probes["source_path"]
+        # fnmatch does not treat / specially, so a literal ** matches every nested level but
+        # never the zero-level file, dropping the shallowest file the collector reads.
+        self.assertEqual([entry["first"]["path"] for entry in source_probe["evidence"]["files"]], paths)
+        # The allow-list itself stays in its configured form so the evidence remains readable.
+        self.assertEqual(source_probe["evidence"]["allowed_patterns"], ["/var/host/vol/rec/**/*.log"])
+
+    def test_probe_evidence_reports_a_source_whose_link_target_cannot_be_resolved(self):
+        parsed = {
+            "values": {
+                "first.source_count": "1",
+                "first.source.0.pattern": "/data/*.log",
+                "first.source.0.path": "/data/current.log",
+                "first.source.0.symlink": "true",
+                "first.source.0.symlink_target": "/data/app/real.log",
+                "first.source.0.unreadable": "true",
+                "second.source_count": "1",
+                "second.source.0.pattern": "/data/*.log",
+                "second.source.0.path": "/data/current.log",
+                "second.source.0.symlink": "true",
+                "second.source.0.unreadable": "true",
+            },
+            "streams": {
+                "child_config.0": {
+                    "path": "/data/etc/bkunifylogbeat/a.conf",
+                    "content": "local:\n  - dataid: 1001\n    paths: ['/data/*.log']\n",
+                }
+            },
+        }
+
+        probes = build_probe_evidence(
+            parsed,
+            bk_data_id=1001,
+            source=None,
+            include_source_sample=False,
+            config_map_main=None,
+        )
+
+        source_probe = probes["source_path"]
+        # An absolute link target is written from inside the collected container, so it rarely
+        # resolves in the collector namespace. The collector opens the same path from that same
+        # namespace, which makes this a real collection failure rather than a probe limitation.
+        self.assertEqual(source_probe["status"], "warning")
+        self.assertEqual(source_probe["code"], "source_unreadable")
+        self.assertEqual(source_probe["warnings"][0]["code"], "source_unreadable")
+        self.assertEqual(source_probe["warnings"][0]["paths"], ["/data/current.log"])
+        self.assertEqual(source_probe["evidence"]["files"][0]["first"]["symlink_target"], "/data/app/real.log")
+
+    def test_probe_evidence_requires_narrowing_when_remote_source_limit_is_exceeded(self):
+        parsed = {
+            "values": {
+                "source_narrowing_required": "true",
+                "first.source_count": "0",
+                "second.source_count": "0",
+            },
+            "streams": {
+                "child_config.0": {
+                    "path": "/data/etc/bkunifylogbeat/a.conf",
+                    "content": "local:\n  - dataid: 1001\n    paths: ['/data/allowed/*.log']\n",
+                }
+            },
+        }
+
+        probes = build_probe_evidence(
+            parsed,
+            bk_data_id=1001,
+            source=None,
+            include_source_sample=False,
+            config_map_main=None,
+        )
+
+        self.assertEqual(probes["source_path"]["status"], "warning")
+        self.assertEqual(probes["source_path"]["code"], "source_narrowing_required")
+
+        requested = build_probe_evidence(
+            parsed,
+            bk_data_id=1001,
+            source="/data/allowed/app.log",
+            include_source_sample=True,
+            config_map_main=None,
+        )
+        self.assertEqual(requested["source_path"]["code"], "source_narrowing_required")
+
+    def test_probe_evidence_reports_how_many_sources_the_limit_left_out(self):
+        parsed = {
+            "values": {
+                "source_narrowing_required": "true",
+                "first.source_count": "50",
+                "first.source_limit": "50",
+                "first.source_skipped_count": "412",
+                "second.source_count": "50",
+            },
+            "streams": {
+                "child_config.0": {
+                    "path": "/data/etc/bkunifylogbeat/a.conf",
+                    "content": "local:\n  - dataid: 1001\n    paths: ['/data/allowed/**/*.log']\n",
+                }
+            },
+        }
+
+        probes = build_probe_evidence(
+            parsed,
+            bk_data_id=1001,
+            source=None,
+            include_source_sample=False,
+            config_map_main=None,
+        )
+
+        evidence = probes["source_path"]["evidence"]
+        # Reporting only the 50 that fit leaves the operator guessing at the scale of the
+        # overflow, which is what decides whether narrowing by directory is even enough.
+        self.assertEqual(evidence["source_limit"], 50)
+        self.assertEqual(evidence["matched_count"], 462)
 
     def test_fixed_collector_file_logs_are_only_a_bounded_fallback(self):
         parsed = {
@@ -1347,6 +2098,50 @@ class K8sInspectionWorkerTest(SimpleTestCase):
         )
 
         self.assertEqual(required_envs, ["bkte"])
+
+    @patch("apps.log_admin_resource.k8s_tasks.BcsHandler.list_bcs_cluster", return_value=[])
+    def test_control_plane_blames_the_crd_when_the_cluster_cannot_store_a_sent_field(self, _clusters):
+        client = SimpleNamespace(
+            read_crd=lambda _name: crd_declaring("dataId", "path"),
+            list_bklog_configs=lambda _namespace: {
+                "items": [{"metadata": {"name": "demo-2-44"}, "spec": {"dataId": 1001, "path": ["/data/*.log"]}}]
+            },
+        )
+
+        result, _node_name, _envs = _control_plane_probe(
+            record={"request_options": {}},
+            collector=collector(),
+            expected=expected_config({"dataId": 1001, "path": ["/data/*.log"], "addPodAnnotation": True}),
+            client=client,
+        )
+
+        self.assertEqual(result["status"], "warning")
+        self.assertEqual(result["code"], "crd_schema_outdated")
+        self.assertEqual(result["evidence"]["crd"]["schema"]["pruned_fields_in_use"], ["addPodAnnotation"])
+        self.assertIn("upgrade the CRD", result["warnings"][-1]["message"])
+
+    @patch("apps.log_admin_resource.k8s_tasks.BcsHandler.list_bcs_cluster", return_value=[])
+    def test_control_plane_stays_clean_when_the_only_gap_asks_the_collector_for_nothing(self, _clusters):
+        client = SimpleNamespace(
+            read_crd=lambda _name: crd_declaring("dataId"),
+            list_bklog_configs=lambda _namespace: {
+                "items": [{"metadata": {"name": "demo-2-44"}, "spec": {"dataId": 1001}}]
+            },
+        )
+
+        result, _node_name, _envs = _control_plane_probe(
+            record={"request_options": {}},
+            collector=collector(),
+            expected=expected_config({"dataId": 1001, "exclude_files": []}),
+            client=client,
+        )
+
+        self.assertEqual(result["status"], "success")
+        self.assertEqual(result["code"], "control_plane_resolved")
+        self.assertNotIn("crd_schema_outdated", [warning["code"] for warning in result["warnings"]])
+        # The cluster still cannot store the field. Keeping that visible is what warns whoever
+        # later configures a real blacklist that it would silently do nothing.
+        self.assertIn("exclude_files", result["evidence"]["crd"]["schema"]["unsupported_platform_fields"])
 
     def test_pod_logs_read_only_fixed_collector_container_and_bound_total(self):
         calls = []

@@ -42,11 +42,11 @@ export default () => {
    * @param ignoreKeywodLength 是否忽略 keyword 长度，如果忽略，则不进行 keyword 的长度校验, 默认为 false
    * @returns
    */
-  const resolveQueryParams = ({ search_mode, addition, keyword }, ignoreKeywodLength = false) => {
+  const resolveQueryParams = ({ search_mode: searchMode, addition, keyword }, ignoreKeywodLength = false) => {
     // 此时说明来自旧版URL，同时带有 addition 和 keyword
     // 这种情况下需要将 addition 转换为 keyword 进行查询合并
     // 同时设置 search_mode 为 sql
-    if (!search_mode && addition?.length > 0 && (ignoreKeywodLength || keyword?.length > 0)) {
+    if (!searchMode && addition?.length > 0 && (ignoreKeywodLength || keyword?.length > 0)) {
       // 这里不好做同步请求，所以直接设置 search_mode 为 sql
       router.push({ query: { ...route.query, search_mode: 'sql', addition: '[]', tab: 'origin' } });
       const resolver = new RouteUrlResolver({ route, resolveFieldList: ['addition'] });
@@ -82,8 +82,8 @@ export default () => {
     return Promise.resolve(true);
   };
 
-  const resolveCommonParams = ({ search_mode, addition, keyword }) => {
-    if (!search_mode) {
+  const resolveCommonParams = ({ search_mode: searchMode, addition, keyword }) => {
+    if (!searchMode) {
       if (keyword?.length > 0 && addition.length < 4) {
         store.commit('updateIndexItemParams', { keyword, search_mode: 'sql' });
         return router.replace({ query: { ...route.query, keyword, addition: [] } });

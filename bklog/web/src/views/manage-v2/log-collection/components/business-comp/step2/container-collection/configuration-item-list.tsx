@@ -234,7 +234,7 @@ export default defineComponent({
     // 监听集群 ID 变化时获取命名空间列表
     watch(
       () => props.bcsClusterId,
-      (newVal) => {
+      newVal => {
         if (newVal) {
           getNameSpaceList(newVal);
         }

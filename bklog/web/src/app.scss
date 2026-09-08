@@ -212,6 +212,22 @@
     white-space: nowrap;
   }
 }
+// hack bk-table 多选筛选面板无高度限制，筛选项过多时弹层超出页面，与单选面板（250px）保持一致
+.tippy-tooltip .bk-table-filter-panel .panel-checkbox-group {
+  max-height: 250px;
+  overflow-y: auto;
+
+  &::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    min-height: 24px;
+    background-color: #dcdee5;
+    border-radius: 3px;
+  }
+}
 // hack vue-json-pretty
 .json-view-wrapper .vjs-value {
   word-break: break-all;

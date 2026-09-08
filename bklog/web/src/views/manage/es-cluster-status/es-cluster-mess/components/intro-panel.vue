@@ -50,8 +50,8 @@
       <div class="help-main">
         <div
           v-for="(item, index) of customTypeIntro"
-          class="help-md-container"
           :key="index"
+          class="help-md-container"
         >
           <div
             class="help-md"
@@ -86,8 +86,8 @@
       </div>
     </div>
     <bk-dialog
-      width="600"
       v-model="isShowDialog"
+      width="600"
       :mask-close="false"
       :title="$t('一键拉群')"
       header-position="left"
@@ -182,7 +182,7 @@
         // 创建新的群聊时带上本人和默认人员
         this.formDataAdmin = adminList.users.concat([this.userMeta.username]);
         // 用于存储本人和默认人员 不能进行删除
-        this.baseAdmin = structuredClonethis.formDataAdmin);
+        this.baseAdmin = structuredClone(this.formDataAdmin);
       },
       handleSubmitQWGroup() {
         const data = {

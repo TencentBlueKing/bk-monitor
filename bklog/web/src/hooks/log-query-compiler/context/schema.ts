@@ -17,7 +17,7 @@ export type FieldSchemaMap = Record<string, FieldSchemaItem>;
 
 export const buildSchemaMap = (fields: FieldSchemaItem[] = []): FieldSchemaMap => {
   const map: FieldSchemaMap = {};
-  fields.forEach((item) => {
+  fields.forEach(item => {
     if (item?.field_name) {
       map[item.field_name] = item;
     }

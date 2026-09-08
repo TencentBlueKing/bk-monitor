@@ -208,7 +208,23 @@ def _query_ts_schema(*, raw: bool = False, reference: bool = False, check: bool 
             }
         )
         required.append("down_sample_range")
-    return {"type": "object", "required": required, "properties": properties, "additionalProperties": False}
+    schema = {"type": "object", "required": required, "properties": properties, "additionalProperties": False}
+    if not any((raw, reference, check)):
+        schema["allOf"] = [
+            {
+                "if": {"required": ["response_contract"]},
+                "then": {"required": ["legacy_output_ref", "output_list"]},
+                "else": {
+                    "not": {
+                        "anyOf": [
+                            {"required": ["legacy_output_ref"]},
+                            {"required": ["output_list"]},
+                        ]
+                    }
+                },
+            }
+        ]
+    return schema
 
 
 def _relation_schema(*, ranged: bool) -> dict[str, Any]:
@@ -217,6 +233,14 @@ def _relation_schema(*, ranged: bool) -> dict[str, Any]:
         "source_type": {"type": "string"},
         "source_info": {"type": "object"},
         "path_resource": {"type": "array", "items": {"type": "string"}},
+        "target_info_show": {
+            "type": "boolean",
+            "description": "为 true 时展开目标资源扩展信息（如 container version）",
+        },
+        "look_back_delta": {
+            "type": "string",
+            "description": "instant 回看窗口，例如 1440m；未传则沿用 UQ 默认",
+        },
     }
     required = ["target_type", "source_info"]
     if ranged:
@@ -427,6 +451,7 @@ OPERATIONS = {
                         "target_type": "pod",
                         "source_type": "service",
                         "source_info": {"service_name": "api"},
+                        "target_info_show": True,
                     }
                 ]
             },
@@ -447,6 +472,7 @@ OPERATIONS = {
                         "target_type": "pod",
                         "source_type": "service",
                         "source_info": {"service_name": "api"},
+                        "target_info_show": True,
                     }
                 ]
             },

@@ -10,13 +10,13 @@ import { isSceneRetrieve } from '../helper.ts';
 import { mergeMenuWithDefaultConfig } from '../menu-config.ts';
 
 const cacheApi = (name, scope, data, meta = {}) => {
-  storeCacheService.setApiCache(name, scope || 'default', data, meta).catch((error) => {
+  storeCacheService.setApiCache(name, scope || 'default', data, meta).catch(error => {
     console.warn('[store-cache] cache api failed', name, error);
   });
 };
 
 export function userInfoAction({ commit }, params, config = {}) {
-  return http.request('userInfo/getUserInfo', { query: params, config }).then((response) => {
+  return http.request('userInfo/getUserInfo', { query: params, config }).then(response => {
     const userData = response.data || {};
     commit('updateState', { user: userData });
     cacheApi('userInfo/getUserInfo', 'current', userData);
@@ -25,14 +25,16 @@ export function userInfoAction({ commit }, params, config = {}) {
 }
 
 export function getMenuListAction(_, spaceUid) {
-  return http.request('meta/menu', {
-    query: {
-      space_uid: spaceUid,
-    },
-  }).then((res) => {
-    cacheApi('meta/menu/raw', spaceUid || 'default', res.data || []);
-    return res;
-  });
+  return http
+    .request('meta/menu', {
+      query: {
+        space_uid: spaceUid,
+      },
+    })
+    .then(res => {
+      cacheApi('meta/menu/raw', spaceUid || 'default', res.data || []);
+      return res;
+    });
 }
 
 export function requestMenuListAction({ commit }, spaceUid) {
@@ -50,8 +52,8 @@ export function requestMenuListAction({ commit }, spaceUid) {
     manage_extract: 'manageExtract',
   };
 
-  const replaceMenuId = (list) => {
-    list.forEach((item) => {
+  const replaceMenuId = list => {
+    list.forEach(item => {
       if (item.id === 'search') {
         item.id = 'retrieve';
       }
@@ -71,7 +73,7 @@ export function requestMenuListAction({ commit }, spaceUid) {
     resMenu.isDashboard = oldMenu.isDashboard;
     if (resMenu.children) {
       if (oldMenu.children) {
-        resMenu.children.forEach((item) => {
+        resMenu.children.forEach(item => {
           item.id = routeMap[item.id] || item.id;
           const menu = oldMenu.children.find(menuItem => menuItem.id === item.id);
           if (menu) {
@@ -90,7 +92,7 @@ export function requestMenuListAction({ commit }, spaceUid) {
         space_uid: spaceUid,
       },
     })
-    .then((res) => {
+    .then(res => {
       const rawMenu = res.data || [];
       const menuList = replaceMenuId(rawMenu);
 
@@ -105,7 +107,7 @@ export function requestMenuListAction({ commit }, spaceUid) {
 }
 
 export function getGlobalsDataAction({ commit }) {
-  return http.request('collect/globals', { query: {} }).then((response) => {
+  return http.request('collect/globals', { query: {} }).then(response => {
     const globalsData = response.data || {};
     commit('updateGlobalsData', globalsData);
     cacheApi('collect/globals', 'default', globalsData);
@@ -118,7 +120,7 @@ export function checkAllowedAction(context, paramData) {
     .request('auth/checkAllowed', {
       data: paramData,
     })
-    .then((checkRes) => {
+    .then(checkRes => {
       cacheApi('auth/checkAllowed', JSON.stringify(paramData || {}), checkRes.data || []);
       for (const item of checkRes.data) {
         if (item.is_allowed === false) {
@@ -135,12 +137,14 @@ export function checkAllowedAction(context, paramData) {
 }
 
 export function getApplyDataAction(context, paramData) {
-  return http.request('auth/getApplyData', {
-    data: paramData,
-  }).then((res) => {
-    cacheApi('auth/getApplyData', JSON.stringify(paramData || {}), res.data || {});
-    return res;
-  });
+  return http
+    .request('auth/getApplyData', {
+      data: paramData,
+    })
+    .then(res => {
+      cacheApi('auth/getApplyData', JSON.stringify(paramData || {}), res.data || {});
+      return res;
+    });
 }
 
 export function checkAndGetDataAction(context, paramData) {
@@ -148,7 +152,7 @@ export function checkAndGetDataAction(context, paramData) {
     .request('auth/checkAllowed', {
       data: paramData,
     })
-    .then((checkRes) => {
+    .then(checkRes => {
       cacheApi('auth/checkAllowed', JSON.stringify(paramData || {}), checkRes.data || []);
       for (const item of checkRes.data) {
         if (item.is_allowed === false) {
@@ -156,7 +160,7 @@ export function checkAndGetDataAction(context, paramData) {
             .request('auth/getApplyData', {
               data: paramData,
             })
-            .then((applyDataRes) => {
+            .then(applyDataRes => {
               cacheApi('auth/getApplyData', JSON.stringify(paramData || {}), applyDataRes.data || {});
               return {
                 isAllowed: false,
@@ -176,25 +180,37 @@ export function requestFavoriteListAction({ commit, state }, payload) {
   commit('updateFavoriteList', []);
   const favoriteSortType = payload?.sort ?? (localStorage.getItem('favoriteSortType') || 'NAME_ASC');
   storeCacheService.setLocalStorageMirror('favoriteSortType', favoriteSortType).catch(() => {});
+  const timeZone = state.userMeta.time_zone || 'Asia/Shanghai';
+  const query = {
+    space_uid: payload?.spaceUid ?? state.spaceUid,
+    order_type: favoriteSortType,
+    source_type: isSceneRetrieve(state) ? 'scene' : 'index_set',
+  };
+  if (window.__IS_MONITOR_APM__) {
+    Object.assign(query, {
+      scope: JSON.stringify({
+        app_name: window.MONITOR_APM_APP_NAME,
+        service_name: window.MONITOR_APM_SERVICE_NAME,
+      }),
+    });
+  }
   return http
-    .request('favorite/getFavoriteByGroupList', {
-      query: {
-        space_uid: payload?.spaceUid ?? state.spaceUid,
-        order_type: favoriteSortType,
-        source_type: isSceneRetrieve(state) ? 'scene' : 'index_set',
-      },
-    })
-    .then((resp) => {
-      const results = (resp.data || []).map((item) => {
-        item.favorites?.forEach((sub) => {
+    .request('favorite/getFavoriteByGroupList', { query })
+    .then(resp => {
+      const results = (resp.data || []).map(item => {
+        item.favorites?.forEach(sub => {
           sub.full_name = `${item.group_name}/${sub.name}`;
-          sub.created_at = formatTimeZoneString(sub.created_at, state.userMeta.time_zone);
-          sub.updated_at = formatTimeZoneString(sub.updated_at, state.userMeta.time_zone);
+          sub.created_at = formatTimeZoneString(sub.created_at, timeZone);
+          sub.updated_at = formatTimeZoneString(sub.updated_at, timeZone);
         });
         return item;
       });
       commit('updateFavoriteList', results);
-      cacheApi('favorite/getFavoriteByGroupList', `${payload?.spaceUid ?? state.spaceUid}:${payload?.sort ?? 'NAME_ASC'}`, results);
+      cacheApi(
+        'favorite/getFavoriteByGroupList',
+        `${payload?.spaceUid ?? state.spaceUid}:${payload?.sort ?? 'NAME_ASC'}`,
+        results,
+      );
       return resp;
     });
 }

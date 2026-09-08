@@ -9,6 +9,7 @@ from monitor_web.redis_management.resources import (
     GetRedisManagementOverviewResource,
     _load_latest_snapshots,
     _query_metric,
+    _routing_digest,
     build_cost_evidence,
     build_memory_view,
 )
@@ -283,6 +284,64 @@ def test_build_cost_evidence_keeps_unmeasured_strategy_in_coverage_prefix():
         "measured_count": 1,
         "unmeasured_count": 1,
     }
+
+
+def test_build_cost_evidence_ignores_disabled_nodes_without_snapshots():
+    routing = _routing_snapshot()
+    routing["nodes"].extend(
+        [
+            {
+                "id": 3,
+                "node_alias": "disabled-node",
+                "cluster_name": "alarm",
+                "cache_type": "RedisCache",
+                "is_default": False,
+                "is_enable": False,
+            },
+            {
+                "id": 4,
+                "node_alias": "idle-node",
+                "cluster_name": "alarm",
+                "cache_type": "RedisCache",
+                "is_default": False,
+                "is_enable": True,
+            },
+        ]
+    )
+    digest = _routing_digest(routing)
+    snapshots = {
+        1: _snapshot(1, "2026-08-24T10:00:00+00:00", [_measured(100, 1000)], digest=digest),
+        2: _snapshot(2, "2026-08-24T10:02:00+00:00", [_measured(1200, 2000)], digest=digest),
+    }
+
+    result = build_cost_evidence(routing, snapshots)
+
+    assert result["status"] == "complete"
+    assert result["missing_snapshot_count"] == 0
+    assert [item["node_id"] for item in result["nodes"]] == [1, 2]
+
+
+def test_build_cost_evidence_keeps_missing_snapshot_for_routed_disabled_node():
+    routing = _routing_snapshot()
+    routing["nodes"].append(
+        {
+            "id": 3,
+            "node_alias": "disabled-node",
+            "cluster_name": "alarm",
+            "cache_type": "RedisCache",
+            "is_default": False,
+            "is_enable": False,
+        }
+    )
+    routing["routers"][-1]["node"] = {"id": 3}
+    digest = _routing_digest(routing)
+    snapshots = {1: _snapshot(1, "2026-08-24T10:00:00+00:00", [_measured(100, 1000)], digest=digest)}
+
+    result = build_cost_evidence(routing, snapshots)
+
+    assert result["status"] == "partial"
+    assert result["missing_snapshot_count"] == 1
+    assert [item["node_id"] for item in result["nodes"]] == [1, 3]
 
 
 def test_redis_management_view_requires_both_administrator_permissions():

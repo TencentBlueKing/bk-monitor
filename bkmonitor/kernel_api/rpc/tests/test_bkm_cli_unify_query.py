@@ -12,6 +12,8 @@ from __future__ import annotations
 
 from unittest.mock import Mock
 
+from jsonschema import Draft7Validator
+
 from kernel_api.resource.bkm_cli import BkmCliOpCallResource
 from kernel_api.rpc import KernelRPCRegistry
 from kernel_api.rpc.bkm_cli_registry import BkmCliOpRegistry
@@ -130,6 +132,28 @@ def test_describe_returns_external_schema_and_server_derived_scope():
     query_references = {item["reference_name"] for item in out["next_call"]["params"]["query_list"]}
     assert query_references == {"A"}
     assert out["parameter_sources"]["query_list"] == {"operation": "discover_query_ts_metrics"}
+
+
+def test_describe_query_ts_schema_matches_named_output_runtime_contract():
+    schema = query_unify_query({"mode": "describe", "operation": "query_ts"})["params_schema"]
+    validator = Draft7Validator(schema)
+
+    named_params = _query_ts_params()
+    assert not list(validator.iter_errors(named_params))
+    for missing_field in ("legacy_output_ref", "output_list"):
+        invalid_params = dict(named_params)
+        invalid_params.pop(missing_field)
+        assert list(validator.iter_errors(invalid_params))
+
+    legacy_params = {
+        key: value
+        for key, value in named_params.items()
+        if key not in {"response_contract", "legacy_output_ref", "output_list"}
+    }
+    assert not list(validator.iter_errors(legacy_params))
+    for forbidden_field in ("legacy_output_ref", "output_list"):
+        invalid_params = legacy_params | {forbidden_field: named_params[forbidden_field]}
+        assert list(validator.iter_errors(invalid_params))
 
 
 def test_discover_query_ts_metrics_projects_query_template_and_forwards_scope_and_page(monkeypatch):
@@ -399,6 +423,8 @@ def test_invoke_relation_range_derives_biz_scope(monkeypatch):
             "target_type": "pod",
             "source_type": "service",
             "source_info": {"service_name": "api"},
+            "target_info_show": True,
+            "look_back_delta": "1440m",
         }
     ]
     out = query_unify_query(
@@ -412,6 +438,84 @@ def test_invoke_relation_range_derives_biz_scope(monkeypatch):
 
     assert out["status"] == "ok"
     query_relation_range.assert_called_once_with(bk_biz_ids=["2"], query_list=query_list)
+
+
+def test_describe_relation_schema_includes_expand_and_lookback_fields():
+    for operation in ("query_relation_v1", "query_relation_range_v1"):
+        out = query_unify_query({"mode": "describe", "operation": operation})
+        item_properties = out["params_schema"]["properties"]["query_list"]["items"]["properties"]
+        assert "target_info_show" in item_properties
+        assert item_properties["target_info_show"]["type"] == "boolean"
+        assert "look_back_delta" in item_properties
+        assert item_properties["look_back_delta"]["type"] == "string"
+        assert out["example_params"]["params"]["query_list"][0]["target_info_show"] is True
+
+
+def test_invoke_relation_forwards_expand_and_lookback_fields(monkeypatch):
+    query_relation = Mock(return_value={"data": [], "trace_id": "uq-relation-expand"})
+    monkeypatch.setattr(
+        "kernel_api.rpc.functions.bkm_cli.unify_query.api.unify_query.query_multi",
+        query_relation,
+    )
+
+    query_list = [
+        {
+            "timestamp": 1725066000,
+            "target_type": "container",
+            "source_type": "pod",
+            "source_info": {"pod": "api-0"},
+            "target_info_show": True,
+            "look_back_delta": "1440m",
+        }
+    ]
+    out = query_unify_query(
+        {
+            "mode": "invoke",
+            "operation": "query_relation_v1",
+            "bk_biz_id": 2,
+            "params": {"query_list": query_list},
+        }
+    )
+
+    assert out["status"] == "ok"
+    query_relation.assert_called_once_with(bk_biz_ids=["2"], query_list=query_list)
+
+
+def test_relation_caller_serializers_keep_expand_and_lookback_fields():
+    from api.unify_query.default import QueryMultiResource, QueryMultiResourceRange
+    from kernel_api.resource.relation import (
+        QueryMultiResourceRelationRangeResource,
+        QueryMultiResourceRelationResource,
+    )
+
+    instant_item = {
+        "timestamp": 1725066000,
+        "target_type": "container",
+        "source_info": {"pod": "api-0"},
+        "target_info_show": True,
+        "look_back_delta": "1440m",
+    }
+    range_item = {
+        "start_time": 1725062400,
+        "end_time": 1725066000,
+        "step": "60s",
+        "target_type": "container",
+        "source_info": {"pod": "api-0"},
+        "target_info_show": True,
+        "look_back_delta": "1440m",
+    }
+    cases = (
+        (QueryMultiResource.RequestSerializer, {"bk_biz_ids": ["2"], "query_list": [instant_item]}),
+        (QueryMultiResourceRange.RequestSerializer, {"bk_biz_ids": ["2"], "query_list": [range_item]}),
+        (QueryMultiResourceRelationResource.RequestSerializer, {"bk_biz_id": 2, "query_list": [instant_item]}),
+        (QueryMultiResourceRelationRangeResource.RequestSerializer, {"bk_biz_id": 2, "query_list": [range_item]}),
+    )
+    for serializer_cls, payload in cases:
+        serializer = serializer_cls(data=payload)
+        assert serializer.is_valid(), serializer.errors
+        item = serializer.validated_data["query_list"][0]
+        assert item["target_info_show"] is True
+        assert item["look_back_delta"] == "1440m"
 
 
 def test_relation_partial_is_normalized_in_channel_envelope(monkeypatch):

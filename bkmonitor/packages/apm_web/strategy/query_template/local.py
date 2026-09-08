@@ -81,7 +81,7 @@ RPC_PANIC_LOG_QUERY_TEMPLATE: dict[str, Any] = {
             "name": "QUERY_STRING",
             "alias": str(_("日志关键字")),
             "type": VariableType.CONSTANTS.value,
-            "config": {"default": "\\\\[PANIC\\\\]"},
+            "config": {"default": 'severity_text:error AND "panic" AND NOT "DO NOT panic"'},
             "description": str(_("用于检索 Panic 的日志关键字。")),
         },
     ],

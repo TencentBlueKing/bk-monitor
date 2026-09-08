@@ -37,7 +37,7 @@ const collectMarkedFields = (
 
   if (!isPlainObject(value)) return output;
 
-  Object.keys(value).forEach((key) => {
+  Object.keys(value).forEach(key => {
     if (key === highlightField) return;
     const fieldName = prefix ? `${prefix}.${key}` : key;
     collectMarkedFields(value[key], fieldName, output, highlightField);
@@ -54,7 +54,7 @@ const collectHighlightFields = (
   const highlight = rawRow[highlightField];
   if (!isPlainObject(highlight)) return output;
 
-  Object.keys(highlight).forEach((fieldName) => {
+  Object.keys(highlight).forEach(fieldName => {
     const value = Array.isArray(highlight[fieldName]) ? highlight[fieldName][0] : highlight[fieldName];
     if (hasMark(value)) {
       output[fieldName] = value;
@@ -93,8 +93,7 @@ const setOverlayValue = (row: Record<string, any>, fieldName: string, value: any
   return row;
 };
 
-const createHighlightField = () => `${DEFAULT_HIGHLIGHT_FIELD}_${Math.random().toString(36)
-  .slice(2, 10)}`;
+const createHighlightField = () => `${DEFAULT_HIGHLIGHT_FIELD}_${Math.random().toString(36).slice(2, 10)}`;
 
 const hasOwnField = (row: Record<string, any> | undefined, fieldName: string) => !!row && Object.hasOwn(row, fieldName);
 
@@ -226,8 +225,7 @@ export class RetrieveRowStreamWriter {
   async init() {
     if (this.initialized) return;
     if ((this.options.writeMode ?? 'replace') === 'replace' && this.startSeq === 0) {
-      await this.repository.table.where('queryKey').equals(this.queryKey)
-        .delete();
+      await this.repository.table.where('queryKey').equals(this.queryKey).delete();
     }
     this.initialized = true;
   }
@@ -307,8 +305,7 @@ export class RetrieveRowRepository {
   async replaceRows(queryKey: string, rows: Record<string, any>[], startSeq = 0, options: WriteRowsOptions = {}) {
     const ttl = options.ttl ?? DEFAULT_TTL;
     if (startSeq === 0) {
-      await this.table.where('queryKey').equals(queryKey)
-        .delete();
+      await this.table.where('queryKey').equals(queryKey).delete();
     }
 
     return this.writeRows(queryKey, rows, startSeq, ttl, options);
@@ -361,21 +358,18 @@ export class RetrieveRowRepository {
   }
 
   async clearQuery(queryKey: string) {
-    await this.table.where('queryKey').equals(queryKey)
-      .delete();
+    await this.table.where('queryKey').equals(queryKey).delete();
   }
 
   async gc(now = Date.now(), options: { excludeQueryKeys?: string[] } = {}) {
     const excludeQueryKeySet = new Set(options.excludeQueryKeys?.filter(Boolean) ?? []);
     if (!excludeQueryKeySet.size) {
-      await this.table.where('expireAt').below(now)
-        .delete();
+      await this.table.where('expireAt').below(now).delete();
       return;
     }
 
     await db.transaction('rw', this.table, async () => {
-      const expiredRows = await this.table.where('expireAt').below(now)
-        .toArray();
+      const expiredRows = await this.table.where('expireAt').below(now).toArray();
       const deleteKeys = expiredRows.filter(row => !excludeQueryKeySet.has(row.queryKey)).map(row => row.key);
       if (deleteKeys.length) {
         await this.table.bulkDelete(deleteKeys);
@@ -435,8 +429,8 @@ export class RetrieveRowRepository {
         copyExcludedFields: options.copyExcludedFields ?? [],
         renderOverlay,
         renderMeta:
-          options.renderMetas?.[index]
-          ?? createRetrieveRowRenderMeta(row, renderRow, {
+          options.renderMetas?.[index] ??
+          createRetrieveRowRenderMeta(row, renderRow, {
             fieldMetadata: options.fieldMetadata,
             fieldNames: options.fieldNames,
             highlightField,
@@ -473,7 +467,7 @@ export class RetrieveRowRepository {
       ...collectHighlightFields(rawRow, highlightField),
       ...collectHighlightFields(renderRow, highlightField),
     };
-    Object.keys(markedFields).forEach((fieldName) => {
+    Object.keys(markedFields).forEach(fieldName => {
       const renderValue = markedFields[fieldName];
       if (!hasMark(renderValue)) return;
       fields[fieldName] = { renderValue };
@@ -514,4 +508,5 @@ export const retrieveRowRepository = new RetrieveRowRepository('retrieveRows');
 /** 上下文/实时「原始日志检索结果」本地 Stream 专用仓储 */
 export const relatedLogSearchRowRepository = new RetrieveRowRepository('relatedLogSearchRows');
 
-export const getRetrieveRowRepository = (storeName: RetrieveRowStoreName = 'retrieveRows') => (storeName === 'relatedLogSearchRows' ? relatedLogSearchRowRepository : retrieveRowRepository);
+export const getRetrieveRowRepository = (storeName: RetrieveRowStoreName = 'retrieveRows') =>
+  storeName === 'relatedLogSearchRows' ? relatedLogSearchRowRepository : retrieveRowRepository;

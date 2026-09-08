@@ -198,7 +198,7 @@ export default defineComponent({
     /** 展示侧栏详情 */
     const showSlideDetail = shallowRef(null);
     /** 打开跨业务详情前缓存的业务上下文，关闭时还原 */
-    let cachedBizContext: { bizId: number; spaceUid?: string } | null = null;
+    let cachedBizContext: null | { bizId: number; spaceUid?: string } = null;
 
     const switchBizContextIfNeeded = (bizId?: number) => {
       if (bizId == null || Number.isNaN(+bizId)) return;
@@ -235,7 +235,7 @@ export default defineComponent({
 
     /** 宿主通过 bridgeProps.slideDetail 打开 Trace 详情侧边窗 */
     watch(
-      () => bridgeProps?.slideDetail as { appName?: string; bizId?: number; traceId?: string } | null,
+      () => bridgeProps?.slideDetail as null | { appName?: string; bizId?: number; traceId?: string },
       val => {
         if (!val?.traceId) {
           showSlideDetail.value = null;
@@ -453,10 +453,17 @@ export default defineComponent({
     function handleConditionChange(item: ConditionChangeEvent, isFromDimensionFilterPanel = false) {
       const { key, method: operator, value } = item;
       const isDuration = ['trace_duration', 'elapsed_time'].includes(key);
+      const matched = value.match(/^(-?\d+)-(-?\d+)$/);
       if (filterMode.value === EMode.ui) {
         const newWhere = mergeWhereList(
           where.value,
-          [{ key, operator, value: isDuration ? value.split('-') : safeParseJsonValueForWhere(value) }],
+          [
+            {
+              key,
+              operator,
+              value: isDuration && matched ? [matched[1], matched[2]] : safeParseJsonValueForWhere(value),
+            },
+          ],
           isFromDimensionFilterPanel
         );
         // TODO: 图表分析入口（仅在这个入口做）进行过滤时，同类字段做下合并
@@ -467,7 +474,7 @@ export default defineComponent({
       if (operator === EMethod.eq) {
         endStr = `${key} : "${value || ''}"`;
       }
-      if (isDuration) {
+      if (isDuration && matched) {
         const [start, end] = value.split('-');
         endStr = `${key} : [${start} TO ${end}]`;
       }

@@ -10,6 +10,10 @@
     margin-bottom: 7px;
     line-height: 24px;
 
+    &.issue-content-row {
+      overflow: hidden;
+    }
+
     .issue-info {
       display: flex;
       gap: 8px;

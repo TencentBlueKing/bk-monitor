@@ -1,5 +1,6 @@
 import base64
 import json
+import subprocess
 import tempfile
 from pathlib import Path
 from types import SimpleNamespace
@@ -12,6 +13,26 @@ from django.utils import timezone
 from apps.exceptions import BaseException as BklogBaseException
 from apps.exceptions import PermissionError as BklogPermissionError
 from apps.exceptions import ValidationError
+from apps.log_admin_resource.collector_probe import (
+    PROBE_PROTOCOL,
+    PROBE_VERSION,
+    FixedProbeError,
+    fixed_probe_arguments,
+    fixed_probe_script,
+    parse_probe_output,
+)
+from apps.log_admin_resource.collector_probe_evidence import (
+    _expand_recursive_glob,
+    _host_visible_path,
+    build_probe_evidence,
+)
+from apps.log_admin_resource.collector_probe_parsers import (
+    classify_registrar_progress,
+    fallback_matching_inputs,
+    parse_registrar_strings,
+    parse_registrar_strings_with_stats,
+    state_for_file,
+)
 from apps.log_admin_resource.handlers.host_inspection import (
     DETAIL_FUNC_NAME,
     DETAIL_RESPONSE_SCHEMA,
@@ -31,7 +52,6 @@ from apps.log_admin_resource.inspection_tasks import (
 )
 from apps.log_admin_resource.registry import AdminResourceRegistry
 from apps.log_admin_resource.schema import validate_params
-from apps.log_admin_resource.scripts import host_inspection as remote_script
 from apps.log_admin_resource.tasks import (
     _finish as finish_host_inspection,
     _fixed_remote_shell_script,
@@ -83,6 +103,53 @@ def probe(status="success", code="ok", evidence=None):
         "started_at": now,
         "finished_at": now,
         "duration_ms": 1,
+    }
+
+
+def parsed_probe(*, registrar_unavailable=None):
+    values = {
+        "protocol": PROBE_PROTOCOL,
+        "probe_version": PROBE_VERSION,
+        "completed": "true",
+        "main_config_path": "/usr/local/gse/plugins/etc/bkunifylogbeat.conf",
+        "first.collector.process_pid": "101",
+        "first.collector.start_ticks": "10",
+        "first.collector.cpu_ticks": "20",
+        "first.collector.rss_pages": "3",
+        "second.collector.process_pid": "101",
+        "second.collector.start_ticks": "10",
+        "second.collector.cpu_ticks": "22",
+        "second.collector.rss_pages": "3",
+        "page_size": "4096",
+        "observation_seconds": "5",
+        "observation_required_seconds": "5",
+        "first.source_count": "0",
+        "second.source_count": "0",
+        "registrar_path": "/var/lib/gse/bkunifylogbeat.bkpipe.db",
+        "collector_file_log_count": "1",
+    }
+    if registrar_unavailable:
+        values["first.registrar_unavailable"] = registrar_unavailable
+        values["second.registrar_unavailable"] = registrar_unavailable
+    return {
+        "values": values,
+        "streams": {
+            "main_config": {"path": values["main_config_path"], "content": "path.data: /var/lib/gse\n"},
+            "child_config.0": {
+                "path": "/usr/local/gse/plugins/etc/bkunifylogbeat/1001.conf",
+                "content": "local:\n  - dataid: 1001\n    paths:\n      - /data/app/*.log\n",
+            },
+            "first.registrar_strings": {"content": ""},
+            "second.registrar_strings": {"content": ""},
+            "collector_file_log.0": {
+                "path": "/var/log/gse/bkunifylogbeat.log",
+                "content": "collector healthy",
+                "returned_size_bytes": 17,
+                "total_size_bytes": 17,
+                "truncated": False,
+            },
+        },
+        "metadata": {"probe_id": "bklog.collector.fixed_read_only"},
     }
 
 
@@ -575,19 +642,31 @@ class HostInspectionWorkerTest(SimpleTestCase):
         record, _ = ResourceInspectionTaskRecord.create_or_reuse(
             app_code="reader-a",
             bk_tenant_id="tenant-a",
-            target={"collector_config_id": 1, "bk_host_id": 2},
+            target={"collector_config_id": 1, "bk_host_id": 2, "bk_data_id": 1001},
             request_options={"runtime_log_options": {}},
         )
         mock_nodeman.return_value = (probe(evidence={"setup_path": "/usr/local/gse"}), "/usr/local/gse")
-        mock_remote.return_value = {"task_status": "success", "probes": {"config": probe()}}
+        mock_remote.return_value = parsed_probe()
 
         run_host_inspection.run(record["task_id"])
 
         stored = ResourceInspectionTaskRecord.get(record["task_id"])
         result = ResourceInspectionTaskRecord.load_result(record["task_id"])
         self.assertEqual(stored["task_status"], "success")
-        self.assertEqual(set(stored["probes"]), {"nodeman", "config"})
-        self.assertIn("config", result["probes"])
+        self.assertEqual(
+            set(stored["probes"]),
+            {
+                "nodeman",
+                "main_config_mounted",
+                "collector_process",
+                "sidecar_process",
+                "source_path",
+                "registrar",
+                "progress",
+                "collector_logs",
+            },
+        )
+        self.assertIn("main_config_mounted", result["probes"])
 
     @patch("apps.log_admin_resource.tasks._run_remote_inspection")
     @patch("apps.log_admin_resource.tasks._inspect_nodeman")
@@ -595,21 +674,19 @@ class HostInspectionWorkerTest(SimpleTestCase):
         record, _ = ResourceInspectionTaskRecord.create_or_reuse(
             app_code="reader-a",
             bk_tenant_id="tenant-a",
-            target={"collector_config_id": 1, "bk_host_id": 2},
+            target={"collector_config_id": 1, "bk_host_id": 2, "bk_data_id": 1001},
             request_options={},
         )
         mock_nodeman.return_value = (probe(), "/usr/local/gse")
-        mock_remote.return_value = {
-            "task_status": "partial",
-            "probes": {"config": probe(), "registrar": probe(status="failed", code="registrar_failed")},
-        }
+        mock_remote.return_value = parsed_probe(registrar_unavailable="strings_missing")
 
         run_host_inspection.run(record["task_id"])
 
         stored = ResourceInspectionTaskRecord.get(record["task_id"])
         self.assertEqual(stored["task_status"], "partial")
         self.assertEqual(
-            ResourceInspectionTaskRecord.load_result(record["task_id"])["probes"]["config"]["status"], "success"
+            ResourceInspectionTaskRecord.load_result(record["task_id"])["probes"]["main_config_mounted"]["status"],
+            "success",
         )
 
     @patch("apps.log_admin_resource.tasks._run_remote_inspection")
@@ -622,7 +699,7 @@ class HostInspectionWorkerTest(SimpleTestCase):
             request_options={},
         )
         mock_nodeman.return_value = (probe(), "/usr/local/gse")
-        mock_remote.return_value = {"task_status": "failed", "probes": {}}
+        mock_remote.side_effect = RuntimeError("remote probe failed")
 
         run_host_inspection.run(record["task_id"])
 
@@ -630,6 +707,26 @@ class HostInspectionWorkerTest(SimpleTestCase):
         result = ResourceInspectionTaskRecord.load_result(record["task_id"])
         self.assertEqual(stored["task_status"], "partial")
         self.assertEqual(result["error"]["code"], "inspection_execution_failed")
+
+    @patch("apps.log_admin_resource.tasks._run_remote_inspection")
+    @patch("apps.log_admin_resource.tasks._inspect_nodeman")
+    def test_fixed_probe_error_preserves_specific_code(self, mock_nodeman, mock_remote):
+        record, _ = ResourceInspectionTaskRecord.create_or_reuse(
+            app_code="reader-a",
+            bk_tenant_id="tenant-a",
+            target={"collector_config_id": 1, "bk_host_id": 2, "bk_data_id": 1001},
+            request_options={},
+        )
+        mock_nodeman.return_value = (probe(), "/usr/local/gse")
+        mock_remote.side_effect = FixedProbeError("probe_incomplete", "completion marker missing", retryable=False)
+
+        run_host_inspection.run(record["task_id"])
+
+        stored = ResourceInspectionTaskRecord.get(record["task_id"])
+        result = ResourceInspectionTaskRecord.load_result(record["task_id"])
+        self.assertEqual(stored["task_status"], "partial")
+        self.assertEqual(result["error"]["code"], "probe_incomplete")
+        self.assertEqual(result["probes"]["collector_probe"]["code"], "probe_incomplete")
 
     @patch("apps.log_admin_resource.tasks._run_remote_inspection")
     @patch("apps.log_admin_resource.tasks._inspect_nodeman")
@@ -643,7 +740,7 @@ class HostInspectionWorkerTest(SimpleTestCase):
         record["deadline_at"] = "2000-01-01T00:00:00+00:00"
         ResourceInspectionTaskRecord.save(record)
         mock_nodeman.return_value = (probe(), "/usr/local/gse")
-        mock_remote.return_value = {"task_status": "success", "probes": {"config": probe()}}
+        mock_remote.return_value = parsed_probe()
 
         run_host_inspection.run(record["task_id"])
 
@@ -701,8 +798,16 @@ class HostInspectionWorkerTest(SimpleTestCase):
         get_logs.return_value = {
             "script_task_logs": [
                 {
-                    "log_content": json.dumps(
-                        {"protocol": "bklog.collector.host_inspection.v1", "task_status": "success", "probes": {}}
+                    "log_content": "\n".join(
+                        [
+                            f"BKLOG_KV\tprotocol\t{PROBE_PROTOCOL}",
+                            f"BKLOG_KV\tprobe_version\t{PROBE_VERSION}",
+                            "BKLOG_KV\tmanifest_kv_count\t2",
+                            "BKLOG_KV\tmanifest_stream_count\t0",
+                            "BKLOG_KV\toutput_budget_bytes\t4194304",
+                            "BKLOG_KV\toutput_budget_exhausted\tfalse",
+                            "BKLOG_KV\tcompleted\ttrue",
+                        ]
                     )
                 }
             ]
@@ -710,7 +815,7 @@ class HostInspectionWorkerTest(SimpleTestCase):
         record = {
             "task_id": "public-task",
             "bk_tenant_id": "tenant-a",
-            "target": {"bk_biz_id": 2, "bk_host_id": 2, "bk_data_id": 1001},
+            "target": {"bk_biz_id": 2, "bk_host_id": 2, "bk_data_id": 1001, "subscription_id": 2001},
             "request_options": {
                 "source": "/data/app.log",
                 "include_source_sample": False,
@@ -718,372 +823,984 @@ class HostInspectionWorkerTest(SimpleTestCase):
             },
         }
 
-        _run_remote_inspection(record, "/usr/local/gse")
+        _run_remote_inspection(record)
 
         kwargs = execute.call_args.kwargs
         self.assertEqual(kwargs["script_language"], 1)
-        token = base64.b64decode(kwargs["script_param"]).decode("ascii")
-        padded = token + "=" * ((4 - len(token) % 4) % 4)
-        payload = json.loads(base64.urlsafe_b64decode(padded).decode("utf-8"))
-        self.assertNotIn("runtime_log_options", payload)
-        self.assertNotIn("keywords", payload)
-        self.assertNotIn("touch", token)
+        self.assertEqual(
+            base64.b64decode(kwargs["script_param"]).decode("ascii"),
+            "1001 0 bkunifylogbeat_sub_2001",
+        )
+        script = fixed_probe_script().decode("utf-8")
+        self.assertNotIn("/data/app.log", script)
+        self.assertNotIn("reload failed", script)
+        self.assertNotIn("touch", script)
 
 
 class FixedRemoteScriptTest(SimpleTestCase):
-    def test_fixed_job_script_is_shell_wrapper_with_embedded_python(self):
-        script = _fixed_remote_shell_script().decode("utf-8")
+    def test_host_job_uses_the_exact_shared_shell_probe(self):
+        script = _fixed_remote_shell_script()
 
-        self.assertTrue(script.startswith("#!/bin/sh"))
-        self.assertIn('exec python - "$1"', script)
-        self.assertIn(remote_script.PROTOCOL, script)
+        self.assertEqual(script, fixed_probe_script())
+        decoded = script.decode("utf-8")
+        self.assertTrue(decoded.startswith("#!/bin/sh"))
+        self.assertNotIn("python", decoded.lower())
+        self.assertIn(PROBE_PROTOCOL, decoded)
+        self.assertIn(PROBE_VERSION, decoded)
 
-    def test_real_bkunifylogbeat_config_shapes_are_parsed_without_pyyaml(self):
-        config = """path.logs: /var/log/gse
-path.data: /var/lib/gse
-path.pid: /var/run/gse
-bkunifylogbeat.registry.flush: \"10s\"
-bkunifylogbeat.multi_config:
-  - path: \"/usr/local/gse/plugins/etc/bkunifylogbeat\"
-    file_pattern: \"*.conf\"
-"""
-        parsed = remote_script.parse_simple_yaml(config)
+    def test_shared_probe_accepts_only_typed_server_arguments_and_performs_no_file_writes(self):
+        script = fixed_probe_script().decode("utf-8")
 
-        self.assertEqual(remote_script.get_config_value(parsed, "path.data"), "/var/lib/gse")
-        self.assertEqual(
-            remote_script.normalize_multi_config(remote_script.get_config_value(parsed, "bkunifylogbeat.multi_config")),
-            [{"path": "/usr/local/gse/plugins/etc/bkunifylogbeat", "file_pattern": "*.conf"}],
+        self.assertIn("accepts only server-controlled typed arguments", script)
+        self.assertIn('[ "$#" -ne 3 ]', script)
+        self.assertIn("TARGET_DATA_ID=$1", script)
+        self.assertIn("INCLUDE_SOURCE_SAMPLE=$2", script)
+        self.assertIn("TARGET_CONFIG_HINTS=$3", script)
+        self.assertNotIn("$@", script)
+        self.assertNotIn("/tmp", script)
+        self.assertNotIn("mktemp", script)
+        self.assertNotIn("kubectl", script)
+        self.assertNotIn("eval ", script)
+        self.assertNotIn(' > "', script)
+        self.assertNotIn('[ -L "$blob_path" ]', script)
+        self.assertIn('find -H "$directory"', script)
+        self.assertIn("MAX_CHILD_CONFIG_SCAN=1000", script)
+        self.assertIn('-name "$hint" -o -name "*_$hint"', script)
+        self.assertIn('-name "$hint.conf" -o -name "${hint}_*.conf"', script)
+        self.assertIn('-name "*${hint}.conf" -o -name "*${hint}_*.conf"', script)
+        self.assertIn('if [ "$target_config_hint_count" -gt 0 ]; then', script)
+        self.assertIn("all_child_paths=$(printf '%s\\n' \"$hinted_child_paths\"", script)
+        self.assertIn('awk -v wanted="$TARGET_DATA_ID"', script)
+        self.assertIn("child_paths=$(printf '%s\\n' \"$matching_child_paths\"", script)
+        self.assertIn("-name 'bkunifylogbeat'", script)
+        self.assertIn("/usr/local/gse*/plugins/etc/bkunifylogbeat.conf", script)
+
+    def test_shared_probe_discovers_single_and_final_config_hint(self):
+        script = fixed_probe_script().decode("utf-8")
+        discovery_start = script.index("tab=$(printf '\\t')")
+        discovery_end = script.index('\nif [ "$target_config_hint_count" -gt 0 ]; then', discovery_start)
+        discovery_script = script[discovery_start:discovery_end]
+
+        with tempfile.TemporaryDirectory() as directory:
+            config_directory = Path(directory)
+            expected_paths = [
+                config_directory / "bkunifylogbeat_sub_23799_host_135.conf",
+                config_directory / "bkunifylogbeat_sub_23888_host_135.conf",
+            ]
+            for config_path in expected_paths:
+                config_path.write_text("local: []\n", encoding="utf-8")
+
+            for hints, expected in (
+                ("bkunifylogbeat_sub_23799", expected_paths[:1]),
+                ("bkunifylogbeat_sub_23799,bkunifylogbeat_sub_23888", expected_paths),
+            ):
+                with self.subTest(hints=hints):
+                    harness = "\n".join(
+                        (
+                            "set -eu",
+                            f"TARGET_CONFIG_HINTS='{hints}'",
+                            f"multi_config_rows='{config_directory}\\t*.conf'",
+                            discovery_script,
+                            "printf '%s\\n' \"$hinted_child_paths\"",
+                        )
+                    )
+                    completed = subprocess.run(
+                        ["/bin/sh"],
+                        input=harness,
+                        text=True,
+                        capture_output=True,
+                        check=True,
+                    )
+
+                    self.assertEqual(completed.stdout.splitlines(), [str(path) for path in expected])
+
+    def test_shared_probe_matches_data_id_in_yaml_list_items(self):
+        script = fixed_probe_script().decode("utf-8")
+        matching_start = script.index("matching_child_paths=$(while")
+        matching_end = script.index("\nchild_config_match_count=", matching_start)
+        matching_script = script[matching_start:matching_end]
+
+        with tempfile.TemporaryDirectory() as directory:
+            config_directory = Path(directory)
+            matching_configs = {
+                "dataid.conf": "local:\n    - dataid: 1001\n",
+                "data_id.conf": "local:\n    - data_id: '1001' # inline comment\n",
+                "dataId.conf": 'local:\n    - dataId: "1001"\n',
+                "mapping.conf": "dataid: 1001\n",
+            }
+            expected_paths = []
+            for name, content in matching_configs.items():
+                config_path = config_directory / name
+                config_path.write_text(content, encoding="utf-8")
+                expected_paths.append(config_path)
+            non_matching_path = config_directory / "other.conf"
+            non_matching_path.write_text("local:\n    - dataid: 10010\n", encoding="utf-8")
+
+            scan_paths = "\n".join(str(path) for path in [*expected_paths, non_matching_path])
+            harness = "\n".join(
+                (
+                    "set -u",
+                    "TARGET_DATA_ID=1001",
+                    f"scan_paths='{scan_paths}'",
+                    matching_script,
+                    "printf '%s\\n' \"$matching_child_paths\"",
+                )
+            )
+            completed = subprocess.run(
+                ["/bin/sh"],
+                input=harness,
+                text=True,
+                capture_output=True,
+                check=True,
+            )
+
+            self.assertEqual(completed.stdout.splitlines(), [str(path) for path in expected_paths])
+
+    def test_shared_probe_source_path_awk_program_parses(self):
+        script = fixed_probe_script().decode("utf-8")
+        program_prefix = "extracted_patterns=$(awk '"
+        program_start = script.index(program_prefix) + len(program_prefix)
+        program_end = script.index('\' "$child_path" 2>/dev/null)', program_start)
+
+        completed = subprocess.run(
+            ["awk", script[program_start:program_end], "/dev/null"],
+            text=True,
+            capture_output=True,
         )
 
-    def test_fallback_parser_does_not_mix_paths_from_other_data_ids(self):
+        # gawk warns about regexp escapes that BWK awk accepts silently, so assert on parse failure
+        # rather than on empty stderr.
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        self.assertNotIn("syntax error", completed.stderr)
+
+    def _extract_source_patterns(self, *configs: str) -> tuple[dict[str, str], str]:
+        """Replay the probe's path extraction, mapping each configured path to its host path."""
+        script = fixed_probe_script().decode("utf-8")
+        extraction_start = script.index("child_index=0")
+        extraction_end = script.index('\nemit_kv "source_pattern_count"', extraction_start)
+        extraction_script = script[extraction_start:extraction_end]
+
+        with tempfile.TemporaryDirectory() as directory:
+            config_directory = Path(directory)
+            config_paths = []
+            for index, content in enumerate(configs):
+                config_path = config_directory / f"child{index}.conf"
+                config_path.write_text(content, encoding="utf-8")
+                config_paths.append(str(config_path))
+            harness = "\n".join(
+                (
+                    "set -u",
+                    "MAX_MATCHED_CHILD_CONFIGS=5",
+                    "MAX_CHILD_CONFIG_BYTES=65536",
+                    "MAX_SOURCES=50",
+                    "tab=$(printf '\\t')",
+                    "emit_blob() { :; }",
+                    "emit_kv() { :; }",
+                    "child_paths='{}'".format("\n".join(config_paths)),
+                    extraction_script,
+                    "printf '%s\\n' \"$source_patterns\"",
+                    "printf '%s\\n' \"$source_pattern_count\"",
+                )
+            )
+            completed = subprocess.run(
+                ["/bin/sh"],
+                input=harness,
+                text=True,
+                capture_output=True,
+                check=True,
+            )
+
+        self.assertNotIn("syntax error", completed.stderr)
+        *rows, pattern_count = completed.stdout.splitlines()
+        resolved = {}
+        for row in rows:
+            config_pattern, _, resolved_pattern = row.partition("\t")
+            resolved[config_pattern] = resolved_pattern
+        return resolved, pattern_count
+
+    def test_shared_probe_extracts_source_paths_from_inline_and_block_yaml(self):
+        inline_config = "local:\n    - dataid: 1001\n      paths: [\"/var/log/app/*.log\", '/data/logs/biz.log']\n"
+        block_config = (
+            "local:\n"
+            "    - dataid: 1001\n"
+            "      paths:\n"
+            "        - /var/lib/docker/containers/abc/abc-json.log\n"
+            '        - "/var/host/data/bcs/lib/docker/containers/def/def-json.log"\n'
+        )
+
+        resolved, pattern_count = self._extract_source_patterns(inline_config, block_config)
+
+        self.assertEqual(pattern_count, "4")
+        self.assertEqual(
+            set(resolved),
+            {
+                "/data/logs/biz.log",
+                "/var/host/data/bcs/lib/docker/containers/def/def-json.log",
+                "/var/lib/docker/containers/abc/abc-json.log",
+                "/var/log/app/*.log",
+            },
+        )
+        # Host collection carries neither mounts nor a container root, so nothing is translated.
+        self.assertEqual(set(resolved), set(resolved.values()))
+
+    def test_shared_probe_resolves_container_path_through_longest_matching_mount(self):
+        config = (
+            "local:\n"
+            "    - dataid: 1001\n"
+            "      mounts:\n"
+            "        - container_path: /data/app\n"
+            "          host_path: /var/host/volumes/layer-app\n"
+            "        - container_path: /data/app/deep\n"
+            "          host_path: /var/host/volumes/layer-deep\n"
+            "        - container_path: /data\n"
+            "          host_path: /var/host/volumes/layer-root\n"
+            "      paths:\n"
+            "        - /data/*.log\n"
+            "        - /data/app/*.log\n"
+            "        - /data/app/deep/*.log\n"
+            "      root_fs: /var/host/overlay/merged\n"
+        )
+
+        resolved, pattern_count = self._extract_source_patterns(config)
+
+        self.assertEqual(pattern_count, "3")
+        # Nested mounts are rendered in no useful order, so a file only turns up under the
+        # deepest volume covering it. Losing any single mount silently reroutes its paths onto a
+        # shorter one, which resolves to a directory the volume never fills.
+        self.assertEqual(
+            resolved,
+            {
+                "/data/*.log": "/var/host/volumes/layer-root/*.log",
+                "/data/app/*.log": "/var/host/volumes/layer-app/*.log",
+                "/data/app/deep/*.log": "/var/host/volumes/layer-deep/*.log",
+            },
+        )
+
+    def test_shared_probe_prefixes_root_fs_only_when_the_path_sits_outside_it(self):
+        node_config = (
+            "local:\n    - dataid: 1001\n      paths:\n        - /var/log/app/*.log\n      root_fs: /var/host\n"
+        )
+        stdout_config = (
+            "local:\n"
+            "    - dataid: 1001\n"
+            "      paths:\n"
+            "        - /var/host/var/lib/docker/containers/abc/abc-json.log\n"
+            "      root_fs: /var/host\n"
+        )
+
+        resolved, pattern_count = self._extract_source_patterns(node_config, stdout_config)
+
+        self.assertEqual(pattern_count, "2")
+        # Node collection names a path inside the node, which the collector reaches through the
+        # mounted root.
+        self.assertEqual(resolved["/var/log/app/*.log"], "/var/host/var/log/app/*.log")
+        # Stdout collection is already rendered below root_fs, and prefixing it again would look
+        # for /var/host/var/host/...
+        self.assertEqual(
+            resolved["/var/host/var/lib/docker/containers/abc/abc-json.log"],
+            "/var/host/var/lib/docker/containers/abc/abc-json.log",
+        )
+
+    def test_shared_probe_matches_a_mount_only_on_a_path_boundary(self):
+        config = (
+            "local:\n"
+            "    - dataid: 1001\n"
+            "      mounts:\n"
+            "        - container_path: /data\n"
+            "          host_path: /var/host/volumes/data\n"
+            "      paths:\n"
+            "        - /data/app.log\n"
+            "        - /database/app.log\n"
+            "      root_fs: /var/host/overlay/merged\n"
+        )
+
+        resolved, pattern_count = self._extract_source_patterns(config)
+
+        self.assertEqual(pattern_count, "2")
+        self.assertEqual(resolved["/data/app.log"], "/var/host/volumes/data/app.log")
+        # /data must not claim /database, or the probe reads a volume that never holds the file
+        # while the real one sits in the container root.
+        self.assertEqual(resolved["/database/app.log"], "/var/host/overlay/merged/database/app.log")
+
+    def test_probe_and_server_resolve_collection_paths_identically(self):
+        mounts = [
+            {"container_path": "/data/app", "host_path": "/var/host/volumes/layer-app"},
+            {"container_path": "/data/app/deep", "host_path": "/var/host/volumes/layer-deep"},
+            {"container_path": "/data", "host_path": "/var/host/volumes/layer-root"},
+        ]
+        root_fs = "/var/host/overlay/merged"
+        paths = [
+            "/data/*.log",
+            "/data/app/*.log",
+            "/data/app/deep/*.log",
+            "/database/app.log",
+            "/var/host/overlay/merged/already/below/root.log",
+        ]
+        config = ["local:", "    - dataid: 1001", "      mounts:"]
+        for mount in mounts:
+            config.append(f"        - container_path: {mount['container_path']}")
+            config.append(f"          host_path: {mount['host_path']}")
+        config.append("      paths:")
+        config.extend(f"        - {path}" for path in paths)
+        config.append(f"      root_fs: {root_fs}")
+
+        resolved, _ = self._extract_source_patterns("\n".join(config) + "\n")
+
+        # The server derives the allow-list itself rather than trusting the probe, so the two
+        # resolvers must agree exactly. Any divergence filters out every source the probe
+        # returns and reads as though the configured files were never present.
+        self.assertEqual(resolved, {path: _host_visible_path(path, mounts, root_fs) for path in paths})
+
+    def test_probe_and_server_expand_a_recursive_pattern_identically(self):
+        script = fixed_probe_script().decode("utf-8")
+        start = script.index("expand_recursive_glob() {")
+        end = script.index("\nsnapshot_sources() {", start)
+        pattern = "/data/rec/**/*.log"
+
+        completed = subprocess.run(
+            ["/bin/sh"],
+            input="\n".join(
+                (
+                    "set -u",
+                    "MAX_RECURSIVE_GLOB_DEPTH=8",
+                    script[start:end],
+                    f"expand_recursive_glob '{pattern}'",
+                )
+            ),
+            text=True,
+            capture_output=True,
+            check=True,
+        )
+
+        expanded = completed.stdout.splitlines()
+        # The zero-level case is the one a literal ** silently drops on both sides.
+        self.assertEqual(expanded[0], "/data/rec/*.log")
+        self.assertEqual(expanded[1], "/data/rec/*/*.log")
+        self.assertEqual(len(expanded), 9)
+        self.assertEqual(expanded, _expand_recursive_glob(pattern))
+
+    def test_shared_probe_finds_every_depth_of_a_recursive_pattern(self):
+        script = fixed_probe_script().decode("utf-8")
+        start = script.index("expand_recursive_glob() {")
+        end = script.index("\nsnapshot_registrar() {", start)
+        snapshot_script = script[start:end]
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            expected = set()
+            for depth in range(4):
+                leaf = root.joinpath(*[f"l{level}" for level in range(1, depth + 1)])
+                leaf.mkdir(parents=True, exist_ok=True)
+                target = leaf / f"depth{depth}.log"
+                target.write_text("payload", encoding="utf-8")
+                expected.add(str(target))
+            pattern = f"{root}/**/*.log"
+
+            harness = "\n".join(
+                (
+                    "set -u",
+                    "MAX_SOURCES=50",
+                    "MAX_RECURSIVE_GLOB_DEPTH=8",
+                    "INCLUDE_SOURCE_SAMPLE=0",
+                    "tab=$(printf '\\t')",
+                    'emit_kv() { printf \'%s\\t%s\\n\' "$1" "${2-}"; }',
+                    "emit_sample_stream() { :; }",
+                    "add_registrar_filter_key() { :; }",
+                    "stat() { [ -e \"$3\" ] || return 1; printf '2049 4242 7 1700000000\\n'; }",
+                    f"source_patterns=$(printf '%s\\t%s' '{pattern}' '{pattern}')",
+                    snapshot_script,
+                    "snapshot_sources first",
+                )
+            )
+            completed = subprocess.run(
+                ["/bin/sh"],
+                input=harness,
+                text=True,
+                capture_output=True,
+                check=True,
+            )
+
+            emitted = {}
+            for line in completed.stdout.splitlines():
+                key, _, value = line.partition("\t")
+                emitted[key] = value
+            found = {value for key, value in emitted.items() if key.endswith(".path")}
+
+            # POSIX sh has no globstar, so ** collapses to a single * and reports only the
+            # one-level file while the collector reads all four.
+            self.assertEqual(found, expected)
+            self.assertEqual(emitted["first.source_count"], "4")
+
+    def test_shared_probe_counts_the_sources_the_limit_left_out(self):
+        script = fixed_probe_script().decode("utf-8")
+        start = script.index("expand_recursive_glob() {")
+        end = script.index("\nsnapshot_registrar() {", start)
+        snapshot_script = script[start:end]
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            for depth in range(7):
+                leaf = root.joinpath(*[f"l{level}" for level in range(1, depth + 1)])
+                leaf.mkdir(parents=True, exist_ok=True)
+                (leaf / f"depth{depth}.log").write_text("payload", encoding="utf-8")
+            pattern = f"{root}/**/*.log"
+
+            harness = "\n".join(
+                (
+                    "set -u",
+                    "MAX_SOURCES=3",
+                    "MAX_RECURSIVE_GLOB_DEPTH=8",
+                    "INCLUDE_SOURCE_SAMPLE=0",
+                    "tab=$(printf '\\t')",
+                    'emit_kv() { printf \'%s\\t%s\\n\' "$1" "${2-}"; }',
+                    "emit_sample_stream() { :; }",
+                    "add_registrar_filter_key() { :; }",
+                    "stat() { [ -e \"$3\" ] || return 1; printf '2049 4242 7 1700000000\\n'; }",
+                    f"source_patterns=$(printf '%s\\t%s' '{pattern}' '{pattern}')",
+                    snapshot_script,
+                    "snapshot_sources first",
+                )
+            )
+            completed = subprocess.run(
+                ["/bin/sh"],
+                input=harness,
+                text=True,
+                capture_output=True,
+                check=True,
+            )
+
+            emitted = {}
+            for line in completed.stdout.splitlines():
+                key, _, value = line.partition("\t")
+                emitted[key] = value
+
+            # Stopping at the limit would report 3 of 7 with no way to tell whether the rest are
+            # four files or four hundred, which is the difference between narrowing by one
+            # subdirectory and narrowing by depth.
+            self.assertEqual(emitted["first.source_count"], "3")
+            self.assertEqual(emitted["first.source_skipped_count"], "4")
+            self.assertEqual(emitted["first.source_limit"], "3")
+            self.assertEqual(emitted["source_narrowing_required"], "true")
+
+    def test_shared_probe_keeps_a_source_whose_link_target_cannot_be_resolved(self):
+        script = fixed_probe_script().decode("utf-8")
+        snapshot_start = script.index("expand_recursive_glob() {")
+        snapshot_end = script.index("\nsnapshot_registrar() {", snapshot_start)
+        snapshot_script = script[snapshot_start:snapshot_end]
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "plain.log").write_text("payload", encoding="utf-8")
+            (root / "relative.log").symlink_to("plain.log")
+            (root / "dangling.log").symlink_to(root / "missing.log")
+            pattern = f"{root}/*.log"
+
+            harness = "\n".join(
+                (
+                    "set -u",
+                    "MAX_SOURCES=50",
+                    "MAX_RECURSIVE_GLOB_DEPTH=8",
+                    "INCLUDE_SOURCE_SAMPLE=0",
+                    "tab=$(printf '\\t')",
+                    'emit_kv() { printf \'%s\\t%s\\n\' "$1" "${2-}"; }',
+                    "emit_sample_stream() { :; }",
+                    "add_registrar_filter_key() { :; }",
+                    # BSD stat spells this query differently than the GNU form the probe uses, so
+                    # stand in for it while keeping the behaviour the probe depends on: following
+                    # the link and failing when the target is absent.
+                    "stat() { [ -e \"$3\" ] || return 1; printf '2049 4242 7 1700000000\\n'; }",
+                    f"source_patterns=$(printf '%s\\t%s' '{pattern}' '{pattern}')",
+                    snapshot_script,
+                    "snapshot_sources first",
+                )
+            )
+            completed = subprocess.run(
+                ["/bin/sh"],
+                input=harness,
+                text=True,
+                capture_output=True,
+                check=True,
+            )
+
+            emitted = {}
+            for line in completed.stdout.splitlines():
+                key, _, value = line.partition("\t")
+                emitted[key] = value
+            prefixes = {
+                value.rsplit("/", 1)[-1]: key[: -len("path")] for key, value in emitted.items() if key.endswith(".path")
+            }
+
+            # A dangling link fails -e, and dropping it would be indistinguishable from a source
+            # that was never configured.
+            self.assertEqual(emitted["first.source_count"], "3")
+
+            dangling = prefixes["dangling.log"]
+            self.assertEqual(emitted[dangling + "symlink"], "true")
+            self.assertEqual(emitted[dangling + "symlink_target"], str(root / "missing.log"))
+            self.assertEqual(emitted[dangling + "unreadable"], "true")
+            # A broken link has no identity to report, and inventing one would let the server
+            # match it against an unrelated registrar state.
+            self.assertNotIn(dangling + "inode", emitted)
+
+            relative = prefixes["relative.log"]
+            self.assertEqual(emitted[relative + "symlink_target"], "plain.log")
+            self.assertEqual(emitted[relative + "inode"], "4242")
+            self.assertNotIn(relative + "unreadable", emitted)
+
+            plain = prefixes["plain.log"]
+            self.assertNotIn(plain + "symlink", emitted)
+            self.assertEqual(emitted[plain + "inode"], "4242")
+
+    def test_shared_probe_registrar_stream_splits_single_key_array_before_filtering(self):
+        script = fixed_probe_script().decode("utf-8")
+        snippet_start = script.index('registrar_filter_keys=""')
+        snippet_end = script.index("\nemit_sample_stream() {", snippet_start)
+        snippet = script[snippet_start:snippet_end]
+
+        with tempfile.TemporaryDirectory() as directory:
+            registrar_path = Path(directory) / "bkunifylogbeat.bkpipe.db"
+            # bkunifylogbeat json.Marshal()s every state into one array under a single key, so
+            # the whole registrar reaches `strings` as one line and has to be split per record
+            # before a filter or a byte budget means anything.
+            registrar_path.write_text(
+                '[{"source":"/data/app.log","offset":10,"FileStateOS":{"inode":7,"device":8}},'
+                '{"source":"/data/other.log","offset":20,"FileStateOS":{"inode":9,"device":8}},'
+                '{"source":"/var/log/noise.log","offset":30,"FileStateOS":{"inode":11,"device":8}}]',
+                encoding="utf-8",
+            )
+
+            harness = "\n".join(
+                (
+                    "set -u",
+                    "MAX_REGISTRAR_BYTES=524288",
+                    'emit_kv() { printf \'KV\\t%s\\t%s\\n\' "$1" "$2"; }',
+                    'emit_encoded_stream() { printf \'STREAM\\t%s\\t%s\\n\' "$5" "$6"; }',
+                    "decoded_base64_size() { printf '%s' \"$1\" | base64 -d 2>/dev/null | wc -c | tr -d ' '; }",
+                    snippet,
+                    'add_registrar_filter_key "/data/app.log"',
+                    'add_registrar_filter_key "/data/app.log"',
+                    'add_registrar_filter_key "app.log"',
+                    f'emit_registrar_stream "first.registrar_strings" "{registrar_path}"',
+                )
+            )
+            completed = subprocess.run(
+                ["/bin/sh"],
+                input=harness,
+                text=True,
+                capture_output=True,
+                check=True,
+            )
+
+        emitted = {}
+        stream_truncated = None
+        stream_payload = ""
+        for line in completed.stdout.splitlines():
+            kind, _, rest = line.partition("\t")
+            if kind == "KV":
+                key, _, value = rest.partition("\t")
+                emitted[key] = value
+            elif kind == "STREAM":
+                stream_truncated, _, stream_payload = rest.partition("\t")
+
+        self.assertNotIn("syntax error", completed.stderr)
+        # One physical line in, three records out.
+        self.assertEqual(emitted["first.registrar_strings.raw_line_count"], "1")
+        self.assertEqual(emitted["first.registrar_strings.record_split"], "true")
+        self.assertEqual(emitted["first.registrar_strings.record_count"], "3")
+        # The repeated key collapses, so grep only receives the path and the basename.
+        self.assertEqual(emitted["first.registrar_strings.filter_key_count"], "2")
+        self.assertEqual(emitted["first.registrar_strings.filtered"], "true")
+        self.assertEqual(emitted["first.registrar_strings.filtered_record_count"], "1")
+        self.assertEqual(stream_truncated, "false")
+        decoded = base64.b64decode(stream_payload).decode("utf-8")
+        self.assertIn("/data/app.log", decoded)
+        self.assertNotIn("/data/other.log", decoded)
+        self.assertNotIn("/var/log/noise.log", decoded)
+
+    def test_shared_probe_registrar_stream_falls_back_to_full_scan_without_keys(self):
+        script = fixed_probe_script().decode("utf-8")
+        snippet_start = script.index('registrar_filter_keys=""')
+        snippet_end = script.index("\nemit_sample_stream() {", snippet_start)
+        snippet = script[snippet_start:snippet_end]
+
+        with tempfile.TemporaryDirectory() as directory:
+            registrar_path = Path(directory) / "bkunifylogbeat.bkpipe.db"
+            registrar_path.write_text(
+                '[{"source":"/data/app.log","offset":10},{"source":"/data/other.log","offset":20}]',
+                encoding="utf-8",
+            )
+
+            harness = "\n".join(
+                (
+                    "set -u",
+                    "MAX_REGISTRAR_BYTES=524288",
+                    'emit_kv() { printf \'KV\\t%s\\t%s\\n\' "$1" "$2"; }',
+                    'emit_encoded_stream() { printf \'STREAM\\t%s\\t%s\\n\' "$5" "$6"; }',
+                    "decoded_base64_size() { printf '%s' \"$1\" | base64 -d 2>/dev/null | wc -c | tr -d ' '; }",
+                    snippet,
+                    f'emit_registrar_stream "first.registrar_strings" "{registrar_path}"',
+                )
+            )
+            completed = subprocess.run(
+                ["/bin/sh"],
+                input=harness,
+                text=True,
+                capture_output=True,
+                check=True,
+            )
+
+        emitted = {}
+        stream_payload = ""
+        for line in completed.stdout.splitlines():
+            kind, _, rest = line.partition("\t")
+            if kind == "KV":
+                key, _, value = rest.partition("\t")
+                emitted[key] = value
+            elif kind == "STREAM":
+                _, _, stream_payload = rest.partition("\t")
+
+        self.assertEqual(emitted["first.registrar_strings.filtered"], "false")
+        self.assertEqual(emitted["first.registrar_strings.filter_key_count"], "0")
+        # Splitting still happens without keys, so the record count stays meaningful.
+        self.assertEqual(emitted["first.registrar_strings.record_split"], "true")
+        self.assertEqual(emitted["first.registrar_strings.record_count"], "2")
+        self.assertEqual(emitted["first.registrar_strings.filtered_record_count"], "2")
+        decoded = base64.b64decode(stream_payload).decode("utf-8")
+        self.assertIn("/data/other.log", decoded)
+
+    def test_shared_probe_rejects_caller_shaped_config_hints(self):
+        for hint in ("../secret.conf", "/data/etc/secret.conf", "*.conf", "a,b.conf"):
+            with self.subTest(hint=hint), self.assertRaises(ValueError):
+                fixed_probe_arguments(1001, False, [hint])
+
+    def test_shared_probe_resolves_relative_main_config_from_process_runtime(self):
+        script = fixed_probe_script().decode("utf-8")
+
+        self.assertIn('process_cwd=$(readlink "/proc/$process_pid/cwd"', script)
+        self.assertIn('process_binary_path=$(readlink "/proc/$process_pid/exe"', script)
+        self.assertIn('main_config_source="process_argument_relative_cwd"', script)
+        self.assertIn('main_config_source="process_argument_relative_binary"', script)
+        self.assertIn('canonical_main_config=$(readlink -f "$main_config"', script)
+
+    def test_job_log_prefix_does_not_hide_shared_protocol(self):
+        parsed = parse_probe_output(f"[JOB] BKLOG_KV\tprotocol\t{PROBE_PROTOCOL}")
+
+        self.assertEqual(parsed["values"]["protocol"], PROBE_PROTOCOL)
+
+    def test_ambiguous_fallback_main_config_is_reported(self):
+        parsed = parsed_probe()
+        parsed["values"]["main_config_source"] = "bounded_fallback_discovery"
+        parsed["values"]["main_config_candidate_count"] = "2"
+
+        probes = build_probe_evidence(
+            parsed,
+            bk_data_id=1001,
+            source=None,
+            include_source_sample=False,
+            config_map_main=None,
+            sidecar_required=False,
+        )
+
+        warning_codes = {item["code"] for item in probes["main_config_mounted"]["warnings"]}
+        self.assertIn("multiple_main_config_candidates", warning_codes)
+
+    def test_bounded_scan_does_not_misreport_target_data_id_as_not_rendered(self):
+        parsed = parsed_probe()
+        parsed["streams"].pop("child_config.0")
+        parsed["values"].update(
+            {
+                "target_data_id": "1001",
+                "child_config_scanned_count": "1000",
+                "child_config_scan_limit": "1000",
+                "child_config_scan_truncated": "true",
+                "child_config_match_count": "0",
+                "child_config_match_limit_exceeded": "false",
+            }
+        )
+
+        probes = build_probe_evidence(
+            parsed,
+            bk_data_id=1001,
+            source=None,
+            include_source_sample=False,
+            config_map_main=None,
+            sidecar_required=False,
+        )
+
+        config_probe = probes["main_config_mounted"]
+        self.assertEqual(config_probe["code"], "child_config_scan_truncated")
+        self.assertNotEqual(config_probe["code"], "data_id_child_config_not_rendered")
+        self.assertTrue(config_probe["evidence"]["child_config_scan"]["scan_truncated"])
+
+    def test_missing_authoritative_hint_reports_target_data_id_as_not_rendered(self):
+        parsed = parsed_probe()
+        parsed["streams"].pop("child_config.0")
+        parsed["values"].update(
+            {
+                "target_data_id": "1001",
+                "child_config_hint_count": "1",
+                "child_config_hint_path_count": "0",
+                "child_config_scanned_count": "0",
+                "child_config_scan_limit": "1000",
+                "child_config_scan_truncated": "false",
+                "child_config_match_count": "0",
+                "child_config_match_limit_exceeded": "false",
+            }
+        )
+
+        probes = build_probe_evidence(
+            parsed,
+            bk_data_id=1001,
+            source=None,
+            include_source_sample=False,
+            config_map_main=None,
+            sidecar_required=False,
+        )
+
+        config_probe = probes["main_config_mounted"]
+        self.assertEqual(config_probe["code"], "data_id_child_config_not_rendered")
+        self.assertEqual(config_probe["evidence"]["child_config_scan"]["hint_count"], 1)
+        self.assertEqual(config_probe["evidence"]["child_config_scan"]["scanned_count"], 0)
+        self.assertFalse(config_probe["evidence"]["child_config_scan"]["scan_truncated"])
+
+    def test_fallback_config_parser_does_not_mix_data_ids(self):
         config = """local:
   - dataid: 1001
     paths:
-      - '/data/a/*.log'
+      - /data/a/*.log
   - dataid: 1002
     paths:
-      - '/data/b/*.log'
+      - /data/b/*.log
 """
 
-        inputs = remote_script.fallback_matching_inputs(config, 1001)
+        inputs = fallback_matching_inputs(config, 1001)
 
         self.assertEqual(len(inputs), 1)
         self.assertEqual(inputs[0]["paths"], ["/data/a/*.log"])
 
-    def test_missing_multi_config_preserves_main_config_paths(self):
-        with tempfile.TemporaryDirectory() as directory:
-            setup = Path(directory)
-            main_dir = setup / "plugins" / "etc"
-            main_dir.mkdir(parents=True)
-            (main_dir / "bkunifylogbeat.conf").write_text(
-                "path.data: /var/lib/gse\npath.logs: /var/log/gse\npath.pid: /var/run/gse\n",
-                encoding="utf-8",
-            )
-
-            public, internal = remote_script.inspect_configs(str(setup), 1001)
-
-            self.assertEqual(public["matching_config_count"], 0)
-            self.assertEqual(public["warnings"][0]["code"], "multi_config_missing")
-            self.assertEqual(internal["path_logs"], "/var/log/gse")
-
-    def test_observation_duration_uses_longest_matching_input_value(self):
-        with tempfile.TemporaryDirectory() as directory:
-            setup = Path(directory)
-            main_dir = setup / "plugins" / "etc"
-            child_dir = main_dir / "bkunifylogbeat"
-            child_dir.mkdir(parents=True)
-            (main_dir / "bkunifylogbeat.conf").write_text(
-                "\n".join(
-                    [
-                        "path.data: /var/lib/gse",
-                        "path.logs: /var/log/gse",
-                        "bkunifylogbeat.multi_config:",
-                        f"  - path: '{child_dir}'",
-                        "    file_pattern: '*.conf'",
-                    ]
-                ),
-                encoding="utf-8",
-            )
-            (child_dir / "first.conf").write_text(
-                "local:\n  - dataid: 1001\n    scan_frequency: 2s\n    paths: ['/data/a.log']\n",
-                encoding="utf-8",
-            )
-            (child_dir / "second.conf").write_text(
-                "local:\n  - dataid: 1001\n    scan_frequency: 20s\n    paths: ['/data/b.log']\n",
-                encoding="utf-8",
-            )
-
-            _public, internal = remote_script.inspect_configs(str(setup), 1001)
-
-            self.assertEqual(internal["durations"]["scan_frequency"], 20.0)
-
-    def test_config_inspection_confirms_data_id_from_content_not_filename(self):
-        with tempfile.TemporaryDirectory() as directory:
-            setup = Path(directory)
-            main_dir = setup / "plugins" / "etc"
-            child_dir = main_dir / "bkunifylogbeat"
-            child_dir.mkdir(parents=True)
-            data_dir = setup / "data"
-            log_dir = setup / "logs"
-            data_dir.mkdir()
-            log_dir.mkdir()
-            (main_dir / "bkunifylogbeat.conf").write_text(
-                "\n".join(
-                    [
-                        f"path.data: {data_dir}",
-                        f"path.logs: {log_dir}",
-                        "bkunifylogbeat.registry.flush: '1s'",
-                        "bkunifylogbeat.multi_config:",
-                        f"  - path: '{child_dir}'",
-                        "    file_pattern: '*.conf'",
-                    ]
-                ),
-                encoding="utf-8",
-            )
-            (child_dir / "misleading-name-999.conf").write_text(
-                "local:\n  - dataid: 1001\n    paths:\n      - '/data/app/*.log'\n",
-                encoding="utf-8",
-            )
-
-            public, internal = remote_script.inspect_configs(str(setup), 1001)
-
-            self.assertEqual(public["matching_config_count"], 1)
-            self.assertEqual(internal["matching_configs"][0]["inputs"][0]["paths"], ["/data/app/*.log"])
-
-    def test_registrar_parser_and_identity_matching_use_source_inode_device(self):
+    def test_registrar_matching_uses_source_inode_and_device(self):
         text = (
             'prefix {"source":"/data/app.log","offset":10,"timestamp":"2026-01-01T00:00:00Z",'
-            '"ttl":-1,"type":"log","meta":null,"FileStateOS":{"inode":7,"device":8}} suffix'
+            '"FileStateOS":{"inode":7,"device":8}} suffix'
         )
 
-        states = remote_script.parse_registrar_strings(text)
-        matched = remote_script._state_for_file(
+        states = parse_registrar_strings(text)
+        current = state_for_file(
             states,
             {"path": "/data/app.log", "normalized_path": "/data/app.log", "inode": 7, "device": 8},
         )
-
-        self.assertEqual(matched["current"]["offset"], 10)
-        historical = remote_script._state_for_file(
+        historical = state_for_file(
             states,
             {"path": "/data/app.log", "normalized_path": "/data/app.log", "inode": 9, "device": 8},
         )
+
+        self.assertEqual(current["current"]["offset"], 10)
         self.assertIsNone(historical["current"])
         self.assertEqual(len(historical["historical"]), 1)
 
-    def test_registrar_progress_states_and_insufficient_window(self):
+    def test_registrar_progress_preserves_insufficient_window_state(self):
         first_file = {"size_bytes": 100, "inode": 7, "device": 8}
         second_file = {"size_bytes": 120, "inode": 7, "device": 8}
         first_match = {"current": {"offset": 50}, "historical": []}
         second_match = {"current": {"offset": 80}, "historical": []}
 
-        advancing = remote_script.classify_registrar_progress(first_file, second_file, first_match, second_match)
-        insufficient = remote_script.classify_registrar_progress(
-            first_file, second_file, first_match, second_match, insufficient=True
+        result = classify_registrar_progress(
+            first_file,
+            second_file,
+            first_match,
+            second_match,
+            insufficient=True,
         )
 
-        self.assertEqual(advancing["status"], "progress_advancing")
-        self.assertEqual(insufficient["status"], "insufficient_observation_window")
-        self.assertEqual(insufficient["observed_status"], "progress_advancing")
+        self.assertEqual(result["status"], "insufficient_observation_window")
+        self.assertEqual(result["observed_status"], "progress_advancing")
 
-    def test_source_path_cannot_escape_rendered_config_patterns(self):
-        with tempfile.TemporaryDirectory() as directory:
-            allowed = Path(directory) / "allowed"
-            allowed.mkdir()
-            source = allowed / "app.log"
-            source.write_text("ok", encoding="utf-8")
+    def test_registrar_probe_surfaces_bounded_evidence_limits(self):
+        parsed = parsed_probe()
+        state = '{"source":"/data/app/service.log","offset":10,"FileStateOS":{"inode":7,"device":8}}'
+        for phase in ("first", "second"):
+            parsed["streams"][f"{phase}.registrar_strings"] = {
+                "content": state,
+                "returned_size_bytes": 524288,
+                "truncated": True,
+            }
+            parsed["values"][f"{phase}.registrar_strings.filtered"] = "true"
+            parsed["values"][f"{phase}.registrar_strings.filter_key_count"] = "2"
+            parsed["values"][f"{phase}.registrar_strings.record_split"] = "true"
+            parsed["values"][f"{phase}.registrar_strings.raw_line_count"] = "1"
+            parsed["values"][f"{phase}.registrar_strings.record_count"] = "1430"
+            parsed["values"][f"{phase}.registrar_strings.filtered_record_count"] = "4"
 
-            self.assertTrue(remote_script.source_is_allowed(str(source), [str(allowed / "*.log")]))
-            self.assertFalse(
-                remote_script.source_is_allowed(str(Path(directory) / "outside.log"), [str(allowed / "*.log")])
+        registrar = build_probe_evidence(
+            parsed,
+            bk_data_id=1001,
+            source=None,
+            include_source_sample=False,
+            config_map_main=None,
+            sidecar_required=False,
+        )["registrar"]
+        sampling = registrar["evidence"]["first_sampling"]
+
+        self.assertEqual(registrar["status"], "warning")
+        self.assertEqual(registrar["code"], "registrar_strings_incomplete")
+        self.assertTrue(sampling["truncated"])
+        self.assertEqual(sampling["returned_size_bytes"], 524288)
+        self.assertEqual(sampling["record_count"], 1430)
+        self.assertEqual(sampling["filtered_record_count"], 4)
+        # Three of the four matched records never made it past the byte budget.
+        self.assertIn("records_missing_from_sample", sampling["incomplete_reasons"])
+        self.assertIn("stream_truncated", registrar["warnings"][0]["reasons"])
+
+    def test_registrar_probe_counts_records_it_could_not_parse(self):
+        parsed = parsed_probe()
+        for phase in ("first", "second"):
+            parsed["streams"][f"{phase}.registrar_strings"] = {
+                "content": '{"source":"/data/app/service.log","offset":10,"FileStateOS":{"inode":7,"dev'
+            }
+
+        registrar = build_probe_evidence(
+            parsed,
+            bk_data_id=1001,
+            source=None,
+            include_source_sample=False,
+            config_map_main=None,
+            sidecar_required=False,
+        )["registrar"]
+
+        self.assertEqual(registrar["status"], "warning")
+        self.assertEqual(registrar["evidence"]["first_sampling"]["unparsed_line_count"], 1)
+        self.assertIn("unparsed_lines", registrar["warnings"][0]["reasons"])
+
+    def test_registrar_probe_flags_an_unsplit_single_key_array(self):
+        parsed = parsed_probe()
+        for phase in ("first", "second"):
+            parsed["streams"][f"{phase}.registrar_strings"] = {
+                "content": '[{"source":"/data/app/service.log","offset":10,"FileStateOS":{"inode":7,"device":8}}]'
+            }
+            parsed["values"][f"{phase}.registrar_strings.record_split"] = "false"
+            parsed["values"][f"{phase}.registrar_strings.raw_line_count"] = "1"
+            parsed["values"][f"{phase}.registrar_strings.record_count"] = "1"
+
+        registrar = build_probe_evidence(
+            parsed,
+            bk_data_id=1001,
+            source=None,
+            include_source_sample=False,
+            config_map_main=None,
+            sidecar_required=False,
+        )["registrar"]
+
+        # Without the split the byte budget can cut the array at any point, so the sample
+        # cannot be read as complete even though everything that came back did parse.
+        self.assertEqual(registrar["status"], "warning")
+        self.assertFalse(registrar["evidence"]["first_sampling"]["record_split"])
+        self.assertIn("records_not_split", registrar["warnings"][0]["reasons"])
+
+    def test_registrar_snapshots_are_parsed_once_for_every_probe_that_reads_them(self):
+        parsed = parsed_probe()
+        state = '{"source":"/data/app/service.log","offset":10,"FileStateOS":{"inode":7,"device":8}}'
+        for phase in ("first", "second"):
+            parsed["streams"][f"{phase}.registrar_strings"] = {"content": state}
+
+        with patch(
+            "apps.log_admin_resource.collector_probe_evidence.parse_registrar_strings_with_stats",
+            side_effect=parse_registrar_strings_with_stats,
+        ) as parse:
+            build_probe_evidence(
+                parsed,
+                bk_data_id=1001,
+                source=None,
+                include_source_sample=False,
+                config_map_main=None,
+                sidecar_required=False,
             )
 
-    def test_source_sample_follows_symlink_matched_by_target_config(self):
-        with tempfile.TemporaryDirectory() as directory:
-            allowed = Path(directory) / "allowed"
-            allowed.mkdir()
-            outside = Path(directory) / "outside.secret"
-            outside.write_text("secret", encoding="utf-8")
-            symlink = allowed / "app.log"
-            symlink.symlink_to(outside)
-            pattern = str(allowed / "*.log")
+        # The registrar and progress probes both read the same two snapshots. Parsing per probe
+        # walks a several-hundred-KB line four times for one inspection.
+        self.assertEqual(parse.call_count, 2)
 
-            self.assertFalse(remote_script.source_is_allowed(str(outside), [pattern]))
-            result = remote_script.inspect_sources([pattern], str(symlink), True)
-
-            self.assertTrue(result["files"][0]["is_symlink"])
-            self.assertEqual(result["files"][0]["sample"]["content"], "secret")
-
-    def test_source_sample_is_bounded_to_50_lines_and_64_kib(self):
-        with tempfile.TemporaryDirectory() as directory:
-            source = Path(directory) / "app.log"
-            source.write_text("\n".join(f"line-{index}-" + "x" * 2000 for index in range(100)), encoding="utf-8")
-
-            sample = remote_script.tail_sample(str(source))
-
-            self.assertLessEqual(sample["line_count"], 50)
-            self.assertLessEqual(sample["returned_bytes"], 64 * 1024)
-            self.assertTrue(sample["truncated"])
-
-    def test_source_sample_limit_is_shared_across_all_matching_files(self):
-        with tempfile.TemporaryDirectory() as directory:
-            for index in range(2):
-                (Path(directory) / f"{index}.log").write_text(
-                    "\n".join(f"file-{index}-line-{line}-" + "x" * 2000 for line in range(50)),
-                    encoding="utf-8",
-                )
-
-            result = remote_script.inspect_sources([str(Path(directory) / "*.log")], None, True)
-
-            limit = result["source_sample_limit"]
-            self.assertLessEqual(limit["returned_bytes"], 64 * 1024)
-            self.assertLessEqual(limit["returned_lines"], 50)
-
-    def test_more_than_50_sources_requires_narrowing(self):
-        with tempfile.TemporaryDirectory() as directory:
-            for index in range(51):
-                (Path(directory) / f"{index}.log").write_text("x", encoding="utf-8")
-
-            result = remote_script.inspect_sources([str(Path(directory) / "*.log")], None, False)
-
-            self.assertEqual(result["status"], "source_narrowing_required")
-            self.assertEqual(result["match_count"], 51)
-            self.assertEqual(result["files"], [])
-
-    def test_unreadable_source_is_reported_as_warning(self):
-        status, code, _summary = remote_script._probe_status_from_sources(
-            {"status": "inspected", "files": [{"exists": True, "readable": False}]}
+    def test_registrar_parser_keeps_every_record_sharing_a_line(self):
+        text = (
+            '{"source":"/data/a.log","offset":1,"FileStateOS":{"inode":7,"device":8}}'
+            '{"source":"/data/b.log","offset":2,"FileStateOS":{"inode":9,"device":8}}'
         )
 
-        self.assertEqual(status, "warning")
-        self.assertEqual(code, "source_unreadable")
+        states = parse_registrar_strings(text)
 
-    def test_process_delta_refuses_cross_process_trend(self):
-        first = {"processes": [{"pid": 1, "start_ticks": 10}]}
-        second = {"processes": [{"pid": 2, "start_ticks": 20}]}
+        # `strings` merges adjacent records when no unprintable byte separates them, so
+        # stopping at the first decoded value would drop the rest of the line.
+        self.assertEqual([state["source"] for state in states], ["/data/a.log", "/data/b.log"])
 
-        result = remote_script.process_delta(first, second, 5)
+    def test_registrar_parser_recovers_records_from_a_truncated_array(self):
+        text = (
+            '[{"source":"/data/a.log","offset":1,"FileStateOS":{"inode":7,"device":8}},'
+            '{"source":"/data/b.log","offset":2,"FileStateOS":{"inode":9,"device":8}},'
+            '{"source":"/data/c.log","offset":3,"FileStateOS":{"inode":11,"dev'
+        )
 
-        self.assertTrue(result["process_restarted_during_sampling"])
-        self.assertEqual(result["deltas"], [])
+        states = parse_registrar_strings(text)
 
-    def test_deleted_proc_executable_keeps_exact_binary_identity(self):
-        path, deleted = remote_script.normalize_proc_executable("/usr/local/gse/plugins/bin/bkunifylogbeat (deleted)")
+        # The unterminated array itself cannot decode, but every complete object inside it
+        # must still be recovered rather than collapsing to the first record.
+        self.assertEqual([state["source"] for state in states], ["/data/a.log", "/data/b.log"])
 
-        self.assertEqual(path, "/usr/local/gse/plugins/bin/bkunifylogbeat")
-        self.assertTrue(deleted)
+    def test_progress_reports_incomplete_evidence_instead_of_missing_state(self):
+        parsed = parsed_probe()
+        for phase in ("first", "second"):
+            parsed["values"][f"{phase}.source_count"] = "1"
+            parsed["values"][f"{phase}.source.0.pattern"] = "/data/app/*.log"
+            parsed["values"][f"{phase}.source.0.path"] = "/data/app/service.log"
+            parsed["values"][f"{phase}.source.0.resolved_path"] = "/data/app/service.log"
+            parsed["values"][f"{phase}.source.0.device"] = "8"
+            parsed["values"][f"{phase}.source.0.inode"] = "7"
+            parsed["values"][f"{phase}.source.0.size_bytes"] = "100"
+            parsed["values"][f"{phase}.source.0.mtime_epoch"] = "1700000000"
+            parsed["streams"][f"{phase}.registrar_strings"] = {
+                "content": '{"source":"/data/app/service.log","offset":10,"FileStateOS":{"inode":7,"dev'
+            }
 
-    def test_process_delta_degrades_when_fd_count_is_unavailable(self):
-        base = {
-            "pid": 1,
-            "start_ticks": 10,
-            "cpu_ticks": 10,
-            "clock_ticks_per_second": 100,
-            "cpu_count": 2,
-            "memory": {"vm_rss_bytes": 100},
-            "file_descriptors": {"count": None},
-            "io": {},
+        progress = build_probe_evidence(
+            parsed,
+            bk_data_id=1001,
+            source=None,
+            include_source_sample=False,
+            config_map_main=None,
+            sidecar_required=False,
+        )["progress"]
+
+        self.assertTrue(progress["evidence"]["registrar_evidence_incomplete"])
+        self.assertEqual(progress["evidence"]["items"][0]["observed_status"], "registrar_evidence_incomplete")
+
+    def test_host_and_k8s_use_the_same_evidence_engine(self):
+        parsed = parsed_probe()
+
+        host = build_probe_evidence(
+            parsed,
+            bk_data_id=1001,
+            source=None,
+            include_source_sample=False,
+            config_map_main=None,
+            sidecar_required=False,
+        )
+        k8s = build_probe_evidence(
+            parsed,
+            bk_data_id=1001,
+            source=None,
+            include_source_sample=False,
+            config_map_main=None,
+            sidecar_required=True,
+        )
+
+        common = {
+            "main_config_mounted",
+            "collector_process",
+            "source_path",
+            "registrar",
+            "progress",
         }
-
-        result = remote_script.process_delta(
-            {"processes": [base]},
-            {"processes": [{**base, "cpu_ticks": 20, "memory": {"vm_rss_bytes": 120}}]},
-            5,
+        self.assertEqual(
+            {name: host[name] for name in common},
+            {name: k8s[name] for name in common},
         )
-
-        self.assertIsNone(result["deltas"][0]["fd_delta"])
-
-    def test_run_strings_drains_stdout_after_process_exit(self):
-        stdout = SimpleNamespace(fileno=lambda: 3, read=lambda _size: b"tail-json")
-        process = SimpleNamespace(stdout=stdout, returncode=0, poll=lambda: 0)
-        with (
-            patch.object(remote_script.subprocess, "Popen", return_value=process) as popen,
-            patch.object(remote_script.select, "select", return_value=([], [], [])),
-        ):
-            result = remote_script.run_strings("/tmp/registrar")
-
-        self.assertEqual(result, "tail-json")
-        self.assertEqual(popen.call_args.args[0], ["strings", "-n", "4", "--", "/tmp/registrar"])
-
-    def test_run_strings_reaps_process_after_stdout_eof(self):
-        class Process:
-            def __init__(self):
-                self.stdout = SimpleNamespace(fileno=lambda: 3, read=lambda _size: b"")
-                self.returncode = None
-
-            def poll(self):
-                return self.returncode
-
-            def wait(self):
-                self.returncode = 0
-
-        process = Process()
-        with (
-            patch.object(remote_script.subprocess, "Popen", return_value=process),
-            patch.object(remote_script.select, "select", return_value=([3], [], [])),
-            patch.object(remote_script.os, "read", return_value=b""),
-        ):
-            result = remote_script.run_strings("/tmp/registrar")
-
-        self.assertEqual(result, "")
-        self.assertEqual(process.returncode, 0)
-
-    def test_collector_error_logs_are_bounded_and_do_not_include_other_plugins(self):
-        with tempfile.TemporaryDirectory() as directory:
-            path = Path(directory)
-            (path / "bkunifylogbeat.err").write_text("A" * 200, encoding="utf-8")
-            (path / "other-plugin.err").write_text("SECRET", encoding="utf-8")
-
-            result = remote_script.inspect_collector_logs(str(path), maximum=100)
-
-            self.assertTrue(result["truncated"])
-            self.assertLessEqual(result["returned_size_bytes"], 100)
-            self.assertEqual([Path(item["path"]).name for item in result["files"]], ["bkunifylogbeat.err"])
-            self.assertNotIn("SECRET", json.dumps(result))
-
-    def test_collector_logs_include_libbeat_default_and_numeric_rotations(self):
-        with tempfile.TemporaryDirectory() as directory:
-            path = Path(directory)
-            (path / "bkunifylogbeat").write_text("current", encoding="utf-8")
-            (path / "bkunifylogbeat.1").write_text("rotated", encoding="utf-8")
-            (path / "bkunifylogbeat.not-a-rotation").write_text("ignore", encoding="utf-8")
-
-            result = remote_script.inspect_collector_logs(str(path), maximum=100)
-
-            names = {Path(item["path"]).name for item in result["files"]}
-            self.assertEqual(names, {"bkunifylogbeat", "bkunifylogbeat.1"})
-
-    def test_collector_error_logs_do_not_follow_symlinks(self):
-        with tempfile.TemporaryDirectory() as directory:
-            path = Path(directory)
-            outside = path / "outside.secret"
-            outside.write_text("SECRET", encoding="utf-8")
-            (path / "bkunifylogbeat.err").symlink_to(outside)
-
-            result = remote_script.inspect_collector_logs(str(path), maximum=100)
-
-            self.assertEqual(result["files"], [])
-            self.assertEqual(result["warnings"][0]["code"], "collector_log_file_skipped")
-            self.assertNotIn("SECRET", json.dumps(result))
-
-    def test_remote_payload_rejects_unregistered_fields(self):
-        value = base64.urlsafe_b64encode(
-            json.dumps({"setup_path": "/usr/local/gse", "bk_data_id": 1, "command": "id"}).encode()
-        ).decode()
-
-        with self.assertRaisesRegex(ValueError, "unsupported payload fields"):
-            remote_script.decode_payload(value)
-
-    @patch.object(remote_script.time, "sleep")
-    @patch.object(remote_script, "process_snapshot", side_effect=RuntimeError("proc unavailable"))
-    @patch.object(remote_script, "inspect_configs")
-    def test_process_probe_failure_preserves_config_evidence(self, inspect_configs, _process_snapshot, _sleep):
-        inspect_configs.return_value = (
-            {"matching_config_count": 1, "warnings": []},
-            {"matching_configs": [], "durations": dict(remote_script.DEFAULT_DURATIONS), "path_logs": None},
-        )
-
-        result = remote_script.execute({"setup_path": "/usr/local/gse", "bk_data_id": 1001})
-
-        self.assertEqual(result["probes"]["config"]["status"], "success")
-        self.assertEqual(result["probes"]["process"]["status"], "failed")
-        self.assertEqual(result["task_status"], "partial")
+        self.assertEqual(host["sidecar_process"]["code"], "sidecar_not_applicable")
+        self.assertEqual(k8s["sidecar_process"]["code"], "sidecar_process_unavailable")

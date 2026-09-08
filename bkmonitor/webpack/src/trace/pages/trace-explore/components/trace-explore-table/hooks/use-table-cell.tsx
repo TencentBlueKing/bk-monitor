@@ -53,7 +53,7 @@ export interface UseTableCellOptions {
   /** 表格行数据唯一key字段名 */
   rowKeyField: MaybeRef<string>;
   /** 默认单元格数据取值逻辑 */
-  customDefaultGetRenderValue?: (row, column: BaseTableColumn<any, any>) => string | string[];
+  customDefaultGetRenderValue?: (row, column: BaseTableColumn<any, any>) => unknown;
 }
 export function useTableCell({
   rowKeyField,
@@ -177,6 +177,8 @@ export function useTableCell({
         <div class={`${renderCtx.isEnabledCellEllipsis(column)}`}>
           <span
             class='explore-click-text '
+            data-col-id={column.colKey}
+            data-row-id={getRowId(row)}
             onClick={event => column?.clickCallback?.(row, column, event)}
           >
             {alias}
@@ -279,14 +281,14 @@ export function useTableCell({
     renderCtx: TableCellRenderContext<keyof typeof customCellRenderMap>
   ) {
     const timestamp = getTableCellRenderValue(row, column);
-    if (!timestamp) {
+    if (isEmpty(timestamp)) {
       return textColumnFormatter(
         row,
         column as unknown as ExploreTableColumn<ExploreTableColumnTypeEnum.TEXT>,
         renderCtx
       );
     }
-    const alias = formatDuration(+timestamp);
+    const alias = formatDuration(+timestamp, '', 2, column.cellSpecificProps?.durationUnit ?? 'us');
     return (
       <div class={'explore-col explore-duration-col '}>
         <div class={`${renderCtx.isEnabledCellEllipsis(column)}`}>
