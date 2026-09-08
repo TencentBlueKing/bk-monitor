@@ -816,13 +816,11 @@ class ApmServiceSearchItem(ApmApplicationSearchItem):
     ) -> list[dict] | None:
         if stop_event is not None and stop_event.is_set():
             return
-        permission = Permission(username=username, bk_tenant_id=bk_tenant_id)
-        spaces, wide_authorized = permission.filter_space_list_by_action_with_scope(ActionEnum.VIEW_BUSINESS)
-        if not wide_authorized and not spaces:
+        bk_biz_ids = cls._get_allowed_bk_biz_ids(bk_tenant_id, username, ActionEnum.VIEW_BUSINESS)
+        if not bk_biz_ids:
             return
-        cls._bk_biz_names_cache.update({space["bk_biz_id"]: space["space_name"] for space in spaces})
-        bk_biz_ids = [] if wide_authorized else [space["bk_biz_id"] for space in spaces]
-        services = api.apm_api.search_service_names(bk_biz_ids=bk_biz_ids, query=query)
+        # 业务超过 100 个时省略业务过滤。
+        services = api.apm_api.search_service_names(bk_biz_ids=[] if len(bk_biz_ids) > 100 else bk_biz_ids, query=query)
         if not services:
             return
 
