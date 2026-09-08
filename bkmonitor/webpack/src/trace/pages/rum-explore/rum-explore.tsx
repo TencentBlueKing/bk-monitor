@@ -211,26 +211,24 @@ export default defineComponent({
     /** 维度面板与表格单元格触发的条件追加 */
     function handleConditionChange(condition: ConditionChangeEvent, isFromDimensionFilterPanel = false) {
       const { key, method: operator, value } = condition;
-      const isDuration =
-        viewConfigCtx.viewConfig.value.fields.find(item => item.name === key)?.field_display_type === 'duration';
+      const field = viewConfigCtx.viewConfig.value.fields.find(item => item.name === key);
+      /** 范围值 */
+      const isRangeValue = field.field_display_type === 'duration' || field.field_unit === 'bytes';
+      const matched = value.match(/^(-?\d+)-(-?\d+)$/);
       if (queryCtx.filterMode.value === EMode.ui) {
         queryCtx.addCondition(
-          { key, operator, value: isDuration ? value.split('-') : safeParseJsonValueForWhere(value) },
+          {
+            key,
+            operator,
+            value: isRangeValue && matched ? [matched[1], matched[2]] : safeParseJsonValueForWhere(value),
+          },
           isFromDimensionFilterPanel
         );
         return;
       }
-      let endStr = `NOT ${key} : "${value || ''}"`;
-      if (operator === EMethod.eq) {
-        endStr = `${key} : "${value || ''}"`;
-      }
-      if (isDuration) {
-        const [start, end] = value.split('-');
-        /**
-         * 从表格添加耗时到检索栏只是一个时间点，并不是一个时间段
-         * 所以开始时间和结束时间是一样的
-         */
-        endStr = `${key} : [${start} TO ${end || start}]`;
+      let endStr = `${operator === EMethod.eq ? '' : 'NOT '}${key} : "${value || ''}"`;
+      if (isRangeValue && matched) {
+        endStr = `${key} : [${matched[1]} TO ${matched[2] || matched[1]}]`;
       }
       queryCtx.queryStringChange(
         queryCtx.queryString.value ? `${queryCtx.queryString.value} AND ${endStr}` : `${endStr}`

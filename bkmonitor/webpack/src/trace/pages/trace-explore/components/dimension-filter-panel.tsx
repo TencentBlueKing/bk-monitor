@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { type PropType, defineComponent, shallowRef, useTemplateRef, watch } from 'vue';
+import { type PropType, computed, defineComponent, shallowRef, useTemplateRef, watch } from 'vue';
 
 import { useDebounceFn } from '@vueuse/core';
 import { Input } from 'bkui-vue';
@@ -37,7 +37,7 @@ import EmptyStatus, {
 } from '../../../components/empty-status/empty-status';
 import { convertToTree, getTraceFieldUnit } from '../utils';
 import DimensionFieldTree from './dimension-field-tree';
-import StatisticsList from './statistics-list';
+import StatisticsList from './statistics-list/statistics-list';
 
 import type { ConditionChangeEvent, ICommonParams, IDimensionField, IDimensionFieldTreeItem } from '../typing';
 
@@ -99,6 +99,11 @@ export default defineComponent({
     /** tippy 实例 */
     const popoverInstance = shallowRef<Instance | null>(null);
     const statisticsListRef = useTemplateRef<InstanceType<typeof StatisticsList>>('statisticsListRef');
+
+    const selectFieldUnit = computed(() => {
+      if (!selectField.value) return '';
+      return getTraceFieldUnit(selectField.value.name);
+    });
     /** 点击维度项后展示统计弹窗 */
     async function handleDimensionItemClick(e: Event, item: IDimensionFieldTreeItem) {
       destroyPopover();
@@ -190,6 +195,7 @@ export default defineComponent({
       searchVal,
       dimensionTreeList,
       selectField,
+      selectFieldUnit,
       handleSearch,
       popoverInstance,
       statisticsListRef,
@@ -249,9 +255,11 @@ export default defineComponent({
           ref='statisticsListRef'
           commonParams={this.params}
           fieldType={this.selectField?.type}
+          isDuration={['us', 'ms', 'μs'].includes(this.selectFieldUnit)}
+          isInteger={['double', 'long', 'integer'].includes(this.selectField?.type)}
           isShow={this.showStatisticsPopover}
           selectField={this.selectField?.name}
-          unit={getTraceFieldUnit(this.selectField?.name)}
+          unit={this.selectFieldUnit}
           onConditionChange={this.handleConditionChange}
           onShowMore={this.destroyPopover}
         />

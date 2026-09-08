@@ -34,7 +34,7 @@ import EmptyStatus, {
   type EmptyStatusType,
 } from '../../../../components/empty-status/empty-status';
 import DimensionFieldTree from '../../../trace-explore/components/dimension-field-tree';
-import StatisticsList from '../../../trace-explore/components/statistics-list';
+import StatisticsList from '../../../trace-explore/components/statistics-list/statistics-list';
 import { convertToTree } from '../../../trace-explore/utils';
 import { useFieldStatisticsPopover } from '../../composables/use-field-statistics-popover';
 import {
@@ -259,13 +259,7 @@ export default defineComponent({
         </div>
 
         {this.renderGroups.length ? (
-          <div
-            class='panel-groups'
-            onScroll={() => {
-              this.showPopover = false;
-              this.destroyPopover();
-            }}
-          >
+          <div class='panel-groups'>
             {this.renderGroups.map(group => {
               const expanded = this.isGroupExpanded(group);
               return (
@@ -311,6 +305,8 @@ export default defineComponent({
           api={this.statisticsApi}
           commonParams={this.commonParams as any}
           fieldType={this.selectField?.type}
+          isDuration={this.selectField?.field_display_type === 'duration' || this.selectField?.field_unit === 'bytes'}
+          isInteger={['double', 'long', 'integer', 'float'].includes(this.selectField?.type)}
           isShow={this.showPopover}
           optionValues={this.selectField?.option_values}
           selectField={this.selectField?.name}

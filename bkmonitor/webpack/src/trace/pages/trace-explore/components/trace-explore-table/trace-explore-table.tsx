@@ -47,7 +47,7 @@ import { isEllipsisActiveSingleLine } from '../../../../utils/dom-helper';
 import { getTraceFieldUnit } from '../../utils';
 import ExploreFieldSetting from '../explore-field-setting/explore-field-setting';
 import FieldTypeIcon from '../field-type-icon';
-import StatisticsList from '../statistics-list';
+import StatisticsList from '../statistics-list/statistics-list';
 import ExploreConditionMenu from './components/explore-condition-menu';
 import ExploreTableEmpty from './components/explore-table-empty';
 import {
@@ -544,15 +544,18 @@ export default defineComponent({
     const statisticsDomRender = () => {
       if (!props.enableStatistics) return;
       const fieldOptions = tableColumns.value?.fieldMap?.[activeStatisticsField.value];
+      const selectFieldUnit = getTraceFieldUnit(fieldOptions?.name);
       return [
         <StatisticsList
           key='statisticsList'
           ref='statisticsListRef'
           commonParams={props.commonParams}
           fieldType={fieldOptions?.type}
+          isDuration={['us', 'ms', 'μs'].includes(selectFieldUnit)}
+          isInteger={['double', 'long', 'integer'].includes(fieldOptions?.name)}
           isShow={showStatisticsPopover.value}
           selectField={fieldOptions?.name}
-          unit={getTraceFieldUnit(fieldOptions?.name)}
+          unit={selectFieldUnit}
           onConditionChange={handleConditionChange}
           onShowMore={() => handleStatisticsPopoverHide(false)}
           onSliderShowChange={handleStatisticsSliderShow}

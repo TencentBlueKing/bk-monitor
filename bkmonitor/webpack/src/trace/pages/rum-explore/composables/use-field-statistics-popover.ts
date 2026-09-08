@@ -27,11 +27,12 @@ import { shallowRef, useTemplateRef } from 'vue';
 
 import tippy, { type Instance, type Props, type SingleTarget } from 'tippy.js';
 
-import type StatisticsList from '../../trace-explore/components/statistics-list';
+import type StatisticsList from '../../trace-explore/components/statistics-list/statistics-list';
 import type { IDimensionFieldTreeItem } from '../../trace-explore/typing';
+import type { IRumField } from '../typings';
 
 /** 统计分析弹层展示的字段，RUM 检索的字段会额外携带 field_unit */
-export type IStatisticsFieldItem = IDimensionFieldTreeItem & { field_unit?: string };
+export type IStatisticsFieldItem = IDimensionFieldTreeItem & IRumField;
 
 /**
  * 字段统计分析弹层。
