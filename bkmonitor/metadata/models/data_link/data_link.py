@@ -2166,9 +2166,10 @@ class DataLink(models.Model):
         )
         bkbase_vmrt_name = utils.compose_bkdata_table_id(table_id, self.data_link_strategy)
 
-        # 解析 compose 所需的 name：优先复用既有组件的 name，否则回退到新生成的
-        # bkbase_vmrt_name。bk_exporter 允许同时存在主 RT 和 _cmdb RT，需要按 slot 分别 claim；
-        # 其他插件链路仍保持同 kind 一对一，歧义组件留给 leftover 校验兜底。
+        # 解析 compose 所需的 name：优先复用既有组件的 name（若同 kind 恰好只有
+        # 一条可 claim），否则回退到新生成的 bkbase_vmrt_name 作为新建名称。
+        # 存量链路里 table_id / bk_data_id 可能缺失，复用判断只依赖 datalink
+        # 下同 kind 组件的一对一关系；同 kind 多条会留给 leftover 校验兜底。
         existing_rt = (
             existing_context.claim(ResultTableConfig, lambda component: component.data_type != "graph")
             if existing_context is not None
