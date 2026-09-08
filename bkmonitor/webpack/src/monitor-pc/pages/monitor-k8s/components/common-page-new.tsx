@@ -33,7 +33,6 @@ import {
   ProvideReactive,
   Ref,
   Watch,
-  Inject,
 } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import _ from 'lodash';
@@ -540,6 +539,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
       'log-retrieve',
       'custom_metric_v2',
       'alarm_center',
+      'llm_overview',
       'trace',
       'container',
     ];
