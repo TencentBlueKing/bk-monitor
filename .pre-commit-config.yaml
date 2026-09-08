@@ -16,8 +16,10 @@ repos:
       # Run the linter.
       - id: ruff
         args: [ --fix ]
+        exclude: ^bk-monitor-base/
       # Run the formatter.
       - id: ruff-format
+        exclude: ^bk-monitor-base/
 
   # 本地检查
   - repo: local
@@ -61,5 +63,6 @@ repos:
              bkmonitor/bin/prom-aggregation-gateway|
              bkmonitor/static/monitor/js/main.*|
              bklog/version_logs_md/|
-             bkmonitor/alarm_backends/tests/.*.py
+             bkmonitor/alarm_backends/tests/.*.py|
+             ^bk-monitor-base/
           )

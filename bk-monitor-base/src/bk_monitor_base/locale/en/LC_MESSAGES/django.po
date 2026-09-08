@@ -1,0 +1,130 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2025-09-25 20:01+0800\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgid "创建时间"
+msgstr "Create Time"
+
+msgid "更新时间"
+msgstr "Update Time"
+
+msgid "创建人"
+msgstr "Creator"
+
+msgid "修改人"
+msgstr "Updater"
+
+msgid "是否删除"
+msgstr "Is Deleted"
+
+msgid "对象模型管理异常"
+msgstr "Object Model Management Exception"
+
+msgid "对象模型未找到"
+msgstr "Object Model Not Found"
+
+msgid "对象模型校验失败"
+msgstr "Object Model Validation Failed"
+
+msgid "对象模型操作错误"
+msgstr "Object Model Operation Error"
+
+msgid "对象模型分组未找到"
+msgstr "Object Model Group Not Found"
+
+msgid "对象模型分组校验失败"
+msgstr "Object Model Group Validation Failed"
+
+msgid "对象模型分组操作错误"
+msgstr "Object Model Group Operation Error"
+
+msgid "对象模型引用记录"
+msgstr "Object Model Reference Record"
+
+msgid "对象模型名称必须包含默认语言名称"
+msgstr "Object model name must contain default language name"
+
+msgid "对象模型分组必须选择二级分组"
+msgstr "Object model group must select secondary group"
+
+msgid "bk_cmdb_obj_id不能为空"
+msgstr "bk_cmdb_obj_id cannot be empty"
+
+msgid "inst_display_name不能为空"
+msgstr "inst_display_name cannot be empty"
+
+msgid "display_fields不能为空或超过5个字段"
+msgstr "display_fields cannot be empty or exceed 5 fields"
+
+msgid "对象模型code已存在"
+msgstr "Object model code already exists"
+
+msgid "CMDB对象ID已存在"
+msgstr "CMDB object ID already exists"
+
+msgid "对象模型名称已存在"
+msgstr "Object model name already exists"
+
+msgid "对象模型code不允许更新"
+msgstr "Object model code is not allowed to be updated"
+
+msgid "内置对象模型不可删除"
+msgstr "Built-in object model cannot be deleted"
+
+msgid "该对象与模块`{}`关联, 无法删除，关联对象：{};"
+msgstr "This object is associated with module `{}` and cannot be deleted. Associated objects: {};"
+
+msgid "父级分组不存在"
+msgstr "Parent group does not exist"
+
+msgid "父级分组只能是一级分组"
+msgstr "Parent group can only be a primary group"
+
+msgid "对象模型分组名称已存在"
+msgstr "Object model group name already exists"
+
+msgid "不允许修改的对象模型分组"
+msgstr "Object model group is not allowed to be modified"
+
+msgid "对象模型分组code已存在"
+msgstr "Object model group code already exists"
+
+msgid "已存在相同的对象分组名称"
+msgstr "Same object group name already exists"
+
+msgid "已有子分组，不可修改为二级分组"
+msgstr "Cannot be modified to secondary group as it has subgroups"
+
+msgid "已有对象模型，不可修改为一级分组"
+msgstr "Cannot be modified to primary group as it has object models"
+
+msgid "该对象模型分组不允许删除"
+msgstr "This object model group is not allowed to be deleted"
+
+msgid "该对象模型分组或其子分组已关联对象模型，无法删除"
+msgstr "This object model group or its subgroups are already associated with object models and cannot be deleted"
+
+msgid "对象模型分组名称必须包含默认语言名称"
+msgstr "Object model group name must contain default language name"
+
+msgid "资源 UID"
+msgstr "Resource UID"
+
+msgid "来源"
+msgstr "Source"

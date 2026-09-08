@@ -1,3 +1,5 @@
+from typing import Any
+
 from django.db import models
 
 
@@ -13,9 +15,10 @@ class NodeManResourceType(models.TextChoices):
     PROXY_PLUGIN_DEPLOYMENT = "PROXY_PLUGIN_DEPLOYMENT", "Proxy 插件部署"
     OFFICIAL_PLUGIN_DEPLOYMENT = "OFFICIAL_PLUGIN_DEPLOYMENT", "官方插件部署"
     MONITOR_PLUGIN = "MONITOR_PLUGIN", "监控插件"
+    UPTIME_CHECK = "UPTIME_CHECK", "拨测任务"
 
 
-def _identity_component(components: dict, name: str) -> str:
+def _identity_component(components: dict[str, Any], name: str) -> str:
     if name not in components:
         raise ValueError(f"{name} is required")
     value = components[name]
@@ -24,7 +27,7 @@ def _identity_component(components: dict, name: str) -> str:
     return str(value)
 
 
-def build_nodeman_resource_key(resource_type: str, **components) -> str:
+def build_nodeman_resource_key(resource_type: str, **components: Any) -> str:
     """Build the stable business identity required by the V3 binding contract."""
 
     resource_type = NodeManResourceType(resource_type)
@@ -56,6 +59,9 @@ def build_nodeman_resource_key(resource_type: str, **components) -> str:
             f"host:{_identity_component(components, 'bk_host_id')}:"
             f"plugin:{_identity_component(components, 'plugin_name')}"
         )
+    elif resource_type == NodeManResourceType.UPTIME_CHECK:
+        allowed = {"task_id"}
+        key = _identity_component(components, "task_id")
     else:
         allowed = {"plugin_id"}
         key = _identity_component(components, "plugin_id")
