@@ -10,13 +10,13 @@ specific language governing permissions and limitations under the License.
 
 from django.utils.translation import gettext_lazy as _
 
-from semconv.constants import FieldDisplayType, FieldUnit
+from semconv.constants import FieldDisplayType, FieldUnit, FieldType
 from semconv.rum.field import FieldSpec, RatingLevel
 
 CLS = FieldSpec(
     field_name="CLS",
     field_alias=_("累积布局偏移"),
-    field_type="double",
+    field_type=FieldType.DOUBLE.value,
     is_real=False,
     rating_config=(
         RatingLevel(rating="good", value=0.1),
@@ -29,7 +29,7 @@ INP = FieldSpec(
     field_name="INP",
     field_alias=_("交互到下一次绘制"),
     field_unit=FieldUnit.MS.value,
-    field_type="double",
+    field_type=FieldType.DOUBLE.value,
     field_display_type=FieldDisplayType.DURATION.value,
     is_real=False,
     rating_config=(
@@ -43,7 +43,7 @@ LCP = FieldSpec(
     field_name="LCP",
     field_alias=_("最大内容绘制"),
     field_unit=FieldUnit.MS.value,
-    field_type="double",
+    field_type=FieldType.DOUBLE.value,
     field_display_type=FieldDisplayType.DURATION.value,
     is_real=False,
     rating_config=(
@@ -57,7 +57,7 @@ FCP = FieldSpec(
     field_name="FCP",
     field_alias=_("首次内容绘制"),
     field_unit=FieldUnit.MS.value,
-    field_type="double",
+    field_type=FieldType.DOUBLE.value,
     field_display_type=FieldDisplayType.DURATION.value,
     is_real=False,
     rating_config=(
@@ -71,7 +71,7 @@ TTFB = FieldSpec(
     field_name="TTFB",
     field_alias=_("首字节耗时"),
     field_unit=FieldUnit.MS.value,
-    field_type="double",
+    field_type=FieldType.DOUBLE.value,
     field_display_type=FieldDisplayType.DURATION.value,
     is_real=False,
     rating_config=(
