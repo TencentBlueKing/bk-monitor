@@ -561,3 +561,39 @@ class ResourceCacheHit(CachedEnum):
     @classmethod
     def choices(cls) -> list[tuple[bool, str]]:
         return [(member.value, member.label) for member in cls]
+
+
+class ErrorHandled(CachedEnum):
+    """错误是否被捕获"""
+
+    TRUE = True
+    FALSE = False
+
+    @cached_property
+    def label(self) -> str:
+        return {
+            self.TRUE: _("错误已捕获"),
+            self.FALSE: _("错误未捕获"),
+        }.get(self, str(self.value))
+
+    @classmethod
+    def choices(cls) -> list[tuple[bool, str]]:
+        return [(member.value, member.label) for member in cls]
+
+
+class SessionHasReplay(CachedEnum):
+    """会话是否回放"""
+
+    TRUE = True
+    FALSE = False
+
+    @cached_property
+    def label(self) -> str:
+        return {
+            self.TRUE: _("会话回放"),
+            self.FALSE: _("会话未回放"),
+        }.get(self, str(self.value))
+
+    @classmethod
+    def choices(cls) -> list[tuple[bool, str]]:
+        return [(member.value, member.label) for member in cls]
