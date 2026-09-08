@@ -16,10 +16,8 @@ repos:
       # Run the linter.
       - id: ruff
         args: [ --fix ]
-        exclude: ^bk-monitor-base/
       # Run the formatter.
       - id: ruff-format
-        exclude: ^bk-monitor-base/
 
   # 本地检查
   - repo: local
