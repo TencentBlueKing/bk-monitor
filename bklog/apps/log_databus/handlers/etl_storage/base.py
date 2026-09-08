@@ -293,8 +293,11 @@ class EtlStorage:
             "yyyyMMddTHHmmssZ": {"format": "%Y%m%dT%H%M%S%:z", "zone": None},
             "yyyyMMddTHHmmss.SSSSSSZ": {"format": "%Y%m%dT%H%M%S.%6f%:z", "zone": None},
             "yyyy-MM-ddTHH:mm:ss.SSSZ": {"format": "%Y-%m-%dT%H:%M:%S.%3f%:z", "zone": None},
-            "yyyy-MM-ddTHH:mm:ss.SSSSSSZ": {"format": "%Y-%m-%dT%H:%M:%S.%6fZ", "zone": None},
-            "YYYY-MM-DDTHH:mm:ss.SSSSSSZ": {"format": "%Y-%m-%dT%H:%M:%S.%6fZ", "zone": None},
+            # 这两条的 format 以字面量 Z 结尾（不是 %z/%:z 时区占位），bkbase 无从推断时区，
+            # zone 必须给值，否则 zone=None 会被判解析失败：ES 侧静默回退 utctime（时间全错），
+            # doris 侧 time_fallback 不生效直接零入库
+            "yyyy-MM-ddTHH:mm:ss.SSSSSSZ": {"format": "%Y-%m-%dT%H:%M:%S.%6fZ", "zone": 0},
+            "YYYY-MM-DDTHH:mm:ss.SSSSSSZ": {"format": "%Y-%m-%dT%H:%M:%S.%6fZ", "zone": 0},
             "ISO8601": {"format": "%+", "zone": None},
             "yyyy-MM-ddTHH:mm:ssZ": {"format": "%Y-%m-%dT%H:%M:%S%:z", "zone": None},
             "yyyy-MM-ddTHH:mm:ss.SSSSSSZZ": {"format": "%Y-%m-%dT%H:%M:%S.%6f%:z", "zone": None},
@@ -319,6 +322,8 @@ class EtlStorage:
         if not format_config:
             # 如果找不到映射，使用默认配置
             zone = time_zone if time_zone is not None else 0
+            if storage_cluster_type == DORIS_CLUSTER_TYPE:
+                return {"format": "%Y-%m-%d %H:%M:%S", "zone": zone}
             return {
                 "from": {"format": "%Y-%m-%d %H:%M:%S", "zone": zone},
                 "interval_format": None,
@@ -328,6 +333,7 @@ class EtlStorage:
 
         # zone=None表示格式本身内嵌了时区信息（如%z、%:z），此时忽略用户time_zone
         # zone=0表示格式不含时区信息，可被用户time_zone覆盖
+        # 注意 zone 一旦给了非 None 值就会覆盖串内偏移，所以真时区占位格式必须保持 None
         zone = format_config["zone"]
         if zone is not None and time_zone is not None:
             zone = time_zone
@@ -650,6 +656,10 @@ class EtlStorage:
     ) -> list:
         """
         构建V4版本的dtEventTimeStampNanos字段规则（从bk_separator_object提取用户指定的时间字段）
+
+        doris 同样产出该字段：bkbase 依据 is_time_field 规则自动生成的 dtEventTimeStamp 是 long 列、
+        按 millis 截断，亚秒精度存不住；dtEventTimeStampNanos 落成 string 列原样保留微秒，
+        是 doris 上微秒精度的唯一载体，检索侧再通过别名让 dtEventTimeStamp 透明取到它。
         :param built_in_config: 内置配置，包含_nanos_time_field信息
         :return: dtEventTimeStampNanos字段规则列表
         """
@@ -663,8 +673,6 @@ class EtlStorage:
             nanos_v4_time_parsing = self._convert_v3_to_v4_time_format(
                 v3_time_format, time_zone=nanos_time_field.get("time_zone"), storage_cluster_type=storage_cluster_type
             )
-            # 纳秒级时间解析的输出应为strict_date_optional_time_nanos格式字符串，与ES mapping保持一致
-            nanos_v4_time_parsing["to"] = "strict_date_optional_time_nanos"
 
             # 用户自定义时间字段（纳秒级）解析失败时，同样按序回退到采集器utctime
             time_fallback = self._build_utctime_fallback()
@@ -693,9 +701,14 @@ class EtlStorage:
             }
 
             if storage_cluster_type == STORAGE_CLUSTER_TYPE:
+                # to 是 in_place_time_parsing 专有键，纳秒输出需与 ES mapping 的
+                # strict_date_optional_time_nanos 保持一致
+                nanos_v4_time_parsing["to"] = "strict_date_optional_time_nanos"
                 nanos_time_rules["operator"]["time_format"] = None
                 nanos_time_rules["operator"]["in_place_time_parsing"] = nanos_v4_time_parsing
             elif storage_cluster_type == DORIS_CLUSTER_TYPE:
+                # doris 只认扁平 time_format，带 to 会被 bkbase 拒绝；
+                # 该结构在清洗阶段不做解析，原样透传，微秒得以完整保留
                 nanos_time_rules["operator"]["time_format"] = nanos_v4_time_parsing
                 nanos_time_rules["operator"]["in_place_time_parsing"] = None
 
