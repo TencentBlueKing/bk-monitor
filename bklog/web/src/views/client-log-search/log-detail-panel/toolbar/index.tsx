@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, nextTick, ref, watch } from 'vue';
+import { computed, defineComponent, nextTick, ref } from 'vue';
 
 import { deepClone, contextHighlightColor } from '@/common/util';
 import useLocale from '@/hooks/use-locale';
@@ -94,7 +94,7 @@ export default defineComponent({
     const changeLightList = () => {
       const colorIndex = contextHighlightColor.findIndex((_, index) => !catchColorIndexList.value.includes(index));
       const catchCloneColorList = deepClone(colorHighlightList.value);
-      colorHighlightList.value = highlightList.value.map((item) => {
+      colorHighlightList.value = highlightList.value.map(item => {
         const notChangeItem = catchCloneColorList.find(cItem => cItem.heightKey === item);
         if (notChangeItem) return notChangeItem;
         return {
@@ -129,11 +129,11 @@ export default defineComponent({
     const initTagInputColor = () => {
       if (!tagInputRef.value) return;
       const childEl = tagInputRef.value.$el.querySelectorAll('.key-node');
-      childEl.forEach((child) => {
+      childEl.forEach(child => {
         const tag = child.querySelectorAll('.tag')[0];
         const colorObj = colorHighlightList.value.find(item => item.heightKey === tag.innerText);
         if (colorObj) {
-          [child, tag].forEach((el) => {
+          [child, tag].forEach(el => {
             Object.assign(el.style, {
               backgroundColor: colorObj.color.light,
             });
@@ -152,11 +152,7 @@ export default defineComponent({
     };
 
     /** 从外部设置过滤和高亮状态 */
-    const setFilters = (params: {
-      filterKey?: string[];
-      filterType?: string;
-      highlightList?: string[];
-    }) => {
+    const setFilters = (params: { filterKey?: string[]; filterType?: string; highlightList?: string[] }) => {
       if (params.filterKey) {
         filterKey.value = [...params.filterKey];
         catchFilterKey.value = [...params.filterKey];

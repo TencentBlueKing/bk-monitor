@@ -1,16 +1,240 @@
 from apps.api import TransferApi
 from apps.exceptions import ValidationError
+from apps.log_admin_resource.handlers.inspection import (
+    SENSITIVE_KEY_PATTERN,
+    sanitize_sensitive_text,
+)
+from apps.log_admin_resource.response_schema import (
+    diagnostic_schema,
+    nullable_schema,
+    object_schema,
+    pagination_schema,
+)
 from apps.log_databus.models import (
     BKDataClean,
     CollectorConfig,
     ContainerCollectorConfig,
     DataLinkConfig,
 )
+from apps.log_databus.utils.storage_config import get_storage_retention
 from apps.log_search.constants import CollectorScenarioEnum, IndexSetDataType, LogAccessTypeEnum
 from apps.log_search.models import LogIndexSet, LogIndexSetData, Scenario
 
 
-SENSITIVE_KEYWORDS = ("password", "secret", "token")
+COLLECTOR_LIST_PARAMS_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "page": {"type": "integer", "minimum": 1},
+        "page_size": {"type": "integer", "minimum": 1},
+        "collector_config_id": {"type": "integer", "minimum": 1},
+        "bk_data_id": {"type": "integer", "minimum": 1},
+        "data_link_id": {"type": "integer", "minimum": 1},
+        "index_set_id": {"type": "integer", "minimum": 1},
+        "subscription_id": {"type": "integer", "minimum": 1},
+        "storage_cluster_id": {"type": "integer", "minimum": 1},
+        "bk_biz_id": {"type": "integer"},
+        "collector_scenario_id": {"type": "string"},
+        "target_object_type": {"type": "string"},
+        "etl_config": {"type": "string"},
+        "bcs_cluster_id": {"type": "string"},
+        "log_access_type": {"type": "string"},
+        "collector_config_name": {"type": "string"},
+        "table_id": {"type": "string"},
+        "is_active": {"type": "boolean"},
+        "enable_v4": {"type": "boolean"},
+        "ordering": {"type": "string"},
+        "order_by": {"type": "string"},
+    },
+    "additionalProperties": False,
+}
+COLLECTOR_DETAIL_PARAMS_SCHEMA = {
+    "type": "object",
+    "properties": {"collector_config_id": {"type": "integer", "minimum": 1}},
+    "required": ["collector_config_id"],
+    "additionalProperties": False,
+}
+COLLECTOR_SUMMARY_SCHEMA = object_schema(
+    "collector_config_id",
+    "bk_biz_id",
+    "collector_config_name",
+    "collector_scenario_id",
+    "collector_scenario_name",
+    "log_access_type",
+    "log_access_type_name",
+    "target_object_type",
+    "bk_data_id",
+    "table_id",
+    "data_link_id",
+    "index_set_id",
+    "storage_cluster_id",
+    "storage_cluster_name",
+    "retention",
+    "storage_shards_nums",
+    "storage_shards_size",
+    "storage_replies",
+    "subscription_id",
+    "etl_config",
+    "is_active",
+    "enable_v4",
+    "bcs_cluster_id",
+    "environment",
+    "created_at",
+    "created_by",
+    "updated_at",
+    "updated_by",
+    properties={
+        "collector_config_id": {"type": "integer", "minimum": 1},
+        "bk_biz_id": {"type": "integer"},
+        "collector_config_name": {"type": "string"},
+        "collector_scenario_id": {"type": "string"},
+        "collector_scenario_name": {"type": "string"},
+        "log_access_type": {"type": "string"},
+        "log_access_type_name": {"type": "string"},
+        "target_object_type": {"type": "string"},
+        "bk_data_id": nullable_schema("integer"),
+        "table_id": nullable_schema("string"),
+        "data_link_id": nullable_schema("integer"),
+        "index_set_id": nullable_schema("integer"),
+        "storage_cluster_id": nullable_schema("integer"),
+        "storage_cluster_name": nullable_schema("string"),
+        "retention": nullable_schema("integer"),
+        "storage_shards_nums": nullable_schema("integer"),
+        "storage_shards_size": nullable_schema("integer"),
+        "storage_replies": nullable_schema("integer"),
+        "subscription_id": nullable_schema("integer"),
+        "etl_config": nullable_schema("string"),
+        "is_active": {"type": "boolean"},
+        "enable_v4": {"type": "boolean"},
+        "bcs_cluster_id": nullable_schema("string"),
+        "environment": nullable_schema("string"),
+        "created_at": nullable_schema("string"),
+        "created_by": {"type": "string"},
+        "updated_at": nullable_schema("string"),
+        "updated_by": {"type": "string"},
+    },
+)
+COLLECTOR_LIST_RESPONSE_SCHEMA = pagination_schema(COLLECTOR_SUMMARY_SCHEMA)
+COLLECTOR_STORAGE_SCHEMA = object_schema(
+    "storage_cluster_id",
+    "retention",
+    "allocation_min_days",
+    "storage_shards_nums",
+    "storage_shards_size",
+    "storage_replies",
+    properties={
+        "storage_cluster_id": nullable_schema("integer"),
+        "retention": nullable_schema("integer"),
+        "allocation_min_days": nullable_schema("integer"),
+        "storage_shards_nums": nullable_schema("integer"),
+        "storage_shards_size": nullable_schema("integer"),
+        "storage_replies": nullable_schema("integer"),
+    },
+)
+COLLECTOR_DETAIL_RESPONSE_SCHEMA = object_schema(
+    "collector",
+    "chain",
+    "storage",
+    "relations",
+    "raw",
+    "warnings",
+    properties={
+        "collector": COLLECTOR_SUMMARY_SCHEMA,
+        "chain": object_schema(
+            "collector_config_id",
+            "bk_data_id",
+            "table_id",
+            "data_link_id",
+            "primary_index_set_id",
+            "subscription_id",
+            "etl_config",
+            properties={
+                "collector_config_id": {"type": "integer", "minimum": 1},
+                "bk_data_id": nullable_schema("integer"),
+                "table_id": nullable_schema("string"),
+                "data_link_id": nullable_schema("integer"),
+                "primary_index_set_id": nullable_schema("integer"),
+                "subscription_id": nullable_schema("integer"),
+                "etl_config": nullable_schema("string"),
+            },
+        ),
+        "storage": COLLECTOR_STORAGE_SCHEMA,
+        "relations": object_schema(
+            "data_link",
+            "index_sets",
+            "bkdata_clean",
+            properties={
+                "data_link": {
+                    "anyOf": [
+                        object_schema(
+                            "data_link_id",
+                            "link_group_name",
+                            "bk_biz_id",
+                            "kafka_cluster_id",
+                            "transfer_cluster_id",
+                            "es_cluster_ids",
+                            "is_active",
+                            "is_edge_transport",
+                            "bk_tenant_id",
+                            properties={
+                                "data_link_id": {"type": "integer"},
+                                "link_group_name": {"type": "string"},
+                                "bk_biz_id": {"type": "integer"},
+                                "kafka_cluster_id": nullable_schema("integer"),
+                                "transfer_cluster_id": {"type": "string"},
+                                "es_cluster_ids": {},
+                                "is_active": {"type": "boolean"},
+                                "is_edge_transport": {"type": "boolean"},
+                                "bk_tenant_id": nullable_schema("string"),
+                            },
+                        ),
+                        {"type": "null"},
+                    ]
+                },
+                "index_sets": {
+                    "type": "array",
+                    "items": object_schema(
+                        "relation_type",
+                        "index_set_id",
+                        "index_set_name",
+                        "scenario_id",
+                        "scenario_name",
+                        "result_table_id",
+                        properties={
+                            "relation_type": {"type": "string"},
+                            "index_set_id": {"type": "integer"},
+                            "index_set_name": {"type": "string"},
+                            "scenario_id": {"type": "string"},
+                            "scenario_name": {"type": "string"},
+                            "result_table_id": nullable_schema("string"),
+                        },
+                    ),
+                },
+                "bkdata_clean": {"type": "array", "items": {"type": "object"}},
+            },
+        ),
+        "raw": object_schema(
+            "params",
+            "target_nodes",
+            "task_id_list",
+            "environment",
+            "bcs_cluster_id",
+            "yaml_config_enabled",
+            "rule_id",
+            "enable_v4",
+            properties={
+                "params": {},
+                "target_nodes": {"type": "array"},
+                "task_id_list": {"type": "array"},
+                "environment": nullable_schema("string"),
+                "bcs_cluster_id": nullable_schema("string"),
+                "yaml_config_enabled": {"type": "boolean"},
+                "rule_id": nullable_schema("integer"),
+                "enable_v4": {"type": "boolean"},
+            },
+        ),
+        "warnings": {"type": "array", "items": diagnostic_schema()},
+    },
+)
 
 
 def list_collectors(params):
@@ -134,6 +358,8 @@ def mask_sensitive(value):
         return {key: "******" if _is_sensitive_key(key) else mask_sensitive(item) for key, item in value.items()}
     if isinstance(value, list):
         return [mask_sensitive(item) for item in value]
+    if isinstance(value, str):
+        return sanitize_sensitive_text(value, maximum=None)
     return value
 
 
@@ -428,7 +654,7 @@ def _serialize_result_table_storage(result_table_storage):
     index_settings = storage_config.get("index_settings") or {}
     return {
         "storage_cluster_id": cluster_config.get("cluster_id"),
-        "retention": storage_config.get("retention"),
+        "retention": get_storage_retention(storage_config),
         "allocation_min_days": storage_config.get("warm_phase_days"),
         "storage_shards_nums": index_settings.get("number_of_shards"),
         "storage_shards_size": _first_not_none(
@@ -495,5 +721,4 @@ def _first_not_none(*values):
 
 
 def _is_sensitive_key(key):
-    key = str(key).lower()
-    return any(keyword in key for keyword in SENSITIVE_KEYWORDS)
+    return bool(SENSITIVE_KEY_PATTERN.search(str(key)))

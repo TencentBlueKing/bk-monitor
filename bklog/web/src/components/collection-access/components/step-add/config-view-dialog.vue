@@ -37,22 +37,22 @@
     @cancel="handelCancelDialog"
   >
     <div
-      class="view-main"
       v-bkloading="{ isLoading: loading }"
+      class="view-main"
     >
       <template v-if="viewList.length">
         <div
           v-for="(vItem, vIndex) in viewList"
-          class="view-container"
           :key="vIndex"
+          class="view-container"
         >
           <div
             :class="['view-title', !vItem.isShowTarget && 'hidden-bottom']"
             @click="handleClickTitle(vIndex, vItem.isShowTarget)"
           >
             <div
-              class="match title-overflow"
               v-bk-overflow-tips
+              class="match title-overflow"
             >
               <span>{{ vItem.group }}</span>
             </div>
@@ -64,14 +64,14 @@
             </i18n>
           </div>
           <div
-            class="view-target"
             v-show="vItem.isShowTarget"
+            class="view-target"
           >
             <div
               v-for="(item, iIndex) in vItem.items"
-              class="title-overflow"
-              v-bk-overflow-tips
               :key="iIndex"
+              v-bk-overflow-tips
+              class="title-overflow"
             >
               <span>{{ item }}</span>
             </div>

@@ -33,6 +33,7 @@ import { EVENTS_TYPE_MAP } from '../constant';
 import { handleEndTime } from '../failure-topo/utils';
 import { TRACE_FIELD_CONFIG } from '../utils';
 import { replaceEntityInText } from './entity-replace';
+import { GENERAL_EVENT_MAX_EXPANDED_LINES, isExpandedJsonOverLineLimit } from './json-expanded-lines';
 
 import type {
   IAlertData,
@@ -559,16 +560,16 @@ export function createShootingModule(
       }
       const hasOnViewFullJson = typeof options.onViewFullJson === 'function';
 
-      // 判断是否被截断（原始数据比限制后的多）
-      const isTruncated = jsonData !== null && Object.keys(jsonData).length > 7;
+      // 按完全展开后的行数判断是否截断；超过上限即可提前结束递归
+      const isTruncated = isExpandedJsonOverLineLimit(jsonData, GENERAL_EVENT_MAX_EXPANDED_LINES);
 
-      // 只取前7个key，减少DOM节点，提升性能
+      // 预览仍只取前 N 个顶层 key，减少 DOM 节点
       const limitedData = (() => {
         if (typeof jsonData !== 'object' || jsonData === null) {
           return jsonData;
         }
-        const entries = Object.entries(jsonData).slice(0, 7);
-        // 当需要显示"查看完整"时，添加一个特殊key作为第8行
+        const entries = Object.entries(jsonData).slice(0, GENERAL_EVENT_MAX_EXPANDED_LINES);
+        // 当需要显示"查看完整"时，添加一个特殊key作为下一行
         if (isTruncated && hasOnViewFullJson) {
           entries.push(['__viewMore__', '__VIEW_MORE_PLACEHOLDER__']);
         }

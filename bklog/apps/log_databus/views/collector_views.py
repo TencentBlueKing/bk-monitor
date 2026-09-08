@@ -1354,6 +1354,7 @@ class CollectorViewSet(ModelViewSet):
         @apiParam {String} fields.option.time_format 时间格式
         @apiParam {Int} storage_cluster_id 存储集群ID
         @apiParam {Int} retention 保留时间
+        @apiParam {Int} [clean_template_id] 清洗模板ID；传入ID则应用模板，显式传null则解除关联，不传则继续应用当前关联模板
         @apiParam {Int} [storage_replies] 副本数量
         @apiParam {Int} es_shards es分片数量
         @apiParam {list} view_roles 查看权限
@@ -1685,16 +1686,18 @@ class CollectorViewSet(ModelViewSet):
         """
         @api {post} /databus/collectors/$collector_config_id/indices_info 采集项-物理索引
         @apiName indices_info
-        @apiDescription 采集项物理索引信息
+        @apiDescription 采集项物理存储信息。行结构与存储类型无关：ES 返回物理索引，
+        Doris 返回物理表分区（无分区时返回一条物理表记录），调用方无需区分 storage_type。
         @apiGroup 10_Collector
-        @apiSuccess {String} health 索引健康状态 red green yellow
-        @apiSuccess {String} status 索引状态
-        @apiSuccess {String} pri 主分片数量
-        @apiSuccess {String} rep 副本数量
-        @apiSuccess {String} docs.count 文档数量
-        @apiSuccess {String} docs.deleted 删除文档数量
+        @apiSuccess {String} index 物理存储单元名称，ES 为索引名，Doris 为分区名或物理表名
+        @apiSuccess {String} health 健康状态 red green yellow --
+        @apiSuccess {String} status 状态 open unavailable unknown
+        @apiSuccess {String} pri 主分片数量，Doris 无等价字段返回 --
+        @apiSuccess {String} rep 副本数量，Doris 无等价字段返回 --
+        @apiSuccess {String} docs.count 文档数量，Doris 为分区行数
+        @apiSuccess {String} docs.deleted 删除文档数量，Doris 无等价字段返回 --
         @apiSuccess {String} store.size 储存大小 Byte
-        @apiSuccess {String} pri.store.size 主分片储存大小 Byte
+        @apiSuccess {String} pri.store.size 主分片储存大小 Byte，Doris 无等价字段返回 --
         @apiSuccessExample {json} 成功返回:
         {
             "result": true,
@@ -1753,6 +1756,7 @@ class CollectorViewSet(ModelViewSet):
             "result":true,
             "data":{
                 "collector_config_id":1,
+                "clean_template_id": 1,
                 "clean_type":"bk_log_text",
                 "bk_biz_id": 0,
                 "etl_params":{
@@ -1806,9 +1810,11 @@ class CollectorViewSet(ModelViewSet):
         @api {POST} /databus/collectors/$collector_config_id/create_clean_stash 更新采集项清洗缓存
         @apiName databus_collectors_create_clean_stash
         @apiGroup 10_Collector
+        @apiParam {Int} [clean_template_id] 清洗模板ID；未应用模板时传null或不传
         @apiParamExample {json} 成功请求
         {
             "bk_biz_id": 0,
+            "clean_template_id": 1,
             "clean_type":"bk_log_text",
             "etl_params":{
                 "retain_original_text":true,
@@ -2464,6 +2470,7 @@ class CollectorViewSet(ModelViewSet):
         @apiParam {String} etl_params.separator 分隔符，当etl_config=="bk_log_delimiter"时需要传递
         @apiParam {String} etl_params.separator_regexp 正则表达式，当etl_config=="bk_log_regexp"时需要传递
         @apiParam {Bool} etl_params.retain_original_text 是否保留原文
+        @apiParam {Int} [clean_template_id] 清洗模板ID；传入ID则应用模板，显式传null则解除关联，不传则继续应用当前关联模板
         @apiParam {list} fields 字段列表
         @apiParam {String} fields.field_name 字段名称
         @apiParam {String} [fields.alias_name] 别名

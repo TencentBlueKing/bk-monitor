@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/naming-convention */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -295,7 +294,9 @@ export default class AuthorizationDialog extends tsc<IProps, IEvents> {
             });
             this.handleCancel(false);
             this.$emit('success', res.need_approval);
-          } catch {}
+          } catch {
+            // 授权失败时保留当前弹窗，错误由请求层统一处理
+          }
           this.loading = false;
         }
       });
@@ -305,14 +306,14 @@ export default class AuthorizationDialog extends tsc<IProps, IEvents> {
   }
 
   async authorizedRequest(formData) {
-    const { expire_time, ...rest } = formData;
+    const { expire_time: expireTime, ...rest } = formData;
     return await $http.request('authorization/createOrUpdateExternalPermission', {
       data: {
         space_uid: this.spaceUid,
         ...rest,
         authorized_users: rest.authorized_users.map(val => val.replace(/[\r\n]/g, '').trim()),
 
-        ...(expire_time ? { expire_time } : {}),
+        ...(expireTime ? { expire_time: expireTime } : {}),
         authorizer: this.authorizer,
         operate_type: this.rowData ? 'update' : 'create',
         view_type: this.viewType === 'approval' ? 'user' : this.viewType,

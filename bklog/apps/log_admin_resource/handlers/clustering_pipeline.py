@@ -1,14 +1,34 @@
 import time
 
 from django.utils import timezone
+from pipeline.engine import states
 from pipeline.engine.models import Data, PipelineProcess, ProcessCeleryTask, Status
+from pipeline.service import task_service
 
 from apps.exceptions import ValidationError
-from apps.log_admin_resource.handlers.inspection import probe_skipped, reject_identity_params, sanitize_json
+from apps.log_admin_resource.handlers.inspection import (
+    probe_failure,
+    probe_skipped,
+    reject_identity_params,
+    sanitize_json,
+)
 from apps.log_clustering.models import ClusteringConfig
 
 
 MAX_PIPELINE_DATA_BYTES = 256 * 1024
+
+PIPELINE_ACTIONS = {
+    "retry": {"expected_state": states.FAILED, "method_name": "retry_activity"},
+    "skip": {"expected_state": states.FAILED, "method_name": "skip_activity"},
+    "force_fail": {"expected_state": states.RUNNING, "method_name": "forced_fail"},
+}
+
+PIPELINE_ACTION_STRING_LIMITS = {
+    "task_id": 256,
+    "node_id": 256,
+    "expected_version": 64,
+    "reason": 500,
+}
 
 
 def get_clustering_access_pipeline(params):
@@ -60,7 +80,7 @@ def get_clustering_access_pipeline(params):
             "data": _serialize_data(current_data),
         },
         "celery_task": _serialize_celery_task(celery_task),
-        "persistent_task_steps": sanitize_json((config.task_details or {}).get(task_id, [])),
+        "persistent_task_steps": sanitize_json((config.task_details or {}).get(task_id, []), redact_text=True),
     }
     warnings = []
     if not process and not root_status:
@@ -120,12 +140,136 @@ def get_clustering_access_pipeline(params):
     }
 
 
+def retry_clustering_pipeline_node(params):
+    return _operate_clustering_pipeline_node(params, "retry")
+
+
+def skip_clustering_pipeline_node(params):
+    return _operate_clustering_pipeline_node(params, "skip")
+
+
+def force_fail_clustering_pipeline_node(params):
+    return _operate_clustering_pipeline_node(params, "force_fail")
+
+
+def _operate_clustering_pipeline_node(params, action):
+    if not isinstance(params, dict):
+        raise ValidationError("params must be an object")
+    reject_identity_params(params)
+    task_id = _require_string(params, "task_id")
+    node_id = _require_string(params, "node_id")
+    expected_version = _require_string(params, "expected_version")
+    reason = _require_string(params, "reason")
+
+    config = _get_clustering_config(params.get("config_id"))
+    task_ids = {
+        str(record.get("task_id"))
+        for record in config.task_records or []
+        if isinstance(record, dict) and record.get("task_id")
+    }
+    if task_id not in task_ids:
+        raise ValidationError("task_id does not belong to the clustering configuration")
+
+    try:
+        status = Status.objects.get(id=node_id)
+    except Status.DoesNotExist:
+        raise ValidationError("pipeline node status does not exist")
+
+    try:
+        process = PipelineProcess.objects.get(root_pipeline_id=task_id, parent_id="")
+    except PipelineProcess.DoesNotExist:
+        raise ValidationError("pipeline process does not exist")
+    except PipelineProcess.MultipleObjectsReturned:
+        raise ValidationError("multiple root pipeline processes exist; operation is blocked")
+    if not process.is_alive:
+        raise ValidationError("pipeline process is no longer alive")
+    if process.is_frozen:
+        raise ValidationError("pipeline process is frozen")
+    if process.current_node_id != node_id:
+        raise ValidationError(
+            f"node_id is no longer the current pipeline node: expected {node_id}, actual {process.current_node_id}"
+        )
+    action_config = PIPELINE_ACTIONS[action]
+    expected_state = action_config["expected_state"]
+    if status.state != expected_state:
+        raise ValidationError(f"pipeline node state changed: expected {expected_state}, actual {status.state}")
+    if status.version != expected_version:
+        raise ValidationError("pipeline node version changed; refresh the pipeline before operating again")
+    if action == "skip" and params.get("acknowledge_external_effects") is not True:
+        raise ValidationError("skip requires acknowledge_external_effects=true")
+
+    before = {"status": _serialize_status(status), "process": _serialize_process(process)}
+    config_id = config.id
+    task_records = _serialize_task_records(config.task_records or [])
+
+    # Pipeline 引擎负责最终的原子状态迁移；这里的版本和当前节点检查用于给管理端返回明确错误。
+    action_method = getattr(task_service, action_config["method_name"])
+    if action == "force_fail":
+        action_result = action_method(node_id, ex_data=f"Admin forced failure: {reason}")
+    else:
+        action_result = action_method(node_id)
+    if not action_result.result:
+        raise ValidationError(f"pipeline engine rejected {action}: {action_result.message}")
+
+    try:
+        snapshot = get_clustering_access_pipeline({"config_id": config_id, "task_id": task_id})
+    except Exception as error:
+        snapshot = {
+            "config_id": config_id,
+            "selected_task_id": task_id,
+            "task_selection": "explicit",
+            "task_records": task_records,
+            "pipeline": probe_failure(error),
+        }
+    return {
+        "action": action,
+        "config_id": config_id,
+        "task_id": task_id,
+        "node_id": node_id,
+        "reason": reason,
+        "result": True,
+        "message": str(action_result.message or ""),
+        "before": before,
+        "pipeline": snapshot,
+    }
+
+
+def _get_clustering_config(config_id):
+    if config_id in (None, ""):
+        raise ValidationError("config_id is required")
+    if isinstance(config_id, bool) or not isinstance(config_id, int):
+        raise ValidationError("config_id must be an integer")
+    if config_id < 1:
+        raise ValidationError("config_id must be positive")
+    try:
+        return ClusteringConfig.objects.get(id=config_id)
+    except ClusteringConfig.DoesNotExist:
+        raise ValidationError(f"config_id does not exist: {config_id}")
+
+
+def _require_string(params, key):
+    value = params.get(key)
+    if not isinstance(value, str) or not value.strip():
+        raise ValidationError(f"{key} is required")
+    value = value.strip()
+    maximum = PIPELINE_ACTION_STRING_LIMITS[key]
+    if len(value) > maximum:
+        raise ValidationError(f"{key} must not exceed {maximum} characters")
+    return value
+
+
 def _serialize_task_records(records):
     result = []
     for index, record in enumerate(records):
         if not isinstance(record, dict) or not record.get("task_id"):
             result.append(
-                {"sequence": index, "task_id": None, "operate": None, "time": None, "raw": sanitize_json(record)}
+                {
+                    "sequence": index,
+                    "task_id": None,
+                    "operate": None,
+                    "time": None,
+                    "raw": sanitize_json(record, redact_text=True),
+                }
             )
             continue
         result.append(
@@ -134,7 +278,7 @@ def _serialize_task_records(records):
                 "task_id": str(record["task_id"]),
                 "operate": record.get("operate"),
                 "time": record.get("time"),
-                "raw": sanitize_json(record),
+                "raw": sanitize_json(record, redact_text=True),
             }
         )
     return result
@@ -176,9 +320,9 @@ def _serialize_data(data):
         return None
     return {
         "id": data.id,
-        "inputs": sanitize_json(data.inputs, max_bytes=MAX_PIPELINE_DATA_BYTES),
-        "outputs": sanitize_json(data.outputs, max_bytes=MAX_PIPELINE_DATA_BYTES),
-        "ex_data": sanitize_json(data.ex_data, max_bytes=MAX_PIPELINE_DATA_BYTES),
+        "inputs": sanitize_json(data.inputs, max_bytes=MAX_PIPELINE_DATA_BYTES, redact_text=True),
+        "outputs": sanitize_json(data.outputs, max_bytes=MAX_PIPELINE_DATA_BYTES, redact_text=True),
+        "ex_data": sanitize_json(data.ex_data, max_bytes=MAX_PIPELINE_DATA_BYTES, redact_text=True),
     }
 
 

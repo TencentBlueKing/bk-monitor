@@ -166,6 +166,10 @@ MIDDLEWARE = (
     "apps.middleware.tenant_middleware.TenantValidationMiddleware",
 )
 
+# Resource Call owns an explicit, discoverable params schema. Avoid recursively
+# adding space fields to its opaque ``params`` envelope before schema validation.
+BKM_SPACE_INJECT_REQUEST_EXCLUDED_PATHS = ("/api/v1/admin/resource/call/",)
+
 # 所有环境的日志级别可以在这里配置
 # LOG_LEVEL = 'INFO'
 
@@ -238,12 +242,15 @@ CELERY_IMPORTS = (
     "apps.log_databus.tasks.itsm",
     "apps.log_databus.tasks.bkdata",
     "apps.log_databus.tasks.archive",
+    "apps.log_admin_resource.tasks",
+    "apps.log_admin_resource.k8s_tasks",
     "apps.log_measure.tasks.report",
     "apps.log_extract.tasks",
     "apps.log_clustering.tasks.msg",
     "apps.log_clustering.tasks.sync_pattern",
     "apps.log_clustering.tasks.subscription",
     "apps.log_extract.tasks.extract",
+    "apps.iam.tasks.grant",
 )
 
 if os.environ.get("BKAPP_FEATURE_TGPA_TASK", "off") == "on":
@@ -445,6 +452,42 @@ BK_COMPONENT_API_URL = os.environ.get("BK_COMPONENT_API_URL")
 DEPLOY_MODE = os.environ.get("DEPLOY_MODE", "")
 
 BK_IAM_APIGATEWAY_URL = os.getenv("BKAPP_IAM_API_BASE_URL") or f"{BK_COMPONENT_API_URL}/api/bk-iam/prod/"
+# IAM 鉴权模式（v3 / v4 / union）。运维主入口：显式设置后忽略 Feature Toggle iam_permission_mode。
+# 这是有意取舍：env 一旦设置，改 DB Toggle 无法热修，回滚必须改 BKAPP_IAM_PERMISSION_MODE 后重新发布。
+# 留空则回退 DB Toggle；Toggle 缺失或读库失败再回退 DualStackSpec.legacy（当前 v3）。
+# 非法值 fail-closed，不会跨层回退到 Toggle 或 legacy。不要把该值写进 FEATURE_TOGGLE（那是 on/off）。
+# 非空非法值在 apps.iam AppConfig.ready() 以 ImproperlyConfigured 阻断启动，避免拖到第一次鉴权才全量 403。
+BK_IAM_PERMISSION_MODE = os.getenv("BKAPP_IAM_PERMISSION_MODE", "").strip().lower()
+# IAM V4 权限系统 ID；未配置时回退到 V3 系统 ID，便于按环境切换。
+BK_IAM_V4_SYSTEM_ID = os.getenv("BKAPP_IAM_V4_SYSTEM_ID", "").strip()
+# IAM V4（bkiam 网关）；必须显式配置 BKAPP_IAM_V4_API_BASE_URL，未配置时 V4 client 会记录错误并安全失败
+BK_IAM_V4_APIGATEWAY_URL = os.getenv("BKAPP_IAM_V4_API_BASE_URL", "").strip()
+# IAM V4 资源回调验签专用 APP；本地联调内网 dev 网关时可与全局 APP_CODE 分离，未配置时回退 APP_CODE/SECRET_KEY
+BK_IAM_V4_CALLBACK_APP_CODE = os.getenv("BKAPP_IAM_V4_CALLBACK_APP_CODE", "").strip()
+BK_IAM_V4_CALLBACK_APP_SECRET = os.getenv("BKAPP_IAM_V4_CALLBACK_APP_SECRET", "").strip()
+BK_IAM_V4_TIMEOUT = os.getenv("BK_IAM_V4_TIMEOUT", "10")
+BK_IAM_V4_BATCH_CHUNK_SIZE = os.getenv("BK_IAM_V4_BATCH_CHUNK_SIZE", "100")
+BK_IAM_V4_BATCH_MAX_WORKERS = os.getenv("BK_IAM_V4_BATCH_MAX_WORKERS", "4")
+BK_IAM_V4_AUTH_TOKEN_PATH = os.getenv(
+    "BK_IAM_V4_AUTH_TOKEN_PATH",
+    "api/v1/open/rbac/model/systems/{system_id}/auth-token/",
+)
+BK_IAM_V4_AUTH_TOKEN_CACHE_SECONDS = os.getenv("BK_IAM_V4_AUTH_TOKEN_CACHE_SECONDS", "300")
+BK_IAM_V4_ADD_AUTHORIZATION_PATH = os.getenv(
+    "BKAPP_IAM_V4_ADD_AUTHORIZATION_PATH",
+    "api/v1/open/rbac/mgmt/systems/{system_id}/authorizations/",
+)
+BK_IAM_V4_GRANT_EXPIRE_DAYS = os.getenv("BK_IAM_V4_GRANT_EXPIRE_DAYS", "365")
+BK_IAM_GRANT_MAX_ATTEMPTS = os.getenv("BK_IAM_GRANT_MAX_ATTEMPTS", "12")
+
+# IAM V4 权限模型 as-code：基线文件在 support-files/iam/v4/，由 manage.py iam_v4_migrate_model 收敛。
+# post_migrate 会像 V3 IAMMigrator 一样无条件收敛一次，唯一前置条件是配了 BKAPP_IAM_V4_API_BASE_URL；
+# 不受 BKAPP_IAM_PERMISSION_MODE 影响，因为创建者授权双写只看网关是否配置，不看鉴权模式。
+BK_IAM_V4_MODEL_BASE_PATH = os.getenv("BKAPP_IAM_V4_MODEL_BASE_PATH", "api/v1/open/rbac/model/systems/")
+# 系统管理员；留空表示不由 as-code 托管，同步时既不下发也不比对，避免清空人工配置。
+BK_IAM_V4_MODEL_MANAGERS = os.getenv("BKAPP_IAM_V4_MODEL_MANAGERS", "").strip()
+# V4 资源回调地址；留空时由 BK_IAM_RESOURCE_API_HOST 拼出 api/v1/iam/v4/resource/。
+BK_IAM_V4_CALLBACK_URL = os.getenv("BKAPP_IAM_V4_CALLBACK_URL", "").strip()
 
 BK_USER_HOST = os.getenv("BKAPP_BKUSER_HOST", BK_BKLOG_HOST.replace("bklog", "bkuser"))
 SHOW_PERSONAL_SETTINGS = os.getenv("BKAPP_SHOW_PERSONAL_SETTINGS", "on") == "on"
@@ -1026,6 +1069,13 @@ ESQUERY_WHITE_LIST = [
     "apigw-dashboard",
     "bk_apigateway",
 ] + ESQUERY_EXTRA_WHITE_LIST
+
+# Resource Call 的 API 网关主动授权提供只读准入；此白名单只提升管理能力。
+# 默认继承现有 ESQUERY 白名单以保持已部署管理端兼容，各环境可通过环境变量逐步切换到
+# 专用 APP Code。最终边界由 AdminResourceRegistry.call 在真实 Handler 调用入口执行。
+RESOURCE_CALL_APP_CODE_WHITE_LIST = [
+    app for app in os.getenv("BKAPP_RESOURCE_CALL_APP_CODE_WHITE_LIST", ",".join(ESQUERY_WHITE_LIST)).split(",") if app
+]
 
 # BK repo conf
 BKREPO_ENDPOINT_URL = os.getenv("BKREPO_ENDPOINT_URL") or os.getenv("BKAPP_BKREPO_ENDPOINT_URL")

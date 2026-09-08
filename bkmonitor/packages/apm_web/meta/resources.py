@@ -114,7 +114,7 @@ from bkmonitor.data_source.utils.apm import TraceDatasourceTarget, TraceQueryGua
 from bkmonitor.share.api_auth_resource import ApiAuthResource
 from bkmonitor.utils import group_by
 from bkmonitor.utils.ip import is_v6
-from bkmonitor.utils.request import get_request_tenant_id
+from bkmonitor.utils.request import get_request, get_request_tenant_id
 from bkmonitor.utils.thread_backend import InheritParentThread, run_threads
 from bkmonitor.utils.user import (
     get_backend_username,
@@ -501,8 +501,12 @@ class ApplicationInfoResource(Resource):
             return data
 
     def perform_request(self, validated_request_data):
+        queryset = Application.objects.filter(application_id=validated_request_data["application_id"])
+        request = get_request(peaceful=True)
+        if request and getattr(request, "biz_id", None):
+            queryset = queryset.filter(bk_biz_id=request.biz_id)
         try:
-            return Application.objects.get(application_id=validated_request_data["application_id"])
+            return queryset.get()
         except Application.DoesNotExist:
             raise ValueError(_("应用不存在"))
 
@@ -2420,7 +2424,7 @@ class QueryEndpointStatisticsResource(PageListResource):
                     LinkTableFormat(
                         id="trace",
                         name=_("调用链"),
-                        url_format="/?bizId={bk_biz_id}/#/trace/home/?app_name={app_name}"
+                        url_format="/?bizId={bk_biz_id}#/trace/home/?app_name={app_name}"
                         + "&search_type=scope"
                         + "&start_time={start_time}&end_time={end_time}"
                         + "&sceneMode=span&filterMode=ui",
@@ -3030,7 +3034,13 @@ class CustomServiceConfigResource(Resource):
             # 更新
             _id = validated_data.pop("id")
             self.validate_name(validated_data, _id)
-            ApplicationCustomService.objects.filter(id=_id).update(**validated_data)
+            # 必须带上业务与应用过滤，否则仅凭主键即可改写其他业务的自定义服务，
+            # 甚至把该记录的 bk_biz_id 改到自己名下
+            updated = ApplicationCustomService.objects.filter(
+                id=_id, bk_biz_id=validated_data["bk_biz_id"], app_name=validated_data["app_name"]
+            ).update(**validated_data)
+            if not updated:
+                raise ValueError(_("自定义服务({}) 不存在").format(_id))
 
         from apm_web.tasks import update_application_config
 
@@ -3080,11 +3090,15 @@ class CustomServiceConfigResource(Resource):
 
 class DeleteCustomSeriviceResource(Resource):
     class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(label="业务id")
         id = serializers.IntegerField()
 
     def perform_request(self, validated_data):
-        query = ApplicationCustomService.objects.filter(id=validated_data["id"])
+        # 必须带上业务过滤，否则仅凭主键即可删除其他业务的自定义服务
+        query = ApplicationCustomService.objects.filter(id=validated_data["id"], bk_biz_id=validated_data["bk_biz_id"])
         instance = query.first()
+        if not instance:
+            raise ValueError(_("自定义服务({}) 不存在").format(validated_data["id"]))
         query.delete()
 
         from apm_web.tasks import update_application_config

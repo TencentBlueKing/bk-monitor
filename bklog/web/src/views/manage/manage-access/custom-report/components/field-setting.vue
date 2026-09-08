@@ -14,8 +14,8 @@
       :desc="$t('用于标识日志文件来源及唯一性')"
     >
       <bk-select
+        v-model="targetFields"
         style="width: 500px"
-        v-model="value.targetFields"
         :collapse-tag="false"
         :is-tag-width-limit="false"
         display-tag
@@ -39,15 +39,15 @@
     >
       <div class="collection-select sort-box">
         <vue-draggable
-          v-model="value.sortFields"
+          v-model="sortFields"
           animation="150"
           handle=".icon-grag-fill"
         >
           <transition-group>
             <bk-tag
-              v-for="(item, index) in value.sortFields"
-              ext-cls="tag-items"
+              v-for="(item, index) in sortFields"
               :key="item"
+              ext-cls="tag-items"
               closable
               @close="handleCloseSortFiled(item, index)"
             >
@@ -57,7 +57,7 @@
           </transition-group>
         </vue-draggable>
         <bk-select
-          :ext-cls="`add-sort-btn ${!value.sortFields?.length && 'not-sort'}`"
+          :ext-cls="`add-sort-btn ${!sortFields.length && 'not-sort'}`"
           :popover-min-width="240"
           searchable
           style="width: 500px"
@@ -71,9 +71,9 @@
           </template>
           <bk-option
             v-for="option in targetFieldSelectList"
-            :disabled="getSortDisabledState(option.id)"
             :id="option.id"
             :key="option.id"
+            :disabled="getSortDisabledState(option.id)"
             :name="option.name"
           >
           </bk-option>
@@ -83,7 +83,7 @@
   </div>
 </template>
 <script setup lang="ts">
-  import { ref, watch, defineProps, defineEmits } from 'vue';
+  import { computed, ref, watch, defineProps, defineEmits } from 'vue';
   import VueDraggable from 'vuedraggable';
   import $http from '../../../../../api';
 
@@ -95,7 +95,16 @@
     },
   });
 
-  const emits = defineEmits(['update:value']);
+  const emit = defineEmits(['input']);
+
+  const targetFields = computed({
+    get: () => props.value.targetFields || [],
+    set: value => emit('input', { ...props.value, targetFields: value }),
+  });
+  const sortFields = computed({
+    get: () => props.value.sortFields || [],
+    set: value => emit('input', { ...props.value, sortFields: value }),
+  });
 
   // 获取字段设置数据列表
   const targetFieldSelectList = ref([]);
@@ -131,15 +140,15 @@
   );
 
   const getSortDisabledState = id => {
-    return props.value.sortFields?.includes(id);
+    return sortFields.value.includes(id);
   };
 
   const handleAddSortFields = val => {
-    props.value?.sortFields.push(val);
+    sortFields.value = [...sortFields.value, val];
   };
 
   const handleCloseSortFiled = (item, index) => {
-    props.value?.sortFields.splice(index, 1);
+    sortFields.value = sortFields.value.filter((_, sortIndex) => sortIndex !== index);
   };
 </script>
 <style lang="scss" scoped>

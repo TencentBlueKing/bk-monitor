@@ -19,6 +19,7 @@ from django.db import transaction
 
 from alarm_backends.core.lock.service_lock import share_lock
 from bkmonitor.utils.cipher import transform_data_id_to_token
+from bkmonitor.utils.graph_relation import get_graph_relation_v4_biz_ids
 from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from core.prometheus import metrics
 from metadata import config
@@ -40,7 +41,6 @@ from metadata.tools.constants import TASK_FINISHED_SUCCESS, TASK_STARTED
 from metadata.utils.redis_tools import RedisTools
 
 logger = logging.getLogger("metadata")
-GRAPH_RELATION_BKBASE_SYNC_BIZ_ID_WHITE_LIST = "GRAPH_RELATION_BKBASE_SYNC_BIZ_ID_WHITE_LIST"
 
 
 @dataclass
@@ -60,33 +60,6 @@ class _RelationSyncContext:
     @property
     def redis_token(self) -> str:
         return self.value.get("token") or ""
-
-
-def _get_graph_relation_bkbase_sync_biz_ids() -> set[int]:
-    raw_biz_ids = getattr(settings, GRAPH_RELATION_BKBASE_SYNC_BIZ_ID_WHITE_LIST, [])
-    if raw_biz_ids is None:
-        return set()
-    if isinstance(raw_biz_ids, str):
-        values = raw_biz_ids.split(",")
-    elif isinstance(raw_biz_ids, list | tuple | set):
-        values = raw_biz_ids
-    else:
-        values = [raw_biz_ids]
-
-    biz_ids = set()
-    for value in values:
-        value = str(value).strip()
-        if not value:
-            continue
-        try:
-            biz_ids.add(int(value))
-        except ValueError:
-            logger.warning(
-                "invalid %s item ignored: %s",
-                GRAPH_RELATION_BKBASE_SYNC_BIZ_ID_WHITE_LIST,
-                value,
-            )
-    return biz_ids
 
 
 def _get_builtin_relation_token(
@@ -114,7 +87,7 @@ def _canonical_graph_definitions(definitions: list) -> list[str]:
 
 
 def _is_relation_surrealdb_dual_write_enabled(bk_biz_id: int, enabled_biz_ids: set[int] | None = None) -> bool:
-    enabled_biz_ids = enabled_biz_ids if enabled_biz_ids is not None else _get_graph_relation_bkbase_sync_biz_ids()
+    enabled_biz_ids = enabled_biz_ids if enabled_biz_ids is not None else get_graph_relation_v4_biz_ids()
     return bk_biz_id in enabled_biz_ids
 
 
@@ -503,7 +476,7 @@ def sync_relation_redis_data():
     existing_time_series_group_map = {
         (group.bk_tenant_id, group.table_id): group for group in existing_time_series_groups
     }
-    enabled_graph_biz_ids = _get_graph_relation_bkbase_sync_biz_ids()
+    enabled_graph_biz_ids = get_graph_relation_v4_biz_ids()
 
     # 步骤 3：逐个解析 Redis field 并同步，单 field 异常在内部隔离。
     for field, raw_value in redis_data.items():

@@ -95,6 +95,7 @@ export default {
   'route-集成': 'Integrations',
   'route-告警分派': 'Alarm Routing',
   'route-空间管理': 'Space Management',
+  'route-Redis 节点管理': 'Redis Node Management',
   'route-平台设置': 'Platform Settings',
   'route-默认仪表盘': 'Dashboard Home',
   'route-发送历史': 'Send History',

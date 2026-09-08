@@ -31,6 +31,7 @@ import { Input } from 'bkui-vue';
 import { storeToRefs } from 'pinia';
 import { useI18n } from 'vue-i18n';
 
+import { useTableColumnsCache } from '../../../../hooks/use-table-columns-cache';
 import { useProcessList } from '../../composables/use-process-list';
 import { DEFAULT_AGGREGATION_STATE } from '../../constants/aggregation';
 import { PROCESS_LIST_COLUMNS } from '../../constants/process';
@@ -82,8 +83,12 @@ export default defineComponent({
       handleKeywordChange(value);
     }, 300);
 
-    /** 展示列（默认勾选项对齐设计稿，可在「字段设置」中调整） */
-    const visibleColumns = shallowRef<string[]>(PROCESS_LIST_COLUMNS.filter(c => c.checked).map(c => c.id));
+    /** 展示列与列宽（公共 hook，localStorage 持久化） */
+    const { storageColumns: visibleColumns, fieldsWidthConfig } = useTableColumnsCache({
+      storageKey: 'trace_host_process_columns',
+      defaultColumns: PROCESS_LIST_COLUMNS.filter(c => c.checked).map(c => c.id),
+      validColumnKeys: PROCESS_LIST_COLUMNS.map(c => c.id),
+    });
     /** 进程详情抽屉显隐状态（点击进程名打开） */
     const detailShow = shallowRef(false);
     /** 当前选中展示的进程详情 */
@@ -121,6 +126,7 @@ export default defineComponent({
       displayList: displayList,
       sortInfo: sortInfo,
       visibleColumns,
+      fieldsWidthConfig,
       detailShow,
       activeProcess,
       handleRowClick,
@@ -144,12 +150,14 @@ export default defineComponent({
           />
         </div>
         <ProcessTable
+          columnWidths={this.fieldsWidthConfig}
           data={this.displayList}
           emptyType={this.loadError ? '500' : this.keyword ? 'search-empty' : 'empty'}
           loading={this.loading}
           sort={this.sortInfo}
           visibleColumns={this.visibleColumns}
           onClearFilter={() => this.handleKeywordChange('')}
+          onColumnResize={(widths: Record<string, number>) => (this.fieldsWidthConfig = widths)}
           onColumnsChange={(cols: string[]) => (this.visibleColumns = cols)}
           onRetry={this.loadData}
           onRowClick={this.handleRowClick}

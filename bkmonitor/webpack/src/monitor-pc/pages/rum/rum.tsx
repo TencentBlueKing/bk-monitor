@@ -53,8 +53,8 @@ export default class Rum extends tsc<object> {
   }
   get traceUrl() {
     return process.env.NODE_ENV === 'development'
-      ? `${this.traceHost}/?bizId=${this.$store.getters.bizId}/#/trace/rum`
-      : `${location.origin}${window.site_url}trace/?bizId=${this.$store.getters.bizId}/#/trace/rum`;
+      ? `${this.traceHost}/?bizId=${this.$store.getters.bizId}#/trace/rum`
+      : `${location.origin}${window.site_url}trace/?bizId=${this.$store.getters.bizId}#/trace/rum`;
   }
   get traceData(): Vue3WewebData {
     return {

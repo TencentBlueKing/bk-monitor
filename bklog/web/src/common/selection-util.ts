@@ -76,8 +76,8 @@ const isRangeInShadowRoots = (range: Range | null, shadowRoots: ShadowRoot[]) =>
   }
 
   return (
-    shadowRoots.includes(range.startContainer?.getRootNode?.() as ShadowRoot)
-    || shadowRoots.includes(range.endContainer?.getRootNode?.() as ShadowRoot)
+    shadowRoots.includes(range.startContainer?.getRootNode?.() as ShadowRoot) ||
+    shadowRoots.includes(range.endContainer?.getRootNode?.() as ShadowRoot)
   );
 };
 

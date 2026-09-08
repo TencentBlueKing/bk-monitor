@@ -17,6 +17,8 @@ from opentelemetry.trace import get_current_span
 from bkmonitor.utils.common_utils import get_local_ip
 from bkmonitor.utils.custom_report_tools import custom_report_tool
 from bkmonitor.utils.request import get_request_username
+from bkmonitor.utils.tenant import set_local_tenant_id
+from bkmonitor.utils.user import get_user_display_name
 from core.drf_resource import api
 
 
@@ -29,9 +31,13 @@ class EventReportHelper:
         if app:
             response_biz_data = api.cmdb.get_business(bk_biz_ids=[app.bk_biz_id], bk_tenant_id=app.bk_tenant_id)
             bk_biz_name = response_biz_data[0].bk_biz_name if response_biz_data else ""
+            if settings.ENABLE_MULTI_TENANT_MODE:
+                set_local_tenant_id(app.bk_tenant_id)
+            operator = get_request_username()
+            operator_display_name = get_user_display_name(operator) if operator else operator
             info = (
                 f"应用名称: {app.app_name} 业务 ID: {app.bk_biz_id} 业务名称: {bk_biz_name} "
-                f"操作人: {get_request_username()}"
+                f"操作人: {operator_display_name}"
             )
 
         return [

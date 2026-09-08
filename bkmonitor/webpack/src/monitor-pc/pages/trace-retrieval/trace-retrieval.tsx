@@ -48,8 +48,8 @@ export default class TraceRetrieval extends tsc<object> {
   }
   get traceUrl() {
     return process.env.NODE_ENV === 'development'
-      ? `${this.traceHost}/?bizId=${this.$store.getters.bizId}/#/trace/home`
-      : `${location.origin}${window.site_url}trace/?bizId=${this.$store.getters.bizId}/#/trace/home`;
+      ? `${this.traceHost}/?bizId=${this.$store.getters.bizId}#/trace/home`
+      : `${location.origin}${window.site_url}trace/?bizId=${this.$store.getters.bizId}#/trace/home`;
   }
   get traceData(): Vue3WewebData {
     return {

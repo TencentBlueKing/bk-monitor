@@ -608,7 +608,8 @@ class EventStatisticsGraphResource(EventBaseResource):
                 for interval in intervals
             ]
         )
-        return sorted(buckets, key=lambda x: int(x[1].split("-")[0]))
+        buckets.sort(key=lambda item: item[0])
+        return [data_point for _start, data_point in buckets]
 
     @classmethod
     def _get_q_by_interval(cls, query, field, interval):
@@ -632,7 +633,7 @@ class EventStatisticsGraphResource(EventBaseResource):
         for query in queries:
             queryset = queryset.add_query(query)
         try:
-            bucket.append([queryset.original_data[0]["_result_"], f"{interval[0]}-{interval[1]}"])
+            bucket.append((interval[0], [queryset.original_data[0]["_result_"], f"{interval[0]}-{interval[1]}"]))
         except (IndexError, KeyError) as exc:
             logger.warning("[EventStatisticsGraphResource] failed to get field interval_buckets, err -> %s", exc)
             raise ValueError(_("获取数值类型区间统计数量失败"))

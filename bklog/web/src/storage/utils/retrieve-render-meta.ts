@@ -6,10 +6,7 @@
 import LuceneSegment from '@/hooks/lucene.segment';
 import { optimizedSplit } from '@/hooks/optimized-split';
 // 走 highlight-range 而非 page-highlight：本模块会被 Worker 引入，不能带上 vue。
-import {
-  parseResultMarkedText,
-  type HighlightRange,
-} from '@/views/retrieve-core/highlight-range';
+import { parseResultMarkedText, type HighlightRange } from '@/views/retrieve-core/highlight-range';
 
 export interface RetrieveTextSegment {
   text: string;
@@ -289,11 +286,12 @@ export const resolveSegmentationMode = (
 ): RetrieveSegmentationMode => {
   if (options.forceSplit) return 'nested-force';
   if (
-    options.isSerializedComposite
-    || isCompositeValue(value)
-    || field?.field_type === 'object'
-    || field?.is_virtual_obj_node
-  ) return 'serialized-composite';
+    options.isSerializedComposite ||
+    isCompositeValue(value) ||
+    field?.field_type === 'object' ||
+    field?.is_virtual_obj_node
+  )
+    return 'serialized-composite';
   if (field?.is_analyzed) return 'analyzed';
   return 'whole-value';
 };
@@ -314,13 +312,15 @@ export const splitRenderText = (
   const mode = resolveSegmentationMode(value, field, options);
   if (mode === 'whole-value') {
     const { plainText, markRanges } = parseResultMarkedText(text);
-    return [{
-      text: plainText,
-      isMark: markRanges.length > 0,
-      isCursorText: true,
-      isNotParticiple: field?.field_type === 'text',
-      resultRanges: markRanges,
-    }];
+    return [
+      {
+        text: plainText,
+        isMark: markRanges.length > 0,
+        isCursorText: true,
+        isNotParticiple: field?.field_type === 'text',
+        resultRanges: markRanges,
+      },
+    ];
   }
 
   // analyzed / serialized-composite / nested-force：底层分词已按纯文本切分并映射 mark
@@ -353,9 +353,7 @@ export const createRetrieveRowRenderMeta = (
   ];
   const scopedFieldNames = Array.from(new Set((options.fieldNames ?? []).filter(Boolean)));
   const fieldNames = new Set(
-    scopedFieldNames.length
-      ? [...scopedFieldNames, ...Object.keys(markedFields)]
-      : candidateFieldNames,
+    scopedFieldNames.length ? [...scopedFieldNames, ...Object.keys(markedFields)] : candidateFieldNames,
   );
 
   fieldNames.forEach(fieldName => {
@@ -381,7 +379,6 @@ export const createRetrieveRowRenderMeta = (
       truncatedTextByField = truncatedTextByField ?? {};
       truncatedTextByField[fieldName] = truncatedRenderText;
     }
-
 
     // Store the pre-tokenized render value for every field that may be rendered.
     if (precomputeSegments) {

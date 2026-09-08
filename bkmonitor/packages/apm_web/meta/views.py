@@ -60,15 +60,44 @@ from apm_web.meta.resources import (
     StorageInfoResource,
     StorageStatusResource,
 )
-from apm_web.models import Application
+from apm_web.models import Application, ApplicationCustomService
 from bkmonitor.iam import ActionEnum, ResourceEnum
 from bkmonitor.iam.drf import (
+    IAMPermission,
     InstanceActionForDataPermission,
     InstanceActionPermission,
     ViewBusinessPermission,
     insert_permission_field,
 )
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
+
+
+class CustomServiceManagePermission(IAMPermission):
+    def has_permission(self, request, view):
+        data = request.query_params if request.method == "GET" else request.data
+        service_id = data.get("id")
+        bk_biz_id = data.get("bk_biz_id")
+        if not service_id or not bk_biz_id:
+            return False
+
+        service = (
+            ApplicationCustomService.objects.only("bk_biz_id", "app_name")
+            .filter(id=service_id, bk_biz_id=bk_biz_id)
+            .first()
+        )
+        if not service:
+            return False
+
+        application = (
+            Application.objects.only("application_id")
+            .filter(bk_biz_id=service.bk_biz_id, app_name=service.app_name)
+            .first()
+        )
+        if not application:
+            return False
+
+        self.resources = [ResourceEnum.APM_APPLICATION.create_instance(application.application_id)]
+        return super().has_permission(request, view)
 
 
 class MetaInfoViewSet(ResourceViewSet):
@@ -94,6 +123,13 @@ class ApplicationViewSet(ResourceViewSet):
             "storage_field_info",
             "data_view_config",
             "dimension_count",
+            "dimension_data",
+            "indices_info",
+            "data_histogram",
+            "data_status",
+            "storage_info",
+            "storage_status",
+            "custom_service_data_view_config",
         ]:
             return [
                 InstanceActionPermission([ActionEnum.VIEW_APM_APPLICATION], ResourceEnum.APM_APPLICATION),
@@ -102,7 +138,6 @@ class ApplicationViewSet(ResourceViewSet):
             "setup",
             "start",
             "stop",
-            "query_bk_data_token",
             "nodata_strategy_info",
             "nodata_strategy_enable",
             "nodata_strategy_disable",
@@ -112,7 +147,42 @@ class ApplicationViewSet(ResourceViewSet):
                     self.INSTANCE_ID, [ActionEnum.MANAGE_APM_APPLICATION], ResourceEnum.APM_APPLICATION
                 )
             ]
-        if self.action in ["application_info_by_app_name", "service_detail", "simple_service_list"]:
+        if self.action == "modify_metric":
+            return [
+                InstanceActionPermission([ActionEnum.MANAGE_APM_APPLICATION], ResourceEnum.APM_APPLICATION),
+            ]
+        if self.action in ["delete_application", "custom_service_config"]:
+            return [
+                InstanceActionForDataPermission(
+                    "app_name",
+                    [ActionEnum.MANAGE_APM_APPLICATION],
+                    ResourceEnum.APM_APPLICATION,
+                    get_instance_id=Application.get_application_id_by_app_name,
+                )
+            ]
+        if self.action == "delete_custom_service":
+            return [CustomServiceManagePermission([ActionEnum.MANAGE_APM_APPLICATION])]
+        if self.action in ["query_bk_data_token", "application_info_by_id"]:
+            return [
+                InstanceActionForDataPermission(
+                    self.INSTANCE_ID, [ActionEnum.VIEW_APM_APPLICATION], ResourceEnum.APM_APPLICATION
+                )
+            ]
+        if self.action in [
+            "application_info_by_app_name",
+            "service_detail",
+            "simple_service_list",
+            "service_list",
+            "endpoint_detail",
+            "query_exception_event",
+            "query_exception_detail_event",
+            "query_exception_endpoint",
+            "query_exception_type_graph",
+            "query_endpoint_statistics",
+            "instance_discover_keys",
+            "custom_service_list",
+            "custom_service_url_list",
+        ]:
             return [
                 InstanceActionForDataPermission(
                     "app_name",

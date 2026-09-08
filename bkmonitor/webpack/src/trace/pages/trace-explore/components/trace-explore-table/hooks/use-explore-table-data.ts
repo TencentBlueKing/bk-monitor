@@ -78,6 +78,7 @@ export const useExploreTableData = (options: UseExploreTableDataOptions): UseExp
     mode,
     appName,
     timeRange,
+    timezone,
     refreshImmediate,
     filterTableList,
     tableList: tableData,
@@ -118,6 +119,8 @@ export const useExploreTableData = (options: UseExploreTableDataOptions): UseExp
     const params = get(commonParams);
     // eslint-disable-next-line @typescript-eslint/naming-convention
     const { mode: _mode, query_string, ...restParams } = params;
+    // timezone 影响绝对时间 unix 转换，需纳入 computed 依赖
+    void get(timezone);
     const [startTime, endTime] = handleTransformToTimestamp(get(timeRange));
 
     let sort: string[] = [];
@@ -222,6 +225,7 @@ export const useExploreTableData = (options: UseExploreTableDataOptions): UseExp
       () => isSpanVisual.value,
       () => get(appName),
       () => get(timeRange),
+      () => get(timezone),
       () => get(refreshImmediate),
       () => get(sortContainer).sortBy,
       () => get(sortContainer).descending,

@@ -37,8 +37,10 @@ from apps.log_databus.exceptions import (
     StorageNotPermissionException,
 )
 from apps.log_databus.handlers.collector.base import CollectorHandler
+from apps.log_databus.handlers.etl_storage import EtlStorage
 from apps.log_databus.handlers.storage import StorageHandler
 from apps.log_databus.serializers import DorisVisibleConfigUpdateSerializer
+from apps.log_databus.utils.storage_config import build_storage_retention_config, get_storage_retention
 from apps.log_search.handlers.index_set import IndexSetHandler
 from apps.log_search.models import Scenario
 
@@ -255,6 +257,122 @@ class TestFilterDorisCluster(TestCase):
 
 
 @override_settings(BLUEKING_BK_BIZ_ID=BLUEKING_BK_BIZ_ID)
+class TestFilterDorisClusterSetupConfig(TestCase):
+    """
+    doris 集群必须下发 setup_config.retention_days_max，
+    否则前端取不到上限会回退到写死的 7 天（最大自定义天数为 7）
+    """
+
+    def setUp(self):
+        patcher_es = patch("apps.log_databus.handlers.storage.get_es_config", return_value=ES_CONFIG)
+        patcher_idx = patch(
+            "apps.log_search.handlers.index_set.IndexSetHandler.get_index_set_for_storage",
+            return_value=_fake_index_sets(),
+        )
+        self.addCleanup(patcher_es.stop)
+        self.addCleanup(patcher_idx.stop)
+        patcher_es.start()
+        patcher_idx.start()
+
+    @staticmethod
+    def _filter(bk_biz_id, cluster_obj):
+        _, obj = StorageHandler.filter_doris_cluster(
+            bk_biz_id, is_default=True, post_visible=True, cluster_obj=copy.deepcopy(cluster_obj)
+        )
+        return obj["cluster_config"]["custom_option"]["setup_config"]
+
+    def test_public_cluster_without_setup_config_falls_back_to_es_public_duration(self):
+        setup_config = self._filter(
+            BLUEKING_BK_BIZ_ID,
+            _doris_cluster_obj(
+                registered_system=REGISTERED_SYSTEM_DEFAULT,
+                custom_option={"visible_config": {"visible_type": VisibleEnum.ALL_BIZ.value}},
+            ),
+        )
+        self.assertEqual(setup_config["retention_days_max"], ES_CONFIG["ES_PUBLIC_STORAGE_DURATION"])
+        self.assertEqual(setup_config["retention_days_default"], ES_CONFIG["ES_PUBLIC_STORAGE_DURATION"])
+
+    def test_private_cluster_without_setup_config_falls_back_to_es_public_duration(self):
+        setup_config = self._filter(
+            OWNER_BIZ,
+            _doris_cluster_obj(
+                registered_system="other",
+                custom_option={
+                    "bk_biz_id": OWNER_BIZ,
+                    "visible_config": {"visible_type": VisibleEnum.CURRENT_BIZ.value},
+                },
+            ),
+        )
+        self.assertEqual(setup_config["retention_days_max"], ES_CONFIG["ES_PUBLIC_STORAGE_DURATION"])
+
+    def test_empty_setup_config_from_metadata_still_gets_defaults(self):
+        """metadata 侧存了空字典时，缺省值不能被 custom_option 的整体覆盖冲掉"""
+        setup_config = self._filter(
+            OWNER_BIZ,
+            _doris_cluster_obj(
+                registered_system="other",
+                custom_option={
+                    "bk_biz_id": OWNER_BIZ,
+                    "setup_config": {},
+                    "visible_config": {"visible_type": VisibleEnum.CURRENT_BIZ.value},
+                },
+            ),
+        )
+        self.assertEqual(setup_config["retention_days_max"], ES_CONFIG["ES_PUBLIC_STORAGE_DURATION"])
+
+    def test_admin_configured_setup_config_is_not_overwritten(self):
+        setup_config = self._filter(
+            OWNER_BIZ,
+            _doris_cluster_obj(
+                registered_system="other",
+                custom_option={
+                    "bk_biz_id": OWNER_BIZ,
+                    "setup_config": {"retention_days_max": 90, "retention_days_default": 30},
+                    "visible_config": {"visible_type": VisibleEnum.CURRENT_BIZ.value},
+                },
+            ),
+        )
+        self.assertEqual(setup_config["retention_days_max"], 90)
+        self.assertEqual(setup_config["retention_days_default"], 30)
+
+    def test_partially_configured_setup_config_only_fills_missing_keys(self):
+        setup_config = self._filter(
+            OWNER_BIZ,
+            _doris_cluster_obj(
+                registered_system="other",
+                custom_option={
+                    "bk_biz_id": OWNER_BIZ,
+                    "setup_config": {"retention_days_max": 90},
+                    "visible_config": {"visible_type": VisibleEnum.CURRENT_BIZ.value},
+                },
+            ),
+        )
+        self.assertEqual(setup_config["retention_days_max"], 90)
+        self.assertEqual(setup_config["retention_days_default"], ES_CONFIG["ES_PUBLIC_STORAGE_DURATION"])
+
+    def test_does_not_inject_es_only_fields(self):
+        """doris 无副本/分片概念，不应照搬 ES 的 setup_config 字段"""
+        setup_config = self._filter(
+            OWNER_BIZ,
+            _doris_cluster_obj(
+                registered_system="other",
+                custom_option={
+                    "bk_biz_id": OWNER_BIZ,
+                    "visible_config": {"visible_type": VisibleEnum.CURRENT_BIZ.value},
+                },
+            ),
+        )
+        es_only_fields = (
+            "number_of_replicas_max",
+            "number_of_replicas_default",
+            "es_shards_default",
+            "es_shards_max",
+        )
+        for es_only_field in es_only_fields:
+            self.assertNotIn(es_only_field, setup_config)
+
+
+@override_settings(BLUEKING_BK_BIZ_ID=BLUEKING_BK_BIZ_ID)
 class TestUpdateVisibleConfig(TestCase):
     """StorageHandler.update_visible_config 仅更新 visible_config"""
 
@@ -341,6 +459,63 @@ class TestUpdateVisibleConfig(TestCase):
         with self.assertRaises(StorageNotPermissionException):
             self._run_update(cluster_info, params)
 
+    @staticmethod
+    def _private_cluster_info(custom_option_extra=None):
+        custom_option = {
+            "bk_biz_id": OWNER_BIZ,
+            "admin": ["admin"],
+            "source_type": "other",
+            "description": "keep me",
+            "visible_config": {"visible_type": VisibleEnum.CURRENT_BIZ.value},
+        }
+        custom_option.update(custom_option_extra or {})
+        return [{"cluster_config": {"registered_system": "other", "custom_option": custom_option}}]
+
+    def test_setup_config_is_written_when_provided(self):
+        params = {
+            "cluster_id": 10,
+            "bk_biz_id": OWNER_BIZ,
+            "visible_config": {"visible_type": VisibleEnum.ALL_BIZ.value},
+            "setup_config": {"retention_days_max": 30, "retention_days_default": 14},
+        }
+        mock_api, _, _ = self._run_update(self._private_cluster_info(), params)
+
+        custom_option = mock_api.modify_cluster_info.call_args[0][0]["custom_option"]
+        self.assertEqual(custom_option["setup_config"], params["setup_config"])
+        # 其余字段仍然保留
+        self.assertEqual(custom_option["description"], "keep me")
+
+    def test_setup_config_merges_by_key(self):
+        """只传部分键时，已有的其它键需保留"""
+        params = {
+            "cluster_id": 10,
+            "bk_biz_id": OWNER_BIZ,
+            "visible_config": {"visible_type": VisibleEnum.ALL_BIZ.value},
+            "setup_config": {"retention_days_max": 60, "retention_days_default": 30},
+        }
+        cluster_info = self._private_cluster_info(
+            {"setup_config": {"retention_days_max": 7, "retention_days_default": 7, "legacy_key": "keep"}}
+        )
+        mock_api, _, _ = self._run_update(cluster_info, params)
+
+        setup_config = mock_api.modify_cluster_info.call_args[0][0]["custom_option"]["setup_config"]
+        self.assertEqual(setup_config["retention_days_max"], 60)
+        self.assertEqual(setup_config["retention_days_default"], 30)
+        self.assertEqual(setup_config["legacy_key"], "keep")
+
+    def test_existing_setup_config_kept_when_not_provided(self):
+        """未传 setup_config 时不能清掉管理员已配置的上限"""
+        params = {
+            "cluster_id": 10,
+            "bk_biz_id": OWNER_BIZ,
+            "visible_config": {"visible_type": VisibleEnum.ALL_BIZ.value},
+        }
+        cluster_info = self._private_cluster_info({"setup_config": {"retention_days_max": 90}})
+        mock_api, _, _ = self._run_update(cluster_info, params)
+
+        custom_option = mock_api.modify_cluster_info.call_args[0][0]["custom_option"]
+        self.assertEqual(custom_option["setup_config"], {"retention_days_max": 90})
+
 
 class TestDorisVisibleConfigSerializer(TestCase):
     """DorisVisibleConfigUpdateSerializer 校验"""
@@ -364,6 +539,48 @@ class TestDorisVisibleConfigSerializer(TestCase):
             data={"cluster_id": 10, "bk_biz_id": OWNER_BIZ, "visible_config": {"visible_type": "all_biz"}}
         )
         self.assertTrue(serializer.is_valid(), serializer.errors)
+
+    def test_setup_config_is_optional(self):
+        serializer = DorisVisibleConfigUpdateSerializer(
+            data={"cluster_id": 10, "bk_biz_id": OWNER_BIZ, "visible_config": {"visible_type": "all_biz"}}
+        )
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+        self.assertNotIn("setup_config", serializer.validated_data)
+
+    def test_valid_setup_config(self):
+        serializer = DorisVisibleConfigUpdateSerializer(
+            data={
+                "cluster_id": 10,
+                "bk_biz_id": OWNER_BIZ,
+                "visible_config": {"visible_type": "all_biz"},
+                "setup_config": {"retention_days_max": 30, "retention_days_default": 14},
+            }
+        )
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+        self.assertEqual(serializer.validated_data["setup_config"]["retention_days_max"], 30)
+
+    def test_setup_config_default_must_not_exceed_max(self):
+        serializer = DorisVisibleConfigUpdateSerializer(
+            data={
+                "cluster_id": 10,
+                "bk_biz_id": OWNER_BIZ,
+                "visible_config": {"visible_type": "all_biz"},
+                "setup_config": {"retention_days_max": 7, "retention_days_default": 30},
+            }
+        )
+        with self.assertRaises(ValidationError):
+            serializer.is_valid()
+
+    def test_setup_config_rejects_non_positive_days(self):
+        serializer = DorisVisibleConfigUpdateSerializer(
+            data={
+                "cluster_id": 10,
+                "bk_biz_id": OWNER_BIZ,
+                "visible_config": {"visible_type": "all_biz"},
+                "setup_config": {"retention_days_max": 0, "retention_days_default": 0},
+            }
+        )
+        self.assertFalse(serializer.is_valid())
 
 
 class TestMetadataStorageStatus(TestCase):
@@ -487,7 +704,9 @@ class TestMetadataStorageStatus(TestCase):
                             "8": {
                                 "storage_type": DORIS_CLUSTER_TYPE,
                                 "is_current_segment": True,
+                                "connectivity": {"is_connected": True},
                                 "runtime": {
+                                    "binding": {"physical_table_name": "mapleleaf_2.bklog_doris_default"},
                                     "table": {"name": "bklog_doris_default", "rows": 20},
                                     "partitions": [{"name": "p20260810", "rows": 20}],
                                 },
@@ -499,7 +718,155 @@ class TestMetadataStorageStatus(TestCase):
             ]
         }
 
-        self.assertEqual(StorageHandler.get_result_table_indices(table_id), [])
+        result = StorageHandler.get_result_table_indices(table_id)
+
+        self.assertEqual([index["index"] for index in result], ["p20260810"])
+
+    @patch("apps.log_databus.handlers.storage.TransferApi.get_result_table_storage_status")
+    def test_get_result_table_indices_adapts_doris_partitions_to_unified_rows(self, mock_get_storage_status):
+        table_id = "2_bklog.doris_only"
+        mock_get_storage_status.return_value = {
+            "items": [
+                {
+                    "table_id": table_id,
+                    "data": {
+                        "result_table": {"default_storage": DORIS_CLUSTER_TYPE},
+                        "storage_configs": {DORIS_CLUSTER_TYPE: {"storage_cluster_id": 43}},
+                        "cluster_results": {
+                            "43": {
+                                "storage_type": DORIS_CLUSTER_TYPE,
+                                "connectivity": {"is_connected": True},
+                                "runtime": {
+                                    "binding": {"physical_table_name": "mapleleaf_2.bklog_doris_only"},
+                                    "table": {"schema": "mapleleaf_2", "name": "bklog_doris_only"},
+                                    "partitions": [
+                                        {
+                                            "name": "p20260812",
+                                            "rows": 100,
+                                            "data_length_bytes": 2000,
+                                            "index_length_bytes": 48,
+                                            "update_time": "2026-08-12 10:00:00",
+                                        },
+                                        {
+                                            "name": "p20260813",
+                                            "rows": 39556,
+                                            "data_length_bytes": 5814000,
+                                            "index_length_bytes": 197,
+                                            "update_time": "2026-08-13 10:00:00",
+                                        },
+                                    ],
+                                },
+                            }
+                        },
+                    },
+                    "error": None,
+                }
+            ]
+        }
+
+        result = StorageHandler.get_result_table_indices(table_id)
+
+        # update_time 倒序
+        self.assertEqual([index["index"] for index in result], ["p20260813", "p20260812"])
+        self.assertEqual(
+            result[0],
+            {
+                "index": "p20260813",
+                "uuid": "doris:mapleleaf_2.bklog_doris_only:p20260813",
+                "health": "green",
+                "status": "open",
+                "pri": "--",
+                "rep": "--",
+                "docs.count": "39556",
+                "docs.deleted": "--",
+                "store.size": "5814197",
+                "pri.store.size": "--",
+            },
+        )
+
+    def test_doris_storage_rows_fall_back_to_physical_table_without_partitions(self):
+        item = {
+            "table_id": "2_bklog.doris_no_partition",
+            "data": {
+                "result_table": {"default_storage": DORIS_CLUSTER_TYPE},
+                "storage_configs": {DORIS_CLUSTER_TYPE: {"storage_cluster_id": 43}},
+                "cluster_results": {
+                    "43": {
+                        "connectivity": {"is_connected": True},
+                        "runtime": {
+                            "table": {
+                                "schema": "mapleleaf_2",
+                                "name": "bklog_doris_no_partition",
+                                "rows": 8,
+                                "data_length_bytes": 100,
+                                "index_length_bytes": 20,
+                            },
+                            "partitions": [],
+                        },
+                    }
+                },
+            },
+            "error": None,
+        }
+
+        result = StorageHandler._get_result_table_indices_from_status(item)
+
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0]["index"], "mapleleaf_2.bklog_doris_no_partition")
+        self.assertEqual(result[0]["docs.count"], "8")
+        self.assertEqual(result[0]["store.size"], "120")
+
+    def test_doris_storage_rows_mark_health_by_connectivity_and_warnings(self):
+        def build_item(cluster_status):
+            return {
+                "table_id": "2_bklog.doris_health",
+                "data": {
+                    "result_table": {"default_storage": DORIS_CLUSTER_TYPE},
+                    "storage_configs": {DORIS_CLUSTER_TYPE: {"storage_cluster_id": 43}},
+                    "cluster_results": {"43": cluster_status},
+                },
+                "error": None,
+            }
+
+        runtime = {"partitions": [{"name": "p20260813", "rows": 1}]}
+        cases = [
+            ({"connectivity": {"is_connected": True}, "runtime": runtime}, "green", "open"),
+            (
+                {
+                    "connectivity": {"is_connected": True},
+                    "warnings": [{"code": "HISTORICAL_DORIS_BINDING_NOT_SNAPSHOTTED"}],
+                    "runtime": runtime,
+                },
+                "yellow",
+                "open",
+            ),
+            ({"connectivity": {"is_connected": False}, "runtime": runtime}, "red", "unavailable"),
+            ({"runtime_skipped": True, "runtime": runtime}, "--", "unknown"),
+        ]
+        for cluster_status, expected_health, expected_status in cases:
+            with self.subTest(expected_health=expected_health):
+                result = StorageHandler._get_result_table_indices_from_status(build_item(cluster_status))
+                self.assertEqual(result[0]["health"], expected_health)
+                self.assertEqual(result[0]["status"], expected_status)
+
+    def test_get_result_table_indices_infers_doris_when_only_doris_configured(self):
+        item = {
+            "table_id": "2_bklog.doris_no_default",
+            "data": {
+                "storage_configs": {DORIS_CLUSTER_TYPE: {"storage_cluster_id": 43}},
+                "cluster_results": {
+                    "43": {
+                        "connectivity": {"is_connected": True},
+                        "runtime": {"partitions": [{"name": "p20260813", "rows": 3}]},
+                    }
+                },
+            },
+            "error": None,
+        }
+
+        result = StorageHandler._get_result_table_indices_from_status(item)
+
+        self.assertEqual([index["index"] for index in result], ["p20260813"])
 
     def test_get_result_table_indices_skips_ambiguous_dual_storage_without_default(self):
         item = {
@@ -1062,9 +1429,190 @@ class TestMetadataStorageStatus(TestCase):
     def test_collector_indices_info_uses_metadata_storage_status(self, mock_get_indices):
         handler = MagicMock()
         handler.data.table_id = "2_bklog.test"
-        handler.data.storage_cluster_type = "elasticsearch"
+        handler.data.storage_cluster_type = STORAGE_CLUSTER_TYPE
 
         result = CollectorHandler.indices_info(handler)
 
         mock_get_indices.assert_called_once_with("2_bklog.test")
         self.assertEqual(result, [{"index": "2_bklog_test_20260810_0"}])
+
+    @patch.object(StorageHandler, "get_result_table_indices", return_value=[{"index": "p20260813"}])
+    def test_collector_indices_info_no_longer_short_circuits_doris(self, mock_get_indices):
+        handler = MagicMock()
+        handler.data.table_id = "2_bklog.doris_only"
+        handler.data.storage_cluster_type = DORIS_CLUSTER_TYPE
+
+        result = CollectorHandler.indices_info(handler)
+
+        mock_get_indices.assert_called_once_with("2_bklog.doris_only")
+        self.assertEqual(result, [{"index": "p20260813"}])
+
+    @patch.object(StorageHandler, "get_result_tables_indices")
+    @patch.object(IndexSetHandler, "_get_data")
+    def test_log_index_set_aggregation_ignores_placeholder_values(self, mock_get_data, mock_get_indices):
+        index_set = MagicMock(scenario_id=Scenario.LOG, storage_cluster_id=43)
+        index_set.get_indexes.return_value = [{"result_table_id": "2_bklog.doris_only"}]
+        mock_get_data.return_value = index_set
+        mock_get_indices.return_value = {
+            "2_bklog.doris_only": [
+                {
+                    "index": "p20260813",
+                    "health": "green",
+                    "pri": "--",
+                    "rep": "--",
+                    "docs.count": "39556",
+                    "docs.deleted": "--",
+                    "store.size": "5814197",
+                    "pri.store.size": "--",
+                }
+            ]
+        }
+
+        stat = IndexSetHandler(1).indices()["list"][0]["stat"]
+
+        self.assertEqual(stat["docs.count"], 39556)
+        self.assertEqual(stat["store.size"], 5814197)
+        # 整列都是占位值时继续返回 "--"，不能塌成 0
+        self.assertEqual(stat["pri"], "--")
+        self.assertEqual(stat["docs.deleted"], "--")
+        self.assertEqual(stat["pri.store.size"], "--")
+
+
+class TestStorageRetentionCompat(TestCase):
+    """Doris 的过期天数在 metadata 里叫 expire_days，日志平台对外统一暴露 retention"""
+
+    RESULT_TABLE_CONFIG = {
+        "option": {},
+        "field_list": [
+            {
+                "field_name": "dtEventTimeStamp",
+                "alias_name": "",
+                "field_type": "timestamp",
+                "is_built_in": True,
+                "is_dimension": True,
+                "option": {"es_type": "date", "time_zone": 0, "time_format": "epoch_millis"},
+            }
+        ],
+    }
+
+    @staticmethod
+    def _make_row(table_id):
+        return {
+            "table_id": table_id,
+            "category_id": "os",
+            "custom_type": "log",
+            "created_at": "2026-08-13 10:00:00",
+            "updated_at": "2026-08-13 10:00:00",
+        }
+
+    def test_get_storage_retention_prefers_es_retention(self):
+        self.assertEqual(get_storage_retention({"retention": 14, "expire_days": 30}), 14)
+
+    def test_get_storage_retention_falls_back_to_doris_expire_days(self):
+        self.assertEqual(get_storage_retention({"expire_days": 30}), 30)
+
+    def test_get_storage_retention_returns_default_when_absent(self):
+        self.assertIsNone(get_storage_retention({}))
+        self.assertEqual(get_storage_retention(None, default=0), 0)
+        self.assertEqual(get_storage_retention({"bkbase_table_id": "x"}, default=0), 0)
+
+    def test_get_storage_retention_treats_zero_as_unset(self):
+        # bulk_cluster_infos 查不到结果表时兜底为 retention=0，该值不代表用户配置了 0 天
+        self.assertEqual(get_storage_retention({"retention": 0}, default=7), 7)
+
+    def test_get_storage_retention_skips_placeholder_retention_for_doris(self):
+        # doris 结果表即便同时带上 ES 语义的 retention 占位值，也应以 expire_days 为准
+        self.assertEqual(get_storage_retention({"retention": 0, "expire_days": 30}), 30)
+
+    def test_build_storage_retention_config_for_es(self):
+        self.assertEqual(build_storage_retention_config(STORAGE_CLUSTER_TYPE, 14), {"retention": 14})
+
+    def test_build_storage_retention_config_for_doris(self):
+        # DorisStorage 的 create_table 与 UPGRADE_FIELD_CONFIG 都只认 expire_days，必须补上该键
+        self.assertEqual(
+            build_storage_retention_config(DORIS_CLUSTER_TYPE, 14),
+            {"retention": 14, "expire_days": 14},
+        )
+
+    def test_build_storage_retention_config_round_trips_with_getter(self):
+        # 写入与读取两个方向应互为逆运算，避免再次出现字段名口径漂移
+        for cluster_type in (STORAGE_CLUSTER_TYPE, DORIS_CLUSTER_TYPE):
+            with self.subTest(cluster_type=cluster_type):
+                config = build_storage_retention_config(cluster_type, 14)
+                self.assertEqual(get_storage_retention(config), 14)
+
+    def test_parse_result_table_config_maps_doris_expire_days_to_retention(self):
+        collector_config = EtlStorage.parse_result_table_config(
+            result_table_config=copy.deepcopy(self.RESULT_TABLE_CONFIG),
+            result_table_storage={
+                "cluster_config": {"cluster_id": 43, "cluster_name": "doris", "display_name": "doris"},
+                "storage_config": {"expire_days": 30, "bkbase_table_id": "bklog_doris_only"},
+            },
+        )
+
+        self.assertEqual(collector_config["retention"], 30)
+        self.assertEqual(collector_config["storage_cluster_id"], 43)
+
+    def test_add_cluster_info_maps_doris_expire_days_to_retention(self):
+        cluster_infos = {
+            "2_bklog.doris_only": {
+                "cluster_config": {"cluster_id": 43, "cluster_name": "doris"},
+                "storage_config": {"expire_days": 30},
+            }
+        }
+        data = [self._make_row("2_bklog.doris_only")]
+
+        with (
+            patch.object(CollectorHandler, "bulk_cluster_infos", return_value=cluster_infos),
+            patch("apps.log_databus.handlers.collector.base.get_local_param", return_value="Asia/Shanghai"),
+        ):
+            result = CollectorHandler.add_cluster_info(data)
+
+        self.assertEqual(result[0]["retention"], 30)
+
+    def test_parse_result_table_config_keeps_es_retention(self):
+        collector_config = EtlStorage.parse_result_table_config(
+            result_table_config=copy.deepcopy(self.RESULT_TABLE_CONFIG),
+            result_table_storage={
+                "cluster_config": {"cluster_id": 1, "cluster_name": "es", "display_name": "es"},
+                "storage_config": {"retention": 7},
+            },
+        )
+
+        self.assertEqual(collector_config["retention"], 7)
+
+    def test_add_cluster_info_es_and_doris_expose_retention_uniformly(self):
+        cluster_infos = {
+            "2_bklog.retention_es": {
+                "cluster_config": {"cluster_id": 1, "cluster_name": "es"},
+                "storage_config": {"retention": 7},
+            },
+            "2_bklog.retention_doris": {
+                "cluster_config": {"cluster_id": 43, "cluster_name": "doris"},
+                # doris 结果表同时带 ES 语义的 retention 占位值时，仍应取 expire_days
+                "storage_config": {"retention": 0, "expire_days": 30},
+            },
+        }
+        data = [self._make_row("2_bklog.retention_es"), self._make_row("2_bklog.retention_doris")]
+
+        with (
+            patch.object(CollectorHandler, "bulk_cluster_infos", return_value=cluster_infos),
+            patch("apps.log_databus.handlers.collector.base.get_local_param", return_value="Asia/Shanghai"),
+        ):
+            result = CollectorHandler.add_cluster_info(data)
+
+        self.assertEqual(result[0]["retention"], 7)
+        self.assertEqual(result[1]["retention"], 30)
+
+    def test_add_cluster_info_falls_back_to_zero_when_metadata_missing(self):
+        # metadata 未返回集群信息时保持原有兜底行为
+        data = [self._make_row("2_bklog.retention_missing")]
+
+        with (
+            patch.object(CollectorHandler, "bulk_cluster_infos", return_value={}),
+            patch("apps.log_databus.handlers.collector.base.get_local_param", return_value="Asia/Shanghai"),
+        ):
+            result = CollectorHandler.add_cluster_info(data)
+
+        self.assertEqual(result[0]["retention"], 0)
+        self.assertEqual(result[0]["storage_cluster_id"], -1)

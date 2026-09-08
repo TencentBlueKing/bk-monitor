@@ -23,14 +23,17 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, InjectReactive, Watch, Inject } from 'vue-property-decorator';
+import { Component, Inject, InjectReactive, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import QuickAddStrategy from 'apm/pages/alarm-template/quick-add-strategy/quick-add-strategy';
-import AlarmCenter from './alarm-center';
-import type { IViewOptions } from '../../typings';
+import { generateQueryString } from 'monitor-api/modules/alert_v2';
 import { alertBuiltinFilter } from 'monitor-api/modules/model';
 import { fetchItemStatus } from 'monitor-api/modules/strategies';
-import { generateQueryString } from 'monitor-api/modules/alert_v2';
+
+import AlarmCenter from './alarm-center';
+
+import type { IViewOptions } from '../../typings';
 import type { TimeRangeType } from 'trace/components/time-range/utils';
 
 import './index.scss';
@@ -41,6 +44,8 @@ export default class ApmAlarmCenter extends tsc<any, any> {
   @InjectReactive('viewOptions') readonly viewOptions!: IViewOptions;
   // 图表的数据时间间隔
   @InjectReactive('timeRange') readonly timeRange: [string, string];
+  // 时区
+  @InjectReactive('timezone') readonly timezone: string;
   // 图表刷新间隔
   @InjectReactive('refreshInterval') readonly panleRefleshInterval: number;
   // 立即刷新图表
@@ -283,8 +288,8 @@ export default class ApmAlarmCenter extends tsc<any, any> {
                   tag='span'
                 >
                   <span
-                    v-bk-tooltips={{ content: this.$t('查看策略列表') }}
                     style='color: #3a84ff;font-weight: 700;margin: 0 4px;'
+                    v-bk-tooltips={{ content: this.$t('查看策略列表') }}
                   >
                     {this.strategyCount}
                   </span>
@@ -319,6 +324,7 @@ export default class ApmAlarmCenter extends tsc<any, any> {
               v3Props={{
                 queryString: this.queryString,
                 timeRange: this.timeRange,
+                timezone: this.timezone,
                 refreshInterval: this.panleRefleshInterval,
                 refreshImmediate: this.panelRefleshImmediate,
               }}

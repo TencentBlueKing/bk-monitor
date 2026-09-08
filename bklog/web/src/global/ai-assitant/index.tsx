@@ -74,18 +74,10 @@ export interface IAssitantInstance {
   sendMessage: (_msg: string) => void;
   setCiteText: (_text: string) => void;
   show: () => void;
-  updateOptions: (
-    _options: Partial<IAssitantOptions>,
-    _type: IAssitantOptionsType,
-  ) => Promise<boolean>;
+  updateOptions: (_options: Partial<IAssitantOptions>, _type: IAssitantOptionsType) => Promise<boolean>;
   getOptions: () => IAssitantOptions;
   isShown: () => boolean;
-  setPosition: (
-    _x?: number,
-    _y?: number,
-    _width?: number,
-    _height?: number,
-  ) => void;
+  setPosition: (_x?: number, _y?: number, _width?: number, _height?: number) => void;
   queryStringShowAiAssistant: (_args: IQueryStringSendData) => void;
 }
 
@@ -130,8 +122,8 @@ export default defineComponent({
       }
       const message = error instanceof Error ? error.message : String(error);
       return (
-        message.includes('signal is aborted')
-        || message.includes("Cannot read properties of undefined (reading 'content')")
+        message.includes('signal is aborted') ||
+        message.includes("Cannot read properties of undefined (reading 'content')")
       );
     };
 
@@ -152,7 +144,7 @@ export default defineComponent({
      */
     const safeHandleShow = () => {
       try {
-        return Promise.resolve(aiBlueking.value?.handleShow(undefined, { isTemporary: true })).catch((error) => {
+        return Promise.resolve(aiBlueking.value?.handleShow(undefined, { isTemporary: true })).catch(error => {
           if (!isIgnorableAiBluekingError(error)) {
             throw error;
           }
@@ -189,12 +181,10 @@ export default defineComponent({
       if (sendMsg) {
         safeHandleShow().then(() => {
           const shortcut = structuredClone(AI_BLUEKING_SHORTCUTS[0]);
-          shortcut.components.forEach((comp) => {
+          shortcut.components.forEach(comp => {
             const value = args[comp.key];
             if (value) {
-              comp.default = typeof value === 'object'
-                ? JSON.stringify(value).replace(/<\/?mark>/gim, '')
-                : value;
+              comp.default = typeof value === 'object' ? JSON.stringify(value).replace(/<\/?mark>/gim, '') : value;
             }
           });
 
@@ -261,10 +251,7 @@ export default defineComponent({
      * @param type 类型 log_analysis 日志解读，query_string_generate 自然语言转查询语句
      * @returns
      */
-    const updateOptions = (
-      options: Partial<IAssitantOptions> = {},
-      type: IAssitantOptionsType = 'log_analysis',
-    ) => {
+    const updateOptions = (options: Partial<IAssitantOptions> = {}, type: IAssitantOptionsType = 'log_analysis') => {
       if (type === 'query_string_generate') {
         shortcuts.value = [...AI_BLUEKING_QUERY_STRING];
       } else {
@@ -283,7 +270,7 @@ export default defineComponent({
       isUpdated.value = false;
       isShow.value = false;
 
-      return new Promise((resolve) => {
+      return new Promise(resolve => {
         aiAssitantOptions.value = newOptions;
         // 等 AIBlueking 销毁后再挂载，并再等一帧确保 ref 可用
         nextTick(() => {
@@ -300,12 +287,7 @@ export default defineComponent({
      * @param width
      * @param height
      */
-    const setPosition = (
-      x?: number,
-      y?: number,
-      width?: number,
-      height?: number,
-    ) => {
+    const setPosition = (x?: number, y?: number, width?: number, height?: number) => {
       if (x !== undefined && y !== undefined) {
         aiBlueking.value?.updatePosition(x, y);
         aiAssitantOptions.value.defaultLeft = x;
@@ -326,12 +308,10 @@ export default defineComponent({
     const queryStringShowAiAssistant = (args: IQueryStringSendData) => {
       safeHandleShow().then(() => {
         const shortcut = structuredClone(AI_BLUEKING_QUERY_STRING[0]);
-        shortcut.components.forEach((comp) => {
+        shortcut.components.forEach(comp => {
           const value = args[comp.key];
           if (value) {
-            comp.default = typeof value === 'object'
-              ? JSON.stringify(value).replace(/<\/?mark>/gim, '')
-              : value;
+            comp.default = typeof value === 'object' ? JSON.stringify(value).replace(/<\/?mark>/gim, '') : value;
           }
         });
 
@@ -367,7 +347,7 @@ export default defineComponent({
           <AIBlueking
             ref={aiBlueking}
             requestOptions={{
-              beforeRequest: (data) => {
+              beforeRequest: data => {
                 return {
                   ...data,
                   headers: {

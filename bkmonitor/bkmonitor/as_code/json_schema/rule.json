@@ -17,6 +17,10 @@
     },
     "version": {
       "type": "string",
+      "enum": [
+        "1.0",
+        "1.1"
+      ],
       "minLength": 1,
       "description": "版本号"
     },
@@ -141,6 +145,56 @@
             "type": "string"
           },
           "description": "查询函数"
+        },
+        "query_output_config": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "response_contract": {
+                  "const": "named_outputs/v1",
+                  "description": "命名多输出响应契约"
+                },
+                "legacy_output_ref": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z_][A-Za-z0-9_]*$",
+                  "description": "与当前计算表达式等价的兼容输出引用"
+                },
+                "output_list": {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "reference_name": {
+                        "type": "string",
+                        "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+                      },
+                      "expression": {
+                        "type": "string",
+                        "pattern": "\\S"
+                      }
+                    },
+                    "required": [
+                      "reference_name",
+                      "expression"
+                    ],
+                    "additionalProperties": false
+                  }
+                }
+              },
+              "required": [
+                "response_contract",
+                "legacy_output_ref",
+                "output_list"
+              ],
+              "additionalProperties": false
+            }
+          ],
+          "description": "UQ 命名多输出配置；出现该字段时策略版本必须为 1.1"
         },
         "query_configs": {
           "type": "array",
@@ -641,6 +695,32 @@
     }
   },
   "required": [],
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "query": {
+            "required": [
+              "query_output_config"
+            ]
+          }
+        },
+        "required": [
+          "query"
+        ]
+      },
+      "then": {
+        "properties": {
+          "version": {
+            "const": "1.1"
+          }
+        },
+        "required": [
+          "version"
+        ]
+      }
+    }
+  ],
   "additionalProperties": true,
   "$id": "bk_monitor.rule",
   "$schema": "http://json-schema.org/draft-07/schema#",

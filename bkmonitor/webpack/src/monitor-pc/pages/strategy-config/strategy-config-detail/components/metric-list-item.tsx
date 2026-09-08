@@ -27,6 +27,7 @@ import { Component, Mixins, Prop } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
 
 import { secToString } from '../../../../components/cycle-input/utils';
+import PromqlEditor from '../../../../components/promql-editor/promql-editor';
 import metricTipsContentMixin from '../../../../mixins/metricTipsContentMixinTsx';
 import WhereDisplay from './where-display';
 
@@ -302,9 +303,19 @@ class MetricListItem extends Mixins(metricTipsContentMixin) {
           ) : (
             <div class='metric-configs-list'>
               {this.currentConfigsList.map(item => (
-                <span class='configs-item'>
+                <span class={['configs-item', { 'is-query-string': item.key === 'localQueryString' }]}>
                   <span class='configs-label'>{item.label} : </span>
-                  <span class='configs-value'>{item.value || '--'}</span>
+                  <span class='configs-value'>
+                    {item.key === 'localQueryString' && item.value ? (
+                      <PromqlEditor
+                        minHeight={32}
+                        readonly={true}
+                        value={item.value as string}
+                      />
+                    ) : (
+                      item.value || '--'
+                    )}
+                  </span>
                 </span>
               ))}
               <span class='flex-item' />

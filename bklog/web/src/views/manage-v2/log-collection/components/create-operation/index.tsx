@@ -141,7 +141,11 @@ export default defineComponent({
      * 步骤是否可切换
      */
     const isStepsControllable = computed(() => {
-      return isEdit.value && (dataConfig.value as any).storage_cluster_id !== -1 && (dataConfig.value as any).storage_cluster_id !== null;
+      return (
+        isEdit.value &&
+        (dataConfig.value as any).storage_cluster_id !== -1 &&
+        (dataConfig.value as any).storage_cluster_id !== null
+      );
     });
 
     const containerWidth = ref(0);
@@ -163,6 +167,7 @@ export default defineComponent({
         step.value = Number(route.query.step);
       }
       if (step.value !== 1 && isEdit.value && collectId.value) {
+        currentCollectorId.value = Number(collectId.value);
         getCollectStatus(Number(collectId.value));
       }
       if (mainRef.value) {
@@ -298,7 +303,7 @@ export default defineComponent({
         return true;
       }
 
-      return new Promise((resolve) => {
+      return new Promise(resolve => {
         bkInfoBox({
           title: t('是否保存本次操作？'),
           confirmLoading: true,
@@ -307,7 +312,7 @@ export default defineComponent({
               if (isChangeStepLoading.value) return;
               isChangeStepLoading.value = true;
 
-              return new Promise<boolean>((infoResolve) => {
+              return new Promise<boolean>(infoResolve => {
                 currentComponentRef.handleSubmitSave({
                   action: 'saveOnly',
                   callback: (success: boolean) => {
@@ -316,7 +321,8 @@ export default defineComponent({
                       // 保存成功后切换步骤
                       step.value = targetStep;
                     }
-                    infoResolve(success);
+                    // 保存流程结束后关闭确认弹窗，保存结果仅用于控制是否切换步骤
+                    infoResolve(true);
                     resolve(success);
                   },
                 });
@@ -341,6 +347,10 @@ export default defineComponent({
     return () => {
       const currentStepInfo = currentStep.value.find(item => item.icon === step.value);
       const Component = currentStepInfo?.components;
+      const stepStatusProps =
+        Component === StepClean
+          ? { attrs: { collectStatus: isNeedIssue.value ? currentStatus.value.status : '' } }
+          : {};
       return (
         <div
           ref={mainRef}
@@ -397,6 +407,7 @@ export default defineComponent({
             </span>
           </div>
           <Component
+            {...stepStatusProps}
             ref={currentStepRef}
             configData={dataConfig.value}
             scenarioId={typeKey.value}
@@ -406,8 +417,12 @@ export default defineComponent({
             isClone={isClone.value}
             on-next={data => {
               dataConfig.value = data;
-              if (isNeedIssue.value && ((step.value === 2 && !isEdit.value) || (isEdit.value && step.value === 1))) {
+              if (isNeedIssue.value && Component === StepConfiguration) {
                 currentCollectorId.value = data.collector_config_id;
+                currentStatus.value = {
+                  status: 'running',
+                  text: t('采集下发中...'),
+                };
                 getCollectStatus(data.collector_config_id);
               }
               step.value = step.value + 1;

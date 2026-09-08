@@ -129,6 +129,35 @@
 | no_data_config.is_enabled | bool   | 是   | 是否开启无数据告警           |
 | no_data_config.continuous | int    | 否   | 无数据告警检测周期数          |
 | target                    | list   | 是   | 监控目标                |
+| query_output_config       | object/null | 否 | UQ 命名多输出配置；省略时保留已有值，传 `null` 时删除 |
+
+##### QueryOutputConfig
+
+该字段用于让 UQ 在保留当前 Item 计算结果的同时返回参与计算的命名输出。当前只支持 `named_outputs/v1`：
+
+```json
+{
+  "query_output_config": {
+    "response_contract": "named_outputs/v1",
+    "legacy_output_ref": "C",
+    "output_list": [
+      {"reference_name": "A", "expression": "a"},
+      {"reference_name": "B", "expression": "b"},
+      {"reference_name": "C", "expression": "a / b * 100"}
+    ]
+  }
+}
+```
+
+| 字段 | 类型 | 必选 | 描述 |
+|------|------|------|------|
+| response_contract | string | 是 | 固定为 `named_outputs/v1` |
+| legacy_output_ref | string | 是 | 指向与 Item 当前 `expression` 和 `functions` 等价的主输出 |
+| output_list | list | 是 | 命名输出列表，至少一项 |
+| output_list[].reference_name | string | 是 | 唯一的合法标识符，也是通知模板读取的引用名 |
+| output_list[].expression | string | 是 | 大小写敏感；非主输出必须精确使用当前 `query_configs[].alias`，主输出必须匹配最终发送给 UQ 的计算表达式和函数 |
+
+更新策略时，省略 `query_output_config` 表示保留当前配置；显式传 `null` 表示删除；传对象表示完整替换。若保留的配置与本次提交的查询别名、表达式或函数不再兼容，接口会拒绝保存。调用方应在同一次完整保存中同步更新该对象，或显式传 `null` 删除，不能依赖局部更新接口修改该字段。
 
 #### Target
 
@@ -705,6 +734,4 @@ data返回保存的策略结构，与请求参数一致（示例数据中省略�
   "data": {}
 }
 ```
-
-
 

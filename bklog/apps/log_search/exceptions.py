@@ -278,6 +278,11 @@ class ChildIndexSetNotExistException(BaseIndexSetException):
     MESSAGE = _("子索引集 [ID:{child_index_set_id}] 不存在")
 
 
+class PlatformIndexRouterSyncException(BaseIndexSetException):
+    ERROR_CODE = "335"
+    MESSAGE = _("平台级索引集 [ID:{index_set_ids}] 路由下发失败，请重试")
+
+
 # =================================================
 # 管理-检索
 # =================================================

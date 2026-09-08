@@ -1834,16 +1834,16 @@ class SpaceTableIDRedis:
         if not settings.IS_RESTRICT_DS_BELONG_SPACE and (data_id_detail["space_uid"] == f"{space_type}__{space_id}"):
             return False
 
-        # 如果不是自定义时序，则不需要关注类似的情况，必须增加过滤条件
-        if (
-            measurement_type
-            not in [
-                MeasurementType.BK_SPLIT.value,
-                MeasurementType.BK_STANDARD_V2_TIME_SERIES.value,
-                MeasurementType.BK_EXPORTER.value,
-            ]
-            and data_id_detail["etl_config"] != EtlConfigs.BK_STANDARD_V2_TIME_SERIES.value
-        ):
+        # 如果不是自定义指标，则不需要关注类似的情况，必须增加过滤条件
+        is_custom_metric = measurement_type in [
+            MeasurementType.BK_SPLIT.value,
+            MeasurementType.BK_STANDARD_V2_TIME_SERIES.value,
+            MeasurementType.BK_EXPORTER.value,
+        ] or data_id_detail["etl_config"] in [
+            EtlConfigs.BK_STANDARD_V2_TIME_SERIES.value,
+            EtlConfigs.BK_CUSTOM_FORMAT.value,
+        ]
+        if not is_custom_metric:
             return True
 
         is_platform_data_id = data_id_detail["is_platform_data_id"]

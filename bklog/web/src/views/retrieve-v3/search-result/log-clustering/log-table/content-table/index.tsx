@@ -24,14 +24,14 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, isRef, onMounted, ref, type PropType } from 'vue';
+import { computed, defineComponent, isRef, nextTick, onMounted, ref, type PropType } from 'vue';
 import TextHighlight from 'vue-text-highlight';
 
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
 // import { BK_LOG_STORAGE } from '@/store/store.type';
 import BkUserSelector from '@blueking/user-selector';
-import { bkMessage } from 'bk-magic-vue';
+import { bkInfoBox, bkMessage } from 'bk-magic-vue';
 import tippy from 'tippy.js';
 
 import ClusterEventPopover from './cluster-popover';
@@ -137,6 +137,12 @@ export default defineComponent({
   },
   setup(props, { emit }) {
     const { t } = useLocale();
+    const getOwners = (row?: LogPattern | null) => {
+      const owners = row?.owners as any;
+      if (Array.isArray(owners)) return owners as string[];
+      if (owners && Array.isArray(owners.value)) return owners.value as string[];
+      return [] as string[];
+    };
     const store = useStore();
     let activeMarkElement: HTMLElement | null = null;
     const isExternal = window.IS_EXTERNAL === true;
@@ -152,13 +158,15 @@ export default defineComponent({
 
     // 获取聚类配置（只调用一次）
     onMounted(() => {
-      $http.request('/logClustering/getConfig', {
-        params: {
-          index_set_id: props.indexId,
-        },
-      }).then((res) => {
-        clusteringConfigData.value = res.data as ClusteringConfigData;
-      });
+      $http
+        .request('/logClustering/getConfig', {
+          params: {
+            index_set_id: props.indexId,
+          },
+        })
+        .then(res => {
+          clusteringConfigData.value = res.data as ClusteringConfigData;
+        });
     });
 
     const handleMarkClick = (markIndex: number, markText: string, row: ITableItem) => {
@@ -172,6 +180,7 @@ export default defineComponent({
     const remarkTipsRef = ref<any>(null);
     const tableWraperRef = ref<HTMLElement>();
     const currentRowId = ref(0);
+    const editingOwnerRowId = ref<number | null>(null);
     // const cacheExpandStr = ref<any[]>([]); // 展示pattern按钮数组
 
     const groupState = computed(() => props.groupListState);
@@ -181,52 +190,15 @@ export default defineComponent({
     // );
 
     /** 获取当前编辑操作的数据 */
-    const currentRowValue = computed(() => props.tableList.find(item => item.data?.id === currentRowId.value),
-    );
-    const showGroupBy = computed(
-      () => props.requestData?.group_by.length > 0 && props.displayMode === 'group',
-    );
-    const isFlattenMode = computed(
-      () => props.requestData?.group_by.length > 0 && props.displayMode !== 'group',
-    );
-    const columnWidth = computed(() => Object.assign({}, props.tableColumnWidth ?? {}, props.widthList ?? {}),
-    );
+    const currentRowValue = computed(() => props.tableList.find(item => item.data?.id === currentRowId.value));
+    const showGroupBy = computed(() => props.requestData?.group_by.length > 0 && props.displayMode === 'group');
+    const isFlattenMode = computed(() => props.requestData?.group_by.length > 0 && props.displayMode !== 'group');
+    const columnWidth = computed(() => Object.assign({}, props.tableColumnWidth ?? {}, props.widthList ?? {}));
 
     /**
-     * 过滤所有可见行数据
-     * 针对所有的数据
+     * 当前窗口数据由父组件 walkVisibleWindow 产出，这里不再对全量列表 filter。
      */
-    const visibleList = computed(() => props.tableList.filter(d => !d.hidden),
-    );
-
-    /**
-     * 所有可见分组数据
-     * 针对分组的展开收起
-     */
-    const visibleGroupData = computed(() => visibleList.value.filter((d) => {
-      if (showGroupBy.value) {
-        // 如果是分组展示，则需要展示分组行和已经展开的分组行下的数据
-        return d.isGroupRow || groupState.value[d.hashKey]?.isOpen;
-      }
-
-      return !d.isGroupRow;
-    }),
-    );
-
-    /**
-     * 获取当前页的数据
-     */
-    const tablePageData = computed(() => {
-      const lastIndex = Math.min(
-        props.pagination.current * props.pagination.limit,
-        visibleGroupData.value.length,
-      );
-      const lastItem = visibleGroupData.value[lastIndex - 1];
-      const lastItemIndex = visibleList.value.findIndex(
-        item => item === lastItem,
-      );
-      return visibleList.value.slice(0, lastItemIndex + 1);
-    });
+    const tablePageData = computed(() => props.tableList);
 
     // 计算展示列数量
     const columnLength = computed(() => {
@@ -237,9 +209,7 @@ export default defineComponent({
       const showYOYLen = showYOY.value ? 2 : 0;
 
       // groupBy 列数
-      const groupByLen = isFlattenMode.value
-        ? props.requestData.group_by?.length ?? 0
-        : 0;
+      const groupByLen = isFlattenMode.value ? (props.requestData.group_by?.length ?? 0) : 0;
 
       // 创建告警策略列
       const externalLen = isExternal ? 0 : 1;
@@ -263,6 +233,7 @@ export default defineComponent({
         } else {
           row[key] = value;
         }
+        emit('row-updated');
       }
     };
 
@@ -292,26 +263,19 @@ export default defineComponent({
       store.commit('updateIndexItem', { search_mode: 'ui' });
       // 新开页打开首页是原始日志，不需要传聚类参数，如果传了则会初始化为聚类
       store.commit('updateState', { key: 'clusterParams', value: null });
-      store
-        .dispatch('setQueryCondition', additionList)
-        .then(([newSearchList, searchMode, isNewSearchPage]) => {
-          if (isLink) {
-            const openUrl = getConditionRouterParams(
-              newSearchList,
-              searchMode,
-              isNewSearchPage,
-              { tab: 'origin' },
-            );
-            window.open(openUrl, '_blank', 'noopener,noreferrer');
-            // 新开页后当前页面回填聚类参数
-            store.commit('updateState', {
-              key: 'clusterParams',
-              value: props.requestData,
-            });
-            return;
-          }
-          emit('show-change', 'origin');
-        });
+      store.dispatch('setQueryCondition', additionList).then(([newSearchList, searchMode, isNewSearchPage]) => {
+        if (isLink) {
+          const openUrl = getConditionRouterParams(newSearchList, searchMode, isNewSearchPage, { tab: 'origin' });
+          window.open(openUrl, '_blank', 'noopener,noreferrer');
+          // 新开页后当前页面回填聚类参数
+          store.commit('updateState', {
+            key: 'clusterParams',
+            value: props.requestData,
+          });
+          return;
+        }
+        emit('show-change', 'origin');
+      });
     };
 
     const handleMenuClick = (row, isLink = false) => {
@@ -325,7 +289,7 @@ export default defineComponent({
     // };
 
     /** 将分组的数组改成对像 */
-    const getGroupsValue = (group) => {
+    const getGroupsValue = group => {
       if (!props.requestData?.group_by.length) return {};
       return props.requestData.group_by.reduce((acc, cur, index) => {
         acc[cur] = group?.[index] ?? '';
@@ -337,7 +301,7 @@ export default defineComponent({
     const handleChangePrincipal = (val: null | string[], row: LogPattern) => {
       currentRowId.value = row.id;
       // 当创建告警策略开启时，不允许删掉最后一个责任人
-      if (row.strategy_enabled && !val.length) {
+      if (row.strategy_enabled && !val?.length) {
         bkMessage({
           theme: 'error',
           message: t('删除失败，开启告警时，需要至少一个责任人'),
@@ -351,12 +315,12 @@ export default defineComponent({
           },
           data: {
             signature: row.signature,
-            owners: val ?? row.owners.value,
+            owners: val ?? getOwners(row),
             origin_pattern: row.origin_pattern,
             groups: getGroupsValue(row.group),
           },
         })
-        .then((res) => {
+        .then(res => {
           if (res.result) {
             const { owners } = res.data;
             updateTableRowData(row, 'owners', owners);
@@ -368,7 +332,14 @@ export default defineComponent({
         });
     };
 
-    const changeStrategy = (enabled: boolean, row: LogPattern) => {
+    const revertStrategySwitcher = (row: LogPattern, enabled: boolean) => {
+      updateTableRowData(row, 'strategy_enabled', enabled);
+      nextTick(() => {
+        updateTableRowData(row, 'strategy_enabled', !enabled);
+      });
+    };
+
+    const requestChangeStrategy = (enabled: boolean, row: LogPattern) => {
       currentRowId.value = row.id;
       $http
         .request('/logClustering/updatePatternStrategy', {
@@ -382,7 +353,7 @@ export default defineComponent({
             groups: getGroupsValue(row.group),
           },
         })
-        .then((res) => {
+        .then(res => {
           if (res.result) {
             const { strategy_id } = res.data;
             bkMessage({
@@ -395,16 +366,25 @@ export default defineComponent({
         });
     };
 
-    const handleStrategyInfoClick = (row) => {
+    const changeStrategy = (enabled: boolean, row: LogPattern) => {
+      currentRowId.value = row.id;
+      bkInfoBox({
+        title: enabled ? t('确认开启告警策略？') : t('确认关闭告警策略？'),
+        confirmFn: () => requestChangeStrategy(enabled, row),
+        cancelFn: () => revertStrategySwitcher(row, enabled),
+      });
+    };
+
+    const handleStrategyInfoClick = row => {
       currentRowId.value = row.id;
       window.open(
         `${window.MONITOR_URL}/?bizId=${store.state.bkBizId}#/strategy-config/detail/${row.strategy_id}`,
         '_blank',
-        'noopener,noreferrer'
+        'noopener,noreferrer',
       );
     };
 
-    const remarkContent = (remarkList) => {
+    const remarkContent = remarkList => {
       if (!remarkList.length) return '--';
       const maxTimestamp = remarkList.reduce((pre, cur) => {
         return cur.create_time > pre.create_time ? cur : pre;
@@ -506,9 +486,7 @@ export default defineComponent({
             >
               <log-icon type='sousuo-' />
             </div>
-            <div class='count-display'>
-              （{t('共有 {0} 条数据', [row.childCount])}）
-            </div>
+            <div class='count-display'>（{t('共有 {0} 条数据', [row.childCount])}）</div>
           </div>
         );
       }
@@ -529,10 +507,7 @@ export default defineComponent({
      */
     const renderGroupRow = (row: ITableItem) => {
       // 平铺模式
-      if (
-        (isFlattenMode.value || props.requestData?.group_by.length === 0)
-        && row.index === 1
-      ) {
+      if ((isFlattenMode.value || props.requestData?.group_by.length === 0) && row.index === 1) {
         return (
           <tr class='is-row-group is-flatten-count'>
             <td colspan={columnLength.value}>{renderGroupItem(row)}</td>
@@ -562,41 +537,39 @@ export default defineComponent({
         <tr>
           <td>
             <div class='signature-box'>
-              <div class='signature' v-bk-overflow-tips>
+              <div
+                class='signature'
+                v-bk-overflow-tips
+              >
                 {row.data?.signature}
               </div>
-              <div class='new-finger' v-show={row.data?.is_new_class}>
+              <div
+                class='new-finger'
+                v-show={row.data?.is_new_class}
+              >
                 New
               </div>
             </div>
           </td>
           <td>
-            <bk-button
-              style='padding: 0px'
-              size='small'
-              theme='primary'
-              text
+            <span
+              class='count-link'
               on-click={() => handleMenuBatchClick(row.data)}
             >
               {row.data?.count}
-            </bk-button>
+            </span>
           </td>
           <td>
-            <bk-button
-              style='padding: 0px'
-              size='small'
-              theme='primary'
-              text
+            <span
+              class='count-link'
               on-click={() => handleMenuBatchClick(row.data)}
             >
               {`${row.data?.percentage.toFixed(2)}%`}
-            </bk-button>
+            </span>
           </td>
           {showYOY.value && (
             <td>
-              <span style='padding-left:6px'>
-                {row.data?.year_on_year_count}
-              </span>
+              <span style='padding-left:6px'>{row.data?.year_on_year_count}</span>
             </td>
           )}
           {showYOY.value && (
@@ -616,30 +589,30 @@ export default defineComponent({
                 {row.data?.year_on_year_percentage !== 0 ? (
                   <log-icon
                     style='font-size: 16px;'
-                    type={
-                      row.data?.year_on_year_percentage < 0 ? 'down-4' : 'up-2'
-                    }
+                    type={row.data?.year_on_year_percentage < 0 ? 'down-4' : 'up-2'}
                   />
                 ) : (
-                  <log-icon style='font-size: 16px;' type='--2' />
+                  <log-icon
+                    style='font-size: 16px;'
+                    type='--2'
+                  />
                 )}
               </div>
             </td>
           )}
-          {isFlattenMode.value
-          && props.requestData.group_by.map((_: any, index: number) => (
-            <td>
-              <div class='dynamic-column' v-bk-overflow-tips>
-                {row.data?.group?.[index] || '--'}
-              </div>
-            </td>
-          ))}
+          {isFlattenMode.value &&
+            props.requestData.group_by.map((_: any, index: number) => (
+              <td>
+                <div
+                  class='dynamic-column'
+                  v-bk-overflow-tips
+                >
+                  {row.data?.group?.[index] || '--'}
+                </div>
+              </td>
+            ))}
           <td>
-            <div
-              class={[
-                'pattern-content',
-              ]}
-            >
+            <div class={['pattern-content']}>
               <ClusterEventPopover
                 indexId={props.indexId}
                 rowData={row.data}
@@ -680,38 +653,53 @@ export default defineComponent({
           </td>
           <td style='padding-left: 0px'>
             <div
-              // 组件样式有问题，暂时这样处理
               style={{ padding: isExternal && '5px 0' }}
               class='principal-main'
               v-bk-tooltips={{
                 placement: 'top',
-                content: row.data?.owners?.value?.join(', ') ?? '',
+                content: getOwners(row.data).join(', '),
                 delay: 300,
-                disabled: !(row.data?.owners?.value?.length),
+                disabled: !getOwners(row.data).length || editingOwnerRowId.value === row.data?.id,
               }}
             >
               {!isExternal ? (
-                <bk-user-selector
-                  class='principal-input'
-                  api={window.BK_LOGIN_URL}
-                  empty-text={t('无匹配人员')}
-                  placeholder='--'
-                  value={row.data?.owners?.value ?? []}
-                  multiple
-                  on-change={val => handleChangePrincipal(val, row.data)}
-                />
+                editingOwnerRowId.value === row.data?.id ? (
+                  <bk-user-selector
+                    class='principal-input'
+                    api={window.BK_LOGIN_URL}
+                    empty-text={t('无匹配人员')}
+                    placeholder='--'
+                    value={getOwners(row.data)}
+                    multiple
+                    on-change={val => {
+                      handleChangePrincipal(val, row.data);
+                      editingOwnerRowId.value = null;
+                    }}
+                  />
+                ) : (
+                  <button
+                    class='principal-display'
+                    type='button'
+                    onClick={() => {
+                      editingOwnerRowId.value = row.data?.id ?? null;
+                    }}
+                  >
+                    {getOwners(row.data).length ? getOwners(row.data).join(', ') : '--'}
+                  </button>
+                )
               ) : (
                 <bk-tag-input
                   style='width: 100%'
                   class='principal-tag-input'
                   clearable={false}
                   placeholder='--'
-                  value={row.data?.owners?.value ?? []}
+                  value={getOwners(row.data)}
                   allow-create
                   has-delete-icon
                   on-blur={() => handleChangePrincipal(null, row.data)}
-                  on-change={(value) => {
-                    row.data.owners.value = value;
+                  on-change={value => {
+                    row.data.owners = value;
+                    emit('row-updated');
                   }}
                 />
               )}
@@ -720,7 +708,7 @@ export default defineComponent({
           {!isExternal && (
             <td>
               <div class='create-strategy-main'>
-                {(row.data?.owners?.value?.length ?? 0) > 0 ? (
+                {getOwners(row.data).length > 0 ? (
                   <div class='is-able'>
                     <bk-switcher
                       theme='primary'
@@ -729,7 +717,10 @@ export default defineComponent({
                     />
                     {row.data?.strategy_id > 0 && (
                       <span on-click={() => handleStrategyInfoClick(row.data)}>
-                        <log-icon style='font-size: 16px' type='audit' />
+                        <log-icon
+                          style='font-size: 16px'
+                          type='audit'
+                        />
                       </span>
                     )}
                   </div>
@@ -768,7 +759,7 @@ export default defineComponent({
       }
 
       if (showGroupBy.value) {
-        if (groupState.value[row.hashKey].isOpen ?? false) {
+        if (groupState.value[row.hashKey]?.isOpen ?? false) {
           return renderDataRow(row);
         }
 
@@ -791,19 +782,16 @@ export default defineComponent({
         class='log-content-table-main'
         v-show={props.tableList.length > 0}
       >
-        <div ref={tableWraperRef} class='log-content-table-wraper'>
+        <div
+          ref={tableWraperRef}
+          class='log-content-table-wraper'
+        >
           <table class='log-content-table'>
             <thead class='hide-header'>
               <tr ref={headRowRef}>
-                <th
-                  style={{ width: `${columnWidth.value.signature ?? 125}px` }}
-                >
-                  数据指纹
-                </th>
+                <th style={{ width: `${columnWidth.value.signature ?? 125}px` }}>数据指纹</th>
                 <th style={{ width: `${columnWidth.value.number}px` }}>数量</th>
-                <th style={{ width: `${columnWidth.value.percentage}px` }}>
-                  占比
-                </th>
+                <th style={{ width: `${columnWidth.value.percentage}px` }}>占比</th>
                 {showYOY.value && (
                   <th
                     style={{
@@ -822,20 +810,12 @@ export default defineComponent({
                     同比变化
                   </th>
                 )}
-                {isFlattenMode.value
-                  && props.requestData.group_by.map(item => (
-                    <th
-                      style={{ width: `${columnWidth.value[item] ?? 100}px` }}
-                    >
-                      {item}
-                    </th>
+                {isFlattenMode.value &&
+                  props.requestData.group_by.map(item => (
+                    <th style={{ width: `${columnWidth.value[item] ?? 100}px` }}>{item}</th>
                   ))}
-                <th style={{ width: `${columnWidth.value.pattern ?? 350}px` }}>
-                  Pattern
-                </th>
-                <th style={{ width: `${columnWidth.value.owners ?? 200}px` }}>
-                  责任人
-                </th>
+                <th style={{ width: `${columnWidth.value.pattern ?? 350}px` }}>Pattern</th>
+                <th style={{ width: `${columnWidth.value.owners ?? 200}px` }}>责任人</th>
                 {!isExternal && (
                   <th
                     style={{
@@ -845,9 +825,7 @@ export default defineComponent({
                     创建告警策略
                   </th>
                 )}
-                <th style={{ width: `${columnWidth.value.remark ?? 200}px` }}>
-                  备注
-                </th>
+                <th style={{ width: `${columnWidth.value.remark ?? 200}px` }}>备注</th>
                 {/* {isAiAssistanceActive.value && <th style="width:60px">ai</th>} */}
               </tr>
             </thead>

@@ -2,8 +2,13 @@ paths:
   /mcp/preview_log_etl/:
     post:
       operationId: preview_log_etl
-      description: Preview how BKLOG extracts fields from one sample log using text, JSON, regular-expression, or delimiter ETL. This read-only tool never creates or changes clean templates, collectors, cleaning configurations, storage, or indexes. The response always contains success, fields, field_count, and error; validation failures return success=false. 预览一条样例日志经文本、JSON、正则或分隔符清洗后的字段提取结果。该只读工具不会创建或修改清洗模板、采集项、清洗配置、存储或索引；成功与校验失败统一返回 success、fields、field_count 和 error。
-      tags: [log_collection_mcp]
+      description: >-
+        Preview field extraction from one sample log. Read-only; never writes collectors or clean configs.
+        etl_params only accept extraction keys: delimiter needs separator; regexp needs separator_regexp
+        and optional is_grok; text/json accept no etl_params. retain_original_text, metadata_fields and
+        ext_json_config cannot be previewed. 预览一条样例的字段提取结果。只读。预览只接受影响提取的参数，试不出入库形态。
+      tags:
+      - log_collection_mcp
       requestBody:
         required: true
         content:
@@ -11,15 +16,25 @@ paths:
             schema:
               type: object
               additionalProperties: false
-              required: [bk_biz_id, etl_config, data]
+              required:
+              - bk_biz_id
+              - etl_config
+              - data
               properties:
                 bk_biz_id:
                   type: integer
-                  description: Business ID used for current-user permission and BKLOG feature-toggle evaluation. 用于当前用户权限与 BKLOG 灰度判断的业务 ID。
+                  description: Business ID in BlueKing Monitor. Identifies the business space. 业务ID，用于标识业务空间。
                 etl_config:
                   type: string
-                  enum: [bk_log_text, bk_log_json, bk_log_regexp, bk_log_delimiter]
-                  description: Supported BKLOG ETL type. 支持的 BKLOG 清洗类型。
+                  enum:
+                  - bk_log_text
+                  - bk_log_json
+                  - bk_log_regexp
+                  - bk_log_delimiter
+                  description: >-
+                    Cleaning type. bk_log_text = ingest as-is / 直接入库 (default on Fast Create); bk_log_json
+                    = JSON; bk_log_delimiter = delimiter; bk_log_regexp = regular expression. custom is
+                    not supported. 清洗类型。直接入库 / JSON / 分隔符 / 正则。不支持 custom。
                 etl_params:
                   type: object
                   additionalProperties: false
@@ -29,20 +44,32 @@ paths:
                       type: string
                       minLength: 1
                       maxLength: 128
-                      description: Required only for bk_log_delimiter. 仅分隔符清洗必填。
+                      description: >-
+                        Delimiter for bk_log_delimiter. Preset IDs: | , ` space ; \t. Required for delimiter
+                        cleaning. 分隔符，分隔符清洗必填。预置 | , ` 空格 ; 制表符。
                     separator_regexp:
                       type: string
                       minLength: 1
                       maxLength: 4096
-                      description: Required only for bk_log_regexp; named groups become fields. 仅正则清洗必填，命名捕获组会成为字段。
+                      description: >-
+                        Golang regular expression that must match the whole log line. Named groups become
+                        fields. Required for bk_log_regexp. Max 4096 chars on preview. 正则表达式（golang 语法），需匹配日志全文，命名捕获组会成为字段。正则清洗必填。
                     is_grok:
                       type: boolean
-                      description: Whether separator_regexp is a Grok expression; only valid for bk_log_regexp. 是否使用 Grok 表达式，仅正则清洗可用。
+                      description: >-
+                        Whether separator_regexp is a Grok expression (%{PATTERN}). Only valid for bk_log_regexp.
+                        UI default true on the new clean page. 是否按 Grok 处理 separator_regexp，仅正则清洗可用。
+                  description: >-
+                    Complete cleaning parameters (full replacement). Preview only accepts the extraction-related
+                    keys of the chosen etl_config; retain_original_text and similar persist-only keys
+                    cannot be previewed. 清洗参数，写入时整体替换。预览只接受影响字段提取的键。
                 data:
                   type: string
                   minLength: 1
                   maxLength: 10000
-                  description: One sample log. At most 100 extracted fields are returned. 单条样例日志，最多返回 100 个提取字段。
+                  description: >-
+                    One sample log line for preview. 1-10000 characters. At most 100 extracted fields
+                    are returned. 单条样例日志，1-10000 字符，最多返回 100 个提取字段。
       x-bk-apigateway-resource:
         isPublic: false
         allowApplyPermission: false

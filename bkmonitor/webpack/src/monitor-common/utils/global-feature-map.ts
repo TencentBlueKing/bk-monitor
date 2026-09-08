@@ -42,6 +42,10 @@ export const globalUrlFeatureMap = {
    */
   APM_SUBMENU: getUrlParamTrueValue('apm_submenu'),
   /**
+   * 是否显示APM 导航栏面包屑列表
+   */
+  APM_NAV_LIST: getUrlParamTrueValue('apm_nav_list'),
+  /**
    * 是否显示监控主导航框架
    */
   NEED_MENU: getUrlParamTrueValue('needMenu'),

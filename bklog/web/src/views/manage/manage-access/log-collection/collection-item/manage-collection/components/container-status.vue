@@ -30,8 +30,8 @@
       <div class="nav-btn-box">
         <div
           v-for="item in navBtnList"
-          :class="`nav-btn ${item.id === navActive ? 'active' : ''}`"
           :key="item.id"
+          :class="`nav-btn ${item.id === navActive ? 'active' : ''}`"
           @click="handleClickNav(item.id)"
         >
           <span
@@ -64,8 +64,8 @@
     <div class="table-section">
       <div
         v-for="(renderItem, renderIndex) in renderTitleList"
-        class="table-item"
         :key="renderIndex"
+        class="table-item"
       >
         <div
           :class="`table-title ${renderItem.isShowTable ? '' : 'close-table'}`"

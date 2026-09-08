@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { type PropType, defineComponent, computed } from 'vue';
+import { type PropType, defineComponent } from 'vue';
 
 import { Badge } from 'bkui-vue';
 import { random } from 'monitor-common/utils';

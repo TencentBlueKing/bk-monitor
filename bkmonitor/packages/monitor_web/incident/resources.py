@@ -9,6 +9,7 @@ specific language governing permissions and limitations under the License.
 """
 
 import copy
+import logging
 import time
 from collections import Counter, defaultdict
 from typing import Any
@@ -35,6 +36,7 @@ from bkmonitor.documents.incident import (
 )
 from bkmonitor.utils.request import get_request_username
 from bkmonitor.views import serializers
+from bkm_space.scope import MONITOR_SCOPE_QUERY_SENTINELS, bk_biz_id_to_scope_id, scope_id_to_bk_biz_id
 from constants.alert import EVENT_STATUS_DICT, EventStatus
 from constants.incident import (
     IncidentAlertAggregateDimension,
@@ -55,6 +57,8 @@ from monitor_web.incident.events.resources import IncidentEventsDetailResource, 
 from monitor_web.incident.metrics.resources import IncidentMetricsSearchResource  # noqa
 from monitor_web.incident.serializers import IncidentSearchSerializer
 from .utils import bk_data_robot_link_list_search
+
+logger = logging.getLogger(__name__)
 
 
 class IncidentBaseResource(Resource):
@@ -432,6 +436,8 @@ class IncidentBaseResource(Resource):
 
 
 class IncidentListResource(IncidentBaseResource):
+    MAX_ENABLED_SPACE_PAGES = 10000
+
     """
     故障列表
     """
@@ -442,12 +448,124 @@ class IncidentListResource(IncidentBaseResource):
     @staticmethod
     def get_enabled_space_bk_biz_id(config_item: dict):
         """将 BKFara scope 配置转换回监控前端使用的 bk_biz_id 协议。"""
-        scope_identity = config_item.get("content", {}).get("scope_identity") or {}
-        space = scope_identity.get("space") if isinstance(scope_identity, dict) else {}
+        content = config_item.get("content") or {}
+        scope_identity = content.get("scope_identity") if isinstance(content, dict) else {}
+        scope_identity = scope_identity if isinstance(scope_identity, dict) else {}
+        space = scope_identity.get("space") or {}
+        space = space if isinstance(space, dict) else {}
+        bk_biz = scope_identity.get("bk_biz") or {}
+        bk_biz = bk_biz if isinstance(bk_biz, dict) else {}
+        space_type = str(space.get("space_type_id") or "").lower()
+
+        # BKCC identity 的 space.id 固定为空，业务 ID 保存在 space.space_id；不能只依赖
+        # list_configs 响应顶层的 scope_id，因为历史响应序列化可能不会返回该字段。
+        if space_type == "bkcc":
+            for bk_biz_id in (space.get("space_id"), bk_biz.get("bk_biz_id"), scope_identity.get("bk_biz_id")):
+                try:
+                    enabled_space = int(bk_biz_id)
+                except (TypeError, ValueError, OverflowError):
+                    continue
+                if enabled_space:
+                    return enabled_space
+
         space_id = space.get("id") if isinstance(space, dict) else None
-        if space_id not in (None, "") and (space.get("space_type_id") or "").lower() != "bkcc":
-            return -int(space_id)
-        return config_item.get("scope_value")
+        if space_id not in (None, "") and space_type != "bkcc":
+            try:
+                enabled_space = -int(space_id)
+            except (TypeError, ValueError, OverflowError):
+                pass
+            else:
+                if enabled_space:
+                    return enabled_space
+
+        for scope_id in (config_item.get("scope_id"), bk_biz.get("scope_id"), scope_identity.get("scope_id")):
+            enabled_space = scope_id_to_bk_biz_id(scope_id)
+            if enabled_space:
+                return enabled_space
+        return 0
+
+    @staticmethod
+    def get_authorized_query_biz_ids(bk_biz_ids):
+        """将查询范围收敛到当前用户有查看权限的空间。"""
+        authorized_biz_ids = resource.space.get_bk_biz_ids_by_user()
+        authorized_biz_ids = list(dict.fromkeys(authorized_biz_ids))
+        requested_biz_ids = [biz_id for biz_id in (bk_biz_ids or []) if biz_id not in (None, "")]
+        if not requested_biz_ids or set(requested_biz_ids) & MONITOR_SCOPE_QUERY_SENTINELS:
+            return authorized_biz_ids
+
+        authorized_biz_id_set = set(authorized_biz_ids)
+        return [biz_id for biz_id in requested_biz_ids if biz_id in authorized_biz_id_set]
+
+    @staticmethod
+    def build_general_config_search_params(bk_biz_ids):
+        """构造 list_configs / IncidentConfigSearchSerializer 所需参数。
+
+        BKFara 校验必填 scope_type、scope_value，批量查询再带 scope_id_list。
+        不能只传监控侧的 bk_biz_id / bk_biz_id_list。
+        """
+        scope_id_list = []
+        for biz_id in bk_biz_ids:
+            try:
+                scope_id = bk_biz_id_to_scope_id(biz_id)
+            except (TypeError, ValueError):
+                logger.warning("skip unresolved enabled-space scope")
+                continue
+            if scope_id and scope_id not in scope_id_list:
+                scope_id_list.append(scope_id)
+        if not scope_id_list:
+            raise ValueError("no valid scope_id for list_configs")
+        scope_type, scope_value = scope_id_list[0].split("_", 1)
+        return {
+            "config_type": "general_config",
+            "scope_type": scope_type,
+            "scope_value": scope_value,
+            "scope_id_list": scope_id_list,
+            "page": 1,
+            "page_size": 1000,
+        }
+
+    @classmethod
+    def fetch_enabled_spaces(cls, bk_biz_ids):
+        """分页查询当前用户授权范围内已开启故障分析的空间。"""
+        try:
+            query_biz_ids = cls.get_authorized_query_biz_ids(bk_biz_ids)
+            if not query_biz_ids:
+                return []
+
+            params = cls.build_general_config_search_params(query_biz_ids)
+            enabled_spaces = []
+            enabled_space_set = set()
+            while True:
+                general_config_data = GetConfigResource().request(**params)
+                if not isinstance(general_config_data, dict) or not isinstance(
+                    general_config_data.get("objects"), list
+                ):
+                    raise ValueError("list_configs response is not a paginated object")
+
+                for item in general_config_data["objects"]:
+                    if not isinstance(item, dict) or item.get("content", {}).get("enabled") is not True:
+                        continue
+                    enabled_space = cls.get_enabled_space_bk_biz_id(item)
+                    if not enabled_space or enabled_space in enabled_space_set:
+                        continue
+                    enabled_space_set.add(enabled_space)
+                    enabled_spaces.append(enabled_space)
+
+                if not general_config_data.get("has_next"):
+                    return enabled_spaces
+
+                current_page = general_config_data.get("current_page")
+                if not isinstance(current_page, int) or current_page < params["page"]:
+                    raise ValueError("list_configs response has invalid current_page")
+                total_pages = general_config_data.get("total_pages")
+                if isinstance(total_pages, int) and current_page >= total_pages:
+                    raise ValueError("list_configs response has inconsistent pagination")
+                if current_page >= cls.MAX_ENABLED_SPACE_PAGES:
+                    raise ValueError("list_configs pagination exceeds safety limit")
+                params["page"] = current_page + 1
+        except Exception:
+            logger.exception("fetch enabled incident spaces failed")
+            return []
 
     class RequestSerializer(IncidentSearchSerializer):
         level = serializers.ListField(required=False, label="故障级别", default=[])
@@ -469,16 +587,7 @@ class IncidentListResource(IncidentBaseResource):
         ):
             result = handler.search(show_overview=False, show_aggs=True)
 
-        bk_biz_ids = validated_request_data.get("bk_biz_ids", [])
-        result["enabled_spaces"] = []
-
-        if bk_biz_ids:
-            general_config_data = GetConfigResource().request(
-                **{"config_type": "general_config", "bk_biz_id_list": bk_biz_ids, "bk_biz_id": bk_biz_ids[0]}
-            )
-            for item in general_config_data.get("objects", []):
-                if item.get("content", {}).get("enabled", False):
-                    result["enabled_spaces"].append(self.get_enabled_space_bk_biz_id(item))
+        result["enabled_spaces"] = self.fetch_enabled_spaces(validated_request_data.get("bk_biz_ids"))
         result["wx_cs_link"] = bk_data_robot_link_list_search(settings.BK_DATA_ROBOT_LINK_LIST, "icon-kefu")
         return result
 

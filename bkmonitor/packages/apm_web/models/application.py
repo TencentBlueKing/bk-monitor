@@ -9,6 +9,7 @@ specific language governing permissions and limitations under the License.
 """
 
 import json
+from typing import cast
 
 from celery import shared_task
 from django.conf import settings
@@ -45,6 +46,7 @@ from apm_web.meta.plugin.log_trace_plugin_config import LogTracePluginConfig
 from apm_web.meta.plugin.plugin import LOG_TRACE
 from apm_web.metric_handler import RequestCountInstance
 from bkm_space.api import SpaceApi
+from bkmonitor.data_source.utils.apm import TraceDatasourceTarget
 from bkmonitor.iam import Permission, ResourceEnum
 from bkmonitor.middlewares.source import get_source_app_code
 from bkmonitor.utils import group_by
@@ -652,6 +654,18 @@ class Application(AbstractRecordModel):
             TelemetryDataType.LOG.value: self.is_enabled_log,
         }
 
+    def build_data_sources(self) -> list[TraceDatasourceTarget]:
+        """构造当前应用的 Trace 数据源查询目标。"""
+
+        return [
+            TraceDatasourceTarget.build(
+                bk_biz_id=cast(int, self.bk_biz_id),
+                app_name=cast(str, self.app_name),
+                table_id=cast(str, self.trace_result_table_id),
+                retention=cast(int, self.es_retention),
+            )
+        ]
+
     def set_init_dimensions_config(self):
         dimensions_value = {self.DimensionConfig.DIMENSIONS: DefaultDimensionConfig.DEFAULT_DIMENSIONS}
         ApmMetaConfig.application_config_setup(self.application_id, self.DIMENSION_CONFIG_KEY, dimensions_value)
@@ -790,9 +804,7 @@ class Application(AbstractRecordModel):
                 owners=owners,
             )
         except Exception as e:  # pylint: disable=broad-except
-            logger.warning(
-                f"application->({self.application_id}) grant log owners({owners}) failed, reason: {e}"
-            )
+            logger.warning(f"application->({self.application_id}) grant log owners({owners}) failed, reason: {e}")
 
     @property
     def is_create_finished(self):

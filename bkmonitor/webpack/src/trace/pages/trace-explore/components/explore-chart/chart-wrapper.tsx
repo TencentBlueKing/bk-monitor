@@ -31,10 +31,10 @@ import { PanelModel } from 'monitor-ui/chart-plugins/typings';
 import { echartsConnect } from 'monitor-ui/monitor-echarts/utils';
 import { storeToRefs } from 'pinia';
 
+import { BRIDGE_PROPS_KEY } from '../../trace-explore-apm';
 import ChartCollapse from './chart-collapse';
 import ExploreChart from './explore-chart';
 import { useTraceExploreStore } from '@/store/modules/explore';
-import { BRIDGE_PROPS_KEY } from '../../trace-explore-apm';
 
 import type { IViewOptions } from './types';
 
@@ -79,14 +79,12 @@ export default defineComponent({
       };
     });
 
-    const { timeRange, refreshImmediate } = storeToRefs(store);
+    const { timeRange, timezone, refreshImmediate } = storeToRefs(store);
     provide('timeRange', timeRange);
+    provide('timezone', timezone);
     provide('refreshImmediate', refreshImmediate);
 
-    const handleExploreChartZoomChange = inject(
-      'handleExploreChartZoomChange',
-      (_: [number, number]) => {}
-    );
+    const handleExploreChartZoomChange = inject('handleExploreChartZoomChange', (_: [number, number]) => {});
 
     const getChartPanels = async () => {
       const params = {
@@ -98,10 +96,7 @@ export default defineComponent({
           service_name: bridgeProps.viewOptions.filters.service_name,
         });
       }
-      const list =
-        store.appName && store.mode
-          ? await traceChats(params).catch(() => [])
-          : [];
+      const list = store.appName && store.mode ? await traceChats(params).catch(() => []) : [];
       panelModels.value = list.map(
         item =>
           new PanelModel({

@@ -16,6 +16,7 @@ class DataLinkKind(Enum):
 
     DATAID = "DataId"
     RESULTTABLE = "ResultTable"
+    CHANNELBINDING = "ChannelBinding"
     VMSTORAGEBINDING = "VmStorageBinding"
     GRAPHRELATIONBINDING = "GraphRelationBinding"
     ESSTORAGEBINDING = "ElasticSearchBinding"
@@ -34,6 +35,7 @@ class DataLinkKind(Enum):
     choices_labels = (
         (DATAID, "dataids"),
         (RESULTTABLE, "resulttables"),
+        (CHANNELBINDING, "channelbindings"),
         (VMSTORAGEBINDING, "vmstoragebindings"),
         (ESSTORAGEBINDING, "elasticsearchbindings"),
         (DORISBINDING, "dorisbindings"),

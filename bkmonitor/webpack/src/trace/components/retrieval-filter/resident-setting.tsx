@@ -353,6 +353,7 @@ export default defineComponent({
                     fieldInfo={this.getFieldInfo(item.field)}
                     value={item.value}
                     onChange={v => this.handleValueChange(v, index)}
+                    onEnter={v => this.handleValueChange(v, index)}
                   />
                 );
               }

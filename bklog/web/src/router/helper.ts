@@ -24,7 +24,6 @@
  * IN THE SOFTWARE.
  */
 
-
 /** 路由名 → 对应的 externalMenu 项 */
 export const routeNameToExternalMenu = (routeName: string): string | null => {
   if (routeName === 'retrieve') return 'retrieve';

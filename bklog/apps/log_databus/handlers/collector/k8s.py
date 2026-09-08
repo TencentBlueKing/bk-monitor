@@ -1964,9 +1964,7 @@ class K8sCollectorHandler(CollectorHandler):
         raw_config.update(
             {
                 "dataId": collector_config.bk_data_id,
-                "extMeta": {
-                    label["key"]: label["value"] for label in (collector_config.extra_labels or []) if label
-                },
+                "extMeta": {label["key"]: label["value"] for label in (collector_config.extra_labels or []) if label},
                 "addPodLabel": collector_config.add_pod_label,
                 "addPodAnnotation": collector_config.add_pod_annotation,
             }

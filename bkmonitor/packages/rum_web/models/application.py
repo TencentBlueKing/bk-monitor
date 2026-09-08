@@ -9,6 +9,7 @@ specific language governing permissions and limitations under the License.
 """
 
 import json
+from django.conf import settings
 from django.db import models
 from django.db.transaction import atomic
 from django.utils.functional import cached_property
@@ -153,6 +154,14 @@ class Application(AbstractRecordModel):
             return no_data_config.config_value[self.NoDataConfig.no_data_period]
         return DEFAULT_NO_DATA_PERIOD
 
+    @cached_property
+    def retention_days(self) -> int:
+        """数据保留天数，作为离线类查询（字段映射）的时间窗口下界"""
+        datasource_config = self.get_config_by_key(self.APPLICATION_DATASOURCE_CONFIG_KEY)
+        if datasource_config and datasource_config.config_value:
+            return datasource_config.config_value.get("es_retention", settings.RUM_APP_DEFAULT_ES_RETENTION)
+        return settings.RUM_APP_DEFAULT_ES_RETENTION
+
     def set_data_status(self):
         """刷新数据状态"""
         from rum_web.handlers.backend_data_handler import telemetry_handler_registry
@@ -207,8 +216,6 @@ class Application(AbstractRecordModel):
         if datasource_option:
             config_value = datasource_option
         else:
-            from django.conf import settings
-
             config_value = {
                 "es_storage_cluster": settings.RUM_APP_DEFAULT_ES_STORAGE_CLUSTER,
                 "es_retention": settings.RUM_APP_DEFAULT_ES_RETENTION,

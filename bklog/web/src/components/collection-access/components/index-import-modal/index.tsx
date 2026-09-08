@@ -147,9 +147,9 @@ export default class IndexImportModal extends tsc<IProps> {
           this.collectList = data.map(item => {
             const {
               collector_config_id,
-              collector_config_name,
-              storage_display_name,
-              etl_config,
+              collector_config_name: collectorConfigName,
+              storage_display_name: storageDisplayName,
+              etl_config: etlConfig,
               retention,
               params,
               bk_data_id,
@@ -164,11 +164,11 @@ export default class IndexImportModal extends tsc<IProps> {
             return {
               bk_data_id,
               collector_config_id,
-              collector_config_name: collector_config_name || '--',
-              storage_display_name: storage_display_name || '--',
+              collector_config_name: collectorConfigName || '--',
+              storage_display_name: storageDisplayName || '--',
               retention: retention ? `${retention}${$i18n.t('天')}` : '--',
               paths: paths?.join('; ') ?? '',
-              etl_config: this.etlConfigList.find(newItem => newItem.id === etl_config)?.name ?? '--',
+              etl_config: this.etlConfigList.find(newItem => newItem.id === etlConfig)?.name ?? '--',
             };
           });
         }

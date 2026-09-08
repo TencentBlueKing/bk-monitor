@@ -36,33 +36,33 @@ export type ProcessStatus = 'init' | 'pending' | 'running' | 'success' | 'failed
 
 /** 单个日志条目类型 */
 export interface LogItem {
-  source: DataSource;                // 数据来源：task 表示日志捞取任务，report 表示用户上报
-  id: number | null;                 // 任务实例 ID，仅 source=task 时有值
-  task_id: string | null;            // 后台任务 ID，仅 source=task 时有值
-  openid: string;                    // openid
-  file_name: string;                 // 文件名
-  os_type: string;                   // 操作系统类型
-  os_version: string;                // 操作系统版本
-  sdk_version: string;               // SDK 版本；task 来源自任务明细，report 来源自 os_sdk
-  model: string;                     // 设备型号
-  xid: string;                       // 客户端标识
-  report_time: string | null;        // 展示排序时间。task 使用 processed_at，report 使用 report_time
+  source: DataSource; // 数据来源：task 表示日志捞取任务，report 表示用户上报
+  id: number | null; // 任务实例 ID，仅 source=task 时有值
+  task_id: string | null; // 后台任务 ID，仅 source=task 时有值
+  openid: string; // openid
+  file_name: string; // 文件名
+  os_type: string; // 操作系统类型
+  os_version: string; // 操作系统版本
+  sdk_version: string; // SDK 版本；task 来源自任务明细，report 来源自 os_sdk
+  model: string; // 设备型号
+  xid: string; // 客户端标识
+  report_time: string | null; // 展示排序时间。task 使用 processed_at，report 使用 report_time
   process_status: ProcessStatus | null; // 处理状态
-  processed_at: string | null;       // 处理时间
-  extend_info?: string;                      // 扩展字段内容，仅 report 来源时可能有值
+  processed_at: string | null; // 处理时间
+  extend_info?: string; // 扩展字段内容，仅 report 来源时可能有值
 }
 
 /** 用户累计上报统计（来自独立接口） */
 export interface UserReportStats {
-  total_count: number;               // 累计数量
-  range_count: number;               // 指定时间范围内数量
+  total_count: number; // 累计数量
+  range_count: number; // 指定时间范围内数量
 }
 
 /** 文件树节点类型 */
 export interface FileTreeNode {
-  name: string;                      // 文件名
-  isFolder?: boolean;                // 是否为文件夹
-  children?: FileTreeNode[];         // 子节点
+  name: string; // 文件名
+  isFolder?: boolean; // 是否为文件夹
+  children?: FileTreeNode[]; // 子节点
 }
 
 /** 搜索值的类型 */
@@ -70,22 +70,22 @@ export type SearchValueType = 'openid' | 'task_id' | 'file_name';
 
 /** 搜索参数类型 */
 export interface SearchParams {
-  keyword: string;                   // 搜索关键词
-  timeRange: [string, string] | [number, number];       // 时间范围 [start, end]
-  timezone: string;                  // 时区标识
-  valueType?: SearchValueType;      // 搜索值的类型：openid 或 task_id
+  keyword: string; // 搜索关键词
+  timeRange: [string, string] | [number, number]; // 时间范围 [start, end]
+  timezone: string; // 时区标识
+  valueType?: SearchValueType; // 搜索值的类型：openid 或 task_id
 }
 
 /** URL 同步的状态类型 */
 export interface UrlState {
-  keyword?: string;                  // 搜索关键词
-  startTime?: string;                // 时间范围-开始
-  endTime?: string;                  // 时间范围-结束
-  timezone?: string;                 // 时区
-  valueType?: SearchValueType;       // 搜索值的类型：openid / task_id / file_name
-  fileName?: string;                 // 选中的任务文件名
-  fileId?: string;                   // 选中的文件路径
-  filterKey?: string[];              // 关键词过滤列表
-  filterType?: string;               // 过滤条件 include/uninclude
-  highlightList?: string[];          // 高亮配置列表
+  keyword?: string; // 搜索关键词
+  startTime?: string; // 时间范围-开始
+  endTime?: string; // 时间范围-结束
+  timezone?: string; // 时区
+  valueType?: SearchValueType; // 搜索值的类型：openid / task_id / file_name
+  fileName?: string; // 选中的任务文件名
+  fileId?: string; // 选中的文件路径
+  filterKey?: string[]; // 关键词过滤列表
+  filterType?: string; // 过滤条件 include/uninclude
+  highlightList?: string[]; // 高亮配置列表
 }

@@ -130,13 +130,13 @@ export default (props, { emit }) => {
    * @param is_delete_all
    * @returns
    */
-  const deleteHistoryItem = (space_uid, index_set_type, history_id, is_delete_all = false) => {
+  const deleteHistoryItem = (spaceUid, indexSetType, historyId, isDeleteAll = false) => {
     return $http.request('unionSearch/unionDeleteHistory', {
       data: {
-        space_uid,
-        index_set_type,
-        history_id,
-        is_delete_all,
+        space_uid: spaceUid,
+        index_set_type: indexSetType,
+        history_id: historyId,
+        is_delete_all: isDeleteAll,
       },
     });
   };
@@ -255,16 +255,22 @@ export default (props, { emit }) => {
    * @param is_favorite   是否收藏
    * @description 该方法用于在单选情况下设置索引集的收藏状态
    */
-  const setSingleFavorite = (id: string, is_favorite = false) => {
-    const target = props.list.find(item => (item.unique_id ?? item.index_set_id) === id);
-    if (target) {
-      set(target, 'is_favorite', is_favorite);
-      if (target.parent_node) {
-        const sourceNode = target.parent_node.children.find(child => (child.unique_id ?? child.index_set_id) === id);
-        if (sourceNode) {
-          set(sourceNode, 'is_favorite', is_favorite);
-        }
+  const setSingleFavorite = (id: string, isFavorite = false) => {
+    const matchId = (item: any) => (item.unique_id ?? item.index_set_id) === id;
+    let target = props.list.find(matchId);
+    if (!target) {
+      for (const root of props.list) {
+        target = root.children?.find(matchId);
+        if (target) break;
       }
+    }
+    if (!target) return;
+    set(target, 'is_favorite', isFavorite);
+    if (!target.parent_id) return;
+    const parent = props.list.find((item: any) => `${item.index_set_id}` === `${target.parent_id}`);
+    const sourceNode = parent?.children?.find(matchId);
+    if (sourceNode && sourceNode !== target) {
+      set(sourceNode, 'is_favorite', isFavorite);
     }
   };
 
@@ -349,10 +355,12 @@ export default (props, { emit }) => {
         data: {
           name,
           space_uid: props.spaceUid,
-          index_set_ids: unionListValue.value.map(v => {
-            const uniqueId = v?.unique_id ?? v;
-            return uniqueId.split('_').at(-1);
-          }).filter(v => v !== undefined),
+          index_set_ids: unionListValue.value
+            .map(v => {
+              const uniqueId = v?.unique_id ?? v;
+              return uniqueId.split('_').at(-1);
+            })
+            .filter(v => v !== undefined),
         },
       })
       .then(resp => {

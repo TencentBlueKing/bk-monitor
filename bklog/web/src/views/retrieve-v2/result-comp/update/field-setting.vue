@@ -23,9 +23,9 @@
           <ul class="select-list">
             <li
               v-for="(item, index) in shadowTotal"
+              :key="`${item.field_name}-${index}`"
               style="cursor: pointer"
               class="select-item bklog-v3-popover-tag"
-              :key="`${item.field_name}-${index}`"
               @click="addField(item)"
             >
               <span
@@ -37,15 +37,15 @@
               >
               </span>
               <div
-                class="display-container rtl-text"
                 v-bk-overflow-tips="{ content: `${item.query_alias || item.field_name}(${item.field_name})` }"
+                class="display-container rtl-text"
                 :dir="textDir"
               >
                 <bdi>
                   <span class="field-alias">{{ item.first_name }}</span>
                   <span
-                    class="field-name"
                     v-if="item.first_name !== item.last_name"
+                    class="field-name"
                   >
                     ({{ item.last_name }})
                   </span>
@@ -78,15 +78,15 @@
           </div>
           <vue-draggable
             v-bind="dragOptions"
+            v-model="shadowVisible"
             style="height: 295px"
             class="select-list"
-            v-model="shadowVisible"
           >
             <transition-group>
               <li
                 v-for="(item, index) in shadowVisible"
-                class="select-item"
                 :key="`${item.field_name}-${index}`"
+                class="select-item"
                 @click="e => deleteField(e, item, index)"
               >
                 <span
@@ -102,15 +102,15 @@
                 >
                 </span>
                 <div
+                  v-bk-overflow-tips="{ content: `${item.query_alias || item.field_name}(${item.field_name})` }"
                   class="display-container rtl-text"
                   :dir="textDir"
-                  v-bk-overflow-tips="{ content: `${item.query_alias || item.field_name}(${item.field_name})` }"
                 >
                   <bdi>
                     <span class="field-alias">{{ item.first_name }}</span>
                     <span
-                      class="field-name"
                       v-if="item.first_name !== item.last_name"
+                      class="field-name"
                     >
                       ({{ item.last_name }})
                     </span>
@@ -172,10 +172,10 @@
   });
 
   const emptyType = computed(() => {
-    if (!!shadowTotal?.value?.length) {
+    if (shadowTotal?.value?.length) {
       return '';
     }
-    if (searchKeyword.value == '') {
+    if (searchKeyword.value === '') {
       return 'empty';
     }
     return 'search-empty';

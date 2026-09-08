@@ -27,10 +27,10 @@
 import {
   type PropType,
   computed,
+  ref as deepRef,
   defineComponent,
   nextTick,
   onBeforeUnmount,
-  ref as deepRef,
   shallowRef,
   useTemplateRef,
   watch,
@@ -88,6 +88,11 @@ const statusMap = {
   [EStatus.isDeleted]: { name: window.i18n.t('已回收'), color1: '#979BA5', color2: 'rgba(151,155,165,0.16)' },
 };
 
+interface IAccessItem {
+  time: string;
+  user: string;
+}
+
 interface ITableItem {
   accessCount: number;
   create_time: string;
@@ -111,11 +116,6 @@ interface ITableItem {
     name: string;
     start_time: number;
   }[];
-}
-
-interface IAccessItem {
-  time: string;
-  user: string;
 }
 
 interface IVariableItem {
@@ -314,7 +314,7 @@ export default defineComponent({
 
       urlList.value = data.map(item => ({
         ...item,
-        link: `${location.origin}${location.pathname}?bizId=${store.bizId}/#/share/${item.token || ''}`,
+        link: `${location.origin}${location.pathname}?bizId=${store.bizId}#/share/${item.token || ''}`,
         accessCount: item.access_info?.total || 0,
         isCheck: false,
         isShowAccess: false,

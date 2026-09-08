@@ -1,0 +1,210 @@
+.clean-template-picker {
+  display: flex;
+  flex-direction: column;
+  width: 340px;
+  min-width: 340px;
+  padding-right: 12px;
+
+  .clean-type-tabs {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+    width: 100%;
+    height: 30px;
+    padding: 3px;
+    margin-bottom: 12px;
+    background: #f0f1f5;
+    border-radius: 4px;
+
+    .tab-slider {
+      position: absolute;
+      top: 3px;
+      left: 3px;
+      z-index: 1;
+      width: calc((100% - 6px) / 4);
+      height: 24px;
+      background: #fff;
+      border-radius: 3px;
+      box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+      transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .tab-item {
+      position: relative;
+      z-index: 2;
+      display: flex;
+      flex: 1 1 0;
+      align-items: center;
+      justify-content: center;
+      min-width: 0;
+      height: 100%;
+      padding: 0 4px;
+      font-size: 12px;
+      color: #63656e;
+      white-space: nowrap;
+      cursor: pointer;
+      transition: color 0.3s ease;
+
+      &.active {
+        font-weight: 400;
+        color: #3a84ff;
+      }
+
+      i {
+        flex-shrink: 0;
+        margin-right: 6px;
+        font-size: 14px;
+      }
+
+      & + .tab-item::before {
+        position: absolute;
+        top: 50%;
+        left: 0;
+        width: 1px;
+        height: 12px;
+        content: '';
+        background: #dcdee5;
+        transform: translateY(-50%);
+      }
+
+      &.active::before {
+        display: none;
+      }
+    }
+
+    .tab-item.active + .tab-item::before {
+      display: none;
+    }
+  }
+
+  .search-input {
+    flex-shrink: 0;
+    margin-bottom: 12px;
+  }
+
+  .template-list {
+    flex: 1;
+    min-height: 0;
+    padding: 2px;
+    margin: -2px;
+    overflow-y: auto;
+
+    .empty-exception {
+      margin-top: 60px;
+    }
+
+    .template-list-loading {
+      padding: 12px 0;
+      font-size: 12px;
+      color: #979ba5;
+      text-align: center;
+    }
+
+    .template-item {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      padding: 10px 12px;
+      margin-bottom: 8px;
+      cursor: pointer;
+      background: #fff;
+      border: 1px solid #dcdee5;
+      border-radius: 6px;
+      transition: all 0.2s ease;
+
+      &:hover {
+        background-color: #f5f7fa;
+      }
+
+      &.is-selected {
+        background-color: #f0f5ff;
+        border: 1px solid #3a84ff;
+        box-shadow: 0 0 0 1px #3a84ff;
+
+        .template-item-content .template-item-header {
+          .template-item-name {
+            font-weight: 500;
+            color: #3a84ff;
+          }
+
+          .template-item-count {
+            background-color: #fff;
+          }
+        }
+      }
+
+      .template-item-icon-box {
+        display: flex;
+        flex-shrink: 0;
+        align-items: center;
+        justify-content: center;
+        width: 40px;
+        height: 40px;
+        color: #4e5e7a;
+        background-color: #eaebf0;
+        border-radius: 6px;
+
+        i {
+          font-size: 20px;
+        }
+      }
+
+      .template-item-content {
+        display: flex;
+        flex: 1;
+        flex-direction: column;
+        gap: 2px;
+        min-width: 0;
+
+        .template-item-header {
+          display: flex;
+          gap: 8px;
+          align-items: center;
+          min-width: 0;
+
+          .template-item-name {
+            flex: 1;
+            min-width: 0;
+            overflow: hidden;
+            font-size: 13px;
+            font-weight: 500;
+            line-height: 18px;
+            color: #313238;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+          }
+
+          .template-item-count {
+            display: inline-flex;
+            flex-shrink: 0;
+            align-items: center;
+            height: 18px;
+            padding: 0 2px;
+            font-size: 11px;
+            line-height: 18px;
+            color: #63656e;
+            text-align: center;
+            background: #f0f1f5;
+            border-radius: 4px;
+
+            .bklog-feature-tezheng {
+              margin-right: 2px;
+              font-size: 12px;
+            }
+          }
+        }
+      }
+
+      .template-item-desc {
+        overflow: hidden;
+        font-size: 12px;
+        line-height: 16px;
+        color: #979ba5;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+    }
+  }
+}

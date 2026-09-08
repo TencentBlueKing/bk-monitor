@@ -371,6 +371,7 @@ export default {
   超时: 'Timeout',
   解码结果: 'Decode result',
   解码: 'Decode',
+  自动解码: 'Auto decode',
   上报类型: 'Report type',
   查询参数: 'Query parameters',
   '请输入Profiling 查询参数': 'Please enter the Profiling query parameters',
@@ -521,4 +522,5 @@ export default {
   证据不足: 'Insufficient evidence',
   '指派后，该成员将成为此 Issue 的负责人并收到通知。':
     'After assignment, the member will become the owner of this Issue and receive a notification.',
+  '搜索 名称、别名、单位、类型、启/停': 'Search name, alias, unit, type, start/stop',
 };

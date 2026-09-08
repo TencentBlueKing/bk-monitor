@@ -53,6 +53,10 @@ export default defineComponent({
       type: Object as PropType<RetrievalFormData>,
       default: () => null,
     },
+    profileId: {
+      type: String,
+      default: '',
+    },
   },
   emits: ['change', 'typeChange', 'appServiceChange', 'showDetail'],
   setup(props, { emit }) {
@@ -82,6 +86,11 @@ export default defineComponent({
         getApplicationList();
         getLabelList();
       }
+    );
+
+    watch(
+      () => props.profileId,
+      () => getLabelList()
     );
 
     /**
@@ -218,7 +227,7 @@ export default defineComponent({
       const params =
         props.formData.type === SearchType.Profiling
           ? { ...props.formData.server, global_query: false }
-          : { global_query: true };
+          : { global_query: true, profile_id: props.profileId };
       return {
         ...params,
         start: start * 1000 * 1000,
@@ -235,6 +244,10 @@ export default defineComponent({
       };
 
       if (props.formData.type === SearchType.Profiling && !props.formData.server.app_name) {
+        handleEmitChange(updateItem, true);
+        return;
+      }
+      if (props.formData.type === SearchType.Upload && !props.profileId) {
         handleEmitChange(updateItem, true);
         return;
       }

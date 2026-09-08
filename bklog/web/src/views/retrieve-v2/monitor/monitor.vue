@@ -82,28 +82,28 @@
   // 这里逻辑不要动，不做解析会导致后续前端查询相关参数的混乱
   // store.dispatch('updateIndexItemByRoute', { route, list: [] });
 
-  const setDefaultIndexsetId = () => {
-    if (!route.query.indexId) {
-      const routeParams = store.getters.retrieveParams;
-      const resolver = new RetrieveUrlResolver({
-        ...routeParams,
-        datePickerValue: store.state.indexItem.datePickerValue,
-      });
-      if (store.getters.isUnionSearch) {
-        router.replace({ query: { ...route.query, ...resolver.resolveParamsToUrl() } });
-        return;
-      }
-      if (store.state.indexId) {
-        router.replace({
-          query: {
-            ...route.query,
-            indexId: store.state.indexId,
-            ...resolver.resolveParamsToUrl(),
-          },
-        });
-      }
-    }
-  };
+  // const setDefaultIndexsetId = () => {
+  //   if (!route.query.indexId) {
+  //     const routeParams = store.getters.retrieveParams;
+  //     const resolver = new RetrieveUrlResolver({
+  //       ...routeParams,
+  //       datePickerValue: store.state.indexItem.datePickerValue,
+  //     });
+  //     if (store.getters.isUnionSearch) {
+  //       router.replace({ query: { ...route.query, ...resolver.resolveParamsToUrl() } });
+  //       return;
+  //     }
+  //     if (store.state.indexId) {
+  //       router.replace({
+  //         query: {
+  //           ...route.query,
+  //           indexId: store.state.indexId,
+  //           ...resolver.resolveParamsToUrl(),
+  //         },
+  //       });
+  //     }
+  //   }
+  // };
 
   const getApmIndexSetList = async () => {
     store.commit('retrieve/updateIndexSetLoading', true);
@@ -187,13 +187,13 @@
         setRouteQuery({
           ...route.query,
           indexId: undefined,
-          unionList: JSON.stringify(ids),
+          unionList: JSON.stringify(payload.ids),
           clusterParams: undefined,
         });
         return;
       }
       setRouteQuery({ ...route.query, indexId: payload.ids[0], unionList: undefined, clusterParams: undefined });
-      store.commit('updateUnionIndexList', payload.isUnionIndex ? payload.ids ?? [] : []);
+      store.commit('updateUnionIndexList', payload.isUnionIndex ? (payload.ids ?? []) : []);
       store.dispatch('requestIndexSetItemChanged', payload ?? {}).then(() => {
         store.commit('retrieve/updateChartKey');
         store.dispatch('requestIndexSetQuery');
@@ -257,8 +257,8 @@
     () => props.timezone,
     val => {
       if (!val) return;
-      store.commit('updateIndexItemParams', { timezone });
-      updateTimezone(timezone);
+      store.commit('updateIndexItemParams', { timezone: val });
+      updateTimezone(val);
       store.dispatch('requestIndexSetQuery');
     },
   );
@@ -280,7 +280,7 @@
   const initIsShowClusterWatch = watch(
     () => store.state.clusterParams,
     () => {
-      if (!!store.state.clusterParams) {
+      if (store.state.clusterParams) {
         activeTab.value = 'clustering';
         initIsShowClusterWatch();
       }
@@ -349,13 +349,13 @@
 </script>
 <template>
   <div
+    v-bkloading="{ isLoading: initLoading }"
     :style="stickyStyle"
     :class="['retrieve-v2-index', { 'scroll-y': true, 'is-sticky-top': isStickyTop }]"
-    v-bkloading="{ isLoading: initLoading }"
   >
     <div
-      class="sub-head"
       v-show="!initLoading"
+      class="sub-head"
     >
       <SelectIndexSet
         :popover-options="{ offset: '-6,10' }"
@@ -365,9 +365,9 @@
       <QueryHistory @change="updateSearchParam"></QueryHistory>
     </div>
     <div
+      v-show="!initLoading"
       :style="contentStyle"
       :class="['retrieve-v2-body']"
-      v-show="!initLoading"
     >
       <div class="retrieve-v2-content">
         <SearchBar @height-change="handleHeightChange"></SearchBar>

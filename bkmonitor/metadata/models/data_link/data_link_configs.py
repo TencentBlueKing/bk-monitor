@@ -8,12 +8,14 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import datetime
 import json
 import logging
 from typing import TYPE_CHECKING, Any, ClassVar, Literal, cast
 
 from django.conf import settings
 from django.db import models
+from django.utils import timezone
 from typing_extensions import deprecated
 
 from bkmonitor.utils.db.fields import SymmetricJsonField
@@ -24,6 +26,15 @@ from metadata.models.data_link.constants import BKBASE_NAMESPACE_BK_LOG, BKBASE_
 from metadata.models.space.constants import LOG_EVENT_ETL_CONFIGS
 
 logger = logging.getLogger("metadata")
+
+
+def _format_data_source_datetime(value: datetime.datetime | str) -> str:
+    if isinstance(value, str):
+        return value
+    if timezone.is_aware(value):
+        value = timezone.localtime(value)
+    return value.strftime("%Y-%m-%d %H:%M:%S")
+
 
 if TYPE_CHECKING:
     from metadata.models.data_source import DataSource
@@ -38,6 +49,7 @@ class DataLinkResourceConfigBase(models.Model):
     CONFIG_KIND_CHOICES = (
         (DataLinkKind.DATAID.value, "数据源"),
         (DataLinkKind.RESULTTABLE.value, "结果表"),
+        (DataLinkKind.CHANNELBINDING.value, "结果表通道绑定"),
         (DataLinkKind.VMSTORAGEBINDING.value, "存储配置"),
         (DataLinkKind.SURREALDBBINDING.value, "SurrealDB绑定"),
         (DataLinkKind.DATABUS.value, "清洗任务"),
@@ -119,6 +131,63 @@ class DataIdConfig(DataLinkResourceConfigBase):
         verbose_name = "数据源配置"
         verbose_name_plural = verbose_name
         unique_together = (("bk_tenant_id", "namespace", "name"),)
+
+    def compose_data_source_config(
+        self,
+        data_source_alias: str | None = None,
+        description: str | None = None,
+        created_by: str | None = None,
+        created_at: datetime.datetime | str | None = None,
+        updated_by: str | None = None,
+        updated_at: datetime.datetime | str | None = None,
+    ) -> dict[str, Any]:
+        """组装引用当前 DataId 的 BKBase DataSource 资源配置。"""
+        default_operator = settings.BK_DATA_PROJECT_MAINTAINER.split(",")[0]
+        default_time = timezone.now()
+        created_at = created_at or self.create_time or default_time
+        updated_at = updated_at or self.last_modify_time or default_time
+        basic_info = {
+            "data_source_name": self.name,
+            "data_source_alias": self.name if data_source_alias is None else data_source_alias,
+            "data_encoding": "UTF-8",
+            "bk_biz_id": self.datalink_biz_ids.data_biz_id,
+            "time_zone": settings.TIME_ZONE,
+            "tags": [],
+            "description": self.name if description is None else description,
+            "access_channel": "bkbase",
+            "access_channel_alias": "计算平台",
+        }
+        data_id = {
+            "kind": DataLinkKind.DATAID.value,
+            "namespace": self.namespace,
+            "name": self.name,
+        }
+        metadata = {
+            "namespace": self.namespace,
+            "name": self.name,
+            "labels": {},
+        }
+        if self.bk_data_id > 0:
+            metadata["labels"]["raw_data_id"] = str(self.bk_data_id)
+        if settings.ENABLE_MULTI_TENANT_MODE:
+            metadata["tenant"] = self.bk_tenant_id
+            data_id["tenant"] = self.bk_tenant_id
+
+        return {
+            "kind": "DataSource",
+            "metadata": metadata,
+            "spec": {
+                "basic_info": basic_info,
+                "report_config": {"type": "custom"},
+                "data_id": data_id,
+                "data_conn": None,
+                "created_by": created_by or default_operator,
+                "created_at": _format_data_source_datetime(created_at),
+                "updated_by": updated_by or default_operator,
+                "updated_at": _format_data_source_datetime(updated_at),
+                "desired_status": "Running",
+            },
+        }
 
     def compose_predefined_config(self, data_source: "DataSource") -> dict[str, Any]:
         """
@@ -306,6 +375,46 @@ class ResultTableConfig(DataLinkResourceConfigBase):
         )
 
 
+class ChannelBindingConfig(DataLinkResourceConfigBase):
+    """BKBase ResultTable 与 Inner KafkaChannel 的绑定配置。"""
+
+    kind = DataLinkKind.CHANNELBINDING.value
+    name = models.CharField(verbose_name="通道绑定名称", max_length=64, db_index=True)
+    bkbase_result_table_name = models.CharField(verbose_name="BKBase结果表名称", max_length=255)
+    channel_name = models.CharField(verbose_name="Inner KafkaChannel名称", max_length=255)
+
+    class Meta:
+        verbose_name = "结果表通道绑定配置"
+        verbose_name_plural = verbose_name
+        unique_together = (("bk_tenant_id", "namespace", "name"),)
+
+    def compose_config(self) -> dict[str, Any]:
+        data = {
+            "kind": DataLinkKind.RESULTTABLE.value,
+            "namespace": self.namespace,
+            "name": self.bkbase_result_table_name,
+        }
+        channel = {
+            "kind": DataLinkKind.KAFKACHANNEL.value,
+            "namespace": self.namespace,
+            "name": self.channel_name,
+        }
+        metadata: dict[str, Any] = {
+            "name": self.name,
+            "namespace": self.namespace,
+            "labels": {"bk_biz_id": str(self.datalink_biz_ids.label_biz_id)},
+        }
+        if settings.ENABLE_MULTI_TENANT_MODE:
+            metadata["tenant"] = self.bk_tenant_id
+            data["tenant"] = self.bk_tenant_id
+            channel["tenant"] = self.bk_tenant_id
+        return {
+            "kind": self.kind,
+            "metadata": metadata,
+            "spec": {"data": data, "channel": channel},
+        }
+
+
 class ESStorageBindingConfig(DataLinkResourceConfigBase):
     """
     链路ES结果表存储配置
@@ -392,7 +501,8 @@ class ESStorageBindingConfig(DataLinkResourceConfigBase):
             "write_alias_format": write_alias_format,
             "timezone": self.timezone,
             "maintainers": json.dumps(maintainer),
-            "json_field_list": json.dumps(json_field_list) if json_field_list is not None else "null",
+            # BKBase V4 按数组反序列化该字段，缺省时必须发送空数组，不能发送 null。
+            "json_field_list": json.dumps(json_field_list or []),
         }
 
         # 现阶段仅在多租户模式下添加tenant字段
@@ -598,6 +708,9 @@ class DataBusConfig(DataLinkResourceConfigBase):
     sink_names = models.JSONField(verbose_name="处理配置列表", default=list, help_text="格式为kind:name，便于检索")
     consumer_group = models.CharField(verbose_name="Consumer Group", max_length=255, default="", blank=True)
     data_link_strategy = models.CharField(verbose_name="数据链路策略标记", max_length=64, default="", blank=True)
+    source_kind = models.CharField(verbose_name="源资源类型", max_length=64, default=DataLinkKind.DATAID.value)
+    source_name = models.CharField(verbose_name="源资源名称", max_length=64, default="", blank=True)
+    role = models.CharField(verbose_name="Databus角色", max_length=32, default="main", blank=True)
 
     class Meta:
         verbose_name = "清洗任务配置"
@@ -672,8 +785,8 @@ class DataBusConfig(DataLinkResourceConfigBase):
                 "sinks": {{sinks}},
                 "sources": [
                     {
-                        "kind": "DataId",
-                        "name": "{{data_id_name}}",
+                        "kind": "{{source_kind}}",
+                        "name": "{{source_name}}",
                         {% if tenant %}
                         "tenant": "{{ tenant }}",
                         {% endif %}
@@ -700,7 +813,8 @@ class DataBusConfig(DataLinkResourceConfigBase):
             "bk_biz_id": self.datalink_biz_ids.label_biz_id,
             "sinks": json.dumps(sinks),
             "sink_name": self.name,
-            "data_id_name": self.data_id_name,
+            "source_kind": self.source_kind or DataLinkKind.DATAID.value,
+            "source_name": self.source_name or self.data_id_name,
             "transforms": json.dumps(transforms),
             "maintainers": json.dumps(maintainer),
             "consumer_group": json.dumps(self.consumer_group) if self.consumer_group else None,
@@ -716,7 +830,12 @@ class DataBusConfig(DataLinkResourceConfigBase):
             err_msg_prefix="compose vm databus config",
         )
 
-    def compose_log_config(self, sinks: list[dict[str, Any]], rules: list[dict[str, Any]]) -> dict[str, Any]:
+    def compose_log_config(
+        self,
+        sinks: list[dict[str, Any]],
+        rules: list[dict[str, Any]],
+        filter_rules: list[dict[str, Any]] | None = None,
+    ) -> dict[str, Any]:
         """
         常规日志清洗总线配置
         """
@@ -741,8 +860,8 @@ class DataBusConfig(DataLinkResourceConfigBase):
                 "sinks": {{sinks}},
                 "sources": [
                     {
-                        "kind": "DataId",
-                        "name": "{{data_id_name}}",
+                        "kind": "{{source_kind}}",
+                        "name": "{{source_name}}",
                         {% if tenant %}
                         "tenant": "{{ tenant }}",
                         {% endif %}
@@ -753,7 +872,7 @@ class DataBusConfig(DataLinkResourceConfigBase):
                     {
                         "kind": "Clean",
                         "rules": {{rules}},
-                        "filter_rules": "True",
+                        "filter_rules": {{filter_rules}},
                         "context_map": {
                             "use_default_value": "__parse_failure"
                         }
@@ -770,7 +889,9 @@ class DataBusConfig(DataLinkResourceConfigBase):
             "maintainers": json.dumps(maintainer),
             "sinks": json.dumps(sinks),
             "rules": json.dumps(rules),
-            "data_id_name": self.data_id_name,
+            "source_kind": self.source_kind or DataLinkKind.DATAID.value,
+            "source_name": self.source_name or self.data_id_name,
+            "filter_rules": json.dumps(filter_rules if filter_rules is not None else "True"),
             "consumer_group": json.dumps(self.consumer_group) if self.consumer_group else None,
         }
 
@@ -1582,6 +1703,7 @@ class LogResultTableConfig(DataLinkResourceConfigBase):
 COMPONENT_CLASS_MAP: dict[str, type[DataLinkResourceConfigBase]] = {
     DataLinkKind.DATAID.value: DataIdConfig,
     DataLinkKind.RESULTTABLE.value: ResultTableConfig,
+    DataLinkKind.CHANNELBINDING.value: ChannelBindingConfig,
     DataLinkKind.VMSTORAGEBINDING.value: VMStorageBindingConfig,
     DataLinkKind.ESSTORAGEBINDING.value: ESStorageBindingConfig,
     DataLinkKind.DORISBINDING.value: DorisStorageBindingConfig,

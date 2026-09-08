@@ -32,10 +32,21 @@ class CustomMetricViewSet(ResourceViewSet):
     INSTANCE_ID = "app_name"
 
     def get_permissions(self):
+        action = (
+            ActionEnum.MANAGE_APM_APPLICATION
+            if self.action
+            in {
+                "modify_custom_ts_fields",
+                "create_or_update_grouping_rule",
+                "delete_grouping_rule",
+                "import_custom_time_series_fields",
+            }
+            else ActionEnum.VIEW_APM_APPLICATION
+        )
         return [
             InstanceActionForDataPermission(
                 self.INSTANCE_ID,
-                [ActionEnum.VIEW_APM_APPLICATION],
+                [action],
                 ResourceEnum.APM_APPLICATION,
                 get_instance_id=Application.get_application_id_by_app_name,
             )

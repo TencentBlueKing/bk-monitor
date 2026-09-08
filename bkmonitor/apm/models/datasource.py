@@ -1454,58 +1454,6 @@ class TraceDataSource(ApmDataSourceConfigBase):
                 events.append(event)
         return events
 
-    def fields(self):
-        mapping = self.es_client.indices.get_mapping(index=self.index_name)
-        properties = self._get_properties(mapping)
-        fields = {}
-        for propertie in properties:
-            fields = self._get_fields(propertie, fields)
-        return fields
-
-    @classmethod
-    def _get_fields(cls, propertie: dict, fields: dict):
-        for field_name, field_attr in propertie.items():
-            if not isinstance(field_attr, dict):
-                continue
-            if "properties" in field_attr:
-                field_attr["name"] = field_name
-                cls._get_field(field_attr, fields)
-                continue
-            if "type" not in field_attr:
-                continue
-            fields[field_name] = field_attr["type"]
-        return fields
-
-    @classmethod
-    def _get_field(cls, obj: dict, fields: dict):
-        for field_name, field_attr in obj["properties"].items():
-            if not isinstance(field_attr, dict):
-                continue
-            if "properties" in field_attr:
-                field_attr["name"] = f"{obj['name']}.{field_name}"
-                cls._get_field(field_attr, fields)
-                continue
-            fields[f"{obj['name']}.{field_name}"] = field_attr["type"]
-        return fields
-
-    @classmethod
-    def _get_properties(cls, mapping: dict):
-        properties = []
-        for value in mapping.values():
-            cur = value.get("mappings", {})
-            cls._mappings_properties(cur, properties)
-        return properties
-
-    @classmethod
-    def _mappings_properties(cls, mappings: dict, properties: list):
-        if not isinstance(mappings, dict):
-            return
-        if "properties" in mappings:
-            properties.append(mappings["properties"])
-            return
-        for v in mappings.values():
-            cls._mappings_properties(v, properties)
-
     @classmethod
     def stop(cls, bk_biz_id, app_name):
         """停用 Trace 数据源。

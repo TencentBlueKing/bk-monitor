@@ -23,11 +23,12 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, InjectReactive, Inject, Prop } from 'vue-property-decorator';
+import { Component, Inject, InjectReactive, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import type { IViewOptions } from '../../typings';
 import TraceExplore from './trace-explore';
+
+import type { IViewOptions } from '../../typings';
 import type { TimeRangeType } from 'trace/components/time-range/utils';
 
 import './index.scss';
@@ -47,16 +48,17 @@ body .tippy-box[data-placement^='right'] .tippy-arrow {
 export default class ApmTraceHome extends tsc<any, any> {
   @InjectReactive('viewOptions') readonly viewOptions!: IViewOptions;
   @InjectReactive('timeRange') readonly timeRange: [string, string];
+  @InjectReactive('timezone') readonly timezone: string;
   @InjectReactive('refreshInterval') readonly panelRefreshInterval: number;
   @InjectReactive('refreshImmediate') readonly panelRefreshImmediate: string;
   // 处理时间范围变化
   @Inject('handleTimeRangeChange') handleTimeRangeChange: (v: TimeRangeType) => void;
 
-  @Prop({ type: Object, default: null }) readonly slideDetail: {
+  @Prop({ type: Object, default: null }) readonly slideDetail: null | {
     appName: string;
     bizId?: number;
     traceId: string;
-  } | null;
+  };
 
   runtimeStyleEl: HTMLStyleElement | null = null;
 
@@ -64,6 +66,7 @@ export default class ApmTraceHome extends tsc<any, any> {
     return {
       viewOptions: this.viewOptions,
       timeRange: this.timeRange,
+      timezone: this.timezone,
       refreshInterval: this.panelRefreshInterval,
       refreshImmediate: this.panelRefreshImmediate,
       slideDetail: this.slideDetail,

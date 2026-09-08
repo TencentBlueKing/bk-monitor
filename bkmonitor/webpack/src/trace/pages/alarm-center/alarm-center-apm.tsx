@@ -50,8 +50,8 @@ import { defineComponent, inject, onBeforeUnmount, provide, watch } from 'vue';
 import AlarmCenter from './alarm-center';
 import { useAlarmCenterStore } from '@/store/modules/alarm-center';
 
-import type { CommonCondition } from './typings';
 import type { EMode } from '../../components/retrieval-filter/typing';
+import type { CommonCondition } from './typings';
 
 /**
  * AlarmCenter 消费的 APM 专属回调接口。
@@ -63,10 +63,10 @@ import type { EMode } from '../../components/retrieval-filter/typing';
 export interface AlarmCenterApmHooks {
   /** 检索条件变更时回调，将新的条件列表通知宿主 */
   onConditionChange?: (condition: CommonCondition[]) => void;
-  /** 查询语句变更时回调，将新的查询字符串通知宿主 */
-  onQueryStringChange?: (queryString: string) => void;
   /** 筛选模式（UI / 语句）变更时回调，将新的模式通知宿主 */
   onFilterModeChange?: (mode: EMode) => void;
+  /** 查询语句变更时回调，将新的查询字符串通知宿主 */
+  onQueryStringChange?: (queryString: string) => void;
 }
 
 /** provide/inject key —— AlarmCenter 用此 key 获取 APM 回调钩子 */
@@ -102,7 +102,7 @@ export default defineComponent({
 
     /**
      * 监听宿主属性变化，同步到 alarmStore。
-     * 宿主通过 handle.update({ timeRange, refreshInterval, ... }) 推送新值，
+     * 宿主通过 handle.update({ timeRange, refreshInterval, timezone, ... }) 推送新值，
      * reactive 代理会触发此 watcher，从而驱动 AlarmCenter 内部刷新。
      */
     watch(
@@ -111,6 +111,9 @@ export default defineComponent({
         alarmStore.refreshImmediate = bridgeProps.refreshImmediate;
         alarmStore.refreshInterval = Number(bridgeProps.refreshInterval);
         alarmStore.timeRange = bridgeProps.timeRange;
+        if (bridgeProps.timezone) {
+          alarmStore.timezone = bridgeProps.timezone;
+        }
       },
       {
         immediate: true,

@@ -506,6 +506,13 @@ export default {
     'Specified by the user who performs the merge, and will be retained as the merge source in the main Issue.',
   '只能继续作为主 Issue，不支持再合并入其他 Issue；':
     'Only continue as the main Issue, and cannot be merged into other Issues.',
+  '合并后作为展示主体；被合入的主 Issue 及其子 Issue 会打平并入，不保留嵌套；':
+    'After merging it remains the display subject; merged main Issues and their children will be flattened in, without nesting;',
+  'issue合并成功，本次合并同时并入了 {n} 个来源子 Issue':
+    'Issue merged successfully. {n} source child Issues were also merged in.',
+  随合并平移: 'Moved with merge',
+  '该 Issue 原挂在 {id} 下，随其合并平移而来':
+    'This Issue was originally under {id} and was moved here when that Issue was merged.',
   '事件数、影响范围会并入主 Issue；': 'Event count and impact scope will be merged into the main Issue.',
   '默认保留第 1 条选中的 Issue 作为主 Issue，也可以在下方表单切换；':
     'By default, the first selected Issue is retained as the main Issue, and can be switched in the form below.',

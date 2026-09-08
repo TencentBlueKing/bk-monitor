@@ -375,6 +375,110 @@ class TestListMergeSourcesAnomalyMessage:
         assert captured["end_time"] - captured["start_time"] == _MERGE_SOURCES_ANOMALY_FALLBACK_BUFFER
 
 
+class TestListMergeSourcesAlertTimes:
+    """``ListMergeSourcesResource.perform_request`` 成员告警时间字段契约：
+
+    1) active_members / split_history 条目均携带 first_alert_time / last_alert_time（秒级时间戳）
+    2) ES 未命中的 member → 两字段兜底 0
+    3) ES 属性为 None → 兜底 0，不抛异常
+    """
+
+    @staticmethod
+    def _make_relation(member_issue_id: str, status: str):
+        from datetime import datetime
+        from types import SimpleNamespace
+
+        return SimpleNamespace(
+            member_issue_id=member_issue_id,
+            bk_biz_id=2,
+            status=status,
+            merge_reasons=["异常类型 / 日志模块相近"],
+            create_user="tester",
+            create_time=datetime(2026, 9, 4, 12, 0, 0),
+            update_user=None,
+            update_time=datetime(2026, 9, 4, 13, 0, 0),
+            split_reasons=None,
+            split_kind=None,
+            via_issue_id=None,
+        )
+
+    @staticmethod
+    def _make_hit(member_id: str, first: int, last):
+        from types import SimpleNamespace
+
+        return SimpleNamespace(
+            meta=SimpleNamespace(id=member_id),
+            name=f"issue-{member_id}",
+            status="unresolved",
+            first_alert_time=first,
+            last_alert_time=last,
+        )
+
+    @staticmethod
+    def _prepare(monkeypatch, relations: list, hits: list):
+        from types import SimpleNamespace
+
+        from fta_web.issue import resources
+
+        relation_model = SimpleNamespace(
+            STATUS_SPLIT="split",
+            objects=SimpleNamespace(filter=lambda **kwargs: SimpleNamespace(order_by=lambda *args: relations)),
+        )
+        monkeypatch.setattr(resources, "IssueMergeRelation", relation_model)
+
+        result = SimpleNamespace(hits=hits)
+        search_obj = SimpleNamespace()
+        search_obj.filter = lambda *a, **k: search_obj
+        search_obj.source = lambda *a, **k: search_obj
+        search_obj.params = lambda *a, **k: search_obj
+        search_obj.execute = lambda: result
+        monkeypatch.setattr(resources.IssueDocument, "search", lambda **kwargs: search_obj)
+
+        monkeypatch.setattr(resources, "_fetch_member_anomaly_messages", lambda member_ids, first_map: {})
+
+    def test_members_contain_alert_times(self, monkeypatch):
+        from fta_web.issue import resources
+
+        relations = [self._make_relation("b1", "active"), self._make_relation("b2", "split")]
+        hits = [
+            self._make_hit("b1", 1_700_000_000, 1_700_000_500),
+            self._make_hit("b2", 1_700_100_000, 1_700_100_999),
+        ]
+        self._prepare(monkeypatch, relations, hits)
+
+        data = resources.ListMergeSourcesResource().perform_request({"bk_biz_id": 2, "main_issue_id": "17main"})
+        assert data["active_members"][0]["first_alert_time"] == 1_700_000_000
+        assert data["active_members"][0]["last_alert_time"] == 1_700_000_500
+        assert data["split_history"][0]["first_alert_time"] == 1_700_100_000
+        assert data["split_history"][0]["last_alert_time"] == 1_700_100_999
+
+    def test_missing_es_hit_defaults_zero(self, monkeypatch):
+        from fta_web.issue import resources
+
+        # b2 在 ES 中无文档（如文档已清理）→ 两字段兜底 0
+        relations = [self._make_relation("b1", "active"), self._make_relation("b2", "active")]
+        hits = [self._make_hit("b1", 1_700_000_000, 1_700_000_500)]
+        self._prepare(monkeypatch, relations, hits)
+
+        data = resources.ListMergeSourcesResource().perform_request({"bk_biz_id": 2, "main_issue_id": "17main"})
+        member_ids = {item["member_issue_id"]: item for item in data["active_members"]}
+        assert member_ids["b1"]["last_alert_time"] == 1_700_000_500
+        assert member_ids["b2"]["first_alert_time"] == 0
+        assert member_ids["b2"]["last_alert_time"] == 0
+
+    def test_none_alert_time_defaults_zero(self, monkeypatch):
+        from fta_web.issue import resources
+
+        # last_alert_time 为 None（旧文档缺字段）→ 兜底 0，first 正常返回
+        relations = [self._make_relation("b1", "active")]
+        hits = [self._make_hit("b1", 1_700_000_000, None)]
+        self._prepare(monkeypatch, relations, hits)
+
+        data = resources.ListMergeSourcesResource().perform_request({"bk_biz_id": 2, "main_issue_id": "17main"})
+        assert data["active_members"][0]["first_alert_time"] == 1_700_000_000
+        assert data["active_members"][0]["last_alert_time"] == 0
+
+
 class TestSearchInjectsSplitInfo:
     """``IssueQueryHandler.search()`` 列表契约：被拆出的独立 Issue 注入 split_info。
 
@@ -434,6 +538,157 @@ class TestSearchInjectsSplitInfo:
         assert by_id["split-1"]["split_info"]["split_reasons"] == ["误合并，根因不同"]
         # 普通 Issue 不注入
         assert "split_info" not in by_id["normal-1"]
+
+
+class TestReorderIssuesByAggregatedTime:
+    """IssueQueryHandler._reorder_issues_by_aggregated_time 页内重排契约。
+
+    合并视图展示与 ES 排序口径对齐（TAPD 1010158081137884678）：hydrate_aggregations 把成员
+    时间 min/max 并入主 Issue 行（仅展示层），ES 排序仍用存储值 → 合并主 Issue 在
+    时间降序时沉底。重排发生在 hydrate 之后，用聚合后的展示值恢复正确顺序。
+    """
+
+    @staticmethod
+    def _make_handler():
+        from fta_web.issue.handlers.issue import IssueQueryHandler
+
+        # __new__ 跳过 BaseBizQueryHandler.__init__（避免触发 IAM 权限装配）
+        handler = IssueQueryHandler.__new__(IssueQueryHandler)
+        return handler
+
+    def test_desc_last_alert_time_main_issue_floats_to_top(self):
+        """降序 last_alert_time：成员有新告警的合并主 Issue 按聚合后时间浮到最前。"""
+        issues = [
+            {"id": "single-new", "last_alert_time": 200, "first_alert_time": 200},
+            {"id": "main-old-store", "last_alert_time": 100, "first_alert_time": 50},  # hydrate 已改为 300
+        ]
+        # 模拟 hydrate 后的展示值：主 Issue last 已被 union 成员值改写为 300
+        issues[1]["last_alert_time"] = 300
+        handler = self._make_handler()
+        handler.ordering = ["-last_alert_time"]
+        handler._reorder_issues_by_aggregated_time(issues)
+        assert [i["id"] for i in issues] == ["main-old-store", "single-new"]
+
+    def test_desc_first_alert_time_main_issue_sinks_to_bottom(self):
+        """降序 first_alert_time：并入更早成员告警的主 Issue 按聚合后时间沉底。"""
+        issues = [
+            {"id": "main-union-older", "first_alert_time": 10},  # hydrate 后 min(50, 10)=10
+            {"id": "single", "first_alert_time": 50},
+        ]
+        handler = self._make_handler()
+        handler.ordering = ["-first_alert_time"]
+        handler._reorder_issues_by_aggregated_time(issues)
+        assert [i["id"] for i in issues] == ["single", "main-union-older"]
+
+    def test_asc_order_also_reorders(self):
+        """升序同样按聚合后时间重排（问题双向存在，仅方向相反）。"""
+        issues = [
+            {"id": "main-union-older", "first_alert_time": 10},
+            {"id": "single", "first_alert_time": 50},
+        ]
+        handler = self._make_handler()
+        handler.ordering = ["first_alert_time"]
+        handler._reorder_issues_by_aggregated_time(issues)
+        assert [i["id"] for i in issues] == ["main-union-older", "single"]
+
+    def test_missing_value_sinks_last_both_orders(self):
+        """缺失值（None/空/非数值）升序降序均沉到页内最后（有意偏离 ES 默认，见实现 docstring）。"""
+        issues = [
+            {"id": "missing", "last_alert_time": None},
+            {"id": "normal", "last_alert_time": 100},
+            {"id": "empty-str", "last_alert_time": ""},
+            {"id": "bad-type", "last_alert_time": "abc"},
+        ]
+        handler = self._make_handler()
+        handler.ordering = ["-last_alert_time"]
+        handler._reorder_issues_by_aggregated_time(issues)
+        assert [i["id"] for i in issues] == ["normal", "missing", "empty-str", "bad-type"]
+
+        handler.ordering = ["last_alert_time"]
+        handler._reorder_issues_by_aggregated_time(issues)
+        assert [i["id"] for i in issues] == ["normal", "missing", "empty-str", "bad-type"]
+
+    def test_non_time_primary_key_skipped(self):
+        """主排序键非时间字段（priority 等）时不重排，保持 ES 既有顺序。"""
+        issues = [
+            {"id": "b", "priority": "P1"},
+            {"id": "a", "priority": "P0"},
+        ]
+        handler = self._make_handler()
+        handler.ordering = ["priority", "status"]
+        handler._reorder_issues_by_aggregated_time(issues)
+        assert [i["id"] for i in issues] == ["b", "a"]
+
+    def test_stable_sort_preserves_secondary_es_order(self):
+        """主键相同的行保持稳定（不破坏 ES 次级排序键 priority 的顺序）。"""
+        issues = [
+            {"id": "x-high", "last_alert_time": 100, "priority": "P0"},
+            {"id": "y-high", "last_alert_time": 100, "priority": "P1"},
+            {"id": "z-low", "last_alert_time": 50, "priority": "P0"},
+        ]
+        handler = self._make_handler()
+        handler.ordering = ["-last_alert_time", "priority"]
+        handler._reorder_issues_by_aggregated_time(issues)
+        assert [i["id"] for i in issues] == ["x-high", "y-high", "z-low"]
+
+
+class TestSearchReordersAfterHydrate:
+    """``IssueQueryHandler.search()`` 集成守护：hydrate 改写主 Issue 时间后页内重排真实生效。
+
+    纯方法单测（TestReorderIssuesByAggregatedTime）只守护重排算法本身；本用例守护
+    "search 流程真的会在 hydrate 之后调用重排"——避免后续重构 search 时删掉调用行、
+    单测仍全绿但列表契约悄悄断裂（与 TestSearchInjectsSplitInfo 同款守护思路）。
+    """
+
+    def test_search_reorders_issues_after_hydrate(self, monkeypatch):
+        from unittest.mock import MagicMock
+
+        from bkmonitor.issue_merge import IssueMergeResolver, MergeResolverContext
+        from fta_web.alert.handlers import translator as translator_mod
+        from fta_web.issue.handlers.issue import IssueQueryHandler
+
+        handler = IssueQueryHandler.__new__(IssueQueryHandler)
+        handler.bk_biz_ids = [2]
+        handler.ordering = ["-last_alert_time"]
+
+        # ES 返回顺序：single(200) 在前、main(存储值 100) 在后 —— 即降序错位的现状
+        issues = [
+            {"id": "single", "bk_biz_id": 2, "last_alert_time": 200},
+            {"id": "main", "bk_biz_id": 2, "last_alert_time": 100},
+        ]
+
+        fake_result = MagicMock()
+        fake_result.hits.total.value = len(issues)
+
+        # patch 重链路：ES 查询 / 清洗 / 翻译 / 趋势
+        monkeypatch.setattr(handler, "search_raw", lambda **kw: (fake_result, None))
+        monkeypatch.setattr(handler, "handle_hit_list", lambda sr: issues)
+        monkeypatch.setattr(handler, "add_alert_trend", lambda items: None)
+        monkeypatch.setattr(translator_mod.StrategyTranslator, "translate_from_dict", lambda self, *a, **k: None)
+        monkeypatch.setattr(translator_mod.BizTranslator, "translate_from_dict", lambda self, *a, **k: None)
+
+        def fake_hydrate(issue_list, ctx):
+            # 模拟 hydrate Step 2：主 Issue 的 last_alert_time 被成员最新值改写为 300
+            for issue in issue_list:
+                if issue["id"] == "main":
+                    issue["merge_status"] = {"role": "main"}
+                    issue["last_alert_time"] = 300
+
+        monkeypatch.setattr(MergeResolverContext, "load", lambda self: None)
+        monkeypatch.setattr(
+            IssueMergeResolver, "hydrate_aggregations", classmethod(lambda cls, iss, ctx: fake_hydrate(iss, ctx))
+        )
+        monkeypatch.setattr(IssueMergeResolver, "get_split_info_map", classmethod(lambda cls, ids, bk_biz_ids=None: {}))
+
+        # tapd_count 链路 mock 到空结果（真实 ORM 依赖 DB，集成用例不引入 DB 依赖）
+        mock_tapd = MagicMock()
+        mock_tapd.objects.filter.return_value.values.return_value.annotate.return_value.values_list.return_value = []
+        monkeypatch.setattr("fta_web.issue.handlers.issue.IssueTapdRelation", mock_tapd)
+
+        result = handler.search()
+        # hydrate 把 main 的展示时间改写为 300 后，重排应使 main 按聚合值浮到最前
+        assert [i["id"] for i in result["issues"]] == ["main", "single"]
+        assert result["total"] == 2
 
 
 class TestRunBatchFreezePropagation:
@@ -500,9 +755,136 @@ class TestSplitReasonsOptional:
     def test_web_split_serializer_reasons_optional(self):
         from fta_web.issue.resources import SplitIssueResource
 
+        s = SplitIssueResource.RequestSerializer(data={"bk_biz_id": 2, "member_issue_ids": [self.VALID_ID]})
+        assert s.is_valid(), s.errors
+        assert s.validated_data["reasons"] == []
+
+
+class TestSplitIssueBatchContract:
+    """SplitIssueResource 拆分契约：``member_issue_ids``（批量 ≤50，单条传长度 1 的列表）
+    与旧单条 ``member_issue_id`` 二选一（旧入参兼容保留至前端适配完成），单次透传到
+    api role 端（kernel_api SplitResource 双参数契约；批量逐条独立 + ES 按主分组合并重置）。
+    """
+
+    # 合法 Issue ID：前 10 位为时间戳（IssueIDField → IssueDocument.parse_timestamp_by_id）
+    VALID_ID = "1716000000abcdef01"
+    VALID_ID_2 = "1716000000abcdef02"
+
+    def test_batch_ids_accepted_and_reasons_default_empty(self):
+        from fta_web.issue.resources import SplitIssueResource
+
+        s = SplitIssueResource.RequestSerializer(
+            data={"bk_biz_id": 2, "member_issue_ids": [self.VALID_ID, self.VALID_ID_2]}
+        )
+        assert s.is_valid(), s.errors
+        assert s.validated_data["member_issue_ids"] == [self.VALID_ID, self.VALID_ID_2]
+        assert s.validated_data["reasons"] == []
+
+    def test_split_params_required(self):
+        """member_issue_id / member_issue_ids 均不传 → 拒绝（二选一必传）。"""
+        from fta_web.issue.resources import SplitIssueResource
+
+        s = SplitIssueResource.RequestSerializer(data={"bk_biz_id": 2})
+        assert not s.is_valid()
+
+    def test_both_params_rejected(self):
+        """旧单条与批量同时传 → 拒绝（二选一）。"""
+        from fta_web.issue.resources import SplitIssueResource
+
+        s = SplitIssueResource.RequestSerializer(
+            data={"bk_biz_id": 2, "member_issue_id": self.VALID_ID, "member_issue_ids": [self.VALID_ID]}
+        )
+        assert not s.is_valid()
+
+    def test_old_single_param_accepted(self):
+        """旧单条 member_issue_id 单独传 → 合法（兼容保留，前端未适配期间发布不中断）。"""
+        from fta_web.issue.resources import SplitIssueResource
+
         s = SplitIssueResource.RequestSerializer(data={"bk_biz_id": 2, "member_issue_id": self.VALID_ID})
         assert s.is_valid(), s.errors
         assert s.validated_data["reasons"] == []
+
+    def test_invalid_issue_id_rejected(self):
+        from fta_web.issue.resources import SplitIssueResource
+
+        s = SplitIssueResource.RequestSerializer(data={"bk_biz_id": 2, "member_issue_ids": ["bad-id"]})
+        assert not s.is_valid()
+        assert "member_issue_ids" in s.errors
+
+    def test_batch_over_50_rejected(self):
+        from fta_web.issue.resources import SplitIssueResource
+
+        ids = [f"1716000000{i:02d}abcdef" for i in range(51)]
+        s = SplitIssueResource.RequestSerializer(data={"bk_biz_id": 2, "member_issue_ids": ids})
+        assert not s.is_valid()
+
+    def test_perform_request_passes_batch_payload(self, monkeypatch):
+        """web 薄壳单次透传 member_issue_ids，批量执行收敛在 api role 端（kernel_api 原生批量）。"""
+        from types import SimpleNamespace
+
+        from fta_web.issue import resources
+
+        captured = {}
+
+        def _fake_split(**kwargs):
+            captured.update(kwargs)
+            return {
+                "status": "ok",
+                "results": [
+                    {"member_issue_id": self.VALID_ID, "status": "ok"},
+                    {"member_issue_id": self.VALID_ID_2, "status": "skipped", "message": "relation not active"},
+                ],
+            }
+
+        monkeypatch.setattr(resources.api, "issue", SimpleNamespace(split=_fake_split))
+        monkeypatch.setattr(resources, "get_request_username", lambda: "alice")
+
+        result = resources.SplitIssueResource().perform_request(
+            {"bk_biz_id": 2, "member_issue_ids": [self.VALID_ID, self.VALID_ID_2], "reasons": ["误合并"]}
+        )
+
+        # 响应原样透传（逐条结果由 api role 生成）
+        assert result == {
+            "status": "ok",
+            "results": [
+                {"member_issue_id": self.VALID_ID, "status": "ok"},
+                {"member_issue_id": self.VALID_ID_2, "status": "skipped", "message": "relation not active"},
+            ],
+        }
+        assert captured == {
+            "bk_biz_id": 2,
+            "member_issue_ids": [self.VALID_ID, self.VALID_ID_2],
+            "reasons": ["误合并"],
+            "operator": "alice",
+        }
+
+    def test_perform_request_old_single_param_passthrough(self, monkeypatch):
+        """旧单条入参原样透传 member_issue_id，旧响应 shape 与抛错语义由 api role 端保证。"""
+        from types import SimpleNamespace
+
+        from fta_web.issue import resources
+
+        captured = {}
+
+        def _fake_split(**kwargs):
+            captured.update(kwargs)
+            return {"status": "ok", "member_issue_id": self.VALID_ID}
+
+        monkeypatch.setattr(resources.api, "issue", SimpleNamespace(split=_fake_split))
+        monkeypatch.setattr(resources, "get_request_username", lambda: "alice")
+
+        result = resources.SplitIssueResource().perform_request(
+            {"bk_biz_id": 2, "member_issue_id": self.VALID_ID, "reasons": []}
+        )
+
+        # 响应原样透传（旧单条 shape）
+        assert result == {"status": "ok", "member_issue_id": self.VALID_ID}
+        assert captured == {
+            "bk_biz_id": 2,
+            "member_issue_id": self.VALID_ID,
+            "reasons": [],
+            "operator": "alice",
+        }
 
 
 class TestIssueTopNResource:

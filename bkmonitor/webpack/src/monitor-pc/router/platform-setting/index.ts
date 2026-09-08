@@ -24,11 +24,18 @@
  * IN THE SOFTWARE.
  */
 import * as platformSettingAuth from '../../pages/platform-setting/authority-map';
+import {
+  buildRedisManagementForbiddenQuery,
+  resolveRedisManagementAccess,
+} from '../../pages/redis-management/route-model';
+import authorityStore from '../../store/modules/authority';
 
 import type { RouteConfig } from 'vue-router';
 
 const PlatformSetting = () =>
   import(/* webpackChunkName: 'PlatformSettings' */ '../../pages/platform-setting/platform-setting');
+const RedisManagement = () =>
+  import(/* webpackChunkName: 'RedisManagement' */ '../../pages/redis-management/redis-management');
 export default [
   {
     path: '/platform-setting',
@@ -41,6 +48,41 @@ export default [
       navId: 'platform-setting',
       pageCls: 'platform-setting',
       noNavBar: true,
+      authority: {
+        page: platformSettingAuth.MANAGE_GLOBAL_SETTING,
+      },
+    },
+  },
+  {
+    path: '/redis-management',
+    name: 'redis-management',
+    components: {
+      noCache: RedisManagement,
+    },
+    async beforeEnter(to, _from, next) {
+      const allowed = await resolveRedisManagementAccess(window.is_superuser, () =>
+        authorityStore.checkAllowedByActionIds({ action_ids: [platformSettingAuth.MANAGE_GLOBAL_SETTING] })
+      );
+      if (allowed) {
+        next();
+        return;
+      }
+      next({
+        name: 'error-exception',
+        params: { type: '403' },
+        query: buildRedisManagementForbiddenQuery(
+          window.is_superuser,
+          platformSettingAuth.MANAGE_GLOBAL_SETTING,
+          to.fullPath
+        ),
+      });
+    },
+    meta: {
+      title: 'Redis 节点管理',
+      navId: 'redis-management',
+      navName: 'Redis 节点管理',
+      noNavBar: true,
+      pageCls: 'redis-management-page',
       authority: {
         page: platformSettingAuth.MANAGE_GLOBAL_SETTING,
       },

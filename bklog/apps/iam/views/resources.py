@@ -269,19 +269,17 @@ class EsSourceResourceProvider(BaseResourceProvider):
             for item in clusters[page.slice_from : page.slice_to]:
                 results.append(
                     {
-                        {
-                            "id": item["id"],
-                            "display_name": item["display_name"],
-                            "_bk_iam_path_": [
-                                [
-                                    {
-                                        "type": ResourceEnum.BUSINESS.id,
-                                        "id": str(item["bk_biz_id"]),
-                                        "display_name": str(item["bk_biz_id"]),
-                                    }
-                                ]
-                            ],
-                        }
+                        "id": item["id"],
+                        "display_name": item["display_name"],
+                        "_bk_iam_path_": [
+                            [
+                                {
+                                    "type": ResourceEnum.BUSINESS.id,
+                                    "id": str(item["bk_biz_id"]),
+                                    "display_name": str(item["bk_biz_id"]),
+                                }
+                            ]
+                        ],
                     }
                 )
 
