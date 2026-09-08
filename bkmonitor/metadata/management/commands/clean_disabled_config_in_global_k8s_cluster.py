@@ -67,7 +67,14 @@ class Command(BaseCommand):
         bk_biz_id = options.get("bk_biz_id")
         bk_data_ids = set(options.get("bk_data_id") or [])
         clean_type = options["type"]
-        targets = self._get_target_cluster_ids(options.get("cluster_id") or [], options.get("namespace"))
+        cluster_ids = options.get("cluster_id") or []
+        namespace = options.get("namespace")
+        if namespace is not None:
+            if len(set(cluster_ids)) != 1:
+                raise CommandError("--namespace requires exactly one explicit --cluster-id")
+            if not BkCollectorClusterConfig.validate_namespace(namespace):
+                raise CommandError(f"invalid collector namespace: {namespace!r}")
+        targets = self._get_target_cluster_ids(cluster_ids, namespace)
         dry_run = not options["execute"]
 
         if not targets:
@@ -145,10 +152,6 @@ class Command(BaseCommand):
     ) -> list[tuple[str, str]]:
         cluster_ids = sorted(set(input_cluster_ids))
         if namespace is not None:
-            if len(cluster_ids) != 1:
-                raise CommandError("--namespace requires exactly one explicit --cluster-id")
-            if not BkCollectorClusterConfig.validate_namespace(namespace):
-                raise CommandError(f"invalid collector namespace: {namespace!r}")
             return [(cluster_ids[0], namespace)]
 
         global_targets = BkCollectorClusterConfig.global_deploy_targets()

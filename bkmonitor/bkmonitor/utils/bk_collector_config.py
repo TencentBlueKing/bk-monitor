@@ -156,7 +156,7 @@ class BkCollectorClusterConfig:
     @classmethod
     @lru_cache_with_ttl(ttl=60)
     def global_deploy_targets(cls) -> list[tuple[str, str]]:
-        """解析公共集群ID/namespace列表；兼容纯集群ID使用原默认 namespace。"""
+        """解析公共集群ID/namespace列表；纯集群ID默认使用 blueking namespace。"""
         configured_targets = settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER or []
         if not isinstance(configured_targets, list):
             logger.warning("CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER must be a list, skip public targets")
@@ -165,7 +165,7 @@ class BkCollectorClusterConfig:
         for target in configured_targets:
             cluster_id, separator, namespace = target.partition("/")
             if not separator:
-                namespace = cls.bk_collector_namespace(cluster_id)
+                namespace = BkCollectorComp.GLOBAL_NAMESPACE
             if not cluster_id or not namespace:
                 logger.warning("invalid public collector target: %r, skip it", target)
                 continue
@@ -189,21 +189,13 @@ class BkCollectorClusterConfig:
             (cluster_id, cls.bk_collector_namespace(cluster_id)): (biz_ids, False)
             for cluster_id, biz_ids in cluster_mapping.items()
         }
-        # 同一物理目标仍按公共部署处理，兼容旧版本默认 namespace 承载公共上报。
+        # 显式公共目标与业务目标重合时按公共部署处理，避免重复下发。
         for target in cls.global_deploy_targets():
             targets[target] = ([cls.GLOBAL_CONFIG_BK_BIZ_ID], True)
         return {
             (cluster_id, namespace, is_global): biz_ids
             for (cluster_id, namespace), (biz_ids, is_global) in targets.items()
         }
-
-    @classmethod
-    def is_global_target(cls, cluster_id, namespace=None) -> bool:
-        if not cluster_id:
-            return False
-        if namespace is None:
-            namespace = cls.bk_collector_namespace(cluster_id)
-        return (cluster_id, namespace) in cls.global_deploy_targets()
 
     @classmethod
     def platform_config_tpl(cls, cluster_id, namespace=None):

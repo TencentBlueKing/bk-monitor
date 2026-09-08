@@ -30,15 +30,14 @@ def collector_settings(settings):
     ClusterConfig.global_deploy_targets.cache_clear()
 
 
-def test_legacy_mapping_keeps_public_precedence_without_mutating_discovery():
+def test_legacy_mapping_keeps_public_precedence_without_mutating_discovery(settings):
+    settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER = ["cluster-a/operator-ns"]
     discovered = {"cluster-a": {1, 2}, "cluster-b": {3}}
     assert ClusterConfig.get_deploy_mapping(discovered) == {
         ("cluster-a", "operator-ns", True): [0],
         ("cluster-b", "bkmonitor-operator", False): {3},
     }
     assert discovered == {"cluster-a": {1, 2}, "cluster-b": {3}}
-    assert ClusterConfig.is_global_target("cluster-a")
-    assert not ClusterConfig.is_global_target(None)
 
 
 def test_public_namespaces_keep_business_target_and_support_multiple_clusters(settings):
@@ -54,8 +53,6 @@ def test_public_namespaces_keep_business_target_and_support_multiple_clusters(se
         ("cluster-a", "public-2", True): [0],
         ("cluster-b", "public-1", True): [0],
     }
-    assert not ClusterConfig.is_global_target("cluster-a", "operator-ns")
-    assert ClusterConfig.is_global_target("cluster-a", "public-1")
 
 
 def test_namespace_override_is_per_cluster_and_same_target_is_not_duplicated(settings):
@@ -67,8 +64,9 @@ def test_namespace_override_is_per_cluster_and_same_target_is_not_duplicated(set
     ]
     assert ClusterConfig.get_deploy_mapping({"cluster-a": [1]}) == {
         ("cluster-a", "operator-ns", True): [0],
+        ("cluster-a", "blueking", True): [0],
         ("cluster-a", "public-1", True): [0],
-        ("cluster-b", "bkmonitor-operator", True): [0],
+        ("cluster-b", "blueking", True): [0],
     }
 
 
@@ -94,14 +92,11 @@ def test_invalid_public_target_list(settings, targets, caplog):
 
 def test_public_targets_are_cached_for_60_seconds_then_read_current_settings(settings, mocker):
     clock = mocker.patch("bkmonitor.utils.cache.monotonic", return_value=1000)
-    namespace = mocker.spy(ClusterConfig, "bk_collector_namespace")
-    assert ClusterConfig.global_deploy_targets() == [("cluster-a", "operator-ns")]
-    assert ClusterConfig.is_global_target("cluster-a", "operator-ns")
-    namespace.assert_called_once_with("cluster-a")
+    assert ClusterConfig.global_deploy_targets() == [("cluster-a", "blueking")]
 
     settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER = ["cluster-b/public"]
     clock.return_value = 1059
-    assert ClusterConfig.global_deploy_targets() == [("cluster-a", "operator-ns")]
+    assert ClusterConfig.global_deploy_targets() == [("cluster-a", "blueking")]
     clock.return_value = 1061
     assert ClusterConfig.global_deploy_targets() == [("cluster-b", "public")]
 
@@ -217,26 +212,21 @@ def test_platform_secret_is_written_to_explicit_namespace(mocker):
     assert gzip.decompress(base64.b64decode(secret.data["platform.conf"])) == b"platform"
 
 
-def test_application_dimension_fill_is_scoped_to_deployment(settings):
-    settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER = ["cluster-a/public-1"]
+def test_application_dimension_fill_is_scoped_to_deployment():
     enabled = {"1": ["app"]}
-    assert ApplicationConfig.is_resource_filter_enabled("cluster-a", 1, "app", enabled, namespace="operator-ns")
-    assert not ApplicationConfig.is_resource_filter_enabled("cluster-a", 1, "app", enabled, namespace="public-1")
+    assert ApplicationConfig.is_resource_filter_enabled("cluster-a", 1, "app", enabled)
     assert not ApplicationConfig.is_resource_filter_enabled(None, 1, "app", enabled)
 
 
-def test_platform_default_application_and_dimensions_keep_business_semantics(settings, mocker):
-    settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER = ["cluster-a/public-1"]
+def test_platform_default_application_and_dimensions_keep_business_semantics(mocker):
     relation = mocker.patch("apm.core.platform_config.BcsClusterDefaultApplicationRelation.objects.filter")
     relation.return_value.first.return_value = SimpleNamespace(application=object())
     mocker.patch.object(PlatformConfig, "get_dataids_config_from_application", return_value={"fixed_token": "business"})
     mocker.patch("apm.core.platform_config.get_bk_data_token_aes_key", return_value="test-key")
-    assert "fixed_token" not in PlatformConfig.get_token_checker_config("cluster-a", namespace="public-1")
+    assert "fixed_token" not in PlatformConfig.get_token_checker_config("cluster-a", is_global=True)
     relation.assert_not_called()
-    assert PlatformConfig.get_token_checker_config("cluster-a", namespace="operator-ns")["fixed_token"] == "business"
+    assert PlatformConfig.get_token_checker_config("cluster-a")["fixed_token"] == "business"
     kube = mocker.patch("apm.core.platform_config.BcsKubeClient").return_value
-    assert PlatformConfig.get_resource_fill_dimensions_config("cluster-a", namespace="public-1") == {}
-    kube.client_request.assert_not_called()
     kube.client_request.return_value = SimpleNamespace(
         items=[SimpleNamespace(metadata=SimpleNamespace(name="operator"))]
     )
@@ -270,7 +260,6 @@ def test_application_delivery_keeps_business_scope_and_fans_out_public_configs(
     protocol, extra_cluster, business_public_target, multi_target_delivery, mocker, settings
 ):
     targets = mocker.spy(ClusterConfig, "global_deploy_targets")
-    role_lookup = mocker.spy(ClusterConfig, "is_global_target")
     if extra_cluster:
         settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER += ["cluster-b/public-1"]
     if business_public_target:
@@ -301,13 +290,14 @@ def test_application_delivery_keeps_business_scope_and_fans_out_public_configs(
     }
     if extra_cluster:
         expected[("cluster-b", "public-1")] = {1: "public-1:1", 2: "public-1:2"}
-    if business_public_target:
+    if business_public_target == "cluster-a":
+        expected[("cluster-a", "blueking")] = {1: "blueking:1", 2: "blueking:2"}
+    elif business_public_target == "cluster-a/operator-ns":
         expected[("cluster-a", "operator-ns")] = {1: "operator-ns:1", 2: "operator-ns:2"}
     assert actual == expected
     assert multi_target_delivery.call_count == len(expected)
     assert all(call.args[2] == protocol for call in multi_target_delivery.call_args_list)
     targets.assert_called_once_with()
-    role_lookup.assert_not_called()
 
 
 def test_platform_refresh_renders_each_target_and_continues_after_one_failure(multi_target_delivery, mocker):
@@ -331,31 +321,18 @@ def test_platform_refresh_renders_each_target_and_continues_after_one_failure(mu
     targets.assert_called_once_with()
 
 
-@pytest.mark.parametrize("is_global", [False, True])
-def test_application_context_uses_target_role_without_reading_global_settings(settings, mocker, is_global):
-    settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER = ["cluster-a"] if is_global else []
-    [(cluster_id, namespace, target_is_global)] = ClusterConfig.get_deploy_mapping({"cluster-a": [1]})
-    settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER = [] if is_global else ["cluster-a"]
-    ClusterConfig.global_deploy_targets.cache_clear()
+def test_application_context_uses_target_role_without_reading_global_settings(multi_target_delivery, mocker):
     targets = mocker.spy(ClusterConfig, "global_deploy_targets")
-    settings.APM_RESOURCE_FILTER_LOGS_ENABLED_APPS = {"1": ["app"]}
-    settings.APM_RESOURCE_FILTER_METRICS_ENABLED_APPS = {"1": ["app"]}
-    mocker.patch.object(ApplicationConfig, "get_application_config", return_value={})
-    application = SimpleNamespace(id=1, bk_biz_id=1, bk_tenant_id="system", app_name="app")
-    context = ApplicationConfig(application).get_cluster_application_config(
-        cluster_id, namespace=namespace, is_global=target_is_global
-    )
-    for key in ["resource_filter_config_logs", "resource_filter_config_metrics"]:
-        assert ("from_cache" in context[key]) is not is_global
-    targets.assert_not_called()
+    cluster_config = mocker.patch.object(ApplicationConfig, "get_cluster_application_config", return_value={})
+    mocker.patch.object(ApplicationConfig, "get_application_config", return_value={"biz": 1})
+    application = SimpleNamespace(id=1, bk_biz_id=1, bk_tenant_id="system", app_name="app", token="token")
+    ApplicationConfig.refresh_k8s([application])
+    cluster_config.assert_called_once_with("cluster-a")
+    targets.assert_called_once_with()
 
 
 @pytest.mark.parametrize("is_global", [False, True])
-def test_platform_context_uses_target_role_without_reading_global_settings(settings, mocker, is_global):
-    settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER = ["cluster-a"] if is_global else []
-    [(cluster_id, namespace, target_is_global)] = ClusterConfig.get_deploy_mapping({"cluster-a": [1]})
-    settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER = [] if is_global else ["cluster-a"]
-    ClusterConfig.global_deploy_targets.cache_clear()
+def test_platform_context_uses_target_role_without_reading_global_settings(mocker, is_global):
     targets = mocker.spy(ClusterConfig, "global_deploy_targets")
     for method in [
         "get_apdex_config",
@@ -377,7 +354,7 @@ def test_platform_context_uses_target_role_without_reading_global_settings(setti
         items=[SimpleNamespace(metadata=SimpleNamespace(name="operator"))]
     )
 
-    context = PlatformConfig.get_platform_config(cluster_id, namespace=namespace, is_global=target_is_global)
+    context = PlatformConfig.get_platform_config("cluster-a", namespace="operator-ns", is_global=is_global)
     assert ("fixed_token" in context["token_checker_config"]) is not is_global
     assert ("resource_fill_dimensions_config" in context) is not is_global
     assert relation.call_count == kube.client_request.call_count == (0 if is_global else 1)

@@ -285,12 +285,11 @@ class ApplicationConfig(BkCollectorConfig):
                         # 为该业务下的所有应用生成配置
                         for app_config_obj in biz_application_config_list:
                             try:
-                                application_config_context = {
-                                    **app_config_obj.application_config,
-                                    **app_config_obj.get_cluster_application_config(
-                                        cluster_id, namespace=namespace, is_global=is_global
-                                    ),
-                                }
+                                application_config_context = {**app_config_obj.application_config}
+                                if not is_global:
+                                    application_config_context.update(
+                                        app_config_obj.get_cluster_application_config(cluster_id)
+                                    )
                                 application_config = compiled_template.render(application_config_context)
                                 cluster_config_map[app_config_obj.application_id] = application_config
                             except Exception as e:  # pylint: disable=broad-except
@@ -309,19 +308,11 @@ class ApplicationConfig(BkCollectorConfig):
                     s.record_exception(exception=e)
                     logger.exception(f"batch refresh apm application config to k8s({cluster_id}/{namespace})")
 
-    def get_cluster_application_config(
-        self, bcs_cluster_id: str | None = None, namespace: str | None = None, is_global: bool | None = None
-    ):
+    def get_cluster_application_config(self, bcs_cluster_id: str | None = None):
         """获取集群应用配置"""
-        if is_global is None:
-            is_global = BkCollectorClusterConfig.is_global_target(bcs_cluster_id, namespace)
         return {
-            "resource_filter_config_logs": self.get_resource_filter_config_logs(
-                bcs_cluster_id, namespace=namespace, is_global=is_global
-            ),
-            "resource_filter_config_metrics": self.get_resource_filter_config_metrics(
-                bcs_cluster_id, namespace=namespace, is_global=is_global
-            ),
+            "resource_filter_config_logs": self.get_resource_filter_config_logs(bcs_cluster_id),
+            "resource_filter_config_metrics": self.get_resource_filter_config_metrics(bcs_cluster_id),
         }
 
     def get_application_config(self):
@@ -701,22 +692,12 @@ class ApplicationConfig(BkCollectorConfig):
         bk_biz_id: int,
         app_name: str,
         enabled_apps: dict,
-        namespace: str | None = None,
-        is_global: bool | None = None,
     ) -> bool:
         if not bcs_cluster_id:
             return False
-        if is_global is None:
-            is_global = BkCollectorClusterConfig.is_global_target(bcs_cluster_id, namespace)
-        if is_global:
-            # 公共部署接收全局数据，不使用所在集群的维度缓存。
-            return False
-
         return bool(enabled_apps and app_name in enabled_apps.get(str(bk_biz_id), []))
 
-    def get_resource_filter_config_logs(
-        self, bcs_cluster_id: str | None = None, namespace: str | None = None, is_global: bool | None = None
-    ):
+    def get_resource_filter_config_logs(self, bcs_cluster_id: str | None = None):
         """
         针对日志数据源 resource 字段处理逻辑
         """
@@ -730,15 +711,11 @@ class ApplicationConfig(BkCollectorConfig):
             self._application.bk_biz_id,
             self._application.app_name,
             settings.APM_RESOURCE_FILTER_LOGS_ENABLED_APPS,
-            namespace=namespace,
-            is_global=is_global,
         ):
             return {**default_logs_config, **self.get_k8s_dimension_fill_config()}
         return default_logs_config
 
-    def get_resource_filter_config_metrics(
-        self, bcs_cluster_id: str | None = None, namespace: str | None = None, is_global: bool | None = None
-    ):
+    def get_resource_filter_config_metrics(self, bcs_cluster_id: str | None = None):
         """
         维度补充配置
         """
@@ -754,8 +731,6 @@ class ApplicationConfig(BkCollectorConfig):
             self._application.bk_biz_id,
             self._application.app_name,
             settings.APM_RESOURCE_FILTER_METRICS_ENABLED_APPS,
-            namespace=namespace,
-            is_global=is_global,
         ):
             return {**self.get_k8s_dimension_fill_config(), **default_metrics_config}
         return default_metrics_config
