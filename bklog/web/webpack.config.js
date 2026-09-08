@@ -86,6 +86,12 @@ const logPluginConfig = {
       window.BK_IAM_URL = '\${BK_IAM_URL}'
       window.TGPA_SDK_DOC_URL = '\${TGPA_SDK_DOC_URL}'
       window.SHOW_PERSONAL_SETTINGS = \${SHOW_PERSONAL_SETTINGS}
+      window.rum = {
+        enabled: \${BKAPP_RUM_ENABLED},
+        sdk: "\${BKAPP_RUM_SDK}",
+        endpoint: "\${BKAPP_RUM_ENDPOINT}",
+        token: "\${BKAPP_RUM_TOKEN}",
+      }
     </script>`,
 };
 if (fs.existsSync(path.resolve(__dirname, './local.settings.js'))) {

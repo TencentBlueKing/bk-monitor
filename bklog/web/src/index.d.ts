@@ -54,6 +54,16 @@ declare global {
     __BKLOG_SEGMENT_POP_COUNTER__?: number;
     MONITOR_APM_APP_NAME?: string; // 监控APM应用名称
     MONITOR_APM_SERVICE_NAME?: string; // 监控APM服务名称
+    BKAPP_RUM_SDK?: string;
+    BKAPP_RUM_ENDPOINT?: string;
+    BKAPP_RUM_TOKEN?: string;
+    BKAPP_RUM_ENABLED?: boolean | string;
+    rum?: {
+      enabled?: boolean;
+      endpoint?: string;
+      sdk?: string;
+      token?: string;
+    };
   }
 
   interface Scheduler {

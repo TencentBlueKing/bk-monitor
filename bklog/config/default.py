@@ -930,6 +930,12 @@ MENUS = [
 # TAM
 TAM_AEGIS_KEY = os.environ.get("BKAPP_TAM_AEGIS_KEY", "")
 
+# RUM 接入配置
+BKAPP_RUM_SDK = os.getenv("BKAPP_RUM_SDK", "otlp")
+BKAPP_RUM_ENDPOINT = os.getenv("BKAPP_RUM_ENDPOINT", "")
+BKAPP_RUM_TOKEN = os.getenv("BKAPP_RUM_TOKEN", "")
+BKAPP_RUM_ENABLED = str(os.getenv("BKAPP_RUM_ENABLED", False)).lower() == "true"
+
 # 任务过期天数
 EXTRACT_EXPIRED_DAYS = int(os.getenv("BKAPP_EXTRACT_EXPIRED_DAYS", 1))
 # windows系统名称列表

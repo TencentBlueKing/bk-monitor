@@ -42,6 +42,7 @@
     "@blueking/login-modal": "1.0.1",
     "@blueking/login-userinfo": "^0.0.13",
     "@blueking/notice-component-vue2": "2.0.3",
+    "@blueking/open-telemetry": "^0.0.31",
     "@blueking/platform-config": "1.0.2",
     "@blueking/user-selector": "1.0.12",
     "@codemirror/autocomplete": "^6.18.6",
