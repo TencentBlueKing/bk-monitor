@@ -11,6 +11,7 @@ specific language governing permissions and limitations under the License.
 import inspect
 import json
 import logging
+import re
 from copy import deepcopy
 from functools import partial
 from typing import TYPE_CHECKING, Any, Literal
@@ -73,6 +74,7 @@ DATABUS_MONITOR_LABEL_SPACE_TYPE = f"{DATABUS_MONITOR_LABEL_PREFIX}space-type"
 DATABUS_MONITOR_LABEL_DATA_SCENE = f"{DATABUS_MONITOR_LABEL_PREFIX}data-scene"
 DATABUS_MONITOR_LABEL_DATA_TYPE = f"{DATABUS_MONITOR_LABEL_PREFIX}data-type"
 DATABUS_MONITOR_LABEL_OTHER = "other"
+DATABUS_MONITOR_APM_METRIC_DATA_NAME_PATTERN = re.compile(r"(?:(?:bkm_)?(?:space_)?[0-9]+_)?bkapm_metric_.+")
 
 CUSTOM_FORMAT_VM_INTERMEDIATE_FIELDS: tuple[tuple[str, str], ...] = (
     ("metric", "string"),
@@ -244,10 +246,19 @@ def _resolve_databus_monitor_data_scene(
     etl_config = getattr(data_source, "etl_config", "") or ""
     table_label = getattr(table, "label", "") if table is not None else ""
     data_label = getattr(table, "data_label", "") if table is not None else ""
+    data_name = getattr(data_source, "data_name", "") or ""
 
     if strategy in DATABUS_MONITOR_GRAPH_STRATEGIES:
         return "relation"
-    if source_label == DataSourceLabel.BK_APM or table_label == "apm":
+    # APM 指标实际使用 bk_monitor/application_check，按数据源命名兼容存量及无唯一结果表的分表链路。
+    if (
+        source_label == DataSourceLabel.BK_APM
+        or table_label == "apm"
+        or (
+            type_label == DataTypeLabel.TIME_SERIES
+            and DATABUS_MONITOR_APM_METRIC_DATA_NAME_PATTERN.fullmatch(data_name)
+        )
+    ):
         return "apm"
     if (
         strategy in DATABUS_MONITOR_K8S_STRATEGIES
