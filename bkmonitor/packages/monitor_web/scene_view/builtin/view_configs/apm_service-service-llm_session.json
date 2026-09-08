@@ -1,0 +1,24 @@
+{
+    "id": "llm_session",
+    "type": "overview",
+    "mode": "auto",
+    "name": "LLM会话",
+    "variables": [],
+    "panels": [],
+    "overview_panels": [
+        {
+            "id": 1,
+            "title": "",
+            "type": "llm_session",
+            "gridPos": {
+                "x": 0,
+                "y": 0,
+                "w": 24,
+                "h": 24
+            },
+            "targets": []
+        }
+    ],
+    "order": [],
+    "options": {}
+}

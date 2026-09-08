@@ -1857,6 +1857,9 @@ K8S_V2_BIZ_LIST = []
 # RUM 灰度列表，关闭灰度: [0] 或删除该配置
 RUM_BIZ_LIST = []
 
+# LLM 观测灰度业务列表，关闭灰度: [0] 或删除该配置
+LLM_BIZ_LIST = []
+
 # APM UnifyQuery 查询业务黑名单
 APM_UNIFY_QUERY_BLACK_BIZ_LIST = []
 
