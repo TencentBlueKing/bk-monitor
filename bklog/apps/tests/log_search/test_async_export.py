@@ -181,9 +181,9 @@ class TestAsyncExportProgress(TestCase):
             [item["id"] for item in all_response.data["list"]], [tasks[0].id, tasks[1].id]
         )
 
-    def test_union_export_history_keeps_business_filter(self):
+    def test_union_export_history_filters_to_related_spaces(self):
         tasks = []
-        for bk_biz_id in [2, -3]:
+        for bk_biz_id in [2, -3, -4]:
             tasks.append(
                 AsyncTask.objects.create(
                     request_param=SEARCH_DICT,
@@ -211,11 +211,15 @@ class TestAsyncExportProgress(TestCase):
             patch(
                 "apps.log_search.handlers.search.async_export_handlers.get_request_external_username", return_value=""
             ),
+            patch(
+                "apps.log_search.handlers.search.async_export_handlers.get_bkcc_biz_id_related_spaces",
+                return_value=[-3],
+            ),
             patch.object(handler, "get_index_set_retention", return_value={}),
         ):
             response = handler.get_export_history(request, Mock(), show_all=False, is_union_search=True)
 
-        self.assertEqual([item["id"] for item in response.data["list"]], [tasks[0].id])
+        self.assertCountEqual([item["id"] for item in response.data["list"]], [tasks[0].id, tasks[1].id])
 
     @override_settings(USE_REDIS=True)
     def test_async_export_creates_task_with_export_total_count(self):
