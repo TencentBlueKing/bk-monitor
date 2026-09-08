@@ -33,7 +33,7 @@ paths:
                 available_only:
                   type: boolean
                   default: true
-                  description: Return only tools available to the current user. 是否只返回当前用户可用工具。
+                  description: Hide tools with known missing permission; native instance tools remain discoverable as requires_resource until a target is supplied. 隐藏已知缺权工具；尚未指定实例的原生工具以 requires_resource 状态保留，不代表已获权。
                 page:
                   type: integer
                   minimum: 1
@@ -84,11 +84,13 @@ paths:
     post:
       operationId: execute_tool
       description: >-
-        Execute one registered underlying tool. The Server validates the exact tool name, tool_args,
-        original IAM action and target space before calling the existing business API. Agent only
-        supplies tool_name and business tool_args; permission and backend routing come from the registry.
-        执行一个已注册的底层工具。服务端在调用现有业务 API 前校验精确工具名、工具参数、原始 IAM
-        权限点和目标空间；Agent 只需提供工具名和业务参数，权限及后端路由由工具目录确定。
+        Execute one registered underlying tool. The Server validates the tool name, arguments and resource
+        scope before dispatch. Enabled tools check native permissions first and the original MCP action
+        only after explicit denial; errors never trigger fallback. Other tools retain legacy permissions.
+        Agent supplies tool_name and business tool_args; permission and backend routing come from the registry.
+        执行一个已注册的底层工具。服务端先校验工具名、参数与资源范围；启用工具先查原生权限，
+        明确无权才检查原 MCP 权限，异常不回退；其他工具保留旧权限模式。
+        Agent 只需提供工具名和业务参数，权限及后端路由由工具目录确定。
       tags: [unified_mcp]
       requestBody:
         required: true
@@ -167,8 +169,11 @@ paths:
       description: >-
         Query the current user's observability permission scopes. Can check by space, category or exact
         tool name and return missing IAM actions plus an application URL. Read-only: it never grants
-        permission and never replaces execute_tool's final authorization check.
+        permission and never replaces execute_tool's final authorization check. Enabled tools check native
+        permissions first and the legacy MCP action only after explicit denial, reporting authorization_source.
+        resource_context can identify a log index set, alert, or strategy; unresolved resources are not grants.
         查询当前用户的可观测权限范围。可按空间、领域或精确工具名检查，并返回缺失的 IAM 权限点及申请入口；
+        启用工具先查原生权限，明确无权才检查旧 MCP 权限，并返回 authorization_source；resource_context 支持索引集、告警或策略。缺少必要资源不代表授权通过。
         本工具只读，不授予权限，也不替代 execute_tool 的最终鉴权。
       tags: [unified_mcp]
       requestBody:
@@ -185,6 +190,25 @@ paths:
                   enum: [metrics, log, alert, event, apm, dashboard, relation]
                   description: Tool domain used to select the corresponding IAM action. 工具领域，用于选择对应的 IAM 权限点；事件复用日志权限，资源关联复用指标权限。
                 tool_name: {type: string, description: Exact underlying tool name. 底层工具精确名称。}
+                resource_context:
+                  type: object
+                  additionalProperties: false
+                  description: Optional target context for an exact native-first tool. 原生优先工具的目标资源上下文，提供时必须指定 tool_name。
+                  properties:
+                    index_set_id:
+                      type: integer
+                      minimum: 1
+                      description: Index set ID discovered from the log catalog. 从日志目录取得的索引集 ID。
+                    target_type:
+                      type: string
+                      enum: [index_set]
+                      description: Log tools support fixed index sets only. 日志工具仅支持固定索引集模式。
+                    id:
+                      type: string
+                      description: Alert ID for detail or snapshot, strategy ID for current configuration. 详情或快照工具的告警 ID，或当前策略配置工具的策略 ID。
+                    alert_id:
+                      type: string
+                      description: Alert ID for alert-related queries. 告警关联查询的告警 ID。
                 include_apply_guide:
                   type: boolean
                   default: true

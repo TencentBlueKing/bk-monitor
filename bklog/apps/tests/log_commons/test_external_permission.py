@@ -1,14 +1,103 @@
 from datetime import timedelta
 from unittest.mock import patch
 
-from django.test import TestCase
+from django.test import SimpleTestCase, TestCase
 from django.utils import timezone
+from rest_framework.response import Response
 
 from apps.constants import ExternalPermissionActionEnum, TokenStatusEnum
 from apps.iam.handlers.actions import ActionEnum
 from apps.log_commons.constants import DEFAULT_EXTERNAL_PERMISSION_EXPIRE_DAYS
 from apps.log_commons.handlers.external_permission import ExternalPermissionHandler
 from apps.log_commons.models import ExternalPermission
+
+
+class TestExternalIndexSetListFilter(SimpleTestCase):
+    """外部版索引列表不能因未授权父索引组隐藏已授权子索引。"""
+
+    def filter_response(self, index_sets, allowed_resources):
+        from log_adapter.home.views import RequestProcessor
+
+        response = Response({"data": index_sets})
+        return RequestProcessor.filter_response_resource(
+            external_user="external_user",
+            response=response,
+            action_id=ExternalPermissionActionEnum.LOG_SEARCH.value,
+            view_set="SearchViewSet",
+            view_action="list",
+            allow_resources_result={"allowed": True, "resources": allowed_resources},
+        )
+
+    def test_authorized_child_of_unauthorized_group_is_exposed_at_top_level(self):
+        response = self.filter_response(
+            index_sets=[
+                {
+                    "index_set_id": 100,
+                    "index_set_name": "unauthorized group",
+                    "children": [
+                        {"index_set_id": 101, "index_set_name": "authorized child"},
+                        {"index_set_id": 102, "index_set_name": "unauthorized child"},
+                    ],
+                },
+                {"index_set_id": 200, "index_set_name": "authorized standalone"},
+            ],
+            allowed_resources=[101, 200],
+        )
+
+        self.assertEqual(
+            response.data["data"],
+            [
+                {"index_set_id": 101, "index_set_name": "authorized child"},
+                {"index_set_id": 200, "index_set_name": "authorized standalone"},
+            ],
+        )
+
+    def test_unauthorized_group_and_children_are_not_exposed(self):
+        response = self.filter_response(
+            index_sets=[
+                {
+                    "index_set_id": 100,
+                    "index_set_name": "unauthorized group",
+                    "children": [{"index_set_id": 101, "index_set_name": "unauthorized child"}],
+                }
+            ],
+            allowed_resources=[],
+        )
+
+        self.assertEqual(response.data["data"], [])
+
+    def test_authorized_child_in_multiple_unauthorized_groups_is_exposed_once(self):
+        response = self.filter_response(
+            index_sets=[
+                {"index_set_id": 100, "children": [{"index_set_id": 101}]},
+                {"index_set_id": 200, "children": [{"index_set_id": 101}]},
+            ],
+            allowed_resources=[101],
+        )
+
+        self.assertEqual(response.data["data"], [{"index_set_id": 101}])
+
+    def test_authorized_child_already_visible_in_authorized_group_is_not_promoted(self):
+        response = self.filter_response(
+            index_sets=[
+                {"index_set_id": 100, "children": [{"index_set_id": 101}]},
+                {"index_set_id": 200, "children": [{"index_set_id": 101}]},
+            ],
+            allowed_resources=[100, 101],
+        )
+
+        self.assertEqual(response.data["data"], [{"index_set_id": 100, "children": [{"index_set_id": 101}]}])
+
+    def test_authorized_child_is_not_promoted_when_unauthorized_group_is_listed_first(self):
+        response = self.filter_response(
+            index_sets=[
+                {"index_set_id": 200, "children": [{"index_set_id": 101}]},
+                {"index_set_id": 100, "children": [{"index_set_id": 101}]},
+            ],
+            allowed_resources=[100, 101],
+        )
+
+        self.assertEqual(response.data["data"], [{"index_set_id": 100, "children": [{"index_set_id": 101}]}])
 
 
 class TestExternalPermissionCreate(TestCase):

@@ -375,6 +375,110 @@ class TestListMergeSourcesAnomalyMessage:
         assert captured["end_time"] - captured["start_time"] == _MERGE_SOURCES_ANOMALY_FALLBACK_BUFFER
 
 
+class TestListMergeSourcesAlertTimes:
+    """``ListMergeSourcesResource.perform_request`` 成员告警时间字段契约：
+
+    1) active_members / split_history 条目均携带 first_alert_time / last_alert_time（秒级时间戳）
+    2) ES 未命中的 member → 两字段兜底 0
+    3) ES 属性为 None → 兜底 0，不抛异常
+    """
+
+    @staticmethod
+    def _make_relation(member_issue_id: str, status: str):
+        from datetime import datetime
+        from types import SimpleNamespace
+
+        return SimpleNamespace(
+            member_issue_id=member_issue_id,
+            bk_biz_id=2,
+            status=status,
+            merge_reasons=["异常类型 / 日志模块相近"],
+            create_user="tester",
+            create_time=datetime(2026, 9, 4, 12, 0, 0),
+            update_user=None,
+            update_time=datetime(2026, 9, 4, 13, 0, 0),
+            split_reasons=None,
+            split_kind=None,
+            via_issue_id=None,
+        )
+
+    @staticmethod
+    def _make_hit(member_id: str, first: int, last):
+        from types import SimpleNamespace
+
+        return SimpleNamespace(
+            meta=SimpleNamespace(id=member_id),
+            name=f"issue-{member_id}",
+            status="unresolved",
+            first_alert_time=first,
+            last_alert_time=last,
+        )
+
+    @staticmethod
+    def _prepare(monkeypatch, relations: list, hits: list):
+        from types import SimpleNamespace
+
+        from fta_web.issue import resources
+
+        relation_model = SimpleNamespace(
+            STATUS_SPLIT="split",
+            objects=SimpleNamespace(filter=lambda **kwargs: SimpleNamespace(order_by=lambda *args: relations)),
+        )
+        monkeypatch.setattr(resources, "IssueMergeRelation", relation_model)
+
+        result = SimpleNamespace(hits=hits)
+        search_obj = SimpleNamespace()
+        search_obj.filter = lambda *a, **k: search_obj
+        search_obj.source = lambda *a, **k: search_obj
+        search_obj.params = lambda *a, **k: search_obj
+        search_obj.execute = lambda: result
+        monkeypatch.setattr(resources.IssueDocument, "search", lambda **kwargs: search_obj)
+
+        monkeypatch.setattr(resources, "_fetch_member_anomaly_messages", lambda member_ids, first_map: {})
+
+    def test_members_contain_alert_times(self, monkeypatch):
+        from fta_web.issue import resources
+
+        relations = [self._make_relation("b1", "active"), self._make_relation("b2", "split")]
+        hits = [
+            self._make_hit("b1", 1_700_000_000, 1_700_000_500),
+            self._make_hit("b2", 1_700_100_000, 1_700_100_999),
+        ]
+        self._prepare(monkeypatch, relations, hits)
+
+        data = resources.ListMergeSourcesResource().perform_request({"bk_biz_id": 2, "main_issue_id": "17main"})
+        assert data["active_members"][0]["first_alert_time"] == 1_700_000_000
+        assert data["active_members"][0]["last_alert_time"] == 1_700_000_500
+        assert data["split_history"][0]["first_alert_time"] == 1_700_100_000
+        assert data["split_history"][0]["last_alert_time"] == 1_700_100_999
+
+    def test_missing_es_hit_defaults_zero(self, monkeypatch):
+        from fta_web.issue import resources
+
+        # b2 在 ES 中无文档（如文档已清理）→ 两字段兜底 0
+        relations = [self._make_relation("b1", "active"), self._make_relation("b2", "active")]
+        hits = [self._make_hit("b1", 1_700_000_000, 1_700_000_500)]
+        self._prepare(monkeypatch, relations, hits)
+
+        data = resources.ListMergeSourcesResource().perform_request({"bk_biz_id": 2, "main_issue_id": "17main"})
+        member_ids = {item["member_issue_id"]: item for item in data["active_members"]}
+        assert member_ids["b1"]["last_alert_time"] == 1_700_000_500
+        assert member_ids["b2"]["first_alert_time"] == 0
+        assert member_ids["b2"]["last_alert_time"] == 0
+
+    def test_none_alert_time_defaults_zero(self, monkeypatch):
+        from fta_web.issue import resources
+
+        # last_alert_time 为 None（旧文档缺字段）→ 兜底 0，first 正常返回
+        relations = [self._make_relation("b1", "active")]
+        hits = [self._make_hit("b1", 1_700_000_000, None)]
+        self._prepare(monkeypatch, relations, hits)
+
+        data = resources.ListMergeSourcesResource().perform_request({"bk_biz_id": 2, "main_issue_id": "17main"})
+        assert data["active_members"][0]["first_alert_time"] == 1_700_000_000
+        assert data["active_members"][0]["last_alert_time"] == 0
+
+
 class TestSearchInjectsSplitInfo:
     """``IssueQueryHandler.search()`` 列表契约：被拆出的独立 Issue 注入 split_info。
 
