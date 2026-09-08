@@ -70,8 +70,24 @@ def test_tapd_base_url_uses_bkapp_env_name():
     source = (PROJECT_ROOT / "config/default.py").read_text(encoding="utf-8")
 
     assert (
-        'TAPD_API_BASE_URL = os.getenv("BKAPP_TAPD_API_BASE_URL", '
-        'os.getenv("TAPD_API_BASE_URL", "http://apiv2.tapd.woa.com"))'
+        'TAPD_API_BASE_URL = os.getenv("BKAPP_TAPD_API_BASE_URL", ' 'os.getenv("TAPD_API_BASE_URL", ""))'
+    ) in source
+    assert (
+        'TAPD_OAUTH_BASE_URL = os.getenv("BKAPP_TAPD_OAUTH_BASE_URL", ' 'os.getenv("TAPD_OAUTH_BASE_URL", ""))'
     ) in source
     assert 'TAPD_APP_ID = os.getenv("BKAPP_TAPD_APP_ID", os.getenv("TAPD_APP_ID", ""))' in source
     assert 'TAPD_APP_SECRET = os.getenv("BKAPP_TAPD_APP_SECRET", os.getenv("TAPD_APP_SECRET", ""))' in source
+    # 公开默认值不得带回内部主机；部署侧用环境变量注入
+    for line in source.splitlines():
+        if line.startswith("TAPD_API_BASE_URL") or line.startswith("TAPD_OAUTH_BASE_URL"):
+            assert ', "")' in line
+
+
+def test_frontend_tapd_link_uses_runtime_base_url():
+    tsx = (
+        PROJECT_ROOT
+        / "webpack/src/trace/pages/alarm-center/alarm-issues/"
+        "issues-detail/components/issues-relation-tapd/relation-tapd-item.tsx"
+    ).read_text(encoding="utf-8")
+    assert "window.tapd_oauth_base_url" in tsx
+    assert "window.open(`${base}/tapd_fe/" in tsx

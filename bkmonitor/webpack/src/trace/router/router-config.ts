@@ -66,6 +66,11 @@ export const allRouteConfig: IRouteConfig[] = [
     route: 'rum',
   },
   {
+    id: 'rum-explore',
+    name: 'RUM 检索',
+    route: 'rumExplore',
+  },
+  {
     id: 'report',
     name: 'route-订阅配置',
     route: 'report',

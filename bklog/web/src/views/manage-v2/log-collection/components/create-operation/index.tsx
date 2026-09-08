@@ -141,7 +141,11 @@ export default defineComponent({
      * 步骤是否可切换
      */
     const isStepsControllable = computed(() => {
-      return isEdit.value && (dataConfig.value as any).storage_cluster_id !== -1 && (dataConfig.value as any).storage_cluster_id !== null;
+      return (
+        isEdit.value &&
+        (dataConfig.value as any).storage_cluster_id !== -1 &&
+        (dataConfig.value as any).storage_cluster_id !== null
+      );
     });
 
     const containerWidth = ref(0);
@@ -299,7 +303,7 @@ export default defineComponent({
         return true;
       }
 
-      return new Promise((resolve) => {
+      return new Promise(resolve => {
         bkInfoBox({
           title: t('是否保存本次操作？'),
           confirmLoading: true,
@@ -308,7 +312,7 @@ export default defineComponent({
               if (isChangeStepLoading.value) return;
               isChangeStepLoading.value = true;
 
-              return new Promise<boolean>((infoResolve) => {
+              return new Promise<boolean>(infoResolve => {
                 currentComponentRef.handleSubmitSave({
                   action: 'saveOnly',
                   callback: (success: boolean) => {
@@ -343,9 +347,10 @@ export default defineComponent({
     return () => {
       const currentStepInfo = currentStep.value.find(item => item.icon === step.value);
       const Component = currentStepInfo?.components;
-      const stepStatusProps = Component === StepClean
-        ? { attrs: { collectStatus: isNeedIssue.value ? currentStatus.value.status : '' } }
-        : {};
+      const stepStatusProps =
+        Component === StepClean
+          ? { attrs: { collectStatus: isNeedIssue.value ? currentStatus.value.status : '' } }
+          : {};
       return (
         <div
           ref={mainRef}

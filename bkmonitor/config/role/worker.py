@@ -15,7 +15,7 @@ import sys
 from jinja2 import DebugUndefined
 
 from config.tools.consul import get_consul_settings
-from config.tools.rabbitmq import get_rabbitmq_settings
+from config.tools.rabbitmq import get_rabbitmq_management_host, get_rabbitmq_settings
 from config.tools.redis import get_cache_redis_settings, get_redis_settings
 
 from ..tools.environment import (
@@ -479,6 +479,7 @@ RABBITMQ_HOST, RABBITMQ_PORT, RABBITMQ_VHOST, RABBITMQ_USER, RABBITMQ_PASS, _ = 
     app_code=APP_CODE,  # noqa: F821
     backend=True,
 )
+RABBITMQ_MANAGEMENT_HOST = get_rabbitmq_management_host(RABBITMQ_HOST, backend=True)
 
 # esb组件地址
 COMMON_USERNAME = os.environ.get("BK_ESB_SUPER_USER", "admin")

@@ -138,12 +138,7 @@ export default defineComponent({
       return CLUSTER_TYPES.ES;
     };
 
-    const {
-      activeTab,
-      isDorisEnabled,
-      checkDorisAccess,
-      handleTabClick,
-    } = useClusterType({
+    const { activeTab, isDorisEnabled, checkDorisAccess, handleTabClick } = useClusterType({
       bkBizId,
       spaceUid,
       initialTab: getInitialTab(),
@@ -155,7 +150,7 @@ export default defineComponent({
           query: restQuery,
         });
       },
-      onTabChange: (type) => {
+      onTabChange: type => {
         const currentQuery = { ...router.currentRoute.query };
         currentQuery.tab = type === CLUSTER_TYPES.DORIS ? 'doris' : 'es';
         router.replace({
@@ -254,7 +249,7 @@ export default defineComponent({
     };
 
     // 获取状态文本
-    const getStateText = (id) => {
+    const getStateText = id => {
       const info = stateMap.value[id];
       const state = typeof info === 'boolean' ? info : info?.status;
 
@@ -276,7 +271,7 @@ export default defineComponent({
     };
 
     // 页面变化处理
-    const handlePageChange = (page) => {
+    const handlePageChange = page => {
       if (pagination.value.current === page) {
         return;
       }
@@ -289,7 +284,7 @@ export default defineComponent({
     };
 
     // 每页条数变化处理
-    const handleLimitChange = (limit) => {
+    const handleLimitChange = limit => {
       if (pagination.value.limit === limit) {
         return;
       }
@@ -321,9 +316,9 @@ export default defineComponent({
 
       // 先进行过滤处理
       if (isFilterSearch.value) {
-        filteredData = filteredData.filter(item => Object.keys(filterParams.value).
-          every(key => (filterIsNotCompared(filterParams.value[key])
-            ? true : compareFilter(item, filterParams.value[key], key)),
+        filteredData = filteredData.filter(item =>
+          Object.keys(filterParams.value).every(key =>
+            filterIsNotCompared(filterParams.value[key]) ? true : compareFilter(item, filterParams.value[key], key),
           ),
         );
       }
@@ -331,7 +326,7 @@ export default defineComponent({
       // 再进行搜索处理
       const keyword = params.value.keyword.trim();
       if (keyword) {
-        filteredData = filteredData.filter((item) => {
+        filteredData = filteredData.filter(item => {
           if (isIPv6(keyword)) {
             return completeIPv6Address(item.cluster_config.domain_name) === completeIPv6Address(keyword);
           }
@@ -344,10 +339,10 @@ export default defineComponent({
           const creator = (item.cluster_config.creator || '').toLowerCase();
 
           return (
-            clusterName.includes(keywordLower)
-            || displayName.includes(keywordLower)
-            || domainName.includes(keywordLower)
-            || creator.includes(keywordLower)
+            clusterName.includes(keywordLower) ||
+            displayName.includes(keywordLower) ||
+            domainName.includes(keywordLower) ||
+            creator.includes(keywordLower)
           );
         });
       }
@@ -360,7 +355,7 @@ export default defineComponent({
     };
 
     // ipv6补全
-    const completeIPv6Address = (address) => {
+    const completeIPv6Address = address => {
       const sections = address.split(':');
       const missingSections = 8 - sections.length;
 
@@ -369,7 +364,7 @@ export default defineComponent({
       }
 
       return sections
-        .map((section) => {
+        .map(section => {
           if (section.length < 4) {
             return '0'.repeat(4 - section.length) + section;
           }
@@ -414,7 +409,7 @@ export default defineComponent({
     };
 
     // 创建索引集
-    const createIndexSet = (row) => {
+    const createIndexSet = row => {
       router.push({
         name: 'es-index-set-create',
         query: {
@@ -425,7 +420,7 @@ export default defineComponent({
     };
 
     // 编辑ES源
-    const editDataSource = async (item) => {
+    const editDataSource = async item => {
       const id = item.cluster_config.cluster_id;
       if (!item.permission?.[authorityMapComputed.value.MANAGE_ES_SOURCE_AUTH]) {
         try {
@@ -455,7 +450,7 @@ export default defineComponent({
     };
 
     // 删除ES源
-    const deleteDataSource = async (row) => {
+    const deleteDataSource = async row => {
       const id = row.cluster_config.cluster_id;
       if (!row.permission?.[authorityMapComputed.value.MANAGE_ES_SOURCE_AUTH]) {
         try {
@@ -489,7 +484,7 @@ export default defineComponent({
     };
 
     // 处理删除
-    const handleDelete = (row) => {
+    const handleDelete = row => {
       http
         .request('source/deleteEs', {
           params: {
@@ -497,12 +492,12 @@ export default defineComponent({
             cluster_id: row.cluster_config.cluster_id,
           },
         })
-        .then((res) => {
+        .then(res => {
           if (res.result) {
             if (tableDataPaged.value.length <= 1) {
               pagination.value.current = pagination.value.current > 1 ? pagination.value.current - 1 : 1;
             }
-            const deleteIndex = tableDataSearched.value.findIndex((item) => {
+            const deleteIndex = tableDataSearched.value.findIndex(item => {
               return item.cluster_config.cluster_id === row.cluster_config.cluster_id;
             });
             tableDataSearched.value.splice(deleteIndex, 1);
@@ -531,18 +526,18 @@ export default defineComponent({
     };
 
     // 激活详情处理
-    const handleActiveDetails = (state) => {
+    const handleActiveDetails = state => {
       isOpenWindow.value = state;
       introWidth.value = state ? 360 : 1;
     };
 
     // 检查字段显示
-    const checkcFields = (field) => {
+    const checkcFields = field => {
       return clusterSetting.value.selectedFields.some(item => item.id === field);
     };
 
     // 判断过滤值是否为空
-    const filterIsNotCompared = (val) => {
+    const filterIsNotCompared = val => {
       if (typeof val === 'string' && val === '') return true;
       if (typeof val === 'object' && JSON.stringify(val) === '{}') return true;
       if (Array.isArray(val) && !val.length) return true;
@@ -560,13 +555,13 @@ export default defineComponent({
     };
 
     // 获取百分比
-    const getPercent = (row) => {
+    const getPercent = row => {
       return (100 - row.storage_usage) / 100;
     };
 
     // 过滤变化处理
-    const handleFilterChange = (data) => {
-      Object.keys(data).forEach((key) => {
+    const handleFilterChange = data => {
+      Object.keys(data).forEach(key => {
         filterParams.value[key] = Array.isArray(data[key]) ? data[key].join('') : data[key];
       });
       isFilterSearch.value = !!Object.values(filterParams.value).some(item => !filterIsNotCompared(item));
@@ -574,7 +569,7 @@ export default defineComponent({
     };
 
     // 操作处理
-    const handleOperation = (type) => {
+    const handleOperation = type => {
       if (type === 'clear-filter') {
         params.value.keyword = '';
         clearTableFilter(clusterTable.value);
@@ -909,7 +904,7 @@ export default defineComponent({
           >
             <span
               class='bk-icon icon-more'
-              onMousedown={(e) => {
+              onMousedown={e => {
                 if (e.button === 0) {
                   dragBegin(e);
                 }

@@ -76,7 +76,7 @@ const indexes = {
 const getSpaceByIndexId = {
   url: '/index_set/:index_set_id/space/',
   method: 'get',
-}
+};
 
 // 创建索引
 const createIndex = {

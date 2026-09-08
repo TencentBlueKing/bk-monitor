@@ -86,7 +86,7 @@
         this.dataSamplingLoading = true;
         this.isMasking = await this.getMaskingConfig(); // 获取脱敏配置信息
         if (!this.isMasking) this.fetchDataSampling(); // 未脱敏才能查看是否采样
-      } catch (error) {
+      } catch {
         this.dataSamplingLoading = false;
       }
     },
@@ -105,7 +105,7 @@
             { catchIsShowMessage: false },
           );
           return true;
-        } catch (err) {
+        } catch {
           return false;
         }
       },

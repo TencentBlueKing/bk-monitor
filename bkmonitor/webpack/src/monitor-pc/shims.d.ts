@@ -161,6 +161,7 @@ declare global {
     space_list: ISpaceItem[];
     space_uid: string;
     static_url: string;
+    tapd_oauth_base_url?: string;
     timezone: string;
     token?: string;
     uin: string;

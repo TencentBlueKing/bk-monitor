@@ -87,6 +87,14 @@ export const fieldTypeMap = {
 
 export const topKColorList = ['#F59789', '#F5C78E', '#5AB8A8', '#92D4F1', '#A3B1CC'];
 
+/** trace 检索中数据以微秒为单位的耗时字段 */
+const TRACE_DURATION_FIELDS = new Set(['trace_duration', 'elapsed_time']);
+
+/** 获取 trace 检索字段的数据单位（耗时字段为 us，其余字段无单位） */
+export function getTraceFieldUnit(fieldName: string): string {
+  return TRACE_DURATION_FIELDS.has(fieldName) ? 'us' : '';
+}
+
 /**
  * @description "包含" 筛选区域checkbox值映射filter配置
  */
@@ -106,25 +114,29 @@ const checkboxFilterMapByMode = {
 };
 
 /** 维度列表转换tree结构 */
-export function convertToTree(data: IDimensionField[]): IDimensionFieldTreeItem[] {
+export function convertToTree(data: IDimensionField[], leafNodeIsPrefix = true): IDimensionFieldTreeItem[] {
   const root: IDimensionFieldTreeItem[] = [];
   for (const item of data) {
     const parts = item.name.split('.');
     if (parts.length < 2) {
-      root.push({ ...item, levelName: item.alias });
+      root.push({ ...item, levelAlias: item.alias, levelName: item.name, children: [] });
       continue;
     }
 
     let currentLevel = root;
     for (let i = 0; i < parts.length; i++) {
       const part = parts[i];
-      let node = currentLevel.find(n => n.levelName === part);
+      let node = currentLevel.find(n => n.levelAlias === part);
       if (!node) {
         // 若非末层节点，初始化
         if (i < parts.length - 1) {
-          node = { ...item, type: 'object', levelName: part, name: part, alias: part, children: [] };
+          node = { ...item, type: 'object', levelAlias: part, levelName: part, name: part, alias: part, children: [] };
         } else {
-          node = { ...item, levelName: item.alias };
+          node = {
+            ...item,
+            levelAlias: item.alias !== item.name ? item.alias : leafNodeIsPrefix ? item.name : part,
+            levelName: leafNodeIsPrefix ? item.name : part,
+          };
         }
         currentLevel.push(node);
       }
@@ -133,7 +145,9 @@ export function convertToTree(data: IDimensionField[]): IDimensionFieldTreeItem[
       else currentLevel = []; // 末层节点无需children
     }
   }
-  root.forEach(node => calculateCounts(node));
+  for (const node of root) {
+    calculateCounts(node);
+  }
   return root;
 }
 

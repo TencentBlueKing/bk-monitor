@@ -72,6 +72,7 @@ declare global {
     source_app: string;
     space_list: ISpaceItem[];
     static_url: string;
+    tapd_oauth_base_url?: string;
     timezone: string;
     traceLogComponent: any;
     uin: string;

@@ -35,7 +35,10 @@ import AutoWidthInput from './auto-width-input';
 import KvTag from './kv-tag';
 import { type IFilterItem, ECondition, EFieldType, EMethod, UI_SELECTOR_EMITS, UI_SELECTOR_PROPS } from './typing';
 import UiSelectorOptions from './ui-selector-options';
-import { getDurationDisplay, isElementVisibleAndUnobstructed, triggerShallowRef } from './utils';
+import { getBytesDisplay, getDurationDisplay, isElementVisibleAndUnobstructed, triggerShallowRef } from './utils';
+
+import type { TBytesBaseUnit } from './bytes-scope-input-utils';
+import type { TDurationBaseUnit } from './duration-input-utils';
 
 import './ui-selector.scss';
 export default defineComponent({
@@ -304,15 +307,17 @@ export default defineComponent({
       hideInput();
     }
 
-    function getIsDuration(id: string) {
-      let isDuration = false;
-      for (const item of props.fields) {
-        if (item.name === id) {
-          isDuration = item.type === EFieldType.duration;
-          break;
-        }
+    /** 耗时 / 字节量字段的已选值需按单位格式化展示，其余字段返回 undefined 走默认展示 */
+    function getScopeValueDisplay(id: string, value: Array<number | string>, baseUnit?: string) {
+      const type = props.fields.find(item => item.name === id)?.type;
+      /** 原始值以字段自身的基础单位存储，不同字段单位可能不同（如 μs / ms、B / KiB），需按 baseUnit 换算后再展示 */
+      if (type === EFieldType.bytesScope) {
+        return getBytesDisplay(value, (baseUnit || 'B') as TBytesBaseUnit);
       }
-      return isDuration;
+      if (type === EFieldType.duration) {
+        return getDurationDisplay(value, (baseUnit || 'μs') as TDurationBaseUnit);
+      }
+      return undefined;
     }
 
     return {
@@ -331,7 +336,7 @@ export default defineComponent({
       handleHideTag,
       handleUpdateTag,
       handleClickComponent,
-      getIsDuration,
+      getScopeValueDisplay,
       t,
     };
   },
@@ -350,6 +355,11 @@ export default defineComponent({
         </div>
         {this.localValue.map((item, index) => {
           const fieldInfo = this.fields.find(field => field.name === item.key.id) || null;
+          const scopeValue = this.getScopeValueDisplay(
+            item.key.id,
+            item.value.map(item => item.id),
+            fieldInfo?.unit
+          );
           return (
             <KvTag
               key={`${index}_kv`}
@@ -362,9 +372,7 @@ export default defineComponent({
               onUpdate={event => this.handleUpdateTag(event, index)}
             >
               {{
-                value: this.getIsDuration(item.key.id)
-                  ? () => <span class='value-name'>{getDurationDisplay(item.value.map(item => item.id))}</span>
-                  : undefined,
+                value: scopeValue ? () => <span class='value-name'>{scopeValue}</span> : undefined,
               }}
             </KvTag>
           );

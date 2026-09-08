@@ -1818,3 +1818,180 @@ class TestMergeGroupReparent:
         self._merge(self.B, [self.A])
 
         assert store.locked, "收集被携带成员时必须 select_for_update 加锁"
+
+
+class TestSplitBatch:
+    """SplitResource 批量契约（``member_issue_ids``）执行路径。
+
+    直接驱动 ``perform_request``，复用本文件的 fake 关系表基建（_FakeRelationStore /
+    _FakeRelationRow）断言行状态与 ES 重置分组：逐条独立执行、去重保序、非 active 幂等
+    skipped、单条异常隔离（失败统一通用文案，内部细节不下发）、ES 按主分组合并。
+    """
+
+    BIZ = 2
+    B = "1716000000bbbbbb01"  # 目标主
+    B1 = "1716000000bbbbbb02"  # B 的成员
+    A = "1716000000aaaaaa01"  # 另一组主
+    M1 = "1716000000aaaaaa02"  # A 的成员
+    M2 = "1716000000aaaaaa03"  # A 的成员
+    NOT_EXIST = "1716000000zzzzzz01"  # 无任何关系行的 Issue
+
+    def _store(self):
+        """B──B1 与 A──M1,M2 两个 active 组（与 TestMergeGroupReparent 同构）。"""
+        import datetime
+
+        t0 = datetime.datetime(2026, 8, 1, 10, 0, 0)
+        return _FakeRelationStore(
+            [
+                _FakeRelationRow(
+                    bk_biz_id=self.BIZ,
+                    main_issue_id=self.B,
+                    member_issue_id=self.B1,
+                    status="active",
+                    merge_reasons=[],
+                    create_time=t0,
+                    update_time=t0,
+                ),
+                _FakeRelationRow(
+                    bk_biz_id=self.BIZ,
+                    main_issue_id=self.A,
+                    member_issue_id=self.M1,
+                    status="active",
+                    merge_reasons=[],
+                    create_time=t0,
+                    update_time=t0,
+                ),
+                _FakeRelationRow(
+                    bk_biz_id=self.BIZ,
+                    main_issue_id=self.A,
+                    member_issue_id=self.M2,
+                    status="active",
+                    merge_reasons=[],
+                    create_time=t0,
+                    update_time=t0,
+                ),
+            ]
+        )
+
+    def _batch_split(self, member_issue_ids, reasons=None, operator="carol"):
+        from kernel_api.views.v4.issue import SplitResource
+
+        return SplitResource().perform_request(
+            {
+                "bk_biz_id": self.BIZ,
+                "member_issue_ids": list(member_issue_ids),
+                "reasons": reasons if reasons is not None else [],
+                "operator": operator,
+            }
+        )
+
+    def _patch_reset(self, monkeypatch):
+        """patch ES 重置（bulk_reset_for_split）为捕获桩，返回调用记录列表。"""
+        import contextlib
+        from unittest import mock
+
+        from kernel_api.views.v4 import issue as issue_mod
+
+        fake_tx = mock.Mock()
+        fake_tx.atomic = lambda *a, **k: contextlib.nullcontext()
+        monkeypatch.setattr(issue_mod, "transaction", fake_tx)
+        reset_calls: list = []
+        monkeypatch.setattr(
+            issue_mod.IssueDocument,
+            "bulk_reset_for_split",
+            classmethod(lambda cls, ids, **kw: reset_calls.append((list(ids), kw))),
+        )
+        return reset_calls
+
+    def _reset_by_main(self, reset_calls):
+        """把 ES 重置调用记录折叠成 {main_issue_id: [member_ids]}。"""
+        return {kw["main_issue_id"]: ids for ids, kw in reset_calls}
+
+    def test_batch_ok_and_es_grouped_by_main(self, monkeypatch):
+        """全部成功：关系行改写 + ES 重置按主分组合并（同组多成员 1 次调用）。"""
+        from kernel_api.views.v4 import issue as issue_mod
+
+        store = self._store()
+        monkeypatch.setattr(issue_mod.IssueMergeRelation, "objects", store.objects)
+        reset_calls = self._patch_reset(monkeypatch)
+
+        result = self._batch_split([self.B1, self.M1, self.M2], reasons=["误合并"])
+
+        assert result["status"] == "ok"
+        assert result["results"] == [
+            {"member_issue_id": self.B1, "status": "ok"},
+            {"member_issue_id": self.M1, "status": "ok"},
+            {"member_issue_id": self.M2, "status": "ok"},
+        ]
+        for mid in (self.B1, self.M1, self.M2):
+            row = store.row_for(mid)
+            assert row.status == "split"
+            assert row.split_kind == "manual"
+            assert row.split_reasons == ["误合并"]
+            assert row.update_user == "carol"
+        # ES 按主分组：B1 → B 一次；M1+M2 → A 合并 1 次（共 2 次，不逐条 3 次）
+        assert len(reset_calls) == 2
+        by_main = self._reset_by_main(reset_calls)
+        assert by_main[self.B] == [self.B1]
+        assert by_main[self.A] == [self.M1, self.M2]
+
+    def test_batch_dedup_and_skip_inactive(self, monkeypatch):
+        """同批重复 ID 去重保序；无关系行（或已被并发拆分）→ skipped 幂等跳过。"""
+        from kernel_api.views.v4 import issue as issue_mod
+
+        store = self._store()
+        monkeypatch.setattr(issue_mod.IssueMergeRelation, "objects", store.objects)
+        reset_calls = self._patch_reset(monkeypatch)
+
+        result = self._batch_split([self.M1, self.M1, self.M2, self.NOT_EXIST])
+
+        assert result["results"] == [
+            {"member_issue_id": self.M1, "status": "ok"},
+            {"member_issue_id": self.M2, "status": "ok"},
+            {"member_issue_id": self.NOT_EXIST, "status": "skipped", "message": "relation not active"},
+        ]
+        # 去重保序：M1 只被重置一次
+        by_main = self._reset_by_main(reset_calls)
+        assert by_main[self.A] == [self.M1, self.M2]
+
+    def test_batch_failed_isolated_generic_message(self, monkeypatch):
+        """单条异常隔离：失败统一通用文案不下发内部细节（含领域异常），其余条目正常。"""
+        from bkmonitor.issue_merge import MergeConflictError
+
+        from kernel_api.views.v4 import issue as issue_mod
+
+        store = self._store()
+        monkeypatch.setattr(issue_mod.IssueMergeRelation, "objects", store.objects)
+        reset_calls = self._patch_reset(monkeypatch)
+
+        orig_mark_split = issue_mod.SplitResource._mark_split
+
+        def fake_mark_split(bk_biz_id, member_id, reasons, operator):
+            if member_id == self.M1:
+                # 领域异常样例（非 SplitNotFoundError，验证按通用失败兜底、细节不下发）
+                raise MergeConflictError(conflicting_main_issue_id=self.B)
+            if member_id == self.M2:
+                raise RuntimeError("connection refused: db-internal-1")  # 非领域异常
+            return orig_mark_split(bk_biz_id=bk_biz_id, member_id=member_id, reasons=reasons, operator=operator)
+
+        monkeypatch.setattr(issue_mod.SplitResource, "_mark_split", staticmethod(fake_mark_split))
+
+        result = self._batch_split([self.M1, self.M2, self.B1])
+
+        by_id = {r["member_issue_id"]: r for r in result["results"]}
+        # 领域异常（非 SplitNotFoundError）：与通用失败一致，错误码与内部细节不下发
+        assert by_id[self.M1]["status"] == "failed"
+        assert by_id[self.M1]["message"] == "split failed"
+        assert "code" not in by_id[self.M1]
+        assert self.B not in by_id[self.M1]["message"]
+        # 非领域异常：统一通用文案，内部细节（connection refused）不下发
+        assert by_id[self.M2]["status"] == "failed"
+        assert by_id[self.M2]["message"] == "split failed"
+        assert "connection refused" not in by_id[self.M2]["message"]
+        # 单条失败不阻塞：B1 正常拆分并被 ES 重置
+        assert by_id[self.B1]["status"] == "ok"
+        assert store.row_for(self.B1).status == "split"
+        assert self._reset_by_main(reset_calls)[self.B] == [self.B1]
+        # 失败条目的关系行未被改写
+        assert store.row_for(self.M1).status == "active"
+        assert store.row_for(self.M2).status == "active"

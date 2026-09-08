@@ -26,8 +26,8 @@
 
 <template>
   <div
-    class="chart-container"
     v-bkloading="{ isLoading: basicLoading, zIndex: 0 }"
+    class="chart-container"
   >
     <div class="chart-header">
       <div class="title">{{ $t('分钟数据量') }}</div>

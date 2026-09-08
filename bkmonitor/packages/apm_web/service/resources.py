@@ -8,6 +8,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import copy
 import datetime
 import functools
 import itertools
@@ -19,6 +20,7 @@ from typing import Any
 from datetime import timedelta
 
 import arrow
+from django.conf import settings
 from django.db import transaction
 from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
@@ -62,17 +64,21 @@ from apm_web.service.serializers import (
     SetCodeRedefinedRuleRequestSerializer,
     SetCodeRemarkRequestSerializer,
     BaseCodeRedefinedRequestSerializer,
+    build_service_notice_group_name,
     build_code_remark_configs,
 )
 from apm_web.topo.handle.relation.relation_metric import RelationMetricHandler
 from bkm_space.errors import NoRelatedResourceError
 from bkm_space.validate import validate_bk_biz_id
+from bkmonitor.action.serializers import UserGroupDetailSlz
 from bkmonitor.commons.tools import batch_request
+from bkmonitor.models import UserGroup
 from bkmonitor.utils.cache import lru_cache_with_ttl
 from bkmonitor.utils.thread_backend import InheritParentThread, run_threads
 from bkmonitor.utils.thread_backend import ThreadPool
 from bkmonitor.utils.time_tools import get_datetime_range
 from bkmonitor.utils.common_utils import count_md5
+from constants.alert import PUBLIC_NOTICE_CONFIG
 from core.drf_resource import Resource, api
 from monitor_web.data_explorer.event.constants import EventCategory
 
@@ -686,6 +692,49 @@ class ServiceConfigResource(Resource):
             json.dumps(labels),
         )
 
+    @staticmethod
+    def update_notice_group(bk_biz_id: int, app_name: str, service_name: str, owners: list[str]) -> None:
+        with transaction.atomic(settings.BACKEND_DATABASE_NAME):  # pyright: ignore[reportGeneralTypeIssues]
+            group_name: str = build_service_notice_group_name(app_name, service_name)
+            # owners 是全量覆盖语义；去重时保留调用方顺序，避免重复通知人。
+            receivers: list[dict[str, str]] = [{"id": owner, "type": "user"} for owner in dict.fromkeys(owners)]
+            # 对已有告警组加行锁，保证读取成员与本次覆盖更新处于同一事务。
+            user_group: UserGroup | None = (
+                UserGroup.objects.select_for_update().filter(bk_biz_id=bk_biz_id, name=group_name).first()
+            )
+            # 开启轮值的告警组由排班规则驱动，不能用普通负责人覆盖当前排班配置。
+            if user_group is not None and user_group.need_duty:
+                raise serializers.ValidationError({"owners": _("服务告警组已开启轮值，不能通过 owners 覆盖通知人")})
+
+            # 新建时初始化公共通知配置；更新时只提交 duty_arranges，保留已有通知配置。
+            if user_group is None:
+                notice_config: dict[str, Any] = copy.deepcopy(PUBLIC_NOTICE_CONFIG)
+                for notify_config in (
+                    notice_config["alert_notice"][0]["notify_config"]
+                    + notice_config["action_notice"][0]["notify_config"]
+                ):
+                    notify_config["type"] = ["rtx"]
+
+                user_group_serializer: serializers.BaseSerializer = UserGroupDetailSlz(
+                    data={
+                        "bk_biz_id": bk_biz_id,
+                        "name": group_name,
+                        "duty_arranges": [{"users": receivers}],
+                        "desc": notice_config["message"],
+                        "alert_notice": notice_config["alert_notice"],
+                        "action_notice": notice_config["action_notice"],
+                    }
+                )
+            else:
+                user_group_serializer = UserGroupDetailSlz(
+                    user_group,
+                    data={"duty_arranges": [{"users": receivers}]},
+                    partial=True,
+                )
+
+            user_group_serializer.is_valid(raise_exception=True)
+            user_group_serializer.save()
+
     @transaction.atomic
     def perform_request(self, validated_request_data: dict[str, Any]) -> None:
         bk_biz_id: int = validated_request_data["bk_biz_id"]
@@ -706,6 +755,11 @@ class ServiceConfigResource(Resource):
 
         # 下发修改后的配置
         transfer_config: dict[str, Any] = {"service_configs": application.get_service_transfer_config()}
+
+        # 仅显式提交 owners（包括空列表）才覆盖通知组；服务配置处理完成后再更新通知组。
+        if "owners" in validated_request_data:
+            self.update_notice_group(bk_biz_id, app_name, service_name, validated_request_data["owners"])
+
         transaction.on_commit(
             functools.partial(
                 update_application_config.delay,

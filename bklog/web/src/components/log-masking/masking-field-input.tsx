@@ -279,7 +279,6 @@ export default class MaskingFieldInput extends Mixins(classDragMixin) {
           <div
             class='text-btn'
             slot='setting'
-            // eslint-disable-next-line @typescript-eslint/no-misused-promises
             onClick={() => this.handleRefreshConfigStr(true, true)}
           >
             <i class='icon bk-icon icon-right-turn-line' />

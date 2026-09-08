@@ -94,6 +94,7 @@ class FieldTypeEnum(CachedEnum):
     INTEGER = "integer"
     LONG = "long"
     DOUBLE = "double"
+    FLOAT = "float"
     DATE = "date"
     BOOLEAN = "boolean"
     CONFLICT = "conflict"
@@ -160,6 +161,16 @@ FIELD_OPERATIONS = {
         OperatorEnum.EXISTS,
         OperatorEnum.NOT_EXISTS,
     ],
+    FieldTypeEnum.FLOAT.value: [
+        OperatorEnum.EQUAL,
+        OperatorEnum.NOT_EQUAL,
+        OperatorEnum.GT,
+        OperatorEnum.GTE,
+        OperatorEnum.LT,
+        OperatorEnum.LTE,
+        OperatorEnum.EXISTS,
+        OperatorEnum.NOT_EXISTS,
+    ],
     FieldTypeEnum.DATE.value: [
         OperatorEnum.EQUAL,
         OperatorEnum.NOT_EQUAL,
@@ -198,10 +209,25 @@ class EnabledStatisticsDimension(CachedEnum):
     INTEGER = "integer"
     LONG = "long"
     DOUBLE = "double"
+    FLOAT = "float"
+    BOOLEAN = "boolean"
 
     @classmethod
     def choices(cls):
         return [(dimension_type.value, dimension_type.name) for dimension_type in cls]
+
+    def is_integer(self) -> bool:
+        return self.value in {self.INTEGER.value, self.LONG.value}
+
+    def is_float(self) -> bool:
+        return self.value in {self.DOUBLE.value, self.FLOAT.value}
+
+    def is_numeric(self) -> bool:
+        return self.is_float() or self.is_integer()
+
+    @classmethod
+    def values(cls):
+        return [dimension_type.value for dimension_type in cls]
 
 
 class AggregatedMethod(CachedEnum):

@@ -343,7 +343,7 @@ class StrategyCacheManager(CacheManager):
                     else:
                         query_config["agg_dimension"].extend(["bk_target_ip", "bk_target_cloud_id"])
 
-                query_config["agg_dimension"] = list(set(query_config["agg_dimension"]))
+                query_config["agg_dimension"] = sorted(set(query_config["agg_dimension"]))
 
             # 日志关键字告警按节点聚合需要使用bk_obj_id和bk_inst_id
             if data_source_label == DataSourceLabel.BK_MONITOR_COLLECTOR and data_type_label == DataTypeLabel.LOG:

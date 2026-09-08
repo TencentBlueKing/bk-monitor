@@ -339,7 +339,7 @@ class PatternHandler:
             {"queries": copy.deepcopy(chunked_queries)},
         )
 
-        multi_result = multi_execute_func.run()
+        multi_result = self._run_multi_execute(multi_execute_func)
 
         multi_result["new_class"] = new_class_query_result
 
@@ -373,7 +373,7 @@ class PatternHandler:
                 {"index_set_id": self._index_set_id, "query": query},
             )
 
-        multi_result = multi_execute_func.run()
+        multi_result = self._run_multi_execute(multi_execute_func)
         return self._merge_pattern_aggs_results(
             [multi_result.get(task_key, []) for task_key in task_keys], self._query.get("size", 10000)
         )
@@ -397,7 +397,7 @@ class PatternHandler:
                 {"query": query},
             )
 
-        multi_result = multi_execute_func.run()
+        multi_result = self._run_multi_execute(multi_execute_func)
         return self._merge_year_on_year_results([multi_result.get(task_key, {}) for task_key in task_keys])
 
     @staticmethod
@@ -439,6 +439,9 @@ class PatternHandler:
         )
         multi_execute_func.append("year_on_year_result", lambda: self._get_year_on_year_aggs_result())
         multi_execute_func.append("new_class", lambda: self._get_new_class())
+        return self._run_multi_execute(multi_execute_func)
+
+    def _run_multi_execute(self, multi_execute_func):
         return multi_execute_func.run()
 
     def _get_pattern_aggs_result(self, index_set_id, query):

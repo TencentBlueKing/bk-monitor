@@ -1001,6 +1001,7 @@ def test_register_to_bkbase_generates_name_when_data_id_config_missing(create_or
         bk_data_id=ds.bk_data_id,
     ).delete()
     mocker.patch.object(models.DataIdConfig, "compose_predefined_config", return_value={"kind": "DataId"})
+    mocker.patch.object(models.DataIdConfig, "compose_data_source_config", return_value={"kind": "DataSource"})
     apply_mock = mocker.patch("metadata.models.data_source.api.bkdata.apply_data_link")
 
     ds.register_to_bkbase(bk_biz_id=1001, namespace="bkmonitor")
@@ -1012,7 +1013,10 @@ def test_register_to_bkbase_generates_name_when_data_id_config_missing(create_or
         bk_data_id=ds.bk_data_id,
         name=generated_name,
     ).exists()
-    apply_mock.assert_called_once_with(config=[{"kind": "DataId"}], bk_tenant_id=ds.bk_tenant_id)
+    assert apply_mock.call_count == 2
+    data_id_call, data_source_call = apply_mock.call_args_list
+    assert data_id_call.kwargs == {"config": [{"kind": "DataId"}], "bk_tenant_id": ds.bk_tenant_id}
+    assert data_source_call.kwargs == {"config": [{"kind": "DataSource"}], "bk_tenant_id": ds.bk_tenant_id}
 
 
 @pytest.mark.django_db(databases="__all__")
@@ -1646,7 +1650,7 @@ def test_merge_existing_component_configs_reraises_non_not_found_errors(create_o
         side_effect=BKAPIError(
             system_name="bkdata",
             url="/v4/namespaces/{namespace}/{kind}/{name}/",
-            result={"message": "permission denied"},
+            result={"code": "other", "data": "resource not found", "message": "permission denied"},
         ),
     ):
         with pytest.raises(BKAPIError):
@@ -1654,8 +1658,14 @@ def test_merge_existing_component_configs_reraises_non_not_found_errors(create_o
 
 
 @pytest.mark.django_db(databases="__all__")
-@pytest.mark.parametrize("resource_error_detail", ["resource not found", "Resource not found."])
-def test_merge_existing_component_configs_accepts_bkbase_v4_not_found(create_or_delete_records, resource_error_detail):
+@pytest.mark.parametrize(
+    "error_data",
+    [
+        {"code": "1558025", "message": "unexpected"},
+        {"code": 1558025, "data": "permission denied", "message": "unexpected"},
+    ],
+)
+def test_merge_existing_component_configs_accepts_bkbase_v4_not_found(create_or_delete_records, error_data):
     data_link_ins = DataLink.objects.create(
         data_link_name="data_link_test",
         namespace="bkmonitor",
@@ -1669,11 +1679,7 @@ def test_merge_existing_component_configs_accepts_bkbase_v4_not_found(create_or_
     not_found = BKAPIError(
         system_name="bkdata",
         url="/v4/namespaces/{namespace}/{kind}/{name}/",
-        result={
-            "code": "1558025",
-            "data": resource_error_detail,
-            "message": "resource not found",
-        },
+        result=error_data,
     )
 
     with patch(

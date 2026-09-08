@@ -28,7 +28,6 @@ import { computed, defineComponent, ref } from 'vue';
 import Stratege from './strategy';
 import QuickFilter from './quick-filter';
 import useLocale from '@/hooks/use-locale';
-import useStore from '@/hooks/use-store';
 import EmailSubscription from './email-subscription';
 import ClusterConfig from './cluster-config';
 import ClusterDownload from './cluster-download';
@@ -86,21 +85,25 @@ export default defineComponent({
     /** 是否创建过策略 */
     const strategyHaveSubmit = ref(false);
 
-    const getDimensionStr = computed(() => (props.fingerOperateData?.dimensionList.length
-      ? `${t('聚合维度')} : ${props.fingerOperateData.dimensionList.join(', ')}`
-      : ''),
+    const getDimensionStr = computed(() =>
+      props.fingerOperateData?.dimensionList.length
+        ? `${t('聚合维度')} : ${props.fingerOperateData.dimensionList.join(', ')}`
+        : '',
     );
-    const getGroupStr = computed(() => (props.fingerOperateData?.selectGroupList.length
-      ? `${t('分组')} : ${props.fingerOperateData.selectGroupList.join(', ')}`
-      : ''),
+    const getGroupStr = computed(() =>
+      props.fingerOperateData?.selectGroupList.length
+        ? `${t('分组')} : ${props.fingerOperateData.selectGroupList.join(', ')}`
+        : '',
     );
-    const getYearStr = computed(() => (props.requestData?.year_on_year_hour ? `${t('同比')} : ${props.requestData.year_on_year_hour}h` : ''),
+    const getYearStr = computed(() =>
+      props.requestData?.year_on_year_hour ? `${t('同比')} : ${props.requestData.year_on_year_hour}h` : '',
     );
 
     const isShowGroupTag = computed(
-      () => props.clusterSwitch
-        && !props.isShowClusterStep
-        && (getGroupStr.value || getDimensionStr.value || getYearStr.value),
+      () =>
+        props.clusterSwitch &&
+        !props.isShowClusterStep &&
+        (getGroupStr.value || getDimensionStr.value || getYearStr.value),
     );
 
     const isExternal = window.IS_EXTERNAL === true;
@@ -116,7 +119,7 @@ export default defineComponent({
       return permissions.includes('log_search') && permissions.includes('log_clustering');
     });
 
-    const handleStrategySubmitStatus = (v) => {
+    const handleStrategySubmitStatus = v => {
       strategyHaveSubmit.value = v;
     };
 

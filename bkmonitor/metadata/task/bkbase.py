@@ -460,7 +460,9 @@ def sync_bkbase_cluster_info(
         default_settings["bk_biz_id"] = bk_biz_id
     elif cluster_type == models.ClusterInfo.TYPE_DORIS:
         # 记录集群所属业务ID，只有业务独立集群才会有对应字段，默认为None
-        default_settings["bk_biz_id"] = bk_biz_id
+        default_settings = {
+            key: copy.deepcopy(cluster_spec[key]) for key in ClusterConfig.DORIS_SETTING_TYPES if key in cluster_spec
+        }
         if bk_biz_id is not None:
             custom_option = json.dumps({"bk_biz_id": bk_biz_id})
     elif cluster_type == models.ClusterInfo.TYPE_KAFKA:
@@ -499,6 +501,8 @@ def sync_bkbase_cluster_info(
             bk_tenant_id=bk_tenant_id, cluster_type=cluster_type, cluster_name=cluster_name
         ).first()
         if cluster:
+            if cluster_type == models.ClusterInfo.TYPE_DORIS:
+                need_update_fields["default_settings"] = {**(cluster.default_settings or {}), **default_settings}
             # 如果域名发生变化，为了防止出现问题，不进行更新并记录日志
             if cluster.domain_name != domain_name:
                 logger.warning(

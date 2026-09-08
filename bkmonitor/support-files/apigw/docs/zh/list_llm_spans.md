@@ -1,6 +1,6 @@
 ### 功能描述
 
-根据 Trace ID 查询完整 Span，并将 AgentLens、Galileo、BKAIDev 等来源转换为统一的 OTel GenAI Span 结构。该接口用于 Trace 详情展示；只返回转换后与 Agent/LLM 观测有关的字段。
+按 Trace ID 或 Span ID 查询 Span。AgentLens、Galileo、BKAIDev 等来源统一转换为 OTel GenAI Span，响应仅包含 Agent/LLM 观测字段。
 
 ### 请求参数
 
@@ -8,17 +8,32 @@
 |---|---|---|---|
 | bk_biz_id | int | 是 | 业务 ID |
 | app_name | string | 是 | APM 应用名称 |
-| trace_id | string | 是 | Trace ID，精确匹配 |
+| trace_id | string | 否 | Trace ID，精确匹配；与 `span_id` 至少传一个 |
+| span_id | string | 否 | Span ID，精确匹配；与 `trace_id` 至少传一个 |
 
 ### 请求参数示例
 
+查询 Trace 下的全部标准化 Span：
+
 ```json
 {
-    "bk_biz_id": 100147,
-    "app_name": "bkfara",
+    "bk_biz_id": 11,
+    "app_name": "demo_app",
     "trace_id": "9519ce8934ad4c2f04753eef6ce44b08"
 }
 ```
+
+按 Span ID 精确查询：
+
+```json
+{
+    "bk_biz_id": 11,
+    "app_name": "demo_app",
+    "span_id": "30e66c2d28e1bfd8"
+}
+```
+
+只传 `trace_id` 时返回该 Trace 下的全部标准化 Span；只传 `span_id` 时按 Span ID 查询；两者同时传入时两个精确条件同时生效。
 
 ### 响应参数
 
@@ -33,7 +48,7 @@
 
 | 字段名 | 类型 | 描述 |
 |---|---|---|
-| trace_id | string | Trace ID |
+| trace_id | string | Trace ID；只传 `span_id` 时取匹配结果中的 Trace ID，未匹配时为空字符串 |
 | total | int | 转换后返回的 Span 数量 |
 | spans | list | 按 `start_time` 正序排列的标准化 Span |
 
@@ -43,7 +58,7 @@
 |---|---|---|
 | trace_id | string | Trace ID |
 | span_id | string | Span ID |
-| parent_span_id | string | 父 Span ID；根 Span 为空字符串 |
+| parent_span_id | string | 父 Span ID；可能为空，也可能指向未包含在标准化结果中的外部父 Span |
 | span_name | string | Span 名称 |
 | start_time | int | 开始时间，单位为微秒 |
 | end_time | int | 结束时间，单位为微秒 |
@@ -62,13 +77,19 @@
 | gen_ai.agent.name | string | Agent 名称 |
 | gen_ai.provider.name | string | 模型服务提供方 |
 | gen_ai.request.model | string | 请求模型 |
+| gen_ai.request.reasoning.level | string | 请求的推理强度 |
 | gen_ai.response.model | string | 响应模型 |
+| gen_ai.response.finish_reasons | list | 模型结束原因，例如 `tool_call`、`stop` |
+| gen_ai.response.time_to_first_chunk | float | 首个响应分片耗时，单位为秒 |
 | gen_ai.input.messages | list | 标准化输入消息 |
 | gen_ai.output.messages | list | 标准化输出消息 |
+| gen_ai.system_instructions | list | 标准化系统 Prompt，各元素使用消息 Part 结构 |
+| gen_ai.tool.definitions | list | 当前模型请求可用的工具定义 |
 | gen_ai.usage.input_tokens | int | 输入 Token 数 |
 | gen_ai.usage.output_tokens | int | 输出 Token 数 |
 | gen_ai.usage.cache_read.input_tokens | int | 缓存读取 Token 数 |
 | gen_ai.usage.cache_creation.input_tokens | int | 缓存写入 Token 数 |
+| gen_ai.usage.reasoning.output_tokens | int | 推理过程使用的输出 Token 数 |
 | gen_ai.tool.name | string | 工具名称 |
 | gen_ai.tool.call.id | string | 工具调用 ID |
 | gen_ai.tool.call.arguments | object | 工具调用参数 |
@@ -83,10 +104,67 @@
 | parts | list | 消息内容列表 |
 | parts[].type | string | 内容类型，例如 `text`、`reasoning`、`tool_call`、`tool_call_response` |
 | parts[].content | string | `text` 或 `reasoning` 的文本内容 |
+| parts[].id | string | `tool_call` 或 `tool_call_response` 的工具调用 ID |
+| parts[].name | string | `tool_call` 计划调用的工具名称 |
+| parts[].arguments | object | `tool_call` 计划使用的工具参数 |
+| parts[].response | object | `tool_call_response` 返回的工具结果 |
+
+工具定义结构：
+
+| 字段名 | 类型 | 描述 |
+|---|---|---|
+| type | string | 工具类型，函数工具为 `function` |
+| name | string | 工具名称，与 `tool_call.name`、`gen_ai.tool.name` 一致 |
+| description | string | 工具用途说明 |
+| parameters | object | 工具参数的 JSON Schema |
+
+### 前端展示归类规则
+
+#### Span 类型
+
+`attributes.gen_ai.operation.name` 是节点类型的判断字段，`span_name` 仅用于展示：
+
+| 页面节点类型 | `gen_ai.operation.name` 取值 |
+|---|---|
+| Agent | `invoke_agent`、`invoke_workflow` |
+| 模型 | `chat`、`text_completion` |
+| Tool | `execute_tool` |
+
+其他操作值按通用 GenAI Span 展示，不归入上述三类。
+
+#### 输入区块
+
+| 页面区块 | 字段 | 取值或条件 |
+|---|---|---|
+| 模型消息 | `gen_ai.input.messages[]` | 消息 `role = assistant`，展示其中 `type = text` 的 Part |
+| 用户消息 | `gen_ai.input.messages[]` | 消息 `role = user`，展示其中 `type = text` 的 Part |
+| 系统 Prompt | `gen_ai.system_instructions[]` | `type = text`，展示 `content` |
+| 推理过程 | `gen_ai.input.messages[].parts[]` | `type = reasoning`，展示 `content` |
+| 工具调用记录 | `gen_ai.input.messages[].parts[]` | `type = tool_call` 或 `tool_call_response` |
+| 可用工具 | `gen_ai.tool.definitions[]` | 展示 `name`、`description` 和 `parameters` |
+
+#### 输出区块
+
+| 页面区块 | 字段 | 取值或条件 |
+|---|---|---|
+| 推理过程 | `gen_ai.output.messages[].parts[]` | `type = reasoning`，展示 `content` |
+| 规划的工具调用 | `gen_ai.output.messages[].parts[]` | `type = tool_call`，展示 `id`、`name` 和 `arguments` |
+| 模型输出 | `gen_ai.output.messages[]` | 消息 `role = assistant`，展示其中 `type = text` 的 Part |
+
+`reasoning`、`tool_call`、`tool_call_response` 按 Part 类型归类；`text` Part 再按消息 `role`
+归入用户消息或模型消息。
+
+#### 工具调用关联
+
+以下字段使用同一个调用 ID：模型输出中的 `tool_call.id`、Tool Span 中的
+`gen_ai.tool.call.id`、后续模型输入中的 `tool_call_response.id`。`tool_call.name`、
+`gen_ai.tool.name` 对应同一个 `gen_ai.tool.definitions[].name`。发起工具调用的 Chat 使用
+`gen_ai.response.finish_reasons = ["tool_call"]`，输出最终回答的 Chat 使用 `["stop"]`。
 
 ### 响应参数示例
 
-以下示例基于 Agent Trace 的实际返回结构整理，会话标识、资源信息、工具参数和对话正文已替换为示例值；Span 关系、时间和字段集合保持真实结构。
+以下响应为未传 `span_id` 时的完整 Trace 查询示例。会话标识、资源信息、工具参数和对话正文已脱敏。
+`list_llm_flows` 使用同一组 Span，仅增加 `childs` 层级。
 
 ```json
 {
@@ -121,8 +199,10 @@
                     "gen_ai.agent.name": "标准排障",
                     "gen_ai.provider.name": "bkaidev",
                     "gen_ai.request.model": "k3",
-                    "gen_ai.usage.cache_read.input_tokens": 19456,
-                    "gen_ai.usage.reasoning.output_tokens": 51,
+                    "gen_ai.usage.input_tokens": 340,
+                    "gen_ai.usage.output_tokens": 96,
+                    "gen_ai.usage.cache_read.input_tokens": 164,
+                    "gen_ai.usage.reasoning.output_tokens": 27,
                     "gen_ai.input.messages": [
                         {
                             "role": "user",
@@ -140,7 +220,7 @@
                             "parts": [
                                 {
                                     "type": "text",
-                                    "content": "已完成故障分析"
+                                    "content": "检测到 CPU 使用率持续升高，请优先检查高负载进程。"
                                 }
                             ]
                         }
@@ -176,8 +256,16 @@
                         "tool_call"
                     ],
                     "gen_ai.response.time_to_first_chunk": 3.836437940597534,
-                    "gen_ai.usage.cache_read.input_tokens": 9728,
-                    "gen_ai.usage.reasoning.output_tokens": 28,
+                    "gen_ai.usage.input_tokens": 120,
+                    "gen_ai.usage.output_tokens": 32,
+                    "gen_ai.usage.cache_read.input_tokens": 64,
+                    "gen_ai.usage.reasoning.output_tokens": 12,
+                    "gen_ai.system_instructions": [
+                        {
+                            "type": "text",
+                            "content": "你是故障排查助手。先查询事实，再给出结论和建议。"
+                        }
+                    ],
                     "gen_ai.input.messages": [
                         {
                             "role": "user",
@@ -189,10 +277,38 @@
                             ]
                         }
                     ],
+                    "gen_ai.tool.definitions": [
+                        {
+                            "type": "function",
+                            "name": "list_incident_events",
+                            "description": "查询指定故障关联的事件列表",
+                            "parameters": {
+                                "type": "object",
+                                "properties": {
+                                    "incident_id": {
+                                        "type": "string",
+                                        "description": "故障 ID"
+                                    }
+                                },
+                                "required": [
+                                    "incident_id"
+                                ],
+                                "additionalProperties": false
+                            }
+                        }
+                    ],
                     "gen_ai.output.messages": [
                         {
                             "role": "assistant",
                             "parts": [
+                                {
+                                    "type": "reasoning",
+                                    "content": "需要先查询故障关联的事件列表。"
+                                },
+                                {
+                                    "type": "text",
+                                    "content": "我先查询该故障的事件记录。"
+                                },
                                 {
                                     "type": "tool_call",
                                     "id": "tool-call-demo-01",
@@ -234,7 +350,13 @@
                         "incident_id": "incident-demo"
                     },
                     "gen_ai.tool.call.result": {
-                        "events": []
+                        "events": [
+                            {
+                                "level": "critical",
+                                "name": "CPU 使用率持续升高",
+                                "started_at": "2026-08-28T10:15:00+08:00"
+                            }
+                        ]
                     }
                 }
             },
@@ -245,7 +367,7 @@
                 "span_name": "chat k3",
                 "start_time": 1787912689802118,
                 "end_time": 1787912699639749,
-                "elapsed_time": 9837630,
+                "elapsed_time": 9837631,
                 "status": {
                     "code": 1,
                     "message": ""
@@ -266,9 +388,48 @@
                     "gen_ai.response.finish_reasons": [
                         "stop"
                     ],
-                    "gen_ai.usage.cache_read.input_tokens": 9728,
-                    "gen_ai.usage.reasoning.output_tokens": 23,
+                    "gen_ai.response.time_to_first_chunk": 2.104,
+                    "gen_ai.usage.input_tokens": 220,
+                    "gen_ai.usage.output_tokens": 64,
+                    "gen_ai.usage.cache_read.input_tokens": 100,
+                    "gen_ai.usage.reasoning.output_tokens": 15,
+                    "gen_ai.system_instructions": [
+                        {
+                            "type": "text",
+                            "content": "你是故障排查助手。先查询事实，再给出结论和建议。"
+                        }
+                    ],
                     "gen_ai.input.messages": [
+                        {
+                            "role": "user",
+                            "parts": [
+                                {
+                                    "type": "text",
+                                    "content": "查询当前故障"
+                                }
+                            ]
+                        },
+                        {
+                            "role": "assistant",
+                            "parts": [
+                                {
+                                    "type": "reasoning",
+                                    "content": "需要先查询故障关联的事件列表。"
+                                },
+                                {
+                                    "type": "text",
+                                    "content": "我先查询该故障的事件记录。"
+                                },
+                                {
+                                    "type": "tool_call",
+                                    "id": "tool-call-demo-01",
+                                    "name": "list_incident_events",
+                                    "arguments": {
+                                        "incident_id": "incident-demo"
+                                    }
+                                }
+                            ]
+                        },
                         {
                             "role": "tool",
                             "parts": [
@@ -276,10 +437,36 @@
                                     "type": "tool_call_response",
                                     "id": "tool-call-demo-01",
                                     "response": {
-                                        "events": []
+                                        "events": [
+                                            {
+                                                "level": "critical",
+                                                "name": "CPU 使用率持续升高",
+                                                "started_at": "2026-08-28T10:15:00+08:00"
+                                            }
+                                        ]
                                     }
                                 }
                             ]
+                        }
+                    ],
+                    "gen_ai.tool.definitions": [
+                        {
+                            "type": "function",
+                            "name": "list_incident_events",
+                            "description": "查询指定故障关联的事件列表",
+                            "parameters": {
+                                "type": "object",
+                                "properties": {
+                                    "incident_id": {
+                                        "type": "string",
+                                        "description": "故障 ID"
+                                    }
+                                },
+                                "required": [
+                                    "incident_id"
+                                ],
+                                "additionalProperties": false
+                            }
                         }
                     ],
                     "gen_ai.output.messages": [
@@ -287,8 +474,12 @@
                             "role": "assistant",
                             "parts": [
                                 {
+                                    "type": "reasoning",
+                                    "content": "事件表明 CPU 使用率持续升高，需要检查高负载进程。"
+                                },
+                                {
                                     "type": "text",
-                                    "content": "已完成故障分析"
+                                    "content": "检测到 CPU 使用率持续升高，请优先检查高负载进程。"
                                 }
                             ]
                         }

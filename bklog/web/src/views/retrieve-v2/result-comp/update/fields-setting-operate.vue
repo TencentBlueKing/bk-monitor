@@ -27,8 +27,8 @@
 <template>
   <div>
     <div
-      class="config-tab-item"
       v-show="!configItem.isShowEdit"
+      class="config-tab-item"
       @click="emitOperate('click')"
     >
       <span
@@ -46,8 +46,8 @@
       </div>
     </div>
     <div
-      class="config-tab-item"
       v-show="configItem.isShowEdit"
+      class="config-tab-item"
       @click="e => e.stopPropagation()"
     >
       <bk-input

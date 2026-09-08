@@ -28,7 +28,7 @@ from django.utils.timezone import make_aware
 from django.utils.timezone import now as tz_now
 from django.utils.translation import gettext as _
 
-from bkmonitor.utils.base62 import decode_identifier
+from bkmonitor.utils.base62 import decode_identifier, decode_metric_identifier
 from bkmonitor.utils.db.fields import JsonField
 from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import api
@@ -1989,6 +1989,18 @@ class TimeSeriesMetric(models.Model):
         return list(tags)
 
     @classmethod
+    def build_new_metric_config(cls, field_name: str) -> dict:
+        """新发现指标的初始配置
+
+        SDK 会把含中文等非法字符的指标名编码成 base62 标识符上报，查询必须继续使用编码后的名字，
+        这里把解码出的原始名回填成别名，让各展示入口都能拿到可读的指标名。
+        """
+        original_name = decode_metric_identifier(field_name)
+        if original_name == field_name:
+            return {}
+        return {"alias": original_name}
+
+    @classmethod
     def _bulk_create_metrics(
         cls,
         metrics_dict: dict,
@@ -2017,6 +2029,7 @@ class TimeSeriesMetric(models.Model):
                 "field_scope": field_scope,
                 "scope_id": metric_info.get("scope_id"),
                 "is_active": True,  # 新创建的指标在返回列表中，标记为活跃
+                "field_config": cls.build_new_metric_config(field_name),
             }
             logger.info("create ts metric data: %s", json.dumps(params))
             records.append(cls(**params))
@@ -2083,11 +2096,11 @@ class TimeSeriesMetric(models.Model):
                 is_need_update = True
                 obj.tag_list = tag_list
 
-            # 如果指标从 disabled 状态恢复，需要更新 scope_id 和清空 field_config
+            # 如果指标从 disabled 状态恢复，需要更新 scope_id 和重置 field_config
             if obj.scope_id == cls.DISABLE_SCOPE_ID:
                 is_need_update = True
                 obj.scope_id = metric_info.get("scope_id")
-                obj.field_config = {}
+                obj.field_config = cls.build_new_metric_config(obj.field_name)
 
             # 更新 is_active 字段：指标在返回列表中，标记为活跃
             if not obj.is_active:

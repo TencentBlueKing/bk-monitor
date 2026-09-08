@@ -231,9 +231,7 @@ export default defineComponent({
 
       // 当用户修改后，检查是否可以清除全局错误状态
       // 如果当前所有项都满足条件（key和value非空且不重复），则清除 isExtraError
-      const hasError = extraLabelList.value.some(
-        item => item.key === '' || item.value === '' || item.duplicateKey
-      );
+      const hasError = extraLabelList.value.some(item => item.key === '' || item.value === '' || item.duplicateKey);
       if (!hasError) {
         isExtraError.value = false;
       }

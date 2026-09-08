@@ -144,28 +144,28 @@ export class PerformanceRecordRepository {
     }
   }
 
-  async listRecent(options: {
-    sessionId?: string;
-    tabId?: string;
-    since?: number;
-    limit?: number;
-    types?: string[];
-  } = {}) {
+  async listRecent(
+    options: {
+      sessionId?: string;
+      tabId?: string;
+      since?: number;
+      limit?: number;
+      types?: string[];
+    } = {},
+  ) {
     if (!(await storageHealthService.ensureIndexedDBUsable())) return [];
     const limit = Math.min(Math.max(options.limit || 1500, 1), 4000);
     const since = options.since || Date.now() - 30 * 60 * 1000;
     const typeSet = options.types?.length ? new Set(options.types) : null;
     try {
-      const fetchLimit = typeSet || options.tabId
-        ? Math.min(limit * 6, 10000)
-        : Math.min(limit * 3, 8000);
+      const fetchLimit = typeSet || options.tabId ? Math.min(limit * 6, 10000) : Math.min(limit * 3, 8000);
       const raw = await db.performanceRecords
         .where('timestamp')
         .aboveOrEqual(since)
         .reverse()
         .limit(fetchLimit)
         .toArray();
-      const rows = raw.filter((record) => {
+      const rows = raw.filter(record => {
         if (options.sessionId && record.sessionId !== options.sessionId) return false;
         if (options.tabId && record.tabId !== options.tabId) return false;
         if (typeSet && !typeSet.has(record.type)) return false;

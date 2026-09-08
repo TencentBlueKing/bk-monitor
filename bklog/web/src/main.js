@@ -25,6 +25,7 @@
  */
 
 import './public-path';
+import { initOpenTelemetry } from './open-telemetry';
 
 import Vue from 'vue';
 import VueVirtualScroller from 'vue-virtual-scroller';
@@ -59,7 +60,8 @@ import { BK_LOG_STORAGE } from './store/store.type.ts';
 import { urlArgs } from './store/default-values.ts';
 import { DEFAULT_MENU_LISTS } from './store/menu-config.ts';
 
-const isHeadlessRoute = () => new URLSearchParams(window.location.hash.split('?')[1] || window.location.search).get('hl') === '1';
+const isHeadlessRoute = () =>
+  new URLSearchParams(window.location.hash.split('?')[1] || window.location.search).get('hl') === '1';
 
 const createBootstrapMenuList = () => {
   const normalizeMenu = menu => ({
@@ -97,8 +99,8 @@ const fadeOutBootstrapLoading = () => {
 Vue.prototype.$renderHeader = renderHeader;
 Vue.prototype.$xss = xssFilter;
 
-const setRouterErrorHandle = (router) => {
-  router.onError((err) => {
+const setRouterErrorHandle = router => {
+  router.onError(err => {
     const pattern = /Loading (CSS chunk|chunk) (\d)+ failed/g;
     const isChunkLoadFailed = err.message.match(pattern);
     const targetPath = router.history?.pending?.fullPath;
@@ -117,6 +119,8 @@ Vue.use(VueVirtualScroller);
 
 window.bus = bus;
 
+let rumInstance;
+
 const mountedVueInstance = () => {
   // Object.assign(window, localSettings);
   window.mainComponent = {
@@ -126,6 +130,8 @@ const mountedVueInstance = () => {
   };
 
   preload({ http, store, isHeadless: isHeadlessRoute() }).then(([spaceRequest]) => {
+    rumInstance?.setUser({ id: store.state.userMeta?.username });
+
     const { space, spaceUid, bkBizId } = spaceRequest.value ?? {};
 
     let externalMenu = [];
@@ -148,8 +154,8 @@ const mountedVueInstance = () => {
     const patchLogCollectionMenu = (menuList = []) => {
       menuList
         .find(item => item.id === 'manage')
-        ?.children?.forEach((group) => {
-          group?.children?.forEach((nav) => {
+        ?.children?.forEach(group => {
+          group?.children?.forEach(nav => {
             if (nav.id === 'log-collection') {
               Object.assign(nav, {
                 children: [
@@ -177,7 +183,7 @@ const mountedVueInstance = () => {
           patchLogCollectionMenu(menuList);
           store.commit('updateState', { topMenu: structuredClone(menuList) });
         })
-        .catch((e) => {
+        .catch(e => {
           console.error('获取菜单列表失败', e);
         })
         .finally(() => {});
@@ -244,7 +250,7 @@ const mountedVueInstance = () => {
         if (!isHeadlessRoute()) {
           getAllSpaceList(http, store);
           const requestUserGuide = () => {
-            requestUserGuideData({ http, store }).catch((e) => {
+            requestUserGuideData({ http, store }).catch(e => {
               console.error('获取用户引导数据失败', e);
             });
           };
@@ -269,9 +275,9 @@ const mountedVueInstance = () => {
 };
 
 if (process.env.NODE_ENV === 'development') {
-  http.request('meta/getEnvConstant').then((res) => {
+  http.request('meta/getEnvConstant').then(res => {
     const { data } = res;
-    Object.keys(data).forEach((key) => {
+    Object.keys(data).forEach(key => {
       window[key] = data[key];
     });
     window.FEATURE_TOGGLE = JSON.parse(data.FEATURE_TOGGLE);
@@ -279,10 +285,12 @@ if (process.env.NODE_ENV === 'development') {
     window.FEATURE_TOGGLE_BLACK_LIST = JSON.parse(data.FEATURE_TOGGLE_BLACK_LIST);
     window.SPACE_UID_WHITE_LIST = JSON.parse(data.SPACE_UID_WHITE_LIST);
     window.FIELD_ANALYSIS_CONFIG = JSON.parse(data.FIELD_ANALYSIS_CONFIG);
+    rumInstance = initOpenTelemetry();
     mountedVueInstance();
     Vue.config.devtools = true;
   });
 } else {
+  rumInstance = initOpenTelemetry();
   mountedVueInstance();
   Vue.config.devtools = true;
 }

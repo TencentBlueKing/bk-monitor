@@ -66,15 +66,17 @@ export default defineComponent({
       if (!searchValue) {
         return props.data;
       }
-      return props.data.filter((item) => {
-        return `${item.collector_config_id}`.includes(searchValue)
-          || item.collector_config_name?.toLowerCase().includes(searchValue);
+      return props.data.filter(item => {
+        return (
+          `${item.collector_config_id}`.includes(searchValue) ||
+          item.collector_config_name?.toLowerCase().includes(searchValue)
+        );
       });
     });
     const relatedIndexSetFilters = computed(() => {
       const filterMap = new Map<number, string>();
-      props.data.forEach((collector) => {
-        (collector.related_index_set_list || []).forEach((indexSet) => {
+      props.data.forEach(collector => {
+        (collector.related_index_set_list || []).forEach(indexSet => {
           if (!filterMap.has(indexSet.index_set_id)) {
             filterMap.set(indexSet.index_set_id, indexSet.index_set_name);
           }
@@ -105,9 +107,8 @@ export default defineComponent({
       });
       window.open(routeData.href, '_blank', 'noopener,noreferrer');
     };
-    const filterRelatedIndexSet = (indexSetId: number, row: CleanTemplateCollectorTableRow) => (
-      (row.related_index_set_list || []).some(item => item.index_set_id === indexSetId)
-    );
+    const filterRelatedIndexSet = (indexSetId: number, row: CleanTemplateCollectorTableRow) =>
+      (row.related_index_set_list || []).some(item => item.index_set_id === indexSetId);
     const getSyncStatusText = (row: CleanTemplateCollectorTableRow) => {
       if (!row.sync_result_status) {
         return '--';
@@ -197,7 +198,10 @@ export default defineComponent({
                 class='collector-name'
                 on-click={() => handleCollectionClick(row)}
               >
-                <span class='collector-name-text' v-bk-overflow-tips>
+                <span
+                  class='collector-name-text'
+                  v-bk-overflow-tips
+                >
                   {row.collector_config_name || '--'}
                 </span>
                 <i class='bklog-icon bklog-jump jump-icon' />
@@ -225,11 +229,16 @@ export default defineComponent({
             resizable={false}
             scopedSlots={{
               default: ({ row }: { row: CleanTemplateCollectorTableRow }) => (
-                <span class={[
-                  row.sync_result_status && 'sync-status',
-                  row.sync_result_status && (row.sync_result_status === 'FAILED' ? 'is-failed' : 'is-success'),
-                ]}>
-                  <span class='sync-status-text' v-bk-overflow-tips>
+                <span
+                  class={[
+                    row.sync_result_status && 'sync-status',
+                    row.sync_result_status && (row.sync_result_status === 'FAILED' ? 'is-failed' : 'is-success'),
+                  ]}
+                >
+                  <span
+                    class='sync-status-text'
+                    v-bk-overflow-tips
+                  >
                     {getSyncStatusText(row)}
                   </span>
                 </span>

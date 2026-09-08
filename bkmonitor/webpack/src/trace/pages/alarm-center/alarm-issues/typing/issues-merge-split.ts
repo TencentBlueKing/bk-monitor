@@ -96,8 +96,14 @@ export interface MergeSourceActiveMember extends MergeSourceMemberBase {
 
 /** 合并来源中成员的公共基础字段（active_members 与 split_history 共用） */
 export interface MergeSourceMemberBase {
+  /** 告警事件数 */
+  alert_count?: number;
   /** 异常信息 */
   anomaly_message: string;
+  /** 最早发生时间（Unix 秒级时间戳），缺失时按 -- 展示 */
+  first_alert_time?: number;
+  /** 最后出现时间（Unix 秒级时间戳），缺失时按 -- 展示 */
+  last_alert_time?: number;
   /** 成员 Issue 在 ES 中的真实状态；查不到时为 null，按已删除占位 */
   member_es_status?: MergeMemberEsStatus | null;
   /** 成员 Issue ID */

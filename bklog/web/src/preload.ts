@@ -34,7 +34,7 @@ import { updateBuiltInInitHiddenList } from './const';
 window.__VUE_PROD_HYDRATION_MISMATCH_DETAILS__ = false;
 
 /** 外部版根据空间授权权限显示菜单 */
-export const getExternalMenuListBySpace = (space) => {
+export const getExternalMenuListBySpace = space => {
   const list: string[] = [];
   for (const permission of space?.external_permission || []) {
     if (permission === 'log_search') {
@@ -66,13 +66,13 @@ export const getAllSpaceList = (http, store): Promise<void> => {
     return allSpaceListPromise;
   }
 
-  allSpaceListPromise = new Promise<void>((resolve) => {
+  allSpaceListPromise = new Promise<void>(resolve => {
     window.scheduler.postTask(() => {
       http
         .request('space/getMySpaceList')
-        .then((resp) => {
+        .then(resp => {
           const spaceList = Array.isArray(resp?.data) ? resp.data : [];
-          spaceList.forEach((item) => {
+          spaceList.forEach(item => {
             item.bk_biz_id = `${item.bk_biz_id}`;
             item.space_uid = `${item.space_uid}`;
             item.space_full_code_name = `${item.space_name}(#${item.space_id})`;
@@ -80,7 +80,7 @@ export const getAllSpaceList = (http, store): Promise<void> => {
 
           store.commit('updateMySpaceList', spaceList);
         })
-        .catch((e) => {
+        .catch(e => {
           // 保留首屏已解析出的当前空间，避免请求失败时业务名与下拉列表一起被清空
           console.error('获取空间列表失败', e);
         })
@@ -104,7 +104,7 @@ export const getAllSpaceList = (http, store): Promise<void> => {
  * globalsRequest: 全局配置请求
  */
 export const requestUserGuideData = ({ http, store }) => {
-  return http.request('meta/getUserGuide').then((res) => {
+  return http.request('meta/getUserGuide').then(res => {
     store.commit('updateState', { userGuideData: res.data });
     return res.data;
   });
@@ -138,7 +138,7 @@ export default ({
             catchIsShowMessage: false,
           },
         )
-        .then((resp) => {
+        .then(resp => {
           if (resp.result) {
             store.commit('updateSpace', resp.data);
             store.commit('updateStorage', {
@@ -151,7 +151,7 @@ export default ({
 
           return null;
         })
-        .catch((e) => {
+        .catch(e => {
           console.error('getSpaceByIndexId失败', e);
           return null;
         });
@@ -207,12 +207,13 @@ export default ({
    * @returns
    */
   const getDefaultSpaceList = () => {
-    const requestSpaceList = params => http.request('space/getMySpaceList', params, {
-      catchIsShowMessage: false,
-    });
+    const requestSpaceList = params =>
+      http.request('space/getMySpaceList', params, {
+        catchIsShowMessage: false,
+      });
     const spaceRequestData = getSpaceRequestData();
     return requestSpaceList(spaceRequestData)
-      .then((resp) => {
+      .then(resp => {
         const spaceList = resp.data;
         if (spaceList.length) {
           return Promise.resolve(resp);
@@ -226,7 +227,7 @@ export default ({
 
         return Promise.resolve(resp);
       })
-      .catch((e) => {
+      .catch(e => {
         console.error('获取空间列表失败', e);
         return Promise.resolve(null);
       });
@@ -237,7 +238,7 @@ export default ({
    * return
    */
   const spaceRequest = getSpaceByIndexId().then(() => {
-    return getDefaultSpaceList().then((resp) => {
+    return getDefaultSpaceList().then(resp => {
       // 兜底 resp 为 null (catch 分支) 或 resp.data 为 undefined 的情况，避免抛 TypeError
       const spaceList = Array.isArray(resp?.data) ? resp.data : [];
       let spaceUid = undefined;
@@ -293,7 +294,7 @@ export default ({
   /**
    * 获取用户信息
    */
-  const userInfoRequest = http.request('userInfo/getUsername').then((resp) => {
+  const userInfoRequest = http.request('userInfo/getUsername').then(resp => {
     store.commit('updateState', { userMeta: resp.data });
     BkUserDisplayName.configure({
       // 必填，租户 ID
@@ -313,7 +314,7 @@ export default ({
   /**
    * 获取全局配置
    */
-  const globalsRequest = http.request('collect/globals').then((res) => {
+  const globalsRequest = http.request('collect/globals').then(res => {
     if ((res.data.log_built_in_field ?? []).length > 0) {
       // 使用新的更新函数动态更新内置隐藏字段列表
       updateBuiltInInitHiddenList(res.data.log_built_in_field);
