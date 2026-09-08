@@ -33,7 +33,6 @@ from django.test import TestCase, TransactionTestCase, override_settings
 from django.utils import timezone
 from django.utils.translation import gettext
 from redis.exceptions import ConnectionError as RedisConnectionError
-from rest_framework.request import Request
 from rest_framework.test import APIRequestFactory
 
 from apps.log_search.constants import ASYNC_EXPORT_SCENE_ID, ExportStatus, ExportType, IndexSetType
@@ -137,90 +136,6 @@ class BarrierRedisCache:
 
 
 class TestAsyncExportProgress(TestCase):
-    def test_export_history_filters_to_related_spaces_when_show_all_is_false(self):
-        tasks = []
-        for bk_biz_id in [2, -3, -4]:
-            tasks.append(
-                AsyncTask.objects.create(
-                    request_param=SEARCH_DICT,
-                    scenario_id=Scenario.LOG,
-                    index_set_id=3,
-                    bk_biz_id=bk_biz_id,
-                    start_time=SEARCH_DICT["start_time"],
-                    end_time=SEARCH_DICT["end_time"],
-                    export_type=ExportType.ASYNC,
-                    export_status=ExportStatus.SUCCESS,
-                    source_app_code="bk_log_search",
-                    created_by="admin",
-                )
-            )
-        handler = AsyncExportHandlers.__new__(AsyncExportHandlers)
-        handler.index_set_id = 3
-        handler.bk_biz_id = 2
-        request = Request(APIRequestFactory().get("/?page=1&pagesize=10"))
-
-        with (
-            patch(
-                "apps.log_search.handlers.search.async_export_handlers.get_request_app_code",
-                return_value="bk_log_search",
-            ),
-            patch(
-                "apps.log_search.handlers.search.async_export_handlers.get_request_external_username", return_value=""
-            ),
-            patch(
-                "apps.log_search.handlers.search.async_export_handlers.get_bkcc_biz_id_related_spaces",
-                return_value=[-3],
-            ),
-            patch.object(handler, "get_index_set_retention", return_value={}),
-        ):
-            related_response = handler.get_export_history(request, Mock(), show_all=False)
-            all_response = handler.get_export_history(request, Mock(), show_all=True)
-
-        self.assertCountEqual([item["id"] for item in related_response.data["list"]], [tasks[0].id, tasks[1].id])
-        self.assertCountEqual(
-            [item["id"] for item in all_response.data["list"]], [tasks[0].id, tasks[1].id]
-        )
-
-    def test_union_export_history_filters_to_related_spaces(self):
-        tasks = []
-        for bk_biz_id in [2, -3, -4]:
-            tasks.append(
-                AsyncTask.objects.create(
-                    request_param=SEARCH_DICT,
-                    index_set_ids=[3, 4],
-                    index_set_type=IndexSetType.UNION.value,
-                    bk_biz_id=bk_biz_id,
-                    start_time=SEARCH_DICT["start_time"],
-                    end_time=SEARCH_DICT["end_time"],
-                    export_type=ExportType.ASYNC,
-                    export_status=ExportStatus.SUCCESS,
-                    source_app_code="bk_log_search",
-                    created_by="admin",
-                )
-            )
-        handler = AsyncExportHandlers.__new__(AsyncExportHandlers)
-        handler.index_set_ids = [3, 4]
-        handler.bk_biz_id = 2
-        request = Request(APIRequestFactory().get("/?page=1&pagesize=10"))
-
-        with (
-            patch(
-                "apps.log_search.handlers.search.async_export_handlers.get_request_app_code",
-                return_value="bk_log_search",
-            ),
-            patch(
-                "apps.log_search.handlers.search.async_export_handlers.get_request_external_username", return_value=""
-            ),
-            patch(
-                "apps.log_search.handlers.search.async_export_handlers.get_bkcc_biz_id_related_spaces",
-                return_value=[-3],
-            ),
-            patch.object(handler, "get_index_set_retention", return_value={}),
-        ):
-            response = handler.get_export_history(request, Mock(), show_all=False, is_union_search=True)
-
-        self.assertCountEqual([item["id"] for item in response.data["list"]], [tasks[0].id, tasks[1].id])
-
     @override_settings(USE_REDIS=True)
     def test_async_export_creates_task_with_export_total_count(self):
         with ExitStack() as stack:
@@ -265,11 +180,13 @@ class TestAsyncExportProgress(TestCase):
             task_id, total_count = AsyncExportHandlers(
                 index_set_id=3,
                 bk_biz_id=2,
+                request_bk_biz_id=7,
                 search_dict=SEARCH_DICT,
             ).async_export()
 
         async_task = AsyncTask.objects.get(id=task_id)
         self.assertEqual(total_count, SEARCH_DICT["size"])
+        self.assertEqual(async_task.bk_biz_id, 7)
         self.assertEqual(async_task.export_total_count, SEARCH_DICT["size"])
         self.assertEqual(async_task.exported_count, 0)
         self.assertEqual(async_task.download_count, 0)

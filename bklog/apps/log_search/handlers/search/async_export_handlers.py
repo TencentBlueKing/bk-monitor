@@ -29,7 +29,6 @@ from django.utils.http import urlencode
 from rest_framework.reverse import reverse
 
 from apps.api import TransferApi
-from apps.api.modules.utils import get_bkcc_biz_id_related_spaces
 from apps.log_databus.constants import DORIS_CLUSTER_TYPE, DORIS_DEFAULT_EXPIRE_DAYS
 from apps.log_databus.models import CollectorConfig
 from apps.log_search.constants import (
@@ -73,9 +72,11 @@ class AsyncExportHandlers:
         export_fields=None,
         index_set_ids: list = None,
         export_file_type: str = "txt",
+        request_bk_biz_id=None,
     ):
         self.index_set_id = index_set_id
         self.bk_biz_id = bk_biz_id
+        self.request_bk_biz_id = bk_biz_id if request_bk_biz_id is None else request_bk_biz_id
         self.index_set_ids = index_set_ids
         if search_dict:
             self.search_dict = search_dict
@@ -114,7 +115,7 @@ class AsyncExportHandlers:
                 "sorted_param": fields["async_export_fields"],
                 "scenario_id": self.search_handler.scenario_id,
                 "index_set_id": self.index_set_id,
-                "bk_biz_id": self.bk_biz_id,
+                "bk_biz_id": self.request_bk_biz_id,
                 "start_time": self.search_dict["start_time"],
                 "end_time": self.search_dict["end_time"],
                 "export_total_count": self.get_export_total_count(
@@ -183,23 +184,19 @@ class AsyncExportHandlers:
         start_time=None,
         end_time=None,
     ):
+        # 这里当show_all为true的时候则给前端返回当前业务全部导出历史
         source_app_code = get_request_app_code()
         external_username = get_request_external_username()
-        query_set = AsyncTask.objects.filter(source_app_code=source_app_code)
+        query_set = AsyncTask.objects.filter(bk_biz_id=self.bk_biz_id, source_app_code=source_app_code)
         # 外部用户只能看到自己的导出历史
         if external_username:
             query_set = query_set.filter(created_by=external_username)
-        related_biz_ids = {self.bk_biz_id}
-        if self.bk_biz_id and self.bk_biz_id > 0:
-            related_biz_ids.update(
-                get_bkcc_biz_id_related_spaces(self.bk_biz_id, query_type="bk_biz_id")
-            )
-        query_set = query_set.filter(bk_biz_id__in=related_biz_ids)
         if is_union_search:
             query_set = query_set.filter(index_set_type=IndexSetType.UNION.value)
             if not show_all:
                 query_set = query_set.filter(index_set_ids=self.index_set_ids)
         else:
+            # 这里当show_all为true的时候则给前端返回当前业务全部导出历史
             query_set = query_set.filter(index_set_type=IndexSetType.SINGLE.value)
             if not show_all:
                 query_set = query_set.filter(index_set_id=self.index_set_id)
