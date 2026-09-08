@@ -653,14 +653,12 @@ class EtlStorage:
         """
         构建V4版本的dtEventTimeStampNanos字段规则（从bk_separator_object提取用户指定的时间字段）
 
-        doris 不产出该字段：dtEventTimeStamp 由 bkbase 依据时间字段规则的 time_format 生成，
-        纳秒格式本身就在 time_format 里，再声明一个独立的纳秒字段在 doris 物理表没有对应列。
+        doris 同样产出该字段：bkbase 依据 is_time_field 规则自动生成的 dtEventTimeStamp 是 long 列、
+        按 millis 截断，亚秒精度存不住；dtEventTimeStampNanos 落成 string 列原样保留微秒，
+        是 doris 上微秒精度的唯一载体，检索侧再通过别名让 dtEventTimeStamp 透明取到它。
         :param built_in_config: 内置配置，包含_nanos_time_field信息
-        :return: dtEventTimeStampNanos字段规则列表；doris 存储恒为空
+        :return: dtEventTimeStampNanos字段规则列表
         """
-        if storage_cluster_type == DORIS_CLUSTER_TYPE:
-            return []
-
         rules = []
         nanos_time_field = built_in_config.get("_nanos_time_field")
         if nanos_time_field:
@@ -704,6 +702,11 @@ class EtlStorage:
                 nanos_v4_time_parsing["to"] = "strict_date_optional_time_nanos"
                 nanos_time_rules["operator"]["time_format"] = None
                 nanos_time_rules["operator"]["in_place_time_parsing"] = nanos_v4_time_parsing
+            elif storage_cluster_type == DORIS_CLUSTER_TYPE:
+                # doris 只认扁平 time_format，带 to 会被 bkbase 拒绝；
+                # 该结构在清洗阶段不做解析，原样透传，微秒得以完整保留
+                nanos_time_rules["operator"]["time_format"] = nanos_v4_time_parsing
+                nanos_time_rules["operator"]["in_place_time_parsing"] = None
 
             rules.append(nanos_time_rules)
         return rules
@@ -1127,9 +1130,7 @@ class EtlStorage:
             )
 
         field_list.append(time_field)
-        # doris 不声明独立的纳秒字段：亚秒精度随 dtEventTimeStamp 的 time_format 一起下发，
-        # 物理表没有 dtEventTimeStampNanos 列，声明了只会让检索侧注册出指向空列的排序别名
-        if is_nanos and storage_cluster_type != DORIS_CLUSTER_TYPE:
+        if is_nanos:
             field_list.append(nano_time_field)
         return {"fields": field_list, "time_field": time_field}
 
