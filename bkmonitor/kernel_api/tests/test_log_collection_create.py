@@ -367,7 +367,13 @@ def test_fast_create_forwards_parent_index_set_ids(monkeypatch):
 
     def fast_create(**kwargs):
         calls.update(kwargs)
-        return {"collector_config_id": 31, "index_set_id": 41}
+        return {
+            "collector_config_id": 31,
+            "bk_data_id": 51,
+            "subscription_id": None,
+            "task_id_list": None,
+            "index_set_id": 41,
+        }
 
     monkeypatch.setattr(
         create_module,
