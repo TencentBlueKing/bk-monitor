@@ -244,13 +244,14 @@ class ModifyClusterInfoResource(Resource):
         except models.ClusterInfo.MultipleObjectsReturned:
             raise ValueError(_("找到多个符合条件的集群配置，可能是不同类型的集群名相同，请提供集群类型后重试"))
 
-        # 如果集群名不符合规范，则自动修正为合法名称并记录警告日志
+        # ES 名称修正延迟到模型层需要同步时执行；Doris 保留历史名称。
         if not cluster_info.display_name:
             cluster_info.display_name = cluster_info.cluster_name
 
-        if cluster_info.cluster_type != models.ClusterInfo.TYPE_DORIS and not re.match(
-            models.ClusterInfo.CLUSTER_NAME_REGEX, cluster_info.cluster_name
-        ):
+        if cluster_info.cluster_type not in (
+            models.ClusterInfo.TYPE_ES,
+            models.ClusterInfo.TYPE_DORIS,
+        ) and not re.match(models.ClusterInfo.CLUSTER_NAME_REGEX, cluster_info.cluster_name):
             original_cluster_name = cluster_info.cluster_name
             cluster_name = f"auto_cluster_name_{cluster_info.cluster_id}"
             cluster_info.cluster_name = cluster_name

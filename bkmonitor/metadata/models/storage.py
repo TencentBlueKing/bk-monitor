@@ -1298,11 +1298,22 @@ class ClusterInfo(models.Model):
                 self.last_modify_user = operator
                 logger.info(f"cluster->[{self.cluster_name}] attribute->[{attribute_name}] updated by->[{operator}]")
 
+        # 仅实际下发字段变化时同步，元数据修改不依赖 BKBase。
+        needs_sync = previous_sync_fields != ClusterConfig.sync_fields(self)
+        if needs_sync and self.cluster_type == self.TYPE_ES and not self.CLUSTER_NAME_REGEX.match(self.cluster_name):
+            original_cluster_name = self.cluster_name
+            self.cluster_name = f"auto_cluster_name_{self.cluster_id}"
+            logger.warning(
+                "cluster(%s) cluster_name: %s is not valid, set to: %s",
+                self.cluster_id,
+                original_cluster_name,
+                self.cluster_name,
+            )
+
         self.save()
         logger.info(f"cluster->[{self.cluster_name}] update success.")
 
-        # 仅实际下发字段变化时同步，元数据修改不依赖 BKBase。
-        if previous_sync_fields != ClusterConfig.sync_fields(self):
+        if needs_sync:
             ClusterConfig.sync_cluster_config(cluster=self)
 
         return True

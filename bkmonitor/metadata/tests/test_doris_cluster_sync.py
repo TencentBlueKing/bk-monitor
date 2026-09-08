@@ -1,4 +1,5 @@
 import copy
+import json
 
 import pytest
 
@@ -283,3 +284,48 @@ def test_internal_update_serializer_does_not_inject_empty_values():
 def test_surrealdb_version_precedence(version, expected):
     cluster = make_cluster(cluster_type="surrealdb", version=version, default_settings={"version": "2.0"})
     assert make_config(cluster).compose_surrealdb_config(cluster)["spec"]["version"] == expected
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_es_legacy_name_changes_only_with_sync(mocker):
+    mocker.patch("metadata.resources.cluster.get_request", return_value=None)
+    mocker.patch("metadata.resources.cluster.get_app_code_by_request", return_value="test")
+    apply = mocker.patch("metadata.models.data_link.data_link_configs.api.bkdata.apply_data_link")
+    cluster = make_cluster(cluster_type="elasticsearch", cluster_name="legacy.es", schema="http")
+    cluster.save()
+    request = dict(bk_tenant_id="system", cluster_id=cluster.cluster_id, operator="admin")
+    ModifyClusterInfoResource().request(**request, custom_option="{}")
+    cluster.refresh_from_db()
+    assert cluster.cluster_name == "legacy.es"
+    apply.assert_not_called()
+    assert not ClusterConfig.objects.filter(name=f"auto_cluster_name_{cluster.cluster_id}").exists()
+
+    ModifyClusterInfoResource().request(**request, auth_info={"password": "new-secret"})
+    cluster.refresh_from_db()
+    assert cluster.cluster_name == f"auto_cluster_name_{cluster.cluster_id}"
+    apply.assert_called_once()
+    assert apply.call_args.kwargs["config"][0]["metadata"]["name"] == cluster.cluster_name
+    assert ClusterConfig.objects.get(name=cluster.cluster_name).origin_config["spec"]["password"] == "new-secret"
+
+
+@pytest.mark.django_db(databases="__all__")
+@pytest.mark.parametrize(
+    "original,changed",
+    [
+        ({"write_port": 8030}, {"write_port": 8030.0}),
+        ({"write_port": 8030, "support_node_tag": False}, {"support_node_tag": 0}),
+        ({"write_port": 8030, "shard_minutes": 1}, {"shard_minutes": True}),
+        ({"write_port": 8030, "expires": {"maxExpire": 90}}, {"expires": {"maxExpire": 90.0}}),
+    ],
+)
+def test_doris_equal_values_with_invalid_types_are_rejected(mocker, original, changed):
+    apply = mocker.patch("metadata.models.data_link.data_link_configs.api.bkdata.apply_data_link")
+    cluster = make_cluster(default_settings=original)
+    cluster.save()
+    with pytest.raises(ValueError):
+        cluster.modify(operator="admin", description="must roll back", default_settings=changed)
+    cluster.refresh_from_db()
+    assert cluster.description == ""
+    assert json.dumps(cluster.default_settings, sort_keys=True) == json.dumps(original, sort_keys=True)
+    apply.assert_not_called()
+    assert not ClusterConfig.objects.filter(name=cluster.cluster_name).exists()

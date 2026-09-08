@@ -1376,7 +1376,8 @@ class ClusterConfig(models.Model):
                 cluster.username,
                 cluster.password,
                 cluster.version,
-                {key: options[key] for key in cls.DORIS_SETTING_TYPES if key in options},
+                # JSON 比较保留数值类型差异，避免 8030 == 8030.0、False == 0 绕过校验。
+                json.dumps({key: options[key] for key in cls.DORIS_SETTING_TYPES if key in options}, sort_keys=True),
             )
         return None
 
