@@ -117,3 +117,4 @@ AGENTS.md
 .pnpm-store
 .opencode/
 .pnpm-store/
+webpack/update-local-auth.js
