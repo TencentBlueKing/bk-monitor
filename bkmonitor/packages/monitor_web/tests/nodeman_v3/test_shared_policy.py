@@ -145,6 +145,138 @@ def test_explicit_host_scope_rejects_partially_resolved_targets():
         )
 
 
+class FakeCmdb:
+    def __init__(self):
+        self.calls = []
+
+    def get_host_by_topo_node(self, **kwargs):
+        self.calls.append(("topo", kwargs))
+        return [SimpleNamespace(bk_host_id=12), SimpleNamespace(bk_host_id=11)]
+
+    def get_host_by_template(self, **kwargs):
+        self.calls.append(("template", kwargs))
+        return [{"bk_host_id": 13}, {"bk_host_id": 11}]
+
+    def search_dynamic_group(self, **kwargs):
+        self.calls.append(("dynamic_group", kwargs))
+        return [{"id": "group-1", "instance_ids": [14, 11]}]
+
+
+@pytest.mark.parametrize(
+    ("scope", "expected_policy_scope", "expected_host_ids", "expected_call"),
+    [
+        (
+            {
+                "object_type": "HOST",
+                "node_type": "TOPO",
+                "nodes": [{"bk_obj_id": "set", "bk_inst_id": 101}],
+            },
+            {
+                "type": "topo",
+                "scope": {
+                    "granularity": "host",
+                    "bk_biz_id": 2,
+                    "paths": [{"topo_obj_id": "set", "topo_inst_id": 101}],
+                },
+            },
+            [11, 12],
+            ("topo", {"bk_tenant_id": "tenant-a", "bk_biz_id": 2, "topo_nodes": {"set": [101]}}),
+        ),
+        (
+            {
+                "object_type": "HOST",
+                "node_type": "SERVICE_TEMPLATE",
+                "nodes": [{"bk_inst_id": 201}],
+            },
+            {
+                "type": "service_template",
+                "scope": {"granularity": "host", "bk_biz_id": 2, "service_template_ids": [201]},
+            },
+            [11, 13],
+            (
+                "template",
+                {
+                    "bk_tenant_id": "tenant-a",
+                    "bk_biz_id": 2,
+                    "bk_obj_id": "SERVICE_TEMPLATE",
+                    "template_ids": [201],
+                },
+            ),
+        ),
+        (
+            {
+                "object_type": "HOST",
+                "node_type": "SET_TEMPLATE",
+                "nodes": [{"bk_inst_id": 301}],
+            },
+            {
+                "type": "set_template",
+                "scope": {"granularity": "host", "bk_biz_id": 2, "set_template_ids": [301]},
+            },
+            [11, 13],
+            (
+                "template",
+                {
+                    "bk_tenant_id": "tenant-a",
+                    "bk_biz_id": 2,
+                    "bk_obj_id": "SET_TEMPLATE",
+                    "template_ids": [301],
+                },
+            ),
+        ),
+        (
+            {
+                "object_type": "HOST",
+                "node_type": "DYNAMIC_GROUP",
+                "nodes": [{"dynamic_group_id": "group-1"}],
+            },
+            {
+                "type": "dynamic_group",
+                "scope": {"granularity": "host", "bk_biz_id": 2, "dynamic_group_ids": ["group-1"]},
+            },
+            [11, 14],
+            (
+                "dynamic_group",
+                {
+                    "bk_tenant_id": "tenant-a",
+                    "bk_biz_id": 2,
+                    "bk_obj_id": "host",
+                    "dynamic_group_ids": ["group-1"],
+                    "with_instance_id": True,
+                },
+            ),
+        ),
+    ],
+)
+def test_dynamic_host_scope_keeps_expression_and_expands_current_plugin_hosts(
+    scope,
+    expected_policy_scope,
+    expected_host_ids,
+    expected_call,
+):
+    cmdb = FakeCmdb()
+    builder = SubscriptionDeployPolicyPayloadBuilder()
+    resolver = NodeManV3HostScopeResolver(client=SimpleNamespace(), cmdb=cmdb)
+
+    payload = builder.build(
+        name="bkm-apm-log-trace-1",
+        description="log trace",
+        bk_biz_id=2,
+        scope=scope,
+        steps=[_config_step()],
+    )
+    host_ids = resolver.resolve_current_host_ids(
+        bk_tenant_id="tenant-a",
+        bk_biz_id=2,
+        scope=scope,
+        payload_builder=builder,
+    )
+
+    assert payload["scopes"] == [expected_policy_scope]
+    assert host_ids == expected_host_ids
+    assert cmdb.calls == [expected_call]
+
+
 def test_persisted_v2_identifier_is_blocked_before_it_can_be_reinterpreted():
     with pytest.raises(NodeManV3PayloadError, match="V2 subscription"):
         ensure_v3_record_ownership(config={}, persisted_identifier=101, resource="custom report")
@@ -200,6 +332,9 @@ def test_persisted_v3_identifier_must_match_the_exact_binding_identity(monkeypat
 
 
 class FakeScopeResolver:
+    def __init__(self):
+        self.current_host_scope_calls = []
+
     def resolve(self, **kwargs):
         return [
             {
@@ -207,6 +342,10 @@ class FakeScopeResolver:
                 "scope": {"granularity": "host", "bk_biz_id": 2, "instance_ids": [11]},
             }
         ]
+
+    def resolve_current_host_ids(self, **kwargs):
+        self.current_host_scope_calls.append(kwargs)
+        return [11]
 
 
 class FakeBindingManager:
@@ -260,8 +399,9 @@ def test_shared_policy_validates_payload_then_persists_and_dispatches(monkeypatc
         resolved_versions.append(kwargs)
         return "1.2.3"
 
+    scope_resolver = FakeScopeResolver()
     service = RecordingPolicyService(
-        scope_resolver=FakeScopeResolver(),
+        scope_resolver=scope_resolver,
         plugin_version_resolver=resolve_version,
     )
 
@@ -279,6 +419,7 @@ def test_shared_policy_validates_payload_then_persists_and_dispatches(monkeypatc
 
     assert submission == DeployPolicySubmission(binding_id=9, operation_id="operation-1", prepared=True)
     assert resolved_versions == [{"bk_tenant_id": "tenant-a", "plugin_name": "bk-collector"}]
+    assert scope_resolver.current_host_scope_calls[0]["scope"] == _host_scope(11)
     assert [call["resource_type"] for call in binding_manager.calls] == [
         NodeManResourceType.OFFICIAL_PLUGIN_DEPLOYMENT,
         NodeManResourceType.CUSTOM_REPORT,

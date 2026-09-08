@@ -6,6 +6,8 @@ from dataclasses import dataclass
 
 from django.db import transaction
 
+from core.drf_resource import api
+
 from bkmonitor.nodeman_integration.v3.compat import latest_enabled_plugin_version
 from bkmonitor.nodeman_integration.v3.client import (
     NodeManV3HTTPClient,
@@ -139,7 +141,7 @@ class SubscriptionDeployPolicyPayloadBuilder:
             key = "set_template_ids" if node_type == "SET_TEMPLATE" else "service_template_ids"
             result[key] = sorted({cls._positive_id(node.get("bk_inst_id")) for node in nodes})
         elif node_type == "DYNAMIC_GROUP" and granularity == "host":
-            dynamic_group_ids = {str(node.get("bk_inst_id") or "") for node in nodes}
+            dynamic_group_ids = {str(node.get("bk_inst_id") or node.get("dynamic_group_id") or "") for node in nodes}
             if "" in dynamic_group_ids:
                 raise NodeManV3PayloadError("dynamic group scope requires bk_inst_id")
             result["dynamic_group_ids"] = sorted(dynamic_group_ids)
@@ -209,12 +211,13 @@ class SubscriptionDeployPolicyPayloadBuilder:
 
 
 class NodeManV3HostScopeResolver:
-    """Resolve explicit host IDs into the positive business scopes required by NodeMan."""
+    """Resolve host scopes for NodeMan policies and plugin prerequisites."""
 
     PAGE_SIZE = 500
 
-    def __init__(self, *, client=None):
+    def __init__(self, *, client=None, cmdb=None):
         self.client = client or HostClient(NodeManV3HTTPClient())
+        self.cmdb = cmdb or api.cmdb
 
     def resolve(
         self,
@@ -264,6 +267,87 @@ class NodeManV3HostScopeResolver:
             }
             for host_biz_id in sorted(biz_to_host_ids)
         ]
+
+    def resolve_current_host_ids(
+        self,
+        *,
+        bk_tenant_id: str,
+        bk_biz_id: int,
+        scope: dict,
+        payload_builder: SubscriptionDeployPolicyPayloadBuilder,
+    ) -> list[int]:
+        """Expand the current members of a host scope for host-level plugin policies."""
+
+        object_type = str(scope.get("object_type") or "").upper()
+        node_type = str(scope.get("node_type") or "").upper()
+        nodes = scope.get("nodes") or []
+        if object_type != "HOST":
+            raise NodeManV3PayloadError("plugin prerequisite requires a host collection scope")
+        if not isinstance(nodes, list) or not nodes or any(not isinstance(node, dict) for node in nodes):
+            raise NodeManV3PayloadError("subscription scope requires non-empty nodes")
+
+        if node_type == "INSTANCE":
+            return sorted({payload_builder._positive_id(node.get("bk_host_id")) for node in nodes})
+
+        if node_type == "TOPO":
+            topo_nodes: dict[str, list[int]] = {}
+            for node in nodes:
+                object_id = str(node.get("bk_obj_id") or "")
+                if not object_id:
+                    raise NodeManV3PayloadError("topology scope requires bk_obj_id")
+                topo_nodes.setdefault(object_id, []).append(payload_builder._positive_id(node.get("bk_inst_id")))
+            hosts = self.cmdb.get_host_by_topo_node(
+                bk_tenant_id=bk_tenant_id,
+                bk_biz_id=bk_biz_id,
+                topo_nodes=topo_nodes,
+            )
+            return self._host_ids(hosts, payload_builder=payload_builder)
+
+        if node_type in {"SET_TEMPLATE", "SERVICE_TEMPLATE"}:
+            template_ids = sorted({payload_builder._positive_id(node.get("bk_inst_id")) for node in nodes})
+            hosts = self.cmdb.get_host_by_template(
+                bk_tenant_id=bk_tenant_id,
+                bk_biz_id=bk_biz_id,
+                bk_obj_id=node_type,
+                template_ids=template_ids,
+            )
+            return self._host_ids(hosts, payload_builder=payload_builder)
+
+        if node_type == "DYNAMIC_GROUP":
+            dynamic_group_ids = {str(node.get("bk_inst_id") or node.get("dynamic_group_id") or "") for node in nodes}
+            if "" in dynamic_group_ids:
+                raise NodeManV3PayloadError("dynamic group scope requires bk_inst_id")
+            groups = self.cmdb.search_dynamic_group(
+                bk_tenant_id=bk_tenant_id,
+                bk_biz_id=bk_biz_id,
+                bk_obj_id="host",
+                dynamic_group_ids=sorted(dynamic_group_ids),
+                with_instance_id=True,
+            )
+            resolved_group_ids = {str(group.get("id") or "") for group in groups}
+            missing_group_ids = sorted(dynamic_group_ids - resolved_group_ids)
+            if missing_group_ids:
+                raise NodeManV3PayloadError(f"CMDB did not resolve dynamic group IDs: {missing_group_ids}")
+            return sorted(
+                {
+                    payload_builder._positive_id(host_id)
+                    for group in groups
+                    for host_id in group.get("instance_ids") or []
+                }
+            )
+
+        raise NodeManV3PayloadError(f"unsupported host scope for plugin prerequisite: {node_type or '<empty>'}")
+
+    @staticmethod
+    def _host_ids(hosts, *, payload_builder: SubscriptionDeployPolicyPayloadBuilder) -> list[int]:
+        return sorted(
+            {
+                payload_builder._positive_id(
+                    host.get("bk_host_id") if isinstance(host, dict) else getattr(host, "bk_host_id", None)
+                )
+                for host in hosts
+            }
+        )
 
     def _list_hosts(self, *, host_ids: list[int], execution_bk_tenant_id: str, bk_biz_id: int) -> list[dict]:
         context = NodeManV3RequestContext(
@@ -353,7 +437,7 @@ class NodeManV3PolicyService:
             execution_bk_tenant_id=execution_bk_tenant_id,
             bk_biz_id=bk_biz_id,
             steps=steps,
-            resolved_scopes=resolved_scopes,
+            scope=scope,
         )
         binding, _created = NodeManIntegrationBinding.objects.get_or_create(
             resource_type=resource_type,
@@ -375,7 +459,7 @@ class NodeManV3PolicyService:
         execution_bk_tenant_id: str,
         bk_biz_id: int,
         steps: list[dict],
-        resolved_scopes: list[dict],
+        scope: dict,
     ) -> None:
         plugin_versions = {}
         for step in steps:
@@ -402,7 +486,14 @@ class NodeManV3PolicyService:
         if not plugin_versions:
             return
 
-        host_ids = self._host_ids_from_resolved_scopes(resolved_scopes)
+        host_ids = self.scope_resolver.resolve_current_host_ids(
+            bk_tenant_id=execution_bk_tenant_id,
+            bk_biz_id=bk_biz_id,
+            scope=scope,
+            payload_builder=self.payload_builder,
+        )
+        if not host_ids:
+            return
         from monitor_web.nodeman_integration.v3.plugin_deployment import NodeManV3PluginDeploymentService
 
         deployment_service = NodeManV3PluginDeploymentService(policy_service=self)
@@ -418,18 +509,6 @@ class NodeManV3PolicyService:
                 plugin_version=plugin_version,
                 bk_host_ids=host_ids,
             )
-
-    def _host_ids_from_resolved_scopes(self, resolved_scopes: list[dict]) -> list[int]:
-        host_ids = set()
-        for item in resolved_scopes:
-            scope = item.get("scope") or {}
-            instance_ids = scope.get("instance_ids")
-            if scope.get("granularity") != "host" or not isinstance(instance_ids, list) or not instance_ids:
-                raise NodeManV3PayloadError(
-                    "template configuration requires explicit host targets so its plugin prerequisite can be managed"
-                )
-            host_ids.update(self.payload_builder._positive_id(host_id) for host_id in instance_ids)
-        return sorted(host_ids)
 
     def _prepare(self, binding, payload: dict, *, force: bool) -> PreparedTargetOperation | None:
         fingerprint = self.payload_builder.fingerprint(payload)

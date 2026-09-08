@@ -4,6 +4,7 @@ from unittest.mock import Mock
 import pytest
 
 from apm.core.application_config import ApplicationConfig, SubscriptionConfig
+from apm_web.meta.plugin.log_trace_plugin_config import LogTracePluginConfig
 from bkmonitor.nodeman_integration.v3.exceptions import NodeManV3PayloadError
 from metadata.models.custom_report.subscription_config import CustomReportSubscription
 from metadata.models.ping_server import PingServerSubscriptionConfig
@@ -59,6 +60,40 @@ def test_apm_application_config_routes_positive_deploy_to_v3(monkeypatch):
     assert service.calls[0]["resource_key"] == "7"
     assert service.calls[0]["execution_bk_tenant_id"] == "tenant-a"
     assert queryset.update_calls[0]["defaults"]["config"]["node_man_backend"] == "v3"
+
+
+def test_apm_log_trace_dynamic_scope_is_preserved_for_v3_policy(monkeypatch):
+    monkeypatch.setattr("bkmonitor.nodeman_integration.mode.get_nodeman_integration_mode", lambda: "v3_fresh")
+    service = RecordingPolicyService()
+    monkeypatch.setattr(
+        "monitor_web.nodeman_integration.v3.policy.NodeManV3PolicyService",
+        lambda: service,
+    )
+    application = SimpleNamespace(pk=7, bk_biz_id=2, bk_tenant_id="tenant-a")
+    plugin_config = {
+        "bk_biz_id": 2,
+        "bk_data_id": 1001,
+        "target_node_type": "DYNAMIC_GROUP",
+        "target_object_type": "HOST",
+        "target_nodes": [{"dynamic_group_id": "group-1"}],
+        "data_encoding": "UTF-8",
+        "paths": ["/var/log/demo.log"],
+    }
+
+    result = LogTracePluginConfig().release_log_trace_config(
+        plugin_config,
+        {"token": "token", "host": "collector.example"},
+        application=application,
+    )
+
+    assert service.calls[0]["scope"] == {
+        "bk_biz_id": 2,
+        "node_type": "DYNAMIC_GROUP",
+        "object_type": "HOST",
+        "nodes": [{"dynamic_group_id": "group-1"}],
+    }
+    assert result["subscription_id"] == 71
+    assert result["node_man_backend"] == "v3"
 
 
 class DataIdQuerySet:
