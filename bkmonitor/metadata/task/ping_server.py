@@ -20,7 +20,7 @@ from django.db import transaction
 from alarm_backends.management.hashring import HashRing
 from api.cmdb.define import Host
 from bkmonitor.commons.tools import is_ipv6_biz
-from bkmonitor.nodeman_integration.mode import get_nodeman_integration_mode
+from bkmonitor.nodeman_integration.backend import node_man_backend
 from bkmonitor.utils.tenant import get_tenant_default_biz_id
 from bkmonitor.utils.new_env import is_biz_id_in_black_list
 from constants.common import DEFAULT_TENANT_ID
@@ -71,7 +71,7 @@ def refresh_ping_conf(plugin_name: str):
     4. 通过节点管理订阅任务将分配好的ip下发到机器
     """
     if not settings.ENABLE_PING_ALARM:
-        is_v3 = get_nodeman_integration_mode() == "v3_fresh"
+        is_v3 = node_man_backend.is_v3
         for tenant in api.bk_login.list_tenant():
             cloud_areas: list[dict[str, Any]] = api.cmdb.search_cloud_area(bk_tenant_id=tenant["id"])
             for cloud_area in cloud_areas:
@@ -96,7 +96,7 @@ def refresh_ping_conf(plugin_name: str):
             all_hosts: list[Host] = HostManager.all(bk_tenant_id=bk_tenant_id)
         except Exception:  # noqa
             logger.exception("CMDB的主机缓存获取失败。获取不到主机，有可能会导致pingserver不执行")
-            if get_nodeman_integration_mode() == "v3_fresh":
+            if node_man_backend.is_v3:
                 failures.append((bk_tenant_id, "cmdb"))
             continue
 
@@ -125,7 +125,7 @@ def refresh_ping_conf(plugin_name: str):
                 )
                 failures.append((bk_tenant_id, bk_cloud_id))
 
-    if failures and get_nodeman_integration_mode() == "v3_fresh":
+    if failures and node_man_backend.is_v3:
         raise RuntimeError(f"NodeMan V3 ping-server refresh failed: {failures}")
 
 
@@ -192,7 +192,7 @@ def refresh_biz_ping_conf(*, bk_tenant_id: str, bk_biz_ids: list[int], plugin_na
             )
             failures.append(bk_cloud_id)
 
-    if failures and get_nodeman_integration_mode() == "v3_fresh":
+    if failures and node_man_backend.is_v3:
         raise RuntimeError(f"NodeMan V3 business ping-server refresh failed for cloud areas: {failures}")
 
 
@@ -207,7 +207,7 @@ def _refresh_ping_conf_by_cloud_id(
     3. 根据Hash环，将同一云区域下的ip分配到不同的Proxy
     4. 通过节点管理订阅任务将分配好的ip下发到机器
     """
-    is_v3 = get_nodeman_integration_mode() == "v3_fresh"
+    is_v3 = node_man_backend.is_v3
     # 如果云区域小于0，代表未分配云区域，则不进行下发
     if bk_cloud_id < 0:
         return
@@ -232,9 +232,7 @@ def _refresh_ping_conf_by_cloud_id(
     else:
         try:
             if is_v3:
-                from bkmonitor.nodeman_integration.v3.compat import get_proxies
-
-                proxy_list = get_proxies(bk_tenant_id=bk_tenant_id, bk_cloud_id=bk_cloud_id)
+                proxy_list = node_man_backend.v3.get_proxies(bk_tenant_id=bk_tenant_id, bk_cloud_id=bk_cloud_id)
             else:
                 proxy_list = api.node_man.get_proxies(bk_tenant_id=bk_tenant_id, bk_cloud_id=bk_cloud_id)
         except Exception:  # noqa

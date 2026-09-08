@@ -17,6 +17,7 @@ from kubernetes import client
 
 from apm.core.handlers.apm_cache_handler import ApmCacheHandler
 from bkm_space.utils import bk_biz_id_to_space_uid, is_bk_saas_space
+from bkmonitor.nodeman_integration.backend import node_man_backend
 from bkmonitor.utils.bcs import BcsKubeClient
 from bkmonitor.utils.common_utils import count_md5, safe_int
 from bkmonitor.utils.new_env import is_biz_id_in_black_list
@@ -62,12 +63,8 @@ class BkCollectorConfig:
                 continue
 
             try:
-                from bkmonitor.nodeman_integration.mode import get_nodeman_integration_mode
-
-                if get_nodeman_integration_mode() == "v3_fresh":
-                    from bkmonitor.nodeman_integration.v3.compat import get_proxies
-
-                    proxy_list = get_proxies(bk_tenant_id=bk_tenant_id, bk_cloud_id=bk_cloud_id)
+                if node_man_backend.is_v3:
+                    proxy_list = node_man_backend.v3.get_proxies(bk_tenant_id=bk_tenant_id, bk_cloud_id=bk_cloud_id)
                 else:
                     proxy_list = api.node_man.get_proxies(bk_tenant_id=bk_tenant_id, bk_cloud_id=bk_cloud_id)
             except APIPermissionDeniedError as error:
@@ -103,14 +100,10 @@ class BkCollectorConfig:
         if is_bk_saas_space(space_uid):
             return []
 
-        from bkmonitor.nodeman_integration.mode import get_nodeman_integration_mode
-
-        is_v3 = get_nodeman_integration_mode() == "v3_fresh"
+        is_v3 = node_man_backend.is_v3
         try:
             if is_v3:
-                from bkmonitor.nodeman_integration.v3.compat import get_proxies_by_biz
-
-                proxies = get_proxies_by_biz(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id)
+                proxies = node_man_backend.v3.get_proxies_by_biz(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id)
             else:
                 proxies = api.node_man.get_proxies_by_biz(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id)
         except Exception as e:  # pylint: disable=broad-except

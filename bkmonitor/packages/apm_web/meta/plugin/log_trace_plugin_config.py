@@ -8,6 +8,8 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+from bkmonitor.nodeman_integration.backend import node_man_backend
+from bkmonitor.nodeman_integration.resources import NodeManResourceType, build_nodeman_resource_key
 from core.drf_resource import api
 
 COLLECTOR_ROW_PACKAGE_COUNT = 100
@@ -85,27 +87,15 @@ class LogTracePluginConfig:
             },
             "steps": steps,
         }
-        from bkmonitor.nodeman_integration.mode import get_nodeman_integration_mode
-
-        if get_nodeman_integration_mode() == "v3_fresh":
+        if node_man_backend.is_v3:
             if application is None:
                 raise ValueError("application is required for NodeMan V3 log-trace config")
-
-            from monitor_web.models.node_man import (
-                NodeManResourceType,
-                build_nodeman_resource_key,
-            )
-            from monitor_web.nodeman_integration.v3.policy import (
-                NodeManV3PolicyService,
-                ensure_v3_record_ownership,
-                mark_v3_config,
-            )
 
             resource_key = build_nodeman_resource_key(
                 NodeManResourceType.APM_LOG_TRACE_CONFIG,
                 object_id=application.pk,
             )
-            ensure_v3_record_ownership(
+            node_man_backend.v3.ensure_record_ownership(
                 config=plugin_config,
                 persisted_identifier=plugin_config.get("subscription_id"),
                 resource=f"APM log-trace config {application.pk}",
@@ -118,7 +108,7 @@ class LogTracePluginConfig:
                 },
             )
 
-            submission = NodeManV3PolicyService().ensure(
+            submission = node_man_backend.v3.policy_service().ensure(
                 resource_type=NodeManResourceType.APM_LOG_TRACE_CONFIG,
                 resource_key=resource_key,
                 owner_bk_tenant_id=application.bk_tenant_id,
@@ -129,7 +119,7 @@ class LogTracePluginConfig:
                 scope=subscription_params["scope"],
                 steps=subscription_params["steps"],
             )
-            plugin_config = mark_v3_config({**plugin_config, "subscription_id": submission.binding_id})
+            plugin_config = node_man_backend.v3.mark_config({**plugin_config, "subscription_id": submission.binding_id})
             return plugin_config
 
         if plugin_config.get("subscription_id"):

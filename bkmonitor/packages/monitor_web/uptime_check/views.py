@@ -49,6 +49,7 @@ from bkmonitor.commons.tools import is_ipv6_biz
 from bkmonitor.data_source import UnifyQuery, load_data_source
 from bkmonitor.iam import ActionEnum, Permission
 from bkmonitor.iam.drf import BusinessActionPermission
+from bkmonitor.nodeman_integration.backend import node_man_backend
 from bkmonitor.utils.common_utils import host_key, safe_int
 from bkmonitor.utils.request import get_request_tenant_id
 from constants.data_source import DataSourceLabel, DataTypeLabel
@@ -323,12 +324,8 @@ class UptimeCheckNodeViewSet(PermissionMixin, viewsets.ViewSet):
     @staticmethod
     def _get_beat_version(bk_tenant_id, bk_biz_id, bk_host_ids):
         all_beat_version = {}
-        from bkmonitor.nodeman_integration.mode import get_nodeman_integration_mode
-
-        if get_nodeman_integration_mode() == "v3_fresh":
-            from bkmonitor.nodeman_integration.v3.compat import plugin_search_host_status
-
-            all_plugin = plugin_search_host_status(
+        if node_man_backend.is_v3:
+            all_plugin = node_man_backend.v3.plugin_search_host_status(
                 bk_tenant_id=bk_tenant_id,
                 bk_biz_id=bk_biz_id,
                 bk_host_ids=list(bk_host_ids),

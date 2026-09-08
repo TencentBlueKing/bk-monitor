@@ -12,6 +12,7 @@ import yaml
 from django.conf import settings
 from django.test import override_settings
 
+from bkmonitor.nodeman_integration.backend import node_man_backend
 from monitor_web.plugin.constant import PluginType
 
 
@@ -101,6 +102,13 @@ def test_v2_hot_path_does_not_recheck_mode(monkeypatch):
 
     for _ in range(10):
         assert deploy_module.get_collect_installer(_collect_config()).__class__ is deploy_module.NodeManInstaller
+
+
+def test_v3_backend_surface_is_fail_closed_in_v2(monkeypatch):
+    monkeypatch.setattr("bkmonitor.nodeman_integration.mode.get_nodeman_integration_mode", lambda: "v2")
+
+    with pytest.raises(RuntimeError, match="unavailable in a V2-only process"):
+        node_man_backend.v3
 
 
 def test_v2_clean_process_keeps_resource_and_task_inventory_without_v3_imports():

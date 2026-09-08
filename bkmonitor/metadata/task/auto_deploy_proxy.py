@@ -13,6 +13,8 @@ import re
 
 from django.conf import settings
 
+from bkmonitor.nodeman_integration.backend import node_man_backend
+from bkmonitor.nodeman_integration.resources import NodeManResourceType
 from bkmonitor.utils.version import get_max_version
 from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import api
@@ -48,13 +50,8 @@ class AutoDeployProxy:
         logger.info(
             f"update proxy on bk_cloud_id({bk_cloud_id}), get host_ids->[{','.join([str(h) for h in bk_host_ids])}]"
         )
-        from bkmonitor.nodeman_integration.mode import get_nodeman_integration_mode
-
-        if get_nodeman_integration_mode() == "v3_fresh":
-            from monitor_web.models.node_man import NodeManResourceType
-            from monitor_web.nodeman_integration.v3.plugin_deployment import NodeManV3PluginDeploymentService
-
-            deployments = NodeManV3PluginDeploymentService().ensure_hosts(
+        if node_man_backend.is_v3:
+            deployments = node_man_backend.v3.plugin_deployment_service().ensure_hosts(
                 resource_type=NodeManResourceType.PROXY_PLUGIN_DEPLOYMENT,
                 owner_bk_tenant_id=bk_tenant_id,
                 execution_bk_tenant_id=bk_tenant_id,
@@ -121,12 +118,8 @@ class AutoDeployProxy:
         :return: 代理主机列表
         """
         bk_host_ids = []
-        from bkmonitor.nodeman_integration.mode import get_nodeman_integration_mode
-
-        if get_nodeman_integration_mode() == "v3_fresh":
-            from bkmonitor.nodeman_integration.v3.compat import get_proxies
-
-            proxies = get_proxies(bk_tenant_id=bk_tenant_id, bk_cloud_id=bk_cloud_id)
+        if node_man_backend.is_v3:
+            proxies = node_man_backend.v3.get_proxies(bk_tenant_id=bk_tenant_id, bk_cloud_id=bk_cloud_id)
         else:
             proxies = api.node_man.get_proxies(bk_tenant_id=bk_tenant_id, bk_cloud_id=bk_cloud_id)
         logger.info("bk_cloud_id->[%d] has %d proxies", bk_cloud_id, len(proxies))
@@ -197,12 +190,8 @@ class AutoDeployProxy:
         :return: 最新版本
         """
         default_version = "0.0.0"
-        from bkmonitor.nodeman_integration.mode import get_nodeman_integration_mode
-
-        if get_nodeman_integration_mode() == "v3_fresh":
-            from bkmonitor.nodeman_integration.v3.compat import latest_enabled_plugin_version
-
-            return latest_enabled_plugin_version(bk_tenant_id=bk_tenant_id, plugin_name=plugin_name)
+        if node_man_backend.is_v3:
+            return node_man_backend.v3.latest_enabled_plugin_version(bk_tenant_id=bk_tenant_id, plugin_name=plugin_name)
 
         plugin_infos = api.node_man.plugin_info(name=plugin_name, bk_tenant_id=bk_tenant_id)
         version_str_list = [p.get("version", default_version) for p in plugin_infos if p.get("is_ready", True)]
@@ -249,9 +238,7 @@ class AutoDeployProxy:
                 logger.exception(f"Auto deploy {plugin_name} error, with direct area, error({e}).")
                 failures.append((0, e))
 
-        from bkmonitor.nodeman_integration.mode import get_nodeman_integration_mode
-
-        if failures and get_nodeman_integration_mode() == "v3_fresh":
+        if failures and node_man_backend.is_v3:
             failed_cloud_ids = [bk_cloud_id for bk_cloud_id, _error in failures]
             raise RuntimeError(f"NodeMan V3 proxy plugin deployment failed for cloud areas: {failed_cloud_ids}")
 
@@ -275,9 +262,7 @@ class AutoDeployProxy:
                 logger.exception(f"Auto deploy {plugin_name} error, with bk_tenant_id({tenant['id']}), error({e}).")
                 failures.append((tenant["id"], e))
 
-        from bkmonitor.nodeman_integration.mode import get_nodeman_integration_mode
-
-        if failures and get_nodeman_integration_mode() == "v3_fresh":
+        if failures and node_man_backend.is_v3:
             failed_tenant_ids = [tenant_id for tenant_id, _error in failures]
             raise RuntimeError(f"NodeMan V3 proxy plugin deployment failed for tenants: {failed_tenant_ids}")
 

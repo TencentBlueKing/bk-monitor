@@ -14,6 +14,9 @@ from django.conf import settings
 from django.db import models, transaction
 
 from bkmonitor.commons.tools import is_ipv6_biz
+from bkmonitor.nodeman_integration.backend import node_man_backend
+from bkmonitor.nodeman_integration.exceptions import NodeManV3CapabilityBlocked, NodeManV3PayloadError
+from bkmonitor.nodeman_integration.resources import NodeManResourceType, build_nodeman_resource_key
 from bkmonitor.utils.common_utils import count_md5
 from bkmonitor.utils.db import JsonField
 from constants.common import DEFAULT_TENANT_ID
@@ -97,16 +100,11 @@ class PingServerSubscriptionConfig(models.Model):
                 host_key = ip_to_id.get(config.ip, config.ip)
                 host_configs[host_key] = config
 
-        from bkmonitor.nodeman_integration.mode import get_nodeman_integration_mode
-
-        is_v3 = get_nodeman_integration_mode() == "v3_fresh"
+        is_v3 = node_man_backend.is_v3
         if is_v3 and not transaction.get_connection().in_atomic_block:
             raise RuntimeError("NodeMan V3 ping-server refresh must run inside transaction.atomic")
         v3_resource_keys = {}
         if is_v3:
-            from monitor_web.models.node_man import NodeManResourceType, build_nodeman_resource_key
-            from monitor_web.nodeman_integration.v3.policy import ensure_v3_record_ownership
-
             target_keys = {
                 value
                 for host in target_hosts
@@ -119,8 +117,6 @@ class PingServerSubscriptionConfig(models.Model):
                 if key not in target_keys and config.config.get("status") != "STOP"
             ]
             if stale_configs:
-                from monitor_web.collecting.deploy.nodeman_v3.validation import NodeManV3CapabilityBlocked
-
                 raise NodeManV3CapabilityBlocked(
                     "ping-server target removal requires the DeployPolicy reverse field while enabled remains true"
                 )
@@ -140,7 +136,7 @@ class PingServerSubscriptionConfig(models.Model):
                     plugin_name=plugin_name,
                 )
                 v3_resource_keys[host_id] = resource_key
-                ensure_v3_record_ownership(
+                node_man_backend.v3.ensure_record_ownership(
                     config=config.config if config else None,
                     persisted_identifier=config.subscription_id if config else None,
                     resource=f"ping-server host {host_id}",
@@ -201,14 +197,7 @@ class PingServerSubscriptionConfig(models.Model):
                 config.save(update_fields=["bk_biz_id"])
 
             if is_v3:
-                from bkmonitor.nodeman_integration.v3.exceptions import NodeManV3PayloadError
-                from monitor_web.models.node_man import (
-                    NodeManResourceType,
-                    build_nodeman_resource_key,
-                )
-                from monitor_web.nodeman_integration.v3.policy import NodeManV3PolicyService
-
-                submission = NodeManV3PolicyService().ensure(
+                submission = node_man_backend.v3.policy_service().ensure(
                     resource_type=NodeManResourceType.PING_SERVER,
                     resource_key=v3_resource_keys[bk_host_id],
                     owner_bk_tenant_id=bk_tenant_id,
@@ -301,8 +290,6 @@ class PingServerSubscriptionConfig(models.Model):
                 continue
 
             if is_v3:
-                from monitor_web.collecting.deploy.nodeman_v3.validation import NodeManV3CapabilityBlocked
-
                 raise NodeManV3CapabilityBlocked(
                     "ping-server target removal requires the DeployPolicy reverse field while enabled remains true"
                 )

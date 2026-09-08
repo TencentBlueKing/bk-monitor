@@ -42,6 +42,7 @@ from apm.models import (
     QpsConfig,
 )
 from apm.utils.report_event import EventReportHelper
+from bkmonitor.nodeman_integration.backend import node_man_backend
 from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id, set_local_tenant_id
 from constants.apm import TelemetryDataType
 from constants.common import DEFAULT_TENANT_ID
@@ -191,9 +192,7 @@ def refresh_apm_platform_config():
     # 每个集群下发一份平台配置
     PlatformConfig.refresh_k8s()
 
-    from bkmonitor.nodeman_integration.mode import get_nodeman_integration_mode
-
-    if failures and get_nodeman_integration_mode() == "v3_fresh":
+    if failures and node_man_backend.is_v3:
         raise RuntimeError(f"NodeMan V3 APM platform refresh failed for tenants: {failures}")
 
 

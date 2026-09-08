@@ -19,6 +19,9 @@ from django.db import models, transaction
 from jinja2.sandbox import SandboxedEnvironment as Environment
 
 from bkm_space.utils import bk_biz_id_to_space_uid, is_bk_saas_space
+from bkmonitor.nodeman_integration.backend import node_man_backend
+from bkmonitor.nodeman_integration.exceptions import NodeManV3CapabilityBlocked
+from bkmonitor.nodeman_integration.resources import NodeManResourceType, build_nodeman_resource_key
 from bkmonitor.utils.bk_collector_config import BkCollectorClusterConfig, BkCollectorConfig
 from bkmonitor.utils.common_utils import count_md5
 from bkmonitor.utils.db.fields import JsonField
@@ -85,12 +88,8 @@ class CustomReportSubscription(models.Model):
         bk_host_ids: list[int],
         op_type: str = "add",
     ):
-        from bkmonitor.nodeman_integration.mode import get_nodeman_integration_mode
-
-        is_v3 = get_nodeman_integration_mode() == "v3_fresh"
+        is_v3 = node_man_backend.is_v3
         if is_v3 and op_type == "remove":
-            from monitor_web.collecting.deploy.nodeman_v3.validation import NodeManV3CapabilityBlocked
-
             raise NodeManV3CapabilityBlocked(
                 "custom-report removal requires the DeployPolicy reverse field while enabled remains true"
             )
@@ -113,16 +112,13 @@ class CustomReportSubscription(models.Model):
             bk_host_ids,
         )
         if is_v3:
-            from monitor_web.models.node_man import NodeManResourceType, build_nodeman_resource_key
-            from monitor_web.nodeman_integration.v3.policy import ensure_v3_record_ownership
-
             for item, _protocol in data_id_configs:
                 data_id = item["bk_data_id"]
                 existing = cls.objects.filter(bk_biz_id=bk_biz_id, bk_data_id=data_id).first()
                 if not existing:
                     continue
                 resource_key = build_nodeman_resource_key(NodeManResourceType.CUSTOM_REPORT, data_id=data_id)
-                ensure_v3_record_ownership(
+                node_man_backend.v3.ensure_record_ownership(
                     config=existing.config,
                     persisted_identifier=existing.subscription_id,
                     resource=f"custom report data ID {data_id}",
@@ -444,12 +440,8 @@ class CustomReportSubscription(models.Model):
                 result.update({"action": "skip", "result": True, "message": "bk saas space skipped"})
                 return result
 
-            from bkmonitor.nodeman_integration.mode import get_nodeman_integration_mode
-
-            if get_nodeman_integration_mode() == "v3_fresh":
-                from bkmonitor.nodeman_integration.v3.compat import get_proxies_by_biz
-
-                proxies = get_proxies_by_biz(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id)
+            if node_man_backend.is_v3:
+                proxies = node_man_backend.v3.get_proxies_by_biz(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id)
             else:
                 proxies = api.node_man.get_proxies_by_biz(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id)
             proxy_biz_ids = {proxy["bk_biz_id"] for proxy in proxies}
@@ -484,11 +476,7 @@ class CustomReportSubscription(models.Model):
         # 如果proxy_host_ids为空，则不进行下发
         if not proxy_host_ids:
             logger.warning(f"refresh custom report config to proxy on bk_biz_id({bk_biz_id}) error, No proxy found")
-            from bkmonitor.nodeman_integration.mode import get_nodeman_integration_mode
-
-            if get_nodeman_integration_mode() == "v3_fresh" and cls.objects.filter(bk_biz_id=bk_biz_id).exists():
-                from monitor_web.collecting.deploy.nodeman_v3.validation import NodeManV3CapabilityBlocked
-
+            if node_man_backend.is_v3 and cls.objects.filter(bk_biz_id=bk_biz_id).exists():
                 raise NodeManV3CapabilityBlocked(
                     "custom-report target removal requires the DeployPolicy reverse field while enabled remains true"
                 )
@@ -715,23 +703,11 @@ class CustomReportSubscription(models.Model):
 
     @classmethod
     def create_or_update_config(cls, bk_tenant_id: str, bk_biz_id: int, subscription_params, bk_data_id=0):
-        from bkmonitor.nodeman_integration.mode import get_nodeman_integration_mode
-
-        is_v3 = get_nodeman_integration_mode() == "v3_fresh"
+        is_v3 = node_man_backend.is_v3
         if is_v3:
-            from monitor_web.models.node_man import (
-                NodeManResourceType,
-                build_nodeman_resource_key,
-            )
-            from monitor_web.nodeman_integration.v3.policy import (
-                NodeManV3PolicyService,
-                ensure_v3_record_ownership,
-                mark_v3_config,
-            )
-
             existing = cls.objects.filter(bk_biz_id=bk_biz_id, bk_data_id=bk_data_id).first()
             resource_key = build_nodeman_resource_key(NodeManResourceType.CUSTOM_REPORT, data_id=bk_data_id)
-            ensure_v3_record_ownership(
+            node_man_backend.v3.ensure_record_ownership(
                 config=existing.config if existing else None,
                 persisted_identifier=existing.subscription_id if existing else None,
                 resource=f"custom report data ID {bk_data_id}",
@@ -743,7 +719,7 @@ class CustomReportSubscription(models.Model):
                     "bk_biz_id": bk_biz_id,
                 },
             )
-            submission = NodeManV3PolicyService().ensure(
+            submission = node_man_backend.v3.policy_service().ensure(
                 resource_type=NodeManResourceType.CUSTOM_REPORT,
                 resource_key=resource_key,
                 owner_bk_tenant_id=bk_tenant_id,
@@ -754,7 +730,9 @@ class CustomReportSubscription(models.Model):
                 scope=subscription_params["scope"],
                 steps=subscription_params["steps"],
             )
-            stored_config = mark_v3_config({**subscription_params, "subscription_id": submission.binding_id})
+            stored_config = node_man_backend.v3.mark_config(
+                {**subscription_params, "subscription_id": submission.binding_id}
+            )
             cls.objects.update_or_create(
                 bk_biz_id=bk_biz_id,
                 bk_data_id=bk_data_id,
@@ -860,9 +838,7 @@ class LogSubscriptionConfig(models.Model):
         # 1.2 获取默认租户下全局配置中主机配置列表
         default_target_hosts = BkCollectorConfig.get_target_host_in_default_cloud_area()
 
-        from bkmonitor.nodeman_integration.mode import get_nodeman_integration_mode
-
-        is_v3 = get_nodeman_integration_mode() == "v3_fresh"
+        is_v3 = node_man_backend.is_v3
         if is_v3:
             if bk_tenant_id == DEFAULT_TENANT_ID:
                 execution_targets = {DEFAULT_TENANT_ID: default_target_hosts + proxy_target_hosts}
@@ -871,9 +847,6 @@ class LogSubscriptionConfig(models.Model):
                     DEFAULT_TENANT_ID: default_target_hosts,
                     bk_tenant_id: proxy_target_hosts,
                 }
-
-            from monitor_web.models.node_man import NodeManResourceType, build_nodeman_resource_key
-            from monitor_web.nodeman_integration.v3.policy import ensure_v3_record_ownership
 
             resource_key = build_nodeman_resource_key(
                 NodeManResourceType.CUSTOM_REPORT,
@@ -891,7 +864,7 @@ class LogSubscriptionConfig(models.Model):
                 if not targets:
                     stale_tenants.append(execution_tenant_id)
                     continue
-                ensure_v3_record_ownership(
+                node_man_backend.v3.ensure_record_ownership(
                     config=existing.config,
                     persisted_identifier=existing.subscription_id,
                     resource=f"custom log report data ID {log_group.bk_data_id}",
@@ -904,8 +877,6 @@ class LogSubscriptionConfig(models.Model):
                     },
                 )
             if stale_tenants:
-                from monitor_web.collecting.deploy.nodeman_v3.validation import NodeManV3CapabilityBlocked
-
                 raise NodeManV3CapabilityBlocked(
                     f"custom log config target removal for execution tenants {stale_tenants} "
                     "requires the DeployPolicy reverse field while enabled remains true"
@@ -1070,19 +1041,7 @@ class LogSubscriptionConfig(models.Model):
             ],
         }
 
-        from bkmonitor.nodeman_integration.mode import get_nodeman_integration_mode
-
-        if get_nodeman_integration_mode() == "v3_fresh":
-            from monitor_web.models.node_man import (
-                NodeManResourceType,
-                build_nodeman_resource_key,
-            )
-            from monitor_web.nodeman_integration.v3.policy import (
-                NodeManV3PolicyService,
-                ensure_v3_record_ownership,
-                mark_v3_config,
-            )
-
+        if node_man_backend.is_v3:
             existing = cls.objects.filter(
                 bk_tenant_id=bk_tenant_id,
                 bk_biz_id=log_group.bk_biz_id,
@@ -1092,7 +1051,7 @@ class LogSubscriptionConfig(models.Model):
                 NodeManResourceType.CUSTOM_REPORT,
                 data_id=log_group.bk_data_id,
             )
-            ensure_v3_record_ownership(
+            node_man_backend.v3.ensure_record_ownership(
                 config=existing.config if existing else None,
                 persisted_identifier=existing.subscription_id if existing else None,
                 resource=f"custom log report data ID {log_group.bk_data_id}",
@@ -1104,7 +1063,7 @@ class LogSubscriptionConfig(models.Model):
                     "bk_biz_id": log_group.bk_biz_id,
                 },
             )
-            submission = NodeManV3PolicyService().ensure(
+            submission = node_man_backend.v3.policy_service().ensure(
                 resource_type=NodeManResourceType.CUSTOM_REPORT,
                 resource_key=resource_key,
                 owner_bk_tenant_id=log_group.bk_tenant_id,
@@ -1115,7 +1074,9 @@ class LogSubscriptionConfig(models.Model):
                 scope=subscription_params["scope"],
                 steps=subscription_params["steps"],
             )
-            stored_config = mark_v3_config({**subscription_params, "subscription_id": submission.binding_id})
+            stored_config = node_man_backend.v3.mark_config(
+                {**subscription_params, "subscription_id": submission.binding_id}
+            )
             cls.objects.update_or_create(
                 bk_tenant_id=bk_tenant_id,
                 bk_biz_id=log_group.bk_biz_id,

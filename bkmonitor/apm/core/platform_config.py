@@ -28,6 +28,9 @@ from apm.constants import (
 )
 from apm.models import BcsClusterDefaultApplicationRelation
 from apm.models.subscription_config import SubscriptionConfig
+from bkmonitor.nodeman_integration.backend import node_man_backend
+from bkmonitor.nodeman_integration.exceptions import NodeManV3CapabilityBlocked
+from bkmonitor.nodeman_integration.resources import NodeManResourceType, build_nodeman_resource_key
 from bkmonitor.utils.bcs import BcsKubeClient
 from bkmonitor.utils.bk_collector_config import BkCollectorClusterConfig, BkCollectorConfig
 from bkmonitor.utils.cipher import get_bk_data_token_aes_key
@@ -64,9 +67,7 @@ class PlatformConfig(BkCollectorConfig):
 
         # 2. 下发给给定租户下
         proxy_bk_host_ids = cls.get_target_host_ids_by_bk_tenant_id(bk_tenant_id)
-        from bkmonitor.nodeman_integration.mode import get_nodeman_integration_mode
-
-        is_v3 = get_nodeman_integration_mode() == "v3_fresh"
+        is_v3 = node_man_backend.is_v3
         try:
             with transaction.atomic() if is_v3 else nullcontext():
                 if bk_tenant_id == DEFAULT_TENANT_ID:
@@ -442,18 +443,14 @@ class PlatformConfig(BkCollectorConfig):
         下发bk-collector的平台配置
         """
         if not bk_host_ids:
-            from bkmonitor.nodeman_integration.mode import get_nodeman_integration_mode
-
             if (
-                get_nodeman_integration_mode() == "v3_fresh"
+                node_man_backend.is_v3
                 and SubscriptionConfig.objects.filter(
                     bk_tenant_id=bk_tenant_id,
                     bk_biz_id=GLOBAL_CONFIG_BK_BIZ_ID,
                     app_name="",
                 ).exists()
             ):
-                from monitor_web.collecting.deploy.nodeman_v3.validation import NodeManV3CapabilityBlocked
-
                 raise NodeManV3CapabilityBlocked(
                     "APM platform config target removal requires the DeployPolicy reverse field "
                     "while enabled remains true"
@@ -483,19 +480,7 @@ class PlatformConfig(BkCollectorConfig):
             ],
         }
 
-        from bkmonitor.nodeman_integration.mode import get_nodeman_integration_mode
-
-        if get_nodeman_integration_mode() == "v3_fresh":
-            from monitor_web.models.node_man import (
-                NodeManResourceType,
-                build_nodeman_resource_key,
-            )
-            from monitor_web.nodeman_integration.v3.policy import (
-                NodeManV3PolicyService,
-                ensure_v3_record_ownership,
-                mark_v3_config,
-            )
-
+        if node_man_backend.is_v3:
             platform_subscription = SubscriptionConfig.objects.filter(
                 bk_tenant_id=bk_tenant_id,
                 bk_biz_id=GLOBAL_CONFIG_BK_BIZ_ID,
@@ -503,7 +488,7 @@ class PlatformConfig(BkCollectorConfig):
             )
             existing = platform_subscription.first()
             resource_key = build_nodeman_resource_key(NodeManResourceType.APM_PLATFORM_CONFIG)
-            ensure_v3_record_ownership(
+            node_man_backend.v3.ensure_record_ownership(
                 config=existing.config if existing else None,
                 persisted_identifier=existing.subscription_id if existing else None,
                 resource="APM platform config",
@@ -515,7 +500,7 @@ class PlatformConfig(BkCollectorConfig):
                     "bk_biz_id": GLOBAL_CONFIG_BK_BIZ_ID,
                 },
             )
-            submission = NodeManV3PolicyService().ensure(
+            submission = node_man_backend.v3.policy_service().ensure(
                 resource_type=NodeManResourceType.APM_PLATFORM_CONFIG,
                 resource_key=resource_key,
                 owner_bk_tenant_id=bk_tenant_id,
@@ -526,7 +511,9 @@ class PlatformConfig(BkCollectorConfig):
                 scope=subscription_params["scope"],
                 steps=subscription_params["steps"],
             )
-            stored_config = mark_v3_config({**subscription_params, "subscription_id": submission.binding_id})
+            stored_config = node_man_backend.v3.mark_config(
+                {**subscription_params, "subscription_id": submission.binding_id}
+            )
             platform_subscription.update_or_create(
                 bk_tenant_id=bk_tenant_id,
                 bk_biz_id=GLOBAL_CONFIG_BK_BIZ_ID,

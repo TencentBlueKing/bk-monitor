@@ -12,7 +12,8 @@ from django.conf import settings
 from django.core.management import BaseCommand
 
 from bkmonitor.models import GlobalConfig
-from bkmonitor.nodeman_integration.mode import get_nodeman_integration_mode
+from bkmonitor.nodeman_integration.backend import node_man_backend
+from bkmonitor.nodeman_integration.resources import NodeManResourceType
 from bkmonitor.utils.common_utils import split_list
 from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from core.drf_resource import api
@@ -81,7 +82,7 @@ class Command(BaseCommand):
         message = f"Start to deply plugin({plugin_name}@{plugin_version}) to target_hosts({target_hosts})"
         self.stdout.write(message)
 
-        if get_nodeman_integration_mode() == "v3_fresh":
+        if node_man_backend.is_v3:
             self.deploy_3_0(int(bk_biz_id), plugin_name, plugin_version, target_hosts)
         elif node_man_version == "2.0":
             self.deploy_2_0(bk_biz_id, plugin_name, plugin_version, target_hosts)
@@ -94,9 +95,7 @@ class Command(BaseCommand):
         self.stdout.write("deploy with nodeman3.0")
         bk_tenant_id = bk_biz_id_to_bk_tenant_id(bk_biz_id)
         if plugin_version == "latest":
-            from bkmonitor.nodeman_integration.v3.compat import latest_enabled_plugin_version
-
-            plugin_version = latest_enabled_plugin_version(
+            plugin_version = node_man_backend.v3.latest_enabled_plugin_version(
                 bk_tenant_id=bk_tenant_id,
                 plugin_name=plugin_name,
             )
@@ -120,10 +119,7 @@ class Command(BaseCommand):
             raise RuntimeError(f"Target hosts were not resolved from CMDB: {missing_hosts}")
         bk_host_ids = list(resolved_hosts.values())
 
-        from monitor_web.models.node_man import NodeManResourceType
-        from monitor_web.nodeman_integration.v3.plugin_deployment import NodeManV3PluginDeploymentService
-
-        deployments = NodeManV3PluginDeploymentService().ensure_hosts(
+        deployments = node_man_backend.v3.plugin_deployment_service().ensure_hosts(
             resource_type=NodeManResourceType.OFFICIAL_PLUGIN_DEPLOYMENT,
             owner_bk_tenant_id=bk_tenant_id,
             execution_bk_tenant_id=bk_tenant_id,

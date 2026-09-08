@@ -27,6 +27,7 @@ from rest_framework.exceptions import ValidationError
 from bkm_space.define import SpaceTypeEnum
 from bkm_space.errors import NoRelatedResourceError
 from bkmonitor.models import MetricListCache, QueryConfigModel, StrategyModel
+from bkmonitor.nodeman_integration.backend import node_man_backend
 from bkmonitor.utils.request import get_request_tenant_id, get_request_username
 from bkmonitor.utils.user import get_admin_username
 from constants.data_source import DataSourceLabel, DataTypeLabel
@@ -172,14 +173,10 @@ class ProxyHostInfo(Resource):
         proxy_host_info = []
         bk_biz_id = validated_request_data["bk_biz_id"]
         proxy_hosts = []
-        from bkmonitor.nodeman_integration.mode import get_nodeman_integration_mode
-
-        is_v3 = get_nodeman_integration_mode() == "v3_fresh"
+        is_v3 = node_man_backend.is_v3
         try:
             if is_v3:
-                from bkmonitor.nodeman_integration.v3.compat import get_proxies_by_biz
-
-                proxy_hosts = get_proxies_by_biz(
+                proxy_hosts = node_man_backend.v3.get_proxies_by_biz(
                     bk_tenant_id=get_request_tenant_id(),
                     bk_biz_id=bk_biz_id,
                 )

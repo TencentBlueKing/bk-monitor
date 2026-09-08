@@ -108,6 +108,7 @@ from apm_web.utils import get_interval_number, span_time_strft
 from apm_web.strategy.handler import StrategyTemplateHandler
 from apm_web.models import StrategyTemplate
 from apm_web.strategy.constants import StrategyTemplateSystem, StrategyTemplateType
+from bkmonitor.nodeman_integration.backend import node_man_backend
 from bkm_space.api import SpaceApi
 from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQuerySet
 from bkmonitor.data_source.utils.apm import TraceDatasourceTarget, TraceQueryGuard
@@ -1694,14 +1695,10 @@ class PushUrlResource(Resource):
     @classmethod
     def get_proxy_infos(cls, bk_biz_id):
         proxy_host_infos = []
-        from bkmonitor.nodeman_integration.mode import get_nodeman_integration_mode
-
-        is_v3 = get_nodeman_integration_mode() == "v3_fresh"
+        is_v3 = node_man_backend.is_v3
         try:
             if is_v3:
-                from bkmonitor.nodeman_integration.v3.compat import get_proxies_by_biz
-
-                proxy_hosts = get_proxies_by_biz(
+                proxy_hosts = node_man_backend.v3.get_proxies_by_biz(
                     bk_tenant_id=get_request_tenant_id(),
                     bk_biz_id=bk_biz_id,
                 )

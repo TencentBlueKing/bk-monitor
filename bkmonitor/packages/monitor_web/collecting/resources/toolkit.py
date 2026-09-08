@@ -20,6 +20,7 @@ from django.utils.translation import gettext as _
 from rest_framework import serializers
 
 from bkmonitor.models import MetricListCache, QueryConfigModel, StrategyModel
+from bkmonitor.nodeman_integration.backend import node_man_backend
 from bkmonitor.utils.cipher import RSACipher
 from bkmonitor.utils.request import get_request, get_request_tenant_id
 from constants.cmdb import TargetNodeType
@@ -555,12 +556,8 @@ class CheckPluginVersionResource(Resource):
             if validated_request_data["collect_type"] != collect_type:
                 continue
             # 动态进程采集依赖bkmonitorbeat-v2.10.0/v0.33.0
-            from bkmonitor.nodeman_integration.mode import get_nodeman_integration_mode
-
-            if get_nodeman_integration_mode() == "v3_fresh":
-                from bkmonitor.nodeman_integration.v3.compat import plugin_search_host_status
-
-                all_plugin = plugin_search_host_status(
+            if node_man_backend.is_v3:
+                all_plugin = node_man_backend.v3.plugin_search_host_status(
                     bk_tenant_id=get_request_tenant_id(),
                     bk_biz_id=validated_request_data["bk_biz_id"],
                     bk_host_ids=bk_host_ids,

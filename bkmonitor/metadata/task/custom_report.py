@@ -22,7 +22,7 @@ from django.utils import timezone
 
 from alarm_backends.core.lock.service_lock import share_lock
 from bkmonitor.models import QueryConfigModel
-from bkmonitor.nodeman_integration.mode import get_nodeman_integration_mode
+from bkmonitor.nodeman_integration.backend import node_man_backend
 from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from bkmonitor.utils.time_tools import datetime_str_to_datetime
 from bkmonitor.utils.version import compare_versions, get_max_version
@@ -144,9 +144,7 @@ def refresh_custom_report_2_node_man(bk_biz_id=None):
     # 判定节点管理是否上传支持v2新配置模版的bk-collector版本0.16.1061
     default_version = "0.0.0"
 
-    if get_nodeman_integration_mode() == "v3_fresh":
-        from bkmonitor.nodeman_integration.v3.compat import latest_enabled_plugin_version
-
+    if node_man_backend.is_v3:
         if bk_biz_id is not None:
             bk_tenant_ids = [bk_biz_id_to_bk_tenant_id(bk_biz_id)]
         else:
@@ -154,7 +152,7 @@ def refresh_custom_report_2_node_man(bk_biz_id=None):
         failures = []
         for bk_tenant_id in bk_tenant_ids:
             try:
-                max_version = latest_enabled_plugin_version(
+                max_version = node_man_backend.v3.latest_enabled_plugin_version(
                     bk_tenant_id=bk_tenant_id,
                     plugin_name="bk-collector",
                 )
@@ -266,7 +264,7 @@ def refresh_custom_log_config(log_group_id=None):
         models.LogSubscriptionConfig.refresh(log_group)
     except Exception as err:  # pylint: disable=broad-except
         logger.exception("[RefreshCustomLogConfigFailed] Err => %s; LogGroup => %s", str(err), log_group.log_group_id)
-        if get_nodeman_integration_mode() == "v3_fresh":
+        if node_man_backend.is_v3:
             raise
 
 

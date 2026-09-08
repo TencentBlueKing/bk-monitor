@@ -48,6 +48,8 @@ from apm_web.metric_handler import RequestCountInstance
 from bkm_space.api import SpaceApi
 from bkmonitor.iam import Permission, ResourceEnum
 from bkmonitor.middlewares.source import get_source_app_code
+from bkmonitor.nodeman_integration.backend import node_man_backend
+from bkmonitor.nodeman_integration.exceptions import NodeManV3CapabilityBlocked
 from bkmonitor.utils import group_by
 from bkmonitor.utils.cache import lru_cache_with_ttl
 from bkmonitor.utils.db import JsonField
@@ -564,18 +566,12 @@ class Application(AbstractRecordModel):
 
         output_param = self.get_output_param(self.bk_biz_id, self.app_name)
         if not output_param.get("host"):
-            from bkmonitor.nodeman_integration.mode import get_nodeman_integration_mode
-
-            if get_nodeman_integration_mode() == "v3_fresh" and (plugin_config or {}).get("subscription_id"):
-                from monitor_web.collecting.deploy.nodeman_v3.validation import NodeManV3CapabilityBlocked
-
+            if node_man_backend.is_v3 and (plugin_config or {}).get("subscription_id"):
                 raise NodeManV3CapabilityBlocked(
                     "APM log-trace target removal requires the DeployPolicy reverse field while enabled remains true"
                 )
             return
-        from bkmonitor.nodeman_integration.mode import get_nodeman_integration_mode
-
-        is_v3 = get_nodeman_integration_mode() == "v3_fresh"
+        is_v3 = node_man_backend.is_v3
         with atomic() if is_v3 else nullcontext():
             plugin_config = LogTracePluginConfig().release_log_trace_config(
                 plugin_config,
@@ -642,12 +638,8 @@ class Application(AbstractRecordModel):
 
     @staticmethod
     def _block_v3_log_trace_lifecycle(action: str) -> None:
-        from bkmonitor.nodeman_integration.mode import get_nodeman_integration_mode
-
-        if get_nodeman_integration_mode() != "v3_fresh":
+        if not node_man_backend.is_v3:
             return
-        from monitor_web.collecting.deploy.nodeman_v3.validation import NodeManV3CapabilityBlocked
-
         raise NodeManV3CapabilityBlocked(
             f"APM log-trace {action} requires the DeployPolicy reverse field while enabled remains true"
         )

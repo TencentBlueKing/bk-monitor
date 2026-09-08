@@ -44,6 +44,9 @@ from apm.models import (
     SubscriptionConfig,
     TraceDataSource,
 )
+from bkmonitor.nodeman_integration.backend import node_man_backend
+from bkmonitor.nodeman_integration.exceptions import NodeManV3CapabilityBlocked
+from bkmonitor.nodeman_integration.resources import NodeManResourceType, build_nodeman_resource_key
 from bkmonitor.utils.bk_collector_config import BkCollectorClusterConfig, BkCollectorConfig
 from bkmonitor.utils.common_utils import count_md5
 from bkmonitor.utils.new_env import is_biz_id_in_black_list, is_biz_id_need_managed
@@ -186,9 +189,7 @@ class ApplicationConfig(BkCollectorConfig):
         # 2.2 获取默认租户下全局配置中主机配置列表，全部配置的主机一定是默认租户下的主机
         default_target_hosts = self.get_target_host_in_default_cloud_area()
 
-        from bkmonitor.nodeman_integration.mode import get_nodeman_integration_mode
-
-        is_v3 = get_nodeman_integration_mode() == "v3_fresh"
+        is_v3 = node_man_backend.is_v3
         if is_v3:
             if bk_tenant_id == DEFAULT_TENANT_ID:
                 execution_targets = {DEFAULT_TENANT_ID: default_target_hosts + proxy_target_hosts}
@@ -197,9 +198,6 @@ class ApplicationConfig(BkCollectorConfig):
                     DEFAULT_TENANT_ID: default_target_hosts,
                     bk_tenant_id: proxy_target_hosts,
                 }
-
-            from monitor_web.models.node_man import NodeManResourceType, build_nodeman_resource_key
-            from monitor_web.nodeman_integration.v3.policy import ensure_v3_record_ownership
 
             resource_key = build_nodeman_resource_key(
                 NodeManResourceType.APM_APPLICATION_CONFIG,
@@ -217,7 +215,7 @@ class ApplicationConfig(BkCollectorConfig):
                 if not targets:
                     stale_tenants.append(execution_tenant_id)
                     continue
-                ensure_v3_record_ownership(
+                node_man_backend.v3.ensure_record_ownership(
                     config=existing.config,
                     persisted_identifier=existing.subscription_id,
                     resource=f"APM application config {self._application.pk}",
@@ -230,8 +228,6 @@ class ApplicationConfig(BkCollectorConfig):
                     },
                 )
             if stale_tenants:
-                from monitor_web.collecting.deploy.nodeman_v3.validation import NodeManV3CapabilityBlocked
-
                 raise NodeManV3CapabilityBlocked(
                     f"APM application config target removal for execution tenants {stale_tenants} "
                     "requires the DeployPolicy reverse field while enabled remains true"
@@ -972,19 +968,7 @@ class ApplicationConfig(BkCollectorConfig):
             ],
         }
 
-        from bkmonitor.nodeman_integration.mode import get_nodeman_integration_mode
-
-        if get_nodeman_integration_mode() == "v3_fresh":
-            from monitor_web.models.node_man import (
-                NodeManResourceType,
-                build_nodeman_resource_key,
-            )
-            from monitor_web.nodeman_integration.v3.policy import (
-                NodeManV3PolicyService,
-                ensure_v3_record_ownership,
-                mark_v3_config,
-            )
-
+        if node_man_backend.is_v3:
             application_subscription = SubscriptionConfig.objects.filter(
                 bk_tenant_id=bk_tenant_id,
                 bk_biz_id=self._application.bk_biz_id,
@@ -995,7 +979,7 @@ class ApplicationConfig(BkCollectorConfig):
                 NodeManResourceType.APM_APPLICATION_CONFIG,
                 object_id=self._application.pk,
             )
-            ensure_v3_record_ownership(
+            node_man_backend.v3.ensure_record_ownership(
                 config=existing.config if existing else None,
                 persisted_identifier=existing.subscription_id if existing else None,
                 resource=f"APM application config {self._application.pk}",
@@ -1007,7 +991,7 @@ class ApplicationConfig(BkCollectorConfig):
                     "bk_biz_id": self._application.bk_biz_id,
                 },
             )
-            submission = NodeManV3PolicyService().ensure(
+            submission = node_man_backend.v3.policy_service().ensure(
                 resource_type=NodeManResourceType.APM_APPLICATION_CONFIG,
                 resource_key=resource_key,
                 owner_bk_tenant_id=self._application.bk_tenant_id,
@@ -1018,7 +1002,9 @@ class ApplicationConfig(BkCollectorConfig):
                 scope=subscription_params["scope"],
                 steps=subscription_params["steps"],
             )
-            stored_config = mark_v3_config({**subscription_params, "subscription_id": submission.binding_id})
+            stored_config = node_man_backend.v3.mark_config(
+                {**subscription_params, "subscription_id": submission.binding_id}
+            )
             application_subscription.update_or_create(
                 bk_tenant_id=bk_tenant_id,
                 bk_biz_id=self._application.bk_biz_id,
