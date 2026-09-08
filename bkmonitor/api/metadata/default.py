@@ -460,6 +460,7 @@ class ModifyTimeSeriesGroupResource(MetaDataAPIGWResource):
     method = "POST"
 
     class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = TenantIdField(label="租户ID")
         operator = serializers.CharField(allow_blank=True, label="操作者")
         time_series_group_id = serializers.IntegerField(label="自定义时序分组ID")
         time_series_group_name = serializers.CharField(required=False, label="自定义时序分组名")

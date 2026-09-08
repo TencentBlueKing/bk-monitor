@@ -15,6 +15,8 @@ from django.conf import settings
 from django.core.management import BaseCommand, CommandError
 
 from apm.models import ApmApplication, MetricDataSource
+from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
+from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import api
 from metadata.models import DataSource
 from metadata.models.custom_report.time_series import TimeSeriesGroup
@@ -95,14 +97,20 @@ class Command(BaseCommand):
             self.stderr.write(f"TimeSeriesGroup 不存在: bk_data_id={bk_data_id}")
             return
 
+        # 4. 获取租户 ID
+        bk_tenant_id = data_source.bk_tenant_id or ts_group.bk_tenant_id
+        if not bk_tenant_id:
+            bk_tenant_id = bk_biz_id_to_bk_tenant_id(bk_biz_id or ts_group.bk_biz_id)
+        bk_tenant_id = bk_tenant_id or DEFAULT_TENANT_ID
+
         self.stdout.write(
             f"TimeSeriesGroup: group_id={ts_group.time_series_group_id}, "
             f"table_id={ts_group.table_id}, "
+            f"bk_tenant_id={bk_tenant_id}, "
             f"当前 metric_group_dimensions={ts_group.metric_group_dimensions}"
         )
 
-        # 4. 调用 modify API 更新 metric_group_dimensions
-        bk_tenant_id = data_source.bk_tenant_id
+        # 5. 调用 modify API 更新 metric_group_dimensions
         try:
             api.metadata.modify_time_series_group(
                 bk_tenant_id=bk_tenant_id,
