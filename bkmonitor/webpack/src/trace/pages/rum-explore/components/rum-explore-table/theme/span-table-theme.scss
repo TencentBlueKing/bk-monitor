@@ -19,6 +19,15 @@
         }
       }
 
+      /* Span 调用类型列：图标尺寸与间距对齐 trace 检索 kind 列 */
+      &:has([data-col-id='kind']) {
+        .span-kind-icon {
+          flex-shrink: 0;
+          width: 22px;
+          margin-right: 4px;
+        }
+      }
+
       &:has([data-col-id='attributes.resource.cache.hit']) {
         column-gap: 2px;
         color: #21a380;
