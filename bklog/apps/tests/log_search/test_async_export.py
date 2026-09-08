@@ -137,7 +137,7 @@ class BarrierRedisCache:
 
 
 class TestAsyncExportProgress(TestCase):
-    def test_export_history_does_not_filter_business_when_show_all_is_false(self):
+    def test_export_history_filters_to_related_spaces_when_show_all_is_false(self):
         tasks = []
         for bk_biz_id in [2, -3, -4]:
             tasks.append(
@@ -168,56 +168,16 @@ class TestAsyncExportProgress(TestCase):
                 "apps.log_search.handlers.search.async_export_handlers.get_request_external_username", return_value=""
             ),
             patch(
-                "apps.log_search.handlers.search.async_export_handlers.LogIndexSet.objects.filter"
-            ) as mock_index_set_filter,
+                "apps.log_search.handlers.search.async_export_handlers.get_bkcc_biz_id_related_spaces",
+                return_value=[-3],
+            ),
             patch.object(handler, "get_index_set_retention", return_value={}),
         ):
-            mock_index_set_filter.return_value.exists.return_value = False
             related_response = handler.get_export_history(request, Mock(), show_all=False)
             all_response = handler.get_export_history(request, Mock(), show_all=True)
 
-        self.assertCountEqual([item["id"] for item in related_response.data["list"]], [task.id for task in tasks])
+        self.assertCountEqual([item["id"] for item in related_response.data["list"]], [tasks[0].id, tasks[1].id])
         self.assertEqual([item["id"] for item in all_response.data["list"]], [tasks[0].id])
-
-    def test_export_history_keeps_business_filter_for_platform_index_set(self):
-        tasks = []
-        for bk_biz_id in [2, -3]:
-            tasks.append(
-                AsyncTask.objects.create(
-                    request_param=SEARCH_DICT,
-                    scenario_id=Scenario.LOG,
-                    index_set_id=3,
-                    bk_biz_id=bk_biz_id,
-                    start_time=SEARCH_DICT["start_time"],
-                    end_time=SEARCH_DICT["end_time"],
-                    export_type=ExportType.ASYNC,
-                    export_status=ExportStatus.SUCCESS,
-                    source_app_code="bk_log_search",
-                    created_by="admin",
-                )
-            )
-        handler = AsyncExportHandlers.__new__(AsyncExportHandlers)
-        handler.index_set_id = 3
-        handler.bk_biz_id = 2
-        request = Request(APIRequestFactory().get("/?page=1&pagesize=10"))
-
-        with (
-            patch(
-                "apps.log_search.handlers.search.async_export_handlers.get_request_app_code",
-                return_value="bk_log_search",
-            ),
-            patch(
-                "apps.log_search.handlers.search.async_export_handlers.get_request_external_username", return_value=""
-            ),
-            patch(
-                "apps.log_search.handlers.search.async_export_handlers.LogIndexSet.objects.filter"
-            ) as mock_index_set_filter,
-            patch.object(handler, "get_index_set_retention", return_value={}),
-        ):
-            mock_index_set_filter.return_value.exists.return_value = True
-            response = handler.get_export_history(request, Mock(), show_all=False)
-
-        self.assertEqual([item["id"] for item in response.data["list"]], [tasks[0].id])
 
     def test_union_export_history_keeps_business_filter(self):
         tasks = []
