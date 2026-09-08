@@ -46,9 +46,7 @@ class FilterSerializer(serializers.Serializer):
 class QueryStringFilterSerializer(FilterSerializer):
     """查询串渲染侧过滤条件"""
 
-    value = serializers.ListSerializer(
-        label=_("查询值"), child=FilterValueCharField(allow_blank=True), allow_empty=True
-    )
+    value = serializers.ListSerializer(label=_("查询值"), child=serializers.JSONField(), allow_empty=True)
 
 
 class BaseRumRequestSerializer(serializers.Serializer):
