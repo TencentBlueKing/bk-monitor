@@ -31,20 +31,20 @@ import { type InputValue, type SliderValue, Input, Slider } from 'tdesign-vue-ne
 import { useI18n } from 'vue-i18n';
 
 import {
-  type TDurationBaseUnit,
-  DURATION_UNIT_TIPS,
-  formatDuration,
-  isValidTimeFormat,
-  parseDuration,
-} from './duration-input-utils';
+  type TBytesBaseUnit,
+  BYTES_UNIT_TIPS,
+  formatBytes,
+  isValidBytesFormat,
+  parseBytes,
+} from './bytes-scope-input-utils';
 
-import './duration-input.scss';
+import './bytes-scope-input.scss';
 
-/** 无有效范围时滑块的默认量程（基础单位） */
-const DEFAULT_SLIDER_MAX = 1000;
+/** 无有效范围时滑块的默认量程（1MiB） */
+const DEFAULT_SLIDER_MAX = 1024 ** 2;
 
 export default defineComponent({
-  name: 'DurationInput',
+  name: 'BytesScopeInput',
   props: {
     value: {
       type: Array as PropType<number[]>,
@@ -55,8 +55,8 @@ export default defineComponent({
       default: 'default',
     },
     baseUnit: {
-      type: String as PropType<TDurationBaseUnit>,
-      default: 'μs',
+      type: String as PropType<TBytesBaseUnit>,
+      default: 'B',
     },
   },
   emits: {
@@ -70,7 +70,7 @@ export default defineComponent({
       max: DEFAULT_SLIDER_MAX,
       value: [0, DEFAULT_SLIDER_MAX],
     });
-    /** 起始 / 结束输入框的原始字符串（带单位，如 "1.5s"） */
+    /** 起始 / 结束输入框的原始字符串（带单位，如 "1.5MiB"） */
     const startInput = shallowRef('');
     const endInput = shallowRef('');
 
@@ -90,8 +90,8 @@ export default defineComponent({
     );
     /** 外部值回写：格式化后同步到输入框，仅在与当前输入不一致时刷新，避免打断用户正在输入的内容 */
     function watchPropValue(val: number[]) {
-      const startVal = formatDuration(val[0], props.baseUnit);
-      const endVal = formatDuration(val[1], props.baseUnit);
+      const startVal = formatBytes(val[0], props.baseUnit);
+      const endVal = formatBytes(val[1], props.baseUnit);
       const isStartNE = startVal !== startInput.value;
       const isEndNE = endVal !== endInput.value;
       if (isStartNE) {
@@ -105,11 +105,11 @@ export default defineComponent({
       }
     }
     /**
-     * 处理开始时间输入框变更事件
+     * 处理开始字节输入框变更事件
      * @param val - 输入框的值
      */
     function handleStartInputChange(val: InputValue) {
-      const isValid = isValidTimeFormat(val as string, props.baseUnit);
+      const isValid = isValidBytesFormat(val as string);
       if (isValid || val === '') {
         startInput.value = val as string;
         handleChange();
@@ -118,11 +118,11 @@ export default defineComponent({
       }
     }
     /**
-     * 处理开始结束输入框变更事件
+     * 处理结束字节输入框变更事件
      * @param val - 输入框的值
      */
     function handleEndInputChange(val: InputValue) {
-      const isValid = isValidTimeFormat(val as string, props.baseUnit);
+      const isValid = isValidBytesFormat(val as string);
       if (isValid || val === '') {
         endInput.value = val as string;
         handleChange();
@@ -136,19 +136,19 @@ export default defineComponent({
      */
     function handleSliderChangeEnd(val: SliderValue) {
       sliderValue.value = val;
-      const startVal = formatDuration(val[0], props.baseUnit);
-      const endVal = formatDuration(val[1], props.baseUnit);
+      const startVal = formatBytes(val[0], props.baseUnit);
+      const endVal = formatBytes(val[1], props.baseUnit);
       startInput.value = startVal;
       endInput.value = endVal;
       handleChange(false);
     }
     /**
-     * 处理时间范围变更事件
-     * 将输入框的时间字符串转换为数值并触发change事件
+     * 处理字节范围变更事件
+     * 将输入框的字符串换算成 baseUnit 下的数值并触发 change 事件
      */
     function handleChange(isInput = true) {
-      const startVal = parseDuration(startInput.value, props.baseUnit);
-      const endVal = parseDuration(endInput.value, props.baseUnit);
+      const startVal = parseBytes(startInput.value, props.baseUnit);
+      const endVal = parseBytes(endInput.value, props.baseUnit);
       if (startVal === props.value[0] && endVal === props.value[1]) {
         return;
       }
@@ -160,12 +160,14 @@ export default defineComponent({
 
     /** 按当前 [起始值, 结束值] 重置滑块量程；区间非法（起 >= 止）时回退到默认量程 */
     function sliderInit(startVal: number, endVal: number) {
-      if (startVal >= endVal) {
+      const start = startVal || 0;
+      const end = endVal || 0;
+      if (start >= end) {
         sliderValue.max = DEFAULT_SLIDER_MAX;
         sliderValue.value = [0, DEFAULT_SLIDER_MAX];
       } else {
-        sliderValue.max = Math.max(endVal, DEFAULT_SLIDER_MAX);
-        sliderValue.value = [startVal, endVal];
+        sliderValue.max = end;
+        sliderValue.value = [start, end];
       }
     }
 
@@ -181,7 +183,7 @@ export default defineComponent({
   },
   render() {
     return (
-      <div class={['duration-input-component', this.styleType]}>
+      <div class={['bytes-scope-input-component', this.styleType]}>
         <div
           class='input-wrap'
           v-bk-tooltips={{
@@ -189,7 +191,7 @@ export default defineComponent({
             content: (
               <div>
                 {this.t('支持')}
-                {DURATION_UNIT_TIPS}
+                {BYTES_UNIT_TIPS}
               </div>
             ),
           }}
@@ -204,10 +206,10 @@ export default defineComponent({
           />
         </div>
 
-        <div class='duration-slider'>
+        <div class='bytes-slider'>
           <Slider
             tooltipProps={{
-              overlayClassName: 'duration-input-component-slider-tip',
+              overlayClassName: 'bytes-scope-input-component-slider-tip',
             }}
             max={this.sliderValue.max as number}
             min={this.sliderValue.min as number}
@@ -223,7 +225,7 @@ export default defineComponent({
             content: (
               <div>
                 {this.t('支持')}
-                {DURATION_UNIT_TIPS}
+                {BYTES_UNIT_TIPS}
               </div>
             ),
           }}
