@@ -27,6 +27,10 @@ from __future__ import annotations
 
 import copy
 import logging
+import json
+import threading
+
+from cachetools import TTLCache, cachedmethod
 
 from iam import Action, IAM, MultiActionRequest, Request, Resource, Subject
 from iam.exceptions import AuthAPIError
@@ -84,6 +88,21 @@ class V3Client(IAM):
         self._system_id = system_id
         self._codec = codec
         self._enable_v1_compat = enable_v1_compat
+        # SDK 默认缓存跨实例共享且忽略租户；在租户/凭据独立的客户端内持有缓存。
+        self._allowed_cache = TTLCache(maxsize=1024, ttl=10)
+        self._policy_cache = TTLCache(maxsize=1024, ttl=60)
+        self._cache_lock = threading.RLock()
+
+    def _request_cache_key(self, request):
+        return json.dumps(request.to_dict(), sort_keys=True)
+
+    @cachedmethod(lambda self: self._allowed_cache, key=_request_cache_key, lock=lambda self: self._cache_lock)
+    def is_allowed_with_cache(self, request):
+        return self.is_allowed(request)
+
+    @cachedmethod(lambda self: self._policy_cache, key=_request_cache_key, lock=lambda self: self._cache_lock)
+    def _do_policy_query_with_cache(self, request):
+        return self._do_policy_query(request)
 
     # ================================================================
     # SDK 对象构造（封装 IAM SDK 原生类型，Provider 不直接 import SDK）

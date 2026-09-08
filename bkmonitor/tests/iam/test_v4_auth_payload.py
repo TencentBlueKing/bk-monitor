@@ -64,7 +64,7 @@ class TestProviderBoundary:
         provider, _ = _build_provider()
 
         class Resolver:
-            def resolve(self, resource):
+            def resolve(self, resource, *, tenant_id):
                 return ResourceInstance(
                     type=resource.type,
                     id=resource.id,

@@ -329,7 +329,7 @@ class TestEnrichPermissions:
         )
 
         actions = self._actions([{"path": [{"type": "apm_application", "id": "390"}]}])
-        failed = _enrich_permissions(actions, schema)
+        failed = _enrich_permissions(actions, schema, bk_tenant_id="system")
 
         assert failed == 0
         assert actions[0]["permissions"][0]["path"] == [
@@ -342,14 +342,14 @@ class TestEnrichPermissions:
         """顶级资源开头的 path 不做父链查询（仅展示名阶段）。"""
         schema = self._make_schema_mock({"space": ResourceTypeDef(id="space", name="空间")})
         actions = self._actions([{"path": [{"type": "space", "id": "2"}]}])
-        _enrich_permissions(actions, schema)
+        _enrich_permissions(actions, schema, bk_tenant_id="system")
         assert actions[0]["permissions"][0]["path"] == [{"type": "space", "id": "2", "display_name": ""}]
         assert all(call.kwargs.get("requires") != ["_bk_iam_path_"] for call in mock_fetch.call_args_list)
 
     def test_skip_empty_path(self):
         schema = MagicMock()
         actions = self._actions([{"path": []}])
-        _enrich_permissions(actions, schema)
+        _enrich_permissions(actions, schema, bk_tenant_id="system")
         assert actions[0]["permissions"][0]["path"] == []
 
     @patch("bkmonitor.iam.adapters.catalog.fetch_instance_info", return_value=[])
@@ -357,7 +357,7 @@ class TestEnrichPermissions:
         """Unknown resource type — silently skipped（展示名回填空串）。"""
         schema = self._make_schema_mock({})
         actions = self._actions([{"path": [{"type": "unknown_rt", "id": "x"}]}])
-        _enrich_permissions(actions, schema)
+        _enrich_permissions(actions, schema, bk_tenant_id="system")
         assert actions[0]["permissions"][0]["path"] == [{"type": "unknown_rt", "id": "x", "display_name": ""}]
 
     @patch("bkmonitor.iam.adapters.catalog.fetch_instance_info", return_value=[])
@@ -370,7 +370,7 @@ class TestEnrichPermissions:
             }
         )
         actions = self._actions([{"path": [{"type": "grafana_dashboard", "id": "14|missing"}]}])
-        _enrich_permissions(actions, schema)
+        _enrich_permissions(actions, schema, bk_tenant_id="system")
         assert actions[0]["permissions"][0]["path"] == [
             {"type": "grafana_dashboard", "id": "14|missing", "display_name": ""}
         ]
@@ -404,7 +404,7 @@ class TestEnrichPermissions:
                 }
             ]
         )
-        _enrich_permissions(actions, schema)
+        _enrich_permissions(actions, schema, bk_tenant_id="system")
 
         path = actions[0]["permissions"][0]["path"]
         assert path[0]["display_name"] == "业务-2"
@@ -420,7 +420,7 @@ class TestEnrichPermissions:
             }
         )
         permissions = [{"path": [{"type": "apm_application", "id": str(390 + i)}]} for i in range(10)]
-        _enrich_permissions(self._actions(permissions), schema)
+        _enrich_permissions(self._actions(permissions), schema, bk_tenant_id="system")
 
         apm_calls = [c for c in mock_fetch.call_args_list if c.args[0] == "apm_application"]
         assert len(apm_calls) == 2
@@ -436,7 +436,7 @@ class TestEnrichPermissions:
             }
         )
         actions = self._actions([{"path": [{"type": "apm_application", "id": "390"}]}])
-        failed = _enrich_permissions(actions, schema)
+        failed = _enrich_permissions(actions, schema, bk_tenant_id="system")
         assert failed > 0
         assert actions[0]["permissions"][0]["path"] == [{"type": "apm_application", "id": "390"}]
 

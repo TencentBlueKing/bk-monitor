@@ -18,6 +18,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from bkmonitor.views.renderers import UJSONRenderer
+from bkmonitor.iam.adapters.tenant import get_callback_tenant_id
 
 from .auth import MonitorIamCallbackAuthentication
 from .handlers import get_callback_service
@@ -45,6 +46,11 @@ class V4ResourceCallbackView(APIView):
 
     def post(self, request: Request) -> Response:
         """处理 IAM 平台的 list_instance / fetch_instance_info 请求。"""
+        try:
+            bk_tenant_id = get_callback_tenant_id(request)
+        except ValueError as exc:
+            return Response({"error": {"code": "INVALID_ARGUMENT", "message": str(exc)}}, status=400)
+
         method = request.data.get("method", "")
         filter_data = request.data.get("filter", {})
         page = request.data.get("page", {})
@@ -54,20 +60,23 @@ class V4ResourceCallbackView(APIView):
         resource_type = service.decode_resource_type(dialect_resource_type)
 
         logger.info(
-            "[iam_v4:callback] method=%s type=%s business_type=%s page=%s",
+            "[iam_v4:callback] method=%s type=%s business_type=%s page=%s tenant_id=%s",
             method,
             dialect_resource_type,
             resource_type,
             page,
+            bk_tenant_id,
         )
 
         try:
             if method == "list_instance":
-                result = service.dispatch_list_instance(resource_type, filter_data, page)
+                result = service.dispatch_list_instance(resource_type, filter_data, page, bk_tenant_id=bk_tenant_id)
                 return Response({"code": 0, "data": result})
             if method == "fetch_instance_info":
                 requires = request.data.get("requires", [])
-                result = service.dispatch_fetch_instance_info(resource_type, filter_data.get("ids", []), requires)
+                result = service.dispatch_fetch_instance_info(
+                    resource_type, filter_data.get("ids", []), requires, bk_tenant_id=bk_tenant_id
+                )
                 return Response({"code": 0, "data": result})
 
             logger.warning("[iam_v4:callback] unknown method=%s", method)

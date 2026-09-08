@@ -34,13 +34,13 @@ class V4CallbackService:
         """将 V4 请求中的资源类型转换为业务资源类型。"""
         return self._codec.decode_resource_type(dialect_resource_type)
 
-    def dispatch_list_instance(self, resource_type: str, filter_data: dict, page: dict) -> dict:
+    def dispatch_list_instance(self, resource_type: str, filter_data: dict, page: dict, *, bk_tenant_id: str) -> dict:
         """分发 V4 list_instance 请求。"""
         handler = self.registry.get_list_instance(resource_type)
         if handler is None:
             logger.warning("[iam_v4:callback] no list_instance handler for type=%s", resource_type)
             return {"count": 0, "results": []}
-        result = handler(self._decode_filter(filter_data), page)
+        result = handler(self._decode_filter(filter_data), page, bk_tenant_id)
         self._encode_result_ids(result.get("results") or [], resource_type)
         return result
 
@@ -49,6 +49,8 @@ class V4CallbackService:
         resource_type: str,
         ids: list[str],
         requires: list[str],
+        *,
+        bk_tenant_id: str,
     ) -> list[dict]:
         """分发 V4 fetch_instance_info 请求。"""
         handler = self.registry.get_fetch_instance_info(resource_type)
@@ -56,7 +58,7 @@ class V4CallbackService:
             logger.warning("[iam_v4:callback] no fetch_instance_info handler for type=%s", resource_type)
             return []
         decoded_ids = [self._codec.decode_resource_id(resource_type, resource_id) for resource_id in ids]
-        result = handler(decoded_ids, requires)
+        result = handler(decoded_ids, requires, bk_tenant_id)
         self._encode_result_ids(result, resource_type)
         return result
 

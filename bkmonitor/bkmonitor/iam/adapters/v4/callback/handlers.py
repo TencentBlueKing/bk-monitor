@@ -26,40 +26,40 @@ def get_callback_service() -> V4CallbackService:
 
 
 @_registry.register_list_instance("space")
-def _list_space(filter_data: dict, page: dict) -> dict:
-    return catalog.list_instances("space", filter_data, page)
+def _list_space(filter_data: dict, page: dict, bk_tenant_id: str) -> dict:
+    return catalog.list_instances("space", filter_data, page, bk_tenant_id=bk_tenant_id)
 
 
 @_registry.register_fetch_instance_info("space")
-def _fetch_space(ids: list[str], requires: list[str]) -> list[dict]:
-    return catalog.fetch_instance_info("space", ids, requires)
+def _fetch_space(ids: list[str], requires: list[str], bk_tenant_id: str) -> list[dict]:
+    return catalog.fetch_instance_info("space", ids, requires, bk_tenant_id=bk_tenant_id)
 
 
 @_registry.register_list_instance("apm_application")
-def _list_apm(filter_data: dict, page: dict) -> dict:
-    return catalog.list_instances("apm_application", filter_data, page)
+def _list_apm(filter_data: dict, page: dict, bk_tenant_id: str) -> dict:
+    return catalog.list_instances("apm_application", filter_data, page, bk_tenant_id=bk_tenant_id)
 
 
 @_registry.register_fetch_instance_info("apm_application")
-def _fetch_apm(ids: list[str], requires: list[str]) -> list[dict]:
-    return catalog.fetch_instance_info("apm_application", ids, requires)
+def _fetch_apm(ids: list[str], requires: list[str], bk_tenant_id: str) -> list[dict]:
+    return catalog.fetch_instance_info("apm_application", ids, requires, bk_tenant_id=bk_tenant_id)
 
 
 @_registry.register_list_instance("grafana_dashboard")
-def _list_grafana(filter_data: dict, page: dict) -> dict:
-    return catalog.list_instances("grafana_dashboard", filter_data, page)
+def _list_grafana(filter_data: dict, page: dict, bk_tenant_id: str) -> dict:
+    return catalog.list_instances("grafana_dashboard", filter_data, page, bk_tenant_id=bk_tenant_id)
 
 
 @_registry.register_fetch_instance_info("grafana_dashboard")
-def _fetch_grafana(ids: list[str], requires: list[str]) -> list[dict]:
-    return catalog.fetch_instance_info("grafana_dashboard", ids, requires)
+def _fetch_grafana(ids: list[str], requires: list[str], bk_tenant_id: str) -> list[dict]:
+    return catalog.fetch_instance_info("grafana_dashboard", ids, requires, bk_tenant_id=bk_tenant_id)
 
 
 @_registry.register_list_instance("rum_application")
-def _list_rum(filter_data: dict, page: dict) -> dict:
-    return catalog.list_instances("rum_application", filter_data, page)
+def _list_rum(filter_data: dict, page: dict, bk_tenant_id: str) -> dict:
+    return catalog.list_instances("rum_application", filter_data, page, bk_tenant_id=bk_tenant_id)
 
 
 @_registry.register_fetch_instance_info("rum_application")
-def _fetch_rum(ids: list[str], requires: list[str]) -> list[dict]:
-    return catalog.fetch_instance_info("rum_application", ids, requires)
+def _fetch_rum(ids: list[str], requires: list[str], bk_tenant_id: str) -> list[dict]:
+    return catalog.fetch_instance_info("rum_application", ids, requires, bk_tenant_id=bk_tenant_id)

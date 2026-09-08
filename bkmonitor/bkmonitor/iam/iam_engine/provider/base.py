@@ -144,11 +144,11 @@ class PermissionProvider(ABC):
 
     # ==================== 资源补全 ====================
 
-    def _resolve(self, resource: ResourceInstance | None) -> ResourceInstance | None:
+    def _resolve(self, resource: ResourceInstance | None, *, tenant_id: str) -> ResourceInstance | None:
         """补全资源实例（name / ancestor_chain / attributes），由业务 resolver 完成。"""
         if resource is None or self.resolver is None:
             return resource
-        return self.resolver.resolve(resource)
+        return self.resolver.resolve(resource, tenant_id=tenant_id or self.options.get("bk_tenant_id", ""))
 
     # ==================== 系统信息（供命令行/诊断使用） ====================
 
@@ -185,7 +185,7 @@ class PermissionProvider(ABC):
 
     def is_allowed(self, request: AuthRequest) -> bool:
         """单次鉴权。allowed=False 代表业务语义拒绝，非系统错误。"""
-        resource = self._resolve(request.resource)
+        resource = self._resolve(request.resource, tenant_id=request.subject.tenant_id)
         dialect_req = DialectAuthRequest(
             subject=request.subject,
             action_id=self.codec.encode_action(to_action_id(request.action_id)),
@@ -203,7 +203,7 @@ class PermissionProvider(ABC):
             return BatchAuthResult(items=())
 
         # 补全资源实例（name / ancestor_chain）
-        resources = tuple(self._resolve(r) for r in request.resources)
+        resources = tuple(self._resolve(r, tenant_id=request.subject.tenant_id) for r in request.resources)
 
         # 假设一批同类型（框架契约）；type 取第一个即可
         rt_biz = to_resource_type_id(resources[0].type)
@@ -245,7 +245,7 @@ class PermissionProvider(ABC):
         action_ids_biz = [to_action_id(a) for a in request.action_ids]
         pairs: list[tuple[str, str]] = [(aid_biz, self.codec.encode_action(aid_biz)) for aid_biz in action_ids_biz]
 
-        resource = self._resolve(request.resource)
+        resource = self._resolve(request.resource, tenant_id=request.subject.tenant_id)
         dialect_resource = self._encode_resource(resource) if resource else None
         rt_biz = to_resource_type_id(resource.type) if resource else ""
         rid_biz = resource.id if resource else ""
@@ -293,7 +293,8 @@ class PermissionProvider(ABC):
         # 若有多个 action，取第一个 action 的 resource_type 作为回退线索
         primary_action_biz = action_ids_biz[0] if action_ids_biz else ""
         dialect_resources = tuple(
-            self._encode_resource_for_action(self._resolve(r), primary_action_biz) for r in request.resources
+            self._encode_resource_for_action(self._resolve(r, tenant_id=request.subject.tenant_id), primary_action_biz)
+            for r in request.resources
         )
 
         dialect_req = DialectApplyURLRequest(

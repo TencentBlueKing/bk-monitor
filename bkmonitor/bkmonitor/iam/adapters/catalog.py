@@ -48,7 +48,6 @@ from collections.abc import Callable
 
 from django.db.models import Q
 
-from constants.common import DEFAULT_TENANT_ID
 
 logger = logging.getLogger(__name__)
 
@@ -128,7 +127,7 @@ def list_instances(
     rt_id: str,
     filter_data: dict,
     page: dict,
-    bk_tenant_id: str = DEFAULT_TENANT_ID,
+    bk_tenant_id: str,
 ) -> dict:
     """按父资源分页枚举指定资源类型的实例。
 
@@ -136,7 +135,7 @@ def list_instances(
         rt_id: 资源类型 ID（业务命名，如 "space" / "apm_application"）。
         filter_data: 过滤条件，支持 {"parent": {"type": ..., "id": ...}, "keyword": ...}。
         page: 分页参数 {"page": int, "page_size": int}。
-        bk_tenant_id: 租户 ID，默认 system。
+        bk_tenant_id: 租户 ID，必须由调用方显式指定。
 
     Returns:
         {"count": int, "results": [{"id": 业务 ID, "display_name": 展示名, ...}]}
@@ -152,7 +151,7 @@ def fetch_instance_info(
     rt_id: str,
     ids: list[str],
     requires: list[str],
-    bk_tenant_id: str = DEFAULT_TENANT_ID,
+    bk_tenant_id: str,
 ) -> list[dict]:
     """按 ID 批量查询实例信息（展示名 / 父链）。
 
@@ -160,7 +159,7 @@ def fetch_instance_info(
         rt_id: 资源类型 ID（业务命名）。
         ids: 业务 ID 列表。
         requires: 需要返回的字段，支持 "display_name" / "name" / "_bk_iam_path_"。
-        bk_tenant_id: 租户 ID，默认 system。
+        bk_tenant_id: 租户 ID，必须由调用方显式指定。
 
     Returns:
         [{"id": 业务 ID, "display_name"?: str, "name"?: str, "_bk_iam_path_"?: str}]
@@ -177,7 +176,7 @@ def fetch_instance_info(
 # ================================================================
 
 
-def _get_space_queryset(bk_tenant_id: str = DEFAULT_TENANT_ID):
+def _get_space_queryset(bk_tenant_id: str):
     from metadata.models import Space
 
     return Space.objects.exclude(space_id="0").filter(bk_tenant_id=bk_tenant_id)
@@ -203,7 +202,7 @@ def _generate_space_resources(queryset) -> list[dict]:
     ]
 
 
-def _list_space(filter_data: dict, page: dict, bk_tenant_id: str = DEFAULT_TENANT_ID) -> dict:
+def _list_space(filter_data: dict, page: dict, bk_tenant_id: str) -> dict:
     queryset = _get_space_queryset(bk_tenant_id)
     keyword = (filter_data.get("keyword") or "").strip()
     if keyword:
@@ -216,7 +215,7 @@ def _list_space(filter_data: dict, page: dict, bk_tenant_id: str = DEFAULT_TENAN
     return {"count": total, "results": results}
 
 
-def _fetch_space(ids: list[str], requires: list[str], bk_tenant_id: str = DEFAULT_TENANT_ID) -> list[dict]:
+def _fetch_space(ids: list[str], requires: list[str], bk_tenant_id: str) -> list[dict]:
     if not ids:
         return []
     from bkm_space.define import SpaceTypeEnum
@@ -248,7 +247,7 @@ def _fetch_space(ids: list[str], requires: list[str], bk_tenant_id: str = DEFAUL
 # ================================================================
 
 
-def _list_apm(filter_data: dict, page: dict, bk_tenant_id: str = DEFAULT_TENANT_ID) -> dict:
+def _list_apm(filter_data: dict, page: dict, bk_tenant_id: str) -> dict:
     from apm_web.models import Application as ApmApplication
 
     queryset = ApmApplication.objects.filter(bk_tenant_id=bk_tenant_id)
@@ -269,7 +268,7 @@ def _list_apm(filter_data: dict, page: dict, bk_tenant_id: str = DEFAULT_TENANT_
     return {"count": total, "results": results}
 
 
-def _fetch_apm(ids: list[str], requires: list[str], bk_tenant_id: str = DEFAULT_TENANT_ID) -> list[dict]:
+def _fetch_apm(ids: list[str], requires: list[str], bk_tenant_id: str) -> list[dict]:
     if not ids:
         return []
     from apm_web.models import Application as ApmApplication
@@ -298,7 +297,7 @@ def _fetch_apm(ids: list[str], requires: list[str], bk_tenant_id: str = DEFAULT_
 # ================================================================
 
 
-def _get_valid_org_ids(bk_tenant_id: str = DEFAULT_TENANT_ID) -> set[int]:
+def _get_valid_org_ids(bk_tenant_id: str) -> set[int]:
     from bkm_space.define import SpaceTypeEnum
     from bk_dataview.models import Org
     from metadata.models import Space
@@ -310,7 +309,7 @@ def _get_valid_org_ids(bk_tenant_id: str = DEFAULT_TENANT_ID) -> set[int]:
     return set(Org.objects.filter(name__in=bk_biz_ids).values_list("id", flat=True))
 
 
-def _list_grafana(filter_data: dict, page: dict, bk_tenant_id: str = DEFAULT_TENANT_ID) -> dict:
+def _list_grafana(filter_data: dict, page: dict, bk_tenant_id: str) -> dict:
     from bk_dataview.api import get_org_by_name
     from bk_dataview.models import Dashboard
 
@@ -354,7 +353,7 @@ def _list_grafana(filter_data: dict, page: dict, bk_tenant_id: str = DEFAULT_TEN
     return {"count": total, "results": all_results[start : start + ps]}
 
 
-def _fetch_grafana(ids: list[str], requires: list[str], bk_tenant_id: str = DEFAULT_TENANT_ID) -> list[dict]:
+def _fetch_grafana(ids: list[str], requires: list[str], bk_tenant_id: str) -> list[dict]:
     if not ids:
         return []
     from bk_dataview.models import Dashboard, Org
@@ -429,7 +428,7 @@ def _fetch_grafana(ids: list[str], requires: list[str], bk_tenant_id: str = DEFA
 # ================================================================
 
 
-def _list_rum(filter_data: dict, page: dict, bk_tenant_id: str = DEFAULT_TENANT_ID) -> dict:
+def _list_rum(filter_data: dict, page: dict, bk_tenant_id: str) -> dict:
     from rum_web.models.application import Application as RumApplication
 
     queryset = RumApplication.objects.filter(bk_tenant_id=bk_tenant_id)
@@ -450,7 +449,7 @@ def _list_rum(filter_data: dict, page: dict, bk_tenant_id: str = DEFAULT_TENANT_
     return {"count": total, "results": results}
 
 
-def _fetch_rum(ids: list[str], requires: list[str], bk_tenant_id: str = DEFAULT_TENANT_ID) -> list[dict]:
+def _fetch_rum(ids: list[str], requires: list[str], bk_tenant_id: str) -> list[dict]:
     if not ids:
         return []
     from rum_web.models.application import Application as RumApplication

@@ -16,6 +16,7 @@ from django.db.models import Q, QuerySet
 from iam import DjangoQuerySetConverter
 from iam.resource.provider import ListResult, ResourceProvider
 from iam.contrib.django.dispatcher import DjangoBasicResourceApiDispatcher
+from iam.contrib.django.dispatcher.dispatchers import fail_response
 
 from apm_web.models import Application
 from bk_dataview.api import get_org_by_id, get_org_by_name
@@ -23,7 +24,7 @@ from bk_dataview.models import Dashboard, Org
 from bkm_space.define import SpaceTypeEnum
 from bkm_space.utils import space_uid_to_bk_biz_id
 from bkmonitor.iam import ResourceEnum
-from constants.common import DEFAULT_TENANT_ID
+from bkmonitor.iam.adapters.tenant import get_callback_tenant_id
 from core.drf_resource import resource
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
 from metadata.models import Space, SpaceType
@@ -63,10 +64,16 @@ class ExternalViewSet(ResourceViewSet):
 
 
 class ResourceApiDispatcher(DjangoBasicResourceApiDispatcher):
+    def _dispatch(self, request):
+        try:
+            get_callback_tenant_id(request)
+        except ValueError as exc:
+            return fail_response(400, str(exc), request.META.get("HTTP_X_REQUEST_ID", ""))
+        return super()._dispatch(request)
+
     def _get_options(self, request):
         options = super()._get_options(request)
-        if not options.get("bk_tenant_id"):
-            options["bk_tenant_id"] = DEFAULT_TENANT_ID
+        options["bk_tenant_id"] = get_callback_tenant_id(request)
         return options
 
 
@@ -81,14 +88,15 @@ class BaseResourceProvider(ResourceProvider, metaclass=abc.ABCMeta):
 class ApmApplicationProvider(BaseResourceProvider):
     def list_instance(self, filter, page, **options):
         bk_tenant_id = options["bk_tenant_id"]
-        queryset = []
+        tenant_queryset = Application.objects.filter(bk_tenant_id=bk_tenant_id)
+        queryset = tenant_queryset.none()
         with_path = False
         if not (filter.parent or filter.search or filter.resource_type_chain):
-            queryset = Application.objects.filter(bk_tenant_id=bk_tenant_id).all()
+            queryset = tenant_queryset.all()
         elif filter.parent:
             parent_id = filter.parent["id"]
             if parent_id:
-                queryset = Application.objects.filter(bk_biz_id=parent_id)
+                queryset = tenant_queryset.filter(bk_biz_id=parent_id)
         elif filter.search and filter.resource_type_chain:
             # 返回结果需要带上资源拓扑路径信息
             with_path = True
@@ -99,7 +107,7 @@ class ApmApplicationProvider(BaseResourceProvider):
             for keyword in keywords:
                 q_filter |= Q(app_alias__icontains=keyword) | Q(app_name__icontains=keyword)
 
-            queryset = Application.objects.filter(bk_tenant_id=bk_tenant_id).filter(q_filter)
+            queryset = tenant_queryset.filter(q_filter)
 
         if not with_path:
             results = [
@@ -143,7 +151,7 @@ class ApmApplicationProvider(BaseResourceProvider):
             queryset = Application.objects.filter(bk_tenant_id=bk_tenant_id).all()
         else:
             parent_id = filter.parent.get("id")
-            queryset = Application.objects.filter(bk_biz_id=parent_id)
+            queryset = Application.objects.filter(bk_tenant_id=bk_tenant_id, bk_biz_id=parent_id)
 
         if filter.keyword:
             queryset = queryset.filter(app_alias__icontains=filter.keyword)
@@ -160,7 +168,7 @@ class ApmApplicationProvider(BaseResourceProvider):
             queryset = Application.objects.filter(bk_tenant_id=bk_tenant_id).all()
         else:
             parent_id = filter.parent.get("id")
-            queryset = Application.objects.filter(bk_biz_id=parent_id)
+            queryset = Application.objects.filter(bk_tenant_id=bk_tenant_id, bk_biz_id=parent_id)
 
         if filter.keyword:
             queryset = queryset.filter(app_alias__icontains=filter.keyword)
@@ -390,7 +398,7 @@ class GrafanaDashboardProvider(BaseResourceProvider):
         # 查询真实 folder
         if folder_queries:
             folder_id_list = [fid for _, fid in folder_queries]
-            folders = Dashboard.objects.filter(id__in=folder_id_list, is_folder=True)
+            folders = self.filter_by_options(Dashboard.objects.filter(id__in=folder_id_list, is_folder=True), options)
             folder_map = {f.id: f for f in folders}
             for instance_id, folder_id in folder_queries:
                 if folder_id in folder_map:

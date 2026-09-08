@@ -16,7 +16,7 @@ specific language governing permissions and limitations under the License.
 #
 # 用法：
 #   class MyResolver:
-#       def resolve(self, resource: ResourceInstance) -> ResourceInstance:
+#       def resolve(self, resource: ResourceInstance, *, tenant_id: str) -> ResourceInstance:
 #           ...  # 查 DB、补祖先链、填名称
 #
 # 注入方式（同 codec）：
@@ -42,11 +42,12 @@ class ResourceResolver(Protocol):
     类似于 NameCodec 的编解码，Resolver 的补全是 Provider 和业务之间的切面。
     """
 
-    def resolve(self, resource: ResourceInstance) -> ResourceInstance:
+    def resolve(self, resource: ResourceInstance, *, tenant_id: str) -> ResourceInstance:
         """补全资源实例的业务属性。
 
         Args:
             resource: 调用方传入的原始 ResourceInstance（至少含 type + id）。
+            tenant_id: 当前请求租户，空主体租户由 Provider 使用配置默认值补齐。
 
         Returns:
             同类型的 ResourceInstance，name / ancestor_chain / attributes 可能已填充。

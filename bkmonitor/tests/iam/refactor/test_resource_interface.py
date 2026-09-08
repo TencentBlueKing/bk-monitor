@@ -125,7 +125,7 @@ class TestMonitorResourceResolver:
 
     def test_resolve_unknown_type_passthrough(self):
         resolver = self._resolver()
-        r = resolver.resolve(ResourceInstance(type="unknown_rt", id="x"))
+        r = resolver.resolve(ResourceInstance(type="unknown_rt", id="x"), tenant_id="system")
         assert r.id == "x"
         assert r.name == ""
         assert r.ancestor_chain == ()
@@ -136,9 +136,10 @@ class TestMonitorResourceResolver:
         space = MagicMock()
         space.space_type_id = "bkcc"
         space.space_name = "蓝鲸"
+        space.bk_tenant_id = "system"
         space_api.SpaceApi.get_space_detail.return_value = space
         with patch("bkmonitor.iam.adapters.resolver.space_api", space_api):
-            r = resolver.resolve(ResourceInstance(type="space", id="2"))
+            r = resolver.resolve(ResourceInstance(type="space", id="2"), tenant_id="system")
         assert r.type == "space"
         assert r.id == "2"
         assert r.name == "[bkcc] 蓝鲸"
@@ -148,7 +149,7 @@ class TestMonitorResourceResolver:
         space_api = MagicMock()
         space_api.SpaceApi.get_space_detail.side_effect = Exception("boom")
         with patch("bkmonitor.iam.adapters.resolver.space_api", space_api):
-            r = resolver.resolve(ResourceInstance(type="space", id="999"))
+            r = resolver.resolve(ResourceInstance(type="space", id="999"), tenant_id="system")
         assert r.name == "999"  # 查不到时退化为实例 ID（旧版同）
 
     def test_resolve_apm(self):
@@ -157,7 +158,7 @@ class TestMonitorResourceResolver:
             "bkmonitor.iam.adapters.resolver.MonitorResourceResolver._get_apm_app_info",
             return_value={"application_id": "app-1", "app_name": "demo", "bk_biz_id": 2},
         ):
-            r = resolver.resolve(ResourceInstance(type="apm_application", id="app-1"))
+            r = resolver.resolve(ResourceInstance(type="apm_application", id="app-1"), tenant_id="system")
         assert r.name == "demo"
         assert len(r.ancestor_chain) == 1
         assert r.ancestor_chain[0].type == "space"
@@ -166,7 +167,7 @@ class TestMonitorResourceResolver:
     def test_resolve_apm_missing(self):
         resolver = self._resolver()
         with patch("bkmonitor.iam.adapters.resolver.MonitorResourceResolver._get_apm_app_info", return_value=None):
-            r = resolver.resolve(ResourceInstance(type="apm_application", id="app-x"))
+            r = resolver.resolve(ResourceInstance(type="apm_application", id="app-x"), tenant_id="system")
         assert r.name == ""
         assert r.ancestor_chain == ()
 
@@ -177,7 +178,7 @@ class TestMonitorResourceResolver:
             "bkmonitor.iam.adapters.resolver.catalog.fetch_instance_info",
             return_value=[{"id": "1|uid-1", "display_name": "[仪表盘] General/大盘", "_bk_iam_path_": "/space,3/"}],
         ):
-            r = resolver.resolve(ResourceInstance(type="grafana_dashboard", id="1|uid-1"))
+            r = resolver.resolve(ResourceInstance(type="grafana_dashboard", id="1|uid-1"), tenant_id="system")
         assert r.name == "[仪表盘] General/大盘"
         assert r.ancestor_chain[0].type == "space"
         assert r.ancestor_chain[0].id == "3"
@@ -188,7 +189,7 @@ class TestMonitorResourceResolver:
             "bkmonitor.iam.adapters.resolver.catalog.fetch_instance_info",
             return_value=[{"id": "folder:1|7", "display_name": "[目录] 运维大盘", "_bk_iam_path_": "/space,3/"}],
         ):
-            r = resolver.resolve(ResourceInstance(type="grafana_dashboard", id="folder:1|7"))
+            r = resolver.resolve(ResourceInstance(type="grafana_dashboard", id="folder:1|7"), tenant_id="system")
         assert r.name == "[目录] 运维大盘"
         assert r.ancestor_chain[0].type == "space"
         assert r.ancestor_chain[0].id == "3"
@@ -196,7 +197,7 @@ class TestMonitorResourceResolver:
     def test_resolve_grafana_missing(self):
         resolver = self._resolver()
         with patch("bkmonitor.iam.adapters.resolver.catalog.fetch_instance_info", return_value=[]):
-            r = resolver.resolve(ResourceInstance(type="grafana_dashboard", id="1|uid-missing"))
+            r = resolver.resolve(ResourceInstance(type="grafana_dashboard", id="1|uid-missing"), tenant_id="system")
         assert r.name == ""
         assert r.ancestor_chain == ()
 
@@ -206,7 +207,7 @@ class TestMonitorResourceResolver:
             "bkmonitor.iam.adapters.resolver.MonitorResourceResolver._get_rum_app_info",
             return_value={"application_id": "rum-1", "app_name": "r", "bk_biz_id": 7},
         ):
-            r = resolver.resolve(ResourceInstance(type="rum_application", id="rum-1"))
+            r = resolver.resolve(ResourceInstance(type="rum_application", id="rum-1"), tenant_id="system")
         assert r.name == "r"
         assert r.ancestor_chain[0].id == "7"
 

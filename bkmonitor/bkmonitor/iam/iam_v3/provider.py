@@ -115,6 +115,7 @@ class V3PermissionProvider(PermissionProvider):
         super().__init__(schema, **options)
         # 强类型解析 + 启动期校验
         self._cfg: V3Options = V3Options.from_dict(options)
+        self.options["bk_tenant_id"] = self._cfg.bk_tenant_id
         # 分片/并发参数（覆盖基类默认值）
         self.CHUNK_SIZE = self._cfg.chunk_size
         self.MAX_WORKERS = self._cfg.max_workers
@@ -356,7 +357,7 @@ class V3PermissionProvider(PermissionProvider):
         """
         client = self._get_client(subject.tenant_id)
         # 补全资源实例
-        resolved_resources = [self._resolve(r) for r in resources]
+        resolved_resources = [self._resolve(r, tenant_id=subject.tenant_id) for r in resources]
         # 编码 action_ids → V3 方言
         dialect_action_ids = [self.codec.encode_action(a) for a in action_ids]
 

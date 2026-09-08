@@ -12,8 +12,8 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
-ListInstanceHandler = Callable[[dict, dict], dict]
-FetchInstanceInfoHandler = Callable[[list[str], list[str]], list[dict]]
+ListInstanceHandler = Callable[[dict, dict, str], dict]
+FetchInstanceInfoHandler = Callable[[list[str], list[str], str], list[dict]]
 
 
 class V4CallbackRegistry:

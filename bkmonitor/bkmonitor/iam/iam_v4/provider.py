@@ -119,6 +119,7 @@ class V4PermissionProvider(PermissionProvider):
         super().__init__(schema, **options)
         # 强类型解析 + 启动期校验（缺字段/类型错直接抛 ValueError）
         self._cfg: V4Options = V4Options.from_dict(options)
+        self.options["bk_tenant_id"] = self._cfg.bk_tenant_id
         # 分片/并发参数（覆盖基类默认值）
         self.CHUNK_SIZE = self._cfg.chunk_size
         self.MAX_WORKERS = self._cfg.max_workers
@@ -281,7 +282,7 @@ class V4PermissionProvider(PermissionProvider):
         self,
         action_ids: list[str],
         resources: list[ResourceInstance],
-        subject: Subject,  # noqa: ARG002 保留签名一致性
+        subject: Subject,
     ) -> dict | None:
         """生成 IAM Application 格式的权限申请数据。
 
@@ -291,13 +292,13 @@ class V4PermissionProvider(PermissionProvider):
         Args:
             action_ids: 业务 action_id 列表
             resources: 被拒的资源实例列表
-            subject: 鉴权主体（未用，保留签名）
+            subject: 鉴权主体，用于资源补全时确定租户
 
         Returns:
             IAM Application 格式 dict，字段与 V3 gen_perms_apply_data 兼容。
         """
         system_id = self._cfg.system.id
-        resolved_resources = [self._resolve(r) for r in resources]
+        resolved_resources = [self._resolve(r, tenant_id=subject.tenant_id) for r in resources]
         actions_data: list[dict] = []
 
         for action_id_biz in action_ids:

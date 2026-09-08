@@ -57,18 +57,18 @@ class TestV4CallbackService:
         service = _service(IdentityCodec())
 
         @service.registry.register_list_instance("test_type")
-        def list_instances(filter_data, page):
+        def list_instances(filter_data, page, bk_tenant_id):
             return {"count": 1, "results": [{"id": "1", "display_name": "one"}]}
 
         @service.registry.register_fetch_instance_info("test_type")
-        def fetch_instances(ids, requires):
+        def fetch_instances(ids, requires, bk_tenant_id):
             return [{"id": resource_id, "display_name": f"name-{resource_id}"} for resource_id in ids]
 
-        assert service.dispatch_list_instance("test_type", {}, {"page": 1}) == {
+        assert service.dispatch_list_instance("test_type", {}, {"page": 1}, bk_tenant_id="system") == {
             "count": 1,
             "results": [{"id": "1", "display_name": "one"}],
         }
-        assert service.dispatch_fetch_instance_info("test_type", ["1"], ["display_name"]) == [
+        assert service.dispatch_fetch_instance_info("test_type", ["1"], ["display_name"], bk_tenant_id="system") == [
             {"id": "1", "display_name": "name-1"}
         ]
 
@@ -77,14 +77,14 @@ class TestV4CallbackService:
         second = _service()
 
         @first.registry.register_list_instance("space")
-        def list_spaces(filter_data, page):
+        def list_spaces(filter_data, page, bk_tenant_id):
             return {"count": 1, "results": [{"id": "3"}]}
 
-        assert second.dispatch_list_instance("space", {}, {}) == {"count": 0, "results": []}
+        assert second.dispatch_list_instance("space", {}, {}, bk_tenant_id="system") == {"count": 0, "results": []}
         with pytest.raises(ValueError, match="already registered"):
 
             @first.registry.register_list_instance("space")
-            def replacement(filter_data, page):
+            def replacement(filter_data, page, bk_tenant_id):
                 return {"count": 0, "results": []}
 
     def test_monitor_codec_decodes_parent_and_encodes_iam_path(self):
@@ -92,21 +92,21 @@ class TestV4CallbackService:
         received_filter = {}
 
         @service.registry.register_fetch_instance_info("apm_application")
-        def fetch_applications(ids, requires):
+        def fetch_applications(ids, requires, bk_tenant_id):
             assert ids == ["42"]
             return [{"id": "42", "_bk_iam_path_": "/space,3/apm_application,42/"}]
 
         @service.registry.register_list_instance("apm_application")
-        def list_applications(filter_data, page):
+        def list_applications(filter_data, page, bk_tenant_id):
             received_filter.update(filter_data)
             return {"count": 0, "results": []}
 
         service.dispatch_list_instance(
-            "apm_application",
-            {"parent": {"type": "space", "id": "space|3"}},
-            {},
+            "apm_application", {"parent": {"type": "space", "id": "space|3"}}, {}, bk_tenant_id="system"
         )
-        result = service.dispatch_fetch_instance_info("apm_application", ["42"], ["_bk_iam_path_"])
+        result = service.dispatch_fetch_instance_info(
+            "apm_application", ["42"], ["_bk_iam_path_"], bk_tenant_id="system"
+        )
 
         assert received_filter["parent"] == {"type": "space", "id": "3"}
         assert result == [{"id": "42", "_bk_iam_path_": "/space,space|3/apm_application,42/"}]
@@ -117,19 +117,19 @@ class TestV4CallbackService:
         received_ids = []
 
         @service.registry.register_list_instance("space")
-        def list_spaces(filter_data, page):
+        def list_spaces(filter_data, page, bk_tenant_id):
             return {"count": 2, "results": [{"id": "3"}, {"id": "-42"}]}
 
         @service.registry.register_fetch_instance_info("space")
-        def fetch_spaces(ids, requires):
+        def fetch_spaces(ids, requires, bk_tenant_id):
             received_ids.extend(ids)
             return [{"id": resource_id} for resource_id in ids]
 
-        assert service.dispatch_list_instance("space", {}, {})["results"] == [
+        assert service.dispatch_list_instance("space", {}, {}, bk_tenant_id="system")["results"] == [
             {"id": "space|3"},
             {"id": "space|-42"},
         ]
-        assert service.dispatch_fetch_instance_info("space", ["space|3", "-42"], []) == [
+        assert service.dispatch_fetch_instance_info("space", ["space|3", "-42"], [], bk_tenant_id="system") == [
             {"id": "space|3"},
             {"id": "space|-42"},
         ]
@@ -139,7 +139,7 @@ class TestV4CallbackService:
         service = _service(MonitorV4Codec())
 
         @service.registry.register_fetch_instance_info("grafana_dashboard")
-        def fetch_dashboards(ids, requires):
+        def fetch_dashboards(ids, requires, bk_tenant_id):
             assert ids == ["1|dashboard-uid"]
             return [
                 {
@@ -148,7 +148,9 @@ class TestV4CallbackService:
                 }
             ]
 
-        assert service.dispatch_fetch_instance_info("grafana_dashboard", ["1|dashboard-uid"], []) == [
+        assert service.dispatch_fetch_instance_info(
+            "grafana_dashboard", ["1|dashboard-uid"], [], bk_tenant_id="system"
+        ) == [
             {
                 "id": "1|dashboard-uid",
                 "_bk_iam_path_": "/space,space|3/grafana_dashboard,1|dashboard-uid/",
@@ -160,7 +162,7 @@ class TestV4CallbackService:
         service = _service(MonitorV4Codec())
 
         @service.registry.register_fetch_instance_info("space")
-        def fetch_spaces(ids, requires):
+        def fetch_spaces(ids, requires, bk_tenant_id):
             return [
                 {"id": "3", "_bk_iam_path_": "/space,3"},
                 {"id": "4", "_bk_iam_path_": "/top/"},
@@ -168,7 +170,9 @@ class TestV4CallbackService:
                 {"id": "6"},
             ]
 
-        assert service.dispatch_fetch_instance_info("space", ["space|3", "space|4", "space|5", "space|6"], []) == [
+        assert service.dispatch_fetch_instance_info(
+            "space", ["space|3", "space|4", "space|5", "space|6"], [], bk_tenant_id="system"
+        ) == [
             {"id": "space|3", "_bk_iam_path_": "/space,space|3"},
             {"id": "space|4", "_bk_iam_path_": "/top/"},
             {"id": "space|5", "_bk_iam_path_": None},
@@ -179,10 +183,10 @@ class TestV4CallbackService:
         service = _service(IdentityCodec())
 
         @service.registry.register_fetch_instance_info("space")
-        def fetch_spaces(ids, requires):
+        def fetch_spaces(ids, requires, bk_tenant_id):
             return [{"id": "3", "_bk_iam_path_": "/space,3/apm_application,42/"}]
 
-        assert service.dispatch_fetch_instance_info("space", ["3"], []) == [
+        assert service.dispatch_fetch_instance_info("space", ["3"], [], bk_tenant_id="system") == [
             {"id": "3", "_bk_iam_path_": "/space,3/apm_application,42/"}
         ]
 
@@ -192,31 +196,33 @@ class TestV4CallbackService:
 
         calls = []
 
-        def list_instances(resource_type, filter_data, page):
-            calls.append(("list", resource_type, filter_data, page))
+        def list_instances(resource_type, filter_data, page, bk_tenant_id):
+            calls.append(("list", resource_type, filter_data, page, bk_tenant_id))
             return {"count": 1, "results": [{"id": "3"}]}
 
-        def fetch_instance_info(resource_type, ids, requires):
-            calls.append(("fetch", resource_type, ids, requires))
+        def fetch_instance_info(resource_type, ids, requires, bk_tenant_id):
+            calls.append(("fetch", resource_type, ids, requires, bk_tenant_id))
             return [{"id": resource_id} for resource_id in ids]
 
         monkeypatch.setattr(handlers.catalog, "list_instances", list_instances)
         monkeypatch.setattr(handlers.catalog, "fetch_instance_info", fetch_instance_info)
 
         service = handlers.get_callback_service()
-        assert service.dispatch_list_instance("space", {"keyword": "demo"}, {"page": 1})["results"] == [
+        assert service.dispatch_list_instance("space", {"keyword": "demo"}, {"page": 1}, bk_tenant_id="system")[
+            "results"
+        ] == [{"id": "space|3"}]
+        assert service.dispatch_fetch_instance_info("space", ["space|3"], ["display_name"], bk_tenant_id="system") == [
             {"id": "space|3"}
         ]
-        assert service.dispatch_fetch_instance_info("space", ["space|3"], ["display_name"]) == [{"id": "space|3"}]
         assert calls == [
-            ("list", "space", {"keyword": "demo"}, {"page": 1}),
-            ("fetch", "space", ["3"], ["display_name"]),
+            ("list", "space", {"keyword": "demo"}, {"page": 1}, "system"),
+            ("fetch", "space", ["3"], ["display_name"], "system"),
         ]
 
     def test_unregistered_resource_type_returns_empty_result(self):
         service = _service()
-        assert service.dispatch_list_instance("unknown", {}, {}) == {"count": 0, "results": []}
-        assert service.dispatch_fetch_instance_info("unknown", ["1"], []) == []
+        assert service.dispatch_list_instance("unknown", {}, {}, bk_tenant_id="system") == {"count": 0, "results": []}
+        assert service.dispatch_fetch_instance_info("unknown", ["1"], [], bk_tenant_id="system") == []
 
 
 class TestV4CallbackView:
@@ -230,7 +236,7 @@ class TestV4CallbackView:
         received_filter = {}
 
         @service.registry.register_list_instance("document")
-        def list_documents(filter_data, page):
+        def list_documents(filter_data, page, bk_tenant_id):
             received_filter.update(filter_data)
             return {
                 "count": 1,

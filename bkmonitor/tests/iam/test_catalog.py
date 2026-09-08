@@ -81,8 +81,8 @@ class TestParseIamPath:
 
 class TestDispatch:
     def test_unknown_type(self):
-        assert list_instances("unknown_rt", {}, {}) == {"count": 0, "results": []}
-        assert fetch_instance_info("unknown_rt", ["1"], []) == []
+        assert list_instances("unknown_rt", {}, {}, bk_tenant_id="system") == {"count": 0, "results": []}
+        assert fetch_instance_info("unknown_rt", ["1"], [], bk_tenant_id="system") == []
 
 
 # ============================================================================
@@ -100,13 +100,15 @@ class TestApmCatalog:
         qs = MagicMock()
         qs.__iter__.return_value = iter([row])
         with patch("apm_web.models.Application.objects.filter", return_value=qs) as m_filter:
-            result = fetch_instance_info("apm_application", ["390"], ["display_name", "name", "_bk_iam_path_"])
+            result = fetch_instance_info(
+                "apm_application", ["390"], ["display_name", "name", "_bk_iam_path_"], bk_tenant_id="system"
+            )
         assert result == [{"id": "390", "display_name": "我的APM", "name": "my_apm_app", "_bk_iam_path_": "/space,2/"}]
         m_filter.assert_called_once_with(pk__in=[390], bk_tenant_id="system")
 
     def test_fetch_apm_skips_non_numeric_ids(self):
         with patch("apm_web.models.Application.objects.filter") as m_filter:
-            result = fetch_instance_info("apm_application", ["not-a-number"], [])
+            result = fetch_instance_info("apm_application", ["not-a-number"], [], bk_tenant_id="system")
         assert result == []
         m_filter.assert_not_called()
 
@@ -125,6 +127,7 @@ class TestApmCatalog:
                 "apm_application",
                 {"parent": {"type": "space", "id": "2"}},
                 {"page": 1, "page_size": 10},
+                bk_tenant_id="system",
             )
         assert result["count"] == 2
         assert result["results"] == [
@@ -143,7 +146,7 @@ class TestRumCatalog:
         qs = MagicMock()
         qs.__iter__.return_value = iter([row])
         with patch("rum_web.models.application.Application.objects.filter", return_value=qs):
-            result = fetch_instance_info("rum_application", ["11"], ["name", "_bk_iam_path_"])
+            result = fetch_instance_info("rum_application", ["11"], ["name", "_bk_iam_path_"], bk_tenant_id="system")
         assert result == [{"id": "11", "display_name": "我的RUM", "name": "my_rum_app", "_bk_iam_path_": "/space,-42/"}]
 
 
@@ -222,6 +225,7 @@ class TestGrafanaCatalog:
                 "grafana_dashboard",
                 ["folder:14|7", "14|uidX", "uidX"],
                 ["display_name", "_bk_iam_path_"],
+                bk_tenant_id="system",
             )
         assert result == [
             {"id": "folder:14|7", "display_name": "[目录] 运维大盘", "_bk_iam_path_": "/space,2/"},
@@ -235,7 +239,7 @@ class TestGrafanaCatalog:
             patch("bk_dataview.models.Org.objects.filter", side_effect=_org_filter),
             patch("bk_dataview.models.Dashboard.objects.filter") as m_dash_filter,
         ):
-            result = fetch_instance_info("grafana_dashboard", ["folder:bad", ""], [])
+            result = fetch_instance_info("grafana_dashboard", ["folder:bad", ""], [], bk_tenant_id="system")
         assert result == []
         # 全部 ID 解析失败时，不发起任何 Dashboard 查询
         m_dash_filter.assert_not_called()
@@ -248,7 +252,9 @@ class TestGrafanaCatalog:
             patch("bk_dataview.models.Dashboard.objects.filter", side_effect=_dashboard_filter) as m_dash_filter,
         ):
             ids = ["folder:14|7"] + [f"14|dash-{i}" for i in range(20)] + ["14|uidX"]
-            result = fetch_instance_info("grafana_dashboard", ids, ["display_name", "_bk_iam_path_"])
+            result = fetch_instance_info(
+                "grafana_dashboard", ids, ["display_name", "_bk_iam_path_"], bk_tenant_id="system"
+            )
         assert len(result) == 2
         # Dashboard 查询：folders + dashboards + folder_titles 最多 3 次
         assert m_dash_filter.call_count <= 3
@@ -266,6 +272,7 @@ class TestGrafanaCatalog:
                 "grafana_dashboard",
                 {"parent": {"type": "space", "id": "2"}},
                 {"page": 1, "page_size": 10},
+                bk_tenant_id="system",
             )
         assert result["count"] == 2
         assert result["results"] == [

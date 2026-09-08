@@ -12,7 +12,7 @@ specific language governing permissions and limitations under the License.
 # MonitorResourceResolver — 监控平台资源实例补全器
 #
 # 纯业务逻辑（与 provider 方言 v3/v4 无关，两者共用）：
-#   - Business: space_uid → bk_biz_id 转换 + SpaceApi 查询名称
+#   - Business: 按租户查询空间名称，兼容 space_uid 与 bk_biz_id
 #   - ApmApplication / GrafanaDashboard / RumApplication：经资源目录
 #     adapters/catalog.py 查询名称与祖先链（与平台回调、权限树同一份实现）
 #
@@ -26,8 +26,8 @@ import logging
 from typing import Any
 
 
+from bkm_space.define import SpaceTypeEnum
 from bkm_space.utils import api as space_api
-from bkm_space.utils import bk_biz_id_to_space_uid
 
 from ..iam_engine.core.types import ResourceInstance, to_resource_type_id
 from ..iam_engine.provider.resolver import ResourceResolver
@@ -71,35 +71,40 @@ class MonitorResourceResolver(ResourceResolver):
             "bkmonitor.iam.adapters.resolver.MonitorResourceResolver"
     """
 
-    def resolve(self, resource: ResourceInstance) -> ResourceInstance:
+    def resolve(self, resource: ResourceInstance, *, tenant_id: str) -> ResourceInstance:
         rt_id = to_resource_type_id(resource.type)
         if rt_id == ResourceTypes.SPACE.id:
-            return self._resolve_space(resource)
+            return self._resolve_space(resource, tenant_id=tenant_id)
         if rt_id == ResourceTypes.APM_APPLICATION.id:
-            return self._resolve_apm(resource)
+            return self._resolve_apm(resource, tenant_id=tenant_id)
         if rt_id == ResourceTypes.GRAFANA_DASHBOARD.id:
-            return self._resolve_grafana(resource)
+            return self._resolve_grafana(resource, tenant_id=tenant_id)
         if rt_id == ResourceTypes.RUM_APPLICATION.id:
-            return self._resolve_rum(resource)
+            return self._resolve_rum(resource, tenant_id=tenant_id)
         return resource
 
     # ================================================================
     # Business（空间）
     # ================================================================
 
-    def _resolve_space(self, resource: ResourceInstance) -> ResourceInstance:
+    def _resolve_space(self, resource: ResourceInstance, *, tenant_id: str) -> ResourceInstance:
         """补全空间实例的名称。"""
         try:
             bk_biz_id = int(resource.id)
         except (TypeError, ValueError):
             bk_biz_id = None
 
+        space_name = resource.id
         try:
+            # 保留空间 API 的缓存和 ID 兼容行为；缓存命中也必须校验租户。
             if bk_biz_id is None:
                 space = space_api.SpaceApi.get_space_detail(space_uid=resource.id)
+            elif bk_biz_id >= 0:
+                space = space_api.SpaceApi.get_space_detail(space_uid=f"{SpaceTypeEnum.BKCC.value}__{bk_biz_id}")
             else:
-                space = space_api.SpaceApi.get_space_detail(space_uid=bk_biz_id_to_space_uid(bk_biz_id))
-            space_name = f"[{space.space_type_id}] {space.space_name}"
+                space = space_api.SpaceApi.get_space_detail(bk_biz_id=bk_biz_id)
+            if space is not None and space.bk_tenant_id == tenant_id:
+                space_name = f"[{space.space_type_id}] {space.space_name}"
         except Exception:
             space_name = resource.id
 
@@ -113,9 +118,9 @@ class MonitorResourceResolver(ResourceResolver):
     # ApmApplication
     # ================================================================
 
-    def _resolve_apm(self, resource: ResourceInstance) -> ResourceInstance:
+    def _resolve_apm(self, resource: ResourceInstance, *, tenant_id: str) -> ResourceInstance:
         """补全 APM 应用实例的名称和祖先链（经资源目录 catalog 查询）。"""
-        app_info = self._get_apm_app_info(resource.id)
+        app_info = self._get_apm_app_info(resource.id, tenant_id=tenant_id)
         if app_info is None:
             return resource
         return ResourceInstance(
@@ -127,13 +132,16 @@ class MonitorResourceResolver(ResourceResolver):
 
     @staticmethod
     @lru_cache_with_ttl(maxsize=128, ttl=60 * 60, decision_to_drop_func=lambda v: v is None)
-    def _get_apm_app_info(application_id: str) -> dict[str, Any] | None:
+    def _get_apm_app_info(application_id: str, *, tenant_id: str) -> dict[str, Any] | None:
         """获取 APM 应用概要信息（经 catalog 批量查询，60min 内存缓存）。
 
         返回 {"application_id", "app_name", "bk_biz_id"} 或 None。
         """
         items = catalog.fetch_instance_info(
-            ResourceTypes.APM_APPLICATION.id, [application_id], requires=["name", "_bk_iam_path_"]
+            ResourceTypes.APM_APPLICATION.id,
+            [application_id],
+            requires=["name", "_bk_iam_path_"],
+            bk_tenant_id=tenant_id,
         )
         return _normalize_app_info(application_id, items)
 
@@ -141,7 +149,7 @@ class MonitorResourceResolver(ResourceResolver):
     # GrafanaDashboard
     # ================================================================
 
-    def _resolve_grafana(self, resource: ResourceInstance) -> ResourceInstance:
+    def _resolve_grafana(self, resource: ResourceInstance, *, tenant_id: str) -> ResourceInstance:
         """补全 Grafana 仪表盘/目录实例的名称和祖先链（经资源目录 catalog 查询）。
 
         支持三种实例 ID 格式（与 catalog / 平台回调约定一致）：
@@ -149,7 +157,10 @@ class MonitorResourceResolver(ResourceResolver):
           * "{org_id}|{uid}" / "{uid}"      —— 仪表盘
         """
         items = catalog.fetch_instance_info(
-            ResourceTypes.GRAFANA_DASHBOARD.id, [resource.id], requires=["display_name", "_bk_iam_path_"]
+            ResourceTypes.GRAFANA_DASHBOARD.id,
+            [resource.id],
+            requires=["display_name", "_bk_iam_path_"],
+            bk_tenant_id=tenant_id,
         )
         if not items:
             return resource
@@ -165,9 +176,9 @@ class MonitorResourceResolver(ResourceResolver):
     # RumApplication
     # ================================================================
 
-    def _resolve_rum(self, resource: ResourceInstance) -> ResourceInstance:
+    def _resolve_rum(self, resource: ResourceInstance, *, tenant_id: str) -> ResourceInstance:
         """补全 RUM 应用实例的名称和祖先链（经资源目录 catalog 查询）。"""
-        app_info = self._get_rum_app_info(resource.id)
+        app_info = self._get_rum_app_info(resource.id, tenant_id=tenant_id)
         if app_info is None:
             return resource
         return ResourceInstance(
@@ -179,12 +190,15 @@ class MonitorResourceResolver(ResourceResolver):
 
     @staticmethod
     @lru_cache_with_ttl(maxsize=128, ttl=60 * 60, decision_to_drop_func=lambda v: v is None)
-    def _get_rum_app_info(application_id: str) -> dict[str, Any] | None:
+    def _get_rum_app_info(application_id: str, *, tenant_id: str) -> dict[str, Any] | None:
         """获取 RUM 应用概要信息（经 catalog 批量查询，60min 内存缓存）。
 
         返回 {"application_id", "app_name", "bk_biz_id"} 或 None。
         """
         items = catalog.fetch_instance_info(
-            ResourceTypes.RUM_APPLICATION.id, [application_id], requires=["name", "_bk_iam_path_"]
+            ResourceTypes.RUM_APPLICATION.id,
+            [application_id],
+            requires=["name", "_bk_iam_path_"],
+            bk_tenant_id=tenant_id,
         )
         return _normalize_app_info(application_id, items)

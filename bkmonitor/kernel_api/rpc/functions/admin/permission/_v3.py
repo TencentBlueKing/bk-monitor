@@ -182,7 +182,7 @@ def _parse_action_permissions(action: ActionDef, expr: PolicyExpression | None) 
 # ============================================================================
 
 
-def _enrich_permissions(actions_result: list[dict], schema: SchemaRegistry) -> int:
+def _enrich_permissions(actions_result: list[dict], schema: SchemaRegistry, bk_tenant_id: str) -> int:
     """父路径 + 展示名两阶段补全，等价于旧版逐 action 的
     _resolve_parent_paths + _resolve_display_names 语义。
 
@@ -217,7 +217,7 @@ def _enrich_permissions(actions_result: list[dict], schema: SchemaRegistry) -> i
     chains: dict[tuple[str, str], list[dict]] = {}
     for rt, ids in ids_by_rt.items():
         try:
-            items = catalog.fetch_instance_info(rt, list(ids), requires=["_bk_iam_path_"])
+            items = catalog.fetch_instance_info(rt, list(ids), requires=["_bk_iam_path_"], bk_tenant_id=bk_tenant_id)
         except Exception as e:
             logger.warning("Resolve parent path via catalog failed for rt=%s: %s", rt, e)
             resolve_failed += 1
@@ -251,7 +251,9 @@ def _enrich_permissions(actions_result: list[dict], schema: SchemaRegistry) -> i
     display_names: dict[str, dict[str, str]] = {}
     for rt, ids in display_ids_by_rt.items():
         try:
-            items = catalog.fetch_instance_info(rt, list(ids), requires=["display_name", "name"])
+            items = catalog.fetch_instance_info(
+                rt, list(ids), requires=["display_name", "name"], bk_tenant_id=bk_tenant_id
+            )
         except Exception as e:
             logger.warning("Resolve display names via catalog failed for rt=%s: %s", rt, e)
             resolve_failed += 1
@@ -410,7 +412,7 @@ def query_user_permissions(params: dict[str, Any]) -> dict[str, Any]:
     # 全响应级两阶段补全：父路径 + 展示名（每 rt 一次 catalog 批量查询）
     resolve_failed = 0
     try:
-        resolve_failed = _enrich_permissions(actions_result, schema)
+        resolve_failed = _enrich_permissions(actions_result, schema, bk_tenant_id)
     except Exception as e:
         # DB 不可用等场景：权限数据本身可用，仅缺失父路径/展示名，降级跳过
         logger.warning("Enrich parent/display names failed: %s", e)
