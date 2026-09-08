@@ -35,6 +35,16 @@ class TestApmBuiltinProcessor:
             ),
             ([2], False, ["service-default-overview", "service-default-trace"]),
             ([3], True, ["service-default-overview", "service-default-trace"]),
+            (
+                [0],
+                True,
+                [
+                    "service-default-overview",
+                    "service-default-trace",
+                    "service-llm_overview",
+                    "service-llm_session",
+                ],
+            ),
         ],
     )
     def test_list_view_list_filters_llm_tabs(self, monkeypatch, llm_biz_list, is_support_llm, expected_ids):
@@ -51,17 +61,7 @@ class TestApmBuiltinProcessor:
 
         monkeypatch.setattr(ServiceHandler, "get_node", lambda *_args, **_kwargs: node)
         monkeypatch.setattr(apm, "settings", SimpleNamespace(LLM_BIZ_LIST=llm_biz_list))
-
-        class FakeEntitySet:
-            def __init__(self, bk_biz_id, app_name, service_names):
-                assert (bk_biz_id, app_name, service_names) == (2, "app-a", ["service-a"])
-
-            @staticmethod
-            def get_system(service_name):
-                assert service_name == "service-a"
-                return {"is_support_llm": is_support_llm}
-
-        monkeypatch.setattr(apm, "EntitySet", FakeEntitySet)
+        monkeypatch.setattr(ServiceHandler, "get_system", lambda _node: {"is_support_llm": is_support_llm})
 
         result = ApmBuiltinProcessor.list_view_list(
             "apm_service",
@@ -74,6 +74,33 @@ class TestApmBuiltinProcessor:
         )
 
         assert [view.id for view in result] == expected_ids
+
+    def test_llm_tabs_flow_service_without_llm_metadata(self, monkeypatch):
+        node = {
+            "topo_key": "flow-service",
+            "extra_data": {"kind": TopoNodeKind.SERVICE, "category": "default"},
+        }
+        views = [
+            SimpleNamespace(id="service-default-overview"),
+            SimpleNamespace(id="service-default-trace"),
+            SimpleNamespace(id="service-llm_overview"),
+            SimpleNamespace(id="service-llm_session"),
+        ]
+
+        monkeypatch.setattr(ServiceHandler, "get_node", lambda *_args, **_kwargs: node)
+        monkeypatch.setattr(apm, "settings", SimpleNamespace(LLM_BIZ_LIST=[2]))
+
+        result = ApmBuiltinProcessor.list_view_list(
+            "apm_service",
+            views,
+            {
+                "bk_biz_id": 2,
+                "apm_app_name": "app-a",
+                "apm_service_name": "flow-service",
+            },
+        )
+
+        assert [view.id for view in result] == ["service-default-overview", "service-default-trace"]
 
     @pytest.mark.django_db
     def test_llm_tabs_follow_overview(self):

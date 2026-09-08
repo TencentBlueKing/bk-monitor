@@ -27,7 +27,6 @@ from apm_web.handlers.component_handler import ComponentHandler
 from apm_web.handlers.host_handler import HostHandler
 from apm_web.handlers.service_handler import ServiceHandler
 from apm_web.models import Application
-from apm_web.strategy.dispatch.entity import EntitySet
 from bkmonitor.models import MetricListCache
 from bkmonitor.utils.cache import CacheType, using_cache
 from bkmonitor.utils.common_utils import deserialize_and_decompress
@@ -971,17 +970,11 @@ class ApmBuiltinProcessor(BuiltinProcessor):
             res = [i for i in res if i.id.split("-")[-1] not in ignore_tabs]
 
         if (
-            params["bk_biz_id"] in settings.LLM_BIZ_LIST
+            (0 in settings.LLM_BIZ_LIST or params["bk_biz_id"] in settings.LLM_BIZ_LIST)
             and node
             and node.get("extra_data", {}).get("kind") == TopoNodeKind.SERVICE
         ):
-            service_name = params["apm_service_name"]
-            entity_set = EntitySet(
-                bk_biz_id=params["bk_biz_id"],
-                app_name=params["apm_app_name"],
-                service_names=[service_name],
-            )
-            system = entity_set.get_system(service_name)
+            system = ServiceHandler.get_system(node or {})
             if system.get("is_support_llm", False):
                 res.extend(i for i in views if i.id in cls.LLM_VIEW_IDS)
         return res
