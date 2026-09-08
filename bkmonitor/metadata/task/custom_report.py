@@ -22,6 +22,7 @@ from django.utils import timezone
 
 from alarm_backends.core.lock.service_lock import share_lock
 from bkmonitor.models import QueryConfigModel
+from bkmonitor.nodeman_integration.backend import node_man_backend
 from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from bkmonitor.utils.time_tools import datetime_str_to_datetime
 from bkmonitor.utils.version import compare_versions, get_max_version
@@ -142,30 +143,66 @@ def check_event_update():
 def refresh_custom_report_2_node_man(bk_biz_id=None):
     # 判定节点管理是否上传支持v2新配置模版的bk-collector版本0.16.1061
     default_version = "0.0.0"
-    plugin_infos = api.node_man.plugin_info(name="bk-collector")
-    version_str_list = [p.get("version", default_version) for p in plugin_infos if p.get("is_ready", True)]
-    max_version = get_max_version(default_version, version_str_list)
 
-    if compare_versions(max_version, RECOMMENDED_VERSION["bk-collector"]) > 0:
+    if node_man_backend.is_v3:
         if bk_biz_id is not None:
             bk_tenant_ids = [bk_biz_id_to_bk_tenant_id(bk_biz_id)]
         else:
             bk_tenant_ids = [tenant["id"] for tenant in api.bk_login.list_tenant()]
-
+        failures = []
         for bk_tenant_id in bk_tenant_ids:
             try:
-                models.CustomReportSubscription.refresh_collector_custom_conf(
+                max_version = node_man_backend.v3.latest_enabled_plugin_version(
+                    bk_tenant_id=bk_tenant_id,
+                    plugin_name="bk-collector",
+                )
+                if compare_versions(max_version, RECOMMENDED_VERSION["bk-collector"]) <= 0:
+                    logger.info(
+                        "当前节点管理已上传的bk-collector版本（%s）低于支持新配置模版版本（%s），暂不下发配置文件",
+                        max_version,
+                        RECOMMENDED_VERSION["bk-collector"],
+                    )
+                    continue
+                report = models.CustomReportSubscription.refresh_collector_custom_conf(
                     bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id
                 )
+                if report["summary"]["failed_count"]:
+                    raise RuntimeError(
+                        f"NodeMan V3 custom-report refresh has {report['summary']['failed_count']} failed targets"
+                    )
             except Exception as e:
                 logger.exception(
                     f"refresh custom report config to collector error, bk_tenant_id({bk_tenant_id}), bk_biz_id({bk_biz_id}), error({e})"
                 )
-    else:
+                failures.append(bk_tenant_id)
+        if failures:
+            raise RuntimeError(f"NodeMan V3 custom-report refresh failed for tenants: {failures}")
+        return
+
+    plugin_infos = api.node_man.plugin_info(name="bk-collector")
+    version_str_list = [p.get("version", default_version) for p in plugin_infos if p.get("is_ready", True)]
+    max_version = get_max_version(default_version, version_str_list)
+    if compare_versions(max_version, RECOMMENDED_VERSION["bk-collector"]) <= 0:
         logger.info(
             f"当前节点管理已上传的bk-collector版本（{max_version}）低于支持新配置模版版本"
             f"（{RECOMMENDED_VERSION['bk-collector']}），暂不下发bk-collector配置文件"
         )
+        return
+
+    if bk_biz_id is not None:
+        bk_tenant_ids = [bk_biz_id_to_bk_tenant_id(bk_biz_id)]
+    else:
+        bk_tenant_ids = [tenant["id"] for tenant in api.bk_login.list_tenant()]
+    for bk_tenant_id in bk_tenant_ids:
+        try:
+            models.CustomReportSubscription.refresh_collector_custom_conf(
+                bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id
+            )
+        except Exception as e:
+            logger.exception(
+                f"refresh custom report config to collector error, bk_tenant_id({bk_tenant_id}), "
+                f"bk_biz_id({bk_biz_id}), error({e})"
+            )
 
 
 # 用于定时任务的包装函数，加锁防止任务重叠
@@ -227,6 +264,8 @@ def refresh_custom_log_config(log_group_id=None):
         models.LogSubscriptionConfig.refresh(log_group)
     except Exception as err:  # pylint: disable=broad-except
         logger.exception("[RefreshCustomLogConfigFailed] Err => %s; LogGroup => %s", str(err), log_group.log_group_id)
+        if node_man_backend.is_v3:
+            raise
 
 
 def check_custom_event_group_sleep():

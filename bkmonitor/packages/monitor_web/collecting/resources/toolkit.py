@@ -20,6 +20,7 @@ from django.utils.translation import gettext as _
 from rest_framework import serializers
 
 from bkmonitor.models import MetricListCache, QueryConfigModel, StrategyModel
+from bkmonitor.nodeman_integration.backend import node_man_backend
 from bkmonitor.utils.cipher import RSACipher
 from bkmonitor.utils.request import get_request, get_request_tenant_id
 from constants.cmdb import TargetNodeType
@@ -555,9 +556,17 @@ class CheckPluginVersionResource(Resource):
             if validated_request_data["collect_type"] != collect_type:
                 continue
             # 动态进程采集依赖bkmonitorbeat-v2.10.0/v0.33.0
-            all_plugin = api.node_man.plugin_search(
-                {"page": 1, "pagesize": len(bk_host_ids), "conditions": [], "bk_host_id": bk_host_ids}
-            )["list"]
+            if node_man_backend.is_v3:
+                all_plugin = node_man_backend.v3.plugin_search_host_status(
+                    bk_tenant_id=get_request_tenant_id(),
+                    bk_biz_id=validated_request_data["bk_biz_id"],
+                    bk_host_ids=bk_host_ids,
+                    plugin_names=list(check_plugins),
+                )
+            else:
+                all_plugin = api.node_man.plugin_search(
+                    {"page": 1, "pagesize": len(bk_host_ids), "conditions": [], "bk_host_id": bk_host_ids}
+                )["list"]
             for plugin in all_plugin:
                 for plugin_name, version in check_plugins.items():
                     beat_plugin = list(filter(lambda x: x["name"] == plugin_name, plugin["plugin_status"]))
@@ -572,6 +581,6 @@ class CheckPluginVersionResource(Resource):
                             pass
                     result = False
                     invalid_host[plugin_name].append(
-                        (plugin.get("inner_ipv6", plugin["inner_ip"]), plugin["bk_cloud_id"])
+                        (plugin.get("inner_ipv6") or plugin["inner_ip"], plugin["bk_cloud_id"])
                     )
         return {"result": result, "plugin_version": RECOMMENDED_VERSION, "invalid_host": invalid_host}

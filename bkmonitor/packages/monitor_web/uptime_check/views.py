@@ -49,6 +49,7 @@ from bkmonitor.commons.tools import is_ipv6_biz
 from bkmonitor.data_source import UnifyQuery, load_data_source
 from bkmonitor.iam import ActionEnum, Permission
 from bkmonitor.iam.drf import BusinessActionPermission
+from bkmonitor.nodeman_integration.backend import node_man_backend
 from bkmonitor.utils.common_utils import host_key, safe_int
 from bkmonitor.utils.request import get_request_tenant_id
 from constants.data_source import DataSourceLabel, DataTypeLabel
@@ -321,11 +322,19 @@ class UptimeCheckNodeViewSet(PermissionMixin, viewsets.ViewSet):
         return Response({"id": node_id, "result": _("删除成功")})
 
     @staticmethod
-    def _get_beat_version(bk_host_ids):
+    def _get_beat_version(bk_tenant_id, bk_biz_id, bk_host_ids):
         all_beat_version = {}
-        all_plugin = api.node_man.plugin_search(
-            {"page": 1, "pagesize": len(bk_host_ids), "conditions": [], "bk_host_id": bk_host_ids}
-        )["list"]
+        if node_man_backend.is_v3:
+            all_plugin = node_man_backend.v3.plugin_search_host_status(
+                bk_tenant_id=bk_tenant_id,
+                bk_biz_id=bk_biz_id,
+                bk_host_ids=list(bk_host_ids),
+                plugin_names=["bkmonitorbeat"],
+            )
+        else:
+            all_plugin = api.node_man.plugin_search(
+                {"page": 1, "pagesize": len(bk_host_ids), "conditions": [], "bk_host_id": bk_host_ids}
+            )["list"]
         for plugin in all_plugin:
             beat_plugin = list(filter(lambda x: x["name"] == "bkmonitorbeat", plugin["plugin_status"]))
             # 过滤后，只剩下bkmonitorbeat插件
@@ -385,7 +394,7 @@ class UptimeCheckNodeViewSet(PermissionMixin, viewsets.ViewSet):
         all_beat_version = {}
         if bk_host_ids:
             # 去节点管理拿拨测采集器的版本信息
-            all_beat_version = self._get_beat_version(bk_host_ids)
+            all_beat_version = self._get_beat_version(bk_tenant_id, bk_biz_id, bk_host_ids)
 
         # 获取采集器相关信息
         all_node_status = {}

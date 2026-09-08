@@ -215,12 +215,26 @@ def test_untouched_v2_production_callsite_sources_match_baseline():
     manifest = yaml.safe_load(MANIFEST_PATH.read_text(encoding="utf-8"))
     modified_routing_files = {
         "api/cmdb/ipchooser.py",
+        "apm/core/application_config.py",
+        "apm/core/platform_config.py",
         "bkm_ipchooser/tools/gse_tool.py",
+        "bkmonitor/utils/bk_collector_config.py",
+        "metadata/models/custom_report/subscription_config.py",
+        "metadata/models/ping_server.py",
+        "metadata/task/auto_deploy_proxy.py",
+        "metadata/task/custom_report.py",
+        "metadata/task/ping_server.py",
+        "packages/apm_web/meta/plugin/log_trace_plugin_config.py",
+        "packages/apm_web/meta/resources.py",
+        "packages/apm_web/models/application.py",
         "packages/monitor_web/cc/resources/cmdb.py",
         "packages/monitor_web/collecting/deploy/__init__.py",
+        "packages/monitor_web/collecting/resources/toolkit.py",
+        "packages/monitor_web/custom_report/resources/metric.py",
         "packages/monitor_web/plugin/manager/base.py",
         "packages/monitor_web/plugin/resources.py",
         "packages/monitor_web/plugin/views.py",
+        "packages/monitor_web/uptime_check/views.py",
     }
     production_paths = {
         site["path"] for site in manifest["call_sites"] if site["category"] == "production_request_or_async_task"

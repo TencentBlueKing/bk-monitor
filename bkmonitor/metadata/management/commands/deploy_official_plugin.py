@@ -12,7 +12,10 @@ from django.conf import settings
 from django.core.management import BaseCommand
 
 from bkmonitor.models import GlobalConfig
+from bkmonitor.nodeman_integration.backend import node_man_backend
+from bkmonitor.nodeman_integration.resources import NodeManResourceType
 from bkmonitor.utils.common_utils import split_list
+from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from core.drf_resource import api
 
 
@@ -79,12 +82,56 @@ class Command(BaseCommand):
         message = f"Start to deply plugin({plugin_name}@{plugin_version}) to target_hosts({target_hosts})"
         self.stdout.write(message)
 
-        if node_man_version == "2.0":
+        if node_man_backend.is_v3:
+            self.deploy_3_0(int(bk_biz_id), plugin_name, plugin_version, target_hosts)
+        elif node_man_version == "2.0":
             self.deploy_2_0(bk_biz_id, plugin_name, plugin_version, target_hosts)
         else:
             self.deploy_1_3(bk_biz_id, plugin_name, plugin_version, target_hosts)
 
         self.update_to_global_config(plugin_name, target_hosts=target_hosts)
+
+    def deploy_3_0(self, bk_biz_id, plugin_name, plugin_version, target_hosts):
+        self.stdout.write("deploy with nodeman3.0")
+        bk_tenant_id = bk_biz_id_to_bk_tenant_id(bk_biz_id)
+        if plugin_version == "latest":
+            plugin_version = node_man_backend.v3.latest_enabled_plugin_version(
+                bk_tenant_id=bk_tenant_id,
+                plugin_name=plugin_name,
+            )
+        try:
+            ips = [{"ip": ip} for ip in target_hosts]
+            hosts = api.cmdb.get_host_by_ip(ips=ips, bk_biz_id=bk_biz_id)
+            resolved_hosts = {}
+            for host in hosts:
+                if not getattr(host, "bk_host_id", None):
+                    continue
+                for address in (
+                    getattr(host, "bk_host_innerip", None),
+                    getattr(host, "bk_host_innerip_v6", None),
+                ):
+                    if address:
+                        resolved_hosts[str(address)] = int(host.bk_host_id)
+        except Exception as error:
+            raise RuntimeError("Get host info from CMDB error") from error
+        missing_hosts = sorted(set(target_hosts) - set(resolved_hosts))
+        if missing_hosts:
+            raise RuntimeError(f"Target hosts were not resolved from CMDB: {missing_hosts}")
+        bk_host_ids = list(resolved_hosts.values())
+
+        deployments = node_man_backend.v3.plugin_deployment_service().ensure_hosts(
+            resource_type=NodeManResourceType.OFFICIAL_PLUGIN_DEPLOYMENT,
+            owner_bk_tenant_id=bk_tenant_id,
+            execution_bk_tenant_id=bk_tenant_id,
+            bk_biz_id=bk_biz_id,
+            plugin_name=plugin_name,
+            plugin_version=plugin_version,
+            bk_host_ids=bk_host_ids,
+        )
+        self.stdout.write(
+            f"submitted plugin({plugin_name}@{plugin_version}) DeployPolicy for "
+            f"{len(deployments)} target hosts, Please see detail in bk_nodeman SaaS"
+        )
 
     def deploy_2_0(self, bk_biz_id, plugin_name, plugin_version, target_hosts):
         print("deploy with nodeman2.0")

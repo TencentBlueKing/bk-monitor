@@ -34,7 +34,7 @@ import documentLinkMixin from '../../../mixins/documentLinkMixin';
 
 import type { IDescData, ThemeType } from './select-card-item';
 import type { ICreateAppFormData } from '@/pages/home/typings/app';
-import type { IIpV6Value, INodeType } from 'monitor-pc/components/monitor-ip-selector/typing';
+import type { IIpV6Value, INodeType, TargetObjectType } from 'monitor-pc/components/monitor-ip-selector/typing';
 
 import './select-system.scss';
 
@@ -337,14 +337,11 @@ export default class SelectSystem extends Mixins(documentLinkMixin) {
     });
   }
 
-  handleSelectorChange(data: { nodeType: INodeType; value: IIpV6Value }) {
-    // TODO: 将数据拍平，不知道最后是否用得着
-    const value = transformValueToMonitor(data.value, data.nodeType);
-    this.formData.plugin_config.target_nodes = value.map(item => ({
-      bk_host_id: item.bk_host_id,
-    }));
+  handleSelectorChange(data: { nodeType: INodeType; objectType: TargetObjectType; value: IIpV6Value }) {
+    this.formData.plugin_config.target_nodes = transformValueToMonitor(data.value, data.nodeType);
     // 这里利用 nodeType 控制显示哪种类型的提示文本。
     this.formData.plugin_config.target_node_type = data.nodeType;
+    this.formData.plugin_config.target_object_type = data.objectType;
   }
 
   /**

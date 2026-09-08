@@ -108,6 +108,7 @@ from apm_web.utils import get_interval_number, span_time_strft
 from apm_web.strategy.handler import StrategyTemplateHandler
 from apm_web.models import StrategyTemplate
 from apm_web.strategy.constants import StrategyTemplateSystem, StrategyTemplateType
+from bkmonitor.nodeman_integration.backend import node_man_backend
 from bkm_space.api import SpaceApi
 from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQuerySet
 from bkmonitor.data_source.utils.apm import TraceDatasourceTarget, TraceQueryGuard
@@ -1694,14 +1695,23 @@ class PushUrlResource(Resource):
     @classmethod
     def get_proxy_infos(cls, bk_biz_id):
         proxy_host_infos = []
+        is_v3 = node_man_backend.is_v3
         try:
-            proxy_hosts = api.node_man.get_proxies_by_biz(bk_biz_id=bk_biz_id)
+            if is_v3:
+                proxy_hosts = node_man_backend.v3.get_proxies_by_biz(
+                    bk_tenant_id=get_request_tenant_id(),
+                    bk_biz_id=bk_biz_id,
+                )
+            else:
+                proxy_hosts = api.node_man.get_proxies_by_biz(bk_biz_id=bk_biz_id)
             for host in proxy_hosts:
                 bk_cloud_id = int(host["bk_cloud_id"])
                 ip = host.get("conn_ip") or host.get("inner_ip")
                 proxy_host_infos.append({"ip": ip, "bk_cloud_id": bk_cloud_id})
         except Exception as e:
             logger.exception(e)
+            if is_v3:
+                raise
 
         default_cloud_display = settings.CUSTOM_REPORT_DEFAULT_PROXY_IP
         if settings.CUSTOM_REPORT_DEFAULT_PROXY_DOMAIN:

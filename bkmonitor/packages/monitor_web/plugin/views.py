@@ -24,7 +24,7 @@ from rest_framework.serializers import Serializer
 from bkmonitor.iam import ActionEnum, Permission
 from bkmonitor.iam.drf import BusinessActionPermission, IAMPermission
 from bkmonitor.middlewares.authentication import NoCsrfSessionAuthentication
-from bkmonitor.nodeman_integration.mode import get_nodeman_integration_mode
+from bkmonitor.nodeman_integration.backend import node_man_backend
 from bkmonitor.utils.common_utils import safe_int
 from bkmonitor.utils.request import get_request_tenant_id
 from bkmonitor.utils.time_tools import utc2biz_str
@@ -455,7 +455,7 @@ class CollectorPluginViewSet(PermissionMixin, viewsets.ModelViewSet):
                 if plugin:
                     plugin.delete()
 
-                if get_nodeman_integration_mode() != "v3_fresh":
+                if not node_man_backend.is_v3:
                     try:
                         api.node_man.delete_plugin(name=plugin.plugin_id)
                     except BKAPIError:
