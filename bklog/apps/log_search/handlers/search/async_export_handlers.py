@@ -196,15 +196,14 @@ class AsyncExportHandlers:
                 query_set = query_set.filter(index_set_ids=self.index_set_ids)
         else:
             query_set = query_set.filter(index_set_type=IndexSetType.SINGLE.value)
+            related_biz_ids = {self.bk_biz_id}
+            if self.bk_biz_id and self.bk_biz_id > 0:
+                related_biz_ids.update(
+                    get_bkcc_biz_id_related_spaces(self.bk_biz_id, query_type="bk_biz_id")
+                )
             if not show_all:
                 query_set = query_set.filter(index_set_id=self.index_set_id)
-                related_biz_ids = {self.bk_biz_id}
-                if self.bk_biz_id and self.bk_biz_id > 0:
-                    related_biz_ids.update(get_bkcc_biz_id_related_spaces(self.bk_biz_id, query_type="bk_biz_id"))
-                query_set = query_set.filter(bk_biz_id__in=related_biz_ids)
-            else:
-                # TODO: show_all 当前仍表示当前业务的全部下载历史，不包含关联空间任务。
-                query_set = query_set.filter(bk_biz_id=self.bk_biz_id)
+            query_set = query_set.filter(bk_biz_id__in=related_biz_ids)
         if start_time is not None:
             query_set = query_set.filter(created_at__gte=arrow.get(start_time / 1000).datetime)
         if end_time is not None:

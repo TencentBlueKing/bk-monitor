@@ -177,7 +177,9 @@ class TestAsyncExportProgress(TestCase):
             all_response = handler.get_export_history(request, Mock(), show_all=True)
 
         self.assertCountEqual([item["id"] for item in related_response.data["list"]], [tasks[0].id, tasks[1].id])
-        self.assertEqual([item["id"] for item in all_response.data["list"]], [tasks[0].id])
+        self.assertCountEqual(
+            [item["id"] for item in all_response.data["list"]], [tasks[0].id, tasks[1].id]
+        )
 
     def test_union_export_history_keeps_business_filter(self):
         tasks = []
