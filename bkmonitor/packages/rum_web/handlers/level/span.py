@@ -31,7 +31,7 @@ from bkmonitor.utils.thread_backend import ThreadPool
 from core.drf_resource import resource
 from semconv.rum.constants import RumSpanType
 from semconv.rum.trace import SpanSpec
-from semconv.constants import FieldType
+from constants.otel_query import FieldTypeEnum
 from rum_web.handlers.level.base import BaseRumLevelHandler
 from rum_web.handlers.query.span import SpanQuery
 from rum_web.constants import RUM_SEARCH_PAGE_GROUPS
@@ -52,6 +52,8 @@ class SpanLevelHandler(BaseRumLevelHandler):
         "attributes.view.url_template",
         "attributes.user.id",
     ]
+    #: 常驻筛选字段，前端置顶展示并默认带出的筛选维度
+    RESIDENT_FIELDS = ["trace_id", "span_id", "kind", "elapsed_timespan_name", "attributes.view.name"]
     VIEW_CONFIG_IGNORE_KEYS = ["is_case_sensitive", "is_analyzed", "wildcard_case_insensitive", "tokenize_on_chars"]
 
     BASE_STATISTICS_PROPERTIES: set[str] = {
@@ -122,13 +124,14 @@ class SpanLevelHandler(BaseRumLevelHandler):
                 for group in RUM_SEARCH_PAGE_GROUPS.get("span", [])
             ],
             "display_fields": list(self.DISPLAY_FIELDS),
+            "resident_fields": list(self.RESIDENT_FIELDS),
             "span_type_display_fields": {span_type.value: span_type.display_fields for span_type in RumSpanType},
         }
 
     @classmethod
     def _value_transform(cls, field: str, value: str):
         span_spec = SpanSpec.from_field(field)
-        if span_spec.field_type == FieldType.BOOLEAN.value:
+        if span_spec.field_type == FieldTypeEnum.BOOLEAN.value:
             return cls.BOOLEAN_VALUE_TRANSFORM_MAP.get(value, bool(value))
         return value
 
@@ -256,11 +259,11 @@ class SpanLevelHandler(BaseRumLevelHandler):
         query_filters: list[types.Filter] = copy.deepcopy(filters)
         # 字段计数：排除空值。数值类型使用 exists 判断，其他类型排除空字符串。
         if property_name == StatisticsProperty.FIELD_COUNT.value:
-            exclude_empty_operator = (
-                FilterOperator.EXISTS
-                if EnabledStatisticsDimension.from_value(field["field_type"]).is_numeric()
-                else FilterOperator.NOT_EQUAL
+            use_exists = (
+                EnabledStatisticsDimension.from_value(field["field_type"]).is_numeric()
+                or field["field_type"] == EnabledStatisticsDimension.BOOLEAN.value
             )
+            exclude_empty_operator = FilterOperator.EXISTS if use_exists else FilterOperator.NOT_EQUAL
             query_filters.append({"key": field_name, "value": [""], "operator": exclude_empty_operator})
 
         # TOTAL_COUNT 使用 _index 计数，确保分母包含所有 Span（含缺失该字段的记录）

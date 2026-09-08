@@ -123,6 +123,7 @@ GET /rum/search/view_config/?app_name=rum-demo&bk_biz_id=2
 | fields                   | Array[Field]  | 全量字段列表（包含所有分组及非分组字段）                                                    |
 | groups                   | Array[Group]  | 分组列表，每个分组通过 `field_names` 引用 `fields` 中的字段                              |
 | display_fields           | Array[String] | 列表页默认展示的字段名列表                                                           |
+| resident_fields          | Array[String] | 常驻筛选字段名列表，前端置顶展示并默认带出这些筛选维度                                        |
 | span_type_display_fields | Object        | 各 Span 类型的默认展示字段，key 为 Span 类型，value 为字段名列表；前端切换类型时使用此配置（只在 span 视图下返回） |
 
 - Field
@@ -403,6 +404,13 @@ GET /rum/search/view_config/?app_name=rum-demo&bk_biz_id=2
     "elapsed_time",
     "status.code",
     "attributes.view.url_template",
+    "attributes.user.id"
+  ],
+  "resident_fields": [
+    "attributes.span_type",
+    "resource.service.name",
+    "kind",
+    "status.code",
     "attributes.user.id"
   ]
 }

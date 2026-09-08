@@ -99,29 +99,3 @@ class SpanStatusCode(CachedEnum):
     @classmethod
     def choices(cls) -> list[tuple[int, str]]:
         return [(member.value, member.label) for member in cls]
-
-
-class FieldType(CachedEnum):
-    """字段类型"""
-
-    KEYWORD = "keyword"
-    INTEGER = "integer"
-    LONG = "long"
-    DOUBLE = "double"
-    FLOAT = "float"
-    BOOLEAN = "boolean"
-
-    @cached_property
-    def label(self) -> str:
-        return {
-            self.KEYWORD: _("关键词"),
-            self.INTEGER: _("整数"),
-            self.LONG: _("长整数"),
-            self.DOUBLE: _("双精度浮点数"),
-            self.FLOAT: _("单精度浮点数"),
-            self.BOOLEAN: _("布尔值"),
-        }.get(self, self.value)
-
-    @classmethod
-    def choices(cls) -> list[tuple[str, str]]:
-        return [(member.value, member.label) for member in cls]

@@ -11,15 +11,15 @@ specific language governing permissions and limitations under the License.
 from django.utils.translation import gettext_lazy as _
 
 from semconv.rum.constants import SessionType, SessionPhase, SessionHasReplay
-from semconv.constants import FieldType
 from semconv.rum.field import FieldSpec
+from constants.otel_query import FieldTypeEnum
 
 SESSION_SAMPLE_RATE = FieldSpec(field_name="session.sample_rate", field_alias=_("Session 采样率"))
 SESSION_ID = FieldSpec(field_name="session.id", field_alias=_("会话 ID"))
 SESSION_HAS_REPLAY = FieldSpec(
     field_name="session.has_replay",
     field_alias=_("是否回放"),
-    field_type=FieldType.BOOLEAN.value,
+    field_type=FieldTypeEnum.BOOLEAN.value,
     option_values=SessionHasReplay,
 )
 SESSION_TYPE = FieldSpec(field_name="session.type", field_alias=_("会话类型"), option_values=SessionType)

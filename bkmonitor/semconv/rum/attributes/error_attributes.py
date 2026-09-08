@@ -12,14 +12,14 @@ from django.utils.translation import gettext_lazy as _
 
 from semconv.rum.field import FieldSpec
 from semconv.rum.constants import ErrorSource, ErrorHandled
-from semconv.constants import FieldType
+from constants.otel_query import FieldTypeEnum
 
 # error
 ERROR_MESSAGE = FieldSpec(field_name="error.message", field_alias=_("错误信息"))
 ERROR_HANDLED = FieldSpec(
     field_name="error.handled",
     field_alias=_("错误是否被捕获"),
-    field_type=FieldType.BOOLEAN.value,
+    field_type=FieldTypeEnum.BOOLEAN.value,
     option_values=ErrorHandled,
 )
 ERROR_SOURCE = FieldSpec(field_name="error.source", field_alias=_("错误来源"), option_values=ErrorSource)

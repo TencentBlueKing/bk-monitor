@@ -94,6 +94,7 @@ class FieldTypeEnum(CachedEnum):
     INTEGER = "integer"
     LONG = "long"
     DOUBLE = "double"
+    FLOAT = "float"
     DATE = "date"
     BOOLEAN = "boolean"
     CONFLICT = "conflict"
@@ -151,6 +152,16 @@ FIELD_OPERATIONS = {
         OperatorEnum.NOT_EXISTS,
     ],
     FieldTypeEnum.DOUBLE.value: [
+        OperatorEnum.EQUAL,
+        OperatorEnum.NOT_EQUAL,
+        OperatorEnum.GT,
+        OperatorEnum.GTE,
+        OperatorEnum.LT,
+        OperatorEnum.LTE,
+        OperatorEnum.EXISTS,
+        OperatorEnum.NOT_EXISTS,
+    ],
+    FieldTypeEnum.FLOAT.value: [
         OperatorEnum.EQUAL,
         OperatorEnum.NOT_EQUAL,
         OperatorEnum.GT,
