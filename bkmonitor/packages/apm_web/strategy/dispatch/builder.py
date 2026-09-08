@@ -38,12 +38,15 @@ from .base import DispatchConfig
 
 def build_template_patch(current_labels: list[str], generated: dict[str, Any]) -> dict[str, Any]:
     """构造模板管理字段的局部更新内容，并保留用户自定义标签。"""
+    # APM 决定模板能修改哪些字段，公共策略层负责校验和保存。
+    # 标签接口接收最终完整列表，因此这里先保留自定义标签，再替换 APM 管理的标签。
     labels: list[str] = [
         label for label in current_labels if not label.strip("/").startswith(APM_MANAGED_LABEL_PREFIXES)
     ]
     labels.extend(label for label in generated["labels"] if label.strip("/").startswith(APM_MANAGED_LABEL_PREFIXES))
     items: list[dict[str, Any]] = []
     for item in generated["items"]:
+        # 逐项列出模板管理字段，避免模板新增属性时把 target、no_data_config 等独立配置一起覆盖。
         items.append(
             {
                 "name": item["name"],
@@ -61,6 +64,7 @@ def build_template_patch(current_labels: list[str], generated: dict[str, Any]) -
         "detects": copy.deepcopy(generated["detects"]),
         "notice": {"user_groups": list(generated["notice"]["user_groups"])},
         "labels": labels,
+        # 公共接口会在锁内检查这份快照，拒绝覆盖读取后进行的标签编辑。
         "expected_labels": list(current_labels),
     }
 

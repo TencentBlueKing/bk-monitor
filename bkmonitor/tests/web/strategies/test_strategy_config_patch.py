@@ -40,6 +40,34 @@ pytestmark = pytest.mark.django_db(databases="__all__")
 BK_BIZ_ID = 2
 
 
+@pytest.mark.parametrize("labels", [["z", "a", "a", "parent", "parent/child"], []])
+def test_partial_label_update_normalizes_once(strategy_config_fixture: dict[str, Any], labels: list[str]) -> None:
+    strategy: StrategyModel = strategy_config_fixture["strategy"]
+    with mock.patch.object(Strategy, "normalize_labels", wraps=Strategy.normalize_labels) as normalize_labels:
+        perform_strategy_config_patch([strategy.id], {"labels": labels})
+    assert normalize_labels.call_count == 1
+    assert_labels(strategy.id, ["a", "parent/child", "z"] if labels else [])
+
+
+def test_multiple_item_patches_follow_ids_instead_of_request_order(strategy_config_fixture: dict[str, Any]) -> None:
+    strategy: StrategyModel = strategy_config_fixture["strategy"]
+    first_item: ItemModel = strategy_config_fixture["first_item"]
+    second_item: ItemModel = strategy_config_fixture["second_item"]
+    patch: dict[str, Any] = {
+        "items": [
+            {"id": second_item.id, "name": "second updated"},
+            {"id": first_item.id, "name": "first updated"},
+        ]
+    }
+    original_patch: dict[str, Any] = copy.deepcopy(patch)
+    perform_strategy_config_patch([strategy.id], patch)
+    first_item.refresh_from_db()
+    second_item.refresh_from_db()
+    assert first_item.name == "first updated"
+    assert second_item.name == "second updated"
+    assert patch == original_patch
+
+
 def test_full_and_partial_label_saves_preserve_their_order_and_duplicate_contracts(
     strategy_config_fixture: dict[str, Any],
 ) -> None:

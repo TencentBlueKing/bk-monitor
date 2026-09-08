@@ -206,6 +206,8 @@ class StrategyDispatcher:
                     service_delete_strategy_ids[service_name].append(instance["strategy_id"])
 
         def _save_strategy(_params: dict[str, Any]) -> None:
+            # Dispatcher 选择创建或更新入口，并收集下发结果；字段合并和落库由公共策略接口处理。
+            # 更新入口接收模板 patch，创建入口接收完整策略配置。
             if "id" in _params:
                 _strategy_id: int = _params["id"]
                 current: dict[str, Any] = resource.strategies.get_strategy_v2(bk_biz_id=self.bk_biz_id, id=_strategy_id)

@@ -2170,6 +2170,10 @@ class SaveStrategyV2Resource(Resource):
 class UpdatePartialStrategyV2Resource(Resource):
     """
     批量更新策略局部配置
+
+    公共入口接收各业务构造的 patch，负责请求校验、事务、行锁和操作历史。
+    strategy_config 的合并与组件保存交给 bkmonitor.strategy，APM 标签等业务规则留在调用方。
+    复合字段与旧字段互斥，分别执行各自的保存流程，保留旧接口的通知和套餐联动行为。
     """
 
     class RequestSerializer(serializers.Serializer):
@@ -2522,6 +2526,7 @@ class UpdatePartialStrategyV2Resource(Resource):
     @staticmethod
     def update_strategy_config(strategy: Strategy, patch: dict[str, Any]) -> StrategyConfigPatch:
         """为复合字段生成公共策略组件保存计划。"""
+        # 延续 update_<field> 的入口命名；此处只生成计划，由 Resource 完成校验后执行。
         return StrategyConfigPatch.prepare(strategy, patch)
 
     @staticmethod
@@ -2576,6 +2581,7 @@ class UpdatePartialStrategyV2Resource(Resource):
         update_time = datetime.datetime.now(tz=pytz.timezone(settings.TIME_ZONE))
 
         for strategy_id in params["ids"]:
+            # 每条策略使用独立事务，失败时只回滚当前策略，之前成功的策略已经提交。
             # 前置结构和通知校验失败不重复留痕，实际更新失败在回滚后记录历史。
             should_record_failure: bool = False
             try:

@@ -115,7 +115,13 @@ class StrategyConfigPatch:
 
 
 class StrategyConfigUpdater:
-    """公共策略配置 patch 引擎，仅处理调用方显式开放的字段。"""
+    """公共策略配置 patch 引擎，仅处理调用方显式开放的字段。
+
+    调用方决定哪些字段属于本次更新，本层负责合并、规范化和组件保存，不依赖 APM 的模板规则。
+    prepare 在 Resource 持锁期间读取的完整策略上生成保存计划；save 在同一事务中执行计划。
+    查询和算法复用 Item 的保存方法，检测复用 Detect；主表和通知关系按字段写入。
+    事务、外部校验及操作历史由 Resource 编排，避免各业务入口各自维护一套保存流程。
+    """
 
     ITEM_FIELDS: tuple[str, ...] = ("name", "expression", "functions", "metric_type")
 
@@ -126,11 +132,13 @@ class StrategyConfigUpdater:
         serializer = StrategyConfigPatchSerializer(data=patch)
         serializer.is_valid(raise_exception=True)
         validated_patch: dict[str, Any] = serializer.validated_data
+        # 调用方根据读取时的标签拼装完整列表。这里比对锁内快照，标签已变化就拒绝覆盖。
         if "expected_labels" in validated_patch:
             expected_labels: list[str] = sorted(label.strip("/") for label in validated_patch["expected_labels"])
             if expected_labels != sorted(label.strip("/") for label in current.labels):
                 raise ValidationError(_("策略标签已变化，请刷新后重试"))
 
+        # 比较和保存都按 ID 顺序匹配子配置，保证两阶段使用同一条存量记录。
         current.items.sort(key=lambda item: item.id)
         current.detects.sort(key=lambda detect: detect.id)
         for item in current.items:
@@ -149,13 +157,16 @@ class StrategyConfigUpdater:
         cls._apply_notice_patch(candidate, validated_patch)
         cls._apply_label_patch(candidate, validated_patch)
         candidate.inherit_dynamic_alert_level_mode()
-        for item_patch in validated_patch.get("items", []):
-            if "query_configs" in item_patch:
-                item: Item = cls._get_patch_item(
-                    candidate.items, {item.id: item for item in candidate.items}, item_patch
-                )
+        query_item_patches: list[dict[str, Any]] = [
+            item_patch for item_patch in validated_patch.get("items", []) if "query_configs" in item_patch
+        ]
+        if query_item_patches:
+            candidate_items: dict[int, Item] = {item.id: item for item in candidate.items}
+            for item_patch in query_item_patches:
+                item: Item = cls._get_patch_item(candidate.items, candidate_items, item_patch)
                 candidate.supplement_inst_target_dimension(items=[item])
 
+        # 完整序列化器检查字段之间的约束，其默认值不用于回写。优先级分组键留到差异判断后按需计算。
         strategy_dict: dict[str, Any] = candidate.to_dict(convert_dashboard=False, generate_priority_group_key=False)
         # 数据库允许旧策略的这些字段为 null，校验视图使用空值，未传字段仍不参与保存。
         for field_name in ("app", "path", "priority_group_key"):
@@ -177,6 +188,7 @@ class StrategyConfigUpdater:
     def lock_related(strategy_id: int, patch: dict[str, Any]) -> None:
         """在外层事务内锁住本次 patch 可能读写的子配置。"""
 
+        # 空 items / notice 不修改配置；空 labels 则表示清空，仍需锁定待删除记录。
         if patch.get("items"):
             list(ItemModel.objects.select_for_update().filter(strategy_id=strategy_id).order_by("id"))
             list(QueryConfigModel.objects.select_for_update().filter(strategy_id=strategy_id).order_by("id"))
@@ -219,6 +231,7 @@ class StrategyConfigUpdater:
         if plan.detects:
             cls._save_detects(candidate)
         if plan.notice:
+            # 完整 notice 保存还会处理高级配置，这里只写通知组，保留用户维护的其他选项。
             StrategyActionConfigRelation.objects.filter(id=candidate.notice.id).update(
                 user_groups=candidate.notice.user_groups
             )
@@ -283,6 +296,7 @@ class StrategyConfigUpdater:
                 query_config = QueryConfig(item.strategy_id, item.id, **copy.deepcopy(config))
             except (KeyError, TypeError) as error:
                 raise ValidationError(detail=_("不支持的查询配置数据源类型")) from error
+            # 查询集合整体替换时复用 ID，具体增删交给公共组件保存方法。
             query_config.id = current_configs[index].id if index < len(current_configs) else 0
             query_config._clean_empty_dimension()
             query_config.supplement_adv_condition_dimension(item)
@@ -310,11 +324,12 @@ class StrategyConfigUpdater:
             return
 
         current_detects: list[Detect] = candidate.detects
-        candidate.detects = []
+        detects: list[Detect] = []
         for index, config in enumerate(patch["detects"]):
             detect = Detect(candidate.id, **copy.deepcopy(config))
             detect.id = current_detects[index].id if index < len(current_detects) else 0
-            candidate.detects.append(detect)
+            detects.append(detect)
+        candidate.detects = detects
 
     @staticmethod
     def _apply_notice_patch(candidate: Strategy, patch: dict[str, Any]) -> None:
@@ -324,7 +339,8 @@ class StrategyConfigUpdater:
     @staticmethod
     def _apply_label_patch(candidate: Strategy, patch: dict[str, Any]) -> None:
         if "labels" in patch:
-            candidate.labels = list(patch["labels"])
+            # 候选标签只规范化一次，差异比较和保存直接使用最终结果。
+            candidate.labels = sorted(set(Strategy.normalize_labels(patch["labels"])))
 
     @staticmethod
     def _fill_strategy_changes(plan: StrategyConfigPatch, patch: dict[str, Any]) -> None:
@@ -334,21 +350,22 @@ class StrategyConfigUpdater:
 
     @classmethod
     def _fill_item_changes(cls, plan: StrategyConfigPatch, patch: dict[str, Any]) -> None:
-        for item_patch in patch.get("items", []):
-            current_item = cls._get_patch_item(
-                plan.current.items, {item.id: item for item in plan.current.items}, item_patch
-            )
-            candidate_item = cls._get_patch_item(
-                plan.candidate.items,
-                {item.id: item for item in plan.candidate.items},
-                item_patch,
-            )
+        item_patches: list[dict[str, Any]] = patch.get("items", [])
+        if not item_patches:
+            return
+
+        current_items: dict[int, Item] = {item.id: item for item in plan.current.items}
+        candidate_items: dict[int, Item] = {item.id: item for item in plan.candidate.items}
+        for item_patch in item_patches:
+            current_item: Item = cls._get_patch_item(plan.current.items, current_items, item_patch)
+            candidate_item: Item = cls._get_patch_item(plan.candidate.items, candidate_items, item_patch)
             change = ItemPatchChange(item=candidate_item)
             for field_name in cls.ITEM_FIELDS:
                 if field_name in item_patch and getattr(current_item, field_name) != getattr(
                     candidate_item, field_name
                 ):
                     change.fields.add(field_name)
+            # 查询配置保留顺序语义；算法和检测配置按无序集合比较，数据库 ID 不参与内容比较。
             if "query_configs" in item_patch and (
                 [cls._without_id(config.to_dict()) for config in current_item.query_configs]
             ) != ([cls._without_id(config.to_dict()) for config in candidate_item.query_configs]):
@@ -376,13 +393,14 @@ class StrategyConfigUpdater:
         if "notice" in patch and "user_groups" in patch["notice"]:
             plan.notice = plan.current.notice.user_groups != plan.candidate.notice.user_groups
 
-    @classmethod
-    def _fill_label_changes(cls, plan: StrategyConfigPatch, patch: dict[str, Any]) -> None:
+    @staticmethod
+    def _fill_label_changes(plan: StrategyConfigPatch, patch: dict[str, Any]) -> None:
         if "labels" not in patch:
             return
 
         current_labels: list[str] = [f"/{label.strip('/')}/" for label in plan.current.labels]
-        plan.labels = sorted(current_labels) != sorted(set(Strategy.normalize_labels(plan.candidate.labels)))
+        # 当前标签保留重复项参与比较，确保存量重复记录也能触发清理。
+        plan.labels = sorted(current_labels) != plan.candidate.labels
 
     @classmethod
     def _fill_priority_group_key(cls, plan: StrategyConfigPatch) -> None:
@@ -430,9 +448,9 @@ class StrategyConfigUpdater:
         for detect in strategy.detects:
             detect.save()
 
-    @classmethod
-    def _save_labels(cls, strategy: Strategy) -> None:
-        desired_labels: set[str] = set(Strategy.normalize_labels(strategy.labels))
+    @staticmethod
+    def _save_labels(strategy: Strategy) -> None:
+        desired_labels: set[str] = set(strategy.labels)
         current_labels: list[StrategyLabel] = list(
             StrategyLabel.objects.filter(bk_biz_id=strategy.bk_biz_id, strategy_id=strategy.id).order_by("id")
         )
@@ -445,6 +463,7 @@ class StrategyConfigUpdater:
             if label_name not in desired_labels:
                 delete_ids.extend(label_ids)
             else:
+                # 同名标签按 ID 保留首条，清理其余重复记录，避免重建仍有效的标签行。
                 delete_ids.extend(label_ids[1:])
         if delete_ids:
             StrategyLabel.objects.filter(id__in=delete_ids).delete()
