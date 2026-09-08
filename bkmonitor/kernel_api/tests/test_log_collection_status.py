@@ -233,7 +233,7 @@ def test_status_resource_marks_custom_report_as_complete_without_deployment(monk
             "bk_biz_id": 2,
             "collector_scenario_id": "custom",
             "custom_type": "log",
-            "subscription_id": None,
+            "subscription_id": "legacy-subscription",
             "task_id_list": None,
         },
         log_collector_task_status=lambda **kwargs: pytest.fail("custom reports do not have deployment tasks"),
@@ -252,6 +252,11 @@ def test_status_resource_marks_custom_report_as_complete_without_deployment(monk
     assert result["retry_after_seconds"] == 0
     assert result["deployment_required"] is False
     assert result["task_ids"] == []
+    assert result["subscription_id"] == "legacy-subscription"
+    assert result["environment"] == "container"
+    assert result["task"]["status"] == "success"
+    assert result["subscription"]["status"] == "success"
+    assert result["task"] is not result["subscription"]
 
 
 def test_status_resource_uses_subscription_when_no_task_exists(monkeypatch):

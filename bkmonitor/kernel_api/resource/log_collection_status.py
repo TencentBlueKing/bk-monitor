@@ -8,6 +8,7 @@ from rest_framework import serializers
 from rest_framework.exceptions import PermissionDenied
 
 from core.drf_resource import Resource, api
+from kernel_api.resource.log_collection import get_log_access_type, normalize_environment
 
 MAX_TASK_IDS = 100
 MAX_TASK_ID_LENGTH = 20
@@ -142,10 +143,12 @@ def combine_phase_status(task_status: str, subscription_status: str) -> str:
     return "unknown"
 
 
-def build_phase_result(details: list[dict[str, Any]], detail_limit: int) -> dict[str, Any]:
+def build_phase_result(
+    details: list[dict[str, Any]], detail_limit: int, default_status: str = "unknown"
+) -> dict[str, Any]:
     counts = Counter(detail["status"] for detail in details)
     return {
-        "status": aggregate_status(details),
+        "status": aggregate_status(details) if details else default_status,
         "counts": {
             "total": len(details),
             "running": counts["running"],
@@ -192,19 +195,18 @@ class GetLogCollectorStatusResource(Resource):
 
         # 自定义上报不创建节点管理订阅或部署任务；没有任务不能表示创建未完成。
         # 直接返回完成状态，避免调用方对永远不会产生的任务持续轮询。
-        if collector.get("collector_scenario_id") == "custom":
-            empty_task_result = build_phase_result([], detail_limit)
+        if get_log_access_type(collector) == "custom_report":
             return {
                 "collector_config_id": collector_config_id,
-                "subscription_id": None,
+                "subscription_id": collector.get("subscription_id"),
                 "task_ids": [],
-                "environment": str(collector.get("environment") or ""),
+                "environment": normalize_environment(collector),
                 "deployment_required": False,
                 "status": "success",
                 "is_terminal": True,
                 "retry_after_seconds": 0,
-                "task": empty_task_result,
-                "subscription": empty_task_result,
+                "task": build_phase_result([], detail_limit, default_status="success"),
+                "subscription": build_phase_result([], detail_limit, default_status="success"),
                 "errors": [],
             }
 

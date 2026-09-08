@@ -5,10 +5,12 @@ paths:
       description: >-
         Create a custom-report collector on an automatically selected public storage cluster. Requires confirm=true.
         The MCP uses the same business-visible public-cluster selection strategy as Fast Create; callers cannot
-        override storage settings. Set parent_index_set_ids to attach its generated index set to existing index groups;
+        override storage settings. Use update_custom_report to adjust storage cluster or retention after creation.
+        Set parent_index_set_ids to attach its generated index set to existing index groups;
         omit it or send [] to leave the index set ungrouped. collector_config_name_en must be 5-50 letters, digits
         or underscores; hyphens are not allowed. 创建自定义上报采集项时，MCP 会自动选择业务可用的公共存储集群，
-        策略与 Fast Create 一致，调用方不可覆盖存储配置；必须确认 confirm=true。collector_config_name_en 长度为 5-50，
+        策略与 Fast Create 一致，调用方不可覆盖存储配置；创建后如需调整存储集群或保留期，请调用 update_custom_report；
+        必须确认 confirm=true。collector_config_name_en 长度为 5-50，
         仅允许字母、数字和下划线，不允许连字符。可用 parent_index_set_ids 将生成的索引集加入已有索引组。
       tags:
       - log_collection_mcp
