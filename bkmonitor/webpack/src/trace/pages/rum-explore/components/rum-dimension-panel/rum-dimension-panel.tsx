@@ -304,14 +304,11 @@ export default defineComponent({
           ref='statisticsListRef'
           api={this.statisticsApi}
           commonParams={this.commonParams as any}
-          fieldType={this.selectField?.type}
+          field={this.selectField}
           isDuration={this.selectField?.field_display_type === 'duration' || this.selectField?.field_unit === 'bytes'}
           isInteger={['double', 'long', 'integer', 'float'].includes(this.selectField?.type)}
           isShow={this.showPopover}
-          optionValues={this.selectField?.option_values}
-          selectField={this.selectField?.name}
           timeRange={this.timeRange as any}
-          unit={this.selectField?.field_unit}
           onConditionChange={this.handleConditionChange}
           onShowMore={this.destroyPopover}
         />

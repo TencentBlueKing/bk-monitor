@@ -54,7 +54,8 @@ import {
   UNIFORM_SERIES_COLOR,
 } from './utils';
 
-import type { DimensionType, ICommonParams, IStatisticsGraph, IStatisticsInfo, ITopKField } from '../../typing';
+import type { IStatisticsFieldItem } from '../../../rum-explore/composables/use-field-statistics-popover';
+import type { ICommonParams, IStatisticsGraph, IStatisticsInfo, ITopKField } from '../../typing';
 
 /**
  * 统计分析依赖的四个接口。
@@ -79,14 +80,12 @@ export interface IStatisticsDataCallbacks {
 export interface IStatisticsDataProps {
   api: IStatisticsApi;
   commonParams: ICommonParams;
-  fieldType: DimensionType;
+  /** 统计分析的字段对象，字段名/单位/类型/枚举值等均从这里取值 */
+  field: IStatisticsFieldItem | null;
   isDuration: boolean;
   isInteger: boolean;
   isShow: boolean;
-  optionValues: null | { alias?: string; value: string }[];
-  selectField: string;
   timeRange: null | TimeRangeType;
-  unit: string;
 }
 
 /** 弹层 TopK 展示条数 */
@@ -108,6 +107,10 @@ export function useStatisticsData(props: IStatisticsDataProps, callbacks: IStati
 
   /** 展示模式：耗时 / 数值 / 文本 */
   const mode = computed<StatisticsMode>(() => resolveStatisticsMode(props.isDuration, props.isInteger));
+  /** 字段单位，未选字段时兜底空串 */
+  const fieldUnit = computed(() => props.field?.field_unit || '');
+  /** 字段类型，未选字段时兜底 text */
+  const fieldType = computed(() => props.field?.type || 'text');
   const currentTimeRange = computed<TimeRangeType>(() => props.timeRange || store.timeRange);
 
   /** 展示的范围文本 */
@@ -164,8 +167,8 @@ export function useStatisticsData(props: IStatisticsDataProps, callbacks: IStati
   function aliasFormatter(value: number | string) {
     return resolveTopKAlias(value as string, {
       fieldName: localField.value,
-      optionValues: props.optionValues || undefined,
-      unit: props.unit,
+      optionValues: props.field?.option_values,
+      unit: fieldUnit.value,
     });
   }
 
@@ -180,7 +183,7 @@ export function useStatisticsData(props: IStatisticsDataProps, callbacks: IStati
   /** 弹窗打开：耗时字段与普通字段走两条数据流 */
   async function handleShowStatistics() {
     infoLoading.value = true;
-    localField.value = props.selectField;
+    localField.value = props.field?.name || '';
     if (mode.value !== 'duration') {
       rangeText.value = handleTransformTime(currentTimeRange.value);
       getStatisticsList();
@@ -190,7 +193,10 @@ export function useStatisticsData(props: IStatisticsDataProps, callbacks: IStati
     await getStatisticsGraphData();
     popoverLoading.value = false;
     getDurationTopkList();
-    rangeText.value = [durationTopkList.value.min, durationTopkList.value.max];
+    rangeText.value = [
+      formatUnitValue(durationTopkList.value.min, fieldUnit.value),
+      formatUnitValue(durationTopkList.value.max, fieldUnit.value),
+    ];
     setTopKData(statisticsList, {
       ...durationTopkList.value,
       list: durationTopkList.value.list.slice(0, TOPK_POPOVER_LIMIT),
@@ -255,7 +261,7 @@ export function useStatisticsData(props: IStatisticsDataProps, callbacks: IStati
         withTimeParams({
           field: {
             field_name: localField.value,
-            field_type: props.fieldType,
+            field_type: fieldType.value,
           },
         }),
         withCancelToken(cancel => {
@@ -266,7 +272,7 @@ export function useStatisticsData(props: IStatisticsDataProps, callbacks: IStati
     /** 如果是取消接口，不进行后续操作 */
     if (count !== getStatisticsInfoCount.value) return;
     /** topk没有数据且keyword类型不请求graph接口 */
-    if (!info || info.distinct_count === 0 || (props.fieldType === 'keyword' && !statisticsList.list.length)) {
+    if (!info || info.distinct_count === 0 || (fieldType.value === 'keyword' && !statisticsList.list.length)) {
       infoLoading.value = false;
       return;
     }
@@ -274,10 +280,10 @@ export function useStatisticsData(props: IStatisticsDataProps, callbacks: IStati
     statisticsInfo.value = {
       ...info,
       value_analysis: {
-        min: formatUnitValue(min, props.unit),
-        max: formatUnitValue(max, props.unit),
-        avg: formatUnitValue(avg, props.unit),
-        median: formatUnitValue(median, props.unit),
+        min: formatUnitValue(min, fieldUnit.value),
+        max: formatUnitValue(max, fieldUnit.value),
+        avg: formatUnitValue(avg, fieldUnit.value),
+        median: formatUnitValue(median, fieldUnit.value),
       },
     };
     const values =
@@ -295,7 +301,7 @@ export function useStatisticsData(props: IStatisticsDataProps, callbacks: IStati
         withTimeParams({
           field: {
             field_name: localField.value,
-            field_type: props.fieldType,
+            field_type: fieldType.value,
             values,
           },
         }),
