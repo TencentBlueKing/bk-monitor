@@ -5,7 +5,7 @@
 
 /** 将检索 total（BigNumber / ES7 value 对象 / 数字）归一化为有限数字 */
 export const normalizeSearchTotal = (total: unknown): number => {
-  if (total == null) return 0;
+  if (total === null || total === undefined) return 0;
   if (typeof total === 'number') {
     return Number.isFinite(total) ? total : 0;
   }
@@ -14,7 +14,7 @@ export const normalizeSearchTotal = (total: unknown): number => {
     const value = totalLike.toNumber();
     return Number.isFinite(value) ? value : 0;
   }
-  if (typeof total === 'object' && totalLike.value != null) {
+  if (typeof total === 'object' && totalLike.value !== null && totalLike.value !== undefined) {
     return normalizeSearchTotal(totalLike.value);
   }
   const parsed = Number(total);

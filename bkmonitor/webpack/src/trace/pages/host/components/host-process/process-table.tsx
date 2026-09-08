@@ -54,6 +54,11 @@ export default defineComponent({
       type: Array as PropType<string[]>,
       default: () => [],
     },
+    /** 列宽缓存（key -> 像素宽度），覆盖列配置默认宽度 */
+    columnWidths: {
+      type: Object as PropType<Record<string, number>>,
+      default: () => ({}),
+    },
     /** 排序（`-key` 倒序 / `key` 正序） */
     sort: {
       type: String,
@@ -73,6 +78,7 @@ export default defineComponent({
   emits: {
     sortChange: (_v: string) => true,
     columnsChange: (_cols: string[]) => true,
+    columnResize: (_widths: Record<string, number>) => true,
     rowClick: (_row: ProcessItem) => true,
     clearFilter: () => true,
     retry: () => true,
@@ -105,6 +111,7 @@ export default defineComponent({
     /** 列渲染器 hook（含各列单元格自定义渲染逻辑） */
     const { buildColumn } = useProcessColumnsRenderer({
       onRowClick: row => emit('rowClick', row),
+      getColumnWidth: colKey => props.columnWidths[colKey],
     });
 
     /** 表格骨架屏展示相关配置（loading 时隐藏表体并覆盖骨架屏） */
@@ -182,6 +189,9 @@ export default defineComponent({
           size='small'
           sort={this.tableSort}
           tableLayout='fixed'
+          onColumnResizeChange={(ctx: { columnsWidth: Record<string, number> }) =>
+            this.$emit('columnResize', ctx.columnsWidth)
+          }
           // @ts-expect-error
           onDisplayColumnsChange={(cols: string[]) => this.$emit('columnsChange', cols)}
           onSortChange={this.handleSortChange}

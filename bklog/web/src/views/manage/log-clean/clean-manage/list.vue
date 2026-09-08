@@ -44,15 +44,14 @@
           :clearable="true"
           :right-icon="'bk-icon icon-search'"
           data-test-id="cleaningListBox_input_searchCleaningList"
+          :placeholder="$t('搜索 任务名称、存储索引名称')"
           @change="handleSearchChange"
           @enter="search"
-          :placeholder="$t('搜索 任务名称、存储索引名称')"
-          
         >
         </bk-input>
         <div
-          class="operation-icon"
           v-bk-tooltips="$t('同步计算平台的结果')"
+          class="operation-icon"
           @click="handleSync"
         >
           <span
@@ -69,8 +68,8 @@
     <section class="log-clean-list">
       <bk-table
         ref="cleanTable"
-        class="clean-table"
         v-bkloading="{ isLoading: isTableLoading }"
+        class="clean-table"
         :data="cleanList"
         :limit-list="pagination.limitList"
         :pagination="pagination"
@@ -159,10 +158,10 @@
               </log-button>
               <!-- 编辑 -->
               <bk-button
-                class="mr10 king-button"
                 v-cursor="{
                   active: !(props.row.permission && props.row.permission[authorityMap.MANAGE_COLLECTION_AUTH]),
                 }"
+                class="mr10 king-button"
                 theme="primary"
                 text
                 @click.stop="operateHandler(props.row, 'edit')"
@@ -339,7 +338,7 @@
         try {
           this.isTableLoading = true;
           const res = await this.$store.dispatch('getApplyData', paramData);
-          this.$store.commit('updateState', { 'authDialogData': res.data});
+          this.$store.commit('updateState', { authDialogData: res.data });
         } catch (err) {
           console.warn(err);
         } finally {
@@ -427,7 +426,7 @@
           query.editName = row.collector_config_name;
           params.collectorId = row.collector_config_id;
         } else if (operateType === 'search') {
-          updateLastSelectedIndexId(this.spaceUid, row.index_set_id)
+          updateLastSelectedIndexId(this.spaceUid, row.index_set_id);
           routeName = 'retrieve';
           params.indexId = row.index_set_id;
         }

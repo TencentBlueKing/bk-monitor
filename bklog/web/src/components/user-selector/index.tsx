@@ -94,7 +94,7 @@ export default defineComponent({
 
     // 处理选择变化
     const handleChange = (val: string[]) => {
-      const realVal = val.filter((item) => item !== undefined);
+      const realVal = val.filter(item => item !== undefined);
       localValue.value = realVal;
       isError.value = !realVal.length;
       emit('change', realVal);

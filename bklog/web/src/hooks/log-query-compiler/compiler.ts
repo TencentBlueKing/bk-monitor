@@ -51,9 +51,7 @@ export const compile = (
   const ctx = normalizeSelectionContext(selectionContext);
 
   // 1) Normalize
-  const normalizedText = opts.normalizeMode === 'light'
-    ? normalizeInputLight(ctx.text)
-    : normalizeInput(ctx.text);
+  const normalizedText = opts.normalizeMode === 'light' ? normalizeInputLight(ctx.text) : normalizeInput(ctx.text);
   if (!normalizedText) {
     return {
       queryString: '',
@@ -64,9 +62,8 @@ export const compile = (
   }
 
   // 2) Shield（light 模式跳过，避免已解析 Value 内引号被抽槽）
-  const shielded = opts.normalizeMode === 'light'
-    ? { text: normalizedText, slots: [] }
-    : shieldProtectedSpans(normalizedText);
+  const shielded =
+    opts.normalizeMode === 'light' ? { text: normalizedText, slots: [] } : shieldProtectedSpans(normalizedText);
 
   // 3) Lexer
   const tokens = tokenize(shielded.text, { slots: shielded.slots });
@@ -95,15 +92,13 @@ export const compile = (
 /**
  * 语句模式快捷编译：按字段类型输出 query string。
  */
-export const compileToQueryString = (
-  selectionContext: SelectionContext,
-  options?: Partial<QueryCompilerOptions>,
-) => compile(selectionContext, 'query-string', {
-  tokenizerMode: 'phrase',
-  quoteStrategy: 'auto',
-  wildcardForKeyword: true,
-  ...options,
-}).queryString;
+export const compileToQueryString = (selectionContext: SelectionContext, options?: Partial<QueryCompilerOptions>) =>
+  compile(selectionContext, 'query-string', {
+    tokenizerMode: 'phrase',
+    quoteStrategy: 'auto',
+    wildcardForKeyword: true,
+    ...options,
+  }).queryString;
 
 /**
  * 从「已解析的 field + value + fieldType」直接编译（跳过 Smart 拆词与 Lexer/Parser）。
@@ -164,14 +159,16 @@ export const compileFieldValue = (params: {
 
   let ast: AstNode = {
     type: 'Root',
-    children: [{
-      type: 'Phrase',
-      field: params.field,
-      fieldType: ctx.fieldType,
-      value,
-      valueKind: 'Phrase',
-      matchMode: 'phrase',
-    }],
+    children: [
+      {
+        type: 'Phrase',
+        field: params.field,
+        fieldType: ctx.fieldType,
+        value,
+        valueKind: 'Phrase',
+        matchMode: 'phrase',
+      },
+    ],
   };
 
   ast = analyzeSemantics(ast, ctx, opts);
@@ -188,6 +185,5 @@ export const compileFieldValue = (params: {
 };
 
 /** 仅取语句模式 query string（兼容旧调用） */
-export const compileFieldValueToQueryString = (
-  params: Parameters<typeof compileFieldValue>[0],
-) => compileFieldValue(params).queryString;
+export const compileFieldValueToQueryString = (params: Parameters<typeof compileFieldValue>[0]) =>
+  compileFieldValue(params).queryString;

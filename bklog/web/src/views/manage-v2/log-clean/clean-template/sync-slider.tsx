@@ -32,9 +32,7 @@ import useLocale from '@/hooks/use-locale';
 
 import CollectorTable, { CleanTemplateCollectorTableRow } from './collector-table';
 import './sync-slider.scss';
-import useTemplateCollectors, {
-  CleanTemplateSyncResult,
-} from './use-template-collectors';
+import useTemplateCollectors, { CleanTemplateSyncResult } from './use-template-collectors';
 
 export type SyncCollectorItem = CleanTemplateCollectorTableRow;
 
@@ -63,25 +61,21 @@ export default defineComponent({
     const isConfirmed = ref(false);
     const isSyncing = ref(false);
     const syncResults = ref<CleanTemplateSyncResult[]>([]);
-    const {
-      collectors,
-      isCollectorsLoading,
-      requestCollectors,
-      resetCollectors,
-    } = useTemplateCollectors();
+    const { collectors, isCollectorsLoading, requestCollectors, resetCollectors } = useTemplateCollectors();
 
     const collectorCount = computed(() => collectors.value.length);
-    const canSync = computed(() => (
-      collectorCount.value > 0
-      && props.template?.status === 'DRAFT'
-      && !isCollectorsLoading.value
-      && !isSyncing.value
-    ));
+    const canSync = computed(
+      () =>
+        collectorCount.value > 0 &&
+        props.template?.status === 'DRAFT' &&
+        !isCollectorsLoading.value &&
+        !isSyncing.value,
+    );
     const syncSuccessCount = computed(() => syncResults.value.filter(item => item.status === 'SUCCESS').length);
     const syncFailedCount = computed(() => syncResults.value.filter(item => item.status === 'FAILED').length);
     const tableData = computed<CleanTemplateCollectorTableRow[]>(() => {
       const resultMap = new Map(syncResults.value.map(item => [item.id, item]));
-      return collectors.value.map((collector) => {
+      return collectors.value.map(collector => {
         const result = resultMap.get(collector.collector_config_id);
         return {
           ...collector,
@@ -210,7 +204,12 @@ export default defineComponent({
                 >
                   {t('确认同步')}
                 </bk-button>
-                <bk-button disabled={isSyncing.value} onClick={handleClose}>{t('取消')}</bk-button>
+                <bk-button
+                  disabled={isSyncing.value}
+                  onClick={handleClose}
+                >
+                  {t('取消')}
+                </bk-button>
               </div>
             )}
           </div>

@@ -73,9 +73,7 @@ export default defineComponent({
     });
 
     const store = useStore();
-    const fieldList = computed(() =>
-      store.getters.rawFieldList.filter(field => field.field_type === 'text'),
-    );
+    const fieldList = computed(() => store.getters.rawFieldList.filter(field => field.field_type === 'text'));
 
     // 选择字段
     const handleFieldChange = (id: string) => {

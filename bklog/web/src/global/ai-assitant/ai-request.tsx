@@ -41,7 +41,7 @@ import { FetchResponse } from '@/request/types';
  */
 const getSessionCode = () => {
   // 生成一个随机的 session_code，格式为：'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx'
-  const generateHex = (length) => {
+  const generateHex = length => {
     let result = '';
     for (let i = 0; i < length; i++) {
       result += ((Math.random() * 16) | 0).toString(16);
@@ -61,7 +61,7 @@ const getSessionCode = () => {
  * @param resp {FetchResponse<T>}
  * @returns {T}
  */
-const resolveResponse = <T = any>(resp: FetchResponse<T>) => {
+const resolveResponse = <T = any,>(resp: FetchResponse<T>) => {
   if (typeof resp.result === 'boolean' && resp.result) {
     return resp.data;
   }
@@ -174,9 +174,9 @@ const getSessionContextParams = (args: IQueryStringSendData & { keyword: string 
  * @returns {Promise<TextToQueryResponse>}
  */
 export const requestAIResult = (args: IQueryStringSendData & { keyword: string }): Promise<TextToQueryResponse> => {
-  return createSession().then((resp) => {
+  return createSession().then(resp => {
     const sessionData = resolveResponse(resp);
-    return createSessionContent(getSessionContextParams(args, sessionData.session_code)).then((resp) => {
+    return createSessionContent(getSessionContextParams(args, sessionData.session_code)).then(resp => {
       const sessionContentData = resolveResponse(resp);
       return requestChatCompletion({
         session_content_id: sessionContentData.id,
@@ -184,7 +184,7 @@ export const requestAIResult = (args: IQueryStringSendData & { keyword: string }
         execute_kwargs: {
           stream: false,
         },
-      }).then((resp) => {
+      }).then(resp => {
         return resolveResponse(resp);
       });
     });

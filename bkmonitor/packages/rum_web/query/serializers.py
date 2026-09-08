@@ -17,6 +17,15 @@ from constants.apm import OperatorGroupRelation
 from constants.otel_query import EnabledStatisticsDimension
 
 
+class FilterValueCharField(serializers.CharField):
+    """存储查询侧过滤值字段：布尔值收敛为小写 true / false 字符串，而非报错"""
+
+    def to_internal_value(self, data):
+        if isinstance(data, bool):
+            return "true" if data else "false"
+        return super().to_internal_value(data)
+
+
 class FilterSerializer(serializers.Serializer):
     """存储查询侧过滤条件，value 收敛为字符串列表，对齐 UnifyQuery condition 协议"""
 
@@ -30,12 +39,12 @@ class FilterSerializer(serializers.Serializer):
     operator = serializers.CharField(label=_("操作符"))
     options = OptionsSerializer(label=_("操作符选项"), default=dict)
     value = serializers.ListSerializer(
-        label=_("查询值"), child=serializers.CharField(allow_blank=True), allow_empty=True
+        label=_("查询值"), child=FilterValueCharField(allow_blank=True), allow_empty=True
     )
 
 
 class QueryStringFilterSerializer(FilterSerializer):
-    """查询串渲染侧过滤条件，value 保留数值与布尔原类型"""
+    """查询串渲染侧过滤条件"""
 
     value = serializers.ListSerializer(label=_("查询值"), child=serializers.JSONField(), allow_empty=True)
 
@@ -114,7 +123,7 @@ class RumStatisticsFieldSerializer(serializers.Serializer):
     values = serializers.ListField(label=_("查询过滤条件值列表"), allow_empty=True, default=list)
 
     def validate(self, attrs):
-        if attrs["field_type"] not in [dimension.value for dimension in EnabledStatisticsDimension]:
+        if attrs["field_type"] not in EnabledStatisticsDimension.values():
             raise serializers.ValidationError(_("不支持的字段类型"))
         return attrs
 
@@ -133,8 +142,17 @@ class RumFieldStatisticsGraphRequestSerializer(BaseRumSearchSerializer):
     def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
         attrs = super().validate(attrs)
         field = attrs["field"]
-        if field["field_type"] == EnabledStatisticsDimension.KEYWORD.value:
+        values = field["values"]
+
+        # 将布尔值转换为小写字符串
+        if field["field_type"] == EnabledStatisticsDimension.BOOLEAN.value:
+            for i, v in enumerate(values):
+                if isinstance(v, bool):
+                    values[i] = str(v).lower()
+
+        if not EnabledStatisticsDimension.from_value(field["field_type"]).is_numeric():
             return attrs
-        if len(field["values"]) < 4:
+
+        if len(values) < 4:
             raise serializers.ValidationError(_("数值类型查询条件不足"))
         return attrs

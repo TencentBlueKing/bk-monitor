@@ -26,7 +26,8 @@
 
 import type { ShallowRef } from 'vue';
 
-import { formatDuration } from './duration-input-utils';
+import { type TBytesBaseUnit, formatBytes } from './bytes-scope-input-utils';
+import { type TDurationBaseUnit, formatDuration } from './duration-input-utils';
 import { type IFilterItem, type INormalWhere, type IWhereItem, ECondition, EMethod } from './typing';
 
 export const fieldTypeMap = {
@@ -358,8 +359,23 @@ export const equalWhere = (source: INormalWhere[], target: INormalWhere[]) => {
   return result;
 };
 
-export function getDurationDisplay(value: Array<number | string>) {
-  const str = value.map(v => (v ? `${formatDuration(Number(v))}` : '0ms')).join('~');
+/**
+ * 字节量字段的 tag 展示文案：把 [起始, 结束] 按字节单位格式化后用 ~ 连接
+ * @param value - 范围值，数值以 baseUnit 为单位
+ * @param baseUnit - 字段的基础单位（如 B / KiB），决定原始值的含义
+ */
+export function getBytesDisplay(value: Array<number | string>, baseUnit: TBytesBaseUnit = 'B') {
+  const str = value.map(v => (v ? `${formatBytes(Number(v), baseUnit)}` : `0${baseUnit}`)).join('~');
+  return str;
+}
+
+/**
+ * 耗时字段的 tag 展示文案：把 [起始, 结束] 按时间单位格式化后用 ~ 连接
+ * @param value - 范围值，数值以 baseUnit 为单位
+ * @param baseUnit - 字段的基础单位（如 μs / ms / ns），决定原始值的含义
+ */
+export function getDurationDisplay(value: Array<number | string>, baseUnit: TDurationBaseUnit = 'μs') {
+  const str = value.map(v => (v ? `${formatDuration(Number(v), baseUnit)}` : `0${baseUnit}`)).join('~');
   return str;
 }
 

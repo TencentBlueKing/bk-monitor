@@ -1396,17 +1396,19 @@ class ListMergeSourcesResource(Resource):
             return result
 
         member_ids = [r.member_issue_id for r in relations]
-        # 同次 ES 查询多 source 一个 first_alert_time，用于后续 anomaly_message 查询的索引时间窗
+        # 同次 ES 查询多 source first_alert_time（后续 anomaly_message 查询的索引时间窗）与 alert_count（成员告警数）
         member_hits = (
             IssueDocument.search(all_indices=True)
             .filter("terms", _id=member_ids)
-            .source(["name", "status", "first_alert_time"])
+            .source(["name", "status", "first_alert_time", "last_alert_time", "alert_count"])
             .params(size=len(member_ids))
             .execute()
             .hits
         )
         name_map = {hit.meta.id: getattr(hit, "name", None) for hit in member_hits}
         first_alert_time_map = {hit.meta.id: int(getattr(hit, "first_alert_time", 0) or 0) for hit in member_hits}
+        last_alert_time_map = {hit.meta.id: int(getattr(hit, "last_alert_time", 0) or 0) for hit in member_hits}
+        alert_count_map = {hit.meta.id: int(getattr(hit, "alert_count", 0) or 0) for hit in member_hits}
         # member 当前 ES status：方案 A cascade follow 落地后 active member 的 status 会跟随主，
         # 前端可据此展示 member 当前真实状态（如"已跟随主 Issue RESOLVED"）
         member_es_status_map = {hit.meta.id: getattr(hit, "status", None) for hit in member_hits}
@@ -1419,9 +1421,16 @@ class ListMergeSourcesResource(Resource):
                 "member_issue_id": r.member_issue_id,
                 "member_name": name_map.get(r.member_issue_id) or f"{r.member_issue_id} (已删除)",
                 "anomaly_message": anomaly_map.get(r.member_issue_id, "--"),
+                # 成员告警数：active 成员合并后冻结（文档值即合并口径）；
+                # split 条目为文档当前值，拆分后可能随新告警推进。ES 缺失时兜底 0
+                "alert_count": alert_count_map.get(r.member_issue_id, 0),
                 "merge_reasons": r.merge_reasons,
                 "merge_operator": r.create_user,
                 "merge_time": int(r.create_time.timestamp()) if r.create_time else 0,
+                # 成员自身的告警时间线（秒级时间戳）：合并后成员文档冻结，即合并前的真实时间，
+                # 供合并明细展示「最早发生时间 / 最后出现时间」。ES 缺失时为 0，前端按占位渲染
+                "first_alert_time": first_alert_time_map.get(r.member_issue_id, 0),
+                "last_alert_time": last_alert_time_map.get(r.member_issue_id, 0),
                 # 关系状态（active / split）。旧字段 `status` 保留一个发布周期向后兼容，
                 # 待前端切到 `relation_status` 后下一版移除
                 "status": r.status,

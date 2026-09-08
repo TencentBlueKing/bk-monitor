@@ -394,6 +394,8 @@ RESOURCE_DATA_COLLECT_RATIO = 0
 
 # Redis 自监控收尾阶段的策略成本周期快照，按环境通过 GlobalConfig 显式开启。
 ENABLE_REDIS_STRATEGY_COST_SNAPSHOT = False
+# 命令之间检查的软预算（秒），不能中断在途 Redis 命令。取值夹在 5–30，不随节点数放大。
+REDIS_STRATEGY_COST_SNAPSHOT_TOTAL_BUDGET_SECONDS = 20
 
 # 告警汇总配置
 DIMENSION_COLLECT_THRESHOLD = 2
@@ -1583,6 +1585,13 @@ OPENCLAW_RECOVERING_MCP_SERVER_NAME = ""
 ENABLE_AI_RENAME = False
 # MCP权限校验豁免的工具名称白名单
 MCP_PERMISSION_EXEMPT_TOOLS = ["list_spaces"]
+# Opt in by canonical unified-MCP tool name; applies to standalone routes too.
+# Native permissions first, legacy MCP action only after an explicit denial.
+# Keep empty until target IAM permissions and application access have been verified.
+MCP_NATIVE_PERMISSION_TOOLS: list[str] = []
+# Native log MVP requires an explicitly confirmed V3 current-action model.
+# {"mode": "v3-current", "gateway_url": "https://.../api/bk-iam/prod/"}
+MCP_LOG_IAM_PROFILE: dict = {}
 MCP_MAX_TIME_SPAN_SECONDS = 86400  # MCP 查询跨度限制
 # APM Profiling 数据密度高(秒级采样, 单服务每分钟可达数 MB), 单独收紧 MCP 查询跨度上限
 # 避免: 数据量爆炸 / LLM 上下文超限 / 下游 doris 查询超时
@@ -1732,19 +1741,10 @@ BKBASE_REDIS_RECONNECT_INTERVAL_SECONDS = 2
 BKBASE_REDIS_LOCK_NAME = "watch_bkbase_meta_redis_lock"
 # 是否同步数据至DB
 ENABLE_SYNC_BKBASE_METADATA_TO_DB = False
-# BKBase graph relation 链路自动 apply 业务白名单，包括内置关系周期双写和图定义变更增量同步
-_graph_relation_bkbase_sync_biz_id_white_list_env = os.getenv("GRAPH_RELATION_BKBASE_SYNC_BIZ_ID_WHITE_LIST", "")
-GRAPH_RELATION_BKBASE_SYNC_BIZ_ID_WHITE_LIST = [
-    int(biz_id.strip())
-    for biz_id in _graph_relation_bkbase_sync_biz_id_white_list_env.split(",")
-    if biz_id.strip().isdigit()
-]
-# 图关系 v1beta3 查询业务灰度白名单，默认关闭，避免写侧灰度自动触发查询切流
-_graph_relation_query_v1beta3_biz_id_white_list_env = os.getenv("GRAPH_RELATION_QUERY_V1BETA3_BIZ_ID_WHITE_LIST", "")
-GRAPH_RELATION_QUERY_V1BETA3_BIZ_ID_WHITE_LIST = [
-    int(biz_id.strip())
-    for biz_id in _graph_relation_query_v1beta3_biz_id_white_list_env.split(",")
-    if biz_id.strip().isdigit()
+# Graph Relation V4 业务灰度白名单，同时控制双写链路自动 apply 和 v1beta3 查询切流
+_graph_relation_v4_biz_id_white_list_env = os.getenv("GRAPH_RELATION_V4_BIZ_ID_WHITE_LIST", "")
+GRAPH_RELATION_V4_BIZ_ID_WHITE_LIST = [
+    int(biz_id.strip()) for biz_id in _graph_relation_v4_biz_id_white_list_env.split(",") if biz_id.strip().isdigit()
 ]
 
 # 特殊的可以不被禁用的BCS集群ID
@@ -1856,6 +1856,9 @@ K8S_V2_BIZ_LIST = []
 
 # RUM 灰度列表，关闭灰度: [0] 或删除该配置
 RUM_BIZ_LIST = []
+
+# LLM 观测灰度业务列表，关闭灰度: [0] 或删除该配置
+LLM_BIZ_LIST = []
 
 # APM UnifyQuery 查询业务黑名单
 APM_UNIFY_QUERY_BLACK_BIZ_LIST = []

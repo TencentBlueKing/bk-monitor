@@ -30,7 +30,7 @@ import useStore from './use-store';
 export default () => {
   const store = useStore();
 
-  const alias_settings = computed(() =>
+  const aliasSettings = computed(() =>
     (store.getters.rawFieldList ?? [])
       .filter(f => f.query_alias)
       .map(f => ({
@@ -40,14 +40,14 @@ export default () => {
       })),
   );
 
-  const sort_list = computed(() =>
+  const sortList = computed(() =>
     store.state.localSort
       ? (store.state.indexItem.sort_list ?? [])
       : (store.state.retrieve.catchFieldCustomConfig.sortList ?? []),
   );
 
   return {
-    alias_settings,
-    sort_list,
+    alias_settings: aliasSettings,
+    sort_list: sortList,
   };
 };

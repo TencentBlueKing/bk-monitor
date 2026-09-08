@@ -80,21 +80,26 @@ export default defineComponent({
             ) : (
               <span class='issue-name'>{this.name}</span>
             )}
-            <span class='divider' />
-            {this.loading ? (
-              <div class='skeleton-element desc-skeleton' />
-            ) : (
-              <span
-                class='issue-desc'
-                v-overflow-tips
-              >
-                {this.desc}
-              </span>
+            {(this.loading || this.desc) && (
+              <>
+                <span class='divider' />
+                {this.loading ? (
+                  <div class='skeleton-element desc-skeleton' />
+                ) : (
+                  <span
+                    class='issue-desc'
+                    v-overflow-tips
+                  >
+                    {this.desc}
+                  </span>
+                )}
+              </>
             )}
           </div>
 
           {this.$slots.actions?.()}
         </div>
+        {this.$slots.content && <div class='issue-info-row issue-content-row'>{this.$slots.content()}</div>}
         <div class='issue-metrics-row'>
           {this.$slots.prefix?.()}
           {this.loading

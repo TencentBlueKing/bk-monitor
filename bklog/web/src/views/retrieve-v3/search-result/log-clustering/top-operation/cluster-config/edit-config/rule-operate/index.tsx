@@ -340,7 +340,7 @@ export default defineComponent({
                 right-icon='bk-icon icon-search'
                 value={searchValue.value}
                 clearable
-                on-change={(value) => {
+                on-change={value => {
                   searchValue.value = value;
                 }}
                 on-clear={handleSearch}
@@ -485,7 +485,7 @@ export default defineComponent({
         </div>
         <other-import
           isShow={isShowOtherImport.value}
-          on-show-change={(value) => {
+          on-show-change={value => {
             isShowOtherImport.value = value;
           }}
           on-success={list => emit('rule-list-change', list)}

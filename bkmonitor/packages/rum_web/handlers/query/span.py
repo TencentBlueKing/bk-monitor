@@ -17,9 +17,11 @@ from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQ
 from bkmonitor.data_source.utils.apm import APMQueryFilterMixin
 from bkm_space.utils import bk_biz_id_to_space_uid
 from constants.data_source import DataSourceLabel, DataTypeLabel
-from constants.otel_query import FIELD_OPERATIONS
+from constants.otel_query import FIELD_OPERATIONS, EnabledStatisticsDimension
 
+from semconv.rum.field import FieldSpec
 from semconv.rum.trace import SpanSpec
+from semconv.constants import FieldDisplayType
 
 
 class SpanQuery(APMQueryFilterMixin, BaseQuery):
@@ -27,6 +29,12 @@ class SpanQuery(APMQueryFilterMixin, BaseQuery):
     DEFAULT_TIME_FIELD = "end_time"
     DEFAULT_SORT = ["-end_time"]
     FIELD_OPERATIONS = FIELD_OPERATIONS
+
+    NON_DIMENSION_FIELDS = {
+        "trace_id",
+        "span_id",
+        "parent_span_id",
+    }
 
     @classmethod
     def build_query_q(cls, q: QueryConfigBuilder, filters: list[types.Filter] | None, query_string: str = ""):
@@ -127,6 +135,40 @@ class SpanQuery(APMQueryFilterMixin, BaseQuery):
             self.get_queries(filters, query_string), start_time, end_time, field, method
         )
 
+    @classmethod
+    def _apply_field_spec(cls, field_dict: dict[str, Any], spec: FieldSpec) -> dict[str, Any]:
+        """将 FieldSpec 中的数据（单位、展示类型、枚举候选值）填充到字段字典中。
+
+        仅当 spec 显式提供对应值时才写入，避免覆盖 data_source 返回的原始值；
+        枚举候选值统一转换为 ``{"value": ..., "alias": ...}`` 列表以便 JSON 序列化。
+        """
+        field_dict["field_alias"] = spec.field_alias or field_dict.get("field_alias") or spec.get_full_field_name()
+        field_dict["is_real"] = spec.is_real
+        if spec.field_unit is not None:
+            field_dict["field_unit"] = spec.field_unit
+        if spec.field_type is not None:
+            field_dict["field_type"] = spec.field_type
+        if spec.field_display_type is not None:
+            field_dict["field_display_type"] = spec.field_display_type
+        if spec.option_values is not None:
+            field_dict["option_values"] = [
+                {"value": value, "alias": alias} for value, alias in spec.option_values.choices()
+            ]
+        if spec.rating_config:
+            field_dict["rating_config"] = []
+            for config in spec.rating_config:
+                item = {"rating": config.rating}
+                if config.value is not None:
+                    item["value"] = config.value
+                field_dict["rating_config"].append(item)
+        field_dict["is_agg"] = (
+            field_dict.get("is_agg", False)
+            and field_dict.get("field_type") in EnabledStatisticsDimension.values()
+            and spec.field_display_type != FieldDisplayType.DATETIME.value
+            and field_dict.get("field_name") not in cls.NON_DIMENSION_FIELDS
+        )
+        return field_dict
+
     def query_fields(self, start_time: int | None, end_time: int | None) -> dict[str, dict[str, Any]]:
         """查询字段元数据，并通过 SpanSpec 补充别名、单位和枚举候选值。"""
         field_map = super()._query_fields(
@@ -134,16 +176,23 @@ class SpanQuery(APMQueryFilterMixin, BaseQuery):
             start_time,
             end_time,
         )
+        # 真实字段
         for field_name, field_dict in field_map.items():
-            spec = SpanSpec.from_field(field_name)
-            field_dict["field_alias"] = spec.field_alias or field_name
-            field_dict["is_real"] = True
-            if spec.field_unit is not None:
-                field_dict["field_unit"] = spec.field_unit
-            if spec.field_display_type is not None:
-                field_dict["field_display_type"] = spec.field_display_type
-            if spec.option_values is not None:
-                field_dict["option_values"] = [
-                    {"value": value, "alias": alias} for value, alias in spec.option_values.choices()
-                ]
+            self._apply_field_spec(field_dict, SpanSpec.from_field(field_name))
+
+        # 虚拟字段
+        for spec in SpanSpec.fields():
+            field_name = spec.get_full_field_name()
+            if spec.is_real or field_name in field_map:
+                continue
+            field_dict = {
+                "field_name": field_name,
+                "is_searchable": True,
+                "is_agg": True,
+                "is_list": False,
+                "origin_field": field_name.split(".", 1)[0],
+                "supported_operations": self.FIELD_OPERATIONS.get(spec.field_type, []),
+            }
+            self._apply_field_spec(field_dict, spec)
+            field_map[field_name] = field_dict
         return field_map

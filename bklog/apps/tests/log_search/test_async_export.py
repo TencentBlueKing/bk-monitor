@@ -43,7 +43,7 @@ from apps.log_search.exceptions import (
 )
 from apps.log_search.handlers.search.async_export_handlers import AsyncExportHandlers
 from apps.log_search.handlers.search.search_handlers_esquery import SearchHandler
-from apps.log_search.models import AsyncTask, Scenario
+from apps.log_search.models import AsyncTask, LogIndexSet, Scenario
 from apps.log_search.tasks.async_export import (
     AsyncExportUtils,
     UnionAsyncExportUtils,
@@ -180,11 +180,14 @@ class TestAsyncExportProgress(TestCase):
             task_id, total_count = AsyncExportHandlers(
                 index_set_id=3,
                 bk_biz_id=2,
+                request_bk_biz_id=7,
                 search_dict=SEARCH_DICT,
             ).async_export()
 
         async_task = AsyncTask.objects.get(id=task_id)
         self.assertEqual(total_count, SEARCH_DICT["size"])
+        self.assertEqual(async_task.bk_biz_id, 7)
+        self.assertEqual(async_task.request_param["bk_biz_id"], 7)
         self.assertEqual(async_task.export_total_count, SEARCH_DICT["size"])
         self.assertEqual(async_task.exported_count, 0)
         self.assertEqual(async_task.download_count, 0)
@@ -449,6 +452,138 @@ class TestAsyncExportProgress(TestCase):
             total_count = handler.get_union_export_total_count(request_size=100)
 
         self.assertEqual(total_count, 30)
+
+
+class TestSearchViewSetExport(TestCase):
+    def setUp(self):
+        self.request = APIRequestFactory().post("/api/v1/search/index_set/3/export/")
+        self.request.user = Mock(is_superuser=True)
+        self.view = SearchViewSet()
+        self.view.request = self.request
+        self.index_set = Mock(is_platform_index=False)
+        self.view.get_object = Mock(return_value=self.index_set)
+
+    @staticmethod
+    def _search_export_params():
+        return {
+            "bk_biz_id": 7,
+            "scenario_id": Scenario.LOG,
+            "start_time": SEARCH_DICT["start_time"],
+            "end_time": SEARCH_DICT["end_time"],
+            "export_fields": [],
+            "file_type": "txt",
+        }
+
+    def test_async_export_passes_request_biz_id_before_scope_resolution(self):
+        self.view.params_valid = Mock(return_value=self._search_export_params())
+
+        with (
+            patch(
+                "apps.log_search.views.search_views.LogIndexSet.resolve_search_scope",
+                return_value=(2, "bkcc__2"),
+            ),
+            patch("apps.log_search.views.search_views.FeatureToggleObject.switch", return_value=False),
+            patch(
+                "apps.log_search.views.search_views.FeatureToggleObject.toggle",
+                return_value=Mock(feature_config={}),
+            ),
+            patch("apps.log_search.handlers.search.async_export_handlers.SearchHandler", FakeSearchHandler),
+            patch("apps.log_search.models.cache.lock", return_value=Mock(acquire=Mock(return_value=True))),
+            patch("apps.log_search.handlers.search.async_export_handlers.async_export.delay"),
+            patch.object(AsyncExportHandlers, "_get_url", return_value="/download/"),
+            patch.object(AsyncExportHandlers, "_get_search_url", return_value="/search/"),
+            patch("apps.log_search.handlers.search.async_export_handlers.get_request_username", return_value="admin"),
+            patch(
+                "apps.log_search.handlers.search.async_export_handlers.get_request_external_username", return_value=""
+            ),
+            patch(
+                "apps.log_search.handlers.search.async_export_handlers.get_request_language_code",
+                return_value="zh-hans",
+            ),
+            patch(
+                "apps.log_search.handlers.search.async_export_handlers.get_request_external_user_email", return_value=""
+            ),
+        ):
+            response = self.view.async_export(self.request, index_set_id=3)
+
+        async_task = AsyncTask.objects.get(id=response.data["task_id"])
+        self.assertEqual(async_task.bk_biz_id, 7)
+        self.assertEqual(async_task.request_param["bk_biz_id"], 7)
+
+    def test_unify_query_async_export_passes_request_biz_id_before_scope_resolution(self):
+        self.view.params_valid = Mock(return_value=self._search_export_params())
+        unify_query_handler = Mock(
+            origin_order_by=[],
+            index_info_list=[{"scenario_id": Scenario.LOG, "index_set_obj": Mock(max_async_count=0)}],
+        )
+        unify_query_handler.pre_get_result.return_value = {"list": [{}]}
+
+        with (
+            patch(
+                "apps.log_search.views.search_views.LogIndexSet.resolve_search_scope",
+                return_value=(2, "bkcc__2"),
+            ),
+            patch("apps.log_search.views.search_views.FeatureToggleObject.switch", return_value=True),
+            patch(
+                "apps.log_search.views.search_views.FeatureToggleObject.toggle",
+                return_value=Mock(feature_config={}),
+            ),
+            patch(
+                "apps.log_unifyquery.handler.async_export_handlers.UnifyQueryHandler",
+                return_value=unify_query_handler,
+            ),
+            patch("apps.log_search.models.cache.lock", return_value=Mock(acquire=Mock(return_value=True))),
+            patch("apps.log_unifyquery.handler.async_export_handlers.async_export.delay"),
+            patch.object(UnifyQueryAsyncExportHandlers, "_get_url", return_value="/download/"),
+            patch.object(UnifyQueryAsyncExportHandlers, "_get_search_url", return_value="/search/"),
+            patch("apps.log_unifyquery.handler.async_export_handlers.get_request_username", return_value="admin"),
+            patch(
+                "apps.log_unifyquery.handler.async_export_handlers.get_request_external_username", return_value=""
+            ),
+            patch(
+                "apps.log_unifyquery.handler.async_export_handlers.get_request_language_code",
+                return_value="zh-hans",
+            ),
+            patch(
+                "apps.log_unifyquery.handler.async_export_handlers.get_request_external_user_email", return_value=""
+            ),
+        ):
+            response = self.view.async_export(self.request, index_set_id=3)
+
+        async_task = AsyncTask.objects.get(id=response.data["task_id"])
+        self.assertEqual(async_task.bk_biz_id, 7)
+        self.assertEqual(async_task.request_param["bk_biz_id"], 7)
+
+    def test_sync_export_records_request_biz_id_before_scope_resolution(self):
+        self.view.params_valid = Mock(return_value=self._search_export_params())
+        index_set = Mock(space_uid="bkcc__2", is_platform_index=False)
+        index_set.get_indexes.return_value = [{"result_table_id": "table"}]
+        index_set_query = Mock()
+        index_set_query.first.return_value = index_set
+        search_handler = Mock()
+        search_handler.search.return_value = {"origin_log_list": []}
+        response = Mock()
+
+        with (
+            patch(
+                "apps.log_search.views.search_views.LogIndexSet.resolve_search_scope",
+                return_value=(2, "bkcc__2"),
+            ),
+            patch("apps.log_search.views.search_views.FeatureToggleObject.switch", return_value=False),
+            patch.object(LogIndexSet.objects, "filter", return_value=index_set_query),
+            patch("apps.log_search.views.search_views.SearchHandlerEsquery", return_value=search_handler),
+            patch("apps.log_search.views.search_views.create_download_response", return_value=response),
+            patch.object(AsyncTask.objects, "create") as create_task,
+            patch("apps.log_search.views.search_views.get_request_external_username", return_value=""),
+            patch("apps.log_search.views.search_views.get_request_username", return_value="admin"),
+            patch("apps.log_search.views.search_views.user_operation_record.delay"),
+        ):
+            result = self.view.export(self.request, index_set_id=3)
+
+        self.assertIs(result, response)
+        task_kwargs = create_task.call_args.kwargs
+        self.assertEqual(task_kwargs["bk_biz_id"], 7)
+        self.assertEqual(task_kwargs["request_param"]["bk_biz_id"], 7)
 
 
 class TestAsyncExportConcurrentCheckOrder(TestCase):

@@ -40,7 +40,12 @@ export const useRealtimeRelatedLog = (options: {
     const currentSeq = requestSeq;
     const params = flattenLogParams(options.targetRow.value);
     const dtEventTimeStamp = getDtEventTimeStamp();
-    if (!options.indexSetId.value || dtEventTimeStamp === undefined || dtEventTimeStamp === null || dtEventTimeStamp === 'None') {
+    if (
+      !options.indexSetId.value ||
+      dtEventTimeStamp === undefined ||
+      dtEventTimeStamp === null ||
+      dtEventTimeStamp === 'None'
+    ) {
       return;
     }
 
@@ -66,7 +71,7 @@ export const useRealtimeRelatedLog = (options: {
 
       if (isInit) {
         common.setRawLists(list.slice(-1), list.slice(0, -1));
-            common.paramsInfo.value = flattenLogParams(list[list.length - 1]);
+        common.paramsInfo.value = flattenLogParams(list[list.length - 1]);
       } else {
         common.appendRawRows(list);
       }

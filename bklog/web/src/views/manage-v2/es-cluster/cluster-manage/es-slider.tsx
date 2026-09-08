@@ -180,7 +180,6 @@ export default defineComponent({
     const cacheBkBizLabelsList = ref([]); // 缓存按照业务属性选择
     const bizParentList = ref([]); // 按照业务属性父级列表
     const bizChildrenList = ref({}); // 业务属性选择子级键值对象
-    const userApi = ref((window as any).BK_LOGIN_URL); // 负责人api
     const isShowManagement = ref(false); // 是否展示集群管理
     const retentionDaysList = ref([]); // 默认过期时间列表
     const maxDaysList = ref([]); // 最大过期时间列表
@@ -220,8 +219,8 @@ export default defineComponent({
       if (isDoris.value) {
         const { visible_type: visibleType } = formData.value.visible_config;
         return (
-          (visibleType === 'multi_biz' && !visibleBkBiz.value.length)
-          || (visibleType === 'biz_attr' && !bkBizLabelsList.value.length)
+          (visibleType === 'multi_biz' && !visibleBkBiz.value.length) ||
+          (visibleType === 'biz_attr' && !bkBizLabelsList.value.length)
         );
       }
       return connectResult.value !== 'success' || invalidHotSetting.value || isRulesCheckSubmit.value;
@@ -245,7 +244,6 @@ export default defineComponent({
     };
 
     // 编辑：获取集群信息并回填
-    // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: reason
     const editDataSource = async () => {
       try {
         sliderLoading.value = true;
@@ -284,9 +282,7 @@ export default defineComponent({
           await getBizPropertyId();
         }
         const visibleConfig = clusterData.cluster_config.custom_option?.visible_config || {};
-        bkBizLabelsList.value = Object.entries(
-          visibleConfig.bk_biz_labels || {},
-        ).reduce((pre: any[], cur) => {
+        bkBizLabelsList.value = Object.entries(visibleConfig.bk_biz_labels || {}).reduce((pre: any[], cur) => {
           const propertyName = bizParentList.value.find(item => item.id === cur[0]);
           const obj = {
             name: propertyName?.name || cur[0], // 如果找不到名称，使用 ID 作为名称
@@ -472,7 +468,6 @@ export default defineComponent({
     };
 
     // 提交新增/提交编辑
-    // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: reason
     const handleConfirm = async () => {
       const isCanSubmit = checkSelectItem();
       if (!isCanSubmit) {
@@ -643,7 +638,6 @@ export default defineComponent({
     };
 
     // 判断过期时间输入的值
-    // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: reason
     const enterCustomDay = (val, type) => {
       const numberVal = Number.parseInt(val.trim(), 10);
       const stringVal = numberVal.toString();
@@ -755,7 +749,7 @@ export default defineComponent({
     // 监听：侧滑显示/隐藏
     watch(
       () => props.showSlider,
-      async (val) => {
+      async val => {
         if (val) {
           // 先获取业务属性列表，确保在编辑模式下回填数据时 bizParentList 已经有值
           await getBizPropertyId();
@@ -851,7 +845,7 @@ export default defineComponent({
     // 监听：可见范围类型切换
     watch(
       () => formData.value.visible_config.visible_type,
-      (val) => {
+      val => {
         if (val !== 'multi_biz') {
           visibleList.value = [];
         } else {
@@ -868,7 +862,7 @@ export default defineComponent({
     // 监听：多业务可见列表变化时，同步 ID 列表
     watch(
       () => visibleList.value,
-      (val) => {
+      val => {
         visibleBkBiz.value = val.map((item: any) => item.id);
       },
       { deep: true },
@@ -906,7 +900,7 @@ export default defineComponent({
           enable-virtual-scroll
           multiple
           searchable
-          onChange={(v) => {
+          onChange={v => {
             visibleBkBiz.value = v;
           }}
         ></bk-select>
@@ -1034,7 +1028,6 @@ export default defineComponent({
     );
 
     // 主渲染
-    // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: reason
     return () => (
       <div
         class='es-access-slider-container'
@@ -1375,13 +1368,13 @@ export default defineComponent({
                             size='large'
                             theme='primary'
                             value={formData.value.enable_hot_warm}
-                            onChange={(val) => {
+                            onChange={val => {
                               formData.value.enable_hot_warm = val;
                               handleChangeHotWarm(val);
                             }}
                           />
-                          {isDisableHotSetting.value
-                            && !connectLoading.value && [
+                          {isDisableHotSetting.value &&
+                            !connectLoading.value && [
                               <span
                                 key='icon-info'
                                 class='bk-icon icon-info'
@@ -1400,7 +1393,7 @@ export default defineComponent({
                               >
                                 {t('查看具体的配置方法')}
                               </a>,
-                          ]}
+                            ]}
                         </div>
                       </bk-form-item>
 
@@ -1483,7 +1476,6 @@ export default defineComponent({
                                 onClick={() => ManageHelper.handleGotoLink('logArchive')}
                               >
                                 <span class='bk-icon icon-text-file' />
-                                {/** biome-ignore lint/nursery/useAnchorHref: reason */}
                                 <a>{t('查看说明文档')}</a>
                               </div>
                             )}

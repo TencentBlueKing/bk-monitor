@@ -30,6 +30,8 @@ from bkmonitor.utils.common_utils import format_percent
 from bkmonitor.utils.thread_backend import ThreadPool
 from core.drf_resource import resource
 from semconv.rum.constants import RumSpanType
+from semconv.rum.trace import SpanSpec
+from constants.otel_query import FieldTypeEnum
 from rum_web.handlers.level.base import BaseRumLevelHandler
 from rum_web.handlers.query.span import SpanQuery
 from rum_web.constants import RUM_SEARCH_PAGE_GROUPS
@@ -50,75 +52,9 @@ class SpanLevelHandler(BaseRumLevelHandler):
         "attributes.view.url_template",
         "attributes.user.id",
     ]
-    VIRTUAL_FIELDS = {
-        "CLS": {
-            "field_name": "CLS",
-            "field_alias": "累积布局偏移",
-            "field_type": "double",
-            "origin_field": "CLS",
-            "is_searchable": True,
-            "is_agg": True,
-            "is_list": False,
-            "is_real": False,
-            "supported_operations": [],
-        },
-        "INP": {
-            "field_name": "INP",
-            "field_alias": "交互到下一次绘制",
-            "field_type": "double",
-            "field_unit": "ms",
-            "origin_field": "INP",
-            "is_searchable": True,
-            "is_agg": True,
-            "is_list": False,
-            "is_real": False,
-            "supported_operations": [],
-        },
-        "LCP": {
-            "field_name": "LCP",
-            "field_alias": "最大内容绘制",
-            "field_type": "double",
-            "field_unit": "ms",
-            "origin_field": "LCP",
-            "is_searchable": True,
-            "is_agg": True,
-            "is_list": False,
-            "is_real": False,
-            "supported_operations": [],
-        },
-        "FCP": {
-            "field_name": "FCP",
-            "field_alias": "首次内容绘制",
-            "field_type": "double",
-            "field_unit": "ms",
-            "origin_field": "FCP",
-            "is_searchable": True,
-            "is_agg": True,
-            "is_list": False,
-            "is_real": False,
-            "supported_operations": [],
-        },
-        "TTFB": {
-            "field_name": "TTFB",
-            "field_alias": "首字节耗时",
-            "field_type": "double",
-            "field_unit": "ms",
-            "origin_field": "TTFB",
-            "is_searchable": True,
-            "is_agg": True,
-            "is_list": False,
-            "is_real": False,
-            "supported_operations": [],
-        },
-    }
+    #: 常驻筛选字段，前端置顶展示并默认带出的筛选维度
+    RESIDENT_FIELDS = ["trace_id", "span_id", "kind", "elapsed_time", "span_name", "attributes.view.name"]
     VIEW_CONFIG_IGNORE_KEYS = ["is_case_sensitive", "is_analyzed", "wildcard_case_insensitive", "tokenize_on_chars"]
-
-    #: 数值类型字段集合
-    NUMERIC_FIELD_TYPES = {
-        EnabledStatisticsDimension.INTEGER.value,
-        EnabledStatisticsDimension.LONG.value,
-        EnabledStatisticsDimension.DOUBLE.value,
-    }
 
     BASE_STATISTICS_PROPERTIES: set[str] = {
         StatisticsProperty.TOTAL_COUNT.value,
@@ -132,6 +68,17 @@ class SpanLevelHandler(BaseRumLevelHandler):
         StatisticsProperty.MIN.value,
         StatisticsProperty.MEDIAN.value,
         StatisticsProperty.AVG.value,
+    }
+
+    BOOLEAN_VALUE_TRANSFORM_MAP = {
+        "1": True,
+        "0": False,
+        1: True,
+        0: False,
+        "true": True,
+        "false": False,
+        "True": True,
+        "False": False,
     }
 
     def __init__(self, data_sources: list[TraceDatasourceTarget]):
@@ -163,9 +110,6 @@ class SpanLevelHandler(BaseRumLevelHandler):
         for field_name, field_dict in field_map.items():
             for key in self.VIEW_CONFIG_IGNORE_KEYS:
                 field_dict.pop(key, None)
-        # mapping 没有的虚拟字段，先补进 field_map，WEB_VITALS 才组得起来
-        for name, meta in self.VIRTUAL_FIELDS.items():
-            field_map.setdefault(name, meta)
 
         return {
             "default_sort": list(self.query.DEFAULT_SORT),
@@ -180,8 +124,16 @@ class SpanLevelHandler(BaseRumLevelHandler):
                 for group in RUM_SEARCH_PAGE_GROUPS.get("span", [])
             ],
             "display_fields": list(self.DISPLAY_FIELDS),
+            "resident_fields": list(self.RESIDENT_FIELDS),
             "span_type_display_fields": {span_type.value: span_type.display_fields for span_type in RumSpanType},
         }
+
+    @classmethod
+    def _value_transform(cls, field: str, value: str):
+        span_spec = SpanSpec.from_field(field)
+        if span_spec.field_type == FieldTypeEnum.BOOLEAN.value:
+            return cls.BOOLEAN_VALUE_TRANSFORM_MAP.get(value, bool(value))
+        return value
 
     def get_fields_option_values(
         self,
@@ -193,7 +145,12 @@ class SpanLevelHandler(BaseRumLevelHandler):
         query_string: str = "",
         extra_config: dict[str, Any] | None = None,
     ) -> dict[str, list[str]]:
-        return self.query.query_option_values(start_time, end_time, fields, limit, filters or [], query_string)
+        result: dict[str, list[str]] = self.query.query_option_values(
+            start_time, end_time, fields, limit, filters or [], query_string
+        )
+        for field, values in result.items():
+            result[field] = [self._value_transform(field, value) for value in values]
+        return result
 
     def field_topk(
         self,
@@ -216,7 +173,7 @@ class SpanLevelHandler(BaseRumLevelHandler):
 
         def _query_total():
             results["total"] = self.query.query_field_aggregated_value(
-                start_time, end_time, "_index", "count", filters, query_string
+                start_time, end_time, field, "count", filters, query_string
             )
 
         def _query_distinct():
@@ -242,14 +199,11 @@ class SpanLevelHandler(BaseRumLevelHandler):
                 sig_fig_cnt=3,
                 readable_precision=3,
             )
-            topk_list.append({"value": bucket.get(field), "count": count, "proportions": proportions})
+            topk_list.append(
+                {"value": self._value_transform(field, bucket.get(field)), "count": count, "proportions": proportions}
+            )
 
         return {"field": field, "distinct_count": distinct_count, "list": topk_list}
-
-    @classmethod
-    def _is_number_field(cls, field: dict[str, Any]) -> bool:
-        """判断字段是否为数值类型。"""
-        return field["field_type"] in cls.NUMERIC_FIELD_TYPES
 
     def field_statistics_info(
         self,
@@ -273,7 +227,7 @@ class SpanLevelHandler(BaseRumLevelHandler):
         # 基础统计属性
         statistics_properties: set[str] = (
             self.BASE_STATISTICS_PROPERTIES | self.NUMERIC_STATISTICS_PROPERTIES
-            if self._is_number_field(field)
+            if EnabledStatisticsDimension.from_value(field["field_type"]).is_numeric()
             else self.BASE_STATISTICS_PROPERTIES
         )
         target_properties: set[str] = statistics_properties - set(exclude_property)
@@ -305,7 +259,11 @@ class SpanLevelHandler(BaseRumLevelHandler):
         query_filters: list[types.Filter] = copy.deepcopy(filters)
         # 字段计数：排除空值。数值类型使用 exists 判断，其他类型排除空字符串。
         if property_name == StatisticsProperty.FIELD_COUNT.value:
-            exclude_empty_operator = FilterOperator.EXISTS if self._is_number_field(field) else FilterOperator.NOT_EQUAL
+            use_exists = (
+                EnabledStatisticsDimension.from_value(field["field_type"]).is_numeric()
+                or field["field_type"] == EnabledStatisticsDimension.BOOLEAN.value
+            )
+            exclude_empty_operator = FilterOperator.EXISTS if use_exists else FilterOperator.NOT_EQUAL
             query_filters.append({"key": field_name, "value": [""], "operator": exclude_empty_operator})
 
         # TOTAL_COUNT 使用 _index 计数，确保分母包含所有 Span（含缺失该字段的记录）
@@ -360,8 +318,9 @@ class SpanLevelHandler(BaseRumLevelHandler):
         field_name: str = field["field_name"]
         values: list[Any] = field.get("values") or []
 
-        # keyword 类型：按取值分组构建时序图
-        if field["field_type"] == EnabledStatisticsDimension.KEYWORD.value:
+        field_type_enum = EnabledStatisticsDimension.from_value(field["field_type"])
+        # 非数值类型（keyword）：按取值分组构建时序图
+        if not field_type_enum.is_numeric():
             keyword_filters = filters + [{"key": field_name, "value": values, "operator": FilterOperator.EQUAL}]
             config = self.query.query_graph_config(start_time, end_time, field_name, keyword_filters, query_string)
             config.update(
@@ -373,7 +332,16 @@ class SpanLevelHandler(BaseRumLevelHandler):
                     "end_time": config["end_time"] // 1000,
                 }
             )
-            return resource.grafana.graph_unify_query(config)
+            data: dict[str, Any] = resource.grafana.graph_unify_query(config)
+            if field["field_type"] != EnabledStatisticsDimension.BOOLEAN.value:
+                return data
+            series: list[dict[str, Any]] = data.get("series", [])
+            for s in series:
+                s.setdefault("dimensions", {})[field_name] = self._value_transform(
+                    field_name, s["dimensions"].get(field_name)
+                )
+
+            return data
 
         # 数值类型：values 至少 4 项 [min_value, max_value, distinct_count, interval_num]
         min_value, max_value, distinct_count, interval_num = values[:4]
@@ -382,17 +350,14 @@ class SpanLevelHandler(BaseRumLevelHandler):
 
         # 字段枚举数量小于等于区间数量，或 INTEGER / LONG 类型的区间最大数量小于等于区间数，直接查询枚举值返回
         use_discrete_values = distinct_count is not None and distinct_count <= interval_num
-        if field["field_type"] in {
-            EnabledStatisticsDimension.INTEGER.value,
-            EnabledStatisticsDimension.LONG.value,
-        }:
+        if field_type_enum.is_integer():
             use_discrete_values |= (max_value - min_value + 1) <= interval_num
 
         if use_discrete_values:
             topk_buckets = self.query.query_field_topk(
                 start_time, end_time, field_name, distinct_count, filters, query_string
             )
-            value_parser = float if field["field_type"] == EnabledStatisticsDimension.DOUBLE.value else int
+            value_parser = float if field_type_enum.is_float() else int
             datapoints: list[list[int | float]] = [
                 [bucket.get("_result_", 0), value_parser(bucket[field_name])] for bucket in topk_buckets
             ]
@@ -433,9 +398,9 @@ class SpanLevelHandler(BaseRumLevelHandler):
         """计算区间列表，每个元素为 [左闭右开) 区间 (min, max)。
 
         - integer / long：使用整数 nice number 生成器。
-        - double：使用 Decimal 计算支持小数的 nice bucket size，避免精度丢失。
+        - double / float：使用 Decimal 计算支持小数的 nice bucket size，避免精度丢失。
         """
-        if field_type != EnabledStatisticsDimension.DOUBLE.value:
+        if EnabledStatisticsDimension.from_value(field_type).is_integer():
             left_x, _right_x, bucket_size, num_buckets = HistogramNiceNumberGenerator.align_histogram_bounds(
                 min_value, max_value, interval_num
             )

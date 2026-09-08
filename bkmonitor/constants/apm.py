@@ -2020,6 +2020,14 @@ class Vendor:
         return any(cls.equal(expect_sdk, i.get("name")) for i in service_sdk)
 
 
+class LLMProduct(TextChoices):
+    DEFAULT = "default"
+    AGENTLENS = "agentlens"
+    AIDEV = "aidev"
+    GALILEO = "galileo"
+    LANGFUSE = "langfuse"
+
+
 class SpanKindCachedEnum(CachedEnum):
     SPAN_KIND_UNSPECIFIED = 0
     SPAN_KIND_INTERNAL = 1
@@ -2030,7 +2038,8 @@ class SpanKindCachedEnum(CachedEnum):
 
     @cached_property
     def label(self):
-        return str({label["value"]: label["text"] for label in self.list()}.get(self, self.value))
+        # list() 以 value 为键，此处同样按 value 取，否则查不到只能回落成数字
+        return str({label["value"]: label["text"] for label in self.list()}.get(self.value, self.value))
 
     @classmethod
     @lru_cache(maxsize=1)

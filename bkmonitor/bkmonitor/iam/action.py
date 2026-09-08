@@ -133,6 +133,26 @@ class ActionEnum:
         version=1,
     )
 
+    USING_LOG_COLLECTION_MCP = ActionMeta(
+        id="using_log_collection_mcp",
+        name=_("使用日志采集MCP"),
+        name_en="Using Log Collection MCP",
+        type="manage",
+        related_resource_types=[SPACE_RESOURCE],
+        related_actions=[VIEW_BUSINESS.id],
+        version=1,
+    )
+
+    USING_LOG_EXTRACT_MCP = ActionMeta(
+        id="using_log_extract_mcp",
+        name=_("使用日志提取MCP"),
+        name_en="Using Log Extract MCP",
+        type="manage",
+        related_resource_types=[SPACE_RESOURCE],
+        related_actions=[VIEW_BUSINESS.id],
+        version=1,
+    )
+
     USING_METADATA_MCP = ActionMeta(
         id="using_metadata_mcp",
         name=_("使用元数据MCP"),

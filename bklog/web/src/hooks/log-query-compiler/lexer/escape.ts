@@ -34,8 +34,7 @@ export const escapeQueryStringWildcardLiteral = (value: string): string => {
  * a "test"    → a \"test\"
  * C:\logs\app → C:\\logs\\app
  */
-export const escapeQueryStringPhraseLiteral = (value: string): string =>
-  String(value ?? '').replace(/["\\]/g, '\\$&');
+export const escapeQueryStringPhraseLiteral = (value: string): string => String(value ?? '').replace(/["\\]/g, '\\$&');
 
 export type PositionalWildcardOptions = {
   /**
@@ -61,10 +60,7 @@ export type PositionalWildcardOptions = {
  * 仅用 === / startsWith / endsWith（先比长度），禁止 includes 扫全量；
  * 对极端超大 VALUE（数 MB）复杂度约 O(|selected|)，不会扫全文。
  */
-const resolveWildcardAffixByChar = (
-  selected: string,
-  plain: string,
-): { prefix: boolean; suffix: boolean } => {
+const resolveWildcardAffixByChar = (selected: string, plain: string): { prefix: boolean; suffix: boolean } => {
   if (!plain || plain === '--') {
     return { prefix: true, suffix: true };
   }
@@ -111,13 +107,7 @@ export const resolveWildcardAffix = (
   const count = options?.tokenCount;
   const index = options?.tokenIndex;
 
-  if (
-    typeof count === 'number'
-    && count > 0
-    && typeof index === 'number'
-    && index >= 0
-    && index < count
-  ) {
+  if (typeof count === 'number' && count > 0 && typeof index === 'number' && index >= 0 && index < count) {
     // 字段只有一个分词：整词不加 *；部分划词按字符位置补通配
     if (count === 1) {
       if (!plain || plain === '--' || plain === selected) {

@@ -140,7 +140,7 @@ export const useCustomTypeIntro = (options: IUseCustomTypeIntroOptions): IUseCus
     const varibleList = intro.match(/\{\{([^)]*)\}\}/g);
     const data = options.getData();
 
-    varibleList?.forEach((item) => {
+    varibleList?.forEach(item => {
       const val = item.match(/\{\{([^)]*)\}\}/)?.[1];
       if (val && data[val]) {
         str = str.replace(item, data[val]);

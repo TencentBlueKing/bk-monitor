@@ -1,0 +1,179 @@
+.rum-dimension-panel {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  background: #fff;
+  border-right: 1px solid #dcdee5;
+
+  .panel-header {
+    display: flex;
+    align-items: center;
+    padding: 8px 12px;
+    line-height: 20px;
+
+    .icon-gongneng-shouqi {
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .panel-title {
+      margin-left: 6px;
+      font-size: 12px;
+      font-weight: 700;
+      color: #313238;
+    }
+
+    .panel-mode-tag {
+      padding: 0 6px;
+      margin-left: auto;
+      font-size: 12px;
+      font-weight: 700;
+      line-height: 20px;
+      color: #3a84ff;
+      background: #f0f5ff;
+      border-radius: 999px;
+    }
+  }
+
+  .panel-search {
+    padding: 0 12px;
+    margin-bottom: 8px;
+
+    .bk-input {
+      cursor: pointer;
+      border-color: transparent;
+
+      input,
+      .bk-input--suffix-icon {
+        background-color: #f0f1f5;
+      }
+
+      &:hover {
+        input,
+        .bk-input--suffix-icon {
+          background-color: #eaebf0;
+        }
+      }
+
+      &.is-focused {
+        box-shadow: none;
+      }
+    }
+  }
+
+  .panel-groups {
+    flex: 1;
+    margin-right: 1px;
+    overflow: hidden;
+
+    &:hover {
+      overflow-y: auto;
+    }
+  }
+
+  .dimension-group {
+    & + .dimension-group {
+      border-top: 1px solid #eaebf0;
+    }
+  }
+
+  .group-title {
+    display: flex;
+    align-items: center;
+    line-height: 20px;
+    padding: 12px 12px 6px;
+    cursor: pointer;
+
+    .group-icon {
+      flex-shrink: 0;
+      font-size: 12px;
+      color: #4d4f56;
+    }
+
+    .group-name {
+      margin-left: 6px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      font-size: 12px;
+      font-weight: 600;
+      color: #313238;
+      white-space: nowrap;
+    }
+
+    .group-count {
+      min-width: 18px;
+      height: 18px;
+      padding: 0 4px;
+      margin-left: 6px;
+      font-size: 12px;
+      font-weight: 700;
+      line-height: 18px;
+      color: #8f9fbd;
+      text-align: center;
+      background: #f0f4fa;
+      border-radius: 8px;
+    }
+
+    .group-arrow {
+      margin-left: auto;
+      font-size: 16px;
+      color: #979ba5;
+      transition: transform 0.1s;
+
+      &.collapsed {
+        transform: rotate(-90deg);
+      }
+    }
+  }
+}
+
+.rum-dimension-panel-skeleton {
+  padding: 8px 12px;
+
+  .title {
+    height: 20px;
+  }
+
+  .search-input {
+    height: 32px;
+    margin: 8px 0;
+  }
+
+  .list-item {
+    height: 14px;
+    margin-bottom: 14px;
+  }
+}
+
+/*
+ * v-overflow-tips（维度名省略号）：与下方 statistics 弹层同理，双 theme token 提高特异性。
+ * APM 嵌入时 trace 主站的 global.scss 可能未进包，宿主全局 .tippy-* / [data-theme~='light'] 会污染默认气泡样式。
+ */
+.tippy-box[data-theme~='dark'][data-theme~='dimension-filter-name-overflow'] {
+  > .tippy-arrow {
+    margin-top: -7px;
+  }
+}
+
+/* 同时带 light 与自定义 token，特异性高于 global.scss 里单独的 [data-theme~='light']，避免阴影等被覆盖 */
+.tippy-box[data-theme~='light'][data-theme~='statistics-dimension-popover-cls'] {
+  box-sizing: border-box;
+  width: 405px;
+  min-width: 405px;
+  max-width: 405px;
+  border: 1px solid #dcdee5;
+  box-shadow: 0 2px 12px 0 #0003;
+
+  .tippy-content {
+    padding: 12px;
+  }
+
+  // #if IS_APM_MONITOR
+  > .tippy-arrow {
+    margin-top: -6px;
+  }
+
+  // #endif
+}

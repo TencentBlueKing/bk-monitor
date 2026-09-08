@@ -50,140 +50,140 @@
 </template>
 
 <script>
-import ContextLog from '@/views/retrieve-v3/search-result/original-log/context-log/index.tsx';
-import RealTimeLog from '@/views/retrieve-v3/search-result/original-log/real-time-log';
-import LogRows from './log-rows.tsx';
-import RetrieveHelper from '@/views/retrieve-helper';
-export default {
-  components: {
-    ContextLog,
-    LogRows,
-    RealTimeLog,
-  },
-  props: {
-    contentType: {
-      type: String,
-      default: 'table',
+  import ContextLog from '@/views/retrieve-v3/search-result/original-log/context-log/index.tsx';
+  import RealTimeLog from '@/views/retrieve-v3/search-result/original-log/real-time-log';
+  import LogRows from './log-rows.tsx';
+  import RetrieveHelper from '@/views/retrieve-helper';
+  export default {
+    components: {
+      ContextLog,
+      LogRows,
+      RealTimeLog,
     },
-    retrieveParams: {
-      type: Object,
-      default: () => ({}),
-    },
-  },
-  data() {
-    return {
-      targetFields: [],
-      isShowRealTimeLog: false,
-      isShowContextLog: false,
-      logDialog: {
-        type: '',
-        rowKey: '',
+    props: {
+      contentType: {
+        type: String,
+        default: 'table',
       },
-      currentIndex: 0,
-    };
-  },
-  computed: {
-    isExternal() {
-      return !this.$store.getters.isAiAssistantActive;
+      retrieveParams: {
+        type: Object,
+        default: () => ({}),
+      },
     },
-  },
-  methods: {
-    // handleAiClose() {
-    //   this.$el.querySelector(".ai-active")?.classList.remove("ai-active");
-    // },
-    openLogDialog(type, rowKey) {
-      this.logDialog.type = type;
-      this.logDialog.rowKey = rowKey;
-      if (type === 'realTimeLog') {
-        this.isShowRealTimeLog = true;
-      } else {
-        this.isShowContextLog = true;
-      }
+    data() {
+      return {
+        targetFields: [],
+        isShowRealTimeLog: false,
+        isShowContextLog: false,
+        logDialog: {
+          type: '',
+          rowKey: '',
+        },
+        currentIndex: 0,
+      };
     },
-    openWebConsole(row) {
-      // (('cluster', 'container_id'),
-      // ('__ext.io_tencent_bcs_cluster', '__ext.container_id'),
-      // ('__ext.bk_bcs_cluster_id', '__ext.container_id')) 不能同时为空
-      const { cluster, container_id: containerID, __ext } = row;
-      let queryData = {};
-      if (cluster && containerID) {
-        queryData = {
-          cluster_id: encodeURIComponent(cluster),
-          container_id: containerID,
-        };
-      } else {
-        if (!__ext) return;
-        if (!__ext.container_id) return;
-        queryData = { container_id: __ext.container_id };
-        if (__ext.io_tencent_bcs_cluster) {
-          Object.assign(queryData, {
-            cluster_id: encodeURIComponent(__ext.io_tencent_bcs_cluster),
-          });
-        } else if (__ext.bk_bcs_cluster_id) {
-          Object.assign(queryData, {
-            cluster_id: encodeURIComponent(__ext.bk_bcs_cluster_id),
-          });
+    computed: {
+      isExternal() {
+        return !this.$store.getters.isAiAssistantActive;
+      },
+    },
+    beforeUnmount() {
+      this.hideDialog();
+    },
+    methods: {
+      // handleAiClose() {
+      //   this.$el.querySelector(".ai-active")?.classList.remove("ai-active");
+      // },
+      openLogDialog(type, rowKey) {
+        this.logDialog.type = type;
+        this.logDialog.rowKey = rowKey;
+        if (type === 'realTimeLog') {
+          this.isShowRealTimeLog = true;
+        } else {
+          this.isShowContextLog = true;
         }
-      }
-      if (!queryData.cluster_id || !queryData.container_id) return;
-      this.$http
-        .request('retrieve/getWebConsoleUrl', {
-          params: {
-            index_set_id: this.$route.params.indexId,
-          },
-          query: queryData,
-        })
-        .then((res) => {
-          window.open(res.data);
-        })
-        .catch((e) => {
-          console.warn(e);
-        });
-    },
-    handleClickTools(event, row, config, index, rowKey) {
-      if (event === 'ai') {
-        RetrieveHelper.aiAssitantHelper.openAiAssitant(true, {
-          space_uid: this.$store.getters.spaceUid,
-          index_set_id: this.$store.getters.indexId,
-          log: row,
-          index,
-        });
-        return;
-      }
+      },
+      openWebConsole(row) {
+        // (('cluster', 'container_id'),
+        // ('__ext.io_tencent_bcs_cluster', '__ext.container_id'),
+        // ('__ext.bk_bcs_cluster_id', '__ext.container_id')) 不能同时为空
+        const { cluster, container_id: containerID, __ext } = row;
+        let queryData = {};
+        if (cluster && containerID) {
+          queryData = {
+            cluster_id: encodeURIComponent(cluster),
+            container_id: containerID,
+          };
+        } else {
+          if (!__ext) return;
+          if (!__ext.container_id) return;
+          queryData = { container_id: __ext.container_id };
+          if (__ext.io_tencent_bcs_cluster) {
+            Object.assign(queryData, {
+              cluster_id: encodeURIComponent(__ext.io_tencent_bcs_cluster),
+            });
+          } else if (__ext.bk_bcs_cluster_id) {
+            Object.assign(queryData, {
+              cluster_id: encodeURIComponent(__ext.bk_bcs_cluster_id),
+            });
+          }
+        }
+        if (!queryData.cluster_id || !queryData.container_id) return;
+        this.$http
+          .request('retrieve/getWebConsoleUrl', {
+            params: {
+              index_set_id: this.$route.params.indexId,
+            },
+            query: queryData,
+          })
+          .then(res => {
+            window.open(res.data);
+          })
+          .catch(e => {
+            console.warn(e);
+          });
+      },
+      handleClickTools(event, row, config, index, rowKey) {
+        if (event === 'ai') {
+          RetrieveHelper.aiAssitantHelper.openAiAssitant(true, {
+            space_uid: this.$store.getters.spaceUid,
+            index_set_id: this.$store.getters.indexId,
+            log: row,
+            index,
+          });
+          return;
+        }
 
-      if (event === 'add-to-ai') {
-        RetrieveHelper.aiAssitantHelper.setCiteText(row);
-        return;
-      }
-      if (['realTimeLog', 'contextLog'].includes(event)) {
-        this.currentIndex = index - 1;
-        const { targetFields = [] } = config.indexSetValue || {};
-        this.targetFields = targetFields ?? [];
-        this.openLogDialog(event, rowKey || '');
-      } else if (event === 'webConsole') this.openWebConsole(row);
-      else if (event === 'logSource') this.$store.dispatch('changeShowUnionSource');
+        if (event === 'add-to-ai') {
+          RetrieveHelper.aiAssitantHelper.setCiteText(row);
+          return;
+        }
+        if (['realTimeLog', 'contextLog'].includes(event)) {
+          this.currentIndex = index - 1;
+          const { targetFields = [] } = config.indexSetValue || {};
+          this.targetFields = targetFields ?? [];
+          this.openLogDialog(event, rowKey || '');
+        } else if (event === 'webConsole') this.openWebConsole(row);
+        else if (event === 'logSource') this.$store.dispatch('changeShowUnionSource');
+      },
+      hideDialog() {
+        this.logDialog.type = '';
+        this.logDialog.rowKey = '';
+        this.targetFields = [];
+        this.isShowContextLog = false;
+        this.isShowRealTimeLog = false;
+      },
     },
-    hideDialog() {
-      this.logDialog.type = '';
-      this.logDialog.rowKey = '';
-      this.targetFields = [];
-      this.isShowContextLog = false;
-      this.isShowRealTimeLog = false;
-    },
-  },
-  beforeUnmount() {
-    this.hideDialog();
-  },
-};
+  };
 </script>
 <style lang="scss">
-.bklog-result-box {
-  position: relative;
+  .bklog-result-box {
+    position: relative;
 
-  .bklog-skeleton-loading {
-    position: absolute;
-    top: 0;
-    z-index: 10;
+    .bklog-skeleton-loading {
+      position: absolute;
+      top: 0;
+      z-index: 10;
+    }
   }
-}
 </style>

@@ -113,6 +113,17 @@ class EmptyVariableRender(BaseVariableRender):
 class ConstantVariableRender(BaseVariableRender):
     TYPE: str = constants.VariableType.CONSTANTS.value
 
+    @staticmethod
+    def _prepare_json_string_value(value: str | int) -> str:
+        value_str: str = str(value)
+        try:
+            json.loads(f'"{value_str}"')
+        except json.JSONDecodeError:
+            return json.dumps(value_str)[1:-1]
+
+        # 历史实现会在最终 json.loads 时再解码一次合法的 JSON 转义，保留该行为以兼容存量配置。
+        return value_str
+
     def render(self, context: dict[str, Any] = None) -> QueryInstance:
         tmpl: str = json.dumps(
             {
@@ -127,7 +138,7 @@ class ConstantVariableRender(BaseVariableRender):
             if value is None:
                 continue
 
-            tmpl = tmpl.replace(self.to_template(variable["name"]), str(value))
+            tmpl = tmpl.replace(self.to_template(variable["name"]), self._prepare_json_string_value(value))
 
         rendered = json.loads(tmpl)
         self._query_instance.functions = rendered["functions"]

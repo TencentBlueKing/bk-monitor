@@ -82,7 +82,7 @@ export class RetrieveRowCacheService {
     try {
       await this.repository.replaceRows(queryKey, rows, 0, options);
       this.rememberRows(keys, rows, options.fieldNames, false, options.renderMetas);
-      this.repository.gc().catch((error) => {
+      this.repository.gc().catch(error => {
         console.warn(`[${this.logTag}] gc failed`, error);
       });
       return keys;
@@ -144,7 +144,7 @@ export class RetrieveRowCacheService {
       console.warn(`[${this.logTag}] get render entries failed`, error);
     }
 
-    return keys.map((key) => {
+    return keys.map(key => {
       const row = this.volatileRows.get(key) || this.rowMemory.get(key)?.value;
       if (!row) return undefined;
       const renderMeta = this.rowMemory.get(key)?.renderMeta || createRetrieveRowRenderMeta(row);
@@ -165,7 +165,7 @@ export class RetrieveRowCacheService {
       console.warn(`[${this.logTag}] get render metas failed`, error);
     }
 
-    return keys.map((key) => {
+    return keys.map(key => {
       const memoryEntry = this.rowMemory.get(key);
       const row = this.volatileRows.get(key) || memoryEntry?.value;
       return memoryEntry?.renderMeta || (row ? createRetrieveRowRenderMeta(row) : undefined);
@@ -174,7 +174,7 @@ export class RetrieveRowCacheService {
 
   async getRows(keys: string[]) {
     const missingKeySet = new Set<string>();
-    const output = keys.map((key) => {
+    const output = keys.map(key => {
       const value = this.volatileRows.get(key) || this.touchRow(key);
       if (!value) missingKeySet.add(key);
       return value;
@@ -236,7 +236,7 @@ export class RetrieveRowCacheService {
     }
     try {
       const entities = await this.repository.getEntitiesByQuery(queryKey, offset, limit);
-      entities.forEach((entity) => {
+      entities.forEach(entity => {
         if (entity?.row) this.setRowMemory(entity.key, entity.row);
       });
       return entities.map(entity => entity?.row).filter(Boolean);
@@ -335,7 +335,7 @@ export class RetrieveRowCacheService {
   }
 
   private deleteByPrefix(memory: Map<string, RenderMemoryEntry>, queryKey: string) {
-    Array.from(memory.keys()).forEach((key) => {
+    Array.from(memory.keys()).forEach(key => {
       if (!key.startsWith(`${queryKey}:`)) return;
       const entry = memory.get(key);
       memory.delete(key);
@@ -344,7 +344,7 @@ export class RetrieveRowCacheService {
   }
 
   private deleteVolatileByPrefix(memory: Map<string, any>, queryKey: string) {
-    Array.from(memory.keys()).forEach((key) => {
+    Array.from(memory.keys()).forEach(key => {
       if (key.startsWith(`${queryKey}:`)) {
         memory.delete(key);
       }

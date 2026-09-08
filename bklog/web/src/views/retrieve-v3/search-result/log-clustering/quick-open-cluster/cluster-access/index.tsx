@@ -81,12 +81,13 @@ export default defineComponent({
     const isRecordEmpty = ref(false);
     const formData = ref(structuredClone(initFormData));
 
-    const clusterField = computed(() => props.totalFields
-      .filter(item => item.is_analyzed)
-      .map((el) => {
-        const { field_name: id, field_alias: alias } = el;
-        return { id, name: alias ? `${id}(${alias})` : id };
-      }),
+    const clusterField = computed(() =>
+      props.totalFields
+        .filter(item => item.is_analyzed)
+        .map(el => {
+          const { field_name: id, field_alias: alias } = el;
+          return { id, name: alias ? `${id}(${alias})` : id };
+        }),
     );
 
     watch(

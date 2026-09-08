@@ -69,6 +69,9 @@ export default defineComponent({
     /** 获取 metric 列表 */
     const getMetricList = (issue: MergeSourceActiveMember) => issue.merge_reasons.map(reason => reason);
 
+    const formatAlertTime = (timestamp?: number) =>
+      timestamp ? dayjs(timestamp * 1000).format('YYYY-MM-DD HH:mm') : '--';
+
     const getIssueMergeSources = async () => {
       const issue = props.issues[0];
       if (!issue) return;
@@ -133,10 +136,30 @@ export default defineComponent({
               </Button>
             ),
             suffix: () => (
-              <span class='operate-record'>{`${issue.merge_operator} · ${dayjs(issue.merge_time * 1000).format('YYYY-MM-DD HH:mm')}`}</span>
+              <span class='operate-record'>
+                {`${issue.merge_operator} · ${t('最后出现时间')}: ${formatAlertTime(issue.last_alert_time)}  ${t('最早发生时间')}: ${formatAlertTime(issue.first_alert_time)}`}
+              </span>
+            ),
+            content: () => (
+              <div class='issues-name-description'>
+                <span
+                  class='issues-alert-count'
+                  v-bk-tooltips={{
+                    content: `${t('告警事件数')}: ${issue.alert_count ?? '--'}`,
+                  }}
+                >
+                  <i class='icon-monitor icon-alert-line' />
+                  <span class='issues-alert-count-number'>{issue.alert_count ?? '--'}</span>
+                </span>
+                <span
+                  class='issues-name-exception-text'
+                  v-overflow-tips
+                >
+                  {issue.anomaly_message}
+                </span>
+              </div>
             ),
           }}
-          desc={issue.anomaly_message}
           list={getMetricList(issue)}
           name={issue.member_es_status === null ? `${issue.member_issue_id} (${t('已删除')})` : issue.member_name}
         />

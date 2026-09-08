@@ -50,6 +50,15 @@ ADVANCED_OPTIONS = OrderedDict(
             "ENABLE_REDIS_STRATEGY_COST_SNAPSHOT",
             slz.BooleanField(label="是否开启Redis策略成本周期快照", default=False),
         ),
+        (
+            "REDIS_STRATEGY_COST_SNAPSHOT_TOTAL_BUDGET_SECONDS",
+            slz.IntegerField(
+                label="Redis策略成本快照命令间软预算(秒)",
+                default=20,
+                min_value=5,
+                max_value=30,
+            ),
+        ),
         ("DIMENSION_COLLECT_THRESHOLD", slz.IntegerField(label="同维度汇总阈值", default=2)),
         ("DIMENSION_COLLECT_WINDOW", slz.IntegerField(label="同维度汇总时间窗口", default=120)),
         ("MULTI_STRATEGY_COLLECT_THRESHOLD", slz.IntegerField(label="多策略汇总阈值", default=3)),
@@ -173,6 +182,16 @@ ADVANCED_OPTIONS = OrderedDict(
         ("BIZ_WHITE_LIST_FOR_3RD_EVENT", slz.ListField(label="第三方事件接入业务白名单", default=[])),
         ("TIME_SERIES_METRIC_EXPIRED_SECONDS", slz.IntegerField(label="自定义指标过期时间", default=30 * 24 * 3600)),
         ("AIDEV_AGENT_LLM_DEFAULT_TEMPERATURE", slz.IntegerField(label="LLM默认温度参数", default=0.3)),
+        # Keep defaults aligned with config/default.py; empty means legacy-only permissions.
+        # Do not add serializer instances to field kwargs: options are persisted as JSON.
+        (
+            "MCP_NATIVE_PERMISSION_TOOLS",
+            slz.ListField(label="启用原生权限优先的MCP工具列表（空列表使用旧权限）", default=[]),
+        ),
+        (
+            "MCP_LOG_IAM_PROFILE",
+            slz.DictField(label="MCP原生日志IAM配置（mode=v3-current及gateway_url）", default={}),
+        ),
         ("MCP_MAX_TIME_SPAN_SECONDS", slz.IntegerField(label="MCP查询跨度限制", default=86400)),
         (
             "APM_PROFILING_MCP_MAX_TIME_SPAN_SECONDS",
@@ -435,12 +454,8 @@ ADVANCED_OPTIONS = OrderedDict(
         ("BKBASE_REDIS_LOCK_NAME", slz.CharField(label="计算平台Redis锁名称", default="watch_bkbase_meta_redis_lock")),
         ("ENABLE_SYNC_BKBASE_METADATA_TO_DB", slz.BooleanField(label="是否同步bkbase元数据至DB", default=False)),
         (
-            "GRAPH_RELATION_BKBASE_SYNC_BIZ_ID_WHITE_LIST",
-            slz.ListField(label="自动同步计算平台图关系链路业务白名单", default=[]),
-        ),
-        (
-            "GRAPH_RELATION_QUERY_V1BETA3_BIZ_ID_WHITE_LIST",
-            slz.ListField(label="图关系 v1beta3 查询灰度业务白名单", default=[]),
+            "GRAPH_RELATION_V4_BIZ_ID_WHITE_LIST",
+            slz.ListField(label="Graph Relation V4 双写与 v1beta3 查询灰度业务白名单", default=[]),
         ),
         (
             "ACCESS_DATA_BATCH_PROCESS_THRESHOLD",
@@ -835,6 +850,8 @@ STANDARD_CONFIGS = OrderedDict(
         ("RUM_FUNC_INTRODUCTION_URL", slz.CharField(label=_("RUM产品白皮书"), default="", allow_blank=True)),
         # RUM新版灰度配置
         ("RUM_BIZ_LIST", slz.ListField(label=_("RUM 新版灰度配置"), default=[])),
+        # LLM 观测灰度业务列表
+        ("LLM_BIZ_LIST", slz.ListField(label=_("LLM 观测灰度业务列表"), default=[])),
     ]
 )
 

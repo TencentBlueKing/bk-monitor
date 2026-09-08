@@ -5,11 +5,7 @@
  * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
  */
 
-import {
-  createTokenFromMatch,
-  DEFAULT_DETECTOR_REGISTRY,
-  type TokenDetector,
-} from '../detectors';
+import { createTokenFromMatch, DEFAULT_DETECTOR_REGISTRY, type TokenDetector } from '../detectors';
 import { restoreShieldSlots, type ShieldSlot } from './shield';
 import type { LexToken } from '../types';
 
@@ -44,9 +40,7 @@ export const tokenize = (input: string, options: LexerOptions = {}): LexToken[] 
       const restored = restoreShieldSlots(raw, slots);
       tokens.push({
         kind: restored.startsWith('"') ? 'QuotedString' : 'JSON',
-        value: restored.startsWith('"') && restored.endsWith('"')
-          ? restored.slice(1, -1)
-          : restored,
+        value: restored.startsWith('"') && restored.endsWith('"') ? restored.slice(1, -1) : restored,
         raw: restored,
         start,
         end: j,
@@ -142,5 +136,4 @@ export const tokenize = (input: string, options: LexerOptions = {}): LexToken[] 
   return tokens;
 };
 
-export const tokensWithoutWhitespace = (tokens: LexToken[]) =>
-  tokens.filter(token => token.kind !== 'Whitespace');
+export const tokensWithoutWhitespace = (tokens: LexToken[]) => tokens.filter(token => token.kind !== 'Whitespace');

@@ -29,8 +29,8 @@
     <div class="match-title">
       <span>{{ isLabel ? $t('匹配标签') : $t('匹配表达式') }}</span>
       <div
-        class="flex-ac add-match"
         v-show="!isShowAdd"
+        class="flex-ac add-match"
         @click="isShowAdd = true"
       >
         <span class="bk-icon icon-plus-circle"></span>
@@ -38,8 +38,8 @@
       </div>
     </div>
     <div
-      class="add-filling flex-ac"
       v-show="isShowAdd"
+      class="add-filling flex-ac"
     >
       <div
         v-if="isLabel"
@@ -73,8 +73,8 @@
           </bk-option>
         </bk-select>
         <bk-select
-          class="fill-second"
           v-model="matchOperator"
+          class="fill-second"
           :clearable="false"
         >
           <bk-option
@@ -137,13 +137,13 @@
                 <span v-bk-overflow-tips>{{ item.value }}</span>
                 <span v-if="item.customize">
                   <span
-                    class="bk-icon icon-close3-shape"
                     v-show="activeItemID === item.id"
+                    class="bk-icon icon-close3-shape"
                     @click.stop="handleDeleteMatch(item.id)"
                   ></span>
                   <span
-                    class="match-right"
                     v-show="activeItemID !== item.id"
+                    class="match-right"
                     >{{ $t('自定义') }}</span
                   >
                 </span>

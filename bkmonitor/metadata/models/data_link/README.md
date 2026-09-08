@@ -301,6 +301,15 @@ conditionalSink2 --> vmBinding3[VmStorageBinding]
 - Kafka 会同步到 `bklog` 与 `bkmonitor` 两个 namespace；
 - 同步成功后会更新 `cluster.registered_to_bkbase = True`。
 
+Doris 创建使用 `ClusterInfo` 的域名、查询端口、用户名、密码和版本，专属参数存入
+`default_settings`（例如 `{"write_port": 8030, "table_bucket_num": 16}`）。修改 Doris 时，
+该对象按顶层键合并；未传的键保持原值，嵌套对象整体替换。
+
+ES/Doris 仅实际下发字段发生变化时触发同步。只修改 `custom_option`、`description`、
+`display_name` 等管理字段不会调用 BKBase。Doris 同步前要求本地 `host/port/write_port/user/password`
+完整有效；历史 `origin_config` 不用于补齐必需字段，缺失时应在修改请求中显式补齐。
+校验失败或 BKBase 请求失败会回滚创建/修改的本地事务，远端成功操作不受数据库事务回滚保护。
+
 ---
 
 ## 10. 常见问题与排障

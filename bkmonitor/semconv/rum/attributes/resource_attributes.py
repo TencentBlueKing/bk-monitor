@@ -11,12 +11,9 @@ specific language governing permissions and limitations under the License.
 from django.utils.translation import gettext_lazy as _
 
 from semconv.rum.field import FieldSpec
-from semconv.constants import (
-    FieldUnit,
-    FieldDisplayType,
-    ResourceType,
-    ResourceRenderBlockingStatus,
-)
+from semconv.rum.constants import ResourceType, ResourceRenderBlockingStatus, ResourceCacheHit
+from semconv.constants import FieldUnit, FieldDisplayType
+from constants.otel_query import FieldTypeEnum
 
 
 RESOURCE_TYPE = FieldSpec(field_name="resource.type", field_alias=_("资源类型"), option_values=ResourceType)
@@ -31,7 +28,12 @@ RESOURCE_ENCODED_BODY_SIZE = FieldSpec(
     field_name="resource.encoded_body_size", field_alias=_("编码后正文大小"), field_unit=FieldUnit.BYTES.value
 )
 RESOURCE_PROTOCOL = FieldSpec(field_name="resource.protocol", field_alias=_("传输协议"))
-RESOURCE_CACHE_HIT = FieldSpec(field_name="resource.cache.hit", field_alias=_("缓存命中标记"))
+RESOURCE_CACHE_HIT = FieldSpec(
+    field_name="resource.cache.hit",
+    field_type=FieldTypeEnum.BOOLEAN.value,
+    field_alias=_("缓存命中标记"),
+    option_values=ResourceCacheHit,
+)
 RESOURCE_DELIVERY_TYPE = FieldSpec(field_name="resource.delivery_type", field_alias=_("交付类型"))
 RESOURCE_RENDER_BLOCKING_STATUS = FieldSpec(
     field_name="resource.render_blocking_status",
@@ -50,7 +52,10 @@ RESOURCE_REDIRECT_DURATION = FieldSpec(
 )
 
 RESOURCE_WORKER_START = FieldSpec(
-    field_name="resource.worker.start", field_alias=_("Service Worker 开始时间"), field_unit=FieldUnit.MS.value
+    field_name="resource.worker.start",
+    field_alias=_("Service Worker 开始时间"),
+    field_unit=FieldUnit.MS.value,
+    field_display_type=FieldDisplayType.DURATION.value,
 )
 RESOURCE_WORKER_DURATION = FieldSpec(
     field_name="resource.worker.duration",
@@ -60,7 +65,10 @@ RESOURCE_WORKER_DURATION = FieldSpec(
 )
 
 RESOURCE_DNS_START = FieldSpec(
-    field_name="resource.dns.start", field_alias=_("DNS 查询开始时间"), field_unit=FieldUnit.MS.value
+    field_name="resource.dns.start",
+    field_alias=_("DNS 查询开始时间"),
+    field_unit=FieldUnit.MS.value,
+    field_display_type=FieldDisplayType.DURATION.value,
 )
 RESOURCE_DNS_DURATION = FieldSpec(
     field_name="resource.dns.duration",
@@ -70,7 +78,10 @@ RESOURCE_DNS_DURATION = FieldSpec(
 )
 
 RESOURCE_CONNECT_START = FieldSpec(
-    field_name="resource.connect.start", field_alias=_("传输连接开始时间"), field_unit=FieldUnit.MS.value
+    field_name="resource.connect.start",
+    field_alias=_("传输连接开始时间"),
+    field_unit=FieldUnit.MS.value,
+    field_display_type=FieldDisplayType.DURATION.value,
 )
 RESOURCE_CONNECT_DURATION = FieldSpec(
     field_name="resource.connect.duration",
@@ -80,7 +91,10 @@ RESOURCE_CONNECT_DURATION = FieldSpec(
 )
 
 RESOURCE_SSL_START = FieldSpec(
-    field_name="resource.ssl.start", field_alias=_("TLS 握手开始时间"), field_unit=FieldUnit.MS.value
+    field_name="resource.ssl.start",
+    field_alias=_("TLS 握手开始时间"),
+    field_unit=FieldUnit.MS.value,
+    field_display_type=FieldDisplayType.DURATION.value,
 )
 RESOURCE_SSL_DURATION = FieldSpec(
     field_name="resource.ssl.duration",
@@ -90,7 +104,10 @@ RESOURCE_SSL_DURATION = FieldSpec(
 )
 
 RESOURCE_FIRST_BYTE_START = FieldSpec(
-    field_name="resource.first_byte.start", field_alias=_("首字节阶段开始时间"), field_unit=FieldUnit.MS.value
+    field_name="resource.first_byte.start",
+    field_alias=_("首字节阶段开始时间"),
+    field_unit=FieldUnit.MS.value,
+    field_display_type=FieldDisplayType.DURATION.value,
 )
 RESOURCE_FIRST_BYTE_DURATION = FieldSpec(
     field_name="resource.first_byte.duration",
@@ -100,7 +117,10 @@ RESOURCE_FIRST_BYTE_DURATION = FieldSpec(
 )
 
 RESOURCE_DOWNLOAD_START = FieldSpec(
-    field_name="resource.download.start", field_alias=_("下载开始时间"), field_unit=FieldUnit.MS.value
+    field_name="resource.download.start",
+    field_alias=_("下载开始时间"),
+    field_unit=FieldUnit.MS.value,
+    field_display_type=FieldDisplayType.DURATION.value,
 )
 RESOURCE_DOWNLOAD_DURATION = FieldSpec(
     field_name="resource.download.duration",

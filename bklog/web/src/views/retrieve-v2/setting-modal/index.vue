@@ -27,8 +27,8 @@
 <template>
   <!-- 检索-设置 -->
   <bk-dialog
-    width="100%"
     v-model="isOpenPage"
+    width="100%"
     :position="{
       top: 50,
       left: 0,
@@ -83,8 +83,8 @@
               <p>
                 <span>{{ $t('索引集') }}：</span>
                 <span
-                  class="title-overflow"
                   v-bk-overflow-tips
+                  class="title-overflow"
                 >
                   {{ indexSetItem.index_set_name }}
                 </span>
@@ -92,8 +92,8 @@
               <p>
                 <span>{{ $t('索引') }}：</span>
                 <span
-                  class="title-overflow"
                   v-bk-overflow-tips
+                  class="title-overflow"
                 >
                   {{ showResultTableID }}
                 </span>
@@ -101,8 +101,8 @@
               <p>
                 <span>{{ $t('来源') }}：</span>
                 <span
-                  class="title-overflow"
                   v-bk-overflow-tips
+                  class="title-overflow"
                 >
                   {{ indexSetItem.scenario_name }}
                 </span>
@@ -122,6 +122,7 @@
             :data-test-id="`settingContainer_div_${showComponent}`"
           >
             <component
+              :is="showComponent"
               v-if="isShowPage"
               ref="clusterRef"
               :clean-config="cleanConfig"
@@ -129,7 +130,6 @@
               :date-picker-value="datePickerValue"
               :global-editable="!isDebugRequest && globalEditable"
               :index-set-item="indexSetItem"
-              :is="showComponent"
               :retrieve-params="retrieveParams"
               :total-fields="totalFields"
               @debug-request-change="debugRequestChange"
@@ -211,8 +211,8 @@
         return this.$store.getters.filteredFieldList;
       },
       datePickerValue() {
-        const { start_time = 'now-15m', end_time = 'now' } = this.$store.state.indexItem;
-        return [start_time, end_time];
+        const { start_time: startTime = 'now-15m', end_time: endTime = 'now' } = this.$store.state.indexItem;
+        return [startTime, endTime];
       },
       globalEditable() {
         return true;
@@ -259,7 +259,7 @@
     },
     methods: {
       handleMenuStatus() {
-        const { isExtractActive, isClusteringActive, isCollector } = this;
+        // const { isExtractActive, isClusteringActive, isCollector } = this;
         this.showCurrentList = this.showCurrentList.map(list => {
           return {
             ...list,
