@@ -56,9 +56,7 @@ class TestSceneViewBusinessPermissionResolution(TestCase):
     def test_explicit_bk_biz_id_in_body_takes_precedence(self):
         """body 里 bk_biz_id 显式时不再走 space_uid 反查。"""
         req = _drf_request("post", "/x/", data={"bk_biz_id": 2, "space_uid": "bkcc__999"})
-        with patch(
-            "apps.log_search.views.scene_search_views.space_uid_to_bk_biz_id"
-        ) as m_resolve:
+        with patch("apps.log_search.views.scene_search_views.space_uid_to_bk_biz_id") as m_resolve:
             biz_id = _SceneViewBusinessPermission.fetch_biz_id_by_request(req)
         self.assertEqual(biz_id, 2)
         m_resolve.assert_not_called()
@@ -66,9 +64,7 @@ class TestSceneViewBusinessPermissionResolution(TestCase):
     def test_explicit_bk_biz_id_in_query_takes_precedence(self):
         """query_params 里 bk_biz_id 显式时同样不走 space_uid。"""
         req = _drf_request("get", "/x/", query={"bk_biz_id": 3, "space_uid": "bkcc__999"})
-        with patch(
-            "apps.log_search.views.scene_search_views.space_uid_to_bk_biz_id"
-        ) as m_resolve:
+        with patch("apps.log_search.views.scene_search_views.space_uid_to_bk_biz_id") as m_resolve:
             biz_id = _SceneViewBusinessPermission.fetch_biz_id_by_request(req)
         self.assertEqual(int(biz_id), 3)
         m_resolve.assert_not_called()
@@ -187,13 +183,16 @@ class TestSceneFeatureTogglePermission(TestCase):
         """只传 space_uid 时按反查的 bk_biz_id 校验开关。"""
         req = _drf_request("post", "/x/", data={"space_uid": SPACE_UID})
         perm = _SceneFeatureTogglePermission()
-        with patch(
-            "apps.log_search.views.scene_search_views.space_uid_to_bk_biz_id",
-            return_value=2,
-        ), patch(
-            "apps.log_search.views.scene_search_views.FeatureToggleObject.switch",
-            return_value=True,
-        ) as m_switch:
+        with (
+            patch(
+                "apps.log_search.views.scene_search_views.space_uid_to_bk_biz_id",
+                return_value=2,
+            ),
+            patch(
+                "apps.log_search.views.scene_search_views.FeatureToggleObject.switch",
+                return_value=True,
+            ) as m_switch,
+        ):
             self.assertTrue(perm.has_permission(req, view=None))
             m_switch.assert_called_once_with("scene_search", 2)
 
@@ -201,9 +200,7 @@ class TestSceneFeatureTogglePermission(TestCase):
         """解析不到业务 ID 时不在开关层拦截，交由后续业务级权限处理。"""
         req = _drf_request("post", "/x/", data={})
         perm = _SceneFeatureTogglePermission()
-        with patch(
-            "apps.log_search.views.scene_search_views.FeatureToggleObject.switch"
-        ) as m_switch:
+        with patch("apps.log_search.views.scene_search_views.FeatureToggleObject.switch") as m_switch:
             self.assertTrue(perm.has_permission(req, view=None))
             m_switch.assert_not_called()
 
@@ -227,12 +224,13 @@ class TestSceneViewBusinessPermissionHasPermission(TestCase):
         )
         perm = _SceneViewBusinessPermission([ActionEnum.VIEW_BUSINESS])
 
-        with patch(
-            "apps.log_search.views.scene_search_views.space_uid_to_bk_biz_id",
-            return_value=2,
-        ), patch(
-            "apps.iam.handlers.drf.Permission"
-        ) as m_perm_cls:
+        with (
+            patch(
+                "apps.log_search.views.scene_search_views.space_uid_to_bk_biz_id",
+                return_value=2,
+            ),
+            patch("apps.iam.handlers.drf.Permission") as m_perm_cls,
+        ):
             m_perm_cls.return_value.is_allowed.return_value = True
             ok = perm.has_permission(req, view=None)
             self.assertTrue(ok)
@@ -263,12 +261,13 @@ class TestSceneViewBusinessPermissionHasPermission(TestCase):
         req = _drf_request("post", "/x/", data={"space_uid": SPACE_UID})
         perm = _SceneViewBusinessPermission([ActionEnum.VIEW_BUSINESS])
 
-        with patch(
-            "apps.log_search.views.scene_search_views.space_uid_to_bk_biz_id",
-            return_value=2,
-        ), patch(
-            "apps.iam.handlers.drf.Permission"
-        ) as m_perm_cls:
+        with (
+            patch(
+                "apps.log_search.views.scene_search_views.space_uid_to_bk_biz_id",
+                return_value=2,
+            ),
+            patch("apps.iam.handlers.drf.Permission") as m_perm_cls,
+        ):
             m_perm_cls.return_value.is_allowed.side_effect = PermissionError("denied")
             with self.assertRaises(PermissionError):
                 perm.has_permission(req, view=None)
@@ -285,16 +284,12 @@ class TestUserCustomConfigSerializersAntiSpoof(TestCase):
     """
 
     def test_get_serializer_does_not_accept_username(self):
-        s = SceneUserCustomConfigGetSerializer(
-            data={"bk_biz_id": 2, "scene_id": "k8s", "username": "attacker"}
-        )
+        s = SceneUserCustomConfigGetSerializer(data={"bk_biz_id": 2, "scene_id": "k8s", "username": "attacker"})
         s.is_valid(raise_exception=True)
         self.assertNotIn("username", s.validated_data)
 
     def test_delete_serializer_does_not_accept_username(self):
-        s = SceneUserCustomConfigDeleteSerializer(
-            data={"bk_biz_id": 2, "scene_id": "k8s", "username": "attacker"}
-        )
+        s = SceneUserCustomConfigDeleteSerializer(data={"bk_biz_id": 2, "scene_id": "k8s", "username": "attacker"})
         s.is_valid(raise_exception=True)
         self.assertNotIn("username", s.validated_data)
 
@@ -351,12 +346,8 @@ class TestMapResultTablesToIndexSets(TestCase):
         with patch("apps.log_search.models.LogIndexSetData") as m_model:
             qs = m_model.objects.filter.return_value.values_list.return_value.distinct
             qs.return_value = [789]
-            result = SceneUnifyQueryHandler._map_result_tables_to_index_sets(
-                ["2_bklog.my_collector"]
-            )
-            m_model.objects.filter.assert_called_once_with(
-                result_table_id__in=["2_bklog.my_collector"]
-            )
+            result = SceneUnifyQueryHandler._map_result_tables_to_index_sets(["2_bklog.my_collector"])
+            m_model.objects.filter.assert_called_once_with(result_table_id__in=["2_bklog.my_collector"])
         self.assertEqual(set(result), {789})
 
     def test_mixed_form(self):
@@ -392,11 +383,13 @@ class TestVerifyResultTableSearchPermission(TestCase):
 
     def test_no_index_set_mapped_skips_iam(self):
         handler = _bare_scene_handler()
-        with patch(
-            "apps.log_unifyquery.handler.scene_search.SceneUnifyQueryHandler."
-            "_map_result_tables_to_index_sets",
-            return_value=[],
-        ), patch("apps.iam.handlers.permission.Permission") as m_perm_cls:
+        with (
+            patch(
+                "apps.log_unifyquery.handler.scene_search.SceneUnifyQueryHandler._map_result_tables_to_index_sets",
+                return_value=[],
+            ),
+            patch("apps.iam.handlers.permission.Permission") as m_perm_cls,
+        ):
             handler.verify_result_table_search_permission(["2_bklog.xxx"])
             m_perm_cls.assert_not_called()
         self.assertTrue(handler._rt_perm_verified)
@@ -405,11 +398,13 @@ class TestVerifyResultTableSearchPermission(TestCase):
         from apps.iam.handlers.actions import ActionEnum
 
         handler = _bare_scene_handler()
-        with patch(
-            "apps.log_unifyquery.handler.scene_search.SceneUnifyQueryHandler."
-            "_map_result_tables_to_index_sets",
-            return_value=[123, 456],
-        ), patch("apps.iam.handlers.permission.Permission") as m_perm_cls:
+        with (
+            patch(
+                "apps.log_unifyquery.handler.scene_search.SceneUnifyQueryHandler._map_result_tables_to_index_sets",
+                return_value=[123, 456],
+            ),
+            patch("apps.iam.handlers.permission.Permission") as m_perm_cls,
+        ):
             m_perm_cls.return_value.batch_is_allowed.return_value = {
                 "123": {ActionEnum.SEARCH_LOG.id: True},
                 "456": {ActionEnum.SEARCH_LOG.id: True},
@@ -424,11 +419,13 @@ class TestVerifyResultTableSearchPermission(TestCase):
         from apps.iam.handlers.actions import ActionEnum
 
         handler = _bare_scene_handler()
-        with patch(
-            "apps.log_unifyquery.handler.scene_search.SceneUnifyQueryHandler."
-            "_map_result_tables_to_index_sets",
-            return_value=[123, 456],
-        ), patch("apps.iam.handlers.permission.Permission") as m_perm_cls:
+        with (
+            patch(
+                "apps.log_unifyquery.handler.scene_search.SceneUnifyQueryHandler._map_result_tables_to_index_sets",
+                return_value=[123, 456],
+            ),
+            patch("apps.iam.handlers.permission.Permission") as m_perm_cls,
+        ):
             m_perm_cls.return_value.batch_is_allowed.return_value = {
                 "123": {ActionEnum.SEARCH_LOG.id: True},
                 "456": {ActionEnum.SEARCH_LOG.id: False},
@@ -444,11 +441,13 @@ class TestVerifyResultTableSearchPermission(TestCase):
         from apps.iam.handlers.actions import ActionEnum
 
         handler = _bare_scene_handler()
-        with patch(
-            "apps.log_unifyquery.handler.scene_search.SceneUnifyQueryHandler."
-            "_map_result_tables_to_index_sets",
-            return_value=[123],
-        ), patch("apps.iam.handlers.permission.Permission") as m_perm_cls:
+        with (
+            patch(
+                "apps.log_unifyquery.handler.scene_search.SceneUnifyQueryHandler._map_result_tables_to_index_sets",
+                return_value=[123],
+            ),
+            patch("apps.iam.handlers.permission.Permission") as m_perm_cls,
+        ):
             m_perm_cls.return_value.batch_is_allowed.return_value = {
                 "123": {ActionEnum.SEARCH_LOG.id: True},
             }
@@ -466,13 +465,14 @@ class TestVerifyResultTableSearchPermission(TestCase):
         from apps.iam.handlers.actions import ActionEnum
 
         handler = _bare_scene_handler()
-        with patch(
-            "apps.log_unifyquery.handler.scene_search.SceneUnifyQueryHandler."
-            "_map_result_tables_to_index_sets",
-            return_value=[123, 456],
-        ), patch("apps.log_search.models.LogIndexSet") as m_index_set, patch(
-            "apps.iam.handlers.permission.Permission"
-        ) as m_perm_cls:
+        with (
+            patch(
+                "apps.log_unifyquery.handler.scene_search.SceneUnifyQueryHandler._map_result_tables_to_index_sets",
+                return_value=[123, 456],
+            ),
+            patch("apps.log_search.models.LogIndexSet") as m_index_set,
+            patch("apps.iam.handlers.permission.Permission") as m_perm_cls,
+        ):
             m_index_set.objects.filter.return_value.values_list.return_value = []
             m_perm_cls.return_value.batch_is_allowed.return_value = {
                 "123": {ActionEnum.SEARCH_LOG.id: True},
@@ -498,13 +498,14 @@ class TestVerifyResultTableSearchPermission(TestCase):
         from apps.iam.handlers.actions import ActionEnum
 
         handler = _bare_scene_handler()
-        with patch(
-            "apps.log_unifyquery.handler.scene_search.SceneUnifyQueryHandler."
-            "_map_result_tables_to_index_sets",
-            return_value=[123, 456],
-        ), patch("apps.log_search.models.LogIndexSet") as m_index_set, patch(
-            "apps.iam.handlers.permission.Permission"
-        ) as m_perm_cls:
+        with (
+            patch(
+                "apps.log_unifyquery.handler.scene_search.SceneUnifyQueryHandler._map_result_tables_to_index_sets",
+                return_value=[123, 456],
+            ),
+            patch("apps.log_search.models.LogIndexSet") as m_index_set,
+            patch("apps.iam.handlers.permission.Permission") as m_perm_cls,
+        ):
             m_index_set.objects.filter.return_value.values_list.return_value = [
                 (123, "idx-123"),
                 (456, "idx-456"),
@@ -558,8 +559,7 @@ class TestInitSceneDesensitize(TestCase):
     def test_skip_when_not_desensitize(self):
         handler = self._handler(is_desensitize=False)
         with patch(
-            "apps.log_unifyquery.handler.scene_search.SceneUnifyQueryHandler."
-            "_map_result_tables_to_index_sets"
+            "apps.log_unifyquery.handler.scene_search.SceneUnifyQueryHandler._map_result_tables_to_index_sets"
         ) as m_map:
             handler._init_scene_desensitize(["2_bklog.a"])
             m_map.assert_not_called()
@@ -569,8 +569,7 @@ class TestInitSceneDesensitize(TestCase):
     def test_skip_when_empty_result_table_ids(self):
         handler = self._handler()
         with patch(
-            "apps.log_unifyquery.handler.scene_search.SceneUnifyQueryHandler."
-            "_map_result_tables_to_index_sets"
+            "apps.log_unifyquery.handler.scene_search.SceneUnifyQueryHandler._map_result_tables_to_index_sets"
         ) as m_map:
             handler._init_scene_desensitize([])
             m_map.assert_not_called()
@@ -578,11 +577,13 @@ class TestInitSceneDesensitize(TestCase):
 
     def test_skip_when_no_index_set_mapped(self):
         handler = self._handler()
-        with patch(
-            "apps.log_unifyquery.handler.scene_search.SceneUnifyQueryHandler."
-            "_map_result_tables_to_index_sets",
-            return_value=[],
-        ), patch("apps.log_desensitize.models.DesensitizeFieldConfig") as m_field:
+        with (
+            patch(
+                "apps.log_unifyquery.handler.scene_search.SceneUnifyQueryHandler._map_result_tables_to_index_sets",
+                return_value=[],
+            ),
+            patch("apps.log_desensitize.models.DesensitizeFieldConfig") as m_field,
+        ):
             handler._init_scene_desensitize(["2_bklog.a"])
             m_field.objects.filter.assert_not_called()
         self.assertTrue(handler._desensitize_initialized)
@@ -594,22 +595,21 @@ class TestInitSceneDesensitize(TestCase):
             _desensitize_field_obj("password"),
             _desensitize_field_obj("log"),  # 命中 text_fields -> text_fields_field_configs
         ]
-        with patch(
-            "apps.log_unifyquery.handler.scene_search.SceneUnifyQueryHandler."
-            "_map_result_tables_to_index_sets",
-            return_value=[123, 456],
-        ), patch("apps.log_desensitize.models.DesensitizeConfig") as m_cfg, patch(
-            "apps.log_desensitize.models.DesensitizeFieldConfig"
-        ) as m_field:
+        with (
+            patch(
+                "apps.log_unifyquery.handler.scene_search.SceneUnifyQueryHandler._map_result_tables_to_index_sets",
+                return_value=[123, 456],
+            ),
+            patch("apps.log_desensitize.models.DesensitizeConfig") as m_cfg,
+            patch("apps.log_desensitize.models.DesensitizeFieldConfig") as m_field,
+        ):
             m_cfg.objects.filter.return_value = [cfg]
             m_field.objects.filter.return_value = field_objs
             handler._init_scene_desensitize(["2_bklog.a", "2_bklog.b"])
 
         self.assertEqual(handler.text_fields, ["log"])
         self.assertEqual([c["field_name"] for c in handler.field_configs], ["password"])
-        self.assertEqual(
-            [c["field_name"] for c in handler.text_fields_field_configs], ["log"]
-        )
+        self.assertEqual([c["field_name"] for c in handler.text_fields_field_configs], ["log"])
         self.assertTrue(handler._desensitize_initialized)
 
     def test_dedupe_identical_rules(self):
@@ -620,13 +620,14 @@ class TestInitSceneDesensitize(TestCase):
             _desensitize_field_obj("password", rule_id=1, sort_index=0),
             _desensitize_field_obj("password", rule_id=1, sort_index=0),
         ]
-        with patch(
-            "apps.log_unifyquery.handler.scene_search.SceneUnifyQueryHandler."
-            "_map_result_tables_to_index_sets",
-            return_value=[123, 456],
-        ), patch("apps.log_desensitize.models.DesensitizeConfig") as m_cfg, patch(
-            "apps.log_desensitize.models.DesensitizeFieldConfig"
-        ) as m_field:
+        with (
+            patch(
+                "apps.log_unifyquery.handler.scene_search.SceneUnifyQueryHandler._map_result_tables_to_index_sets",
+                return_value=[123, 456],
+            ),
+            patch("apps.log_desensitize.models.DesensitizeConfig") as m_cfg,
+            patch("apps.log_desensitize.models.DesensitizeFieldConfig") as m_field,
+        ):
             m_cfg.objects.filter.return_value = [cfg]
             m_field.objects.filter.return_value = field_objs
             handler._init_scene_desensitize(["2_bklog.a", "2_bklog.b"])
@@ -635,13 +636,14 @@ class TestInitSceneDesensitize(TestCase):
     def test_idempotent_second_call_skips_db(self):
         handler = self._handler()
         cfg = type("C", (), {"text_fields": []})()
-        with patch(
-            "apps.log_unifyquery.handler.scene_search.SceneUnifyQueryHandler."
-            "_map_result_tables_to_index_sets",
-            return_value=[123],
-        ), patch("apps.log_desensitize.models.DesensitizeConfig") as m_cfg, patch(
-            "apps.log_desensitize.models.DesensitizeFieldConfig"
-        ) as m_field:
+        with (
+            patch(
+                "apps.log_unifyquery.handler.scene_search.SceneUnifyQueryHandler._map_result_tables_to_index_sets",
+                return_value=[123],
+            ),
+            patch("apps.log_desensitize.models.DesensitizeConfig") as m_cfg,
+            patch("apps.log_desensitize.models.DesensitizeFieldConfig") as m_field,
+        ):
             m_cfg.objects.filter.return_value = [cfg]
             m_field.objects.filter.return_value = [_desensitize_field_obj("password")]
             handler._init_scene_desensitize(["2_bklog.a"])
@@ -664,10 +666,13 @@ class TestQueryPrimitivesPostAuth(TestCase):
     def _assert_primitive_verifies(self, method_name, parent_attr):
         handler = _bare_scene_handler()
         response = {"series": [], "list": [], "result_table_id": ["2_bklog.a", "2_bklog.b"]}
-        with patch(
-            f"apps.log_unifyquery.handler.base.UnifyQueryHandler.{parent_attr}",
-            return_value=response,
-        ), patch.object(handler, "verify_result_table_search_permission") as m_verify:
+        with (
+            patch(
+                f"apps.log_unifyquery.handler.base.UnifyQueryHandler.{parent_attr}",
+                return_value=response,
+            ),
+            patch.object(handler, "verify_result_table_search_permission") as m_verify,
+        ):
             result = getattr(handler, method_name)({"foo": 1})
             m_verify.assert_called_once_with(["2_bklog.a", "2_bklog.b"])
             self.assertIs(result, response)

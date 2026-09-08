@@ -151,7 +151,7 @@ class TestBuildAddition(TestCase):
         h = self._handler("serverIp")
         addition = h._build_addition(
             [
-                {"key": "serverIp", "method": "eq", "value": ["10.0.0.1"]},
+                {"key": "serverIp", "method": "eq", "value": ["127.0.0.1"]},
                 {"key": "path", "method": "eq", "value": ["/var/log/a.log"]},
             ]
         )
@@ -262,7 +262,7 @@ class TestSceneFieldCandidatesHandlerInit(TestCase):
             "resource_type": "serverIp",
             "table_id_conditions": TABLE_ID_CONDITIONS,
             "conditions": [
-                {"key": "serverIp", "method": "eq", "value": ["10.0.0.1"]},
+                {"key": "serverIp", "method": "eq", "value": ["127.0.0.1"]},
                 {"key": "path", "method": "eq", "value": ["/var/log/a.log"]},
             ],
             "query_string": "10",
@@ -351,7 +351,7 @@ class TestGetFieldCandidatesDispatch(TestCase):
             "apps.log_unifyquery.handler.scene_field_candidates.SceneFieldCandidatesHandler"
         ) as mock_handler_cls:
             mock_handler = MagicMock()
-            mock_handler.list_candidates.return_value = {"count": 1, "items": ["10.0.0.1"]}
+            mock_handler.list_candidates.return_value = {"count": 1, "items": ["127.0.0.1"]}
             mock_handler_cls.return_value = mock_handler
 
             from apps.log_search.handlers.scene_search import get_field_candidates
@@ -359,7 +359,7 @@ class TestGetFieldCandidatesDispatch(TestCase):
             data = {"scene": "host", "resource_type": "serverIp"}
             result = get_field_candidates(data)
 
-        self.assertEqual(result, {"count": 1, "items": ["10.0.0.1"]})
+        self.assertEqual(result, {"count": 1, "items": ["127.0.0.1"]})
         mock_handler_cls.assert_called_once_with(data)
 
 
@@ -412,7 +412,7 @@ class TestSceneSearchViewSetListFieldCandidates(TestCase):
         )
         with patch(
             "apps.log_search.views.scene_search_views.get_field_candidates",
-            return_value={"count": 2, "items": ["10.0.0.1", "10.0.0.2"]},
+            return_value={"count": 2, "items": ["127.0.0.1", "127.0.0.2"]},
         ) as mock_dispatch:
             vs = _get_viewset("list_field_candidates", request)
             response = vs.list_field_candidates(request)

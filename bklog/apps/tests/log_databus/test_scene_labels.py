@@ -380,6 +380,38 @@ class TestRefreshSceneLabelsHandler(TestCase):
         self.assertEqual(result["success"], 1)
         self.assertEqual(result["skipped"], 0)
 
+    def test_refresh_uses_cursor_pagination_for_new_configs(self):
+        """刷新期间新增的采集项只要 ID 更大，也应在本轮被游标分页处理。"""
+        first_index_set = self._create_index_set("cursor_first", {"scene": "host"})
+        first_collector = self._create_collector(
+            "cursor_first", collector_scenario_id="client", index_set_id=first_index_set.index_set_id
+        )
+        created_second = False
+
+        def switch_result_table(params):
+            nonlocal created_second
+            if not created_second:
+                second_index_set = self._create_index_set("cursor_second", {"scene": "host"})
+                self._create_collector(
+                    "cursor_second",
+                    collector_scenario_id="client",
+                    index_set_id=second_index_set.index_set_id,
+                )
+                created_second = True
+
+        with patch(
+            "apps.log_databus.handlers.scene.TransferApi.switch_result_table",
+            side_effect=switch_result_table,
+        ) as mock_switch:
+            result = refresh_scene_labels(batch_size=1, sleep=0)
+
+        self.assertEqual(result["success"], 2)
+        self.assertEqual(mock_switch.call_count, 2)
+        self.assertEqual(
+            [call.args[0]["table_id"] for call in mock_switch.call_args_list],
+            [first_collector.table_id, "2_bklog.cursor_second"],
+        )
+
     def test_manual_remote_compare_skips_when_result_table_labels_match(self):
         """手动命令可用远端 RT 标签判断，无须依赖本地标签是否已修复。"""
         index_set = self._create_index_set("remote_match", {"scene": "host"})
@@ -398,20 +430,25 @@ class TestRefreshSceneLabelsHandler(TestCase):
 
         mock_switch.assert_not_called()
 
-    def test_first_sync_uses_local_compare_without_remote_read(self):
-        """首次定时任务也只依赖本地标签，避免全量远端读写。"""
+    def test_first_sync_uses_remote_compare(self):
+        """首次定时任务以远端 ResultTable.labels 为校正基准。"""
         FeatureToggle.objects.update_or_create(name=SCENE_SEARCH, defaults={"status": "debug"})
         index_set = self._create_index_set("first_local_match", {"scene": "client"})
-        self._create_collector("first_local_match", collector_scenario_id="client", index_set_id=index_set.index_set_id)
+        collector = self._create_collector(
+            "first_local_match", collector_scenario_id="client", index_set_id=index_set.index_set_id
+        )
 
         with (
             patch("apps.log_databus.handlers.scene.TransferApi.switch_result_table") as mock_switch,
-            patch("apps.log_databus.handlers.scene.TransferApi.get_result_table") as mock_get_result_table,
+            patch(
+                "apps.log_databus.handlers.scene.TransferApi.get_result_table",
+                return_value={"table_id": collector.table_id, "labels": {}},
+            ) as mock_get_result_table,
         ):
             run_scene_search_sync()
 
-        mock_switch.assert_not_called()
-        mock_get_result_table.assert_not_called()
+        mock_get_result_table.assert_called_once_with({"table_id": collector.table_id})
+        mock_switch.assert_called_once()
         self.assertEqual(FeatureToggle.objects.get(name=SCENE_SEARCH).status, "on")
 
     def test_release_scene_search_sets_status_and_mark(self):
@@ -430,7 +467,13 @@ class TestRefreshSceneLabelsHandler(TestCase):
         index_set = self._create_index_set("first_sync", {"scene": "host"})
         self._create_collector("first_sync", collector_scenario_id="client", index_set_id=index_set.index_set_id)
 
-        with patch("apps.log_databus.handlers.scene.TransferApi.switch_result_table"):
+        with (
+            patch("apps.log_databus.handlers.scene.TransferApi.switch_result_table"),
+            patch(
+                "apps.log_databus.handlers.scene.TransferApi.get_result_table",
+                return_value={"table_id": "2_bklog.first_sync", "labels": {}},
+            ),
+        ):
             run_scene_search_sync()
 
         toggle = FeatureToggle.objects.get(name=SCENE_SEARCH)
@@ -472,12 +515,46 @@ class TestRefreshSceneLabelsHandler(TestCase):
             index_set_id=index_set.index_set_id,
         )
 
-        with patch("apps.log_databus.handlers.scene.TransferApi.switch_result_table"):
+        with (
+            patch("apps.log_databus.handlers.scene.TransferApi.switch_result_table"),
+            patch(
+                "apps.log_databus.handlers.scene.TransferApi.get_result_table",
+                return_value={"table_id": "2_bklog.first_sync_manual_off", "labels": {}},
+            ),
+        ):
             run_scene_search_sync()
 
         toggle = FeatureToggle.objects.get(name=SCENE_SEARCH)
         self.assertEqual(toggle.status, "off")
         self.assertFalse((toggle.feature_config or {}).get("scene_search_released"))
+
+    def test_first_sync_marks_existing_on_toggle_as_released(self):
+        """已处于 on 的环境首次校正完成后补写发布标记。"""
+        FeatureToggle.objects.update_or_create(name=SCENE_SEARCH, defaults={"status": "on"})
+        index_set = self._create_index_set("first_sync_existing_on", {"scene": "client"})
+        collector = self._create_collector(
+            "first_sync_existing_on", collector_scenario_id="client", index_set_id=index_set.index_set_id
+        )
+
+        with (
+            patch("apps.log_databus.handlers.scene.TransferApi.switch_result_table"),
+            patch(
+                "apps.log_databus.handlers.scene.TransferApi.get_result_table",
+                return_value={"table_id": collector.table_id, "labels": {"scene": "client"}},
+            ),
+        ):
+            run_scene_search_sync()
+
+        toggle = FeatureToggle.objects.get(name=SCENE_SEARCH)
+        self.assertEqual(toggle.status, "on")
+        self.assertTrue((toggle.feature_config or {}).get("scene_search_released"))
+
+        toggle.status = "debug"
+        toggle.save(update_fields=["status"])
+        with patch("apps.log_databus.handlers.scene.TransferApi.switch_result_table"):
+            run_scene_search_sync()
+
+        self.assertEqual(FeatureToggle.objects.get(name=SCENE_SEARCH).status, "debug")
 
     def test_run_steady_uses_local_compare_after_release(self):
         """周期任务已 released：走稳态本地对比，不再翻开关。"""

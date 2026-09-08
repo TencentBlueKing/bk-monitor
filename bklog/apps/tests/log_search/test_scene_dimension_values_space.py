@@ -17,22 +17,15 @@ from apps.log_search.models import IndexSetTag
 
 class TestGetDimensionValuesExactSpaceMatch(TestCase):
     def test_uses_exact_space_uid_not_suffix(self):
-        with patch(
-            "apps.log_search.models.bk_biz_id_to_space_uid", return_value="bkcc__2"
-        ) as m_space, patch.object(
-            IndexSetTag, "get_tag_id", return_value=1
-        ), patch.object(
-            IndexSetTag, "_normalize_dimension_filters", return_value=[]
-        ), patch(
-            "apps.log_search.models.LogIndexSet"
-        ) as m_idx:
+        with (
+            patch("apps.log_search.models.bk_biz_id_to_space_uid", return_value="bkcc__2") as m_space,
+            patch.object(IndexSetTag, "get_tag_id", return_value=1),
+            patch.object(IndexSetTag, "_normalize_dimension_filters", return_value=[]),
+            patch("apps.log_search.models.LogIndexSet") as m_idx,
+        ):
             m_idx.objects.filter.return_value.values_list.return_value = []
-            result = IndexSetTag.get_dimension_values(
-                bk_biz_id=2, scene="host", dimension_key="cluster_id"
-            )
+            result = IndexSetTag.get_dimension_values(bk_biz_id=2, scene="host", dimension_key="cluster_id")
             m_space.assert_called_once_with(2)
             # 精确匹配 space_uid 列表（不含 endswith 后缀匹配）；未传 space_uids 时仅当前业务空间
-            m_idx.objects.filter.assert_called_once_with(
-                space_uid__in=["bkcc__2"], is_active=True
-            )
+            m_idx.objects.filter.assert_called_once_with(space_uid__in=["bkcc__2"], is_active=True)
         self.assertEqual(result, [])

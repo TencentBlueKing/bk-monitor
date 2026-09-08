@@ -50,7 +50,7 @@ def get_local_scene_labels(index_set_id: int | None) -> dict:
 
 
 def get_remote_scene_labels(table_id: str) -> dict:
-    """读取 ResultTable 的场景标签，仅供人工巡检/修复使用。"""
+    """读取 ResultTable 的场景标签，用于首次校正和人工巡检/修复。"""
     result_table = TransferApi.get_result_table({"table_id": table_id})
     return result_table.get("labels") or {}
 
@@ -65,7 +65,7 @@ def refresh_scene_labels(
     """刷新采集项的场景标签。
 
     compare_mode=local：仅对比本地 tag_ids，不一致才写远端 + 本地；周期任务使用此模式。
-    compare_mode=remote：读取 ResultTable.labels 后再比较；仅用于人工命令巡检/修复。
+    compare_mode=remote：读取 ResultTable.labels 后再比较；首次校正和人工命令使用此模式。
 
     返回统计：{total, success, failed, skipped}。
     - failed 为写入失败且需人工处理的 RT；不阻塞首次转正；
@@ -80,7 +80,6 @@ def refresh_scene_labels(
         qs = qs.filter(bk_biz_id=bk_biz_id)
     qs = qs.order_by("collector_config_id")
 
-    total = qs.count()
     configs = qs.values_list(
         "collector_config_id",
         "table_id",
@@ -97,8 +96,13 @@ def refresh_scene_labels(
 
     success = failed = skipped = 0
     failed_result_table_ids = []
-    for i in range(0, total, batch_size):
-        batch = list(configs[i : i + batch_size])
+    total = qs.count()
+    last_collector_config_id = 0
+    while True:
+        batch = list(configs.filter(collector_config_id__gt=last_collector_config_id)[:batch_size])
+        if not batch:
+            break
+
         container_streams = get_container_streams([cfg.collector_config_id for cfg in batch])
         for cfg in batch:
             labels = build_collector_scene_labels(
@@ -142,7 +146,8 @@ def refresh_scene_labels(
                 failed_result_table_ids.append(cfg.table_id)
                 logger.exception("[refresh_scene_labels] %s failed: %s", cfg.table_id, e)
 
-        if not dry_run and i + batch_size < total:
+        last_collector_config_id = batch[-1].collector_config_id
+        if not dry_run and len(batch) == batch_size:
             time.sleep(max(sleep, 0))
 
     return {
@@ -163,37 +168,43 @@ def is_scene_search_released() -> bool:
 
 
 def release_scene_search() -> bool:
-    """仅将处于 debug 的开关转为 on，并打上 released 标记。"""
+    """记录场景检索已发布，必要时将 debug 开关转为 on。"""
     toggle = FeatureToggle.objects.filter(name=SCENE_SEARCH).first()
     if not toggle:
         logger.error("[scene_search] toggle missing: %s", SCENE_SEARCH)
         return False
-    if toggle.status != "debug":
+
+    feature_config = dict(toggle.feature_config or {})
+    if feature_config.get(SCENE_SEARCH_RELEASED_KEY):
+        return False
+
+    if toggle.status not in {"debug", "on"}:
         logger.warning("[scene_search] skip automatic release because status=%s", toggle.status)
         return False
 
-    feature_config = toggle.feature_config or {}
     feature_config[SCENE_SEARCH_RELEASED_KEY] = True
-    # 带上旧状态，避免全量校正结束前人工切到 off 时被任务覆盖。
-    updated = FeatureToggle.objects.filter(name=SCENE_SEARCH, status="debug").update(
-        status="on", feature_config=feature_config
-    )
+    update_kwargs = {"feature_config": feature_config}
+    if toggle.status == "debug":
+        update_kwargs["status"] = "on"
+
+    # 带上旧状态，避免校正结束前人工修改开关状态时被任务覆盖。
+    updated = FeatureToggle.objects.filter(name=SCENE_SEARCH, status=toggle.status).update(**update_kwargs)
     return updated == 1
 
 
 def run_scene_search_sync() -> dict:
-    """周期任务执行体：按本地标签补差，并在首次校正后自动转正。"""
+    """周期任务执行体：首次按远端标签校正，后续按本地标签补差。"""
     if is_scene_search_released():
         result = refresh_scene_labels(compare_mode=COMPARE_MODE_LOCAL)
         logger.info("[scene_search] steady refresh done: %s", result)
         return result
 
-    result = refresh_scene_labels(compare_mode=COMPARE_MODE_LOCAL)
+    result = refresh_scene_labels(compare_mode=COMPARE_MODE_REMOTE)
     if result["failed"]:
         logger.warning(
             "[scene_search] skipped failed result tables; manual follow-up required: %s",
             result["failed_result_table_ids"],
         )
     if release_scene_search():
-        logger.info("[scene_search] released after first local sync: %s", result)
+        logger.info("[scene_search] released after first remote sync: %s", result)
     return result

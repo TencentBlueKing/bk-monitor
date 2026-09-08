@@ -74,9 +74,7 @@ class TestSceneFieldsConfigBusinessPermission(TestCase):
     def test_business_permission_denied_propagates(self):
         handler = _bare_handler(bk_biz_id=None, scene_id=None)
         handler.data = _config_obj(bk_biz_id=2)
-        with patch(
-            "apps.iam.handlers.permission.Permission"
-        ) as m_perm_cls:
+        with patch("apps.iam.handlers.permission.Permission") as m_perm_cls:
             m_perm_cls.return_value.is_allowed.side_effect = PermissionError("denied")
             with self.assertRaises(PermissionError):
                 handler._validate_ownership()
@@ -85,9 +83,7 @@ class TestSceneFieldsConfigBusinessPermission(TestCase):
     def test_business_permission_allowed_passes(self):
         handler = _bare_handler(bk_biz_id=None, scene_id=None)
         handler.data = _config_obj(bk_biz_id=2)
-        with patch(
-            "apps.iam.handlers.permission.Permission"
-        ) as m_perm_cls:
+        with patch("apps.iam.handlers.permission.Permission") as m_perm_cls:
             m_perm_cls.return_value.is_allowed.return_value = True
             handler._validate_ownership()
             m_perm_cls.return_value.is_allowed.assert_called_once()

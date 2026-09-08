@@ -31,7 +31,6 @@ from apps.utils.lock import share_lock
 def refresh_scene_labels_periodic():
     """场景化检索标签兜底任务。
 
-    首次和稳态均只对比本地 tag_ids，不一致才写，0 远端读；
-    首次任务会记录失败 RT，并继续翻开关并打标记。
+    首次按远端 ResultTable.labels 校正，发布完成后按本地 tag_ids 补差。
     """
     return run_scene_search_sync()
