@@ -28,10 +28,13 @@ import { defineComponent, shallowRef, watch } from 'vue';
 
 import { useI18n } from 'vue-i18n';
 
+import BytesScopeInput from './bytes-scope-input';
 import DurationInput from './duration-input';
-import { TIME_CONSUMING_EMITS, TIME_CONSUMING_PROPS } from './typing';
+import { type INormalWhere, SCOPE_INPUT_EMITS, SCOPE_INPUT_PROPS, SCOPE_INPUT_TYPE } from './typing';
 
-import './time-consuming.scss';
+import type { TDurationBaseUnit } from './duration-input-utils';
+
+import './scope-input.scss';
 
 const GTE = 'gte'; // 大于等于
 const LTE = 'lte'; // 小于等于
@@ -39,12 +42,14 @@ const EQUAL = 'equal'; // 等于
 const BETWEEN = 'between'; // 范围
 
 export default defineComponent({
-  name: 'TimeConsuming',
-  props: TIME_CONSUMING_PROPS,
-  emits: TIME_CONSUMING_EMITS,
+  name: 'ScopeInput',
+  props: SCOPE_INPUT_PROPS,
+  emits: SCOPE_INPUT_EMITS,
   setup(props, { emit }) {
     const { t } = useI18n();
+    /** 传给子组件的 [起始值, 结束值]，单位与 fieldInfo.unit 一致 */
     const localValue = shallowRef([0, 0]);
+    /** 用户已手动改过值后置为 true，避免子组件回传的 change 再把值覆盖回去 */
     let stopWatch = false;
 
     watch(
@@ -74,15 +79,17 @@ export default defineComponent({
       { immediate: true }
     );
 
+    /** 子组件（耗时 / 字节量输入）范围变更：换算成 method + value 后向上抛 change */
     function handleChange(val) {
       localValue.value = val;
       const where = getWhere(val);
       emit('change', {
         key: props.fieldInfo.field,
         ...where,
-      });
+      } as unknown as INormalWhere);
     }
 
+    /** 由 [起始值, 结束值] 推导检索操作符与值：仅起始为 gte、仅结束为 lte、相等为 equal、区间为 between */
     function getWhere(val: number[]) {
       const [startVal, endVal] = val;
       if (startVal || endVal) {
@@ -133,14 +140,30 @@ export default defineComponent({
               placement: 'top',
             }}
           >
-            {this.t('耗时')}
+            {this.fieldInfo?.alias || this.fieldInfo?.field}
           </span>
         )}
-        <DurationInput
-          styleType={this.styleType || 'default'}
-          value={this.localValue}
-          onChange={this.handleChange}
-        />
+
+        {/* 按字段类型分发：字节量走 BytesScopeInput，其余（耗时）走 DurationInput */}
+        {(() => {
+          if (this.type === SCOPE_INPUT_TYPE.bytes) {
+            return (
+              <BytesScopeInput
+                styleType={this.styleType || 'default'}
+                value={this.localValue}
+                onChange={this.handleChange}
+              />
+            );
+          }
+          return (
+            <DurationInput
+              baseUnit={(this.fieldInfo?.unit || 'μs') as unknown as TDurationBaseUnit}
+              styleType={this.styleType || 'default'}
+              value={this.localValue}
+              onChange={this.handleChange}
+            />
+          );
+        })()}
       </div>
     );
   },

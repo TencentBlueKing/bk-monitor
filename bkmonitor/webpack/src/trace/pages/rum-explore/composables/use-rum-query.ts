@@ -160,7 +160,21 @@ export function useRumQuery({ extraFilters }: IUseRumQueryOptions) {
    */
   function addCondition(condition: IWhereItem, isMergeSameKey = false) {
     if (filterMode.value === EMode.ui) {
-      where.value = mergeWhereList(where.value, [condition], isMergeSameKey);
+      if (condition.value?.[0] === 'undefined') {
+        where.value = mergeWhereList(
+          where.value,
+          [
+            {
+              ...condition,
+              value: [],
+              operator: condition.operator === 'equal' ? 'not exists' : 'exists',
+            },
+          ],
+          isMergeSameKey
+        );
+      } else {
+        where.value = mergeWhereList(where.value, [condition], isMergeSameKey);
+      }
     } else {
       const isEq = condition.operator === EMethod.eq;
       const preStr = queryString.value ? `${queryString.value} ${isEq ? 'AND' : 'AND NOT'}` : `${isEq ? '' : 'NOT'}`;

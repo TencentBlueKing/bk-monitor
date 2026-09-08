@@ -30,7 +30,7 @@ import { useI18n } from 'vue-i18n';
 import { EFieldType } from '../../../components/retrieval-filter/typing';
 import { handleTransformToTimestamp } from '../../../components/time-range/utils';
 import { useRumExploreStore } from '../../../store/modules/rum-explore';
-import { RAW_FIELD_GROUP_NAME, RUM_TIME_FIELDS } from '../constants';
+import { RAW_FIELD_GROUP_NAME } from '../constants';
 import { getViewConfig } from '../services/rum-search';
 
 import type { IFilterField } from '../../../components/retrieval-filter/typing';
@@ -82,6 +82,8 @@ export function useRumViewConfig() {
       name: field.name,
       alias: field.alias,
       type: toFilterFieldType(field),
+      /** 字节量字段的单位统一归一成 B，供范围输入组件作为数值的基础单位 */
+      unit: field.field_unit === 'bytes' ? 'B' : field.field_unit,
       isEnableOptions: field.is_dimensions || field.type === 'boolean',
       methods: (field.supported_operations || []).map(operation => ({
         alias: operation.label,
@@ -126,8 +128,10 @@ export function useRumViewConfig() {
 
 /** 接口字段类型映射到检索条件区的输入控件类型 */
 function toFilterFieldType(field: IRumField): EFieldType {
-  // 带微秒单位且不是时间戳的字段用耗时输入组件
-  if (field.field_unit === 'us' && !RUM_TIME_FIELDS.has(field.name)) return EFieldType.duration;
+  // 接口标注为 duration 展示类型的字段用耗时输入组件（时间戳字段不会带该类型）
+  if (field.field_display_type === 'duration') return EFieldType.duration;
+  // 字节量字段用字节范围输入组件
+  if (field.field_unit === 'bytes') return EFieldType.bytesScope;
   switch (field.type) {
     case 'boolean':
       return EFieldType.boolean;
