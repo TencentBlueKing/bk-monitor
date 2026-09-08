@@ -494,12 +494,12 @@ class TestRefreshSceneLabelsHandler(TestCase):
         self.assertEqual(toggle.status, "on")
         self.assertTrue(toggle.feature_config.get("scene_search_released"))
 
-    def test_run_first_sync_releases_after_recording_failures(self):
-        """失败 RT 会记录日志，但不阻塞首次转正。"""
+    def test_run_first_sync_defers_release_when_failures(self):
+        """首次校正有失败项时不翻开关、不打 released 标记，留给下一轮重试。"""
         FeatureToggle.objects.update_or_create(name=SCENE_SEARCH, defaults={"status": "debug"})
-        index_set = self._create_index_set("first_sync_accepted_failure", {"scene": "host"})
+        index_set = self._create_index_set("first_sync_defer_failure", {"scene": "host"})
         self._create_collector(
-            "first_sync_accepted_failure", collector_scenario_id="client", index_set_id=index_set.index_set_id
+            "first_sync_defer_failure", collector_scenario_id="client", index_set_id=index_set.index_set_id
         )
 
         with (
@@ -509,13 +509,47 @@ class TestRefreshSceneLabelsHandler(TestCase):
             ),
             patch(
                 "apps.log_databus.handlers.scene.TransferApi.get_result_table",
-                return_value={"table_id": "2_bklog.first_sync_accepted_failure"},
+                return_value={"table_id": "2_bklog.first_sync_defer_failure"},
             ),
         ):
             result = run_scene_search_sync()
 
         toggle = FeatureToggle.objects.get(name=SCENE_SEARCH)
-        self.assertEqual(result["failed_result_table_ids"], ["2_bklog.first_sync_accepted_failure"])
+        self.assertEqual(result["failed"], 1)
+        self.assertEqual(result["failed_result_table_ids"], ["2_bklog.first_sync_defer_failure"])
+        self.assertEqual(toggle.status, "debug")
+        self.assertFalse((toggle.feature_config or {}).get("scene_search_released"))
+
+    def test_run_first_sync_retries_and_releases_after_recovery(self):
+        """失败项下一轮重试成功后自动转正，验证自愈路径。"""
+        FeatureToggle.objects.update_or_create(name=SCENE_SEARCH, defaults={"status": "debug"})
+        index_set = self._create_index_set("first_sync_retry", {"scene": "host"})
+        self._create_collector("first_sync_retry", collector_scenario_id="client", index_set_id=index_set.index_set_id)
+
+        with (
+            patch(
+                "apps.log_databus.handlers.scene.TransferApi.switch_result_table",
+                side_effect=RuntimeError("metadata unavailable"),
+            ),
+            patch(
+                "apps.log_databus.handlers.scene.TransferApi.get_result_table",
+                return_value={"table_id": "2_bklog.first_sync_retry"},
+            ),
+        ):
+            run_scene_search_sync()
+
+        self.assertEqual(FeatureToggle.objects.get(name=SCENE_SEARCH).status, "debug")
+
+        with (
+            patch("apps.log_databus.handlers.scene.TransferApi.switch_result_table"),
+            patch(
+                "apps.log_databus.handlers.scene.TransferApi.get_result_table",
+                return_value={"table_id": "2_bklog.first_sync_retry", "labels": {}},
+            ),
+        ):
+            run_scene_search_sync()
+
+        toggle = FeatureToggle.objects.get(name=SCENE_SEARCH)
         self.assertEqual(toggle.status, "on")
         self.assertTrue((toggle.feature_config or {}).get("scene_search_released"))
 

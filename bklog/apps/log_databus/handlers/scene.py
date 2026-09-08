@@ -70,7 +70,7 @@ def refresh_scene_labels(
     compare_mode=remote：读取 ResultTable.labels 后再比较；首次校正和人工命令使用此模式。
 
     返回统计：{total, success, failed, skipped}。
-    - failed 为写入失败且需人工处理的 RT；不阻塞首次转正；
+    - failed 为本次写入失败的 RT；首次转正前会在下一轮按远端标签继续重试；
     - skipped 为稳态下本地已一致而跳过的数量。
     """
     if compare_mode not in {COMPARE_MODE_LOCAL, COMPARE_MODE_REMOTE}:
@@ -204,10 +204,16 @@ def run_scene_search_sync() -> dict:
 
     result = refresh_scene_labels(compare_mode=COMPARE_MODE_REMOTE)
     if result["failed"]:
+        # 存在失败项时不打 released 标记、不翻开关，保持 debug，留给下一轮继续按远端重试。
+        # 失败项通过人工命令 `refresh_result_table_labels --compare-remote` 排查修复，
+        # 修复后下一轮 failed 归零即可自动转正。
         logger.warning(
-            "[scene_search] skipped failed result tables; manual follow-up required: %s",
+            "[scene_search] %d result tables failed, defer release to next round; failed ids: %s",
+            result["failed"],
             result["failed_result_table_ids"],
         )
+        return result
+
     if release_scene_search():
         logger.info("[scene_search] released after first remote sync: %s", result)
     return result
