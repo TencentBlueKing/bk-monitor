@@ -60,7 +60,7 @@ class ListTracesResource(Resource):
             return attrs
 
     @staticmethod
-    def _span_field_value(span: dict[str, Any], field: str) -> str:
+    def _span_field_value(span: dict[str, Any], field: str) -> Any:
         value = LLMQuery._get_field_value(span, field)
         if isinstance(value, list):
             return value[0] if value else ""
@@ -150,16 +150,16 @@ class ListTracesResource(Resource):
     def _group_spans(
         cls,
         group_field: str,
-        group_ids: list[str],
-        trace_group_map: dict[str, str],
+        group_ids: list[Any],
+        trace_group_map: dict[str, Any],
         raw_spans: list[dict[str, Any]],
         entity_set: EntitySet,
     ) -> list[dict[str, Any]]:
-        spans_by_group: dict[str, dict[str, list[dict[str, Any]]]] = defaultdict(lambda: defaultdict(list))
+        spans_by_group: dict[Any, dict[str, list[dict[str, Any]]]] = defaultdict(lambda: defaultdict(list))
         for span in raw_spans:
             trace_id = cls._span_field_value(span, OtlpKey.TRACE_ID)
             group_id = trace_group_map.get(trace_id, "")
-            if group_id and trace_id:
+            if group_id is not None and group_id != "" and trace_id:
                 spans_by_group[group_id][trace_id].append(span)
 
         items: list[dict[str, Any]] = []
@@ -234,15 +234,15 @@ class ListTracesResource(Resource):
             group_field=group_field,
             group_ids=group_ids,
         )
-        trace_group_map: dict[str, str] = {}
+        trace_group_map: dict[str, Any] = {}
         for record in group_trace_records:
             trace_id = record.get(OtlpKey.TRACE_ID, "")
             if not trace_id:
                 continue
 
             group_id = LLMQuery._get_field_value(record, group_field)
-            if group_id and trace_id not in trace_group_map:
-                trace_group_map[trace_id] = str(group_id)
+            if group_id is not None and group_id != "" and trace_id not in trace_group_map:
+                trace_group_map[trace_id] = group_id
         if not trace_group_map:
             return result
 

@@ -64,23 +64,23 @@ class LLMQuery(SpanQuery):
         limit: int,
         filters: list[types.Filter] | None = None,
         query_string: str | None = None,
-    ) -> list[str]:
+    ) -> list[Any]:
         queries = [
             query.distinct(group_field).values(group_field).order_by(f"{self.DEFAULT_TIME_FIELD} desc")
             for query in self.build_queries(filters, query_string)
         ]
         records = self._query_list(queries, start_time, end_time, offset, limit)
-        result: list[str] = []
+        result: list[Any] = []
         for record in records:
             value = self._get_field_value(record, group_field)
-            if value:
+            if value is not None and value != "":
                 result.append(value)
         return result
 
     def query_by_group_ids(
         self,
         group_field: str,
-        group_ids: list[str],
+        group_ids: list[Any],
         start_time: int | None = None,
         end_time: int | None = None,
         limit: int = SpanQuery.QUERY_MAX_LIMIT,
@@ -94,7 +94,7 @@ class LLMQuery(SpanQuery):
     def query_group_trace_list(
         self,
         group_field: str,
-        group_ids: list[str],
+        group_ids: list[Any],
         limit: int = SpanQuery.QUERY_MAX_LIMIT,
     ) -> list[dict[str, Any]]:
         fields = [group_field]
