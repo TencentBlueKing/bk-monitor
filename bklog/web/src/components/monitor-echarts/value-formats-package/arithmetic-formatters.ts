@@ -44,7 +44,7 @@ export function toPercentUnit(size: number, decimals?: DecimalCount): FormattedV
 }
 
 export function toHex0x(value: number, decimals: DecimalCount = 2): FormattedValue {
-  if (value == null) {
+  if (value === null || value === undefined) {
     return { text: '' };
   }
   const asHex = toHex(value, decimals);
@@ -57,7 +57,7 @@ export function toHex0x(value: number, decimals: DecimalCount = 2): FormattedVal
 }
 
 export function toHex(value: number, decimals: DecimalCount = 2): FormattedValue {
-  if (value == null) {
+  if (value === null || value === undefined) {
     return { text: '' };
   }
   return {
@@ -66,7 +66,7 @@ export function toHex(value: number, decimals: DecimalCount = 2): FormattedValue
 }
 
 export function sci(value: number, decimals: DecimalCount = 2): FormattedValue {
-  if (value == null) {
+  if (value === null || value === undefined) {
     return { text: '' };
   }
   return { text: value.toExponential(decimals as number) };

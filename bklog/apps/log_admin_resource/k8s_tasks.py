@@ -371,7 +371,7 @@ def _control_plane_probe(
             [],
         )
     desired = desired_config_evidence(
-        expected=expected, actual_items=actual_items, configured_namespace=BKLOG_CONFIG_NAMESPACE
+        expected=expected, actual_items=actual_items, configured_namespace=BKLOG_CONFIG_NAMESPACE, crd=crd
     )
     configured_bk_env = str(getattr(settings, "CONTAINER_COLLECTOR_CR_LABEL_BKENV", "") or "").strip()
     if configured_bk_env:
@@ -486,6 +486,9 @@ def _control_plane_probe(
             "versions": [
                 {key: item.get(key) for key in ("name", "served", "storage")} for item in crd_spec.get("versions") or []
             ],
+            # Field names only. The full openAPIV3Schema runs to tens of kilobytes and would
+            # crowd out the rest of the evidence for something no operator reads in full.
+            "schema": desired["crd_schema"],
             "conditions": [
                 {
                     key: condition.get(key)
@@ -500,8 +503,28 @@ def _control_plane_probe(
         "target": target_snapshot,
         "target_events": target_events,
     }
-    status = "success" if desired["all_present"] and desired["all_exact_match"] else "warning"
-    code = "control_plane_resolved" if status == "success" else "desired_config_drift"
+    pruned_fields = desired["crd_schema"]["pruned_fields_in_use"]
+    if pruned_fields:
+        warnings.append(
+            {
+                "code": "crd_schema_outdated",
+                "message": (
+                    f"the cluster BkLogConfig CRD does not declare {', '.join(pruned_fields)}, so the apiserver "
+                    "prunes these fields on write and re-releasing the collector cannot make them take effect; "
+                    "upgrade the CRD to the version shipped with the current chart"
+                ),
+                "retryable": False,
+            }
+        )
+    status = "success" if desired["all_present"] and desired["all_material_match"] else "warning"
+    if status == "success":
+        code = "control_plane_resolved"
+    elif any(row["difference_reasons"]["value_drift"] for row in desired["items"]):
+        # Real drift outranks a stale schema: it can be fixed by re-releasing, and saying so
+        # keeps the operator from waiting on a CRD upgrade that would not have helped.
+        code = "desired_config_drift"
+    else:
+        code = "crd_schema_outdated"
     probe = _probe(
         status,
         code,

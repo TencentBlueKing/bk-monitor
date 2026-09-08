@@ -76,7 +76,7 @@ export const random = n => {
   const str = 'abcdefghijklmnopqrstuvwxyz0123456789'; // 可以作为常量放到random外面
   let result = '';
   for (let i = 0; i < n; i++) {
-    result += str[parseInt(Math.random() * str.length)];
+    result += str[parseInt(Math.random() * str.length, 10)];
   }
   return result;
 };
@@ -171,7 +171,7 @@ export const formatDatetime = (time, fmt) => {
 export const getUrlParam = name => {
   const reg = new RegExp(`(^|&)${name}=([^&]*)(&|$)`); // 构造一个含有目标参数的正则表达式对象
   const r = window.location.search.substr(1).match(reg); // 匹配目标参数
-  if (r != null) return decodeURI(r[2]);
+  if (r !== null) return decodeURI(r[2]);
   return null; // 返回参数值
 };
 

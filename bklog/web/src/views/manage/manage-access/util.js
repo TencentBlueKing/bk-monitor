@@ -53,23 +53,23 @@ export function formatBytes(size) {
  *
  */
 export function requestStorageUsage(bkBizId, arr, type = false, callbackFn) {
-  let index_set_ids = [];
+  let indexSetIds = [];
 
   if (type) {
-    index_set_ids = arr
+    indexSetIds = arr
       .filter(item => {
         return item.index_set_id && item.is_active && !('total_usage' in item);
       })
       .map(item => item.index_set_id);
   } else {
-    index_set_ids = arr
+    indexSetIds = arr
       .filter(item => {
-        return item.index_set_id && item.is_active && item.apply_status == 'normal';
+        return item.index_set_id && item.is_active && item.apply_status === 'normal';
       })
       .map(item => item.index_set_id);
   }
 
-  if (!index_set_ids.length) {
+  if (!indexSetIds.length) {
     return Promise.resolve();
   }
 
@@ -77,7 +77,7 @@ export function requestStorageUsage(bkBizId, arr, type = false, callbackFn) {
     .request('collect/getStorageUsage', {
       data: {
         bk_biz_id: bkBizId,
-        index_set_ids,
+        index_set_ids: indexSetIds,
       },
     })
     .then(resp => {

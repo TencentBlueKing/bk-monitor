@@ -16,6 +16,7 @@ from rest_framework import serializers
 from bkm_space.utils import bk_biz_id_to_space_uid
 from core.drf_resource import Resource, api
 from kernel_api.serializers.mixins import TimeSpanValidationPassThroughSerializer
+from kernel_api.unified_mcp.permissions import call_log_api
 
 logger = logging.getLogger(__name__)
 
@@ -97,7 +98,7 @@ class GetIndexSetListResource(Resource):
     def perform_request(self, validated_request_data):
         bk_biz_id = validated_request_data.get("bk_biz_id")
         logger.info("SearchIndexSetListResource: try to search index set list, bk_biz_id->[%s]", bk_biz_id)
-        result = api.log_search.search_index_set(bk_biz_id=bk_biz_id)
+        result = call_log_api("search_index_set", bk_biz_id=bk_biz_id)
         return result
 
 
@@ -118,7 +119,7 @@ class GetIndexSetFieldListResource(Resource):
             index_set_id,
             bk_biz_id,
         )
-        result = api.log_search.log_search_index_set(index_set_id=index_set_id)
+        result = call_log_api("log_search_index_set", index_set_id=index_set_id)
         return result
 
 
@@ -403,7 +404,7 @@ class SearchIndexSetContextResource(Resource):
             validated_request_data.get("bk_biz_id"),
         )
 
-        result = api.log_search.search_index_set_context(**validated_request_data)
+        result = call_log_api("search_index_set_context", **validated_request_data)
         return result
 
 
@@ -552,5 +553,5 @@ class SearchLogClusteringPatternResource(Resource):
             "SearchPatternResource: try to search pattern, index_set_id->[%s], bk_biz_id->[%s]", index_set_id, bk_biz_id
         )
 
-        result = api.log_search.search_pattern(**validated_request_data)
+        result = call_log_api("search_pattern", **validated_request_data)
         return result

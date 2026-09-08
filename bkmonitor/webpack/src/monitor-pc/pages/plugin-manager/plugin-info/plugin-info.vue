@@ -59,9 +59,15 @@
         </template>
         <bk-tab-panel
           key="detail"
-          :label="$t('插件详情')"
           name="detail"
         >
+          <template #label>
+            <span
+              class="icon-monitor icon-mc-list"
+              style="font-size: 12px"
+            ></span>
+            {{ $t('插件详情') }}
+          </template>
           <div class="content-wrapper">
             <div class="operator">
               <bk-button
@@ -304,111 +310,20 @@
         </bk-tab-panel>
         <bk-tab-panel
           key="metric"
-          :label="$t('指标维度')"
           name="metric"
         >
-          <div class="content-wrapper">
-            <div
-              v-show="tabActive === 'metric'"
-              class="operator"
-            >
-              <bk-button
-                v-authority="{ active: !authority.MANAGE_AUTH }"
-                theme="primary"
-                outline
-                @click="authority.MANAGE_AUTH ? handleToMertic() : handleShowAuthorityDetail()"
-              >
-                {{ $t('设置指标&维度') }}
-              </bk-button>
-            </div>
-            <div
-              v-for="group in pluginInfo.metric_json"
-              :key="group.table_name"
-              class="metric-group"
-              :class="{ 'active-group': show }"
-            >
-              <div class="group-header">
-                <div
-                  class="left-box"
-                  @click="show = !show"
-                >
-                  <i
-                    class="bk-icon group-icon"
-                    :class="show ? 'icon-right-shape' : 'icon-down-shape'"
-                  />
-                  <div class="group-name">{{ group.table_name }}({{ group.table_desc }})</div>
-                  <div class="group-num">
-                    <i18n path="共{0}个指标，{1}个维度">
-                      <span class="num-blod">{{ metricNum(group.fields) }}</span>
-                      <span class="num-blod">{{ dimensionNum(group.fields) }}</span>
-                    </i18n>
-                  </div>
-                </div>
-              </div>
-              <div class="table-box">
-                <div class="left-table">
-                  <bk-table
-                    :data="group.fields"
-                    :outer-border="false"
-                  >
-                    <bk-table-column
-                      width="120"
-                      :label="$t('指标/维度')"
-                    >
-                      <template slot-scope="scope">
-                        <div v-if="scope.row.monitor_type === 'metric'">
-                          {{ $t('指标') }}
-                        </div>
-                        <div v-else>
-                          {{ $t('维度') }}
-                        </div>
-                      </template>
-                    </bk-table-column>
-                    <bk-table-column
-                      :label="$t('英文名')"
-                      min-width="100"
-                      prop="name"
-                    />
-                    <bk-table-column
-                      :label="$t('别名')"
-                      min-width="100"
-                    >
-                      <template slot-scope="scope">
-                        {{ scope.row.description || '--' }}
-                      </template>
-                    </bk-table-column>
-                    <bk-table-column
-                      :label="$t('类型')"
-                      min-width="60"
-                      prop="type"
-                    />
-                    <bk-table-column
-                      :label="$t('单位')"
-                      min-width="60"
-                    >
-                      <template slot-scope="scope">
-                        {{ scope.row.unit || '--' }}
-                      </template>
-                    </bk-table-column>
-                    <bk-table-column
-                      width="100"
-                      :label="$t('启/停')"
-                    >
-                      <template slot-scope="scope">
-                        <div class="is-active">
-                          <div
-                            class="active-status"
-                            :class="scope.row.is_active ? 'green' : 'red'"
-                          />
-                          <div>{{ scope.row.is_active ? $t('启用') : $t('停用') }}</div>
-                        </div>
-                      </template>
-                    </bk-table-column>
-                  </bk-table>
-                </div>
-              </div>
-            </div>
-          </div>
+          <template #label>
+            <span
+              class="icon-monitor icon-zhibiaojiansuo"
+              style="font-size: 14px"
+            ></span>
+            {{ $t('指标维度') }}
+          </template>
+          <plugin-indicator-dimension
+            :can-edit="canEdit"
+            :plugin-id="pluginInfo.plugin_id || $route.params.pluginId"
+            @refresh="requestPluginDetail($route.params.pluginId)"
+          />
         </bk-tab-panel>
       </monitor-tab>
     </div>
@@ -433,6 +348,7 @@ import MonitorTab from '../../../components/monitor-tab/monitor-tab';
 import authorityMixinCreate from '../../../mixins/authorityMixin';
 import CommonNavBar from '../../monitor-k8s/components/common-nav-bar';
 import * as pluginManagerAuth from '../authority-map';
+import PluginIndicatorDimension from '../components/indicator-dimension';
 
 export default {
   name: 'PluginDetail',
@@ -443,6 +359,7 @@ export default {
     HistoryDialog,
     CommonNavBar,
     ViewParam,
+    PluginIndicatorDimension,
   },
   mixins: [authorityMixinCreate(pluginManagerAuth)],
   props: {
@@ -450,7 +367,6 @@ export default {
   },
   data() {
     return {
-      show: false,
       isLoading: true,
       tabActive: 'detail',
       paramConf: {
@@ -575,14 +491,6 @@ export default {
         },
       });
     },
-    handleToMertic() {
-      this.$router.push({
-        name: 'plugin-setmetric',
-        params: {
-          pluginId: this.$route.params.pluginId,
-        },
-      });
-    },
     handleLook() {
       this.paramConf.list = this.updateInfo;
     },
@@ -703,12 +611,6 @@ export default {
         }
       });
     },
-    metricNum(data) {
-      return data.filter(item => item.monitor_type === 'metric').length;
-    },
-    dimensionNum(data) {
-      return data.filter(item => item.monitor_type === 'dimension').length;
-    },
     handleJump() {
       this.$router.push({
         name: 'collect-config-add',
@@ -725,6 +627,7 @@ export default {
   height: 100%;
 
   :deep(.bk-tab-section) {
+    height: auto !important;
     padding: 0;
   }
 
@@ -733,8 +636,19 @@ export default {
   }
 
   .plugin-detail-content {
+    display: flex;
+    flex-direction: column;
     height: calc(100% - 52px - var(--notice-alert-height));
     padding: 16px;
+
+    :deep(.bk-tab-header-setting.has-setting) {
+      border-left: none !important;
+    }
+
+    .monitor-tab {
+      flex: 1;
+      overflow: hidden;
+    }
 
     .hint-alert {
       background: #fff;
@@ -761,91 +675,9 @@ export default {
   }
 }
 
-.active-group {
-  height: 64px;
-  overflow: hidden;
-}
-
 .content-wrapper {
   position: relative;
   padding: 16px 24px 20px 26px;
-}
-
-.metric-group {
-  padding: 0 23px 30px 22px;
-  margin-bottom: 8px;
-  color: #63656e;
-  background: #fff;
-  box-shadow: 0 1px 2px 0 rgb(0 0 0 / 10%);
-  transition: height 0.5s;
-
-  .num-blod {
-    font-weight: bold;
-  }
-
-  .group-header {
-    display: flex;
-    align-items: center;
-    height: 64px;
-
-    .left-box {
-      display: flex;
-      flex-grow: 1;
-      align-items: center;
-      height: 64px;
-      cursor: pointer;
-
-      .group-icon {
-        margin-right: 6px;
-        font-size: 15px;
-      }
-
-      .group-name {
-        margin-right: 40px;
-        font-size: 14px;
-        font-weight: bold;
-      }
-
-      .group-num {
-        color: #979ba5;
-        cursor: default;
-      }
-    }
-  }
-
-  .table-box {
-    display: flex;
-    max-height: 427px;
-    padding: 0 7px 0 8px;
-    overflow-y: scroll;
-
-    .left-table {
-      width: 100%;
-
-      .is-active {
-        display: flex;
-        align-items: center;
-
-        .active-status {
-          width: 8px;
-          height: 8px;
-          margin-right: 4px;
-          border: 1px solid;
-          border-radius: 50%;
-        }
-
-        .green {
-          background: #70eab8;
-          border-color: #10c178;
-        }
-
-        .red {
-          background: #fd9c9c;
-          border-color: #ea3636;
-        }
-      }
-    }
-  }
 }
 
 .plugin-info {

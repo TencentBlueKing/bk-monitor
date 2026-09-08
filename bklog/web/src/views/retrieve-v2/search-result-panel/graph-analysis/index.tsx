@@ -45,7 +45,6 @@ interface IProps {
   data: any;
 }
 
-/* eslint-disable no-unused-vars */
 export enum OptionList {
   Analysis = 'analysis',
   Overview = 'overview',
@@ -60,8 +59,6 @@ export enum GraphCategory {
   PIE = 'pie',
   TABLE = 'table',
 }
-/* eslint-enable no-unused-vars */
-
 @Component({
   components: {
     GraphDragTool,
@@ -119,12 +116,12 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
     scrollTop: 0,
   };
 
-  debounceCallback = debounce((entry) => {
+  debounceCallback = debounce(entry => {
     const { offsetWidth, offsetHeight } = entry.target;
     Object.assign(this.canvasBodyStyle, { with: offsetWidth, height: offsetHeight });
   }, 120);
 
-  throttleScrollCallback = throttle((event) => {
+  throttleScrollCallback = throttle(event => {
     Object.assign(this.canvasBodyStyle, { scrollTop: (event.target as HTMLElement).scrollTop });
   });
 
@@ -132,9 +129,8 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
   isRequesting = false;
 
   get exceptionStyle() {
-    const scrollHeight = this.canvasBodyStyle.scrollTop < this.sqlEditorHeight
-      ? this.canvasBodyStyle.scrollTop
-      : this.sqlEditorHeight;
+    const scrollHeight =
+      this.canvasBodyStyle.scrollTop < this.sqlEditorHeight ? this.canvasBodyStyle.scrollTop : this.sqlEditorHeight;
 
     const announcementHeight = this.$store.state.showAlert ? 40 : 0;
 
@@ -322,7 +318,7 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
   }
 
   renderGraphCategory() {
-    return this.graphCategoryList.map((category) => {
+    return this.graphCategoryList.map(category => {
       const item = this.graphCategory[category];
       const isActive = this.activeGraphCategory === category;
       const imgHref = isActive ? item.images.active : item.images.def;
@@ -333,9 +329,6 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
           onClick={item.click}
         >
           <div class='category-img'>
-            {/** biome-ignore lint/performance/noImgElement: reason */}
-            {/** biome-ignore lint/nursery/useImageSize: reason */}
-            {/** biome-ignore lint/a11y/useAltText: reason */}
             <img src={imgHref} />
           </div>
           <div class='category-text'>{item.text}</div>
@@ -361,7 +354,7 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
   }
 
   renderFieldsSetting() {
-    return this.fieldList.map((field) => {
+    return this.fieldList.map(field => {
       return (
         <div
           key={field}
@@ -482,12 +475,12 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
     this.rightOptionWidth = target;
   }
 
-  // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: reason
   getChartConfigValidate() {
     let showException = false;
-    const message =      this.activeGraphCategory === GraphCategory.PIE
-      ? this.$t('至少需要一个指标，一个维度')
-      : this.$t('至少需要一个指标，一个维度/时间维度');
+    const message =
+      this.activeGraphCategory === GraphCategory.PIE
+        ? this.$t('至少需要一个指标，一个维度')
+        : this.$t('至少需要一个指标，一个维度/时间维度');
     let tips: any;
     const isGraphCategoryPie = this.activeGraphCategory === GraphCategory.PIE;
     const isNumber = this.activeGraphCategory === GraphCategory.NUMBER;
@@ -576,7 +569,7 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
                     {this.$t('我知道了')}
                   </bk-button>
                 </div>,
-            ]
+              ]
             : ''}
         </bk-exception>
       );
@@ -628,11 +621,12 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
 
     if (this.yFields.length === 0) {
       const filterList = list.filter(
-        item => !(
-          /date|time/.test(item.field_alias)
-            || this.xFields.includes(item.field_alias)
-            || this.dimensions.includes(item.field_alias)
-        ),
+        item =>
+          !(
+            /date|time/.test(item.field_alias) ||
+            this.xFields.includes(item.field_alias) ||
+            this.dimensions.includes(item.field_alias)
+          ),
       );
 
       const defValue = filterList?.find(
@@ -672,7 +666,7 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
 
     if (isElement(cellElement)) {
       // 创建一个 ResizeObserver 实例
-      this.resizeObserver = new ResizeObserver((entries) => {
+      this.resizeObserver = new ResizeObserver(entries => {
         for (const entry of entries) {
           // 获取元素的新高度
           this.debounceCallback(entry);
@@ -782,7 +776,7 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
                   <FieldSettings
                     slot='content'
                     options={this.chartOptions}
-                    result_schema={this.resultSchema}
+                    resultSchema={this.resultSchema}
                     on-update={this.updateChartData}
                   />
                 </bk-collapse-item>

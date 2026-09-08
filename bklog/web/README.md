@@ -168,21 +168,30 @@ git config tag.gpgsign true
 
 ## 格式化以及校验
 
-### 格式化
-  1、biome格式化配置[文档](https://biomejs.dev/zh-cn/reference/configuration/)
-  2、biome格式化命令
-  ```bash
-  # 格式化
-  npm run biome:format
-  ```
-  3、biome vscode扩展[文档](https://biomejs.dev/zh-cn/reference/vscode/)
-  > 注意：目前安装这个插件可能启动会失败，可以手动格式化；有git钩子，也可不手动格式化
+主应用使用以下工具：
 
-### 校验
-  1、oxlint校验配置[文档](https://oxc.rs/docs/guide/usage/linter/rules.html)
-  2、oxlint校验命令
-  ```bash
-  # 校验
-  npm run oxlint
-  ```
-  3、oxlint vscode扩展[文档](https://oxc.rs/docs/guide/usage/linter.html#vscode-extension)
+- Prettier：格式化 `src` 中的 JavaScript、TypeScript、TSX 和 Vue 文件。
+- ESLint：检查 `src` 中的 JavaScript、TypeScript、TSX 和 Vue 语义问题。
+- Stylelint：检查 `src` 中 Vue style、SCSS、CSS 和 Sass。
+
+### 增量检查
+
+提交代码时，Git Hook 会对暂存的相关文件执行自动修复和检查。CI 当前只执行主应用构建，不执行格式化、ESLint 或 Stylelint 检查。
+
+### 全量命令
+
+以下命令用于手动检查或后续存量治理。本地提交的增量检查不会调用这些全量命令。
+
+```bash
+# Prettier
+npm run format
+npm run format:check
+
+# ESLint
+npm run lint
+npm run lint:fix
+
+# Stylelint
+npm run stylelint
+npm run stylelint:fix
+```

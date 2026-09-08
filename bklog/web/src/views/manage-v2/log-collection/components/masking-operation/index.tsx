@@ -66,8 +66,8 @@ export default defineComponent({
     });
     const isHiddenSyncNum = computed(() => {
       return (
-        ['bkdata-index-set-masking', 'es-index-set-masking'].includes(String(route.name))
-        || ['bkdata', 'es'].includes(typeKey.value)
+        ['bkdata-index-set-masking', 'es-index-set-masking'].includes(String(route.name)) ||
+        ['bkdata', 'es'].includes(typeKey.value)
       );
     });
 

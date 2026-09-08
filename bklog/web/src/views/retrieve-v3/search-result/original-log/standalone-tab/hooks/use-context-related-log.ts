@@ -52,7 +52,12 @@ export const useContextRelatedLog = (options: {
     requestSeq += 1;
     const currentSeq = requestSeq;
     const dtEventTimeStamp = getDtEventTimeStamp();
-    if (!options.indexSetId.value || dtEventTimeStamp === undefined || dtEventTimeStamp === null || dtEventTimeStamp === 'None') {
+    if (
+      !options.indexSetId.value ||
+      dtEventTimeStamp === undefined ||
+      dtEventTimeStamp === null ||
+      dtEventTimeStamp === 'None'
+    ) {
       return;
     }
 

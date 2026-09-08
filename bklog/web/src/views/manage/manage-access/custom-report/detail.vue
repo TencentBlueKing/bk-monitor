@@ -27,9 +27,9 @@
 <template>
   <div
     ref="detailRef"
+    v-bkloading="{ isLoading: basicLoading }"
     :style="`padding-right: ${introWidth + 20}px;`"
     class="custom-report-detail-container access-manage-container"
-    v-bkloading="{ isLoading: basicLoading }"
   >
     <auth-container-page
       v-if="authPageInfo"
@@ -62,12 +62,12 @@
       </basic-tab>
       <keep-alive>
         <component
+          :is="dynamicComponent"
           class="tab-content"
           :collector-data="reportDetail"
           :edit-auth="editAuth"
           :edit-auth-data="editAuthData"
           :index-set-id="reportDetail.index_set_id || ''"
-          :is="dynamicComponent"
           @update-active-panel="activePanel = $event"
         ></component>
       </keep-alive>
@@ -226,7 +226,7 @@
           const res = await this.$store.dispatch('checkAndGetData', paramData);
           if (!res.isAllowed) this.editAuthData = res.data;
           this.editAuth = res.isAllowed;
-        } catch (error) {
+        } catch {
           this.editAuth = false;
         }
       },

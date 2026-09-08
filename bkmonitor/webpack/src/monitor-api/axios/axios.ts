@@ -156,8 +156,12 @@ const instance: AxiosInstance = axios.create({
   paramsSerializer(params: any): string {
     return qs.stringify(params, { arrayFormat: 'brackets' });
   },
+  // 开发态微前端子应用的 host 是 :7002。若拼进 baseURL，告警等 API 会从主应用 :7001 跨域打到 :7002，
+  // Cursor 内置浏览器无法 --disable-web-security，请求会被拦成无数据。开发态改为走当前页面同源代理。
   baseURL:
-    (window.__BK_WEWEB_DATA__?.host || '').replace(/\/$/, '') +
+    (process.env.NODE_ENV === 'development'
+      ? ''
+      : (window.__BK_WEWEB_DATA__?.host || '').replace(/\/$/, '')) +
     (process.env.NODE_ENV === 'production' ? window.site_url : process.env.APP === 'mobile' ? '/weixin' : '/'),
   xsrfCookieName: 'X-CSRFToken',
 });

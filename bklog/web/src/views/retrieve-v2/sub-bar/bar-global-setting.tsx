@@ -239,7 +239,11 @@ export default defineComponent({
             <div class='setting-item'>
               <div class='item-label'>{$t('结果展示')}</div>
               <div class='item-main'>
-                {checkboxRender(resultDisplayLines.value, GLOBAL_SETTING_OPTIONS.resultDisplayLines, setResultDisplayLines)}
+                {checkboxRender(
+                  resultDisplayLines.value,
+                  GLOBAL_SETTING_OPTIONS.resultDisplayLines,
+                  setResultDisplayLines,
+                )}
               </div>
             </div>
           </div>

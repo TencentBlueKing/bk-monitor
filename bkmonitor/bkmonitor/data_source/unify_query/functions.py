@@ -9,6 +9,7 @@ specific language governing permissions and limitations under the License.
 """
 
 from dataclasses import dataclass
+import logging
 from typing import Any
 
 from django.utils.translation import gettext_lazy as _lazy
@@ -17,6 +18,8 @@ from core.errors.bkmonitor.data_source import (
     FunctionNotFoundError,
     FunctionNotSupportedError,
 )
+
+logger = logging.getLogger(__name__)
 
 _ParamsValue = int | str | float
 
@@ -142,6 +145,32 @@ AggMethods = dict(
         description="",
     ),
 )
+
+
+def normalize_metric_method(method: str) -> str:
+    """
+    归一化聚合方法名，并做未解析占位符 / 非法枚举值的兜底转换。
+
+    - 大小写归一（不区分大小写）：MAX_WITHOUT_TIME / MAX_without_time / Max_Without_Time -> max_without_time
+    - 兜底一（占位符未解析）：面板变量占位符未被前端解析时，直接下发会生成非法查询，回退为安全的默认方法：
+      - 占位符含 "$"（如 "${method}_WITHOUT_TIME" / "$method"，新前端 template-srv 未命中时原样透传）
+        或 "undefined" 前缀（防御性：老前端变量缺失时 method 字段会整体消失而非产生字符串）
+      - 带 _without_time 后缀 -> sum_without_time（进程指标的历史口径）
+      - 其他 -> sum
+    - 兜底二（枚举校验）：以 _without_time 结尾但不在 AggMethods 合法枚举内
+      （如拼接产物 distinct_without_time，AggMethods 仅注册 5 个变体）-> sum，
+      避免生成 "{method}_over_time" 形态的非法查询
+    """
+    normalized = str(method).strip().lower()
+    if "$" in normalized or normalized.startswith("undefined"):
+        fallback = "sum_without_time" if normalized.endswith("_without_time") else "sum"
+        logger.warning("unresolved metric method [%s], fallback to [%s]", method, fallback)
+        return fallback
+    if normalized.endswith("_without_time") and normalized not in AggMethods:
+        logger.warning("invalid *_without_time metric method [%s], fallback to [sum]", method)
+        return "sum"
+    return normalized
+
 
 FunctionCategories = [
     FunctionCategory(id="change", name=_lazy("指标变化"), description=_lazy("计算指标变化的相关函数")),

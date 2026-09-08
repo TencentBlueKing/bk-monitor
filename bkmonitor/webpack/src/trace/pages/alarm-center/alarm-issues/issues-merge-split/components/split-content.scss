@@ -89,6 +89,42 @@
         cursor: default;
       }
 
+      .issues-name-description {
+        display: flex;
+        flex: 1;
+        gap: 8px;
+        align-items: center;
+        min-width: 0;
+        font-size: 12px;
+
+        .issues-alert-count {
+          display: inline-flex;
+          flex-shrink: 0;
+          gap: 2px;
+          align-items: center;
+          height: 18px;
+          padding: 3px 4px;
+          font-size: 11px;
+          color: #4e5e7a;
+          background: #f0f4fa;
+          border-radius: 4px;
+
+          .icon-alert-line {
+            font-size: 11px;
+          }
+
+          .issues-alert-count-number {
+            font-weight: 700;
+          }
+        }
+
+        .issues-name-exception-text {
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+      }
+
       &:last-child {
         border-bottom: none;
       }

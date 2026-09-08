@@ -28,6 +28,7 @@ import { h, computed } from 'vue';
 import { getFieldNameByField } from '@/hooks/use-field-name';
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
+import RetrieveHelper, { RetrieveEvent } from '@/views/retrieve-helper';
 
 export default () => {
   const store = useStore();
@@ -75,10 +76,11 @@ export default () => {
         }
       }
       const isLackIndexFields = !!unionContent && isUnionSearch.value;
-      const sortable =        !['dtEventTimeStamp'].includes(field.field_name)
-        && field.es_doc_values
-        && field.tag !== 'union-source'
-        && field.field_type !== 'flattened';
+      const sortable =
+        !['dtEventTimeStamp'].includes(field.field_name) &&
+        field.es_doc_values &&
+        field.tag !== 'union-source' &&
+        field.field_type !== 'flattened';
 
       return h(
         'div',
@@ -143,13 +145,13 @@ export default () => {
 
           sortable
             ? h('span', { class: 'bk-table-caret-wrapper' }, [
-              h('i', {
-                class: `bk-table-sort-caret ascending ${isSortShow && isAsc ? 'active' : ''}`,
-              }),
-              h('i', {
-                class: `bk-table-sort-caret descending ${isSortShow && isDesc ? 'active' : ''}`,
-              }),
-            ])
+                h('i', {
+                  class: `bk-table-sort-caret ascending ${isSortShow && isAsc ? 'active' : ''}`,
+                }),
+                h('i', {
+                  class: `bk-table-sort-caret descending ${isSortShow && isDesc ? 'active' : ''}`,
+                }),
+              ])
             : '',
           h('i', {
             class: `bk-icon icon-minus-circle-shape toggle-display ${isNotVisibleFieldsShow.value ? 'is-hidden' : ''}`,
@@ -160,7 +162,7 @@ export default () => {
               },
             ],
             on: {
-              click: (e) => {
+              click: e => {
                 e.stopPropagation();
                 const displayFieldNames: string[] = [];
                 for (const newField of visibleFields.value) {
@@ -173,6 +175,7 @@ export default () => {
                 });
                 store.commit('resetVisibleFields', displayFieldNames);
                 store.commit('updateIsSetDefaultTableColumn');
+                RetrieveHelper.fire(RetrieveEvent.VISIBLE_FIELD_COLUMN_LAYOUT_CHANGE);
               },
             },
           }),

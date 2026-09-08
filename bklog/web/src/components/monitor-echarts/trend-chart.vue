@@ -1,17 +1,18 @@
 <script setup>
-  import { ref, computed, onBeforeUnmount, inject, onMounted } from 'vue';
+  import { ref, computed, onBeforeUnmount, inject } from 'vue';
   import useStore from '@/hooks/use-store';
   import useTrendChart from '@/hooks/use-trend-chart';
+  import useRetrieveEvent from '@/hooks/use-retrieve-event';
   import { useRoute } from 'vue-router/composables';
   import { getCommonFilterAdditionWithValues } from '../../store/helper';
-  import RetrieveHelper, { RetrieveEvent } from '../../views/retrieve-helper';
+  import { RetrieveEvent } from '../../views/retrieve-helper';
   import axios from 'axios';
 
   import http from '@/api';
   const store = useStore();
   const route = useRoute();
 
-  const emit = defineEmits(['polling']);
+  defineEmits(['polling']);
 
   const CancelToken = axios.CancelToken;
   const isUnionSearch = computed(() => store.getters.isUnionSearch);
@@ -35,7 +36,7 @@
   let requestInterval = 0;
   let pollingEndTime = 0;
   let pollingStartTime = 0;
-  let logChartCancel = null; 
+  let logChartCancel = null;
 
   const handleRequestSplit = (startTime, endTime) => {
     const duration = (endTime - startTime) / 3600000;

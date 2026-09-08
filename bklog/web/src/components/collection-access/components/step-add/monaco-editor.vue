@@ -73,8 +73,8 @@
         <template>
           <div
             v-for="(item, index) of problemList"
-            class="problem"
             :key="index"
+            class="problem"
             @click="handelClickProblemBtn(item.lineNumber, item.column)"
           >
             <div :class="`bk-icon ${item.codiconClass}`"></div>

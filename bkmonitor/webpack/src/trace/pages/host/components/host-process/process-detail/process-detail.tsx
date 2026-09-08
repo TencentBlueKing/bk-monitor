@@ -147,7 +147,7 @@ export default defineComponent({
     /** 汇聚 Toolbar 状态（受控分发给 Toolbar 与图表） */
     const aggregation = useMetricAggregation(processMetricAggregationState.value);
     /** 进程指标数据：取数走带缓存的 panel / order */
-    const { rows, orderData, loading, settingShow, load, handleReset, handleSave } = useProcessMetric({
+    const { rows, orderData, loading, settingShow, load, handleSave } = useProcessMetric({
       keyword: () => aggregation.state.keyword,
       ungroupTitle: () => t('未分组'),
     });
@@ -395,7 +395,6 @@ export default defineComponent({
               isShow={settingShow.value}
               orderData={orderData.value}
               submitLoading={loading.value}
-              onReset={handleReset}
               onSave={handleSave}
               onUpdate:isShow={(v: boolean) => {
                 settingShow.value = v;

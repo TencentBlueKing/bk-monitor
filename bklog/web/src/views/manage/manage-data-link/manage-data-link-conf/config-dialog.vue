@@ -55,8 +55,8 @@
           required
         >
           <bk-input
-            style="width: 380px"
             v-model="formData.link_group_name"
+            style="width: 380px"
             :clearable="true"
             data-test-id="linkConfigForm_div_linkName"
           ></bk-input>
@@ -69,8 +69,8 @@
         >
           <bk-select
             ref="selectRef"
-            style="width: 380px"
             v-model="formData.bk_biz_id"
+            style="width: 380px"
             :clearable="false"
             :list="projectList"
             :virtual-scroll-render="virtualscrollSpaceList"
@@ -89,8 +89,8 @@
           required
         >
           <bk-select
-            style="width: 380px"
             v-model="formData.kafka_cluster_id"
+            style="width: 380px"
             :clearable="false"
             data-test-id="linkConfigForm_select_selectKafka"
           >
@@ -112,8 +112,8 @@
           required
         >
           <bk-select
-            style="width: 380px"
             v-model="formData.transfer_cluster_id"
+            style="width: 380px"
             :clearable="false"
             data-test-id="linkConfigForm_select_selectTransfer"
           >
@@ -135,8 +135,8 @@
           required
         >
           <bk-select
-            style="width: 380px"
             v-model="formData.es_cluster_ids"
+            style="width: 380px"
             :clearable="false"
             data-test-id="linkConfigForm_select_selectEsClusterIds"
             multiple
@@ -168,8 +168,8 @@
           property="description"
         >
           <bk-input
-            style="width: 380px"
             v-model="formData.description"
+            style="width: 380px"
             :clearable="true"
             :maxlength="64"
             data-test-id="linkConfigForm_input_Remark"

@@ -43,6 +43,7 @@ from apm.models import (
 )
 from apm.utils.report_event import EventReportHelper
 from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id, set_local_tenant_id
+from bkmonitor.utils.user import get_user_display_name
 from constants.apm import TelemetryDataType
 from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import api
@@ -222,11 +223,16 @@ def create_or_update_tail_sampling(trace_datasource, data, operator=None):
     """创建/更新尾部采样Flow"""
     bk_biz_id = trace_datasource.bk_biz_id
     app_name = trace_datasource.app_name
+    if settings.ENABLE_MULTI_TENANT_MODE:
+        set_local_tenant_id(bk_biz_id_to_bk_tenant_id(bk_biz_id))
+    operator_display_name = get_user_display_name(operator) if operator else operator
     try:
         TailSamplingFlow(trace_datasource, data).start()
-        EventReportHelper.report(f"应用: ({bk_biz_id}){app_name} 开启尾部采样成功，操作人：{operator}, 规则: {data}")
+        EventReportHelper.report(
+            f"应用: ({bk_biz_id}){app_name} 开启尾部采样成功，操作人：{operator_display_name}, 规则: {data}"
+        )
     except Exception as e:  # noqa
-        EventReportHelper.report(f"应用：({bk_biz_id}){app_name} 开启尾部采样失败，操作人：{operator}")
+        EventReportHelper.report(f"应用：({bk_biz_id}){app_name} 开启尾部采样失败，操作人：{operator_display_name}")
 
 
 @app.task(ignore_result=True, queue="celery_cron")
@@ -328,11 +334,14 @@ def create_application_async(application_id, storage_config, options, cur_retry_
 
     try:
         application = ApmApplication.objects.get(id=application_id)
+        if settings.ENABLE_MULTI_TENANT_MODE:
+            set_local_tenant_id(application.bk_tenant_id)
         application.apply_datasource(storage_config, storage_config, options)
+        create_user = get_user_display_name(application.create_user)
         EventReportHelper.report(
             f"[异步创建任务] 业务：{application.bk_biz_id}，"
             f"应用：{application.app_name}，"
-            f"创建人：{application.create_user}，创建成功"
+            f"创建人：{create_user}，创建成功"
         )
     except Exception as e:  # pylint: disable=broad-except
         logger.error(f"[create_application_async] occur exception of app_id:{application_id} error: {e}")
@@ -382,9 +391,15 @@ def delete_application_async(bk_biz_id, app_name, operator=None):
     异步删除 API 侧 APM 应用
     """
     application = ApmApplication.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
+    if settings.ENABLE_MULTI_TENANT_MODE:
+        bk_tenant_id = application.bk_tenant_id if application else bk_biz_id_to_bk_tenant_id(bk_biz_id)
+        set_local_tenant_id(bk_tenant_id)
+    operator_display_name = get_user_display_name(operator) if operator else operator
     if not application:
         logger.info(f"[DeleteApplication] application: {bk_biz_id}-{app_name} not found")
-        EventReportHelper.report(f"操作人: {operator} 尝试删除应用: ({bk_biz_id}){app_name} 但是此应用未在 DB 中")
+        EventReportHelper.report(
+            f"操作人: {operator_display_name} 尝试删除应用: ({bk_biz_id}){app_name} 但是此应用未在 DB 中"
+        )
         return
 
     qps = QpsConfig.get_application_qps(bk_biz_id, app_name)
@@ -403,13 +418,13 @@ def delete_application_async(bk_biz_id, app_name, operator=None):
         application.stop_profiling()
         application.stop_metric()
         application.stop_log()
-        EventReportHelper.report(f"操作人: {operator} 删除了应用: ({bk_biz_id}){app_name}")
+        EventReportHelper.report(f"操作人: {operator_display_name} 删除了应用: ({bk_biz_id}){app_name}")
     except Exception as e:  # noqa
         logger.exception(
             f"[DeleteApplication] stop app: {application.bk_biz_id}-{application.app_name} failed {e} "
             f"{traceback.format_exc()}"
         )
         get_current_span().record_exception(e)
-        EventReportHelper.report(f"删除应用: ({bk_biz_id}){app_name} 失败，操作人: {operator}")
+        EventReportHelper.report(f"删除应用: ({bk_biz_id}){app_name} 失败，操作人: {operator_display_name}")
     application.delete()
     _schedule_trace_scope_index_set_sync(bk_biz_id)

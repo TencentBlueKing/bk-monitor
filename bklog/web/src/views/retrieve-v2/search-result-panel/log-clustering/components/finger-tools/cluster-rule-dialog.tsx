@@ -169,7 +169,6 @@ export default class ClusterPopover extends tsc<IProps> {
     parent.removeChild(wrapper);
   }
 
-  // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: reason
   findMatches(regexArray) {
     const text = this.sampleRef.innerText;
     const matches: Record<string, any>[] = [];
@@ -426,8 +425,6 @@ export default class ClusterPopover extends tsc<IProps> {
                   </div>
                   <div class='btn-content'>
                     <i class='icon bk-icon icon-right-turn-line' />
-                    {/** biome-ignore lint/performance/noImgElement: reason */}
-                    {/** biome-ignore lint/nursery/useImageSize: reason */}
                     <img
                       class='xiaojing-AI'
                       alt='小鲸AI'

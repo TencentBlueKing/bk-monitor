@@ -128,124 +128,6 @@
     &:hover {
       overflow-y: auto;
     }
-
-    .leaf-content {
-      position: relative;
-
-      &::before {
-        position: absolute;
-        top: 0;
-        left: calc(var(--level) * 20px + 26px);
-        z-index: 1;
-        width: 1px;
-        height: 100%;
-        content: '';
-        background-color: #dcdee5;
-      }
-    }
-  }
-
-  .dimension-item {
-    position: relative;
-    display: flex;
-    align-items: center;
-    height: 28px;
-    padding: 0 12px;
-    padding-left: calc(var(--level) * 20px + 12px);
-    cursor: pointer;
-
-    &.leaf-item {
-      &:hover {
-        .dimension-count {
-          display: none;
-        }
-
-        .statistics-icon {
-          display: block;
-        }
-      }
-    }
-
-    &:hover {
-      background-color: #f5f7fa;
-
-      .object-count {
-        background: #fff;
-      }
-    }
-
-    &.active {
-      background-color: #f0f1f5;
-
-      .object-count {
-        background: #fff;
-      }
-    }
-
-    &.disabled {
-      cursor: not-allowed;
-
-      .dimension-name {
-        color: #c4c6cc;
-
-        .subtitle {
-          color: #c4c6cc;
-        }
-      }
-    }
-
-    .object-count {
-      min-width: 14px;
-      height: 14px;
-      padding: 0 3px;
-      margin: 0 3px;
-      font-size: 12px;
-      font-weight: 700;
-      line-height: 14px;
-      color: #979ba5;
-      text-align: center;
-      background: #f0f1f5;
-      border-radius: 7px;
-    }
-
-    .object-arrow {
-      font-size: 20px;
-      transition: transform 0.1s;
-
-      &.expand {
-        transform: rotateZ(90deg);
-      }
-    }
-
-    .dimension-name {
-      margin: 0 3px 0 4px;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      font-size: 12px;
-      font-weight: 400;
-      color: #16171a;
-      white-space: nowrap;
-
-      .subtitle {
-        margin-left: 4px;
-        color: #757880;
-      }
-    }
-
-    .dimension-count {
-      height: 14px;
-      margin-left: auto;
-      font-weight: 700;
-      line-height: 14px;
-      color: #a3b1cc;
-      text-align: center;
-    }
-
-    .statistics-icon {
-      display: none;
-      margin-left: auto;
-      font-size: 16px;
-    }
   }
 }
 
@@ -276,7 +158,6 @@
     margin-top: -7px;
   }
 }
-
 
 /* 同时带 light 与自定义 token，特异性高于 global.scss 里单独的 [data-theme~='light']，避免阴影等被覆盖 */
 .tippy-box[data-theme~='light'][data-theme~='statistics-dimension-popover-cls'] {

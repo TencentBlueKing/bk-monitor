@@ -444,6 +444,22 @@ class ClusteringConfigHandler:
             "task_detail": task_detail,
         }
 
+    def sample_log(self):
+        """按索引集抽样采集原始日志，供聚类调试填充日志源。
+
+        采集项 ID 只从服务端聚类配置或索引集反查，不接受前端传入，避免越权抽样。
+        """
+        collector_config_id = getattr(self.data, "collector_config_id", None)
+        if not collector_config_id and self.index_set_id:
+            log_index_set = LogIndexSet.objects.filter(index_set_id=self.index_set_id).first()
+            collector_config_id = getattr(log_index_set, "collector_config_id", None) if log_index_set else None
+        if not collector_config_id:
+            raise ClusteringAccessNotSupportedException()
+
+        from apps.log_databus.handlers.collector import CollectorHandler
+
+        return CollectorHandler.get_instance(collector_config_id).tail()
+
     def debug(self, input_data, predefined_varibles, delimeter, max_log_length):
         """
         正则调试

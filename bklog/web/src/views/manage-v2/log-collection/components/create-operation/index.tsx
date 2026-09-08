@@ -107,7 +107,8 @@ export default defineComponent({
     /**
      * 是否需要采集下发
      */
-    const isNeedIssue = computed(() => ['linux', 'winevent', 'container_file', 'container_stdout'].includes(typeKey.value),
+    const isNeedIssue = computed(() =>
+      ['linux', 'winevent', 'container_file', 'container_stdout'].includes(typeKey.value),
     );
     /**
      * 当前步骤流程
@@ -148,9 +149,9 @@ export default defineComponent({
      */
     const isStepsControllable = computed(() => {
       return (
-        isEdit.value
-        && (dataConfig.value as any).storage_cluster_id !== -1
-        && (dataConfig.value as any).storage_cluster_id !== null
+        isEdit.value &&
+        (dataConfig.value as any).storage_cluster_id !== -1 &&
+        (dataConfig.value as any).storage_cluster_id !== null
       );
     });
 
@@ -177,7 +178,7 @@ export default defineComponent({
         getCollectStatus(Number(collectId.value));
       }
       if (mainRef.value) {
-        resizeObserver = new ResizeObserver((entries) => {
+        resizeObserver = new ResizeObserver(entries => {
           const entry = entries[0];
           if (entry) {
             containerWidth.value = entry.contentRect.width;
@@ -240,7 +241,7 @@ export default defineComponent({
             collector_id_list: id,
           },
         })
-        .then((res) => {
+        .then(res => {
           if (isUnmounted || !res.result) {
             return;
           }
@@ -309,7 +310,7 @@ export default defineComponent({
         return true;
       }
 
-      return new Promise((resolve) => {
+      return new Promise(resolve => {
         bkInfoBox({
           title: t('是否保存本次操作？'),
           confirmLoading: true,
@@ -318,7 +319,7 @@ export default defineComponent({
               if (isChangeStepLoading.value) return;
               isChangeStepLoading.value = true;
 
-              return new Promise<boolean>((infoResolve) => {
+              return new Promise<boolean>(infoResolve => {
                 currentComponentRef.handleSubmitSave({
                   action: 'saveOnly',
                   callback: (success: boolean) => {
@@ -353,9 +354,10 @@ export default defineComponent({
     return () => {
       const currentStepInfo = currentStep.value.find(item => item.icon === step.value);
       const Component = currentStepInfo?.components;
-      const stepStatusProps =        Component === StepClean
-        ? { attrs: { collectStatus: isNeedIssue.value ? currentStatus.value.status : '' } }
-        : {};
+      const stepStatusProps =
+        Component === StepClean
+          ? { attrs: { collectStatus: isNeedIssue.value ? currentStatus.value.status : '' } }
+          : {};
       return (
         <div
           ref={mainRef}
@@ -366,7 +368,7 @@ export default defineComponent({
             status={currentStatus.value.status}
             config={dataConfig.value}
             collectorConfigId={currentCollectorId.value}
-            on-change={(value) => {
+            on-change={value => {
               showCollectIssuedSlider.value = value;
             }}
           />
@@ -422,7 +424,7 @@ export default defineComponent({
             on-handle={handleFunction}
             isEdit={isEdit.value}
             isClone={isClone.value}
-            on-next={(data) => {
+            on-next={data => {
               dataConfig.value = data;
               if (isNeedIssue.value && Component === StepConfiguration) {
                 currentCollectorId.value = data.collector_config_id;
@@ -437,7 +439,7 @@ export default defineComponent({
             on-prev={() => {
               step.value = step.value - 1;
             }}
-            on-detail={(data) => {
+            on-detail={data => {
               dataConfig.value = data;
               currentCollectorId.value = data.collector_config_id;
             }}

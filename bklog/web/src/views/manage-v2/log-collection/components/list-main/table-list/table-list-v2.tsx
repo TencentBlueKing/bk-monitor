@@ -374,7 +374,7 @@ export default defineComponent({
         const updateFilterItems = (items: FilterItem[] | undefined): FilterItem[] | undefined => {
           if (!items || items.length === 0) return items;
           let changed = false;
-          const next = items.map((item) => {
+          const next = items.map(item => {
             const displayName = newMap.get(item.key || '');
             if (displayName && displayName !== item.label) {
               changed = true;
@@ -416,7 +416,7 @@ export default defineComponent({
     >({});
     const indexSetOptionList = ref<IListItemData[]>([...(props.indexGroupList || [])]);
     const isAddIndexSet = ref(false);
-    const addIndexSetRef = ref<{ autoFocus?:() => void } | null>(null);
+    const addIndexSetRef = ref<{ autoFocus?: () => void } | null>(null);
 
     watch(
       () => props.indexGroupList,
@@ -467,7 +467,7 @@ export default defineComponent({
       getEffectiveSource() ? [{ key: 'collector_source', value: [getEffectiveSource()] }] : [],
     );
     // 表格过滤值（用于设置默认选中状态）
-    const filterValue = ref<Record<string, string |(string | number)[]>>({
+    const filterValue = ref<Record<string, string | (string | number)[]>>({
       log_access_type: '',
       collector_scenario_id: '',
       storage_display_name: '',
@@ -678,7 +678,8 @@ export default defineComponent({
       return <span>{displayName}</span>;
     };
 
-    const getRowUniqueId = (row: ITableRowData) => row.collector_config_id || row.index_set_id || row.bk_data_id || row.name;
+    const getRowUniqueId = (row: ITableRowData) =>
+      row.collector_config_id || row.index_set_id || row.bk_data_id || row.name;
 
     const getLocalParentIndexSet = (row: ITableRowData) => {
       return localParentIndexSetMap.value[String(getRowUniqueId(row))];
@@ -704,7 +705,7 @@ export default defineComponent({
 
     const buildParentIndexSets = (ids: Array<number | string>) => {
       const indexSetMap = new Map(indexSetOptionList.value.map(item => [String(item.index_set_id), item]));
-      return ids.map((id) => {
+      return ids.map(id => {
         const matched = indexSetMap.get(String(id));
         return {
           index_set_id: id,
@@ -735,7 +736,7 @@ export default defineComponent({
         },
       };
 
-      tableList.value = tableList.value.map((item) => {
+      tableList.value = tableList.value.map(item => {
         if (getRowUniqueId(item) !== rowId) {
           return item;
         }
@@ -783,23 +784,25 @@ export default defineComponent({
       const normalizedIds = normalizeIndexSetIds(ids);
       const { addIds, removeIds } = getDiffIndexSetIds(normalizedOldIds, normalizedIds);
       const requestList = [
-        ...addIds.map(indexSetId => $http.request('collect/addIndexSetsToGroup', {
-          params: {
-            index_set_id: indexSetId,
-          },
-          data: {
-            child_index_set_ids: [childIndexSetId],
-          },
-        }),
+        ...addIds.map(indexSetId =>
+          $http.request('collect/addIndexSetsToGroup', {
+            params: {
+              index_set_id: indexSetId,
+            },
+            data: {
+              child_index_set_ids: [childIndexSetId],
+            },
+          }),
         ),
-        ...removeIds.map(indexSetId => $http.request('collect/removeIndexSetsFromGroup', {
-          params: {
-            index_set_id: indexSetId,
-          },
-          data: {
-            child_index_set_ids: [childIndexSetId],
-          },
-        }),
+        ...removeIds.map(indexSetId =>
+          $http.request('collect/removeIndexSetsFromGroup', {
+            params: {
+              index_set_id: indexSetId,
+            },
+            data: {
+              child_index_set_ids: [childIndexSetId],
+            },
+          }),
         ),
       ];
 
@@ -825,9 +828,7 @@ export default defineComponent({
     };
 
     const isSameIndexSetIds = (sourceIds: Array<number | string>, targetIds: Array<number | string>) => {
-      return sourceIds.map(String).sort()
-        .join(',') === targetIds.map(String).sort()
-        .join(',');
+      return sourceIds.map(String).sort().join(',') === targetIds.map(String).sort().join(',');
     };
 
     const handleParentIndexSetSubmit = async (row: ITableRowData) => {
@@ -1162,7 +1163,7 @@ export default defineComponent({
           filter: getColumnsFilter(GLOBAL_CATEGORIES_ENUM),
         },
         {
-          title: (_h) => {
+          title: _h => {
             const isActive = filterValue.value.tags.length > 0;
             return (
               <ClusterFilter
@@ -1299,11 +1300,11 @@ export default defineComponent({
         },
         ...(showSpaceSource
           ? [
-            {
-              title: t('采集项来源'),
-              colKey: 'is_related_space',
-              width: 120,
-              cell: (h, { row }: { row: ITableRowData }) => (
+              {
+                title: t('采集项来源'),
+                colKey: 'is_related_space',
+                width: 120,
+                cell: (h, { row }: { row: ITableRowData }) => (
                   <span class='space-tag-wrapper'>
                     {!row.is_related_space && <span class='space-tag current'>{t('当前空间')}</span>}
                     {row.is_related_space && (
@@ -1317,10 +1318,10 @@ export default defineComponent({
                       </span>
                     )}
                   </span>
-              ),
-              filter: getColumnsFilter(IS_RELATED_SPACE_ENUM),
-            },
-          ]
+                ),
+                filter: getColumnsFilter(IS_RELATED_SPACE_ENUM),
+              },
+            ]
           : []),
         {
           title: t('日志类型'),
@@ -1428,7 +1429,7 @@ export default defineComponent({
         },
       ];
       // 合并本地存储的列宽个人设置
-      return columns.map((col) => {
+      return columns.map(col => {
         const storedWidth = col.colKey ? columnsWidthSetting.value[col.colKey] : undefined;
         return {
           ...col,
@@ -1617,7 +1618,7 @@ export default defineComponent({
             space_uid: spaceUid.value,
           },
         })
-        .then((res) => {
+        .then(res => {
           selectLabelList.value = res.data || [];
           // 构建过滤列表："全部"选项 + 非内置标签
           const notBuiltInList = (res.data || [])
@@ -1719,17 +1720,17 @@ export default defineComponent({
             index_set_ids: indexSetIds,
           },
         })
-        .then((res) => {
+        .then(res => {
           const usageMap = new Map<number | string, IStorageUsageItem>();
           // 构建使用量映射表，提高查找效率
           for (const item of res.data || []) {
-            if (item.index_set_id != null) {
+            if (item.index_set_id !== null && item.index_set_id !== undefined) {
               usageMap.set(Number(item.index_set_id), item);
             }
           }
 
           // 更新表格数据
-          tableList.value = tableList.value.map((item) => {
+          tableList.value = tableList.value.map(item => {
             const usageInfo = usageMap.get(Number(item.index_set_id));
             if (usageInfo) {
               const { index_set_id: _id, ...rest } = usageInfo;
@@ -1741,7 +1742,7 @@ export default defineComponent({
             return item;
           });
         })
-        .catch((error) => {
+        .catch(error => {
           console.log('获取存储用量失败:', error);
         });
     };
@@ -1768,13 +1769,13 @@ export default defineComponent({
             collector_config_id_list: collectorConfigIdList,
           },
         })
-        .then((res) => {
+        .then(res => {
           if (isUnmounted || !res.result) {
             stopCollectStatusTimer();
             return;
           }
           const isHasRunning = res.data.filter(item => item.status === 'running').length > 0;
-          tableList.value = tableList.value.map((item) => {
+          tableList.value = tableList.value.map(item => {
             const info = res.data.find(val => val.collector_id === item.collector_config_id);
             const { status_name, status } = info || {};
             return {
@@ -1837,14 +1838,14 @@ export default defineComponent({
             data: params,
           },
           {
-            cancelToken: new CancelToken((c) => {
+            cancelToken: new CancelToken(c => {
               listInterfaceCancel.value = c;
               isCancelToken.value = true;
             }),
           },
         );
         listLoading.value = false;
-        tableList.value = ((res.data?.list || []) as ITableRowData[]).map((item) => {
+        tableList.value = ((res.data?.list || []) as ITableRowData[]).map(item => {
           const localParentIndexSet = getLocalParentIndexSet(item);
           if (!localParentIndexSet) {
             return item;
@@ -2031,7 +2032,7 @@ export default defineComponent({
         .request(requestConfig.api, {
           params: requestConfig.params,
         })
-        .then((res) => {
+        .then(res => {
           if (res.result) {
             showMessage(t('删除成功'));
             reloadList();
@@ -2065,7 +2066,7 @@ export default defineComponent({
               collector_config_id: row.collector_config_id,
             },
           })
-          .then((res) => {
+          .then(res => {
             if (res.result) {
               reloadList();
             }
@@ -2102,14 +2103,14 @@ export default defineComponent({
               collector_config_id: row.collector_config_id,
             },
           })
-          .then((res) => {
+          .then(res => {
             if (res.data?.check_record_id) {
               isShowDetection.value = true;
               const checkRecordId = res.data.check_record_id;
               handleCollectorCheck(checkRecordId);
             }
           })
-          .catch((error) => {
+          .catch(error => {
             console.log('一键检测失败:', error);
           });
         return;
@@ -2132,7 +2133,7 @@ export default defineComponent({
             is_stop_index_set: isStopIndexSet,
           },
         })
-        .then((res) => {
+        .then(res => {
           if (res.result) {
             reloadList();
           }
@@ -2293,14 +2294,16 @@ export default defineComponent({
      * @param sortInfo - 排序信息
      */
     const sortChange = (sortInfo: ISortConfig): void => {
-      const isSameSort =        sortInfo.sortBy === sortConfig.value.sortBy && !!sortInfo.descending === !!sortConfig.value.descending;
+      const isSameSort =
+        sortInfo.sortBy === sortConfig.value.sortBy && !!sortInfo.descending === !!sortConfig.value.descending;
       if (isSameSort) {
         return;
       }
 
-      const isSwitchingToUsageSort =        sortInfo.sortBy
-        && ['daily_usage', 'total_usage'].includes(sortInfo.sortBy)
-        && sortInfo.sortBy !== sortConfig.value.sortBy;
+      const isSwitchingToUsageSort =
+        sortInfo.sortBy &&
+        ['daily_usage', 'total_usage'].includes(sortInfo.sortBy) &&
+        sortInfo.sortBy !== sortConfig.value.sortBy;
       if (isSwitchingToUsageSort) {
         pendingUsageSortInfo.value = sortInfo;
         nextTick(() => {
@@ -2359,7 +2362,8 @@ export default defineComponent({
     const handleColumnResizeChange = (columnsWidth: Record<string, number>) => {
       const prev = columnsWidthSetting.value;
       const keys = Object.keys(columnsWidth);
-      const isUnchanged =        keys.length === Object.keys(prev).length && keys.every(key => prev[key] === columnsWidth[key]);
+      const isUnchanged =
+        keys.length === Object.keys(prev).length && keys.every(key => prev[key] === columnsWidth[key]);
       if (isUnchanged) {
         return;
       }
@@ -2459,8 +2463,8 @@ export default defineComponent({
                         'source-filter-tab': true,
                         active: filterValue.value.is_related_space === item.value,
                         'hide-divider':
-                          filterValue.value.is_related_space === item.value
-                          || filterValue.value.is_related_space === sourceFilterOptions[index + 1]?.value,
+                          filterValue.value.is_related_space === item.value ||
+                          filterValue.value.is_related_space === sourceFilterOptions[index + 1]?.value,
                       }}
                       on-click={() => handleSourceFilterChange(item.value)}
                     >

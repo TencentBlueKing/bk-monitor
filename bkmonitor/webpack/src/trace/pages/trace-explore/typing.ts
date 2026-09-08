@@ -28,7 +28,16 @@ import type { IWhereItem } from '../../components/retrieval-filter/typing';
 
 export type ConditionChangeEvent = Pick<IWhereItem, 'key' | 'method'> & { value: string };
 
-export type DimensionType = 'boolean' | 'date' | 'double' | 'integer' | 'keyword' | 'long' | 'object' | 'text';
+export type DimensionType =
+  | 'boolean'
+  | 'date'
+  | 'double'
+  | 'float'
+  | 'integer'
+  | 'keyword'
+  | 'long'
+  | 'object'
+  | 'text';
 
 export type ExploreFieldList = {
   span: IDimensionField[];
@@ -58,9 +67,15 @@ export interface IDimensionField {
   is_dimensions: boolean;
   is_option_enabled: boolean;
   name: string;
+  option_values?: IDimensionFieldOptionValue[];
   pinyinStr?: string;
   support_operations: IDimensionOperation[];
   type: DimensionType;
+}
+
+export interface IDimensionFieldOptionValue {
+  alias: string;
+  value: string;
 }
 
 /** 维度列表树形结构 */
@@ -68,6 +83,7 @@ export interface IDimensionFieldTreeItem extends IDimensionField {
   children?: IDimensionFieldTreeItem[];
   count?: number;
   expand?: boolean;
+  levelAlias?: string;
   levelName?: string;
 }
 

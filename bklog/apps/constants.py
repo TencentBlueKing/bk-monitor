@@ -501,6 +501,11 @@ class ViewSetActionEnum(ChoicesEnum):
         view_set="ClusteringConfigViewSet",
         view_action="check",
     )
+    CLUSTERING_CONFIG_VIEWSET_SAMPLE_LOG = ViewSetAction(
+        action_id=ExternalPermissionActionEnum.LOG_CLUSTERING.value,
+        view_set="ClusteringConfigViewSet",
+        view_action="sample_log",
+    )
     CLUSTERING_CONFIG_MONITOR_VIEWSET_STRATEGY = ViewSetAction(
         action_id=ExternalPermissionActionEnum.LOG_SEARCH.value,
         view_set="ClusteringMonitorViewSet",
@@ -720,6 +725,7 @@ class ViewSetActionEnum(ChoicesEnum):
         CLUSTERING_CONFIG_VIEWSET_DEFAULT_CONFIG,
         CLUSTERING_CONFIG_VIEWSET_DEBUG,
         CLUSTERING_CONFIG_VIEWSET_CHECK_REGEXP,
+        CLUSTERING_CONFIG_VIEWSET_SAMPLE_LOG,
         CLUSTERING_CONFIG_MONITOR_VIEWSET_STRATEGY,
         # ======================================= 日志聚类-PatternViewSet =====================================
         PATTERN_VIEWSET_SEARCH,

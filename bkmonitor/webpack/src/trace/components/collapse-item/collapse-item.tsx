@@ -121,7 +121,7 @@ export default defineComponent({
     return (
       <div class='collapse-item-comp'>
         <div
-          class='item-header'
+          class={['item-header', { 'has-content': this.showContent }]}
           onClick={this.handleHeaderClick}
         >
           <div class='title-container'>{this.$slots.header?.()}</div>

@@ -33,7 +33,6 @@ import { EventEmitter } from './event';
 import { reportRouteLog } from '@/store/modules/report-helper.ts';
 import { formatTimeZoneString } from '@/global/utils/time';
 
-
 export default class extends EventEmitter<RetrieveEvent> {
   // 滚动条查询条件
   globalScrollSelector: string;
@@ -71,7 +70,6 @@ export default class extends EventEmitter<RetrieveEvent> {
 
   // 索引集类型
   indexSetType: string;
-
 
   // JSON格式化辅助
   jsonFormatter: JsonFormatter;
@@ -180,7 +178,7 @@ export default class extends EventEmitter<RetrieveEvent> {
         const markFormatValue = /^\d+$/.test(value)
           ? formatTimeZoneString(this.normalizeTimestampToMs(Number(value)), timezone, format, false)
           : formatTimeZoneString(value, timezone, format, false);
-        return '<mark>' + (markFormatValue === 'Invalid Date' ? value : markFormatValue) + '</mark>';
+        return `<mark>${markFormatValue === 'Invalid Date' ? value : markFormatValue}</mark>`;
       }
 
       if (/^\d+$/.test(String(data))) {
@@ -194,7 +192,6 @@ export default class extends EventEmitter<RetrieveEvent> {
 
     return data || '--';
   }
-
 
   private normalizeTimestampToMs(ts: number): number {
     const len = `${ts}`.length;

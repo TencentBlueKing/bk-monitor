@@ -1,0 +1,115 @@
+/* stylelint-disable selector-class-pattern, no-descending-specificity */
+@use './theme/span-table-theme';
+
+/* 布局容器：根类迁移到 CommonTable 后，wrapper 的布局职责独立保留 */
+.rum-explore-table-wrap {
+  position: relative;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  background: #fff;
+}
+
+/* 组件根（与场景类名复合于同一元素）：跨场景公共样式 */
+.rum-explore-table {
+  flex: 1;
+  min-height: 0;
+
+  /* 垂直滚动交由外层 .rum-explore-view 处理，表格内容区仅保留水平滚动 */
+  .t-table__content {
+    overflow: scroll hidden;
+  }
+
+  .t-table__header {
+    .__table-custom-setting-col__ {
+      padding: 0;
+    }
+
+    .rum-table-header-cell {
+      display: flex;
+      align-items: center;
+      min-width: 0;
+      color: #000;
+      user-select: none;
+
+      .field-type-icon {
+        margin-right: 4px;
+      }
+
+      .header-title {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+
+        .th-label {
+          font-size: 12px;
+          font-weight: 500;
+          color: #313238;
+        }
+      }
+
+      .header-analysis-icon {
+        flex-shrink: 0;
+        margin-left: 6px;
+        font-size: 14px;
+        color: #4d4f56;
+        cursor: pointer;
+
+        &:hover {
+          color: #3a84ff;
+        }
+      }
+    }
+  }
+
+  .t-table__body {
+    /* 表尾：滚动触底提示 / 清空筛选 */
+    .scroll-end-loading {
+      position: sticky;
+      left: 50%;
+      display: inline-flex;
+      align-items: center;
+      padding: 12px 0 4px;
+      transform: translateX(-50%);
+
+      .bk-loading-size-mini {
+        flex-direction: row;
+        column-gap: 8px;
+        align-items: center;
+
+        .bk-loading-title {
+          margin-top: 0;
+        }
+      }
+    }
+  }
+
+  /* 可点击唤起检索条件菜单的单元格（与 trace 检索保持一致） */
+  .explore-table-condition-menu {
+    cursor: pointer;
+
+    &:hover {
+      color: #3a84ff;
+    }
+  }
+
+  .common-table-ellipsis {
+    &:has(> .explore-table-condition-menu) {
+      &:hover {
+        color: #3a84ff;
+      }
+    }
+  }
+
+  .t-affix {
+    .t-table__affixed-header-elm-wrap {
+      opacity: 1 !important;
+
+      .t-table__affixed-header-elm {
+        opacity: inherit !important;
+      }
+    }
+  }
+}

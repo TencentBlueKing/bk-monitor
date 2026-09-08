@@ -73,9 +73,10 @@ export const requestStandaloneSearch = async (payload: StandaloneSearchPayload) 
     withCredentials: true,
     responseType: 'blob',
     data: payload.query,
-    headers: payload.routeQuery.spaceUid || payload.routeQuery.space_uid
-      ? { 'X-Bk-Space-Uid': payload.routeQuery.spaceUid || payload.routeQuery.space_uid }
-      : undefined,
+    headers:
+      payload.routeQuery.spaceUid || payload.routeQuery.space_uid
+        ? { 'X-Bk-Space-Uid': payload.routeQuery.spaceUid || payload.routeQuery.space_uid }
+        : undefined,
   });
 
   const body = await readBlobRespToJson(response.data);
@@ -85,7 +86,6 @@ export const requestStandaloneSearch = async (payload: StandaloneSearchPayload) 
 
   return body.data;
 };
-
 
 const parseRowIndex = (value: any) => {
   const numberValue = Number(value);

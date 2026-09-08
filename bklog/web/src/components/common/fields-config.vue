@@ -26,9 +26,9 @@
 
 <template>
   <div
-    class="fields-config-tippy"
-    v-bkloading="{ isLoading }"
     :id="id"
+    v-bkloading="{ isLoading }"
+    class="fields-config-tippy"
   >
     <!-- 字段显示设置 -->
     <div class="config-title">{{ $t('设置显示与排序') }}</div>
@@ -47,8 +47,8 @@
           <transition-group>
             <li
               v-for="(field, index) in displayFieldNames"
-              class="list-item display-item"
               :key="field"
+              class="list-item display-item"
             >
               <span class="icon bklog-icon bklog-drag-dots"></span>
               <div class="field_name">{{ field }}</div>
@@ -68,12 +68,12 @@
         <ul>
           <li
             v-for="field in restFieldNames"
-            class="list-item rest-item"
             :key="field"
+            class="list-item rest-item"
           >
             <div class="field_name">{{ field }}</div>
             <div
-              class='operate-button'
+              class="operate-button"
               @click="addItem(field)"
             >
               {{ $t('添加') }}

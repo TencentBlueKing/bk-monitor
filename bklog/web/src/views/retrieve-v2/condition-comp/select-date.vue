@@ -62,8 +62,6 @@
             :class="isShowDatePicker && 'active'"
           ></span>
         </div>
-      </template>
-      <template #trigger>
         <div
           v-else-if="shortText && !customTime"
           @click.stop="togglePicker"

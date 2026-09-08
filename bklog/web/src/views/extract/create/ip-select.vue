@@ -35,8 +35,8 @@
     @value-change="handleValueChange"
   >
     <div
-      class="ip-select-container"
       v-bkloading="{ isLoading }"
+      class="ip-select-container"
     >
       <div class="select-title">
         <div class="server-info">{{ $t('共 {n} 台', { n: selectedIpNodes.length }) }}：</div>
@@ -52,8 +52,8 @@
       <div class="select-content">
         <div class="tree-container">
           <input
-            class="bk-form-input tree-filter-input"
             v-model="searchWord"
+            class="bk-form-input tree-filter-input"
             :placeholder="$t('搜索') + '...'"
             type="text"
             @keyup.enter="search"

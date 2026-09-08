@@ -13,6 +13,7 @@ from contextlib import contextmanager
 from django.conf import settings
 
 from alarm_backends.service.detect import process as detect_process
+from alarm_backends.service.detect import tasks as detect_tasks
 from alarm_backends.service.detect.process import DetectProcess
 from alarm_backends.service.trigger import runner
 from bkmonitor.define import global_config
@@ -49,6 +50,7 @@ def test_detect_process_runs_trigger_only_for_items_with_anomalies(mocker):
 def test_detect_push_data_defers_signal_and_records_items_when_enabled(mocker):
     processor = object.__new__(DetectProcess)
     processor.strategy_id = "10"
+    processor.inline_trigger_enabled = None
     processor.inputs = {}
     processor.outputs = {
         1: [{"data": {"value": 1}}],
@@ -74,13 +76,14 @@ def test_detect_push_data_defers_signal_and_records_items_when_enabled(mocker):
     assert processor.inline_trigger_items == [3, 1]
 
 
-def test_detect_push_data_publishes_signal_and_records_no_inline_items_when_disabled(mocker):
+def test_detect_push_data_publishes_signal_when_task_disables_inline_trigger(mocker):
     processor = object.__new__(DetectProcess)
     processor.strategy_id = "10"
+    processor.inline_trigger_enabled = False
     processor.inputs = {}
     processor.outputs = {1: [{"data": {"value": 1}}]}
     processor.strategy = mocker.MagicMock(items=[mocker.MagicMock(id=1)])
-    mocker.patch.object(detect_process.settings, "ENABLE_DETECT_INLINE_TRIGGER", False)
+    mocker.patch.object(detect_process.settings, "ENABLE_DETECT_INLINE_TRIGGER", True)
     push_abnormal_data = mocker.patch.object(processor, "push_abnormal_data", return_value=1)
     mocker.patch.object(detect_process, "metrics")
 
@@ -88,6 +91,17 @@ def test_detect_push_data_publishes_signal_and_records_no_inline_items_when_disa
 
     push_abnormal_data.assert_called_once_with(processor.outputs, "10", publish_signal=True)
     assert processor.inline_trigger_items == []
+
+
+def test_aiops_detect_task_disables_inline_trigger(mocker):
+    processor = mocker.MagicMock(is_busy=False)
+    detect_process_cls = mocker.patch.object(detect_tasks, "DetectProcess", return_value=processor)
+    mocker.patch.object(detect_tasks, "metrics")
+
+    detect_tasks.run_detect_with_sdk("10")
+
+    detect_process_cls.assert_called_once_with("10", inline_trigger_enabled=False)
+    processor.process.assert_called_once_with()
 
 
 def test_detect_handle_data_does_not_collect_hot_trim_keys(mocker):

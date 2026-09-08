@@ -371,17 +371,15 @@ export const useCollectList = () => {
       {
         match: _t => _t === 'edit',
         isAllowed: () => Boolean(row.permission?.[editKey]),
-        buildApplyData: () => {
-          return isBkDataOrEs ? buildIndicesApplyData(editKey, editId) : buildCollectionApplyData(editKey, editId);
-        },
+        buildApplyData: () =>
+          isBkDataOrEs ? buildIndicesApplyData(editKey, editId) : buildCollectionApplyData(editKey, editId),
       },
       {
         // 原逻辑：除 add/view/search 外，统一按“管理权限”兜底
         match: _t => !['add', 'view', 'search'].includes(String(_t)),
         isAllowed: () => Boolean(row.permission?.[editKey]),
-        buildApplyData: () => {
-          return isBkDataOrEs ? buildIndicesApplyData(editKey, editId) : buildCollectionApplyData(editKey, editId);
-        },
+        buildApplyData: () =>
+          isBkDataOrEs ? buildIndicesApplyData(editKey, editId) : buildCollectionApplyData(editKey, editId),
       },
     ];
 

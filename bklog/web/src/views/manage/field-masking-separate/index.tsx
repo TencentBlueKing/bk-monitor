@@ -97,6 +97,7 @@ export default class FieldMaskingSeparate extends tsc<IProps> {
         this.$router.go(-1);
       }
     } catch {
+      // 提交失败时保留当前配置，错误由请求层统一处理
     } finally {
       this.submitLoading = false;
     }

@@ -90,3 +90,15 @@ def decode_identifier(name: str) -> str:
     if not decoded or decoded == name or not decoded.isprintable():
         return name
     return decoded
+
+
+def decode_metric_identifier(field_name: str) -> str:
+    """还原指标名中被编码的部分，非编码指标名原样返回。
+
+    维度名整体就是一个编码标识符，指标名则可能由多段拼成：直方图会追加 ``_sum``/``_count``/``_bucket``
+    后缀，SDK 自定义指标名形如 ``custom_$type_$group_$name_$usage``，编码块夹在中间。
+    base62 载荷只含字母和数字，不会出现下划线，因此按下划线切分能安全地隔离出编码段。
+    """
+    if Base62Decoder.prefix not in field_name:
+        return field_name
+    return "_".join(decode_identifier(segment) for segment in field_name.split("_"))
