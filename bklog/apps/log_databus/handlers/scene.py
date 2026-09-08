@@ -7,6 +7,8 @@ BK-LOG 蓝鲸日志平台 is licensed under the MIT License.
 import time
 from collections import defaultdict
 
+from django.db import transaction
+
 from apps.api import TransferApi
 from apps.feature_toggle.models import FeatureToggle
 from apps.feature_toggle.plugins.constants import SCENE_SEARCH
@@ -169,27 +171,28 @@ def is_scene_search_released() -> bool:
 
 def release_scene_search() -> bool:
     """记录场景检索已发布，必要时将 debug 开关转为 on。"""
-    toggle = FeatureToggle.objects.filter(name=SCENE_SEARCH).first()
-    if not toggle:
-        logger.error("[scene_search] toggle missing: %s", SCENE_SEARCH)
-        return False
+    with transaction.atomic():
+        toggle = FeatureToggle.objects.select_for_update().filter(name=SCENE_SEARCH).first()
+        if not toggle:
+            logger.error("[scene_search] toggle missing: %s", SCENE_SEARCH)
+            return False
 
-    feature_config = dict(toggle.feature_config or {})
-    if feature_config.get(SCENE_SEARCH_RELEASED_KEY):
-        return False
+        feature_config = dict(toggle.feature_config or {})
+        if feature_config.get(SCENE_SEARCH_RELEASED_KEY):
+            return False
 
-    if toggle.status not in {"debug", "on"}:
-        logger.warning("[scene_search] skip automatic release because status=%s", toggle.status)
-        return False
+        if toggle.status not in {"debug", "on"}:
+            logger.warning("[scene_search] skip automatic release because status=%s", toggle.status)
+            return False
 
-    feature_config[SCENE_SEARCH_RELEASED_KEY] = True
-    update_kwargs = {"feature_config": feature_config}
-    if toggle.status == "debug":
-        update_kwargs["status"] = "on"
+        feature_config[SCENE_SEARCH_RELEASED_KEY] = True
+        update_kwargs = {"feature_config": feature_config}
+        if toggle.status == "debug":
+            update_kwargs["status"] = "on"
 
-    # 带上旧状态，避免校正结束前人工修改开关状态时被任务覆盖。
-    updated = FeatureToggle.objects.filter(name=SCENE_SEARCH, status=toggle.status).update(**update_kwargs)
-    return updated == 1
+        # 带上旧状态，避免校正结束前人工修改开关状态时被任务覆盖。
+        updated = FeatureToggle.objects.filter(pk=toggle.pk, status=toggle.status).update(**update_kwargs)
+        return updated == 1
 
 
 def run_scene_search_sync() -> dict:

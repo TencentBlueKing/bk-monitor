@@ -461,6 +461,20 @@ class TestRefreshSceneLabelsHandler(TestCase):
         self.assertTrue(toggle.feature_config.get("scene_search_released"))
         self.assertTrue(is_scene_search_released())
 
+    def test_release_scene_search_preserves_existing_feature_config(self):
+        FeatureToggle.objects.update_or_create(
+            name=SCENE_SEARCH,
+            defaults={"status": "debug", "feature_config": {"existing_option": "keep"}},
+        )
+
+        self.assertTrue(release_scene_search())
+
+        toggle = FeatureToggle.objects.get(name=SCENE_SEARCH)
+        self.assertEqual(
+            toggle.feature_config,
+            {"existing_option": "keep", "scene_search_released": True},
+        )
+
     def test_run_first_sync_releases_when_no_failure(self):
         """周期任务首次：全量校正无失败 → 翻开关并打标记。"""
         FeatureToggle.objects.update_or_create(name=SCENE_SEARCH, defaults={"status": "debug"})
