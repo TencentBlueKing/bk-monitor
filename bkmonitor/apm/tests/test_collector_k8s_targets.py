@@ -35,15 +35,6 @@ def collector_settings(settings, cluster_discovery):
     settings.CUSTOM_REPORT_K8S_SECRETS_CONFIG = {}
 
 
-def test_cluster_mapping_keeps_public_precedence(settings, cluster_discovery):
-    settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER = ["cluster-a/operator-ns"]
-    cluster_discovery.smembers.return_value = {"cluster-a:1,2", "cluster-b:3"}
-    assert ClusterConfig.get_cluster_mapping() == {
-        ("cluster-a", "operator-ns", True): [0],
-        ("cluster-b", "bkmonitor-operator", False): {"3"},
-    }
-
-
 def test_public_namespaces_keep_business_target_and_support_multiple_clusters(settings):
     settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER = [
         "cluster-a/public-1",
@@ -53,24 +44,23 @@ def test_public_namespaces_keep_business_target_and_support_multiple_clusters(se
     ]
     assert ClusterConfig.get_cluster_mapping() == {
         ("cluster-a", "operator-ns", False): {"1"},
-        ("cluster-a", "public-1", True): [0],
-        ("cluster-a", "public-2", True): [0],
-        ("cluster-b", "public-1", True): [0],
+        ("cluster-a", "public-1", True): {0},
+        ("cluster-a", "public-2", True): {0},
+        ("cluster-b", "public-1", True): {0},
     }
 
 
-def test_namespace_override_is_per_cluster_and_same_target_is_not_duplicated(settings):
+def test_namespace_override_is_per_cluster_and_public_target_uses_own_default(settings):
     settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER = [
         "cluster-a",
-        "cluster-a/operator-ns",
         "cluster-a/public-1",
         "cluster-b",
     ]
     assert ClusterConfig.get_cluster_mapping() == {
-        ("cluster-a", "operator-ns", True): [0],
-        ("cluster-a", "blueking", True): [0],
-        ("cluster-a", "public-1", True): [0],
-        ("cluster-b", "blueking", True): [0],
+        ("cluster-a", "operator-ns", False): {"1"},
+        ("cluster-a", "blueking", True): {0},
+        ("cluster-a", "public-1", True): {0},
+        ("cluster-b", "blueking", True): {0},
     }
 
 
@@ -80,7 +70,7 @@ def test_empty_public_target_parts_do_not_block_valid_or_business_targets(settin
     settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER = [target, "cluster-b/public"]
     assert ClusterConfig.get_cluster_mapping() == {
         ("cluster-a", "operator-ns", False): {"1"},
-        ("cluster-b", "public", True): [0],
+        ("cluster-b", "public", True): {0},
     }
     assert "invalid public collector target" in caplog.text
 
@@ -106,7 +96,7 @@ def test_no_public_targets_keeps_business_delivery(settings, targets):
 
 
 def test_cluster_mapping_filters_business_targets_but_keeps_public_targets():
-    assert ClusterConfig.get_cluster_mapping([2, "2"]) == {("cluster-a", "blueking", True): [0]}
+    assert ClusterConfig.get_cluster_mapping([2, "2"]) == {("cluster-a", "blueking", True): {0}}
 
 
 @pytest.mark.parametrize("platform", [False, True])
@@ -248,7 +238,7 @@ def multi_target_delivery(settings, mocker):
 
 @pytest.mark.parametrize("protocol", ["apm", "rum", "log"])
 @pytest.mark.parametrize("extra_cluster", [False, True])
-@pytest.mark.parametrize("business_public_target", [None, "cluster-a", "cluster-a/operator-ns"])
+@pytest.mark.parametrize("business_public_target", [None, "cluster-a"])
 def test_application_delivery_keeps_business_scope_and_fans_out_public_configs(
     protocol, extra_cluster, business_public_target, multi_target_delivery, mocker, settings
 ):
@@ -285,8 +275,6 @@ def test_application_delivery_keeps_business_scope_and_fans_out_public_configs(
         expected[("cluster-b", "public-1")] = {1: "public-1:1", 2: "public-1:2"}
     if business_public_target == "cluster-a":
         expected[("cluster-a", "blueking")] = {1: "blueking:1", 2: "blueking:2"}
-    elif business_public_target == "cluster-a/operator-ns":
-        expected[("cluster-a", "operator-ns")] = {1: "operator-ns:1", 2: "operator-ns:2"}
     assert actual == expected
     assert multi_target_delivery.call_count == len(expected)
     assert all(call.args[3] == protocol for call in multi_target_delivery.call_args_list)
@@ -355,14 +343,9 @@ def test_platform_context_uses_target_role_without_reading_global_settings(mocke
 
 
 @pytest.mark.parametrize("protocol", ["json", "prometheus"])
-@pytest.mark.parametrize("business_is_public", [False, True])
-def test_custom_report_global_batch_and_business_batch_are_separate(
-    protocol, business_is_public, multi_target_delivery, mocker, settings
-):
+def test_custom_report_global_batch_and_business_batch_are_separate(protocol, multi_target_delivery, mocker):
     targets = mocker.spy(ClusterConfig, "global_deploy_targets")
-    if business_is_public:
-        settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER += ["cluster-a/operator-ns"]
-    public_namespaces = {"public-1", "public-2", "operator-ns"} if business_is_public else {"public-1", "public-2"}
+    public_namespaces = {"public-1", "public-2"}
     clean = mocker.patch.object(ClusterConfig, "clean_dup_secrets_in_multi_protocol")
     result = CustomReportSubscription._refresh_k8s_custom_config_by_biz(0, [({"bk_data_id": 10, "biz": 1}, protocol)])
     assert result["cluster_count"] == 1
@@ -373,8 +356,7 @@ def test_custom_report_global_batch_and_business_batch_are_separate(
     targets.reset_mock()
     multi_target_delivery.reset_mock()
     result = CustomReportSubscription._refresh_k8s_custom_config_by_biz(1, [({"bk_data_id": 10, "biz": 1}, protocol)])
-    business_namespaces = [] if business_is_public else ["operator-ns"]
-    assert [record["namespace"] for record in result["clusters"]] == business_namespaces
+    assert [record["namespace"] for record in result["clusters"]] == ["operator-ns"]
     targets.assert_called_once_with()
 
 

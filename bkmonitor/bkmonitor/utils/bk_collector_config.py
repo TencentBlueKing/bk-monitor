@@ -145,7 +145,7 @@ class BkCollectorClusterConfig:
             cluster_id, related_bk_biz_ids = cls._split_value(value)
             if cluster_id and related_bk_biz_ids:
                 related_bk_biz_ids = set(related_bk_biz_ids)
-                if bk_biz_ids & related_bk_biz_ids:
+                if not bk_biz_ids or bk_biz_ids & related_bk_biz_ids:
                     namespace = cls.bk_collector_namespace(cluster_id)
                     cluster_mapping.setdefault((cluster_id, namespace, False), set()).update(related_bk_biz_ids)
 
