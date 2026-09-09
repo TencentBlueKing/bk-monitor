@@ -46,8 +46,12 @@ SCOPE_GRANULARITY_HOST = "host"
 # 同机多采集项共用 bkunifylogbeat 与同名模板，靠「模板名 + 部署策略 ID」区分身份。
 SUB_CONFIG_NAME_DEPLOY_INFIX = "_deploy_"
 
-# 资源类型：一个采集项对应一个部署策略
+# 资源类型：一个采集项对应一条子配置策略；一个业务再共用一条采集器安装策略
 RESOURCE_TYPE_COLLECTOR_CONFIG = "collector_config"
+RESOURCE_TYPE_COLLECTOR_PLUGIN = "collector_plugin"
+
+# 安装策略不属于任何单个采集项，binding.collector_config_id 用该值占位
+COLLECTOR_CONFIG_ID_NOT_APPLICABLE = 0
 
 
 class NodeManV3OperationType:
@@ -55,10 +59,12 @@ class NodeManV3OperationType:
 
     RECONCILE = "reconcile"
     REMOVE = "remove"
+    PLUGIN_RECONCILE = "plugin_reconcile"
 
     CHOICES = (
         (RECONCILE, _("期望态收敛")),
         (REMOVE, _("子配置清理")),
+        (PLUGIN_RECONCILE, _("采集器安装收敛")),
     )
 
 

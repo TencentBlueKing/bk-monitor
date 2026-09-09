@@ -37,8 +37,10 @@ from apps.log_databus.nodeman_v3.identity import build_policy_name, build_sub_co
 from apps.log_databus.nodeman_v3.mode import is_nodeman_v3_only
 from apps.log_databus.nodeman_v3.policy import (
     SubscriptionStepsTranslator,
+    build_plugin_install_payload,
     build_policy_payload,
     calculate_fingerprint,
+    merge_scopes,
 )
 from apps.log_databus.nodeman_v3.scopes import build_scopes
 from apps.log_databus.nodeman_v3.versions import resolve_plugin_version
@@ -135,24 +137,23 @@ class ScopeTranslationTest(TestCase):
 class SpecTranslationTest(TestCase):
     """订阅步骤到部署规范的映射"""
 
-    def test_specs_contain_plugin_and_sub_config_template(self):
-        specs = SubscriptionStepsTranslator().build_specs(build_steps(), "1.2.3")
-        self.assertEqual(
-            [spec["type"] for spec in specs], [SPEC_TYPE_SPECIFY_PLUGIN, SPEC_TYPE_SPECIFY_PLUGIN_SUB_CONFIG_TEMPLATE]
-        )
+    def test_collector_policy_carries_only_sub_config_template_spec(self):
+        specs = SubscriptionStepsTranslator().build_specs(build_steps())
+        self.assertEqual([spec["type"] for spec in specs], [SPEC_TYPE_SPECIFY_PLUGIN_SUB_CONFIG_TEMPLATE])
 
-    def test_specify_plugin_spec_is_required_for_sub_config_to_land(self):
-        # 节点管理只对插件进程 running 的主机下发子配置，缺了 specify_plugin
-        # 会出现「策略执行成功但没有一台主机生效」
-        specs = SubscriptionStepsTranslator().build_specs(build_steps(), "1.2.3")
-        plugin_spec = specs[0]
-        self.assertEqual(plugin_spec["param"]["plugin_name"], PLUGIN_NAME)
-        self.assertEqual(plugin_spec["param"]["version"], "1.2.3")
+    def test_collector_policy_never_carries_specify_plugin(self):
+        # 回归用例。采集项策略一旦带上 specify_plugin，策略发现就会按插件名把同插件的所有
+        # enabled 策略拉进同一个冲突闭包，冲突消解再按创建时间把后建采集项的共享主机整体剔除，
+        # 被剔除的主机随后命中「不在范围内」分支，把该采集项已经生效的子配置删掉。
+        # 净效果是同机第二个采集项静默失效，而 execute 照常返回 trigger_id。
+        # 取证见 docs/节点管理V3适配/deploypolicy冲突消解_同机多采集项互斥_取证.md
+        specs = SubscriptionStepsTranslator().build_specs(build_steps())
+        self.assertNotIn(SPEC_TYPE_SPECIFY_PLUGIN, [spec["type"] for spec in specs])
 
     def test_main_config_template_is_excluded_from_sub_config_spec(self):
         # 把主配置模板混进子配置会让节点管理重写主配置，影响同机其它采集项
-        specs = SubscriptionStepsTranslator().build_specs(build_steps(), "1.2.3")
-        details = specs[1]["param"]["config_files_detail"]
+        specs = SubscriptionStepsTranslator().build_specs(build_steps())
+        details = specs[0]["param"]["config_files_detail"]
         self.assertEqual([detail["template_name"] for detail in details], [f"{PLUGIN_NAME}.conf"])
         self.assertTrue(all(detail["is_main_config"] is False for detail in details))
 
@@ -160,8 +161,8 @@ class SpecTranslationTest(TestCase):
         # Jinja2 渲染时 custom_config_context 直接合并到模板顶层，与 V2 params.context 一致，
         # 原样透传才能保证六种场景的出数口径不变
         steps = build_steps(dataid=9527, paths=["/data/log/x.log"])
-        specs = SubscriptionStepsTranslator().build_specs(steps, "1.2.3")
-        context = specs[1]["param"]["custom_config_context"]
+        specs = SubscriptionStepsTranslator().build_specs(steps)
+        context = specs[0]["param"]["custom_config_context"]
         self.assertEqual(context["dataid"], 9527)
         self.assertEqual(context["local"], [{"paths": ["/data/log/x.log"]}])
 
@@ -169,13 +170,68 @@ class SpecTranslationTest(TestCase):
         steps = build_steps()
         steps[1]["params"]["context"].pop("dataid")
         with self.assertRaises(NodeManV3CapabilityBlocked):
-            SubscriptionStepsTranslator().build_specs(steps, "1.2.3")
+            SubscriptionStepsTranslator().build_specs(steps)
 
     def test_single_step_scenario_is_supported(self):
         # syslog 等场景只有一个 PLUGIN 步骤
         steps = [build_steps()[1]]
-        specs = SubscriptionStepsTranslator().build_specs(steps, "1.2.3")
-        self.assertEqual(len(specs), 2)
+        specs = SubscriptionStepsTranslator().build_specs(steps)
+        self.assertEqual([spec["type"] for spec in specs], [SPEC_TYPE_SPECIFY_PLUGIN_SUB_CONFIG_TEMPLATE])
+
+
+class PluginInstallPolicyTest(TestCase):
+    """业务级采集器安装策略"""
+
+    def test_install_policy_carries_only_specify_plugin(self):
+        payload = build_plugin_install_payload(
+            bk_biz_id=2, plugin_version="1.2.3", scopes=build_scopes(2, TargetNodeTypeEnum.TOPO.value, [])
+        )
+        self.assertEqual([spec["type"] for spec in payload["specs"]], [SPEC_TYPE_SPECIFY_PLUGIN])
+        self.assertEqual(payload["specs"][0]["param"]["plugin_name"], PLUGIN_NAME)
+        self.assertEqual(payload["specs"][0]["param"]["version"], "1.2.3")
+
+    def test_install_policy_name_is_per_biz(self):
+        # 全环境一条策略会让任一业务的目标变更改写其它业务的期望态，出问题也无法按业务定位
+        first = build_plugin_install_payload(bk_biz_id=2, plugin_version="1.2.3", scopes=[])
+        second = build_plugin_install_payload(bk_biz_id=3, plugin_version="1.2.3", scopes=[])
+        self.assertNotEqual(first["name"], second["name"])
+
+    def test_merge_scopes_dedups_identical_entries(self):
+        # 同业务多个采集项常常指向同一个拓扑节点，不去重会让安装策略范围随采集项数量线性膨胀
+        topo = build_scopes(2, TargetNodeTypeEnum.TOPO.value, [{"bk_obj_id": "biz", "bk_inst_id": 2}])
+        merged = merge_scopes([topo, topo])
+        self.assertEqual(merged, topo)
+
+    def test_merge_scopes_unions_same_type_into_one_entry(self):
+        # 条目数不能随采集项数量线性增长，否则一个业务几百个采集项就是几百条 scope，
+        # 每轮收敛都要让节点管理把同一个范围重算几百遍
+        first = build_scopes(2, TargetNodeTypeEnum.INSTANCE.value, [{"bk_host_id": 1}])
+        second = build_scopes(2, TargetNodeTypeEnum.INSTANCE.value, [{"bk_host_id": 2}])
+        merged = merge_scopes([first, second])
+        self.assertEqual(len(merged), 1)
+        self.assertEqual(merged[0]["scope"]["instance_ids"], [1, 2])
+
+    def test_merge_scopes_keeps_different_types_separate(self):
+        instance = build_scopes(2, TargetNodeTypeEnum.INSTANCE.value, [{"bk_host_id": 1}])
+        topo = build_scopes(2, TargetNodeTypeEnum.TOPO.value, [{"bk_obj_id": "biz", "bk_inst_id": 2}])
+        merged = merge_scopes([instance, topo])
+        self.assertEqual(len(merged), 2)
+
+    def test_merge_scopes_dedups_topo_paths(self):
+        topo = build_scopes(2, TargetNodeTypeEnum.TOPO.value, [{"bk_obj_id": "biz", "bk_inst_id": 2}])
+        merged = merge_scopes([topo, topo])
+        self.assertEqual(merged[0]["scope"]["paths"], [{"topo_obj_id": "biz", "topo_inst_id": 2}])
+
+    def test_merge_scopes_does_not_mutate_inputs(self):
+        # 入参是各 binding 的 desired_scopes 快照，被就地改写会污染下一轮的并集基线
+        first = build_scopes(2, TargetNodeTypeEnum.INSTANCE.value, [{"bk_host_id": 1}])
+        second = build_scopes(2, TargetNodeTypeEnum.INSTANCE.value, [{"bk_host_id": 2}])
+        merge_scopes([first, second])
+        self.assertEqual(first[0]["scope"]["instance_ids"], [1])
+
+    def test_merge_scopes_tolerates_missing_snapshot(self):
+        # binding.desired_scopes 在首次收敛前是 None，不能让并集计算炸掉
+        self.assertEqual(merge_scopes([None, []]), [])
 
 
 class PolicyPayloadTest(TestCase):
@@ -188,7 +244,6 @@ class PolicyPayloadTest(TestCase):
             target_node_type=TargetNodeTypeEnum.TOPO.value,
             target_nodes=[],
             steps=build_steps(),
-            plugin_version="1.2.3",
         )
         self.assertTrue(payload["enabled"])
         self.assertEqual(payload["scopes"], [])
@@ -200,7 +255,6 @@ class PolicyPayloadTest(TestCase):
             target_node_type=TargetNodeTypeEnum.TOPO.value,
             target_nodes=[{"bk_obj_id": "biz", "bk_inst_id": 2}],
             steps=build_steps(),
-            plugin_version="1.2.3",
         )
         first = build_policy_payload(description="before", **kwargs)
         second = build_policy_payload(description="after", **kwargs)
@@ -212,7 +266,6 @@ class PolicyPayloadTest(TestCase):
             bk_biz_id=2,
             target_node_type=TargetNodeTypeEnum.INSTANCE.value,
             steps=build_steps(),
-            plugin_version="1.2.3",
         )
         first = build_policy_payload(target_nodes=[{"bk_host_id": 1}], **kwargs)
         second = build_policy_payload(target_nodes=[{"bk_host_id": 2}], **kwargs)
@@ -224,7 +277,6 @@ class PolicyPayloadTest(TestCase):
             bk_biz_id=2,
             target_node_type=TargetNodeTypeEnum.INSTANCE.value,
             target_nodes=[{"bk_host_id": 1}],
-            plugin_version="1.2.3",
         )
         first = build_policy_payload(steps=build_steps(paths=["/a.log"]), **kwargs)
         second = build_policy_payload(steps=build_steps(paths=["/b.log"]), **kwargs)
@@ -342,6 +394,8 @@ class FakeNodeManV3Client:
         self.calls = []
         self.tenant_id = "system"
         self.next_policy_id = 1001
+        # deploy_policy_id -> 策略名，用于把 execute 调用归到采集项策略还是安装策略
+        self.policy_names = {}
 
     def list_release_plugin_brief(self, payload):
         return {"items": [{"os_type": "linux", "cpu_arch": "amd64", "version": "3.1.0"}]}
@@ -354,18 +408,45 @@ class FakeNodeManV3Client:
         self.calls.append(("create", payload))
         policy_id = self.next_policy_id
         self.next_policy_id += 1
+        self.policy_names[policy_id] = payload["name"]
         return {"deploy_policy_id": policy_id}
 
     def update_deploy_policy(self, payload):
         self.calls.append(("update", payload))
+        policy = payload["deploy_policies"][0]
+        self.policy_names[policy["deploy_policy_id"]] = policy["meta"]["name"]
         return {}
 
     def execute_deploy_policy(self, deploy_policy_id):
         self.calls.append(("execute", deploy_policy_id))
         return {"trigger_id": f"trigger-{deploy_policy_id}-{len(self.calls)}"}
 
-    def write_calls(self):
-        return [name for name, _payload in self.calls if name in ("create", "update", "execute")]
+    def policy_name_of(self, call_name, payload):
+        if call_name == "create":
+            return payload["name"]
+        if call_name == "update":
+            return payload["deploy_policies"][0]["meta"]["name"]
+        if call_name == "execute":
+            return self.policy_names.get(payload, "")
+        return ""
+
+    def policy_kind_of(self, call_name, payload):
+        return "plugin" if self.policy_name_of(call_name, payload).startswith("bklog-plugin-") else "collector"
+
+    def write_calls(self, kind=None):
+        """kind 为 None 时返回全部写调用，否则只返回 collector / plugin 一类"""
+        return [
+            name
+            for name, payload in self.calls
+            if name in ("create", "update", "execute") and (kind is None or self.policy_kind_of(name, payload) == kind)
+        ]
+
+    def payloads_of(self, call_name, kind=None):
+        return [
+            payload
+            for name, payload in self.calls
+            if name == call_name and (kind is None or self.policy_kind_of(name, payload) == kind)
+        ]
 
 
 @override_settings(NODEMAN_INTEGRATION_MODE="v3_fresh")
@@ -381,9 +462,7 @@ class ReconcileBehaviourTest(TestCase):
             description="unit test",
         )
         self.client = FakeNodeManV3Client()
-        patcher = patch(
-            "apps.log_databus.nodeman_v3.reconciler.get_client", side_effect=lambda *a, **kw: self.client
-        )
+        patcher = patch("apps.log_databus.nodeman_v3.reconciler.get_client", side_effect=lambda *a, **kw: self.client)
         patcher.start()
         self.addCleanup(patcher.stop)
 
@@ -395,7 +474,30 @@ class ReconcileBehaviourTest(TestCase):
     def test_first_reconcile_creates_policy_then_executes(self):
         operation = self._reconciler().reconcile(build_steps())
         self.assertIsNotNone(operation)
-        self.assertEqual(self.client.write_calls(), ["create", "execute"])
+        self.assertEqual(self.client.write_calls("collector"), ["create", "execute"])
+
+    def test_install_policy_is_reconciled_before_collector_policy(self):
+        # 节点管理只对插件进程已 running 的主机下发子配置，安装策略必须先执行；
+        # 顺序颠倒会让首次下发整轮落空，只能等下一次定时收敛补上
+        self._reconciler().reconcile(build_steps())
+        kinds = [
+            self.client.policy_kind_of(name, payload)
+            for name, payload in self.client.calls
+            if name in ("create", "update", "execute")
+        ]
+        self.assertEqual(kinds, ["plugin", "plugin", "collector", "collector"])
+
+    def test_created_collector_policy_carries_no_specify_plugin(self):
+        # 回归用例，守的是同机多采集项互斥那条链路，见 SpecTranslationTest 里的说明
+        self._reconciler().reconcile(build_steps())
+        payload = self.client.payloads_of("create", "collector")[0]
+        self.assertNotIn(SPEC_TYPE_SPECIFY_PLUGIN, [spec["type"] for spec in payload["specs"]])
+
+    def test_created_install_policy_carries_specify_plugin(self):
+        self._reconciler().reconcile(build_steps())
+        payload = self.client.payloads_of("create", "plugin")[0]
+        self.assertEqual([spec["type"] for spec in payload["specs"]], [SPEC_TYPE_SPECIFY_PLUGIN])
+        self.assertEqual(payload["scopes"], self.client.payloads_of("create", "collector")[0]["scopes"])
 
     def test_unchanged_desired_state_is_not_redispatched(self):
         # 每次保存采集项都全量下发会造成无意义的插件 reload
@@ -409,7 +511,10 @@ class ReconcileBehaviourTest(TestCase):
         self.collector_config.target_nodes = [{"bk_host_id": 11}, {"bk_host_id": 12}]
         self._reconciler().reconcile(build_steps())
         # 复用已有策略而不是再建一个：重复建策略会让同机出现两份子配置，日志被采两遍
-        self.assertEqual(self.client.write_calls(), ["create", "execute", "update", "execute"])
+        self.assertEqual(self.client.write_calls("collector"), ["create", "execute", "update", "execute"])
+        # 采集项扩了一台机器，安装策略的范围也要跟着扩，否则新机器上没有采集器进程，
+        # 子配置无处落地
+        self.assertEqual(self.client.write_calls("plugin"), ["create", "execute", "update", "execute"])
 
     def test_stop_clears_scopes_but_keeps_policy_enabled(self):
         from apps.log_databus.nodeman_v3.constants import NodeManV3OperationType
@@ -420,7 +525,7 @@ class ReconcileBehaviourTest(TestCase):
         )
         self.assertIsNotNone(operation)
 
-        update_payload = [payload for name, payload in self.calls_of("update")][-1]
+        update_payload = self.client.payloads_of("update", "collector")[-1]
         policy = update_payload["deploy_policies"][0]
         self.assertEqual(policy["scopes"], [])
         # 被 disable 的策略不再参与收敛，已下发的子配置会残留在主机上继续采集
@@ -430,9 +535,7 @@ class ReconcileBehaviourTest(TestCase):
         from apps.log_databus.nodeman_v3.constants import NodeManV3OperationType
 
         self._reconciler().reconcile(build_steps())
-        self._reconciler().reconcile(
-            build_steps(), target_nodes=[], operation_type=NodeManV3OperationType.REMOVE
-        )
+        self._reconciler().reconcile(build_steps(), target_nodes=[], operation_type=NodeManV3OperationType.REMOVE)
         before = len(self.client.write_calls())
         second = self._reconciler().reconcile(
             build_steps(), target_nodes=[], operation_type=NodeManV3OperationType.REMOVE
@@ -456,7 +559,8 @@ class ReconcileBehaviourTest(TestCase):
         }
 
         self._reconciler().reconcile(build_steps(), force=True)
-        self.assertNotIn("create", self.client.write_calls()[2:])
+        # 找回后必须走 update：再 create 一条会让同机出现两份子配置，日志被采两遍
+        self.assertEqual(self.client.write_calls("collector"), ["create", "execute", "update", "execute"])
         binding.refresh_from_db()
         self.assertEqual(binding.deploy_policy_id, recovered_policy_id)
 
@@ -464,7 +568,11 @@ class ReconcileBehaviourTest(TestCase):
         # 失败后必须保持旧指纹，否则会记成「已下发」而实际一台机器都没生效
         from apps.log_databus.nodeman_v3.models import NodeManV3Binding
 
+        original = self.client.create_deploy_policy
+
         def boom(payload):
+            if payload["name"].startswith("bklog-plugin-"):
+                return original(payload)
             raise NodeManV3UnknownResultError("dispatch failed")
 
         self.client.create_deploy_policy = boom
@@ -474,8 +582,114 @@ class ReconcileBehaviourTest(TestCase):
         binding = NodeManV3Binding.objects.get(collector_config_id=8001)
         self.assertEqual(binding.policy_fingerprint, "")
 
-    def calls_of(self, name):
-        return [(call_name, payload) for call_name, payload in self.client.calls if call_name == name]
+    def test_install_policy_failure_blocks_collector_dispatch(self):
+        # 采集器装不上时子配置无处落地，这里必须整体失败而不是把子配置策略照常推下去，
+        # 否则本地记成已下发、实际零主机生效
+        def boom(payload):
+            raise NodeManV3UnknownResultError("install policy dispatch failed")
+
+        self.client.create_deploy_policy = boom
+        with self.assertRaises(NodeManV3UnknownResultError):
+            self._reconciler().reconcile(build_steps())
+
+        self.assertEqual(self.client.write_calls("collector"), [])
+
+    def test_stop_is_not_blocked_by_install_policy_failure(self):
+        # 停用方向必须先摘子配置。安装范围收窄只是记账（specify_plugin 只装不卸，
+        # 主机移出范围不动主机），若让它的失败回滚子配置清理，
+        # 采集项就会显示已停用却仍在采集
+        from apps.log_databus.nodeman_v3.constants import NodeManV3OperationType
+
+        self._reconciler().reconcile(build_steps())
+        original = self.client.update_deploy_policy
+
+        def boom(payload):
+            if payload["deploy_policies"][0]["meta"]["name"].startswith("bklog-plugin-"):
+                raise NodeManV3UnknownResultError("install policy dispatch failed")
+            return original(payload)
+
+        self.client.update_deploy_policy = boom
+        operation = self._reconciler().reconcile(
+            build_steps(), target_nodes=[], operation_type=NodeManV3OperationType.REMOVE
+        )
+
+        # 停用照常完成：子配置清理已经下发，安装范围的记账偏差留给下一次收敛
+        self.assertIsNotNone(operation)
+        self.assertEqual(self.client.payloads_of("update", "collector")[-1]["deploy_policies"][0]["scopes"], [])
+
+    def test_stop_removes_sub_configs_before_shrinking_install_scope(self):
+        from apps.log_databus.nodeman_v3.constants import NodeManV3OperationType
+
+        self._reconciler().reconcile(build_steps())
+        before = len(self.client.calls)
+        self._reconciler().reconcile(build_steps(), target_nodes=[], operation_type=NodeManV3OperationType.REMOVE)
+        kinds = [
+            self.client.policy_kind_of(name, payload)
+            for name, payload in self.client.calls[before:]
+            if name in ("create", "update", "execute")
+        ]
+        self.assertEqual(kinds, ["collector", "collector", "plugin", "plugin"])
+
+
+@override_settings(NODEMAN_INTEGRATION_MODE="v3_fresh")
+class InstallPolicyScopeTest(TestCase):
+    """安装策略的目标范围是业务内所有启用中采集项的并集"""
+
+    def setUp(self):
+        self.client = FakeNodeManV3Client()
+        patcher = patch("apps.log_databus.nodeman_v3.reconciler.get_client", side_effect=lambda *a, **kw: self.client)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def _reconcile(self, collector_config_id, host_ids):
+        from types import SimpleNamespace
+
+        from apps.log_databus.nodeman_v3.reconciler import CollectorPolicyReconciler
+
+        collector_config = SimpleNamespace(
+            collector_config_id=collector_config_id,
+            bk_biz_id=2,
+            target_node_type=TargetNodeTypeEnum.INSTANCE.value,
+            target_nodes=[{"bk_host_id": host_id} for host_id in host_ids],
+            description="",
+        )
+        return CollectorPolicyReconciler(collector_config).reconcile(build_steps())
+
+    def _install_scope_instance_ids(self):
+        """最近一次下发给安装策略的主机集合"""
+        latest = None
+        for name, payload in self.client.calls:
+            if self.client.policy_kind_of(name, payload) != "plugin":
+                continue
+            if name == "create":
+                latest = payload["scopes"]
+            elif name == "update":
+                latest = payload["deploy_policies"][0]["scopes"]
+        instance_ids = set()
+        for scope in latest or []:
+            instance_ids.update(scope["scope"].get("instance_ids") or [])
+        return instance_ids
+
+    def test_scope_is_union_of_all_collectors(self):
+        self._reconcile(8001, [11])
+        self._reconcile(8002, [12])
+        self.assertEqual(self._install_scope_instance_ids(), {11, 12})
+
+    def test_disabling_one_collector_keeps_other_collectors_hosts(self):
+        # 停用采集项 8001 不能把 8002 还在用的主机从安装范围里摘掉，
+        # 否则那台机器上的采集器会被移出期望态，后续升级与新采集项都会漏掉它
+        self._reconcile(8001, [11])
+        self._reconcile(8002, [12])
+        self._reconcile(8001, [])
+        self.assertEqual(self._install_scope_instance_ids(), {12})
+
+    def test_shared_host_survives_one_collector_stop(self):
+        # 两个采集项共用一台机器时，停掉其中一个不能把该机器移出安装范围，
+        # 否则另一个采集项的子配置会失去落地条件
+        self._reconcile(8001, [11])
+        self._reconcile(8002, [11, 12])
+        self._reconcile(8001, [])
+        self.assertEqual(self._install_scope_instance_ids(), {11, 12})
 
 
 class MigrationStateTest(TestCase):

@@ -25,21 +25,26 @@ from django.db import models
 from django.utils.translation import gettext_lazy as _
 
 from apps.log_databus.nodeman_v3.constants import (
+    COLLECTOR_CONFIG_ID_NOT_APPLICABLE,
     NodeManV3DispatchStatus,
     NodeManV3OperationStatus,
     NodeManV3OperationType,
     NodeManV3ResultState,
     RESOURCE_TYPE_COLLECTOR_CONFIG,
 )
-from apps.models import OperateRecordModel
+from apps.models import JsonField, OperateRecordModel
 
 
 class NodeManV3Binding(OperateRecordModel):
     """
-    采集项与节点管理 V3 部署策略的绑定关系。
+    业务资源与节点管理 V3 部署策略的绑定关系。
 
-    一个采集项对应一个部署策略：节点管理按 policy 隔离子配置记录（set = policy_<id>），
-    因此「一采集项一策略」天然获得同机多采集项的隔离与精确反删。
+    两种资源类型：
+
+    - collector_config：一个采集项一条子配置策略。节点管理按 policy 隔离子配置记录
+      （set = deploy_policy_<id>），因此「一采集项一策略」天然获得同机多采集项的隔离与精确反删。
+    - collector_plugin：一个业务一条采集器安装策略，承载 specify_plugin。之所以不放进采集项策略，
+      见 policy.build_plugin_install_payload 的说明（会导致同机后建采集项被静默剔除并删配置）。
     """
 
     resource_type = models.CharField(_("资源类型"), max_length=64, default=RESOURCE_TYPE_COLLECTOR_CONFIG)
@@ -47,11 +52,16 @@ class NodeManV3Binding(OperateRecordModel):
     bk_biz_id = models.IntegerField(_("业务ID"), db_index=True)
     bk_tenant_id = models.CharField(_("租户ID"), max_length=64, default="")
 
-    collector_config_id = models.IntegerField(_("采集项ID"), db_index=True)
+    # 安装策略不属于任何单个采集项，该字段为 COLLECTOR_CONFIG_ID_NOT_APPLICABLE
+    collector_config_id = models.IntegerField(_("采集项ID"), db_index=True, default=COLLECTOR_CONFIG_ID_NOT_APPLICABLE)
     deploy_policy_id = models.BigIntegerField(_("部署策略ID"), null=True, default=None)
     policy_name = models.CharField(_("部署策略名称"), max_length=255, default="")
     # 期望态指纹，用于跳过无变化的收敛，避免每次保存采集项都触发一次全量下发
     policy_fingerprint = models.CharField(_("期望态指纹"), max_length=64, default="")
+    # 最近一次下发给节点管理的 scopes。安装策略的目标范围要按业务并集所有启用中的采集项，
+    # 从这里取而不是回头重算 CollectorConfig：重算会依赖调用方是否已经改过 is_active/target_nodes，
+    # 顺序稍有差别就会算出与实际下发不一致的并集。
+    desired_scopes = JsonField(_("最近下发的目标范围"), null=True, default=None)
     # 每次期望态变更递增；用于识别过期回调（老 generation 的状态不覆盖新一轮结果）
     generation = models.IntegerField(_("期望态版本"), default=0)
     is_enabled = models.BooleanField(_("采集项是否启用"), default=True)

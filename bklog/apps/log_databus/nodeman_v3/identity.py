@@ -23,6 +23,7 @@ import os
 
 from apps.log_databus.nodeman_v3.constants import (
     RESOURCE_TYPE_COLLECTOR_CONFIG,
+    RESOURCE_TYPE_COLLECTOR_PLUGIN,
     SUB_CONFIG_NAME_DEPLOY_INFIX,
 )
 
@@ -47,7 +48,7 @@ def build_sub_config_name(template_name: str, deploy_policy_id: int) -> str:
 
 def build_policy_name(collector_config_id: int) -> str:
     """
-    部署策略名称。
+    采集项子配置策略的名称。
 
     节点管理没有提供 deploy_policy 删除接口，策略对象只能复用不能销毁，
     因此策略名必须能由采集项 ID 稳定推导，用于本地 binding 丢失时按名称找回既有策略，
@@ -58,3 +59,19 @@ def build_policy_name(collector_config_id: int) -> str:
 
 def build_resource_key(collector_config_id: int) -> str:
     return f"{RESOURCE_TYPE_COLLECTOR_CONFIG}:{collector_config_id}"
+
+
+def build_plugin_policy_name(bk_biz_id: int, plugin_name: str) -> str:
+    """
+    采集器安装策略的名称。
+
+    安装能力必须与子配置分成两条策略，见 build_plugin_install_payload 的说明。
+    按业务分策略而不是全环境一条：策略的 scope 条目自带 bk_biz_id，混在一条里会让
+    任一业务的目标变更都去改写其它业务的期望态，出问题时也无法按业务定位。
+    """
+    return f"bklog-plugin-{plugin_name}-{bk_biz_id}"
+
+
+def build_plugin_resource_key(plugin_name: str) -> str:
+    # 业务维度已经落在 binding.bk_biz_id 上，resource_key 只需在业务内唯一
+    return f"{RESOURCE_TYPE_COLLECTOR_PLUGIN}:{plugin_name}"

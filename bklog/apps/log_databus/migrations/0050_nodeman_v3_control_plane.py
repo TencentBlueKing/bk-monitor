@@ -3,6 +3,8 @@ import uuid
 import django.db.models.deletion
 from django.db import migrations, models
 
+import apps.models
+
 
 class Migration(migrations.Migration):
     dependencies = [
@@ -25,10 +27,11 @@ class Migration(migrations.Migration):
                 ("resource_key", models.CharField(db_index=True, max_length=255, verbose_name="资源标识")),
                 ("bk_biz_id", models.IntegerField(db_index=True, verbose_name="业务ID")),
                 ("bk_tenant_id", models.CharField(default="", max_length=64, verbose_name="租户ID")),
-                ("collector_config_id", models.IntegerField(db_index=True, verbose_name="采集项ID")),
+                ("collector_config_id", models.IntegerField(db_index=True, default=0, verbose_name="采集项ID")),
                 ("deploy_policy_id", models.BigIntegerField(default=None, null=True, verbose_name="部署策略ID")),
                 ("policy_name", models.CharField(default="", max_length=255, verbose_name="部署策略名称")),
                 ("policy_fingerprint", models.CharField(default="", max_length=64, verbose_name="期望态指纹")),
+                ("desired_scopes", apps.models.JsonField(default=None, null=True, verbose_name="最近下发的目标范围")),
                 ("generation", models.IntegerField(default=0, verbose_name="期望态版本")),
                 ("is_enabled", models.BooleanField(default=True, verbose_name="采集项是否启用")),
             ],
@@ -54,7 +57,11 @@ class Migration(migrations.Migration):
                 (
                     "operation_type",
                     models.CharField(
-                        choices=[("reconcile", "期望态收敛"), ("remove", "子配置清理")],
+                        choices=[
+                            ("reconcile", "期望态收敛"),
+                            ("remove", "子配置清理"),
+                            ("plugin_reconcile", "采集器安装收敛"),
+                        ],
                         max_length=32,
                         verbose_name="动作类型",
                     ),
