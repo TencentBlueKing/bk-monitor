@@ -44,11 +44,11 @@ const UNIT_TO_US: Record<string, number> = {
 /** 展示用单位（从大到小），formatDuration 依次降级挑选最合适的单位 */
 const DISPLAY_UNITS = ['d', 'h', 'm', 's', 'ms', 'μs', 'ns'] as const;
 
-/** 匹配 "数值+单位"，如 "1.5s"，单位长的在前避免被 s / m 提前匹配 */
-const DURATION_VALUE_REG = /^([\d.]+)(ns|μs|us|ms|s|m|h|d)$/;
+/** 匹配 "数值+单位"，如 "1.5s"；单位可省略（按 baseUnit 计），单位长的在前避免被 s / m 提前匹配 */
+const DURATION_VALUE_REG = /^([\d.]+)\s*(ns|μs|us|ms|s|m|h|d)?$/i;
 
 /** 基础单位为微秒时不接受更小的 ns，与历史行为保持一致 */
-const DURATION_VALUE_WITHOUT_NS_REG = /^[\d.]+(μs|us|ms|s|m|h|d)$/;
+const DURATION_VALUE_WITHOUT_NS_REG = /^([\d.]+)\s*(μs|us|ms|s|m|h|d)?$/i;
 
 /**
  * 将时间数值格式化为带单位的时间字符串，自动选择最合适的展示单位
@@ -71,19 +71,25 @@ export function formatDuration(value: number, baseUnit: TDurationBaseUnit = 'μs
 }
 
 /**
- * 检查字符串是否为有效的时间格式（数值+单位）
- * @param str - 要检查的字符串
- * @param baseUnit - 基础单位，默认为'μs'（微秒）
- * @returns 是否为有效时间格式
+ * 将用户输入的时间串规范化为标准展示格式（防呆）
+ * 兼容大小写混写（1.5S / 1.5MS）以及不带单位的纯数字（1000 按 baseUnit 计）
+ * @param str - 用户输入的原始字符串
+ * @param baseUnit - 数值的基础单位，默认为'μs'（微秒）
+ * @returns 规范化后的字符串，如"1ms"；无法识别时返回空字符串
  */
-export function isValidTimeFormat(str: string, baseUnit: TDurationBaseUnit = 'μs'): boolean {
+export function normalizeDurationInput(str: string, baseUnit: TDurationBaseUnit = 'μs'): string {
+  if (!str) return '';
   // 正则解释：
   // ^[\d.]+ - 以数字或小数点开头（至少一个）
-  // (ns|μs|us|ms|s|m|h|d)$ - 以指定单位结尾
-  if (getUnitToUs(baseUnit) <= 1) {
-    return DURATION_VALUE_WITHOUT_NS_REG.test(str);
-  }
-  return DURATION_VALUE_REG.test(str);
+  // (ns|μs|us|ms|s|m|h|d)? - 可选的结尾单位，省略时按 baseUnit 计
+  const reg = getUnitToUs(baseUnit) <= 1 ? DURATION_VALUE_WITHOUT_NS_REG : DURATION_VALUE_REG;
+  const match = String(str).trim().match(reg);
+  if (!match) return '';
+  const value = Number.parseFloat(match[1]);
+  if (!Number.isFinite(value)) return '';
+  // 不带单位时数值本身就是 baseUnit 下的值，带单位则先换算到 baseUnit，再统一按最合适的单位格式化
+  const unitToUs = match[2] ? getUnitToUs(match[2]) : getUnitToUs(baseUnit);
+  return formatDuration((value * unitToUs) / getUnitToUs(baseUnit), baseUnit);
 }
 /**
  * 将时间字符串转换为数值（换算到指定基础单位）
@@ -93,17 +99,18 @@ export function isValidTimeFormat(str: string, baseUnit: TDurationBaseUnit = 'μ
  */
 export function parseDuration(timeStr: string, baseUnit: TDurationBaseUnit = 'μs'): number {
   if (!timeStr) return 0;
-  // 匹配数字和单位，如 "1.5s" -> ["1.5", "s"]
+  // 匹配数字和单位，如 "1.5s" -> ["1.5", "s"]，不带单位时 match[2] 为 undefined
   const match = timeStr.match(DURATION_VALUE_REG);
   if (!match) return 0;
 
   const value = Number.parseFloat(match[1]);
-  const unit = match[2];
+  // 不带单位时数值本身就是 baseUnit 下的值，带单位才做换算
+  const unitToUs = match[2] ? getUnitToUs(match[2]) : getUnitToUs(baseUnit);
 
-  return (value * getUnitToUs(unit)) / getUnitToUs(baseUnit);
+  return (value * unitToUs) / getUnitToUs(baseUnit);
 }
 
-/** 取单位相对微秒的换算系数，未知单位按微秒处理 */
+/** 取单位相对微秒的换算系数，统一转小写匹配（输入单位大小写不敏感），未知单位按微秒处理 */
 function getUnitToUs(unit: string): number {
-  return UNIT_TO_US[unit] ?? 1;
+  return UNIT_TO_US[unit.toLowerCase()] ?? 1;
 }

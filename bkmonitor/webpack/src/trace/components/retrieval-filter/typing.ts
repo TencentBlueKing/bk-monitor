@@ -492,6 +492,11 @@ export const RETRIEVAL_FILTER_PROPS = {
     type: Boolean,
     default: false,
   },
+  // 是否禁用 常驻设置 -> 设置筛选功能
+  residentSettingTransferDisable: {
+    type: Boolean,
+    default: false,
+  },
 };
 export const RETRIEVAL_FILTER_EMITS = {
   favorite: (_isEdit: boolean) => true,
@@ -1002,6 +1007,11 @@ export const RESIDENT_SETTING_PROPS = {
   limit: {
     type: Number,
     default: 200,
+  },
+  // 是否禁用 常驻设置 -> 设置筛选功能
+  residentSettingTransferDisable: {
+    type: Boolean,
+    default: false,
   },
 };
 export const RESIDENT_SETTING_EMITS = {

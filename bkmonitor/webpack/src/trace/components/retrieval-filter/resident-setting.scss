@@ -1,7 +1,9 @@
+/* stylelint-disable selector-class-pattern */
 .vue3_retrieval-filter__resident-setting-component {
   display: flex;
   align-items: flex-start;
   min-height: 40px;
+
   // max-height: 112px;
   // overflow-y: auto;
 
@@ -27,6 +29,11 @@
     color: #3a84ff;
     cursor: pointer;
 
+    &.disable {
+      color: #dcdee5;
+      cursor: not-allowed;
+    }
+
     .icon-shezhi1 {
       font-size: 14px;
     }
@@ -43,7 +50,6 @@
     padding-top: 4px;
 
     .placeholder-text {
-      position: relative;
       position: relative;
       top: -4px;
       font-size: 12px;
