@@ -132,12 +132,12 @@ class BkCollectorClusterConfig:
     @classmethod
     def get_cluster_mapping(cls, bk_biz_ids=None):
         """获取带 namespace 和公共目标标记的集群部署映射。"""
-        cluster_mapping = cls._get_business_cluster_mapping(bk_biz_ids)
+        cluster_mapping = cls._get_default_cluster_mapping(bk_biz_ids)
         cluster_mapping.update(cls.get_global_deploy_mapping())
         return cluster_mapping
 
     @classmethod
-    def _get_business_cluster_mapping(cls, bk_biz_ids=None):
+    def _get_default_cluster_mapping(cls, bk_biz_ids=None):
         """获取业务默认 collector 部署目标。"""
         bk_biz_ids = set(bk_biz_ids or [])
 
