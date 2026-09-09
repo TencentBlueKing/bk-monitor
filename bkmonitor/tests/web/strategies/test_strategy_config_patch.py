@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 
 import copy
 import datetime
+from collections.abc import Callable
 from typing import Any
 from unittest import mock
 
@@ -18,6 +19,7 @@ from django.db import connections, router, transaction
 from django.test.utils import CaptureQueriesContext
 from rest_framework.exceptions import ValidationError
 
+from bkmonitor.dataflow.constant import VisualType
 from bkmonitor.models import (
     ActionConfig,
     AlgorithmModel,
@@ -29,7 +31,7 @@ from bkmonitor.models import (
     StrategyLabel,
     StrategyModel,
 )
-from bkmonitor.strategy.new_strategy import Algorithm, Detect, QueryConfig, Strategy
+from bkmonitor.strategy.new_strategy import Algorithm, Detect, Item, QueryConfig, Strategy
 from bkmonitor.strategy.partial_update import StrategyConfigUpdater
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.drf_resource.exceptions import CustomException
@@ -720,6 +722,245 @@ def test_strategy_config_patch_can_add_query_configs_algorithms_and_detects(
     assert query_config_aliases == ["b", "b_extra"]
     assert algorithm_levels == [2, 3]
     assert detect_levels == [1, 2, 3]
+
+
+@pytest.mark.parametrize("with_ids", [False, True])
+@pytest.mark.parametrize("changed", [False, True])
+def test_algorithm_reordering_preserves_identity_and_backend_config(
+    strategy_config_fixture: dict[str, Any], with_ids: bool, changed: bool
+) -> None:
+    strategy: StrategyModel = strategy_config_fixture["strategy"]
+    item: ItemModel = strategy_config_fixture["first_item"]
+    algorithms: list[AlgorithmModel] = [
+        strategy_config_fixture["algorithm_a"],
+        strategy_config_fixture["algorithm_extra"],
+    ]
+    payloads: list[dict[str, Any]] = []
+    for index, algorithm in enumerate(algorithms):
+        algorithm.type = AlgorithmModel.AlgorithmChoices.IntelligentDetect
+        algorithm.config = {
+            "plan_id": 1,
+            "args": {"sensitivity": 1, "backend_parameter": index},
+            "service_name": f"service-{index}",
+            "grey_to_bkfara": True,
+            "enable_week_compare": False,
+            "visual_type": VisualType.NONE,
+        }
+        algorithm.save()
+        payload: dict[str, Any] = {
+            "type": algorithm.type,
+            "level": algorithm.level,
+            "config": {"plan_id": 1, "args": {"sensitivity": 2 if changed and index == 1 else 1}},
+        }
+        if with_ids:
+            payload["id"] = algorithm.id
+        payloads.append(payload)
+
+    original_update_time: datetime.datetime = strategy.update_time
+    original_update_user: str = strategy.update_user
+    patch: dict[str, Any] = {"items": [{"id": item.id, "algorithms": payloads[::-1]}]}
+    perform_strategy_config_patch([strategy.id], patch)
+    assert set(AlgorithmModel.objects.filter(item_id=item.id).values_list("id", flat=True)) == {
+        algorithm.id for algorithm in algorithms
+    }
+    for index, algorithm in enumerate(algorithms):
+        original_level: int = algorithm.level
+        algorithm.refresh_from_db()
+        assert algorithm.level == original_level
+        assert algorithm.config["service_name"] == f"service-{index}"
+        assert algorithm.config["grey_to_bkfara"] is True
+        assert algorithm.config["args"] == {
+            "sensitivity": 2 if changed and index == 1 else 1,
+            "backend_parameter": index,
+        }
+    if not changed:
+        assert_strategy_metadata_unchanged(strategy, original_update_time, original_update_user)
+
+    strategy.refresh_from_db()
+    updated_at: datetime.datetime = strategy.update_time
+    perform_strategy_config_patch([strategy.id], patch)
+    strategy.refresh_from_db()
+    assert strategy.update_time == updated_at
+    assert StrategyHistoryModel.objects.filter(strategy_id=strategy.id).count() == int(changed)
+
+
+def test_algorithm_replacement_keeps_matched_id_and_creates_unmatched_record(
+    strategy_config_fixture: dict[str, Any],
+) -> None:
+    strategy: StrategyModel = strategy_config_fixture["strategy"]
+    item: ItemModel = strategy_config_fixture["first_item"]
+    kept: AlgorithmModel = strategy_config_fixture["algorithm_extra"]
+    deleted: AlgorithmModel = strategy_config_fixture["algorithm_a"]
+    other_item_algorithm: AlgorithmModel = strategy_config_fixture["algorithm_b"]
+    other_config: Any = copy.deepcopy(other_item_algorithm.config)
+    perform_strategy_config_patch(
+        [strategy.id],
+        {
+            "items": [
+                {
+                    "id": item.id,
+                    "algorithms": [
+                        make_algorithm_payload(1, 100, algorithm_id=other_item_algorithm.id),
+                        make_algorithm_payload(kept.level, 200),
+                    ],
+                }
+            ]
+        },
+    )
+    kept.refresh_from_db()
+    assert kept.config[0][0]["threshold"] == 200
+    assert not AlgorithmModel.objects.filter(id=deleted.id).exists()
+    created: AlgorithmModel = AlgorithmModel.objects.get(item_id=item.id, level=1)
+    assert created.id not in {kept.id, deleted.id, other_item_algorithm.id}
+    other_item_algorithm.refresh_from_db()
+    assert other_item_algorithm.config == other_config
+
+
+def test_algorithm_explicit_id_takes_precedence_over_type_and_level(
+    strategy_config_fixture: dict[str, Any],
+) -> None:
+    strategy: StrategyModel = strategy_config_fixture["strategy"]
+    item: ItemModel = strategy_config_fixture["first_item"]
+    first: AlgorithmModel = strategy_config_fixture["algorithm_a"]
+    second: AlgorithmModel = strategy_config_fixture["algorithm_extra"]
+    first_level: int = first.level
+    second_level: int = second.level
+    perform_strategy_config_patch(
+        [strategy.id],
+        {
+            "items": [
+                {
+                    "id": item.id,
+                    "algorithms": [
+                        make_algorithm_payload(first_level, 100, algorithm_id=second.id),
+                        make_algorithm_payload(second_level, 200, algorithm_id=first.id),
+                    ],
+                }
+            ]
+        },
+    )
+    first.refresh_from_db()
+    second.refresh_from_db()
+    assert (first.level, first.config[0][0]["threshold"]) == (second_level, 200)
+    assert (second.level, second.config[0][0]["threshold"]) == (first_level, 100)
+
+
+def test_full_item_algorithm_save_keeps_positional_id_reuse(strategy_config_fixture: dict[str, Any]) -> None:
+    model: StrategyModel = strategy_config_fixture["strategy"]
+    strategy: Strategy = Strategy.from_models([model])[0]
+    item: Item = next(item for item in strategy.items if item.id == strategy_config_fixture["first_item"].id)
+    first: AlgorithmModel = strategy_config_fixture["algorithm_a"]
+    second: AlgorithmModel = strategy_config_fixture["algorithm_extra"]
+    item.algorithms = [Algorithm(item.strategy_id, item.id, **make_algorithm_payload(1, 100, algorithm_id=second.id))]
+    item.save_algorithms()
+    first.refresh_from_db()
+    assert (first.level, first.config[0][0]["threshold"]) == (1, 100)
+    assert not AlgorithmModel.objects.filter(id=second.id).exists()
+
+
+def test_algorithm_ambiguous_key_does_not_inherit_an_arbitrary_record(
+    strategy_config_fixture: dict[str, Any],
+) -> None:
+    strategy: StrategyModel = strategy_config_fixture["strategy"]
+    item: ItemModel = strategy_config_fixture["first_item"]
+    first: AlgorithmModel = strategy_config_fixture["algorithm_a"]
+    second: AlgorithmModel = strategy_config_fixture["algorithm_extra"]
+    second.level = first.level
+    second.save()
+    perform_strategy_config_patch(
+        [strategy.id], {"items": [{"id": item.id, "algorithms": [make_algorithm_payload(first.level, 100)]}]}
+    )
+    algorithm: AlgorithmModel = AlgorithmModel.objects.get(item_id=item.id)
+    assert algorithm.id not in {first.id, second.id}
+
+
+def test_algorithm_duplicate_match_is_rejected_without_writes(strategy_config_fixture: dict[str, Any]) -> None:
+    strategy: StrategyModel = strategy_config_fixture["strategy"]
+    item: ItemModel = strategy_config_fixture["first_item"]
+    algorithm: AlgorithmModel = strategy_config_fixture["algorithm_a"]
+    original: list[dict[str, Any]] = list(AlgorithmModel.objects.filter(item_id=item.id).order_by("id").values())
+    with pytest.raises(ValidationError, match="同一条算法"):
+        perform_strategy_config_patch(
+            [strategy.id],
+            {
+                "items": [
+                    {
+                        "id": item.id,
+                        "algorithms": [
+                            make_algorithm_payload(algorithm.level, 100, algorithm_id=algorithm.id),
+                            make_algorithm_payload(algorithm.level, 200),
+                        ],
+                    }
+                ]
+            },
+        )
+    assert list(AlgorithmModel.objects.filter(item_id=item.id).order_by("id").values()) == original
+
+
+@pytest.mark.parametrize("component", [Algorithm, Detect])
+def test_algorithm_and_detect_writes_roll_back_after_component_save(
+    strategy_config_fixture: dict[str, Any], component: type[Algorithm] | type[Detect]
+) -> None:
+    strategy: StrategyModel = strategy_config_fixture["strategy"]
+    item: ItemModel = strategy_config_fixture["first_item"]
+    original_algorithms: list[dict[str, Any]] = list(
+        AlgorithmModel.objects.filter(strategy_id=strategy.id).order_by("id").values()
+    )
+    original_detects: list[dict[str, Any]] = list(
+        DetectModel.objects.filter(strategy_id=strategy.id).order_by("id").values()
+    )
+    original_save: Callable[[Any], None] = component.save
+
+    def save_then_fail(config: Algorithm | Detect) -> None:
+        original_save(config)
+        raise RuntimeError("fail after component saved")
+
+    with mock.patch.object(component, "save", autospec=True, side_effect=save_then_fail) as save_mock:
+        with pytest.raises(RuntimeError, match="fail after component saved"):
+            perform_strategy_config_patch(
+                [strategy.id],
+                {
+                    "items": [{"id": item.id, "algorithms": [make_algorithm_payload(1, 100)]}],
+                    "detects": [make_detect_payload(1, 3)],
+                },
+            )
+    assert save_mock.call_count == 1
+    assert list(AlgorithmModel.objects.filter(strategy_id=strategy.id).order_by("id").values()) == original_algorithms
+    assert list(DetectModel.objects.filter(strategy_id=strategy.id).order_by("id").values()) == original_detects
+    assert StrategyHistoryModel.objects.get(strategy_id=strategy.id).status is False
+
+
+@pytest.mark.parametrize("partial", [False, True])
+@pytest.mark.parametrize("count", [0, 1, 3])
+def test_full_and_partial_detect_saves_preserve_replacement_contracts(
+    strategy_config_fixture: dict[str, Any], partial: bool, count: int
+) -> None:
+    model: StrategyModel = strategy_config_fixture["strategy"]
+    original_ids: list[int] = list(
+        DetectModel.objects.filter(strategy_id=model.id).order_by("id").values_list("id", flat=True)
+    )
+    payloads: list[dict[str, Any]] = [make_detect_payload(level, level + 1) for level in range(1, count + 1)]
+    if partial:
+        if not payloads:
+            # 局部入口的完整配置校验不允许清空检测配置，保留这个既有约束。
+            with pytest.raises(ValidationError, match="detects"):
+                perform_strategy_config_patch([model.id], {"detects": []})
+            assert (
+                list(DetectModel.objects.filter(strategy_id=model.id).order_by("id").values_list("id", flat=True))
+                == original_ids
+            )
+            return
+        perform_strategy_config_patch([model.id], {"detects": payloads})
+    else:
+        strategy: Strategy = Strategy.from_models([model])[0]
+        strategy.detects = [Detect(strategy.id, **payload) for payload in payloads]
+        strategy.save()
+
+    detects: list[DetectModel] = list(DetectModel.objects.filter(strategy_id=model.id).order_by("id"))
+    assert [detect.id for detect in detects[: len(original_ids)]] == original_ids[:count]
+    assert [(detect.level, detect.trigger_config["count"]) for detect in detects] == [
+        (level, level + 1) for level in range(1, count + 1)
+    ]
 
 
 def test_strategy_config_patch_can_clear_labels_and_notice_user_groups(

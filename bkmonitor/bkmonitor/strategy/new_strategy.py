@@ -1799,13 +1799,21 @@ class Item(AbstractConfig):
         self.id = item.id
         return item
 
-    def save_algorithms(self) -> None:
-        self.reuse_exists_records(
-            AlgorithmModel,
-            AlgorithmModel.objects.filter(strategy_id=self.strategy_id, item_id=self.id).only("id").order_by("id"),
-            self.algorithms,
-            Algorithm,
-        )
+    def save_algorithms(self, *, preserve_ids: bool = False) -> None:
+        """保存算法集合；局部更新保留已匹配的 ID，完整保存沿用按位置复用的行为。"""
+        if preserve_ids:
+            # patch 已在锁内按身份匹配；只删除未匹配记录，不能再次按位置分配 ID。
+            algorithm_ids: set[int] = {algorithm.id for algorithm in self.algorithms if algorithm.id > 0}
+            AlgorithmModel.objects.filter(strategy_id=self.strategy_id, item_id=self.id).exclude(
+                id__in=algorithm_ids
+            ).delete()
+        else:
+            self.reuse_exists_records(
+                AlgorithmModel,
+                AlgorithmModel.objects.filter(strategy_id=self.strategy_id, item_id=self.id).only("id").order_by("id"),
+                self.algorithms,
+                Algorithm,
+            )
 
         for algo in self.algorithms:
             algo.save()
@@ -2892,6 +2900,17 @@ class Strategy(AbstractConfig):
                 raise ValidationError(detail=_("已有自动告警等级配置异常，请先修复策略配置"))
             algorithm.config["alert_levels"] = copy.deepcopy(existing_algorithm.config["alert_levels"])
 
+    def save_detects(self) -> None:
+        """整体保存检测配置，完整保存与局部更新共用记录复用和增删逻辑。"""
+        self.reuse_exists_records(
+            DetectModel,
+            DetectModel.objects.filter(strategy_id=self.id).only("id").order_by("id"),
+            self.detects,
+            Detect,
+        )
+        for detect in self.detects:
+            detect.save()
+
     @transaction.atomic
     def save_actions(self):
         """保存actions配置."""
@@ -3016,17 +3035,14 @@ class Strategy(AbstractConfig):
                     self._create()
 
                 # 复用当前存在的记录
-                model_configs = [
-                    (ItemModel, Item, self.items),
-                    (DetectModel, Detect, self.detects),
-                ]
-                for model, config_cls, configs in model_configs:
-                    objs = model.objects.filter(strategy_id=self.id).only("id")
-                    self.reuse_exists_records(model, objs, configs, config_cls)
+                self.reuse_exists_records(
+                    ItemModel, ItemModel.objects.filter(strategy_id=self.id).only("id"), self.items, Item
+                )
 
                 # 保存子配置
-                for obj in chain(self.items, self.detects):
+                for obj in self.items:
                     obj.save()
+                self.save_detects()
 
                 # 复用旧ID地保存actions和notice
                 self.save_actions()

@@ -2527,7 +2527,7 @@ class UpdatePartialStrategyV2Resource(Resource):
     def update_strategy_config(strategy: Strategy, patch: dict[str, Any]) -> StrategyConfigPatch:
         """为复合字段生成公共策略组件保存计划。"""
         # 延续 update_<field> 的入口命名；此处只生成计划，由 Resource 完成校验后执行。
-        return StrategyConfigPatch.prepare(strategy, patch)
+        return StrategyConfigUpdater.prepare(strategy, patch)
 
     @staticmethod
     def _validate_strategy_config_name(bk_biz_id: int, strategy_id: int, name: str) -> None:

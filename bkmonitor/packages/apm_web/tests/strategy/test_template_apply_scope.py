@@ -378,7 +378,7 @@ def test_update_removes_extra_template_child_configs(existing_strategy: dict[str
         metric_id="custom.2_extra.metric",
         config=copy.deepcopy(existing_strategy["query_config"].config),
     )
-    AlgorithmModel.objects.create(
+    extra_algorithm: AlgorithmModel = AlgorithmModel.objects.create(
         strategy_id=strategy.id,
         item_id=item.id,
         type="Threshold",
@@ -400,9 +400,11 @@ def test_update_removes_extra_template_child_configs(existing_strategy: dict[str
     assert list(QueryConfigModel.objects.filter(strategy_id=strategy.id).values_list("id", flat=True)) == [
         existing_strategy["query_config"].id
     ]
-    assert list(AlgorithmModel.objects.filter(strategy_id=strategy.id).values_list("id", flat=True)) == [
-        existing_strategy["algorithm"].id
-    ]
+    algorithm: AlgorithmModel = AlgorithmModel.objects.get(strategy_id=strategy.id)
+    # 新模板的类型和级别未命中存量算法，应新建记录，不能按位置继承旧 ID。
+    assert algorithm.id not in {existing_strategy["algorithm"].id, extra_algorithm.id}
+    assert algorithm.level == 2
+    assert algorithm.config == [[{"method": "gte", "threshold": 1000}]]
     assert list(DetectModel.objects.filter(strategy_id=strategy.id).values_list("id", flat=True)) == [
         existing_strategy["detect"].id
     ]

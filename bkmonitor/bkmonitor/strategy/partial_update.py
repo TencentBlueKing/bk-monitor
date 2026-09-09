@@ -106,10 +106,6 @@ class StrategyConfigPatch:
     def changed(self) -> bool:
         return bool(self.strategy_fields or self.item_changes or self.detects or self.notice or self.labels)
 
-    @classmethod
-    def prepare(cls, current: Strategy, patch: dict[str, Any]) -> "StrategyConfigPatch":
-        return StrategyConfigUpdater.prepare(current, patch)
-
     def save(self) -> None:
         StrategyConfigUpdater.save(self)
 
@@ -226,10 +222,10 @@ class StrategyConfigUpdater:
             if change.query_configs:
                 change.item.save_query_configs()
             if change.algorithms:
-                change.item.save_algorithms()
+                change.item.save_algorithms(preserve_ids=True)
 
         if plan.detects:
-            cls._save_detects(candidate)
+            candidate.save_detects()
         if plan.notice:
             # 完整 notice 保存还会处理高级配置，这里只写通知组，保留用户维护的其他选项。
             StrategyActionConfigRelation.objects.filter(id=candidate.notice.id).update(
@@ -307,14 +303,28 @@ class StrategyConfigUpdater:
 
     @staticmethod
     def _build_algorithms(item: Item, algorithms: list[dict[str, Any]]) -> list[Algorithm]:
-        current_algorithms: list[Algorithm] = item.algorithms
+        current_by_id: dict[int, Algorithm] = {algorithm.id: algorithm for algorithm in item.algorithms}
+        current_by_key: dict[tuple[str, int], Algorithm | None] = {}
+        for algorithm in item.algorithms:
+            key: tuple[str, int] = (algorithm.type, algorithm.level)
+            # 存量键不唯一时不猜测归属，只有显式 ID 才能选中其中一条。
+            current_by_key[key] = None if key in current_by_key else algorithm
+
+        matched_ids: set[int] = set()
         built_algorithms: list[Algorithm] = []
-        for index, config in enumerate(algorithms):
+        for config in algorithms:
             algorithm = Algorithm(item.strategy_id, item.id, **copy.deepcopy(config))
-            if index < len(current_algorithms):
-                algorithm.id = current_algorithms[index].id
-                if current_algorithms[index].instance is not None:
-                    algorithm.config = algorithm._merge_with_db_config(current_algorithms[index].instance)
+            matched: Algorithm | None = current_by_id.get(algorithm.id)
+            if matched is None:
+                matched = current_by_key.get((algorithm.type, algorithm.level))
+            algorithm.id = matched.id if matched is not None else 0
+            if matched is not None:
+                if matched.id in matched_ids:
+                    raise ValidationError(detail=_("不能重复更新同一条算法"))
+                matched_ids.add(matched.id)
+                if matched.instance is not None:
+                    # 差异比较必须使用最终有效配置，否则 serializer 默认值会让相同请求反复写入。
+                    algorithm.config = algorithm._merge_with_db_config(matched.instance)
             built_algorithms.append(algorithm)
         return built_algorithms
 
@@ -436,17 +446,6 @@ class StrategyConfigUpdater:
             field_name: copy.deepcopy(getattr(item, field_name)) for field_name in change.fields
         }
         ItemModel.objects.filter(id=item.id, strategy_id=item.strategy_id).update(**update_fields)
-
-    @staticmethod
-    def _save_detects(strategy: Strategy) -> None:
-        Strategy.reuse_exists_records(
-            DetectModel,
-            DetectModel.objects.filter(strategy_id=strategy.id).only("id").order_by("id"),
-            strategy.detects,
-            Detect,
-        )
-        for detect in strategy.detects:
-            detect.save()
 
     @staticmethod
     def _save_labels(strategy: Strategy) -> None:
