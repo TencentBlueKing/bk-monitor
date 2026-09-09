@@ -282,11 +282,14 @@ class ApplicationConfig(BkCollectorConfig):
                         # 为该业务下的所有应用生成配置
                         for app_config_obj in biz_application_config_list:
                             try:
-                                application_config_context = {**app_config_obj.application_config}
-                                if not is_global:
-                                    application_config_context.update(
+                                application_config_context = {
+                                    **app_config_obj.application_config,
+                                    **(
                                         app_config_obj.get_cluster_application_config(cluster_id)
-                                    )
+                                        if not is_global
+                                        else {}
+                                    ),
+                                }
                                 application_config = compiled_template.render(application_config_context)
                                 cluster_config_map[app_config_obj.application_id] = application_config
                             except Exception as e:  # pylint: disable=broad-except

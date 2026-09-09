@@ -18,7 +18,6 @@ from kubernetes import client
 from apm.core.handlers.apm_cache_handler import ApmCacheHandler
 from bkm_space.utils import bk_biz_id_to_space_uid, is_bk_saas_space
 from bkmonitor.utils.bcs import BcsKubeClient
-from bkmonitor.utils.cache import lru_cache_with_ttl
 from bkmonitor.utils.common_utils import count_md5, safe_int
 from bkmonitor.utils.new_env import is_biz_id_in_black_list
 from constants.bk_collector import BkCollectorComp
@@ -135,27 +134,24 @@ class BkCollectorClusterConfig:
         """获取带 namespace 和公共目标标记的集群部署映射。"""
         cache = ApmCacheHandler().get_redis_client()
         cluster_to_bk_biz_ids = cache.smembers(BkCollectorComp.CACHE_KEY_CLUSTER_IDS)
-
-        res = {}
+        bk_biz_ids = set(bk_biz_ids or [])
+        global_targets = cls.global_deploy_targets()
+        global_target_ids = {(cluster_id, namespace) for cluster_id, namespace, _is_global in global_targets}
+        cluster_mapping = {}
         for i in cluster_to_bk_biz_ids:
             value = ApmCacheHandler.decode_redis_value(i)
             if value is not None:
                 cluster_id, related_bk_biz_ids = cls._split_value(value)
                 if cluster_id and related_bk_biz_ids:
-                    old_biz_ids = res.get(cluster_id, {})
-                    res[cluster_id] = set(old_biz_ids) | set(related_bk_biz_ids)
+                    related_bk_biz_ids = set(related_bk_biz_ids)
+                    namespace = cls.bk_collector_namespace(cluster_id)
+                    if (cluster_id, namespace) in global_target_ids or (
+                        bk_biz_ids and not bk_biz_ids & related_bk_biz_ids
+                    ):
+                        continue
+                    target = (cluster_id, namespace, False)
+                    cluster_mapping.setdefault(target, set()).update(related_bk_biz_ids)
 
-        if bk_biz_ids is not None:
-            bk_biz_ids = set(bk_biz_ids)
-            res = {cluster_id: biz_ids for cluster_id, biz_ids in res.items() if bk_biz_ids & set(biz_ids)}
-
-        global_targets = cls.global_deploy_targets()
-        global_target_ids = {(cluster_id, namespace) for cluster_id, namespace, _is_global in global_targets}
-        cluster_mapping = {}
-        for cluster_id, biz_ids in res.items():
-            namespace = cls.bk_collector_namespace(cluster_id)
-            if (cluster_id, namespace) not in global_target_ids:
-                cluster_mapping[(cluster_id, namespace, False)] = biz_ids
         cluster_mapping.update({target: [cls.GLOBAL_CONFIG_BK_BIZ_ID] for target in global_targets})
         return cluster_mapping
 
@@ -165,11 +161,10 @@ class BkCollectorClusterConfig:
         return cluster_namespace.get(cluster_id, BkCollectorComp.NAMESPACE)
 
     @classmethod
-    @lru_cache_with_ttl(ttl=60)
     def global_deploy_targets(cls) -> list[tuple[str, str, bool]]:
         """解析公共集群ID/namespace列表；纯集群ID默认使用 blueking namespace。"""
         configured_targets = settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER or []
-        targets = []
+        targets = set()
         for target in configured_targets:
             cluster_id, separator, namespace = target.partition("/")
             if not separator:
@@ -177,8 +172,8 @@ class BkCollectorClusterConfig:
             if not cluster_id or not namespace:
                 logger.warning("invalid public collector target: %r, skip it", target)
                 continue
-            targets.append((cluster_id, namespace, True))
-        return list(dict.fromkeys(targets))
+            targets.add((cluster_id, namespace, True))
+        return list(targets)
 
     @classmethod
     def platform_config_tpl(cls, cluster_id: str, namespace: str):

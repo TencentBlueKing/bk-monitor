@@ -30,13 +30,9 @@ def cluster_discovery(mocker):
 
 @pytest.fixture(autouse=True)
 def collector_settings(settings, cluster_discovery):
-    clear_target_cache = ClusterConfig.global_deploy_targets.cache_clear
-    clear_target_cache()
     settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER = ["cluster-a"]
     settings.K8S_OPERATOR_DEPLOY_NAMESPACE = {"cluster-a": "operator-ns"}
     settings.CUSTOM_REPORT_K8S_SECRETS_CONFIG = {}
-    yield
-    clear_target_cache()
 
 
 def test_cluster_mapping_keeps_public_precedence(settings, cluster_discovery):
@@ -89,14 +85,10 @@ def test_empty_public_target_parts_do_not_block_valid_or_business_targets(settin
     assert "invalid public collector target" in caplog.text
 
 
-def test_public_targets_are_cached_for_60_seconds_then_read_current_settings(settings, mocker):
-    clock = mocker.patch("bkmonitor.utils.cache.monotonic", return_value=1000)
+def test_public_targets_read_current_settings(settings):
     assert ClusterConfig.global_deploy_targets() == [("cluster-a", "blueking", True)]
 
     settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER = ["cluster-b/public"]
-    clock.return_value = 1059
-    assert ClusterConfig.global_deploy_targets() == [("cluster-a", "blueking", True)]
-    clock.return_value = 1061
     assert ClusterConfig.global_deploy_targets() == [("cluster-b", "public", True)]
 
 
@@ -318,7 +310,7 @@ def test_platform_refresh_renders_each_target_and_continues_after_one_failure(mu
 
     delivery = mocker.patch.object(PlatformConfig, "deploy_to_k8s", side_effect=deploy)
     PlatformConfig.refresh_k8s()
-    assert [call.args[1] for call in delivery.call_args_list] == ["operator-ns", "public-1", "public-2"]
+    assert {call.args[1] for call in delivery.call_args_list} == {"operator-ns", "public-1", "public-2"}
     targets.assert_called_once_with()
 
 
@@ -370,13 +362,13 @@ def test_custom_report_global_batch_and_business_batch_are_separate(
     targets = mocker.spy(ClusterConfig, "global_deploy_targets")
     if business_is_public:
         settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER += ["cluster-a/operator-ns"]
-    public_namespaces = ["public-1", "public-2", "operator-ns"] if business_is_public else ["public-1", "public-2"]
+    public_namespaces = {"public-1", "public-2", "operator-ns"} if business_is_public else {"public-1", "public-2"}
     clean = mocker.patch.object(ClusterConfig, "clean_dup_secrets_in_multi_protocol")
     result = CustomReportSubscription._refresh_k8s_custom_config_by_biz(0, [({"bk_data_id": 10, "biz": 1}, protocol)])
     assert result["cluster_count"] == 1
     assert result["target_count"] == len(public_namespaces)
-    assert [record["namespace"] for record in result["clusters"]] == public_namespaces
-    assert [call.args[1] for call in clean.call_args_list] == public_namespaces
+    assert {record["namespace"] for record in result["clusters"]} == public_namespaces
+    assert {call.args[1] for call in clean.call_args_list} == public_namespaces
     targets.assert_called_once_with()
     targets.reset_mock()
     multi_target_delivery.reset_mock()
@@ -426,15 +418,15 @@ def test_cleanup_command_defaults_to_public_targets_and_remains_dry_run(settings
     )
     clean = mocker.patch.object(ClusterConfig, "clean_sub_configs", return_value=[])
     command.handle(bk_tenant_id="system", type="all", execute=False)
-    assert [(call.kwargs["cluster_id"], call.kwargs["namespace"]) for call in clean.call_args_list] == [
+    assert {(call.kwargs["cluster_id"], call.kwargs["namespace"]) for call in clean.call_args_list} == {
         ("cluster-a", "public-1"),
         ("cluster-a", "public-2"),
         ("cluster-b", "public-1"),
-    ]
+    }
     assert all(call.kwargs["dry_run"] for call in clean.call_args_list)
     clean.reset_mock()
     command.handle(bk_tenant_id="system", type="all", execute=False, cluster_id=["cluster-a"])
-    assert [call.kwargs["namespace"] for call in clean.call_args_list] == ["public-1", "public-2"]
+    assert {call.kwargs["namespace"] for call in clean.call_args_list} == {"public-1", "public-2"}
     clean.reset_mock()
     command.handle(bk_tenant_id="system", type="all", execute=False, cluster_id=["cluster-a"], namespace="old-public")
     assert clean.call_args.kwargs["namespace"] == "old-public"
