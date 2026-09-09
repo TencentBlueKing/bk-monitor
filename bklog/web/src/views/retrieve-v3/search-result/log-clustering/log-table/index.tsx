@@ -202,14 +202,14 @@ export default defineComponent({
       tableList.value = (view.window ?? []).map(item => markRaw(item));
     };
 
-    const runPipeline = async (resetWindow = true) => {
+    const runPipeline = async (resetWindow = true, replaceRaw = false) => {
       pipelineToken += 1;
       const token = pipelineToken;
       if (resetWindow) {
         pagination.value.current = 1;
       }
       const input = buildPipelineInput();
-      const { view, viaWorker } = await clusterTableWorkerService.run(input, getWindowOptions());
+      const { view, viaWorker } = await clusterTableWorkerService.run(input, getWindowOptions(), { replaceRaw });
       if (token !== pipelineToken) return;
       if (!viaWorker && !(view.window ?? []).length && !input.raw?.length) {
         await ensureRawSnapshot();
@@ -461,7 +461,7 @@ export default defineComponent({
             moduleLargeDataCacheService.clear(prevScope).catch(() => {});
           }
           rawSnapshot = responseList;
-          await runPipeline(true);
+          await runPipeline(true, true);
           setTimeout(computedScrollXWidth);
         })
         .catch(() => {

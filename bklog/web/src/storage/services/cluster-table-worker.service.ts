@@ -39,6 +39,10 @@ interface PendingRequest {
   timer: ReturnType<typeof setTimeout> | null;
 }
 
+interface ClusterPipelineRunOptions {
+  replaceRaw?: boolean;
+}
+
 class ClusterTableWorkerService {
   private workerSupported = typeof Worker !== 'undefined' && typeof URL !== 'undefined';
   private activeWorker: Worker | null = null;
@@ -90,9 +94,10 @@ class ClusterTableWorkerService {
   async run(
     input: ClusterPipelineInput,
     windowOptions: WalkVisibleWindowOptions,
+    options: ClusterPipelineRunOptions = {},
   ): Promise<{ viaWorker: boolean; view: ClusterViewResult }> {
     const plainWindow = toPlainWindowOptions(windowOptions);
-    const sendRaw = !this.workerHasRaw || !this.ownsInWorker;
+    const sendRaw = options.replaceRaw || !this.workerHasRaw || !this.ownsInWorker;
     const plainInput = toPlainPipelineInput(input, sendRaw);
 
     if (this.workerSupported) {

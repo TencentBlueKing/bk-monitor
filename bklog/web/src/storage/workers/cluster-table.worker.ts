@@ -61,8 +61,9 @@ self.onmessage = (event: MessageEvent<WorkerRequest>) => {
 
   try {
     if (message.type === 'pipeline') {
-      if (message.payload?.raw) {
-        rawCache = message.payload.raw;
+      const hasRaw = Object.prototype.hasOwnProperty.call(message.payload ?? {}, 'raw');
+      if (hasRaw) {
+        rawCache = message.payload?.raw ?? [];
       }
       const result = runClusterTablePipeline({
         ...(message.payload as ClusterPipelineInput),

@@ -421,7 +421,7 @@ export function toPlainPipelineInput(input: ClusterPipelineInput, sendRaw = true
       sort: { ...(input.filterSort?.sort ?? {}) },
     },
     groupBy: [...(input.groupBy ?? [])].map(item => String(item)),
-    raw: sendRaw ? (input.raw ?? []) : undefined,
+    ...(sendRaw ? { raw: input.raw ?? [] } : {}),
   };
 }
 
