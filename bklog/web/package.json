@@ -7,6 +7,7 @@
   "license": "ISC",
   "scripts": {
     "dev": "nodemon --exec \"cross-env MONITOR_APP=log bkmonitor-cli dev --log\"",
+    "dev:e2e": "nodemon --exec \"cross-env MONITOR_APP=log BKLOG_E2E_DEV=1 bkmonitor-cli dev --log\"",
     "dev:apm": "nodemon --exec \"cross-env MONITOR_APP=apm bkmonitor-cli dev --log\"",
     "dev:trace": "nodemon --exec \"cross-env MONITOR_APP=trace  bkmonitor-cli dev --log\"",
     "build": "cross-env MONITOR_APP=log bkmonitor-cli build --log",
@@ -116,7 +117,7 @@
     "webpack-sources": "3.2.3"
   },
   "devDependencies": {
-    "@aafe/agent-runtime": "^0.2.22",
+    "@aafe/agent-runtime": "^0.2.27",
     "@eslint/js": "9.39.4",
     "@commitlint/cli": "19.2.1",
     "@commitlint/config-conventional": "12.1.4",
@@ -156,6 +157,7 @@
   "nodemonConfig": {
     "watch": [
       "local.settings.js",
+      "local.settings.e2e.js",
       "webpack.config.js"
     ],
     "extentions": []

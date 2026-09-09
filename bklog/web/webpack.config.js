@@ -36,6 +36,10 @@ const { createMonitorConfig } = require('./scripts/create-monitor');
 
 const devPort = 8001;
 
+function isE2eDevSettings() {
+  return ['1', 'true', 'yes'].includes(String(process.env.BKLOG_E2E_DEV || '').toLowerCase());
+}
+
 let devConfig = {
   port: devPort,
   proxy: [{}],
@@ -94,7 +98,13 @@ const logPluginConfig = {
       }
     </script>`,
 };
-if (fs.existsSync(path.resolve(__dirname, './local.settings.js'))) {
+if (isE2eDevSettings()) {
+  const e2eSettingsPath = path.resolve(__dirname, './local.settings.e2e.js');
+  if (!fs.existsSync(e2eSettingsPath)) {
+    throw new Error('BKLOG_E2E_DEV is set but local.settings.e2e.js is missing');
+  }
+  devConfig = Object.assign({}, devConfig, require(e2eSettingsPath));
+} else if (fs.existsSync(path.resolve(__dirname, './local.settings.js'))) {
   const localConfig = require('./local.settings');
   devConfig = Object.assign({}, devConfig, localConfig);
 }
@@ -162,7 +172,7 @@ module.exports = (baseConfig, { app, mobile, production, fta, log: _log, email =
       headers: {
         'Access-Control-Allow-Origin': '*',
       },
-      proxy: [...devConfig.proxy],
+      proxy: Array.isArray(devConfig.proxy) ? [...devConfig.proxy] : devConfig.proxy,
     });
     config.plugins.push(
       new webpack.DefinePlugin({
