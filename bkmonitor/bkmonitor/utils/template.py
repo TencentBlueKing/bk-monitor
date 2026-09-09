@@ -553,6 +553,9 @@ def jinja2_environment(**options):
         options.pop("escape_func", None)
         env = Environment(undefined=UndefinedSilently, extensions=["jinja2.ext.i18n"], **options)
     env.install_gettext_translations(translation, newstyle=True)
+    # i18n 扩展装的 `_` 是个别名，每次调用都按名字从模板作用域重新解析 gettext，且这条调用路径不经过沙箱校验，
+    # 调用目标因此可被模板改写。直接指向已安装的 gettext，调用目标固定；`_("...")` 与 `{% trans %}` 行为不变。
+    env.globals["_"] = env.globals["gettext"]
     return env
 
 
