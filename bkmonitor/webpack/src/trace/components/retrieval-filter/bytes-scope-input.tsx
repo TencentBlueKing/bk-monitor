@@ -34,7 +34,7 @@ import {
   type TBytesBaseUnit,
   BYTES_UNIT_TIPS,
   formatBytes,
-  isValidBytesFormat,
+  normalizeBytesInput,
   parseBytes,
 } from './bytes-scope-input-utils';
 
@@ -106,15 +106,14 @@ export default defineComponent({
     }
     /**
      * 处理开始字节输入框变更事件
+     * 输入内容先规范化（大小写 / 简写单位 / 纯数字）再回写；非法内容仅清空输入框，保留上一次的有效值
      * @param val - 输入框的值
      */
     function handleStartInputChange(val: InputValue) {
-      const isValid = isValidBytesFormat(val as string);
-      if (isValid || val === '') {
-        startInput.value = val as string;
+      const normalized = normalizeBytesInput(val as string, props.baseUnit);
+      startInput.value = normalized;
+      if (normalized || val === '') {
         handleChange();
-      } else {
-        startInput.value = '';
       }
     }
     /**
@@ -122,12 +121,10 @@ export default defineComponent({
      * @param val - 输入框的值
      */
     function handleEndInputChange(val: InputValue) {
-      const isValid = isValidBytesFormat(val as string);
-      if (isValid || val === '') {
-        endInput.value = val as string;
+      const normalized = normalizeBytesInput(val as string, props.baseUnit);
+      endInput.value = normalized;
+      if (normalized || val === '') {
         handleChange();
-      } else {
-        endInput.value = '';
       }
     }
     /**

@@ -29,7 +29,7 @@ import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
 
 import RetrievalFilter from '../../components/retrieval-filter/retrieval-filter';
-import { EMethod, EMode } from '../../components/retrieval-filter/typing';
+import { type IHandleGetUserConfig, EMethod, EMode } from '../../components/retrieval-filter/typing';
 import { traceWhereChangeFormatter, traceWhereFormatter } from '../../components/retrieval-filter/utils';
 import useUserConfig from '../../hooks/useUserConfig';
 import { updateTimezone } from '../../i18n/dayjs';
@@ -51,7 +51,13 @@ import {
   useRumTableData,
   useRumViewConfig,
 } from './composables';
-import { RUM_COLUMN_CONFIG_KEY, RUM_COLUMN_LAYOUT_PRESET, RUM_RESIDENT_SETTING_KEY, RumModeEnum } from './constants';
+import {
+  ALL_SPAN_TYPE,
+  RUM_COLUMN_CONFIG_KEY,
+  RUM_COLUMN_LAYOUT_PRESET,
+  RUM_RESIDENT_SETTING_KEY,
+  RumModeEnum,
+} from './constants';
 import { getApplicationList } from './services/rum-application';
 import EmptyStatus from '@/components/empty-status/empty-status';
 
@@ -133,7 +139,16 @@ export default defineComponent({
     queryCtx.initFromUrl();
 
     const isSpanMode = computed(() => store.mode === RumModeEnum.SPAN);
-    const residentSettingOnlyId = computed(() => `${RUM_RESIDENT_SETTING_KEY}_${store.mode}_${store.appName}`);
+    const residentSettingCustomId = computed(() => {
+      return `${RUM_RESIDENT_SETTING_KEY}_${store.mode}_${store.appName}_${spanTypeCtx.activeSpanType.value}`;
+    });
+    /** 常驻设置的用户配置存储 key：按 场景 + 应用 + span 类型 分桶，选中具体类型时单独一份，保证切回「全部」不丢原配置 */
+    const residentSettingOnlyId = computed(() => {
+      if (spanTypeCtx.activeSpanType.value !== ALL_SPAN_TYPE) {
+        return residentSettingCustomId.value;
+      }
+      return `${RUM_RESIDENT_SETTING_KEY}_${store.mode}_${store.appName}`;
+    });
     const favoriteList = computed(
       () =>
         favoriteBoxRef.value?.getFavoriteList()?.map(item => ({
@@ -200,6 +215,17 @@ export default defineComponent({
 
     function handleSpanTypeChange(type: string) {
       spanTypeCtx.setSpanType(type);
+      // setSpanType 是 toggle 语义（再次点击已选中的类型会切回「全部」），判断必须基于切换后的 activeSpanType，不能用入参 type
+      const activeType = spanTypeCtx.activeSpanType.value;
+      // 切回「全部」直接清空常驻条件；切到具体类型时只保留该类型视图配置里声明的字段，避免上一个类型的常驻条件残留到新类型上
+      if (activeType === ALL_SPAN_TYPE) {
+        queryCtx.commonWhere.value = [];
+      } else {
+        const keys = viewConfigCtx.viewConfig.value.span_type_display_fields?.[activeType] || [];
+        if (keys.length) {
+          queryCtx.commonWhere.value = queryCtx.commonWhere.value.filter(w => keys.includes(w.key));
+        }
+      }
       queryCtx.handleQuery();
     }
 
@@ -245,6 +271,23 @@ export default defineComponent({
       window.open(url, '_blank');
     }
 
+    /**
+     * 常驻设置的读取兜底链路（替换原 getResidentConfig 传给检索组件）
+     * 选中具体 span 类型时不允许用户自定义，直接取视图配置中该类型的默认常驻字段；
+     * 否则先读用户保存的配置，没存过才回落到视图配置的 resident_fields
+     * @param key - 常驻设置的配置 id，见 residentSettingOnlyId
+     */
+    async function getResidentConfigCustom(key: string) {
+      if (key === residentSettingCustomId.value) {
+        return viewConfigCtx.viewConfig.value.span_type_display_fields?.[spanTypeCtx.activeSpanType.value] || [];
+      }
+      const fields = (await getResidentConfig(key).catch(() => [])) as string[];
+      if (fields.length) {
+        return fields;
+      }
+      return viewConfigCtx.viewConfig.value?.resident_fields || [];
+    }
+
     onMounted(async () => {
       updateTimezone(store.timezone);
       await fetchUserConfig();
@@ -280,6 +323,7 @@ export default defineComponent({
       viewConfigCtx,
       getFieldValues,
       getResidentConfig,
+      getResidentConfigCustom,
       setResidentConfig,
       handleAppNameChange,
       handleConditionChange,
@@ -340,7 +384,7 @@ export default defineComponent({
                 fields={viewConfigCtx.retrievalFields.value}
                 filterMode={queryCtx.filterMode.value}
                 getValueFn={this.getFieldValues}
-                handleGetUserConfig={this.getResidentConfig}
+                handleGetUserConfig={this.getResidentConfigCustom as IHandleGetUserConfig}
                 handleSetUserConfig={this.setResidentConfig}
                 isShowClear={true}
                 isShowCopy={true}
@@ -351,6 +395,7 @@ export default defineComponent({
                 placeholder={this.t('/ 唤起，输入检索内容')}
                 queryString={queryCtx.queryString.value}
                 residentSettingOnlyId={this.residentSettingOnlyId}
+                residentSettingTransferDisable={spanTypeCtx.activeSpanType.value !== ALL_SPAN_TYPE}
                 selectFavorite={favoriteCtx.selectedFavorite.value}
                 tagValueDisplayFormatter={this.tagValueDisplayFormatter}
                 where={queryCtx.where.value}

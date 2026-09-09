@@ -109,6 +109,8 @@ export interface IRumRawViewConfig {
   display_fields: string[];
   fields: IRumRawField[];
   groups: IRumRawGroup[];
+  /** 未选中具体 span 类型时，默认常驻（展示）的字段名列表 */
+  resident_fields?: string[];
   span_type_display_fields?: Record<string, string[]>;
 }
 
@@ -118,6 +120,8 @@ export interface IRumViewConfig {
   display_fields: string[];
   fields: IRumField[];
   groups: IRumFieldGroup[];
+  /** 未选中具体 span 类型时，默认常驻（展示）的字段名列表 */
+  resident_fields?: string[];
   /** key 为 span 类型，value 为该类型下默认展示的字段名列表 */
   span_type_display_fields: Record<string, string[]>;
 }

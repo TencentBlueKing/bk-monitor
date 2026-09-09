@@ -79,6 +79,7 @@ function normalizeViewConfig(raw: IRumRawViewConfig): IRumViewConfig {
     default_sort: raw?.default_sort || [],
     display_fields: raw?.display_fields || [],
     span_type_display_fields: raw?.span_type_display_fields || {},
+    resident_fields: raw?.resident_fields || [],
     groups: (raw?.groups || []).map(group => ({
       name: group.name,
       alias: group.alias || group.name,

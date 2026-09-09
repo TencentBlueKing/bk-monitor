@@ -663,6 +663,7 @@ export default defineComponent({
             limit={this.limit}
             loadDelay={this.loadDelay}
             residentSettingOnlyId={this.residentSettingOnlyId}
+            residentSettingTransferDisable={this.residentSettingTransferDisable}
             value={this.residentSettingValue}
             onChange={this.handleCommonWhereChange}
           />

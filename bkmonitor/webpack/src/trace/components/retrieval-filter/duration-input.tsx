@@ -34,7 +34,7 @@ import {
   type TDurationBaseUnit,
   DURATION_UNIT_TIPS,
   formatDuration,
-  isValidTimeFormat,
+  normalizeDurationInput,
   parseDuration,
 } from './duration-input-utils';
 
@@ -106,15 +106,14 @@ export default defineComponent({
     }
     /**
      * 处理开始时间输入框变更事件
+     * 输入内容先规范化（单位大小写 / 纯数字）再回写；非法内容仅清空输入框，保留上一次的有效值
      * @param val - 输入框的值
      */
     function handleStartInputChange(val: InputValue) {
-      const isValid = isValidTimeFormat(val as string, props.baseUnit);
-      if (isValid || val === '') {
-        startInput.value = val as string;
+      const normalized = normalizeDurationInput(val as string, props.baseUnit);
+      startInput.value = normalized;
+      if (normalized || val === '') {
         handleChange();
-      } else {
-        startInput.value = '';
       }
     }
     /**
@@ -122,12 +121,10 @@ export default defineComponent({
      * @param val - 输入框的值
      */
     function handleEndInputChange(val: InputValue) {
-      const isValid = isValidTimeFormat(val as string, props.baseUnit);
-      if (isValid || val === '') {
-        endInput.value = val as string;
+      const normalized = normalizeDurationInput(val as string, props.baseUnit);
+      endInput.value = normalized;
+      if (normalized || val === '') {
         handleChange();
-      } else {
-        endInput.value = '';
       }
     }
     /**

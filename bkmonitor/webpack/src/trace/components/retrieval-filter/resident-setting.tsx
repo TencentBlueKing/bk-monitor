@@ -171,6 +171,9 @@ export default defineComponent({
     }
     function handleShowSettingTransfer(event: MouseEvent) {
       event.stopPropagation();
+      if (props.residentSettingTransferDisable) {
+        return;
+      }
       handleShowSelect({
         target: elRef.value,
       } as any);
@@ -340,7 +343,7 @@ export default defineComponent({
         class={['vue3_retrieval-filter__resident-setting-component', { 'no-data': !this.localValue.length }]}
       >
         <span
-          class='left-btn'
+          class={['left-btn', { disable: this.residentSettingTransferDisable }]}
           onClick={this.handleShowSettingTransfer}
         >
           <span class='icon-monitor icon-shezhi1' />

@@ -42,6 +42,7 @@ const EMPTY_VIEW_CONFIG: IRumViewConfig = {
   default_sort: [],
   display_fields: [],
   span_type_display_fields: {},
+  resident_fields: [],
 };
 
 /**
