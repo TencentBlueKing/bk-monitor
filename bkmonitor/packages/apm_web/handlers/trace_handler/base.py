@@ -926,18 +926,17 @@ class StatisticsHandler:
         if filter_type == "max_duration":
             return [sorted(res, key=lambda i: i["max_duration"], reverse=True)[0]]
         elif filter_type == "keyword":
-            t_res = []
-            for i in res:
-                # 全字段匹配
-                for j in i.values():
-                    if isinstance(j, str) and filter_value.lower() in j.lower():
-                        t_res.append(i)
-                        continue
-                    if isinstance(j, dict) and filter_value.lower() in j.get("value"):
-                        t_res.append(i)
-                        continue
+            keyword = filter_value.lower()
 
-            return t_res
+            def _match(field_value) -> bool:
+                # 字段可能是 {"icon": ..., "value": ..., "text": ...} 结构，
+                # 其中 value 未必是字符串（如 kind 为整数），需按展示文本逐个匹配。
+                if isinstance(field_value, dict):
+                    return any(_match(field_value.get(k)) for k in ("value", "text"))
+                return isinstance(field_value, str) and keyword in field_value.lower()
+
+            # 全字段匹配，命中即收录当前行，避免同一行被重复添加
+            return [line for line in res if any(_match(v) for v in line.values())]
 
         return res
 
