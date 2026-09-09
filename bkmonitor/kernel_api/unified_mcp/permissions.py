@@ -38,6 +38,20 @@ class AuthorizationUnavailable(APIException):
     default_detail = "Permission service is unavailable. The request was not authorized."
 
 
+class MCPPermissionDenied(PermissionDenied):
+    """Keep typed permission data without breaking DRF's error introspection API."""
+
+    def __init__(self, state):
+        super().__init__(state)
+        self.detail = state
+
+    def get_codes(self):
+        return PermissionDenied(self.detail).get_codes()
+
+    def get_full_details(self):
+        return PermissionDenied(self.detail).get_full_details()
+
+
 def log_mcp_event(event, request=None, *, level=logging.INFO, **fields):
     """Shared English MCP-auth log format; callers supply metadata, never payloads."""
     from bkmonitor.utils.request import get_mcp_trace_id, get_request
@@ -514,12 +528,13 @@ def _execute_native_tool(tool, tool_args, request):
         values = args.pop("bk_biz_ids")
         if not isinstance(values, list) or len(values) != 1 or str(values[0]) != args.get("bk_biz_id"):
             raise ValidationError("bk_biz_ids must contain exactly the requested bk_biz_id.")
-    # URL query parameters arrive as strings, unlike JSON tool_args.
-    if request.method == "GET":
-        for name, schema in tool.input_schema.get("properties", {}).items():
-            field = {"integer": serializers.IntegerField, "boolean": serializers.BooleanField}.get(schema.get("type"))
-            if name in args and field:
-                args[name] = field().run_validation(args[name])
+    # Resource identifiers must be exact positive integers, not bools/integral floats.
+    # Transport compatibility is handled at the standalone boundary, never here.
+    resource_arg = tool.native_permission["resource_arg"]
+    if tool.native_permission["resource_type"] == "indices" and resource_arg in args:
+        value = args[resource_arg]
+        if type(value) is not int or value < 1:
+            raise ValidationError({resource_arg: "A positive integer resource ID is required."})
     errors = list(Draft7Validator(tool.input_schema).iter_errors(args))
     if errors:
         raise ValidationError({"tool_args": errors[0].message})
@@ -532,7 +547,8 @@ def _execute_native_tool(tool, tool_args, request):
         tool.iam_action if state["legacy_authorized"] is not None else tool.native_permission["action_id"]
     )
     if state["state"] != "granted":
-        raise PermissionDenied(state)
+        # Permission state is typed data, not a tree of validation messages.
+        raise MCPPermissionDenied(state)
     request.biz_id = int(args["bk_biz_id"])
     request.skip_check = False
     from kernel_api.unified_mcp.dispatcher import dispatch_tool

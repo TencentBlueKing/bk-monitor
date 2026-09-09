@@ -9,6 +9,7 @@ existing YAML files as their source of truth.
 from __future__ import annotations
 
 import hashlib
+import re
 from copy import deepcopy
 from dataclasses import dataclass
 from functools import lru_cache
@@ -18,6 +19,7 @@ from typing import Any
 import yaml
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
+from rest_framework import serializers
 
 CATEGORY_ACTIONS = {
     "metrics": "using_metrics_mcp",
@@ -279,6 +281,25 @@ class ToolDefinition:
     resource_arg: str = "bk_biz_id"
     backend_derived_fields: tuple[str, ...] = ()
     native_permission: dict[str, str] | None = None
+
+    def normalize_standalone_args(self, tool_args):
+        """Adapt legacy scalar strings; keep schema/resource validation in the executor.
+
+        Never decode JSON containers or drop unknown fields. Only integer text and
+        true/false text are accepted; DRF's broader coercions are not exposed.
+        """
+        if not isinstance(tool_args, dict):
+            return tool_args
+        args = dict(tool_args)
+        for name, schema in self.input_schema.get("properties", {}).items():
+            value = args.get(name)
+            if not isinstance(value, str):
+                continue
+            if schema.get("type") == "integer" and re.fullmatch(r"[+-]?[0-9]+", value.strip()):
+                args[name] = serializers.IntegerField().run_validation(value)
+            elif schema.get("type") == "boolean" and value.lower() in {"true", "false"}:
+                args[name] = value.lower() == "true"
+        return args
 
     def permission_payload(self) -> dict[str, str]:
         if self.native_permission:
