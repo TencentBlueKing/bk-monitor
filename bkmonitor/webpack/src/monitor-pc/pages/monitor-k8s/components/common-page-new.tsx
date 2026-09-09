@@ -38,6 +38,7 @@ import { Component as tsc } from 'vue-tsx-support';
 import _ from 'lodash';
 
 import { APM_ALARM_TEMPLATE_ROUTER_QUERY_KEYS } from 'apm/pages/alarm-template/constant';
+import { LLM_SESSION_QUERY_KEYS } from 'apm/pages/service/contents/llm_session/constants';
 import { isEqual } from 'lodash';
 import { getSceneView, getSceneViewList } from 'monitor-api/modules/scene_view';
 import bus from 'monitor-common/utils/event-bus';
@@ -176,6 +177,7 @@ const customRouterQueryKeys = [
   ...Event_EXPORT_QUERY_KEYS,
   ...ALARM_TEMPLATE_QUERY_KEYS,
   ...CUSTOM_GRAPH_V2_QUERY_KEYS,
+  ...LLM_SESSION_QUERY_KEYS,
 ];
 @Component({
   components: {

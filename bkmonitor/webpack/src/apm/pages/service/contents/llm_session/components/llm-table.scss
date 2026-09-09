@@ -55,6 +55,7 @@
       margin-right: 3px;
       font-size: 12px;
       color: #4e5e7a;
+      opacity: 0.6;
 
       &.is-output {
         color: #7269f0;
@@ -76,6 +77,18 @@
       margin: 0 3px;
       background-color: #e4e9f2;
     }
+  }
+
+  .bk-table-expanded-cell {
+    padding: 0 !important;
+
+    .bk-table tr {
+      background-color: #f5f7fa;
+    }
+  }
+
+  .bk-table-header-label {
+    font-weight: normal !important;
   }
 }
 

@@ -23,18 +23,20 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, InjectReactive, Ref, Watch } from 'vue-property-decorator';
+import { Component, Inject, InjectReactive, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import axios from 'axios';
+import axios, { type CancelTokenSource } from 'axios';
 import { Debounce } from 'monitor-common/utils/utils';
 import EmptyStatus from 'monitor-pc/components/empty-status/empty-status';
+import TableSkeleton from 'monitor-pc/components/skeleton/table-skeleton';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 
 import LlmTable from './components/llm-table';
 import { PAGE_LIMIT } from './constants';
 import { getSessionColumns, getSessionTraceColumns, getTraceColumns } from './utils/columns';
 import { fetchLlmTraceList } from './utils/query';
+import { fromTableSort, readRouteQuery, toRouteQuery, toTableSort } from './utils/route-query';
 import { toSessionRow, toTraceRow } from './utils/transform';
 
 import type { ILlmTraceItem, LlmRow, LlmViewMode } from './typings';
@@ -57,17 +59,23 @@ interface IViewModeItem {
  */
 @Component
 export default class LlmSession extends tsc<object> {
-  @InjectReactive('viewOptions') readonly viewOptions: IViewOptions;
-  @InjectReactive('timeRange') readonly timeRange: TimeRangeType;
-  @InjectReactive('timezone') readonly timezone: string;
-  @InjectReactive('refreshImmediate') readonly refreshImmediate: string;
+  @InjectReactive('viewOptions') readonly viewOptions?: IViewOptions;
+  @InjectReactive('timeRange') readonly timeRange?: TimeRangeType;
+  @InjectReactive('timezone') readonly timezone?: string;
+  @InjectReactive('refreshImmediate') readonly refreshImmediate?: string;
+  /** CommonPage 汇总的各 tab 自定义路由参数，回填时从这里读 */
+  @InjectReactive('customRouteQuery') readonly customRouteQuery?: Record<string, string>;
+  /** 回写路由参数，CommonPage 内部合并后统一 replace，不会覆盖其他 tab 的参数 */
+  @Inject('handleCustomRouteQueryChange') handleCustomRouteQueryChange?: (
+    customRouteQuery: Record<string, number | string>
+  ) => void;
 
-  @Ref('tableWrap') tableWrapRef: HTMLDivElement;
+  @Ref('tableWrap') tableWrapRef?: HTMLDivElement;
 
   viewMode: LlmViewMode = 'session';
   keyword = '';
   /** 远程排序参数：升序为字段名，降序加 - 前缀 */
-  sort = '';
+  sort: string[] = [];
 
   rows: LlmRow[] = [];
   loading = false;
@@ -79,12 +87,12 @@ export default class LlmSession extends tsc<object> {
 
   /** 请求序号，只接受最新一次请求的响应，避免快速切换视角时旧响应覆盖新数据 */
   requestSeq = 0;
-  cancelTokenSource = null;
-  resizeObserver: ResizeObserver = null;
+  cancelTokenSource: CancelTokenSource | null = null;
+  resizeObserver: null | ResizeObserver = null;
 
   viewModeList: IViewModeItem[] = [
-    { id: 'session', name: `Session ${window.i18n.tc('视角')}`, icon: 'icon-mc-two-column' },
-    { id: 'trace', name: `Trace ${window.i18n.tc('视角')}`, icon: 'icon-mc-menu-trace' },
+    { id: 'session', name: `Session ${window.i18n.tc('视角')}`, icon: 'icon-Session' },
+    { id: 'trace', name: `Trace ${window.i18n.tc('视角')}`, icon: 'icon-Tracing' },
   ];
 
   get appName() {
@@ -108,6 +116,11 @@ export default class LlmSession extends tsc<object> {
     return this.isSessionMode ? getSessionTraceColumns() : undefined;
   }
 
+  /** 表头升降序箭头的初始状态，让回填的排序在 UI 上可见 */
+  get defaultSort() {
+    return toTableSort(this.sort);
+  }
+
   get searchPlaceholder() {
     return this.isSessionMode
       ? this.$tc('搜索 会话 ID、User ID')
@@ -119,10 +132,22 @@ export default class LlmSession extends tsc<object> {
     return [this.appName, this.serviceName, this.timeRange?.join('|'), this.timezone, this.refreshImmediate].join('__');
   }
 
-  @Watch('requestKey', { immediate: true })
+  @Watch('requestKey')
   handleRequestKeyChange() {
     if (!this.appName) return;
     this.reload();
+  }
+
+  /**
+   * 首次加载放在 created 而不是 immediate watch：immediate 的回调早于 created 执行，
+   * 那时还来不及从路由回填查询条件，会先用默认条件多发一次请求。
+   */
+  created() {
+    const { viewMode, keyword, sort } = readRouteQuery(this.customRouteQuery);
+    this.viewMode = viewMode;
+    this.keyword = keyword;
+    this.sort = sort;
+    if (this.appName) this.reload();
   }
 
   mounted() {
@@ -169,7 +194,7 @@ export default class LlmSession extends tsc<object> {
   }
 
   getTimestamps() {
-    const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
+    const [startTime, endTime] = handleTransformToTimestamp(this.timeRange ?? ['', '']);
     return { startTime, endTime };
   }
 
@@ -199,32 +224,40 @@ export default class LlmSession extends tsc<object> {
     this.scrollLoading = false;
   }
 
+  /** 把当前查询条件同步到路由，刷新或分享链接时可原样还原 */
+  syncRouteQuery() {
+    this.handleCustomRouteQueryChange?.(
+      toRouteQuery({ viewMode: this.viewMode, keyword: this.keyword, sort: this.sort })
+    );
+  }
+
   handleViewModeChange(mode: LlmViewMode) {
     if (this.viewMode === mode) return;
     this.viewMode = mode;
     // 两个视角的列与排序键不同，切换时重置排序
-    this.sort = '';
+    this.sort = [];
+    this.syncRouteQuery();
     this.reload();
   }
 
   @Debounce(300)
   handleKeywordChange() {
+    this.syncRouteQuery();
     this.reload();
   }
 
   handleSortChange({ prop, order }: { order: string; prop: string }) {
-    if (order === 'ascending') {
-      this.sort = prop;
-    } else if (order === 'descending') {
-      this.sort = `-${prop}`;
-    } else {
-      this.sort = '';
-    }
+    const sort = fromTableSort(prop, order);
+    // default-sort 会在表格挂载后补发一次同值的排序事件，与当前条件一致时不必重复请求
+    if (sort.join() === this.sort.join()) return;
+    this.sort = sort;
+    this.syncRouteQuery();
     this.reload();
   }
 
   handleClearSearch() {
     this.keyword = '';
+    this.syncRouteQuery();
     this.reload();
   }
 
@@ -263,22 +296,26 @@ export default class LlmSession extends tsc<object> {
           ref='tableWrap'
           class='llm-session-table-wrap'
         >
-          <LlmTable
-            columns={this.columns}
-            data={this.rows}
-            expandColumns={this.expandColumns}
-            loading={this.loading}
-            maxHeight={this.tableMaxHeight || undefined}
-            scrollLoading={this.scrollLoading}
-            onScrollEnd={this.handleScrollEnd}
-            onSortChange={this.handleSortChange}
-          >
-            <EmptyStatus
-              slot='empty'
-              type={this.keyword ? 'search-empty' : 'empty'}
-              onOperation={this.handleClearSearch}
-            />
-          </LlmTable>
+          {this.loading ? (
+            <TableSkeleton type={2} />
+          ) : (
+            <LlmTable
+              columns={this.columns}
+              data={this.rows}
+              defaultSort={this.defaultSort}
+              expandColumns={this.expandColumns}
+              maxHeight={this.tableMaxHeight || undefined}
+              scrollLoading={this.scrollLoading}
+              onScrollEnd={this.handleScrollEnd}
+              onSortChange={this.handleSortChange}
+            >
+              <EmptyStatus
+                slot='empty'
+                type={this.keyword ? 'search-empty' : 'empty'}
+                onOperation={this.handleClearSearch}
+              />
+            </LlmTable>
+          )}
         </div>
       </div>
     );
