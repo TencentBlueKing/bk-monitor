@@ -28,6 +28,7 @@ import { computed, defineComponent, ref } from 'vue';
 import Stratege from './strategy';
 import QuickFilter from './quick-filter';
 import useLocale from '@/hooks/use-locale';
+import useStore from '@/hooks/use-store';
 import EmailSubscription from './email-subscription';
 import ClusterConfig from './cluster-config';
 import ClusterDownload from './cluster-download';

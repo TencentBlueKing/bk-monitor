@@ -33,6 +33,10 @@ import {
 
 const WORK_ID = 'cluster-table-pipeline';
 
+/** 新检索结果必须下发 raw；排序/过滤复用 Worker 缓存时不传 raw。 */
+export const shouldReplaceClusterTableRaw = (replaceRaw: boolean | undefined, rawLength: number) =>
+  Boolean(replaceRaw) || rawLength > 0;
+
 interface PendingRequest {
   reject: (_error: Error) => void;
   resolve: (_value: ClusterViewResult | true) => void;
@@ -48,6 +52,7 @@ class ClusterTableWorkerService {
   private localSnapshot: ITableItem[] = [];
   private localCounts = { childCount: 0, groupCount: 0, visibleCount: 0 };
   private ownsInWorker = false;
+  private dataEpoch = 0;
 
   constructor() {
     workerManagerService.register({
@@ -90,9 +95,17 @@ class ClusterTableWorkerService {
   async run(
     input: ClusterPipelineInput,
     windowOptions: WalkVisibleWindowOptions,
+    options: { replaceRaw?: boolean } = {},
   ): Promise<{ viaWorker: boolean; view: ClusterViewResult }> {
     const plainWindow = toPlainWindowOptions(windowOptions);
-    const sendRaw = !this.workerHasRaw || !this.ownsInWorker;
+    const shouldReplaceRaw = shouldReplaceClusterTableRaw(options.replaceRaw, input.raw?.length ?? 0);
+    if (shouldReplaceRaw) {
+      this.dataEpoch += 1;
+      this.workerHasRaw = false;
+      this.ownsInWorker = false;
+    }
+    const epoch = this.dataEpoch;
+    const sendRaw = shouldReplaceRaw || !this.workerHasRaw || !this.ownsInWorker;
     const plainInput = toPlainPipelineInput(input, sendRaw);
 
     if (this.workerSupported) {
@@ -106,9 +119,11 @@ class ClusterTableWorkerService {
           },
           30000,
         )) as ClusterViewResult;
-        this.ownsInWorker = true;
-        this.workerHasRaw = true;
-        this.localSnapshot = [];
+        if (epoch === this.dataEpoch) {
+          this.ownsInWorker = true;
+          this.workerHasRaw = true;
+          this.localSnapshot = [];
+        }
         workerManagerService.update(WORK_ID, { lastOkAt: Date.now(), state: 'idle' });
         workerManagerService.incrementMetric(WORK_ID, 'pipelineCount');
         return { viaWorker: true, view };
@@ -143,6 +158,7 @@ class ClusterTableWorkerService {
   }
 
   async clear() {
+    this.dataEpoch += 1;
     this.localSnapshot = [];
     this.localCounts = { childCount: 0, groupCount: 0, visibleCount: 0 };
     this.workerHasRaw = false;
