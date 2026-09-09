@@ -50,11 +50,11 @@ export default defineComponent({
     const router = useRouter();
     const store = useStore();
     const maskingFieldRef = ref<any>(null);
-    const loading = ref(false);
+    const loading = ref(true);
     const submitLoading = ref(false);
-    const collectData = ref<IMaskingCollectData>({
-      index_set_id: route.params.indexSetId || route.params.collectorId,
-    });
+    const collectData = ref<IMaskingCollectData>({});
+    // MaskingField 在 created 阶段请求数据且不监听 collectData，需等待真实 index_set_id 就绪后再挂载。
+    const isCollectDataReady = ref(false);
 
     const typeKey = computed(() => String(route.query.typeKey || ''));
     const isCollectMaskingRoute = computed(() => route.name === 'collectMasking');
@@ -90,6 +90,8 @@ export default defineComponent({
       collectData.value = {
         index_set_id: route.params.indexSetId || route.params.collectorId,
       };
+      isCollectDataReady.value = Boolean(collectData.value.index_set_id);
+      loading.value = false;
     };
 
     const setCollectData = async () => {
@@ -104,7 +106,10 @@ export default defineComponent({
         const res = await $http.request('collect/details', {
           params: { collector_config_id: collectorId },
         });
-        collectData.value = res?.data || collectData.value;
+        if (!res?.data?.index_set_id) return;
+
+        collectData.value = res.data;
+        isCollectDataReady.value = true;
         store.commit('collect/setCurCollect', collectData.value);
       } catch (err) {
         console.log('获取采集配置详情失败:', err);
@@ -115,6 +120,7 @@ export default defineComponent({
 
     const initData = async () => {
       if (!store.getters.isShowMaskingTemplate) {
+        loading.value = false;
         router.replace({ name: 'retrieve' });
         return;
       }
@@ -168,13 +174,15 @@ export default defineComponent({
         v-bkloading={{ isLoading: loading.value }}
       >
         <div class='masking-field-box'>
-          <MaskingField
-            ref={maskingFieldRef}
-            collect-data={collectData.value}
-            is-hidden-sync-num={isHiddenSyncNum.value}
-            is-index-set-masking={isCollectMasking.value}
-            onChangeData={() => submitSelectRule()}
-          />
+          {isCollectDataReady.value && (
+            <MaskingField
+              ref={maskingFieldRef}
+              collect-data={collectData.value}
+              is-hidden-sync-num={isHiddenSyncNum.value}
+              is-index-set-masking={isCollectMasking.value}
+              onChangeData={() => submitSelectRule()}
+            />
+          )}
         </div>
         <div class='submit-content'>
           <bk-button

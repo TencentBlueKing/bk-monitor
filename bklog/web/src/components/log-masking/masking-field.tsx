@@ -1304,7 +1304,7 @@ export default class MaskingField extends tsc<IProps> {
           <div class={`field-box ${this.isShowFieldClass ? '' : 'not-class-width'}`}>
             {row.fieldList.map(item => (
               <div
-                key={item}
+                key={`${item.field_type}-${item.field_name}`}
                 style={this.getFieldItemStyle(item)}
                 class='field'
                 onMouseenter={() => this.handleHoverRow(item.field_name)}
@@ -1583,7 +1583,7 @@ export default class MaskingField extends tsc<IProps> {
         >
           {row.fieldList.map(item => (
             <div
-              key={item}
+              key={`${item.field_type}-${item.field_name}`}
               style={this.getFieldItemStyle(item)}
               class='preview'
               v-bkloading={{ isLoading: this.isPreviewLoading && this.previewLoadingField === row.field_name }}
