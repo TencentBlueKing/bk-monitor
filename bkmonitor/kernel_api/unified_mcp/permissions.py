@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import json
 import logging
-import re
 from urllib.parse import urlsplit
 
 from django.conf import settings
@@ -481,7 +480,7 @@ def _permission_state(tool, request, bk_biz_id, context, include_apply_guide):
     }
 
 
-def execute_native_tool(tool: ToolDefinition, tool_args: dict, request, *, standalone: bool = False):
+def execute_native_tool(tool: ToolDefinition, tool_args: dict, request):
     """Both standalone middleware and unified execute_tool use this exact entry."""
     if request is not None:
         request.mcp_permission_source = "none"
@@ -489,7 +488,7 @@ def execute_native_tool(tool: ToolDefinition, tool_args: dict, request, *, stand
     try:
         _audit(tool, request, "route", "resolved")
         _audit(tool, request, "validation", "started")
-        return _execute_native_tool(tool, tool_args, request, standalone=standalone)
+        return _execute_native_tool(tool, tool_args, request)
     except Exception as exc:
         _audit(
             tool,
@@ -504,7 +503,7 @@ def execute_native_tool(tool: ToolDefinition, tool_args: dict, request, *, stand
         raise
 
 
-def _execute_native_tool(tool, tool_args, request, *, standalone=False):
+def _execute_native_tool(tool, tool_args, request):
     if not tool.native_permission:
         raise ImproperlyConfigured("Tool is not enabled for native permissions")
     _principal(request)
@@ -529,36 +528,13 @@ def _execute_native_tool(tool, tool_args, request, *, standalone=False):
         values = args.pop("bk_biz_ids")
         if not isinstance(values, list) or len(values) != 1 or str(values[0]) != args.get("bk_biz_id"):
             raise ValidationError("bk_biz_ids must contain exactly the requested bk_biz_id.")
-    # Old standalone log schemas used string IDs even in JSON POST bodies.
-    # Adapt only known wire formats; never coerce booleans/floats into resource IDs.
-    if tool.category == "log" and "index_set_id" in args:
-        value = args["index_set_id"]
-        if (standalone or request.method == "GET") and isinstance(value, str):
-            if re.fullmatch(r"[+-]?[0-9]+", value.strip()):
-                try:
-                    value = int(value)
-                except ValueError as exc:
-                    raise ValidationError({"index_set_id": "Invalid integer index set ID."}) from exc
+    # Resource identifiers must be exact positive integers, not bools/integral floats.
+    # Transport compatibility is handled at the standalone boundary, never here.
+    resource_arg = tool.native_permission["resource_arg"]
+    if tool.native_permission["resource_type"] == "indices" and resource_arg in args:
+        value = args[resource_arg]
         if type(value) is not int or value < 1:
-            raise ValidationError({"index_set_id": "A positive integer index set ID is required."})
-        args["index_set_id"] = value
-    if standalone and tool.category == "log":
-        if tool.name == "analyze_field" and isinstance(args.get("conditions"), str):
-            try:
-                args["conditions"] = json.loads(args["conditions"])
-            except (ValueError, RecursionError) as exc:
-                raise ValidationError({"conditions": "A valid JSON filter object is required."}) from exc
-        # Published legacy defaults may be strings despite a boolean schema.
-        for name in ("zero", "group_by", "show_new_pattern"):
-            value = args.get(name)
-            if isinstance(value, str) and value in {"true", "false"}:
-                args[name] = value == "true"
-    # URL query parameters arrive as strings, unlike JSON tool_args.
-    if request.method == "GET":
-        for name, schema in tool.input_schema.get("properties", {}).items():
-            field = {"integer": serializers.IntegerField, "boolean": serializers.BooleanField}.get(schema.get("type"))
-            if name in args and field:
-                args[name] = field().run_validation(args[name])
+            raise ValidationError({resource_arg: "A positive integer resource ID is required."})
     errors = list(Draft7Validator(tool.input_schema).iter_errors(args))
     if errors:
         raise ValidationError({"tool_args": errors[0].message})

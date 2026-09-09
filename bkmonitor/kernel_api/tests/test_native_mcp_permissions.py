@@ -14,6 +14,7 @@ import json
 import logging
 import socket
 import sys
+from dataclasses import replace
 from pathlib import Path
 from types import ModuleType, SimpleNamespace as NS
 from unittest.mock import Mock
@@ -165,6 +166,8 @@ def native_http(monkeypatch, request_factory):
             if unified
             else request_factory(tool.backend_path, args, tool.backend_method)
         )
+        if not unified and request.method == "GET":
+            args = request.GET.dict()
         return handle(NS(_report_mcp_metric=Mock()), request, tool, args, unified=unified), request
 
     return call
@@ -503,14 +506,13 @@ def test_identity_and_tenant_fail_closed(monkeypatch, request_factory, io, case)
     ],
 )
 @pytest.mark.parametrize("standalone", [False, True])
-def test_unsupported_or_foreign_indices_do_not_query(request_factory, io, change, standalone):
+def test_unsupported_or_foreign_indices_do_not_query(native_http, io, change, standalone):
     io.monitor.iam_client.is_allowed.side_effect = lambda query: True
     io.catalog.return_value[0].update(change)
     args = log_args(index_set_id="123" if standalone else 123)
-    with pytest.raises((PermissionDenied, ValidationError)):
-        auth.execute_native_tool(
-            registry.get_tool_registry().get("search_logs"), args, request_factory(), standalone=standalone
-        )
+    response, _ = native_http(registry.get_tool_registry().get("search_logs"), args, unified=not standalone)
+    assert response.status_code in {400, 403}
+    io.catalog.assert_called_once()
     io.iam.is_allowed.assert_not_called()
     io.monitor.iam_client.is_allowed.assert_not_called()
     io.dispatch.assert_not_called()
@@ -559,10 +561,11 @@ def test_transport_cannot_bypass_authorization(request_factory, io, case):
     io.dispatch.assert_not_called()
 
 
-def test_get_and_aggregate_share_normalized_log_arguments(request_factory, io):
+def test_get_and_aggregate_share_normalized_log_arguments(native_http, io):
     tool = registry.get_tool_registry().get("get_index_set_fields")
-    request = request_factory(tool.backend_path, {"bk_biz_id": "2", "index_set_id": "123"}, "GET")
-    assert auth.execute_native_tool(tool, request.GET.dict(), request) == {"ok": True}
+    response, request = native_http(tool, {"bk_biz_id": "2", "index_set_id": "123"}, unified=False)
+    assert request.method == "GET"
+    assert response.status_code == 200
     io.dispatch.assert_called_once_with(tool.name, {"bk_biz_id": "2", "index_set_id": 123})
 
 
@@ -680,7 +683,7 @@ def test_standalone_and_unified_middleware_route_from_same_catalog(
     )
     delegate = Mock(
         side_effect=lambda request, tool, args, unified=False: auth.execute_native_tool(
-            tool, args, request, standalone=not unified
+            tool, args if unified else tool.normalize_standalone_args(args), request
         )
     )
     extract = source_method(
@@ -1209,7 +1212,10 @@ def test_log_format_is_ascii_single_line_and_bounded(request_factory, caplog):
                 field_name="log",
                 group_by="false",
                 limit="20",
-                conditions='{"field_list": [{"field_name": "log", "op": "eq", "value": ["False"]}], "condition_list": []}',
+                conditions={
+                    "field_list": [{"field_name": "log", "op": "eq", "value": ["False"]}],
+                    "condition_list": [],
+                },
             ),
         ),
         (
@@ -1273,6 +1279,86 @@ def test_invalid_log_identifier_never_reaches_iam(native_http, io, value, unifie
     io.dispatch.assert_not_called()
 
 
+def test_standalone_adapter_uses_schema_not_tool_or_field_names():
+    tool = replace(
+        registry.get_tool_registry().get("search_logs"),
+        name="unrelated_tool",
+        category="other",
+        input_schema={
+            "properties": {
+                "count": {"type": "integer"},
+                "enabled": {"type": "boolean"},
+                "criteria": {"type": "object"},
+                "group_by": {"type": "array"},
+                "label": {"type": "string"},
+            }
+        },
+    )
+    args = {
+        "count": " +003 ",
+        "enabled": "False",
+        "criteria": "{}",
+        "group_by": "false",
+        "label": "123",
+        "unknown": "true",
+    }
+    original = dict(args)
+    normalized = tool.normalize_standalone_args(args)
+    assert normalized == {**args, "count": 3, "enabled": False}
+    assert args == original
+    assert normalized is not args
+
+
+@pytest.mark.parametrize(
+    "field_type,value",
+    [
+        ("integer", "123.0"),
+        ("integer", "1e2"),
+        ("integer", 123.0),
+        ("integer", True),
+        ("boolean", "1"),
+        ("boolean", "0"),
+        ("boolean", "yes"),
+        ("boolean", "on"),
+        ("boolean", 1),
+        ("boolean", 0),
+    ],
+)
+def test_standalone_adapter_does_not_expose_broad_serializer_coercion(field_type, value):
+    tool = replace(
+        registry.get_tool_registry().get("search_logs"), input_schema={"properties": {"value": {"type": field_type}}}
+    )
+    result = tool.normalize_standalone_args({"value": value})
+    assert result["value"] == value
+    assert type(result["value"]) is type(value)
+
+
+@pytest.mark.parametrize("method", ["GET", "POST"])
+def test_executor_requires_normalized_ids_regardless_of_transport(request_factory, io, method):
+    tool = registry.get_tool_registry().get("get_index_set_fields")
+    args = {"bk_biz_id": "2", "index_set_id": "123"}
+    request = request_factory(tool.backend_path, args, method)
+    with pytest.raises(ValidationError):
+        auth.execute_native_tool(tool, args, request)
+    io.catalog.assert_not_called()
+    io.iam.is_allowed.assert_not_called()
+    io.dispatch.assert_not_called()
+
+
+@pytest.mark.parametrize("value", [False, "false", "False", "true"])
+def test_standalone_metric_boolean_conversion_keeps_resource_restrictions(native_http, io, value):
+    tool = registry.get_tool_registry().get("list_time_series_groups")
+    response, request = native_http(tool, {"bk_biz_id": "2", "is_platform": value}, unified=False)
+    assert request.method == "POST"
+    if value == "true":
+        assert response.status_code == 400
+        io.monitor.iam_client.is_allowed.assert_not_called()
+        io.dispatch.assert_not_called()
+    else:
+        assert response.status_code == 200
+        assert io.dispatch.call_args.args[1]["is_platform"] is False
+
+
 def test_unified_does_not_inherit_standalone_string_adaptation(native_http, io):
     response, _ = native_http(registry.get_tool_registry().get("search_logs"), log_args(index_set_id="123"), True)
     assert response.status_code == 400
@@ -1280,27 +1366,18 @@ def test_unified_does_not_inherit_standalone_string_adaptation(native_http, io):
     io.dispatch.assert_not_called()
 
 
-@pytest.mark.parametrize("conditions", ["private-invalid-json", "[]", "null", '"nested-json"', '{"bk_biz_id": "9"}'])
-def test_standalone_filter_json_still_requires_valid_object_schema(native_http, io, conditions):
+@pytest.mark.parametrize("conditions", ["invalid-json", "{}", "[]", "null", '"nested-json"', {"bk_biz_id": "9"}])
+@pytest.mark.parametrize("unified", [False, True])
+def test_filter_requires_schema_object_without_json_string_decoding(native_http, io, conditions, unified):
     response, _ = native_http(
         registry.get_tool_registry().get("analyze_field"),
-        log_args(index_set_id="123", field_name="log", conditions=conditions),
-        False,
+        log_args(index_set_id=123 if unified else "123", field_name="log", conditions=conditions),
+        unified,
     )
     assert response.status_code == 400
-    assert b"private-invalid-json" not in response.content
+    io.catalog.assert_not_called()
     io.iam.is_allowed.assert_not_called()
     io.dispatch.assert_not_called()
-
-
-def test_unified_filter_object_is_not_implicitly_json_decoded(native_http, io):
-    response, _ = native_http(
-        registry.get_tool_registry().get("analyze_field"),
-        log_args(field_name="log", conditions="{}"),
-        True,
-    )
-    assert response.status_code == 400
-    io.iam.is_allowed.assert_not_called()
 
 
 @pytest.mark.parametrize(

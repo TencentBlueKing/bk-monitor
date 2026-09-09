@@ -313,7 +313,9 @@ class AuthenticationMiddleware(MiddlewareMixin):
 
         status, status_code, error_type = "error", 503, ""
         try:
-            data = execute_native_tool(tool, tool_args, request, standalone=not unified)
+            if not unified:
+                tool_args = tool.normalize_standalone_args(tool_args)
+            data = execute_native_tool(tool, tool_args, request)
             if unified:
                 data = {"status": "success", "tool_name": tool.name, "data": data, "meta": {"truncated": False}}
             renderer = (
