@@ -28,13 +28,31 @@
  * Isolated Webpack Dev settings for local Playwright e2e.
  * Loaded only when BKLOG_E2E_DEV=1. Does not read local.settings.js or .cookie.
  */
+function loadLocalDevProxyUrl() {
+  try {
+    const localProxy = require('./local.settings.e2e.proxy');
+    if (typeof localProxy === 'string') return localProxy;
+    if (localProxy && typeof localProxy.devProxyUrl === 'string') return localProxy.devProxyUrl;
+  } catch (error) {
+    if (error && error.code !== 'MODULE_NOT_FOUND') throw error;
+  }
+  return '';
+}
+
 const context = ['/apm', '/rest', '/fta', '/api', '/weixin', '/version_log', '/calendars', '/alert', '/query-api'];
 const changeOrigin = true;
 const secure = false;
 const port = 8011;
-const devProxyUrl = '';
+const devProxyUrl = loadLocalDevProxyUrl();
 const loginHost = `${devProxyUrl}/login`;
-const host = `appdev.${devProxyUrl.match(/\.([^.]+)\.com\/?/)[1]}.com`;
+const hostMatch = String(devProxyUrl).match(/\.([^.]+)\.com\/?/);
+const host = hostMatch ? `appdev.${hostMatch[1]}.com` : 'appdev.woa.com';
+
+if (!devProxyUrl) {
+  throw new Error(
+    'Missing e2e proxy URL. Create bklog/web/local.settings.e2e.proxy.js exporting { devProxyUrl: \'https://bklog.bkop.woa.com\' } (gitignored).',
+  );
+}
 
 function inheritRequestCookie(proxyReq, req) {
   const incoming = req.headers.cookie;

@@ -158,6 +158,7 @@
     "watch": [
       "local.settings.js",
       "local.settings.e2e.js",
+      "local.settings.e2e.proxy.js",
       "webpack.config.js"
     ],
     "extentions": []
