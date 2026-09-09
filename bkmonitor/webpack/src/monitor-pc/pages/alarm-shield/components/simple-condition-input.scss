@@ -22,17 +22,6 @@
     }
   }
 
-  .condition-item-label {
-    flex-shrink: 0;
-    height: 32px;
-    padding: 0 16px;
-    margin-left: -1px;
-    line-height: 32px;
-    color: #313238;
-    background: #e7e9ef;
-    border: 1px solid #dcdee5;
-  }
-
   .condition {
     &-item {
       margin-bottom: 2px;
@@ -66,16 +55,20 @@
           z-index: 9;
           background-color: white;
           border-color: #3a84ff;
-          box-shadow: 0 0 4px rgba(58,132,255,.4);
+          box-shadow: 0 0 4px rgb(58 132 255 / 40%);
         }
       }
 
       &-value {
+
+        // 作为可选值 loading 遮罩（condition-item-value-loading）的定位上下文
+        position: relative;
         // display: flex;
         min-width: 170px;
         margin-left: -1px;
 
-        &.bk-tag-selector .bk-tag-input {
+        // bk-tag-input 现由 condition-item-value 包裹，需改用后代选择器命中
+        & > .bk-tag-selector .bk-tag-input {
           // width: 100%;
           border: 1px solid #dcdee5;
           border-radius: 0;
@@ -85,21 +78,25 @@
             flex-wrap: wrap;
           }
         }
-      }
 
-      &-value-loading {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        min-width: 170px;
-        height: 32px;
-        margin-left: -1px;
-        border: 1px solid #dcdee5;
+        // 可选值加载中的遮罩：覆盖在输入框右侧，避免切换 loading 时替换输入框导致输入态丢失
+        .condition-item-value-loading {
+          position: absolute;
+          top: calc(50% - 15px);
+          right: 1px;
+          z-index: 1;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 32px;
+          height: 30px;
+          background: #fff;
 
-        .spinner {
-          width: 16px;
-          height: 16px;
-          background: url(../../../static/images/svg/spinner.svg);
+          .spinner {
+            width: 16px;
+            height: 16px;
+            background: url("../../../static/images/svg/spinner.svg");
+          }
         }
       }
 
@@ -120,7 +117,7 @@
           z-index: 9;
           background-color: white;
           border-color: #3a84ff;
-          box-shadow: 0 0 4px rgba(58,132,255,.4);
+          box-shadow: 0 0 4px rgb(58 132 255 / 40%);
         }
       }
     }
@@ -146,7 +143,7 @@
         color: #3a84ff;
         background-color: white;
         border-color: #3a84ff;
-        box-shadow: 0 0 4px rgba(58,132,255,.4);
+        box-shadow: 0 0 4px rgb(58 132 255 / 40%);
       }
     }
   }

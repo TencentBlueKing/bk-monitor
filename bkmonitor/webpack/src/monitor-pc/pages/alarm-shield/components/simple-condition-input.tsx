@@ -401,17 +401,13 @@ export default class SimpleConditionInput extends tsc<IProps, IEvents> {
                 >
                   {this.handleGetMethodNameById(item.method)}
                 </span>,
-                this.getValueOptionsLoading(item) ? (
-                  <span
-                    key={`value-${index}-${item.key}`}
-                    class='condition-item condition-item-value-loading'
-                  >
-                    <div class='spinner' />
-                  </span>
-                ) : (
+                <div
+                  // 值输入容器，loading 以遮罩形式叠加在内部，避免原来 loading 与输入框二选一渲染导致的重建
+                  // key 依赖可选值数量：可选值数量变化时才重建 bk-tag-input，保证下拉列表与当前维度一致
+                  key={`value-${index}-${item.key}-${(this.dimensionsValueMap[item.key] || [])?.length}-${this.getValueOptionsLoading(item)}`}
+                  class='condition-item condition-item-value'
+                >
                   <bk-tag-input
-                    key={`value-${index}-${item.key}-${JSON.stringify(this.dimensionsValueMap[item.key] || [])}`}
-                    class='condition-item condition-item-value'
                     list={this.getValueOptions(item)}
                     paste-fn={v => this.handlePaste(v, item)}
                     trigger='focus'
@@ -421,7 +417,16 @@ export default class SimpleConditionInput extends tsc<IProps, IEvents> {
                     has-delete-icon
                     on-change={(v: string[]) => this.handleValueChange(item, v)}
                   />
-                ),
+                  {this.getValueOptionsLoading(item) ? (
+                    <span
+                      // 可选值加载中的遮罩，绝对定位覆盖在输入框右侧（见 scss 的 condition-item-value-loading）
+                      key={`value-${index}-${item.key}`}
+                      class='condition-item condition-item-value-loading'
+                    >
+                      <div class='spinner' />
+                    </span>
+                  ) : undefined}
+                </div>,
               ]
             : undefined,
         ])}
