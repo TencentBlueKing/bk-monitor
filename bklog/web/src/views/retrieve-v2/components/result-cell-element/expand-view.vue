@@ -523,27 +523,25 @@
         align-items: center;
 
         .search-input {
-            margin-right: 10px;
+          margin-right: 10px;
 
-            :deep(.bk-form-input) {
-              width: 200px;
-              height: 22px;
-              padding: 0;
-              background: #F5F7FA;
-              border: none;
-              border-bottom: 1px solid #c4c6cc;
+          :deep(.bk-form-input) {
+            width: 200px;
+            height: 22px;
+            padding: 0;
+            background: #F5F7FA;
+            border: none;
+            border-bottom: 1px solid #c4c6cc;
 
-              &:focus {
-                /* stylelint-disable-next-line declaration-no-important */
-                background: #F5F7FA !important;
-              }
+            &:focus {
+              /* stylelint-disable-next-line declaration-no-important */
+              background: #F5F7FA !important;
             }
           }
 
-            :deep(.right-icon) {
-              /* stylelint-disable-next-line declaration-no-important */
-              right: 0px !important;
-            }
+          :deep(.right-icon) {
+            /* stylelint-disable-next-line declaration-no-important */
+            right: 0px !important;
           }
         }
 

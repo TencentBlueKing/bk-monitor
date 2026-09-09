@@ -32,7 +32,7 @@ const context = ['/apm', '/rest', '/fta', '/api', '/weixin', '/version_log', '/c
 const changeOrigin = true;
 const secure = false;
 const port = 8011;
-const devProxyUrl = 'https://bklog.bkop.woa.com';
+const devProxyUrl = '';
 const loginHost = `${devProxyUrl}/login`;
 const host = `appdev.${devProxyUrl.match(/\.([^.]+)\.com\/?/)[1]}.com`;
 

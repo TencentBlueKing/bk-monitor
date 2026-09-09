@@ -136,6 +136,13 @@ module.exports = (baseConfig, { app, mobile, production, fta, log: _log, email =
       host: '0.0.0.0',
       allowedHosts: 'all',
       open: false,
+      client: {
+        ...(config.devServer?.client || {}),
+        overlay: {
+          errors: true,
+          warnings: false,
+        },
+      },
       static: [
         // 开发环境：优先直接从 node_modules 提供 log-web1-dll 资源
         // 只有当目录存在时才添加此配置
@@ -241,6 +248,13 @@ module.exports = (baseConfig, { app, mobile, production, fta, log: _log, email =
   });
   return {
     ...config,
+    ignoreWarnings: [
+      ...(config.ignoreWarnings || []),
+      {
+        module: /@protobufjs\/inquire/,
+        message: /Critical dependency: the request of a dependency is an expression/,
+      },
+    ],
     output: {
       ...config.output,
       path: distUrl,
