@@ -236,10 +236,7 @@ class ApplicationConfig(BkCollectorConfig):
         need_deploy_all_biz_ids = [int(i) for i in biz_application_configs.keys()]
         need_deploy_all_biz_ids += [str(i) for i in biz_application_configs.keys()]
 
-        cluster_mapping: dict = BkCollectorClusterConfig.get_cluster_mapping()
-        cluster_mapping = {k: v for k, v in cluster_mapping.items() if set(need_deploy_all_biz_ids) & set(v)}
-
-        deploy_mapping = BkCollectorClusterConfig.get_deploy_mapping(cluster_mapping)
+        cluster_mapping = BkCollectorClusterConfig.get_cluster_mapping(need_deploy_all_biz_ids)
 
         # 获取BCS集群与业务ID的映射关系
         bcs_cluster_to_biz_ids: dict[str, int] = {}
@@ -247,7 +244,7 @@ class ApplicationConfig(BkCollectorConfig):
             bcs_cluster_to_biz_ids[bcs_cluster.cluster_id] = bcs_cluster.bk_biz_id
 
         # 按集群分组配置，实现批量下发
-        for (cluster_id, namespace, is_global), cc_bk_biz_ids in deploy_mapping.items():
+        for (cluster_id, namespace, is_global), cc_bk_biz_ids in cluster_mapping.items():
             # 如果集群是默认部署集群, 则必须下发
             if not is_global:
                 # 如果集群不在BCS集群中，则不下发该集群的配置

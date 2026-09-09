@@ -11,7 +11,6 @@ specific language governing permissions and limitations under the License.
 import base64
 import gzip
 import logging
-import re
 
 from django.conf import settings
 from kubernetes import client
@@ -132,8 +131,8 @@ class BkCollectorClusterConfig:
     GLOBAL_CONFIG_BK_BIZ_ID = 0
 
     @classmethod
-    def get_cluster_mapping(cls):
-        """获取由 apm_ebpf 模块发现的集群 id"""
+    def get_cluster_mapping(cls, bk_biz_ids=None):
+        """获取带 namespace 和公共目标标记的集群部署映射。"""
         cache = ApmCacheHandler().get_redis_client()
         cluster_to_bk_biz_ids = cache.smembers(BkCollectorComp.CACHE_KEY_CLUSTER_IDS)
 
@@ -146,7 +145,19 @@ class BkCollectorClusterConfig:
                     old_biz_ids = res.get(cluster_id, {})
                     res[cluster_id] = set(old_biz_ids) | set(related_bk_biz_ids)
 
-        return res
+        if bk_biz_ids is not None:
+            bk_biz_ids = set(bk_biz_ids)
+            res = {cluster_id: biz_ids for cluster_id, biz_ids in res.items() if bk_biz_ids & set(biz_ids)}
+
+        global_targets = cls.global_deploy_targets()
+        global_target_ids = {(cluster_id, namespace) for cluster_id, namespace, _is_global in global_targets}
+        cluster_mapping = {}
+        for cluster_id, biz_ids in res.items():
+            namespace = cls.bk_collector_namespace(cluster_id)
+            if (cluster_id, namespace) not in global_target_ids:
+                cluster_mapping[(cluster_id, namespace, False)] = biz_ids
+        cluster_mapping.update({target: [cls.GLOBAL_CONFIG_BK_BIZ_ID] for target in global_targets})
+        return cluster_mapping
 
     @classmethod
     def bk_collector_namespace(cls, cluster_id):
@@ -155,7 +166,7 @@ class BkCollectorClusterConfig:
 
     @classmethod
     @lru_cache_with_ttl(ttl=60)
-    def global_deploy_targets(cls) -> list[tuple[str, str]]:
+    def global_deploy_targets(cls) -> list[tuple[str, str, bool]]:
         """解析公共集群ID/namespace列表；纯集群ID默认使用 blueking namespace。"""
         configured_targets = settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER or []
         if not isinstance(configured_targets, list):
@@ -169,38 +180,13 @@ class BkCollectorClusterConfig:
             if not cluster_id or not namespace:
                 logger.warning("invalid public collector target: %r, skip it", target)
                 continue
-            targets.append((cluster_id, namespace))
+            targets.append((cluster_id, namespace, True))
         return list(dict.fromkeys(targets))
 
-    @staticmethod
-    def validate_namespace(namespace: str) -> bool:
-        return (
-            isinstance(namespace, str)
-            and len(namespace) <= 63
-            and re.fullmatch(r"[a-z0-9](?:[a-z0-9-]*[a-z0-9])?", namespace) is not None
-        )
-
     @classmethod
-    def get_deploy_mapping(cls, cluster_mapping=None) -> dict[tuple[str, str, bool], list | set]:
-        """按 (cluster_id, namespace) 合并部署目标，返回带 is_global 标记的映射。"""
-        if cluster_mapping is None:
-            cluster_mapping = cls.get_cluster_mapping()
-        targets = {
-            (cluster_id, cls.bk_collector_namespace(cluster_id)): (biz_ids, False)
-            for cluster_id, biz_ids in cluster_mapping.items()
-        }
-        # 显式公共目标与业务目标重合时按公共部署处理，避免重复下发。
-        for target in cls.global_deploy_targets():
-            targets[target] = ([cls.GLOBAL_CONFIG_BK_BIZ_ID], True)
-        return {
-            (cluster_id, namespace, is_global): biz_ids
-            for (cluster_id, namespace), (biz_ids, is_global) in targets.items()
-        }
-
-    @classmethod
-    def platform_config_tpl(cls, cluster_id, namespace=None):
+    def platform_config_tpl(cls, cluster_id, namespace: str | None):
         if namespace is None:
-            namespace = cls.bk_collector_namespace(cluster_id)
+            return None
         bcs_client = BcsKubeClient(cluster_id)
         config_maps = bcs_client.client_request(
             bcs_client.core_api.list_namespaced_config_map,
@@ -226,9 +212,9 @@ class BkCollectorClusterConfig:
             )
 
     @classmethod
-    def sub_config_tpl(cls, cluster_id: str, sub_config_tpl_name: str, namespace: str | None = None):
+    def sub_config_tpl(cls, cluster_id: str, sub_config_tpl_name: str, namespace: str | None):
         if namespace is None:
-            namespace = cls.bk_collector_namespace(cluster_id)
+            return None
         bcs_client = BcsKubeClient(cluster_id)
         config_maps = bcs_client.client_request(
             bcs_client.core_api.list_namespaced_config_map,
@@ -456,6 +442,10 @@ class BkCollectorClusterConfig:
             - 如果一个 secrets 中所有的子记录都被清理了。则该 secrets 可以被整体删除
         """
 
+        if namespace is None:
+            logger.warning(f"[clean dup secrets] namespace is required for cluster_id({cluster_id}), skip")
+            return
+
         secret_config = BkCollectorComp.get_secrets_config_map_by_protocol(cluster_id, protocol)
         if not secret_config:
             logger.info(f"protocol({protocol}) has no secret config, please check if your config has been initialized")
@@ -463,8 +453,6 @@ class BkCollectorClusterConfig:
 
         # 查询集群内所有 secrets
         bcs_client = BcsKubeClient(cluster_id)
-        if namespace is None:
-            namespace = cls.bk_collector_namespace(cluster_id)
         secret_label_selector = f"{BkCollectorComp.SECRET_COMMON_LABELS},{secret_config.get('secret_extra_label')}"
 
         try:

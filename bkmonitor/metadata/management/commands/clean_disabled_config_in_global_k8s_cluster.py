@@ -13,6 +13,7 @@ from collections import defaultdict
 from django.core.management.base import BaseCommand, CommandError
 
 from bkmonitor.utils.bk_collector_config import BkCollectorClusterConfig
+from bkmonitor.utils.kubernetes import validate_k8s_namespace
 from constants.common import DEFAULT_TENANT_ID
 from metadata.models.custom_report.event import EventGroup
 from metadata.models.custom_report.log import LogGroup
@@ -53,7 +54,8 @@ class Command(BaseCommand):
         )
         parser.add_argument(
             "--namespace",
-            help="显式指定清理命名空间，须同时指定一个 --cluster-id；默认清理配置的公共部署目标",
+            type=validate_k8s_namespace,
+            help="显式指定清理命名空间，须同时指定至少一个 --cluster-id；默认清理配置的公共部署目标",
         )
         parser.add_argument(
             "--execute",
@@ -69,11 +71,8 @@ class Command(BaseCommand):
         clean_type = options["type"]
         cluster_ids = options.get("cluster_id") or []
         namespace = options.get("namespace")
-        if namespace is not None:
-            if len(set(cluster_ids)) != 1:
-                raise CommandError("--namespace requires exactly one explicit --cluster-id")
-            if not BkCollectorClusterConfig.validate_namespace(namespace):
-                raise CommandError(f"invalid collector namespace: {namespace!r}")
+        if namespace is not None and not cluster_ids:
+            raise CommandError("--namespace requires at least one explicit --cluster-id")
         targets = self._get_target_cluster_ids(cluster_ids, namespace)
         dry_run = not options["execute"]
 
@@ -152,9 +151,12 @@ class Command(BaseCommand):
     ) -> list[tuple[str, str]]:
         cluster_ids = sorted(set(input_cluster_ids))
         if namespace is not None:
-            return [(cluster_ids[0], namespace)]
+            return [(cluster_id, namespace) for cluster_id in cluster_ids]
 
-        global_targets = BkCollectorClusterConfig.global_deploy_targets()
+        global_targets = [
+            (cluster_id, target_namespace)
+            for cluster_id, target_namespace, _is_global in BkCollectorClusterConfig.global_deploy_targets()
+        ]
         if not cluster_ids:
             return sorted(global_targets, key=lambda target: target[0])
 

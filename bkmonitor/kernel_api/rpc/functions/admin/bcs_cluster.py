@@ -34,6 +34,7 @@ from kubernetes import client as k8s_client
 
 from constants.bk_collector import BkCollectorComp
 from bkmonitor.utils.bk_collector_config import BkCollectorClusterConfig
+from bkmonitor.utils.kubernetes import validate_k8s_namespace
 from metadata import config, models
 
 FUNC_BCS_CLUSTER_LIST = "admin.bcs_cluster.list"
@@ -410,8 +411,11 @@ def _get_bk_collector_namespace_context(
     using_configured_namespace = bool(namespace is None and use_config_namespace and can_use_configured_namespace)
     if namespace is None:
         namespace = configured_namespace if using_configured_namespace else operator_namespace
-    elif not BkCollectorClusterConfig.validate_namespace(namespace):
-        raise CustomException(message=f"invalid collector namespace: {namespace!r}")
+    else:
+        try:
+            validate_k8s_namespace(namespace)
+        except ValueError as error:
+            raise CustomException(message=f"invalid collector namespace: {namespace!r}") from error
     return {
         "namespace": namespace,
         "operator_namespace": operator_namespace,
@@ -420,7 +424,7 @@ def _get_bk_collector_namespace_context(
         "using_configured_namespace": using_configured_namespace,
         "public_namespaces": [
             target_namespace
-            for cluster_id, target_namespace in BkCollectorClusterConfig.global_deploy_targets()
+            for cluster_id, target_namespace, _is_global in BkCollectorClusterConfig.global_deploy_targets()
             if cluster_id == cluster.cluster_id
         ],
     }

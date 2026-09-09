@@ -10,6 +10,7 @@ from django.core.management.base import CommandError
 from kubernetes import client
 
 from apm.core.application_config import ApplicationConfig
+from apm.core.handlers.apm_cache_handler import ApmCacheHandler
 from apm.core.platform_config import PlatformConfig
 from bkmonitor.define.global_config import STANDARD_CONFIGS
 from bkmonitor.utils.bk_collector_config import BkCollectorClusterConfig as ClusterConfig
@@ -20,24 +21,31 @@ from metadata.models.custom_report.subscription_config import CustomReportSubscr
 from rum.core.application_config import RumApplicationConfig
 
 
+@pytest.fixture
+def cluster_discovery(mocker):
+    redis_client = mocker.patch.object(ApmCacheHandler, "get_redis_client").return_value
+    redis_client.smembers.return_value = {"cluster-a:1"}
+    return redis_client
+
+
 @pytest.fixture(autouse=True)
-def collector_settings(settings):
-    ClusterConfig.global_deploy_targets.cache_clear()
+def collector_settings(settings, cluster_discovery):
+    clear_target_cache = ClusterConfig.global_deploy_targets.cache_clear
+    clear_target_cache()
     settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER = ["cluster-a"]
     settings.K8S_OPERATOR_DEPLOY_NAMESPACE = {"cluster-a": "operator-ns"}
     settings.CUSTOM_REPORT_K8S_SECRETS_CONFIG = {}
     yield
-    ClusterConfig.global_deploy_targets.cache_clear()
+    clear_target_cache()
 
 
-def test_legacy_mapping_keeps_public_precedence_without_mutating_discovery(settings):
+def test_cluster_mapping_keeps_public_precedence(settings, cluster_discovery):
     settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER = ["cluster-a/operator-ns"]
-    discovered = {"cluster-a": {1, 2}, "cluster-b": {3}}
-    assert ClusterConfig.get_deploy_mapping(discovered) == {
+    cluster_discovery.smembers.return_value = {"cluster-a:1,2", "cluster-b:3"}
+    assert ClusterConfig.get_cluster_mapping() == {
         ("cluster-a", "operator-ns", True): [0],
-        ("cluster-b", "bkmonitor-operator", False): {3},
+        ("cluster-b", "bkmonitor-operator", False): {"3"},
     }
-    assert discovered == {"cluster-a": {1, 2}, "cluster-b": {3}}
 
 
 def test_public_namespaces_keep_business_target_and_support_multiple_clusters(settings):
@@ -47,8 +55,8 @@ def test_public_namespaces_keep_business_target_and_support_multiple_clusters(se
         "cluster-b/public-1",
         "cluster-a/public-1",
     ]
-    assert ClusterConfig.get_deploy_mapping({"cluster-a": [1]}) == {
-        ("cluster-a", "operator-ns", False): [1],
+    assert ClusterConfig.get_cluster_mapping() == {
+        ("cluster-a", "operator-ns", False): {"1"},
         ("cluster-a", "public-1", True): [0],
         ("cluster-a", "public-2", True): [0],
         ("cluster-b", "public-1", True): [0],
@@ -62,7 +70,7 @@ def test_namespace_override_is_per_cluster_and_same_target_is_not_duplicated(set
         "cluster-a/public-1",
         "cluster-b",
     ]
-    assert ClusterConfig.get_deploy_mapping({"cluster-a": [1]}) == {
+    assert ClusterConfig.get_cluster_mapping() == {
         ("cluster-a", "operator-ns", True): [0],
         ("cluster-a", "blueking", True): [0],
         ("cluster-a", "public-1", True): [0],
@@ -74,8 +82,8 @@ def test_namespace_override_is_per_cluster_and_same_target_is_not_duplicated(set
 def test_empty_public_target_parts_do_not_block_valid_or_business_targets(settings, target, caplog):
     caplog.set_level("WARNING", logger="bkmonitor.utils.bk_collector_config")
     settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER = [target, "cluster-b/public"]
-    assert ClusterConfig.get_deploy_mapping({"cluster-a": [1]}) == {
-        ("cluster-a", "operator-ns", False): [1],
+    assert ClusterConfig.get_cluster_mapping() == {
+        ("cluster-a", "operator-ns", False): {"1"},
         ("cluster-b", "public", True): [0],
     }
     assert "invalid public collector target" in caplog.text
@@ -86,19 +94,19 @@ def test_invalid_public_target_list(settings, targets, caplog):
     caplog.set_level("WARNING", logger="bkmonitor.utils.bk_collector_config")
     settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER = targets
     assert ClusterConfig.global_deploy_targets() == []
-    assert ClusterConfig.get_deploy_mapping({"cluster-a": [1]}) == {("cluster-a", "operator-ns", False): [1]}
+    assert ClusterConfig.get_cluster_mapping() == {("cluster-a", "operator-ns", False): {"1"}}
     assert "CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER must be a list" in caplog.text
 
 
 def test_public_targets_are_cached_for_60_seconds_then_read_current_settings(settings, mocker):
     clock = mocker.patch("bkmonitor.utils.cache.monotonic", return_value=1000)
-    assert ClusterConfig.global_deploy_targets() == [("cluster-a", "blueking")]
+    assert ClusterConfig.global_deploy_targets() == [("cluster-a", "blueking", True)]
 
     settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER = ["cluster-b/public"]
     clock.return_value = 1059
-    assert ClusterConfig.global_deploy_targets() == [("cluster-a", "blueking")]
+    assert ClusterConfig.global_deploy_targets() == [("cluster-a", "blueking", True)]
     clock.return_value = 1061
-    assert ClusterConfig.global_deploy_targets() == [("cluster-b", "public")]
+    assert ClusterConfig.global_deploy_targets() == [("cluster-b", "public", True)]
 
 
 def test_public_targets_reuse_existing_global_config():
@@ -111,12 +119,15 @@ def test_public_targets_reuse_existing_global_config():
 @pytest.mark.parametrize("targets", [[], None])
 def test_no_public_targets_keeps_business_delivery(settings, targets):
     settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER = targets
-    assert ClusterConfig.get_deploy_mapping({"cluster-a": [1]}) == {("cluster-a", "operator-ns", False): [1]}
+    assert ClusterConfig.get_cluster_mapping() == {("cluster-a", "operator-ns", False): {"1"}}
 
 
-@pytest.mark.parametrize("namespace,expected", [(None, "operator-ns"), ("public-1", "public-1")])
+def test_cluster_mapping_filters_business_targets_but_keeps_public_targets():
+    assert ClusterConfig.get_cluster_mapping([2, "2"]) == {("cluster-a", "blueking", True): [0]}
+
+
 @pytest.mark.parametrize("platform", [False, True])
-def test_templates_are_read_from_selected_namespace(mocker, namespace, expected, platform):
+def test_templates_are_read_from_selected_namespace(mocker, platform):
     kube = mocker.patch("bkmonitor.utils.bk_collector_config.BcsKubeClient").return_value
     template_name = (
         BkCollectorComp.CONFIG_MAP_PLATFORM_TPL_NAME if platform else BkCollectorComp.CONFIG_MAP_APPLICATION_TPL_NAME
@@ -125,11 +136,21 @@ def test_templates_are_read_from_selected_namespace(mocker, namespace, expected,
         items=[SimpleNamespace(data={template_name: base64.b64encode(b"template").decode()})]
     )
     if platform:
-        content = ClusterConfig.platform_config_tpl("cluster-a", namespace=namespace)
+        content = ClusterConfig.platform_config_tpl("cluster-a", namespace="public-1")
     else:
-        content = ClusterConfig.sub_config_tpl("cluster-a", template_name, namespace=namespace)
+        content = ClusterConfig.sub_config_tpl("cluster-a", template_name, namespace="public-1")
     assert content == "template"
-    assert kube.client_request.call_args.kwargs["namespace"] == expected
+    assert kube.client_request.call_args.kwargs["namespace"] == "public-1"
+
+
+@pytest.mark.parametrize("platform", [False, True])
+def test_templates_without_namespace_are_skipped(mocker, platform):
+    kube = mocker.patch("bkmonitor.utils.bk_collector_config.BcsKubeClient")
+    if platform:
+        assert ClusterConfig.platform_config_tpl("cluster-a", namespace=None) is None
+    else:
+        assert ClusterConfig.sub_config_tpl("cluster-a", "application", namespace=None) is None
+    kube.assert_not_called()
 
 
 def _encode(content):
@@ -180,6 +201,14 @@ def test_duplicate_cleanup_does_not_fall_back_to_business_namespace(mocker):
     assert {call.kwargs["namespace"] for call in kube.client_request.call_args_list} == {"public-1"}
     assert older.data == {"application-2.conf": "keep"}
     assert kube.client_request.call_args.args[0] is kube.core_api.replace_namespaced_secret
+
+
+def test_duplicate_cleanup_without_namespace_is_skipped(mocker, caplog):
+    caplog.set_level("WARNING", logger="bkmonitor.utils.bk_collector_config")
+    kube = mocker.patch("bkmonitor.utils.bk_collector_config.BcsKubeClient")
+    ClusterConfig.clean_dup_secrets("cluster-a", "apm")
+    kube.assert_not_called()
+    assert "namespace is required" in caplog.text
 
 
 @pytest.mark.parametrize("list_result", [None, RuntimeError("list failed")])
@@ -237,7 +266,6 @@ def test_platform_default_application_and_dimensions_keep_business_semantics(moc
 @pytest.fixture
 def multi_target_delivery(settings, mocker):
     settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER = ["cluster-a/public-1", "cluster-a/public-2"]
-    mocker.patch.object(ClusterConfig, "get_cluster_mapping", return_value={"cluster-a": [1]})
     mocker.patch.object(BCSClusterInfo.objects, "all").return_value.only.return_value = [
         SimpleNamespace(cluster_id="cluster-a", bk_biz_id=1)
     ]
@@ -369,7 +397,7 @@ def test_custom_report_global_batch_and_business_batch_are_separate(
     targets = mocker.spy(ClusterConfig, "global_deploy_targets")
     if business_is_public:
         settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER += ["cluster-a/operator-ns"]
-    public_namespaces = ["operator-ns", "public-1", "public-2"] if business_is_public else ["public-1", "public-2"]
+    public_namespaces = ["public-1", "public-2", "operator-ns"] if business_is_public else ["public-1", "public-2"]
     clean = mocker.patch.object(ClusterConfig, "clean_dup_secrets_in_multi_protocol")
     result = CustomReportSubscription._refresh_k8s_custom_config_by_biz(0, [({"bk_data_id": 10, "biz": 1}, protocol)])
     assert result["cluster_count"] == 1
@@ -449,16 +477,22 @@ def test_cleanup_invalid_public_target_is_logged_and_skipped(settings, caplog, c
 
 def test_cleanup_explicit_non_public_cluster_uses_its_business_namespace(mocker):
     command = Command()
-    configs = mocker.patch.object(command, "_get_disabled_configs", return_value={"apm": []})
     assert command._get_target_cluster_ids(["cluster-b", "cluster-b"]) == [("cluster-b", "bkmonitor-operator")]
-    with pytest.raises(CommandError, match="invalid collector namespace"):
-        command.handle(bk_tenant_id="system", type="all", execute=True, cluster_id=["cluster-a"], namespace="*")
-    configs.assert_not_called()
 
 
-@pytest.mark.parametrize("cluster_ids", [[], ["cluster-a", "cluster-b"]])
-def test_cleanup_explicit_namespace_requires_one_explicit_cluster(cluster_ids):
+def test_cleanup_namespace_option_rejects_invalid_value():
+    parser = Command().create_parser("manage.py", "clean_disabled_config_in_global_k8s_cluster")
     with pytest.raises(CommandError):
-        Command().handle(
-            bk_tenant_id="system", type="all", execute=False, cluster_id=cluster_ids, namespace="old-public"
-        )
+        parser.parse_args(["--namespace", "*"])
+
+
+def test_cleanup_explicit_namespace_requires_explicit_cluster():
+    with pytest.raises(CommandError):
+        Command().handle(bk_tenant_id="system", type="all", execute=False, cluster_id=[], namespace="old-public")
+
+
+def test_cleanup_explicit_namespace_applies_to_each_explicit_cluster():
+    assert Command()._get_target_cluster_ids(["cluster-b", "cluster-a", "cluster-a"], namespace="old-public") == [
+        ("cluster-a", "old-public"),
+        ("cluster-b", "old-public"),
+    ]

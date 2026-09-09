@@ -42,13 +42,10 @@ class RumApplicationConfig(BkCollectorConfig):
         need_deploy_all_biz_ids = [int(i) for i in biz_applications.keys()]
         need_deploy_all_biz_ids += [str(i) for i in biz_applications.keys()]
 
-        cluster_mapping = BkCollectorClusterConfig.get_cluster_mapping()
-        cluster_mapping = {k: v for k, v in cluster_mapping.items() if set(need_deploy_all_biz_ids) & set(v)}
-
-        deploy_mapping = BkCollectorClusterConfig.get_deploy_mapping(cluster_mapping)
+        cluster_mapping = BkCollectorClusterConfig.get_cluster_mapping(need_deploy_all_biz_ids)
 
         # 按集群分组配置，实现批量下发
-        for (cluster_id, namespace, _is_global), cc_bk_biz_ids in deploy_mapping.items():
+        for (cluster_id, namespace, _is_global), cc_bk_biz_ids in cluster_mapping.items():
             with tracer.start_as_current_span(f"collector-target: {cluster_id}/{namespace}") as s:
                 try:
                     application_tpl = BkCollectorClusterConfig.sub_config_tpl(

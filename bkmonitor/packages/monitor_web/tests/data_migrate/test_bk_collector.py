@@ -1894,7 +1894,7 @@ def test_custom_report_k8s_refresh_reports_deploy_failures_in_summary(monkeypatc
     monkeypatch.setattr(
         subscription_config.BkCollectorClusterConfig,
         "get_cluster_mapping",
-        lambda: {"cluster-1": [2]},
+        lambda: {("cluster-1", "bkmonitor-operator", False): [2]},
     )
     monkeypatch.setattr(
         subscription_config.BkCollectorClusterConfig,
@@ -1948,7 +1948,7 @@ def test_refresh_k8s_custom_config_by_biz_keeps_render_failure(monkeypatch):
     monkeypatch.setattr(
         subscription_config.BkCollectorClusterConfig,
         "get_cluster_mapping",
-        lambda: {"cluster-1": [2]},
+        lambda: {("cluster-1", "bkmonitor-operator", False): [2]},
     )
     monkeypatch.setattr(
         subscription_config.BkCollectorClusterConfig,

@@ -83,14 +83,14 @@ class PlatformConfig(BkCollectorConfig):
 
         from metadata.models.bcs.cluster import BCSClusterInfo
 
-        deploy_mapping = BkCollectorClusterConfig.get_deploy_mapping()
+        cluster_mapping = BkCollectorClusterConfig.get_cluster_mapping()
 
         # 获取BCS集群与业务ID的映射关系
         bcs_cluster_to_biz_ids: dict[str, int] = {}
         for bcs_cluster in BCSClusterInfo.objects.all().only("cluster_id", "bk_biz_id"):
             bcs_cluster_to_biz_ids[bcs_cluster.cluster_id] = bcs_cluster.bk_biz_id
 
-        for cluster_id, namespace, is_global in deploy_mapping:
+        for cluster_id, namespace, is_global in cluster_mapping:
             # 如果集群不在BCS集群中，则不下发该集群的配置
             if cluster_id not in bcs_cluster_to_biz_ids:
                 continue
