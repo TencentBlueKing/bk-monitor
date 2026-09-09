@@ -1233,6 +1233,83 @@ class TestIndexSetTagExtension(TestCase):
         )
         self.assertEqual(values, ["BCS-K8S-001"])
 
+    def test_get_dimension_values_includes_related_space_tags(self):
+        """Explicit space_uids include tags from related BCS spaces; unlisted spaces stay out."""
+        from apps.log_search.models import IndexSetTag, LogIndexSet
+
+        scene_tag = IndexSetTag.get_tag_id(name="scene", value="k8s", tag_type="scene")
+        biz_tag = IndexSetTag.get_tag_id(name="cluster_id", value="BCS-BIZ-001", tag_type="scene")
+        related_tag = IndexSetTag.get_tag_id(name="cluster_id", value="BCS-RELATED-001", tag_type="scene")
+        other_tag = IndexSetTag.get_tag_id(name="cluster_id", value="BCS-OTHER-001", tag_type="scene")
+
+        LogIndexSet.objects.create(
+            index_set_name="idx_biz",
+            space_uid="bkcc__2",
+            scenario_id="log",
+            tag_ids=[str(scene_tag), str(biz_tag)],
+            is_active=True,
+        )
+        LogIndexSet.objects.create(
+            index_set_name="idx_related",
+            space_uid="bcs__BCS-K8S-001",
+            scenario_id="log",
+            tag_ids=[str(scene_tag), str(related_tag)],
+            is_active=True,
+        )
+        LogIndexSet.objects.create(
+            index_set_name="idx_unrelated",
+            space_uid="bcs__BCS-K8S-999",
+            scenario_id="log",
+            tag_ids=[str(scene_tag), str(other_tag)],
+            is_active=True,
+        )
+
+        without_related = IndexSetTag.get_dimension_values(bk_biz_id=2, scene="k8s", dimension_key="cluster_id")
+        self.assertEqual(set(without_related), {"BCS-BIZ-001"})
+
+        with_related = IndexSetTag.get_dimension_values(
+            bk_biz_id=2,
+            scene="k8s",
+            dimension_key="cluster_id",
+            space_uids=["bkcc__2", "bcs__BCS-K8S-001"],
+        )
+        self.assertEqual(set(with_related), {"BCS-BIZ-001", "BCS-RELATED-001"})
+        self.assertNotIn("BCS-OTHER-001", with_related)
+
+    def test_get_dimension_values_related_space_respects_filters(self):
+        """Cascading filters still apply across the related-space union."""
+        from apps.log_search.models import IndexSetTag, LogIndexSet
+
+        scene_tag = IndexSetTag.get_tag_id(name="scene", value="k8s", tag_type="scene")
+        stdout_tag = IndexSetTag.get_tag_id(name="stream", value="stdout", tag_type="scene")
+        file_tag = IndexSetTag.get_tag_id(name="stream", value="file", tag_type="scene")
+        c1 = IndexSetTag.get_tag_id(name="cluster_id", value="BCS-STDOUT-001", tag_type="scene")
+        c2 = IndexSetTag.get_tag_id(name="cluster_id", value="BCS-FILE-001", tag_type="scene")
+
+        LogIndexSet.objects.create(
+            index_set_name="related_stdout",
+            space_uid="bcs__BCS-K8S-001",
+            scenario_id="log",
+            tag_ids=[str(scene_tag), str(stdout_tag), str(c1)],
+            is_active=True,
+        )
+        LogIndexSet.objects.create(
+            index_set_name="related_file",
+            space_uid="bcs__BCS-K8S-001",
+            scenario_id="log",
+            tag_ids=[str(scene_tag), str(file_tag), str(c2)],
+            is_active=True,
+        )
+
+        values = IndexSetTag.get_dimension_values(
+            bk_biz_id=2,
+            scene="k8s",
+            dimension_key="cluster_id",
+            filters=[{"field_name": "stream", "value": ["stdout"], "op": "eq"}],
+            space_uids=["bkcc__2", "bcs__BCS-K8S-001"],
+        )
+        self.assertEqual(values, ["BCS-STDOUT-001"])
+
     def test_dimension_filter_serializer_dict_compat(self):
         s = SceneDimensionValuesSerializer(
             data={
@@ -1260,9 +1337,11 @@ class TestIndexSetTagExtension(TestCase):
 class TestSceneSearchViewSetDimensionValues(TestCase):
     """POST /search/scene/dimension_values/"""
 
+    @patch("apps.log_search.views.scene_search_views.IndexSetHandler.get_all_related_space_uids")
     @patch("apps.log_search.models.IndexSetTag.get_dimension_values")
-    def test_dimension_values_success(self, mock_dv):
+    def test_dimension_values_success(self, mock_dv, mock_related):
         mock_dv.return_value = ["BCS-K8S-001", "BCS-K8S-002"]
+        mock_related.return_value = ["bkcc__2", "bcs__BCS-K8S-001"]
 
         factory = APIRequestFactory()
         request = factory.post(
@@ -1277,11 +1356,20 @@ class TestSceneSearchViewSetDimensionValues(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data["dimension_key"], "cluster_id")
         self.assertEqual(response.data["values"], ["BCS-K8S-001", "BCS-K8S-002"])
-        mock_dv.assert_called_once_with(bk_biz_id=2, scene="k8s", dimension_key="cluster_id", filters=None)
+        mock_related.assert_called_once_with("bkcc__2")
+        mock_dv.assert_called_once_with(
+            bk_biz_id=2,
+            scene="k8s",
+            dimension_key="cluster_id",
+            filters=None,
+            space_uids=["bkcc__2", "bcs__BCS-K8S-001"],
+        )
 
+    @patch("apps.log_search.views.scene_search_views.IndexSetHandler.get_all_related_space_uids")
     @patch("apps.log_search.models.IndexSetTag.get_dimension_values")
-    def test_dimension_values_with_filters(self, mock_dv):
+    def test_dimension_values_with_filters(self, mock_dv, mock_related):
         mock_dv.return_value = ["BCS-K8S-001"]
+        mock_related.return_value = ["bkcc__2"]
 
         factory = APIRequestFactory()
         request = factory.post(
@@ -1305,11 +1393,14 @@ class TestSceneSearchViewSetDimensionValues(TestCase):
             scene="k8s",
             dimension_key="cluster_id",
             filters=[{"field_name": "stream", "value": ["stdout"], "op": "eq"}],
+            space_uids=["bkcc__2"],
         )
 
+    @patch("apps.log_search.views.scene_search_views.IndexSetHandler.get_all_related_space_uids")
     @patch("apps.log_search.models.IndexSetTag.get_dimension_values")
-    def test_dimension_values_with_list_filters(self, mock_dv):
+    def test_dimension_values_with_list_filters(self, mock_dv, mock_related):
         mock_dv.return_value = ["BCS-K8S-001"]
+        mock_related.return_value = ["bkcc__2"]
 
         factory = APIRequestFactory()
         request = factory.post(
@@ -1332,6 +1423,7 @@ class TestSceneSearchViewSetDimensionValues(TestCase):
             scene="k8s",
             dimension_key="cluster_id",
             filters=[{"field_name": "stream", "value": ["stdout"], "op": "eq"}],
+            space_uids=["bkcc__2"],
         )
 
     def test_dimension_values_missing_scene_fails(self):

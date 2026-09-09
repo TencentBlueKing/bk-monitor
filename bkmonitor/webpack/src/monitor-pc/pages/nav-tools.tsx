@@ -31,6 +31,7 @@ import { useJSONP } from 'monitor-api/jsonp';
 import { LANGUAGE_COOKIE_KEY } from 'monitor-common/utils/constant';
 import bus from 'monitor-common/utils/event-bus';
 import { docCookies } from 'monitor-common/utils/utils';
+import authorityStore from 'monitor-pc/store/modules/authority';
 
 import LogVersion from '../components/log-version/intex';
 import LogVersionMixin from '../components/log-version/log-version-mixin';
@@ -40,6 +41,13 @@ import { GLOBAL_FEATURE_LIST, setLocalStoreRoute } from '../router/router-config
 import enIcon from '../static/images/svg/en.svg';
 import zhIcon from '../static/images/svg/zh.svg';
 import type { IMenuItem } from '../types';
+import { resolveRedisManagementAccess } from './redis-management/route-model';
+
+const REDIS_MANAGEMENT_MENU = {
+  id: 'redis-management',
+  name: 'Redis 节点管理',
+  icon: 'icon-monitor icon-mc-redis',
+};
 
 // #if APP !== 'external'
 // import GlobalSearchModal from './global-search-modal-new';
@@ -85,6 +93,7 @@ class NavTools extends DocumentLinkMixin {
   // 帮助列表
   helpList: IMenuItem[] = [];
   setList: IMenuItem[] = [];
+  redisManagementAllowed = false;
   languageList: IMenuItem[] = [];
   logShow = false;
   globalSearchShow = false;
@@ -97,6 +106,10 @@ class NavTools extends DocumentLinkMixin {
 
   get isHomePage() {
     return this.$route.name && this.$route.name === 'home';
+  }
+
+  get settingModalList() {
+    return this.setList.filter(item => item.id !== 'redis-management');
   }
 
   /** 上云环境（内部版），该环境下不展示「个人设置」 */
@@ -179,12 +192,8 @@ class NavTools extends DocumentLinkMixin {
         href: window.ce_url,
       },
     ];
-    this.setList = GLOBAL_FEATURE_LIST.filter(item =>
-      window.bk_tenant_id === 'system' ? true : !['healthz', 'global-config'].includes(item.id)
-    ).map(({ name, ...args }) => ({
-      name: `route-${name}`,
-      ...args,
-    }));
+    this.setList = this.buildSettingList(false);
+    this.loadRedisManagementPermission();
     this.languageList = [
       {
         id: 'zh-cn',
@@ -195,6 +204,28 @@ class NavTools extends DocumentLinkMixin {
         name: 'English',
       },
     ];
+  }
+
+  buildSettingList(showRedisManagement: boolean) {
+    const featureList = showRedisManagement ? [...GLOBAL_FEATURE_LIST, REDIS_MANAGEMENT_MENU] : GLOBAL_FEATURE_LIST;
+    return featureList
+      .filter(item => {
+        return window.bk_tenant_id === 'system' ? true : !['healthz', 'global-config'].includes(item.id);
+      })
+      .map(({ name, ...args }) => ({
+        name: `route-${name}`,
+        ...args,
+      }));
+  }
+
+  async loadRedisManagementPermission() {
+    const allowed = await resolveRedisManagementAccess(window.is_superuser, () =>
+      authorityStore.checkAllowedByActionIds({ action_ids: ['manage_global_setting'] })
+    );
+    if (allowed) {
+      this.redisManagementAllowed = true;
+      this.setList = this.buildSettingList(true);
+    }
   }
   mounted() {
     document.addEventListener('keydown', this.handleKeyupSearch);
@@ -267,8 +298,16 @@ class NavTools extends DocumentLinkMixin {
    * @return {*}
    */
   handleSet(item: IMenuItem) {
-    setLocalStoreRoute(item.id);
+    if (!this.setList.some(setting => setting.id === item.id)) return;
     this.hidePopoverSetOrHelp();
+    if (item.id === 'redis-management') {
+      if (this.show) this.handleSettingShowChange(false);
+      if (this.$route.name !== item.id) {
+        this.$router.push({ name: 'redis-management' });
+      }
+      return;
+    }
+    setLocalStoreRoute(item.id);
     this.activeSetting = item.id;
     this.settingTitle = item.name;
     this.handleSettingShowChange(true);
@@ -330,6 +369,7 @@ class NavTools extends DocumentLinkMixin {
     location.reload();
   }
   handleMenuChange(item: IMenuItem) {
+    if (!this.settingModalList.some(setting => setting.id === item.id)) return;
     this.activeSetting = item.id;
     this.settingTitle = item.name;
   }
@@ -563,7 +603,7 @@ class NavTools extends DocumentLinkMixin {
             <SettingModal
               key='setting-modal'
               activeMenu={this.activeSetting}
-              menuList={this.setList}
+              menuList={this.settingModalList}
               show={this.show}
               title={this.settingTitle}
               zIndex={2000}

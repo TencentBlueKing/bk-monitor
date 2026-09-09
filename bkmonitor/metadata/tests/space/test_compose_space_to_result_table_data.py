@@ -11,8 +11,41 @@ specific language governing permissions and limitations under the License.
 import pytest
 
 from metadata import models
+from metadata.models.space.constants import EtlConfigs, MeasurementType
 from metadata.models.space.space_table_id_redis import SpaceTableIDRedis
 from metadata.tests.common_utils import consul_client
+
+
+@pytest.mark.parametrize(
+    ("etl_config", "is_platform_data_id", "is_exist_space", "expected"),
+    [
+        (EtlConfigs.BK_CUSTOM_FORMAT.value, False, True, False),
+        (EtlConfigs.BK_CUSTOM_FORMAT.value, False, False, False),
+        (EtlConfigs.BK_CUSTOM_FORMAT.value, True, True, False),
+        (EtlConfigs.BK_CUSTOM_FORMAT.value, True, False, True),
+        ("other", False, True, True),
+    ],
+)
+def test_is_need_filter_for_bkcc_custom_format_uses_custom_metric_semantics(
+    etl_config, is_platform_data_id, is_exist_space, expected
+):
+    data_id_detail = {
+        "etl_config": etl_config,
+        # 使用非当前空间 UID，避免测试结果依赖 IS_RESTRICT_DS_BELONG_SPACE 开关。
+        "space_uid": "bkcc__other",
+        "is_platform_data_id": is_platform_data_id,
+    }
+
+    assert (
+        SpaceTableIDRedis()._is_need_filter_for_bkcc(
+            measurement_type=MeasurementType.BK_TRADITIONAL.value,
+            space_type="bkcc",
+            space_id="2",
+            data_id_detail=data_id_detail,
+            is_exist_space=is_exist_space,
+        )
+        is expected
+    )
 
 
 @pytest.fixture

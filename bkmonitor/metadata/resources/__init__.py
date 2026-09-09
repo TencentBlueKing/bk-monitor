@@ -1,6 +1,5 @@
 from .bkdata_link import *  # noqa
 from .cluster import *  # noqa
-from .custom_format_datalink import *  # noqa
 from .datalink_operation import *  # noqa
 from .log_datalink import *  # noqa
 from .entity_relation import *  # noqa

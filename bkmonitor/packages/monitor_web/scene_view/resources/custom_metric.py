@@ -9,6 +9,7 @@ specific language governing permissions and limitations under the License.
 """
 
 import logging
+import re
 from collections import defaultdict
 
 from django.core.cache import caches
@@ -270,6 +271,16 @@ class GetCustomTsDimensionValues(Resource):
         end_time = serializers.IntegerField(label=_("结束时间"))
         metrics = MetricSerializer(label=_("指标"), many=True, default=list)
 
+    @classmethod
+    def _build_label_match(cls, label: str, values: list[str]) -> str | None:
+        unique_values = list(dict.fromkeys(value for value in values if value))
+        if not unique_values:
+            return None
+        if len(unique_values) == 1:
+            return f'{label}="{unique_values[0]}"'
+        escaped = "|".join(re.escape(value) for value in unique_values)
+        return f'{label}=~"({escaped})"'
+
     def perform_request(self, params: dict) -> list[dict]:
         # 如果指标为空，则返回空列表
         if not params["metrics"]:
@@ -301,6 +312,12 @@ class GetCustomTsDimensionValues(Resource):
         if is_apm_scenario:
             label_filters.append(f'app_name="{params["apm_app_name"]}"')
             label_filters.append(f'service_name="{params["apm_service_name"]}"')
+            # 左边勾选的监控项对应 scope_name，多个监控项可共用同一指标字段（如 metric）
+            scope_match = self._build_label_match(
+                "scope_name", [metric.get("scope_name") or "" for metric in params["metrics"]]
+            )
+            if scope_match:
+                label_filters.append(scope_match)
 
         # 组装完整的 PromQL 匹配表达式
         if label_filters:

@@ -8,12 +8,22 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+from typing import Any
 from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 
-
 from rum_web.constants import RumQueryMode
 from constants.apm import OperatorGroupRelation
+from constants.otel_query import EnabledStatisticsDimension
+
+
+class FilterValueCharField(serializers.CharField):
+    """存储查询侧过滤值字段：布尔值收敛为小写 true / false 字符串，而非报错"""
+
+    def to_internal_value(self, data):
+        if isinstance(data, bool):
+            return "true" if data else "false"
+        return super().to_internal_value(data)
 
 
 class FilterSerializer(serializers.Serializer):
@@ -29,12 +39,12 @@ class FilterSerializer(serializers.Serializer):
     operator = serializers.CharField(label=_("操作符"))
     options = OptionsSerializer(label=_("操作符选项"), default=dict)
     value = serializers.ListSerializer(
-        label=_("查询值"), child=serializers.CharField(allow_blank=True), allow_empty=True
+        label=_("查询值"), child=FilterValueCharField(allow_blank=True), allow_empty=True
     )
 
 
 class QueryStringFilterSerializer(FilterSerializer):
-    """查询串渲染侧过滤条件，value 保留数值与布尔原类型"""
+    """查询串渲染侧过滤条件"""
 
     value = serializers.ListSerializer(label=_("查询值"), child=serializers.JSONField(), allow_empty=True)
 
@@ -57,9 +67,13 @@ class BaseRumTimeRangeSerializer(BaseRumRequestSerializer):
 
 
 class RumViewConfigRequestSerializer(BaseRumTimeRangeSerializer):
-    """获取页面视图配置"""
+    """获取页面视图配置
 
-    pass
+    start_time / end_time 允许不传：未传时由查询层基于数据保留期自动补齐时间窗口。
+    """
+
+    start_time = serializers.IntegerField(label=_("开始时间"), required=False)
+    end_time = serializers.IntegerField(label=_("结束时间"), required=False)
 
 
 class BaseRumSearchSerializer(BaseRumTimeRangeSerializer):
@@ -88,3 +102,57 @@ class RumGenerateQueryStringRequestSerializer(BaseRumRequestSerializer):
     """将过滤条件转换为查询字符串"""
 
     filters = serializers.ListField(label=_("查询条件"), child=QueryStringFilterSerializer(), default=list)
+
+
+class RumFieldsTopKRequestSerializer(BaseRumSearchSerializer):
+    """查询字段 Top-K 值"""
+
+    fields = serializers.ListField(label=_("查询字段列表"), child=serializers.CharField())
+    limit = serializers.IntegerField(label=_("数量限制"), default=5, min_value=1)
+
+
+class RumDownloadTopKRequestSerializer(RumFieldsTopKRequestSerializer):
+    """下载 Top-K"""
+
+    fields = serializers.ListField(label=_("查询字段列表"), child=serializers.CharField(), min_length=1, max_length=1)
+
+
+class RumStatisticsFieldSerializer(serializers.Serializer):
+    field_type = serializers.CharField(label=_("字段类型"))
+    field_name = serializers.CharField(label=_("字段名称"))
+    values = serializers.ListField(label=_("查询过滤条件值列表"), allow_empty=True, default=list)
+
+    def validate(self, attrs):
+        if attrs["field_type"] not in EnabledStatisticsDimension.values():
+            raise serializers.ValidationError(_("不支持的字段类型"))
+        return attrs
+
+
+class RumFieldStatisticsInfoRequestSerializer(BaseRumSearchSerializer):
+    """查询字段统计信息"""
+
+    field = RumStatisticsFieldSerializer(label=_("字段"))
+
+
+class RumFieldStatisticsGraphRequestSerializer(BaseRumSearchSerializer):
+    """查询字段统计图表配置"""
+
+    field = RumStatisticsFieldSerializer(label=_("字段"))
+
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        attrs = super().validate(attrs)
+        field = attrs["field"]
+        values = field["values"]
+
+        # 将布尔值转换为小写字符串
+        if field["field_type"] == EnabledStatisticsDimension.BOOLEAN.value:
+            for i, v in enumerate(values):
+                if isinstance(v, bool):
+                    values[i] = str(v).lower()
+
+        if not EnabledStatisticsDimension.from_value(field["field_type"]).is_numeric():
+            return attrs
+
+        if len(values) < 4:
+            raise serializers.ValidationError(_("数值类型查询条件不足"))
+        return attrs

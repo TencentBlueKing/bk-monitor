@@ -115,5 +115,5 @@ export default {
   grok,
   alertStrategy,
   dashboard,
-  clientLog
+  clientLog,
 };

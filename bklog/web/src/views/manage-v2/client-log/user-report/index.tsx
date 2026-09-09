@@ -237,7 +237,7 @@ export default defineComponent({
 
       // 检查是否有未完成的任务
       if (Array.isArray(dataList)) {
-        dataList.forEach((item) => {
+        dataList.forEach(item => {
           if (item.status && item.status !== FileUploadStatus.SUCCESS) {
             shouldPollFileStatus.value = true;
           }
@@ -522,7 +522,7 @@ export default defineComponent({
     // 监听 total 变化，通知父组件更新 tab 中的 count
     watch(
       () => tableData.value.total,
-      (newTotal) => {
+      newTotal => {
         emit('update-total', newTotal);
       },
     );

@@ -47,9 +47,9 @@
               >
                 <li
                   v-for="item in shadowTotal"
+                  :key="item.field_name"
                   style="cursor: pointer"
                   class="select-item"
-                  :key="item.field_name"
                   @click="addField(item)"
                 >
                   <span
@@ -61,14 +61,14 @@
                   >
                   </span>
                   <div
-                    class="display-container rtl-text"
                     v-bk-overflow-tips="{ content: `${item.query_alias || item.field_name}(${item.field_name})` }"
+                    class="display-container rtl-text"
                     :dir="textDir"
                   >
                     <bdi class="field-alias">{{ item.first_name }}</bdi>
                     <bdi
-                      class="field-name"
                       v-if="item.first_name !== item.last_name"
+                      class="field-name"
                       >({{ item.last_name }})</bdi
                     >
                   </div>
@@ -103,14 +103,14 @@
             </div>
             <vue-draggable
               v-bind="dragOptions"
-              class="select-list permanent-list"
               v-model="shadowVisible"
+              class="select-list permanent-list"
             >
               <transition-group>
                 <li
                   v-for="(item, index) in shadowVisible"
-                  class="select-item"
                   :key="item.field_name"
+                  class="select-item"
                 >
                   <span class="icon bklog-icon bklog-ketuodong"></span>
                   <span
@@ -122,8 +122,8 @@
                   >
                   </span>
                   <div
-                    class="display-container rtl-text"
                     v-bk-overflow-tips="{ content: `${item.query_alias || item.field_name}(${item.field_name})` }"
+                    class="display-container rtl-text"
                   >
                     <span class="field-alias">{{ item.query_alias || item.field_name }}</span>
                     <span class="field-name">({{ item.field_name }})</span>
@@ -168,7 +168,6 @@
   import VueDraggable from 'vuedraggable';
 
   import { excludesFields } from '../utils/const.common';
-  import { getCommonFilterAddition } from '../../../../store/helper';
   import { BK_LOG_STORAGE } from '@/store/store.type';
   // 获取 store
   const store = useStore();

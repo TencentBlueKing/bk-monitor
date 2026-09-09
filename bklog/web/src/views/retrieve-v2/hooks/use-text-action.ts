@@ -89,28 +89,31 @@ export default (emit?: (_event: string, ..._args: any[]) => void, from?: string)
   ) => {
     const fieldName = typeof field === 'string' ? field : field?.field_name;
     // 始终按字段名从 store 取类型，避免 Object 叶子落到父级 object 类型
-    const fieldType = (fieldName
-      ? (store.getters.filteredFieldList?.find?.(item => item.field_name === fieldName)?.field_type
-        ?? store.getters.visibleFields?.find?.(item => item.field_name === fieldName)?.field_type
-        ?? store.state.indexFieldInfo?.fields?.find?.(item => item.field_name === fieldName)?.field_type)
-      : undefined)
-      ?? (typeof field === 'object' ? field?.field_type : undefined);
+    const fieldType =
+      (fieldName
+        ? (store.getters.filteredFieldList?.find?.(item => item.field_name === fieldName)?.field_type ??
+          store.getters.visibleFields?.find?.(item => item.field_name === fieldName)?.field_type ??
+          store.state.indexFieldInfo?.fields?.find?.(item => item.field_name === fieldName)?.field_type)
+        : undefined) ?? (typeof field === 'object' ? field?.field_type : undefined);
 
     if (value === '--') {
       handleAddCondition(fieldName, operator, [], isLink, depth, isNestedField);
       return;
     }
 
-    const normalizedValue = String(value ?? '').replace(/<\/?mark>/gim, '').trim();
-    const normalizedFull = fullPlain && fullPlain !== '--'
-      ? String(fullPlain).replace(/<\/?mark>/gim, '').trim()
-      : '';
+    const normalizedValue = String(value ?? '')
+      .replace(/<\/?mark>/gim, '')
+      .trim();
+    const normalizedFull =
+      fullPlain && fullPlain !== '--'
+        ? String(fullPlain)
+            .replace(/<\/?mark>/gim, '')
+            .trim()
+        : '';
     const soleByValue = Boolean(normalizedFull && normalizedFull === normalizedValue);
     const soleByToken = Boolean(
-      isSoleToken
-      || (typeof tokenMeta?.tokenCount === 'number' && tokenMeta.tokenCount === 1 && (
-        !normalizedFull || soleByValue
-      )),
+      isSoleToken ||
+      (typeof tokenMeta?.tokenCount === 'number' && tokenMeta.tokenCount === 1 && (!normalizedFull || soleByValue)),
     );
 
     const payload = resolveAddToSearch({
@@ -128,19 +131,11 @@ export default (emit?: (_event: string, ..._args: any[]) => void, from?: string)
       exactPhrase: true,
     });
 
-    handleAddCondition(
-      payload.field,
-      payload.operator,
-      payload.value,
-      isLink,
-      depth,
-      isNestedField,
-      {
-        fullPlain: payload.fullPlain,
-        fieldType: payload.fieldType,
-        queryString: payload.queryString,
-      },
-    );
+    handleAddCondition(payload.field, payload.operator, payload.value, isLink, depth, isNestedField, {
+      fullPlain: payload.fullPlain,
+      fieldType: payload.fieldType,
+      queryString: payload.queryString,
+    });
   };
 
   // 设置路由参数
@@ -294,37 +289,36 @@ export default (emit?: (_event: string, ..._args: any[]) => void, from?: string)
         // date：fullPlain 若已是格式化展示串，强制回取行内原始时间戳（semantic/ui 会优先用 fullText）
         if (isDateField && field && row && typeof field === 'object') {
           fullPlain = formatScalarFullPlain(getRowFieldValue(row, field)) ?? fullPlain;
-        } else if (
-          (fullPlain === undefined || fullPlain === null || fullPlain === '')
-          && fieldName
-          && row
-        ) {
+        } else if ((fullPlain === undefined || fullPlain === null || fullPlain === '') && fieldName && row) {
           // '' 也视为缺失：Object 叶子 fullPlain 解析失败时用行数据回填
-          const leafField = typeof field === 'object' && field?.field_name === fieldName
-            ? field
-            : { field_name: fieldName };
+          const leafField =
+            typeof field === 'object' && field?.field_name === fieldName ? field : { field_name: fieldName };
           const raw = getRowFieldValue(row, leafField);
           // 对象/数组禁止 String() → "[object Object]"
           fullPlain = formatScalarFullPlain(raw);
         } else if (
-          (fullPlain === undefined || fullPlain === null || fullPlain === '')
-          && field
-          && row
-          && typeof field === 'object'
+          (fullPlain === undefined || fullPlain === null || fullPlain === '') &&
+          field &&
+          row &&
+          typeof field === 'object'
         ) {
           const raw = getRowFieldValue(row, field);
           fullPlain = formatScalarFullPlain(raw);
         }
-        const normalizedActual = String(actualValue ?? '').replace(/<\/?mark>/gim, '').trim();
+        const normalizedActual = String(actualValue ?? '')
+          .replace(/<\/?mark>/gim, '')
+          .trim();
         const normalizedFull = fullPlain
-          ? String(fullPlain).replace(/<\/?mark>/gim, '').trim()
+          ? String(fullPlain)
+              .replace(/<\/?mark>/gim, '')
+              .trim()
           : '';
         const isSoleToken = Boolean(
-          isSoleTokenFromParams
-          || (typeof tokenCountFromParams === 'number'
-            && tokenCountFromParams === 1
-            && (!normalizedFull || normalizedFull === normalizedActual))
-          || (normalizedFull && normalizedFull === normalizedActual),
+          isSoleTokenFromParams ||
+          (typeof tokenCountFromParams === 'number' &&
+            tokenCountFromParams === 1 &&
+            (!normalizedFull || normalizedFull === normalizedActual)) ||
+          (normalizedFull && normalizedFull === normalizedActual),
         );
         handleSearchCondition(
           fieldName || field,

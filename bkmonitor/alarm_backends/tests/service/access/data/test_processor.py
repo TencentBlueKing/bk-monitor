@@ -125,6 +125,8 @@ class TestAccessDataProcess:
         settings.ACCESS_DATA_BATCH_PROCESS_SIZE = 1
         acc_data.pull()
 
+        assert acc_data.check_result_opportunity_high_load is True
+
         c = key.ACCESS_BATCH_DATA_KEY.client
         data_key = key.ACCESS_BATCH_DATA_KEY.get_key(
             strategy_group_key=strategy_group_key, sub_task_id=f"{acc_data.batch_timestamp}.2"

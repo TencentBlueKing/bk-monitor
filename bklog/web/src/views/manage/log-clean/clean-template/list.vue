@@ -44,9 +44,9 @@
           :clearable="true"
           :right-icon="'bk-icon icon-search'"
           data-test-id="cleanTemplateBox_input_cleanTemplateSearch"
+          :placeholder="$t('搜索 模版名称')"
           @change="handleSearchChange"
           @enter="search"
-          :placeholder="$t('搜索 模版名称')"
         >
         </bk-input>
       </div>
@@ -54,8 +54,8 @@
     <section class="clean-template-list">
       <bk-table
         ref="cleanTable"
-        class="clean-table"
         v-bkloading="{ isLoading: isTableLoading }"
+        class="clean-table"
         :data="templateList"
         :limit-list="pagination.limitList"
         :pagination="pagination"

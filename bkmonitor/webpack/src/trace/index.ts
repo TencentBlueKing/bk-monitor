@@ -34,7 +34,7 @@ import { createApp } from 'vue';
 import Api from 'monitor-api/api';
 import { type VueInstance, setVue } from 'monitor-api/utils/index';
 import { immediateRegister } from 'monitor-common/service-worker/service-worker';
-import { getUrlParam, mergeSpaceList, setGlobalBizId } from 'monitor-common/utils';
+import { getUrlParam, mergeSpaceList, parseBizId, setGlobalBizId } from 'monitor-common/utils';
 
 import { bkUiMessage } from './common/message';
 import directives from './directive/index';
@@ -55,7 +55,7 @@ import { userDisplayNameConfigure } from 'monitor-pc/common/user-display-name';
 // import 'monitor-pc/tailwind.css';
 window.source_app = 'trace';
 const spaceUid = getUrlParam('space_uid');
-const bizId = getUrlParam('bizId')?.replace(/\//gim, '');
+const bizId = parseBizId(getUrlParam('bizId'));
 if (process.env.NODE_ENV === 'development') {
   window.site_url = '/';
 }
@@ -82,7 +82,7 @@ if (window.__POWERED_BY_BK_WEWEB__) {
       mergeSpaceList(window.space_list);
       window.username = window.uin;
       window.user_name = window.uin;
-      window.cc_biz_id = +window.bk_biz_id;
+      window.cc_biz_id = parseBizId(window.bk_biz_id);
       window.bk_log_search_url = data.BKLOGSEARCH_HOST;
       setGlobalBizId();
       userDisplayNameConfigure();

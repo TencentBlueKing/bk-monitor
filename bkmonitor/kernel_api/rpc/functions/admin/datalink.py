@@ -57,11 +57,20 @@ DRLRB_COMMON_FIELDS = [
 KIND_EXTRA_FIELDS = {
     "DataId": ["bk_data_id"],
     "ResultTable": ["table_id", "data_type", "bkbase_table_id"],
+    "ChannelBinding": ["bkbase_result_table_name", "channel_name"],
     "VmStorageBinding": ["vm_cluster_name", "bkbase_result_table_name", "table_id"],
     "ElasticSearchBinding": ["es_cluster_name", "table_id", "bkbase_result_table_name", "timezone"],
     "DorisBinding": ["table_id", "bkbase_result_table_name", "doris_cluster_name"],
     "SurrealDBBinding": ["table_id", "bkbase_result_table_name", "surrealdb_cluster_name"],
-    "Databus": ["data_id_name", "bk_data_id", "sink_names", "consumer_group"],
+    "Databus": [
+        "data_id_name",
+        "bk_data_id",
+        "source_kind",
+        "source_name",
+        "role",
+        "sink_names",
+        "consumer_group",
+    ],
     "ConditionalSink": [],
     "BasereportSink": ["vm_storage_binding_names", "result_table_ids"],
 }
@@ -98,6 +107,18 @@ DATALINK_ORDERING_FIELDS = {
     "last_modify_time",
 }
 INCLUDE_VALUES = {"component_config"}
+
+DATALINK_DETAIL_KIND_ORDER = [
+    "DataId",
+    "ResultTable",
+    "ChannelBinding",
+    "VmStorageBinding",
+    "ElasticSearchBinding",
+    "DorisBinding",
+    "BasereportSink",
+    "Databus",
+    "ConditionalSink",
+]
 
 DRLRB_KINDS = set(COMPONENT_CLASS_MAP.keys())
 CLUSTER_CONFIG_KINDS = set(ClusterConfig.KIND_TO_NAMESPACES_MAP.keys())
@@ -716,19 +737,8 @@ def get_datalink_detail(params: dict[str, Any]) -> dict[str, Any]:
 
     data = _serialize_datalink_for_detail(datalink)
 
-    kind_order = [
-        "DataId",
-        "ResultTable",
-        "VmStorageBinding",
-        "ElasticSearchBinding",
-        "DorisBinding",
-        "BasereportSink",
-        "Databus",
-        "ConditionalSink",
-    ]
-
     components: dict[str, list[dict[str, Any]]] = {}
-    for kind in kind_order:
+    for kind in DATALINK_DETAIL_KIND_ORDER:
         if kind not in DRLRB_KINDS:
             continue
         model_class = COMPONENT_CLASS_MAP[kind]

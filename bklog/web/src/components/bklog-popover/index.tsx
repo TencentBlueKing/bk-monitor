@@ -41,6 +41,13 @@ export default defineComponent({
       type: String as PropType<'click' | 'hover' | 'manual'>,
       default: 'click',
     },
+    /**
+     * hover 触发模式下，鼠标移出后延迟隐藏的时间（ms）
+     */
+    hideDelay: {
+      type: Number,
+      default: 120,
+    },
     delegateTarget: {
       type: Object as PropType<HTMLElement>,
       default: null,
@@ -128,7 +135,7 @@ export default defineComponent({
     };
 
     const handleRootElementMouseleave = () => {
-      instance?.hide(120);
+      instance?.hide(props.hideDelay);
     };
 
     const handleContentElementMouseenter = () => {

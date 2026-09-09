@@ -7,6 +7,12 @@
     box-shadow: none;
   }
 
+  &.no-nav-list {
+    .temporary-share .position-bar {
+      margin-left: 0;
+    }
+  }
+
   .nav-append-wrap {
     margin-left: auto;
   }

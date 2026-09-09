@@ -387,10 +387,13 @@ class SceneUnifyQueryHandler(UnifyQueryHandler):
         """Fallback: resolve table_id_conditions → first matching index_set data_label.
 
         Used when UnifyQuery's field_map endpoint does not yet support
-        table_id_conditions routing.
+        table_id_conditions routing. Scan the same related-space union as
+        dimension_values / result-table mapping, otherwise a cluster_id that
+        only exists on a related BCS index set cannot recover fields().
         """
         from apps.log_search.models import IndexSetTag, LogIndexSet, TAG_TYPE_SCENE
 
+        space_uids = IndexSetHandler.get_all_related_space_uids(self.space_uid)
         for and_group in self.table_id_conditions:
             tag_ids = set()
             all_found = True
@@ -412,7 +415,7 @@ class SceneUnifyQueryHandler(UnifyQueryHandler):
             if not all_found or not tag_ids:
                 continue
             for idx_set in LogIndexSet.objects.filter(
-                space_uid=self.space_uid,
+                space_uid__in=space_uids,
                 is_active=True,
             ).values("index_set_id", "tag_ids"):
                 idx_tag_ids = {str(t) for t in idx_set["tag_ids"] if t}

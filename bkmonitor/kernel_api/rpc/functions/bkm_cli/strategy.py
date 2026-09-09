@@ -172,14 +172,14 @@ def _mget_chunks(count: int) -> int:
 
 
 def _build_detect_profiles(strategy_ids: list[int]) -> dict[int, dict[str, Any]]:
-    """算出每个策略的 CHECK_RESULT 成员数配置推导峰值。
+    """按策略级周期清理口径生成 CHECK_RESULT 参考估算。
 
     只对当前页取配置，走 ``get_strategy_by_ids`` 的分块 MGET（每 ``STRATEGY_MGET_CHUNK_SIZE``
     个策略一条命令），因此命令数由页大小决定而非策略总数，不构成 N+1。
 
-    ``point_required`` 与 ``interval`` 都直接调生产函数（``detect_result_point_required`` 与
-    ``core.control.strategy.Strategy.get_interval``）而不重算：这两个值是清理任务和 TTL 的
-    实际依据，一旦本处与生产口径漂移，成本排序就会系统性错位。
+    ``point_required`` 取策略级保留公式。两小时周期任务负责最终收口，因此 ``peak`` 是当前
+    主要容量参考；高负载 Access merge 的低频机会裁剪可能提前降低实际峰值，但不改变该模型
+    仍是近似参考而非精确字节上界。
     """
     if not strategy_ids:
         return {}
@@ -204,12 +204,12 @@ def _build_detect_profiles(strategy_ids: list[int]) -> dict[int, dict[str, Any]]
             profiles[strategy_id] = {"error": f"非法周期: {interval}"}
             continue
 
-        # 热路径 zadd 不裁剪，清理任务每 7200s 才按 point_required 收口一次，
-        # 因此峰值是"保留基线 + 一个清理周期内的新增"，而不是两者取大。
-        # 取大的写法会给出低于实测值的上界（实测 261 > max(30, 7200/30)=240），已被取证否证。
+        # 策略级保留点 + 一个两小时清理周期内的新增点，作为主要容量参考。
         growth = -(-CHECK_RESULT_CLEAN_INTERVAL_SECONDS // interval)
         peak = point_required + growth
         profiles[strategy_id] = {
+            "model_scope": "periodic_reference",
+            "is_safe_upper_bound": False,
             "point_required": point_required,
             "interval": interval,
             "clean_interval_seconds": CHECK_RESULT_CLEAN_INTERVAL_SECONDS,
@@ -610,7 +610,8 @@ _LIST_ENABLED_PARAMS_SCHEMA = {
     "include_item_ids": "operation=list_enabled 可选，是否返回 item_ids 明细，默认 true",
     "include_detect_profile": (
         "operation=list_enabled 可选，是否附带当前页各策略的 point_required / interval / "
-        "CHECK_RESULT 成员数配置推导峰值，默认 false（启用会额外产生分块 MGET）"
+        "CHECK_RESULT 两小时周期清理参考估算；高负载机会裁剪可能降低实际峰值，但该值仍非精确字节上界，"
+        "默认 false（启用会额外产生分块 MGET）"
     ),
 }
 

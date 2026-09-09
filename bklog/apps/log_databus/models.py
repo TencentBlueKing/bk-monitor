@@ -50,7 +50,12 @@ from django_jsonfield_backport.models import (  # noqa  pylint: disable=unused-i
 )
 
 from apps.api import CmsiApi, TransferApi  # noqa
-from apps.log_databus.constants import DORIS_CLUSTER_TYPE, STORAGE_CLUSTER_TYPE, CollectItsmStatus  # noqa
+from apps.log_databus.constants import (  # noqa
+    DORIS_CLUSTER_TYPE,
+    STORAGE_CLUSTER_TYPE,
+    CleanTemplateStatus,
+    CollectItsmStatus,
+)
 from apps.log_databus.constants import EtlConfig  # noqa
 from apps.log_databus.constants import TargetNodeTypeEnum  # noqa
 from apps.log_databus.constants import TargetObjectTypeEnum  # noqa
@@ -194,6 +199,7 @@ class CollectorConfig(CollectorBase):
     is_nanos = models.BooleanField(_("采集项是否为纳秒采集"), default=False)
     enable_v4 = models.BooleanField(_("采集项是否为v4链路"), default=False)
     storage_cluster_type = models.CharField(_("存储集群类型"), max_length=32, default=STORAGE_CLUSTER_TYPE)
+    clean_template_id = models.IntegerField(_("清洗模板ID"), null=True, blank=True, db_index=True)
 
     def get_name(self):
         return self.collector_config_name
@@ -580,6 +586,14 @@ class CleanTemplate(SoftDeleteModel):
     visible_type = models.CharField(_("可见类型"), max_length=64, default=VisibleEnum.CURRENT_BIZ.value)
     visible_bk_biz_id = MultiStrSplitByCommaFieldText(_("可见业务ID"), default="")
     alias_settings = models.JSONField(_("别名配置"), null=True, blank=True)
+    description = models.TextField(_("模板描述"), blank=True, default="")
+    status = models.CharField(
+        _("模板状态"),
+        max_length=32,
+        choices=CleanTemplateStatus.get_choices(),
+        default=CleanTemplateStatus.PUBLISHED.value,
+    )
+    snapshot = models.JSONField(_("模板草稿快照"), null=True, blank=True, default=None)
 
     class Meta:
         verbose_name = _("清洗模板")
@@ -589,6 +603,7 @@ class CleanTemplate(SoftDeleteModel):
 
 class CleanStash(SoftDeleteModel):
     clean_stash_id = models.AutoField(_("清洗缓存id"), primary_key=True)
+    clean_template_id = models.IntegerField(_("清洗模板ID"), null=True, blank=True, db_index=True)
     clean_type = models.CharField(_("模板类型"), max_length=64)
     etl_params = models.JSONField(_("etl配置"), null=True, blank=True)
     etl_fields = models.JSONField(_("etl字段"), null=True, blank=True)

@@ -36,6 +36,8 @@ import { formatMemRss, formatPercent, formatProcessUptimeRange, getProcessBarCol
 import type { ProcessItem } from '../../../types/process';
 
 export type ProcessColumnsRendererCtx = {
+  /** 取列宽缓存值（key -> 像素宽度），无缓存时回退列配置默认宽度 */
+  getColumnWidth?: (colKey: string) => number | undefined;
   /** 行点击回调（进程名列点击时触发） */
   onRowClick: (row: ProcessItem) => void;
 };
@@ -227,7 +229,7 @@ export const useProcessColumnsRenderer = (rendererCtx: ProcessColumnsRendererCtx
     const base: Record<string, unknown> = {
       colKey: config.id,
       title: () => <span class={PROCESS_LIST_ELLIPSIS_CELL_CLASS}>{config.name}</span>,
-      width: config.width,
+      width: rendererCtx.getColumnWidth?.(config.id) || config.width,
       sorter: config.sortable,
       align: config.align,
       ellipsis: false,

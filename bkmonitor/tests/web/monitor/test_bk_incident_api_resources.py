@@ -17,6 +17,7 @@ class _Serializer:
 
 _serializers = SimpleNamespace(
     Serializer=_Serializer,
+    BooleanField=_Field,
     CharField=_Field,
     IntegerField=_Field,
     ChoiceField=_Field,
@@ -24,6 +25,57 @@ _serializers = SimpleNamespace(
     ListField=_Field,
     JSONField=_Field,
 )
+
+
+def _load_incident_list_resource(remote_responses, authorized_biz_ids):
+    source = (PROJECT_ROOT / "packages/monitor_web/incident/resources.py").read_text(encoding="utf-8")
+    resource_start = source.index("class IncidentListResource")
+    resource_end = source.index("class ExportIncidentResource", resource_start)
+    resource_source = source[resource_start:resource_end]
+
+    class FakeGetConfigResource:
+        calls = []
+
+        def request(self, **kwargs):
+            self.calls.append(kwargs)
+            response = remote_responses[len(self.calls) - 1]
+            if isinstance(response, Exception):
+                raise response
+            return response
+
+    scope_ids = {
+        -88888: "bkci_project_with_underscore",
+        -99999: "bksaas_app",
+        2: "bkcc_2",
+        3: "bkcc_3",
+        4: "bkcc_4",
+        10: "bkcc_10",
+    }
+    monitor_ids = {
+        "bkci_project_with_underscore": -88888,
+        "bksaas_app": -99999,
+        "bkcc_2": 2,
+        "bkcc_3": 3,
+        "bkcc_4": 4,
+        "bkcc_10": 10,
+    }
+    namespace = {
+        "IncidentBaseResource": object,
+        "IncidentSearchSerializer": _Serializer,
+        "serializers": _serializers,
+        "resource": SimpleNamespace(space=SimpleNamespace(get_bk_biz_ids_by_user=lambda: list(authorized_biz_ids))),
+        "MONITOR_SCOPE_QUERY_SENTINELS": {-1, -2},
+        "bk_biz_id_to_scope_id": lambda bk_biz_id: scope_ids[bk_biz_id],
+        "scope_id_to_bk_biz_id": lambda scope_id: monitor_ids.get(scope_id, 0),
+        "GetConfigResource": FakeGetConfigResource,
+        "logger": SimpleNamespace(
+            error=lambda *args, **kwargs: None,
+            exception=lambda *args, **kwargs: None,
+            warning=lambda *args, **kwargs: None,
+        ),
+    }
+    exec(resource_source, namespace)
+    return namespace["IncidentListResource"], FakeGetConfigResource
 
 
 def test_processor_incident_callbacks_use_bkmonitor_api_routes():
@@ -161,6 +213,7 @@ def test_panel_detail_api_converts_bk_biz_id_and_proxy_preserves_payload_and_err
         "APIResource": FakeAPIResource,
         "serializers": _serializers,
         "settings": SimpleNamespace(BK_INCIDENT_APIGW_URL="", BK_COMPONENT_API_URL=""),
+        "bk_biz_id_to_scope_id": lambda bk_biz_id: f"bkcc_{bk_biz_id}",
     }
     exec(base_source + panel_source, namespace)
     converted = namespace["GetPanelDetailResource"]().perform_request(
@@ -220,6 +273,43 @@ def test_panel_detail_api_converts_bk_biz_id_and_proxy_preserves_payload_and_err
         raise AssertionError("远端异常必须由薄代理原样抛出")
 
 
+def test_bk_incident_api_handles_single_biz_id_from_querydict():
+    """无请求序列化器的 GET 代理会把 QueryDict 直接传给 API resource。"""
+    source = (PROJECT_ROOT / "api/bk_incident/default.py").read_text(encoding="utf-8")
+    resource_source = source[source.index("class IncidentBaseResource") : source.index("class GetTemplateListResource")]
+
+    class FakeAPIResource:
+        def perform_request(self, validated_request_data):
+            return validated_request_data
+
+    class QueryDictLike(dict):
+        def pop(self, key, *args):
+            if key not in self:
+                if args:
+                    return args[0]
+                raise KeyError(key)
+            value = super().pop(key, *args)
+            return [value]
+
+    def fake_bk_biz_id_to_scope_id(bk_biz_id):
+        try:
+            return f"bkcc_{int(bk_biz_id)}"
+        except (TypeError, ValueError):
+            return ""
+
+    namespace = {
+        "abc": abc,
+        "APIResource": FakeAPIResource,
+        "settings": SimpleNamespace(BK_INCIDENT_APIGW_URL="", BK_COMPONENT_API_URL=""),
+        "bk_biz_id_to_scope_id": fake_bk_biz_id_to_scope_id,
+    }
+    exec(resource_source, namespace)
+
+    params = namespace["IncidentBaseResource"]().perform_request(QueryDictLike(bk_biz_id="10"))
+
+    assert params == {"scope_type": "bkcc", "scope_value": "10"}
+
+
 def test_incident_diagnosis_preserves_interaction_metadata():
     source = (PROJECT_ROOT / "packages/monitor_web/incident/resources.py").read_text(encoding="utf-8")
     resource_start = source.index("class IncidentDiagnosisResource")
@@ -261,13 +351,14 @@ def test_incident_alert_view_returns_anomaly_timestamps():
         def get(cls, _id):
             return SimpleNamespace(
                 snapshot=SimpleNamespace(content=SimpleNamespace(to_dict=lambda: {})),
+                bk_biz_id=2,
                 extra_info=None,
                 feedback=None,
             )
 
     class FakeAlertDocument:
         def __init__(self, **kwargs):
-            self.event = SimpleNamespace()
+            self.event = SimpleNamespace(bk_biz_id=None)
             self.extra_info = kwargs["extra_info"]
 
     namespace = {
@@ -291,17 +382,132 @@ def test_incident_alert_view_returns_anomaly_timestamps():
     assert alert["anomaly_timestamps"] == [1763554080, 1763554200]
 
 
-def test_incident_list_returns_bkci_enabled_space_as_monitor_negative_biz_id():
-    source = (PROJECT_ROOT / "packages/monitor_web/incident/resources.py").read_text(encoding="utf-8")
+def test_incident_list_fetches_enabled_spaces_with_contract_pagination_and_history_fallback():
+    resource_cls, remote_cls = _load_incident_list_resource(
+        remote_responses=[
+            {
+                "objects": [
+                    {
+                        "scope_id": "bkci_project_with_underscore",
+                        "content": {
+                            "enabled": True,
+                            "scope_identity": {"space": {"id": 88888, "space_type_id": "bkci"}},
+                        },
+                    },
+                    {"scope_id": "bkcc_2", "content": {"enabled": True}},
+                    {
+                        "scope_id": "unknown_scope",
+                        "content": {
+                            "enabled": True,
+                            "scope_identity": {"space": {"id": float("nan"), "space_type_id": "bkci"}},
+                        },
+                    },
+                    {"scope_id": "bkcc_3", "content": {"enabled": False}},
+                ],
+                "current_page": 1,
+                "total_pages": 2,
+                "has_next": True,
+            },
+            {
+                "objects": [
+                    {"scope_id": "bkcc_2", "content": {"enabled": True}},
+                    {"scope_id": "bksaas_app", "content": {"enabled": True}},
+                ],
+                "current_page": 2,
+                "has_next": False,
+            },
+        ],
+        authorized_biz_ids=[-88888, -99999, 2, 3],
+    )
 
-    resource_start = source.index("class IncidentListResource")
-    resource_end = source.index("class ExportIncidentResource", resource_start)
-    resource_source = source[resource_start:resource_end]
+    enabled_spaces = resource_cls.fetch_enabled_spaces([-1])
 
-    assert "def get_enabled_space_bk_biz_id" in resource_source
-    assert 'scope_identity.get("space")' in resource_source
-    assert "return -int(space_id)" in resource_source
-    assert 'result["enabled_spaces"].append(self.get_enabled_space_bk_biz_id(item))' in resource_source
+    assert enabled_spaces == [-88888, 2, -99999]
+    assert remote_cls.calls == [
+        {
+            "config_type": "general_config",
+            "scope_type": "bkci",
+            "scope_value": "project_with_underscore",
+            "scope_id_list": ["bkci_project_with_underscore", "bksaas_app", "bkcc_2", "bkcc_3"],
+            "page": 1,
+            "page_size": 1000,
+        },
+        {
+            "config_type": "general_config",
+            "scope_type": "bkci",
+            "scope_value": "project_with_underscore",
+            "scope_id_list": ["bkci_project_with_underscore", "bksaas_app", "bkcc_2", "bkcc_3"],
+            "page": 2,
+            "page_size": 1000,
+        },
+    ]
+
+
+def test_incident_list_limits_enabled_space_query_to_authorized_scope():
+    resource_cls, remote_cls = _load_incident_list_resource(
+        remote_responses=[{"objects": [], "current_page": 1, "has_next": False}],
+        authorized_biz_ids=[2, 3],
+    )
+
+    assert resource_cls.fetch_enabled_spaces([2, 4]) == []
+    assert remote_cls.calls[0]["scope_id_list"] == ["bkcc_2"]
+
+
+def test_incident_list_reads_bkcc_id_from_scope_identity_when_top_level_scope_id_is_missing():
+    resource_cls, _ = _load_incident_list_resource(
+        remote_responses=[
+            {
+                "objects": [
+                    {
+                        "content": {
+                            "enabled": True,
+                            "scope_identity": {
+                                "space": {
+                                    "id": None,
+                                    "space_id": "10",
+                                    "space_uid": "bkcc__10",
+                                    "space_type_id": "bkcc",
+                                },
+                                "bk_biz": {
+                                    "scope_id": "bkcc_10",
+                                    "bk_biz_id": "10",
+                                    "scope_type": "bkcc",
+                                    "scope_value": "10",
+                                },
+                                "scope_id": "bkcc_10",
+                                "bk_biz_id": "10",
+                            },
+                        },
+                    }
+                ],
+                "current_page": 1,
+                "has_next": False,
+            }
+        ],
+        authorized_biz_ids=[10],
+    )
+
+    assert resource_cls.fetch_enabled_spaces([10]) == [10]
+
+
+def test_incident_list_expands_monitor_sentinels_before_calling_bkfara():
+    for requested_biz_ids in ([], [-1], [-2]):
+        resource_cls, remote_cls = _load_incident_list_resource(
+            remote_responses=[{"objects": [], "current_page": 1, "has_next": False}],
+            authorized_biz_ids=[2, 3],
+        )
+
+        assert resource_cls.fetch_enabled_spaces(requested_biz_ids) == []
+        assert remote_cls.calls[0]["scope_id_list"] == ["bkcc_2", "bkcc_3"]
+
+
+def test_incident_list_degrades_enabled_spaces_when_list_configs_fails():
+    resource_cls, _ = _load_incident_list_resource(
+        remote_responses=[RuntimeError("list_configs failed")],
+        authorized_biz_ids=[2],
+    )
+
+    assert resource_cls.fetch_enabled_spaces([2]) == []
 
 
 def test_bk_incident_api_keeps_standard_scope_ids_when_converting_lists():
@@ -312,4 +518,131 @@ def test_bk_incident_api_keeps_standard_scope_ids_when_converting_lists():
     resource_source = source[resource_start:resource_end]
 
     assert "def is_standard_scope_id" in resource_source
-    assert "if self.is_standard_scope_id(bk_biz_id)" in resource_source
+    assert "is_standard_scope_id(bk_biz_id)" in resource_source
+
+
+def test_bk_incident_api_converts_negative_biz_ids_to_standard_scope_ids():
+    source = (PROJECT_ROOT / "api/bk_incident/default.py").read_text(encoding="utf-8")
+    resource_source = source[source.index("class IncidentBaseResource") : source.index("class GetTemplateListResource")]
+
+    class FakeAPIResource:
+        def perform_request(self, validated_request_data):
+            return validated_request_data
+
+    class FakeSpaceApi:
+        calls = []
+
+        @classmethod
+        def get_space_detail(cls, bk_biz_id):
+            cls.calls.append(bk_biz_id)
+            return SimpleNamespace(space_type_id="bkci", space_id="bkce")
+
+    def fake_bk_biz_id_to_scope_id(bk_biz_id):
+        if isinstance(bk_biz_id, str) and bk_biz_id.startswith(("bkcc_", "bcs_", "bkci_", "bksaas_")):
+            return bk_biz_id
+        numeric_bk_biz_id = int(bk_biz_id)
+        if numeric_bk_biz_id in {-1, -2}:
+            raise ValueError("monitor query sentinel must be expanded before scope conversion")
+        if numeric_bk_biz_id < 0:
+            space = FakeSpaceApi.get_space_detail(numeric_bk_biz_id)
+            return f"{space.space_type_id}_{space.space_id}"
+        return f"bkcc_{numeric_bk_biz_id}"
+
+    namespace = {
+        "abc": abc,
+        "APIResource": FakeAPIResource,
+        "settings": SimpleNamespace(BK_INCIDENT_APIGW_URL="", BK_COMPONENT_API_URL=""),
+        "bk_biz_id_to_scope_id": fake_bk_biz_id_to_scope_id,
+    }
+    exec(resource_source, namespace)
+    resource = namespace["IncidentBaseResource"]()
+
+    params = resource.perform_request(
+        {
+            "bk_biz_id": -88888,
+            "bk_biz_id_list": [-88888],
+            "bk_biz_id_config": {"scope_id_list_open": [-88888]},
+        }
+    )
+    assert params == {
+        "scope_type": "bkci",
+        "scope_value": "bkce",
+        "scope_id_list": ["bkci_bkce"],
+        "scope_id_config": {"scope_id_list_open": ["bkci_bkce"]},
+    }
+    assert FakeSpaceApi.calls == [-88888]
+
+    FakeSpaceApi.calls.clear()
+    scope_ids = resource.convert_bk_biz_id_list_to_scope_id_list(
+        {"scope_type": "bkcc"}, [-88888, 2, "bkci_existing", "bcs_project"]
+    )
+    assert scope_ids == ["bkci_bkce", "bkcc_2", "bkci_existing", "bcs_project"]
+    assert FakeSpaceApi.calls == [-88888]
+
+
+def test_bk_incident_api_keeps_bkcc_ids_after_converting_first_non_bkcc_space():
+    """incident_list 会把 bk_biz_ids[0] 写成 scope_type，不能让后续正数业务被编成 bkci_2。"""
+    source = (PROJECT_ROOT / "api/bk_incident/default.py").read_text(encoding="utf-8")
+    resource_source = source[source.index("class IncidentBaseResource") : source.index("class GetTemplateListResource")]
+
+    class FakeAPIResource:
+        def perform_request(self, validated_request_data):
+            return validated_request_data
+
+    namespace = {
+        "abc": abc,
+        "APIResource": FakeAPIResource,
+        "settings": SimpleNamespace(BK_INCIDENT_APIGW_URL="", BK_COMPONENT_API_URL=""),
+        "bk_biz_id_to_scope_id": lambda bk_biz_id: ("bkci_bkce" if int(bk_biz_id) < 0 else f"bkcc_{int(bk_biz_id)}"),
+    }
+    exec(resource_source, namespace)
+    resource = namespace["IncidentBaseResource"]()
+    params = resource.perform_request(
+        {
+            "bk_biz_id": -88888,
+            "bk_biz_id_list": [-88888, 2],
+        }
+    )
+
+    assert params["scope_type"] == "bkci"
+    assert params["scope_value"] == "bkce"
+    assert params["scope_id_list"] == ["bkci_bkce", "bkcc_2"]
+    assert "scope_id_config" not in params
+
+
+def test_bk_incident_api_propagates_unresolved_scope_conversion():
+    source = (PROJECT_ROOT / "api/bk_incident/default.py").read_text(encoding="utf-8")
+    resource_source = source[source.index("class IncidentBaseResource") : source.index("class GetTemplateListResource")]
+
+    class FakeAPIResource:
+        def perform_request(self, validated_request_data):
+            return validated_request_data
+
+    conversion_calls = []
+
+    def failing_scope_converter(bk_biz_id):
+        conversion_calls.append(int(bk_biz_id))
+        raise ValueError(f"cannot resolve bk_biz_id: {bk_biz_id}")
+
+    namespace = {
+        "abc": abc,
+        "APIResource": FakeAPIResource,
+        "settings": SimpleNamespace(BK_INCIDENT_APIGW_URL="", BK_COMPONENT_API_URL=""),
+        "bk_biz_id_to_scope_id": failing_scope_converter,
+    }
+    exec(resource_source, namespace)
+    resource = namespace["IncidentBaseResource"]()
+
+    try:
+        resource.perform_request(
+            {
+                "bk_biz_id": -88888,
+                "bk_biz_id_list": [-88888],
+                "bk_biz_id_config": {"scope_id_list_open": [-88888]},
+            }
+        )
+    except ValueError as error:
+        assert str(error) == "cannot resolve bk_biz_id: -88888"
+    else:
+        raise AssertionError("未解析的监控空间不能降级为非标准 BKFara scope")
+    assert conversion_calls == [-88888]

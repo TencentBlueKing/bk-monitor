@@ -8,6 +8,8 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+import re
+
 from django.utils.translation import gettext as _
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
@@ -17,6 +19,12 @@ from constants.action import GLOBAL_BIZ_ID, ActionPluginType, UserGroupType
 from constants.alert import AlertAssignSeverity
 from constants.strategy import DATALINK_SOURCE
 
+# 条件字段的分组名展示前缀，如 "[维度]bcs_cluster_id"。
+# 分组名仅用于前端选择器的展示别名，随界面语言变化因而无法枚举；一旦被当成 field 提交，
+# 与告警实际的维度键（裸键名或 tags./set./module. 前缀）永远匹配不上，导致规则静默不命中。
+# 合法 field 不会以方括号开头，故统一剥离。
+CONDITION_FIELD_GROUP_PREFIX_REGEX = re.compile(r"^\s*\[[^\[\]]*\]\s*")
+
 
 class ConditionSerializer(serializers.Serializer):
     field = serializers.CharField(label="匹配字段")
@@ -25,6 +33,11 @@ class ConditionSerializer(serializers.Serializer):
         label="匹配方法", choices=["eq", "neq", "include", "exclude", "reg", "nreg", "issuperset"], default="eq"
     )
     condition = serializers.ChoiceField(label="复合条件", choices=["and", "or", ""], default="")
+
+    def validate_field(self, value):
+        cleaned_value = CONDITION_FIELD_GROUP_PREFIX_REGEX.sub("", value, count=1)
+        # 剥离后为空说明 field 本身就只有一个方括号片段，保留原值交由后续匹配处理，避免产生空字段
+        return cleaned_value or value
 
 
 class TagSerializer(serializers.Serializer):

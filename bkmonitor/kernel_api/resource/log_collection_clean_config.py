@@ -1,7 +1,5 @@
 """日志采集清洗配置修改 MCP 资源。"""
 
-import json
-from collections.abc import Mapping
 from typing import Any
 
 from rest_framework import serializers
@@ -9,6 +7,7 @@ from rest_framework.exceptions import PermissionDenied, ValidationError
 
 from bkmonitor.utils.request import get_request_username
 from core.drf_resource import Resource, api
+from kernel_api.resource.log_collection_common import StrictMCPSerializer, normalize_json_list, normalize_json_object
 
 SUPPORTED_ETL_CONFIGS = (
     "bk_log_text",
@@ -18,17 +17,11 @@ SUPPORTED_ETL_CONFIGS = (
 )
 
 
-class StrictSerializer(serializers.Serializer):
+class StrictSerializer(StrictMCPSerializer):
     """拒绝未声明字段，避免 MCP 把模板或其它配置静默传入底层。"""
 
-    def to_internal_value(self, data):
-        if isinstance(data, Mapping):
-            unknown_fields = set(data) - set(self.fields)
-            if unknown_fields:
-                raise serializers.ValidationError(
-                    {field: ["This field is not supported by clean config MCP."] for field in sorted(unknown_fields)}
-                )
-        return super().to_internal_value(data)
+    unsupported_api_name = "clean config MCP"
+    unsupported_field_message = "This field is not supported by {api_name}."
 
 
 class CleanMetadataSerializer(StrictSerializer):
@@ -89,30 +82,6 @@ class CleanFieldSerializer(StrictSerializer):
         label="自定义分词符",
     )
     value = serializers.JSONField(required=False, allow_null=True, label="字段样例值")
-
-
-def normalize_json_object(value: Any) -> dict[str, Any]:
-    if isinstance(value, dict):
-        return value
-    if isinstance(value, str):
-        try:
-            parsed = json.loads(value)
-        except (TypeError, ValueError):
-            return {}
-        return parsed if isinstance(parsed, dict) else {}
-    return {}
-
-
-def normalize_json_list(value: Any) -> list[Any]:
-    if isinstance(value, list):
-        return value
-    if isinstance(value, str):
-        try:
-            parsed = json.loads(value)
-        except (TypeError, ValueError):
-            return []
-        return parsed if isinstance(parsed, list) else []
-    return []
 
 
 def build_clean_config_readback(collector: dict[str, Any]) -> dict[str, Any]:

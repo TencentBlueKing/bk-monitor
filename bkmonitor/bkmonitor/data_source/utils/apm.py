@@ -17,6 +17,7 @@ from django.utils.functional import classproperty
 from django.utils.translation import gettext_lazy as _
 from django.db.models import Q
 
+from bkmonitor.data_source.utils.base import DataSourceTarget
 from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder
 from bkmonitor.data_source.utils import types
 from constants.apm import ApmGlobalTablePrefix
@@ -40,12 +41,10 @@ class LevelTarget:
 
 
 @dataclass(frozen=True)
-class TraceDatasourceTarget:
+class TraceDatasourceTarget(DataSourceTarget):
     """Trace 数据源查询目标，承载原始表、应用、过期时间和层级结果表。"""
 
-    table_id: str
     app: APMAppTarget
-    retention: int | None = None
     levels: list[LevelTarget] = dataclass_field(default_factory=list)
 
     @classmethod

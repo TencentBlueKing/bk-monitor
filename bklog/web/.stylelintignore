@@ -4,5 +4,7 @@
 *.jpg
 *.woff
 
-static/style.css
+src/static/**
+packages/web-v1/**
+monitor-*/**
 

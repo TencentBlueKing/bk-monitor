@@ -1,26 +1,24 @@
 """日志采集接入 MCP 接口路由。"""
 
 from bkmonitor.iam import ActionEnum
-from bkmonitor.iam.drf import BusinessActionPermission
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
-from kernel_api.resource.log_collection import GetLogCollectorResource, ListLogCollectorsResource
+from kernel_api.resource.log_collection import (
+    GetLogCollectorResource,
+    GetLogIndexSetResource,
+    ListLogCollectorsResource,
+)
+from kernel_api.resource.log_collection_discovery import (
+    ListResultTablesResource,
+    ListThirdPartyESClustersResource,
+)
+from kernel_api.resource.log_index_set import ListLogIndexSetGroupsResource
+from kernel_api.views.v4.log_collection_permissions import (
+    CanonicalBusinessActionPermission as BaseCanonicalBusinessActionPermission,
+)
 
 
-class CanonicalBusinessActionPermission(BusinessActionPermission):
-    """权限业务必须与资源实际使用的 bk_biz_id 一致。"""
-
-    def has_permission(self, request, view):
-        canonical_biz_id = request.query_params.get("bk_biz_id")
-        if canonical_biz_id is not None:
-            for alias in ("biz_id", "business_id"):
-                alias_biz_id = request.query_params.get(alias)
-                if alias_biz_id is not None and str(alias_biz_id) != str(canonical_biz_id):
-                    return False
-            request_biz_id = getattr(request, "biz_id", None)
-            if request_biz_id is not None and str(request_biz_id) != str(canonical_biz_id):
-                return False
-            request.biz_id = canonical_biz_id
-        return super().has_permission(request, view)
+class CanonicalBusinessActionPermission(BaseCanonicalBusinessActionPermission):
+    request_data_source = "query"
 
 
 class LogCollectionViewSet(ResourceViewSet):
@@ -30,4 +28,8 @@ class LogCollectionViewSet(ResourceViewSet):
     resource_routes = [
         ResourceRoute("GET", ListLogCollectorsResource, endpoint="list_collectors"),
         ResourceRoute("GET", GetLogCollectorResource, endpoint="get_collector"),
+        ResourceRoute("GET", GetLogIndexSetResource, endpoint="get_index_set"),
+        ResourceRoute("GET", ListLogIndexSetGroupsResource, endpoint="list_index_set_groups"),
+        ResourceRoute("GET", ListThirdPartyESClustersResource, endpoint="list_third_party_es_clusters"),
+        ResourceRoute("GET", ListResultTablesResource, endpoint="list_result_tables"),
     ]

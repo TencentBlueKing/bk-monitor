@@ -63,6 +63,24 @@ const cleanTemplate = {
   method: 'get',
 };
 
+// 获取清洗模板操作人选项
+const cleanTemplateOperators = {
+  url: '/databus/clean_template/operators/',
+  method: 'get',
+};
+
+// 获取清洗模板关联采集项
+const cleanTemplateCollectors = {
+  url: '/databus/clean_template/:clean_template_id/collectors/',
+  method: 'get',
+};
+
+// 同步清洗模板关联采集项
+const syncCleanTemplateCollectors = {
+  url: '/databus/clean_template/:clean_template_id/sync/',
+  method: 'post',
+};
+
 // 清洗模板-详情
 const templateDetail = {
   url: '/databus/clean_template/:clean_template_id/',
@@ -93,6 +111,12 @@ const getEtlPreview = {
   method: 'post',
 };
 
+// 使用已保存清洗模板预览提取结果
+const getTemplateEtlPreview = {
+  url: '/databus/clean_template/:clean_template_id/etl_preview/',
+  method: 'post',
+};
+
 // 清洗清洗列表-删除
 const deleteParsing = {
   url: '/databus/clean/:collector_config_id/destroy_clean/',
@@ -107,10 +131,14 @@ export {
   sync,
   deleteClean,
   cleanTemplate,
+  cleanTemplateOperators,
+  cleanTemplateCollectors,
+  syncCleanTemplateCollectors,
   templateDetail,
   createTemplate,
   updateTemplate,
   deleteTemplate,
   getEtlPreview,
+  getTemplateEtlPreview,
   deleteParsing,
 };

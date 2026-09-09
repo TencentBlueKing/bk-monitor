@@ -28,7 +28,7 @@ export const mapGlobalRangesToSegments = (
   globalRanges: HighlightRange[],
   normalizeEmptyAsQuotes = false,
 ): HighlightRange[][] => {
-  const texts = segments.map((segment) => {
+  const texts = segments.map(segment => {
     const text = typeof segment === 'string' ? segment : String(segment?.text ?? '');
     return normalizeEmptyAsQuotes && !text.length ? '""' : text;
   });
@@ -47,7 +47,7 @@ export const mapGlobalRangesToSegments = (
   texts.forEach((text, index) => {
     const start = offset;
     const end = offset + text.length;
-    globalRanges.forEach((range) => {
+    globalRanges.forEach(range => {
       if (range.end > start && range.start < end) {
         perSegmentRanges[index].push({
           start: Math.max(0, range.start - start),
@@ -83,9 +83,10 @@ export const parseResultMarkedText = (value: unknown) => {
   return { plainText, markRanges };
 };
 
-export const escapeHtml = (value: unknown) => String(value)
-  .replace(/&/g, '&amp;')
-  .replace(/</g, '&lt;')
-  .replace(/>/g, '&gt;')
-  .replace(/"/g, '&quot;')
-  .replace(/'/g, '&#39;');
+export const escapeHtml = (value: unknown) =>
+  String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');

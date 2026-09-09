@@ -25,6 +25,7 @@ from opentelemetry import trace
 
 from bkm_space.utils import bk_biz_id_to_space_uid
 from bkmonitor.data_source.data_source import DataSource, TimeSeriesDataSource
+from bkmonitor.data_source.unify_query.constants import REF_VALUES_RESERVED_FIELD
 from bkmonitor.data_source.unify_query.functions import (
     AggMethods,
     CpAggMethods,
@@ -61,6 +62,7 @@ class UnifyQuery:
         expression: str,
         functions: list | None = None,
         bk_tenant_id: str | None = None,
+        query_output_config: dict | None = None,
     ):
         self.is_partial = False
         self.functions = [] if functions is None else functions
@@ -81,6 +83,7 @@ class UnifyQuery:
             data_source.set_bk_tenant_id(bk_tenant_id)
 
         self.expression = expression
+        self.query_output_config = query_output_config
 
     @cached_property
     def space_uid(self):
@@ -443,6 +446,8 @@ class UnifyQuery:
             "bk_tenant_id": self.bk_tenant_id,
             "not_time_align": not_time_align,
         }
+        if self.query_output_config:
+            params.update(self.query_output_config)
 
         if start_time and end_time:
             if time_alignment and not not_time_align:
@@ -453,6 +458,73 @@ class UnifyQuery:
                 params["end_time"] = str(end_time // 1000)
 
         return params
+
+    @classmethod
+    def _index_named_output_records(
+        cls, params: dict[str, Any], output: dict[str, Any]
+    ) -> dict[tuple[int, tuple[tuple[str, Any], ...]], dict[str, Any]]:
+        output_params = {**params, "query_list": [{"reference_name": output.get("reference_name")}]}
+        records = cls.process_unify_query_data(output_params, {"series": output.get("series") or []})
+        indexed = {}
+        for record in records:
+            record.pop(output.get("reference_name"), None)
+            dimensions = tuple(
+                sorted((key, value) for key, value in record.items() if key not in {"_time_", "_result_"})
+            )
+            key = (record["_time_"], dimensions)
+            if key in indexed:
+                raise ValueError(f"duplicate named output point: {output.get('reference_name')}")
+            indexed[key] = record
+        return indexed
+
+    @classmethod
+    def process_named_outputs_data(
+        cls, params: dict[str, Any], data: dict[str, Any], end_time: int | None = None
+    ) -> tuple[list[dict[str, Any]], bool, dict]:
+        contract_version = data.get("contract_version")
+        if contract_version != "named_outputs/v1":
+            raise ValueError(f"unsupported named outputs response contract: {contract_version}")
+
+        legacy_output_ref = params["legacy_output_ref"]
+        outputs = data.get("outputs") or []
+        outputs_by_ref = {}
+        for output in outputs:
+            reference_name = output.get("reference_name")
+            if not reference_name or reference_name in outputs_by_ref:
+                raise ValueError(f"duplicate or empty named output reference: {reference_name}")
+            outputs_by_ref[reference_name] = output
+        if legacy_output_ref not in outputs_by_ref:
+            raise ValueError(f"legacy output is missing: {legacy_output_ref}")
+
+        indexed_outputs = {
+            reference_name: cls._index_named_output_records(params, output)
+            for reference_name, output in outputs_by_ref.items()
+        }
+        condition_output = outputs_by_ref[legacy_output_ref]
+        condition_records = indexed_outputs[legacy_output_ref]
+        records = []
+        for key, condition_record in condition_records.items():
+            record = dict(condition_record)
+            ref_values = {}
+            for reference_name, output in outputs_by_ref.items():
+                state = output.get("state") or ("PARTIAL" if output.get("is_partial") else "SUCCESS")
+                referenced_record = indexed_outputs[reference_name].get(key)
+                if referenced_record is None:
+                    ref_values[reference_name] = {"state": state if state in {"ERROR", "UNSUPPORTED"} else "MISSING"}
+                else:
+                    ref_values[reference_name] = {"value": referenced_record.get("_result_"), "state": state}
+            record[REF_VALUES_RESERVED_FIELD] = ref_values
+            if not params.get("instant") and end_time and record.get("_time_") == end_time:
+                continue
+            records.append(record)
+
+        condition_state = condition_output.get("state")
+        is_partial = bool(condition_output.get("is_partial")) or condition_state in {"PARTIAL", "ERROR"}
+        condition_params = {**params, "query_list": [{"reference_name": legacy_output_ref}]}
+        series_stat = cls.process_unify_query_series_stat(
+            condition_params, {"series": condition_output.get("series") or []}
+        )
+        return records, is_partial, series_stat
 
     def _query_unify_query(
         self,
@@ -515,9 +587,24 @@ class UnifyQuery:
             span.set_attribute("bk.system", "unify_query")
             span.set_attribute("bk.unify_query.statement", json.dumps(params))
             data = api.unify_query.query_data(**params)
-            is_partial = data.get("is_partial", False)
-            series_stat = self.process_unify_query_series_stat(params, data)
-            records: list[dict[str, Any]] = self.process_unify_query_data(params, data, end_time=end_time)
+            if self.query_output_config and "contract_version" in data:
+                records, is_partial, series_stat = self.process_named_outputs_data(params, data, end_time=end_time)
+            else:
+                if self.query_output_config and "series" not in data:
+                    raise ValueError("legacy named outputs response is missing series")
+                is_partial = data.get("is_partial", False)
+                series_stat = self.process_unify_query_series_stat(params, data)
+                records = self.process_unify_query_data(params, data, end_time=end_time)
+                if self.query_output_config:
+                    legacy_output_ref = self.query_output_config["legacy_output_ref"]
+                    state = "PARTIAL" if is_partial else "SUCCESS"
+                    for record in records:
+                        ref_values = {
+                            output["reference_name"]: {"state": "UNSUPPORTED"}
+                            for output in self.query_output_config["output_list"]
+                        }
+                        ref_values[legacy_output_ref] = {"value": record.get("_result_"), "state": state}
+                        record[REF_VALUES_RESERVED_FIELD] = ref_values
             records = self.process_data_by_datasource(records)
         return records, is_partial, series_stat
 

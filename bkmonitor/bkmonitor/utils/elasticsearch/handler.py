@@ -137,6 +137,10 @@ class QueryStringGenerator:
 
     def _process_values(self, query_string_operator: str, values: list, is_wildcard: bool) -> list:
         """根据操作符预处理值"""
+        # 布尔值需渲染为小写 true/false，Elasticsearch 只接受小写布尔查询值
+        for i, v in enumerate(values):
+            if isinstance(v, bool):
+                values[i] = str(v).lower()
         if query_string_operator in QueryStringOperators.NEED_WILDCARD_OPERATORS:
             values = self._process_values_by_wildcard(values, is_wildcard)
         elif query_string_operator in QueryStringOperators.NEED_ADD_DOUBLE_QUOTATION_OPERATORS:

@@ -4,11 +4,11 @@
     @click="isShowList"
   >
     <span
+      v-bk-tooltips.top="$t('告警')"
       :style="{ color: badgeCount !== 0 ? 'red' : '' }"
       :class="`bklog-icon bklog-${badgeCount !== 0 ? 'gaojing-filled' : 'gaojing-line'}`"
-      v-bk-tooltips.top="$t('告警')" 
     ></span>
-    <span class='warn-table-text'>{{ $t('告警') }}</span>
+    <span class="warn-table-text">{{ $t('告警') }}</span>
     <bk-badge
       v-if="ownPendingCount !== 0"
       style="margin-top: -12px; margin-left: -3px"
@@ -31,14 +31,14 @@
           <template #setting>
             <div style="display: flex; align-items: center; justify-content: center; background-color: #f0f1f5">
               <div
-                class="selector-owner"
                 v-if="active === 'mission'"
+                class="selector-owner"
               >
                 {{ $t('我的') }}
                 <bk-switcher
+                  v-model="filterOwner"
                   class="selector-owner-switch"
                   size="small"
-                  v-model="filterOwner"
                 ></bk-switcher>
               </div>
               <div
@@ -47,9 +47,9 @@
               >
                 <span
                   v-for="type in ['all', 'unHandle']"
+                  :key="type"
                   class="option"
                   :class="{ selected: currentType === type }"
-                  :key="type"
                   @click="handleRadioGroup(type)"
                 >
                   {{ type === 'all' ? $t('全部') : $t('未恢复') }}
@@ -70,7 +70,7 @@
           </template>
 
           <bk-tab-panel
-            v-for="(item, index) in panels"
+            v-for="item in panels"
             :key="item.name"
             :label="item.label"
             :name="item.name"
@@ -92,16 +92,16 @@
             </bk-alert> -->
             <bk-table
               v-if="active === 'mission'"
+              :key="tableKey"
               v-bkloading="{ isLoading: loading }"
               :data="recordListshow"
               :empty-text="$t('暂无内容')"
-              :key="tableKey"
               :max-height="200"
               :min-height="120"
               :outer-border="false"
               :row-border="false"
-              @sort-change="handleSortChange"
               :stripe="true"
+              @sort-change="handleSortChange"
             >
               <bk-table-column
                 :label="$t('告警名称')"
@@ -109,6 +109,7 @@
               >
                 <template #default="{ row }">
                   <div
+                    v-bk-overflow-tips="row.alert_name"
                     class="bklog-table-col-alert-name"
                     :style="{
                       color: '#3a84ff',
@@ -116,7 +117,6 @@
                       '--severity-color': getLevelColor(row.severity),
                     }"
                     @click="handleViewWarningDetail(row)"
-                    v-bk-overflow-tips="row.alert_name"
                   >
                     <span class="severity-level"></span>{{ row.alert_name }}
                   </div>
@@ -177,11 +177,11 @@
             </bk-table>
             <bk-table
               v-if="active === 'config'"
+              :key="tableKey"
               v-bkloading="{ isLoading: loading }"
               :border="false"
               :data="strategyList"
               :empty-text="$t('暂无内容')"
-              :key="tableKey"
               :max-height="200"
               :outer-border="false"
               :row-border="false"
@@ -274,7 +274,7 @@
   const active = ref('mission');
   const typeMap = {
     all: 'ALL',
-    unHandle: 'NOT_SHIELDED_ABNORMAL',
+    unHandle: 'ABNORMAL',
   };
 
   const currentType = ref('all');
@@ -295,9 +295,8 @@
           item.assignee?.some(assignee => assignee === userMeta.value.username) ||
           item.appointee?.some(appointee => appointee === userMeta.value.username),
       );
-    } else {
-      return recordList.value;
     }
+    return recordList.value;
   });
 
   const pageSize = 10;
@@ -375,9 +374,9 @@
 
   const getQueryString = () => {
     const timezone = store.state.indexItem.timezone;
-    const [start_time, end_time] = store.state.indexItem.datePickerValue;
+    const [startTime, endTime] = store.state.indexItem.datePickerValue;
 
-    return `queryString=metric:bk_log_search.index_set.${store.state.indexId}&from=${start_time}&to=${end_time}&timezone=${timezone}`;
+    return `queryString=metric:bk_log_search.index_set.${store.state.indexId}&from=${startTime}&to=${endTime}&timezone=${timezone}`;
   };
 
   const handleJumpMonitor = () => {
@@ -387,34 +386,80 @@
     };
     if (active.value === 'mission') {
       const res = getQueryString();
-      window.open(`${window.MONITOR_URL}/?bizId=${store.state.bkBizId}#/${addressMap[active.value]}?${res}`, '_blank', 'noopener,noreferrer');
+      window.open(
+        `${window.MONITOR_URL}/?bizId=${store.state.bkBizId}#/${addressMap[active.value]}?${res}`,
+        '_blank',
+        'noopener,noreferrer',
+      );
       return;
     }
 
     window.open(
       `${window.MONITOR_URL}/?bizId=${store.state.bkBizId}#/${addressMap[active.value]}?filters=[{"key":"metric_id","value":["bk_log_search.index_set.${store.state.indexId}"]}]`,
       '_blank',
-      'noopener,noreferrer'
+      'noopener,noreferrer',
     );
   };
 
   const handleViewWarningDetail = row => {
-    window.open(`${window.MONITOR_URL}/?bizId=${store.state.bkBizId}#/event-center/detail/${row.id}`, '_blank', 'noopener,noreferrer');
+    window.open(
+      `${window.MONITOR_URL}/?bizId=${store.state.bkBizId}#/event-center/detail/${row.id}`,
+      '_blank',
+      'noopener,noreferrer',
+    );
   };
 
   const handleStrategyInfoClick = row => {
     window.open(
       `${window.MONITOR_URL}/?bizId=${store.state.bkBizId}#/strategy-config/detail/${row.strategy_id}`,
       '_blank',
-      'noopener,noreferrer'
+      'noopener,noreferrer',
     );
+  };
+
+  const requestAlertList = (status: string) => {
+    return $http.request('alertStrategy/alertList', {
+      params: {
+        index_set_id: indexId.value,
+      },
+      data: {
+        status,
+        page_size: pageSize,
+        space_uid: store.state.storage[BK_LOG_STORAGE.BK_SPACE_UID],
+      },
+    });
+  };
+
+  /**
+   * 获取告警角标数量
+   * 角标口径与列表不同：已屏蔽的告警不应再红点提醒，因此固定使用 NOT_SHIELDED_ABNORMAL
+   */
+  const getAlertBadgeCount = async () => {
+    try {
+      if (!indexId.value) {
+        return;
+      }
+
+      const res = await requestAlertList('NOT_SHIELDED_ABNORMAL');
+      const list = res?.data || [];
+
+      badgeCount.value = list.length;
+      ownPendingCount.value = list.filter(item => {
+        return (
+          item.assignee?.some(assignee => assignee === userMeta.value.username) ||
+          item.appointee?.some(appointee => appointee === userMeta.value.username)
+        );
+      }).length;
+    } catch (e) {
+      console.warn(e);
+    }
   };
 
   /**
    * 获取告警列表
    * @param val
    * ALL - 表示查询全部告警记录;
-   * NOT_SHIELDED_ABNORMAL - 表示查询未处理的告警记录;
+   * ABNORMAL - 表示查询未恢复的告警记录，含已屏蔽;
    * MY_ASSIGNEE - 表示我收到的告警记录
    */
   const getAlertListData = async (val: string) => {
@@ -425,26 +470,7 @@
 
       recordList.value = [];
       loading.value = true;
-      const res = await $http.request('alertStrategy/alertList', {
-        params: {
-          index_set_id: indexId.value,
-        },
-        data: {
-          status: val,
-          page_size: pageSize,
-          space_uid: store.state.storage[BK_LOG_STORAGE.BK_SPACE_UID],
-        },
-      });
-
-      if (val === 'NOT_SHIELDED_ABNORMAL') {
-        badgeCount.value = res?.data.length;
-        ownPendingCount.value = res?.data.filter(item => {
-          return (
-            item.assignee?.some(assignee => assignee === userMeta.value.username) ||
-            item.appointee?.some(appointee => appointee === userMeta.value.username)
-          );
-        }).length;
-      }
+      const res = await requestAlertList(val);
 
       recordList.value = res?.data || [];
       originRecordList.value = recordList.value;
@@ -515,11 +541,11 @@
       })
       .then(resp => {
         if (resp.result) {
-          const { query_string, agg_condition } = resp.data;
+          const { query_string: queryString, agg_condition: aggCondition } = resp.data;
 
           const params = {
             search_mode: null,
-            addition: agg_condition.map(item => {
+            addition: aggCondition.map(item => {
               const instance = new ConditionOperator({
                 field: item.key,
                 operator: item.method,
@@ -528,7 +554,7 @@
               });
               return instance.formatApiOperatorToFront();
             }),
-            keyword: query_string,
+            keyword: queryString,
           };
           resolveCommonParams(params).then(() => {
             resolveQueryParams(params, true).then(res => {
@@ -566,7 +592,7 @@
   };
 
   const setMounted = async () => {
-    await getAlertListData('NOT_SHIELDED_ABNORMAL');
+    await getAlertBadgeCount();
 
     const type = typeMap[currentType.value];
     getAlertListData(type);

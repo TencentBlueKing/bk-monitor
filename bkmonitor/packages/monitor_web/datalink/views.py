@@ -9,11 +9,37 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+from bkmonitor.iam import ActionEnum, ResourceEnum
+from bkmonitor.iam.drf import IAMPermission
 from core.drf_resource import resource
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
+from monitor_web.models.collecting import CollectConfigMeta
+
+
+class CollectConfigActionPermission(IAMPermission):
+    """按采集配置所属业务做权限校验，缺少 collect_config_id 时拒绝。"""
+
+    def has_permission(self, request, view):
+        data = request.query_params if request.method == "GET" else request.data
+        collect_config_id = data.get("collect_config_id")
+        if collect_config_id in (None, ""):
+            return False
+        try:
+            collect_config = CollectConfigMeta.objects.only("id", "bk_biz_id").get(id=collect_config_id)
+        except CollectConfigMeta.DoesNotExist:
+            return False
+        if not collect_config.bk_biz_id:
+            return False
+        self.resources = [ResourceEnum.BUSINESS.create_instance(collect_config.bk_biz_id)]
+        return super().has_permission(request, view)
 
 
 class DatalinkStatusViewSet(ResourceViewSet):
+    def get_permissions(self):
+        if self.action == "update_alert_user_groups":
+            return [CollectConfigActionPermission([ActionEnum.MANAGE_COLLECTION])]
+        return [CollectConfigActionPermission([ActionEnum.VIEW_COLLECTION])]
+
     resource_routes = [
         # 获取采集状态信息
         ResourceRoute("GET", resource.datalink.alert_status, endpoint="alert_status"),

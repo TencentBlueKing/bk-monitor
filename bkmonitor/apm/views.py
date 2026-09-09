@@ -32,9 +32,7 @@ from apm.resources import (
     QueryEbpfProfileResource,
     QueryEbpfServiceListResource,
     QueryEndpointResource,
-    QueryEsMappingResource,
     QueryEventResource,
-    QueryFieldsResource,
     QueryFieldStatisticsInfoResource,
     QueryFieldsTopkResource,
     QueryHostInstanceResource,
@@ -49,6 +47,7 @@ from apm.resources import (
     QuerySpanResource,
     QueryTopoInstanceResource,
     QueryTopoNodeResource,
+    SearchServiceNamesResource,
     QueryTopoRelationResource,
     QueryTraceByHostInstanceResource,
     QueryTraceByIdsResource,
@@ -91,7 +90,6 @@ class ApplicationViewSet(ResourceViewSet):
         ResourceRoute("GET", StopApplicationResource, endpoint="stop_application"),
         ResourceRoute("GET", StartApplicationResource, endpoint="start_application"),
         ResourceRoute("GET", QueryRootEndpointResource, endpoint="query_root_endpoint"),
-        ResourceRoute("GET", QueryFieldsResource, endpoint="query_fields"),
         ResourceRoute("POST", QueryEventResource, endpoint="query_event"),
         ResourceRoute("POST", QuerySpanResource, endpoint="query_span"),
         ResourceRoute("POST", QueryEndpointResource, endpoint="query_endpoint"),
@@ -106,7 +104,6 @@ class ApplicationViewSet(ResourceViewSet):
         ResourceRoute("POST", QuerySpanDetailResource, endpoint="query_span_detail"),
         ResourceRoute("POST", UpdateMetricFieldsResource, endpoint="update_metric_fields"),
         ResourceRoute("POST", QueryHostInstanceResource, endpoint="query_host_instance"),
-        ResourceRoute("POST", QueryEsMappingResource, endpoint="query_es_mapping"),
         ResourceRoute("GET", AppConfigResource, endpoint="application_config"),
         ResourceRoute("POST", ReleaseAppConfigResource, endpoint="release_app_config"),
         ResourceRoute("POST", DeleteAppConfigResource, endpoint="delete_app_config"),
@@ -129,6 +126,7 @@ class TopoViewSet(ResourceViewSet):
         ResourceRoute("POST", QueryRemoteServiceRelationResource, endpoint="query_remote_service_relation"),
         ResourceRoute("POST", QueryTopoRelationResource, endpoint="query_topo_relation"),
         ResourceRoute("GET", QueryTopoNodeResource, endpoint="query_topo_node"),
+        ResourceRoute("POST", SearchServiceNamesResource, endpoint="search_service_names"),
     ]
 
 

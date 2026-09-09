@@ -33,6 +33,7 @@ PUBLIC_RESOURCES = {
     ("GET", "/databus_collectors/{collector_config_id}/subscription_status/"),
     ("GET", "/databus_collectors/{collector_config_id}/task_status/"),
     ("GET", "/index_set/{index_set_id}/"),
+    ("GET", "/index_group/"),
     ("GET", "/databus_collectors/{collector_config_id}/update_context/"),
     ("GET", "/search_index_set/"),
     ("GET", "/search_index_set/{index_set_id}/fields/"),
@@ -118,6 +119,18 @@ class ApiGatewayResourcesTests(SimpleTestCase):
 
             resolved = resolve(backend_path.format(index_set_id=1))
             self.assertEqual(resolved.func.actions[method], action)
+
+    def test_index_group_list_resource_maps_to_existing_action(self):
+        resource = self.resources["paths"]["/index_group/"]["get"]["x-bk-apigateway-resource"]
+        self.assertEqual(resource["backend"]["method"], "get")
+        self.assertEqual(resource["backend"]["path"], "/api/v1/index_group/")
+        self.assertEqual(resolve(resource["backend"]["path"]).func.actions["get"], "list")
+
+    def test_log_access_collector_resource_maps_to_existing_action(self):
+        resource = self.resources["paths"]["/databus/log_access/collector/"]["post"]["x-bk-apigateway-resource"]
+        self.assertEqual(resource["backend"]["method"], "post")
+        self.assertEqual(resource["backend"]["path"], "/api/v1/databus/log_access/collector/")
+        self.assertEqual(resolve(resource["backend"]["path"]).func.actions["post"], "collector")
 
     def test_public_search_helper_docs_use_apigw_auth_keys(self):
         for operation_id in (

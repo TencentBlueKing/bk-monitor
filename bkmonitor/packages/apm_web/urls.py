@@ -28,4 +28,5 @@ urlpatterns = [
     re_path(r"^event/", include("apm_web.event.urls")),
     re_path(r"^strategy/", include("apm_web.strategy.urls")),
     re_path(r"^custom_metric/", include("apm_web.custom_metric.urls")),
+    re_path(r"^llm/", include("apm_web.llm.urls")),
 ]

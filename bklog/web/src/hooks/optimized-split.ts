@@ -25,10 +25,7 @@
  */
 
 // 分词属于纯文本计算，需在 Worker 内可用，因此与 hooks-helper 的 DOM 工具分离。
-import {
-  mapGlobalRangesToSegments,
-  parseResultMarkedText,
-} from '@/views/retrieve-core/highlight-range';
+import { mapGlobalRangesToSegments, parseResultMarkedText } from '@/views/retrieve-core/highlight-range';
 
 /**
  *

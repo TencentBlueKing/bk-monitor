@@ -29,6 +29,18 @@ class MonitorAPIGWResource(KernelAPIResource):
         return self.__doc__
 
 
+class BkmCliOpCallResource(MonitorAPIGWResource):
+    """调用 monitor-api 的白名单服务桥操作。"""
+
+    action = "/app/bkm_cli/op/call/"
+    method = "POST"
+    TIMEOUT = 5
+
+    class RequestSerializer(serializers.Serializer):
+        op_id = serializers.CharField()
+        params = serializers.DictField(required=False, default=dict)
+
+
 class CollectConfigListResource(MonitorAPIGWResource):
     """
     获取采集配置

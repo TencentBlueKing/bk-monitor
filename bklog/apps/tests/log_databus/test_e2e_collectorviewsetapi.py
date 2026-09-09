@@ -180,6 +180,7 @@ COLLECTORS_LIST = {
                 "is_nanos": False,
                 "enable_v4": False,
                 "storage_cluster_type": "elasticsearch",
+                "clean_template_id": None,
             }
         ],
     },

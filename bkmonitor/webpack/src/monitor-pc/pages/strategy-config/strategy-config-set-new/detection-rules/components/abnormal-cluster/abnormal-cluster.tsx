@@ -30,6 +30,7 @@ import { CancelToken } from 'monitor-api/cancel';
 import { getIntelligentDetectAccessStatus, getIntelligentModel } from 'monitor-api/modules/strategies';
 
 import IntelligentModelsStore, { IntelligentModelsType } from '../../../../../../store/modules/intelligent-models';
+import { splitNumberHighlightFragments } from '../../../../../text-display-utils';
 import { type IDetectionTypeRuleData, type MetricDetail, DetectionRuleTypeEnum } from '../../../typings';
 import Form from '../form/form';
 import {
@@ -320,8 +321,7 @@ export default class AbnormalCluster extends tsc<AbnormalClusterProps, AbnormalC
       failed: 'error',
     };
     this.tipsData.status = statusMap[resData.status];
-    this.tipsData.message =
-      resData.status_detail?.replace?.(/(([1-9]\d*\.?\d*)|(0\.\d*))/g, '<span class="hl">$1</span>') || '';
+    this.tipsData.message = resData.status_detail || '';
   }
 
   handleFormValueChange() {
@@ -373,8 +373,20 @@ export default class AbnormalCluster extends tsc<AbnormalClusterProps, AbnormalC
             <div
               class='alert-message-number'
               slot='title'
-              domPropsInnerHTML={this.tipsData.message}
-            />
+            >
+              {splitNumberHighlightFragments(this.tipsData.message).map(fragment =>
+                fragment.highlight ? (
+                  <span
+                    key={fragment.start}
+                    class='hl'
+                  >
+                    {fragment.text}
+                  </span>
+                ) : (
+                  fragment.text
+                )
+              )}
+            </div>
           </bk-alert>
         )}
         <Form

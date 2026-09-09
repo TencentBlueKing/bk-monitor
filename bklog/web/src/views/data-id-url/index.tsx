@@ -50,11 +50,11 @@ export default defineComponent({
         .request('retrieve/getIndexSetDataByDataId', { query: { bk_data_id: linkId } }, { catchIsShowMessage: false })
         .then(resp => {
           if (resp.result) {
-            const { index_set_id, space_uid } = resp.data;
+            const { index_set_id: indexSetId, space_uid: spaceUid } = resp.data;
             router.push({
               name: 'retrieve',
-              params: { indexId: index_set_id },
-              query: { ...route.query, spaceUid: space_uid, bizId: undefined },
+              params: { indexId: indexSetId },
+              query: { ...route.query, spaceUid, bizId: undefined },
             });
             return;
           }

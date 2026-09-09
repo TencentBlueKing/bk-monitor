@@ -154,6 +154,7 @@ class TestDataSource:
         # 全局屏蔽外部的依赖
         mocker.patch("metadata.models.DataSource.create_mq", return_value=True)
         mocker.patch("metadata.models.DataSource.refresh_gse_config", return_value=True)
+        mocker.patch("metadata.models.DataSource.refresh_gse_config_to_gse", return_value=True)
         mocker.patch("metadata.models.InfluxDBStorage.create_database", return_value=True)
         mocker.patch("metadata.models.InfluxDBStorage.create_rp", return_value=True)
         mocker.patch("metadata.models.KafkaStorage.ensure_topic", return_value=True)

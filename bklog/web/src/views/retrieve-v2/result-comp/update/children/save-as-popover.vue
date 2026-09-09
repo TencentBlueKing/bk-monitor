@@ -28,8 +28,8 @@
           label="模板名称"
         >
           <bk-input
-            class="template-name-input"
             v-model="formModel.editStr"
+            class="template-name-input"
           />
         </bk-form-item>
         <div class="button-wrap">
@@ -110,7 +110,7 @@
       align-items: center;
       margin-top: 8px;
 
-      button{
+      button {
         font-size: 12px;
       }
     }

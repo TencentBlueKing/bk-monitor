@@ -26,6 +26,7 @@
 
 import { computed, defineComponent, reactive, shallowRef, watch } from 'vue';
 
+import { getBizRouteHref } from 'monitor-common/utils';
 import {
   type ILegacyAlarmCenterQuery,
   getAlarmCenterListHash,
@@ -177,7 +178,7 @@ export default defineComponent({
       // 如果 告警来源 是监控策略就要跳转到 策略详情 。
       if (alarmDetail.value.plugin_id === 'bkmonitor') {
         window.open(
-          `${location.origin}${location.pathname}?bizId=${alarmDetail.value.bk_biz_id}/#/strategy-config/detail/${alarmId.value}?fromEvent=true`
+          getBizRouteHref(`/strategy-config/detail/${alarmId.value}?fromEvent=true`, alarmDetail.value.bk_biz_id)
         );
       } else if (alarmDetail.value.plugin_id) {
         // 否则都新开一个页面并添加 告警源 查询，其它查询项保留。

@@ -30,7 +30,7 @@ import { Component as tsc } from 'vue-tsx-support';
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
 import { getLinkMapping, listStickySpaces } from 'monitor-api/modules/commons';
 import { getDashboardList } from 'monitor-api/modules/grafana';
-import { APP_NAV_COLORS, LANGUAGE_COOKIE_KEY } from 'monitor-common/utils';
+import { APP_NAV_COLORS, LANGUAGE_COOKIE_KEY, parseBizId } from 'monitor-common/utils';
 import debounce from 'monitor-common/utils/debounce-decorator';
 import bus from 'monitor-common/utils/event-bus';
 import { docCookies, random } from 'monitor-common/utils/utils';
@@ -171,8 +171,14 @@ export default class App extends tsc<object> {
       return list;
     }
     list = this.routeList.find(item => item.id === this.navActive)?.children || [];
-    // ai 设置 enable_aiops为true 则ai设置不展示 false 则ai设置页面展示
-    list = list.filter(item => !(item.id === 'ai' && !window.enable_aiops));
+    list = list.filter(item => {
+      // ai 设置 enable_aiops为true 则ai设置不展示, false 则ai设置页面展示
+      if (item.id === 'ai') return !window.enable_aiops;
+      if (item.id === 'rum-explore') {
+        return window.rum_biz_list?.includes(+this.bizId);
+      }
+      return true;
+    });
     return list;
   }
   get navRouteList() {
@@ -214,6 +220,8 @@ export default class App extends tsc<object> {
   }
   @Watch('$route.name', { immediate: true })
   async handlerRouteChange() {
+    // 切换子应用的时候，需要以url为准矫正最新的业务id
+    this.checkAndUpdateBizId();
     this.handleSowNav();
     this.headerNav = this.navActive;
   }
@@ -244,6 +252,14 @@ export default class App extends tsc<object> {
       },
     ];
     this.getDocsLinkMapping();
+  }
+  /** 检查并更新业务id。旧链接 `?bizId=2/#/` 的 search 是 `bizId=2/`，必须走 parseBizId。 */
+  checkAndUpdateBizId() {
+    const urlBizId = parseBizId(new URL(window.location.href).searchParams.get('bizId'));
+    const storeBizId = this.$store.getters.bizId;
+    if (Number.isFinite(urlBizId) && urlBizId !== storeBizId) {
+      this.$store.commit('app/SET_BIZ_ID', urlBizId);
+    }
   }
   /** 获取文档链接 */
   async getDocsLinkMapping() {

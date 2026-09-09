@@ -70,7 +70,8 @@ const cleanList = () => import(/* webpackChunkName: 'sdk-track' */ '@/views/mana
 const cleanCreate = () => import(/* webpackChunkName: 'sdk-track' */ '@/views/manage/log-clean/clean-manage/create');
 const cleanTempCreate = () =>
   import(/* webpackChunkName: 'sdk-track' */ '@/views/manage/log-clean/clean-template/create');
-const cleanTemplate = () => import(/* webpackChunkName: 'sdk-track' */ '@/views/manage/log-clean/clean-template/list');
+const cleanTemplate = () =>
+  import(/* webpackChunkName: 'v2-sdk-track' */ '@/views/manage-v2/log-clean/clean-template/list');
 const ArchiveRepository = () =>
   import(/* webpackChunkName: 'sdk-track' */ '@/views/manage-v2/log-archive/archive-repository/index.tsx');
 const ArchiveList = () =>
@@ -105,7 +106,6 @@ const v2CleanTempCreate = () =>
 
 const v2CleanCreate = () => import(/* webpackChunkName: 'v2-sdk-track' */ '@/views/manage-v2/log-clean/create-clean');
 const GrokManage = () => import(/* webpackChunkName: 'grok-manage' */ '@/views/manage-v2/grok-manage/index.tsx');
-
 
 /**
  * log_manage_v2 特性开关判定 mixin

@@ -1274,21 +1274,48 @@ class MergeIssueResource(Resource):
 
 
 class SplitIssueResource(Resource):
-    """拆分单个 member Issue：web 端薄壳，转 api role 端 ``api.issue.split`` 执行。"""
+    """拆分 member Issue：web 端薄壳，转 api role 端 ``api.issue.split`` 执行。
+
+    入参二选一（由 validate 强制）：
+    - ``member_issue_ids``（批量 ≤50，单条拆分传长度 1 的列表）：api role 端原生批量
+      执行（逐条独立、部分失败不阻塞），返回逐条结果 ``results``
+    - ``member_issue_id``（旧，单条）：原样透传旧单条契约（响应 shape / 失败抛错语义
+      均不变），前端未适配新入参期间发布不中断；前端适配完成后移除
+    """
 
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(label="业务ID")
-        member_issue_id = IssueIDField(label="并入 Issue ID")
-        # 拆分依据非必填：缺省/空列表均合法（下游 bulk_reset_for_split 与 split_info 已按空兜底）
+        member_issue_id = IssueIDField(label="并入 Issue ID（旧单条，兼容保留）", required=False)
+        member_issue_ids = serializers.ListField(
+            label="并入 Issue ID 列表",
+            child=IssueIDField(),
+            required=False,
+            min_length=1,
+            max_length=50,
+        )
+        # 拆分依据非必填：缺省/空列表均合法（下游 bulk_reset_for_split 与 split_info 已按空兜底）；
+        # 批量拆分时同一 reasons 应用到全部条目（与需求"每条明细拆分行为与单条一致"对齐）
         reasons = serializers.ListField(label="拆分依据", child=serializers.CharField(), required=False, default=list)
 
+        def validate(self, attrs):
+            has_single = attrs.get("member_issue_id") is not None
+            has_batch = attrs.get("member_issue_ids") is not None
+            if has_single == has_batch:
+                raise serializers.ValidationError("member_issue_id 与 member_issue_ids 必须二选一")
+            return attrs
+
     def perform_request(self, validated_request_data: dict) -> dict:
-        return api.issue.split(
-            bk_biz_id=validated_request_data["bk_biz_id"],
-            member_issue_id=validated_request_data["member_issue_id"],
-            reasons=validated_request_data["reasons"],
-            operator=get_request_username(),
-        )
+        split_kwargs = {
+            "bk_biz_id": validated_request_data["bk_biz_id"],
+            "reasons": validated_request_data["reasons"],
+            "operator": get_request_username(),
+        }
+        if validated_request_data.get("member_issue_id") is not None:
+            # 旧单条契约：原样透传（响应 shape 与失败抛错语义由 api role 端旧路径保证）
+            split_kwargs["member_issue_id"] = validated_request_data["member_issue_id"]
+        else:
+            split_kwargs["member_issue_ids"] = validated_request_data["member_issue_ids"]
+        return api.issue.split(**split_kwargs)
 
 
 _MERGE_SOURCES_ANOMALY_FALLBACK_BUFFER = 30 * 86400
@@ -1369,17 +1396,19 @@ class ListMergeSourcesResource(Resource):
             return result
 
         member_ids = [r.member_issue_id for r in relations]
-        # 同次 ES 查询多 source 一个 first_alert_time，用于后续 anomaly_message 查询的索引时间窗
+        # 同次 ES 查询多 source first_alert_time（后续 anomaly_message 查询的索引时间窗）与 alert_count（成员告警数）
         member_hits = (
             IssueDocument.search(all_indices=True)
             .filter("terms", _id=member_ids)
-            .source(["name", "status", "first_alert_time"])
+            .source(["name", "status", "first_alert_time", "last_alert_time", "alert_count"])
             .params(size=len(member_ids))
             .execute()
             .hits
         )
         name_map = {hit.meta.id: getattr(hit, "name", None) for hit in member_hits}
         first_alert_time_map = {hit.meta.id: int(getattr(hit, "first_alert_time", 0) or 0) for hit in member_hits}
+        last_alert_time_map = {hit.meta.id: int(getattr(hit, "last_alert_time", 0) or 0) for hit in member_hits}
+        alert_count_map = {hit.meta.id: int(getattr(hit, "alert_count", 0) or 0) for hit in member_hits}
         # member 当前 ES status：方案 A cascade follow 落地后 active member 的 status 会跟随主，
         # 前端可据此展示 member 当前真实状态（如"已跟随主 Issue RESOLVED"）
         member_es_status_map = {hit.meta.id: getattr(hit, "status", None) for hit in member_hits}
@@ -1392,9 +1421,16 @@ class ListMergeSourcesResource(Resource):
                 "member_issue_id": r.member_issue_id,
                 "member_name": name_map.get(r.member_issue_id) or f"{r.member_issue_id} (已删除)",
                 "anomaly_message": anomaly_map.get(r.member_issue_id, "--"),
+                # 成员告警数：active 成员合并后冻结（文档值即合并口径）；
+                # split 条目为文档当前值，拆分后可能随新告警推进。ES 缺失时兜底 0
+                "alert_count": alert_count_map.get(r.member_issue_id, 0),
                 "merge_reasons": r.merge_reasons,
                 "merge_operator": r.create_user,
                 "merge_time": int(r.create_time.timestamp()) if r.create_time else 0,
+                # 成员自身的告警时间线（秒级时间戳）：合并后成员文档冻结，即合并前的真实时间，
+                # 供合并明细展示「最早发生时间 / 最后出现时间」。ES 缺失时为 0，前端按占位渲染
+                "first_alert_time": first_alert_time_map.get(r.member_issue_id, 0),
+                "last_alert_time": last_alert_time_map.get(r.member_issue_id, 0),
                 # 关系状态（active / split）。旧字段 `status` 保留一个发布周期向后兼容，
                 # 待前端切到 `relation_status` 后下一版移除
                 "status": r.status,
@@ -1402,6 +1438,10 @@ class ListMergeSourcesResource(Resource):
                 # member 自身的 ES status（PENDING_REVIEW / UNRESOLVED / RESOLVED / ARCHIVED）。
                 # ES 缺失时为 None，前端按"已删除"占位渲染
                 "member_es_status": member_es_status_map.get(r.member_issue_id),
+                # 上一跳主 Issue：该成员是"随着某个已成组的主一起被并入"时非空（扁平化 reparent）。
+                # 纯溯源标签，可能指向已不在本组的 Issue（上一跳主随后被拆分），
+                # 前端不得据此假设它仍是本组成员。直接合并进来的成员为 None。
+                "via_issue_id": r.via_issue_id,
             }
             if r.status == IssueMergeRelation.STATUS_SPLIT:
                 item.update(

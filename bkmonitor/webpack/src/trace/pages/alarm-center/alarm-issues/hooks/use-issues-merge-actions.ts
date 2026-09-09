@@ -110,12 +110,6 @@ export function useIssuesMergeActions(options: UseIssuesMergeActionsOptions) {
 
   // ===================== 合并按钮禁用判定 =====================
 
-  /** 选中行中主 Issue 的数量 */
-  const mainIssueCount = computed(() => {
-    const selectedSet = new Set(selectedRowKeys.value);
-    return data.value.filter(item => selectedSet.has(item.id) && item.merge_status?.role === 'main').length;
-  });
-
   /** 选中行中是否包含不同空间的 Issue */
   const hasMultipleSpaces = computed(() => {
     const selectedSet = new Set(selectedRowKeys.value);
@@ -127,8 +121,7 @@ export function useIssuesMergeActions(options: UseIssuesMergeActionsOptions) {
   const mergeDisabled = computed(() => {
     const hasSelection = selectedRowKeys.value.length > 0;
     if (!hasSelection || selectedRowKeys.value.length < 2) return true;
-    if (hasMultipleSpaces.value) return true;
-    return mainIssueCount.value > 1;
+    return hasMultipleSpaces.value;
   });
 
   /** 合并按钮禁用时的 tooltip 提示 */
@@ -137,7 +130,6 @@ export function useIssuesMergeActions(options: UseIssuesMergeActionsOptions) {
     if (!hasSelection) return t('请先选择 Issue');
     if (selectedRowKeys.value.length < 2) return t('请至少选择 2 个 Issue');
     if (hasMultipleSpaces.value) return t('不支持跨空间合并 Issue');
-    if (mainIssueCount.value > 1) return t('主 Issue 不支持再并入其他主 Issue');
     return '';
   });
 

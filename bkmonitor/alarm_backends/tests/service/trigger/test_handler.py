@@ -9,27 +9,18 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-
 import pytest
-from mock import MagicMock
 
-from alarm_backends.core.cache.key import ANOMALY_SIGNAL_KEY, SERVICE_LOCK_TRIGGER
-from alarm_backends.core.lock.service_lock import service_lock
+from alarm_backends.core.cache.key import ANOMALY_SIGNAL_KEY
 from alarm_backends.service.trigger.handler import TriggerHandler
+from core.errors.alarm_backends import LockError
 
 pytestmark = pytest.mark.django_db
 
 
 @pytest.fixture()
-def processor(mocker):
-    m = MagicMock()
-    mocker.patch("alarm_backends.service.trigger.handler.TriggerProcessor", return_value=m)
-    return m
-
-
-@pytest.fixture()
-def sleep(mocker):
-    return mocker.patch("time.sleep", return_value=None)
+def run_trigger_item(mocker):
+    return mocker.patch("alarm_backends.service.trigger.handler.run_trigger_item")
 
 
 class TestHandler(object):
@@ -39,50 +30,46 @@ class TestHandler(object):
     def teardown(self):
         ANOMALY_SIGNAL_KEY.client.flushall()
 
-    def test_no_data(self, processor):
+    def test_no_data(self, run_trigger_item):
         handler = TriggerHandler()
         handler.DATA_FETCH_TIMEOUT = 0
         handler.handle()
 
-        assert processor.process.call_count == 0
+        assert run_trigger_item.call_count == 0
         assert ANOMALY_SIGNAL_KEY.client.llen(ANOMALY_SIGNAL_KEY.get_key()) == 0
 
-    def test_parse_error(self, processor):
+    def test_parse_error(self, run_trigger_item):
         ANOMALY_SIGNAL_KEY.client.lpush(ANOMALY_SIGNAL_KEY.get_key(), "1.2.3")
 
         handler = TriggerHandler()
         handler.handle()
 
-        assert processor.process.call_count == 0
+        assert run_trigger_item.call_count == 0
         assert ANOMALY_SIGNAL_KEY.client.llen(ANOMALY_SIGNAL_KEY.get_key()) == 0
 
-    def test_start(self, processor):
+    def test_start(self, run_trigger_item):
         ANOMALY_SIGNAL_KEY.client.lpush(ANOMALY_SIGNAL_KEY.get_key(), "1.2")
 
         handler = TriggerHandler()
         handler.handle()
 
-        assert processor.process.call_count == 1
+        run_trigger_item.assert_called_once_with("1", "2", executor="trigger_worker")
         assert ANOMALY_SIGNAL_KEY.client.llen(ANOMALY_SIGNAL_KEY.get_key()) == 0
 
-    def test_exception(self, processor):
-        def process(*args, **kwargs):
-            raise Exception("test exc")
-
-        processor.process.side_effect = process
-
+    def test_empty_batch(self, run_trigger_item):
+        run_trigger_item.return_value = 0
         ANOMALY_SIGNAL_KEY.client.lpush(ANOMALY_SIGNAL_KEY.get_key(), "1.2")
 
         handler = TriggerHandler()
         handler.handle()
 
-        assert processor.process.call_count == 1
+        run_trigger_item.assert_called_once_with("1", "2", executor="trigger_worker")
         assert ANOMALY_SIGNAL_KEY.client.llen(ANOMALY_SIGNAL_KEY.get_key()) == 0
 
-    def test_lock(self, processor, sleep):
-        with service_lock(SERVICE_LOCK_TRIGGER, strategy_id=1, item_id=2):
-            ANOMALY_SIGNAL_KEY.client.lpush(ANOMALY_SIGNAL_KEY.get_key(), "1.2")
-            handler = TriggerHandler()
-            handler.handle()
-            assert processor.process.call_count == 0
-            assert ANOMALY_SIGNAL_KEY.client.llen(ANOMALY_SIGNAL_KEY.get_key()) == 1
+    def test_lock(self, run_trigger_item):
+        run_trigger_item.side_effect = LockError(msg="locked")
+        ANOMALY_SIGNAL_KEY.client.lpush(ANOMALY_SIGNAL_KEY.get_key(), "1.2")
+        handler = TriggerHandler()
+        handler.handle()
+        run_trigger_item.assert_called_once_with("1", "2", executor="trigger_worker")
+        assert ANOMALY_SIGNAL_KEY.client.llen(ANOMALY_SIGNAL_KEY.get_key()) == 1

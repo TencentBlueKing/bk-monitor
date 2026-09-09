@@ -76,7 +76,7 @@ export default {
         const re = new RegExp(searchStr.replace(/[-[\]{}()*+?.,\\^$|#\s*]/g, '\\$&'), regexFlags);
         const tempResultArray = [];
 
-        resultArray.forEach((segment) => {
+        resultArray.forEach(segment => {
           if (segment.style === null) {
             const match = re.exec(segment.str);
             if (match) {
@@ -106,14 +106,14 @@ export default {
       // 再处理 isUnique 为 false 的高亮项
       highlights
         .filter(h => !h.isUnique)
-        .forEach((highlight) => {
+        .forEach(highlight => {
           const { str: searchStr, style } = highlight;
           const regexFlags = caseInsensitive ? 'g' : 'gi';
 
           const re = new RegExp(searchStr.replace(/[-[\]{}()*+?.,\\^$|#\s*]/g, '\\$&'), regexFlags);
           const tempResultArray = [];
 
-          resultArray.forEach((segment) => {
+          resultArray.forEach(segment => {
             if (segment.style === null) {
               let matchIndex = 0;
               let match;
@@ -152,21 +152,20 @@ export default {
           <span style={rowStyle}>
             {isShowKey && (
               <span>
-                <span style={tagStyle}>
-                  {item.key}:
-                </span>
+                <span style={tagStyle}>{item.key}:</span>
                 {'\u00a0'}
               </span>
             )}
-            {item.val.map((item) => {
-              if (item.style) return (
-                <span
-                  style={item.style}
-                  data-index={item?.isHighLight ? 'light' : 'filter'}
-                >
-                  {item.str}
-                </span>
-              );
+            {item.val.map(item => {
+              if (item.style)
+                return (
+                  <span
+                    style={item.style}
+                    data-index={item?.isHighLight ? 'light' : 'filter'}
+                  >
+                    {item.str}
+                  </span>
+                );
               return item.str;
             })}
             &nbsp;

@@ -10,7 +10,10 @@ specific language governing permissions and limitations under the License.
 """
 import logging
 
+from django.conf import settings
+
 from alarm_backends.core.cache.key import DATA_SIGNAL_KEY
+from alarm_backends.core.cache.strategy_cost_snapshot import RedisStrategyCostSnapshotCollector
 from alarm_backends.core.cluster import get_cluster
 from bkmonitor.models import CacheNode
 from core.prometheus import metrics
@@ -35,11 +38,13 @@ class RedisMetricCollectReport(object):
         self.client = DATA_SIGNAL_KEY.client
         # 支持按部署集群采集
         self.cluster_name = get_cluster().name
+        self.successful_nodes_info = []
 
     def get_redis_info(self):
         # 获取当前集群内节点列表
         redis_nodes = CacheNode.objects.filter(is_enable=True, cluster_name=self.cluster_name)
         nodes_info = []
+        self.successful_nodes_info = []
         node_label = {
             "err": "",
             "cluster_name": self.cluster_name,
@@ -52,6 +57,7 @@ class RedisMetricCollectReport(object):
                 node_info = self.get_node_redis_info(node)
                 node_info.update(node_label)
                 nodes_info.append(node_info)
+                self.successful_nodes_info.append((node, node_info))
             except Exception as e:
                 node_label["err"] = str(e)
                 metrics.EXPORTER_LAST_SCRAPE_ERROR.labels(**node_label).set(1)
@@ -263,3 +269,9 @@ class RedisMetricCollectReport(object):
         nodes_info = self.get_redis_info()
         for node_info in nodes_info:
             self.set_redis_metric_data(node_info)
+        if settings.ENABLE_REDIS_STRATEGY_COST_SNAPSHOT:
+            try:
+                RedisStrategyCostSnapshotCollector().collect(self.successful_nodes_info)
+            except Exception:
+                # 成本快照是低优先级观测能力，失败不能影响原有 Redis 指标采集与上报。
+                logger.exception("collect redis strategy cost snapshots failed")

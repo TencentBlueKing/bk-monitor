@@ -159,13 +159,13 @@ class UseSegmentProp {
         link: this.delineate
           ? undefined
           : {
-            tooltip: this.$t('新开标签页'),
-            iconName: 'bklog-icon bklog-jump',
-            onClick: (e) => {
-              e.stopPropagation();
-              taskEventManager.executeFn('is', true);
+              tooltip: this.$t('新开标签页'),
+              iconName: 'bklog-icon bklog-jump',
+              onClick: e => {
+                e.stopPropagation();
+                taskEventManager.executeFn('is', true);
+              },
             },
-          },
       },
       {
         id: 'not',
@@ -176,7 +176,7 @@ class UseSegmentProp {
         link: {
           tooltip: this.$t('新开标签页'),
           iconName: 'bklog-icon bklog-jump',
-          onClick: (e) => {
+          onClick: e => {
             e.stopPropagation();
             taskEventManager.executeFn('not', true);
           },
@@ -203,14 +203,14 @@ class UseSegmentProp {
         },
       },
     ]
-      .filter((item) => {
+      .filter(item => {
         if (window?.__IS_MONITOR_TRACE__) {
           // Trace 宿主内没有「新建检索」「引用至小鲸」的落地页，无论 disabled 如何都要剔除
           return !['new-search-page-is', 'add-to-ai'].includes(item.id) && !item.disabled;
         }
         return !item.disabled;
       })
-      .map((item) => {
+      .map(item => {
         if (window?.__IS_MONITOR_TRACE__) {
           return {
             ...item,
@@ -235,52 +235,53 @@ class UseSegmentProp {
         },
       },
       [
-        eventBoxList.map(item => h(
-          'div',
-          {
-            class: 'segment-event-box',
-            attrs: {
-              'data-item-id': item.id,
-            },
-            on: {
-              click: item.onClick,
-            },
-          },
-          [
-            h(
-              'span',
-              {
-                class: 'segment-event-btn',
+        eventBoxList.map(item =>
+          h(
+            'div',
+            {
+              class: 'segment-event-box',
+              attrs: {
+                'data-item-id': item.id,
               },
-              [
-                h('span', { class: 'segment-btn-left', style: { display: 'inline-flex' } }, [
-                  item.svg
-                    ? h('img', { attrs: { src: item.svg }, style: 'width: 16px; height: 16px; margin-right: 4px;' })
-                    : h('i', { class: item.iconName }),
-                  h('span', {}, [item.text]),
-                ]),
-                item.link
-                  ? h(
-                    'div',
-                    {
-                      class: 'segment-new-link',
-                      on: { ...(item.link.onClick ? { click: item.link.onClick } : {}) },
-                      directives: item.link.tooltip
-                        ? [
-                          {
-                            name: 'bk-tooltips',
-                            value: item.link.tooltip,
-                          },
-                        ]
-                        : [],
-                    },
-                    [h('i', { class: item.link.iconName })],
-                  )
-                  : null,
-              ],
-            ),
-          ],
-        ),
+              on: {
+                click: item.onClick,
+              },
+            },
+            [
+              h(
+                'span',
+                {
+                  class: 'segment-event-btn',
+                },
+                [
+                  h('span', { class: 'segment-btn-left', style: { display: 'inline-flex' } }, [
+                    item.svg
+                      ? h('img', { attrs: { src: item.svg }, style: 'width: 16px; height: 16px; margin-right: 4px;' })
+                      : h('i', { class: item.iconName }),
+                    h('span', {}, [item.text]),
+                  ]),
+                  item.link
+                    ? h(
+                        'div',
+                        {
+                          class: 'segment-new-link',
+                          on: { ...(item.link.onClick ? { click: item.link.onClick } : {}) },
+                          directives: item.link.tooltip
+                            ? [
+                                {
+                                  name: 'bk-tooltips',
+                                  value: item.link.tooltip,
+                                },
+                              ]
+                            : [],
+                        },
+                        [h('i', { class: item.link.iconName })],
+                      )
+                    : null,
+                ],
+              ),
+            ],
+          ),
         ),
       ],
     );
