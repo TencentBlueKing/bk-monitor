@@ -20,6 +20,7 @@ from unittest.mock import Mock
 
 import django
 import pytest
+import yaml
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
 from django.core.cache.backends.locmem import LocMemCache
@@ -138,6 +139,35 @@ def io(monkeypatch):
         target_scope=target_scope,
         real_target_scope=real_target_scope,
     )
+
+
+@pytest.fixture
+def native_http(monkeypatch, request_factory):
+    for module_name, class_name in [
+        ("bkmonitor.views.renderers", "MonitorJSONRenderer"),
+        ("kernel_api.adapters", "ApiRenderer"),
+    ]:
+        module = ModuleType(module_name)
+        setattr(module, class_name, lambda: NS(render=lambda data, **kwargs: json.dumps(data).encode()))
+        monkeypatch.setitem(sys.modules, module_name, module)
+    handle = source_method(
+        "kernel_api/middlewares/authentication.py",
+        "AuthenticationMiddleware._handle_native_mcp",
+        log_mcp_event=auth.log_mcp_event,
+        logging=logging,
+        HttpResponse=HttpResponse,
+        JsonResponse=JsonResponse,
+    )
+
+    def call(tool, args, unified):
+        request = (
+            request_factory(body={"tool_name": tool.name, "tool_args": args})
+            if unified
+            else request_factory(tool.backend_path, args, tool.backend_method)
+        )
+        return handle(NS(_report_mcp_metric=Mock()), request, tool, args, unified=unified), request
+
+    return call
 
 
 def log_args(**extra):
@@ -416,6 +446,9 @@ def test_native_denial_is_not_bypassed_by_old_checked_flag(request_factory, io):
     assert error.value.detail["action_id"] == "search_log_v2"
     assert error.value.detail["permission"]["system_id"] == "bk_log_search"
     assert error.value.detail["apply_url"] == "https://iam.invalid/log-apply"
+    assert error.value.detail["native_authorized"] is False
+    assert error.value.detail["legacy_authorized"] is False
+    assert error.value.detail["authorized"] is False
     io.dispatch.assert_not_called()
 
 
@@ -469,11 +502,15 @@ def test_identity_and_tenant_fail_closed(monkeypatch, request_factory, io, case)
         {"index_set_id": 456},
     ],
 )
-def test_unsupported_or_foreign_indices_do_not_query(request_factory, io, change):
+@pytest.mark.parametrize("standalone", [False, True])
+def test_unsupported_or_foreign_indices_do_not_query(request_factory, io, change, standalone):
     io.monitor.iam_client.is_allowed.side_effect = lambda query: True
     io.catalog.return_value[0].update(change)
+    args = log_args(index_set_id="123" if standalone else 123)
     with pytest.raises((PermissionDenied, ValidationError)):
-        auth.execute_native_tool(registry.get_tool_registry().get("search_logs"), log_args(), request_factory())
+        auth.execute_native_tool(
+            registry.get_tool_registry().get("search_logs"), args, request_factory(), standalone=standalone
+        )
     io.iam.is_allowed.assert_not_called()
     io.monitor.iam_client.is_allowed.assert_not_called()
     io.dispatch.assert_not_called()
@@ -642,7 +679,9 @@ def test_standalone_and_unified_middleware_route_from_same_catalog(
         HttpResponseForbidden=HttpResponseForbidden,
     )
     delegate = Mock(
-        side_effect=lambda request, tool, args, unified=False: auth.execute_native_tool(tool, args, request)
+        side_effect=lambda request, tool, args, unified=False: auth.execute_native_tool(
+            tool, args, request, standalone=not unified
+        )
     )
     extract = source_method(
         "kernel_api/middlewares/authentication.py", "AuthenticationMiddleware.extract_tool_name_from_path"
@@ -650,6 +689,8 @@ def test_standalone_and_unified_middleware_route_from_same_catalog(
     middleware = NS(extract_tool_name_from_path=extract, _handle_native_mcp=delegate)
     tool = registry.get_tool_registry().get(tool_name)
     standalone_args = dict(args)
+    if "index_set_id" in standalone_args:
+        standalone_args["index_set_id"] = str(standalone_args["index_set_id"])
     if tool.backend_derived_fields:
         standalone_args["bk_biz_ids"] = [args["bk_biz_id"]]
     standalone = request_factory(tool.backend_path.rstrip("/") + suffix, standalone_args)
@@ -1140,6 +1181,296 @@ def test_log_format_is_ascii_single_line_and_bounded(request_factory, caplog):
     fields = json.loads(record.split(" ", 2)[2])
     assert len(fields["tool"]) == 256 and fields["username"] == request.user.username
     assert fields["trace_id"] == request.mcp_trace_id
+
+
+@pytest.mark.parametrize(
+    "tool_name,args",
+    [
+        ("get_index_set_fields", {"bk_biz_id": "2", "index_set_id": "123"}),
+        ("search_logs", log_args(index_set_id="123", limit=1)),
+        (
+            "search_index_set_context",
+            {
+                "bk_biz_id": "2",
+                "index_set_id": "123",
+                "zero": "true",
+                "begin": "0",
+                "size": "2",
+                "dtEventTimeStamp": "1000",
+                "serverIp": "localhost",
+                "gseIndex": "5",
+                "iterationIndex": "1",
+            },
+        ),
+        (
+            "analyze_field",
+            log_args(
+                index_set_id="123",
+                field_name="log",
+                group_by="false",
+                limit="20",
+                conditions='{"field_list": [{"field_name": "log", "op": "eq", "value": ["False"]}], "condition_list": []}',
+            ),
+        ),
+        (
+            "search_log_clustering_pattern",
+            log_args(
+                index_set_id="123",
+                pattern_level="05",
+                show_new_pattern="false",
+                size=2,
+            ),
+        ),
+    ],
+)
+@pytest.mark.parametrize("native_allowed,legacy_allowed", [(True, False), (False, True), (False, False)])
+def test_standalone_log_wire_formats_use_same_permission_route(
+    native_http, io, tool_name, args, native_allowed, legacy_allowed
+):
+    io.iam.is_allowed.return_value = native_allowed
+    io.monitor.iam_client.is_allowed.side_effect = lambda query: legacy_allowed
+    tool = registry.get_tool_registry().get(tool_name)
+    original = json.loads(json.dumps(args))
+    response, request = native_http(tool, args, unified=False)
+    assert args == original  # The adapter must not rewrite caller-owned dictionaries.
+    assert io.iam.is_allowed.call_args.args[0].resources[0].id == "123"
+    assert request.mcp_permission_source == ("native" if native_allowed else "legacy" if legacy_allowed else "none")
+    if native_allowed or legacy_allowed:
+        assert response.status_code == 200
+        normalized = io.dispatch.call_args.args[1]
+        assert normalized["index_set_id"] == 123
+        assert type(normalized["index_set_id"]) is int
+        if tool_name == "analyze_field":
+            assert normalized["group_by"] is False
+            assert normalized["conditions"]["field_list"][0]["value"] == ["False"]
+        if tool_name == "search_index_set_context":
+            assert normalized["zero"] is True
+        if tool_name == "search_log_clustering_pattern":
+            assert normalized["show_new_pattern"] is False
+    else:
+        assert response.status_code == 403
+        data = json.loads(response.content)["data"]
+        assert data["native_authorized"] is False and data["legacy_authorized"] is False
+        assert data["authorized"] is False
+        assert data["resource"]["index_set_id"] == "123"
+        assert data["apply_url"] == "https://iam.invalid/log-apply"
+        io.dispatch.assert_not_called()
+    if native_allowed:
+        io.monitor.iam_client.is_allowed.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "value",
+    [True, False, 1.5, 123.0, "123.0", "1e2", "0", "-1", "", "null", [], {}, pytest.param("9" * 5000, id="oversized")],
+)
+@pytest.mark.parametrize("unified", [False, True])
+def test_invalid_log_identifier_never_reaches_iam(native_http, io, value, unified):
+    response, _ = native_http(registry.get_tool_registry().get("search_logs"), log_args(index_set_id=value), unified)
+    assert response.status_code == 400
+    io.catalog.assert_not_called()
+    io.iam.is_allowed.assert_not_called()
+    io.monitor.iam_client.is_allowed.assert_not_called()
+    io.dispatch.assert_not_called()
+
+
+def test_unified_does_not_inherit_standalone_string_adaptation(native_http, io):
+    response, _ = native_http(registry.get_tool_registry().get("search_logs"), log_args(index_set_id="123"), True)
+    assert response.status_code == 400
+    io.iam.is_allowed.assert_not_called()
+    io.dispatch.assert_not_called()
+
+
+@pytest.mark.parametrize("conditions", ["private-invalid-json", "[]", "null", '"nested-json"', '{"bk_biz_id": "9"}'])
+def test_standalone_filter_json_still_requires_valid_object_schema(native_http, io, conditions):
+    response, _ = native_http(
+        registry.get_tool_registry().get("analyze_field"),
+        log_args(index_set_id="123", field_name="log", conditions=conditions),
+        False,
+    )
+    assert response.status_code == 400
+    assert b"private-invalid-json" not in response.content
+    io.iam.is_allowed.assert_not_called()
+    io.dispatch.assert_not_called()
+
+
+def test_unified_filter_object_is_not_implicitly_json_decoded(native_http, io):
+    response, _ = native_http(
+        registry.get_tool_registry().get("analyze_field"),
+        log_args(field_name="log", conditions="{}"),
+        True,
+    )
+    assert response.status_code == 400
+    io.iam.is_allowed.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "tool_name",
+    [
+        name
+        for name, spec in registry.NATIVE_PERMISSIONS.items()
+        if spec["action_id"] in {"view_event_v2", "view_rule_v2"}
+    ],
+)
+@pytest.mark.parametrize("unified", [False, True])
+@pytest.mark.parametrize("native_allowed,legacy_allowed", [(True, False), (False, True), (False, False)])
+def test_alert_pilot_http_permission_matrix(
+    native_http, io, caplog, tool_name, unified, native_allowed, legacy_allowed
+):
+    caplog.set_level(logging.INFO, logger=auth.__name__)
+    io.monitor.iam_client.is_allowed.side_effect = lambda query: (
+        legacy_allowed if query.action.id == "using_alarm_mcp" else native_allowed
+    )
+    tool = registry.get_tool_registry().get(tool_name)
+    values = {
+        "bk_biz_id": "2",
+        "id": "123",
+        "alert_id": "123",
+        "fields": ["severity"],
+        "start_time": "1",
+        "end_time": "2",
+    }
+    args = {key: values[key] for key in tool.input_schema["required"]}
+    if not unified and tool.backend_derived_fields:
+        args["bk_biz_ids"] = ["2"]
+    response, request = native_http(tool, args, unified)
+    native_action = "view_rule_v2" if tool_name == "get_strategy_detail" else "view_event_v2"
+    queries = [call.args[0] for call in io.monitor.iam_client.is_allowed.call_args_list]
+    assert [query.action.id for query in queries] == [native_action] + ([] if native_allowed else ["using_alarm_mcp"])
+    assert all(query.resources[0].id == "2" for query in queries)
+    io.target_scope.assert_called_once()
+    source = "native" if native_allowed else "legacy" if legacy_allowed else "none"
+    assert request.mcp_permission_source == source
+    assert response.status_code == (200 if native_allowed or legacy_allowed else 403)
+    if response.status_code == 403:
+        data = json.loads(response.content)["data"]
+        assert data["native_authorized"] is False and data["legacy_authorized"] is False
+        assert data["apply_url"] == data["legacy_permission"]["apply_url"] == "https://iam.invalid/monitor-apply"
+        io.dispatch.assert_not_called()
+    else:
+        assert "bk_biz_ids" not in io.dispatch.call_args.args[1]
+    message = next(row.getMessage() for row in caplog.records if "event=response_finished " in row.getMessage())
+    fields = json.loads(message.split(" ", 2)[2])
+    assert fields["entry_point"] == ("unified" if unified else "standalone")
+    assert fields["authorization_source"] == source
+
+
+@pytest.mark.parametrize("unified", [False, True])
+def test_http_permission_state_preserves_null_and_message_strings(monkeypatch, native_http, io, unified):
+    state = {
+        "state": "requires_resource",
+        "authorized": False,
+        "native_authorized": None,
+        "legacy_authorized": None,
+        "authorization_source": "none",
+        "label": "False",
+        "count": 0,
+    }
+    monkeypatch.setattr(auth, "permission_state", lambda *args, **kwargs: state)
+    response, _ = native_http(registry.get_tool_registry().get("search_logs"), log_args(), unified)
+    assert response.status_code == 403
+    assert json.loads(response.content)["data"] == state
+    io.dispatch.assert_not_called()
+
+
+def test_permission_denied_keeps_drf_error_introspection():
+    state = {"authorized": False, "native_authorized": None, "count": 0, "reasons": [{"label": "False"}]}
+    denial = auth.MCPPermissionDenied(state)
+    standard = PermissionDenied(state)
+    assert denial.status_code == 403
+    assert denial.get_codes() == standard.get_codes()
+    assert denial.get_full_details() == standard.get_full_details()
+    assert json.loads(json.dumps(denial.detail)) == state
+
+
+@pytest.mark.parametrize("handler_kind", ["resource", "api"])
+def test_global_exception_handlers_preserve_permission_state(handler_kind):
+    import six
+    from rest_framework.exceptions import APIException
+    from rest_framework.response import Response
+
+    from core.errors import Error, ErrorDetails
+    from core.errors.common import DrfApiError
+
+    state = {"state": "denied", "authorized": False, "native_authorized": None, "label": "False", "count": 0}
+    denial = auth.MCPPermissionDenied(state)
+    if handler_kind == "resource":
+        handler = source_method(
+            "core/drf_resource/exceptions.py",
+            "custom_exception_handler",
+            Error=Error,
+            APIException=APIException,
+            DrfApiError=DrfApiError,
+            ErrorDetails=ErrorDetails,
+            Response=Response,
+        )
+        response = handler(denial, {})
+        assert response.status_code == 403
+        assert response.data["data"] == state
+        assert response.exception_instance is denial
+    else:
+        handler = source_method(
+            "kernel_api/exceptions.py",
+            "api_exception_handler",
+            IGNORE_EXCEPTIONS=(ValidationError,),
+            logger=Mock(),
+            six=six,
+            failed=source_method("bkmonitor/utils/common_utils.py", "failed", ErrorDetails=ErrorDetails),
+            Response=Response,
+        )
+        response = handler(denial, {})
+        # Preserve the API role's existing business-code envelope, not a new status convention.
+        assert response.data["code"] == 403
+        assert response.data["detail"] == state
+
+
+def test_log_context_zero_false_begin_zero_does_not_query():
+    fetch = Mock(return_value=Mock())
+    search_context = source_method(
+        "../bklog/apps/log_search/handlers/search/search_handlers_esquery.py",
+        "SearchHandler.search_context",
+        Scenario=NS(ES="es"),
+        IndicesOptimizerContextTail=lambda *args, **kwargs: NS(index=[]),
+        StorageClusterRecord=NS(objects=NS(none=lambda: None)),
+    )
+    result = search_context(
+        NS(
+            scenario_id="log",
+            indices=[],
+            dtEventTimeStamp=None,
+            zero=False,
+            start=0,
+            fetch_esquery_method=fetch,
+        )
+    )
+    assert result == {"list": []}
+    fetch.return_value.assert_not_called()
+
+
+def test_log_context_schema_describes_per_direction_window():
+    tool = registry.get_tool_registry().get("search_index_set_context")
+    assert "2*size" in tool.description
+    assert "2*size" in tool.input_schema["properties"]["size"]["description"]
+    assert "zero=false" in tool.input_schema["properties"]["begin"]["description"]
+    for name in ("zero", "begin"):
+        assert "begin=0 returns an empty list" in tool.input_schema["properties"][name]["description"]
+
+
+@pytest.mark.parametrize("filename", ["log_mcp.yaml", "metrics_mcp.yaml", "alert_mcp.yaml"])
+def test_source_schema_defaults_match_declared_types(filename):
+    document = yaml.safe_load((registry._catalog_root() / filename).read_text())
+
+    def check(schema):
+        if "default" in schema:
+            assert not list(Draft7Validator(schema).iter_errors(schema["default"])), schema
+        for value in schema.get("properties", {}).values():
+            check(value)
+        if isinstance(schema.get("items"), dict):
+            check(schema["items"])
+
+    for path_item in document["paths"].values():
+        for operation in path_item.values():
+            if isinstance(operation, dict) and "operationId" in operation:
+                check(registry._extract_input_schema(operation))
 
 
 def test_unified_resource_cannot_reuse_legacy_checked_flag(request_factory, io):

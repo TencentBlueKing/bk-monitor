@@ -207,7 +207,7 @@ paths:
   /mcp/search_index_set_context/:
     post:
       operationId: search_index_set_context
-      description: 'Get log context around a specific log entry for scrolling through adjacent logs. Identifies target by timestamp, server IP, GSE index, etc. Must be used after search_logs to obtain positioning info (dtEventTimeStamp, serverIp, gseIndex). Supports bidirectional scrolling: positive begin scrolls forward (newer), negative backward (older). 查询指定日志条目的上下文,支持滚动浏览相邻日志。通过时间戳、服务器IP、GSE索引等定位。必须在 search_logs 之后使用以获取定位信息。支持双向滚动:正数向前(较新),负数向后(较旧)。'
+      description: 'Get adjacent logs around an entry located by timestamp, server IP and GSE indices returned by search_logs. For the initial window use zero=true and begin=0: size is the per-direction limit, so up to 2*size records may be returned, including the anchor when found. Use zero=false with nonzero begin for one-direction scrolling; positive begin selects newer logs, negative begin selects older logs. zero=false with begin=0 returns an empty list. 查询 search_logs 返回条目的相邻日志，使用原时间戳、服务器IP和GSE序号定位。初始窗口使用 zero=true、begin=0；size 为单侧条数，合并后最多 2*size 条，找到锚点时包含锚点。单方向翻页使用 zero=false 和非零 begin，正数查较新日志、负数查较旧日志；zero=false、begin=0 返回空列表。'
       tags:
       - log_mcp
       requestBody:
@@ -230,15 +230,15 @@ paths:
                 size:
                   type: string
                   default: '50'
-                  description: 'Number of log records to return. Controls how many context logs are retrieved. Default: 50. 返回的日志记录数。控制获取多少条上下文日志。默认值: 50。'
+                  description: 'Per-direction record limit, default 50. With zero=true, older and newer windows are merged and may contain up to 2*size records; this is not a total-result limit. With zero=false and nonzero begin, only one direction is queried. 单侧取数上限，默认50。zero=true 时合并前后两侧窗口，最多返回 2*size 条，并非总条数上限；zero=false 且 begin 非零时只查询单方向。'
                 zero:
                   type: boolean
                   default: true
-                  description: 'Context identifier. true: Get full log context; false: Get partial context only. 上下文标识。true: 获取完整日志上下文; false: 仅获取部分上下文。'
+                  description: 'Whether to query both directions. true: Merge older and newer windows around the anchor, normally with begin=0. false: Query one direction according to the sign of nonzero begin; begin=0 returns an empty list. 是否双向取数。true 时合并锚点前后两侧窗口，通常配合 begin=0；false 时根据非零 begin 正负选择单侧，begin=0 返回空列表。'
                 begin:
                   type: string
                   default: '0'
-                  description: 'Offset number for scrolling. Positive values scroll forward (newer logs), negative values scroll backward (older logs). Example: scrolling down 10 logs means begin=10; scrolling down another 10 means begin=20; scrolling up means negative values. 滚动偏移数。正数向前滚动(较新日志),负数向后滚动(较旧日志)。例如:向下滚动10条则begin=10;再向下滚动10条则begin=20;向上滚动则为负数。'
+                  description: 'Offset from the anchor. Use 0 with zero=true for the initial two-sided window. With zero=false, positive offsets select newer logs and negative offsets select older logs; the absolute value is the offset within that direction. zero=false with begin=0 returns an empty list. 相对锚点的偏移。初始双侧窗口使用 zero=true、begin=0；zero=false 时正数选择较新日志、负数选择较旧日志，绝对值为该方向偏移量；zero=false、begin=0 返回空列表。'
                 gseIndex:
                   type: string
                   description: GSE packet sequence number for log positioning. For BKData logs, use gseindex field. Must be obtained from search_logs response. 用于日志定位的GSE发包序号。对于计算平台清洗日志,使用gseindex字段。必须从 search_logs 响应中获取。

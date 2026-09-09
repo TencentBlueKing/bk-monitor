@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from urllib.parse import urlsplit
 
 from django.conf import settings
@@ -36,6 +37,20 @@ INTERNAL_FIELDS = {
 class AuthorizationUnavailable(APIException):
     status_code = 503
     default_detail = "Permission service is unavailable. The request was not authorized."
+
+
+class MCPPermissionDenied(PermissionDenied):
+    """Keep typed permission data without breaking DRF's error introspection API."""
+
+    def __init__(self, state):
+        super().__init__(state)
+        self.detail = state
+
+    def get_codes(self):
+        return PermissionDenied(self.detail).get_codes()
+
+    def get_full_details(self):
+        return PermissionDenied(self.detail).get_full_details()
 
 
 def log_mcp_event(event, request=None, *, level=logging.INFO, **fields):
@@ -466,7 +481,7 @@ def _permission_state(tool, request, bk_biz_id, context, include_apply_guide):
     }
 
 
-def execute_native_tool(tool: ToolDefinition, tool_args: dict, request):
+def execute_native_tool(tool: ToolDefinition, tool_args: dict, request, *, standalone: bool = False):
     """Both standalone middleware and unified execute_tool use this exact entry."""
     if request is not None:
         request.mcp_permission_source = "none"
@@ -474,7 +489,7 @@ def execute_native_tool(tool: ToolDefinition, tool_args: dict, request):
     try:
         _audit(tool, request, "route", "resolved")
         _audit(tool, request, "validation", "started")
-        return _execute_native_tool(tool, tool_args, request)
+        return _execute_native_tool(tool, tool_args, request, standalone=standalone)
     except Exception as exc:
         _audit(
             tool,
@@ -489,7 +504,7 @@ def execute_native_tool(tool: ToolDefinition, tool_args: dict, request):
         raise
 
 
-def _execute_native_tool(tool, tool_args, request):
+def _execute_native_tool(tool, tool_args, request, *, standalone=False):
     if not tool.native_permission:
         raise ImproperlyConfigured("Tool is not enabled for native permissions")
     _principal(request)
@@ -514,6 +529,30 @@ def _execute_native_tool(tool, tool_args, request):
         values = args.pop("bk_biz_ids")
         if not isinstance(values, list) or len(values) != 1 or str(values[0]) != args.get("bk_biz_id"):
             raise ValidationError("bk_biz_ids must contain exactly the requested bk_biz_id.")
+    # Old standalone log schemas used string IDs even in JSON POST bodies.
+    # Adapt only known wire formats; never coerce booleans/floats into resource IDs.
+    if tool.category == "log" and "index_set_id" in args:
+        value = args["index_set_id"]
+        if (standalone or request.method == "GET") and isinstance(value, str):
+            if re.fullmatch(r"[+-]?[0-9]+", value.strip()):
+                try:
+                    value = int(value)
+                except ValueError as exc:
+                    raise ValidationError({"index_set_id": "Invalid integer index set ID."}) from exc
+        if type(value) is not int or value < 1:
+            raise ValidationError({"index_set_id": "A positive integer index set ID is required."})
+        args["index_set_id"] = value
+    if standalone and tool.category == "log":
+        if tool.name == "analyze_field" and isinstance(args.get("conditions"), str):
+            try:
+                args["conditions"] = json.loads(args["conditions"])
+            except (ValueError, RecursionError) as exc:
+                raise ValidationError({"conditions": "A valid JSON filter object is required."}) from exc
+        # Published legacy defaults may be strings despite a boolean schema.
+        for name in ("zero", "group_by", "show_new_pattern"):
+            value = args.get(name)
+            if isinstance(value, str) and value in {"true", "false"}:
+                args[name] = value == "true"
     # URL query parameters arrive as strings, unlike JSON tool_args.
     if request.method == "GET":
         for name, schema in tool.input_schema.get("properties", {}).items():
@@ -532,7 +571,8 @@ def _execute_native_tool(tool, tool_args, request):
         tool.iam_action if state["legacy_authorized"] is not None else tool.native_permission["action_id"]
     )
     if state["state"] != "granted":
-        raise PermissionDenied(state)
+        # Permission state is typed data, not a tree of validation messages.
+        raise MCPPermissionDenied(state)
     request.biz_id = int(args["bk_biz_id"])
     request.skip_check = False
     from kernel_api.unified_mcp.dispatcher import dispatch_tool
