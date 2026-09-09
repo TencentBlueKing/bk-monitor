@@ -49,7 +49,7 @@ class RumApplicationConfig(BkCollectorConfig):
             with tracer.start_as_current_span(f"collector-target: {cluster_id}/{namespace}") as s:
                 try:
                     application_tpl = BkCollectorClusterConfig.sub_config_tpl(
-                        cluster_id, BkCollectorComp.CONFIG_MAP_APPLICATION_TPL_NAME, namespace=namespace
+                        cluster_id, namespace, BkCollectorComp.CONFIG_MAP_APPLICATION_TPL_NAME
                     )
                     if not application_tpl:
                         continue
@@ -80,7 +80,7 @@ class RumApplicationConfig(BkCollectorConfig):
                     # 批量下发该集群的所有配置
                     if cluster_config_map:
                         BkCollectorClusterConfig.deploy_to_k8s_with_hash(
-                            cluster_id, cluster_config_map, "rum", namespace=namespace
+                            cluster_id, namespace, cluster_config_map, "rum"
                         )
                         logger.info(f"batch deploy {len(cluster_config_map)} rum configs to {cluster_id}/{namespace}")
 

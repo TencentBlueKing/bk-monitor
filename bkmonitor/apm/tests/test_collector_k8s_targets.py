@@ -89,15 +89,6 @@ def test_empty_public_target_parts_do_not_block_valid_or_business_targets(settin
     assert "invalid public collector target" in caplog.text
 
 
-@pytest.mark.parametrize("targets", ["cluster-a/public", {"cluster-a": "public"}, 1])
-def test_invalid_public_target_list(settings, targets, caplog):
-    caplog.set_level("WARNING", logger="bkmonitor.utils.bk_collector_config")
-    settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER = targets
-    assert ClusterConfig.global_deploy_targets() == []
-    assert ClusterConfig.get_cluster_mapping() == {("cluster-a", "operator-ns", False): {"1"}}
-    assert "CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER must be a list" in caplog.text
-
-
 def test_public_targets_are_cached_for_60_seconds_then_read_current_settings(settings, mocker):
     clock = mocker.patch("bkmonitor.utils.cache.monotonic", return_value=1000)
     assert ClusterConfig.global_deploy_targets() == [("cluster-a", "blueking", True)]
@@ -136,21 +127,11 @@ def test_templates_are_read_from_selected_namespace(mocker, platform):
         items=[SimpleNamespace(data={template_name: base64.b64encode(b"template").decode()})]
     )
     if platform:
-        content = ClusterConfig.platform_config_tpl("cluster-a", namespace="public-1")
+        content = ClusterConfig.platform_config_tpl("cluster-a", "public-1")
     else:
-        content = ClusterConfig.sub_config_tpl("cluster-a", template_name, namespace="public-1")
+        content = ClusterConfig.sub_config_tpl("cluster-a", "public-1", template_name)
     assert content == "template"
     assert kube.client_request.call_args.kwargs["namespace"] == "public-1"
-
-
-@pytest.mark.parametrize("platform", [False, True])
-def test_templates_without_namespace_are_skipped(mocker, platform):
-    kube = mocker.patch("bkmonitor.utils.bk_collector_config.BcsKubeClient")
-    if platform:
-        assert ClusterConfig.platform_config_tpl("cluster-a", namespace=None) is None
-    else:
-        assert ClusterConfig.sub_config_tpl("cluster-a", "application", namespace=None) is None
-    kube.assert_not_called()
 
 
 def _encode(content):
@@ -171,22 +152,22 @@ def test_secret_write_and_duplicate_cleanup_use_same_namespace_and_are_idempoten
 
     kube.client_request.side_effect = request
     clean = mocker.patch.object(ClusterConfig, "clean_dup_secrets")
-    ClusterConfig.deploy_to_k8s_with_hash("cluster-a", {101: "first"}, "apm", namespace="public-1")
+    ClusterConfig.deploy_to_k8s_with_hash("cluster-a", "public-1", {101: "first"}, "apm")
     secret = next(iter(secrets.values()))
     secret.data["application-999.conf"] = _encode("unrelated")
-    clean.assert_called_once_with("cluster-a", "apm", namespace="public-1")
+    clean.assert_called_once_with("cluster-a", "public-1", "apm")
 
     kube.client_request.reset_mock()
-    ClusterConfig.deploy_to_k8s_with_hash("cluster-a", {101: "first"}, "apm", namespace="public-1")
+    ClusterConfig.deploy_to_k8s_with_hash("cluster-a", "public-1", {101: "first"}, "apm")
     assert kube.client_request.call_count == 1  # 内容未变，仅查询，不写入。
     assert "application-999.conf" in secret.data
 
-    ClusterConfig.deploy_to_k8s_with_hash("cluster-a", {101: "updated"}, "apm", namespace="public-1")
+    ClusterConfig.deploy_to_k8s_with_hash("cluster-a", "public-1", {101: "updated"}, "apm")
     assert gzip.decompress(base64.b64decode(secret.data["application-101.conf"])) == b"updated"
     assert "application-999.conf" in secret.data
 
 
-def test_duplicate_cleanup_does_not_fall_back_to_business_namespace(mocker):
+def test_duplicate_cleanup_uses_selected_namespace(mocker):
     kube = mocker.patch("bkmonitor.utils.bk_collector_config.BcsKubeClient").return_value
     now = datetime.now(timezone.utc)
     older = client.V1Secret(
@@ -197,18 +178,10 @@ def test_duplicate_cleanup_does_not_fall_back_to_business_namespace(mocker):
         metadata=client.V1ObjectMeta(name="new", creation_timestamp=now), data={"application-1.conf": "new"}
     )
     kube.client_request.return_value = SimpleNamespace(items=[older, newer])
-    ClusterConfig.clean_dup_secrets("cluster-a", "apm", namespace="public-1")
+    ClusterConfig.clean_dup_secrets("cluster-a", "public-1", "apm")
     assert {call.kwargs["namespace"] for call in kube.client_request.call_args_list} == {"public-1"}
     assert older.data == {"application-2.conf": "keep"}
     assert kube.client_request.call_args.args[0] is kube.core_api.replace_namespaced_secret
-
-
-def test_duplicate_cleanup_without_namespace_is_skipped(mocker, caplog):
-    caplog.set_level("WARNING", logger="bkmonitor.utils.bk_collector_config")
-    kube = mocker.patch("bkmonitor.utils.bk_collector_config.BcsKubeClient")
-    ClusterConfig.clean_dup_secrets("cluster-a", "apm")
-    kube.assert_not_called()
-    assert "namespace is required" in caplog.text
 
 
 @pytest.mark.parametrize("list_result", [None, RuntimeError("list failed")])
@@ -216,9 +189,9 @@ def test_secret_list_failure_keeps_existing_fallback_behavior(mocker, list_resul
     kube = mocker.patch("bkmonitor.utils.bk_collector_config.BcsKubeClient").return_value
     kube.client_request.side_effect = [list_result, None]
     clean = mocker.patch.object(ClusterConfig, "clean_dup_secrets")
-    ClusterConfig.deploy_to_k8s_with_hash("cluster-a", {101: "first"}, "apm", namespace="public-1")
+    ClusterConfig.deploy_to_k8s_with_hash("cluster-a", "public-1", {101: "first"}, "apm")
     assert kube.client_request.call_args.args[0] is kube.core_api.create_namespaced_secret
-    clean.assert_called_once_with("cluster-a", "apm", namespace="public-1")
+    clean.assert_called_once_with("cluster-a", "public-1", "apm")
 
 
 @pytest.mark.parametrize("platform", [False, True])
@@ -226,15 +199,15 @@ def test_missing_template_response_keeps_existing_skip_behavior(mocker, platform
     kube = mocker.patch("bkmonitor.utils.bk_collector_config.BcsKubeClient").return_value
     kube.client_request.return_value = None
     if platform:
-        assert ClusterConfig.platform_config_tpl("cluster-a", namespace="public-1") is None
+        assert ClusterConfig.platform_config_tpl("cluster-a", "public-1") is None
     else:
-        assert ClusterConfig.sub_config_tpl("cluster-a", "application", namespace="public-1") is None
+        assert ClusterConfig.sub_config_tpl("cluster-a", "public-1", "application") is None
 
 
 def test_platform_secret_is_written_to_explicit_namespace(mocker):
     kube = mocker.patch("apm.core.platform_config.BcsKubeClient").return_value
     kube.client_request.side_effect = [SimpleNamespace(items=[]), object()]
-    PlatformConfig.deploy_to_k8s("cluster-a", "platform", namespace="public-1")
+    PlatformConfig.deploy_to_k8s("cluster-a", "public-1", "platform")
     assert {call.kwargs["namespace"] for call in kube.client_request.call_args_list} == {"public-1"}
     secret = kube.client_request.call_args.kwargs["body"]
     assert secret.metadata.namespace == "public-1"
@@ -259,7 +232,7 @@ def test_platform_default_application_and_dimensions_keep_business_semantics(moc
     kube.client_request.return_value = SimpleNamespace(
         items=[SimpleNamespace(metadata=SimpleNamespace(name="operator"))]
     )
-    assert PlatformConfig.get_resource_fill_dimensions_config("cluster-a", namespace="operator-ns")
+    assert PlatformConfig.get_resource_fill_dimensions_config("cluster-a", "operator-ns")
     assert kube.client_request.call_args.kwargs["namespace"] == "operator-ns"
 
 
@@ -276,7 +249,7 @@ def multi_target_delivery(settings, mocker):
     ]:
         mocker.patch(f"{module}.is_biz_id_need_managed", return_value=True)
     mocker.patch.object(
-        ClusterConfig, "sub_config_tpl", side_effect=lambda cluster_id, template, namespace: namespace + ":{{ biz }}"
+        ClusterConfig, "sub_config_tpl", side_effect=lambda cluster_id, namespace, template: namespace + ":{{ biz }}"
     )
     return mocker.patch.object(ClusterConfig, "deploy_to_k8s_with_hash")
 
@@ -310,7 +283,7 @@ def test_application_delivery_keeps_business_scope_and_fans_out_public_configs(
         ]
         mocker.patch.object(LogSubscriptionConfig, "get_log_config", side_effect=lambda group: {"biz": group.bk_biz_id})
         LogSubscriptionConfig.refresh_k8s(groups)
-    actual = {(call.args[0], call.kwargs["namespace"]): call.args[1] for call in multi_target_delivery.call_args_list}
+    actual = {(call.args[0], call.args[1]): call.args[2] for call in multi_target_delivery.call_args_list}
     expected = {
         ("cluster-a", "operator-ns"): {1: "operator-ns:1"},
         ("cluster-a", "public-1"): {1: "public-1:1", 2: "public-1:2"},
@@ -324,7 +297,7 @@ def test_application_delivery_keeps_business_scope_and_fans_out_public_configs(
         expected[("cluster-a", "operator-ns")] = {1: "operator-ns:1", 2: "operator-ns:2"}
     assert actual == expected
     assert multi_target_delivery.call_count == len(expected)
-    assert all(call.args[2] == protocol for call in multi_target_delivery.call_args_list)
+    assert all(call.args[3] == protocol for call in multi_target_delivery.call_args_list)
     targets.assert_called_once_with()
 
 
@@ -338,14 +311,14 @@ def test_platform_refresh_renders_each_target_and_continues_after_one_failure(mu
 
     mocker.patch.object(PlatformConfig, "get_platform_config", side_effect=context)
 
-    def deploy(cluster_id, content, namespace):
+    def deploy(cluster_id, namespace, content):
         assert content == namespace
         if namespace == "public-1":
             raise RuntimeError("unavailable target")
 
     delivery = mocker.patch.object(PlatformConfig, "deploy_to_k8s", side_effect=deploy)
     PlatformConfig.refresh_k8s()
-    assert [call.kwargs["namespace"] for call in delivery.call_args_list] == ["operator-ns", "public-1", "public-2"]
+    assert [call.args[1] for call in delivery.call_args_list] == ["operator-ns", "public-1", "public-2"]
     targets.assert_called_once_with()
 
 
@@ -403,7 +376,7 @@ def test_custom_report_global_batch_and_business_batch_are_separate(
     assert result["cluster_count"] == 1
     assert result["target_count"] == len(public_namespaces)
     assert [record["namespace"] for record in result["clusters"]] == public_namespaces
-    assert [call.kwargs["namespace"] for call in clean.call_args_list] == public_namespaces
+    assert [call.args[1] for call in clean.call_args_list] == public_namespaces
     targets.assert_called_once_with()
     targets.reset_mock()
     multi_target_delivery.reset_mock()
@@ -414,7 +387,7 @@ def test_custom_report_global_batch_and_business_batch_are_separate(
 
 
 def test_failed_target_does_not_clean_or_block_other_targets(multi_target_delivery, mocker):
-    def deploy(cluster_id, configs, protocol, namespace):
+    def deploy(cluster_id, namespace, configs, protocol):
         if namespace == "public-1":
             raise RuntimeError("unavailable target")
 
@@ -424,7 +397,7 @@ def test_failed_target_does_not_clean_or_block_other_targets(multi_target_delive
     assert result["result"] is False
     assert result["failed_count"] == 1
     assert len(result["clusters"]) == 2
-    assert [call.kwargs["namespace"] for call in clean.call_args_list] == ["public-2"]
+    assert [call.args[1] for call in clean.call_args_list] == ["public-2"]
 
 
 def test_cleanup_command_defaults_to_public_targets_and_remains_dry_run(settings, mocker):

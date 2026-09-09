@@ -119,9 +119,9 @@ class Command(BaseCommand):
                 config_ids = {config_info["bk_data_id"] for config_info in config_infos}
                 plans = BkCollectorClusterConfig.clean_sub_configs(
                     cluster_id=cluster_id,
+                    namespace=namespace,
                     protocol=protocol,
                     config_ids=config_ids,
-                    namespace=namespace,
                     dry_run=dry_run,
                 )
                 total_plan_count += len(plans)

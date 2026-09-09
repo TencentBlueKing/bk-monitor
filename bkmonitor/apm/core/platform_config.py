@@ -101,7 +101,7 @@ class PlatformConfig(BkCollectorConfig):
                 continue
 
             try:
-                platform_config_tpl = BkCollectorClusterConfig.platform_config_tpl(cluster_id, namespace=namespace)
+                platform_config_tpl = BkCollectorClusterConfig.platform_config_tpl(cluster_id, namespace)
                 if platform_config_tpl is None:
                     # 如果集群中不存在 bk-collector 的平台配置模版，则不下发
                     continue
@@ -111,7 +111,7 @@ class PlatformConfig(BkCollectorConfig):
                 )
 
                 platform_config = Environment().from_string(platform_config_tpl).render(platform_config_context)
-                PlatformConfig.deploy_to_k8s(cluster_id, platform_config, namespace=namespace)
+                PlatformConfig.deploy_to_k8s(cluster_id, namespace, platform_config)
             except Exception as e:  # pylint: disable=broad-except
                 logger.error(f"refresh platform config to target: {cluster_id}/{namespace} failed, error: {e}")
 
@@ -132,9 +132,7 @@ class PlatformConfig(BkCollectorConfig):
             plat_config["field_normalizer_config"] = cls.get_field_normalizer_config()
 
         if bcs_cluster_id and not is_global:
-            resource_fill_dimensions_config = cls.get_resource_fill_dimensions_config(
-                bcs_cluster_id, namespace=namespace
-            )
+            resource_fill_dimensions_config = cls.get_resource_fill_dimensions_config(bcs_cluster_id, namespace)
             if resource_fill_dimensions_config:
                 plat_config["resource_fill_dimensions_config"] = resource_fill_dimensions_config
 
@@ -347,17 +345,12 @@ class PlatformConfig(BkCollectorConfig):
         return data_ids
 
     @classmethod
-    def get_resource_fill_dimensions_config(cls, bcs_cluster_id=None, namespace=None):
+    def get_resource_fill_dimensions_config(cls, bcs_cluster_id: str, namespace: str):
         """
         维度补充配置（目前先固定返回，暂不支持可配置）
         第一层，先根据上报的客户端IP，填充 resource 下的 net.host.ip 字段（如果不存在则赋值）
         第二层，根据 net.host.ip 字段，继续补充 k8s 下的 pod 相关信息
         """
-        if bcs_cluster_id is None:
-            return {}
-
-        if namespace is None:
-            namespace = BkCollectorClusterConfig.bk_collector_namespace(bcs_cluster_id)
         bcs_client = BcsKubeClient(bcs_cluster_id)
         svc = bcs_client.client_request(
             bcs_client.core_api.list_namespaced_service,
@@ -500,7 +493,7 @@ class PlatformConfig(BkCollectorConfig):
                 logger.exception(f"create apm platform config subscription error{e}, params:{subscription_params}")
 
     @classmethod
-    def deploy_to_k8s(cls, cluster_id, platform_config, namespace=None):
+    def deploy_to_k8s(cls, cluster_id: str, namespace: str, platform_config: str):
         secret_info_platform = BkCollectorComp.get_secrets_config_map_by_protocol(cluster_id, "platform") or {}
         secret_name = secret_info_platform.get("secret_name_tpl")
         secret_data_key = secret_info_platform.get("secret_data_key_tpl")
@@ -512,8 +505,6 @@ class PlatformConfig(BkCollectorConfig):
         b64_content = base64.b64encode(gzip_content).decode()
 
         bcs_client = BcsKubeClient(cluster_id)
-        if namespace is None:
-            namespace = BkCollectorClusterConfig.bk_collector_namespace(cluster_id)
         secret_label_selector = (
             f"{BkCollectorComp.SECRET_COMMON_LABELS},{secret_info_platform.get('secret_extra_label')}"
         )

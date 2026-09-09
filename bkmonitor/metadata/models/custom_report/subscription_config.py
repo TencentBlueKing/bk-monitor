@@ -316,7 +316,7 @@ class CustomReportSubscription(models.Model):
                         continue
 
                     if protocol not in protocol_tpl:
-                        tpl_str = BkCollectorClusterConfig.sub_config_tpl(cluster_id, tpl_name, namespace=namespace)
+                        tpl_str = BkCollectorClusterConfig.sub_config_tpl(cluster_id, namespace, tpl_name)
                         if not tpl_str:
                             protocol_tpl[protocol] = None
                         else:
@@ -348,13 +348,11 @@ class CustomReportSubscription(models.Model):
 
                 # 分别按协议调用deploy_to_k8s_with_hash
                 for protocol, config_map in protocol_config_maps.items():
-                    BkCollectorClusterConfig.deploy_to_k8s_with_hash(
-                        cluster_id, config_map, protocol, namespace=namespace
-                    )
+                    BkCollectorClusterConfig.deploy_to_k8s_with_hash(cluster_id, namespace, config_map, protocol)
 
                 # 在所有协议下执行清理，同一个 config_id(data_id) 只允许有一份配置存在
                 BkCollectorClusterConfig.clean_dup_secrets_in_multi_protocol(
-                    cluster_id, protocol_config_maps.keys(), config_id_to_protocol, namespace=namespace
+                    cluster_id, namespace, protocol_config_maps.keys(), config_id_to_protocol
                 )
             except Exception as e:  # pylint: disable=broad-except
                 cluster_record.update({"result": False, "message": str(e)})
@@ -832,7 +830,7 @@ class LogSubscriptionConfig(models.Model):
 
             try:
                 tpl = BkCollectorClusterConfig.sub_config_tpl(
-                    cluster_id, BkCollectorComp.CONFIG_MAP_APPLICATION_TPL_NAME, namespace=namespace
+                    cluster_id, namespace, BkCollectorComp.CONFIG_MAP_APPLICATION_TPL_NAME
                 )
                 if not tpl:
                     continue
@@ -861,9 +859,7 @@ class LogSubscriptionConfig(models.Model):
                             logger.exception(f"generate config for log_group({log_group.log_group_name})")
 
                 # 批量下发该集群的所有配置
-                BkCollectorClusterConfig.deploy_to_k8s_with_hash(
-                    cluster_id, cluster_config_map, "log", namespace=namespace
-                )
+                BkCollectorClusterConfig.deploy_to_k8s_with_hash(cluster_id, namespace, cluster_config_map, "log")
                 logger.info(f"batch deploy {len(cluster_config_map)} log configs to {cluster_id}/{namespace}")
 
             except Exception:  # pylint: disable=broad-except

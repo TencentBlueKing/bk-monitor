@@ -169,9 +169,6 @@ class BkCollectorClusterConfig:
     def global_deploy_targets(cls) -> list[tuple[str, str, bool]]:
         """解析公共集群ID/namespace列表；纯集群ID默认使用 blueking namespace。"""
         configured_targets = settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER or []
-        if not isinstance(configured_targets, list):
-            logger.warning("CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER must be a list, skip public targets")
-            return []
         targets = []
         for target in configured_targets:
             cluster_id, separator, namespace = target.partition("/")
@@ -184,9 +181,7 @@ class BkCollectorClusterConfig:
         return list(dict.fromkeys(targets))
 
     @classmethod
-    def platform_config_tpl(cls, cluster_id, namespace: str | None):
-        if namespace is None:
-            return None
+    def platform_config_tpl(cls, cluster_id: str, namespace: str):
         bcs_client = BcsKubeClient(cluster_id)
         config_maps = bcs_client.client_request(
             bcs_client.core_api.list_namespaced_config_map,
@@ -212,9 +207,7 @@ class BkCollectorClusterConfig:
             )
 
     @classmethod
-    def sub_config_tpl(cls, cluster_id: str, sub_config_tpl_name: str, namespace: str | None):
-        if namespace is None:
-            return None
+    def sub_config_tpl(cls, cluster_id: str, namespace: str, sub_config_tpl_name: str):
         bcs_client = BcsKubeClient(cluster_id)
         config_maps = bcs_client.client_request(
             bcs_client.core_api.list_namespaced_config_map,
@@ -274,13 +267,13 @@ class BkCollectorClusterConfig:
                 return _sec
 
     @classmethod
-    def deploy_to_k8s_with_hash(cls, cluster_id: str, config_map: dict, protocol: str, namespace: str | None = None):
+    def deploy_to_k8s_with_hash(cls, cluster_id: str, namespace: str, config_map: dict, protocol: str):
         """
         Args:
             cluster_id: 集群ID
+            namespace: 命名空间
             config_map: 配置映射，格式为 {config_id: config_content}
             protocol: 协议, json or prometheus
-            namespace: 命名空间
         """
         if not config_map:
             logger.info(f"deploy to cluster_id({cluster_id}), but config is empty, skip deployment")
@@ -327,8 +320,6 @@ class BkCollectorClusterConfig:
 
         # 批量处理每个secret
         bcs_client = BcsKubeClient(cluster_id)
-        if namespace is None:
-            namespace = BkCollectorClusterConfig.bk_collector_namespace(cluster_id)
         secret_label_selector = f"{BkCollectorComp.SECRET_COMMON_LABELS},{secret_config.get('secret_extra_label')}"
 
         # 一次性查询所有相关的secret
@@ -430,10 +421,10 @@ class BkCollectorClusterConfig:
         )
 
         # 该逻辑会需要保留一段时间后清理  2025-09-24，半年后可删除该逻辑
-        cls.clean_dup_secrets(cluster_id, protocol, namespace=namespace)
+        cls.clean_dup_secrets(cluster_id, namespace, protocol)
 
     @classmethod
-    def clean_dup_secrets(cls, cluster_id: str, protocol: str, namespace: str | None = None):
+    def clean_dup_secrets(cls, cluster_id: str, namespace: str, protocol: str):
         """
         - 根据 protocol 查到集群内所有的 secrets
             - 转换为 子配置文件  -> secrets 的对应关系
@@ -441,10 +432,6 @@ class BkCollectorClusterConfig:
                 - 只保留最新的 secrets 记录，清理掉其他 secrets 中的单个子配置记录
             - 如果一个 secrets 中所有的子记录都被清理了。则该 secrets 可以被整体删除
         """
-
-        if namespace is None:
-            logger.warning(f"[clean dup secrets] namespace is required for cluster_id({cluster_id}), skip")
-            return
 
         secret_config = BkCollectorComp.get_secrets_config_map_by_protocol(cluster_id, protocol)
         if not secret_config:
@@ -527,7 +514,7 @@ class BkCollectorClusterConfig:
 
     @classmethod
     def clean_dup_secrets_in_multi_protocol(
-        cls, cluster_id: str, protocols, config_id_to_protocol: dict, namespace: str | None = None
+        cls, cluster_id: str, namespace: str, protocols, config_id_to_protocol: dict
     ):
         """
         按 config_id 当前所属协议，清理该 config_id 在其他协议 Secret 下的旧子配置。
@@ -537,9 +524,6 @@ class BkCollectorClusterConfig:
         config_id_to_protocol = dict(config_id_to_protocol or {})
         if not protocols or not config_id_to_protocol:
             return
-
-        if namespace is None:
-            namespace = BkCollectorClusterConfig.bk_collector_namespace(cluster_id)
 
         bcs_client = BcsKubeClient(cluster_id)
         for protocol in protocols:
@@ -643,9 +627,9 @@ class BkCollectorClusterConfig:
     def clean_sub_configs(
         cls,
         cluster_id: str,
+        namespace: str,
         protocol: str,
         config_ids: list[int] | set[int],
-        namespace: str | None = None,
         dry_run=True,
     ) -> list[dict]:
         """
@@ -653,9 +637,9 @@ class BkCollectorClusterConfig:
 
         Args:
             cluster_id: 集群 ID
+            namespace: 命名空间
             protocol: 协议，json/prometheus/log
             config_ids: 配置 ID 列表，一般为 bk_data_id
-            namespace: 命名空间，为空时使用 bk-collector 默认命名空间
             dry_run: 是否只预览，不实际删除
 
         Returns:
@@ -673,9 +657,6 @@ class BkCollectorClusterConfig:
                 "has no secret config, please check if your config has been initialized"
             )
             return []
-
-        if namespace is None:
-            namespace = BkCollectorClusterConfig.bk_collector_namespace(cluster_id)
 
         removable_sub_config_files = {
             secret_config["secret_data_key_tpl"].format(config_id): config_id for config_id in config_ids
