@@ -8,6 +8,12 @@ RUN mkdir -p /app/fonts \
     && wget https://github.com/adobe-fonts/source-han-serif/raw/release/Variable/TTF/SourceHanSerifSC-VF.ttf -O /app/fonts/SourceHanSerifSC-VF.ttf
 
 # update debian source to ustc
+# bullseye 于 2026-08-31 结束 LTS，bullseye-security 不再发布新的 Release 文件，
+# 其 Valid-Until 已于 2026-09-07 到期，留在 sources.list 里只会让 apt-get update
+# 报 "E: Release file ... is expired" 并以 100 退出，因此两个分支都不再使用该源。
+# 其余三个套件（bullseye / -updates / -backports）的 Release 已无 Valid-Until 字段，不会过期。
+# 注：`[ ${replace_debian_source} ]` 是非空字符串判断，传 false 也为真，实际总是走 then 分支；
+# 当前构建机依赖腾讯源，修正该判断会改变既有行为，故保持原状。
 RUN if [ ${replace_debian_source} ] ; then \
         echo "update debian source to ustc" &&\
         mv /etc/apt/sources.list /etc/apt/sources.list.bakevan && \
@@ -16,11 +22,10 @@ RUN if [ ${replace_debian_source} ] ; then \
         echo "deb https://mirrors.tencent.com/debian/ bullseye-updates main contrib non-free" >>/etc/apt/sources.list && \
         echo "deb-src https://mirrors.tencent.com/debian/ bullseye-updates main contrib non-free" >>/etc/apt/sources.list && \
         echo "deb https://mirrors.tencent.com/debian/ bullseye-backports main contrib non-free" >>/etc/apt/sources.list && \
-        echo "deb-src https://mirrors.tencent.com/debian/ bullseye-backports main contrib non-free" >>/etc/apt/sources.list && \
-        echo "deb https://mirrors.tencent.com/debian-security/ bullseye-security main contrib non-free" >>/etc/apt/sources.list && \
-        echo "deb-src https://mirrors.tencent.com/debian-security/ bullseye-security main contrib non-free" >>/etc/apt/sources.list; \
+        echo "deb-src https://mirrors.tencent.com/debian/ bullseye-backports main contrib non-free" >>/etc/apt/sources.list; \
     else \
-        echo "don't need change debian source"; \
+        echo "don't need change debian source" && \
+        sed -i '/-security/d' /etc/apt/sources.list; \
     fi
 
 # install node and pnpm
