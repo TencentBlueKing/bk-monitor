@@ -20,6 +20,21 @@ $blue: #3a84ff;
     color: #000;
   }
 
+  .alert-problem {
+    margin-bottom: 16px;
+
+    .alert-problem-content {
+      margin-top: 8px;
+      font-size: 12px;
+      line-height: 20px;
+      color: #313238;
+    }
+
+    .alert-problem-highlight {
+      font-weight: 700;
+    }
+  }
+
   .info-check {
     color: $blue;
     cursor: pointer;

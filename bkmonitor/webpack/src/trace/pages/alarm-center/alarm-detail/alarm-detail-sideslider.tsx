@@ -29,6 +29,7 @@ import { Sideslider } from 'bkui-vue';
 import * as authMap from 'monitor-pc/pages/event-center/authority-map';
 import { storeToRefs } from 'pinia';
 
+import { shouldAutoOpenAiAnalysis } from '../../../mock/alarm-detail-ai';
 import DetailCommon from '../common-detail/common-detail';
 import { AlarmType } from '../typings';
 import ActionDetailHead from './components/action-detail-head';
@@ -122,8 +123,14 @@ export default defineComponent({
           actionId.value = '';
           alarmDetail.value = null;
           actionDetail.value = null;
+          showAiAnalysis.value = false;
+          return;
         }
-      }
+        if (shouldAutoOpenAiAnalysis()) {
+          showAiAnalysis.value = true;
+        }
+      },
+      { immediate: true }
     );
 
     const init = async () => {
@@ -166,6 +173,7 @@ export default defineComponent({
         case AlarmType.ALERT:
           return (
             <EventDetailHead
+              aiAnalysisShow={showAiAnalysis.value}
               isFullscreen={isFullscreen.value}
               showStepBtn={props.showStepBtn}
               onAiAnalysisShowChange={() => handleAiAnalysisShowChange(!showAiAnalysis.value)}
@@ -211,7 +219,7 @@ export default defineComponent({
   render() {
     return (
       <Sideslider
-        width={this.isFullscreen ? '100%' : '80%'}
+        width={this.isFullscreen ? '100%' : '92%'}
         extCls='alarm-detail-sideslider'
         v-slots={{
           header: this.renderHeader,

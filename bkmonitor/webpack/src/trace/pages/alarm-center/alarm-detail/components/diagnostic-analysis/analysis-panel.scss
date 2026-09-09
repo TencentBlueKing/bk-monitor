@@ -1,10 +1,5 @@
 .analysis-panel {
-  display: grid;
-  grid-template-rows: 0fr;
-  grid-template-columns: 100%;
   width: 100%;
-  overflow: hidden;
-  transition: grid-template-rows 0.6s ease;
 
   .analysis-panel-wrapper {
     min-height: 57px;
@@ -27,21 +22,21 @@
 
     .analysis-type-icon {
       display: flex;
+      flex-shrink: 0;
       align-items: center;
       justify-content: center;
-      width: 24px;
-      height: 24px;
-      font-size: 14px;
+      width: 20px;
+      height: 20px;
+      font-size: 12px;
       color: #fff;
-      background: linear-gradient(136deg, #5f84ff 8.33%, #5151fc 92.72%);
-      border-radius: 6px;
-      box-shadow: 0 4px 8px -3px #154bfc33;
+      background: #4d4f56;
+      border-radius: 50%;
     }
 
     .panel-title {
-      margin: 0 4px 0 8px;
+      margin: 0 4px;
       font-size: 14px;
-      font-weight: 500;
+      font-weight: 600;
       color: #313238;
     }
 
@@ -59,16 +54,27 @@
   }
 
   .analysis-panel-wrapper-content {
-    margin-bottom: 40px;
+    display: grid;
+    grid-template-rows: 0fr;
+    overflow: hidden;
+    transition: grid-template-rows 0.6s ease;
+
+    > * {
+      min-height: 0;
+      overflow: hidden;
+    }
   }
 
   &.expand {
-    grid-template-rows: 1fr;
-
     .analysis-panel-wrapper-header {
       .arrow-icon {
         transform: rotateZ(90deg);
       }
+    }
+
+    .analysis-panel-wrapper-content {
+      grid-template-rows: 1fr;
+      margin-bottom: 40px;
     }
   }
 }

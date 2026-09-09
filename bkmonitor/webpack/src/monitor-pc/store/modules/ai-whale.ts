@@ -41,6 +41,7 @@ class AiWhaleStore extends VuexModule {
   aiUserList: string[] = null; // AI用户列表
   customFallbackShortcut: Partial<AIBluekingShortcut> = {}; // 自定义快捷方式
   enableAiAssistant = false; // 初始化 enableAiAssistant 状态
+  hideRobot = false; // 临时收起右下角小鲸浮标（子应用自带 AI 会话入口时用）
   message = ''; // 会话内容
   showAIBlueking = false; // AI小鲸聊天框
 
@@ -64,6 +65,11 @@ class AiWhaleStore extends VuexModule {
   @Mutation
   setCustomFallbackShortcut(shortcut: Partial<AIBluekingShortcut>) {
     this.customFallbackShortcut = shortcut;
+  }
+
+  @Mutation
+  setHideRobot(value: boolean) {
+    this.hideRobot = value;
   }
 
   // Mutation: 设置 enableAiAssistant 的值

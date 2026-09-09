@@ -33,6 +33,7 @@ import { ETagsType } from 'monitor-common/utils/biz';
 import { TabEnum as CollectorTabEnum } from 'monitor-pc/pages/collector-config/collector-detail/typings/detail';
 import { storeToRefs } from 'pinia';
 import { useI18n } from 'vue-i18n';
+import { useRoute } from 'vue-router';
 import VueJsonPretty from 'vue-json-pretty';
 
 import { useAlarmCenterDetailStore } from '@/store/modules/alarm-center-detail';
@@ -57,7 +58,12 @@ export default defineComponent({
   emits: ['manualProcess', 'alarmDispatch', 'alarmStatusDetailShow'],
   setup(props, { emit }) {
     const { t } = useI18n();
+    const route = useRoute();
     const { bizItem, loading } = storeToRefs(useAlarmCenterDetailStore());
+    const alertProblem = computed(() => {
+      void route.fullPath;
+      return window.__ALARM_DETAIL_AI_MOCK__?.getFlags?.()?.alertProblem || null;
+    });
     const bizIdName = computed(() =>
       bizItem.value?.space_type_id === ETagsType.BKCC
         ? `#${bizItem.value?.id}`
@@ -369,6 +375,7 @@ export default defineComponent({
 
     return {
       loading,
+      alertProblem,
       renderDimensionsInfo,
       basicInfoForm,
       relationDialogShow,
@@ -379,6 +386,17 @@ export default defineComponent({
   render() {
     return (
       <div class='alarm-center-detail-alarm-info'>
+        {this.alertProblem ? (
+          <div class='alert-problem'>
+            <div class='block-title'>告警问题</div>
+            <div class='alert-problem-content'>
+              {this.alertProblem.text}
+              {this.alertProblem.highlight ? (
+                <span class='alert-problem-highlight'>{this.alertProblem.highlight}</span>
+              ) : undefined}
+            </div>
+          </div>
+        ) : undefined}
         <div class='block-title'>维度信息</div>
         <div class='dimension-info'>
           {this.loading ? <div class='skeleton-element' /> : this.renderDimensionsInfo()}

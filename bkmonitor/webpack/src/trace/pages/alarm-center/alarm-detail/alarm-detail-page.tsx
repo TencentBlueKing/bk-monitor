@@ -28,6 +28,7 @@ import { defineComponent, onMounted, provide, shallowReactive, shallowRef, watch
 import * as authMap from 'monitor-pc/pages/event-center/authority-map';
 import { storeToRefs } from 'pinia';
 
+import { shouldAutoOpenAiAnalysis } from '../../../mock/alarm-detail-ai';
 import DetailCommon from '../common-detail/common-detail';
 import DiagnosticAnalysis from './components/diagnostic-analysis/diagnostic-analysis';
 import EventDetailHead from './components/event-detail-head';
@@ -80,6 +81,9 @@ export default defineComponent({
 
     onMounted(() => {
       init();
+      if (shouldAutoOpenAiAnalysis()) {
+        showAiAnalysis.value = true;
+      }
     });
 
     return {
@@ -93,6 +97,7 @@ export default defineComponent({
     return (
       <div class='alarm-center-detail-page'>
         <EventDetailHead
+          aiAnalysisShow={this.showAiAnalysis}
           isFullscreen={true}
           showBlankBtn={false}
           showFullScreenBtn={false}

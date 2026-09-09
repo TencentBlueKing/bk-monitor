@@ -29,15 +29,13 @@ export const DiagnosticTypeEnum = {
   LINK: 'link',
   LOG: 'log',
   EVENT: 'event',
-  METRIC: 'metric',
 } as const;
 
 export const DiagnosticTypeMap = {
-  [DiagnosticTypeEnum.DIMENSION]: window.i18n.t('可疑维度'),
-  [DiagnosticTypeEnum.LINK]: window.i18n.t('可疑调用链'),
-  [DiagnosticTypeEnum.LOG]: window.i18n.t('可疑日志'),
-  [DiagnosticTypeEnum.EVENT]: window.i18n.t('可疑事件'),
-  [DiagnosticTypeEnum.METRIC]: window.i18n.t('相关性指标'),
+  [DiagnosticTypeEnum.DIMENSION]: window.i18n.t('告警异常维度分析'),
+  [DiagnosticTypeEnum.LINK]: window.i18n.t('Trace 分析'),
+  [DiagnosticTypeEnum.LOG]: window.i18n.t('日志分析'),
+  [DiagnosticTypeEnum.EVENT]: window.i18n.t('事件分析'),
 };
 
 export const DiagnosticTypeIconMap = {
@@ -45,5 +43,4 @@ export const DiagnosticTypeIconMap = {
   [DiagnosticTypeEnum.LINK]: 'icon-Tracing',
   [DiagnosticTypeEnum.LOG]: 'icon-a-logrizhi',
   [DiagnosticTypeEnum.EVENT]: 'icon-shijianjiansuo',
-  [DiagnosticTypeEnum.METRIC]: 'icon-zhibiaojiansuo',
 };

@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Prop, Ref } from 'vue-property-decorator';
+import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { fetchRobotInfo } from 'monitor-api/modules/commons';
@@ -142,6 +142,18 @@ export default class AiWhale extends tsc<{
   get space() {
     const { bizId } = this.$store.getters;
     return this.$store.getters.bizList.find(item => item.id === bizId) || { name: '', type_name: '' };
+  }
+
+  /* 子应用自带 AI 会话入口时收起浮标，AI 会话弹窗本身不受影响 */
+  get hideRobot() {
+    return aiWhaleStore.hideRobot;
+  }
+
+  @Watch('hideRobot')
+  handleHideRobotChange(hidden: boolean) {
+    if (hidden) {
+      this.handlePopoverHidden();
+    }
   }
 
   created() {
@@ -642,7 +654,7 @@ export default class AiWhale extends tsc<{
   render() {
     return (
       <div class='ai-small-whale'>
-        {!!this.data && (
+        {!!this.data && !this.hideRobot && (
           <div
             ref='robot'
             style={{

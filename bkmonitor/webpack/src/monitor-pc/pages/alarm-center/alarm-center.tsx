@@ -63,6 +63,9 @@ export default class AlarmCenterComponent extends tsc<object> {
       handleAIBluekingShortcut: (shortcut: AIBluekingShortcut) => {
         aiWhaleStore.setCustomFallbackShortcut(shortcut);
       },
+      setAiWhaleHidden: (hidden: boolean) => {
+        aiWhaleStore.setHideRobot(hidden);
+      },
     };
   }
   created() {
@@ -98,6 +101,7 @@ export default class AlarmCenterComponent extends tsc<object> {
     this.unmountCallback?.();
     unmount(alarmCenterAppId);
     this.unmountCallback = undefined;
+    aiWhaleStore.setHideRobot(false);
   }
   render() {
     return (

@@ -4,8 +4,7 @@
   grid-template-columns: 100%;
   overflow: hidden;
   background-color: #fff;
-  border: 1px solid #ced9f0;
-  border-radius: 4px;
+  border-radius: 2px;
   transition: grid-template-rows 0.6s ease;
 
   .suspicious-analysis-group-wrapper {
@@ -17,7 +16,8 @@
       height: 32px;
       padding: 0 8px;
       cursor: pointer;
-      background: #e9edf5;
+      background: #e1e4eb;
+      border-radius: 2px;
 
       .arrow-icon {
         margin: 0 6px 0 0;

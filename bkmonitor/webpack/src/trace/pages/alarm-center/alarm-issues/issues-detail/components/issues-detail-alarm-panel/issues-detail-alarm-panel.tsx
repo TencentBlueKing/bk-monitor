@@ -102,6 +102,7 @@ export default defineComponent({
       <div class='issues-detail-alarm-panel'>
         <EventDetailHead
           isFullscreen={true}
+          showAiAnalysisBtn={false}
           showBlankBtn={false}
           showFeedbackBtn={false}
           showFullScreenBtn={false}

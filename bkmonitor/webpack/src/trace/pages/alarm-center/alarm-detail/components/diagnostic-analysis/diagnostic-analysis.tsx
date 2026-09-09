@@ -23,13 +23,16 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, shallowRef, Teleport } from 'vue';
+import { defineComponent, nextTick, onBeforeUnmount, onMounted, shallowRef, Teleport, watch } from 'vue';
 
 import { useI18n } from 'vue-i18n';
 
 import AiDiagnosticInfoCard from './ai-diagnostic-info-card';
 import AnalysisPanel from './analysis-panel';
+import AiChatInput from './chat/ai-chat-input';
+import { useAiChat } from './chat/use-ai-chat';
 import { DiagnosticTypeEnum } from './constant';
+import { useAiCapability } from './use-ai-capability';
 
 import './diagnostic-analysis.scss';
 export default defineComponent({
@@ -37,33 +40,12 @@ export default defineComponent({
   emits: ['close'],
   setup(_, { emit }) {
     const { t } = useI18n();
-    /** 是否全部展开 */
-    const isAllExpand = shallowRef(true);
+    const { bkFaraProcesses, displayIncident, hasIncident } = useAiCapability();
+    const { messages, pending, sendQuestion } = useAiChat();
     /** 是否固定 */
     const isFixed = shallowRef(false);
-
-    /** 分析面板 ref 映射 */
-    const analysisPanelRefs = shallowRef<Map<string, InstanceType<typeof AnalysisPanel>>>(new Map());
-
-    /**
-     * 设置 ref
-     * @param el 组件实例
-     * @param type 诊断类型
-     */
-    const setItemRef = (el: InstanceType<typeof AnalysisPanel> | null, type: string) => {
-      if (el) {
-        analysisPanelRefs.value.set(type, el);
-      } else {
-        analysisPanelRefs.value.delete(type);
-      }
-    };
-
-    const handleAllExpandChange = () => {
-      isAllExpand.value = !isAllExpand.value;
-      for (const item of analysisPanelRefs.value.values()) {
-        item?.toggleExpand(isAllExpand.value);
-      }
-    };
+    /** 会话滚动容器 */
+    const conversationRef = shallowRef<HTMLDivElement>();
 
     const handleFixedChange = () => {
       isFixed.value = !isFixed.value;
@@ -73,18 +55,54 @@ export default defineComponent({
       emit('close');
     };
 
+    const handleSendQuestion = (question: string) => {
+      sendQuestion(question);
+    };
+
+    // 本面板底部已有 AI 会话入口，展开期间收起宿主右下角的小鲸浮标，避免两个入口重叠
+    onMounted(() => {
+      window.__BK_WEWEB_DATA__?.setAiWhaleHidden?.(true);
+    });
+
+    onBeforeUnmount(() => {
+      window.__BK_WEWEB_DATA__?.setAiWhaleHidden?.(false);
+    });
+
+    // 追问消息入列、以及回复内容填充后都要滚到底
+    watch(
+      () => messages.value,
+      async () => {
+        await nextTick();
+        const el = conversationRef.value;
+        if (el) {
+          el.scrollTop = el.scrollHeight;
+        }
+      }
+    );
+
     return {
       t,
       DiagnosticTypeEnum,
-      isAllExpand,
+      bkFaraProcesses,
+      displayIncident,
+      hasIncident,
+      messages,
+      pending,
+      conversationRef,
       isFixed,
-      setItemRef,
-      handleAllExpandChange,
       handleFixedChange,
       handleClosed,
+      handleSendQuestion,
     };
   },
   render() {
+    const commonPanels = [
+      this.DiagnosticTypeEnum.DIMENSION,
+      this.DiagnosticTypeEnum.LINK,
+      this.DiagnosticTypeEnum.LOG,
+      this.DiagnosticTypeEnum.EVENT,
+    ];
+
     return (
       <Teleport
         disabled={!this.isFixed}
@@ -93,15 +111,8 @@ export default defineComponent({
         <div class={['diagnostic-analysis-panel-comp', { fixed: this.isFixed }]}>
           <div class='diagnostic-analysis-wrapper'>
             <div class='diagnostic-analysis-wrapper-header'>
-              <div class='title'>{this.t('诊断分析')}</div>
+              <div class='title'>{this.t('AI诊断')}</div>
               <div class='tool-btns'>
-                <i
-                  class={['icon-monitor', 'expand-icon', this.isAllExpand ? 'icon-zhankai-2' : 'icon-shouqi3']}
-                  v-bk-tooltips={{
-                    content: this.isAllExpand ? this.t('全部收起') : this.t('全部展开'),
-                  }}
-                  onClick={this.handleAllExpandChange}
-                />
                 <i
                   class={['icon-monitor', 'fixed-icon', this.isFixed ? 'icon-a-pinnedtuding' : 'icon-a-pintuding']}
                   v-bk-tooltips={{
@@ -118,22 +129,69 @@ export default defineComponent({
                 />
               </div>
             </div>
-            <div class='diagnostic-analysis-wrapper-content'>
-              <AiDiagnosticInfoCard />
+            <div
+              ref='conversationRef'
+              class='diagnostic-analysis-conversation'
+            >
+              <div class='chat-message is-ai'>
+                <div class='chat-message-body'>
+                  <div class='chat-message-text'>
+                    {this.hasIncident
+                      ? this.t('这条告警已纳入故障，以下结论结合了故障上下文：')
+                      : this.t('这条告警未纳入故障，以下结论只基于告警自身的观测数据：')}
+                  </div>
+                  <AiDiagnosticInfoCard
+                    bkFaraProcesses={this.bkFaraProcesses}
+                    incident={this.displayIncident}
+                  />
+                </div>
+              </div>
 
-              {[
-                this.DiagnosticTypeEnum.DIMENSION,
-                this.DiagnosticTypeEnum.LINK,
-                this.DiagnosticTypeEnum.LOG,
-                this.DiagnosticTypeEnum.EVENT,
-                this.DiagnosticTypeEnum.METRIC,
-              ].map(type => (
-                <AnalysisPanel
-                  key={type}
-                  ref={el => this.setItemRef(el as InstanceType<typeof AnalysisPanel>, type)}
-                  type={type}
-                />
-              ))}
+              <div class='chat-message is-ai'>
+                <div class='chat-message-body'>
+                  <div class='chat-message-text'>{this.t('我还找到这些关联线索，展开可以看明细：')}</div>
+                  {commonPanels.map(type => (
+                    <AnalysisPanel
+                      key={type}
+                      type={type}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              {this.messages.map(message =>
+                message.role === 'user' ? (
+                  <div
+                    key={message.id}
+                    class='chat-message is-user'
+                  >
+                    <div class='chat-message-bubble'>{message.content}</div>
+                  </div>
+                ) : (
+                  <div
+                    key={message.id}
+                    class='chat-message is-ai'
+                  >
+                    <div class='chat-message-body'>
+                      {message.loading ? (
+                        <div class='chat-message-loading'>
+                          <span class='dot' />
+                          <span class='dot' />
+                          <span class='dot' />
+                        </div>
+                      ) : (
+                        <div class='chat-message-text'>{message.content}</div>
+                      )}
+                    </div>
+                  </div>
+                )
+              )}
+            </div>
+            <div class='diagnostic-analysis-wrapper-footer'>
+              <AiChatInput
+                pending={this.pending}
+                onSend={this.handleSendQuestion}
+              />
             </div>
           </div>
         </div>

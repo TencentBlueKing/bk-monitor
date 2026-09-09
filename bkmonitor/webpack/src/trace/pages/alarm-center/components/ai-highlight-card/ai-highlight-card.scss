@@ -68,4 +68,11 @@
     line-height: 20px;
     color: #4d4f56;
   }
+
+  &.is-no-favicon {
+    .ai-highlight-card-header-title {
+      margin-left: 0;
+      line-height: 20px;
+    }
+  }
 }

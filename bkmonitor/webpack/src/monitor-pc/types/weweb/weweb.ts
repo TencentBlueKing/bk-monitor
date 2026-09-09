@@ -32,6 +32,8 @@ export type Vue3WewebData = {
   handleAIBluekingShortcut?: (shortcut: AIBluekingShortcut) => void;
   host: string;
   parentRoute: string;
+  /** 子应用自带 AI 会话入口时，用它临时收起全局 AI 小鲸浮标，避免两个入口叠在右下角 */
+  setAiWhaleHidden?: (hidden: boolean) => void;
   setIntroduceData?: (callback: (data: ISPaceIntroduceData) => void) => void;
   setUnmountCallback?: (callback: () => void) => void;
 };

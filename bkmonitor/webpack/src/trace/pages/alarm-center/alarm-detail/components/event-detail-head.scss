@@ -178,7 +178,8 @@ $fatal-red: #ea3536;
         -webkit-text-fill-color: transparent;
       }
 
-      &:hover {
+      &:hover,
+      &.is-active {
         background: linear-gradient(113deg, #4165f41a 0%, #ce86ea1a 100%);
       }
     }

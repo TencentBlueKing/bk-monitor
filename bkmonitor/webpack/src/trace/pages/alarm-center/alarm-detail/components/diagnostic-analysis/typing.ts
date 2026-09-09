@@ -28,6 +28,24 @@ import type { DiagnosticTypeEnum } from './constant';
 import type { GetEnumTypeTool } from 'monitor-pc/pages/query-template/typings/constants';
 export type DiagnosticTypeEnumType = GetEnumTypeTool<typeof DiagnosticTypeEnum>;
 
+/** 告警关联的故障摘要（alert_incident_detail） */
+export interface IAlertIncidentBrief {
+  bk_biz_id?: number;
+  bk_biz_name?: string;
+  id?: string;
+  incident_id?: number;
+  incident_name?: string;
+}
+
+/** BKFara 事件分析中的流程执行记录 */
+export interface IBkFaraProcessItem {
+  executeResult: string;
+  executeTime: string;
+  /** 流程详情跳转地址，联调前可为占位 */
+  link?: string;
+  name: string;
+}
+
 /** 内容项 */
 export interface IContentItem {
   title: string;

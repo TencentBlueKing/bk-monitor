@@ -32,6 +32,7 @@ import {
   alertK8sTarget,
   listAlertFeedback,
 } from 'monitor-api/modules/alert_v2';
+import { alertIncidentDetail } from 'monitor-api/modules/incident';
 import { scenarioMetricList } from 'monitor-api/modules/k8s';
 import { listK8sResources } from 'monitor-api/modules/k8s';
 import { getSceneView } from 'monitor-api/modules/scene_view';
@@ -74,6 +75,17 @@ export const fetchActionDetail = (id: string, bk_biz_id: number): Promise<Action
 
 export const fetchListAlertFeedback = (id: string, bizId: number) => {
   return listAlertFeedback({ alert_id: id, bk_biz_id: bizId }).catch(() => []);
+};
+
+/**
+ * @description 查询告警是否已纳入故障
+ */
+export const fetchAlertIncidentDetail = (id: string, bk_biz_id: number) => {
+  if (!id) return Promise.resolve(null);
+  return alertIncidentDetail<{ alert_id: string; bk_biz_id: number }, { incident?: Record<string, any> | null }>({
+    alert_id: id,
+    bk_biz_id,
+  }).catch(() => null);
 };
 
 // ==============================start 详情-视图-相关接口 start==============================

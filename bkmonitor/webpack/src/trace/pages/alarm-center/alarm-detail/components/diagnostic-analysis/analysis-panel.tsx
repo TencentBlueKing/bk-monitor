@@ -29,7 +29,6 @@ import DimensionPanel from './components/dimension-panel';
 import EventPanel from './components/event-panel';
 import LinkPanel from './components/link-panel';
 import LogPanel from './components/log-panel';
-import MetricPanel from './components/metric-panel';
 import { DiagnosticTypeEnum, DiagnosticTypeIconMap, DiagnosticTypeMap } from './constant';
 
 import type { DiagnosticTypeEnumType } from './typing';
@@ -42,7 +41,6 @@ const PANEL_RENDER_MAP: Record<DiagnosticTypeEnumType, () => any> = {
   [DiagnosticTypeEnum.LINK]: () => <LinkPanel />,
   [DiagnosticTypeEnum.LOG]: () => <LogPanel />,
   [DiagnosticTypeEnum.EVENT]: () => <EventPanel />,
-  [DiagnosticTypeEnum.METRIC]: () => <MetricPanel />,
 };
 
 /** 分析面板 */
@@ -55,10 +53,10 @@ export default defineComponent({
     },
   },
   setup() {
-    const isExpand = shallowRef(true);
+    const isExpand = shallowRef(false);
 
-    const toggleExpand = (expand: boolean) => {
-      isExpand.value = expand;
+    const toggleExpand = () => {
+      isExpand.value = !isExpand.value;
     };
 
     return {
@@ -77,14 +75,14 @@ export default defineComponent({
         <div class='analysis-panel-wrapper'>
           <div
             class='analysis-panel-wrapper-header'
-            onClick={() => this.toggleExpand(!this.isExpand)}
+            onClick={this.toggleExpand}
           >
             <i class={['icon-monitor', 'analysis-type-icon', DiagnosticTypeIconMap[this.type]]} />
             <span class='panel-title'>{DiagnosticTypeMap[this.type]}</span>
             <span class='count-tag'>2</span>
             <i class='icon-monitor icon-arrow-right-copy arrow-icon' />
           </div>
-          <div class='analysis-panel-wrapper-content'>{renderAnalysisPanel()}</div>
+          {this.isExpand ? <div class='analysis-panel-wrapper-content'>{renderAnalysisPanel()}</div> : undefined}
         </div>
       </div>
     );

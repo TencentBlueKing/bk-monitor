@@ -45,6 +45,11 @@ export default defineComponent({
       type: Number,
       default: 36,
     },
+    /** 是否展示左侧 AI 头像，诊断回显场景不需要 */
+    showFavicon: {
+      type: Boolean,
+      default: true,
+    },
   },
   setup(props) {
     /** css 变量 */
@@ -57,20 +62,25 @@ export default defineComponent({
     };
   },
   render() {
+    const titleContent = this.$slots?.title?.(this.title) ?? this.title;
     return (
       <div
         style={this.cssVars}
-        class='ai-highlight-card'
+        class={['ai-highlight-card', { 'is-no-favicon': !this.showFavicon }]}
       >
-        <div class='ai-highlight-card-header'>
-          <div class='ai-favicon'>
-            <img
-              alt='ai-favicon'
-              src={AIFavicon}
-            />
+        {this.showFavicon || titleContent ? (
+          <div class='ai-highlight-card-header'>
+            {this.showFavicon ? (
+              <div class='ai-favicon'>
+                <img
+                  alt='ai-favicon'
+                  src={AIFavicon}
+                />
+              </div>
+            ) : undefined}
+            <div class='ai-highlight-card-header-title'>{titleContent}</div>
           </div>
-          <div class='ai-highlight-card-header-title'>{this.$slots?.title?.(this.title) ?? this.title}</div>
-        </div>
+        ) : undefined}
         <div class='ai-highlight-card-main'>{this.$slots?.content?.(this.content) ?? this.content}</div>
       </div>
     );

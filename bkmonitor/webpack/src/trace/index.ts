@@ -51,9 +51,12 @@ import 'monitor-static/icons/monitor-icons.css';
 import '@blueking/tdesign-ui/vue3/index.css';
 import { assignWindowField } from 'monitor-common/utils/assign-window';
 import { userDisplayNameConfigure } from 'monitor-pc/common/user-display-name';
+// 【临时联调 mock，联调就绪后请删除本调用 + src/trace/mock/alarm-detail-ai.ts】
+import { installAlarmDetailAiMock } from './mock/alarm-detail-ai';
 
 // import 'monitor-pc/tailwind.css';
 window.source_app = 'trace';
+installAlarmDetailAiMock();
 const spaceUid = getUrlParam('space_uid');
 const bizId = parseBizId(getUrlParam('bizId'));
 if (process.env.NODE_ENV === 'development') {
