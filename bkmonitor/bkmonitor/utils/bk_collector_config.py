@@ -132,27 +132,25 @@ class BkCollectorClusterConfig:
     @classmethod
     def get_cluster_mapping(cls, bk_biz_ids=None):
         """获取带 namespace 和公共目标标记的集群部署映射。"""
+        bk_biz_ids = set(bk_biz_ids or [])
+
+        cluster_mapping = {}
         cache = ApmCacheHandler().get_redis_client()
         cluster_to_bk_biz_ids = cache.smembers(BkCollectorComp.CACHE_KEY_CLUSTER_IDS)
-        bk_biz_ids = set(bk_biz_ids or [])
-        global_targets = cls.global_deploy_targets()
-        global_target_ids = {(cluster_id, namespace) for cluster_id, namespace, _is_global in global_targets}
-        cluster_mapping = {}
         for i in cluster_to_bk_biz_ids:
             value = ApmCacheHandler.decode_redis_value(i)
-            if value is not None:
-                cluster_id, related_bk_biz_ids = cls._split_value(value)
-                if cluster_id and related_bk_biz_ids:
-                    related_bk_biz_ids = set(related_bk_biz_ids)
-                    namespace = cls.bk_collector_namespace(cluster_id)
-                    if (cluster_id, namespace) in global_target_ids or (
-                        bk_biz_ids and not bk_biz_ids & related_bk_biz_ids
-                    ):
-                        continue
-                    target = (cluster_id, namespace, False)
-                    cluster_mapping.setdefault(target, set()).update(related_bk_biz_ids)
+            if value is None:
+                continue
 
-        cluster_mapping.update({target: [cls.GLOBAL_CONFIG_BK_BIZ_ID] for target in global_targets})
+            cluster_id, related_bk_biz_ids = cls._split_value(value)
+            if cluster_id and related_bk_biz_ids:
+                related_bk_biz_ids = set(related_bk_biz_ids)
+                if bk_biz_ids & related_bk_biz_ids:
+                    namespace = cls.bk_collector_namespace(cluster_id)
+                    cluster_mapping.setdefault((cluster_id, namespace, False), set()).update(related_bk_biz_ids)
+
+        global_targets = cls.global_deploy_targets()
+        cluster_mapping.update({target: {cls.GLOBAL_CONFIG_BK_BIZ_ID} for target in global_targets})
         return cluster_mapping
 
     @classmethod
