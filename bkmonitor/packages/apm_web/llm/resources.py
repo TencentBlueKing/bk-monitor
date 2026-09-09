@@ -117,7 +117,9 @@ class ListTracesResource(Resource):
         return ""
 
     @classmethod
-    def _trace_item(cls, trace_id: str, raw_spans: list[dict[str, Any]], entity_set: EntitySet) -> dict[str, Any]:
+    def _trace_item(
+        cls, trace_id: str, raw_spans: list[dict[str, Any]], entity_set: EntitySet, has_error: bool
+    ) -> dict[str, Any]:
         converted_spans = adapt_spans(raw_spans, entity_set)
         converted_attributes = [
             attributes for span in converted_spans if isinstance((attributes := span.get(OtlpKey.ATTRIBUTES)), dict)
@@ -139,10 +141,16 @@ class ListTracesResource(Resource):
             (str(value) for value in attribute_values("user.id") if value not in (None, "")),
             "",
         )
+        conversation_id = next(
+            (str(value) for value in attribute_values("gen_ai.conversation.id") if value not in (None, "")),
+            "",
+        )
         return {
             "group_id": trace_id,
             "group_field": OtlpKey.TRACE_ID,
             "trace_id": trace_id,
+            "conversation_id": conversation_id,
+            "status": "error" if has_error else "success",
             "input": cls._last_message_text(preview_root, "gen_ai.input.messages", "user"),
             "output": cls._last_message_text(preview_root, "gen_ai.output.messages", "assistant"),
             "input_tokens": token_total("gen_ai.usage.input_tokens"),
@@ -162,6 +170,7 @@ class ListTracesResource(Resource):
         trace_group_map: dict[str, Any],
         raw_spans: list[dict[str, Any]],
         entity_set: EntitySet,
+        error_trace_ids: set[str],
     ) -> list[dict[str, Any]]:
         spans_by_group: dict[Any, dict[str, list[dict[str, Any]]]] = defaultdict(lambda: defaultdict(list))
         for span in raw_spans:
@@ -173,7 +182,8 @@ class ListTracesResource(Resource):
         items: list[dict[str, Any]] = []
         for group_id in group_ids:
             childs = [
-                cls._trace_item(trace_id, spans, entity_set) for trace_id, spans in spans_by_group[group_id].items()
+                cls._trace_item(trace_id, spans, entity_set, has_error=trace_id in error_trace_ids)
+                for trace_id, spans in spans_by_group[group_id].items()
             ]
             if not childs:
                 continue
@@ -264,12 +274,14 @@ class ListTracesResource(Resource):
             group_field=OtlpKey.TRACE_ID,
             group_ids=list(trace_group_map),
         )
+        error_trace_ids = span_query.query_error_trace_ids(trace_ids=list(trace_group_map))
         result["items"] = self._group_spans(
             group_field,
             group_ids,
             trace_group_map,
             spans,
             entity_set,
+            error_trace_ids,
         )
         return result
 

@@ -12,6 +12,7 @@ from collections.abc import Mapping
 from typing import Any
 
 from django.db.models import Q
+from opentelemetry.trace import StatusCode
 
 from bkmonitor.data_source.utils import types
 from bkmonitor.data_source.utils.apm import TraceDatasourceTarget
@@ -105,6 +106,17 @@ class LLMQuery(SpanQuery):
             for query in self.build_queries()
         ]
         return self._query_list(queries, None, None, 0, limit)
+
+    def query_error_trace_ids(self, trace_ids: list[str]) -> set[str]:
+        """在应用保留期内批量查找含失败 Span 的 Trace，仅返回去重后的 ID。"""
+        queries = [
+            query.filter(**{f"{OtlpKey.TRACE_ID}__eq": trace_ids, OtlpKey.STATUS_CODE: StatusCode.ERROR.value})
+            .distinct(OtlpKey.TRACE_ID)
+            .values(OtlpKey.TRACE_ID)
+            for query in self.build_queries()
+        ]
+        records = self._query_list(queries, None, None, 0, len(trace_ids))
+        return {self._get_field_value(record, OtlpKey.TRACE_ID) for record in records}
 
     @classmethod
     def _add_logic_filter(cls, q: Q, field: str, value: types.FilterValue) -> Q:

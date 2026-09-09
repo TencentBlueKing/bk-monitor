@@ -78,6 +78,8 @@
 | group_id | string | 当前分组值。按 Trace 查询时等于 `trace_id`；按会话查询时为会话 ID |
 | group_field | string | 当前分组字段 |
 | trace_id | string | Trace ID，仅 Trace 层对象返回 |
+| conversation_id | string | 会话 ID，无会话信息时为空字符串；仅 Trace 层对象返回 |
+| status | string | Trace 状态：`success`（成功）、`error`（失败）；仅 Trace 层对象返回 |
 | input | string | 逻辑根 Agent/Workflow Span 中最后一条用户文本；会话层返回空字符串 |
 | output | string | 逻辑根 Agent/Workflow Span 中最后一条助手文本；会话层返回空字符串 |
 | input_tokens | int | 分组内输入 Token 总数 |
@@ -108,6 +110,8 @@
                 "group_id": "9519ce8934ad4c2f04753eef6ce44b08",
                 "group_field": "trace_id",
                 "trace_id": "9519ce8934ad4c2f04753eef6ce44b08",
+                "conversation_id": "conversation-demo-01",
+                "status": "success",
                 "input": "查询当前故障",
                 "output": "已完成故障分析",
                 "input_tokens": 0,
@@ -151,6 +155,8 @@
                         "group_id": "9519ce8934ad4c2f04753eef6ce44b08",
                         "group_field": "trace_id",
                         "trace_id": "9519ce8934ad4c2f04753eef6ce44b08",
+                        "conversation_id": "conversation-demo-01",
+                        "status": "success",
                         "input": "查询当前故障",
                         "output": "已完成故障分析",
                         "input_tokens": 0,
