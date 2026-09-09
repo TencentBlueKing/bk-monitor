@@ -552,6 +552,14 @@ class AlertShieldObj(ShieldObj):
         """
         return self._get_cached_alert_dimension(alert)
 
-    def is_match(self, alert: AlertDocument):
-        source_time = arrow.now()
-        return self.time_check.is_match(source_time) and self.dimension_check.is_match(self.get_dimension(alert))
+    def is_match(self, alert: AlertDocument, source_time=None):
+        source_time = source_time or arrow.now()
+        if not self.time_check.is_match(source_time):
+            return False
+        if self.config.get("end_policy") == "close":
+            from alarm_backends.service.converge.shield.window import matching_window
+
+            window = matching_window(self.time_check, source_time)
+            if not window or not window[0] <= alert.begin_time <= window[1]:
+                return False
+        return self.dimension_check.is_match(self.get_dimension(alert))

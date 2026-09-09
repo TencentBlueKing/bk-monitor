@@ -23,7 +23,6 @@ from constants.shield import (
     ShieldCategory,
     ShieldStatus,
 )
-from bkmonitor.utils.shield import format_dimension_conditions_display
 from core.drf_resource import resource
 from core.drf_resource.base import Resource
 from monitor_web.shield.utils import ShieldDisplayManager, SimpleShieldDisplayManager
@@ -166,6 +165,7 @@ class FrontendShieldListResource(Resource):
                         "id": shield["id"],
                         "bk_biz_id": shield["bk_biz_id"],
                         "category": shield["category"],
+                        "end_policy": shield["end_policy"],
                         "category_name": manager.get_category_name(shield),
                         "status": shield["status"],
                         "status_name": self.get_status_name(shield["status"]),

@@ -25,7 +25,7 @@
  */
 import { computed, defineComponent, reactive, ref, shallowRef } from 'vue';
 
-import { Button, Checkbox, Input, Loading, Message, Select, Switcher } from 'bkui-vue';
+import { Button, Checkbox, Input, Loading, Message, Radio, Select, Switcher } from 'bkui-vue';
 import dayjs from 'dayjs';
 import { getNoticeWay, getReceiver } from 'monitor-api/modules/notice_group';
 import { addShield, editShield, frontendCloneInfo, frontendShieldDetail } from 'monitor-api/modules/shield';
@@ -92,6 +92,7 @@ export default defineComponent({
     const formData = reactive({
       bizId: store.bizId,
       desc: '',
+      endPolicy: 'notify_once',
       notificationMethod: [],
       noticeNumber: 5,
       noticeMember: [],
@@ -257,6 +258,7 @@ export default defineComponent({
       noticeDate.value.key = random(8);
       /* 屏蔽原因 */
       formData.desc = data.description;
+      formData.endPolicy = data.end_policy || 'notify_once';
       /* 通知设置 */
       if (data.shield_notice) {
         showNoticeConfig.value = true;
@@ -364,6 +366,7 @@ export default defineComponent({
         shield_notice: showNoticeConfig.value,
         notice_config: {},
         description: formData.desc,
+        ...(tabData.active !== EShieldType.Event ? { end_policy: formData.endPolicy } : {}),
       };
       // 编辑状态
       if (isEdit.value) {
@@ -617,6 +620,38 @@ export default defineComponent({
                   value={this.noticeDate}
                   onChange={v => this.handleNoticeDateChange(v)}
                 />
+              )}
+              {this.tabData.active !== EShieldType.Event && (
+                <FormItem
+                  class='mt24'
+                  label={this.t('屏蔽期间产生的告警')}
+                >
+                  {this.isEdit ? (
+                    <span>
+                      {this.t(
+                        this.formData.endPolicy === 'close' ? '屏蔽结束时关闭告警，不再通知' : '屏蔽结束后发送一次通知'
+                      )}
+                    </span>
+                  ) : (
+                    <Radio.Group
+                      modelValue={this.formData.endPolicy}
+                      onUpdate:modelValue={v => {
+                        this.formData.endPolicy = v;
+                      }}
+                    >
+                      <Radio label='notify_once'>{this.t('屏蔽结束后发送一次通知')}</Radio>
+                      <Radio label='close'>{this.t('屏蔽结束时关闭告警，不再通知')}</Radio>
+                    </Radio.Group>
+                  )}
+                  <p>
+                    {this.t(
+                      this.formData.endPolicy === 'close'
+                        ? '屏蔽期间产生的告警不通知、不执行处理套餐；屏蔽结束时关闭，不补发通知、不补执行处理。屏蔽开始前的告警不受影响。'
+                        : '屏蔽结束时，仍未恢复的告警将各发送一次通知，可能集中产生多条通知。'
+                    )}
+                  </p>
+                  <p>{this.t('结束处理方式创建后不可修改。如需使用另一种方式，请新建屏蔽规则。')}</p>
+                </FormItem>
               )}
               <FormItem
                 class='mt24'

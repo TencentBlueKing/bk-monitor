@@ -145,6 +145,15 @@
         <div class="item-content">{{ detailData.beginTime }} ~ {{ detailData.endTime }}</div>
       </div>
       <!-- 屏蔽原因 -->
+      <div
+        v-if="['scope', 'strategy', 'dimension'].includes(detailData.category)"
+        class="scope-item"
+      >
+        <div class="item-label">{{ $t('屏蔽期间产生的告警') }}</div>
+        <div class="item-content">
+          {{ $t(detailData.endPolicy === 'close' ? '屏蔽结束时关闭告警，不再通知' : '屏蔽结束后发送一次通知') }}
+        </div>
+      </div>
       <div class="scope-item">
         <div class="item-label">
           {{ $t('屏蔽原因') }}

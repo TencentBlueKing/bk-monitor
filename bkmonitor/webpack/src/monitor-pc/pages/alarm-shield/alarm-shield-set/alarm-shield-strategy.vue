@@ -194,6 +194,10 @@
       :is-clone="isClone"
     />
     <!-- 屏蔽时间 -->
+    <alarm-shield-end-policy
+      v-model="endPolicy"
+      :readonly="isEdit"
+    />
     <div class="strategy-desc">
       <div class="item-label">
         {{ $t('屏蔽原因') }}
@@ -246,6 +250,7 @@ import VerifyInput from '../../../components/verify-input/verify-input.vue';
 import alarmShieldMixin from '../../../mixins/alarmShieldMixin';
 import strategyMapMixin from '../../../mixins/strategyMapMixin';
 import ShieldDateConfig from '../alarm-shield-components/alarm-shield-date.vue';
+import AlarmShieldEndPolicy from '../alarm-shield-components/alarm-shield-end-policy.vue';
 import AlarmShieldNotice from '../alarm-shield-components/alarm-shield-notice.vue';
 import ShieldTarget from '../alarm-shield-components/alarm-shield-target.vue';
 import StrategyDetailNew from '../alarm-shield-components/strategy-detail-new.tsx';
@@ -270,6 +275,7 @@ interface IParams {
   cycle_config: {};
   description: string;
   dimension_config: IDimensionConfig;
+  end_policy: string;
   end_time: string;
   id?: string;
   level?: string[];
@@ -285,6 +291,7 @@ interface IStrategyList {
 }
 @Component({
   components: {
+    AlarmShieldEndPolicy,
     ShieldDateConfig,
     AlarmShieldNotice,
     VerifyInput,
@@ -297,6 +304,7 @@ interface IStrategyList {
 })
 export default class AlarmShieldStrategy extends Mixins(alarmShieldMixin, strategyMapMixin)<MonitorVue> {
   isEdit = false; // 是否编辑
+  endPolicy = 'notify_once';
   isClone = false; // 是否克隆
   bizList: { id: string; name: string }[] = []; // 业务列表
   bizId = ''; // 当前业务
@@ -419,6 +427,7 @@ export default class AlarmShieldStrategy extends Mixins(alarmShieldMixin, strate
     // this.strategyData = data.dimensionConfig.itemList[0]
     this.noticeLever = data.dimensionConfig.level;
     this.desc = data.description;
+    this.endPolicy = data.endPolicy || 'notify_once';
     //  回填通知时间 每天 每周 每月
     const { cycleConfig } = data;
     const cycleMap: { 1: string; 2: string; 3: string; 4: string } = { 1: 'single', 2: 'day', 3: 'week', 4: 'month' };
@@ -615,6 +624,7 @@ export default class AlarmShieldStrategy extends Mixins(alarmShieldMixin, strate
           .filter(item => !!item.key),
       },
       description: this.desc,
+      end_policy: this.endPolicy,
       shield_notice: this.noticeShow,
       cycle_config: cycle.cycle_config,
       begin_time: cycle.begin_time,
@@ -744,7 +754,7 @@ export default class AlarmShieldStrategy extends Mixins(alarmShieldMixin, strate
       flex-direction: column;
       width: calc(100vw - 306px);
       min-width: 836px;
-      padding: 18px 21px 11px 21px;
+      padding: 18px 21px 11px;
       background: #fafbfd;
       border: 1px solid #dcdee5;
       border-radius: 2px;
@@ -764,12 +774,12 @@ export default class AlarmShieldStrategy extends Mixins(alarmShieldMixin, strate
 
       .item-content {
         word-break: break-all;
-        word-wrap: break-word;
+        overflow-wrap: break-word;
       }
 
-      .item-aggDimension {
+      .item-agg-dimension {
         height: 32px;
-        padding: 7px 12px 9px 12px;
+        padding: 7px 12px 9px;
         margin: 0 2px 2px 0;
         font-size: 12px;
         line-height: 16px;
@@ -779,7 +789,7 @@ export default class AlarmShieldStrategy extends Mixins(alarmShieldMixin, strate
         border-radius: 2px;
       }
 
-      .item-aggCondition {
+      .item-agg-condition {
         display: flex;
         flex-wrap: wrap;
         max-width: calc(100vw - 322px);
@@ -793,7 +803,7 @@ export default class AlarmShieldStrategy extends Mixins(alarmShieldMixin, strate
         }
       }
 
-      &-aggCondition {
+      &-agg-condition {
         align-items: flex-start;
       }
     }

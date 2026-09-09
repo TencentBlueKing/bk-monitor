@@ -55,6 +55,10 @@ def check_action_and_composite(
         logger.info("[composite] alert(%s) not found, skip it", alert_key.alert_id)
         return
 
+    if alert.shield_end_close:
+        logger.info("[composite] alert(%s) is owned by a close shield, skip it", alert.id)
+        return
+
     if not alert.bk_biz_id:
         logger.info("[composite] alert(%s) bk_biz_id is empty, skip it", alert.id)
         return
