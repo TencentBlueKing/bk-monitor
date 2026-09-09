@@ -201,19 +201,19 @@ export default defineComponent({
       tableList.value = (view.window ?? []).map(item => markRaw(item));
     };
 
-    const runPipeline = async (resetWindow = true) => {
+    const runPipeline = async (resetWindow = true, replaceRaw = false) => {
       pipelineToken += 1;
       const token = pipelineToken;
       if (resetWindow) {
         pagination.value.current = 1;
       }
       const input = buildPipelineInput();
-      const { view, viaWorker } = await clusterTableWorkerService.run(input, getWindowOptions());
+      const { view, viaWorker } = await clusterTableWorkerService.run(input, getWindowOptions(), { replaceRaw });
       if (token !== pipelineToken) return;
       if (!viaWorker && !(view.window ?? []).length && !input.raw?.length) {
         await ensureRawSnapshot();
         if (rawSnapshot.length && token === pipelineToken) {
-          await runPipeline(resetWindow);
+          await runPipeline(resetWindow, replaceRaw);
           return;
         }
       }
@@ -312,27 +312,54 @@ export default defineComponent({
       pagination.value.count = pagination.value.childCount;
     };
 
-    const getClusterSearchAddition = () => {
-      return (retrieveParams.value.addition ?? []).reduce((list: any[], item) => {
-        if (!item.disabled) {
-          list.push({
-            field: item.field,
-            operator: item.operator,
-            value:
-              item.hidden_values && item.hidden_values.length > 0
-                ? item.value.filter(value => !item.hidden_values.includes(value))
-                : item.value,
-          });
+    const normalizeSearchAddition = (list: any[] = []) => {
+      return list.reduce((result: any[], item) => {
+        if (!item || item.disabled || item.is_focus_input || item.field === '_ip-select_') {
+          return result;
         }
-        return list;
+        result.push({
+          field: item.field,
+          operator: item.operator,
+          value:
+            item.hidden_values?.length > 0
+              ? (item.value ?? []).filter((value: string) => !item.hidden_values.includes(value))
+              : item.value,
+        });
+        return result;
       }, []);
     };
 
-    const getClusterSearchData = (overrides: Record<string, any> = {}) => {
+    const getClusterSearchAddition = (payload?: { type?: string; value?: unknown }) => {
+      if (payload?.type === 'sql') {
+        return [];
+      }
+      if ((payload?.type === 'ui' || payload?.type === 'filter') && Array.isArray(payload.value)) {
+        return normalizeSearchAddition(payload.value);
+      }
+      return store.getters.requestAddition ?? [];
+    };
+
+    const getClusterOperateParams = () => {
+      const requestData = props.requestData ?? {};
+      return {
+        pattern_level: requestData.pattern_level,
+        year_on_year_hour: requestData.year_on_year_hour,
+        show_new_pattern: requestData.show_new_pattern,
+        group_by: requestData.group_by,
+        size: requestData.size,
+        remark_config: requestData.remark_config,
+        owner_config: requestData.owner_config,
+        owners: requestData.owners,
+      };
+    };
+
+    const getClusterSearchData = (
+      overrides: Record<string, any> = {},
+      payload?: { type?: string; value?: unknown },
+    ) => {
       const {
         start_time,
         end_time,
-        size,
         keyword = '*',
         ip_chooser,
         host_scopes,
@@ -345,16 +372,15 @@ export default defineComponent({
 
       const data: Record<string, any> = {
         bk_biz_id: store.state.bkBizId,
-        addition: getClusterSearchAddition(),
-        size,
-        keyword,
+        addition: getClusterSearchAddition(payload),
+        keyword: payload?.type === 'sql' ? ((payload.value as string) ?? '*') : keyword,
         ip_chooser,
         host_scopes,
         interval,
         timezone,
         start_time,
         end_time,
-        ...props.requestData,
+        ...getClusterOperateParams(),
         ...overrides,
       };
 
@@ -419,7 +445,7 @@ export default defineComponent({
       return resolveClusterSearchList(res)?.[0]?.origin_log ?? '';
     };
 
-    const refreshTable = () => {
+    const refreshTable = (payload?: { type?: string; value?: unknown }) => {
       // 未开启数据指纹、页签未激活或组件已卸载时不起请求；其余刷新一律以最后一次条件为准。
       if (isUnmounted || !props.clusterSwitch || !props.isClusterActive) {
         return;
@@ -442,7 +468,7 @@ export default defineComponent({
             params: {
               index_set_id: props.indexId,
             },
-            data: getClusterSearchData(),
+            data: getClusterSearchData({}, payload),
           },
           {
             cancelWhenRouteChange: false,
@@ -460,6 +486,7 @@ export default defineComponent({
             clusterRequestException.value = t('聚类结果数据格式异常，请重新发起查询');
             rawSnapshot = [];
             rawDataCount.value = 0;
+            void clusterTableWorkerService.clear();
             return;
           }
           // 原始接口数据不再 structuredClone 到响应式内存，分块镜像到 IndexedDB，下载时按需读取。
@@ -484,7 +511,7 @@ export default defineComponent({
             moduleLargeDataCacheService.clear(prevScope).catch(() => {});
           }
           rawSnapshot = responseList;
-          await runPipeline(true);
+          await runPipeline(true, true);
           if (seq !== refreshSeq || isUnmounted) {
             return;
           }
@@ -497,6 +524,7 @@ export default defineComponent({
           clusterRequestException.value = t('聚类结果获取异常，请重新发起查询');
           rawSnapshot = [];
           rawDataCount.value = 0;
+          void clusterTableWorkerService.clear();
         })
         .finally(() => {
           if (seq !== refreshSeq || isUnmounted) {
