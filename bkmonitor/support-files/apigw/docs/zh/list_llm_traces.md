@@ -13,7 +13,7 @@
 | start_time | int | 是 | 查询开始时间，Unix 时间戳，单位为秒 |
 | end_time | int | 是 | 查询结束时间，Unix 时间戳，单位为秒，不能小于 `start_time` |
 | group_field | string | 否 | ES 原始 Span 的分组字段，默认 `trace_id`。会话视图可传实际存在的会话字段，例如 `attributes.gen_ai.conversation.id` |
-| service_name | string | 否 | OTel 服务名称，精确匹配原始 Span 的 `resource.service.name` |
+| service_name | string | 是 | OTel 服务名称，精确匹配原始 Span 的 `resource.service.name` |
 | keyword | string | 否 | 高级搜索关键词，可匹配 Trace ID、Span ID、用户 ID 或会话 ID |
 | offset | int | 否 | 分页偏移量，默认 `0`，最小为 `0` |
 | limit | int | 否 | 每页分组数量，默认 `20`，取值范围为 `1`～`100` |
