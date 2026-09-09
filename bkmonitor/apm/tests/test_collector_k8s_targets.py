@@ -76,10 +76,10 @@ def test_empty_public_target_parts_do_not_block_valid_or_business_targets(settin
 
 
 def test_public_targets_read_current_settings(settings):
-    assert ClusterConfig.global_deploy_targets() == [("cluster-a", "blueking", True)]
+    assert ClusterConfig.get_global_deploy_mapping() == {("cluster-a", "blueking", True): {0}}
 
     settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER = ["cluster-b/public"]
-    assert ClusterConfig.global_deploy_targets() == [("cluster-b", "public", True)]
+    assert ClusterConfig.get_global_deploy_mapping() == {("cluster-b", "public", True): {0}}
 
 
 def test_public_targets_reuse_existing_global_config():
@@ -242,7 +242,7 @@ def multi_target_delivery(settings, mocker):
 def test_application_delivery_keeps_business_scope_and_fans_out_public_configs(
     protocol, extra_cluster, business_public_target, multi_target_delivery, mocker, settings
 ):
-    targets = mocker.spy(ClusterConfig, "global_deploy_targets")
+    targets = mocker.spy(ClusterConfig, "get_global_deploy_mapping")
     if extra_cluster:
         settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER += ["cluster-b/public-1"]
     if business_public_target:
@@ -282,7 +282,7 @@ def test_application_delivery_keeps_business_scope_and_fans_out_public_configs(
 
 
 def test_platform_refresh_renders_each_target_and_continues_after_one_failure(multi_target_delivery, mocker):
-    targets = mocker.spy(ClusterConfig, "global_deploy_targets")
+    targets = mocker.spy(ClusterConfig, "get_global_deploy_mapping")
     mocker.patch.object(ClusterConfig, "platform_config_tpl", side_effect=lambda cluster_id, namespace: "{{ ns }}")
 
     def context(cluster_id, namespace, is_global):
@@ -303,7 +303,7 @@ def test_platform_refresh_renders_each_target_and_continues_after_one_failure(mu
 
 
 def test_application_context_uses_target_role_without_reading_global_settings(multi_target_delivery, mocker):
-    targets = mocker.spy(ClusterConfig, "global_deploy_targets")
+    targets = mocker.spy(ClusterConfig, "get_global_deploy_mapping")
     cluster_config = mocker.patch.object(ApplicationConfig, "get_cluster_application_config", return_value={})
     mocker.patch.object(ApplicationConfig, "get_application_config", return_value={"biz": 1})
     application = SimpleNamespace(id=1, bk_biz_id=1, bk_tenant_id="system", app_name="app", token="token")
@@ -314,7 +314,7 @@ def test_application_context_uses_target_role_without_reading_global_settings(mu
 
 @pytest.mark.parametrize("is_global", [False, True])
 def test_platform_context_uses_target_role_without_reading_global_settings(mocker, is_global):
-    targets = mocker.spy(ClusterConfig, "global_deploy_targets")
+    targets = mocker.spy(ClusterConfig, "get_global_deploy_mapping")
     for method in [
         "get_apdex_config",
         "get_sampler_config",
@@ -344,7 +344,7 @@ def test_platform_context_uses_target_role_without_reading_global_settings(mocke
 
 @pytest.mark.parametrize("protocol", ["json", "prometheus"])
 def test_custom_report_global_batch_and_business_batch_are_separate(protocol, multi_target_delivery, mocker):
-    targets = mocker.spy(ClusterConfig, "global_deploy_targets")
+    targets = mocker.spy(ClusterConfig, "get_global_deploy_mapping")
     public_namespaces = {"public-1", "public-2"}
     clean = mocker.patch.object(ClusterConfig, "clean_dup_secrets_in_multi_protocol")
     result = CustomReportSubscription._refresh_k8s_custom_config_by_biz(0, [({"bk_data_id": 10, "biz": 1}, protocol)])

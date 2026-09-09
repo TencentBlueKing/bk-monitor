@@ -155,7 +155,7 @@ class Command(BaseCommand):
 
         global_targets = [
             (cluster_id, target_namespace)
-            for cluster_id, target_namespace, _is_global in BkCollectorClusterConfig.global_deploy_targets()
+            for cluster_id, target_namespace, _is_global in BkCollectorClusterConfig.get_global_deploy_mapping().keys()
         ]
         if not cluster_ids:
             return sorted(global_targets, key=lambda target: target[0])

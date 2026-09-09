@@ -424,7 +424,7 @@ def _get_bk_collector_namespace_context(
         "using_configured_namespace": using_configured_namespace,
         "public_namespaces": [
             target_namespace
-            for cluster_id, target_namespace, _is_global in BkCollectorClusterConfig.global_deploy_targets()
+            for cluster_id, target_namespace, _is_global in BkCollectorClusterConfig.get_global_deploy_mapping().keys()
             if cluster_id == cluster.cluster_id
         ],
     }

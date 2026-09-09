@@ -132,6 +132,13 @@ class BkCollectorClusterConfig:
     @classmethod
     def get_cluster_mapping(cls, bk_biz_ids=None):
         """获取带 namespace 和公共目标标记的集群部署映射。"""
+        cluster_mapping = cls._get_business_cluster_mapping(bk_biz_ids)
+        cluster_mapping.update(cls.get_global_deploy_mapping())
+        return cluster_mapping
+
+    @classmethod
+    def _get_business_cluster_mapping(cls, bk_biz_ids=None):
+        """获取业务默认 collector 部署目标。"""
         bk_biz_ids = set(bk_biz_ids or [])
 
         cluster_mapping = {}
@@ -149,8 +156,6 @@ class BkCollectorClusterConfig:
                     namespace = cls.bk_collector_namespace(cluster_id)
                     cluster_mapping.setdefault((cluster_id, namespace, False), set()).update(related_bk_biz_ids)
 
-        global_targets = cls.global_deploy_targets()
-        cluster_mapping.update({target: {cls.GLOBAL_CONFIG_BK_BIZ_ID} for target in global_targets})
         return cluster_mapping
 
     @classmethod
@@ -159,10 +164,10 @@ class BkCollectorClusterConfig:
         return cluster_namespace.get(cluster_id, BkCollectorComp.NAMESPACE)
 
     @classmethod
-    def global_deploy_targets(cls) -> list[tuple[str, str, bool]]:
-        """解析公共集群ID/namespace列表；纯集群ID默认使用 blueking namespace。"""
+    def get_global_deploy_mapping(cls) -> dict[tuple[str, str, bool], set[int]]:
+        """获取公共 collector 部署目标；纯集群ID默认使用 blueking namespace。"""
         configured_targets = settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER or []
-        targets = set()
+        cluster_mapping = {}
         for target in configured_targets:
             cluster_id, separator, namespace = target.partition("/")
             if not separator:
@@ -170,8 +175,8 @@ class BkCollectorClusterConfig:
             if not cluster_id or not namespace:
                 logger.warning("invalid public collector target: %r, skip it", target)
                 continue
-            targets.add((cluster_id, namespace, True))
-        return list(targets)
+            cluster_mapping[(cluster_id, namespace, True)] = {cls.GLOBAL_CONFIG_BK_BIZ_ID}
+        return cluster_mapping
 
     @classmethod
     def platform_config_tpl(cls, cluster_id: str, namespace: str):
