@@ -135,8 +135,7 @@ export default defineComponent({
     const { addEvent } = useRetrieveEvent();
     let rawSnapshot: LogPattern[] = [];
     let pipelineToken = 0;
-    let clusterRequesting = false;
-    let pendingRefresh = false;
+    let refreshSeq = 0;
     let isUnmounted = false;
 
     const buildPipelineInput = (): ClusterPipelineInput => ({
@@ -367,6 +366,22 @@ export default defineComponent({
       return data;
     };
 
+    const getClusterListRequestId = () => `log-clustering-cluster-search-list-${props.indexId}`;
+    const getClusterOriginLogRequestId = () => `log-clustering-cluster-search-origin-${props.indexId}`;
+
+    const isRequestCanceled = (error: { code?: string; name?: string; __CANCEL__?: boolean } | null | undefined) =>
+      Boolean(error) && (error.code === 'ERR_CANCELED' || error.name === 'CanceledError' || Boolean(error.__CANCEL__));
+
+    const resolveClusterSearchList = (res: unknown): LogPattern[] | null => {
+      if (Array.isArray(res)) {
+        return res;
+      }
+      if (res && typeof res === 'object' && Array.isArray((res as IResponseData<LogPattern[]>).data)) {
+        return (res as IResponseData<LogPattern[]>).data;
+      }
+      return null;
+    };
+
     const getPatternOriginLog = async (row: LogPattern) => {
       const signature = row.signature?.toString();
       if (!signature) {
@@ -380,7 +395,7 @@ export default defineComponent({
           value: signature,
         },
       ];
-      const res = (await $http.request(
+      const res = await $http.request(
         '/logClustering/clusterSearch',
         {
           params: {
@@ -394,24 +409,23 @@ export default defineComponent({
             filter_not_clustering: false,
           }),
         },
-        { catchIsShowMessage: false },
-      )) as IResponseData<LogPattern[]>;
+        {
+          catchIsShowMessage: false,
+          cancelPrevious: false,
+          requestId: getClusterOriginLogRequestId(),
+        },
+      );
 
-      return res.data?.[0]?.origin_log ?? '';
+      return resolveClusterSearchList(res)?.[0]?.origin_log ?? '';
     };
 
     const refreshTable = () => {
-      // 没有开启数据指纹功能，或当前页面初始化 / 切换索引集时不允许起请求。
+      // 未开启数据指纹、页签未激活或组件已卸载时不起请求；其余刷新一律以最后一次条件为准。
       if (isUnmounted || !props.clusterSwitch || !props.isClusterActive) {
-        pendingRefresh = false;
         return;
       }
-      if (clusterRequesting) {
-        pendingRefresh = true;
-        return;
-      }
-      clusterRequesting = true;
-      pendingRefresh = false;
+      refreshSeq += 1;
+      const seq = refreshSeq;
       clusterRequestException.value = '';
       tableList.value = [];
       tableLoading.value = true;
@@ -420,6 +434,7 @@ export default defineComponent({
       pagination.value.groupCount = 0;
       pagination.value.childCount = 0;
       pagination.value.visibleCount = 0;
+      // 同列表 requestId 取消进行中的旧请求；origin-log 使用独立 requestId，避免互相打断。
       (
         $http.request(
           '/logClustering/clusterSearch',
@@ -429,18 +444,26 @@ export default defineComponent({
             },
             data: getClusterSearchData(),
           },
-          { cancelWhenRouteChange: false },
-        ) as Promise<IResponseData<LogPattern[]>>
-      ) // 由于回填指纹的数据导致路由变化，故路由变化时不取消请求
+          {
+            cancelWhenRouteChange: false,
+            cancelPrevious: true,
+            requestId: getClusterListRequestId(),
+          },
+        ) as Promise<unknown>
+      )
         .then(async res => {
-          if (!Array.isArray(res.data)) {
+          if (seq !== refreshSeq || isUnmounted) {
+            return;
+          }
+          const clusterList = resolveClusterSearchList(res);
+          if (!clusterList) {
             clusterRequestException.value = t('聚类结果数据格式异常，请重新发起查询');
             rawSnapshot = [];
             rawDataCount.value = 0;
             return;
           }
           // 原始接口数据不再 structuredClone 到响应式内存，分块镜像到 IndexedDB，下载时按需读取。
-          const responseList = res.data.map(item => {
+          const responseList = clusterList.map(item => {
             const nextItem = {
               ...item,
               owners: getOwnerList(item.owners),
@@ -462,19 +485,24 @@ export default defineComponent({
           }
           rawSnapshot = responseList;
           await runPipeline(true);
+          if (seq !== refreshSeq || isUnmounted) {
+            return;
+          }
           setTimeout(computedScrollXWidth);
         })
-        .catch(() => {
+        .catch(error => {
+          if (seq !== refreshSeq || isUnmounted || isRequestCanceled(error)) {
+            return;
+          }
           clusterRequestException.value = t('聚类结果获取异常，请重新发起查询');
           rawSnapshot = [];
           rawDataCount.value = 0;
         })
         .finally(() => {
-          clusterRequesting = false;
-          tableLoading.value = false;
-          if (!isUnmounted && pendingRefresh && props.clusterSwitch && props.isClusterActive) {
-            refreshTable();
+          if (seq !== refreshSeq || isUnmounted) {
+            return;
           }
+          tableLoading.value = false;
         });
     };
 
@@ -608,7 +636,8 @@ export default defineComponent({
 
     onBeforeUnmount(() => {
       isUnmounted = true;
-      pendingRefresh = false;
+      refreshSeq += 1;
+      $http.cancel(getClusterListRequestId());
       if (rawDataScope.value) {
         moduleLargeDataCacheService.clear(rawDataScope.value).catch(() => {});
       }
@@ -656,6 +685,7 @@ export default defineComponent({
           type={option.type}
           scene='part'
           style='margin-top: 80px'
+          data-testid='cluster-result-exception'
         >
           <span>{option.text}</span>
         </bk-exception>
