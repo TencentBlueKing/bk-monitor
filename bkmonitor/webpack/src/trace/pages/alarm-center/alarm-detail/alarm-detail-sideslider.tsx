@@ -77,7 +77,8 @@ export default defineComponent({
   setup(props, { emit }) {
     const isFullscreen = shallowRef(false);
     const alarmCenterDetailStore = useAlarmCenterDetailStore();
-    const { alarmId, actionId, alarmType, alarmDetail, actionDetail, bizId } = storeToRefs(alarmCenterDetailStore);
+    const { alarmId, actionId, alarmType, alarmDetail, actionDetail, bizId, aiAnalysisOpenNonce } =
+      storeToRefs(alarmCenterDetailStore);
     const authorityStore = useAuthorityStore();
     const authority = shallowReactive<IAuthority>({
       map: authMap,
@@ -132,6 +133,11 @@ export default defineComponent({
       },
       { immediate: true }
     );
+
+    /** 左侧划词「添加至聊天」时展开右侧 AI 诊断，否则引用没有落脚处 */
+    watch(aiAnalysisOpenNonce, nonce => {
+      if (nonce) showAiAnalysis.value = true;
+    });
 
     const init = async () => {
       authority.auth = await getAuthorityMap(authMap);

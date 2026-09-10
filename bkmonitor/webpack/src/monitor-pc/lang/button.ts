@@ -132,6 +132,7 @@ export default {
   编辑策略: 'Edit Alert Rule',
   点击解析: 'Parse',
   添加至列表: 'Add to List',
+  添加至聊天: 'Add to chat',
   新增组: 'Group',
   添加套餐: 'Add Solutions',
   保存套餐: 'Save Solutions',

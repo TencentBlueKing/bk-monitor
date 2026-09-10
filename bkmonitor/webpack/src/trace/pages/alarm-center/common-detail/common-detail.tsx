@@ -23,13 +23,25 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, computed, defineComponent, inject, KeepAlive, shallowRef, useTemplateRef, watch } from 'vue';
+import {
+  type PropType,
+  computed,
+  defineComponent,
+  inject,
+  KeepAlive,
+  shallowRef,
+  Teleport,
+  useTemplateRef,
+  watch,
+} from 'vue';
+import { useI18n } from 'vue-i18n';
 
 import { Tab } from 'bkui-vue';
 import { storeToRefs } from 'pinia';
 
 import { useAlarmCenterDetailStore } from '../../../store/modules/alarm-center-detail';
 import { useAlarmBasicInfo } from '../composables/use-alarm-baseinfo';
+import { useSelectionToChat } from '../composables/use-selection-to-chat';
 import { AlarmDetail } from '../typings';
 import { ALARM_CENTER_PANEL_TAB_MAP } from '../utils/constant';
 import AlarmAlert from './components/alarm-alert/alarm-alert';
@@ -71,10 +83,12 @@ export default defineComponent({
   },
   setup(props) {
     const boxWrapRef = useTemplateRef<HTMLDivElement>('boxWrap');
+    const { t } = useI18n();
     const alarmCenterDetailStore = useAlarmCenterDetailStore();
     const { alarmDetail, bizId, alarmId, timeRange, diagnosticNavigate } = storeToRefs(alarmCenterDetailStore);
     const currentPanel = shallowRef(alarmDetail.value?.alarmTabList?.[0]?.name);
     const { alarmStatusOverview, alarmStatusActions, alarmStatusTotal } = useAlarmBasicInfo();
+    const { selectionMenu, handleAddToChat } = useSelectionToChat(boxWrapRef);
 
     const authority = inject<IAuthority>('authority');
     const judgeOperateAuthority = () => {
@@ -331,6 +345,24 @@ export default defineComponent({
           alarmBizId={bizId.value}
           mealInfo={mealInfo.value}
         />
+        {selectionMenu.value ? (
+          <Teleport to='body'>
+            <div
+              style={{ left: `${selectionMenu.value.x}px`, top: `${selectionMenu.value.y}px` }}
+              class='alarm-detail-selection-menu'
+              // 保住选区，否则 mousedown 会先把划选清掉
+              onMousedown={(event: MouseEvent) => event.preventDefault()}
+            >
+              <span
+                class='selection-menu-item'
+                onClick={handleAddToChat}
+              >
+                <i class='icon-monitor icon-plus-line' />
+                {t('添加至聊天')}
+              </span>
+            </div>
+          </Teleport>
+        ) : undefined}
       </div>
     );
   },

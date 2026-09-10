@@ -39,6 +39,16 @@ import type { AlarmDetail } from '../../pages/alarm-center/typings/detail';
 import type { ActionDetail } from '@/pages/alarm-center/typings/action-detail';
 import type { DateValue } from '@blueking/date-picker';
 
+/** 左侧划词「添加至聊天」带到右侧输入框的引用内容 */
+export interface IChatContextItem {
+  /** 划词所在区域，如「维度信息」「视图」，同一区域的引用在输入框里归到一组 */
+  category: string;
+  id: string;
+  /** 该文本所属对象，如维度名 / 字段名 / 表头，取不到时为空 */
+  label: string;
+  text: string;
+}
+
 export const useAlarmCenterDetailStore = defineStore('alarmCenterDetail', () => {
   /** 告警详情 */
   const alarmDetail = shallowRef<AlarmDetail | null>();
@@ -59,6 +69,12 @@ export const useAlarmCenterDetailStore = defineStore('alarmCenterDetail', () => 
    * common-detail 负责切 tab，各 panel 负责消费 filter。
    */
   const diagnosticNavigate = shallowRef<IDiagnosticNavigateIntent | null>(null);
+  /** 左侧划词添加的引用，由右侧聊天输入框消费 */
+  const chatContexts = shallowRef<IChatContextItem[]>([]);
+  /** 视图 - 维度分析已加载的可下钻维度，右侧诊断需要用它对齐维度名 */
+  const viewDimensionList = shallowRef<{ id: string; name: string }[]>([]);
+  /** 递增以请求宿主展开右侧 AI 诊断面板 */
+  const aiAnalysisOpenNonce = shallowRef(0);
   /** 数据间隔 */
   const interval = computed(
     () => alarmDetail.value?.extra_info?.strategy?.items?.[0]?.query_configs?.[0]?.agg_interval || 60
@@ -106,9 +122,35 @@ export const useAlarmCenterDetailStore = defineStore('alarmCenterDetail', () => 
     diagnosticNavigate.value = null;
   };
 
+  /** 添加划词引用，同一区域下的同一段文本不重复入列，但每次都请求展开 AI 诊断面板 */
+  const addChatContext = (item: Omit<IChatContextItem, 'id'>) => {
+    const text = item.text.trim();
+    if (!text) return;
+    const exists = chatContexts.value.some(
+      context => context.text === text && context.label === item.label && context.category === item.category
+    );
+    if (!exists) {
+      chatContexts.value = [...chatContexts.value, { ...item, text, id: `chat-context-${Date.now()}` }];
+    }
+    aiAnalysisOpenNonce.value = Date.now();
+  };
+
+  const removeChatContext = (id: string) => {
+    chatContexts.value = chatContexts.value.filter(item => item.id !== id);
+  };
+
+  const clearChatContexts = () => {
+    chatContexts.value = [];
+  };
+
+  const setViewDimensionList = (list: { id: string; name: string }[]) => {
+    viewDimensionList.value = list;
+  };
+
   watch(
     () => alarmId.value,
     newVal => {
+      chatContexts.value = [];
       if (newVal && !loading.value) {
         getAlertDetailData(newVal);
       }
@@ -130,6 +172,7 @@ export const useAlarmCenterDetailStore = defineStore('alarmCenterDetail', () => 
     alarmDetail.value = null;
     loading.value = false;
     diagnosticNavigate.value = null;
+    chatContexts.value = [];
   });
 
   return {
@@ -147,5 +190,12 @@ export const useAlarmCenterDetailStore = defineStore('alarmCenterDetail', () => 
     diagnosticNavigate,
     navigateFromDiagnostic,
     clearDiagnosticNavigate,
+    chatContexts,
+    aiAnalysisOpenNonce,
+    addChatContext,
+    removeChatContext,
+    clearChatContexts,
+    viewDimensionList,
+    setViewDimensionList,
   };
 });

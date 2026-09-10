@@ -145,53 +145,17 @@ export function navigateToEventTab(eventNames: string[]) {
 }
 
 /**
- * 跳转指标检索，带上告警 graph_panel.targets，并把维度组合写入 filter_dict。
- * 无 targets 时仍打开带 filter_dict 占位的指标检索页，便于联调。
+ * 点击「异常维度（组合）」：切到左侧「视图」tab，定位到维度分析板块并选中这些维度。
+ * 维度名同时给出后端字段与展示名，由维度分析侧按已加载的维度列表匹配。
  */
-export function openDataRetrievalByDimensions(tableData: ITableItem[]) {
-  const store = useAlarmCenterDetailStore();
-  const detail = store.alarmDetail;
-  const bizId = detail?.bk_biz_id || store.bizId || window.cc_biz_id;
-  let targets = detail?.graph_panel?.targets ? structuredClone(detail.graph_panel.targets) : [];
-  const filterDict = tableData.reduce<Record<string, string>>((prev, item) => {
-    const key = DIMENSION_NAME_TO_KEY[item.name] || item.name;
-    if (item.value !== undefined && item.value !== '') {
-      prev[key] = item.value;
-    }
-    return prev;
-  }, {});
-
-  if (targets?.length) {
-    targets = targets.map((target: Record<string, any>) => {
-      const data = target?.data || {};
-      const queryConfigs = (data.query_configs || []).map((config: Record<string, any>) => ({
-        ...config,
-        filter_dict: { ...(config.filter_dict || {}), ...filterDict },
-      }));
-      return {
-        ...target,
-        data: {
-          ...data,
-          query_configs: queryConfigs,
-        },
-      };
-    });
-  } else {
-    targets = [
-      {
-        data: {
-          query_configs: [
-            {
-              filter_dict: filterDict,
-            },
-          ],
-        },
-      },
-    ];
-  }
-
-  const url = `${location.origin}${location.pathname.replace('fta/', '')}?bizId=${bizId}#/data-retrieval/?targets=${encodeURIComponent(JSON.stringify(targets))}`;
-  window.open(url, '_blank');
+export function navigateToViewDimensions(tableData: ITableItem[]) {
+  const dimensions = Array.from(
+    new Set(tableData.flatMap(item => [DIMENSION_NAME_TO_KEY[item.name], item.name]).filter(Boolean))
+  );
+  navigateDiagnosticToTab(ALARM_CENTER_PANEL_TAB_MAP.VIEW, {
+    dimensions,
+    viewAnchor: 'dimension-analysis',
+  });
 }
 
 /**

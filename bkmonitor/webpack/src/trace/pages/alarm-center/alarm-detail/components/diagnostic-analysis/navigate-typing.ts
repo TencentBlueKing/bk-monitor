@@ -31,6 +31,8 @@ import type { EMode, IWhereItem } from '@/components/retrieval-filter/typing';
 export interface IDiagnosticPanelFilter {
   /** 调用链：切换到指定应用 */
   appName?: string;
+  /** 视图：要选中的维度 id / 展示名 */
+  dimensions?: string[];
   filterMode?: EMode;
   /** 主机：按 IP / 主机名选中目标 */
   hostCloudId?: number | string;
@@ -38,6 +40,8 @@ export interface IDiagnosticPanelFilter {
   hostName?: string;
   /** 日志：语句模式关键词 */
   queryString?: string;
+  /** 视图：滚动并激活的板块 */
+  viewAnchor?: 'dimension-analysis';
   /** UI 模式筛选条件 */
   where?: IWhereItem[];
 }

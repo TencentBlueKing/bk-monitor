@@ -23,14 +23,15 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, defineComponent, KeepAlive, shallowRef } from 'vue';
+import { type PropType, defineComponent, KeepAlive, nextTick, shallowRef, useTemplateRef } from 'vue';
 
 import { Tab } from 'bkui-vue';
 
 import AlarmRecords from './alarm-records';
 import DimensionAnalysis from './dimension-analysis';
 import AlarmCharts from './echarts/alarm-charts';
-import { ALARM_CENTER_VIEW_TAB_MAP } from '@/pages/alarm-center/utils/constant';
+import { useDiagnosticNavigate } from '@/pages/alarm-center/composables/use-diagnostic-navigate';
+import { ALARM_CENTER_PANEL_TAB_MAP, ALARM_CENTER_VIEW_TAB_MAP } from '@/pages/alarm-center/utils/constant';
 
 import type { AlarmDetail } from '../../../typings/detail';
 import type { DateValue } from '@blueking/date-picker';
@@ -56,15 +57,29 @@ export default defineComponent({
     relatedEventsTimeRange: (_val: string[]) => true,
   },
   setup(_props, { emit }) {
-    const activeTab = shallowRef('dimension');
+    const activeTab = shallowRef<string>(ALARM_CENTER_VIEW_TAB_MAP.DIMENSION);
+    const tabWrapRef = useTemplateRef<HTMLDivElement>('tabWrap');
+    /** 右侧 AI 诊断要求选中的维度，交给维度分析按已加载的维度列表匹配 */
+    const navigateDimensions = shallowRef<string[]>([]);
+
     const handleTabChange = (v: string) => {
       activeTab.value = v;
     };
     const handleRelatedEventsTimeRange = (timeRange: string[]) => {
       emit('relatedEventsTimeRange', timeRange);
     };
+
+    useDiagnosticNavigate(ALARM_CENTER_PANEL_TAB_MAP.VIEW, async filter => {
+      if (filter.viewAnchor !== 'dimension-analysis') return;
+      activeTab.value = ALARM_CENTER_VIEW_TAB_MAP.DIMENSION;
+      navigateDimensions.value = filter.dimensions || [];
+      await nextTick();
+      tabWrapRef.value?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+
     return {
       activeTab,
+      navigateDimensions,
       handleTabChange,
       handleRelatedEventsTimeRange,
     };
@@ -79,7 +94,10 @@ export default defineComponent({
             detail={this.detail}
           />
         </div>
-        <div class='alarm-view-tab'>
+        <div
+          ref='tabWrap'
+          class='alarm-view-tab'
+        >
           <Tab
             active={this.activeTab}
             type='unborder-card'
@@ -95,16 +113,17 @@ export default defineComponent({
             />
           </Tab>
           <KeepAlive>
-            {this.activeTab === 'dimension' && (
+            {this.activeTab === ALARM_CENTER_VIEW_TAB_MAP.DIMENSION && (
               <DimensionAnalysis
                 alertId={this.detail?.id}
                 bizId={this.bizId}
                 defaultTimeRange={this.defaultTimeRange}
                 detail={this.detail}
                 graphPanel={this.detail?.graph_panel}
+                navigateDimensions={this.navigateDimensions}
               />
             )}
-            {this.activeTab === 'alarm_records' && (
+            {this.activeTab === ALARM_CENTER_VIEW_TAB_MAP.ALARM_RECORDS && (
               <AlarmRecords
                 detail={this.detail}
                 onRelatedEventsTimeRange={this.handleRelatedEventsTimeRange}

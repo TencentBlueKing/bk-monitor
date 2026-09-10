@@ -24,14 +24,13 @@
  * IN THE SOFTWARE.
  */
 
-import { type PropType, defineComponent, shallowRef } from 'vue';
+import { type PropType, defineComponent } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { getBizRouteHref } from 'monitor-common/utils';
 import { storeToRefs } from 'pinia';
 
 import AiHighlightCard from '../../../components/ai-highlight-card/ai-highlight-card';
-import HandleExperience from './handle-experience';
 import { useAlarmCenterDetailStore } from '@/store/modules/alarm-center-detail';
 
 import type { IAlertIncidentBrief, IBkFaraProcessItem } from './typing';
@@ -51,12 +50,7 @@ export default defineComponent({
   },
   setup(props) {
     const { t } = useI18n();
-    const experienceShow = shallowRef(false);
     const { bizId } = storeToRefs(useAlarmCenterDetailStore());
-
-    const handleExperienceShow = () => {
-      experienceShow.value = true;
-    };
 
     const handleIncidentClick = () => {
       const incidentId = props.incident?.id || props.incident?.incident_id;
@@ -71,8 +65,6 @@ export default defineComponent({
 
     return {
       t,
-      experienceShow,
-      handleExperienceShow,
       handleIncidentClick,
       handleProcessClick,
     };
@@ -109,19 +101,6 @@ export default defineComponent({
                 <div class='info-item-label'>{this.t('处置建议：')}</div>
                 <div class='info-item-content'>重启服务器，或联系网络管理员检查服务器网络是否正常</div>
               </div>
-              <div class='ai-diagnostic-info-item'>
-                <div class='info-item-label'>{this.t('处理经验：')}</div>
-                <div class='info-item-content'>
-                  <span class='empty'>{this.t('无')}</span>
-                  <span
-                    class='link-text'
-                    onClick={this.handleExperienceShow}
-                  >
-                    <i class='icon-monitor icon-bianji' />
-                    {this.t('这个告警我有经验')}
-                  </span>
-                </div>
-              </div>
               {this.bkFaraProcesses.length ? (
                 <div class='ai-diagnostic-info-item'>
                   <div class='info-item-label'>{this.t('处理套餐：')}</div>
@@ -145,7 +124,6 @@ export default defineComponent({
                   </div>
                 </div>
               ) : undefined}
-              <HandleExperience v-model:show={this.experienceShow} />
             </div>
           ),
         }}

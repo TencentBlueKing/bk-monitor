@@ -40,6 +40,7 @@ import DimensionAnalysisTable from './components/dimension-analysis-table';
 import DimensionSelector from './components/dimension-selector';
 import DimensionTreeMapCharts from './echarts/dimension-tree-map-charts';
 import MonitorCharts from './echarts/monitor-charts';
+import { useAlarmCenterDetailStore } from '@/store/modules/alarm-center-detail';
 
 import type { IGraphPanel } from '../../../typings';
 import type { DateValue } from '@blueking/date-picker';
@@ -81,6 +82,11 @@ export default defineComponent({
     graphPanel: {
       type: Object as PropType<IGraphPanel>,
     },
+    /** 右侧 AI 诊断跳转过来时要选中的维度，取值可能是后端字段或展示名 */
+    navigateDimensions: {
+      type: Array as PropType<string[]>,
+      default: () => [],
+    },
   },
   emits: {
     change: (_val: any) => true,
@@ -88,6 +94,7 @@ export default defineComponent({
   setup(props) {
     const { t } = useI18n();
     const appStore = useAppStore();
+    const alarmCenterDetailStore = useAlarmCenterDetailStore();
     const spaceTimezone = computed(() => appStore.spaceTimezone);
     const showTypeActive = shallowRef(TYPE_ENUM.TABLE);
     const dimensionList = shallowRef([]);
@@ -207,6 +214,26 @@ export default defineComponent({
       return res;
     };
 
+    /**
+     * @description 按维度 id 或展示名匹配出可选中的维度，匹配不到时返回空数组
+     */
+    const matchNavigateDimensions = () => {
+      if (!props.navigateDimensions?.length) return [];
+      const targets = new Set(props.navigateDimensions.map(String));
+      return dimensionList.value.filter(item => targets.has(item.id) || targets.has(item.name)).map(item => item.id);
+    };
+
+    /** 应用右侧诊断带过来的维度，未命中时不动当前选择 */
+    const applyNavigateDimensions = () => {
+      const matched = matchNavigateDimensions();
+      if (!matched.length) return false;
+      isMulti.value = matched.length > 1;
+      selectedDimension.value = matched;
+      where.value = [];
+      graphDrillDownData();
+      return true;
+    };
+
     watch(
       () => props.detail,
       async newVal => {
@@ -223,12 +250,21 @@ export default defineComponent({
             }
             return { id: item, name: item };
           });
+          alarmCenterDetailStore.setViewDimensionList(dimensionList.value);
+          if (applyNavigateDimensions()) return;
           selectedDimension.value = dimensionList.value.length ? [dimensionList.value[0].id] : [];
           graphDrillDownData();
         }
       },
       {
         immediate: true,
+      }
+    );
+
+    watch(
+      () => props.navigateDimensions,
+      () => {
+        applyNavigateDimensions();
       }
     );
 

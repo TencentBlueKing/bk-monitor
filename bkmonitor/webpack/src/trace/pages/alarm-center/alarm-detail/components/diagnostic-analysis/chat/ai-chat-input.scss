@@ -12,6 +12,74 @@
     box-shadow: 0 0 0 2px #3a84ff1a;
   }
 
+  .ai-chat-input-contexts {
+    display: flex;
+    flex-direction: column;
+    max-height: 132px;
+    margin-bottom: 6px;
+    overflow-y: auto;
+  }
+
+  .ai-chat-input-context-group {
+    display: flex;
+    flex-direction: column;
+
+    & + .ai-chat-input-context-group {
+      margin-top: 8px;
+    }
+
+    .context-group-title {
+      margin-bottom: 4px;
+      font-size: 12px;
+      line-height: 16px;
+      color: #979ba5;
+    }
+  }
+
+  .ai-chat-input-context {
+    display: flex;
+    align-items: center;
+    padding: 4px 6px;
+    font-size: 12px;
+    line-height: 16px;
+    background: #f0f5ff;
+    border-radius: 4px;
+
+    & + .ai-chat-input-context {
+      margin-top: 4px;
+    }
+
+    .context-label {
+      flex-shrink: 0;
+      max-width: 96px;
+      margin-right: 4px;
+      overflow: hidden;
+      color: #7b8194;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .context-text {
+      flex: 1;
+      overflow: hidden;
+      color: #313238;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .context-remove {
+      flex-shrink: 0;
+      margin-left: 4px;
+      font-size: 14px;
+      color: #979ba5;
+      cursor: pointer;
+
+      &:hover {
+        color: #3a84ff;
+      }
+    }
+  }
+
   .ai-chat-input-textarea {
     width: 100%;
     max-height: 88px;
