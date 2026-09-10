@@ -28,7 +28,7 @@ from django.db import connection
 from django.test import TestCase
 from django.test.utils import CaptureQueriesContext
 
-from apps.exceptions import ApiResultError
+from apps.exceptions import ApiRequestError, ApiResultError
 from apps.feature_toggle.models import FeatureToggle
 from apps.feature_toggle.plugins.constants import SCENE_SEARCH
 from apps.log_databus.constants import (
@@ -38,6 +38,7 @@ from apps.log_databus.constants import (
 from apps.log_databus.handlers.collector.base import CollectorHandler
 from apps.log_databus.handlers.collector.k8s import K8sCollectorHandler
 from apps.log_databus.handlers.scene import (
+    get_remote_scene_labels,
     is_scene_search_released,
     refresh_scene_labels,
     release_scene_search,
@@ -335,8 +336,8 @@ class TestRefreshSceneLabelsHandler(TestCase):
             is_active=True,
         )
 
-    def test_refresh_records_missing_result_table_as_failure(self):
-        """RT 不存在同样记录为失败，由人工通过远端比较命令处理。"""
+    def test_refresh_skips_missing_result_table(self):
+        """RT 不存在时跳过，由人工处理，不阻断其它结果表。"""
         index_set = self._create_index_set("missing_rt", {"scene": "host"})
         collector = self._create_collector(
             "missing_rt", collector_scenario_id="client", index_set_id=index_set.index_set_id
@@ -344,12 +345,147 @@ class TestRefreshSceneLabelsHandler(TestCase):
 
         with patch(
             "apps.log_databus.handlers.scene.TransferApi.switch_result_table",
-            side_effect=ApiResultError("result table not exist", code="RESULT_TABLE_NOT_FOUND"),
+            side_effect=ApiResultError("DataSourceResultTable matching query does not exist", code=500),
         ):
             result = refresh_scene_labels(sleep=0)
 
+        self.assertEqual(result["failed"], 0)
+        self.assertEqual(result["skipped"], 1)
+        self.assertEqual(result["failed_result_table_ids"], [])
+        self.assertEqual(result["missing_result_table_ids"], [collector.table_id])
+
+    def test_refresh_skips_result_table_not_found_case_insensitively(self):
+        """不同大小写及 ResultTable 错误类型都应识别为 RT 不存在。"""
+        index_set = self._create_index_set("missing_rt_plain", {"scene": "host"})
+        collector = self._create_collector(
+            "missing_rt_plain", collector_scenario_id="client", index_set_id=index_set.index_set_id
+        )
+
+        with patch(
+            "apps.log_databus.handlers.scene.TransferApi.switch_result_table",
+            side_effect=ApiResultError("ResultTable MATCHING query does not exist", code=500),
+        ):
+            result = refresh_scene_labels(sleep=0)
+
+        self.assertEqual(result["failed"], 0)
+        self.assertEqual(result["missing_result_table_ids"], [collector.table_id])
+
+    def test_remote_result_table_retries_gateway_error_once(self):
+        """远端查询遇到网关错误时最多只重试一次。"""
+        index_set = self._create_index_set("remote_retry", {"scene": "host"})
+        collector = self._create_collector(
+            "remote_retry", collector_scenario_id="client", index_set_id=index_set.index_set_id
+        )
+        gateway_error = ApiResultError(
+            '[Metadata元数据-API][502]{"code_name":"BAD_GATEWAY","message":"Bad Gateway"}',
+            code=3600015,
+        )
+
+        with patch(
+            "apps.log_databus.handlers.scene.TransferApi.get_result_table",
+            side_effect=[gateway_error, {"table_id": collector.table_id, "labels": {"scene": "client"}}],
+        ) as mock_get_result_table:
+            result = refresh_scene_labels(compare_mode="remote", sleep=0)
+
+        self.assertEqual(mock_get_result_table.call_count, 2)
+        self.assertEqual(mock_get_result_table.call_args_list[0].args, ({"table_id": collector.table_id},))
+        self.assertEqual(mock_get_result_table.call_args_list[1].args, ({"table_id": collector.table_id},))
+        self.assertEqual(result["failed"], 0)
+        self.assertEqual(result["skipped"], 1)
+
+    def test_remote_result_table_gateway_error_still_fails_after_retry(self):
+        """网关错误重试仍失败时保留失败状态，阻止首次转正。"""
+        index_set = self._create_index_set("remote_retry_failed", {"scene": "host"})
+        collector = self._create_collector(
+            "remote_retry_failed", collector_scenario_id="client", index_set_id=index_set.index_set_id
+        )
+        gateway_error = ApiResultError("[502] Bad Gateway", code=3600015)
+
+        with patch(
+            "apps.log_databus.handlers.scene.TransferApi.get_result_table",
+            side_effect=gateway_error,
+        ) as mock_get_result_table:
+            result = refresh_scene_labels(compare_mode="remote", sleep=0)
+
+        self.assertEqual(mock_get_result_table.call_count, 2)
         self.assertEqual(result["failed"], 1)
         self.assertEqual(result["failed_result_table_ids"], [collector.table_id])
+
+    def test_remote_result_table_retries_http_gateway_error(self):
+        """HTTP 502 被 API 层包装为 ApiRequestError 后仍可重试恢复。"""
+        gateway_error = ApiRequestError("[Metadata元数据-API][502] upstream unavailable")
+        with (
+            patch(
+                "apps.log_databus.handlers.scene.TransferApi.get_result_table",
+                side_effect=[gateway_error, {"labels": {"scene": "client"}}],
+            ) as mock_get,
+            patch("apps.log_databus.handlers.scene.time.sleep") as mock_sleep,
+        ):
+            self.assertEqual(get_remote_scene_labels("2_bklog.http_retry"), {"scene": "client"})
+
+        self.assertEqual(mock_get.call_count, 2)
+        mock_sleep.assert_called_once_with(0.2)
+
+    def test_first_sync_defers_release_after_http_gateway_retry_exhausted(self):
+        """HTTP 网关错误重试耗尽后仍阻断转正，且不会写入标签。"""
+        FeatureToggle.objects.update_or_create(name=SCENE_SEARCH, defaults={"status": "debug"})
+        index_set = self._create_index_set("http_retry_failed", {"scene": "host"})
+        collector = self._create_collector(
+            "http_retry_failed", collector_scenario_id="client", index_set_id=index_set.index_set_id
+        )
+        with (
+            patch(
+                "apps.log_databus.handlers.scene.TransferApi.get_result_table",
+                side_effect=ApiRequestError("[502] Bad Gateway"),
+            ) as mock_get,
+            patch("apps.log_databus.handlers.scene.TransferApi.switch_result_table") as mock_switch,
+            patch("apps.log_databus.handlers.scene.time.sleep") as mock_sleep,
+        ):
+            result = run_scene_search_sync()
+
+        self.assertEqual(mock_get.call_count, 2)
+        mock_sleep.assert_called_once_with(0.2)
+        mock_switch.assert_not_called()
+        self.assertEqual(result["failed"], 1)
+        self.assertEqual(result["failed_result_table_ids"], [collector.table_id])
+        self.assertEqual(FeatureToggle.objects.get(name=SCENE_SEARCH).status, "debug")
+        self.assertFalse(is_scene_search_released())
+
+    def test_remote_result_table_does_not_retry_non_gateway_errors(self):
+        """非网关请求错误和业务错误原样抛出，不扩大重试范围。"""
+        for error in (ApiRequestError("connection timed out"), ApiResultError("permission denied", code=403)):
+            with (
+                self.subTest(error_type=type(error).__name__),
+                patch("apps.log_databus.handlers.scene.TransferApi.get_result_table", side_effect=error) as mock_get,
+                patch("apps.log_databus.handlers.scene.time.sleep") as mock_sleep,
+            ):
+                with self.assertRaises(type(error)) as raised:
+                    get_remote_scene_labels("2_bklog.no_retry")
+                self.assertIs(raised.exception, error)
+                mock_get.assert_called_once_with({"table_id": "2_bklog.no_retry"})
+                mock_sleep.assert_not_called()
+
+    def test_run_first_sync_releases_when_result_table_is_missing(self):
+        """首次校正跳过不存在的 RT 后仍允许开关转正。"""
+        FeatureToggle.objects.update_or_create(name=SCENE_SEARCH, defaults={"status": "debug"})
+        index_set = self._create_index_set("missing_rt_release", {"scene": "host"})
+        collector = self._create_collector(
+            "missing_rt_release", collector_scenario_id="client", index_set_id=index_set.index_set_id
+        )
+
+        with patch(
+            "apps.log_databus.handlers.scene.TransferApi.get_result_table",
+            side_effect=ApiResultError(
+                "[Metadata元数据-API]DataSourceResultTable matching query does not exist", code=500
+            ),
+        ):
+            result = run_scene_search_sync()
+
+        toggle = FeatureToggle.objects.get(name=SCENE_SEARCH)
+        self.assertEqual(result["failed"], 0)
+        self.assertEqual(result["missing_result_table_ids"], [collector.table_id])
+        self.assertEqual(toggle.status, "on")
+        self.assertTrue(toggle.feature_config.get("scene_search_released"))
 
     def test_scene_refresh_task_is_registered(self):
         from django.conf import settings
