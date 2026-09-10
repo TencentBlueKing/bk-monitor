@@ -27,6 +27,7 @@
 import { get } from '@vueuse/core';
 import { hexToRgba } from 'monitor-common/utils/colorHelpers';
 
+import { formatDuration } from '../../../../../components/trace-view/utils/date';
 import {
   type BaseTableColumn,
   ExploreTableColumnTypeEnum,
@@ -124,6 +125,19 @@ export class SpanScenario extends BaseScenario {
    */
   protected buildBaseline(colKey: string): Partial<BaseTableColumn> {
     const field = get(this.context.fieldMap).get(colKey);
+    // vital 的单位由每行的指标决定，不能交给按整列统一单位处理的 duration 渲染器。
+    if (field?.field_unit === 'vital') {
+      return {
+        getRenderValue: row => {
+          const value = row[colKey];
+          if (value === null || value === undefined || value === '') return '';
+          if (String(row['attributes.vital.metric']).toLowerCase() === 'cls' || !Number.isFinite(Number(value))) {
+            return String(value);
+          }
+          return formatDuration(Number(value), '', 2, 'ms');
+        },
+      };
+    }
     switch (field?.field_display_type) {
       case RumFieldDisplayEnum.DATETIME:
         return { renderType: ExploreTableColumnTypeEnum.TIME };

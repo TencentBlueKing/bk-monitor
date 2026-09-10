@@ -61,7 +61,9 @@ export function useFieldStatisticsPopover(placement: Props['placement'] = 'right
     destroyPopover();
     activeFieldName.value = field.name;
     if (!field.is_dimensions) return;
-    selectField.value = field;
+    // 聚合结果可能混合 CLS 与耗时指标，不能把 vital 作为固定时间单位。
+    selectField.value =
+      field.field_unit === 'vital' ? { ...field, field_unit: '', field_display_type: undefined } : field;
     const contentEl = statisticsListRef.value?.$refs?.dimensionPopover as HTMLDivElement | undefined;
     if (!contentEl) return;
 

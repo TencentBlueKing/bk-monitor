@@ -138,10 +138,16 @@ export default defineComponent({
     });
 
     const isSpanMode = computed(() => store.mode === RumModeEnum.SPAN);
+    /** 具体类型只使用可检索的固定常驻字段，表格列与全局用户配置不参与兜底。 */
+    const spanTypeResidentFields = computed(() => {
+      const keys = viewConfigCtx.viewConfig.value.span_type_resident_fields?.[spanTypeCtx.activeSpanType.value] || [];
+      const searchableKeys = new Set(viewConfigCtx.retrievalFields.value.map(field => field.name));
+      return keys.filter(key => searchableKeys.has(key));
+    });
     const residentSettingCustomId = computed(() => {
       return `${RUM_RESIDENT_SETTING_KEY}_${store.mode}_${store.appName}_${spanTypeCtx.activeSpanType.value}`;
     });
-    /** 常驻设置的用户配置存储 key：按 场景 + 应用 + span 类型 分桶，选中具体类型时单独一份，保证切回「全部」不丢原配置 */
+    /** 全部视角使用用户配置 key；具体类型的 key 仅用于触发固定常驻字段刷新，不读写用户配置。 */
     const residentSettingOnlyId = computed(() => {
       if (!store.mode || !store.currentApp) return '';
       if (spanTypeCtx.activeSpanType.value !== ALL_SPAN_TYPE) {
@@ -217,14 +223,13 @@ export default defineComponent({
       spanTypeCtx.setSpanType(type);
       // setSpanType 是 toggle 语义（再次点击已选中的类型会切回「全部」），判断必须基于切换后的 activeSpanType，不能用入参 type
       const activeType = spanTypeCtx.activeSpanType.value;
-      // 切回「全部」直接清空常驻条件；切到具体类型时只保留该类型视图配置里声明的字段，避免上一个类型的常驻条件残留到新类型上
+      // 切回「全部」清空常驻条件；具体类型只保留可见常驻字段的交集，空配置也必须清空。
       if (activeType === ALL_SPAN_TYPE) {
         queryCtx.commonWhere.value = [];
       } else {
-        const keys = viewConfigCtx.viewConfig.value.span_type_display_fields?.[activeType] || [];
-        if (keys.length) {
-          queryCtx.commonWhere.value = queryCtx.commonWhere.value.filter(w => keys.includes(w.key));
-        }
+        queryCtx.commonWhere.value = queryCtx.commonWhere.value.filter(w =>
+          spanTypeResidentFields.value.includes(w.key)
+        );
       }
       queryCtx.handleQuery();
     }
@@ -239,7 +244,8 @@ export default defineComponent({
       const { key, method: operator, value } = condition;
       const field = viewConfigCtx.viewConfig.value.fields.find(item => item.name === key);
       /** 范围值 */
-      const isRangeValue = field.field_display_type === 'duration' || field.field_unit === 'bytes';
+      const isRangeValue =
+        (field.field_display_type === 'duration' && field.field_unit !== 'vital') || field.field_unit === 'bytes';
       const matched = value.match(/^(-?\d+)-(-?\d+)$/);
       if (queryCtx.filterMode.value === EMode.ui) {
         queryCtx.addCondition(
@@ -283,7 +289,7 @@ export default defineComponent({
         return [];
       }
       if (key === residentSettingCustomId.value) {
-        return viewConfigCtx.viewConfig.value.span_type_display_fields?.[spanTypeCtx.activeSpanType.value] || [];
+        return spanTypeResidentFields.value;
       }
       const fields = (await getResidentConfig<string[]>(key)) || [];
       if (fields.length) {

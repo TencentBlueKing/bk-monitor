@@ -15,23 +15,23 @@ from semconv.rum.field import FieldSpec
 
 # ── 领域无关字段 ──────────────────────────────────────────────────────
 # service
-SERVICE_NAME = FieldSpec(field_name="service.name", field_alias=_("服务名称"))
+SERVICE_NAME = FieldSpec(field_name="service.name", field_alias=_("服务"))
 SERVICE_VERSION = FieldSpec(field_name="service.version", field_alias=_("服务版本"))
 
 # deployment
-DEPLOYMENT_ENVIRONMENT_NAME = FieldSpec(field_name="deployment.environment.name", field_alias=_("环境名称"))
+DEPLOYMENT_ENVIRONMENT_NAME = FieldSpec(field_name="deployment.environment.name", field_alias=_("环境"))
 
 # telemetry
 TELEMETRY_SDK_VERSION = FieldSpec(field_name="telemetry.sdk.version", field_alias=_("SDK 版本"))
 TELEMETRY_SDK_LANGUAGE = FieldSpec(
-    field_name="telemetry.sdk.language", field_alias=_("语言"), option_values=SdkLanguage
+    field_name="telemetry.sdk.language", field_alias=_("SDK 语言"), option_values=SdkLanguage
 )
 TELEMETRY_SDK_NAME = FieldSpec(field_name="telemetry.sdk.name", field_alias=_("SDK 名称"))
 
 # user_agent
 USER_AGENT_NAME = FieldSpec(field_name="user_agent.name", field_alias=_("浏览器"))
-USER_AGENT_VERSION = FieldSpec(field_name="user_agent.version", field_alias=_("代理版本"))
-USER_AGENT_OS_NAME = FieldSpec(field_name="user_agent.os.name", field_alias=_("操作系统名称"))
+USER_AGENT_VERSION = FieldSpec(field_name="user_agent.version", field_alias=_("浏览器版本"))
+USER_AGENT_OS_NAME = FieldSpec(field_name="user_agent.os.name", field_alias=_("操作系统"))
 
 # exception
 EXCEPTION_TYPE = FieldSpec(field_name="exception.type", field_alias=_("异常类型"))
@@ -40,5 +40,5 @@ EXCEPTION_STACKTRACE = FieldSpec(field_name="exception.stacktrace", field_alias=
 
 # user
 USER_ID = FieldSpec(field_name="user.id", field_alias=_("用户"))
-SPAN_TYPE = FieldSpec(field_name="span_type", field_alias=_("Span 类型"), option_values=RumSpanType)
+SPAN_TYPE = FieldSpec(field_name="span_type", field_alias=_("事件类型"), option_values=RumSpanType)
 OUTCOME_TYPE = FieldSpec(field_name="outcome.type", field_alias=_("结果"), option_values=OutcomeType)
