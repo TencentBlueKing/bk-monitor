@@ -215,3 +215,7 @@ worktrees/
 .codebuddy
 .claude/
 bkmonitor-files/
+
+# AAFE / OpenSpec local artifacts
+.aafe/
+openspec/

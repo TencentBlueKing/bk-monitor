@@ -108,4 +108,5 @@ output
 .aafe-memory/
 .docs/
 tests/
+openspec/
 # AAFE-END
