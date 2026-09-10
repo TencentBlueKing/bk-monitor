@@ -26,6 +26,15 @@
 
 // 表单内容相关的词条
 export default {
+  屏蔽期间产生的告警: 'Alerts generated during shielding',
+  屏蔽结束后发送一次通知: 'Send one notification after shielding ends',
+  '屏蔽结束时关闭告警，不再通知': 'Close alerts when shielding ends without notifications',
+  '屏蔽期间产生的告警不通知、不执行处理套餐；屏蔽结束时关闭，不补发通知、不补执行处理。屏蔽开始前的告警不受影响。':
+    'Alerts generated during shielding send no notifications and run no actions. They close when shielding ends, without deferred notifications or actions. Earlier alerts are unaffected.',
+  '屏蔽结束时，仍未恢复的告警将各发送一次通知，可能集中产生多条通知。':
+    'Each unrecovered alert sends one notification when shielding ends. Multiple notifications may arrive together.',
+  '结束处理方式创建后不可修改。如需使用另一种方式，请新建屏蔽规则。':
+    'The end policy cannot be changed after creation. Create a new shielding rule to use a different policy.',
   // 规范：仅首字母大写
   // 规范：占位使用整条
 

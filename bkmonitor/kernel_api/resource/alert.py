@@ -21,6 +21,7 @@ from bkmonitor.documents import AlertDocument
 from bkmonitor.models import ActionConfig, DutyRule, Shield, StrategyModel, UserGroup
 from bkmonitor.strategy.new_strategy import Strategy, get_metric_id
 from constants.action import MAX_ACTION_EXECUTE_TIMEOUT
+from constants.shield import ShieldEndPolicy
 from constants.strategy import DATALINK_SOURCE
 from core.drf_resource import Resource, resource
 from fta_web.alert.resources import AlertTopNResource as FtaAlertTopNResource
@@ -733,6 +734,9 @@ class CreateAlarmShieldResource(Resource):
     """创建告警屏蔽（用于 AI MCP 请求）。"""
 
     class RequestSerializer(ConfirmedBusinessScopedSerializer):
+        end_policy = serializers.ChoiceField(
+            choices=ShieldEndPolicy.CHOICES, default=ShieldEndPolicy.NOTIFY_ONCE, label="屏蔽结束处理方式"
+        )
         category = serializers.ChoiceField(
             required=True,
             choices=["scope", "strategy", "alert", "dimension"],
@@ -842,6 +846,7 @@ class UpdateAlarmShieldResource(Resource):
     """编辑告警屏蔽（用于 AI MCP 请求）。"""
 
     class RequestSerializer(ConfirmedBusinessScopedSerializer):
+        end_policy = serializers.ChoiceField(choices=ShieldEndPolicy.CHOICES, required=False, label="屏蔽结束处理方式")
         id = serializers.IntegerField(required=True, label="屏蔽ID")
         begin_time = serializers.CharField(required=True, label="屏蔽开始时间")
         end_time = serializers.CharField(required=True, label="屏蔽结束时间")

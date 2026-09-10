@@ -433,6 +433,24 @@ class ShieldObj:
 
 
 class AlertShieldObj(ShieldObj):
+    def __init__(self, config, business_timezone_name=None):
+        self.business_timezone_name = business_timezone_name
+        super().__init__(config)
+
+    def _parse_cycle_config(self):
+        if self.config.get("end_policy") != "close":
+            return super()._parse_cycle_config()
+        from django.utils import timezone
+
+        from alarm_backends.service.converge.shield.window import business_timezone, close_time_matcher
+
+        if not getattr(self, "business_timezone_name", None):
+            self.business_timezone_name = business_timezone(self.config.get("bk_biz_id"))
+        with timezone.override(self.business_timezone_name):
+            self.time_check = close_time_matcher(
+                self.config["cycle_config"], self.config["begin_time"], self.config["end_time"]
+            )
+
     # 类级别的缓存，用于存储告警维度信息
     _alert_dimension_cache = {}
 
@@ -552,6 +570,19 @@ class AlertShieldObj(ShieldObj):
         """
         return self._get_cached_alert_dimension(alert)
 
-    def is_match(self, alert: AlertDocument):
-        source_time = arrow.now()
-        return self.time_check.is_match(source_time) and self.dimension_check.is_match(self.get_dimension(alert))
+    def is_match(self, alert: AlertDocument, source_time=None):
+        source_time = source_time or arrow.now()
+        if self.config.get("end_policy") == "close":
+            from django.utils import timezone
+
+            from alarm_backends.service.converge.shield.window import business_timezone, matching_window
+
+            with timezone.override(
+                getattr(self, "business_timezone_name", None) or business_timezone(self.config.get("bk_biz_id"))
+            ):
+                window = matching_window(self.time_check, source_time)
+            if not window or not window[0] <= alert.begin_time <= window[1]:
+                return False
+        elif not self.time_check.is_match(source_time):
+            return False
+        return self.dimension_check.is_match(self.get_dimension(alert))

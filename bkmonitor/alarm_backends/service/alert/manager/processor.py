@@ -64,6 +64,7 @@ class AlertManager(BaseAlertProcessor):
             "appointee",
             "supervisor",
             "extra_info",
+            "shield_end_close",
         ]
         alert_docs = {
             alert_doc.id: alert_doc
@@ -113,11 +114,19 @@ class AlertManager(BaseAlertProcessor):
             # 构造mapping，方便后续过滤
             current_alerts_mapping[current_alert.dedupe_md5] = current_alert
         new_alerts = []
+        # Reuse the existing lock-protected cache read. Only missing cache entries
+        # need a snapshot/ES fallback, rather than reloading every ordinary alert.
+        missing_keys = [alert.key for alert in alerts if alert.dedupe_md5 not in current_alerts_mapping]
+        latest_missing = {alert.id: alert for alert in Alert.mget(missing_keys)} if missing_keys else {}
         for alert in alerts:
+            if alert.shield_end_close:
+                continue
+            if alert.id in latest_missing and latest_missing[alert.id].shield_end_close:
+                continue
             if alert.dedupe_md5 in current_alerts_mapping:
                 # 如果缓存中存在当前告警，则使用缓存中的告警状态进行判断
                 cache_alert = current_alerts_mapping.get(alert.dedupe_md5)
-                if cache_alert and not cache_alert.is_abnormal():
+                if cache_alert and (not cache_alert.is_abnormal() or cache_alert.shield_end_close):
                     # 如果缓存二次确认状态不为异常则过滤掉，拉取的都是异常告警，若不一致说明此时告警可能已经被关闭或者恢复
                     continue
             # 其他情况正常进行处理

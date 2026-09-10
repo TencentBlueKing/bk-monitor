@@ -60,6 +60,7 @@ const detailFn = () => ({
   beginTime: '',
   endTime: '',
   description: '',
+  endPolicy: 'notify_once',
   shieldNotice: false,
   category: '',
 });
@@ -227,6 +228,7 @@ export default defineComponent({
       detailData.beginTime = data.begin_time;
       detailData.endTime = data.end_time;
       detailData.description = data.description;
+      detailData.endPolicy = data.end_policy || 'notify_once';
       detailData.shieldNotice = data.shield_notice;
       detailData.category = data.category;
       detail.value = { ...detail.value, ...detailData };
@@ -606,6 +608,15 @@ export default defineComponent({
                   <FormItem label={this.t('日期范围')}>
                     <span class='detail-text mt-9'>{`${this.detail.beginTime} ~ ${this.detail.endTime}`}</span>
                     <TimezoneTips timezone={this.spaceTimezone} />
+                  </FormItem>
+                )}
+                {['scope', 'strategy', 'dimension'].includes(this.detail.category) && (
+                  <FormItem label={this.t('屏蔽期间产生的告警')}>
+                    <span class='detail-text'>
+                      {this.t(
+                        this.detail.endPolicy === 'close' ? '屏蔽结束时关闭告警，不再通知' : '屏蔽结束后发送一次通知'
+                      )}
+                    </span>
                   </FormItem>
                 )}
                 <FormItem label={this.t('屏蔽原因')}>
