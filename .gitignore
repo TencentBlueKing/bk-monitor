@@ -209,6 +209,9 @@ bkcodeai.json
 # Git worktrees
 worktrees/
 
+# Local AAFE analysis and test artifacts
+/.aafe/
+
 ### PreCI ###
 .codecc
 
