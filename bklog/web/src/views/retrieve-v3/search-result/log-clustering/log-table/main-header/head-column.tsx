@@ -107,7 +107,7 @@ export default defineComponent({
                 setGuidLeft(event);
               },
               move(event) {
-                let { x, y } = event.target.dataset;
+                const { x, y } = event.target.dataset;
 
                 Object.assign(event.target.dataset, { x, y });
                 if (event.rect.width > 30) {

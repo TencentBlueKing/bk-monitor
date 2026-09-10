@@ -50,8 +50,6 @@ Vue.use(Vuex);
 
 export const SET_APP_STATE = 'SET_APP_STATE';
 
-
-
 const store = new Vuex.Store({
   // 模块
   modules: {

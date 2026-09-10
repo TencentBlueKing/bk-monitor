@@ -49,6 +49,7 @@ def _load_incident_list_resource(remote_responses, authorized_biz_ids):
         2: "bkcc_2",
         3: "bkcc_3",
         4: "bkcc_4",
+        10: "bkcc_10",
     }
     monitor_ids = {
         "bkci_project_with_underscore": -88888,
@@ -56,6 +57,7 @@ def _load_incident_list_resource(remote_responses, authorized_biz_ids):
         "bkcc_2": 2,
         "bkcc_3": 3,
         "bkcc_4": 4,
+        "bkcc_10": 10,
     }
     namespace = {
         "IncidentBaseResource": object,
@@ -68,6 +70,7 @@ def _load_incident_list_resource(remote_responses, authorized_biz_ids):
         "GetConfigResource": FakeGetConfigResource,
         "logger": SimpleNamespace(
             error=lambda *args, **kwargs: None,
+            exception=lambda *args, **kwargs: None,
             warning=lambda *args, **kwargs: None,
         ),
     }
@@ -270,6 +273,43 @@ def test_panel_detail_api_converts_bk_biz_id_and_proxy_preserves_payload_and_err
         raise AssertionError("远端异常必须由薄代理原样抛出")
 
 
+def test_bk_incident_api_handles_single_biz_id_from_querydict():
+    """无请求序列化器的 GET 代理会把 QueryDict 直接传给 API resource。"""
+    source = (PROJECT_ROOT / "api/bk_incident/default.py").read_text(encoding="utf-8")
+    resource_source = source[source.index("class IncidentBaseResource") : source.index("class GetTemplateListResource")]
+
+    class FakeAPIResource:
+        def perform_request(self, validated_request_data):
+            return validated_request_data
+
+    class QueryDictLike(dict):
+        def pop(self, key, *args):
+            if key not in self:
+                if args:
+                    return args[0]
+                raise KeyError(key)
+            value = super().pop(key, *args)
+            return [value]
+
+    def fake_bk_biz_id_to_scope_id(bk_biz_id):
+        try:
+            return f"bkcc_{int(bk_biz_id)}"
+        except (TypeError, ValueError):
+            return ""
+
+    namespace = {
+        "abc": abc,
+        "APIResource": FakeAPIResource,
+        "settings": SimpleNamespace(BK_INCIDENT_APIGW_URL="", BK_COMPONENT_API_URL=""),
+        "bk_biz_id_to_scope_id": fake_bk_biz_id_to_scope_id,
+    }
+    exec(resource_source, namespace)
+
+    params = namespace["IncidentBaseResource"]().perform_request(QueryDictLike(bk_biz_id="10"))
+
+    assert params == {"scope_type": "bkcc", "scope_value": "10"}
+
+
 def test_incident_diagnosis_preserves_interaction_metadata():
     source = (PROJECT_ROOT / "packages/monitor_web/incident/resources.py").read_text(encoding="utf-8")
     resource_start = source.index("class IncidentDiagnosisResource")
@@ -411,6 +451,43 @@ def test_incident_list_limits_enabled_space_query_to_authorized_scope():
 
     assert resource_cls.fetch_enabled_spaces([2, 4]) == []
     assert remote_cls.calls[0]["scope_id_list"] == ["bkcc_2"]
+
+
+def test_incident_list_reads_bkcc_id_from_scope_identity_when_top_level_scope_id_is_missing():
+    resource_cls, _ = _load_incident_list_resource(
+        remote_responses=[
+            {
+                "objects": [
+                    {
+                        "content": {
+                            "enabled": True,
+                            "scope_identity": {
+                                "space": {
+                                    "id": None,
+                                    "space_id": "10",
+                                    "space_uid": "bkcc__10",
+                                    "space_type_id": "bkcc",
+                                },
+                                "bk_biz": {
+                                    "scope_id": "bkcc_10",
+                                    "bk_biz_id": "10",
+                                    "scope_type": "bkcc",
+                                    "scope_value": "10",
+                                },
+                                "scope_id": "bkcc_10",
+                                "bk_biz_id": "10",
+                            },
+                        },
+                    }
+                ],
+                "current_page": 1,
+                "has_next": False,
+            }
+        ],
+        authorized_biz_ids=[10],
+    )
+
+    assert resource_cls.fetch_enabled_spaces([10]) == [10]
 
 
 def test_incident_list_expands_monitor_sentinels_before_calling_bkfara():

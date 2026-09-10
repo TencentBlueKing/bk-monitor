@@ -207,7 +207,6 @@ export default defineComponent({
             archive_config_id: row.archive_config_id,
           },
         })
-        // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: reason
         .then((res: any) => {
           if (res.result) {
             const page =

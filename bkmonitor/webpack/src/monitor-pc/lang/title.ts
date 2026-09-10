@@ -189,6 +189,7 @@ export default {
     'It is recommended to "refresh the page" to experience the new features. If you choose "Do not refresh", you may encounter unknown exceptions. You can manually refresh to solve the problem.',
   'Trace 检索': 'Trace Search',
   'Tracing 检索': 'Tracing Search',
+  'RUM 检索': 'RUM Search',
 
   流水线事件: 'Pipeline Event',
   '关联后，会自动获取相关观测数据，包括事件等。注意：流水线选择完成之后，必须同步配置启动参数。':
@@ -279,6 +280,7 @@ export default {
   // Issues 拆分合并
   合并明细: 'Merge details',
   '已并入但隐藏的 Issue': 'Issue merged but hidden',
+  '批量拆分为新 Issue': 'Batch Split to New Issues',
   拆分依据: 'Split criteria',
   '合并 Issue': 'Merge Issue',
   合并设置: 'Merge settings',

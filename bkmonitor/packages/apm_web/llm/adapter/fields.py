@@ -2,40 +2,49 @@
 
 from __future__ import annotations
 
-from typing import Any, Literal
+from typing import TYPE_CHECKING, Any
 
-Product = Literal["bkaidev", "galileo", "agentlens", "default"]
+from opentelemetry.semconv.resource import ResourceAttributes
 
-BKAIDEV_SPAN_NAMES = {
-    "agent.execution",
-    "chain.workflow",
-    "langgraph.workflow",
-    "chat_model.generate",
-    "chatmodel.chat",
-    "tool.execution",
+from constants.apm import LLMProduct, OtlpKey
+
+if TYPE_CHECKING:
+    from apm_web.strategy.dispatch.entity import EntitySet
+
+
+def detect_product(entity_set: EntitySet, spans: list[dict[str, Any]]) -> str:
+    """根据 Span 所属服务的拓扑节点信息，为整条 Trace 选择转换器。"""
+    service_names: set[str] = {
+        service_name
+        for span in spans
+        if (service_name := span.get(OtlpKey.RESOURCE, {}).get(ResourceAttributes.SERVICE_NAME))
+    }
+    systems: list[dict[str, Any]] = [
+        entity_set.get_system(service_name) for service_name in service_names.intersection(entity_set.service_names)
+    ]
+    products: set[str] = {
+        product for system in systems if system.get("is_support_llm") and (product := system.get("product"))
+    }
+    for product in (LLMProduct.GALILEO, LLMProduct.AIDEV, LLMProduct.AGENTLENS, LLMProduct.LANGFUSE):
+        if product.value in products:
+            return product.value
+    return LLMProduct.DEFAULT.value
+
+
+# 查询侧字段映射：标准字段 -> 产品 -> 存储中的原始字段。
+QUERY_FIELD_MAPPING: dict[str, dict[str, str]] = {
+    "attributes.gen_ai.conversation.id": {
+        LLMProduct.AIDEV.value: "attributes.agent.session.session_code",
+        LLMProduct.AGENTLENS.value: "attributes.gen_ai.session.id",
+    },
 }
-BKAIDEV_TASK_NAMES = {"model.task", "model_node.task", "tools.task", "chain.task"}
 
 
-def detect_product(spans: list[dict[str, Any]]) -> Product:
-    """只根据 Span 自身信息为整条 Trace 选择转换器。"""
-    if any(str(span["resource"].get("telemetry.sdk.name", "")).lower() == "galileo" for span in spans):
-        return "galileo"
-    if any(
-        span["span_name"].lower() in BKAIDEV_SPAN_NAMES
-        or span["span_name"].lower() in BKAIDEV_TASK_NAMES
-        or any(key.startswith(("agent.info.", "agent.session.")) for key in span["attributes"])
-        for span in spans
-    ):
-        return "bkaidev"
-    if any(
-        str(span["attributes"].get("gen_ai.span.kind", "")).lower() in {"agent", "llm", "tool"}
-        or any(key.startswith(("gen_ai.prompts.", "gen_ai.completion.")) for key in span["attributes"])
-        or span["span_name"].lower().endswith((".agent", ".llm", ".tool"))
-        for span in spans
-    ):
-        return "agentlens"
-    return "default"
+def resolve_query_field(product: str | None, field: str) -> str:
+    """命中映射表时按产品换算为存储中的原始字段，未命中时原样透传。"""
+    if product is None:
+        return field
+    return QUERY_FIELD_MAPPING.get(field, {}).get(product, field)
 
 
 STANDARD_FIELDS = {

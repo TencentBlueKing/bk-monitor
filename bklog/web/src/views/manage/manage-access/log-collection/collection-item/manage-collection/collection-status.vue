@@ -27,8 +27,8 @@
 
 <template>
   <div
-    class="collection-status-container"
     v-bkloading="{ isLoading: basicLoading }"
+    class="collection-status-container"
   >
     <!-- 容器日志状态页 -->
     <container-status
@@ -44,8 +44,8 @@
           <div class="button-group">
             <span
               v-for="(val, x) in dataButton"
-              :class="clickSec.selected === val.key ? 'button-bul' : 'button-wit'"
               :key="x"
+              :class="clickSec.selected === val.key ? 'button-bul' : 'button-wit'"
               @click="handleChangeGroup(val)"
               >{{ val.content }}({{ val.dataList.totalLenght }})</span
             >
@@ -77,8 +77,8 @@
         <div
           v-for="(value, i) in renderTableList"
           ref="unfold"
-          style="margin-bottom: 10px; overflow: hidden"
           :key="i"
+          style="margin-bottom: 10px; overflow: hidden"
         >
           <div
             class="table-detail"
@@ -191,9 +191,9 @@
         </div>
         <template v-if="renderTableList.length">
           <div
-            style="height: 40px"
-            v-bkloading="{ isLoading: true }"
             v-show="!isPageOver && !reloadTable"
+            v-bkloading="{ isLoading: true }"
+            style="height: 40px"
           ></div>
         </template>
         <bk-sideslider
@@ -210,8 +210,8 @@
           <!-- eslint-disable-next-line vue/no-v-html -->
           <template #content>
             <div
-              class="p20 detail-content"
               v-bkloading="{ isLoading: detail.loading }"
+              class="p20 detail-content"
               v-html="$xss(detail.content)"
             ></div>
           </template>
@@ -555,7 +555,7 @@
           })
           .catch(e => {
             console.warn(e);
-            this.reloadTable = false
+            this.reloadTable = false;
           });
       },
       viewDetail(row) {

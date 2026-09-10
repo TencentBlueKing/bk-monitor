@@ -106,10 +106,7 @@ export const DEFAULT_DETECTOR_REGISTRY: TokenDetector[] = [
   NumberDetector,
 ];
 
-export const createTokenFromMatch = (
-  match: DetectorMatch,
-  start: number,
-): LexToken => ({
+export const createTokenFromMatch = (match: DetectorMatch, start: number): LexToken => ({
   kind: match.kind,
   value: match.value,
   raw: match.value,

@@ -448,10 +448,28 @@ class IncidentListResource(IncidentBaseResource):
     @staticmethod
     def get_enabled_space_bk_biz_id(config_item: dict):
         """将 BKFara scope 配置转换回监控前端使用的 bk_biz_id 协议。"""
-        scope_identity = config_item.get("content", {}).get("scope_identity") or {}
-        space = scope_identity.get("space") if isinstance(scope_identity, dict) else {}
+        content = config_item.get("content") or {}
+        scope_identity = content.get("scope_identity") if isinstance(content, dict) else {}
+        scope_identity = scope_identity if isinstance(scope_identity, dict) else {}
+        space = scope_identity.get("space") or {}
+        space = space if isinstance(space, dict) else {}
+        bk_biz = scope_identity.get("bk_biz") or {}
+        bk_biz = bk_biz if isinstance(bk_biz, dict) else {}
+        space_type = str(space.get("space_type_id") or "").lower()
+
+        # BKCC identity 的 space.id 固定为空，业务 ID 保存在 space.space_id；不能只依赖
+        # list_configs 响应顶层的 scope_id，因为历史响应序列化可能不会返回该字段。
+        if space_type == "bkcc":
+            for bk_biz_id in (space.get("space_id"), bk_biz.get("bk_biz_id"), scope_identity.get("bk_biz_id")):
+                try:
+                    enabled_space = int(bk_biz_id)
+                except (TypeError, ValueError, OverflowError):
+                    continue
+                if enabled_space:
+                    return enabled_space
+
         space_id = space.get("id") if isinstance(space, dict) else None
-        if space_id not in (None, "") and (space.get("space_type_id") or "").lower() != "bkcc":
+        if space_id not in (None, "") and space_type != "bkcc":
             try:
                 enabled_space = -int(space_id)
             except (TypeError, ValueError, OverflowError):
@@ -460,7 +478,11 @@ class IncidentListResource(IncidentBaseResource):
                 if enabled_space:
                     return enabled_space
 
-        return scope_id_to_bk_biz_id(config_item.get("scope_id"))
+        for scope_id in (config_item.get("scope_id"), bk_biz.get("scope_id"), scope_identity.get("scope_id")):
+            enabled_space = scope_id_to_bk_biz_id(scope_id)
+            if enabled_space:
+                return enabled_space
+        return 0
 
     @staticmethod
     def get_authorized_query_biz_ids(bk_biz_ids):
@@ -542,7 +564,7 @@ class IncidentListResource(IncidentBaseResource):
                     raise ValueError("list_configs pagination exceeds safety limit")
                 params["page"] = current_page + 1
         except Exception:
-            logger.error("fetch enabled incident spaces failed")
+            logger.exception("fetch enabled incident spaces failed")
             return []
 
     class RequestSerializer(IncidentSearchSerializer):

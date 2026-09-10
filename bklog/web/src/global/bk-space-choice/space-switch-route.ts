@@ -44,14 +44,16 @@ export const omitRouteIndexId = <T extends Record<string, unknown>>(params: T): 
   return next;
 };
 
-export const shouldKeepSceneOnSpaceChange = (retrieveType?: unknown, queryRetrieveType?: unknown): boolean => retrieveType === 'scene' || queryRetrieveType === 'scene';
+export const shouldKeepSceneOnSpaceChange = (retrieveType?: unknown, queryRetrieveType?: unknown): boolean =>
+  retrieveType === 'scene' || queryRetrieveType === 'scene';
 
 export const isSceneRetrieveSwitch = (options: {
   routeName?: string | null;
   queryRetrieveType?: unknown;
   storeRetrieveType?: unknown;
-}): boolean => options.routeName === 'retrieve'
-  && shouldKeepSceneOnSpaceChange(options.storeRetrieveType, options.queryRetrieveType);
+}): boolean =>
+  options.routeName === 'retrieve' &&
+  shouldKeepSceneOnSpaceChange(options.storeRetrieveType, options.queryRetrieveType);
 
 export const buildSpaceSwitchQuery = (options: {
   routeName?: string | null;

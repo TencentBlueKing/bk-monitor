@@ -38,6 +38,7 @@ from apps.feature_toggle.plugins.constants import (
 )
 from apps.log_bcs.handlers.bcs_handler import BcsHandler
 from apps.log_databus.constants import (
+    ADMIN_REQUEST_USER,
     META_DATA_ENCODING,
     ContainerCollectorType,
     ContainerCollectStatus,
@@ -1120,6 +1121,36 @@ class K8sCollectorHandler(CollectorHandler):
             raise ValueError("default es cluster not exists.")
         return {"data_link_id": data_link_id, "storage_cluster_id": storage_cluster_id}
 
+    def _schedule_bcs_scene_label_sync(self, *collector_configs: CollectorConfig):
+        """在外层数据库事务提交后，再同步外部场景标签。"""
+        collector_config_ids = [
+            collector_config.collector_config_id for collector_config in collector_configs if collector_config
+        ]
+        if not collector_config_ids:
+            return
+
+        transaction.on_commit(lambda: K8sCollectorHandler._sync_bcs_scene_labels(*collector_config_ids))
+
+    @staticmethod
+    def _sync_bcs_scene_labels(*collector_config_ids: int):
+        """同步 metadata 和索引集场景标签；失败不影响采集项持久化。"""
+        for collector_config_id in collector_config_ids:
+            try:
+                collector_config = CollectorConfig.objects.get(collector_config_id=collector_config_id)
+                collector_handler = K8sCollectorHandler(data=collector_config)
+                labels = collector_handler.build_scene_labels()
+                TransferApi.switch_result_table(
+                    {
+                        "table_id": collector_config.table_id,
+                        "bk_biz_id": collector_config.bk_biz_id,
+                        "operator": ADMIN_REQUEST_USER,
+                        "labels": labels,
+                    }
+                )
+                collector_handler._sync_scene_tags_to_index_set(labels)
+            except Exception:  # pylint: disable=broad-except
+                logger.exception("[bcs_scene_labels] failed to sync collector_config_id=%s", collector_config_id)
+
     @transaction.atomic
     def create_bcs_container_config(self, data, bk_app_code="bk_bcs"):
         conf = self._get_bcs_config(
@@ -1279,6 +1310,8 @@ class K8sCollectorHandler(CollectorHandler):
                 )
 
         ContainerCollectorConfig.objects.bulk_create(container_collector_config_list)
+
+        self._schedule_bcs_scene_label_sync(path_collector_config, std_collector_config)
 
         if is_send_create_notify:
             self._send_create_notify(path_collector_config)
@@ -1505,6 +1538,8 @@ class K8sCollectorHandler(CollectorHandler):
                 func=self.compare_config,
                 **{"data_configs": std_container_config},
             )
+
+        self._schedule_bcs_scene_label_sync(path_collector, std_collector)
 
         if is_send_path_create_notify:
             self._send_create_notify(path_collector_config)

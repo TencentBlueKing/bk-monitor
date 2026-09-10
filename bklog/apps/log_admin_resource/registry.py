@@ -72,6 +72,10 @@ from apps.log_admin_resource.handlers.platform_source import (
     FUNCTIONS as PLATFORM_SOURCE_FUNCTIONS,
     HANDLERS as PLATFORM_SOURCE_HANDLERS,
 )
+from apps.log_admin_resource.handlers.runtime import (
+    FUNCTIONS as RUNTIME_FUNCTIONS,
+    HANDLERS as RUNTIME_HANDLERS,
+)
 from apps.log_admin_resource.handlers.storage_cluster import (
     STORAGE_CLUSTER_LIST_PARAMS_SCHEMA,
     STORAGE_CLUSTER_LIST_RESPONSE_SCHEMA,
@@ -578,6 +582,7 @@ FUNCTIONS.update(LOG_QUERY_FUNCTIONS)
 FUNCTIONS.update(MODEL_QUERY_FUNCTIONS)
 FUNCTIONS.update(HOST_INSPECTION_FUNCTIONS)
 FUNCTIONS.update(K8S_INSPECTION_FUNCTIONS)
+FUNCTIONS.update(RUNTIME_FUNCTIONS)
 
 HANDLERS = {
     "bklog.collector.list": list_collectors,
@@ -608,6 +613,7 @@ HANDLERS.update(LOG_QUERY_HANDLERS)
 HANDLERS.update(MODEL_QUERY_HANDLERS)
 HANDLERS.update(HOST_INSPECTION_HANDLERS)
 HANDLERS.update(K8S_INSPECTION_HANDLERS)
+HANDLERS.update(RUNTIME_HANDLERS)
 
 
 class AdminResourceRegistry:

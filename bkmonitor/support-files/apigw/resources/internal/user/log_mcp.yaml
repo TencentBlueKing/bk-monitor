@@ -123,8 +123,10 @@ paths:
                       properties:
                         field_name:
                           type: string
+                          description: Routing dimension field name returned by list_log_scenes. list_log_scenes 返回的路由维度字段名。
                         value:
                           type: array
+                          description: Routing dimension values returned by list_scene_dimension_values. list_scene_dimension_values 返回的路由维度值。
                           items:
                             type: string
                         op:
@@ -134,6 +136,7 @@ paths:
                           - ne
                           - req
                           - nreq
+                          description: Matching operator, such as eq or ne. 匹配操作符，例如 eq 或 ne。
                 query_string:
                   type: string
                   default: '*'
@@ -144,6 +147,7 @@ paths:
                   properties:
                     field_list:
                       type: array
+                      description: Ordered structured filter rules combined by condition_list. 由 condition_list 连接的有序结构化过滤规则。
                       items:
                         type: object
                         required:
@@ -153,14 +157,18 @@ paths:
                         properties:
                           field_name:
                             type: string
+                            description: Log field name returned by get_index_set_fields. get_index_set_fields 返回的日志字段名。
                           op:
                             type: string
+                            description: Matching operator, such as eq, ne, or req for regex. 匹配操作符，例如 eq、ne，或表示正则匹配的 req。
                           value:
                             type: array
+                            description: Values matched against the selected log field. 与所选日志字段匹配的值列表。
                             items:
                               type: string
                     condition_list:
                       type: array
+                      description: Logical operators between adjacent field_list entries; length must be field_list length minus one. 相邻 field_list 条件间的逻辑操作符，长度须为 field_list 长度减一。
                       items:
                         type: string
                 keep_columns:
@@ -199,7 +207,7 @@ paths:
   /mcp/search_index_set_context/:
     post:
       operationId: search_index_set_context
-      description: 'Get log context around a specific log entry for scrolling through adjacent logs. Identifies target by timestamp, server IP, GSE index, etc. Must be used after search_logs to obtain positioning info (dtEventTimeStamp, serverIp, gseIndex). Supports bidirectional scrolling: positive begin scrolls forward (newer), negative backward (older). 查询指定日志条目的上下文,支持滚动浏览相邻日志。通过时间戳、服务器IP、GSE索引等定位。必须在 search_logs 之后使用以获取定位信息。支持双向滚动:正数向前(较新),负数向后(较旧)。'
+      description: 'Get adjacent logs around an entry located by timestamp, server IP and GSE indices returned by search_logs. For the initial window use zero=true and begin=0: size is the per-direction limit, so up to 2*size records may be returned, including the anchor when found. Use zero=false with nonzero begin for one-direction scrolling; positive begin selects newer logs, negative begin selects older logs. zero=false with begin=0 returns an empty list. 查询 search_logs 返回条目的相邻日志，使用原时间戳、服务器IP和GSE序号定位。初始窗口使用 zero=true、begin=0；size 为单侧条数，合并后最多 2*size 条，找到锚点时包含锚点。单方向翻页使用 zero=false 和非零 begin，正数查较新日志、负数查较旧日志；zero=false、begin=0 返回空列表。'
       tags:
       - log_mcp
       requestBody:
@@ -222,15 +230,15 @@ paths:
                 size:
                   type: string
                   default: '50'
-                  description: 'Number of log records to return. Controls how many context logs are retrieved. Default: 50. 返回的日志记录数。控制获取多少条上下文日志。默认值: 50。'
+                  description: 'Per-direction record limit, default 50. With zero=true, older and newer windows are merged and may contain up to 2*size records; this is not a total-result limit. With zero=false and nonzero begin, only one direction is queried. 单侧取数上限，默认50。zero=true 时合并前后两侧窗口，最多返回 2*size 条，并非总条数上限；zero=false 且 begin 非零时只查询单方向。'
                 zero:
                   type: boolean
-                  default: 'true'
-                  description: 'Context identifier. true: Get full log context; false: Get partial context only. 上下文标识。true: 获取完整日志上下文; false: 仅获取部分上下文。'
+                  default: true
+                  description: 'Whether to query both directions. true: Merge older and newer windows around the anchor, normally with begin=0. false: Query one direction according to the sign of nonzero begin; begin=0 returns an empty list. 是否双向取数。true 时合并锚点前后两侧窗口，通常配合 begin=0；false 时根据非零 begin 正负选择单侧，begin=0 返回空列表。'
                 begin:
                   type: string
                   default: '0'
-                  description: 'Offset number for scrolling. Positive values scroll forward (newer logs), negative values scroll backward (older logs). Example: scrolling down 10 logs means begin=10; scrolling down another 10 means begin=20; scrolling up means negative values. 滚动偏移数。正数向前滚动(较新日志),负数向后滚动(较旧日志)。例如:向下滚动10条则begin=10;再向下滚动10条则begin=20;向上滚动则为负数。'
+                  description: 'Offset from the anchor. Use 0 with zero=true for the initial two-sided window. With zero=false, positive offsets select newer logs and negative offsets select older logs; the absolute value is the offset within that direction. zero=false with begin=0 returns an empty list. 相对锚点的偏移。初始双侧窗口使用 zero=true、begin=0；zero=false 时正数选择较新日志、负数选择较旧日志，绝对值为该方向偏移量；zero=false、begin=0 返回空列表。'
                 gseIndex:
                   type: string
                   description: GSE packet sequence number for log positioning. For BKData logs, use gseindex field. Must be obtained from search_logs response. 用于日志定位的GSE发包序号。对于计算平台清洗日志,使用gseindex字段。必须从 search_logs 响应中获取。
@@ -337,8 +345,10 @@ paths:
                     properties:
                       field_name:
                         type: string
+                        description: Routing dimension field name returned by list_log_scenes. list_log_scenes 返回的路由维度字段名。
                       value:
                         type: array
+                        description: Selected routing dimension values. 已选择的路由维度值。
                         items:
                           type: string
                       op:
@@ -348,6 +358,7 @@ paths:
                         - ne
                         - req
                         - nreq
+                        description: Matching operator, such as eq or ne. 匹配操作符，例如 eq 或 ne。
       x-bk-apigateway-resource:
         isPublic: false
         allowApplyPermission: false
@@ -400,8 +411,10 @@ paths:
                       properties:
                         field_name:
                           type: string
+                          description: Routing dimension field name returned by list_log_scenes. list_log_scenes 返回的路由维度字段名。
                         value:
                           type: array
+                          description: Routing dimension values returned by list_scene_dimension_values. list_scene_dimension_values 返回的路由维度值。
                           items:
                             type: string
                         op:
@@ -411,6 +424,7 @@ paths:
                           - ne
                           - req
                           - nreq
+                          description: Matching operator, such as eq or ne. 匹配操作符，例如 eq 或 ne。
       x-bk-apigateway-resource:
         isPublic: false
         allowApplyPermission: false
@@ -457,18 +471,45 @@ paths:
                   description: 'End timestamp in seconds (Unix timestamp). CRITICAL: MUST use current timestamp - NEVER use historical values! If user doesn''t specify, calculate current time dynamically. Example in Python: import time; end_time = int(time.time()). Example in JavaScript: Math.floor(Date.now() / 1000). Example in Bash: date +%s. Always execute code to get current timestamp instead of using fixed numbers from training data. 结束时间戳(秒,Unix时间戳)。关键:必须使用当前时间戳 - 绝不使用历史值！ 如用户未指定,动态计算当前时间。Python示例: import time; end_time = int(time.time())。JavaScript示例: Math.floor(Date.now() / 1000)。Bash示例: date +%s。始终执行代码获取当前时间戳,而非使用训练数据中的固定数字。'
                 group_by:
                   type: boolean
-                  default: 'true'
+                  default: true
                   description: 'Whether to group statistics by field values. true: Group by field values (for Top K, distribution analysis); false: Overall count without grouping (for total statistics). Default: true. 是否按字段值分组统计。true: 按字段值分组(用于Top K、分布分析); false: 整体计数不分组(用于总体统计)。默认值: true。'
                 order_by:
                   type: string
-                  default: '"value"'
+                  enum: [value, time]
+                  default: time
                   description: 'Sort order for results. "value": Sort by aggregated value (descending, for Top K analysis); "time": Sort by time (for time series analysis). Default: "time". 结果排序方式。"value": 按聚合值排序(降序,用于Top K分析); "time": 按时间排序(用于时间序列分析)。默认值: "time"。'
                 bk_biz_id:
                   type: string
                   description: Business ID in BlueKing Monitor. 业务ID。
                 conditions:
-                  type: string
+                  type: object
+                  additionalProperties: false
                   description: 'Additional filter conditions. Format: {"field_list": [{"field_name": "xxx", "value": ["xxx"], "op": "eq"}], "condition_list": []}. Optional, can be omitted if not needed. 额外的过滤条件。格式: {"field_list": [{"field_name": "xxx", "value": ["xxx"], "op": "eq"}], "condition_list": []}。可选,如不需要可省略。'
+                  properties:
+                    field_list:
+                      type: array
+                      description: Ordered structured filter rules combined by condition_list. 由 condition_list 连接的有序结构化过滤规则。
+                      items:
+                        type: object
+                        additionalProperties: false
+                        required: [field_name, op, value]
+                        properties:
+                          field_name:
+                            type: string
+                            description: Log field name returned by get_index_set_fields. get_index_set_fields 返回的日志字段名。
+                          op:
+                            type: string
+                            description: Matching operator, such as eq, ne, or req for regex. 匹配操作符，例如 eq、ne，或表示正则匹配的 req。
+                          value:
+                            type: array
+                            description: Values matched against the selected log field. 与所选日志字段匹配的值列表。
+                            items:
+                              type: string
+                    condition_list:
+                      type: array
+                      description: Logical operators between adjacent field_list entries; length must be field_list length minus one. 相邻 field_list 条件间的逻辑操作符，长度须为 field_list 长度减一。
+                      items:
+                        type: string
                 field_name:
                   type: string
                   description: Field name to analyze. Must be obtained from get_index_set_fields tool to ensure the field exists. 要分析的字段名。必须从 get_index_set_fields 工具获取以确保字段存在。
@@ -480,7 +521,7 @@ paths:
                   description: Index set ID. Must be obtained from list_index_sets tool. 索引集ID,必须从 list_index_sets 工具获取
                 query_string:
                   type: string
-                  default: '"level:ERROR"'
+                  default: '*'
                   description: 'Log search query string to filter logs before analysis. Supports field-based queries and keyword searches. Use field mappings from get_index_set_fields to construct valid queries. Default: "*" (all logs). 用于在分析前过滤日志的查询字符串。支持基于字段的查询和关键字搜索。使用 get_index_set_fields 中的字段映射构建有效查询。默认值: "*"(所有日志)。'
         required: false
         description: ''

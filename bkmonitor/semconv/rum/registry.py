@@ -25,15 +25,17 @@ class FieldRegistry:
     """
 
     def __init__(self, root: FieldSpec) -> None:
-        self._fields: dict[str, FieldSpec] = {}
+        self.originals: dict[str, FieldSpec] = {}
+        self.bound_fields: dict[str, FieldSpec] = {}
         self._collect(root, parent_path="")
 
     def _collect(self, field: FieldSpec, parent_path: str) -> None:
         full_path = f"{parent_path}.{field.field_name}" if parent_path else field.field_name
         if full_path:
-            if full_path in self._fields:
+            if full_path in self.originals:
                 raise ValueError(f"字段路径重复注册: {full_path}")
-            self._fields[full_path] = field
+            self.originals[full_path] = field
+            self.bound_fields[full_path] = field.bind(full_path)
         for child in field.children():
             self._collect(child, parent_path=full_path)
 
@@ -41,7 +43,11 @@ class FieldRegistry:
         """按完整路径查找字段描述符。
 
         :param field_name: 字段完整路径，如 ``"attributes.span_type"``。
-        :return: 已注册的共享 ``FieldSpec`` 对象；未注册时返回仅含原始字段名的新 ``FieldSpec``。
+        :return: 已注册的 bound ``FieldSpec`` 对象（``get_full_field_name()`` 返回完整路径）；
+            未注册时返回仅含原始字段名的新 ``FieldSpec``。
         """
-        spec = self._fields.get(field_name)
+        spec = self.bound_fields.get(field_name)
         return spec if spec is not None else FieldSpec(field_name)
+
+    def fields(self) -> list[FieldSpec]:
+        return list(self.bound_fields.values())

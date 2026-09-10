@@ -46,17 +46,19 @@ export const buildUiCondition = (
   if (isKeywordLikeField(fieldType)) {
     return {
       field,
-      operator: isExactValue
-        ? (negative ? '!=' : '=')
-        : (negative ? 'not contains' : 'contains'),
+      operator: isExactValue ? (negative ? '!=' : '=') : negative ? 'not contains' : 'contains',
       value: [value],
     };
   }
 
   if (isTextLikeField(fieldType)) {
     const operator = isExactValue
-      ? (negative ? 'is not' : 'is')
-      : (negative ? 'not contains match phrase' : 'contains match phrase');
+      ? negative
+        ? 'is not'
+        : 'is'
+      : negative
+        ? 'not contains match phrase'
+        : 'contains match phrase';
     return { field, operator, value: [value] };
   }
 

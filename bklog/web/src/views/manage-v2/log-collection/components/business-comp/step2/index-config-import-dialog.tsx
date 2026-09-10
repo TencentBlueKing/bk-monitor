@@ -471,12 +471,12 @@ export default defineComponent({
           if (list?.length) {
             pagination.value.total = total;
             collectList.value = list.map(item => {
-              const { retention, collect_paths, etl_config } = item;
+              const { retention, collect_paths: collectPaths, etl_config: etlConfig } = item;
               return {
                 ...item,
                 retention: retention ? `${retention}${t('天')}` : '--',
-                paths: collect_paths?.join('; ') ?? '',
-                eltString: etlConfigEnum[etl_config],
+                paths: collectPaths?.join('; ') ?? '',
+                eltString: etlConfigEnum[etlConfig],
               };
             });
           }
@@ -555,7 +555,8 @@ export default defineComponent({
           </div>
           <div class='content-bot'>
             <div class='content-bot-title'>{t('请选择目标索引集')}</div>
-            <TableComponent class='config-import-table'
+            <TableComponent
+              class='config-import-table'
               columns={allColumns.value}
               data={collectList.value}
               loading={isTableLoading.value}

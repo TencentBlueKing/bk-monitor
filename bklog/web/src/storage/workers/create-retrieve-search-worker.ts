@@ -3,8 +3,7 @@
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  */
 
-export const createRetrieveSearchWorker = () =>
-  new Worker(new URL('./retrieve-search.worker.ts', import.meta.url));
+export const createRetrieveSearchWorker = () => new Worker(new URL('./retrieve-search.worker.ts', import.meta.url));
 
 export const getRetrieveSearchWorkerUrl = () => {
   try {

@@ -8,11 +8,13 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import datetime
 import json
 
 import pytest
 from django.conf import settings
 
+from core.errors.api import BKAPIError
 from metadata import models
 from metadata.models.data_link import utils
 from metadata.models.data_link.constants import DataLinkKind
@@ -23,6 +25,7 @@ from metadata.models.data_link.data_link_configs import (
     ResultTableConfig,
     VMStorageBindingConfig,
 )
+from metadata.models.data_link.service import apply_data_id_v2
 from metadata.tests.common_utils import consul_client
 
 
@@ -105,6 +108,108 @@ def test_compose_data_id_config(create_or_delete_records):
 
     content = data_id_config_ins.compose_config()
     assert json.dumps(content) == expected_config
+
+
+def test_compose_data_source_config(mocker):
+    mocker.patch("bkmonitor.utils.tenant.get_tenant_default_biz_id", return_value=2)
+    data_id_config = DataIdConfig(
+        name="bkm_data_link_test",
+        namespace="bkmonitor",
+        bk_biz_id=111,
+        bk_tenant_id="system",
+    )
+
+    settings.ENABLE_MULTI_TENANT_MODE = False
+    assert data_id_config.compose_data_source_config(
+        data_source_alias="data_link_test",
+        description="test description",
+        created_by="creator",
+        created_at=datetime.datetime(2026, 9, 3, 12, 6, 34, tzinfo=datetime.timezone.utc),
+        updated_by="updater",
+        updated_at=datetime.datetime(2026, 9, 4, 2, 0, tzinfo=datetime.timezone.utc),
+    ) == {
+        "kind": "DataSource",
+        "metadata": {
+            "namespace": "bkmonitor",
+            "name": "bkm_data_link_test",
+            "labels": {},
+        },
+        "spec": {
+            "basic_info": {
+                "data_source_name": "bkm_data_link_test",
+                "data_source_alias": "data_link_test",
+                "data_encoding": "UTF-8",
+                "bk_biz_id": 2,
+                "time_zone": "Asia/Shanghai",
+                "tags": [],
+                "description": "test description",
+                "access_channel": "bkbase",
+                "access_channel_alias": "计算平台",
+            },
+            "report_config": {"type": "custom"},
+            "data_id": {
+                "kind": "DataId",
+                "namespace": "bkmonitor",
+                "name": "bkm_data_link_test",
+            },
+            "data_conn": None,
+            "created_by": "creator",
+            "created_at": "2026-09-03 20:06:34",
+            "updated_by": "updater",
+            "updated_at": "2026-09-04 10:00:00",
+            "desired_status": "Running",
+        },
+    }
+
+    settings.ENABLE_MULTI_TENANT_MODE = True
+    content = data_id_config.compose_data_source_config()
+    assert content["metadata"]["tenant"] == "system"
+    assert content["spec"]["data_id"]["tenant"] == "system"
+    assert content["spec"]["basic_info"]["bk_biz_id"] == 111
+    assert content["spec"]["desired_status"] == "Running"
+
+    data_id_config.bk_data_id = 525323
+    content = data_id_config.compose_data_source_config()
+    assert content["metadata"]["labels"] == {"raw_data_id": "525323"}
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_apply_data_id_v2_applies_data_id_then_data_source(mocker):
+    mocker.patch("bkmonitor.utils.tenant.get_tenant_default_biz_id", return_value=2)
+    apply_mock = mocker.patch("metadata.models.data_link.service.api.bkdata.apply_data_link")
+
+    assert apply_data_id_v2(
+        bk_tenant_id="system",
+        data_name="test_data_source",
+        bk_biz_id=111,
+    )
+
+    assert apply_mock.call_count == 2
+    data_id_call, data_source_call = apply_mock.call_args_list
+    assert data_id_call.kwargs["config"][0]["kind"] == "DataId"
+    assert data_id_call.kwargs["config"][0]["metadata"]["name"] == "bkm_test_data_source"
+    assert data_source_call.kwargs["config"][0]["spec"]["data_id"] == {
+        "kind": "DataId",
+        "namespace": "bkmonitor",
+        "name": "bkm_test_data_source",
+    }
+    assert all(call.kwargs["bk_tenant_id"] == "system" for call in apply_mock.call_args_list)
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_apply_data_id_v2_ignores_data_source_failure(mocker):
+    mocker.patch("bkmonitor.utils.tenant.get_tenant_default_biz_id", return_value=2)
+    apply_mock = mocker.patch(
+        "metadata.models.data_link.service.api.bkdata.apply_data_link",
+        side_effect=[None, BKAPIError(system_name="bkdata", result="unknown variant DataSource")],
+    )
+
+    assert apply_data_id_v2(
+        bk_tenant_id="system",
+        data_name="test_data_source_failure",
+        bk_biz_id=111,
+    )
+    assert apply_mock.call_count == 2
 
 
 @pytest.mark.django_db(databases="__all__")

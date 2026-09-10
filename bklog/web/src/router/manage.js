@@ -97,6 +97,10 @@ const DataLinkConf = () =>
   import(/* webpackChunkName: 'manage-data-link-conf' */ '@/views/manage/manage-data-link/manage-data-link-conf');
 const MaskingEdit = () =>
   import(/* webpackChunkName: 'field-masking-separate' */ '@/views/manage/field-masking-separate');
+const V2MaskingEdit = () =>
+  import(
+    /* webpackChunkName: 'v2-field-masking-separate' */ '@/views/manage-v2/log-collection/components/masking-operation'
+  );
 const MaskingList = () =>
   import(/* webpackChunkName: 'manage-data-link-conf' */ '@/views/manage/log-clean/clean-masking/list');
 const ClientLogView = { name: 'ClientLogView', template: '<router-view></router-view>' };
@@ -106,7 +110,6 @@ const v2CleanTempCreate = () =>
 
 const v2CleanCreate = () => import(/* webpackChunkName: 'v2-sdk-track' */ '@/views/manage-v2/log-clean/create-clean');
 const GrokManage = () => import(/* webpackChunkName: 'grok-manage' */ '@/views/manage-v2/grok-manage/index.tsx');
-
 
 /**
  * log_manage_v2 特性开关判定 mixin
@@ -363,7 +366,7 @@ const getManageRoutes = () => [
                   backName: 'log-index-set-list',
                   navId: 'log-collection',
                 },
-                component: MaskingEdit,
+                component: createVersionedComponent(V2MaskingEdit, MaskingEdit),
               },
             ],
           },
@@ -462,7 +465,7 @@ const getManageRoutes = () => [
               backName: 'bkdata-index-set-list',
               navId: 'bk-data-collection',
             },
-            component: MaskingEdit,
+            component: createVersionedComponent(V2MaskingEdit, MaskingEdit),
           },
         ],
       },
@@ -529,7 +532,7 @@ const getManageRoutes = () => [
               backName: 'es-index-set-list',
               navId: 'es-collection',
             },
-            component: MaskingEdit,
+            component: createVersionedComponent(V2MaskingEdit, MaskingEdit),
           },
         ],
       },
@@ -596,7 +599,7 @@ const getManageRoutes = () => [
               backName: 'custom-report-list',
               navId: 'custom-report',
             },
-            component: MaskingEdit,
+            component: createVersionedComponent(V2MaskingEdit, MaskingEdit),
           },
         ],
       },

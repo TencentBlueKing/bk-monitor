@@ -38,7 +38,7 @@ export default defineComponent({
 
     const { destroyObserver } = useIntersectionObserver(
       () => refRootContainer.value!,
-      (entry) => {
+      entry => {
         if (entry.isIntersecting) {
           isRowIntersecting.value = true;
           nextTick(destroyObserver);

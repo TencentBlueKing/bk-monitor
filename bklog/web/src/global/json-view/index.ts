@@ -79,11 +79,14 @@ export type JsonViewConfig = {
 export default class JsonView {
   options: JsonViewConfig;
   targetEl: HTMLElement;
-  jsonNodeMap: WeakMap<HTMLElement, {
-    target?: any;
-    isExpand?: boolean;
-    context?: JsonNodeContext;
-  }>;
+  jsonNodeMap: WeakMap<
+    HTMLElement,
+    {
+      target?: any;
+      isExpand?: boolean;
+      context?: JsonNodeContext;
+    }
+  >;
   JSONBigInstance: JSONBig;
   renderTaskId: number;
   renderQueue: Array<() => void>;
@@ -118,10 +121,12 @@ export default class JsonView {
     const { plainText, markRanges } = parseResultMarkedText(name);
     const displayName = fieldPath ? this.options.resolveFieldDisplayName?.(fieldPath) : undefined;
     const displayText = displayName && displayName !== fieldPath ? displayName : plainText;
-    fieldText.appendChild(highlightPlainTextIntoFragment({
-      text: displayText,
-      resultRanges: displayText === plainText ? markRanges : [],
-    }));
+    fieldText.appendChild(
+      highlightPlainTextIntoFragment({
+        text: displayText,
+        resultRanges: displayText === plainText ? markRanges : [],
+      }),
+    );
 
     fieldEl.append(fieldText);
     return fieldEl;
@@ -246,14 +251,14 @@ export default class JsonView {
     row.append(this.createJsonSymbol());
     // 子节点继续用未收敛的展示路径向下展开，保证 JSON 树结构完整；
     // 每个子行会再次 clamp，最终 DOM 属性只保留 Fields 映射字段。
-    const childParentPath = jsonStringFieldPath
-      ? rawSegmentFieldPath
-      : (rawSearchFieldPath || parentPath);
-    row.append(this.createJsonNodeElment(value, {
-      ...context,
-      parentPath: childParentPath,
-      nodePath: joinMarkedJsonPath(context.nodePath, parseResultMarkedText(key).plainText),
-    }));
+    const childParentPath = jsonStringFieldPath ? rawSegmentFieldPath : rawSearchFieldPath || parentPath;
+    row.append(
+      this.createJsonNodeElment(value, {
+        ...context,
+        parentPath: childParentPath,
+        nodePath: joinMarkedJsonPath(context.nodePath, parseResultMarkedText(key).plainText),
+      }),
+    );
 
     return row;
   }
@@ -263,7 +268,7 @@ export default class JsonView {
     const button = document.createElement('span');
     button.classList.add('bklog-json-view-more-rows');
     button.textContent = `${window.$t?.('展开更多') ?? '展开更多'}（${remaining}）`;
-    button.addEventListener('click', (e) => {
+    button.addEventListener('click', e => {
       e.stopPropagation();
       e.preventDefault();
       RetrieveHelper.jsonFormatter.setIsExpandNodeClick(true);
@@ -302,10 +307,12 @@ export default class JsonView {
       }
 
       if (startIndex < entries.length) {
-        container.append(this.createMoreRowsButton(entries.length - startIndex, () => {
-          renderLimit = Math.min(entries.length, startIndex + CHILD_RENDER_LIMIT);
-          appendChunk(this.getBatchSize(true));
-        }));
+        container.append(
+          this.createMoreRowsButton(entries.length - startIndex, () => {
+            renderLimit = Math.min(entries.length, startIndex + CHILD_RENDER_LIMIT);
+            appendChunk(this.getBatchSize(true));
+          }),
+        );
       }
     };
 
@@ -402,17 +409,15 @@ export default class JsonView {
       node.classList.add('bklog-json-field-value');
       // string / number / boolean / bigint 叶子统一走 segmentRender，
       // 以便消费 pageHighlightState（含大小写/精确/正则匹配模式）
-      const isPrimitiveLeaf = nodeType === 'string'
-        || nodeType === 'number'
-        || nodeType === 'boolean'
-        || nodeType === 'bigint';
-      const plainLeafText = formatTarget !== null && formatTarget !== undefined && formatTarget !== ''
-        ? String(formatTarget)
-        : '';
+      const isPrimitiveLeaf =
+        nodeType === 'string' || nodeType === 'number' || nodeType === 'boolean' || nodeType === 'bigint';
+      const plainLeafText =
+        formatTarget !== null && formatTarget !== undefined && formatTarget !== '' ? String(formatTarget) : '';
       // 数字 / 布尔字面量无法内嵌 <mark>，命中信息在解析阶段存入侧通道，渲染前按结构路径回填
-      const leafText = nodeType === 'string'
-        ? plainLeafText
-        : applyPrimitiveMarkText(plainLeafText, this.primitiveMarks.get(nodePath));
+      const leafText =
+        nodeType === 'string'
+          ? plainLeafText
+          : applyPrimitiveMarkText(plainLeafText, this.primitiveMarks.get(nodePath));
       if (isPrimitiveLeaf && plainLeafText !== '' && typeof this.options.segmentRender === 'function') {
         const taskId = this.renderTaskId;
         this.scheduleRender(() => {
@@ -436,12 +441,14 @@ export default class JsonView {
     this.targetEl.innerHTML = '';
     const rootPath = this.getRootFieldPath();
     this.primitiveMarks = new Map(this.options.primitiveMarks ?? []);
-    this.targetEl.append(this.createJsonNodeElment(value, {
-      depth: 1,
-      parentPath: rootPath,
-      jsonStringFieldPath: this.options.parsedFromJsonString ? rootPath : '',
-      nodePath: MARKED_JSON_ROOT_PATH,
-    }));
+    this.targetEl.append(
+      this.createJsonNodeElment(value, {
+        depth: 1,
+        parentPath: rootPath,
+        jsonStringFieldPath: this.options.parsedFromJsonString ? rootPath : '',
+        nodePath: MARKED_JSON_ROOT_PATH,
+      }),
+    );
   }
 
   private setNodeExpand = (jsonNode: HTMLElement, isExpand: boolean, target: any) => {
@@ -450,9 +457,8 @@ export default class JsonView {
       const leafNode = jsonNode.closest('.bklog-json-view-node');
       const depth = Number(leafNode.getAttribute('data-depth') ?? 1);
       const nodeMeta = this.jsonNodeMap.get(jsonNode);
-      const parentPath = nodeMeta?.context?.parentPath
-        ?? leafNode?.getAttribute('data-search-field-name')
-        ?? this.getRootFieldPath();
+      const parentPath =
+        nodeMeta?.context?.parentPath ?? leafNode?.getAttribute('data-search-field-name') ?? this.getRootFieldPath();
       childNode = this.createObjectChildNode(target, {
         depth: depth + 1,
         parentPath,
@@ -476,8 +482,8 @@ export default class JsonView {
   private handleTargetElementClick(e) {
     const targetNode = e.target as HTMLElement;
     if (
-      targetNode.classList.contains('bklog-json-view-icon-expand')
-      || targetNode.classList.contains('bklog-json-view-icon-text')
+      targetNode.classList.contains('bklog-json-view-icon-expand') ||
+      targetNode.classList.contains('bklog-json-view-icon-text')
     ) {
       const storeNode = targetNode.closest('.bklog-json-view-object') as HTMLElement;
       if (this.jsonNodeMap.get(storeNode)) {
@@ -509,10 +515,7 @@ export default class JsonView {
   private handleMouseUp(e: MouseEvent) {
     // 与行级划词判定对齐：仅「本次拖拽划选」或「点在当前选区上」时放行冒泡；
     // 残留选区下的普通点击仍拦截，避免误触发行展开/收起。
-    if (
-      RetrieveHelper.isMouseSelectionUpEvent(e)
-      || RetrieveHelper.isClickOnSelection(e, 2)
-    ) {
+    if (RetrieveHelper.isMouseSelectionUpEvent(e) || RetrieveHelper.isClickOnSelection(e, 2)) {
       return;
     }
     e.stopPropagation();

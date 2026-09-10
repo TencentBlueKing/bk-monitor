@@ -134,7 +134,9 @@ export default defineComponent({
           return (
             <div class='participle-cell participle-cell--analyzed'>
               <div>{getParticipleText(row)}</div>
-              <div>{t('大小写敏感')}: {getCaseSensitiveText(row)}</div>
+              <div>
+                {t('大小写敏感')}: {getCaseSensitiveText(row)}
+              </div>
             </div>
           );
         }
@@ -184,9 +186,7 @@ export default defineComponent({
                 <div class='detail-meta'>
                   <div class='meta-row'>
                     <span class='meta-label'>{t('模板名称')}</span>
-                    <span class='meta-value meta-value-bold'>
-                      {currentTemplate.value.name}
-                    </span>
+                    <span class='meta-value meta-value-bold'>{currentTemplate.value.name}</span>
                   </div>
                   <div class='meta-row'>
                     <span class='meta-label'>{t('清洗方式')}</span>
@@ -194,9 +194,7 @@ export default defineComponent({
                   </div>
                   <div class='meta-row'>
                     <span class='meta-label'>{t('模板描述')}</span>
-                    <span class='meta-value'>
-                      {currentTemplate.value.description || '--'}
-                    </span>
+                    <span class='meta-value'>{currentTemplate.value.description || '--'}</span>
                   </div>
                 </div>
                 <bk-table

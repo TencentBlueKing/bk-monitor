@@ -31,6 +31,8 @@ export enum EFieldType {
   all = 'all',
   // 布尔类型tag输入框
   boolean = 'boolean',
+  // 字节量范围
+  bytesScope = 'bytes_scope',
   // 级联选择器
   cascade = 'cascade',
   // 日期类型 (TODO)
@@ -49,6 +51,8 @@ export enum EFieldType {
   numberInput = 'number_input',
   // textarea 输入框
   text = 'text',
+  // 带操作符选择的textarea 输入框（区别于 text：额外展示操作符下拉）
+  textWithMethods = 'text_with_methods',
 }
 
 export enum EMethod {
@@ -99,6 +103,14 @@ export enum EQueryStringTokenType {
   value = 'value',
   valueCondition = 'value-condition',
 }
+
+/** 范围输入组件（ScopeInput）支持的子类型 */
+export const SCOPE_INPUT_TYPE = {
+  /** 耗时 */
+  duration: 'duration',
+  /** 字节量 */
+  bytes: 'bytes',
+};
 export interface IFavoriteListItem {
   groupName: string;
   id: string;
@@ -109,7 +121,6 @@ export interface IFavoriteListItem {
     where?: IWhereItem[];
   };
 }
-
 export interface IFieldItem {
   /* 字段别名 */
   alias: string;
@@ -120,7 +131,10 @@ export interface IFieldItem {
   /* 包含的method */
   methods: IValue[];
   type?: EFieldType;
+  /** 字段单位，范围输入组件用它作为数值的基础单位（如 μs / B） */
+  unit?: string;
 }
+
 export interface IFilterField {
   // 字段别名
   alias: string;
@@ -131,6 +145,8 @@ export interface IFilterField {
   name: string;
   // 字段类型
   type: EFieldType;
+  // 单位 当前仅供范围输入的基础单位使用
+  unit?: string;
   // 支持的操作符
   methods: {
     // 操作符别名
@@ -158,7 +174,6 @@ export interface IFilterField {
     wildcardValue?: string;
   }[];
 }
-
 export interface IFilterItem {
   condition: { id: ECondition; name: string };
   hide?: boolean;
@@ -201,11 +216,11 @@ export interface INormalWhere {
         is_wildcard?: boolean;
       };
 }
+
 export interface IOptionsInfo {
   count: 0;
   list: IValue[];
 }
-
 export interface IValue {
   id: string;
   name: string;
@@ -231,6 +246,8 @@ export interface IWhereValueOptionsItem {
     name: string;
   }[];
 }
+
+export type scopeInputTypeEnum = (typeof SCOPE_INPUT_TYPE)[keyof typeof SCOPE_INPUT_TYPE];
 export type TGetValueFn = (params: IGetValueFnParams) => Promise<IOptionsInfo>;
 
 // interface FavList {
@@ -464,6 +481,21 @@ export const RETRIEVAL_FILTER_PROPS = {
   tagValueDisplayFormatter: {
     type: Function as PropType<TTagValueDisplayFormatter>,
     default: (val, _fieldId) => `${val}`,
+  },
+  // 模式切换中
+  modeChangeLoading: {
+    type: Boolean,
+    default: false,
+  },
+  // 复制条件中
+  copyLoading: {
+    type: Boolean,
+    default: false,
+  },
+  // 是否禁用 常驻设置 -> 设置筛选功能
+  residentSettingTransferDisable: {
+    type: Boolean,
+    default: false,
   },
 };
 export const RETRIEVAL_FILTER_EMITS = {
@@ -976,11 +1008,20 @@ export const RESIDENT_SETTING_PROPS = {
     type: Number,
     default: 200,
   },
+  // 是否禁用 常驻设置 -> 设置筛选功能
+  residentSettingTransferDisable: {
+    type: Boolean,
+    default: false,
+  },
 };
 export const RESIDENT_SETTING_EMITS = {
   change: (_v: INormalWhere[]) => true,
 } as const;
-export const TIME_CONSUMING_PROPS = {
+export const SCOPE_INPUT_PROPS = {
+  type: {
+    type: String as PropType<scopeInputTypeEnum>,
+    default: 'time',
+  },
   fieldInfo: {
     type: Object as PropType<IFieldItem>,
     default: () => null,
@@ -994,6 +1035,6 @@ export const TIME_CONSUMING_PROPS = {
     default: () => null,
   },
 };
-export const TIME_CONSUMING_EMITS = {
+export const SCOPE_INPUT_EMITS = {
   change: (_v: INormalWhere) => true,
 } as const;

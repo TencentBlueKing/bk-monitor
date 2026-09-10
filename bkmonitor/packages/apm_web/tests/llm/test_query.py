@@ -38,6 +38,31 @@ class LLMQueryTestCase(TestCase):
 
         self.assertEqual(group_ids, ["session-2", "session-1"])
 
+    def test_query_group_list_with_nested_field(self):
+        with mock.patch.object(
+            self.query,
+            "_query_list",
+            return_value=[
+                {
+                    "attributes": {
+                        "gen_ai": {
+                            "conversation": {"id": "conversation-1"},
+                        },
+                    }
+                }
+            ],
+        ):
+            group_ids = self.query.query_group_list(
+                start_time=1,
+                end_time=2,
+                group_field="attributes.gen_ai.conversation.id",
+                offset=0,
+                limit=20,
+                filters=[],
+            )
+
+        self.assertEqual(group_ids, ["conversation-1"])
+
     def test_query_by_group_ids(self):
         query_builder = mock.Mock()
         query_builder.order_by.return_value = query_builder

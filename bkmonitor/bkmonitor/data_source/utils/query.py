@@ -238,7 +238,7 @@ class BaseQuery:
             .instant()
             .limit(min(query_limit, self.QUERY_MAX_LIMIT))
         )
-        records = list(self._add_query(qs, queries))
+        records = [item for item in self._add_query(qs, queries) if item["_result_"] > 0]
         return sorted(records, key=lambda item: item["_result_"], reverse=True)[:limit]
 
     def _query_option_values(

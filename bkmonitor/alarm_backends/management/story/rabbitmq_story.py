@@ -37,8 +37,9 @@ class TableSpace(CheckStep):
     warning_worker_total = 10000
 
     def check(self):
+        api_host = getattr(settings, "RABBITMQ_MANAGEMENT_HOST", "") or settings.RABBITMQ_HOST
         api_port = 15672
-        api_url = f"http://{settings.RABBITMQ_HOST}:{api_port}/api/queues/{settings.RABBITMQ_VHOST.replace('/', '%2f')}"
+        api_url = f"http://{api_host}:{api_port}/api/queues/{settings.RABBITMQ_VHOST.replace('/', '%2f')}"
         try:
             res = requests.get(api_url, auth=(settings.RABBITMQ_USER, settings.RABBITMQ_PASS))
             if res.status_code > 300:

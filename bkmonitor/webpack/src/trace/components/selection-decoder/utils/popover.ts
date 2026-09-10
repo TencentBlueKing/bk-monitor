@@ -26,7 +26,6 @@
 
 import tippy, { type Instance, type SingleTarget } from 'tippy.js';
 
-import { detectEncodingType } from './formatter-utils';
 import { createDOMRect, resolveAnchorRect, resolveSelectionRect } from './geometry';
 import {
   type ResolvedTippyProps,
@@ -163,14 +162,9 @@ export const prepareDecoderPopover = (
   placement: SelectionDecoderPlacement = DEFAULT_PLACEMENT,
   options?: {
     fallbackCenter?: boolean;
-    requireEncoding?: boolean;
   }
 ): boolean => {
   if (typeof text !== 'string' || !text) {
-    return false;
-  }
-
-  if (options?.requireEncoding !== false && !detectEncodingType(text)) {
     return false;
   }
 

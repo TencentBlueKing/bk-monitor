@@ -27,8 +27,8 @@
 <template>
   <div class="text-filter-container">
     <bk-select
-      style="width: 174px; margin-right: 20px; background-color: #fff"
       v-model="filterType"
+      style="width: 174px; margin-right: 20px; background-color: #fff"
     >
       <bk-option
         v-for="option in filterList"
@@ -40,20 +40,20 @@
     </bk-select>
     <!-- 关键字过滤 -->
     <div
-      class="filter-content"
       v-show="filterType === 'match_word'"
+      class="filter-content"
     >
       <bk-input
-        style="width: 300px"
         v-model="filterContent.keyword"
+        style="width: 300px"
         :maxlength="64"
         :placeholder="$t('多个关键字用英文逗号')"
         data-test-id="addNewExtraction_input_filterKeyword"
       >
       </bk-input>
       <bk-select
-        style="width: 70px; margin-right: 10px; background-color: #fff"
         v-model="filterContent.keyword_type"
+        style="width: 70px; margin-right: 10px; background-color: #fff"
         :clearable="false"
         data-test-id="addNewExtraction_select_filterCondition"
       >
@@ -74,14 +74,14 @@
         path="从匹配{0}开始到匹配{1}之间的所有行"
       >
         <bk-input
-          style="width: 180px; margin: 0 6px"
           v-model="filterContent.start"
+          style="width: 180px; margin: 0 6px"
           :maxlength="64"
         >
         </bk-input>
         <bk-input
-          style="width: 180px; margin: 0 6px"
           v-model="filterContent.end"
+          style="width: 180px; margin: 0 6px"
           :maxlength="64"
         >
         </bk-input>
@@ -89,8 +89,8 @@
     </div>
     <!-- 最新行数 -->
     <div
-      class="filter-content"
       v-show="filterType === 'tail_line'"
+      class="filter-content"
     >
       <bk-input
         style="width: 120px"

@@ -79,7 +79,7 @@ export default defineComponent({
 
     watch(
       () => props.requestData?.show_new_pattern,
-      (val) => {
+      val => {
         isNear24.value = !!val;
       },
       { immediate: true },

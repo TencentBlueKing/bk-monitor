@@ -1,6 +1,6 @@
 ### 功能描述
 
-全局搜索接口,支持搜索告警、策略、Trace、APM应用和主机信息
+全局搜索接口,支持搜索告警、策略、Trace、APM应用、APM服务和主机信息
 
 #### 请求参数
 
@@ -36,6 +36,7 @@ event: start/end 表示搜索开始和结束
 - strategy: 告警策略
 - trace: Trace
 - apm_application: APM应用
+- apm_service: APM服务
 - host: 主机监控
 
 #### items 字段说明
@@ -82,6 +83,17 @@ event: start/end 表示搜索开始和结束
 | app_name | string | 应用名称 |
 | app_alias | string | 应用别名 |
 | application_id | int | 应用ID |
+
+##### APM服务类型(type=apm_service)
+
+| 字段 | 类型 | 描述 |
+|------|------|------|
+| bk_biz_id | int | 所属业务ID |
+| bk_biz_name | string | 所属业务名称 |
+| application_id | int | 所属应用ID |
+| app_name | string | 所属应用名称 |
+| service_name | string | 服务标识 |
+| name | string | 展示名称 |
 
 ##### 主机类型(type=host)
 

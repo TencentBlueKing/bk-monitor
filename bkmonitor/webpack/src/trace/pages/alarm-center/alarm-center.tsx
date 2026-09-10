@@ -1565,9 +1565,9 @@ export default defineComponent({
                 onMergeSuccess={() => {
                   this.alarmStore.refreshImmediate += 1;
                 }}
-                onSplitSuccess={(memberIssueId: string) => {
+                onSplitSuccess={(memberIssueIds: string[]) => {
                   this.alarmStore.refreshImmediate += 1;
-                  this.addSplitHighlight(memberIssueId);
+                  this.addSplitHighlight(memberIssueIds);
                 }}
                 onUpdate:show={this.handleMergeSplitShowChange}
               />,

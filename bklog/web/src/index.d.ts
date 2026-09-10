@@ -52,6 +52,18 @@ declare global {
     REAL_TIME_LOG_MAX_LENGTH: number | string; // 实时日志最大长度
     REAL_TIME_LOG_SHIFT_LENGTH: number | string; // 实时日志超过此长度删除部分日志
     __BKLOG_SEGMENT_POP_COUNTER__?: number;
+    MONITOR_APM_APP_NAME?: string; // 监控APM应用名称
+    MONITOR_APM_SERVICE_NAME?: string; // 监控APM服务名称
+    BKLOG_RUM_SDK?: string;
+    BKLOG_RUM_ENDPOINT?: string;
+    BKLOG_RUM_TOKEN?: string;
+    BKLOG_RUM_ENABLED?: boolean | string;
+    BKLOG_RUM?: {
+      enabled?: boolean;
+      endpoint?: string;
+      sdk?: string;
+      token?: string;
+    };
   }
 
   interface Scheduler {

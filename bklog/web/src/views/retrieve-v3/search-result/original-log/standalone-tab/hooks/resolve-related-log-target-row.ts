@@ -39,7 +39,7 @@ export function buildRelatedLogParams(
 
   if (Array.isArray(contextFields) && contextFields.length) {
     const targetContextFields = Array.from(new Set([...contextFields, timeField].filter(Boolean)));
-    targetContextFields.forEach((field) => {
+    targetContextFields.forEach(field => {
       if (field === 'bk_host_id') {
         if (row[field]) params[field] = row[field];
       } else {

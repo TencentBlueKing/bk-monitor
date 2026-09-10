@@ -57,7 +57,7 @@ export const normalizeInput = (input: string): string => {
   text = text.replace(/\r\n?/g, '\n');
 
   // 全角 / 弯引号 → 半角 "
-  text = text.replace(/./gu, (ch) => FULLWIDTH_MAP[ch] ?? ch);
+  text = text.replace(/./gu, ch => FULLWIDTH_MAP[ch] ?? ch);
 
   // 引号外：\t → space；连续 space 压缩为 1
   let result = '';
@@ -117,7 +117,7 @@ export const normalizeInput = (input: string): string => {
 export const normalizeInputLight = (input: string): string => {
   let text = String(input ?? '').normalize('NFKC');
   text = text.replace(/\r\n?/g, '\n');
-  text = text.replace(/./gu, (ch) => FULLWIDTH_MAP[ch] ?? ch);
+  text = text.replace(/./gu, ch => FULLWIDTH_MAP[ch] ?? ch);
   return text;
 };
 

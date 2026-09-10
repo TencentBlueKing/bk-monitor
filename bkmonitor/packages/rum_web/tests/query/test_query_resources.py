@@ -210,8 +210,22 @@ class TestViewConfigProtocol:
                 assert isinstance(field_name, str)
 
     def test_view_config_has_all_required_keys(self, view_config_result):
-        required_keys = {"default_sort", "fields", "groups", "display_fields", "span_type_display_fields"}
+        required_keys = {
+            "default_sort",
+            "fields",
+            "groups",
+            "display_fields",
+            "resident_fields",
+            "span_type_display_fields",
+        }
         assert required_keys.issubset(view_config_result.keys())
+
+    def test_view_config_resident_fields_is_str_list(self, view_config_result):
+        """resident_fields 应为字段名字符串列表"""
+        resident_fields = view_config_result["resident_fields"]
+        assert isinstance(resident_fields, list)
+        for field_name in resident_fields:
+            assert isinstance(field_name, str)
 
     def test_view_config_nested_field_origin_field_is_top_level(self, view_config_result):
         """嵌套字段的 origin_field 应为顶层字段名"""

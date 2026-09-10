@@ -271,6 +271,7 @@ export default class K8SCharts extends tsc<{
         ? this.resourceListData
         : await listK8sResources({
             ...filterCommonParams,
+            column: this.scene === SceneEnum.GPU ? K8sTableColumnKeysEnum.GPU_UTILIZATION : undefined,
             start_time: formatTimeRange[0],
             end_time: formatTimeRange[1],
             with_history: true,

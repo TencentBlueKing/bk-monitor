@@ -97,7 +97,7 @@ export default defineComponent({
         searchable
         selected-style='checkbox'
         onChange={val => handleSelect(val)}
-        onToggle={(isOpen) => {
+        onToggle={isOpen => {
           if (!isOpen) {
             isAdd.value = false;
           }
@@ -123,7 +123,10 @@ export default defineComponent({
               on-submit={handleSubmit}
             />
           ) : (
-            <span class='add-index-set-btn' onClick={handleAdd}>
+            <span
+              class='add-index-set-btn'
+              onClick={handleAdd}
+            >
               <i class='bk-icon icon-plus-circle' />
               {t('新增索引集')}
             </span>

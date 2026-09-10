@@ -74,7 +74,8 @@
           };
       const res = await $http.request(requestName, { data });
       configList.value = res.data;
-    } catch (error) {
+    } catch {
+      // 配置加载失败时保留当前列表，错误由请求层统一处理
     } finally {
       isLoading.value = false;
     }
@@ -114,8 +115,8 @@
       </template>
       <template #dropdown-content>
         <ul
-          class="bk-dropdown-list"
           v-bkloading="{ isLoading: isLoading, size: 'small' }"
+          class="bk-dropdown-list"
         >
           <li
             v-for="(item, index) in configList"

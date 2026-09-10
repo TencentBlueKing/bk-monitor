@@ -494,6 +494,8 @@ export default {
   请选择Issue聚合生效告警级别: 'Please select effective alert level for Issue aggregation',
   '请先选择 Issue': 'Please select Issue first',
   '请至少选择 2 个 Issue': 'Please select at least 2 Issues',
+  '请先勾选需要拆分的 Issue': 'Please check the Issues to be split first',
+  '单次最多拆分 {n} 个 Issue': 'Up to {n} Issues can be split at a time',
   '主 Issue 不支持再并入其他主 Issue': 'The main Issue does not support being merged into other main Issues',
   '合并了 {n} 个 Issue，点击查看合并明细': 'Merged {n} Issues, click to view merge details',
   拆分: 'Split',

@@ -69,9 +69,9 @@ export default defineComponent({
       emit('mergeSuccess');
     };
 
-    /** 处理拆分成功 */
-    const handleSplitSuccess = (memberIssueId: string) => {
-      emit('splitSuccess', memberIssueId);
+    /** 处理拆分成功（含批量拆分，载荷为本次真正拆出的成员 Issue ID 列表） */
+    const handleSplitSuccess = (memberIssueIds: string[]) => {
+      emit('splitSuccess', memberIssueIds);
     };
 
     return {
@@ -113,9 +113,9 @@ export default defineComponent({
             ) : (
               <SplitContent
                 issues={this.issues}
-                onSuccess={(memberIssueId: string) => {
+                onSuccess={(memberIssueIds: string[]) => {
                   this.handleShowChange(false);
-                  this.handleSplitSuccess(memberIssueId);
+                  this.handleSplitSuccess(memberIssueIds);
                 }}
               />
             ),

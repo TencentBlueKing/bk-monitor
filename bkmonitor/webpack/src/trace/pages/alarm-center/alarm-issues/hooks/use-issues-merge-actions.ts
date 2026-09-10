@@ -75,10 +75,13 @@ export function useIssuesMergeActions(options: UseIssuesMergeActionsOptions) {
    */
   const isSplitTriggeredRefresh = shallowRef(false);
 
-  /** 添加拆分高亮，并标记下次 data 变更需跳过清除 */
-  const addSplitHighlight = (id: string) => {
+  /** 添加拆分高亮（支持批量拆分的多个 ID），并标记下次 data 变更需跳过清除 */
+  const addSplitHighlight = (ids: string[]) => {
+    if (!ids.length) return;
     const next = new Set(highlightedRowIds.value);
-    next.add(id);
+    for (const id of ids) {
+      next.add(id);
+    }
     highlightedRowIds.value = next;
     isSplitTriggeredRefresh.value = true;
   };

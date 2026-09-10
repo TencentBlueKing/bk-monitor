@@ -565,6 +565,9 @@ export default {
   评论发送失败: 'Comment sending failed',
 
   '已拆分为独立 Issue': 'Split into independent Issue',
+  '已拆分为 {n} 个独立 Issue': 'Split into {n} independent Issues',
+  '成功拆分 {success} 个，失败 {failed} 个': '{success} split successfully, {failed} failed',
+  '拆分失败，请稍后重试': 'Split failed, please try again later',
   issue合并成功: 'Issue merged successfully',
   取消授权成功: 'Authorization cancelled successfully',
 };

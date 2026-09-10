@@ -22,7 +22,10 @@ paths:
                   description: 'Page number, starts from 1. Default: 1. 页码,从1开始。默认: 1。'
                 status:
                   type: array
-                  default: '["ABNORMAL"]'
+                  default: [ABNORMAL]
+                  items:
+                    type: string
+                    enum: [ABNORMAL, RECOVERED, CLOSED]
                   description: 'Alert status filter. Common values: "ABNORMAL" (active), "RECOVERED" (resolved), "CLOSED" (closed). Empty array means all statuses. 告警状态过滤。常用值: "ABNORMAL"(未恢复), "RECOVERED"(已恢复), "CLOSED"(已关闭)。空数组表示所有状态。'
                 end_time:
                   type: string
@@ -30,7 +33,9 @@ paths:
                   description: 'End timestamp in seconds (Unix timestamp). CRITICAL: Calculate current time dynamically! Python: int(time.time()), JavaScript: Math.floor(Date.now()/1000), Bash: date +%s. NEVER use historical timestamps. 结束时间戳(秒)。关键:动态计算当前时间！ Python: int(time.time()), JavaScript: Math.floor(Date.now()/1000), Bash: date +%s。绝不使用历史时间戳。'
                 ordering:
                   type: array
-                  default: '["-create_time"]'
+                  default: [-create_time]
+                  items:
+                    type: string
                   description: 'Sort fields. Prefix with - for descending order. Example: ["-create_time"] for newest first. 排序字段。前缀-表示降序。示例: ["-create_time"]按创建时间倒序。'
                 username:
                   type: string
@@ -44,14 +49,38 @@ paths:
                   description: 'Items per page. Range: 1-5000. Default: 10. 每页条数。范围: 1-5000。默认: 10。'
                 show_aggs:
                   type: boolean
-                  default: 'true'
+                  default: true
                   description: 'Include aggregation statistics (trends, distributions). Default: true. 是否包含聚合统计(趋势、分布)。默认: true。'
                 bk_biz_ids:
                   type: array
+                  items:
+                    type: string
                   description: (Backend Parameter) Array format required by alert search/aggregation backend serializers. Automatically converted from bk_biz_id by MCP layer. Value must be [bk_biz_id]. (后台参数) 告警搜索/聚合类后台序列化器要求的数组格式。由 MCP 层从 bk_biz_id 自动转换。值必须为 [bk_biz_id]。
                 conditions:
                   type: array
                   description: Advanced filter conditions for complex queries. Each condition object defines a field-based filter with matching method and logical operators. Use for precise alert filtering beyond simple status/text search. 高级过滤条件，用于复杂查询。每个条件对象定义基于字段的过滤器，包含匹配方法和逻辑运算符。用于超出简单状态/文本搜索的精确告警过滤。
+                  items:
+                    type: object
+                    additionalProperties: false
+                    required: [key, value]
+                    properties:
+                      key:
+                        type: string
+                        description: Alert field name to filter, such as alert_name or severity. 要过滤的告警字段名，例如 alert_name 或 severity。
+                      value:
+                        type: array
+                        description: Values matched against the selected alert field. 与所选告警字段匹配的值列表。
+                        items: {}
+                      method:
+                        type: string
+                        enum: [eq, neq, include, exclude, gt, gte, lt, lte]
+                        default: eq
+                        description: Field matching method. 字段匹配方式。
+                      condition:
+                        type: string
+                        enum: [and, or, '']
+                        default: ''
+                        description: Logical operator joining this rule to the next rule. 此规则与下一条规则之间的逻辑操作符。
                 start_time:
                   type: string
                   default: For dynamic calculations, please execute the code snippet according to the tool description.动态计算，请根据工具描述执行代码片段获取
@@ -62,7 +91,7 @@ paths:
                   description: Full-text search string. Searches across alert name, description, and other text fields. 全文搜索字符串。在告警名称、描述等文本字段中搜索。
                 show_overview:
                   type: boolean
-                  default: 'true'
+                  default: true
                   description: 'Include overview statistics (total counts by status). Default: true. 是否包含概览统计(各状态总数)。默认: true。'
         required: false
         description: ''
@@ -112,7 +141,7 @@ paths:
                   type: array
                   items:
                     type: string
-                  default: '["severity"]'
+                  default: [severity]
                   description: 'Alert event fields to analyze. Common values: "severity", "status", "strategy_id", "strategy_name", "bk_biz_id", "data_type", "category", "tags.<tag_name>". 标签类字段一次最多 20 个。需要分析的告警事件字段列表。常用值:"severity"(级别),"status"(状态),"strategy_id"(策略ID),"strategy_name"(策略名),"bk_biz_id"(业务ID),"data_type"(数据类型),"category"(分类),"tags.<标签名>"。'
                 size:
                   type: string
@@ -120,11 +149,36 @@ paths:
                   description: 'Maximum bucket count per field. Default: 10. 每个字段返回的桶数量。默认:10。'
                 status:
                   type: array
-                  default: '["ABNORMAL"]'
+                  default: [ABNORMAL]
+                  items:
+                    type: string
+                    enum: [ABNORMAL, RECOVERED, CLOSED]
                   description: 'Alert status filter. Common values: "ABNORMAL" (active), "RECOVERED" (resolved), "CLOSED" (closed). Empty array means all statuses. 告警状态过滤。常用值:"ABNORMAL"(未恢复),"RECOVERED"(已恢复),"CLOSED"(已关闭)。空数组表示所有状态。'
                 conditions:
                   type: array
                   description: Advanced filter conditions for complex alert queries. Same format as list_alerts conditions. 高级过滤条件,格式与 list_alerts 的 conditions 一致。
+                  items:
+                    type: object
+                    additionalProperties: false
+                    required: [key, value]
+                    properties:
+                      key:
+                        type: string
+                        description: Alert field name to filter, such as alert_name or severity. 要过滤的告警字段名，例如 alert_name 或 severity。
+                      value:
+                        type: array
+                        description: Values matched against the selected alert field. 与所选告警字段匹配的值列表。
+                        items: {}
+                      method:
+                        type: string
+                        enum: [eq, neq, include, exclude, gt, gte, lt, lte]
+                        default: eq
+                        description: Field matching method. 字段匹配方式。
+                      condition:
+                        type: string
+                        enum: [and, or, '']
+                        default: ''
+                        description: Logical operator joining this rule to the next rule. 此规则与下一条规则之间的逻辑操作符。
                 query_string:
                   type: string
                   description: Full-text search string. Same semantics as list_alerts. 全文搜索字符串,语义与 list_alerts 一致。
@@ -141,7 +195,7 @@ paths:
                   description: Filter by alert owner/assignee username. 按告警负责人/处理人用户名过滤。
                 need_time_partition:
                   type: boolean
-                  default: 'true'
+                  default: true
                   description: 'Whether backend should split long time ranges into time partitions for Top N aggregation. Default: true. 是否需要后端按时间分片聚合 Top N。默认:true。'
         required: false
         description: ''
@@ -293,7 +347,10 @@ paths:
                   description: Alert ID. Must be obtained from list_alerts or get_alert_info. 告警ID。必须从list_alerts或get_alert_info获取。
                 sources:
                   type: array
-                  default: '[]'
+                  default: []
+                  items:
+                    type: string
+                    enum: [BCS, HOST, BKCI, DEFAULT]
                   description: 'Event source filter. Valid values: "BCS" (container), "HOST" (host), "BKCI" (BK-CI DevOps platform), "DEFAULT" (custom report). Empty array means all sources. 事件来源过滤。可选值:"BCS"(容器)、"HOST"(主机)、"BKCI"(蓝盾研发运营平台)、"DEFAULT"(业务上报)。空数组=全部。'
                 limit:
                   type: string
@@ -344,7 +401,10 @@ paths:
                   description: Alert ID. Must be obtained from list_alerts or get_alert_info. 告警ID。必须从list_alerts或get_alert_info获取。
                 sources:
                   type: array
-                  default: '[]'
+                  default: []
+                  items:
+                    type: string
+                    enum: [BCS, HOST, BKCI, DEFAULT]
                   description: 'Event source filter. Valid values: "BCS" (container), "HOST" (host), "BKCI" (BK-CI DevOps platform), "DEFAULT" (custom report). Empty array means all. 事件来源过滤。可选值:"BCS"(容器)、"HOST"(主机)、"BKCI"(蓝盾研发运营平台)、"DEFAULT"(业务上报)。空数组=全部。'
                 interval:
                   type: string
@@ -398,7 +458,10 @@ paths:
                   description: Alert ID. Must be obtained from list_alerts or get_alert_info. 告警ID。
                 sources:
                   type: array
-                  default: '[]'
+                  default: []
+                  items:
+                    type: string
+                    enum: [BCS, HOST, BKCI, DEFAULT]
                   description: 'Event source filter. Valid values: "BCS" (container), "HOST" (host), "BKCI" (BK-CI DevOps platform), "DEFAULT" (custom report). Empty array means all. 事件来源过滤。可选值:"BCS"(容器)、"HOST"(主机)、"BKCI"(蓝盾研发运营平台)、"DEFAULT"(业务上报)。空数组=全部。'
                 interval:
                   type: string

@@ -8,6 +8,7 @@ from rest_framework import serializers
 from rest_framework.exceptions import PermissionDenied
 
 from core.drf_resource import Resource, api
+from kernel_api.resource.log_collection import get_log_access_type, normalize_environment
 
 MAX_TASK_IDS = 100
 MAX_TASK_ID_LENGTH = 20
@@ -33,7 +34,7 @@ def normalize_task_ids(value: Any) -> list[str]:
         return []
     if isinstance(value, str):
         values = [value]
-    elif isinstance(value, (list, tuple, set)):
+    elif isinstance(value, list | tuple | set):
         values = value
     else:
         values = [value]
@@ -83,9 +84,7 @@ def flatten_status_details(payload: Any, phase: str) -> list[dict[str, Any]]:
         for child in content.get("child") or []:
             if not isinstance(child, dict):
                 continue
-            message, message_truncated = sanitize_status_message(
-                child.get("message") or child.get("log") or ""
-            )
+            message, message_truncated = sanitize_status_message(child.get("message") or child.get("log") or "")
             detail = {
                 "phase": phase,
                 "status": normalize_raw_status(child.get("status"), phase),
@@ -144,10 +143,12 @@ def combine_phase_status(task_status: str, subscription_status: str) -> str:
     return "unknown"
 
 
-def build_phase_result(details: list[dict[str, Any]], detail_limit: int) -> dict[str, Any]:
+def build_phase_result(
+    details: list[dict[str, Any]], detail_limit: int, default_status: str = "unknown"
+) -> dict[str, Any]:
     counts = Counter(detail["status"] for detail in details)
     return {
-        "status": aggregate_status(details),
+        "status": aggregate_status(details) if details else default_status,
         "counts": {
             "total": len(details),
             "running": counts["running"],
@@ -192,9 +193,24 @@ class GetLogCollectorStatusResource(Resource):
         if str(collector.get("bk_biz_id")) != str(bk_biz_id):
             raise PermissionDenied("Collector config does not belong to the requested business.")
 
-        task_ids = normalize_task_ids(
-            validated_request_data.get("task_ids", collector.get("task_id_list"))
-        )
+        # 自定义上报不创建节点管理订阅或部署任务；没有任务不能表示创建未完成。
+        # 直接返回完成状态，避免调用方对永远不会产生的任务持续轮询。
+        if get_log_access_type(collector) == "custom_report":
+            return {
+                "collector_config_id": collector_config_id,
+                "subscription_id": collector.get("subscription_id"),
+                "task_ids": [],
+                "environment": normalize_environment(collector),
+                "deployment_required": False,
+                "status": "success",
+                "is_terminal": True,
+                "retry_after_seconds": 0,
+                "task": build_phase_result([], detail_limit, default_status="success"),
+                "subscription": build_phase_result([], detail_limit, default_status="success"),
+                "errors": [],
+            }
+
+        task_ids = normalize_task_ids(validated_request_data.get("task_ids", collector.get("task_id_list")))
         if len(task_ids) > MAX_TASK_IDS:
             raise serializers.ValidationError(
                 {"task_ids": [f"Ensure this field has no more than {MAX_TASK_IDS} elements."]}
@@ -248,6 +264,7 @@ class GetLogCollectorStatusResource(Resource):
             "subscription_id": collector.get("subscription_id"),
             "task_ids": task_ids,
             "environment": str(collector.get("environment") or ""),
+            "deployment_required": True,
             "status": status,
             "is_terminal": status in TERMINAL_STATUSES,
             "retry_after_seconds": 0 if status in TERMINAL_STATUSES else POLL_RETRY_AFTER_SECONDS,

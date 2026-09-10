@@ -26,8 +26,8 @@
 
 <template>
   <div
-    class="access-manage-container"
     v-bkloading="{ isLoading: basicLoading }"
+    class="access-manage-container"
   >
     <auth-container-page
       v-if="authPageInfo"
@@ -60,13 +60,13 @@
       </basic-tab>
       <keep-alive>
         <component
+          :is="dynamicComponent"
           class="tab-content"
           :collector-data="collectorData"
           :edit-auth="editAuth"
           :edit-auth-data="editAuthData"
           :index-set-data="collectorData"
           :index-set-id="collectorData.index_set_id"
-          :is="dynamicComponent"
           :is-show-edit-btn="!['bkdata', 'es', 'custom_report'].includes($route.query.typeKey)"
           @update-active-panel="activePanel = $event"
         ></component>
@@ -81,13 +81,14 @@
   import * as authorityMap from '../../../../../../common/authority-map';
 
   const BasicInfo = () => import(/* webpackChunkName: 'manage-collection-basic-info' */ './basic-info');
-  const CollectionStatus = () =>
-    import(/* webpackChunkName: 'manage-collection-status' */ './collection-status');
+  const CollectionStatus = () => import(/* webpackChunkName: 'manage-collection-status' */ './collection-status');
   const DataStorage = () => import(/* webpackChunkName: 'manage-collection-data-storage' */ './data-storage');
   const DataStatus = () => import(/* webpackChunkName: 'manage-collection-data-status' */ './data-status');
   const FieldInfo = () => import(/* webpackChunkName: 'manage-collection-field-info' */ './field-info.tsx');
   const UsageDetails = () =>
-    import(/* webpackChunkName: 'manage-collection-usage-details' */ '@/views/manage/manage-access/components/usage-details');
+    import(
+      /* webpackChunkName: 'manage-collection-usage-details' */ '@/views/manage/manage-access/components/usage-details'
+    );
   const IndexSetBasicInfo = () =>
     import(
       /* webpackChunkName: 'manage-index-set-basic-info' */ '@/views/manage/manage-access/components/index-set/manage/basic-info'
@@ -116,7 +117,6 @@
         editAuth: false,
         /** 编辑无权限时的弹窗数据 */
         editAuthData: null,
-
       };
     },
     computed: {

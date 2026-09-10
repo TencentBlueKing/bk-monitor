@@ -150,6 +150,14 @@ def test_strategy_cost_snapshot_switch_is_dynamic_and_default_off():
     assert serializer.default is False
 
 
+def test_strategy_cost_snapshot_budget_is_dynamic_and_capped():
+    assert settings.REDIS_STRATEGY_COST_SNAPSHOT_TOTAL_BUDGET_SECONDS == 20
+    serializer = global_config.ADVANCED_OPTIONS["REDIS_STRATEGY_COST_SNAPSHOT_TOTAL_BUDGET_SECONDS"]
+    assert serializer.default == 20
+    assert serializer.min_value == 5
+    assert serializer.max_value == 30
+
+
 def test_collect_runs_snapshot_once_after_all_regular_metrics(mocker, settings):
     settings.ENABLE_REDIS_STRATEGY_COST_SNAPSHOT = True
     report = _make_report()

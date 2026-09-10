@@ -141,6 +141,8 @@ export default class MonitorRetrieve extends tsc<void> {
         render: h =>
           h(Log, {
             props: {
+              appName: this.viewOptions.filters.app_name,
+              serviceName: this.viewOptions.filters.service_name,
               indexSetApi: this.indexSetApi,
               timeRange: this.timeRange,
               timezone: this.timezone,

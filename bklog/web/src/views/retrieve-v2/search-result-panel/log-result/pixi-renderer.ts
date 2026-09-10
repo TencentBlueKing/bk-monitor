@@ -6,7 +6,6 @@
  * 2. When PIXI is ready, upgrade to GPU-accelerated rendering
  */
 
-
 /** Lazy-load PIXI, returns { Application, Container, Text, Graphics, TextStyle, FederatedPointerEvent } or throws */
 export async function lazyLoadPixi(): Promise<any> {
   const PIXI = await import(
@@ -43,7 +42,12 @@ type PixiDisplayRow = {
   text: string;
 };
 
-const splitTextForPixi = (text: string, startIndex: number, maxCharsPerLine: number, isMark: boolean): PixiDisplayRow[] => {
+const splitTextForPixi = (
+  text: string,
+  startIndex: number,
+  maxCharsPerLine: number,
+  isMark: boolean,
+): PixiDisplayRow[] => {
   const output: PixiDisplayRow[] = [];
   let lineStart = 0;
 
@@ -90,13 +94,7 @@ const fillRect = (PIXI: any, color: number, x: number, y: number, width: number,
 /** Build PIXI app synchronously – caller ensures PIXI is loaded */
 export async function buildPixiApp(canvas: HTMLCanvasElement, options: PixiRowRenderOptions) {
   const PIXI = await lazyLoadPixi();
-  const {
-    rows,
-    highlightKeywords = [],
-    fontSize = 12,
-    lineHeight = LINE_HEIGHT,
-    charWidth = CHAR_WIDTH,
-  } = options;
+  const { rows, highlightKeywords = [], fontSize = 12, lineHeight = LINE_HEIGHT, charWidth = CHAR_WIDTH } = options;
   const width = Math.floor(canvas.parentElement?.clientWidth || canvas.offsetWidth || 960);
   const maxCharsPerLine = Math.max(40, Math.floor((width - 24) / charWidth));
   const fullText = rows.map(r => r.text).join('');

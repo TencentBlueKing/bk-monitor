@@ -25,7 +25,7 @@
  */
 import { type PropType, computed, defineComponent, nextTick, reactive, shallowRef, watch } from 'vue';
 
-import { bkTooltips, Input, Loading, OverflowTitle, Popover, Radio } from 'bkui-vue';
+import { bkTooltips, Input, Loading, Popover, Radio } from 'bkui-vue';
 import { getMetricListV2, getStrategyListV2, promqlToQueryConfig } from 'monitor-api/modules/strategies';
 import { debounce } from 'monitor-common/utils';
 import { useI18n } from 'vue-i18n';
@@ -253,7 +253,8 @@ export default defineComponent({
     /**
      * @description 展开策略搜索
      */
-    function handleShowStrategySearch() {
+    function handleShowStrategySearch(e: MouseEvent) {
+      e?.stopPropagation();
       selectData.showStrategySearch = true;
       nextTick(() => {
         strategySearchRef.value?.focus();
@@ -435,8 +436,10 @@ export default defineComponent({
      * @description 清除搜索
      */
     function handleSearchClear() {
-      selectData.showStrategySearch = false;
       strategyPaginationInit();
+      setTimeout(() => {
+        selectData.showStrategySearch = false;
+      }, 50);
     }
     /**
      * @description 维度搜索
@@ -556,12 +559,15 @@ export default defineComponent({
                                   key={item.id}
                                   label={item.id}
                                 >
-                                  <OverflowTitle
-                                    placement='right'
-                                    type='tips'
+                                  <span
+                                    class='radio-label'
+                                    v-overflow-tips={{
+                                      content: item.name,
+                                      placement: 'right',
+                                    }}
                                   >
-                                    <span class='radio-label'>{item.name}</span>
-                                  </OverflowTitle>
+                                    {item.name}
+                                  </span>
                                 </Radio>
                               ))}
                             </Radio.Group>

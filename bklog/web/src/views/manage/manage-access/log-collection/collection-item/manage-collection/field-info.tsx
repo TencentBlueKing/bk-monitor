@@ -220,7 +220,6 @@ export default class FieldInfo extends tsc<IProps> {
       }
     } catch {
       return '';
-    } finally {
     }
   }
 

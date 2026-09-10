@@ -54,10 +54,4 @@ const getTaskStatus = {
   method: 'post',
 };
 
-export {
-  getOpenidList,
-  getTaskList,
-  getClientInfo,
-  syncTask,
-  getTaskStatus,
-};
+export { getOpenidList, getTaskList, getClientInfo, syncTask, getTaskStatus };

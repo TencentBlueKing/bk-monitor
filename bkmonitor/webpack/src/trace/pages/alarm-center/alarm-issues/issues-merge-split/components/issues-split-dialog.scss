@@ -21,6 +21,66 @@
       }
     }
 
+    /* 批量拆分：已选 Issue 清单，限高 5 条后内部滚动 */
+    .issue-select-list {
+      margin-bottom: 20px;
+      overflow: hidden;
+      border: 1px solid #dcdee5;
+      border-radius: 2px;
+
+      .select-list-header {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        height: 32px;
+        padding: 0 12px;
+        cursor: pointer;
+        background-color: #fafbfd;
+        border-bottom: 1px solid #dcdee5;
+
+        .expand-icon {
+          font-size: 12px;
+          color: #4d4f56;
+          transition: transform 0.2s ease;
+
+          &.is-collapsed {
+            transform: rotate(-90deg);
+          }
+        }
+
+        .select-list-title {
+          font-size: 12px;
+          color: #313238;
+
+          .select-count {
+            font-weight: 700;
+            color: #3a84ff;
+          }
+        }
+      }
+
+      .select-list-body {
+        max-height: 160px;
+        overflow-y: auto;
+
+        .select-list-item {
+          height: 32px;
+          padding: 0 32px;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          font-size: 12px;
+          line-height: 32px;
+          color: #4d4f56;
+          white-space: nowrap;
+          border-bottom: 1px solid #dcdee5;
+
+          &:last-child {
+            border-bottom: none;
+          }
+        }
+      }
+    }
+
     .reason-section {
       .reason-checkbox-group .bk-checkbox {
         min-width: 33%;

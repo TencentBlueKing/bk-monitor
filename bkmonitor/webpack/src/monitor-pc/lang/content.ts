@@ -135,6 +135,8 @@ export default {
   '已选择 {n}': 'selected {n}',
   '已选择{0}个策略': '{0} rules selected',
   '已选择 {0} 条告警': '{0} alarms selected',
+  '已选择 {0} 个 Issue': '{0} Issues selected',
+  '当前已选 {0} 项': '{0} items selected',
   '已选择 {n} 个主机': 'Selected {n} hosts',
   '已选择 {n} 个动态分组': 'Selected {n} dynamic groups',
   '已选择{count}条': 'Selected {count} Items',
@@ -512,4 +514,6 @@ export default {
   'CPU 五分钟负载': 'CPU 5 minute load',
   '内网 IPv6': 'Inner IPv6',
   '磁盘 IO 使用率': 'Disk IO usage',
+  '搜索 名称、别名、单位、类型、启/停': 'Search name, alias, unit, type, start/stop',
+  中止: 'Abort',
 };

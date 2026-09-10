@@ -33,6 +33,10 @@ import {
 
 const WORK_ID = 'cluster-table-pipeline';
 
+/** 新检索结果必须下发 raw；排序/过滤复用 Worker 缓存时不传 raw。 */
+export const shouldReplaceClusterTableRaw = (replaceRaw: boolean | undefined, rawLength: number) =>
+  Boolean(replaceRaw) || rawLength > 0;
+
 interface PendingRequest {
   reject: (_error: Error) => void;
   resolve: (_value: ClusterViewResult | true) => void;
@@ -48,6 +52,7 @@ class ClusterTableWorkerService {
   private localSnapshot: ITableItem[] = [];
   private localCounts = { childCount: 0, groupCount: 0, visibleCount: 0 };
   private ownsInWorker = false;
+  private dataEpoch = 0;
 
   constructor() {
     workerManagerService.register({
@@ -90,22 +95,35 @@ class ClusterTableWorkerService {
   async run(
     input: ClusterPipelineInput,
     windowOptions: WalkVisibleWindowOptions,
+    options: { replaceRaw?: boolean } = {},
   ): Promise<{ viaWorker: boolean; view: ClusterViewResult }> {
     const plainWindow = toPlainWindowOptions(windowOptions);
-    const sendRaw = !this.workerHasRaw || !this.ownsInWorker;
+    const shouldReplaceRaw = shouldReplaceClusterTableRaw(options.replaceRaw, input.raw?.length ?? 0);
+    if (shouldReplaceRaw) {
+      this.dataEpoch += 1;
+      this.workerHasRaw = false;
+      this.ownsInWorker = false;
+    }
+    const epoch = this.dataEpoch;
+    const sendRaw = shouldReplaceRaw || !this.workerHasRaw || !this.ownsInWorker;
     const plainInput = toPlainPipelineInput(input, sendRaw);
 
     if (this.workerSupported) {
       try {
         workerManagerService.update(WORK_ID, { state: 'running' });
-        const view = (await this.postMessage({
-          payload: plainInput,
-          type: 'pipeline',
-          window: plainWindow,
-        }, 30000)) as ClusterViewResult;
-        this.ownsInWorker = true;
-        this.workerHasRaw = true;
-        this.localSnapshot = [];
+        const view = (await this.postMessage(
+          {
+            payload: plainInput,
+            type: 'pipeline',
+            window: plainWindow,
+          },
+          30000,
+        )) as ClusterViewResult;
+        if (epoch === this.dataEpoch) {
+          this.ownsInWorker = true;
+          this.workerHasRaw = true;
+          this.localSnapshot = [];
+        }
         workerManagerService.update(WORK_ID, { lastOkAt: Date.now(), state: 'idle' });
         workerManagerService.incrementMetric(WORK_ID, 'pipelineCount');
         return { viaWorker: true, view };
@@ -140,6 +158,7 @@ class ClusterTableWorkerService {
   }
 
   async clear() {
+    this.dataEpoch += 1;
     this.localSnapshot = [];
     this.localCounts = { childCount: 0, groupCount: 0, visibleCount: 0 };
     this.workerHasRaw = false;
@@ -147,7 +166,7 @@ class ClusterTableWorkerService {
     if (!this.activeWorker) return;
     try {
       await this.postMessage({ type: 'clear' }, 3000);
-    } catch (error) {
+    } catch {
       this.destroyWorker();
     }
   }
@@ -169,7 +188,7 @@ class ClusterTableWorkerService {
   }
 
   private destroyWorker() {
-    this.pendingRequests.forEach((pending) => {
+    this.pendingRequests.forEach(pending => {
       if (pending.timer) clearTimeout(pending.timer);
     });
     this.pendingRequests.clear();
@@ -194,9 +213,9 @@ class ClusterTableWorkerService {
         pending.reject(new Error(data.error || 'cluster table worker failed'));
       }
     };
-    worker.onerror = (event) => {
+    worker.onerror = event => {
       const error = new Error(event.message || 'cluster table worker error');
-      this.pendingRequests.forEach((pending) => {
+      this.pendingRequests.forEach(pending => {
         if (pending.timer) clearTimeout(pending.timer);
         pending.reject(error);
       });
@@ -206,7 +225,7 @@ class ClusterTableWorkerService {
       this.workerHasRaw = false;
     };
     worker.addEventListener?.('messageerror', () => {
-      this.pendingRequests.forEach((pending) => {
+      this.pendingRequests.forEach(pending => {
         if (pending.timer) clearTimeout(pending.timer);
         pending.reject(new Error('cluster table worker messageerror'));
       });
@@ -217,10 +236,16 @@ class ClusterTableWorkerService {
   }
 
   private postMessage(
-    body: { payload?: ClusterPipelineInput; type: 'clear' | 'ping' | 'pipeline' | 'walk'; window?: WalkVisibleWindowOptions },
+    body: {
+      payload?: ClusterPipelineInput;
+      type: 'clear' | 'ping' | 'pipeline' | 'walk';
+      window?: WalkVisibleWindowOptions;
+    },
     timeout: number,
   ) {
-    const id = `cluster-table:${Date.now()}:${this.requestSeq++}`;
+    const requestSeq = this.requestSeq;
+    this.requestSeq += 1;
+    const id = `cluster-table:${Date.now()}:${requestSeq}`;
     const worker = this.ensureWorker();
     return new Promise<ClusterViewResult | true>((resolve, reject) => {
       const timer = setTimeout(() => {

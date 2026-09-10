@@ -3,6 +3,33 @@
   padding: 24px;
   overflow-y: auto;
 
+  .split-toolbar {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 16px;
+
+    .batch-split-btn {
+      min-width: 88px;
+    }
+
+    .selected-count {
+      font-size: 12px;
+      color: #4d4f56;
+
+      .count-number {
+        font-weight: 700;
+        color: #3a84ff;
+      }
+    }
+
+    .search-input {
+      flex-shrink: 0;
+      width: 400px;
+      margin-left: auto;
+    }
+  }
+
   .issue-group {
     overflow: hidden;
     border: 1px solid #c1cde5;
@@ -17,6 +44,11 @@
     padding: 8px 16px;
     background: #e9edf5;
     border-bottom: 1px solid #e4e9f2;
+
+    /* 与行内勾选框列对齐：勾选框宽 16px + 20px 间距 = 内容起始 52px */
+    .check-all {
+      margin-right: 12px;
+    }
 
     .category-icon {
       display: flex;
@@ -50,15 +82,24 @@
       font-size: 12px;
       color: #4e5e7a;
     }
-
-    .search-input {
-      flex-shrink: 0;
-      width: 240px;
-      margin-left: auto;
-    }
   }
 
   .issue-content {
+    /* 勾选框放进 issue-info-item 自带的 52px 左留白内，避免改动共用组件的布局 */
+    .split-issue-row {
+      position: relative;
+
+      .row-checkbox {
+        position: absolute;
+        top: 16px;
+        left: 16px;
+      }
+
+      &:last-child .issue-info-item {
+        border-bottom: none;
+      }
+    }
+
     .issue-info-item {
       .split-btn {
         border-radius: 4px;
@@ -87,6 +128,42 @@
         font-weight: 500;
         color: #4e5e7a;
         cursor: default;
+      }
+
+      .issues-name-description {
+        display: flex;
+        flex: 1;
+        gap: 8px;
+        align-items: center;
+        min-width: 0;
+        font-size: 12px;
+
+        .issues-alert-count {
+          display: inline-flex;
+          flex-shrink: 0;
+          gap: 2px;
+          align-items: center;
+          height: 18px;
+          padding: 3px 4px;
+          font-size: 11px;
+          color: #4e5e7a;
+          background: #f0f4fa;
+          border-radius: 4px;
+
+          .icon-alert-line {
+            font-size: 11px;
+          }
+
+          .issues-alert-count-number {
+            font-weight: 700;
+          }
+        }
+
+        .issues-name-exception-text {
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
       }
 
       &:last-child {

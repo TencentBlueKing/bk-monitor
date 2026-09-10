@@ -13,7 +13,7 @@
 | start_time | int | 是 | 查询开始时间，Unix 时间戳，单位为秒 |
 | end_time | int | 是 | 查询结束时间，Unix 时间戳，单位为秒，不能小于 `start_time` |
 | group_field | string | 否 | ES 原始 Span 的分组字段，默认 `trace_id`。会话视图可传实际存在的会话字段，例如 `attributes.gen_ai.conversation.id` |
-| service_name | string | 否 | OTel 服务名称，精确匹配原始 Span 的 `resource.service.name` |
+| service_name | string | 是 | OTel 服务名称，精确匹配原始 Span 的 `resource.service.name` |
 | keyword | string | 否 | 高级搜索关键词，可匹配 Trace ID、Span ID、用户 ID 或会话 ID |
 | offset | int | 否 | 分页偏移量，默认 `0`，最小为 `0` |
 | limit | int | 否 | 每页分组数量，默认 `20`，取值范围为 `1`～`100` |
@@ -78,6 +78,8 @@
 | group_id | string | 当前分组值。按 Trace 查询时等于 `trace_id`；按会话查询时为会话 ID |
 | group_field | string | 当前分组字段 |
 | trace_id | string | Trace ID，仅 Trace 层对象返回 |
+| conversation_id | string | 会话 ID，无会话信息时为空字符串；仅 Trace 层对象返回 |
+| status | string | Trace 状态：`success`（成功）、`error`（失败）；仅 Trace 层对象返回 |
 | input | string | 逻辑根 Agent/Workflow Span 中最后一条用户文本；会话层返回空字符串 |
 | output | string | 逻辑根 Agent/Workflow Span 中最后一条助手文本；会话层返回空字符串 |
 | input_tokens | int | 分组内输入 Token 总数 |
@@ -88,6 +90,8 @@
 | elapsed_time | int | Trace 或会话持续时间，单位为微秒 |
 | user_id | string | Span 中上报的用户 ID，未上报时为空字符串 |
 | childs | list | 会话包含的 Trace 列表；仅 `group_field != trace_id` 时返回，元素结构与 Trace 层对象一致 |
+
+`status` 基于本次获取的调用记录：包含失败记录时为 `error`，否则为 `success`。
 
 ### 响应参数示例
 
@@ -108,6 +112,8 @@
                 "group_id": "9519ce8934ad4c2f04753eef6ce44b08",
                 "group_field": "trace_id",
                 "trace_id": "9519ce8934ad4c2f04753eef6ce44b08",
+                "conversation_id": "conversation-demo-01",
+                "status": "success",
                 "input": "查询当前故障",
                 "output": "已完成故障分析",
                 "input_tokens": 0,
@@ -151,6 +157,8 @@
                         "group_id": "9519ce8934ad4c2f04753eef6ce44b08",
                         "group_field": "trace_id",
                         "trace_id": "9519ce8934ad4c2f04753eef6ce44b08",
+                        "conversation_id": "conversation-demo-01",
+                        "status": "success",
                         "input": "查询当前故障",
                         "output": "已完成故障分析",
                         "input_tokens": 0,

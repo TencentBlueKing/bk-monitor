@@ -23,18 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-/** biome-ignore-all lint/style/useForOf: 需要使用索引进行精确控制 */
-import {
-  computed,
-  defineComponent,
-  nextTick,
-  onBeforeUnmount,
-  onMounted,
-  ref,
-  watch,
-  type Ref,
-  type VNode,
-} from 'vue';
+import { computed, defineComponent, nextTick, onBeforeUnmount, onMounted, ref, watch, type Ref, type VNode } from 'vue';
 
 import tippy, { type Instance, type SingleTarget } from 'tippy.js';
 
@@ -427,8 +416,8 @@ export default defineComponent({
       }
 
       const containerStyle = window.getComputedStyle(containerRef.value);
-      const horizontalPadding = Number.parseFloat(containerStyle.paddingLeft)
-        + Number.parseFloat(containerStyle.paddingRight);
+      const horizontalPadding =
+        Number.parseFloat(containerStyle.paddingLeft) + Number.parseFloat(containerStyle.paddingRight);
       const containerWidth = Math.max(0, containerRef.value.clientWidth - horizontalPadding);
       const maxRows = Math.max(1, Math.floor(props.maxRows || 1));
       const gap = props.gap;
@@ -466,9 +455,9 @@ export default defineComponent({
       if (!containerRef.value || !hasCustomTrigger.value) {
         return [];
       }
-      return Array.from(containerRef.value.querySelectorAll<HTMLElement>(
-        '.tag-item, .tag-more-indicator, .tag-more-empty',
-      )).filter(element => !element.closest('.measure-box') && element.getClientRects().length > 0);
+      return Array.from(
+        containerRef.value.querySelectorAll<HTMLElement>('.tag-item, .tag-more-indicator, .tag-more-empty'),
+      ).filter(element => !element.closest('.measure-box') && element.getClientRects().length > 0);
     };
 
     /** 根据浏览器实际布局结果更新标签内容区域，不参与可见标签数量计算。 */
@@ -493,10 +482,13 @@ export default defineComponent({
         width: right - left,
       };
       const currentBounds = contentBounds.value;
-      if (!currentBounds || Object.keys(nextBounds).some((key) => {
-        const name = key as keyof ITagMoreContentBounds;
-        return Math.abs(nextBounds[name] - currentBounds[name]) > 0.1;
-      })) {
+      if (
+        !currentBounds ||
+        Object.keys(nextBounds).some(key => {
+          const name = key as keyof ITagMoreContentBounds;
+          return Math.abs(nextBounds[name] - currentBounds[name]) > 0.1;
+        })
+      ) {
         contentBounds.value = nextBounds;
       }
     };
@@ -565,9 +557,11 @@ export default defineComponent({
      * 使用tippy.js创建交互式提示框，显示所有标签列表
      */
     const initActionPop = () => {
-      if (tippyInstance
-        || !(props.showTooltip && containerRef.value && tipsPanelRef.value)
-        || (hasCustomTrigger.value && isDisabledAddNewTag.value)) {
+      if (
+        tippyInstance ||
+        !(props.showTooltip && containerRef.value && tipsPanelRef.value) ||
+        (hasCustomTrigger.value && isDisabledAddNewTag.value)
+      ) {
         return;
       }
 
@@ -581,9 +575,7 @@ export default defineComponent({
         // 对齐实际内容区域的正下方；frame 不存在或未布局（display:none）时回退到容器。
         getReferenceClientRect: () => {
           const container = containerRef.value as HTMLElement;
-          const frameRect = container
-            ?.querySelector('.tag-more-trigger-frame')
-            ?.getBoundingClientRect();
+          const frameRect = container?.querySelector('.tag-more-trigger-frame')?.getBoundingClientRect();
           if (frameRect && frameRect.width > 0 && frameRect.height > 0) {
             return frameRect;
           }
@@ -697,7 +689,7 @@ export default defineComponent({
     });
 
     /** 外置 trigger 时内容面板可能晚于 trigger 挂载，需要在面板就绪后初始化或更新 tooltip */
-    watch(tipsPanelRef, (newVal) => {
+    watch(tipsPanelRef, newVal => {
       if (!newVal || !containerRef.value) {
         return;
       }
@@ -714,15 +706,15 @@ export default defineComponent({
      * tooltip 源标签数量：label 模式取过滤后的展示列表，索引集模式取原始 tags。
      * 按数量监听，避免 tags 数组引用变化（内容不变）导致 tippy 被误销毁。
      */
-    const tooltipTagCount = computed(() => (
-      isLabelMode.value ? showLabelList.value.length : (props.tags || []).length
-    ));
+    const tooltipTagCount = computed(() =>
+      isLabelMode.value ? showLabelList.value.length : (props.tags || []).length,
+    );
 
     /**
      * 监听 tooltip 源标签数量变化
      * 有标签 → 无标签时，销毁 tippy 并清理状态；无标签 → 有标签时重建
      */
-    watch(tooltipTagCount, (newCount) => {
+    watch(tooltipTagCount, newCount => {
       if (hasCustomTrigger.value) {
         nextTick(() => {
           if (newCount > 0 && !tippyInstance) {
@@ -757,21 +749,20 @@ export default defineComponent({
           ref={tagSelectRef}
           class={{ 'tag-more-cell-select': hasCustomTrigger.value }}
           scopedSlots={{
-            trigger: trigger || (() => (
-              <div
-                class={[
-                  'tag-more-add-btn',
-                  { disabled: isDisabledAddNewTag.value },
-                ]}
-                v-bk-tooltips={{
-                  disabled: !isDisabledAddNewTag.value,
-                  content: t('停用状态下无法添加标签'),
-                  delay: 300,
-                }}
-              >
-                <i class='bk-icon icon-plus-line' />
-              </div>
-            )),
+            trigger:
+              trigger ||
+              (() => (
+                <div
+                  class={['tag-more-add-btn', { disabled: isDisabledAddNewTag.value }]}
+                  v-bk-tooltips={{
+                    disabled: !isDisabledAddNewTag.value,
+                    content: t('停用状态下无法添加标签'),
+                    delay: 300,
+                  }}
+                >
+                  <i class='bk-icon icon-plus-line' />
+                </div>
+              )),
           }}
           disabled={isDisabledAddNewTag.value}
           popover-min-width={240}
@@ -784,7 +775,10 @@ export default defineComponent({
           on-selected={addLabelToIndexSet}
           onToggle={toggleSelect}
         >
-          <div class='new-label-container' slot='extension'>
+          <div
+            class='new-label-container'
+            slot='extension'
+          >
             {isShowNewGroupInput.value ? (
               <div class='new-label-input'>
                 <bk-form
@@ -870,10 +864,16 @@ export default defineComponent({
     );
 
     /** 渲染隐藏的测量容器 */
-    const renderMeasureBox = () => <div ref={measureRef} class='measure-box' />;
+    const renderMeasureBox = () => (
+      <div
+        ref={measureRef}
+        class='measure-box'
+      />
+    );
 
     /** 渲染可见标签列表 */
-    const renderTagList = () => visibleTags.value.map((tag, index) => (
+    const renderTagList = () =>
+      visibleTags.value.map((tag, index) => (
         <span
           key={tag.tag_id || tag.id || index}
           style={{
@@ -896,20 +896,21 @@ export default defineComponent({
                     }
                   }}
                 />,
-            ]
+              ]
             : tag.name}
         </span>
-    ));
+      ));
 
     /** 渲染隐藏标签数量指示器 */
-    const renderIndicator = () => hiddenCount.value > 0 && (
+    const renderIndicator = () =>
+      hiddenCount.value > 0 && (
         <span
           style={{ marginLeft: '0' }}
           class='tag-more-indicator'
         >
           +{hiddenCount.value}
         </span>
-    );
+      );
 
     /**
      * 渲染函数
@@ -920,9 +921,7 @@ export default defineComponent({
       const containerClass = {
         'tag-more-multi-line': maxRows > 1,
       };
-      const containerStyle = maxRows > 1
-        ? { maxHeight: `${maxRows * 22 + (maxRows - 1) * 4}px` }
-        : undefined;
+      const containerStyle = maxRows > 1 ? { maxHeight: `${maxRows * 22 + (maxRows - 1) * 4}px` } : undefined;
 
       if (hasCustomTrigger.value) {
         const renderCustomTrigger = () => {
@@ -970,9 +969,7 @@ export default defineComponent({
             }}
           >
             {!showAdd && <span class='tag-more-empty'>--</span>}
-            <span class={['tag-more-add-wrap', { 'is-visible': showAdd }]}>
-              {renderLabelSelect()}
-            </span>
+            <span class={['tag-more-add-wrap', { 'is-visible': showAdd }]}>{renderLabelSelect()}</span>
           </div>
         );
       }

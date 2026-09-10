@@ -74,11 +74,16 @@ class UnifyQueryAsyncExportHandlers:
         export_fields=None,
         index_set_ids: list = None,
         export_file_type: str = "txt",
+        request_bk_biz_id=None,
     ):
         self.index_set_id = index_set_id
         self.bk_biz_id = bk_biz_id
+        self.request_bk_biz_id = bk_biz_id if request_bk_biz_id is None else request_bk_biz_id
         self.index_set_ids = index_set_ids
         self.search_dict = search_dict
+        self.request_param = copy.deepcopy(search_dict)
+        if self.request_param is not None:
+            self.request_param["bk_biz_id"] = self.request_bk_biz_id
         search_dict = copy.deepcopy(self.search_dict)
         search_dict["index_set_ids"] = [index_set_id]
         search_dict["export_fields"] = export_fields
@@ -94,7 +99,7 @@ class UnifyQueryAsyncExportHandlers:
         # 判断是否存在 正在下载的相同检索参数的导出任务
         if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH_EXPORT, self.bk_biz_id):
             if AsyncTask.objects.filter(
-                request_param=self.search_dict,
+                request_param=self.request_param,
                 created_by=self.request_user,
                 export_status=ExportStatus.DOWNLOAD_LOG,
             ).exists():
@@ -118,11 +123,11 @@ class UnifyQueryAsyncExportHandlers:
         async_task = AsyncTask.async_export_task_create_with_running_limit(
             username=self.request_user,
             **{
-                "request_param": self.search_dict,
+                "request_param": self.request_param,
                 "sorted_param": self.unify_query_handler.origin_order_by,
                 "scenario_id": self.unify_query_handler.index_info_list[0]["scenario_id"],
                 "index_set_id": self.index_set_id,
-                "bk_biz_id": self.bk_biz_id,
+                "bk_biz_id": self.request_bk_biz_id,
                 "start_time": self.search_dict["start_time"],
                 "end_time": self.search_dict["end_time"],
                 "export_total_count": self.get_export_total_count(
@@ -156,7 +161,7 @@ class UnifyQueryAsyncExportHandlers:
 
     def _get_search_url(self):
         request = get_request()
-        search_dict = copy.deepcopy(self.search_dict)
+        search_dict = copy.deepcopy(self.request_param)
         if "host_scopes" in search_dict:
             search_dict["host_scopes"] = json.dumps(search_dict["host_scopes"])
 

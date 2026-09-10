@@ -30,9 +30,9 @@ import { useI18n } from 'vue-i18n';
 import { useTippy } from 'vue-tippy';
 
 import ResidentSettingTransfer from './resident-setting-transfer';
+import ScopeInput from './scope-input';
 import SettingKvInput from './setting-kv-input';
 import SettingKvSelector from './setting-kv-selector';
-import TimeConsuming from './time-consuming';
 import {
   type IFieldItem,
   type IFilterField,
@@ -44,6 +44,7 @@ import {
   EMethod,
   RESIDENT_SETTING_EMITS,
   RESIDENT_SETTING_PROPS,
+  SCOPE_INPUT_TYPE,
 } from './typing';
 import { defaultWhereItem, EXISTS_KEYS } from './utils';
 
@@ -170,6 +171,9 @@ export default defineComponent({
     }
     function handleShowSettingTransfer(event: MouseEvent) {
       event.stopPropagation();
+      if (props.residentSettingTransferDisable) {
+        return;
+      }
       handleShowSelect({
         target: elRef.value,
       } as any);
@@ -228,6 +232,8 @@ export default defineComponent({
             name: o.alias,
           })) || [],
         type: item.type,
+        /** 透传单位，范围输入组件据此换算数值的基础单位 */
+        unit: item.unit,
       };
     }
     /**
@@ -303,6 +309,17 @@ export default defineComponent({
       });
     }
 
+    /** 字段类型 -> 范围输入子类型（耗时走 duration，字节量走 bytes，其余兜底 duration） */
+    function scopeInputTypeFn(type) {
+      if (type === EFieldType.duration) {
+        return SCOPE_INPUT_TYPE.duration;
+      }
+      if (type === EFieldType.bytesScope) {
+        return SCOPE_INPUT_TYPE.bytes;
+      }
+      return SCOPE_INPUT_TYPE.duration;
+    }
+
     return {
       localValue,
       showTransfer,
@@ -316,6 +333,7 @@ export default defineComponent({
       handleCancel,
       handleConfirm,
       t,
+      scopeInputTypeFn,
     };
   },
   render() {
@@ -325,7 +343,7 @@ export default defineComponent({
         class={['vue3_retrieval-filter__resident-setting-component', { 'no-data': !this.localValue.length }]}
       >
         <span
-          class='left-btn'
+          class={['left-btn', { disable: this.residentSettingTransferDisable }]}
           onClick={this.handleShowSettingTransfer}
         >
           <span class='icon-monitor icon-shezhi1' />
@@ -334,12 +352,13 @@ export default defineComponent({
         <div class='right-content'>
           {this.localValue.length ? (
             this.localValue.map((item, index) => {
-              if (item.field.type === EFieldType.duration) {
+              if ([EFieldType.duration, EFieldType.bytesScope].includes(item.field.type)) {
                 return (
-                  <TimeConsuming
+                  <ScopeInput
                     key={item.field.name}
                     class='mb-4 mr-4'
                     fieldInfo={this.getFieldInfo(item.field)}
+                    type={this.scopeInputTypeFn(item.field.type)}
                     value={item.value}
                     onChange={v => this.handleValueChange(v, index)}
                   />

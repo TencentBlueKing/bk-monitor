@@ -22,7 +22,7 @@ export const getResourceUrl = (relativePath: string) => {
  * @returns Promise<boolean> 资源是否存在
  */
 export const checkResourceExists = async (url: string, timeout = 5000): Promise<boolean> => {
-  return new Promise((resolve) => {
+  return new Promise(resolve => {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => {
       controller.abort();
@@ -34,7 +34,7 @@ export const checkResourceExists = async (url: string, timeout = 5000): Promise<
       signal: controller.signal,
       cache: 'no-cache',
     })
-      .then((response) => {
+      .then(response => {
         clearTimeout(timeoutId);
         resolve(response.ok);
       })
@@ -155,7 +155,7 @@ export const getEnvVariables = (isDev: boolean) => {
   };
 
   let envScript = envVars
-    .map((varName) => {
+    .map(varName => {
       let value = (window as any)[varName];
       if (value === undefined || value === null) {
         return '';

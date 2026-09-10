@@ -1,7 +1,23 @@
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ * ---------------------------------------------------
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+ * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
  */
+
 import db, { type RetrieveRowEntity, type RetrieveRowStoreName } from '../core/db';
 import type { Table } from 'dexie';
 import { estimateValueBytes } from '../services/retrieve-row-projection.service';
@@ -37,7 +53,7 @@ const collectMarkedFields = (
 
   if (!isPlainObject(value)) return output;
 
-  Object.keys(value).forEach((key) => {
+  Object.keys(value).forEach(key => {
     if (key === highlightField) return;
     const fieldName = prefix ? `${prefix}.${key}` : key;
     collectMarkedFields(value[key], fieldName, output, highlightField);
@@ -54,7 +70,7 @@ const collectHighlightFields = (
   const highlight = rawRow[highlightField];
   if (!isPlainObject(highlight)) return output;
 
-  Object.keys(highlight).forEach((fieldName) => {
+  Object.keys(highlight).forEach(fieldName => {
     const value = Array.isArray(highlight[fieldName]) ? highlight[fieldName][0] : highlight[fieldName];
     if (hasMark(value)) {
       output[fieldName] = value;
@@ -93,8 +109,7 @@ const setOverlayValue = (row: Record<string, any>, fieldName: string, value: any
   return row;
 };
 
-const createHighlightField = () => `${DEFAULT_HIGHLIGHT_FIELD}_${Math.random().toString(36)
-  .slice(2, 10)}`;
+const createHighlightField = () => `${DEFAULT_HIGHLIGHT_FIELD}_${Math.random().toString(36).slice(2, 10)}`;
 
 const hasOwnField = (row: Record<string, any> | undefined, fieldName: string) => !!row && Object.hasOwn(row, fieldName);
 
@@ -141,7 +156,7 @@ const getCopyFieldValue = (row: Record<string, any>, fieldName: string) => {
   return { exists: true, value: current };
 };
 
-const sanitizeCopyRow = (
+export const sanitizeCopyRow = (
   row: Record<string, any> | undefined,
   copyExcludedFields: string[] = [],
   includeFields: string[] = [],
@@ -150,16 +165,19 @@ const sanitizeCopyRow = (
   const excludedFieldSet = new Set(copyExcludedFields);
   const fieldNames = includeFields.length ? includeFields : Object.keys(row);
 
-  return fieldNames.reduce(
-    (output, key) => {
-      if (excludedFieldSet.has(key)) return output;
+  const output = fieldNames.reduce(
+    (result, key) => {
+      if (excludedFieldSet.has(key)) return result;
       const fieldValue = getCopyFieldValue(row, key);
-      if (!fieldValue.exists) return output;
-      output[key] = fieldValue.value;
-      return output;
+      if (!fieldValue.exists) return result;
+      result[key] = fieldValue.value;
+      return result;
     },
     {} as Record<string, any>,
   );
+
+  // includeFields 与原始行 key 对不上时会得到 {}，调用方若当成功会复制出空内容
+  return Object.keys(output).length ? output : undefined;
 };
 
 interface RenderOverlayField {
@@ -226,8 +244,7 @@ export class RetrieveRowStreamWriter {
   async init() {
     if (this.initialized) return;
     if ((this.options.writeMode ?? 'replace') === 'replace' && this.startSeq === 0) {
-      await this.repository.table.where('queryKey').equals(this.queryKey)
-        .delete();
+      await this.repository.table.where('queryKey').equals(this.queryKey).delete();
     }
     this.initialized = true;
   }
@@ -307,8 +324,7 @@ export class RetrieveRowRepository {
   async replaceRows(queryKey: string, rows: Record<string, any>[], startSeq = 0, options: WriteRowsOptions = {}) {
     const ttl = options.ttl ?? DEFAULT_TTL;
     if (startSeq === 0) {
-      await this.table.where('queryKey').equals(queryKey)
-        .delete();
+      await this.table.where('queryKey').equals(queryKey).delete();
     }
 
     return this.writeRows(queryKey, rows, startSeq, ttl, options);
@@ -361,21 +377,18 @@ export class RetrieveRowRepository {
   }
 
   async clearQuery(queryKey: string) {
-    await this.table.where('queryKey').equals(queryKey)
-      .delete();
+    await this.table.where('queryKey').equals(queryKey).delete();
   }
 
   async gc(now = Date.now(), options: { excludeQueryKeys?: string[] } = {}) {
     const excludeQueryKeySet = new Set(options.excludeQueryKeys?.filter(Boolean) ?? []);
     if (!excludeQueryKeySet.size) {
-      await this.table.where('expireAt').below(now)
-        .delete();
+      await this.table.where('expireAt').below(now).delete();
       return;
     }
 
     await db.transaction('rw', this.table, async () => {
-      const expiredRows = await this.table.where('expireAt').below(now)
-        .toArray();
+      const expiredRows = await this.table.where('expireAt').below(now).toArray();
       const deleteKeys = expiredRows.filter(row => !excludeQueryKeySet.has(row.queryKey)).map(row => row.key);
       if (deleteKeys.length) {
         await this.table.bulkDelete(deleteKeys);
@@ -435,8 +448,8 @@ export class RetrieveRowRepository {
         copyExcludedFields: options.copyExcludedFields ?? [],
         renderOverlay,
         renderMeta:
-          options.renderMetas?.[index]
-          ?? createRetrieveRowRenderMeta(row, renderRow, {
+          options.renderMetas?.[index] ??
+          createRetrieveRowRenderMeta(row, renderRow, {
             fieldMetadata: options.fieldMetadata,
             fieldNames: options.fieldNames,
             highlightField,
@@ -473,7 +486,7 @@ export class RetrieveRowRepository {
       ...collectHighlightFields(rawRow, highlightField),
       ...collectHighlightFields(renderRow, highlightField),
     };
-    Object.keys(markedFields).forEach((fieldName) => {
+    Object.keys(markedFields).forEach(fieldName => {
       const renderValue = markedFields[fieldName];
       if (!hasMark(renderValue)) return;
       fields[fieldName] = { renderValue };
@@ -514,4 +527,5 @@ export const retrieveRowRepository = new RetrieveRowRepository('retrieveRows');
 /** 上下文/实时「原始日志检索结果」本地 Stream 专用仓储 */
 export const relatedLogSearchRowRepository = new RetrieveRowRepository('relatedLogSearchRows');
 
-export const getRetrieveRowRepository = (storeName: RetrieveRowStoreName = 'retrieveRows') => (storeName === 'relatedLogSearchRows' ? relatedLogSearchRowRepository : retrieveRowRepository);
+export const getRetrieveRowRepository = (storeName: RetrieveRowStoreName = 'retrieveRows') =>
+  storeName === 'relatedLogSearchRows' ? relatedLogSearchRowRepository : retrieveRowRepository;

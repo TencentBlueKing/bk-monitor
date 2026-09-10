@@ -78,6 +78,7 @@ fta/
 report.**.json
 packages/self-healing
 local.settings.js
+local.settings.e2e.proxy.js
 packages/eslint-fix
 webpack/monitor-static/*
 .vscode/

@@ -8,9 +8,8 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from semconv.rum.attributes import span_attributes
+from semconv.rum.attributes import span_attributes, virtual_attributes
 from semconv.rum.field import FieldSpec
-from semconv.rum.metric import web_vitals
 from semconv.rum.registry import FieldRegistry
 from semconv.rum.trace.attributes import Attributes
 from semconv.rum.trace.events import Events
@@ -54,11 +53,11 @@ class SpanSpec(FieldSpec):
     ELAPSED_TIME = span_attributes.ELAPSED_TIME
 
     # ── Web Vitals 虚拟字段（根级，非嵌套）────────────────────────────────────
-    CLS = web_vitals.CLS
-    INP = web_vitals.INP
-    LCP = web_vitals.LCP
-    FCP = web_vitals.FCP
-    TTFB = web_vitals.TTFB
+    CLS = virtual_attributes.CLS
+    INP = virtual_attributes.INP
+    LCP = virtual_attributes.LCP
+    FCP = virtual_attributes.FCP
+    TTFB = virtual_attributes.TTFB
 
     # ── 复合字段 ───────────────────────────────────────────────────────────────
     STATUS = Status(field_name="status")
@@ -75,6 +74,10 @@ class SpanSpec(FieldSpec):
         :return: 已注册的共享 ``FieldSpec`` 对象；未注册时返回仅含原始字段名的新 ``FieldSpec``。
         """
         return _SPAN_FIELDS.from_field(field_name)
+
+    @classmethod
+    def fields(cls) -> list[FieldSpec]:
+        return _SPAN_FIELDS.fields()
 
 
 # 模块级单例，延迟初始化避免循环导入
