@@ -12,12 +12,15 @@ from django.utils import timezone
 from alarm_backends.core.alert.alert import Alert
 from alarm_backends.service.converge.shield.close import CloseShieldMatcher
 from alarm_backends.service.converge.shield.shield_obj import AlertShieldObj
+from alarm_backends.service.converge.shield import window
 from alarm_backends.service.converge.shield.window import matching_window
 from bkmonitor.utils.range.period import TimeMatchByDay, TimeMatchByMonth, TimeMatchBySingle, TimeMatchByWeek
 
 
 @pytest.fixture(autouse=True)
-def utc_timezone():
+def utc_timezone(monkeypatch):
+    monkeypatch.setattr("django.conf.settings.TIME_ZONE", "UTC")
+    monkeypatch.setattr(window.BusinessManager, "get", lambda *args: SimpleNamespace(time_zone="UTC"))
     original = os.environ.get("TZ")
     os.environ["TZ"] = "UTC"
     time.tzset()
@@ -143,11 +146,28 @@ def test_batch_reuses_business_configuration(monkeypatch):
     from alarm_backends.service.converge.shield import close
 
     fetch = Mock(return_value=[])
+    fetch_timezone = Mock(return_value="UTC")
     monkeypatch.setattr(close.ShieldCacheManager, "get_shields_by_biz_id", fetch)
+    monkeypatch.setattr(close, "business_timezone", fetch_timezone)
     match = CloseShieldMatcher()
     for _ in range(100):
         match.take_over(Alert({"status": "ABNORMAL", "event": {"bk_biz_id": 1}}))
     fetch.assert_called_once_with(1)
+    fetch_timezone.assert_not_called()
+
+
+def test_batch_reuses_business_timezone(monkeypatch):
+    from alarm_backends.service.converge.shield import close
+
+    fetch_timezone = Mock(return_value="UTC")
+    monkeypatch.setattr(close, "business_timezone", fetch_timezone)
+    shields = CloseShieldMatcher()
+    shields.by_business[1] = [SimpleNamespace(is_match=lambda document, now: False)]
+    for _ in range(100):
+        alert = Alert({"status": "ABNORMAL", "event": {"bk_biz_id": 1}})
+        monkeypatch.setattr(alert, "to_document", lambda: None)
+        shields.take_over(alert)
+    fetch_timezone.assert_called_once_with(1)
 
 
 def test_public_signal_entry_filters_owned_alert(monkeypatch):
@@ -169,3 +189,75 @@ def test_queued_composite_rechecks_ownership(monkeypatch):
     monkeypatch.setattr(tasks, "CompositeProcessor", process)
     tasks.check_action_and_composite(SimpleNamespace(alert_id="a", strategy_id=1), "ABNORMAL")
     process.assert_not_called()
+
+
+def test_match_failure_does_not_abort_other_alerts(monkeypatch):
+
+    bad = Alert({"id": "bad", "status": "ABNORMAL", "event": {"bk_biz_id": 1}})
+    good = Alert({"id": "good", "status": "ABNORMAL", "event": {"bk_biz_id": 1}})
+    monkeypatch.setattr(bad, "to_document", lambda: "bad")
+    monkeypatch.setattr(good, "to_document", lambda: "good")
+
+    def match(document, now):
+        if document == "bad":
+            raise RuntimeError("strategy cache unavailable")
+        return True
+
+    shields = CloseShieldMatcher()
+    shields.now = arrow.get("2026-09-09T10:30:00+00:00")
+    shields.by_business[1] = [SimpleNamespace(id=1, time_check=matcher(), is_match=match)]
+    for alert in [bad, good]:
+        shields.take_over(alert)
+    assert not bad.shield_end_close
+    assert good.shield_end_close
+
+
+def test_takeover_completes_strategy_snapshot_before_matching(monkeypatch):
+    from alarm_backends.service.alert.enricher.strategy import StrategySnapshotEnricher
+
+    alert = Alert({"id": "a", "strategy_id": 1, "status": "ABNORMAL", "event": {"bk_biz_id": 1}})
+    snapshot = {"items": [{"query_configs": [{"metric_id": "system.cpu"}]}]}
+
+    def enrich(self, value):
+        value.update_extra_info("strategy", snapshot)
+        return value
+
+    prepare = Mock(side_effect=enrich)
+    monkeypatch.setattr(StrategySnapshotEnricher, "enrich_alert", lambda self, value: prepare(self, value))
+    monkeypatch.setattr(alert, "to_document", lambda: alert.get_extra_info("strategy"))
+    candidate = SimpleNamespace(id=1, time_check=matcher(), is_match=lambda document, now: document == snapshot)
+    shields = CloseShieldMatcher()
+    shields.now = arrow.get("2026-09-09T10:30:00+00:00")
+    shields.by_business[1] = [candidate]
+    shields.take_over(alert)
+    assert alert.shield_end_close
+    prepare.assert_called_once()
+
+
+def test_takeover_uses_snapshot_when_strategy_cache_is_missing(monkeypatch):
+    from alarm_backends.service.alert.enricher import strategy
+
+    alert = Alert(
+        {
+            "id": "a",
+            "strategy_id": 1,
+            "status": "ABNORMAL",
+            "event": {"bk_biz_id": 1},
+            "extra_info": {"origin_alarm": {"strategy_snapshot_key": "snapshot-key"}},
+        }
+    )
+    snapshot = {"items": [{"query_configs": [{"metric_id": "system.cpu"}]}], "labels": []}
+    fetch_snapshot = Mock(return_value=snapshot)
+    fetch_cache = Mock(return_value=None)
+    monkeypatch.setattr(strategy.Strategy, "get_strategy_snapshot_by_key", fetch_snapshot)
+    monkeypatch.setattr(strategy.StrategyCacheManager, "get_strategy_by_id", fetch_cache)
+    monkeypatch.setattr(alert, "to_document", lambda: alert.get_extra_info("strategy"))
+    shields = CloseShieldMatcher()
+    shields.now = arrow.get("2026-09-09T10:30:00+00:00")
+    shields.by_business[1] = [
+        SimpleNamespace(id=1, time_check=matcher(), is_match=lambda document, now: document == snapshot)
+    ]
+    shields.take_over(alert)
+    assert alert.shield_end_close
+    fetch_snapshot.assert_called_once_with("snapshot-key", 1)
+    fetch_cache.assert_not_called()

@@ -3,9 +3,47 @@
 from datetime import datetime, timedelta
 
 import arrow
+from django.conf import settings
+
+from alarm_backends.core.cache.cmdb.business import BusinessManager
 
 from bkmonitor.utils import time_tools
-from bkmonitor.utils.range.period import TimeMatchBySingle
+from bkmonitor.utils.range.period import TimeMatch, TimeMatchByDay, TimeMatchByMonth, TimeMatchBySingle, TimeMatchByWeek
+
+
+def business_timezone(bk_biz_id):
+    business = BusinessManager.get(bk_biz_id) if bk_biz_id is not None else None
+    return (business.time_zone if business else None) or settings.TIME_ZONE
+
+
+class _BusinessCalendar:
+    """Close shields use the business calendar, never the worker OS timezone."""
+
+    def is_week_match(self, data_time):
+        return isinstance(self.week_list, list) and time_tools.localtime(data_time).isoweekday() in self.week_list
+
+    def is_month_match(self, data_time):
+        return isinstance(self.day_list, list) and time_tools.localtime(data_time).day in self.day_list
+
+
+class _CloseDay(_BusinessCalendar, TimeMatchByDay):
+    pass
+
+
+class _CloseWeek(_BusinessCalendar, TimeMatchByWeek):
+    pass
+
+
+class _CloseMonth(_BusinessCalendar, TimeMatchByMonth):
+    pass
+
+
+def close_time_matcher(cycle, begin_time, end_time):
+    """Construct under the caller's business timezone.override context."""
+    matcher_class = {2: _CloseDay, 3: _CloseWeek, 4: _CloseMonth}.get(int(cycle.get("type", -1)), TimeMatchBySingle)
+    return matcher_class(
+        cycle, TimeMatch.convert_datetime_to_arrow(begin_time), TimeMatch.convert_datetime_to_arrow(end_time)
+    )
 
 
 def matching_window(matcher, at):

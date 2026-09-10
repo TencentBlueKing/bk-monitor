@@ -23,6 +23,7 @@ class TestShieldTasks(TestCase):
         self.cache = self.patch("AlertCache.update_alert_to_cache")
         self.snapshot = self.patch("AlertCache.save_alert_snapshot")
         self.logs = self.patch("AlertLog.bulk_create")
+        self.patch("business_timezone").return_value = "UTC"
 
     def patch(self, name):
         return self.stack.enter_context(mock.patch(f"{shield_tasks.__name__}.{name}"))
@@ -41,6 +42,7 @@ class TestShieldTasks(TestCase):
     @staticmethod
     def config(enabled=True, deleted=False, begin="2026-09-09T10:00:00Z", end="2026-09-09T11:00:00Z"):
         return SimpleNamespace(
+            bk_biz_id=2,
             is_enabled=enabled,
             is_deleted=deleted,
             begin_time=arrow.get(begin).datetime,

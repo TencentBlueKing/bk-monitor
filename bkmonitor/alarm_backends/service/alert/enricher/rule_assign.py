@@ -8,6 +8,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import logging
 
 from alarm_backends.core.alert import Alert
@@ -25,6 +26,10 @@ class AssignInfoEnricher(BaseAlertEnricher):
     """
 
     def enrich_alert(self, alert: Alert) -> Alert:
+        if alert.shield_end_close:
+            # 屏蔽托管告警不执行分派，其他信息丰富仍由 factory 继续处理。
+            return alert
+
         strategy = alert.get_extra_info(key="strategy")
         # 有策略直接用策略的分派规则，没有策略的，默认用分派
         assign_mode = (

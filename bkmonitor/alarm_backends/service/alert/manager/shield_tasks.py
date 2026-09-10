@@ -11,6 +11,7 @@ specific language governing permissions and limitations under the License.
 import logging
 
 import arrow
+from django.utils import timezone
 from elasticsearch.helpers import BulkIndexError
 from elasticsearch_dsl import Q
 
@@ -19,11 +20,10 @@ from alarm_backends.core.cache.key import ALERT_UPDATE_LOCK
 from alarm_backends.core.cluster import get_cluster_bk_biz_ids
 from alarm_backends.core.lock.service_lock import multi_service_lock
 from alarm_backends.service.alert.manager.tasks import BATCH_SIZE, _search_after_hits
+from alarm_backends.service.converge.shield.window import business_timezone, close_time_matcher
 from bkmonitor.documents import AlertDocument, AlertLog
 from bkmonitor.documents.base import BulkActionType
 from bkmonitor.models import Shield
-from bkmonitor.utils.range import TIME_MATCH_CLASS_MAP
-from bkmonitor.utils.range.period import TimeMatch, TimeMatchBySingle
 from constants.alert import EventStatus
 
 logger = logging.getLogger("alert.manager")
@@ -54,14 +54,9 @@ def shield_is_active(shield, now):
     """只检查本轮配置的状态与时间；不重匹配维度，不回放短时变更。"""
     if shield.is_deleted or not shield.is_enabled:
         return False
-    cycle = shield.cycle_config
-    matcher_class = TIME_MATCH_CLASS_MAP.get(int(cycle.get("type", -1)), TimeMatchBySingle)
-    matcher = matcher_class(
-        cycle,
-        TimeMatch.convert_datetime_to_arrow(shield.begin_time),
-        TimeMatch.convert_datetime_to_arrow(shield.end_time),
-    )
-    return matcher.is_match(now)
+    with timezone.override(business_timezone(shield.bk_biz_id)):
+        matcher = close_time_matcher(shield.cycle_config, shield.begin_time, shield.end_time)
+        return matcher.is_match(now)
 
 
 def check_shield_end_close_finished(alert_keys):
