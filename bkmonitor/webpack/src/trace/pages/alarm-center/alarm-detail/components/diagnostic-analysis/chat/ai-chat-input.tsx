@@ -125,7 +125,7 @@ export default defineComponent({
           class='ai-chat-input-textarea'
           v-model={this.value}
           disabled={this.pending}
-          placeholder={this.t('输入你想了解的问题，继续追问')}
+          placeholder={this.t('在页面上划词，可添加至聊天继续追问')}
           rows={2}
           onBlur={() => {
             this.isFocus = false;

@@ -133,6 +133,7 @@ export default {
   点击解析: 'Parse',
   添加至列表: 'Add to List',
   添加至聊天: 'Add to chat',
+  查看诊断结论: 'View diagnosis',
   新增组: 'Group',
   添加套餐: 'Add Solutions',
   保存套餐: 'Save Solutions',

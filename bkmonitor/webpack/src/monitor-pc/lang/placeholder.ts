@@ -395,4 +395,5 @@ export default {
   请输入分组名称: 'Please enter group name',
   '搜索 IP / 主机名 / 节点名称': 'Search IP / Hostname / Node Name',
   '输入 进程名': 'Enter Process Name',
+  '在页面上划词，可添加至聊天继续追问': 'Select text on the page and add it to chat to keep asking',
 };

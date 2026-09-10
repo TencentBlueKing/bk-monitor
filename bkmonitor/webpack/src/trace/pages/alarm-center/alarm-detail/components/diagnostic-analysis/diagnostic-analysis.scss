@@ -1,14 +1,6 @@
 .diagnostic-analysis-panel-comp {
   flex-shrink: 0;
 
-  &.fixed {
-    position: fixed;
-    top: 0;
-    right: 0;
-    z-index: 3000;
-    height: 100vh;
-  }
-
   .diagnostic-analysis-wrapper {
     display: flex;
     flex-direction: column;
@@ -24,15 +16,29 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      height: 20px;
-      padding: 0 16px;
-      margin-bottom: 13px;
+      padding: 0 16px 12px;
       line-height: 20px;
+      border-bottom: 1px solid #e9edf5;
 
       .title {
         font-size: 16px;
         font-weight: 500;
         color: #000;
+      }
+
+      .back-to-conclusion {
+        display: flex;
+        align-items: center;
+        margin-right: auto;
+        margin-left: 12px;
+        font-size: 12px;
+        color: #3a84ff;
+        cursor: pointer;
+
+        .icon-monitor {
+          margin-right: 2px;
+          font-size: 14px;
+        }
       }
 
       .tool-btns {
@@ -128,7 +134,7 @@
 
     .diagnostic-analysis-wrapper-footer {
       flex-shrink: 0;
-      padding: 12px 16px 0;
+      padding: 0 16px;
     }
   }
 

@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, nextTick, onBeforeUnmount, onMounted, shallowRef, Teleport, watch } from 'vue';
+import { defineComponent, nextTick, onBeforeUnmount, onMounted, shallowRef, watch } from 'vue';
 
 import { useI18n } from 'vue-i18n';
 
@@ -35,6 +35,10 @@ import { DiagnosticTypeEnum } from './constant';
 import { useAiCapability } from './use-ai-capability';
 
 import './diagnostic-analysis.scss';
+
+/** 滚动超过这个距离才认为离开了顶部结论区 */
+const CONCLUSION_SCROLL_THRESHOLD = 24;
+
 export default defineComponent({
   name: 'DiagnosticAnalysis',
   emits: ['close'],
@@ -42,13 +46,17 @@ export default defineComponent({
     const { t } = useI18n();
     const { bkFaraProcesses, displayIncident, hasIncident } = useAiCapability();
     const { messages, pending, sendQuestion } = useAiChat();
-    /** 是否固定 */
-    const isFixed = shallowRef(false);
     /** 会话滚动容器 */
     const conversationRef = shallowRef<HTMLDivElement>();
+    /** 会话滚动离开结论区后，露出回到结论区的入口 */
+    const showBackToConclusion = shallowRef(false);
 
-    const handleFixedChange = () => {
-      isFixed.value = !isFixed.value;
+    const handleConversationScroll = () => {
+      showBackToConclusion.value = (conversationRef.value?.scrollTop ?? 0) > CONCLUSION_SCROLL_THRESHOLD;
+    };
+
+    const handleBackToConclusion = () => {
+      conversationRef.value?.scrollTo({ top: 0, behavior: 'smooth' });
     };
 
     const handleClosed = () => {
@@ -62,10 +70,12 @@ export default defineComponent({
     // 本面板底部已有 AI 会话入口，展开期间收起宿主右下角的小鲸浮标，避免两个入口重叠
     onMounted(() => {
       window.__BK_WEWEB_DATA__?.setAiWhaleHidden?.(true);
+      conversationRef.value?.addEventListener('scroll', handleConversationScroll, { passive: true });
     });
 
     onBeforeUnmount(() => {
       window.__BK_WEWEB_DATA__?.setAiWhaleHidden?.(false);
+      conversationRef.value?.removeEventListener('scroll', handleConversationScroll);
     });
 
     // 追问消息入列、以及回复内容填充后都要滚到底
@@ -89,8 +99,8 @@ export default defineComponent({
       messages,
       pending,
       conversationRef,
-      isFixed,
-      handleFixedChange,
+      showBackToConclusion,
+      handleBackToConclusion,
       handleClosed,
       handleSendQuestion,
     };
@@ -104,98 +114,95 @@ export default defineComponent({
     ];
 
     return (
-      <Teleport
-        disabled={!this.isFixed}
-        to='body'
-      >
-        <div class={['diagnostic-analysis-panel-comp', { fixed: this.isFixed }]}>
-          <div class='diagnostic-analysis-wrapper'>
-            <div class='diagnostic-analysis-wrapper-header'>
-              <div class='title'>{this.t('AI诊断')}</div>
-              <div class='tool-btns'>
-                <i
-                  class={['icon-monitor', 'fixed-icon', this.isFixed ? 'icon-a-pinnedtuding' : 'icon-a-pintuding']}
-                  v-bk-tooltips={{
-                    content: this.isFixed ? this.t('取消固定') : this.t('固定在界面上'),
-                  }}
-                  onClick={this.handleFixedChange}
-                />
-                <i
-                  class='icon-monitor icon-mc-close-copy close-icon'
-                  v-bk-tooltips={{
-                    content: this.t('关闭'),
-                  }}
-                  onClick={this.handleClosed}
-                />
-              </div>
-            </div>
-            <div
-              ref='conversationRef'
-              class='diagnostic-analysis-conversation'
-            >
-              <div class='chat-message is-ai'>
-                <div class='chat-message-body'>
-                  <div class='chat-message-text'>
-                    {this.hasIncident
-                      ? this.t('这条告警已纳入故障，以下结论结合了故障上下文：')
-                      : this.t('这条告警未纳入故障，以下结论只基于告警自身的观测数据：')}
-                  </div>
-                  <AiDiagnosticInfoCard
-                    bkFaraProcesses={this.bkFaraProcesses}
-                    incident={this.displayIncident}
-                  />
-                </div>
-              </div>
-
-              <div class='chat-message is-ai'>
-                <div class='chat-message-body'>
-                  <div class='chat-message-text'>{this.t('我还找到这些关联线索，展开可以看明细：')}</div>
-                  {commonPanels.map(type => (
-                    <AnalysisPanel
-                      key={type}
-                      type={type}
-                    />
-                  ))}
-                </div>
-              </div>
-
-              {this.messages.map(message =>
-                message.role === 'user' ? (
-                  <div
-                    key={message.id}
-                    class='chat-message is-user'
-                  >
-                    <div class='chat-message-bubble'>{message.content}</div>
-                  </div>
-                ) : (
-                  <div
-                    key={message.id}
-                    class='chat-message is-ai'
-                  >
-                    <div class='chat-message-body'>
-                      {message.loading ? (
-                        <div class='chat-message-loading'>
-                          <span class='dot' />
-                          <span class='dot' />
-                          <span class='dot' />
-                        </div>
-                      ) : (
-                        <div class='chat-message-text'>{message.content}</div>
-                      )}
-                    </div>
-                  </div>
-                )
-              )}
-            </div>
-            <div class='diagnostic-analysis-wrapper-footer'>
-              <AiChatInput
-                pending={this.pending}
-                onSend={this.handleSendQuestion}
+      <div class='diagnostic-analysis-panel-comp'>
+        <div class='diagnostic-analysis-wrapper'>
+          <div class='diagnostic-analysis-wrapper-header'>
+            <div class='title'>{this.t('AI诊断')}</div>
+            {this.showBackToConclusion ? (
+              <span
+                class='back-to-conclusion'
+                onClick={this.handleBackToConclusion}
+              >
+                <i class='icon-monitor icon-arrow-up' />
+                {this.t('查看诊断结论')}
+              </span>
+            ) : undefined}
+            <div class='tool-btns'>
+              <i
+                class='icon-monitor icon-mc-close-copy close-icon'
+                v-bk-tooltips={{
+                  content: this.t('关闭'),
+                }}
+                onClick={this.handleClosed}
               />
             </div>
           </div>
+          <div
+            ref='conversationRef'
+            class='diagnostic-analysis-conversation'
+          >
+            <div class='chat-message is-ai'>
+              <div class='chat-message-body'>
+                <div class='chat-message-text'>
+                  {this.hasIncident
+                    ? this.t('这条告警已纳入故障，以下结论结合了故障上下文：')
+                    : this.t('这条告警未纳入故障，以下结论只基于告警自身的观测数据：')}
+                </div>
+                <AiDiagnosticInfoCard
+                  bkFaraProcesses={this.bkFaraProcesses}
+                  incident={this.displayIncident}
+                />
+              </div>
+            </div>
+
+            <div class='chat-message is-ai'>
+              <div class='chat-message-body'>
+                <div class='chat-message-text'>{this.t('我还找到这些关联线索，展开可以看明细：')}</div>
+                {commonPanels.map(type => (
+                  <AnalysisPanel
+                    key={type}
+                    type={type}
+                  />
+                ))}
+              </div>
+            </div>
+
+            {this.messages.map(message =>
+              message.role === 'user' ? (
+                <div
+                  key={message.id}
+                  class='chat-message is-user'
+                >
+                  <div class='chat-message-bubble'>{message.content}</div>
+                </div>
+              ) : (
+                <div
+                  key={message.id}
+                  class='chat-message is-ai'
+                >
+                  <div class='chat-message-body'>
+                    {message.loading ? (
+                      <div class='chat-message-loading'>
+                        <span class='dot' />
+                        <span class='dot' />
+                        <span class='dot' />
+                      </div>
+                    ) : (
+                      <div class='chat-message-text'>{message.content}</div>
+                    )}
+                  </div>
+                </div>
+              )
+            )}
+          </div>
+          <div class='diagnostic-analysis-wrapper-footer'>
+            <AiChatInput
+              pending={this.pending}
+              onSend={this.handleSendQuestion}
+            />
+          </div>
         </div>
-      </Teleport>
+      </div>
     );
   },
 });
