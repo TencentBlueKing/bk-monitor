@@ -21,14 +21,14 @@ TIME = FieldSpec(
     field_display_type=FieldDisplayType.DATETIME.value,
 )
 BK_BIZ_ID = FieldSpec(field_name="bk_biz_id", field_alias=_("业务 ID"))
-APP_NAME = FieldSpec(field_name="app_name", field_alias=_("应用名称"))
+APP_NAME = FieldSpec(field_name="app_name", field_alias=_("应用"))
 
 TRACE_ID = FieldSpec(field_name="trace_id", field_alias="Trace ID")
-TRACE_STATE = FieldSpec(field_name="trace_state", field_alias=_("Trace 状态"))
+TRACE_STATE = FieldSpec(field_name="trace_state", field_alias=_("Trace 扩展信息"))
 SPAN_NAME = FieldSpec(field_name="span_name", field_alias=_("Span 名称"))
 SPAN_ID = FieldSpec(field_name="span_id", field_alias="Span ID")
 PARENT_SPAN_ID = FieldSpec(field_name="parent_span_id", field_alias=_("父 Span ID"))
-KIND = FieldSpec(field_name="kind", field_alias=_("Span 类型"), option_values=SpanKind)
+KIND = FieldSpec(field_name="kind", field_alias=_("调用类型"), option_values=SpanKind)
 
 # 时间字段
 START_TIME = FieldSpec(

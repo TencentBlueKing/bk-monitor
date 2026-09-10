@@ -29,7 +29,7 @@ from bkmonitor.data_source.utils.apm import FilterOperator, TraceDatasourceTarge
 from bkmonitor.utils.common_utils import format_percent
 from bkmonitor.utils.thread_backend import ThreadPool
 from core.drf_resource import resource
-from semconv.rum.constants import RumSpanType
+from semconv.rum.constants import RumSpanType, SPAN_TYPE_COMMON_DISPLAY_FIELDS
 from semconv.rum.trace import SpanSpec
 from constants.otel_query import FieldTypeEnum
 from rum_web.handlers.level.base import BaseRumLevelHandler
@@ -44,16 +44,25 @@ class SpanLevelHandler(BaseRumLevelHandler):
     """
 
     DISPLAY_FIELDS = [
-        "span_name",
-        "attributes.span_type",
-        "end_time",
-        "elapsed_time",
-        "status.code",
+        *SPAN_TYPE_COMMON_DISPLAY_FIELDS,
         "attributes.view.url_template",
+        "elapsed_time",
+        "resource.user_agent.name",
         "attributes.user.id",
     ]
+
     #: 常驻筛选字段，前端置顶展示并默认带出的筛选维度
-    RESIDENT_FIELDS = ["trace_id", "span_id", "kind", "elapsed_time", "span_name", "attributes.view.name"]
+    RESIDENT_FIELDS = [
+        "attributes.session.id",
+        "trace_id",
+        "span_name",
+        "resource.deployment.environment.name",
+        "resource.user_agent.name",
+        "attributes.view.url_template",
+        "attributes.outcome.type",
+        "attributes.user.id",
+        "elapsed_time",
+    ]
     VIEW_CONFIG_IGNORE_KEYS = ["is_case_sensitive", "is_analyzed", "wildcard_case_insensitive", "tokenize_on_chars"]
 
     BASE_STATISTICS_PROPERTIES: set[str] = {
@@ -125,6 +134,9 @@ class SpanLevelHandler(BaseRumLevelHandler):
             ],
             "display_fields": list(self.DISPLAY_FIELDS),
             "resident_fields": list(self.RESIDENT_FIELDS),
+            "span_type_resident_fields": {
+                span_type.value: list(span_type.resident_fields) for span_type in RumSpanType
+            },
             "span_type_display_fields": {span_type.value: span_type.display_fields for span_type in RumSpanType},
         }
 

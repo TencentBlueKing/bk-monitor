@@ -14,13 +14,13 @@ from semconv.rum.constants import SessionType, SessionPhase, SessionHasReplay
 from semconv.rum.field import FieldSpec
 from constants.otel_query import FieldTypeEnum
 
-SESSION_SAMPLE_RATE = FieldSpec(field_name="session.sample_rate", field_alias=_("Session 采样率"))
+SESSION_SAMPLE_RATE = FieldSpec(field_name="session.sample_rate", field_alias=_("会话采样率"))
 SESSION_ID = FieldSpec(field_name="session.id", field_alias=_("会话 ID"))
 SESSION_HAS_REPLAY = FieldSpec(
     field_name="session.has_replay",
-    field_alias=_("是否回放"),
+    field_alias=_("有无回放"),
     field_type=FieldTypeEnum.BOOLEAN.value,
     option_values=SessionHasReplay,
 )
 SESSION_TYPE = FieldSpec(field_name="session.type", field_alias=_("会话类型"), option_values=SessionType)
-SESSION_PHASE = FieldSpec(field_name="session.phase", field_alias=_("会话生命周期阶段"), option_values=SessionPhase)
+SESSION_PHASE = FieldSpec(field_name="session.phase", field_alias=_("会话阶段"), option_values=SessionPhase)

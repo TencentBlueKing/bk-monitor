@@ -42,6 +42,7 @@ const EMPTY_VIEW_CONFIG: IRumViewConfig = {
   default_sort: [],
   display_fields: [],
   span_type_display_fields: {},
+  span_type_resident_fields: {},
   resident_fields: [],
 };
 
@@ -84,7 +85,7 @@ export function useRumViewConfig() {
       alias: field.alias,
       type: toFilterFieldType(field),
       /** 字节量字段的单位统一归一成 B，供范围输入组件作为数值的基础单位 */
-      unit: field.field_unit === 'bytes' ? 'B' : field.field_unit,
+      unit: field.field_unit === 'vital' ? '' : field.field_unit === 'bytes' ? 'B' : field.field_unit,
       isEnableOptions: field.is_dimensions || field.type === 'boolean',
       methods: (field.supported_operations || []).map(operation => ({
         alias: operation.label,
@@ -129,6 +130,8 @@ export function useRumViewConfig() {
 
 /** 接口字段类型映射到检索条件区的输入控件类型 */
 function toFilterFieldType(field: IRumField): EFieldType {
+  // vital 没有固定时间单位，过滤条件继续输入原始浮点数。
+  if (field.field_unit === 'vital') return EFieldType.integer;
   // 接口标注为 duration 展示类型的字段用耗时输入组件（时间戳字段不会带该类型）
   if (field.field_display_type === 'duration') return EFieldType.duration;
   // 字节量字段用字节范围输入组件

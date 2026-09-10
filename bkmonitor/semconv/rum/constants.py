@@ -14,11 +14,7 @@ from django.utils.translation import gettext_lazy as _
 
 from constants.apm import CachedEnum
 
-SPAN_TYPE_COMMON_DISPLAY_FIELDS = [
-    "span_name",
-    "attributes.span_type",
-    "end_time",
-]
+SPAN_TYPE_COMMON_DISPLAY_FIELDS = ["span_name", "attributes.span_type", "end_time", "attributes.outcome.type"]
 
 
 class RumSpanType(CachedEnum):
@@ -37,12 +33,12 @@ class RumSpanType(CachedEnum):
     def label(self) -> str:
         return str(
             {
-                self.VIEW: _("视图"),
+                self.VIEW: _("页面"),
                 self.RESOURCE: _("资源"),
                 self.ERROR: _("错误"),
-                self.VITAL: _("网页指标"),
+                self.VITAL: _("Web 性能指标"),
                 self.LONG_TASK: _("长任务"),
-                self.ACTION: _("用户交互"),
+                self.ACTION: _("用户操作"),
                 self.WEBSOCKET: "WebSocket",
                 self.CUSTOM: _("自定义事件"),
             }.get(self, str(self.value))
@@ -57,68 +53,164 @@ class RumSpanType(CachedEnum):
         return [member.value for member in cls]
 
     @cached_property
-    def display_fields(self) -> list[str]:
+    def resident_fields(self) -> list[str]:
+        """各类型固定的常驻筛选字段，独立于表格展示列，每类最多八项。"""
         return {
             self.VIEW: [
-                *SPAN_TYPE_COMMON_DISPLAY_FIELDS,
-                "elapsed_time",  # 耗时
-                "attributes.outcome.type",  # 结果
-                "attributes.view.name",  # 所在视图
-                "resource.user_agent.name",  # 浏览器
-                "attributes.user.id",  # 用户
-            ],
-            self.RESOURCE: [
-                *SPAN_TYPE_COMMON_DISPLAY_FIELDS,
-                "elapsed_time",
-                "attributes.outcome.type",
-                "attributes.http.request.method",  # Method
-                "attributes.http.response.status_code",  # 状态码
-                "attributes.view.name",
+                "attributes.session.id",
+                "attributes.view.url_template",
+                "resource.deployment.environment.name",
                 "resource.user_agent.name",
                 "attributes.user.id",
+                "attributes.outcome.type",
+                "attributes.view.loading_time",
+            ],
+            self.RESOURCE: [
+                "attributes.session.id",
+                "attributes.url.template",
+                "resource.deployment.environment.name",
+                "resource.user_agent.name",
+                "attributes.user.id",
+                "attributes.http.request.method",
+                "attributes.http.response.status_code",
+                "elapsed_time",
             ],
             self.ERROR: [
-                *SPAN_TYPE_COMMON_DISPLAY_FIELDS,
-                "attributes.outcome.type",
+                "attributes.session.id",
+                "attributes.view.url_template",
                 "events.attributes.exception.type",
+                "attributes.error.source",
+                "attributes.error.handled",
+                "resource.deployment.environment.name",
                 "resource.user_agent.name",
                 "attributes.user.id",
             ],
             self.VITAL: [
-                *SPAN_TYPE_COMMON_DISPLAY_FIELDS,
-                "attributes.outcome.type",
-                "attributes.view.name",
+                "attributes.session.id",
+                "attributes.view.url_template",
+                "attributes.vital.metric",
+                "attributes.network.effective_type",
+                "resource.deployment.environment.name",
                 "resource.user_agent.name",
                 "attributes.user.id",
+                "attributes.outcome.type",
             ],
             self.LONG_TASK: [
-                *SPAN_TYPE_COMMON_DISPLAY_FIELDS,
-                "attributes.long_task.blocking_duration",  # 阻塞时长
-                "attributes.outcome.type",
-                "attributes.view.name",
+                "attributes.session.id",
+                "attributes.view.url_template",
+                "attributes.long_task.entry_type",
+                "events.attributes.long_task.script.source_url",
+                "resource.deployment.environment.name",
                 "resource.user_agent.name",
                 "attributes.user.id",
             ],
             self.ACTION: [
-                *SPAN_TYPE_COMMON_DISPLAY_FIELDS,
-                "elapsed_time",
+                "attributes.session.id",
+                "attributes.view.url_template",
+                "attributes.action.type",
+                "attributes.action.frustration.type",
+                "resource.deployment.environment.name",
+                "resource.user_agent.name",
+                "attributes.user.id",
+            ],
+            self.WEBSOCKET: [
+                "span_name",
+                "attributes.url.full",
+                "attributes.server.address",
                 "attributes.outcome.type",
-                "attributes.action.frustration.type",  # 挫败感
-                "attributes.view.name",
+                "attributes.view.url_template",
+                "resource.user_agent.name",
+                "resource.service.version",
+                "attributes.user.id",
+            ],
+            self.CUSTOM: [
+                "span_name",
+                "attributes.outcome.type",
+                "elapsed_time",
+                "attributes.view.url_template",
+                "attributes.user.id",
+                "resource.service.version",
+                "resource.user_agent.name",
+                "resource.device.type",
+            ],
+        }[self]
+
+    @cached_property
+    def display_fields(self) -> list[str]:
+        return {
+            self.VIEW: [
+                "span_name",
+                "end_time",
+                "attributes.outcome.type",
+                "attributes.view.url_template",
+                "attributes.view.loading_type",
+                "attributes.view.loading_time",
+                "resource.user_agent.name",
+                "attributes.user.id",
+            ],
+            self.RESOURCE: [
+                "span_name",
+                "attributes.span_type",
+                "end_time",
+                "attributes.url.template",
+                "elapsed_time",
+                "attributes.resource.size",
+                "attributes.resource.cache.hit",
+                "attributes.http.request.method",
+                "attributes.http.response.status_code",
+                "resource.user_agent.name",
+                "attributes.user.id",
+            ],
+            self.ERROR: [
+                "span_name",
+                "end_time",
+                "attributes.view.url_template",
+                "events.attributes.exception.type",
+                "attributes.error.source",
+                "resource.user_agent.name",
+                "attributes.user.id",
+            ],
+            self.VITAL: [
+                "span_name",
+                "end_time",
+                "attributes.view.url_template",
+                "attributes.network.effective_type",
+                "attributes.vital.metric",
+                "attributes.vital.value",
+                "resource.user_agent.name",
+                "attributes.user.id",
+            ],
+            self.LONG_TASK: [
+                "span_name",
+                "end_time",
+                "attributes.outcome.type",
+                "attributes.view.url_template",
+                "attributes.long_task.entry_type",
+                "attributes.long_task.name",
+                "attributes.long_task.blocking_duration",
+                "resource.user_agent.name",
+                "attributes.user.id",
+            ],
+            self.ACTION: [
+                "span_name",
+                "end_time",
+                "attributes.outcome.type",
+                "attributes.view.url_template",
+                "elapsed_time",
+                "attributes.action.type",
+                "attributes.action.frustration.type",
                 "resource.user_agent.name",
                 "attributes.user.id",
             ],
             self.WEBSOCKET: [
                 *SPAN_TYPE_COMMON_DISPLAY_FIELDS,
-                "attributes.outcome.type",
-                "attributes.view.name",
+                "attributes.view.url_template",
                 "resource.user_agent.name",
                 "attributes.user.id",
             ],
             self.CUSTOM: [
                 *SPAN_TYPE_COMMON_DISPLAY_FIELDS,
                 "elapsed_time",
-                "attributes.outcome.type",
                 "resource.user_agent.name",
                 "attributes.user.id",
             ],
@@ -126,7 +218,7 @@ class RumSpanType(CachedEnum):
 
 
 class ViewLoadingTimeSource(CachedEnum):
-    """视图加载耗时来源"""
+    """页面加载计时方式"""
 
     AUTO = "auto"
     MANUAL = "manual"
@@ -154,10 +246,10 @@ class ViewLoadingType(CachedEnum):
     @cached_property
     def label(self) -> str:
         return {
-            self.INITIAL_LOAD: _("首次页面加载"),
-            self.ROUTE_CHANGE: _("SPA 路由切换"),
+            self.INITIAL_LOAD: _("初始加载"),
+            self.ROUTE_CHANGE: _("路由切换"),
             self.SESSION_RENEWAL: _("会话续期后重建"),
-            self.BF_CACHE: _("从浏览器 BFCache 恢复"),
+            self.BF_CACHE: _("前进后退缓存恢复"),
         }.get(self, self.value)
 
     @classmethod
@@ -198,8 +290,8 @@ class VitalInpInteractionType(CachedEnum):
         return {
             self.KEYUP: _("松开按键"),
             self.KEYDOWN: _("按下按键"),
-            self.POINTERDOWN: _("点击"),
-            self.POINTERUP: _("松开"),
+            self.POINTERDOWN: _("指针按下"),
+            self.POINTERUP: _("指针松开"),
         }.get(self, self.value)
 
     @classmethod
@@ -253,9 +345,9 @@ class ErrorSource(CachedEnum):
     @cached_property
     def label(self) -> str:
         return {
-            self.WINDOW_ERROR: _("窗口错误"),
+            self.WINDOW_ERROR: _("脚本错误"),
             self.RESOURCE: _("资源加载错误"),
-            self.UNHANDLED_REJECTION: _("未处理的 Promise 拒绝"),
+            self.UNHANDLED_REJECTION: _("未处理的 Promise 异常"),
         }.get(self, self.value)
 
     @classmethod
@@ -286,7 +378,7 @@ class DeviceType(CachedEnum):
 
 
 class NetworkStatus(CachedEnum):
-    """网络连接状态"""
+    """网络状态"""
 
     CONNECTED = "connected"
     NOT_CONNECTED = "not_connected"
@@ -314,10 +406,10 @@ class NetworkEffectiveType(CachedEnum):
     @cached_property
     def label(self) -> str:
         return {
-            self.SLOW_2G: _("极慢网络"),
-            self.G2: _("较慢网络"),
-            self.G3: _("中等网络"),
-            self.G4: _("较快网络"),
+            self.SLOW_2G: _("极慢"),
+            self.G2: _("较慢"),
+            self.G3: _("中等"),
+            self.G4: _("较快"),
         }.get(self, self.value)
 
     @classmethod
@@ -390,7 +482,7 @@ class SessionType(CachedEnum):
 
 
 class SessionPhase(CachedEnum):
-    """会话生命周期阶段"""
+    """会话阶段"""
 
     START = "start"
     ROTATE = "rotate"
@@ -426,7 +518,7 @@ class SdkLanguage(CachedEnum):
 
 
 class VitalMetric(CachedEnum):
-    """核心 Web 指标名"""
+    """核心 Web 指标"""
 
     CLS = "cls"
     INP = "inp"
@@ -462,7 +554,7 @@ class OutcomeType(CachedEnum):
     def label(self) -> str:
         return {
             self.SUCCESS: _("成功"),
-            self.WARNING: _("异常"),
+            self.WARNING: _("警告"),
             self.ERROR: _("失败"),
             self.TIMEOUT: _("超时"),
             self.ABORT: _("中止"),
@@ -490,16 +582,16 @@ class ResourceType(CachedEnum):
     @cached_property
     def label(self) -> str:
         return {
-            self.FETCH: _("Fetch API 请求"),
-            self.XHR: _("XMLHttpRequest 请求"),
-            self.SCRIPT: _("脚本资源"),
-            self.LINK: _("链接加载的资源"),
-            self.IMG: _("图片资源"),
-            self.IMAGE: _("图片资源"),
-            self.CSS: _("CSS 规则加载的资源"),
-            self.IFRAME: _("内嵌文档资源"),
-            self.FRAME: _("内嵌文档资源"),
-            self.OTHER: _("其他类型"),
+            self.FETCH: _("Fetch 请求"),
+            self.XHR: _("XHR 请求"),
+            self.SCRIPT: _("脚本加载"),
+            self.LINK: _("Link 标签加载"),
+            self.IMG: _("图片"),
+            self.IMAGE: _("图片"),
+            self.CSS: _("CSS 规则加载"),
+            self.IFRAME: _("内嵌页面"),
+            self.FRAME: _("内嵌页面"),
+            self.OTHER: _("其他"),
         }.get(self, self.value)
 
     @classmethod
@@ -516,8 +608,8 @@ class ResourceRenderBlockingStatus(CachedEnum):
     @cached_property
     def label(self) -> str:
         return {
-            self.BLOCKING: _("可能阻塞页面渲染"),
-            self.NON_BLOCKING: _("不会阻塞页面渲染"),
+            self.BLOCKING: _("可能阻塞渲染"),
+            self.NON_BLOCKING: _("不阻塞渲染"),
         }.get(self, self.value)
 
     @classmethod
@@ -526,7 +618,7 @@ class ResourceRenderBlockingStatus(CachedEnum):
 
 
 class FrustrationType(CachedEnum):
-    """用户挫败类型"""
+    """异常点击类型"""
 
     RAGE_CLICK = "rage_click"
     ERROR_CLICK = "error_click"
@@ -535,9 +627,9 @@ class FrustrationType(CachedEnum):
     @cached_property
     def label(self) -> str:
         return {
-            self.RAGE_CLICK: _("狂暴点击"),
-            self.ERROR_CLICK: _("错误点击"),
-            self.DEAD_CLICK: _("无效点击"),
+            self.RAGE_CLICK: _("愤怒点击"),
+            self.ERROR_CLICK: _("报错点击"),
+            self.DEAD_CLICK: _("无响应点击"),
         }.get(self, self.value)
 
     @classmethod
@@ -582,7 +674,7 @@ class ErrorHandled(CachedEnum):
 
 
 class SessionHasReplay(CachedEnum):
-    """会话是否回放"""
+    """有无回放"""
 
     TRUE = True
     FALSE = False
@@ -590,8 +682,8 @@ class SessionHasReplay(CachedEnum):
     @cached_property
     def label(self) -> str:
         return {
-            self.TRUE: _("会话回放"),
-            self.FALSE: _("会话未回放"),
+            self.TRUE: _("有回放"),
+            self.FALSE: _("无回放"),
         }.get(self, str(self.value))
 
     @classmethod
