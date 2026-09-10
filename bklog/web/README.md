@@ -195,3 +195,31 @@ npm run lint:fix
 npm run stylelint
 npm run stylelint:fix
 ```
+
+## AAFE E2E
+
+在 `bklog/web` 中使用 AAFE 的 `update --yes` 初始化本地配置和 E2E 模板，
+再执行 `aafe e2e install --yes` 安装 Playwright 与 Chromium。
+初始化保留已有的 `local.settings.js`，不读取或复制 `.cookie`。
+
+本地运行前，在本地 `.aafe.config.json` 中配置 `e2e.devServer`：
+
+- `enabled: true`，`command: ["npm", "run", "dev:e2e"]`。
+- `url` 使用本地 HTTP 地址，`proxyTarget` 使用实际后端地址。
+- `proxyPaths` 按后端接口设置（例如 `/api`、`/rest`、`/query-api`）。
+- 登录测试必须设置 `e2e.auth.readySelector` 或 `e2e.auth.checkUrl`，用于验证登录后的业务页面或接口。
+
+AAFE 启动服务时注入 `AAFE_E2E_DEV_URL`，Webpack 据此加载
+`local.settings.e2e.aafe.cjs`，使用本次任务端口，并将浏览器请求中的 Cookie 传给代理。
+不通过 AAFE 启动的 `npm run dev:e2e` 继续使用原有 `local.settings.e2e.js` 配置。
+
+```bash
+# 按变更生成测试计划；确认本地代理和登录配置就绪后再加 --run
+aafe test --diff --dev-port=41001
+
+# 配置自测（不访问后端，也不需要登录）
+node --test test/unit/e2e-settings.test.cjs
+```
+
+任务端口由调度器分配，示例中的 41001 应替换为当前任务的预留端口。
+认证状态、报告和本地配置不应提交到仓库；测试计划生成成功不等于浏览器测试通过。
