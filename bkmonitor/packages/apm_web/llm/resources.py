@@ -11,7 +11,8 @@ from constants.otel_query import OperatorEnum
 from core.drf_resource import Resource, api
 
 from apm_web.llm.adapter import adapt_spans
-from apm_web.llm.adapter.fields import KEYWORD_FIELDS, resolve_query_field
+from apm_web.handlers.trace_handler.query import QueryHandler, SpanQueryTransformer
+from apm_web.llm.adapter.fields import resolve_query_field
 from apm_web.llm.query import LLMQuery, get_query
 from apm_web.metric.resources import CalculateByRangeResource as MetricCalculateByRangeResource
 from apm_web.models import Application
@@ -232,6 +233,11 @@ class ListTracesResource(Resource):
             service_names=[service_name],
         )
         query_group_field = self._resolve_group_field(entity_set, service_name, group_field)
+        keyword_query = QueryHandler.process_query_string(
+            SpanQueryTransformer(validated_request_data["bk_biz_id"], validated_request_data["app_name"]),
+            validated_request_data["keyword"],
+        )
+        query_string = f"({AGENT_CANDIDATE_QUERY}) AND ({keyword_query})" if keyword_query else AGENT_CANDIDATE_QUERY
         span_query = get_query(application.build_data_sources())
         group_ids = span_query.query_group_list(
             start_time=validated_request_data["start_time"],
@@ -240,9 +246,7 @@ class ListTracesResource(Resource):
             offset=validated_request_data["offset"],
             limit=validated_request_data["limit"],
             filters=filters,
-            query_string=AGENT_CANDIDATE_QUERY,
-            keyword=validated_request_data["keyword"],
-            keyword_fields=list(KEYWORD_FIELDS),
+            query_string=query_string,
         )
         result = {
             "offset": validated_request_data["offset"],

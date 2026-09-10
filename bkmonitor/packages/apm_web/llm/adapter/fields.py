@@ -40,22 +40,6 @@ QUERY_FIELD_MAPPING: dict[str, dict[str, str]] = {
     }
 }
 
-KEYWORD_FIELDS: tuple[str, ...] = (
-    "trace_id",
-    "attributes.user.id",
-    "attributes.gen_ai.user.id",
-    "attributes.gen_ai.conversation.id",
-    *QUERY_FIELD_MAPPING["attributes.gen_ai.conversation.id"].values(),
-    "attributes.gen_ai.input.messages",
-    "attributes.llm.input",
-    "attributes.traceloop.entity.input",
-    "attributes.input.value",
-    "attributes.gen_ai.output.messages",
-    "attributes.llm.output",
-    "attributes.traceloop.entity.output",
-    "attributes.output.value",
-)
-
 
 def resolve_query_field(product: str | None, field: str) -> str:
     """命中映射表时按产品换算为存储中的原始字段，未命中时原样透传。"""

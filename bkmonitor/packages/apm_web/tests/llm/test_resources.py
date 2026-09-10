@@ -220,25 +220,7 @@ class ListTracesResourceTestCase(TestCase):
             offset=0,
             limit=20,
             filters=[{"key": "resource.service.name", "operator": "equal", "value": ["agent-service"]}],
-            query_string=AGENT_CANDIDATE_QUERY,
-            keyword="订单",
-            keyword_fields=[
-                "trace_id",
-                "attributes.user.id",
-                "attributes.gen_ai.user.id",
-                "attributes.gen_ai.conversation.id",
-                "attributes.agent.session.session_code",
-                "attributes.gen_ai.session.id",
-                "attributes.gen_ai.session_id",
-                "attributes.gen_ai.input.messages",
-                "attributes.llm.input",
-                "attributes.traceloop.entity.input",
-                "attributes.input.value",
-                "attributes.gen_ai.output.messages",
-                "attributes.llm.output",
-                "attributes.traceloop.entity.output",
-                "attributes.output.value",
-            ],
+            query_string=f"({AGENT_CANDIDATE_QUERY}) AND (*订单*)",
         )
         span_query.query_by_group_ids.assert_called_once_with(
             group_field="trace_id",
@@ -345,6 +327,7 @@ class ListTracesResourceTestCase(TestCase):
                     "end_time": 2,
                     "service_name": "agent-service",
                     "group_field": "attributes.gen_ai.conversation.id",
+                    "keyword": "demo-user",
                 }
             )
 
@@ -406,25 +389,7 @@ class ListTracesResourceTestCase(TestCase):
             offset=0,
             limit=20,
             filters=[{"key": "resource.service.name", "operator": "equal", "value": ["agent-service"]}],
-            query_string=AGENT_CANDIDATE_QUERY,
-            keyword="",
-            keyword_fields=[
-                "trace_id",
-                "attributes.user.id",
-                "attributes.gen_ai.user.id",
-                "attributes.gen_ai.conversation.id",
-                "attributes.agent.session.session_code",
-                "attributes.gen_ai.session.id",
-                "attributes.gen_ai.session_id",
-                "attributes.gen_ai.input.messages",
-                "attributes.llm.input",
-                "attributes.traceloop.entity.input",
-                "attributes.input.value",
-                "attributes.gen_ai.output.messages",
-                "attributes.llm.output",
-                "attributes.traceloop.entity.output",
-                "attributes.output.value",
-            ],
+            query_string=f"({AGENT_CANDIDATE_QUERY}) AND (demo-user)",
         )
         span_query.query_by_group_ids.assert_called_once_with(
             group_field="trace_id",
@@ -459,81 +424,6 @@ class ListTracesResourceTestCase(TestCase):
         )
 
         self.assertEqual(resolved, "attributes.session.id")
-
-    def test_keyword_fields_include_all_aliases(self):
-        conversation_field = "attributes.gen_ai.conversation.id"
-        products = [
-            ("default", conversation_field),
-            ("agentlens", "attributes.gen_ai.session.id"),
-            ("galileo", "attributes.gen_ai.session_id"),
-            ("aidev", "attributes.agent.session.session_code"),
-        ]
-        id_fields = {
-            "attributes.user.id",
-            "attributes.gen_ai.user.id",
-            conversation_field,
-            "attributes.agent.session.session_code",
-            "attributes.gen_ai.session.id",
-            "attributes.gen_ai.session_id",
-        }
-        text_fields = {
-            "attributes.gen_ai.input.messages",
-            "attributes.gen_ai.output.messages",
-            "attributes.llm.input",
-            "attributes.llm.output",
-            "attributes.traceloop.entity.input",
-            "attributes.traceloop.entity.output",
-            "attributes.input.value",
-            "attributes.output.value",
-        }
-        for product, session_field in products:
-            for group_field in ("trace_id", conversation_field):
-                with self.subTest(product=product, group_field=group_field):
-                    span_query = mock.Mock()
-                    span_query.query_group_list.return_value = []
-                    entity_set = mock.Mock()
-                    entity_set.get_system.return_value = {"is_support_llm": True, "product": product}
-                    with (
-                        mock.patch("apm_web.llm.resources.Application.objects.get"),
-                        mock.patch("apm_web.llm.resources.get_query", return_value=span_query),
-                        mock.patch("apm_web.llm.resources.EntitySet", return_value=entity_set),
-                    ):
-                        result = ListTracesResource().request(
-                            {
-                                "bk_biz_id": 11,
-                                "app_name": "sand_local_dev",
-                                "service_name": "agent-service",
-                                "start_time": 1,
-                                "end_time": 2,
-                                "group_field": group_field,
-                                "keyword": "demo-user",
-                                "offset": 20,
-                                "limit": 10,
-                            }
-                        )
-
-                    span_query.query_group_list.assert_called_once()
-                    query_args = span_query.query_group_list.call_args.kwargs.copy()
-                    expected_fields = {"trace_id", *id_fields, *text_fields}
-                    self.assertCountEqual(query_args.pop("keyword_fields"), expected_fields)
-                    self.assertEqual(
-                        query_args,
-                        {
-                            "start_time": 1,
-                            "end_time": 2,
-                            "group_field": "trace_id" if group_field == "trace_id" else session_field,
-                            "offset": 20,
-                            "limit": 10,
-                            "filters": [
-                                {"key": "resource.service.name", "operator": "equal", "value": ["agent-service"]}
-                            ],
-                            "query_string": AGENT_CANDIDATE_QUERY,
-                            "keyword": "demo-user",
-                        },
-                    )
-                    self.assertEqual(result, {"offset": 20, "limit": 10, "items": []})
-                    span_query.query_group_trace_list.assert_not_called()
-                    span_query.query_by_group_ids.assert_not_called()
 
     def test_trace_conversation_id_uses_first_nonempty_standardized_value(self):
         for product, field in [

@@ -11,8 +11,6 @@ specific language governing permissions and limitations under the License.
 from collections.abc import Mapping
 from typing import Any
 
-from django.db.models import Q
-
 from bkmonitor.data_source.utils import types
 from bkmonitor.data_source.utils.apm import TraceDatasourceTarget
 from constants.apm import OtlpKey
@@ -64,20 +62,9 @@ class LLMQuery(SpanQuery):
         limit: int,
         filters: list[types.Filter] | None = None,
         query_string: str | None = None,
-        keyword: str = "",
-        keyword_fields: list[str] | None = None,
     ) -> list[Any]:
-        keyword_q = Q()
-        if keyword:
-            for field in keyword_fields or []:
-                lookup = "eq" if field == OtlpKey.TRACE_ID else "include"
-                keyword_q |= Q(**{f"{field}__{lookup}": [keyword]})
-
         queries = [
-            query.filter(keyword_q)
-            .distinct(group_field)
-            .values(group_field)
-            .order_by(f"{self.DEFAULT_TIME_FIELD} desc")
+            query.distinct(group_field).values(group_field).order_by(f"{self.DEFAULT_TIME_FIELD} desc")
             for query in self.build_queries(filters, query_string)
         ]
         records = self._query_list(queries, start_time, end_time, offset, limit)

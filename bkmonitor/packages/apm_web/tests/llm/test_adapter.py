@@ -8,7 +8,7 @@ from unittest import TestCase
 
 from apm_web.handlers.service_handler import ServiceHandler
 from apm_web.llm.adapter import adapt_spans as adapt_spans_with_entity_set
-from apm_web.llm.adapter.fields import KEYWORD_FIELDS, detect_product, resolve_query_field
+from apm_web.llm.adapter.fields import detect_product, resolve_query_field
 
 TRACE_ID = "a" * 32
 SPAN_ID = "b" * 16
@@ -109,32 +109,6 @@ class AdapterTests(TestCase):
         # 非 LLM 服务或未命中映射表的字段原样透传
         self.assertEqual(resolve_query_field(None, conversation_field), conversation_field)
         self.assertEqual(resolve_query_field("aidev", "trace_id"), "trace_id")
-
-        for product in ("agentlens", "galileo", "aidev", "default", None):
-            with self.subTest(product=product):
-                self.assertEqual(resolve_query_field(product, "attributes.user.id"), "attributes.user.id")
-
-    def test_keyword_fields(self) -> None:
-        self.assertEqual(
-            set(KEYWORD_FIELDS),
-            {
-                "trace_id",
-                "attributes.user.id",
-                "attributes.gen_ai.user.id",
-                "attributes.gen_ai.conversation.id",
-                "attributes.agent.session.session_code",
-                "attributes.gen_ai.session.id",
-                "attributes.gen_ai.session_id",
-                "attributes.gen_ai.input.messages",
-                "attributes.gen_ai.output.messages",
-                "attributes.llm.input",
-                "attributes.llm.output",
-                "attributes.traceloop.entity.input",
-                "attributes.traceloop.entity.output",
-                "attributes.input.value",
-                "attributes.output.value",
-            },
-        )
 
     def test_default_adapter_keeps_only_standard_fields(self) -> None:
         span = agentlens_span()
