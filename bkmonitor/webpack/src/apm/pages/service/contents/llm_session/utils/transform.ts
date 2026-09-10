@@ -1,7 +1,12 @@
 import { EMPTY_TEXT, IO_SUMMARY_SEPARATOR } from '../constants';
 import { formatElapsed, formatMicroTime, formatTokens } from './formatters';
 
-import type { ILlmTraceItem, ISessionRow, ITokensCell, ITraceRow } from '../typings';
+import type { ILlmTraceItem, ISessionRow, ITokensCell, ITraceRow, LlmStatus } from '../typings';
+
+/** 只透传接口约定的 success / error，其余回退空串由表格占位 */
+function toStatus(status?: string): LlmStatus | '' {
+  return status === 'success' || status === 'error' ? status : '';
+}
 
 /** Tokens 单元格：总量取输入 + 输出之和，缓存读写两个字段暂不展示 */
 function toTokensCell(inputTokens: number, outputTokens: number): ITokensCell {
@@ -27,8 +32,7 @@ export function toTraceRow(item: ILlmTraceItem): ITraceRow {
     key: item.trace_id || item.group_id,
     traceId: item.trace_id || item.group_id,
     userId: item.user_id,
-    // 接口按 trace_id 分组时不返回会话 ID，待后端补齐后在此映射
-    sessionId: '',
+    sessionId: item.group_id,
     startTimeValue: item.start_time,
     startTimeText: formatMicroTime(item.start_time),
     ioSummary: toIoSummary(item),
@@ -36,8 +40,7 @@ export function toTraceRow(item: ILlmTraceItem): ITraceRow {
     elapsedText: formatElapsed(item.elapsed_time),
     tokensTotalValue: inputTokens + outputTokens,
     tokens: toTokensCell(inputTokens, outputTokens),
-    // 接口暂未返回状态，待后端补齐后在此映射
-    status: '',
+    status: toStatus(item.status),
   };
 }
 
@@ -52,7 +55,7 @@ export function toSessionRow(item: ILlmTraceItem): ISessionRow {
     lastActiveText: formatMicroTime(item.start_time + item.elapsed_time),
     traceCountText: `${children.length}`,
     tokens: toTokensCell(item.input_tokens || 0, item.output_tokens || 0),
-    status: '',
+    status: toStatus(item.status),
     children,
   };
 }

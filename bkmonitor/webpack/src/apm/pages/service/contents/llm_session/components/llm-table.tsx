@@ -1,9 +1,11 @@
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import TableSkeleton from 'monitor-pc/components/skeleton/table-skeleton';
+
 import { EMPTY_TEXT } from '../constants';
 
-import type { ILlmColumn, ISessionRow, ITokensCell, LlmRow } from '../typings';
+import type { ILlmColumn, ISessionRow, ITokensCell, LlmRow, LlmStatus } from '../typings';
 
 import './llm-table.scss';
 
@@ -70,8 +72,7 @@ export default class LlmTable extends tsc<ILlmTableProps, ILlmTableEvents> {
       case 'tokensBadge':
         return this.renderTokensBadge(value as ITokensCell);
       case 'status':
-        // 接口暂未返回状态字段，统一占位；后端补齐后在此接入状态图标与文案映射
-        return <span class='llm-table-text'>{(value as string) || EMPTY_TEXT}</span>;
+        return this.renderStatus(value as LlmStatus | '');
       default:
         return (
           <span
@@ -84,16 +85,29 @@ export default class LlmTable extends tsc<ILlmTableProps, ILlmTableEvents> {
     }
   }
 
+  /** 状态：圆点 + 文案。success 成功 / error 失败，非法值回退占位 */
+  renderStatus(status: LlmStatus | '') {
+    if (status !== 'success' && status !== 'error') {
+      return <span class='llm-table-text'>{EMPTY_TEXT}</span>;
+    }
+    return (
+      <span class='llm-table-status'>
+        <span class={['llm-table-status-dot', `is-${status}`]} />
+        <span>{status === 'success' ? this.$t('成功') : this.$t('失败')}</span>
+      </span>
+    );
+  }
+
   /** Tokens 徽标：左侧为总量，右侧标签内分别是输入与输出 */
   renderTokensBadge(tokens: ITokensCell) {
     return (
       <div class='llm-table-tokens-badge'>
         <span class='tokens-total'>{tokens.totalText}</span>
         <span class='tokens-tag'>
-          <i class='icon-monitor icon-arrow-right tokens-tag-icon' />
+          <i class='icon-monitor icon-mc-ai-input tokens-tag-icon' />
           <span class='tokens-tag-value'>{tokens.inputText}</span>
           <span class='tokens-tag-divider' />
-          <i class='icon-monitor icon-arrow-left tokens-tag-icon is-output' />
+          <i class='icon-monitor icon-mc-ai-output tokens-tag-icon is-output' />
           <span class='tokens-tag-value is-output'>{tokens.outputText}</span>
         </span>
       </div>
@@ -110,7 +124,9 @@ export default class LlmTable extends tsc<ILlmTableProps, ILlmTableEvents> {
       <bk-table-column
         key={column.id}
         width={column.width}
+        class-name={column.className}
         label={column.label}
+        label-class-name={column.className}
         minWidth={column.minWidth}
         prop={column.sortField}
         scopedSlots={{ default: ({ row }) => this.renderCell(column, row as LlmRow) }}
@@ -138,33 +154,39 @@ export default class LlmTable extends tsc<ILlmTableProps, ILlmTableEvents> {
   render() {
     return (
       <div class='llm-table'>
-        <bk-table
-          v-bkloading={{ isLoading: this.loading, zIndex: 10 }}
-          data={this.data}
-          max-height={this.maxHeight}
-          outer-border={false}
-          row-key='key'
-          scroll-loading={{
-            isLoading: this.scrollLoading,
-            size: 'mini',
-            theme: 'info',
-            icon: 'circle-2-1',
-            placement: 'right',
-          }}
-          on-scroll-end={this.handleScrollEnd}
-          on-sort-change={this.handleSortChange}
-        >
-          {this.$slots.empty && <div slot='empty'>{this.$slots.empty}</div>}
-          {this.hasExpand && (
-            <bk-table-column
-              key='__expand__'
-              width={30}
-              scopedSlots={{ default: ({ row }) => this.renderExpandContent(row as ISessionRow) }}
-              type='expand'
-            />
-          )}
-          {this.columns.map(column => this.renderColumn(column))}
-        </bk-table>
+        {this.loading ? (
+          <TableSkeleton
+            class='llm-table-skeleton'
+            type={2}
+          />
+        ) : (
+          <bk-table
+            data={this.data}
+            max-height={this.maxHeight}
+            outer-border={false}
+            row-key='key'
+            scroll-loading={{
+              isLoading: this.scrollLoading,
+              size: 'mini',
+              theme: 'info',
+              icon: 'circle-2-1',
+              placement: 'right',
+            }}
+            on-scroll-end={this.handleScrollEnd}
+            on-sort-change={this.handleSortChange}
+          >
+            {this.$slots.empty && <div slot='empty'>{this.$slots.empty}</div>}
+            {this.hasExpand && (
+              <bk-table-column
+                key='__expand__'
+                width={30}
+                scopedSlots={{ default: ({ row }) => this.renderExpandContent(row as ISessionRow) }}
+                type='expand'
+              />
+            )}
+            {this.columns.map(column => this.renderColumn(column))}
+          </bk-table>
+        )}
       </div>
     );
   }
