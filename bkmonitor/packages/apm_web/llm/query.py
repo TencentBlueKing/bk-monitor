@@ -64,9 +64,20 @@ class LLMQuery(SpanQuery):
         limit: int,
         filters: list[types.Filter] | None = None,
         query_string: str | None = None,
+        keyword: str = "",
+        keyword_fields: list[str] | None = None,
     ) -> list[Any]:
+        keyword_q = Q()
+        if keyword:
+            for field in keyword_fields or []:
+                lookup = "eq" if field == OtlpKey.TRACE_ID else "include"
+                keyword_q |= Q(**{f"{field}__{lookup}": [keyword]})
+
         queries = [
-            query.distinct(group_field).values(group_field).order_by(f"{self.DEFAULT_TIME_FIELD} desc")
+            query.filter(keyword_q)
+            .distinct(group_field)
+            .values(group_field)
+            .order_by(f"{self.DEFAULT_TIME_FIELD} desc")
             for query in self.build_queries(filters, query_string)
         ]
         records = self._query_list(queries, start_time, end_time, offset, limit)
@@ -105,17 +116,6 @@ class LLMQuery(SpanQuery):
             for query in self.build_queries()
         ]
         return self._query_list(queries, None, None, 0, limit)
-
-    @classmethod
-    def _add_logic_filter(cls, q: Q, field: str, value: types.FilterValue) -> Q:
-        if field == "keyword":
-            return q & (
-                Q(**{f"{OtlpKey.TRACE_ID}__eq": value})
-                | Q(**{f"{OtlpKey.SPAN_ID}__eq": value})
-                | Q(**{f"{OtlpKey.get_attributes_key('user.id')}__include": value})
-                | Q(**{f"{OtlpKey.get_attributes_key('gen_ai.conversation.id')}__include": value})
-            )
-        return q
 
 
 def get_query(data_sources: list[TraceDatasourceTarget]) -> LLMQuery:

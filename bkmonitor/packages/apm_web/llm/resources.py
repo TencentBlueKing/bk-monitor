@@ -11,7 +11,7 @@ from constants.otel_query import OperatorEnum
 from core.drf_resource import Resource, api
 
 from apm_web.llm.adapter import adapt_spans
-from apm_web.llm.adapter.fields import resolve_query_field
+from apm_web.llm.adapter.fields import expand_query_fields, resolve_query_field
 from apm_web.llm.query import LLMQuery, get_query
 from apm_web.metric.resources import CalculateByRangeResource as MetricCalculateByRangeResource
 from apm_web.models import Application
@@ -222,9 +222,6 @@ class ListTracesResource(Resource):
                 "value": [service_name],
             }
         ]
-        if keyword := validated_request_data["keyword"]:
-            filters.append({"key": "keyword", "operator": "logic", "value": [keyword]})
-
         application = Application.objects.get(
             bk_biz_id=validated_request_data["bk_biz_id"],
             app_name=validated_request_data["app_name"],
@@ -235,6 +232,16 @@ class ListTracesResource(Resource):
             service_names=[service_name],
         )
         query_group_field = self._resolve_group_field(entity_set, service_name, group_field)
+        keyword_fields = [OtlpKey.get_attributes_key("user.id"), OtlpKey.get_attributes_key("gen_ai.conversation.id")]
+        if group_field == OtlpKey.TRACE_ID:
+            keyword_fields.insert(0, OtlpKey.TRACE_ID)
+            keyword_fields.extend(
+                [
+                    OtlpKey.get_attributes_key("gen_ai.input.messages"),
+                    OtlpKey.get_attributes_key("gen_ai.output.messages"),
+                ]
+            )
+
         span_query = get_query(application.build_data_sources())
         group_ids = span_query.query_group_list(
             start_time=validated_request_data["start_time"],
@@ -244,6 +251,8 @@ class ListTracesResource(Resource):
             limit=validated_request_data["limit"],
             filters=filters,
             query_string=AGENT_CANDIDATE_QUERY,
+            keyword=validated_request_data["keyword"],
+            keyword_fields=expand_query_fields(keyword_fields),
         )
         result = {
             "offset": validated_request_data["offset"],

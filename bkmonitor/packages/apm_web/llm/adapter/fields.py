@@ -31,12 +31,28 @@ def detect_product(entity_set: EntitySet, spans: list[dict[str, Any]]) -> str:
     return LLMProduct.DEFAULT.value
 
 
-# 查询侧字段映射：标准字段 -> 产品 -> 存储中的原始字段。
+# 分组字段映射：标准字段 -> 产品 -> 存储中的原始字段。
 QUERY_FIELD_MAPPING: dict[str, dict[str, str]] = {
     "attributes.gen_ai.conversation.id": {
         LLMProduct.AIDEV.value: "attributes.agent.session.session_code",
         LLMProduct.AGENTLENS.value: "attributes.gen_ai.session.id",
-    },
+        LLMProduct.GALILEO.value: "attributes.gen_ai.session_id",
+    }
+}
+
+QUERY_FIELD_ALIASES: dict[str, tuple[str, ...]] = {
+    "attributes.gen_ai.conversation.id": tuple(QUERY_FIELD_MAPPING["attributes.gen_ai.conversation.id"].values()),
+    "attributes.user.id": ("attributes.gen_ai.user.id",),
+    "attributes.gen_ai.input.messages": (
+        "attributes.llm.input",
+        "attributes.traceloop.entity.input",
+        "attributes.input.value",
+    ),
+    "attributes.gen_ai.output.messages": (
+        "attributes.llm.output",
+        "attributes.traceloop.entity.output",
+        "attributes.output.value",
+    ),
 }
 
 
@@ -45,6 +61,15 @@ def resolve_query_field(product: str | None, field: str) -> str:
     if product is None:
         return field
     return QUERY_FIELD_MAPPING.get(field, {}).get(product, field)
+
+
+def expand_query_fields(fields: list[str]) -> list[str]:
+    """将标准查询字段展开为自身及所有已知原始字段。"""
+    result: list[str] = []
+    for field in fields:
+        result.append(field)
+        result.extend(QUERY_FIELD_ALIASES.get(field, ()))
+    return list(dict.fromkeys(result))
 
 
 STANDARD_FIELDS = {

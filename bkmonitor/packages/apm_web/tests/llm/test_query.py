@@ -2,6 +2,7 @@ from unittest import TestCase, mock
 
 from django.db.models import Q
 
+from bkmonitor.data_source.data_source import q_to_dict
 from bkmonitor.data_source.utils.apm import TraceDatasourceTarget
 from constants.apm import OtlpKey
 
@@ -112,15 +113,60 @@ class LLMQueryTestCase(TestCase):
         query_builder.values.assert_called_once_with("attributes.session.id", OtlpKey.TRACE_ID)
         query_list.assert_called_once_with([query_builder], None, None, 0, 10000)
 
-    def test_keyword_logic_filter(self):
+    def test_keyword_filters_before_group_pagination(self):
         value = ["search-text"]
+        keyword_fields = [
+            "trace_id",
+            "attributes.user.id",
+            "attributes.gen_ai.user.id",
+            "attributes.gen_ai.conversation.id",
+            "attributes.gen_ai.session.id",
+        ]
+        with mock.patch.object(self.query, "_query_list", return_value=[{"trace_id": "trace-1"}]) as query_list:
+            result = self.query.query_group_list(
+                start_time=1,
+                end_time=2,
+                group_field="trace_id",
+                offset=20,
+                limit=10,
+                filters=[{"key": "resource.service.name", "operator": "equal", "value": ["agent-service"]}],
+                query_string="_exists_:attributes.gen_ai.span.kind",
+                keyword=value[0],
+                keyword_fields=keyword_fields,
+            )
 
-        result = self.query._build_filters([{"key": "keyword", "operator": "logic", "value": value}])
-
-        expected = (
-            Q(**{f"{OtlpKey.TRACE_ID}__eq": value})
-            | Q(**{f"{OtlpKey.SPAN_ID}__eq": value})
-            | Q(**{f"{OtlpKey.get_attributes_key('user.id')}__include": value})
-            | Q(**{f"{OtlpKey.get_attributes_key('gen_ai.conversation.id')}__include": value})
+        expected = Q(**{"resource.service.name__eq": ["agent-service"]}) & (
+            Q(trace_id__eq=value)
+            | Q(**{"attributes.user.id__include": value})
+            | Q(**{"attributes.gen_ai.user.id__include": value})
+            | Q(**{"attributes.gen_ai.conversation.id__include": value})
+            | Q(**{"attributes.gen_ai.session.id__include": value})
         )
-        self.assertEqual(result, expected)
+        query_list.assert_called_once()
+        queries, *pagination = query_list.call_args.args
+        self.assertEqual(pagination, [1, 2, 20, 10])
+        self.assertEqual(len(queries), 1)
+        query = queries[0].query
+        self.assertEqual(q_to_dict(query.where), q_to_dict(expected))
+        self.assertEqual(query.distinct, "trace_id")
+        self.assertEqual(query.select, ["trace_id"])
+        self.assertEqual(query.order_by, ["end_time desc"])
+        self.assertEqual(query.raw_query_string, "_exists_:attributes.gen_ai.span.kind")
+        self.assertEqual(result, ["trace-1"])
+
+    def test_empty_keyword_keeps_only_service_filter(self):
+        with mock.patch.object(self.query, "_query_list", return_value=[]) as query_list:
+            result = self.query.query_group_list(
+                start_time=1,
+                end_time=2,
+                group_field="attributes.gen_ai.conversation.id",
+                offset=0,
+                limit=20,
+                filters=[{"key": "resource.service.name", "operator": "equal", "value": ["agent-service"]}],
+                keyword="",
+                keyword_fields=["attributes.user.id", "attributes.gen_ai.conversation.id"],
+            )
+
+        query = query_list.call_args.args[0][0].query
+        self.assertEqual(q_to_dict(query.where), {"resource.service.name__eq": ["agent-service"]})
+        self.assertEqual(result, [])
