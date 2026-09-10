@@ -7,7 +7,7 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("bkmonitor", "0205_align_existing_model_state"),
+        ("bkmonitor", "0206_align_existing_model_state"),
     ]
 
     operations = [

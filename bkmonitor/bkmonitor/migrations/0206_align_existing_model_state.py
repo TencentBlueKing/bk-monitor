@@ -6,7 +6,7 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("bkmonitor", "0204_migrate_graph_relation_v4_biz_id_white_list"),
+        ("bkmonitor", "0205_shield_end_policy"),
     ]
 
     operations = [
