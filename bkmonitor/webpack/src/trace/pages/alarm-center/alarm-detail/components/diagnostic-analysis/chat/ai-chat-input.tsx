@@ -125,7 +125,8 @@ export default defineComponent({
           class='ai-chat-input-textarea'
           v-model={this.value}
           disabled={this.pending}
-          placeholder={this.t('在页面上划词，可添加至聊天继续追问')}
+          // 已有划词引用时不再提示怎么划词
+          placeholder={this.contextGroups.length ? '' : this.t('在页面上划词，可添加至聊天继续追问')}
           rows={2}
           onBlur={() => {
             this.isFocus = false;
@@ -136,7 +137,6 @@ export default defineComponent({
           onKeydown={this.handleKeydown}
         />
         <div class='ai-chat-input-toolbar'>
-          <span class='ai-chat-input-tips'>{this.t('Enter 发送，Shift + Enter 换行')}</span>
           <button
             class={['ai-chat-input-send', { 'is-active': this.canSend }]}
             disabled={!this.canSend}
