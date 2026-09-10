@@ -32,7 +32,9 @@ import { useAlarmCenterDetailStore } from '../../../../../store/modules/alarm-ce
 // import AiHighlightCard from '../../../components/ai-highlight-card/ai-highlight-card';
 import AlarmDashboardGroup from '../../../components/alarm-dashboard-group/alarm-dashboard-group';
 import { useAlertHost } from '../../../composables/use-alert-host';
+import { useDiagnosticNavigate } from '../../../composables/use-diagnostic-navigate';
 import { useSceneView } from '../../../composables/use-scene-view';
+import { ALARM_CENTER_PANEL_TAB_MAP } from '../../../utils/constant';
 import PanelEmpty from './components/panel-empty/panel-empty';
 import PanelHostSelector from './components/panel-host-selector/panel-host-selector';
 
@@ -75,6 +77,40 @@ export default defineComponent({
         ...target,
       };
     });
+
+    useDiagnosticNavigate(ALARM_CENTER_PANEL_TAB_MAP.HOST, filter => {
+      const applyHostFilter = () => {
+        const list = get(targetList) || [];
+        let matched =
+          (filter.hostIp && list.find(item => String(item.bk_target_ip) === String(filter.hostIp))) ||
+          (filter.hostName &&
+            list.find(
+              item =>
+                String((item as any).bk_host_name || '') === String(filter.hostName) ||
+                String((item as any).hostname || '') === String(filter.hostName)
+            ));
+        if (!matched && filter.hostIp) {
+          matched = {
+            bk_target_ip: filter.hostIp,
+            bk_cloud_id: filter.hostCloudId !== undefined ? Number(filter.hostCloudId) : 0,
+          } as any;
+        }
+        if (matched) {
+          currentTarget.value = matched;
+        }
+      };
+      applyHostFilter();
+      // 主机列表可能仍在加载，列表就绪后再补一次选中
+      if (!get(targetList)?.length) {
+        const stop = watch(targetList, list => {
+          if (list?.length) {
+            applyHostFilter();
+            stop();
+          }
+        });
+      }
+    });
+
     /**
      * @description: 获取跳转url
      * @param {string} hash hash值

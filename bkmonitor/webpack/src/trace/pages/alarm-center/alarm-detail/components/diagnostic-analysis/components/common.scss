@@ -4,11 +4,16 @@
 
 // Panel 通用样式
 %panel-container {
-  .tips {
-    margin-bottom: 12px;
+  .tips,
+  .card-summary {
+    margin-bottom: 16px;
     font-size: 12px;
     line-height: 20px;
     color: #313238;
+  }
+
+  .card-summary-title {
+    font-weight: 600;
   }
 
   .link-text {

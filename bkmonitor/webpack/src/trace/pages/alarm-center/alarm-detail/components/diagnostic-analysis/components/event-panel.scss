@@ -6,36 +6,73 @@
   .event-group-list {
     @extend %group-list;
 
+    // 嵌在事件父级下的子折叠条，相对父级内容再缩进一级
+    .suspicious-analysis-group.tone-inner {
+      margin: 8px 0 0 10px;
+    }
+
+    .event-parent-title {
+      gap: 4px;
+      align-items: center;
+      justify-content: flex-start;
+
+      .event-icon {
+        display: inline-flex;
+        flex-shrink: 0;
+        align-items: center;
+        justify-content: center;
+        width: 16px;
+        height: 16px;
+        background: #2b3c56;
+        border-radius: 50%;
+
+        .icon-monitor {
+          font-size: 12px;
+          color: #fff;
+        }
+      }
+
+      .group-name {
+        font-weight: 700;
+        color: #313238;
+      }
+
+      .group-count {
+        font-weight: 400;
+        color: #313238;
+
+        .count-strong {
+          font-weight: 700;
+
+          &.is-clickable {
+            color: #3a84ff;
+            cursor: pointer;
+
+            &:hover {
+              color: #699df4;
+            }
+          }
+        }
+      }
+    }
+
     .group-title {
       @extend %group-title;
 
       .group-name {
-        &.link-text {
+        font-weight: 600;
+        color: #313238;
+
+        .filter-btn {
+          margin-left: 6px;
+          font-size: 12px;
           color: #3a84ff;
+          cursor: pointer;
 
           &:hover {
             color: #699df4;
           }
-
-          .icon-monitor {
-            margin-left: 5px;
-            font-size: 11px;
-          }
         }
-      }
-
-      .detail-link {
-        flex-shrink: 0;
-      }
-    }
-
-    .footer-content {
-      line-height: 24px;
-
-      @extend %footer-content;
-
-      .link-text {
-        flex-shrink: 0;
       }
     }
   }

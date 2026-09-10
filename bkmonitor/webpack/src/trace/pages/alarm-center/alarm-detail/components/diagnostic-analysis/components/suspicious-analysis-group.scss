@@ -1,3 +1,4 @@
+// 折叠条可自嵌套，所有规则用直接子选择器，避免样式渗透到子级折叠条
 .suspicious-analysis-group {
   display: grid;
   grid-template-rows: 0fr;
@@ -7,10 +8,10 @@
   border-radius: 2px;
   transition: grid-template-rows 0.6s ease;
 
-  .suspicious-analysis-group-wrapper {
+  > .suspicious-analysis-group-wrapper {
     min-height: 32px;
 
-    .group-header {
+    > .group-header {
       display: flex;
       align-items: center;
       height: 32px;
@@ -26,7 +27,11 @@
       }
     }
 
-    .group-footer {
+    > .group-content {
+      min-height: 0;
+    }
+
+    > .group-footer {
       display: flex;
       align-items: center;
       padding: 4px 26px;
@@ -35,15 +40,38 @@
     }
   }
 
+  &.tone-event {
+    > .suspicious-analysis-group-wrapper {
+      > .group-header {
+        background: #c1cde6;
+      }
+
+      > .group-content {
+        margin-left: 10px;
+        border-left: 1px solid #e1e4eb;
+      }
+    }
+  }
+
+  &.tone-inner {
+    border: 1px solid #ebeef5;
+    border-radius: 2px;
+
+    > .suspicious-analysis-group-wrapper {
+      min-height: 26px;
+
+      > .group-header {
+        height: 26px;
+        background: #ebeef5;
+      }
+    }
+  }
+
   &.expand {
     grid-template-rows: 1fr;
 
-    .suspicious-analysis-group-wrapper {
-      .group-header {
-        .arrow-icon {
-          transform: rotateZ(90deg);
-        }
-      }
+    > .suspicious-analysis-group-wrapper > .group-header > .arrow-icon {
+      transform: rotateZ(90deg);
     }
   }
 }

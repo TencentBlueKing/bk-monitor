@@ -36,16 +36,6 @@
     }
   }
 
-  .header-operate {
-    display: flex;
-    align-items: center;
-    height: 21px;
-    margin-bottom: 16px;
-    color: #313238;
-
-    @include source-item;
-  }
-
   .relation-event-table {
     @include source-item;
 

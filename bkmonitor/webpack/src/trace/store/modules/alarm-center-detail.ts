@@ -34,6 +34,7 @@ import { createAutoTimeRange } from '../../plugins/charts/failure-chart/failure-
 import { useAppStore } from './app';
 import { fetchActionDetail, fetchAlarmDetail } from '@/pages/alarm-center/services/alarm-detail';
 
+import type { IDiagnosticNavigateIntent } from '../../pages/alarm-center/alarm-detail/components/diagnostic-analysis/navigate-typing';
 import type { AlarmDetail } from '../../pages/alarm-center/typings/detail';
 import type { ActionDetail } from '@/pages/alarm-center/typings/action-detail';
 import type { DateValue } from '@blueking/date-picker';
@@ -53,6 +54,11 @@ export const useAlarmCenterDetailStore = defineStore('alarmCenterDetail', () => 
   const loading = shallowRef<boolean>(false);
   const bizId = shallowRef<number>((window.bk_biz_id as number) || (window.cc_biz_id as number) || undefined);
   const appStore = useAppStore();
+  /**
+   * 右侧 AI 诊断驱动左侧详情 tab 的导航意图。
+   * common-detail 负责切 tab，各 panel 负责消费 filter。
+   */
+  const diagnosticNavigate = shallowRef<IDiagnosticNavigateIntent | null>(null);
   /** 数据间隔 */
   const interval = computed(
     () => alarmDetail.value?.extra_info?.strategy?.items?.[0]?.query_configs?.[0]?.agg_interval || 60
@@ -92,6 +98,14 @@ export const useAlarmCenterDetailStore = defineStore('alarmCenterDetail', () => 
     loading.value = false;
   };
 
+  const navigateFromDiagnostic = (intent: IDiagnosticNavigateIntent) => {
+    diagnosticNavigate.value = intent;
+  };
+
+  const clearDiagnosticNavigate = () => {
+    diagnosticNavigate.value = null;
+  };
+
   watch(
     () => alarmId.value,
     newVal => {
@@ -115,6 +129,7 @@ export const useAlarmCenterDetailStore = defineStore('alarmCenterDetail', () => 
     alarmId.value = '';
     alarmDetail.value = null;
     loading.value = false;
+    diagnosticNavigate.value = null;
   });
 
   return {
@@ -129,5 +144,8 @@ export const useAlarmCenterDetailStore = defineStore('alarmCenterDetail', () => 
     bizItem,
     interval,
     timeRange,
+    diagnosticNavigate,
+    navigateFromDiagnostic,
+    clearDiagnosticNavigate,
   };
 });

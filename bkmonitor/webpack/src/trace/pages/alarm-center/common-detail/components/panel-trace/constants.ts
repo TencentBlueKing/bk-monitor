@@ -24,6 +24,15 @@
  * IN THE SOFTWARE.
  */
 
+/** 耗时类字段，筛选时使用耗时输入组件 */
+export const ALERT_TRACE_DURATION_KEYS = ['trace_duration', 'elapsed_time'];
+
+/** 直接输入的字段，筛选时不弹候选值 */
+export const ALERT_TRACE_INPUT_TAG_KEYS = ['span_id', 'trace_id'];
+
+/** Trace 视角下不支持拉取候选值的字段 */
+export const ALERT_TRACE_NOT_SUPPORT_ENUM_KEYS = ['min_start_time', 'max_end_time', 'trace_id', 'root_span_id'];
+
 /** 调用链表格展示字段配置信息 */
 export const ALERT_TRACE_FIELD_CONFIGS = [
   {

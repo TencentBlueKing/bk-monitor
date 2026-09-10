@@ -3,36 +3,86 @@
 .suspicious-dimension-panel {
   @extend %panel-container;
 
+  .panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+
+    .tips {
+      margin-bottom: 0;
+    }
+
+    .view-all {
+      flex-shrink: 0;
+      margin-left: 8px;
+
+      .icon-monitor {
+        margin-right: 0;
+        margin-left: 4px;
+      }
+    }
+  }
+
   .dimension-group-list {
     @extend %group-list;
+
+    gap: 8px;
+
+    .suspicious-analysis-group {
+      .group-header {
+        padding: 0 8px 0 3px;
+      }
+
+      .group-footer {
+        display: block;
+        padding: 4px 20px;
+        line-height: 24px;
+        color: #313238;
+      }
+    }
 
     .group-title {
       @extend %group-title;
 
+      align-items: center;
+
       .group-name {
+        min-width: 0;
         overflow: hidden;
+        font-weight: 600;
+        color: #313238;
         text-overflow: ellipsis;
         white-space: nowrap;
+
+        .jump-btn {
+          margin-left: 6px;
+          font-size: 12px;
+          color: #3a84ff;
+          cursor: pointer;
+
+          &:hover {
+            color: #699df4;
+          }
+        }
       }
 
-      .abnormality-tag {
+      .abnormality-score {
         flex-shrink: 0;
-        padding: 0 6px;
-        font-size: 11px;
-        font-weight: 500;
-        color: #c12726;
-        background: #fff;
-        border-radius: 999px;
+        margin-left: 8px;
+        color: #c12626;
+
+        .score-value {
+          font-weight: 700;
+        }
       }
     }
 
-    .footer-content {
-      line-height: 24px;
+    .footer-item {
+      display: block;
 
-      @extend %footer-content;
-
-      .link-text {
-        flex-shrink: 0;
+      .count-strong {
+        font-weight: 700;
       }
     }
   }

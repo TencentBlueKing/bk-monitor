@@ -23,58 +23,29 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, defineComponent, shallowRef, watch } from 'vue';
 
-import './suspicious-analysis-group.scss';
+import type { AlarmCenterPanelTabType } from '../../../utils/constant';
+import type { EMode, IWhereItem } from '@/components/retrieval-filter/typing';
 
-export default defineComponent({
-  name: 'SuspiciousAnalysisGroup',
-  props: {
-    defaultExpand: {
-      type: Boolean,
-      default: true,
-    },
-    /** default 灰条 / event 事件父级蓝灰条 / inner 内嵌浅色条 */
-    tone: {
-      type: String as PropType<'default' | 'event' | 'inner'>,
-      default: 'default',
-    },
-  },
-  setup(props) {
-    const expand = shallowRef(props.defaultExpand);
+/** 诊断面板驱动左侧 tab 检索的筛选载荷 */
+export interface IDiagnosticPanelFilter {
+  /** 调用链：切换到指定应用 */
+  appName?: string;
+  filterMode?: EMode;
+  /** 主机：按 IP / 主机名选中目标 */
+  hostCloudId?: number | string;
+  hostIp?: string;
+  hostName?: string;
+  /** 日志：语句模式关键词 */
+  queryString?: string;
+  /** UI 模式筛选条件 */
+  where?: IWhereItem[];
+}
 
-    const toggleExpand = () => {
-      expand.value = !expand.value;
-    };
-
-    const unWatchExpand = watch(
-      () => props.defaultExpand,
-      val => {
-        expand.value = val;
-        unWatchExpand();
-      }
-    );
-
-    return {
-      expand,
-      toggleExpand,
-    };
-  },
-  render() {
-    return (
-      <div class={['suspicious-analysis-group', `tone-${this.tone}`, { expand: this.expand }]}>
-        <div class='suspicious-analysis-group-wrapper'>
-          <div
-            class='group-header'
-            onClick={this.toggleExpand}
-          >
-            <i class='icon-monitor icon-mc-arrow-right arrow-icon' />
-            {this.$slots.title?.()}
-          </div>
-          <div class='group-content'>{this.$slots.default?.()}</div>
-          {this.$slots.footer && <div class='group-footer'>{this.$slots.footer?.()}</div>}
-        </div>
-      </div>
-    );
-  },
-});
+/** 右侧 AI 诊断 → 左侧详情 tab 的导航意图 */
+export interface IDiagnosticNavigateIntent {
+  filter?: IDiagnosticPanelFilter;
+  /** 递增以强制重复触发同一意图 */
+  nonce: number;
+  tab: AlarmCenterPanelTabType;
+}

@@ -12,11 +12,29 @@
       .group-name {
         overflow: hidden;
         text-overflow: ellipsis;
+        font-weight: 600;
+        color: #313238;
         white-space: nowrap;
+
+        .jump-btn {
+          margin-left: 6px;
+          font-size: 12px;
+          color: #3a84ff;
+          cursor: pointer;
+
+          &:hover {
+            color: #699df4;
+          }
+        }
       }
 
-      .link-text {
-        flex-shrink: 0;
+      .group-count {
+        font-weight: 400;
+
+        .count-strong {
+          margin: 0 2px;
+          font-weight: 700;
+        }
       }
     }
   }

@@ -9,6 +9,40 @@
     box-shadow: 0 1px 2px 0 #1919290a;
   }
 
+  .panel-trace-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 12px;
+
+    .panel-source-selector,
+    .panel-source-selector-loading {
+      flex: none;
+      width: 480px;
+    }
+
+    .icon-fenxiang {
+      font-size: 12px;
+    }
+  }
+
+  .panel-trace-filter {
+    margin-bottom: 12px;
+
+    /* stylelint-disable-next-line selector-class-pattern */
+    .vue3_retrieval-filter__component {
+      border: 1px solid #dcdee5;
+      border-radius: 2px;
+      box-shadow: none;
+
+      /* stylelint-disable-next-line selector-class-pattern */
+      .retrieval-filter__component-main .component-right .search-btn {
+        position: relative;
+        top: -1px;
+        height: calc(100% + 2px);
+      }
+    }
+  }
+
   .panel-trace-table {
     &.trace-explore-table {
       .explore-col {

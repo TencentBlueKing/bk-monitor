@@ -2,72 +2,97 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2017-2025 Tencent.  All rights reserved.
+ * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
- *
- * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
- *
- * ---------------------------------------------------
- * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
- * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
- * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
- * the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
- * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
- * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
- * IN THE SOFTWARE.
  */
 import { defineComponent } from 'vue';
 
+import { navigateToTraceBySpan, navigateToTraceTab } from '../navigate';
 import AnalysisDetailContent from './analysis-detail-content';
 import SuspiciousAnalysisGroup from './suspicious-analysis-group';
 
+import type { ITableItem } from '../typing';
+
 import './link-panel.scss';
+
+const MOCK_TRACE_RESULTS = [
+  {
+    logCount: 2,
+    pattern: "TypeError: '<' not supported between instances of 'str' and 'int'",
+    tableData: [
+      { name: 'Span ID', value: 'a1b2c3d4e5f60718', link: true },
+      { name: '所属 Trace', value: '7160731cd9fe607033c1ae7d7a5f449b', link: true },
+      { name: '所属应用', value: 'bkmonitorv3', link: true },
+      { name: '所属服务', value: 'unify-query', link: true },
+      { name: '调用类型', value: 'SERVER', link: true },
+      {
+        name: '异常信息',
+        value: "TypeError: '<' not supported between instances of 'str' and 'int' in IncidentHandlersResource",
+      },
+    ],
+  },
+];
 
 export default defineComponent({
   name: 'LinkPanel',
+  setup() {
+    const handleValueClick = (item: ITableItem, tableData: ITableItem[]) => {
+      navigateToTraceTab(item, tableData);
+    };
+
+    const handleSpanTitleClick = (tableData: ITableItem[]) => {
+      navigateToTraceBySpan(tableData);
+    };
+
+    return {
+      handleValueClick,
+      handleSpanTitleClick,
+    };
+  },
   render() {
     return (
       <div class='suspicious-link-panel'>
+        <div class='card-summary'>
+          <div class='card-summary-title'>{this.$t('Trace 分析总结：')}</div>
+          <div>
+            {this.$t(
+              '在关联调用链中定位到异常 Span，下面给出 Pattern 与示例 span 明细，点击字段可跳转到 Trace 检索。'
+            )}
+          </div>
+        </div>
         <div class='link-group-list'>
-          <SuspiciousAnalysisGroup>
-            {{
-              title: () => (
-                <div class='group-title'>
-                  <div class='group-name'>
-                    {this.$t('调用链')}：<span class='link-name link-text'>7160731cd9fe607033c1ae7d7a5f449b</span>
+          {MOCK_TRACE_RESULTS.map((item, index) => (
+            <SuspiciousAnalysisGroup key={item.pattern}>
+              {{
+                title: () => (
+                  <div class='group-title'>
+                    <span class='group-name'>
+                      {`${this.$t('分析结果')} ${index + 1}`}
+                      <i18n-t
+                        class='group-count'
+                        keypath='（共 {0} 条异常信息）'
+                        tag='span'
+                      >
+                        <span class='count-strong'>{item.logCount}</span>
+                      </i18n-t>
+                    </span>
                   </div>
-                </div>
-              ),
-              default: () => (
-                <AnalysisDetailContent
-                  contentData={[
-                    {
-                      title: '错误情况',
-                      value: [
-                        "IE monitor_web，incident，resources, fronted_resources. IncidentHandlersResource 这个 span 中，发生了一个类型为 TypeError 的异常。异常信息为'<' not supported between instances of 'str' and 'int'. 这表明在代表中存在一个比较操作。试图将字符串和整数进行比较，导致了类型错误。",
-                      ],
-                    },
-                    {
-                      title: '错误详情',
-                      value: [
-                        '异常类型：TypeError',
-                        "异常信息：'<' not supported between instances of 'str' and 'int'",
-                      ],
-                    },
-                    { title: '堆栈跟踪', value: ['Transaction:Transaction root'] },
-                  ]}
-                  tableData={[]}
-                />
-              ),
-            }}
-          </SuspiciousAnalysisGroup>
+                ),
+                default: () => (
+                  <AnalysisDetailContent
+                    blocks={[{ title: 'Pattern：', value: item.pattern, kind: 'text' }]}
+                    tableTitle={this.$t('示例 span：') as string}
+                    tableTitleClickable
+                    tableData={item.tableData}
+                    contentData={[]}
+                    onTableTitleClick={() => this.handleSpanTitleClick(item.tableData)}
+                    onValueClick={row => this.handleValueClick(row, item.tableData)}
+                  />
+                ),
+              }}
+            </SuspiciousAnalysisGroup>
+          ))}
         </div>
       </div>
     );

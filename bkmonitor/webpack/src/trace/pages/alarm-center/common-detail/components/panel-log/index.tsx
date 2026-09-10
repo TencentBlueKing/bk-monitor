@@ -50,6 +50,8 @@ export const updateUserFiledTableConfig = request(
 
 import { alertLogRelationList } from 'monitor-api/modules/alert_v2';
 
+import { useDiagnosticNavigate } from '../../../composables/use-diagnostic-navigate';
+import { ALARM_CENTER_PANEL_TAB_MAP } from '../../../utils/constant';
 import { useLogFilter } from './log-table/hooks/use-log-filter';
 import LogException from './log-table/log-exception';
 import TableFieldSetting from './log-table/table-field-setting';
@@ -439,6 +441,19 @@ export default defineComponent({
       }
       displayColumnFields.value = [...displayColumnFields.value, fieldName];
     };
+
+    useDiagnosticNavigate(ALARM_CENTER_PANEL_TAB_MAP.LOG, filter => {
+      const mode = filter.filterMode ?? EMode.ui;
+      filterMode.value = mode;
+      if (mode === EMode.queryString) {
+        keyword.value = filter.queryString || '';
+        where.value = [];
+      } else {
+        where.value = filter.where || [];
+        keyword.value = '';
+      }
+      tableRefreshKey.value = random(8);
+    });
 
     return {
       indexSetList,

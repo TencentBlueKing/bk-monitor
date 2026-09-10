@@ -9,8 +9,21 @@
     .group-title {
       @extend %group-title;
 
-      .link-name {
-        margin-left: 4px;
+      .group-name {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        font-weight: 600;
+        color: #313238;
+        white-space: nowrap;
+      }
+
+      .group-count {
+        font-weight: 400;
+
+        .count-strong {
+          margin: 0 2px;
+          font-weight: 700;
+        }
       }
     }
   }

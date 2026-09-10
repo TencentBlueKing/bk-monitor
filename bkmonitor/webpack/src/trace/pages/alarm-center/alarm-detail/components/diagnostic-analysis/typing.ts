@@ -54,6 +54,14 @@ export interface IContentItem {
 
 /** 表格项 */
 export interface ITableItem {
+  link?: boolean;
   name: string;
+  value: string;
+}
+
+/** Pattern / 示例日志 内容块 */
+export interface IPatternBlock {
+  kind?: 'json' | 'text';
+  title: string;
   value: string;
 }

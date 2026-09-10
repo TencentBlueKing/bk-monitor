@@ -2,89 +2,114 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2017-2025 Tencent.  All rights reserved.
+ * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
- *
- * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
- *
- * ---------------------------------------------------
- * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
- * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
- * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
- * the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
- * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
- * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
- * IN THE SOFTWARE.
  */
 import { defineComponent } from 'vue';
 
+import { navigateToLogTab, openLogClusteringPlaceholder } from '../navigate';
 import AnalysisDetailContent from './analysis-detail-content';
 import SuspiciousAnalysisGroup from './suspicious-analysis-group';
 
+import type { IPatternBlock } from '../typing';
+
 import './log-panel.scss';
+
+const MOCK_LOG_CLUSTERS = [
+  {
+    logCount: 212,
+    pattern: 'systemd: Started Session * of user root',
+    demoLog: JSON.stringify({
+      dtEventTimeStamp: 1713612122000,
+      ip: '10.0.34.2',
+      path: '/var/log/messages',
+      log: 'systemd: Started Session 2334 of user root',
+    }),
+  },
+  {
+    logCount: 86,
+    pattern: '* probe failed: dial tcp *: i/o timeout',
+    demoLog: JSON.stringify({
+      dtEventTimeStamp: 1713611921000,
+      ip: '10.0.34.8',
+      path: '/var/log/kubelet.log',
+      log: 'Liveness probe failed: dial tcp 10.0.34.8:8080: i/o timeout',
+    }),
+  },
+];
 
 export default defineComponent({
   name: 'LogPanel',
+  setup() {
+    const handleBlockJump = (block: IPatternBlock & { jumpable?: boolean }, item: (typeof MOCK_LOG_CLUSTERS)[0]) => {
+      let keyword = item.demoLog;
+      try {
+        const parsed = JSON.parse(item.demoLog);
+        keyword = parsed?.log || item.demoLog;
+      } catch {
+        keyword = item.demoLog;
+      }
+      navigateToLogTab(keyword);
+    };
+
+    return {
+      handleBlockJump,
+    };
+  },
   render() {
     return (
       <div class='suspicious-log-panel'>
+        <div class='card-summary'>
+          <div class='card-summary-title'>{this.$t('日志分析总结：')}</div>
+          <div>
+            {this.$t('对告警窗口内异常日志做了聚类，下面给出出现次数最高的 Pattern 和对应示例日志，便于对照排查。')}
+          </div>
+        </div>
         <div class='log-group-list'>
-          <SuspiciousAnalysisGroup>
-            {{
-              title: () => (
-                <div class='group-title'>
-                  <span class='group-name'>日志内容摘要</span>
-                  <span
-                    class='link-text'
-                    onClick={e => {
-                      e.stopPropagation();
-                    }}
-                  >
-                    <i class='icon-monitor icon-xiangqing1' />
-                    日志详情
-                  </span>
-                </div>
-              ),
-              default: () => (
-                <AnalysisDetailContent
-                  contentData={[
-                    {
-                      title: '运维视角分析',
-                      value: [
-                        '这条日志表明在指定时间，systemd 系统管理器启动了一个新的会话(session 723423)，并且这个会话是以 root 用户身份运行的。这是一个正常的系统操作日志，通常用于记录用户登录或系统服务的启动。',
-                      ],
-                    },
-                    {
-                      title: '研发视角分析',
-                      value: [
-                        '从研发的角度看，这条日志显示了一个新的会话被创建，可能是由于用户登录或者某个需要 root 权限的服务启用。这本身是一个正常的操作，不需要特别的关心。',
-                      ],
-                    },
-                    {
-                      title: '结论',
-                      value: [
-                        '这条日志记录的是一个正常的系统事件，即一个新的会话被创建并且是以 root 用户身份运行的。没有发现任何异常或错误信息。',
-                      ],
-                    },
-                  ]}
-                  tableData={[
-                    { name: '服务器IP', value: '10.0.34.2' },
-                    { name: '时间戳', value: '172234452（对应时间 2024年4月20日 19:22:02）' },
-                    { name: '主机ID', value: '603242' },
-                    { name: '日志路径', value: '/var/log/messages' },
-                    { name: '日志信息', value: 'systemd: Started Session 2334 of user root' },
-                  ]}
-                />
-              ),
-            }}
-          </SuspiciousAnalysisGroup>
+          {MOCK_LOG_CLUSTERS.map((item, index) => (
+            <SuspiciousAnalysisGroup key={item.pattern}>
+              {{
+                title: () => (
+                  <div class='group-title'>
+                    <span class='group-name'>
+                      {`${this.$t('聚类结果')} ${index + 1}`}
+                      <i
+                        class='icon-monitor icon-fenxiang jump-btn'
+                        onClick={e => {
+                          e.stopPropagation();
+                          openLogClusteringPlaceholder(item.pattern);
+                        }}
+                      />
+                      <i18n-t
+                        class='group-count'
+                        keypath='（共 {0} 条日志）'
+                        tag='span'
+                      >
+                        <span class='count-strong'>{item.logCount}</span>
+                      </i18n-t>
+                    </span>
+                  </div>
+                ),
+                default: () => (
+                  <AnalysisDetailContent
+                    blocks={[
+                      { title: 'Pattern：', value: item.pattern, kind: 'text' },
+                      {
+                        title: this.$t('示例日志：') as string,
+                        value: item.demoLog,
+                        kind: 'json',
+                        jumpable: true,
+                      },
+                    ]}
+                    tableData={[]}
+                    contentData={[]}
+                    onBlockJump={block => this.handleBlockJump(block, item)}
+                  />
+                ),
+              }}
+            </SuspiciousAnalysisGroup>
+          ))}
         </div>
       </div>
     );

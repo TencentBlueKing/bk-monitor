@@ -31,11 +31,11 @@ import {
   shallowReactive,
   shallowRef,
   useTemplateRef,
+  watch,
 } from 'vue';
 import type { PropType } from 'vue';
 
 import { type SortInfo, type TdPrimaryTableProps, PrimaryTable } from '@blueking/tdesign-ui';
-import { Button, Checkbox } from 'bkui-vue';
 import EmptyStatus, { type EmptyStatusOperationType } from 'trace/components/empty-status/empty-status';
 import TableSkeleton from 'trace/components/skeleton/table-skeleton';
 import { formatTime } from 'trace/utils/utils';
@@ -82,28 +82,25 @@ export default defineComponent({
   props: {
     getTableData: {
       type: Function as PropType<
-        (params: { limit: number; offset: number; sort: string[]; sources: string[] }) => Promise<{
+        (params: { limit: number; offset: number; sort: string[] }) => Promise<{
           data: unknown[];
           total: number;
         }>
       >,
       default: () => null,
     },
-    getDataCount: {
-      type: Function as PropType<
-        (params?: { sources: string[] }) => Promise<{
-          list: {
-            alias: string;
-            total: number;
-            value: string;
-          }[];
-          total: number;
-        }>
-      >,
-      default: () => null,
+    /** 筛选条件变化时刷新表格 */
+    refreshKey: {
+      type: String,
+      default: '',
+    },
+    /** 当前是否处于筛选状态，用于区分空态与搜索无结果 */
+    isFiltered: {
+      type: Boolean,
+      default: false,
     },
   },
-  emits: ['goEvent'],
+  emits: ['clearFilter'],
   setup(props, { emit }) {
     const { t } = useI18n();
     const loadingRef = useTemplateRef('scrollRef');
@@ -292,45 +289,6 @@ export default defineComponent({
       return <EventTableExpandContent data={row} />;
     });
     const sort = shallowRef<SortInfo>(null);
-    const isAllSourceType = shallowRef(true);
-    const sourceType = shallowRef([
-      SourceTypeEnum.BCS,
-      SourceTypeEnum.BKCI,
-      SourceTypeEnum.HOST,
-      SourceTypeEnum.DEFAULT,
-    ]);
-    const sourceTypeOptions = shallowRef([
-      {
-        label: window.i18n.t('全部'),
-        value: SourceTypeEnum.ALL,
-        count: 0,
-        icon: '',
-      },
-      {
-        label: window.i18n.t('容器'),
-        value: SourceTypeEnum.BCS,
-        count: 0,
-        icon: SourceIconMap[SourceTypeEnum.BCS],
-      },
-      {
-        label: window.i18n.t('蓝盾'),
-        value: SourceTypeEnum.BKCI,
-        count: 0,
-        icon: SourceIconMap[SourceTypeEnum.BKCI],
-      },
-      {
-        label: window.i18n.t('主机'),
-        value: SourceTypeEnum.HOST,
-        count: 0,
-        icon: SourceIconMap[SourceTypeEnum.HOST],
-      },
-      {
-        label: window.i18n.t('业务上报'),
-        value: SourceTypeEnum.DEFAULT,
-        count: 0,
-        icon: SourceIconMap[SourceTypeEnum.DEFAULT],
-      },
-    ]);
     const isEnd = shallowRef(false);
     const observer = shallowRef<IntersectionObserver>();
 
@@ -357,7 +315,6 @@ export default defineComponent({
       const res = await props.getTableData({
         offset: tableData.offset,
         limit: tableData.limit,
-        sources: sourceType.value,
         sort: sort.value ? [`${sort.value.descending ? '-' : ''}${sort.value.sortBy}`] : [],
       });
       tableData.data = [...tableData.data, ...res.data];
@@ -386,64 +343,28 @@ export default defineComponent({
       handleLoad();
     };
 
-    const handleGoEvent = () => {
-      emit('goEvent');
-    };
-
-    const handleSourceTypeChange = (value: (typeof SourceTypeEnum)[keyof typeof SourceTypeEnum][]) => {
-      sourceType.value = value;
-      isAllSourceType.value = sourceTypeOptions.value.length - 1 === value.length;
-      resetData();
-      handleLoad();
-    };
-
-    const handleChangeAllSourceType = (value: boolean) => {
-      isAllSourceType.value = value;
-      if (value) {
-        sourceType.value = sourceTypeOptions.value
-          .filter(item => item.value !== SourceTypeEnum.ALL)
-          .map(item => item.value);
-      } else {
-        sourceType.value = [];
-      }
-      resetData();
-      handleLoad();
-    };
-
     const handleOperation = (type: EmptyStatusOperationType) => {
       if (type === 'clear-filter') {
-        handleSourceTypeChange([]);
+        emit('clearFilter');
       }
     };
 
-    onMounted(() => {
-      init();
-      props
-        .getDataCount({
-          sources: sourceTypeOptions.value.map(item => item.value).filter(item => item !== SourceTypeEnum.ALL),
-        })
-        .then(res => {
-          const result = [];
-          for (const option of sourceTypeOptions.value) {
-            if (option.value === SourceTypeEnum.ALL) {
-              option.count = res.total;
-            } else {
-              const item = res.list.find(i => i.value === option.value);
-              option.count = item?.total || 0;
-            }
-            result.push(option);
-          }
-          sourceTypeOptions.value = result;
-        });
-    });
+    watch(
+      () => props.refreshKey,
+      (val, oldVal) => {
+        if (!val || val === oldVal) return;
+        resetData();
+        handleLoad();
+      }
+    );
+
+    onMounted(init);
     onBeforeUnmount(() => {
       observer.value?.disconnect();
     });
 
     return {
       columns,
-      sourceType,
-      sourceTypeOptions,
       expandIcon,
       expandedRow,
       expandedRowKeys,
@@ -451,96 +372,15 @@ export default defineComponent({
       tableData,
       sort,
       loading,
-      isAllSourceType,
       handleSortChange,
       handleExpandChange,
       t,
-      handleGoEvent,
-      handleSourceTypeChange,
-      handleChangeAllSourceType,
       handleOperation,
     };
   },
   render() {
-    const allItem = this.sourceTypeOptions.find(item => item.value === SourceTypeEnum.ALL);
     return (
       <div class='alarm-center-detail-panel-alarm-relation-event-table'>
-        <div class='header-operate'>
-          <span style='margin-right: 8px;'>{window.i18n.t('事件来源')}:</span>
-          <Checkbox
-            class='mr-24'
-            modelValue={this.isAllSourceType}
-            onChange={this.handleChangeAllSourceType}
-          >
-            <span class='source-item'>
-              {allItem.icon ? <span class={`source-icon icon-monitor ${allItem.icon}`} /> : undefined}
-              <span>{allItem.label}</span>
-              <span>&nbsp;({allItem.count})</span>
-            </span>
-          </Checkbox>
-          <Checkbox.Group
-            class='header-operate-item'
-            modelValue={this.sourceType}
-            onChange={this.handleSourceTypeChange}
-          >
-            {{
-              default: () => {
-                return this.sourceTypeOptions
-                  .filter(item => item.value !== SourceTypeEnum.ALL)
-                  .map(item => (
-                    <Checkbox
-                      key={item.value}
-                      label={item.value}
-                    >
-                      <span class='source-item'>
-                        {item.icon ? (
-                          window.source_app !== 'apm' ? (
-                            <span class={`source-icon icon-monitor ${item.icon}`} />
-                          ) : (
-                            <span
-                              style={{
-                                backgroundImage: SourceIconSvgMap[item.value]
-                                  ? `url('${SourceIconSvgMap[item.value]}')`
-                                  : undefined,
-                              }}
-                              class={`source-icon icon-monitor ${item.icon}`}
-                            />
-                          )
-                        ) : undefined}
-                        {/* { window.source_app !== 'apm' 
-                          ? item.icon ? <span class={`source-icon icon-monitor ${item.icon}`} /> : undefined 
-                          : item.icon ? (
-                              <span 
-                                class={`source-icon icon-monitor ${item.icon}`}
-                                style={{ 
-                                    backgroundImage: SourceIconSvgMap[item.value]
-                                    ? `url('${SourceIconSvgMap[item.value]}')`
-                                    : undefined
-                                }}
-                              />
-                            ) : undefined
-                        } */}
-                        <span>{item.label}</span>
-                        <span>&nbsp;({item.count})</span>
-                      </span>
-                    </Checkbox>
-                  ));
-              },
-            }}
-          </Checkbox.Group>
-          <Button
-            style='margin-left: 16px;'
-            theme='primary'
-            text
-            onClick={this.handleGoEvent}
-          >
-            <span>{this.t('更多事件')}</span>
-            <span
-              style='margin-left: 5px; font-size: 12px;'
-              class='icon-monitor icon-fenxiang'
-            />
-          </Button>
-        </div>
         {this.loading ? (
           <TableSkeleton type={1} />
         ) : (
@@ -567,7 +407,7 @@ export default defineComponent({
             {{
               empty: () => (
                 <EmptyStatus
-                  type={this.sourceType.length ? 'search-empty' : 'empty'}
+                  type={this.isFiltered ? 'search-empty' : 'empty'}
                   onOperation={this.handleOperation}
                 />
               ),

@@ -23,58 +23,32 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, defineComponent, shallowRef, watch } from 'vue';
 
-import './suspicious-analysis-group.scss';
+import { shallowRef, watch } from 'vue';
 
-export default defineComponent({
-  name: 'SuspiciousAnalysisGroup',
-  props: {
-    defaultExpand: {
-      type: Boolean,
-      default: true,
+import { useAlarmCenterDetailStore } from '@/store/modules/alarm-center-detail';
+
+import type { IDiagnosticPanelFilter } from '../alarm-detail/components/diagnostic-analysis/navigate-typing';
+import type { AlarmCenterPanelTabType } from '../utils/constant';
+
+/**
+ * 消费右侧 AI 诊断发出的导航意图：仅当目标 tab 匹配时回调 apply。
+ */
+export function useDiagnosticNavigate(
+  tab: AlarmCenterPanelTabType,
+  apply: (filter: IDiagnosticPanelFilter) => void
+) {
+  const store = useAlarmCenterDetailStore();
+  const lastNonce = shallowRef(0);
+
+  watch(
+    () => store.diagnosticNavigate,
+    intent => {
+      if (!intent || intent.tab !== tab) return;
+      if (intent.nonce === lastNonce.value) return;
+      lastNonce.value = intent.nonce;
+      apply(intent.filter || {});
     },
-    /** default 灰条 / event 事件父级蓝灰条 / inner 内嵌浅色条 */
-    tone: {
-      type: String as PropType<'default' | 'event' | 'inner'>,
-      default: 'default',
-    },
-  },
-  setup(props) {
-    const expand = shallowRef(props.defaultExpand);
-
-    const toggleExpand = () => {
-      expand.value = !expand.value;
-    };
-
-    const unWatchExpand = watch(
-      () => props.defaultExpand,
-      val => {
-        expand.value = val;
-        unWatchExpand();
-      }
-    );
-
-    return {
-      expand,
-      toggleExpand,
-    };
-  },
-  render() {
-    return (
-      <div class={['suspicious-analysis-group', `tone-${this.tone}`, { expand: this.expand }]}>
-        <div class='suspicious-analysis-group-wrapper'>
-          <div
-            class='group-header'
-            onClick={this.toggleExpand}
-          >
-            <i class='icon-monitor icon-mc-arrow-right arrow-icon' />
-            {this.$slots.title?.()}
-          </div>
-          <div class='group-content'>{this.$slots.default?.()}</div>
-          {this.$slots.footer && <div class='group-footer'>{this.$slots.footer?.()}</div>}
-        </div>
-      </div>
-    );
-  },
-});
+    { deep: true, immediate: true }
+  );
+}

@@ -72,7 +72,7 @@ export default defineComponent({
   setup(props) {
     const boxWrapRef = useTemplateRef<HTMLDivElement>('boxWrap');
     const alarmCenterDetailStore = useAlarmCenterDetailStore();
-    const { alarmDetail, bizId, alarmId, timeRange } = storeToRefs(alarmCenterDetailStore);
+    const { alarmDetail, bizId, alarmId, timeRange, diagnosticNavigate } = storeToRefs(alarmCenterDetailStore);
     const currentPanel = shallowRef(alarmDetail.value?.alarmTabList?.[0]?.name);
     const { alarmStatusOverview, alarmStatusActions, alarmStatusTotal } = useAlarmBasicInfo();
 
@@ -193,6 +193,16 @@ export default defineComponent({
         handleCurrentPanelChange(newVal || alarmDetail.value?.alarmTabList?.[0]?.name);
       },
       { immediate: true }
+    );
+
+    /** 右侧 AI 诊断点击字段/跳转时，切到对应左侧 tab */
+    watch(
+      diagnosticNavigate,
+      intent => {
+        if (!intent?.tab) return;
+        currentPanel.value = intent.tab;
+      },
+      { deep: true }
     );
 
     const getPanelComponent = () => {

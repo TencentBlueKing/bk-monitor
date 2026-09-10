@@ -42,6 +42,14 @@ export interface ALertTracesListItem {
 
 export interface ALertTracesQueryConfig {
   app_name: string;
+  /** 是否降序，接口返回字符串 */
+  descending?: string;
+  /** 查询结束时间，单位毫秒 */
+  end_time?: number;
   sceneMode: string;
+  /** 排序字段 */
+  sortBy?: string;
+  /** 查询开始时间，单位毫秒 */
+  start_time?: number;
   where: IWhereItem[];
 }
