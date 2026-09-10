@@ -127,9 +127,9 @@ export function useRumQuery({ extraFilters }: IUseRumQueryOptions) {
     const urlSort = tryURLDecodeParse<null | string[]>(query.sortBy, null);
     store.init({
       mode: (query.mode as RumModeType) || RumModeEnum.SPAN,
-      appName: decodeURIComponent(query.app_name) || '',
+      appName: decodeURIComponent(query.app_name || ''),
       timeRange: query.timeRange ? tryURLDecodeParse<TimeRangeType>(query.timeRange, undefined) : undefined,
-      timezone: decodeURIComponent(query.timezone) || window.timezone,
+      timezone: decodeURIComponent(query.timezone || '') || window.timezone,
       refreshInterval: query.refreshInterval ? Number(query.refreshInterval) : -1,
       spanType: query.spanType || '',
       // 三态透传：null 待视图配置就绪后回落 default_sort，[] 表示明确不排序

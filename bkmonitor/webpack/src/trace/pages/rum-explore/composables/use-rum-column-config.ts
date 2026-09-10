@@ -171,14 +171,8 @@ export function useRumColumnConfig(opts: {
    * @description 从用户常驻配置加载列配置
    */
   async function loadColumnConfig() {
-    // 缓存 key 未就绪（空串）时跳过读取；待 key 就绪后 watch 会重新触发加载
-    if (!get(cacheKey)) return;
-    let cached: IRumColumnConfigCache | undefined;
-    try {
-      cached = await handleGetUserConfig<IRumColumnConfigCache>(get(cacheKey));
-    } catch {
-      cached = undefined;
-    }
+    // 空 key 由 hook 跳过请求并清空配置 ID，避免切换时写入上一个应用。
+    const cached = await handleGetUserConfig<IRumColumnConfigCache>(get(cacheKey));
     // 版本不匹配或无有效缓存：丢弃并回退默认，待用户操作后再落盘
     const isVersionValid = cached?.version === RUM_COLUMN_CONFIG_VERSION;
     if (isVersionValid) {
