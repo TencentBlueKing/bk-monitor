@@ -91,6 +91,8 @@
 | user_id | string | Span 中上报的用户 ID，未上报时为空字符串 |
 | childs | list | 会话包含的 Trace 列表；仅 `group_field != trace_id` 时返回，元素结构与 Trace 层对象一致 |
 
+`status` 基于本次获取的调用记录：包含失败记录时为 `error`，否则为 `success`。
+
 ### 响应参数示例
 
 以下示例基于 Agent Trace 的实际返回结构整理，会话标识和对话正文已替换为示例值。

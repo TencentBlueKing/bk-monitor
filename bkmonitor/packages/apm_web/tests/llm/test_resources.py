@@ -1,5 +1,6 @@
 from unittest import TestCase, mock
 
+from apm_web.llm.adapter import adapt_spans
 from apm_web.llm.resources import (
     AGENT_CANDIDATE_QUERY,
     CalculateByRangeResource,
@@ -94,8 +95,6 @@ class ListTracesResourceTestCase(TestCase):
 
     def test_trace_group_flattens_child(self):
         span_query = mock.Mock(QUERY_MAX_LIMIT=10000)
-        # 失败 Span 未包含在列表明细中，状态仍应以独立查询结果为准。
-        span_query.query_error_trace_ids.return_value = {"trace-2"}
         span_query.query_group_list.return_value = ["trace-2", "trace-1"]
         span_query.query_group_trace_list.return_value = [
             {"trace_id": "trace-2"},
@@ -139,6 +138,7 @@ class ListTracesResourceTestCase(TestCase):
                 "trace_id": "trace-2",
                 "span_id": "span-3",
                 "parent_span_id": "span-2",
+                "status": {"code": 2},
                 "input": "问二（包含工具结果）",
                 "output": "答二",
                 "start_time": 250,
@@ -233,11 +233,9 @@ class ListTracesResourceTestCase(TestCase):
             group_field="trace_id",
             group_ids=["trace-2", "trace-1"],
         )
-        span_query.query_error_trace_ids.assert_called_once_with(trace_ids=["trace-2", "trace-1"])
 
     def test_conversation_group_maps_field_by_product(self):
         span_query = mock.Mock(QUERY_MAX_LIMIT=10000)
-        span_query.query_error_trace_ids.return_value = {"trace-3"}
         span_query.query_group_list.return_value = ["session-2", "session-1"]
         query_field = "attributes.agent.session.session_code"
         span_query.query_group_trace_list.return_value = [
@@ -254,6 +252,7 @@ class ListTracesResourceTestCase(TestCase):
                 "span_id": "span-1",
                 "parent_span_id": "",
                 "attributes": {"agent.session.session_code": "session-1"},
+                "status": {"code": 1},
                 "input": "问一",
                 "output": "答一",
                 "start_time": 300,
@@ -269,6 +268,7 @@ class ListTracesResourceTestCase(TestCase):
                 "span_id": "span-3",
                 "parent_span_id": "",
                 "attributes": {"agent.session.session_code": "session-2"},
+                "status": {"code": 2},
                 "input": "问三",
                 "output": "答三",
                 "start_time": 200,
@@ -284,6 +284,7 @@ class ListTracesResourceTestCase(TestCase):
                 "span_id": "span-2",
                 "parent_span_id": "",
                 "attributes": {"agent.session.session_code": "session-2"},
+                "status": {"code": 1},
                 "input": "问二",
                 "output": "答二",
                 "start_time": 100,
@@ -299,6 +300,7 @@ class ListTracesResourceTestCase(TestCase):
                 "span_id": "span-2-llm",
                 "parent_span_id": "span-2",
                 "attributes": {},
+                "status": {"code": 0},
                 "input": "模型输入",
                 "output": "模型输出",
                 "start_time": 120,
@@ -399,7 +401,6 @@ class ListTracesResourceTestCase(TestCase):
             group_field=query_field,
             group_ids=["session-2", "session-1"],
         )
-        span_query.query_error_trace_ids.assert_called_once_with(trace_ids=["trace-2", "trace-3", "trace-1"])
         get_application.assert_called_once_with(bk_biz_id=11, app_name="sand_local_dev")
         application.build_data_sources.assert_called_once_with()
         get_query.assert_called_once_with(data_sources)
@@ -453,19 +454,67 @@ class ListTracesResourceTestCase(TestCase):
                     for start_time, value in [(300, "conversation-later"), (100, ""), (200, "conversation-first")]
                 ]
 
-                item = ListTracesResource._trace_item("trace-1", raw_spans, entity_set, has_error=False)
+                item = ListTracesResource._trace_item("trace-1", raw_spans, entity_set)
 
                 self.assertEqual(item["conversation_id"], "conversation-first")
 
+    def test_trace_status_includes_spans_filtered_by_adapter(self):
+        entity_set = mock.Mock(service_names=["agent-service"])
+        entity_set.get_system.return_value = {"is_support_llm": True, "product": "default"}
+
+        for root_code, child_code, expected_status in [(1, 1, "success"), (0, 0, "success"), (1, 2, "error")]:
+            with self.subTest(root_code=root_code, child_code=child_code):
+                raw_spans = [
+                    {
+                        "trace_id": "trace-1",
+                        "span_id": "root",
+                        "parent_span_id": "",
+                        "span_name": "invoke_agent demo",
+                        "start_time": 100,
+                        "end_time": 300,
+                        "elapsed_time": 200,
+                        "status": {"code": root_code, "message": ""},
+                        "resource": {"service.name": "agent-service"},
+                        "attributes": {"gen_ai.operation.name": "invoke_agent", "gen_ai.usage.input_tokens": 10},
+                    },
+                    {
+                        "trace_id": "trace-1",
+                        "span_id": "http-child",
+                        "parent_span_id": "root",
+                        "span_name": "GET /orders",
+                        "start_time": 150,
+                        "end_time": 200,
+                        "elapsed_time": 50,
+                        "status": {"code": child_code, "message": "timeout" if child_code == 2 else ""},
+                        "resource": {"service.name": "agent-service"},
+                        "attributes": {"http.method": "GET"},
+                    },
+                ]
+
+                self.assertEqual([span["span_id"] for span in adapt_spans(raw_spans, entity_set)], ["root"])
+
+                item = ListTracesResource._trace_item("trace-1", raw_spans, entity_set)
+
+                self.assertEqual(item["status"], expected_status)
+                self.assertEqual(item["input_tokens"], 10)
+
     def test_trace_time_uses_raw_root_span(self):
         raw_spans = [
-            {"trace_id": "trace-1", "span_id": "root", "parent_span_id": "", "start_time": 100, "end_time": 300},
+            {
+                "trace_id": "trace-1",
+                "span_id": "root",
+                "parent_span_id": "",
+                "start_time": 100,
+                "end_time": 300,
+                "status": {"code": 1},
+            },
             {
                 "trace_id": "trace-1",
                 "span_id": "llm",
                 "parent_span_id": "root",
                 "start_time": 150,
                 "end_time": 200,
+                "status": {"code": 1},
             },
         ]
         converted_spans = [
@@ -479,14 +528,21 @@ class ListTracesResourceTestCase(TestCase):
         ]
 
         with mock.patch("apm_web.llm.resources.adapt_spans", return_value=converted_spans):
-            item = ListTracesResource._trace_item("trace-1", raw_spans, mock.sentinel.entity_set, has_error=False)
+            item = ListTracesResource._trace_item("trace-1", raw_spans, mock.sentinel.entity_set)
 
         self.assertEqual(item["start_time"], 100)
         self.assertEqual(item["elapsed_time"], 200)
 
     def test_trace_preview_uses_last_user_and_assistant_on_logical_root(self):
         raw_spans = [
-            {"trace_id": "trace-1", "span_id": "http-root", "parent_span_id": "", "start_time": 100, "end_time": 300}
+            {
+                "trace_id": "trace-1",
+                "span_id": "http-root",
+                "parent_span_id": "",
+                "start_time": 100,
+                "end_time": 300,
+                "status": {"code": 1},
+            }
         ]
         converted_spans = [
             {
@@ -547,14 +603,21 @@ class ListTracesResourceTestCase(TestCase):
         ]
 
         with mock.patch("apm_web.llm.resources.adapt_spans", return_value=converted_spans):
-            item = ListTracesResource._trace_item("trace-1", raw_spans, mock.sentinel.entity_set, has_error=False)
+            item = ListTracesResource._trace_item("trace-1", raw_spans, mock.sentinel.entity_set)
 
         self.assertEqual(item["input"], "最新问题")
         self.assertEqual(item["output"], "最终回答")
 
     def test_trace_preview_does_not_fallback_to_child_llm(self):
         raw_spans = [
-            {"trace_id": "trace-1", "span_id": "agent", "parent_span_id": "", "start_time": 100, "end_time": 300}
+            {
+                "trace_id": "trace-1",
+                "span_id": "agent",
+                "parent_span_id": "",
+                "start_time": 100,
+                "end_time": 300,
+                "status": {"code": 1},
+            }
         ]
         converted_spans = [
             {
@@ -578,7 +641,7 @@ class ListTracesResourceTestCase(TestCase):
         ]
 
         with mock.patch("apm_web.llm.resources.adapt_spans", return_value=converted_spans):
-            item = ListTracesResource._trace_item("trace-1", raw_spans, mock.sentinel.entity_set, has_error=False)
+            item = ListTracesResource._trace_item("trace-1", raw_spans, mock.sentinel.entity_set)
 
         self.assertEqual(item["input"], "")
         self.assertEqual(item["output"], "")

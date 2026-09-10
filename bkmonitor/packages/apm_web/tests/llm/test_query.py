@@ -124,30 +124,3 @@ class LLMQueryTestCase(TestCase):
             | Q(**{f"{OtlpKey.get_attributes_key('gen_ai.conversation.id')}__include": value})
         )
         self.assertEqual(result, expected)
-
-    def test_query_error_trace_ids_is_bounded_by_candidate_traces(self):
-        query_builder = mock.Mock()
-        query_builder.filter.return_value = query_builder
-        query_builder.distinct.return_value = query_builder
-        query_builder.values.return_value = query_builder
-        trace_ids = ["trace-1", "trace-2", "trace-3"]
-
-        for records, expected in [
-            ([], set()),
-            ([{"trace_id": "trace-2"}, {"trace_id": ["trace-3"]}], {"trace-2", "trace-3"}),
-        ]:
-            with (
-                self.subTest(records=records),
-                mock.patch.object(self.query, "build_queries", return_value=[query_builder]) as build_queries,
-                mock.patch.object(self.query, "_query_list", return_value=records) as query_list,
-            ):
-                result = self.query.query_error_trace_ids(trace_ids)
-
-                self.assertEqual(result, expected)
-                # 保留期查询不继承列表的时间、服务和关键词筛选；每条错误 Trace 只返回一个 ID。
-                build_queries.assert_called_once_with()
-                query_builder.filter.assert_called_once_with(**{"trace_id__eq": trace_ids, "status.code": 2})
-                query_builder.distinct.assert_called_once_with(OtlpKey.TRACE_ID)
-                query_builder.values.assert_called_once_with(OtlpKey.TRACE_ID)
-                query_list.assert_called_once_with([query_builder], None, None, 0, len(trace_ids))
-            query_builder.reset_mock()
