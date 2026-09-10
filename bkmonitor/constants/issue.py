@@ -11,6 +11,10 @@ specific language governing permissions and limitations under the License.
 from django.utils.translation import gettext_lazy as _, gettext_noop
 
 
+SOURCE_ANALYSIS_BKAI_AIDEV_API_KEY_PLACEHOLDER = "__BKAI_AIDEV_API_KEY__"
+SOURCE_ANALYSIS_BKFARA_TASK_ID_PLACEHOLDER = "__BKFARA_TASK_ID__"
+
+
 class IssueStatus:
     PENDING_REVIEW = "pending_review"
     UNRESOLVED = "unresolved"

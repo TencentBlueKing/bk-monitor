@@ -10,10 +10,11 @@ specific language governing permissions and limitations under the License.
 
 import json
 from datetime import timedelta
+from types import SimpleNamespace
 from unittest.mock import MagicMock, call, patch
 
 from django.db import DatabaseError
-from django.test import TestCase
+from django.test import SimpleTestCase, TestCase
 from django.utils import timezone
 
 from api.bk_incident.default import (
@@ -25,13 +26,19 @@ from api.bk_incident.default import (
 )
 from bkmonitor.models import IssueSourceAnalysisExecution
 from constants.issue import (
+    SOURCE_ANALYSIS_BKAI_AIDEV_API_KEY_PLACEHOLDER,
+    SOURCE_ANALYSIS_BKFARA_TASK_ID_PLACEHOLDER,
     SourceAnalysisFailureMessage,
     SourceAnalysisFailureStage,
     SourceAnalysisResultType,
     SourceAnalysisStage,
     SourceAnalysisStatus,
 )
-from fta_web.issue.resources import SourceAnalysisExecutionBaseResource, build_bkfara_client_request_id
+from fta_web.issue.resources import (
+    SourceAnalysisBaseResource,
+    SourceAnalysisExecutionBaseResource,
+    build_bkfara_client_request_id,
+)
 from fta_web.tasks import recover_source_analysis_executions, run_source_analysis_execution
 
 
@@ -44,7 +51,7 @@ class NonRetryableBKFaraError(Exception):
     }
 
 
-class TestSourceAnalysisContract(TestCase):
+class TestSourceAnalysisContract(SimpleTestCase):
     CLIENT_REQUEST_ID = "43c3ca39-d60f-4482-854d-00f771e149fb"
 
     def test_request_serializers_define_four_interface_contract(self):
@@ -79,6 +86,8 @@ class TestSourceAnalysisContract(TestCase):
                     "skill_ids": "skill-a",
                     "knowledge_base_ids": "",
                     "alert_id": "alert-1",
+                    "TASK_ID": SOURCE_ANALYSIS_BKFARA_TASK_ID_PLACEHOLDER,
+                    "BKAI_AIDEV_API_KEY": SOURCE_ANALYSIS_BKAI_AIDEV_API_KEY_PLACEHOLDER,
                 },
             }
         )
@@ -123,6 +132,38 @@ class TestSourceAnalysisContract(TestCase):
         self.assertFalse(request.is_valid())
         self.assertIn("source_analysis_raw", request.errors["inputs"])
 
+    def test_trigger_inputs_reject_runtime_values_instead_of_placeholders(self):
+        valid_inputs = {
+            "bk_biz_id": 2,
+            "bk_tenant_id": "system",
+            "repository_alias": "repo-a",
+            "agent_id": "agent-a",
+            "alert_id": "alert-1",
+            "TASK_ID": SOURCE_ANALYSIS_BKFARA_TASK_ID_PLACEHOLDER,
+            "BKAI_AIDEV_API_KEY": SOURCE_ANALYSIS_BKAI_AIDEV_API_KEY_PLACEHOLDER,
+        }
+        invalid_values = {
+            "TASK_ID": "task-1",
+            "BKAI_AIDEV_API_KEY": "real-access-token",
+        }
+
+        for field, value in invalid_values.items():
+            with self.subTest(field=field):
+                inputs = {**valid_inputs, field: value}
+                request = TriggerSourceAnalysisResource.RequestSerializer(
+                    data={
+                        "issue_id": "issue-1",
+                        "bk_biz_id": 2,
+                        "bk_tenant_id": "system",
+                        "devops_project_id": "project-a",
+                        "client_request_id": self.CLIENT_REQUEST_ID,
+                        "inputs": inputs,
+                    }
+                )
+
+                self.assertFalse(request.is_valid())
+                self.assertIn(field, request.errors["inputs"])
+
     def test_resources_bind_formal_endpoints(self):
         self.assertEqual(EnsureSourceAnalysisSceneResource.action, "/incident/issue_analysis/ensure_scene/")
         self.assertEqual(
@@ -131,6 +172,88 @@ class TestSourceAnalysisContract(TestCase):
         )
         self.assertEqual(TriggerSourceAnalysisResource.action, "/incident/issue_analysis/trigger/")
         self.assertEqual(GetSourceAnalysisTaskResource.action, "/incident/issue_analysis/get_task/")
+
+    def test_bkfara_user_context_is_sent_in_gateway_authorization_header(self):
+        resource = TriggerSourceAnalysisResource()
+        resource.bk_username = "operator-a"
+
+        with (
+            patch.object(resource, "_get_tenant_id", return_value="system"),
+            patch("core.drf_resource.contrib.api.settings.APP_CODE", "bkmonitorv3"),
+            patch("core.drf_resource.contrib.api.settings.SECRET_KEY", "app-secret"),
+        ):
+            headers = resource.get_headers()
+
+        self.assertEqual(
+            json.loads(headers["x-bkapi-authorization"]),
+            {
+                "bk_app_code": "bkmonitorv3",
+                "bk_app_secret": "app-secret",
+                "bk_username": "operator-a",
+            },
+        )
+        self.assertEqual(headers["X-Bk-Tenant-Id"], "system")
+
+    def test_bk_username_never_enters_request_body(self):
+        # 用户态只经网关鉴权头传递，依赖基类关闭 INSERT_BK_USERNAME_TO_REQUEST_DATA。
+        # 该开关一旦被重新打开，bk_username 会静默进入出站请求体，而其余用例仍全部通过。
+        for resource_cls in (EnsureSourceAnalysisSceneResource, TriggerSourceAnalysisResource):
+            with self.subTest(resource=resource_cls.__name__):
+                resource = resource_cls()
+                resource.bk_username = "operator-a"
+
+                self.assertFalse(resource.INSERT_BK_USERNAME_TO_REQUEST_DATA)
+                self.assertNotIn("bk_username", resource.full_request_data({"bk_biz_id": 2}))
+
+    @patch("fta_web.issue.resources.get_request_username", return_value="operator-a")
+    @patch("fta_web.issue.resources.bk_biz_id_to_bk_tenant_id", return_value="system")
+    @patch("fta_web.issue.resources.api.bk_incident.ensure_source_analysis_scene")
+    def test_ensure_scene_uses_current_user(self, ensure_scene, _get_tenant_id, _get_username):
+        ensure_scene.return_value = {
+            "provision_id": "provision-1",
+            "status": "ready",
+            "terminal": True,
+        }
+
+        provision_id = SourceAnalysisBaseResource.ensure_flow_initialized(2, "project-a")
+
+        self.assertEqual(provision_id, "provision-1")
+        ensure_scene.assert_called_once_with(
+            bk_biz_id=2,
+            bk_tenant_id="system",
+            devops_project_id="project-a",
+            bk_username="operator-a",
+            client_request_id=build_bkfara_client_request_id("ensure-scene", "system", 2, "project-a"),
+        )
+
+    @patch("fta_web.issue.resources.bk_biz_id_to_bk_tenant_id", return_value="system")
+    def test_execution_params_restore_user_and_use_runtime_placeholders(self, _get_tenant_id):
+        execution = SimpleNamespace(
+            analysis_id="analysis-1",
+            issue_id="issue-1",
+            bk_biz_id=2,
+            bkci_project_id="project-a",
+            repository_alias="repo-a",
+            agent_id="agent-a",
+            skill_ids=["skill-a", "skill-b"],
+            knowledge_base_ids=["knowledge-a"],
+            alert_id="alert-1",
+            create_user="operator-a",
+        )
+
+        ensure_params = SourceAnalysisExecutionBaseResource.build_ensure_scene_params(execution)
+        trigger_params = SourceAnalysisExecutionBaseResource.build_trigger_params(execution)
+
+        self.assertEqual(ensure_params["bk_username"], "operator-a")
+        self.assertEqual(trigger_params["bk_username"], "operator-a")
+        self.assertEqual(
+            trigger_params["inputs"]["TASK_ID"],
+            SOURCE_ANALYSIS_BKFARA_TASK_ID_PLACEHOLDER,
+        )
+        self.assertEqual(
+            trigger_params["inputs"]["BKAI_AIDEV_API_KEY"],
+            SOURCE_ANALYSIS_BKAI_AIDEV_API_KEY_PLACEHOLDER,
+        )
 
     def test_http_error_body_is_normalized_to_protocol_error(self):
         response = {
@@ -233,9 +356,11 @@ class TestSourceAnalysisOrchestration(TestCase):
             bk_biz_id=2,
             bk_tenant_id="system",
             devops_project_id="project-a",
+            bk_username="operator-a",
             client_request_id=build_bkfara_client_request_id("trigger", execution.analysis_id),
             inputs={
-                # 业务与租户标识和顶层重复：inputs 会被 BKFara 整体透传给蓝盾流水线。
+                # 业务与租户标识和顶层重复：inputs 除运行时占位符外会被 BKFara
+                # 透传给蓝盾流水线。
                 "bk_biz_id": 2,
                 "bk_tenant_id": "system",
                 "repository_alias": "repo-a",
@@ -243,6 +368,8 @@ class TestSourceAnalysisOrchestration(TestCase):
                 "skill_ids": "skill-a,skill-b",
                 "knowledge_base_ids": "knowledge-a",
                 "alert_id": "alert-1",
+                "TASK_ID": SOURCE_ANALYSIS_BKFARA_TASK_ID_PLACEHOLDER,
+                "BKAI_AIDEV_API_KEY": SOURCE_ANALYSIS_BKAI_AIDEV_API_KEY_PLACEHOLDER,
             },
         )
 
