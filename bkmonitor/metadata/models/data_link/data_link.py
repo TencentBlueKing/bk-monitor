@@ -1227,13 +1227,13 @@ class DataLink(models.Model):
                     },
                 )
 
-            configs.extend(
-                [
-                    graph_rt.compose_config(),
-                    graph_binding.compose_config(),
-                    graph_databus.compose_config([graph_sink], transforms=[]),
-                ]
-            )
+            binding_config = graph_binding.compose_config()
+            databus_config = graph_databus.compose_config([graph_sink], transforms=[])
+            if option.surrealdb_config is not None:
+                # 调优参数与普通 sources/sinks/transforms 一起下发，不替换完整 spec。
+                binding_config["spec"].update(option.surrealdb_config.binding_spec())
+                databus_config["spec"].update(option.surrealdb_config.databus_spec())
+            configs.extend([graph_rt.compose_config(), binding_config, databus_config])
 
         return configs
 

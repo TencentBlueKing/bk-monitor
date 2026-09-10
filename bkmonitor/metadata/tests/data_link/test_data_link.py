@@ -4988,7 +4988,8 @@ def test_rebuild_bkbase_v4_datalink_relation_recognizes_vm_only_graph_link_dry_r
 
 
 @pytest.mark.django_db(databases="__all__")
-def test_rebuild_graph_relation_uses_short_name_and_updates_v4_option():
+@pytest.mark.parametrize("tuning", [None, {"vertexDebounceSecs": 240, "heartbeatGapMs": 300000}])
+def test_rebuild_graph_relation_uses_short_name_and_updates_v4_option(tuning):
     table_id = "1001_bkmonitor_time_series_60202.__default__"
     _create_simple_rebuild_result_table(table_id, bk_biz_id=1001, bk_tenant_id="system")
     data_id_name = "graph_vm_only_rebuild_data"
@@ -5030,7 +5031,7 @@ def test_rebuild_graph_relation_uses_short_name_and_updates_v4_option():
     existing_option = models.ResultTableOption.create_option(
         table_id=table_id,
         name=models.ResultTableOption.OPTION_GRAPH_RELATION_V4_DATA_LINK,
-        value={"write_targets": ["surrealdb"]},
+        value={"write_targets": ["surrealdb"], **({"surrealdb_config": tuning} if tuning else {})},
         creator="system",
         bk_tenant_id="system",
     )
@@ -5054,7 +5055,7 @@ def test_rebuild_graph_relation_uses_short_name_and_updates_v4_option():
         bk_tenant_id="system",
         name=models.ResultTableOption.OPTION_GRAPH_RELATION_V4_DATA_LINK,
     )
-    assert option.get_value() == {"write_targets": ["vm"]}
+    assert option.get_value() == {"write_targets": ["vm"], **({"surrealdb_config": tuning} if tuning else {})}
     assert option.pk == existing_option.pk
     assert option.value_type == models.ResultTableOption.TYPE_DICT
     assert option.creator == "system"

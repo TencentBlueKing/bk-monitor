@@ -1999,9 +1999,3 @@ BKAPP_RUM_SDK = os.getenv("BKAPP_RUM_SDK", "otlp")  # otlp / ageis
 BKAPP_RUM_ENDPOINT = os.getenv("BKAPP_RUM_ENDPOINT", "")
 BKAPP_RUM_TOKEN = os.getenv("BKAPP_RUM_TOKEN", "")
 BKAPP_RUM_ENABLED = str(os.getenv("BKAPP_RUM_ENABLED", False)).lower() == "true"
-
-# Opt-in until BKBase supports SurrealDBBinding.spec.heartbeat_gap_ms.
-# None omits the field; 300000 reproduces the existing five-minute window.
-GRAPH_RELATION_HEARTBEAT_GAP_MS = None
-# Tenant-scoped business overrides, e.g. {"tenant-a": {"123": 300000}}.
-GRAPH_RELATION_HEARTBEAT_GAP_MS_OVERRIDES = {}
