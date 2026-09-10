@@ -133,6 +133,7 @@ const mountedVueInstance = () => {
     rumInstance?.setUser({ id: store.state.userMeta?.username });
 
     const { space, spaceUid, bkBizId } = spaceRequest.value ?? {};
+    store.commit('updateState', { spaceResolveFailed: !space });
 
     let externalMenu = [];
     if (window.IS_EXTERNAL && space) {
@@ -204,18 +205,24 @@ const mountedVueInstance = () => {
         App,
       },
       created() {
-        if (!space && this.$route.name !== 'share') {
-          this.$router.push({
-            path: '/un-authorized',
-            query: {
-              type: 'space',
-              spaceUid: spaceUid ?? store.state.storage[BK_LOG_STORAGE.BK_SPACE_UID],
-              bkBizId: bkBizId ?? store.state.storage[BK_LOG_STORAGE.BK_BIZ_ID],
-              indexId: urlArgs.index_id,
-              from: urlArgs.from,
-            },
+        if (!space) {
+          // 等待首个路由解析完成（含根路径重定向），首页直接渲染未授权态并保留 URL。
+          this.$router.onReady(() => {
+            if (['retrieve', 'share'].includes(this.$route.name)) {
+              return;
+            }
+            this.$router.push({
+              path: '/un-authorized',
+              query: {
+                ...this.$route.query,
+                type: 'space',
+                spaceUid: spaceUid ?? store.state.storage[BK_LOG_STORAGE.BK_SPACE_UID],
+                bkBizId: bkBizId ?? store.state.storage[BK_LOG_STORAGE.BK_BIZ_ID],
+                indexId: this.$route.params.indexId ?? this.$route.query.indexId ?? urlArgs.index_id,
+                from: urlArgs.from,
+              },
+            });
           });
-
           return;
         }
 

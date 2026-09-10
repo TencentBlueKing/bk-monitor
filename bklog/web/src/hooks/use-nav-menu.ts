@@ -110,6 +110,10 @@ export function useNavMenu(options: {
     if (isExternal.value) {
       updateExternalMenuBySpace(newSpaceUid);
     }
+    // 空间解析失败的恢复跳转由空间选择器统一处理，避免覆盖原始 IndexId。
+    if (store.state.spaceResolveFailed) {
+      return;
+    }
     // 外部版：当前路由在新业务不可用时，重定向到第一个可用路由
     if (isExternal.value) {
       const currentMenu = routeNameToExternalMenu(route.name as string);
