@@ -8,7 +8,7 @@ from unittest import TestCase
 
 from apm_web.handlers.service_handler import ServiceHandler
 from apm_web.llm.adapter import adapt_spans as adapt_spans_with_entity_set
-from apm_web.llm.adapter.fields import detect_product, expand_query_fields, resolve_query_field
+from apm_web.llm.adapter.fields import KEYWORD_FIELDS, detect_product, resolve_query_field
 
 TRACE_ID = "a" * 32
 SPAN_ID = "b" * 16
@@ -114,19 +114,11 @@ class AdapterTests(TestCase):
             with self.subTest(product=product):
                 self.assertEqual(resolve_query_field(product, "attributes.user.id"), "attributes.user.id")
 
-    def test_expand_query_fields(self) -> None:
+    def test_keyword_fields(self) -> None:
         self.assertEqual(
-            set(
-                expand_query_fields(
-                    [
-                        "attributes.user.id",
-                        "attributes.gen_ai.conversation.id",
-                        "attributes.gen_ai.input.messages",
-                        "attributes.gen_ai.output.messages",
-                    ]
-                )
-            ),
+            set(KEYWORD_FIELDS),
             {
+                "trace_id",
                 "attributes.user.id",
                 "attributes.gen_ai.user.id",
                 "attributes.gen_ai.conversation.id",

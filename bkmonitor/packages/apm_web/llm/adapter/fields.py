@@ -40,20 +40,21 @@ QUERY_FIELD_MAPPING: dict[str, dict[str, str]] = {
     }
 }
 
-QUERY_FIELD_ALIASES: dict[str, tuple[str, ...]] = {
-    "attributes.gen_ai.conversation.id": tuple(QUERY_FIELD_MAPPING["attributes.gen_ai.conversation.id"].values()),
-    "attributes.user.id": ("attributes.gen_ai.user.id",),
-    "attributes.gen_ai.input.messages": (
-        "attributes.llm.input",
-        "attributes.traceloop.entity.input",
-        "attributes.input.value",
-    ),
-    "attributes.gen_ai.output.messages": (
-        "attributes.llm.output",
-        "attributes.traceloop.entity.output",
-        "attributes.output.value",
-    ),
-}
+KEYWORD_FIELDS: tuple[str, ...] = (
+    "trace_id",
+    "attributes.user.id",
+    "attributes.gen_ai.user.id",
+    "attributes.gen_ai.conversation.id",
+    *QUERY_FIELD_MAPPING["attributes.gen_ai.conversation.id"].values(),
+    "attributes.gen_ai.input.messages",
+    "attributes.llm.input",
+    "attributes.traceloop.entity.input",
+    "attributes.input.value",
+    "attributes.gen_ai.output.messages",
+    "attributes.llm.output",
+    "attributes.traceloop.entity.output",
+    "attributes.output.value",
+)
 
 
 def resolve_query_field(product: str | None, field: str) -> str:
@@ -61,15 +62,6 @@ def resolve_query_field(product: str | None, field: str) -> str:
     if product is None:
         return field
     return QUERY_FIELD_MAPPING.get(field, {}).get(product, field)
-
-
-def expand_query_fields(fields: list[str]) -> list[str]:
-    """将标准查询字段展开为自身及所有已知原始字段。"""
-    result: list[str] = []
-    for field in fields:
-        result.append(field)
-        result.extend(QUERY_FIELD_ALIASES.get(field, ()))
-    return list(dict.fromkeys(result))
 
 
 STANDARD_FIELDS = {
