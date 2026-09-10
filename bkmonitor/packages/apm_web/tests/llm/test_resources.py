@@ -409,12 +409,21 @@ class ListTracesResourceTestCase(TestCase):
             query_string=AGENT_CANDIDATE_QUERY,
             keyword="",
             keyword_fields=[
+                "trace_id",
                 "attributes.user.id",
                 "attributes.gen_ai.user.id",
                 "attributes.gen_ai.conversation.id",
                 "attributes.agent.session.session_code",
                 "attributes.gen_ai.session.id",
                 "attributes.gen_ai.session_id",
+                "attributes.gen_ai.input.messages",
+                "attributes.llm.input",
+                "attributes.traceloop.entity.input",
+                "attributes.input.value",
+                "attributes.gen_ai.output.messages",
+                "attributes.llm.output",
+                "attributes.traceloop.entity.output",
+                "attributes.output.value",
             ],
         )
         span_query.query_by_group_ids.assert_called_once_with(
@@ -451,7 +460,7 @@ class ListTracesResourceTestCase(TestCase):
 
         self.assertEqual(resolved, "attributes.session.id")
 
-    def test_keyword_fields_include_all_aliases_in_each_view(self):
+    def test_keyword_fields_include_all_aliases(self):
         conversation_field = "attributes.gen_ai.conversation.id"
         products = [
             ("default", conversation_field),
@@ -505,10 +514,7 @@ class ListTracesResourceTestCase(TestCase):
 
                     span_query.query_group_list.assert_called_once()
                     query_args = span_query.query_group_list.call_args.kwargs.copy()
-                    expected_fields = set(id_fields)
-                    if group_field == "trace_id":
-                        expected_fields.add("trace_id")
-                        expected_fields.update(text_fields)
+                    expected_fields = {"trace_id", *id_fields, *text_fields}
                     self.assertCountEqual(query_args.pop("keyword_fields"), expected_fields)
                     self.assertEqual(
                         query_args,

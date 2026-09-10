@@ -20,14 +20,9 @@
 
 使用标准会话字段 `attributes.gen_ai.conversation.id` 分组时，接口会根据服务所属产品匹配对应的会话字段。
 
-| 查询视图 | `keyword` 搜索范围 | 匹配方式 |
-|---|---|---|
-| Trace 视图（默认或 `group_field=trace_id`） | Trace ID、用户 ID、会话 ID、输入输出文本 | Trace ID 精确匹配；其他字段包含匹配 |
-| 会话视图 | 用户 ID、会话 ID | 包含匹配 |
+`keyword` 支持搜索 Trace ID、用户 ID、会话 ID 和输入输出文本，其中 Trace ID 精确匹配，其他字段包含匹配。关键词匹配任一支持字段即可命中，用户 ID、会话 ID 和输入输出文本兼容已支持产品的字段映射。不支持搜索 Span ID，也不检索 Span Event 中的文本。
 
-关键词匹配任一支持字段即可命中，用户 ID、会话 ID 和输入输出文本兼容已支持产品的字段映射。不支持搜索 Span ID，也不检索 Span Event 中的文本。
-
-会话视图按用户 ID 搜索时，匹配用户的 Agent/LLM Span 需同时携带会话字段；命中后通过 `childs` 返回该会话中的 Trace。
+会话视图中，匹配关键词的 Agent/LLM Span 需同时携带会话字段；命中后通过 `childs` 返回该会话中的 Trace。
 
 ### 请求参数示例
 

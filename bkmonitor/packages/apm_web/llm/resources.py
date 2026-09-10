@@ -232,15 +232,13 @@ class ListTracesResource(Resource):
             service_names=[service_name],
         )
         query_group_field = self._resolve_group_field(entity_set, service_name, group_field)
-        keyword_fields = [OtlpKey.get_attributes_key("user.id"), OtlpKey.get_attributes_key("gen_ai.conversation.id")]
-        if group_field == OtlpKey.TRACE_ID:
-            keyword_fields.insert(0, OtlpKey.TRACE_ID)
-            keyword_fields.extend(
-                [
-                    OtlpKey.get_attributes_key("gen_ai.input.messages"),
-                    OtlpKey.get_attributes_key("gen_ai.output.messages"),
-                ]
-            )
+        keyword_fields = [
+            OtlpKey.TRACE_ID,
+            OtlpKey.get_attributes_key("user.id"),
+            OtlpKey.get_attributes_key("gen_ai.conversation.id"),
+            OtlpKey.get_attributes_key("gen_ai.input.messages"),
+            OtlpKey.get_attributes_key("gen_ai.output.messages"),
+        ]
 
         span_query = get_query(application.build_data_sources())
         group_ids = span_query.query_group_list(
