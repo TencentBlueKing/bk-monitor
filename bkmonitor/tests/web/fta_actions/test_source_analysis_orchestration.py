@@ -86,7 +86,7 @@ class TestSourceAnalysisContract(SimpleTestCase):
                     "skill_ids": "skill-a",
                     "knowledge_base_ids": "",
                     "alert_id": "alert-1",
-                    "TASK_ID": SOURCE_ANALYSIS_BKFARA_TASK_ID_PLACEHOLDER,
+                    "BKFARA_TASK_ID": SOURCE_ANALYSIS_BKFARA_TASK_ID_PLACEHOLDER,
                     "BKAI_AIDEV_API_KEY": SOURCE_ANALYSIS_BKAI_AIDEV_API_KEY_PLACEHOLDER,
                 },
             }
@@ -139,11 +139,11 @@ class TestSourceAnalysisContract(SimpleTestCase):
             "repository_alias": "repo-a",
             "agent_id": "agent-a",
             "alert_id": "alert-1",
-            "TASK_ID": SOURCE_ANALYSIS_BKFARA_TASK_ID_PLACEHOLDER,
+            "BKFARA_TASK_ID": SOURCE_ANALYSIS_BKFARA_TASK_ID_PLACEHOLDER,
             "BKAI_AIDEV_API_KEY": SOURCE_ANALYSIS_BKAI_AIDEV_API_KEY_PLACEHOLDER,
         }
         invalid_values = {
-            "TASK_ID": "task-1",
+            "BKFARA_TASK_ID": "task-1",
             "BKAI_AIDEV_API_KEY": "real-access-token",
         }
 
@@ -247,7 +247,7 @@ class TestSourceAnalysisContract(SimpleTestCase):
         self.assertEqual(ensure_params["bk_username"], "operator-a")
         self.assertEqual(trigger_params["bk_username"], "operator-a")
         self.assertEqual(
-            trigger_params["inputs"]["TASK_ID"],
+            trigger_params["inputs"]["BKFARA_TASK_ID"],
             SOURCE_ANALYSIS_BKFARA_TASK_ID_PLACEHOLDER,
         )
         self.assertEqual(
@@ -368,7 +368,7 @@ class TestSourceAnalysisOrchestration(TestCase):
                 "skill_ids": "skill-a,skill-b",
                 "knowledge_base_ids": "knowledge-a",
                 "alert_id": "alert-1",
-                "TASK_ID": SOURCE_ANALYSIS_BKFARA_TASK_ID_PLACEHOLDER,
+                "BKFARA_TASK_ID": SOURCE_ANALYSIS_BKFARA_TASK_ID_PLACEHOLDER,
                 "BKAI_AIDEV_API_KEY": SOURCE_ANALYSIS_BKAI_AIDEV_API_KEY_PLACEHOLDER,
             },
         )

@@ -254,7 +254,7 @@ class SourceAnalysisInputsSerializer(serializers.Serializer):
     )
     alert_id = serializers.CharField(label="告警 ID", max_length=64)
     # BKFara 将固定占位符替换为 trigger 创建的任务 ID，供流水线回调时关联任务。
-    TASK_ID = serializers.ChoiceField(
+    BKFARA_TASK_ID = serializers.ChoiceField(
         label=_("BKFara 任务 ID 运行时占位符"),
         choices=(SOURCE_ANALYSIS_BKFARA_TASK_ID_PLACEHOLDER,),
     )

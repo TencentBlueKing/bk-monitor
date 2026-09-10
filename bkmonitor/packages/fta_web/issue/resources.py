@@ -1150,7 +1150,7 @@ class SourceAnalysisExecutionBaseResource(Resource):
                 "knowledge_base_ids": ",".join(execution.knowledge_base_ids),
                 "alert_id": execution.alert_id,
                 # BKFara 在创建任务后将该占位符渲染为 analysis_task_id，供流水线回调结果。
-                "TASK_ID": SOURCE_ANALYSIS_BKFARA_TASK_ID_PLACEHOLDER,
+                "BKFARA_TASK_ID": SOURCE_ANALYSIS_BKFARA_TASK_ID_PLACEHOLDER,
                 # BKFara 识别固定值后注入当前用户 access_token；BKM 不读取真实 Token。
                 "BKAI_AIDEV_API_KEY": SOURCE_ANALYSIS_BKAI_AIDEV_API_KEY_PLACEHOLDER,
             },
