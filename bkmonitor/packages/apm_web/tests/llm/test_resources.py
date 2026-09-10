@@ -1,5 +1,6 @@
 from unittest import TestCase, mock
 
+from apm_web.llm.adapter import adapt_spans
 from apm_web.llm.resources import (
     AGENT_CANDIDATE_QUERY,
     CalculateByRangeResource,
@@ -77,6 +78,7 @@ class ListTracesResourceTestCase(TestCase):
                 "start_time": span.get("start_time", 0),
                 "end_time": span.get("end_time", 0),
                 "attributes": {
+                    "gen_ai.conversation.id": span.get("attributes", {}).get("agent.session.session_code", ""),
                     "gen_ai.input.messages": [{"role": "user", "parts": [{"type": "text", "content": span["input"]}]}],
                     "gen_ai.output.messages": [
                         {"role": "assistant", "parts": [{"type": "text", "content": span["output"]}]}
@@ -106,6 +108,7 @@ class ListTracesResourceTestCase(TestCase):
                 "trace_id": "trace-1",
                 "span_id": "span-1",
                 "parent_span_id": "",
+                "status": {"code": 0},
                 "input": "问一",
                 "output": "答一",
                 "start_time": 100,
@@ -120,6 +123,7 @@ class ListTracesResourceTestCase(TestCase):
                 "trace_id": "trace-2",
                 "span_id": "span-2",
                 "parent_span_id": "",
+                "status": {"code": 1},
                 "input": "问二",
                 "output": "处理中",
                 "start_time": 200,
@@ -134,6 +138,7 @@ class ListTracesResourceTestCase(TestCase):
                 "trace_id": "trace-2",
                 "span_id": "span-3",
                 "parent_span_id": "span-2",
+                "status": {"code": 2},
                 "input": "问二（包含工具结果）",
                 "output": "答二",
                 "start_time": 250,
@@ -173,6 +178,8 @@ class ListTracesResourceTestCase(TestCase):
                     "group_id": "trace-2",
                     "group_field": "trace_id",
                     "trace_id": "trace-2",
+                    "conversation_id": "",
+                    "status": "error",
                     "input": "问二",
                     "output": "处理中",
                     "input_tokens": 20,
@@ -187,6 +194,8 @@ class ListTracesResourceTestCase(TestCase):
                     "group_id": "trace-1",
                     "group_field": "trace_id",
                     "trace_id": "trace-1",
+                    "conversation_id": "",
+                    "status": "success",
                     "input": "问一",
                     "output": "答一",
                     "input_tokens": 10,
@@ -243,6 +252,7 @@ class ListTracesResourceTestCase(TestCase):
                 "span_id": "span-1",
                 "parent_span_id": "",
                 "attributes": {"agent.session.session_code": "session-1"},
+                "status": {"code": 1},
                 "input": "问一",
                 "output": "答一",
                 "start_time": 300,
@@ -258,6 +268,7 @@ class ListTracesResourceTestCase(TestCase):
                 "span_id": "span-3",
                 "parent_span_id": "",
                 "attributes": {"agent.session.session_code": "session-2"},
+                "status": {"code": 2},
                 "input": "问三",
                 "output": "答三",
                 "start_time": 200,
@@ -273,6 +284,7 @@ class ListTracesResourceTestCase(TestCase):
                 "span_id": "span-2",
                 "parent_span_id": "",
                 "attributes": {"agent.session.session_code": "session-2"},
+                "status": {"code": 1},
                 "input": "问二",
                 "output": "答二",
                 "start_time": 100,
@@ -288,6 +300,7 @@ class ListTracesResourceTestCase(TestCase):
                 "span_id": "span-2-llm",
                 "parent_span_id": "span-2",
                 "attributes": {},
+                "status": {"code": 0},
                 "input": "模型输入",
                 "output": "模型输出",
                 "start_time": 120,
@@ -340,6 +353,8 @@ class ListTracesResourceTestCase(TestCase):
                         "group_id": "trace-2",
                         "group_field": "trace_id",
                         "trace_id": "trace-2",
+                        "conversation_id": "session-2",
+                        "status": "success",
                         "input": "问二",
                         "output": "答二",
                         "input_tokens": 10,
@@ -354,6 +369,8 @@ class ListTracesResourceTestCase(TestCase):
                         "group_id": "trace-3",
                         "group_field": "trace_id",
                         "trace_id": "trace-3",
+                        "conversation_id": "session-2",
+                        "status": "error",
                         "input": "问三",
                         "output": "答三",
                         "input_tokens": 20,
@@ -410,15 +427,94 @@ class ListTracesResourceTestCase(TestCase):
 
         self.assertEqual(resolved, "attributes.session.id")
 
+    def test_trace_conversation_id_uses_first_nonempty_standardized_value(self):
+        for product, field in [
+            ("default", "gen_ai.conversation.id"),
+            ("agentlens", "gen_ai.session.id"),
+            ("aidev", "agent.session.session_code"),
+            ("galileo", "gen_ai.session_id"),
+        ]:
+            with self.subTest(product=product):
+                entity_set = mock.Mock(service_names=["agent-service"])
+                entity_set.get_system.return_value = {"is_support_llm": True, "product": product}
+                raw_spans = [
+                    {
+                        "trace_id": "trace-1",
+                        "span_id": f"span-{start_time}",
+                        "parent_span_id": "" if start_time == 100 else "span-100",
+                        "span_name": "invoke_agent demo",
+                        "start_time": start_time,
+                        "end_time": start_time + 10,
+                        "elapsed_time": 10,
+                        "status": {"code": 1},
+                        "resource": {"service.name": "agent-service"},
+                        "attributes": {"gen_ai.operation.name": "invoke_agent", field: value},
+                        "events": [],
+                    }
+                    for start_time, value in [(300, "conversation-later"), (100, ""), (200, "conversation-first")]
+                ]
+
+                item = ListTracesResource._trace_item("trace-1", raw_spans, entity_set)
+
+                self.assertEqual(item["conversation_id"], "conversation-first")
+
+    def test_trace_status_includes_spans_filtered_by_adapter(self):
+        entity_set = mock.Mock(service_names=["agent-service"])
+        entity_set.get_system.return_value = {"is_support_llm": True, "product": "default"}
+
+        for root_code, child_code, expected_status in [(1, 1, "success"), (0, 0, "success"), (1, 2, "error")]:
+            with self.subTest(root_code=root_code, child_code=child_code):
+                raw_spans = [
+                    {
+                        "trace_id": "trace-1",
+                        "span_id": "root",
+                        "parent_span_id": "",
+                        "span_name": "invoke_agent demo",
+                        "start_time": 100,
+                        "end_time": 300,
+                        "elapsed_time": 200,
+                        "status": {"code": root_code, "message": ""},
+                        "resource": {"service.name": "agent-service"},
+                        "attributes": {"gen_ai.operation.name": "invoke_agent", "gen_ai.usage.input_tokens": 10},
+                    },
+                    {
+                        "trace_id": "trace-1",
+                        "span_id": "http-child",
+                        "parent_span_id": "root",
+                        "span_name": "GET /orders",
+                        "start_time": 150,
+                        "end_time": 200,
+                        "elapsed_time": 50,
+                        "status": {"code": child_code, "message": "timeout" if child_code == 2 else ""},
+                        "resource": {"service.name": "agent-service"},
+                        "attributes": {"http.method": "GET"},
+                    },
+                ]
+
+                self.assertEqual([span["span_id"] for span in adapt_spans(raw_spans, entity_set)], ["root"])
+
+                item = ListTracesResource._trace_item("trace-1", raw_spans, entity_set)
+
+                self.assertEqual(item["status"], expected_status)
+                self.assertEqual(item["input_tokens"], 10)
+
     def test_trace_time_uses_raw_root_span(self):
         raw_spans = [
-            {"trace_id": "trace-1", "span_id": "root", "parent_span_id": "", "start_time": 100, "end_time": 300},
+            {
+                "trace_id": "trace-1",
+                "span_id": "root",
+                "parent_span_id": "",
+                "start_time": 100,
+                "end_time": 300,
+                "status": {"code": 1},
+            },
             {
                 "trace_id": "trace-1",
                 "span_id": "llm",
                 "parent_span_id": "root",
                 "start_time": 150,
                 "end_time": 200,
+                "status": {"code": 1},
             },
         ]
         converted_spans = [
@@ -439,7 +535,14 @@ class ListTracesResourceTestCase(TestCase):
 
     def test_trace_preview_uses_last_user_and_assistant_on_logical_root(self):
         raw_spans = [
-            {"trace_id": "trace-1", "span_id": "http-root", "parent_span_id": "", "start_time": 100, "end_time": 300}
+            {
+                "trace_id": "trace-1",
+                "span_id": "http-root",
+                "parent_span_id": "",
+                "start_time": 100,
+                "end_time": 300,
+                "status": {"code": 1},
+            }
         ]
         converted_spans = [
             {
@@ -507,7 +610,14 @@ class ListTracesResourceTestCase(TestCase):
 
     def test_trace_preview_does_not_fallback_to_child_llm(self):
         raw_spans = [
-            {"trace_id": "trace-1", "span_id": "agent", "parent_span_id": "", "start_time": 100, "end_time": 300}
+            {
+                "trace_id": "trace-1",
+                "span_id": "agent",
+                "parent_span_id": "",
+                "start_time": 100,
+                "end_time": 300,
+                "status": {"code": 1},
+            }
         ]
         converted_spans = [
             {

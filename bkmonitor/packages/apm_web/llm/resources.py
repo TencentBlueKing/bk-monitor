@@ -3,6 +3,7 @@ from math import ceil, pi, sin
 from typing import Any
 
 from opentelemetry.semconv.resource import ResourceAttributes
+from opentelemetry.trace import StatusCode
 from rest_framework import serializers
 
 from constants.apm import OtlpKey
@@ -118,6 +119,8 @@ class ListTracesResource(Resource):
 
     @classmethod
     def _trace_item(cls, trace_id: str, raw_spans: list[dict[str, Any]], entity_set: EntitySet) -> dict[str, Any]:
+        # 在 Adapter 过滤前判定，避免漏掉未被保留的失败 Span。
+        has_error = any(span["status"]["code"] == StatusCode.ERROR.value for span in raw_spans)
         converted_spans = adapt_spans(raw_spans, entity_set)
         converted_attributes = [
             attributes for span in converted_spans if isinstance((attributes := span.get(OtlpKey.ATTRIBUTES)), dict)
@@ -139,10 +142,16 @@ class ListTracesResource(Resource):
             (str(value) for value in attribute_values("user.id") if value not in (None, "")),
             "",
         )
+        conversation_id = next(
+            (str(value) for value in attribute_values("gen_ai.conversation.id") if value not in (None, "")),
+            "",
+        )
         return {
             "group_id": trace_id,
             "group_field": OtlpKey.TRACE_ID,
             "trace_id": trace_id,
+            "conversation_id": conversation_id,
+            "status": "error" if has_error else "success",
             "input": cls._last_message_text(preview_root, "gen_ai.input.messages", "user"),
             "output": cls._last_message_text(preview_root, "gen_ai.output.messages", "assistant"),
             "input_tokens": token_total("gen_ai.usage.input_tokens"),
