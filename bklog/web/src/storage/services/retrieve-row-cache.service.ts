@@ -1,10 +1,27 @@
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ * ---------------------------------------------------
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+ * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
  */
+
 import {
   relatedLogSearchRowRepository,
   retrieveRowRepository,
+  sanitizeCopyRow,
   type RetrieveRowRepository,
 } from '../repositories/retrieve-row.repository';
 import { createRequestId, PAGE_INSTANCE_ID } from '../utils/page-instance';
@@ -94,7 +111,12 @@ export class RetrieveRowCacheService {
   }
 
   getMemoryRows(keys: string[]) {
-    return keys.map(key => this.rowMemory.get(key)?.value).filter(Boolean);
+    return keys.map(key => this.volatileRows.get(key) || this.rowMemory.get(key)?.value).filter(Boolean);
+  }
+
+  getCopyRowsFromMemory(keys: string[], options: CopyRowsOptions = {}) {
+    if (!keys.length) return [];
+    return keys.map(key => this.sanitizeMemoryCopyRow(key, options)).filter(Boolean);
   }
 
   async getRenderRows(keys: string[]) {
@@ -187,7 +209,25 @@ export class RetrieveRowCacheService {
 
   async getCopyRows(keys: string[], options: CopyRowsOptions = {}) {
     if (!keys.length) return [];
-    return (await this.repository.getCopyRowsByKeys(keys, options)).filter(Boolean);
+
+    const output = keys.map(key => this.sanitizeMemoryCopyRow(key, options));
+    const missingIndexes = output.map((row, index) => (row ? -1 : index)).filter(index => index >= 0);
+
+    if (missingIndexes.length && (await storageHealthService.ensureIndexedDBUsable())) {
+      const missingKeys = missingIndexes.map(index => keys[index]);
+      try {
+        const dbRows = await this.repository.getCopyRowsByKeys(missingKeys, options);
+        missingIndexes.forEach((outputIndex, dbIndex) => {
+          output[outputIndex] = dbRows[dbIndex] ?? this.sanitizeMemoryCopyRow(keys[outputIndex], options);
+        });
+      } catch (error) {
+        storageHealthService.resetIndexedDBUsable();
+        storageHealthService.notifyIndexedDBFallback();
+        console.warn(`[${this.logTag}] get copy rows failed`, error);
+      }
+    }
+
+    return output.filter(Boolean);
   }
 
   async getRowsByQuery(queryKey: string, offset = 0, limit?: number) {
@@ -231,6 +271,11 @@ export class RetrieveRowCacheService {
     if (!queryKey) return;
     this.releaseQuery(queryKey);
     await this.repository.clearQuery(queryKey);
+  }
+
+  private sanitizeMemoryCopyRow(key: string, options: CopyRowsOptions = {}) {
+    const row = this.volatileRows.get(key) || this.rowMemory.get(key)?.value;
+    return sanitizeCopyRow(row, [], options.includeFields ?? []);
   }
 
   private createRowKeys(queryKey: string, length: number, startSeq = 0) {

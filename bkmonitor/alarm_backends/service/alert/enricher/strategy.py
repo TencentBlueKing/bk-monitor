@@ -28,8 +28,11 @@ class StrategySnapshotEnricher(BaseAlertEnricher):
             if not origin_alarm:
                 return alert
 
-            # 尝试从快照获取
-            strategy = Strategy.get_strategy_snapshot_by_key(origin_alarm["strategy_snapshot_key"])
+            # 尝试从快照获取。带上 strategy_id，否则 key 是普通字符串，
+            # CacheRouter 只会读默认节点，读不到写在路由节点上的快照。
+            strategy = Strategy.get_strategy_snapshot_by_key(
+                origin_alarm["strategy_snapshot_key"], alert.strategy_id
+            )
 
         if not strategy:
             # 如果没有，则从缓存中获取

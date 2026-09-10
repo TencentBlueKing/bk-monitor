@@ -27,7 +27,7 @@ import { type PropType, computed, defineComponent, toRef, toValue, useTemplateRe
 
 import { useRouter } from 'vue-router';
 
-import { useTableScrollOptimize } from '../../composables/use-table-scroll-optimize';
+import { useTableScrollOptimize } from '../../../../hooks/use-table-scroll-optimize';
 import { ALERT_STORAGE_KEY } from '../../services/alert-services';
 import AlertSelectionToolbar from './components/alert-selection-toolbar/alert-selection-toolbar';
 import CommonTable from './components/common-table/common-table';
@@ -156,7 +156,7 @@ export default defineComponent({
     /** 表格滚动优化：滚动时禁用 pointerEvents 并隐藏 popover */
     useTableScrollOptimize({
       targetElement: tableRef,
-      scrollContainerSelector: props.scrollContainerSelector,
+      scrollContainerElement: props.scrollContainerSelector,
       onScroll: () => {
         hoverPopoverTools.hidePopover();
         clickPopoverTools.hidePopover();

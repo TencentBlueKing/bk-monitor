@@ -39,6 +39,6 @@ class EventAttributes(FieldSpec):
 class Events(FieldSpec):
     """events（Span 事件字段，数组类型）"""
 
-    NAME = FieldSpec(field_name="name", field_alias=_("事件名称"))
+    NAME = FieldSpec(field_name="name", field_alias=_("事件"))
     TIMESTAMP = FieldSpec(field_name="timestamp", field_alias=_("事件发生时间"))
     ATTRIBUTES = EventAttributes(field_name="attributes")

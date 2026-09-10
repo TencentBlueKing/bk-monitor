@@ -8,7 +8,7 @@ from unittest import TestCase
 
 from apm_web.handlers.service_handler import ServiceHandler
 from apm_web.llm.adapter import adapt_spans as adapt_spans_with_entity_set
-from apm_web.llm.adapter.fields import detect_product
+from apm_web.llm.adapter.fields import detect_product, resolve_query_field
 
 TRACE_ID = "a" * 32
 SPAN_ID = "b" * 16
@@ -99,6 +99,17 @@ class AdapterTests(TestCase):
         entity_set = FakeEntitySet("galileo", is_support_llm=False)
 
         self.assertEqual(detect_product(entity_set, [agentlens_span()]), "default")
+
+    def test_resolve_query_field(self) -> None:
+        conversation_field = "attributes.gen_ai.conversation.id"
+        self.assertEqual(resolve_query_field("aidev", conversation_field), "attributes.agent.session.session_code")
+        self.assertEqual(resolve_query_field("agentlens", conversation_field), "attributes.gen_ai.session.id")
+        # galileo/default 直接使用标准字段本身
+        self.assertEqual(resolve_query_field("galileo", conversation_field), conversation_field)
+        self.assertEqual(resolve_query_field("default", conversation_field), conversation_field)
+        # 非 LLM 服务或未命中映射表的字段原样透传
+        self.assertEqual(resolve_query_field(None, conversation_field), conversation_field)
+        self.assertEqual(resolve_query_field("aidev", "trace_id"), "trace_id")
 
     def test_default_adapter_keeps_only_standard_fields(self) -> None:
         span = agentlens_span()

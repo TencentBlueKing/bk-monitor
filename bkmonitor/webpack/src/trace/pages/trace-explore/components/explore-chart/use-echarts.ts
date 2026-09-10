@@ -30,7 +30,7 @@ import dayjs from 'dayjs';
 import { CancelToken } from 'monitor-api/cancel';
 import { random } from 'monitor-common/utils';
 import { arraysEqual } from 'monitor-common/utils/equal';
-import { COLOR_LIST_BAR } from 'monitor-ui/chart-plugins/constants/charts';
+import { COLOR_LIST, COLOR_LIST_BAR } from 'monitor-ui/chart-plugins/constants/charts';
 import { getValueFormat } from 'monitor-ui/monitor-echarts/valueFormats/valueFormats';
 
 import { DEFAULT_TIME_RANGE, handleTransformToTimestamp } from '../../../../components/time-range/utils';
@@ -358,6 +358,7 @@ export const createYAxis = (yData: EchartSeriesItem[], type?: string) => {
 };
 export const createOptions = (xAxis, yAxis, series, customOptions?: CustomOptions['options']) => {
   const hasShowSymbol = series.some(item => item.showSymbol);
+  const hasBarChart = series.some(item => item.type === 'bar');
   const options = {
     useUTC: false,
     animation: hasShowSymbol,
@@ -369,7 +370,7 @@ export const createOptions = (xAxis, yAxis, series, customOptions?: CustomOption
       text: '',
       show: false,
     },
-    color: COLOR_LIST_BAR,
+    color: hasBarChart ? COLOR_LIST_BAR : COLOR_LIST,
     legend: {
       show: false,
     },

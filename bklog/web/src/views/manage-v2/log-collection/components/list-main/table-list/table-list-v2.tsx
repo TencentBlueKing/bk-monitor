@@ -298,7 +298,15 @@ export default defineComponent({
     const checkInfo = ref('');
 
     // 使用自定义 hook 管理状态
-    const { authGlobalInfo, operateHandler, checkCreateAuth, spaceUid, bkBizId, isAllowedCreate } = useCollectList();
+    const {
+      authGlobalInfo,
+      operateHandler,
+      checkCreateAuth,
+      spaceUid,
+      bkBizId,
+      isAllowedCreate,
+      isShowMaskingTemplate,
+    } = useCollectList();
     // 个人设置本地存储（归属、排序、字段设置、列宽、页大小）
     const { getSetting, updateSetting } = useTableLocalSetting();
     // 初始化时读取一次缓存，各设置项在使用前逐项校验合法性
@@ -612,23 +620,29 @@ export default defineComponent({
       const type = row?.log_access_type || 'linux';
       // status 是异步获取的，可能暂时为空，默认按非 terminated 状态处理
       const status = row?.status || '';
+      const maskingKey = isShowMaskingTemplate.value ? 'masking' : '';
+      const filterMaskingByToggle = (list: IMenuItem[]) => {
+        return isShowMaskingTemplate.value ? list : list.filter(item => item.key !== 'masking');
+      };
 
       if (!type) {
-        return MENU_LIST.filter(item => item.key !== (status !== 'terminated' ? 'start' : 'stop'));
+        return filterMaskingByToggle(
+          MENU_LIST.filter(item => item.key !== (status !== 'terminated' ? 'start' : 'stop')),
+        );
       }
 
       if (type === 'custom_report') {
         const excludeKey = status !== 'terminated' ? 'start' : 'stop';
         return MENU_LIST.filter(
-          item => ['clean', 'desensitization', 'stop', 'start', 'delete'].includes(item.key) && item.key !== excludeKey,
+          item => ['clean', maskingKey, 'stop', 'start', 'delete'].includes(item.key) && item.key !== excludeKey,
         );
       }
 
       if (['bkdata', 'es'].includes(type)) {
-        return MENU_LIST.filter(item => ['desensitization', 'delete'].includes(item.key));
+        return MENU_LIST.filter(item => [maskingKey, 'delete'].includes(item.key));
       }
 
-      return MENU_LIST.filter(item => item.key !== (status !== 'terminated' ? 'start' : 'stop'));
+      return filterMaskingByToggle(MENU_LIST.filter(item => item.key !== (status !== 'terminated' ? 'start' : 'stop')));
     };
 
     /**

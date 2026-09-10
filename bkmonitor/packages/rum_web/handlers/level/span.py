@@ -29,7 +29,9 @@ from bkmonitor.data_source.utils.apm import FilterOperator, TraceDatasourceTarge
 from bkmonitor.utils.common_utils import format_percent
 from bkmonitor.utils.thread_backend import ThreadPool
 from core.drf_resource import resource
-from semconv.rum.constants import RumSpanType
+from semconv.rum.constants import RumSpanType, SPAN_TYPE_COMMON_DISPLAY_FIELDS
+from semconv.rum.trace import SpanSpec
+from constants.otel_query import FieldTypeEnum
 from rum_web.handlers.level.base import BaseRumLevelHandler
 from rum_web.handlers.query.span import SpanQuery
 from rum_web.constants import RUM_SEARCH_PAGE_GROUPS
@@ -42,13 +44,24 @@ class SpanLevelHandler(BaseRumLevelHandler):
     """
 
     DISPLAY_FIELDS = [
-        "span_name",
-        "attributes.span_type",
-        "end_time",
-        "elapsed_time",
-        "status.code",
+        *SPAN_TYPE_COMMON_DISPLAY_FIELDS,
         "attributes.view.url_template",
+        "elapsed_time",
+        "resource.user_agent.name",
         "attributes.user.id",
+    ]
+
+    #: 常驻筛选字段，前端置顶展示并默认带出的筛选维度
+    RESIDENT_FIELDS = [
+        "attributes.session.id",
+        "trace_id",
+        "span_name",
+        "resource.deployment.environment.name",
+        "resource.user_agent.name",
+        "attributes.view.url_template",
+        "attributes.outcome.type",
+        "attributes.user.id",
+        "elapsed_time",
     ]
     VIEW_CONFIG_IGNORE_KEYS = ["is_case_sensitive", "is_analyzed", "wildcard_case_insensitive", "tokenize_on_chars"]
 
@@ -64,6 +77,17 @@ class SpanLevelHandler(BaseRumLevelHandler):
         StatisticsProperty.MIN.value,
         StatisticsProperty.MEDIAN.value,
         StatisticsProperty.AVG.value,
+    }
+
+    BOOLEAN_VALUE_TRANSFORM_MAP = {
+        "1": True,
+        "0": False,
+        1: True,
+        0: False,
+        "true": True,
+        "false": False,
+        "True": True,
+        "False": False,
     }
 
     def __init__(self, data_sources: list[TraceDatasourceTarget]):
@@ -109,8 +133,19 @@ class SpanLevelHandler(BaseRumLevelHandler):
                 for group in RUM_SEARCH_PAGE_GROUPS.get("span", [])
             ],
             "display_fields": list(self.DISPLAY_FIELDS),
+            "resident_fields": list(self.RESIDENT_FIELDS),
+            "span_type_resident_fields": {
+                span_type.value: list(span_type.resident_fields) for span_type in RumSpanType
+            },
             "span_type_display_fields": {span_type.value: span_type.display_fields for span_type in RumSpanType},
         }
+
+    @classmethod
+    def _value_transform(cls, field: str, value: str):
+        span_spec = SpanSpec.from_field(field)
+        if span_spec.field_type == FieldTypeEnum.BOOLEAN.value:
+            return cls.BOOLEAN_VALUE_TRANSFORM_MAP.get(value, bool(value))
+        return value
 
     def get_fields_option_values(
         self,
@@ -122,7 +157,12 @@ class SpanLevelHandler(BaseRumLevelHandler):
         query_string: str = "",
         extra_config: dict[str, Any] | None = None,
     ) -> dict[str, list[str]]:
-        return self.query.query_option_values(start_time, end_time, fields, limit, filters or [], query_string)
+        result: dict[str, list[str]] = self.query.query_option_values(
+            start_time, end_time, fields, limit, filters or [], query_string
+        )
+        for field, values in result.items():
+            result[field] = [self._value_transform(field, value) for value in values]
+        return result
 
     def field_topk(
         self,
@@ -171,7 +211,9 @@ class SpanLevelHandler(BaseRumLevelHandler):
                 sig_fig_cnt=3,
                 readable_precision=3,
             )
-            topk_list.append({"value": bucket.get(field), "count": count, "proportions": proportions})
+            topk_list.append(
+                {"value": self._value_transform(field, bucket.get(field)), "count": count, "proportions": proportions}
+            )
 
         return {"field": field, "distinct_count": distinct_count, "list": topk_list}
 
@@ -229,11 +271,11 @@ class SpanLevelHandler(BaseRumLevelHandler):
         query_filters: list[types.Filter] = copy.deepcopy(filters)
         # 字段计数：排除空值。数值类型使用 exists 判断，其他类型排除空字符串。
         if property_name == StatisticsProperty.FIELD_COUNT.value:
-            exclude_empty_operator = (
-                FilterOperator.EXISTS
-                if EnabledStatisticsDimension.from_value(field["field_type"]).is_numeric()
-                else FilterOperator.NOT_EQUAL
+            use_exists = (
+                EnabledStatisticsDimension.from_value(field["field_type"]).is_numeric()
+                or field["field_type"] == EnabledStatisticsDimension.BOOLEAN.value
             )
+            exclude_empty_operator = FilterOperator.EXISTS if use_exists else FilterOperator.NOT_EQUAL
             query_filters.append({"key": field_name, "value": [""], "operator": exclude_empty_operator})
 
         # TOTAL_COUNT 使用 _index 计数，确保分母包含所有 Span（含缺失该字段的记录）
@@ -302,7 +344,16 @@ class SpanLevelHandler(BaseRumLevelHandler):
                     "end_time": config["end_time"] // 1000,
                 }
             )
-            return resource.grafana.graph_unify_query(config)
+            data: dict[str, Any] = resource.grafana.graph_unify_query(config)
+            if field["field_type"] != EnabledStatisticsDimension.BOOLEAN.value:
+                return data
+            series: list[dict[str, Any]] = data.get("series", [])
+            for s in series:
+                s.setdefault("dimensions", {})[field_name] = self._value_transform(
+                    field_name, s["dimensions"].get(field_name)
+                )
+
+            return data
 
         # 数值类型：values 至少 4 项 [min_value, max_value, distinct_count, interval_num]
         min_value, max_value, distinct_count, interval_num = values[:4]

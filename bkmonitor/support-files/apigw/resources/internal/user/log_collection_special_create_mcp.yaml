@@ -3,9 +3,15 @@ paths:
     post:
       operationId: create_custom_report
       description: >-
-        Create a custom-report collector. Requires confirm=true. Set parent_index_set_ids to attach its generated
-        index set to existing index groups; omit it or send [] to leave the index set ungrouped. 创建自定义上报采集项，必须确认
-        confirm=true。可用 parent_index_set_ids 将生成的索引集加入已有索引组。
+        Create a custom-report collector on an automatically selected public storage cluster. Requires confirm=true.
+        The MCP uses the same business-visible public-cluster selection strategy as Fast Create; callers cannot
+        override storage settings. Use update_custom_report to adjust storage cluster or retention after creation.
+        Set parent_index_set_ids to attach its generated index set to existing index groups;
+        omit it or send [] to leave the index set ungrouped. collector_config_name_en must be 5-50 letters, digits
+        or underscores; hyphens are not allowed. 创建自定义上报采集项时，MCP 会自动选择业务可用的公共存储集群，
+        策略与 Fast Create 一致，调用方不可覆盖存储配置；创建后如需调整存储集群或保留期，请调用 update_custom_report；
+        必须确认 confirm=true。collector_config_name_en 长度为 5-50，
+        仅允许字母、数字和下划线，不允许连字符。可用 parent_index_set_ids 将生成的索引集加入已有索引组。
       tags:
       - log_collection_mcp
       requestBody:
@@ -33,6 +39,9 @@ paths:
                   minLength: 5
                   maxLength: 50
                   pattern: ^[A-Za-z0-9_]+$
+                  description: >-
+                    English identifier, 5-50 letters, digits or underscores only; hyphens are not allowed.
+                    采集项英文名，仅允许 5-50 位字母、数字或下划线，不允许连字符。
                 custom_type:
                   type: string
                   enum: [log, otlp_trace, otlp_log]
@@ -46,6 +55,7 @@ paths:
                   type: string
                   maxLength: 64
                   nullable: true
+                  description: Optional collector description, at most 64 characters. 可选采集项描述，最长 64 字符。
                 etl_config:
                   type: string
                 etl_params:
@@ -54,23 +64,6 @@ paths:
                   type: array
                   items:
                     type: object
-                storage_cluster_id:
-                  type: integer
-                  minimum: 1
-                storage_cluster_type:
-                  type: string
-                retention:
-                  type: integer
-                  minimum: 1
-                allocation_min_days:
-                  type: integer
-                  minimum: 0
-                storage_replies:
-                  type: integer
-                  minimum: 0
-                es_shards:
-                  type: integer
-                  minimum: 1
                 is_display:
                   type: boolean
                   default: true

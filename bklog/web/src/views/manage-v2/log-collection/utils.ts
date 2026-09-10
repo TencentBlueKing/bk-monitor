@@ -273,10 +273,10 @@ export const MENU_LIST = [
     label: window.$t('清洗'),
     key: 'clean',
   },
-  // {
-  //   label: window.$t('脱敏'),
-  //   key: 'desensitization',
-  // },
+  {
+    label: window.$t('脱敏'),
+    key: 'masking',
+  },
   {
     label: window.$t('存储设置'),
     key: 'storage',

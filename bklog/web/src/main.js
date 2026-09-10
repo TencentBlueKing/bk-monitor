@@ -25,6 +25,7 @@
  */
 
 import './public-path';
+import { initOpenTelemetry } from './open-telemetry';
 
 import Vue from 'vue';
 import VueVirtualScroller from 'vue-virtual-scroller';
@@ -118,6 +119,8 @@ Vue.use(VueVirtualScroller);
 
 window.bus = bus;
 
+let rumInstance;
+
 const mountedVueInstance = () => {
   // Object.assign(window, localSettings);
   window.mainComponent = {
@@ -127,6 +130,8 @@ const mountedVueInstance = () => {
   };
 
   preload({ http, store, isHeadless: isHeadlessRoute() }).then(([spaceRequest]) => {
+    rumInstance?.setUser({ id: store.state.userMeta?.username });
+
     const { space, spaceUid, bkBizId } = spaceRequest.value ?? {};
 
     let externalMenu = [];
@@ -280,10 +285,12 @@ if (process.env.NODE_ENV === 'development') {
     window.FEATURE_TOGGLE_BLACK_LIST = JSON.parse(data.FEATURE_TOGGLE_BLACK_LIST);
     window.SPACE_UID_WHITE_LIST = JSON.parse(data.SPACE_UID_WHITE_LIST);
     window.FIELD_ANALYSIS_CONFIG = JSON.parse(data.FIELD_ANALYSIS_CONFIG);
+    rumInstance = initOpenTelemetry();
     mountedVueInstance();
     Vue.config.devtools = true;
   });
 } else {
+  rumInstance = initOpenTelemetry();
   mountedVueInstance();
   Vue.config.devtools = true;
 }

@@ -3,6 +3,7 @@ from math import ceil, pi, sin
 from typing import Any
 
 from opentelemetry.semconv.resource import ResourceAttributes
+from opentelemetry.trace import StatusCode
 from rest_framework import serializers
 
 from constants.apm import OtlpKey
@@ -10,7 +11,8 @@ from constants.otel_query import OperatorEnum
 from core.drf_resource import Resource, api
 
 from apm_web.llm.adapter import adapt_spans
-from apm_web.llm.query import get_query
+from apm_web.llm.adapter.fields import resolve_query_field
+from apm_web.llm.query import LLMQuery, get_query
 from apm_web.metric.resources import CalculateByRangeResource as MetricCalculateByRangeResource
 from apm_web.models import Application
 from apm_web.strategy.dispatch.entity import EntitySet
@@ -49,7 +51,7 @@ class ListTracesResource(Resource):
         start_time = serializers.IntegerField(required=True, label="开始时间")
         end_time = serializers.IntegerField(required=True, label="结束时间")
         group_field = serializers.CharField(required=False, default=OtlpKey.TRACE_ID, label="分组字段")
-        service_name = serializers.CharField(required=False, allow_blank=True, default="", label="服务名称")
+        service_name = serializers.CharField(required=True, label="服务名称")
         keyword = serializers.CharField(required=False, allow_blank=True, default="", label="关键词")
         offset = serializers.IntegerField(required=False, min_value=0, default=0, label="分页偏移")
         limit = serializers.IntegerField(required=False, min_value=1, max_value=100, default=20, label="分页大小")
@@ -59,14 +61,16 @@ class ListTracesResource(Resource):
                 raise serializers.ValidationError("start_time 不能大于 end_time")
             return attrs
 
+    @classmethod
+    def _resolve_group_field(cls, entity_set: EntitySet, service_name: str, group_field: str) -> str:
+        """分组字段命中映射表时按服务产品换算为存储中的原始字段，未命中时透传。"""
+        system: dict[str, Any] = entity_set.get_system(service_name)
+        product: str | None = system.get("product") if system.get("is_support_llm") else None
+        return resolve_query_field(product, group_field)
+
     @staticmethod
-    def _span_field_value(span: dict[str, Any], field: str) -> str:
-        section, separator, name = field.partition(".")
-        if separator and section in {OtlpKey.ATTRIBUTES, OtlpKey.RESOURCE}:
-            values = span.get(section)
-            value = values.get(name, "") if isinstance(values, dict) else ""
-        else:
-            value = span.get(field, "")
+    def _span_field_value(span: dict[str, Any], field: str) -> Any:
+        value = LLMQuery._get_field_value(span, field)
         if isinstance(value, list):
             return value[0] if value else ""
         return value
@@ -115,6 +119,8 @@ class ListTracesResource(Resource):
 
     @classmethod
     def _trace_item(cls, trace_id: str, raw_spans: list[dict[str, Any]], entity_set: EntitySet) -> dict[str, Any]:
+        # 在 Adapter 过滤前判定，避免漏掉未被保留的失败 Span。
+        has_error = any(span["status"]["code"] == StatusCode.ERROR.value for span in raw_spans)
         converted_spans = adapt_spans(raw_spans, entity_set)
         converted_attributes = [
             attributes for span in converted_spans if isinstance((attributes := span.get(OtlpKey.ATTRIBUTES)), dict)
@@ -136,10 +142,16 @@ class ListTracesResource(Resource):
             (str(value) for value in attribute_values("user.id") if value not in (None, "")),
             "",
         )
+        conversation_id = next(
+            (str(value) for value in attribute_values("gen_ai.conversation.id") if value not in (None, "")),
+            "",
+        )
         return {
             "group_id": trace_id,
             "group_field": OtlpKey.TRACE_ID,
             "trace_id": trace_id,
+            "conversation_id": conversation_id,
+            "status": "error" if has_error else "success",
             "input": cls._last_message_text(preview_root, "gen_ai.input.messages", "user"),
             "output": cls._last_message_text(preview_root, "gen_ai.output.messages", "assistant"),
             "input_tokens": token_total("gen_ai.usage.input_tokens"),
@@ -155,16 +167,16 @@ class ListTracesResource(Resource):
     def _group_spans(
         cls,
         group_field: str,
-        group_ids: list[str],
-        trace_group_map: dict[str, str],
+        group_ids: list[Any],
+        trace_group_map: dict[str, Any],
         raw_spans: list[dict[str, Any]],
         entity_set: EntitySet,
     ) -> list[dict[str, Any]]:
-        spans_by_group: dict[str, dict[str, list[dict[str, Any]]]] = defaultdict(lambda: defaultdict(list))
+        spans_by_group: dict[Any, dict[str, list[dict[str, Any]]]] = defaultdict(lambda: defaultdict(list))
         for span in raw_spans:
             trace_id = cls._span_field_value(span, OtlpKey.TRACE_ID)
             group_id = trace_group_map.get(trace_id, "")
-            if group_id and trace_id:
+            if group_id is not None and group_id != "" and trace_id:
                 spans_by_group[group_id][trace_id].append(span)
 
         items: list[dict[str, Any]] = []
@@ -200,15 +212,16 @@ class ListTracesResource(Resource):
         return items
 
     def perform_request(self, validated_request_data):
-        filters = []
-        if service_name := validated_request_data["service_name"]:
-            filters.append(
-                {
-                    "key": OtlpKey.get_resource_key(ResourceAttributes.SERVICE_NAME),
-                    "operator": OperatorEnum.EQUAL["operator"],
-                    "value": [service_name],
-                }
-            )
+        group_field = validated_request_data["group_field"]
+
+        service_name = validated_request_data["service_name"]
+        filters = [
+            {
+                "key": OtlpKey.get_resource_key(ResourceAttributes.SERVICE_NAME),
+                "operator": OperatorEnum.EQUAL["operator"],
+                "value": [service_name],
+            }
+        ]
         if keyword := validated_request_data["keyword"]:
             filters.append({"key": "keyword", "operator": "logic", "value": [keyword]})
 
@@ -216,11 +229,17 @@ class ListTracesResource(Resource):
             bk_biz_id=validated_request_data["bk_biz_id"],
             app_name=validated_request_data["app_name"],
         )
+        entity_set: EntitySet = EntitySet(
+            bk_biz_id=validated_request_data["bk_biz_id"],
+            app_name=validated_request_data["app_name"],
+            service_names=[service_name],
+        )
+        query_group_field = self._resolve_group_field(entity_set, service_name, group_field)
         span_query = get_query(application.build_data_sources())
         group_ids = span_query.query_group_list(
             start_time=validated_request_data["start_time"],
             end_time=validated_request_data["end_time"],
-            group_field=validated_request_data["group_field"],
+            group_field=query_group_field,
             offset=validated_request_data["offset"],
             limit=validated_request_data["limit"],
             filters=filters,
@@ -235,12 +254,18 @@ class ListTracesResource(Resource):
             return result
 
         group_trace_records = span_query.query_group_trace_list(
-            group_field=validated_request_data["group_field"],
+            group_field=query_group_field,
             group_ids=group_ids,
         )
-        trace_group_map = {
-            record[OtlpKey.TRACE_ID]: record[validated_request_data["group_field"]] for record in group_trace_records
-        }
+        trace_group_map: dict[str, Any] = {}
+        for record in group_trace_records:
+            trace_id = record.get(OtlpKey.TRACE_ID, "")
+            if not trace_id:
+                continue
+
+            group_id = LLMQuery._get_field_value(record, query_group_field)
+            if group_id is not None and group_id != "" and trace_id not in trace_group_map:
+                trace_group_map[trace_id] = group_id
         if not trace_group_map:
             return result
 
@@ -248,12 +273,8 @@ class ListTracesResource(Resource):
             group_field=OtlpKey.TRACE_ID,
             group_ids=list(trace_group_map),
         )
-        entity_set: EntitySet = EntitySet(
-            bk_biz_id=validated_request_data["bk_biz_id"],
-            app_name=validated_request_data["app_name"],
-        )
         result["items"] = self._group_spans(
-            validated_request_data["group_field"],
+            group_field,
             group_ids,
             trace_group_map,
             spans,

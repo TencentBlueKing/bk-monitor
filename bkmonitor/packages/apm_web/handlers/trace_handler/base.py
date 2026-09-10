@@ -933,7 +933,8 @@ class StatisticsHandler:
                     if isinstance(j, str) and filter_value.lower() in j.lower():
                         t_res.append(i)
                         continue
-                    if isinstance(j, dict) and filter_value.lower() in j.get("value"):
+                    # value 未必是字符串（如 kind 为整数），转成字符串再匹配
+                    if isinstance(j, dict) and filter_value.lower() in str(j.get("value")).lower():
                         t_res.append(i)
                         continue
 

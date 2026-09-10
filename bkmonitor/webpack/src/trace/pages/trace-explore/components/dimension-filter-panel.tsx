@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { type PropType, defineComponent, shallowRef, useTemplateRef, watch } from 'vue';
+import { type PropType, computed, defineComponent, shallowRef, useTemplateRef, watch } from 'vue';
 
 import { useDebounceFn } from '@vueuse/core';
 import { Input } from 'bkui-vue';
@@ -35,9 +35,9 @@ import EmptyStatus, {
   type EmptyStatusOperationType,
   type EmptyStatusType,
 } from '../../../components/empty-status/empty-status';
-import { convertToTree } from '../utils';
-import FieldTypeIcon from './field-type-icon';
-import StatisticsList from './statistics-list';
+import { convertToTree, getTraceFieldUnit } from '../utils';
+import DimensionFieldTree from './dimension-field-tree';
+import StatisticsList from './statistics-list/statistics-list';
 
 import type { ConditionChangeEvent, ICommonParams, IDimensionField, IDimensionFieldTreeItem } from '../typing';
 
@@ -80,78 +80,17 @@ export default defineComponent({
         emptyStatus.value = 'search-empty';
         const aliasNameList: IDimensionField[] = [];
         const pinyinList: IDimensionField[] = [];
-        props.list.map(item => {
+        for (const item of props.list) {
           if (item.alias.includes(keyword) || item.name.includes(keyword)) {
             aliasNameList.push(item);
           } else if (item.pinyinStr.includes(keyword)) {
             pinyinList.push(item);
           }
-        });
+        }
         searchResultList.value = [...aliasNameList, ...pinyinList];
       }
-      dimensionTreeList.value = convertToTree(
-        searchResultList.value.map(item => ({ ...item, expand: Boolean(searchVal.value) }))
-      );
+      dimensionTreeList.value = convertToTree(searchResultList.value);
     }, 100);
-
-    /** 渲染维度列表项 */
-    function renderDimensionItem(item: IDimensionFieldTreeItem, level = 0) {
-      const disabled = !item.children && !item.is_dimensions;
-      return (
-        <div
-          key={item.alias}
-          style={{ '--level': level }}
-          v-bk-tooltips={{
-            content: t('该字段类型，暂时不支持统计分析'),
-            disabled: !disabled,
-            interactive: false,
-            placement: 'right',
-          }}
-        >
-          <div
-            class={{
-              'dimension-item': true,
-              active: activeFieldName.value === item.name,
-              disabled,
-              'leaf-item': !item.children,
-            }}
-            onClick={e => handleDimensionItemClick(e, item)}
-          >
-            <FieldTypeIcon type={item.type} />
-            <span
-              class='dimension-name'
-              // #if IS_APM_MONITOR
-              v-overflow-tips={{
-                theme: 'dark dimension-filter-name-overflow',
-              }}
-              // #else
-              v-overflow-tips
-              // #endif
-            >
-              {item.levelName}
-              {item?.name && item.type !== 'object' ? <span class='subtitle'>({item.name})</span> : ''}
-            </span>
-            {item.children && [
-              <span
-                key='object-count'
-                class='object-count'
-              >
-                {item.count}
-              </span>,
-              <i
-                key='object-arrow'
-                class={['icon-monitor icon-arrow-right object-arrow', { expand: item.expand }]}
-              />,
-            ]}
-            {item.is_dimensions && !item.children && <i class='icon-monitor icon-Chart statistics-icon' />}
-          </div>
-
-          {item.children && item.expand && (
-            <div class='leaf-content'>{item.children.map(child => renderDimensionItem(child, level + 1))}</div>
-          )}
-        </div>
-      );
-    }
 
     /** 已选择的字段 */
     const showStatisticsPopover = shallowRef(false);
@@ -160,51 +99,52 @@ export default defineComponent({
     /** tippy 实例 */
     const popoverInstance = shallowRef<Instance | null>(null);
     const statisticsListRef = useTemplateRef<InstanceType<typeof StatisticsList>>('statisticsListRef');
+
+    const selectFieldUnit = computed(() => {
+      if (!selectField.value) return '';
+      return getTraceFieldUnit(selectField.value.name);
+    });
     /** 点击维度项后展示统计弹窗 */
     async function handleDimensionItemClick(e: Event, item: IDimensionFieldTreeItem) {
       destroyPopover();
       activeFieldName.value = item.name;
-      if (item?.children) {
-        item.expand = !item.expand;
-      } else {
-        if (!item.is_dimensions) return;
-        selectField.value = item;
-        const contentEl = statisticsListRef.value?.$refs?.dimensionPopover as HTMLDivElement | undefined;
-        if (!contentEl) return;
-        const tippyInst = tippy(e.currentTarget as SingleTarget, {
-          content: contentEl,
-          trigger: 'manual',
-          placement: 'right',
-          theme: 'light statistics-dimension-popover-cls',
-          arrow: true,
-          interactive: true,
-          zIndex: 1000,
-          offset: [0, 8],
-          appendTo: () => document.body,
-          popperOptions: {
-            modifiers: [
-              {
-                name: 'preventOverflow',
-                options: {
-                  boundary: 'viewport',
-                },
+      if (!item.is_dimensions) return;
+      selectField.value = item;
+      const contentEl = statisticsListRef.value?.$refs?.dimensionPopover as HTMLDivElement | undefined;
+      if (!contentEl) return;
+      const tippyInst = tippy(e.currentTarget as SingleTarget, {
+        content: contentEl,
+        trigger: 'manual',
+        placement: 'right',
+        theme: 'light statistics-dimension-popover-cls',
+        arrow: true,
+        interactive: true,
+        zIndex: 1000,
+        offset: [0, 8],
+        appendTo: () => document.body,
+        popperOptions: {
+          modifiers: [
+            {
+              name: 'preventOverflow',
+              options: {
+                boundary: 'viewport',
               },
-            ],
-          },
-          onHidden(instance) {
-            if (popoverInstance.value !== instance) return;
-            showStatisticsPopover.value = false;
-            activeFieldName.value = '';
-            popoverInstance.value = null;
-          },
-        });
-        popoverInstance.value = tippyInst;
-        setTimeout(() => {
-          if (popoverInstance.value !== tippyInst) return;
-          showStatisticsPopover.value = true;
-          tippyInst.show();
-        }, 100);
-      }
+            },
+          ],
+        },
+        onHidden(instance) {
+          if (popoverInstance.value !== instance) return;
+          showStatisticsPopover.value = false;
+          activeFieldName.value = '';
+          popoverInstance.value = null;
+        },
+      });
+      popoverInstance.value = tippyInst;
+      setTimeout(() => {
+        if (popoverInstance.value !== tippyInst) return;
+        showStatisticsPopover.value = true;
+        tippyInst.show();
+      }, 100);
     }
 
     function destroyPopover() {
@@ -230,7 +170,7 @@ export default defineComponent({
         <div class='dimension-filter-panel-skeleton'>
           <div class='skeleton-element title' />
           <div class='skeleton-element search-input' />
-          {new Array(10).fill(null).map((item, index) => (
+          {new Array(10).fill(null).map((_, index) => (
             <div
               key={index}
               class='skeleton-element list-item'
@@ -255,8 +195,8 @@ export default defineComponent({
       searchVal,
       dimensionTreeList,
       selectField,
+      selectFieldUnit,
       handleSearch,
-      renderDimensionItem,
       popoverInstance,
       statisticsListRef,
       handleDimensionItemClick,
@@ -297,7 +237,13 @@ export default defineComponent({
         </div>
 
         {this.dimensionTreeList.length ? (
-          <div class='dimension-list'>{this.dimensionTreeList.map(item => this.renderDimensionItem(item, 0))}</div>
+          <DimensionFieldTree
+            class='dimension-list'
+            activeField={this.activeFieldName}
+            expandAll={!!this.searchVal}
+            list={this.dimensionTreeList}
+            onFieldClick={this.handleDimensionItemClick}
+          />
         ) : (
           <EmptyStatus
             type={this.emptyStatus}
@@ -308,10 +254,10 @@ export default defineComponent({
         <StatisticsList
           ref='statisticsListRef'
           commonParams={this.params}
-          fieldType={this.selectField?.type}
-          isDimensions={this.selectField?.is_dimensions}
+          field={this.selectField ? { ...this.selectField, field_unit: this.selectFieldUnit } : null}
+          isDuration={['us', 'ms', 'μs'].includes(this.selectFieldUnit)}
+          isInteger={['double', 'long', 'integer'].includes(this.selectField?.type)}
           isShow={this.showStatisticsPopover}
-          selectField={this.selectField?.name}
           onConditionChange={this.handleConditionChange}
           onShowMore={this.destroyPopover}
         />

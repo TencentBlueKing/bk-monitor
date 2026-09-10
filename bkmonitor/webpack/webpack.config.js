@@ -22,6 +22,35 @@ if (fs.existsSync(path.resolve(__dirname, './local.settings.js'))) {
   devConfig = Object.assign({}, devConfig, localConfig);
 }
 
+/** weweb 子应用跑在 7002、主应用在 7001，跨端口请求需要这些 CORS 头；尤其是 axios 注入的 traceparent */
+const DEV_CORS_HEADERS = {
+  'Access-Control-Allow-Origin': `http://${devConfig.host}:${devPort}`,
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, PATCH, OPTIONS',
+  'Access-Control-Allow-Headers':
+    'traceparent, x-csrftoken, cookie, x-requested-with, source-app, authorization, content-type, accept, accept-encoding, accept-language, cache-control, pragma, origin, referer, user-agent, dnt',
+  'Access-Control-Allow-Credentials': true,
+};
+
+const applyDevCorsHeaders = target => {
+  for (const [key, value] of Object.entries(DEV_CORS_HEADERS)) {
+    target[key.toLowerCase()] = value;
+  }
+};
+
+/** OPTIONS 预检不能转发给后端：后端 Allow-Headers 不含 traceparent，浏览器会直接拦请求 */
+const handleDevCorsPreflight = (req, res, next) => {
+  if (req.method === 'OPTIONS') {
+    for (const [key, value] of Object.entries(DEV_CORS_HEADERS)) {
+      res.setHeader(key, value);
+    }
+    res.statusCode = 204;
+    res.setHeader('Content-Length', '0');
+    res.end();
+    return;
+  }
+  next();
+};
+
 /** trace Worker 源码以字符串打入主 bundle，运行时通过 Blob URL 创建 Worker */
 const setupTraceWorkerWebpack = config => {
   const workerRawRule = {
@@ -57,25 +86,35 @@ module.exports = async (baseConfig, { production, app }) => {
       allowedHosts: 'all',
       server: 'http',
       proxy: ['proxy', 'logProxy', 'tenantProxy'] // 监控平台、日志平台、租户平台代理配置
-        .map(key =>
-          devConfig[key]?.target
-            ? {
-                ...devConfig[key],
-                proxyTimeout: 5 * 60 * 1000,
-                timeout: 5 * 60 * 1000,
-              }
-            : undefined
-        )
+        .map(key => {
+          const proxyItem = devConfig[key];
+          if (!proxyItem?.target) return undefined;
+          const prevOnProxyRes = proxyItem.onProxyRes;
+          return {
+            ...proxyItem,
+            proxyTimeout: 5 * 60 * 1000,
+            timeout: 5 * 60 * 1000,
+            onProxyRes: (proxyRes, req, res) => {
+              applyDevCorsHeaders(proxyRes.headers);
+              prevOnProxyRes?.(proxyRes, req, res);
+            },
+          };
+        })
         .filter(Boolean),
       client: {
         overlay: false,
       },
-      headers: {
-        'Access-Control-Allow-Origin': `http://${devConfig.host}:${devPort}`,
-        'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, PATCH, OPTIONS',
-        'Access-Control-Allow-Headers':
-          'traceparent, x-csrftoken, cookie, x-requested-with, source-app, authorization, content-type, accept, accept-encoding, accept-language, cache-control, pragma, origin, referer, user-agent, dnt',
-        'Access-Control-Allow-Credentials': true,
+      headers: DEV_CORS_HEADERS,
+      // 必须插在 http-proxy-middleware 之前，否则 OPTIONS 会被转发到测试环境
+      setupMiddlewares: middlewares => {
+        const proxyIndex = middlewares.findIndex(item => item.name === 'http-proxy-middleware');
+        const corsMiddleware = { name: 'dev-cors-preflight', middleware: handleDevCorsPreflight };
+        if (proxyIndex === -1) {
+          middlewares.unshift(corsMiddleware);
+        } else {
+          middlewares.splice(proxyIndex, 0, corsMiddleware);
+        }
+        return middlewares;
       },
       open: false,
       static: [],

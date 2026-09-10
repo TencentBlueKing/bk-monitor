@@ -14,12 +14,12 @@ from semconv.rum.field import FieldSpec
 from semconv.rum.constants import NetworkStatus, NetworkEffectiveType, NetworkProtocolName, NetworkConnectionType
 
 NETWORK_CONNECTION_TYPE = FieldSpec(
-    field_name="network.connection.type", field_alias=_("连接类型"), option_values=NetworkConnectionType
+    field_name="network.connection.type", field_alias=_("网络连接类型"), option_values=NetworkConnectionType
 )
 NETWORK_EFFECTIVE_TYPE = FieldSpec(
-    field_name="network.effective_type", field_alias=_("有效网络质量"), option_values=NetworkEffectiveType
+    field_name="network.effective_type", field_alias=_("网络质量"), option_values=NetworkEffectiveType
 )
-NETWORK_STATUS = FieldSpec(field_name="network.status", field_alias=_("网络连接状态"), option_values=NetworkStatus)
+NETWORK_STATUS = FieldSpec(field_name="network.status", field_alias=_("网络状态"), option_values=NetworkStatus)
 NETWORK_PROTOCOL_NAME = FieldSpec(
-    field_name="network.protocol.name", field_alias=_("应用层网络协议"), option_values=NetworkProtocolName
+    field_name="network.protocol.name", field_alias=_("应用层协议"), option_values=NetworkProtocolName
 )

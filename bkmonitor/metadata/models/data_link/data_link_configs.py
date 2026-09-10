@@ -8,6 +8,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import copy
 import datetime
 import json
 import logging
@@ -1341,6 +1342,119 @@ class ClusterConfig(models.Model):
     集群信息配置
     """
 
+    DORIS_SETTING_TYPES = {
+        "write_port": int,
+        "select_user": str,
+        "table_bucket_num": int,
+        "shard_minutes": int,
+        "v3_rename": str,
+        "bk_biz_id": int,
+        "expires": dict,
+        "common_query_cluster": str,
+        "support_node_tag": bool,
+        "hot_save_days": int,
+        "storage_policy": str,
+    }
+
+    @staticmethod
+    def normalize_es_schema(schema):
+        schema = schema.strip().lower() if schema else "http"
+        return schema if schema in ("http", "https") else "http"
+
+    @classmethod
+    def sync_fields(cls, cluster):
+        """无需完整性校验的下发字段投影，用于判断修改是否需要同步。"""
+        if cluster.cluster_type == cluster.TYPE_ES:
+            return (cluster.username, cluster.password, cls.normalize_es_schema(cluster.schema))
+        if cluster.cluster_type == cluster.TYPE_DORIS:
+            options = cluster.default_settings
+            if options is None:
+                options = {}
+            if not isinstance(options, dict):
+                raise ValueError("default_settings 必须是 JSON 对象")
+            return (
+                cluster.username,
+                cluster.password,
+                cluster.version,
+                # JSON 比较保留数值类型差异，避免 8030 == 8030.0、False == 0 绕过校验。
+                json.dumps({key: options[key] for key in cls.DORIS_SETTING_TYPES if key in options}, sort_keys=True),
+            )
+        return None
+
+    @classmethod
+    def validate_doris_config(cls, cluster):
+        """只使用本地权威字段校验，禁止用历史快照补齐必需配置。"""
+        options = cluster.default_settings
+        if not isinstance(options, dict):
+            raise ValueError("default_settings 必须是 JSON 对象")
+        if cluster.version is not None and not isinstance(cluster.version, str):
+            raise ValueError("Doris 配置字段 version 类型错误")
+        for field, value in {
+            "host": cluster.domain_name,
+            "user": cluster.username,
+            "password": cluster.password,
+        }.items():
+            if not isinstance(value, str) or not value.strip():
+                raise ValueError(f"Doris 配置字段 {field} 不能为空")
+        for field, value in {"port": cluster.port, "write_port": options.get("write_port")}.items():
+            if type(value) is not int or not 1 <= value <= 65535:
+                raise ValueError(f"Doris 配置字段 {field} 必须是有效整数端口")
+        for field, expected_type in cls.DORIS_SETTING_TYPES.items():
+            value = options.get(field)
+            if value is None:
+                if field == "expires" and field in options:
+                    raise ValueError("Doris 配置字段 expires 必须是 JSON 对象")
+                continue
+            if type(value) is not expected_type:
+                raise ValueError(f"Doris 配置字段 {field} 类型错误")
+            bounds = {
+                "table_bucket_num": (0, 2**32 - 1),
+                "hot_save_days": (0, 2**32 - 1),
+                "shard_minutes": (-(2**31), 2**31 - 1),
+                "bk_biz_id": (-(2**63), 2**63 - 1),
+            }
+            if field in bounds and not bounds[field][0] <= value <= bounds[field][1]:
+                raise ValueError(f"Doris 配置字段 {field} 超出范围")
+            if field == "expires":
+                expiry = value.get("maxExpire", value.get("max_expire"))
+                if type(expiry) is not int or not 0 <= expiry <= 2**32 - 1:
+                    raise ValueError("Doris 配置字段 expires.maxExpire 必须是无符号整数")
+
+    def compose_doris_config(self, cluster):
+        """校验并组装 Doris 集群配置，保留原始配置中非本地管理的扩展字段。
+
+        Args:
+            cluster: 提供公共连接字段和 default_settings 专属参数的集群信息。
+
+        Returns:
+            dict[str, Any]: 用于下发到 BKBase 的完整 Doris 集群配置。
+
+        Raises:
+            ValueError: 本地必需配置缺失或字段类型、取值不合法。
+        """
+        self.validate_doris_config(cluster)
+        config = copy.deepcopy(self.origin_config or {})
+        config.pop("status", None)
+        config["kind"] = DataLinkKind.DORIS.value
+        metadata = config.setdefault("metadata", {})
+        metadata.update(namespace=self.namespace, name=cluster.cluster_name)
+        metadata.pop("tenant", None)
+        if settings.ENABLE_MULTI_TENANT_MODE:
+            metadata["tenant"] = cluster.bk_tenant_id
+        spec = config.setdefault("spec", {})
+        spec.update(
+            host=cluster.domain_name,
+            port=cluster.port,
+            user=cluster.username,
+            password=cluster.password,
+            version=cluster.version or None,
+        )
+        for field in self.DORIS_SETTING_TYPES:
+            spec.pop(field, None)
+            if field in cluster.default_settings:
+                spec[field] = copy.deepcopy(cluster.default_settings[field])
+        return config
+
     # 由于配置原因，namespace实际上与存储类型是绑定的，与实际的使用方无关
     KIND_TO_NAMESPACES_MAP = {
         DataLinkKind.ELASTICSEARCH.value: [BKBASE_NAMESPACE_BK_LOG],
@@ -1413,6 +1527,8 @@ class ClusterConfig(models.Model):
             return self.compose_kafka_config(cluster)
         elif self.kind == DataLinkKind.SURREALDB.value:
             return self.compose_surrealdb_config(cluster)
+        elif self.kind == DataLinkKind.DORIS.value:
+            return self.compose_doris_config(cluster)
         else:
             raise ValueError(f"不支持的集群类型: {self.kind}")
 
@@ -1532,9 +1648,7 @@ class ClusterConfig(models.Model):
             dict[str, Any]: 集群配置
         """
 
-        schema = cluster.schema.strip().lower() if cluster.schema else "http"
-        if schema not in ("http", "https"):
-            schema = "http"
+        schema = self.normalize_es_schema(cluster.schema)
 
         config = {
             "kind": DataLinkKind.ELASTICSEARCH.value,
@@ -1623,6 +1737,9 @@ class ClusterConfig(models.Model):
             sync_namespaces: 指定同步的命名空间列表
         """
 
+        if cluster.cluster_type == cluster.TYPE_DORIS:
+            cls.validate_doris_config(cluster)
+
         if cluster.cluster_type == cluster.TYPE_KAFKA and cluster.gse_stream_to_id <= 0:
             raise ValueError(f"Kafka 集群({cluster.cluster_name})的 gse_stream_to_id 必须大于 0")
 
@@ -1641,7 +1758,11 @@ class ClusterConfig(models.Model):
             )
 
             # 组装配置
-            config = cluster_config.compose_config()
+            config = (
+                cluster_config.compose_doris_config(cluster)
+                if cluster.cluster_type == cluster.TYPE_DORIS
+                else cluster_config.compose_config()
+            )
 
             # 注册到bkbase平台
             try:

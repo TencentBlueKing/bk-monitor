@@ -210,8 +210,23 @@ class TestViewConfigProtocol:
                 assert isinstance(field_name, str)
 
     def test_view_config_has_all_required_keys(self, view_config_result):
-        required_keys = {"default_sort", "fields", "groups", "display_fields", "span_type_display_fields"}
+        required_keys = {
+            "default_sort",
+            "fields",
+            "groups",
+            "display_fields",
+            "resident_fields",
+            "span_type_display_fields",
+            "span_type_resident_fields",
+        }
         assert required_keys.issubset(view_config_result.keys())
+
+    def test_view_config_resident_fields_is_str_list(self, view_config_result):
+        """resident_fields 应为字段名字符串列表"""
+        resident_fields = view_config_result["resident_fields"]
+        assert isinstance(resident_fields, list)
+        for field_name in resident_fields:
+            assert isinstance(field_name, str)
 
     def test_view_config_nested_field_origin_field_is_top_level(self, view_config_result):
         """嵌套字段的 origin_field 应为顶层字段名"""
@@ -245,6 +260,41 @@ class TestSpanViewConfig:
         assert isinstance(config["span_type_display_fields"], dict)
         for span_type in RumSpanType:
             assert span_type.value in config["span_type_display_fields"]
+
+    def test_resident_fields_are_registered_and_independent_from_columns(self):
+        from bkmonitor.data_source.utils.apm import TraceDatasourceTarget
+        from rum_web.handlers.level.span import SpanLevelHandler
+        from semconv.rum.constants import RumSpanType
+        from semconv.rum.trace import SpanSpec
+
+        handler = SpanLevelHandler(
+            [TraceDatasourceTarget.build(bk_biz_id=2, app_name="my_app", table_id="bk_rum.default.span")]
+        )
+        with patch.object(handler.query, "query_fields", return_value={}):
+            config = handler.view_config(start_time=None, end_time=None)
+
+        resident_fields = config["span_type_resident_fields"]
+        assert set(resident_fields) == set(RumSpanType.values())
+        assert all(0 < len(fields) <= 8 for fields in resident_fields.values())
+        registered_fields = {field.get_full_field_name() for field in SpanSpec.fields() if field.is_real}
+        for fields in [config["resident_fields"], *resident_fields.values()]:
+            assert fields
+            assert len(set(fields)) == len(fields)
+            assert set(fields) <= registered_fields
+            assert "end_time" not in fields
+            assert "attributes.span_type" not in fields
+
+        # 页面生命周期 Span 的时长不能代表页面加载耗时，指标筛选也不能使用 Span 时长。
+        assert "attributes.view.loading_time" in resident_fields["view"]
+        assert "elapsed_time" not in resident_fields["view"]
+        assert "attributes.vital.metric" in resident_fields["vital"]
+        assert "elapsed_time" not in resident_fields["vital"]
+        assert "attributes.action.frustration.type" in resident_fields["action"]
+
+        # 修改一次响应里的常驻配置不能污染枚举默认值或表格列配置。
+        resident_fields["resource"].clear()
+        assert RumSpanType.RESOURCE.resident_fields
+        assert config["span_type_display_fields"]["resource"] == RumSpanType.RESOURCE.display_fields
 
     def test_groups_have_supported_span_types(self):
         from rum_web.handlers.level.span import SpanLevelHandler
@@ -283,6 +333,11 @@ class TestQueryFieldsSemconvEnrichment:
         base_fields = {
             "elapsed_time": {"field_name": "elapsed_time", "field_type": "long", "origin_field": "elapsed_time"},
             "start_time": {"field_name": "start_time", "field_type": "date", "origin_field": "start_time"},
+            "attributes.vital.value": {
+                "field_name": "attributes.vital.value",
+                "field_type": "double",
+                "origin_field": "attributes",
+            },
         }
         mocker.patch.object(BaseQuery, "_query_fields", return_value=base_fields)
 
@@ -296,6 +351,8 @@ class TestQueryFieldsSemconvEnrichment:
         # start_time 含 DATETIME 展示类型
         assert result["start_time"]["field_display_type"] == "datetime"
         assert result["start_time"]["is_real"] is True
+        assert result["attributes.vital.value"]["field_unit"] == "vital"
+        assert result["attributes.vital.value"]["field_display_type"] == "duration"
 
     def test_enriches_option_values_from_enum(self, mocker):
         from semconv.rum.constants import RumSpanType

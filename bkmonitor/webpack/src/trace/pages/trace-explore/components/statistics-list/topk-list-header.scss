@@ -1,0 +1,62 @@
+.dimension-top-k-title {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  overflow: hidden;
+
+  .field-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: #313238;
+    white-space: nowrap;
+  }
+
+  .divider {
+    display: inline-block;
+    width: 1px;
+    height: 14px;
+    margin: 0 8px 0 6px;
+    background: #dcdee5;
+  }
+
+  .desc {
+    flex-shrink: 0;
+    color: #979ba5;
+  }
+}
+
+.trace-explore-dimension-statistics-popover {
+  .top-k-list-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 22px;
+
+    .field-name {
+      font-size: 12px;
+    }
+
+    .desc {
+      font-size: 12px;
+    }
+
+    .loading-icon {
+      width: 20px;
+      height: 20px;
+    }
+
+    .download-tool {
+      margin-left: 10px;
+      cursor: pointer;
+
+      .icon-xiazai2 {
+        font-size: 14px;
+        color: #4d4f56;
+
+        &:hover {
+          color: #3a84ff;
+        }
+      }
+    }
+  }
+}

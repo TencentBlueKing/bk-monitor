@@ -20,7 +20,7 @@ the project delivered to anyone in the future.
 """
 
 import copy
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from django.conf import settings
 from django.test import TestCase
@@ -678,6 +678,68 @@ LOG_INDEX_DATA = {
 
 
 class TestEtl(TestCase):
+    def test_base_handler_forwards_result_table_labels(self):
+        collector_config = CollectorConfig.objects.create(**COLLECTOR_CONFIG)
+        handler = EtlHandler(collector_config.collector_config_id)
+        labels = {"scene": "k8s", "cluster_id": "BCS-NEW"}
+        etl_storage = MagicMock()
+        etl_storage.update_or_create_result_table.return_value = {"table_id": TABLE_ID}
+
+        with (
+            patch.object(handler, "check_es_storage_capacity"),
+            patch.object(CollectorConfig, "get_result_table_by_id", return_value=None),
+            patch(
+                "apps.log_databus.handlers.etl.base.StorageHandler.get_cluster_info_by_id",
+                return_value={"cluster_config": {"version": "7.x"}},
+            ),
+            patch("apps.log_databus.handlers.etl.base.EtlStorage.get_instance", return_value=etl_storage),
+            patch.object(
+                handler,
+                "_update_or_create_index_set",
+                return_value={"index_set_id": 1, "scenario_id": "log"},
+            ),
+            patch("apps.log_databus.handlers.etl.base.user_operation_record.delay"),
+        ):
+            handler.update_or_create(
+                etl_config=ETL_CONFIG,
+                table_id=TABLE_ID,
+                storage_cluster_id=STORAGE_CLUSTER_ID,
+                retention=RETENTION_TIME,
+                allocation_min_days=ALLOCATION_MIN_DAYS,
+                storage_replies=1,
+                etl_params={},
+                fields=[],
+                labels=labels,
+            )
+
+        self.assertEqual(etl_storage.update_or_create_result_table.call_args.kwargs["labels"], labels)
+
+    @patch("apps.api.TransferApi.create_result_table", lambda _: {"table_id": TABLE_ID})
+    @patch("apps.api.TransferApi.modify_result_table", lambda _: {"table_id": TABLE_ID})
+    @patch("apps.api.TransferApi.get_result_table", lambda _: {"table_id": TABLE_ID})
+    @patch("apps.api.TransferApi.get_cluster_info", lambda _: [CLUSTER_INFO])
+    @FakeRedis("apps.utils.cache.cache")
+    @patch("apps.log_databus.tasks.collector.modify_result_table.delay", return_value=None)
+    def test_result_table_labels_are_included_when_explicit(self, _mock_modify_delay):
+        collector_config = CollectorConfig.objects.create(**COLLECTOR_CONFIG)
+        etl_storage = EtlStorage.get_instance(ETL_CONFIG)
+
+        for labels in ({}, {"scene": "k8s", "stream": "stdout"}):
+            with self.subTest(labels=labels):
+                result = etl_storage.update_or_create_result_table(
+                    collector_config,
+                    table_id=TABLE_ID,
+                    storage_cluster_id=STORAGE_CLUSTER_ID,
+                    retention=RETENTION_TIME,
+                    allocation_min_days=0,
+                    storage_replies=1,
+                    fields=copy.deepcopy(FIELDS),
+                    etl_params=copy.deepcopy(ETL_PARAMS),
+                    labels=labels,
+                )
+
+                self.assertEqual(result["params"]["labels"], labels)
+
     def test_etl_time(self):
         formsts = FieldDateFormatEnum.get_choices_list_dict()
         for format in formsts:
@@ -781,6 +843,7 @@ class TestEtl(TestCase):
             result["params"]["default_storage_config"]["index_set"],
             expected_index_set,
         )
+        self.assertNotIn("labels", result["params"])
         self.assertIn("need_add_time", result["params"]["option"])
         self.assertTrue(result["params"]["option"]["need_add_time"])
         self.assertIn("time_field", result["params"]["option"])

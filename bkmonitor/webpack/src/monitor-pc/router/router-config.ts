@@ -153,6 +153,16 @@ export const getRouteConfig = () => {
           // isBeta: window.platform?.te === false,
           canStore: true,
         },
+        {
+          name: 'RUM 检索',
+          icon: 'icon-monitor icon-RUM menu-icon',
+          navName: 'RUM 检索',
+          id: 'rum-explore',
+          path: '/trace/rum-explore',
+          href: '#/trace/rum-explore',
+          usePath: true,
+          canStore: true,
+        },
       ],
     },
     {
@@ -241,7 +251,7 @@ export const getRouteConfig = () => {
               canStore: false,
               isBeta: true,
               // 新版主机监控暂不在侧栏展示，路由仍可直链访问
-              hidden: true,
+              // hidden: true,
             },
           ],
         },

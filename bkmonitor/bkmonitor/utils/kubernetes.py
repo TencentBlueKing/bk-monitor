@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -9,8 +8,8 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import re
 from datetime import datetime
-from typing import Dict, List, Optional
 
 from django.utils import timezone
 from django.utils.functional import cached_property
@@ -20,6 +19,17 @@ from bkmonitor.utils.common_utils import camel_obj_key_to_underscore
 
 # 采集器up指标
 BKM_METRICBEAT_ENDPOINT_UP = "bkm_metricbeat_endpoint_up"
+
+
+def validate_k8s_namespace(namespace: str) -> str:
+    """校验并返回 Kubernetes namespace。"""
+    if (
+        not isinstance(namespace, str)
+        or len(namespace) > 63
+        or re.fullmatch(r"[a-z0-9](?:[a-z0-9-]*[a-z0-9])?", namespace) is None
+    ):
+        raise ValueError(f"invalid Kubernetes namespace: {namespace!r}")
+    return namespace
 
 
 class BcsClusterType:
@@ -180,7 +190,7 @@ def translate_timestamp_since(start_time):
     return naturaldelta(start_at_current_timezone_naive)
 
 
-def get_progress_value(value: float) -> Dict:
+def get_progress_value(value: float) -> dict:
     """
     计算进度条数据
     """
@@ -199,7 +209,7 @@ def get_progress_value(value: float) -> Dict:
 
 
 class KubernetesV1ObjectJsonParser:
-    def __init__(self, config: Dict):
+    def __init__(self, config: dict):
         self.config = config
         # API的版本
         api_version = self.config.get("apiVersion")
@@ -285,7 +295,7 @@ class KubernetesWorkloadJsonParser(KubernetesV1ObjectJsonParser):
         return self.metadata.get("ownerReferences", [])
 
     @cached_property
-    def top_workload_type(self) -> Optional[str]:
+    def top_workload_type(self) -> str | None:
         """获得顶层的workload类型 ."""
         result = None
         workload_type = self.kind
@@ -700,21 +710,21 @@ class KubernetesPodJsonParser(KubernetesV1ObjectJsonParser):
         return reason
 
     @cached_property
-    def containers(self) -> List:
+    def containers(self) -> list:
         return self.spec.get("containers", [])
 
     @cached_property
-    def container_statuses(self) -> List:
+    def container_statuses(self) -> list:
         return self.status.get("containerStatuses", [])
 
 
 class KubernetesContainerJsonParser:
-    def __init__(self, pod: Dict, container: Dict):
+    def __init__(self, pod: dict, container: dict):
         self.pod_parser = KubernetesPodJsonParser(pod)
         self.container = container
 
     @cached_property
-    def container_status(self) -> Dict:
+    def container_status(self) -> dict:
         """获得容器当前的状态 ."""
         container_statuses = self.pod_parser.container_statuses
         for container_status in container_statuses:
@@ -793,7 +803,7 @@ class KubernetesIngressJsonParser(KubernetesV1ObjectJsonParser):
         return self.spec.get("ingressClassName")
 
     @cached_property
-    def service_list(self) -> List:
+    def service_list(self) -> list:
         services = set()
         # 提取默认后端（如果存在）
         default_backend: dict = self.spec.get("defaultBackend", {})
@@ -817,7 +827,7 @@ class KubernetesIngressJsonParser(KubernetesV1ObjectJsonParser):
 
 class KubernetesServiceJsonParser(KubernetesV1ObjectJsonParser):
     @cached_property
-    def status(self) -> Dict:
+    def status(self) -> dict:
         return self.config.get("status", {})
 
     @cached_property
@@ -825,7 +835,7 @@ class KubernetesServiceJsonParser(KubernetesV1ObjectJsonParser):
         """获得服务的类型 ."""
         return self.spec.get("type")
 
-    def load_balancer_status_stringer(self, load_balancer: Dict) -> str:
+    def load_balancer_status_stringer(self, load_balancer: dict) -> str:
         """解析负载均衡器配置 ."""
         ingress_list = load_balancer.get("ingress", [])
         result = set()
@@ -844,7 +854,7 @@ class KubernetesServiceJsonParser(KubernetesV1ObjectJsonParser):
         return self.spec.get("clusterIP", "")
 
     @cached_property
-    def cluster_ips(self) -> List:
+    def cluster_ips(self) -> list:
         return self.spec.get("clusterIPs", [])
 
     @cached_property
@@ -914,7 +924,7 @@ class KubernetesServiceJsonParser(KubernetesV1ObjectJsonParser):
             count += len(addresses) * len(ports)
         return count
 
-    def get_endpoint(self, endpoints) -> Dict:
+    def get_endpoint(self, endpoints) -> dict:
         """获得匹配的endpoint ."""
         # 创建service对象的同时，kubernetes会创建同名的endpoints的对象
         for e in endpoints:
@@ -925,7 +935,7 @@ class KubernetesServiceJsonParser(KubernetesV1ObjectJsonParser):
         """获得pod的数量 ."""
         return len(self.get_pod_name_list(endpoints))
 
-    def get_pod_name_list(self, endpoints) -> List:
+    def get_pod_name_list(self, endpoints) -> list:
         """获得配置的所有pod的名称列表 ."""
         pod_name_list = []
         endpoint = self.get_endpoint(endpoints)

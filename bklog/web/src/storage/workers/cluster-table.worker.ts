@@ -61,7 +61,8 @@ self.onmessage = (event: MessageEvent<WorkerRequest>) => {
 
   try {
     if (message.type === 'pipeline') {
-      if (message.payload?.raw) {
+      // 空数组也要替换：新查询无数据时不能继续用上一轮 rawCache。
+      if (Array.isArray(message.payload?.raw)) {
         rawCache = message.payload.raw;
       }
       const result = runClusterTablePipeline({

@@ -127,6 +127,7 @@ export default class AuthorizationList extends tsc<object> {
   memberValue = ''; // 编辑授权人输入框的值
   isEditMember = false; // 是否编辑授权人
   searchValue = ''; // 搜索关键字
+  columnFilters: Record<string, (number | string)[]> = {}; // 表头列筛选条件（key 为列 prop）
   angleType: AngleType = 'user'; // 视角类型
   statusActive: StatusType = 'all'; // 状态类型
   totalListData: (ResourceListItem | UserListItem)[] = []; // 总列表数据
@@ -299,9 +300,20 @@ export default class AuthorizationList extends tsc<object> {
     return STATUS_LIST.filter(item => item.show.includes(this.angleType));
   }
 
-  // 经过状态和关键字筛选后的列表
+  // 经过表头列筛选、状态和关键字筛选后的列表
   get filteredListData() {
     return this.totalListData.filter(item => {
+      // 表头列筛选匹配（如操作权限、操作实例），作用于全量数据
+      const columnPick = Object.entries(this.columnFilters).every(([prop, values]) => {
+        if (!values?.length) {
+          return true;
+        }
+        const cell = (item as Record<string, any>)[prop];
+        return values.some(value => (Array.isArray(cell) ? cell.includes(value) : cell === value));
+      });
+      if (!columnPick) {
+        return false;
+      }
       // 状态匹配
       const statusPick = this.statusActive === 'all' || item.status === this.statusActive;
       if (!(this.searchValue && statusPick)) {
@@ -336,6 +348,14 @@ export default class AuthorizationList extends tsc<object> {
   get listData() {
     const { current, limit } = this.pagination;
     return this.filteredListData.slice((current - 1) * limit, current * limit);
+  }
+
+  // 表格分页配置（count 由筛选结果派生，保证列筛选/状态/关键字与分页联动正确）
+  get tablePagination() {
+    return {
+      ...this.pagination,
+      count: this.filteredListData.length,
+    };
   }
 
   async created() {
@@ -387,6 +407,8 @@ export default class AuthorizationList extends tsc<object> {
     this.spaceUid = v;
     // this.$store.commit('updateSpace', v);
     const hasManageAuth = await this.checkBizAllow();
+    // 空间切换后数据整体变化，清空原有列筛选
+    this.resetColumnFilters();
     this.getResources();
     if (hasManageAuth) {
       this.getListData();
@@ -464,6 +486,8 @@ export default class AuthorizationList extends tsc<object> {
       this.statusActive = 'all';
     }
     this.angleType = type;
+    // 切换视角后表格重建，清空上一视角的列筛选条件
+    this.columnFilters = {};
     this.$router.replace({
       query: {
         activeNav: type,
@@ -475,6 +499,7 @@ export default class AuthorizationList extends tsc<object> {
   // 状态筛选切换
   handleStatusChange(statusType) {
     this.statusActive = statusType;
+    this.pagination.current = 1;
     this.changeEmptyStatusType();
   }
 
@@ -483,7 +508,6 @@ export default class AuthorizationList extends tsc<object> {
   handleSearchBlur(val) {
     this.searchValue = val;
     this.pagination.current = 1;
-    this.pagination.count = this.filteredListData.length;
     this.changeEmptyStatusType();
   }
 
@@ -501,13 +525,13 @@ export default class AuthorizationList extends tsc<object> {
     const [isSuccess, data] = res;
     if (isSuccess) {
       this.totalListData = data;
-      this.pagination.count = this.totalListData.length;
+      // 数据就绪后重建表头筛选项（created 阶段首次构建时列表为空，会导致筛选下拉无选项）
+      this.columnFilter();
       this.emptyStatusType = 'empty';
       this.changeEmptyStatusType();
     } else {
       this.emptyStatusType = '500';
       this.totalListData = [];
-      this.pagination.count = 0;
     }
 
     this.loading = false;
@@ -565,32 +589,35 @@ export default class AuthorizationList extends tsc<object> {
     }
   }
 
-  getResources() {
+  async getResources() {
     this.resourcesLoading = true;
     try {
-      for (const item of this.actionList) {
-        (async () => {
+      await Promise.all(
+        this.actionList.map(async item => {
           const res = await $http.request('authorization/getByAction', {
             query: {
               space_uid: this.spaceUid,
               action_id: item.id,
             },
           });
-          this.resourceMaps[item.id] = res?.data || [];
-        })();
-      }
-
-      this.columnFilter();
+          this.$set(this.resourceMaps, item.id, res?.data || []);
+        }),
+      );
     } catch {
       this.resourceMaps = {};
+    } finally {
+      this.resourcesLoading = false;
     }
-    this.resourcesLoading = false;
+    // 操作实例列筛选项的文本依赖 resourceMaps，全部就绪后重建一次筛选项
+    this.columnFilter();
   }
 
   // 表格空状态操作
   changeEmptyStatusType() {
     if (this.emptyStatusType !== '500') {
-      this.emptyStatusType = this.statusActive === 'all' && !this.searchValue ? 'empty' : 'search-empty';
+      const hasColumnFilter = Object.values(this.columnFilters).some(values => values.length);
+      this.emptyStatusType =
+        this.statusActive === 'all' && !this.searchValue && !hasColumnFilter ? 'empty' : 'search-empty';
     }
   }
 
@@ -618,16 +645,25 @@ export default class AuthorizationList extends tsc<object> {
   }
   updateFilter(prop: string, valSet: any[]) {
     if (prop === TableColumnEnum.resource_id || prop === TableColumnEnum.resources) {
-      return valSet.map((obj: { id: number; action: string }) => {
-        return {
-          text: this.resourceMaps[obj.action].find(rItem => rItem.id === obj.id)?.text,
+      // 按「操作-实例」去重；resourceMaps 未就绪时用 id 兜底，避免对 undefined 取 find 报错
+      const existKeys = new Set<string>();
+      return valSet
+        .filter((obj: { id: number; action: string }) => {
+          const key = `${obj.action}-${obj.id}`;
+          if (existKeys.has(key)) {
+            return false;
+          }
+          existKeys.add(key);
+          return true;
+        })
+        .map((obj: { id: number; action: string }) => ({
+          text: this.resourceMaps[obj.action]?.find(rItem => rItem.id === obj.id)?.text ?? String(obj.id),
           value: obj.id,
-        };
-      });
+        }));
     }
     if (prop === TableColumnEnum.action_id) {
       return valSet.map((id: string) => ({
-        text: this.actionList.find(aItem => aItem.id === id)?.name,
+        text: this.actionList.find(aItem => aItem.id === id)?.name ?? id,
         value: id,
       }));
     }
@@ -644,12 +680,48 @@ export default class AuthorizationList extends tsc<object> {
         item.props.filters = this.updateFilter(prop, Array.from(set));
       }
     }
+    this.syncFilterPanelOptions();
   }
 
   // 列表表头筛选
   filterMethod(value, row, column) {
     const { property } = column;
     return Array.isArray(row[property]) ? row[property].includes(value) : row[property] === value;
+  }
+
+  // 表头列筛选变更（确定/重置时触发，key 为列的 column-key 即 prop）
+  handleFilterChange(filters: Record<string, (number | string)[]>) {
+    for (const [prop, values] of Object.entries(filters)) {
+      if (values?.length) {
+        this.$set(this.columnFilters, prop, values);
+      } else {
+        this.$delete(this.columnFilters, prop);
+      }
+    }
+    this.pagination.current = 1;
+    // 列筛选可能把列表过滤为空，同步空状态类型（empty / search-empty）
+    this.changeEmptyStatusType();
+  }
+
+  // 清空表头列筛选（同步表格内部筛选面板状态）
+  resetColumnFilters() {
+    (this.$refs.authTable as any)?.clearFilter?.();
+    this.columnFilters = {};
+  }
+
+  // 筛选面板创建时仅读取一次 filters 快照，这里同步已创建面板的最新选项。
+  // 注意：column.filters 由 TableColumn 的 prop watcher 在下一轮渲染才写入，
+  // 同步调用时读到的是旧引用（如切换业务后候选项过期），故直接从 tableColumns 数据源取最新值
+  syncFilterPanelOptions() {
+    const panels = (this.$refs.authTable as any)?.$refs?.tableHeader?.filterPanels ?? {};
+    const columnMap = new Map(this.tableColumns[this.angleType].map(item => [item.prop, item]));
+    for (const panel of Object.values(panels) as any[]) {
+      const prop = panel.column?.property as TableColumnEnum | undefined;
+      const filters = (prop && columnMap.get(prop)?.props?.filters) || [];
+      if (prop && panel.filters !== filters) {
+        panel.filters = filters;
+      }
+    }
   }
 
   handleSettingChange({ fields }) {
@@ -664,6 +736,7 @@ export default class AuthorizationList extends tsc<object> {
       return (
         <TableColumn
           key={column.prop}
+          column-key={column.prop}
           label={column.name}
           prop={column.prop}
           {...{
@@ -690,6 +763,7 @@ export default class AuthorizationList extends tsc<object> {
       return (
         <TableColumn
           key={column.prop}
+          column-key={column.prop}
           label={column.name}
           prop={column.prop}
           {...{
@@ -739,6 +813,7 @@ export default class AuthorizationList extends tsc<object> {
       return (
         <TableColumn
           key={column.prop}
+          column-key={column.prop}
           label={column.name}
           prop={column.prop}
           {...{
@@ -760,6 +835,7 @@ export default class AuthorizationList extends tsc<object> {
     return (
       <TableColumn
         key={column.prop}
+        column-key={column.prop}
         label={column.name}
         prop={column.prop}
         {...{
@@ -844,6 +920,9 @@ export default class AuthorizationList extends tsc<object> {
     if (type === 'clear-filter') {
       this.searchValue = '';
       this.statusActive = 'all';
+      this.pagination.current = 1;
+      this.resetColumnFilters();
+      this.changeEmptyStatusType();
     }
   }
 
@@ -1001,13 +1080,15 @@ export default class AuthorizationList extends tsc<object> {
 
             <div class='table-wrapper'>
               <Table
+                ref='authTable'
                 key={this.angleType}
                 v-bkloading={{ isLoading: this.loading }}
                 data={this.listData}
                 max-height={600}
-                pagination={this.pagination}
+                pagination={this.tablePagination}
                 size='large'
                 row-auto-height
+                on-filter-change={this.handleFilterChange}
                 on-page-change={this.handlePageChange}
                 on-page-limit-change={this.handlePageLimitChange}
               >

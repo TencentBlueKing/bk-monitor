@@ -191,6 +191,187 @@ def test_compose_databus_monitor_labels_prioritizes_apm_and_normalizes_trace():
     }
 
 
+@pytest.mark.parametrize(
+    "data_name, space_uid",
+    [
+        ("20387_bkapm_metric_lap_prod", "bkcc__20387"),
+        ("space_42_bkapm_metric_bkapp_ai", "bksaas__bkapp_ai"),
+        ("bkm_space_42_bkapm_metric_bkapp_ai", "bksaas__bkapp_ai"),
+        ("bkapm_metric_bkapp_ai", "bksaas__bkapp_ai"),
+    ],
+)
+@pytest.mark.parametrize("measurement", ["__default__", "http_server_duration", None])
+def test_compose_databus_monitor_labels_recognizes_apm_metric_creation_context(data_name, space_uid, measurement):
+    # APM 使用监控采集来源和 application_check 分类；分表链路可能没有唯一的 ResultTable。
+    data_source = SimpleNamespace(
+        data_name=data_name,
+        source_label="bk_monitor",
+        type_label="time_series",
+        etl_config="bk_standard_v2_time_series",
+        space_uid=space_uid,
+        is_custom_source=True,
+    )
+    table = (
+        SimpleNamespace(
+            table_id=f"{data_name}.{measurement}",
+            label="application_check",
+            data_label="",
+            is_builtin=False,
+            is_custom_table=True,
+        )
+        if measurement is not None
+        else None
+    )
+
+    assert compose_databus_monitor_labels(DataLink.BK_STANDARD_V2_TIME_SERIES, table, data_source) == {
+        "bk-monitor/space-type": space_uid.partition("__")[0],
+        "bk-monitor/data-scene": "apm",
+        "bk-monitor/data-type": "metric",
+    }
+
+
+@pytest.mark.parametrize(
+    "data_name",
+    [
+        "20387_custom_metric_lap_prod",
+        "20387_custom_bkapm_metric_lap_prod",
+        "20387_bkapm_metric_",
+        "20387_bkapm_metrics_lap_prod",
+    ],
+)
+def test_compose_databus_monitor_labels_keeps_non_apm_application_metrics_custom(data_name):
+    data_source = SimpleNamespace(
+        data_name=data_name,
+        source_label="bk_monitor",
+        type_label="time_series",
+        etl_config="bk_standard_v2_time_series",
+        space_uid="bkcc__20387",
+        is_custom_source=True,
+    )
+    table = SimpleNamespace(label="application_check", data_label="", is_builtin=False, is_custom_table=True)
+
+    assert compose_databus_monitor_labels(DataLink.BK_STANDARD_V2_TIME_SERIES, table, data_source) == {
+        "bk-monitor/space-type": "bkcc",
+        "bk-monitor/data-scene": "custom",
+        "bk-monitor/data-type": "metric",
+    }
+
+
+@pytest.mark.parametrize(
+    "data_name, table_id",
+    [
+        ("1001_bkapm_trace_demo", "1001_bkapm.trace_demo"),
+        ("space_42_bkapm_trace_demo", "space_42_bkapm.trace_demo"),
+        ("bkm_space_42_bkapm_trace_demo", "space_42_bkapm.trace_demo"),
+        ("bkapm_trace_demo", "1001_bkapm.trace_demo"),
+        ("bkapm_shared_trace_0001", "apm_global.shared_trace_0001"),
+    ],
+)
+@pytest.mark.parametrize("context", ["both", "data_source_only", "table_only"])
+def test_compose_databus_monitor_labels_recognizes_real_apm_trace(data_name, table_id, context):
+    data_source = SimpleNamespace(
+        data_name=data_name if context != "table_only" else "legacy_trace",
+        source_label="bk_monitor",
+        type_label="log",
+        etl_config="bk_flat_batch",
+        space_uid="bkcc__1001",
+    )
+    table = SimpleNamespace(table_id=table_id, label="application_check") if context != "data_source_only" else None
+
+    assert compose_databus_monitor_labels(DataLink.BK_LOG, table, data_source) == {
+        "bk-monitor/space-type": "bkcc",
+        "bk-monitor/data-scene": "apm",
+        "bk-monitor/data-type": "trace",
+    }
+
+
+@pytest.mark.parametrize("app_name, log_name", [("Demo-App.Api", "demo_app_api"), ("Ab", "otlp_ab")])
+@pytest.mark.parametrize("prefix", ["1001_", "space_42_", "bkm_space_42_"])
+@pytest.mark.parametrize("context", ["both", "data_source_only", "table_only"])
+def test_compose_databus_monitor_labels_recognizes_real_apm_log(app_name, log_name, prefix, context):
+    data_source = SimpleNamespace(
+        data_name=f"{prefix}bklog_{log_name}" if context != "table_only" else "legacy_log",
+        data_description=f"APM({app_name})",
+        source_label="bk_monitor",
+        type_label="log",
+        etl_config="bk_flat_batch",
+        space_uid="bkcc__1001",
+    )
+    table = (
+        SimpleNamespace(table_id=f"{prefix}bklog.{log_name}", label="application_check", labels={"scene": "trpc"})
+        if context != "data_source_only"
+        else None
+    )
+
+    assert compose_databus_monitor_labels(DataLink.BK_LOG, table, data_source) == {
+        "bk-monitor/space-type": "bkcc",
+        "bk-monitor/data-scene": "apm",
+        "bk-monitor/data-type": "log",
+    }
+
+
+@pytest.mark.parametrize(
+    "data_name, table_id, description",
+    [
+        ("1001_bkapm_trace_", "1001_bkapm.trace_", ""),
+        ("1001_custom_bkapm_trace_demo", "1001_custom_bkapm.trace_demo", ""),
+        ("bkapm_shared_trace_wrong", "apm_global.shared_trace_wrong", ""),
+        ("1001_bkapm_traces_demo", "1001_bkapm.traces_demo", ""),
+        ("1001_bklog_demo_app", "1001_bklog.demo_app", ""),
+        ("1001_bklog_demo_app", "1001_bklog.demo_app", "APM(other_app)"),
+        ("1001_custom_bklog_demo_app", "1001_custom_bklog.demo_app", "APM(demo_app)"),
+        ("1001_bklog_demo_app", "1001_bklog.demo_app", "prefix APM(demo_app)"),
+        ("1001_bklog_demo_app", "1001_bklog.demo_app", "APM()"),
+    ],
+)
+def test_compose_databus_monitor_labels_does_not_misclassify_regular_logs(data_name, table_id, description):
+    data_source = SimpleNamespace(
+        data_name=data_name,
+        data_description=description,
+        source_label="bk_monitor",
+        type_label="log",
+        etl_config="bk_flat_batch",
+        space_uid="bkcc__1001",
+    )
+    table = SimpleNamespace(table_id=table_id, label="application_check", labels={"scene": "trpc"})
+
+    assert compose_databus_monitor_labels(DataLink.BK_LOG, table, data_source) == {
+        "bk-monitor/space-type": "bkcc",
+        "bk-monitor/data-scene": "log",
+        "bk-monitor/data-type": "log",
+    }
+
+
+@pytest.mark.parametrize(
+    "strategy, type_label, data_name, table_id, expected_scene, expected_type",
+    [
+        ("bk_log", "trace", "1001_bkapm_trace_demo", "1001_bkapm.trace_demo", "apm", "trace"),
+        ("bk_log", "log", "1001_bkapm_metric_demo", "", "log", "log"),
+        ("bk_standard_v2_time_series", "time_series", "1001_bkapm_trace_demo", "", "custom", "metric"),
+        ("bk_standard_v2_event", "event", "1001_bklog_demo_app", "", "custom", "event"),
+        ("graph_relation_time_series", "log", "1001_bkapm_trace_demo", "", "relation", "graph"),
+        ("graph_relation_time_series", "log", "1001_bklog_demo_app", "", "relation", "graph"),
+    ],
+)
+def test_compose_databus_monitor_labels_keeps_type_guards_and_graph_priority(
+    strategy, type_label, data_name, table_id, expected_scene, expected_type
+):
+    data_source = SimpleNamespace(
+        data_name=data_name,
+        data_description="APM(demo_app)",
+        source_label="bk_monitor",
+        type_label=type_label,
+        space_uid="bkcc__1001",
+    )
+    table = SimpleNamespace(table_id=table_id, label="application_check")
+
+    assert compose_databus_monitor_labels(strategy, table, data_source) == {
+        "bk-monitor/space-type": "bkcc",
+        "bk-monitor/data-scene": expected_scene,
+        "bk-monitor/data-type": expected_type,
+    }
+
+
 def test_compose_databus_monitor_labels_prioritizes_uptimecheck_over_plugin():
     table = SimpleNamespace(
         label="uptimecheck",

@@ -74,6 +74,7 @@ from apps.log_databus.exceptions import (
     CollectorConfigNameENDuplicateException,
     CollectorConfigNotExistException,
     CollectorResultTableIDDuplicateException,
+    PublicESClusterNotExistException,
     RegexInvalidException,
     RegexMatchException,
     ResultTableNotExistException,
@@ -658,7 +659,7 @@ class CollectorHandler:
                 "fields": fields,
                 "sort_fields": sort_fields,
                 "target_fields": target_fields,
-                "labels": self._build_scene_labels(),
+                "labels": self.build_scene_labels(),
                 "is_platform_index": is_platform_index,
                 "platform_index_visibility": platform_index_visibility,
                 "platform_index_filter": platform_index_filter,
@@ -1472,6 +1473,7 @@ class CollectorHandler:
         etl_params=None,
         fields=None,
         storage_cluster_id=None,
+        auto_select_storage_cluster=False,
         storage_cluster_type=STORAGE_CLUSTER_TYPE,
         retention=7,
         allocation_min_days=0,
@@ -1526,6 +1528,15 @@ class CollectorHandler:
                     collector_config_name_en=collector_config_name_en
                 )
             )
+
+        # 仅 MCP 等明确请求自动选择的调用使用 Fast Create 的公共集群策略；
+        # 保留既有 custom_create 未传集群时不创建清洗配置的行为。
+        # 幂等命中已有采集项时无需选择集群。
+        if auto_select_storage_cluster and not storage_cluster_id:
+            storage_cluster_id = self.get_random_public_cluster_id(bk_biz_id=bk_biz_id)
+            if not storage_cluster_id:
+                raise PublicESClusterNotExistException()
+
         # 判断是否已存在同bk_data_name, result_table_id
         bk_data_name = self.build_bk_data_name(
             bk_biz_id=bkdata_biz_id, collector_config_name_en=collector_config_name_en
@@ -1616,7 +1627,7 @@ class CollectorHandler:
                 "fields": custom_config.fields,
                 "sort_fields": sort_fields,
                 "target_fields": target_fields,
-                "labels": self._build_scene_labels(),
+                "labels": self.build_scene_labels(),
                 "is_platform_index": is_platform_index,
                 "platform_index_visibility": platform_index_visibility,
                 "platform_index_filter": platform_index_filter,
@@ -1706,7 +1717,7 @@ class CollectorHandler:
             for label_key, label_valus in obj_item["metadata"]["labels"].items()
         ]
 
-    def _build_scene_labels(self) -> dict:
+    def build_scene_labels(self) -> dict:
         """Build ResultTable.labels based on collector scenario and environment.
 
         场景优先级由无模型依赖的共享函数统一维护，在线路径仅负责补充
@@ -1738,17 +1749,18 @@ class CollectorHandler:
         ).values_list("collector_type", flat=True)
         return detect_container_stream(container_configs)
 
-    def _sync_scene_tags_to_index_set(self, labels: dict):
+    @staticmethod
+    def sync_scene_tags_to_index_set(index_set_id: int | None, labels: dict):
         """
         Persist scene labels as IndexSetTag records and attach them to the
         collector's LogIndexSet.tag_ids so that dimension_values can be
         queried purely from DB.
         """
-        if not self.data.index_set_id:
+        if not index_set_id:
             return
 
         try:
-            index_set = LogIndexSet.objects.get(index_set_id=self.data.index_set_id)
+            index_set = LogIndexSet.objects.get(index_set_id=index_set_id)
         except LogIndexSet.DoesNotExist:
             return
 
@@ -1766,6 +1778,9 @@ class CollectorHandler:
         )
         index_set.tag_ids = list((existing - old_scene_tag_ids) | set(tag_ids))
         index_set.save(update_fields=["tag_ids"])
+
+    def _sync_scene_tags_to_index_set(self, labels: dict):
+        self.sync_scene_tags_to_index_set(self.data.index_set_id, labels)
 
     @staticmethod
     def _get_current_allocation_min_days(result_table: dict) -> int:
@@ -1810,7 +1825,7 @@ class CollectorHandler:
             default_etl_params.update(params)
             params = default_etl_params
 
-        params.setdefault("labels", self._build_scene_labels())
+        params.setdefault("labels", self.build_scene_labels())
 
         from apps.log_databus.handlers.etl import EtlHandler
 

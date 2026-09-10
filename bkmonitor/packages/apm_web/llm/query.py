@@ -8,6 +8,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+from collections.abc import Mapping
 from typing import Any
 
 from django.db.models import Q
@@ -22,6 +23,38 @@ from apm_web.handlers.query.span import SpanQuery
 class LLMQuery(SpanQuery):
     """查询 LLM Trace 与会话。"""
 
+    @staticmethod
+    def _get_field_value(record: dict[str, Any], field: str) -> Any:
+        """按“扁平键/嵌套路径”提取字段，返回空字符串表示不存在。"""
+
+        def _extract(value: Any, keys: list[str], index: int = 0) -> Any:
+            if index >= len(keys):
+                return value
+
+            if not isinstance(value, Mapping):
+                return ""
+
+            key = keys[index]
+            if key in value:
+                return _extract(value[key], keys, index + 1)
+
+            remaining_key = ".".join(keys[index:])
+            if remaining_key in value:
+                return _extract(value[remaining_key], [], len(keys))
+
+            return ""
+
+        if field in record:
+            value = record[field]
+            if isinstance(value, list):
+                return value[0] if value else ""
+            return value
+
+        value = _extract(record, field.split("."))
+        if isinstance(value, list):
+            return value[0] if value else ""
+        return value
+
     def query_group_list(
         self,
         start_time: int | None,
@@ -31,18 +64,23 @@ class LLMQuery(SpanQuery):
         limit: int,
         filters: list[types.Filter] | None = None,
         query_string: str | None = None,
-    ) -> list[str]:
+    ) -> list[Any]:
         queries = [
             query.distinct(group_field).values(group_field).order_by(f"{self.DEFAULT_TIME_FIELD} desc")
             for query in self.build_queries(filters, query_string)
         ]
         records = self._query_list(queries, start_time, end_time, offset, limit)
-        return [record[group_field] for record in records]
+        result: list[Any] = []
+        for record in records:
+            value = self._get_field_value(record, group_field)
+            if value is not None and value != "":
+                result.append(value)
+        return result
 
     def query_by_group_ids(
         self,
         group_field: str,
-        group_ids: list[str],
+        group_ids: list[Any],
         start_time: int | None = None,
         end_time: int | None = None,
         limit: int = SpanQuery.QUERY_MAX_LIMIT,
@@ -56,7 +94,7 @@ class LLMQuery(SpanQuery):
     def query_group_trace_list(
         self,
         group_field: str,
-        group_ids: list[str],
+        group_ids: list[Any],
         limit: int = SpanQuery.QUERY_MAX_LIMIT,
     ) -> list[dict[str, Any]]:
         fields = [group_field]

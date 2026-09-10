@@ -31,6 +31,22 @@ def detect_product(entity_set: EntitySet, spans: list[dict[str, Any]]) -> str:
     return LLMProduct.DEFAULT.value
 
 
+# 查询侧字段映射：标准字段 -> 产品 -> 存储中的原始字段。
+QUERY_FIELD_MAPPING: dict[str, dict[str, str]] = {
+    "attributes.gen_ai.conversation.id": {
+        LLMProduct.AIDEV.value: "attributes.agent.session.session_code",
+        LLMProduct.AGENTLENS.value: "attributes.gen_ai.session.id",
+    },
+}
+
+
+def resolve_query_field(product: str | None, field: str) -> str:
+    """命中映射表时按产品换算为存储中的原始字段，未命中时原样透传。"""
+    if product is None:
+        return field
+    return QUERY_FIELD_MAPPING.get(field, {}).get(product, field)
+
+
 STANDARD_FIELDS = {
     "error.type",
     "user.id",

@@ -1726,6 +1726,9 @@ class CustomCreateSerializer(CustomCollectorBaseSerializer, PlatformIndexFieldsS
     sort_fields = serializers.ListField(label=_("排序字段"), required=False, allow_empty=True)
     target_fields = serializers.ListField(label=_("目标字段"), required=False, allow_empty=True)
     ignore_exists = serializers.BooleanField(label=_("是否忽略已存在"), required=False, default=False)
+    auto_select_storage_cluster = serializers.BooleanField(
+        label=_("是否自动选择公共存储集群"), required=False, default=False
+    )
 
     def validate(self, attrs: dict) -> dict:
         attrs = super().validate(attrs)

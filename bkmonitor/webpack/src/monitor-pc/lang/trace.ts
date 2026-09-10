@@ -105,6 +105,7 @@ export default {
   状态不同步: 'Status is not synced',
   状态同步: 'Status Synced',
   '/ 快速唤起，请输入': 'Press / to input',
+  '/ 唤起，输入检索内容': 'Press / to input',
   源码仓库关联: 'Source Code Repository Relation',
   '关联后，告警中心的 AI 分析可基于蓝盾构建与 Git 变更进行':
     'After linking, AI analysis in the Alert Center can be performed based on BlueKing CI builds and Git changes',
@@ -125,4 +126,6 @@ export default {
     'Your changes have not been saved. Leaving will result in loss of unsaved information.',
   直接离开: 'Leave directly',
   保存并离开: 'Save and leave',
+  原始字段: 'Original Field',
+  类型选择: 'Type Select',
 };

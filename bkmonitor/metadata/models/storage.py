@@ -1014,6 +1014,7 @@ class ClusterInfo(models.Model):
                 "display_name": self.display_name,
                 "version": self.version,
                 "custom_option": self.custom_option,
+                "default_settings": self.default_settings,
                 "registered_system": self.registered_system,
                 "creator": self.creator,
                 "create_time": arrow.get(self.create_time).timestamp,
@@ -1151,7 +1152,14 @@ class ClusterInfo(models.Model):
             )
             raise ValueError(_("集群名【{}】与已有集群冲突，请确认后重试").format(cluster_name))
 
-        if cluster_type not in (cls.TYPE_INFLUXDB, cls.TYPE_ES, cls.TYPE_KAFKA, cls.TYPE_REDIS, cls.TYPE_ARGUS):
+        if cluster_type not in (
+            cls.TYPE_INFLUXDB,
+            cls.TYPE_ES,
+            cls.TYPE_KAFKA,
+            cls.TYPE_REDIS,
+            cls.TYPE_ARGUS,
+            cls.TYPE_DORIS,
+        ):
             logger.error(
                 f"reg_system->[{registered_system}] try to add cluster type->[{cluster_type}] but is not at CLUSTER_TYPE_CHOICES, nothing "
                 "will do"
@@ -1164,7 +1172,7 @@ class ClusterInfo(models.Model):
         ).exists():
             logger.error(
                 f"reg_system->[{registered_system}] try to add cluster->[{cluster_type}] with domain->[{domain_name}] port->[{port}] username->[{username}] "
-                f"pass->[{password}] which already has the same cluster config , nothing will do."
+                "which already has the same cluster config , nothing will do."
             )
             raise ValueError(_("存在同样配置集群，请确认后重试"))
 
@@ -1204,7 +1212,7 @@ class ClusterInfo(models.Model):
         new_cluster.cluster_init()
 
         # 同步集群配置到bkbase
-        if new_cluster.cluster_type == ClusterInfo.TYPE_ES:
+        if new_cluster.cluster_type in (ClusterInfo.TYPE_ES, ClusterInfo.TYPE_DORIS):
             ClusterConfig.sync_cluster_config(cluster=new_cluster)
 
         return new_cluster
@@ -1221,7 +1229,7 @@ class ClusterInfo(models.Model):
         schema=None,
         is_ssl_verify=None,
         version=None,
-        label="",
+        label=None,
         default_settings=None,
         ssl_verification_mode: str | None = None,
         ssl_certificate_authorities: str | None = None,
@@ -1256,6 +1264,12 @@ class ClusterInfo(models.Model):
 
         from metadata.models.data_link.data_link_configs import ClusterConfig
 
+        previous_sync_fields = ClusterConfig.sync_fields(self)
+        if self.cluster_type == self.TYPE_DORIS and default_settings is not None:
+            if not isinstance(default_settings, dict):
+                raise ValueError("default_settings 必须是 JSON 对象")
+            default_settings = {**(self.default_settings or {}), **default_settings}
+
         args = {
             "display_name": display_name,
             "description": description,
@@ -1282,15 +1296,24 @@ class ClusterInfo(models.Model):
                 setattr(self, attribute_name, value)
                 # 由于已经有更新了，所以需要更新最后更新者
                 self.last_modify_user = operator
-                logger.info(
-                    f"cluster->[{self.cluster_name}] attribute->[{attribute_name}] is set to->[{value}] by->[{operator}]"
-                )
+                logger.info(f"cluster->[{self.cluster_name}] attribute->[{attribute_name}] updated by->[{operator}]")
+
+        # 仅实际下发字段变化时同步，元数据修改不依赖 BKBase。
+        needs_sync = previous_sync_fields != ClusterConfig.sync_fields(self)
+        if needs_sync and self.cluster_type == self.TYPE_ES and not self.CLUSTER_NAME_REGEX.match(self.cluster_name):
+            original_cluster_name = self.cluster_name
+            self.cluster_name = f"auto_cluster_name_{self.cluster_id}"
+            logger.warning(
+                "cluster(%s) cluster_name: %s is not valid, set to: %s",
+                self.cluster_id,
+                original_cluster_name,
+                self.cluster_name,
+            )
 
         self.save()
         logger.info(f"cluster->[{self.cluster_name}] update success.")
 
-        # 同步集群配置到bkbase（目前仅支持ES集群）
-        if self.cluster_type == ClusterInfo.TYPE_ES:
+        if needs_sync:
             ClusterConfig.sync_cluster_config(cluster=self)
 
         return True

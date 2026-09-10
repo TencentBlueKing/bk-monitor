@@ -1385,11 +1385,27 @@ class TestCustomCreateIdempotent(TestCase):
         return params
 
     @patch(
+        "apps.log_databus.handlers.collector.base.CollectorHandler.get_random_public_cluster_id",
+        return_value=0,
+    )
+    @patch("apps.log_databus.handlers.collector.base.CollectorConfig.objects.create")
+    def test_custom_create_auto_storage_requires_available_public_cluster(self, mock_create, mock_get_cluster):
+        from apps.log_databus.exceptions import PublicESClusterNotExistException
+        from apps.log_databus.handlers.collector.base import CollectorHandler
+
+        with self.assertRaises(PublicESClusterNotExistException):
+            CollectorHandler().custom_create(auto_select_storage_cluster=True, **self._build_params())
+
+        mock_get_cluster.assert_called_once_with(bk_biz_id=2)
+        mock_create.assert_not_called()
+
+    @patch("apps.log_databus.handlers.collector.base.CollectorHandler.get_random_public_cluster_id")
+    @patch(
         "apps.log_databus.handlers.collector.base.CollectorHandler._pre_check_collector_config_en",
         return_value=True,
     )
     @patch("apps.log_databus.handlers.collector.base.CollectorConfig.objects.get")
-    def test_custom_create_ignore_exists_true_returns_existing(self, mock_get, mock_pre_check):
+    def test_custom_create_ignore_exists_true_returns_existing(self, mock_get, mock_pre_check, mock_get_cluster):
         """
         ignore_exists=True 命中已存在 → 返回 created=False 且 ids 正确
         """
@@ -1415,6 +1431,38 @@ class TestCustomCreateIdempotent(TestCase):
         # 确认短路：没有进入实际创建流程
         mock_pre_check.assert_called_once()
         mock_get.assert_called_once()
+        mock_get_cluster.assert_not_called()
+
+    @patch(
+        "apps.log_databus.handlers.collector.base.CollectorHandler.get_random_public_cluster_id",
+        return_value=0,
+    )
+    @patch(
+        "apps.log_databus.handlers.collector.base.CollectorHandler._pre_check_collector_config_en",
+        return_value=True,
+    )
+    @patch("apps.log_databus.handlers.collector.base.CollectorConfig.objects.get")
+    def test_custom_create_idempotent_retry_skips_auto_storage_selection(
+        self, mock_get, mock_pre_check, mock_get_cluster
+    ):
+        from apps.log_databus.handlers.collector.base import CollectorHandler
+
+        existing = MagicMock()
+        existing.collector_config_id = 100
+        existing.index_set_id = 200
+        existing.bk_data_id = 300
+        mock_get.return_value = existing
+
+        result = CollectorHandler().custom_create(
+            auto_select_storage_cluster=True,
+            ignore_exists=True,
+            **self._build_params(),
+        )
+
+        self.assertFalse(result["created"])
+        mock_pre_check.assert_called_once()
+        mock_get.assert_called_once()
+        mock_get_cluster.assert_not_called()
 
     @patch(
         "apps.log_databus.handlers.collector.base.CollectorHandler._pre_check_collector_config_en",

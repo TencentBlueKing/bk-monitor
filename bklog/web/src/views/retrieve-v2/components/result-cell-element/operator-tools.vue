@@ -48,6 +48,19 @@
         <span class="icon bklog-icon bklog-shangxiawen" />
         <span class="handle-label">{{ $t('上下文') }}</span>
       </button>
+      <template v-if="isActiveWebConsole && !isMonitorApm">
+        <span class="handle-divider" />
+        <button
+          v-bk-tooltips="{ allowHtml: true, content: '#webConsole-html', delay: 500, disabled: isCanClickWebConsole }"
+          :class="['handle-item', { 'is-disable': !isCanClickWebConsole }]"
+          type="button"
+          @click.stop="handleCheckClick('webConsole', isCanClickWebConsole)"
+          @mouseup.stop
+        >
+          <span class="icon bklog-icon bklog-consola" />
+          <span class="handle-label">WebConsole</span>
+        </button>
+      </template>
       <template v-if="showTraceInput">
         <span class="handle-divider" />
         <button
@@ -144,6 +157,17 @@
         </span>
       </div>
     </div>
+    <div v-show="false">
+      <div id="webConsole-html">
+        <span>
+          <span
+            v-if="!isCanClickWebConsole"
+            class="bk-icon icon-exclamation-circle-shape"
+          ></span>
+          <span>{{ toolMessage.webConsole }}</span>
+        </span>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -196,6 +220,36 @@
       isActiveLog() {
         return this.operatorConfig?.contextAndRealtime?.is_active ?? false;
       },
+      isActiveWebConsole() {
+        return this.operatorConfig?.bcsWebConsole?.is_active ?? false;
+      },
+      /** 判断 webConsole 是否能点击：行数据需具备集群与容器 ID */
+      isCanClickWebConsole() {
+        if (!this.isActiveWebConsole) return false;
+        const { cluster, container_id: containerID, __ext } = this.rowData;
+        let queryData = {};
+        if (cluster && containerID) {
+          queryData = {
+            cluster,
+            container_id: containerID,
+          };
+        } else {
+          if (!__ext) return false;
+          if (!__ext.container_id) return false;
+          queryData = { container_id: __ext.container_id };
+          if (__ext.io_tencent_bcs_cluster) {
+            Object.assign(queryData, {
+              cluster: __ext.io_tencent_bcs_cluster,
+            });
+          } else if (__ext.bk_bcs_cluster_id) {
+            Object.assign(queryData, {
+              cluster: __ext.bk_bcs_cluster_id,
+            });
+          }
+        }
+        if (!queryData.cluster || !queryData.container_id) return false;
+        return true;
+      },
       isAiAssistanceActive() {
         return this.$store.getters.isAiAssistantActive;
       },
@@ -221,22 +275,47 @@
       normalizeTraceSearchText(value) {
         return String(value).replace(/<[^>]*>/g, '');
       },
-      getTraceIdFromText(value) {
+      isTraceIdKey(key) {
+        return /(^|[._\-\s])(?:trace[_-]?id|x[_-]trace[_-]id)($|[._\-\s])/.test(String(key).toLowerCase());
+      },
+      getTraceIdCandidatesFromText(value, sourceKey = '') {
         const text = this.normalizeTraceSearchText(value);
-        const traceIdPattern = /\btrace_?id\b\s*[=:]\s*([a-f0-9]{32})(?![a-z0-9])/i;
-        const traceIdMatch = text.match(traceIdPattern);
-        if (traceIdMatch) {
-          return traceIdMatch[1];
+        const candidates = [];
+        const matchedIndexes = new Set();
+        const addCandidate = (traceId, key, index) => {
+          const matchedKey = `${index}:${traceId}`;
+          if (!matchedIndexes.has(matchedKey)) {
+            matchedIndexes.add(matchedKey);
+            candidates.push({ traceId, key, index });
+          }
+        };
+
+        const keyValueTraceIdPattern = /(?:^|[^a-z0-9_-])["']?([a-z0-9][\w.-]*?)["']?\s*[=:]\s*["']?([a-f0-9]{32})(?![a-z0-9])/gi;
+        for (const match of text.matchAll(keyValueTraceIdPattern)) {
+          const traceId = match[2];
+          addCandidate(traceId, match[1] || sourceKey, match.index + match[0].lastIndexOf(traceId));
         }
 
-        const strictTraceIdPattern = /(^|[^a-z0-9])([a-f0-9]{32})(?![a-z0-9])/i;
-        const strictTraceIdMatch = text.match(strictTraceIdPattern);
-        return strictTraceIdMatch?.[2] ?? null;
+        const strictTraceIdPattern = /(^|[^a-z0-9])([a-f0-9]{32})(?![a-z0-9])/gi;
+        for (const match of text.matchAll(strictTraceIdPattern)) {
+          const traceId = match[2];
+          addCandidate(traceId, sourceKey, match.index + match[0].lastIndexOf(traceId));
+        }
+
+        return candidates.sort((prev, next) => prev.index - next.index);
+      },
+      getTraceIdFromText(value, sourceKey = '') {
+        const candidates = this.getTraceIdCandidatesFromText(value, sourceKey);
+        return this.pickTraceIdCandidate(candidates)?.traceId ?? null;
+      },
+      pickTraceIdCandidate(candidates) {
+        return candidates.find(candidate => this.isTraceIdKey(candidate.key)) ?? candidates[0] ?? null;
       },
       getTraceIdFromRowData() {
-        const traceId = this.rowData.trace_id ?? this.rowData.traceid;
+        const directTraceKey = Object.keys(this.rowData).find(key => this.isTraceIdKey(key));
+        const traceId = directTraceKey ? this.rowData[directTraceKey] : null;
         if (traceId) {
-          const matchedTraceId = this.getTraceIdFromText(traceId);
+          const matchedTraceId = this.getTraceIdFromText(traceId, directTraceKey);
           if (matchedTraceId) {
             return matchedTraceId;
           }
@@ -247,30 +326,24 @@
           }
         }
 
-        const rowValues = Object.values(this.rowData);
-        for (const value of rowValues) {
+        const candidates = [];
+        for (const [key, value] of Object.entries(this.rowData)) {
           if (typeof value !== 'string') {
             continue;
           }
 
-          const traceIdFromText = this.getTraceIdFromText(value);
-          if (traceIdFromText) {
-            return traceIdFromText;
-          }
+          candidates.push(...this.getTraceIdCandidatesFromText(value, key));
         }
 
-        for (const value of rowValues) {
+        for (const [key, value] of Object.entries(this.rowData)) {
           if (!value || typeof value !== 'object') {
             continue;
           }
 
-          const traceIdFromText = this.getTraceIdFromText(JSON.stringify(value));
-          if (traceIdFromText) {
-            return traceIdFromText;
-          }
+          candidates.push(...this.getTraceIdCandidatesFromText(JSON.stringify(value), key));
         }
 
-        return null;
+        return this.pickTraceIdCandidate(candidates)?.traceId ?? null;
       },
       handleCheckClick(clickType, isActive = false, event) {
         if (!isActive) return;
@@ -371,11 +444,11 @@
 
         .ai-label {
           font-weight: 600;
+          color: transparent;
           background: linear-gradient(118deg, #235dfa 0%, #e28bed 100%);
-          -webkit-background-clip: text;
+          background-clip: text;
           background-clip: text;
           -webkit-text-fill-color: transparent;
-          color: transparent;
         }
       }
     }
@@ -406,7 +479,10 @@
 
     &:hover,
     &:focus-visible {
+      /* stylelint-disable-next-line declaration-no-important */
       color: #c4c6cc !important;
+
+      /* stylelint-disable-next-line declaration-no-important */
       background: transparent !important;
     }
   }

@@ -30,6 +30,7 @@ import useLocale from '@/hooks/use-locale';
 import { useRoute, useRouter } from 'vue-router/composables';
 import { useCollectList } from '../../hook/useCollectList';
 import CollectIssuedSlider from '../business-comp/step3/collect-issued-slider';
+import V2MaskingOperation from '../masking-operation';
 import StepClassify from './step1-classify';
 import StepBkDataCollection from './step2-bk-data-collection';
 import StepConfiguration from './step2-configuration';
@@ -77,6 +78,7 @@ export default defineComponent({
      * 第三方日志新建流程 （计算平台、第三方ES接入)流程
      */
     const thirdLogStep = [{ title: t('采集配置'), icon: 2, components: StepBkDataCollection }];
+    const maskingStep = [{ title: t('日志脱敏'), icon: 1, components: V2MaskingOperation }];
     /**
      * 自定义日志新建流程
      */
@@ -97,6 +99,7 @@ export default defineComponent({
      *
      */
     const isClone = computed(() => route.query.type === 'clone' && !!route.query.collectorId);
+    const isMaskingRoute = computed(() => route.name === 'collectMasking' || route.query.type === 'masking');
     /**
      * 是否是编辑状态
      */
@@ -114,6 +117,10 @@ export default defineComponent({
      * - 新建模式：包含第一步（索引集分类），保持原有图标编号
      */
     const currentStep = computed(() => {
+      if (isMaskingRoute.value) {
+        return maskingStep;
+      }
+
       // 根据日志类型选择对应的步骤配置
       const targetSteps = ['bkdata', 'es'].includes(typeKey.value)
         ? thirdLogStep // 第三方日志流程（计算平台、第三方ES接入）
@@ -381,31 +388,33 @@ export default defineComponent({
               <span class='status-txt'>{currentStatus.value.text}</span>
             </div>
           )}
-          <div
-            style={{ width: `${containerWidth.value - 60}px` }}
-            class='create-step'
-          >
+          {!isMaskingRoute.value && (
             <div
-              style={{ width: `${currentStep.value.length * 200}px` }}
-              class='step-main'
+              style={{ width: `${containerWidth.value - 60}px` }}
+              class='create-step'
             >
-              <bk-steps
-                ext-cls='custom-icon'
-                cur-step={step.value}
-                line-type={'solid'}
-                before-change={handleStepChange}
-                controllable={isStepsControllable.value}
-                steps={currentStep.value}
-              />
+              <div
+                style={{ width: `${currentStep.value.length * 200}px` }}
+                class='step-main'
+              >
+                <bk-steps
+                  ext-cls='custom-icon'
+                  cur-step={step.value}
+                  line-type={'solid'}
+                  before-change={handleStepChange}
+                  controllable={isStepsControllable.value}
+                  steps={currentStep.value}
+                />
+              </div>
+              <span
+                class='step-tips'
+                on-click={handleOpenGuide}
+              >
+                <i class='bklog-icon bklog-help help-icon' />
+                {t('接入指引')}
+              </span>
             </div>
-            <span
-              class='step-tips'
-              on-click={handleOpenGuide}
-            >
-              <i class='bklog-icon bklog-help help-icon' />
-              {t('接入指引')}
-            </span>
-          </div>
+          )}
           <Component
             {...stepStatusProps}
             ref={currentStepRef}

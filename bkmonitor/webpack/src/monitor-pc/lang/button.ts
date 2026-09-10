@@ -546,6 +546,7 @@ export default {
 
   确认拆分: 'Confirm Split',
   '拆分为新 Issue': 'Split to New Issue',
+  批量拆分: 'Batch Split',
   确认合并: 'Confirm Merge',
   '设为主 Issue': 'Set as Main Issue',
   了解更多: 'Learn More',

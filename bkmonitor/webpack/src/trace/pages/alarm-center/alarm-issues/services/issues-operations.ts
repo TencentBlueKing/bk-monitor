@@ -276,10 +276,12 @@ export const mergeIssues = async (
 };
 
 /**
- * @description 拆分 Issue，将成员 Issue 从主 Issue 中拆出
- * @param {SplitIssueParams} params - 拆分请求参数（bk_biz_id / member_issue_id / reasons）
+ * @description 拆分 Issue，将成员 Issue 从主 Issue 中拆出。
+ *   统一走批量契约（member_issue_ids），单条拆分传长度 1 的列表；后端逐条独立执行，
+ *   部分失败不阻塞其余条目，故失败判定需逐条读 results 而非接口级 status。
+ * @param {SplitIssueParams} params - 拆分请求参数（bk_biz_id / member_issue_ids / reasons）
  * @param {RequestOptions} options - 请求配置选项
- * @returns {Promise<SplitIssueResponseData>} 拆分结果
+ * @returns {Promise<SplitIssueResponseData>} 逐条拆分结果
  */
 export const splitIssues = async (
   params: SplitIssueParams,

@@ -787,6 +787,84 @@ class ApmApplicationSearchItem(SearchItem):
         return [{"type": "apm_application", "name": _("APM应用"), "items": items}]
 
 
+class ApmServiceSearchItem(ApmApplicationSearchItem):
+    """在授权业务中匹配服务，有查看权限的应用排在前面，无权限的也一并返回。"""
+
+    @classmethod
+    def _list_applications(cls, bk_tenant_id: str, services: list[dict]) -> list[dict[str, Any]]:
+        app_keys = {(service["bk_biz_id"], service["app_name"]) for service in services}
+        applications = (
+            Application.objects.filter(
+                bk_tenant_id=bk_tenant_id,
+                bk_biz_id__in={bk_biz_id for bk_biz_id, _ in app_keys},
+                app_name__in={app_name for _, app_name in app_keys},
+            )
+            .order_by()
+            .values("bk_biz_id", "app_name", "application_id")
+        )
+        return [app for app in applications if (app["bk_biz_id"], app["app_name"]) in app_keys]
+
+    @classmethod
+    def search(
+        cls,
+        bk_tenant_id: str,
+        username: str,
+        query: str,
+        limit: int = 5,
+        current_bk_biz_id: int | None = None,
+        stop_event: threading.Event | None = None,
+    ) -> list[dict] | None:
+        if stop_event is not None and stop_event.is_set():
+            return
+        bk_biz_ids = cls._get_allowed_bk_biz_ids(bk_tenant_id, username, ActionEnum.VIEW_BUSINESS)
+        if not bk_biz_ids:
+            return
+        # 业务超过 100 个时省略业务过滤。
+        services = api.apm_api.search_service_names(
+            bk_biz_ids=[] if len(bk_biz_ids) > 100 else bk_biz_ids, query=query, limit=limit
+        )
+        if not services:
+            return
+
+        applications = cls._list_applications(bk_tenant_id, services)
+        allowed = filter_data_by_permission(
+            bk_tenant_id=bk_tenant_id,
+            data=applications,
+            actions=[ActionEnum.VIEW_APM_APPLICATION],
+            resource_meta=ResourceEnum.APM_APPLICATION,
+            id_field=lambda d: d["application_id"],
+            instance_create_func=ResourceEnum.APM_APPLICATION.create_instance_by_info,
+            mode="any",
+            username=username,
+        )
+        allowed_keys = {(app["bk_biz_id"], app["app_name"]) for app in allowed}
+        app_map = {(app["bk_biz_id"], app["app_name"]): app for app in applications}
+        ranked, others = [], []
+        for service in services:
+            key = (service["bk_biz_id"], service["app_name"])
+            if key not in app_map:
+                continue
+            if key in allowed_keys:
+                ranked.append(service)
+            else:
+                others.append(service)
+        services = [*ranked, *others][:limit]
+        if not services:
+            return
+        items = [
+            {
+                "bk_biz_id": service["bk_biz_id"],
+                "bk_biz_name": cls._get_biz_name(service["bk_biz_id"]),
+                "application_id": app_map[(service["bk_biz_id"], service["app_name"])]["application_id"],
+                "app_name": service["app_name"],
+                "service_name": service["service_name"],
+                "name": service["service_name"],
+            }
+            for service in services
+        ]
+        return [{"type": "apm_service", "name": _("APM服务"), "items": items}]
+
+
 class HostSearchItem(SearchItem):
     """
     Search item for host.
@@ -951,6 +1029,7 @@ class Searcher:
         StrategySearchItem,
         TraceSearchItem,
         ApmApplicationSearchItem,
+        ApmServiceSearchItem,
         HostSearchItem,
         BCSClusterSearchItem,
     ]

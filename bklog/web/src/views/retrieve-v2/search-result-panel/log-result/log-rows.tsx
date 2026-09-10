@@ -1190,6 +1190,8 @@ export default defineComponent({
     let syncResultBoxRectBeforeRender = () => {};
     /** 首屏列宽稳定后再揭开真实行（由下方赋值实现） */
     let scheduleFirstPageTableReveal = () => {};
+    /** 字段显隐后按最新列宽收敛横向滚动范围（由下方 useLazyRender 后再赋值实现） */
+    let syncVisibleFieldsHorizontalLayout: (preferredScrollLeft: number) => void = () => {};
 
     /**
      * 数据量变化时刷新 renderList；
@@ -1264,14 +1266,8 @@ export default defineComponent({
      * @param resetScroll 是否重置滚动条
      */
     const handleResultBoxResize = (resetScroll = true) => {
-      if (!RetrieveHelper.jsonFormatter.isExpandNodeClick) {
-        if (resetScroll) {
-          scrollXOffsetLeft = 0;
-          refScrollXBar.value?.scrollLeft(0);
-        }
-      }
-
-      computeRect(refResultRowBox.value);
+      const shouldResetScroll = resetScroll && !RetrieveHelper.jsonFormatter.isExpandNodeClick;
+      syncVisibleFieldsHorizontalLayout(shouldResetScroll ? 0 : scrollXOffsetLeft);
     };
 
     let visibleFieldsLayoutToken = 0;
@@ -1285,7 +1281,7 @@ export default defineComponent({
       if (!visibleFields.value.length) {
         setFullColumns();
         triggerColumnLayoutReflow();
-        handleResultBoxResize();
+        syncVisibleFieldsHorizontalLayout(scrollXOffsetLeft);
         return;
       }
 
@@ -1304,7 +1300,7 @@ export default defineComponent({
       retrieveFieldCacheService.setComputedWidths(fieldScope.value, visibleFields.value);
       if (Object.keys(widthSnapshot).length) bumpFieldWidthVersion();
       triggerColumnLayoutReflow();
-      handleResultBoxResize();
+      syncVisibleFieldsHorizontalLayout(scrollXOffsetLeft);
     };
     addEvent(RetrieveEvent.VISIBLE_FIELD_COLUMN_LAYOUT_CHANGE, refreshVisibleFieldsColumnLayout);
 
@@ -1352,7 +1348,8 @@ export default defineComponent({
     useResizeObserve(
       () => refResultRowBox.value,
       () => {
-        handleResultBoxResize(!isColumnWidthChanging);
+        // 内容换行或字段显隐也会触发 ResizeObserver，不应因此把用户拉回最左侧。
+        handleResultBoxResize(false);
         RetrieveHelper.fire(RetrieveEvent.RESULT_ROW_BOX_RESIZE);
       },
       60,
@@ -1363,18 +1360,6 @@ export default defineComponent({
     addEvent(RetrieveEvent.AI_CLOSE, () => {
       refResultRowBox.value?.querySelector('.ai-active')?.classList.remove('ai-active');
     });
-
-    let isColumnWidthChanging = false;
-    let columnWidthChangeTimer: number;
-
-    /** 标记列宽拖拽进行中，短暂抑制 resize 时重置横向滚动 */
-    const markColumnWidthChanging = () => {
-      isColumnWidthChanging = true;
-      window.clearTimeout(columnWidthChangeTimer);
-      columnWidthChangeTimer = window.setTimeout(() => {
-        isColumnWidthChanging = false;
-      }, 300);
-    };
 
     /** 列宽变更后尽量保持用户当前的横向滚动位置 */
     const preserveHorizontalScrollAfterColumnResize = (preferredScrollLeft: number) => {
@@ -1394,7 +1379,6 @@ export default defineComponent({
      */
     const handleColumnWidthChange = (w, col) => {
       const prevScrollLeft = scrollXOffsetLeft;
-      markColumnWidthChanging();
 
       const width = w > 40 ? w : 40;
       const currentFields = visibleFields.value.length ? visibleFields.value : fullColumns.value;
@@ -1580,6 +1564,29 @@ export default defineComponent({
       rootElement: refRootElement,
       refLoadMoreElement,
     });
+
+    /**
+     * 字段显隐后按当前列模型收敛横向滚动范围。
+     * 屏外行使用 content-visibility 时可能保留旧的 intrinsic width，不能继续以 DOM scrollWidth 作为准值。
+     */
+    syncVisibleFieldsHorizontalLayout = (preferredScrollLeft: number) => {
+      nextTick(() => {
+        requestAnimationFrame(() => {
+          computeRectSync(refResultRowBox.value);
+          if (showCtxType.value === 'table') {
+            const columnsWidth = getFixedColumnsWidth() + getColumnWidthTotal(getFieldColumns.value);
+            scrollWidth.value = Math.max(offsetWidth.value, columnsWidth);
+          }
+          const maxOffset = Math.max(0, scrollWidth.value - offsetWidth.value);
+          scrollXOffsetLeft = Math.max(0, Math.min(preferredScrollLeft, maxOffset));
+
+          nextTick(() => {
+            refScrollXBar.value?.scrollLeft(scrollXOffsetLeft);
+            setRowboxTransform();
+          });
+        });
+      });
+    };
 
     /** 首屏渲染前同步结果区宽度，并 bump 列布局版本 */
     syncResultBoxRectBeforeRender = () => {
@@ -2211,6 +2218,8 @@ export default defineComponent({
       const nextOffset = (event.target as HTMLElement)?.scrollLeft || 0;
       // 程序化写入滚动条位置会回抛 scroll 事件，位置一致时跳过，避免每帧重复同步一次
       if (nextOffset === scrollXOffsetLeft) {
+        // 逻辑偏移相同不代表 DOM 一定同步：列宽收缩时浏览器可能单独钳制结果区 scrollLeft。
+        setRowboxTransform();
         return;
       }
 
@@ -2396,7 +2405,6 @@ export default defineComponent({
       selectionPopAnchorEl?.remove();
       selectionPopAnchorEl = null;
       savedSelection = null;
-      window.clearTimeout(columnWidthChangeTimer);
       requestingTimer && clearTimeout(requestingTimer);
       while (layoutTimers.length) {
         clearTimeout(layoutTimers.pop());

@@ -276,6 +276,7 @@ export const useCollectList = () => {
     if (operateType === 'masking') {
       // 脱敏：直接进入脱敏页，并隐藏左侧步骤条（通过 type=masking 控制）
       query.type = 'masking';
+      backRoute = route.name;
     }
 
     if (operateType === 'status') {
@@ -326,7 +327,7 @@ export const useCollectList = () => {
      *   - add：用 isAllowedCreate 控制（空间创建权限）
      *   - view：校验 VIEW_COLLECTION_AUTH
      *   - search：校验 SEARCH_LOG_AUTH（indices 资源）
-     *   - 其他操作：校验 MANAGE_COLLECTION_AUTH（collection 资源）
+     *   - 其他操作：校验对应管理权限（collection / indices 资源）
      */
 
     // 1) 前置：不可点击直接返回（例如“未完成/运行中”限制等）
@@ -376,8 +377,9 @@ export const useCollectList = () => {
       {
         // 原逻辑：除 add/view/search 外，统一按“管理权限”兜底
         match: _t => !['add', 'view', 'search'].includes(String(_t)),
-        isAllowed: () => Boolean(row.permission?.[authorityMap.MANAGE_COLLECTION_AUTH]),
-        buildApplyData: () => buildCollectionApplyData(authorityMap.MANAGE_COLLECTION_AUTH, row.collector_config_id),
+        isAllowed: () => Boolean(row.permission?.[editKey]),
+        buildApplyData: () =>
+          isBkDataOrEs ? buildIndicesApplyData(editKey, editId) : buildCollectionApplyData(editKey, editId),
       },
     ];
 

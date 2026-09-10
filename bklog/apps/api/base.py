@@ -56,6 +56,7 @@ from apps.utils.local import (
     get_request_username,
 )
 from apps.utils.log import logger
+from apps.utils.log_sanitization import sanitize_headers
 from apps.utils.time_handler import timestamp_to_datetime
 
 API_AUTH_KEYS = ["bk_app_code", "bk_app_secret", "bk_username", "bk_token", "access_token", "bk_ticket"]
@@ -468,7 +469,7 @@ class DataAPI:
                 "method": self.method,
                 "method_override": self.method_override,
                 "query_params": params,
-                "headers": self.headers,
+                "headers": sanitize_headers(self.headers),
                 "response_result": response_result,
                 "response_code": response_code,
                 "response_data": response_data,

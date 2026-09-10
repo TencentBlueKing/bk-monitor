@@ -123,6 +123,7 @@ GET /rum/search/view_config/?app_name=rum-demo&bk_biz_id=2
 | fields                   | Array[Field]  | 全量字段列表（包含所有分组及非分组字段）                                                    |
 | groups                   | Array[Group]  | 分组列表，每个分组通过 `field_names` 引用 `fields` 中的字段                              |
 | display_fields           | Array[String] | 列表页默认展示的字段名列表                                                           |
+| resident_fields          | Array[String] | 常驻筛选字段名列表，前端置顶展示并默认带出这些筛选维度                                        |
 | span_type_display_fields | Object        | 各 Span 类型的默认展示字段，key 为 Span 类型，value 为字段名列表；前端切换类型时使用此配置（只在 span 视图下返回） |
 
 - Field
@@ -403,6 +404,13 @@ GET /rum/search/view_config/?app_name=rum-demo&bk_biz_id=2
     "elapsed_time",
     "status.code",
     "attributes.view.url_template",
+    "attributes.user.id"
+  ],
+  "resident_fields": [
+    "attributes.span_type",
+    "resource.service.name",
+    "kind",
+    "status.code",
     "attributes.user.id"
   ]
 }
@@ -906,6 +914,745 @@ POST /rum/meta/application/list_application/
         "manage_rum_application_v2": true,
         "view_rum_application_v2": true
       }
+    }
+  ]
+}
+```
+
+
+### 2.10 statistics - 数据统计
+
+POST /rum/search/statistics/
+
+#### 2.10.1 Request
+
+| 字段         | 类型          | 必选 | 描述                                                                                                                             |
+|--------------|---------------|------|----------------------------------------------------------------------------------------------------------------------------------|
+| bk_biz_id    | int           | 是   | 业务 ID                                                                                                                          |
+| app_name     | string        | 是   | 应用名称                                                                                                                         |
+| mode | String | 否 | 查询层级模式，可选 `span`、`view`、`session`，默认 `span` |
+| group_name   | string        | 是   | 计算组，可选 `origin`（原始字段）。                                                                                              |
+| cal_type     | string        | 是   | 指标计算类型，可选 `count`（计数）、`sum`（求和）、`distinct`（取重计数）、`max`（最大值）、`min`（最小值）、`avg`（平均值）     |
+| field        | Field         | 是   | 计算字段，例如 `attributes.user.id`。                                                                                            |
+| start_time   | int           | 否   | 开始时间（Unix 时间戳，秒）                                                                                                      |
+| end_time     | int           | 否   | 结束时间（Unix 时间戳，秒）                                                                                                      |
+| baseline     | string        | 否   | 对比基准时间偏移，默认 `0s`，表示当前时间                                                                                        |
+| time_shifts  | List[string]  | 否   | 时间偏移列表，支持 `1d`（1 天前）、`1w`（1 周前）、`1d`（1 天前）、`1w`（一周前）、`1M`（一月前）等格式，最多支持 2 个对比时间点 |
+| filters      | Array[Filter] | 否   | 过滤条件，见 [1.1 Filter](#filter)，默认 `[]`                                                                                    |
+| query_string | String        | 否   | 查询字符串，默认 `""`                                                                                                            |
+| group_by     | List[string]  | 否   | 分组字段列表，用于维度聚合                                                                                                       |
+| interval | Integer | 否 | 时间分桶间隔（秒），正整数，与 `group_by` 中的 `time` 配合使用，不传时统计整个范围 |
+
+
+例如，查询某个错误影响用户数，并返回比：
+
+```json
+{
+    "bk_biz_id": 2,
+    "app_name": "trpc-cluster-access-demo",
+    "mode": "span",
+    "group_name": "origin",
+    "cal_type": "count",
+    "field": "attributes.user.id",
+    "baseline": "0s",
+    "filters": [
+      {"key": "attributes.code.lineno", "operator": "equal", "value": ["9"]},
+      {"key": "attributes.code.column", "operator": "equal", "value": ["654249"]},
+      {"key": "attributes.code.filepath", "operator": "equal", "value": ["https://example.com/static/js/app.js"]}
+    ],
+    "group_by": [],
+    "time_shifts": ["0s", "1h"],
+    "start_time": 1763535864,
+    "end_time": 1763539464
+}
+```
+
+#### 2.10.2 Response
+
+| 参数名称 | 类型          | 描述                         |
+|----------|---------------|------------------------------|
+| total    | Integer       | 分组结果条数，不是指标计数值 |
+| data     | Array[Record] | 分组统计结果列表             |
+
+- Record
+
+| 参数名称     | 类型          | 描述                                                                                                                             |
+|--------------|---------------|----------------------------------------------------------------------------------------------------------------------------------|
+| dimensions   | Object        | 分组维度，key 为 `group_by` 字段，未分组时为 `{}`，时间分桶的 `time` 为桶起点（Unix 秒级时间戳） |
+| {time_shift} | Number / Null | 对应时间偏移的指标值，如 `0s`、`1h`，无数据时为 `null`                                                                           |
+| growth_rates | Object        | `baseline` 相对各时间偏移的增长率，key 为时间偏移，value 为百分比数值（不含 %），无法计算时为 `null`                             |
+| proportions  | Object        | 仅 `cal_type = count` 返回，key 为时间偏移，value 为该分组占同时间偏移总量的百分比（不含 %），总量为 0 或该分组无数据时为 `null` |
+
+增长率为 `(基准值 − 对比值) / 对比值 × 100`，对比值为 `0` 时，基准值也为 `0` 返回 `0`，否则返回 `100`。
+
+```json
+{
+  "total": 1,
+  "data": [
+    {
+      "dimensions": {},
+      "0s": 120,
+      "1h": 100,
+      "growth_rates": {
+        "0s": 0,
+        "1h": 20
+      },
+      "proportions": {
+        "0s": 100,
+        "1h": 100
+      }
+    }
+  ]
+}
+```
+
+### 2.11 record_detail - 记录详情
+
+POST /rum/search/record_detail/
+
+#### 2.11.1 Request
+
+| 参数名称 | 类型 | 必填 | 描述 |
+|----------|------|------|------|
+| bk_biz_id | Integer | 是 | 业务 ID |
+| app_name | String | 是 | 应用名称 |
+| mode | String | 否 | 查询层级，默认 `span`，以下示例均为 Span 详情 |
+| record_id | String | 是 | 记录 ID，Span 层级取 `span_id` |
+
+```json
+{"bk_biz_id": 2, "app_name": "rum-demo", "mode": "span", "record_id": "7d2f09b6f8bc31aa"}
+```
+
+#### 2.11.2 Response
+
+| 参数名称 | 类型 | 描述 |
+|----------|------|------|
+| origin_data | Object | 原始 Span，保留嵌套结构，示例仅展示基础骨架 |
+| span_id | String | 当前记录的 Span ID |
+| overview | Object | 标题、徽标和公共信息，见 Overview |
+| sections | Array[Section] | 按展示顺序排列的详情区块 |
+
+- Overview
+
+| 参数名称 | 类型 | 描述 |
+|----------|------|------|
+| title | String | 详情标题 |
+| badges | Array[Item] | 标题旁的关键指标与状态 |
+| items | Array[Item] | 应用、页面、会话、用户和时间信息 |
+
+- Item
+
+| 参数名称 | 类型 | 描述 |
+|----------|------|------|
+| field_name | String | 字段标识 |
+| value | Any | 原始值或计算值 |
+| field_alias | String | 可选，字段展示名称 |
+| alias | String | 可选，格式化后的值或枚举别名 |
+
+* *[1] 原始字段：`field_alias`、`alias` 等信息，优先从 `GET /rum/search/view_config/` 取用字段元信息，前端根据字段类型选取可读样式。*
+* *[2] 展示字段：field_name 以 `display.` 开头，此类字段后台返回 `field_alias`、`alias`。*
+
+- Section
+
+| 参数名称 | 类型 | 描述 |
+|----------|------|------|
+| key | String | 区块标识 |
+| type | String | 展示类型：`summary_cards`、`waterfall`、`rating_bar` |
+| data | Object | 分组指标、时序或评级数据，与 `items` 按区块结构选用 |
+| items | Array[Item] | 平铺字段列表，与 `data` 按区块结构选用 |
+
+##### 1）Resource（XHR 和 Fetch）
+
+```json
+{
+  "origin_data": {
+    "span_id": "7d2f09b6f8bc31aa",
+    "attributes": {"span_type": "resource"},
+    "links": [],
+    "events": [],
+    "resource": {"service.name": "rum-web"}
+  },
+  "span_id": "7d2f09b6f8bc31aa",
+  "overview": {
+    "title": "POST /api/orders",
+    "badges": [
+      {"field_name": "elapsed_time", "value": 128000},
+      {"field_name": "attributes.resource.type", "value": "fetch"},
+      {"field_name": "attributes.http.response.status_code", "value": 200}
+    ],
+    "items": [
+      {"field_name": "display.span_type", "field_alias": "类型", "alias": "Resource(fetch)", "value": "Resource(fetch)"},
+      {"field_name": "app_name", "value": "rum-demo"},
+      {"field_name": "attributes.view.url_template", "value": "/order/submit"},
+      {"field_name": "attributes.session.id", "value": "sess-001"},
+      {"field_name": "attributes.view.id", "value": "view-001"},
+      {"field_name": "start_time", "value": 1788451565200000},
+      {"field_name": "end_time", "value": 1788451565328000},
+      {"field_name": "attributes.user.id", "value": "user-001"},
+      {"field_name": "resource.deployment.environment.name", "value": "prod"}
+    ]
+  },
+  "sections": [
+    {
+      "key": "key_info",
+      "type": "summary_cards",
+      "data": {
+        "request": {
+          "attributes.http.request.method": "POST",
+          "attributes.url.template": "/api/orders",
+          "attributes.url.full": "https://example.com/api/orders",
+          "attributes.server.address": "example.com"
+        },
+        "duration": {"elapsed_time": 128000},
+        "http_result": {"attributes.http.response.status_code": 200, "attributes.outcome.type": "success"},
+        "transfer": {
+          "display.compression_ratio": 0.6295,
+          "attributes.resource.transfer_size": 3260,
+          "attributes.resource.encoded_body_size": 3120,
+          "attributes.resource.decoded_body_size": 8420
+        }
+      }
+    },
+    {
+      "key": "loading_timing",
+      "type": "waterfall",
+      "data": {
+        "unit": "ms",
+        "total_duration": 128,
+        "phases": [
+          {"key": "prepare", "alias": "浏览器准备", "start": 0, "duration": 1.2},
+          {"key": "dns", "alias": "DNS", "start": 1.2, "duration": 3.8},
+          {"key": "connect", "alias": "TCP", "start": 5, "duration": 4.1},
+          {"key": "tls", "alias": "TLS", "start": 9.1, "duration": 5.9},
+          {"key": "first_byte", "alias": "等待首字节", "start": 15, "duration": 86.7},
+          {"key": "download", "alias": "内容下载", "start": 101.7, "duration": 26.3}
+        ]
+      }
+    }
+  ]
+}
+```
+
+##### 2）Resource（其他资源）
+
+```jsonc
+{
+  // origin_data 结构同示例 1，字段值取当前 Span。
+  "span_id": "8e301ac709bd42bb",
+  "overview": {
+    "title": "db.svg",
+    "badges": [
+      {"field_name": "elapsed_time", "value": 60300},
+      {"field_name": "attributes.resource.type", "value": "img"},
+      {"field_name": "attributes.http.response.status_code", "value": 200}
+    ]
+    // items 结构同示例 1，字段值取当前 Span。
+  },
+  "sections": [
+    {
+      "key": "key_info",
+      "type": "summary_cards",
+      "data": {
+        "http_result": {"attributes.http.response.status_code": 200, "attributes.outcome.type": "success"},
+        "duration": {"elapsed_time": 60300},
+        "transfer": {
+          "display.compression_ratio": 0.689,
+          "attributes.resource.transfer_size": 0,
+          "attributes.resource.encoded_body_size": 280833,
+          "attributes.resource.decoded_body_size": 903000
+        },
+        "delivery": {"attributes.resource.delivery_type": "cache", "attributes.resource.cache.hit": true},
+        "blocking": {"attributes.resource.render_blocking_status": "non-blocking"}
+      }
+    },
+    {
+      "key": "resource_info",
+      "type": "summary_cards",
+      "items": [
+        {"field_name": "attributes.resource.type", "value": "img"},
+        {"field_name": "attributes.url.template", "value": "/static/img/db.svg"},
+        {"field_name": "attributes.server.address", "value": "bkmonitor.test.com"},
+        {"field_name": "attributes.http.request.method", "value": "GET"},
+        {"field_name": "attributes.resource.protocol", "value": "h2"}
+      ]
+    },
+    {
+      "key": "loading_timing",
+      "type": "waterfall"
+      // data 结构同示例 1，包含 DNS、TCP、TLS 等完整阶段，取当前资源的时序值。
+    }
+  ]
+}
+```
+
+##### 3）Action
+
+```jsonc
+{
+  // origin_data 结构同示例 1，字段值取当前 Span。
+  "span_id": "e121536e5ae785a0",
+  "overview": {
+    "title": "click .submit-btn",
+    "badges": [
+      {"field_name": "elapsed_time", "value": 432000},
+      {"field_name": "attributes.action.type", "value": "click"},
+      {"field_name": "attributes.outcome.type", "value": "warning"}
+    ]
+    // items 结构同示例 1，字段值取当前 Span。
+  },
+  "sections": [
+    {
+      "key": "key_info",
+      "type": "summary_cards",
+      "data": {
+        "interaction": {"attributes.action.type": "click", "attributes.action.id": "action-001"},
+        "target": {"attributes.action.target.name": ".submit-btn", "attributes.action.target.tag": "button"}
+      }
+    }
+  ]
+}
+```
+
+##### 4）Long Task
+
+```jsonc
+{
+  // origin_data 结构同示例 1，字段值取当前 Span。
+  "span_id": "c49ddfc2ac5214d7",
+  "overview": {
+    "title": "longTask",
+    "badges": [
+      {"field_name": "elapsed_time", "value": 123500},
+      {"field_name": "attributes.outcome.type", "value": "warning"}
+    ]
+    // items 结构同示例 1，字段值取当前 Span。
+  },
+  "sections": [
+    {
+      "key": "key_info",
+      "type": "summary_cards",
+      "data": {
+        "duration": {"elapsed_time": 123500, "attributes.long_task.blocking_duration": 42.5},
+        "action": {"attributes.action.id": "action-001"},
+        "attribution": {"attributes.long_task.entry_type": "long-animation-frame", "attributes.long_task.name": "long-animation-frame"}
+      }
+    }
+  ]
+}
+```
+
+##### 5）Error
+
+```jsonc
+{
+  // origin_data 结构同示例 1，字段值取当前 Span。
+  "span_id": "9d199175096474e4",
+  "overview": {
+    "title": "TypeError: Cannot read properties of undefined (reading 'name')",
+    "badges": [
+      {"field_name": "elapsed_time", "value": 123500},
+      {"field_name": "attributes.outcome.type", "value": "error"}
+    ]
+    // items 结构同示例 1，字段值取当前 Span。
+  },
+  "sections": [
+    {
+      "key": "key_info",
+      "type": "summary_cards",
+      "data": {
+        "error_type": {"events.attributes.exception.type": "TypeError"},
+        "source": {"attributes.code.filepath": "https://example.com/static/js/app.js", "attributes.code.lineno": 9, "attributes.code.column": 654249}
+      }
+    }
+  ]
+}
+```
+
+##### 6）Vital
+
+```jsonc
+{
+  // origin_data 结构同示例 1，字段值取当前 Span。
+  "span_id": "ea1ae6490e17fd9d",
+  "overview": {
+    "title": "LCP",
+    "badges": [
+      {"field_name": "attributes.vital.value", "value": 2840},
+      {"field_name": "display.rating_level", "alias": "需改进", "value": "needs_improvement"}
+    ]
+    // items 结构同示例 1，字段值取当前 Span。
+  },
+  "sections": [
+    {
+      "key": "vital_rating",
+      "type": "rating_bar",
+      "data": {
+        "attributes.vital.metric": "lcp",
+        "attributes.vital.value": 2840,
+        "display.rating_config": [
+          {"rating": "good", "value": 2500, "alias": "良好"},
+          {"rating": "needs_improvement", "value": 4000, "alias": "需改进"},
+          {"rating": "poor", "alias": "差"}
+        ]
+      }
+    }
+  ]
+}
+```
+
+- *[1] 评级按 `display.rating_config` 顺序匹配。*
+
+##### 7）View
+
+```jsonc
+{
+  // origin_data 结构同示例 1，字段值取当前 Span。
+  "span_id": "34e3b6ff1943346c",
+  "overview": {
+    "title": "view-001",
+    "badges": [
+      {"field_name": "display.view.duration", "alias": "60.3 s", "value": 60300}
+    ],
+    "items": [
+      // 公共 items 同示例 1，此处仅列 View 额外字段。
+      {"field_name": "attributes.view.previous_url_template", "value": "/product/:id/"},
+      {"field_name": "attributes.view.started_at", "value": 1788451565200}
+    ]
+  },
+  "sections": [
+    {
+      "key": "key_info",
+      "type": "summary_cards",
+      "data": {
+        "duration": {"display.view.duration": 60300},
+        "loading": {
+          "attributes.view.loading_time": 200,
+          "attributes.view.loading_time_source": "auto",
+          "attributes.view.loading_type": "initial_load",
+          "attributes.view.first_byte": 101.7,
+          "attributes.view.dom_content_loaded": 140,
+          "attributes.view.load_event": 175
+        }
+      }
+    },
+    {
+      "key": "web_vitals",
+      "type": "summary_cards",
+      "data": {
+        "ttfb": {
+          "attributes.vital.metric": "ttfb",
+          "attributes.vital.value": 101.7,
+          "attributes.vital.ttfb.waiting_duration": 1.2,
+          "attributes.vital.ttfb.dns_duration": 3.8,
+          "attributes.vital.ttfb.connection_duration": 10,
+          "attributes.vital.ttfb.request_duration": 83.7,
+          "display.rating_config": [
+            {"rating": "good", "value": 800, "alias": "良好"},
+            {"rating": "needs_improvement", "value": 1800, "alias": "需改进"},
+            {"rating": "poor", "alias": "差"}
+          ]
+        },
+        "fcp": {
+          "attributes.vital.metric": "fcp",
+          "attributes.vital.value": 120,
+          "display.rating_config": [
+            {"rating": "good", "value": 1800, "alias": "良好"},
+            {"rating": "needs_improvement", "value": 3000, "alias": "需改进"},
+            {"rating": "poor", "alias": "差"}
+          ]
+        },
+        "lcp": {
+          "attributes.vital.metric": "lcp",
+          "attributes.vital.value": 250,
+          "display.rating_config": [
+            {"rating": "good", "value": 2500, "alias": "良好"},
+            {"rating": "needs_improvement", "value": 4000, "alias": "需改进"},
+            {"rating": "poor", "alias": "差"}
+          ]
+        },
+        "inp": {
+          "attributes.vital.metric": "inp",
+          "attributes.vital.value": 86,
+          "display.rating_config": [
+            {"rating": "good", "value": 200, "alias": "良好"},
+            {"rating": "needs_improvement", "value": 500, "alias": "需改进"},
+            {"rating": "poor", "alias": "差"}
+          ]
+        },
+        "cls": {
+          "attributes.vital.metric": "cls",
+          "attributes.vital.value": 0.023,
+          "display.rating_config": [
+            {"rating": "good", "value": 0.1, "alias": "良好"},
+            {"rating": "needs_improvement", "value": 0.25, "alias": "需改进"},
+            {"rating": "poor", "alias": "差"}
+          ]
+        }
+      }
+    },
+    {
+      "key": "loading_timing",
+      "type": "waterfall",
+      "data": {
+        "unit": "ms",
+        "total_duration": 200,
+        "phases": [
+          {"key": "prepare", "alias": "浏览器准备", "start": 0, "duration": 1.2},
+          {"key": "dns", "alias": "DNS 查询", "start": 4.2, "duration": 3.8},
+          {"key": "connect", "alias": "网络连接建立", "start": 8, "duration": 10},
+          {"key": "first_byte", "alias": "等待首字节", "start": 18, "duration": 83.7},
+          {"key": "dom_processing", "alias": "内容传输与 DOM 处理", "start": 101.7, "duration": 38.3},
+          {"key": "resource_load", "alias": "剩余资源加载", "start": 140, "duration": 35},
+          {"key": "page_stable", "alias": "页面趋于稳定", "start": 175, "duration": 25}
+        ],
+        "markers": [
+          {"key": "TTFB", "field_name": "TTFB", "value": 101.7},
+          {"key": "FCP", "field_name": "FCP", "value": 120},
+          {"key": "LCP", "field_name": "LCP", "value": 250}
+        ]
+      }
+    }
+  ]
+}
+```
+
+- *[1] `total_duration` 取 `attributes.view.loading_time`，缺失时省略。*
+- *[2] `loading_timing` 仅用于首次加载，`page_stable` 仅用于自动 Loading Time。*
+
+## 3 详情页关联数据获取
+
+### 3.1 Action
+
+POST /rum/search/statistics/
+
+```json
+{
+  "bk_biz_id": 2,
+  "app_name": "rum-demo",
+  "mode": "span",
+  "group_name": "origin",
+  "cal_type": "count",
+  "field": "attributes.span_type",
+  "start_time": 1788365165,
+  "end_time": 1788537965,
+  "baseline": "0s",
+  "time_shifts": ["0s"],
+  "filters": [
+    {"key": "attributes.action.id", "operator": "equal", "value": ["action-001"]},
+    {"key": "attributes.span_type", "operator": "equal", "value": ["resource", "error", "long_task"]}
+  ],
+  "group_by": ["attributes.span_type"]
+}
+```
+
+- *[1] 查询时间范围：`[end_time - 1d, end_time + 1d]`。*
+- *[2] 返回分组 `resource`、`error`、`long_task` 分别对应触发请求数、错误数、Long Task 数。*
+
+响应示例：
+
+```json
+{
+  "total": 3,
+  "data": [
+    {
+      "dimensions": {"attributes.span_type": "resource"},
+      "0s": 8,
+      "growth_rates": {"0s": 0},
+      "proportions": {"0s": 80}
+    },
+    {
+      "dimensions": {"attributes.span_type": "error"},
+      "0s": 1,
+      "growth_rates": {"0s": 0},
+      "proportions": {"0s": 10}
+    },
+    {
+      "dimensions": {"attributes.span_type": "long_task"},
+      "0s": 1,
+      "growth_rates": {"0s": 0},
+      "proportions": {"0s": 10}
+    }
+  ]
+}
+```
+
+### 3.2 Long Task
+
+POST /rum/search/list_records/
+
+```json
+{
+  "bk_biz_id": 2,
+  "app_name": "rum-demo",
+  "mode": "span",
+  "start_time": 1788437165,
+  "end_time": 1788465966,
+  "filters": [
+    {"key": "attributes.span_type", "operator": "equal", "value": ["action"]},
+    {"key": "attributes.action.id", "operator": "equal", "value": ["action-001"]}
+  ],
+  "offset": 0,
+  "limit": 1,
+  "sort": ["-end_time"]
+}
+```
+
+- *[1] 查询时间范围：`[end_time - 4h, end_time + 4h]`，缺少 Action ID 时不请求。*
+- *[2] 关联 Action 的名称、类型和时间取 `list[0]` 的 `attributes.action.target.name`、`attributes.action.type`、`start_time`、`end_time`。*
+
+### 3.3 Error
+
+POST /rum/search/statistics/
+
+| 关联信息 | `cal_type` | `field` | 其他参数 |
+|----------|--------------|-----------|----------|
+| 影响用户数 | `distinct` | `attributes.user.id` | `time_shifts=["0s", "{end_time-start_time}s"]` |
+| 发生次数 | `count` | `attributes.span_type` | `time_shifts=["0s"]` |
+| 影响会话数 | `distinct` | `attributes.session.id` | `time_shifts=["0s"]` |
+
+```json
+{
+  "bk_biz_id": 2,
+  "app_name": "rum-demo",
+  "mode": "span",
+  "group_name": "origin",
+  "cal_type": "distinct",
+  "field": "attributes.user.id",
+  "start_time": 1788448026,
+  "end_time": 1788451626,
+  "baseline": "0s",
+  "time_shifts": ["0s", "3600s"],
+  "filters": [
+    {"key": "attributes.span_type", "operator": "equal", "value": ["error"]},
+    {"key": "attributes.code.filepath", "operator": "equal", "value": ["https://example.com/static/js/app.js"]},
+    {"key": "attributes.code.lineno", "operator": "equal", "value": ["9"]},
+    {"key": "attributes.code.column", "operator": "equal", "value": ["654249"]},
+    {"key": "events.attributes.exception.type", "operator": "equal", "value": ["TypeError"]}
+  ],
+  "group_by": []
+}
+```
+
+- *[1] 共用示例中的 `filters`，其余参数按表替换。*
+- *[2] 影响面查询时间范围：页面所选时间范围。*
+
+响应示例（影响用户数）：
+
+```json
+{
+  "total": 1,
+  "data": [
+    {
+      "dimensions": {},
+      "0s": 12,
+      "3600s": 10,
+      "growth_rates": {"0s": 0, "3600s": 20}
+    }
+  ]
+}
+```
+
+**24 小时趋势**
+
+请求示例：
+
+```json
+{
+  "bk_biz_id": 2,
+  "app_name": "rum-demo",
+  "mode": "span",
+  "group_name": "origin",
+  "cal_type": "count",
+  "field": "attributes.span_type",
+  "start_time": 1788364800,
+  "end_time": 1788451200,
+  "baseline": "0s",
+  "time_shifts": ["0s"],
+  "filters": [
+    {"key": "attributes.span_type", "operator": "equal", "value": ["error"]},
+    {"key": "attributes.code.filepath", "operator": "equal", "value": ["https://example.com/static/js/app.js"]},
+    {"key": "attributes.code.lineno", "operator": "equal", "value": ["9"]},
+    {"key": "attributes.code.column", "operator": "equal", "value": ["654249"]},
+    {"key": "events.attributes.exception.type", "operator": "equal", "value": ["TypeError"]}
+  ],
+  "group_by": ["time"],
+  "interval": 3600
+}
+```
+
+- *[1] 查询时间范围：`[end_time - 1d, end_time]`。*
+
+响应示例（仅展示前 `2` 个时间桶）：
+
+```jsonc
+{
+  "total": 24,
+  "data": [
+    {
+      "dimensions": {"time": 1788364800},
+      "0s": 8,
+      "growth_rates": {"0s": 0},
+      "proportions": {"0s": 8}
+    },
+    {
+      "dimensions": {"time": 1788368400},
+      "0s": 4,
+      "growth_rates": {"0s": 0},
+      "proportions": {"0s": 4}
+    }
+    // 其余 22 个时间桶省略。
+  ]
+}
+```
+
+- *[1] `dimensions.time` 为桶起点（Unix 秒级时间戳），`0s` 为该小时的错误次数。*
+
+### 3.4 View
+
+POST /rum/search/statistics/
+
+| 关联信息 | 类型 `filters` |
+|----------|-----------------|
+| 触发请求数 | `[{"key":"attributes.span_type","operator":"equal","value":["resource"]},{"key":"attributes.resource.type","operator":"equal","value":["xhr","fetch"]}]` |
+| 错误数 | `[{"key":"attributes.span_type","operator":"equal","value":["error"]}]` |
+| Span 数 | `[{"key":"attributes.span_type","operator":"not_equal","value":["view","vital","session"]}]` |
+
+```json
+{
+  "bk_biz_id": 2,
+  "app_name": "rum-demo",
+  "mode": "span",
+  "group_name": "origin",
+  "cal_type": "count",
+  "field": "attributes.span_type",
+  "start_time": 1788365225,
+  "end_time": 1788538025,
+  "baseline": "0s",
+  "time_shifts": ["0s"],
+  "filters": [
+    {"key": "attributes.view.id", "operator": "equal", "value": ["view-001"]},
+    {"key": "attributes.session.id", "operator": "equal", "value": ["sess-001"]},
+    {"key": "attributes.span_type", "operator": "equal", "value": ["resource"]},
+    {"key": "attributes.resource.type", "operator": "equal", "value": ["xhr", "fetch"]}
+  ],
+  "group_by": []
+}
+```
+
+- *[1] 查询时间范围：`[end_time - 1d, end_time + 1d]`。*
+- *[2] 保留示例中的 View、Session 条件，其余 `filters` 按表替换。*
+
+响应示例（触发请求数）：
+
+```json
+{
+  "total": 1,
+  "data": [
+    {
+      "dimensions": {},
+      "0s": 12,
+      "growth_rates": {"0s": 0},
+      "proportions": {"0s": 100}
     }
   ]
 }

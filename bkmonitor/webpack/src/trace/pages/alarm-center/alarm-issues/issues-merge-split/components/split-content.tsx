@@ -26,7 +26,7 @@
 
 import { type PropType, computed, defineComponent, onMounted, shallowRef } from 'vue';
 
-import { Button, Input } from 'bkui-vue';
+import { Button, Checkbox, Input } from 'bkui-vue';
 import dayjs from 'dayjs';
 import { useI18n } from 'vue-i18n';
 
@@ -39,6 +39,9 @@ import MergedIssueIcon from '@/static/img/merged-Issue.svg';
 import type { IssueItem, ListMergeSourcesResponse, MergeSourceActiveMember } from '../../typing';
 
 import './split-content.scss';
+
+/** 单次批量拆分的最大条数，与后端 member_issue_ids 的 max_length 对齐 */
+const MAX_BATCH_SPLIT_COUNT = 50;
 
 export default defineComponent({
   name: 'SplitContent',
@@ -58,16 +61,48 @@ export default defineComponent({
 
     /** 弹窗显示状态 */
     const dialogVisible = shallowRef(false);
-    /** 当前待拆分的 Issue */
-    const currentSplitIssue = shallowRef<MergeSourceActiveMember | null>(null);
+    /** 当前待拆分的 Issue 列表：行内拆分为 1 条，批量拆分为全部勾选项 */
+    const splitTargets = shallowRef<MergeSourceActiveMember[]>([]);
 
-    /** 被合并 Issue 列表 */
+    /** 已勾选的成员 Issue ID；用 Set 保证行渲染时的勾选态判定为 O(1) */
+    const selectedIds = shallowRef<Set<string>>(new Set());
+
+    /** 被合并 Issue 列表（按搜索词过滤后的可见列表） */
     const targetIssues = computed(() => {
       return mergeSources.value?.active_members?.filter(issue => issue.member_name?.includes(searchKey.value)) || [];
     });
 
+    /** 可见列表中已勾选的条数，用于全选框的全选 / 半选态判定 */
+    const visibleSelectedCount = computed(() => {
+      const selected = selectedIds.value;
+      if (!selected.size) return 0;
+      return targetIssues.value.reduce((count, issue) => count + (selected.has(issue.member_issue_id) ? 1 : 0), 0);
+    });
+
+    /** 可见列表是否已全部勾选 */
+    const isAllChecked = computed(
+      () => targetIssues.value.length > 0 && visibleSelectedCount.value === targetIssues.value.length
+    );
+
+    /** 全选框半选态：可见列表部分勾选 */
+    const isIndeterminate = computed(() => visibleSelectedCount.value > 0 && !isAllChecked.value);
+
+    /** 已勾选总数（含被搜索过滤掉的项） */
+    const selectedCount = computed(() => selectedIds.value.size);
+
+    /** 批量拆分按钮禁用时的提示，非空即代表禁用 */
+    const batchDisabledTip = computed(() => {
+      if (!selectedCount.value) return t('请先勾选需要拆分的 Issue');
+      if (selectedCount.value > MAX_BATCH_SPLIT_COUNT)
+        return t('单次最多拆分 {n} 个 Issue', { n: MAX_BATCH_SPLIT_COUNT });
+      return '';
+    });
+
     /** 获取 metric 列表 */
     const getMetricList = (issue: MergeSourceActiveMember) => issue.merge_reasons.map(reason => reason);
+
+    const formatAlertTime = (timestamp?: number) =>
+      timestamp ? dayjs(timestamp * 1000).format('YYYY-MM-DD HH:mm') : '--';
 
     const getIssueMergeSources = async () => {
       const issue = props.issues[0];
@@ -85,6 +120,24 @@ export default defineComponent({
       if (type === 'clear-filter') {
         searchKey.value = '';
       }
+    };
+
+    /** 处理单行勾选态变更 */
+    const handleRowCheck = (memberIssueId: string, checked: boolean) => {
+      const next = new Set(selectedIds.value);
+      if (checked) next.add(memberIssueId);
+      else next.delete(memberIssueId);
+      selectedIds.value = next;
+    };
+
+    /** 处理全选：仅作用于当前搜索结果，搜索结果外的已勾选项保持不变 */
+    const handleCheckAll = (checked: boolean) => {
+      const next = new Set(selectedIds.value);
+      for (const issue of targetIssues.value) {
+        if (checked) next.add(issue.member_issue_id);
+        else next.delete(issue.member_issue_id);
+      }
+      selectedIds.value = next;
     };
 
     const renderSplitContent = () => {
@@ -106,46 +159,83 @@ export default defineComponent({
         );
 
       return targetIssues.value.map(issue => (
-        <IssueInfoItem
+        <div
           key={issue.member_issue_id}
-          v-slots={{
-            prefix: () =>
-              issue.via_issue_id ? (
-                <span
-                  class='tag-item via-issue-tag'
-                  v-bk-tooltips={{
-                    content: t('该 Issue 原挂在 {id} 下，随其合并平移而来', { id: issue.via_issue_id }),
-                  }}
+          class='split-issue-row'
+        >
+          <Checkbox
+            class='row-checkbox'
+            modelValue={selectedIds.value.has(issue.member_issue_id)}
+            onChange={(checked: boolean) => handleRowCheck(issue.member_issue_id, checked)}
+          />
+          <IssueInfoItem
+            v-slots={{
+              prefix: () =>
+                issue.via_issue_id ? (
+                  <span
+                    class='tag-item via-issue-tag'
+                    v-bk-tooltips={{
+                      content: t('该 Issue 原挂在 {id} 下，随其合并平移而来', { id: issue.via_issue_id }),
+                    }}
+                  >
+                    {t('随合并平移')}
+                  </span>
+                ) : null,
+              actions: () => (
+                <Button
+                  class='split-btn'
+                  size='small'
+                  theme='primary'
+                  outline
+                  onClick={() => handleSplit(issue)}
                 >
-                  {t('随合并平移')}
+                  <i class='icon-monitor icon-ziyuantuopu' />
+                  {t('拆分为新 Issue')}
+                </Button>
+              ),
+              suffix: () => (
+                <span class='operate-record'>
+                  {`${issue.merge_operator} · ${t('最后出现时间')}: ${formatAlertTime(issue.last_alert_time)}  ${t('最早发生时间')}: ${formatAlertTime(issue.first_alert_time)}`}
                 </span>
-              ) : null,
-            actions: () => (
-              <Button
-                class='split-btn'
-                size='small'
-                theme='primary'
-                outline
-                onClick={() => handleSplit(issue)}
-              >
-                <i class='icon-monitor icon-ziyuantuopu' />
-                {t('拆分为新 Issue')}
-              </Button>
-            ),
-            suffix: () => (
-              <span class='operate-record'>{`${issue.merge_operator} · ${dayjs(issue.merge_time * 1000).format('YYYY-MM-DD HH:mm')}`}</span>
-            ),
-          }}
-          desc={issue.anomaly_message}
-          list={getMetricList(issue)}
-          name={issue.member_es_status === null ? `${issue.member_issue_id} (${t('已删除')})` : issue.member_name}
-        />
+              ),
+              content: () => (
+                <div class='issues-name-description'>
+                  <span
+                    class='issues-alert-count'
+                    v-bk-tooltips={{
+                      content: `${t('告警事件数')}: ${issue.alert_count ?? '--'}`,
+                    }}
+                  >
+                    <i class='icon-monitor icon-alert-line' />
+                    <span class='issues-alert-count-number'>{issue.alert_count ?? '--'}</span>
+                  </span>
+                  <span
+                    class='issues-name-exception-text'
+                    v-overflow-tips
+                  >
+                    {issue.anomaly_message}
+                  </span>
+                </div>
+              ),
+            }}
+            list={getMetricList(issue)}
+            name={issue.member_es_status === null ? `${issue.member_issue_id} (${t('已删除')})` : issue.member_name}
+          />
+        </div>
       ));
     };
 
-    /** 处理拆分按钮点击，打开弹窗 */
+    /** 处理行内拆分按钮点击，打开弹窗 */
     const handleSplit = (issue: MergeSourceActiveMember) => {
-      currentSplitIssue.value = issue;
+      splitTargets.value = [issue];
+      dialogVisible.value = true;
+    };
+
+    /** 处理批量拆分按钮点击：取全部勾选项，顺序与原始成员列表一致（不受搜索影响） */
+    const handleBatchSplit = () => {
+      const selected = selectedIds.value;
+      splitTargets.value =
+        mergeSources.value?.active_members?.filter(issue => selected.has(issue.member_issue_id)) ?? [];
       dialogVisible.value = true;
     };
 
@@ -153,13 +243,13 @@ export default defineComponent({
     const handleDialogShowChange = (show: boolean) => {
       dialogVisible.value = show;
       if (!show) {
-        currentSplitIssue.value = null;
+        splitTargets.value = [];
       }
     };
 
     /** 处理拆分成功 */
-    const handleDialogSuccess = (memberIssueId: string) => {
-      emit('success', memberIssueId);
+    const handleDialogSuccess = (memberIssueIds: string[]) => {
+      emit('success', memberIssueIds);
     };
 
     onMounted(() => {
@@ -170,8 +260,14 @@ export default defineComponent({
       searchKey,
       targetIssues,
       dialogVisible,
-      currentSplitIssue,
+      splitTargets,
+      selectedCount,
+      isAllChecked,
+      isIndeterminate,
+      batchDisabledTip,
       renderSplitContent,
+      handleCheckAll,
+      handleBatchSplit,
       handleDialogShowChange,
       handleDialogSuccess,
     };
@@ -179,8 +275,41 @@ export default defineComponent({
   render() {
     return (
       <div class='issues-split-content'>
+        <div class='split-toolbar'>
+          <span v-tippy={this.batchDisabledTip ? { content: this.batchDisabledTip } : undefined}>
+            <Button
+              class='batch-split-btn'
+              disabled={!!this.batchDisabledTip}
+              theme='primary'
+              outline
+              onClick={this.handleBatchSplit}
+            >
+              {this.$t('批量拆分')}
+            </Button>
+          </span>
+          {this.selectedCount > 0 && (
+            <span class='selected-count'>
+              <i18n-t keypath='当前已选 {0} 项'>
+                <span class='count-number'>{this.selectedCount}</span>
+              </i18n-t>
+            </span>
+          )}
+          <Input
+            class='search-input'
+            v-model={this.searchKey}
+            placeholder={this.$t('搜索')}
+            type='search'
+          />
+        </div>
         <div class='issue-group'>
           <div class='issue-header'>
+            <Checkbox
+              class='check-all'
+              disabled={this.targetIssues.length === 0}
+              indeterminate={this.isIndeterminate}
+              modelValue={this.isAllChecked}
+              onChange={this.handleCheckAll}
+            />
             <div class='category-icon'>
               <img
                 alt={this.$t('已并入但隐藏的 Issue')}
@@ -188,19 +317,13 @@ export default defineComponent({
               />
             </div>
             <span class='issue-category-name'>{this.$t('已并入但隐藏的 Issue')}</span>
-            <Input
-              class='search-input'
-              v-model={this.searchKey}
-              size='small'
-              type='search'
-            />
           </div>
           <div class='issue-content'>{this.renderSplitContent()}</div>
         </div>
         <IssuesSplitDialog
           bizId={this.issues[0]?.bk_biz_id}
           isShow={this.dialogVisible}
-          issue={this.currentSplitIssue}
+          issues={this.splitTargets}
           onSuccess={this.handleDialogSuccess}
           onUpdate:isShow={this.handleDialogShowChange}
         />
