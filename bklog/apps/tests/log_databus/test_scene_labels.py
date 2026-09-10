@@ -302,6 +302,22 @@ class TestRefreshResultTableLabelsCommand(TestCase):
 
         self.assertEqual(self._get_scene_tags(index_set), {("scene", "host")})
 
+    @patch("apps.log_databus.management.commands.refresh_result_table_labels.refresh_scene_labels")
+    def test_backfill_summary_exposes_missing_result_tables(self, mock_refresh_scene_labels):
+        mock_refresh_scene_labels.return_value = {
+            "total": 2,
+            "success": 0,
+            "failed": 0,
+            "skipped": 2,
+            "missing_result_table_ids": ["2_bklog.missing_a", "2_bklog.missing_b"],
+        }
+        output = StringIO()
+
+        call_command("refresh_result_table_labels", compare_remote=True, stdout=output)
+
+        self.assertIn("missing=2", output.getvalue())
+        self.assertIn("missing_result_table_ids=['2_bklog.missing_a', '2_bklog.missing_b']", output.getvalue())
+
 
 class TestRefreshSceneLabelsHandler(TestCase):
     """场景标签回填公共函数与转正逻辑的单元测试。"""

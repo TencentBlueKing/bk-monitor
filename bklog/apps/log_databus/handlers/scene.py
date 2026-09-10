@@ -242,9 +242,10 @@ def run_scene_search_sync() -> dict:
         # 失败项通过人工命令 `refresh_result_table_labels --compare-remote` 排查修复，
         # 修复后下一轮 failed 归零即可自动转正。
         logger.warning(
-            "[scene_search] %d result tables failed, defer release to next round; failed ids: %s",
+            "[scene_search] %d result tables failed, defer release to next round; failed ids: %s; missing ids: %s",
             result["failed"],
             result["failed_result_table_ids"],
+            result["missing_result_table_ids"],
         )
         return result
 
