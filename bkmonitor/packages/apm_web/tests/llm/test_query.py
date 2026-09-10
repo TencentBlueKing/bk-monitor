@@ -1,7 +1,5 @@
 from unittest import TestCase, mock
 
-from django.db.models import Q
-
 from bkmonitor.data_source.utils.apm import TraceDatasourceTarget
 from constants.apm import OtlpKey
 
@@ -111,16 +109,3 @@ class LLMQueryTestCase(TestCase):
         query_builder.distinct.assert_called_once_with(OtlpKey.TRACE_ID)
         query_builder.values.assert_called_once_with("attributes.session.id", OtlpKey.TRACE_ID)
         query_list.assert_called_once_with([query_builder], None, None, 0, 10000)
-
-    def test_keyword_logic_filter(self):
-        value = ["search-text"]
-
-        result = self.query._build_filters([{"key": "keyword", "operator": "logic", "value": value}])
-
-        expected = (
-            Q(**{f"{OtlpKey.TRACE_ID}__eq": value})
-            | Q(**{f"{OtlpKey.SPAN_ID}__eq": value})
-            | Q(**{f"{OtlpKey.get_attributes_key('user.id')}__include": value})
-            | Q(**{f"{OtlpKey.get_attributes_key('gen_ai.conversation.id')}__include": value})
-        )
-        self.assertEqual(result, expected)

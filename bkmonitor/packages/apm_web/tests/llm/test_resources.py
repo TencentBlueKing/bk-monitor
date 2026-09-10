@@ -219,11 +219,8 @@ class ListTracesResourceTestCase(TestCase):
             group_field="trace_id",
             offset=0,
             limit=20,
-            filters=[
-                {"key": "resource.service.name", "operator": "equal", "value": ["agent-service"]},
-                {"key": "keyword", "operator": "logic", "value": ["订单"]},
-            ],
-            query_string=AGENT_CANDIDATE_QUERY,
+            filters=[{"key": "resource.service.name", "operator": "equal", "value": ["agent-service"]}],
+            query_string=f"({AGENT_CANDIDATE_QUERY}) AND (*订单*)",
         )
         span_query.query_by_group_ids.assert_called_once_with(
             group_field="trace_id",
@@ -330,6 +327,7 @@ class ListTracesResourceTestCase(TestCase):
                     "end_time": 2,
                     "service_name": "agent-service",
                     "group_field": "attributes.gen_ai.conversation.id",
+                    "keyword": "demo-user",
                 }
             )
 
@@ -391,7 +389,7 @@ class ListTracesResourceTestCase(TestCase):
             offset=0,
             limit=20,
             filters=[{"key": "resource.service.name", "operator": "equal", "value": ["agent-service"]}],
-            query_string=AGENT_CANDIDATE_QUERY,
+            query_string=f"({AGENT_CANDIDATE_QUERY}) AND (demo-user)",
         )
         span_query.query_by_group_ids.assert_called_once_with(
             group_field="trace_id",

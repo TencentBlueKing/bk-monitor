@@ -12,13 +12,15 @@
 | app_name | string | 是 | APM 应用名称 |
 | start_time | int | 是 | 查询开始时间，Unix 时间戳，单位为秒 |
 | end_time | int | 是 | 查询结束时间，Unix 时间戳，单位为秒，不能小于 `start_time` |
-| group_field | string | 否 | ES 原始 Span 的分组字段，默认 `trace_id`。会话视图可传实际存在的会话字段，例如 `attributes.gen_ai.conversation.id` |
+| group_field | string | 否 | 分组字段，默认 `trace_id`。会话视图推荐传 `attributes.gen_ai.conversation.id`，也兼容实际上报的会话字段 |
 | service_name | string | 是 | OTel 服务名称，精确匹配原始 Span 的 `resource.service.name` |
-| keyword | string | 否 | 高级搜索关键词，可匹配 Trace ID、Span ID、用户 ID 或会话 ID |
+| keyword | string | 否 | Trace 通用检索关键词 |
 | offset | int | 否 | 分页偏移量，默认 `0`，最小为 `0` |
 | limit | int | 否 | 每页分组数量，默认 `20`，取值范围为 `1`～`100` |
 
-`group_field` 用于查询 ES 中的原始字段，不会先执行 Adapter 转换。不同 SDK 使用的会话字段不一致时，应传对应数据源实际上报的字段。
+使用标准会话字段 `attributes.gen_ai.conversation.id` 分组时，接口会根据服务所属产品匹配对应的会话字段。
+
+`keyword` 复用 Trace 通用检索语义：符合 OTel 格式的 Trace ID 和 Span ID 使用精确匹配，其他内容按全文检索处理。
 
 ### 请求参数示例
 

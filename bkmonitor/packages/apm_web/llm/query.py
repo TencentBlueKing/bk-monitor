@@ -11,8 +11,6 @@ specific language governing permissions and limitations under the License.
 from collections.abc import Mapping
 from typing import Any
 
-from django.db.models import Q
-
 from bkmonitor.data_source.utils import types
 from bkmonitor.data_source.utils.apm import TraceDatasourceTarget
 from constants.apm import OtlpKey
@@ -105,17 +103,6 @@ class LLMQuery(SpanQuery):
             for query in self.build_queries()
         ]
         return self._query_list(queries, None, None, 0, limit)
-
-    @classmethod
-    def _add_logic_filter(cls, q: Q, field: str, value: types.FilterValue) -> Q:
-        if field == "keyword":
-            return q & (
-                Q(**{f"{OtlpKey.TRACE_ID}__eq": value})
-                | Q(**{f"{OtlpKey.SPAN_ID}__eq": value})
-                | Q(**{f"{OtlpKey.get_attributes_key('user.id')}__include": value})
-                | Q(**{f"{OtlpKey.get_attributes_key('gen_ai.conversation.id')}__include": value})
-            )
-        return q
 
 
 def get_query(data_sources: list[TraceDatasourceTarget]) -> LLMQuery:

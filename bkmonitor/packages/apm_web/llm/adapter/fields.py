@@ -31,12 +31,13 @@ def detect_product(entity_set: EntitySet, spans: list[dict[str, Any]]) -> str:
     return LLMProduct.DEFAULT.value
 
 
-# 查询侧字段映射：标准字段 -> 产品 -> 存储中的原始字段。
+# 分组字段映射：标准字段 -> 产品 -> 存储中的原始字段。
 QUERY_FIELD_MAPPING: dict[str, dict[str, str]] = {
     "attributes.gen_ai.conversation.id": {
         LLMProduct.AIDEV.value: "attributes.agent.session.session_code",
         LLMProduct.AGENTLENS.value: "attributes.gen_ai.session.id",
-    },
+        LLMProduct.GALILEO.value: "attributes.gen_ai.session_id",
+    }
 }
 
 
