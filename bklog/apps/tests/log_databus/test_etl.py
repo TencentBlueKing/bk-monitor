@@ -34,7 +34,10 @@ from apps.log_databus.constants import (
 from apps.log_databus.handlers.etl import EtlHandler
 from apps.log_databus.handlers.etl_storage import EtlStorage
 from apps.log_databus.models import CollectorConfig
-from apps.log_databus.serializers import CollectorEtlStorageSerializer
+from apps.log_databus.serializers import (
+    CollectorEtlSerializer,
+    CollectorEtlStorageSerializer,
+)
 from apps.log_databus.utils.es_config import is_version_less_than
 from apps.log_search.constants import (
     ISO_8601_TIME_FORMAT_NAME,
@@ -43,6 +46,7 @@ from apps.log_search.constants import (
 )
 from apps.tests.utils import FakeRedis
 from apps.utils.db import array_group
+from apps.utils.drf import custom_params_valid
 
 # 采集相关
 COLLECTOR_CONFIG_ID = 1
@@ -1518,3 +1522,66 @@ class TestEtl(TestCase):
         expected_fields = ["level", "message", "user", "context"]
         for expected_field in expected_fields:
             self.assertIn(expected_field, field_names)
+
+    def test_etl_preview_serializer_keeps_trailing_newline(self):
+        """
+        测试字段提取预览入参保留原文末尾换行
+        """
+        raw_log = f"{ETL_PREVIEW_V4_DELIMITER_INPUT}\n"
+        params = custom_params_valid(
+            serializer=CollectorEtlSerializer,
+            params={"etl_config": "bk_log_delimiter", "etl_params": {"separator": " "}, "data": raw_log},
+        )
+
+        self.assertEqual(params["data"], raw_log)
+
+    def test_etl_preview_serializer_keeps_surrounding_whitespace(self):
+        """
+        测试字段提取预览入参保留原文首尾空白
+        """
+        raw_log = f" \t{ETL_PREVIEW_V4_DELIMITER_INPUT}\r\n"
+        params = custom_params_valid(
+            serializer=CollectorEtlSerializer,
+            params={"etl_config": "bk_log_delimiter", "etl_params": {"separator": " "}, "data": raw_log},
+        )
+
+        self.assertEqual(params["data"], raw_log)
+
+    def test_etl_preview_serializer_accepts_whitespace_only_log(self):
+        """
+        测试仅含空白的原文不再被当作空值拒绝，交由下游清洗判定
+        """
+        params = custom_params_valid(
+            serializer=CollectorEtlSerializer,
+            params={"etl_config": "bk_log_delimiter", "etl_params": {"separator": " "}, "data": "\n"},
+        )
+
+        self.assertEqual(params["data"], "\n")
+
+    @patch("apps.api.BkDataDatabusApi.databus_clean_debug")
+    def test_etl_preview_v4_delimiter_keeps_raw_log(self, mock_api):
+        """
+        测试V4版本分隔符格式下发BKBase调试的原文未被预处理
+        """
+        from apps.log_databus.handlers.etl_storage.bk_log_delimiter import BkLogDelimiterEtlStorage
+
+        mock_api.return_value = ETL_PREVIEW_V4_DELIMITER_API_RESPONSE
+        raw_log = f"{ETL_PREVIEW_V4_DELIMITER_INPUT}\n"
+
+        BkLogDelimiterEtlStorage().etl_preview_v4(raw_log, ETL_PREVIEW_V4_DELIMITER_PARAMS)
+
+        self.assertEqual(mock_api.call_args[0][0]["input"], raw_log)
+
+    @patch("apps.api.BkDataDatabusApi.databus_clean_debug")
+    def test_etl_preview_v4_json_keeps_raw_log(self, mock_api):
+        """
+        测试V4版本JSON格式下发BKBase调试的原文未被预处理
+        """
+        from apps.log_databus.handlers.etl_storage.bk_log_json import BkLogJsonEtlStorage
+
+        mock_api.return_value = ETL_PREVIEW_V4_JSON_API_RESPONSE
+        raw_log = f"{ETL_PREVIEW_V4_JSON_INPUT}\n"
+
+        BkLogJsonEtlStorage().etl_preview_v4(raw_log, ETL_PREVIEW_V4_JSON_PARAMS)
+
+        self.assertEqual(mock_api.call_args[0][0]["input"], raw_log)
