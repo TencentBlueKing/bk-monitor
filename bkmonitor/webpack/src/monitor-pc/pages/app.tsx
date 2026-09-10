@@ -166,14 +166,14 @@ export default class App extends tsc<object> {
     if (this.$route.path.includes('exception/403')) this.headerNav = this.$route.query.parentRoute as string;
     if (!this.navActive) {
       list = this.routeList.find(item => item.id === this.headerNav)?.children || [];
-      // ai 设置 enable_aiops为true 则ai设置不展示 false 则ai设置页面展示
+      // ai 设置依赖计算平台接入，enable_aiops 为 true 才展示
       list = list.filter(item => !(item.id === 'ai' && !window.enable_aiops));
       return list;
     }
     list = this.routeList.find(item => item.id === this.navActive)?.children || [];
     list = list.filter(item => {
-      // ai 设置 enable_aiops为true 则ai设置不展示, false 则ai设置页面展示
-      if (item.id === 'ai') return !window.enable_aiops;
+      // ai 设置依赖计算平台接入，enable_aiops 为 true 才展示
+      if (item.id === 'ai') return !!window.enable_aiops;
       if (item.id === 'rum-explore') {
         return window.rum_biz_list?.includes(+this.bizId);
       }
