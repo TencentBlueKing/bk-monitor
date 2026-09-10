@@ -78,10 +78,15 @@ export default defineComponent({
 
     watch(
       () => props.residentSettingOnlyId,
-      async val => {
+      async (val, _oldVal, onCleanup) => {
+        let active = true;
+        onCleanup(() => {
+          active = false;
+        });
         const fields: IResidentSetting[] = [];
         userConfigLoading.value = true;
-        const defaultConfig = (await props.handleGetUserConfig(val)) || [];
+        const defaultConfig = (await props.handleGetUserConfig(val).catch(() => undefined)) || [];
+        if (!active) return;
         userConfigLoading.value = false;
         const valueNameMap = getValueNameMap();
         const pushFields = (config: string[]) => {

@@ -90,6 +90,8 @@ export default defineComponent({
     const viewConfigCtx = useRumViewConfig();
     const spanTypeCtx = useRumSpanType(viewConfigCtx.viewConfig);
     const queryCtx = useRumQuery({ extraFilters: spanTypeCtx.spanTypeFilters });
+    // 先恢复 URL，再初始化依赖应用的配置，避免沿用上一次进入页面的应用。
+    queryCtx.initFromUrl();
     const tableCtx = useRumTableData(queryCtx.commonParams);
     // tagValueDisplayFormatter 用于让已选条件 tag 按字段单位与枚举别名展示
     const { getFieldValues, tagValueDisplayFormatter } = useRumFieldValues(
@@ -113,7 +115,7 @@ export default defineComponent({
     const columnConfig = useRumColumnConfig({
       viewConfig: viewConfigCtx.viewConfig,
       cacheKey: computed(() =>
-        store.mode && store.appName ? `${RUM_COLUMN_CONFIG_KEY}_${store.mode}_${store.appName}` : ''
+        store.mode && store.currentApp ? `${RUM_COLUMN_CONFIG_KEY}_${store.mode}_${store.appName}` : ''
       ),
       layoutPreset,
       overrideDisplayFields: computed(() =>
@@ -135,15 +137,13 @@ export default defineComponent({
       onApplied: () => queryCtx.handleQuery(),
     });
 
-    // URL 状态要在应用列表加载前恢复，否则会被默认应用覆盖
-    queryCtx.initFromUrl();
-
     const isSpanMode = computed(() => store.mode === RumModeEnum.SPAN);
     const residentSettingCustomId = computed(() => {
       return `${RUM_RESIDENT_SETTING_KEY}_${store.mode}_${store.appName}_${spanTypeCtx.activeSpanType.value}`;
     });
     /** 常驻设置的用户配置存储 key：按 场景 + 应用 + span 类型 分桶，选中具体类型时单独一份，保证切回「全部」不丢原配置 */
     const residentSettingOnlyId = computed(() => {
+      if (!store.mode || !store.currentApp) return '';
       if (spanTypeCtx.activeSpanType.value !== ALL_SPAN_TYPE) {
         return residentSettingCustomId.value;
       }
@@ -278,10 +278,14 @@ export default defineComponent({
      * @param key - 常驻设置的配置 id，见 residentSettingOnlyId
      */
     async function getResidentConfigCustom(key: string) {
+      if (!key) {
+        await getResidentConfig(key);
+        return [];
+      }
       if (key === residentSettingCustomId.value) {
         return viewConfigCtx.viewConfig.value.span_type_display_fields?.[spanTypeCtx.activeSpanType.value] || [];
       }
-      const fields = (await getResidentConfig(key).catch(() => [])) as string[];
+      const fields = (await getResidentConfig<string[]>(key)) || [];
       if (fields.length) {
         return fields;
       }
