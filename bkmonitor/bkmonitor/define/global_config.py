@@ -454,6 +454,20 @@ ADVANCED_OPTIONS = OrderedDict(
         ("BKBASE_REDIS_LOCK_NAME", slz.CharField(label="计算平台Redis锁名称", default="watch_bkbase_meta_redis_lock")),
         ("ENABLE_SYNC_BKBASE_METADATA_TO_DB", slz.BooleanField(label="是否同步bkbase元数据至DB", default=False)),
         (
+            "GRAPH_RELATION_HEARTBEAT_GAP_MS",
+            slz.IntegerField(
+                label="Graph关系有效窗口（毫秒；空值不下发）",
+                default=None,
+                allow_null=True,
+                min_value=1,
+                max_value=86400000,
+            ),
+        ),
+        (
+            "GRAPH_RELATION_HEARTBEAT_GAP_MS_OVERRIDES",
+            slz.DictField(label="Graph关系有效窗口租户/业务覆盖", default={}),
+        ),
+        (
             "GRAPH_RELATION_V4_BIZ_ID_WHITE_LIST",
             slz.ListField(label="Graph Relation V4 双写与 v1beta3 查询灰度业务白名单", default=[]),
         ),

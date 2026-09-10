@@ -680,3 +680,25 @@ def test_apply_graph_relation_v4_reuses_existing_graph_datalink(mocker, graph_re
     legacy_data_link.refresh_from_db()
     assert legacy_data_link.data_link_strategy == DataLink.GRAPH_RELATION_TIME_SERIES
     assert legacy_data_link.table_ids == [ctx["table_id"]]
+
+
+@pytest.mark.parametrize("gap", [None, 300000, 600000])
+def test_surrealdb_binding_composes_heartbeat_window(settings, gap):
+    settings.GRAPH_RELATION_HEARTBEAT_GAP_MS = gap
+    settings.GRAPH_RELATION_HEARTBEAT_GAP_MS_OVERRIDES = {}
+    binding = SurrealDBBindingConfig(
+        name="heartbeat_graph",
+        namespace="bkmonitor",
+        bk_biz_id=2,
+        bk_tenant_id="system",
+        surrealdb_cluster_name="surrealdb-test",
+        vertices=[{"name": "host", "id_fields": ["id"]}],
+        relations=[{"name": "host_host", "from": "host", "to": "host"}],
+    )
+    spec = binding.compose_config()["spec"]
+    if gap is None:
+        assert "heartbeat_gap_ms" not in spec
+    else:
+        assert spec["heartbeat_gap_ms"] == gap
+    assert spec["vertices"] == binding.vertices
+    assert spec["relations"] == binding.relations

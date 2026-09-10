@@ -25,6 +25,7 @@ from core.drf_resource import api
 from metadata.models.data_link import constants, utils
 from metadata.models.data_link.constants import BKBASE_NAMESPACE_BK_LOG, BKBASE_NAMESPACE_BK_MONITOR, DataLinkKind
 from metadata.models.space.constants import LOG_EVENT_ETL_CONFIGS
+from metadata.utils.graph_heartbeat import resolve_graph_heartbeat_gap_ms
 
 logger = logging.getLogger("metadata")
 
@@ -1298,11 +1299,21 @@ class SurrealDBBindingConfig(DataLinkResourceConfigBase):
         if settings.ENABLE_MULTI_TENANT_MODE:
             render_params["tenant"] = self.bk_tenant_id
 
-        return utils.compose_config(
+        config = utils.compose_config(
             tpl=tpl,
             render_params=render_params,
             err_msg_prefix="compose surrealdb binding config",
         )
+
+        heartbeat_gap_ms = resolve_graph_heartbeat_gap_ms(
+            settings.GRAPH_RELATION_HEARTBEAT_GAP_MS,
+            settings.GRAPH_RELATION_HEARTBEAT_GAP_MS_OVERRIDES,
+            self.bk_tenant_id,
+            self.datalink_biz_ids.label_biz_id,
+        )
+        if heartbeat_gap_ms is not None:
+            config["spec"]["heartbeat_gap_ms"] = heartbeat_gap_ms
+        return config
 
     def _validate_graph_definitions(self) -> None:
         """
