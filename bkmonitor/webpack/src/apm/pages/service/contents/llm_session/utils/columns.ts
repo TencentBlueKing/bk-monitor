@@ -10,7 +10,13 @@ import type { ILlmColumn } from '../typings';
 /** 会话视角主表列，首列由表格额外插入的展开列承载折叠图标 */
 export function getSessionColumns(): ILlmColumn[] {
   return [
-    { id: 'sessionId', label: window.i18n.tc('会话 ID'), cellType: 'link', minWidth: 240 },
+    {
+      id: 'sessionId',
+      label: window.i18n.tc('会话 ID'),
+      cellType: 'link',
+      className: 'is-no-padding-left',
+      minWidth: 240,
+    },
     { id: 'userId', label: 'User ID', cellType: 'text', width: 206 },
     {
       id: 'firstActiveText',
@@ -29,7 +35,7 @@ export function getSessionColumns(): ILlmColumn[] {
 /** 会话视角展开区的 Trace 子表列。数据来自 childs，排序为本地排序 */
 export function getSessionTraceColumns(): ILlmColumn[] {
   return [
-    { id: 'traceId', label: 'Trace ID', cellType: 'link', width: 231 },
+    { id: 'traceId', label: 'Trace ID', cellType: 'link', width: 252 },
     { id: 'startTimeText', label: window.i18n.tc('开始时间'), cellType: 'text', width: 206, sortBy: 'startTimeValue' },
     { id: 'ioSummary', label: window.i18n.tc('输入/输出摘要'), cellType: 'text', minWidth: 391 },
     { id: 'elapsedText', label: window.i18n.tc('耗时'), cellType: 'text', width: 229, sortBy: 'elapsedValue' },

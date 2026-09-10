@@ -1,17 +1,43 @@
 .llm-table {
+  .llm-table-skeleton {
+    padding-top: 8px;
+  }
+
   .bk-table {
     th {
       background-color: #fafbfd;
 
       .cell {
-        font-weight: 500;
-        color: #313238;
+        height: 36px !important;
+
+        .bk-table-header-label {
+          font-family: 'PingFang SC', sans-serif;
+          font-size: 12px;
+          font-style: normal;
+          font-weight: 500;
+          color: #313238;
+        }
+      }
+    }
+
+    tr {
+      &.is-expanded-row {
+        td {
+          padding: 0 !important;
+        }
       }
     }
 
     td {
       .cell {
         color: #4d4f56;
+      }
+    }
+
+    th.is-no-padding-left,
+    td.is-no-padding-left {
+      .cell {
+        padding-left: 0;
       }
     }
   }
@@ -21,6 +47,30 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+
+  .llm-table-status {
+    display: inline-flex;
+    align-items: center;
+  }
+
+  .llm-table-status-dot {
+    flex-shrink: 0;
+    width: 8px;
+    height: 8px;
+    margin-right: 8px;
+    border: 1px solid;
+    border-radius: 50%;
+
+    &.is-success {
+      background-color: #e5f6ea;
+      border-color: #3fc06d;
+    }
+
+    &.is-error {
+      background-color: #ffe6e6;
+      border-color: #ea3636;
+    }
   }
 
   .llm-table-link {
@@ -84,9 +134,13 @@
   background-color: #f5f7fa;
 
   .bk-table {
+    tr {
+      background-color: transparent !important;
+    }
+
     th,
     td {
-      background-color: transparent;
+      background-color: transparent !important;
     }
   }
 }
