@@ -103,6 +103,68 @@ def test_get_table_info_for_influxdb_and_vm(create_and_delete_record):
     assert not data
 
 
+def test_get_table_info_keeps_vm_route_and_adds_surrealdb_sub_route():
+    table_id = "2_bkmonitor.graph_metric"
+    models.ClusterInfo.objects.create(
+        bk_tenant_id="system",
+        cluster_id=700006,
+        cluster_name="vm-main",
+        cluster_type=models.ClusterInfo.TYPE_VM,
+        domain_name="vm.example.com",
+        port=8428,
+        description="",
+        is_default_cluster=False,
+    )
+    models.ClusterInfo.objects.create(
+        bk_tenant_id="system",
+        cluster_id=700007,
+        cluster_name="surrealdb-main",
+        cluster_type=models.ClusterInfo.TYPE_SURREALDB,
+        domain_name="surrealdb.example.com",
+        port=8000,
+        description="",
+        is_default_cluster=False,
+    )
+    models.AccessVMRecord.objects.create(
+        bk_tenant_id="system",
+        result_table_id=table_id,
+        vm_cluster_id=700006,
+        bk_base_data_id=700006,
+        vm_result_table_id="2_graph_metric_vm",
+    )
+    models.SurrealDBStorage.objects.create(
+        bk_tenant_id="system",
+        table_id=table_id,
+        storage_cluster_id=700007,
+    )
+    models.SurrealDBBindingConfig.objects.create(
+        bk_tenant_id="system",
+        bk_biz_id=2,
+        data_link_name="graph_metric",
+        kind="SurrealDBBinding",
+        name="graph_metric",
+        namespace="mapleleaf_2",
+        status="Ok",
+        surrealdb_cluster_name="surrealdb-main",
+        table_id=table_id,
+        bkbase_result_table_name="2_graph_metric",
+    )
+
+    data = ds_rt.get_table_info_for_influxdb_and_vm(bk_tenant_id="system", table_id_list=[table_id])
+
+    assert data[table_id]["storage_type"] == models.ClusterInfo.TYPE_VM
+    assert data[table_id]["storage_id"] == 700006
+    assert data[table_id]["surrealdb"] == {
+        "storage_id": 700007,
+        "storage_name": "surrealdb-main",
+        "cluster_name": "surrealdb-main",
+        "db": "2_graph_metric",
+        "database": "2_graph_metric",
+        "namespace": "mapleleaf_2",
+        "storage_type": models.ClusterInfo.TYPE_SURREALDB,
+    }
+
+
 def test_compose_es_table_id_detail(create_and_delete_record):
     models.ClusterInfo.objects.update_or_create(
         cluster_id=1,

@@ -79,9 +79,110 @@ def get_platform_data_ids(space_type: str | None = None, bk_tenant_id=DEFAULT_TE
     return data_ids
 
 
-# TODO: BkBase多租户
+def _get_surrealdb_storage_map(bk_tenant_id: str, table_id_list: list | None = None) -> dict:
+    """获取结果表对应的 SurrealDB 集群 ID。"""
+    storage_query = models.SurrealDBStorage.objects.filter(bk_tenant_id=bk_tenant_id)
+    if table_id_list:
+        storage_query = storage_query.filter(table_id__in=table_id_list)
+
+    storage_rows = storage_query.values("table_id", "storage_cluster_id")
+    storage_map = {}
+    for row in storage_rows:
+        storage_map[row["table_id"]] = row["storage_cluster_id"]
+    return storage_map
+
+
+def _get_surrealdb_cluster_name_map(bk_tenant_id: str, cluster_ids: list) -> dict:
+    """获取 SurrealDB 集群 ID 和名称的对应关系。"""
+    if not cluster_ids:
+        return {}
+
+    cluster_query = models.ClusterInfo.objects.filter(
+        bk_tenant_id=bk_tenant_id,
+        cluster_id__in=cluster_ids,
+        cluster_type=models.ClusterInfo.TYPE_SURREALDB,
+    )
+    cluster_rows = cluster_query.values("cluster_id", "cluster_name")
+
+    cluster_name_map = {}
+    for row in cluster_rows:
+        cluster_name_map[row["cluster_id"]] = row["cluster_name"]
+    return cluster_name_map
+
+
+def _get_surrealdb_binding_map(bk_tenant_id: str, table_ids: list) -> dict:
+    """获取结果表对应的 SurrealDB namespace 和 database。"""
+    if not table_ids:
+        return {}
+
+    binding_query = models.SurrealDBBindingConfig.objects.filter(
+        bk_tenant_id=bk_tenant_id,
+        table_id__in=table_ids,
+    )
+    binding_rows = binding_query.values("table_id", "namespace", "bkbase_result_table_name")
+
+    binding_map = {}
+    for row in binding_rows:
+        binding_map[row["table_id"]] = row
+    return binding_map
+
+
+def _build_surrealdb_route(table_id: str, storage_id: int, cluster_name: str, binding: dict | None) -> dict:
+    """组装单个结果表的 SurrealDB 路由。"""
+    database = table_id
+    namespace = ""
+    if binding is not None:
+        # 未配置 binding database 时，沿用结果表 ID 作为 database。
+        configured_database = binding["bkbase_result_table_name"]
+        if configured_database:
+            database = configured_database
+        namespace = binding["namespace"]
+
+    return {
+        "storage_id": storage_id,
+        "storage_name": cluster_name,
+        "cluster_name": cluster_name,
+        "db": database,
+        "database": database,
+        "namespace": namespace,
+        "storage_type": models.SurrealDBStorage.STORAGE_TYPE,
+    }
+
+
+def _add_surrealdb_routes(
+    table_id_info: dict,
+    surrealdb_storage_map: dict,
+    surrealdb_cluster_name_map: dict,
+    surrealdb_binding_map: dict,
+) -> None:
+    """将 SurrealDB 路由合并到已有的结果表路由中。"""
+    surrealdb_route_key = models.SurrealDBStorage.STORAGE_TYPE
+    for table_id, storage_id in surrealdb_storage_map.items():
+        cluster_name = ""
+        if storage_id in surrealdb_cluster_name_map:
+            cluster_name = surrealdb_cluster_name_map[storage_id]
+
+        binding = None
+        if table_id in surrealdb_binding_map:
+            binding = surrealdb_binding_map[table_id]
+
+        surrealdb_route = _build_surrealdb_route(table_id, storage_id, cluster_name, binding)
+        if table_id in table_id_info:
+            # 同表双写：顶层仍保留原来的 VM/InfluxDB 路由。
+            table_id_info[table_id][surrealdb_route_key] = surrealdb_route
+            continue
+
+        # SurrealDB 单写：SurrealDB 路由作为顶层路由，并补齐通用结果表字段。
+        table_info = surrealdb_route.copy()
+        table_info["measurement"] = ""
+        table_info["vm_rt"] = ""
+        table_info["tags_key"] = []
+        table_id_info[table_id] = table_info
+
+
 def get_table_info_for_influxdb_and_vm(bk_tenant_id: str, table_id_list: list | None = None) -> dict:
     """获取influxdb 和 vm的结果表"""
+    # TODO: BkBase多租户
     vm_tables = models.AccessVMRecord.objects.filter(bk_tenant_id=bk_tenant_id).values(
         "result_table_id", "vm_cluster_id", "vm_result_table_id", "bk_tenant_id"
     )
@@ -109,6 +210,11 @@ def get_table_info_for_influxdb_and_vm(bk_tenant_id: str, table_id_list: list | 
         }
         for data in influxdb_tables
     }
+    surrealdb_storage_map = _get_surrealdb_storage_map(bk_tenant_id, table_id_list)
+    surrealdb_cluster_ids = list(surrealdb_storage_map.values())
+    surrealdb_cluster_name_map = _get_surrealdb_cluster_name_map(bk_tenant_id, surrealdb_cluster_ids)
+    surrealdb_table_ids = list(surrealdb_storage_map)
+    surrealdb_binding_map = _get_surrealdb_binding_map(bk_tenant_id, surrealdb_table_ids)
     # 获取proxy关联的集群信息
     influxdb_proxy_storage_ids = {
         detail["influxdb_proxy_storage_id"]
@@ -181,6 +287,12 @@ def get_table_info_for_influxdb_and_vm(bk_tenant_id: str, table_id_list: list | 
                 }
             )
             table_id_info[table_id] = detail
+    _add_surrealdb_routes(
+        table_id_info,
+        surrealdb_storage_map,
+        surrealdb_cluster_name_map,
+        surrealdb_binding_map,
+    )
     return table_id_info
 
 
