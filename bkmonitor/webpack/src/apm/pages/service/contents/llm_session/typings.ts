@@ -1,6 +1,9 @@
 /** 视角：会话视角按会话字段折叠，Trace 视角按 trace_id 平铺 */
 export type LlmViewMode = 'session' | 'trace';
 
+/** 会话或 Trace 状态，接口枚举 */
+export type LlmStatus = 'error' | 'success';
+
 /**
  * list_traces 返回的分组对象。
  * Trace 层与会话层结构一致，会话层额外返回 childs 且 input / output 为空串。
@@ -26,6 +29,8 @@ export interface ILlmTraceItem {
   output_tokens: number;
   /** 根 Span 开始时间，单位微秒 */
   start_time: number;
+  /** 会话或 Trace 状态 */
+  status?: LlmStatus;
   /** 仅 Trace 层对象返回 */
   trace_id?: string;
   user_id: string;
@@ -52,13 +57,12 @@ export interface ITraceRow {
   elapsedText: string;
   ioSummary: string;
   key: string;
-  /** 接口在 Trace 视角下不返回会话 ID，暂为空串 */
   sessionId: string;
   startTimeText: string;
   /** 开始时间原始值（微秒），供展开子表本地排序 */
   startTimeValue: number;
-  /** 接口暂未返回状态字段，暂为空串 */
-  status: string;
+  /** 未返回或非法枚举时为空串，渲染期回退占位 */
+  status: LlmStatus | '';
   tokens: ITokensCell;
   /** Tokens 总量原始值，供展开子表本地排序 */
   tokensTotalValue: number;
@@ -73,8 +77,8 @@ export interface ISessionRow {
   key: string;
   lastActiveText: string;
   sessionId: string;
-  /** 接口暂未返回状态字段，暂为空串 */
-  status: string;
+  /** 未返回或非法枚举时为空串，渲染期回退占位 */
+  status: LlmStatus | '';
   tokens: ITokensCell;
   traceCountText: string;
   userId: string;
@@ -91,6 +95,8 @@ export type LlmCellType = 'countLink' | 'link' | 'status' | 'text' | 'tokens' | 
 /** 列定义。只描述元数据，渲染逻辑由表格组件按 cellType 决定 */
 export interface ILlmColumn {
   cellType: LlmCellType;
+  /** 同时挂到表头 th 与单元格 td，用于列级样式 */
+  className?: string;
   /** 列 id，同时是视图行上的取值字段 */
   id: string;
   label: string;

@@ -83,8 +83,8 @@ export default class LlmSession extends tsc<object> {
   resizeObserver: ResizeObserver = null;
 
   viewModeList: IViewModeItem[] = [
-    { id: 'session', name: `Session ${window.i18n.tc('视角')}`, icon: 'icon-mc-two-column' },
-    { id: 'trace', name: `Trace ${window.i18n.tc('视角')}`, icon: 'icon-mc-menu-trace' },
+    { id: 'session', name: `Session ${window.i18n.tc('视角')}`, icon: 'icon-Session' },
+    { id: 'trace', name: `Trace ${window.i18n.tc('视角')}`, icon: 'icon-Tracing' },
   ];
 
   get appName() {
