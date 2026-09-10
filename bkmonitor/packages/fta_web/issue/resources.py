@@ -61,6 +61,8 @@ from constants.issue import (
     IssueStatus,
     SourceAnalysisFailureMessage,
     SourceAnalysisFailureStage,
+    SOURCE_ANALYSIS_BKAI_AIDEV_API_KEY_PLACEHOLDER,
+    SOURCE_ANALYSIS_BKFARA_TASK_ID_PLACEHOLDER,
     SourceAnalysisResultType,
     SourceAnalysisStage,
     SourceAnalysisStatus,
@@ -419,6 +421,9 @@ class SourceAnalysisBaseResource(Resource):
                 bk_biz_id=bk_biz_id,
                 bk_tenant_id=bk_tenant_id,
                 devops_project_id=bkci_project_id,
+                # ensure_scene 按当前操作人建立用户态；APIResource 会把该内部字段
+                # 写入网关鉴权头，RequestSerializer 不会把它发到 BKFara 请求体。
+                bk_username=get_request_username(),
                 client_request_id=build_bkfara_client_request_id(
                     "ensure-scene",
                     bk_tenant_id,
@@ -1107,6 +1112,8 @@ class SourceAnalysisExecutionBaseResource(Resource):
             "bk_biz_id": execution.bk_biz_id,
             "bk_tenant_id": bk_tenant_id,
             "devops_project_id": execution.bkci_project_id,
+            # 异步任务没有原始 Web request，复用执行快照中的触发人恢复用户态。
+            "bk_username": execution.create_user,
             "client_request_id": build_bkfara_client_request_id(
                 "ensure-scene",
                 bk_tenant_id,
@@ -1125,10 +1132,13 @@ class SourceAnalysisExecutionBaseResource(Resource):
             "bk_biz_id": execution.bk_biz_id,
             "bk_tenant_id": bk_tenant_id,
             "devops_project_id": execution.bkci_project_id,
+            # trigger 可能由 Celery 补偿任务执行，不能依赖线程中的 request。
+            "bk_username": execution.create_user,
             "client_request_id": build_bkfara_client_request_id("trigger", execution.analysis_id),
             "inputs": {
-                # BKFara 不解析 inputs，整体透传给蓝盾流水线。业务与租户标识和顶层重复是有意的：
-                # 顶层供 BKFara 做场景绑定，这里供流水线回调 BKM 反查 Pod 与代码版本的关联关系。
+                # 除运行时占位符外，BKFara 将 inputs 透传给蓝盾流水线。业务与租户标识和
+                # 顶层重复是有意的：
+                # 顶层供 BKFara 做场景绑定，这里供流水线调用 BKM 反查 Pod 与代码版本的关联关系。
                 "bk_biz_id": execution.bk_biz_id,
                 "bk_tenant_id": bk_tenant_id,
                 "repository_alias": execution.repository_alias,
@@ -1139,6 +1149,10 @@ class SourceAnalysisExecutionBaseResource(Resource):
                 "skill_ids": ",".join(execution.skill_ids),
                 "knowledge_base_ids": ",".join(execution.knowledge_base_ids),
                 "alert_id": execution.alert_id,
+                # BKFara 在创建任务后将该占位符渲染为 analysis_task_id，供流水线回调结果。
+                "BKFARA_TASK_ID": SOURCE_ANALYSIS_BKFARA_TASK_ID_PLACEHOLDER,
+                # BKFara 识别固定值后注入当前用户 access_token；BKM 不读取真实 Token。
+                "BKAI_AIDEV_API_KEY": SOURCE_ANALYSIS_BKAI_AIDEV_API_KEY_PLACEHOLDER,
             },
         }
 

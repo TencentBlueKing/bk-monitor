@@ -14,10 +14,15 @@ import json
 import uuid
 
 from django.conf import settings
+from django.utils.translation import gettext_lazy as _
 
 from rest_framework import serializers
 
 from bkm_space.scope import bk_biz_id_to_scope_id
+from constants.issue import (
+    SOURCE_ANALYSIS_BKAI_AIDEV_API_KEY_PLACEHOLDER,
+    SOURCE_ANALYSIS_BKFARA_TASK_ID_PLACEHOLDER,
+)
 from core.drf_resource.contrib.api import APIResource
 from core.errors.api import BKAPIError
 
@@ -220,8 +225,8 @@ class UUIDStringField(serializers.CharField):
 
 
 class SourceAnalysisInputsSerializer(serializers.Serializer):
-    # inputs 由 BKFara 原样透传给蓝盾流水线，因此流水线自身回调 BKM 所需的业务与租户标识
-    # 也放在这一层，与顶层同名字段重复是有意的。
+    # 除运行时占位符外，inputs 由 BKFara 原样透传给蓝盾流水线，因此流水线调用 BKM
+    # 所需的业务与租户标识也放在这一层，与顶层同名字段重复是有意的。
     bk_biz_id = serializers.IntegerField(label="业务 ID")
     bk_tenant_id = serializers.CharField(label="租户 ID", max_length=64)
     repository_alias = serializers.CharField(label="蓝盾代码库别名", max_length=255)
@@ -248,6 +253,17 @@ class SourceAnalysisInputsSerializer(serializers.Serializer):
         allow_blank=True,
     )
     alert_id = serializers.CharField(label="告警 ID", max_length=64)
+    # BKFara 将固定占位符替换为 trigger 创建的任务 ID，供流水线回调时关联任务。
+    BKFARA_TASK_ID = serializers.ChoiceField(
+        label=_("BKFara 任务 ID 运行时占位符"),
+        choices=(SOURCE_ANALYSIS_BKFARA_TASK_ID_PLACEHOLDER,),
+    )
+    # BKM 只传固定占位符。BKFara 在用户态 trigger 请求内将其替换为当前用户的
+    # access_token，再注入同名蓝盾变量；真实 Token 不进入 BKM。
+    BKAI_AIDEV_API_KEY = serializers.ChoiceField(
+        label=_("AIDEV API Key 运行时占位符"),
+        choices=(SOURCE_ANALYSIS_BKAI_AIDEV_API_KEY_PLACEHOLDER,),
+    )
 
     def to_internal_value(self, data):
         if isinstance(data, dict):
