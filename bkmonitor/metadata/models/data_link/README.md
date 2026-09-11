@@ -189,7 +189,10 @@ conditionalSink2 --> vmBinding3[VmStorageBinding]
 2. 执行 `compose_configs()`，根据策略分发到对应 `compose_*_configs`。
 3. 在事务中 `update_or_create` 各组件本地配置模型。
 4. 调用各组件 `compose_config()` 渲染最终下发 JSON。
-5. 通过 `apply_data_link_with_retry()`（4 次指数退避）调用 BKBase API 下发。
+5. 通过 `apply_data_link_with_retry()` 调用 BKBase API 下发：
+   - 同名资源处于 `Terminating` 时，每 2 秒轮询一次，最多等待 20 秒；超时后返回资源名、状态并提示用户稍后重试；
+   - 网关 5xx、连接失败、请求超时等瞬时错误，最多尝试 4 次并按 1/2/4 秒指数退避；
+   - 参数、鉴权等带 BKBase 业务错误码的确定性失败立即返回。
 6. 调用侧可继续执行 `sync_metadata()` / `sync_basereport_metadata()` 同步元数据。
 
 ### 6.2 删除链路（`DataLink.delete_data_link`）
@@ -221,7 +224,7 @@ conditionalSink2 --> vmBinding3[VmStorageBinding]
 
 - `compose_configs(...)`：策略分发入口。
 - `apply_data_link(...)`：链路申请主流程。
-- `apply_data_link_with_retry(configs)`：重试下发。
+- `apply_data_link_with_retry(configs)`：按 BKBase 错误类型处理下发重试。
 - `delete_data_link()`：链路删除。
 - `sync_metadata(data_source, table_id, storage_cluster_name)`：普通链路元数据同步。
 - `sync_basereport_metadata(...)`：基础采集链路元数据同步。
