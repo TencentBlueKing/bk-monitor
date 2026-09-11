@@ -15,6 +15,8 @@ from .utils import (
     safe_parse,
     split_system,
     standard_content,
+    tool_call_part,
+    tool_response_part,
 )
 
 OPERATION_MAPPING = {
@@ -87,10 +89,20 @@ def _message(source: Any, default_role: str) -> dict[str, Any] | None:
         part = _text_part(source)
         return {"role": default_role, "parts": [part]} if part else None
 
+    if "role" not in source:
+        part = _text_part(source)
+        return {"role": default_role, "parts": [part]} if part else None
+
     role = str(source.get("role") or default_role).lower()
     content = source.get("content")
-    values = content if isinstance(content, list) else [content]
-    parts = [part for value in values if (part := _message_part(value))]
+    if role == "tool":
+        parts = [tool_response_part(content, source.get("tool_call_id"))]
+    else:
+        values = content if isinstance(content, list) else [content]
+        parts = [part for value in values if (part := _message_part(value))]
+        tool_calls = source.get("tool_calls")
+        if isinstance(tool_calls, list):
+            parts.extend(tool_call_part(call) for call in tool_calls if isinstance(call, dict))
     if not parts:
         return None
     if all(part["type"] == "tool_call_response" for part in parts):
@@ -130,7 +142,7 @@ def _add_generation_content(target: dict[str, Any], attrs: dict[str, Any]) -> No
     inputs: list[dict[str, Any]] = []
     definitions: list[dict[str, Any]] = []
     messages = None
-    if isinstance(source, dict):
+    if isinstance(source, dict) and "role" not in source:
         if part := _text_part(source.get("systemPrompt")):
             instructions.append(part)
         messages = source.get("messages")
@@ -138,8 +150,16 @@ def _add_generation_content(target: dict[str, Any], attrs: dict[str, Any]) -> No
             messages = source.get("lastMessages")
         if isinstance(messages, list):
             inputs = _messages(messages, "user")
+        elif source not in (None, "") and not any(
+            key in source for key in ("systemPrompt", "messages", "lastMessages", "tools")
+        ):
+            inputs = _messages(source, "user")
         definitions = _definitions(source.get("tools"))
     elif source not in (None, ""):
+        if isinstance(source, list) and all(isinstance(item, dict) and "role" in item for item in source):
+            messages = source
+        elif isinstance(source, dict) and "role" in source:
+            messages = [source]
         inputs = _messages(source, "user")
 
     put(target, "gen_ai.operation.name", "chat" if isinstance(messages, list) else "text_completion")

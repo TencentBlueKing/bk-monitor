@@ -267,6 +267,77 @@ class AdapterTests(TestCase):
         self.assertEqual(attributes["gen_ai.input.messages"][0]["parts"][0]["content"], "plain prompt")
         self.assertEqual(attributes["gen_ai.output.messages"][0]["parts"][0]["content"], "plain answer")
 
+    def test_langfuse_generation_maps_openai_tool_messages(self) -> None:
+        span = langfuse_span()
+        span["attributes"]["langfuse.observation.input"] = json.dumps(
+            [
+                {
+                    "role": "assistant",
+                    "content": None,
+                    "tool_calls": [
+                        {
+                            "id": "call-1",
+                            "type": "function",
+                            "function": {"name": "search", "arguments": '{"query":"blueking"}'},
+                        }
+                    ],
+                },
+                {"role": "tool", "tool_call_id": "call-1", "content": '{"result":"ok"}'},
+            ]
+        )
+
+        attributes = adapt_spans([span], "langfuse")[0]["attributes"]
+
+        self.assertEqual(attributes["gen_ai.operation.name"], "chat")
+        messages = attributes["gen_ai.input.messages"]
+        self.assertEqual(
+            messages[0]["parts"][0],
+            {
+                "type": "tool_call",
+                "name": "search",
+                "arguments": {"query": "blueking"},
+                "id": "call-1",
+            },
+        )
+        self.assertEqual(messages[1]["role"], "tool")
+        self.assertEqual(
+            messages[1]["parts"][0],
+            {
+                "type": "tool_call_response",
+                "response": {"result": "ok"},
+                "id": "call-1",
+            },
+        )
+
+    def test_langfuse_root_preserves_structured_content(self) -> None:
+        for observation_type in ("agent", "chain"):
+            with self.subTest(observation_type=observation_type):
+                span = langfuse_span(observation_type=observation_type)
+                span["attributes"].update(
+                    {
+                        "langfuse.observation.input": json.dumps({"query": "hello"}),
+                        "langfuse.observation.output": json.dumps({"answer": "world"}),
+                    }
+                )
+
+                attributes = adapt_spans([span], "langfuse")[0]["attributes"]
+
+                self.assertEqual(
+                    json.loads(attributes["gen_ai.input.messages"][0]["parts"][0]["content"]), {"query": "hello"}
+                )
+                self.assertEqual(
+                    json.loads(attributes["gen_ai.output.messages"][0]["parts"][0]["content"]), {"answer": "world"}
+                )
+
+    def test_langfuse_direct_message_list_maps_to_chat(self) -> None:
+        span = langfuse_span()
+        span["attributes"]["langfuse.observation.input"] = json.dumps([{"role": "user", "content": "hello"}])
+
+        attributes = adapt_spans([span], "langfuse")[0]["attributes"]
+
+        self.assertEqual(attributes["gen_ai.operation.name"], "chat")
+        self.assertEqual(attributes["gen_ai.input.messages"][0]["parts"][0]["content"], "hello")
+
     def test_langfuse_tool_maps_name_arguments_and_result(self) -> None:
         span = langfuse_span(observation_type="tool")
         span["span_name"] = "tool-use_mcp_tool"
