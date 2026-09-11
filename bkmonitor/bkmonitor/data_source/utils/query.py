@@ -52,7 +52,7 @@ class BaseQuery:
         """
         return QueryConfigBuilder(self.USING).time_field(time_field or self.DEFAULT_TIME_FIELD)
 
-    def get_qs(self, start_time: int, end_time: int) -> UnifyQuerySet:
+    def get_qs(self, start_time: int | None, end_time: int | None) -> UnifyQuerySet:
         """构建基础查询集，设置时间范围并关闭时间对齐。
 
         :param start_time: 开始时间（秒级或毫秒级时间戳）
@@ -170,8 +170,8 @@ class BaseQuery:
     def _query_list(
         self,
         queries: list[QueryConfigBuilder],
-        start_time: int,
-        end_time: int,
+        start_time: int | None,
+        end_time: int | None,
         offset: int = 0,
         limit: int = 20,
     ) -> list[dict[str, Any]]:

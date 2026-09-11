@@ -64,10 +64,10 @@ class SpanQuery(APMQueryFilterMixin, BaseQuery):
 
     def query_list(
         self,
-        start_time: int,
-        end_time: int,
-        offset: int,
-        limit: int,
+        start_time: int | None = None,
+        end_time: int | None = None,
+        offset: int = 0,
+        limit: int = 20,
         filters: list[types.Filter] | None = None,
         query_string: str = "",
         sort: list[str] | None = None,
@@ -168,6 +168,15 @@ class SpanQuery(APMQueryFilterMixin, BaseQuery):
             and field_dict.get("field_name") not in cls.NON_DIMENSION_FIELDS
         )
         return field_dict
+
+    def query_detail(self, record_id: str) -> dict[str, Any]:
+        """通过 span_id 查询单条 Span 记录。
+
+        :param record_id: Span ID
+        :return: 单条记录字典，未找到时返回 None
+        """
+        records = self.query_list(filters=[{"key": "span_id", "value": [record_id], "operator": "equal"}])
+        return records[0] if records else {}
 
     def query_fields(self, start_time: int | None, end_time: int | None) -> dict[str, dict[str, Any]]:
         """查询字段元数据，并通过 SpanSpec 补充别名、单位和枚举候选值。"""

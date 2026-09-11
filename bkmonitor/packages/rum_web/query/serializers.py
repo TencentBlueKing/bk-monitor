@@ -156,3 +156,9 @@ class RumFieldStatisticsGraphRequestSerializer(BaseRumSearchSerializer):
         if len(values) < 4:
             raise serializers.ValidationError(_("数值类型查询条件不足"))
         return attrs
+
+
+class RumRecordDetailRequestSerializer(BaseRumRequestSerializer):
+    """查询单条记录详情"""
+
+    record_id = serializers.CharField(label=_("记录 ID"))

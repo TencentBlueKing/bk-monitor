@@ -14,7 +14,7 @@ from decimal import ROUND_CEILING, ROUND_FLOOR, Decimal
 from typing import Any
 
 from django.utils.translation import gettext_lazy as _
-
+from rest_framework import serializers
 
 from apm.utils.ui_optimizations import HistogramNiceNumberGenerator
 from bkmonitor.data_source.utils import types
@@ -26,15 +26,18 @@ from constants.otel_query import (
     StatisticsProperty,
 )
 from bkmonitor.data_source.utils.apm import FilterOperator, TraceDatasourceTarget
+from bkmonitor.data_source.format import flatten_dict_data
 from bkmonitor.utils.common_utils import format_percent
 from bkmonitor.utils.thread_backend import ThreadPool
 from core.drf_resource import resource
-from semconv.rum.constants import RumSpanType
+from semconv.rum.constants import RumSpanType, ResourceType
 from semconv.rum.trace import SpanSpec
 from constants.otel_query import FieldTypeEnum
 from rum_web.handlers.level.base import BaseRumLevelHandler
 from rum_web.handlers.query.span import SpanQuery
 from rum_web.constants import RUM_SEARCH_PAGE_GROUPS
+from rum_web.handlers.level.page.span import ResourceXhrAndFetchPage
+from rum_web.handlers.level.page.base import BasePage
 
 
 class SpanLevelHandler(BaseRumLevelHandler):
@@ -80,6 +83,7 @@ class SpanLevelHandler(BaseRumLevelHandler):
         "True": True,
         "False": False,
     }
+    PAGE_MAP = {}
 
     def __init__(self, data_sources: list[TraceDatasourceTarget]):
         super().__init__(data_sources)
@@ -369,15 +373,6 @@ class SpanLevelHandler(BaseRumLevelHandler):
             self._calculate_interval_buckets(start_time, end_time, field_name, filters, query_string, intervals)
         )
 
-    def record_detail(
-        self,
-        record_id: str,
-        extra_config: dict[str, Any] | None = None,
-    ) -> dict[str, Any]:
-        raise NotImplementedError
-
-    # ---------------- 内部工具方法 ----------------
-
     @staticmethod
     def _process_graph_info(datapoints: list[list[Any]]) -> dict[str, Any]:
         """处理数值趋势图格式，和时序趋势图保持一致。
@@ -474,3 +469,27 @@ class SpanLevelHandler(BaseRumLevelHandler):
                 f.get("options", {}).get("group_relation", OperatorGroupRelation.OR),
             )
         return generator.to_query_string()
+
+    def record_detail(
+        self,
+        record_id: str,
+        extra_config: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """查询单条 Span 记录详情。
+
+        通过 span_id 查询原始记录，再根据 span_type 分派到对应 Builder 组装结构化详情响应。
+        """
+
+        origin_data = flatten_dict_data(self.query.query_detail(record_id) or {})
+        if not origin_data:
+            raise serializers.ValidationError(_("span_id={} 记录不存在").format(record_id))
+
+        span_type: str = origin_data.get("attributes.span_type")
+        if origin_data.get("attributes.span_type") == RumSpanType.RESOURCE.value:
+            if origin_data.get("attributes.resource.type") in {ResourceType.XHR.value, ResourceType.FETCH.value}:
+                page_class = ResourceXhrAndFetchPage
+            else:
+                page_class = BasePage
+        else:
+            page_class = self.PAGE_MAP.get(span_type, BasePage)
+        return {"origin_data": origin_data, "span_id": record_id, **page_class(origin_data).render()}
