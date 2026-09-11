@@ -337,7 +337,6 @@ export default defineComponent({
             <div class='form-item'>
               <div class='form-item-label'>
                 <span>{t('智能体')}</span>
-                <span class='required-star'>*</span>
               </div>
               <div class='form-item-content'>
                 {detailLoading.value || agentSelect.loading.value ? (
@@ -368,7 +367,6 @@ export default defineComponent({
             <div class='form-item'>
               <div class='form-item-label'>
                 <span>{t('知识库')}</span>
-                <span class='required-star'>*</span>
               </div>
               <div class='form-item-content'>
                 {detailLoading.value || knowledgeBaseSelect.loading.value ? (
@@ -401,7 +399,6 @@ export default defineComponent({
             <div class='form-item'>
               <div class='form-item-label'>
                 <span>{t('Skill')}</span>
-                <span class='required-star'>*</span>
               </div>
               <div class='form-item-content'>
                 {detailLoading.value || skillSelect.loading.value ? (

@@ -370,7 +370,9 @@ class SourceAnalysisBaseResource(Resource):
 
     @staticmethod
     def is_rule_complete(rule: IssueSourceAnalysisRule) -> bool:
-        return bool(rule.agent_id and (rule.is_default or rule.conditions))
+        # 智能体、知识库、Skill 都不是启用前提，规则可以先建好再补资源。智能体缺失
+        # 会在触发分析时拦截并写入本地失败原因，比在这里拦住更利于分批配置。
+        return bool(rule.is_default or rule.conditions)
 
     @classmethod
     def validate_rule_local(cls, rule: IssueSourceAnalysisRule, config: IssueSourceAnalysisConfig | None) -> None:
@@ -1319,6 +1321,19 @@ class SourceAnalysisExecutionBaseResource(Resource):
 
     @classmethod
     def _trigger_bkfara_task(cls, execution: IssueSourceAnalysisExecution) -> int | None:
+        if not execution.agent_id:
+            # 规则允许不配智能体，但流水线把 agent_id 当作必填入参，带空值触发只会在
+            # 入参校验步骤失败；而 BKFara 结果协议只有成功终态，失败原因回不到 BKM。
+            # 在这里提前终止并记录本地失败原因，界面才能直接看到要补配智能体。
+            cls._mark_failed(
+                execution,
+                failure_stage=SourceAnalysisFailureStage.TASK_CREATE,
+                failure_code="SOURCE_ANALYSIS_AGENT_MISSING",
+                failure_message=SourceAnalysisFailureMessage.RULE_AGENT_MISSING,
+                failure_retryable=False,
+            )
+            return None
+
         trigger_params = cls.build_trigger_params(execution)
         try:
             task_state = api.bk_incident.trigger_source_analysis(**trigger_params)

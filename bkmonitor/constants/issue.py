@@ -177,6 +177,7 @@ class SourceAnalysisFailureMessage:
     BKFARA_TASK_STATE_INVALID = gettext_noop("BKFara 任务状态响应非法")
     BKFARA_TASK_FAILED = gettext_noop("BKFara 源码分析任务执行失败")
     BKFARA_REQUEST_FAILED = gettext_noop("BKFara 请求失败")
+    RULE_AGENT_MISSING = gettext_noop("命中的规则未配置智能体，请在 AI 设置中补充后重新分析。")
     RESULT_NOT_JSON = gettext_noop("分析结果不是有效的 JSON，请重试；若持续失败请联系管理员。")
     RESULT_SCHEMA_UNSUPPORTED = gettext_noop("分析结果版本暂不受支持，请重试；若持续失败请联系管理员。")
     RESULT_SCHEMA_INVALID = gettext_noop("分析结果格式校验失败，请重试；若持续失败请联系管理员。")
@@ -193,6 +194,7 @@ class SourceAnalysisFailureMessage:
             BKFARA_TASK_STATE_INVALID,
             BKFARA_TASK_FAILED,
             BKFARA_REQUEST_FAILED,
+            RULE_AGENT_MISSING,
             RESULT_NOT_JSON,
             RESULT_SCHEMA_UNSUPPORTED,
             RESULT_SCHEMA_INVALID,

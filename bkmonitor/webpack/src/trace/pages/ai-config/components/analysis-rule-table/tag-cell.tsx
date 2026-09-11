@@ -67,10 +67,16 @@ export default defineComponent({
     };
   },
   render() {
+    // 智能体列传入的是单元素数组，字段为空时会得到 ['']，长度为 1 但没有内容，
+    // 直接交给 CollapseTags 会渲染出一个没有文字的空标签，因此先过滤再判断。
+    const validTags = this.tags.filter(tag => !!tag);
+    if (!validTags.length) {
+      return <span class='analysis-rule-table-tags-cell'>--</span>;
+    }
     return (
       <CollapseTags
         class='analysis-rule-table-tags-cell'
-        data={this.tags}
+        data={validTags}
         ellipsisTip={this.defaultEllipsisTipsContentRender}
       >
         {{

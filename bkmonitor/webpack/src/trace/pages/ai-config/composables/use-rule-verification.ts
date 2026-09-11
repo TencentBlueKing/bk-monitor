@@ -76,7 +76,7 @@ export const useRuleVerification = (detail: Ref<null | SourceAnalysisRuleVo>) =>
 
   /**
    * @description 校验规则基础信息
-   * 必填项包括：告警策略匹配规则（conditions）、智能体（agent_id）、知识库（knowledge_base_ids）、Skill（skill_ids）；
+   * 必填项包括：告警策略匹配规则（conditions）；
    * 优先级（priority）必填且必须在 PRIORITY_MIN 与 PRIORITY_MAX 之间。
    * @param {boolean} isDefault 是否为「默认策略」，默认策略无需配置匹配规则与优先级，对应校验项豁免
    * @returns {boolean} 全部校验通过返回 true，否则返回 false 并写入 errors
@@ -87,18 +87,8 @@ export const useRuleVerification = (detail: Ref<null | SourceAnalysisRuleVo>) =>
     if (!detail.value?.conditions?.length && !isDefault) {
       nextErrors[ErrorKeyEnum.CONDITIONS] = t('请添加告警策略匹配规则');
     }
-    // 智能体：必须选择
-    if (!detail.value?.agent_id) {
-      nextErrors[ErrorKeyEnum.AGENT] = t('请选择智能体');
-    }
-    // 知识库：至少选择一个
-    if (!detail.value?.knowledge_base_ids?.length) {
-      nextErrors[ErrorKeyEnum.KNOWLEDGE_BASE] = t('请选择知识库');
-    }
-    // Skill：至少选择一个
-    if (!detail.value?.skill_ids?.length) {
-      nextErrors[ErrorKeyEnum.SKILL] = t('请选择Skill');
-    }
+    // 智能体、知识库、Skill 均为可选：后端三个字段都不强制，留空时流程实例参数
+    // 按「不传递」处理。智能体缺失会在触发分析时被拦截并记录失败原因，不在此拦截。
     // 优先级仅对非默认策略校验：必填，且必须在允许区间
     const priority = detail.value?.priority;
     if (!isDefault) {
