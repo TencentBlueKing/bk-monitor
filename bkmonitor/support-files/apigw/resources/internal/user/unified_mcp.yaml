@@ -191,7 +191,7 @@ paths:
                 bk_biz_id: {type: string, description: Target business/space ID. 目标业务 ID。}
                 category:
                   type: string
-                  enum: [metrics, log, alert, event, apm, dashboard, relation]
+                  enum: [metrics, log, alert, event, apm, dashboard, relation, alert_handling, log_collection, log_extract, metadata, operation]
                   description: Tool domain used to select the corresponding IAM action. 工具领域，用于选择对应的 IAM 权限点；事件复用日志权限，资源关联复用指标权限。
                 tool_name: {type: string, description: Exact underlying tool name. 底层工具精确名称。}
                 resource_context:

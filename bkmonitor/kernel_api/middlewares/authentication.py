@@ -281,15 +281,26 @@ class AuthenticationMiddleware(MiddlewareMixin):
             started_at = getattr(request, "unified_mcp_started_at", None)
             duration_ms = round((time.monotonic() - started_at) * 1000) if started_at is not None else None
             status_code = getattr(response, "status_code", 0)
+            response_data = getattr(response, "data", None)
+            # 历史 API 会用 HTTP 200 包装参数或业务错误；审计必须同时识别标准 result=false，
+            # 否则失败请求会被记为成功。这里只读取并记录整数结果码，不序列化或记录响应正文。
+            application_failed = isinstance(response_data, dict) and response_data.get("result") is False
+            failed = status_code >= 400 or application_failed
+            fields = {
+                "operation": operation,
+                "tool": getattr(request, "unified_mcp_tool", ""),
+                "decision": "failed" if failed else "succeeded",
+                "status_code": status_code,
+                "duration_ms": duration_ms,
+            }
+            result_code = response_data.get("code") if application_failed else None
+            if type(result_code) is int:
+                fields["result_code"] = result_code
             log_mcp_tool_event(
                 "response_finished",
                 request,
-                level=logging.INFO if status_code < 400 else logging.WARNING,
-                operation=operation,
-                tool=getattr(request, "unified_mcp_tool", ""),
-                decision="succeeded" if status_code < 400 else "failed",
-                status_code=status_code,
-                duration_ms=duration_ms,
+                level=logging.WARNING if failed else logging.INFO,
+                **fields,
             )
         return response
 
