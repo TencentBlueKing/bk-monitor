@@ -1068,11 +1068,15 @@ class ListFlowsResourceTestCase(TestCase):
             },
         ]
         span_query.query_by_group_ids.return_value = spans
+        entity_set = mock.sentinel.entity_set
 
         with (
             mock.patch("apm_web.llm.resources.Application.objects.get", return_value=application) as get_application,
             mock.patch("apm_web.llm.resources.get_query", return_value=span_query) as get_query,
-            mock.patch("apm_web.llm.resources.adapt_spans", side_effect=lambda raw_spans: raw_spans) as adapt_spans,
+            mock.patch("apm_web.llm.resources.EntitySet", return_value=entity_set) as entity_set_class,
+            mock.patch(
+                "apm_web.llm.resources.adapt_spans", side_effect=lambda raw_spans, _entity_set: raw_spans
+            ) as adapt_spans,
         ):
             result = ListFlowsResource().request(
                 {
@@ -1094,6 +1098,7 @@ class ListFlowsResourceTestCase(TestCase):
         get_application.assert_called_once_with(bk_biz_id=11, app_name="sand_local_dev")
         application.build_data_sources.assert_called_once_with()
         get_query.assert_called_once_with(data_sources)
+        entity_set_class.assert_called_once_with(bk_biz_id=11, app_name="sand_local_dev")
         span_query.query_group_trace_list.assert_called_once_with(
             group_field=group_field,
             group_ids=["conversation-1"],
@@ -1104,7 +1109,7 @@ class ListFlowsResourceTestCase(TestCase):
         )
         self.assertEqual(
             adapt_spans.call_args_list,
-            [mock.call(spans[:2]), mock.call(spans[2:])],
+            [mock.call(spans[:2], entity_set), mock.call(spans[2:], entity_set)],
         )
 
     def test_returns_empty_traces_when_group_does_not_exist(self):
