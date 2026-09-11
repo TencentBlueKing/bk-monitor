@@ -113,9 +113,7 @@
   }
 }
 
-// #if !IS_APM_MONITOR
-.tippy-popper {
+/* 嵌入宿主时弹层定位由宿主页面的滚动容器决定，不能强制 fixed */
+body:not(.is-monitor-embed) .tippy-popper {
   position: fixed !important;
 }
-
-// #endif

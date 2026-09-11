@@ -24,22 +24,24 @@
  * IN THE SOFTWARE.
  */
 
+import { defaultRootConfig } from 'bkui-vue/lib/config-provider';
+
 /**
- * `@blueking/monitor-vue3-components` 的构建配置：给 **Vue3 工程**用的组件与组合式函数。
+ * bkui-vue 的运行时类名前缀（不含连字符）。
  *
- * 构建选项与 `@blueking/apm-vue3-for-vue2` 完全共用，见 vue3-lib/create-config.ts；
- * 这里只声明入口、产物目录与随包发布的元数据。
+ * 组件包构建时会把源码与 CSS 里的 `bk-` 类名整体改写到该前缀下，与宿主自带的 `.bk-*` 隔离；
+ * bkui-vue 组件的类名是运行时拼出来的，改不到，因此需要在这里同步告诉它。
+ *
+ * **必须与 `scripts/build.vue3.components.ts` 里的 `CLASS_PREFIX` 保持一致。**
+ * 只有组件包的入口链路会引用本模块，trace 主站不引用，仍用 bkui-vue 默认的 `bk` 前缀。
  */
-import { resolve } from 'node:path';
-import { defineConfig } from 'vite';
+export const RUNTIME_CLASS_PREFIX = 'bkmv3';
 
-import { createVue3LibConfig } from './vue3-lib/create-config';
-
-export default defineConfig(
-  createVue3LibConfig({
-    entry: resolve(__dirname, '../src/trace/components.ts'),
-    outputDir: resolve(__dirname, '../monitor-vue3-components'),
-    packageJsonFile: resolve(__dirname, './package.json'),
-    readmeFile: resolve(__dirname, '../src/trace/components.md'),
-  })
-);
+/**
+ * 把 bkui-vue 的默认前缀改成 RUNTIME_CLASS_PREFIX，需在任何组件渲染前调用。
+ * 组件被挂在宿主自己的 app 下时走不到 provideGlobalConfig，所以必须改默认配置；
+ * 两个发布入口（vue3 / vue2）都要调用一次。
+ */
+export function applyRuntimeClassPrefix(): void {
+  defaultRootConfig.prefix = RUNTIME_CLASS_PREFIX;
+}

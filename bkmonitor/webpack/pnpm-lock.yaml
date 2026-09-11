@@ -83,9 +83,6 @@ importers:
       eslint-plugin-vue:
         specifier: ^10.4.0
         version: 10.9.1(@typescript-eslint/parser@8.59.3(eslint@9.39.4(jiti@2.7.0))(typescript@5.9.3))(eslint@9.39.4(jiti@2.7.0))(vue-eslint-parser@9.4.3(eslint@9.39.4(jiti@2.7.0)))
-      ifdef-loader:
-        specifier: ^2.3.2
-        version: 2.3.2
       lint-staged:
         specifier: ^16.1.6
         version: 16.4.0
@@ -159,6 +156,33 @@ importers:
         specifier: v2-latest
         version: 2.7.16
 
+  apm-vue3-for-vue2:
+    dependencies:
+      '@blueking/bkui-library':
+        specifier: 0.0.0-beta.6
+        version: 0.0.0-beta.6
+      '@blueking/monitor-trace-log':
+        specifier: 2.0.27
+        version: 2.0.27
+      '@prometheus-io/lezer-promql':
+        specifier: 0.305.0
+        version: 0.305.0(@lezer/highlight@1.2.3)(@lezer/lr@1.4.10)
+      '@toast-ui/editor':
+        specifier: ^3.2.2
+        version: 3.2.2
+      '@toast-ui/editor-plugin-code-syntax-highlight':
+        specifier: ^3.1.0
+        version: 3.1.0
+      dayjs:
+        specifier: 1.11.18
+        version: 1.11.18
+      echarts:
+        specifier: ^5.6.0
+        version: 5.6.0
+      monaco-editor:
+        specifier: 0.44.0
+        version: 0.44.0
+
   src/apm:
     dependencies:
       '@blueking/fork-resize-detector':
@@ -167,12 +191,6 @@ importers:
       '@blueking/login-modal':
         specifier: ^1.0.6
         version: 1.0.6
-      '@blueking/monitor-alarm-center':
-        specifier: 0.0.14
-        version: 0.0.14(@lezer/highlight@1.2.3)(@lezer/lr@1.4.10)(highlight.js@11.11.1)(typescript@5.9.3)
-      '@blueking/monitor-trace-explore':
-        specifier: 0.0.39
-        version: 0.0.39(highlight.js@11.11.1)(typescript@5.9.3)
       '@blueking/search-select-v3':
         specifier: 0.0.1-beta.10
         version: 0.0.1-beta.10(@blueking/bkui-library@0.0.0-beta.6)(bkui-vue@2.0.2-beta.112(highlight.js@11.11.1)(vue@2.7.16))(vue@2.7.16)
@@ -540,6 +558,9 @@ importers:
       '@antv/g6':
         specifier: ^4.8.25
         version: 4.8.25
+      '@blueking/apm-vue3-for-vue2':
+        specifier: workspace:*
+        version: link:../../apm-vue3-for-vue2
       '@blueking/fork-resize-detector':
         specifier: ^0.0.2
         version: 0.0.2
@@ -673,9 +694,6 @@ importers:
       '@blueking/monitor-trace-log':
         specifier: 2.0.27
         version: 2.0.27
-      '@blueking/monitor-vue2-components':
-        specifier: 0.0.0-beta.8
-        version: 0.0.0-beta.8
       '@blueking/tdesign-ui':
         specifier: 0.0.4
         version: 0.0.4(vue@3.5.30(typescript@5.9.3))
@@ -1651,9 +1669,6 @@ packages:
     peerDependencies:
       vue: ^3
 
-  '@blueking/monitor-alarm-center@0.0.14':
-    resolution: {integrity: sha512-vCH+Iu9S6lOhvsByPotMpSxcRQo6jaTRVeQgNiB93io28vtr1mUUz+i2/KavvTdgDB9Tb93LW4k2emj+P46YHw==}
-
   '@blueking/monitor-apm-log@2.3.34':
     resolution: {integrity: sha512-PNovJS0WVzneE4RUUA0VJJi9YRvjZmPyGwwG+VUWvlR8GICiKoVMVDQ9hx8pvP/uYsRtiRQSopMFQbEW/ZPNyg==}
 
@@ -1663,14 +1678,8 @@ packages:
       '@blueking/bkui-library': ^0.0.0-beta.4
       vue: ^3
 
-  '@blueking/monitor-trace-explore@0.0.39':
-    resolution: {integrity: sha512-m3bT7oetXeLbke0qG8LvMqRRSEVjyjyJyKwp6UbHxvdlUlJWk81pDHt63nFraDZ2Ukx5mC9ts1J+sJPgcALGhw==}
-
   '@blueking/monitor-trace-log@2.0.27':
     resolution: {integrity: sha512-t+iJHtGwG9LJiDz1BryLmVbfQcXgFdp2iWzguQJcPIwTkYlrXvRtA5L8Nebloya0UrdIFeODTiMGbkikEMVfMg==}
-
-  '@blueking/monitor-vue2-components@0.0.0-beta.8':
-    resolution: {integrity: sha512-sEbhCszh8f5SXREBygdw2Lu+q8KBUQJz7zmfaZJMjbWAiF0ZrQF6D9zz2ptPi1tuz0nCx0IYg4pm4sgIPt3wiQ==}
 
   '@blueking/notice-component-vue2@2.0.7':
     resolution: {integrity: sha512-DUMedO1/Z1VHz0elcaY6riAPbXi5oCFSg4x8MvwIkT2MFl21K8xkbg65OgXuB5ePa3Bsij2+IKvTTByYMLLd3g==}
@@ -1692,11 +1701,6 @@ packages:
 
   '@blueking/stylelint-config@0.0.3':
     resolution: {integrity: sha512-8Yqwcg/dZmeY4ptnobq1H3Z0r0UzGXm2bD4rc18a/b7AvcJDFe7Z+RIPYYvNtbg4cXzzSAGu73ImbSiFi1c8jw==}
-
-  '@blueking/tdesign-ui@0.0.1':
-    resolution: {integrity: sha512-2fE39Fvg9KcV4AJ5XeJYq/TzeRztypy3Q6Docs3rq+SymoTz3BztNnlXBiiD4+HHSplXnsscBDg70G8pKC4Twg==}
-    peerDependencies:
-      vue: ^3
 
   '@blueking/tdesign-ui@0.0.4':
     resolution: {integrity: sha512-r0dtDdRAul8JeM5p0FyFMgoCLPMW78JeIuzVWbtiiB8jO75dspfa7lOvhyvo6IitRUcR12WQQ43EAjNfdBdssQ==}
@@ -8616,11 +8620,6 @@ packages:
     resolution: {integrity: sha512-BlfH8Z6JdoIsrUptnz4P4YuEqdYsa/bSNNDOMhTlsHZ7Bbg1/0NyYh6uPkoRREjrt/kVovV+HYdi1ilHxvChfw==}
     hasBin: true
 
-  tdesign-icons-vue-next@0.3.7:
-    resolution: {integrity: sha512-Q5ebVty/TCqhBa0l/17kkhjC0pBAOGvn7C35MAt1xS+johKVM9QEDOy9R6XEl332AiwQ37MwqioczqjYC30ckw==}
-    peerDependencies:
-      vue: ^3.0.0
-
   tdesign-icons-vue-next@0.4.4:
     resolution: {integrity: sha512-UPKyR5pea840aeI5p/k8VLVgfyVzndSyE4t1yRBD8uYWiuV0p29jZbDn8hMnes9Tz5JPgywCGzbk4QJzt684NA==}
     peerDependencies:
@@ -10812,21 +10811,6 @@ snapshots:
       tippy.js: 6.3.7
       vue: 2.7.16
 
-  '@blueking/monitor-alarm-center@0.0.14(@lezer/highlight@1.2.3)(@lezer/lr@1.4.10)(highlight.js@11.11.1)(typescript@5.9.3)':
-    dependencies:
-      '@blueking/tdesign-ui': 0.0.1(vue@3.5.30(typescript@5.9.3))
-      '@prometheus-io/lezer-promql': 0.305.0(@lezer/highlight@1.2.3)(@lezer/lr@1.4.10)
-      bkui-vue: 2.0.2-beta.97(highlight.js@11.11.1)(vue@3.5.30(typescript@5.9.3))
-      dayjs: 1.11.18
-      monaco-editor: 0.44.0
-      vue: 3.5.30(typescript@5.9.3)
-      vue-tippy: 6.7.1(vue@3.5.30(typescript@5.9.3))
-    transitivePeerDependencies:
-      - '@lezer/highlight'
-      - '@lezer/lr'
-      - highlight.js
-      - typescript
-
   '@blueking/monitor-apm-log@2.3.34': {}
 
   '@blueking/monitor-resource-topo@0.0.1-beta.36(@blueking/bkui-library@0.0.0-beta.6)(vue@2.7.16)':
@@ -10834,24 +10818,7 @@ snapshots:
       '@blueking/bkui-library': 0.0.0-beta.6
       vue: 2.7.16
 
-  '@blueking/monitor-trace-explore@0.0.39(highlight.js@11.11.1)(typescript@5.9.3)':
-    dependencies:
-      '@blueking/tdesign-ui': 0.0.1(vue@3.5.30(typescript@5.9.3))
-      bkui-vue: 2.0.2-beta.97(highlight.js@11.11.1)(vue@3.5.30(typescript@5.9.3))
-      dayjs: 1.11.18
-      vue: 3.5.30(typescript@5.9.3)
-      vue-tippy: 6.7.1(vue@3.5.30(typescript@5.9.3))
-    transitivePeerDependencies:
-      - highlight.js
-      - typescript
-
   '@blueking/monitor-trace-log@2.0.27': {}
-
-  '@blueking/monitor-vue2-components@0.0.0-beta.8':
-    dependencies:
-      '@babel/runtime': 7.29.2
-      core-js: 3.49.0
-      dayjs: 1.11.18
 
   '@blueking/notice-component-vue2@2.0.7(dompurify@3.4.2)':
     dependencies:
@@ -10897,24 +10864,6 @@ snapshots:
       - postcss-jsx
       - postcss-markdown
       - supports-color
-
-  '@blueking/tdesign-ui@0.0.1(vue@3.5.30(typescript@5.9.3))':
-    dependencies:
-      '@babel/runtime': 7.29.2
-      '@popperjs/core': 2.11.8
-      '@types/lodash-es': 4.17.12
-      '@types/sortablejs': 1.15.9
-      '@types/tinycolor2': 1.4.6
-      '@types/validator': 13.15.10
-      dayjs: 1.11.18
-      lodash-es: 4.18.1
-      mitt: 3.0.1
-      sortablejs: 1.15.7
-      tdesign-icons-vue-next: 0.3.7(vue@3.5.30(typescript@5.9.3))
-      tdesign-vue-next: 1.18.6(vue@3.5.30(typescript@5.9.3))
-      tinycolor2: 1.6.0
-      validator: 13.15.35
-      vue: 3.5.30(typescript@5.9.3)
 
   '@blueking/tdesign-ui@0.0.4(vue@3.5.30(typescript@5.9.3))':
     dependencies:
@@ -18719,11 +18668,6 @@ snapshots:
       tinyglobby: 0.2.16
       unconfig: 7.5.0
       yaml: 2.9.0
-
-  tdesign-icons-vue-next@0.3.7(vue@3.5.30(typescript@5.9.3)):
-    dependencies:
-      '@babel/runtime': 7.29.2
-      vue: 3.5.30(typescript@5.9.3)
 
   tdesign-icons-vue-next@0.4.4(vue@3.5.30(typescript@5.9.3)):
     dependencies:

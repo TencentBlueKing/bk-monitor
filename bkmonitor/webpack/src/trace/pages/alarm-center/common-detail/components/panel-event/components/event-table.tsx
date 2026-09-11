@@ -41,24 +41,26 @@ import TableSkeleton from 'trace/components/skeleton/table-skeleton';
 import { formatTime } from 'trace/utils/utils';
 import { useI18n } from 'vue-i18n';
 
+import bcsSvgUrl from '../../../../../../../monitor-common/svg/svg/bcs.svg';
+import defaultSvgUrl from '../../../../../../../monitor-common/svg/svg/default.svg';
+import hostSvgUrl from '../../../../../../../monitor-common/svg/svg/host.svg';
+import landunSvgUrl from '../../../../../../../monitor-common/svg/svg/landun.svg';
 import EventTableExpandContent from './event-table-expand-content';
 import { DimensionsTypeEnum, eventChartMap, SourceTypeEnum } from './typing';
 
-// #if IS_APM_MONITOR
-import hostSvgUrl from '../../../../../../../monitor-common/svg/svg/host.svg?url';
-import bcsSvgUrl from '../../../../../../../monitor-common/svg/svg/bcs.svg?url';
-import landunSvgUrl from '../../../../../../../monitor-common/svg/svg/landun.svg?url';
-import defaultSvgUrl from '../../../../../../../monitor-common/svg/svg/default.svg?url';
-
 const escapeForSingleQuotedString = (value: string) => value.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
 
+/**
+ * 事件来源图标的图片地址。
+ * 用不带 query 的默认导入而非 Vite 专属的 `?url`：本文件同时要被主站 webpack 编译，
+ * webpack 侧由 url-loader 返回地址字符串，Vite 侧默认也返回资源地址。
+ */
 const SourceIconSvgMap = {
   [SourceTypeEnum.BCS]: escapeForSingleQuotedString(bcsSvgUrl),
   [SourceTypeEnum.BKCI]: escapeForSingleQuotedString(landunSvgUrl),
   [SourceTypeEnum.HOST]: escapeForSingleQuotedString(hostSvgUrl),
   [SourceTypeEnum.DEFAULT]: escapeForSingleQuotedString(defaultSvgUrl),
 };
-// #endif
 
 import './event-table.scss';
 

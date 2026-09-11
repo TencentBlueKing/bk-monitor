@@ -22,12 +22,10 @@
     padding: 0;
   }
 
-  // #if IS_APM_MONITOR
-  > .tippy-arrow {
+  /* 嵌入宿主时弹层箭头需要额外偏移 */
+  body.is-monitor-embed & > .tippy-arrow {
     margin-left: -8px;
   }
-
-  // #endif
 
   .setting-container {
     display: flex;

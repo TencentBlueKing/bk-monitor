@@ -25,21 +25,23 @@
  */
 
 /**
- * `@blueking/monitor-vue3-components` 的构建配置：给 **Vue3 工程**用的组件与组合式函数。
+ * `@blueking/apm-vue3-for-vue2` 的构建配置：APM 场景下给 **Vue2 宿主**用的 Vue3 mount* 挂载 API。
  *
- * 构建选项与 `@blueking/apm-vue3-for-vue2` 完全共用，见 vue3-lib/create-config.ts；
- * 这里只声明入口、产物目录与随包发布的元数据。
+ * 构建选项与 `@blueking/monitor-vue3-components` 完全共用，见 vue3-lib/create-config.ts。
+ * 本包是 pnpm workspace（apm-vue3-for-vue2/package.json 提交在包根），产物只进 dist/。
  */
 import { resolve } from 'node:path';
 import { defineConfig } from 'vite';
 
 import { createVue3LibConfig } from './vue3-lib/create-config';
 
+const packageDir = resolve(__dirname, '../apm-vue3-for-vue2');
+
 export default defineConfig(
   createVue3LibConfig({
-    entry: resolve(__dirname, '../src/trace/components.ts'),
-    outputDir: resolve(__dirname, '../monitor-vue3-components'),
-    packageJsonFile: resolve(__dirname, './package.json'),
-    readmeFile: resolve(__dirname, '../src/trace/components.md'),
+    entry: resolve(__dirname, '../src/trace/apm-vue3-for-vue2.ts'),
+    outputDir: resolve(packageDir, 'dist'),
+    metaDir: packageDir,
+    readmeFile: resolve(__dirname, '../src/trace/apm-vue3-for-vue2.md'),
   })
 );

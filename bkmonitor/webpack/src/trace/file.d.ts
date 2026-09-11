@@ -29,3 +29,6 @@ declare module '*.svg?raw' {
   export default content;
 }
 declare module '*.png';
+declare module '*.css';
+declare module '*.scss';
+declare module 'monitor-static/icons/monitor-icons.css';

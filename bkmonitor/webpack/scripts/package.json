@@ -1,14 +1,19 @@
 {
   "name": "@blueking/monitor-vue3-components",
-  "version": "1.0.7-beta.1",
-  "description": "blueking monitor vue3 components builder",
+  "version": "2.0.0-beta.1",
+  "description": "蓝鲸监控从 Vue3 工程（src/trace）抽取的组件与组合式函数，供 Vue3 项目使用",
   "scripts": {},
   "files": [
-    "index.mjs",
+    "*.js",
     "index.css",
     "readme.md"
   ],
-  "main": "index.mjs",
+  "main": "index.js",
+  "module": "index.js",
+  "exports": {
+    ".": "./index.js",
+    "./index.css": "./index.css"
+  },
   "author": "bkfe",
   "license": "MIT",
   "keywords": [
@@ -16,16 +21,12 @@
     "@blueking/monitor-vue3-components"
   ],
   "dependencies": {
-    "@blueking/tdesign-ui": "^0.0.1-beta.92",
+    "@blueking/bkui-library": "0.0.0-beta.6",
     "@prometheus-io/lezer-promql": "0.305.0",
-    "bkui-vue": "^2.0.2-beta.63",
+    "@toast-ui/editor": "^3.2.2",
+    "@toast-ui/editor-plugin-code-syntax-highlight": "^3.1.0",
     "dayjs": "^1.11.18",
-    "monaco-editor": "0.44.0",
-    "vue": "^3.5.15",
-    "vue-tippy": "^6.3.7",
     "echarts": "^5.6.0",
-    "@blueking/bk-user-display-name": "1.0.3-beta.3",
-    "@blueking/bk-user-selector": "0.1.8",
-    "@blueking/date-picker": "4.0.0-beta.9"
+    "monaco-editor": "0.44.0"
   }
 }

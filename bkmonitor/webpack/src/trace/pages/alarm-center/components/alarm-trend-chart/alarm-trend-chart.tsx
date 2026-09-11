@@ -50,9 +50,8 @@ export default defineComponent({
     const { t } = useI18n();
     const store = useAlarmCenterStore();
 
-    // #if IS_APM_MONITOR
+    /** 非嵌入场景下取到默认空实现，框选仅更新自身 store */
     const handleAlarmTrendChartZoomChange = inject('handleAlarmTrendChartZoomChange', (_: [number, number]) => {});
-    // #endif
 
     /** 告警类型对应的直方图接口 */
     const apiMap = {
@@ -180,9 +179,7 @@ export default defineComponent({
 
     /** 图表框选 */
     const handleDataZoomChange = dataZoom => {
-      // #if IS_APM_MONITOR
       handleAlarmTrendChartZoomChange(dataZoom);
-      // #endif
       store.timeRange = dataZoom;
     };
 

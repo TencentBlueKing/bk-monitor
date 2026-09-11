@@ -4,11 +4,11 @@
   width: 100%;
 
   .set-warpper {
-    padding: 20px; 
+    padding: 20px;
     margin-bottom: 10px;
     background: #ffff;
     background-color: white;
-    box-shadow: 0px 1px 2px 0px rgba(0,0,0,.10);
+    box-shadow: 0 1px 2px 0 rgb(0 0 0 / 10%);
 
     .set-title {
       width: 56px;
@@ -35,8 +35,8 @@
 
   .set-meal-right {
     height: calc(100vh - 100px);
-    padding: 20px 0 0 0;
-    transition: width .3s ease-in-out;
+    padding: 20px 0 0;
+    transition: width 0.3s ease-in-out;
   }
 
   .set-meal-wrapper {
@@ -48,10 +48,12 @@
   .set-warpper-container {
     flex: 1;
     min-width: 766px;
-    padding: 20px 20px 0 20px;
+    padding: 20px 20px 0;
+
     // height: calc(100vh - 100px);
     overflow: auto;
   }
+
   // 下拉样式
   .bk-select {
     box-sizing: initial;
@@ -75,6 +77,7 @@
       color: #979ba5;
     }
   }
+
   // 下拉行内样式
   .bk-select.select-inline {
     box-sizing: initial;
@@ -101,6 +104,7 @@
         padding-left: 2px;
       }
     }
+
     // textarea样式
     .bk-textarea-wrapper {
       .bk-form-textarea {
@@ -108,6 +112,7 @@
       }
     }
   }
+
   // 行内使用样式
   .bk-form-control.input-inline {
     // input样式

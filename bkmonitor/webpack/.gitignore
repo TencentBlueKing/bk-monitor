@@ -105,6 +105,12 @@ src/mermaid/
 .trae
 
 monitor-vue3-components
+apm-vue3-for-vue2/dist
+apm-vue3-for-vue2/readme.md
+apm-vue3-for-vue2/.ensure.lock
+apm-vue3-for-vue2/*.js
+apm-vue3-for-vue2/*.css
+apm-vue3-for-vue2/assets
 monitor-vue2-components
 
 monitor-trace-explore

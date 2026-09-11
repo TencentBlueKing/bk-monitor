@@ -113,6 +113,11 @@ export default defineComponent({
       type: Boolean,
       default: false,
     },
+    /* 是否展示空间选择器；被 APM 宿主嵌入时业务范围由宿主决定，不允许在此切换 */
+    showSpaceSelector: {
+      type: Boolean,
+      default: true,
+    },
     // 常驻设置获取用户配置
     handleGetUserConfig: {
       type: Function as PropType<IHandleGetUserConfig>,
@@ -243,76 +248,78 @@ export default defineComponent({
         onShowResidentBtnChange={this.handleShowResidentBtnChange}
         onWhereChange={this.handleConditionChange}
       >
-        {/* // #if !IS_APM_MONITOR */}
-        {{
-          default: () => (
-            <>
-              <SpaceSelector
-                hasAuthApply={true}
-                isAutoSelectCurrentSpace={true}
-                isCommonStyle={false}
-                multiple={this.isMultiple}
-                needChangeChoiceType={true}
-                needIncidentOption={this.needIncidentOption}
-                spaceList={this.bizList}
-                value={this.bizIds}
-                onApplyAuth={this.handleCheckAllowedByIds}
-                onChange={this.handleBizIdsChange}
-                onChangeChoiceType={this.handleChangeChoiceType}
-              >
-                {{
-                  trigger: (options: ITriggerSlotOptions) => (
-                    <SelectorTrigger
-                      class='selector-trigger-space-select'
-                      active={options.active}
-                      hasRightSplit={true}
-                      isError={options.error}
-                      tips={options.valueStrList.length ? tipsContent(options.valueStrList) : ''}
-                    >
-                      {{
-                        top: () => {
-                          if (
-                            options.valueStrList.length > 1 ||
-                            !options.valueStrList.length ||
-                            ['-1', '-2'].includes(String(options.valueStrList?.[0]?.id))
-                          ) {
-                            return <span>{this.t('空间')}</span>;
-                          }
-                          const tags = options.valueStrList[0]?.tags || [];
-                          return (
-                            <span>
-                              {tags.map(tag =>
-                                spaceTypeTag(tag.id, 'light', {
-                                  height: '20px',
-                                  marginRight: '4px',
-                                })
-                              )}
-                            </span>
-                          );
-                        },
-                        bottom: () => (
-                          <span class='selected-text'>
-                            {options.valueStrList.map((item, index) => (
-                              <span
-                                key={item.id}
-                                class='selected-text-item'
-                              >
-                                {index !== 0 ? `   , ${item.name}` : item.name}
-                                {!!item.idDisplayName && <span class='selected-text-id'>({item.idDisplayName})</span>}
+        {this.showSpaceSelector
+          ? {
+              default: () => (
+                <>
+                  <SpaceSelector
+                    hasAuthApply={true}
+                    isAutoSelectCurrentSpace={true}
+                    isCommonStyle={false}
+                    multiple={this.isMultiple}
+                    needChangeChoiceType={true}
+                    needIncidentOption={this.needIncidentOption}
+                    spaceList={this.bizList}
+                    value={this.bizIds}
+                    onApplyAuth={this.handleCheckAllowedByIds}
+                    onChange={this.handleBizIdsChange}
+                    onChangeChoiceType={this.handleChangeChoiceType}
+                  >
+                    {{
+                      trigger: (options: ITriggerSlotOptions) => (
+                        <SelectorTrigger
+                          class='selector-trigger-space-select'
+                          active={options.active}
+                          hasRightSplit={true}
+                          isError={options.error}
+                          tips={options.valueStrList.length ? tipsContent(options.valueStrList) : ''}
+                        >
+                          {{
+                            top: () => {
+                              if (
+                                options.valueStrList.length > 1 ||
+                                !options.valueStrList.length ||
+                                ['-1', '-2'].includes(String(options.valueStrList?.[0]?.id))
+                              ) {
+                                return <span>{this.t('空间')}</span>;
+                              }
+                              const tags = options.valueStrList[0]?.tags || [];
+                              return (
+                                <span>
+                                  {tags.map(tag =>
+                                    spaceTypeTag(tag.id, 'light', {
+                                      height: '20px',
+                                      marginRight: '4px',
+                                    })
+                                  )}
+                                </span>
+                              );
+                            },
+                            bottom: () => (
+                              <span class='selected-text'>
+                                {options.valueStrList.map((item, index) => (
+                                  <span
+                                    key={item.id}
+                                    class='selected-text-item'
+                                  >
+                                    {index !== 0 ? `   , ${item.name}` : item.name}
+                                    {!!item.idDisplayName && (
+                                      <span class='selected-text-id'>({item.idDisplayName})</span>
+                                    )}
+                                  </span>
+                                ))}
                               </span>
-                            ))}
-                          </span>
-                        ),
-                      }}
-                    </SelectorTrigger>
-                  ),
-                }}
-              </SpaceSelector>
-              {this.showAlarmModule && <AlarmModuleSelector />}
-            </>
-          ),
-        }}
-        {/* // #endif */}
+                            ),
+                          }}
+                        </SelectorTrigger>
+                      ),
+                    }}
+                  </SpaceSelector>
+                  {this.showAlarmModule && <AlarmModuleSelector />}
+                </>
+              ),
+            }
+          : null}
       </RetrievalFilter>
     );
   },
