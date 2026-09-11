@@ -43,9 +43,10 @@
  *   4. 同时 provide handleExploreChartZoomChange 供图表子组件使用
  *   5. 管理 window.APM_QUERY_STRING 的生命周期
  */
-import { defineComponent, inject, provide, watch } from 'vue';
+import { defineComponent, inject, onBeforeUnmount, provide, watch } from 'vue';
 
 import TraceExplore from './trace-explore';
+import { clearEmbedContext, setEmbedContext } from '@/common/embed-context';
 import { useTraceExploreStore } from '@/store/modules/explore';
 
 import type { EMode, IWhereItem } from '../../components/retrieval-filter/typing';
@@ -84,6 +85,10 @@ export default defineComponent({
 
     const bridgeProps = inject(BRIDGE_PROPS_KEY, {} as Record<string, any>);
     const bridgeEmit = inject(BRIDGE_EMIT_KEY, (() => {}) as (event: string, ...args: unknown[]) => void);
+
+    /** 声明「已被宿主嵌入」：详情链接前缀、查询口径等差异据此在运行时判定 */
+    setEmbedContext({ bizId: Number(window.bk_biz_id) });
+    onBeforeUnmount(clearEmbedContext);
 
     const handleExploreChartZoomChange = (v: [number, number]) => {
       bridgeEmit('exploreChartZoomChange', v);

@@ -38,7 +38,11 @@ npm install @blueking/monitor-vue3-components
 yarn add @blueking/monitor-vue3-components
 ```
 
-包内产物只有三个文件：`index.mjs`（ESM 组件代码）、`index.css`（样式）、`readme.md`。
+产物：`index.js`（ESM 入口，代码按需拆成同目录若干 chunk）、`index.css`（样式）、`readme.md`。
+
+> Vue2 宿主要嵌入**整块**告警中心 / Trace 检索，请改用
+> [`@blueking/apm-vue3-for-vue2`](https://www.npmjs.com/package/@blueking/apm-vue3-for-vue2)，
+> 本包只提供可在 Vue3 工程里直接渲染的组件。
 
 **按需引入组件 + 全量样式：**
 
@@ -50,25 +54,40 @@ import { PromqlEditor, RetrievalFilter, ExploreChart } from '@blueking/monitor-v
 import '@blueking/monitor-vue3-components/index.css';
 ```
 
-> 所有导出统一从包根 `@blueking/monitor-vue3-components` 获取，**不要**深入 `dist`、`src` 等内部路径。
+> 所有导出统一从包根获取，**不要**深入 `dist`、`src` 等内部路径。
 
 ---
 
 ## 2. 运行环境与依赖要求
 
-组件基于 **Vue 3 + TSX** 构建。打包时以下依赖被声明为 `external`（即由宿主工程提供），因此你的项目需要自行安装并可用：
+组件基于 **Vue 3 + TSX** 构建。bkui-vue、`@blueking/tdesign-ui`、`vue-tippy` 等 UI 依赖，以及 `pinia` / `vue-router` / `vue-i18n` 都已内联在包内，**无需**宿主安装；下列依赖被声明为 `external`，由宿主工程提供（它们已列在本包 `dependencies` 中，正常安装即可自动获得）：
 
 | 依赖 | 用途 | 相关组件/能力 |
 | --- | --- | --- |
-| `vue` (^3.5) | 运行时 | 全部 |
-| `vue-i18n` | 国际化（`useI18n` / `window.i18n`） | `ExploreChart`、`ChartTitle`、`RetrievalFilter` |
-| `bkui-vue` | 蓝鲸 Vue3 组件库 | `ChartTitle`（Popover 等） |
-| `@blueking/tdesign-ui` | 蓝鲸 tdesign 封装 | 部分交互 |
+| `@blueking/bkui-library` | **Vue3 运行时**，包内所有 `vue` 导入都指向它 | 全部 |
+| `monitor-api` / `monitor-common` / `monitor-ui` / `monitor-pc` / `monitor-static` | 蓝鲸监控工程内的请求层、公共能力与图标资源，需由使用方提供同一份实现 | 全部 |
 | `monaco-editor` (0.44.0) | 代码编辑器内核 | `PromqlEditor` |
 | `@prometheus-io/lezer-promql` | PromQL 语法解析 | `PromqlEditor` |
-| `echarts` + `vue-echarts` | 图表渲染 | `ExploreChart` |
+| `echarts` | 图表渲染 | `ExploreChart` |
 | `dayjs` | 时间处理 | `ExploreChart` 的 x 轴格式化 |
-| `vue-tippy` | 提示气泡 | 部分交互 |
+
+> **`monitor-*` 是工程内包**：`monitor-api` / `monitor-common` / `monitor-ui` / `monitor-pc` / `monitor-static` 全部被声明为 external，需要使用方能解析到（蓝鲸监控仓库内经 pnpm workspace 软链自动满足）。`monitor-api` 尤其不能各带一份，否则会出现两套请求拦截器与登录态。**因此本包目前只面向蓝鲸监控工程内部使用**，仓库外的工程无法直接安装。
+>
+> 图标字体也由使用方提供：产物里保留了 `import 'monitor-static/icons/monitor-icons.css'` 这条外部引用，需要使用方的打包器能处理 CSS 导入。
+
+> **Vue3 运行时不叫 `vue`**：包内不存在对裸 `vue` 的引用，运行时统一从 `@blueking/bkui-library`（内容即 `export * from '@vue/runtime-dom'`）获取。这样 **Vue2 宿主**可以直接安装本包而不会与自己的 `vue`（v2）冲突。若你的工程是 Vue3，请确保 `@blueking/bkui-library` 与你自己的 `vue` 解析到同一份 `@vue/runtime-dom`（同一大版本即可由包管理器去重），否则会出现两个 Vue 实例、`inject` 与生命周期失效。
+
+> **必须装本包的 i18n**：`vue-i18n` 已内联，宿主自己那份的注入 key 与包内不是同一副本，因此组件里的 `useI18n()` 只认本包导出的实例：
+>
+> ```ts
+> import { i18n } from '@blueking/monitor-vue3-components';
+> app.use(i18n);
+> ```
+>
+
+> **类名前缀**：包内所有蓝鲸组件类名统一改写为 `bkmv3-` 前缀（如 `.bkmv3-button`），以避免与宿主自带的 `.bk-*` 样式互相覆盖。这也意味着**不要**基于 `.bk-*` 选择器去覆盖本包组件的样式。
+
+> **全局样式**：本包不含 trace 主站的 `global.scss` 与 `reset.scss`（含 `#app`、标签重置等全站级规则，会污染宿主页面），只包含组件自身样式与 `icon-monitor` 图标字体。
 
 > **重要（`ExploreChart` 的隐式约定）**：该组件依赖两项运行时环境，接入前请确认：
 >
@@ -1037,7 +1056,11 @@ type FormatterFunc = ((v: string) => string) | string;
 
 - **`ExploreChart` 不出数据**：检查是否已提供全局 `$api`（`app.config.globalProperties.$api`）以及 `provide('timeRange', ...)`；`panel.targets` 中的 `apiModule` / `apiFunc` 需与 `$api` 对应。若不想耦合这些约定，请改用 [`useEchartsOptions`](#52-useechartsoptions) + 自行渲染 `vue-echarts`。
 
-- **依赖缺失报错**：`vue-i18n`、`bkui-vue`、`monaco-editor`、`echarts` + `vue-echarts`、`dayjs` 等被声明为 external，需由宿主工程安装，详见 [第 2 章](#2-运行环境与依赖要求)。
+- **依赖缺失报错**：`@blueking/bkui-library`、`monaco-editor`、`echarts`、`dayjs`、`@prometheus-io/lezer-promql` 与全部 `monitor-*` 包被声明为 external，需可从宿主工程解析到，详见 [第 2 章](#2-运行环境与依赖要求)。
+
+- **`Need to install with app.use` 报错**：单独使用组件时漏装了本包导出的 `i18n`，见 [第 2 章](#2-运行环境与依赖要求)。
+
+- **样式被宿主覆盖 / 覆盖不生效**：本包类名前缀是 `bkmv3-` 而非 `bk-`，覆盖样式请以 `.bkmv3-*` 书写。
 
 - **`RetrievalFilter` 候选值加载慢**：适当调小 `limit`、增大 `loadDelay`，并确认 `getValueFn` 后端接口分页性能；完整用法见其随包 `readme.md`。
 

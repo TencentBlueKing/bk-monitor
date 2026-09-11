@@ -1,3 +1,4 @@
+import i18n from '../../i18n/i18n';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -47,10 +48,7 @@
  */
 import { createApp, reactive } from 'vue';
 
-import Api from 'monitor-api/api';
-import { userDisplayNameConfigure } from 'monitor-pc/common/user-display-name';
 import { Message, provideGlobalConfig } from 'bkui-vue';
-import { defaultRootConfig } from 'bkui-vue/lib/config-provider';
 import {
   BarChart,
   CustomChart,
@@ -80,16 +78,16 @@ import {
 } from 'echarts/components';
 import { use } from 'echarts/core';
 import { CanvasRenderer } from 'echarts/renderers';
+import Api from 'monitor-api/api';
+import { userDisplayNameConfigure } from 'monitor-pc/common/user-display-name';
 import { createPinia } from 'pinia';
 import { createMemoryHistory, createRouter } from 'vue-router';
 
+import { RUNTIME_CLASS_PREFIX } from '../../common/class-prefix';
 import directives from '../../directive/index';
-import i18n from '../../i18n/i18n';
 import TraceExploreApm, { BRIDGE_EMIT_KEY, BRIDGE_PROPS_KEY } from './trace-explore-apm';
 
 import '@blueking/tdesign-ui/vue3/index.css';
-
-defaultRootConfig.prefix = 'apm-bk';
 
 use([
   BarChart,
@@ -122,23 +120,15 @@ export default TraceExploreApm;
 
 /* ==================== 桥接类型定义 ==================== */
 
+/** 向 Vue 2 宿主抛出事件的函数签名 */
+export type BridgeEmit = (event: string, ...args: unknown[]) => void;
+
 /** 从 Vue 2 宿主传入的属性字典，内部以 reactive() 包装保持响应式 */
 export interface BridgeProps {
   [key: string]: unknown;
 }
 
-/** 向 Vue 2 宿主抛出事件的函数签名 */
-export type BridgeEmit = (event: string, ...args: unknown[]) => void;
-
 // export { BRIDGE_PROPS_KEY, BRIDGE_EMIT_KEY };
-
-/** mount() 的可选配置项 */
-export interface MountOptions {
-  /** 传递给 Vue 3 子应用的初始属性，后续可通过 handle.update() 增量更新 */
-  props?: BridgeProps;
-  /** 事件回调：Vue 3 子组件调用 bridgeEmit(event, ...args) 时触发 */
-  onEvent?: BridgeEmit;
-}
 
 /** mount() 返回的控制句柄 */
 export interface MountHandle {
@@ -146,6 +136,14 @@ export interface MountHandle {
   unmount: () => void;
   /** 增量更新桥接属性，会合并到已有的 reactive 对象上，自动触发 Vue 3 响应式更新 */
   update: (newProps: Partial<BridgeProps>) => void;
+}
+
+/** mount() 的可选配置项 */
+export interface MountOptions {
+  /** 事件回调：Vue 3 子组件调用 bridgeEmit(event, ...args) 时触发 */
+  onEvent?: BridgeEmit;
+  /** 传递给 Vue 3 子应用的初始属性，后续可通过 handle.update() 增量更新 */
+  props?: BridgeProps;
 }
 
 /* ==================== 挂载入口 ==================== */
@@ -157,7 +155,7 @@ export interface MountHandle {
  * @param options  - 桥接配置：初始属性 & 事件回调
  * @returns 冻结的 MountHandle，包含 unmount / update 方法
  */
-export function mount(el: string | HTMLElement, options?: MountOptions): MountHandle {
+export function mount(el: HTMLElement | string, options?: MountOptions): MountHandle {
   /** 注册 bk-user-display-name 自定义元素并同步 API 配置；与 trace 主站、APM 入口一致，避免 Vue 当作未解析组件。 */
   userDisplayNameConfigure();
 
@@ -175,7 +173,7 @@ export function mount(el: string | HTMLElement, options?: MountOptions): MountHa
     isCustomElement: tag => tag === 'bk-user-display-name',
   };
 
-  provideGlobalConfig({ prefix: 'apm-bk' }, app);
+  provideGlobalConfig({ prefix: RUNTIME_CLASS_PREFIX }, app);
 
   app.provide(BRIDGE_PROPS_KEY, bridgeProps);
   app.provide(BRIDGE_EMIT_KEY, bridgeEmit);

@@ -170,10 +170,8 @@
     padding: 12px;
   }
 
-  // #if IS_APM_MONITOR
-  > .tippy-arrow {
+  /* 嵌入宿主时弹层箭头需要额外偏移 */
+  body.is-monitor-embed & > .tippy-arrow {
     margin-top: -6px;
   }
-
-  // #endif
 }

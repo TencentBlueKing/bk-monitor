@@ -141,6 +141,8 @@ export const EventExploreFeatures = [
   'title',
   /** 表头 */
   'header',
+  /** 回到旧版 */
+  'gotoOld',
 ] as const;
 
 export type HideFeatures = Array<(typeof EventExploreFeatures)[number]>;

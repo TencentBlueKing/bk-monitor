@@ -74,7 +74,9 @@ import { useCandidateValue } from './hooks/use-candidate-value';
 import { type TraceExploreApmHooks, BRIDGE_PROPS_KEY, TRACE_EXPLORE_APM_HOOKS_KEY } from './trace-explore-apm';
 import { getFilterByCheckboxFilter, safeParseJsonValueForWhere, tryURLDecodeParse } from './utils';
 
-import type { ConditionChangeEvent, ExploreFieldList, IApplicationItem, ICommonParams } from './typing';
+import type { ConditionChangeEvent, ExploreFieldList, HideFeatures, IApplicationItem, ICommonParams } from './typing';
+/** 被 APM 宿主嵌入时，应用与时间范围由宿主页头提供，检索页头内不再重复渲染 */
+const APM_EMBED_HIDE_FEATURES: HideFeatures = ['application', 'dateRange', 'gotoOld'];
 /** trace检索默认选择的应用 */
 const TRACE_EXPLORE_DEFAULT_APPLICATION = 'TRACE_EXPLORE_DEFAULT_APPLICATION';
 /** 应用置顶列表 */
@@ -97,18 +99,10 @@ const SPAN_NOT_SUPPORT_ENUM_KEYS = ['time', 'start_time', 'end_time', 'parent_sp
 const TRACE_NOT_SUPPORT_ENUM_KEYS = ['min_start_time', 'max_end_time', 'trace_id', 'root_span_id'];
 
 updateTimezone(window.timezone);
-
-import { type MetricDetailV2, QueryConfig } from '@blueking/monitor-vue2-components/index.mjs';
-import { getMetricListV2 } from 'monitor-api/modules/strategies';
-
 import { useFavoriteFieldsState } from './components/trace-explore-table/utils/favorite-fields';
 
-import type {
-  IGetMetricListData,
-  IGetMetricListParams,
-} from 'monitor-pc/pages/query-template/components/metric/components/types';
-
 import './trace-explore.scss';
+
 export default defineComponent({
   name: 'TraceExplore',
   props: {},
@@ -963,41 +957,8 @@ export default defineComponent({
         };
       }
     }
-    const queryConfig = shallowRef<QueryConfig>({});
-    const handleSelectMetric = (val: MetricDetailV2) => {
-      queryConfig.value = new QueryConfig(val);
-      console.log(val);
-    };
-    let abortController: AbortController | null = null;
-    const getMetricList = async (params: IGetMetricListParams) => {
-      if (abortController) {
-        abortController.abort();
-        abortController = null;
-      }
-      abortController = new AbortController();
-      const data = await getMetricListV2<IGetMetricListData>(
-        {
-          conditions: [
-            {
-              key: 'query',
-              value: '',
-            },
-          ],
-          data_type_label: 'time_series',
-          tag: '',
-          page: 1,
-          page_size: 20,
-          ...params,
-        },
-        {
-          signal: abortController.signal,
-        }
-      );
-      return data;
-    };
     return {
       apmHooks,
-      queryConfig,
       t,
       isCollapsed,
       defaultApplication,
@@ -1055,8 +1016,6 @@ export default defineComponent({
       handleClearRetrievalFilter,
       handleCopyWhereQueryString,
       handleSetCommonWhereToFavoriteCache,
-      handleSelectMetric,
-      getMetricList,
       handleGetResidentSettingUserConfig,
       handleSetResidentSettingUserConfig,
       handleSliderClose,
@@ -1065,11 +1024,6 @@ export default defineComponent({
   render() {
     return (
       <div class='trace-explore'>
-        {/* <MonitorVue2
-          getMetricList={this.getMetricList}
-          queryConfig={this.queryConfig}
-          onSelectMetric={this.handleSelectMetric}
-        /> */}
         <div
           style={{ display: this.isShowFavorite ? 'block' : 'none' }}
           class='favorite-panel'
@@ -1086,6 +1040,7 @@ export default defineComponent({
         <div class='main-panel'>
           <div class={['header-panel', { 'is-apm-trace': window.source_app === 'apm' }]}>
             <TraceExploreHeader
+              hideFeatures={this.apmHooks ? APM_EMBED_HIDE_FEATURES : []}
               isShowFavorite={this.isShowFavorite}
               list={this.applicationList}
               thumbtackList={this.thumbtackList}

@@ -45,6 +45,7 @@ import {
   mergeOverlappingArrays,
   processLineSymbols,
 } from './utils';
+import { withEmbedQuery } from '@/common/embed-context';
 import { resolveVariables } from '@/pages/host/components/dashbords/variables/resolve';
 
 import type { EchartSeriesItem, FormatterFunc, SeriesItem } from './types';
@@ -628,20 +629,10 @@ export const useEcharts = ({
       if (downSampleRangeComputed) {
         resultParams.down_sample_range = downSampleRangeComputed([resultParams.start_time, resultParams.end_time]);
       }
-      // #if IS_APM_MONITOR
+      // 告警趋势图与告警中心服务层同一查询口径：被宿主嵌入时收敛到宿主的业务与过滤范围
       if (target.apiFunc === 'alertDateHistogram') {
-        if (resultParams.bk_biz_ids) {
-          resultParams.bk_biz_ids = [window.bk_biz_id];
-        }
-        if (resultParams.query_string) {
-          // 语句模式
-          resultParams.query_string = `(${resultParams.query_string}) AND ${window.APM_QUERY_STRING || ''}`;
-        } else {
-          // ui 模式
-          resultParams.query_string = window.APM_QUERY_STRING || '';
-        }
+        Object.assign(resultParams, withEmbedQuery(resultParams));
       }
-      // #endif
       return $api[target.apiModule]
         [target.apiFunc](resultParams, {
           cancelToken: new CancelToken((cb: () => void) => cancelTokens.push(cb)),

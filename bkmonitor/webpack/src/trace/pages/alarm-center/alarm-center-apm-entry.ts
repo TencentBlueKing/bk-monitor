@@ -1,3 +1,4 @@
+import i18n from '../../i18n/i18n';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -47,7 +48,6 @@
  */
 import { createApp, reactive } from 'vue';
 
-import Api from 'monitor-api/api';
 import { Message, provideGlobalConfig } from 'bkui-vue';
 import {
   BarChart,
@@ -78,11 +78,12 @@ import {
 } from 'echarts/components';
 import { use } from 'echarts/core';
 import { CanvasRenderer } from 'echarts/renderers';
+import Api from 'monitor-api/api';
 import { createPinia } from 'pinia';
 import { createMemoryHistory, createRouter } from 'vue-router';
 
+import { RUNTIME_CLASS_PREFIX } from '../../common/class-prefix';
 import directives from '../../directive/index';
-import i18n from '../../i18n/i18n';
 import AlarmCenterApm, { BRIDGE_EMIT_KEY, BRIDGE_PROPS_KEY } from './alarm-center-apm';
 
 import '@blueking/tdesign-ui/vue3/index.css';
@@ -119,23 +120,15 @@ export default AlarmCenterApm;
 
 /* ==================== 桥接类型定义 ==================== */
 
+/** 向 Vue 2 宿主抛出事件的函数签名 */
+export type BridgeEmit = (event: string, ...args: unknown[]) => void;
+
 /** 从 Vue 2 宿主传入的属性字典，内部以 reactive() 包装保持响应式 */
 export interface BridgeProps {
   [key: string]: unknown;
 }
 
-/** 向 Vue 2 宿主抛出事件的函数签名 */
-export type BridgeEmit = (event: string, ...args: unknown[]) => void;
-
-export { BRIDGE_PROPS_KEY, BRIDGE_EMIT_KEY };
-
-/** mount() 的可选配置项 */
-export interface MountOptions {
-  /** 传递给 Vue 3 子应用的初始属性，后续可通过 handle.update() 增量更新 */
-  props?: BridgeProps;
-  /** 事件回调：Vue 3 子组件调用 bridgeEmit(event, ...args) 时触发 */
-  onEvent?: BridgeEmit;
-}
+export { BRIDGE_EMIT_KEY, BRIDGE_PROPS_KEY };
 
 /** mount() 返回的控制句柄 */
 export interface MountHandle {
@@ -143,6 +136,14 @@ export interface MountHandle {
   unmount: () => void;
   /** 增量更新桥接属性，会合并到已有的 reactive 对象上，自动触发 Vue 3 响应式更新 */
   update: (newProps: Partial<BridgeProps>) => void;
+}
+
+/** mount() 的可选配置项 */
+export interface MountOptions {
+  /** 事件回调：Vue 3 子组件调用 bridgeEmit(event, ...args) 时触发 */
+  onEvent?: BridgeEmit;
+  /** 传递给 Vue 3 子应用的初始属性，后续可通过 handle.update() 增量更新 */
+  props?: BridgeProps;
 }
 
 /* ==================== 挂载入口 ==================== */
@@ -154,7 +155,7 @@ export interface MountHandle {
  * @param options  - 桥接配置：初始属性 & 事件回调
  * @returns 冻结的 MountHandle，包含 unmount / update 方法
  */
-export function mount(el: string | HTMLElement, options?: MountOptions): MountHandle {
+export function mount(el: HTMLElement | string, options?: MountOptions): MountHandle {
   // 用 reactive 包装 props，使后续 update() 的变更能自动触发 Vue 3 侧的响应式重渲染
   const bridgeProps = reactive<BridgeProps>({ ...options?.props });
   // 将 onEvent 回调包装为统一的 emit 函数，供 Vue 3 子组件 inject 后调用
@@ -169,8 +170,8 @@ export function mount(el: string | HTMLElement, options?: MountOptions): MountHa
 
   const app = createApp(AlarmCenterApm);
 
-  // 与构建期 CSS 中的 .apm-bk-* 一致，bkui-vue 运行时类名前缀（usePrefix / resolveClassName）
-  provideGlobalConfig({ prefix: 'apm-bk' }, app);
+  // 与构建期改写后的 CSS 类名一致，bkui-vue 运行时类名前缀（usePrefix / resolveClassName）
+  provideGlobalConfig({ prefix: RUNTIME_CLASS_PREFIX }, app);
 
   // 通过 provide 向整棵 Vue 3 组件树注入桥接属性与事件发射器
   app.provide(BRIDGE_PROPS_KEY, bridgeProps);

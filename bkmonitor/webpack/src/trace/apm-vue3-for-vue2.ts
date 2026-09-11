@@ -25,21 +25,22 @@
  */
 
 /**
- * `@blueking/monitor-vue3-components` 的构建配置：给 **Vue3 工程**用的组件与组合式函数。
+ * `@blueking/apm-vue3-for-vue2` 的入口，构建配置见 scripts/build.apm-vue3-for-vue2.ts。
  *
- * 构建选项与 `@blueking/apm-vue3-for-vue2` 完全共用，见 vue3-lib/create-config.ts；
- * 这里只声明入口、产物目录与随包发布的元数据。
+ * 面向 APM 的 Vue2 宿主：用 mount* 在指定节点挂载整块 Vue3 子应用，
+ * 应用实例（router / pinia / i18n）由包内自行创建，宿主只需给一个挂载节点。
+ * Vue3 工程请改用 `@blueking/monitor-vue3-components`（入口 components.ts），
+ * 那边导出的是可直接渲染的组件。
  */
-import { resolve } from 'node:path';
-import { defineConfig } from 'vite';
+import { applyRuntimeClassPrefix } from './common/class-prefix';
 
-import { createVue3LibConfig } from './vue3-lib/create-config';
+import 'monitor-static/icons/monitor-icons.css';
 
-export default defineConfig(
-  createVue3LibConfig({
-    entry: resolve(__dirname, '../src/trace/components.ts'),
-    outputDir: resolve(__dirname, '../monitor-vue3-components'),
-    packageJsonFile: resolve(__dirname, './package.json'),
-    readmeFile: resolve(__dirname, '../src/trace/components.md'),
-  })
-);
+applyRuntimeClassPrefix();
+
+/** 告警中心：mountAlarmCenter 返回 { update, unmount } 句柄，宿主销毁时必须调用 unmount */
+export { default as AlarmCenterApm, mount as mountAlarmCenter } from './pages/alarm-center/alarm-center-apm-entry';
+export type { BridgeEmit, BridgeProps, MountHandle, MountOptions } from './pages/alarm-center/alarm-center-apm-entry';
+
+/** Trace 检索：入参与句柄结构与告警中心一致 */
+export { mount as mountTraceExplore, default as TraceExploreApm } from './pages/trace-explore/trace-explore-apm-entry';
