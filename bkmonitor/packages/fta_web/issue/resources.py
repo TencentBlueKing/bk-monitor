@@ -419,13 +419,14 @@ class SourceAnalysisBaseResource(Resource):
 
         bk_tenant_id = bk_biz_id_to_bk_tenant_id(bk_biz_id)
         try:
+            # 不要传 bk_username：APIResource.get_headers 只要看到它，就只往网关鉴权头里
+            # 放用户名，不再从当前请求取 bk_ticket / bk_token。ensure_scene 在网关上要求
+            # 已认证用户，只有用户名会被判 INVALID_ARGS(1640001)。留空则走取登录态的分支，
+            # 由 blueapps 按环境挑出对应凭据，并补上操作人，身份信息反而更全。
             scene_state = api.bk_incident.ensure_source_analysis_scene(
                 bk_biz_id=bk_biz_id,
                 bk_tenant_id=bk_tenant_id,
                 devops_project_id=bkci_project_id,
-                # ensure_scene 按当前操作人建立用户态；APIResource 会把该内部字段
-                # 写入网关鉴权头，RequestSerializer 不会把它发到 BKFara 请求体。
-                bk_username=get_request_username(),
                 client_request_id=build_bkfara_client_request_id(
                     "ensure-scene",
                     bk_tenant_id,
