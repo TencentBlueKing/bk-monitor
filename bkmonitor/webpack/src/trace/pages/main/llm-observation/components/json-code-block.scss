@@ -1,0 +1,114 @@
+@import '../../../../theme/theme';
+@import '../../../../theme/mixin';
+
+.llm-json-code-block {
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+
+  @include flex-column;
+
+  &-header {
+    gap: 8px;
+    justify-content: space-between;
+    width: 100%;
+
+    @include flex-align(flex-start);
+  }
+
+  &-title {
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 22px;
+    color: #111214;
+    white-space: nowrap;
+  }
+
+  &-actions {
+    flex-shrink: 0;
+    gap: 8px;
+
+    @include flex-align(center);
+  }
+
+  &-action {
+    gap: 3px;
+    padding: 2px 6px;
+    font-size: $font-size-base;
+    line-height: 20px;
+    color: $primary-color;
+    white-space: nowrap;
+    cursor: pointer;
+    border-radius: 4px;
+
+    @include flex-align(center);
+
+    .icon-monitor {
+      font-size: $font-size-medium;
+    }
+  }
+
+  &-body {
+    position: relative;
+    height: 168px;
+    padding: 8px;
+    overflow: hidden;
+    background: #f7f9fc;
+    border-radius: 8px;
+
+    &.is-expanded {
+      height: auto;
+      max-height: none;
+      overflow: visible;
+    }
+
+    &:not(.is-expanded)::after {
+      position: absolute;
+      right: 0;
+      bottom: 0;
+      left: 0;
+      height: 31px;
+      pointer-events: none;
+      content: '';
+      background: linear-gradient(180deg, rgb(247 249 252 / 0%) 0%, #f7f9fc 100%);
+    }
+
+    .vjs-tree {
+      font-family: 'Roboto Mono', menlo, monaco, consolas, monospace;
+      font-size: $font-size-base;
+      line-height: 20px;
+    }
+
+    .vjs-key {
+      color: #a33b3b;
+    }
+
+    .vjs-value,
+    .vjs-value-string,
+    .vjs-value-number,
+    .vjs-value-boolean {
+      color: #0651a5;
+    }
+
+    .vjs-tree-node {
+      color: #111214;
+    }
+  }
+
+  &.is-bordered {
+    gap: 12px;
+    padding: 16px;
+    background: #fff;
+    border: 1px solid #c1cde5;
+    border-radius: 6px;
+
+    .llm-json-code-block-body:not(.is-expanded) {
+      height: auto;
+      max-height: 168px;
+
+      &:not(.is-overflowing)::after {
+        content: none;
+      }
+    }
+  }
+}

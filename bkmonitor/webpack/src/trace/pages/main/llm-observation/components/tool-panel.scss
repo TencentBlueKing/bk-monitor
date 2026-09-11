@@ -1,0 +1,65 @@
+@import '../../../../theme/theme';
+@import '../../../../theme/mixin';
+
+.llm-tool-panel {
+  flex: 1;
+  gap: 24px;
+  min-height: 0;
+  padding: 0 0 24px;
+  overflow: auto;
+
+  @include flex-column;
+
+  &-desc {
+    flex-shrink: 0;
+    gap: 8px;
+    min-height: 32px;
+    padding: 6px 10px;
+    overflow: hidden;
+    background: #f0faf1;
+    border: 1px solid #bfdfd2;
+    border-radius: 4px;
+
+    @include flex-align(center);
+  }
+
+  &-desc-label {
+    flex-shrink: 0;
+    font-size: $font-size-base;
+    font-weight: 600;
+    line-height: $line-height-base;
+    color: #3ba365;
+    white-space: nowrap;
+  }
+
+  &-desc-text {
+    font-size: $font-size-base;
+    line-height: 20px;
+    color: #4e5e7a;
+
+    @include ellipsis;
+  }
+}
+
+/* Sideslider transfer 到 body，需保持顶层选择器 */
+.llm-tool-panel-slider-json {
+  padding: 16px 24px 24px;
+  overflow: auto;
+
+  .vjs-tree {
+    font-family: 'Roboto Mono', menlo, monaco, consolas, monospace;
+    font-size: $font-size-base;
+    line-height: 20px;
+  }
+
+  .vjs-key {
+    color: #a33b3b;
+  }
+
+  .vjs-value,
+  .vjs-value-string,
+  .vjs-value-number,
+  .vjs-value-boolean {
+    color: #0651a5;
+  }
+}

@@ -86,6 +86,7 @@ import { TRACE_SPAN_DETAIL_BASIC_INFO_EXPAND_KEY } from './constants';
 // import AiBluekingIcon from '@/components/ai-blueking-icon/ai-blueking-icon';
 import DashboardPanel from './dashboard-panel/dashboard-panel';
 import K8sContainer from './k8s-container';
+import LlmObservation from './llm-observation';
 import { formatSpanLinks } from './utils/format-span-links';
 
 import type { Span } from '../../components/trace-view/typings';
@@ -122,7 +123,16 @@ type SpanLinksRequestParams = {
 
 type SpanLinksResponse = Record<string, unknown>[] | { links?: Record<string, unknown>[] };
 
-type TabName = 'BasicInfo' | 'Container' | 'Event' | 'Host' | 'Index' | 'Log' | 'Process' | 'Profiling';
+type TabName =
+  | 'BasicInfo'
+  | 'Container'
+  | 'Event'
+  | 'Host'
+  | 'Index'
+  | 'LlmObservation'
+  | 'Log'
+  | 'Process'
+  | 'Profiling';
 
 /** 不需要解码的属性名白名单 */
 const UNDECODED_PROPERTY_NAMES_WHITELIST = ['net.peer.port', 'span_id', 'trace_id'];
@@ -1396,6 +1406,9 @@ export default defineComponent({
         }
         isTabPanelLoading.value = false;
       }
+      if (activeTab.value === 'LlmObservation') {
+        isTabPanelLoading.value = false;
+      }
     };
     const getProfilingTimeRange = () => {
       const halfHour = 18 * 10 ** 8;
@@ -1526,6 +1539,11 @@ export default defineComponent({
         name: 'Profiling',
       });
     }
+    tabList.push({
+      label: t('LLM 观测'),
+      name: 'LlmObservation',
+    });
+
     const detailsMain = () => {
       // profiling 查询起始时间根据 span 开始时间前后各推半小时
       const { start_time, end_time } = getProfilingTimeRange();
@@ -1682,6 +1700,7 @@ export default defineComponent({
                       'is-log-tab': activeTab.value === 'Log',
                       'is-host-tab': activeTab.value === 'Host',
                       'is-container-tab': activeTab.value === 'Container',
+                      'is-llm-tab': activeTab.value === 'LlmObservation',
                     }}
                   >
                     {info.list.map((item, index) => {
@@ -1866,6 +1885,27 @@ export default defineComponent({
                           {!isTabPanelLoading.value && (
                             <div class='host-tab-container'>
                               <K8sContainer sceneData={sceneData.value} />
+                            </div>
+                          )}
+                        </Loading>
+                      )
+                    }
+                    {
+                      // LLM 观测
+                      activeTab.value === 'LlmObservation' && (
+                        <Loading
+                          style='height: 100%;'
+                          loading={isTabPanelLoading.value}
+                        >
+                          {/* 由于视图早于数据先加载好会导致样式错乱，故 loading 完再加载视图 */}
+                          {!isTabPanelLoading.value && (
+                            <div class='host-tab-container'>
+                              <LlmObservation
+                                appName={appName.value}
+                                bkBizId={bizId.value}
+                                originalData={originalData.value}
+                                spanId={spanId.value}
+                              />
                             </div>
                           )}
                         </Loading>
