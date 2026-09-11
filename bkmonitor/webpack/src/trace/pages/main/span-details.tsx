@@ -550,6 +550,7 @@ export default defineComponent({
       traceId.value = originTraceId;
 
       info.title = originalSpanId;
+      const startTimeText = dayjs.tz(startTime / 1e3).format('YYYY-MM-DD HH:mm:ss.SSSZZ');
       /** 头部基本信息 */
       info.header = {
         title: operationName,
@@ -587,8 +588,8 @@ export default defineComponent({
           // { label: '日志', content: logs.length ? '有日志' :  '无日志' },
           {
             label: t('开始时间'),
-            content: dayjs.tz(startTime / 1e3).format('YYYY-MM-DD HH:mm:ssZZ'),
-            title: dayjs.tz(startTime / 1e3).format('YYYY-MM-DD HH:mm:ssZZ'),
+            content: startTimeText,
+            title: startTimeText,
           },
           {
             label: t('来源'),
