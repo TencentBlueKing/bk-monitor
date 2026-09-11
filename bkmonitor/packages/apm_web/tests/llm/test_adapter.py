@@ -88,6 +88,13 @@ def seedance_poll_span(span_id: str = "d" * 16, *, trace_id: str = "e" * 32) -> 
     return span
 
 
+def langfuse_span(span_id: str = SPAN_ID, *, observation_type: str = "generation") -> dict:
+    span = agentlens_span(span_id)
+    span["span_name"] = f"langfuse-{observation_type}"
+    span["attributes"] = {"langfuse.observation.type": observation_type}
+    return span
+
+
 class AdapterTests(TestCase):
     def test_product_routing_uses_entity_set(self) -> None:
         span = agentlens_span()
@@ -105,6 +112,7 @@ class AdapterTests(TestCase):
         self.assertEqual(resolve_query_field("aidev", conversation_field), "attributes.agent.session.session_code")
         self.assertEqual(resolve_query_field("agentlens", conversation_field), "attributes.gen_ai.session.id")
         self.assertEqual(resolve_query_field("galileo", conversation_field), "attributes.gen_ai.session_id")
+        self.assertEqual(resolve_query_field("langfuse", conversation_field), "attributes.session.id")
         self.assertEqual(resolve_query_field("default", conversation_field), conversation_field)
         # 非 LLM 服务或未命中映射表的字段原样透传
         self.assertEqual(resolve_query_field(None, conversation_field), conversation_field)
@@ -137,6 +145,236 @@ class AdapterTests(TestCase):
         self.assertNotIn("gen_ai.usage.input_tokens", attributes)
         self.assertNotIn("gen_ai.usage.output_tokens", attributes)
         self.assertNotIn("vendor.debug", attributes)
+
+    def test_langfuse_root_maps_conversation_and_content(self) -> None:
+        span = langfuse_span(observation_type="span")
+        span["attributes"].update(
+            {
+                "langfuse.internal.is_app_root": True,
+                "session.id": "session-1",
+                "user.id": "user-1",
+                "langfuse.observation.input": json.dumps("user question"),
+                "langfuse.observation.output": json.dumps("assistant answer"),
+            }
+        )
+
+        attributes = adapt_spans([span], "langfuse")[0]["attributes"]
+
+        self.assertEqual(attributes["gen_ai.conversation.id"], "session-1")
+        self.assertEqual(attributes["user.id"], "user-1")
+        self.assertEqual(attributes["gen_ai.input.messages"][0]["parts"][0]["content"], "user question")
+        self.assertEqual(attributes["gen_ai.output.messages"][0]["parts"][0]["content"], "assistant answer")
+        self.assertNotIn("gen_ai.operation.name", attributes)
+
+    def test_langfuse_generation_maps_messages_tools_and_usage(self) -> None:
+        span = langfuse_span()
+        span["attributes"].update(
+            {
+                "langfuse.observation.model.name": "model-a",
+                "langfuse.observation.metadata.temperature": "0.7",
+                "langfuse.observation.metadata.reasoningEffort": "high",
+                "langfuse.observation.usage_details": json.dumps(
+                    {
+                        "input": 60,
+                        "output": 5,
+                        "cache_read_input_tokens": 40,
+                        "cache_creation_input_tokens": 10,
+                    }
+                ),
+                "langfuse.observation.input": json.dumps(
+                    {
+                        "systemPrompt": "system prompt",
+                        "messages": [
+                            {"role": "user", "content": [{"type": "text", "text": "question"}]},
+                            {
+                                "role": "assistant",
+                                "content": [
+                                    {
+                                        "type": "tool_use",
+                                        "id": "call-1",
+                                        "name": "search",
+                                        "input": {"query": "demo"},
+                                    }
+                                ],
+                            },
+                            {
+                                "role": "user",
+                                "content": [
+                                    {
+                                        "type": "tool_result",
+                                        "tool_use_id": "call-1",
+                                        "content": {"result": "ok"},
+                                    }
+                                ],
+                            },
+                        ],
+                        "tools": [
+                            {
+                                "type": "function",
+                                "function": {
+                                    "name": "search",
+                                    "description": "search data",
+                                    "parameters": {"type": "OBJECT"},
+                                    "strict": True,
+                                },
+                            }
+                        ],
+                    }
+                ),
+                "langfuse.observation.output": json.dumps(
+                    [
+                        {"type": "text", "text": "working"},
+                        {"type": "tool_use", "id": "call-2", "name": "read", "input": {"path": "/tmp/a"}},
+                    ]
+                ),
+            }
+        )
+
+        attributes = adapt_spans([span], "langfuse")[0]["attributes"]
+
+        self.assertEqual(attributes["gen_ai.operation.name"], "chat")
+        self.assertEqual(attributes["gen_ai.request.model"], "model-a")
+        self.assertEqual(attributes["gen_ai.request.temperature"], 0.7)
+        self.assertEqual(attributes["gen_ai.request.reasoning.level"], "high")
+        self.assertEqual(attributes["gen_ai.usage.input_tokens"], 110)
+        self.assertEqual(attributes["gen_ai.usage.output_tokens"], 5)
+        self.assertEqual(attributes["gen_ai.usage.cache_read.input_tokens"], 40)
+        self.assertEqual(attributes["gen_ai.usage.cache_creation.input_tokens"], 10)
+        self.assertEqual(attributes["gen_ai.system_instructions"][0]["content"], "system prompt")
+        self.assertEqual(
+            [message["role"] for message in attributes["gen_ai.input.messages"]], ["user", "assistant", "tool"]
+        )
+        self.assertEqual(attributes["gen_ai.input.messages"][1]["parts"][0]["id"], "call-1")
+        self.assertEqual(attributes["gen_ai.input.messages"][2]["parts"][0]["id"], "call-1")
+        self.assertEqual(attributes["gen_ai.tool.definitions"][0]["parameters"]["type"], "object")
+        self.assertEqual(
+            [part["type"] for part in attributes["gen_ai.output.messages"][0]["parts"]],
+            ["text", "tool_call"],
+        )
+
+    def test_langfuse_plain_generation_maps_to_text_completion(self) -> None:
+        span = langfuse_span()
+        span["attributes"].update(
+            {
+                "langfuse.observation.input": "plain prompt",
+                "langfuse.observation.output": "plain answer",
+            }
+        )
+
+        attributes = adapt_spans([span], "langfuse")[0]["attributes"]
+
+        self.assertEqual(attributes["gen_ai.operation.name"], "text_completion")
+        self.assertEqual(attributes["gen_ai.input.messages"][0]["parts"][0]["content"], "plain prompt")
+        self.assertEqual(attributes["gen_ai.output.messages"][0]["parts"][0]["content"], "plain answer")
+
+    def test_langfuse_generation_maps_openai_tool_messages(self) -> None:
+        span = langfuse_span()
+        span["attributes"]["langfuse.observation.input"] = json.dumps(
+            [
+                {
+                    "role": "assistant",
+                    "content": None,
+                    "tool_calls": [
+                        {
+                            "id": "call-1",
+                            "type": "function",
+                            "function": {"name": "search", "arguments": '{"query":"blueking"}'},
+                        }
+                    ],
+                },
+                {"role": "tool", "tool_call_id": "call-1", "content": '{"result":"ok"}'},
+            ]
+        )
+
+        attributes = adapt_spans([span], "langfuse")[0]["attributes"]
+
+        self.assertEqual(attributes["gen_ai.operation.name"], "chat")
+        messages = attributes["gen_ai.input.messages"]
+        self.assertEqual(
+            messages[0]["parts"][0],
+            {
+                "type": "tool_call",
+                "name": "search",
+                "arguments": {"query": "blueking"},
+                "id": "call-1",
+            },
+        )
+        self.assertEqual(messages[1]["role"], "tool")
+        self.assertEqual(
+            messages[1]["parts"][0],
+            {
+                "type": "tool_call_response",
+                "response": {"result": "ok"},
+                "id": "call-1",
+            },
+        )
+
+    def test_langfuse_root_preserves_structured_content(self) -> None:
+        for observation_type in ("agent", "chain"):
+            with self.subTest(observation_type=observation_type):
+                span = langfuse_span(observation_type=observation_type)
+                span["attributes"].update(
+                    {
+                        "langfuse.observation.input": json.dumps({"query": "hello"}),
+                        "langfuse.observation.output": json.dumps({"answer": "world"}),
+                    }
+                )
+
+                attributes = adapt_spans([span], "langfuse")[0]["attributes"]
+
+                self.assertEqual(
+                    json.loads(attributes["gen_ai.input.messages"][0]["parts"][0]["content"]), {"query": "hello"}
+                )
+                self.assertEqual(
+                    json.loads(attributes["gen_ai.output.messages"][0]["parts"][0]["content"]), {"answer": "world"}
+                )
+
+    def test_langfuse_direct_message_list_maps_to_chat(self) -> None:
+        span = langfuse_span()
+        span["attributes"]["langfuse.observation.input"] = json.dumps([{"role": "user", "content": "hello"}])
+
+        attributes = adapt_spans([span], "langfuse")[0]["attributes"]
+
+        self.assertEqual(attributes["gen_ai.operation.name"], "chat")
+        self.assertEqual(attributes["gen_ai.input.messages"][0]["parts"][0]["content"], "hello")
+
+    def test_langfuse_tool_maps_name_arguments_and_result(self) -> None:
+        span = langfuse_span(observation_type="tool")
+        span["span_name"] = "tool-use_mcp_tool"
+        span["attributes"].update(
+            {
+                "langfuse.observation.input": json.dumps(
+                    {"server_name": "demo", "tool_name": "search", "arguments": '{"query":"blueking"}'}
+                ),
+                "langfuse.observation.output": '{"result":"ok"}',
+            }
+        )
+
+        attributes = adapt_spans([span], "langfuse")[0]["attributes"]
+
+        self.assertEqual(attributes["gen_ai.operation.name"], "execute_tool")
+        self.assertEqual(attributes["gen_ai.tool.name"], "use_mcp_tool")
+        self.assertEqual(attributes["gen_ai.tool.call.arguments"]["arguments"], {"query": "blueking"})
+        self.assertEqual(attributes["gen_ai.tool.call.result"], {"result": "ok"})
+        self.assertNotIn("gen_ai.tool.type", attributes)
+
+    def test_langfuse_standard_fields_take_precedence(self) -> None:
+        span = langfuse_span()
+        span["attributes"].update(
+            {
+                "gen_ai.operation.name": "generate_content",
+                "gen_ai.request.model": "standard-model",
+                "gen_ai.input.messages": [{"role": "user", "parts": [{"type": "text", "content": "standard"}]}],
+                "langfuse.observation.model.name": "vendor-model",
+                "langfuse.observation.input": "vendor input",
+            }
+        )
+
+        attributes = adapt_spans([span], "langfuse")[0]["attributes"]
+
+        self.assertEqual(attributes["gen_ai.operation.name"], "generate_content")
+        self.assertEqual(attributes["gen_ai.request.model"], "standard-model")
+        self.assertEqual(attributes["gen_ai.input.messages"][0]["parts"][0]["content"], "standard")
 
     def test_default_adapter_keeps_standard_fields_without_operation(self) -> None:
         cases = {
