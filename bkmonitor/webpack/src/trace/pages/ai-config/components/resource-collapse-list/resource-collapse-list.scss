@@ -1,0 +1,119 @@
+/* 资源折叠列表面板（复用 chart-collapse） */
+.resource-collapse {
+  .chart-collapse-header {
+    padding: 0 16px 0 12px;
+    background-color: #eaebf0;
+    border-radius: 2px;
+
+    .chart-collapse-header-trigger {
+      flex: 1;
+      min-width: 0;
+      padding: 0;
+
+      .header-trigger-wrapper {
+        display: flex;
+        align-items: center;
+
+        --icon-color: #979ba5;
+
+        .icon-mc-triangle-down {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 14px;
+          height: 14px;
+          font-size: 20px;
+          color: var(--icon-color);
+          transition: all 0.3s ease;
+        }
+
+        .header-trigger-title {
+          margin-left: 8px;
+          font-weight: 700;
+          color: #313238;
+          user-select: none;
+        }
+
+        .icon-hint {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 0 4px;
+          font-size: 14px;
+          color: var(--icon-color);
+        }
+      }
+    }
+
+    .chart-collapse-header-custom {
+      display: flex;
+      flex-grow: unset;
+      flex-shrink: 0;
+      flex-basis: auto;
+      padding-left: 8px;
+
+      .header-untrigger-wrapper {
+        display: flex;
+        gap: 16px;
+        align-items: center;
+
+        .bk-button {
+          font-size: 12px;
+
+          .icon-monitor {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 16px;
+            height: 16px;
+            margin-right: 4px;
+            font-size: 16px;
+
+            &.icon-zhongzhi1 {
+              font-size: 12px;
+            }
+
+            &.icon-mc-add {
+              margin-right: 2px;
+              font-size: 20px;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  .chart-collapse-content {
+    .resource-list {
+      display: flex;
+      flex-direction: column;
+      row-gap: 8px;
+      padding-top: 8px;
+
+      .resource-empty-state {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px 0;
+        background-color: #f5f7fa;
+        border-radius: 2px;
+
+        .icon-hint {
+          margin-right: 6px;
+          font-size: 16px;
+          color: #979ba5;
+        }
+      }
+    }
+  }
+
+  &:not(.is-expand) {
+    .chart-collapse-header {
+      .header-trigger-wrapper {
+        .icon-mc-triangle-down {
+          transform: rotate(-90deg);
+        }
+      }
+    }
+  }
+}

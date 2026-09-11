@@ -45,6 +45,8 @@ import { useTapdIssueActivities } from '../../issues-tapd/composables/use-tapd-i
 import { conditionAlertQueryFieldReplace } from '../utils';
 import DimensionStats from './dimension-stats/dimension-stats';
 import IssuesActivity from './issues-activity/issues-activity';
+import IssuesAiAnalysis from './issues-ai-analysis/issues-ai-analysis';
+import IssuesAiAnalysisOverview from './issues-ai-analysis/issues-ai-analysis-overview';
 import IssuesBasicInfo from './issues-basic-info/issues-basic-info';
 import IssuesDetailAlarmPanel from './issues-detail-alarm-panel/issues-detail-alarm-panel';
 import IssuesDetailAlarmTable from './issues-detail-alarm-table/issues-detail-alarm-table';
@@ -54,6 +56,7 @@ import IssuesRetrievalFilter from './issues-retrieval-filter/issues-retrieval-fi
 import IssuesTrendChart from './issues-trend-chart/issues-trend-chart';
 import { type TimeRangeType, DEFAULT_TIME_RANGE, handleTransformToTimestamp } from '@/components/time-range/utils';
 import useRequestAbort from '@/hooks/useRequestAbort';
+import aiAnalysisIcon from '@/static/img/issues/ai-analysis.svg';
 
 import type { ImpactScopeEvent, ImpactScopeResource, IssueActivityItem, IssueDetail } from '../../typing';
 import type {
@@ -73,6 +76,7 @@ const TAB_LIST: { label: string; name: IssueDetailTabType }[] = [
   { label: window.i18n.t('最近的告警'), name: IssueDetailTabEnum.LATEST },
   { label: window.i18n.t('最早的告警'), name: IssueDetailTabEnum.EARLIEST },
   { label: window.i18n.t('告警列表'), name: IssueDetailTabEnum.LIST },
+  { label: window.i18n.t('AI 分析'), name: IssueDetailTabEnum.AI_ANALYSIS },
 ];
 
 export default defineComponent({
@@ -488,6 +492,16 @@ export default defineComponent({
               onShowAlertDetail={handleShowAlertDetail}
             />
           );
+        case IssueDetailTabEnum.AI_ANALYSIS:
+          return (
+            <IssuesAiAnalysis
+              detail={props.detail}
+              onAssigneeChange={handleAssigneeChange}
+              onBackToIssue={() => {
+                handleTabChange(IssueDetailTabEnum.LATEST);
+              }}
+            />
+          );
         default:
           return null;
       }
@@ -549,7 +563,22 @@ export default defineComponent({
             {TAB_LIST.map(item => (
               <Tab.TabPanel
                 key={item.name}
-                label={item.name === IssueDetailTabEnum.LIST ? `${item.label} (${this.alertCount})` : item.label}
+                v-slots={{
+                  label: () => (
+                    <div class='issues-alarm-tab-label'>
+                      {item.name === IssueDetailTabEnum.AI_ANALYSIS && (
+                        <img
+                          class='ai-analysis-tab-icon'
+                          alt=''
+                          src={aiAnalysisIcon}
+                        />
+                      )}
+                      <span>
+                        {item.name === IssueDetailTabEnum.LIST ? `${item.label} (${this.alertCount})` : item.label}
+                      </span>
+                    </div>
+                  ),
+                }}
                 name={item.name}
               />
             ))}
@@ -563,6 +592,12 @@ export default defineComponent({
             onConfirm={this.handleStatusAction}
             onImpactScopeClick={this.handleImpactScopeClick}
             onPriorityChange={this.handlePriorityChange}
+          />
+          <IssuesAiAnalysisOverview
+            detail={this.detail}
+            onViewReport={() => {
+              this.handleTabChange(IssueDetailTabEnum.AI_ANALYSIS);
+            }}
           />
           <IssuesRelationTapd detail={this.detail} />
           <IssuesHistory detail={this.detail} />

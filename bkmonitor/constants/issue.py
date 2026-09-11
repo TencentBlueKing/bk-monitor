@@ -8,7 +8,11 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from django.utils.translation import gettext_lazy as _
+from django.utils.translation import gettext_lazy as _, gettext_noop
+
+
+SOURCE_ANALYSIS_BKAI_AIDEV_API_KEY_PLACEHOLDER = "__BKAI_AIDEV_API_KEY__"
+SOURCE_ANALYSIS_BKFARA_TASK_ID_PLACEHOLDER = "__BKFARA_TASK_ID__"
 
 
 class IssueStatus:
@@ -71,6 +75,147 @@ class IssueActivityType:
         (CREATE_TAPD, _("创建TAPD")),
         (TAPD_LINK, _("关联TAPD")),
     )
+
+
+class SourceAnalysisStatus:
+    """源码分析执行记录主状态。
+
+    四方链路的外部任务状态统一映射到这四个值，失败的具体位置由 SourceAnalysisFailureStage 单独承载。
+
+    以下各源码分析常量类的 CHOICES / LABELS 只供序列化层拼展示文案，不要挂到 Model 字段的 choices 上：
+    翻译文案会被冻结进迁移文件，切换 locale 后会生成无关的 AlterField。
+    """
+
+    PENDING = "pending"
+    RUNNING = "running"
+    SUCCESS = "success"
+    FAILED = "failed"
+
+    # 活动态：同一 Issue 同时只允许存在一条
+    ACTIVE_STATUSES = (PENDING, RUNNING)
+    TERMINAL_STATUSES = (SUCCESS, FAILED)
+
+    CHOICES = (
+        (PENDING, _("等待执行")),
+        (RUNNING, _("分析中")),
+        (SUCCESS, _("分析完成")),
+        (FAILED, _("分析失败")),
+    )
+
+    LABELS = dict(CHOICES)
+
+
+class SourceAnalysisStage:
+    """源码分析执行阶段，仅活动态有值，终态一律为空。"""
+
+    WAITING = "waiting"
+    SOURCE_PREPARING = "source_preparing"
+    ANALYZING = "analyzing"
+    VALIDATING = "validating"
+    ARCHIVING = "archiving"
+
+    CHOICES = (
+        (WAITING, _("正在创建分析任务")),
+        (SOURCE_PREPARING, _("正在准备源码")),
+        (ANALYZING, _("正在结合告警证据分析源码")),
+        (VALIDATING, _("正在校验分析结果")),
+        (ARCHIVING, _("正在归档分析结果")),
+    )
+
+    LABELS = dict(CHOICES)
+
+
+class SourceAnalysisTriggerType:
+    """执行记录的触发方式。本期只有手动触发，不存在自动触发。"""
+
+    INITIAL = "initial"
+    RETRY = "retry"
+    REANALYZE = "reanalyze"
+
+    CHOICES = (
+        (INITIAL, _("首次分析")),
+        (RETRY, _("失败重试")),
+        (REANALYZE, _("重新分析")),
+    )
+
+
+class SourceAnalysisFailureStage:
+    """失败位置。只用于定位，不扩充主状态。"""
+
+    TASK_CREATE = "task_create"
+    TASK_EXECUTE = "task_execute"
+    SOURCE_PREPARE = "source_prepare"
+    AI_ANALYSIS = "ai_analysis"
+    RESULT_VALIDATE = "result_validate"
+    RESULT_ARCHIVE = "result_archive"
+    RESULT_PERSIST = "result_persist"
+
+    CHOICES = (
+        (TASK_CREATE, _("创建分析任务")),
+        (TASK_EXECUTE, _("执行分析任务")),
+        (SOURCE_PREPARE, _("准备源码")),
+        (AI_ANALYSIS, _("AI 分析")),
+        (RESULT_VALIDATE, _("校验分析结果")),
+        (RESULT_ARCHIVE, _("归档分析结果")),
+        (RESULT_PERSIST, _("持久化分析结果")),
+    )
+
+
+class SourceAnalysisFailureMessage:
+    """BKM 本地产生的失败文案。
+
+    执行任务只保存稳定原文，查询接口再按当前请求语言翻译，避免把 Celery Worker
+    的默认语言固化到执行记录中。``gettext_noop`` 只负责标记待翻译文案。
+    """
+
+    BKFARA_ENSURE_MISSING_PROVISION_ID = gettext_noop("BKFara 初始化场景响应缺少 provision_id")
+    BKFARA_PROVISION_ID_CONFLICT = gettext_noop("相同场景初始化请求返回了不同的 provision_id")
+    BKFARA_SCENE_STATE_INVALID = gettext_noop("BKFara 场景初始化状态响应非法")
+    BKFARA_SCENE_FAILED = gettext_noop("BKFara 场景初始化失败")
+    BKFARA_TRIGGER_MISSING_TASK_ID = gettext_noop("BKFara 触发分析响应缺少 analysis_task_id")
+    BKFARA_TASK_ID_CONFLICT = gettext_noop("相同 analysis_id 返回了不同的 BKFara task_id")
+    BKFARA_TASK_STATE_INVALID = gettext_noop("BKFara 任务状态响应非法")
+    BKFARA_TASK_FAILED = gettext_noop("BKFara 源码分析任务执行失败")
+    BKFARA_REQUEST_FAILED = gettext_noop("BKFara 请求失败")
+    RULE_AGENT_MISSING = gettext_noop("命中的规则未配置智能体，请在 AI 设置中补充后重新分析。")
+    RESULT_NOT_JSON = gettext_noop("分析结果不是有效的 JSON，请重试；若持续失败请联系管理员。")
+    RESULT_SCHEMA_UNSUPPORTED = gettext_noop("分析结果版本暂不受支持，请重试；若持续失败请联系管理员。")
+    RESULT_SCHEMA_INVALID = gettext_noop("分析结果格式校验失败，请重试；若持续失败请联系管理员。")
+    RESULT_SEMANTIC_INVALID = gettext_noop("分析结果语义校验失败，请重试；若持续失败请联系管理员。")
+
+    LOCALIZED_MESSAGES = frozenset(
+        {
+            BKFARA_ENSURE_MISSING_PROVISION_ID,
+            BKFARA_PROVISION_ID_CONFLICT,
+            BKFARA_SCENE_STATE_INVALID,
+            BKFARA_SCENE_FAILED,
+            BKFARA_TRIGGER_MISSING_TASK_ID,
+            BKFARA_TASK_ID_CONFLICT,
+            BKFARA_TASK_STATE_INVALID,
+            BKFARA_TASK_FAILED,
+            BKFARA_REQUEST_FAILED,
+            RULE_AGENT_MISSING,
+            RESULT_NOT_JSON,
+            RESULT_SCHEMA_UNSUPPORTED,
+            RESULT_SCHEMA_INVALID,
+            RESULT_SEMANTIC_INVALID,
+        }
+    )
+
+
+class SourceAnalysisResultType:
+    """分析结论类型。两者都属于成功终态，证据不足不等于系统失败。"""
+
+    HIGH_CONFIDENCE = "HIGH_CONFIDENCE"
+    INSUFFICIENT_EVIDENCE = "INSUFFICIENT_EVIDENCE"
+
+    CHOICES = (
+        (HIGH_CONFIDENCE, _("分析完成")),
+        (INSUFFICIENT_EVIDENCE, _("分析完成（证据不足）")),
+    )
+
+    # status=success 时优先按结论类型取用户文案，区分证据不足场景
+    STATUS_LABELS = dict(CHOICES)
 
 
 class ImpactScopeDimension:

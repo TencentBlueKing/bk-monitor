@@ -9,13 +9,22 @@ specific language governing permissions and limitations under the License.
 """
 
 import abc
+import ast
+import json
+import uuid
 
 from django.conf import settings
+from django.utils.translation import gettext_lazy as _
 
 from rest_framework import serializers
 
 from bkm_space.scope import bk_biz_id_to_scope_id
+from constants.issue import (
+    SOURCE_ANALYSIS_BKAI_AIDEV_API_KEY_PLACEHOLDER,
+    SOURCE_ANALYSIS_BKFARA_TASK_ID_PLACEHOLDER,
+)
 from core.drf_resource.contrib.api import APIResource
+from core.errors.api import BKAPIError
 
 
 class IncidentBaseResource(APIResource, metaclass=abc.ABCMeta):
@@ -202,6 +211,157 @@ class GetTaskStatusResource(IncidentBaseResource):
         scope_type = serializers.CharField(label="空间类型", required=False, default="bkcc")
         scope_value = serializers.CharField(label="空间ID", required=False)
         bk_biz_id = serializers.IntegerField(label="业务ID", required=False)
+
+
+class UUIDStringField(serializers.CharField):
+    """校验 UUID，同时保留字符串类型供 requests JSON 序列化。"""
+
+    def to_internal_value(self, data):
+        value = super().to_internal_value(data)
+        try:
+            return str(uuid.UUID(value))
+        except (AttributeError, TypeError, ValueError) as error:
+            raise serializers.ValidationError("Must be a valid UUID.") from error
+
+
+class SourceAnalysisInputsSerializer(serializers.Serializer):
+    # 除运行时占位符外，inputs 由 BKFara 原样透传给蓝盾流水线，因此流水线调用 BKM
+    # 所需的业务与租户标识也放在这一层，与顶层同名字段重复是有意的。
+    bk_biz_id = serializers.IntegerField(label="业务 ID")
+    bk_tenant_id = serializers.CharField(label="租户 ID", max_length=64)
+    repository_alias = serializers.CharField(label="蓝盾代码库别名", max_length=255)
+    agent_id = serializers.CharField(label="智能体 ID", max_length=64)
+    # 多值字段以英文逗号分隔而非 JSON 数组：inputs 会原样透传成蓝盾流水线变量，
+    # 而流水线变量只能是字符串。直接给出分隔好的字符串，模板可原样转手给下游插件，
+    # 既不依赖 BKFara 的数组序列化方式，也免去模板解析后再拼接。
+    #
+    # 这两个字段不设长度上限。其余字段的 max_length 与对应数据库列宽一致，属于永远不会
+    # 触发的兜底；而这里的值由执行快照拼接得到，长度随资源数量增长，是唯一可能真正撞上
+    # 限制的字段。出站载荷由 BKM 自己拼装、不是外部输入，一旦校验失败会被
+    # _handle_upstream_error 当成可重试的上游故障，导致执行记录无限重试。要限制资源
+    # 数量应放在规则配置入口，那里是用户输入且能直接返回错误。
+    skill_ids = serializers.CharField(
+        label="Skill ID（英文逗号分隔）",
+        required=False,
+        default="",
+        allow_blank=True,
+    )
+    knowledge_base_ids = serializers.CharField(
+        label="知识库 ID（英文逗号分隔）",
+        required=False,
+        default="",
+        allow_blank=True,
+    )
+    alert_id = serializers.CharField(label="告警 ID", max_length=64)
+    # BKFara 将固定占位符替换为 trigger 创建的任务 ID，供流水线回调时关联任务。
+    BKFARA_TASK_ID = serializers.ChoiceField(
+        label=_("BKFara 任务 ID 运行时占位符"),
+        choices=(SOURCE_ANALYSIS_BKFARA_TASK_ID_PLACEHOLDER,),
+    )
+    # BKM 只传固定占位符。BKFara 在用户态 trigger 请求内将其替换为当前用户的
+    # access_token，再注入同名蓝盾变量；真实 Token 不进入 BKM。
+    BKAI_AIDEV_API_KEY = serializers.ChoiceField(
+        label=_("AIDEV API Key 运行时占位符"),
+        choices=(SOURCE_ANALYSIS_BKAI_AIDEV_API_KEY_PLACEHOLDER,),
+    )
+
+    def to_internal_value(self, data):
+        if isinstance(data, dict):
+            unknown_fields = set(data) - set(self.fields)
+            if unknown_fields:
+                raise serializers.ValidationError({field: "Unexpected field." for field in sorted(unknown_fields)})
+        return super().to_internal_value(data)
+
+
+class BkFaraSourceAnalysisBaseResource(APIResource):
+    """BKFara Issue 源码分析四接口的公共网关与错误协议适配。"""
+
+    module_name = "bkfara"
+    INSERT_BK_USERNAME_TO_REQUEST_DATA = False
+
+    @property
+    def base_url(self):
+        return settings.BKFARA_APIGW_BASE_URL
+
+    @staticmethod
+    def _normalize_error_data(error_data):
+        """把标准错误 envelope 归一为 data.error，兼容 HTTP 4xx 被序列化为 bytes 文本。"""
+
+        if not isinstance(error_data, dict):
+            return error_data
+        if isinstance(error_data.get("error"), dict):
+            return error_data["error"]
+
+        message = error_data.get("message")
+        if not isinstance(message, str):
+            return error_data
+        try:
+            raw_body = ast.literal_eval(message)
+            if isinstance(raw_body, bytes):
+                raw_body = raw_body.decode()
+            response_data = json.loads(raw_body)
+        except (SyntaxError, TypeError, ValueError, UnicodeDecodeError, json.JSONDecodeError):
+            return error_data
+        if isinstance(response_data, dict) and isinstance(response_data.get("error"), dict):
+            return response_data["error"]
+        return error_data
+
+    def perform_request(self, validated_request_data):
+        try:
+            return super().perform_request(validated_request_data)
+        except BKAPIError as error:
+            error.data = self._normalize_error_data(error.data)
+            raise
+
+
+class EnsureSourceAnalysisSceneResource(BkFaraSourceAnalysisBaseResource):
+    """幂等初始化或对齐业务源码分析场景。"""
+
+    action = "/incident/issue_analysis/ensure_scene/"
+    method = "POST"
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(label="业务 ID")
+        bk_tenant_id = serializers.CharField(label="租户 ID", max_length=64)
+        devops_project_id = serializers.CharField(label="蓝盾项目 ID", max_length=128)
+        client_request_id = UUIDStringField(label="幂等请求 ID", max_length=36)
+
+
+class GetSourceAnalysisSceneStatusResource(BkFaraSourceAnalysisBaseResource):
+    """查询源码分析场景的异步初始化状态。"""
+
+    action = "/incident/issue_analysis/get_scene_status/"
+    method = "GET"
+
+    class RequestSerializer(serializers.Serializer):
+        provision_id = serializers.CharField(label="场景初始化 ID", max_length=128)
+        bk_tenant_id = serializers.CharField(label="租户 ID", max_length=64)
+
+
+class TriggerSourceAnalysisResource(BkFaraSourceAnalysisBaseResource):
+    """按 client_request_id 幂等触发一次源码分析。"""
+
+    action = "/incident/issue_analysis/trigger/"
+    method = "POST"
+
+    class RequestSerializer(serializers.Serializer):
+        issue_id = serializers.CharField(label="Issue ID", max_length=64)
+        bk_biz_id = serializers.IntegerField(label="业务 ID")
+        bk_tenant_id = serializers.CharField(label="租户 ID", max_length=64)
+        devops_project_id = serializers.CharField(label="蓝盾项目 ID", max_length=128)
+        client_request_id = UUIDStringField(label="幂等请求 ID", max_length=36)
+        inputs = SourceAnalysisInputsSerializer(label="分析输入")
+
+
+class GetSourceAnalysisTaskResource(BkFaraSourceAnalysisBaseResource):
+    """查询源码分析任务状态及终态结果。"""
+
+    action = "/incident/issue_analysis/get_task/"
+    method = "GET"
+
+    class RequestSerializer(serializers.Serializer):
+        analysis_task_id = serializers.CharField(label="BKFara 分析任务 ID", max_length=128)
+        bk_tenant_id = serializers.CharField(label="租户 ID", max_length=64)
 
 
 class GetIncidentDiagnosisResource(IncidentBaseResource):

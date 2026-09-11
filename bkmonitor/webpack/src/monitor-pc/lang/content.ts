@@ -229,6 +229,8 @@ export default {
   '暂无 AI 功能': 'No AI function yet',
   '支持单指标异常检测、时序预测、离群检测等智能检测算法':
     'Supports single-index anomaly detection, time series prediction, outlier detection and other intelligent detection algorithms',
+  '为单指标异常检测，配置默认的方案': 'Configure the default plan for single-metric anomaly detection',
+  针对不同场景分别配置智能检测方案: 'Configure intelligent detection plans separately for different scenarios',
   '匹配规则支持通过在正则表达式中配置 `peer_service` 和 `span_name` 参数来提取自定义服务名称和 span_name。例如配置正则：':
     'Matching rules support extracting custom service names and span_names by configuring the `peer_service` and `span_name` parameters in regular expressions. For example, configure regular expressions:',
   '当出现了 HTTP 类型的 span 并且调用的 Url(attributes.http.url) 为 `https://example.com/path/to/docs`，将会匹配出 `example.com` 自定义服务，以及此 span 的 span_name 将会覆盖为`path/to/docs':
@@ -514,6 +516,14 @@ export default {
   'CPU 五分钟负载': 'CPU 5 minute load',
   '内网 IPv6': 'Inner IPv6',
   '磁盘 IO 使用率': 'Disk IO usage',
+  '由 {name} 分析 · {time}': 'Analyzed by {name} · {time}',
+  '由 {name} 于 {time} 发起, 完成后将通过企业微信通知本次发起人':
+    'Initiated by {name} on {time}, and will notify the initiator by WeChat Work after completion',
+  '将由 {name} 触发蓝盾 AI 分析流水线实例': 'The BK-DevOps AI analysis pipeline instance will be triggered by {name}',
+  高置信度: 'High confidence',
+  证据不足: 'Insufficient evidence',
+  '指派后，该成员将成为此 Issue 的负责人并收到通知。':
+    'After assignment, the member will become the owner of this Issue and receive a notification.',
   '搜索 名称、别名、单位、类型、启/停': 'Search name, alias, unit, type, start/stop',
   中止: 'Abort',
 };

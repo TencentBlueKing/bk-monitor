@@ -62,6 +62,17 @@
       .bk-tab-content {
         display: none;
       }
+
+      .issues-alarm-tab-label {
+        display: flex;
+        gap: 4px;
+        align-items: center;
+
+        .ai-analysis-tab-icon {
+          width: 16px;
+          height: 16px;
+        }
+      }
     }
 
     & > .panel-loading {

@@ -266,6 +266,7 @@ export default {
   轮值规则必须添加人员: 'The rotation rule requires adding personnel',
   最少添加一条轮值规则: 'Add at least one rotation rule',
   请选择值班规则: 'Please select the duty rule',
+  请选择默认方案: 'Please select the default plan',
   请输入企业微信群ID: 'Please enter the group ID of enterprise wechat',
   'validate-暂无数据': 'No data available',
   轮值规则必须添加单班时间: 'The rotation rule must add a single shift time',

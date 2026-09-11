@@ -1,0 +1,53 @@
+/* 配置分区：无独立描边卡片，直接落在 Tab 白底内容区内 */
+.config-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+
+  .config-card-header {
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+  }
+
+  .header-icon {
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    background: #f0f1f5;
+    border-radius: 8px;
+
+    i {
+      font-size: 24px;
+      color: #4d4f56;
+    }
+  }
+
+  .header-text {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .header-title {
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 22px;
+    color: #313238;
+  }
+
+  .header-desc {
+    font-size: 12px;
+    line-height: 20px;
+    color: #979ba5;
+  }
+
+  .config-card-content {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+}

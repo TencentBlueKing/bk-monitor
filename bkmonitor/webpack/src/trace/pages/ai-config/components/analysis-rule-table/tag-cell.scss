@@ -1,0 +1,15 @@
+.analysis-rule-table-tags-cell {
+  // 单个标签样式
+  .analysis-rule-table-tags-cell-tag-item {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 22px;
+    padding: 0 8px;
+    font-size: 12px;
+    font-weight: 400;
+    color: #4d4f56;
+    background: #f0f1f5;
+    border-radius: 2px;
+  }
+}
