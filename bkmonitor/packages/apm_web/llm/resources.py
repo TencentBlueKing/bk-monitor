@@ -415,6 +415,10 @@ class ListFlowsResource(Resource):
             group_field=OtlpKey.TRACE_ID,
             group_ids=trace_ids,
         )
+        entity_set = EntitySet(
+            bk_biz_id=validated_request_data["bk_biz_id"],
+            app_name=validated_request_data["app_name"],
+        )
         spans_by_trace: dict[str, list[dict[str, Any]]] = defaultdict(list)
         for span in spans:
             if trace_id := span.get(OtlpKey.TRACE_ID):
@@ -425,7 +429,7 @@ class ListFlowsResource(Resource):
             result["traces"].append(
                 {
                     "trace_id": trace_id,
-                    "flow": self._build_flow(raw_trace_spans, adapt_spans(raw_trace_spans)),
+                    "flow": self._build_flow(raw_trace_spans, adapt_spans(raw_trace_spans, entity_set)),
                 }
             )
         return result
