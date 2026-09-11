@@ -30,6 +30,7 @@ import axios from 'axios';
 import { Debounce } from 'monitor-common/utils/utils';
 import EmptyStatus from 'monitor-pc/components/empty-status/empty-status';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
+import ApmTraceExplore from 'monitor-ui/chart-plugins/plugins/apm-trace-explore';
 
 import LlmTable from './components/llm-table';
 import { PAGE_LIMIT } from './constants';
@@ -60,7 +61,11 @@ export default class LlmSession extends tsc<object> {
   @InjectReactive('viewOptions') readonly viewOptions: IViewOptions;
   @InjectReactive('timeRange') readonly timeRange: TimeRangeType;
   @InjectReactive('timezone') readonly timezone: string;
-  @InjectReactive('refreshImmediate') readonly refreshImmediate: string;
+  /** 自动刷新间隔 */
+  @InjectReactive('refreshInterval') refreshInterval: number;
+  /** 手动刷新 */
+  @InjectReactive('refreshImmediate') refreshImmediate: number;
+  @InjectReactive('bkBizId') readonly bkBizId: number | string;
 
   @Ref('tableWrap') tableWrapRef: HTMLDivElement;
 
@@ -76,11 +81,15 @@ export default class LlmSession extends tsc<object> {
   noMoreData = false;
 
   tableMaxHeight = 0;
+  /** 打开 ApmTraceExplore Trace 详情侧边窗 */
+  slideDetail: null | { appName: string; bizId?: number; traceId: string } = null;
 
   /** 请求序号，只接受最新一次请求的响应，避免快速切换视角时旧响应覆盖新数据 */
   requestSeq = 0;
   cancelTokenSource = null;
   resizeObserver: ResizeObserver = null;
+  /** 自动刷新定时器 */
+  refreshIntervalInstance: number = null;
 
   viewModeList: IViewModeItem[] = [
     { id: 'session', name: `Session ${window.i18n.tc('视角')}`, icon: 'icon-Session' },
@@ -125,6 +134,24 @@ export default class LlmSession extends tsc<object> {
     this.reload();
   }
 
+  /** 自动刷新间隔 */
+  @Watch('refreshInterval')
+  handleRefreshIntervalChange(v: number) {
+    if (this.refreshIntervalInstance) {
+      window.clearInterval(this.refreshIntervalInstance);
+    }
+    if (v == null || v <= 0) return;
+    this.refreshIntervalInstance = window.setInterval(() => {
+      this.reload();
+    }, v);
+  }
+
+  /** 手动刷新 */
+  @Watch('refreshImmediate')
+  handleRefreshImmediateChange() {
+    this.reload();
+  }
+
   mounted() {
     this.observeTableHeight();
   }
@@ -132,6 +159,9 @@ export default class LlmSession extends tsc<object> {
   beforeDestroy() {
     this.resizeObserver?.disconnect();
     this.cancelTokenSource?.cancel?.();
+    if (this.refreshIntervalInstance) {
+      window.clearInterval(this.refreshIntervalInstance);
+    }
   }
 
   /** 表格需要确定高度才能触发滚动到底事件，这里跟随容器尺寸变化更新 */
@@ -228,6 +258,19 @@ export default class LlmSession extends tsc<object> {
     this.reload();
   }
 
+  handleTraceIdClick(traceId: string) {
+    if (!traceId || !this.appName) return;
+    this.slideDetail = {
+      appName: this.appName,
+      bizId: this.bkBizId,
+      traceId,
+    };
+  }
+
+  handleSliderClose() {
+    this.slideDetail = null;
+  }
+
   renderViewModeTab() {
     return (
       <div class='llm-session-view-mode'>
@@ -272,6 +315,7 @@ export default class LlmSession extends tsc<object> {
             scrollLoading={this.scrollLoading}
             onScrollEnd={this.handleScrollEnd}
             onSortChange={this.handleSortChange}
+            onTraceIdClick={this.handleTraceIdClick}
           >
             <EmptyStatus
               slot='empty'
@@ -279,6 +323,13 @@ export default class LlmSession extends tsc<object> {
               onOperation={this.handleClearSearch}
             />
           </LlmTable>
+        </div>
+        {/* 关联 trace 详情侧边窗。隐藏宿主页，仅保留侧滑详情 */}
+        <div style='height: 1px;width: 1px;overflow: hidden;'>
+          <ApmTraceExplore
+            slideDetail={this.slideDetail}
+            onSliderClose={this.handleSliderClose}
+          />
         </div>
       </div>
     );
