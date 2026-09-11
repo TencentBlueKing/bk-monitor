@@ -26,6 +26,8 @@
 import { defineComponent } from 'vue';
 
 import { useRoute } from 'vue-router/composables';
+import useStore from '@/hooks/use-store';
+import UnAuthorized from '@/views/un-authorized';
 const RetrieveV3 = () => import(/* webpackChunkName: 'logRetrieve-v3' */ '@/views/retrieve-v3/index');
 const RetrieveV1 = () => import(/* webpackChunkName: 'logRetrieve-v1' */ '@/views/retrieve/container');
 
@@ -37,9 +39,15 @@ export default defineComponent({
   },
   setup() {
     const route = useRoute();
+    const store = useStore();
     const version = localStorage.getItem('retrieve_version') ?? 'v3';
 
     return () => {
+      // 恢复空间前不挂载检索页，避免初始化请求及 URL 适配丢失原始索引信息。
+      if (store.state.spaceResolveFailed) {
+        return <UnAuthorized type='space' />;
+      }
+
       if (route.name === 'retrieve') {
         if (version === 'v1') {
           return <retrieve-v1></retrieve-v1>;

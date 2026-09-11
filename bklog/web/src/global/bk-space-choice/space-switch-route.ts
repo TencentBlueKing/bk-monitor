@@ -44,6 +44,30 @@ export const omitRouteIndexId = <T extends Record<string, unknown>>(params: T): 
   return next;
 };
 
+/** 空间解析失败后的恢复：保留原索引及检索条件，让首页按现有逻辑适配。 */
+export const buildSpaceRecoveryLocation = (options: {
+  routeName?: string | null;
+  params?: Record<string, any>;
+  query?: Record<string, any>;
+  space: { bk_biz_id: unknown; space_uid: string };
+}) => {
+  const params = { ...options.params };
+  const query: Record<string, any> = {
+    ...options.query,
+    bizId: `${options.space.bk_biz_id}`,
+    spaceUid: options.space.space_uid,
+  };
+  if (options.routeName === 'un-authorized') {
+    // 兼容旧版未授权页将路径索引存入 query 的链接。
+    params.indexId = params.indexId ?? query.indexId;
+    delete query.indexId;
+    delete query.bkBizId;
+    delete query.type;
+    delete query.page_from;
+  }
+  return { name: 'retrieve', params, query };
+};
+
 export const shouldKeepSceneOnSpaceChange = (retrieveType?: unknown, queryRetrieveType?: unknown): boolean =>
   retrieveType === 'scene' || queryRetrieveType === 'scene';
 

@@ -35,7 +35,10 @@ const LINK_STYLE = { color: '#3a84ff', cursor: 'pointer' };
 
 export default defineComponent({
   name: 'UnAuthorized',
-  setup() {
+  props: {
+    type: { type: String, default: '' },
+  },
+  setup(props) {
     const route = useRoute();
     const router = useRouter();
     const store = useStore();
@@ -144,7 +147,7 @@ export default defineComponent({
     };
 
     const getExceptionText = () => {
-      const type = route.query.type as keyof typeof exceptionMap;
+      const type = (props.type || route.query.type) as keyof typeof exceptionMap;
       return exceptionMap[type as keyof typeof exceptionMap]?.() ?? t('无权限，请联系管理员');
     };
 
