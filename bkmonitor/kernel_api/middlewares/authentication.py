@@ -30,7 +30,7 @@ from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import api
 from core.errors.api import BKAPIError
 from core.prometheus import metrics
-from kernel_api.unified_mcp.permissions import log_mcp_event
+from kernel_api.unified_mcp.permissions import log_mcp_event, log_mcp_tool_event
 
 logger = logging.getLogger(__name__)
 
@@ -274,6 +274,25 @@ class AuthenticationMiddleware(MiddlewareMixin):
         parts = path.split("/")
         return parts[-1].removesuffix(".json") if parts else ""
 
+    def process_response(self, request, response):
+        """在 HTTP 响应完成时闭合 Unified MCP Trace，不记录请求或响应正文。"""
+        operation = getattr(request, "unified_mcp_operation", "")
+        if operation:
+            started_at = getattr(request, "unified_mcp_started_at", None)
+            duration_ms = round((time.monotonic() - started_at) * 1000) if started_at is not None else None
+            status_code = getattr(response, "status_code", 0)
+            log_mcp_tool_event(
+                "response_finished",
+                request,
+                level=logging.INFO if status_code < 400 else logging.WARNING,
+                operation=operation,
+                tool=getattr(request, "unified_mcp_tool", ""),
+                decision="succeeded" if status_code < 400 else "failed",
+                status_code=status_code,
+                duration_ms=duration_ms,
+            )
+        return response
+
     def _report_mcp_metric(self, tool_name, bk_biz_id, username, status, permission_action, mcp_server_name):
         """
         上报MCP调用指标
@@ -304,6 +323,7 @@ class AuthenticationMiddleware(MiddlewareMixin):
             log_mcp_event("metrics_report_failed", level=logging.WARNING, error_type=type(err).__name__)
 
     def _handle_native_mcp(self, request, tool, tool_args, unified=False):
+        """执行原生权限工具，并按 standalone／Unified 入口渲染响应。"""
         from rest_framework.exceptions import APIException
         from rest_framework.response import Response
 
@@ -382,6 +402,11 @@ class AuthenticationMiddleware(MiddlewareMixin):
         tool_name = self.extract_tool_name_from_path(request.path)
         is_unified_mcp_path = "/unified_mcp/" in request.path
         is_unified_execute_tool = tool_name == "execute_tool" and is_unified_mcp_path
+        if is_unified_mcp_path:
+            # 只在 request 对象上保存 operation、tool 和起始时间，供最终响应日志闭环。
+            request.unified_mcp_operation = tool_name
+            request.unified_mcp_tool = ""
+            request.unified_mcp_started_at = time.monotonic()
         is_unified_facade_tool = is_unified_mcp_path and tool_name in {
             "lookup_tool",
             "lookup_tool_schema",
@@ -460,6 +485,18 @@ class AuthenticationMiddleware(MiddlewareMixin):
             except Exception as e:  # pylint: disable=broad-except
                 log_mcp_event("mcp_json_body_parse_failed", request, level=logging.WARNING, error_type=type(e).__name__)
 
+        if is_unified_mcp_path:
+            # 仅记录内层工具名，禁止把 tool_args 写入统一日志。
+            request.unified_mcp_tool = mcp_request_data.get("tool_name", "")
+            log_mcp_tool_event(
+                "request_received",
+                request,
+                operation=tool_name,
+                tool=request.unified_mcp_tool,
+                mcp_server=mcp_server_name,
+                content_type=request.content_type,
+            )
+
         if is_unified_execute_tool:
             from kernel_api.unified_mcp.registry import get_tool_registry
 
@@ -479,6 +516,19 @@ class AuthenticationMiddleware(MiddlewareMixin):
             except Exception as exc:
                 log_mcp_event("routing_failed", request, level=logging.WARNING, error_type=type(exc).__name__)
                 return JsonResponse({"result": False, "message": "MCP routing is unavailable"}, status=503)
+            if unified_tool.permission_exempt:
+                log_mcp_event("tool_exempt", request, tool=nested_tool_name, permission_action="")
+                request.skip_check = True
+                request.unified_mcp_permission_checked = True
+                self._report_mcp_metric(
+                    tool_name=nested_tool_name,
+                    bk_biz_id=None,
+                    username=username,
+                    status="exempt",
+                    permission_action="",
+                    mcp_server_name=mcp_server_name,
+                )
+                return None
             permission_action_id = unified_tool.iam_action
             permission_action_source = "unified_tool_registry"
         elif mcp_server_name:
@@ -486,8 +536,8 @@ class AuthenticationMiddleware(MiddlewareMixin):
             if permission_action_id:
                 permission_action_source = "server_name_map"
 
-        # Native standalone and aggregate calls use the SAME ToolDefinition and executor.
-        # Return the rendered response here: the legacy View must not execute a second time.
+        # 原生 standalone 与 Unified 共用同一个 ToolDefinition 和执行器；
+        # 此处直接返回已渲染响应，禁止旧 View 再执行一次。
         native_tool = None
         try:
             if native_tool_names():

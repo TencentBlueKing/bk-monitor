@@ -14,6 +14,7 @@ import json
 import logging
 import socket
 import sys
+import time
 from dataclasses import replace
 from pathlib import Path
 from types import ModuleType, SimpleNamespace as NS
@@ -180,7 +181,7 @@ def log_args(**extra):
 def test_catalog_defaults_and_opt_in_change_version(monkeypatch):
     native = registry.get_tool_registry()
     tool = native.get("search_logs")
-    assert len(native) == 43
+    assert len(native) == 92
     assert sum(bool(tool.native_permission) for tool in native.list()) == 21
     assert native.get_by_backend("POST", "/api/v4/log_search/search_log/") is tool
     assert native.get_by_backend("GET", "/api/v4/log_search/search_log/") is None
@@ -200,6 +201,145 @@ def test_catalog_defaults_and_opt_in_change_version(monkeypatch):
         "resource_arg": "bk_biz_id",
     }
     assert all(not item.native_permission for item in legacy.list())
+
+
+def test_public_tools_publish_executable_permission_and_confirmation_contracts():
+    catalog = registry.get_tool_registry()
+    dashboard = catalog.get("create_dashboard")
+    export = catalog.get("create_log_extract_task")
+
+    assert dashboard.risk == "mutation"
+    assert dashboard.permission_payload() == {
+        "action_id": "using_dashboard_mcp",
+        "resource_type": "space",
+        "resource_arg": "bk_biz_id",
+    }
+    assert dashboard.requires_confirmation is True and dashboard.forwards_confirmation is False
+    assert dashboard.input_schema["properties"]["configs"]["type"] == "object"
+    assert dashboard.input_schema["properties"]["configs"]["additionalProperties"] == {"type": "string"}
+    assert export.risk == "data_export"
+    assert export.requires_confirmation is True and export.forwards_confirmation is False
+    schema = dashboard.schema_payload(catalog.catalog_version)
+    assert schema["execution"] == {
+        "status": "executable",
+        "requires_confirmation": True,
+        "reason": "",
+    }
+    assert schema["input_schema"]["properties"]["confirm"]["enum"] == [True]
+    assert "confirm" in schema["input_schema"]["required"]
+    assert "用户明确确认" in schema["guidelines"][0]
+
+
+def test_standard_tools_reuse_original_mcp_and_route_permissions():
+    catalog = registry.get_tool_registry()
+    log_collection = catalog.get("list_log_collectors")
+    metadata_discovery = catalog.get("search_spaces")
+
+    assert log_collection.legacy_action_ids == ("using_log_collection_mcp", "view_business_v2")
+    assert log_collection.permission_payload() == {
+        "action_id": "using_log_collection_mcp",
+        "resource_type": "space",
+        "resource_arg": "bk_biz_id",
+        "additional_action_ids": ["view_business_v2"],
+    }
+    assert metadata_discovery.permission_exempt is True
+    assert metadata_discovery.permission_payload() == {
+        "mode": "exempt",
+        "reason": "platform-visible metadata discovery",
+    }
+
+
+def test_registry_rejects_unreviewed_mcp_source_file(tmp_path):
+    source_root = BASE / "support-files/apigw/resources/internal/user"
+    for filenames in registry.SOURCE_FILES.values():
+        for filename in filenames:
+            (tmp_path / filename).symlink_to(source_root / filename)
+    (tmp_path / "future_mcp.yaml").write_text("paths: {}")
+
+    with pytest.raises(RuntimeError, match="source-file drift"):
+        registry.load_tool_registry(tmp_path)
+
+
+def test_private_mcp_sources_are_not_part_of_tool_search():
+    catalog = registry.get_tool_registry()
+    assert registry.IGNORED_SOURCE_FILES == {"openclaw_recovering_mcp.yaml", "ops_mcp.yaml"}
+    for tool_name in (
+        "search_openclaw_spans",
+        "get_openclaw_trace_detail",
+        "search_openclaw_logs",
+        "query_datalink_metadata",
+        "query_data_link_info",
+        "diagnose_metadata_datalink",
+        "get_data_link_metadata",
+    ):
+        with pytest.raises(KeyError):
+            catalog.get(tool_name)
+
+
+def test_unified_openapi_filters_cover_the_full_catalog_taxonomy():
+    document = yaml.safe_load((BASE / "support-files/apigw/resources/internal/user/unified_mcp.yaml").read_text())
+    properties = document["paths"]["/mcp/lookup_tool/"]["post"]["requestBody"]["content"]["application/json"]["schema"][
+        "properties"
+    ]
+
+    assert properties["category"]["enum"] == list(registry.CATEGORIES)
+    assert set(properties["capability"]["enum"]) == {
+        capability for capabilities in registry.CAPABILITIES.values() for capability in capabilities
+    }
+
+
+def test_dispatcher_contains_every_public_catalog_tool():
+    tree = ast.parse((BASE / "kernel_api/unified_mcp/dispatcher.py").read_text())
+    assignment = next(
+        node
+        for node in tree.body
+        if isinstance(node, ast.AnnAssign) and getattr(node.target, "id", None) == "TOOL_EXECUTORS"
+    )
+    dispatcher_names = {ast.literal_eval(key) for key in assignment.value.keys}
+
+    assert dispatcher_names == registry.EXECUTABLE_TOOL_NAMES
+
+
+def test_dispatcher_emits_bounded_tool_flow_without_payload(caplog):
+    caplog.set_level(logging.INFO, logger=auth.__name__)
+    executor = Mock(return_value={"ok": True})
+    dispatch = source_method(
+        "kernel_api/unified_mcp/dispatcher.py",
+        "dispatch_tool",
+        TOOL_EXECUTORS={"search_logs": executor},
+        time=time,
+        logging=logging,
+    )
+
+    result = dispatch("search_logs", {"query_string": "private-query"})
+
+    assert result == {"ok": True}
+    records = [row.getMessage() for row in caplog.records if row.getMessage().startswith("MCP_TOOL:")]
+    assert [record.split(" ", 2)[1] for record in records] == [
+        "event=dispatch_started",
+        "event=dispatch_finished",
+    ]
+    assert '"decision": "succeeded"' in records[-1]
+    assert "private-query" not in "\n".join(records)
+
+
+def test_dispatcher_logs_failure_type_without_exception_text(caplog):
+    caplog.set_level(logging.INFO, logger=auth.__name__)
+    dispatch = source_method(
+        "kernel_api/unified_mcp/dispatcher.py",
+        "dispatch_tool",
+        TOOL_EXECUTORS={"search_logs": Mock(side_effect=ValueError("private-error"))},
+        time=time,
+        logging=logging,
+    )
+
+    with pytest.raises(ValueError, match="private-error"):
+        dispatch("search_logs", {})
+
+    record = [row.getMessage() for row in caplog.records if "event=dispatch_finished " in row.getMessage()][-1]
+    assert record.startswith("MCP_TOOL: event=dispatch_finished ")
+    assert '"decision": "failed"' in record and '"error_type": "ValueError"' in record
+    assert "private-error" not in record
 
 
 @pytest.mark.parametrize(
@@ -296,13 +436,15 @@ def permission_lookup(request_factory, io):
         get_request=lambda: request,
         _permission_state_by_action=source_method("kernel_api/resource/unified_mcp.py", "_permission_state_by_action"),
         permission_state=auth.permission_state,
+        get_action_by_id=lambda action: NS(name=action),
+        ResourceEnum=NS(BUSINESS=NS(create_simple_instance=auth._business_resource)),
     )
     cls = source_method(
         "kernel_api/resource/unified_mcp.py",
         "LookupPermissionsResource",
         Resource=object,
         serializers=serializers,
-        CATEGORIES=tuple(registry.CATEGORY_ACTIONS),
+        CATEGORIES=registry.CATEGORIES,
         CATEGORY_ACTIONS=registry.CATEGORY_ACTIONS,
         get_tool_registry=registry.get_tool_registry,
         ValidationError=ValidationError,
@@ -318,6 +460,33 @@ def permission_lookup(request_factory, io):
         return cls().perform_request(serializer.validated_data)
 
     return lookup
+
+
+def test_permission_lookup_preserves_exempt_space_discovery(permission_lookup, io):
+    result = permission_lookup(tool_name="search_spaces")
+
+    assert result["authorized"] is True
+    assert result["scopes"] == [
+        {
+            "category": "metadata",
+            "tool_name": "search_spaces",
+            "state": "exempt",
+            "authorized": True,
+        }
+    ]
+    io.monitor.is_allowed_by_biz.assert_not_called()
+    io.monitor.filter_space_list_by_action.assert_not_called()
+
+
+def test_permission_lookup_requires_additional_route_action(permission_lookup, io):
+    io.monitor.is_allowed_by_biz.side_effect = lambda _biz, action: action == "using_log_collection_mcp"
+
+    result = permission_lookup(bk_biz_id=2, tool_name="list_log_collectors")
+
+    assert result["authorized"] is False
+    assert result["scopes"][0]["action_id"] == "using_log_collection_mcp"
+    assert result["scopes"][0]["additional_action_ids"] == ["view_business_v2"]
+    assert result["missing_permissions"][0]["action_id"] == "view_business_v2"
 
 
 @pytest.mark.parametrize("tool_name", ["search_logs", "search_index_set_context"])
@@ -678,7 +847,9 @@ def test_standalone_and_unified_middleware_route_from_same_catalog(
         logger=logging.getLogger("test"),
         json=json,
         settings=settings,
+        time=time,
         log_mcp_event=auth.log_mcp_event,
+        log_mcp_tool_event=auth.log_mcp_tool_event,
         HttpResponseForbidden=HttpResponseForbidden,
     )
     delegate = Mock(
@@ -710,6 +881,65 @@ def test_standalone_and_unified_middleware_route_from_same_catalog(
     legacy.assert_not_called()
 
 
+def test_middleware_preserves_exempt_space_discovery(monkeypatch, request_factory):
+    for name in ("bkmonitor.iam", "bkmonitor.iam.action", "bkmonitor.iam.drf"):
+        monkeypatch.setitem(sys.modules, name, ModuleType(name))
+    legacy = Mock(side_effect=AssertionError("exempt tool must not query permissions"))
+    sys.modules["bkmonitor.iam.action"].get_action_by_id = legacy
+    sys.modules["bkmonitor.iam.drf"].MCPPermission = legacy
+    handle = source_method(
+        "kernel_api/middlewares/authentication.py",
+        "AuthenticationMiddleware._handle_mcp_auth",
+        logger=logging.getLogger("test"),
+        logging=logging,
+        json=json,
+        settings=settings,
+        time=time,
+        log_mcp_event=auth.log_mcp_event,
+        log_mcp_tool_event=auth.log_mcp_tool_event,
+        HttpResponseForbidden=HttpResponseForbidden,
+    )
+    extract = source_method(
+        "kernel_api/middlewares/authentication.py", "AuthenticationMiddleware.extract_tool_name_from_path"
+    )
+    report = Mock()
+    request = request_factory(
+        "/api/v4/unified_mcp/execute_tool/",
+        body={"tool_name": "search_spaces", "tool_args": {"space_name": "demo"}},
+    )
+
+    response = handle(NS(extract_tool_name_from_path=extract, _report_mcp_metric=report), request, "alice")
+
+    assert response is None
+    assert request.unified_mcp_permission_checked is True
+    report.assert_called_once()
+    legacy.assert_not_called()
+
+
+def test_middleware_closes_unified_tool_trace_with_http_status(request_factory, caplog):
+    caplog.set_level(logging.INFO, logger=auth.__name__)
+    process_response = source_method(
+        "kernel_api/middlewares/authentication.py",
+        "AuthenticationMiddleware.process_response",
+        time=time,
+        logging=logging,
+        log_mcp_tool_event=auth.log_mcp_tool_event,
+    )
+    request = request_factory()
+    request.unified_mcp_operation = "execute_tool"
+    request.unified_mcp_tool = "search_logs"
+    request.unified_mcp_started_at = time.monotonic() - 0.01
+    response = HttpResponse(status=403)
+
+    assert process_response(NS(), request, response) is response
+    record = caplog.records[-1].getMessage()
+    assert record.startswith("MCP_TOOL: event=response_finished ")
+    fields = json.loads(record.split(" ", 2)[2])
+    assert fields["operation"] == "execute_tool" and fields["tool"] == "search_logs"
+    assert fields["decision"] == "failed" and fields["status_code"] == 403
+    assert fields["duration_ms"] >= 0
+
+
 def test_native_discovery_keeps_unresolved_tool_without_old_grant(request_factory, io):
     request = request_factory()
     legacy = Mock()
@@ -734,6 +964,38 @@ def test_native_discovery_keeps_unresolved_tool_without_old_grant(request_factor
     ]
     legacy.is_allowed_by_biz.assert_not_called()
     io.iam.is_allowed.assert_not_called()
+
+
+def test_tool_lookup_requires_actions_on_the_same_space(request_factory):
+    request = request_factory()
+    permission = Mock()
+    permission.filter_space_list_by_action.side_effect = lambda action: [
+        {"bk_biz_id": 2 if action == "using_log_collection_mcp" else 3}
+    ]
+    states = source_method("kernel_api/resource/unified_mcp.py", "_permission_state_by_action")
+    lookup = source_method(
+        "kernel_api/resource/unified_mcp.py",
+        "LookupToolResource.perform_request",
+        get_tool_registry=registry.get_tool_registry,
+        get_permission_client=lambda: permission,
+        _permission_state_by_action=states,
+        _legacy_tool_state=source_method("kernel_api/resource/unified_mcp.py", "_legacy_tool_state"),
+        permission_state=auth.permission_state,
+        get_request=lambda: request,
+        ValidationError=ValidationError,
+    )
+
+    result = lookup(
+        NS(),
+        {
+            "tool_name": "list_log_collectors",
+            "available_only": True,
+            "page": 1,
+            "page_size": 50,
+        },
+    )
+
+    assert result["tools"] == []
 
 
 def test_lookup_permission_uses_native_instance_and_apply_guide(request_factory, io):
@@ -1140,8 +1402,10 @@ def test_routing_configuration_errors_are_logged_without_legacy_fallback(
         "kernel_api/middlewares/authentication.py",
         "AuthenticationMiddleware._handle_mcp_auth",
         settings=settings,
+        time=time,
         json=json,
         log_mcp_event=auth.log_mcp_event,
+        log_mcp_tool_event=auth.log_mcp_tool_event,
         logging=logging,
         JsonResponse=JsonResponse,
         HttpResponseForbidden=HttpResponseForbidden,
@@ -1183,6 +1447,19 @@ def test_log_format_is_ascii_single_line_and_bounded(request_factory, caplog):
     assert record.startswith("MCP_AUTH: event=auth_begin ") and record.isascii() and "\n" not in record
     fields = json.loads(record.split(" ", 2)[2])
     assert len(fields["tool"]) == 256 and fields["username"] == request.user.username
+    assert fields["trace_id"] == request.mcp_trace_id
+
+
+def test_tool_log_uses_separate_prefix_and_same_trace(request_factory, caplog):
+    caplog.set_level(logging.INFO, logger=auth.__name__)
+    request = request_factory()
+
+    auth.log_mcp_tool_event("request_received", request, operation="execute_tool", tool="search_logs")
+
+    record = caplog.records[-1].getMessage()
+    assert record.startswith("MCP_TOOL: event=request_received ") and record.isascii() and "\n" not in record
+    fields = json.loads(record.split(" ", 2)[2])
+    assert fields["operation"] == "execute_tool" and fields["tool"] == "search_logs"
     assert fields["trace_id"] == request.mcp_trace_id
 
 
@@ -1548,6 +1825,99 @@ def test_source_schema_defaults_match_declared_types(filename):
         for operation in path_item.values():
             if isinstance(operation, dict) and "operationId" in operation:
                 check(registry._extract_input_schema(operation))
+
+
+def test_unified_resource_preserves_additional_route_permissions(request_factory):
+    request = request_factory()
+    permission = Mock()
+    dispatch = Mock(return_value={"ok": True})
+    perform = source_method(
+        "kernel_api/resource/unified_mcp.py",
+        "ExecuteToolResource.perform_request",
+        get_tool_registry=registry.get_tool_registry,
+        get_request=lambda **kwargs: request,
+        Draft7Validator=Draft7Validator,
+        ValidationError=ValidationError,
+        get_permission_client=lambda: permission,
+        execute_native_tool=auth.execute_native_tool,
+        dispatch_tool=dispatch,
+    )
+
+    result = perform(NS(), {"tool_name": "list_log_collectors", "tool_args": {"bk_biz_id": "2"}})
+
+    assert result["data"] == {"ok": True}
+    permission.is_allowed_by_biz.assert_called_once_with(2, "view_business_v2", raise_exception=True)
+    dispatch.assert_called_once_with("list_log_collectors", {"bk_biz_id": "2"})
+
+    request.unified_mcp_permission_checked = False
+    permission.reset_mock()
+    perform(NS(), {"tool_name": "list_log_collectors", "tool_args": {"bk_biz_id": "2"}})
+    assert [call.args[1] for call in permission.is_allowed_by_biz.call_args_list] == [
+        "using_log_collection_mcp",
+        "view_business_v2",
+    ]
+
+
+def test_unified_resource_requires_and_routes_explicit_confirmation(request_factory):
+    request = request_factory()
+    dispatch = Mock(return_value={"ok": True})
+    perform = source_method(
+        "kernel_api/resource/unified_mcp.py",
+        "ExecuteToolResource.perform_request",
+        get_tool_registry=registry.get_tool_registry,
+        get_request=lambda **kwargs: request,
+        Draft7Validator=Draft7Validator,
+        ValidationError=ValidationError,
+        get_permission_client=lambda: Mock(),
+        execute_native_tool=auth.execute_native_tool,
+        dispatch_tool=dispatch,
+    )
+    dashboard_args = {"bk_biz_id": "2", "configs": {"grafana/demo.json": "{}"}}
+
+    with pytest.raises(ValidationError, match="confirm"):
+        perform(NS(), {"tool_name": "create_dashboard", "tool_args": dashboard_args})
+    dispatch.assert_not_called()
+
+    perform(NS(), {"tool_name": "create_dashboard", "tool_args": {**dashboard_args, "confirm": True}})
+    dispatch.assert_called_once_with("create_dashboard", dashboard_args)
+
+    dispatch.reset_mock()
+    shield_args = {"bk_biz_id": "2", "id": ["1"], "confirm": True}
+    perform(NS(), {"tool_name": "disable_alarm_shield", "tool_args": shield_args})
+    dispatch.assert_called_once_with("disable_alarm_shield", shield_args)
+
+
+def test_unified_resource_preserves_exempt_space_discovery(request_factory):
+    request = request_factory()
+    dispatch = Mock(return_value={"ok": True})
+    perform = source_method(
+        "kernel_api/resource/unified_mcp.py",
+        "ExecuteToolResource.perform_request",
+        get_tool_registry=registry.get_tool_registry,
+        get_request=lambda **kwargs: request,
+        Draft7Validator=Draft7Validator,
+        ValidationError=ValidationError,
+        get_permission_client=lambda: (_ for _ in ()).throw(AssertionError("permission must not be queried")),
+        execute_native_tool=auth.execute_native_tool,
+        dispatch_tool=dispatch,
+    )
+
+    result = perform(NS(), {"tool_name": "search_spaces", "tool_args": {"space_name": "demo"}})
+
+    assert result["data"] == {"ok": True}
+    dispatch.assert_called_once_with("search_spaces", {"space_name": "demo"})
+
+
+def test_unified_resource_rejects_private_mcp_tool_as_unknown():
+    perform = source_method(
+        "kernel_api/resource/unified_mcp.py",
+        "ExecuteToolResource.perform_request",
+        get_tool_registry=registry.get_tool_registry,
+        ValidationError=ValidationError,
+    )
+
+    with pytest.raises(ValidationError, match="unknown unified MCP tool"):
+        perform(NS(), {"tool_name": "search_openclaw_spans", "tool_args": {}})
 
 
 def test_unified_resource_cannot_reuse_legacy_checked_flag(request_factory, io):
