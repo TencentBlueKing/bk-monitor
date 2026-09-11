@@ -126,7 +126,7 @@ export default defineComponent({
     });
 
     const favoriteBoxRef = useTemplateRef<InstanceType<typeof FavoriteBox>>('favoriteBoxRef');
-    /** 检索视图容器 ref，其根节点即表格的滚动容器 */
+    /** 检索视图容器 ref，其根节点即表格的滚动容器，也是吸顶表头锚定的容器 */
     const rumExploreViewRef = useTemplateRef<InstanceType<typeof RumExploreView>>('rumExploreViewRef');
     const favoriteCtx = useRumFavorite({
       where: queryCtx.where,
@@ -506,6 +506,7 @@ export default defineComponent({
                           ),
                         }}
                         backTopSignal={tableCtx.backTopSignal.value}
+                        syncAffixOnResize={true}
                       />
                     </div>
                   ),
