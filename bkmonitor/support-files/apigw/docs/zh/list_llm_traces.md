@@ -81,7 +81,7 @@
 | group_field | string | 当前分组字段 |
 | trace_id | string | Trace ID，仅 Trace 层对象返回 |
 | conversation_id | string | 会话 ID，无会话信息时为空字符串；仅 Trace 层对象返回 |
-| status | string | Trace 状态：`success`（成功）、`error`（失败）；仅 Trace 层对象返回 |
+| status | string | 状态：`success`（成功）、`error`（失败）。会话包含任意失败 Trace 时返回 `error` |
 | input | string | 逻辑根 Agent/Workflow Span 中最后一条用户文本；会话层返回空字符串 |
 | output | string | 逻辑根 Agent/Workflow Span 中最后一条助手文本；会话层返回空字符串 |
 | input_tokens | int | 分组内输入 Token 总数 |
@@ -93,7 +93,7 @@
 | user_id | string | Span 中上报的用户 ID，未上报时为空字符串 |
 | childs | list | 会话包含的 Trace 列表；仅 `group_field != trace_id` 时返回，元素结构与 Trace 层对象一致 |
 
-`status` 基于本次获取的调用记录：包含失败记录时为 `error`，否则为 `success`。
+`status` 基于本次获取的调用记录：Trace 包含失败 Span 时为 `error`；会话包含失败 Trace 时为 `error`；否则为 `success`。
 
 ### 响应参数示例
 
@@ -145,6 +145,7 @@
             {
                 "group_id": "conversation-demo-01",
                 "group_field": "attributes.gen_ai.conversation.id",
+                "status": "success",
                 "input": "",
                 "output": "",
                 "input_tokens": 0,

@@ -337,6 +337,7 @@ class ListTracesResourceTestCase(TestCase):
             {
                 "group_id": "session-2",
                 "group_field": "attributes.gen_ai.conversation.id",
+                "status": "error",
                 "input": "",
                 "output": "",
                 "input_tokens": 30,
@@ -382,6 +383,7 @@ class ListTracesResourceTestCase(TestCase):
                 ],
             },
         )
+        self.assertEqual(result["items"][1]["status"], "success")
         span_query.query_group_list.assert_called_once_with(
             start_time=1,
             end_time=2,

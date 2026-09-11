@@ -194,6 +194,7 @@ class ListTracesResource(Resource):
                 {
                     "group_id": group_id,
                     "group_field": group_field,
+                    "status": "error" if any(child["status"] == "error" for child in childs) else "success",
                     "input": "",
                     "output": "",
                     "input_tokens": sum(child["input_tokens"] for child in childs),
