@@ -1,0 +1,146 @@
+.llm-table {
+  .llm-table-skeleton {
+    padding-top: 8px;
+  }
+
+  .bk-table {
+    th {
+      background-color: #fafbfd;
+
+      .cell {
+        height: 36px !important;
+
+        .bk-table-header-label {
+          font-family: 'PingFang SC', sans-serif;
+          font-size: 12px;
+          font-style: normal;
+          font-weight: 500;
+          color: #313238;
+        }
+      }
+    }
+
+    tr {
+      &.is-expanded-row {
+        td {
+          padding: 0 !important;
+        }
+      }
+    }
+
+    td {
+      .cell {
+        color: #4d4f56;
+      }
+    }
+
+    th.is-no-padding-left,
+    td.is-no-padding-left {
+      .cell {
+        padding-left: 0;
+      }
+    }
+  }
+
+  .llm-table-text {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .llm-table-status {
+    display: inline-flex;
+    align-items: center;
+  }
+
+  .llm-table-status-dot {
+    flex-shrink: 0;
+    width: 8px;
+    height: 8px;
+    margin-right: 8px;
+    border: 1px solid;
+    border-radius: 50%;
+
+    &.is-success {
+      background-color: #e5f6ea;
+      border-color: #3fc06d;
+    }
+
+    &.is-error {
+      background-color: #ffe6e6;
+      border-color: #ea3636;
+    }
+  }
+
+  .llm-table-link {
+    color: #3a84ff;
+
+    &.is-strong {
+      font-weight: 700;
+    }
+  }
+
+  .llm-table-tokens-badge {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    .tokens-total {
+      font-weight: 700;
+      color: #4e5e7a;
+    }
+
+    .tokens-tag {
+      display: flex;
+      align-items: center;
+      height: 22px;
+      padding: 0 4px;
+      background-color: #f7f9fc;
+      border: 1px solid #dde3f0;
+      border-radius: 4px;
+    }
+
+    .tokens-tag-icon {
+      margin-right: 3px;
+      font-size: 12px;
+      color: #4e5e7a;
+
+      &.is-output {
+        color: #7269f0;
+      }
+    }
+
+    .tokens-tag-value {
+      font-weight: 700;
+      color: #4e5e7a;
+
+      &.is-output {
+        color: #7269f0;
+      }
+    }
+
+    .tokens-tag-divider {
+      width: 1px;
+      height: 12px;
+      margin: 0 3px;
+      background-color: #e4e9f2;
+    }
+  }
+}
+
+.llm-table-expand {
+  padding: 16px;
+  background-color: #f5f7fa;
+
+  .bk-table {
+    tr {
+      background-color: transparent !important;
+    }
+
+    th,
+    td {
+      background-color: transparent !important;
+    }
+  }
+}
