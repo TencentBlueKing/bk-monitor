@@ -20,11 +20,12 @@
     .input-wrap {
       display: flex;
       align-items: center;
-      min-width: 64px;
+      min-width: 60px;
       height: 24px;
 
       .t-input__wrap {
         .t-input {
+          min-width: 60px;
           background: #f0f1f5;
           border: 1px solid #f0f1f5;
         }
@@ -57,7 +58,8 @@
     .input-wrap {
       display: flex;
       align-items: center;
-      min-width: 88px;
+      width: 76px;
+      min-width: 76px;
       height: 32px;
 
       .t-input__wrap {
@@ -69,7 +71,7 @@
       }
 
       .t-input--auto-width {
-        min-width: 88px;
+        min-width: 76px;
       }
     }
   }

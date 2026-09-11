@@ -392,6 +392,8 @@ export default defineComponent({
                 defaultShowResidentBtn={queryCtx.showResidentBtn.value}
                 favoriteList={this.favoriteList}
                 fields={viewConfigCtx.retrievalFields.value}
+                /* UI 模式添加条件时不预选字段，直接聚焦到字段搜索框 */
+                fieldSearchAutoFocus={true}
                 filterMode={queryCtx.filterMode.value}
                 getValueFn={this.getFieldValues}
                 handleGetUserConfig={this.getResidentConfigCustom as IHandleGetUserConfig}

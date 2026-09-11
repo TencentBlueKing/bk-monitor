@@ -509,6 +509,7 @@ export default defineComponent({
               <UiSelector
                 clearKey={this.clearKey}
                 fields={this.localFields}
+                fieldSearchAutoFocus={this.fieldSearchAutoFocus}
                 getValueFn={this.getValueFn}
                 limit={this.limit}
                 loadDelay={this.loadDelay}
