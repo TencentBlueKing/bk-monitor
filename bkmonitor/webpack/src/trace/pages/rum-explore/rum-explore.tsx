@@ -125,6 +125,22 @@ export default defineComponent({
       ),
     });
 
+    /** 检索条件字段：具体 span 类型视角下，该类型的展示字段按声明顺序前置 */
+    const retrievalFields = computed(() => {
+      const priorityDisplay = isSpanSpecialPerspective.value
+        ? (viewConfigCtx.viewConfig.value.span_type_display_fields?.[store.spanType] ?? [])
+        : [];
+      const fields = viewConfigCtx.retrievalFields.value;
+      if (!priorityDisplay.length) return fields;
+      const priorityMap = new Map<string, number>();
+      for (const [index, name] of priorityDisplay.entries()) {
+        priorityMap.set(name, index);
+      }
+      const priorityFields = fields.filter(field => priorityMap.has(field.name));
+      priorityFields.sort((a, b) => (priorityMap.get(a.name) ?? 0) - (priorityMap.get(b.name) ?? 0));
+      return [...priorityFields, ...fields.filter(field => !priorityMap.has(field.name))];
+    });
+
     const favoriteBoxRef = useTemplateRef<InstanceType<typeof FavoriteBox>>('favoriteBoxRef');
     /** 检索视图容器 ref，其根节点即表格的滚动容器，也是吸顶表头锚定的容器 */
     const rumExploreViewRef = useTemplateRef<InstanceType<typeof RumExploreView>>('rumExploreViewRef');
@@ -331,6 +347,7 @@ export default defineComponent({
       tableCtx,
       thumbtackList,
       viewConfigCtx,
+      retrievalFields,
       getFieldValues,
       getResidentConfig,
       getResidentConfigCustom,
@@ -391,7 +408,7 @@ export default defineComponent({
                 copyLoading={queryCtx.generateQueryStringLoading.value}
                 defaultShowResidentBtn={queryCtx.showResidentBtn.value}
                 favoriteList={this.favoriteList}
-                fields={viewConfigCtx.retrievalFields.value}
+                fields={this.retrievalFields}
                 /* UI 模式添加条件时不预选字段，直接聚焦到字段搜索框 */
                 fieldSearchAutoFocus={true}
                 filterMode={queryCtx.filterMode.value}
