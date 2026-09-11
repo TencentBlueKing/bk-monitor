@@ -12,9 +12,6 @@ from abc import ABC, abstractmethod
 from typing import Any, Protocol
 from dataclasses import dataclass
 
-from rum_web.handlers.level.page.constants import SectionType
-
-
 EMPTY_VALUE = "--"
 
 
@@ -54,7 +51,7 @@ class KeyValueItem:
             if not isinstance(self.items, list):
                 raise ValueError(f"Items {self.items} is not a valid list")
             merge_dict: dict[str, Any] = {}
-            for i, child in enumerate(self.items):
+            for child in self.items:
                 if hasattr(child, "render"):
                     merge_dict.update(child.render(origin_data))
             return {self.key: merge_dict}
@@ -92,7 +89,6 @@ class BaseOverview(BaseComponent):
 
     def __init__(self, origin_data: dict[str, Any]):
         super().__init__(origin_data)
-        self.component_dict.update()
 
     def _fill_title(self):
         self.component_dict["title"] = self.origin_data.get("span_name", self.EMPTY_VALUE)
@@ -116,7 +112,7 @@ class BaseOverview(BaseComponent):
 
 class BaseSection(BaseComponent):
     KEY: str
-    TYPE: SectionType
+    TYPE: str
 
     def render(self) -> dict[str, Any]:
         self.component_dict.update(
@@ -137,14 +133,14 @@ class BasePage(BaseComponent):
             return
         self.component_dict["overview"] = self.OVERVIEW(self.origin_data).render()
 
-    def _fill_sessions(self):
-        self.component_dict["sessions"] = []
+    def _fill_sections(self):
+        self.component_dict["sections"] = []
         for section in self.SECTIONS:
-            self.component_dict["sessions"].append(section(self.origin_data).render())
+            self.component_dict["sections"].append(section(self.origin_data).render())
 
     def render(self) -> dict[str, Any]:
         self._fill_overview()
-        self._fill_sessions()
+        self._fill_sections()
         return self.component_dict
 
 
