@@ -7,6 +7,7 @@ import re
 import shutil
 from pathlib import Path
 from types import SimpleNamespace
+from unittest.mock import Mock
 
 import pytest
 import yaml
@@ -55,23 +56,31 @@ class FakePermission:
         return "https://iam.example.test/apply"
 
 
-def test_registry_loads_all_query_domains():
+def test_registry_loads_all_repository_mcp_tools():
     root = Path(__file__).resolve().parents[2] / "support-files" / "apigw" / "resources" / "internal" / "user"
     registry = load_tool_registry(root)
 
-    assert len(registry) == 43
-    assert len(registry.list(category="metrics")) == 4
-    assert len(registry.list(category="log")) == 9
-    assert len(registry.list(category="alert")) == 12
-    assert len(registry.list(category="event")) == 3
-    assert len(registry.list(category="apm")) == 11
-    assert len(registry.list(category="dashboard")) == 2
-    assert len(registry.list(category="relation")) == 2
+    assert len(registry) == 92
+    expected_category_counts = {
+        "metrics": 4,
+        "log": 9,
+        "alert": 12,
+        "event": 3,
+        "apm": 11,
+        "dashboard": 4,
+        "relation": 2,
+        "alert_handling": 18,
+        "log_collection": 17,
+        "log_extract": 7,
+        "metadata": 2,
+        "operation": 3,
+    }
+    assert {category: len(registry.list(category=category)) for category in unified_registry.CATEGORIES} == (
+        expected_category_counts
+    )
     assert registry.get("search_logs").prerequisites == ("list_index_sets", "get_index_set_fields")
     assert registry.get("calculate_by_range").iam_action == "using_apm_mcp"
     assert "apm_mcp_calculate_by_range" not in registry.names
-    assert "create_dashboard" not in registry.names
-    assert "update_dashboard" not in registry.names
 
 
 def test_public_mcp_contracts_have_complete_bilingual_descriptions():
@@ -91,13 +100,49 @@ def test_public_mcp_contracts_have_complete_bilingual_descriptions():
     for tool in registry.list():
         assert re.search(r"[A-Za-z]", tool.description), f"{tool.name} is missing an English description"
         assert re.search(r"[\u4e00-\u9fff]", tool.description), f"{tool.name} is missing a Chinese description"
-        _assert_complete_bilingual_schema(tool.input_schema, tool.name)
+        # Preserve the established bilingual-field gate for the original 43
+        # contracts; newly reused MCP schemas remain owned by their source files.
+        if tool.category in {"metrics", "log", "alert", "event", "apm", "dashboard", "relation"} and tool.name not in {
+            "create_dashboard",
+            "update_dashboard",
+        }:
+            _assert_complete_bilingual_schema(tool.input_schema, tool.name)
+
+
+def test_registry_rejects_unreviewed_mcp_source_file(tmp_path):
+    source_root = Path(__file__).resolve().parents[2] / "support-files" / "apigw" / "resources" / "internal" / "user"
+    for filenames in SOURCE_FILES.values():
+        for filename in filenames:
+            shutil.copy2(source_root / filename, tmp_path / filename)
+    (tmp_path / "future_mcp.yaml").write_text("paths: {}")
+
+    with pytest.raises(RuntimeError, match="source-file drift"):
+        load_tool_registry(tmp_path)
+
+
+def test_private_mcp_sources_are_excluded_from_tool_search():
+    root = Path(__file__).resolve().parents[2] / "support-files" / "apigw" / "resources" / "internal" / "user"
+    registry = load_tool_registry(root)
+
+    assert unified_registry.IGNORED_SOURCE_FILES == {"openclaw_recovering_mcp.yaml", "ops_mcp.yaml"}
+    for tool_name in (
+        "search_openclaw_spans",
+        "get_openclaw_trace_detail",
+        "search_openclaw_logs",
+        "query_datalink_metadata",
+        "query_data_link_info",
+        "diagnose_metadata_datalink",
+        "get_data_link_metadata",
+    ):
+        with pytest.raises(KeyError):
+            registry.get(tool_name)
 
 
 def test_registry_rejects_source_tool_without_product_metadata(tmp_path):
     source_root = Path(__file__).resolve().parents[2] / "support-files" / "apigw" / "resources" / "internal" / "user"
-    for filename in SOURCE_FILES.values():
-        shutil.copy2(source_root / filename, tmp_path / filename)
+    for filenames in SOURCE_FILES.values():
+        for filename in filenames:
+            shutil.copy2(source_root / filename, tmp_path / filename)
     log_path = tmp_path / "log_mcp.yaml"
     document = yaml.safe_load(log_path.read_text())
     document["paths"]["/mcp/new_query/"] = {
@@ -115,8 +160,9 @@ def test_registry_rejects_source_tool_without_product_metadata(tmp_path):
 
 def test_registry_rejects_duplicate_public_tool_name(tmp_path):
     source_root = Path(__file__).resolve().parents[2] / "support-files" / "apigw" / "resources" / "internal" / "user"
-    for filename in SOURCE_FILES.values():
-        shutil.copy2(source_root / filename, tmp_path / filename)
+    for filenames in SOURCE_FILES.values():
+        for filename in filenames:
+            shutil.copy2(source_root / filename, tmp_path / filename)
     event_path = tmp_path / "event_mcp.yaml"
     document = yaml.safe_load(event_path.read_text())
     document["paths"]["/mcp/list_events/"]["post"]["operationId"] = "list_index_sets"
@@ -135,15 +181,22 @@ def test_catalog_version_includes_product_metadata(monkeypatch):
     assert load_tool_registry(root).catalog_version != original_version
 
 
-def test_registry_excludes_dashboard_writes():
+def test_registry_requires_confirmation_for_dashboard_writes():
     registry = load_tool_registry(
         Path(__file__).resolve().parents[2] / "support-files" / "apigw" / "resources" / "internal" / "user"
     )
 
-    with pytest.raises(KeyError):
-        registry.get("create_dashboard")
-    with pytest.raises(KeyError):
-        registry.get("update_dashboard")
+    for name in ("create_dashboard", "update_dashboard"):
+        tool = registry.get(name)
+        assert tool.risk == "mutation"
+        assert tool.requires_confirmation is True
+        assert tool.forwards_confirmation is False
+        assert tool.input_schema["properties"]["configs"]["type"] == "object"
+        assert tool.input_schema["properties"]["confirm"]["enum"] == [True]
+        assert "confirm" in tool.input_schema["required"]
+
+    log_collection = registry.get("list_log_collectors")
+    assert log_collection.legacy_action_ids == ("using_log_collection_mcp", "view_business_v2")
 
 
 def test_new_query_schemas_match_backend_constraints():
@@ -185,7 +238,7 @@ def test_registry_hides_backend_derived_alert_fields():
     assert "bk_biz_id" in schema["required"]
 
 
-def test_every_registered_tool_has_an_executor():
+def test_every_executable_tool_has_exactly_one_executor():
     registry = load_tool_registry(
         Path(__file__).resolve().parents[2] / "support-files" / "apigw" / "resources" / "internal" / "user"
     )
@@ -388,6 +441,29 @@ def test_lookup_tool_filters_permission_for_target_space(monkeypatch):
     assert denied["tools"] == []
 
 
+def test_lookup_tool_requires_every_declared_execution_action(monkeypatch):
+    primary_only = FakePermission(allowed_biz={(789, "using_log_collection_mcp")})
+    monkeypatch.setattr(unified_mcp, "get_permission_client", lambda: primary_only)
+
+    denied = unified_mcp.LookupToolResource().request(
+        tool_name="list_log_collectors",
+        bk_biz_id=789,
+        available_only=True,
+    )
+
+    assert denied["tools"] == []
+
+    complete = FakePermission(allowed_biz={(789, "using_log_collection_mcp"), (789, "view_business_v2")})
+    monkeypatch.setattr(unified_mcp, "get_permission_client", lambda: complete)
+    allowed = unified_mcp.LookupToolResource().request(
+        tool_name="list_log_collectors",
+        bk_biz_id=789,
+        available_only=True,
+    )
+
+    assert allowed["tools"][0]["permission_state"] == "granted"
+
+
 def test_lookup_tool_rejects_unknown_exact_name(monkeypatch):
     monkeypatch.setattr(unified_mcp, "get_permission_client", lambda: FakePermission())
 
@@ -408,6 +484,7 @@ def test_lookup_tool_schema_returns_permission_and_prerequisites():
         "get_index_set_fields",
     ]
     assert result["limits"]["max_results"] == 10000
+    assert result["execution"] == {"status": "executable", "requires_confirmation": False, "reason": ""}
 
 
 def test_lookup_permissions_lists_current_user_scope(monkeypatch):
@@ -461,6 +538,36 @@ def test_lookup_permissions_returns_apply_guide_for_missing_scope(monkeypatch):
     assert result["missing_permissions"][0]["action_id"] == "using_log_mcp"
     assert result["missing_permissions"][0]["apply_url"] == "https://iam.example.test/apply"
     assert permission.checked == [(789, "using_log_mcp", False)]
+
+
+def test_lookup_permissions_reports_missing_additional_execution_action(monkeypatch):
+    permission = FakePermission(allowed_biz={(789, "using_log_collection_mcp")})
+    monkeypatch.setattr(unified_mcp, "get_permission_client", lambda: permission)
+
+    result = unified_mcp.LookupPermissionsResource().request(
+        bk_biz_id=789,
+        tool_name="list_log_collectors",
+        include_apply_guide=True,
+    )
+
+    assert result["authorized"] is False
+    assert result["scopes"][0]["action_id"] == "using_log_collection_mcp"
+    assert result["scopes"][0]["additional_action_ids"] == ["view_business_v2"]
+    assert result["missing_permissions"][0]["action_id"] == "view_business_v2"
+
+
+def test_lookup_permissions_preserves_exempt_space_discovery(monkeypatch):
+    monkeypatch.setattr(
+        unified_mcp,
+        "get_permission_client",
+        lambda: (_ for _ in ()).throw(AssertionError("permission must not be queried")),
+    )
+
+    result = unified_mcp.LookupPermissionsResource().request(tool_name="search_spaces")
+
+    assert result["authorized"] is True
+    assert result["scopes"][0]["state"] == "exempt"
+    assert result["missing_permissions"] == []
 
 
 def test_lookup_metadata_formats_platform_visible_spaces(monkeypatch):
@@ -533,6 +640,49 @@ def test_execute_tool_checks_permission_and_dispatches(monkeypatch):
     assert result["status"] == "success"
     assert result["data"]["called"] == "list_index_sets"
     assert permission.checked == [(789, "using_log_mcp", True)]
+
+
+def test_execute_tool_rejects_private_mcp_tool_as_unknown():
+    with pytest.raises(ValidationError, match="unknown unified MCP tool"):
+        unified_mcp.ExecuteToolResource().request(tool_name="search_openclaw_spans", tool_args={})
+
+
+def test_execute_tool_requires_confirmation_and_strips_unified_only_field(monkeypatch):
+    permission = FakePermission(allowed_biz={(789, "using_dashboard_mcp")})
+    monkeypatch.setattr(unified_mcp, "get_permission_client", lambda: permission)
+    dispatch = Mock(return_value={"ok": True})
+    monkeypatch.setattr(unified_mcp, "dispatch_tool", dispatch)
+    args = {"bk_biz_id": "789", "configs": {"grafana/demo.json": "{}"}}
+
+    with pytest.raises(ValidationError, match="confirm"):
+        unified_mcp.ExecuteToolResource().request(tool_name="create_dashboard", tool_args=args)
+    dispatch.assert_not_called()
+
+    result = unified_mcp.ExecuteToolResource().request(
+        tool_name="create_dashboard",
+        tool_args={**args, "confirm": True},
+    )
+
+    assert result["data"] == {"ok": True}
+    dispatch.assert_called_once_with("create_dashboard", args)
+
+
+def test_execute_tool_preserves_permission_exempt_space_discovery(monkeypatch):
+    monkeypatch.setattr(
+        unified_mcp,
+        "get_permission_client",
+        lambda: (_ for _ in ()).throw(AssertionError("permission must not be queried")),
+    )
+    dispatch = Mock(return_value={"ok": True})
+    monkeypatch.setattr(unified_mcp, "dispatch_tool", dispatch)
+
+    result = unified_mcp.ExecuteToolResource().request(
+        tool_name="search_spaces",
+        tool_args={"space_name": "demo"},
+    )
+
+    assert result["data"] == {"ok": True}
+    dispatch.assert_called_once_with("search_spaces", {"space_name": "demo"})
 
 
 def test_execute_tool_requires_space_context(monkeypatch):
@@ -671,6 +821,38 @@ def test_middleware_rejects_unknown_unified_inner_tool(monkeypatch):
 
     assert response.status_code == 403
     assert response.content == b"Invalid unified MCP tool"
+
+
+def test_middleware_rejects_private_mcp_tool_as_unknown(monkeypatch):
+    monkeypatch.setattr(AuthenticationMiddleware, "_report_mcp_metric", lambda *_args, **_kwargs: None)
+    request = RequestFactory().post(
+        "/api/v4/unified_mcp/execute_tool/",
+        data=json.dumps({"tool_name": "search_openclaw_spans", "tool_args": {}}),
+        content_type="application/json",
+        HTTP_X_BKAPI_MCP_SERVER_NAME="bk-monitor-prod-unified",
+    )
+
+    response = AuthenticationMiddleware(lambda _request: None)._handle_mcp_auth(request, username="test-user")
+
+    assert response.status_code == 403
+    assert response.content == b"Invalid unified MCP tool"
+
+
+def test_middleware_preserves_exempt_space_discovery(monkeypatch):
+    report = Mock()
+    monkeypatch.setattr(AuthenticationMiddleware, "_report_mcp_metric", report)
+    request = RequestFactory().post(
+        "/api/v4/unified_mcp/execute_tool/",
+        data=json.dumps({"tool_name": "search_spaces", "tool_args": {"space_name": "demo"}}),
+        content_type="application/json",
+        HTTP_X_BKAPI_MCP_SERVER_NAME="bk-monitor-prod-unified",
+    )
+
+    response = AuthenticationMiddleware(lambda _request: None)._handle_mcp_auth(request, username="test-user")
+
+    assert response is None
+    assert request.unified_mcp_permission_checked is True
+    report.assert_called_once()
 
 
 def test_middleware_rejects_non_object_unified_tool_args(monkeypatch):

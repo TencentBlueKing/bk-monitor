@@ -52,8 +52,8 @@ class MCPPermissionDenied(PermissionDenied):
         return PermissionDenied(self.detail).get_full_details()
 
 
-def log_mcp_event(event, request=None, *, level=logging.INFO, **fields):
-    """Shared English MCP-auth log format; callers supply metadata, never payloads."""
+def _log_mcp_event(prefix, event, request=None, *, level=logging.INFO, **fields):
+    """Write bounded single-line MCP metadata; callers must never pass payloads."""
     from bkmonitor.utils.request import get_mcp_trace_id, get_request
 
     request = request or get_request(peaceful=True)
@@ -72,7 +72,17 @@ def log_mcp_event(event, request=None, *, level=logging.INFO, **fields):
         for key, value in fields.items()
     }
     # ASCII JSON prevents multiline injection; never pass headers, tool_args, secrets or exception text.
-    logger.log(level, "MCP_AUTH: event=%s %s", event, json.dumps(fields, ensure_ascii=True, sort_keys=True))
+    logger.log(level, "%s: event=%s %s", prefix, event, json.dumps(fields, ensure_ascii=True, sort_keys=True))
+
+
+def log_mcp_event(event, request=None, *, level=logging.INFO, **fields):
+    """Shared MCP_AUTH log format for identity and permission decisions."""
+    _log_mcp_event("MCP_AUTH", event, request, level=level, **fields)
+
+
+def log_mcp_tool_event(event, request=None, *, level=logging.INFO, **fields):
+    """Shared MCP_TOOL log format for Tool Search and Unified execution flow."""
+    _log_mcp_event("MCP_TOOL", event, request, level=level, **fields)
 
 
 def _audit(

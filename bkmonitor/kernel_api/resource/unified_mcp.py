@@ -14,12 +14,11 @@ from bkmonitor.iam.action import get_action_by_id
 from bkmonitor.utils.request import get_request
 from core.drf_resource import Resource
 from kernel_api.unified_mcp.dispatcher import dispatch_tool
-from kernel_api.unified_mcp.registry import CATEGORY_ACTIONS, get_tool_registry
+from kernel_api.unified_mcp.registry import CATEGORIES, get_tool_registry
 from kernel_api.unified_mcp.permissions import execute_native_tool, permission_state
 from metadata.resources import ListBCSClusterInfoByBizResource, ListSpacesResource
 
-CATEGORIES = tuple(CATEGORY_ACTIONS)
-CAPABILITIES = ("discovery", "query", "analysis", "detail", "relation")
+CAPABILITIES = ("discovery", "query", "analysis", "detail", "relation", "mutation", "export")
 
 
 def get_permission_client() -> Permission:
@@ -48,17 +47,29 @@ def _permission_state_by_action(
     return states
 
 
+def _legacy_tool_state(tool, action_states, action_spaces=None):
+    if tool.permission_exempt:
+        return "exempt"
+    if not tool.legacy_action_ids:
+        return "missing"
+    if action_spaces is not None:
+        common_spaces = set.intersection(*(action_spaces[action_id] for action_id in tool.legacy_action_ids))
+        return "granted" if common_spaces else "missing"
+    return (
+        "granted"
+        if all(action_states.get(action_id) == "granted" for action_id in tool.legacy_action_ids)
+        else "missing"
+    )
+
+
 def _mixed_permission_scopes(tools, params, permission):
-    """Only used when native tools are selected; keep the legacy-only response unchanged."""
+    """Evaluate native and legacy tools without weakening multi-action contracts."""
     request = get_request()
     bk_biz_id = params.get("bk_biz_id")
     scopes, missing = [], []
     legacy_spaces = {}
-    legacy_states = (
-        _permission_state_by_action(permission, {t.iam_action for t in tools if not t.native_permission}, bk_biz_id)
-        if bk_biz_id is not None
-        else {}
-    )
+    legacy_actions = {action_id for tool in tools if not tool.native_permission for action_id in tool.legacy_action_ids}
+    legacy_states = _permission_state_by_action(permission, legacy_actions, bk_biz_id) if bk_biz_id is not None else {}
     for tool in tools:
         if tool.native_permission:
             scope = permission_state(
@@ -68,36 +79,63 @@ def _mixed_permission_scopes(tools, params, permission):
             scopes.append(scope)
             if scope["state"] == "missing":
                 missing.append(scope)
-        elif bk_biz_id is None:
-            if tool.iam_action not in legacy_spaces:
-                legacy_spaces[tool.iam_action] = permission.filter_space_list_by_action(tool.iam_action)
-            for space in legacy_spaces[tool.iam_action]:
-                scopes.append(
-                    {
-                        "category": tool.category,
-                        "tool_name": tool.name,
-                        "action_id": tool.iam_action,
-                        "resource": {"bk_biz_id": str(space["bk_biz_id"]), "space_name": space.get("display_name", "")},
-                        "authorized": True,
+            continue
+        if tool.permission_exempt:
+            scopes.append(
+                {
+                    "category": tool.category,
+                    "tool_name": tool.name,
+                    "state": "exempt",
+                    "authorized": True,
+                }
+            )
+            continue
+        if bk_biz_id is None:
+            for action_id in tool.legacy_action_ids:
+                if action_id not in legacy_spaces:
+                    legacy_spaces[action_id] = {
+                        str(space["bk_biz_id"]): space for space in permission.filter_space_list_by_action(action_id)
                     }
-                )
-        else:
-            allowed = legacy_states[tool.iam_action] == "granted"
-            scope = {
+            common_ids = set.intersection(*(set(legacy_spaces[action_id]) for action_id in tool.legacy_action_ids))
+            for space_id in sorted(common_ids):
+                space = legacy_spaces[tool.iam_action][space_id]
+                scope = {
+                    "category": tool.category,
+                    "tool_name": tool.name,
+                    "action_id": tool.iam_action,
+                    "resource": {"bk_biz_id": space_id, "space_name": space.get("display_name", "")},
+                    "authorized": True,
+                }
+                if tool.additional_iam_actions:
+                    scope["additional_action_ids"] = list(tool.additional_iam_actions)
+                scopes.append(scope)
+            continue
+
+        denied_actions = [action_id for action_id in tool.legacy_action_ids if legacy_states[action_id] != "granted"]
+        scope = {
+            "category": tool.category,
+            "tool_name": tool.name,
+            "action_id": tool.iam_action,
+            "resource": {"bk_biz_id": str(bk_biz_id)},
+            "authorized": not denied_actions,
+        }
+        if tool.additional_iam_actions:
+            scope["additional_action_ids"] = list(tool.additional_iam_actions)
+        scopes.append(scope)
+        for action_id in denied_actions:
+            item = {
                 "category": tool.category,
                 "tool_name": tool.name,
-                "action_id": tool.iam_action,
-                "resource": {"bk_biz_id": str(bk_biz_id)},
-                "authorized": allowed,
+                "action_id": action_id,
+                "action_name": str(get_action_by_id(action_id).name),
+                "resource": scope["resource"],
+                "authorized": False,
             }
-            scopes.append(scope)
-            if not allowed:
-                item = {**scope, "action_name": str(get_action_by_id(tool.iam_action).name)}
-                if params["include_apply_guide"]:
-                    item["apply_url"] = permission.get_apply_url(
-                        [tool.iam_action], [ResourceEnum.BUSINESS.create_simple_instance(bk_biz_id)]
-                    )
-                missing.append(item)
+            if params["include_apply_guide"]:
+                item["apply_url"] = permission.get_apply_url(
+                    [action_id], [ResourceEnum.BUSINESS.create_simple_instance(bk_biz_id)]
+                )
+            missing.append(item)
     unresolved = any(scope.get("state") == "requires_resource" for scope in scopes)
     return {
         "authorized": bool(scopes) and all(scope["authorized"] for scope in scopes),
@@ -133,16 +171,25 @@ class LookupToolResource(Resource):
         if validated_request_data.get("tool_name") and not tools:
             raise ValidationError({"tool_name": "Unknown tool name; exact matching is required."})
 
-        permission = get_permission_client()
-        permission_states = _permission_state_by_action(
-            permission,
-            {tool.iam_action for tool in tools if not tool.native_permission},
-            validated_request_data.get("bk_biz_id"),
-        )
+        legacy_actions = {
+            action_id for tool in tools if not tool.native_permission for action_id in tool.legacy_action_ids
+        }
+        bk_biz_id = validated_request_data.get("bk_biz_id")
+        permission_states = {}
+        action_spaces = None
+        if legacy_actions:
+            permission = get_permission_client()
+            if bk_biz_id is None:
+                action_spaces = {
+                    action_id: {str(space["bk_biz_id"]) for space in permission.filter_space_list_by_action(action_id)}
+                    for action_id in legacy_actions
+                }
+            else:
+                permission_states = _permission_state_by_action(permission, legacy_actions, bk_biz_id)
         states_by_tool = {
             tool.name: permission_state(tool, get_request(), validated_request_data.get("bk_biz_id"))["state"]
             if tool.native_permission
-            else permission_states[tool.iam_action]
+            else _legacy_tool_state(tool, permission_states, action_spaces)
             for tool in tools
         }
         if validated_request_data["available_only"]:
@@ -158,7 +205,13 @@ class LookupToolResource(Resource):
             "catalog_version": registry.catalog_version,
             "filters": {
                 key: validated_request_data[key]
-                for key in ("tool_name", "category", "capability", "bk_biz_id", "available_only")
+                for key in (
+                    "tool_name",
+                    "category",
+                    "capability",
+                    "bk_biz_id",
+                    "available_only",
+                )
                 if key in validated_request_data
             },
             "tools": [tool.summary(states_by_tool[tool.name]) for tool in page_tools],
@@ -269,6 +322,23 @@ class LookupPermissionsResource(Resource):
             if category and category != tool.category:
                 raise ValidationError({"category": f"{tool_name} belongs to category {tool.category}."})
 
+        selected_tools = registry.list(tool_name=tool_name, category=category)
+        if selected_tools and all(item.permission_exempt for item in selected_tools):
+            return {
+                "authorized": True,
+                "scopes": [
+                    {
+                        "category": item.category,
+                        "tool_name": item.name,
+                        "state": "exempt",
+                        "authorized": True,
+                    }
+                    for item in selected_tools
+                ],
+                "missing_permissions": [],
+                "next_step": "",
+            }
+
         context = validated_request_data.get("resource_context")
         if context:
             spec = tool.native_permission if tool else None
@@ -292,20 +362,27 @@ class LookupPermissionsResource(Resource):
             )
             if set(context) - allowed_keys:
                 raise ValidationError("resource_context does not match the selected tool")
-        selected_tools = registry.list(tool_name=tool_name, category=category)
-        if any(item.native_permission for item in selected_tools):
+        if any(item.native_permission for item in selected_tools) or (
+            (tool_name or category)
+            and any(item.additional_iam_actions or item.permission_exempt for item in selected_tools)
+        ):
             return _mixed_permission_scopes(selected_tools, validated_request_data, get_permission_client())
 
-        permission_targets = (
-            [(tool.category, tool.iam_action)]
-            if tool
-            else [(category, CATEGORY_ACTIONS[category])]
-            if category
-            else list(CATEGORY_ACTIONS.items())
+        permission_targets = sorted(
+            {(item.category, action_id) for item in selected_tools for action_id in item.legacy_action_ids}
         )
         permission = get_permission_client()
         bk_biz_id = validated_request_data.get("bk_biz_id")
-        scopes = []
+        scopes = [
+            {
+                "category": item.category,
+                "tool_name": item.name,
+                "state": "exempt",
+                "authorized": True,
+            }
+            for item in selected_tools
+            if item.permission_exempt
+        ]
         missing_permissions = []
 
         for action_category, action_id in permission_targets:
@@ -375,7 +452,6 @@ class ExecuteToolResource(Resource):
             tool = registry.get(tool_name)
         except KeyError as exc:
             raise ValidationError({"tool_name": str(exc)}) from exc
-
         request = get_request(peaceful=True)
         if tool.native_permission:
             # Share validation, native-first authorization and execution with standalone MCP.
@@ -390,17 +466,26 @@ class ExecuteToolResource(Resource):
                 error = errors[0]
                 path = ".".join(str(part) for part in error.absolute_path)
                 raise ValidationError({f"tool_args.{path}" if path else "tool_args": error.message})
-            if tool.resource_arg not in tool_args:
-                raise ValidationError({f"tool_args.{tool.resource_arg}": "This space-scoped argument is required."})
-            try:
-                bk_biz_id = int(tool_args[tool.resource_arg])
-            except (TypeError, ValueError) as exc:
-                raise ValidationError(
-                    {f"tool_args.{tool.resource_arg}": "A valid integer business ID is required."}
-                ) from exc
-            if not getattr(request, "unified_mcp_permission_checked", False):
-                get_permission_client().is_allowed_by_biz(bk_biz_id, tool.iam_action, raise_exception=True)
-            data = dispatch_tool(tool_name, tool_args)
+            if not tool.permission_exempt:
+                if tool.resource_arg not in tool_args:
+                    raise ValidationError({f"tool_args.{tool.resource_arg}": "This space-scoped argument is required."})
+                try:
+                    bk_biz_id = int(tool_args[tool.resource_arg])
+                except (TypeError, ValueError) as exc:
+                    raise ValidationError(
+                        {f"tool_args.{tool.resource_arg}": "A valid integer business ID is required."}
+                    ) from exc
+                middleware_checked = getattr(request, "unified_mcp_permission_checked", False)
+                permission = None
+                for action_id in tool.legacy_action_ids:
+                    if middleware_checked and action_id == tool.iam_action:
+                        continue
+                    permission = permission or get_permission_client()
+                    permission.is_allowed_by_biz(bk_biz_id, action_id, raise_exception=True)
+            dispatch_args = dict(tool_args)
+            if tool.requires_confirmation and not tool.forwards_confirmation:
+                dispatch_args.pop("confirm")
+            data = dispatch_tool(tool_name, dispatch_args)
         return {
             "status": "success",
             "tool_name": tool_name,
