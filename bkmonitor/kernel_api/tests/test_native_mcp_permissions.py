@@ -278,12 +278,17 @@ def test_private_mcp_sources_are_not_part_of_tool_search():
 
 def test_unified_openapi_filters_cover_the_full_catalog_taxonomy():
     document = yaml.safe_load((BASE / "support-files/apigw/resources/internal/user/unified_mcp.yaml").read_text())
-    properties = document["paths"]["/mcp/lookup_tool/"]["post"]["requestBody"]["content"]["application/json"]["schema"][
+    paths = document["paths"]
+    tool_properties = paths["/mcp/lookup_tool/"]["post"]["requestBody"]["content"]["application/json"]["schema"][
         "properties"
     ]
+    permission_properties = paths["/mcp/lookup_permissions/"]["post"]["requestBody"]["content"]["application/json"][
+        "schema"
+    ]["properties"]
 
-    assert properties["category"]["enum"] == list(registry.CATEGORIES)
-    assert set(properties["capability"]["enum"]) == {
+    assert tool_properties["category"]["enum"] == list(registry.CATEGORIES)
+    assert permission_properties["category"]["enum"] == list(registry.CATEGORIES)
+    assert set(tool_properties["capability"]["enum"]) == {
         capability for capabilities in registry.CAPABILITIES.values() for capability in capabilities
     }
 
@@ -938,6 +943,30 @@ def test_middleware_closes_unified_tool_trace_with_http_status(request_factory, 
     assert fields["operation"] == "execute_tool" and fields["tool"] == "search_logs"
     assert fields["decision"] == "failed" and fields["status_code"] == 403
     assert fields["duration_ms"] >= 0
+
+
+def test_middleware_marks_wrapped_application_error_as_failed(request_factory, caplog):
+    caplog.set_level(logging.INFO, logger=auth.__name__)
+    process_response = source_method(
+        "kernel_api/middlewares/authentication.py",
+        "AuthenticationMiddleware.process_response",
+        time=time,
+        logging=logging,
+        log_mcp_tool_event=auth.log_mcp_tool_event,
+    )
+    request = request_factory()
+    request.unified_mcp_operation = "execute_tool"
+    request.unified_mcp_tool = "update_dashboard"
+    request.unified_mcp_started_at = time.monotonic() - 0.01
+    response = NS(status_code=200, data={"result": False, "code": 400, "message": "must not be logged"})
+
+    assert process_response(NS(), request, response) is response
+    record = caplog.records[-1].getMessage()
+    fields = json.loads(record.split(" ", 2)[2])
+    assert fields["decision"] == "failed"
+    assert fields["status_code"] == 200
+    assert fields["result_code"] == 400
+    assert "must not be logged" not in record
 
 
 def test_native_discovery_keeps_unresolved_tool_without_old_grant(request_factory, io):
