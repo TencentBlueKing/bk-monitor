@@ -680,3 +680,58 @@ def test_apply_graph_relation_v4_reuses_existing_graph_datalink(mocker, graph_re
     legacy_data_link.refresh_from_db()
     assert legacy_data_link.data_link_strategy == DataLink.GRAPH_RELATION_TIME_SERIES
     assert legacy_data_link.table_ids == [ctx["table_id"]]
+
+
+@pytest.mark.parametrize("write_targets", [["surrealdb"], ["vm", "surrealdb"]])
+@pytest.mark.parametrize(
+    "tuning",
+    [
+        None,
+        {
+            "batch": {"max_events": 1000, "timeout_secs": 1},
+            "request": {"concurrency": 16},
+            "vertexDebounceSecs": 240,
+            "heartbeatGapMs": 300000,
+        },
+    ],
+)
+def test_graph_v4_write_tuning_is_routed_to_correct_spec(graph_relation_v4_records, write_targets, tuning):
+    ctx = graph_relation_v4_records
+    value = {"write_targets": write_targets}
+    if tuning is not None:
+        value["surrealdb_config"] = tuning
+    models.ResultTableOption.objects.create(
+        bk_tenant_id="system",
+        table_id=ctx["table_id"],
+        name=models.ResultTableOption.OPTION_GRAPH_RELATION_V4_DATA_LINK,
+        value=json.dumps(value),
+        value_type=models.ResultTableOption.TYPE_STRING,
+        creator="system",
+    )
+    configs = ctx["data_link"].compose_graph_relation_v4_time_series_configs(
+        bk_biz_id=2,
+        data_source=ctx["data_source"],
+        table_id=ctx["table_id"],
+        storage_cluster_name=ctx["vm_cluster"].cluster_name if "vm" in write_targets else "",
+    )
+    binding = next(c for c in configs if c["kind"] == "SurrealDBBinding")["spec"]
+    databus = next(
+        c for c in configs if c["kind"] == "Databus" and c["spec"]["sinks"][0]["kind"] == "SurrealDBBinding"
+    )["spec"]
+    assert databus["sources"]
+    assert databus["sinks"]
+    assert databus["transforms"] == []
+    assert "heartbeatGapMs" not in databus
+    assert "heartbeat_gap_ms" not in binding
+    if tuning is None:
+        assert "heartbeatGapMs" not in binding
+        assert not {"batch", "request", "vertexDebounceSecs"}.intersection(databus)
+    else:
+        assert binding["heartbeatGapMs"] == 300000
+        assert databus["batch"] == tuning["batch"]
+        assert databus["request"] == tuning["request"]
+        assert databus["vertexDebounceSecs"] == 240
+        assert not {"batch", "request", "vertexDebounceSecs"}.intersection(binding)
+    for config in configs:
+        if config["kind"] == "Databus" and config["spec"]["sinks"][0]["kind"] != "SurrealDBBinding":
+            assert not {"batch", "request", "vertexDebounceSecs", "heartbeatGapMs"}.intersection(config["spec"])

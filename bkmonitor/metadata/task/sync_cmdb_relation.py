@@ -163,11 +163,24 @@ def _modify_relation_graph_v4_result_table(
         )
         current_graph_option = None
         if graph_option_record is not None:
+            option_value = graph_option_record.get_value()
             try:
-                current_graph_option = GraphRelationV4DataLinkOption.from_option_value(graph_option_record.get_value())
+                current_graph_option = GraphRelationV4DataLinkOption.from_option_value(option_value)
             except (TypeError, ValueError):
-                # 非法旧值视为配置变化，交给普通 modify 流程覆盖修复。
-                pass
+                # 显式调优配置非法时停止同步，避免被默认配置静默覆盖。
+                raw_option = option_value
+                if isinstance(raw_option, str):
+                    try:
+                        raw_option = json.loads(raw_option)
+                    except ValueError:
+                        raw_option = None
+                if isinstance(raw_option, dict) and raw_option.get("surrealdb_config") is not None:
+                    raise
+                # 不含调优参数的非法旧值仍交给普通 modify 流程覆盖修复。
+
+        if current_graph_option is not None:
+            # CMDB 定时同步更新拓扑和写入目标时，不覆盖业务已设置的写入调优参数。
+            desired_graph_option.surrealdb_config = current_graph_option.surrealdb_config
 
         storage_unchanged = bool(
             surrealdb_storage
@@ -178,9 +191,7 @@ def _modify_relation_graph_v4_result_table(
             and _canonical_graph_definitions(surrealdb_storage.relations)
             == _canonical_graph_definitions(storage_config["relations"])
         )
-        option_unchanged = bool(
-            current_graph_option and current_graph_option.model_dump() == desired_graph_option.model_dump()
-        )
+        option_unchanged = bool(current_graph_option and current_graph_option == desired_graph_option)
         if storage_unchanged and option_unchanged:
             logger.info(
                 "sync_relation_redis_data: graph relation config unchanged, skip ResultTable.modify, "
@@ -199,7 +210,9 @@ def _modify_relation_graph_v4_result_table(
                 table_id=result_table.table_id,
             )
         }
-        options[ResultTableOption.OPTION_GRAPH_RELATION_V4_DATA_LINK] = desired_graph_option.model_dump()
+        options[ResultTableOption.OPTION_GRAPH_RELATION_V4_DATA_LINK] = desired_graph_option.model_dump(
+            by_alias=True, exclude_none=True
+        )
         result_table.modify(
             operator="system",
             external_storage={ClusterInfo.TYPE_SURREALDB: storage_config},

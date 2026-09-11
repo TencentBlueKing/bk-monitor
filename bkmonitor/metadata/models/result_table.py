@@ -34,6 +34,7 @@ from metadata.models.constants import BULK_CREATE_BATCH_SIZE, DataIdCreatedFromS
 from metadata.models.data_link.constants import BKBASE_NAMESPACE_BK_MONITOR, DataLinkResourceStatus
 from metadata.models.data_link.utils import compose_transfer_consumer_group
 from metadata.utils.basic import getitems
+from metadata.utils.graph_write_config import GraphSurrealDBWriteConfig
 
 from .common import BaseModel, Label, OptionBase
 from .data_source import DataSource, DataSourceOption, DataSourceResultTable
@@ -3182,6 +3183,12 @@ class GraphRelationV4DataLinkOption(pydantic.BaseModel):
         min_length=1,
         max_length=2,
         description="链路写入目标",
+    )
+
+    # 按租户/业务结果表保存；双写时仅对 SurrealDB 分支生效，不改变 VM Databus。
+    # None 保持历史下发结构；未填写的字段交给 BKBase 既有默认值处理。
+    surrealdb_config: GraphSurrealDBWriteConfig | None = pydantic.Field(
+        default=None, description="SurrealDB 分支的批量、请求并发、顶点合并及关系有效窗口"
     )
 
     @classmethod

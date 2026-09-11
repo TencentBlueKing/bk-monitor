@@ -1374,7 +1374,23 @@ def rebuild_databus_relation(databus: DataBusConfig, dry_run: bool = True) -> Da
             graph_write_targets.append("vm")
         if graph_surrealdb_binding:
             graph_write_targets.append("surrealdb")
-        graph_relation_v4_option = GraphRelationV4DataLinkOption(write_targets=graph_write_targets).model_dump()
+        # 重建只根据实际 sink 修正 write_targets，保留该租户/结果表的写入调优配置。
+        existing_graph_option = (
+            ResultTableOption.objects.using(DATABASE_CONNECTION_NAME)
+            .filter(
+                bk_tenant_id=databus.bk_tenant_id,
+                table_id=table_ids[0],
+                name=ResultTableOption.OPTION_GRAPH_RELATION_V4_DATA_LINK,
+            )
+            .first()
+        )
+        option = (
+            GraphRelationV4DataLinkOption.from_option_value(existing_graph_option.get_value())
+            if existing_graph_option is not None
+            else GraphRelationV4DataLinkOption(write_targets=graph_write_targets)
+        )
+        option.write_targets = graph_write_targets
+        graph_relation_v4_option = option.model_dump(by_alias=True, exclude_none=True)
         graph_bkbase_result_table = _build_graph_bkbase_result_table(
             data_link_name=data_link_name,
             databus=databus,
