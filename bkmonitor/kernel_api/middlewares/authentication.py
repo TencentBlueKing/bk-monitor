@@ -275,7 +275,7 @@ class AuthenticationMiddleware(MiddlewareMixin):
         return parts[-1].removesuffix(".json") if parts else ""
 
     def process_response(self, request, response):
-        """Close the Unified MCP HTTP trace without logging payloads."""
+        """在 HTTP 响应完成时闭合 Unified MCP Trace，不记录请求或响应正文。"""
         operation = getattr(request, "unified_mcp_operation", "")
         if operation:
             started_at = getattr(request, "unified_mcp_started_at", None)
@@ -323,6 +323,7 @@ class AuthenticationMiddleware(MiddlewareMixin):
             log_mcp_event("metrics_report_failed", level=logging.WARNING, error_type=type(err).__name__)
 
     def _handle_native_mcp(self, request, tool, tool_args, unified=False):
+        """执行原生权限工具，并按 standalone／Unified 入口渲染响应。"""
         from rest_framework.exceptions import APIException
         from rest_framework.response import Response
 
@@ -402,6 +403,7 @@ class AuthenticationMiddleware(MiddlewareMixin):
         is_unified_mcp_path = "/unified_mcp/" in request.path
         is_unified_execute_tool = tool_name == "execute_tool" and is_unified_mcp_path
         if is_unified_mcp_path:
+            # 只在 request 对象上保存 operation、tool 和起始时间，供最终响应日志闭环。
             request.unified_mcp_operation = tool_name
             request.unified_mcp_tool = ""
             request.unified_mcp_started_at = time.monotonic()
@@ -484,6 +486,7 @@ class AuthenticationMiddleware(MiddlewareMixin):
                 log_mcp_event("mcp_json_body_parse_failed", request, level=logging.WARNING, error_type=type(e).__name__)
 
         if is_unified_mcp_path:
+            # 仅记录内层工具名，禁止把 tool_args 写入统一日志。
             request.unified_mcp_tool = mcp_request_data.get("tool_name", "")
             log_mcp_tool_event(
                 "request_received",
@@ -533,8 +536,8 @@ class AuthenticationMiddleware(MiddlewareMixin):
             if permission_action_id:
                 permission_action_source = "server_name_map"
 
-        # Native standalone and aggregate calls use the SAME ToolDefinition and executor.
-        # Return the rendered response here: the legacy View must not execute a second time.
+        # 原生 standalone 与 Unified 共用同一个 ToolDefinition 和执行器；
+        # 此处直接返回已渲染响应，禁止旧 View 再执行一次。
         native_tool = None
         try:
             if native_tool_names():

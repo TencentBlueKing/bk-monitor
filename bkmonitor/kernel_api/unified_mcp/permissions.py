@@ -1,7 +1,7 @@
-"""Opt-in native permissions for the existing MCP catalog; no second router.
+"""Unified MCP 可选的原生权限实现，不新增第二套路由。
 
-Native permissions first, legacy MCP action second on explicit denial only.
-Identity, resource, configuration and IAM errors never become fallback grants.
+先检查原生权限，只有原生明确拒绝才检查旧 MCP Action；身份、资源、配置和 IAM 异常
+都必须失败关闭，不能转换成旧权限放行。
 """
 
 from __future__ import annotations
@@ -39,7 +39,7 @@ class AuthorizationUnavailable(APIException):
 
 
 class MCPPermissionDenied(PermissionDenied):
-    """Keep typed permission data without breaking DRF's error introspection API."""
+    """保留权限状态中的 bool/null 类型，同时兼容 DRF 异常 introspection。"""
 
     def __init__(self, state):
         super().__init__(state)
@@ -53,7 +53,7 @@ class MCPPermissionDenied(PermissionDenied):
 
 
 def _log_mcp_event(prefix, event, request=None, *, level=logging.INFO, **fields):
-    """Write bounded single-line MCP metadata; callers must never pass payloads."""
+    """写入有长度上限的单行 MCP 元信息；调用方禁止传业务正文。"""
     from bkmonitor.utils.request import get_mcp_trace_id, get_request
 
     request = request or get_request(peaceful=True)
@@ -71,17 +71,17 @@ def _log_mcp_event(prefix, event, request=None, *, level=logging.INFO, **fields)
         key: value if value is None or isinstance(value, bool | int) else str(value)[:256]
         for key, value in fields.items()
     }
-    # ASCII JSON prevents multiline injection; never pass headers, tool_args, secrets or exception text.
+    # ASCII 单行 JSON 防止日志换行注入；禁止传 Header、tool_args、凭证和异常正文。
     logger.log(level, "%s: event=%s %s", prefix, event, json.dumps(fields, ensure_ascii=True, sort_keys=True))
 
 
 def log_mcp_event(event, request=None, *, level=logging.INFO, **fields):
-    """Shared MCP_AUTH log format for identity and permission decisions."""
+    """记录身份和权限判定使用的统一 MCP_AUTH 日志。"""
     _log_mcp_event("MCP_AUTH", event, request, level=level, **fields)
 
 
 def log_mcp_tool_event(event, request=None, *, level=logging.INFO, **fields):
-    """Shared MCP_TOOL log format for Tool Search and Unified execution flow."""
+    """记录 Tool Search 和 Unified 执行链路使用的统一 MCP_TOOL 日志。"""
     _log_mcp_event("MCP_TOOL", event, request, level=level, **fields)
 
 
@@ -98,6 +98,7 @@ def _audit(
     error_type="",
     resource=None,
 ):
+    """按统一字段记录权限阶段、判定、资源和授权来源。"""
     fields = {
         "tool": tool.name,
         "backend_method": tool.backend_method,
@@ -118,6 +119,7 @@ def _audit(
 
 
 def _iam_allowed(client, query):
+    """调用 IAM 并要求返回严格布尔值，异常不能伪装成无权限。"""
     try:
         allowed = client.is_allowed(query)
     except Exception as exc:
@@ -128,6 +130,7 @@ def _iam_allowed(client, query):
 
 
 def _checked_permission(tool, request, phase, client, query, bk_biz_id):
+    """记录权限检查前后事件，并返回严格布尔判定。"""
     fields = {
         "bk_biz_id": bk_biz_id,
         "system_id": query.system,
@@ -147,6 +150,7 @@ def _checked_permission(tool, request, phase, client, query, bk_biz_id):
 
 
 def _business_resource(bk_biz_id):
+    """构造并反校验监控业务空间资源，防止资源系统或 ID 漂移。"""
     from bkmonitor.iam import ResourceEnum
 
     resource = ResourceEnum.BUSINESS.create_simple_instance(bk_biz_id)
@@ -156,6 +160,7 @@ def _business_resource(bk_biz_id):
 
 
 def _validate_alert_target(spec, bk_biz_id, context):
+    """有目标 ID 时确认告警／策略属于请求业务；无 ID 的列表探测可跳过。"""
     target_arg = spec.get("target_arg")
     if not target_arg or target_arg not in context:
         return  # Business-level introspection need not supply an alert/strategy ID.
@@ -170,6 +175,7 @@ def _validate_alert_target(spec, bk_biz_id, context):
 
 
 def _principal(request, bk_biz_id=None):
+    """验证网关用户、JWT、租户及业务空间属于同一身份边界。"""
     user = getattr(request, "user", None)
     jwt = getattr(request, "jwt", None)
     claims = getattr(jwt, "user", {})
@@ -199,6 +205,7 @@ def _principal(request, bk_biz_id=None):
 
 
 def _monitor_permission(user):
+    """创建显式关闭 skip_check 的监控权限客户端。"""
     from bkmonitor.iam import Permission
 
     client = Permission(user.username, bk_tenant_id=user.tenant_id)
@@ -207,6 +214,7 @@ def _monitor_permission(user):
 
 
 def _log_iam(user):
+    """使用监控应用凭证创建查询日志系统策略的跨系统 IAM 客户端。"""
     profile = getattr(settings, "MCP_LOG_IAM_PROFILE", {})
     if not isinstance(profile, dict) or profile.get("mode") != "v3-current":
         raise ImproperlyConfigured(
@@ -232,9 +240,10 @@ def _log_iam(user):
 
 
 def log_index_sets(user, bk_biz_id):
+    """按当前用户和租户读取可见索引集目录，供资源归属校验。"""
     from api.log_search.default import SearchIndexSetResource
 
-    # Do not use the pooled API shortcut: it retains per-instance user/tenant state.
+    # 不使用共享 API 实例，避免实例内残留的用户／租户状态被跨请求复用。
     try:
         result = SearchIndexSetResource().request.cacheless(
             bk_biz_id=bk_biz_id,
@@ -257,7 +266,7 @@ def log_index_sets(user, bk_biz_id):
 
 
 def call_log_api(name, **params):
-    """Keep legacy calls intact; native execution uses request-local API identity."""
+    """旧调用保持不变；原生执行使用请求内独立 API 身份。"""
     from core.drf_resource import api
     from bkmonitor.utils.request import get_request
 
@@ -271,8 +280,9 @@ def call_log_api(name, **params):
 
 
 def _log_resource(spec, user, bk_biz_id, context):
+    """把业务或索引集上下文解析为日志 IAM V3 资源。"""
     if spec["resource_type"] == "space":
-        # Log IAM V3 references the monitoring space resource, not a log-local space.
+        # 日志 IAM V3 引用监控空间资源，而不是日志系统内自建的 space。
         return Resource("bk_monitorv3", "space", str(bk_biz_id), {"name": str(bk_biz_id)})
     if context.get("target_type", "index_set") != "index_set":
         raise ValidationError("Native log MCP currently supports fixed index sets only.")
@@ -284,7 +294,7 @@ def _log_resource(spec, user, bk_biz_id, context):
     if len(matches) != 1:
         raise PermissionDenied("The log index set is not uniquely visible in the requested space.")
     item = matches[0]
-    # ponytail: ordinary same-space indices only; platform/related-space rules need an explicit follow-up.
+    # ponytail: 当前只支持普通同空间索引集；平台／关联空间需要后续显式建模。
     if (
         item.get("is_platform_index") is not False
         or item.get("is_group") is not False
@@ -313,6 +323,7 @@ def _log_resource(spec, user, bk_biz_id, context):
 
 
 def _apply_guide(client, spec, resource, request):
+    """为真实缺失权限生成申请信息；生成失败不改变拒绝结果。"""
     application = Application(
         spec["system_id"],
         [
@@ -345,7 +356,7 @@ def _apply_guide(client, spec, resource, request):
             return result
     except Exception as exc:
         error_type = type(exc).__name__
-    # A failed application link must never turn denial into permission or leak IAM response details.
+    # 申请链接生成失败不能改变拒绝结论，也不能泄漏 IAM 响应正文。
     log_mcp_event(
         "apply_guide_unavailable",
         request,
@@ -358,7 +369,7 @@ def _apply_guide(client, spec, resource, request):
 
 
 def permission_state(tool: ToolDefinition, request, bk_biz_id=None, resource_context=None, include_apply_guide=False):
-    """Probe and execution share native-first decisions, including the fallback result."""
+    """权限探测与执行共用同一个 native-first 判定，并返回实际回退结果。"""
     try:
         _audit(tool, request, "scope", "started", bk_biz_id=bk_biz_id)
         return _permission_state(tool, request, bk_biz_id, resource_context, include_apply_guide)
@@ -368,6 +379,7 @@ def permission_state(tool: ToolDefinition, request, bk_biz_id=None, resource_con
 
 
 def _permission_state(tool, request, bk_biz_id, context, include_apply_guide):
+    """执行资源解析、原生权限和旧 MCP 权限的严格顺序判定。"""
     spec = tool.native_permission
     if not spec:
         raise ImproperlyConfigured("Tool is not enabled for native-first permissions")
@@ -407,7 +419,7 @@ def _permission_state(tool, request, bk_biz_id, context, include_apply_guide):
         if bk_biz_id is None or (spec["resource_type"] == "indices" and "index_set_id" not in context):
             _audit(tool, request, "final", "requires_resource", bk_biz_id=bk_biz_id)
             return {**result, "state": "requires_resource", "authorized": False}
-        # Scope validation is BEFORE either permission decision; its failures never trigger fallback.
+        # 资源范围先于 N/L 判定；归属校验失败不能触发旧权限回退。
         native_resource = _log_resource(spec, user, bk_biz_id, context)
         if native_resource.type == "indices":
             result["resource"]["index_set_id"] = native_resource.id
@@ -447,7 +459,7 @@ def _permission_state(tool, request, bk_biz_id, context, include_apply_guide):
             "matched_action_id": spec["action_id"],
         }
 
-    # A real False is the ONLY fallback trigger. Do not catch resource or IAM errors as denial.
+    # 只有严格 False 才能触发回退；资源或 IAM 异常不能被捕获并伪装成无权限。
     monitor = monitor or _monitor_permission(user)
     legacy_resource = _business_resource(bk_biz_id)
     legacy_query = monitor.make_request(tool.iam_action, [legacy_resource])
@@ -491,7 +503,7 @@ def _permission_state(tool, request, bk_biz_id, context, include_apply_guide):
 
 
 def execute_native_tool(tool: ToolDefinition, tool_args: dict, request):
-    """Both standalone middleware and unified execute_tool use this exact entry."""
+    """standalone Middleware 与 Unified execute_tool 共用的原生权限执行入口。"""
     if request is not None:
         request.mcp_permission_source = "none"
         request.mcp_permission_action = ""
@@ -514,6 +526,7 @@ def execute_native_tool(tool: ToolDefinition, tool_args: dict, request):
 
 
 def _execute_native_tool(tool, tool_args, request):
+    """校验请求契约、权限和资源范围后调用共享 dispatcher。"""
     if not tool.native_permission:
         raise ImproperlyConfigured("Tool is not enabled for native permissions")
     _principal(request)
@@ -532,14 +545,14 @@ def _execute_native_tool(tool, tool_args, request):
         raise ValidationError("MCP identity and permission fields are server-owned.")
     if "bk_biz_id" in args and not isinstance(args["bk_biz_id"], bool):
         args["bk_biz_id"] = str(args["bk_biz_id"])
-    # The legacy standalone alert schema requires this field. Accept only the same
-    # single business, then let the shared dispatcher derive it again.
+    # standalone 历史告警 Schema 需要 bk_biz_ids；这里只接受与 bk_biz_id 相同的单业务，
+    # 随后仍由共享 dispatcher 重新派生，调用方不能扩大业务范围。
     if "bk_biz_ids" in tool.backend_derived_fields and "bk_biz_ids" in args:
         values = args.pop("bk_biz_ids")
         if not isinstance(values, list) or len(values) != 1 or str(values[0]) != args.get("bk_biz_id"):
             raise ValidationError("bk_biz_ids must contain exactly the requested bk_biz_id.")
-    # Resource identifiers must be exact positive integers, not bools/integral floats.
-    # Transport compatibility is handled at the standalone boundary, never here.
+    # 资源 ID 必须是严格正整数，拒绝 bool 和整数值浮点数；
+    # 传输兼容只在 standalone 边界处理，核心执行器不做宽松转换。
     resource_arg = tool.native_permission["resource_arg"]
     if tool.native_permission["resource_type"] == "indices" and resource_arg in args:
         value = args[resource_arg]
@@ -557,17 +570,17 @@ def _execute_native_tool(tool, tool_args, request):
         tool.iam_action if state["legacy_authorized"] is not None else tool.native_permission["action_id"]
     )
     if state["state"] != "granted":
-        # Permission state is typed data, not a tree of validation messages.
+        # 权限状态是保留 bool/null 的结构化数据，不是 ValidationError 消息树。
         raise MCPPermissionDenied(state)
     request.biz_id = int(args["bk_biz_id"])
     request.skip_check = False
     from kernel_api.unified_mcp.dispatcher import dispatch_tool
 
-    # Identity propagation only, never an authorization bypass or a reusable grant.
+    # 该标记只传递请求内身份，不是授权旁路，也不能跨请求复用。
     previous = getattr(request, "native_mcp_tool", None)
     request.native_mcp_tool = tool.name
     try:
-        # The dispatcher keeps its existing table/space guards and Resource pipeline.
+        # dispatcher 继续执行原结果表／空间归属保护和 Resource 校验链。
         _audit(
             tool,
             request,

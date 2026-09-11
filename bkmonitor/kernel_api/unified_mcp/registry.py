@@ -1,9 +1,7 @@
-"""Deterministic catalog for the unified monitoring MCP facade.
+"""Unified MCP 的确定性工具目录。
 
-The catalog is generated from the existing APIGW MCP OpenAPI YAML files.  Only
-small, product-owned metadata (category, capability, permission and
-prerequisites) is maintained here; request schemas and backend routes keep the
-existing YAML files as their source of truth.
+工具名、请求 Schema 和后端路由以现有 APIGW MCP OpenAPI YAML 为真相源；本模块只补充
+分类、能力、权限、风险和前置关系等产品元信息，并将两部分合成为 ToolDefinition。
 """
 
 from __future__ import annotations
@@ -36,11 +34,10 @@ CATEGORY_ACTIONS = {
     "operation": "using_operation_mcp",
 }
 
-# ops has no registered MCP Server suffix action. OpenClaw recovery uses its
-# dedicated username-scoped middleware instead of a normal business IAM action.
+# ops 没有登记 MCP Server 后缀权限；OpenClaw 自愈使用专用的用户身份隔离，
+# 两者都不能套普通业务级 IAM Action。
 
-# Keep the source list explicit: adding an APIGW file must be reviewed before it
-# becomes discoverable through the Unified catalog.
+# 显式维护公开 Source：新增 APIGW MCP YAML 必须经过评审，不能因文件名匹配就自动进入目录。
 SOURCE_FILES = {
     "metrics": ("metrics_mcp.yaml",),
     "log": ("log_mcp.yaml",),
@@ -66,13 +63,12 @@ SOURCE_FILES = {
     "metadata": ("metadata_mcp.yaml",),
     "operation": ("operation_mcp.yaml",),
 }
-# These private/specialized MCPs keep their original entry points and must not
-# appear in Tool Search or Unified execution.
+# 私有／专用 MCP 保留原入口，不进入 Tool Search 和 Unified 执行。
 IGNORED_SOURCE_FILES = frozenset({"openclaw_recovering_mcp.yaml", "ops_mcp.yaml"})
 CATEGORIES = tuple(SOURCE_FILES)
 
-# One permission catalog for standalone MCP routes, the facade, and introspection.
-# Unlisted tools retain their existing MCP actions. Native mode is opt-in.
+# standalone、Unified 门面和权限探测共用同一份权限目录。
+# 未声明原生映射的工具继续使用原 MCP Action；原生模式必须显式启用。
 NATIVE_PERMISSIONS = {
     name: {
         "system_id": "bk_monitorv3",
@@ -82,7 +78,7 @@ NATIVE_PERMISSIONS = {
     }
     for name in ("list_time_series_groups", "list_time_series_metrics", "execute_range_query")
 }
-# SQL stays legacy until actual SQL source tables (not just table_id) are verified.
+# SQL 在真实访问表范围完成验证前保持旧权限，不能只凭 table_id 推断授权资源。
 NATIVE_PERMISSIONS.update(
     {
         name: {
@@ -107,8 +103,8 @@ NATIVE_PERMISSIONS["list_index_sets"] = {
     "resource_arg": "bk_biz_id",
 }
 
-# Alert-page queries use VIEW_EVENT; the current strategy configuration uses VIEW_RULE.
-# target_arg is a business-bound lookup target, NOT a new IAM resource type.
+# 告警查询复用事件查看权限，当前策略配置使用策略查看权限。
+# target_arg 只用于校验目标归属业务，不代表新增了告警／策略实例级 IAM 资源。
 for _name, _target_arg in {
     "list_alerts": "",
     "get_alert_top_n": "",
@@ -137,6 +133,7 @@ for _name, _target_arg in {
 
 
 def native_tool_names() -> tuple[str, ...]:
+    """读取并校验动态启用的原生权限工具白名单。"""
     names = getattr(settings, "MCP_NATIVE_PERMISSION_TOOLS", [])
     if not isinstance(names, list | tuple) or any(not isinstance(name, str) for name in names):
         raise ImproperlyConfigured("MCP_NATIVE_PERMISSION_TOOLS must be a list of tool names")
@@ -146,15 +143,17 @@ def native_tool_names() -> tuple[str, ...]:
     return tuple(sorted(set(names)))
 
 
+# 对外工具名与历史 operationId 不一致时，在这里做唯一别名归一。
 PUBLIC_TOOL_NAMES = {"apm_mcp_calculate_by_range": "calculate_by_range"}
 
+# 能力标签是人工评审的产品语义，不能根据 GET／POST 或函数名前缀猜测。
 CAPABILITIES = {
-    # Metrics
+    # 指标查询
     "list_time_series_groups": ("discovery",),
     "list_time_series_metrics": ("discovery",),
     "execute_range_query": ("query",),
     "execute_sql_query": ("query",),
-    # Logs
+    # 日志查询
     "list_index_sets": ("discovery",),
     "get_index_set_fields": ("discovery",),
     "search_logs": ("query",),
@@ -164,7 +163,7 @@ CAPABILITIES = {
     "get_scene_log_fields": ("discovery",),
     "analyze_field": ("analysis",),
     "search_log_clustering_pattern": ("analysis",),
-    # Alerts
+    # 告警查询
     "list_alerts": ("query",),
     "get_alert_top_n": ("analysis",),
     "get_strategy_snapshot": ("detail",),
@@ -177,11 +176,11 @@ CAPABILITIES = {
     "get_alert_host_target": ("relation",),
     "get_alert_traces": ("relation",),
     "get_alert_log_relations": ("relation",),
-    # Events
+    # 事件查询
     "list_events": ("discovery",),
     "get_event_view_config": ("discovery",),
     "search_event_log": ("query",),
-    # APM tracing and profiling
+    # APM 链路与性能分析
     "list_apm_applications": ("discovery",),
     "get_apm_filter_fields": ("discovery",),
     "search_spans": ("query",),
@@ -193,20 +192,20 @@ CAPABILITIES = {
     "query_graph_profile": ("query", "analysis"),
     "calculate_by_range": ("analysis",),
     "list_apm_services": ("discovery",),
-    # Dashboards
+    # 仪表盘
     "get_dashboard_tree_list": ("discovery",),
     "get_dashboard_detail_by_uid": ("detail",),
-    # Resource relations
+    # 资源关联
     "find_relations": ("relation",),
     "find_relations_range": ("relation",),
 }
 
 CAPABILITIES.update(
     {
-        # Dashboard writes
+        # 仪表盘写入
         "create_dashboard": ("mutation",),
         "update_dashboard": ("mutation",),
-        # Alarm handling
+        # 告警处理
         "search_alarm_strategies": ("discovery",),
         "get_alarm_strategy": ("detail",),
         "create_alarm_strategy": ("mutation",),
@@ -225,7 +224,7 @@ CAPABILITIES.update(
         "search_alarm_assign_groups": ("discovery",),
         "save_alarm_assign_group": ("mutation",),
         "delete_alarm_assign_group": ("mutation",),
-        # Log collection
+        # 日志采集
         "list_log_collectors": ("discovery",),
         "get_log_collector": ("detail",),
         "get_log_index_set": ("detail",),
@@ -243,7 +242,7 @@ CAPABILITIES.update(
         "update_bkdata_index_set": ("mutation",),
         "get_log_collector_status": ("detail",),
         "fast_update_log_collector": ("mutation",),
-        # Log extraction
+        # 日志提取
         "list_log_extract_topology": ("discovery",),
         "search_log_extract_hosts": ("discovery",),
         "list_log_extract_allowed_paths": ("discovery",),
@@ -251,19 +250,22 @@ CAPABILITIES.update(
         "create_log_extract_task": ("mutation", "export"),
         "get_log_extract_task": ("detail",),
         "get_log_extract_download_url": ("export",),
-        # Metadata
+        # 元数据
         "list_bcs_clusters": ("discovery",),
         "search_spaces": ("discovery",),
-        # Platform operation data
+        # 平台运营数据
         "list_operation_metrics": ("discovery",),
         "get_operation_metric": ("query",),
         "get_operation_overview": ("analysis",),
     }
 )
 
+# 只有补齐能力 Metadata 的工具才允许进入 dispatcher。
 EXECUTABLE_TOOL_NAMES = frozenset(CAPABILITIES)
+# 空间目录沿用平台可见语义；这里只豁免发现，不授权后续业务数据访问。
 PERMISSION_EXEMPT_TOOL_NAMES = frozenset({"search_spaces"})
 
+# Unified 直调 Resource 时，显式补回原 ViewSet 上的附加 IAM Action。
 ADDITIONAL_IAM_ACTIONS = {
     **{
         name: ("view_business_v2",)
@@ -299,6 +301,7 @@ ADDITIONAL_IAM_ACTIONS = {
     },
 }
 
+# Tool Search 展示标题；工具描述本身仍来自 Source OpenAPI。
 TITLES = {
     "list_time_series_groups": "列出时序分组",
     "list_time_series_metrics": "列出时序指标",
@@ -398,6 +401,7 @@ TITLES.update(
     }
 )
 
+# 参数应从哪些前置工具取得；这是调用建议，不是绕过最终校验的凭据。
 PREREQUISITES: dict[str, tuple[str, ...]] = {
     "list_time_series_metrics": ("list_time_series_groups",),
     "execute_range_query": ("list_time_series_groups", "list_time_series_metrics"),
@@ -480,37 +484,39 @@ BACKEND_DERIVED_FIELDS = {
 }
 
 UNIFIED_HIDDEN_FIELDS = {
-    # ponytail: Global labels lack profile_id scoping; remove this override after APM Web owns that validation.
+    # ponytail: 全局标签缺少 profile_id 范围；APM Web 接管该校验后移除此覆盖。
     "get_profile_label": ("global_query",),
 }
 
 
 @dataclass(frozen=True)
 class ToolDefinition:
-    name: str
-    title: str
-    category: str
-    capabilities: tuple[str, ...]
-    description: str
-    input_schema: dict[str, Any]
-    backend_method: str
-    backend_path: str
-    iam_action: str
-    prerequisites: tuple[str, ...] = ()
-    risk: str = "query"
-    permission_exempt: bool = False
-    additional_iam_actions: tuple[str, ...] = ()
-    requires_confirmation: bool = False
-    forwards_confirmation: bool = False
-    resource_arg: str = "bk_biz_id"
-    backend_derived_fields: tuple[str, ...] = ()
-    native_permission: dict[str, str] | None = None
+    """模型可见工具的完整元信息和执行契约。"""
+
+    name: str  # 对外工具名，默认取 OpenAPI operationId。
+    title: str  # 便于模型和人工阅读的中文标题。
+    category: str  # 工具所属 MCP Server／领域，用于检索和旧权限路由。
+    capabilities: tuple[str, ...]  # discovery/query/mutation/export 等能力标签。
+    description: str  # 来源 OpenAPI 的工具说明，原生模式可追加边界提示。
+    input_schema: dict[str, Any]  # 提供给模型的归一化 JSON Schema。
+    backend_method: str  # 原 APIGW 后端 HTTP 方法，仅用于路由和审计。
+    backend_path: str  # 原 APIGW 后端路径，用于匹配 standalone 请求。
+    iam_action: str  # 工具所属 Server 的原 using_xxx_mcp 权限点。
+    prerequisites: tuple[str, ...] = ()  # 参数应从哪些前置工具取得。
+    risk: str = "query"  # query、mutation 或 data_export。
+    permission_exempt: bool = False  # 是否沿用平台可见目录等免业务权限语义。
+    additional_iam_actions: tuple[str, ...] = ()  # Unified 直调时仍须保留的原路由权限。
+    requires_confirmation: bool = False  # 是否必须先取得用户确认并传 confirm=true。
+    forwards_confirmation: bool = False  # 原 Resource 是否原生接收 confirm 字段。
+    resource_arg: str = "bk_biz_id"  # 默认从哪个参数取得业务／资源上下文。
+    backend_derived_fields: tuple[str, ...] = ()  # 由服务端派生、模型无需传入的字段。
+    native_permission: dict[str, str] | None = None  # 可选的原生权限及资源映射。
 
     def normalize_standalone_args(self, tool_args):
-        """Adapt legacy scalar strings; keep schema/resource validation in the executor.
+        """适配 standalone 历史标量字符串，Schema 和资源校验仍由执行器负责。
 
-        Never decode JSON containers or drop unknown fields. Only integer text and
-        true/false text are accepted; DRF's broader coercions are not exposed.
+        不解析 JSON 容器、不丢弃未知字段，只转换整数文本和 true/false 文本，
+        避免把 DRF 更宽松的隐式类型转换暴露成新的接口契约。
         """
         if not isinstance(tool_args, dict):
             return tool_args
@@ -527,11 +533,13 @@ class ToolDefinition:
 
     @property
     def legacy_action_ids(self) -> tuple[str, ...]:
+        """返回执行时必须同时满足的旧 MCP 与原路由附加权限。"""
         if self.permission_exempt or not self.iam_action:
             return ()
         return (self.iam_action, *self.additional_iam_actions)
 
     def permission_payload(self) -> dict[str, Any]:
+        """生成模型可读的权限契约，不执行真实权限查询。"""
         if self.permission_exempt:
             return {"mode": "exempt", "reason": "platform-visible metadata discovery"}
         if self.native_permission:
@@ -555,6 +563,7 @@ class ToolDefinition:
         return payload
 
     def summary(self, permission_state: str = "unknown") -> dict[str, Any]:
+        """生成 lookup_tool 使用的轻量工具卡片。"""
         properties = self.input_schema.get("properties", {})
         required_context = (
             list(dict.fromkeys([self.resource_arg, self.native_permission["resource_arg"]]))
@@ -578,6 +587,7 @@ class ToolDefinition:
         }
 
     def schema_payload(self, catalog_version: str) -> dict[str, Any]:
+        """生成 lookup_tool_schema 返回的完整调用契约。"""
         return {
             "catalog_version": catalog_version,
             "tool_name": self.name,
@@ -605,6 +615,8 @@ class ToolDefinition:
 
 
 class ToolRegistry:
+    """按工具名或后端路由提供确定性查询的只读目录。"""
+
     def __init__(self, tools: dict[str, ToolDefinition], catalog_version: str):
         self._tools = tools
         self.catalog_version = catalog_version
@@ -616,7 +628,8 @@ class ToolRegistry:
             self._backend_tools[key] = tool
 
     def get_by_backend(self, method: str, path: str) -> ToolDefinition | None:
-        # DRF JSON suffixes and implicit HEAD must not become legacy-permission aliases.
+        """供 standalone 请求按后端 method/path 找到同一个 ToolDefinition。"""
+        # `.json` 后缀和隐式 HEAD 只做协议兼容，不能成为旧权限旁路。
         method = "GET" if method.upper() == "HEAD" else method.upper()
         return self._backend_tools.get((method, path.rstrip("/").removesuffix(".json")))
 
@@ -624,6 +637,7 @@ class ToolRegistry:
         return len(self._tools)
 
     def get(self, tool_name: str) -> ToolDefinition:
+        """按精确名称获取工具，未知名称明确失败。"""
         try:
             return self._tools[tool_name]
         except KeyError as exc:
@@ -636,6 +650,7 @@ class ToolRegistry:
         category: str | None = None,
         capability: str | None = None,
     ) -> list[ToolDefinition]:
+        """按精确工具名、分类和能力做确定性过滤，不执行语义搜索。"""
         tools = list(self._tools.values())
         if tool_name:
             tools = [tool for tool in tools if tool.name == tool_name]
@@ -647,10 +662,12 @@ class ToolRegistry:
 
     @property
     def names(self) -> tuple[str, ...]:
+        """返回稳定排序后的全部公开工具名。"""
         return tuple(sorted(self._tools))
 
 
 def _extract_input_schema(operation: dict[str, Any]) -> dict[str, Any]:
+    """把 OpenAPI requestBody 或 query parameters 统一转换成对象 Schema。"""
     request_body = operation.get("requestBody") or {}
     content = request_body.get("content") or {}
     body_schema = (content.get("application/json") or {}).get("schema")
@@ -674,28 +691,27 @@ def _extract_input_schema(operation: dict[str, Any]) -> dict[str, Any]:
 
 
 def _normalize_public_schema(tool_name: str, schema: dict[str, Any]) -> dict[str, Any]:
+    """将原 MCP Schema 收敛为模型可直接使用的 Unified 公共契约。"""
     result = deepcopy(schema)
     result.setdefault("type", "object")
     properties = result.setdefault("properties", {})
     required = list(result.get("required") or [])
 
-    # All unified data tools are space-scoped even when a legacy OpenAPI file
-    # forgot to mark bk_biz_id as required.
+    # 统一数据工具必须显式携带业务上下文；兼容旧 OpenAPI 遗漏 required 的情况。
     if "bk_biz_id" in properties and "bk_biz_id" not in required:
         required.append("bk_biz_id")
     if "bk_biz_id" in properties:
         properties["bk_biz_id"]["type"] = "string"
     if tool_name in {"create_dashboard", "update_dashboard"}:
-        # The standalone gateway describes this legacy wire value as a string;
-        # Unified receives JSON directly and the backend Resource requires a dict.
+        # standalone 历史 wire-format 将 configs 描述为字符串；Unified 直接接收 JSON，
+        # 而后端 Resource 实际需要字典，因此在公共 Schema 中修正类型。
         properties["configs"].update(
             type="object",
             minProperties=1,
             additionalProperties={"type": "string"},
         )
 
-    # These are backend serializer compatibility fields.  The facade derives
-    # them from bk_biz_id so the Agent only supplies one business identifier.
+    # 后端兼容字段由 Unified 从 bk_biz_id 派生，模型只提交一个业务标识。
     for field_name in BACKEND_DERIVED_FIELDS.get(tool_name, ()):
         properties.pop(field_name, None)
         required = [name for name in required if name != field_name]
@@ -712,6 +728,7 @@ def _normalize_public_schema(tool_name: str, schema: dict[str, Any]) -> dict[str
 
 
 def _close_object_schemas(schema: dict[str, Any]) -> None:
+    """递归拒绝对象中的未声明字段，避免身份和权限参数被夹带。"""
     if schema.get("type") == "object" and "properties" in schema:
         schema.setdefault("additionalProperties", False)
     for child in (schema.get("properties") or {}).values():
@@ -726,6 +743,7 @@ def _close_object_schemas(schema: dict[str, Any]) -> None:
 
 
 def _extract_limits(schema: dict[str, Any]) -> dict[str, Any]:
+    """提取模型需要关注的结果数量和时间跨度限制。"""
     limits: dict[str, Any] = {}
     properties = schema.get("properties") or {}
     if "limit" in properties and properties["limit"].get("maximum") is not None:
@@ -741,6 +759,7 @@ def _extract_limits(schema: dict[str, Any]) -> dict[str, Any]:
 
 
 def _build_guidelines(tool: ToolDefinition) -> list[str]:
+    """根据风险、时间参数和资源类型生成模型执行提示。"""
     guidelines: list[str] = []
     if tool.requires_confirmation:
         guidelines.append("该工具会产生写入、任务或数据导出；必须在用户明确确认后传 confirm=true。")
@@ -759,15 +778,19 @@ def _build_guidelines(tool: ToolDefinition) -> list[str]:
 
 
 def _catalog_root() -> Path:
+    """返回 APIGW MCP OpenAPI 的仓库目录。"""
     return Path(settings.BASE_DIR) / "support-files" / "apigw" / "resources" / "internal" / "user"
 
 
 def load_tool_registry(root: Path | None = None) -> ToolRegistry:
+    """读取全部公开 Source，合成并校验唯一的 ToolRegistry。"""
     root = root or _catalog_root()
     enabled = native_tool_names()
     tools: dict[str, ToolDefinition] = {}
     discovered_operation_ids: set[str] = set()
     digest = hashlib.sha256()
+
+    # Step 1: 校验公开 Source 白名单，新增文件必须先补齐元信息再进入目录。
     declared_files = {filename for filenames in SOURCE_FILES.values() for filename in filenames}
     repository_files = {path.name for path in root.glob("*mcp*.yaml")} - {"unified_mcp.yaml"} - IGNORED_SOURCE_FILES
     if repository_files != declared_files:
@@ -777,6 +800,7 @@ def load_tool_registry(root: Path | None = None) -> ToolRegistry:
             f"missing={sorted(declared_files - repository_files)}"
         )
 
+    # Step 2: 从每个 OpenAPI operation 提取名称、Schema 和后端路由。
     for category, filenames in SOURCE_FILES.items():
         for filename in filenames:
             path = root / filename
@@ -797,6 +821,8 @@ def load_tool_registry(root: Path | None = None) -> ToolRegistry:
                     if tool_name not in CAPABILITIES:
                         continue
                     backend = (operation.get("x-bk-apigateway-resource") or {}).get("backend") or {}
+
+                    # Step 3: 注入人工评审过的能力标签，并据此计算风险等级。
                     capabilities = CAPABILITIES[tool_name]
                     risk = (
                         "data_export"
@@ -805,6 +831,7 @@ def load_tool_registry(root: Path | None = None) -> ToolRegistry:
                         if "mutation" in capabilities
                         else "query"
                     )
+                    # Step 4: 归一化 Schema；写入、任务和导出工具统一要求显式确认。
                     source_schema = _extract_input_schema(operation)
                     forwards_confirmation = "confirm" in source_schema.get("properties", {})
                     requires_confirmation = risk != "query"
@@ -816,6 +843,7 @@ def load_tool_registry(root: Path | None = None) -> ToolRegistry:
                             "description": "Must be true after explicit user confirmation. 用户明确确认后必须传 true。",
                         }
                         schema["required"] = list(dict.fromkeys([*schema.get("required", []), "confirm"]))
+                    # Step 5: 只有动态配置显式启用的工具才注入 native-first 权限契约。
                     description = operation.get("description", "")
                     if tool_name in enabled:
                         description += (
@@ -835,6 +863,7 @@ def load_tool_registry(root: Path | None = None) -> ToolRegistry:
                             schema["required"] = list(dict.fromkeys([*schema.get("required", []), "index_set_id"]))
                         if tool_name == "list_time_series_groups":
                             schema["properties"]["is_platform"]["enum"] = [False]
+                    # Step 6: 将 YAML 契约和代码元信息合成为不可变 ToolDefinition。
                     tools[tool_name] = ToolDefinition(
                         name=tool_name,
                         title=TITLES[tool_name],
@@ -855,6 +884,7 @@ def load_tool_registry(root: Path | None = None) -> ToolRegistry:
                         native_permission=deepcopy(NATIVE_PERMISSIONS[tool_name]) if tool_name in enabled else None,
                     )
 
+    # Step 7: 校验工具、Metadata 和权限契约一一对应，避免静默漏注册或无权限开放。
     expected = set(CAPABILITIES)
     actual = set(tools)
     unprotected = sorted(
@@ -871,6 +901,7 @@ def load_tool_registry(root: Path | None = None) -> ToolRegistry:
             f"missing_source={sorted(expected - discovered_operation_ids)}, "
             f"missing_tools={sorted(expected - actual)}, extra_tools={sorted(actual - expected)}"
         )
+    # Step 8: YAML、Metadata 或启用配置任一变化都会生成新的目录版本。
     digest.update(
         yaml.safe_dump(
             {
@@ -903,4 +934,5 @@ def _cached_tool_registry(enabled: tuple[str, ...], monitor_system_id: str) -> T
 
 
 def get_tool_registry() -> ToolRegistry:
+    """按当前动态配置返回进程内缓存的工具目录。"""
     return _cached_tool_registry(native_tool_names(), settings.BK_IAM_SYSTEM_ID)

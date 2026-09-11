@@ -1,4 +1,4 @@
-"""Dispatch unified MCP calls to the existing Resource implementations."""
+"""将 Unified MCP 工具显式分发到现有 Resource 实现。"""
 
 from __future__ import annotations
 
@@ -116,10 +116,12 @@ ToolExecutor = Callable[[dict[str, Any]], Any]
 
 
 def _resource_executor(resource_class) -> ToolExecutor:
+    """把标准 Resource 包装成统一的 ``dict -> result`` 执行器。"""
     return lambda tool_args: resource_class().request(**tool_args)
 
 
 def _ensure_time_series_table_belongs_to_biz(tool_args: dict[str, Any]) -> None:
+    """执行指标明细查询前，确认结果表属于目标业务或平台数据源。"""
     bk_tenant_id = get_request_tenant_id()
     group = TimeSeriesGroup.objects.filter(
         bk_tenant_id=bk_tenant_id,
@@ -153,6 +155,7 @@ def _time_series_sql(tool_args: dict[str, Any]):
 
 
 def _index_set_ids(result: Any) -> set[str]:
+    """兼容日志目录的历史返回形态，提取可见索引集 ID。"""
     if isinstance(result, list):
         items = result
     elif isinstance(result, dict):
@@ -170,6 +173,7 @@ def _index_set_ids(result: Any) -> set[str]:
 
 
 def _ensure_index_set_belongs_to_biz(tool_args: dict[str, Any]) -> None:
+    """调用日志 Resource 前确认索引集在目标业务目录中可见。"""
     index_set_id = tool_args.get("index_set_id")
     if index_set_id is None:
         return
@@ -179,6 +183,8 @@ def _ensure_index_set_belongs_to_biz(tool_args: dict[str, Any]) -> None:
 
 
 def _log_resource_executor(resource_class) -> ToolExecutor:
+    """为索引集类日志工具统一补充业务归属校验。"""
+
     def execute(tool_args: dict[str, Any]):
         _ensure_index_set_belongs_to_biz(tool_args)
         return resource_class().request(**tool_args)
@@ -187,6 +193,7 @@ def _log_resource_executor(resource_class) -> ToolExecutor:
 
 
 def _ensure_event_table_belongs_to_biz(tool_args: dict[str, Any]) -> None:
+    """按事件源或 APM 应用确认事件表属于目标业务。"""
     if tool_args.get("app_name") and tool_args.get("service_name"):
         _ensure_apm_application_permission(tool_args)
         return
@@ -201,6 +208,8 @@ def _ensure_event_table_belongs_to_biz(tool_args: dict[str, Any]) -> None:
 
 
 def _event_resource_executor(resource_class) -> ToolExecutor:
+    """为事件详情和检索工具统一补充事件表归属校验。"""
+
     def execute(tool_args: dict[str, Any]):
         _ensure_event_table_belongs_to_biz(tool_args)
         return resource_class().request(**tool_args)
@@ -209,6 +218,7 @@ def _event_resource_executor(resource_class) -> ToolExecutor:
 
 
 def _ensure_apm_application_permission(tool_args: dict[str, Any]) -> None:
+    """把应用名解析为当前业务 APM 实例，并执行实例权限校验。"""
     application_id = (
         Application.objects.filter(bk_biz_id=tool_args["bk_biz_id"], app_name=tool_args["app_name"])
         .values_list("application_id", flat=True)
@@ -224,6 +234,8 @@ def _ensure_apm_application_permission(tool_args: dict[str, Any]) -> None:
 
 
 def _apm_application_resource_executor(resource_class) -> ToolExecutor:
+    """为 APM 应用级工具统一补充实例归属与权限校验。"""
+
     def execute(tool_args: dict[str, Any]):
         _ensure_apm_application_permission(tool_args)
         return resource_class().request(**tool_args)
@@ -248,12 +260,12 @@ def _alert_top_n(tool_args: dict[str, Any]):
 
 
 TOOL_EXECUTORS: dict[str, ToolExecutor] = {
-    # Metrics
+    # 指标查询
     "list_time_series_groups": _resource_executor(TimeSeriesGroupListResource),
     "list_time_series_metrics": _time_series_metrics,
     "execute_range_query": _resource_executor(ExecuteRangeQueryResource),
     "execute_sql_query": _time_series_sql,
-    # Logs
+    # 日志查询
     "list_index_sets": _resource_executor(GetIndexSetListResource),
     "get_index_set_fields": _log_resource_executor(GetIndexSetFieldListResource),
     "search_logs": _log_resource_executor(SearchLogResource),
@@ -263,7 +275,7 @@ TOOL_EXECUTORS: dict[str, ToolExecutor] = {
     "get_scene_log_fields": _resource_executor(GetSceneLogFieldsResource),
     "analyze_field": _log_resource_executor(FieldAnalyzeResource),
     "search_log_clustering_pattern": _log_resource_executor(SearchLogClusteringPatternResource),
-    # Alerts
+    # 告警查询
     "list_alerts": _list_alerts,
     "get_alert_top_n": _alert_top_n,
     "get_strategy_snapshot": _resource_executor(ListStrategySnapshotResource),
@@ -276,7 +288,7 @@ TOOL_EXECUTORS: dict[str, ToolExecutor] = {
     "get_alert_host_target": _resource_executor(ListAlertHostTargetResource),
     "get_alert_traces": _resource_executor(ListAlertTracesResource),
     "get_alert_log_relations": _resource_executor(ListAlertLogRelationsResource),
-    # Alarm handling
+    # 告警处理
     "search_alarm_strategies": _resource_executor(SearchAlarmStrategiesResource),
     "get_alarm_strategy": _resource_executor(GetAlarmStrategyResource),
     "create_alarm_strategy": _resource_executor(CreateAlarmStrategyResource),
@@ -295,11 +307,11 @@ TOOL_EXECUTORS: dict[str, ToolExecutor] = {
     "search_alarm_assign_groups": _resource_executor(SearchAlarmAssignGroupsResource),
     "save_alarm_assign_group": _resource_executor(SaveAlarmAssignGroupResource),
     "delete_alarm_assign_group": _resource_executor(DeleteAlarmAssignGroupResource),
-    # Events
+    # 事件查询
     "list_events": _resource_executor(ListEventsResource),
     "get_event_view_config": _event_resource_executor(GetEventViewConfigResource),
     "search_event_log": _event_resource_executor(SearchEventLogResource),
-    # APM tracing and profiling
+    # APM 链路与性能分析
     "list_apm_applications": _resource_executor(ListApmApplicationResource),
     "get_apm_filter_fields": _resource_executor(GetApmSearchFiltersResource),
     "search_spans": _resource_executor(ListApmSpanResource),
@@ -311,15 +323,15 @@ TOOL_EXECUTORS: dict[str, ToolExecutor] = {
     "query_graph_profile": _resource_executor(QueryGraphProfileResource),
     "calculate_by_range": _apm_application_resource_executor(CalculateByRangeResource),
     "list_apm_services": _apm_application_resource_executor(ServiceListResource),
-    # Dashboards
+    # 仪表盘
     "get_dashboard_tree_list": _resource_executor(GetDirectoryTree),
     "get_dashboard_detail_by_uid": _resource_executor(GetDashboardDetail),
     "create_dashboard": _resource_executor(CreateDashboardResource),
     "update_dashboard": _resource_executor(UpdateDashboardResource),
-    # Resource relations
+    # 资源关联
     "find_relations": _resource_executor(QueryMultiResourceRelationResource),
     "find_relations_range": _resource_executor(QueryMultiResourceRelationRangeResource),
-    # Log collection
+    # 日志采集
     "list_log_collectors": _resource_executor(ListLogCollectorsResource),
     "get_log_collector": _resource_executor(GetLogCollectorResource),
     "get_log_index_set": _resource_executor(GetLogIndexSetResource),
@@ -337,7 +349,7 @@ TOOL_EXECUTORS: dict[str, ToolExecutor] = {
     "update_bkdata_index_set": _resource_executor(UpdateBkDataResource),
     "get_log_collector_status": _resource_executor(GetLogCollectorStatusResource),
     "fast_update_log_collector": _resource_executor(FastUpdateLogCollectorResource),
-    # Log extraction
+    # 日志提取
     "list_log_extract_topology": _resource_executor(ListLogExtractTopologyResource),
     "search_log_extract_hosts": _resource_executor(SearchLogExtractHostsResource),
     "list_log_extract_allowed_paths": _resource_executor(ListLogExtractAllowedPathsResource),
@@ -345,10 +357,10 @@ TOOL_EXECUTORS: dict[str, ToolExecutor] = {
     "create_log_extract_task": _resource_executor(CreateLogExtractTaskResource),
     "get_log_extract_task": _resource_executor(GetLogExtractTaskResource),
     "get_log_extract_download_url": _resource_executor(GetLogExtractDownloadUrlResource),
-    # Metadata
+    # 元数据
     "list_bcs_clusters": _resource_executor(ListBCSClusterInfoByBizResource),
     "search_spaces": _resource_executor(ListSpacesResource),
-    # Platform operation data
+    # 平台运营数据
     "list_operation_metrics": _resource_executor(ListOperationMetricsResource),
     "get_operation_metric": _resource_executor(GetOperationMetricResource),
     "get_operation_overview": _resource_executor(GetOperationOverviewResource),
@@ -356,6 +368,7 @@ TOOL_EXECUTORS: dict[str, ToolExecutor] = {
 
 
 def dispatch_tool(tool_name: str, tool_args: dict[str, Any]):
+    """按工具名调用原 Resource，并记录不含业务参数的统一分发日志。"""
     try:
         executor = TOOL_EXECUTORS[tool_name]
     except KeyError as exc:
@@ -364,6 +377,7 @@ def dispatch_tool(tool_name: str, tool_args: dict[str, Any]):
     from kernel_api.unified_mcp.permissions import log_mcp_tool_event
     from kernel_api.unified_mcp.registry import get_tool_registry
 
+    # 从同一 Registry 取得审计元信息，避免日志与实际工具路由使用两份配置。
     tool = get_tool_registry().get(tool_name)
     started_at = time.monotonic()
     log_mcp_tool_event(
@@ -375,6 +389,7 @@ def dispatch_tool(tool_name: str, tool_args: dict[str, Any]):
         backend_path=tool.backend_path,
     )
     try:
+        # 业务参数只传给执行器，禁止写入 MCP_TOOL 日志。
         result = executor(tool_args)
     except Exception as exc:
         log_mcp_tool_event(
