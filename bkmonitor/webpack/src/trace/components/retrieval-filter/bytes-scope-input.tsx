@@ -50,6 +50,7 @@ export default defineComponent({
       type: Array as PropType<number[]>,
       default: () => [],
     },
+    /** 展示风格：default 为内容自适应宽度 + small 尺寸；form 为固定宽度 + medium 尺寸 */
     styleType: {
       type: String as PropType<'default' | 'form'>,
       default: 'default',
@@ -195,7 +196,7 @@ export default defineComponent({
         >
           <Input
             v-model={this.startInput}
-            autoWidth={true}
+            autoWidth={this.styleType === 'default'}
             placeholder={`0${this.baseUnit}`}
             size={this.styleType === 'default' ? 'small' : 'medium'}
             onBlur={this.handleStartInputChange}
@@ -229,7 +230,7 @@ export default defineComponent({
         >
           <Input
             v-model={this.endInput}
-            autoWidth={true}
+            autoWidth={this.styleType === 'default'}
             placeholder={'+∞'}
             size={this.styleType === 'default' ? 'small' : 'medium'}
             onBlur={this.handleEndInputChange}

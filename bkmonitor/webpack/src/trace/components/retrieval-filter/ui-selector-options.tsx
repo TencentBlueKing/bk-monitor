@@ -74,7 +74,8 @@ export default defineComponent({
   setup(props, { emit }) {
     const { t } = useI18n();
     const elRef = useTemplateRef<HTMLDivElement>('el');
-    // const searchInputRef = useTemplateRef<InstanceType<typeof Input>>('searchInput');
+    /** 字段搜索框模板引用（fieldSearchAutoFocus 打开时用于自动聚焦） */
+    const searchInputRef = useTemplateRef<InstanceType<typeof Input>>('searchInput');
     const valueSelectorRef = useTemplateRef<HTMLDivElement>('valueSelector');
     const allInputRef = useTemplateRef<HTMLDivElement>('allInput');
     const numberInputRef =
@@ -220,23 +221,27 @@ export default defineComponent({
               }
             }
           } else {
-            if (props.fields?.[0]) {
-              handleCheck(
-                props.fields[0],
-                '',
-                [],
-                {
-                  isWildcard: false,
-                  groupRelation: '',
-                },
-                true
-              );
+            /* 新增条件：autoFocus 模式不预选字段，改为聚焦字段搜索框 */
+            if (props.fieldSearchAutoFocus) {
+              // 需要等待popover 动画执行完毕 300ms
+              setTimeout(() => {
+                searchInputRef.value?.focus();
+              }, 300);
+            } else {
+              /* 否则沿用默认行为：自动选中第一个字段 */
+              if (props.fields?.[0]) {
+                handleCheck(
+                  props.fields[0],
+                  '',
+                  [],
+                  {
+                    isWildcard: false,
+                    groupRelation: '',
+                  },
+                  true
+                );
+              }
             }
-
-            // 需要等待popover 动画执行完毕 300ms
-            // setTimeout(() => {
-            //   searchInputRef.value?.focus();
-            // }, 300);
           }
         } else {
           cleanup?.();
@@ -368,7 +373,14 @@ export default defineComponent({
         /* 范围输入字段特殊处理 */
         if (isScopeInputKey.value) {
           if (scopeInputValue.value.value.length) {
-            value.method = { id: scopeInputValue.value.method as EMethod, name: scopeInputValue.value.method };
+            /* 操作符展示名取 alias，取不到时回退为操作符值本身 */
+            const methodName = checkedItem.value.methods.find(
+              item => item.value === scopeInputValue.value.method
+            )?.alias;
+            value.method = {
+              id: scopeInputValue.value.method as EMethod,
+              name: methodName || scopeInputValue.value.method,
+            };
             value.value = scopeInputValue.value.value.map(item => ({ id: item, name: item }));
             emit('confirm', value);
           }
