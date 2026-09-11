@@ -157,6 +157,11 @@ export default defineComponent({
       }
     }
 
+    /** 弹层内容渲染完成后重新定向：数据加载前后内容高度不同，初始定位会偏移导致底部内容被裁 */
+    function updatePopoverPosition() {
+      popoverInstance.value?.popperInstance?.forceUpdate();
+    }
+
     function handleConditionChange(value: ConditionChangeEvent) {
       emit('conditionChange', value, true);
     }
@@ -201,6 +206,7 @@ export default defineComponent({
       statisticsListRef,
       handleDimensionItemClick,
       destroyPopover,
+      updatePopoverPosition,
       handleConditionChange,
       handleClose,
       renderSkeleton,
@@ -259,6 +265,7 @@ export default defineComponent({
           isInteger={['double', 'long', 'integer'].includes(this.selectField?.type)}
           isShow={this.showStatisticsPopover}
           onConditionChange={this.handleConditionChange}
+          onContentRendered={this.updatePopoverPosition}
           onShowMore={this.destroyPopover}
         />
       </div>
