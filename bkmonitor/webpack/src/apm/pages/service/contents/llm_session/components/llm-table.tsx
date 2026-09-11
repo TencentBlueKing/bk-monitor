@@ -1,3 +1,28 @@
+/*
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ *
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
+ *
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+ *
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ *
+ * ---------------------------------------------------
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+ * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
+ */
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
@@ -9,6 +34,12 @@ import type { ILlmColumn, ISessionRow, ITokensCell, LlmRow, LlmStatus } from '..
 
 import './llm-table.scss';
 
+interface ILlmTableEvents {
+  onScrollEnd: () => void;
+  onSortChange: (payload: { order: string; prop: string }) => void;
+  onTraceIdClick: (traceId: string) => void;
+}
+
 interface ILlmTableProps {
   columns: ILlmColumn[];
   data: LlmRow[];
@@ -17,11 +48,6 @@ interface ILlmTableProps {
   loading?: boolean;
   maxHeight?: number | string;
   scrollLoading?: boolean;
-}
-
-interface ILlmTableEvents {
-  onScrollEnd: () => void;
-  onSortChange: (payload: { order: string; prop: string }) => void;
 }
 
 /**
@@ -51,20 +77,32 @@ export default class LlmTable extends tsc<ILlmTableProps, ILlmTableEvents> {
     this.$emit('sortChange', payload);
   }
 
+  handleTraceIdClick(traceId: string) {
+    if (!traceId) return;
+    this.$emit('traceIdClick', traceId);
+  }
+
+  clipTooltipContent(value: string) {
+    if (!value) return EMPTY_TEXT;
+    if (value.length <= 200) return value;
+    return `${value.substring(0, 200)}...`;
+  }
+
   /** 单元格分发。取值字段与列 id 一致，值均已在数据转换阶段格式化完成 */
   renderCell(column: ILlmColumn, row: LlmRow) {
     const value = row[column.id];
     switch (column.cellType) {
-      case 'link':
-        // 本期只做展示，点击跳转后续接入
+      case 'link': {
         return (
-          <span
-            class='llm-table-text llm-table-link'
-            v-bk-overflow-tips
+          <bk-button
+            theme='primary'
+            text
+            onClick={() => this.handleTraceIdClick(value as string)}
           >
             {value || EMPTY_TEXT}
-          </span>
+          </bk-button>
         );
+      }
       case 'countLink':
         return <span class='llm-table-link is-strong'>{value || EMPTY_TEXT}</span>;
       case 'tokens':
@@ -72,12 +110,12 @@ export default class LlmTable extends tsc<ILlmTableProps, ILlmTableEvents> {
       case 'tokensBadge':
         return this.renderTokensBadge(value as ITokensCell);
       case 'status':
-        return this.renderStatus(value as LlmStatus | '');
+        return this.renderStatus(value as '' | LlmStatus);
       default:
         return (
           <span
             class='llm-table-text'
-            v-bk-overflow-tips
+            v-bk-overflow-tips={{ content: this.clipTooltipContent(value as string) }}
           >
             {value || EMPTY_TEXT}
           </span>
@@ -86,7 +124,7 @@ export default class LlmTable extends tsc<ILlmTableProps, ILlmTableEvents> {
   }
 
   /** 状态：圆点 + 文案。success 成功 / error 失败，非法值回退占位 */
-  renderStatus(status: LlmStatus | '') {
+  renderStatus(status: '' | LlmStatus) {
     if (status !== 'success' && status !== 'error') {
       return <span class='llm-table-text'>{EMPTY_TEXT}</span>;
     }
@@ -130,8 +168,8 @@ export default class LlmTable extends tsc<ILlmTableProps, ILlmTableEvents> {
         minWidth={column.minWidth}
         prop={column.sortField}
         scopedSlots={{ default: ({ row }) => this.renderCell(column, row as LlmRow) }}
-        sortBy={localSort ? column.sortBy : undefined}
         sortable={sortable}
+        sortBy={localSort ? column.sortBy : undefined}
       />
     );
   }
@@ -161,10 +199,6 @@ export default class LlmTable extends tsc<ILlmTableProps, ILlmTableEvents> {
           />
         ) : (
           <bk-table
-            data={this.data}
-            max-height={this.maxHeight}
-            outer-border={false}
-            row-key='key'
             scroll-loading={{
               isLoading: this.scrollLoading,
               size: 'mini',
@@ -172,6 +206,10 @@ export default class LlmTable extends tsc<ILlmTableProps, ILlmTableEvents> {
               icon: 'circle-2-1',
               placement: 'right',
             }}
+            data={this.data}
+            max-height={this.maxHeight}
+            outer-border={false}
+            row-key='key'
             on-scroll-end={this.handleScrollEnd}
             on-sort-change={this.handleSortChange}
           >
