@@ -34,9 +34,9 @@ class CompressionRatioItem(KeyValueItem):
             "attributes.resource.transfer_size" in origin_data
             and "attributes.resource.decoded_body_size" in origin_data
         ):
-            ratio = 1 - float(origin_data["attributes.resource.transfer_size"]) / float(
-                origin_data["attributes.resource.decoded_body_size"]
-            )
+            decoded_body_size = float(origin_data["attributes.resource.decoded_body_size"])
+            if decoded_body_size != 0:
+                ratio = 1 - float(origin_data["attributes.resource.transfer_size"]) / decoded_body_size
         return {self.key: ratio}
 
 

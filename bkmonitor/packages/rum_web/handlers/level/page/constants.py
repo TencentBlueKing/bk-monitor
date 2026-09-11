@@ -8,10 +8,10 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from enum import Enum
+from constants.apm import CachedEnum
 
 
-class SectionType(Enum):
+class SectionType(CachedEnum):
     SUMMARY_CARDS = "summary_cards"
     WATERFALL = "waterfall"
     RATING_BAR = "rating_bar"

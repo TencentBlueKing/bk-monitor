@@ -484,8 +484,8 @@ class SpanLevelHandler(BaseRumLevelHandler):
         if not origin_data:
             raise serializers.ValidationError(_("span_id={} 记录不存在").format(record_id))
 
-        span_type: str = origin_data.get("attributes.span_type")
-        if origin_data.get("attributes.span_type") == RumSpanType.RESOURCE.value:
+        span_type: str = origin_data.get("attributes.span_type", "")
+        if span_type == RumSpanType.RESOURCE.value:
             if origin_data.get("attributes.resource.type") in {ResourceType.XHR.value, ResourceType.FETCH.value}:
                 page_class = ResourceXhrAndFetchPage
             else:

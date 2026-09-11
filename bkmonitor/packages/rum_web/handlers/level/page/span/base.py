@@ -45,10 +45,9 @@ class SpanTypeItem(NamedKeyValueItem):
     def render(self, origin_data: dict[str, Any]) -> Any:
         result: dict[str, Any] = {"field_name": self.field_name, "field_alias": self.field_alias}
         if origin_data.get("attributes.span_type") == RumSpanType.RESOURCE.value:
+            resource_type = origin_data.get("attributes.resource.type", "")
             result["alias"] = result["value"] = (
-                f"{RumSpanType.RESOURCE.value}({origin_data['attributes.resource.type']})"
-                if origin_data.get("attributes.resource.type", "")
-                else RumSpanType.RESOURCE.value
+                f"{RumSpanType.RESOURCE.value}({resource_type})" if resource_type else RumSpanType.RESOURCE.value
             )
         else:
             result["alias"] = result["value"] = origin_data.get("span_type", "")
@@ -71,7 +70,6 @@ class SpanOverview(BaseOverview):
 
     def __init__(self, origin_data: dict[str, Any]):
         super().__init__(origin_data)
-        self.component_dict.update()
 
     def _fill_title(self):
         self.component_dict["title"] = self.origin_data.get("span_name", self.EMPTY_VALUE)
