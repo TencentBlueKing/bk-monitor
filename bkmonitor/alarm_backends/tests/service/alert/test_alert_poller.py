@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,11 +7,12 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import json
 import time
 from collections import namedtuple
 
-import mock
+from unittest import mock
 import pytest
 from django.conf import settings
 
@@ -60,7 +60,7 @@ def clear_index():
 
 class FakeKafkaConsumer(mock.MagicMock):
     def __init__(self, *args, **kwargs):
-        super(FakeKafkaConsumer, self).__init__()
+        super().__init__()
         self.partitions = set()
         self.assign_call_count = 0
         self.assignment_call_count = 0
@@ -74,7 +74,7 @@ class FakeKafkaConsumer(mock.MagicMock):
         self.partitions = set(partitions)
 
 
-class TestAlertPollerHandler(object):
+class TestAlertPollerHandler:
     def test_leader(self):
         service = mock.Mock()
         p = AlertHandler(service)
@@ -205,6 +205,38 @@ class TestAlertPollerHandler(object):
         assert p.consumers["kafka4.service.consul:9092"].assign_call_count == 1
         assert p.consumers["kafka3.service.consul:9092"].assign_call_count == 1
 
+    def test_consumer_manager_recreate_unhealthy_consumer(self, mock_alert_kafka_consumer):
+        service = mock.Mock()
+        p = AlertHandler(service)
+        p.ip = "127.0.0.1"
+        bootstrap_server = "kafka1.service.consul:9092"
+
+        p.redis_client.hset(
+            p.data_id_cache_key,
+            p.ip,
+            json.dumps(
+                [
+                    {
+                        "data_id": 1,
+                        "partition": 0,
+                        "topic": "topic1",
+                        "bootstrap_server": bootstrap_server,
+                    }
+                ]
+            ),
+        )
+
+        p.run_consumer_manager()
+        old_consumer = p.consumers[bootstrap_server]
+        old_consumer._client = mock.Mock()
+        old_consumer._client._closed = True
+
+        p.run_consumer_manager()
+
+        assert mock_alert_kafka_consumer.call_count == 2
+        assert p.consumers[bootstrap_server] is not old_consumer
+        assert old_consumer.close.call_count == 1
+
     def test_poller(self, mock_alert_kafka_consumer, mock_run_alert_builder):
         service = mock.Mock()
         p = AlertHandler(service)
@@ -253,6 +285,39 @@ class TestAlertPollerHandler(object):
         p.run_poller()
 
         assert mock_run_alert_builder.call_count == 2
+
+    def test_poller_remove_unhealthy_consumer(self, mock_alert_kafka_consumer, mock_run_alert_builder):
+        service = mock.Mock()
+        p = AlertHandler(service)
+        p.ip = "127.0.0.1"
+        bootstrap_server = "kafka1.service.consul:9092"
+
+        p.redis_client.hset(
+            p.data_id_cache_key,
+            p.ip,
+            json.dumps(
+                [
+                    {
+                        "data_id": 1,
+                        "topic": "topic1",
+                        "partition": 0,
+                        "bootstrap_server": bootstrap_server,
+                    }
+                ]
+            ),
+        )
+        p.run_consumer_manager()
+        consumer = p.consumers[bootstrap_server]
+        consumer._client = mock.Mock()
+        consumer._client._closed = True
+        poll_count = consumer.poll.call_count
+
+        p.run_poller()
+
+        assert bootstrap_server not in p.consumers
+        assert consumer.poll.call_count == poll_count
+        assert consumer.close.call_count == 1
+        assert mock_run_alert_builder.call_count == 0
 
     def test_poller_send_one_event(self, mock_alert_kafka_consumer, mock_run_alert_builder):
         service = mock.Mock()
