@@ -1,0 +1,119 @@
+@import '../../../../theme/theme';
+@import '../../../../theme/mixin';
+
+.llm-output-tab {
+  gap: 24px;
+  width: 100%;
+  padding: 20px 24px 24px;
+
+  @include flex-column;
+
+  &-empty {
+    padding: 48px 0;
+    font-size: $font-size-base;
+    line-height: 20px;
+    color: #8f9fbd;
+    text-align: center;
+  }
+
+  &-tools {
+    gap: 12px;
+    padding: 12px 0 12px 40px;
+
+    @include flex-column;
+  }
+
+  &-tool-tags {
+    flex-wrap: wrap;
+    gap: 10px;
+
+    @include flex-align(center);
+  }
+
+  &-tool-tag {
+    height: 26px;
+    padding: 3px 4px;
+    font-family: menlo, monaco, consolas, monospace;
+    font-size: $font-size-base;
+    line-height: 20px;
+    color: #3ba365;
+    white-space: nowrap;
+    cursor: pointer;
+    background: #f0faf1;
+    border: 1px solid #bfdfd2;
+    border-radius: 4px;
+
+    @include flex-align(center);
+
+    &.is-active {
+      color: #fff;
+      background: $primary-color;
+      border-color: $primary-color;
+    }
+  }
+
+  &-tool-desc {
+    gap: 8px;
+    min-height: 32px;
+    padding: 6px 10px;
+    overflow: hidden;
+    background: #f0faf1;
+    border: 1px solid #bfdfd2;
+    border-radius: 4px;
+
+    @include flex-align(center);
+  }
+
+  &-tool-desc-label {
+    flex-shrink: 0;
+    font-size: $font-size-base;
+    font-weight: 600;
+    line-height: $line-height-base;
+    color: #3ba365;
+    white-space: nowrap;
+  }
+
+  &-tool-desc-text {
+    font-size: $font-size-base;
+    line-height: 20px;
+    color: #4e5e7a;
+
+    @include ellipsis;
+  }
+}
+
+/* Sideslider transfer 到 body，需保持顶层选择器 */
+.llm-output-tab-slider-text,
+.llm-output-tab-slider-json {
+  padding: 16px 24px 24px;
+  overflow: auto;
+}
+
+.llm-output-tab-slider-text {
+  margin: 0;
+  font-family: arial, sans-serif;
+  font-size: $font-size-base;
+  line-height: 20px;
+  color: #4e5e7a;
+  overflow-wrap: break-word;
+  white-space: pre-wrap;
+}
+
+.llm-output-tab-slider-json {
+  .vjs-tree {
+    font-family: 'Roboto Mono', menlo, monaco, consolas, monospace;
+    font-size: $font-size-base;
+    line-height: 20px;
+  }
+
+  .vjs-key {
+    color: #a33b3b;
+  }
+
+  .vjs-value,
+  .vjs-value-string,
+  .vjs-value-number,
+  .vjs-value-boolean {
+    color: #0651a5;
+  }
+}

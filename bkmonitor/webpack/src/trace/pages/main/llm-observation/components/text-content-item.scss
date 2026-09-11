@@ -1,0 +1,117 @@
+@import '../../../../theme/theme';
+@import '../../../../theme/mixin';
+
+.llm-text-content-item {
+  position: relative;
+  box-sizing: border-box;
+  padding: 8px;
+  background: #fff;
+  border-bottom: 1px solid #e4e9f2;
+
+  .llm-text-content-row {
+    gap: 10px;
+    width: 100%;
+
+    @include flex-align(flex-start);
+  }
+
+  .llm-text-content-body {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    font-family: arial, sans-serif;
+    font-size: $font-size-base;
+    line-height: 20px;
+    color: #4e5e7a;
+    overflow-wrap: break-word;
+    white-space: pre-wrap;
+  }
+
+  .llm-text-content-actions {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    z-index: 1;
+    display: none;
+    flex-direction: column;
+    gap: 8px;
+    align-items: flex-start;
+  }
+
+  .llm-text-content-action {
+    gap: 3px;
+    padding: 2px 6px;
+    font-size: $font-size-base;
+    line-height: 20px;
+    color: $primary-color;
+    white-space: nowrap;
+    cursor: pointer;
+    background: #fff;
+    border: 1px solid #e9edf5;
+    border-radius: 4px;
+    box-shadow: 0 2px 4px rgb(25 25 41 / 5%);
+
+    @include flex-align(center);
+
+    .icon-monitor {
+      font-size: $font-size-medium;
+    }
+
+    &.is-collapse {
+      position: absolute;
+      right: 8px;
+      bottom: 8px;
+      z-index: 1;
+      display: none;
+    }
+  }
+
+  &.is-overflow {
+    height: 160px;
+    overflow: hidden;
+
+    &::after {
+      position: absolute;
+      right: 0;
+      bottom: -1px;
+      left: 0;
+      height: 31px;
+      pointer-events: none;
+      content: '';
+      background: linear-gradient(180deg, rgb(255 255 255 / 0%) 0%, #fff 100%);
+    }
+
+    .llm-text-content-body {
+      /* stylelint-disable value-no-vendor-prefix, property-no-vendor-prefix -- 多行截断依赖 webkit box */
+      display: -webkit-box;
+      overflow: hidden;
+      -webkit-line-clamp: 7;
+      -webkit-box-orient: vertical;
+
+      /* stylelint-enable value-no-vendor-prefix, property-no-vendor-prefix */
+    }
+  }
+
+  &:hover {
+    background: #f7f9fc;
+
+    &.is-overflow::after {
+      background: linear-gradient(180deg, rgb(247 249 252 / 0%) 0%, #f7f9fc 100%);
+    }
+
+    .llm-text-content-actions,
+    .llm-text-content-action.is-collapse {
+      display: flex;
+    }
+  }
+}
+
+/* 输入 Tab 工具调用序号复用同一套序号样式 */
+.llm-text-content-index {
+  flex-shrink: 0;
+  font-family: menlo, monaco, consolas, monospace;
+  font-size: $font-size-base;
+  line-height: 20px;
+  color: $primary-color;
+  white-space: nowrap;
+}
