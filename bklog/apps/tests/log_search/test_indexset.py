@@ -3848,3 +3848,83 @@ class TestPlatformIndexListAndRouter(TestCase):
         perm = PlatformAwareIndexSearchPermission([ActionEnum.SEARCH_LOG], ResourceEnum.INDICES)
         self.assertTrue(perm.has_permission(request, view))
         client.has_unlimited_action_in_space.assert_not_called()
+
+
+class TestSyncFieldsSnapshot(TestCase):
+    """原生 Doris 索引集没有 ES mapping，字段快照必须改走 unify-query。
+
+    背景：sync_fields_snapshot 原先无条件走 esquery，会用 ES 客户端连 Doris 的
+    9030（MySQL 协议）端口，报 BadStatusLine 后整条索引集在监控指标缓存里被跳过。
+    """
+
+    ESQUERY_PATH = "apps.log_search.handlers.search.search_handlers_esquery.SearchHandler"
+    UNIFY_QUERY_PATH = "apps.log_unifyquery.handler.base.UnifyQueryHandler"
+
+    def _build_index_set(self, storage_cluster_type: str) -> LogIndexSet:
+        collector_config = CollectorConfig.objects.create(
+            table_id="591_snapshot",
+            bk_biz_id=2,
+            collector_config_name=f"snapshot_{storage_cluster_type}",
+            collector_scenario_id="log",
+            category_id="other_rt",
+            storage_cluster_type=storage_cluster_type,
+        )
+        index_set = LogIndexSet.objects.create(
+            index_set_name=f"snapshot_{storage_cluster_type}",
+            space_uid=SPACE_UID,
+            scenario_id=Scenario.LOG,
+            collector_config_id=collector_config.collector_config_id,
+        )
+        collector_config.index_set_id = index_set.index_set_id
+        collector_config.save(update_fields=["index_set_id"])
+        return index_set
+
+    def test_native_doris_uses_unify_query(self):
+        """原生 Doris：走 unify-query 且完全不碰 esquery。"""
+        index_set = self._build_index_set(DORIS_CLUSTER_TYPE)
+        self.assertTrue(index_set.is_native_doris())
+
+        with patch(self.UNIFY_QUERY_PATH) as mock_unify_query, patch(self.ESQUERY_PATH) as mock_esquery:
+            mock_unify_query.return_value.fields.return_value = {"fields": [{"field_name": "log"}]}
+            fields = index_set.sync_fields_snapshot()
+
+        mock_esquery.assert_not_called()
+        mock_unify_query.assert_called_once()
+        # 构造参数需满足 UnifyQueryHandler 的必填项，且时间为毫秒整型
+        params = mock_unify_query.call_args[0][0]
+        self.assertEqual(params["index_set_ids"], [index_set.index_set_id])
+        self.assertEqual(params["bk_biz_id"], 2)
+        self.assertIsInstance(params["start_time"], int)
+        self.assertIsInstance(params["end_time"], int)
+        self.assertLess(params["start_time"], params["end_time"])
+
+        self.assertEqual(fields["fields"], [{"field_name": "log"}])
+        index_set.refresh_from_db()
+        self.assertEqual(index_set.fields_snapshot["fields"], [{"field_name": "log"}])
+
+    def test_non_doris_uses_esquery(self):
+        """非 Doris：保持原有 esquery 行为不变。"""
+        index_set = self._build_index_set(STORAGE_CLUSTER_TYPE)
+        self.assertFalse(index_set.is_native_doris())
+
+        with patch(self.UNIFY_QUERY_PATH) as mock_unify_query, patch(self.ESQUERY_PATH) as mock_esquery:
+            mock_esquery.return_value.fields.return_value = {"fields": [{"field_name": "log"}]}
+            fields = index_set.sync_fields_snapshot()
+
+        mock_unify_query.assert_not_called()
+        mock_esquery.assert_called_once_with(index_set.index_set_id, {}, pre_check_enable=True)
+        self.assertEqual(fields["fields"], [{"field_name": "log"}])
+
+    def test_unify_query_failure_keeps_old_snapshot(self):
+        """unify-query 失败时保留旧快照并抛出，与 esquery 分支的兜底行为一致。"""
+        index_set = self._build_index_set(DORIS_CLUSTER_TYPE)
+        index_set.fields_snapshot = {"fields": [{"field_name": "old"}]}
+        index_set.save(update_fields=["fields_snapshot"])
+
+        with patch(self.UNIFY_QUERY_PATH) as mock_unify_query:
+            mock_unify_query.return_value.fields.side_effect = ValueError("unify-query down")
+            with self.assertRaises(ValueError):
+                index_set.sync_fields_snapshot()
+
+        index_set.refresh_from_db()
+        self.assertEqual(index_set.fields_snapshot["fields"], [{"field_name": "old"}])

@@ -26,6 +26,7 @@ import time
 from collections import defaultdict
 from typing import Any
 
+import arrow
 from django.conf import settings
 from django.core.cache import cache
 from django.db import connection, models
@@ -822,6 +823,21 @@ class LogIndexSet(SoftDeleteModel):
             self.sync_fields_snapshot()
         return self.fields_snapshot
 
+    def _get_fields_by_unify_query(self) -> dict:
+        """原生 Doris 索引集没有 ES mapping，只能经 unify-query 取字段。"""
+        from apps.log_unifyquery.handler.base import UnifyQueryHandler
+
+        end_time = arrow.now()
+        start_time = end_time.shift(days=-1)
+        return UnifyQueryHandler(
+            {
+                "index_set_ids": [self.index_set_id],
+                "bk_biz_id": space_uid_to_bk_biz_id(self.space_uid),
+                "start_time": start_time.int_timestamp * 1000,
+                "end_time": end_time.int_timestamp * 1000,
+            }
+        ).fields()
+
     def sync_fields_snapshot(self, pre_check_enable=True):
         from apps.log_search.handlers.search.search_handlers_esquery import (
             SearchHandler,
@@ -829,8 +845,11 @@ class LogIndexSet(SoftDeleteModel):
 
         fields = {}
         try:
-            search_handler_esquery = SearchHandler(self.index_set_id, {}, pre_check_enable=pre_check_enable)
-            fields = search_handler_esquery.fields()
+            if self.is_native_doris():
+                fields = self._get_fields_by_unify_query()
+            else:
+                search_handler_esquery = SearchHandler(self.index_set_id, {}, pre_check_enable=pre_check_enable)
+                fields = search_handler_esquery.fields()
             fields = self.fields_to_string(fields=fields)
             self.fields_snapshot = fields
         except Exception as e:  # pylint: disable=broad-except
