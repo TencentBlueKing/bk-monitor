@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from typing import TYPE_CHECKING, Any
 
 from opentelemetry.semconv.resource import ResourceAttributes
@@ -11,34 +12,65 @@ from constants.apm import LLMProduct, OtlpKey
 if TYPE_CHECKING:
     from apm_web.strategy.dispatch.entity import EntitySet
 
+# 一次查询涉及多个产品时的取用顺序。
+PRODUCT_PRIORITY = (LLMProduct.GALILEO, LLMProduct.AIDEV, LLMProduct.AGENTLENS, LLMProduct.LANGFUSE)
 
-def detect_product(entity_set: EntitySet, spans: list[dict[str, Any]]) -> str:
-    """根据 Span 所属服务的拓扑节点信息，为整条 Trace 选择转换器。"""
-    service_names: set[str] = {
-        service_name
-        for span in spans
-        if (service_name := span.get(OtlpKey.RESOURCE, {}).get(ResourceAttributes.SERVICE_NAME))
-    }
+# 能判定为 Agent 观测数据的 Span：各产品的埋点标记字段取并集，用于不区分层级的筛选与计数。
+AGENT_CANDIDATE_QUERY = (
+    "_exists_:attributes.gen_ai.span.kind "
+    "OR _exists_:attributes.gen_ai.operation.name "
+    "OR _exists_:attributes.agent.info.id "
+    "OR _exists_:attributes.agent.info.name "
+    "OR _exists_:attributes.langfuse.observation.type"
+)
+
+
+def resolve_product(entity_set: EntitySet, service_names: Iterable[str]) -> str:
+    """根据服务的拓扑节点信息选择产品，均非 LLM 服务时落到 default。"""
     systems: list[dict[str, Any]] = [
-        entity_set.get_system(service_name) for service_name in service_names.intersection(entity_set.service_names)
+        entity_set.get_system(service_name)
+        for service_name in set(service_names).intersection(entity_set.service_names)
     ]
     products: set[str] = {
         product for system in systems if system.get("is_support_llm") and (product := system.get("product"))
     }
-    for product in (LLMProduct.GALILEO, LLMProduct.AIDEV, LLMProduct.AGENTLENS, LLMProduct.LANGFUSE):
+    for product in PRODUCT_PRIORITY:
         if product.value in products:
             return product.value
     return LLMProduct.DEFAULT.value
 
 
-# 分组字段映射：标准字段 -> 产品 -> 存储中的原始字段。
+def detect_product(entity_set: EntitySet, spans: list[dict[str, Any]]) -> str:
+    """根据 Span 所属服务的拓扑节点信息，为整条 Trace 选择转换器。"""
+    return resolve_product(
+        entity_set,
+        {
+            service_name
+            for span in spans
+            if (service_name := span.get(OtlpKey.RESOURCE, {}).get(ResourceAttributes.SERVICE_NAME))
+        },
+    )
+
+
+# 分组字段映射：标准字段 -> 产品 -> 存储中的原始字段，只登记与标准名不一致的产品。
 QUERY_FIELD_MAPPING: dict[str, dict[str, str]] = {
     "attributes.gen_ai.conversation.id": {
         LLMProduct.AIDEV.value: "attributes.agent.session.session_code",
         LLMProduct.AGENTLENS.value: "attributes.gen_ai.session.id",
         LLMProduct.GALILEO.value: "attributes.gen_ai.session_id",
         LLMProduct.LANGFUSE.value: "attributes.session.id",
-    }
+    },
+    "attributes.gen_ai.operation.name": {
+        # 该产品的 operation.name 取值为大写，语义层级实际由 span.kind 表达
+        LLMProduct.AGENTLENS.value: "attributes.gen_ai.span.kind",
+        LLMProduct.LANGFUSE.value: "attributes.langfuse.observation.type",
+        LLMProduct.AIDEV.value: "attributes.llm.request.type",
+    },
+    "attributes.gen_ai.response.model": {
+        # 该产品未上报 response.model，但 request.model 在样本与生产环境都是全量填充的
+        LLMProduct.GALILEO.value: "attributes.gen_ai.request.model",
+        LLMProduct.LANGFUSE.value: "attributes.langfuse.observation.model.name",
+    },
 }
 
 

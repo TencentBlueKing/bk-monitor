@@ -52,7 +52,7 @@ class SpanQuery(APMQueryFilterMixin, BaseQuery):
             for ds in self.data_sources
         ]
 
-    def get_qs(self, start_time: int, end_time: int, using_scope: bool = True) -> UnifyQuerySet:
+    def get_qs(self, start_time: int | None, end_time: int | None, using_scope: bool = True) -> UnifyQuerySet:
         qs = super().get_qs(start_time, end_time)
         if not using_scope:
             return qs

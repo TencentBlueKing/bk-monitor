@@ -1,5 +1,4 @@
 from collections import defaultdict
-from math import ceil, pi, sin
 from typing import Any
 
 from opentelemetry.semconv.resource import ResourceAttributes
@@ -10,37 +9,16 @@ from constants.apm import OtlpKey
 from constants.otel_query import OperatorEnum
 from core.drf_resource import Resource, api
 
-from apm_web.llm.adapter import adapt_spans
+from apm_web.handlers.metric_group import GroupEnum, MetricGroupRegistry
 from apm_web.handlers.trace_handler.query import QueryHandler, SpanQueryTransformer
-from apm_web.llm.adapter.fields import resolve_query_field
+from apm_web.llm.adapter import adapt_spans
+from apm_web.llm.adapter.fields import AGENT_CANDIDATE_QUERY, resolve_product, resolve_query_field
+from apm_web.llm.metric_group import LLMMetricGroup
 from apm_web.llm.query import LLMQuery, get_query
 from apm_web.metric.resources import CalculateByRangeResource as MetricCalculateByRangeResource
 from apm_web.models import Application
 from apm_web.strategy.dispatch.entity import EntitySet
-from bkmonitor.utils.time_tools import parse_time_compare_abbreviation
-
-AGENT_CANDIDATE_QUERY = (
-    "_exists_:attributes.gen_ai.span.kind "
-    "OR _exists_:attributes.gen_ai.operation.name "
-    "OR _exists_:attributes.agent.info.id "
-    "OR _exists_:attributes.agent.info.name "
-    "OR _exists_:attributes.langfuse.observation.type"
-)
-
-MOCK_TIME_SERIES_GROUP_BY_FIELDS = {"gen_ai.operation.name", "gen_ai.response.model"}
-MOCK_TIME_SERIES_MAX_POINTS = 60
-MOCK_TIME_SERIES_MODELS = ["hunyuan-turbo", "deepseek-r1", "qwen3-32b"]
-MOCK_TIME_SERIES_OPERATIONS = ["invoke_agent", "chat", "execute_tool", "retrieval"]
-MOCK_TIME_SERIES_CAL_TYPES = (
-    "input_tokens",
-    "output_tokens",
-    "total_tokens",
-    "cache_tokens",
-    "request_count",
-    "model_call_count",
-    "duration",
-    "operation_count",
-)
+from bkmonitor.utils.thread_backend import InheritParentThread, run_threads
 
 
 class ListTracesResource(Resource):
@@ -435,137 +413,60 @@ class ListFlowsResource(Resource):
         return result
 
 
-class TimeSeriesResource(Resource):
-    """临时 LLM 指标时序 mock 接口。
+class LLMMetricRequestSerializer(serializers.Serializer):
+    bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
+    app_name = serializers.CharField(required=True, label="应用名称")
+    service_name = serializers.CharField(required=False, allow_blank=True, default="", label="服务名称")
+    start_time = serializers.IntegerField(required=True, label="开始时间")
+    end_time = serializers.IntegerField(required=True, label="结束时间")
+    cal_type = serializers.ChoiceField(required=True, choices=sorted(LLMMetricGroup.AGGREGATIONS), label="指标类型")
+    group_by = serializers.ListField(required=False, default=list, child=serializers.CharField(), label="聚合字段")
 
-    只按传入时域生成稳定的假数据，用于前端先行联调；后续会替换为基于 LLMQuery 的真实查询。
-    """
 
-    class RequestSerializer(serializers.Serializer):
-        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
-        app_name = serializers.CharField(required=True, label="应用名称")
-        service_name = serializers.CharField(required=False, allow_blank=True, default="", label="服务名称")
-        start_time = serializers.IntegerField(required=True, label="开始时间")
-        end_time = serializers.IntegerField(required=True, label="结束时间")
-        cal_type = serializers.ChoiceField(
-            required=True,
-            choices=MOCK_TIME_SERIES_CAL_TYPES,
-            label="指标类型",
+class LLMMetricGroupMixin:
+    """解析服务对应的产品，构造 LLM 指标组。"""
+
+    @staticmethod
+    def _get_group(validated_request_data: dict[str, Any], time_shift: str | None = None) -> LLMMetricGroup:
+        bk_biz_id: int = validated_request_data["bk_biz_id"]
+        app_name: str = validated_request_data["app_name"]
+        service_name: str = validated_request_data["service_name"]
+        entity_set = EntitySet(
+            bk_biz_id=bk_biz_id,
+            app_name=app_name,
+            service_names=[service_name] if service_name else None,
         )
-        group_by = serializers.ListField(
-            required=False,
-            default=list,
-            child=serializers.CharField(),
-            label="聚合字段",
+        return MetricGroupRegistry.get(
+            GroupEnum.LLM.value,
+            bk_biz_id,
+            app_name,
+            group_by=validated_request_data["group_by"],
+            time_shift=time_shift,
+            # 不指定服务时按应用下全部服务定产品，否则字段映射会错落到标准名上
+            product=resolve_product(entity_set, [service_name] if service_name else entity_set.service_names),
+            service_name=service_name,
         )
 
-        def validate(self, attrs):
-            if attrs["start_time"] >= attrs["end_time"]:
-                raise serializers.ValidationError("start_time 必须小于 end_time")
 
-            if len(attrs["group_by"]) > 1:
-                raise serializers.ValidationError("暂不支持多字段聚合")
+class TimeSeriesResource(LLMMetricGroupMixin, Resource):
+    """LLM 指标时序查询。"""
 
-            unsupported_group_by = set(attrs["group_by"]) - MOCK_TIME_SERIES_GROUP_BY_FIELDS
-            if unsupported_group_by:
-                raise serializers.ValidationError(f"暂不支持按 {sorted(unsupported_group_by)} 聚合")
-            return attrs
-
-    @staticmethod
-    def _auto_interval(start_time: int, end_time: int) -> int:
-        raw_interval = max(60, ceil((end_time - start_time) / 30))
-        for interval in (60, 300, 600, 1800, 3600, 21600, 86400):
-            if raw_interval <= interval:
-                return interval
-        return 86400
-
-    @staticmethod
-    def _mock_value(cal_type: str, point_index: int, series_index: int, point_count: int) -> int:
-        progress = point_index / max(1, point_count - 1)
-        wave = sin(progress * pi)
-        ripple = sin(progress * pi * 3 + series_index * 0.7) * 0.16
-
-        if cal_type == "input_tokens":
-            return max(0, int(2600 + series_index * 760 + wave * 2500 + ripple * 800))
-        if cal_type == "output_tokens":
-            return max(0, int(980 + series_index * 280 + wave * 980 + ripple * 320))
-        if cal_type == "total_tokens":
-            return TimeSeriesResource._mock_value("input_tokens", point_index, series_index, point_count) + (
-                TimeSeriesResource._mock_value("output_tokens", point_index, series_index, point_count)
-            )
-        if cal_type == "cache_tokens":
-            return max(0, int(420 + series_index * 120 + wave * 520 + ripple * 150))
-        if cal_type == "request_count":
-            return max(0, int(36 + series_index * 9 + wave * 42 + ripple * 12))
-        if cal_type == "model_call_count":
-            return max(0, int(110 + series_index * 28 + wave * 125 + ripple * 38))
-        if cal_type == "operation_count":
-            return max(0, int(140 + series_index * 35 + wave * 160 + ripple * 45))
-        return max(0, int(820000 + series_index * 210000 + wave * 520000 + ripple * 130000))
-
-    @staticmethod
-    def _dimensions(group_by: list[str]) -> list[dict[str, str]]:
-        if not group_by:
-            return [{}]
-        if group_by == ["gen_ai.response.model"]:
-            return [{"gen_ai.response.model": model} for model in MOCK_TIME_SERIES_MODELS]
-        if group_by == ["gen_ai.operation.name"]:
-            return [{"gen_ai.operation.name": operation} for operation in MOCK_TIME_SERIES_OPERATIONS]
-        return [{}]
+    RequestSerializer = LLMMetricRequestSerializer
 
     def perform_request(self, validated_request_data):
-        start_time = validated_request_data["start_time"]
-        end_time = validated_request_data["end_time"]
-        interval = max(
-            self._auto_interval(start_time, end_time),
-            ceil((end_time - start_time) / (MOCK_TIME_SERIES_MAX_POINTS - 1)),
+        return self._get_group(validated_request_data).time_series(
+            validated_request_data["cal_type"],
+            start_time=validated_request_data["start_time"],
+            end_time=validated_request_data["end_time"],
         )
-        timestamps = list(range(start_time, end_time + 1, interval))
-        if timestamps[-1] != end_time:
-            timestamps.append(end_time)
-
-        cal_type = validated_request_data["cal_type"]
-        series = []
-        point_count = len(timestamps)
-        for series_index, dimensions in enumerate(self._dimensions(validated_request_data["group_by"])):
-            datapoints = [
-                [self._mock_value(cal_type, point_index, series_index, point_count), timestamp * 1000]
-                for point_index, timestamp in enumerate(timestamps)
-            ]
-            series_item = {"datapoints": datapoints}
-            if dimensions:
-                series_item["target"] = next(iter(dimensions.values()))
-                series_item["dimensions"] = dimensions
-            series.append(series_item)
-
-        return {
-            "series": series,
-            "mock": True,
-        }
 
 
-class CalculateByRangeResource(MetricCalculateByRangeResource):
-    """临时 LLM 指标区间聚合 mock 接口。"""
+class CalculateByRangeResource(LLMMetricGroupMixin, MetricCalculateByRangeResource):
+    """LLM 指标区间聚合，返回结构与调用分析的 CalculateByRangeResource 保持一致。"""
 
-    class RequestSerializer(serializers.Serializer):
+    class RequestSerializer(LLMMetricRequestSerializer):
         ZERO_TIME_SHIFT = "0s"
 
-        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
-        app_name = serializers.CharField(required=True, label="应用名称")
-        service_name = serializers.CharField(required=False, allow_blank=True, default="", label="服务名称")
-        start_time = serializers.IntegerField(required=True, label="开始时间")
-        end_time = serializers.IntegerField(required=True, label="结束时间")
-        cal_type = serializers.ChoiceField(
-            required=True,
-            choices=MOCK_TIME_SERIES_CAL_TYPES,
-            label="指标类型",
-        )
-        group_by = serializers.ListField(
-            required=False,
-            default=list,
-            child=serializers.CharField(),
-            label="聚合字段",
-        )
         baseline = serializers.CharField(required=False, default=ZERO_TIME_SHIFT, label="对比基准")
         time_shifts = serializers.ListField(
             required=False,
@@ -575,16 +476,7 @@ class CalculateByRangeResource(MetricCalculateByRangeResource):
         )
 
         def validate(self, attrs):
-            if attrs["start_time"] >= attrs["end_time"]:
-                raise serializers.ValidationError("start_time 必须小于 end_time")
-
-            if len(attrs["group_by"]) > 1:
-                raise serializers.ValidationError("暂不支持多字段聚合")
-
-            unsupported_group_by = set(attrs["group_by"]) - MOCK_TIME_SERIES_GROUP_BY_FIELDS
-            if unsupported_group_by:
-                raise serializers.ValidationError(f"暂不支持按 {sorted(unsupported_group_by)} 聚合")
-
+            attrs = super().validate(attrs)
             attrs["time_shifts"] = list(dict.fromkeys([*attrs["time_shifts"], self.ZERO_TIME_SHIFT]))
             if len(attrs["time_shifts"]) > 3:
                 raise serializers.ValidationError("最多支持两次时间对比")
@@ -592,54 +484,42 @@ class CalculateByRangeResource(MetricCalculateByRangeResource):
                 raise serializers.ValidationError("baseline 必须包含在 time_shifts 中")
             return attrs
 
-    @staticmethod
-    def _range_value(cal_type: str, start_time: int, end_time: int, series_index: int) -> int:
-        minutes = max(1, ceil((end_time - start_time) / 60))
-
-        if cal_type == "input_tokens":
-            base = minutes * (1180 + series_index * 360) + (start_time // 60 % 17) * 95
-            return int(base)
-        if cal_type == "output_tokens":
-            base = minutes * (430 + series_index * 130) + (start_time // 60 % 11) * 42
-            return int(base)
-        if cal_type == "total_tokens":
-            return CalculateByRangeResource._range_value(
-                "input_tokens", start_time, end_time, series_index
-            ) + CalculateByRangeResource._range_value("output_tokens", start_time, end_time, series_index)
-        if cal_type == "cache_tokens":
-            base = minutes * (160 + series_index * 48) + (start_time // 60 % 7) * 21
-            return int(base)
-        if cal_type == "request_count":
-            base = minutes * (17 + series_index * 4) + (start_time // 60 % 23)
-            return int(base)
-        if cal_type == "model_call_count":
-            base = minutes * (34 + series_index * 8) + (start_time // 60 % 7) * 2
-            return int(base)
-        if cal_type == "operation_count":
-            base = minutes * (43 + series_index * 13) + (start_time // 60 % 29) * 3
-            return int(base)
-
-        base = 830000 + series_index * 230000 + min(minutes, 180) * 1600 + (start_time // 60 % 13) * 4200
-        return int(base)
+    @classmethod
+    def format_value(cls, metric_cal_type: str, value: Any) -> float:
+        """计数类算子取整：基类只认调用分析的 request_total，LLM 的计数算子用的是自己的取值名。"""
+        if metric_cal_type in LLMMetricGroup.COUNT_CALCULATION_TYPES:
+            return int(super().format_value(metric_cal_type, value))
+        return cls.format_value(metric_cal_type, value)
 
     def perform_request(self, validated_request_data):
-        cal_type = validated_request_data["cal_type"]
-        group_by = validated_request_data["group_by"]
-        aliases = validated_request_data["time_shifts"]
+        def _collect(_alias: str, **_kwargs):
+            alias_aggregated_records_map[_alias] = self._get_group(validated_request_data, _alias).handle(
+                cal_type, **_kwargs
+            )
 
-        records: list[dict[str, Any]] = []
-        for series_index, dimensions in enumerate(TimeSeriesResource._dimensions(group_by)):
-            record: dict[str, Any] = {"dimensions": dimensions}
-            for alias in aliases:
-                time_offset = parse_time_compare_abbreviation(alias)
-                record[alias] = self._range_value(
-                    cal_type,
-                    validated_request_data["start_time"] + time_offset,
-                    validated_request_data["end_time"] + time_offset,
-                    series_index,
+        baseline: str = validated_request_data["baseline"]
+        cal_type: str = validated_request_data["cal_type"]
+        group_fields: list[str] = validated_request_data["group_by"]
+        alias_aggregated_records_map: dict[str, list[dict[str, Any]]] = {}
+
+        run_threads(
+            [
+                InheritParentThread(
+                    target=_collect,
+                    args=(time_shift,),
+                    kwargs={
+                        "start_time": validated_request_data["start_time"],
+                        "end_time": validated_request_data["end_time"],
+                    },
                 )
-            records.append(record)
+                for time_shift in validated_request_data["time_shifts"]
+            ]
+        )
 
-        self._process_growth_rates(validated_request_data["baseline"], aliases, records)
+        merged_records: list[dict[str, Any]] = self._merge(cal_type, group_fields, alias_aggregated_records_map)
+        aliases: list[str] = list(alias_aggregated_records_map.keys())
+        # 分组结果按基准列降序，概览页的 TopK 卡片直接取前 N 条
+        merged_records.sort(key=lambda record: record.get(baseline) or 0, reverse=True)
+        self._process_growth_rates(baseline, aliases, merged_records)
 
-        return {"total": len(records), "data": records}
+        return {"total": len(merged_records), "data": self._process_sorted(merged_records)}

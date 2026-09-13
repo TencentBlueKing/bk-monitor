@@ -52,11 +52,11 @@ class BaseQuery:
         """
         return QueryConfigBuilder(self.USING).time_field(time_field or self.DEFAULT_TIME_FIELD)
 
-    def get_qs(self, start_time: int, end_time: int) -> UnifyQuerySet:
+    def get_qs(self, start_time: int | None, end_time: int | None) -> UnifyQuerySet:
         """构建基础查询集，设置时间范围并关闭时间对齐。
 
-        :param start_time: 开始时间（秒级或毫秒级时间戳）
-        :param end_time: 结束时间（秒级或毫秒级时间戳）
+        :param start_time: 开始时间（秒级或毫秒级时间戳），缺省时按 retention 补齐
+        :param end_time: 结束时间（秒级或毫秒级时间戳），缺省时按 retention 补齐
         :return: UnifyQuerySet 实例
         """
         start_time, end_time = self._get_time_range(start_time, end_time)
@@ -170,8 +170,8 @@ class BaseQuery:
     def _query_list(
         self,
         queries: list[QueryConfigBuilder],
-        start_time: int,
-        end_time: int,
+        start_time: int | None,
+        end_time: int | None,
         offset: int = 0,
         limit: int = 20,
     ) -> list[dict[str, Any]]:
@@ -190,8 +190,8 @@ class BaseQuery:
     def _query_total(
         self,
         queries: list[QueryConfigBuilder],
-        start_time: int,
-        end_time: int,
+        start_time: int | None,
+        end_time: int | None,
     ) -> int:
         """查询记录总数（COUNT）。
 
@@ -205,8 +205,8 @@ class BaseQuery:
     def _query_field_topk(
         self,
         queries: list[QueryConfigBuilder],
-        start_time: int,
-        end_time: int,
+        start_time: int | None,
+        end_time: int | None,
         field: str,
         limit: int = 5,
         need_empty: bool = False,
@@ -244,8 +244,8 @@ class BaseQuery:
     def _query_option_values(
         self,
         queries: list[QueryConfigBuilder],
-        start_time: int,
-        end_time: int,
+        start_time: int | None,
+        end_time: int | None,
         fields: list[str],
         limit: int = 20,
     ) -> dict[str, list[str]]:
@@ -341,8 +341,8 @@ class BaseQuery:
     def _query_field_aggregated_value(
         self,
         queries: list[QueryConfigBuilder],
-        start_time: int,
-        end_time: int,
+        start_time: int | None,
+        end_time: int | None,
         field: str,
         method: str,
     ) -> int | float:
@@ -371,8 +371,8 @@ class BaseQuery:
     def _query_field_distinct_value(
         self,
         queries: list[QueryConfigBuilder],
-        start_time: int,
-        end_time: int,
+        start_time: int | None,
+        end_time: int | None,
         field: str,
     ) -> int:
         """
