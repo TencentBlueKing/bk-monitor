@@ -61,3 +61,14 @@ class TestTGPATaskDownloadFileName(SimpleTestCase):
 
         self.assertEqual(result, "ENQ_file_1.zip")
         mock_get_task_page.assert_called_once()
+
+    @patch.object(TGPATaskHandler, "get_task_page")
+    def test_fallback_when_openid_is_none(self, mock_get_task_page):
+        mock_get_task_page.return_value = {
+            "total": 1,
+            "list": [{"openid": None, "created_by": "zhangsan", "created_at": "2026-04-24 12:00:00"}],
+        }
+
+        result = TGPATaskHandler.get_download_file_name(2, "ENQ_file_1.zip")
+
+        self.assertEqual(result, "ENQ_file_1.zip")
