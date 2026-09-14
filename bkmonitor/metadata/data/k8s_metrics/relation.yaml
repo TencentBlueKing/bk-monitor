@@ -674,6 +674,29 @@
     type: string
     unit: ''
 - description: ''
+  field_name: pod_with_workload_relation
+  tag_list:
+  - description: ''
+    field_name: bcs_cluster_id
+    type: string
+    unit: ''
+  - description: ''
+    field_name: namespace
+    type: string
+    unit: ''
+  - description: ''
+    field_name: pod
+    type: string
+    unit: ''
+  - description: ''
+    field_name: workload_kind
+    type: string
+    unit: ''
+  - description: ''
+    field_name: workload_name
+    type: string
+    unit: ''
+- description: ''
   field_name: pod_with_service_relation
   tag_list:
   - description: ''
