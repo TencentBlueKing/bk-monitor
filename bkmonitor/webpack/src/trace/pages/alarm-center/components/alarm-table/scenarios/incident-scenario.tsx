@@ -38,12 +38,13 @@ import {
 } from '../../../../trace-explore/components/trace-explore-table/typing';
 import { INCIDENT_STORAGE_KEY } from '../../../services/incident-services';
 import { type IncidentTableItem, type TableEmpty, IncidentLevelIconMap, IncidentStatusIconMap } from '../../../typings';
+import { buildIncidentDetailQuery } from '../../../utils/incident-list-query';
 import { BaseScenario } from './base-scenario';
 
 import type { IUsePopoverTools } from '../hooks/use-popover';
 import type { TimeRangeType } from '@/components/time-range/utils';
 import type { SlotReturnValue } from 'tdesign-vue-next';
-import type { Router } from 'vue-router';
+import type { RouteLocationNormalizedLoaded, Router } from 'vue-router';
 import type { TippyContent } from 'vue-tippy';
 /**
  * @class IncidentScenario
@@ -58,6 +59,7 @@ export class IncidentScenario extends BaseScenario {
     private readonly context: {
       [methodName: string]: any;
       hoverPopoverTools: IUsePopoverTools;
+      route: RouteLocationNormalizedLoaded;
       router: Router;
       timeRange: MaybeRef<TimeRangeType>;
     }
@@ -87,7 +89,7 @@ export class IncidentScenario extends BaseScenario {
       /** 告警数量(alert_count) 列 */
       alert_count: {
         getRenderValue: row => row?.alert_count,
-        clickCallback: row => this.jumpToIncidentDetail(row.id, 'FailureView', row.bk_biz_id),
+        clickCallback: row => this.jumpToIncidentDetail(row.id, 'FailureView'),
         cellRenderer: (row, column, renderCtx) => this.renderCount(row, column, renderCtx),
       },
       /** 标签(labels) 列 */
@@ -138,9 +140,9 @@ export class IncidentScenario extends BaseScenario {
         >
           <a
             class='lever-rect-link'
-            href={this.getIncidentDetailUrl(linkId, row.bk_biz_id)}
+            href={this.getIncidentDetailUrl(linkId)}
             rel='noopener noreferrer'
-            target='_blank'
+            onClick={e => this.handleIncidentNameClick(e, linkId)}
           >
             <span>{row?.incident_name}</span>
           </a>
@@ -253,51 +255,50 @@ export class IncidentScenario extends BaseScenario {
 
   // ----------------- 故障场景私有逻辑方法 -----------------
   /**
-   * @description 跳转至故障详情页面
-   * @param {string} id 故障id
-   * @param {string} activeTab 跳转至故障页面后激活显示的tab
+   * @description 左键在当前窗口打开故障详情；Cmd/Ctrl 仍可用 href 新开页
    */
+  private handleIncidentNameClick(e: MouseEvent, id: string) {
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button === 1) {
+      return;
+    }
+    e.preventDefault();
+    this.jumpToIncidentDetail(id);
+  }
+
+  /**
+   * @description 当前窗口打开故障详情，并带上故障列表全部检索参数
+   */
+  private getIncidentDetailQuery(activeTab = '') {
+    const timeRange = get(this.context.timeRange) || [];
+    return buildIncidentDetailQuery(this.context.route?.query, {
+      activeTab,
+      from: timeRange[0],
+      to: timeRange[1],
+    });
+  }
+
   private getIncidentDetailUrl(id: string, bkBizId?: number | string) {
     if (!id) {
       return '';
     }
-    const timeRange = get(this.context.timeRange) || [];
     const { href } = this.context.router.resolve({
       name: 'incident-detail',
       params: { id },
-      query: { from: timeRange[0], to: timeRange[1], fromPage: 'alarm-center' },
+      query: this.getIncidentDetailQuery(),
     });
-    // 同步更新地址栏中的bizId为故障对应的bk_biz_id
     if (bkBizId != null) {
       const url = new URL(window.location.href);
-      url.searchParams.set('bizId', String(bkBizId));
       return `${url.origin}${url.pathname}?bizId=${bkBizId}${href}`;
     }
     return href;
   }
 
-  private jumpToIncidentDetail(id: string, activeTab = '', bkBizId?: number | string) {
-    const timeRange = get(this.context.timeRange) || [];
+  private jumpToIncidentDetail(id: string, activeTab = '') {
     this.context.router.push({
       name: 'incident-detail',
-      params: {
-        id,
-      },
-      query: {
-        activeTab,
-        from: timeRange[0],
-        to: timeRange[1],
-        fromPage: 'alarm-center',
-      },
+      params: { id },
+      query: this.getIncidentDetailQuery(activeTab),
     });
-    // 同步更新地址栏中的bizId为故障对应的bk_biz_id
-    if (bkBizId != null) {
-      const url = new URL(window.location.href);
-      url.searchParams.set('bizId', String(bkBizId));
-      window.history.replaceState({}, '', url.toString());
-      window.bk_biz_id = +bkBizId;
-      window.cc_biz_id = +bkBizId;
-    }
   }
 
   /**
