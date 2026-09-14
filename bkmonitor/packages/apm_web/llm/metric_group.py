@@ -16,6 +16,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
+from django.db.models import Q
 from opentelemetry.semconv.resource import ResourceAttributes
 
 from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder
@@ -24,7 +25,7 @@ from constants.apm import LLMProduct, OtlpKey
 from core.drf_resource import resource
 
 from apm_web.handlers.metric_group import base, define
-from apm_web.llm.adapter.fields import AGENT_CANDIDATE_QUERY, resolve_query_field
+from apm_web.llm.adapter.fields import AGENT_CANDIDATE_Q, resolve_query_field
 from apm_web.llm.query import LLMQuery, get_query
 from apm_web.models import Application
 
@@ -61,64 +62,61 @@ class Aggregation:
 
 
 class LLMMetricGroup(base.BaseMetricGroup):
-    # 未单独登记的产品共用此项，因此下面的声明表只需要记录特例。
-    FALLBACK: str = "*"
-
     # Span 是明细数据，没有采集周期，取平台趋势图的最小聚合周期
     COLLECT_INTERVAL: int = 60
 
     # 层级谓词：各产品对「哪些 Span 算模型调用 / Agent 调用」的埋点方式不同。
-    LAYER_QUERIES: dict[str, dict[str, str]] = {
+    # default 就是标准 OT 语义，未单独登记的产品都落到它，因此声明表只需要记录特例。
+    LAYER_QUERIES: dict[str, dict[str, Q]] = {
         Layer.MODEL: {
-            FALLBACK: (
-                'attributes.gen_ai.operation.name: ("chat" OR "generate_content" OR "text_completion" OR "embeddings")'
+            LLMProduct.DEFAULT.value: Q(
+                **{"attributes.gen_ai.operation.name": ["chat", "generate_content", "text_completion", "embeddings"]}
             ),
             # operation.name 取值为大写的 CHAT，统一用 span.kind 判定
-            LLMProduct.AGENTLENS.value: 'attributes.gen_ai.span.kind: "LLM"',
-            LLMProduct.LANGFUSE.value: 'attributes.langfuse.observation.type: "generation"',
+            LLMProduct.AGENTLENS.value: Q(**{"attributes.gen_ai.span.kind": "LLM"}),
+            LLMProduct.LANGFUSE.value: Q(**{"attributes.langfuse.observation.type": "generation"}),
             # ChatModel.chat 与 chat_model.generate 包裹同一次调用，只有前者带 Token，两者同时计数会翻倍
-            LLMProduct.AIDEV.value: 'span_name: "ChatModel.chat"',
+            LLMProduct.AIDEV.value: Q(span_name="ChatModel.chat"),
         },
         Layer.AGENT: {
-            FALLBACK: 'attributes.gen_ai.operation.name: ("invoke_agent" OR "invoke_workflow")',
-            LLMProduct.AGENTLENS.value: 'attributes.gen_ai.span.kind: "AGENT"',
-            LLMProduct.LANGFUSE.value: 'attributes.langfuse.internal.is_app_root: "true"',
-            LLMProduct.AIDEV.value: 'span_name: "agent.execution"',
+            LLMProduct.DEFAULT.value: Q(**{"attributes.gen_ai.operation.name": ["invoke_agent", "invoke_workflow"]}),
+            LLMProduct.AGENTLENS.value: Q(**{"attributes.gen_ai.span.kind": "AGENT"}),
+            LLMProduct.LANGFUSE.value: Q(**{"attributes.langfuse.internal.is_app_root": "true"}),
+            LLMProduct.AIDEV.value: Q(span_name="agent.execution"),
         },
-        Layer.ANY: {FALLBACK: AGENT_CANDIDATE_QUERY},
+        Layer.ANY: {LLMProduct.DEFAULT.value: AGENT_CANDIDATE_Q},
     }
 
-    # 语义槽位 -> 产品 -> 候选字段，全部求和。
+    # 语义槽位 -> 产品 -> 字段，登记多个字段时由存储侧相加。
+    # default 只登记标准名；多字段是产品特例，同一 Span 上这些拼写互斥，相加才不漏数。
     TOKEN_FIELDS: dict[str, dict[str, tuple[str, ...]]] = {
         "input_tokens": {
-            FALLBACK: ("attributes.gen_ai.usage.input_tokens",),
+            LLMProduct.DEFAULT.value: ("attributes.gen_ai.usage.input_tokens",),
             # 旧版 traceloop 语义约定，新标准名在该产品上 52 天回溯内一条都没有
             LLMProduct.AIDEV.value: ("attributes.gen_ai.usage.prompt_tokens",),
         },
         "output_tokens": {
-            FALLBACK: ("attributes.gen_ai.usage.output_tokens",),
+            LLMProduct.DEFAULT.value: ("attributes.gen_ai.usage.output_tokens",),
             LLMProduct.AIDEV.value: ("attributes.gen_ai.usage.completion_tokens",),
         },
         "cache_read": {
-            # 三种拼写在同一产品的不同服务上都出现过，标准名还可能恒为 0，只能全部相加
-            FALLBACK: (
+            LLMProduct.DEFAULT.value: ("attributes.gen_ai.usage.cache_read.input_tokens",),
+            # 该产品自己就有三种拼写：样本环境用下划线形态，生产用 cached，
+            # 且标准名在生产上条条有值却恒为 0，只认标准名会把真实缓存量静默算成 0
+            LLMProduct.GALILEO.value: (
                 "attributes.gen_ai.usage.cache_read.input_tokens",
                 "attributes.gen_ai.usage.cache_read_input_tokens",
                 "attributes.gen_ai.usage.cached.input_tokens",
-            )
+            ),
         },
         "cache_write": {
-            FALLBACK: (
+            LLMProduct.DEFAULT.value: ("attributes.gen_ai.usage.cache_write.input_tokens",),
+            # GenAI 语义约定独立成库时把 cache_creation 改名为 cache_write，该产品仍是改名前的形态
+            LLMProduct.GALILEO.value: (
                 "attributes.gen_ai.usage.cache_creation.input_tokens",
-                "attributes.gen_ai.usage.cache_write.input_tokens",
-            )
+                "attributes.gen_ai.usage.cache_creation_input_tokens",
+            ),
         },
-    }
-
-    # 同一个服务在存储中的多个上报名：按服务过滤时需要整体展开，否则会漏数。
-    SERVICE_SUFFIXES: dict[str, tuple[str, ...]] = {
-        # 带 Token 的模型 Span 上报在兄弟服务 {svc}-default 上，与主服务视为同一个服务
-        LLMProduct.AIDEV.value: ("", "-default"),
     }
 
     # usage_details 是 keyword 类型的 JSON 串，存储侧无法 SUM，只能取回原始值本地聚合。
@@ -145,18 +143,6 @@ class LLMMetricGroup(base.BaseMetricGroup):
         define.CalculationType.REQUEST_COUNT.value: Aggregation(Layer.AGENT, "DISTINCT", field=OtlpKey.TRACE_ID),
     }
 
-    # 可聚合的维度：其余标准字段要么是高基数明细，要么没有跨产品的映射，暂不开放
-    GROUP_BY_FIELDS: frozenset[str] = frozenset({"gen_ai.operation.name", "gen_ai.response.model"})
-
-    # 计数类算子的结果必须是整型：基类的 format_value 只认 REQUEST_TOTAL，其余会按浮点保留两位
-    COUNT_CALCULATION_TYPES: frozenset[str] = frozenset(
-        {
-            define.CalculationType.REQUEST_COUNT.value,
-            define.CalculationType.MODEL_CALL_COUNT.value,
-            define.CalculationType.OPERATION_COUNT.value,
-        }
-    )
-
     def __init__(
         self,
         bk_biz_id: int,
@@ -178,8 +164,10 @@ class LLMMetricGroup(base.BaseMetricGroup):
         self.group_fields: list[str] = [
             resolve_query_field(self.product, OtlpKey.get_attributes_key(field)) for field in self.group_by
         ]
-        if service_name:
-            self.filter_dict.setdefault(f"{SERVICE_NAME_FIELD}__eq", self._service_names(service_name))
+        # 该产品把一个 Agent 拆成多个上报服务，带 Token 的模型 Span 落在兄弟服务 {svc}-default 上，
+        # 按服务过滤必然漏数，改为不加过滤，由应用维度兜住全部上报名。
+        if service_name and self.product != LLMProduct.AIDEV.value:
+            self.filter_dict.setdefault(f"{SERVICE_NAME_FIELD}__eq", [service_name])
 
     class Meta:
         name = define.GroupEnum.LLM.value
@@ -228,25 +216,15 @@ class LLMMetricGroup(base.BaseMetricGroup):
         return self.AGGREGATIONS[calculation_type]
 
     def _declared(self, table: dict[str, dict[str, Any]], key: str) -> Any:
-        """取当前产品在声明表中的登记项，未登记时落到 FALLBACK。"""
+        """取当前产品在声明表中的登记项，未登记的产品按标准 OT 语义取 default 那份。"""
         entry: dict[str, Any] = table[key]
-        return entry.get(self.product, entry[self.FALLBACK])
+        return entry.get(self.product, entry[LLMProduct.DEFAULT.value])
 
     def _fields(self, aggregation: Aggregation) -> list[str]:
         """展开算子在当前产品下要聚合的字段，多个字段的聚合值由存储侧相加。"""
         if not aggregation.slots:
             return [aggregation.field]
         return [field for slot in aggregation.slots for field in self._declared(self.TOKEN_FIELDS, slot)]
-
-    def _service_names(self, service_name: str) -> list[str]:
-        """按产品展开同一个服务在存储中的多个上报名。"""
-        suffixes: tuple[str, ...] = self.SERVICE_SUFFIXES.get(self.product, ("",))
-        base_name: str = service_name
-        for suffix in suffixes:
-            if suffix and base_name.endswith(suffix):
-                base_name = base_name[: -len(suffix)]
-                break
-        return [f"{base_name}{suffix}" for suffix in suffixes]
 
     def _shift(self, start_time: int | None, end_time: int | None) -> tuple[int | None, int | None]:
         """Trace 原始表没有 promql 的 time_shift 算子，改为整体平移查询窗口。"""
@@ -257,10 +235,8 @@ class LLMMetricGroup(base.BaseMetricGroup):
 
     def _queries(self, layer: str) -> list[QueryConfigBuilder]:
         """按产品的层级谓词构造查询，应用配置了多个 Trace 结果表时各出一个。"""
-        return [
-            q.filter(self._filter_dict_to_q())
-            for q in self.query.build_queries(query_string=self._declared(self.LAYER_QUERIES, layer))
-        ]
+        layer_q: Q = self._declared(self.LAYER_QUERIES, layer)
+        return [query.filter(layer_q).filter(self._filter_dict_to_q()) for query in self.query.build_queries()]
 
     def _dimension_key(self, record: dict[str, Any]) -> tuple:
         return tuple(record.get(field) or "" for field in self.group_fields)

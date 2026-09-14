@@ -306,7 +306,9 @@ export default defineComponent({
       5: 'icon-bei',
     };
     const isShowKindIcon = !isVirtual && source !== 'ebpf' && !!kindIcons?.[kind];
+    // 后端新增语义层级时前端没有对应文案与配色，直接不展示标签，避免渲染出 undefined
     const spanLlmType = span?.llm_detail?.span_type;
+    const spanLlmLabel = spanLlmType ? SPAN_LLM_LABELS[spanLlmType] : '';
 
     return (
       <TimelineRow
@@ -393,10 +395,10 @@ export default defineComponent({
                       class={`${kindIcons[kind]} icon-monitor kind-icon`}
                     />
                   )}
-                  {spanLlmType && (
+                  {spanLlmLabel && (
                     <span class={`span-llm-tag is-${spanLlmType.toLowerCase()}`}>
                       <span class='tag-icon' />
-                      <span>{this.t(SPAN_LLM_LABELS[spanLlmType])}</span>
+                      <span>{this.t(spanLlmLabel)}</span>
                     </span>
                   )}
                   {showErrorIcon && (

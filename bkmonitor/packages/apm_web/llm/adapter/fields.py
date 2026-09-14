@@ -4,19 +4,24 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+from django.db.models import Q
+
 from constants.apm import LLMProduct
 
 if TYPE_CHECKING:
     from apm_web.strategy.dispatch.entity import EntitySet
 
 # 能判定为 Agent 观测数据的 Span：各产品的埋点标记字段取并集，用于不区分层级的筛选与计数。
-AGENT_CANDIDATE_QUERY = (
-    "_exists_:attributes.gen_ai.span.kind "
-    "OR _exists_:attributes.gen_ai.operation.name "
-    "OR _exists_:attributes.agent.info.id "
-    "OR _exists_:attributes.agent.info.name "
-    "OR _exists_:attributes.langfuse.observation.type"
+AGENT_CANDIDATE_FIELDS: tuple[str, ...] = (
+    "attributes.gen_ai.span.kind",
+    "attributes.gen_ai.operation.name",
+    "attributes.agent.info.id",
+    "attributes.agent.info.name",
+    "attributes.langfuse.observation.type",
 )
+# Trace 检索要把谓词和用户关键字拼成一条 query_string，指标侧走 Q，两种形态都从同一份字段派生
+AGENT_CANDIDATE_QUERY: str = " OR ".join(f"_exists_:{field}" for field in AGENT_CANDIDATE_FIELDS)
+AGENT_CANDIDATE_Q: Q = Q(*(Q(**{f"{field}__exists": [""]}) for field in AGENT_CANDIDATE_FIELDS), _connector=Q.OR)
 
 
 # gen_ai.operation.name -> Span 语义层级，未登记的取值（检索、任务等）不归类。
@@ -98,7 +103,7 @@ STANDARD_FIELDS = {
     "gen_ai.usage.input_tokens",
     "gen_ai.usage.output_tokens",
     "gen_ai.usage.cache_read.input_tokens",
-    "gen_ai.usage.cache_creation.input_tokens",
+    "gen_ai.usage.cache_write.input_tokens",
     "gen_ai.usage.reasoning.output_tokens",
     "gen_ai.system_instructions",
     "gen_ai.input.messages",

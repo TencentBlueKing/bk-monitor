@@ -1,6 +1,8 @@
 import contextlib
 from unittest import TestCase, mock
 
+from django.db.models import Q
+
 from apm_web.llm.adapter import adapt_spans
 from apm_web.llm.metric_group import LLMMetricGroup
 from apm_web.llm.query import LLMQuery
@@ -88,7 +90,7 @@ class ListTracesResourceTestCase(TestCase):
                     "gen_ai.usage.input_tokens": span.get("input_tokens", 0),
                     "gen_ai.usage.output_tokens": span.get("output_tokens", 0),
                     "gen_ai.usage.cache_read.input_tokens": span.get("cache_read_input_tokens", 0),
-                    "gen_ai.usage.cache_creation.input_tokens": span.get("cache_creation_input_tokens", 0),
+                    "gen_ai.usage.cache_write.input_tokens": span.get("cache_write_input_tokens", 0),
                     "user.id": span.get("user_id", ""),
                 },
             }
@@ -118,7 +120,7 @@ class ListTracesResourceTestCase(TestCase):
                 "input_tokens": 10,
                 "output_tokens": 4,
                 "cache_read_input_tokens": 3,
-                "cache_creation_input_tokens": 2,
+                "cache_write_input_tokens": 2,
                 "user_id": "user-1",
             },
             {
@@ -133,7 +135,7 @@ class ListTracesResourceTestCase(TestCase):
                 "input_tokens": 12,
                 "output_tokens": 5,
                 "cache_read_input_tokens": 4,
-                "cache_creation_input_tokens": 1,
+                "cache_write_input_tokens": 1,
                 "user_id": "user-2",
             },
             {
@@ -148,7 +150,7 @@ class ListTracesResourceTestCase(TestCase):
                 "input_tokens": 8,
                 "output_tokens": 3,
                 "cache_read_input_tokens": 2,
-                "cache_creation_input_tokens": 0,
+                "cache_write_input_tokens": 0,
                 "user_id": "user-2",
             },
         ]
@@ -187,7 +189,7 @@ class ListTracesResourceTestCase(TestCase):
                     "input_tokens": 20,
                     "output_tokens": 8,
                     "cache_read_input_tokens": 6,
-                    "cache_creation_input_tokens": 1,
+                    "cache_write_input_tokens": 1,
                     "start_time": 200,
                     "elapsed_time": 80,
                     "user_id": "user-2",
@@ -203,7 +205,7 @@ class ListTracesResourceTestCase(TestCase):
                     "input_tokens": 10,
                     "output_tokens": 4,
                     "cache_read_input_tokens": 3,
-                    "cache_creation_input_tokens": 2,
+                    "cache_write_input_tokens": 2,
                     "start_time": 100,
                     "elapsed_time": 60,
                     "user_id": "user-1",
@@ -259,7 +261,7 @@ class ListTracesResourceTestCase(TestCase):
                 "input_tokens": 5,
                 "output_tokens": 2,
                 "cache_read_input_tokens": 1,
-                "cache_creation_input_tokens": 0,
+                "cache_write_input_tokens": 0,
                 "user_id": "user-1",
             },
             {
@@ -275,7 +277,7 @@ class ListTracesResourceTestCase(TestCase):
                 "input_tokens": 20,
                 "output_tokens": 8,
                 "cache_read_input_tokens": 6,
-                "cache_creation_input_tokens": 1,
+                "cache_write_input_tokens": 1,
                 "user_id": "user-2",
             },
             {
@@ -291,7 +293,7 @@ class ListTracesResourceTestCase(TestCase):
                 "input_tokens": 0,
                 "output_tokens": 0,
                 "cache_read_input_tokens": 0,
-                "cache_creation_input_tokens": 0,
+                "cache_write_input_tokens": 0,
                 "user_id": "user-2",
             },
             {
@@ -307,7 +309,7 @@ class ListTracesResourceTestCase(TestCase):
                 "input_tokens": 10,
                 "output_tokens": 4,
                 "cache_read_input_tokens": 3,
-                "cache_creation_input_tokens": 2,
+                "cache_write_input_tokens": 2,
                 "user_id": "",
             },
         ]
@@ -345,7 +347,7 @@ class ListTracesResourceTestCase(TestCase):
                 "input_tokens": 30,
                 "output_tokens": 12,
                 "cache_read_input_tokens": 9,
-                "cache_creation_input_tokens": 3,
+                "cache_write_input_tokens": 3,
                 "start_time": 100,
                 "elapsed_time": 180,
                 "user_id": "user-2",
@@ -361,7 +363,7 @@ class ListTracesResourceTestCase(TestCase):
                         "input_tokens": 10,
                         "output_tokens": 4,
                         "cache_read_input_tokens": 3,
-                        "cache_creation_input_tokens": 2,
+                        "cache_write_input_tokens": 2,
                         "start_time": 100,
                         "elapsed_time": 60,
                         "user_id": "user-2",
@@ -377,7 +379,7 @@ class ListTracesResourceTestCase(TestCase):
                         "input_tokens": 20,
                         "output_tokens": 8,
                         "cache_read_input_tokens": 6,
-                        "cache_creation_input_tokens": 1,
+                        "cache_write_input_tokens": 1,
                         "start_time": 200,
                         "elapsed_time": 80,
                         "user_id": "user-2",
@@ -1198,8 +1200,8 @@ def patch_llm_metric_group(query, product="default"):
 
 
 def layer_query(query):
-    """取算子实际下发的层级谓词。"""
-    return query.build_queries.call_args.kwargs["query_string"]
+    """取算子实际下发的层级谓词：调用方过滤条件在下一个 filter 上，不会混进来。"""
+    return query.build_queries.return_value[0].filter.call_args.args[0]
 
 
 def aggregate_call(query):
@@ -1220,13 +1222,11 @@ class LLMMetricGroupTestCase(TestCase):
     def _group(product, **kwargs):
         return LLMMetricGroup(11, "sand_local_dev", product=product, query=mock.Mock(), **kwargs)
 
-    def test_merges_bkaidev_sibling_service_into_one(self):
-        """带 Token 的模型 Span 上报在兄弟服务 {svc}-default 上，与主服务是同一个服务。"""
-        merged = ["ai-als-title-sum", "ai-als-title-sum-default"]
-
-        for service_name in merged:
+    def test_bkaidev_queries_the_whole_application(self):
+        """带 Token 的模型 Span 上报在兄弟服务 {svc}-default 上，加服务过滤必然漏数。"""
+        for service_name in ("ai-als-title-sum", "ai-als-title-sum-default"):
             group = self._group("aidev", service_name=service_name)
-            self.assertEqual(group.filter_dict["resource.service.name__eq"], merged)
+            self.assertNotIn("resource.service.name__eq", group.filter_dict)
 
     def test_keeps_single_service_for_other_products(self):
         group = self._group("galileo", service_name="agent-service")
@@ -1271,8 +1271,10 @@ class CalculateByRangeResourceTestCase(TestCase):
             {"total": 1, "data": [{"dimensions": {}, "0s": 15308239, "growth_rates": {"0s": 0}}]},
         )
         self.assertEqual(aggregate_call(query), (["attributes.gen_ai.usage.input_tokens"], "SUM", []))
-        self.assertIn('"chat"', layer_query(query))
-        self.assertNotIn("invoke_agent", layer_query(query))
+        self.assertEqual(
+            layer_query(query),
+            Q(**{"attributes.gen_ai.operation.name": ["chat", "generate_content", "text_completion", "embeddings"]}),
+        )
 
     def test_request_count_dedupes_by_trace_on_agent_layer(self):
         """Agent Span 数会被双层埋点和子 Agent 放大，按 trace 去重才收敛到真实请求数。"""
@@ -1287,7 +1289,9 @@ class CalculateByRangeResourceTestCase(TestCase):
         self.assertIsInstance(result["data"][0]["0s"], int)
         self.assertEqual(result["data"][0]["0s"], 27)
         self.assertEqual(aggregate_call(query), (["trace_id"], "DISTINCT", []))
-        self.assertIn("invoke_agent", layer_query(query))
+        self.assertEqual(
+            layer_query(query), Q(**{"attributes.gen_ai.operation.name": ["invoke_agent", "invoke_workflow"]})
+        )
 
     def test_bkaidev_reads_legacy_token_fields_on_token_bearing_span(self):
         """该产品用旧版 traceloop 命名，且只有 ChatModel.chat 带 Token。"""
@@ -1297,10 +1301,10 @@ class CalculateByRangeResourceTestCase(TestCase):
             CalculateByRangeResource().request({**LLM_METRIC_REQUEST, "cal_type": "input_tokens", "group_by": []})
 
         self.assertEqual(aggregate_call(query)[0], ["attributes.gen_ai.usage.prompt_tokens"])
-        self.assertEqual(layer_query(query), 'span_name: "ChatModel.chat"')
+        self.assertEqual(layer_query(query), Q(span_name="ChatModel.chat"))
 
     def test_cache_tokens_sums_every_candidate_field_in_storage(self):
-        """标准名字段可能存在但恒为 0，真实值在非标准名上，因此候选字段一次查询全部相加。"""
+        """标准名字段可能存在但恒为 0，真实值在非标准名上，因此该产品的候选字段一次查询全部相加。"""
         query = make_query(records=[{"_result_": 8778620}])
 
         with patch_llm_metric_group(query, product="galileo"):
@@ -1318,6 +1322,21 @@ class CalculateByRangeResourceTestCase(TestCase):
                 "attributes.gen_ai.usage.cache_read_input_tokens",
                 "attributes.gen_ai.usage.cached.input_tokens",
                 "attributes.gen_ai.usage.cache_creation.input_tokens",
+                "attributes.gen_ai.usage.cache_creation_input_tokens",
+            ],
+        )
+
+    def test_cache_tokens_fall_back_to_the_standard_field_only(self):
+        """多字段是产品特例：未单独登记的产品只查标准名，不跟着别家的拼写一起放大查询。"""
+        query = make_query(records=[{"_result_": 0}])
+
+        with patch_llm_metric_group(query, product="agentlens"):
+            CalculateByRangeResource().request({**LLM_METRIC_REQUEST, "cal_type": "cache_tokens", "group_by": []})
+
+        self.assertEqual(
+            aggregate_call(query)[0],
+            [
+                "attributes.gen_ai.usage.cache_read.input_tokens",
                 "attributes.gen_ai.usage.cache_write.input_tokens",
             ],
         )
@@ -1387,14 +1406,6 @@ class CalculateByRangeResourceTestCase(TestCase):
         self.assertEqual((record["0s"], record["1d"]), (100, 80))
         self.assertEqual(record["growth_rates"]["0s"], 0)
         self.assertAlmostEqual(record["growth_rates"]["1d"], 25, delta=0.01)
-
-    def test_rejects_unsupported_group_by(self):
-        serializer = CalculateByRangeResource.RequestSerializer(
-            data={**LLM_METRIC_REQUEST, "cal_type": "input_tokens", "group_by": ["user.id"]}
-        )
-
-        self.assertFalse(serializer.is_valid())
-        self.assertIn("暂不支持", str(serializer.errors))
 
     def test_rejects_more_than_two_comparison_time_shifts(self):
         serializer = CalculateByRangeResource.RequestSerializer(
@@ -1529,26 +1540,6 @@ class TimeSeriesResourceTestCase(TestCase):
         self.assertIn("start_time", fetched_fields(query))
         # 本地聚合与下推出图回传同一个聚合周期
         self.assertEqual(result["query_config"], {"interval": 60})
-
-    def test_rejects_unsupported_group_by(self):
-        serializer = TimeSeriesResource.RequestSerializer(
-            data={**LLM_METRIC_REQUEST, "cal_type": "input_tokens", "group_by": ["user.id"]}
-        )
-
-        self.assertFalse(serializer.is_valid())
-        self.assertIn("暂不支持", str(serializer.errors))
-
-    def test_rejects_multiple_group_by_fields(self):
-        serializer = TimeSeriesResource.RequestSerializer(
-            data={
-                **LLM_METRIC_REQUEST,
-                "cal_type": "input_tokens",
-                "group_by": ["gen_ai.response.model", "gen_ai.operation.name"],
-            }
-        )
-
-        self.assertFalse(serializer.is_valid())
-        self.assertIn("暂不支持多字段聚合", str(serializer.errors))
 
 
 class LLMQueryTestCase(TestCase):

@@ -9,7 +9,7 @@ from constants.apm import OtlpKey
 from constants.otel_query import OperatorEnum
 from core.drf_resource import Resource, api
 
-from apm_web.handlers.metric_group import GroupEnum, MetricGroupRegistry
+from apm_web.handlers.metric_group import GroupEnum, MetricGroupRegistry, CalculationType
 from apm_web.handlers.trace_handler.query import QueryHandler, SpanQueryTransformer
 from apm_web.llm.adapter import adapt_spans
 from apm_web.llm.adapter.fields import AGENT_CANDIDATE_QUERY, resolve_product, resolve_query_field
@@ -135,7 +135,7 @@ class ListTracesResource(Resource):
             "input_tokens": token_total("gen_ai.usage.input_tokens"),
             "output_tokens": token_total("gen_ai.usage.output_tokens"),
             "cache_read_input_tokens": token_total("gen_ai.usage.cache_read.input_tokens"),
-            "cache_creation_input_tokens": token_total("gen_ai.usage.cache_creation.input_tokens"),
+            "cache_write_input_tokens": token_total("gen_ai.usage.cache_write.input_tokens"),
             "start_time": start_time,
             "elapsed_time": max(0, end_time - start_time),
             "user_id": user_id,
@@ -177,7 +177,7 @@ class ListTracesResource(Resource):
                     "input_tokens": sum(child["input_tokens"] for child in childs),
                     "output_tokens": sum(child["output_tokens"] for child in childs),
                     "cache_read_input_tokens": sum(child["cache_read_input_tokens"] for child in childs),
-                    "cache_creation_input_tokens": sum(child["cache_creation_input_tokens"] for child in childs),
+                    "cache_write_input_tokens": sum(child["cache_write_input_tokens"] for child in childs),
                     "start_time": start_time,
                     "elapsed_time": max(0, end_time - start_time),
                     "user_id": next((child["user_id"] for child in childs if child["user_id"]), ""),
@@ -421,15 +421,6 @@ class LLMMetricRequestSerializer(serializers.Serializer):
     cal_type = serializers.ChoiceField(required=True, choices=sorted(LLMMetricGroup.AGGREGATIONS), label="指标类型")
     group_by = serializers.ListField(required=False, default=list, child=serializers.CharField(), label="聚合字段")
 
-    def validate_group_by(self, group_by: list[str]) -> list[str]:
-        # 出图与区间聚合都按单维度回填图例，多字段会在 target 上退化成只取第一个
-        if len(group_by) > 1:
-            raise serializers.ValidationError("暂不支持多字段聚合")
-        unsupported: set[str] = set(group_by) - LLMMetricGroup.GROUP_BY_FIELDS
-        if unsupported:
-            raise serializers.ValidationError(f"暂不支持按 {', '.join(sorted(unsupported))} 聚合")
-        return group_by
-
 
 class LLMMetricGroupMixin:
     """解析服务对应的产品，构造 LLM 指标组。"""
@@ -513,7 +504,11 @@ class CalculateByRangeResource(LLMMetricGroupMixin, MetricCalculateByRangeResour
     def format_value(cls, metric_cal_type: str, value: Any) -> float:
         """计数类算子取整：基类只认调用分析的 request_total，LLM 的计数算子用的是自己的取值名。"""
         formatted: float = super().format_value(metric_cal_type, value)
-        if metric_cal_type in LLMMetricGroup.COUNT_CALCULATION_TYPES:
+        if metric_cal_type in {
+            CalculationType.REQUEST_COUNT.value,
+            CalculationType.MODEL_CALL_COUNT.value,
+            CalculationType.OPERATION_COUNT.value,
+        }:
             return int(formatted)
         return formatted
 

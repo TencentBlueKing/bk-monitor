@@ -72,15 +72,6 @@ export type Span = SpanData & {
   warnings: NonNullable<SpanData['warnings']>;
 };
 
-/** 后端补充的标准 LLM Span，识别不出语义层级时不下发该字段 */
-export type SpanLlmDetail = {
-  attributes?: Record<string, unknown>;
-  span_type: SpanLlmType;
-};
-
-/** LLM Span 语义层级，由后端按 gen_ai.operation.name 归类 */
-export type SpanLlmType = 'AGENT' | 'LLM' | 'TOOL';
-
 export type SpanAttributesItem = {
   key: string;
   query_key: string;
@@ -122,6 +113,15 @@ export type SpanData = {
   traceID: string;
   warnings?: Array<string> | null;
 };
+
+/** 后端补充的标准 LLM Span，识别不出语义层级时不下发该字段 */
+export type SpanLlmDetail = {
+  attributes?: Record<string, unknown>;
+  span_type: SpanLlmType;
+};
+
+/** LLM Span 语义层级，由后端按 gen_ai.operation.name 归类 */
+export type SpanLlmType = 'AGENT' | 'LLM' | 'TOOL';
 
 export type SpanReference = {
   refType: 'CHILD_OF' | 'FOLLOWS_FROM';

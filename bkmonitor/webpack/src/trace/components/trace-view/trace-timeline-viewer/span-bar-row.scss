@@ -233,7 +233,7 @@
     border: 1px solid;
     border-radius: 2px;
 
-    /* 图标用 mask 着色，保证跟随各类型的 color */
+    /** 图标用 mask 着色，保证跟随各类型的 color */
     .tag-icon {
       width: 14px;
       height: 14px;

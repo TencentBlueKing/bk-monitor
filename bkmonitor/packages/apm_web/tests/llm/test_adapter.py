@@ -241,7 +241,7 @@ class AdapterTests(TestCase):
         self.assertEqual(attributes["gen_ai.usage.input_tokens"], 110)
         self.assertEqual(attributes["gen_ai.usage.output_tokens"], 5)
         self.assertEqual(attributes["gen_ai.usage.cache_read.input_tokens"], 40)
-        self.assertEqual(attributes["gen_ai.usage.cache_creation.input_tokens"], 10)
+        self.assertEqual(attributes["gen_ai.usage.cache_write.input_tokens"], 10)
         self.assertEqual(attributes["gen_ai.system_instructions"][0]["content"], "system prompt")
         self.assertEqual(
             [message["role"] for message in attributes["gen_ai.input.messages"]], ["user", "assistant", "tool"]
@@ -816,7 +816,7 @@ class AdapterTests(TestCase):
         self.assertEqual(by_name["call_llm"]["parent_span_id"], f"{2:016x}")
         llm = next(step for step in converted if step["attributes"]["gen_ai.operation.name"] == "chat")
         self.assertEqual(llm["attributes"]["gen_ai.usage.cache_read.input_tokens"], 3)
-        self.assertEqual(llm["attributes"]["gen_ai.usage.cache_creation.input_tokens"], 2)
+        self.assertEqual(llm["attributes"]["gen_ai.usage.cache_write.input_tokens"], 2)
         output = llm["attributes"]["gen_ai.output.messages"][0]
         self.assertEqual(output["role"], "assistant")
         self.assertEqual(output["parts"], [{"type": "text", "content": "hi"}])
@@ -841,6 +841,19 @@ class AdapterTests(TestCase):
         self.assertNotIn("gen_ai.response.time_to_first_chunk", attributes)
         self.assertNotIn("gen_ai.usage.cached.input_tokens", attributes)
         self.assertEqual(attributes["gen_ai.usage.reasoning.output_tokens"], 3)
+
+    def test_galileo_legacy_cache_write_spellings_map_to_the_standard_field(self) -> None:
+        for legacy in ("gen_ai.usage.cache_creation.input_tokens", "gen_ai.usage.cache_creation_input_tokens"):
+            with self.subTest(legacy=legacy):
+                span = agentlens_span()
+                span["span_name"] = "call_llm"
+                span["resource"] = {"telemetry.sdk.name": "galileo"}
+                span["attributes"] = {"gen_ai.operation.name": "chat", legacy: 7}
+
+                attributes = adapt_spans([span], "galileo")[0]["attributes"]
+
+                self.assertEqual(attributes["gen_ai.usage.cache_write.input_tokens"], 7)
+                self.assertNotIn(legacy, attributes)
 
     def test_galileo_does_not_copy_request_model_to_response_model(self) -> None:
         span = agentlens_span()

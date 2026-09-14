@@ -96,16 +96,12 @@ export default defineComponent({
         {
           key: 'cacheRead',
           label: t('缓存读数'),
-          value: pickNumber(attrs, ['gen_ai.usage.cache_read.input_tokens', 'gen_ai.usage.cache_read_input_tokens']),
+          value: pickNumber(attrs, ['gen_ai.usage.cache_read.input_tokens']),
         },
         {
           key: 'cacheWrite',
           label: t('缓存写入'),
-          value: pickNumber(attrs, [
-            'gen_ai.usage.cache_creation.input_tokens',
-            'gen_ai.usage.cache_write.input_tokens',
-            'gen_ai.usage.cache_creation_input_tokens',
-          ]),
+          value: pickNumber(attrs, ['gen_ai.usage.cache_write.input_tokens']),
         },
       ];
     });
