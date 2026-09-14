@@ -10,25 +10,27 @@ specific language governing permissions and limitations under the License.
 
 import abc
 import ast
-import contextvars
 import json
 import uuid
 
+import bkoauth
+from bkapi_client_core.exceptions import ResponseError
+from bkoauth.exceptions import TokenNotExist
 from django.conf import settings
+from django.utils import translation
 from django.utils.translation import gettext_lazy as _
 
 from rest_framework import serializers
 
+from api.bk_incident.client import BKFaraClient
 from bkm_space.scope import bk_biz_id_to_scope_id
+from bkmonitor.utils.request import get_request
 from constants.issue import (
     SOURCE_ANALYSIS_BKAI_AIDEV_API_KEY_PLACEHOLDER,
     SOURCE_ANALYSIS_BKFARA_TASK_ID_PLACEHOLDER,
 )
 from core.drf_resource.contrib.api import APIResource
 from core.errors.api import BKAPIError
-
-
-bkfara_user_access_token = contextvars.ContextVar("bkfara_user_access_token", default="")
 
 
 class IncidentBaseResource(APIResource, metaclass=abc.ABCMeta):
@@ -282,6 +284,8 @@ class BkFaraSourceAnalysisBaseResource(APIResource):
 
     module_name = "bkfara"
     INSERT_BK_USERNAME_TO_REQUEST_DATA = False
+    client_operation = ""
+    require_user_access_token = False
 
     @property
     def base_url(self):
@@ -310,29 +314,92 @@ class BkFaraSourceAnalysisBaseResource(APIResource):
             return response_data["error"]
         return error_data
 
-    def get_headers(self):
-        headers = super().get_headers()
-        access_token = bkfara_user_access_token.get()
-        if not access_token:
-            return headers
+    @staticmethod
+    def _get_user_access_token(username: str = "") -> str:
+        """通过 bkoauth 取得用户态 access_token。
 
-        authorization = json.loads(headers["x-bkapi-authorization"])
-        authorization["access_token"] = access_token
-        headers["x-bkapi-authorization"] = json.dumps(authorization)
-        return headers
+        Web 请求使用当前登录态换取并缓存 Token；Celery 没有原始请求，按执行快照中的
+        用户名恢复缓存 Token。bkoauth 会根据部署环境适配 bk_ticket / bk_token，业务侧
+        不感知具体登录凭证类型。
+        """
+
+        if username:
+            get_token = bkoauth.get_access_token_by_user
+            token_args = (username,)
+        else:
+            request = get_request(peaceful=True)
+            if request is None:
+                raise TokenNotExist("current request is unavailable")
+            get_token = bkoauth.get_access_token
+            token_args = (request,)
+
+        # bkoauth 未配置完成时，公开入口保持为 None。
+        if not callable(get_token):
+            raise TokenNotExist("bkoauth is unavailable")
+
+        token = get_token(*token_args)
+        access_token = getattr(token, "access_token", "")
+        if not access_token:
+            raise TokenNotExist("user access token is empty")
+        return access_token
+
+    def _build_client(self, bk_tenant_id: str, username: str = "") -> BKFaraClient:
+        """为单次调用创建独立客户端，避免单例 Resource 串用用户凭证。"""
+
+        client = BKFaraClient(endpoint=self.base_url, stage="")
+        authorization = {
+            "bk_app_code": settings.APP_CODE,
+            "bk_app_secret": settings.SECRET_KEY,
+        }
+        if self.require_user_access_token:
+            authorization["access_token"] = self._get_user_access_token(username)
+        client.update_bkapi_authorization(**authorization)
+        client.disable_ssl_verify()
+
+        headers = {"X-Bk-Tenant-Id": bk_tenant_id}
+        language = translation.get_language()
+        if language:
+            headers["blueking-language"] = language
+        client.update_headers(headers)
+        return client
+
+    @staticmethod
+    def _get_response_error_data(error: ResponseError):
+        try:
+            return error.response_json()
+        except (TypeError, ValueError, json.JSONDecodeError):
+            return {"message": error.response_text or str(error)}
 
     def perform_request(self, validated_request_data):
-        # access_token 只用于网关鉴权，不进入 BKFara querystring/body 或链路埋点。
         validated_request_data = dict(validated_request_data)
-        access_token = validated_request_data.pop("access_token", "")
-        token = bkfara_user_access_token.set(access_token)
+        username = validated_request_data.pop("bk_username", "")
+        bk_tenant_id = validated_request_data.get("bk_tenant_id", "")
+        client = self._build_client(bk_tenant_id, username)
+        operation = getattr(client.source_analysis, self.client_operation)
+
         try:
-            return super().perform_request(validated_request_data)
-        except BKAPIError as error:
-            error.data = self._normalize_error_data(error.data)
-            raise
-        finally:
-            bkfara_user_access_token.reset(token)
+            if self.method == "GET":
+                result = operation(params=validated_request_data, timeout=self.TIMEOUT)
+            else:
+                result = operation(data=validated_request_data, timeout=self.TIMEOUT)
+        except ResponseError as error:
+            error_data = self._normalize_error_data(self._get_response_error_data(error))
+            self.report_api_failure_metric(
+                error_code=error.error_code or error.response_status_code or 0,
+                exception_type=type(error).__name__,
+            )
+            raise BKAPIError(system_name=self.module_name, url=self.action, result=error_data) from error
+
+        if not isinstance(result, dict):
+            return result
+
+        ret_code = result.get("code", -1)
+        self.report_api_request_count_metric(ret_code)
+        if result.get("result") is False:
+            error_data = self._normalize_error_data(result)
+            self.report_api_failure_metric(error_code=ret_code, exception_type=BKAPIError.__name__)
+            raise BKAPIError(system_name=self.module_name, url=self.action, result=error_data)
+        return self.render_response_data(validated_request_data, result.get("data"))
 
 
 class EnsureSourceAnalysisSceneResource(BkFaraSourceAnalysisBaseResource):
@@ -340,15 +407,15 @@ class EnsureSourceAnalysisSceneResource(BkFaraSourceAnalysisBaseResource):
 
     action = "/incident/issue_analysis/ensure_scene/"
     method = "POST"
-    # access_token 是用户凭证，禁止 ResourceData 在 perform_request 前记录原始调用参数。
-    support_data_collect = False
+    client_operation = "ensure_scene"
+    require_user_access_token = True
 
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(label="业务 ID")
         bk_tenant_id = serializers.CharField(label="租户 ID", max_length=64)
         devops_project_id = serializers.CharField(label="蓝盾项目 ID", max_length=128)
         client_request_id = UUIDStringField(label="幂等请求 ID", max_length=36)
-        access_token = serializers.CharField(label="用户态访问令牌", write_only=True, required=False)
+        bk_username = serializers.CharField(label="操作人", max_length=64, write_only=True, required=False)
 
 
 class GetSourceAnalysisSceneStatusResource(BkFaraSourceAnalysisBaseResource):
@@ -356,6 +423,7 @@ class GetSourceAnalysisSceneStatusResource(BkFaraSourceAnalysisBaseResource):
 
     action = "/incident/issue_analysis/get_scene_status/"
     method = "GET"
+    client_operation = "get_scene_status"
 
     class RequestSerializer(serializers.Serializer):
         provision_id = serializers.CharField(label="场景初始化 ID", max_length=128)
@@ -367,8 +435,8 @@ class TriggerSourceAnalysisResource(BkFaraSourceAnalysisBaseResource):
 
     action = "/incident/issue_analysis/trigger/"
     method = "POST"
-    # access_token 是用户凭证，禁止 ResourceData 在 perform_request 前记录原始调用参数。
-    support_data_collect = False
+    client_operation = "trigger"
+    require_user_access_token = True
 
     class RequestSerializer(serializers.Serializer):
         issue_id = serializers.CharField(label="Issue ID", max_length=64)
@@ -377,7 +445,7 @@ class TriggerSourceAnalysisResource(BkFaraSourceAnalysisBaseResource):
         devops_project_id = serializers.CharField(label="蓝盾项目 ID", max_length=128)
         client_request_id = UUIDStringField(label="幂等请求 ID", max_length=36)
         inputs = SourceAnalysisInputsSerializer(label="分析输入")
-        access_token = serializers.CharField(label="用户态访问令牌", write_only=True, required=False)
+        bk_username = serializers.CharField(label="操作人", max_length=64, write_only=True, required=False)
 
 
 class GetSourceAnalysisTaskResource(BkFaraSourceAnalysisBaseResource):
@@ -385,6 +453,7 @@ class GetSourceAnalysisTaskResource(BkFaraSourceAnalysisBaseResource):
 
     action = "/incident/issue_analysis/get_task/"
     method = "GET"
+    client_operation = "get_task"
 
     class RequestSerializer(serializers.Serializer):
         analysis_task_id = serializers.CharField(label="BKFara 分析任务 ID", max_length=128)

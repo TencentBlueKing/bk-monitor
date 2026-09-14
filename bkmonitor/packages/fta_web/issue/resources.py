@@ -29,7 +29,7 @@ from django.views.decorators.csrf import csrf_exempt
 from rest_framework import serializers, exceptions
 from rest_framework.decorators import api_view
 
-from bkoauth.client import oauth_client
+import bkoauth
 from bkoauth.exceptions import TokenException
 from bkm_space.utils import bk_biz_id_to_space_uid
 from bkmonitor.action.alert_assign import AlertAssignMatchManager, AssignRuleMatch
@@ -443,10 +443,8 @@ class SourceAnalysisBaseResource(Resource):
 
         bk_tenant_id = bk_biz_id_to_bk_tenant_id(bk_biz_id)
         try:
-            # 不要传 bk_username：APIResource.get_headers 只要看到它，就只往网关鉴权头里
-            # 放用户名，不再从当前请求取 bk_ticket / bk_token。ensure_scene 在网关上要求
-            # 已认证用户，只有用户名会被判 INVALID_ARGS(1640001)。留空则走取登录态的分支，
-            # 由 blueapps 按环境挑出对应凭据，并补上操作人，身份信息反而更全。
+            # Web 请求不传 bk_username，由 BKFara Resource 使用当前登录态换取用户
+            # access_token；异步恢复路径才显式传执行快照中的触发人。
             scene_state = api.bk_incident.ensure_source_analysis_scene(
                 bk_biz_id=bk_biz_id,
                 bk_tenant_id=bk_tenant_id,
@@ -458,6 +456,17 @@ class SourceAnalysisBaseResource(Resource):
                     bkci_project_id,
                 ),
             )
+        except TokenException as error:
+            detail = json.dumps(
+                {
+                    "code": "USER_ACCESS_TOKEN_UNAVAILABLE",
+                    "message": _(SourceAnalysisFailureMessage.USER_ACCESS_TOKEN_UNAVAILABLE),
+                    "retryable": True,
+                },
+                ensure_ascii=False,
+            )
+            logger.warning("Source analysis flow initialization failed: user access token unavailable")
+            raise SourceAnalysisFlowInitializationFailedError(data=detail) from error
         except BKAPIError as error:
             detail = cls.serialize_bkfara_error_detail(error.data)
             logger.warning("Source analysis flow initialization failed: BKAPIError, detail=%s", detail)
@@ -602,10 +611,14 @@ class SourceAnalysisExecutionBaseResource(Resource):
 
     @classmethod
     def dispatch_execution(cls, execution: IssueSourceAnalysisExecution) -> None:
-        """缓存当前用户凭证后投递任务；消息系统异常时由周期补偿任务接管。"""
+        """缓存当前用户 OAuth 凭证后投递任务；消息系统异常时由周期补偿任务接管。"""
 
+        get_access_token = bkoauth.get_access_token
+        if not callable(get_access_token):
+            cls._mark_user_access_token_unavailable(execution)
+            return
         try:
-            token = oauth_client.get_access_token(get_request())
+            token = get_access_token(get_request())
         except TokenException:
             cls._mark_user_access_token_unavailable(execution)
             return
@@ -1232,23 +1245,6 @@ class SourceAnalysisExecutionBaseResource(Resource):
         return cls.DEFAULT_POLL_INTERVAL
 
     @classmethod
-    def get_user_access_token(cls, execution: IssueSourceAnalysisExecution) -> str | None:
-        """从 bkoauth 持久化记录恢复用户凭证，供无 Web request 的 Celery 使用。"""
-
-        try:
-            token = oauth_client.get_access_token_by_user(execution.create_user)
-        except TokenException:
-            cls._mark_user_access_token_unavailable(execution)
-            return None
-
-        access_token = getattr(token, "access_token", "")
-        if access_token:
-            return access_token
-
-        cls._mark_user_access_token_unavailable(execution)
-        return None
-
-    @classmethod
     def get_recoverable_analysis_ids(cls) -> list[str]:
         """返回长时间没有推进的活动记录，供周期任务补偿进程退出或消息丢失。"""
 
@@ -1313,12 +1309,11 @@ class SourceAnalysisExecutionBaseResource(Resource):
             return cls._apply_bkfara_scene_state(execution, scene_state)
 
         ensure_params = cls.build_ensure_scene_params(execution)
-        access_token = cls.get_user_access_token(execution)
-        if not access_token:
-            return False, None
-        ensure_params["access_token"] = access_token
         try:
             scene_state = api.bk_incident.ensure_source_analysis_scene(**ensure_params)
+        except TokenException:
+            cls._mark_user_access_token_unavailable(execution)
+            return False, None
         except Exception as error:
             return False, cls._handle_upstream_error(execution, SourceAnalysisFailureStage.TASK_CREATE, error)
 
@@ -1414,13 +1409,12 @@ class SourceAnalysisExecutionBaseResource(Resource):
             )
             return None
 
-        access_token = cls.get_user_access_token(execution)
-        if not access_token:
-            return None
         trigger_params = cls.build_trigger_params(execution)
-        trigger_params["access_token"] = access_token
         try:
             task_state = api.bk_incident.trigger_source_analysis(**trigger_params)
+        except TokenException:
+            cls._mark_user_access_token_unavailable(execution)
+            return None
         except Exception as error:
             # 请求结果未知时，下一次会使用相同 client_request_id 重试 trigger。
             return cls._handle_upstream_error(execution, SourceAnalysisFailureStage.TASK_CREATE, error)

@@ -13,10 +13,11 @@ from datetime import timedelta
 from types import SimpleNamespace
 from unittest.mock import MagicMock, call, patch
 
-from bkoauth.exceptions import TokenException
+from bkoauth.exceptions import TokenException, TokenNotExist
 from django.db import DatabaseError
 from django.test import SimpleTestCase, TestCase
 from django.utils import timezone
+from requests import Request
 
 from api.bk_incident.default import (
     BkFaraSourceAnalysisBaseResource,
@@ -24,7 +25,6 @@ from api.bk_incident.default import (
     GetSourceAnalysisSceneStatusResource,
     GetSourceAnalysisTaskResource,
     TriggerSourceAnalysisResource,
-    bkfara_user_access_token,
 )
 from bkmonitor.models import IssueSourceAnalysisExecution
 from constants.issue import (
@@ -36,7 +36,7 @@ from constants.issue import (
     SourceAnalysisStage,
     SourceAnalysisStatus,
 )
-from core.drf_resource.contrib.api import APIResource
+from core.errors.issue import SourceAnalysisFlowInitializationFailedError
 from fta_web.issue.resources import (
     SourceAnalysisBaseResource,
     SourceAnalysisExecutionBaseResource,
@@ -64,7 +64,7 @@ class TestSourceAnalysisContract(SimpleTestCase):
                 "bk_tenant_id": "system",
                 "devops_project_id": "project-a",
                 "client_request_id": self.CLIENT_REQUEST_ID,
-                "access_token": "user-access-token",
+                "bk_username": "operator-a",
             }
         )
         self.assertTrue(ensure_request.is_valid(), ensure_request.errors)
@@ -82,7 +82,7 @@ class TestSourceAnalysisContract(SimpleTestCase):
                 "bk_tenant_id": "system",
                 "devops_project_id": "project-a",
                 "client_request_id": self.CLIENT_REQUEST_ID,
-                "access_token": "user-access-token",
+                "bk_username": "operator-a",
                 "inputs": {
                     "bk_biz_id": 2,
                     "bk_tenant_id": "system",
@@ -97,6 +97,8 @@ class TestSourceAnalysisContract(SimpleTestCase):
             }
         )
         self.assertTrue(trigger_request.is_valid(), trigger_request.errors)
+        self.assertNotIn("access_token", ensure_request.fields)
+        self.assertNotIn("access_token", trigger_request.fields)
 
         task_request = GetSourceAnalysisTaskResource.RequestSerializer(
             data={"analysis_task_id": "task-1", "bk_tenant_id": "system"}
@@ -178,55 +180,93 @@ class TestSourceAnalysisContract(SimpleTestCase):
         self.assertEqual(TriggerSourceAnalysisResource.action, "/incident/issue_analysis/trigger/")
         self.assertEqual(GetSourceAnalysisTaskResource.action, "/incident/issue_analysis/get_task/")
 
-    def test_bkfara_user_context_is_sent_in_gateway_authorization_header(self):
+    @patch("api.bk_incident.default.settings.SECRET_KEY", "app-secret")
+    @patch("api.bk_incident.default.settings.APP_CODE", "bkmonitorv3")
+    def test_bkfara_user_access_token_is_sent_only_in_gateway_authorization_header(self):
         resource = TriggerSourceAnalysisResource()
-        resource.bk_username = "operator-a"
-        context_token = bkfara_user_access_token.set("user-access-token")
+        with patch.object(resource, "_get_user_access_token", return_value="user-access-token") as get_token:
+            client = resource._build_client("system", "operator-a")
 
-        try:
-            with (
-                patch.object(resource, "_get_tenant_id", return_value="system"),
-                patch("core.drf_resource.contrib.api.settings.APP_CODE", "bkmonitorv3"),
-                patch("core.drf_resource.contrib.api.settings.SECRET_KEY", "app-secret"),
-            ):
-                headers = resource.get_headers()
-        finally:
-            bkfara_user_access_token.reset(context_token)
+        request = client.session.prepare_request(Request("POST", "https://bkfara.example.com/trigger/"))
 
+        get_token.assert_called_once_with("operator-a")
+        self.assertEqual(client.session.headers["X-Bk-Tenant-Id"], "system")
+        self.assertEqual(json.loads(request.headers["X-Bkapi-Authorization"]), {"access_token": "user-access-token"})
+
+    @patch("api.bk_incident.default.settings.SECRET_KEY", "app-secret")
+    @patch("api.bk_incident.default.settings.APP_CODE", "bkmonitorv3")
+    def test_status_query_keeps_application_authorization(self):
+        resource = GetSourceAnalysisTaskResource()
+        with patch.object(resource, "_get_user_access_token") as get_token:
+            client = resource._build_client("system")
+
+        request = client.session.prepare_request(Request("GET", "https://bkfara.example.com/get_task/"))
+
+        get_token.assert_not_called()
         self.assertEqual(
-            json.loads(headers["x-bkapi-authorization"]),
-            {
-                "bk_app_code": "bkmonitorv3",
-                "bk_app_secret": "app-secret",
-                "bk_username": "operator-a",
-                "access_token": "user-access-token",
-            },
+            json.loads(request.headers["X-Bkapi-Authorization"]),
+            {"bk_app_code": "bkmonitorv3", "bk_app_secret": "app-secret"},
         )
-        self.assertEqual(headers["X-Bk-Tenant-Id"], "system")
 
-    def test_access_token_only_enters_gateway_authorization_header(self):
+    @patch("api.bk_incident.default.bkoauth.get_access_token_by_user")
+    @patch("api.bk_incident.default.bkoauth.get_access_token")
+    @patch("api.bk_incident.default.get_request")
+    def test_web_request_uses_bkoauth_current_login(self, get_request, get_access_token, get_access_token_by_user):
+        request = get_request.return_value
+        get_access_token.return_value = SimpleNamespace(access_token="web-access-token")
+
+        access_token = TriggerSourceAnalysisResource._get_user_access_token()
+
+        get_request.assert_called_once_with(peaceful=True)
+        get_access_token.assert_called_once_with(request)
+        get_access_token_by_user.assert_not_called()
+        self.assertEqual(access_token, "web-access-token")
+
+    @patch("api.bk_incident.default.bkoauth.get_access_token_by_user")
+    @patch("api.bk_incident.default.get_request")
+    def test_celery_uses_bkoauth_token_by_execution_user(self, get_request, get_access_token_by_user):
+        get_access_token_by_user.return_value = SimpleNamespace(access_token="worker-access-token")
+
+        access_token = TriggerSourceAnalysisResource._get_user_access_token("operator-a")
+
+        get_request.assert_not_called()
+        get_access_token_by_user.assert_called_once_with("operator-a")
+        self.assertEqual(access_token, "worker-access-token")
+
+    @patch("api.bk_incident.default.bkoauth.get_access_token_by_user", None)
+    def test_unconfigured_bkoauth_is_reported_as_missing_user_token(self):
+        with self.assertRaises(TokenNotExist):
+            TriggerSourceAnalysisResource._get_user_access_token("operator-a")
+
+    @patch(
+        "api.bk_incident.default.bkoauth.get_access_token_by_user",
+        side_effect=DatabaseError("database unavailable"),
+    )
+    def test_token_storage_error_is_not_hidden_as_missing_user_token(self, _get_access_token_by_user):
+        with self.assertRaisesMessage(DatabaseError, "database unavailable"):
+            TriggerSourceAnalysisResource._get_user_access_token("operator-a")
+
+    def test_bk_username_and_access_token_do_not_enter_bkfara_request_body(self):
         resource = TriggerSourceAnalysisResource()
-        request_data = {"bk_biz_id": 2, "access_token": "user-access-token"}
+        operation = MagicMock(return_value={"result": True, "code": "OK", "data": {"status": "running"}})
+        client = MagicMock()
+        client.source_analysis.trigger = operation
+        request_data = {
+            "bk_biz_id": 2,
+            "bk_tenant_id": "system",
+            "bk_username": "operator-a",
+        }
 
-        with patch.object(APIResource, "perform_request", return_value={"status": "running"}) as request:
+        with patch.object(resource, "_build_client", return_value=client) as build_client:
             result = resource.perform_request(request_data)
 
         self.assertEqual(result, {"status": "running"})
-        request.assert_called_once_with({"bk_biz_id": 2})
-        self.assertEqual(request_data["access_token"], "user-access-token")
-        self.assertEqual(bkfara_user_access_token.get(), "")
-        self.assertFalse(resource.support_data_collect)
-
-    def test_bk_username_never_enters_request_body(self):
-        # 用户态只经网关鉴权头传递，依赖基类关闭 INSERT_BK_USERNAME_TO_REQUEST_DATA。
-        # 该开关一旦被重新打开，bk_username 会静默进入出站请求体，而其余用例仍全部通过。
-        for resource_cls in (EnsureSourceAnalysisSceneResource, TriggerSourceAnalysisResource):
-            with self.subTest(resource=resource_cls.__name__):
-                resource = resource_cls()
-                resource.bk_username = "operator-a"
-
-                self.assertFalse(resource.INSERT_BK_USERNAME_TO_REQUEST_DATA)
-                self.assertNotIn("bk_username", resource.full_request_data({"bk_biz_id": 2}))
+        build_client.assert_called_once_with("system", "operator-a")
+        operation.assert_called_once_with(
+            data={"bk_biz_id": 2, "bk_tenant_id": "system"},
+            timeout=resource.TIMEOUT,
+        )
+        self.assertNotIn("access_token", request_data)
 
     @patch("fta_web.issue.resources.bk_biz_id_to_bk_tenant_id", return_value="system")
     @patch("fta_web.issue.resources.api.bk_incident.ensure_source_analysis_scene")
@@ -245,6 +285,24 @@ class TestSourceAnalysisContract(SimpleTestCase):
             bk_tenant_id="system",
             devops_project_id="project-a",
             client_request_id=build_bkfara_client_request_id("ensure-scene", "system", 2, "project-a"),
+        )
+
+    @patch("fta_web.issue.resources.bk_biz_id_to_bk_tenant_id", return_value="system")
+    @patch(
+        "fta_web.issue.resources.api.bk_incident.ensure_source_analysis_scene",
+        side_effect=TokenException("token unavailable"),
+    )
+    def test_ensure_scene_returns_stable_user_token_error(self, _ensure_scene, _get_tenant_id):
+        with self.assertRaises(SourceAnalysisFlowInitializationFailedError) as context:
+            SourceAnalysisBaseResource.ensure_flow_initialized(2, "project-a")
+
+        self.assertEqual(
+            json.loads(context.exception.data),
+            {
+                "code": "USER_ACCESS_TOKEN_UNAVAILABLE",
+                "message": SourceAnalysisFailureMessage.USER_ACCESS_TOKEN_UNAVAILABLE,
+                "retryable": True,
+            },
         )
 
     @patch("fta_web.issue.resources.bk_biz_id_to_bk_tenant_id", return_value="system")
@@ -299,16 +357,6 @@ class TestSourceAnalysisContract(SimpleTestCase):
 
 class TestSourceAnalysisOrchestration(TestCase):
     databases = {"default", "monitor_api"}
-
-    def setUp(self):
-        super().setUp()
-        self.user_access_token_patcher = patch.object(
-            SourceAnalysisExecutionBaseResource,
-            "get_user_access_token",
-            return_value="user-access-token",
-        )
-        self.user_access_token_patcher.start()
-        self.addCleanup(self.user_access_token_patcher.stop)
 
     @staticmethod
     def create_execution(**kwargs) -> IssueSourceAnalysisExecution:
@@ -389,7 +437,6 @@ class TestSourceAnalysisOrchestration(TestCase):
             devops_project_id="project-a",
             bk_username=execution.create_user,
             client_request_id=build_bkfara_client_request_id("trigger", execution.analysis_id),
-            access_token="user-access-token",
             inputs={
                 # 业务与租户标识和顶层重复：inputs 除运行时占位符外会被 BKFara
                 # 透传给蓝盾流水线。
@@ -443,7 +490,6 @@ class TestSourceAnalysisOrchestration(TestCase):
         self.assertEqual(execution.bkfara_provision_id, "provision-2")
         ensure_scene.assert_called_once_with(
             **SourceAnalysisExecutionBaseResource.build_ensure_scene_params(execution),
-            access_token="user-access-token",
         )
 
     @patch("fta_web.issue.resources.api.bk_incident.get_source_analysis_scene_status")
@@ -701,7 +747,7 @@ class TestSourceAnalysisOrchestration(TestCase):
 
     @patch("fta_web.issue.resources.get_request", return_value=object())
     @patch(
-        "fta_web.issue.resources.oauth_client.get_access_token",
+        "fta_web.issue.resources.bkoauth.get_access_token",
         return_value=SimpleNamespace(access_token="user-access-token"),
     )
     @patch.object(run_source_analysis_execution, "apply_async", side_effect=RuntimeError("broker unavailable"))
@@ -716,7 +762,7 @@ class TestSourceAnalysisOrchestration(TestCase):
 
     @patch("fta_web.issue.resources.get_request", return_value=object())
     @patch(
-        "fta_web.issue.resources.oauth_client.get_access_token",
+        "fta_web.issue.resources.bkoauth.get_access_token",
         side_effect=TokenException("token unavailable"),
     )
     @patch.object(run_source_analysis_execution, "apply_async")
@@ -732,32 +778,18 @@ class TestSourceAnalysisOrchestration(TestCase):
         self.assertEqual(execution.failure_message, SourceAnalysisFailureMessage.USER_ACCESS_TOKEN_UNAVAILABLE)
         self.assertTrue(execution.failure_retryable)
 
-    def test_celery_restores_token_by_execution_user(self):
+    @patch(
+        "fta_web.issue.resources.api.bk_incident.trigger_source_analysis",
+        side_effect=TokenException("token unavailable"),
+    )
+    @patch("fta_web.issue.resources.api.bk_incident.get_source_analysis_scene_status")
+    def test_celery_token_failure_is_retryable(self, get_scene, _trigger):
         execution = self.create_execution()
-        self.user_access_token_patcher.stop()
+        get_scene.return_value = self.ready_scene_state()
 
-        with patch(
-            "fta_web.issue.resources.oauth_client.get_access_token_by_user",
-            return_value=SimpleNamespace(access_token="user-access-token"),
-        ) as get_access_token_by_user:
-            access_token = SourceAnalysisExecutionBaseResource.get_user_access_token(execution)
+        poll_interval = SourceAnalysisExecutionBaseResource.advance_bkfara_task(execution.analysis_id)
 
-        self.user_access_token_patcher.start()
-        get_access_token_by_user.assert_called_once_with(execution.create_user)
-        self.assertEqual(access_token, "user-access-token")
-
-    def test_celery_token_failure_is_retryable(self):
-        execution = self.create_execution()
-        self.user_access_token_patcher.stop()
-
-        with patch(
-            "fta_web.issue.resources.oauth_client.get_access_token_by_user",
-            side_effect=TokenException("token unavailable"),
-        ):
-            access_token = SourceAnalysisExecutionBaseResource.get_user_access_token(execution)
-
-        self.user_access_token_patcher.start()
-        self.assertIsNone(access_token)
+        self.assertIsNone(poll_interval)
         execution.refresh_from_db()
         self.assertEqual(execution.status, SourceAnalysisStatus.FAILED)
         self.assertEqual(execution.failure_code, "USER_ACCESS_TOKEN_UNAVAILABLE")
