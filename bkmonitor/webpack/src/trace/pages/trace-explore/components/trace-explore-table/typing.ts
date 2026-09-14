@@ -112,6 +112,8 @@ export interface BaseTableColumn<
   cellRenderer?: TableCellRenderer;
   /** 非公共属性，不同单元格类型各自特定属性配置 */
   cellSpecificProps?: GetTableCellSpecificProps<K>;
+  /** 单元格溢出省略号位置（end: 末尾省略；start: 开头省略，保留文本尾部特征，适合长 ID 类字段）。未配置时回退表格全局配置 */
+  ellipsisPosition?: EllipsisPosition;
   /** 列描述(popover形式展现) **/
   headerDescription?: string;
   /** 字段类型 */
@@ -123,6 +125,9 @@ export interface BaseTableColumn<
   /** 需要自定义定义 渲染值 时可用 */
   getRenderValue?: (row, column: BaseTableColumn<any, any>) => GetTableCellRenderValue<K, U>;
 }
+
+/** 单元格溢出省略号位置：end 末尾省略（默认）；start 开头省略（保留文本尾部特征，适合长 ID 类字段） */
+export type EllipsisPosition = 'end' | 'start';
 
 /** 表格条件菜单项 */
 export interface ExploreConditionMenuItem {
