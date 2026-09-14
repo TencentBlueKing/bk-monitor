@@ -19,7 +19,6 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 
-import logging
 import os
 import re
 import shutil
@@ -46,8 +45,7 @@ from apps.tgpa.constants import (
 from apps.tgpa.handlers.base import TGPAFileHandler
 from apps.tgpa.handlers.decrypt import get_decrypt_handler
 from apps.tgpa.models import TGPATask
-
-logger = logging.getLogger(__name__)
+from apps.utils.log import logger
 
 
 class TGPATaskHandler:
