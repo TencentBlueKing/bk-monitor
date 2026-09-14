@@ -208,19 +208,18 @@ class TestSourceAnalysisContract(SimpleTestCase):
             {"bk_app_code": "bkmonitorv3", "bk_app_secret": "app-secret"},
         )
 
-    @patch("api.bk_incident.default.bkoauth.get_access_token_by_user")
-    @patch("api.bk_incident.default.bkoauth.get_access_token")
-    @patch("api.bk_incident.default.get_request")
-    def test_web_request_uses_bkoauth_current_login(self, get_request, get_access_token, get_access_token_by_user):
-        request = get_request.return_value
-        get_access_token.return_value = SimpleNamespace(access_token="web-access-token")
+    @patch("api.bk_incident.default.APIResource.perform_request", return_value={"status": "running"})
+    def test_web_request_uses_framework_user_login_state(self, perform_request):
+        resource = TriggerSourceAnalysisResource()
+        request_data = {"bk_biz_id": 2, "bk_tenant_id": "system"}
 
-        access_token = TriggerSourceAnalysisResource._get_user_access_token()
+        result = resource.perform_request(request_data)
 
-        get_request.assert_called_once_with(peaceful=True)
-        get_access_token.assert_called_once_with(request)
-        get_access_token_by_user.assert_not_called()
-        self.assertEqual(access_token, "web-access-token")
+        self.assertEqual(result, {"status": "running"})
+        delegated_resource, delegated_data = perform_request.call_args.args
+        self.assertIsInstance(delegated_resource, TriggerSourceAnalysisResource)
+        self.assertIsNot(delegated_resource, resource)
+        self.assertEqual(delegated_data, request_data)
 
     @patch("api.bk_incident.default.bkoauth.get_access_token_by_user")
     @patch("api.bk_incident.default.get_request")
@@ -322,9 +321,19 @@ class TestSourceAnalysisContract(SimpleTestCase):
 
         ensure_params = SourceAnalysisExecutionBaseResource.build_ensure_scene_params(execution)
         trigger_params = SourceAnalysisExecutionBaseResource.build_trigger_params(execution)
+        web_ensure_params = SourceAnalysisExecutionBaseResource.build_ensure_scene_params(
+            execution,
+            use_current_request=True,
+        )
+        web_trigger_params = SourceAnalysisExecutionBaseResource.build_trigger_params(
+            execution,
+            use_current_request=True,
+        )
 
         self.assertEqual(ensure_params["bk_username"], "operator-a")
         self.assertEqual(trigger_params["bk_username"], "operator-a")
+        self.assertNotIn("bk_username", web_ensure_params)
+        self.assertNotIn("bk_username", web_trigger_params)
         self.assertEqual(
             trigger_params["inputs"]["BKFARA_TASK_ID"],
             SOURCE_ANALYSIS_BKFARA_TASK_ID_PLACEHOLDER,
@@ -745,38 +754,25 @@ class TestSourceAnalysisOrchestration(TestCase):
         get_scene.assert_not_called()
         trigger.assert_not_called()
 
-    @patch("fta_web.issue.resources.get_request", return_value=object())
-    @patch(
-        "fta_web.issue.resources.bkoauth.get_access_token",
-        return_value=SimpleNamespace(access_token="user-access-token"),
-    )
+    @patch.object(SourceAnalysisExecutionBaseResource, "advance_bkfara_task", return_value=3)
     @patch.object(run_source_analysis_execution, "apply_async", side_effect=RuntimeError("broker unavailable"))
-    def test_dispatch_error_is_left_for_periodic_recovery(self, apply_async, get_access_token, get_request):
+    def test_dispatch_error_is_left_for_periodic_recovery(self, apply_async, advance):
         execution = self.create_execution()
 
         SourceAnalysisExecutionBaseResource.dispatch_execution(execution)
 
-        get_request.assert_called_once_with()
-        get_access_token.assert_called_once_with(get_request.return_value)
-        apply_async.assert_called_once_with(args=(execution.analysis_id,))
+        advance.assert_called_once_with(execution.analysis_id, use_current_request=True)
+        apply_async.assert_called_once_with(args=(execution.analysis_id,), countdown=3)
 
-    @patch("fta_web.issue.resources.get_request", return_value=object())
-    @patch(
-        "fta_web.issue.resources.bkoauth.get_access_token",
-        side_effect=TokenException("token unavailable"),
-    )
+    @patch.object(SourceAnalysisExecutionBaseResource, "advance_bkfara_task", return_value=None)
     @patch.object(run_source_analysis_execution, "apply_async")
-    def test_dispatch_token_failure_is_retryable(self, apply_async, _get_access_token, _get_request):
+    def test_dispatch_terminal_execution_is_not_scheduled(self, apply_async, advance):
         execution = self.create_execution()
 
         SourceAnalysisExecutionBaseResource.dispatch_execution(execution)
 
+        advance.assert_called_once_with(execution.analysis_id, use_current_request=True)
         apply_async.assert_not_called()
-        execution.refresh_from_db()
-        self.assertEqual(execution.status, SourceAnalysisStatus.FAILED)
-        self.assertEqual(execution.failure_code, "USER_ACCESS_TOKEN_UNAVAILABLE")
-        self.assertEqual(execution.failure_message, SourceAnalysisFailureMessage.USER_ACCESS_TOKEN_UNAVAILABLE)
-        self.assertTrue(execution.failure_retryable)
 
     @patch(
         "fta_web.issue.resources.api.bk_incident.trigger_source_analysis",

@@ -29,7 +29,6 @@ from django.views.decorators.csrf import csrf_exempt
 from rest_framework import serializers, exceptions
 from rest_framework.decorators import api_view
 
-import bkoauth
 from bkoauth.exceptions import TokenException
 from bkm_space.utils import bk_biz_id_to_space_uid
 from bkmonitor.action.alert_assign import AlertAssignMatchManager, AssignRuleMatch
@@ -611,24 +610,17 @@ class SourceAnalysisExecutionBaseResource(Resource):
 
     @classmethod
     def dispatch_execution(cls, execution: IssueSourceAnalysisExecution) -> None:
-        """缓存当前用户 OAuth 凭证后投递任务；消息系统异常时由周期补偿任务接管。"""
+        """在当前请求内完成用户态触发，再把后续轮询交给 Celery。"""
 
-        get_access_token = bkoauth.get_access_token
-        if not callable(get_access_token):
-            cls._mark_user_access_token_unavailable(execution)
-            return
-        try:
-            token = get_access_token(get_request())
-        except TokenException:
-            cls._mark_user_access_token_unavailable(execution)
-            return
-
-        if not getattr(token, "access_token", ""):
-            cls._mark_user_access_token_unavailable(execution)
+        next_poll_after_seconds = cls.advance_bkfara_task(execution.analysis_id, use_current_request=True)
+        if next_poll_after_seconds is None:
             return
 
         try:
-            run_source_analysis_execution.apply_async(args=(execution.analysis_id,))
+            run_source_analysis_execution.apply_async(
+                args=(execution.analysis_id,),
+                countdown=next_poll_after_seconds,
+            )
         except Exception:
             logger.exception(
                 "Failed to dispatch source analysis execution, analysis_id=%s",
@@ -1178,16 +1170,18 @@ class SourceAnalysisExecutionBaseResource(Resource):
             raise
 
     @classmethod
-    def build_ensure_scene_params(cls, execution: IssueSourceAnalysisExecution) -> dict:
+    def build_ensure_scene_params(
+        cls,
+        execution: IssueSourceAnalysisExecution,
+        use_current_request: bool = False,
+    ) -> dict:
         """从执行快照构造场景初始化参数，兼容历史记录缺少 provision_id 的恢复路径。"""
 
         bk_tenant_id = bk_biz_id_to_bk_tenant_id(execution.bk_biz_id)
-        return {
+        params = {
             "bk_biz_id": execution.bk_biz_id,
             "bk_tenant_id": bk_tenant_id,
             "devops_project_id": execution.bkci_project_id,
-            # 异步任务没有原始 Web request，复用执行快照中的触发人恢复用户态。
-            "bk_username": execution.create_user,
             "client_request_id": build_bkfara_client_request_id(
                 "ensure-scene",
                 bk_tenant_id,
@@ -1195,19 +1189,25 @@ class SourceAnalysisExecutionBaseResource(Resource):
                 execution.bkci_project_id,
             ),
         }
+        if not use_current_request:
+            # 异步任务没有原始 Web request，复用执行快照中的触发人恢复用户态。
+            params["bk_username"] = execution.create_user
+        return params
 
     @classmethod
-    def build_trigger_params(cls, execution: IssueSourceAnalysisExecution) -> dict:
+    def build_trigger_params(
+        cls,
+        execution: IssueSourceAnalysisExecution,
+        use_current_request: bool = False,
+    ) -> dict:
         """从不可变执行快照构造正式 trigger.inputs，规则变更不会污染已发起任务。"""
 
         bk_tenant_id = bk_biz_id_to_bk_tenant_id(execution.bk_biz_id)
-        return {
+        params = {
             "issue_id": execution.issue_id,
             "bk_biz_id": execution.bk_biz_id,
             "bk_tenant_id": bk_tenant_id,
             "devops_project_id": execution.bkci_project_id,
-            # trigger 可能由 Celery 补偿任务执行，不能依赖线程中的 request。
-            "bk_username": execution.create_user,
             "client_request_id": build_bkfara_client_request_id("trigger", execution.analysis_id),
             "inputs": {
                 # 除运行时占位符外，BKFara 将 inputs 透传给蓝盾流水线。业务与租户标识和
@@ -1229,6 +1229,10 @@ class SourceAnalysisExecutionBaseResource(Resource):
                 "BKAI_AIDEV_API_KEY": SOURCE_ANALYSIS_BKAI_AIDEV_API_KEY_PLACEHOLDER,
             },
         }
+        if not use_current_request:
+            # trigger 由 Celery 补偿任务执行时，不能依赖线程中的 request。
+            params["bk_username"] = execution.create_user
+        return params
 
     @classmethod
     def build_get_task_params(cls, execution: IssueSourceAnalysisExecution) -> dict:
@@ -1259,7 +1263,7 @@ class SourceAnalysisExecutionBaseResource(Resource):
         )
 
     @classmethod
-    def advance_bkfara_task(cls, analysis_id: str) -> int | None:
+    def advance_bkfara_task(cls, analysis_id: str, use_current_request: bool = False) -> int | None:
         """把活动记录向前推进一次；返回服务端建议的下次轮询秒数，终态返回 None。"""
 
         execution = IssueSourceAnalysisExecution.objects.filter(analysis_id=analysis_id).first()
@@ -1279,10 +1283,10 @@ class SourceAnalysisExecutionBaseResource(Resource):
         execution.update_time = lease_time
 
         if not execution.bkfara_task_id:
-            scene_ready, poll_interval = cls._advance_bkfara_scene(execution)
+            scene_ready, poll_interval = cls._advance_bkfara_scene(execution, use_current_request=use_current_request)
             if not scene_ready:
                 return poll_interval
-            return cls._trigger_bkfara_task(execution)
+            return cls._trigger_bkfara_task(execution, use_current_request=use_current_request)
 
         task_params = cls.build_get_task_params(execution)
         try:
@@ -1292,7 +1296,11 @@ class SourceAnalysisExecutionBaseResource(Resource):
         return cls._apply_bkfara_task_state(execution, task_state)
 
     @classmethod
-    def _advance_bkfara_scene(cls, execution: IssueSourceAnalysisExecution) -> tuple[bool, int | None]:
+    def _advance_bkfara_scene(
+        cls,
+        execution: IssueSourceAnalysisExecution,
+        use_current_request: bool = False,
+    ) -> tuple[bool, int | None]:
         if execution.bkfara_provision_id:
             bk_tenant_id = bk_biz_id_to_bk_tenant_id(execution.bk_biz_id)
             try:
@@ -1308,7 +1316,7 @@ class SourceAnalysisExecutionBaseResource(Resource):
                 )
             return cls._apply_bkfara_scene_state(execution, scene_state)
 
-        ensure_params = cls.build_ensure_scene_params(execution)
+        ensure_params = cls.build_ensure_scene_params(execution, use_current_request=use_current_request)
         try:
             scene_state = api.bk_incident.ensure_source_analysis_scene(**ensure_params)
         except TokenException:
@@ -1395,7 +1403,11 @@ class SourceAnalysisExecutionBaseResource(Resource):
         return False, None
 
     @classmethod
-    def _trigger_bkfara_task(cls, execution: IssueSourceAnalysisExecution) -> int | None:
+    def _trigger_bkfara_task(
+        cls,
+        execution: IssueSourceAnalysisExecution,
+        use_current_request: bool = False,
+    ) -> int | None:
         if not execution.agent_id:
             # 规则允许不配智能体，但流水线把 agent_id 当作必填入参，带空值触发只会在
             # 入参校验步骤失败；而 BKFara 结果协议只有成功终态，失败原因回不到 BKM。
@@ -1409,7 +1421,7 @@ class SourceAnalysisExecutionBaseResource(Resource):
             )
             return None
 
-        trigger_params = cls.build_trigger_params(execution)
+        trigger_params = cls.build_trigger_params(execution, use_current_request=use_current_request)
         try:
             task_state = api.bk_incident.trigger_source_analysis(**trigger_params)
         except TokenException:

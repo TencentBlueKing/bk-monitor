@@ -373,6 +373,20 @@ class BkFaraSourceAnalysisBaseResource(APIResource):
     def perform_request(self, validated_request_data):
         validated_request_data = dict(validated_request_data)
         username = validated_request_data.pop("bk_username", "")
+
+        # Web 请求由框架从当前登录态提取 bk_ticket / bk_token，交给 API Gateway
+        # 完成用户认证。只有没有原始请求的异步恢复路径，才按执行人从 bkoauth
+        # 恢复 access_token。
+        if not username:
+            # api 模块会复用 Resource 实例；异步请求曾写入的 bk_username 不能污染
+            # 当前 Web 请求，因此用同类型的新实例进入框架标准调用链。
+            resource = type(self)()
+            try:
+                return APIResource.perform_request(resource, validated_request_data)
+            except BKAPIError as error:
+                error.data = self._normalize_error_data(error.data)
+                raise
+
         bk_tenant_id = validated_request_data.get("bk_tenant_id", "")
         client = self._build_client(bk_tenant_id, username)
         operation = getattr(client.source_analysis, self.client_operation)
