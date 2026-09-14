@@ -205,10 +205,9 @@ class TestSourceAnalysisContract(SimpleTestCase):
                 self.assertFalse(resource.INSERT_BK_USERNAME_TO_REQUEST_DATA)
                 self.assertNotIn("bk_username", resource.full_request_data({"bk_biz_id": 2}))
 
-    @patch("fta_web.issue.resources.get_request_username", return_value="operator-a")
     @patch("fta_web.issue.resources.bk_biz_id_to_bk_tenant_id", return_value="system")
     @patch("fta_web.issue.resources.api.bk_incident.ensure_source_analysis_scene")
-    def test_ensure_scene_uses_current_user(self, ensure_scene, _get_tenant_id, _get_username):
+    def test_ensure_scene_uses_request_login_state(self, ensure_scene, _get_tenant_id):
         ensure_scene.return_value = {
             "provision_id": "provision-1",
             "status": "ready",
@@ -222,7 +221,6 @@ class TestSourceAnalysisContract(SimpleTestCase):
             bk_biz_id=2,
             bk_tenant_id="system",
             devops_project_id="project-a",
-            bk_username="operator-a",
             client_request_id=build_bkfara_client_request_id("ensure-scene", "system", 2, "project-a"),
         )
 

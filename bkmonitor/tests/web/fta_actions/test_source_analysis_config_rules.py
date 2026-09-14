@@ -8,6 +8,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import json
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
@@ -20,6 +21,7 @@ from bkmonitor.iam.drf import BusinessActionPermission
 from bkmonitor.models import IssueSourceAnalysisConfig, IssueSourceAnalysisRule
 from bkmonitor.utils.user import set_local_username
 from core.drf_resource.exceptions import custom_exception_handler
+from core.errors.api import BKAPIError
 from core.errors.issue import (
     IssueError,
     SourceAnalysisConfigNotFoundError,
@@ -169,8 +171,81 @@ class TestSourceAnalysisRuleSerializers(SimpleTestCase):
         side_effect=ValueError("BKFara APIGW is not configured"),
     )
     def test_bkfara_initialization_error_fails_closed(self, _ensure_scene):
-        with self.assertRaises(SourceAnalysisFlowInitializationFailedError):
+        with self.assertRaises(SourceAnalysisFlowInitializationFailedError) as context:
             SourceAnalysisBaseResource.ensure_flow_initialized(2, "project-a")
+
+        self.assertIsNone(context.exception.data)
+
+    @patch("fta_web.issue.resources.api.bk_incident.ensure_source_analysis_scene")
+    def test_bkfara_initialization_api_error_exposes_safe_detail(self, ensure_scene):
+        ensure_scene.side_effect = BKAPIError(
+            system_name="BKFara",
+            url="ensure_scene",
+            result={
+                "code": "INVALID_ARGS",
+                "message": "user authentication failed",
+                "retryable": False,
+                "request_id": "request-1",
+                "details": {"fields": {"bk_ticket": ["required"]}},
+                "access_token": "must-not-be-exposed",
+            },
+        )
+
+        with self.assertRaises(SourceAnalysisFlowInitializationFailedError) as context:
+            SourceAnalysisBaseResource.ensure_flow_initialized(2, "project-a")
+
+        self.assertEqual(
+            json.loads(context.exception.data),
+            {
+                "code": "INVALID_ARGS",
+                "message": "user authentication failed",
+                "retryable": False,
+                "request_id": "request-1",
+                "details": {"fields": {"bk_ticket": ["required"]}},
+            },
+        )
+        self.assertNotIn("access_token", context.exception.error_details["detail"])
+
+    @patch("fta_web.issue.resources.api.bk_incident.ensure_source_analysis_scene")
+    def test_bkfara_initialization_unstructured_api_error_stays_generic(self, ensure_scene):
+        ensure_scene.side_effect = BKAPIError(
+            system_name="BKFara",
+            url="ensure_scene",
+            result={"message": "unparsed response containing access_token=must-not-be-exposed"},
+        )
+
+        with self.assertRaises(SourceAnalysisFlowInitializationFailedError) as context:
+            SourceAnalysisBaseResource.ensure_flow_initialized(2, "project-a")
+
+        self.assertIsNone(context.exception.data)
+        self.assertNotIn("access_token", context.exception.error_details["detail"])
+
+    @patch("fta_web.issue.resources.api.bk_incident.ensure_source_analysis_scene")
+    def test_bkfara_initialization_failed_state_exposes_safe_detail(self, ensure_scene):
+        ensure_scene.return_value = {
+            "provision_id": "provision-1",
+            "status": "failed",
+            "terminal": True,
+            "error": {
+                "code": "SCENE_BINDING_DRIFTED",
+                "message": "DevOps template does not match the binding snapshot",
+                "retryable": False,
+                "request_id": "request-2",
+            },
+        }
+
+        with self.assertRaises(SourceAnalysisFlowInitializationFailedError) as context:
+            SourceAnalysisBaseResource.ensure_flow_initialized(2, "project-a")
+
+        self.assertEqual(
+            json.loads(context.exception.data),
+            {
+                "code": "SCENE_BINDING_DRIFTED",
+                "message": "DevOps template does not match the binding snapshot",
+                "retryable": False,
+                "request_id": "request-2",
+            },
+        )
 
     def test_source_analysis_errors_use_unique_issue_error_codes(self):
         error_classes = [

@@ -145,6 +145,10 @@ class SourceAnalysisBaseResource(Resource):
     # 因为缓存键由入参 md5 生成，直接传 api 方法对象会让键随对象变化而失效。
     AIDEV_LIST_APIS = {"agents": "list_agents", "skills": "list_skills"}
 
+    # BKFara 的错误详情会展示给前端，只保留协议中用于排障的字段，避免把上游响应中的
+    # 其它内容（例如运行参数或鉴权信息）透传给用户。
+    BKFARA_ERROR_DETAIL_FIELDS = ("code", "message", "retryable", "request_id", "details")
+
     @staticmethod
     def db_alias() -> str:
         """源码分析模型由数据库路由放在 monitor_api，事务必须绑定到同一连接。"""
@@ -160,6 +164,24 @@ class SourceAnalysisBaseResource(Resource):
         else:
             logger.warning("Source analysis option upstream unavailable: %s", type(error).__name__)
         raise SourceAnalysisUpstreamUnavailableError() from error
+
+    @classmethod
+    def serialize_bkfara_error_detail(cls, error_data) -> str | None:
+        """序列化允许向前端展示的 BKFara 错误字段。"""
+
+        if not isinstance(error_data, dict):
+            return None
+        if isinstance(error_data.get("error"), dict):
+            error_data = error_data["error"]
+        # 标准 BKFara error 对象必须带 code；拒绝透传仅含 message 的非协议响应，
+        # 因为 API 客户端可能把无法解析的整段 HTTP body 放进 message。
+        if error_data.get("code") is None:
+            return None
+
+        safe_error = {field: error_data[field] for field in cls.BKFARA_ERROR_DETAIL_FIELDS if field in error_data}
+        if not safe_error:
+            return None
+        return json.dumps(safe_error, ensure_ascii=False, default=str)
 
     @staticmethod
     def to_timestamp(value) -> int | None:
@@ -434,7 +456,11 @@ class SourceAnalysisBaseResource(Resource):
                     bkci_project_id,
                 ),
             )
-        except Exception as error:  # NOCC:broad-except(BKFara 网关与网络异常统一映射为配置保存失败)
+        except BKAPIError as error:
+            detail = cls.serialize_bkfara_error_detail(error.data)
+            logger.warning("Source analysis flow initialization failed: BKAPIError, detail=%s", detail)
+            raise SourceAnalysisFlowInitializationFailedError(data=detail) from error
+        except Exception as error:  # NOCC:broad-except(BKFara 网络等未知异常统一映射为配置保存失败)
             logger.warning("Source analysis flow initialization failed: %s", type(error).__name__)
             raise SourceAnalysisFlowInitializationFailedError() from error
 
@@ -442,8 +468,14 @@ class SourceAnalysisBaseResource(Resource):
         status = scene_state.get("status") if isinstance(scene_state, dict) else None
         terminal = scene_state.get("terminal") if isinstance(scene_state, dict) else None
         if not provision_id or status not in {"pending", "provisioning", "ready"} or not isinstance(terminal, bool):
-            logger.warning("Invalid BKFara source analysis scene response: bk_biz_id=%s", bk_biz_id)
-            raise SourceAnalysisFlowInitializationFailedError()
+            error_data = scene_state.get("error") if isinstance(scene_state, dict) else None
+            detail = cls.serialize_bkfara_error_detail(error_data)
+            logger.warning(
+                "Invalid BKFara source analysis scene response: bk_biz_id=%s, detail=%s",
+                bk_biz_id,
+                detail,
+            )
+            raise SourceAnalysisFlowInitializationFailedError(data=detail)
         return provision_id
 
 
