@@ -20,6 +20,7 @@ the project delivered to anyone in the future.
 """
 
 from django.http import StreamingHttpResponse
+from django.utils.http import content_disposition_header
 from rest_framework.response import Response
 
 from apps.api import TGPATaskApi
@@ -266,7 +267,7 @@ class TGPATaskViewSet(APIViewSet):
             file_iterator,
             content_type="application/zip",
         )
-        response["Content-Disposition"] = f'attachment; filename="{file_name}"'
+        response["Content-Disposition"] = content_disposition_header(as_attachment=True, filename=file_name)
         response["Content-Length"] = file_size
         return response
 

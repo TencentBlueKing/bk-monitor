@@ -19,9 +19,13 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 
+import logging
 import os
+import re
 import shutil
 import uuid
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
 import arrow
 from django.conf import settings
@@ -44,6 +48,8 @@ from apps.tgpa.constants import (
 from apps.tgpa.handlers.base import TGPAFileHandler
 from apps.tgpa.handlers.decrypt import get_decrypt_handler
 from apps.tgpa.models import TGPATask
+
+logger = logging.getLogger(__name__)
 
 
 class TGPATaskHandler:
@@ -333,6 +339,66 @@ class TGPATaskHandler:
         file_handler.download_and_process_file(self.task_info["file_name"])
 
     @staticmethod
+    def _sanitize_download_file_name_part(value):
+        """将任务元数据转换为安全的文件名片段。"""
+        return re.sub(r"[^0-9A-Za-z._-]+", "_", str(value)).strip("._-")
+
+    @classmethod
+    def get_download_file_name(cls, bk_biz_id, file_name):
+        """为单用户日志捞取任务生成包含 OPENID 和创建时间的下载文件名。"""
+        original_file_name = os.path.basename(file_name)
+        matched = re.fullmatch(r"ENQ_file_(\d+)\.zip", original_file_name)
+        if not matched:
+            return original_file_name
+
+        task_id = matched.group(1)
+        try:
+            result = cls.get_task_page(
+                {
+                    "bk_biz_id": bk_biz_id,
+                    "task_id": task_id,
+                    "page": 1,
+                    "pagesize": 1,
+                },
+                need_format=False,
+                add_process_info=False,
+            )
+            task = next(
+                (item for item in result["list"] if os.path.basename(item.get("file_name", "")) == original_file_name),
+                None,
+            )
+            if not task:
+                return original_file_name
+
+            openid = cls._sanitize_download_file_name_part(task.get("openid", ""))
+            created_at = task.get("created_at")
+            if not openid or not created_at:
+                return original_file_name
+
+            if isinstance(created_at, str):
+                created_at = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
+            if created_at.tzinfo is None:
+                created_at = created_at.replace(tzinfo=ZoneInfo(settings.TIME_ZONE))
+            create_time = created_at.astimezone(ZoneInfo(settings.TIME_ZONE)).strftime("%Y%m%d%H%M%S")
+
+            file_stem, file_extension = os.path.splitext(original_file_name)
+            return f"{file_stem}_{openid}_{create_time}{file_extension}"
+        except (KeyError, TypeError, ValueError, IndexError):
+            logger.warning(
+                "Failed to build TGPA download file name from task metadata, bk_biz_id=%s, task_id=%s",
+                bk_biz_id,
+                task_id,
+                exc_info=True,
+            )
+        except Exception:
+            logger.exception(
+                "Failed to query TGPA task metadata for download file name, bk_biz_id=%s, task_id=%s",
+                bk_biz_id,
+                task_id,
+            )
+        return original_file_name
+
+    @staticmethod
     def stream_download_file(bk_biz_id, file_name):
         """
         下载、解密、重新打包文件，并返回流式迭代器和文件信息
@@ -345,13 +411,14 @@ class TGPATaskHandler:
         max_size = feature_config.get("tgpa_file_download_max_size", FEATURE_TGPA_FILE_DOWNLOAD_MAX_SIZE)
         file_info = TGPAFileHandler.get_file_info(file_name, bk_biz_id=bk_biz_id)
         decrypt_handler = get_decrypt_handler(bk_biz_id)
+        download_file_name = TGPATaskHandler.get_download_file_name(bk_biz_id, file_name)
         # 用户上报文件不需要解密，直接流式转发（先直接在这个接口兼容，后续有其他需求再拆分模块）
         is_user_report_file = os.path.basename(file_name).startswith(TGPA_REPORT_FILE_NAME_PREFIX)
         if file_info["content_length"] > max_size or not decrypt_handler or is_user_report_file:
             # 文件大小超限或无需解密：直接从流式转发，不落盘，节省服务器磁盘和内存资源
             return (
                 TGPAFileHandler.get_file_stream(file_name, bk_biz_id=bk_biz_id),
-                os.path.basename(file_name),
+                download_file_name,
                 file_info["content_length"],
             )
 
@@ -364,7 +431,6 @@ class TGPATaskHandler:
         file_handler = TGPAFileHandler(temp_dir, output_dir, decrypt_handler=decrypt_handler, bk_biz_id=bk_biz_id)
         result_path = file_handler.download_and_repack_file(file_name)
 
-        result_file_name = os.path.basename(result_path)
         file_size = os.path.getsize(result_path)
 
         def file_iterator(chunk_size=TGPA_FILE_DOWNLOAD_CHUNK_SIZE):
@@ -376,4 +442,4 @@ class TGPATaskHandler:
             finally:
                 shutil.rmtree(base_dir, ignore_errors=True)
 
-        return file_iterator(), result_file_name, file_size
+        return file_iterator(), download_file_name, file_size
