@@ -282,9 +282,11 @@ class AuthenticationMiddleware(MiddlewareMixin):
             duration_ms = round((time.monotonic() - started_at) * 1000) if started_at is not None else None
             status_code = getattr(response, "status_code", 0)
             response_data = getattr(response, "data", None)
-            # 历史 API 会用 HTTP 200 包装参数或业务错误；审计必须同时识别标准 result=false，
-            # 否则失败请求会被记为成功。这里只读取并记录整数结果码，不序列化或记录响应正文。
-            application_failed = isinstance(response_data, dict) and response_data.get("result") is False
+            # API 异常由 exception handler 在 request 上留下服务端状态；兼容仍保留 data 的响应，
+            # 但不解析已渲染正文，避免为了审计复制或记录业务响应。
+            application_failed = getattr(request, "unified_mcp_response_failed", False) or (
+                isinstance(response_data, dict) and response_data.get("result") is False
+            )
             failed = status_code >= 400 or application_failed
             fields = {
                 "operation": operation,
@@ -293,7 +295,9 @@ class AuthenticationMiddleware(MiddlewareMixin):
                 "status_code": status_code,
                 "duration_ms": duration_ms,
             }
-            result_code = response_data.get("code") if application_failed else None
+            result_code = getattr(request, "unified_mcp_result_code", None)
+            if result_code is None and isinstance(response_data, dict) and response_data.get("result") is False:
+                result_code = response_data.get("code")
             if type(result_code) is int:
                 fields["result_code"] = result_code
             log_mcp_tool_event(

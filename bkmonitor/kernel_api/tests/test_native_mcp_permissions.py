@@ -230,6 +230,26 @@ def test_public_tools_publish_executable_permission_and_confirmation_contracts()
     assert "用户明确确认" in schema["guidelines"][0]
 
 
+def test_public_schema_converts_openapi_nullable_to_json_schema_null():
+    catalog = registry.get_tool_registry()
+    strategy_schema = catalog.get("update_alarm_strategy").input_schema["properties"]
+    third_party_schema = catalog.get("update_third_party_es").input_schema["properties"]
+
+    for schema in (strategy_schema["priority"], strategy_schema["issue_config"], third_party_schema["time_field_unit"]):
+        assert "nullable" not in schema
+        Draft7Validator(schema).validate(None)
+    assert None in third_party_schema["time_field_unit"]["enum"]
+
+
+def test_catalog_version_tracks_schema_normalization_version(monkeypatch):
+    source_root = BASE / "support-files/apigw/resources/internal/user"
+    original_version = registry.load_tool_registry(source_root).catalog_version
+
+    monkeypatch.setattr(registry, "SCHEMA_NORMALIZATION_VERSION", registry.SCHEMA_NORMALIZATION_VERSION + 1)
+
+    assert registry.load_tool_registry(source_root).catalog_version != original_version
+
+
 def test_standard_tools_reuse_original_mcp_and_route_permissions():
     catalog = registry.get_tool_registry()
     log_collection = catalog.get("list_log_collectors")
@@ -958,7 +978,9 @@ def test_middleware_marks_wrapped_application_error_as_failed(request_factory, c
     request.unified_mcp_operation = "execute_tool"
     request.unified_mcp_tool = "update_dashboard"
     request.unified_mcp_started_at = time.monotonic() - 0.01
-    response = NS(status_code=200, data={"result": False, "code": 400, "message": "must not be logged"})
+    request.unified_mcp_response_failed = True
+    request.unified_mcp_result_code = 400
+    response = NS(status_code=200, data=None)
 
     assert process_response(NS(), request, response) is response
     record = caplog.records[-1].getMessage()
@@ -966,7 +988,37 @@ def test_middleware_marks_wrapped_application_error_as_failed(request_factory, c
     assert fields["decision"] == "failed"
     assert fields["status_code"] == 200
     assert fields["result_code"] == 400
-    assert "must not be logged" not in record
+    assert "data" not in fields
+
+
+def test_strategy_update_preflight_rejects_late_issue_validation():
+    events = []
+
+    class CandidateStrategy:
+        def __init__(self, **_kwargs):
+            events.append("build")
+
+        def convert(self):
+            events.append("convert")
+
+    class InvalidIssueConfig:
+        def __init__(self, **_kwargs):
+            pass
+
+        def validate(self, _strategy):
+            events.append("validate")
+            raise ValidationError("invalid issue config")
+
+    preflight = source_method(
+        "kernel_api/resource/alert.py",
+        "_validate_strategy_before_write",
+        Strategy=CandidateStrategy,
+        IssueConfig=InvalidIssueConfig,
+    )
+
+    with pytest.raises(ValidationError, match="invalid issue config"):
+        preflight({"issue_config": {}})
+    assert events == ["build", "convert", "validate"]
 
 
 def test_native_discovery_keeps_unresolved_tool_without_old_grant(request_factory, io):
@@ -1804,6 +1856,33 @@ def test_global_exception_handlers_preserve_permission_state(handler_kind):
         # Preserve the API role's existing business-code envelope, not a new status convention.
         assert response.data["code"] == 403
         assert response.data["detail"] == state
+
+
+def test_api_exception_handler_marks_unified_failure_on_request():
+    import six
+    from rest_framework.response import Response
+
+    from core.errors import ErrorDetails
+
+    handler = source_method(
+        "kernel_api/exceptions.py",
+        "api_exception_handler",
+        IGNORE_EXCEPTIONS=(ValidationError,),
+        logger=Mock(),
+        six=six,
+        failed=source_method("bkmonitor/utils/common_utils.py", "failed", ErrorDetails=ErrorDetails),
+        Response=Response,
+    )
+    request = NS(unified_mcp_operation="execute_tool")
+    drf_request = NS(_request=request)
+
+    response = handler(ValidationError("must not be copied"), {"request": drf_request})
+
+    assert response.data["code"] == 400
+    assert request.unified_mcp_response_failed is True
+    assert request.unified_mcp_result_code == 400
+    assert "must not be copied" not in vars(request).values()
+    assert not hasattr(drf_request, "unified_mcp_response_failed")
 
 
 def test_log_context_zero_false_begin_zero_does_not_query():
