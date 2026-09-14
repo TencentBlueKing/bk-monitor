@@ -18,6 +18,7 @@ class GroupEnum(CachedEnum):
     TRPC = "trpc"
     RESOURCE = "resource"
     SPAN = "span"
+    LLM = "llm"
 
     @cached_property
     def label(self) -> str:
@@ -52,6 +53,24 @@ class CalculationType(CachedEnum):
     # 异常重启
     KUBE_ABNORMAL_RESTART = "kube_abnormal_restart"
 
+    # LLM
+    # 输入 Token 数
+    INPUT_TOKENS = "input_tokens"
+    # 输出 Token 数
+    OUTPUT_TOKENS = "output_tokens"
+    # 总 Token 数
+    TOTAL_TOKENS = "total_tokens"
+    # 缓存 Token 数
+    CACHE_TOKENS = "cache_tokens"
+    # 模型调用次数
+    MODEL_CALL_COUNT = "model_call_count"
+    # 操作次数
+    OPERATION_COUNT = "operation_count"
+    # 平均耗时，与 AVG_DURATION 语义相同，LLM 侧沿用前端既有取值名
+    DURATION = "duration"
+    # 请求数，与 REQUEST_TOTAL 语义相同，LLM 侧沿用前端既有取值名
+    REQUEST_COUNT = "request_count"
+
     @classmethod
     def choices(cls) -> list[tuple[str, str]]:
         return [(member.value, member.label) for member in cls]
@@ -68,5 +87,13 @@ class CalculationType(CachedEnum):
             self.P95_DURATION: _("P95 耗时"),
             self.P99_DURATION: _("P99 耗时"),
             self.ERROR_COUNT: _("错误数"),
+            self.INPUT_TOKENS: _("输入 Token 数"),
+            self.OUTPUT_TOKENS: _("输出 Token 数"),
+            self.TOTAL_TOKENS: _("总 Token 数"),
+            self.CACHE_TOKENS: _("缓存 Token 数"),
+            self.MODEL_CALL_COUNT: _("模型调用次数"),
+            self.OPERATION_COUNT: _("操作次数"),
+            self.DURATION: _("平均耗时"),
+            self.REQUEST_COUNT: _("请求数"),
         }
         return labels.get(self) or self.value

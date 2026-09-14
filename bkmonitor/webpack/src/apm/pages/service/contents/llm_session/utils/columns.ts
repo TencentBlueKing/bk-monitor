@@ -62,7 +62,7 @@ export function getSessionTraceColumns(): ILlmColumn[] {
   return [
     { id: 'traceId', label: 'Trace ID', cellType: 'link', width: 252 },
     { id: 'startTimeText', label: window.i18n.tc('开始时间'), cellType: 'text', width: 206, sortBy: 'startTimeValue' },
-    { id: 'ioSummary', label: window.i18n.tc('输入/输出摘要'), cellType: 'text', minWidth: 391 },
+    { id: 'ioSummary', label: window.i18n.tc('输入/输出摘要'), cellType: 'ioSummary', minWidth: 391 },
     { id: 'elapsedText', label: window.i18n.tc('耗时'), cellType: 'text', width: 229, sortBy: 'elapsedValue' },
     { id: 'tokens', label: 'Tokens', cellType: 'tokens', width: 207, sortBy: 'tokensTotalValue' },
     { id: 'status', label: window.i18n.tc('状态'), cellType: 'status', width: 188 },
@@ -76,7 +76,7 @@ export function getTraceColumns(): ILlmColumn[] {
     { id: 'userId', label: 'User ID', cellType: 'text', width: 99 },
     { id: 'sessionId', label: window.i18n.tc('会话 ID'), cellType: 'text', width: 180 },
     { id: 'startTimeText', label: window.i18n.tc('开始时间'), cellType: 'text', width: 156, sortField: 'start_time' },
-    { id: 'ioSummary', label: window.i18n.tc('输入 / 输出摘要'), cellType: 'text', minWidth: 240 },
+    { id: 'ioSummary', label: window.i18n.tc('输入 / 输出摘要'), cellType: 'ioSummary', minWidth: 240 },
     { id: 'elapsedText', label: window.i18n.tc('耗时'), cellType: 'text', width: 100, sortField: 'elapsed_time' },
     { id: 'tokens', label: 'Tokens', cellType: 'tokensBadge', width: 196 },
     { id: 'status', label: window.i18n.tc('状态'), cellType: 'status', width: 120 },

@@ -9,10 +9,10 @@ export type LlmStatus = 'error' | 'success';
  * Trace 层与会话层结构一致，会话层额外返回 childs 且 input / output 为空串。
  */
 export interface ILlmTraceItem {
-  /** 分组内缓存写入 Token 总数 */
-  cache_creation_input_tokens: number;
   /** 分组内缓存读取 Token 总数 */
   cache_read_input_tokens: number;
+  /** 分组内缓存写入 Token 总数 */
+  cache_write_input_tokens: number;
   /** 会话包含的 Trace 列表，仅 group_field !== trace_id 时返回 */
   childs?: ILlmTraceItem[];
   /** Trace 或会话持续时间，单位微秒 */
@@ -50,12 +50,18 @@ export interface ITokensCell {
   totalText: string;
 }
 
+/** 输入 / 输出摘要单元格，两侧各自缩略，中间用箭头分隔 */
+export interface IIoSummaryCell {
+  input: string;
+  output: string;
+}
+
 /** Trace 行。展示字段在数据转换阶段一次性格式化完成，渲染期只做读取 */
 export interface ITraceRow {
   /** 耗时原始值（微秒），供展开子表本地排序 */
   elapsedValue: number;
   elapsedText: string;
-  ioSummary: string;
+  ioSummary: IIoSummaryCell;
   key: string;
   sessionId: string;
   startTimeText: string;
@@ -89,8 +95,9 @@ export type LlmRow = ISessionRow | ITraceRow;
 /**
  * 单元格类型。表格按此分发到对应的单元格实现，两个视角共用同一批实现。
  * tokens 为纯文本总量，tokensBadge 额外展示输入 / 输出徽标。
+ * ioSummary 为输入 / 输出两侧各自缩略，中间箭头分隔。
  */
-export type LlmCellType = 'countLink' | 'link' | 'status' | 'text' | 'tokens' | 'tokensBadge';
+export type LlmCellType = 'countLink' | 'ioSummary' | 'link' | 'status' | 'text' | 'tokens' | 'tokensBadge';
 
 /** 列定义。只描述元数据，渲染逻辑由表格组件按 cellType 决定 */
 export interface ILlmColumn {

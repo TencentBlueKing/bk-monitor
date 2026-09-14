@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, InjectReactive, Ref, Watch } from 'vue-property-decorator';
+import { Component, Inject, InjectReactive, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import axios from 'axios';
@@ -33,7 +33,7 @@ import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/uti
 import ApmTraceExplore from 'monitor-ui/chart-plugins/plugins/apm-trace-explore';
 
 import LlmTable from './components/llm-table';
-import { PAGE_LIMIT } from './constants';
+import { LLM_SESSION_TAB_QUERY_KEY, PAGE_LIMIT } from './constants';
 import { getSessionColumns, getSessionTraceColumns, getTraceColumns } from './utils/columns';
 import { fetchLlmTraceList } from './utils/query';
 import { toSessionRow, toTraceRow } from './utils/transform';
@@ -43,6 +43,16 @@ import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range'
 import type { IViewOptions } from 'monitor-ui/chart-plugins/typings';
 
 import './llm-session.scss';
+
+/** 从当前 URL 读取视角。class 字段初始化时 $route 可能尚未注入，因此同时看 search 与 hash */
+function getViewModeFromLocation(): LlmViewMode {
+  const hash = window.location.hash || '';
+  const hashQuery = hash.includes('?') ? hash.slice(hash.indexOf('?')) : '';
+  const tab =
+    new URLSearchParams(window.location.search).get(LLM_SESSION_TAB_QUERY_KEY) ||
+    new URLSearchParams(hashQuery).get(LLM_SESSION_TAB_QUERY_KEY);
+  return tab === 'trace' ? 'trace' : 'session';
+}
 
 interface IViewModeItem {
   icon: string;
@@ -66,10 +76,14 @@ export default class LlmSession extends tsc<object> {
   /** 手动刷新 */
   @InjectReactive('refreshImmediate') refreshImmediate: number;
   @InjectReactive('bkBizId') readonly bkBizId: number | string;
+  /** CommonPage 自定义 query，切换视角时走这条通道以免被整份重写冲掉 */
+  @Inject('handleCustomRouteQueryChange') handleCustomRouteQueryChange: (
+    customRouteQuery: Record<string, number | string>
+  ) => void;
 
   @Ref('tableWrap') tableWrapRef: HTMLDivElement;
 
-  viewMode: LlmViewMode = 'session';
+  viewMode: LlmViewMode = getViewModeFromLocation();
   keyword = '';
   /** 远程排序参数：升序为字段名，降序加 - 前缀 */
   sort = '';
@@ -150,6 +164,30 @@ export default class LlmSession extends tsc<object> {
   @Watch('refreshImmediate')
   handleRefreshImmediateChange() {
     this.reload();
+  }
+
+  @Watch('viewMode', { immediate: true })
+  handleViewModeValueChange(v: LlmViewMode, oldV?: LlmViewMode) {
+    this.syncViewModeToQuery(v, oldV === undefined);
+  }
+
+  /**
+   * 视角写入当前 query。
+   * 首屏 CommonPage 尚未 init，只能 merge 当前 query，避免整份重写冲掉 from/to。
+   * 之后走 handleCustomRouteQueryChange，让 CommonPage 记住该自定义参数。
+   */
+  syncViewModeToQuery(mode: LlmViewMode, isInit = false) {
+    if (this.$route.query[LLM_SESSION_TAB_QUERY_KEY] === mode) return;
+    if (!isInit && this.handleCustomRouteQueryChange) {
+      this.handleCustomRouteQueryChange({ [LLM_SESSION_TAB_QUERY_KEY]: mode });
+      return;
+    }
+    this.$router.replace({
+      query: {
+        ...this.$route.query,
+        [LLM_SESSION_TAB_QUERY_KEY]: mode,
+      },
+    });
   }
 
   mounted() {

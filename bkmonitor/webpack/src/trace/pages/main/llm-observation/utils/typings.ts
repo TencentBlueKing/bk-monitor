@@ -26,30 +26,6 @@
 
 /** LLM 观测页数据类型 */
 
-/** list_llm_spans 返回的标准化 Span */
-export type ILlmSpan = {
-  attributes?: Record<string, unknown>;
-  elapsed_time?: number;
-  end_time?: number;
-  parent_span_id?: string;
-  resource?: Record<string, unknown>;
-  span_id?: string;
-  span_name?: string;
-  start_time?: number;
-  status?: {
-    code?: number;
-    message?: string;
-  };
-  trace_id?: string;
-};
-
-/** list_llm_spans 响应 data */
-export type ILlmSpanListData = {
-  spans?: ILlmSpan[];
-  total?: number;
-  trace_id?: string;
-};
-
 /** 输入 Tab 解析后的观测数据 */
 export type LlmInputObservation = {
   /** 当前可用工具定义 */
@@ -71,9 +47,6 @@ export type LlmKvPair = {
   key: string;
   value: string;
 };
-
-/** 按 gen_ai.operation.name 区分的观测页类型 */
-export type LlmObservationKind = 'agent' | 'model' | 'tool';
 
 /** 输出 Tab 解析后的观测数据 */
 export type LlmOutputObservation = {

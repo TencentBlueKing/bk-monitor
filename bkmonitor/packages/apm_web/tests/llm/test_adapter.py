@@ -8,7 +8,7 @@ from unittest import TestCase
 
 from apm_web.handlers.service_handler import ServiceHandler
 from apm_web.llm.adapter import adapt_spans as adapt_spans_with_entity_set
-from apm_web.llm.adapter.fields import detect_product, resolve_query_field
+from apm_web.llm.adapter.fields import resolve_product, resolve_query_field
 
 TRACE_ID = "a" * 32
 SPAN_ID = "b" * 16
@@ -97,15 +97,17 @@ def langfuse_span(span_id: str = SPAN_ID, *, observation_type: str = "generation
 
 class AdapterTests(TestCase):
     def test_product_routing_uses_entity_set(self) -> None:
-        span = agentlens_span()
         for product in ("agentlens", "galileo", "aidev", "langfuse", "default"):
             with self.subTest(product=product):
-                self.assertEqual(detect_product(FakeEntitySet(product), [span]), product)
+                self.assertEqual(resolve_product(FakeEntitySet(product), "demo"), product)
 
     def test_galileo_routing_requires_llm_service(self) -> None:
         entity_set = FakeEntitySet("galileo", is_support_llm=False)
 
-        self.assertEqual(detect_product(entity_set, [agentlens_span()]), "default")
+        self.assertEqual(resolve_product(entity_set, "demo"), "")
+
+    def test_product_is_empty_for_service_outside_entity_set(self) -> None:
+        self.assertEqual(resolve_product(FakeEntitySet("agentlens"), "other"), "")
 
     def test_resolve_query_field(self) -> None:
         conversation_field = "attributes.gen_ai.conversation.id"
@@ -115,7 +117,7 @@ class AdapterTests(TestCase):
         self.assertEqual(resolve_query_field("langfuse", conversation_field), "attributes.session.id")
         self.assertEqual(resolve_query_field("default", conversation_field), conversation_field)
         # 非 LLM 服务或未命中映射表的字段原样透传
-        self.assertEqual(resolve_query_field(None, conversation_field), conversation_field)
+        self.assertEqual(resolve_query_field("", conversation_field), conversation_field)
         self.assertEqual(resolve_query_field("aidev", "trace_id"), "trace_id")
 
     def test_default_adapter_keeps_only_standard_fields(self) -> None:
@@ -239,7 +241,7 @@ class AdapterTests(TestCase):
         self.assertEqual(attributes["gen_ai.usage.input_tokens"], 110)
         self.assertEqual(attributes["gen_ai.usage.output_tokens"], 5)
         self.assertEqual(attributes["gen_ai.usage.cache_read.input_tokens"], 40)
-        self.assertEqual(attributes["gen_ai.usage.cache_creation.input_tokens"], 10)
+        self.assertEqual(attributes["gen_ai.usage.cache_write.input_tokens"], 10)
         self.assertEqual(attributes["gen_ai.system_instructions"][0]["content"], "system prompt")
         self.assertEqual(
             [message["role"] for message in attributes["gen_ai.input.messages"]], ["user", "assistant", "tool"]
@@ -478,8 +480,49 @@ class AdapterTests(TestCase):
                 "status",
                 "resource",
                 "attributes",
+                "span_type",
             },
         )
+
+    def test_span_type_is_resolved_from_operation_name(self) -> None:
+        # 该产品的 operation.name 上报为大写，归类时不能漏掉
+        cases = {"invoke_agent": "AGENT", "plan": "AGENT", "execute_tool": "TOOL", "CHAT": "LLM", "embeddings": "LLM"}
+        for operation_name, span_type in cases.items():
+            with self.subTest(operation_name=operation_name):
+                span = agentlens_span()
+                span["attributes"]["gen_ai.operation.name"] = operation_name
+                self.assertEqual(adapt_spans([span])[0]["span_type"], span_type)
+
+    def test_unclassified_span_carries_no_span_type(self) -> None:
+        # 检索、任务等暂不支持的层级不默认取值，调用方据此决定是否展示 LLM 观测
+        span = agentlens_span()
+        span["attributes"]["gen_ai.operation.name"] = "retrieval"
+        self.assertNotIn("span_type", adapt_spans([span])[0])
+
+    def test_spans_are_converted_per_service_product(self) -> None:
+        """同一条 Trace 跨多个产品的服务时，各自走自己的转换器。"""
+
+        class MultiProductEntitySet:
+            service_names = ["demo", "aidev-service"]
+
+            @staticmethod
+            def get_system(service_name: str) -> dict:
+                product = "aidev" if service_name == "aidev-service" else "agentlens"
+                return ServiceHandler.get_system({"extra_data": {"llm": {"product": product}}, "sdk": []})
+
+        agentlens = agentlens_span("1" * 16)
+        aidev = agentlens_span("2" * 16, start_time=NOW - 30)
+        aidev["resource"] = {"service.name": "aidev-service"}
+        aidev["attributes"] = {"llm.request.type": "embedding", "gen_ai.usage.prompt_tokens": 7}
+
+        spans = adapt_spans_with_entity_set([aidev, agentlens], MultiProductEntitySet())
+
+        # 按 start_time 排序，AgentLens 的 Span 在前
+        self.assertEqual([span["span_id"] for span in spans], ["1" * 16, "2" * 16])
+        self.assertEqual([span["span_type"] for span in spans], ["LLM", "LLM"])
+        # 只有该产品的转换器认识 prompt_tokens 与 llm.request.type
+        self.assertEqual(spans[1]["attributes"]["gen_ai.usage.input_tokens"], 7)
+        self.assertEqual(spans[1]["attributes"]["gen_ai.operation.name"], "embeddings")
 
     def test_galileo_runtime_does_not_make_ordinary_rpc_an_ai_step(self) -> None:
         span = agentlens_span()
@@ -773,7 +816,7 @@ class AdapterTests(TestCase):
         self.assertEqual(by_name["call_llm"]["parent_span_id"], f"{2:016x}")
         llm = next(step for step in converted if step["attributes"]["gen_ai.operation.name"] == "chat")
         self.assertEqual(llm["attributes"]["gen_ai.usage.cache_read.input_tokens"], 3)
-        self.assertEqual(llm["attributes"]["gen_ai.usage.cache_creation.input_tokens"], 2)
+        self.assertEqual(llm["attributes"]["gen_ai.usage.cache_write.input_tokens"], 2)
         output = llm["attributes"]["gen_ai.output.messages"][0]
         self.assertEqual(output["role"], "assistant")
         self.assertEqual(output["parts"], [{"type": "text", "content": "hi"}])
@@ -798,6 +841,19 @@ class AdapterTests(TestCase):
         self.assertNotIn("gen_ai.response.time_to_first_chunk", attributes)
         self.assertNotIn("gen_ai.usage.cached.input_tokens", attributes)
         self.assertEqual(attributes["gen_ai.usage.reasoning.output_tokens"], 3)
+
+    def test_galileo_legacy_cache_write_spellings_map_to_the_standard_field(self) -> None:
+        for legacy in ("gen_ai.usage.cache_creation.input_tokens", "gen_ai.usage.cache_creation_input_tokens"):
+            with self.subTest(legacy=legacy):
+                span = agentlens_span()
+                span["span_name"] = "call_llm"
+                span["resource"] = {"telemetry.sdk.name": "galileo"}
+                span["attributes"] = {"gen_ai.operation.name": "chat", legacy: 7}
+
+                attributes = adapt_spans([span], "galileo")[0]["attributes"]
+
+                self.assertEqual(attributes["gen_ai.usage.cache_write.input_tokens"], 7)
+                self.assertNotIn(legacy, attributes)
 
     def test_galileo_does_not_copy_request_model_to_response_model(self) -> None:
         span = agentlens_span()

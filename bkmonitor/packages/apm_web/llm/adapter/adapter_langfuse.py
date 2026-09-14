@@ -235,10 +235,10 @@ def _add_usage(target: dict[str, Any], attrs: dict[str, Any]) -> None:
             if isinstance(completion_details, dict)
             else None
         )
-        cache_creation_tokens = None
+        cache_write_tokens = None
     else:
         cache_read_tokens = token_sum("input_cached_tokens", "cache_read_input_tokens")
-        cache_creation_tokens = token_sum("cache_creation_input_tokens")
+        cache_write_tokens = token_sum("cache_creation_input_tokens")
         reasoning_tokens = token_sum("output_reasoning_tokens")
         input_tokens = token_sum(
             "input", "input_cached_tokens", "cache_read_input_tokens", "cache_creation_input_tokens"
@@ -248,7 +248,7 @@ def _add_usage(target: dict[str, Any], attrs: dict[str, Any]) -> None:
     put(target, "gen_ai.usage.input_tokens", input_tokens)
     put(target, "gen_ai.usage.output_tokens", output_tokens)
     put(target, "gen_ai.usage.cache_read.input_tokens", cache_read_tokens)
-    put(target, "gen_ai.usage.cache_creation.input_tokens", cache_creation_tokens)
+    put(target, "gen_ai.usage.cache_write.input_tokens", cache_write_tokens)
     put(target, "gen_ai.usage.reasoning.output_tokens", reasoning_tokens)
 
 
