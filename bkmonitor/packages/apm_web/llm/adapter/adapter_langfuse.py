@@ -170,9 +170,15 @@ def _add_generation_content(target: dict[str, Any], attrs: dict[str, Any]) -> No
     put(target, "gen_ai.tool.definitions", definitions)
 
     output = _parse(attrs.get("langfuse.observation.output"))
-    if isinstance(output, list) and not any(isinstance(item, dict) and item.get("role") for item in output):
+    if isinstance(output, list) and output and all(isinstance(item, dict) and item.get("role") for item in output):
+        outputs = _messages(output, "assistant")
+    elif isinstance(output, list):
         parts = [part for item in output if (part := _message_part(item))]
-        outputs = [{"role": "assistant", "parts": parts}] if parts else []
+        if len(parts) == len(output):
+            outputs = [{"role": "assistant", "parts": parts}] if parts else []
+        else:
+            part = _text_part(output)
+            outputs = [{"role": "assistant", "parts": [part]}] if part else []
     else:
         outputs = _messages(output, "assistant") if output not in (None, "") else []
     put(target, "gen_ai.output.messages", outputs)
