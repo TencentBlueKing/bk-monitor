@@ -207,16 +207,38 @@ def _add_usage(target: dict[str, Any], attrs: dict[str, Any]) -> None:
     if not isinstance(source, dict):
         return
 
-    input_tokens = nonnegative_int(source.get("input"))
-    output_tokens = nonnegative_int(source.get("output"))
-    cache_read_tokens = nonnegative_int(source.get("cache_read_input_tokens"))
-    cache_creation_tokens = nonnegative_int(source.get("cache_creation_input_tokens"))
-    input_parts = [value for value in (input_tokens, cache_read_tokens, cache_creation_tokens) if value is not None]
-    if input_parts:
-        put(target, "gen_ai.usage.input_tokens", sum(input_parts))
+    def token_sum(*keys: str) -> int | None:
+        values = [value for key in keys if (value := nonnegative_int(source.get(key))) is not None]
+        return sum(values) if values else None
+
+    if "prompt_tokens" in source or "completion_tokens" in source:
+        input_tokens = nonnegative_int(source.get("prompt_tokens"))
+        output_tokens = nonnegative_int(source.get("completion_tokens"))
+        prompt_details = source.get("prompt_tokens_details") or {}
+        completion_details = source.get("completion_tokens_details") or {}
+        cache_read_tokens = (
+            nonnegative_int(prompt_details.get("cached_tokens")) if isinstance(prompt_details, dict) else None
+        )
+        reasoning_tokens = (
+            nonnegative_int(completion_details.get("reasoning_tokens"))
+            if isinstance(completion_details, dict)
+            else None
+        )
+        cache_creation_tokens = None
+    else:
+        cache_read_tokens = token_sum("input_cached_tokens", "cache_read_input_tokens")
+        cache_creation_tokens = token_sum("cache_creation_input_tokens")
+        reasoning_tokens = token_sum("output_reasoning_tokens")
+        input_tokens = token_sum(
+            "input", "input_cached_tokens", "cache_read_input_tokens", "cache_creation_input_tokens"
+        )
+        output_tokens = token_sum("output", "output_reasoning_tokens")
+
+    put(target, "gen_ai.usage.input_tokens", input_tokens)
     put(target, "gen_ai.usage.output_tokens", output_tokens)
     put(target, "gen_ai.usage.cache_read.input_tokens", cache_read_tokens)
     put(target, "gen_ai.usage.cache_creation.input_tokens", cache_creation_tokens)
+    put(target, "gen_ai.usage.reasoning.output_tokens", reasoning_tokens)
 
 
 def convert(raw: list[dict[str, Any]]) -> list[dict[str, Any]]:
