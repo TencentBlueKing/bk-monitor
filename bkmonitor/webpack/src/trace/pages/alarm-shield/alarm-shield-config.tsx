@@ -25,7 +25,7 @@
  */
 import { computed, defineComponent, reactive, ref, shallowRef } from 'vue';
 
-import { Button, Checkbox, Input, Loading, Message, Radio, Select, Switcher } from 'bkui-vue';
+import { Button, Checkbox, Input, Loading, Message, Select, Switcher } from 'bkui-vue';
 import dayjs from 'dayjs';
 import { getNoticeWay, getReceiver } from 'monitor-api/modules/notice_group';
 import { addShield, editShield, frontendCloneInfo, frontendShieldDetail } from 'monitor-api/modules/shield';
@@ -42,6 +42,7 @@ import { useAppStore } from '../../store/modules/app';
 import AlarmShieldConfigDimension, { dimensionPropData } from './alarm-shield-config-dimension';
 import AlarmShieldConfigScope, { scopeData as scopeDataParams } from './alarm-shield-config-scope';
 import AlarmShieldConfigStrategy, { strategyDataProp } from './alarm-shield-config-strategy';
+import AlarmShieldEndPolicy from './components/alarm-shield-end-policy';
 import FormItem from './components/form-item';
 import ScopeDateConfig from './components/scope-date-config';
 import {
@@ -85,6 +86,7 @@ export default defineComponent({
     const strategyRef = ref<InstanceType<typeof AlarmShieldConfigStrategy>>(null);
     const dimensionRef = ref<InstanceType<typeof AlarmShieldConfigDimension>>(null);
     const dateRef = ref<InstanceType<typeof ScopeDateConfig>>(null);
+    const endPolicyRef = ref<InstanceType<typeof AlarmShieldEndPolicy>>(null);
     const isEdit = ref(false);
     const isClone = ref(false);
     const loading = ref(false);
@@ -303,15 +305,17 @@ export default defineComponent({
       return new Promise((_resolve, _reject) => {
         const v2 = tabData.active === EShieldType.Event ? true : dateRef.value.validate();
         const v3 = noticeConfigValidate();
+        const vEnd =
+          tabData.active === EShieldType.Event || isEdit.value ? true : endPolicyRef.value?.validate() ?? true;
         if (tabData.active === EShieldType.Scope) {
           const v1 = isEdit.value ? true : scopeRef.value.validate();
-          _resolve(v1 && v2 && v3);
+          _resolve(v1 && v2 && v3 && vEnd);
         } else if (tabData.active === EShieldType.Strategy) {
           const v1 = strategyRef.value.validate();
-          _resolve(v1 && v2 && v3);
+          _resolve(v1 && v2 && v3 && vEnd);
         } else if (tabData.active === EShieldType.Dimension) {
           const v1 = dimensionRef.value.validate();
-          _resolve(v1 && v2 && v3);
+          _resolve(v1 && v2 && v3 && vEnd);
         } else if (tabData.active === EShieldType.Event) {
           _resolve(v2 && v3);
         }
@@ -497,6 +501,7 @@ export default defineComponent({
       strategyRef,
       scopeRef,
       dateRef,
+      endPolicyRef,
       isClone,
       dimensionRef,
       dimensionShieldData,
@@ -623,34 +628,18 @@ export default defineComponent({
               )}
               {this.tabData.active !== EShieldType.Event && (
                 <FormItem
-                  class='mt24'
-                  label={this.t('屏蔽期间产生的告警')}
+                  class='mt24 end-policy-form-item'
+                  label={this.t('屏蔽期内告警通知')}
+                  require={true}
                 >
-                  {this.isEdit ? (
-                    <span>
-                      {this.t(
-                        this.formData.endPolicy === 'close' ? '屏蔽结束时关闭告警，不再通知' : '屏蔽结束后发送一次通知'
-                      )}
-                    </span>
-                  ) : (
-                    <Radio.Group
-                      modelValue={this.formData.endPolicy}
-                      onUpdate:modelValue={v => {
-                        this.formData.endPolicy = v;
-                      }}
-                    >
-                      <Radio label='notify_once'>{this.t('屏蔽结束后发送一次通知')}</Radio>
-                      <Radio label='close'>{this.t('屏蔽结束时关闭告警，不再通知')}</Radio>
-                    </Radio.Group>
-                  )}
-                  <p>
-                    {this.t(
-                      this.formData.endPolicy === 'close'
-                        ? '屏蔽期间产生的告警不通知、不执行处理套餐；屏蔽结束时关闭，不补发通知、不补执行处理。屏蔽开始前的告警不受影响。'
-                        : '屏蔽结束时，仍未恢复的告警将各发送一次通知，可能集中产生多条通知。'
-                    )}
-                  </p>
-                  <p>{this.t('结束处理方式创建后不可修改。如需使用另一种方式，请新建屏蔽规则。')}</p>
+                  <AlarmShieldEndPolicy
+                    ref='endPolicyRef'
+                    modelValue={this.formData.endPolicy}
+                    readonly={this.isEdit}
+                    onUpdate:modelValue={v => {
+                      this.formData.endPolicy = v;
+                    }}
+                  />
                 </FormItem>
               )}
               <FormItem
