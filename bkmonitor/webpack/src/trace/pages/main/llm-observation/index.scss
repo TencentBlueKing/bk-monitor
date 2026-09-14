@@ -8,22 +8,11 @@
 
   @include flex-column;
 
-  &-loading {
-    flex: 1;
-    min-height: 0;
-
-    @include flex-column;
-  }
-
   &-main {
     flex: 1;
     min-height: 0;
 
     @include flex-column;
-
-    &.is-tool {
-      gap: 24px;
-    }
   }
 
   &-stats {

@@ -9,10 +9,10 @@ export type LlmStatus = 'error' | 'success';
  * Trace 层与会话层结构一致，会话层额外返回 childs 且 input / output 为空串。
  */
 export interface ILlmTraceItem {
-  /** 分组内缓存写入 Token 总数 */
-  cache_creation_input_tokens: number;
   /** 分组内缓存读取 Token 总数 */
   cache_read_input_tokens: number;
+  /** 分组内缓存写入 Token 总数 */
+  cache_write_input_tokens: number;
   /** 会话包含的 Trace 列表，仅 group_field !== trace_id 时返回 */
   childs?: ILlmTraceItem[];
   /** Trace 或会话持续时间，单位微秒 */
