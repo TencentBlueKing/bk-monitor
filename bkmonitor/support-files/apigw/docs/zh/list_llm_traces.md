@@ -83,7 +83,7 @@
 | conversation_id | string | 会话 ID，无会话信息时为空字符串；仅 Trace 层对象返回 |
 | status | string | 状态：`success`（成功）、`error`（失败）。会话包含任意失败 Trace 时返回 `error` |
 | input | string | Trace 的输入摘要；会话层取最早一个非空 Trace 输入 |
-| output | string | Trace 的输出摘要，逻辑根 Span 无输出时取最晚的助手文本；会话层取最后一个非空 Trace 输出 |
+| output | string | Trace 逻辑根 Span 的输出摘要；会话层取最后一个非空 Trace 输出 |
 | input_tokens | int | 分组内输入 Token 总数 |
 | output_tokens | int | 分组内输出 Token 总数 |
 | cache_read_input_tokens | int | 分组内缓存读取 Token 总数 |

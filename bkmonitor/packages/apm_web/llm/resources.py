@@ -128,7 +128,11 @@ class ListTracesResource(Resource):
         ]
         preview_root = cls._preview_root(converted_spans)
         root_span = next((span for span in raw_spans if not span.get(OtlpKey.PARENT_SPAN_ID)), {})
-        start_time = root_span.get(OtlpKey.START_TIME, 0)
+        start_time = (
+            root_span.get(OtlpKey.START_TIME, 0)
+            if root_span
+            else min((span.get(OtlpKey.START_TIME, 0) for span in raw_spans), default=0)
+        )
         end_time = max((span.get(OtlpKey.END_TIME, start_time) for span in raw_spans), default=start_time)
 
         def attribute_values(attribute: str) -> list[Any]:
@@ -147,11 +151,6 @@ class ListTracesResource(Resource):
             (str(value) for value in attribute_values("gen_ai.conversation.id") if value not in (None, "")),
             "",
         )
-        output = cls._last_message_text(preview_root, "gen_ai.output.messages", "assistant")
-        if not output:
-            for span in sorted(converted_spans, key=lambda span: span.get(OtlpKey.END_TIME, 0), reverse=True):
-                if output := cls._last_message_text(span, "gen_ai.output.messages", "assistant"):
-                    break
         return {
             "group_id": trace_id,
             "group_field": OtlpKey.TRACE_ID,
@@ -159,7 +158,7 @@ class ListTracesResource(Resource):
             "conversation_id": conversation_id,
             "status": "error" if has_error else "success",
             "input": cls._last_message_text(preview_root, "gen_ai.input.messages", "user"),
-            "output": output,
+            "output": cls._last_message_text(preview_root, "gen_ai.output.messages", "assistant"),
             "input_tokens": token_total("gen_ai.usage.input_tokens"),
             "output_tokens": token_total("gen_ai.usage.output_tokens"),
             "cache_read_input_tokens": token_total("gen_ai.usage.cache_read.input_tokens"),

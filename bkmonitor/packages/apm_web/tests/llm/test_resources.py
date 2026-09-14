@@ -540,6 +540,33 @@ class ListTracesResourceTestCase(TestCase):
         self.assertEqual(item["end_time"], 350)
         self.assertEqual(item["elapsed_time"], 250)
 
+    def test_trace_time_falls_back_to_earliest_span_without_root(self):
+        raw_spans = [
+            {
+                "trace_id": "trace-1",
+                "span_id": "child-1",
+                "parent_span_id": "external-parent",
+                "start_time": 150,
+                "end_time": 350,
+                "status": {"code": 1},
+            },
+            {
+                "trace_id": "trace-1",
+                "span_id": "child-2",
+                "parent_span_id": "external-parent",
+                "start_time": 100,
+                "end_time": 300,
+                "status": {"code": 1},
+            },
+        ]
+
+        with mock.patch("apm_web.llm.resources.adapt_spans", return_value=[]):
+            item = ListTracesResource._trace_item("trace-1", raw_spans, mock.sentinel.entity_set)
+
+        self.assertEqual(item["start_time"], 100)
+        self.assertEqual(item["end_time"], 350)
+        self.assertEqual(item["elapsed_time"], 250)
+
     def test_trace_preview_uses_last_user_and_assistant_on_logical_root(self):
         raw_spans = [
             {
@@ -615,7 +642,7 @@ class ListTracesResourceTestCase(TestCase):
         self.assertEqual(item["input"], "最新问题")
         self.assertEqual(item["output"], "最终回答")
 
-    def test_trace_preview_falls_back_to_child_llm_output(self):
+    def test_trace_preview_does_not_fallback_to_child_llm_output(self):
         raw_spans = [
             {
                 "trace_id": "trace-1",
@@ -652,7 +679,7 @@ class ListTracesResourceTestCase(TestCase):
             item = ListTracesResource._trace_item("trace-1", raw_spans, mock.sentinel.entity_set)
 
         self.assertEqual(item["input"], "")
-        self.assertEqual(item["output"], "内部回答")
+        self.assertEqual(item["output"], "")
 
 
 class ListSpansResourceTestCase(TestCase):
