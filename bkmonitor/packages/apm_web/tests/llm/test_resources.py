@@ -191,6 +191,7 @@ class ListTracesResourceTestCase(TestCase):
                     "cache_read_input_tokens": 6,
                     "cache_write_input_tokens": 1,
                     "start_time": 200,
+                    "end_time": 280,
                     "elapsed_time": 80,
                     "user_id": "user-2",
                 },
@@ -207,6 +208,7 @@ class ListTracesResourceTestCase(TestCase):
                     "cache_read_input_tokens": 3,
                     "cache_write_input_tokens": 2,
                     "start_time": 100,
+                    "end_time": 160,
                     "elapsed_time": 60,
                     "user_id": "user-1",
                 },
@@ -289,7 +291,7 @@ class ListTracesResourceTestCase(TestCase):
                 "input": "问二",
                 "output": "答二",
                 "start_time": 100,
-                "end_time": 160,
+                "end_time": 360,
                 "input_tokens": 0,
                 "output_tokens": 0,
                 "cache_read_input_tokens": 0,
@@ -342,14 +344,15 @@ class ListTracesResourceTestCase(TestCase):
                 "group_id": "session-2",
                 "group_field": "attributes.gen_ai.conversation.id",
                 "status": "error",
-                "input": "",
-                "output": "",
+                "input": "问二",
+                "output": "答二",
                 "input_tokens": 30,
                 "output_tokens": 12,
                 "cache_read_input_tokens": 9,
                 "cache_write_input_tokens": 3,
                 "start_time": 100,
-                "elapsed_time": 180,
+                "end_time": 360,
+                "elapsed_time": 260,
                 "user_id": "user-2",
                 "childs": [
                     {
@@ -365,7 +368,8 @@ class ListTracesResourceTestCase(TestCase):
                         "cache_read_input_tokens": 3,
                         "cache_write_input_tokens": 2,
                         "start_time": 100,
-                        "elapsed_time": 60,
+                        "end_time": 360,
+                        "elapsed_time": 260,
                         "user_id": "user-2",
                     },
                     {
@@ -381,6 +385,7 @@ class ListTracesResourceTestCase(TestCase):
                         "cache_read_input_tokens": 6,
                         "cache_write_input_tokens": 1,
                         "start_time": 200,
+                        "end_time": 280,
                         "elapsed_time": 80,
                         "user_id": "user-2",
                     },
@@ -503,7 +508,7 @@ class ListTracesResourceTestCase(TestCase):
                 self.assertEqual(item["status"], expected_status)
                 self.assertEqual(item["input_tokens"], 10)
 
-    def test_trace_time_uses_raw_root_span(self):
+    def test_trace_time_uses_root_start_and_latest_span_end(self):
         raw_spans = [
             {
                 "trace_id": "trace-1",
@@ -518,7 +523,7 @@ class ListTracesResourceTestCase(TestCase):
                 "span_id": "llm",
                 "parent_span_id": "root",
                 "start_time": 150,
-                "end_time": 200,
+                "end_time": 350,
                 "status": {"code": 1},
             },
         ]
@@ -536,7 +541,35 @@ class ListTracesResourceTestCase(TestCase):
             item = ListTracesResource._trace_item("trace-1", raw_spans, mock.sentinel.entity_set)
 
         self.assertEqual(item["start_time"], 100)
-        self.assertEqual(item["elapsed_time"], 200)
+        self.assertEqual(item["end_time"], 350)
+        self.assertEqual(item["elapsed_time"], 250)
+
+    def test_trace_time_falls_back_to_earliest_span_without_root(self):
+        raw_spans = [
+            {
+                "trace_id": "trace-1",
+                "span_id": "child-1",
+                "parent_span_id": "external-parent",
+                "start_time": 150,
+                "end_time": 350,
+                "status": {"code": 1},
+            },
+            {
+                "trace_id": "trace-1",
+                "span_id": "child-2",
+                "parent_span_id": "external-parent",
+                "start_time": 100,
+                "end_time": 300,
+                "status": {"code": 1},
+            },
+        ]
+
+        with mock.patch("apm_web.llm.resources.adapt_spans", return_value=[]):
+            item = ListTracesResource._trace_item("trace-1", raw_spans, mock.sentinel.entity_set)
+
+        self.assertEqual(item["start_time"], 100)
+        self.assertEqual(item["end_time"], 350)
+        self.assertEqual(item["elapsed_time"], 250)
 
     def test_trace_preview_uses_last_user_and_assistant_on_logical_root(self):
         raw_spans = [
@@ -613,7 +646,7 @@ class ListTracesResourceTestCase(TestCase):
         self.assertEqual(item["input"], "最新问题")
         self.assertEqual(item["output"], "最终回答")
 
-    def test_trace_preview_does_not_fallback_to_child_llm(self):
+    def test_trace_preview_does_not_fallback_to_child_llm_output(self):
         raw_spans = [
             {
                 "trace_id": "trace-1",
@@ -635,6 +668,7 @@ class ListTracesResourceTestCase(TestCase):
                 "trace_id": "trace-1",
                 "span_id": "llm",
                 "parent_span_id": "agent",
+                "end_time": 200,
                 "attributes": {
                     "gen_ai.operation.name": "chat",
                     "gen_ai.input.messages": [{"role": "user", "parts": [{"type": "text", "content": "内部提示词"}]}],

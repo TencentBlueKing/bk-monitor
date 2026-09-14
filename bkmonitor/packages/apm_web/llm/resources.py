@@ -105,8 +105,12 @@ class ListTracesResource(Resource):
         ]
         preview_root = cls._preview_root(converted_spans)
         root_span = next((span for span in raw_spans if not span.get(OtlpKey.PARENT_SPAN_ID)), {})
-        start_time = root_span.get(OtlpKey.START_TIME, 0)
-        end_time = root_span.get(OtlpKey.END_TIME, start_time)
+        start_time = (
+            root_span.get(OtlpKey.START_TIME, 0)
+            if root_span
+            else min((span.get(OtlpKey.START_TIME, 0) for span in raw_spans), default=0)
+        )
+        end_time = max((span.get(OtlpKey.END_TIME, start_time) for span in raw_spans), default=start_time)
 
         def attribute_values(attribute: str) -> list[Any]:
             return [attributes[attribute] for attributes in converted_attributes if attribute in attributes]
@@ -137,6 +141,7 @@ class ListTracesResource(Resource):
             "cache_read_input_tokens": token_total("gen_ai.usage.cache_read.input_tokens"),
             "cache_write_input_tokens": token_total("gen_ai.usage.cache_write.input_tokens"),
             "start_time": start_time,
+            "end_time": end_time,
             "elapsed_time": max(0, end_time - start_time),
             "user_id": user_id,
         }
@@ -164,21 +169,28 @@ class ListTracesResource(Resource):
             ]
             if not childs:
                 continue
-            childs.sort(key=lambda child: child["start_time"])
-            start_time = childs[0]["start_time"]
-            end_time = max(child["start_time"] + child["elapsed_time"] for child in childs)
+            childs.sort(key=lambda child: child["end_time"], reverse=True)
+            start_time = min(child["start_time"] for child in childs)
+            end_time = max(child["end_time"] for child in childs)
+            first_input = min(
+                (child for child in childs if child["input"]), key=lambda child: child["start_time"], default=None
+            )
+            last_output = max(
+                (child for child in childs if child["output"]), key=lambda child: child["end_time"], default=None
+            )
             items.append(
                 {
                     "group_id": group_id,
                     "group_field": group_field,
                     "status": "error" if any(child["status"] == "error" for child in childs) else "success",
-                    "input": "",
-                    "output": "",
+                    "input": first_input["input"] if first_input else "",
+                    "output": last_output["output"] if last_output else "",
                     "input_tokens": sum(child["input_tokens"] for child in childs),
                     "output_tokens": sum(child["output_tokens"] for child in childs),
                     "cache_read_input_tokens": sum(child["cache_read_input_tokens"] for child in childs),
                     "cache_write_input_tokens": sum(child["cache_write_input_tokens"] for child in childs),
                     "start_time": start_time,
+                    "end_time": end_time,
                     "elapsed_time": max(0, end_time - start_time),
                     "user_id": next((child["user_id"] for child in childs if child["user_id"]), ""),
                     "childs": childs,
