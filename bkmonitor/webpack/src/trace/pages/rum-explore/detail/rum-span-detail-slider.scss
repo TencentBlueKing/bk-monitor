@@ -1,0 +1,123 @@
+.rum-span-detail-slider {
+  /* stylelint-disable-next-line selector-class-pattern */
+  .bk-sideslider-header {
+    height: 52px;
+    border-bottom: 1px solid #dcdee5;
+  }
+
+  /* 收起按钮按设计稿改为主蓝色块，贴左侧贯通标题栏 */
+
+  /* stylelint-disable-next-line selector-class-pattern */
+  .bk-sideslider-close {
+    width: 30px;
+    height: 52px;
+    color: #fff;
+    background: #3a84ff;
+  }
+
+  /* stylelint-disable-next-line selector-class-pattern */
+  .bk-sideslider-title {
+    flex: 1;
+    padding-left: 16px;
+  }
+
+  /* stylelint-disable-next-line selector-class-pattern */
+  .bk-sideslider-content {
+    height: 100%;
+    padding: 0;
+    background: #f7f9fc;
+  }
+
+  .rum-detail-title {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    font-size: 16px;
+    line-height: 24px;
+    color: #313238;
+  }
+
+  .title-sub {
+    display: inline-flex;
+    gap: 8px;
+    align-items: center;
+    font-size: 14px;
+    line-height: 22px;
+
+    .sub-divider {
+      width: 1px;
+      height: 12px;
+      background: #e4e9f2;
+    }
+
+    .sub-label {
+      color: #8f9fbd;
+    }
+
+    .sub-value {
+      color: #4e5e7a;
+    }
+
+    .sub-copy {
+      font-size: 16px;
+      color: #3a84ff;
+      cursor: pointer;
+    }
+  }
+
+  .rum-detail-body {
+    display: flex;
+    flex-direction: column;
+    min-height: 100%;
+  }
+
+  .detail-loading,
+  .detail-empty {
+    padding-top: 120px;
+  }
+
+  .rum-detail-tabs {
+    display: flex;
+    gap: 8px;
+    align-items: flex-end;
+    height: 40px;
+    padding: 0 40px;
+    background: #f2f6fc;
+  }
+
+  .detail-tab {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    padding: 0 24px;
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 22px;
+    color: #4e5e7a;
+    cursor: pointer;
+    background: #e4e9f2;
+    border-radius: 8px 8px 0 0;
+
+    &.is-active {
+      color: #3974ff;
+      background: #fff;
+      box-shadow: 0 -1px 1px 0 rgb(25 25 41 / 4%);
+    }
+
+    &.is-disabled {
+      color: #c4c6cc;
+      cursor: not-allowed;
+    }
+  }
+
+  .rum-detail-card {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: 40px;
+    padding: 24px 40px;
+    background: #fff;
+  }
+}

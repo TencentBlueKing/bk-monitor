@@ -1,0 +1,136 @@
+.rum-origin-data-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+
+  .origin-block {
+    background: #f2f6fc;
+    border: 1px solid #c1cde5;
+    border-radius: 4px;
+
+    &.is-expanded {
+      padding-bottom: 12px;
+      background: #fff;
+    }
+  }
+
+  .block-head {
+    display: flex;
+    gap: 24px;
+    align-items: center;
+    height: 40px;
+    padding: 0 12px;
+  }
+
+  .block-title {
+    display: inline-flex;
+    flex-shrink: 0;
+    gap: 4px;
+    align-items: center;
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 22px;
+    color: #313238;
+    cursor: pointer;
+
+    .title-arrow {
+      font-size: 16px;
+      color: #4e5e7a;
+    }
+  }
+
+  .block-summary {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-family: Menlo, monospace;
+    font-size: 12px;
+    line-height: 20px;
+    color: #4e5e7a;
+    white-space: nowrap;
+  }
+
+  .block-search {
+    width: 480px;
+    margin-left: auto;
+  }
+
+  .block-body {
+    padding-left: 20px;
+  }
+
+  .origin-group {
+    .group-head {
+      display: flex;
+      gap: 5px;
+      align-items: center;
+      height: 32px;
+      padding-left: 8px;
+      font-size: 14px;
+      font-weight: 700;
+      line-height: 22px;
+      color: #313238;
+      cursor: pointer;
+      background: #e9edf5;
+      border-radius: 2px;
+
+      .group-arrow {
+        font-size: 14px;
+      }
+    }
+  }
+
+  .origin-row {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    padding: 2px 12px 2px 20px;
+    border-radius: 4px;
+
+    &.is-odd {
+      background: #f7f9fc;
+    }
+
+    .row-key {
+      display: flex;
+      flex-shrink: 0;
+      gap: 6px;
+      align-items: center;
+      width: 220px;
+      padding-top: 2px;
+    }
+
+    .key-text {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      font-size: 12px;
+      line-height: 20px;
+      color: #4d4f56;
+      white-space: nowrap;
+    }
+
+    .row-action {
+      flex-shrink: 0;
+      margin-top: 4px;
+      font-size: 14px;
+      color: #979ba5;
+      cursor: pointer;
+
+      &:hover {
+        color: #3a84ff;
+      }
+    }
+
+    .row-value {
+      flex: 1;
+      min-width: 0;
+      margin: 0;
+      overflow-x: auto;
+      font-family: Menlo, monospace;
+      font-size: 12px;
+      line-height: 20px;
+      color: #4e5e7a;
+      word-break: break-all;
+      white-space: pre-wrap;
+    }
+  }
+}

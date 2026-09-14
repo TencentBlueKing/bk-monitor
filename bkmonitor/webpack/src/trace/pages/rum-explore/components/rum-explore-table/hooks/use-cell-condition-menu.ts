@@ -38,8 +38,8 @@ import type { ActiveConditionMenuTarget } from '../../../../trace-explore/compon
 /**
  * CLICK 类型列的文本节点选择器。
  *
- * RUM 的 span_name 等列左键已用于「点击直接加为检索条件」，与 trace 的 CLICK 列（打开详情抽屉）一样不参与左键菜单，
- * 这里改用右键唤起同一个条件菜单，从而同时保留两种入口。
+ * RUM 的 span_name 列左键已用于打开 Span 详情抽屉（与 trace 的 CLICK 列一致），不参与左键菜单，
+ * 这里改用右键唤起同一个条件菜单，从而同时保留「看详情」与「加为检索条件」两种入口。
  */
 const CLICK_CELL_TEXT_SELECTOR = '.explore-click-text';
 
@@ -61,7 +61,7 @@ type DelegationRoot = MaybeRef<HTMLElement | null | { $el: HTMLElement }>;
 /**
  * @description RUM 检索表格单元格「点击弹出检索条件菜单」。
  * 交互与 trace 检索保持一致：带 explore-table-condition-menu 标记的单元格左键点击弹出菜单，
- * CLICK 类型列左键被「直接加为检索条件」占用，改由右键弹出同一个菜单。
+ * CLICK 类型列左键被「打开 Span 详情」占用，改由右键弹出同一个菜单。
  * @param {UseCellConditionMenuOptions} options 配置
  */
 export const useCellConditionMenu = ({ delegationRoot, menuRef, rowKey }: UseCellConditionMenuOptions) => {
@@ -137,7 +137,7 @@ export const useCellConditionMenu = ({ delegationRoot, menuRef, rowKey }: UseCel
   }
 
   /**
-   * @description CLICK 类型列右键唤起条件菜单（左键保持「直接加为检索条件」）
+   * @description CLICK 类型列右键唤起条件菜单（左键保持「打开 Span 详情」）
    * @param {MouseEvent} event 右键事件
    */
   function handleContextMenu(event: MouseEvent) {
