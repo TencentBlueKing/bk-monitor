@@ -262,6 +262,7 @@ class TGPATaskViewSet(APIViewSet):
             bk_biz_id=params["bk_biz_id"],
             file_name=params["file_name"],
         )
+        file_name = TGPATaskHandler.get_download_file_name(params["bk_biz_id"], file_name)
 
         response = StreamingHttpResponse(
             file_iterator,

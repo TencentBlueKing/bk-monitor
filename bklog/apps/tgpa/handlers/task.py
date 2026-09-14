@@ -24,8 +24,6 @@ import os
 import re
 import shutil
 import uuid
-from datetime import datetime
-from zoneinfo import ZoneInfo
 
 import arrow
 from django.conf import settings
@@ -353,48 +351,28 @@ class TGPATaskHandler:
 
         task_id = matched.group(1)
         try:
-            result = cls.get_task_page(
+            task = cls.get_task_page(
                 {
                     "bk_biz_id": bk_biz_id,
                     "task_id": task_id,
-                    "page": 1,
                     "pagesize": 1,
                 },
                 need_format=False,
                 add_process_info=False,
-            )
-            task = next(
-                (item for item in result["list"] if os.path.basename(item.get("file_name", "")) == original_file_name),
-                None,
-            )
-            if not task:
+            )["list"][0]
+            openid = cls._sanitize_download_file_name_part(task["openid"])
+            if not openid:
                 return original_file_name
 
-            openid = cls._sanitize_download_file_name_part(task.get("openid", ""))
-            created_at = task.get("created_at")
-            if not openid or not created_at:
-                return original_file_name
-
-            if isinstance(created_at, str):
-                created_at = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
-            if created_at.tzinfo is None:
-                created_at = created_at.replace(tzinfo=ZoneInfo(settings.TIME_ZONE))
-            create_time = created_at.astimezone(ZoneInfo(settings.TIME_ZONE)).strftime("%Y%m%d%H%M%S")
-
+            create_time = arrow.get(task["created_at"], tzinfo=settings.TIME_ZONE).strftime("%Y%m%d%H%M%S")
             file_stem, file_extension = os.path.splitext(original_file_name)
             return f"{file_stem}_{openid}_{create_time}{file_extension}"
-        except (KeyError, TypeError, ValueError, IndexError):
+        except Exception:
             logger.warning(
-                "Failed to build TGPA download file name from task metadata, bk_biz_id=%s, task_id=%s",
+                "Failed to build TGPA download file name, bk_biz_id=%s, task_id=%s",
                 bk_biz_id,
                 task_id,
                 exc_info=True,
-            )
-        except Exception:
-            logger.exception(
-                "Failed to query TGPA task metadata for download file name, bk_biz_id=%s, task_id=%s",
-                bk_biz_id,
-                task_id,
             )
         return original_file_name
 
@@ -411,14 +389,13 @@ class TGPATaskHandler:
         max_size = feature_config.get("tgpa_file_download_max_size", FEATURE_TGPA_FILE_DOWNLOAD_MAX_SIZE)
         file_info = TGPAFileHandler.get_file_info(file_name, bk_biz_id=bk_biz_id)
         decrypt_handler = get_decrypt_handler(bk_biz_id)
-        download_file_name = TGPATaskHandler.get_download_file_name(bk_biz_id, file_name)
         # 用户上报文件不需要解密，直接流式转发（先直接在这个接口兼容，后续有其他需求再拆分模块）
         is_user_report_file = os.path.basename(file_name).startswith(TGPA_REPORT_FILE_NAME_PREFIX)
         if file_info["content_length"] > max_size or not decrypt_handler or is_user_report_file:
             # 文件大小超限或无需解密：直接从流式转发，不落盘，节省服务器磁盘和内存资源
             return (
                 TGPAFileHandler.get_file_stream(file_name, bk_biz_id=bk_biz_id),
-                download_file_name,
+                os.path.basename(file_name),
                 file_info["content_length"],
             )
 
@@ -431,6 +408,7 @@ class TGPATaskHandler:
         file_handler = TGPAFileHandler(temp_dir, output_dir, decrypt_handler=decrypt_handler, bk_biz_id=bk_biz_id)
         result_path = file_handler.download_and_repack_file(file_name)
 
+        result_file_name = os.path.basename(result_path)
         file_size = os.path.getsize(result_path)
 
         def file_iterator(chunk_size=TGPA_FILE_DOWNLOAD_CHUNK_SIZE):
@@ -442,4 +420,4 @@ class TGPATaskHandler:
             finally:
                 shutil.rmtree(base_dir, ignore_errors=True)
 
-        return file_iterator(), download_file_name, file_size
+        return file_iterator(), result_file_name, file_size
