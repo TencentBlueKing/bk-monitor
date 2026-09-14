@@ -14,7 +14,7 @@ from django.utils.translation import gettext_lazy as _
 
 from semconv.constants import FieldUnit
 
-from rum_web.handlers.level.page.base import BasePage, BaseSection, KeyValueItem
+from rum_web.handlers.level.page.base import BasePage, BaseSection, KeyValueItem, NamedKeyValueItem
 from rum_web.handlers.level.page.span.base import (
     OVERVIEW_ELAPSED_TIME,
     OVERVIEW_ATTRIBUTES_RESOURCE_TYPE,
@@ -40,7 +40,23 @@ class CompressionRatioItem(KeyValueItem):
         return {self.key: ratio}
 
 
-class ResourceXhrAndFetchKeyInfoSection(BaseSection):
+class ResourceBaseKeyInfoSection(BaseSection):
+    KEY = "key_info"
+    TYPE = SectionType.SUMMARY_CARDS.value
+    DATA = []
+
+    def _fill_data(self):
+        self.component_dict["data"] = {}
+        for item in self.DATA:
+            self.component_dict["data"].update(item.render(self.origin_data))
+
+    def render(self) -> dict[str, Any]:
+        super().render()
+        self._fill_data()
+        return self.component_dict
+
+
+class ResourceXhrAndFetchKeyInfoSection(ResourceBaseKeyInfoSection):
     KEY = "key_info"
     TYPE = SectionType.SUMMARY_CARDS.value
     DATA = [
@@ -76,16 +92,6 @@ class ResourceXhrAndFetchKeyInfoSection(BaseSection):
             ],
         ),
     ]
-
-    def _fill_data(self):
-        self.component_dict["data"] = {}
-        for item in self.DATA:
-            self.component_dict["data"].update(item.render(self.origin_data))
-
-    def render(self) -> dict[str, Any]:
-        super().render()
-        self._fill_data()
-        return self.component_dict
 
 
 class LoadingTimingSection(BaseSection):
@@ -193,5 +199,86 @@ class ResourceXhrAndFetchPage(BasePage):
     OVERVIEW = ResourceSpanOverview
     SECTIONS = [
         ResourceXhrAndFetchKeyInfoSection,
+        LoadingTimingSection,
+    ]
+
+
+class ResourceOthersKeyInfoSection(ResourceBaseKeyInfoSection):
+    DATA = [
+        KeyValueItem(
+            key="http_result",
+            items=[
+                KeyValueItem(key="attributes.http.response.status_code"),
+                KeyValueItem(key="attributes.outcome.type"),
+            ],
+        ),
+        KeyValueItem(
+            key="duration",
+            items=[
+                KeyValueItem(key="elapsed_time"),
+            ],
+        ),
+        KeyValueItem(
+            key="transfer",
+            items=[
+                CompressionRatioItem(),
+                KeyValueItem(key="attributes.resource.transfer_size"),
+                KeyValueItem(key="attributes.resource.encoded_body_size"),
+                KeyValueItem(key="attributes.resource.decoded_body_size"),
+            ],
+        ),
+        KeyValueItem(
+            key="delivery",
+            items=[
+                KeyValueItem(key="attributes.resource.delivery_type"),
+                KeyValueItem(key="attributes.resource.cache.hit"),
+            ],
+        ),
+        KeyValueItem(
+            key="blocking",
+            items=[
+                KeyValueItem(key="attributes.resource.render_blocking_status"),
+            ],
+        ),
+    ]
+
+    def _fill_data(self):
+        self.component_dict["data"] = {}
+        for item in self.DATA:
+            self.component_dict["data"].update(item.render(self.origin_data))
+
+    def render(self) -> dict[str, Any]:
+        super().render()
+        self._fill_data()
+        return self.component_dict
+
+
+class ResourceOthersResourceInfoSection(BaseSection):
+    KEY = "resource_info"
+    TYPE = SectionType.SUMMARY_CARDS.value
+    ITEMS = [
+        NamedKeyValueItem("attributes.resource.type"),
+        NamedKeyValueItem("attributes.url.template"),
+        NamedKeyValueItem("attributes.server.address"),
+        NamedKeyValueItem("attributes.http.request.method"),
+        NamedKeyValueItem("attributes.resource.protocol"),
+    ]
+
+    def _fill_items(self):
+        self.component_dict.setdefault("items", [])
+        for item in self.ITEMS:
+            self.component_dict["items"].append(item.render(self.origin_data))
+
+    def render(self) -> dict[str, Any]:
+        super().render()
+        self._fill_items()
+        return self.component_dict
+
+
+class ResourceOthersPage(BasePage):
+    OVERVIEW = ResourceSpanOverview
+    SECTIONS = [
+        ResourceOthersKeyInfoSection,
+        ResourceOthersResourceInfoSection,
         LoadingTimingSection,
     ]

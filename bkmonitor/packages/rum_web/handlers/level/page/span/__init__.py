@@ -8,7 +8,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from rum_web.handlers.level.page.span.resource import ResourceXhrAndFetchPage
+from rum_web.handlers.level.page.span.resource import ResourceXhrAndFetchPage, ResourceOthersPage
 
 
-__all__ = ["ResourceXhrAndFetchPage"]
+__all__ = ["ResourceXhrAndFetchPage", "ResourceOthersPage"]

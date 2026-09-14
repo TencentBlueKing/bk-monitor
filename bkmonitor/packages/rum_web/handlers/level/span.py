@@ -37,7 +37,7 @@ from constants.otel_query import FieldTypeEnum
 from rum_web.handlers.level.base import BaseRumLevelHandler
 from rum_web.handlers.query.span import SpanQuery
 from rum_web.constants import RUM_SEARCH_PAGE_GROUPS
-from rum_web.handlers.level.page.span import ResourceXhrAndFetchPage
+from rum_web.handlers.level.page.span import ResourceXhrAndFetchPage, ResourceOthersPage
 from rum_web.handlers.level.page.base import BasePage
 
 
@@ -502,7 +502,7 @@ class SpanLevelHandler(BaseRumLevelHandler):
             if origin_data.get("attributes.resource.type") in {ResourceType.XHR.value, ResourceType.FETCH.value}:
                 page_class = ResourceXhrAndFetchPage
             else:
-                page_class = BasePage
+                page_class = ResourceOthersPage
         else:
             page_class = self.PAGE_MAP.get(span_type, BasePage)
         return {"origin_data": origin_data, "span_id": record_id, **page_class(origin_data).render()}
