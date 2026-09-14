@@ -195,6 +195,7 @@
     />
     <!-- 屏蔽时间 -->
     <alarm-shield-end-policy
+      ref="endPolicyRef"
       v-model="endPolicy"
       :readonly="isEdit"
     />
@@ -599,7 +600,8 @@ export default class AlarmShieldStrategy extends Mixins(alarmShieldMixin, strate
     // 拿到通知组的数据
     const notice = RNotice.getNoticeConfig();
     const date = RNoticeDate.getDateData();
-    if (!this.strategyId || !this.noticeLever.length || !notice || !date) {
+    const endPolicyValid = this.isEdit || this.$refs.endPolicyRef.validate();
+    if (!this.strategyId || !this.noticeLever.length || !notice || !date || !endPolicyValid) {
       this.rule.strategyId = !this.strategyId.length;
       this.rule.noticeLever = !this.noticeLever.length;
       return;

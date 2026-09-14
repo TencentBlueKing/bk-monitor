@@ -282,6 +282,7 @@ export default class AlarmShieldDimension extends tsc<IProps> {
   /* 保存 */
   handleSubmit() {
     if (!this.conditionValidator()) return;
+    if (!this.isEdit && !this.$refs.endPolicyRef.validate()) return;
     const result = this.$refs.noticeDate.getDateData();
     if (!result) return;
     const cycleDate = result[result.typeEn];
@@ -465,6 +466,7 @@ export default class AlarmShieldDimension extends tsc<IProps> {
           isClone={this.isClone}
         />
         <AlarmShieldEndPolicy
+          ref='endPolicyRef'
           v-model={this.endPolicy}
           readonly={this.isEdit}
         />
