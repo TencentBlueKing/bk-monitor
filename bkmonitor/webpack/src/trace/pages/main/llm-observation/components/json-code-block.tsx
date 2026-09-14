@@ -30,10 +30,10 @@ import { copyText } from 'monitor-common/utils/utils';
 import { useI18n } from 'vue-i18n';
 import VueJsonPretty from 'vue-json-pretty';
 
-import { parseJsonValue, stringifyContent, toJsonPrettyData } from '../utils/helpers';
+import { beautifyJsonValue, stringifyContent, toJsonPrettyData } from '../utils/helpers';
 
-import 'vue-json-pretty/lib/styles.css';
 import './json-code-block.scss';
+import 'vue-json-pretty/lib/styles.css';
 
 /** JSON 代码块：复制、独立查看、原地展开/收起 */
 export default defineComponent({
@@ -63,8 +63,10 @@ export default defineComponent({
     /** 折叠态内容是否超出容器，用于决定是否展示底部渐变 */
     const overflowing = shallowRef(false);
 
-    const prettyText = computed(() => stringifyContent(parseJsonValue(props.data)));
+    const parsedData = computed(() => beautifyJsonValue(props.data));
+    const prettyText = computed(() => stringifyContent(parsedData.value));
     const jsonData = computed(() => toJsonPrettyData(props.data));
+    const isStructured = computed(() => Boolean(parsedData.value) && typeof parsedData.value === 'object');
 
     /** 同步折叠态是否溢出，用于控制底部渐变遮罩 */
     const syncOverflow = async () => {
@@ -111,7 +113,10 @@ export default defineComponent({
                 expanded.value = !expanded.value;
               }}
             >
-              <i class={['icon-monitor', expanded.value ? 'icon-double-up' : 'icon-double-down']} style='font-size: 18px;'/>
+              <i
+                style='font-size: 18px;'
+                class={['icon-monitor', expanded.value ? 'icon-double-up' : 'icon-double-down']}
+              />
               <span>{expanded.value ? t('收起') : t('原地展开')}</span>
             </div>
           </div>
@@ -120,15 +125,19 @@ export default defineComponent({
           ref={bodyRef}
           class={['llm-json-code-block-body', { 'is-expanded': expanded.value, 'is-overflowing': overflowing.value }]}
         >
-          <VueJsonPretty
-            collapsedOnClickBrackets={false}
-            data={jsonData.value}
-            deep={20}
-            showIcon={false}
-            showKeyValueSpace={true}
-            showLine={false}
-            showLineNumber={false}
-          />
+          {isStructured.value ? (
+            <VueJsonPretty
+              collapsedOnClickBrackets={false}
+              data={jsonData.value}
+              deep={20}
+              showIcon={false}
+              showKeyValueSpace={true}
+              showLine={false}
+              showLineNumber={false}
+            />
+          ) : (
+            <pre class='llm-json-code-block-text'>{prettyText.value}</pre>
+          )}
         </div>
       </div>
     );

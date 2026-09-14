@@ -52,6 +52,11 @@
     line-height: 20px;
   }
 
+  .vjs-tree-node {
+    align-items: flex-start;
+    white-space: pre-wrap;
+  }
+
   .vjs-key {
     color: #a33b3b;
   }
@@ -60,6 +65,12 @@
   .vjs-value-string,
   .vjs-value-number,
   .vjs-value-boolean {
+    min-width: 0;
     color: #0651a5;
+    overflow-wrap: anywhere;
+  }
+
+  .vjs-value-string {
+    white-space: pre-wrap;
   }
 }

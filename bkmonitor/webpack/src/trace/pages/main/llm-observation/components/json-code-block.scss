@@ -79,6 +79,12 @@
       line-height: 20px;
     }
 
+    .vjs-tree-node {
+      align-items: flex-start;
+      color: #111214;
+      white-space: pre-wrap;
+    }
+
     .vjs-key {
       color: #a33b3b;
     }
@@ -87,12 +93,24 @@
     .vjs-value-string,
     .vjs-value-number,
     .vjs-value-boolean {
+      min-width: 0;
       color: #0651a5;
+      overflow-wrap: anywhere;
     }
 
-    .vjs-tree-node {
-      color: #111214;
+    .vjs-value-string {
+      white-space: pre-wrap;
     }
+  }
+
+  &-text {
+    margin: 0;
+    font-family: 'Roboto Mono', menlo, monaco, consolas, monospace;
+    font-size: $font-size-base;
+    line-height: 20px;
+    color: #0651a5;
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
   }
 
   &.is-bordered {
