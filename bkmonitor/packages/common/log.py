@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 """
 @summary: 始化logger实例(对logging的封装)
 @usage：
@@ -81,7 +81,7 @@ def truncate(message):
                 msg = message  # Defer encoding till later
     if len(msg) < TRUNCATED_LENGTH:
         return msg
-    return "%s ...[truncated]" % msg[:TRUNCATED_LENGTH]
+    return f"{msg[:TRUNCATED_LENGTH]} ...[truncated]"
 
 
 # ===============================================================================
@@ -105,45 +105,59 @@ class logger_traceback:
     def __init__(self):
         pass
 
-    def error(self, message=""):
+    def _format(self, message, args):
+        if not args:
+            return message
+        try:
+            return message % args
+        except Exception:
+            return f"{message} {args}"
+
+    def error(self, message="", *args):
         """
         error 日志
         """
+        message = self._format(message, args)
         message = self.get_error_info(message)
         logger_detail.error(message)
 
-    def info(self, message=""):
+    def info(self, message="", *args):
         """
         info 日志
         """
+        message = self._format(message, args)
         message = self.get_error_info(message)
         logger_detail.info(message)
 
-    def warning(self, message=""):
+    def warning(self, message="", *args):
         """
         warning 日志
         """
+        message = self._format(message, args)
         message = self.get_error_info(message)
         logger_detail.warning(message)
 
-    def debug(self, message=""):
+    def debug(self, message="", *args):
         """
         debug 日志
         """
+        message = self._format(message, args)
         message = self.get_error_info(message)
         logger_detail.debug(message)
 
-    def critical(self, message=""):
+    def critical(self, message="", *args):
         """
         critical 日志
         """
+        message = self._format(message, args)
         message = self.get_error_info(message)
         logger_detail.critical(message)
 
-    def exception(self, message=""):
+    def exception(self, message="", *args):
         """
         exception 日志(包含堆栈信息)
         """
+        message = self._format(message, args)
         message = truncate(message)
         logger_detail.exception(message)
 
@@ -159,10 +173,10 @@ class logger_traceback:
             # 打印堆栈信息
             traceback_msg = ""
             for filename, lineno, function, text in traceback.extract_tb(info[2]):
-                msg = "{} line: {} in {}".format(filename, lineno, function)
-                traceback_msg = "{}{}\n{}\n".format(traceback_msg, msg, text)
+                msg = f"{filename} line: {lineno} in {function}"
+                traceback_msg = f"{traceback_msg}{msg}\n{text}\n"
             if traceback_msg:
-                message = "{}\n{}".format(message, traceback_msg)
+                message = f"{message}\n{traceback_msg}"
             sys.exc_clear()
             return message
         except Exception:
