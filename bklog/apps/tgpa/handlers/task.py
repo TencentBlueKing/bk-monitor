@@ -337,7 +337,7 @@ class TGPATaskHandler:
     @staticmethod
     def _sanitize_download_file_name_part(value):
         """将任务元数据转换为安全的文件名片段。"""
-        return re.sub(r"[^0-9A-Za-z._-]+", "_", str(value)).strip("._-")
+        return re.sub(r'[\x00-\x1f\x7f<>:"/\\|?*]+', "_", str(value)).strip(" .")
 
     @classmethod
     def get_download_file_name(cls, bk_biz_id, file_name):

@@ -31,14 +31,14 @@ class TestTGPATaskDownloadFileName(SimpleTestCase):
         )
 
     @patch.object(TGPATaskHandler, "get_task_page")
-    def test_sanitize_openid(self, mock_get_task_page):
+    def test_sanitize_file_name_parts_and_preserve_unicode(self, mock_get_task_page):
         mock_get_task_page.return_value = {
             "total": 1,
             "list": [
                 {
                     "file_name": "ENQ_file_1.zip",
-                    "openid": 'openid/with spaces\r\n"',
-                    "created_by": "creator/with spaces",
+                    "openid": "openid/with spaces\r\nvalue",
+                    "created_by": "创建 人/creator",
                     "created_at": "2026-04-24 12:00:00",
                 }
             ],
@@ -46,7 +46,7 @@ class TestTGPATaskDownloadFileName(SimpleTestCase):
 
         result = TGPATaskHandler.get_download_file_name(2, "ENQ_file_1.zip")
 
-        self.assertEqual(result, "task_openid_with_spaces_1_creator_with_spaces_20260424120000.zip")
+        self.assertEqual(result, "task_openid_with spaces_value_1_创建 人_creator_20260424120000.zip")
 
     @patch.object(TGPATaskHandler, "get_task_page")
     def test_keep_report_file_name_without_querying_task(self, mock_get_task_page):
