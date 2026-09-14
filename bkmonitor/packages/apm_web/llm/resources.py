@@ -187,8 +187,8 @@ class ListTracesResource(Resource):
             ]
             if not childs:
                 continue
-            childs.sort(key=lambda child: child["start_time"])
-            start_time = childs[0]["start_time"]
+            childs.sort(key=lambda child: child["start_time"] + child["elapsed_time"], reverse=True)
+            start_time = min(child["start_time"] for child in childs)
             end_time = max(child["start_time"] + child["elapsed_time"] for child in childs)
             items.append(
                 {

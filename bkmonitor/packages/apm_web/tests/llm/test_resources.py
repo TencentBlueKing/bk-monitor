@@ -285,7 +285,7 @@ class ListTracesResourceTestCase(TestCase):
                 "input": "问二",
                 "output": "答二",
                 "start_time": 100,
-                "end_time": 160,
+                "end_time": 360,
                 "input_tokens": 0,
                 "output_tokens": 0,
                 "cache_read_input_tokens": 0,
@@ -345,7 +345,7 @@ class ListTracesResourceTestCase(TestCase):
                 "cache_read_input_tokens": 9,
                 "cache_creation_input_tokens": 3,
                 "start_time": 100,
-                "elapsed_time": 180,
+                "elapsed_time": 260,
                 "user_id": "user-2",
                 "childs": [
                     {
@@ -361,7 +361,7 @@ class ListTracesResourceTestCase(TestCase):
                         "cache_read_input_tokens": 3,
                         "cache_creation_input_tokens": 2,
                         "start_time": 100,
-                        "elapsed_time": 60,
+                        "elapsed_time": 260,
                         "user_id": "user-2",
                     },
                     {
