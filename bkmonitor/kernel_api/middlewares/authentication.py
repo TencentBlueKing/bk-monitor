@@ -792,7 +792,8 @@ class AuthenticationMiddleware(MiddlewareMixin):
 
     def process_view(self, request, view, *args, **kwargs):
         # 登录豁免
-        return None
+        if getattr(view, "login_exempt", False):
+            return None
 
         if self.use_apigw_auth(request):
             request.jwt = BkJWTClient(request, self.get_apigw_public_keys())
