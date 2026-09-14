@@ -1,7 +1,7 @@
-import { EMPTY_TEXT, IO_SUMMARY_SEPARATOR } from '../constants';
+import { EMPTY_TEXT } from '../constants';
 import { formatElapsed, formatMicroTime, formatTokens } from './formatters';
 
-import type { ILlmTraceItem, ISessionRow, ITokensCell, ITraceRow, LlmStatus } from '../typings';
+import type { IIoSummaryCell, ILlmTraceItem, ISessionRow, ITokensCell, ITraceRow, LlmStatus } from '../typings';
 
 /** 只透传接口约定的 success / error，其余回退空串由表格占位 */
 function toStatus(status?: string): LlmStatus | '' {
@@ -18,11 +18,11 @@ function toTokensCell(inputTokens: number, outputTokens: number): ITokensCell {
 }
 
 /** 输入 / 输出摘要：接口分别返回逻辑根 Span 的最后一条用户文本与助手文本 */
-function toIoSummary(item: ILlmTraceItem): string {
-  const input = item.input?.trim();
-  const output = item.output?.trim();
-  if (!input && !output) return EMPTY_TEXT;
-  return `${input || EMPTY_TEXT}${IO_SUMMARY_SEPARATOR}${output || EMPTY_TEXT}`;
+function toIoSummary(item: ILlmTraceItem): IIoSummaryCell {
+  return {
+    input: item.input?.trim() || EMPTY_TEXT,
+    output: item.output?.trim() || EMPTY_TEXT,
+  };
 }
 
 export function toTraceRow(item: ILlmTraceItem): ITraceRow {

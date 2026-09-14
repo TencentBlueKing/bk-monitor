@@ -2043,12 +2043,8 @@ export default {
   '系统 Prompts': 'System Prompts',
   推理过程: 'Reasoning process',
   复制信息: 'Copy information',
-  独立查看: 'View alone',
   原地展开: 'Expand in place',
   未命名工具: 'Unnamed tool',
   规划的工具调用: 'Planned tool calls',
-  模型输出: 'Model output',
-  '输入 Tokens': 'Input Tokens',
-  '输出 Tokens': 'Output Tokens',
-  '总 Tokens': 'Total Tokens',
+  模型输出: 'Model output'
 };
