@@ -59,6 +59,11 @@ def _message_part(source: Any) -> dict[str, Any] | None:
             part["type"] = part_type
         return part
 
+    if part_type == "thinking":
+        if part := _text_part(source.get("thinking")):
+            part["type"] = "reasoning"
+        return part
+
     if part_type in {"tool_use", "tool_call"}:
         name = source.get("name")
         if name in (None, ""):
