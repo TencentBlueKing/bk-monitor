@@ -29,6 +29,8 @@ from django.views.decorators.csrf import csrf_exempt
 from rest_framework import serializers, exceptions
 from rest_framework.decorators import api_view
 
+from bkoauth.client import oauth_client
+from bkoauth.exceptions import TokenException
 from bkm_space.utils import bk_biz_id_to_space_uid
 from bkmonitor.action.alert_assign import AlertAssignMatchManager, AssignRuleMatch
 from bkmonitor.documents.alert import AlertDocument
@@ -51,7 +53,7 @@ from bkmonitor.models import (
 from bkmonitor.models.issue import IssueMergeRelation, IssueTapdRelation
 from bkmonitor.utils.cache import CacheType, using_cache
 from bkmonitor.utils.event_related_info import get_alert_relation_info
-from bkmonitor.utils.request import get_request_username, get_request
+from bkmonitor.utils.request import get_request, get_request_username
 from bkmonitor.utils.tenant import space_uid_to_bk_tenant_id, bk_biz_id_to_bk_tenant_id
 from bkmonitor.utils.thread_backend import ThreadPool
 from bkmonitor.utils.user import get_global_user, set_local_username
@@ -584,9 +586,33 @@ class SourceAnalysisExecutionBaseResource(Resource):
             data={"reason": reason},
         )
 
-    @staticmethod
-    def dispatch_execution(execution: IssueSourceAnalysisExecution) -> None:
-        """投递首次推进任务；消息系统短暂异常时由周期补偿任务接管 pending 记录。"""
+    @classmethod
+    def _mark_user_access_token_unavailable(cls, execution: IssueSourceAnalysisExecution) -> None:
+        logger.warning(
+            "Source analysis user access token unavailable, analysis_id=%s",
+            execution.analysis_id,
+        )
+        cls._mark_failed(
+            execution,
+            failure_stage=SourceAnalysisFailureStage.TASK_CREATE,
+            failure_code="USER_ACCESS_TOKEN_UNAVAILABLE",
+            failure_message=SourceAnalysisFailureMessage.USER_ACCESS_TOKEN_UNAVAILABLE,
+            failure_retryable=True,
+        )
+
+    @classmethod
+    def dispatch_execution(cls, execution: IssueSourceAnalysisExecution) -> None:
+        """缓存当前用户凭证后投递任务；消息系统异常时由周期补偿任务接管。"""
+
+        try:
+            token = oauth_client.get_access_token(get_request())
+        except TokenException:
+            cls._mark_user_access_token_unavailable(execution)
+            return
+
+        if not getattr(token, "access_token", ""):
+            cls._mark_user_access_token_unavailable(execution)
+            return
 
         try:
             run_source_analysis_execution.apply_async(args=(execution.analysis_id,))
@@ -1206,6 +1232,23 @@ class SourceAnalysisExecutionBaseResource(Resource):
         return cls.DEFAULT_POLL_INTERVAL
 
     @classmethod
+    def get_user_access_token(cls, execution: IssueSourceAnalysisExecution) -> str | None:
+        """从 bkoauth 持久化记录恢复用户凭证，供无 Web request 的 Celery 使用。"""
+
+        try:
+            token = oauth_client.get_access_token_by_user(execution.create_user)
+        except TokenException:
+            cls._mark_user_access_token_unavailable(execution)
+            return None
+
+        access_token = getattr(token, "access_token", "")
+        if access_token:
+            return access_token
+
+        cls._mark_user_access_token_unavailable(execution)
+        return None
+
+    @classmethod
     def get_recoverable_analysis_ids(cls) -> list[str]:
         """返回长时间没有推进的活动记录，供周期任务补偿进程退出或消息丢失。"""
 
@@ -1270,6 +1313,10 @@ class SourceAnalysisExecutionBaseResource(Resource):
             return cls._apply_bkfara_scene_state(execution, scene_state)
 
         ensure_params = cls.build_ensure_scene_params(execution)
+        access_token = cls.get_user_access_token(execution)
+        if not access_token:
+            return False, None
+        ensure_params["access_token"] = access_token
         try:
             scene_state = api.bk_incident.ensure_source_analysis_scene(**ensure_params)
         except Exception as error:
@@ -1367,7 +1414,11 @@ class SourceAnalysisExecutionBaseResource(Resource):
             )
             return None
 
+        access_token = cls.get_user_access_token(execution)
+        if not access_token:
+            return None
         trigger_params = cls.build_trigger_params(execution)
+        trigger_params["access_token"] = access_token
         try:
             task_state = api.bk_incident.trigger_source_analysis(**trigger_params)
         except Exception as error:

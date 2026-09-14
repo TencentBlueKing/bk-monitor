@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 
 import abc
 import ast
+import contextvars
 import json
 import uuid
 
@@ -25,6 +26,9 @@ from constants.issue import (
 )
 from core.drf_resource.contrib.api import APIResource
 from core.errors.api import BKAPIError
+
+
+bkfara_user_access_token = contextvars.ContextVar("bkfara_user_access_token", default="")
 
 
 class IncidentBaseResource(APIResource, metaclass=abc.ABCMeta):
@@ -306,12 +310,29 @@ class BkFaraSourceAnalysisBaseResource(APIResource):
             return response_data["error"]
         return error_data
 
+    def get_headers(self):
+        headers = super().get_headers()
+        access_token = bkfara_user_access_token.get()
+        if not access_token:
+            return headers
+
+        authorization = json.loads(headers["x-bkapi-authorization"])
+        authorization["access_token"] = access_token
+        headers["x-bkapi-authorization"] = json.dumps(authorization)
+        return headers
+
     def perform_request(self, validated_request_data):
+        # access_token 只用于网关鉴权，不进入 BKFara querystring/body 或链路埋点。
+        validated_request_data = dict(validated_request_data)
+        access_token = validated_request_data.pop("access_token", "")
+        token = bkfara_user_access_token.set(access_token)
         try:
             return super().perform_request(validated_request_data)
         except BKAPIError as error:
             error.data = self._normalize_error_data(error.data)
             raise
+        finally:
+            bkfara_user_access_token.reset(token)
 
 
 class EnsureSourceAnalysisSceneResource(BkFaraSourceAnalysisBaseResource):
@@ -319,12 +340,15 @@ class EnsureSourceAnalysisSceneResource(BkFaraSourceAnalysisBaseResource):
 
     action = "/incident/issue_analysis/ensure_scene/"
     method = "POST"
+    # access_token 是用户凭证，禁止 ResourceData 在 perform_request 前记录原始调用参数。
+    support_data_collect = False
 
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(label="业务 ID")
         bk_tenant_id = serializers.CharField(label="租户 ID", max_length=64)
         devops_project_id = serializers.CharField(label="蓝盾项目 ID", max_length=128)
         client_request_id = UUIDStringField(label="幂等请求 ID", max_length=36)
+        access_token = serializers.CharField(label="用户态访问令牌", write_only=True, required=False)
 
 
 class GetSourceAnalysisSceneStatusResource(BkFaraSourceAnalysisBaseResource):
@@ -343,6 +367,8 @@ class TriggerSourceAnalysisResource(BkFaraSourceAnalysisBaseResource):
 
     action = "/incident/issue_analysis/trigger/"
     method = "POST"
+    # access_token 是用户凭证，禁止 ResourceData 在 perform_request 前记录原始调用参数。
+    support_data_collect = False
 
     class RequestSerializer(serializers.Serializer):
         issue_id = serializers.CharField(label="Issue ID", max_length=64)
@@ -351,6 +377,7 @@ class TriggerSourceAnalysisResource(BkFaraSourceAnalysisBaseResource):
         devops_project_id = serializers.CharField(label="蓝盾项目 ID", max_length=128)
         client_request_id = UUIDStringField(label="幂等请求 ID", max_length=36)
         inputs = SourceAnalysisInputsSerializer(label="分析输入")
+        access_token = serializers.CharField(label="用户态访问令牌", write_only=True, required=False)
 
 
 class GetSourceAnalysisTaskResource(BkFaraSourceAnalysisBaseResource):
