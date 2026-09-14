@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Any
 
 from constants.apm import LLMProduct
 
-from . import adapter_agentlens, adapter_bkaidev, adapter_default, adapter_galileo
+from . import adapter_agentlens, adapter_bkaidev, adapter_default, adapter_galileo, adapter_langfuse
 from .fields import detect_product
 
 if TYPE_CHECKING:
@@ -17,7 +17,7 @@ ADAPTERS = {
     LLMProduct.AGENTLENS.value: adapter_agentlens.convert,
     LLMProduct.AIDEV.value: adapter_bkaidev.convert,
     LLMProduct.GALILEO.value: adapter_galileo.convert,
-    LLMProduct.LANGFUSE.value: adapter_default.convert,
+    LLMProduct.LANGFUSE.value: adapter_langfuse.convert,
     LLMProduct.DEFAULT.value: adapter_default.convert,
 }
 

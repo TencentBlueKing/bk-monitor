@@ -433,6 +433,7 @@ class ListTracesResourceTestCase(TestCase):
             ("agentlens", "gen_ai.session.id"),
             ("aidev", "agent.session.session_code"),
             ("galileo", "gen_ai.session_id"),
+            ("langfuse", "session.id"),
         ]:
             with self.subTest(product=product):
                 entity_set = mock.Mock(service_names=["agent-service"])
