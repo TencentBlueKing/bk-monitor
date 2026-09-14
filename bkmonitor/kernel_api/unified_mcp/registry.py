@@ -143,6 +143,9 @@ def native_tool_names() -> tuple[str, ...]:
     return tuple(sorted(set(names)))
 
 
+# 公共 Schema 归一化规则变化时递增，确保客户端不会沿用旧目录版本缓存。
+SCHEMA_NORMALIZATION_VERSION = 2
+
 # 对外工具名与历史 operationId 不一致时，在这里做唯一别名归一。
 PUBLIC_TOOL_NAMES = {"apm_mcp_calculate_by_range": "calculate_by_range"}
 
@@ -723,8 +726,31 @@ def _normalize_public_schema(tool_name: str, schema: dict[str, Any]) -> dict[str
         result["required"] = required
     else:
         result.pop("required", None)
+    _normalize_nullable_schemas(result)
     _close_object_schemas(result)
     return result
+
+
+def _normalize_nullable_schemas(schema: dict[str, Any]) -> None:
+    """将 OpenAPI nullable 转为 Draft7 可执行的 null 类型约束。"""
+    if schema.pop("nullable", False):
+        schema_type = schema.get("type")
+        if isinstance(schema_type, str):
+            schema["type"] = [schema_type, "null"]
+        elif isinstance(schema_type, list) and "null" not in schema_type:
+            schema["type"] = [*schema_type, "null"]
+        if "enum" in schema and None not in schema["enum"]:
+            schema["enum"] = [*schema["enum"], None]
+
+    for child in (schema.get("properties") or {}).values():
+        if isinstance(child, dict):
+            _normalize_nullable_schemas(child)
+    if isinstance(schema.get("items"), dict):
+        _normalize_nullable_schemas(schema["items"])
+    for keyword in ("allOf", "anyOf", "oneOf"):
+        for child in schema.get(keyword) or []:
+            if isinstance(child, dict):
+                _normalize_nullable_schemas(child)
 
 
 def _close_object_schemas(schema: dict[str, Any]) -> None:
@@ -915,6 +941,7 @@ def load_tool_registry(root: Path | None = None) -> ToolRegistry:
                 "source_files": SOURCE_FILES,
                 "executable_tools": sorted(EXECUTABLE_TOOL_NAMES),
                 "public_tool_names": PUBLIC_TOOL_NAMES,
+                "schema_normalization_version": SCHEMA_NORMALIZATION_VERSION,
                 "capabilities": CAPABILITIES,
                 "titles": TITLES,
                 "prerequisites": PREREQUISITES,

@@ -510,6 +510,8 @@ class ExecuteToolResource(Resource):
                 dispatch_args.pop("confirm")
             # Step 4: 只有参数、确认和全部权限通过后，才进入原业务 Resource。
             data = dispatch_tool(tool_name, dispatch_args)
+        # ponytail: 当前仍透传原 Resource 全量结果；下一期在 Unified 边界做有结构截断，
+        # 并按实际结果返回 meta.truncated，避免大体积 APM/Profile 响应挤占模型上下文。
         return {
             "status": "success",
             "tool_name": tool_name,
