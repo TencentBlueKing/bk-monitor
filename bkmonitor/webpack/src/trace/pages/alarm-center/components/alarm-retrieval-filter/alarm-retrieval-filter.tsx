@@ -214,6 +214,80 @@ export default defineComponent({
     return (
       <RetrievalFilter
         class='alarm-center__alarm-retrieval-filter-component'
+        v-slots={
+          this.showSpaceSelector
+            ? {
+                default: () => (
+                  <>
+                    <SpaceSelector
+                      hasAuthApply={true}
+                      isAutoSelectCurrentSpace={true}
+                      isCommonStyle={false}
+                      multiple={this.isMultiple}
+                      needChangeChoiceType={true}
+                      needIncidentOption={this.needIncidentOption}
+                      spaceList={this.bizList}
+                      value={this.bizIds}
+                      onApplyAuth={this.handleCheckAllowedByIds}
+                      onChange={this.handleBizIdsChange}
+                      onChangeChoiceType={this.handleChangeChoiceType}
+                    >
+                      {{
+                        trigger: (options: ITriggerSlotOptions) => (
+                          <SelectorTrigger
+                            class='selector-trigger-space-select'
+                            active={options.active}
+                            hasRightSplit={true}
+                            isError={options.error}
+                            tips={options.valueStrList.length ? tipsContent(options.valueStrList) : ''}
+                          >
+                            {{
+                              top: () => {
+                                if (
+                                  options.valueStrList.length > 1 ||
+                                  !options.valueStrList.length ||
+                                  ['-1', '-2'].includes(String(options.valueStrList?.[0]?.id))
+                                ) {
+                                  return <span>{this.t('空间')}</span>;
+                                }
+                                const tags = options.valueStrList[0]?.tags || [];
+                                return (
+                                  <span>
+                                    {tags.map(tag =>
+                                      spaceTypeTag(tag.id, 'light', {
+                                        height: '20px',
+                                        marginRight: '4px',
+                                      })
+                                    )}
+                                  </span>
+                                );
+                              },
+                              bottom: () => (
+                                <span class='selected-text'>
+                                  {options.valueStrList.map((item, index) => (
+                                    <span
+                                      key={item.id}
+                                      class='selected-text-item'
+                                    >
+                                      {index !== 0 ? `   , ${item.name}` : item.name}
+                                      {!!item.idDisplayName && (
+                                        <span class='selected-text-id'>({item.idDisplayName})</span>
+                                      )}
+                                    </span>
+                                  ))}
+                                </span>
+                              ),
+                            }}
+                          </SelectorTrigger>
+                        ),
+                      }}
+                    </SpaceSelector>
+                    {this.showAlarmModule && <AlarmModuleSelector />}
+                  </>
+                ),
+              }
+            : undefined
+        }
         changeWhereFormatter={where => {
           return where.map(w => ({
             key: w.key,
@@ -247,80 +321,7 @@ export default defineComponent({
         onSearch={this.handleQuery}
         onShowResidentBtnChange={this.handleShowResidentBtnChange}
         onWhereChange={this.handleConditionChange}
-      >
-        {this.showSpaceSelector
-          ? {
-              default: () => (
-                <>
-                  <SpaceSelector
-                    hasAuthApply={true}
-                    isAutoSelectCurrentSpace={true}
-                    isCommonStyle={false}
-                    multiple={this.isMultiple}
-                    needChangeChoiceType={true}
-                    needIncidentOption={this.needIncidentOption}
-                    spaceList={this.bizList}
-                    value={this.bizIds}
-                    onApplyAuth={this.handleCheckAllowedByIds}
-                    onChange={this.handleBizIdsChange}
-                    onChangeChoiceType={this.handleChangeChoiceType}
-                  >
-                    {{
-                      trigger: (options: ITriggerSlotOptions) => (
-                        <SelectorTrigger
-                          class='selector-trigger-space-select'
-                          active={options.active}
-                          hasRightSplit={true}
-                          isError={options.error}
-                          tips={options.valueStrList.length ? tipsContent(options.valueStrList) : ''}
-                        >
-                          {{
-                            top: () => {
-                              if (
-                                options.valueStrList.length > 1 ||
-                                !options.valueStrList.length ||
-                                ['-1', '-2'].includes(String(options.valueStrList?.[0]?.id))
-                              ) {
-                                return <span>{this.t('空间')}</span>;
-                              }
-                              const tags = options.valueStrList[0]?.tags || [];
-                              return (
-                                <span>
-                                  {tags.map(tag =>
-                                    spaceTypeTag(tag.id, 'light', {
-                                      height: '20px',
-                                      marginRight: '4px',
-                                    })
-                                  )}
-                                </span>
-                              );
-                            },
-                            bottom: () => (
-                              <span class='selected-text'>
-                                {options.valueStrList.map((item, index) => (
-                                  <span
-                                    key={item.id}
-                                    class='selected-text-item'
-                                  >
-                                    {index !== 0 ? `   , ${item.name}` : item.name}
-                                    {!!item.idDisplayName && (
-                                      <span class='selected-text-id'>({item.idDisplayName})</span>
-                                    )}
-                                  </span>
-                                ))}
-                              </span>
-                            ),
-                          }}
-                        </SelectorTrigger>
-                      ),
-                    }}
-                  </SpaceSelector>
-                  {this.showAlarmModule && <AlarmModuleSelector />}
-                </>
-              ),
-            }
-          : null}
-      </RetrievalFilter>
+      />
     );
   },
 });
