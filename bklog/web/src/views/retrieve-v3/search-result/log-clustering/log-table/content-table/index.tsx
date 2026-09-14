@@ -183,6 +183,8 @@ export default defineComponent({
     const editingOwnerRowId = ref<number | null>(null);
     /** 进入责任人编辑态时的 owners 快照，用于校验失败回滚与变更比较 */
     const editingOwnerPrevOwners = ref<string[]>([]);
+    /** 当前挂载的责任人选择器实例（editingOwnerRowId 唯一，同时最多一个） */
+    let ownerSelectorRef: any = null;
     // const cacheExpandStr = ref<any[]>([]); // 展示pattern按钮数组
 
     const groupState = computed(() => props.groupListState);
@@ -356,6 +358,7 @@ export default defineComponent({
       }
       // 组件失焦时内部已先隐藏下拉浮层，nextTick 后再卸载双保险，避免浮层残留
       nextTick(() => {
+        ownerSelectorRef?.clearOverflowTimer?.();
         editingOwnerRowId.value = null;
       });
     };
@@ -686,6 +689,9 @@ export default defineComponent({
               {!isExternal ? (
                 editingOwnerRowId.value === row.data?.id ? (
                   <bk-user-selector
+                    ref={(el: any) => {
+                      ownerSelectorRef = el;
+                    }}
                     class='principal-input'
                     api={window.BK_LOGIN_URL}
                     empty-text={t('无匹配人员')}
@@ -705,6 +711,10 @@ export default defineComponent({
                     onClick={() => {
                       editingOwnerRowId.value = row.data?.id ?? null;
                       editingOwnerPrevOwners.value = [...getOwners(row.data)];
+                      // 挂载后自动聚焦并弹出下拉：同时保证点外部可经 input 原生 blur 退出编辑态
+                      nextTick(() => {
+                        ownerSelectorRef?.focus?.();
+                      });
                     }}
                   >
                     {getOwners(row.data).length ? getOwners(row.data).join(', ') : '--'}
