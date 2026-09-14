@@ -147,6 +147,11 @@ class ListTracesResource(Resource):
             (str(value) for value in attribute_values("gen_ai.conversation.id") if value not in (None, "")),
             "",
         )
+        output = cls._last_message_text(preview_root, "gen_ai.output.messages", "assistant")
+        if not output:
+            for span in sorted(converted_spans, key=lambda span: span.get(OtlpKey.END_TIME, 0), reverse=True):
+                if output := cls._last_message_text(span, "gen_ai.output.messages", "assistant"):
+                    break
         return {
             "group_id": trace_id,
             "group_field": OtlpKey.TRACE_ID,
@@ -154,7 +159,7 @@ class ListTracesResource(Resource):
             "conversation_id": conversation_id,
             "status": "error" if has_error else "success",
             "input": cls._last_message_text(preview_root, "gen_ai.input.messages", "user"),
-            "output": cls._last_message_text(preview_root, "gen_ai.output.messages", "assistant"),
+            "output": output,
             "input_tokens": token_total("gen_ai.usage.input_tokens"),
             "output_tokens": token_total("gen_ai.usage.output_tokens"),
             "cache_read_input_tokens": token_total("gen_ai.usage.cache_read.input_tokens"),

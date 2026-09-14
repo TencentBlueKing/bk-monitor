@@ -615,7 +615,7 @@ class ListTracesResourceTestCase(TestCase):
         self.assertEqual(item["input"], "最新问题")
         self.assertEqual(item["output"], "最终回答")
 
-    def test_trace_preview_does_not_fallback_to_child_llm(self):
+    def test_trace_preview_falls_back_to_child_llm_output(self):
         raw_spans = [
             {
                 "trace_id": "trace-1",
@@ -637,6 +637,7 @@ class ListTracesResourceTestCase(TestCase):
                 "trace_id": "trace-1",
                 "span_id": "llm",
                 "parent_span_id": "agent",
+                "end_time": 200,
                 "attributes": {
                     "gen_ai.operation.name": "chat",
                     "gen_ai.input.messages": [{"role": "user", "parts": [{"type": "text", "content": "内部提示词"}]}],
@@ -651,7 +652,7 @@ class ListTracesResourceTestCase(TestCase):
             item = ListTracesResource._trace_item("trace-1", raw_spans, mock.sentinel.entity_set)
 
         self.assertEqual(item["input"], "")
-        self.assertEqual(item["output"], "")
+        self.assertEqual(item["output"], "内部回答")
 
 
 class ListSpansResourceTestCase(TestCase):
