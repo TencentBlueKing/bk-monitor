@@ -30,7 +30,7 @@ import TableSkeleton from 'monitor-pc/components/skeleton/table-skeleton';
 
 import { EMPTY_TEXT } from '../constants';
 
-import type { ILlmColumn, ISessionRow, ITokensCell, LlmRow, LlmStatus } from '../typings';
+import type { IIoSummaryCell, ILlmColumn, ISessionRow, ITokensCell, LlmRow, LlmStatus } from '../typings';
 
 import './llm-table.scss';
 
@@ -106,11 +106,13 @@ export default class LlmTable extends tsc<ILlmTableProps, ILlmTableEvents> {
       case 'countLink':
         return <span class='llm-table-link is-strong'>{value || EMPTY_TEXT}</span>;
       case 'tokens':
-        return <span class='llm-table-text'>{(value as ITokensCell).totalText}</span>;
+      // return <span class='llm-table-text'>{(value as ITokensCell).totalText}</span>;
       case 'tokensBadge':
         return this.renderTokensBadge(value as ITokensCell);
       case 'status':
         return this.renderStatus(value as '' | LlmStatus);
+      case 'ioSummary':
+        return this.renderIoSummary(value as IIoSummaryCell);
       default:
         return (
           <span
@@ -121,6 +123,29 @@ export default class LlmTable extends tsc<ILlmTableProps, ILlmTableEvents> {
           </span>
         );
     }
+  }
+
+  /** 输入 / 输出摘要：两侧各自缩略，中间箭头分隔，悬停各自展示完整文本 */
+  renderIoSummary(ioSummary: IIoSummaryCell) {
+    const input = ioSummary?.input || EMPTY_TEXT;
+    const output = ioSummary?.output || EMPTY_TEXT;
+    return (
+      <div class='llm-table-io-summary'>
+        <span
+          class='io-text'
+          v-bk-overflow-tips={{ content: this.clipTooltipContent(input) }}
+        >
+          {input}
+        </span>
+        <i class='icon-monitor icon-next-one io-arrow' />
+        <span
+          class='io-text'
+          v-bk-overflow-tips={{ content: this.clipTooltipContent(output) }}
+        >
+          {output}
+        </span>
+      </div>
+    );
   }
 
   /** 状态：圆点 + 文案。success 成功 / error 失败，非法值回退占位 */
