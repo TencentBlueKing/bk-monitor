@@ -37,10 +37,11 @@ import {
   type IMetricCard,
   type IPieLegendItem,
   type IRankItem,
-  type ITimeSeriesItem,
+  type ITimeSeriesResult,
   buildPieOptions,
   buildTimeLineOptions,
   formatCount,
+  formatSeriesInterval,
   formatDuration,
   formatGrowthRate,
   formatMetricValue,
@@ -86,6 +87,8 @@ export default class ApmLlmOverview extends tsc<Record<string, never>> {
   tokenInputPoints: [number, number][] = [];
   tokenOutputPoints: [number, number][] = [];
   modelCallPoints: [number, number][] = [];
+  // 趋势图的数据步长，由后端按时间范围自适应
+  trendInterval = '';
 
   get appName() {
     return this.viewOptions?.filters?.app_name || this.viewOptions?.app_name;
@@ -205,9 +208,9 @@ export default class ApmLlmOverview extends tsc<Record<string, never>> {
     }
   }
 
-  async fetchTrend(calType: CalType) {
+  async fetchTrend(calType: CalType): Promise<ITimeSeriesResult> {
     try {
-      const res = await timeSeries(
+      return await timeSeries(
         {
           ...this.queryBase,
           cal_type: calType,
@@ -215,9 +218,8 @@ export default class ApmLlmOverview extends tsc<Record<string, never>> {
         },
         API_CONFIG
       );
-      return unwrapSeriesList(res);
     } catch {
-      return [] as ITimeSeriesItem[];
+      return {};
     }
   }
 
@@ -262,14 +264,17 @@ export default class ApmLlmOverview extends tsc<Record<string, never>> {
   }
 
   async fetchTrends() {
-    const [inputSeries, outputSeries, callSeries] = await Promise.all([
+    const results = await Promise.all([
       this.fetchTrend('input_tokens'),
       this.fetchTrend('output_tokens'),
       this.fetchTrend('model_call_count'),
     ]);
+    const [inputSeries, outputSeries, callSeries] = results.map(unwrapSeriesList);
     this.tokenInputPoints = toEchartsPoints(inputSeries[0]?.datapoints);
     this.tokenOutputPoints = toEchartsPoints(outputSeries[0]?.datapoints);
     this.modelCallPoints = toEchartsPoints(callSeries[0]?.datapoints);
+    // 三条趋势共用同一个时间范围，步长一致，取首个拿到的即可
+    this.trendInterval = results.map(formatSeriesInterval).find(Boolean) || '';
   }
 
   toRankList(list: ICalculateItem[], formatter: (value: number) => string): IRankItem[] {
@@ -305,7 +310,21 @@ export default class ApmLlmOverview extends tsc<Record<string, never>> {
   renderTrendCard(title: string, options: MonitorEchartOptions, hasData: boolean) {
     return (
       <div class='llm-overview-card'>
-        <div class='llm-overview-card-title'>{title}</div>
+        <div class='llm-overview-card-title'>
+          {title}
+          {this.trendInterval ? (
+            <span
+              class='llm-overview-card-interval'
+              v-bk-tooltips={{
+                content: this.$t('数据步长'),
+                delay: 200,
+                appendTo: () => document.body,
+              }}
+            >
+              {this.trendInterval}
+            </span>
+          ) : undefined}
+        </div>
         {hasData ? (
           <div class='llm-overview-card-chart'>
             <LlmOverviewChart options={options} />

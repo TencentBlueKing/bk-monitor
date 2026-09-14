@@ -116,6 +116,7 @@ export interface ITimeSeriesItem {
 
 export interface ITimeSeriesResult {
   mock?: boolean;
+  query_config?: { interval?: number };
   series?: ITimeSeriesItem[];
 }
 
@@ -138,6 +139,15 @@ export function unwrapSeriesList(res: ITimeSeriesItem[] | ITimeSeriesResult | nu
   if (Array.isArray(res)) return res;
   if (Array.isArray(res?.series)) return res.series;
   return [];
+}
+
+/** 把后端按时间范围算出的聚合周期（秒）转成步长文案，取值来自 allowed_interval，最小 10s，最大 3h。 */
+export function formatSeriesInterval(res: ITimeSeriesItem[] | ITimeSeriesResult | null | undefined): string {
+  const interval = Array.isArray(res) ? 0 : res?.query_config?.interval;
+  if (!interval) return '';
+  if (interval % 3600 === 0) return `${interval / 3600}h`;
+  if (interval % 60 === 0) return `${interval / 60}m`;
+  return `${interval}s`;
 }
 
 export function getDimensionName(item: ICalculateItem, key: string) {

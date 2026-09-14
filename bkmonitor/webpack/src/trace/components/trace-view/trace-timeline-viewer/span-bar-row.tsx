@@ -45,9 +45,16 @@ import TimelineRow from './timeline-row';
 import TimelineRowCell from './timeline-row-cell';
 import { type ViewedBoundsFunctionType, createViewedBoundsFunc, formatDuration } from './utils';
 
-import type { Span } from '../typings';
+import type { Span, SpanLlmType } from '../typings';
 
 import './span-bar-row.scss';
+
+/** LLM Span 语义层级标签，与后端 llm_detail.span_type 对齐；图标由样式按 is-* 类名挂载 */
+const SPAN_LLM_LABELS: Record<SpanLlmType, string> = {
+  AGENT: 'Agent',
+  LLM: '模型',
+  TOOL: '工具',
+};
 
 const SpanBarRowProps = {
   className: {
@@ -299,6 +306,7 @@ export default defineComponent({
       5: 'icon-bei',
     };
     const isShowKindIcon = !isVirtual && source !== 'ebpf' && !!kindIcons?.[kind];
+    const spanLlmType = span?.llm_detail?.span_type;
 
     return (
       <TimelineRow
@@ -384,6 +392,12 @@ export default defineComponent({
                       style={{ color: color }}
                       class={`${kindIcons[kind]} icon-monitor kind-icon`}
                     />
+                  )}
+                  {spanLlmType && (
+                    <span class={`span-llm-tag is-${spanLlmType.toLowerCase()}`}>
+                      <span class='tag-icon' />
+                      <span>{this.t(SPAN_LLM_LABELS[spanLlmType])}</span>
+                    </span>
                   )}
                   {showErrorIcon && (
                     <Popover

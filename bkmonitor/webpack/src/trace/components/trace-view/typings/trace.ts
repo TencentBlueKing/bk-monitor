@@ -72,6 +72,15 @@ export type Span = SpanData & {
   warnings: NonNullable<SpanData['warnings']>;
 };
 
+/** 后端补充的标准 LLM Span，识别不出语义层级时不下发该字段 */
+export type SpanLlmDetail = {
+  attributes?: Record<string, unknown>;
+  span_type: SpanLlmType;
+};
+
+/** LLM Span 语义层级，由后端按 gen_ai.operation.name 归类 */
+export type SpanLlmType = 'AGENT' | 'LLM' | 'TOOL';
+
 export type SpanAttributesItem = {
   key: string;
   query_key: string;
@@ -98,6 +107,7 @@ export type SpanData = {
   is_expand: boolean; // 折叠节点当前被展开
   is_virtual: boolean; // 是否推断（虚拟）span
   kind?: number;
+  llm_detail?: SpanLlmDetail;
   logs: Array<Log>;
   mark?: string;
   operationName: string;

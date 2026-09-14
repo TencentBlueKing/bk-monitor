@@ -153,7 +153,7 @@ class ListTracesResourceTestCase(TestCase):
             },
         ]
         span_query.query_by_group_ids.return_value = raw_spans
-        entity_set = mock.Mock()
+        entity_set = mock.Mock(service_names=["agent-service"])
         entity_set.get_system.return_value = {"is_support_llm": True, "product": "agentlens"}
 
         with (
@@ -312,7 +312,7 @@ class ListTracesResourceTestCase(TestCase):
             },
         ]
         span_query.query_by_group_ids.return_value = raw_spans
-        entity_set = mock.Mock()
+        entity_set = mock.Mock(service_names=["agent-service"])
         entity_set.get_system.return_value = {"is_support_llm": True, "product": "aidev"}
 
         with (
@@ -421,7 +421,7 @@ class ListTracesResourceTestCase(TestCase):
         )
         serializer.is_valid(raise_exception=True)
 
-        entity_set = mock.Mock()
+        entity_set = mock.Mock(service_names=["agent-service"])
         entity_set.get_system.return_value = {"is_support_llm": True, "product": "aidev"}
         resolved = ListTracesResource._resolve_group_field(
             entity_set, "agent-service", serializer.validated_data["group_field"]
@@ -743,6 +743,7 @@ class ListSpansResourceTestCase(TestCase):
 
         with (
             mock.patch("core.drf_resource.api.apm_api.query_span_list", return_value=response) as query_span_list,
+            mock.patch("apm_web.llm.resources.EntitySet", return_value=mock.sentinel.entity_set),
             mock.patch("apm_web.llm.resources.adapt_spans", return_value=response["data"]),
         ):
             result = ListSpansResource().request(
@@ -773,6 +774,7 @@ class ListSpansResourceTestCase(TestCase):
 
         with (
             mock.patch("core.drf_resource.api.apm_api.query_span_list", return_value=response) as query_span_list,
+            mock.patch("apm_web.llm.resources.EntitySet", return_value=mock.sentinel.entity_set),
             mock.patch("apm_web.llm.resources.adapt_spans", return_value=response["data"]),
         ):
             result = ListSpansResource().request(
@@ -941,6 +943,8 @@ class ListFlowsResourceTestCase(TestCase):
         span_query = mock.Mock()
         span_query.query_group_trace_list.return_value = [{"trace_id": trace_id}]
         span_query.query_by_group_ids.return_value = raw_spans
+        entity_set = mock.Mock(service_names=["agent-service"])
+        entity_set.get_system.return_value = {"is_support_llm": True, "product": "default"}
 
         with (
             mock.patch(
@@ -949,6 +953,7 @@ class ListFlowsResourceTestCase(TestCase):
             ),
             mock.patch("apm_web.llm.resources.Application.objects.get", return_value=application),
             mock.patch("apm_web.llm.resources.get_query", return_value=span_query),
+            mock.patch("apm_web.llm.resources.EntitySet", return_value=entity_set),
         ):
             spans_result = ListSpansResource().request({"bk_biz_id": 11, "app_name": "agent-app", "trace_id": trace_id})
             flows_result = ListFlowsResource().request(
@@ -1414,6 +1419,26 @@ class TimeSeriesResourceTestCase(TestCase):
 
         self.assertEqual(set(fields["cal_type"].choices), CAL_TYPE_CHOICES)
 
+    def test_interval_widens_with_the_time_range(self):
+        """固定 60s 出图时，时间范围拉长后数据点过密。"""
+        intervals = []
+        for end_time in (1700003600, 1700000000 + 86400 * 7):
+            serializer = TimeSeriesResource.RequestSerializer(
+                data={**LLM_METRIC_REQUEST, "end_time": end_time, "cal_type": "input_tokens"}
+            )
+            serializer.is_valid(raise_exception=True)
+            intervals.append(serializer.validated_data["interval"])
+
+        self.assertEqual(intervals, [60, 7200])
+
+    def test_explicit_interval_is_kept(self):
+        serializer = TimeSeriesResource.RequestSerializer(
+            data={**LLM_METRIC_REQUEST, "cal_type": "input_tokens", "interval": 300}
+        )
+        serializer.is_valid(raise_exception=True)
+
+        self.assertEqual(serializer.validated_data["interval"], 300)
+
     def test_input_tokens_series_delegates_to_graph_unify_query(self):
         query = make_query()
         query.query_field_graph_config.return_value = mock.sentinel.config
@@ -1426,7 +1451,10 @@ class TimeSeriesResourceTestCase(TestCase):
 
         self.assertEqual(result["series"], [{"datapoints": datapoints, "dimensions": {}, "target": ""}])
         self.assertEqual(result["unit"], "short")
+        # 前端按「数据步长」展示聚合周期
+        self.assertEqual(result["query_config"], {"interval": 60})
         grafana.grafana.graph_unify_query.assert_called_once_with(mock.sentinel.config)
+        self.assertEqual(query.query_field_graph_config.call_args.args[5], 60)
 
     def test_total_tokens_is_summed_in_storage_not_in_saas(self):
         """两个字段一次查询，由存储侧按表达式相加，SaaS 侧不做逐点累加。"""
@@ -1499,6 +1527,8 @@ class TimeSeriesResourceTestCase(TestCase):
         # 空桶补零，曲线不会退化成零星几个点
         self.assertEqual(timestamps, list(range(timestamps[0], timestamps[-1] + 60_000, 60_000)))
         self.assertIn("start_time", fetched_fields(query))
+        # 本地聚合与下推出图回传同一个聚合周期
+        self.assertEqual(result["query_config"], {"interval": 60})
 
     def test_rejects_unsupported_group_by(self):
         serializer = TimeSeriesResource.RequestSerializer(
@@ -1575,11 +1605,26 @@ class LLMQueryTestCase(TestCase):
             mock.patch.object(LLMQuery, "get_qs"),
             mock.patch.object(LLMQuery, "_add_query", return_value=added),
         ):
-            config = self._query().query_field_graph_config([mock.Mock()], 1700000000, 1700003600, ["field"], "SUM")
+            config = self._query().query_field_graph_config([mock.Mock()], 1700000000, 1700003600, ["field"], "SUM", 60)
 
         self.assertEqual((config["start_time"], config["end_time"]), (1700000000, 1700003600))
         self.assertTrue(config["null_as_zero"])
         self.assertEqual(config["query_method"], "query_reference")
+
+    def test_graph_config_pushes_interval_down_to_each_metric_query(self):
+        """不下发 interval 时 grafana 按采集周期自动取点，时间范围拉长后数据点过密。"""
+        query = mock.Mock()
+        metric_query = query.alias.return_value.metric.return_value.group_by.return_value
+        added = mock.Mock(config={"start_time": 0, "end_time": 0})
+
+        with (
+            mock.patch.object(LLMQuery, "get_qs"),
+            mock.patch.object(LLMQuery, "_add_query", return_value=added) as add_query,
+        ):
+            self._query().query_field_graph_config([query], 1, 2, ["input", "output"], "SUM", 600)
+
+        metric_query.interval.assert_has_calls([mock.call(600), mock.call(600)])
+        self.assertEqual(add_query.call_args.args[1], [metric_query.interval.return_value] * 2)
 
     def test_graph_config_limits_series_when_grouped(self):
         qs = mock.Mock()
@@ -1589,6 +1634,6 @@ class LLMQueryTestCase(TestCase):
             mock.patch.object(LLMQuery, "get_qs", return_value=qs),
             mock.patch.object(LLMQuery, "_add_query", return_value=added),
         ):
-            self._query().query_field_graph_config([mock.Mock()], 1, 2, ["input", "output"], "SUM", ["model"])
+            self._query().query_field_graph_config([mock.Mock()], 1, 2, ["input", "output"], "SUM", 60, ["model"])
 
         self.assertEqual(qs.expression.call_args.args[0], "topk(20, (q0 or q1 * 0) + (q1 or q0 * 0))")

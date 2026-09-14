@@ -23,16 +23,9 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import type { LlmObservationKind, LlmTextItem } from './typings';
+import type { LlmTextItem } from './typings';
 
 /** LLM 观测通用解析 / 展示工具 */
-
-/** 模型类 operation.name */
-const MODEL_OPERATIONS = new Set(['chat', 'generate_content', 'text_completion', 'fetch_response', 'embeddings']);
-/** 工具类 operation.name */
-const TOOL_OPERATIONS = new Set(['execute_tool']);
-/** Agent 类 operation.name */
-const AGENT_OPERATIONS = new Set(['invoke_workflow', 'create_agent', 'invoke_agent', 'plan']);
 
 /**
  * @description 解析后递归展开对象 / 数组里看起来像 JSON 的字符串，便于展示美化
@@ -75,44 +68,6 @@ export function getByPath(source: unknown, path: string): unknown {
     if (!acc || typeof acc !== 'object') return undefined;
     return (acc as Record<string, unknown>)[key];
   }, source);
-}
-
-/**
- * @description 按 gen_ai.operation.name 区分模型 / 工具 / Agent 页面，未知值按模型页展示
- */
-export function getObservationKind(attributes: Record<string, unknown>): LlmObservationKind {
-  const name = String(getByPath(attributes, 'gen_ai.operation.name') || '')
-    .trim()
-    .toLowerCase();
-  if (TOOL_OPERATIONS.has(name)) return 'tool';
-  if (AGENT_OPERATIONS.has(name)) return 'agent';
-  if (MODEL_OPERATIONS.has(name)) return 'model';
-  return 'model';
-}
-
-/**
- * @description 从 Span 原始数据提取 attributes，兼容数组与对象两种后端结构
- */
-export function getSpanAttributes(originalData: null | Record<string, unknown>): Record<string, unknown> {
-  if (!originalData) return {};
-  const attrs = originalData.attributes;
-  if (Array.isArray(attrs)) {
-    return attrs.reduce<Record<string, unknown>>((acc, item) => {
-      if (!item || typeof item !== 'object') return acc;
-      const rec = item as Record<string, unknown>;
-      if (rec.key == null) return acc;
-      const queryValue = rec.query_value;
-      acc[String(rec.key)] =
-        Array.isArray(queryValue) || (queryValue && typeof queryValue === 'object')
-          ? queryValue
-          : (rec.value ?? queryValue);
-      return acc;
-    }, {});
-  }
-  if (attrs && typeof attrs === 'object') {
-    return attrs as Record<string, unknown>;
-  }
-  return {};
 }
 
 /** 是否为普通对象（排除数组 / null） */

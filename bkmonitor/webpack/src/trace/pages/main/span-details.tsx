@@ -31,6 +31,7 @@ import {
   computed,
   defineComponent,
   inject,
+  nextTick,
   onBeforeUnmount,
   onMounted,
   provide,
@@ -199,6 +200,9 @@ export default defineComponent({
     let spanDetailResponseCache: null | SpanDetailResponseCache = null;
 
     const detailSpan = computed<Span>(() => loadedSpan.value || props.spanDetails);
+
+    /** 后端补充的标准 LLM Span，仅命中 LLM 语义层级的 Span 才有 */
+    const llmDetail = computed(() => detailSpan.value?.llm_detail ?? null);
 
     function shouldLoadSpanDetail(span: Span): boolean {
       if (!span) return false;
@@ -1253,7 +1257,16 @@ export default defineComponent({
       </div>
     );
 
-    const tabList = [
+    const tabList = computed(() => [
+      ...(llmDetail.value
+        ? // LLM Span 以观测数据为主，排在基础信息之前
+          [
+            {
+              label: t('LLM 观测'),
+              name: 'LlmObservation',
+            },
+          ]
+        : []),
       {
         label: t('基础信息'),
         name: 'BasicInfo',
@@ -1287,7 +1300,15 @@ export default defineComponent({
       //   label: t('指标'),
       //   name: 'Index'
       // }
-    ];
+      ...(window.enable_apm_profiling
+        ? [
+            {
+              label: t('性能分析'),
+              name: 'Profiling',
+            },
+          ]
+        : []),
+    ]);
 
     // 快捷跳转文案
     const exploreButtonName = computed(() => {
@@ -1533,17 +1554,6 @@ export default defineComponent({
         </Popover>
       </div>
     );
-    if (window.enable_apm_profiling) {
-      tabList.push({
-        label: t('性能分析'),
-        name: 'Profiling',
-      });
-    }
-    tabList.push({
-      label: t('LLM 观测'),
-      name: 'LlmObservation',
-    });
-
     const detailsMain = () => {
       // profiling 查询起始时间根据 span 开始时间前后各推半小时
       const { start_time, end_time } = getProfilingTimeRange();
@@ -1666,7 +1676,7 @@ export default defineComponent({
                       handleActiveTabChange();
                     }}
                   >
-                    {tabList.map((item, index) => (
+                    {tabList.value.map((item, index) => (
                       <Tab.TabPanel
                         key={index}
                         v-slots={{
@@ -1892,7 +1902,7 @@ export default defineComponent({
                     }
                     {
                       // LLM 观测
-                      activeTab.value === 'LlmObservation' && (
+                      activeTab.value === 'LlmObservation' && llmDetail.value && (
                         <Loading
                           style='height: 100%;'
                           loading={isTabPanelLoading.value}
@@ -1900,12 +1910,7 @@ export default defineComponent({
                           {/* 由于视图早于数据先加载好会导致样式错乱，故 loading 完再加载视图 */}
                           {!isTabPanelLoading.value && (
                             <div class='host-tab-container'>
-                              <LlmObservation
-                                appName={appName.value}
-                                bkBizId={bizId.value}
-                                originalData={originalData.value}
-                                spanId={spanId.value}
-                              />
+                              <LlmObservation llmDetail={llmDetail.value} />
                             </div>
                           )}
                         </Loading>
@@ -2097,6 +2102,24 @@ export default defineComponent({
       val => {
         activeTab.value = val as TabName;
       }
+    );
+
+    // 每次打开详情都回到首个页签：LLM Span 优先展示观测数据，切到普通 Span 时回落，避免停留在已移除的页签上
+    // 关闭时 detailSpan 不会清空，只盯首个页签名会漏掉「同一个 Span 重新打开」，因此把 show 一并纳入触发源
+    watch(
+      [() => props.show, () => tabList.value[0].name],
+      ([show, name]) => {
+        if (!show) return;
+        // Tab 的面板实例在 onUpdated 才登记，同步切 active 会命中它「active 不在面板里就回退到首个面板」的兜底，
+        // 被反向 tabChange 成旧首项，因此等面板列表登记完再切
+        nextTick(() => {
+          // 外部指定过页签（如点事件图标进来）时不接管
+          if (activeTab.value === 'BasicInfo' || activeTab.value === 'LlmObservation') {
+            activeTab.value = name as TabName;
+          }
+        });
+      },
+      { immediate: true }
     );
 
     watch(

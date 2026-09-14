@@ -103,16 +103,17 @@ class LLMQuery(SpanQuery):
         end_time: int | None,
         fields: list[str],
         method: str,
+        interval: int,
         group_by: list[str] | None = None,
     ) -> dict[str, Any]:
         group_by = group_by or []
         expression: str = self._sum_expression(fields)
-        # 不指定 interval，由 grafana 按时间范围自动取点，与平台其余趋势图一致
         config: dict[str, Any] = self._add_query(
             self.get_qs(start_time, end_time)
             .expression(f"topk({self.SERIES_LIMIT}, {expression})" if group_by else expression)
             .time_agg(False),
-            self._metric_queries(queries, fields, method, group_by),
+            # 显式下发聚合周期，不走 grafana 的 auto：它按采集周期取点，时间范围拉长后数据点过密
+            [query.interval(interval) for query in self._metric_queries(queries, fields, method, group_by)],
         ).config
         config.update(
             {

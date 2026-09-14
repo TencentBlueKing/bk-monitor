@@ -18,6 +18,7 @@ from apm_web.llm.query import LLMQuery, get_query
 from apm_web.metric.resources import CalculateByRangeResource as MetricCalculateByRangeResource
 from apm_web.models import Application
 from apm_web.strategy.dispatch.entity import EntitySet
+from bkmonitor.data_source import get_auto_interval
 from bkmonitor.utils.thread_backend import InheritParentThread, run_threads
 
 
@@ -43,9 +44,7 @@ class ListTracesResource(Resource):
     @classmethod
     def _resolve_group_field(cls, entity_set: EntitySet, service_name: str, group_field: str) -> str:
         """分组字段命中映射表时按服务产品换算为存储中的原始字段，未命中时透传。"""
-        system: dict[str, Any] = entity_set.get_system(service_name)
-        product: str | None = system.get("product") if system.get("is_support_llm") else None
-        return resolve_query_field(product, group_field)
+        return resolve_query_field(resolve_product(entity_set, service_name), group_field)
 
     @staticmethod
     def _span_field_value(span: dict[str, Any], field: str) -> Any:
@@ -422,6 +421,15 @@ class LLMMetricRequestSerializer(serializers.Serializer):
     cal_type = serializers.ChoiceField(required=True, choices=sorted(LLMMetricGroup.AGGREGATIONS), label="指标类型")
     group_by = serializers.ListField(required=False, default=list, child=serializers.CharField(), label="聚合字段")
 
+    def validate_group_by(self, group_by: list[str]) -> list[str]:
+        # 出图与区间聚合都按单维度回填图例，多字段会在 target 上退化成只取第一个
+        if len(group_by) > 1:
+            raise serializers.ValidationError("暂不支持多字段聚合")
+        unsupported: set[str] = set(group_by) - LLMMetricGroup.GROUP_BY_FIELDS
+        if unsupported:
+            raise serializers.ValidationError(f"暂不支持按 {', '.join(sorted(unsupported))} 聚合")
+        return group_by
+
 
 class LLMMetricGroupMixin:
     """解析服务对应的产品，构造 LLM 指标组。"""
@@ -436,14 +444,15 @@ class LLMMetricGroupMixin:
             app_name=app_name,
             service_names=[service_name] if service_name else None,
         )
+        # 不指定服务时取应用下任一 LLM 服务的产品，否则字段映射会错落到标准名上
+        service_names: list[str] = [service_name] if service_name else entity_set.service_names
         return MetricGroupRegistry.get(
             GroupEnum.LLM.value,
             bk_biz_id,
             app_name,
             group_by=validated_request_data["group_by"],
             time_shift=time_shift,
-            # 不指定服务时按应用下全部服务定产品，否则字段映射会错落到标准名上
-            product=resolve_product(entity_set, [service_name] if service_name else entity_set.service_names),
+            product=next(filter(None, (resolve_product(entity_set, name) for name in service_names)), ""),
             service_name=service_name,
         )
 
@@ -451,11 +460,27 @@ class LLMMetricGroupMixin:
 class TimeSeriesResource(LLMMetricGroupMixin, Resource):
     """LLM 指标时序查询。"""
 
-    RequestSerializer = LLMMetricRequestSerializer
+    class RequestSerializer(LLMMetricRequestSerializer):
+        # 放大期望聚合周期，避免时间范围拉长后数据点过密，与事件时序图保持一致
+        INTERVAL_FACTOR = 10
+
+        interval = serializers.IntegerField(required=False, label="聚合周期")
+
+        def validate(self, attrs):
+            attrs = super().validate(attrs)
+            if not attrs.get("interval"):
+                attrs["interval"] = get_auto_interval(
+                    LLMMetricGroup.COLLECT_INTERVAL,
+                    attrs["start_time"],
+                    attrs["end_time"],
+                    factor=self.INTERVAL_FACTOR,
+                )
+            return attrs
 
     def perform_request(self, validated_request_data):
         return self._get_group(validated_request_data).time_series(
             validated_request_data["cal_type"],
+            validated_request_data["interval"],
             start_time=validated_request_data["start_time"],
             end_time=validated_request_data["end_time"],
         )
@@ -487,9 +512,10 @@ class CalculateByRangeResource(LLMMetricGroupMixin, MetricCalculateByRangeResour
     @classmethod
     def format_value(cls, metric_cal_type: str, value: Any) -> float:
         """计数类算子取整：基类只认调用分析的 request_total，LLM 的计数算子用的是自己的取值名。"""
+        formatted: float = super().format_value(metric_cal_type, value)
         if metric_cal_type in LLMMetricGroup.COUNT_CALCULATION_TYPES:
-            return int(super().format_value(metric_cal_type, value))
-        return cls.format_value(metric_cal_type, value)
+            return int(formatted)
+        return formatted
 
     def perform_request(self, validated_request_data):
         def _collect(_alias: str, **_kwargs):

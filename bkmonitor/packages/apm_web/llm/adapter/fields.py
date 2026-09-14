@@ -2,18 +2,12 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterable
 from typing import TYPE_CHECKING, Any
 
-from opentelemetry.semconv.resource import ResourceAttributes
-
-from constants.apm import LLMProduct, OtlpKey
+from constants.apm import LLMProduct
 
 if TYPE_CHECKING:
     from apm_web.strategy.dispatch.entity import EntitySet
-
-# 一次查询涉及多个产品时的取用顺序。
-PRODUCT_PRIORITY = (LLMProduct.GALILEO, LLMProduct.AIDEV, LLMProduct.AGENTLENS, LLMProduct.LANGFUSE)
 
 # 能判定为 Agent 观测数据的 Span：各产品的埋点标记字段取并集，用于不区分层级的筛选与计数。
 AGENT_CANDIDATE_QUERY = (
@@ -25,31 +19,33 @@ AGENT_CANDIDATE_QUERY = (
 )
 
 
-def resolve_product(entity_set: EntitySet, service_names: Iterable[str]) -> str:
-    """根据服务的拓扑节点信息选择产品，均非 LLM 服务时落到 default。"""
-    systems: list[dict[str, Any]] = [
-        entity_set.get_system(service_name)
-        for service_name in set(service_names).intersection(entity_set.service_names)
-    ]
-    products: set[str] = {
-        product for system in systems if system.get("is_support_llm") and (product := system.get("product"))
-    }
-    for product in PRODUCT_PRIORITY:
-        if product.value in products:
-            return product.value
-    return LLMProduct.DEFAULT.value
+# gen_ai.operation.name -> Span 语义层级，未登记的取值（检索、任务等）不归类。
+SPAN_TYPES: dict[str, str] = {
+    "invoke_workflow": "AGENT",
+    "create_agent": "AGENT",
+    "invoke_agent": "AGENT",
+    "plan": "AGENT",
+    "execute_tool": "TOOL",
+    "chat": "LLM",
+    "generate_content": "LLM",
+    "text_completion": "LLM",
+    "fetch_response": "LLM",
+    "embeddings": "LLM",
+}
 
 
-def detect_product(entity_set: EntitySet, spans: list[dict[str, Any]]) -> str:
-    """根据 Span 所属服务的拓扑节点信息，为整条 Trace 选择转换器。"""
-    return resolve_product(
-        entity_set,
-        {
-            service_name
-            for span in spans
-            if (service_name := span.get(OtlpKey.RESOURCE, {}).get(ResourceAttributes.SERVICE_NAME))
-        },
-    )
+def resolve_product(entity_set: EntitySet, service_name: str) -> str:
+    """取服务拓扑节点上登记的 LLM 产品，非 LLM 服务返回空串。"""
+    if service_name not in entity_set.service_names:
+        return ""
+    system: dict[str, Any] = entity_set.get_system(service_name)
+    return system.get("product") or "" if system.get("is_support_llm") else ""
+
+
+def resolve_span_type(attributes: dict[str, Any]) -> str:
+    """按标准化后的 operation.name 归类 Span，未登记的取值返回空串。"""
+    # AgentLens 的 operation.name 上报为大写，统一转小写后再查表
+    return SPAN_TYPES.get(str(attributes.get("gen_ai.operation.name", "")).strip().lower(), "")
 
 
 # 分组字段映射：标准字段 -> 产品 -> 存储中的原始字段，只登记与标准名不一致的产品。
@@ -74,10 +70,8 @@ QUERY_FIELD_MAPPING: dict[str, dict[str, str]] = {
 }
 
 
-def resolve_query_field(product: str | None, field: str) -> str:
-    """命中映射表时按产品换算为存储中的原始字段，未命中时原样透传。"""
-    if product is None:
-        return field
+def resolve_query_field(product: str, field: str) -> str:
+    """命中映射表时按产品换算为存储中的原始字段，未命中（含非 LLM 服务）时原样透传。"""
     return QUERY_FIELD_MAPPING.get(field, {}).get(product, field)
 
 

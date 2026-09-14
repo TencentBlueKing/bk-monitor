@@ -107,11 +107,28 @@
 }
 
 .llm-overview-card-title {
+  display: flex;
+  align-items: center;
   font-family: 'PingFang SC', sans-serif;
   font-size: 14px;
   font-weight: 500;
   line-height: 22px;
   color: #313238;
+}
+
+.llm-overview-card-interval {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 16px;
+  padding: 0 2px;
+  margin-left: 8px;
+  font-size: 12px;
+  font-weight: normal;
+  line-height: 16px;
+  color: #63656e;
+  background-color: #f0f1f5;
+  border-radius: 2px;
 }
 
 .llm-overview-card-extra {

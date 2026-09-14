@@ -18,7 +18,6 @@ from typing import Any
 
 from opentelemetry.semconv.resource import ResourceAttributes
 
-from bkmonitor.data_source import get_auto_interval
 from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder
 from bkmonitor.utils.time_tools import parse_time_compare_abbreviation
 from constants.apm import LLMProduct, OtlpKey
@@ -146,6 +145,9 @@ class LLMMetricGroup(base.BaseMetricGroup):
         define.CalculationType.REQUEST_COUNT.value: Aggregation(Layer.AGENT, "DISTINCT", field=OtlpKey.TRACE_ID),
     }
 
+    # 可聚合的维度：其余标准字段要么是高基数明细，要么没有跨产品的映射，暂不开放
+    GROUP_BY_FIELDS: frozenset[str] = frozenset({"gen_ai.operation.name", "gen_ai.response.model"})
+
     # 计数类算子的结果必须是整型：基类的 format_value 只认 REQUEST_TOTAL，其余会按浮点保留两位
     COUNT_CALCULATION_TYPES: frozenset[str] = frozenset(
         {
@@ -189,15 +191,19 @@ class LLMMetricGroup(base.BaseMetricGroup):
         return functools.partial(self._aggregate, self._get_aggregation(calculation_type))
 
     def time_series(
-        self, calculation_type: str, start_time: int | None = None, end_time: int | None = None
+        self, calculation_type: str, interval: int, start_time: int | None = None, end_time: int | None = None
     ) -> dict[str, Any]:
         """时序数据：默认下推到存储侧出图，存储侧聚合不了的产品本地聚合。"""
         aggregation: Aggregation = self._get_aggregation(calculation_type)
         start_time, end_time = self._shift(start_time, end_time)
+        # 回传聚合周期，前端按「数据步长」展示
+        query_config: dict[str, Any] = {"interval": interval}
         if self._is_local_aggregation(aggregation):
-            # 与 grafana 出图时的自动取点保持同一套周期，两条路径的分桶才对得上
-            interval: int = get_auto_interval(self.COLLECT_INTERVAL, start_time, end_time)
-            return {"metrics": [], "series": self._local_series(aggregation, start_time, end_time, interval)}
+            return {
+                "metrics": [],
+                "series": self._local_series(aggregation, start_time, end_time, interval),
+                "query_config": query_config,
+            }
 
         response: dict[str, Any] = resource.grafana.graph_unify_query(
             self.query.query_field_graph_config(
@@ -206,10 +212,15 @@ class LLMMetricGroup(base.BaseMetricGroup):
                 end_time,
                 self._fields(aggregation),
                 aggregation.method,
+                interval,
                 self.group_fields,
             )
         )
-        return {**response, "series": [self._standardize_series(item) for item in response.get("series") or []]}
+        return {
+            **response,
+            "series": [self._standardize_series(item) for item in response.get("series") or []],
+            "query_config": query_config,
+        }
 
     def _get_aggregation(self, calculation_type: str) -> Aggregation:
         if calculation_type not in self.AGGREGATIONS:

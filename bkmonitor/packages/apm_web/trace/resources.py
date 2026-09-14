@@ -34,6 +34,7 @@ from apm_web.handlers.trace_handler.query import (
     TraceQueryTransformer,
 )
 from apm_web.handlers.trace_handler.view_config import TraceFieldsHandler
+from apm_web.llm.detail import attach_llm_detail
 from apm_web.models import Application
 from apm_web.models.trace import TraceComparison
 from apm_web.trace.serializers import (
@@ -505,6 +506,12 @@ class TraceDetailResource(Resource):
             validated_request_data["bk_biz_id"],
             validated_request_data["app_name"],
         )
+        attach_llm_detail(
+            validated_request_data["bk_biz_id"],
+            validated_request_data["app_name"],
+            handled_data["trace_tree"],
+            handled_data["original_data"],
+        )
         return handled_data
 
 
@@ -516,7 +523,15 @@ class SpanDetailResource(Resource):
 
     def perform_request(self, validated_request_data):
         span = api.apm_api.query_span_detail(**validated_request_data)
-        return TraceHandler.handle_span(validated_request_data["app_name"], span)
+        handled_data = TraceHandler.handle_span(validated_request_data["app_name"], span)
+        if handled_data:
+            attach_llm_detail(
+                validated_request_data["bk_biz_id"],
+                validated_request_data["app_name"],
+                handled_data["trace_tree"],
+                [span],
+            )
+        return handled_data
 
 
 class TraceDiagramResource(Resource):
