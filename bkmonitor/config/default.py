@@ -526,6 +526,10 @@ IS_AUTO_DEPLOY_CUSTOM_REPORT_SERVER = True
 
 # 集群内上报固定域名
 CUSTOM_REPORT_DEFAULT_K8S_CLUSTER_SERVICE = "bkm-collector.bkmonitor-operator"
+# 集群内上报服务配置
+CUSTOM_REPORT_DEFAULT_K8S_CLUSTER_SERVICE_CONFIGS = [
+    {"endpoint": "bkm-collector.bkmonitor-operator", "alias": "集群内服务"},
+]
 
 # 监控内置可观测数据上报Redis Key TODO：联调时赋予默认值，后续更改
 BUILTIN_DATA_RT_REDIS_KEY = os.getenv(

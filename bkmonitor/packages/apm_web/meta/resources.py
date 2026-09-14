@@ -1692,35 +1692,47 @@ class PushUrlResource(Resource):
         {"tags": ["grpc", "opentelemetry"], "port": "4317", "path": ""},
         {"tags": ["http", "opentelemetry"], "port": "4318", "path": "/v1/traces"},
     ]
+    SIMPLE_PUSH_URL_CONFIGS = [{"tags": [PluginEnum.OPENTELEMETRY.id], "port": None, "path": ""}]
     CLOUD_AREA_ZERO_ALIAS = "内网"
-    CLUSTER_PUSH_URL_ALIAS = "集群内服务"
 
-    @classmethod
-    def get_proxy_infos(cls, bk_biz_id):
+    def get_proxy_endpoints(self, bk_biz_id, endpoint_configs):
+        # 默认区域上报地址
+        default_cloud_display = settings.CUSTOM_REPORT_DEFAULT_PROXY_DOMAIN or settings.CUSTOM_REPORT_DEFAULT_PROXY_IP
+        default_proxy_infos = [{"ip": proxy_ip, "bk_cloud_id": 0} for proxy_ip in default_cloud_display]
+
+        # 业务下的 Proxy 上报地址
         proxy_host_infos = []
         try:
             proxy_hosts = api.node_man.get_proxies_by_biz(bk_biz_id=bk_biz_id)
-            for host in proxy_hosts:
-                bk_cloud_id = int(host["bk_cloud_id"])
-                ip = host.get("conn_ip") or host.get("inner_ip")
-                proxy_host_infos.append({"ip": ip, "bk_cloud_id": bk_cloud_id})
+            proxy_host_infos = [
+                {
+                    "ip": host.get("conn_ip") or host.get("inner_ip"),
+                    "bk_cloud_id": int(host["bk_cloud_id"]),
+                }
+                for host in proxy_hosts
+            ]
         except Exception as e:
             logger.exception(e)
 
-        default_cloud_display = settings.CUSTOM_REPORT_DEFAULT_PROXY_IP
-        if settings.CUSTOM_REPORT_DEFAULT_PROXY_DOMAIN:
-            default_cloud_display = settings.CUSTOM_REPORT_DEFAULT_PROXY_DOMAIN
-        for proxy_ip in default_cloud_display:
-            proxy_host_infos.insert(0, {"ip": proxy_ip, "bk_cloud_id": 0})
+        # 添加集群内上报 endpoint（在默认区域 0 之后）
+        cluster_service_configs = getattr(settings, "CUSTOM_REPORT_DEFAULT_K8S_CLUSTER_SERVICE_CONFIGS", [])
+        cluster_proxy_infos = [
+            {
+                "push_url": self.generate_endpoint(service["endpoint"], config["port"], config["path"]),
+                "tags": config["tags"],
+                "bk_cloud_id": 0,
+                "bk_cloud_alias": service["alias"],
+            }
+            for service, config in itertools.product(cluster_service_configs, endpoint_configs)
+        ]
 
-        # 添加集群内上报域名（在默认区域0之后）
-        cluster_domain = getattr(settings, "CUSTOM_REPORT_DEFAULT_K8S_CLUSTER_SERVICE", "")
-        if cluster_domain:
-            proxy_host_infos.insert(
-                len(default_cloud_display) if default_cloud_display else 0, {"ip": cluster_domain, "bk_cloud_id": 0}
-            )
-
-        return proxy_host_infos
+        cloud_alias_map = self._get_cloud_alias_map()
+        # 按默认区域、集群内服务、业务 Proxy 的顺序返回
+        return (
+            self._get_endpoints(default_proxy_infos, endpoint_configs, cloud_alias_map)
+            + cluster_proxy_infos
+            + self._get_endpoints(proxy_host_infos, endpoint_configs, cloud_alias_map)
+        )
 
     @classmethod
     def generate_endpoint(cls, ip: str, port: int | str | None = None, path: str | None = None) -> str:
@@ -1754,29 +1766,23 @@ class PushUrlResource(Resource):
         if ip in (default_cloud_display or []):
             return self.CLOUD_AREA_ZERO_ALIAS
 
-        # 判断是否为集群内域名
-        cluster_domain = getattr(settings, "CUSTOM_REPORT_DEFAULT_K8S_CLUSTER_SERVICE", "")
-        if cluster_domain and ip == cluster_domain:
-            return self.CLUSTER_PUSH_URL_ALIAS
-
         # 其他代理：使用云区域名称
         if bk_cloud_id == 0:
             return self.CLOUD_AREA_ZERO_ALIAS
         else:
             return cloud_alias_map.get(bk_cloud_id, "")
 
-    def _get_default_endpoints(self, proxy_infos: list[dict[str, Any]]) -> list[dict[str, Any]]:
-        endpoints: list[dict[str, Any]] = []
-        # 获取云区域别名映射
-        cloud_alias_map = self._get_cloud_alias_map()
-
-        for proxy_info, config in itertools.product(proxy_infos, self.PUSH_URL_CONFIGS):
+    def _get_endpoints(
+        self,
+        proxy_infos: list[dict[str, Any]],
+        configs: list[dict[str, Any]],
+        cloud_alias_map: dict[int, str],
+    ) -> list[dict[str, Any]]:
+        endpoints = []
+        for proxy_info, config in itertools.product(proxy_infos, configs):
             bk_cloud_id = proxy_info["bk_cloud_id"]
             ip = proxy_info["ip"]
-
-            # 生成别名
             alias = self._generate_alias(ip, bk_cloud_id, cloud_alias_map)
-
             endpoints.append(
                 {
                     "push_url": self.generate_endpoint(ip, config["port"], config["path"]),
@@ -1787,39 +1793,19 @@ class PushUrlResource(Resource):
             )
         return endpoints
 
-    def _get_simple_endpoints(self, proxy_infos: list[dict[str, Any]]):
-        deplicate_keys: set[str] = set()
-        endpoints: list[dict[str, Any]] = []
-        # 获取云区域别名映射
-        cloud_alias_map = self._get_cloud_alias_map()
-
-        for proxy_info in proxy_infos:
-            deplicate_key: str = f"{proxy_info['bk_cloud_id']}-{proxy_info['ip']}"
-            if deplicate_key in deplicate_keys:
-                continue
-            deplicate_keys.add(deplicate_key)
-
-            bk_cloud_id = proxy_info["bk_cloud_id"]
-            ip = proxy_info["ip"]
-
-            # 生成别名
-            alias = self._generate_alias(ip, bk_cloud_id, cloud_alias_map)
-
-            endpoints.append(
-                {
-                    "push_url": self.generate_endpoint(ip),
-                    "tags": [PluginEnum.OPENTELEMETRY.id],
-                    "bk_cloud_id": bk_cloud_id,
-                    "bk_cloud_alias": alias,
-                }
-            )
-        return endpoints
-
     def perform_request(self, validated_request_data):
-        proxy_infos: list[dict[str, Any]] = self.get_proxy_infos(validated_request_data["bk_biz_id"])
-        return {FormatType.DEFAULT: self._get_default_endpoints, FormatType.SIMPLE: self._get_simple_endpoints}[
-            validated_request_data["format_type"]
-        ](proxy_infos)
+        format_type = validated_request_data["format_type"]
+        match format_type:
+            case FormatType.DEFAULT:
+                endpoint_configs = self.PUSH_URL_CONFIGS
+            case FormatType.SIMPLE:
+                endpoint_configs = self.SIMPLE_PUSH_URL_CONFIGS
+            case _:
+                # 复刻旧代码，没有对应的 formatType 的报错
+                raise KeyError(format_type)
+        endpoints = self.get_proxy_endpoints(validated_request_data["bk_biz_id"], endpoint_configs)
+        # 去重
+        return list({(endpoint["push_url"], endpoint["bk_cloud_id"]): endpoint for endpoint in endpoints}.values())
 
 
 class QueryBkDataToken(Resource):
