@@ -15,6 +15,7 @@ class TestTGPATaskDownloadFileName(SimpleTestCase):
                 {
                     "file_name": "ENQ_file_3025221.zip",
                     "openid": "openid_1",
+                    "created_by": "zhangsan",
                     "created_at": "2026-04-24 12:00:00",
                 }
             ],
@@ -22,7 +23,7 @@ class TestTGPATaskDownloadFileName(SimpleTestCase):
 
         result = TGPATaskHandler.get_download_file_name(2, "ENQ_file_3025221.zip")
 
-        self.assertEqual(result, "ENQ_file_3025221_openid_1_20260424120000.zip")
+        self.assertEqual(result, "task_openid_1_3025221_zhangsan_20260424120000.zip")
         mock_get_task_page.assert_called_once_with(
             {"bk_biz_id": 2, "task_id": "3025221", "pagesize": 1},
             need_format=False,
@@ -37,6 +38,7 @@ class TestTGPATaskDownloadFileName(SimpleTestCase):
                 {
                     "file_name": "ENQ_file_1.zip",
                     "openid": 'openid/with spaces\r\n"',
+                    "created_by": "creator/with spaces",
                     "created_at": "2026-04-24 12:00:00",
                 }
             ],
@@ -44,7 +46,7 @@ class TestTGPATaskDownloadFileName(SimpleTestCase):
 
         result = TGPATaskHandler.get_download_file_name(2, "ENQ_file_1.zip")
 
-        self.assertEqual(result, "ENQ_file_1_openid_with_spaces_20260424120000.zip")
+        self.assertEqual(result, "task_openid_with_spaces_1_creator_with_spaces_20260424120000.zip")
 
     @patch.object(TGPATaskHandler, "get_task_page")
     def test_keep_report_file_name_without_querying_task(self, mock_get_task_page):

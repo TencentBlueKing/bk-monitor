@@ -341,7 +341,7 @@ class TGPATaskHandler:
 
     @classmethod
     def get_download_file_name(cls, bk_biz_id, file_name):
-        """为单用户日志捞取任务生成包含 OPENID 和创建时间的下载文件名。"""
+        """为单用户日志捞取任务生成便于识别归属的下载文件名。"""
         original_file_name = os.path.basename(file_name)
         matched = re.fullmatch(r"ENQ_file_(\d+)\.zip", original_file_name)
         if not matched:
@@ -359,12 +359,13 @@ class TGPATaskHandler:
                 add_process_info=False,
             )["list"][0]
             openid = cls._sanitize_download_file_name_part(task["openid"])
-            if not openid:
+            created_by = cls._sanitize_download_file_name_part(task["created_by"])
+            if not openid or not created_by:
                 return original_file_name
 
             create_time = arrow.get(task["created_at"], tzinfo=settings.TIME_ZONE).strftime("%Y%m%d%H%M%S")
-            file_stem, file_extension = os.path.splitext(original_file_name)
-            return f"{file_stem}_{openid}_{create_time}{file_extension}"
+            file_extension = os.path.splitext(original_file_name)[1]
+            return f"task_{openid}_{task_id}_{created_by}_{create_time}{file_extension}"
         except Exception:
             logger.warning(
                 "Failed to build TGPA download file name, bk_biz_id=%s, task_id=%s",
