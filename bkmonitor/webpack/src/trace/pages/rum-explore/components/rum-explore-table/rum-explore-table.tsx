@@ -152,6 +152,8 @@ export default defineComponent({
     scrollToEnd: () => true,
     /** 点击清空检索条件 */
     clearFilter: () => true,
+    /** 点击 Span 名称，打开该行的详情抽屉 */
+    openDetail: (_row: Record<string, unknown>) => true,
   },
   setup(props, { emit }) {
     const { t } = useI18n();
@@ -187,6 +189,7 @@ export default defineComponent({
       {
         fieldMap,
         onCellFilter: (colKey, value) => emit('conditionChange', { key: colKey, method: 'equal', value }),
+        onOpenDetail: row => emit('openDetail', row),
         onFieldAnalysis: (trigger, field) => openPopover(trigger, field as unknown as IStatisticsFieldItem),
       }
     );

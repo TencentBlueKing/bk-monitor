@@ -31,6 +31,7 @@ import { useRoute } from 'vue-router';
 import RetrievalFilter from '../../components/retrieval-filter/retrieval-filter';
 import { type IHandleGetUserConfig, EMethod, EMode } from '../../components/retrieval-filter/typing';
 import { traceWhereChangeFormatter, traceWhereFormatter } from '../../components/retrieval-filter/utils';
+import { handleTransformToTimestamp } from '../../components/time-range/utils';
 import useUserConfig from '../../hooks/useUserConfig';
 import { updateTimezone } from '../../i18n/dayjs';
 import { useRumExploreStore } from '../../store/modules/rum-explore';
@@ -57,11 +58,14 @@ import {
   RUM_COLUMN_LAYOUT_PRESET,
   RUM_RESIDENT_SETTING_KEY,
   RumModeEnum,
+  SPAN_TYPE_FIELD,
 } from './constants';
+import RumSpanDetailSlider from './detail';
 import { getApplicationList } from './services/rum-application';
 import EmptyStatus from '@/components/empty-status/empty-status';
 
 import type { ConditionChangeEvent } from '../trace-explore/typing';
+import type { IRumDetailContext } from './detail';
 import type { IRumApplication, IRumColumnLayoutPreset } from './typings';
 
 import './rum-explore.scss';
@@ -82,6 +86,9 @@ export default defineComponent({
     const { handleGetUserConfig: getResidentConfig, handleSetUserConfig: setResidentConfig } = useUserConfig();
 
     const isCollapsed = shallowRef(false);
+    /** Span 详情抽屉的上下文，为 null 时抽屉关闭 */
+    const detailContext = shallowRef<IRumDetailContext | null>(null);
+    const detailShow = shallowRef(false);
     const applicationLoading = shallowRef(false);
     const applicationList = shallowRef<IRumApplication[]>([]);
     const thumbtackList = shallowRef<string[]>([]);
@@ -283,6 +290,22 @@ export default defineComponent({
       );
     }
 
+    /**
+     * 打开 Span 详情：详情所需的应用、记录 ID、类型与时间都能从列表行与当前查询条件里取到，
+     * 不额外请求列表接口。
+     */
+    function handleOpenDetail(row: Record<string, unknown>) {
+      const [startTime, endTime] = handleTransformToTimestamp(store.timeRange);
+      detailContext.value = {
+        app_name: store.appName,
+        record_id: String(row?.span_id ?? ''),
+        span_type: String(row?.[SPAN_TYPE_FIELD] ?? ''),
+        start_time: startTime,
+        end_time: endTime,
+      };
+      detailShow.value = true;
+    }
+
     function handleSortChange(sort: string | string[]) {
       tableCtx.handleSortChange(sort);
       queryCtx.setUrlParams();
@@ -332,6 +355,8 @@ export default defineComponent({
       applicationList,
       applicationLoading,
       columnConfig,
+      detailContext,
+      detailShow,
       emptyType,
       layoutPreset,
       isSpanSpecialPerspective,
@@ -355,6 +380,7 @@ export default defineComponent({
       handleAppNameChange,
       handleConditionChange,
       handleModeChange,
+      handleOpenDetail,
       handleSortChange,
       handleSpanTypeChange,
       handleThumbtackChange,
@@ -517,6 +543,7 @@ export default defineComponent({
                               onColumnResizeChange={width => this.columnConfig.updateColumnResizeWidth(width)}
                               onConditionChange={this.handleConditionChange}
                               onDisplayFieldChange={fields => this.columnConfig.updateDisplayFields(fields)}
+                              onOpenDetail={this.handleOpenDetail}
                               onScrollToEnd={tableCtx.handleScrollToEnd}
                               onSortChange={this.handleSortChange}
                             />
@@ -532,6 +559,18 @@ export default defineComponent({
             )}
           </div>
         </div>
+
+        <RumSpanDetailSlider
+          context={this.detailContext}
+          fields={viewConfigCtx.viewConfig.value.fields}
+          isShow={this.detailShow}
+          mode={this.store.mode}
+          onConditionAdd={(key, value) => this.handleConditionChange({ key, method: EMethod.eq, value }, false)}
+          onUpdate:isShow={show => {
+            this.detailShow = show;
+            if (!show) this.detailContext = null;
+          }}
+        />
 
         <EditFavorite
           data={favoriteCtx.editFavoriteData.value}

@@ -57,13 +57,16 @@ export class SpanScenario extends BaseScenario {
   readonly privateClassName = 'span-table';
   readonly rowKey = 'span_id';
   protected columnOverrides: Record<string, BaseTableColumn> = {
-    /** 链接列：点击把值加为检索条件 */
+    /**
+     * 链接列：点击打开 Span 详情抽屉。
+     * 「加为检索条件」改由右键菜单承担（CLICK 类型列的右键菜单与普通单元格左键菜单是同一套）。
+     */
     ...Object.fromEntries(
       [...RUM_LINK_FIELDS].map((key): [string, BaseTableColumn] => [
         key,
         {
           renderType: ExploreTableColumnTypeEnum.CLICK,
-          clickCallback: (row, _column, _event) => this.context.onCellFilter(key, `${row?.[key] ?? ''}`),
+          clickCallback: (row, _column, _event) => this.context.onOpenDetail(row),
         },
       ])
     ),
@@ -112,6 +115,8 @@ export class SpanScenario extends BaseScenario {
     protected readonly context: {
       /** 点击链接类单元格，把值加为检索条件 */
       onCellFilter: (colKey: string, value: string) => void;
+      /** 点击 Span 名称单元格，打开该行的详情抽屉 */
+      onOpenDetail: (row: Record<string, unknown>) => void;
     } & BaseScenario['context']
   ) {
     super(context);
