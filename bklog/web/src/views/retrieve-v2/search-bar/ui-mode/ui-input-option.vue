@@ -1717,6 +1717,7 @@
           class="save-btn"
           :disabled="!isSaveBtnActive"
           theme="primary"
+          @mousedown.native.prevent
           @click.stop="handelSaveBtnClick"
         >
           {{ $t('确定') }} {{ getOsCommandLabel() }} + Enter
