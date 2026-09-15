@@ -1,11 +1,13 @@
 import json
 import threading
 from types import SimpleNamespace
+from unittest.mock import MagicMock
 
 import pytest
 from rest_framework.exceptions import ValidationError
 
 from fta_web.alert import resources as alert_resources
+from fta_web.alert.handlers.base import BaseQueryHandler
 from fta_web.alert.resources import (
     AlertDetailResource,
     AlertRelatedInfoResource,
@@ -46,6 +48,32 @@ class TestAlertTopNResource:
 
         serializer.is_valid(raise_exception=True)
         assert len(serializer.validated_data["fields"]) == 20
+
+    def test_sliced_top_n_excludes_empty_bucket_without_cardinality(self, monkeypatch):
+        handler = alert_resources.AlertQueryHandler(bk_biz_ids=None, need_bucket_count=False)
+        search_object = MagicMock()
+        search_object.params.return_value = search_object
+        search_object.extra.return_value = search_object
+        search_object.execute.return_value = SimpleNamespace(
+            hits=SimpleNamespace(total=SimpleNamespace(value=105)),
+            aggs=SimpleNamespace(
+                alert_name=SimpleNamespace(
+                    buckets=[
+                        SimpleNamespace(key="", doc_count=100),
+                        SimpleNamespace(key="normal", doc_count=5),
+                    ]
+                )
+            ),
+        )
+        monkeypatch.setattr(handler, "get_search_object", lambda: search_object)
+        monkeypatch.setattr(handler, "add_conditions", lambda value: value)
+        monkeypatch.setattr(handler, "add_query_string", lambda value: value)
+        monkeypatch.setattr(handler, "add_agg_bucket", lambda *_args, **_kwargs: None)
+
+        result = BaseQueryHandler.top_n(handler, ["alert_name"], size=10, translators={}, char_add_quotes=False)
+
+        assert result["fields"][0]["bucket_count"] is None
+        assert result["fields"][0]["buckets"] == [{"id": "normal", "name": "normal", "count": 5}]
 
     def test_request_serializer_rejects_prefixed_nested_fields(self):
         serializer = AlertTopNResource.RequestSerializer(

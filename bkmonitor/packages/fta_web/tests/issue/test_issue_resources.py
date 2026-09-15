@@ -1032,6 +1032,37 @@ class TestIssueTopNResource:
     START_TIME = 1711900800
     END_TIME = START_TIME + 10 * 24 * 3600
 
+    def test_sliced_top_n_excludes_empty_bucket_without_cardinality(self, monkeypatch):
+        from types import SimpleNamespace
+        from unittest.mock import MagicMock
+
+        from fta_web.issue import resources as issue_resources
+
+        handler = issue_resources.IssueQueryHandler(bk_biz_ids=None, need_bucket_count=False)
+        search_object = MagicMock()
+        search_object.params.return_value = search_object
+        search_object.extra.return_value = search_object
+        search_object.execute.return_value = SimpleNamespace(
+            hits=SimpleNamespace(total=SimpleNamespace(value=105)),
+            aggs=SimpleNamespace(
+                name=SimpleNamespace(
+                    buckets=[
+                        SimpleNamespace(key="", doc_count=100),
+                        SimpleNamespace(key="normal", doc_count=5),
+                    ]
+                )
+            ),
+        )
+        monkeypatch.setattr(handler, "get_search_object", lambda: search_object)
+        monkeypatch.setattr(handler, "add_conditions", lambda value: value)
+        monkeypatch.setattr(handler, "add_query_string", lambda value: value)
+        monkeypatch.setattr(handler, "add_agg_bucket", lambda *_args, **_kwargs: None)
+
+        result = handler.top_n(["name"], size=10, translators={"unused": object()}, char_add_quotes=False)
+
+        assert result["fields"][0]["bucket_count"] is None
+        assert result["fields"][0]["buckets"] == [{"id": "normal", "name": "normal", "count": 5}]
+
     def test_bucket_count_gets_full_time_range_when_partitioned(self, monkeypatch):
         # 基数聚合无法由分片结果相加得到，子线程必须拿到完整时间范围；主线程紧随其后就会
         # pop 掉 start/end 换成分片区间，共享同一 dict 时覆盖区间会随线程调度漂移。
