@@ -182,7 +182,7 @@ export const STATUS_LIST = {
     label: '观察中',
     key: 'recovering',
     icon: 'mc-visual',
-  }, 
+  },
   已恢复: {
     color: '#1CAB88',
     bgColor: '#E8FFF5',
@@ -197,6 +197,16 @@ export const STATUS_LIST = {
     icon: 'mc-solved',
   },
 };
+
+/** 需要点击跳转页面的事件类型（链接占位，后续替换） */
+export const EVENTS_NEED_JUMP_PAGE = new Set(['tmp_events', 'alert_system_events', 'k8s_warning_events']);
+
+/** 需要点击打开全部子事件侧滑的事件类型（保持现有行为） */
+export const EVENTS_NEED_ALL_SUB_EVENTS = new Set([
+  'incident_manage_events',
+  'incident_ticket_events',
+  'tencent_cloud_notice_events',
+]);
 
 export const EVENTS_TYPE_MAP = {
   general: {
