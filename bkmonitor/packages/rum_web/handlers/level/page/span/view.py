@@ -184,19 +184,19 @@ class ViewLoadingTimingSection(BaseSection):
 
     def _build_phases(self) -> list[dict[str, Any]]:
         prepare_duration = self.get_numeric_value("attributes.vital.ttfb.waiting_duration")
-        dns_duration = self.get_numeric_value("attributes.vital.ttfb.dns_duration")
-        connect_duration = self.get_numeric_value("attributes.vital.ttfb.connection_duration")
+        vital_value = self.get_numeric_value("attributes.vital.value")
         first_byte_duration = self.get_numeric_value("attributes.vital.ttfb.request_duration")
-        ttfb_value = self.get_numeric_value("attributes.vital.value")
-
-        first_byte_start = ttfb_value - first_byte_duration
+        first_byte_start = vital_value - first_byte_duration
+        connect_duration = self.get_numeric_value("attributes.vital.ttfb.connection_duration")
         connect_start = first_byte_start - connect_duration
+        dns_duration = self.get_numeric_value("attributes.vital.ttfb.dns_duration")
         dns_start = connect_start - dns_duration
-
-        view_first_byte = self.get_numeric_value("attributes.view.first_byte")
-        dom_content_loaded = self.get_numeric_value("attributes.view.dom_content_loaded")
-        load_event = self.get_numeric_value("attributes.view.load_event")
-        loading_time = self.get_numeric_value("attributes.view.loading_time")
+        dom_processing_start = self.get_numeric_value("attributes.view.first_byte")
+        dom_processing_duration = self.get_numeric_value("attributes.view.dom_content_loaded") - dom_processing_start
+        resource_load_start = self.get_numeric_value("attributes.view.dom_content_loaded")
+        resource_load_duration = self.get_numeric_value("attributes.view.load_event") - resource_load_start
+        page_stable_start = self.get_numeric_value("attributes.view.load_event")
+        page_stable_duration = self.get_numeric_value("attributes.view.loading_time") - page_stable_start
 
         return [
             {"key": "prepare", "alias": self.PHASE_ALIASES["prepare"], "start": 0, "duration": prepare_duration},
@@ -216,20 +216,20 @@ class ViewLoadingTimingSection(BaseSection):
             {
                 "key": "dom_processing",
                 "alias": self.PHASE_ALIASES["dom_processing"],
-                "start": view_first_byte,
-                "duration": dom_content_loaded - view_first_byte,
+                "start": dom_processing_start,
+                "duration": dom_processing_duration,
             },
             {
                 "key": "resource_load",
                 "alias": self.PHASE_ALIASES["resource_load"],
-                "start": dom_content_loaded,
-                "duration": load_event - dom_content_loaded,
+                "start": resource_load_start,
+                "duration": resource_load_duration,
             },
             {
                 "key": "page_stable",
                 "alias": self.PHASE_ALIASES["page_stable"],
-                "start": load_event,
-                "duration": loading_time - load_event,
+                "start": page_stable_start,
+                "duration": page_stable_duration,
             },
         ]
 
