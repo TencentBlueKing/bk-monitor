@@ -181,6 +181,10 @@ export default defineComponent({
     const tableWraperRef = ref<HTMLElement>();
     const currentRowId = ref(0);
     const editingOwnerRowId = ref<number | null>(null);
+    /** 进入责任人编辑态时的 owners 快照，用于校验失败回滚与变更比较 */
+    const editingOwnerPrevOwners = ref<string[]>([]);
+    /** 当前挂载的责任人选择器实例（editingOwnerRowId 唯一，同时最多一个） */
+    let ownerSelectorRef: any = null;
     // const cacheExpandStr = ref<any[]>([]); // 展示pattern按钮数组
 
     const groupState = computed(() => props.groupListState);
@@ -336,6 +340,26 @@ export default defineComponent({
       updateTableRowData(row, 'strategy_enabled', enabled);
       nextTick(() => {
         updateTableRowData(row, 'strategy_enabled', !enabled);
+      });
+    };
+
+    /** 责任人选择器失焦：校验（失败回滚）/有变更才提交，并退出编辑态 */
+    const handleOwnerEditorBlur = (row: LogPattern) => {
+      const owners = getOwners(row);
+      if (row.strategy_enabled && !owners.length) {
+        // 开启告警时需至少一个责任人：回滚本地改动，不发请求
+        updateTableRowData(row, 'owners', [...editingOwnerPrevOwners.value]);
+        bkMessage({
+          theme: 'error',
+          message: t('删除失败，开启告警时，需要至少一个责任人'),
+        });
+      } else if (owners.join(',') !== editingOwnerPrevOwners.value.join(',')) {
+        handleChangePrincipal(owners, row);
+      }
+      // 组件失焦时内部已先隐藏下拉浮层，nextTick 后再卸载双保险，避免浮层残留
+      nextTick(() => {
+        ownerSelectorRef?.clearOverflowTimer?.();
+        editingOwnerRowId.value = null;
       });
     };
 
@@ -665,16 +689,20 @@ export default defineComponent({
               {!isExternal ? (
                 editingOwnerRowId.value === row.data?.id ? (
                   <bk-user-selector
+                    ref={(el: any) => {
+                      ownerSelectorRef = el;
+                    }}
                     class='principal-input'
                     api={window.BK_LOGIN_URL}
                     empty-text={t('无匹配人员')}
                     placeholder='--'
                     value={getOwners(row.data)}
                     multiple
-                    on-change={val => {
-                      handleChangePrincipal(val, row.data);
-                      editingOwnerRowId.value = null;
+                    on-change={(val: string[]) => {
+                      // 仅本地受控更新，提交延迟到 on-blur（组件 localValue 完全受控于 value，必须回写）
+                      updateTableRowData(row.data, 'owners', val);
                     }}
+                    on-blur={() => handleOwnerEditorBlur(row.data)}
                   />
                 ) : (
                   <button
@@ -682,6 +710,11 @@ export default defineComponent({
                     type='button'
                     onClick={() => {
                       editingOwnerRowId.value = row.data?.id ?? null;
+                      editingOwnerPrevOwners.value = [...getOwners(row.data)];
+                      // 挂载后自动聚焦并弹出下拉：同时保证点外部可经 input 原生 blur 退出编辑态
+                      nextTick(() => {
+                        ownerSelectorRef?.focus?.();
+                      });
                     }}
                   >
                     {getOwners(row.data).length ? getOwners(row.data).join(', ') : '--'}
