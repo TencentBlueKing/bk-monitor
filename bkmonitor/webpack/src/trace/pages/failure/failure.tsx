@@ -568,7 +568,6 @@ export default defineComponent({
                 onFilterSearch={this.filterSearchHandle}
                 onNodeClick={this.nodeClick}
                 onNodeExpand={this.nodeExpand}
-                onStrategy={this.goAlertList}
                 onTreeScroll={this.treeScroll}
               />
             ),
