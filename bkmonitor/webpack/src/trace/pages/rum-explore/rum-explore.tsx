@@ -306,6 +306,28 @@ export default defineComponent({
       detailShow.value = true;
     }
 
+    const handlePreviousDetail = () => {
+      const currentIndex = tableCtx.tableData.value.findIndex(item => item.span_id === detailContext.value.record_id);
+      let previousIndex = currentIndex === -1 ? 0 : currentIndex;
+      if (previousIndex === 0) {
+        previousIndex = tableCtx.tableData.value.length - 1;
+      } else {
+        previousIndex = previousIndex - 1;
+      }
+      handleOpenDetail(tableCtx.tableData.value[previousIndex]);
+    };
+
+    const handleNextDetail = () => {
+      const currentIndex = tableCtx.tableData.value.findIndex(item => item.span_id === detailContext.value.record_id);
+      let nextIndex = currentIndex === -1 ? 0 : currentIndex;
+      if (nextIndex === tableCtx.tableData.value.length - 1) {
+        nextIndex = 0;
+      } else {
+        nextIndex = nextIndex + 1;
+      }
+      handleOpenDetail(tableCtx.tableData.value[nextIndex]);
+    };
+
     function handleSortChange(sort: string | string[]) {
       tableCtx.handleSortChange(sort);
       queryCtx.setUrlParams();
@@ -386,6 +408,8 @@ export default defineComponent({
       handleThumbtackChange,
       handleCreateApp,
       tagValueDisplayFormatter,
+      handlePreviousDetail,
+      handleNextDetail,
     };
   },
   render() {
@@ -566,6 +590,8 @@ export default defineComponent({
           isShow={this.detailShow}
           mode={this.store.mode}
           onConditionAdd={(key, value) => this.handleConditionChange({ key, method: EMethod.eq, value }, false)}
+          onNext={this.handleNextDetail}
+          onPrevious={this.handlePreviousDetail}
           onUpdate:isShow={show => {
             this.detailShow = show;
             if (!show) this.detailContext = null;

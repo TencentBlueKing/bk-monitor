@@ -16,9 +16,9 @@
     border-radius: 8px;
     box-shadow: 0 10px 15px 0 rgb(21 75 252 / 20%);
 
-    img {
-      width: 28px;
-      height: 28px;
+    .logo-icon {
+      font-size: 28px;
+      color: #fff;
     }
   }
 
@@ -61,36 +61,38 @@
 
   .header-badge-icon {
     font-size: 14px;
+    font-weight: normal;
   }
 
-  .header-item-row {
+  .header-info-items {
     display: flex;
+    flex-wrap: wrap;
+    gap: 4px 0;
     align-items: center;
     width: 100%;
-  }
 
-  .header-item {
-    display: flex;
-    flex: 1;
-    align-items: center;
-    min-width: 0;
-    font-size: 12px;
-    line-height: 20px;
+    .header-item {
+      display: flex;
+      align-items: center;
+      width: 20%;
+      font-size: 12px;
+      line-height: 20px;
 
-    .item-label {
-      flex-shrink: 0;
-      color: #8f9fbd;
-    }
+      .item-label {
+        flex-shrink: 0;
+        color: #8f9fbd;
+      }
 
-    .item-value {
-      overflow: hidden;
-      text-overflow: ellipsis;
-      color: #4d4f56;
-      white-space: nowrap;
+      .item-value {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        color: #4d4f56;
+        white-space: nowrap;
 
-      &.is-link {
-        color: #3a84ff;
-        cursor: pointer;
+        &.is-link {
+          color: #3a84ff;
+          cursor: pointer;
+        }
       }
     }
   }

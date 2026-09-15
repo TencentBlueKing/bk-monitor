@@ -75,7 +75,7 @@ export interface IRumCardResolveCtx {
 export interface IRumDetailHeaderVM {
   badges: IRumBadgeVM[];
   /** 公共信息按每行 5 项分组 */
-  itemRows: IRumOverviewItemVM[][];
+  items: IRumOverviewItemVM[];
   /** 类型图标（svg 资源地址） */
   logo: string;
   title: string;

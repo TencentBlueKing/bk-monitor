@@ -34,6 +34,8 @@ import DetailSections from './components/detail-sections/detail-sections';
 import OriginDataPanel from './components/origin-data-panel/origin-data-panel';
 import { useDetailFormatter, useDetailOverview, useDetailSections, useOriginData, useSpanDetail } from './composables';
 import { RumDetailTabEnum } from './typings';
+import SliderHeader from '@/components/slider-header/slider-header';
+import TemporaryShareNew from '@/components/temporary-share/temporary-share-new';
 
 import type { IRumField, IRumTimeRange, RumModeType } from '../typings';
 import type { IRumDetailContext } from './typings';
@@ -75,12 +77,15 @@ export default defineComponent({
     'update:isShow': (_value: boolean) => true,
     /** 详情内点击「添加为检索条件」，回传给列表页 */
     conditionAdd: (_key: string, _value: string) => true,
+    previous: () => true,
+    next: () => true,
   },
   setup(props, { emit }) {
     const { t } = useI18n();
 
     const activeTab = shallowRef<string>(RumDetailTabEnum.BASIC);
     const spanType = computed(() => props.context?.span_type || '');
+    const isFullscreen = shallowRef(false);
     /** Error 影响面统计沿用页面所选时间范围，详情上下文里已带上 */
     const timeRange = computed<IRumTimeRange>(() => ({
       start_time: props.context?.start_time ?? 0,
@@ -102,30 +107,35 @@ export default defineComponent({
     /** 标题栏展示的 span_id，优先取接口回传值 */
     const spanId = computed(() => detail.value?.span_id || props.context?.record_id || '');
 
-    /** 复制当前详情的可分享链接（在当前地址上带 span_id 锚点） */
-    function handleCopyLink() {
-      const url = new URL(location.href);
-      url.searchParams.set('spanId', spanId.value);
-      copyText(url.toString());
-    }
-
     function renderTitle() {
       return (
-        <div class='rum-detail-title'>
-          <span class='title-text'>{t('Span 详情')}</span>
-          {spanId.value ? (
-            <span class='title-sub'>
-              <span class='sub-divider' />
-              <span class='sub-label'>span_id:</span>
-              <span class='sub-value'>{spanId.value}</span>
-              <i
-                class='sub-copy icon-monitor icon-mc-link'
-                v-bk-tooltips={{ content: t('复制链接') }}
-                onClick={handleCopyLink}
-              />
-            </span>
-          ) : null}
-        </div>
+        <SliderHeader
+          v-slots={{
+            title: () => (
+              <div class='rum-detail-title'>
+                <span class='title-text'>{t('Span 详情')}</span>
+                {spanId.value ? (
+                  <span class='title-sub'>
+                    <span class='sub-divider' />
+                    <span class='sub-label'>span_id:</span>
+                    <span class='sub-value'>{spanId.value}</span>
+                    <TemporaryShareNew type='rum' />
+                  </span>
+                ) : null}
+              </div>
+            ),
+          }}
+          isFullscreen={isFullscreen.value}
+          onFullscreen={fullscreen => {
+            isFullscreen.value = fullscreen;
+          }}
+          onNext={() => {
+            emit('next');
+          }}
+          onPrevious={() => {
+            emit('previous');
+          }}
+        />
       );
     }
 
@@ -197,7 +207,7 @@ export default defineComponent({
 
     return () => (
       <Sideslider
-        width={SLIDER_WIDTH}
+        width={isFullscreen.value ? '100%' : SLIDER_WIDTH}
         class='rum-span-detail-slider'
         v-slots={{ header: renderTitle, default: () => <div class='rum-detail-body'>{renderContent()}</div> }}
         isShow={props.isShow}
