@@ -201,7 +201,7 @@ export default defineComponent({
       if (status !== TaskStatus.COMPLETED) {
         return;
       }
-      download(fileName, props.isAllowedDownload);
+      download(fileName, props.isAllowedDownload, { useResponseFileName: true });
     };
 
     // 检索任务 - 直接传入查询条件
