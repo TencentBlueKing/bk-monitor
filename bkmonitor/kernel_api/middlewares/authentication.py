@@ -392,12 +392,13 @@ class AuthenticationMiddleware(MiddlewareMixin):
                 authorization_source=getattr(request, "mcp_permission_source", "none"),
                 action_id=getattr(request, "mcp_permission_action", ""),
             )
+            resolved_permission = tool.resolve_native_permission(tool_args if isinstance(tool_args, dict) else {})
             self._report_mcp_metric(
                 tool.name,
                 getattr(request, "biz_id", None),
                 getattr(getattr(request, "user", None), "username", ""),
                 status,
-                getattr(request, "mcp_permission_action", "") or tool.native_permission["action_id"],
+                getattr(request, "mcp_permission_action", "") or resolved_permission["action_id"],
                 request.META.get("HTTP_X_BKAPI_MCP_SERVER_NAME", ""),
             )
 
