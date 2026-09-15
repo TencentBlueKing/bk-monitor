@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, nextTick, onBeforeUnmount, onMounted, shallowRef, watch } from 'vue';
+import { defineComponent, nextTick, onBeforeUnmount, onMounted, shallowRef, Teleport, watch } from 'vue';
 
 import { useI18n } from 'vue-i18n';
 
@@ -33,6 +33,7 @@ import AiChatInput from './chat/ai-chat-input';
 import { useAiChat } from './chat/use-ai-chat';
 import { DiagnosticTypeEnum } from './constant';
 import { useAiCapability } from './use-ai-capability';
+import { useHoverToChat } from './use-hover-to-chat';
 
 import './diagnostic-analysis.scss';
 
@@ -50,6 +51,8 @@ export default defineComponent({
     const conversationRef = shallowRef<HTMLDivElement>();
     /** 会话滚动离开结论区后，露出回到结论区的入口 */
     const showBackToConclusion = shallowRef(false);
+    /** 悬浮在分析明细上时弹出的「添加至聊天」菜单 */
+    const { hoverMenu, handleAddToChat, handleMenuEnter, handleMenuLeave } = useHoverToChat(conversationRef);
 
     const handleConversationScroll = () => {
       showBackToConclusion.value = (conversationRef.value?.scrollTop ?? 0) > CONCLUSION_SCROLL_THRESHOLD;
@@ -100,6 +103,10 @@ export default defineComponent({
       pending,
       conversationRef,
       showBackToConclusion,
+      hoverMenu,
+      handleAddToChat,
+      handleMenuEnter,
+      handleMenuLeave,
       handleBackToConclusion,
       handleClosed,
       handleSendQuestion,
@@ -202,6 +209,27 @@ export default defineComponent({
             />
           </div>
         </div>
+        {this.hoverMenu ? (
+          <Teleport to='body'>
+            <div
+              style={{ left: `${this.hoverMenu.x}px`, top: `${this.hoverMenu.y}px` }}
+              class='ai-diagnostic-hover-menu'
+              onMouseenter={this.handleMenuEnter}
+              onMouseleave={this.handleMenuLeave}
+            >
+              {/* 外层只负责桥接触发项与菜单之间的空隙，卡片样式在内层 */}
+              <div class='hover-menu-body'>
+                <span
+                  class='hover-menu-item'
+                  onClick={this.handleAddToChat}
+                >
+                  <i class='icon-monitor icon-plus-line' />
+                  {this.t('添加至聊天')}
+                </span>
+              </div>
+            </div>
+          </Teleport>
+        ) : undefined}
       </div>
     );
   },

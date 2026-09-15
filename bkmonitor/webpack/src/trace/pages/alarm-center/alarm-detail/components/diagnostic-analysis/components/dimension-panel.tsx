@@ -27,7 +27,8 @@ import { computed, defineComponent } from 'vue';
 
 import { storeToRefs } from 'pinia';
 
-import { isHostNavigableDimension, navigateToHostTab, navigateToViewDimensions, openStrategyDetail } from '../navigate';
+import { DiagnosticTypeEnum, DiagnosticTypeMap } from '../constant';
+import { openMetricRetrievalByDimensions, openStrategyDetail } from '../navigate';
 import AnalysisDetailContent from './analysis-detail-content';
 import SuspiciousAnalysisGroup from './suspicious-analysis-group';
 import { useAlarmCenterDetailStore } from '@/store/modules/alarm-center-detail';
@@ -111,14 +112,10 @@ export default defineComponent({
       }));
     });
 
-    const handleDimensionValueClick = (item: ITableItem) => {
-      if (!isHostNavigableDimension(item.name)) return;
-      navigateToHostTab(item);
-    };
-
-    const handleJumpDimensionAnalysis = (event: MouseEvent, tableData: ITableItem[]) => {
+    /** 新开页打开指标检索，查该指标在这组维度下的曲线 */
+    const handleJumpMetricRetrieval = (event: MouseEvent, tableData: ITableItem[]) => {
       event.stopPropagation();
-      navigateToViewDimensions(tableData);
+      openMetricRetrievalByDimensions(tableData);
     };
 
     /** 包含 x 个告警：跳转该组关联策略详情（多策略时取首个） */
@@ -135,9 +132,9 @@ export default defineComponent({
     };
 
     return {
+      chatCategory: DiagnosticTypeMap[DiagnosticTypeEnum.DIMENSION] as string,
       dimensionGroups,
-      handleDimensionValueClick,
-      handleJumpDimensionAnalysis,
+      handleJumpMetricRetrieval,
       handleAlertCountClick,
       handleStrategyClick,
     };
@@ -147,10 +144,6 @@ export default defineComponent({
       <div class='suspicious-dimension-panel'>
         <div class='panel-header'>
           <span class='tips'>{this.$t('故障关联的告警，统计出最异常的维度（组合）：')}</span>
-          <span class='link-text view-all'>
-            {this.$t('查看全部')}
-            <i class='icon-monitor icon-fenxiang' />
-          </span>
         </div>
         <div class='dimension-group-list'>
           {this.dimensionGroups.map((group, index) => (
@@ -166,7 +159,7 @@ export default defineComponent({
                       {`${this.$t('异常维度（组合）')} ${index + 1}`}
                       <i
                         class='icon-monitor icon-fenxiang jump-btn'
-                        onClick={e => this.handleJumpDimensionAnalysis(e, group.tableData)}
+                        onClick={e => this.handleJumpMetricRetrieval(e, group.tableData)}
                       />
                     </span>
                     <i18n-t
@@ -180,9 +173,9 @@ export default defineComponent({
                 ),
                 default: () => (
                   <AnalysisDetailContent
+                    chatCategory={this.chatCategory}
                     tableData={group.tableData}
                     contentData={[]}
-                    onValueClick={this.handleDimensionValueClick}
                   />
                 ),
                 footer: () => (

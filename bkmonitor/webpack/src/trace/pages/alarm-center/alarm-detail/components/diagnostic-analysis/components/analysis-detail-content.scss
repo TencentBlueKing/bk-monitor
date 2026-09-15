@@ -15,17 +15,6 @@
         font-weight: 600;
         line-height: 20px;
         color: #313238;
-
-        .jump-icon {
-          margin-left: 6px;
-          font-size: 12px;
-          color: #3a84ff;
-          cursor: pointer;
-
-          &:hover {
-            color: #699df4;
-          }
-        }
       }
 
       .pattern-block-value {
@@ -43,6 +32,15 @@
         &.is-json {
           color: #1f6d89;
         }
+
+        /* 可「添加至聊天」的内容统一用蓝色字引导 */
+        &[data-chat-text] {
+          color: #3a84ff;
+
+          &.is-json {
+            color: #3a84ff;
+          }
+        }
       }
     }
   }
@@ -54,15 +52,6 @@
       line-height: 20px;
       color: #313238;
       border-top: 1px solid #ebeef5;
-
-      &.is-clickable {
-        color: #3a84ff;
-        cursor: pointer;
-
-        &:hover {
-          color: #699df4;
-        }
-      }
     }
   }
 
@@ -92,9 +81,9 @@
         -webkit-line-clamp: 3;
         -webkit-box-orient: vertical;
 
-        &.is-link {
+        /* 可「添加至聊天」的内容统一用蓝色字引导 */
+        &[data-chat-text] {
           color: #3a84ff;
-          cursor: pointer;
         }
       }
 

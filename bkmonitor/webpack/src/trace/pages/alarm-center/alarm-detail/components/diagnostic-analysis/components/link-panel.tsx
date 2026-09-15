@@ -8,11 +8,9 @@
  */
 import { defineComponent } from 'vue';
 
-import { navigateToTraceBySpan, navigateToTraceTab } from '../navigate';
+import { DiagnosticTypeEnum, DiagnosticTypeMap } from '../constant';
 import AnalysisDetailContent from './analysis-detail-content';
 import SuspiciousAnalysisGroup from './suspicious-analysis-group';
-
-import type { ITableItem } from '../typing';
 
 import './link-panel.scss';
 
@@ -37,17 +35,8 @@ const MOCK_TRACE_RESULTS = [
 export default defineComponent({
   name: 'LinkPanel',
   setup() {
-    const handleValueClick = (item: ITableItem, tableData: ITableItem[]) => {
-      navigateToTraceTab(item, tableData);
-    };
-
-    const handleSpanTitleClick = (tableData: ITableItem[]) => {
-      navigateToTraceBySpan(tableData);
-    };
-
     return {
-      handleValueClick,
-      handleSpanTitleClick,
+      chatCategory: DiagnosticTypeMap[DiagnosticTypeEnum.LINK] as string,
     };
   },
   render() {
@@ -82,12 +71,10 @@ export default defineComponent({
                 default: () => (
                   <AnalysisDetailContent
                     blocks={[{ title: 'Pattern：', value: item.pattern, kind: 'text' }]}
+                    chatCategory={this.chatCategory}
                     tableTitle={this.$t('示例 span：') as string}
-                    tableTitleClickable
                     tableData={item.tableData}
                     contentData={[]}
-                    onTableTitleClick={() => this.handleSpanTitleClick(item.tableData)}
-                    onValueClick={row => this.handleValueClick(row, item.tableData)}
                   />
                 ),
               }}

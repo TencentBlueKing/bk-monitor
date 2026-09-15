@@ -8,11 +8,10 @@
  */
 import { defineComponent } from 'vue';
 
-import { navigateToLogTab, openLogClusteringPlaceholder } from '../navigate';
+import { DiagnosticTypeEnum, DiagnosticTypeMap } from '../constant';
+import { openLogClusteringPlaceholder } from '../navigate';
 import AnalysisDetailContent from './analysis-detail-content';
 import SuspiciousAnalysisGroup from './suspicious-analysis-group';
-
-import type { IPatternBlock } from '../typing';
 
 import './log-panel.scss';
 
@@ -42,19 +41,8 @@ const MOCK_LOG_CLUSTERS = [
 export default defineComponent({
   name: 'LogPanel',
   setup() {
-    const handleBlockJump = (block: IPatternBlock & { jumpable?: boolean }, item: (typeof MOCK_LOG_CLUSTERS)[0]) => {
-      let keyword = item.demoLog;
-      try {
-        const parsed = JSON.parse(item.demoLog);
-        keyword = parsed?.log || item.demoLog;
-      } catch {
-        keyword = item.demoLog;
-      }
-      navigateToLogTab(keyword);
-    };
-
     return {
-      handleBlockJump,
+      chatCategory: DiagnosticTypeMap[DiagnosticTypeEnum.LOG] as string,
     };
   },
   render() {
@@ -99,12 +87,11 @@ export default defineComponent({
                         title: this.$t('示例日志：') as string,
                         value: item.demoLog,
                         kind: 'json',
-                        jumpable: true,
                       },
                     ]}
+                    chatCategory={this.chatCategory}
                     tableData={[]}
                     contentData={[]}
-                    onBlockJump={block => this.handleBlockJump(block, item)}
                   />
                 ),
               }}

@@ -149,6 +149,17 @@
     }
   }
 
+  /* 可「添加至聊天」的明细统一用蓝色字引导，hover 再加底色 */
+  [data-chat-text] {
+    color: #3a84ff;
+    cursor: pointer;
+
+    &:hover {
+      background: #f0f5ff;
+      border-radius: 2px;
+    }
+  }
+
   .diagnostic-analysis-entry-btn {
     position: absolute;
     top: 0;
@@ -169,6 +180,44 @@
         width: 36px;
         height: 36px;
       }
+    }
+  }
+}
+
+/* 悬浮明细时弹出的「添加至聊天」，Teleport 到 body，与左侧划词菜单同款 */
+.ai-diagnostic-hover-menu {
+  position: fixed;
+  z-index: 3100;
+  /* 顶部这段透明区把触发项和菜单连起来，指针移过去时不会掉进死区 */
+  padding-top: 6px;
+  transform: translateX(-50%);
+
+  .hover-menu-body {
+    padding: 4px 0;
+    background: #fff;
+    border: 1px solid #dcdee5;
+    border-radius: 4px;
+    box-shadow: 0 2px 6px 0 #0000001a;
+  }
+
+  .hover-menu-item {
+    display: flex;
+    align-items: center;
+    height: 28px;
+    padding: 0 12px;
+    font-size: 12px;
+    color: #4d4f56;
+    white-space: nowrap;
+    cursor: pointer;
+
+    &:hover {
+      color: #3a84ff;
+      background: #f5f7fa;
+    }
+
+    .icon-plus-line {
+      margin-right: 4px;
+      font-size: 14px;
     }
   }
 }

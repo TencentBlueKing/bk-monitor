@@ -8,7 +8,8 @@
  */
 import { defineComponent } from 'vue';
 
-import { navigateToEventTab } from '../navigate';
+import { DiagnosticTypeEnum, DiagnosticTypeMap } from '../constant';
+import { openEventExplore } from '../navigate';
 import AnalysisDetailContent from './analysis-detail-content';
 import SuspiciousAnalysisGroup from './suspicious-analysis-group';
 
@@ -66,19 +67,15 @@ const MOCK_EVENT_GROUPS = [
 export default defineComponent({
   name: 'EventPanel',
   setup() {
-    const handleTotalClick = (event: MouseEvent, names: string[]) => {
+    /** 点事件总数：新开页打开事件检索 */
+    const handleTotalClick = (event: MouseEvent) => {
       event.stopPropagation();
-      navigateToEventTab(names);
-    };
-
-    const handleEventFilterClick = (event: MouseEvent, name: string) => {
-      event.stopPropagation();
-      navigateToEventTab([name]);
+      openEventExplore();
     };
 
     return {
+      chatCategory: DiagnosticTypeMap[DiagnosticTypeEnum.EVENT] as string,
       handleTotalClick,
-      handleEventFilterClick,
     };
   },
   render() {
@@ -107,7 +104,7 @@ export default defineComponent({
                       <i18n-t keypath='（共 {0} 个{1}，展示 {2} 如下）'>
                         <span
                           class='count-strong is-clickable'
-                          onClick={e => this.handleTotalClick(e, group.items.map(item => item.name))}
+                          onClick={e => this.handleTotalClick(e)}
                         >
                           {group.total}
                         </span>
@@ -126,17 +123,19 @@ export default defineComponent({
                       {{
                         title: () => (
                           <div class='group-title'>
-                            <span class='group-name'>
+                            <span
+                              class='group-name'
+                              data-chat-category={this.chatCategory}
+                              data-chat-label={this.$t('事件名')}
+                              data-chat-text={item.name}
+                            >
                               {item.name}
-                              <i
-                                class='icon-monitor icon-filter-fill filter-btn'
-                                onClick={e => this.handleEventFilterClick(e, item.name)}
-                              />
                             </span>
                           </div>
                         ),
                         default: () => (
                           <AnalysisDetailContent
+                            chatCategory={this.chatCategory}
                             tableData={item.tableData}
                             contentData={[]}
                           />

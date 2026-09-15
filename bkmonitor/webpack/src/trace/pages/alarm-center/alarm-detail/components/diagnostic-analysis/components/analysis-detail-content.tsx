@@ -49,52 +49,19 @@ export default defineComponent({
       type: String,
       default: '',
     },
-    /** 表格标题可点击（如「示例 span」） */
-    tableTitleClickable: {
-      type: Boolean,
-      default: false,
-    },
     contentData: {
       type: Array as PropType<IContentItem[]>,
       default: () => [],
     },
     blocks: {
-      type: Array as PropType<(IPatternBlock & { jumpable?: boolean })[]>,
+      type: Array as PropType<IPatternBlock[]>,
       default: () => [],
     },
-    /** 表格值默认都可点；也可按行 link 标记 */
-    valueClickable: {
-      type: Boolean,
-      default: false,
+    /** 引用归类名（板块名），明细项 hover「添加至聊天」时带上 */
+    chatCategory: {
+      type: String,
+      default: '',
     },
-  },
-  emits: {
-    valueClick: (_item: ITableItem) => true,
-    tableTitleClick: () => true,
-    blockJump: (_block: IPatternBlock & { jumpable?: boolean }) => true,
-  },
-  setup(props, { emit }) {
-    const handleValueClick = (item: ITableItem) => {
-      if (!(props.valueClickable || item.link)) return;
-      emit('valueClick', item);
-    };
-
-    const handleTableTitleClick = () => {
-      if (!props.tableTitleClickable) return;
-      emit('tableTitleClick');
-    };
-
-    const handleBlockJump = (event: MouseEvent, block: IPatternBlock & { jumpable?: boolean }) => {
-      event.stopPropagation();
-      if (!block.jumpable) return;
-      emit('blockJump', block);
-    };
-
-    return {
-      handleValueClick,
-      handleTableTitleClick,
-      handleBlockJump,
-    };
   },
   render() {
     return (
@@ -108,14 +75,13 @@ export default defineComponent({
               >
                 <div class='pattern-block-title'>
                   <span>{item.title}</span>
-                  {item.jumpable ? (
-                    <i
-                      class='icon-monitor icon-fenxiang jump-icon'
-                      onClick={e => this.handleBlockJump(e, item)}
-                    />
-                  ) : undefined}
                 </div>
-                <div class={['pattern-block-value', { 'is-json': item.kind === 'json' }]}>
+                <div
+                  class={['pattern-block-value', { 'is-json': item.kind === 'json' }]}
+                  data-chat-category={this.chatCategory}
+                  data-chat-label={String(item.title).replace(/[:：]$/, '')}
+                  data-chat-text={item.value}
+                >
                   {formatBlockValue(item.value, item.kind)}
                 </div>
               </div>
@@ -124,14 +90,7 @@ export default defineComponent({
         )}
         {(this.tableTitle || this.tableData.length > 0) && (
           <div class='detail-table-wrap'>
-            {this.tableTitle ? (
-              <div
-                class={['detail-table-title', { 'is-clickable': this.tableTitleClickable }]}
-                onClick={this.handleTableTitleClick}
-              >
-                {this.tableTitle}
-              </div>
-            ) : undefined}
+            {this.tableTitle ? <div class='detail-table-title'>{this.tableTitle}</div> : undefined}
             {this.tableData.length > 0 && (
               <div class='detail-table'>
                 {this.tableData.map((item, index) => (
@@ -141,11 +100,10 @@ export default defineComponent({
                   >
                     <div class='detail-table-name'>{item.name}</div>
                     <div
-                      class={[
-                        'detail-table-value',
-                        { 'is-link': this.valueClickable || item.link },
-                      ]}
-                      onClick={() => this.handleValueClick(item)}
+                      class='detail-table-value'
+                      data-chat-category={this.chatCategory}
+                      data-chat-label={item.name}
+                      data-chat-text={item.value}
                     >
                       {item.value}
                     </div>

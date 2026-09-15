@@ -24,17 +24,18 @@
  * IN THE SOFTWARE.
  */
 
-import { getBizRouteHref } from 'monitor-common/utils';
+import { deepClone, getBizRouteHref } from 'monitor-common/utils';
 
-import { EMode } from '@/components/retrieval-filter/typing';
 import { useAlarmCenterDetailStore } from '@/store/modules/alarm-center-detail';
-import { ALARM_CENTER_PANEL_TAB_MAP, type AlarmCenterPanelTabType } from '../../../utils/constant';
 
 import type { ITableItem } from '../typing';
-import type { IDiagnosticPanelFilter } from './navigate-typing';
-import type { IWhereItem } from '@/components/retrieval-filter/typing';
 
-/** 维度展示名 → 主机/指标侧字段 */
+/**
+ * AI 诊断里的跳转一律新开页，不与左侧告警详情联动。
+ * 面板内的明细改为 hover「添加至聊天」，见 use-hover-to-chat.ts。
+ */
+
+/** 维度展示名 → 后端字段 */
 const DIMENSION_NAME_TO_KEY: Record<string, string> = {
   主机名: 'bk_host_name',
   主机: 'bk_host_name',
@@ -43,53 +44,15 @@ const DIMENSION_NAME_TO_KEY: Record<string, string> = {
   管控区域: 'bk_cloud_id',
 };
 
-/** 仅这些维度点击后切到左侧主机 tab 检索 */
-const HOST_NAVIGABLE_DIMENSION_KEYS = new Set(['bk_host_name', 'bk_target_ip']);
-
-export function isHostNavigableDimension(name: string) {
-  return HOST_NAVIGABLE_DIMENSION_KEYS.has(DIMENSION_NAME_TO_KEY[name] || '');
-}
-
-/** Trace 明细展示名 → 调用链筛选字段 */
-const TRACE_NAME_TO_KEY: Record<string, string> = {
-  'Span ID': 'span_id',
-  SpanID: 'span_id',
-  '所属 Trace': 'trace_id',
-  TraceID: 'trace_id',
-  所属应用: 'app_name',
-  所属服务: 'root_service',
-  调用类型: 'kind',
+/** 展示名形如「RPC 应用（app）」时取括号里的字段名，其余按原名 */
+const resolveDimensionKey = (name: string) => {
+  if (DIMENSION_NAME_TO_KEY[name]) return DIMENSION_NAME_TO_KEY[name];
+  return name.match(/[（(]([\w.]+)[)）]\s*$/)?.[1] || name;
 };
 
-function equalWhere(key: string, value: string): IWhereItem {
-  return { key, operator: 'equal', value: [value] };
-}
-
-function containsWhere(key: string, value: string): IWhereItem {
-  return { key, operator: 'like', value: [value] };
-}
-
-/** 切到指定 tab，并可选灌入筛选条件 */
-export function navigateDiagnosticToTab(tab: AlarmCenterPanelTabType, filter?: IDiagnosticPanelFilter) {
-  const store = useAlarmCenterDetailStore();
-  store.navigateFromDiagnostic({
-    tab,
-    filter,
-    nonce: Date.now(),
-  });
-}
-
-export function navigateToHostTab(tableItem: ITableItem) {
-  const key = DIMENSION_NAME_TO_KEY[tableItem.name] || '';
-  if (!HOST_NAVIGABLE_DIMENSION_KEYS.has(key)) return;
-  const filter: IDiagnosticPanelFilter = {};
-  if (key === 'bk_target_ip') {
-    filter.hostIp = tableItem.value;
-  } else {
-    filter.hostName = tableItem.value;
-  }
-  navigateDiagnosticToTab(ALARM_CENTER_PANEL_TAB_MAP.HOST, filter);
-}
+/** 【临时联调 mock】维度 mock 里的占位项，拼检索条件时跳过，否则查不出数据 */
+const isPlaceholderDimension = (item: ITableItem) =>
+  String(item.name).includes('占位') || String(item.value).includes('占位');
 
 /**
  * 跳转策略配置详情页（查看态）。
@@ -102,60 +65,53 @@ export function openStrategyDetail(strategyId: number | string) {
   window.open(getBizRouteHref(`/strategy-config/detail/${strategyId}`, bizId), '_blank');
 }
 
-export function navigateToTraceTab(tableItem: ITableItem, tableData?: ITableItem[]) {
-  const fieldKey = TRACE_NAME_TO_KEY[tableItem.name];
-  const filter: IDiagnosticPanelFilter = { filterMode: EMode.ui, where: [] };
-  if (fieldKey === 'app_name') {
-    filter.appName = tableItem.value;
-  } else if (fieldKey) {
-    filter.where = [equalWhere(fieldKey, tableItem.value)];
-  } else {
-    filter.where = [containsWhere('*', tableItem.value)];
+/**
+ * 点事件分析的事件总数：新开页打开事件检索，带上该告警的时间范围。
+ * 链接拼法与左侧事件面板的「更多事件」一致。
+ */
+export function openEventExplore() {
+  const store = useAlarmCenterDetailStore();
+  const detail = store.alarmDetail;
+  const bizId = detail?.bk_biz_id || store.bizId || window.cc_biz_id;
+  const params = new URLSearchParams();
+  if (detail?.begin_time) {
+    params.set('from', String(detail.begin_time * 1000));
+    params.set('to', String(Date.now()));
   }
-  const appItem = tableData?.find(item => TRACE_NAME_TO_KEY[item.name] === 'app_name');
-  if (appItem?.value && !filter.appName) {
-    filter.appName = appItem.value;
-  }
-  navigateDiagnosticToTab(ALARM_CENTER_PANEL_TAB_MAP.TRACE, filter);
-}
-
-/** 点击「示例 span」：用 Span ID（优先）或 Trace ID 在调用链 tab 检索 */
-export function navigateToTraceBySpan(tableData: ITableItem[]) {
-  const span = tableData.find(item => TRACE_NAME_TO_KEY[item.name] === 'span_id');
-  const trace = tableData.find(item => TRACE_NAME_TO_KEY[item.name] === 'trace_id');
-  const target = span || trace;
-  if (!target) return;
-  navigateToTraceTab(target, tableData);
-}
-
-export function navigateToLogTab(keyword: string) {
-  navigateDiagnosticToTab(ALARM_CENTER_PANEL_TAB_MAP.LOG, {
-    filterMode: EMode.ui,
-    where: [containsWhere('*', keyword)],
-  });
-}
-
-export function navigateToEventTab(eventNames: string[]) {
-  const names = eventNames.filter(Boolean);
-  if (!names.length) return;
-  navigateDiagnosticToTab(ALARM_CENTER_PANEL_TAB_MAP.EVENT, {
-    filterMode: EMode.ui,
-    where: [{ key: 'event_name', operator: 'equal', value: names }],
-  });
+  const query = params.toString();
+  const url = `${location.origin}${location.pathname}?bizId=${bizId}#/event-explore${query ? `?${query}` : ''}`;
+  window.open(url, '_blank');
 }
 
 /**
- * 点击「异常维度（组合）」：切到左侧「视图」tab，定位到维度分析板块并选中这些维度。
- * 维度名同时给出后端字段与展示名，由维度分析侧按已加载的维度列表匹配。
+ * 点异常维度（组合）：新开页打开指标检索，查该告警的指标 + 这组维度条件。
+ * targets 沿用告警自身的 graph_panel，条件按指标检索的 where 结构追加。
  */
-export function navigateToViewDimensions(tableData: ITableItem[]) {
-  const dimensions = Array.from(
-    new Set(tableData.flatMap(item => [DIMENSION_NAME_TO_KEY[item.name], item.name]).filter(Boolean))
-  );
-  navigateDiagnosticToTab(ALARM_CENTER_PANEL_TAB_MAP.VIEW, {
-    dimensions,
-    viewAnchor: 'dimension-analysis',
-  });
+export function openMetricRetrievalByDimensions(tableData: ITableItem[]) {
+  const store = useAlarmCenterDetailStore();
+  const detail = store.alarmDetail;
+  const bizId = detail?.bk_biz_id || store.bizId || window.cc_biz_id;
+  const targets = deepClone(detail?.graph_panel?.targets || []);
+  if (!targets.length) return;
+
+  const conditions = tableData
+    .filter(item => !isPlaceholderDimension(item))
+    .map(item => ({ key: resolveDimensionKey(item.name), value: [String(item.value)] }))
+    .filter(item => item.key && item.value[0]);
+
+  for (const target of targets) {
+    for (const queryConfig of target?.data?.query_configs || []) {
+      queryConfig.where = [
+        ...(queryConfig.where || []),
+        ...conditions.map(item => ({ key: item.key, method: 'eq', value: item.value, condition: 'and' })),
+      ];
+    }
+  }
+
+  const url = `${location.origin}${location.pathname.replace('fta/', '')}?bizId=${bizId}#/data-retrieval/?targets=${encodeURIComponent(
+    JSON.stringify(targets)
+  )}`;
+  window.open(url, '_blank');
 }
 
 /**
