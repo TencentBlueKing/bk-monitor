@@ -14,7 +14,7 @@ from django.utils.translation import gettext_lazy as _
 
 from semconv.constants import FieldUnit
 
-from rum_web.handlers.level.page.base import BasePage, BaseSection, KeyValueItem, NamedKeyValueItem
+from rum_web.handlers.level.page.base import BasePage, BaseSection, DictItem, KeyValueItem, NamedKeyValueItem
 from rum_web.handlers.level.page.span.base import (
     OVERVIEW_ELAPSED_TIME,
     OVERVIEW_ATTRIBUTES_RESOURCE_TYPE,
@@ -40,27 +40,11 @@ class CompressionRatioItem(KeyValueItem):
         return {self.key: ratio}
 
 
-class ResourceBaseKeyInfoSection(BaseSection):
-    KEY = "key_info"
-    TYPE = SectionType.SUMMARY_CARDS.value
-    DATA = []
-
-    def _fill_data(self):
-        self.component_dict["data"] = {}
-        for item in self.DATA:
-            self.component_dict["data"].update(item.render(self.origin_data))
-
-    def render(self) -> dict[str, Any]:
-        super().render()
-        self._fill_data()
-        return self.component_dict
-
-
-class ResourceXhrAndFetchKeyInfoSection(ResourceBaseKeyInfoSection):
+class ResourceXhrAndFetchKeyInfoSection(BaseSection):
     KEY = "key_info"
     TYPE = SectionType.SUMMARY_CARDS.value
     DATA = [
-        KeyValueItem(
+        DictItem(
             key="request",
             items=[
                 KeyValueItem(key="attributes.http.request.method"),
@@ -69,20 +53,20 @@ class ResourceXhrAndFetchKeyInfoSection(ResourceBaseKeyInfoSection):
                 KeyValueItem(key="attributes.server.address"),
             ],
         ),
-        KeyValueItem(
+        DictItem(
             key="duration",
             items=[
                 KeyValueItem(key="elapsed_time"),
             ],
         ),
-        KeyValueItem(
+        DictItem(
             key="http_result",
             items=[
                 KeyValueItem(key="attributes.http.response.status_code"),
                 KeyValueItem(key="attributes.outcome.type"),
             ],
         ),
-        KeyValueItem(
+        DictItem(
             key="transfer",
             items=[
                 CompressionRatioItem(),
@@ -106,24 +90,6 @@ class LoadingTimingSection(BaseSection):
         "first_byte": _("等待首字节"),
         "download": _("内容下载"),
     }
-
-    @classmethod
-    def safe_number(cls, value: str | int | float | None, default: int | float = 0) -> int | float:
-        """安全地将任意值转换为数字（int 或 float）。
-
-        支持 str / int / float / None；转换失败时返回 default 而非 nan，
-        避免 nan 参与后续比较/计算产生隐蔽错误。
-        """
-        if value is None:
-            return default
-        try:
-            numeric_value = float(value)
-            return int(numeric_value) if numeric_value.is_integer() else numeric_value
-        except (TypeError, ValueError):
-            return default
-
-    def get_numeric_value(self, key: str):
-        return self.safe_number(self.origin_data.get(key))
 
     def _fill_data(self):
         redirect_start = self.get_numeric_value("attributes.resource.redirect.start")
@@ -181,11 +147,6 @@ class LoadingTimingSection(BaseSection):
             ],
         }
 
-    def render(self) -> dict[str, Any]:
-        self.component_dict.update({"key": self.KEY, "type": self.TYPE})
-        self._fill_data()
-        return self.component_dict
-
 
 class ResourceSpanOverview(SpanOverview):
     BADGES = [
@@ -203,22 +164,24 @@ class ResourceXhrAndFetchPage(BasePage):
     ]
 
 
-class ResourceOthersKeyInfoSection(ResourceBaseKeyInfoSection):
+class ResourceOthersKeyInfoSection(BaseSection):
+    KEY = "key_info"
+    TYPE = SectionType.SUMMARY_CARDS.value
     DATA = [
-        KeyValueItem(
+        DictItem(
             key="http_result",
             items=[
                 KeyValueItem(key="attributes.http.response.status_code"),
                 KeyValueItem(key="attributes.outcome.type"),
             ],
         ),
-        KeyValueItem(
+        DictItem(
             key="duration",
             items=[
                 KeyValueItem(key="elapsed_time"),
             ],
         ),
-        KeyValueItem(
+        DictItem(
             key="transfer",
             items=[
                 CompressionRatioItem(),
@@ -227,30 +190,20 @@ class ResourceOthersKeyInfoSection(ResourceBaseKeyInfoSection):
                 KeyValueItem(key="attributes.resource.decoded_body_size"),
             ],
         ),
-        KeyValueItem(
+        DictItem(
             key="delivery",
             items=[
                 KeyValueItem(key="attributes.resource.delivery_type"),
                 KeyValueItem(key="attributes.resource.cache.hit"),
             ],
         ),
-        KeyValueItem(
+        DictItem(
             key="blocking",
             items=[
                 KeyValueItem(key="attributes.resource.render_blocking_status"),
             ],
         ),
     ]
-
-    def _fill_data(self):
-        self.component_dict["data"] = {}
-        for item in self.DATA:
-            self.component_dict["data"].update(item.render(self.origin_data))
-
-    def render(self) -> dict[str, Any]:
-        super().render()
-        self._fill_data()
-        return self.component_dict
 
 
 class ResourceOthersResourceInfoSection(BaseSection):
@@ -263,16 +216,6 @@ class ResourceOthersResourceInfoSection(BaseSection):
         NamedKeyValueItem("attributes.http.request.method"),
         NamedKeyValueItem("attributes.resource.protocol"),
     ]
-
-    def _fill_items(self):
-        self.component_dict.setdefault("items", [])
-        for item in self.ITEMS:
-            self.component_dict["items"].append(item.render(self.origin_data))
-
-    def render(self) -> dict[str, Any]:
-        super().render()
-        self._fill_items()
-        return self.component_dict
 
 
 class ResourceOthersPage(BasePage):
