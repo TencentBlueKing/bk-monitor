@@ -84,7 +84,18 @@ const originData = (spanId: string, spanType: string, spanName: string): Record<
     'telemetry.sdk.name': 'opentelemetry',
     'telemetry.sdk.version': '1.9.0',
   },
-  links: [],
+  links: [
+    {
+      attributes: {
+        format: 'traceparent',
+        injected: false,
+        traceparent: '00-3f7f7162123123123123a0c6aa3c74d6b1231236cf6fe51d0f5fc-01',
+      },
+      span_id: '4c6123123123125fc',
+      trace_id: '3f7f7162a1231231231231123122358a8',
+      trace_state: {},
+    },
+  ],
   events: [
     {
       name: 'SENT',

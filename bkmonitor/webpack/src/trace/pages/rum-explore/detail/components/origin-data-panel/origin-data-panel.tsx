@@ -26,14 +26,17 @@
 import { defineComponent, shallowRef } from 'vue';
 import type { PropType } from 'vue';
 
-import { Input } from 'bkui-vue';
+import { Button, Input } from 'bkui-vue';
+import { EnlargeLine } from 'bkui-vue/lib/icon';
 import { useI18n } from 'vue-i18n';
+import VueJsonPretty from 'vue-json-pretty';
 
 import FieldTypeIcon from '../../../../trace-explore/components/field-type-icon';
 
 import type { IRumOriginBlockVM, IRumOriginRowVM } from '../../typings';
 
 import './origin-data-panel.scss';
+import 'vue-json-pretty/lib/styles.css';
 
 /** 原始值的运行时类型映射到检索侧的字段类型，直接复用 FieldTypeIcon 的图标与配色 */
 const VALUE_TYPE_TO_FIELD_TYPE: Record<IRumOriginRowVM['valueType'], string> = {
@@ -43,9 +46,18 @@ const VALUE_TYPE_TO_FIELD_TYPE: Record<IRumOriginRowVM['valueType'], string> = {
   object: 'object',
 };
 
+/** 值是否为 JSON 文本，是则该行支持「格式化」切换展示 */
+function isJsonValue(value: string): boolean {
+  try {
+    return typeof JSON.parse(value) === 'object';
+  } catch {
+    return false;
+  }
+}
+
 /**
- * 原始数据面板：Span / Attributes / Resource / Events 四个折叠块。
- * Events 块内按事件名分组，并支持按键或值搜索过滤。
+ * 原始数据面板：Span / Attributes / Resource / Links / Events 五个折叠块。
+ * Links 按 trace_id 分组，Events 按事件名分组，Events 支持按键或值搜索过滤。
  */
 export default defineComponent({
   name: 'RumOriginDataPanel',
@@ -54,7 +66,7 @@ export default defineComponent({
       type: Array as PropType<IRumOriginBlockVM[]>,
       default: () => [],
     },
-    /** Events 块的搜索关键字 */
+    /** 块内搜索关键字，仅 searchable 为 true 的块（当前只有 Events）会用到 */
     eventKeyword: {
       type: String,
       default: '',
@@ -71,51 +83,87 @@ export default defineComponent({
     const { t } = useI18n();
     /** 展开的折叠块，默认全部收起（与设计稿一致，Events 由用户按需展开） */
     const expandedKeys = shallowRef<Set<string>>(new Set());
-    /** 收起的事件分组，默认全部展开 */
+    /** 收起的二级分组（Links 按 trace_id、Events 按事件名），默认全部展开 */
     const collapsedGroups = shallowRef<Set<string>>(new Set());
+    /** 关闭「格式化」、以原文展示的 JSON 行 */
+    const rawRows = shallowRef<Set<string>>(new Set());
 
+    /** 展开/收起整个折叠块，整条块头均可点击（cursor: pointer 见 scss） */
     function toggleBlock(key: string) {
       const next = new Set(expandedKeys.value);
       next.has(key) ? next.delete(key) : next.add(key);
       expandedKeys.value = next;
     }
 
+    /** 展开/收起块内的二级分组（Links / Events） */
     function toggleGroup(key: string) {
       const next = new Set(collapsedGroups.value);
       next.has(key) ? next.delete(key) : next.add(key);
       collapsedGroups.value = next;
     }
 
-    function renderRow(row: IRumOriginRowVM, index: number) {
+    /** 切换单行 JSON 值的「格式化 / 原文」展示 */
+    function toggleFormat(rowId: string) {
+      const next = new Set(rawRows.value);
+      next.has(rowId) ? next.delete(rowId) : next.add(rowId);
+      rawRows.value = next;
+    }
+
+    /**
+     * 渲染一行键值
+     * @param index 行在所属块/分组内的序号，用于斑马纹，并参与行内状态 id 的构成
+     * @param idPrefix 行内状态（格式化开关）的命名空间：普通块用 block.key、分组内用 groupKey，
+     *                 避免不同块中同名 key 的行互相串状态
+     */
+    function renderRow(row: IRumOriginRowVM, index: number, idPrefix: string) {
+      const rowId = `${idPrefix}_${row.key}_${index}`;
+      const isJson = isJsonValue(row.value);
+      const showRaw = rawRows.value.has(rowId);
       return (
         <div
-          key={`${row.key}_${index}`}
+          key={rowId}
           class={{ 'origin-row': true, 'is-odd': index % 2 === 0 }}
         >
           <div class='row-key'>
             <FieldTypeIcon type={VALUE_TYPE_TO_FIELD_TYPE[row.valueType]} />
             <span
               class='key-text'
+              v-overflow-tips
               title={row.key}
             >
               {row.key}
             </span>
+            <div class='row-operator'>
+              <EnlargeLine
+                class='icon-add-query'
+                v-bk-tooltips={{ content: t('添加为检索条件') }}
+                onClick={() => emit('conditionAdd', row.key, row.value)}
+              />
+              <i
+                class='icon-monitor icon-mc-copy'
+                v-bk-tooltips={{ content: t('复制') }}
+                onClick={() => emit('copy', row.value)}
+              />
+            </div>
           </div>
-          <i
-            class='row-action icon-monitor icon-a-sousuo'
-            v-bk-tooltips={{ content: t('添加为检索条件') }}
-            onClick={() => emit('conditionAdd', row.key, row.value)}
-          />
-          <i
-            class='row-action icon-monitor icon-mc-copy'
-            v-bk-tooltips={{ content: t('复制') }}
-            onClick={() => emit('copy', row.value)}
-          />
-          <pre class='row-value'>{row.value}</pre>
+          <div class='row-value'>{isJson && !showRaw ? <VueJsonPretty data={JSON.parse(row.value)} /> : row.value}</div>
+          {isJson ? (
+            <Button
+              class='format-button'
+              outline={showRaw}
+              size='small'
+              theme='primary'
+              onClick={() => toggleFormat(rowId)}
+            >
+              <i class='icon-monitor icon-code' />
+              {t('格式化')}
+            </Button>
+          ) : null}
         </div>
       );
     }
 
+    /** 渲染一个折叠块：块头（标题 / 摘要 / 搜索框）+ 展开后的键值行或二级分组 */
     function renderBlock(block: IRumOriginBlockVM) {
       const expanded = expandedKeys.value.has(block.key);
       return (
@@ -123,11 +171,11 @@ export default defineComponent({
           key={block.key}
           class={{ 'origin-block': true, 'is-expanded': expanded }}
         >
-          <div class='block-head'>
-            <span
-              class='block-title'
-              onClick={() => toggleBlock(block.key)}
-            >
+          <div
+            class='block-head'
+            onClick={() => toggleBlock(block.key)}
+          >
+            <span class='block-title'>
               <i class={`title-arrow icon-monitor ${expanded ? 'icon-mc-arrow-down' : 'icon-mc-arrow-right'}`} />
               {block.title}
             </span>
@@ -139,7 +187,7 @@ export default defineComponent({
                 {block.summary}
               </span>
             )}
-            {expanded && block.groups ? (
+            {expanded && block.searchable ? (
               <Input
                 class='block-search'
                 modelValue={props.eventKeyword}
@@ -152,7 +200,7 @@ export default defineComponent({
           </div>
           {expanded ? (
             <div class='block-body'>
-              {block.rows?.map(renderRow)}
+              {block.rows?.map((row, index) => renderRow(row, index, block.key))}
               {block.groups?.map(group => {
                 const groupKey = `${block.key}_${group.name}`;
                 const collapsed = collapsedGroups.value.has(groupKey);
@@ -170,7 +218,7 @@ export default defineComponent({
                       />
                       {group.name}
                     </div>
-                    {collapsed ? null : group.rows.map(renderRow)}
+                    {collapsed ? null : group.rows.map((row, index) => renderRow(row, index, groupKey))}
                   </div>
                 );
               })}

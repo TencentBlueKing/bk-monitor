@@ -88,7 +88,7 @@ const countCard =
 
 /** 从 Error 详情的关键信息里还原「同一个错误」的过滤条件 */
 function buildErrorFilters(detail: IRumRecordDetail): IRumFilter[] {
-  const keyInfo = detail.sections.find(section => section.key === SectionKeyEnum.KEY_INFO);
+  const keyInfo = detail.sections?.find(section => section.key === SectionKeyEnum.KEY_INFO);
   const data = (keyInfo?.data ?? {}) as Record<string, Record<string, unknown>>;
   const source = data.source ?? {};
   const errorType = data.error_type ?? {};
@@ -118,7 +118,7 @@ export const SPAN_TYPE_DETAIL_CONFIG: Record<string, IRumSpanTypeDetailConfig> =
 
   long_task: {
     loadRelated: (context, mode, detail) => {
-      const keyInfo = detail.sections.find(section => section.key === SectionKeyEnum.KEY_INFO);
+      const keyInfo = detail.sections?.find(section => section.key === SectionKeyEnum.KEY_INFO);
       const data = (keyInfo?.data ?? {}) as Record<string, Record<string, unknown>>;
       const actionId = String(data.action?.['attributes.action.id'] ?? '');
       return getLongTaskRelated(context, mode, actionId);
