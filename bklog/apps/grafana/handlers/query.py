@@ -27,6 +27,7 @@ from collections import defaultdict
 from functools import partial
 
 from django.conf import settings
+from django.db.models import Q
 from django.utils.translation import gettext_lazy as _
 
 from apps.api import CCApi
@@ -478,7 +479,15 @@ class GrafanaQueryHandler:
             return []
 
         space_uids = IndexSetHandler.get_all_related_space_uids(space_uid)
-        index_set_list = LogIndexSet.objects.filter(space_uid__in=space_uids)
+        # 与检索侧 LogIndexSet.get_index_set 保持同一口径：归属空间之外，
+        # 还要补上按 platform_index_visibility 对当前空间开放的平台级索引集
+        space_filter = Q(space_uid__in=space_uids)
+        visible_platform_index_set_ids = LogIndexSet.get_visible_platform_index_set_ids(
+            space_uids, current_space_uid=space_uid
+        )
+        if visible_platform_index_set_ids:
+            space_filter |= Q(index_set_id__in=visible_platform_index_set_ids)
+        index_set_list = LogIndexSet.objects.filter(space_filter)
 
         if category_id:
             index_set_list = index_set_list.filter(category_id=category_id)
