@@ -8,19 +8,17 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from rum_web.handlers.level.page.span.resource import ResourceXhrAndFetchPage, ResourceOthersPage
-from rum_web.handlers.level.page.span.action import ActionPage
-from rum_web.handlers.level.page.span.longtask import LongTaskPage
-from rum_web.handlers.level.page.span.error import ErrorPage
-from rum_web.handlers.level.page.span.vital import VitalPage
-from rum_web.handlers.level.page.span.view import ViewPage
 
-__all__ = [
-    "ResourceXhrAndFetchPage",
-    "ResourceOthersPage",
-    "ActionPage",
-    "LongTaskPage",
-    "ErrorPage",
-    "VitalPage",
-    "ViewPage",
-]
+def get_safe_number(value: str | int | float | None, default: int | float = 0) -> int | float:
+    """安全地将任意值转换为数字（int 或 float）。
+
+    支持 str / int / float / None；转换失败时返回 default 而非 nan，
+    避免 nan 参与后续比较/计算产生隐蔽错误。
+    """
+    if value is None:
+        return default
+    try:
+        numeric_value = float(value)
+        return int(numeric_value) if numeric_value.is_integer() else numeric_value
+    except (TypeError, ValueError):
+        return default

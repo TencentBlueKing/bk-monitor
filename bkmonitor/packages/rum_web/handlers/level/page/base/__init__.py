@@ -11,8 +11,7 @@ specific language governing permissions and limitations under the License.
 from abc import ABC, abstractmethod
 from typing import Any, Protocol
 from dataclasses import dataclass
-
-EMPTY_VALUE = "--"
+from rum_web.handlers.level.page.utils import get_safe_number
 
 
 class ItemProtocol(Protocol):
@@ -32,29 +31,38 @@ class NamedKeyValueItem:
             result["field_alias"] = self.field_alias
         if self.alias is not None:
             result["alias"] = self.alias
-        result["value"] = self.value if self.value is not None else origin_data.get(self.field_name, EMPTY_VALUE)
+        result["value"] = (
+            self.value if self.value is not None else origin_data.get(self.field_name, BaseComponent.EMPTY_VALUE)
+        )
         return result
+
+
+@dataclass(frozen=True, slots=True)
+class DictItem:
+    key: str
+    items: list[ItemProtocol]
+
+    def render(self, origin_data: dict[str, Any]) -> dict[str, Any]:
+        if not isinstance(self.items, list):
+            raise ValueError(f"Items {self.items} is not a valid list")
+        merge_dict: dict[str, Any] = {}
+        for child in self.items:
+            if not hasattr(child, "render"):
+                raise ValueError(f"Child {child} is not a valid ItemProtocol")
+            merge_dict.update(child.render(origin_data))
+        return {self.key: merge_dict}
 
 
 @dataclass(frozen=True, slots=True)
 class KeyValueItem:
     key: str
-    value: str | float | int | bool | ItemProtocol | list[dict[str, Any]] | None = None
-    items: list[ItemProtocol] | None = None
-
-    def __post_init__(self):
-        if self.value is not None and self.items is not None:
-            raise ValueError(f"KeyValueItem(key={self.key!r}) 不能同时传入 value 和 items")
+    value: str | float | int | bool | list[dict | ItemProtocol] | None = None
+    source: str | None = None
 
     def render(self, origin_data: dict[str, Any]) -> dict[str, Any]:
-        if self.items is not None:
-            if not isinstance(self.items, list):
-                raise ValueError(f"Items {self.items} is not a valid list")
-            merge_dict: dict[str, Any] = {}
-            for child in self.items:
-                if hasattr(child, "render"):
-                    merge_dict.update(child.render(origin_data))
-            return {self.key: merge_dict}
+        # source 优先：从 origin_data 中按 source 取值
+        if self.source is not None:
+            return {self.key: origin_data.get(self.source, BaseComponent.EMPTY_VALUE)}
         if isinstance(self.value, list):
             value_list = []
             for child in self.value:
@@ -63,16 +71,15 @@ class KeyValueItem:
                 else:
                     value_list.append(child)
             return {self.key: value_list}
-
         if self.value is not None:
             # 静态值 → 直接使用
             return {self.key: self.value}
-        # 无值 → 从 origin_data 动态取
-        return {self.key: origin_data.get(self.key, EMPTY_VALUE)}
+        # 无值 → 从 origin_data 按 key 动态取
+        return {self.key: origin_data.get(self.key, BaseComponent.EMPTY_VALUE)}
 
 
 class BaseComponent(ABC):
-    EMPTY_VALUE = EMPTY_VALUE
+    EMPTY_VALUE = "--"
 
     def __init__(self, origin_data: dict[str, Any]):
         self.origin_data: dict[str, Any] = origin_data
@@ -113,6 +120,25 @@ class BaseOverview(BaseComponent):
 class BaseSection(BaseComponent):
     KEY: str
     TYPE: str
+    DATA: list[ItemProtocol] | None = None
+    ITEMS: list[ItemProtocol] | None = None
+
+    def get_numeric_value(self, key: str):
+        return get_safe_number(self.origin_data.get(key))
+
+    def _fill_data(self):
+        if self.DATA is None:
+            return
+        self.component_dict["data"] = {}
+        for item in self.DATA:
+            self.component_dict["data"].update(item.render(self.origin_data))
+
+    def _fill_items(self):
+        if self.ITEMS is None:
+            return
+        self.component_dict["items"] = []
+        for item in self.ITEMS:
+            self.component_dict["items"].append(item.render(self.origin_data))
 
     def render(self) -> dict[str, Any]:
         self.component_dict.update(
@@ -121,12 +147,16 @@ class BaseSection(BaseComponent):
                 "type": self.TYPE,
             }
         )
+        if hasattr(self, "_fill_data"):
+            self._fill_data()
+        if hasattr(self, "_fill_items"):
+            self._fill_items()
         return self.component_dict
 
 
 class BasePage(BaseComponent):
     OVERVIEW: type[BaseOverview] | None = None
-    SECTIONS: list[type[BaseSection]] = []
+    SECTIONS: list[type[BaseSection]] | None = None
 
     def _fill_overview(self):
         if self.OVERVIEW is None:
@@ -134,6 +164,8 @@ class BasePage(BaseComponent):
         self.component_dict["overview"] = self.OVERVIEW(self.origin_data).render()
 
     def _fill_sections(self):
+        if self.SECTIONS is None:
+            return
         self.component_dict["sections"] = []
         for section in self.SECTIONS:
             self.component_dict["sections"].append(section(self.origin_data).render())
@@ -144,4 +176,4 @@ class BasePage(BaseComponent):
         return self.component_dict
 
 
-__all__ = ["BasePage", "BaseSection", "BaseComponent", "NamedKeyValueItem", "KeyValueItem"]
+__all__ = ["BasePage", "BaseSection", "BaseComponent", "BaseOverview", "NamedKeyValueItem", "KeyValueItem", "DictItem"]
