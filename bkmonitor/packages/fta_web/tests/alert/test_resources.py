@@ -69,6 +69,7 @@ class TestAlertTopNResource:
         # 用 Event 把子线程的读取排到主线程 pop 之后，否则子线程抢跑时（实测约 15% 的运行）
         # 共享 dict 的旧实现也能侥幸通过，测试就失去回归保护作用。
         captured = {}
+        sliced_params = []
         popped = threading.Event()
 
         def fake_get_bucket_count(request_data):
@@ -79,6 +80,7 @@ class TestAlertTopNResource:
         def fake_bulk_request(params):
             # 走到批量分片查询时，主线程已经 pop 掉 start_time / end_time
             popped.set()
+            sliced_params.extend(params)
             return []
 
         monkeypatch.setattr(
@@ -104,6 +106,8 @@ class TestAlertTopNResource:
         assert captured["ordered"] is True, "子线程未能排到主线程 pop 之后，用例时序失控"
         assert captured["request_data"]["start_time"] == 1711900800
         assert captured["request_data"]["end_time"] == 1711987200
+        assert sliced_params
+        assert all(alert_resources.AlertQueryHandler(**params).bucket_count_suffix == "" for params in sliced_params)
         assert result == {"doc_count": 0, "fields": []}
 
 

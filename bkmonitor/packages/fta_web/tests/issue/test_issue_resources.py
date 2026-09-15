@@ -1080,4 +1080,5 @@ class TestIssueTopNResource:
         assert captured["ordered"] is True, "子线程未能排到主线程 pop 之后，用例时序失控"
         assert captured["request_data"]["start_time"] == self.START_TIME
         assert captured["request_data"]["end_time"] == self.END_TIME
+        assert all(issue_resources.IssueQueryHandler(**params).bucket_count_suffix == "" for params in sliced_params)
         assert result == {"doc_count": 0, "fields": []}

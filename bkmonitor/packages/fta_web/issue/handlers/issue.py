@@ -122,6 +122,7 @@ class IssueQueryHandler(BaseBizQueryHandler):
             conditions=conditions,
             page=page,
             page_size=page_size,
+            need_bucket_count=need_bucket_count,
             **kwargs,
         )
         self.status = [status] if isinstance(status, str) else status
