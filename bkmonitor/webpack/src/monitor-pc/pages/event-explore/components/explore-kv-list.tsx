@@ -23,7 +23,8 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Emit, Prop, Ref } from 'vue-property-decorator';
+
+import { Component, Emit, Inject, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import dayjs from 'dayjs';
@@ -86,6 +87,10 @@ export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvLi
 
   @Ref('menuRef') menuRef: InstanceType<typeof ExploreConditionMenu>;
   @Ref('statisticsList') statisticsListRef!: InstanceType<typeof StatisticsList>;
+
+  /** 容器监控就地侧滑打开，由表格层提供；返回 false 表示需保持原有新开页行为 */
+  @Inject({ from: 'openK8sSlider', default: null })
+  readonly openK8sSlider: (url: string, subTitle?: string) => boolean;
 
   showStatisticsPopover = false;
   /** 一级 popover 实例(条件菜单/维度统计面板) */
@@ -261,6 +266,8 @@ export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvLi
       if (!isHttpUrl(url)) {
         url = `${location.origin}${location.pathname}${location.search}${url}`;
       }
+      // 容器监控就地侧滑打开，其余入口保持新开页
+      if (this.openK8sSlider?.(url, entitiesItem.alias)) return;
       window.open(url, '_blank');
     }
   }
