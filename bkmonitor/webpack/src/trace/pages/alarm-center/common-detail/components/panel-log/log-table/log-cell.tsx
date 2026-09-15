@@ -67,6 +67,10 @@ export default defineComponent({
       type: Object as () => Record<string, any>,
       default: () => ({}),
     },
+    allowedMenuTypes: {
+      type: Array as () => EClickMenuType[],
+      default: () => undefined,
+    },
   },
   setup(props) {
     const { t } = useI18n();
@@ -224,6 +228,7 @@ export default defineComponent({
             return (
               <SegmentPop
                 key={index}
+                allowedMenuTypes={this.allowedMenuTypes}
                 onClickMenu={this.handleClickMenu}
               >
                 {{

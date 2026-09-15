@@ -61,13 +61,19 @@ export default defineComponent({
       type: String,
       default: '',
     },
+    // 主标题字号
+    titleSize: {
+      type: [Number, String],
+      default: 14,
+    },
   },
   setup(props) {
     // 计算样式
     const styles = computed(() => {
-      const { isDarkTheme, isError, imgHeight } = props;
+      const { isDarkTheme, isError, imgHeight, titleSize } = props;
       // number 补 px；string（如 'auto' / '150px'）原样作为 CSS 变量
       const heightValue = typeof imgHeight === 'number' ? `${imgHeight}px` : String(imgHeight);
+      const titleSizeValue = typeof titleSize === 'number' ? `${titleSize}px` : String(titleSize);
       return {
         exceptionStyle: {
           '--height': heightValue,
@@ -75,6 +81,7 @@ export default defineComponent({
         },
         titleStyle: {
           color: isDarkTheme ? (isError ? '#E04949' : '#979BA5') : '#313238',
+          fontSize: titleSizeValue,
         },
         descStyle: {
           color: isDarkTheme ? '#E04949' : '#979BA5',
