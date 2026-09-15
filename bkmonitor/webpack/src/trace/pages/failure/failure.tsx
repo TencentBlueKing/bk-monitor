@@ -348,7 +348,9 @@ export default defineComponent({
           if (route.query?.activeTab) {
             changeTab();
             nextTick(() => {
-              router.replace({ query: {} });
+              const restQuery = { ...route.query };
+              delete restQuery.activeTab;
+              router.replace({ query: restQuery });
             });
           }
         })
