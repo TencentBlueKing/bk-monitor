@@ -1,0 +1,41 @@
+.k8s-slider {
+  .k8s-slider-title {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+
+    .title-text {
+      flex-shrink: 0;
+      font-size: 16px;
+      color: #313238;
+    }
+
+    .title-sub {
+      margin-left: 10px;
+      overflow: hidden;
+      font-size: 12px;
+      color: #979ba5;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .title-goto {
+      flex-shrink: 0;
+      margin-left: 10px;
+      font-size: 14px;
+      color: #3a84ff;
+      cursor: pointer;
+    }
+  }
+
+  .bk-sideslider-content {
+    height: calc(100vh - 52px);
+    overflow: hidden;
+    background: #f5f7fa;
+  }
+
+  .k8s-slider-content {
+    height: 100%;
+    overflow: hidden;
+  }
+}
