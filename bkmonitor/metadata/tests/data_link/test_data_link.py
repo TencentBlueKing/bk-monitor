@@ -4988,7 +4988,7 @@ def test_rebuild_bkbase_v4_datalink_relation_recognizes_vm_only_graph_link_dry_r
 
 
 @pytest.mark.django_db(databases="__all__")
-@pytest.mark.parametrize("tuning", [None, {"vertexDebounceSecs": 240, "heartbeatGapMs": 300000}])
+@pytest.mark.parametrize("tuning", [None, {"timeout": 300, "window": 240, "concurrency": 32}])
 def test_rebuild_graph_relation_uses_short_name_and_updates_v4_option(tuning):
     table_id = "1001_bkmonitor_time_series_60202.__default__"
     _create_simple_rebuild_result_table(table_id, bk_biz_id=1001, bk_tenant_id="system")

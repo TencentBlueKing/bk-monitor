@@ -283,7 +283,7 @@ def test_sync_relation_graph_v4_apply_failure_does_not_block_token_sync(create_a
 
 @pytest.mark.django_db(databases="__all__")
 @override_settings(GRAPH_RELATION_V4_BIZ_ID_WHITE_LIST=[2])
-@pytest.mark.parametrize("tuning", [None, {"vertexDebounceSecs": 240, "heartbeatGapMs": 300000}])
+@pytest.mark.parametrize("tuning", [None, {"timeout": 300, "window": 240, "concurrency": 32}])
 @pytest.mark.parametrize("topology_changed", [False, True])
 def test_sync_relation_redis_data_skips_modify_when_graph_v4_config_unchanged(
     create_and_delete_records, tuning, topology_changed

@@ -1217,7 +1217,8 @@ class SurrealDBBindingConfig(DataLinkResourceConfigBase):
     SurrealDB 绑定配置（图数据库关联关系写入）
 
     对应 bkbase 资源 kind=SurrealDBBinding
-    spec 字段：data(ResultTable 引用)、storage(SurrealDB 引用)、table_type、vertices、relations
+    spec 字段：data(ResultTable 引用)、storage(SurrealDB 引用)、table_type、timeout、window、
+    concurrency、vertices、relations
 
     命名约定：与 ES/VM/Doris 同族 Binding 一致，`self.name` 同时作为 bkbase 侧
     ResultTable 的 name（两者必须相同）。`bkbase_result_table_name` 字段用于索引/查询时

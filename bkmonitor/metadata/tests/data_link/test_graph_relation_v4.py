@@ -688,10 +688,9 @@ def test_apply_graph_relation_v4_reuses_existing_graph_datalink(mocker, graph_re
     [
         None,
         {
-            "batch": {"max_events": 1000, "timeout_secs": 1},
-            "request": {"concurrency": 16},
-            "vertexDebounceSecs": 240,
-            "heartbeatGapMs": 300000,
+            "timeout": 300,
+            "window": 240,
+            "concurrency": 32,
         },
     ],
 )
@@ -721,17 +720,11 @@ def test_graph_v4_write_tuning_is_routed_to_correct_spec(graph_relation_v4_recor
     assert databus["sources"]
     assert databus["sinks"]
     assert databus["transforms"] == []
-    assert "heartbeatGapMs" not in databus
-    assert "heartbeat_gap_ms" not in binding
     if tuning is None:
-        assert "heartbeatGapMs" not in binding
-        assert not {"batch", "request", "vertexDebounceSecs"}.intersection(databus)
+        assert not {"timeout", "window", "concurrency"}.intersection(binding)
     else:
-        assert binding["heartbeatGapMs"] == 300000
-        assert databus["batch"] == tuning["batch"]
-        assert databus["request"] == tuning["request"]
-        assert databus["vertexDebounceSecs"] == 240
-        assert not {"batch", "request", "vertexDebounceSecs"}.intersection(binding)
+        assert {key: binding[key] for key in tuning} == tuning
+        assert not {"timeout", "window", "concurrency"}.intersection(databus)
     for config in configs:
         if config["kind"] == "Databus" and config["spec"]["sinks"][0]["kind"] != "SurrealDBBinding":
-            assert not {"batch", "request", "vertexDebounceSecs", "heartbeatGapMs"}.intersection(config["spec"])
+            assert not {"timeout", "window", "concurrency"}.intersection(config["spec"])

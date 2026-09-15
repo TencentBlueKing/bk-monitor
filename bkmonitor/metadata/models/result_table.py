@@ -3188,7 +3188,7 @@ class GraphRelationV4DataLinkOption(pydantic.BaseModel):
     # 按租户/业务结果表保存；双写时仅对 SurrealDB 分支生效，不改变 VM Databus。
     # None 保持历史下发结构；未填写的字段交给 BKBase 既有默认值处理。
     surrealdb_config: GraphSurrealDBWriteConfig | None = pydantic.Field(
-        default=None, description="SurrealDB 分支的批量、请求并发、顶点合并及关系有效窗口"
+        default=None, description="SurrealDBBinding 分支的超时、窗口及请求并发"
     )
 
     @classmethod
