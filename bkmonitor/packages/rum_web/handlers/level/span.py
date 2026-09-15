@@ -26,7 +26,6 @@ from constants.otel_query import (
     StatisticsProperty,
 )
 from bkmonitor.data_source.utils.apm import FilterOperator, TraceDatasourceTarget
-from bkmonitor.data_source.format import flatten_dict_data
 from bkmonitor.utils.common_utils import format_percent
 from bkmonitor.utils.thread_backend import ThreadPool
 from core.drf_resource import resource
@@ -507,7 +506,7 @@ class SpanLevelHandler(BaseRumLevelHandler):
         通过 span_id 查询原始记录，再根据 span_type 分派到对应 Builder 组装结构化详情响应。
         """
 
-        origin_data = flatten_dict_data(self.query.query_detail(record_id) or {})
+        origin_data = self.query.query_detail(record_id) or {}
         if not origin_data:
             raise serializers.ValidationError(_("span_id={} 记录不存在").format(record_id))
 
