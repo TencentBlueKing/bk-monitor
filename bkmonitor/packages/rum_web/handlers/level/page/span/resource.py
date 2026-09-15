@@ -94,9 +94,13 @@ class LoadingTimingSection(BaseSection):
     def _fill_data(self):
         redirect_start = self.get_numeric_value("attributes.resource.redirect.start")
         dns_start = self.get_numeric_value("attributes.resource.dns.start")
-        dns_duration = self.get_numeric_value("attributes.resource.dns.duration")
+        dns_duration = self.get_numeric_value("attributes.resource.dns.duration") - self.get_numeric_value(
+            "attributes.resource.redirect.start"
+        )
         connect_start = self.get_numeric_value("attributes.resource.connect.start")
-        connect_duration = self.get_numeric_value("attributes.resource.connect.duration")
+        connect_duration = self.get_numeric_value("attributes.resource.connect.duration") - self.get_numeric_value(
+            "attributes.resource.ssl.duration"
+        )
         ssl_start = self.get_numeric_value("attributes.resource.ssl.start")
         ssl_duration = self.get_numeric_value("attributes.resource.ssl.duration")
         first_byte_start = self.get_numeric_value("attributes.resource.first_byte.start")
