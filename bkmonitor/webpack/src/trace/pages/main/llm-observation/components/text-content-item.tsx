@@ -23,8 +23,9 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, nextTick, onMounted, ref, shallowRef, watch } from 'vue';
+import { defineComponent, nextTick, shallowRef, watch } from 'vue';
 
+import { useResizeObserver } from '@vueuse/core';
 import { Message } from 'bkui-vue';
 import { copyText } from 'monitor-common/utils/utils';
 import { useI18n } from 'vue-i18n';
@@ -57,7 +58,7 @@ export default defineComponent({
     const expanded = shallowRef(false);
     /** 折叠态是否发生溢出 */
     const overflow = shallowRef(false);
-    const textRef = ref<HTMLElement>();
+    const textRef = shallowRef<HTMLElement>();
 
     /** 按可见行高判断文本是否溢出 */
     const measureOverflow = () => {
@@ -67,9 +68,8 @@ export default defineComponent({
       overflow.value = el.scrollHeight > MAX_VISIBLE_LINES * LINE_HEIGHT + 2;
     };
 
-    onMounted(() => {
-      nextTick(measureOverflow);
-    });
+    // 详情面板可能在不可见时挂载；显示、缩放或切换宽度后重新判断，不能只在 mounted 时测量。
+    useResizeObserver(textRef, measureOverflow);
 
     watch(
       () => props.content,

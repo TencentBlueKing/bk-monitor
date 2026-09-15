@@ -95,18 +95,39 @@ export default class LlmTable extends tsc<ILlmTableProps, ILlmTableEvents> {
       case 'link': {
         return (
           <bk-button
+            class='llm-table-id-link'
             theme='primary'
             text
             onClick={() => this.handleTraceIdClick(value as string)}
           >
-            {value || EMPTY_TEXT}
+            <span
+              class='llm-table-text'
+              v-bk-overflow-tips={{ content: value || EMPTY_TEXT }}
+            >
+              {value || EMPTY_TEXT}
+            </span>
           </bk-button>
         );
       }
       case 'countLink':
-        return <span class='llm-table-link is-strong'>{value || EMPTY_TEXT}</span>;
+        return (
+          <span
+            class='llm-table-link llm-table-text is-strong'
+            v-bk-overflow-tips={{ content: value || EMPTY_TEXT }}
+          >
+            {value || EMPTY_TEXT}
+          </span>
+        );
+      case 'duration':
+        return (
+          <span
+            class='llm-table-text'
+            v-bk-tooltips={{ content: row.elapsedDetailText }}
+          >
+            {value || EMPTY_TEXT}
+          </span>
+        );
       case 'tokens':
-      // return <span class='llm-table-text'>{(value as ITokensCell).totalText}</span>;
       case 'tokensBadge':
         return this.renderTokensBadge(value as ITokensCell);
       case 'status':

@@ -25,7 +25,8 @@ from constants.apm import LLMProduct, OtlpKey
 from core.drf_resource import resource
 
 from apm_web.handlers.metric_group import base, define
-from apm_web.llm.adapter.fields import AGENT_CANDIDATE_Q, resolve_query_field
+from apm_web.llm.adapter.fields import resolve_query_field
+from apm_web.llm.constants import CalculationType
 from apm_web.llm.query import LLMQuery, get_query
 from apm_web.models import Application
 
@@ -44,7 +45,6 @@ class Layer:
 
     AGENT = "agent"
     MODEL = "model"
-    ANY = "any"
 
 
 @dataclass(frozen=True)
@@ -55,7 +55,7 @@ class Aggregation:
     多个 slots 的聚合值由存储侧相加。
     """
 
-    layer: str
+    layer: str | None
     method: str
     slots: tuple[str, ...] = ()
     field: str = ""
@@ -84,7 +84,6 @@ class LLMMetricGroup(base.BaseMetricGroup):
             LLMProduct.LANGFUSE.value: Q(**{"attributes.langfuse.internal.is_app_root": "true"}),
             LLMProduct.AIDEV.value: Q(span_name="agent.execution"),
         },
-        Layer.ANY: {LLMProduct.DEFAULT.value: AGENT_CANDIDATE_Q},
     }
 
     # 语义槽位 -> 产品 -> 字段，登记多个字段时由存储侧相加。
@@ -130,17 +129,16 @@ class LLMMetricGroup(base.BaseMetricGroup):
     }
 
     AGGREGATIONS: dict[str, Aggregation] = {
-        define.CalculationType.INPUT_TOKENS.value: Aggregation(Layer.MODEL, "SUM", slots=("input_tokens",)),
-        define.CalculationType.OUTPUT_TOKENS.value: Aggregation(Layer.MODEL, "SUM", slots=("output_tokens",)),
-        define.CalculationType.TOTAL_TOKENS.value: Aggregation(
-            Layer.MODEL, "SUM", slots=("input_tokens", "output_tokens")
-        ),
-        define.CalculationType.CACHE_TOKENS.value: Aggregation(Layer.MODEL, "SUM", slots=("cache_read", "cache_write")),
-        define.CalculationType.MODEL_CALL_COUNT.value: Aggregation(Layer.MODEL, "COUNT", field="_index"),
-        define.CalculationType.OPERATION_COUNT.value: Aggregation(Layer.ANY, "COUNT", field="_index"),
-        define.CalculationType.DURATION.value: Aggregation(Layer.MODEL, "AVG", field=OtlpKey.ELAPSED_TIME),
+        CalculationType.INPUT_TOKENS.value: Aggregation(Layer.MODEL, "SUM", slots=("input_tokens",)),
+        CalculationType.OUTPUT_TOKENS.value: Aggregation(Layer.MODEL, "SUM", slots=("output_tokens",)),
+        CalculationType.TOTAL_TOKENS.value: Aggregation(Layer.MODEL, "SUM", slots=("input_tokens", "output_tokens")),
+        CalculationType.CACHE_TOKENS.value: Aggregation(Layer.MODEL, "SUM", slots=("cache_read", "cache_write")),
+        CalculationType.MODEL_CALL_COUNT.value: Aggregation(Layer.MODEL, "COUNT", field="_index"),
+        # 操作次数按调用方的查询范围直接计数，不额外限定 Span 层级。
+        CalculationType.OPERATION_COUNT.value: Aggregation(None, "COUNT", field="_index"),
+        CalculationType.DURATION.value: Aggregation(Layer.MODEL, "AVG", field=OtlpKey.ELAPSED_TIME),
         # Agent Span 数会被双层埋点和子 Agent 放大，按 trace 去重才收敛到真实请求数
-        define.CalculationType.REQUEST_COUNT.value: Aggregation(Layer.AGENT, "DISTINCT", field=OtlpKey.TRACE_ID),
+        CalculationType.REQUEST_COUNT.value: Aggregation(Layer.AGENT, "DISTINCT", field=OtlpKey.TRACE_ID),
     }
 
     def __init__(
@@ -233,9 +231,9 @@ class LLMMetricGroup(base.BaseMetricGroup):
         offset: int = parse_time_compare_abbreviation(self.time_shift)
         return start_time + offset, end_time + offset
 
-    def _queries(self, layer: str) -> list[QueryConfigBuilder]:
+    def _queries(self, layer: str | None) -> list[QueryConfigBuilder]:
         """按产品的层级谓词构造查询，应用配置了多个 Trace 结果表时各出一个。"""
-        layer_q: Q = self._declared(self.LAYER_QUERIES, layer)
+        layer_q: Q = self._declared(self.LAYER_QUERIES, layer) if layer is not None else Q()
         return [query.filter(layer_q).filter(self._filter_dict_to_q()) for query in self.query.build_queries()]
 
     def _dimension_key(self, record: dict[str, Any]) -> tuple:
@@ -319,7 +317,7 @@ class LLMMetricGroup(base.BaseMetricGroup):
         return self.product == LLMProduct.LANGFUSE.value and bool(aggregation.slots)
 
     def _usage_records(
-        self, layer: str, start_time: int | None, end_time: int | None, extra_fields: tuple[str, ...] = ()
+        self, layer: str | None, start_time: int | None, end_time: int | None, extra_fields: tuple[str, ...] = ()
     ) -> list[dict[str, Any]]:
         fields: list[str] = [self.LANGFUSE_USAGE_FIELD, *self.group_fields, *extra_fields]
         return self.query.query_field_values(

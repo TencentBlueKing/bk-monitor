@@ -1,3 +1,19 @@
+.llm-table-expand {
+  padding: 16px;
+  background-color: #f5f7fa;
+
+  .bk-table {
+    tr {
+      background-color: transparent !important;
+    }
+
+    th,
+    td {
+      background-color: transparent !important;
+    }
+  }
+}
+
 .llm-table {
   .llm-table-skeleton {
     padding-top: 8px;
@@ -49,6 +65,13 @@
     white-space: nowrap;
   }
 
+  .llm-table-id-link {
+    display: block;
+    width: 100%;
+    font: inherit;
+    text-align: left;
+  }
+
   .llm-table-io-summary {
     display: flex;
     align-items: center;
@@ -76,6 +99,7 @@
   .llm-table-status {
     display: inline-flex;
     align-items: center;
+    white-space: nowrap;
   }
 
   .llm-table-status-dot {
@@ -107,16 +131,20 @@
 
   .llm-table-tokens-badge {
     display: flex;
+    gap: 12px;
     align-items: center;
     justify-content: space-between;
+    white-space: nowrap;
 
     .tokens-total {
+      flex-shrink: 0;
       font-weight: 700;
       color: #4e5e7a;
     }
 
     .tokens-tag {
       display: flex;
+      flex-shrink: 0;
       align-items: center;
       height: 22px;
       padding: 0 4px;
@@ -126,6 +154,7 @@
     }
 
     .tokens-tag-icon {
+      flex-shrink: 0;
       margin-right: 3px;
       font-size: 12px;
       color: #4e5e7a;
@@ -145,26 +174,11 @@
     }
 
     .tokens-tag-divider {
+      flex-shrink: 0;
       width: 1px;
       height: 12px;
       margin: 0 3px;
       background-color: #e4e9f2;
-    }
-  }
-}
-
-.llm-table-expand {
-  padding: 16px;
-  background-color: #f5f7fa;
-
-  .bk-table {
-    tr {
-      background-color: transparent !important;
-    }
-
-    th,
-    td {
-      background-color: transparent !important;
     }
   }
 }

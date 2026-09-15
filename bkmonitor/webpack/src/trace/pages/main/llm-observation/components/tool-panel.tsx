@@ -27,14 +27,12 @@ import { type PropType, computed, defineComponent, shallowRef } from 'vue';
 
 import { Sideslider } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
-import VueJsonPretty from 'vue-json-pretty';
 
-import { toJsonPrettyData } from '../utils/helpers';
 import { parseToolObservation } from '../utils/parse-tool';
 import JsonCodeBlock from './json-code-block';
+import JsonView from './json-view';
 
 import './tool-panel.scss';
-import 'vue-json-pretty/lib/styles.css';
 
 /** Tool Span 观测内容：工具描述、调用参数、返回结果 */
 export default defineComponent({
@@ -49,7 +47,7 @@ export default defineComponent({
   setup(props) {
     const { t } = useI18n();
     /** 独立查看侧栏当前展示的 JSON */
-    const detail = shallowRef<{ data: unknown; title: string } | null>(null);
+    const detail = shallowRef<null | { data: unknown; title: string }>(null);
     const observation = computed(() => parseToolObservation(props.attributes));
 
     return () => (
@@ -93,13 +91,8 @@ export default defineComponent({
             header: () => <span>{detail.value?.title || ''}</span>,
             default: () => (
               <div class='llm-tool-panel-slider-json'>
-                <VueJsonPretty
-                  collapsedOnClickBrackets={false}
-                  data={toJsonPrettyData(detail.value?.data)}
-                  deep={20}
-                  showIcon={false}
-                  showKeyValueSpace={true}
-                  showLine={false}
+                <JsonView
+                  data={detail.value?.data}
                   showLineNumber={true}
                 />
               </div>

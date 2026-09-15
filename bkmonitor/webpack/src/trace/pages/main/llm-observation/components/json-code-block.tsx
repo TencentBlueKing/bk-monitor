@@ -23,17 +23,16 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, computed, defineComponent, nextTick, onMounted, ref, shallowRef, watch } from 'vue';
+import { type PropType, computed, defineComponent, nextTick, onMounted, shallowRef, watch } from 'vue';
 
 import { Message } from 'bkui-vue';
 import { copyText } from 'monitor-common/utils/utils';
 import { useI18n } from 'vue-i18n';
-import VueJsonPretty from 'vue-json-pretty';
 
-import { beautifyJsonValue, stringifyContent, toJsonPrettyData } from '../utils/helpers';
+import { beautifyJsonValue, stringifyContent } from '../utils/helpers';
+import JsonView from './json-view';
 
 import './json-code-block.scss';
-import 'vue-json-pretty/lib/styles.css';
 
 /** JSON 代码块：复制、独立查看、原地展开/收起 */
 export default defineComponent({
@@ -59,14 +58,12 @@ export default defineComponent({
   setup(props, { emit }) {
     const { t } = useI18n();
     const expanded = shallowRef(false);
-    const bodyRef = ref<HTMLElement | null>(null);
+    const bodyRef = shallowRef<HTMLElement | null>(null);
     /** 折叠态内容是否超出容器，用于决定是否展示底部渐变 */
     const overflowing = shallowRef(false);
 
-    const parsedData = computed(() => beautifyJsonValue(props.data));
-    const prettyText = computed(() => stringifyContent(parsedData.value));
-    const jsonData = computed(() => toJsonPrettyData(props.data));
-    const isStructured = computed(() => Boolean(parsedData.value) && typeof parsedData.value === 'object');
+    // 复制仍输出合法 JSON（文本则保留原文），不使用含多行叶子的可读展示文本。
+    const prettyText = computed(() => stringifyContent(beautifyJsonValue(props.data)));
 
     /** 同步折叠态是否溢出，用于控制底部渐变遮罩 */
     const syncOverflow = async () => {
@@ -125,19 +122,7 @@ export default defineComponent({
           ref={bodyRef}
           class={['llm-json-code-block-body', { 'is-expanded': expanded.value, 'is-overflowing': overflowing.value }]}
         >
-          {isStructured.value ? (
-            <VueJsonPretty
-              collapsedOnClickBrackets={false}
-              data={jsonData.value}
-              deep={20}
-              showIcon={false}
-              showKeyValueSpace={true}
-              showLine={false}
-              showLineNumber={false}
-            />
-          ) : (
-            <pre class='llm-json-code-block-text'>{prettyText.value}</pre>
-          )}
+          <JsonView data={props.data} />
         </div>
       </div>
     );
