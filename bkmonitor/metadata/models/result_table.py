@@ -34,8 +34,6 @@ from metadata.models.constants import BULK_CREATE_BATCH_SIZE, DataIdCreatedFromS
 from metadata.models.data_link.constants import BKBASE_NAMESPACE_BK_MONITOR, DataLinkResourceStatus
 from metadata.models.data_link.utils import compose_transfer_consumer_group
 from metadata.utils.basic import getitems
-from metadata.utils.graph_write_config import GraphSurrealDBWriteConfig
-
 from .common import BaseModel, Label, OptionBase
 from .data_source import DataSource, DataSourceOption, DataSourceResultTable
 from .result_table_manage import EnableManager
@@ -1619,6 +1617,20 @@ class ResultTable(models.Model):
             if existing_graph_relation_option_value != new_graph_relation_option_value:
                 force_update_datalink = True
 
+            surrealdb_option = ResultTableOption.objects.filter(
+                table_id=self.table_id,
+                bk_tenant_id=self.bk_tenant_id,
+                name=ResultTableOption.OPTION_GRAPH_RELATION_V4_SURREALDB,
+            ).first()
+            existing_surrealdb_option_value = surrealdb_option.get_value() if surrealdb_option else None
+            new_surrealdb_option_value = option.get(ResultTableOption.OPTION_GRAPH_RELATION_V4_SURREALDB)
+            if new_surrealdb_option_value is not None:
+                from metadata.utils.graph_write_config import GraphSurrealDBWriteConfig
+
+                GraphSurrealDBWriteConfig.from_option_value(new_surrealdb_option_value)
+            if existing_surrealdb_option_value != new_surrealdb_option_value:
+                force_update_datalink = True
+
             # 目前rt的option存在清洗和查询两类option，清洗的option需要清理，查询的option需要保留。
             # 目前在option配置的时候并没有标记option的类型，因此只能通过名单的方式进行管理
             # TODO: 后续需要优化option的配置方式，增加option的类型标记
@@ -3179,16 +3191,12 @@ class CustomFormatV4DataLinkOption(pydantic.BaseModel):
 class GraphRelationV4DataLinkOption(pydantic.BaseModel):
     """Graph Relation V4 数据链路写入目标。"""
 
+    model_config = pydantic.ConfigDict(extra="forbid")
+
     write_targets: list[Literal["vm", "surrealdb"]] = pydantic.Field(
         min_length=1,
         max_length=2,
         description="链路写入目标",
-    )
-
-    # 按租户/业务结果表保存；双写时仅对 SurrealDB 分支生效，不改变 VM Databus。
-    # None 保持历史下发结构；未填写的字段交给 BKBase 既有默认值处理。
-    surrealdb_config: GraphSurrealDBWriteConfig | None = pydantic.Field(
-        default=None, description="SurrealDBBinding 分支的超时、窗口及请求并发"
     )
 
     @classmethod
@@ -3236,6 +3244,7 @@ class ResultTableOption(OptionBase):
     OPTION_ENABLE_PLUGIN_V4_DATA_LINK = "enable_plugin_v4_data_link"
     OPTION_ENABLE_DATA_LINK_COMPONENT_REUSE = "enable_data_link_component_reuse"
     OPTION_GRAPH_RELATION_V4_DATA_LINK = "graph_relation_v4_data_link"
+    OPTION_GRAPH_RELATION_V4_SURREALDB = "graph_relation_v4_surrealdb"
     OPTION_ENABLE_CUSTOM_FORMAT_V4_DATA_LINK = "enable_custom_format_v4_data_link"
     OPTION_CUSTOM_FORMAT_V4_DATA_LINK = "custom_format_v4_data_link"
     OPTION_BINDING_BCS_CLUSTER_ID = "binding_bcs_cluster_id"
@@ -3268,6 +3277,7 @@ class ResultTableOption(OptionBase):
             (OPTION_IS_VIRTUAL_TABLE, _("是否为虚拟结果表")),
             (OPTION_ENABLE_DATA_LINK_COMPONENT_REUSE, _("是否开启DataLink组件复用")),
             (OPTION_GRAPH_RELATION_V4_DATA_LINK, _("Graph Relation V4 数据链路配置")),
+            (OPTION_GRAPH_RELATION_V4_SURREALDB, _("Graph Relation V4 SurrealDBBinding 配置")),
             (OPTION_ENABLE_CUSTOM_FORMAT_V4_DATA_LINK, _("是否开启自定义格式 V4 数据链路")),
             (OPTION_CUSTOM_FORMAT_V4_DATA_LINK, _("自定义格式 V4 数据链路配置")),
             (OPTION_BINDING_BCS_CLUSTER_ID, _("绑定BCS集群ID")),

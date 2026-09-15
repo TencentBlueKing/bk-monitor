@@ -697,8 +697,6 @@ def test_apply_graph_relation_v4_reuses_existing_graph_datalink(mocker, graph_re
 def test_graph_v4_write_tuning_is_routed_to_correct_spec(graph_relation_v4_records, write_targets, tuning):
     ctx = graph_relation_v4_records
     value = {"write_targets": write_targets}
-    if tuning is not None:
-        value["surrealdb_config"] = tuning
     models.ResultTableOption.objects.create(
         bk_tenant_id="system",
         table_id=ctx["table_id"],
@@ -707,6 +705,15 @@ def test_graph_v4_write_tuning_is_routed_to_correct_spec(graph_relation_v4_recor
         value_type=models.ResultTableOption.TYPE_STRING,
         creator="system",
     )
+    if tuning is not None:
+        models.ResultTableOption.objects.create(
+            bk_tenant_id="system",
+            table_id=ctx["table_id"],
+            name=models.ResultTableOption.OPTION_GRAPH_RELATION_V4_SURREALDB,
+            value=json.dumps(tuning),
+            value_type=models.ResultTableOption.TYPE_STRING,
+            creator="system",
+        )
     configs = ctx["data_link"].compose_graph_relation_v4_time_series_configs(
         bk_biz_id=2,
         data_source=ctx["data_source"],

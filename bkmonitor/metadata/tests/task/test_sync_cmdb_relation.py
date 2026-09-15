@@ -309,10 +309,18 @@ def test_sync_relation_redis_data_skips_modify_when_graph_v4_config_unchanged(
     models.ResultTableOption.create_option(
         table_id=table_id,
         name=models.ResultTableOption.OPTION_GRAPH_RELATION_V4_DATA_LINK,
-        value={"write_targets": ["vm", "surrealdb"], **({"surrealdb_config": tuning} if tuning else {})},
+        value={"write_targets": ["vm", "surrealdb"]},
         creator="system",
         bk_tenant_id="system",
     )
+    if tuning is not None:
+        models.ResultTableOption.create_option(
+            table_id=table_id,
+            name=models.ResultTableOption.OPTION_GRAPH_RELATION_V4_SURREALDB,
+            value=tuning,
+            creator="system",
+            bk_tenant_id="system",
+        )
     if topology_changed:
         storage_config = {**storage_config, "vertices": [{"name": "host"}, {"name": "module"}]}
     redis_data = {b"bkcc__2": b'{"token":"testtokenxxxxxx","modifyTime":"1733132051"}'}
@@ -333,11 +341,16 @@ def test_sync_relation_redis_data_skips_modify_when_graph_v4_config_unchanged(
         mock_modify.assert_not_called()
     else:
         mock_modify.assert_called_once()
-        expected = {"write_targets": ["vm", "surrealdb"], **({"surrealdb_config": tuning} if tuning else {})}
+        expected = {"write_targets": ["vm", "surrealdb"]}
         assert (
             mock_modify.call_args.kwargs["option"][models.ResultTableOption.OPTION_GRAPH_RELATION_V4_DATA_LINK]
             == expected
         )
+        if tuning is not None:
+            assert (
+                mock_modify.call_args.kwargs["option"][models.ResultTableOption.OPTION_GRAPH_RELATION_V4_SURREALDB]
+                == tuning
+            )
 
 
 @pytest.mark.django_db(databases="__all__")

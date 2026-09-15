@@ -38,6 +38,7 @@ from metadata.models import (
 from metadata.models.entity_relation import EntityMeta
 from metadata.models.space.constants import EtlConfigs
 from metadata.tools.constants import TASK_FINISHED_SUCCESS, TASK_STARTED
+from metadata.utils.graph_write_config import GraphSurrealDBWriteConfig
 from metadata.utils.redis_tools import RedisTools
 
 logger = logging.getLogger("metadata")
@@ -161,26 +162,26 @@ def _modify_relation_graph_v4_result_table(
             )
             .first()
         )
+        surrealdb_option_record = (
+            ResultTableOption.objects.using(config.DATABASE_CONNECTION_NAME)
+            .filter(
+                bk_tenant_id=result_table.bk_tenant_id,
+                table_id=result_table.table_id,
+                name=ResultTableOption.OPTION_GRAPH_RELATION_V4_SURREALDB,
+            )
+            .first()
+        )
+        if surrealdb_option_record is not None:
+            # 独立 RTOption 直接保存 BKBase Binding 参数；CMDB 同步不能静默覆盖非法配置。
+            GraphSurrealDBWriteConfig.from_option_value(surrealdb_option_record.get_value())
         current_graph_option = None
         if graph_option_record is not None:
             option_value = graph_option_record.get_value()
             try:
                 current_graph_option = GraphRelationV4DataLinkOption.from_option_value(option_value)
             except (TypeError, ValueError):
-                # 显式调优配置非法时停止同步，避免被默认配置静默覆盖。
-                raw_option = option_value
-                if isinstance(raw_option, str):
-                    try:
-                        raw_option = json.loads(raw_option)
-                    except ValueError:
-                        raw_option = None
-                if isinstance(raw_option, dict) and raw_option.get("surrealdb_config") is not None:
-                    raise
-                # 不含调优参数的非法旧值仍交给普通 modify 流程覆盖修复。
-
-        if current_graph_option is not None:
-            # CMDB 定时同步更新拓扑和写入目标时，不覆盖业务已设置的写入调优参数。
-            desired_graph_option.surrealdb_config = current_graph_option.surrealdb_config
+                # 非法旧的 write_targets 仍交给普通 modify 流程覆盖修复。
+                pass
 
         storage_unchanged = bool(
             surrealdb_storage

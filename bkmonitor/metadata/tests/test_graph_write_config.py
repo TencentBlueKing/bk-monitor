@@ -14,15 +14,15 @@ class GraphWriteConfigTests(unittest.TestCase):
                 "concurrency": 32,
             }
         )
-        self.assertEqual(config.binding_spec(), {"timeout": 300, "window": 240, "concurrency": 32})
+        self.assertEqual(config.model_dump(exclude_none=True), {"timeout": 300, "window": 240, "concurrency": 32})
 
     def test_omitted_fields_preserve_downstream_defaults(self):
         config = GraphSurrealDBWriteConfig()
-        self.assertEqual(config.binding_spec(), {})
+        self.assertEqual(config.model_dump(exclude_none=True), {})
 
     def test_partial_config_does_not_invent_defaults(self):
         config = GraphSurrealDBWriteConfig.model_validate({"timeout": 300})
-        self.assertEqual(config.binding_spec(), {"timeout": 300})
+        self.assertEqual(config.model_dump(exclude_none=True), {"timeout": 300})
 
     def test_positive_controls_reject_invalid_values(self):
         for field in ["timeout", "window", "concurrency"]:
@@ -41,13 +41,13 @@ class GraphWriteConfigTests(unittest.TestCase):
                 GraphSurrealDBWriteConfig.model_validate(payload)
 
     def test_option_round_trip_preserves_binding_fields(self):
-        config = GraphSurrealDBWriteConfig.model_validate({"timeout": 300, "window": 240, "concurrency": 32})
-        payload = config.model_dump(exclude_none=True)
+        payload = {"timeout": 300, "window": 240, "concurrency": 32}
+        config = GraphSurrealDBWriteConfig.from_option_value(payload)
         self.assertEqual(payload, {"timeout": 300, "window": 240, "concurrency": 32})
-        self.assertEqual(GraphSurrealDBWriteConfig.model_validate(payload), config)
+        self.assertEqual(GraphSurrealDBWriteConfig.from_option_value(config.model_dump()), config)
 
     def test_configuration_instances_are_independent(self):
         first = GraphSurrealDBWriteConfig.model_validate({"concurrency": 16})
         second = GraphSurrealDBWriteConfig.model_validate({"concurrency": 4})
         first.concurrency = 8
-        self.assertEqual(second.binding_spec(), {"concurrency": 4})
+        self.assertEqual(second.model_dump(exclude_none=True), {"concurrency": 4})

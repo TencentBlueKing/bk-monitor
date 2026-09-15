@@ -1054,6 +1054,7 @@ class DataLink(models.Model):
         """根据 ResultTableOption 一次性组装 Graph Relation V4 的完整期望状态。"""
         from metadata.models import ResultTableOption
         from metadata.models.result_table import GraphRelationV4DataLinkOption
+        from metadata.utils.graph_write_config import GraphSurrealDBWriteConfig
 
         option_record = ResultTableOption.objects.get(
             bk_tenant_id=self.bk_tenant_id,
@@ -1229,9 +1230,15 @@ class DataLink(models.Model):
 
             binding_config = graph_binding.compose_config()
             databus_config = graph_databus.compose_config([graph_sink], transforms=[])
-            if option.surrealdb_config is not None:
-                # 调优参数与普通 sources/sinks/transforms 一起下发，不替换完整 spec。
-                binding_config["spec"].update(option.surrealdb_config.binding_spec())
+            surrealdb_option_record = ResultTableOption.objects.filter(
+                bk_tenant_id=self.bk_tenant_id,
+                table_id=table_id,
+                name=ResultTableOption.OPTION_GRAPH_RELATION_V4_SURREALDB,
+            ).first()
+            if surrealdb_option_record is not None:
+                # RTOption 直接保存 BKBase Binding spec 所需字段，不再增加 metadata 私有嵌套层级。
+                surrealdb_option = GraphSurrealDBWriteConfig.from_option_value(surrealdb_option_record.get_value())
+                binding_config["spec"].update(surrealdb_option.model_dump(exclude_none=True))
             configs.extend([graph_rt.compose_config(), binding_config, databus_config])
 
         return configs
