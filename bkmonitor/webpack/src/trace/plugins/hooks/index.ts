@@ -27,3 +27,4 @@ export * from './chart';
 export * from './intersection';
 export * from './legend';
 export * from './resize';
+export * from './useZoomKeyboard';
