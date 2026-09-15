@@ -2046,5 +2046,11 @@ export default {
   原地展开: 'Expand in place',
   未命名工具: 'Unnamed tool',
   规划的工具调用: 'Planned tool calls',
-  模型输出: 'Model output'
+  模型输出: 'Model output',
+
+  // RUM 检索--详情
+  会话: 'Session',
+  用户: 'User',
+  环境: 'Environment',
+  'View 详情': 'View Details',
 };

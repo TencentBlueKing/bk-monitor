@@ -47,7 +47,7 @@ const COMMON_ITEMS: IRumDetailItem[] = [
 /** 类型项在公共信息里排第一，各类型文案不同 */
 const typeItem = (alias: string): IRumDetailItem => ({
   field_name: 'display.span_type',
-  field_alias: window.i18n.t('类型') as string,
+  field_alias: '类型',
   alias,
   value: alias,
 });
@@ -156,12 +156,12 @@ const RESOURCE_FETCH: IRumRecordDetail = {
         unit: 'ms',
         total_duration: 122.2,
         phases: [
-          { key: 'prepare', alias: window.i18n.t('浏览器准备') as string, start: 0, duration: 1 },
+          { key: 'prepare', alias: '浏览器准备', start: 0, duration: 1 },
           { key: 'dns', alias: 'DNS', start: 1, duration: 0 },
           { key: 'connect', alias: 'TCP', start: 1, duration: 0 },
           { key: 'tls', alias: 'TLS', start: 1, duration: 0 },
-          { key: 'first_byte', alias: window.i18n.t('等待 TTFB') as string, start: 1, duration: 13.8 },
-          { key: 'download', alias: window.i18n.t('内容下载') as string, start: 14.8, duration: 2.4 },
+          { key: 'first_byte', alias: '等待 TTFB', start: 1, duration: 13.8 },
+          { key: 'download', alias: '内容下载', start: 14.8, duration: 2.4 },
         ],
       },
     },
@@ -202,15 +202,11 @@ const RESOURCE_OTHER: IRumRecordDetail = {
       key: 'resource_info',
       type: RumSectionTypeEnum.SUMMARY_CARDS,
       items: [
-        { field_name: 'attributes.resource.type', field_alias: window.i18n.t('资源类型') as string, value: 'img' },
-        { field_name: 'attributes.url.template', field_alias: window.i18n.t('URL 模版') as string, value: '' },
-        {
-          field_name: 'attributes.server.address',
-          field_alias: window.i18n.t('服务端地址') as string,
-          value: 'example.com',
-        },
-        { field_name: 'attributes.http.request.method', field_alias: window.i18n.t('请求方法') as string, value: '' },
-        { field_name: 'attributes.resource.protocol', field_alias: window.i18n.t('网络协议') as string, value: '' },
+        { field_name: 'attributes.resource.type', field_alias: '资源类型', value: 'img' },
+        { field_name: 'attributes.url.template', field_alias: 'URL 模版', value: '' },
+        { field_name: 'attributes.server.address', field_alias: '服务端地址', value: 'example.com' },
+        { field_name: 'attributes.http.request.method', field_alias: '请求方法', value: '' },
+        { field_name: 'attributes.resource.protocol', field_alias: '网络协议', value: '' },
       ],
     },
     {
@@ -220,12 +216,12 @@ const RESOURCE_OTHER: IRumRecordDetail = {
         unit: 'ms',
         total_duration: 122.2,
         phases: [
-          { key: 'prepare', alias: window.i18n.t('浏览器准备') as string, start: 0, duration: 1 },
+          { key: 'prepare', alias: '浏览器准备', start: 0, duration: 1 },
           { key: 'dns', alias: 'DNS', start: 1, duration: 0 },
           { key: 'connect', alias: 'TCP', start: 1, duration: 0 },
           { key: 'tls', alias: 'TLS', start: 1, duration: 0 },
-          { key: 'first_byte', alias: window.i18n.t('等待 TTFB') as string, start: 1, duration: 13.8 },
-          { key: 'download', alias: window.i18n.t('内容下载') as string, start: 14.8, duration: 2.4 },
+          { key: 'first_byte', alias: '等待 TTFB', start: 1, duration: 13.8 },
+          { key: 'download', alias: '内容下载', start: 14.8, duration: 2.4 },
         ],
       },
     },
@@ -321,7 +317,7 @@ const VITAL: IRumRecordDetail = {
     title: 'LCP',
     badges: [
       { field_name: 'attributes.vital.value', value: 2840 },
-      { field_name: 'display.rating_level', alias: window.i18n.t('需改进') as string, value: 'needs_improvement' },
+      { field_name: 'display.rating_level', alias: '需改进', value: 'needs_improvement' },
     ],
     items: [typeItem('Web Vital'), ...COMMON_ITEMS],
   },
@@ -333,9 +329,9 @@ const VITAL: IRumRecordDetail = {
         'attributes.vital.metric': 'lcp',
         'attributes.vital.value': 2840,
         'display.rating_config': [
-          { rating: 'good', value: 2500, alias: window.i18n.t('良好') as string },
-          { rating: 'needs_improvement', value: 4000, alias: window.i18n.t('需改进') as string },
-          { rating: 'poor', alias: window.i18n.t('差') as string },
+          { rating: 'good', value: 2500, alias: '良好' },
+          { rating: 'needs_improvement', value: 4000, alias: '需改进' },
+          { rating: 'poor', alias: '差' },
         ],
       },
     },

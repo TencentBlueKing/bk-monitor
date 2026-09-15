@@ -558,4 +558,7 @@ export default {
   去关联: 'Go to Association',
   恢复默认: 'Restore Default',
   删除分组: 'Delete Group',
+
+  // RUM 检索--详情
+  复制完整地址: 'Copy Full Address',
 };
