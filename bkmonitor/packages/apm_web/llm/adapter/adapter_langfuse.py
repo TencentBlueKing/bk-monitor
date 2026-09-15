@@ -21,6 +21,7 @@ from .utils import (
 
 OPERATION_MAPPING = {
     "agent": "invoke_agent",
+    "chain": "invoke_workflow",
     "embedding": "embeddings",
     "retriever": "retrieval",
     "tool": "execute_tool",
@@ -263,7 +264,10 @@ def convert(raw: list[dict[str, Any]]) -> list[dict[str, Any]]:
         }
         attributes.update(standard_content(attrs))
         observation_type = str(attrs.get("langfuse.observation.type", "")).lower()
-        put(attributes, "gen_ai.operation.name", OPERATION_MAPPING.get(observation_type))
+        operation = OPERATION_MAPPING.get(observation_type)
+        if observation_type == "span" and attrs.get("langfuse.internal.is_app_root") is True:
+            operation = "invoke_agent"
+        put(attributes, "gen_ai.operation.name", operation)
         for target, source_key in ALIASES.items():
             put(attributes, target, attrs.get(source_key))
         temperature = attrs.get("langfuse.observation.metadata.temperature")
@@ -281,7 +285,9 @@ def convert(raw: list[dict[str, Any]]) -> list[dict[str, Any]]:
             _add_generation_content(attributes, attrs)
         elif observation_type == "tool":
             _add_tool_content(attributes, span)
-        elif observation_type in {"agent", "chain"} or attrs.get("langfuse.internal.is_app_root") is True:
+        elif observation_type in {"agent", "chain"} or (
+            observation_type == "span" and attrs.get("langfuse.internal.is_app_root") is True
+        ):
             _add_root_content(attributes, attrs)
         if not attributes:
             continue
