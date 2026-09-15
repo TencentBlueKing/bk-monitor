@@ -721,6 +721,9 @@ def test_graph_v4_write_tuning_is_routed_to_correct_spec(graph_relation_v4_recor
         storage_cluster_name=ctx["vm_cluster"].cluster_name if "vm" in write_targets else "",
     )
     binding = next(c for c in configs if c["kind"] == "SurrealDBBinding")["spec"]
+    # 直接渲染 Binding 也应包含完整参数，不依赖 DataLink 在外层补充 spec。
+    binding_record = SurrealDBBindingConfig.objects.get(bk_tenant_id="system", table_id=ctx["table_id"])
+    assert binding_record.compose_config()["spec"] == binding
     databus = next(
         c for c in configs if c["kind"] == "Databus" and c["spec"]["sinks"][0]["kind"] == "SurrealDBBinding"
     )["spec"]

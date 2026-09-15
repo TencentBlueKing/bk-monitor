@@ -1299,11 +1299,24 @@ class SurrealDBBindingConfig(DataLinkResourceConfigBase):
         if settings.ENABLE_MULTI_TENANT_MODE:
             render_params["tenant"] = self.bk_tenant_id
 
-        return utils.compose_config(
+        config = utils.compose_config(
             tpl=tpl,
             render_params=render_params,
             err_msg_prefix="compose surrealdb binding config",
         )
+        if self.table_id:
+            from metadata.models.result_table import ResultTableOption
+            from metadata.utils.graph_write_config import GraphSurrealDBWriteConfig
+
+            option_record = ResultTableOption.objects.filter(
+                bk_tenant_id=self.bk_tenant_id,
+                table_id=self.table_id,
+                name=ResultTableOption.OPTION_GRAPH_RELATION_V4_SURREALDB,
+            ).first()
+            if option_record is not None:
+                option = GraphSurrealDBWriteConfig.from_option_value(option_record.get_value())
+                config["spec"].update(option.model_dump(exclude_none=True))
+        return config
 
     def _validate_graph_definitions(self) -> None:
         """
