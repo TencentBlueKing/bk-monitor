@@ -33,6 +33,8 @@ class TestDelimiterSplitStr(TestCase):
         self.assertEqual(sep_rules[0]["operator"]["type"], "split_str")
         self.assertEqual(sep_rules[0]["operator"]["delimiter"], "|")
         self.assertIsNone(sep_rules[0]["operator"]["max_parts"])
+        self.assertEqual(sep_rules[0]["operator"]["min_parts"], 1)
+        self.assertEqual(sep_rules[0]["operator"]["error_strategy"], "drop")
 
     def test_comma_separator(self):
         """逗号分隔符"""
@@ -43,6 +45,44 @@ class TestDelimiterSplitStr(TestCase):
         rules = result["clean_rules"]
         sep_rules = find_rules_by_output(rules, "bk_separator_object")
         self.assertEqual(sep_rules[0]["operator"]["delimiter"], ",")
+
+    def test_min_parts_uses_highest_retained_field_index(self):
+        """最少列数取未删除字段的最大 field_index"""
+        etl_params = {"separator": "|", "retain_original_text": False}
+        fields = [
+            make_field("first", field_index=1),
+            make_field("third", field_index=3),
+            make_field("deleted", field_index=5, is_delete=True),
+        ]
+        config = get_fresh_config()
+        result = self.storage.build_log_v4_data_link(fields, etl_params, config, build_test_field_list(fields, config))
+        sep_rules = find_rules_by_output(result["clean_rules"], "bk_separator_object")
+        self.assertEqual(sep_rules[0]["operator"]["min_parts"], 3)
+
+
+class TestDelimiterErrorStrategy(TestCase):
+    """split_str 的失败策略应与 JSON 清洗保持一致"""
+
+    def setUp(self):
+        self.storage = BkLogDelimiterEtlStorage()
+
+    def test_error_strategy_truth_table(self):
+        cases = [
+            ({"retain_original_text": True, "enable_retain_content": True}, "null"),
+            ({"retain_original_text": True, "enable_retain_content": False}, "drop"),
+            ({"retain_original_text": True}, "drop"),
+            ({"retain_original_text": False, "enable_retain_content": True}, "drop"),
+        ]
+        for switches, expected in cases:
+            with self.subTest(switches=switches):
+                etl_params = {"separator": "|", **switches}
+                fields = [make_field("ip", field_index=1)]
+                config = get_fresh_config()
+                result = self.storage.build_log_v4_data_link(
+                    fields, etl_params, config, build_test_field_list(fields, config)
+                )
+                sep_rules = find_rules_by_output(result["clean_rules"], "bk_separator_object")
+                self.assertEqual(sep_rules[0]["operator"]["error_strategy"], expected)
 
 
 class TestDelimiterIndexMapping(TestCase):
