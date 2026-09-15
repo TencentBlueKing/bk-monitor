@@ -13,8 +13,8 @@ import ast
 import json
 import uuid
 
-import bkoauth
 from bkapi_client_core.exceptions import ResponseError
+from bkoauth.client import oauth_client
 from bkoauth.exceptions import TokenNotExist
 from django.conf import settings
 from django.utils import translation
@@ -324,20 +324,13 @@ class BkFaraSourceAnalysisBaseResource(APIResource):
         """
 
         if username:
-            get_token = bkoauth.get_access_token_by_user
-            token_args = (username,)
+            token = oauth_client.get_access_token_by_user(username)
         else:
             request = get_request(peaceful=True)
             if request is None:
                 raise TokenNotExist("current request is unavailable")
-            get_token = bkoauth.get_access_token
-            token_args = (request,)
+            token = oauth_client.get_access_token(request)
 
-        # bkoauth 未配置完成时，公开入口保持为 None。
-        if not callable(get_token):
-            raise TokenNotExist("bkoauth is unavailable")
-
-        token = get_token(*token_args)
         access_token = getattr(token, "access_token", "")
         if not access_token:
             raise TokenNotExist("user access token is empty")
@@ -373,19 +366,6 @@ class BkFaraSourceAnalysisBaseResource(APIResource):
     def perform_request(self, validated_request_data):
         validated_request_data = dict(validated_request_data)
         username = validated_request_data.pop("bk_username", "")
-
-        # Web 请求由框架从当前登录态提取 bk_ticket / bk_token，交给 API Gateway
-        # 完成用户认证。只有没有原始请求的异步恢复路径，才按执行人从 bkoauth
-        # 恢复 access_token。
-        if not username:
-            # api 模块会复用 Resource 实例；异步请求曾写入的 bk_username 不能污染
-            # 当前 Web 请求，因此用同类型的新实例进入框架标准调用链。
-            resource = type(self)()
-            try:
-                return APIResource.perform_request(resource, validated_request_data)
-            except BKAPIError as error:
-                error.data = self._normalize_error_data(error.data)
-                raise
 
         bk_tenant_id = validated_request_data.get("bk_tenant_id", "")
         client = self._build_client(bk_tenant_id, username)

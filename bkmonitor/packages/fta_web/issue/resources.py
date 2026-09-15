@@ -29,7 +29,8 @@ from django.views.decorators.csrf import csrf_exempt
 from rest_framework import serializers, exceptions
 from rest_framework.decorators import api_view
 
-from bkoauth.exceptions import TokenException
+from bkoauth.client import oauth_client
+from bkoauth.exceptions import TokenException, TokenNotExist
 from bkm_space.utils import bk_biz_id_to_space_uid
 from bkmonitor.action.alert_assign import AlertAssignMatchManager, AssignRuleMatch
 from bkmonitor.documents.alert import AlertDocument
@@ -610,7 +611,26 @@ class SourceAnalysisExecutionBaseResource(Resource):
 
     @classmethod
     def dispatch_execution(cls, execution: IssueSourceAnalysisExecution) -> None:
-        """在当前请求内完成用户态触发，再把后续轮询交给 Celery。"""
+        """持久化当前用户凭证并推进一次，后续轮询交给 Celery。"""
+
+        request = get_request(peaceful=True)
+        if request is None:
+            cls._mark_user_access_token_unavailable(execution)
+            return
+
+        try:
+            token = oauth_client.get_access_token(request)
+            if not getattr(token, "access_token", ""):
+                raise TokenNotExist("current user access token is empty")
+
+            # bkoauth 以 request.user.username 为键保存。这里按执行快照立即回读，
+            # 提前保证无 request 的 Celery 与周期恢复任务能够取得同一条记录。
+            persisted_token = oauth_client.get_access_token_by_user(execution.create_user)
+            if not getattr(persisted_token, "access_token", ""):
+                raise TokenNotExist("persisted user access token is empty")
+        except TokenException:
+            cls._mark_user_access_token_unavailable(execution)
+            return
 
         next_poll_after_seconds = cls.advance_bkfara_task(execution.analysis_id, use_current_request=True)
         if next_poll_after_seconds is None:

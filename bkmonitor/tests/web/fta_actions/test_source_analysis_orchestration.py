@@ -13,6 +13,7 @@ from datetime import timedelta
 from types import SimpleNamespace
 from unittest.mock import MagicMock, call, patch
 
+from bkoauth.client import oauth_client
 from bkoauth.exceptions import TokenException, TokenNotExist
 from django.db import DatabaseError
 from django.test import SimpleTestCase, TestCase
@@ -208,20 +209,18 @@ class TestSourceAnalysisContract(SimpleTestCase):
             {"bk_app_code": "bkmonitorv3", "bk_app_secret": "app-secret"},
         )
 
-    @patch("api.bk_incident.default.APIResource.perform_request", return_value={"status": "running"})
-    def test_web_request_uses_framework_user_login_state(self, perform_request):
-        resource = TriggerSourceAnalysisResource()
-        request_data = {"bk_biz_id": 2, "bk_tenant_id": "system"}
+    @patch("api.bk_incident.default.oauth_client.get_access_token")
+    @patch("api.bk_incident.default.get_request")
+    def test_web_request_uses_bkoauth_current_login(self, get_request, get_access_token):
+        get_access_token.return_value = SimpleNamespace(access_token="web-access-token")
 
-        result = resource.perform_request(request_data)
+        access_token = TriggerSourceAnalysisResource._get_user_access_token()
 
-        self.assertEqual(result, {"status": "running"})
-        delegated_resource, delegated_data = perform_request.call_args.args
-        self.assertIsInstance(delegated_resource, TriggerSourceAnalysisResource)
-        self.assertIsNot(delegated_resource, resource)
-        self.assertEqual(delegated_data, request_data)
+        get_request.assert_called_once_with(peaceful=True)
+        get_access_token.assert_called_once_with(get_request.return_value)
+        self.assertEqual(access_token, "web-access-token")
 
-    @patch("api.bk_incident.default.bkoauth.get_access_token_by_user")
+    @patch("api.bk_incident.default.oauth_client.get_access_token_by_user")
     @patch("api.bk_incident.default.get_request")
     def test_celery_uses_bkoauth_token_by_execution_user(self, get_request, get_access_token_by_user):
         get_access_token_by_user.return_value = SimpleNamespace(access_token="worker-access-token")
@@ -232,13 +231,16 @@ class TestSourceAnalysisContract(SimpleTestCase):
         get_access_token_by_user.assert_called_once_with("operator-a")
         self.assertEqual(access_token, "worker-access-token")
 
-    @patch("api.bk_incident.default.bkoauth.get_access_token_by_user", None)
-    def test_unconfigured_bkoauth_is_reported_as_missing_user_token(self):
+    @patch(
+        "api.bk_incident.default.oauth_client.get_access_token_by_user",
+        side_effect=TokenNotExist("token unavailable"),
+    )
+    def test_missing_persisted_token_is_reported_as_missing_user_token(self, _get_access_token_by_user):
         with self.assertRaises(TokenNotExist):
             TriggerSourceAnalysisResource._get_user_access_token("operator-a")
 
     @patch(
-        "api.bk_incident.default.bkoauth.get_access_token_by_user",
+        "api.bk_incident.default.oauth_client.get_access_token_by_user",
         side_effect=DatabaseError("database unavailable"),
     )
     def test_token_storage_error_is_not_hidden_as_missing_user_token(self, _get_access_token_by_user):
@@ -265,6 +267,21 @@ class TestSourceAnalysisContract(SimpleTestCase):
             data={"bk_biz_id": 2, "bk_tenant_id": "system"},
             timeout=resource.TIMEOUT,
         )
+        self.assertNotIn("access_token", request_data)
+
+    def test_web_request_uses_access_token_client_without_exposing_credentials(self):
+        resource = TriggerSourceAnalysisResource()
+        operation = MagicMock(return_value={"result": True, "code": "OK", "data": {"status": "running"}})
+        client = MagicMock()
+        client.source_analysis.trigger = operation
+        request_data = {"bk_biz_id": 2, "bk_tenant_id": "system"}
+
+        with patch.object(resource, "_build_client", return_value=client) as build_client:
+            result = resource.perform_request(request_data)
+
+        self.assertEqual(result, {"status": "running"})
+        build_client.assert_called_once_with("system", "")
+        operation.assert_called_once_with(data=request_data, timeout=resource.TIMEOUT)
         self.assertNotIn("access_token", request_data)
 
     @patch("fta_web.issue.resources.bk_biz_id_to_bk_tenant_id", return_value="system")
@@ -754,20 +771,194 @@ class TestSourceAnalysisOrchestration(TestCase):
         get_scene.assert_not_called()
         trigger.assert_not_called()
 
+    @patch("fta_web.issue.resources.get_request")
+    @patch("fta_web.issue.resources.oauth_client.get_access_token")
+    @patch("fta_web.issue.resources.oauth_client.get_access_token_by_user")
     @patch.object(SourceAnalysisExecutionBaseResource, "advance_bkfara_task", return_value=3)
     @patch.object(run_source_analysis_execution, "apply_async", side_effect=RuntimeError("broker unavailable"))
-    def test_dispatch_error_is_left_for_periodic_recovery(self, apply_async, advance):
+    def test_dispatch_persists_token_before_advancing(
+        self,
+        apply_async,
+        advance,
+        get_access_token_by_user,
+        get_access_token,
+        get_request,
+    ):
+        execution = self.create_execution()
+        get_access_token.return_value = SimpleNamespace(access_token="web-access-token")
+        get_access_token_by_user.return_value = SimpleNamespace(access_token="persisted-access-token")
+
+        SourceAnalysisExecutionBaseResource.dispatch_execution(execution)
+
+        get_request.assert_called_once_with(peaceful=True)
+        get_access_token.assert_called_once_with(get_request.return_value)
+        get_access_token_by_user.assert_called_once_with(execution.create_user)
+        advance.assert_called_once_with(execution.analysis_id, use_current_request=True)
+        apply_async.assert_called_once_with(args=(execution.analysis_id,), countdown=3)
+
+    def test_persisted_web_token_is_recovered_by_celery_trigger(self):
+        execution = self.create_execution(bkfara_provision_id=None)
+        request = SimpleNamespace(
+            user=SimpleNamespace(username=execution.create_user),
+            COOKIES={},
+            session={},
+            GET={},
+            META={},
+        )
+        persisted_tokens = {}
+
+        def persist_token(current_request):
+            token = SimpleNamespace(access_token="persisted-access-token")
+            persisted_tokens[current_request.user.username] = token
+            return token
+
+        def recover_token(username):
+            try:
+                return persisted_tokens[username]
+            except KeyError as error:
+                raise TokenNotExist("persisted token unavailable") from error
+
+        provisioning_scene = {
+            "provision_id": "provision-new",
+            "status": "provisioning",
+            "terminal": False,
+            "phase": "copying_flow",
+            "next_poll_after_seconds": 2,
+        }
+
+        with (
+            patch("fta_web.issue.resources.get_request", return_value=request),
+            patch.object(oauth_client, "get_access_token", side_effect=persist_token),
+            patch.object(oauth_client, "get_access_token_by_user", side_effect=recover_token) as get_token_by_user,
+            patch(
+                "fta_web.issue.resources.api.bk_incident.ensure_source_analysis_scene",
+                return_value=provisioning_scene,
+            ),
+            patch.object(run_source_analysis_execution, "apply_async") as apply_async,
+        ):
+            SourceAnalysisExecutionBaseResource.dispatch_execution(execution)
+
+        self.assertIn(execution.create_user, persisted_tokens)
+        get_token_by_user.assert_called_once_with(execution.create_user)
+        execution.refresh_from_db()
+        self.assertEqual(execution.bkfara_provision_id, "provision-new")
+        apply_async.assert_called_once_with(args=(execution.analysis_id,), countdown=2)
+
+        def trigger_with_celery_token(**params):
+            self.assertEqual(
+                TriggerSourceAnalysisResource._get_user_access_token(params["bk_username"]),
+                persisted_tokens[execution.create_user].access_token,
+            )
+            return {
+                "analysis_task_id": "task-from-celery",
+                "status": "running",
+                "terminal": False,
+                "phase": "devops_running",
+                "next_poll_after_seconds": 4,
+            }
+
+        with (
+            patch(
+                "fta_web.issue.resources.api.bk_incident.get_source_analysis_scene_status",
+                return_value={
+                    "provision_id": "provision-new",
+                    "status": "ready",
+                    "terminal": True,
+                },
+            ),
+            patch(
+                "fta_web.issue.resources.api.bk_incident.trigger_source_analysis",
+                side_effect=trigger_with_celery_token,
+            ),
+            patch.object(oauth_client, "get_access_token_by_user", side_effect=recover_token) as celery_get_token,
+            patch.object(run_source_analysis_execution, "apply_async") as celery_apply_async,
+        ):
+            run_source_analysis_execution.run(execution.analysis_id)
+
+        execution.refresh_from_db()
+        self.assertEqual(execution.bkfara_task_id, "task-from-celery")
+        self.assertEqual(execution.status, SourceAnalysisStatus.RUNNING)
+        self.assertEqual(execution.stage, SourceAnalysisStage.ANALYZING)
+        celery_get_token.assert_called_once_with(execution.create_user)
+        celery_apply_async.assert_called_once_with(args=(execution.analysis_id,), countdown=4)
+
+    @patch("fta_web.issue.resources.get_request", return_value=object())
+    @patch(
+        "fta_web.issue.resources.oauth_client.get_access_token",
+        side_effect=TokenException("token unavailable"),
+    )
+    @patch.object(SourceAnalysisExecutionBaseResource, "advance_bkfara_task")
+    @patch.object(run_source_analysis_execution, "apply_async")
+    def test_dispatch_token_failure_is_retryable(self, apply_async, advance, _get_access_token, _get_request):
         execution = self.create_execution()
 
         SourceAnalysisExecutionBaseResource.dispatch_execution(execution)
 
-        advance.assert_called_once_with(execution.analysis_id, use_current_request=True)
-        apply_async.assert_called_once_with(args=(execution.analysis_id,), countdown=3)
+        advance.assert_not_called()
+        apply_async.assert_not_called()
+        execution.refresh_from_db()
+        self.assertEqual(execution.status, SourceAnalysisStatus.FAILED)
+        self.assertEqual(execution.failure_code, "USER_ACCESS_TOKEN_UNAVAILABLE")
+        self.assertEqual(execution.failure_message, SourceAnalysisFailureMessage.USER_ACCESS_TOKEN_UNAVAILABLE)
+        self.assertTrue(execution.failure_retryable)
+
+    @patch("fta_web.issue.resources.get_request", return_value=object())
+    @patch(
+        "fta_web.issue.resources.oauth_client.get_access_token",
+        return_value=SimpleNamespace(access_token="web-access-token"),
+    )
+    @patch(
+        "fta_web.issue.resources.oauth_client.get_access_token_by_user",
+        side_effect=TokenNotExist("persisted token unavailable"),
+    )
+    @patch.object(SourceAnalysisExecutionBaseResource, "advance_bkfara_task")
+    @patch.object(run_source_analysis_execution, "apply_async")
+    def test_dispatch_stops_when_celery_cannot_read_persisted_token(
+        self,
+        apply_async,
+        advance,
+        _get_access_token_by_user,
+        _get_access_token,
+        _get_request,
+    ):
+        execution = self.create_execution()
+
+        SourceAnalysisExecutionBaseResource.dispatch_execution(execution)
+
+        advance.assert_not_called()
+        apply_async.assert_not_called()
+        execution.refresh_from_db()
+        self.assertEqual(execution.status, SourceAnalysisStatus.FAILED)
+        self.assertEqual(execution.failure_code, "USER_ACCESS_TOKEN_UNAVAILABLE")
+        self.assertTrue(execution.failure_retryable)
+
+    @patch("fta_web.issue.resources.get_request", return_value=object())
+    @patch(
+        "fta_web.issue.resources.oauth_client.get_access_token",
+        side_effect=DatabaseError("database unavailable"),
+    )
+    def test_dispatch_does_not_hide_token_storage_error(self, _get_access_token, _get_request):
+        execution = self.create_execution()
+
+        with self.assertRaisesMessage(DatabaseError, "database unavailable"):
+            SourceAnalysisExecutionBaseResource.dispatch_execution(execution)
 
     @patch.object(SourceAnalysisExecutionBaseResource, "advance_bkfara_task", return_value=None)
+    @patch("fta_web.issue.resources.get_request")
+    @patch("fta_web.issue.resources.oauth_client.get_access_token")
+    @patch("fta_web.issue.resources.oauth_client.get_access_token_by_user")
     @patch.object(run_source_analysis_execution, "apply_async")
-    def test_dispatch_terminal_execution_is_not_scheduled(self, apply_async, advance):
+    def test_dispatch_terminal_execution_is_not_scheduled(
+        self,
+        apply_async,
+        get_access_token_by_user,
+        get_access_token,
+        get_request,
+        advance,
+    ):
         execution = self.create_execution()
+        get_access_token.return_value = SimpleNamespace(access_token="web-access-token")
+        get_access_token_by_user.return_value = SimpleNamespace(access_token="persisted-access-token")
 
         SourceAnalysisExecutionBaseResource.dispatch_execution(execution)
 
