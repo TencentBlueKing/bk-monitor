@@ -1341,8 +1341,17 @@ class CollectorHandler:
             # 订阅状态
             group_status_keys = status_group.keys()
             if not status_group:
-                status = CollectStatus.UNKNOWN
-                status_name = RunStatus.UNKNOWN
+                if not total_count:
+                    # 订阅范围为空（如目标主机已从 CMDB 移除、动态分组下无主机），采集不可能
+                    # 下发成功，归入失败。沿用 UNKNOWN 会被 CollectStatusEnum 兜底成 RUNNING，
+                    # 使列表永远显示「部署中」、前端轮询不结束，且停用/删除按钮不可点而无法清理
+                    status = CollectStatus.FAILED
+                    status_name = RunStatus.FAILED
+                else:
+                    # 订阅已下发但节点管理统计尚未产出，属瞬时态，
+                    # 保持 UNKNOWN 由 CollectStatusEnum 兜底成 RUNNING 以续上前端轮询
+                    status = CollectStatus.UNKNOWN
+                    status_name = RunStatus.UNKNOWN
             elif CollectStatus.PENDING in group_status_keys or CollectStatus.RUNNING in group_status_keys:
                 status = CollectStatus.RUNNING
                 status_name = RunStatus.RUNNING
