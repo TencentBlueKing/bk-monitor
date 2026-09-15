@@ -313,6 +313,7 @@ class TGPAReportSyncStatusEnum(ChoicesEnum):
 
 
 TGPA_REPORT_FILTER_FIELDS = ["openid", "file_name"]
+TGPA_REPORT_EXTEND_INFO_FIELD = "extend_info"
 TGPA_REPORT_ORDER_FIELDS = ["file_size"]
 TGPA_REPORT_LIST_BATCH_SIZE = 2000  # 客户端日志上报列表批量查询大小
 TGPA_OPENID_SUGGEST_LIMIT = 10  # openid 联想/聚合查询最大返回数量

@@ -243,6 +243,50 @@ class TestTGPASearchHandler(SimpleTestCase):
 
     @patch("apps.tgpa.handlers.search.TGPAReportHandler.get_report_list")
     @patch("apps.tgpa.handlers.search.TGPATaskHandler.get_task_page")
+    def test_get_merged_task_list_passes_keyword_to_both_sources(self, mock_get_task_page, mock_get_report_list):
+        params = {
+            "bk_biz_id": 2,
+            "keyword": "LoginBugReport",
+            "start_time": 1716000000000,
+            "end_time": 1716600000000,
+            "page": 1,
+            "pagesize": 2,
+        }
+        mock_get_task_page.return_value = {"total": 0, "list": []}
+        mock_get_report_list.return_value = {"total": 0, "list": []}
+
+        result = TGPASearchHandler.get_merged_task_list(params)
+
+        self.assertEqual(result, {"total": 0, "list": []})
+        mock_get_task_page.assert_called_once_with(
+            params={
+                "bk_biz_id": 2,
+                "page": 1,
+                "pagesize": 2,
+                "openid": None,
+                "task_id": None,
+                "start_time": 1716000000000,
+                "end_time": 1716600000000,
+                "ordering": "-created_at",
+                "keyword": "LoginBugReport",
+            },
+            need_format=False,
+        )
+        mock_get_report_list.assert_called_once_with(
+            {
+                "bk_biz_id": 2,
+                "openid": None,
+                "file_name": None,
+                "start_time": 1716000000000,
+                "end_time": 1716600000000,
+                "page": 1,
+                "pagesize": 2,
+                "keyword": "LoginBugReport",
+            }
+        )
+
+    @patch("apps.tgpa.handlers.search.TGPAReportHandler.get_report_list")
+    @patch("apps.tgpa.handlers.search.TGPATaskHandler.get_task_page")
     def test_get_merged_task_list_skips_report_for_task_id(self, mock_get_task_page, mock_get_report_list):
         params = {
             "bk_biz_id": 2,
