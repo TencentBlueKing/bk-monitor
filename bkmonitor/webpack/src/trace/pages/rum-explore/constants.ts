@@ -107,6 +107,17 @@ export const SPAN_TYPE_META: Record<string, ISpanTypeMeta> = {
   custom: { icon: CustomIcon, label: 'Custom' },
 };
 
+export const SPAN_TYPE_META_ICON = {
+  view: { icon: 'icon-View', label: 'View' },
+  resource: { icon: 'icon-Resource', label: 'Resource' },
+  error: { icon: 'icon-ERROR', label: 'Error' },
+  vital: { icon: 'icon-a-WebVital', label: 'Vital' },
+  long_task: { icon: 'icon-Long-Task', label: 'Long task' },
+  action: { icon: 'icon-Action', label: 'Action' },
+  websocket: { icon: 'icon-websocket', label: 'Websocket' },
+  custom: { icon: 'icon-custom1', label: 'Custom' },
+};
+
 /**
  * 字段分组的图标。
  *

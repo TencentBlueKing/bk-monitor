@@ -26,14 +26,13 @@
 import { computed, unref } from 'vue';
 import type { MaybeRef } from 'vue';
 
-import { SPAN_TYPE_META } from '../../constants';
+import { SPAN_TYPE_META_ICON } from '../../constants';
 import { formatUnitValue } from '../../utils';
 import {
   BADGE_COLOR,
   DURATION_BADGE_FIELDS,
   OUTCOME_BADGE_COLOR,
   OVERVIEW_ITEM_LABEL_MAP,
-  OVERVIEW_ITEMS_PER_ROW,
   OVERVIEW_LINK_FIELDS,
   RATING_FALLBACK_META,
   RATING_META,
@@ -73,7 +72,7 @@ export function useDetailOverview(
       return {
         key: fieldName,
         text: badge.alias || formatUnitValue(value, unit),
-        icon: 'icon-monitor icon-mc-time',
+        icon: 'icon-monitor icon-jishiqi',
         ...BADGE_COLOR.duration,
       };
     }
@@ -107,20 +106,11 @@ export function useDetailOverview(
     }));
     return {
       title: overview.title || '',
-      logo: SPAN_TYPE_META[unref(spanType)]?.icon || '',
+      logo: SPAN_TYPE_META_ICON[unref(spanType)]?.icon || '',
       badges: (overview.badges || []).map(resolveBadge),
-      itemRows: chunk(items, OVERVIEW_ITEMS_PER_ROW),
+      items,
     };
   });
 
   return { headerVM };
-}
-
-/** 把一维数组按固定列数切成多行 */
-function chunk<T>(list: T[], size: number): T[][] {
-  const rows: T[][] = [];
-  for (let i = 0; i < list.length; i += size) {
-    rows.push(list.slice(i, i + size));
-  }
-  return rows;
 }

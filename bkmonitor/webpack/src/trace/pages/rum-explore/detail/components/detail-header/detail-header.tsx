@@ -54,10 +54,7 @@ export default defineComponent({
         <div class='rum-detail-header'>
           {data.logo ? (
             <div class='header-logo'>
-              <img
-                alt=''
-                src={data.logo}
-              />
+              <i class={`logo-icon icon-monitor ${data.logo}`} />
             </div>
           ) : null}
           <div class='header-main'>
@@ -79,28 +76,23 @@ export default defineComponent({
                 </span>
               ))}
             </div>
-            {data.itemRows.map(row => (
-              <div
-                key={row.map(item => item.key).join('|')}
-                class='header-item-row'
-              >
-                {row.map(item => (
-                  <div
-                    key={item.key}
-                    class='header-item'
+            <div class='header-info-items'>
+              {data.items.map(item => (
+                <div
+                  key={item.key}
+                  class='header-item'
+                >
+                  <span class='item-label'>{item.label}：</span>
+                  <span
+                    class={{ 'item-value': true, 'is-link': item.isLink && !!item.value }}
+                    v-overflow-tips
+                    onClick={() => item.isLink && item.value && emit('itemClick', item.key, item.value)}
                   >
-                    <span class='item-label'>{item.label}：</span>
-                    <span
-                      class={{ 'item-value': true, 'is-link': item.isLink && !!item.value }}
-                      title={item.value}
-                      onClick={() => item.isLink && item.value && emit('itemClick', item.key, item.value)}
-                    >
-                      {item.value || '--'}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            ))}
+                    {item.value || '--'}
+                  </span>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       );
