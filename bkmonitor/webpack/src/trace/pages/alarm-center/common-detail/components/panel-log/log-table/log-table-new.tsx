@@ -39,10 +39,10 @@ import {
 
 import { type TableSort, type TdPrimaryTableProps, PrimaryTable } from '@blueking/tdesign-ui';
 import { debounce } from 'lodash';
-import { DetailTableSkeleton, DetailLoadStatus } from '@/pages/alarm-center/common-detail/detail-loading';
 import { useI18n } from 'vue-i18n';
 
 import { useTable } from './hooks/use-table';
+import { DetailLoadStatus, DetailTableSkeleton } from '@/pages/alarm-center/common-detail/detail-loading';
 
 import type { TClickMenuOpt } from './typing';
 
