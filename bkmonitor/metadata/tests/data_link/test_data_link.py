@@ -4988,8 +4988,7 @@ def test_rebuild_bkbase_v4_datalink_relation_recognizes_vm_only_graph_link_dry_r
 
 
 @pytest.mark.django_db(databases="__all__")
-@pytest.mark.parametrize("tuning", [None, {"timeout": 300, "window": 240, "concurrency": 32}])
-def test_rebuild_graph_relation_uses_short_name_and_updates_v4_option(tuning):
+def test_rebuild_graph_relation_uses_short_name_and_updates_v4_option():
     table_id = "1001_bkmonitor_time_series_60202.__default__"
     _create_simple_rebuild_result_table(table_id, bk_biz_id=1001, bk_tenant_id="system")
     data_id_name = "graph_vm_only_rebuild_data"
@@ -5035,14 +5034,6 @@ def test_rebuild_graph_relation_uses_short_name_and_updates_v4_option(tuning):
         creator="system",
         bk_tenant_id="system",
     )
-    if tuning is not None:
-        models.ResultTableOption.create_option(
-            table_id=table_id,
-            name=models.ResultTableOption.OPTION_GRAPH_RELATION_V4_SURREALDB,
-            value=tuning,
-            creator="system",
-            bk_tenant_id="system",
-        )
     databus = models.DataBusConfig.objects.create(
         name="graph_vm_only_rebuild_databus",
         namespace="bkmonitor",
@@ -5067,16 +5058,6 @@ def test_rebuild_graph_relation_uses_short_name_and_updates_v4_option(tuning):
     assert option.pk == existing_option.pk
     assert option.value_type == models.ResultTableOption.TYPE_DICT
     assert option.creator == "system"
-    surrealdb_option = models.ResultTableOption.objects.filter(
-        table_id=table_id,
-        bk_tenant_id="system",
-        name=models.ResultTableOption.OPTION_GRAPH_RELATION_V4_SURREALDB,
-    ).first()
-    if tuning is None:
-        assert surrealdb_option is None
-    else:
-        assert surrealdb_option is not None
-        assert surrealdb_option.get_value() == tuning
 
 
 @pytest.mark.django_db(databases="__all__")

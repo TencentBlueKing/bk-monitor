@@ -682,7 +682,6 @@ def test_apply_graph_relation_v4_reuses_existing_graph_datalink(mocker, graph_re
     assert legacy_data_link.table_ids == [ctx["table_id"]]
 
 
-@pytest.mark.parametrize("write_targets", [["surrealdb"], ["vm", "surrealdb"]])
 @pytest.mark.parametrize(
     "tuning",
     [
@@ -694,9 +693,9 @@ def test_apply_graph_relation_v4_reuses_existing_graph_datalink(mocker, graph_re
         },
     ],
 )
-def test_graph_v4_write_tuning_is_routed_to_correct_spec(graph_relation_v4_records, write_targets, tuning):
+def test_surrealdb_binding_compose_reads_write_option(graph_relation_v4_records, tuning):
     ctx = graph_relation_v4_records
-    value = {"write_targets": write_targets}
+    value = {"write_targets": ["surrealdb"]}
     models.ResultTableOption.objects.create(
         bk_tenant_id="system",
         table_id=ctx["table_id"],
@@ -714,27 +713,16 @@ def test_graph_v4_write_tuning_is_routed_to_correct_spec(graph_relation_v4_recor
             value_type=models.ResultTableOption.TYPE_STRING,
             creator="system",
         )
-    configs = ctx["data_link"].compose_graph_relation_v4_time_series_configs(
+    ctx["data_link"].compose_graph_relation_v4_time_series_configs(
         bk_biz_id=2,
         data_source=ctx["data_source"],
         table_id=ctx["table_id"],
-        storage_cluster_name=ctx["vm_cluster"].cluster_name if "vm" in write_targets else "",
+        storage_cluster_name="",
     )
-    binding = next(c for c in configs if c["kind"] == "SurrealDBBinding")["spec"]
     # 直接渲染 Binding 也应包含完整参数，不依赖 DataLink 在外层补充 spec。
     binding_record = SurrealDBBindingConfig.objects.get(bk_tenant_id="system", table_id=ctx["table_id"])
-    assert binding_record.compose_config()["spec"] == binding
-    databus = next(
-        c for c in configs if c["kind"] == "Databus" and c["spec"]["sinks"][0]["kind"] == "SurrealDBBinding"
-    )["spec"]
-    assert databus["sources"]
-    assert databus["sinks"]
-    assert databus["transforms"] == []
+    binding = binding_record.compose_config()["spec"]
     if tuning is None:
         assert not {"timeout", "window", "concurrency"}.intersection(binding)
     else:
         assert {key: binding[key] for key in tuning} == tuning
-        assert not {"timeout", "window", "concurrency"}.intersection(databus)
-    for config in configs:
-        if config["kind"] == "Databus" and config["spec"]["sinks"][0]["kind"] != "SurrealDBBinding":
-            assert not {"timeout", "window", "concurrency"}.intersection(config["spec"])

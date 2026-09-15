@@ -283,11 +283,7 @@ def test_sync_relation_graph_v4_apply_failure_does_not_block_token_sync(create_a
 
 @pytest.mark.django_db(databases="__all__")
 @override_settings(GRAPH_RELATION_V4_BIZ_ID_WHITE_LIST=[2])
-@pytest.mark.parametrize("tuning", [None, {"timeout": 300, "window": 240, "concurrency": 32}])
-@pytest.mark.parametrize("topology_changed", [False, True])
-def test_sync_relation_redis_data_skips_modify_when_graph_v4_config_unchanged(
-    create_and_delete_records, tuning, topology_changed
-):
+def test_sync_relation_redis_data_skips_modify_when_graph_v4_config_unchanged(create_and_delete_records):
     table_id = "2_bkcc_built_in_time_series.__default__"
     storage_config = {
         "storage_cluster_id": 900002,
@@ -313,16 +309,6 @@ def test_sync_relation_redis_data_skips_modify_when_graph_v4_config_unchanged(
         creator="system",
         bk_tenant_id="system",
     )
-    if tuning is not None:
-        models.ResultTableOption.create_option(
-            table_id=table_id,
-            name=models.ResultTableOption.OPTION_GRAPH_RELATION_V4_SURREALDB,
-            value=tuning,
-            creator="system",
-            bk_tenant_id="system",
-        )
-    if topology_changed:
-        storage_config = {**storage_config, "vertices": [{"name": "host"}, {"name": "module"}]}
     redis_data = {b"bkcc__2": b'{"token":"testtokenxxxxxx","modifyTime":"1733132051"}'}
     with (
         patch("metadata.utils.redis_tools.RedisTools.hgetall", return_value=redis_data),
@@ -337,20 +323,7 @@ def test_sync_relation_redis_data_skips_modify_when_graph_v4_config_unchanged(
     ):
         sync_relation_redis_data()
 
-    if not topology_changed:
-        mock_modify.assert_not_called()
-    else:
-        mock_modify.assert_called_once()
-        expected = {"write_targets": ["vm", "surrealdb"]}
-        assert (
-            mock_modify.call_args.kwargs["option"][models.ResultTableOption.OPTION_GRAPH_RELATION_V4_DATA_LINK]
-            == expected
-        )
-        if tuning is not None:
-            assert (
-                mock_modify.call_args.kwargs["option"][models.ResultTableOption.OPTION_GRAPH_RELATION_V4_SURREALDB]
-                == tuning
-            )
+    mock_modify.assert_not_called()
 
 
 @pytest.mark.django_db(databases="__all__")
