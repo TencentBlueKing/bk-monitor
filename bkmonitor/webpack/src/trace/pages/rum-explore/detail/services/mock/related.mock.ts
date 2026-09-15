@@ -47,7 +47,7 @@ export function getMockErrorRelated(endTime: number): IRumErrorRelated {
     version: {
       current: 'v1.2.1',
       first: 'v1.20',
-      note: window.i18n.t('上次发布版本后开始大量出现') as string,
+      note: '上次发布版本后开始大量出现',
     },
   };
 }

@@ -13,6 +13,7 @@
     display: flex;
     gap: 12px;
     align-items: center;
+    font-weight: 500;
   }
 
   .section-title {
@@ -104,8 +105,9 @@
     padding: 0 6px;
     margin-left: auto;
     font-size: 12px;
+    font-weight: 500;
     line-height: 20px;
-    border-radius: 2px;
+    border-radius: 10px;
   }
 
   .card-value-row {
