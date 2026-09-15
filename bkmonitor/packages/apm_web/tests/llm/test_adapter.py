@@ -166,7 +166,7 @@ class AdapterTests(TestCase):
         self.assertEqual(attributes["user.id"], "user-1")
         self.assertEqual(attributes["gen_ai.input.messages"][0]["parts"][0]["content"], "user question")
         self.assertEqual(attributes["gen_ai.output.messages"][0]["parts"][0]["content"], "assistant answer")
-        self.assertNotIn("gen_ai.operation.name", attributes)
+        self.assertEqual(attributes["gen_ai.operation.name"], "invoke_agent")
 
     def test_langfuse_generation_maps_messages_tools_and_usage(self) -> None:
         span = langfuse_span()
@@ -324,6 +324,10 @@ class AdapterTests(TestCase):
 
                 attributes = adapt_spans([span], "langfuse")[0]["attributes"]
 
+                self.assertEqual(
+                    attributes["gen_ai.operation.name"],
+                    "invoke_agent" if observation_type == "agent" else "invoke_workflow",
+                )
                 self.assertEqual(
                     json.loads(attributes["gen_ai.input.messages"][0]["parts"][0]["content"]), {"query": "hello"}
                 )
