@@ -58,6 +58,10 @@ class NonRetryableBKFaraError(Exception):
 class TestSourceAnalysisContract(SimpleTestCase):
     CLIENT_REQUEST_ID = "43c3ca39-d60f-4482-854d-00f771e149fb"
 
+    def test_bkfara_runtime_placeholders_match_protocol(self):
+        self.assertEqual(SOURCE_ANALYSIS_BKFARA_TASK_ID_PLACEHOLDER, "__BKFARA_TASK_ID__")
+        self.assertEqual(SOURCE_ANALYSIS_BKAI_AIDEV_API_KEY_PLACEHOLDER, "__BKAICLI_ACCESS_TOKEN__")
+
     def test_request_serializers_define_four_interface_contract(self):
         ensure_request = EnsureSourceAnalysisSceneResource.RequestSerializer(
             data={
