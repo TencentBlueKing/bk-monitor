@@ -34,6 +34,7 @@ from metadata.models.constants import BULK_CREATE_BATCH_SIZE, DataIdCreatedFromS
 from metadata.models.data_link.constants import BKBASE_NAMESPACE_BK_MONITOR, DataLinkResourceStatus
 from metadata.models.data_link.utils import compose_transfer_consumer_group
 from metadata.utils.basic import getitems
+
 from .common import BaseModel, Label, OptionBase
 from .data_source import DataSource, DataSourceOption, DataSourceResultTable
 from .result_table_manage import EnableManager
@@ -1617,20 +1618,6 @@ class ResultTable(models.Model):
             if existing_graph_relation_option_value != new_graph_relation_option_value:
                 force_update_datalink = True
 
-            surrealdb_option = ResultTableOption.objects.filter(
-                table_id=self.table_id,
-                bk_tenant_id=self.bk_tenant_id,
-                name=ResultTableOption.OPTION_GRAPH_RELATION_V4_SURREALDB,
-            ).first()
-            existing_surrealdb_option_value = surrealdb_option.get_value() if surrealdb_option else None
-            new_surrealdb_option_value = option.get(ResultTableOption.OPTION_GRAPH_RELATION_V4_SURREALDB)
-            if new_surrealdb_option_value is not None:
-                from metadata.utils.graph_write_config import GraphSurrealDBWriteConfig
-
-                GraphSurrealDBWriteConfig.from_option_value(new_surrealdb_option_value)
-            if existing_surrealdb_option_value != new_surrealdb_option_value:
-                force_update_datalink = True
-
             # 目前rt的option存在清洗和查询两类option，清洗的option需要清理，查询的option需要保留。
             # 目前在option配置的时候并没有标记option的类型，因此只能通过名单的方式进行管理
             # TODO: 后续需要优化option的配置方式，增加option的类型标记
@@ -3190,8 +3177,6 @@ class CustomFormatV4DataLinkOption(pydantic.BaseModel):
 
 class GraphRelationV4DataLinkOption(pydantic.BaseModel):
     """Graph Relation V4 数据链路写入目标。"""
-
-    model_config = pydantic.ConfigDict(extra="forbid")
 
     write_targets: list[Literal["vm", "surrealdb"]] = pydantic.Field(
         min_length=1,

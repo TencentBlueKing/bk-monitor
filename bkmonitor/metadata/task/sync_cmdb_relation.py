@@ -38,7 +38,6 @@ from metadata.models import (
 from metadata.models.entity_relation import EntityMeta
 from metadata.models.space.constants import EtlConfigs
 from metadata.tools.constants import TASK_FINISHED_SUCCESS, TASK_STARTED
-from metadata.utils.graph_write_config import GraphSurrealDBWriteConfig
 from metadata.utils.redis_tools import RedisTools
 
 logger = logging.getLogger("metadata")
@@ -162,25 +161,12 @@ def _modify_relation_graph_v4_result_table(
             )
             .first()
         )
-        surrealdb_option_record = (
-            ResultTableOption.objects.using(config.DATABASE_CONNECTION_NAME)
-            .filter(
-                bk_tenant_id=result_table.bk_tenant_id,
-                table_id=result_table.table_id,
-                name=ResultTableOption.OPTION_GRAPH_RELATION_V4_SURREALDB,
-            )
-            .first()
-        )
-        if surrealdb_option_record is not None:
-            # 独立 RTOption 直接保存 BKBase Binding 参数；CMDB 同步不能静默覆盖非法配置。
-            GraphSurrealDBWriteConfig.from_option_value(surrealdb_option_record.get_value())
         current_graph_option = None
         if graph_option_record is not None:
-            option_value = graph_option_record.get_value()
             try:
-                current_graph_option = GraphRelationV4DataLinkOption.from_option_value(option_value)
+                current_graph_option = GraphRelationV4DataLinkOption.from_option_value(graph_option_record.get_value())
             except (TypeError, ValueError):
-                # 非法旧的 write_targets 仍交给普通 modify 流程覆盖修复。
+                # 非法旧值视为配置变化，交给普通 modify 流程覆盖修复。
                 pass
 
         storage_unchanged = bool(
@@ -192,7 +178,9 @@ def _modify_relation_graph_v4_result_table(
             and _canonical_graph_definitions(surrealdb_storage.relations)
             == _canonical_graph_definitions(storage_config["relations"])
         )
-        option_unchanged = bool(current_graph_option and current_graph_option == desired_graph_option)
+        option_unchanged = bool(
+            current_graph_option and current_graph_option.model_dump() == desired_graph_option.model_dump()
+        )
         if storage_unchanged and option_unchanged:
             logger.info(
                 "sync_relation_redis_data: graph relation config unchanged, skip ResultTable.modify, "
@@ -211,9 +199,7 @@ def _modify_relation_graph_v4_result_table(
                 table_id=result_table.table_id,
             )
         }
-        options[ResultTableOption.OPTION_GRAPH_RELATION_V4_DATA_LINK] = desired_graph_option.model_dump(
-            by_alias=True, exclude_none=True
-        )
+        options[ResultTableOption.OPTION_GRAPH_RELATION_V4_DATA_LINK] = desired_graph_option.model_dump()
         result_table.modify(
             operator="system",
             external_storage={ClusterInfo.TYPE_SURREALDB: storage_config},

@@ -1,3 +1,4 @@
+import json
 import unittest
 
 from pydantic import ValidationError
@@ -43,11 +44,10 @@ class GraphWriteConfigTests(unittest.TestCase):
     def test_option_round_trip_preserves_binding_fields(self):
         payload = {"timeout": 300, "window": 240, "concurrency": 32}
         config = GraphSurrealDBWriteConfig.from_option_value(payload)
-        self.assertEqual(payload, {"timeout": 300, "window": 240, "concurrency": 32})
-        self.assertEqual(GraphSurrealDBWriteConfig.from_option_value(config.model_dump()), config)
+        self.assertEqual(config.model_dump(exclude_none=True), payload)
+        self.assertEqual(GraphSurrealDBWriteConfig.from_option_value(json.dumps(payload)), config)
 
-    def test_configuration_instances_are_independent(self):
-        first = GraphSurrealDBWriteConfig.model_validate({"concurrency": 16})
-        second = GraphSurrealDBWriteConfig.model_validate({"concurrency": 4})
-        first.concurrency = 8
-        self.assertEqual(second.model_dump(exclude_none=True), {"concurrency": 4})
+    def test_option_requires_an_object(self):
+        for value in [None, [], 300, "[]", "null"]:
+            with self.subTest(value=value), self.assertRaises(TypeError):
+                GraphSurrealDBWriteConfig.from_option_value(value)

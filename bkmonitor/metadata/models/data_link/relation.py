@@ -1374,10 +1374,7 @@ def rebuild_databus_relation(databus: DataBusConfig, dry_run: bool = True) -> Da
             graph_write_targets.append("vm")
         if graph_surrealdb_binding:
             graph_write_targets.append("surrealdb")
-        # 重建只根据实际 sink 修正 write_targets；SurrealDBBinding 参数位于独立 RTOption，不在此处改写。
-        graph_relation_v4_option = GraphRelationV4DataLinkOption(write_targets=graph_write_targets).model_dump(
-            by_alias=True, exclude_none=True
-        )
+        graph_relation_v4_option = GraphRelationV4DataLinkOption(write_targets=graph_write_targets).model_dump()
         graph_bkbase_result_table = _build_graph_bkbase_result_table(
             data_link_name=data_link_name,
             databus=databus,
