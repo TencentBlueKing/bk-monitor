@@ -89,7 +89,7 @@ export function useDetailSections(
         })
         .filter(Boolean) as IRumSummaryCardVM[];
 
-    const vms: IRumDetailSectionVM[] = data.sections.map(section => {
+    const vms: IRumDetailSectionVM[] = (data?.sections || []).map(section => {
       const base: IRumDetailSectionVM = {
         key: section.key,
         type: section.type,

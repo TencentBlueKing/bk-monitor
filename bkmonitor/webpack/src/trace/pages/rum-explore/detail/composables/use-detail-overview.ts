@@ -98,16 +98,16 @@ export function useDetailOverview(
     const data = unref(detail);
     if (!data) return null;
     const { overview } = data;
-    const items = (overview.items || []).map(item => ({
+    const items = (overview?.items || []).map(item => ({
       key: item.field_name,
       label: item.field_alias || OVERVIEW_ITEM_LABEL_MAP[item.field_name] || item.field_name,
       value: item.alias ?? formatField(item.field_name, item.value),
       isLink: OVERVIEW_LINK_FIELDS.has(item.field_name),
     }));
     return {
-      title: overview.title || '',
+      title: overview?.title || '',
       logo: SPAN_TYPE_META_ICON[unref(spanType)]?.icon || '',
-      badges: (overview.badges || []).map(resolveBadge),
+      badges: (overview?.badges || []).map(resolveBadge),
       items,
     };
   });

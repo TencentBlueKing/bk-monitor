@@ -105,11 +105,13 @@ export interface IRumDetailSectionVM {
 
 /** 原始数据面板的一个折叠块 */
 export interface IRumOriginBlockVM {
-  /** 事件块：按事件名分组的键值列表 */
+  /** 分组块：Links 按 trace_id 分组、Events 按事件名分组，组内为键值列表 */
   groups?: Array<{ name: string; rows: IRumOriginRowVM[] }>;
   key: string;
   /** 普通块：平铺键值列表 */
   rows?: IRumOriginRowVM[];
+  /** 展开时标题右侧是否展示块内搜索框（当前仅 Events） */
+  searchable?: boolean;
   /** 折叠时展示的单行摘要 */
   summary: string;
   title: string;

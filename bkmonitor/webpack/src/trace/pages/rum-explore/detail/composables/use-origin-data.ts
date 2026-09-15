@@ -34,9 +34,9 @@ import type { IRumOriginBlockVM, IRumOriginRowVM } from '../typings';
 const SUMMARY_ITEM_LIMIT = 8;
 
 /**
- * @description 原始数据面板：把 origin_data 拆成 Span / Attributes / Resource / Events 四个折叠块
+ * @description 原始数据面板：把 origin_data 拆成 Span / Attributes / Resource / Links / Events 五个折叠块
  *
- * Events 按事件名分组（SENT / RECEIVED 等），并支持在块内按键或值搜索过滤。
+ * Links 按 trace_id 分组，Events 按事件名分组（SENT / RECEIVED 等），Events 支持在块内按键或值搜索过滤。
  */
 export function useOriginData(originData: MaybeRef<Record<string, any> | undefined>) {
   /** Events 块内的搜索关键字 */
@@ -53,7 +53,19 @@ export function useOriginData(originData: MaybeRef<Record<string, any> | undefin
     const attributeRows = toRows(data.attributes);
     const resourceRows = toRows(data.resource);
 
+    /** 块内搜索关键字，只作用于 Events（Links 未开启 searchable） */
     const keyword = eventKeyword.value.trim().toLowerCase();
+    /** Links 块：按链路分组，组名为 trace_id，组内为顶层字段 + attributes */
+    const linkGroups = ((data.links || []) as Array<Record<string, any>>).map((link, index) => ({
+      name: String(link.trace_id || `link_${index + 1}`),
+      rows: [
+        ...Object.entries(link)
+          .filter(([key]) => key !== 'attributes')
+          .map(([key, value]) => toRow(key, value)),
+        ...toRows(link.attributes),
+      ],
+    }));
+    /** Events 块：按事件名分组，组内为 timestamp + attributes；有关键字时只保留键或值命中的行 */
     const eventGroups = ((data.events || []) as Array<Record<string, any>>).map((event, index) => {
       const rows = [
         ...(event.timestamp === undefined ? [] : [toRow('timestamp', event.timestamp)]),
@@ -75,14 +87,25 @@ export function useOriginData(originData: MaybeRef<Record<string, any> | undefin
     if (resourceRows.length) {
       result.push({ key: 'resource', title: 'Resource', rows: resourceRows, summary: toSummary(resourceRows) });
     }
+    /** Links 块：不含搜索框，与 Events 共用分组渲染，靠 searchable 区分 */
+    if (linkGroups.length) {
+      result.push({
+        key: 'links',
+        title: `Links (${linkGroups.length})`,
+        groups: linkGroups,
+        summary: toSummary(linkGroups.flatMap(group => group.rows)),
+      });
+    }
     if (eventGroups.length) {
       result.push({
         key: 'events',
         title: `Events (${eventGroups.length})`,
         groups: eventGroups,
+        searchable: true,
         summary: toSummary(eventGroups.flatMap(group => group.rows)),
       });
     }
+
     return result;
   });
 

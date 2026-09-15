@@ -20,6 +20,7 @@
     align-items: center;
     height: 40px;
     padding: 0 12px;
+    cursor: pointer;
   }
 
   .block-title {
@@ -80,57 +81,101 @@
   }
 
   .origin-row {
+    position: relative;
     display: flex;
-    gap: 12px;
     align-items: flex-start;
-    padding: 2px 12px 2px 20px;
-    border-radius: 4px;
+    min-height: 24px;
+
+    /* 单行内容再高也只在行内滚动，避免超长 JSON 把整个面板撑开 */
+    max-height: 484px;
+    overflow-y: auto;
+    line-height: 24px;
 
     &.is-odd {
-      background: #f7f9fc;
+      background: #f5f7fa;
     }
 
     .row-key {
       display: flex;
       flex-shrink: 0;
       gap: 6px;
-      align-items: center;
-      width: 220px;
-      padding-top: 2px;
-    }
+      align-items: flex-start;
+      width: 216px;
+      padding-left: 16px;
+      color: #63656e;
 
-    .key-text {
-      overflow: hidden;
-      text-overflow: ellipsis;
-      font-size: 12px;
-      line-height: 20px;
-      color: #4d4f56;
-      white-space: nowrap;
-    }
+      .key-text {
+        flex: 1;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        font-size: 12px;
+        white-space: nowrap;
+      }
 
-    .row-action {
-      flex-shrink: 0;
-      margin-top: 4px;
-      font-size: 14px;
-      color: #979ba5;
-      cursor: pointer;
+      .row-operator {
+        display: flex;
+        align-items: center;
+        margin: 0 10px 0 auto;
 
-      &:hover {
-        color: #3a84ff;
+        .icon-add-query {
+          margin-right: 4px;
+        }
+
+        .icon-add-query,
+        .icon-mc-copy {
+          font-size: 16px;
+          color: #979ba5;
+          cursor: pointer;
+
+          &:hover {
+            color: #3a84ff;
+          }
+        }
       }
     }
 
     .row-value {
       flex: 1;
-      min-width: 0;
+
+      /* 与 .origin-row 的 484px 配套（留出上下内边距），值区内部滚动 */
+      max-height: 480px;
+      padding-right: 16px;
       margin: 0;
-      overflow-x: auto;
-      font-family: Menlo, monospace;
+      overflow: auto;
+      font-family: Roboto-Mono, Menlo, Monaco, Consolas, Courier, 'PingFang SC', 'Microsoft Yahei', monospace;
       font-size: 12px;
-      line-height: 20px;
-      color: #4e5e7a;
+      color: #63656e;
       word-break: break-all;
       white-space: pre-wrap;
+
+      .vjs-tree {
+        font-size: 12px;
+
+        .vjs-key {
+          white-space: nowrap;
+        }
+      }
+    }
+
+    .format-button {
+      position: absolute;
+      top: 0;
+      right: 0;
+      z-index: 1;
+      display: none;
+      height: 22px;
+      padding: 2px 4px;
+
+      .icon-monitor {
+        margin-right: 2px;
+        font-size: 12px;
+      }
+    }
+
+    &:hover {
+      .format-button {
+        display: flex;
+      }
     }
   }
 }
