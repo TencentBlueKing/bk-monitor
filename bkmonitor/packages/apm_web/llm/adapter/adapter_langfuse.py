@@ -5,7 +5,6 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from .fields import STANDARD_FIELDS
 from .utils import (
     CONTENT_FIELDS,
     first,
@@ -18,6 +17,7 @@ from .utils import (
     tool_call_part,
     tool_response_part,
 )
+from ..constants import STANDARD_FIELDS
 
 OPERATION_MAPPING = {
     "agent": "invoke_agent",

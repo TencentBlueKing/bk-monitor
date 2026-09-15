@@ -27,18 +27,17 @@ import { type PropType, computed, defineComponent, shallowRef, watch } from 'vue
 
 import { Sideslider } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
-import VueJsonPretty from 'vue-json-pretty';
 
-import { toJsonPrettyData } from '../utils/helpers';
-import { flattenKvPairs, parseInputObservation } from '../utils/parse-input';
+import { parseInputObservation } from '../utils/parse-input';
 import CollapseSection from './collapse-section';
 import JsonCodeBlock from './json-code-block';
+import JsonView from './json-view';
 import TextContentItem from './text-content-item';
+import ToolCallList from './tool-call-list';
 
-import type { LlmTextItem, LlmToolCallRecord, LlmToolDefinition } from '../utils/typings';
+import type { LlmTextItem, LlmToolDefinition } from '../utils/typings';
 
 import './input-tab.scss';
-import 'vue-json-pretty/lib/styles.css';
 
 /** 独立查看侧栏内容：文本或 JSON */
 type DetailState =
@@ -69,8 +68,6 @@ export default defineComponent({
     const detail = shallowRef<DetailState>(null);
     /** 当前选中的可用工具 */
     const selectedToolName = shallowRef('');
-    /** 已展开的工具调用记录 id */
-    const expandedToolIds = shallowRef<string[]>([]);
 
     const observation = computed(() => parseInputObservation(props.attributes));
     const selectedTool = computed(
@@ -80,14 +77,14 @@ export default defineComponent({
     );
     const hasContent = computed(() => {
       const data = observation.value;
-      return Boolean(
-        data.userMessages.length ||
-        data.modelMessages.length ||
-        data.systemPrompts.length ||
-        data.reasoningMessages.length ||
-        data.toolCalls.length ||
-        data.availableTools.length
-      );
+      return [
+        data.userMessages,
+        data.modelMessages,
+        data.systemPrompts,
+        data.reasoningMessages,
+        data.toolCalls,
+        data.availableTools,
+      ].some(items => items.length > 0);
     });
 
     watch(
@@ -96,14 +93,6 @@ export default defineComponent({
         if (!tools.find(item => item.name === selectedToolName.value)) {
           selectedToolName.value = tools[0]?.name || '';
         }
-      },
-      { immediate: true }
-    );
-
-    watch(
-      () => observation.value.toolCalls,
-      records => {
-        expandedToolIds.value = records[0] ? [records[0].id] : [];
       },
       { immediate: true }
     );
@@ -118,13 +107,6 @@ export default defineComponent({
       detail.value = { kind: 'json', title, data };
     };
 
-    /** 展开 / 收起单条工具调用记录 */
-    const toggleTool = (id: string) => {
-      expandedToolIds.value = expandedToolIds.value.includes(id)
-        ? expandedToolIds.value.filter(item => item !== id)
-        : [...expandedToolIds.value, id];
-    };
-
     /** 渲染文本分区条目 */
     const renderTextItems = (items: LlmTextItem[], title: string) =>
       items.map((item, index) => (
@@ -135,79 +117,6 @@ export default defineComponent({
           onViewAlone={content => openTextDetail(title, content)}
         />
       ));
-
-    /** 渲染工具调用预览 KV */
-    const renderKvPairs = (value: unknown) =>
-      flattenKvPairs(value).map(pair => (
-        <span
-          key={`${pair.key}-${pair.value}`}
-          class='llm-input-tab-kv'
-        >
-          <span class='llm-input-tab-kv-key' v-overflow-tips>{pair.key}</span>
-          <span class='llm-input-tab-kv-value' v-overflow-tips>:{pair.value}</span>
-        </span>
-      ));
-
-    /** 渲染单条工具调用记录（折叠预览 + 展开 JSON） */
-    const renderToolCall = (item: LlmToolCallRecord, index: number) => {
-      const expanded = expandedToolIds.value.includes(item.id);
-      const argPairs = flattenKvPairs(item.arguments);
-      const resultPairs = flattenKvPairs(item.response);
-      return (
-        <div
-          key={item.id}
-          class={['llm-input-tab-tool-call', { 'is-expanded': expanded }]}
-        >
-          <span class='llm-text-content-index'>[{index + 1}]</span>
-          <div class='llm-input-tab-tool-card'>
-            <div
-              class='llm-input-tab-tool-header'
-              onClick={() => toggleTool(item.id)}
-            >
-              <div class='llm-input-tab-tool-header-main'>
-                <span class='llm-input-tab-tool-name'>{item.name || t('未命名工具')}</span>
-                {(argPairs.length > 0 || resultPairs.length > 0) && (
-                  <div class='llm-input-tab-tool-preview'>
-                    {argPairs.length > 0 && (
-                      <div class='llm-input-tab-kv-list'>{renderKvPairs(item.arguments)}</div>
-                    )}
-                    {resultPairs.length > 0 && (
-                      <>
-                        <i class='icon-monitor icon-arrow-right llm-input-tab-tool-arrow' />
-                        <div class='llm-input-tab-kv-list is-result'>{renderKvPairs(item.response)}</div>
-                      </>
-                    )}
-                  </div>
-                )}
-              </div>
-              <i
-                class={[
-                  'icon-monitor',
-                  expanded ? 'icon-arrow-down' : 'icon-arrow-right',
-                  'llm-input-tab-tool-toggle',
-                ]}
-              />
-            </div>
-            {expanded && (
-              <div class='llm-input-tab-tool-panels'>
-                <JsonCodeBlock
-                  data={item.arguments ?? {}}
-                  title={t('调用参数')}
-                  onViewAlone={openJsonDetail}
-                />
-                {item.response !== undefined && (
-                  <JsonCodeBlock
-                    data={item.response}
-                    title={t('返回结果')}
-                    onViewAlone={openJsonDetail}
-                  />
-                )}
-              </div>
-            )}
-          </div>
-        </div>
-      );
-    };
 
     /** 渲染可用工具标签与当前选中工具的参数 */
     const renderAvailableTools = (tools: LlmToolDefinition[]) => (
@@ -287,9 +196,10 @@ export default defineComponent({
                 icon='icon-setting'
                 title={t('工具调用记录')}
               >
-                <div class='llm-input-tab-tool-calls'>
-                  {observation.value.toolCalls.map((item, index) => renderToolCall(item, index))}
-                </div>
+                <ToolCallList
+                  items={observation.value.toolCalls}
+                  onViewAlone={openJsonDetail}
+                />
               </CollapseSection>
             )}
             {observation.value.availableTools.length > 0 && (
@@ -321,13 +231,8 @@ export default defineComponent({
             default: () =>
               detail.value?.kind === 'json' ? (
                 <div class='llm-input-tab-slider-json'>
-                  <VueJsonPretty
-                    collapsedOnClickBrackets={false}
-                    data={toJsonPrettyData(detail.value.data)}
-                    deep={20}
-                    showIcon={false}
-                    showKeyValueSpace={true}
-                    showLine={false}
+                  <JsonView
+                    data={detail.value.data}
                     showLineNumber={true}
                   />
                 </div>

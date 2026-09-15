@@ -36,10 +36,12 @@ def adapt_spans(
         service_name: str = raw_span.get(OtlpKey.RESOURCE, {}).get(ResourceAttributes.SERVICE_NAME, "")
         spans_by_product[resolve_product(entity_set, service_name)].append(raw_span)
 
+    # 先尽力转换，再按标准操作类型判断是否为 LLM Span，避免依赖各产品的原始标记字段。
     spans: list[dict[str, Any]] = [
         span
         for product, product_spans in spans_by_product.items()
         for span in ADAPTERS.get(product, adapter_default.convert)(product_spans)
+        if isinstance(operation := span["attributes"].get("gen_ai.operation.name"), str) and operation.strip()
     ]
     for span in spans:
         # 识别不出语义层级的 Span 不带该字段，调用方据此决定是否展示 LLM 观测

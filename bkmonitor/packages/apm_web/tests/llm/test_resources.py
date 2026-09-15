@@ -3,11 +3,12 @@ from unittest import TestCase, mock
 
 from django.db.models import Q
 
+from apm_web.handlers.metric_group.define import CalculationType as MetricCalculationType
 from apm_web.llm.adapter import adapt_spans
+from apm_web.llm.constants import CalculationType
 from apm_web.llm.metric_group import LLMMetricGroup
 from apm_web.llm.query import LLMQuery
 from apm_web.llm.resources import (
-    AGENT_CANDIDATE_QUERY,
     CalculateByRangeResource,
     ListFlowsResource,
     ListSpansResource,
@@ -17,21 +18,25 @@ from apm_web.llm.resources import (
 
 
 class ListTracesResourceTestCase(TestCase):
-    def test_agent_candidate_query_covers_supported_sources(self):
-        candidate_fields = {
-            condition.removeprefix("_exists_:attributes.") for condition in AGENT_CANDIDATE_QUERY.split(" OR ")
-        }
-        cases = {
-            "agentlens": ({"gen_ai.span.kind": "LLM"}, True),
-            "galileo": ({"gen_ai.operation.name": "chat"}, True),
-            "bkaidev": ({"agent.info.id": 3129, "agent.info.name": "demo"}, True),
-            "langfuse": ({"langfuse.observation.type": "generation"}, True),
-            "http": ({"http.method": "GET", "http.route": "/api/orders"}, False),
-        }
+    def test_empty_keyword_does_not_add_span_field_filters(self):
+        application = mock.Mock()
+        span_query = mock.Mock()
+        span_query.query_group_list.return_value = []
+        entity_set = mock.Mock(service_names=["agent-service"])
+        entity_set.get_system.return_value = {"is_support_llm": True, "product": "default"}
+        with (
+            mock.patch("apm_web.llm.resources.Application.objects.get", return_value=application),
+            mock.patch("apm_web.llm.resources.EntitySet", return_value=entity_set),
+            mock.patch("apm_web.llm.resources.get_query", return_value=span_query),
+        ):
+            result = ListTracesResource().request(LLM_METRIC_REQUEST)
 
-        for source, (attributes, expected) in cases.items():
-            with self.subTest(source=source):
-                self.assertEqual(bool(candidate_fields.intersection(attributes)), expected)
+        self.assertEqual(result["items"], [])
+        self.assertEqual(span_query.query_group_list.call_args.kwargs["query_string"], "")
+        self.assertEqual(
+            span_query.query_group_list.call_args.kwargs["filters"],
+            [{"key": "resource.service.name", "operator": "equal", "value": ["agent-service"]}],
+        )
 
     def test_request_exposes_supported_filters(self):
         fields = ListTracesResource.RequestSerializer().fields
@@ -226,7 +231,7 @@ class ListTracesResourceTestCase(TestCase):
             offset=0,
             limit=20,
             filters=[{"key": "resource.service.name", "operator": "equal", "value": ["agent-service"]}],
-            query_string=f"({AGENT_CANDIDATE_QUERY}) AND (*订单*)",
+            query_string="*订单*",
         )
         span_query.query_by_group_ids.assert_called_once_with(
             group_field="trace_id",
@@ -400,7 +405,7 @@ class ListTracesResourceTestCase(TestCase):
             offset=0,
             limit=20,
             filters=[{"key": "resource.service.name", "operator": "equal", "value": ["agent-service"]}],
-            query_string=f"({AGENT_CANDIDATE_QUERY}) AND (demo-user)",
+            query_string="demo-user",
         )
         span_query.query_by_group_ids.assert_called_once_with(
             group_field="trace_id",
@@ -467,6 +472,60 @@ class ListTracesResourceTestCase(TestCase):
                 item = ListTracesResource._trace_item("trace-1", raw_spans, entity_set)
 
                 self.assertEqual(item["conversation_id"], "conversation-first")
+
+    def test_langfuse_root_context_survives_trace_and_session_grouping(self):
+        entity_set = mock.Mock(service_names=["agent-service"])
+        entity_set.get_system.return_value = {"is_support_llm": True, "product": "langfuse"}
+        root = {
+            "trace_id": "trace-1",
+            "span_id": "root",
+            "parent_span_id": "",
+            "span_name": "application-turn",
+            "start_time": 100,
+            "end_time": 300,
+            "elapsed_time": 200,
+            "status": {"code": 1, "message": ""},
+            "resource": {"service.name": "agent-service"},
+            "attributes": {
+                "langfuse.observation.type": "span",
+                "langfuse.internal.is_app_root": True,
+                "user.id": "test-user",
+                "session.id": "session-1",
+                "langfuse.observation.input": "user question",
+                "langfuse.observation.output": "assistant answer",
+            },
+        }
+        child = {
+            **root,
+            "span_id": "generation",
+            "parent_span_id": "root",
+            "start_time": 150,
+            "end_time": 250,
+            "elapsed_time": 100,
+            "attributes": {
+                "langfuse.observation.type": "generation",
+                "langfuse.observation.input": "model prompt",
+                "langfuse.observation.output": "model answer",
+                "langfuse.observation.usage_details": {"input": 10, "output": 3},
+            },
+        }
+        for group_field, group_id in [("trace_id", "trace-1"), ("attributes.gen_ai.conversation.id", "session-1")]:
+            with self.subTest(group_field=group_field):
+                items = ListTracesResource._group_spans(
+                    group_field, [group_id], {"trace-1": group_id}, [child, root], entity_set
+                )
+
+                self.assertEqual(len(items), 1)
+                item = items[0]
+                self.assertEqual(item["group_id"], group_id)
+                for row in [item, *item.get("childs", [])]:
+                    self.assertEqual(row["user_id"], "test-user")
+                    self.assertEqual(row["input"], "user question")
+                    self.assertEqual(row["output"], "assistant answer")
+                    self.assertEqual(row["input_tokens"], 10)
+                    self.assertEqual(row["output_tokens"], 3)
+                trace = item["childs"][0] if "childs" in item else item
+                self.assertEqual(trace["conversation_id"], "session-1")
 
     def test_trace_status_includes_spans_filtered_by_adapter(self):
         entity_set = mock.Mock(service_names=["agent-service"])
@@ -1256,6 +1315,11 @@ class LLMMetricGroupTestCase(TestCase):
     def _group(product, **kwargs):
         return LLMMetricGroup(11, "sand_local_dev", product=product, query=mock.Mock(), **kwargs)
 
+    def test_llm_calculation_types_are_independent(self):
+        self.assertEqual({value for value, _ in CalculationType.choices()}, CAL_TYPE_CHOICES)
+        self.assertTrue(CAL_TYPE_CHOICES.isdisjoint(value for value, _ in MetricCalculationType.choices()))
+        self.assertEqual(str(CalculationType.INPUT_TOKENS.label), "输入 Token 数")
+
     def test_bkaidev_queries_the_whole_application(self):
         """带 Token 的模型 Span 上报在兄弟服务 {svc}-default 上，加服务过滤必然漏数。"""
         for service_name in ("ai-als-title-sum", "ai-als-title-sum-default"):
@@ -1290,6 +1354,32 @@ class CalculateByRangeResourceTestCase(TestCase):
         fields = CalculateByRangeResource.RequestSerializer().fields
 
         self.assertEqual(set(fields["cal_type"].choices), CAL_TYPE_CHOICES)
+
+    def test_operation_count_uses_query_scope_without_layer_filter(self):
+        operation_fields = {
+            "default": "attributes.gen_ai.operation.name",
+            "galileo": "attributes.gen_ai.operation.name",
+            "agentlens": "attributes.gen_ai.span.kind",
+            "langfuse": "attributes.langfuse.observation.type",
+            "aidev": "attributes.llm.request.type",
+        }
+        for product, field in operation_fields.items():
+            for group_by in ([], ["gen_ai.operation.name"]):
+                with self.subTest(product=product, group_by=group_by):
+                    query = make_query(records=[{"_result_": 12, field: "chat"}])
+                    with patch_llm_metric_group(query, product=product):
+                        result = CalculateByRangeResource().request(
+                            {**LLM_METRIC_REQUEST, "cal_type": "operation_count", "group_by": group_by}
+                        )
+                    self.assertEqual(result["data"][0]["0s"], 12)
+                    self.assertIsInstance(result["data"][0]["0s"], int)
+                    self.assertEqual(aggregate_call(query), (["_index"], "COUNT", [field] if group_by else []))
+                    self.assertEqual(layer_query(query), Q())
+                    service_filter = query.build_queries.return_value[0].filter.return_value.filter.call_args.args[0]
+                    self.assertEqual(
+                        service_filter,
+                        Q() if product == "aidev" else Q(**{"resource.service.name__eq": ["agent-service"]}),
+                    )
 
     def test_input_tokens_aggregates_model_layer_only(self):
         """Agent 层的 Token 实测等于其子模型 Span 之和，两层都算会精确翻倍。"""
@@ -1483,6 +1573,17 @@ class TimeSeriesResourceTestCase(TestCase):
         serializer.is_valid(raise_exception=True)
 
         self.assertEqual(serializer.validated_data["interval"], 300)
+
+    def test_operation_count_series_uses_query_scope_without_layer_filter(self):
+        query = make_query()
+        grafana = mock.Mock()
+        grafana.grafana.graph_unify_query.return_value = {"series": [{"datapoints": [[12, 1700000000000]]}]}
+        with patch_llm_metric_group(query), mock.patch(f"{GROUP_MODULE}.resource", grafana):
+            result = TimeSeriesResource().request({**LLM_METRIC_REQUEST, "cal_type": "operation_count"})
+
+        self.assertEqual(result["series"][0]["datapoints"], [[12, 1700000000000]])
+        self.assertEqual(layer_query(query), Q())
+        self.assertEqual(query.query_field_graph_config.call_args.args[3:5], (["_index"], "COUNT"))
 
     def test_input_tokens_series_delegates_to_graph_unify_query(self):
         query = make_query()

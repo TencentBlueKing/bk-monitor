@@ -31,16 +31,8 @@ import type { LlmTextItem } from './typings';
  * @description 解析后递归展开对象 / 数组里看起来像 JSON 的字符串，便于展示美化
  */
 export function beautifyJsonValue(value: unknown, depth = 0): unknown {
-  const parsed = parseJsonValue(value);
-  if (depth > 10) return parsed;
-  if (typeof parsed === 'string') {
-    const trimmed = parsed.trim();
-    const looksLikeJson = trimmed.startsWith('{') || trimmed.startsWith('[');
-    if (!looksLikeJson) return parsed;
-    const nested = parseJsonValue(parsed);
-    if (nested === parsed || (typeof nested !== 'object' && nested !== null)) return parsed;
-    return beautifyJsonValue(nested, depth + 1);
-  }
+  if (depth > 10) return value;
+  const parsed = parseDisplayValue(value);
   if (Array.isArray(parsed)) {
     return parsed.map(item => beautifyJsonValue(item, depth + 1));
   }
@@ -48,6 +40,11 @@ export function beautifyJsonValue(value: unknown, depth = 0): unknown {
     return Object.fromEntries(Object.entries(parsed).map(([key, val]) => [key, beautifyJsonValue(val, depth + 1)]));
   }
   return parsed;
+}
+
+/** JSON 结构使用缩进，多行字符串保留原文排版；仅用于参数 / 结果的可读展示。 */
+export function formatJsonDisplay(value: unknown): string {
+  return formatDisplayValue(beautifyJsonValue(value));
 }
 
 /**
@@ -123,16 +120,6 @@ export function stringifyContent(value: unknown): string {
 }
 
 /**
- * @description 转成 vue-json-pretty 可渲染的对象；标量包一层 { value }
- */
-export function toJsonPrettyData(value: unknown): Record<string, unknown> | unknown[] {
-  const parsed = beautifyJsonValue(value);
-  if (Array.isArray(parsed)) return parsed;
-  if (isRecord(parsed)) return parsed;
-  return { value: parsed ?? '' };
-}
-
-/**
  * @description 将任意值转成文本条目；空内容返回 null
  */
 export function toTextItem(id: string, value: unknown): LlmTextItem | null {
@@ -146,6 +133,47 @@ function escapeJsonControlChar(ch: string): string {
   if (ch === '\r') return '\\r';
   if (ch === '\t') return '\\t';
   return `\\u${ch.charCodeAt(0).toString(16).padStart(4, '0')}`;
+}
+
+function formatDisplayValue(value: unknown, depth = 0): string {
+  if (typeof value === 'string') {
+    // 仅解析明确的工具结果信封，不从帮助文档、代码或普通句子中任意截取 JSON。
+    const envelope = value.match(/^(\[[^\r\n]+\][ \t]+Result:)[ \t\r\n]*([\s\S]+)$/);
+    if (envelope && depth < 10) {
+      const data = parseDisplayValue(envelope[2]);
+      if (Array.isArray(data) || isRecord(data)) {
+        return `${envelope[1]}\n${formatDisplayValue(beautifyJsonValue(data), depth + 1)}`;
+      }
+    }
+    return value;
+  }
+  if (!Array.isArray(value) && !isRecord(value)) return value === undefined ? '' : JSON.stringify(value);
+  if (depth > 10) return stringifyContent(value);
+  const array = Array.isArray(value);
+  const entries = Object.entries(value);
+  const [open, close] = array ? ['[', ']'] : ['{', '}'];
+  if (!entries.length) return `${open}${close}`;
+  const indent = '  '.repeat(depth);
+  const lines = entries.map(([key, child]) => {
+    const text = formatDisplayValue(child, depth + 1);
+    // 多行叶子不再 JSON.stringify，否则真实换行、制表符和引号会重新变成转义文本。
+    const formatted = typeof child === 'string' && !/[\r\n]/.test(text) ? JSON.stringify(text) : text;
+    return `${indent}  ${array ? '' : `${JSON.stringify(key)}: `}${formatted}`;
+  });
+  return `${open}\n${lines.join(',\n')}\n${indent}${close}`;
+}
+
+/** 只解 JSON 对象、数组或带引号的字符串外壳，保留 "123" / "false" 等叶子的字符串类型。 */
+function parseDisplayValue(value: unknown): unknown {
+  let current = value;
+  for (let depth = 0; depth < 10 && typeof current === 'string'; depth++) {
+    const text = current.trim().replace(/^\uFEFF/, '');
+    if (!['{', '[', '"'].includes(text[0])) break;
+    const parsed = tryParseJsonText(text);
+    if (!parsed.ok) break;
+    current = parsed.value;
+  }
+  return current;
 }
 
 /** 将 JSON 字符串字面量中的裸控制字符转义，并去掉对象 / 数组尾逗号 */

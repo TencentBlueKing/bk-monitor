@@ -5,7 +5,7 @@
   flex: 1;
   gap: 24px;
   min-height: 0;
-  padding: 0 0 24px;
+  padding: 16px 0 24px;
   overflow: auto;
 
   @include flex-column;
@@ -45,32 +45,4 @@
 .llm-tool-panel-slider-json {
   padding: 16px 24px 24px;
   overflow: auto;
-
-  .vjs-tree {
-    font-family: 'Roboto Mono', menlo, monaco, consolas, monospace;
-    font-size: $font-size-base;
-    line-height: 20px;
-  }
-
-  .vjs-tree-node {
-    align-items: flex-start;
-    white-space: pre-wrap;
-  }
-
-  .vjs-key {
-    color: #a33b3b;
-  }
-
-  .vjs-value,
-  .vjs-value-string,
-  .vjs-value-number,
-  .vjs-value-boolean {
-    min-width: 0;
-    color: #0651a5;
-    overflow-wrap: anywhere;
-  }
-
-  .vjs-value-string {
-    white-space: pre-wrap;
-  }
 }
