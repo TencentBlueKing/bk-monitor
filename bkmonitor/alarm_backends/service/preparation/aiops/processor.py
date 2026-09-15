@@ -283,6 +283,7 @@ class TsDependPreparationProcess(BasePreparationProcess):
                     serving_config = {
                         "grey_to_bkfara": extra_config.get("grey_to_bkfara", False),
                         "service_name": extra_config.get("service_name", "default"),
+                        "serving_resource_name": extra_config.get("serving_resource_name"),
                         "enable_week_compare": extra_config.get("enable_week_compare", False),
                     }
                     tasks.append(
@@ -302,6 +303,7 @@ class TsDependPreparationProcess(BasePreparationProcess):
                 serving_config = {
                     "grey_to_bkfara": extra_config.get("grey_to_bkfara", False),
                     "service_name": extra_config.get("service_name", "default"),
+                    "serving_resource_name": extra_config.get("serving_resource_name"),
                     "enable_week_compare": extra_config.get("enable_week_compare", False),
                 }
                 tasks.append(

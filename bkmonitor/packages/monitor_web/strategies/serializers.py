@@ -140,6 +140,21 @@ def validate_algorithm_msg(value):
     return value
 
 
+def apply_intelligent_detect_bkfara_grey(value, is_new_strategy=False):
+    """仅在新建策略时，将智能异常检测路由到 BKFara。"""
+    if not is_new_strategy:
+        return value
+
+    for algorithm_msg in value:
+        if algorithm_msg.get("algorithm_type") != "IntelligentDetect":
+            continue
+
+        algorithm_config = algorithm_msg.setdefault("algorithm_config", {})
+        if isinstance(algorithm_config, dict):
+            algorithm_config["grey_to_bkfara"] = True
+    return value
+
+
 def validate_trigger_config_msg(value):
     # 校验是否为合法触发配置
     try:
