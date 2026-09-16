@@ -26,26 +26,18 @@ from constants.otel_query import (
     StatisticsProperty,
 )
 from bkmonitor.data_source.utils.apm import FilterOperator, TraceDatasourceTarget
+from bkmonitor.data_source.format import flatten_dict_data
 from bkmonitor.utils.common_utils import format_percent
 from bkmonitor.utils.thread_backend import ThreadPool
 from core.drf_resource import resource
-from semconv.rum.constants import RumSpanType, SPAN_TYPE_COMMON_DISPLAY_FIELDS, ResourceType
+from semconv.rum.constants import RumSpanType, SPAN_TYPE_COMMON_DISPLAY_FIELDS
 
 from semconv.rum.trace import SpanSpec
 from constants.otel_query import FieldTypeEnum
 from rum_web.handlers.level.base import BaseRumLevelHandler
 from rum_web.handlers.query.span import SpanQuery
 from rum_web.constants import RUM_SEARCH_PAGE_GROUPS
-from rum_web.handlers.level.page.span import (
-    ResourceXhrAndFetchPage,
-    ResourceOthersPage,
-    ActionPage,
-    LongTaskPage,
-    ErrorPage,
-    VitalPage,
-    ViewPage,
-)
-from rum_web.handlers.level.page.base import BasePage
+from rum_web.handlers.builder.span import build as build_span_detail
 
 
 class SpanLevelHandler(BaseRumLevelHandler):
@@ -100,13 +92,9 @@ class SpanLevelHandler(BaseRumLevelHandler):
         "True": True,
         "False": False,
     }
-    PAGE_MAP = {
-        RumSpanType.ACTION.value: ActionPage,
-        RumSpanType.LONG_TASK.value: LongTaskPage,
-        RumSpanType.ERROR.value: ErrorPage,
-        RumSpanType.VITAL.value: VitalPage,
-        RumSpanType.VIEW.value: ViewPage,
-    }
+
+    #: View 详情需要补查的关联 Span 类型，用于生命周期快照与 Web Vitals 最新值。
+    VIEW_RELATED_SPAN_TYPES: tuple[str, ...] = (RumSpanType.VIEW.value, RumSpanType.VITAL.value)
 
     def __init__(self, data_sources: list[TraceDatasourceTarget]):
         super().__init__(data_sources)
@@ -503,19 +491,47 @@ class SpanLevelHandler(BaseRumLevelHandler):
     ) -> dict[str, Any]:
         """查询单条 Span 记录详情。
 
-        通过 span_id 查询原始记录，再根据 span_type 分派到对应 Builder 组装结构化详情响应。
+        通过 span_id 查询原始记录，并根据 span_type 分派到对应 SpanBuilder。
+        View 类型额外补查关联 Span（生命周期 + Web Vitals）供 Builder 装配最新快照。
         """
-
-        origin_data = self.query.query_detail(record_id) or {}
-        if not origin_data:
+        span = self.query.query_detail(record_id) or {}
+        if not span:
             raise serializers.ValidationError(_("span_id={} 记录不存在").format(record_id))
 
-        span_type: str = origin_data.get("attributes.span_type", "")
-        if span_type == RumSpanType.RESOURCE.value:
-            if origin_data.get("attributes.resource.type") in {ResourceType.XHR.value, ResourceType.FETCH.value}:
-                page_class = ResourceXhrAndFetchPage
-            else:
-                page_class = ResourceOthersPage
-        else:
-            page_class = self.PAGE_MAP.get(span_type, BasePage)
-        return {"origin_data": origin_data, "span_id": record_id, **page_class(origin_data).render()}
+        related_spans = self._query_related_spans(span)
+        return build_span_detail(span, related_spans)
+
+    def _query_related_spans(self, span: dict[str, Any]) -> list[dict[str, Any]]:
+        """仅对 View 类型补查关联 Span：同 View ID 下 span_type=view / vital 的记录。
+
+        - 应用与 Session 沿用主记录范围。
+        - 时间范围覆盖后续生命周期：[start_time, end_time + 1d]，转换为秒级传入。
+        - 其他类型返回空列表，避免不必要的存储查询。
+
+        .. note::
+            Span 记录中的 ``start_time`` / ``end_time`` 为微秒级时间戳，
+            而 :meth:`SpanQuery.query_list` 期望秒级时间戳（内部会 ``* 1000`` 转毫秒），
+            因此需先 ``// 1_000_000`` 归一化，否则会触发底层 unify-query
+            "start time and end time must have the same format" 报错。
+        """
+        flat = flatten_dict_data(span)
+        if flat.get("attributes.span_type") != RumSpanType.VIEW.value:
+            return []
+
+        view_id = flat.get("attributes.view.id")
+        if not view_id:
+            return []
+
+        one_day_s = 24 * 60 * 60
+        start_time = int(flat.get("start_time") or 0) // 1_000_000
+        end_time = int(flat.get("end_time") or 0) // 1_000_000 + one_day_s
+
+        filters: list[types.Filter] = [
+            {"key": "attributes.view.id", "value": [view_id], "operator": FilterOperator.EQUAL},
+            {
+                "key": "attributes.span_type",
+                "value": list(self.VIEW_RELATED_SPAN_TYPES),
+                "operator": FilterOperator.EQUAL,
+            },
+        ]
+        return self.query.query_list(start_time, end_time, offset=0, limit=1000, filters=filters)

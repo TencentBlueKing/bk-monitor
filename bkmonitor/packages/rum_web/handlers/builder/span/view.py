@@ -8,34 +8,43 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from typing import Any
+from collections.abc import Sequence
 from dataclasses import dataclass
+from typing import Any
+
 from django.utils.translation import gettext_lazy as _
 
+from bkmonitor.data_source.format import flatten_dict_data
 from constants.otel_query import RatingLevel
 from semconv.constants import FieldUnit
+from semconv.rum.constants import RumSpanType
 
-from rum_web.handlers.level.page.base import BasePage, BaseSection, KeyValueItem, DictItem
-from rum_web.handlers.level.page.span.base import (
-    OVERVIEW_ELAPSED_TIME,
+from rum_web.handlers.builder.base import (
+    BaseSection,
+    DictItem,
+    KeyValueItem,
+    SpanBuilder,
+)
+from rum_web.handlers.builder.constants import SectionType
+from rum_web.handlers.builder.span.base import (
     OVERVIEW_APP_NAME,
-    OVERVIEW_ATTRIBUTES_VIEW_URL_TEMPLATE,
     OVERVIEW_ATTRIBUTES_SESSION_ID,
-    OVERVIEW_ATTRIBUTES_VIEW_ID,
-    OVERVIEW_START_TIME,
-    OVERVIEW_END_TIME,
     OVERVIEW_ATTRIBUTES_USER_ID,
-    OVERVIEW_RESOURCE_DEPLOYMENT_ENVIRONMENT_NAME,
+    OVERVIEW_ATTRIBUTES_VIEW_ID,
     OVERVIEW_ATTRIBUTES_VIEW_PREVIOUS_URL_TEMPLATE,
+    OVERVIEW_ATTRIBUTES_VIEW_URL_TEMPLATE,
+    OVERVIEW_ELAPSED_TIME,
+    OVERVIEW_END_TIME,
+    OVERVIEW_RESOURCE_DEPLOYMENT_ENVIRONMENT_NAME,
+    OVERVIEW_START_TIME,
     SpanOverview,
     SpanTypeItem,
 )
-from rum_web.handlers.level.page.constants import SectionType
-from rum_web.handlers.level.page.utils import get_safe_number
+from rum_web.handlers.builder.utils import get_safe_number
 
 
 # 每个 Web Vitals 指标在 origin_data 中挂载的嵌套字典键，
-# 由 ViewSpanBuilder 用同 View ID 且 span_type=vital 的最新快照填充。
+# 由 :meth:`ViewSpanBuilder._prepare_origin_data` 用同 View ID 且 span_type=vital 的最新快照填充。
 VITAL_METRIC_KEYS: dict[str, str] = {
     "ttfb": "display.vitals.ttfb",
     "fcp": "display.vitals.fcp",
@@ -256,16 +265,67 @@ class ViewLoadingTimingSection(BaseSection):
             "markers": self._build_markers(),
         }
 
-    def render(self) -> dict[str, Any]:
-        super().render()
-        self._fill_data()
-        return self.component_dict
 
+class ViewSpanBuilder(SpanBuilder):
+    """View 类型 Span 详情 Builder。
 
-class ViewPage(BasePage):
+    通过 :meth:`_prepare_origin_data` 将 ``related_spans`` 中的最新 View 快照与
+    每个 Web Vitals 指标的最新记录注入到打平后的原始数据中，供各 Section 渲染。
+    ``origin_data`` 和 ``span_id`` 始终保留主记录。
+    """
+
     OVERVIEW = ViewSpanOverview
     SECTIONS = [
         ViewKeyInfoSection,
         ViewWebVitalsSection,
         ViewLoadingTimingSection,
     ]
+
+    @classmethod
+    def _prepare_origin_data(
+        cls,
+        span: dict[str, Any],
+        related_spans: Sequence[dict[str, Any]] = (),
+    ) -> dict[str, Any]:
+        origin_data = flatten_dict_data(span)
+        latest_view = cls._latest_view_snapshot(related_spans)
+        if latest_view:
+            # 用最新 View 快照覆盖头部时间及加载字段，主记录仍保留在响应的 origin_data。
+            origin_data.update(latest_view)
+        for metric, key in VITAL_METRIC_KEYS.items():
+            snapshot = cls._latest_vital_snapshot(related_spans, metric)
+            if snapshot:
+                origin_data[key] = snapshot
+        return origin_data
+
+    @staticmethod
+    def _latest_view_snapshot(related_spans: Sequence[dict[str, Any]]) -> dict[str, Any] | None:
+        """从关联记录中挑选最新 View 快照：按 ``attributes.view.version`` 降序取首条。"""
+        candidates = [
+            flatten_dict_data(item)
+            for item in related_spans
+            if flatten_dict_data(item).get("attributes.span_type") == RumSpanType.VIEW.value
+        ]
+        if not candidates:
+            return None
+        candidates.sort(key=lambda item: get_safe_number(item.get("attributes.view.version")), reverse=True)
+        return candidates[0]
+
+    @staticmethod
+    def _latest_vital_snapshot(
+        related_spans: Sequence[dict[str, Any]],
+        metric: str,
+    ) -> dict[str, Any] | None:
+        """从关联记录中挑选指定 Vital 指标的最新快照：按 ``end_time`` 降序取首条。"""
+        candidates = []
+        for item in related_spans:
+            flat = flatten_dict_data(item)
+            if flat.get("attributes.span_type") != RumSpanType.VITAL.value:
+                continue
+            if str(flat.get("attributes.vital.metric", "")).lower() != metric:
+                continue
+            candidates.append(flat)
+        if not candidates:
+            return None
+        candidates.sort(key=lambda item: get_safe_number(item.get("end_time")), reverse=True)
+        return candidates[0]

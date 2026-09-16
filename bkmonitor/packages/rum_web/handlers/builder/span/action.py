@@ -8,45 +8,46 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from rum_web.handlers.level.page.base import BasePage, KeyValueItem, DictItem, BaseSection
-from rum_web.handlers.level.page.span.base import (
-    OVERVIEW_ELAPSED_TIME,
+from rum_web.handlers.builder.base import BaseSection, DictItem, KeyValueItem, SpanBuilder
+from rum_web.handlers.builder.constants import SectionType
+from rum_web.handlers.builder.span.base import (
+    OVERVIEW_ATTRIBUTES_ACTION_TYPE,
     OVERVIEW_ATTRIBUTES_OUTCOME_TYPE,
+    OVERVIEW_ELAPSED_TIME,
     SpanOverview,
 )
-from rum_web.handlers.level.page.constants import SectionType
 
 
-class ErrorSpanOverview(SpanOverview):
+class ActionSpanOverview(SpanOverview):
     BADGES = [
         OVERVIEW_ELAPSED_TIME,
+        OVERVIEW_ATTRIBUTES_ACTION_TYPE,
         OVERVIEW_ATTRIBUTES_OUTCOME_TYPE,
     ]
 
 
-class ErrorKeyInfoSection(BaseSection):
+class ActionKeyInfoSection(BaseSection):
     KEY = "key_info"
     TYPE = SectionType.SUMMARY_CARDS.value
     DATA = [
         DictItem(
-            key="error_type",
+            key="interaction",
             items=[
-                KeyValueItem(key="events.attributes.exception.type"),
+                KeyValueItem(key="attributes.action.type"),
             ],
         ),
         DictItem(
-            key="source",
+            key="target",
             items=[
-                KeyValueItem(key="attributes.code.filepath"),
-                KeyValueItem(key="attributes.code.lineno"),
-                KeyValueItem(key="attributes.code.column"),
+                KeyValueItem(key="attributes.action.target.name"),
+                KeyValueItem(key="attributes.action.target.tag"),
             ],
         ),
     ]
 
 
-class ErrorPage(BasePage):
-    OVERVIEW = ErrorSpanOverview
+class ActionSpanBuilder(SpanBuilder):
+    OVERVIEW = ActionSpanOverview
     SECTIONS = [
-        ErrorKeyInfoSection,
+        ActionKeyInfoSection,
     ]

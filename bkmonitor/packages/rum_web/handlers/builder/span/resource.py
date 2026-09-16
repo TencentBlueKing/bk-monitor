@@ -8,20 +8,30 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from typing import Any
+from collections.abc import Sequence
 from dataclasses import dataclass
+from typing import Any
+
 from django.utils.translation import gettext_lazy as _
 
+from bkmonitor.data_source.format import flatten_dict_data
 from semconv.constants import FieldUnit
+from semconv.rum.constants import ResourceType
 
-from rum_web.handlers.level.page.base import BasePage, BaseSection, DictItem, KeyValueItem, NamedKeyValueItem
-from rum_web.handlers.level.page.span.base import (
-    OVERVIEW_ELAPSED_TIME,
-    OVERVIEW_ATTRIBUTES_RESOURCE_TYPE,
+from rum_web.handlers.builder.base import (
+    BaseSection,
+    DictItem,
+    KeyValueItem,
+    NamedKeyValueItem,
+    SpanBuilder,
+)
+from rum_web.handlers.builder.constants import SectionType
+from rum_web.handlers.builder.span.base import (
     OVERVIEW_ATTRIBUTES_HTTP_RESPONSE_STATUS_CODE,
+    OVERVIEW_ATTRIBUTES_RESOURCE_TYPE,
+    OVERVIEW_ELAPSED_TIME,
     SpanOverview,
 )
-from rum_web.handlers.level.page.constants import SectionType
 
 
 @dataclass(frozen=True, slots=True)
@@ -38,6 +48,14 @@ class CompressionRatioItem(KeyValueItem):
             if decoded_body_size != 0:
                 ratio = 1 - float(origin_data["attributes.resource.transfer_size"]) / decoded_body_size
         return {self.key: ratio}
+
+
+class ResourceSpanOverview(SpanOverview):
+    BADGES = [
+        OVERVIEW_ELAPSED_TIME,
+        OVERVIEW_ATTRIBUTES_RESOURCE_TYPE,
+        OVERVIEW_ATTRIBUTES_HTTP_RESPONSE_STATUS_CODE,
+    ]
 
 
 class ResourceXhrAndFetchKeyInfoSection(BaseSection):
@@ -152,22 +170,6 @@ class LoadingTimingSection(BaseSection):
         }
 
 
-class ResourceSpanOverview(SpanOverview):
-    BADGES = [
-        OVERVIEW_ELAPSED_TIME,
-        OVERVIEW_ATTRIBUTES_RESOURCE_TYPE,
-        OVERVIEW_ATTRIBUTES_HTTP_RESPONSE_STATUS_CODE,
-    ]
-
-
-class ResourceXhrAndFetchPage(BasePage):
-    OVERVIEW = ResourceSpanOverview
-    SECTIONS = [
-        ResourceXhrAndFetchKeyInfoSection,
-        LoadingTimingSection,
-    ]
-
-
 class ResourceOthersKeyInfoSection(BaseSection):
     KEY = "key_info"
     TYPE = SectionType.SUMMARY_CARDS.value
@@ -222,10 +224,42 @@ class ResourceOthersResourceInfoSection(BaseSection):
     ]
 
 
-class ResourceOthersPage(BasePage):
+class ResourceSpanBuilder(SpanBuilder):
+    """Resource 类型 Span 详情 Builder：按 ``attributes.resource.type`` 分派子协议。
+
+    - XHR / Fetch：请求 → 耗时 → HTTP 结果 → 传输 + 加载瀑布。
+    - 其他资源（img / css / js / ...）：结果 → 耗时 → 传输 → 投递 → 阻塞 + 资源信息 + 加载瀑布。
+    """
+
     OVERVIEW = ResourceSpanOverview
-    SECTIONS = [
+
+    XHR_FETCH_SECTIONS: list[type[BaseSection]] = [
+        ResourceXhrAndFetchKeyInfoSection,
+        LoadingTimingSection,
+    ]
+    OTHERS_SECTIONS: list[type[BaseSection]] = [
         ResourceOthersKeyInfoSection,
         ResourceOthersResourceInfoSection,
         LoadingTimingSection,
     ]
+
+    XHR_FETCH_TYPES: frozenset[str] = frozenset({ResourceType.XHR.value, ResourceType.FETCH.value})
+
+    @classmethod
+    def process(
+        cls,
+        span: dict[str, Any],
+        related_spans: Sequence[dict[str, Any]] = (),
+    ) -> dict[str, Any]:
+        origin_data = flatten_dict_data(span)
+        sections = (
+            cls.XHR_FETCH_SECTIONS
+            if origin_data.get("attributes.resource.type") in cls.XHR_FETCH_TYPES
+            else cls.OTHERS_SECTIONS
+        )
+        return {
+            "origin_data": span,
+            "span_id": span.get("span_id", ""),
+            "overview": cls.OVERVIEW(origin_data).render(),
+            "sections": [section(origin_data).render() for section in sections],
+        }

@@ -8,13 +8,14 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from typing import Any
 from dataclasses import dataclass
+from typing import Any
+
 from django.utils.translation import gettext_lazy as _
 
-
 from semconv.rum.constants import RumSpanType
-from rum_web.handlers.level.page.base import NamedKeyValueItem, BaseOverview
+
+from rum_web.handlers.builder.base import BaseOverview, NamedKeyValueItem
 
 
 # ── Overview 标题 ──────────────────────────────────────────────────────────────
@@ -86,25 +87,3 @@ class SpanOverview(BaseOverview):
         OVERVIEW_ATTRIBUTES_USER_ID,
         OVERVIEW_RESOURCE_DEPLOYMENT_ENVIRONMENT_NAME,
     ]
-
-    def __init__(self, origin_data: dict[str, Any]):
-        super().__init__(origin_data)
-
-    def _fill_title(self):
-        self.component_dict["title"] = self.origin_data.get("span_name", self.EMPTY_VALUE)
-
-    def _fill_badges(self):
-        self.component_dict["badges"] = []
-        for item in self.BADGES:
-            self.component_dict["badges"].append(item.render(self.origin_data))
-
-    def _fill_items(self):
-        self.component_dict["items"] = []
-        for item in self.ITEMS:
-            self.component_dict["items"].append(item.render(self.origin_data))
-
-    def render(self) -> dict[str, Any]:
-        self._fill_title()
-        self._fill_badges()
-        self._fill_items()
-        return self.component_dict

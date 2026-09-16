@@ -8,13 +8,13 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from rum_web.handlers.level.page.base import BasePage, KeyValueItem, DictItem, BaseSection
-from rum_web.handlers.level.page.span.base import (
-    OVERVIEW_ELAPSED_TIME,
+from rum_web.handlers.builder.base import BaseSection, DictItem, KeyValueItem, SpanBuilder
+from rum_web.handlers.builder.constants import SectionType
+from rum_web.handlers.builder.span.base import (
     OVERVIEW_ATTRIBUTES_OUTCOME_TYPE,
+    OVERVIEW_ELAPSED_TIME,
     SpanOverview,
 )
-from rum_web.handlers.level.page.constants import SectionType
 
 
 class LongTaskSpanOverview(SpanOverview):
@@ -51,7 +51,7 @@ class LongTaskKeyInfoSection(BaseSection):
     ]
 
 
-class LongTaskPage(BasePage):
+class LongTaskSpanBuilder(SpanBuilder):
     OVERVIEW = LongTaskSpanOverview
     SECTIONS = [
         LongTaskKeyInfoSection,

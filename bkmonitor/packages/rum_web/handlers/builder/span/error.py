@@ -8,46 +8,45 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from rum_web.handlers.level.page.base import BasePage, DictItem, KeyValueItem, BaseSection
-from rum_web.handlers.level.page.span.base import (
+from rum_web.handlers.builder.base import BaseSection, DictItem, KeyValueItem, SpanBuilder
+from rum_web.handlers.builder.constants import SectionType
+from rum_web.handlers.builder.span.base import (
+    OVERVIEW_ATTRIBUTES_OUTCOME_TYPE,
     OVERVIEW_ELAPSED_TIME,
     SpanOverview,
-    OVERVIEW_ATTRIBUTES_ACTION_TYPE,
-    OVERVIEW_ATTRIBUTES_OUTCOME_TYPE,
 )
-from rum_web.handlers.level.page.constants import SectionType
 
 
-class ActionSpanOverview(SpanOverview):
+class ErrorSpanOverview(SpanOverview):
     BADGES = [
         OVERVIEW_ELAPSED_TIME,
-        OVERVIEW_ATTRIBUTES_ACTION_TYPE,
         OVERVIEW_ATTRIBUTES_OUTCOME_TYPE,
     ]
 
 
-class ActionKeyInfoSection(BaseSection):
+class ErrorKeyInfoSection(BaseSection):
     KEY = "key_info"
     TYPE = SectionType.SUMMARY_CARDS.value
     DATA = [
         DictItem(
-            key="interaction",
+            key="error_type",
             items=[
-                KeyValueItem(key="attributes.action.type"),
+                KeyValueItem(key="events.attributes.exception.type"),
             ],
         ),
         DictItem(
-            key="target",
+            key="source",
             items=[
-                KeyValueItem(key="attributes.action.target.name"),
-                KeyValueItem(key="attributes.action.target.tag"),
+                KeyValueItem(key="attributes.code.filepath"),
+                KeyValueItem(key="attributes.code.lineno"),
+                KeyValueItem(key="attributes.code.column"),
             ],
         ),
     ]
 
 
-class ActionPage(BasePage):
-    OVERVIEW = ActionSpanOverview
+class ErrorSpanBuilder(SpanBuilder):
+    OVERVIEW = ErrorSpanOverview
     SECTIONS = [
-        ActionKeyInfoSection,
+        ErrorKeyInfoSection,
     ]
