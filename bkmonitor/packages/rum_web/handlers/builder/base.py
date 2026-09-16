@@ -9,9 +9,13 @@ specific language governing permissions and limitations under the License.
 """
 
 from abc import ABC, abstractmethod
-from typing import Any, Protocol
+from collections.abc import Sequence
 from dataclasses import dataclass
-from rum_web.handlers.level.page.utils import get_safe_number
+from typing import Any, Protocol
+
+from bkmonitor.data_source.format import flatten_dict_data
+
+from rum_web.handlers.builder.utils import get_safe_number
 
 
 class ItemProtocol(Protocol):
@@ -94,9 +98,6 @@ class BaseOverview(BaseComponent):
     BADGES: list[NamedKeyValueItem] = []
     ITEMS: list[NamedKeyValueItem] = []
 
-    def __init__(self, origin_data: dict[str, Any]):
-        super().__init__(origin_data)
-
     def _fill_title(self):
         self.component_dict["title"] = self.origin_data.get("span_name", self.EMPTY_VALUE)
 
@@ -147,33 +148,63 @@ class BaseSection(BaseComponent):
                 "type": self.TYPE,
             }
         )
-        if hasattr(self, "_fill_data"):
-            self._fill_data()
-        if hasattr(self, "_fill_items"):
-            self._fill_items()
+        self._fill_data()
+        self._fill_items()
         return self.component_dict
 
 
-class BasePage(BaseComponent):
+class SpanBuilder:
+    """Span 详情 Builder 基类。
+
+    子类通过声明 ``OVERVIEW`` 与 ``SECTIONS`` 组装区块，特殊类型可覆盖
+    :meth:`_prepare_origin_data` 或 :meth:`process` 自定义装配逻辑。
+    公共头部 ``origin_data``、``span_id`` 与空 ``sections`` 在此统一处理。
+    """
+
     OVERVIEW: type[BaseOverview] | None = None
     SECTIONS: list[type[BaseSection]] | None = None
 
-    def _fill_overview(self):
-        if self.OVERVIEW is None:
-            return
-        self.component_dict["overview"] = self.OVERVIEW(self.origin_data).render()
+    @classmethod
+    def process(
+        cls,
+        span: dict[str, Any],
+        related_spans: Sequence[dict[str, Any]] = (),
+    ) -> dict[str, Any]:
+        """组装 Span 详情响应。
 
-    def _fill_sections(self):
-        if self.SECTIONS is None:
-            return
-        self.component_dict["sections"] = []
-        for section in self.SECTIONS:
-            self.component_dict["sections"].append(section(self.origin_data).render())
+        - ``span``：主 Span 的原始记录（未打平），用于回填 ``origin_data``、``span_id``。
+        - ``related_spans``：关联 Span 列表（仅 View 会传入生命周期与 Vital 快照）。
 
-    def render(self) -> dict[str, Any]:
-        self._fill_overview()
-        self._fill_sections()
-        return self.component_dict
+        默认按 ``OVERVIEW``、``SECTIONS`` 顺序渲染，未声明则返回空区块。
+        """
+        origin_data = cls._prepare_origin_data(span, related_spans)
+        result: dict[str, Any] = {
+            "origin_data": span,
+            "span_id": span.get("span_id", ""),
+            "sections": [],
+        }
+        if cls.OVERVIEW is not None:
+            result["overview"] = cls.OVERVIEW(origin_data).render()
+        if cls.SECTIONS is not None:
+            result["sections"] = [section(origin_data).render() for section in cls.SECTIONS]
+        return result
+
+    @classmethod
+    def _prepare_origin_data(
+        cls,
+        span: dict[str, Any],
+        related_spans: Sequence[dict[str, Any]] = (),
+    ) -> dict[str, Any]:
+        """默认返回主 Span 打平后的字典；子类可注入关联 Span 附加信息。"""
+        return flatten_dict_data(span)
 
 
-__all__ = ["BasePage", "BaseSection", "BaseComponent", "BaseOverview", "NamedKeyValueItem", "KeyValueItem", "DictItem"]
+__all__ = [
+    "SpanBuilder",
+    "BaseSection",
+    "BaseComponent",
+    "BaseOverview",
+    "NamedKeyValueItem",
+    "KeyValueItem",
+    "DictItem",
+]

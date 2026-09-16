@@ -8,18 +8,18 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from typing import Any
 from dataclasses import dataclass
+from typing import Any
 
 from constants.otel_query import RatingLevel
 
-from rum_web.handlers.level.page.base import BasePage, BaseSection, KeyValueItem, NamedKeyValueItem
-from rum_web.handlers.level.page.constants import SectionType
-from rum_web.handlers.level.page.utils import get_safe_number
-from rum_web.handlers.level.page.span.base import (
+from rum_web.handlers.builder.base import BaseSection, KeyValueItem, NamedKeyValueItem, SpanBuilder
+from rum_web.handlers.builder.constants import SectionType
+from rum_web.handlers.builder.span.base import (
     OVERVIEW_ELAPSED_TIME,
     SpanOverview,
 )
+from rum_web.handlers.builder.utils import get_safe_number
 
 
 @dataclass(frozen=True, slots=True)
@@ -78,7 +78,7 @@ class VitalRatingSection(BaseSection):
     ]
 
 
-class VitalPage(BasePage):
+class VitalSpanBuilder(SpanBuilder):
     OVERVIEW = VitalSpanOverview
     SECTIONS = [
         VitalRatingSection,
