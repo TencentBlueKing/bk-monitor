@@ -1799,21 +1799,29 @@ class Item(AbstractConfig):
         self.id = item.id
         return item
 
-    def save_algorithms(self):
-        self.reuse_exists_records(
-            AlgorithmModel,
-            AlgorithmModel.objects.filter(strategy_id=self.strategy_id, item_id=self.id).only("id"),
-            self.algorithms,
-            Algorithm,
-        )
+    def save_algorithms(self, *, preserve_ids: bool = False) -> None:
+        """保存算法集合；局部更新保留已匹配的 ID，完整保存沿用按位置复用的行为。"""
+        if preserve_ids:
+            # patch 已在锁内按身份匹配；只删除未匹配记录，不能再次按位置分配 ID。
+            algorithm_ids: set[int] = {algorithm.id for algorithm in self.algorithms if algorithm.id > 0}
+            AlgorithmModel.objects.filter(strategy_id=self.strategy_id, item_id=self.id).exclude(
+                id__in=algorithm_ids
+            ).delete()
+        else:
+            self.reuse_exists_records(
+                AlgorithmModel,
+                AlgorithmModel.objects.filter(strategy_id=self.strategy_id, item_id=self.id).only("id").order_by("id"),
+                self.algorithms,
+                Algorithm,
+            )
 
         for algo in self.algorithms:
             algo.save()
 
-    def save_query_configs(self):
+    def save_query_configs(self) -> None:
         self.reuse_exists_records(
             QueryConfigModel,
-            QueryConfigModel.objects.filter(strategy_id=self.strategy_id, item_id=self.id).only("id"),
+            QueryConfigModel.objects.filter(strategy_id=self.strategy_id, item_id=self.id).only("id").order_by("id"),
             self.query_configs,
             QueryConfig,
         )
@@ -2315,15 +2323,15 @@ class Strategy(AbstractConfig):
 
         return converted_config
 
-    def to_dict(self, convert_dashboard: bool = True) -> dict:
+    def to_dict(self, convert_dashboard: bool = True, *, generate_priority_group_key: bool = True) -> dict:
         """
         转换为JSON字典
         """
         if self.priority is None:
             priority_group_key = ""
         else:
-            if self.priority_group_key:
-                priority_group_key = self.priority_group_key
+            if self.priority_group_key or not generate_priority_group_key:
+                priority_group_key = self.priority_group_key or ""
             else:
                 # 自动生成优先级分组key
                 priority_group_key = self.get_priority_group_key(self.bk_biz_id, self.items)
@@ -2804,20 +2812,20 @@ class Strategy(AbstractConfig):
         )
         self.id = strategy.id
 
-    def save_labels(self):
-        """
-        保存策略标签
-        """
-        labels = [f"/{label.strip('/')}/" for label in self.labels]
+    @staticmethod
+    def normalize_labels(labels: list[str]) -> list[str]:
+        """规范化标签并过滤冗余父标签，保留输入顺序及重复项。"""
+        normalized_labels: list[str] = [f"/{label.strip('/')}/" for label in labels]
+        max_length: int = StrategyLabel._meta.get_field("label_name").max_length
 
         # 校验标签长度
-        for label in labels:
-            if len(label) > 128:
+        for label in normalized_labels:
+            if len(label) > max_length:
                 raise ValidationError(_("标签长度超长，请调整后重试"))
 
         # 如果某个标签是另一个标签的父标签，则抛弃该标签
-        redundant_labels = set()
-        for label1, label2 in permutations(labels, 2):
+        redundant_labels: set[str] = set()
+        for label1, label2 in permutations(normalized_labels, 2):
             if label1 == label2:
                 continue
 
@@ -2825,7 +2833,11 @@ class Strategy(AbstractConfig):
                 redundant_labels.add(label2)
             elif label2.startswith(label1):
                 redundant_labels.add(label1)
-        self.labels = [label for label in labels if label not in redundant_labels]
+        return [label for label in normalized_labels if label not in redundant_labels]
+
+    def save_labels(self) -> None:
+        """保存策略标签。"""
+        self.labels = self.normalize_labels(self.labels)
 
         # 清理旧标签
         StrategyLabel.objects.filter(bk_biz_id=self.bk_biz_id, strategy_id=self.id).delete()
@@ -2888,6 +2900,17 @@ class Strategy(AbstractConfig):
                 raise ValidationError(detail=_("已有自动告警等级配置异常，请先修复策略配置"))
             algorithm.config["alert_levels"] = copy.deepcopy(existing_algorithm.config["alert_levels"])
 
+    def save_detects(self) -> None:
+        """整体保存检测配置，完整保存与局部更新共用记录复用和增删逻辑。"""
+        self.reuse_exists_records(
+            DetectModel,
+            DetectModel.objects.filter(strategy_id=self.id).only("id").order_by("id"),
+            self.detects,
+            Detect,
+        )
+        for detect in self.detects:
+            detect.save()
+
     @transaction.atomic
     def save_actions(self):
         """保存actions配置."""
@@ -2930,9 +2953,9 @@ class Strategy(AbstractConfig):
 
         return create_or_update_datas
 
-    def get_history_content(self) -> dict:
+    def get_history_content(self, *, generate_priority_group_key: bool = True) -> dict:
         """生成包含省略字段有效值的完整历史快照。"""
-        content = self.to_dict()
+        content = self.to_dict(generate_priority_group_key=generate_priority_group_key)
         if self.id <= 0:
             return content
 
@@ -3012,17 +3035,14 @@ class Strategy(AbstractConfig):
                     self._create()
 
                 # 复用当前存在的记录
-                model_configs = [
-                    (ItemModel, Item, self.items),
-                    (DetectModel, Detect, self.detects),
-                ]
-                for model, config_cls, configs in model_configs:
-                    objs = model.objects.filter(strategy_id=self.id).only("id")
-                    self.reuse_exists_records(model, objs, configs, config_cls)
+                self.reuse_exists_records(
+                    ItemModel, ItemModel.objects.filter(strategy_id=self.id).only("id"), self.items, Item
+                )
 
                 # 保存子配置
-                for obj in chain(self.items, self.detects):
+                for obj in self.items:
                     obj.save()
+                self.save_detects()
 
                 # 复用旧ID地保存actions和notice
                 self.save_actions()
@@ -3284,7 +3304,7 @@ class Strategy(AbstractConfig):
         content = json.dumps(query, sort_keys=True)
         return xxhash.xxh64(content).hexdigest()
 
-    def supplement_inst_target_dimension(self):
+    def supplement_inst_target_dimension(self, items: list[Item] | None = None) -> None:
         """
         静态目标补全静态维度
         """
@@ -3294,7 +3314,7 @@ class Strategy(AbstractConfig):
         else:
             host_dimensions = {"bk_target_ip"}
 
-        for item in self.items:
+        for item in self.items if items is None else items:
             if not item.target or not item.target[0]:
                 return
 

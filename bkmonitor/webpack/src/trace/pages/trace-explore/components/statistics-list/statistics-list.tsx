@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { type PropType, defineComponent } from 'vue';
+import { type PropType, defineComponent, nextTick, watch } from 'vue';
 
 import {
   traceDownloadTopK,
@@ -98,6 +98,8 @@ export default defineComponent({
     conditionChange: (_condition: ConditionChangeEvent) => true,
     showMore: () => true,
     sliderShowChange: (_show: boolean) => true,
+    /** 数据加载完成且内容渲染到 DOM 后触发，供弹层调用方重新定向 */
+    contentRendered: () => true,
   },
   setup(props, { emit }) {
     const { t } = useI18n();
@@ -128,6 +130,12 @@ export default defineComponent({
     function handleConditionChange(condition: ConditionChangeEvent) {
       emit('conditionChange', condition);
     }
+
+    /** 弹层数据全部加载完成后通知外层：内容高度已定型，弹层可据此重新定向 */
+    watch([infoLoading, popoverLoading], () => {
+      if (!props.isShow || infoLoading.value || popoverLoading.value) return;
+      nextTick(() => emit('contentRendered'));
+    });
 
     return {
       t,

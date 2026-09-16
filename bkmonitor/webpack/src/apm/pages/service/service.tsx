@@ -39,6 +39,8 @@ import ApmCommonNavBar, {
 } from '../../components/apm-common-nav-bar/apm-common-nav-bar';
 import ListMenu, { type IMenuItem } from '../../components/list-menu/list-menu';
 import applicationStore from '../../store/modules/application';
+import { LLM_SESSION_PANEL_TYPE } from './contents/llm_session/constants';
+import LlmSession from './contents/llm_session/llm-session';
 
 import type { IAppSelectOptItem } from '../home/app-select';
 import type { IViewOptions } from 'monitor-ui/chart-plugins/typings';
@@ -355,6 +357,7 @@ export default class Service extends tsc<object> {
             ref='commonPageRef'
             class={'apm-service-page'}
             backToOverviewKey={this.backToOverviewKey}
+            customContentPanelTypes={[LLM_SESSION_PANEL_TYPE]}
             defaultDashboardId={this.dashboardId}
             defaultViewOptions={this.viewOptions}
             isShowSplitPanel={false}
@@ -365,6 +368,8 @@ export default class Service extends tsc<object> {
             onTabChange={this.handleUpdateAppName}
             onTitleChange={this.handleTitleChange}
           >
+            {/* CommonPage 命中 LLM 会话面板类型时才渲染该插槽，组件也只在那时挂载 */}
+            <LlmSession slot='customContent' />
             {globalUrlFeatureMap.APM_SUBMENU && (
               <ApmCommonNavBar
                 slot='nav'

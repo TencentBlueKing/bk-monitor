@@ -8,7 +8,7 @@ from unittest import TestCase
 
 from apm_web.handlers.service_handler import ServiceHandler
 from apm_web.llm.adapter import adapt_spans as adapt_spans_with_entity_set
-from apm_web.llm.adapter.fields import detect_product, resolve_query_field
+from apm_web.llm.adapter.fields import resolve_product, resolve_query_field
 
 TRACE_ID = "a" * 32
 SPAN_ID = "b" * 16
@@ -88,27 +88,36 @@ def seedance_poll_span(span_id: str = "d" * 16, *, trace_id: str = "e" * 32) -> 
     return span
 
 
+def langfuse_span(span_id: str = SPAN_ID, *, observation_type: str = "generation") -> dict:
+    span = agentlens_span(span_id)
+    span["span_name"] = f"langfuse-{observation_type}"
+    span["attributes"] = {"langfuse.observation.type": observation_type}
+    return span
+
+
 class AdapterTests(TestCase):
     def test_product_routing_uses_entity_set(self) -> None:
-        span = agentlens_span()
         for product in ("agentlens", "galileo", "aidev", "langfuse", "default"):
             with self.subTest(product=product):
-                self.assertEqual(detect_product(FakeEntitySet(product), [span]), product)
+                self.assertEqual(resolve_product(FakeEntitySet(product), "demo"), product)
 
     def test_galileo_routing_requires_llm_service(self) -> None:
         entity_set = FakeEntitySet("galileo", is_support_llm=False)
 
-        self.assertEqual(detect_product(entity_set, [agentlens_span()]), "default")
+        self.assertEqual(resolve_product(entity_set, "demo"), "")
+
+    def test_product_is_empty_for_service_outside_entity_set(self) -> None:
+        self.assertEqual(resolve_product(FakeEntitySet("agentlens"), "other"), "")
 
     def test_resolve_query_field(self) -> None:
         conversation_field = "attributes.gen_ai.conversation.id"
         self.assertEqual(resolve_query_field("aidev", conversation_field), "attributes.agent.session.session_code")
         self.assertEqual(resolve_query_field("agentlens", conversation_field), "attributes.gen_ai.session.id")
-        # galileo/default 直接使用标准字段本身
-        self.assertEqual(resolve_query_field("galileo", conversation_field), conversation_field)
+        self.assertEqual(resolve_query_field("galileo", conversation_field), "attributes.gen_ai.session_id")
+        self.assertEqual(resolve_query_field("langfuse", conversation_field), "attributes.session.id")
         self.assertEqual(resolve_query_field("default", conversation_field), conversation_field)
         # 非 LLM 服务或未命中映射表的字段原样透传
-        self.assertEqual(resolve_query_field(None, conversation_field), conversation_field)
+        self.assertEqual(resolve_query_field("", conversation_field), conversation_field)
         self.assertEqual(resolve_query_field("aidev", "trace_id"), "trace_id")
 
     def test_default_adapter_keeps_only_standard_fields(self) -> None:
@@ -138,6 +147,240 @@ class AdapterTests(TestCase):
         self.assertNotIn("gen_ai.usage.input_tokens", attributes)
         self.assertNotIn("gen_ai.usage.output_tokens", attributes)
         self.assertNotIn("vendor.debug", attributes)
+
+    def test_langfuse_root_maps_conversation_and_content(self) -> None:
+        span = langfuse_span(observation_type="span")
+        span["attributes"].update(
+            {
+                "langfuse.internal.is_app_root": True,
+                "session.id": "session-1",
+                "user.id": "user-1",
+                "langfuse.observation.input": json.dumps("user question"),
+                "langfuse.observation.output": json.dumps("assistant answer"),
+            }
+        )
+
+        attributes = adapt_spans([span], "langfuse")[0]["attributes"]
+
+        self.assertEqual(attributes["gen_ai.conversation.id"], "session-1")
+        self.assertEqual(attributes["user.id"], "user-1")
+        self.assertEqual(attributes["gen_ai.input.messages"][0]["parts"][0]["content"], "user question")
+        self.assertEqual(attributes["gen_ai.output.messages"][0]["parts"][0]["content"], "assistant answer")
+        self.assertEqual(attributes["gen_ai.operation.name"], "invoke_agent")
+
+    def test_langfuse_generation_maps_messages_tools_and_usage(self) -> None:
+        span = langfuse_span()
+        span["attributes"].update(
+            {
+                "langfuse.observation.model.name": "model-a",
+                "langfuse.observation.metadata.temperature": "0.7",
+                "langfuse.observation.metadata.reasoningEffort": "high",
+                "langfuse.observation.usage_details": json.dumps(
+                    {
+                        "input": 60,
+                        "output": 5,
+                        "cache_read_input_tokens": 40,
+                        "cache_creation_input_tokens": 10,
+                    }
+                ),
+                "langfuse.observation.input": json.dumps(
+                    {
+                        "systemPrompt": "system prompt",
+                        "messages": [
+                            {"role": "user", "content": [{"type": "text", "text": "question"}]},
+                            {
+                                "role": "assistant",
+                                "content": [
+                                    {
+                                        "type": "tool_use",
+                                        "id": "call-1",
+                                        "name": "search",
+                                        "input": {"query": "demo"},
+                                    }
+                                ],
+                            },
+                            {
+                                "role": "user",
+                                "content": [
+                                    {
+                                        "type": "tool_result",
+                                        "tool_use_id": "call-1",
+                                        "content": {"result": "ok"},
+                                    }
+                                ],
+                            },
+                        ],
+                        "tools": [
+                            {
+                                "type": "function",
+                                "function": {
+                                    "name": "search",
+                                    "description": "search data",
+                                    "parameters": {"type": "OBJECT"},
+                                    "strict": True,
+                                },
+                            }
+                        ],
+                    }
+                ),
+                "langfuse.observation.output": json.dumps(
+                    [
+                        {"type": "text", "text": "working"},
+                        {"type": "tool_use", "id": "call-2", "name": "read", "input": {"path": "/tmp/a"}},
+                    ]
+                ),
+            }
+        )
+
+        attributes = adapt_spans([span], "langfuse")[0]["attributes"]
+
+        self.assertEqual(attributes["gen_ai.operation.name"], "chat")
+        self.assertEqual(attributes["gen_ai.request.model"], "model-a")
+        self.assertEqual(attributes["gen_ai.request.temperature"], 0.7)
+        self.assertEqual(attributes["gen_ai.request.reasoning.level"], "high")
+        self.assertEqual(attributes["gen_ai.usage.input_tokens"], 110)
+        self.assertEqual(attributes["gen_ai.usage.output_tokens"], 5)
+        self.assertEqual(attributes["gen_ai.usage.cache_read.input_tokens"], 40)
+        self.assertEqual(attributes["gen_ai.usage.cache_write.input_tokens"], 10)
+        self.assertEqual(attributes["gen_ai.system_instructions"][0]["content"], "system prompt")
+        self.assertEqual(
+            [message["role"] for message in attributes["gen_ai.input.messages"]], ["user", "assistant", "tool"]
+        )
+        self.assertEqual(attributes["gen_ai.input.messages"][1]["parts"][0]["id"], "call-1")
+        self.assertEqual(attributes["gen_ai.input.messages"][2]["parts"][0]["id"], "call-1")
+        self.assertEqual(attributes["gen_ai.tool.definitions"][0]["parameters"]["type"], "object")
+        self.assertEqual(
+            [part["type"] for part in attributes["gen_ai.output.messages"][0]["parts"]],
+            ["text", "tool_call"],
+        )
+
+    def test_langfuse_plain_generation_maps_to_text_completion(self) -> None:
+        span = langfuse_span()
+        span["attributes"].update(
+            {
+                "langfuse.observation.input": "plain prompt",
+                "langfuse.observation.output": "plain answer",
+            }
+        )
+
+        attributes = adapt_spans([span], "langfuse")[0]["attributes"]
+
+        self.assertEqual(attributes["gen_ai.operation.name"], "text_completion")
+        self.assertEqual(attributes["gen_ai.input.messages"][0]["parts"][0]["content"], "plain prompt")
+        self.assertEqual(attributes["gen_ai.output.messages"][0]["parts"][0]["content"], "plain answer")
+
+    def test_langfuse_generation_maps_openai_tool_messages(self) -> None:
+        span = langfuse_span()
+        span["attributes"]["langfuse.observation.input"] = json.dumps(
+            [
+                {
+                    "role": "assistant",
+                    "content": None,
+                    "tool_calls": [
+                        {
+                            "id": "call-1",
+                            "type": "function",
+                            "function": {"name": "search", "arguments": '{"query":"blueking"}'},
+                        }
+                    ],
+                },
+                {"role": "tool", "tool_call_id": "call-1", "content": '{"result":"ok"}'},
+            ]
+        )
+
+        attributes = adapt_spans([span], "langfuse")[0]["attributes"]
+
+        self.assertEqual(attributes["gen_ai.operation.name"], "chat")
+        messages = attributes["gen_ai.input.messages"]
+        self.assertEqual(
+            messages[0]["parts"][0],
+            {
+                "type": "tool_call",
+                "name": "search",
+                "arguments": {"query": "blueking"},
+                "id": "call-1",
+            },
+        )
+        self.assertEqual(messages[1]["role"], "tool")
+        self.assertEqual(
+            messages[1]["parts"][0],
+            {
+                "type": "tool_call_response",
+                "response": {"result": "ok"},
+                "id": "call-1",
+            },
+        )
+
+    def test_langfuse_root_preserves_structured_content(self) -> None:
+        for observation_type in ("agent", "chain"):
+            with self.subTest(observation_type=observation_type):
+                span = langfuse_span(observation_type=observation_type)
+                span["attributes"].update(
+                    {
+                        "langfuse.observation.input": json.dumps({"query": "hello"}),
+                        "langfuse.observation.output": json.dumps({"answer": "world"}),
+                    }
+                )
+
+                attributes = adapt_spans([span], "langfuse")[0]["attributes"]
+
+                self.assertEqual(
+                    attributes["gen_ai.operation.name"],
+                    "invoke_agent" if observation_type == "agent" else "invoke_workflow",
+                )
+                self.assertEqual(
+                    json.loads(attributes["gen_ai.input.messages"][0]["parts"][0]["content"]), {"query": "hello"}
+                )
+                self.assertEqual(
+                    json.loads(attributes["gen_ai.output.messages"][0]["parts"][0]["content"]), {"answer": "world"}
+                )
+
+    def test_langfuse_direct_message_list_maps_to_chat(self) -> None:
+        span = langfuse_span()
+        span["attributes"]["langfuse.observation.input"] = json.dumps([{"role": "user", "content": "hello"}])
+
+        attributes = adapt_spans([span], "langfuse")[0]["attributes"]
+
+        self.assertEqual(attributes["gen_ai.operation.name"], "chat")
+        self.assertEqual(attributes["gen_ai.input.messages"][0]["parts"][0]["content"], "hello")
+
+    def test_langfuse_tool_maps_name_arguments_and_result(self) -> None:
+        span = langfuse_span(observation_type="tool")
+        span["span_name"] = "tool-use_mcp_tool"
+        span["attributes"].update(
+            {
+                "langfuse.observation.input": json.dumps(
+                    {"server_name": "demo", "tool_name": "search", "arguments": '{"query":"blueking"}'}
+                ),
+                "langfuse.observation.output": '{"result":"ok"}',
+            }
+        )
+
+        attributes = adapt_spans([span], "langfuse")[0]["attributes"]
+
+        self.assertEqual(attributes["gen_ai.operation.name"], "execute_tool")
+        self.assertEqual(attributes["gen_ai.tool.name"], "use_mcp_tool")
+        self.assertEqual(attributes["gen_ai.tool.call.arguments"]["arguments"], {"query": "blueking"})
+        self.assertEqual(attributes["gen_ai.tool.call.result"], {"result": "ok"})
+        self.assertNotIn("gen_ai.tool.type", attributes)
+
+    def test_langfuse_standard_fields_take_precedence(self) -> None:
+        span = langfuse_span()
+        span["attributes"].update(
+            {
+                "gen_ai.operation.name": "generate_content",
+                "gen_ai.request.model": "standard-model",
+                "gen_ai.input.messages": [{"role": "user", "parts": [{"type": "text", "content": "standard"}]}],
+                "langfuse.observation.model.name": "vendor-model",
+                "langfuse.observation.input": "vendor input",
+            }
+        )
+
+        attributes = adapt_spans([span], "langfuse")[0]["attributes"]
+
+        self.assertEqual(attributes["gen_ai.operation.name"], "generate_content")
+        self.assertEqual(attributes["gen_ai.request.model"], "standard-model")
+        self.assertEqual(attributes["gen_ai.input.messages"][0]["parts"][0]["content"], "standard")
 
     def test_default_adapter_keeps_standard_fields_without_operation(self) -> None:
         cases = {
@@ -241,8 +484,49 @@ class AdapterTests(TestCase):
                 "status",
                 "resource",
                 "attributes",
+                "span_type",
             },
         )
+
+    def test_span_type_is_resolved_from_operation_name(self) -> None:
+        # 该产品的 operation.name 上报为大写，归类时不能漏掉
+        cases = {"invoke_agent": "AGENT", "plan": "AGENT", "execute_tool": "TOOL", "CHAT": "LLM", "embeddings": "LLM"}
+        for operation_name, span_type in cases.items():
+            with self.subTest(operation_name=operation_name):
+                span = agentlens_span()
+                span["attributes"]["gen_ai.operation.name"] = operation_name
+                self.assertEqual(adapt_spans([span])[0]["span_type"], span_type)
+
+    def test_unclassified_span_carries_no_span_type(self) -> None:
+        # 检索、任务等暂不支持的层级不默认取值，调用方据此决定是否展示 LLM 观测
+        span = agentlens_span()
+        span["attributes"]["gen_ai.operation.name"] = "retrieval"
+        self.assertNotIn("span_type", adapt_spans([span])[0])
+
+    def test_spans_are_converted_per_service_product(self) -> None:
+        """同一条 Trace 跨多个产品的服务时，各自走自己的转换器。"""
+
+        class MultiProductEntitySet:
+            service_names = ["demo", "aidev-service"]
+
+            @staticmethod
+            def get_system(service_name: str) -> dict:
+                product = "aidev" if service_name == "aidev-service" else "agentlens"
+                return ServiceHandler.get_system({"extra_data": {"llm": {"product": product}}, "sdk": []})
+
+        agentlens = agentlens_span("1" * 16)
+        aidev = agentlens_span("2" * 16, start_time=NOW - 30)
+        aidev["resource"] = {"service.name": "aidev-service"}
+        aidev["attributes"] = {"llm.request.type": "embedding", "gen_ai.usage.prompt_tokens": 7}
+
+        spans = adapt_spans_with_entity_set([aidev, agentlens], MultiProductEntitySet())
+
+        # 按 start_time 排序，AgentLens 的 Span 在前
+        self.assertEqual([span["span_id"] for span in spans], ["1" * 16, "2" * 16])
+        self.assertEqual([span["span_type"] for span in spans], ["LLM", "LLM"])
+        # 只有该产品的转换器认识 prompt_tokens 与 llm.request.type
+        self.assertEqual(spans[1]["attributes"]["gen_ai.usage.input_tokens"], 7)
+        self.assertEqual(spans[1]["attributes"]["gen_ai.operation.name"], "embeddings")
 
     def test_galileo_runtime_does_not_make_ordinary_rpc_an_ai_step(self) -> None:
         span = agentlens_span()
@@ -536,7 +820,7 @@ class AdapterTests(TestCase):
         self.assertEqual(by_name["call_llm"]["parent_span_id"], f"{2:016x}")
         llm = next(step for step in converted if step["attributes"]["gen_ai.operation.name"] == "chat")
         self.assertEqual(llm["attributes"]["gen_ai.usage.cache_read.input_tokens"], 3)
-        self.assertEqual(llm["attributes"]["gen_ai.usage.cache_creation.input_tokens"], 2)
+        self.assertEqual(llm["attributes"]["gen_ai.usage.cache_write.input_tokens"], 2)
         output = llm["attributes"]["gen_ai.output.messages"][0]
         self.assertEqual(output["role"], "assistant")
         self.assertEqual(output["parts"], [{"type": "text", "content": "hi"}])
@@ -561,6 +845,19 @@ class AdapterTests(TestCase):
         self.assertNotIn("gen_ai.response.time_to_first_chunk", attributes)
         self.assertNotIn("gen_ai.usage.cached.input_tokens", attributes)
         self.assertEqual(attributes["gen_ai.usage.reasoning.output_tokens"], 3)
+
+    def test_galileo_legacy_cache_write_spellings_map_to_the_standard_field(self) -> None:
+        for legacy in ("gen_ai.usage.cache_creation.input_tokens", "gen_ai.usage.cache_creation_input_tokens"):
+            with self.subTest(legacy=legacy):
+                span = agentlens_span()
+                span["span_name"] = "call_llm"
+                span["resource"] = {"telemetry.sdk.name": "galileo"}
+                span["attributes"] = {"gen_ai.operation.name": "chat", legacy: 7}
+
+                attributes = adapt_spans([span], "galileo")[0]["attributes"]
+
+                self.assertEqual(attributes["gen_ai.usage.cache_write.input_tokens"], 7)
+                self.assertNotIn(legacy, attributes)
 
     def test_galileo_does_not_copy_request_model_to_response_model(self) -> None:
         span = agentlens_span()

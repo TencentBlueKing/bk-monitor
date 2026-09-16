@@ -1,0 +1,73 @@
+@import '../../../../theme/theme';
+@import '../../../../theme/mixin';
+
+.llm-collapse-section {
+  width: 100%;
+
+  @include flex-column;
+
+  &-header {
+    flex-shrink: 0;
+    justify-content: space-between;
+    height: 32px;
+    padding: 0 12px;
+    cursor: pointer;
+    background: #e4e9f2;
+    border-radius: 4px;
+
+    @include flex-align(center);
+
+    .llm-collapse-section-arrow {
+      font-size: 20px;
+      color: #979ba5;
+      transition: transform 0.2s ease;
+    }
+
+    &.is-collapsed .llm-collapse-section-arrow {
+      transform: rotate(-90deg);
+    }
+  }
+
+  &-title {
+    gap: 12px;
+    min-width: 0;
+
+    @include flex-align(center);
+  }
+
+  &-icon {
+    flex-shrink: 0;
+    font-size: $font-size-large;
+  }
+
+  &-label {
+    font-family: 'PingFang SC', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 22px;
+    color: #111214;
+    white-space: nowrap;
+  }
+
+  &-count {
+    flex-shrink: 0;
+    min-width: 16px;
+    height: 16px;
+    padding: 0 3px;
+    font-family: arial, sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 16px;
+    color: #8f9fbd;
+    background: #fff;
+    border-radius: 4px;
+
+    @include flex-center;
+  }
+
+  &-body {
+    width: 100%;
+
+    @include flex-column;
+  }
+}

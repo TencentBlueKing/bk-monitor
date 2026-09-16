@@ -5,7 +5,8 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from .fields import STANDARD_FIELDS
+from apm_web.llm.constants import STANDARD_FIELDS
+
 from .utils import (
     first,
     indexed,

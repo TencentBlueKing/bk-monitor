@@ -39,7 +39,7 @@ import useStore from '../../hooks/use-store';
 import useListSort from '../../hooks/use-list-sort';
 import UserConfigMixin from '../../mixins/user-store-config';
 import List from './list';
-import { buildSpaceSwitchQuery, omitRouteIndexId } from './space-switch-route';
+import { buildSpaceRecoveryLocation, buildSpaceSwitchQuery, omitRouteIndexId } from './space-switch-route';
 
 import './index.scss';
 
@@ -97,7 +97,10 @@ export default defineComponent({
       if (props.isExternalAuth && !!exterlAuthSpaceName.value) {
         return exterlAuthSpaceName.value;
       }
-      return mySpaceList.value.find(item => item.space_uid === spaceUid.value)?.space_name ?? '';
+      if (store.state.spaceResolveFailed && !props.isExternalAuth) {
+        return t('请选择业务');
+      }
+      return mySpaceList.value.find(item => item.space_uid === spaceUid.value)?.space_name ?? t('请选择业务');
     });
     const bizNameIcon = computed(() => {
       return bizName.value?.[0]?.toLocaleUpperCase() ?? '';
@@ -429,12 +432,32 @@ export default defineComponent({
     };
 
     // 单例 debounce：每次点击复用同一实例，连续切业务才真正防抖
-    const debounceUpdateRouter = debounce(60, (space: any) => {
+    const debounceUpdateRouter = debounce(60, async (space: any) => {
       store.commit('updateSpace', space.space_uid);
       store.commit('updateStorage', {
         [BK_LOG_STORAGE.BK_SPACE_UID]: space.space_uid,
         [BK_LOG_STORAGE.BK_BIZ_ID]: space.bk_biz_id,
       });
+
+      if (store.state.spaceResolveFailed && !props.isExternalAuth) {
+        const location = buildSpaceRecoveryLocation({
+          routeName: route.name as string,
+          params: route.params,
+          query: route.query,
+          space,
+        });
+        await router.push(location);
+        // 导航成功后才挂载检索页；失败或已选择其他空间时保留恢复态。
+        if (
+          route.name === 'retrieve' &&
+          route.query.spaceUid === space.space_uid &&
+          route.query.bizId === `${space.bk_biz_id}` &&
+          store.state.spaceUid === space.space_uid
+        ) {
+          store.commit('updateState', { spaceResolveFailed: false, tenantMismatch: null });
+        }
+        return;
+      }
 
       if (`${space.bk_biz_id}` !== route.query.bizId || space.space_uid !== route.query.spaceUid) {
         const routeName = route.name === 'un-authorized' ? (route.query.page_from as string) : undefined;

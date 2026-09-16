@@ -30,6 +30,7 @@ export default {
   // 规范: 去掉了请
 
   // 规范：输入xxx  Enter xxx
+  '搜索 会话 ID、Trace ID、用户 ID、消息关键字': 'Search by session ID, Trace ID, user ID, or message keywords',
   填写规则名: 'Enter rule name',
   填写英文名: 'Enter English name',
   输入指标id: 'Enter metric ID',

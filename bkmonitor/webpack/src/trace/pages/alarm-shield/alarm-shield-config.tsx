@@ -42,6 +42,7 @@ import { useAppStore } from '../../store/modules/app';
 import AlarmShieldConfigDimension, { dimensionPropData } from './alarm-shield-config-dimension';
 import AlarmShieldConfigScope, { scopeData as scopeDataParams } from './alarm-shield-config-scope';
 import AlarmShieldConfigStrategy, { strategyDataProp } from './alarm-shield-config-strategy';
+import AlarmShieldEndPolicy from './components/alarm-shield-end-policy';
 import FormItem from './components/form-item';
 import ScopeDateConfig from './components/scope-date-config';
 import {
@@ -85,6 +86,7 @@ export default defineComponent({
     const strategyRef = ref<InstanceType<typeof AlarmShieldConfigStrategy>>(null);
     const dimensionRef = ref<InstanceType<typeof AlarmShieldConfigDimension>>(null);
     const dateRef = ref<InstanceType<typeof ScopeDateConfig>>(null);
+    const endPolicyRef = ref<InstanceType<typeof AlarmShieldEndPolicy>>(null);
     const isEdit = ref(false);
     const isClone = ref(false);
     const loading = ref(false);
@@ -92,6 +94,7 @@ export default defineComponent({
     const formData = reactive({
       bizId: store.bizId,
       desc: '',
+      endPolicy: 'notify_once',
       notificationMethod: [],
       noticeNumber: 5,
       noticeMember: [],
@@ -257,6 +260,7 @@ export default defineComponent({
       noticeDate.value.key = random(8);
       /* 屏蔽原因 */
       formData.desc = data.description;
+      formData.endPolicy = data.end_policy || 'notify_once';
       /* 通知设置 */
       if (data.shield_notice) {
         showNoticeConfig.value = true;
@@ -301,15 +305,17 @@ export default defineComponent({
       return new Promise((_resolve, _reject) => {
         const v2 = tabData.active === EShieldType.Event ? true : dateRef.value.validate();
         const v3 = noticeConfigValidate();
+        const vEnd =
+          tabData.active === EShieldType.Event || isEdit.value ? true : endPolicyRef.value?.validate() ?? true;
         if (tabData.active === EShieldType.Scope) {
           const v1 = isEdit.value ? true : scopeRef.value.validate();
-          _resolve(v1 && v2 && v3);
+          _resolve(v1 && v2 && v3 && vEnd);
         } else if (tabData.active === EShieldType.Strategy) {
           const v1 = strategyRef.value.validate();
-          _resolve(v1 && v2 && v3);
+          _resolve(v1 && v2 && v3 && vEnd);
         } else if (tabData.active === EShieldType.Dimension) {
           const v1 = dimensionRef.value.validate();
-          _resolve(v1 && v2 && v3);
+          _resolve(v1 && v2 && v3 && vEnd);
         } else if (tabData.active === EShieldType.Event) {
           _resolve(v2 && v3);
         }
@@ -364,6 +370,7 @@ export default defineComponent({
         shield_notice: showNoticeConfig.value,
         notice_config: {},
         description: formData.desc,
+        ...(tabData.active !== EShieldType.Event ? { end_policy: formData.endPolicy } : {}),
       };
       // 编辑状态
       if (isEdit.value) {
@@ -494,6 +501,7 @@ export default defineComponent({
       strategyRef,
       scopeRef,
       dateRef,
+      endPolicyRef,
       isClone,
       dimensionRef,
       dimensionShieldData,
@@ -617,6 +625,22 @@ export default defineComponent({
                   value={this.noticeDate}
                   onChange={v => this.handleNoticeDateChange(v)}
                 />
+              )}
+              {this.tabData.active !== EShieldType.Event && (
+                <FormItem
+                  class='mt24 end-policy-form-item'
+                  label={this.t('屏蔽期内告警通知')}
+                  require={true}
+                >
+                  <AlarmShieldEndPolicy
+                    ref='endPolicyRef'
+                    modelValue={this.formData.endPolicy}
+                    readonly={this.isEdit}
+                    onUpdate:modelValue={v => {
+                      this.formData.endPolicy = v;
+                    }}
+                  />
+                </FormItem>
               )}
               <FormItem
                 class='mt24'

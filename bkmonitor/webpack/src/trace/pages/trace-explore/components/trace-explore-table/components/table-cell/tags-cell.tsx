@@ -98,19 +98,21 @@ export default defineComponent({
                 '--tag-hover-color': tag?.tagHoverColor || tag?.tagColor || DEFAULT_TAG_COLOR.tagHoverColor,
                 '--tag-hover-bg-color': tag?.tagHoverBgColor || tag?.tagBgColor || DEFAULT_TAG_COLOR.tagHoverBgColor,
               }}
-              class={`tag-item ${this.renderCtx?.isEnabledCellEllipsis(this.column)}`}
+              class='tag-item'
               stopPropagation={false}
             >
               {{
                 default: () => (
-                  <span
-                    class={`${ENABLED_TABLE_CONDITION_MENU_CLASS_NAME}`}
-                    data-col-id={this.colId}
-                    data-index={index}
-                    data-row-id={this.rowId}
-                  >
-                    {tag?.alias || tag}
-                  </span>
+                  <div class={this.renderCtx?.isEnabledCellEllipsis(this.column)}>
+                    <span
+                      class={`${ENABLED_TABLE_CONDITION_MENU_CLASS_NAME}`}
+                      data-col-id={this.colId}
+                      data-index={index}
+                      data-row-id={this.rowId}
+                    >
+                      {tag?.alias || tag}
+                    </span>
+                  </div>
                 ),
               }}
             </Tag>

@@ -14,7 +14,7 @@ from unittest import mock
 import pytest
 
 from bkmonitor.models import ActionConfig, ActionPlugin
-from constants.action import ActionPluginType
+from constants.action import GLOBAL_BIZ_ID, ActionPluginType
 from core.errors.export_import import ExportImportError
 from monitor_web.export_import.constant import ImportDetailStatus
 from monitor_web.export_import.import_config import import_strategy
@@ -130,6 +130,78 @@ def test_import_strategy_timeout_validation_does_not_request_plugin_detail():
 
     assert import_record.import_status == ImportDetailStatus.SUCCESS
     request_plugin_detail.assert_not_called()
+
+
+def _ensure_webhook_plugin():
+    ActionPlugin.objects.update_or_create(
+        id=2,
+        defaults={
+            "name": "HTTP callback",
+            "plugin_type": ActionPluginType.WEBHOOK,
+            "plugin_key": ActionPluginType.WEBHOOK,
+            "category": "",
+            "config_schema": {},
+            "backend_config": {},
+        },
+    )
+
+
+def _import_strategy_with_action(action_config, *, is_overwrite_mode=False, save_strategy_id=1):
+    parse_instance = SimpleNamespace(
+        config={
+            "name": "strategy",
+            "actions": [{"config": action_config}],
+            "notice": {"user_group_list": []},
+            "items": [{"query_configs": []}],
+        }
+    )
+    import_record = SimpleNamespace(parse_id=1, save=mock.Mock())
+    with (
+        mock.patch("monitor_web.export_import.import_config.ImportParse.objects.get", return_value=parse_instance),
+        mock.patch("monitor_web.export_import.import_config.resource.strategies.save_strategy_v2") as save_strategy,
+    ):
+        save_strategy.return_value = {"id": save_strategy_id} if save_strategy_id else {}
+        import_strategy(2, SimpleNamespace(id=1), [import_record], is_overwrite_mode=is_overwrite_mode)
+    return import_record
+
+
+@pytest.mark.django_db(databases="__all__")
+@pytest.mark.parametrize("is_overwrite_mode", [False, True])
+def test_import_strategy_renames_action_colliding_with_global_builtin(is_overwrite_mode):
+    _ensure_webhook_plugin()
+    builtin_name = "「快捷」自动授权uwork处理"
+    ActionConfig.objects.create(
+        **{
+            **_action_config(timeout=600),
+            "name": builtin_name,
+            "bk_biz_id": GLOBAL_BIZ_ID,
+            "is_builtin": True,
+        }
+    )
+    imported = _action_config(timeout=600)
+    imported["name"] = builtin_name
+
+    import_record = _import_strategy_with_action(imported, is_overwrite_mode=is_overwrite_mode)
+
+    assert import_record.import_status == ImportDetailStatus.SUCCESS
+    assert ActionConfig.objects.filter(bk_biz_id=GLOBAL_BIZ_ID, name=builtin_name).exists()
+    assert not ActionConfig.objects.filter(bk_biz_id=2, name=builtin_name).exists()
+    assert ActionConfig.objects.filter(bk_biz_id=2, name=f"{builtin_name}_clone").exists()
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_import_strategy_overwrite_still_updates_same_biz_action():
+    _ensure_webhook_plugin()
+    ActionConfig.objects.create(**_action_config(timeout=600))
+    imported = _action_config(timeout=600)
+    imported["desc"] = "updated by overwrite"
+
+    import_record = _import_strategy_with_action(imported, is_overwrite_mode=True)
+
+    assert import_record.import_status == ImportDetailStatus.SUCCESS
+    action = ActionConfig.objects.get(bk_biz_id=2, name="HTTP callback")
+    assert action.desc == "updated by overwrite"
+    assert ActionConfig.objects.filter(bk_biz_id=2, name="HTTP callback").count() == 1
 
 
 @pytest.mark.parametrize("invalid_value", ["invalid-id", "²"])

@@ -1334,6 +1334,7 @@ export default defineComponent({
             residentCondition={this.alarmStore.residentCondition}
             residentSettingOnlyId={this.residentSettingOnlyId}
             selectFavorite={this.retrievalSelectFavorite}
+            showSpaceSelector={!this.apmHooks}
             onBizIdsChange={this.handleBizIdsChange}
             onConditionChange={this.handleConditionChange}
             onCopyWhere={this.handleCopyWhereQueryString}

@@ -185,7 +185,7 @@ export default defineComponent({
       {
         id: EColumn.operate,
         name: t('操作'),
-        width: 100,
+        width: 180,
         disabled: true,
       },
     ]);

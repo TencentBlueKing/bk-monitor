@@ -164,6 +164,15 @@ class Alert:
         # 如果事件时间大于最新的一条事件时间，则更新告警
         self.data["latest_time"] = event.time
 
+        if self.shield_end_close:
+            # A shield-owned alert keeps its deduplication identity until the
+            # dedicated checker closes it, even when recovery events arrive.
+            self.clear_next_status()
+            if event.status == EventStatus.ABNORMAL and event.severity == self.severity:
+                self.data["event"] = event.to_dict()
+            self.add_log(**default_log)
+            return
+
         if event.status == EventStatus.ABNORMAL:
             self.add_log(**default_log)
 
@@ -605,7 +614,11 @@ class Alert:
         return self._refresh_db
 
     def should_send_signal(self) -> bool:
-        return self._refresh_db and not self.is_blocked
+        return self._refresh_db and not self.is_blocked and not self.shield_end_close
+
+    @property
+    def shield_end_close(self) -> bool:
+        return self.data.get("shield_end_close", False)
 
     def is_status_changed(self) -> bool:
         return self._status_changed

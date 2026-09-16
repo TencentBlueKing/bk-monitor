@@ -33,6 +33,7 @@ import { Debounce, random } from 'monitor-common/utils/utils';
 import { throttle } from 'throttle-debounce';
 
 import ShieldDateConfig from '../alarm-shield-components/alarm-shield-date.vue';
+import AlarmShieldEndPolicy from '../alarm-shield-components/alarm-shield-end-policy.vue';
 import AlarmShieldNotice from '../alarm-shield-components/alarm-shield-notice.vue';
 import SimpleConditionInput from '../components/simple-condition-input';
 
@@ -83,6 +84,7 @@ export default class AlarmShieldDimension extends tsc<IProps> {
   conditionErrMsg = '';
   // 屏蔽原因
   desc = '';
+  endPolicy = 'notify_once';
   loading = false;
 
   throttledScroll = () => {};
@@ -124,6 +126,7 @@ export default class AlarmShieldDimension extends tsc<IProps> {
       RNoticeDate.setDate(shieldDate);
       /* 屏蔽内容 */
       this.desc = data.description;
+      this.endPolicy = data.end_policy || 'notify_once';
       /* 通知设置 */
       const noticeShow = data.shield_notice;
       if (noticeShow) {
@@ -279,6 +282,7 @@ export default class AlarmShieldDimension extends tsc<IProps> {
   /* 保存 */
   handleSubmit() {
     if (!this.conditionValidator()) return;
+    if (!this.isEdit && !this.$refs.endPolicyRef.validate()) return;
     const result = this.$refs.noticeDate.getDateData();
     if (!result) return;
     const cycleDate = result[result.typeEn];
@@ -299,6 +303,7 @@ export default class AlarmShieldDimension extends tsc<IProps> {
       shield_notice: typeof noticeData !== 'boolean',
       notice_config: {},
       description: this.desc,
+      end_policy: this.endPolicy,
       dimension_config: {
         dimension_conditions: this.conditionList.map(item => ({
           condition: item.condition,
@@ -399,6 +404,7 @@ export default class AlarmShieldDimension extends tsc<IProps> {
             ) : (
               [
                 <bk-select
+                  key='strategy'
                   class='container-select small'
                   v-model={this.strategyId}
                   clearable={false}
@@ -426,7 +432,10 @@ export default class AlarmShieldDimension extends tsc<IProps> {
                   </div>
                 </bk-select>,
                 this.strategyId ? (
-                  <div class='container-condition'>
+                  <div
+                    key='conditions'
+                    class='container-condition'
+                  >
                     <SimpleConditionInput
                       key={this.conditionKey}
                       conditionList={this.conditionList}
@@ -439,7 +448,14 @@ export default class AlarmShieldDimension extends tsc<IProps> {
                     />
                   </div>
                 ) : undefined,
-                this.conditionErrMsg ? <div class='err-msg'>{this.conditionErrMsg}</div> : undefined,
+                this.conditionErrMsg ? (
+                  <div
+                    key='condition-error'
+                    class='err-msg'
+                  >
+                    {this.conditionErrMsg}
+                  </div>
+                ) : undefined,
               ]
             )}
           </div>
@@ -448,6 +464,11 @@ export default class AlarmShieldDimension extends tsc<IProps> {
           ref='noticeDate'
           v-model={this.commonDateData}
           isClone={this.isClone}
+        />
+        <AlarmShieldEndPolicy
+          ref='endPolicyRef'
+          v-model={this.endPolicy}
+          readonly={this.isEdit}
         />
         <div class='set-shield-config-item'>
           <div class='item-label'>{window.i18n.t('屏蔽内容')}</div>

@@ -52,7 +52,13 @@ class AlertShieldConfigShielder(BaseShielder):
         if config_ids:
             # 已经进行过屏蔽匹配了， 这里直接返回
             config_ids: list[str] = json.loads(config_ids)
-            return [AlertShieldObj(config) for config in self.configs if str(config["id"]) in config_ids]
+            shield_objs = [AlertShieldObj(config) for config in self.configs if str(config["id"]) in config_ids]
+            # A close shield must still cover this alert's concrete occurrence.
+            return [
+                shield
+                for shield in shield_objs
+                if shield.config.get("end_policy") != "close" or shield.is_match(self.alert)
+            ]
         return None
 
     def set_shield_objs_cache(self):

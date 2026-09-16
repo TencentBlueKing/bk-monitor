@@ -90,6 +90,8 @@ export default defineComponent({
     const viewConfigCtx = useRumViewConfig();
     const spanTypeCtx = useRumSpanType(viewConfigCtx.viewConfig);
     const queryCtx = useRumQuery({ extraFilters: spanTypeCtx.spanTypeFilters });
+    // 先恢复 URL，再初始化依赖应用的配置，避免沿用上一次进入页面的应用。
+    queryCtx.initFromUrl();
     const tableCtx = useRumTableData(queryCtx.commonParams);
     // tagValueDisplayFormatter 用于让已选条件 tag 按字段单位与枚举别名展示
     const { getFieldValues, tagValueDisplayFormatter } = useRumFieldValues(
@@ -113,7 +115,7 @@ export default defineComponent({
     const columnConfig = useRumColumnConfig({
       viewConfig: viewConfigCtx.viewConfig,
       cacheKey: computed(() =>
-        store.mode && store.appName ? `${RUM_COLUMN_CONFIG_KEY}_${store.mode}_${store.appName}` : ''
+        store.mode && store.currentApp ? `${RUM_COLUMN_CONFIG_KEY}_${store.mode}_${store.appName}` : ''
       ),
       layoutPreset,
       overrideDisplayFields: computed(() =>
@@ -123,8 +125,24 @@ export default defineComponent({
       ),
     });
 
+    /** 检索条件字段：具体 span 类型视角下，该类型的展示字段按声明顺序前置 */
+    const retrievalFields = computed(() => {
+      const priorityDisplay = isSpanSpecialPerspective.value
+        ? (viewConfigCtx.viewConfig.value.span_type_display_fields?.[store.spanType] ?? [])
+        : [];
+      const fields = viewConfigCtx.retrievalFields.value;
+      if (!priorityDisplay.length) return fields;
+      const priorityMap = new Map<string, number>();
+      for (const [index, name] of priorityDisplay.entries()) {
+        priorityMap.set(name, index);
+      }
+      const priorityFields = fields.filter(field => priorityMap.has(field.name));
+      priorityFields.sort((a, b) => (priorityMap.get(a.name) ?? 0) - (priorityMap.get(b.name) ?? 0));
+      return [...priorityFields, ...fields.filter(field => !priorityMap.has(field.name))];
+    });
+
     const favoriteBoxRef = useTemplateRef<InstanceType<typeof FavoriteBox>>('favoriteBoxRef');
-    /** 检索视图容器 ref，其根节点即表格的滚动容器 */
+    /** 检索视图容器 ref，其根节点即表格的滚动容器，也是吸顶表头锚定的容器 */
     const rumExploreViewRef = useTemplateRef<InstanceType<typeof RumExploreView>>('rumExploreViewRef');
     const favoriteCtx = useRumFavorite({
       where: queryCtx.where,
@@ -135,15 +153,19 @@ export default defineComponent({
       onApplied: () => queryCtx.handleQuery(),
     });
 
-    // URL 状态要在应用列表加载前恢复，否则会被默认应用覆盖
-    queryCtx.initFromUrl();
-
     const isSpanMode = computed(() => store.mode === RumModeEnum.SPAN);
+    /** 具体类型只使用可检索的固定常驻字段，表格列与全局用户配置不参与兜底。 */
+    const spanTypeResidentFields = computed(() => {
+      const keys = viewConfigCtx.viewConfig.value.span_type_resident_fields?.[spanTypeCtx.activeSpanType.value] || [];
+      const searchableKeys = new Set(viewConfigCtx.retrievalFields.value.map(field => field.name));
+      return keys.filter(key => searchableKeys.has(key));
+    });
     const residentSettingCustomId = computed(() => {
       return `${RUM_RESIDENT_SETTING_KEY}_${store.mode}_${store.appName}_${spanTypeCtx.activeSpanType.value}`;
     });
-    /** 常驻设置的用户配置存储 key：按 场景 + 应用 + span 类型 分桶，选中具体类型时单独一份，保证切回「全部」不丢原配置 */
+    /** 全部视角使用用户配置 key；具体类型的 key 仅用于触发固定常驻字段刷新，不读写用户配置。 */
     const residentSettingOnlyId = computed(() => {
+      if (!store.mode || !store.currentApp) return '';
       if (spanTypeCtx.activeSpanType.value !== ALL_SPAN_TYPE) {
         return residentSettingCustomId.value;
       }
@@ -217,14 +239,13 @@ export default defineComponent({
       spanTypeCtx.setSpanType(type);
       // setSpanType 是 toggle 语义（再次点击已选中的类型会切回「全部」），判断必须基于切换后的 activeSpanType，不能用入参 type
       const activeType = spanTypeCtx.activeSpanType.value;
-      // 切回「全部」直接清空常驻条件；切到具体类型时只保留该类型视图配置里声明的字段，避免上一个类型的常驻条件残留到新类型上
+      // 切回「全部」清空常驻条件；具体类型只保留可见常驻字段的交集，空配置也必须清空。
       if (activeType === ALL_SPAN_TYPE) {
         queryCtx.commonWhere.value = [];
       } else {
-        const keys = viewConfigCtx.viewConfig.value.span_type_display_fields?.[activeType] || [];
-        if (keys.length) {
-          queryCtx.commonWhere.value = queryCtx.commonWhere.value.filter(w => keys.includes(w.key));
-        }
+        queryCtx.commonWhere.value = queryCtx.commonWhere.value.filter(w =>
+          spanTypeResidentFields.value.includes(w.key)
+        );
       }
       queryCtx.handleQuery();
     }
@@ -239,7 +260,8 @@ export default defineComponent({
       const { key, method: operator, value } = condition;
       const field = viewConfigCtx.viewConfig.value.fields.find(item => item.name === key);
       /** 范围值 */
-      const isRangeValue = field.field_display_type === 'duration' || field.field_unit === 'bytes';
+      const isRangeValue =
+        (field.field_display_type === 'duration' && field.field_unit !== 'vital') || field.field_unit === 'bytes';
       const matched = value.match(/^(-?\d+)-(-?\d+)$/);
       if (queryCtx.filterMode.value === EMode.ui) {
         queryCtx.addCondition(
@@ -278,10 +300,14 @@ export default defineComponent({
      * @param key - 常驻设置的配置 id，见 residentSettingOnlyId
      */
     async function getResidentConfigCustom(key: string) {
-      if (key === residentSettingCustomId.value) {
-        return viewConfigCtx.viewConfig.value.span_type_display_fields?.[spanTypeCtx.activeSpanType.value] || [];
+      if (!key) {
+        await getResidentConfig(key);
+        return [];
       }
-      const fields = (await getResidentConfig(key).catch(() => [])) as string[];
+      if (key === residentSettingCustomId.value) {
+        return spanTypeResidentFields.value;
+      }
+      const fields = (await getResidentConfig<string[]>(key)) || [];
       if (fields.length) {
         return fields;
       }
@@ -321,6 +347,7 @@ export default defineComponent({
       tableCtx,
       thumbtackList,
       viewConfigCtx,
+      retrievalFields,
       getFieldValues,
       getResidentConfig,
       getResidentConfigCustom,
@@ -381,7 +408,9 @@ export default defineComponent({
                 copyLoading={queryCtx.generateQueryStringLoading.value}
                 defaultShowResidentBtn={queryCtx.showResidentBtn.value}
                 favoriteList={this.favoriteList}
-                fields={viewConfigCtx.retrievalFields.value}
+                fields={this.retrievalFields}
+                /* UI 模式添加条件时不预选字段，直接聚焦到字段搜索框 */
+                fieldSearchAutoFocus={true}
                 filterMode={queryCtx.filterMode.value}
                 getValueFn={this.getFieldValues}
                 handleGetUserConfig={this.getResidentConfigCustom as IHandleGetUserConfig}
@@ -494,6 +523,7 @@ export default defineComponent({
                           ),
                         }}
                         backTopSignal={tableCtx.backTopSignal.value}
+                        syncAffixOnResize={true}
                       />
                     </div>
                   ),

@@ -26,7 +26,7 @@
 /**
  * 告警中心容器（Vue 2 宿主）
  *
- * 在 Vue 2 + vue-tsx-support 的图表插件环境中，挂载独立的 Vue 3 子应用（monitor-alarm-center），
+ * 在 Vue 2 + vue-tsx-support 的图表插件环境中，挂载独立的 Vue 3 子应用（@blueking/apm-vue3-for-vue2），
  * 实现「大屏/仪表盘等场景嵌入告警中心 UI」而无需整站迁移到 Vue 3。
  *
  * 职责概要：
@@ -38,6 +38,8 @@
  */
 import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
+import '@blueking/apm-vue3-for-vue2/index.css';
 
 interface AlarmCenterContainerEvents {
   /** Vue 3 子应用向外抛出的事件 */
@@ -52,7 +54,7 @@ interface AlarmCenterContainerProps {
 
 @Component
 export default class AlarmCenterContainer extends tsc<AlarmCenterContainerProps, AlarmCenterContainerEvents> {
-  /** 透传给 monitor-alarm-center 的 props，变更时会触发子应用 update */
+  /** 透传给 Vue3 子应用的 props，变更时会触发子应用 update */
   @Prop({ type: Object, default: () => ({}) }) readonly v3Props!: Record<string, unknown>;
 
   /**
@@ -78,7 +80,7 @@ export default class AlarmCenterContainer extends tsc<AlarmCenterContainerProps,
    *
    * 执行顺序要点：
    * 1. 保存当前 window.i18n，供子应用或构建链在加载时使用；
-   * 2. 动态加载 monitor-alarm-center，取出 mount；
+   * 2. 动态加载 Vue3 子应用入口，取出 mountAlarmCenter；
    * 3. 立即恢复 window.i18n，缩短全局污染窗口；
    * 4. 若组件已卸载则不再 mount；
    * 5. 调用 mount(el, { props, onEvent })，onEvent 桥接到 Vue 2 的 v3Event 事件。
@@ -88,10 +90,7 @@ export default class AlarmCenterContainer extends tsc<AlarmCenterContainerProps,
     if (!el) return;
 
     const savedI18n = window.i18n;
-    // 本地测试使用
-    // const { mount } = await import('monitor-alarm-center');
-    // 线上使用
-    const { mount } = await import('@blueking/monitor-alarm-center');
+    const { mountAlarmCenter: mount } = await import('@blueking/apm-vue3-for-vue2');
     window.i18n = savedI18n;
 
     if (this.isUnmounted) return;

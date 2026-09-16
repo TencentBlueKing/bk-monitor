@@ -140,7 +140,9 @@ def check_abnormal_alert():
     """
     search = (
         AlertDocument.search(all_indices=True)
-        .filter(Q("term", status=EventStatus.ABNORMAL) & ~Q("term", is_blocked=True))
+        .filter(
+            Q("term", status=EventStatus.ABNORMAL) & ~Q("term", is_blocked=True) & ~Q("term", shield_end_close=True)
+        )
         .source(fields=["id", "strategy_id", "event.bk_biz_id"])
     )
 
@@ -172,7 +174,7 @@ def check_blocked_alert():
     search = (
         # continuous 告警可能活跃超过一天；只按创建时间扫描最近一天会永久漏掉后续解封。
         AlertDocument.search(all_indices=True)
-        .filter(Q("term", status=EventStatus.ABNORMAL) & Q("term", is_blocked=True))
+        .filter(Q("term", status=EventStatus.ABNORMAL) & Q("term", is_blocked=True) & ~Q("term", shield_end_close=True))
         .source(fields=["id", "strategy_id", "event.bk_biz_id"])
     )
 
@@ -222,6 +224,7 @@ def check_blocked_alert_finished(alert_keys):
             for alert in alerts
             if alert.is_abnormal()
             and alert.is_blocked
+            and not alert.shield_end_close
             and lock.is_locked(ALERT_UPDATE_LOCK.get_key(dedupe_md5=alert.dedupe_md5))
         ]
         close_checker = CloseStatusChecker(alerts)

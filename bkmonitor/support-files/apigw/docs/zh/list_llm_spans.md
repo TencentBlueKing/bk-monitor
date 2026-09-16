@@ -1,6 +1,6 @@
 ### 功能描述
 
-按 Trace ID 或 Span ID 查询 Span。AgentLens、Galileo、BKAIDev 等来源统一转换为 OTel GenAI Span，响应仅包含 Agent/LLM 观测字段。
+按 Trace ID 或 Span ID 查询 Span。AgentLens、Galileo、BKAIDev、Langfuse 等来源统一转换为 OTel GenAI Span，响应仅包含 Agent/LLM 观测字段。
 
 ### 请求参数
 

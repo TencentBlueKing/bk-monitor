@@ -1,0 +1,49 @@
+@import '../../../../theme/theme';
+
+.llm-json-view {
+  min-width: 0;
+  font-family: 'Roboto Mono', menlo, monaco, consolas, monospace;
+  font-size: $font-size-base;
+  line-height: 20px;
+  color: #0651a5;
+
+  &-text {
+    display: block;
+    margin: 0;
+    font: inherit;
+    overflow-wrap: anywhere;
+    tab-size: 4;
+    white-space: pre-wrap;
+  }
+
+  .vjs-tree-node > span:last-child {
+    min-width: 0;
+  }
+
+  .vjs-tree {
+    font: inherit;
+  }
+
+  .vjs-tree-node {
+    align-items: flex-start;
+    color: #111214;
+    white-space: pre-wrap;
+  }
+
+  .vjs-key {
+    color: #a33b3b;
+  }
+
+  .vjs-value,
+  .vjs-value-string,
+  .vjs-value-number,
+  .vjs-value-boolean {
+    min-width: 0;
+    color: #0651a5;
+    overflow-wrap: anywhere;
+  }
+
+  .vjs-value-string {
+    white-space: pre-wrap;
+  }
+}

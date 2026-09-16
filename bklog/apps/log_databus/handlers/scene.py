@@ -10,6 +10,7 @@ from collections import defaultdict
 from django.db import transaction
 
 from apps.api import TransferApi
+from apps.exceptions import ApiRequestError, ApiResultError
 from apps.feature_toggle.models import FeatureToggle
 from apps.feature_toggle.plugins.constants import SCENE_SEARCH
 from apps.log_databus.constants import ADMIN_REQUEST_USER, build_collector_scene_labels, detect_container_stream
@@ -24,6 +25,11 @@ from apps.utils.log import logger
 SCENE_SEARCH_RELEASED_KEY = "scene_search_released"
 COMPARE_MODE_LOCAL = "local"
 COMPARE_MODE_REMOTE = "remote"
+# Metadata 存储配置类异常：默认存储集群无效、结果表缺少默认存储类型配置。
+INVALID_STORAGE_CONFIG_MARKERS = (
+    ("默认存储集群[", "不存在、租户不匹配或类型不是["),
+    ("不存在默认存储类型[",),
+)
 
 
 def get_container_streams(collector_config_ids: list[int]) -> dict[int, str]:
@@ -52,9 +58,25 @@ def get_local_scene_labels(index_set_id: int | None) -> dict:
 
 
 def get_remote_scene_labels(table_id: str) -> dict:
-    """读取 ResultTable 的场景标签，用于首次校正和人工巡检/修复。"""
-    result_table = TransferApi.get_result_table({"table_id": table_id})
-    return result_table.get("labels") or {}
+    """读取远端场景标签；网关错误等待 0.2 秒后重试一次，其他错误直接抛出。"""
+    for attempt in range(2):
+        try:
+            result_table = TransferApi.get_result_table({"table_id": table_id})
+            return result_table.get("labels") or {}
+        except (ApiRequestError, ApiResultError) as e:
+            error_text = str(e).lower()
+            is_gateway_error = str(e.code) == "502" or any(
+                marker in error_text for marker in ("[502]", "bad_gateway", "bad gateway", "upstream_error")
+            )
+            if not is_gateway_error or attempt == 1:
+                raise
+
+            logger.warning(
+                "[refresh_scene_labels] get result table failed with gateway error, retry once: %s; %s",
+                table_id,
+                e,
+            )
+            time.sleep(0.2)
 
 
 def refresh_scene_labels(
@@ -69,9 +91,11 @@ def refresh_scene_labels(
     compare_mode=local：仅对比本地 tag_ids，不一致才写远端 + 本地；周期任务使用此模式。
     compare_mode=remote：读取 ResultTable.labels 后再比较；首次校正和人工命令使用此模式。
 
-    返回统计：{total, success, failed, skipped}。
+    返回统计：{total, success, failed, skipped, failed_result_table_ids, missing_result_table_ids,
+    invalid_storage_cluster_result_table_ids}。
     - failed 为本次写入失败的 RT；首次转正前会在下一轮按远端标签继续重试；
-    - skipped 为稳态下本地已一致而跳过的数量。
+    - skipped 为标签已一致、结果表不存在或存储配置无效（默认存储集群无效、缺少默认存储类型配置）
+      而跳过的数量；相关异常由人工处理，不阻断首次转正。
     """
     if compare_mode not in {COMPARE_MODE_LOCAL, COMPARE_MODE_REMOTE}:
         raise ValueError(f"unsupported scene label compare mode: {compare_mode}")
@@ -98,6 +122,8 @@ def refresh_scene_labels(
 
     success = failed = skipped = 0
     failed_result_table_ids = []
+    missing_result_table_ids = []
+    invalid_storage_cluster_result_table_ids = []
     total = qs.count()
     last_collector_config_id = 0
     while True:
@@ -143,6 +169,30 @@ def refresh_scene_labels(
                 CollectorHandler.sync_scene_tags_to_index_set(cfg.index_set_id, labels)
                 success += 1
                 logger.info("[refresh_scene_labels] %s -> %s", cfg.table_id, labels)
+            except ApiResultError as e:
+                error_text = str(e).lower()
+                if "resulttable matching query does not exist" in error_text:
+                    skipped += 1
+                    missing_result_table_ids.append(cfg.table_id)
+                    logger.warning(
+                        "[refresh_scene_labels] result table does not exist, skip and wait for manual handling: %s; %s",
+                        cfg.table_id,
+                        e,
+                    )
+                    continue
+                if any(all(marker in error_text for marker in markers) for markers in INVALID_STORAGE_CONFIG_MARKERS):
+                    skipped += 1
+                    invalid_storage_cluster_result_table_ids.append(cfg.table_id)
+                    logger.warning(
+                        "[refresh_scene_labels] invalid storage config, skip and wait for manual handling: %s; %s",
+                        cfg.table_id,
+                        e,
+                    )
+                    continue
+
+                failed += 1
+                failed_result_table_ids.append(cfg.table_id)
+                logger.exception("[refresh_scene_labels] %s failed: %s", cfg.table_id, e)
             except Exception as e:  # pylint: disable=broad-except
                 failed += 1
                 failed_result_table_ids.append(cfg.table_id)
@@ -158,6 +208,8 @@ def refresh_scene_labels(
         "failed": failed,
         "skipped": skipped,
         "failed_result_table_ids": failed_result_table_ids,
+        "missing_result_table_ids": missing_result_table_ids,
+        "invalid_storage_cluster_result_table_ids": invalid_storage_cluster_result_table_ids,
     }
 
 
@@ -208,9 +260,12 @@ def run_scene_search_sync() -> dict:
         # 失败项通过人工命令 `refresh_result_table_labels --compare-remote` 排查修复，
         # 修复后下一轮 failed 归零即可自动转正。
         logger.warning(
-            "[scene_search] %d result tables failed, defer release to next round; failed ids: %s",
+            "[scene_search] %d result tables failed, defer release to next round; failed ids: %s; missing ids: %s; "
+            "invalid storage cluster ids: %s",
             result["failed"],
             result["failed_result_table_ids"],
+            result["missing_result_table_ids"],
+            result["invalid_storage_cluster_result_table_ids"],
         )
         return result
 

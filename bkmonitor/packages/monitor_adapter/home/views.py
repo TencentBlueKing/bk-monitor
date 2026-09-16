@@ -66,7 +66,7 @@ def is_external_proxy_token_valid(request, log_prefix):
     if expected_token and secrets.compare_digest(request_token, expected_token):
         return True
 
-    logger.warning("%s: invalid external proxy token", log_prefix)
+    logger.warning(f"{log_prefix}: invalid external proxy token")
     return False
 
 
@@ -359,7 +359,7 @@ def external_callback(request):
         logger.warning("[external_callback]: missing token")
         return JsonResponse({"result": False, "message": "missing token"}, status=401)
 
-    logger.info("[external_callback]: dispatch with params keys=%s", sorted(params.keys()))
+    logger.info(f"[external_callback]: dispatch with params keys={sorted(params.keys())}")
     try:
         result = CallbackResource().request(params)
     except CustomException as exc:

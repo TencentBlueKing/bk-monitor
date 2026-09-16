@@ -109,9 +109,11 @@ export interface IRumRawViewConfig {
   display_fields: string[];
   fields: IRumRawField[];
   groups: IRumRawGroup[];
-  /** 未选中具体 span 类型时，默认常驻（展示）的字段名列表 */
+  /** 未选中具体 span 类型时，默认常驻筛选字段 */
   resident_fields?: string[];
   span_type_display_fields?: Record<string, string[]>;
+  /** 各 span 类型固定的常驻筛选字段，与表格列独立 */
+  span_type_resident_fields?: Record<string, string[]>;
 }
 
 /** 归一化后的视图配置 */
@@ -120,8 +122,10 @@ export interface IRumViewConfig {
   display_fields: string[];
   fields: IRumField[];
   groups: IRumFieldGroup[];
-  /** 未选中具体 span 类型时，默认常驻（展示）的字段名列表 */
+  /** 未选中具体 span 类型时，默认常驻筛选字段 */
   resident_fields?: string[];
-  /** key 为 span 类型，value 为该类型下默认展示的字段名列表 */
+  /** key 为 span 类型，value 为该类型下默认表格列 */
   span_type_display_fields: Record<string, string[]>;
+  /** 各 span 类型固定的常驻筛选字段，与表格列独立 */
+  span_type_resident_fields: Record<string, string[]>;
 }

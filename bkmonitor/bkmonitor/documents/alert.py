@@ -80,6 +80,7 @@ class AlertDocument(BaseDocument):
     status = field.Keyword()
 
     is_blocked = field.Boolean()
+    shield_end_close = field.Boolean()
 
     is_handled = field.Boolean()
     is_ack = field.Boolean()

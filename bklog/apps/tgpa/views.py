@@ -20,6 +20,7 @@ the project delivered to anyone in the future.
 """
 
 from django.http import StreamingHttpResponse
+from django.utils.http import content_disposition_header
 from rest_framework.response import Response
 
 from apps.api import TGPATaskApi
@@ -120,6 +121,7 @@ class TGPAViewSet(APIViewSet):
         @apiParam {Int} bk_biz_id 业务ID
         @apiParam {String} [source] 数据源过滤，可选值：task、report，为空时查询全部
         @apiParam {Int} [task_id] 后台任务ID（指定时仅查询 task 数据源，不查 report）
+        @apiParam {String} [keyword] 综合关键字，匹配 openid、文件名前缀或用户上报扩展信息
         @apiParam {String} [openid] openid
         @apiParam {Int} start_time 开始时间（毫秒时间戳）
         @apiParam {Int} end_time 结束时间（毫秒时间戳）
@@ -261,12 +263,13 @@ class TGPATaskViewSet(APIViewSet):
             bk_biz_id=params["bk_biz_id"],
             file_name=params["file_name"],
         )
+        file_name = TGPATaskHandler.get_download_file_name(params["bk_biz_id"], file_name)
 
         response = StreamingHttpResponse(
             file_iterator,
             content_type="application/zip",
         )
-        response["Content-Disposition"] = f'attachment; filename="{file_name}"'
+        response["Content-Disposition"] = content_disposition_header(as_attachment=True, filename=file_name)
         response["Content-Length"] = file_size
         return response
 

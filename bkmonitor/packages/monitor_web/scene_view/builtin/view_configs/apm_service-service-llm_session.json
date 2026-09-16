@@ -2,7 +2,7 @@
     "id": "llm_session",
     "type": "overview",
     "mode": "auto",
-    "name": "LLM会话",
+    "name": "LLM 会话",
     "variables": [],
     "panels": [],
     "overview_panels": [

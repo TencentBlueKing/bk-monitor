@@ -395,6 +395,7 @@ export default defineComponent({
           <div ref='selector'>
             <UiSelectorOptions
               fields={this.fields}
+              fieldSearchAutoFocus={this.fieldSearchAutoFocus}
               getValueFn={this.getValueFn}
               keyword={this.inputValue}
               limit={this.limit}

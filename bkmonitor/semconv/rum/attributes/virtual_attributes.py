@@ -16,7 +16,7 @@ from constants.otel_query import FieldTypeEnum
 
 CLS = FieldSpec(
     field_name="CLS",
-    field_alias=_("累积布局偏移"),
+    field_alias=_("CLS（累积布局偏移）"),
     field_type=FieldTypeEnum.DOUBLE.value,
     is_real=False,
     rating_config=(
@@ -28,7 +28,7 @@ CLS = FieldSpec(
 
 INP = FieldSpec(
     field_name="INP",
-    field_alias=_("交互到下一次绘制"),
+    field_alias=_("INP（交互到下一次绘制）"),
     field_unit=FieldUnit.MS.value,
     field_type=FieldTypeEnum.DOUBLE.value,
     field_display_type=FieldDisplayType.DURATION.value,
@@ -42,7 +42,7 @@ INP = FieldSpec(
 
 LCP = FieldSpec(
     field_name="LCP",
-    field_alias=_("最大内容绘制"),
+    field_alias=_("LCP（最大内容绘制）"),
     field_unit=FieldUnit.MS.value,
     field_type=FieldTypeEnum.DOUBLE.value,
     field_display_type=FieldDisplayType.DURATION.value,
@@ -56,7 +56,7 @@ LCP = FieldSpec(
 
 FCP = FieldSpec(
     field_name="FCP",
-    field_alias=_("首次内容绘制"),
+    field_alias=_("FCP（首次内容绘制）"),
     field_unit=FieldUnit.MS.value,
     field_type=FieldTypeEnum.DOUBLE.value,
     field_display_type=FieldDisplayType.DURATION.value,
@@ -70,7 +70,7 @@ FCP = FieldSpec(
 
 TTFB = FieldSpec(
     field_name="TTFB",
-    field_alias=_("首字节耗时"),
+    field_alias=_("TTFB（首字节耗时）"),
     field_unit=FieldUnit.MS.value,
     field_type=FieldTypeEnum.DOUBLE.value,
     field_display_type=FieldDisplayType.DURATION.value,
