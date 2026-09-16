@@ -85,6 +85,11 @@ def log_mcp_tool_event(event, request=None, *, level=logging.INFO, **fields):
     _log_mcp_event("MCP_TOOL", event, request, level=level, **fields)
 
 
+def log_mcp_usage_event(event, request=None, *, level=logging.INFO, **fields):
+    """记录每次 MCP 请求最终生效的来源、工具和权限，不包含请求或响应正文。"""
+    _log_mcp_event("MCP_USAGE", event, request, level=level, **fields)
+
+
 def _audit(
     tool,
     request,
@@ -664,7 +669,12 @@ def _execute_native_tool(tool, tool_args, request):
     _audit(tool, request, "validation", "passed", bk_biz_id=args.get("bk_biz_id"))
     state = permission_state(tool, request, args.get("bk_biz_id"), args, include_apply_guide=True)
     request.mcp_permission_source = state["authorization_source"]
-    request.mcp_permission_action = state.get("matched_action_id") or state.get("action_id", "")
+    checked_action_id = state.get("matched_action_id")
+    if not checked_action_id:
+        checked_action_id = (
+            tool.iam_action if state.get("legacy_authorized") is not None else state.get("action_id", "")
+        )
+    request.mcp_permission_action = checked_action_id
     if state["state"] != "granted":
         # 权限状态是保留 bool/null 的结构化数据，不是 ValidationError 消息树。
         raise MCPPermissionDenied(state)

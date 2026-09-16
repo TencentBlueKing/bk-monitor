@@ -1411,6 +1411,88 @@ def test_middleware_closes_unified_tool_trace_with_http_status(request_factory, 
     assert fields["duration_ms"] >= 0
 
 
+def test_middleware_emits_one_complete_usage_record(request_factory, caplog):
+    caplog.set_level(logging.INFO, logger=auth.__name__)
+    process_response = source_method(
+        "kernel_api/middlewares/authentication.py",
+        "AuthenticationMiddleware.process_response",
+        time=time,
+        logging=logging,
+        log_mcp_tool_event=auth.log_mcp_tool_event,
+        log_mcp_usage_event=auth.log_mcp_usage_event,
+    )
+    request = request_factory()
+    request.META.update(
+        HTTP_X_BK_REQUEST_FROM="knot",
+        HTTP_X_BK_REQUEST_SOURCE="bkm-mcp-client",
+        HTTP_X_REQUEST_ID="request-id-1",
+    )
+    request.mcp_usage_started_at = time.monotonic() - 0.01
+    request.mcp_usage_app_code = "knot-app"
+    request.mcp_usage_entry_point = "unified"
+    request.mcp_usage_operation = "execute_tool"
+    request.mcp_usage_tool = "execute_tool"
+    request.unified_mcp_tool = "search_logs"
+    request.mcp_permission_action = "search_log_v2"
+    request.mcp_permission_source = "native"
+    request.biz_id = 2
+
+    response = HttpResponse(status=200)
+    assert process_response(NS(), request, response) is response
+
+    records = [row.getMessage() for row in caplog.records if row.getMessage().startswith("MCP_USAGE:")]
+    assert len(records) == 1
+    fields = json.loads(records[0].split(" ", 2)[2])
+    assert fields == {
+        "action_id": "search_log_v2",
+        "app_code": "knot-app",
+        "authorization_source": "native",
+        "bk_biz_id": 2,
+        "checked_action_id": "search_log_v2",
+        "decision": "succeeded",
+        "duration_ms": fields["duration_ms"],
+        "entry_point": "unified",
+        "mcp_server_name": "bk-monitor-prod-unified",
+        "method": "POST",
+        "operation": "execute_tool",
+        "path": "/api/v4/unified_mcp/execute_tool/",
+        "request_from": "knot",
+        "request_source": "bkm-mcp-client",
+        "status_code": 200,
+        "tenant_id": "system",
+        "tool": "search_logs",
+        "trace_id": request.mcp_trace_id,
+        "username": "alice",
+        "x_request_id": "request-id-1",
+    }
+    assert fields["duration_ms"] >= 0
+
+
+def test_usage_record_does_not_report_denied_action_as_effective(request_factory, caplog):
+    caplog.set_level(logging.INFO, logger=auth.__name__)
+    process_response = source_method(
+        "kernel_api/middlewares/authentication.py",
+        "AuthenticationMiddleware.process_response",
+        time=time,
+        logging=logging,
+        log_mcp_tool_event=auth.log_mcp_tool_event,
+        log_mcp_usage_event=auth.log_mcp_usage_event,
+    )
+    request = request_factory()
+    request.mcp_usage_started_at = time.monotonic()
+    request.mcp_permission_action = "using_log_mcp"
+    request.mcp_permission_source = "none"
+
+    process_response(NS(), request, HttpResponse(status=403))
+
+    record = next(row.getMessage() for row in caplog.records if row.getMessage().startswith("MCP_USAGE:"))
+    fields = json.loads(record.split(" ", 2)[2])
+    assert fields["action_id"] == ""
+    assert fields["checked_action_id"] == "using_log_mcp"
+    assert fields["authorization_source"] == "none"
+    assert fields["decision"] == "failed"
+
+
 def test_middleware_marks_wrapped_application_error_as_failed(request_factory, caplog):
     caplog.set_level(logging.INFO, logger=auth.__name__)
     process_response = source_method(
@@ -1653,6 +1735,7 @@ def test_native_first_fallback_matrix_and_english_logs(
         io.dispatch.assert_not_called()
     source = "native" if native_allowed else "legacy" if legacy_allowed else "none"
     assert request.mcp_permission_source == source
+    assert request.mcp_permission_action == (native_action if native_allowed else legacy_action)
     checks = [record for record in audit_records(caplog) if record["decision"] == "checking"]
     assert [(row["phase"], row["action_id"]) for row in checks] == (
         [("native", native_action)] + ([] if native_allowed else [("legacy", legacy_action)])
@@ -1982,6 +2065,19 @@ def test_log_format_is_ascii_single_line_and_bounded(request_factory, caplog):
     assert record.startswith("MCP_AUTH: event=auth_begin ") and record.isascii() and "\n" not in record
     fields = json.loads(record.split(" ", 2)[2])
     assert len(fields["tool"]) == 256 and fields["username"] == request.user.username
+    assert fields["trace_id"] == request.mcp_trace_id
+
+
+def test_usage_log_uses_separate_prefix_and_same_trace(request_factory, caplog):
+    caplog.set_level(logging.INFO, logger=auth.__name__)
+    request = request_factory()
+
+    auth.log_mcp_usage_event("request_finished", request, request_from="knot", action_id="search_log_v2")
+
+    record = caplog.records[-1].getMessage()
+    assert record.startswith("MCP_USAGE: event=request_finished ") and record.isascii() and "\n" not in record
+    fields = json.loads(record.split(" ", 2)[2])
+    assert fields["request_from"] == "knot" and fields["action_id"] == "search_log_v2"
     assert fields["trace_id"] == request.mcp_trace_id
 
 
