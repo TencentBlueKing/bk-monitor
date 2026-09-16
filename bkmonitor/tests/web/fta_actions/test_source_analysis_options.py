@@ -516,7 +516,7 @@ class TestSourceAnalysisOptionsResources(SimpleTestCase):
                     "results": [
                         {
                             "id": 556,
-                            "code": "bkmonitor-apm",
+                            "knowledgebase_code": "bkmonitor-apm",
                             "name": "APM 领域知识库",
                             "space_id": "space-a",
                         }
@@ -525,10 +525,15 @@ class TestSourceAnalysisOptionsResources(SimpleTestCase):
             return {
                 "count": 2,
                 "results": [
-                    {"id": 556, "code": "bkmonitor-apm", "name": "重复知识库", "space_id": "space-a"},
+                    {
+                        "id": 556,
+                        "knowledgebase_code": "bkmonitor-apm",
+                        "name": "重复知识库",
+                        "space_id": "space-a",
+                    },
                     {
                         "id": 1228,
-                        "code": "bkfara-user-guide",
+                        "knowledgebase_code": "bkfara-user-guide",
                         "name": "BKFara 使用手册",
                         "space_id": "space-b",
                     },

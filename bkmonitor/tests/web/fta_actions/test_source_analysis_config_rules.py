@@ -122,7 +122,7 @@ class TestSourceAnalysisRuleSerializers(SimpleTestCase):
     @patch.object(
         SourceAnalysisBaseResource,
         "load_visible_aidev_knowledge_bases",
-        return_value=([{"id": 10, "code": "knowledge-a"}], {"space-a": "AIDEV Helper"}),
+        return_value=([{"id": 10, "knowledgebase_code": "knowledge-a"}], {"space-a": "AIDEV Helper"}),
     )
     @patch.object(SourceAnalysisBaseResource, "list_visible_aidev_ids", return_value={"agent-a", "skill-a"})
     def test_visible_resource_codes_pass_validation(self, list_visible, load_knowledge_bases):
@@ -143,7 +143,7 @@ class TestSourceAnalysisRuleSerializers(SimpleTestCase):
     @patch.object(
         SourceAnalysisBaseResource,
         "load_visible_aidev_knowledge_bases",
-        return_value=([{"id": 10, "code": "knowledge-a"}], {"space-a": "AIDEV Helper"}),
+        return_value=([{"id": 10, "knowledgebase_code": "knowledge-a"}], {"space-a": "AIDEV Helper"}),
     )
     @patch.object(SourceAnalysisBaseResource, "list_visible_aidev_ids", return_value={"agent-a"})
     def test_invisible_knowledge_base_is_rejected(self, _list_visible, _load_knowledge_bases):

@@ -349,7 +349,7 @@ class SourceAnalysisBaseResource(Resource):
         for space_id in space_name_map:
             items = cls.list_visible_aidev_items(
                 api.aidev.list_knowledge_bases,
-                "code",
+                "knowledgebase_code",
                 space_id=space_id,
                 order_by="name",
                 with_private=True,
@@ -358,7 +358,7 @@ class SourceAnalysisBaseResource(Resource):
                 normalized_item = dict(item)
                 # 实际接口会返回 space_id；缺失时用本次查询空间补全，避免展示信息丢失。
                 normalized_item.setdefault("space_id", space_id)
-                items_by_code.setdefault(str(normalized_item["code"]), normalized_item)
+                items_by_code.setdefault(str(normalized_item["knowledgebase_code"]), normalized_item)
         return list(items_by_code.values()), space_name_map
 
     @staticmethod
@@ -382,7 +382,7 @@ class SourceAnalysisBaseResource(Resource):
             )
             if rule.knowledge_base_ids:
                 knowledge_bases, _space_name_map = cls.load_visible_aidev_knowledge_bases()
-                visible_knowledge_bases = {str(item["code"]) for item in knowledge_bases}
+                visible_knowledge_bases = {str(item["knowledgebase_code"]) for item in knowledge_bases}
             else:
                 visible_knowledge_bases = set()
         except (BKAPIError, TypeError, ValueError) as error:
@@ -1953,7 +1953,7 @@ class ListSourceAnalysisSkillsResource(BaseListSourceAnalysisAidevOptionsResourc
 class ListSourceAnalysisKnowledgeBasesResource(BaseListSourceAnalysisAidevOptionsResource):
     """查询当前用户有权限的 AIDEV 知识库选项。"""
 
-    id_field = "code"
+    id_field = "knowledgebase_code"
     name_field = "name"
 
     def perform_request(self, validated_request_data: dict) -> dict:
