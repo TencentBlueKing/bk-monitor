@@ -7,6 +7,7 @@
 
   .collection-box {
     display: flex;
+    flex-shrink: 0;
     align-items: center;
     justify-content: center;
     width: 32px;
@@ -23,6 +24,36 @@
 
     &:hover {
       background-color: #eaebf0;
+    }
+  }
+
+  .subbar-container {
+    flex: 1;
+    min-width: 0;
+
+    .retrieve-type-switch {
+      flex-shrink: 0;
+    }
+
+    .box-biz-select {
+      justify-content: flex-start;
+      min-width: 0;
+
+      // 索引集选择器 400px 只作为空间充足时的下限：容器宽于 400px 时保持，窄于 400px 时随容器继续收缩
+      .bklog-v3-indexset-container {
+        min-width: min(400px, 100%);
+      }
+
+      .retrieve-tab-item-title {
+        flex-shrink: 0;
+      }
+    }
+
+    .box-right-option {
+      position: static;
+      flex-shrink: 0;
+      align-self: stretch;
+      margin-left: auto;
     }
   }
 }
