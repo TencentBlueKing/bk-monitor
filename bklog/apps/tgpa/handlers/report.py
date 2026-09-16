@@ -29,6 +29,7 @@ from apps.log_esquery.esquery.client.QueryClientBkData import QueryClientBkData
 from apps.log_search.models import Scenario
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.tgpa.constants import (
+    TGPA_REPORT_EXTEND_INFO_FIELD,
     TGPA_REPORT_FILTER_FIELDS,
     TGPA_REPORT_SOURCE_FIELDS,
     FEATURE_TOGGLE_TGPA_TASK,
@@ -92,7 +93,7 @@ class TGPAReportHandler:
         构建ES DSL查询条件
 
         :param bk_biz_id: 业务ID
-        :param keyword: 搜索关键词，匹配 openid / file_name 前缀
+        :param keyword: 搜索关键词，匹配 openid / file_name 前缀或 extend_info 包含内容
         :param file_name_list: 文件名列表，精确匹配
         :param openid: openid，精确匹配
         :param start_time: 开始时间，默认为七天前
@@ -102,6 +103,16 @@ class TGPAReportHandler:
 
         if keyword:
             should_conditions = [{"prefix": {field: keyword}} for field in TGPA_REPORT_FILTER_FIELDS]
+            wildcard_keyword = keyword.replace("\\", "\\\\").replace("*", "\\*").replace("?", "\\?")
+            should_conditions.append(
+                {
+                    "wildcard": {
+                        TGPA_REPORT_EXTEND_INFO_FIELD: {
+                            "value": f"*{wildcard_keyword}*",
+                        }
+                    }
+                }
+            )
             must_conditions.append({"bool": {"should": should_conditions, "minimum_should_match": 1}})
         if file_name_list:
             must_conditions.append({"terms": {"file_name": file_name_list}})
