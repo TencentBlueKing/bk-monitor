@@ -40,6 +40,23 @@ class ListTracesResourceTestCase(TestCase):
             [{"key": "resource.service.name", "operator": "equal", "value": ["agent-service"]}],
         )
 
+    def test_hex32_keyword_searches_trace_and_product_conversation_fields(self):
+        keyword = "0123456789abcdef0123456789abcdef"
+        cases = {
+            "aidev": "attributes.agent.session.session_code",
+            "agentlens": "attributes.gen_ai.session.id",
+            "galileo": "attributes.gen_ai.session_id",
+            "langfuse": "attributes.session.id",
+            "default": "attributes.gen_ai.conversation.id",
+        }
+
+        for product, conversation_field in cases.items():
+            with self.subTest(product=product):
+                self.assertEqual(
+                    ListTracesResource._build_keyword_query(product, 11, "demo", keyword),
+                    f'trace_id: "{keyword}" OR {conversation_field}: "{keyword}"',
+                )
+
     def test_request_exposes_supported_filters(self):
         fields = ListTracesResource.RequestSerializer().fields
 

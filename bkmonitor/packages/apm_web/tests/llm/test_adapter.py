@@ -1134,6 +1134,7 @@ class AdapterTests(TestCase):
             "agent.info.id": 3129,
             "agent.info.name": "进度管理",
             "agent.session.session_code": "session-1",
+            "agent.session.caller_executor": "user-1",
             "agent.session.input": "用户问题",
             "agent.session.output": "最终回答",
             "agent.status": "completed",
@@ -1147,6 +1148,8 @@ class AdapterTests(TestCase):
         self.assertEqual(agent["span_type"], "AGENT")
         self.assertEqual(agent["attributes"]["gen_ai.agent.id"], "3129")
         self.assertEqual(agent["attributes"]["gen_ai.conversation.id"], "session-1")
+        self.assertEqual(agent["attributes"]["user.id"], "user-1")
+        self.assertEqual(agent["attributes"]["user.name"], "user-1")
         self.assertEqual(
             agent["attributes"]["gen_ai.input.messages"],
             [{"role": "user", "parts": [{"type": "text", "content": "用户问题"}]}],

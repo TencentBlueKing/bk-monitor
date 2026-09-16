@@ -40,6 +40,7 @@ ALIASES = {
         "agent.info.name",
     ),
     "gen_ai.conversation.id": ("agent.session.session_code",),
+    "user.id": ("agent.session.caller_executor",),
     "user.name": ("agent.session.caller_executor",),
     "gen_ai.agent.id": ("agent.info.id",),
     "gen_ai.usage.input_tokens": ("gen_ai.usage.prompt_tokens",),

@@ -10,7 +10,7 @@ from constants.otel_query import OperatorEnum
 from core.drf_resource import Resource, api
 
 from apm_web.handlers.metric_group import GroupEnum, MetricGroupRegistry
-from apm_web.handlers.trace_handler.query import QueryHandler, SpanQueryTransformer
+from apm_web.handlers.trace_handler.query import QueryHandler, QueryStringBuilder, SpanQueryTransformer
 from apm_web.llm.adapter import adapt_spans
 from apm_web.llm.adapter.fields import resolve_product, resolve_query_field
 from apm_web.llm.constants import CalculationType
@@ -47,6 +47,16 @@ class ListTracesResource(Resource):
     def _resolve_group_field(cls, entity_set: EntitySet, service_name: str, group_field: str) -> str:
         """分组字段命中映射表时按服务产品换算为存储中的原始字段，未命中时透传。"""
         return resolve_query_field(resolve_product(entity_set, service_name), group_field)
+
+    @staticmethod
+    def _build_keyword_query(product: str, bk_biz_id: int, app_name: str, keyword: str) -> str:
+        """构造关键词查询，避免 hex32 会话 ID 被误判为仅查询 Trace ID。"""
+        if ":" not in keyword and (hex32 := QueryStringBuilder.extract_trace_id(keyword)):
+            conversation_field = resolve_query_field(product, "attributes.gen_ai.conversation.id")
+            fields = dict.fromkeys((OtlpKey.TRACE_ID, conversation_field))
+            return " OR ".join(f'{field}: "{hex32}"' for field in fields)
+
+        return QueryHandler.process_query_string(SpanQueryTransformer(bk_biz_id, app_name), keyword)
 
     @staticmethod
     def _span_field_value(span: dict[str, Any], field: str) -> Any:
@@ -242,8 +252,10 @@ class ListTracesResource(Resource):
                 }
             ]
         query_group_field = resolve_query_field(product, group_field)
-        query_string = QueryHandler.process_query_string(
-            SpanQueryTransformer(validated_request_data["bk_biz_id"], validated_request_data["app_name"]),
+        query_string = self._build_keyword_query(
+            product,
+            bk_biz_id,
+            app_name,
             validated_request_data["keyword"],
         )
         span_query = get_query(application.build_data_sources())
