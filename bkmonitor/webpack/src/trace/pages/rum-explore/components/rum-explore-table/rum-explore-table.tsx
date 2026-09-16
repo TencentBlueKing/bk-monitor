@@ -38,6 +38,7 @@ import { useCellConditionMenu } from './hooks/use-cell-condition-menu';
 import { useScenarioRenderer } from './hooks/use-scenario-renderer';
 import { useTableScrollOptimize } from '@/hooks/use-table-scroll-optimize';
 import CommonTable from '@/pages/alarm-center/components/alarm-table/components/common-table/common-table';
+import { usePopover } from '@/pages/alarm-center/components/alarm-table/hooks/use-popover';
 import ExploreTableEmpty from '@/pages/trace-explore/components/trace-explore-table/components/explore-table-empty';
 
 import type { TimeRangeType } from '../../../../components/time-range/utils';
@@ -155,6 +156,8 @@ export default defineComponent({
   },
   setup(props, { emit }) {
     const { t } = useI18n();
+    /** hover 场景使用的 popover 工具函数（span_name 列 hover 展示 span / trace 信息，主题由各场景在展示时指定） */
+    const hoverPopoverTools = usePopover();
     /** CommonTable 组件实例 ref，用于滚动时禁用 pointerEvents、单元格事件委托 */
     const tableRef = useTemplateRef<InstanceType<typeof CommonTable>>('tableRef');
     /** 单元格检索条件菜单组件实例 ref，其 $el 作为 popover 内容 */
@@ -186,6 +189,7 @@ export default defineComponent({
       toRef(props, 'mode'),
       {
         fieldMap,
+        hoverPopoverTools,
         onCellFilter: (colKey, value) => emit('conditionChange', { key: colKey, method: 'equal', value }),
         onFieldAnalysis: (trigger, field) => openPopover(trigger, field as unknown as IStatisticsFieldItem),
       }
@@ -244,6 +248,7 @@ export default defineComponent({
       scrollContainerElement: props.scrollContainerSelector,
       onScroll: (event: Event) => {
         destroyPopover();
+        hoverPopoverTools.hidePopover();
         hideMenu();
         handleScrollToEnd(event.target as HTMLElement);
       },
