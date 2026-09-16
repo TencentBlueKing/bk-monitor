@@ -26,11 +26,15 @@
 import { computed, defineComponent, onBeforeUnmount, onMounted, shallowRef, useTemplateRef, watch } from 'vue';
 
 import { useI18n } from 'vue-i18n';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 
 import RetrievalFilter from '../../components/retrieval-filter/retrieval-filter';
 import { type IHandleGetUserConfig, EMethod, EMode } from '../../components/retrieval-filter/typing';
-import { traceWhereChangeFormatter, traceWhereFormatter } from '../../components/retrieval-filter/utils';
+import {
+  mergeWhereList,
+  traceWhereChangeFormatter,
+  traceWhereFormatter,
+} from '../../components/retrieval-filter/utils';
 import { handleTransformToTimestamp } from '../../components/time-range/utils';
 import useUserConfig from '../../hooks/useUserConfig';
 import { updateTimezone } from '../../i18n/dayjs';
@@ -79,6 +83,7 @@ export default defineComponent({
   setup() {
     const { t } = useI18n();
     const route = useRoute();
+    const router = useRouter();
     const store = useRumExploreStore();
 
     const { handleGetUserConfig: getDefaultAppConfig, handleSetUserConfig: setDefaultAppConfig } = useUserConfig();
@@ -291,6 +296,54 @@ export default defineComponent({
     }
 
     /**
+     * Span 详情内的「添加为检索条件」：不改动当前页面的检索条件，
+     * 而是把「当前查询状态 + 新条件」拼成 URL 另开一页，避免打断正在浏览的详情与列表。
+     * @param isFromDimensionFilterPanel 透传给 mergeWhereList 的「是否合并同 key 对立项」开关；
+     *                                   详情侧固定传 false，只做追加
+     */
+    function handleRumSpanDetailConditionAdd(condition: ConditionChangeEvent, isFromDimensionFilterPanel = true) {
+      const { key, method: operator, value } = condition;
+      // 详情里的字段可能来自原始数据面板，未必在视图配置字段中
+      const field = viewConfigCtx.viewConfig.value.fields.find(item => item.name === key);
+      /** 范围值（耗时 / 字节大小）在详情里展示为 "min-max"，需拆成区间条件而非等值匹配 */
+      const isRangeValue =
+        (field?.field_display_type === 'duration' && field?.field_unit !== 'vital') || field?.field_unit === 'bytes';
+      /** 区间值 "100-200" 的匹配结果，[1] 为下界、[2] 为上界 */
+      const matched = value.match(/^(-?\d+)-(-?\d+)$/);
+      const query = queryCtx.buildUrlQuery();
+      // 不沿用收藏：新页应用收藏条件会覆盖掉本次追加的条件
+      delete query.favorite_id;
+      if (queryCtx.filterMode.value === EMode.ui) {
+        query.where = encodeURIComponent(
+          JSON.stringify(
+            mergeWhereList(
+              queryCtx.where.value,
+              [
+                {
+                  key,
+                  operator,
+                  value: isRangeValue && matched ? [matched[1], matched[2]] : safeParseJsonValueForWhere(value),
+                },
+              ],
+              isFromDimensionFilterPanel
+            )
+          )
+        );
+      } else {
+        // 语句模式：默认拼等值/取反子句，区间值改用 ES 的 range 语法
+        let endStr = `${operator === EMethod.eq ? '' : 'NOT '}${key} : "${value || ''}"`;
+        if (isRangeValue && matched) {
+          endStr = `${key} : [${matched[1]} TO ${matched[2] || matched[1]}]`;
+        }
+        query.queryString = encodeURIComponent(
+          queryCtx.queryString.value ? `${queryCtx.queryString.value} AND ${endStr}` : endStr
+        );
+      }
+      // 复用当前查询态另开一页：新页走 initFromUrl 还原，故不改动本页 store
+      window.open(router.resolve({ path: route.path, query }).href, '_blank');
+    }
+
+    /**
      * 打开 Span 详情：详情所需的应用、记录 ID、类型与时间都能从列表行与当前查询条件里取到，
      * 不额外请求列表接口。
      */
@@ -410,6 +463,7 @@ export default defineComponent({
       tagValueDisplayFormatter,
       handlePreviousDetail,
       handleNextDetail,
+      handleRumSpanDetailConditionAdd,
     };
   },
   render() {
@@ -589,7 +643,9 @@ export default defineComponent({
           fields={viewConfigCtx.viewConfig.value.fields}
           isShow={this.detailShow}
           mode={this.store.mode}
-          onConditionAdd={(key, value) => this.handleConditionChange({ key, method: EMethod.eq, value }, false)}
+          onConditionAdd={(key, value) =>
+            this.handleRumSpanDetailConditionAdd({ key, method: EMethod.eq, value }, false)
+          }
           onNext={this.handleNextDetail}
           onPrevious={this.handlePreviousDetail}
           onUpdate:isShow={show => {
