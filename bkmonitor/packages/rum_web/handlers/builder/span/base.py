@@ -18,9 +18,6 @@ from semconv.rum.constants import RumSpanType
 from rum_web.handlers.builder.base import BaseOverview, NamedKeyValueItem
 
 
-# ── Overview 标题 ──────────────────────────────────────────────────────────────
-OVERVIEW_TITLE = NamedKeyValueItem(field_name="span_name")
-
 # ── Badge 字段 ────────────────────────────────────────────────────────────
 OVERVIEW_ELAPSED_TIME = NamedKeyValueItem(field_name="elapsed_time")
 OVERVIEW_ATTRIBUTES_OUTCOME_TYPE = NamedKeyValueItem(field_name="attributes.outcome.type")
@@ -33,7 +30,6 @@ OVERVIEW_ATTRIBUTES_ACTION_TYPE = NamedKeyValueItem(field_name="attributes.actio
 # ── 通用 Item 字段 ─────────────────────────────────────────────────────────────
 OVERVIEW_APP_NAME = NamedKeyValueItem(field_name="app_name")
 OVERVIEW_ATTRIBUTES_VIEW_URL_TEMPLATE = NamedKeyValueItem(field_name="attributes.view.url_template")
-OVERVIEW_ATTRIBUTES_VIEW_URL = NamedKeyValueItem(field_name="attributes.view.url")
 OVERVIEW_ATTRIBUTES_SESSION_ID = NamedKeyValueItem(field_name="attributes.session.id")
 OVERVIEW_ATTRIBUTES_VIEW_ID = NamedKeyValueItem(field_name="attributes.view.id")
 OVERVIEW_START_TIME = NamedKeyValueItem(field_name="start_time")

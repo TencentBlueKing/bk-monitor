@@ -64,10 +64,10 @@ class SpanQuery(APMQueryFilterMixin, BaseQuery):
 
     def query_list(
         self,
-        start_time: int | None = None,
-        end_time: int | None = None,
-        offset: int = 0,
-        limit: int = 20,
+        start_time: int | None,
+        end_time: int | None,
+        offset: int,
+        limit: int,
         filters: list[types.Filter] | None = None,
         query_string: str = "",
         sort: list[str] | None = None,
@@ -173,9 +173,15 @@ class SpanQuery(APMQueryFilterMixin, BaseQuery):
         """通过 span_id 查询单条 Span 记录。
 
         :param record_id: Span ID
-        :return: 单条记录字典，未找到时返回 None
+        :return: 单条记录字典，未找到时返回空字典 ``{}``（保持返回类型稳定，避免调用方额外 ``or {}``）。
         """
-        records = self.query_list(filters=[{"key": "span_id", "value": [record_id], "operator": "equal"}])
+        records = self.query_list(
+            start_time=None,
+            end_time=None,
+            offset=0,
+            limit=1,
+            filters=[{"key": "span_id", "value": [record_id], "operator": "equal"}],
+        )
         return records[0] if records else {}
 
     def query_fields(self, start_time: int | None, end_time: int | None) -> dict[str, dict[str, Any]]:

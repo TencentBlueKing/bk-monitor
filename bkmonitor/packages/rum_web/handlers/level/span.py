@@ -494,7 +494,7 @@ class SpanLevelHandler(BaseRumLevelHandler):
         通过 span_id 查询原始记录，并根据 span_type 分派到对应 SpanBuilder。
         View 类型额外补查关联 Span（生命周期 + Web Vitals）供 Builder 装配最新快照。
         """
-        span = self.query.query_detail(record_id) or {}
+        span = self.query.query_detail(record_id)
         if not span:
             raise serializers.ValidationError(_("span_id={} 记录不存在").format(record_id))
 
