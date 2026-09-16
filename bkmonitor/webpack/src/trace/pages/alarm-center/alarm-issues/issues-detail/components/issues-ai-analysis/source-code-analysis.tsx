@@ -270,7 +270,7 @@ export default defineComponent({
               class='guide-alert pending'
               showIcon={false}
               theme='info'
-              title={t('正在拉取来源构建、提交历史与 Blame 信息')}
+              title={latest.stage_display || t('源码分析进行中')}
             />
             <div class='guide-btns'>
               <Button
