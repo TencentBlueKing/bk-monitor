@@ -33,12 +33,12 @@ import {
   ProvideReactive,
   Ref,
   Watch,
-  Inject,
 } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import _ from 'lodash';
 
 import { APM_ALARM_TEMPLATE_ROUTER_QUERY_KEYS } from 'apm/pages/alarm-template/constant';
+import { LLM_SESSION_TAB_QUERY_KEY } from 'apm/pages/service/contents/llm_session/constants';
 import { isEqual } from 'lodash';
 import { getSceneView, getSceneViewList } from 'monitor-api/modules/scene_view';
 import bus from 'monitor-common/utils/event-bus';
@@ -139,6 +139,8 @@ interface ICommonPageEvent {
 interface ICommonPageProps {
   // 详情返回操作
   backToOverviewKey?: string;
+  // 内容区由 customContent 插槽自行渲染的面板类型，命中时不渲染 DashboardPanel
+  customContentPanelTypes?: string[];
   // 默认汇聚方法
   defalutMethod?: string;
   defaultDashboardId?: string;
@@ -175,6 +177,7 @@ const customRouterQueryKeys = [
   ...Event_EXPORT_QUERY_KEYS,
   ...ALARM_TEMPLATE_QUERY_KEYS,
   ...CUSTOM_GRAPH_V2_QUERY_KEYS,
+  LLM_SESSION_TAB_QUERY_KEY,
 ];
 @Component({
   components: {
@@ -203,6 +206,8 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
   @Prop({ default: () => [], type: Array }) readonly toggleTabSearchFilterKeys: string[];
   // 默认汇聚方法
   @Prop({ default: '' }) readonly defalutMethod: string;
+  // 内容区交由 customContent 插槽渲染的面板类型
+  @Prop({ default: () => [], type: Array }) readonly customContentPanelTypes: string[];
 
   // 监控左侧栏是否收缩配置 自愈默认未收缩
   @InjectReactive('toggleSet') toggleSet: boolean;
@@ -507,6 +512,13 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
   get isApmServiceOverview() {
     return this.sceneId === 'apm_service';
   }
+  /**
+   * 内容区是否由 customContent 插槽渲染。
+   * 分发依据与 ChartWrapper 一致（视图配置里的面板类型），只是提升到内容区一层，跳过图表包装。
+   */
+  get isCustomContentPanel() {
+    return this.customContentPanelTypes.includes(this.localPanels?.[0]?.type);
+  }
   /** 是否需要额外的参数 */
   get hasOtherParams() {
     return !!this.currentTabData?.params;
@@ -529,6 +541,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
       'log-retrieve',
       'custom_metric_v2',
       'alarm_center',
+      'llm_overview',
       'trace',
       'container',
     ];
@@ -2123,19 +2136,23 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
                     <div class='view-has-no-data-main'>{this.$slots.noData}</div>
                   )}
                   {this.filtersReady ? (
-                    <DashboardPanel
-                      id={this.dashboardPanelId}
-                      key={this.sceneData.id}
-                      column={this.sceneData.mode === 'custom' ? 'custom' : this.columns + 1}
-                      dashboardId={this.dashboardId}
-                      isSingleChart={this.isSingleChart}
-                      needOverviewBtn={!!this.sceneData?.list?.length}
-                      panels={this.dashbordMode === 'chart' ? this.preciseFilteringPanels : this.sceneData.list}
-                      singleChartNoPadding={this.isSingleChartNoPadding}
-                      // onLinkTo={this.handleUpdateCurrentData}
-                      onBackToOverview={this.handleBackToOverview}
-                      onLintToDetail={this.handleLinkToDetail}
-                    />
+                    this.isCustomContentPanel ? (
+                      <div class='dashboard-custom-content'>{this.$slots.customContent}</div>
+                    ) : (
+                      <DashboardPanel
+                        id={this.dashboardPanelId}
+                        key={this.sceneData.id}
+                        column={this.sceneData.mode === 'custom' ? 'custom' : this.columns + 1}
+                        dashboardId={this.dashboardId}
+                        isSingleChart={this.isSingleChart}
+                        needOverviewBtn={!!this.sceneData?.list?.length}
+                        panels={this.dashbordMode === 'chart' ? this.preciseFilteringPanels : this.sceneData.list}
+                        singleChartNoPadding={this.isSingleChartNoPadding}
+                        // onLinkTo={this.handleUpdateCurrentData}
+                        onBackToOverview={this.handleBackToOverview}
+                        onLintToDetail={this.handleLinkToDetail}
+                      />
+                    )
                   ) : (
                     <div class='empty-wrapper'>{this.$t('加载中...')}</div>
                   )}

@@ -96,6 +96,15 @@ export function useFieldStatisticsPopover(placement: Props['placement'] = 'right
     }, 100);
   }
 
+  /**
+   * 弹层内容渲染完成后重新定向。
+   * openPopover 时内容尚未加载数据，初始定位基于较低的高度；数据加载完成后内容撑高，
+   * 需要重新计算定位，否则底部内容会被视口裁掉。
+   */
+  function updatePopoverPosition() {
+    popoverInstance.value?.popperInstance?.forceUpdate();
+  }
+
   return {
     activeFieldName,
     selectField,
@@ -103,5 +112,6 @@ export function useFieldStatisticsPopover(placement: Props['placement'] = 'right
     statisticsListRef,
     destroyPopover,
     openPopover,
+    updatePopoverPosition,
   };
 }

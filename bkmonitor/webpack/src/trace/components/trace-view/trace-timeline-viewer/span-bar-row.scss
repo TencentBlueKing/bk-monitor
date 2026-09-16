@@ -220,6 +220,60 @@
     margin-right: 4px;
   }
 
+  .span-llm-tag {
+    display: flex;
+    flex-shrink: 0;
+    gap: 2px;
+    align-items: center;
+    height: 22px;
+    padding: 0 6px;
+    margin-right: 6px;
+    font-size: 12px;
+    line-height: 22px;
+    border: 1px solid;
+    border-radius: 2px;
+
+    /** 图标用 mask 着色，保证跟随各类型的 color */
+    .tag-icon {
+      width: 14px;
+      height: 14px;
+      background-color: currentcolor;
+      mask-repeat: no-repeat;
+      mask-position: center;
+      mask-size: contain;
+    }
+
+    &.is-agent {
+      color: #1768ef;
+      background: #edf4ff;
+      border-color: #a3c5fd;
+
+      .tag-icon {
+        mask-image: url('../icons/llm-agent.svg');
+      }
+    }
+
+    &.is-llm {
+      color: #7f4ce0;
+      background: #f5f0ff;
+      border-color: #cdb4f5;
+
+      .tag-icon {
+        mask-image: url('../icons/llm-model.svg');
+      }
+    }
+
+    &.is-tool {
+      color: #299e56;
+      background: #eefaf3;
+      border-color: #a8ddbf;
+
+      .tag-icon {
+        mask-image: url('../icons/llm-tool.svg');
+      }
+    }
+  }
+
   .span-view {
     position: relative;
   }

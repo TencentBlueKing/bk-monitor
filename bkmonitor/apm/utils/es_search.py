@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,11 +7,12 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import re
 import time
 from functools import wraps
 from threading import Semaphore
-from typing import Any, List
+from typing import Any
 
 import arrow
 from dateutil.rrule import DAILY, MONTHLY, rrule
@@ -34,7 +34,7 @@ def _scan(
     request_timeout=None,
     clear_scroll=True,
     scroll_kwargs=None,
-    **kwargs
+    **kwargs,
 ):
     scroll_kwargs = scroll_kwargs or {}
     if not preserve_order:
@@ -47,8 +47,7 @@ def _scan(
 
     try:
         while scroll_id and resp["hits"]["hits"]:
-            for hit in resp["hits"]["hits"]:
-                yield hit
+            yield from resp["hits"]["hits"]
 
             # Default to 0 if the value isn't included in the response
             shards_successful = resp["_shards"].get("successful", 0)
@@ -59,10 +58,12 @@ def _scan(
             if (shards_successful + shards_skipped) < shards_total:
                 shards_message = "Scroll request has only succeeded on %d (+%d skipped) shards out of %d."
                 logger.warning(
-                    shards_message,
-                    shards_successful,
-                    shards_skipped,
-                    shards_total,
+                    shards_message
+                    % (
+                        shards_successful,
+                        shards_skipped,
+                        shards_total,
+                    )
                 )
                 if raise_on_error:
                     raise ScanError(
@@ -122,7 +123,7 @@ class EsSearch(Search):
         self._es_query_proxy = EsQueryProxy(self, "query")
         self._es_post_filter_proxy = EsQueryProxy(self, "post_filter")
 
-    def fix_index(self, indices: List[str]):
+    def fix_index(self, indices: list[str]):
         """调整查询的目标索引列表"""
 
         if indices:
@@ -165,7 +166,7 @@ def limits(calls, period):
     return RateLimiter(calls, period)
 
 
-class QueryIndexOptimizer(object):
+class QueryIndexOptimizer:
     """es查询索引优化类"""
 
     def __init__(
@@ -191,7 +192,7 @@ class QueryIndexOptimizer(object):
     def index(self):
         return [self._index] if self._index else None
 
-    def index_filter(self, indices, start_time: arrow.Arrow, end_time: arrow.Arrow, time_zone: str) -> List[str]:
+    def index_filter(self, indices, start_time: arrow.Arrow, end_time: arrow.Arrow, time_zone: str) -> list[str]:
         """根据时间query时间对索引进行过滤， 返回经过过滤后的索引列表"""
 
         indices_list = set()
@@ -212,12 +213,12 @@ class QueryIndexOptimizer(object):
             date_end = now
 
         # 根据输入query的事件参数，生成能覆盖查询条件的"day"级别日期类表
-        date_day_list: List[Any] = list(
+        date_day_list: list[Any] = list(
             rrule(DAILY, interval=1, dtstart=date_start.floor("day").datetime, until=date_end.ceil("day").datetime)
         )
 
         # 根据输入query的事件参数，生成能覆盖查询条件的"month"级别日期类表
-        date_month_list: List[Any] = list(
+        date_month_list: list[Any] = list(
             rrule(
                 MONTHLY, interval=1, dtstart=date_start.floor("month").datetime, until=date_end.ceil("month").datetime
             )

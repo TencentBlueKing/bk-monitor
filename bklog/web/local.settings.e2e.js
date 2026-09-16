@@ -42,8 +42,8 @@ function loadLocalDevProxyUrl() {
 const context = ['/apm', '/rest', '/fta', '/api', '/weixin', '/version_log', '/calendars', '/alert', '/query-api'];
 const changeOrigin = true;
 const secure = false;
-const port = 8011;
-const devProxyUrl = loadLocalDevProxyUrl();
+const port = Number(process.env.AAFE_E2E_PORT || new URL(process.env.AAFE_E2E_DEV_URL || 'http://127.0.0.1:8011').port || 8011);
+const devProxyUrl = loadLocalDevProxyUrl() || process.env.AAFE_E2E_PROXY_TARGET || '';
 const loginHost = `${devProxyUrl}/login`;
 const hostMatch = String(devProxyUrl).match(/\.([^.]+)\.com\/?/);
 const host = hostMatch ? `appdev.${hostMatch[1]}.com` : 'appdev.woa.com';

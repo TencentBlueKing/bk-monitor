@@ -134,6 +134,7 @@
       :is-clone="isClone"
     />
     <alarm-shield-end-policy
+      ref="endPolicyRef"
       v-model="endPolicy"
       :readonly="isEdit"
     />
@@ -408,6 +409,7 @@ export default {
       return params;
     },
     handleSubmit() {
+      if (!this.isEdit && !this.$refs.endPolicyRef.validate()) return;
       const params = this.handleParams();
       if (!params) return;
       this.$emit('update:loading', true);

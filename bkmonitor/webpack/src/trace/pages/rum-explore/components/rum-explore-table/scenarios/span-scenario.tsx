@@ -125,12 +125,21 @@ export class SpanScenario extends BaseScenario {
    */
   protected buildBaseline(colKey: string): Partial<BaseTableColumn> {
     const field = get(this.context.fieldMap).get(colKey);
-    // vital 的单位由每行的指标决定，不能交给按整列统一单位处理的 duration 渲染器。
+    /**
+     * 指标值列（attributes.vital.value）特殊处理。
+     * 该列元数据是伪单位 vital（display_type=duration），含义为「单位由每行是哪一个 Web Vitals 指标决定」：
+     * Span 视角下一行即一条 vital span，只带一个指标，指标名在 attributes.vital.metric，数值统一存在本列：
+     *   - lcp / fcp / inp / ttfb → 毫秒耗时，按 ms 换算展示（如 2.5s、180ms）
+     *   - cls → 0~1 的无量纲分数，原样展示（不能拼时间单位）
+     * 故不能交给下面按整列固定 durationUnit 的 DURATION 渲染器，改为按行取值；
+     * 不指定 renderType，格式化后的字符串走默认 TEXT 渲染。
+     */
     if (field?.field_unit === 'vital') {
       return {
         getRenderValue: row => {
           const value = row[colKey];
           if (value === null || value === undefined || value === '') return '';
+          /** CLS 分数与不可转数值的脏数据都原样输出，避免拼出无意义的时间单位 */
           if (String(row['attributes.vital.metric']).toLowerCase() === 'cls' || !Number.isFinite(Number(value))) {
             return String(value);
           }

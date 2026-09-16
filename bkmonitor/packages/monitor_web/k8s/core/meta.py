@@ -488,6 +488,48 @@ class K8sResourceMeta:
     def add_filter(self, filter_obj):
         self.filter.add(filter_obj)
 
+    def workload_relation_filter_string(self, include_workload=True):
+        relation_filters = FilterCollection(self)
+        allowed_types = {"bcs_cluster_id", "namespace"}
+        if include_workload:
+            allowed_types.add("workload")
+        for resource_filter in self.filter.filters.values():
+            if resource_filter.resource_type in allowed_types:
+                relation_filters.add(resource_filter)
+        return relation_filters.filter_string()
+
+    def gpu_workload_relation(self):
+        dimensions = "bcs_cluster_id, workload_kind, workload_name, namespace, pod_name"
+
+        def relation(include_workload):
+            return f"""max by ({dimensions}) (
+      label_replace(
+        pod_with_workload_relation{{{self.workload_relation_filter_string(include_workload)}}},
+        "pod_name", "$1", "pod", "(.+)"
+      )
+    )"""
+
+        legacy = f"""count by ({dimensions}) (
+      container_cpu_usage_seconds_total{{{self.filter.filter_string()}}}
+    ) * 0 + 1"""
+        return f"""(({relation(True)})
+    or (({legacy})
+      unless on(bcs_cluster_id, namespace, pod_name)
+      ({relation(False)})
+    ))"""
+
+    def gpu_prom_with_workload_relation(self, metric_name, group_dimensions, include_container=False):
+        gpu_dimensions = "bcs_cluster_id, pod_name, namespace"
+        if include_container:
+            gpu_dimensions += ", container_name"
+        return f"""(sum by ({group_dimensions})
+    ({self.gpu_workload_relation()}
+    * on(bcs_cluster_id, pod_name, namespace)
+    group_right(workload_kind, workload_name)
+    sum by ({gpu_dimensions}) (
+      {gpu_or(metric_name, self.filter.filter_string(exclude="workload"))}
+    )))"""
+
     def pod_requests_with_sidecar_expr(self, filter_string):
         """容器 request 求和口径（含原生 sidecar），用于对齐调度器装箱口径。
 
@@ -663,86 +705,44 @@ class K8sPodMeta(K8sResourceMeta, NetworkWithRelation):
     @property
     def meta_prom_with_container_gpu_utilization(self):
         """容器实际使用的算力"""
-        promql = f"""(sum by (workload_kind, workload_name, namespace, pod_name)
-    ((count by (workload_kind, workload_name, pod_name, namespace) (
-        container_cpu_usage_seconds_total{{{self.filter.filter_string()}}}
-    ) * 0 + 1) *
-    on(pod_name, namespace)
-    group_right(workload_kind, workload_name)
-    sum by (pod_name, namespace) (
-    {gpu_or("container_gpu_utilization", self.filter.filter_string(exclude="workload"))}
-    )))"""
-        return promql
+        return self.gpu_prom_with_workload_relation(
+            "container_gpu_utilization", "workload_kind, workload_name, namespace, pod_name"
+        )
 
     @property
     def meta_prom_with_container_gpu_memory_total(self):
         """容器实际使用的显存（原始数据为MB）"""
-        promql = f"""(sum by (workload_kind, workload_name, namespace, pod_name)
-    ((count by (workload_kind, workload_name, pod_name, namespace) (
-        container_cpu_usage_seconds_total{{{self.filter.filter_string()}}}
-    ) * 0 + 1) *
-    on(pod_name, namespace)
-    group_right(workload_kind, workload_name)
-    sum by (pod_name, namespace) (
-    {gpu_or("container_gpu_memory_total", self.filter.filter_string(exclude="workload"))}
-    )))"""
-        return promql
+        return self.gpu_prom_with_workload_relation(
+            "container_gpu_memory_total", "workload_kind, workload_name, namespace, pod_name"
+        )
 
     @property
     def meta_prom_with_container_core_utilization_percentage(self):
         """容器实际使用的算力占申请算力的百分比"""
-        promql = f"""(sum by (workload_kind, workload_name, namespace, pod_name)
-    ((count by (workload_kind, workload_name, pod_name, namespace) (
-        container_cpu_usage_seconds_total{{{self.filter.filter_string()}}}
-    ) * 0 + 1) *
-    on(pod_name, namespace)
-    group_right(workload_kind, workload_name)
-    sum by (pod_name, namespace) (
-    {gpu_or("container_core_utilization_percentage", self.filter.filter_string(exclude="workload"))}
-    )))"""
-        return promql
+        return self.gpu_prom_with_workload_relation(
+            "container_core_utilization_percentage", "workload_kind, workload_name, namespace, pod_name"
+        )
 
     @property
     def meta_prom_with_container_mem_utilization_percentage(self):
         """容器实际使用的显存占申请显存的百分比"""
-        promql = f"""(sum by (workload_kind, workload_name, namespace, pod_name)
-    ((count by (workload_kind, workload_name, pod_name, namespace) (
-        container_cpu_usage_seconds_total{{{self.filter.filter_string()}}}
-    ) * 0 + 1) *
-    on(pod_name, namespace)
-    group_right(workload_kind, workload_name)
-    sum by (pod_name, namespace) (
-    {gpu_or("container_mem_utilization_percentage", self.filter.filter_string(exclude="workload"))}
-    )))"""
-        return promql
+        return self.gpu_prom_with_workload_relation(
+            "container_mem_utilization_percentage", "workload_kind, workload_name, namespace, pod_name"
+        )
 
     @property
     def meta_prom_with_container_request_gpu_memory(self):
         """容器申请的显存（原始数据为MB）"""
-        promql = f"""(sum by (workload_kind, workload_name, namespace, pod_name)
-    ((count by (workload_kind, workload_name, pod_name, namespace) (
-        container_cpu_usage_seconds_total{{{self.filter.filter_string()}}}
-    ) * 0 + 1) *
-    on(pod_name, namespace)
-    group_right(workload_kind, workload_name)
-    sum by (pod_name, namespace) (
-    {gpu_or("container_request_gpu_memory", self.filter.filter_string(exclude="workload"))}
-    )))"""
-        return promql
+        return self.gpu_prom_with_workload_relation(
+            "container_request_gpu_memory", "workload_kind, workload_name, namespace, pod_name"
+        )
 
     @property
     def meta_prom_with_container_request_gpu_utilization(self):
         """容器申请的算力"""
-        promql = f"""(sum by (workload_kind, workload_name, namespace, pod_name)
-    ((count by (workload_kind, workload_name, pod_name, namespace) (
-        container_cpu_usage_seconds_total{{{self.filter.filter_string()}}}
-    ) * 0 + 1) *
-    on(pod_name, namespace)
-    group_right(workload_kind, workload_name)
-    sum by (pod_name, namespace) (
-    {gpu_or("container_request_gpu_utilization", self.filter.filter_string(exclude="workload"))}
-    )))"""
-        return promql
+        return self.gpu_prom_with_workload_relation(
+            "container_request_gpu_utilization", "workload_kind, workload_name, namespace, pod_name"
+        )
 
     # taiji GPU
     @property
@@ -1683,86 +1683,44 @@ class K8sWorkloadMeta(K8sResourceMeta):
     @property
     def meta_prom_with_container_gpu_utilization(self):
         """容器实际使用的算力"""
-        promql = f"""(sum by (workload_kind, workload_name, namespace)
-    ((count by (workload_kind, workload_name, namespace, pod_name) (
-        container_cpu_usage_seconds_total{{{self.filter.filter_string()}}}
-    ) * 0 + 1) *
-    on(pod_name, namespace)
-    group_right(workload_kind, workload_name)
-    sum by (pod_name, namespace) (
-      {gpu_or("container_gpu_utilization", self.filter.filter_string(exclude="workload"))}
-    )))"""
-        return promql
+        return self.gpu_prom_with_workload_relation(
+            "container_gpu_utilization", "workload_kind, workload_name, namespace"
+        )
 
     @property
     def meta_prom_with_container_gpu_memory_total(self):
         """容器实际使用的显存（原始数据为MB）"""
-        promql = f"""(sum by (workload_kind, workload_name, namespace)
-    ((count by (workload_kind, workload_name, namespace, pod_name) (
-        container_cpu_usage_seconds_total{{{self.filter.filter_string()}}}
-    ) * 0 + 1) *
-    on(pod_name, namespace)
-    group_right(workload_kind, workload_name)
-    sum by (pod_name, namespace) (
-      {gpu_or("container_gpu_memory_total", self.filter.filter_string(exclude="workload"))}
-    )))"""
-        return promql
+        return self.gpu_prom_with_workload_relation(
+            "container_gpu_memory_total", "workload_kind, workload_name, namespace"
+        )
 
     @property
     def meta_prom_with_container_core_utilization_percentage(self):
         """容器实际使用的算力占申请算力的百分比"""
-        promql = f"""(sum by (workload_kind, workload_name, namespace)
-    ((count by (workload_kind, workload_name, namespace, pod_name) (
-        container_cpu_usage_seconds_total{{{self.filter.filter_string()}}}
-    ) * 0 + 1) *
-    on(pod_name, namespace)
-    group_right(workload_kind, workload_name)
-    sum by (pod_name, namespace) (
-      {gpu_or("container_core_utilization_percentage", self.filter.filter_string(exclude="workload"))}
-    )))"""
-        return promql
+        return self.gpu_prom_with_workload_relation(
+            "container_core_utilization_percentage", "workload_kind, workload_name, namespace"
+        )
 
     @property
     def meta_prom_with_container_mem_utilization_percentage(self):
         """容器实际使用的显存占申请显存的百分比"""
-        promql = f"""(sum by (workload_kind, workload_name, namespace)
-    ((count by (workload_kind, workload_name, namespace, pod_name) (
-        container_cpu_usage_seconds_total{{{self.filter.filter_string()}}}
-    ) * 0 + 1) *
-    on(pod_name, namespace)
-    group_right(workload_kind, workload_name)
-    sum by (pod_name, namespace) (
-      {gpu_or("container_mem_utilization_percentage", self.filter.filter_string(exclude="workload"))}
-    )))"""
-        return promql
+        return self.gpu_prom_with_workload_relation(
+            "container_mem_utilization_percentage", "workload_kind, workload_name, namespace"
+        )
 
     @property
     def meta_prom_with_container_request_gpu_memory(self):
         """容器申请的显存（原始数据为MB）"""
-        promql = f"""(sum by (workload_kind, workload_name, namespace)
-    ((count by (workload_kind, workload_name, namespace, pod_name) (
-        container_cpu_usage_seconds_total{{{self.filter.filter_string()}}}
-    ) * 0 + 1) *
-    on(pod_name, namespace)
-    group_right(workload_kind, workload_name)
-    sum by (pod_name, namespace) (
-      {gpu_or("container_request_gpu_memory", self.filter.filter_string(exclude="workload"))}
-    )))"""
-        return promql
+        return self.gpu_prom_with_workload_relation(
+            "container_request_gpu_memory", "workload_kind, workload_name, namespace"
+        )
 
     @property
     def meta_prom_with_container_request_gpu_utilization(self):
         """容器申请的算力"""
-        promql = f"""(sum by (workload_kind, workload_name, namespace)
-    ((count by (workload_kind, workload_name, namespace, pod_name) (
-        container_cpu_usage_seconds_total{{{self.filter.filter_string()}}}
-    ) * 0 + 1) *
-    on(pod_name, namespace)
-    group_right(workload_kind, workload_name)
-    sum by (pod_name, namespace) (
-      {gpu_or("container_request_gpu_utilization", self.filter.filter_string(exclude="workload"))}
-    )))"""
-        return promql
+        return self.gpu_prom_with_workload_relation(
+            "container_request_gpu_utilization", "workload_kind, workload_name, namespace"
+        )
 
     # taiji GPU
     @property
@@ -1974,86 +1932,56 @@ class K8sContainerMeta(K8sResourceMeta):
     @property
     def meta_prom_with_container_gpu_utilization(self):
         """容器实际使用的算力"""
-        promql = f"""(sum by (workload_kind, workload_name, namespace, pod_name, container_name)
-    ((count by (workload_kind, workload_name, pod_name, namespace, container_name) (
-        container_cpu_usage_seconds_total{{{self.filter.filter_string()}}}
-    ) * 0 + 1) *
-    on(pod_name, namespace, container_name)
-    group_right(workload_kind, workload_name)
-    sum by (pod_name, namespace, container_name) (
-      {gpu_or("container_gpu_utilization", self.filter.filter_string(exclude="workload"))}
-    )))"""
-        return promql
+        return self.gpu_prom_with_workload_relation(
+            "container_gpu_utilization",
+            "workload_kind, workload_name, namespace, pod_name, container_name",
+            include_container=True,
+        )
 
     @property
     def meta_prom_with_container_gpu_memory_total(self):
         """容器实际使用的显存（原始数据为MB）"""
-        promql = f"""(sum by (workload_kind, workload_name, namespace, pod_name, container_name)
-    ((count by (workload_kind, workload_name, pod_name, namespace, container_name) (
-        container_cpu_usage_seconds_total{{{self.filter.filter_string()}}}
-    ) * 0 + 1) *
-    on(pod_name, namespace, container_name)
-    group_right(workload_kind, workload_name)
-    sum by (pod_name, namespace, container_name) (
-      {gpu_or("container_gpu_memory_total", self.filter.filter_string(exclude="workload"))}
-    )))"""
-        return promql
+        return self.gpu_prom_with_workload_relation(
+            "container_gpu_memory_total",
+            "workload_kind, workload_name, namespace, pod_name, container_name",
+            include_container=True,
+        )
 
     @property
     def meta_prom_with_container_core_utilization_percentage(self):
         """容器实际使用的算力占申请算力的百分比"""
-        promql = f"""(sum by (workload_kind, workload_name, namespace, pod_name, container_name)
-    ((count by (workload_kind, workload_name, pod_name, namespace, container_name) (
-        container_cpu_usage_seconds_total{{{self.filter.filter_string()}}}
-    ) * 0 + 1) *
-    on(pod_name, namespace, container_name)
-    group_right(workload_kind, workload_name)
-    sum by (pod_name, namespace, container_name) (
-      {gpu_or("container_core_utilization_percentage", self.filter.filter_string(exclude="workload"))}
-    )))"""
-        return promql
+        return self.gpu_prom_with_workload_relation(
+            "container_core_utilization_percentage",
+            "workload_kind, workload_name, namespace, pod_name, container_name",
+            include_container=True,
+        )
 
     @property
     def meta_prom_with_container_mem_utilization_percentage(self):
         """容器实际使用的显存占申请显存的百分比"""
-        promql = f"""(sum by (workload_kind, workload_name, namespace, pod_name, container_name)
-    ((count by (workload_kind, workload_name, pod_name, namespace, container_name) (
-        container_cpu_usage_seconds_total{{{self.filter.filter_string()}}}
-    ) * 0 + 1) *
-    on(pod_name, namespace, container_name)
-    group_right(workload_kind, workload_name)
-    sum by (pod_name, namespace, container_name) (
-      {gpu_or("container_mem_utilization_percentage", self.filter.filter_string(exclude="workload"))}
-    )))"""
-        return promql
+        return self.gpu_prom_with_workload_relation(
+            "container_mem_utilization_percentage",
+            "workload_kind, workload_name, namespace, pod_name, container_name",
+            include_container=True,
+        )
 
     @property
     def meta_prom_with_container_request_gpu_memory(self):
         """容器申请的显存（原始数据为MB）"""
-        promql = f"""(sum by (workload_kind, workload_name, namespace, pod_name, container_name)
-    ((count by (workload_kind, workload_name, pod_name, namespace, container_name) (
-        container_cpu_usage_seconds_total{{{self.filter.filter_string()}}}
-    ) * 0 + 1) *
-    on(pod_name, namespace, container_name)
-    group_right(workload_kind, workload_name)
-    sum by (pod_name, namespace, container_name) (
-      {gpu_or("container_request_gpu_memory", self.filter.filter_string(exclude="workload"))}
-    )))"""
-        return promql
+        return self.gpu_prom_with_workload_relation(
+            "container_request_gpu_memory",
+            "workload_kind, workload_name, namespace, pod_name, container_name",
+            include_container=True,
+        )
 
     @property
     def meta_prom_with_container_request_gpu_utilization(self):
         """容器申请的算力"""
-        promql = f"""(sum by (workload_kind, workload_name, namespace, pod_name, container_name)
-    ((count by (workload_kind, workload_name, pod_name, namespace, container_name) (
-        container_cpu_usage_seconds_total{{{self.filter.filter_string()}}}
-    ) * 0 + 1) *
-    on(pod_name, namespace, container_name)
-    group_right(workload_kind, workload_name)
-    sum by (pod_name, namespace, container_name) (
-      {gpu_or("container_request_gpu_utilization", self.filter.filter_string(exclude="workload"))}
-    )))"""
-        return promql
+        return self.gpu_prom_with_workload_relation(
+            "container_request_gpu_utilization",
+            "workload_kind, workload_name, namespace, pod_name, container_name",
+            include_container=True,
+        )
 
     # taiji GPU
     @property

@@ -189,6 +189,13 @@ def build_llm_span(attributes, sdk_name="opentelemetry"):
     return span
 
 
+def build_component_span():
+    """DB 类 Span 归为组件，发现组件时会连带重写所在服务节点的 extra_data。"""
+    span = build_other_span_without_platform()
+    span["attributes"].update({"db.system": "redis", "db.operation": "GET"})
+    return span
+
+
 def run_discover(existing_node, spans, pods=None, discover_cls=NodeDiscover, app_name=APP_NAME):
     if isinstance(spans, dict):
         spans = [spans]
@@ -419,4 +426,20 @@ def test_llm_metadata_survives_discovery_batches():
     )
 
     assert topo_node["extra_data"]["category"] == ApmTopoDiscoverRule.APM_TOPO_CATEGORY_RPC
+    assert topo_node["extra_data"]["llm"]["product"] == "agentlens"
+
+
+def test_llm_metadata_survives_component_span_in_same_batch():
+    """同批次里组件 Span 排在 LLM Span 之后时，服务节点上的 LLM 标记不能被一起带走。"""
+    existing_node = build_topo_node(
+        {
+            "category": ApmTopoDiscoverRule.APM_TOPO_CATEGORY_OTHER,
+            "kind": ApmTopoDiscoverRule.TOPO_SERVICE,
+            "predicate_value": None,
+            "service_language": "python",
+        }
+    )
+
+    topo_node, _ = run_discover(existing_node, [build_llm_span({"gen_ai.span.kind": "AGENT"}), build_component_span()])
+
     assert topo_node["extra_data"]["llm"]["product"] == "agentlens"

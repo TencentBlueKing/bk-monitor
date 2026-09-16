@@ -31,6 +31,7 @@ import { alertEventCount, alertRelatedInfo, listAlertTags } from 'monitor-api/mo
 import { updateFavorite } from 'monitor-api/modules/model';
 
 import { AlarmType } from '../typings';
+import { withEmbedQuery } from '@/common/embed-context';
 
 import type { IssueItem } from '../alarm-issues/typing';
 import type {
@@ -118,17 +119,7 @@ export abstract class AlarmService<S = AlarmType> {
     if (this.scenes !== AlarmType.ALERT) {
       return [];
     }
-    const paramsClone = _.cloneDeep(params);
-    // #if IS_APM_MONITOR
-    paramsClone.bk_biz_ids = [Number(window.bk_biz_id)];
-    if (paramsClone.query_string) {
-      // 语句模式
-      paramsClone.query_string = `(${paramsClone.query_string}) AND ${window.APM_QUERY_STRING}`;
-    } else {
-      // ui 模式
-      paramsClone.query_string = window.APM_QUERY_STRING || '';
-    }
-    // #endif
+    const paramsClone = withEmbedQuery(_.cloneDeep(params));
     const data = await listAlertTags({
       ...paramsClone,
     }).catch(() => []);

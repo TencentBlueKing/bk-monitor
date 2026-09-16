@@ -142,21 +142,37 @@ export const RUM_SORTABLE_FIELD_TYPES = new Set(['date', 'double', 'integer', 'l
 
 /** Span 视角列宽（视角私有），未列出的字段使用 DEFAULT_COLUMN_WIDTH */
 export const SPAN_COLUMN_WIDTH_MAP: Record<string, number> = {
-  span_name: 225,
-  'attributes.span_type': 146,
-  end_time: 172,
-  start_time: 172,
-  elapsed_time: 140,
+  span_name: 180,
+  'attributes.span_type': 120,
+  // end_time: 220,
+  // start_time: 220,
+  // elapsed_time: 120,
   'status.code': 120,
-  'attributes.view.url_template': 172,
+  'attributes.view.url_template': 220,
   'resource.user_agent.name': 137,
   'attributes.user.id': 133,
 };
 
-export const DEFAULT_COLUMN_WIDTH = 150;
+export const DEFAULT_COLUMN_WIDTH = 220;
 
 /** 表格列最小宽度 */
 export const DEFAULT_MIN_COLUMN_WIDTH = 100;
+
+/**
+ * 按字段元信息推导的默认列宽。
+ * 用户列宽缓存与视角预设（如 SPAN_COLUMN_WIDTH_MAP）都未命中时才使用，用于让时间/耗时/带单位/枚举类字段
+ * 在不逐个登记的情况下也能拿到合适的宽度。
+ */
+export const RUM_FIELD_DEFAULT_COLUMN_WIDTH = {
+  /** 日期时间字段 */
+  datetime: 216,
+  /** 耗时字段 */
+  duration: 120,
+  /** 带单位的字段 */
+  unit: 146,
+  /** 有预设枚举取值的字段 */
+  option: 130,
+} as const;
 
 /**
  * 各检索视角的列布局预设（视角私有：默认列宽 / 左侧固定列）。

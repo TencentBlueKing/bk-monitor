@@ -171,8 +171,15 @@ export default defineComponent({
       return new Map(props.displayableFields.map(field => [field.name, field]));
     });
 
-    const { activeFieldName, selectField, showPopover, statisticsListRef, destroyPopover, openPopover } =
-      useFieldStatisticsPopover('bottom');
+    const {
+      activeFieldName,
+      selectField,
+      showPopover,
+      statisticsListRef,
+      destroyPopover,
+      openPopover,
+      updatePopoverPosition,
+    } = useFieldStatisticsPopover('bottom');
 
     /** 场景渲染器：按检索模式选择场景实例，负责产出声明式列配置与表头渲染 */
     const { defaultGetCellValue, transformColumns, tableScenarioClassName, tableRowKey } = useScenarioRenderer(
@@ -296,6 +303,7 @@ export default defineComponent({
       tableRowKey,
       tableScenarioClassName,
       destroyPopover,
+      updatePopoverPosition,
     };
   },
   render() {
@@ -380,6 +388,7 @@ export default defineComponent({
           isShow={this.showPopover}
           timeRange={this.timeRange as any}
           onConditionChange={(condition: ConditionChangeEvent) => this.$emit('conditionChange', condition)}
+          onContentRendered={this.updatePopoverPosition}
           onShowMore={this.destroyPopover}
         />
 

@@ -180,8 +180,15 @@ export default defineComponent({
       groupOverrides.value = overrides;
     }
 
-    const { activeFieldName, selectField, showPopover, statisticsListRef, destroyPopover, openPopover } =
-      useFieldStatisticsPopover();
+    const {
+      activeFieldName,
+      selectField,
+      showPopover,
+      statisticsListRef,
+      destroyPopover,
+      openPopover,
+      updatePopoverPosition,
+    } = useFieldStatisticsPopover();
 
     function handleFieldClick(event: MouseEvent, field: IDimensionFieldTreeItem) {
       openPopover(event.currentTarget as Element, field);
@@ -212,6 +219,7 @@ export default defineComponent({
       handleConditionChange: (condition: { key: string; method: string; value: string }) =>
         emit('conditionChange', condition, true),
       handleClose: () => emit('close'),
+      updatePopoverPosition,
     };
   },
   render() {
@@ -310,6 +318,7 @@ export default defineComponent({
           isShow={this.showPopover}
           timeRange={this.timeRange as any}
           onConditionChange={this.handleConditionChange}
+          onContentRendered={this.updatePopoverPosition}
           onShowMore={this.destroyPopover}
         />
       </div>

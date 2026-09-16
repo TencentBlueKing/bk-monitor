@@ -19,7 +19,7 @@ from rest_framework.exceptions import ValidationError
 
 from bkmonitor.documents import AlertDocument
 from bkmonitor.models import ActionConfig, DutyRule, Shield, StrategyModel, UserGroup
-from bkmonitor.strategy.new_strategy import Strategy, get_metric_id
+from bkmonitor.strategy.new_strategy import IssueConfig, Strategy, get_metric_id
 from constants.action import MAX_ACTION_EXECUTE_TIMEOUT
 from constants.shield import ShieldEndPolicy
 from constants.strategy import DATALINK_SOURCE
@@ -124,6 +124,19 @@ def get_strategy_config_version(config: dict[str, Any]) -> str:
         default=str,
     )
     return hashlib.sha256(serialized.encode("utf-8")).hexdigest()
+
+
+def _validate_strategy_before_write(request_data: dict[str, Any]) -> None:
+    """在调用原保存 Resource 前完成可能晚于主体写入的跨模型校验。"""
+    issue_config = request_data.get("issue_config")
+    if not isinstance(issue_config, dict):
+        return
+
+    # 原策略保存流程在主体和子配置写入后才校验 issue_config；BackendRouter 场景下事务库
+    # 可能与模型写库不一致。Unified 先做同一业务校验，避免返回失败时策略已被部分修改。
+    strategy = Strategy(**request_data)
+    strategy.convert()
+    IssueConfig(**issue_config).validate(strategy)
 
 
 def ensure_strategy_relations_belong_to_biz(bk_biz_id: int, request_data: dict[str, Any]) -> None:
@@ -693,6 +706,7 @@ class UpdateAlarmStrategyResource(Resource):
             raise ValidationError({"config_version": "策略已被其他操作更新，请重新调用 get_alarm_strategy 后再修改"})
         normalize_strategy_metric_ids(request_data, current_config)
         ensure_strategy_relations_belong_to_biz(request_data["bk_biz_id"], request_data)
+        _validate_strategy_before_write(request_data)
         return resource.strategies.save_strategy_v2.request(**request_data)
 
 

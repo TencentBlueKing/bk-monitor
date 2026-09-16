@@ -82,13 +82,14 @@
 | trace_id | string | Trace ID，仅 Trace 层对象返回 |
 | conversation_id | string | 会话 ID，无会话信息时为空字符串；仅 Trace 层对象返回 |
 | status | string | 状态：`success`（成功）、`error`（失败）。会话包含任意失败 Trace 时返回 `error` |
-| input | string | 逻辑根 Agent/Workflow Span 中最后一条用户文本；会话层返回空字符串 |
-| output | string | 逻辑根 Agent/Workflow Span 中最后一条助手文本；会话层返回空字符串 |
+| input | string | Trace 的输入摘要；会话层取最早一个非空 Trace 输入 |
+| output | string | Trace 逻辑根 Span 的输出摘要；会话层取最后一个非空 Trace 输出 |
 | input_tokens | int | 分组内输入 Token 总数 |
 | output_tokens | int | 分组内输出 Token 总数 |
 | cache_read_input_tokens | int | 分组内缓存读取 Token 总数 |
 | cache_creation_input_tokens | int | 分组内缓存写入 Token 总数 |
 | start_time | int | 根 Span 开始时间，单位为微秒 |
+| end_time | int | Trace 内最晚 Span 或会话内最晚 Trace 的结束时间，单位为微秒 |
 | elapsed_time | int | Trace 或会话持续时间，单位为微秒 |
 | user_id | string | Span 中上报的用户 ID，未上报时为空字符串 |
 | childs | list | 会话包含的 Trace 列表；仅 `group_field != trace_id` 时返回，元素结构与 Trace 层对象一致 |
@@ -123,6 +124,7 @@
                 "cache_read_input_tokens": 38912,
                 "cache_creation_input_tokens": 0,
                 "start_time": 1787912681484550,
+                "end_time": 1787912681778948,
                 "elapsed_time": 294398,
                 "user_id": ""
             }
@@ -146,13 +148,14 @@
                 "group_id": "conversation-demo-01",
                 "group_field": "attributes.gen_ai.conversation.id",
                 "status": "success",
-                "input": "",
-                "output": "",
+                "input": "查询当前故障",
+                "output": "已完成故障分析",
                 "input_tokens": 0,
                 "output_tokens": 0,
                 "cache_read_input_tokens": 38912,
                 "cache_creation_input_tokens": 0,
                 "start_time": 1787912681484550,
+                "end_time": 1787912681778948,
                 "elapsed_time": 294398,
                 "user_id": "",
                 "childs": [
@@ -169,6 +172,7 @@
                         "cache_read_input_tokens": 38912,
                         "cache_creation_input_tokens": 0,
                         "start_time": 1787912681484550,
+                        "end_time": 1787912681778948,
                         "elapsed_time": 294398,
                         "user_id": ""
                     }

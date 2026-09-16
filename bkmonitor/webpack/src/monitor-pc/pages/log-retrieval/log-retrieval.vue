@@ -60,11 +60,13 @@ export default class LogRetrieval extends Vue {
         spaceUid: this.$store.getters.spaceUid,
       }
     );
+    // $route.query / URLSearchParams 取出的是已解码值，拼 iframe src 必须重新编码，
+    // 否则 pid=["#"] 里的裸 # 会被日志侧 vue-router 当成 hash 截断，丢掉后续场景化参数。
     const str = Object.entries({
       ...(queryVal || {}),
       ...Object.fromEntries(new URLSearchParams(location.search)),
     })
-      .map(entry => entry.join('='))
+      .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(String(v ?? ''))}`)
       .join('&');
     if (str.length) return `&${str}`;
     return '';

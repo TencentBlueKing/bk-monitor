@@ -675,7 +675,7 @@ export default defineComponent({
     const handleDownload = () => {
       const item = props.selectedLogItem;
       if (!item) return;
-      download(item.file_name, props.isAllowedDownload);
+      download(item.file_name, props.isAllowedDownload, { useResponseFileName: true });
     };
 
     /** 点击分享按钮，将时间参数转为时间戳后复制链接 */

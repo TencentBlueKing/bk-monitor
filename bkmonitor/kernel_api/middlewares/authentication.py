@@ -30,7 +30,7 @@ from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import api
 from core.errors.api import BKAPIError
 from core.prometheus import metrics
-from kernel_api.unified_mcp.permissions import log_mcp_event, log_mcp_tool_event
+from kernel_api.unified_mcp.permissions import log_mcp_event, log_mcp_tool_event, log_mcp_usage_event
 
 logger = logging.getLogger(__name__)
 
@@ -275,21 +275,75 @@ class AuthenticationMiddleware(MiddlewareMixin):
         return parts[-1].removesuffix(".json") if parts else ""
 
     def process_response(self, request, response):
-        """在 HTTP 响应完成时闭合 Unified MCP Trace，不记录请求或响应正文。"""
+        """闭合 MCP Trace，并输出一条不含业务正文的运营审计日志。"""
         operation = getattr(request, "unified_mcp_operation", "")
+        usage_started_at = getattr(request, "mcp_usage_started_at", None)
+        if not operation and usage_started_at is None:
+            return response
+
+        status_code = getattr(response, "status_code", 0)
+        response_data = getattr(response, "data", None)
+        # API 异常由 exception handler 在 request 上留下服务端状态；兼容仍保留 data 的响应，
+        # 但不解析已渲染正文，避免为了审计复制或记录业务响应。
+        application_failed = getattr(request, "unified_mcp_response_failed", False) or (
+            isinstance(response_data, dict) and response_data.get("result") is False
+        )
+        failed = status_code >= 400 or application_failed
+        result_code = getattr(request, "unified_mcp_result_code", None)
+        if result_code is None and isinstance(response_data, dict) and response_data.get("result") is False:
+            result_code = response_data.get("code")
+
         if operation:
             started_at = getattr(request, "unified_mcp_started_at", None)
-            duration_ms = round((time.monotonic() - started_at) * 1000) if started_at is not None else None
-            status_code = getattr(response, "status_code", 0)
+            fields = {
+                "operation": operation,
+                "tool": getattr(request, "unified_mcp_tool", ""),
+                "decision": "failed" if failed else "succeeded",
+                "status_code": status_code,
+                "duration_ms": round((time.monotonic() - started_at) * 1000) if started_at is not None else None,
+            }
+            if type(result_code) is int:
+                fields["result_code"] = result_code
             log_mcp_tool_event(
                 "response_finished",
                 request,
-                level=logging.INFO if status_code < 400 else logging.WARNING,
-                operation=operation,
-                tool=getattr(request, "unified_mcp_tool", ""),
-                decision="succeeded" if status_code < 400 else "failed",
-                status_code=status_code,
-                duration_ms=duration_ms,
+                level=logging.WARNING if failed else logging.INFO,
+                **fields,
+            )
+
+        if usage_started_at is not None:
+            authorization_source = getattr(request, "mcp_permission_source", "none")
+            checked_action_id = getattr(request, "mcp_permission_action", "")
+            action_id = checked_action_id if authorization_source in {"native", "legacy", "identity_scoped"} else ""
+            fields = {
+                "username": getattr(
+                    request,
+                    "mcp_usage_username",
+                    getattr(getattr(request, "user", None), "username", ""),
+                ),
+                "request_from": request.META.get("HTTP_X_BK_REQUEST_FROM", ""),
+                "request_source": request.META.get("HTTP_X_BK_REQUEST_SOURCE", ""),
+                "app_code": getattr(request, "mcp_usage_app_code", ""),
+                "mcp_server_name": request.META.get("HTTP_X_BKAPI_MCP_SERVER_NAME", ""),
+                "entry_point": getattr(request, "mcp_usage_entry_point", ""),
+                "operation": getattr(request, "mcp_usage_operation", ""),
+                "tool": getattr(request, "unified_mcp_tool", "") or getattr(request, "mcp_usage_tool", ""),
+                "action_id": action_id,
+                "checked_action_id": checked_action_id,
+                "authorization_source": authorization_source,
+                "bk_biz_id": getattr(request, "biz_id", None),
+                "x_request_id": request.META.get("HTTP_X_REQUEST_ID", ""),
+                "decision": "failed" if failed else "succeeded",
+                "status_code": status_code,
+                "duration_ms": round((time.monotonic() - usage_started_at) * 1000),
+            }
+            if type(result_code) is int:
+                fields["result_code"] = result_code
+            log_mcp_usage_event(
+                "request_finished",
+                request,
+                level=logging.WARNING if failed else logging.INFO,
+                **fields,
             )
         return response
 
@@ -377,12 +431,13 @@ class AuthenticationMiddleware(MiddlewareMixin):
                 authorization_source=getattr(request, "mcp_permission_source", "none"),
                 action_id=getattr(request, "mcp_permission_action", ""),
             )
+            resolved_permission = tool.resolve_native_permission(tool_args if isinstance(tool_args, dict) else {})
             self._report_mcp_metric(
                 tool.name,
                 getattr(request, "biz_id", None),
                 getattr(getattr(request, "user", None), "username", ""),
                 status,
-                getattr(request, "mcp_permission_action", "") or tool.native_permission["action_id"],
+                getattr(request, "mcp_permission_action", "") or resolved_permission["action_id"],
                 request.META.get("HTTP_X_BKAPI_MCP_SERVER_NAME", ""),
             )
 
@@ -401,6 +456,12 @@ class AuthenticationMiddleware(MiddlewareMixin):
         mcp_server_name = request.META.get("HTTP_X_BKAPI_MCP_SERVER_NAME", "")
         tool_name = self.extract_tool_name_from_path(request.path)
         is_unified_mcp_path = "/unified_mcp/" in request.path
+        request.mcp_usage_started_at = time.monotonic()
+        request.mcp_usage_entry_point = "unified" if is_unified_mcp_path else "standalone"
+        request.mcp_usage_operation = tool_name
+        request.mcp_usage_tool = tool_name
+        request.mcp_permission_action = ""
+        request.mcp_permission_source = "none"
         is_unified_execute_tool = tool_name == "execute_tool" and is_unified_mcp_path
         if is_unified_mcp_path:
             # 只在 request 对象上保存 operation、tool 和起始时间，供最终响应日志闭环。
@@ -444,6 +505,8 @@ class AuthenticationMiddleware(MiddlewareMixin):
             request.biz_id = int(getattr(settings, "OPENCLAW_RECOVERING_BK_BIZ_ID", 0) or 0)
             request.skip_check = True
             request.openclaw_identity_scoped = True
+            request.mcp_permission_action = "identity_scoped"
+            request.mcp_permission_source = "identity_scoped"
             log_mcp_event(
                 "openclaw_allowed",
                 request,
@@ -488,6 +551,7 @@ class AuthenticationMiddleware(MiddlewareMixin):
         if is_unified_mcp_path:
             # 仅记录内层工具名，禁止把 tool_args 写入统一日志。
             request.unified_mcp_tool = mcp_request_data.get("tool_name", "")
+            request.mcp_usage_tool = request.unified_mcp_tool or tool_name
             log_mcp_tool_event(
                 "request_received",
                 request,
@@ -519,6 +583,7 @@ class AuthenticationMiddleware(MiddlewareMixin):
             if unified_tool.permission_exempt:
                 log_mcp_event("tool_exempt", request, tool=nested_tool_name, permission_action="")
                 request.skip_check = True
+                request.mcp_permission_source = "exempt"
                 request.unified_mcp_permission_checked = True
                 self._report_mcp_metric(
                     tool_name=nested_tool_name,
@@ -567,6 +632,7 @@ class AuthenticationMiddleware(MiddlewareMixin):
             if permission_action_id:
                 permission_action_source = "permission_action_header"
 
+        request.mcp_permission_action = permission_action_id
         log_mcp_event(
             "permission_action_resolved",
             request,
@@ -578,6 +644,7 @@ class AuthenticationMiddleware(MiddlewareMixin):
         if is_unified_facade_tool or (tool_name and tool_name in settings.MCP_PERMISSION_EXEMPT_TOOLS):
             log_mcp_event("tool_exempt", request, tool=tool_name, permission_action=permission_action_id)
             request.skip_check = True
+            request.mcp_permission_source = "exempt"
             # 上报豁免工具的调用指标
             self._report_mcp_metric(
                 tool_name=tool_name,
@@ -674,6 +741,7 @@ class AuthenticationMiddleware(MiddlewareMixin):
                     # 如果找不到对应的权限，使用默认权限
 
             permission = MCPPermission(action=action)
+            request.mcp_permission_action = permission.actions[0].id if permission.actions else ""
             # 创建一个简单的 mock view 对象
             mock_view = type("MockView", (), {"kwargs": {}})()
 
@@ -711,6 +779,7 @@ class AuthenticationMiddleware(MiddlewareMixin):
             )
             return HttpResponseForbidden(f"Permission denied: {e}")
 
+        request.mcp_permission_source = "legacy"
         log_mcp_event(
             "auth_success",
             request,
@@ -806,6 +875,8 @@ class AuthenticationMiddleware(MiddlewareMixin):
         # MCP权限校验（在用户认证完成后）
         if self.use_mcp_auth(request, app_code):
             request.user = auth.authenticate(username=username, bk_tenant_id=bk_tenant_id)
+            request.mcp_usage_username = username or ""
+            request.mcp_usage_app_code = app_code or ""
             log_mcp_event(
                 "request_received",
                 request,

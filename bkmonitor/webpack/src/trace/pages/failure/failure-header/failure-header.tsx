@@ -31,6 +31,7 @@ import { editIncident, incidentAlertAggregate } from 'monitor-api/modules/incide
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 
+import { pickIncidentListQuery } from '../../alarm-center/utils/incident-list-query';
 import ChatGroup from '../alarm-detail/chat-group/chat-group';
 import { LEVEL_LIST } from '../constant';
 import { useIncidentInject } from '../utils';
@@ -124,7 +125,6 @@ export default defineComponent({
         });
     };
     const handleBack = () => {
-      // 回退到告警列表是携带告警列表已经配置的时间范围，避免查询时间丢失
       const { from, to, fromPage } = route.query;
       const { bk_biz_id } = incidentDetail.value;
       if (fromPage === 'event') {
@@ -136,14 +136,10 @@ export default defineComponent({
         }
         window.location.href = `${origin}${pathname}?bizId=${bk_biz_id}#/event-center?searchType=incident&activeFilterId=incident&bizIds=${bk_biz_id}${timeRangText}`;
       } else {
-        // 默认返回新版告警中心
+        // 返回新版告警中心，还原进入详情前的全部列表检索参数
         router.push({
           name: 'alarm-center',
-          query: {
-            alarmType: 'incident',
-            ...(from && to ? { from: from as string, to: to as string } : {}),
-            bizIds: [bk_biz_id],
-          },
+          query: pickIncidentListQuery(route.query),
         });
       }
     };

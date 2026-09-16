@@ -611,11 +611,9 @@ export default defineComponent({
                   </FormItem>
                 )}
                 {['scope', 'strategy', 'dimension'].includes(this.detail.category) && (
-                  <FormItem label={this.t('屏蔽期间产生的告警')}>
+                  <FormItem label={this.t('屏蔽期内告警通知')}>
                     <span class='detail-text'>
-                      {this.t(
-                        this.detail.endPolicy === 'close' ? '屏蔽结束时关闭告警，不再通知' : '屏蔽结束后发送一次通知'
-                      )}
+                      {this.t(this.detail.endPolicy === 'close' ? '屏蔽结束时不再通知' : '屏蔽结束后发送一次通知')}
                     </span>
                   </FormItem>
                 )}
