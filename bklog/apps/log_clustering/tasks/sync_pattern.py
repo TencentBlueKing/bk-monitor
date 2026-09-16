@@ -45,12 +45,6 @@ SIGNATURE_WRITE_BATCH_SIZE = 500
 # 从模型文件同步到库表的字段，创建与更新共用同一集合，避免两处定义漂移
 SIGNATURE_SYNC_FIELDS = ("pattern", "origin_pattern", "origin_log")
 
-# 需求验收项「任务超时/内存保护」结论：内存保护由按 signature 分片查询和及时释放解码结果实现，
-# 不设进程级内存上限；超时保护不在代码侧设置固定 soft/hard time_limit —— sync 是幂等周期任务，
-# 单轮只写差异数据、下一轮可自愈，其耗时随各空间 signature 规模与数据库延迟波动，
-# 缺少生产实测阈值时固定超时会误杀正常同步导致数据长期不同步。
-# worker/容器级内存与并发配额（如 max-memory-per-child、容器 memory limit）属于本需求明确排除的范围。
-
 
 @periodic_task(run_every=crontab(minute="*/10"))
 def sync_pattern():
