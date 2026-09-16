@@ -875,3 +875,13 @@ class GrokInfo(OperateRecordModel):
         verbose_name = _("Grok规则")
         verbose_name_plural = _("Grok规则")
         unique_together = ("name", "bk_biz_id")
+
+
+# 节点管理 V3 控制面模型。定义在 nodeman_v3 子包内（模型声明了 app_label="log_databus"），
+# 在此导入以便 Django 完成注册与迁移发现。
+from apps.log_databus.nodeman_v3.models import (  # noqa  pylint: disable=unused-import
+    NodeManV3Binding,
+    NodeManV3Operation,
+    NodeManV3SubConfigTarget,
+    NodeManV3Workflow,
+)
