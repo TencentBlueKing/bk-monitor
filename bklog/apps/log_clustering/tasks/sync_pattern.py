@@ -19,6 +19,8 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 
+from itertools import islice
+
 from blueapps.contrib.celery_tools.periodic import periodic_task
 from celery.schedules import crontab
 
@@ -35,6 +37,15 @@ from apps.log_clustering.handlers.aiops.aiops_model.aiops_model_handler import (
 from apps.log_clustering.models import AiopsSignatureAndPattern, ClusteringConfig
 from apps.log_search.models import LogIndexSet
 from apps.utils.task import high_priority_task
+
+SIGNATURE_SYNC_BATCH_SIZE = 500
+SIGNATURE_UPDATE_FIELDS = ("pattern", "origin_pattern", "origin_log")
+
+# 需求验收项「任务超时/内存保护」结论：内存保护由按 signature 分片查询和及时释放解码结果实现，
+# 不设进程级内存上限；超时保护不在代码侧设置固定 soft/hard time_limit —— sync 是幂等周期任务，
+# 单轮只写差异数据、下一轮可自愈，其耗时随各空间 signature 规模与数据库延迟波动，
+# 缺少生产实测阈值时固定超时会误杀正常同步导致数据长期不同步。
+# worker/容器级内存与并发配额（如 max-memory-per-child、容器 memory limit）属于本需求明确排除的范围。
 
 
 @periodic_task(run_every=crontab(minute="*/10"))
@@ -93,10 +104,14 @@ def sync(model_id=None, model_output_rt=None, bk_biz_id=None):
     content = AiopsModelHandler.pickle_decode(content=content)
 
     patterns = get_pattern(content)
+    # 模型文件解码结果通常远大于后续构造的 signature 数据，取完 pattern 后立即释放，
+    # 避免与写库阶段同时驻留导致峰值内存叠加
+    del content
+
     objects_to_create, objects_to_update = make_signature_objects(patterns=patterns, model_id=model_id)
-    AiopsSignatureAndPattern.objects.bulk_create(objects_to_create, batch_size=500)
+    AiopsSignatureAndPattern.objects.bulk_create(objects_to_create, batch_size=SIGNATURE_SYNC_BATCH_SIZE)
     AiopsSignatureAndPattern.objects.bulk_update(
-        objects_to_update, fields=["pattern", "origin_pattern", "origin_log"], batch_size=500
+        objects_to_update, fields=list(SIGNATURE_UPDATE_FIELDS), batch_size=SIGNATURE_SYNC_BATCH_SIZE
     )
 
 
@@ -187,34 +202,50 @@ def get_pattern(content) -> list:
 def make_signature_objects(patterns, model_id) -> [list[AiopsSignatureAndPattern], list[AiopsSignatureAndPattern]]:
     """
     生成 signature 对象
+
+    已有记录按 signature 分片查询（只取更新所需字段），避免按 model 全量加载历史数据；
+    内容未发生变化的记录不进入 objects_to_update，避免每轮重复写入。
     :param patterns:
     :param model_id:
     :return:
     """
     origin_signature_map = {pattern["signature"]: pattern for pattern in patterns}
-    existed_signature_map = {obj.signature: obj for obj in AiopsSignatureAndPattern.objects.filter(model_id=model_id)}
-
     objects_to_create = []
     objects_to_update = []
 
-    for origin_signature, origin_pattern in origin_signature_map.items():
-        if origin_signature not in existed_signature_map:
-            # 不存在的，创建一个新对象
-            objects_to_create.append(
-                AiopsSignatureAndPattern(
-                    model_id=model_id,
-                    signature=origin_signature,
-                    pattern=origin_pattern["pattern"],
-                    origin_pattern=origin_pattern["origin_pattern"],
-                    origin_log=origin_pattern["origin_log"],
-                )
+    signature_items_iterator = iter(origin_signature_map.items())
+    while True:
+        # 使用 islice 分片，避免额外复制一份与 signature 总量同规模的分片列表
+        signature_items = list(islice(signature_items_iterator, SIGNATURE_SYNC_BATCH_SIZE))
+        if not signature_items:
+            break
+
+        signatures = [signature for signature, _ in signature_items]
+        existed_signature_map = {
+            obj.signature: obj
+            for obj in AiopsSignatureAndPattern.objects.filter(model_id=model_id, signature__in=signatures).only(
+                "id", "signature", *SIGNATURE_UPDATE_FIELDS
             )
-        else:
-            # 已经存在的，只更新对象中的 pattern 字段
-            signature_obj = existed_signature_map[origin_signature]
-            signature_obj.pattern = origin_pattern["pattern"]
-            # 保留原始pattern 用于不同索引之间的数据同步
-            signature_obj.origin_pattern = origin_pattern["origin_pattern"]
-            signature_obj.origin_log = origin_pattern["origin_log"]
+        }
+
+        for origin_signature, origin_pattern in signature_items:
+            signature_obj = existed_signature_map.get(origin_signature)
+            if signature_obj is None:
+                objects_to_create.append(
+                    AiopsSignatureAndPattern(
+                        model_id=model_id,
+                        signature=origin_signature,
+                        pattern=origin_pattern["pattern"],
+                        origin_pattern=origin_pattern["origin_pattern"],
+                        origin_log=origin_pattern["origin_log"],
+                    )
+                )
+                continue
+
+            if all(getattr(signature_obj, field) == origin_pattern[field] for field in SIGNATURE_UPDATE_FIELDS):
+                continue
+
+            for field in SIGNATURE_UPDATE_FIELDS:
+                setattr(signature_obj, field, origin_pattern[field])
             objects_to_update.append(signature_obj)
     return objects_to_create, objects_to_update
