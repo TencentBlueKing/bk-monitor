@@ -310,6 +310,7 @@ class TestRefreshResultTableLabelsCommand(TestCase):
             "failed": 0,
             "skipped": 2,
             "missing_result_table_ids": ["2_bklog.missing_a", "2_bklog.missing_b"],
+            "invalid_storage_cluster_result_table_ids": ["2_bklog.invalid_cluster"],
         }
         output = StringIO()
 
@@ -317,6 +318,8 @@ class TestRefreshResultTableLabelsCommand(TestCase):
 
         self.assertIn("missing=2", output.getvalue())
         self.assertIn("missing_result_table_ids=['2_bklog.missing_a', '2_bklog.missing_b']", output.getvalue())
+        self.assertIn("invalid_storage_cluster=1", output.getvalue())
+        self.assertIn("invalid_storage_cluster_result_table_ids=['2_bklog.invalid_cluster']", output.getvalue())
 
 
 class TestRefreshSceneLabelsHandler(TestCase):
@@ -385,6 +388,45 @@ class TestRefreshSceneLabelsHandler(TestCase):
 
         self.assertEqual(result["failed"], 0)
         self.assertEqual(result["missing_result_table_ids"], [collector.table_id])
+
+    def test_refresh_skips_invalid_default_storage_cluster(self):
+        """默认存储集群已无效时跳过该 RT，不阻断其它结果表。"""
+        index_set = self._create_index_set("invalid_storage_cluster", {"scene": "host"})
+        collector = self._create_collector(
+            "invalid_storage_cluster", collector_scenario_id="client", index_set_id=index_set.index_set_id
+        )
+        invalid_cluster_error = ApiResultError("默认存储集群[5]不存在、租户不匹配或类型不是[elasticsearch]", code=500)
+
+        with patch(
+            "apps.log_databus.handlers.scene.TransferApi.switch_result_table",
+            side_effect=invalid_cluster_error,
+        ):
+            result = refresh_scene_labels(sleep=0)
+
+        self.assertEqual(result["failed"], 0)
+        self.assertEqual(result["skipped"], 1)
+        self.assertEqual(result["failed_result_table_ids"], [])
+        self.assertEqual(result["missing_result_table_ids"], [])
+        self.assertEqual(result["invalid_storage_cluster_result_table_ids"], [collector.table_id])
+        self.assertEqual(self._get_scene_tags(index_set), {("scene", "host")})
+
+    def test_refresh_does_not_skip_other_metadata_errors(self):
+        """其它 Metadata 业务异常仍计为失败，避免扩大跳过范围。"""
+        index_set = self._create_index_set("other_metadata_error", {"scene": "host"})
+        collector = self._create_collector(
+            "other_metadata_error", collector_scenario_id="client", index_set_id=index_set.index_set_id
+        )
+
+        with patch(
+            "apps.log_databus.handlers.scene.TransferApi.switch_result_table",
+            side_effect=ApiResultError("permission denied", code=500),
+        ):
+            result = refresh_scene_labels(sleep=0)
+
+        self.assertEqual(result["failed"], 1)
+        self.assertEqual(result["failed_result_table_ids"], [collector.table_id])
+        self.assertEqual(result["skipped"], 0)
+        self.assertEqual(result["invalid_storage_cluster_result_table_ids"], [])
 
     def test_remote_result_table_retries_gateway_error_once(self):
         """远端查询遇到网关错误时最多只重试一次。"""
@@ -500,6 +542,33 @@ class TestRefreshSceneLabelsHandler(TestCase):
         toggle = FeatureToggle.objects.get(name=SCENE_SEARCH)
         self.assertEqual(result["failed"], 0)
         self.assertEqual(result["missing_result_table_ids"], [collector.table_id])
+        self.assertEqual(toggle.status, "on")
+        self.assertTrue(toggle.feature_config.get("scene_search_released"))
+
+    def test_run_first_sync_releases_when_storage_cluster_is_invalid(self):
+        """首次校正跳过无效默认存储集群的 RT 后仍允许开关转正。"""
+        FeatureToggle.objects.update_or_create(name=SCENE_SEARCH, defaults={"status": "debug"})
+        index_set = self._create_index_set("invalid_storage_cluster_release", {"scene": "host"})
+        collector = self._create_collector(
+            "invalid_storage_cluster_release", collector_scenario_id="client", index_set_id=index_set.index_set_id
+        )
+        invalid_cluster_error = ApiResultError("默认存储集群[5]不存在、租户不匹配或类型不是[elasticsearch]", code=500)
+
+        with (
+            patch(
+                "apps.log_databus.handlers.scene.TransferApi.get_result_table",
+                return_value={"table_id": collector.table_id, "labels": {}},
+            ),
+            patch(
+                "apps.log_databus.handlers.scene.TransferApi.switch_result_table",
+                side_effect=invalid_cluster_error,
+            ),
+        ):
+            result = run_scene_search_sync()
+
+        toggle = FeatureToggle.objects.get(name=SCENE_SEARCH)
+        self.assertEqual(result["failed"], 0)
+        self.assertEqual(result["invalid_storage_cluster_result_table_ids"], [collector.table_id])
         self.assertEqual(toggle.status, "on")
         self.assertTrue(toggle.feature_config.get("scene_search_released"))
 
