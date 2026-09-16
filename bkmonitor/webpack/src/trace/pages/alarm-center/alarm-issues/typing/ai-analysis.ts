@@ -80,7 +80,6 @@ export interface SourceAnalysisConfig {
 export type SourceAnalysisConflictReason =
   | 'source_analysis_already_running'
   | 'source_analysis_not_configured'
-  | 'source_analysis_not_retryable'
   | 'source_analysis_result_not_found'
   | 'source_analysis_result_not_ready'
   | 'source_analysis_target_not_failed'
@@ -94,7 +93,7 @@ export interface SourceAnalysisFailure {
   message: string;
   /** 请求 ID */
   request_id: string;
-  /** 是否可重试 */
+  /** 上游是否建议自动重试（仅用于诊断，不控制用户重新分析） */
   retryable: boolean;
 }
 

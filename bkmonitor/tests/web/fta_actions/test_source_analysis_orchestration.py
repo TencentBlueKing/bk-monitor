@@ -532,7 +532,7 @@ class TestSourceAnalysisOrchestration(TestCase):
             "error": {
                 "code": "SCENE_BINDING_DRIFTED",
                 "message": "scene binding drifted",
-                # 场景终态尚无重建协议，即使上游标记可重试也不能开放分析任务重试。
+                # 场景终态尚无重建协议，即使上游标记可重试也不由系统自动重试。
                 "retryable": True,
             },
         }

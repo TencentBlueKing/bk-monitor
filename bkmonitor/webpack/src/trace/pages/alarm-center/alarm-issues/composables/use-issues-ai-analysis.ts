@@ -117,7 +117,7 @@ export const useIssuesAiAnalysis = createGlobalState(() => {
   const handleReanalyzeSourceAnalysis = async (params: AIAnalysisBaseParams | SourceAnalysisRetryParams) => {
     if (loading.retryAnalysis) return;
     loading.retryAnalysis = true;
-    if (sourceAnalysisData.value.latest.status === 'failed' && sourceAnalysisData.value.latest.failure.retryable) {
+    if (sourceAnalysisData.value.latest.status === 'failed') {
       sourceAnalysisData.value = await retryIssueSourceAnalysis(params as SourceAnalysisRetryParams).finally(() => {
         loading.retryAnalysis = false;
       });

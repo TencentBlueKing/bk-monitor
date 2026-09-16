@@ -185,23 +185,21 @@ export default defineComponent({
             type='500'
           >
             <div>{sourceAnalysisData.value.latest.failure.message}</div>
-            {sourceAnalysisData.value.latest.failure.retryable && (
-              <Button
-                style='margin-top: 10px'
-                loading={analysisLoading.retryAnalysis}
-                theme='primary'
-                text
-                onClick={() => {
-                  handleReanalyzeSourceAnalysis({
-                    bk_biz_id: props.detail.bk_biz_id,
-                    issue_id: props.detail.id,
-                    analysis_id: sourceAnalysisData.value.latest.analysis_id,
-                  });
-                }}
-              >
-                {t('重新分析')}
-              </Button>
-            )}
+            <Button
+              style='margin-top: 10px'
+              loading={analysisLoading.retryAnalysis}
+              theme='primary'
+              text
+              onClick={() => {
+                handleReanalyzeSourceAnalysis({
+                  bk_biz_id: props.detail.bk_biz_id,
+                  issue_id: props.detail.id,
+                  analysis_id: sourceAnalysisData.value.latest.analysis_id,
+                });
+              }}
+            >
+              {t('重新分析')}
+            </Button>
           </Exception>
         );
       }

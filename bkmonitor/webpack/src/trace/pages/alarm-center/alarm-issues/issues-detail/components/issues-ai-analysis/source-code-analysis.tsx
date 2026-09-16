@@ -312,21 +312,19 @@ export default defineComponent({
               title={latest.failure.message}
             />
             <div class='guide-btns'>
-              {latest.failure.retryable && (
-                <Button
-                  loading={loading.retryAnalysis}
-                  theme='primary'
-                  onClick={() => {
-                    handleReanalyzeSourceAnalysis({
-                      bk_biz_id: props.detail.bk_biz_id,
-                      issue_id: props.detail.id,
-                      analysis_id: latest.analysis_id,
-                    });
-                  }}
-                >
-                  {t('重新分析')}
-                </Button>
-              )}
+              <Button
+                loading={loading.retryAnalysis}
+                theme='primary'
+                onClick={() => {
+                  handleReanalyzeSourceAnalysis({
+                    bk_biz_id: props.detail.bk_biz_id,
+                    issue_id: props.detail.id,
+                    analysis_id: latest.analysis_id,
+                  });
+                }}
+              >
+                {t('重新分析')}
+              </Button>
               <Button
                 onClick={() => {
                   handleToSetting(props.detail.bk_biz_id);

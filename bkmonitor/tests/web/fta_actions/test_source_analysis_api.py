@@ -302,8 +302,8 @@ class TestSourceAnalysisFrontendResources(TestCase):
         self.assertIsNone(result["next_execution_context"])
         get_latest_alert.assert_not_called()
 
-    def test_non_retryable_failure_does_not_return_next_execution_context(self):
-        self.create_execution(
+    def test_failure_not_recommended_for_automatic_retry_still_returns_retry_context(self):
+        execution = self.create_execution(
             status=SourceAnalysisStatus.FAILED,
             stage=None,
             failure_retryable=False,
@@ -312,7 +312,18 @@ class TestSourceAnalysisFrontendResources(TestCase):
         with patch.object(SourceAnalysisExecutionBaseResource, "get_latest_alert") as get_latest_alert:
             result = SourceAnalysisResource().perform_request({"bk_biz_id": self.BK_BIZ_ID, "issue_id": self.ISSUE_ID})
 
-        self.assertIsNone(result["next_execution_context"])
+        self.assertEqual(
+            result["next_execution_context"],
+            {
+                "trigger_type": SourceAnalysisTriggerType.RETRY,
+                "source": "execution_snapshot",
+                "bkci_project_id": execution.bkci_project_id,
+                "repository_alias": execution.repository_alias,
+                "agent_id": execution.agent_id,
+                "knowledge_base_ids": execution.knowledge_base_ids,
+                "skill_ids": execution.skill_ids,
+            },
+        )
         get_latest_alert.assert_not_called()
 
     @patch.object(SourceAnalysisExecutionBaseResource, "get_rule_availability", return_value=(None, "no_matched_rule"))
@@ -488,6 +499,7 @@ class TestSourceAnalysisFrontendResources(TestCase):
             failure_code="AI_FAILED",
             failure_message="分析失败",
             failure_retryable=True,
+            bkfara_task_id="failed-task",
         )
 
         result = RetrySourceAnalysisResource().perform_request(
@@ -503,26 +515,32 @@ class TestSourceAnalysisFrontendResources(TestCase):
         self.assertEqual(retry.retry_of_analysis_id, failed.analysis_id)
         self.assertEqual(retry.attempt, 2)
         self.assertEqual(retry.alert_id, failed.alert_id)
+        self.assertNotEqual(retry.analysis_id, failed.analysis_id)
+        self.assertIsNone(retry.bkfara_task_id)
         self.assertEqual(result["latest"]["analysis_id"], retry.analysis_id)
         dispatch.assert_called_once_with(retry)
 
-    def test_retry_rejects_non_retryable_failure(self):
+    @patch.object(SourceAnalysisExecutionBaseResource, "dispatch_execution")
+    def test_retry_accepts_failure_not_recommended_for_automatic_retry(self, dispatch):
         failed = self.create_execution(
             status=SourceAnalysisStatus.FAILED,
             stage=None,
             failure_retryable=False,
         )
 
-        with self.assertRaises(SourceAnalysisOperationConflictError) as context:
-            RetrySourceAnalysisResource().perform_request(
-                {
-                    "bk_biz_id": self.BK_BIZ_ID,
-                    "issue_id": self.ISSUE_ID,
-                    "analysis_id": failed.analysis_id,
-                }
-            )
+        result = RetrySourceAnalysisResource().perform_request(
+            {
+                "bk_biz_id": self.BK_BIZ_ID,
+                "issue_id": self.ISSUE_ID,
+                "analysis_id": failed.analysis_id,
+            }
+        )
 
-        self.assertEqual(context.exception.data, {"reason": "source_analysis_not_retryable"})
+        retry = IssueSourceAnalysisExecution.objects.order_by("-id").first()
+        self.assertEqual(retry.retry_of_analysis_id, failed.analysis_id)
+        self.assertNotEqual(retry.analysis_id, failed.analysis_id)
+        self.assertEqual(result["latest"]["analysis_id"], retry.analysis_id)
+        dispatch.assert_called_once_with(retry)
 
     def test_retry_rejects_old_target_after_later_execution(self):
         failed = self.create_execution(

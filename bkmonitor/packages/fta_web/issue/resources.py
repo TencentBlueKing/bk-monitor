@@ -824,8 +824,9 @@ class SourceAnalysisExecutionBaseResource(Resource):
             }
             if include_next_execution_context:
                 next_execution_context = None
-                if latest.status == SourceAnalysisStatus.FAILED and latest.failure_retryable:
-                    # 重试复用失败执行的不可变输入快照，不受当前规则调整影响。
+                if latest.status == SourceAnalysisStatus.FAILED:
+                    # 手动重试始终创建新的执行并重新发起 BKFara trigger；上游
+                    # retryable 只描述原任务是否适合自动重试，不限制用户操作。
                     next_execution_context = cls.build_next_execution_context(
                         latest,
                         trigger_type=SourceAnalysisTriggerType.RETRY,
@@ -1057,7 +1058,7 @@ class SourceAnalysisExecutionBaseResource(Resource):
         analysis_id: str,
         operator: str,
     ) -> tuple[IssueSourceAnalysisExecution, bool]:
-        """为当前最新的可重试失败记录创建一次新执行，并复用原始输入快照。"""
+        """为当前最新的失败记录创建一次新执行，并复用原始输入快照。"""
 
         canonical_issue_id, issue_ids = cls.resolve_issue_scope(bk_biz_id, issue_id)
         target = IssueSourceAnalysisExecution.objects.filter(
@@ -1082,12 +1083,6 @@ class SourceAnalysisExecutionBaseResource(Resource):
                 "source_analysis_target_not_failed",
                 _("仅支持重试当前最新的失败记录。"),
             )
-        if not target.failure_retryable:
-            cls.raise_operation_conflict(
-                "source_analysis_not_retryable",
-                _("当前失败记录不支持重试。"),
-            )
-
         active_execution = cls.get_active_execution(bk_biz_id, issue_ids)
         if active_execution is not None:
             return active_execution, False
@@ -1420,7 +1415,7 @@ class SourceAnalysisExecutionBaseResource(Resource):
             failure_code=str(error.get("code") or "BKFARA_SCENE_FAILED"),
             failure_message=str(error.get("message") or SourceAnalysisFailureMessage.BKFARA_SCENE_FAILED),
             # 本期“失败重试”只创建新的分析 attempt；终态 provision_id 没有重建协议，
-            # 继续复用只会重复得到同一场景失败，因此不能向前端开放任务重试。
+            # 继续复用只会重复得到同一场景失败，因此不由系统自动重试。
             failure_retryable=False,
             failure_request_id=error.get("request_id"),
         )
@@ -1693,7 +1688,7 @@ class StartSourceAnalysisResource(SourceAnalysisExecutionBaseResource):
 
 
 class RetrySourceAnalysisResource(SourceAnalysisExecutionBaseResource):
-    """重试当前最新的可重试失败记录，并复用该记录的输入快照。"""
+    """重试当前最新的失败记录，并复用该记录的输入快照。"""
 
     RequestSerializer = SourceAnalysisRetryRequestSerializer
 
