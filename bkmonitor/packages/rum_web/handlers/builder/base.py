@@ -47,12 +47,8 @@ class DictItem:
     items: list[ItemProtocol]
 
     def render(self, origin_data: dict[str, Any]) -> dict[str, Any]:
-        if not isinstance(self.items, list):
-            raise ValueError(f"Items {self.items} is not a valid list")
         merge_dict: dict[str, Any] = {}
         for child in self.items:
-            if not hasattr(child, "render"):
-                raise ValueError(f"Child {child} is not a valid ItemProtocol")
             merge_dict.update(child.render(origin_data))
         return {self.key: merge_dict}
 
