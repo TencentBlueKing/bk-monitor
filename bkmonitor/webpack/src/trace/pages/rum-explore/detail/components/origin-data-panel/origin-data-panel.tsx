@@ -85,8 +85,8 @@ export default defineComponent({
     const expandedKeys = shallowRef<Set<string>>(new Set());
     /** 收起的二级分组（Links 按 trace_id、Events 按事件名），默认全部展开 */
     const collapsedGroups = shallowRef<Set<string>>(new Set());
-    /** 关闭「格式化」、以原文展示的 JSON 行 */
-    const rawRows = shallowRef<Set<string>>(new Set());
+    /** 已切换为「格式化」展示的 JSON 行，未记录的行默认以原文展示 */
+    const jsonRows = shallowRef<Set<string>>(new Set());
 
     /** 展开/收起整个折叠块，整条块头均可点击（cursor: pointer 见 scss） */
     function toggleBlock(key: string) {
@@ -104,9 +104,9 @@ export default defineComponent({
 
     /** 切换单行 JSON 值的「格式化 / 原文」展示 */
     function toggleFormat(rowId: string) {
-      const next = new Set(rawRows.value);
+      const next = new Set(jsonRows.value);
       next.has(rowId) ? next.delete(rowId) : next.add(rowId);
-      rawRows.value = next;
+      jsonRows.value = next;
     }
 
     /**
@@ -118,14 +118,18 @@ export default defineComponent({
     function renderRow(row: IRumOriginRowVM, index: number, idPrefix: string) {
       const rowId = `${idPrefix}_${row.key}_${index}`;
       const isJson = isJsonValue(row.value);
-      const showRaw = rawRows.value.has(rowId);
+      const showJson = jsonRows.value.has(rowId);
       return (
         <div
           key={rowId}
           class={{ 'origin-row': true, 'is-odd': index % 2 === 0 }}
         >
           <div class='row-key'>
-            <FieldTypeIcon type={VALUE_TYPE_TO_FIELD_TYPE[row.valueType]} />
+            {/* 行高 24px、类型图标 14px，下沉 5px 使图标与右侧值文本首行视觉居中 */}
+            <FieldTypeIcon
+              style='margin-top: 5px;'
+              type={VALUE_TYPE_TO_FIELD_TYPE[row.valueType]}
+            />
             <span
               class='key-text'
               v-overflow-tips
@@ -146,11 +150,11 @@ export default defineComponent({
               />
             </div>
           </div>
-          <div class='row-value'>{isJson && !showRaw ? <VueJsonPretty data={JSON.parse(row.value)} /> : row.value}</div>
+          <div class='row-value'>{isJson && showJson ? <VueJsonPretty data={JSON.parse(row.value)} /> : row.value}</div>
           {isJson ? (
             <Button
               class='format-button'
-              outline={showRaw}
+              outline={showJson}
               size='small'
               theme='primary'
               onClick={() => toggleFormat(rowId)}
@@ -172,7 +176,7 @@ export default defineComponent({
           class={{ 'origin-block': true, 'is-expanded': expanded }}
         >
           <div
-            class='block-head'
+            class={['block-head', { 'has-block-search': block.searchable }]}
             onClick={() => toggleBlock(block.key)}
           >
             <span class='block-title'>
@@ -188,14 +192,21 @@ export default defineComponent({
               </span>
             )}
             {expanded && block.searchable ? (
-              <Input
+              // 块头整行可点击收起，这里包一层拦截冒泡，避免在搜索框内点击/清空时误收起整个块
+              <span
                 class='block-search'
-                modelValue={props.eventKeyword}
-                placeholder={t('搜索')}
-                type='search'
-                clearable
-                onUpdate:modelValue={(value: string) => emit('update:eventKeyword', value)}
-              />
+                onClick={e => {
+                  e.stopPropagation();
+                }}
+              >
+                <Input
+                  modelValue={props.eventKeyword}
+                  placeholder={t('搜索')}
+                  type='search'
+                  clearable
+                  onUpdate:modelValue={(value: string) => emit('update:eventKeyword', value)}
+                />
+              </span>
             ) : null}
           </div>
           {expanded ? (
@@ -213,9 +224,7 @@ export default defineComponent({
                       class='group-head'
                       onClick={() => toggleGroup(groupKey)}
                     >
-                      <i
-                        class={`group-arrow icon-monitor ${collapsed ? 'icon-mc-arrow-right' : 'icon-mc-arrow-down'}`}
-                      />
+                      <i class={`group-arrow icon-monitor ${collapsed ? 'icon-arrow-right' : 'icon-arrow-down'}`} />
                       {group.name}
                     </div>
                     {collapsed ? null : group.rows.map((row, index) => renderRow(row, index, groupKey))}
