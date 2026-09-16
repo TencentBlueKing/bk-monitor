@@ -4,8 +4,10 @@ from django.test import SimpleTestCase, TestCase
 
 from apps.log_clustering.models import AiopsSignatureAndPattern
 from apps.log_clustering.tasks.sync_pattern import (
-    SIGNATURE_SYNC_BATCH_SIZE,
-    SIGNATURE_UPDATE_FIELDS,
+    SIGNATURE_QUERY_BATCH_SIZE,
+    SIGNATURE_SYNC_FIELDS,
+    SIGNATURE_WRITE_BATCH_SIZE,
+    get_pattern,
     make_signature_objects,
     sync,
     sync_pattern,
@@ -22,8 +24,8 @@ def build_pattern(signature, pattern="pattern", origin_pattern="origin pattern",
 
 
 def sync_fields(record):
-    """同步语义涉及的三个字段"""
-    return record.pattern, record.origin_pattern, record.origin_log
+    """按同步字段集合取记录上的字段值，与实现共用同一字段定义"""
+    return tuple(getattr(record, field) for field in SIGNATURE_SYNC_FIELDS)
 
 
 class TestSyncPatternTenant(SimpleTestCase):
@@ -67,21 +69,31 @@ class TestSyncModelFileTenant(SimpleTestCase):
         )
 
 
+class TestSignatureSyncFields(SimpleTestCase):
+    def test_sync_fields_match_pattern_payload_keys(self):
+        """同步字段集合必须与 get_pattern 产出的负载键完全一致，避免加字段时创建/更新漏写。"""
+        content = ["meta", {0.1: [[["if", "checker.check"], 3903, ["x"], ["if checker.check():"], [282, 1877], "sig"]]}]
+
+        produced = get_pattern(content)[0]
+
+        self.assertEqual(set(SIGNATURE_SYNC_FIELDS), set(produced) - {"signature"})
+
+
 class TestMakeSignatureObjects(SimpleTestCase):
     @patch("apps.log_clustering.tasks.sync_pattern.AiopsSignatureAndPattern.objects.filter")
     def test_queries_existing_signatures_in_batches(self, mock_filter):
-        patterns = [build_pattern(str(index)) for index in range(SIGNATURE_SYNC_BATCH_SIZE + 1)]
+        patterns = [build_pattern(str(index)) for index in range(SIGNATURE_QUERY_BATCH_SIZE + 1)]
         mock_filter.return_value.only.return_value = []
 
         objects_to_create, objects_to_update = make_signature_objects(patterns, model_id="model_1")
 
-        self.assertEqual(len(objects_to_create), SIGNATURE_SYNC_BATCH_SIZE + 1)
+        self.assertEqual(len(objects_to_create), SIGNATURE_QUERY_BATCH_SIZE + 1)
         self.assertEqual(objects_to_update, [])
         self.assertEqual(
             mock_filter.call_args_list,
             [
-                call(model_id="model_1", signature__in=[str(index) for index in range(SIGNATURE_SYNC_BATCH_SIZE)]),
-                call(model_id="model_1", signature__in=[str(SIGNATURE_SYNC_BATCH_SIZE)]),
+                call(model_id="model_1", signature__in=[str(index) for index in range(SIGNATURE_QUERY_BATCH_SIZE)]),
+                call(model_id="model_1", signature__in=[str(SIGNATURE_QUERY_BATCH_SIZE)]),
             ],
         )
         mock_filter.return_value.only.assert_called_with("id", "signature", "pattern", "origin_pattern", "origin_log")
@@ -140,6 +152,15 @@ class TestMakeSignatureObjectsWithDatabase(TestCase):
             **extra,
         )
 
+    def sync_signature_objects(self, patterns, model_id="model_1"):
+        """按 sync() 的实际写库配置落库，返回待写入对象供断言"""
+        objects_to_create, objects_to_update = make_signature_objects(patterns, model_id=model_id)
+        AiopsSignatureAndPattern.objects.bulk_create(objects_to_create, batch_size=SIGNATURE_WRITE_BATCH_SIZE)
+        AiopsSignatureAndPattern.objects.bulk_update(
+            objects_to_update, fields=list(SIGNATURE_SYNC_FIELDS), batch_size=SIGNATURE_WRITE_BATCH_SIZE
+        )
+        return objects_to_create, objects_to_update
+
     def test_bulk_write_touches_only_changed_records(self):
         unchanged = self.create_signature(
             "unchanged", "same", "same origin", "same log", label="keep-label", remark=[{"key": "value"}]
@@ -151,11 +172,7 @@ class TestMakeSignatureObjectsWithDatabase(TestCase):
             build_pattern("new"),
         ]
 
-        objects_to_create, objects_to_update = make_signature_objects(patterns, model_id="model_1")
-        AiopsSignatureAndPattern.objects.bulk_create(objects_to_create, batch_size=SIGNATURE_SYNC_BATCH_SIZE)
-        AiopsSignatureAndPattern.objects.bulk_update(
-            objects_to_update, fields=list(SIGNATURE_UPDATE_FIELDS), batch_size=SIGNATURE_SYNC_BATCH_SIZE
-        )
+        objects_to_create, objects_to_update = self.sync_signature_objects(patterns)
 
         self.assertEqual([obj.signature for obj in objects_to_create], ["new"])
         # 未变化记录不参与写入
@@ -170,8 +187,10 @@ class TestMakeSignatureObjectsWithDatabase(TestCase):
         self.assertEqual(unchanged.label, "keep-label")
         self.assertEqual(unchanged.remark, [{"key": "value"}])
 
+        # 新建记录必须覆盖全部同步字段，且取值来自模型文件负载
         created = AiopsSignatureAndPattern.objects.get(model_id="model_1", signature="new")
-        self.assertEqual(sync_fields(created), ("pattern", "origin pattern", "origin log"))
+        for field in SIGNATURE_SYNC_FIELDS:
+            self.assertEqual(getattr(created, field), patterns[-1][field])
         self.assertEqual(AiopsSignatureAndPattern.objects.filter(model_id="model_1").count(), 3)
 
     def test_other_model_records_are_not_matched(self):
@@ -184,11 +203,7 @@ class TestMakeSignatureObjectsWithDatabase(TestCase):
         )
         patterns = [build_pattern("shared", "new pattern", "new origin pattern", "new origin log")]
 
-        objects_to_create, objects_to_update = make_signature_objects(patterns, model_id="model_1")
-        AiopsSignatureAndPattern.objects.bulk_create(objects_to_create, batch_size=SIGNATURE_SYNC_BATCH_SIZE)
-        AiopsSignatureAndPattern.objects.bulk_update(
-            objects_to_update, fields=list(SIGNATURE_UPDATE_FIELDS), batch_size=SIGNATURE_SYNC_BATCH_SIZE
-        )
+        objects_to_create, objects_to_update = self.sync_signature_objects(patterns)
 
         # 其他 model 的同名 signature 既不会被更新，也不会阻止当前 model 新建
         self.assertEqual([obj.signature for obj in objects_to_create], ["shared"])

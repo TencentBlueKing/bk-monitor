@@ -38,8 +38,12 @@ from apps.log_clustering.models import AiopsSignatureAndPattern, ClusteringConfi
 from apps.log_search.models import LogIndexSet
 from apps.utils.task import high_priority_task
 
-SIGNATURE_SYNC_BATCH_SIZE = 500
-SIGNATURE_UPDATE_FIELDS = ("pattern", "origin_pattern", "origin_log")
+# signature__in 的 IN 参数上限，决定单批查询的内存上界与 SQL 语句长度
+SIGNATURE_QUERY_BATCH_SIZE = 500
+# bulk_create / bulk_update 的语句分片大小，决定单条写入语句的体积
+SIGNATURE_WRITE_BATCH_SIZE = 500
+# 从模型文件同步到库表的字段，创建与更新共用同一集合，避免两处定义漂移
+SIGNATURE_SYNC_FIELDS = ("pattern", "origin_pattern", "origin_log")
 
 # 需求验收项「任务超时/内存保护」结论：内存保护由按 signature 分片查询和及时释放解码结果实现，
 # 不设进程级内存上限；超时保护不在代码侧设置固定 soft/hard time_limit —— sync 是幂等周期任务，
@@ -109,9 +113,9 @@ def sync(model_id=None, model_output_rt=None, bk_biz_id=None):
     del content
 
     objects_to_create, objects_to_update = make_signature_objects(patterns=patterns, model_id=model_id)
-    AiopsSignatureAndPattern.objects.bulk_create(objects_to_create, batch_size=SIGNATURE_SYNC_BATCH_SIZE)
+    AiopsSignatureAndPattern.objects.bulk_create(objects_to_create, batch_size=SIGNATURE_WRITE_BATCH_SIZE)
     AiopsSignatureAndPattern.objects.bulk_update(
-        objects_to_update, fields=list(SIGNATURE_UPDATE_FIELDS), batch_size=SIGNATURE_SYNC_BATCH_SIZE
+        objects_to_update, fields=list(SIGNATURE_SYNC_FIELDS), batch_size=SIGNATURE_WRITE_BATCH_SIZE
     )
 
 
@@ -203,7 +207,7 @@ def make_signature_objects(patterns, model_id) -> [list[AiopsSignatureAndPattern
     """
     生成 signature 对象
 
-    已有记录按 signature 分片查询（只取更新所需字段），避免按 model 全量加载历史数据；
+    已有记录按 signature 分片查询（只取 SIGNATURE_SYNC_FIELDS），避免按 model 全量加载历史数据；
     内容未发生变化的记录不进入 objects_to_update，避免每轮重复写入。
     :param patterns:
     :param model_id:
@@ -216,7 +220,7 @@ def make_signature_objects(patterns, model_id) -> [list[AiopsSignatureAndPattern
     signature_items_iterator = iter(origin_signature_map.items())
     while True:
         # 使用 islice 分片，避免额外复制一份与 signature 总量同规模的分片列表
-        signature_items = list(islice(signature_items_iterator, SIGNATURE_SYNC_BATCH_SIZE))
+        signature_items = list(islice(signature_items_iterator, SIGNATURE_QUERY_BATCH_SIZE))
         if not signature_items:
             break
 
@@ -224,7 +228,7 @@ def make_signature_objects(patterns, model_id) -> [list[AiopsSignatureAndPattern
         existed_signature_map = {
             obj.signature: obj
             for obj in AiopsSignatureAndPattern.objects.filter(model_id=model_id, signature__in=signatures).only(
-                "id", "signature", *SIGNATURE_UPDATE_FIELDS
+                "id", "signature", *SIGNATURE_SYNC_FIELDS
             )
         }
 
@@ -235,17 +239,15 @@ def make_signature_objects(patterns, model_id) -> [list[AiopsSignatureAndPattern
                     AiopsSignatureAndPattern(
                         model_id=model_id,
                         signature=origin_signature,
-                        pattern=origin_pattern["pattern"],
-                        origin_pattern=origin_pattern["origin_pattern"],
-                        origin_log=origin_pattern["origin_log"],
+                        **{field: origin_pattern[field] for field in SIGNATURE_SYNC_FIELDS},
                     )
                 )
                 continue
 
-            if all(getattr(signature_obj, field) == origin_pattern[field] for field in SIGNATURE_UPDATE_FIELDS):
+            if all(getattr(signature_obj, field) == origin_pattern[field] for field in SIGNATURE_SYNC_FIELDS):
                 continue
 
-            for field in SIGNATURE_UPDATE_FIELDS:
+            for field in SIGNATURE_SYNC_FIELDS:
                 setattr(signature_obj, field, origin_pattern[field])
             objects_to_update.append(signature_obj)
     return objects_to_create, objects_to_update
