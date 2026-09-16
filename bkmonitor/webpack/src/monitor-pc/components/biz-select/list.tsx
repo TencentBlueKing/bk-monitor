@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Emit, Mixins, Prop } from 'vue-property-decorator';
+import { Component, Emit, Mixins, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { SPACE_TYPE_MAP } from '../../common/constant';
@@ -58,6 +58,7 @@ interface IEvents {
 interface IProps {
   canSetDefaultSpace?: boolean;
   checked?: number;
+  highlightId?: null | number | string;
   list: IListItem[];
   theme?: ThemeType;
 }
@@ -75,6 +76,8 @@ export default class List extends Mixins(UserConfigMixin, tsc<IProps, IEvents>) 
   @Prop({ type: Number }) checked: number;
   /** 可设置默认空间 */
   @Prop({ default: true, type: Boolean }) canSetDefaultSpace: boolean;
+  /** 键盘高亮项 */
+  @Prop({ default: null, type: [Number, String] }) highlightId: null | number | string;
   /** 列表数据 */
   @Prop({ default: () => [], type: Array }) list: IListItem[];
   /** 主题 */
@@ -102,6 +105,24 @@ export default class List extends Mixins(UserConfigMixin, tsc<IProps, IEvents>) 
 
   created() {
     this.handleGetUserConfig(DEFAULT_BIZ_ID);
+  }
+
+  @Watch('highlightId')
+  handleHighlightIdChange() {
+    this.scrollHighlightIntoView();
+  }
+
+  @Watch('list')
+  handleListChange() {
+    this.scrollHighlightIntoView();
+  }
+
+  scrollHighlightIntoView() {
+    if (this.highlightId == null || this.highlightId === '') return;
+    this.$nextTick(() => {
+      const el = this.$el?.querySelector?.(`[data-space-id="${this.highlightId}"]`) as HTMLElement;
+      el?.scrollIntoView?.({ block: 'nearest' });
+    });
   }
 
   // 默认id处理
@@ -146,7 +167,12 @@ export default class List extends Mixins(UserConfigMixin, tsc<IProps, IEvents>) 
               {item.children.map((child, i) => (
                 <div
                   key={child.id || i}
-                  class={['list-item', this.theme, { checked: child.id === this.checked }]}
+                  class={[
+                    'list-item',
+                    this.theme,
+                    { checked: child.id === this.checked, highlight: String(child.id) === String(this.highlightId) },
+                  ]}
+                  data-space-id={child.id}
                   onClick={() => this.handleSelected(child.id)}
                 >
                   <span class='list-item-left'>
