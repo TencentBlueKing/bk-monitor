@@ -355,6 +355,16 @@ class TestRefreshSceneLabelsHandler(TestCase):
             is_active=True,
         )
 
+    @staticmethod
+    def _get_scene_tags(index_set: LogIndexSet) -> set[tuple[str, str]]:
+        index_set.refresh_from_db()
+        return set(
+            IndexSetTag.objects.filter(
+                tag_id__in=index_set.tag_ids,
+                tag_type=TAG_TYPE_SCENE,
+            ).values_list("name", "value")
+        )
+
     def test_refresh_skips_missing_result_table(self):
         """RT 不存在时跳过，由人工处理，不阻断其它结果表。"""
         index_set = self._create_index_set("missing_rt", {"scene": "host"})
