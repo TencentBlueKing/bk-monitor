@@ -18,8 +18,10 @@ import json
 import re
 from threading import BoundedSemaphore
 import time
+from urllib.parse import quote
 import uuid
 
+from django.conf import settings
 from django.db import IntegrityError, transaction
 from django.http import HttpResponseRedirect
 from django.urls import reverse
@@ -528,6 +530,12 @@ class SourceAnalysisExecutionBaseResource(Resource):
         "devops_running": SourceAnalysisStage.ANALYZING,
         "result_collecting": SourceAnalysisStage.ANALYZING,
     }
+    BKCI_EXECUTION_PROVIDER = "bkci"
+    BKCI_TRACE_IDENTIFIER_FIELDS = {
+        "project_id": "devops_project_id",
+        "pipeline_id": "pipeline_id",
+        "build_id": "build_id",
+    }
 
     SOURCE_ANALYSIS_FAILURE_STAGES = {value for value, _label in SourceAnalysisFailureStage.CHOICES}
 
@@ -698,6 +706,7 @@ class SourceAnalysisExecutionBaseResource(Resource):
                 "message": failure_message,
                 "retryable": bool(execution.failure_retryable),
                 "request_id": execution.failure_request_id,
+                "execution_reference": cls.serialize_execution_reference(execution.execution_reference),
             }
 
         return {
@@ -721,6 +730,55 @@ class SourceAnalysisExecutionBaseResource(Resource):
             "failure": failure,
             "result": cls.serialize_result(execution),
         }
+
+    @classmethod
+    def normalize_execution_reference(cls, task_state: dict) -> dict | None:
+        """从 BKFara trace 中提取允许持久化的执行定位信息。"""
+
+        trace = task_state.get("trace")
+        if not isinstance(trace, dict):
+            return None
+
+        identifiers = {}
+        for identifier, trace_field in cls.BKCI_TRACE_IDENTIFIER_FIELDS.items():
+            value = trace.get(trace_field)
+            if not isinstance(value, str) or not value.strip():
+                return None
+            identifiers[identifier] = value.strip()
+
+        return {
+            "provider": cls.BKCI_EXECUTION_PROVIDER,
+            "identifiers": identifiers,
+        }
+
+    @classmethod
+    def serialize_execution_reference(cls, execution_reference) -> dict | None:
+        """序列化通用执行定位信息，并由 provider 适配器生成当前环境入口。"""
+
+        if not isinstance(execution_reference, dict):
+            return None
+        provider = execution_reference.get("provider")
+        identifiers = execution_reference.get("identifiers")
+        if not isinstance(provider, str) or not isinstance(identifiers, dict):
+            return None
+
+        result = {
+            "provider": provider,
+            "identifiers": identifiers,
+            "url": None,
+        }
+        if provider != cls.BKCI_EXECUTION_PROVIDER or not settings.BK_CI_URL:
+            return result
+
+        values = {field: identifiers.get(field) for field in cls.BKCI_TRACE_IDENTIFIER_FIELDS}
+        if any(not isinstance(value, str) or not value for value in values.values()):
+            return result
+        result["url"] = (
+            f"{settings.BK_CI_URL.rstrip('/')}/console/pipeline/"
+            f"{quote(values['project_id'], safe='')}/{quote(values['pipeline_id'], safe='')}/detail/"
+            f"{quote(values['build_id'], safe='')}/executeDetail"
+        )
+        return result
 
     @staticmethod
     def _project_fields(value, fields: tuple[str, ...]) -> dict | None:
@@ -1555,6 +1613,7 @@ class SourceAnalysisExecutionBaseResource(Resource):
             failure_message=str(failure.get("message") or SourceAnalysisFailureMessage.BKFARA_TASK_FAILED),
             failure_retryable=bool(failure.get("retryable", False)),
             failure_request_id=failure.get("request_id"),
+            execution_reference=cls.normalize_execution_reference(task_state),
         )
         return None
 

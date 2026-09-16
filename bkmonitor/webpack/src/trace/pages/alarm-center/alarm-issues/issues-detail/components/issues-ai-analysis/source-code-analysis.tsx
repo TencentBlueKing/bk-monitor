@@ -293,6 +293,7 @@ export default defineComponent({
 
       /** 分析失败 */
       if (latest?.status === 'failed') {
+        const executionDetailUrl = latest.failure.execution_reference?.url;
         return (
           <div class='config-guide'>
             <div class='guide-icon failed'>
@@ -303,7 +304,7 @@ export default defineComponent({
               style='margin-bottom: 8px'
               class='guide-desc'
             >
-              {t('蓝盾流水线执行失败，未生成本次分析结果')}
+              {t('源码分析任务执行失败，未生成本次分析结果')}
             </div>
             <Alert
               class='guide-alert failed'
@@ -325,6 +326,15 @@ export default defineComponent({
               >
                 {t('重新分析')}
               </Button>
+              {executionDetailUrl && (
+                <Button
+                  onClick={() => {
+                    window.open(executionDetailUrl, '_blank', 'noopener,noreferrer');
+                  }}
+                >
+                  {t('查看执行详情')}
+                </Button>
+              )}
               <Button
                 onClick={() => {
                   handleToSetting(props.detail.bk_biz_id);

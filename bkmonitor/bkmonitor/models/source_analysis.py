@@ -225,6 +225,9 @@ class IssueSourceAnalysisExecution(AbstractRecordModel):
     failure_request_id = models.CharField(
         max_length=64, null=True, blank=True, default=None, verbose_name="失败请求 ID"
     )
+    # 仅保存经过业务侧归一化的上游执行定位信息，不固化某个执行平台的跳转地址。
+    # 示例：{"provider": "bkci", "identifiers": {"project_id": "...", "pipeline_id": "...", "build_id": "..."}}
+    execution_reference = JsonField(null=True, blank=True, default=None, verbose_name="上游执行定位信息")
 
     result_type = models.CharField(
         max_length=32,
@@ -292,6 +295,7 @@ class IssueSourceAnalysisExecution(AbstractRecordModel):
         failure_message: str,
         failure_retryable: bool,
         failure_request_id: str | None = None,
+        execution_reference: dict | None = None,
     ) -> None:
         """推进到失败终态。具体失败位置记在 failure_stage，不扩充主状态。"""
 
@@ -303,6 +307,7 @@ class IssueSourceAnalysisExecution(AbstractRecordModel):
             failure_message=failure_message,
             failure_retryable=failure_retryable,
             failure_request_id=failure_request_id,
+            execution_reference=execution_reference,
             finished_at=timezone.now(),
         )
 

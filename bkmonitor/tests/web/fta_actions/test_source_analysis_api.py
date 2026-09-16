@@ -13,7 +13,7 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 from django.conf import settings
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.urls import resolve
 
 from bkmonitor.iam import ActionEnum
@@ -218,6 +218,66 @@ class TestSourceAnalysisFrontendResources(TestCase):
 
         self.assertEqual(result["failure"]["message"], "upstream dynamic message")
         translate.assert_not_called()
+
+    @override_settings(BK_CI_URL="https://devops.example.com/")
+    def test_failure_serializes_generic_execution_reference_with_provider_url(self):
+        execution = self.create_execution(
+            status=SourceAnalysisStatus.FAILED,
+            stage=None,
+            failure_code="DEVOPS_BUILD_FAILED",
+            failure_message="pipeline failed",
+            failure_retryable=False,
+            execution_reference={
+                "provider": "bkci",
+                "identifiers": {
+                    "project_id": "project with space",
+                    "pipeline_id": "pipeline-a",
+                    "build_id": "build-a",
+                },
+            },
+        )
+
+        result = SourceAnalysisExecutionBaseResource.serialize_execution(execution)
+
+        self.assertEqual(
+            result["failure"]["execution_reference"],
+            {
+                "provider": "bkci",
+                "identifiers": {
+                    "project_id": "project with space",
+                    "pipeline_id": "pipeline-a",
+                    "build_id": "build-a",
+                },
+                "url": (
+                    "https://devops.example.com/console/pipeline/project%20with%20space/"
+                    "pipeline-a/detail/build-a/executeDetail"
+                ),
+            },
+        )
+
+    def test_failure_keeps_unknown_provider_reference_without_assuming_url(self):
+        execution = self.create_execution(
+            status=SourceAnalysisStatus.FAILED,
+            stage=None,
+            failure_code="UPSTREAM_FAILED",
+            failure_message="upstream failed",
+            failure_retryable=False,
+            execution_reference={
+                "provider": "future-provider",
+                "identifiers": {"task_id": "task-a"},
+            },
+        )
+
+        result = SourceAnalysisExecutionBaseResource.serialize_execution(execution)
+
+        self.assertEqual(
+            result["failure"]["execution_reference"],
+            {
+                "provider": "future-provider",
+                "identifiers": {"task_id": "task-a"},
+                "url": None,
+            },
+        )
 
     def test_success_returns_current_matched_rule_for_reanalysis(self):
         self.create_execution(

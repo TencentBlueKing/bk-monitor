@@ -85,10 +85,22 @@ export type SourceAnalysisConflictReason =
   | 'source_analysis_target_not_failed'
   | 'source_analysis_target_not_success';
 
+/** 源码分析所关联的上游执行实例 */
+export interface SourceAnalysisExecutionReference {
+  /** 平台内执行实例的稳定标识 */
+  identifiers: Record<string, string>;
+  /** 执行平台类型 */
+  provider: string;
+  /** 当前环境下可访问的执行详情地址 */
+  url: null | string;
+}
+
 /** 源码分析失败信息 */
 export interface SourceAnalysisFailure {
   /** 错误代码（用于排障与统计，前端不解析） */
   code: string;
+  /** 上游执行定位信息；仅在可定位到执行实例时返回 */
+  execution_reference: null | SourceAnalysisExecutionReference;
   /** 用户可见错误说明 */
   message: string;
   /** 请求 ID */

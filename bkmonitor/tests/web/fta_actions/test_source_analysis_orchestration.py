@@ -16,7 +16,7 @@ from unittest.mock import MagicMock, call, patch
 from bkoauth.client import oauth_client
 from bkoauth.exceptions import TokenException, TokenNotExist
 from django.db import DatabaseError
-from django.test import SimpleTestCase, TestCase
+from django.test import SimpleTestCase, TestCase, override_settings
 from django.utils import timezone
 from requests import Request
 
@@ -61,6 +61,77 @@ class TestSourceAnalysisContract(SimpleTestCase):
     def test_bkfara_runtime_placeholders_match_protocol(self):
         self.assertEqual(SOURCE_ANALYSIS_BKFARA_TASK_ID_PLACEHOLDER, "__BKFARA_TASK_ID__")
         self.assertEqual(SOURCE_ANALYSIS_BKAI_AIDEV_API_KEY_PLACEHOLDER, "__BKAICLI_ACCESS_TOKEN__")
+
+    def test_failed_task_trace_is_normalized_before_persistence(self):
+        execution = SimpleNamespace(analysis_id="analysis-1", mark_failed=MagicMock())
+        task_state = {
+            "status": "failed",
+            "terminal": True,
+            "error": {
+                "code": "DEVOPS_BUILD_FAILED",
+                "message": "pipeline failed",
+                "retryable": False,
+                "details": {},
+            },
+            "trace": {
+                "incident_task_id": 142,
+                "flow_task_id": "250",
+                "devops_project_id": "project-a",
+                "pipeline_id": "pipeline-a",
+                "build_id": "build-a",
+                "console_url": None,
+            },
+        }
+
+        SourceAnalysisExecutionBaseResource._apply_bkfara_task_state(execution, task_state)
+
+        execution.mark_failed.assert_called_once_with(
+            failure_stage=SourceAnalysisFailureStage.TASK_EXECUTE,
+            failure_code="DEVOPS_BUILD_FAILED",
+            failure_message="pipeline failed",
+            failure_retryable=False,
+            failure_request_id=None,
+            execution_reference={
+                "provider": "bkci",
+                "identifiers": {
+                    "project_id": "project-a",
+                    "pipeline_id": "pipeline-a",
+                    "build_id": "build-a",
+                },
+            },
+        )
+
+    def test_incomplete_task_trace_does_not_create_execution_reference(self):
+        task_state = {
+            "trace": {
+                "devops_project_id": "project-a",
+                "pipeline_id": "pipeline-a",
+                "build_id": None,
+            }
+        }
+
+        self.assertIsNone(SourceAnalysisExecutionBaseResource.normalize_execution_reference(task_state))
+
+    @override_settings(BK_CI_URL="https://devops.example.com/")
+    def test_bkci_execution_reference_uses_canonical_detail_url(self):
+        result = SourceAnalysisExecutionBaseResource.serialize_execution_reference(
+            {
+                "provider": "bkci",
+                "identifiers": {
+                    "project_id": "project with space",
+                    "pipeline_id": "pipeline-a",
+                    "build_id": "build-a",
+                },
+            }
+        )
+
+        self.assertEqual(
+            result["url"],
+            (
+                "https://devops.example.com/console/pipeline/project%20with%20space/"
+                "pipeline-a/detail/build-a/executeDetail"
+            ),
+        )
 
     def test_request_serializers_define_four_interface_contract(self):
         ensure_request = EnsureSourceAnalysisSceneResource.RequestSerializer(
@@ -697,6 +768,14 @@ class TestSourceAnalysisOrchestration(TestCase):
                 "retryable": True,
                 "details": {"stage": "ai_analysis"},
             },
+            "trace": {
+                "incident_task_id": 142,
+                "flow_task_id": "250",
+                "devops_project_id": "project-a",
+                "pipeline_id": "pipeline-a",
+                "build_id": "build-a",
+                "console_url": None,
+            },
         }
 
         poll_interval = SourceAnalysisExecutionBaseResource.advance_bkfara_task(execution.analysis_id)
@@ -707,6 +786,43 @@ class TestSourceAnalysisOrchestration(TestCase):
         self.assertEqual(execution.failure_stage, SourceAnalysisFailureStage.AI_ANALYSIS)
         self.assertEqual(execution.failure_code, "ANALYSIS_FAILED")
         self.assertTrue(execution.failure_retryable)
+        self.assertEqual(
+            execution.execution_reference,
+            {
+                "provider": "bkci",
+                "identifiers": {
+                    "project_id": "project-a",
+                    "pipeline_id": "pipeline-a",
+                    "build_id": "build-a",
+                },
+            },
+        )
+
+    @patch("fta_web.issue.resources.api.bk_incident.get_source_analysis_task")
+    def test_remote_failure_does_not_persist_incomplete_execution_reference(self, get_task):
+        execution = self.create_execution(bkfara_task_id="task-1", status=SourceAnalysisStatus.RUNNING)
+        get_task.return_value = {
+            "status": "failed",
+            "terminal": True,
+            "result": None,
+            "error": {
+                "code": "ANALYSIS_FAILED",
+                "message": "analysis failed",
+                "retryable": False,
+                "details": {},
+            },
+            "trace": {
+                "devops_project_id": "project-a",
+                "pipeline_id": "pipeline-a",
+                "build_id": None,
+            },
+        }
+
+        SourceAnalysisExecutionBaseResource.advance_bkfara_task(execution.analysis_id)
+
+        execution.refresh_from_db()
+        self.assertEqual(execution.status, SourceAnalysisStatus.FAILED)
+        self.assertIsNone(execution.execution_reference)
 
     @patch("fta_web.issue.resources.api.bk_incident.get_source_analysis_task")
     def test_remote_success_persists_inline_result(self, get_task):
