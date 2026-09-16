@@ -28,9 +28,10 @@ from apps.log_search.models import LogIndexSet, LogIndexSetData, Scenario
 
 
 class TestGrafanaMetricListPlatformIndex(TestCase):
-    """Grafana 索引集下拉（get_metric_list）对平台级索引集的可见范围适配。"""
+    """Grafana 平台级索引集：下拉可见范围 + query/query_log/dimension 跨空间隔离。"""
 
     OWNER_SPACE = "bkcc__2"
+    OWNER_BK_BIZ_ID = 2
     TARGET_BK_BIZ_ID = 7
     TARGET_SPACE = "bkcc__7"
     OTHER_BK_BIZ_ID = 8
@@ -145,3 +146,85 @@ class TestGrafanaMetricListPlatformIndex(TestCase):
 
         matched = self._metric_ids(handler.get_metric_list(category_id="hosts"))
         self.assertIn(platform.index_set_id, matched)
+
+    def _query_dict(self, index_set_id):
+        return {
+            "dashboard_id": "dash",
+            "panel_id": 1,
+            "result_table_id": index_set_id,
+            "start_time": 1,
+            "end_time": 2,
+            "method": "value_count",
+            "interval": 60,
+            "metric_field": "_index",
+            "group_by": [],
+            "where": [],
+            "query_string": "",
+        }
+
+    def _fail_closed_patches(self):
+        return (
+            patch.object(GrafanaQueryHandler, "check_panel_permission", return_value=True),
+            patch("apps.log_search.views.search_views.FeatureToggleObject.switch", return_value=False),
+            patch("apps.grafana.handlers.query.SearchHandler"),
+            patch("apps.grafana.handlers.query.AggsViewAdapter"),
+            patch("apps.grafana.handlers.query.UnifyQueryHandler"),
+            patch("apps.grafana.handlers.query.UnifyQueryAggHandler"),
+        )
+
+    def test_query_cross_space_fail_closed_when_unify_query_off(self):
+        from rest_framework import serializers as drf_serializers
+
+        platform = self._create_platform_index_set()
+        handler = GrafanaQueryHandler(self.TARGET_BK_BIZ_ID)
+        perm, toggle, search, aggs, uq, uq_agg = self._fail_closed_patches()
+        with perm, toggle, search as mock_search, aggs, uq, uq_agg:
+            with self.assertRaises(drf_serializers.ValidationError):
+                handler.query(self._query_dict(platform.index_set_id))
+            mock_search.assert_not_called()
+
+    def test_query_log_cross_space_fail_closed_when_unify_query_off(self):
+        from rest_framework import serializers as drf_serializers
+
+        platform = self._create_platform_index_set()
+        handler = GrafanaQueryHandler(self.TARGET_BK_BIZ_ID)
+        perm, toggle, search, aggs, uq, uq_agg = self._fail_closed_patches()
+        with perm, toggle, search as mock_search, aggs, uq as mock_uq, uq_agg:
+            with self.assertRaises(drf_serializers.ValidationError):
+                handler.query_log(self._query_dict(platform.index_set_id))
+            mock_search.assert_not_called()
+            mock_uq.assert_not_called()
+
+    def test_unify_query_cross_space_fail_closed_when_unify_query_off(self):
+        from rest_framework import serializers as drf_serializers
+
+        platform = self._create_platform_index_set()
+        handler = GrafanaQueryHandler(self.TARGET_BK_BIZ_ID)
+        perm, toggle, search, aggs, uq, uq_agg = self._fail_closed_patches()
+        with perm, toggle, search, aggs, uq, uq_agg as mock_uq_agg:
+            with self.assertRaises(drf_serializers.ValidationError):
+                handler.unify_query(self._query_dict(platform.index_set_id))
+            mock_uq_agg.assert_not_called()
+
+    def test_dimension_cross_space_fail_closed_when_unify_query_off(self):
+        from rest_framework import serializers as drf_serializers
+
+        platform = self._create_platform_index_set()
+        handler = GrafanaQueryHandler(self.TARGET_BK_BIZ_ID)
+        perm, toggle, search, aggs, uq, uq_agg = self._fail_closed_patches()
+        with perm, toggle, search, aggs as mock_aggs, uq, uq_agg:
+            with self.assertRaises(drf_serializers.ValidationError):
+                handler.get_dimension_values(platform.index_set_id, "level", 1, 2)
+            mock_aggs.assert_not_called()
+
+    def test_query_owner_space_still_allows_esquery_when_unify_query_off(self):
+        platform = self._create_platform_index_set()
+        handler = GrafanaQueryHandler(self.OWNER_BK_BIZ_ID)
+        mock_search = MagicMock()
+        mock_search.time_field = "dtEventTimeStamp"
+        mock_search.search.return_value = {"aggregations": {}}
+        perm, toggle, search, aggs, uq, uq_agg = self._fail_closed_patches()
+        search = patch("apps.grafana.handlers.query.SearchHandler", return_value=mock_search)
+        with perm, toggle, search, aggs, uq, uq_agg:
+            self.assertEqual(handler.query(self._query_dict(platform.index_set_id)), [])
+            mock_search.search.assert_called_once()
