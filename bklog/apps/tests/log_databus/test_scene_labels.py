@@ -420,6 +420,45 @@ class TestRefreshSceneLabelsHandler(TestCase):
         self.assertEqual(result["invalid_storage_cluster_result_table_ids"], [collector.table_id])
         self.assertEqual(self._get_scene_tags(index_set), {("scene", "host")})
 
+    def test_refresh_skips_result_table_without_default_storage_config(self):
+        """缺少默认存储类型配置时同样跳过该 RT，由人工处理，不阻断其它结果表。"""
+        index_set = self._create_index_set("no_storage_config", {"scene": "host"})
+        collector = self._create_collector(
+            "no_storage_config", collector_scenario_id="client", index_set_id=index_set.index_set_id
+        )
+        missing_storage_error = ApiResultError(
+            "结果表[2_bklog.no_storage_config]不存在默认存储类型[elasticsearch]的配置", code=500
+        )
+
+        with patch(
+            "apps.log_databus.handlers.scene.TransferApi.switch_result_table",
+            side_effect=missing_storage_error,
+        ):
+            result = refresh_scene_labels(sleep=0)
+
+        self.assertEqual(result["failed"], 0)
+        self.assertEqual(result["skipped"], 1)
+        self.assertEqual(result["invalid_storage_cluster_result_table_ids"], [collector.table_id])
+        self.assertEqual(self._get_scene_tags(index_set), {("scene", "host")})
+
+    def test_refresh_does_not_skip_partially_matching_storage_error(self):
+        """仅命中部分存储配置标识的异常仍计为失败，避免扩大跳过范围。"""
+        index_set = self._create_index_set("partial_storage_marker", {"scene": "host"})
+        collector = self._create_collector(
+            "partial_storage_marker", collector_scenario_id="client", index_set_id=index_set.index_set_id
+        )
+
+        with patch(
+            "apps.log_databus.handlers.scene.TransferApi.switch_result_table",
+            side_effect=ApiResultError("默认存储集群[5]切换存储失败，请稍后重试", code=500),
+        ):
+            result = refresh_scene_labels(sleep=0)
+
+        self.assertEqual(result["failed"], 1)
+        self.assertEqual(result["failed_result_table_ids"], [collector.table_id])
+        self.assertEqual(result["skipped"], 0)
+        self.assertEqual(result["invalid_storage_cluster_result_table_ids"], [])
+
     def test_refresh_does_not_skip_other_metadata_errors(self):
         """其它 Metadata 业务异常仍计为失败，避免扩大跳过范围。"""
         index_set = self._create_index_set("other_metadata_error", {"scene": "host"})

@@ -25,7 +25,11 @@ from apps.utils.log import logger
 SCENE_SEARCH_RELEASED_KEY = "scene_search_released"
 COMPARE_MODE_LOCAL = "local"
 COMPARE_MODE_REMOTE = "remote"
-INVALID_DEFAULT_STORAGE_CLUSTER_MARKERS = ("默认存储集群[", "不存在、租户不匹配或类型不是[")
+# Metadata 存储配置类异常：默认存储集群无效、结果表缺少默认存储类型配置。
+INVALID_STORAGE_CONFIG_MARKERS = (
+    ("默认存储集群[", "不存在、租户不匹配或类型不是["),
+    ("不存在默认存储类型[",),
+)
 
 
 def get_container_streams(collector_config_ids: list[int]) -> dict[int, str]:
@@ -90,8 +94,8 @@ def refresh_scene_labels(
     返回统计：{total, success, failed, skipped, failed_result_table_ids, missing_result_table_ids,
     invalid_storage_cluster_result_table_ids}。
     - failed 为本次写入失败的 RT；首次转正前会在下一轮按远端标签继续重试；
-    - skipped 为标签已一致、结果表不存在或默认存储集群无效而跳过的数量；相关异常由人工处理，
-      不阻断首次转正。
+    - skipped 为标签已一致、结果表不存在或存储配置无效（默认存储集群无效、缺少默认存储类型配置）
+      而跳过的数量；相关异常由人工处理，不阻断首次转正。
     """
     if compare_mode not in {COMPARE_MODE_LOCAL, COMPARE_MODE_REMOTE}:
         raise ValueError(f"unsupported scene label compare mode: {compare_mode}")
@@ -176,12 +180,11 @@ def refresh_scene_labels(
                         e,
                     )
                     continue
-                if all(marker in error_text for marker in INVALID_DEFAULT_STORAGE_CLUSTER_MARKERS):
+                if any(all(marker in error_text for marker in markers) for markers in INVALID_STORAGE_CONFIG_MARKERS):
                     skipped += 1
                     invalid_storage_cluster_result_table_ids.append(cfg.table_id)
                     logger.warning(
-                        "[refresh_scene_labels] invalid default storage cluster, skip and wait for manual handling: "
-                        "%s; %s",
+                        "[refresh_scene_labels] invalid storage config, skip and wait for manual handling: %s; %s",
                         cfg.table_id,
                         e,
                     )
