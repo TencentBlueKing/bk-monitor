@@ -60,7 +60,7 @@ def test_registry_loads_all_repository_mcp_tools():
     root = Path(__file__).resolve().parents[2] / "support-files" / "apigw" / "resources" / "internal" / "user"
     registry = load_tool_registry(root)
 
-    assert len(registry) == 92
+    assert len(registry) == 89
     expected_category_counts = {
         "metrics": 4,
         "log": 9,
@@ -73,7 +73,6 @@ def test_registry_loads_all_repository_mcp_tools():
         "log_collection": 17,
         "log_extract": 7,
         "metadata": 2,
-        "operation": 3,
     }
     assert {category: len(registry.list(category=category)) for category in unified_registry.CATEGORIES} == (
         expected_category_counts
@@ -124,7 +123,11 @@ def test_private_mcp_sources_are_excluded_from_tool_search():
     root = Path(__file__).resolve().parents[2] / "support-files" / "apigw" / "resources" / "internal" / "user"
     registry = load_tool_registry(root)
 
-    assert unified_registry.IGNORED_SOURCE_FILES == {"openclaw_recovering_mcp.yaml", "ops_mcp.yaml"}
+    assert unified_registry.IGNORED_SOURCE_FILES == {
+        "openclaw_recovering_mcp.yaml",
+        "operation_mcp.yaml",
+        "ops_mcp.yaml",
+    }
     for tool_name in (
         "search_openclaw_spans",
         "get_openclaw_trace_detail",
@@ -133,6 +136,9 @@ def test_private_mcp_sources_are_excluded_from_tool_search():
         "query_data_link_info",
         "diagnose_metadata_datalink",
         "get_data_link_metadata",
+        "list_operation_metrics",
+        "get_operation_metric",
+        "get_operation_overview",
     ):
         with pytest.raises(KeyError):
             registry.get(tool_name)

@@ -263,15 +263,17 @@ class LookupMetadataResource(Resource):
         metadata_type = validated_request_data["metadata_type"]
         if metadata_type == "bcs_clusters":
             bk_biz_id = validated_request_data["bk_biz_id"]
-            get_permission_client().is_allowed_by_biz(
-                bk_biz_id,
-                "using_metadata_mcp",
-                raise_exception=True,
-            )
-            return {
-                "metadata_type": metadata_type,
-                "bcs_clusters": ListBCSClusterInfoByBizResource().request(bk_biz_id=bk_biz_id),
-            }
+            tool = get_tool_registry().get("list_bcs_clusters")
+            if tool.native_permission:
+                clusters = execute_native_tool(tool, {"bk_biz_id": str(bk_biz_id)}, get_request())
+            else:
+                get_permission_client().is_allowed_by_biz(
+                    bk_biz_id,
+                    "using_metadata_mcp",
+                    raise_exception=True,
+                )
+                clusters = ListBCSClusterInfoByBizResource().request(bk_biz_id=bk_biz_id)
+            return {"metadata_type": metadata_type, "bcs_clusters": clusters}
 
         result = ListSpacesResource().request(
             space_name=validated_request_data["space_name"],
@@ -315,10 +317,18 @@ class LookupPermissionsResource(Resource):
             context = attrs["resource_context"]
             if context and not attrs.get("tool_name"):
                 raise serializers.ValidationError("resource_context requires an exact tool_name")
-            if (
-                set(context) - {"index_set_id", "target_type", "id", "alert_id"}
-                or context.get("target_type", "index_set") != "index_set"
-            ):
+            supported = {
+                "index_set_id",
+                "target_type",
+                "id",
+                "alert_id",
+                "table_id",
+                "table",
+                "app_name",
+                "service_name",
+                "dashboard_uid",
+            }
+            if set(context) - supported or context.get("target_type", "index_set") not in {"index_set", "scene"}:
                 raise serializers.ValidationError("Unsupported permission resource_context")
             return attrs
 
@@ -368,13 +378,7 @@ class LookupPermissionsResource(Resource):
                         )
                     }
                 )
-            allowed_keys = (
-                {"index_set_id", "target_type"}
-                if spec and spec["resource_type"] == "indices"
-                else {spec["target_arg"]}
-                if spec and spec.get("target_arg")
-                else set()
-            )
+            allowed_keys = tool.native_resource_context_keys(context) if tool else set()
             if set(context) - allowed_keys:
                 raise ValidationError("resource_context does not match the selected tool")
         # Step 3: 原生、附加 Action 和权限豁免混合出现时，按工具逐项返回状态。
