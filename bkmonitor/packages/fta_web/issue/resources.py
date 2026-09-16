@@ -1060,19 +1060,6 @@ class SourceAnalysisExecutionBaseResource(Resource):
         rule, _unavailable_reason = cls.get_rule_availability(bk_biz_id, alert)
         return rule
 
-    @staticmethod
-    def get_scene_provision_id(bk_biz_id: int, bkci_project_id: str) -> str | None:
-        """仅复用与执行快照项目一致的场景初始化记录。"""
-
-        return (
-            IssueSourceAnalysisConfig.objects.filter(
-                bk_biz_id=bk_biz_id,
-                bkci_project_id=bkci_project_id,
-            )
-            .values_list("bkfara_provision_id", flat=True)
-            .first()
-        )
-
     @classmethod
     def create_initial_execution(
         cls, bk_biz_id: int, issue_id: str, operator: str
@@ -1112,7 +1099,9 @@ class SourceAnalysisExecutionBaseResource(Resource):
                     agent_id=rule.agent_id,
                     skill_ids=list(rule.skill_ids),
                     knowledge_base_ids=list(rule.knowledge_base_ids),
-                    bkfara_provision_id=cls.get_scene_provision_id(bk_biz_id, rule.bkci_project_id),
+                    # 每次执行都重新 ensure 场景，避免直接复用已被删除或失效的流水线绑定。
+                    # ensure 返回的 provision_id 会在第一次推进状态机时写入本执行记录。
+                    bkfara_provision_id=None,
                     create_user=operator,
                     update_user=operator,
                 )
@@ -1187,7 +1176,8 @@ class SourceAnalysisExecutionBaseResource(Resource):
                     agent_id=target.agent_id,
                     skill_ids=list(target.skill_ids),
                     knowledge_base_ids=list(target.knowledge_base_ids),
-                    bkfara_provision_id=target.bkfara_provision_id,
+                    # 重试复用分析输入，但不复用旧场景绑定；执行前重新 ensure。
+                    bkfara_provision_id=None,
                     create_user=operator,
                     update_user=operator,
                 )
@@ -1248,7 +1238,8 @@ class SourceAnalysisExecutionBaseResource(Resource):
                     agent_id=rule.agent_id,
                     skill_ids=list(rule.skill_ids),
                     knowledge_base_ids=list(rule.knowledge_base_ids),
-                    bkfara_provision_id=cls.get_scene_provision_id(bk_biz_id, rule.bkci_project_id),
+                    # 重新分析同样先 ensure 场景，不继承业务配置中的历史 provision_id。
+                    bkfara_provision_id=None,
                     create_user=operator,
                     update_user=operator,
                 )

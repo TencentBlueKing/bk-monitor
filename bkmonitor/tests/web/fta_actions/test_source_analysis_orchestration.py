@@ -625,6 +625,42 @@ class TestSourceAnalysisOrchestration(TestCase):
             **SourceAnalysisExecutionBaseResource.build_ensure_scene_params(execution),
         )
 
+    @patch("fta_web.issue.resources.api.bk_incident.trigger_source_analysis")
+    @patch("fta_web.issue.resources.api.bk_incident.get_source_analysis_scene_status")
+    @patch("fta_web.issue.resources.api.bk_incident.ensure_source_analysis_scene")
+    def test_scene_is_ensured_once_before_trigger(self, ensure_scene, get_scene, trigger):
+        execution = self.create_execution(bkfara_provision_id=None)
+        ensure_scene.return_value = {
+            "provision_id": "provision-2",
+            "status": "provisioning",
+            "terminal": False,
+            "next_poll_after_seconds": 2,
+        }
+        get_scene.return_value = {
+            "provision_id": "provision-2",
+            "status": "ready",
+            "terminal": True,
+        }
+        trigger.return_value = {
+            "analysis_task_id": "task-2",
+            "status": "running",
+            "terminal": False,
+            "phase": "devops_running",
+            "next_poll_after_seconds": 4,
+        }
+
+        first_poll_interval = SourceAnalysisExecutionBaseResource.advance_bkfara_task(execution.analysis_id)
+        second_poll_interval = SourceAnalysisExecutionBaseResource.advance_bkfara_task(execution.analysis_id)
+
+        self.assertEqual(first_poll_interval, 2)
+        self.assertEqual(second_poll_interval, 4)
+        ensure_scene.assert_called_once()
+        get_scene.assert_called_once_with(provision_id="provision-2", bk_tenant_id="system")
+        trigger.assert_called_once()
+        execution.refresh_from_db()
+        self.assertEqual(execution.bkfara_provision_id, "provision-2")
+        self.assertEqual(execution.bkfara_task_id, "task-2")
+
     @patch("fta_web.issue.resources.api.bk_incident.get_source_analysis_scene_status")
     def test_terminal_scene_failure_maps_failure_metadata(self, get_scene):
         execution = self.create_execution()

@@ -559,6 +559,7 @@ class TestSourceAnalysisFrontendResources(TestCase):
             failure_code="AI_FAILED",
             failure_message="分析失败",
             failure_retryable=True,
+            bkfara_provision_id="failed-provision",
             bkfara_task_id="failed-task",
         )
 
@@ -576,6 +577,7 @@ class TestSourceAnalysisFrontendResources(TestCase):
         self.assertEqual(retry.attempt, 2)
         self.assertEqual(retry.alert_id, failed.alert_id)
         self.assertNotEqual(retry.analysis_id, failed.analysis_id)
+        self.assertIsNone(retry.bkfara_provision_id)
         self.assertIsNone(retry.bkfara_task_id)
         self.assertEqual(result["latest"]["analysis_id"], retry.analysis_id)
         dispatch.assert_called_once_with(retry)
@@ -639,6 +641,12 @@ class TestSourceAnalysisFrontendResources(TestCase):
     @patch.object(SourceAnalysisExecutionBaseResource, "get_matched_rule")
     @patch.object(SourceAnalysisExecutionBaseResource, "get_latest_alert")
     def test_reanalyze_uses_current_alert_and_rule(self, get_latest_alert, get_matched_rule, dispatch):
+        IssueSourceAnalysisConfig.objects.create(
+            bk_biz_id=self.BK_BIZ_ID,
+            bkci_project_id="project-a",
+            repository_alias="repo-a",
+            bkfara_provision_id="existing-provision",
+        )
         self.create_execution(
             status=SourceAnalysisStatus.SUCCESS,
             stage=None,
@@ -658,6 +666,7 @@ class TestSourceAnalysisFrontendResources(TestCase):
         self.assertEqual(execution.trigger_type, SourceAnalysisTriggerType.REANALYZE)
         self.assertEqual(execution.alert_id, "latest-alert")
         self.assertEqual(execution.rule_id, rule.id)
+        self.assertIsNone(execution.bkfara_provision_id)
         self.assertEqual(result["latest"]["analysis_id"], execution.analysis_id)
         dispatch.assert_called_once_with(execution)
 

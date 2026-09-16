@@ -14,7 +14,7 @@ from unittest.mock import ANY, Mock, patch
 from django.db import IntegrityError
 from django.test import TestCase
 
-from bkmonitor.models import IssueSourceAnalysisExecution, IssueSourceAnalysisRule
+from bkmonitor.models import IssueSourceAnalysisConfig, IssueSourceAnalysisExecution, IssueSourceAnalysisRule
 from bkmonitor.models.issue import IssueMergeRelation
 from constants.issue import SourceAnalysisStage, SourceAnalysisStatus, SourceAnalysisTriggerType
 from core.errors.issue import SourceAnalysisUpstreamUnavailableError
@@ -163,6 +163,12 @@ class TestSourceAnalysisInitialTrigger(TestCase):
     @patch.object(SourceAnalysisExecutionBaseResource, "get_alert_match_dimensions")
     @patch.object(SourceAnalysisExecutionBaseResource, "get_latest_alert")
     def test_first_matching_rule_creates_execution_snapshot(self, get_latest_alert, get_alert_match_dimensions):
+        IssueSourceAnalysisConfig.objects.create(
+            bk_biz_id=self.BK_BIZ_ID,
+            bkci_project_id="project-a",
+            repository_alias="repo-a",
+            bkfara_provision_id="existing-provision",
+        )
         self.create_rule(
             priority=100,
             conditions=[
@@ -202,6 +208,7 @@ class TestSourceAnalysisInitialTrigger(TestCase):
         self.assertEqual(execution.stage, SourceAnalysisStage.WAITING)
         self.assertEqual(execution.trigger_type, SourceAnalysisTriggerType.INITIAL)
         self.assertEqual(execution.attempt, 1)
+        self.assertIsNone(execution.bkfara_provision_id)
         self.assertEqual(execution.create_user, "admin")
         self.assertEqual(execution.update_user, "admin")
 
