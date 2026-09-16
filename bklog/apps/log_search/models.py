@@ -89,6 +89,7 @@ from apps.log_search.exceptions import (
     ConcurrentExportLimitException,
     CouldNotFindTemplateException,
     DefaultConfigNotAllowedDelete,
+    GetAllFieldsException,
     IndexSetNameDuplicateException,
     ScenarioNotSupportedException,
     SourceDuplicateException,
@@ -829,7 +830,7 @@ class LogIndexSet(SoftDeleteModel):
 
         end_time = arrow.now()
         start_time = end_time.shift(days=-1)
-        return UnifyQueryHandler(
+        result = UnifyQueryHandler(
             {
                 "index_set_ids": [self.index_set_id],
                 "bk_biz_id": space_uid_to_bk_biz_id(self.space_uid),
@@ -837,6 +838,16 @@ class LogIndexSet(SoftDeleteModel):
                 "end_time": end_time.int_timestamp * 1000,
             }
         ).fields()
+        # UQ field_map 单路由失败时仍可能 200 且 data=[]。空字段字典为真值，
+        # 若当成功快照落库，get_fields(use_snapshot=True) 不会再回源。
+        if not result or not result.get("fields"):
+            raise GetAllFieldsException(
+                GetAllFieldsException.MESSAGE.format(
+                    index_set_id=self.index_set_id,
+                    e="unify-query returned empty fields",
+                )
+            )
+        return result
 
     def sync_fields_snapshot(self, pre_check_enable=True):
         from apps.log_search.handlers.search.search_handlers_esquery import (

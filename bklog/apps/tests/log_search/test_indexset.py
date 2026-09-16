@@ -3928,3 +3928,48 @@ class TestSyncFieldsSnapshot(TestCase):
 
         index_set.refresh_from_db()
         self.assertEqual(index_set.fields_snapshot["fields"], [{"field_name": "old"}])
+
+    def test_unify_query_empty_fields_keeps_old_snapshot(self):
+        """UQ 成功但 fields=[] 不能当有效快照，否则后续 get_fields 不再回源。"""
+        from apps.log_search.exceptions import GetAllFieldsException
+
+        index_set = self._build_index_set(DORIS_CLUSTER_TYPE)
+        index_set.fields_snapshot = {"fields": [{"field_name": "old"}]}
+        index_set.save(update_fields=["fields_snapshot"])
+
+        with patch(self.UNIFY_QUERY_PATH) as mock_unify_query:
+            mock_unify_query.return_value.fields.return_value = {
+                "fields": [],
+                "time_field": "dtEventTimeStamp",
+                "config": [],
+            }
+            with self.assertRaises(GetAllFieldsException):
+                index_set.sync_fields_snapshot()
+
+        index_set.refresh_from_db()
+        self.assertEqual(index_set.fields_snapshot["fields"], [{"field_name": "old"}])
+
+    @patch("apps.log_unifyquery.handler.mapping.UnifyQueryApi.query_field_map")
+    def test_empty_query_field_map_not_saved_as_snapshot(self, mock_query_field_map):
+        """真实 UnifyQueryHandler：首次同步遇到 UQ 200 且 data=[] 时，不把空字段落成有效快照。"""
+        from apps.log_search.exceptions import GetAllFieldsException
+
+        mock_query_field_map.return_value = {"data": []}
+        index_set = self._build_index_set(DORIS_CLUSTER_TYPE)
+        LogIndexSetData.objects.create(
+            index_set_id=index_set.index_set_id,
+            result_table_id="591_snapshot",
+            scenario_id=Scenario.LOG,
+            bk_biz_id=2,
+            apply_status=LogIndexSetData.Status.NORMAL,
+        )
+
+        with self.assertRaises(GetAllFieldsException):
+            index_set.sync_fields_snapshot()
+
+        mock_query_field_map.assert_called()
+        index_set.refresh_from_db()
+        self.assertFalse(index_set.fields_snapshot)
+        # 快照仍为空，后续 get_fields 会继续回源而不是锁死在空字段上
+        with self.assertRaises(GetAllFieldsException):
+            index_set.get_fields(use_snapshot=True)
