@@ -5,12 +5,12 @@ from opentelemetry.semconv.resource import ResourceAttributes
 from opentelemetry.trace import StatusCode
 from rest_framework import serializers
 
-from constants.apm import OtlpKey
+from constants.apm import LLMProduct, OtlpKey
 from constants.otel_query import OperatorEnum
 from core.drf_resource import Resource, api
 
 from apm_web.handlers.metric_group import GroupEnum, MetricGroupRegistry
-from apm_web.handlers.trace_handler.query import QueryHandler, SpanQueryTransformer
+from apm_web.handlers.trace_handler.query import QueryHandler, QueryStringBuilder, SpanQueryTransformer
 from apm_web.llm.adapter import adapt_spans
 from apm_web.llm.adapter.fields import resolve_product, resolve_query_field
 from apm_web.llm.constants import CalculationType
@@ -42,10 +42,15 @@ class ListTracesResource(Resource):
                 raise serializers.ValidationError("start_time 不能大于 end_time")
             return attrs
 
-    @classmethod
-    def _resolve_group_field(cls, entity_set: EntitySet, service_name: str, group_field: str) -> str:
-        """分组字段命中映射表时按服务产品换算为存储中的原始字段，未命中时透传。"""
-        return resolve_query_field(resolve_product(entity_set, service_name), group_field)
+    @staticmethod
+    def _build_keyword_query(product: str, bk_biz_id: int, app_name: str, keyword: str) -> str:
+        """构造关键词查询，避免 hex32 会话 ID 被误判为仅查询 Trace ID。"""
+        if ":" not in keyword and (hex32 := QueryStringBuilder.extract_trace_id(keyword)):
+            conversation_field = resolve_query_field(product, "attributes.gen_ai.conversation.id")
+            fields = dict.fromkeys((OtlpKey.TRACE_ID, conversation_field))
+            return " OR ".join(f'{field}: "{hex32}"' for field in fields)
+
+        return QueryHandler.process_query_string(SpanQueryTransformer(bk_biz_id, app_name), keyword)
 
     @staticmethod
     def _span_field_value(span: dict[str, Any], field: str) -> Any:
@@ -97,7 +102,12 @@ class ListTracesResource(Resource):
         return ""
 
     @classmethod
-    def _trace_item(cls, trace_id: str, raw_spans: list[dict[str, Any]], entity_set: EntitySet) -> dict[str, Any]:
+    def _trace_item(
+        cls,
+        trace_id: str,
+        raw_spans: list[dict[str, Any]],
+        entity_set: EntitySet,
+    ) -> dict[str, Any]:
         # 在 Adapter 过滤前判定，避免漏掉未被保留的失败 Span。
         has_error = any(span["status"]["code"] == StatusCode.ERROR.value for span in raw_spans)
         converted_spans = adapt_spans(raw_spans, entity_set)
@@ -206,26 +216,36 @@ class ListTracesResource(Resource):
     def perform_request(self, validated_request_data):
         group_field = validated_request_data["group_field"]
 
+        bk_biz_id = validated_request_data["bk_biz_id"]
+        app_name = validated_request_data["app_name"]
         service_name = validated_request_data["service_name"]
-        filters = [
-            {
-                "key": OtlpKey.get_resource_key(ResourceAttributes.SERVICE_NAME),
-                "operator": OperatorEnum.EQUAL["operator"],
-                "value": [service_name],
-            }
-        ]
         application = Application.objects.get(
-            bk_biz_id=validated_request_data["bk_biz_id"],
-            app_name=validated_request_data["app_name"],
+            bk_biz_id=bk_biz_id,
+            app_name=app_name,
         )
         entity_set: EntitySet = EntitySet(
-            bk_biz_id=validated_request_data["bk_biz_id"],
-            app_name=validated_request_data["app_name"],
+            bk_biz_id=bk_biz_id,
+            app_name=app_name,
             service_names=[service_name],
         )
-        query_group_field = self._resolve_group_field(entity_set, service_name, group_field)
-        query_string = QueryHandler.process_query_string(
-            SpanQueryTransformer(validated_request_data["bk_biz_id"], validated_request_data["app_name"]),
+        product = resolve_product(entity_set, service_name)
+        is_aidev = product == LLMProduct.AIDEV.value
+        if is_aidev:
+            entity_set = EntitySet(bk_biz_id=bk_biz_id, app_name=app_name)
+            filters = []
+        else:
+            filters = [
+                {
+                    "key": OtlpKey.get_resource_key(ResourceAttributes.SERVICE_NAME),
+                    "operator": OperatorEnum.EQUAL["operator"],
+                    "value": [service_name],
+                }
+            ]
+        query_group_field = resolve_query_field(product, group_field)
+        query_string = self._build_keyword_query(
+            product,
+            bk_biz_id,
+            app_name,
             validated_request_data["keyword"],
         )
         span_query = get_query(application.build_data_sources())

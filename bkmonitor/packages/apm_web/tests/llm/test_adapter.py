@@ -528,6 +528,24 @@ class AdapterTests(TestCase):
         self.assertEqual(spans[1]["attributes"]["gen_ai.usage.input_tokens"], 7)
         self.assertEqual(spans[1]["attributes"]["gen_ai.operation.name"], "embeddings")
 
+    def test_unrecognized_service_does_not_use_a_guessed_product(self) -> None:
+        """拓扑未识别的服务不应由调用方指定产品。"""
+
+        class MultiProductEntitySet:
+            service_names = ["demo"]
+
+            @staticmethod
+            def get_system(service_name: str) -> dict:
+                return ServiceHandler.get_system({"extra_data": {"llm": {"product": "agentlens"}}, "sdk": []})
+
+        span = agentlens_span()
+        span["resource"] = {"service.name": "unrecognized-service"}
+        span["attributes"] = {"llm.request.type": "embedding", "gen_ai.usage.prompt_tokens": 7}
+
+        converted = adapt_spans_with_entity_set([span], MultiProductEntitySet())
+
+        self.assertEqual(converted, [])
+
     def test_galileo_runtime_does_not_make_ordinary_rpc_an_ai_step(self) -> None:
         span = agentlens_span()
         span["span_name"] = "trpc.call"
@@ -1024,7 +1042,7 @@ class AdapterTests(TestCase):
                 attributes = adapt_spans([source], product)[0]["attributes"]
                 self.assertEqual(attributes["gen_ai.system_instructions"], standard)
 
-    def test_bkaidev_llm_spans_are_not_deduplicated(self) -> None:
+    def test_bkaidev_classifies_business_llm_span(self) -> None:
         base = agentlens_span()
         business = {
             **base,
@@ -1062,10 +1080,11 @@ class AdapterTests(TestCase):
             {span["span_id"] for span in spans},
             {"1" * 16, "2" * 16},
         )
+        business_span = next(span for span in spans if span["span_id"] == "1" * 16)
+        self.assertEqual(business_span["attributes"]["gen_ai.operation.name"], "chat")
+        self.assertEqual(business_span["span_type"], "LLM")
 
-    def test_bkaidev_keeps_mappable_spans_without_type_classification(
-        self,
-    ) -> None:
+    def test_bkaidev_classifies_workflow_and_tool_spans(self) -> None:
         base = agentlens_span()
         workflow = {
             **base,
@@ -1105,16 +1124,21 @@ class AdapterTests(TestCase):
             {span["span_id"] for span in spans},
             {"1" * 16, "3" * 16, "4" * 16},
         )
-        for span in spans:
-            self.assertNotIn("gen_ai.operation.name", span["attributes"])
+        operations = {span["span_id"]: span["attributes"].get("gen_ai.operation.name") for span in spans}
+        self.assertEqual(operations["1" * 16], "invoke_workflow")
+        self.assertEqual(operations["3" * 16], "execute_tool")
+        self.assertIsNone(operations["4" * 16])
 
-    def test_bkaidev_maps_agent_fields_without_inventing_operation(self) -> None:
+    def test_bkaidev_classifies_agent_execution(self) -> None:
         span = agentlens_span()
         span["span_name"] = "agent.execution"
         span["attributes"] = {
             "agent.info.id": 3129,
             "agent.info.name": "进度管理",
             "agent.session.session_code": "session-1",
+            "agent.session.caller_executor": "user-1",
+            "agent.session.input": "用户问题",
+            "agent.session.output": "最终回答",
             "agent.status": "completed",
         }
 
@@ -1122,9 +1146,20 @@ class AdapterTests(TestCase):
 
         self.assertEqual(len(spans), 1)
         agent = spans[0]
-        self.assertNotIn("gen_ai.operation.name", agent["attributes"])
+        self.assertEqual(agent["attributes"]["gen_ai.operation.name"], "invoke_agent")
+        self.assertEqual(agent["span_type"], "AGENT")
         self.assertEqual(agent["attributes"]["gen_ai.agent.id"], "3129")
         self.assertEqual(agent["attributes"]["gen_ai.conversation.id"], "session-1")
+        self.assertEqual(agent["attributes"]["user.id"], "user-1")
+        self.assertEqual(agent["attributes"]["user.name"], "user-1")
+        self.assertEqual(
+            agent["attributes"]["gen_ai.input.messages"],
+            [{"role": "user", "parts": [{"type": "text", "content": "用户问题"}]}],
+        )
+        self.assertEqual(
+            agent["attributes"]["gen_ai.output.messages"],
+            [{"role": "assistant", "parts": [{"type": "text", "content": "最终回答"}]}],
+        )
 
     def test_bkaidev_langchain_message_envelope_is_flattened(self) -> None:
         span = agentlens_span()
@@ -1195,3 +1230,39 @@ class AdapterTests(TestCase):
         self.assertEqual(output["parts"][0]["content"], "共查询到 8 台主机。")
         self.assertNotIn("finish_reason", output)
         self.assertNotIn("gen_ai.response.finish_reasons", step["attributes"])
+
+    def test_bkaidev_prefers_standard_content_over_product_fallbacks(self) -> None:
+        span = agentlens_span()
+        span["span_name"] = "chat_model.generate"
+        span["attributes"] = {
+            "gen_ai.operation.name": "chat",
+            "gen_ai.input.messages": [{"role": "user", "parts": [{"type": "text", "content": "standard"}]}],
+            "gen_ai.output.messages": [
+                {"role": "assistant", "parts": [{"type": "text", "content": "standard output"}]}
+            ],
+            "llm.request.type": "completion",
+            "llm.input": '[{"role":"user","content":"legacy"}]',
+            "llm.output": '{"role":"assistant","content":"legacy output"}',
+        }
+
+        attributes = adapt_spans([span], "aidev")[0]["attributes"]
+
+        self.assertEqual(attributes["gen_ai.operation.name"], "chat")
+        self.assertEqual(attributes["gen_ai.input.messages"][0]["parts"][0]["content"], "standard")
+        self.assertEqual(attributes["gen_ai.output.messages"][0]["parts"][0]["content"], "standard output")
+
+    def test_bkaidev_normalizes_unknown_indexed_message_roles_by_direction(self) -> None:
+        span = agentlens_span()
+        span["span_name"] = "chat_model.generate"
+        span["attributes"] = {
+            "llm.request.type": "chat",
+            "gen_ai.prompt.0.role": "unknown",
+            "gen_ai.prompt.0.content": "question",
+            "gen_ai.completion.0.role": "unknown",
+            "gen_ai.completion.0.content": "answer",
+        }
+
+        attributes = adapt_spans([span], "aidev")[0]["attributes"]
+
+        self.assertEqual(attributes["gen_ai.input.messages"][0]["role"], "user")
+        self.assertEqual(attributes["gen_ai.output.messages"][0]["role"], "assistant")

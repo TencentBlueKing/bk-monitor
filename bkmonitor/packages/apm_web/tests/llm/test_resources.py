@@ -38,6 +38,23 @@ class ListTracesResourceTestCase(TestCase):
             [{"key": "resource.service.name", "operator": "equal", "value": ["agent-service"]}],
         )
 
+    def test_hex32_keyword_searches_trace_and_product_conversation_fields(self):
+        keyword = "0123456789abcdef0123456789abcdef"
+        cases = {
+            "aidev": "attributes.agent.session.session_code",
+            "agentlens": "attributes.gen_ai.session.id",
+            "galileo": "attributes.gen_ai.session_id",
+            "langfuse": "attributes.session.id",
+            "default": "attributes.gen_ai.conversation.id",
+        }
+
+        for product, conversation_field in cases.items():
+            with self.subTest(product=product):
+                self.assertEqual(
+                    ListTracesResource._build_keyword_query(product, 11, "demo", keyword),
+                    f'trace_id: "{keyword}" OR {conversation_field}: "{keyword}"',
+                )
+
     def test_request_exposes_supported_filters(self):
         fields = ListTracesResource.RequestSerializer().fields
 
@@ -78,7 +95,7 @@ class ListTracesResourceTestCase(TestCase):
         self.assertIn("limit", serializer.errors)
 
     @staticmethod
-    def convert_spans(raw_spans, _entity_set):
+    def convert_spans(raw_spans, _entity_set, _product_override=""):
         return [
             {
                 "trace_id": span["trace_id"],
@@ -328,7 +345,7 @@ class ListTracesResourceTestCase(TestCase):
             mock.patch("apm_web.llm.resources.Application.objects.get", return_value=application) as get_application,
             mock.patch("apm_web.llm.resources.get_query", return_value=span_query) as get_query,
             mock.patch("apm_web.llm.resources.EntitySet", return_value=entity_set),
-            mock.patch("apm_web.llm.resources.adapt_spans", side_effect=self.convert_spans),
+            mock.patch("apm_web.llm.resources.adapt_spans", side_effect=self.convert_spans) as adapt_spans_mock,
         ):
             result = ListTracesResource().request(
                 {
@@ -404,7 +421,7 @@ class ListTracesResourceTestCase(TestCase):
             group_field=query_field,
             offset=0,
             limit=20,
-            filters=[{"key": "resource.service.name", "operator": "equal", "value": ["agent-service"]}],
+            filters=[],
             query_string="demo-user",
         )
         span_query.query_by_group_ids.assert_called_once_with(
@@ -420,26 +437,53 @@ class ListTracesResourceTestCase(TestCase):
         get_query.assert_called_once_with(data_sources)
         entity_set.get_system.assert_called_once_with("agent-service")
 
-    def test_unmapped_group_field_passes_through(self):
-        serializer = ListTracesResource.RequestSerializer(
-            data={
-                "bk_biz_id": 11,
-                "app_name": "sand_local_dev",
-                "service_name": "agent-service",
-                "start_time": 1,
-                "end_time": 2,
-                "group_field": "attributes.session.id",
-            }
-        )
-        serializer.is_valid(raise_exception=True)
+        for call in adapt_spans_mock.call_args_list:
+            self.assertEqual(call.args[2], "aidev")
 
-        entity_set = mock.Mock(service_names=["agent-service"])
-        entity_set.get_system.return_value = {"is_support_llm": True, "product": "aidev"}
-        resolved = ListTracesResource._resolve_group_field(
-            entity_set, "agent-service", serializer.validated_data["group_field"]
-        )
+    def test_aidev_default_service_queries_the_whole_application(self):
+        span_query = mock.Mock()
+        span_query.query_group_list.return_value = []
+        application = mock.Mock()
+        application.build_data_sources.return_value = [mock.sentinel.data_source]
+        selected_entity_set = mock.Mock(service_names=["agent-service-default"])
+        selected_entity_set.get_system.return_value = {"is_support_llm": True, "product": "aidev"}
+        application_entity_set = mock.Mock(service_names=["agent-service", "agent-service-default"])
 
-        self.assertEqual(resolved, "attributes.session.id")
+        with (
+            mock.patch("apm_web.llm.resources.Application.objects.get", return_value=application),
+            mock.patch("apm_web.llm.resources.get_query", return_value=span_query),
+            mock.patch(
+                "apm_web.llm.resources.EntitySet", side_effect=[selected_entity_set, application_entity_set]
+            ) as entity_set,
+        ):
+            result = ListTracesResource().request(
+                {
+                    "bk_biz_id": 11,
+                    "app_name": "bkapp_ai0us0demo",
+                    "start_time": 1,
+                    "end_time": 2,
+                    "service_name": "agent-service-default",
+                    "group_field": "attributes.gen_ai.conversation.id",
+                }
+            )
+
+        self.assertEqual(result["items"], [])
+        span_query.query_group_list.assert_called_once_with(
+            start_time=1,
+            end_time=2,
+            group_field="attributes.agent.session.session_code",
+            offset=0,
+            limit=20,
+            filters=[],
+            query_string="",
+        )
+        self.assertEqual(
+            entity_set.call_args_list,
+            [
+                mock.call(bk_biz_id=11, app_name="bkapp_ai0us0demo", service_names=["agent-service-default"]),
+                mock.call(bk_biz_id=11, app_name="bkapp_ai0us0demo"),
+            ],
+        )
 
     def test_trace_conversation_id_uses_first_nonempty_standardized_value(self):
         for product, field in [
@@ -1171,7 +1215,7 @@ class ListFlowsResourceTestCase(TestCase):
             },
         ]
         span_query.query_by_group_ids.return_value = spans
-        entity_set = mock.sentinel.entity_set
+        entity_set = mock.Mock(service_names=[])
 
         with (
             mock.patch("apm_web.llm.resources.Application.objects.get", return_value=application) as get_application,

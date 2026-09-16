@@ -40,6 +40,7 @@ ALIASES = {
         "agent.info.name",
     ),
     "gen_ai.conversation.id": ("agent.session.session_code",),
+    "user.id": ("agent.session.caller_executor",),
     "user.name": ("agent.session.caller_executor",),
     "gen_ai.agent.id": ("agent.info.id",),
     "gen_ai.usage.input_tokens": ("gen_ai.usage.prompt_tokens",),
@@ -49,10 +50,24 @@ ALIASES = {
 }
 
 
-def operation(attrs: dict[str, Any]) -> str | None:
+def operation(span: dict[str, Any]) -> str | None:
+    attrs = span["attributes"]
+    if standard_operation := attrs.get("gen_ai.operation.name"):
+        return str(standard_operation).lower()
+
     request_type = str(attrs.get("llm.request.type", "")).lower()
     if request_type:
         return REQUEST_OPERATIONS.get(request_type, request_type)
+
+    span_name = str(span.get("span_name", ""))
+    if span_name == "chain.workflow" or attrs.get("chain.type") == "workflow":
+        return "invoke_workflow"
+    if span_name == "agent.execution":
+        return "invoke_agent"
+    if span_name == "chat_model.generate":
+        return "chat"
+    if attrs.get("tool.name") or span_name == "tool.execution":
+        return "execute_tool"
     return None
 
 
@@ -94,11 +109,15 @@ def parse_langchain_messages(value: Any, default_role: str) -> list[dict[str, An
 
 
 def parse_indexed_messages(attrs: dict[str, Any], prefix: str, default_role: str) -> list[dict[str, Any]]:
-    return [
-        text_message(str(item.get("role") or default_role), item["content"])
-        for item in indexed(attrs, prefix)
-        if item.get("content") not in (None, "")
-    ]
+    messages = []
+    for item in indexed(attrs, prefix):
+        if item.get("content") in (None, ""):
+            continue
+        role = str(item.get("role") or default_role).lower()
+        if role == "unknown":
+            role = default_role
+        messages.append(text_message(ROLE_MAP.get(role, role), item["content"]))
+    return messages
 
 
 def parse_definitions(value: Any) -> list[dict[str, Any]]:
@@ -130,12 +149,16 @@ def convert_content(span: dict[str, Any]) -> dict[str, Any]:
     inputs = parse_indexed_messages(attrs, "gen_ai.prompt", "user")
     if (input_value := first(attrs, "llm.input", "traceloop.entity.input")) is not None:
         inputs = parse_langchain_messages(input_value, "user")
+    elif (input_value := attrs.get("agent.session.input")) is not None:
+        inputs = parse_langchain_messages(input_value, "user")
     instructions, inputs = split_system(inputs)
     put(content, "gen_ai.system_instructions", instructions)
     put(content, "gen_ai.input.messages", inputs)
 
     outputs = parse_indexed_messages(attrs, "gen_ai.completion", "assistant")
     if (output_value := first(attrs, "llm.output", "traceloop.entity.output")) is not None:
+        outputs = parse_langchain_messages(output_value, "assistant")
+    elif (output_value := attrs.get("agent.session.output")) is not None:
         outputs = parse_langchain_messages(output_value, "assistant")
     put(content, "gen_ai.output.messages", outputs)
     put(content, "gen_ai.tool.definitions", parse_definitions(attrs.get("gen_ai.request.tools")))
@@ -148,10 +171,11 @@ def convert(raw: list[dict[str, Any]]) -> list[dict[str, Any]]:
     spans: list[dict[str, Any]] = []
     for span in raw:
         attrs = span["attributes"]
+        span_operation = operation(span)
         attributes = {
             key: value for key, value in attrs.items() if key in STANDARD_FIELDS and value not in (None, "", [])
         }
-        put(attributes, "gen_ai.operation.name", operation(attrs))
+        put(attributes, "gen_ai.operation.name", span_operation)
         for target, source_keys in ALIASES.items():
             value = first(attrs, *source_keys)
             if target.startswith("gen_ai.usage."):
