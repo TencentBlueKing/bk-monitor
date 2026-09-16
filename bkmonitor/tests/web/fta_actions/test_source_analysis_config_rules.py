@@ -224,8 +224,9 @@ class TestSourceAnalysisRuleSerializers(SimpleTestCase):
         self.assertIsNone(context.exception.data)
         self.assertNotIn("access_token", context.exception.error_details["detail"])
 
+    @patch("fta_web.issue.resources.api.bk_incident.get_source_analysis_scene_status")
     @patch("fta_web.issue.resources.api.bk_incident.ensure_source_analysis_scene")
-    def test_bkfara_initialization_failed_state_exposes_safe_detail(self, ensure_scene):
+    def test_bkfara_initialization_failed_state_exposes_safe_detail(self, ensure_scene, get_scene_status):
         ensure_scene.return_value = {
             "provision_id": "provision-1",
             "status": "failed",
@@ -241,6 +242,7 @@ class TestSourceAnalysisRuleSerializers(SimpleTestCase):
         with self.assertRaises(SourceAnalysisFlowInitializationFailedError) as context:
             SourceAnalysisBaseResource.ensure_flow_initialized(2, "project-a")
 
+        get_scene_status.assert_not_called()
         self.assertEqual(
             json.loads(context.exception.data),
             {
@@ -248,6 +250,44 @@ class TestSourceAnalysisRuleSerializers(SimpleTestCase):
                 "message": "DevOps template does not match the binding snapshot",
                 "retryable": False,
                 "request_id": "request-2",
+            },
+        )
+
+    @patch("fta_web.issue.resources.api.bk_incident.get_source_analysis_scene_status")
+    @patch("fta_web.issue.resources.api.bk_incident.ensure_source_analysis_scene")
+    def test_bkfara_initialization_fetches_error_for_reused_failed_scene(self, ensure_scene, get_scene_status):
+        ensure_scene.return_value = {
+            "provision_id": "provision-1",
+            "status": "failed",
+            "terminal": True,
+            "error": None,
+        }
+        get_scene_status.return_value = {
+            "provision_id": "provision-1",
+            "status": "failed",
+            "terminal": True,
+            "error": {
+                "code": "DEVOPS_PERMISSION_DENIED",
+                "message": "user access token unavailable",
+                "retryable": False,
+                "request_id": "request-3",
+            },
+        }
+
+        with self.assertRaises(SourceAnalysisFlowInitializationFailedError) as context:
+            SourceAnalysisBaseResource.ensure_flow_initialized(2, "project-a")
+
+        get_scene_status.assert_called_once_with(
+            provision_id="provision-1",
+            bk_tenant_id="system",
+        )
+        self.assertEqual(
+            json.loads(context.exception.data),
+            {
+                "code": "DEVOPS_PERMISSION_DENIED",
+                "message": "user access token unavailable",
+                "retryable": False,
+                "request_id": "request-3",
             },
         )
 
@@ -312,11 +352,12 @@ class TestSourceAnalysisConfigAndRules(TestCase):
         set_local_username(None)
 
     @staticmethod
-    def create_config(project_id="project-a", repository_alias="repo-a"):
+    def create_config(project_id="project-a", repository_alias="repo-a", bkfara_provision_id=None):
         return IssueSourceAnalysisConfig.objects.create(
             bk_biz_id=2,
             bkci_project_id=project_id,
             repository_alias=repository_alias,
+            bkfara_provision_id=bkfara_provision_id,
         )
 
     @staticmethod
@@ -461,6 +502,31 @@ class TestSourceAnalysisConfigAndRules(TestCase):
         self.assertEqual((result["bkci_project_id"], result["repository_alias"]), ("project-a", "repo-a"))
 
     @patch.object(SourceAnalysisBaseResource, "validate_resources")
+    @patch.object(SourceAnalysisBaseResource, "ensure_flow_initialized")
+    def test_enabled_rule_reuses_existing_initialized_flow(self, ensure_initialized, validate_resources):
+        self.create_config(bkfara_provision_id="provision-ready")
+        data = validate(
+            SourceAnalysisRuleWriteSerializer,
+            {
+                "bk_biz_id": 2,
+                "priority": 10,
+                "is_enabled": True,
+                "conditions": [{"field": "alert.strategy_id", "value": ["1"], "method": "eq", "condition": "and"}],
+                "agent_id": "agent-a",
+            },
+        )
+
+        result = CreateSourceAnalysisRuleResource().perform_request(data)
+
+        validate_resources.assert_called_once()
+        ensure_initialized.assert_not_called()
+        self.assertEqual(
+            IssueSourceAnalysisConfig.objects.get(bk_biz_id=2).bkfara_provision_id,
+            "provision-ready",
+        )
+        self.assertTrue(result["is_enabled"])
+
+    @patch.object(SourceAnalysisBaseResource, "validate_resources")
     @patch.object(
         SourceAnalysisBaseResource,
         "ensure_flow_initialized",
@@ -515,6 +581,65 @@ class TestSourceAnalysisConfigAndRules(TestCase):
 
         with self.assertRaises(SourceAnalysisDefaultRulePriorityImmutableError):
             UpdateSourceAnalysisRuleResource().perform_request(data)
+
+    @patch.object(SourceAnalysisBaseResource, "validate_resources")
+    @patch.object(SourceAnalysisBaseResource, "ensure_flow_initialized")
+    def test_enabled_rule_patch_reuses_existing_initialized_flow(self, ensure_initialized, validate_resources):
+        self.create_config(bkfara_provision_id="provision-ready")
+        rule = self.create_rule(
+            is_enabled=True,
+            conditions=[{"field": "alert.strategy_id", "value": ["1"], "method": "eq", "condition": "and"}],
+            agent_id="1030",
+            skill_ids=["11"],
+            knowledge_base_ids=["304"],
+            bkci_project_id="project-a",
+            repository_alias="repo-a",
+        )
+        data = validate(
+            SourceAnalysisRulePatchSerializer,
+            {
+                "bk_biz_id": 2,
+                "agent_id": "ai-log-to-code",
+                "skill_ids": ["bk-data-fetcher"],
+                "knowledge_base_ids": ["bkmonitor_terms_base"],
+            },
+        )
+        data["rule_id"] = rule.id
+
+        result = UpdateSourceAnalysisRuleResource().perform_request(data)
+
+        validate_resources.assert_called_once()
+        ensure_initialized.assert_not_called()
+        self.assertEqual(result["agent_id"], "ai-log-to-code")
+        self.assertEqual(result["skill_ids"], ["bk-data-fetcher"])
+        self.assertEqual(result["knowledge_base_ids"], ["bkmonitor_terms_base"])
+        self.assertEqual(
+            IssueSourceAnalysisConfig.objects.get(bk_biz_id=2).bkfara_provision_id,
+            "provision-ready",
+        )
+
+    @patch.object(SourceAnalysisBaseResource, "validate_resources")
+    @patch.object(SourceAnalysisBaseResource, "ensure_flow_initialized", return_value="provision-new")
+    def test_enabled_rule_patch_initializes_missing_flow(self, ensure_initialized, _validate_resources):
+        self.create_config()
+        rule = self.create_rule(
+            is_enabled=True,
+            conditions=[{"field": "alert.strategy_id", "value": ["1"], "method": "eq", "condition": "and"}],
+            agent_id="agent-a",
+            bkci_project_id="project-a",
+            repository_alias="repo-a",
+        )
+        data = validate(SourceAnalysisRulePatchSerializer, {"bk_biz_id": 2, "agent_id": "agent-b"})
+        data["rule_id"] = rule.id
+
+        result = UpdateSourceAnalysisRuleResource().perform_request(data)
+
+        ensure_initialized.assert_called_once_with(2, "project-a")
+        self.assertEqual(result["agent_id"], "agent-b")
+        self.assertEqual(
+            IssueSourceAnalysisConfig.objects.get(bk_biz_id=2).bkfara_provision_id,
+            "provision-new",
+        )
 
     def test_delete_rejects_default_and_hard_deletes_custom_rule(self):
         default_rule = self.create_rule(priority=-1, is_default=True)

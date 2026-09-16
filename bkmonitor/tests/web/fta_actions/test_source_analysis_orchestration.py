@@ -297,15 +297,43 @@ class TestSourceAnalysisContract(SimpleTestCase):
             "terminal": True,
         }
 
-        provision_id = SourceAnalysisBaseResource.ensure_flow_initialized(2, "project-a")
+        with patch(
+            "fta_web.issue.resources.uuid.uuid4",
+            return_value="43c3ca39-d60f-4482-854d-00f771e149fb",
+        ):
+            provision_id = SourceAnalysisBaseResource.ensure_flow_initialized(2, "project-a")
 
         self.assertEqual(provision_id, "provision-1")
         ensure_scene.assert_called_once_with(
             bk_biz_id=2,
             bk_tenant_id="system",
             devops_project_id="project-a",
-            client_request_id=build_bkfara_client_request_id("ensure-scene", "system", 2, "project-a"),
+            client_request_id="43c3ca39-d60f-4482-854d-00f771e149fb",
         )
+
+    @patch("fta_web.issue.resources.bk_biz_id_to_bk_tenant_id", return_value="system")
+    @patch("fta_web.issue.resources.api.bk_incident.ensure_source_analysis_scene")
+    def test_new_scene_initialization_attempt_uses_new_client_request_id(self, ensure_scene, _get_tenant_id):
+        ensure_scene.return_value = {
+            "provision_id": "provision-1",
+            "status": "ready",
+            "terminal": True,
+        }
+
+        with patch(
+            "fta_web.issue.resources.uuid.uuid4",
+            side_effect=[
+                "43c3ca39-d60f-4482-854d-00f771e149fb",
+                "4fc1586b-f4c7-4785-90d7-d408a994ba05",
+            ],
+        ):
+            SourceAnalysisBaseResource.ensure_flow_initialized(2, "project-a")
+            SourceAnalysisBaseResource.ensure_flow_initialized(2, "project-a")
+
+        first_request_id = ensure_scene.call_args_list[0].kwargs["client_request_id"]
+        second_request_id = ensure_scene.call_args_list[1].kwargs["client_request_id"]
+        self.assertEqual(first_request_id, "43c3ca39-d60f-4482-854d-00f771e149fb")
+        self.assertEqual(second_request_id, "4fc1586b-f4c7-4785-90d7-d408a994ba05")
 
     @patch("fta_web.issue.resources.bk_biz_id_to_bk_tenant_id", return_value="system")
     @patch(
@@ -355,6 +383,10 @@ class TestSourceAnalysisContract(SimpleTestCase):
         self.assertEqual(trigger_params["bk_username"], "operator-a")
         self.assertNotIn("bk_username", web_ensure_params)
         self.assertNotIn("bk_username", web_trigger_params)
+        self.assertEqual(
+            ensure_params["client_request_id"],
+            build_bkfara_client_request_id("ensure-scene", "system", 2, "project-a", "analysis-1"),
+        )
         self.assertEqual(
             trigger_params["inputs"]["BKFARA_TASK_ID"],
             SOURCE_ANALYSIS_BKFARA_TASK_ID_PLACEHOLDER,

@@ -441,7 +441,7 @@ class SourceAnalysisBaseResource(Resource):
 
     @classmethod
     def ensure_flow_initialized(cls, bk_biz_id: int, bkci_project_id: str) -> str:
-        """调用 BKFara 幂等初始化并返回后续查询所需的 provision_id。"""
+        """发起一次 BKFara 场景初始化并返回后续查询所需的 provision_id。"""
 
         bk_tenant_id = bk_biz_id_to_bk_tenant_id(bk_biz_id)
         try:
@@ -451,12 +451,9 @@ class SourceAnalysisBaseResource(Resource):
                 bk_biz_id=bk_biz_id,
                 bk_tenant_id=bk_tenant_id,
                 devops_project_id=bkci_project_id,
-                client_request_id=build_bkfara_client_request_id(
-                    "ensure-scene",
-                    bk_tenant_id,
-                    bk_biz_id,
-                    bkci_project_id,
-                ),
+                # 幂等键只约束本次用户操作。若项目历史初始化已进入失败终态，
+                # 后续用户重试必须生成新键，不能永久复用旧失败 provision。
+                client_request_id=str(uuid.uuid4()),
             )
         except TokenException as error:
             detail = json.dumps(
@@ -480,6 +477,24 @@ class SourceAnalysisBaseResource(Resource):
         provision_id = str(scene_state.get("provision_id") or "") if isinstance(scene_state, dict) else ""
         status = scene_state.get("status") if isinstance(scene_state, dict) else None
         terminal = scene_state.get("terminal") if isinstance(scene_state, dict) else None
+        if provision_id and status == "failed" and not scene_state.get("error"):
+            try:
+                # ensure_scene 复用历史失败 provision 时可能只返回 failed，不带具体错误；
+                # 状态接口包含完整 error，补查后才能向配置页面透出可排查信息。
+                scene_status = api.bk_incident.get_source_analysis_scene_status(
+                    provision_id=provision_id,
+                    bk_tenant_id=bk_tenant_id,
+                )
+                if isinstance(scene_status, dict):
+                    scene_state = scene_status
+                    status = scene_state.get("status")
+                    terminal = scene_state.get("terminal")
+            except Exception as error:  # NOCC:broad-except(补充错误详情失败不能覆盖原始场景失败)
+                logger.warning(
+                    "Failed to fetch BKFara source analysis scene error: provision_id=%s, error=%s",
+                    _sanitize_for_log(provision_id),
+                    type(error).__name__,
+                )
         if not provision_id or status not in {"pending", "provisioning", "ready"} or not isinstance(terminal, bool):
             error_data = scene_state.get("error") if isinstance(scene_state, dict) else None
             detail = cls.serialize_bkfara_error_detail(error_data)
@@ -1204,6 +1219,7 @@ class SourceAnalysisExecutionBaseResource(Resource):
                 bk_tenant_id,
                 execution.bk_biz_id,
                 execution.bkci_project_id,
+                execution.analysis_id,
             ),
         }
         if not use_current_request:
@@ -2078,7 +2094,7 @@ class CreateSourceAnalysisRuleResource(SourceAnalysisBaseResource):
                 if rule.is_enabled:
                     self.validate_rule_local(rule, config)
                 rule.save()
-                if rule.is_enabled:
+                if rule.is_enabled and not config.bkfara_provision_id:
                     config.bkfara_provision_id = self.ensure_flow_initialized(bk_biz_id, rule.bkci_project_id)
                     config.save(update_fields=["bkfara_provision_id", "update_time"])
         except IntegrityError as error:
@@ -2132,7 +2148,7 @@ class UpdateSourceAnalysisRuleResource(GetSourceAnalysisRuleResource):
                 if rule.is_enabled:
                     self.validate_rule_local(rule, config)
                 rule.save()
-                if rule.is_enabled:
+                if rule.is_enabled and not config.bkfara_provision_id:
                     config.bkfara_provision_id = self.ensure_flow_initialized(bk_biz_id, rule.bkci_project_id)
                     config.save(update_fields=["bkfara_provision_id", "update_time"])
         except IntegrityError as error:
