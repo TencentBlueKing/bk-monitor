@@ -28,12 +28,6 @@ COMPARE_MODE_REMOTE = "remote"
 INVALID_DEFAULT_STORAGE_CLUSTER_MARKERS = ("默认存储集群[", "不存在、租户不匹配或类型不是[")
 
 
-def is_invalid_default_storage_cluster_error(error: ApiResultError) -> bool:
-    """判断 Metadata 是否返回了不会通过重试恢复的默认存储集群异常。"""
-    error_text = str(error).lower()
-    return all(marker in error_text for marker in INVALID_DEFAULT_STORAGE_CLUSTER_MARKERS)
-
-
 def get_container_streams(collector_config_ids: list[int]) -> dict[int, str]:
     """批量查询容器采集类型并解析 stream，避免 N+1。"""
     collector_types = defaultdict(set)
@@ -172,7 +166,8 @@ def refresh_scene_labels(
                 success += 1
                 logger.info("[refresh_scene_labels] %s -> %s", cfg.table_id, labels)
             except ApiResultError as e:
-                if "resulttable matching query does not exist" in str(e).lower():
+                error_text = str(e).lower()
+                if "resulttable matching query does not exist" in error_text:
                     skipped += 1
                     missing_result_table_ids.append(cfg.table_id)
                     logger.warning(
@@ -181,7 +176,7 @@ def refresh_scene_labels(
                         e,
                     )
                     continue
-                if is_invalid_default_storage_cluster_error(e):
+                if all(marker in error_text for marker in INVALID_DEFAULT_STORAGE_CLUSTER_MARKERS):
                     skipped += 1
                     invalid_storage_cluster_result_table_ids.append(cfg.table_id)
                     logger.warning(
