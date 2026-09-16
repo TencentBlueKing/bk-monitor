@@ -42,8 +42,11 @@ from monitor_web.collecting.constant import (
     Status,
     TaskStatus,
 )
-from monitor_web.collecting.deploy import get_collect_installer
-from monitor_web.collecting.utils import fetch_sub_statistics
+from monitor_web.collecting.deploy import (
+    fetch_collect_statistics,
+    get_collect_installer,
+    get_collect_status_key,
+)
 from monitor_web.models import CollectConfigMeta, CollectorPluginMeta, DeploymentConfigVersion, PluginVersionHistory
 from monitor_web.plugin.constant import PluginType
 from monitor_web.plugin.manager import PluginManagerFactory
@@ -83,29 +86,19 @@ class CollectConfigListResource(Resource):
         :return: self.realtime_data
         """
 
-        subscription_id_config_map, statistics_data = fetch_sub_statistics(config_data_list)
+        status_key_config_map, statistics_data = fetch_collect_statistics(config_data_list)
         updated_configs = []
 
         # 节点管理返回的状态数量
-        for subscription_status in statistics_data:
-            status_number = {}
-            for status_result in subscription_status.get("status", []):
-                status_number[status_result["status"]] = status_result["count"]
-
-            error_count = status_number.get(CollectStatus.FAILED, 0)
-            total_count = subscription_status.get("instances", 0)
-            pending_count = status_number.get(CollectStatus.PENDING, 0)
-            running_count = status_number.get(CollectStatus.RUNNING, 0)
-            subscription_status_data = {
-                "error_instance_count": error_count,
-                "total_instance_count": total_count,
-                "pending_instance_count": pending_count,
-                "running_instance_count": running_count,
-            }
-            self.realtime_data.update({subscription_status["subscription_id"]: subscription_status_data})
+        for status_data in statistics_data:
+            error_count = status_data["error_instance_count"]
+            total_count = status_data["total_instance_count"]
+            pending_count = status_data["pending_instance_count"]
+            running_count = status_data["running_instance_count"]
+            self.realtime_data[status_data["key"]] = status_data
 
             # 更新任务状态
-            config = subscription_id_config_map[subscription_status["subscription_id"]]
+            config = status_key_config_map.get(status_data["key"])
             if not config:
                 continue
 
@@ -120,8 +113,8 @@ class CollectConfigListResource(Resource):
 
             # 更新缓存
             cache_data = {
-                "error_instance_count": subscription_status_data.get("error_instance_count", 0),
-                "total_instance_count": subscription_status_data.get("total_instance_count", 0),
+                "error_instance_count": error_count,
+                "total_instance_count": total_count,
             }
             if config.cache_data != cache_data or config.operation_result != operation_result:
                 config.cache_data = cache_data
@@ -176,8 +169,7 @@ class CollectConfigListResource(Resource):
 
     def update_cache_data(self, config: CollectConfigMeta):
         # 更新采集配置的缓存数据（总数、异常数）
-        subscription_id = config.deployment_config.subscription_id
-        realtime_data = self.realtime_data.get(subscription_id)
+        realtime_data = self.realtime_data.get(get_collect_status_key(config))
         if not realtime_data:
             return
 
@@ -206,7 +198,7 @@ class CollectConfigListResource(Resource):
 
     def get_status(self, conf):
         # 判断采集配置是否处于自动下发中，返回采集配置状态和任务状态
-        status_key = conf.deployment_config.subscription_id
+        status_key = get_collect_status_key(conf)
         if self.realtime_data.get(status_key) and self.realtime_data.get(status_key).get("is_auto_deploying"):
             status = {
                 "config_status": Status.AUTO_DEPLOYING,

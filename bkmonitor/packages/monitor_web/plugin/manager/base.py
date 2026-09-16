@@ -29,6 +29,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.template import engines
 from django.utils.translation import gettext
 
+from bkmonitor.nodeman_integration.backend import node_man_backend
 from bkmonitor.utils import time_tools
 from bkmonitor.utils.serializers import MetricJsonSerializer
 from core.drf_resource import api
@@ -676,9 +677,7 @@ class PluginManager(BasePluginManager):
         super()._update_version_params(data, version, current_version, stag)
         # 如果是官方插件，且当前版本不是官方版本，则删除当前版本的所有历史版本
         if version.is_official and not current_version.is_official:
-            from bkmonitor.nodeman_integration.mode import get_nodeman_integration_mode
-
-            if get_nodeman_integration_mode() == "v3_fresh":
+            if node_man_backend.is_v3:
                 return
             try:
                 api.node_man.delete_plugin(name=version.plugin.plugin_id)
@@ -875,12 +874,8 @@ class PluginManager(BasePluginManager):
         """
         开始插件调试
         """
-        from bkmonitor.nodeman_integration.mode import get_nodeman_integration_mode
-
-        if get_nodeman_integration_mode() == "v3_fresh":
-            from monitor_web.plugin.nodeman_v3 import NodeManV3PluginDebugService
-
-            return NodeManV3PluginDebugService().start(
+        if node_man_backend.is_v3:
+            return node_man_backend.v3.plugin_debug_service().start(
                 self,
                 config_version=config_version,
                 info_version=info_version,
@@ -903,24 +898,16 @@ class PluginManager(BasePluginManager):
         """
         停止插件调试
         """
-        from bkmonitor.nodeman_integration.mode import get_nodeman_integration_mode
-
-        if get_nodeman_integration_mode() == "v3_fresh":
-            from monitor_web.plugin.nodeman_v3 import NodeManV3PluginDebugService
-
-            return NodeManV3PluginDebugService().stop(self.plugin, task_id)
+        if node_man_backend.is_v3:
+            return node_man_backend.v3.plugin_debug_service().stop(self.plugin, task_id)
         return api.node_man.stop_debug(task_id=task_id)
 
     def query_debug(self, task_id):
         """
         获取调试信息
         """
-        from bkmonitor.nodeman_integration.mode import get_nodeman_integration_mode
-
-        if get_nodeman_integration_mode() == "v3_fresh":
-            from monitor_web.plugin.nodeman_v3 import NodeManV3PluginDebugService
-
-            result = NodeManV3PluginDebugService().query(self.plugin, task_id)
+        if node_man_backend.is_v3:
+            result = node_man_backend.v3.plugin_debug_service().query(self.plugin, task_id)
         else:
             result = api.node_man.query_debug(task_id=task_id)
 
@@ -978,9 +965,7 @@ class PluginManager(BasePluginManager):
             else:
                 release_version = current_version
 
-            from bkmonitor.nodeman_integration.mode import get_nodeman_integration_mode
-
-            if get_nodeman_integration_mode() != "v3_fresh":
+            if not node_man_backend.is_v3:
                 # V3 package/workflow/import/v3/plugin has already published and enabled the release.
                 release_config = partial(
                     self._release_config,
@@ -1128,12 +1113,8 @@ class PluginManager(BasePluginManager):
         if not release_version:
             raise ExportPluginError({"msg": gettext("该插件没有release版本可导出")})
 
-        from bkmonitor.nodeman_integration.mode import get_nodeman_integration_mode
-
-        if get_nodeman_integration_mode() == "v3_fresh":
-            from monitor_web.plugin.nodeman_v3 import NodeManV3PackageWorkflowService
-
-            return NodeManV3PackageWorkflowService().export(self.plugin, release_version.version)
+        if node_man_backend.is_v3:
+            return node_man_backend.v3.package_workflow_service().export(self.plugin, release_version.version)
 
         param = {
             "category": "gse_plugin",

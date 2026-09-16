@@ -11,9 +11,12 @@ specific language governing permissions and limitations under the License.
 import logging
 
 from django.conf import settings
-from django.db import models
+from django.db import models, transaction
 
 from bkmonitor.commons.tools import is_ipv6_biz
+from bkmonitor.nodeman_integration.backend import node_man_backend
+from bkmonitor.nodeman_integration.exceptions import NodeManV3CapabilityBlocked, NodeManV3PayloadError
+from bkmonitor.nodeman_integration.resources import NodeManResourceType, build_nodeman_resource_key
 from bkmonitor.utils.common_utils import count_md5
 from bkmonitor.utils.db import JsonField
 from constants.common import DEFAULT_TENANT_ID
@@ -97,6 +100,55 @@ class PingServerSubscriptionConfig(models.Model):
                 host_key = ip_to_id.get(config.ip, config.ip)
                 host_configs[host_key] = config
 
+        is_v3 = node_man_backend.is_v3
+        if is_v3 and not transaction.get_connection().in_atomic_block:
+            raise RuntimeError("NodeMan V3 ping-server refresh must run inside transaction.atomic")
+        v3_resource_keys = {}
+        if is_v3:
+            target_keys = {
+                value
+                for host in target_hosts
+                for value in (host.get("bk_host_id"), host.get("ip"), host.get("ipv6"))
+                if value
+            }
+            stale_configs = [
+                config
+                for key, config in host_configs.items()
+                if key not in target_keys and config.config.get("status") != "STOP"
+            ]
+            if stale_configs:
+                raise NodeManV3CapabilityBlocked(
+                    "ping-server target removal requires the DeployPolicy reverse field while enabled remains true"
+                )
+
+            # Validate every persisted record before the first external write, so a mixed V2/V3 target set
+            # cannot leave a partially submitted reconciliation behind.
+            for host in target_hosts:
+                host_id = host["bk_host_id"]
+                host_biz_id = host["bk_biz_id"]
+                record_biz_id = bk_biz_id if bk_biz_id is not None else host_biz_id
+                host_ip = host["ipv6"] if is_ipv6_biz(host_biz_id) else host["ip"]
+                config = host_configs.get(host_id) or host_configs.get(host_ip) or host_configs.get(host["ip"])
+                resource_key = build_nodeman_resource_key(
+                    NodeManResourceType.PING_SERVER,
+                    bk_cloud_id=bk_cloud_id,
+                    bk_host_id=host_id,
+                    plugin_name=plugin_name,
+                )
+                v3_resource_keys[host_id] = resource_key
+                node_man_backend.v3.ensure_record_ownership(
+                    config=config.config if config else None,
+                    persisted_identifier=config.subscription_id if config else None,
+                    resource=f"ping-server host {host_id}",
+                    binding_identity={
+                        "resource_type": NodeManResourceType.PING_SERVER,
+                        "resource_key": resource_key,
+                        "owner_bk_tenant_id": bk_tenant_id,
+                        "execution_bk_tenant_id": bk_tenant_id,
+                        "bk_biz_id": record_biz_id,
+                    },
+                )
+
         for host in target_hosts:
             bk_host_id = host["bk_host_id"]
             proxy_bk_biz_id = host["bk_biz_id"]
@@ -143,6 +195,46 @@ class PingServerSubscriptionConfig(models.Model):
             if config and config.bk_biz_id != record_bk_biz_id:
                 config.bk_biz_id = record_bk_biz_id
                 config.save(update_fields=["bk_biz_id"])
+
+            if is_v3:
+                submission = node_man_backend.v3.policy_service().ensure(
+                    resource_type=NodeManResourceType.PING_SERVER,
+                    resource_key=v3_resource_keys[bk_host_id],
+                    owner_bk_tenant_id=bk_tenant_id,
+                    execution_bk_tenant_id=bk_tenant_id,
+                    bk_biz_id=record_bk_biz_id,
+                    policy_name=f"bkm-ping-server-{record_bk_biz_id}-{bk_cloud_id}-{bk_host_id}-{plugin_name}",
+                    description=f"bk-monitor ping-server config on host {bk_host_id}",
+                    scope=scope,
+                    steps=subscription_params["steps"],
+                )
+                stored_config = {
+                    **subscription_params,
+                    "subscription_id": submission.binding_id,
+                    "node_man_backend": "v3",
+                }
+                if config:
+                    if config.subscription_id != submission.binding_id:
+                        raise NodeManV3PayloadError(
+                            f"ping-server host {bk_host_id} references unexpected V3 binding {config.subscription_id}"
+                        )
+                    config.config = stored_config
+                    config.ip = ip
+                    config.bk_host_id = bk_host_id
+                    config.bk_biz_id = record_bk_biz_id
+                    config.save(update_fields=["config", "ip", "bk_host_id", "bk_biz_id"])
+                else:
+                    PingServerSubscriptionConfig.objects.create(
+                        bk_tenant_id=bk_tenant_id,
+                        bk_cloud_id=bk_cloud_id,
+                        bk_biz_id=record_bk_biz_id,
+                        bk_host_id=bk_host_id,
+                        config=stored_config,
+                        ip=ip,
+                        subscription_id=submission.binding_id,
+                        plugin_name=plugin_name,
+                    )
+                continue
 
             if config:
                 try:
@@ -196,6 +288,11 @@ class PingServerSubscriptionConfig(models.Model):
         for host_id, config in host_configs.items():
             if config.config.get("status") == "STOP":
                 continue
+
+            if is_v3:
+                raise NodeManV3CapabilityBlocked(
+                    "ping-server target removal requires the DeployPolicy reverse field while enabled remains true"
+                )
 
             api.node_man.switch_subscription(
                 bk_tenant_id=bk_tenant_id, subscription_id=config.subscription_id, action="disable"

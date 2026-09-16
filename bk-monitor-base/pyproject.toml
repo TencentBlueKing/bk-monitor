@@ -1,0 +1,143 @@
+[project]
+name = "bk-monitor-base"
+version = "0.0.1"
+description = "This is the base project for the BK Monitor project."
+readme = "README.md"
+authors = []
+requires-python = ">=3.11,<3.12"
+dependencies = [
+    "django<5",
+    "django-prometheus==2.3.1",
+    "kafka-python==1.4.6",
+    "pydantic>=2.11.5,<2.12.0",
+    "pydantic-extra-types>=2.10.5,<2.11.0",
+    "pydantic-settings>=2.10.1,<2.11.0",
+    "celery==5.4.0",
+    "django-celery-beat<2.8.0",
+    "django-celery-results<2.7.0",
+    # Elasticsearch
+    "elasticsearch5==5.5.6",
+    "elasticsearch6==6.8.2",
+    "elasticsearch==7.17.12",
+    "elasticsearch-dsl==7.4.1",
+    "blue-krill==2.1.0",
+    "django-redis==5.4.0",
+    "redis==4.6.0",
+    "typing-extensions>=4.14.1,<4.15.0",
+    "pillow<11.3",
+    "jinja2>=3.1.6,<4.0.0",
+    "pyyaml>=6.0,<7.0",
+    "bkstorages>=2.0.1,<2.1.0",
+    "pycryptodome==3.23.0",
+    "django-modeltranslation==0.17.7",
+    "arrow==0.6",
+    "xxhash>=3.6.0,<3.7.0",
+    "ply>=3.11,<3.12",
+    "furl>=2.1.4,<2.2.0",
+    "kubernetes==18.20.0",
+    "bk-crypto-python-sdk==2.0.1",
+    "mysqlclient>=2.2.7,<2.3.0",
+    "djangorestframework<3.16.0",
+    "python-consul==1.1.0",
+    "elasticsearch-curator==7.0.1",
+    "pytz>=2025.2,<2027.0",
+    "influxdb==5.3.2",
+    "confluent-kafka==2.4.0",
+    "pypinyin==0.53.0",
+    "django-stubs-ext<5",
+    "tenacity<9"
+]
+
+[project.scripts]
+bk-monitor-base-cli = "bk_monitor_base.cli.app:app"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[dependency-groups]
+cli = ["rich<15", "typer<0.22"]
+dev = [
+    "basedpyright>=1.29.4,<1.30.0",
+    "django-types>=0.22.0,<0.23.0",
+    "ipython>=9.3.0,<9.4.0",
+    "pre-commit>=4.2.0,<4.3.0",
+    "pytest>=7.0.0,<7.1.0",
+    "pytest-django>=4.5.0,<4.6.0",
+    "ruff>=0.12.3,<0.13.0",
+    "pytest-cov<6.3.0",
+    "pytest-mock>=3.14.1,<3.15.0",
+    "requests-mock>=1.12.1,<1.13.0",
+    "elasticmock==1.8.1",
+    "celery-types>=0.23.0,<0.25.0",
+    "pytest-xdist>=3.8.0",
+    "fakeredis>=2.26.1,<2.27.0",
+]
+
+[tool.uv]
+default-groups = ["cli"]
+index-url = "https://mirrors.tencent.com/pypi/simple/"
+# bk-crypto-python-sdk 依赖 tongsuopy-crayon>=1.0.2b5（预发布版本），需允许预发布才能解析
+prerelease = "if-necessary-or-explicit"
+
+# ruff
+[tool.ruff]
+src = ["src"]
+line-length = 120
+exclude = [
+    ".git",
+    "venv",
+    ".venv",
+    ".pytype",
+    ".ruff_cache",
+    "__pypackages__",
+    "__pycache__",
+]
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "UP", "I", "A", "B"]
+extend-ignore = ["E402", "B904"]
+fixable = ["ALL"]
+extend-safe-fixes = ["UP"]
+
+# pytest
+[tool.pytest.ini_options]
+testpaths = ["src/bk_monitor_base/tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "--verbose --capture=no --cov --cov-branch --cov-report="
+norecursedirs = ["src/bk_monitor_base/metadata"]
+
+# coverage
+[tool.coverage.run]
+source = ["src/bk_monitor_base"]
+omit = ["src/bk_monitor_base/tests/*", "src/bk_monitor_base/**/migrations/*"]
+
+[tool.coverage.report]
+skip_empty = true
+
+[tool.basedpyright]
+extraPaths = ["src", "../bkmonitor", "../bkmonitor/packages"]
+stubPath = "typings"  # 类型存根文件目录
+exclude = [
+    "**/migrations",
+    ".venv",
+    ".pytype",
+    ".ruff_cache",
+    "__pypackages__",
+    "**/__pycache__",
+    "**/tests",
+    "**/playground",
+    "**/metric_plugin/manager/**/templates",
+    "**/domains/strategy/expression/**",
+    "metadata"
+]
+ignore = ["**/tests", "**/migrations"]
+typeCheckingMode = "recommended"
+reportExplicitAny = false
+reportUnusedCallResult = false
+reportAny = false
+reportMissingTypeArgument = false
+reportGeneralTypeIssues = false
+reportMissingTypeStubs = false
+reportUnknownMemberType = false

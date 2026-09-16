@@ -22,8 +22,11 @@ from constants.cmdb import TargetNodeType
 from core.drf_resource import Resource, api
 from core.errors.api import BKAPIError
 from monitor_web.collecting.constant import CollectStatus
-from monitor_web.collecting.deploy import get_collect_installer
-from monitor_web.collecting.utils import fetch_sub_statistics
+from monitor_web.collecting.deploy import (
+    fetch_collect_statistics,
+    get_collect_installer,
+    get_collect_status_key,
+)
 from monitor_web.commons.data_access import ResultTable
 from monitor_web.constants import EVENT_TYPE
 from monitor_web.models import CollectConfigMeta, CustomEventGroup
@@ -355,23 +358,22 @@ class UpdateConfigInstanceCountResource(Resource):
             cache_data = {"error_instance_count": error_count, "total_instance_count": total_count}
         else:
             try:
-                _, collect_statistics_data = fetch_sub_statistics([collect_config])
+                _, collect_statistics_data = fetch_collect_statistics([collect_config])
             except BKAPIError as e:
                 logger.error(f"请求节点管理状态统计接口失败: {e}")
                 return
 
-            # 统计节点管理订阅的正常数、异常数
-            result_dict = {}
-            for item in collect_statistics_data:
-                status_number = {}
-                for status_result in item.get("status", []):
-                    status_number[status_result["status"]] = status_result["count"]
-                result_dict[item["subscription_id"]] = {
-                    "total_instance_count": item.get("instances", 0),
-                    "error_instance_count": status_number.get(CollectStatus.FAILED, 0),
+            result_dict = {
+                item["key"]: {
+                    "total_instance_count": item["total_instance_count"],
+                    "error_instance_count": item["error_instance_count"],
                 }
-
-            cache_data = result_dict.get(collect_config.deployment_config.subscription_id)
+                for item in collect_statistics_data
+            }
+            cache_data = result_dict.get(get_collect_status_key(collect_config))
+            if cache_data is None:
+                # Keep the last known counts when NodeMan has no usable observation yet.
+                return
 
         # 更新缓存数据
         if collect_config.cache_data != cache_data:

@@ -42,6 +42,7 @@ from monitor_web.models.node_man import (
             "host:18:plugin:bkmonitorbeat",
         ),
         (NodeManResourceType.MONITOR_PLUGIN, {"plugin_id": "mysql_exporter"}, "mysql_exporter"),
+        (NodeManResourceType.UPTIME_CHECK, {"task_id": 19}, "19"),
     ],
 )
 def test_resource_key_contract(resource_type, components, expected):

@@ -1,0 +1,90 @@
+{
+  "description": "HTTP场景 - 多节点（IP+CMDB混合）、带自定义头部",
+  "task_config": {
+    "bk_biz_id": 2,
+    "name": "HTTP多节点拨测任务",
+    "protocol": "http",
+    "labels": {
+      "env": "prod",
+      "region": "beijing"
+    },
+    "config": {
+      "url_list": [
+        "https://api.example.com/health",
+        "https://api.example.com/status"
+      ],
+      "method": "GET",
+      "timeout": 5000,
+      "period": 120,
+      "headers": [
+        {
+          "header_name": "Authorization",
+          "header_value": "Bearer token123"
+        },
+        {
+          "header_name": "User-Agent",
+          "header_value": "Bkmonitor-Healthcheck/1.0"
+        }
+      ],
+      "response_code": "200",
+      "response_format": "eq"
+    }
+  },
+  "nodes": [
+    {
+      "bk_biz_id": 2,
+      "name": "北京节点-CMDB",
+      "bk_host_id": 10001,
+      "ip": "192.168.1.1",
+      "plat_id": 0,
+      "location": {
+        "country": "中国",
+        "city": "北京"
+      },
+      "carrieroperator": "联通"
+    },
+    {
+      "bk_biz_id": 2,
+      "name": "上海节点-CMDB多云",
+      "bk_host_id": 10002,
+      "ip": "10.0.0.1",
+      "plat_id": 1,
+      "location": {
+        "country": "中国",
+        "city": "上海"
+      },
+      "carrieroperator": "电信"
+    },
+    {
+      "bk_biz_id": 2,
+      "name": "公网节点-直接IP",
+      "bk_host_id": 20001,
+      "ip": "203.0.113.100",
+      "plat_id": 0,
+      "location": {
+        "country": "美国",
+        "city": "西雅图"
+      },
+      "carrieroperator": "AWS"
+    }
+  ],
+  "expected_deployment": {
+    "subscription_created": true,
+    "task_status": "STARTING",
+    "node_count": 3,
+    "protocol": "http",
+    "verify_fields": {
+      "method": "GET",
+      "url_list": [
+        "https://api.example.com/health",
+        "https://api.example.com/status"
+      ],
+      "response_code": "200",
+      "response_format": "eq",
+      "timeout": "5000ms",
+      "period": "120s",
+      "headers_count": 2
+    },
+    "notes": "多个节点来自不同的云区域和位置，验证跨域节点合并和CMDB信息正确性"
+  }
+}

@@ -61,5 +61,6 @@ repos:
              bkmonitor/bin/prom-aggregation-gateway|
              bkmonitor/static/monitor/js/main.*|
              bklog/version_logs_md/|
-             bkmonitor/alarm_backends/tests/.*.py
+             bkmonitor/alarm_backends/tests/.*.py|
+             ^bk-monitor-base/
           )

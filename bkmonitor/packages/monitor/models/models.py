@@ -134,6 +134,12 @@ class UptimeCheckTaskSubscription(OperateRecordModel):
     uptimecheck_id = models.IntegerField("拨测任务id", default=0)
     subscription_id = models.IntegerField("节点管理订阅ID", default=0)
     bk_biz_id = models.IntegerField("业务ID", default=0)
+    node_man_backend = models.CharField("节点管理后端", max_length=16, default="v2")
+    node_man_policy_fingerprint = models.CharField("节点管理策略指纹", max_length=64, default="", blank=True)
+    node_man_trigger_id = models.CharField("节点管理触发ID", max_length=128, default="", blank=True)
+    node_man_operation_status = models.CharField("节点管理操作状态", max_length=32, default="", blank=True)
+    node_man_result_state = models.CharField("节点管理写入结果状态", max_length=32, default="", blank=True)
+    node_man_error = models.TextField("节点管理错误", default="", blank=True)
 
     class Meta:
         # 每个任务针对每个业务只能有一个item

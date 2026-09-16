@@ -1,0 +1,6 @@
+name: {{ plugin_id }}
+version: "{{ version }}"
+description: {{ plugin_id }}
+description_en: {{ plugin_display_name }}
+label: {{ label }}
+category: job

@@ -12,6 +12,7 @@ import yaml
 from django.conf import settings
 from django.test import override_settings
 
+from bkmonitor.nodeman_integration.backend import node_man_backend
 from monitor_web.plugin.constant import PluginType
 
 
@@ -19,6 +20,7 @@ MODE_MODULE = "bkmonitor.nodeman_integration.mode"
 DEPLOY_MODULE = "monitor_web.collecting.deploy"
 V3_PACKAGE = "monitor_web.collecting.deploy.nodeman_v3"
 V3_INSTALLER_MODULE = f"{V3_PACKAGE}.installer"
+V3_STATUS_MODULE = f"{V3_PACKAGE}.status"
 V2_SNAPSHOT_PATH = Path(__file__).resolve().parents[4] / "tests/nodeman_v3/fixtures/v2_contract_snapshots.yaml"
 
 
@@ -27,6 +29,20 @@ class FakeV3Installer:
         self.collect_config = collect_config
         self.args = args
         self.kwargs = kwargs
+
+
+class FakeV3CollectStatusService:
+    @staticmethod
+    def status_key(config):
+        return config.pk
+
+    @staticmethod
+    def fetch_statistics(configs):
+        return {config.pk: config for config in configs}, []
+
+    @staticmethod
+    def is_task_ready(config):
+        return bool(config.pk)
 
 
 def _collect_config(plugin_type="Script"):
@@ -44,8 +60,11 @@ def _install_fake_v3_module(monkeypatch):
     package.__path__ = []
     installer_module = types.ModuleType(V3_INSTALLER_MODULE)
     installer_module.NodeManV3Installer = FakeV3Installer
+    status_module = types.ModuleType(V3_STATUS_MODULE)
+    status_module.NodeManV3CollectStatusService = FakeV3CollectStatusService
     monkeypatch.setitem(sys.modules, V3_PACKAGE, package)
     monkeypatch.setitem(sys.modules, V3_INSTALLER_MODULE, installer_module)
+    monkeypatch.setitem(sys.modules, V3_STATUS_MODULE, status_module)
 
 
 def _reload_route(mode):
@@ -101,6 +120,44 @@ def test_v2_hot_path_does_not_recheck_mode(monkeypatch):
 
     for _ in range(10):
         assert deploy_module.get_collect_installer(_collect_config()).__class__ is deploy_module.NodeManInstaller
+
+
+def test_v2_collect_statistics_keeps_the_existing_subscription_contract(monkeypatch):
+    _, deploy_module = _reload_route("v2")
+    config = SimpleNamespace(deployment_config=SimpleNamespace(subscription_id=17))
+    raw_statistics = {
+        "subscription_id": 17,
+        "instances": 6,
+        "status": [
+            {"status": "PENDING", "count": 1},
+            {"status": "RUNNING", "count": 2},
+            {"status": "FAILED", "count": 3},
+        ],
+        "is_auto_deploying": True,
+        "auto_running_tasks": [101],
+    }
+    monkeypatch.setattr(deploy_module, "fetch_sub_statistics", lambda configs: ({17: config}, [raw_statistics]))
+
+    config_by_key, statistics = deploy_module.fetch_collect_statistics([config])
+
+    assert config_by_key == {17: config}
+    assert statistics == [
+        {
+            **raw_statistics,
+            "key": 17,
+            "error_instance_count": 3,
+            "total_instance_count": 6,
+            "pending_instance_count": 1,
+            "running_instance_count": 2,
+        }
+    ]
+
+
+def test_v3_backend_surface_is_fail_closed_in_v2(monkeypatch):
+    monkeypatch.setattr("bkmonitor.nodeman_integration.mode.get_nodeman_integration_mode", lambda: "v2")
+
+    with pytest.raises(RuntimeError, match="unavailable in a V2-only process"):
+        node_man_backend.v3
 
 
 def test_v2_clean_process_keeps_resource_and_task_inventory_without_v3_imports():
@@ -182,6 +239,11 @@ def test_v3_fresh_route_is_bound_at_module_load(monkeypatch):
     assert installer.__class__ is FakeV3Installer
     assert installer.args == ("arg",)
     assert installer.kwargs == {"key": "value"}
+
+    config = SimpleNamespace(pk=7)
+    assert deploy_module.get_collect_status_key(config) == 7
+    assert deploy_module.fetch_collect_statistics([config]) == ({7: config}, [])
+    assert deploy_module.is_collect_task_ready(config) is True
 
 
 def test_invalid_mode_fails_during_django_startup():

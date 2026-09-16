@@ -1,0 +1,123 @@
+import json
+import logging
+import time
+
+from consul.base import ConsulException
+
+from bk_monitor_base.metadata import config
+from bk_monitor_base.metadata.utils import consul, hash_util
+
+CONSUL_INFLUXDB_VERSION_PATH = f"{config.CONSUL_PATH}/influxdb_info/version/"
+
+logger = logging.getLogger("metadata")
+
+
+def refresh_router_version():
+    """
+    更新consul指定路径下的版本
+    :return: True | raise Exception
+    """
+
+    client = consul.BKConsul()
+    client.kv.put(key=CONSUL_INFLUXDB_VERSION_PATH, value=str(time.time()))
+    logger.info("refresh influxdb version in consul success.")
+
+
+class HashConsul:
+    """
+    哈希consul工具
+    工具在写入consul前，将会先匹配consul上的数据是否与当次写入数据一致
+    如果一致，该更新将会被忽略（如果允许），否则才会将配置写入consul
+    从而降低consul的刷新频率
+    """
+
+    def __init__(self, host="127.0.0.1", port=8500, scheme="http", verify=None, default_force=False):
+        """
+        初始化
+        :param host: consul agent IP地址
+        :param port: consul agent 端口
+        :param scheme: consul agent协议
+        :param verify: SSL 验证
+        :param default_force: 默认是否需要强制更新
+        """
+        # consul agent connect info
+        self.host = host
+        self.port = port
+        self.scheme = scheme
+        self.verify = verify
+
+        # 是否强行写
+        self.default_force = default_force
+
+    def delete(self, key, recurse=None):
+        """
+        删除指定kv
+        """
+        consul_client = consul.BKConsul(host=self.host, port=self.port, scheme=self.scheme, verify=self.verify)
+        consul_client.kv.delete(key, recurse)
+        logger.info("key->[%s] has been deleted", key)
+
+    def get(self, key):
+        """
+        获取指定kv
+        """
+        consul_client = consul.BKConsul(host=self.host, port=self.port, scheme=self.scheme, verify=self.verify)
+        return consul_client.kv.get(key)
+
+    def list(self, key):
+        consul_client = consul.BKConsul(host=self.host, port=self.port, scheme=self.scheme, verify=self.verify)
+        return consul_client.kv.get(key, recurse=True)
+
+    def put(self, key: str, value, is_force_update: bool = False, bk_data_id: int | None = None, *args, **kwargs):
+        """
+        KV数据更新, 如果更新成功或者内容无更新，则返回True
+        如果更新失败，则返回False
+        :param key: 键值
+        :param value: 内容，期待传入的是字典或者数组
+        :param is_force_update: 是否需要强行更新
+        :param bk_data_id: 数据源ID
+        :return: True | False
+        """
+        consul_client = consul.BKConsul(host=self.host, port=self.port, scheme=self.scheme, verify=self.verify)
+
+        # 0. 是否有强行刷新的要求
+        if self.default_force or is_force_update:
+            logger.debug(f"key->[{key}] now is force update, will update consul.")
+            return consul_client.kv.put(key=key, value=json.dumps(value), *args, **kwargs)
+
+        # 1. 先获取consul上的配置内容，计算对应的哈希值
+        old_value = consul_client.kv.get(key)[1]
+        if old_value is None:
+            logger.info("old_value is missing, will refresh consul.")
+            return consul_client.kv.put(key=key, value=json.dumps(value), *args, **kwargs)
+
+        # 2. 判断本地的更暖心内容及其哈希值
+        old_hash = hash_util.object_md5(json.loads(old_value["Value"]))
+        new_hash = hash_util.object_md5(value)
+
+        # 3. 判断哈希值是否存在更新，如果没有，直接返回
+        if old_hash == new_hash:
+            logger.debug(f"new value hash->[{new_hash}] is same as the one on consul, nothing will updated.")
+            return True
+
+        # 4. 否则，更新内容；如果存在数据源，则记录数据源 ID
+        if bk_data_id is not None:
+            logger.info(
+                "key->[%s] data_id->[%s] need update, new value hash->[%s] is different from the old hash->[%s]",
+                key,
+                bk_data_id,
+                new_hash,
+                old_hash,
+            )
+        else:
+            logger.info(
+                "key->[%s] new value hash->[%s] is different from the old hash->[%s], will updated it",
+                key,
+                new_hash,
+                old_hash,
+            )
+        try:
+            return consul_client.kv.put(key=key, value=json.dumps(value), *args, **kwargs)
+        except ConsulException as e:
+            logger.error("put consul key error, data_id: %s, error: %s", bk_data_id, e)
+            raise

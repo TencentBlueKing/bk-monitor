@@ -34,8 +34,8 @@ from django.utils.translation import gettext as _
 from django.utils.translation import gettext_lazy as _lazy
 from rest_framework import serializers
 
+from bkmonitor.nodeman_integration.backend import node_man_backend
 from bkmonitor.utils.common_utils import safe_int
-from bkmonitor.nodeman_integration.mode import get_nodeman_integration_mode
 from bkmonitor.utils.request import get_request, get_request_tenant_id
 from bkmonitor.utils.serializers import MetricJsonBaseSerializer
 from constants.result_table import (
@@ -301,10 +301,8 @@ class PluginRegisterResource(Resource):
 
         # 尝试进行打包、上传和注册操作
         try:
-            if get_nodeman_integration_mode() == "v3_fresh":
-                from monitor_web.plugin.nodeman_v3 import NodeManV3PackageWorkflowService
-
-                NodeManV3PackageWorkflowService().register(self.plugin_manager)
+            if node_man_backend.is_v3:
+                node_man_backend.v3.package_workflow_service().register(self.plugin_manager)
                 token_list = []
             else:
                 tar_name = self.make_package()
@@ -675,10 +673,8 @@ class CheckPluginIDResource(Resource):
         ).exists():
             raise PluginIDExist({"msg": plugin_id})
 
-        if get_nodeman_integration_mode() == "v3_fresh":
-            from bkmonitor.nodeman_integration.v3.compat import plugin_exists
-
-            exists = plugin_exists(
+        if node_man_backend.is_v3:
+            exists = node_man_backend.v3.plugin_exists(
                 bk_tenant_id=get_request_tenant_id(),
                 bk_biz_id=0,
                 plugin_name=plugin_id,

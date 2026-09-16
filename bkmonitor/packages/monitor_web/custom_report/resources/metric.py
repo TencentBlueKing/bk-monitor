@@ -27,6 +27,7 @@ from rest_framework.exceptions import ValidationError
 from bkm_space.define import SpaceTypeEnum
 from bkm_space.errors import NoRelatedResourceError
 from bkmonitor.models import MetricListCache, QueryConfigModel, StrategyModel
+from bkmonitor.nodeman_integration.backend import node_man_backend
 from bkmonitor.utils.request import get_request_tenant_id, get_request_username
 from bkmonitor.utils.user import get_admin_username
 from constants.data_source import DataSourceLabel, DataTypeLabel
@@ -172,12 +173,21 @@ class ProxyHostInfo(Resource):
         proxy_host_info = []
         bk_biz_id = validated_request_data["bk_biz_id"]
         proxy_hosts = []
+        is_v3 = node_man_backend.is_v3
         try:
-            proxy_hosts = api.node_man.get_proxies_by_biz(bk_biz_id=bk_biz_id)
+            if is_v3:
+                proxy_hosts = node_man_backend.v3.get_proxies_by_biz(
+                    bk_tenant_id=get_request_tenant_id(),
+                    bk_biz_id=bk_biz_id,
+                )
+            else:
+                proxy_hosts = api.node_man.get_proxies_by_biz(bk_biz_id=bk_biz_id)
         except NoRelatedResourceError:
             logger.warning("bk_biz_id: %s not found related resource", bk_biz_id)
         except Exception as e:
             logger.warning("get proxies by bk_biz_id(%s) error, %s", bk_biz_id, e)
+            if is_v3:
+                raise
 
         for host in proxy_hosts:
             bk_cloud_id = int(host["bk_cloud_id"])

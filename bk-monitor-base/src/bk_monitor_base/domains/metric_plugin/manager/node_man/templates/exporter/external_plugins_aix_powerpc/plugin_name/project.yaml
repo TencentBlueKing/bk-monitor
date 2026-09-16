@@ -1,0 +1,29 @@
+name: {{ plugin_id }}
+version: "{{ version }}"
+description: {{ plugin_id }}
+description_en: {{ plugin_display_name }}
+label: {{ label }}
+category: external
+auto_launch: false
+launch_node: all
+port_range: {{ port_range }}
+upstream:
+  - bkmonitorbeat
+dependences:
+  gse_agent: "1.2.0"
+  bkmonitorbeat: "1.7.0"
+control:
+  start: "./start.ksh"
+  stop: "./stop.ksh"
+  restart: "./restart.ksh"
+  version: "cat VERSION"
+  reload: "./reload.ksh"
+  debug: "./debug.ksh"
+config_templates:
+  - plugin_version: "*"
+    name: env.yaml
+    version: {{ config_version }}
+    file_path: etc
+    format: yaml
+    source_path: etc/env.yaml.tpl
+need_delegate: True

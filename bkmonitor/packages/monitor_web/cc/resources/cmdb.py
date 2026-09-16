@@ -14,7 +14,7 @@ from collections import defaultdict
 
 from api.cmdb.define import Host, ServiceInstance, TopoTree
 from bkm_ipchooser import constants
-from bkmonitor.nodeman_integration.mode import get_nodeman_integration_mode
+from bkmonitor.nodeman_integration.backend import node_man_backend
 from bkmonitor.commons.tools import is_ipv6_biz
 from bkmonitor.data_source import UnifyQuery, load_data_source
 from bkmonitor.documents import AlertDocument
@@ -157,10 +157,8 @@ def get_agent_status(
     futures = []
     for index in range(0, len(host_list), 1000):
         batch = host_list[index : index + 1000]
-        if get_nodeman_integration_mode() == "v3_fresh":
-            from bkmonitor.nodeman_integration.v3.compat import ipchooser_host_detail
-
-            status_query = ipchooser_host_detail
+        if node_man_backend.is_v3:
+            status_query = node_man_backend.v3.ipchooser_host_detail
             status_query_kwargs = {
                 "params": {
                     "bk_tenant_id": bk_biz_id_to_bk_tenant_id(bk_biz_id),

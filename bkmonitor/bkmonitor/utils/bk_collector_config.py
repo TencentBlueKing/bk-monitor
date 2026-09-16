@@ -17,6 +17,7 @@ from kubernetes import client
 
 from apm.core.handlers.apm_cache_handler import ApmCacheHandler
 from bkm_space.utils import bk_biz_id_to_space_uid, is_bk_saas_space
+from bkmonitor.nodeman_integration.backend import node_man_backend
 from bkmonitor.utils.bcs import BcsKubeClient
 from bkmonitor.utils.common_utils import count_md5, safe_int
 from bkmonitor.utils.new_env import is_biz_id_in_black_list
@@ -62,7 +63,10 @@ class BkCollectorConfig:
                 continue
 
             try:
-                proxy_list = api.node_man.get_proxies(bk_tenant_id=bk_tenant_id, bk_cloud_id=bk_cloud_id)
+                if node_man_backend.is_v3:
+                    proxy_list = node_man_backend.v3.get_proxies(bk_tenant_id=bk_tenant_id, bk_cloud_id=bk_cloud_id)
+                else:
+                    proxy_list = api.node_man.get_proxies(bk_tenant_id=bk_tenant_id, bk_cloud_id=bk_cloud_id)
             except APIPermissionDeniedError as error:
                 logger.warning(
                     "get proxies permission denied, skip bk_tenant_id(%s), bk_cloud_id(%s), error: %s",
@@ -96,9 +100,15 @@ class BkCollectorConfig:
         if is_bk_saas_space(space_uid):
             return []
 
+        is_v3 = node_man_backend.is_v3
         try:
-            proxies = api.node_man.get_proxies_by_biz(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id)
+            if is_v3:
+                proxies = node_man_backend.v3.get_proxies_by_biz(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id)
+            else:
+                proxies = api.node_man.get_proxies_by_biz(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id)
         except Exception as e:  # pylint: disable=broad-except
+            if is_v3:
+                raise
             proxies = []
             logger.info(f"get_proxies_by_biz({bk_biz_id}) error ({e})")
 
