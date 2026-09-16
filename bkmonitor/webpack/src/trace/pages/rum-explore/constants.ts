@@ -134,9 +134,6 @@ export const RAW_FIELD_GROUP_ICON = 'icon-yuanshiziduan';
 /** 微秒级时间戳字段，按日期时间展示而非耗时 */
 export const RUM_TIME_FIELDS = new Set(['start_time', 'end_time', 'events.timestamp']);
 
-/** 以蓝色链接样式展示、点击可加为检索条件的字段 */
-export const RUM_LINK_FIELDS = new Set(['span_name']);
-
 /** 支持排序的字段类型 */
 export const RUM_SORTABLE_FIELD_TYPES = new Set(['date', 'double', 'integer', 'long']);
 

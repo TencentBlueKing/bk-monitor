@@ -278,6 +278,10 @@ export default defineComponent({
       if (isRangeValue && matched) {
         endStr = `${key} : [${matched[1]} TO ${matched[2] || matched[1]}]`;
       }
+      // 语句里已有完全相同的条件时忽略本次添加，避免重复检索；
+      // 比对时忽略空白差异，兼容 UI 模式切换过来时由后端生成的语句空格格式
+      const normalize = (str: string) => str.replace(/\s+/g, '');
+      if (queryCtx.queryString.value.split(/\s+AND\s+/).some(item => normalize(item) === normalize(endStr))) return;
       queryCtx.queryStringChange(
         queryCtx.queryString.value ? `${queryCtx.queryString.value} AND ${endStr}` : `${endStr}`
       );
