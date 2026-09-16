@@ -12,6 +12,7 @@ import functools
 import json
 import logging
 import random
+import secrets
 import time
 
 import jwt
@@ -37,6 +38,7 @@ logger = logging.getLogger(__name__)
 APP_CODE_TOKENS: dict[str, dict[str, list[str]]] = {}
 APP_CODE_UPDATE_TIME: dict[str, float] = {}
 APP_CODE_TOKEN_CACHE_TIME = 300 + random.randint(0, 100)
+MCP_USAGE_SCHEMA_VERSION = 1
 
 OPENCLAW_RECOVERING_MCP_TOOLS = {
     "search_openclaw_spans",
@@ -313,9 +315,14 @@ class AuthenticationMiddleware(MiddlewareMixin):
 
         if usage_started_at is not None:
             authorization_source = getattr(request, "mcp_permission_source", "none")
-            checked_action_id = getattr(request, "mcp_permission_action", "")
+            checked_action_id = (
+                "" if authorization_source == "exempt" else getattr(request, "mcp_permission_action", "")
+            )
             action_id = checked_action_id if authorization_source in {"native", "legacy", "identity_scoped"} else ""
+            bk_biz_id = getattr(request, "biz_id", None)
             fields = {
+                "usage_schema_version": MCP_USAGE_SCHEMA_VERSION,
+                "request_event_id": getattr(request, "mcp_usage_event_id", ""),
                 "username": getattr(
                     request,
                     "mcp_usage_username",
@@ -327,11 +334,12 @@ class AuthenticationMiddleware(MiddlewareMixin):
                 "mcp_server_name": request.META.get("HTTP_X_BKAPI_MCP_SERVER_NAME", ""),
                 "entry_point": getattr(request, "mcp_usage_entry_point", ""),
                 "operation": getattr(request, "mcp_usage_operation", ""),
-                "tool": getattr(request, "unified_mcp_tool", "") or getattr(request, "mcp_usage_tool", ""),
+                "tool": getattr(request, "mcp_usage_tool", ""),
+                "target_tool": getattr(request, "mcp_usage_target_tool", ""),
                 "action_id": action_id,
                 "checked_action_id": checked_action_id,
                 "authorization_source": authorization_source,
-                "bk_biz_id": getattr(request, "biz_id", None),
+                "bk_biz_id": str(bk_biz_id) if bk_biz_id not in (None, "") else None,
                 "x_request_id": request.META.get("HTTP_X_REQUEST_ID", ""),
                 "decision": "failed" if failed else "succeeded",
                 "status_code": status_code,
@@ -378,6 +386,7 @@ class AuthenticationMiddleware(MiddlewareMixin):
 
     def _handle_native_mcp(self, request, tool, tool_args, unified=False):
         """执行原生权限工具，并按 standalone／Unified 入口渲染响应。"""
+        request.mcp_usage_tool = tool.name
         from rest_framework.exceptions import APIException
         from rest_framework.response import Response
 
@@ -453,6 +462,8 @@ class AuthenticationMiddleware(MiddlewareMixin):
         from kernel_api.unified_mcp.registry import native_tool_names
 
         # 提取MCP服务名称（用于指标上报）
+        if not getattr(request, "mcp_usage_event_id", ""):
+            request.mcp_usage_event_id = secrets.token_hex(16)
         mcp_server_name = request.META.get("HTTP_X_BKAPI_MCP_SERVER_NAME", "")
         tool_name = self.extract_tool_name_from_path(request.path)
         is_unified_mcp_path = "/unified_mcp/" in request.path
@@ -460,6 +471,7 @@ class AuthenticationMiddleware(MiddlewareMixin):
         request.mcp_usage_entry_point = "unified" if is_unified_mcp_path else "standalone"
         request.mcp_usage_operation = tool_name
         request.mcp_usage_tool = tool_name
+        request.mcp_usage_target_tool = ""
         request.mcp_permission_action = ""
         request.mcp_permission_source = "none"
         is_unified_execute_tool = tool_name == "execute_tool" and is_unified_mcp_path
@@ -550,8 +562,13 @@ class AuthenticationMiddleware(MiddlewareMixin):
 
         if is_unified_mcp_path:
             # 仅记录内层工具名，禁止把 tool_args 写入统一日志。
-            request.unified_mcp_tool = mcp_request_data.get("tool_name", "")
-            request.mcp_usage_tool = request.unified_mcp_tool or tool_name
+            nested_tool_name = mcp_request_data.get("tool_name", "")
+            request.unified_mcp_tool = nested_tool_name if isinstance(nested_tool_name, str) else ""
+            if is_unified_execute_tool:
+                request.mcp_usage_tool = request.unified_mcp_tool or tool_name
+            else:
+                request.mcp_usage_tool = tool_name
+                request.mcp_usage_target_tool = request.unified_mcp_tool
             log_mcp_tool_event(
                 "request_received",
                 request,
@@ -564,7 +581,7 @@ class AuthenticationMiddleware(MiddlewareMixin):
         if is_unified_execute_tool:
             from kernel_api.unified_mcp.registry import get_tool_registry
 
-            nested_tool_name = mcp_request_data.get("tool_name", "")
+            nested_tool_name = request.unified_mcp_tool
             try:
                 unified_tool = get_tool_registry().get(nested_tool_name)
             except KeyError:
@@ -875,6 +892,7 @@ class AuthenticationMiddleware(MiddlewareMixin):
         # MCP权限校验（在用户认证完成后）
         if self.use_mcp_auth(request, app_code):
             request.user = auth.authenticate(username=username, bk_tenant_id=bk_tenant_id)
+            request.mcp_usage_event_id = secrets.token_hex(16)
             request.mcp_usage_username = username or ""
             request.mcp_usage_app_code = app_code or ""
             log_mcp_event(
@@ -885,6 +903,7 @@ class AuthenticationMiddleware(MiddlewareMixin):
                 tenant_id=bk_tenant_id,
                 mcp_server=request.META.get("HTTP_X_BKAPI_MCP_SERVER_NAME", ""),
                 gateway_source=request.META.get("HTTP_X_BKAPI_FROM", ""),
+                request_event_id=request.mcp_usage_event_id,
                 content_type=request.content_type,
             )
             return self._handle_mcp_auth(request, username=username)

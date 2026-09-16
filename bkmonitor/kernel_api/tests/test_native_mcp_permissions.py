@@ -12,6 +12,7 @@ from __future__ import annotations
 import ast
 import json
 import logging
+import secrets
 import socket
 import sys
 import time
@@ -1206,6 +1207,7 @@ def test_get_and_aggregate_share_normalized_log_arguments(native_http, io):
     response, request = native_http(tool, {"bk_biz_id": "2", "index_set_id": "123"}, unified=False)
     assert request.method == "GET"
     assert response.status_code == 200
+    assert request.mcp_usage_tool == "get_index_set_fields"
     io.dispatch.assert_called_once_with(tool.name, {"bk_biz_id": "2", "index_set_id": 123})
 
 
@@ -1319,6 +1321,7 @@ def test_standalone_and_unified_middleware_route_from_same_catalog(
         json=json,
         settings=settings,
         time=time,
+        secrets=secrets,
         log_mcp_event=auth.log_mcp_event,
         log_mcp_tool_event=auth.log_mcp_tool_event,
         HttpResponseForbidden=HttpResponseForbidden,
@@ -1366,6 +1369,7 @@ def test_middleware_preserves_exempt_space_discovery(monkeypatch, request_factor
         json=json,
         settings=settings,
         time=time,
+        secrets=secrets,
         log_mcp_event=auth.log_mcp_event,
         log_mcp_tool_event=auth.log_mcp_tool_event,
         HttpResponseForbidden=HttpResponseForbidden,
@@ -1383,7 +1387,46 @@ def test_middleware_preserves_exempt_space_discovery(monkeypatch, request_factor
 
     assert response is None
     assert request.unified_mcp_permission_checked is True
+    assert len(request.mcp_usage_event_id) == 32
+    assert request.mcp_usage_tool == "search_spaces"
+    assert request.mcp_usage_target_tool == ""
     report.assert_called_once()
+    legacy.assert_not_called()
+
+
+def test_middleware_keeps_facade_and_target_tool_separate(monkeypatch, request_factory):
+    for name in ("bkmonitor.iam", "bkmonitor.iam.action", "bkmonitor.iam.drf"):
+        monkeypatch.setitem(sys.modules, name, ModuleType(name))
+    legacy = Mock(side_effect=AssertionError("facade tool must not query permissions"))
+    sys.modules["bkmonitor.iam.action"].get_action_by_id = legacy
+    sys.modules["bkmonitor.iam.drf"].MCPPermission = legacy
+    handle = source_method(
+        "kernel_api/middlewares/authentication.py",
+        "AuthenticationMiddleware._handle_mcp_auth",
+        logger=logging.getLogger("test"),
+        logging=logging,
+        json=json,
+        settings=settings,
+        time=time,
+        secrets=secrets,
+        log_mcp_event=auth.log_mcp_event,
+        log_mcp_tool_event=auth.log_mcp_tool_event,
+        HttpResponseForbidden=HttpResponseForbidden,
+    )
+    extract = source_method(
+        "kernel_api/middlewares/authentication.py", "AuthenticationMiddleware.extract_tool_name_from_path"
+    )
+    request = request_factory(
+        "/api/v4/unified_mcp/lookup_tool_schema/",
+        body={"tool_name": "search_logs"},
+    )
+
+    response = handle(NS(extract_tool_name_from_path=extract, _report_mcp_metric=Mock()), request, "alice")
+
+    assert response is None
+    assert request.mcp_usage_operation == request.mcp_usage_tool == "lookup_tool_schema"
+    assert request.mcp_usage_target_tool == "search_logs"
+    assert request.mcp_permission_source == "exempt"
     legacy.assert_not_called()
 
 
@@ -1418,6 +1461,7 @@ def test_middleware_emits_one_complete_usage_record(request_factory, caplog):
         "AuthenticationMiddleware.process_response",
         time=time,
         logging=logging,
+        MCP_USAGE_SCHEMA_VERSION=1,
         log_mcp_tool_event=auth.log_mcp_tool_event,
         log_mcp_usage_event=auth.log_mcp_usage_event,
     )
@@ -1428,10 +1472,12 @@ def test_middleware_emits_one_complete_usage_record(request_factory, caplog):
         HTTP_X_REQUEST_ID="request-id-1",
     )
     request.mcp_usage_started_at = time.monotonic() - 0.01
+    request.mcp_usage_event_id = "event-id-1"
     request.mcp_usage_app_code = "knot-app"
     request.mcp_usage_entry_point = "unified"
     request.mcp_usage_operation = "execute_tool"
-    request.mcp_usage_tool = "execute_tool"
+    request.mcp_usage_tool = "search_logs"
+    request.mcp_usage_target_tool = ""
     request.unified_mcp_tool = "search_logs"
     request.mcp_permission_action = "search_log_v2"
     request.mcp_permission_source = "native"
@@ -1447,7 +1493,7 @@ def test_middleware_emits_one_complete_usage_record(request_factory, caplog):
         "action_id": "search_log_v2",
         "app_code": "knot-app",
         "authorization_source": "native",
-        "bk_biz_id": 2,
+        "bk_biz_id": "2",
         "checked_action_id": "search_log_v2",
         "decision": "succeeded",
         "duration_ms": fields["duration_ms"],
@@ -1456,12 +1502,15 @@ def test_middleware_emits_one_complete_usage_record(request_factory, caplog):
         "method": "POST",
         "operation": "execute_tool",
         "path": "/api/v4/unified_mcp/execute_tool/",
+        "request_event_id": "event-id-1",
         "request_from": "knot",
         "request_source": "bkm-mcp-client",
         "status_code": 200,
+        "target_tool": "",
         "tenant_id": "system",
         "tool": "search_logs",
         "trace_id": request.mcp_trace_id,
+        "usage_schema_version": 1,
         "username": "alice",
         "x_request_id": "request-id-1",
     }
@@ -1475,6 +1524,7 @@ def test_usage_record_does_not_report_denied_action_as_effective(request_factory
         "AuthenticationMiddleware.process_response",
         time=time,
         logging=logging,
+        MCP_USAGE_SCHEMA_VERSION=1,
         log_mcp_tool_event=auth.log_mcp_tool_event,
         log_mcp_usage_event=auth.log_mcp_usage_event,
     )
@@ -1491,6 +1541,35 @@ def test_usage_record_does_not_report_denied_action_as_effective(request_factory
     assert fields["checked_action_id"] == "using_log_mcp"
     assert fields["authorization_source"] == "none"
     assert fields["decision"] == "failed"
+
+
+def test_usage_record_clears_internal_permission_probe_from_exempt_facade(request_factory, caplog):
+    caplog.set_level(logging.INFO, logger=auth.__name__)
+    process_response = source_method(
+        "kernel_api/middlewares/authentication.py",
+        "AuthenticationMiddleware.process_response",
+        time=time,
+        logging=logging,
+        MCP_USAGE_SCHEMA_VERSION=1,
+        log_mcp_tool_event=auth.log_mcp_tool_event,
+        log_mcp_usage_event=auth.log_mcp_usage_event,
+    )
+    request = request_factory("/api/v4/unified_mcp/lookup_permissions/")
+    request.mcp_usage_started_at = time.monotonic()
+    request.mcp_usage_operation = "lookup_permissions"
+    request.mcp_usage_tool = "lookup_permissions"
+    request.mcp_usage_target_tool = "search_logs"
+    request.mcp_permission_action = "search_log_v2"
+    request.mcp_permission_source = "exempt"
+
+    process_response(NS(), request, HttpResponse(status=200))
+
+    record = next(row.getMessage() for row in caplog.records if row.getMessage().startswith("MCP_USAGE:"))
+    fields = json.loads(record.split(" ", 2)[2])
+    assert fields["operation"] == fields["tool"] == "lookup_permissions"
+    assert fields["target_tool"] == "search_logs"
+    assert fields["action_id"] == fields["checked_action_id"] == ""
+    assert fields["authorization_source"] == "exempt"
 
 
 def test_middleware_marks_wrapped_application_error_as_failed(request_factory, caplog):
@@ -1961,6 +2040,7 @@ def test_ingress_logs_do_not_dump_headers_or_parameters(request_factory, caplog,
         "kernel_api/middlewares/authentication.py",
         "AuthenticationMiddleware.process_view",
         settings=settings,
+        secrets=secrets,
         BkJWTClient=lambda *args: jwt,
         auth=NS(authenticate=lambda **kwargs: user),
         DEFAULT_TENANT_ID="system",
@@ -1973,7 +2053,10 @@ def test_ingress_logs_do_not_dump_headers_or_parameters(request_factory, caplog,
         _handle_mcp_auth=lambda *args, **kwargs: "handled",
     )
     assert process(middleware, request, NS()) == "handled"
-    assert "event=request_received " in caplog.text
+    record = next(row.getMessage() for row in caplog.records if "event=request_received " in row.getMessage())
+    fields = json.loads(record.split(" ", 2)[2])
+    assert len(request.mcp_usage_event_id) == 32
+    assert fields["request_event_id"] == request.mcp_usage_event_id
     assert not any(
         s in caplog.text for s in ("private-query", "private-secret", "private-jwt", "get_params", "post_params")
     )
@@ -2021,6 +2104,7 @@ def test_routing_configuration_errors_are_logged_without_legacy_fallback(
         "AuthenticationMiddleware._handle_mcp_auth",
         settings=settings,
         time=time,
+        secrets=secrets,
         json=json,
         log_mcp_event=auth.log_mcp_event,
         log_mcp_tool_event=auth.log_mcp_tool_event,
