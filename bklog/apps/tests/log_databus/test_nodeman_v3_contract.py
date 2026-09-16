@@ -19,12 +19,14 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 
+from types import SimpleNamespace
 from unittest.mock import patch
 
 from django.test import TestCase, override_settings
 
 from apps.log_databus.constants import LogPluginInfo, TargetNodeTypeEnum
 from apps.log_databus.nodeman_v3.constants import (
+    RESOURCE_TYPE_COLLECTOR_CONFIG,
     SPEC_TYPE_SPECIFY_PLUGIN,
     SPEC_TYPE_SPECIFY_PLUGIN_SUB_CONFIG_TEMPLATE,
 )
@@ -33,8 +35,8 @@ from apps.log_databus.nodeman_v3.exceptions import (
     NodeManV3CapabilityBlocked,
     NodeManV3UnknownResultError,
 )
-from apps.log_databus.nodeman_v3.identity import build_policy_name, build_sub_config_name
-from apps.log_databus.nodeman_v3.mode import is_nodeman_v3_only
+from apps.log_databus.nodeman_v3.identity import build_policy_name, build_resource_key, build_sub_config_name
+from apps.log_databus.nodeman_v3.mode import is_nodeman_v3_only, should_use_nodeman_v3
 from apps.log_databus.nodeman_v3.policy import (
     SubscriptionStepsTranslator,
     build_plugin_install_payload,
@@ -42,8 +44,10 @@ from apps.log_databus.nodeman_v3.policy import (
     calculate_fingerprint,
     merge_scopes,
 )
+from apps.log_databus.nodeman_v3.models import NodeManV3Binding, NodeManV3SubConfigTarget
 from apps.log_databus.nodeman_v3.scopes import build_scopes
 from apps.log_databus.nodeman_v3.versions import resolve_plugin_version
+from apps.log_search.constants import CollectorScenarioEnum
 
 PLUGIN_NAME = LogPluginInfo.NAME
 
@@ -385,6 +389,93 @@ class IntegrationModeTest(TestCase):
 
         with self.assertRaises(ImproperlyConfigured):
             is_nodeman_v3_only()
+
+
+@override_settings(NODEMAN_INTEGRATION_MODE="v3_fresh")
+class GrayRolloutOwnershipTest(TestCase):
+    """
+    采集项级灰度归属。
+
+    存量环境装满了带 subscription_id 的 V2 采集项，整环境打开 v3_fresh 会把它们的状态页、
+    启停、删除全部指向 V3，而它们没有 V3 binding —— 表现就是老采集项集体失能。所以归属必须
+    按采集项判定。
+
+    这与被否决的 hybrid 模式的边界：归属只取自采集项的**静态身份**，不取自调用结果。
+    归 V3 的采集项遇到 V3 失败仍然失败关闭，不回退 V2。
+    """
+
+    def _config(self, collector_config_id=9001, bk_biz_id=2, subscription_id=None):
+        return SimpleNamespace(
+            collector_config_id=collector_config_id,
+            bk_biz_id=bk_biz_id,
+            subscription_id=subscription_id,
+        )
+
+    @override_settings(NODEMAN_INTEGRATION_MODE="v2")
+    def test_v2_mode_never_uses_v3(self):
+        self.assertFalse(should_use_nodeman_v3(self._config()))
+
+    def test_new_collector_uses_v3_when_whitelist_empty(self):
+        # 白名单留空等价于原来 v3_fresh 的全量语义，不改变全新环境的行为
+        self.assertTrue(should_use_nodeman_v3(self._config()))
+
+    def test_existing_v2_collector_stays_on_v2(self):
+        # 判据是 subscription_id：V3 下发的采集项这个字段恒为空（IntegerField 存不下 workflow_id）
+        self.assertFalse(should_use_nodeman_v3(self._config(subscription_id=12345)))
+
+    @override_settings(NODEMAN_V3_COLLECTOR_WHITELIST="9001,9002")
+    def test_collector_whitelist_selects_targets(self):
+        self.assertTrue(should_use_nodeman_v3(self._config(collector_config_id=9002)))
+        self.assertFalse(should_use_nodeman_v3(self._config(collector_config_id=9003)))
+
+    @override_settings(NODEMAN_V3_BIZ_WHITELIST="7")
+    def test_biz_whitelist_selects_targets(self):
+        self.assertTrue(should_use_nodeman_v3(self._config(bk_biz_id=7)))
+        self.assertFalse(should_use_nodeman_v3(self._config(bk_biz_id=2)))
+
+    @override_settings(NODEMAN_V3_COLLECTOR_WHITELIST="not-an-id, 9001 ,")
+    def test_malformed_whitelist_entry_does_not_void_the_rest(self):
+        # 一个笔误不能把整张白名单废掉，否则灰度会在无人察觉时退回全量
+        self.assertTrue(should_use_nodeman_v3(self._config(collector_config_id=9001)))
+        self.assertFalse(should_use_nodeman_v3(self._config(collector_config_id=9003)))
+
+    @override_settings(NODEMAN_V3_COLLECTOR_WHITELIST="9999")
+    def test_existing_binding_outranks_whitelist_shrink(self):
+        # 白名单收窄不能把已经通过 V3 下发过的采集项踢回 V2：主机上那份 V3 子配置会失去控制面，
+        # 既不会被更新也不会被删除，变成永久残留。归属只能前进
+        from apps.log_databus.nodeman_v3.constants import RESOURCE_TYPE_COLLECTOR_CONFIG
+        from apps.log_databus.nodeman_v3.models import NodeManV3Binding
+
+        config = self._config(collector_config_id=9001)
+        NodeManV3Binding.objects.create(
+            resource_type=RESOURCE_TYPE_COLLECTOR_CONFIG,
+            resource_key=build_resource_key(9001),
+            bk_biz_id=2,
+            bk_tenant_id="system",
+            collector_config_id=9001,
+            policy_name=build_policy_name(9001),
+        )
+        self.assertTrue(should_use_nodeman_v3(config))
+
+    def test_v2_owned_collector_takes_v2_path_not_v3_installer(self):
+        # 反向门禁：BKL-5 的 V2OutboundZeroGateTest 证明「V3 归属不出 V2」，
+        # 这条证明另一半 —— 灰度外的采集项在 v3_fresh 环境下仍然走 V2，且不触碰 V3 installer
+        from apps.api import NodeApi
+        from apps.log_databus.handlers.collector.host import HostCollectorHandler
+
+        handler = HostCollectorHandler.__new__(HostCollectorHandler)
+        handler.data = self._config(subscription_id=12345)
+
+        def explode(_self):
+            raise AssertionError("灰度外的采集项不应触碰 NodeMan V3 installer")
+
+        with patch.object(HostCollectorHandler, "nodeman_v3_installer", property(explode)):
+            with patch.object(NodeApi, "switch_subscription") as switch:
+                handler._pre_start()
+
+        self.assertFalse(handler.use_nodeman_v3)
+        switch.assert_called_once()
+        self.assertEqual(switch.call_args[0][0]["action"], "enable")
 
 
 class FakeNodeManV3Client:
@@ -736,3 +827,147 @@ class V2ZeroImpactTest(TestCase):
         # 仍然限制字符集，避免放开后把任意内容透传给下游
         self.assertFalse(validate_task_id_value("trigger abc"))
         self.assertFalse(validate_task_id_value("../../etc/passwd"))
+
+
+class ListCollectorsByHostGrayTest(TestCase):
+    """
+    按主机反查采集项必须把两套控制面的结果取并集。
+
+    这个接口在视图里是 HostCollectorHandler() 无参构造，self.data 为 None，拿不到任何采集项
+    身份 —— 所以不能按采集项归属分流。灰度期二选一的表现是「这台机器上的采集项凭空少了几个」。
+    """
+
+    BK_BIZ_ID = 2
+    BK_HOST_ID = 77
+
+    def setUp(self):
+        from apps.log_databus.models import CollectorConfig
+        from apps.log_search.models import LogIndexSet
+
+        for index_set_id in (1, 2):
+            LogIndexSet.objects.create(
+                index_set_id=index_set_id,
+                index_set_name=f"set-{index_set_id}",
+                space_uid=f"bkcc__{self.BK_BIZ_ID}",
+                scenario_id="log",
+            )
+
+        self.v2_collector = CollectorConfig.objects.create(
+            collector_config_name="v2-one",
+            collector_config_name_en="v2_one",
+            bk_biz_id=self.BK_BIZ_ID,
+            collector_scenario_id=CollectorScenarioEnum.ROW.value,
+            category_id="os",
+            target_object_type="HOST",
+            target_node_type=TargetNodeTypeEnum.INSTANCE.value,
+            subscription_id=9001,
+            table_id="2_bklog.v2_one",
+            index_set_id=1,
+            is_active=True,
+        )
+        self.v3_collector = CollectorConfig.objects.create(
+            collector_config_name="v3-one",
+            collector_config_name_en="v3_one",
+            bk_biz_id=self.BK_BIZ_ID,
+            collector_scenario_id=CollectorScenarioEnum.ROW.value,
+            category_id="os",
+            target_object_type="HOST",
+            target_node_type=TargetNodeTypeEnum.INSTANCE.value,
+            subscription_id=None,
+            table_id="2_bklog.v3_one",
+            index_set_id=2,
+            is_active=True,
+        )
+
+        binding = NodeManV3Binding.objects.create(
+            resource_type=RESOURCE_TYPE_COLLECTOR_CONFIG,
+            resource_key=build_resource_key(self.v3_collector.collector_config_id),
+            bk_biz_id=self.BK_BIZ_ID,
+            bk_tenant_id="system",
+            collector_config_id=self.v3_collector.collector_config_id,
+            deploy_policy_id=3001,
+            policy_name=build_policy_name(self.v3_collector.collector_config_id),
+            generation=1,
+            is_enabled=True,
+        )
+        NodeManV3SubConfigTarget.objects.create(
+            binding=binding,
+            bk_host_id=self.BK_HOST_ID,
+            config_file_name=build_sub_config_name(f"{LogPluginInfo.NAME}.conf", 3001),
+            generation=1,
+            is_desired=True,
+        )
+
+    def _list(self):
+        from apps.log_databus.handlers.collector.host import HostCollectorHandler
+
+        handler = HostCollectorHandler()
+        with (
+            patch.object(
+                HostCollectorHandler,
+                "_resolve_bk_host_ids",
+                staticmethod(lambda params: [self.BK_HOST_ID]),
+            ),
+            patch(
+                "apps.log_databus.handlers.collector.host.NodeApi.query_host_subscriptions",
+                return_value=[{"source_id": 9001}],
+            ),
+            patch.object(
+                HostCollectorHandler,
+                "add_cluster_info",
+                # 真实实现会补上 retention 等存储字段，这里只要保留原行并补齐下游必需的键
+                lambda _self, rows: [{**row, "retention": 7} for row in rows],
+            ),
+            # 状态回读不是本用例的被测对象，桩掉避免打到真实节点管理
+            patch.object(HostCollectorHandler, "get_subscription_status_by_list", lambda _self, ids: []),
+        ):
+            rows = handler.list_collectors_by_host({"bk_biz_id": self.BK_BIZ_ID, "bk_host_id": self.BK_HOST_ID})
+        return {row["collector_config_id"] for row in rows}
+
+    @override_settings(NODEMAN_INTEGRATION_MODE="v3_fresh")
+    def test_gray_env_returns_both_v2_and_v3_collectors(self):
+        self.assertEqual(
+            self._list(),
+            {self.v2_collector.collector_config_id, self.v3_collector.collector_config_id},
+        )
+
+    @override_settings(NODEMAN_INTEGRATION_MODE="v2")
+    def test_v2_env_only_returns_v2_collectors(self):
+        # V3 快照表在 V2 环境下不该被读，否则会把 V3 采集项泄漏到 V2 环境的反查结果里
+        self.assertEqual(self._list(), {self.v2_collector.collector_config_id})
+
+    @override_settings(NODEMAN_INTEGRATION_MODE="v3_fresh")
+    def test_no_v2_subscription_means_no_v2_outbound_call(self):
+        from apps.log_databus.handlers.collector.host import HostCollectorHandler
+        from apps.log_databus.models import CollectorConfig
+
+        # 纯 V3 环境里节点管理 V2 可能压根不存在，无条件调用会让整个接口 5xx
+        CollectorConfig.objects.filter(collector_config_id=self.v2_collector.collector_config_id).update(
+            subscription_id=None
+        )
+        handler = HostCollectorHandler()
+
+        def explode(*args, **kwargs):
+            raise AssertionError("must not call V2 query_host_subscriptions when no V2 collector exists")
+
+        with (
+            patch.object(
+                HostCollectorHandler,
+                "_resolve_bk_host_ids",
+                staticmethod(lambda params: [self.BK_HOST_ID]),
+            ),
+            patch(
+                "apps.log_databus.handlers.collector.host.NodeApi.query_host_subscriptions",
+                side_effect=explode,
+            ),
+            patch.object(
+                HostCollectorHandler,
+                "add_cluster_info",
+                # 真实实现会补上 retention 等存储字段，这里只要保留原行并补齐下游必需的键
+                lambda _self, rows: [{**row, "retention": 7} for row in rows],
+            ),
+            # 状态回读不是本用例的被测对象，桩掉避免打到真实节点管理
+            patch.object(HostCollectorHandler, "get_subscription_status_by_list", lambda _self, ids: []),
+        ):
+            rows = handler.list_collectors_by_host({"bk_biz_id": self.BK_BIZ_ID, "bk_host_id": self.BK_HOST_ID})
+        self.assertEqual({row["collector_config_id"] for row in rows}, {self.v3_collector.collector_config_id})

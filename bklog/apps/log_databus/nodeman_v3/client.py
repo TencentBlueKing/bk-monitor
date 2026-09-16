@@ -180,6 +180,37 @@ class NodeManV3Client:
             or {}
         )
 
+    def list_workflow_operation_instances(self, payload: dict[str, Any]) -> dict:
+        """
+        按 workflow / operation 查询 per-host 执行实例。
+
+        状态页的「下发中 / 失败」只能来自这里：status_distribution 只给聚合计数，拿不到是哪台主机。
+        """
+        return (
+            self._call(
+                BKNodeV3Api.list_workflow_operation_instances,
+                "plugin/workflow/operation/instance/list",
+                payload,
+                write=False,
+            )
+            or {}
+        )
+
+    def get_workflow_operation_instance_log(self, payload: dict[str, Any]) -> dict:
+        return (
+            self._call(
+                BKNodeV3Api.get_workflow_operation_instance_log,
+                "plugin/workflow/operation/instance/log/get",
+                payload,
+                write=False,
+            )
+            or {}
+        )
+
+    def list_hosts(self, payload: dict[str, Any]) -> dict:
+        """查询主机列表（Agent 状态来源，替代 V2 ipchooser_host_details）。"""
+        return self._call(BKNodeV3Api.list_hosts, "topo/host/list", payload, write=False) or {}
+
     def list_operation_instance_status_distribution(self, trigger_ids: list[str]) -> dict:
         payload = {"trigger_id": trigger_ids}
         return (

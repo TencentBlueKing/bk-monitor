@@ -65,6 +65,16 @@ class NodeManV3Binding(OperateRecordModel):
     # 每次期望态变更递增；用于识别过期回调（老 generation 的状态不覆盖新一轮结果）
     generation = models.IntegerField(_("期望态版本"), default=0)
     is_enabled = models.BooleanField(_("采集项是否启用"), default=True)
+    # 最近一次下发声明的子配置模板名。定时收敛要靠它推出主机上的落地文件名
+    # （<模板名>_deploy_<policy_id><扩展名>）去做状态对账；不存这份快照就得在每轮定时任务里
+    # 重建一遍订阅 steps，而重建依赖 bk_data_id 与 params 当前值，采集项改过参数之后
+    # 推出来的文件名会与实际落地的那一份对不上。
+    sub_config_template_names = JsonField(_("子配置模板名"), null=True, default=None)
+    # 目标快照最近一次收敛时间
+    target_snapshot_at = models.DateTimeField(_("目标快照时间"), null=True, default=None)
+    # 最近一次兜底全量重放时间。即使目标没变也要周期性重放，用于补回「采集器当时不 running
+    # 导致这一轮没下发」留下的空洞（analyze_specific_plugin_sub_config_template.go:113-117）
+    last_heal_at = models.DateTimeField(_("兜底重放时间"), null=True, default=None)
 
     class Meta:
         app_label = "log_databus"
@@ -152,8 +162,8 @@ class NodeManV3SubConfigTarget(OperateRecordModel):
     采集项子配置的目标快照（期望态 vs 已生效）。
 
     状态页不能拿 bkunifylogbeat 进程 running 当成采集项已生效：同机多采集项共用一个进程，
-    进程活着只说明别的采集项在跑。判定依据是该主机上是否存在本采集项的子配置文件，
-    以及文件内容 md5 是否与期望一致（plugin/list_config_files 返回 name 与 md5）。
+    进程活着只说明别的采集项在跑。判定依据是该主机上是否存在本采集项的子配置文件
+    （plugin/list_config_files 按 name 回读），以及本地记录的已生效代次。
     """
 
     binding = models.ForeignKey(
@@ -162,7 +172,11 @@ class NodeManV3SubConfigTarget(OperateRecordModel):
     bk_host_id = models.IntegerField(_("主机ID"), db_index=True)
     config_file_name = models.CharField(_("子配置文件名"), max_length=255)
     generation = models.IntegerField(_("期望态版本"), default=0)
-    desired_md5 = models.CharField(_("期望内容MD5"), max_length=64, default="")
+    # 主机上那份子配置的真实内容 MD5，由 plugin/list_config_files 回读后写入。
+    # 刻意**没有**配对的 desired_md5：这个 md5 是节点管理渲染完模板之后的文件内容摘要，
+    # 而模板渲染发生在对方侧，我们本地只有 custom_config_context，算不出同一个值。
+    # 留一个算不出来的期望字段在旁边，早晚会有人写成 `desired != applied 即未生效`
+    # 而拿到 100% 误判。要做内容级对账得等节点管理支持提交端预渲染。
     applied_md5 = models.CharField(_("已生效内容MD5"), max_length=64, default="")
     applied_at = models.DateTimeField(_("生效时间"), null=True, default=None)
     is_desired = models.BooleanField(_("是否仍在期望范围内"), default=True)

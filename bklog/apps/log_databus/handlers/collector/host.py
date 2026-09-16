@@ -23,6 +23,7 @@ from collections import defaultdict
 from django.conf import settings
 from django.utils.translation import gettext as _
 from django.db import IntegrityError, transaction
+from django.db.models import Q
 from rest_framework.exceptions import ValidationError
 from apps.api import CCApi, NodeApi, TransferApi
 from apps.constants import UserOperationActionEnum, UserOperationTypeEnum
@@ -38,7 +39,8 @@ from apps.log_databus.serializers import (
     CollectorUpdateSerializer,
 )
 from apps.log_databus.nodeman_v3.exceptions import NodeManV3CapabilityBlocked
-from apps.log_databus.nodeman_v3.mode import is_nodeman_v3_only
+from apps.log_databus.nodeman_v3.mode import is_nodeman_v3_only, should_use_nodeman_v3
+from apps.log_databus.nodeman_v3.targets import collector_config_ids_by_host
 from apps.log_databus.tasks.bkdata import async_create_bkdata_data_id
 from apps.log_databus.constants import (
     CC_HOST_FIELDS,
@@ -89,6 +91,18 @@ class HostCollectorHandler(CollectorHandler):
     UPDATE_SERIALIZER = CollectorUpdateSerializer
 
     @property
+    def use_nodeman_v3(self) -> bool:
+        """
+        本采集项走 V3 还是 V2。
+
+        按采集项缓存：一次请求里会被问到多次（启停 → 状态 → 详情），而判定要查一次
+        NodeManV3Binding。归属在单次请求内不会变，缓存不会掩盖状态变化。
+        """
+        if not hasattr(self, "_use_nodeman_v3_cache"):
+            self._use_nodeman_v3_cache = should_use_nodeman_v3(self.data)
+        return self._use_nodeman_v3_cache
+
+    @property
     def nodeman_v3_installer(self):
         """
         V3-only 模式下的采集下发入口。
@@ -100,7 +114,7 @@ class HostCollectorHandler(CollectorHandler):
         return NodeManV3CollectorInstaller(self.data)
 
     def _pre_start(self):
-        if is_nodeman_v3_only():
+        if self.use_nodeman_v3:
             # V3 没有订阅开关这一层，启用动作由 start() 的期望态收敛完成
             return
         # 启动节点管理订阅功能
@@ -112,7 +126,7 @@ class HostCollectorHandler(CollectorHandler):
     @transaction.atomic
     def start(self, **kwargs):
         super().start()
-        if is_nodeman_v3_only():
+        if self.use_nodeman_v3:
             self.nodeman_v3_installer.start()
             return True
         if self.data.subscription_id:
@@ -120,7 +134,7 @@ class HostCollectorHandler(CollectorHandler):
         return True
 
     def _pre_stop(self):
-        if is_nodeman_v3_only():
+        if self.use_nodeman_v3:
             # 停用在 stop() 中通过清空目标范围表达，不能 disable 策略：
             # 被 disable 的策略不再参与收敛，已下发的子配置会残留在主机上继续采集
             return
@@ -133,7 +147,7 @@ class HostCollectorHandler(CollectorHandler):
     @transaction.atomic
     def stop(self, is_stop_index_set=True, **kwargs):
         super().stop(is_stop_index_set=is_stop_index_set)
-        if is_nodeman_v3_only():
+        if self.use_nodeman_v3:
             self.nodeman_v3_installer.stop()
             return True
         if self.data.subscription_id:
@@ -151,7 +165,7 @@ class HostCollectorHandler(CollectorHandler):
             "result": true
         }
         """
-        if is_nodeman_v3_only():
+        if self.use_nodeman_v3:
             self.nodeman_v3_installer.destroy()
             return
         if not self.data.subscription_id:
@@ -160,7 +174,7 @@ class HostCollectorHandler(CollectorHandler):
         return NodeApi.delete_subscription(subscription_params)
 
     def run(self, action, scope):
-        if is_nodeman_v3_only() or self.data.subscription_id:
+        if self.use_nodeman_v3 or self.data.subscription_id:
             return self._run_subscription_task(action=action, scope=scope)
         return True
 
@@ -611,6 +625,9 @@ class HostCollectorHandler(CollectorHandler):
         :param [string] task_id: 任务ID
         :return: [dict]
         """
+        if self.use_nodeman_v3:
+            return self._get_task_detail_v3(instance_id)
+
         # 详情接口查询，原始日志
         param = {
             "subscription_id": self.data.subscription_id,
@@ -634,7 +651,53 @@ class HostCollectorHandler(CollectorHandler):
                     return {"log_detail": "\n".join(log), "log_result": detail_result}
         return {"log_detail": "\n".join(log), "log_result": detail_result}
 
+    @staticmethod
+    def _parse_bk_host_id(instance_id: str) -> int:
+        """
+        从实例 ID 里取出主机 ID。
+
+        V3 的实例 ID 由 build_v2_compatible_instance_data 生成，形如 `host|instance|host|<主机ID>`，
+        与 V2 的实例 ID 格式保持一致，这样前端传回来的 instance_id 不需要改。
+
+        必须校验完整前缀而不是只取末段：V2 的服务实例 ID 形如
+        `service|instance|service|<服务实例ID>`，末段同样是纯数字，只取末段会把服务实例 ID
+        当成主机 ID 用，进而重试到一台毫不相干的机器上。
+        """
+        parts = (instance_id or "").split("|")
+        if len(parts) != 4 or parts[:3] != ["host", "instance", "host"] or not parts[3].isdigit():
+            return 0
+        return int(parts[3])
+
+    def _get_task_detail_v3(self, instance_id: str) -> dict:
+        """
+        V3 下的单实例任务日志。
+
+        V2 的日志是「订阅步骤 → 目标主机 → 子步骤」三层，V3 是「operation → operation 实例 →
+        action 日志」，层级对不上，所以这里只按 action 平铺输出，不再伪造 V2 的层级结构。
+        """
+        from apps.log_databus.nodeman_v3.status import CollectorStatusReader
+
+        bk_host_id = self._parse_bk_host_id(instance_id)
+        if not bk_host_id:
+            return {"log_detail": "", "log_result": {}}
+
+        detail = CollectorStatusReader(self.data).instance_detail(bk_host_id)
+        log = []
+        for oper_inst_id, actions in (detail.get("logs") or {}).items():
+            log.append("{}{}{}".format("=" * 20, oper_inst_id, "=" * 20))
+            for action_name, action_data in (actions or {}).items():
+                log.append("{}{}{}".format("-" * 20, action_name, "-" * 20))
+                for entry in ((action_data or {}).get("message") or {}).get("logs") or []:
+                    # 中文日志优先，没有再退英文；两个都空说明对方没填，不要输出空行
+                    text = entry.get("text_zh") or entry.get("text_en") or ""
+                    if text:
+                        log.append(f"[{entry.get('level', '')}] {text}")
+        return {"log_detail": "\n".join(log), "log_result": detail}
+
     def _retry_subscription(self, instance_id_list):
+        if self.use_nodeman_v3:
+            return self._retry_v3(instance_id_list)
+
         params = {
             "subscription_id": self.data.subscription_id,
             "instance_id_list": instance_id_list,
@@ -643,6 +706,35 @@ class HostCollectorHandler(CollectorHandler):
 
         task_id = str(NodeApi.retry_subscription(params)["task_id"])
         self.data.task_id_list.append(task_id)
+        self.data.save()
+        return self.data.task_id_list
+
+    def _retry_v3(self, instance_id_list):
+        """
+        V3 下按主机重试。
+
+        重试的是节点管理侧那一轮 workflow，而不是重新推期望态：期望态没变时重推会被指纹短路，
+        而用户点重试要的恰恰是「配置是对的、执行失败了，再跑一次」。
+
+        task_id_list 里记的是 workflow_id（字符串）。CollectorConfig.subscription_id 是
+        IntegerField 存不下，但 task_id_list 是 MultiStrSplitByCommaField，sub_type 默认 str，
+        可以存。
+        """
+        from apps.log_databus.nodeman_v3.status import CollectorStatusReader
+
+        bk_host_ids = [
+            bk_host_id
+            for bk_host_id in (self._parse_bk_host_id(instance_id) for instance_id in instance_id_list or [])
+            if bk_host_id
+        ]
+        if not bk_host_ids:
+            raise NodeManV3CapabilityBlocked(
+                NodeManV3CapabilityBlocked.MESSAGE.format(err=_("重试实例 ID 中解析不出主机 ID"))
+            )
+
+        workflow_id = CollectorStatusReader(self.data).retry_hosts(bk_host_ids)
+        # 不能直接 append：V3 下发不走订阅任务，task_id_list 一直是 None，append 会直接抛
+        self.data.task_id_list = [*(self.data.task_id_list or []), workflow_id]
         self.data.save()
         return self.data.task_id_list
 
@@ -701,7 +793,8 @@ class HostCollectorHandler(CollectorHandler):
             for sub_step_obj in step_obj["target_hosts"][0]["sub_steps"]:
                 if sub_step_obj["status"] != CollectStatus.SUCCESS:
                     return "{}-{}".format(step_obj["node_name"], sub_step_obj["node_name"])
-        return ""
+        # V3 的执行实例是 action 粒度，没有 V2 的 steps 结构，失败原因直接挂在 log 上
+        return instance_obj.get("log", "")
 
     def format_task_instance_status(self, instance_data, latest_task_id=None):
         """
@@ -1072,11 +1165,13 @@ class HostCollectorHandler(CollectorHandler):
         if self.data.is_custom_scenario:
             return {"task_ready": True, "contents": []}
 
-        task_ids = (
-            [str(task_id) for task_id in (id_list or self.data.task_id_list or [])]
-            if read_only
-            else []
-        )
+        if self.use_nodeman_v3:
+            instance_status = self.format_task_instance_status(self._v3_instance_data())
+            # task_ready 恒为 True：V2 里它表示「订阅任务已创建」，而 V3 的状态不依赖任务对象，
+            # 就算最近一轮 workflow 还没落库，本地快照也已经能回答每台主机的状态
+            return {"task_ready": True, "contents": self._get_status_content(instance_status, is_task=True)}
+
+        task_ids = [str(task_id) for task_id in (id_list or self.data.task_id_list or [])] if read_only else []
         if not self.data.subscription_id:
             if read_only:
                 return {"task_ready": False, "contents": []}
@@ -1116,11 +1211,40 @@ class HostCollectorHandler(CollectorHandler):
             latest_task_id = max(task_ids, key=int)
         else:
             latest_task_id = str(self.data.task_id_list[-1]) if self.data.task_id_list else None
-        instance_status = self.format_task_instance_status(
-            status_result, latest_task_id=latest_task_id
-        )
+        instance_status = self.format_task_instance_status(status_result, latest_task_id=latest_task_id)
 
         return {"task_ready": True, "contents": self._get_status_content(instance_status, is_task=True)}
+
+    def _v3_instance_data(self) -> list:
+        """
+        构造 V3 下的每主机实例数据，形状与 V2 订阅任务状态一致。
+
+        主机的 ip / 云区域 / 主机名来自 CMDB 而不是节点管理：节点管理的 PluginDeploymentInfo
+        只带 bk_host_id 与 innerip 列表，缺主机名与 supplier，而这些字段前端在用。
+        """
+        from apps.log_databus.nodeman_v3.status import (
+            CollectorStatusReader,
+            build_v2_compatible_instance_data,
+        )
+
+        host_statuses = CollectorStatusReader(self.data).refresh()
+        if not host_statuses:
+            return []
+
+        hosts = CCApi.list_biz_hosts.bulk_request(
+            {
+                "bk_biz_id": self.data.bk_biz_id,
+                "host_property_filter": {
+                    "condition": "AND",
+                    "rules": [
+                        {"field": "bk_host_id", "operator": "in", "value": sorted(host_statuses.keys())},
+                    ],
+                },
+                "fields": CMDB_HOST_SEARCH_FIELDS,
+            }
+        )
+        host_info = {host["bk_host_id"]: host for host in hosts if host.get("bk_host_id")}
+        return build_v2_compatible_instance_data(host_statuses, host_info)
 
     @staticmethod
     def format_subscription_instance_status(instance_data, plugin_data):
@@ -1185,6 +1309,13 @@ class HostCollectorHandler(CollectorHandler):
         查看订阅的插件运行状态
         :return:
         """
+        if self.use_nodeman_v3:
+            # V3 下不查 plugin_search：那是进程粒度的插件状态，同机多采集项共用一个
+            # bkunifylogbeat 进程，拿它当采集项状态正是 BKL-4 明确要消除的口径错误。
+            # 进程状态已经由 CollectorStatusReader 作为否定证据消化掉了。
+            instance_status = self.format_subscription_instance_status(self._v3_instance_data(), [])
+            return {"contents": self._get_status_content(instance_status, is_task=False)}
+
         if not self.data.subscription_id:
             return {
                 "contents": [
@@ -1254,7 +1385,7 @@ class HostCollectorHandler(CollectorHandler):
         return return_data
 
     def _update_or_create_subscription(self, collector_scenario, params: dict, is_create=False):
-        if is_nodeman_v3_only():
+        if self.use_nodeman_v3:
             return self._update_nodeman_v3_policy(params)
 
         try:
@@ -1473,7 +1604,7 @@ class HostCollectorHandler(CollectorHandler):
         :param: nodes 需要重试的实例
         :return: task_id 任务ID
         """
-        if is_nodeman_v3_only():
+        if self.use_nodeman_v3:
             return self._run_nodeman_v3_reconcile(action=action, scope=scope)
 
         collector_scenario = CollectorScenario.get_instance(collector_scenario_id=self.data.collector_scenario_id)
@@ -1555,23 +1686,74 @@ class HostCollectorHandler(CollectorHandler):
         subscription_id_list.append(collector_obj.subscription_id)
         return return_data, subscription_id_list, subscription_collector_map
 
+    @staticmethod
+    def _resolve_bk_host_ids(params: dict) -> list[int]:
+        """
+        把主机反查入参统一成 bk_host_id 列表。
+
+        接口允许只传 bk_host_innerip + bk_cloud_id，而 V3 的目标快照只按 bk_host_id 索引
+        （V3 的 instance 范围本身也只认 host_id），所以这里要先补齐。
+        """
+        if params.get("bk_host_id"):
+            return [params["bk_host_id"]]
+        if not params.get("bk_host_innerip"):
+            return []
+        hosts = CCApi.list_biz_hosts.bulk_request(
+            {
+                "bk_biz_id": params["bk_biz_id"],
+                "host_property_filter": {
+                    "condition": "AND",
+                    "rules": [
+                        {"field": "bk_host_innerip", "operator": "equal", "value": params["bk_host_innerip"]},
+                        {"field": "bk_cloud_id", "operator": "equal", "value": params.get("bk_cloud_id", 0)},
+                    ],
+                },
+                "fields": CMDB_HOST_SEARCH_FIELDS,
+            }
+        )
+        return [host["bk_host_id"] for host in hosts if host.get("bk_host_id")]
+
     def list_collectors_by_host(self, params):
         bk_biz_id = params.get("bk_biz_id")
-        node_result = []
-        try:
-            node_result = NodeApi.query_host_subscriptions({**params, "source_type": "subscription"})
-        except ApiRequestError as error:
-            if NOT_FOUND_CODE in error.message:
-                node_result = []
 
-        subscription_ids = [ip_subscription["source_id"] for ip_subscription in node_result]
-        collectors = CollectorConfig.objects.filter(
-            subscription_id__in=subscription_ids,
-            bk_biz_id=bk_biz_id,
-            is_active=True,
-            table_id__isnull=False,
-            index_set_id__isnull=False,
-        )
+        # 这个接口按**主机**反查采集项，不针对某一个采集项 —— 视图里是 HostCollectorHandler()
+        # 无参构造，self.data 为 None，所以这里不能用 self.use_nodeman_v3 分流：那样会在灰度期
+        # 二选一，把另一套控制面下的采集项整批漏掉（用户看到的是「这台机器上的采集项凭空少了几个」）。
+        # 正确做法是两个事实源各查各的再取并集，三种模式下都成立。
+        query = Q(bk_biz_id=bk_biz_id, is_active=True, table_id__isnull=False, index_set_id__isnull=False)
+
+        # V2：节点管理侧按订阅反查
+        subscription_ids = []
+        if CollectorConfig.objects.filter(bk_biz_id=bk_biz_id, subscription_id__isnull=False).exists():
+            # 仅当本业务确实存在 V2 采集项时才发这个请求。纯 V3 环境里节点管理 V2
+            # 可能压根不存在，无条件调用会让整个接口 5xx，也会破坏 V2 零出网门禁
+            node_result = []
+            try:
+                node_result = NodeApi.query_host_subscriptions({**params, "source_type": "subscription"})
+            except ApiRequestError as error:
+                # 刻意保持 V2 原有的吞异常语义。这里改成抛出更合理，但那会把存量环境上
+                # 一个原本降级成空列表的请求变成 5xx —— 不在本单的改动范围内
+                if NOT_FOUND_CODE in error.message:
+                    node_result = []
+            subscription_ids = [ip_subscription["source_id"] for ip_subscription in node_result]
+
+        # V3：没有「订阅」这个对象，query_host_subscriptions 无从对应；而 process/list 只到
+        # 进程粒度，同机多采集项共用一个 bkunifylogbeat 进程，从节点管理侧根本查不出
+        # 这台机器上跑着哪几个采集项。改用本地目标快照（BKL-3 维护）反查
+        v3_collector_config_ids = set()
+        if is_nodeman_v3_only():
+            for ids in collector_config_ids_by_host(bk_biz_id, self._resolve_bk_host_ids(params)).values():
+                v3_collector_config_ids.update(ids)
+
+        if not subscription_ids and not v3_collector_config_ids:
+            collectors = CollectorConfig.objects.none()
+        else:
+            matched = Q()
+            if subscription_ids:
+                matched |= Q(subscription_id__in=subscription_ids)
+            if v3_collector_config_ids:
+                matched |= Q(collector_config_id__in=v3_collector_config_ids)
+            collectors = CollectorConfig.objects.filter(query & matched)
 
         collectors = [model_to_dict(c) for c in collectors]
         collectors = self.add_cluster_info(collectors)

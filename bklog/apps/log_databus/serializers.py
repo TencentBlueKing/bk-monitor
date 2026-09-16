@@ -603,7 +603,10 @@ TASK_ID_PATTERN = re.compile(r"^[A-Za-z0-9_.:-]{1,128}$")
 
 def validate_task_id_value(value):
     """
-    校验任务 ID 列表。V2 只接受整数 ID；V3-only 模式下额外接受字符串形态的任务标识。
+    校验任务 ID 列表。V2 只接受整数 ID；环境启用 V3 后额外接受字符串形态的任务标识。
+
+    放宽是按环境而不是按采集项：灰度期间两类采集项并存，序列化阶段判不出归属。
+    放宽后的字符集仍然包含纯数字，所以 V2 的整数 ID 照样通得过，不会漏校验。
     """
     from apps.log_databus.nodeman_v3.mode import is_nodeman_v3_only
 
@@ -654,9 +657,7 @@ class TaskStatusSerializer(serializers.Serializer):
 
 
 class SubscriptionStatusSerializer(serializers.Serializer):
-    include_plugin_status = serializers.BooleanField(
-        label=_("是否查询插件版本信息"), required=False, default=True
-    )
+    include_plugin_status = serializers.BooleanField(label=_("是否查询插件版本信息"), required=False, default=True)
 
 
 class TaskDetailSerializer(serializers.Serializer):
@@ -666,15 +667,19 @@ class TaskDetailSerializer(serializers.Serializer):
     def validate_task_id(self, value):
         from apps.log_databus.nodeman_v3.mode import is_nodeman_v3_only
 
+        # 纯数字一律按 V2 的整数任务 ID 处理。灰度期间两类采集项在同一环境并存，而序列化阶段
+        # 拿不到采集项、判不出归属，只能按取值形态区分；V3 的 trigger_id / workflow_id 不是
+        # 纯数字，两者不会混淆。按环境模式分支会把 V2 采集项的整数 ID 也变成字符串传给下游
+        if value.isdigit():
+            return int(value)
+
         if is_nodeman_v3_only():
             # V3 的任务标识是字符串，转成整数会直接把 ID 破坏掉
             if not TASK_ID_PATTERN.match(value):
                 raise ValidationError(_("task_id不符合格式"))
             return value
 
-        if not value.isdigit():
-            raise ValidationError(_("task_id请填写合法的整数值"))
-        return int(value)
+        raise ValidationError(_("task_id请填写合法的整数值"))
 
 
 class CollectorListSerializer(DataModelSerializer):
@@ -1912,9 +1917,7 @@ class FastCollectorUpdateSerializer(
     target_node_type = serializers.CharField(label=_("节点类型"), required=False)
     target_nodes = TargetNodeSerializer(label=_("目标节点"), required=False, many=True)
     params = PartialPluginParamSerializer(required=False)
-    data_encoding = serializers.ChoiceField(
-        label=_("日志字符集"), choices=EncodingsEnum.get_choices(), required=False
-    )
+    data_encoding = serializers.ChoiceField(label=_("日志字符集"), choices=EncodingsEnum.get_choices(), required=False)
     etl_config = serializers.CharField(label=_("清洗类型"), required=False)
     storage_cluster_id = serializers.IntegerField(label=_("集群ID"), required=False)
     retention = serializers.IntegerField(label=_("有效时间"), required=False)

@@ -381,10 +381,27 @@ class CollectorPolicyReconciler(PolicyReconcilerBase):
         # 这一步刻意放在派发之前：desired_scopes 允许领先于实际下发，
         # 多装一台机器的采集器是无害的（specify_plugin 只装不卸），
         # 而漏装会让子配置无处落地——节点管理只对插件进程 running 的主机下发子配置。
-        if binding.desired_scopes != payload["scopes"]:
+        # 子配置模板名随期望态一起落库：定时收敛与状态回读要靠它推出主机上的落地文件名，
+        # 而那时重建 steps 会用采集项**当前**的参数，与实际下发的那一版可能已经不同。
+        template_names = [
+            detail["template_name"]
+            for spec in payload["specs"]
+            for detail in (spec.get("param") or {}).get("config_files_detail") or []
+        ]
+
+        if binding.desired_scopes != payload["scopes"] or binding.sub_config_template_names != template_names:
             binding.desired_scopes = payload["scopes"]
+            binding.sub_config_template_names = template_names
             binding.is_enabled = bool(payload["scopes"])
-            binding.save(update_fields=["desired_scopes", "is_enabled", "updated_at", "updated_by"])
+            binding.save(
+                update_fields=[
+                    "desired_scopes",
+                    "sub_config_template_names",
+                    "is_enabled",
+                    "updated_at",
+                    "updated_by",
+                ]
+            )
 
         # 收敛顺序取决于范围是扩还是收，两个方向的失败后果不对称。
         stopping = not payload["scopes"]
