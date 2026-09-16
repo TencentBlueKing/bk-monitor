@@ -6,7 +6,6 @@ from django.db.models import Q
 from apm_web.handlers.metric_group.define import CalculationType as MetricCalculationType
 from apm_web.llm.adapter import adapt_spans
 from apm_web.llm.constants import CalculationType
-from apm_web.llm.flow import FlowBuilder
 from apm_web.llm.metric_group import LLMMetricGroup
 from apm_web.llm.query import LLMQuery
 from apm_web.llm.resources import (
@@ -14,7 +13,6 @@ from apm_web.llm.resources import (
     ListFlowsResource,
     ListSpansResource,
     ListTracesResource,
-    TokenStatisticsResource,
     TimeSeriesResource,
 )
 
@@ -950,7 +948,7 @@ class ListSpansResourceTestCase(TestCase):
 
 
 class ListFlowsResourceTestCase(TestCase):
-    def test_list_spans_and_flows_share_contract_with_agent_token_fallback(self):
+    def test_list_spans_and_flows_share_complete_agent_trace_contract(self):
         trace_id = "trace-agent-tool-call"
         tool_call_id = "tool-call-1"
         resource = {"service.name": "agent-service"}
@@ -1115,19 +1113,8 @@ class ListFlowsResourceTestCase(TestCase):
 
         spans = spans_result["spans"]
         flow = flows_result["traces"][0]["flow"]
-        flattened_flow = flatten(flow)
         self.assertEqual(spans_result["total"], 4)
-        self.assertEqual(flattened_flow[1:], spans[1:])
-        self.assertEqual(
-            {
-                key: value
-                for key, value in flattened_flow[0]["attributes"].items()
-                if not key.startswith("gen_ai.usage.")
-            },
-            spans[0]["attributes"],
-        )
-        self.assertEqual(flattened_flow[0]["attributes"]["gen_ai.usage.input_tokens"], 300)
-        self.assertEqual(flattened_flow[0]["attributes"]["gen_ai.usage.output_tokens"], 116)
+        self.assertEqual(flatten(flow), spans)
         self.assertEqual(
             [span["attributes"]["gen_ai.operation.name"] for span in spans],
             ["invoke_agent", "chat", "execute_tool", "chat"],
@@ -1188,164 +1175,11 @@ class ListFlowsResourceTestCase(TestCase):
             },
         ]
 
-        flow = FlowBuilder(raw_spans, [raw_spans[0], raw_spans[2]]).build()
+        flow = ListFlowsResource._build_flow(raw_spans, [raw_spans[0], raw_spans[2]])
 
         self.assertEqual([span["span_id"] for span in flow], ["agent"])
         self.assertEqual([span["span_id"] for span in flow[0]["childs"]], ["tool"])
         self.assertEqual(flow[0]["childs"][0]["parent_span_id"], "framework")
-
-    def test_flow_builder_fills_agent_tokens_from_llm_descendants(self):
-        raw_spans = [
-            {"trace_id": "trace-1", "span_id": "agent", "parent_span_id": "", "start_time": 100},
-            {"trace_id": "trace-1", "span_id": "framework", "parent_span_id": "agent", "start_time": 110},
-            {"trace_id": "trace-1", "span_id": "llm-1", "parent_span_id": "framework", "start_time": 120},
-            {"trace_id": "trace-1", "span_id": "llm-2", "parent_span_id": "agent", "start_time": 130},
-        ]
-        spans = [
-            {
-                **raw_spans[0],
-                "span_type": "AGENT",
-                "attributes": {"gen_ai.operation.name": "invoke_agent"},
-            },
-            {
-                **raw_spans[2],
-                "span_type": "LLM",
-                "attributes": {
-                    "gen_ai.operation.name": "chat",
-                    "gen_ai.usage.input_tokens": 10,
-                    "gen_ai.usage.output_tokens": 3,
-                    "gen_ai.usage.cache_read.input_tokens": 2,
-                },
-            },
-            {
-                **raw_spans[3],
-                "span_type": "LLM",
-                "attributes": {
-                    "gen_ai.operation.name": "chat",
-                    "gen_ai.usage.input_tokens": 20,
-                    "gen_ai.usage.output_tokens": 7,
-                    "gen_ai.usage.cache_write.input_tokens": 4,
-                },
-            },
-        ]
-
-        flow = FlowBuilder(raw_spans, spans).build()
-
-        self.assertEqual(
-            FlowBuilder.token_statistics_map(flow)["agent"],
-            {
-                "input_tokens": 30,
-                "output_tokens": 10,
-                "total_tokens": 40,
-                "cache_read_input_tokens": 2,
-                "cache_write_input_tokens": 4,
-            },
-        )
-
-    def test_flow_builder_propagates_nested_agent_reported_tokens(self):
-        raw_spans = [
-            {"trace_id": "trace-1", "span_id": "outer", "parent_span_id": "", "start_time": 100},
-            {"trace_id": "trace-1", "span_id": "inner", "parent_span_id": "outer", "start_time": 110},
-            {"trace_id": "trace-1", "span_id": "llm", "parent_span_id": "inner", "start_time": 120},
-        ]
-        spans = [
-            {
-                **raw_spans[0],
-                "span_type": "AGENT",
-                "attributes": {"gen_ai.operation.name": "invoke_workflow"},
-            },
-            {
-                **raw_spans[1],
-                "span_type": "AGENT",
-                "attributes": {
-                    "gen_ai.operation.name": "invoke_agent",
-                    "gen_ai.usage.input_tokens": 100,
-                    "gen_ai.usage.output_tokens": 50,
-                },
-            },
-            {
-                **raw_spans[2],
-                "span_type": "LLM",
-                "attributes": {
-                    "gen_ai.operation.name": "chat",
-                    "gen_ai.usage.input_tokens": 60,
-                    "gen_ai.usage.output_tokens": 20,
-                },
-            },
-        ]
-
-        flow = FlowBuilder(raw_spans, spans).build()
-
-        self.assertEqual(
-            FlowBuilder.token_statistics_map(flow)["outer"],
-            {
-                "input_tokens": 100,
-                "output_tokens": 50,
-                "total_tokens": 150,
-                "cache_read_input_tokens": 0,
-                "cache_write_input_tokens": 0,
-            },
-        )
-
-    def test_flow_builder_does_not_add_zero_token_fields_without_descendants(self):
-        raw_span = {"trace_id": "trace-1", "span_id": "agent", "parent_span_id": "", "start_time": 100}
-        agent = {
-            **raw_span,
-            "span_type": "AGENT",
-            "attributes": {"gen_ai.operation.name": "invoke_agent"},
-        }
-
-        flow = FlowBuilder([raw_span], [agent]).build()
-
-        self.assertEqual(flow[0]["attributes"], {"gen_ai.operation.name": "invoke_agent"})
-
-    def test_token_statistics_returns_all_agents_from_list_flows(self):
-        flow = [
-            {
-                "span_id": "agent",
-                "span_type": "AGENT",
-                "attributes": {
-                    "gen_ai.usage.input_tokens": 30,
-                    "gen_ai.usage.output_tokens": 10,
-                },
-                "childs": [],
-            }
-        ]
-        with mock.patch(
-            "apm_web.llm.resources.ListFlowsResource.request",
-            return_value={"traces": [{"trace_id": "trace-1", "flow": flow}]},
-        ) as list_flows:
-            result = TokenStatisticsResource().request(
-                {
-                    "bk_biz_id": 11,
-                    "app_name": "sand_local_dev",
-                    "trace_id": "trace-1",
-                }
-            )
-
-        self.assertEqual(
-            result,
-            {
-                "trace_id": "trace-1",
-                "statistics": {
-                    "agent": {
-                        "input_tokens": 30,
-                        "output_tokens": 10,
-                        "total_tokens": 40,
-                        "cache_read_input_tokens": 0,
-                        "cache_write_input_tokens": 0,
-                    }
-                },
-            },
-        )
-        list_flows.assert_called_once_with(
-            {
-                "bk_biz_id": 11,
-                "app_name": "sand_local_dev",
-                "group_field": "trace_id",
-                "group_id": "trace-1",
-            }
-        )
 
     def test_builds_span_tree_for_each_trace(self):
         group_field = "attributes.gen_ai.conversation.id"
