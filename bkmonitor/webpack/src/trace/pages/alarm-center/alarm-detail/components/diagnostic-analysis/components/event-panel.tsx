@@ -8,10 +8,11 @@
  */
 import { defineComponent } from 'vue';
 
+import { ChatResultKind } from '../chat/chat-result-typing';
 import { DiagnosticTypeEnum, DiagnosticTypeMap } from '../constant';
-import { openEventExplore } from '../navigate';
 import AnalysisDetailContent from './analysis-detail-content';
 import SuspiciousAnalysisGroup from './suspicious-analysis-group';
+import { useAlarmCenterDetailStore } from '@/store/modules/alarm-center-detail';
 
 import './event-panel.scss';
 
@@ -67,10 +68,16 @@ const MOCK_EVENT_GROUPS = [
 export default defineComponent({
   name: 'EventPanel',
   setup() {
-    /** 点事件总数：新开页打开事件检索 */
-    const handleTotalClick = (event: MouseEvent) => {
+    const store = useAlarmCenterDetailStore();
+
+    /** 点事件总数：在会话里回显这组事件的列表 */
+    const handleTotalClick = (event: MouseEvent, group: (typeof MOCK_EVENT_GROUPS)[number]) => {
       event.stopPropagation();
-      openEventExplore();
+      store.requestChatResult({
+        kind: ChatResultKind.EVENT_LIST,
+        question: window.i18n.t('{0} 这 {1} 个{2}分别是什么？', [group.title, group.total, group.unit]) as string,
+        context: { eventGroup: group.title, eventTotal: group.total, eventUnit: group.unit },
+      });
     };
 
     return {
@@ -104,7 +111,8 @@ export default defineComponent({
                       <i18n-t keypath='（共 {0} 个{1}，展示 {2} 如下）'>
                         <span
                           class='count-strong is-clickable'
-                          onClick={e => this.handleTotalClick(e)}
+                          v-bk-tooltips={{ content: this.$t('查看详情') }}
+                          onClick={e => this.handleTotalClick(e, group)}
                         >
                           {group.total}
                         </span>

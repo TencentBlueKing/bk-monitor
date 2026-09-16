@@ -34,6 +34,7 @@ import { createAutoTimeRange } from '../../plugins/charts/failure-chart/failure-
 import { useAppStore } from './app';
 import { fetchActionDetail, fetchAlarmDetail } from '@/pages/alarm-center/services/alarm-detail';
 
+import type { IChatResultRequest } from '../../pages/alarm-center/alarm-detail/components/diagnostic-analysis/chat/chat-result-typing';
 import type { IDiagnosticNavigateIntent } from '../../pages/alarm-center/alarm-detail/components/diagnostic-analysis/navigate-typing';
 import type { AlarmDetail } from '../../pages/alarm-center/typings/detail';
 import type { ActionDetail } from '@/pages/alarm-center/typings/action-detail';
@@ -71,6 +72,11 @@ export const useAlarmCenterDetailStore = defineStore('alarmCenterDetail', () => 
   const diagnosticNavigate = shallowRef<IDiagnosticNavigateIntent | null>(null);
   /** 左侧划词添加的引用，由右侧聊天输入框消费 */
   const chatContexts = shallowRef<IChatContextItem[]>([]);
+  /**
+   * 分析板块请求把结果回显到 AI 诊断会话里（原先这些入口是新开页）。
+   * 发起方只给类型和上下文，diagnostic-analysis 负责拼回答并入列。
+   */
+  const chatResultRequest = shallowRef<IChatResultRequest | null>(null);
   /** 视图 - 维度分析已加载的可下钻维度，右侧诊断需要用它对齐维度名 */
   const viewDimensionList = shallowRef<{ id: string; name: string }[]>([]);
   /** 递增以请求宿主展开右侧 AI 诊断面板 */
@@ -139,6 +145,16 @@ export const useAlarmCenterDetailStore = defineStore('alarmCenterDetail', () => 
     chatContexts.value = chatContexts.value.filter(item => item.id !== id);
   };
 
+  /** 请求把分析结果回显进会话，同时确保 AI 诊断面板是展开的 */
+  const requestChatResult = (request: Omit<IChatResultRequest, 'nonce'>) => {
+    chatResultRequest.value = { ...request, nonce: Date.now() };
+    aiAnalysisOpenNonce.value = Date.now();
+  };
+
+  const clearChatResultRequest = () => {
+    chatResultRequest.value = null;
+  };
+
   const clearChatContexts = () => {
     chatContexts.value = [];
   };
@@ -173,6 +189,7 @@ export const useAlarmCenterDetailStore = defineStore('alarmCenterDetail', () => 
     loading.value = false;
     diagnosticNavigate.value = null;
     chatContexts.value = [];
+    chatResultRequest.value = null;
   });
 
   return {
@@ -195,6 +212,9 @@ export const useAlarmCenterDetailStore = defineStore('alarmCenterDetail', () => 
     addChatContext,
     removeChatContext,
     clearChatContexts,
+    chatResultRequest,
+    requestChatResult,
+    clearChatResultRequest,
     viewDimensionList,
     setViewDimensionList,
   };

@@ -32,9 +32,20 @@ const MENU_CLASS = 'ai-diagnostic-hover-menu';
 /** 指针离开触发项与菜单多远才算真的移开 */
 const ZONE_PADDING = 10;
 
+/**
+ * 菜单不得遮挡的元素用这个属性标记（如列表的「展开更多」）。
+ * 这里只认属性，不关心具体是什么按钮。
+ */
+const AVOID_ATTR = 'data-hover-menu-avoid';
+
+/** 菜单尚未渲染时按这个高度预判会不会挡住东西，取值略大于实际高度 */
+const MENU_ESTIMATED_HEIGHT = 44;
+
 interface IHoverMenuState {
   category: string;
   label: string;
+  /** 默认落在触发项下方，下方会挡住 AVOID_ATTR 元素时翻到上方 */
+  placement: 'bottom' | 'top';
   text: string;
   x: number;
   y: number;
@@ -81,6 +92,18 @@ export function useHoverToChat(containerRef: Ref<HTMLElement | null>) {
     return trigger;
   };
 
+  /** 菜单挂在触发项下方时会不会压住标了 AVOID_ATTR 的元素 */
+  const willCoverAvoidArea = (rect: DOMRect) => {
+    const container = containerRef.value;
+    if (!container) return false;
+    const menuTop = rect.bottom;
+    const menuBottom = rect.bottom + MENU_ESTIMATED_HEIGHT;
+    return [...container.querySelectorAll(`[${AVOID_ATTR}]`)].some(element => {
+      const target = element.getBoundingClientRect();
+      return target.top < menuBottom && target.bottom > menuTop;
+    });
+  };
+
   const handleMouseover = (event: MouseEvent) => {
     const trigger = resolveTrigger(event.target);
     if (!trigger) return;
@@ -89,12 +112,14 @@ export function useHoverToChat(containerRef: Ref<HTMLElement | null>) {
     clearHideTimer();
     activeTrigger = trigger;
     const rect = trigger.getBoundingClientRect();
+    const placement = willCoverAvoidArea(rect) ? 'top' : 'bottom';
     hoverMenu.value = {
       text: text.slice(0, MAX_CONTEXT_TEXT_LENGTH),
       label: trigger.getAttribute('data-chat-label') || '',
       category: trigger.getAttribute('data-chat-category') || '',
+      placement,
       x: rect.left + rect.width / 2,
-      y: rect.bottom + MENU_OFFSET_Y,
+      y: placement === 'top' ? rect.top - MENU_OFFSET_Y : rect.bottom + MENU_OFFSET_Y,
     };
   };
 

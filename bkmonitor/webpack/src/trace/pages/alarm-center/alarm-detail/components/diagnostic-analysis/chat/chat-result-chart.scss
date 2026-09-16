@@ -1,0 +1,32 @@
+.chat-result-chart {
+  width: 100%;
+
+  .chat-result-chart-content {
+    .chart-base-wrap,
+    .chart-base {
+      height: 100%;
+    }
+  }
+
+  .chat-result-chart-legend {
+    display: flex;
+    flex-wrap: wrap;
+    padding-top: 4px;
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      margin-right: 12px;
+      font-size: 12px;
+      line-height: 18px;
+      color: #757880;
+    }
+
+    .legend-dot {
+      width: 8px;
+      height: 2px;
+      margin-right: 4px;
+      border-radius: 1px;
+    }
+  }
+}

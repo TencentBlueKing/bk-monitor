@@ -8,10 +8,11 @@
  */
 import { defineComponent } from 'vue';
 
+import { ChatResultKind } from '../chat/chat-result-typing';
 import { DiagnosticTypeEnum, DiagnosticTypeMap } from '../constant';
-import { openLogClusteringPlaceholder } from '../navigate';
 import AnalysisDetailContent from './analysis-detail-content';
 import SuspiciousAnalysisGroup from './suspicious-analysis-group';
+import { useAlarmCenterDetailStore } from '@/store/modules/alarm-center-detail';
 
 import './log-panel.scss';
 
@@ -41,8 +42,21 @@ const MOCK_LOG_CLUSTERS = [
 export default defineComponent({
   name: 'LogPanel',
   setup() {
+    const store = useAlarmCenterDetailStore();
+
+    /** 在会话里回显该聚类结果的明细 */
+    const handleShowLogCluster = (event: MouseEvent, item: (typeof MOCK_LOG_CLUSTERS)[number], index: number) => {
+      event.stopPropagation();
+      store.requestChatResult({
+        kind: ChatResultKind.LOG_CLUSTER,
+        question: window.i18n.t('展开看下聚类结果 {0} 的日志明细', [index + 1]) as string,
+        context: { pattern: item.pattern, logCount: item.logCount },
+      });
+    };
+
     return {
       chatCategory: DiagnosticTypeMap[DiagnosticTypeEnum.LOG] as string,
+      handleShowLogCluster,
     };
   },
   render() {
@@ -63,11 +77,9 @@ export default defineComponent({
                     <span class='group-name'>
                       {`${this.$t('聚类结果')} ${index + 1}`}
                       <i
-                        class='icon-monitor icon-fenxiang jump-btn'
-                        onClick={e => {
-                          e.stopPropagation();
-                          openLogClusteringPlaceholder(item.pattern);
-                        }}
+                        class='icon-monitor icon-xiaoxi jump-btn'
+                        v-bk-tooltips={{ content: this.$t('查看详情') }}
+                        onClick={e => this.handleShowLogCluster(e, item, index)}
                       />
                       <i18n-t
                         class='group-count'

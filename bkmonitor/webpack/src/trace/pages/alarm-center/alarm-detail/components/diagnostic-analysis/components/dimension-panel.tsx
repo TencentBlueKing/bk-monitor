@@ -27,8 +27,9 @@ import { computed, defineComponent } from 'vue';
 
 import { storeToRefs } from 'pinia';
 
+import { ChatResultKind } from '../chat/chat-result-typing';
 import { DiagnosticTypeEnum, DiagnosticTypeMap } from '../constant';
-import { openMetricRetrievalByDimensions, openStrategyDetail } from '../navigate';
+import { openStrategyDetail } from '../navigate';
 import AnalysisDetailContent from './analysis-detail-content';
 import SuspiciousAnalysisGroup from './suspicious-analysis-group';
 import { useAlarmCenterDetailStore } from '@/store/modules/alarm-center-detail';
@@ -96,7 +97,8 @@ const PLACEHOLDER_DIMENSION_NAME = 'Key 占位';
 export default defineComponent({
   name: 'DimensionPanel',
   setup() {
-    const { viewDimensionList } = storeToRefs(useAlarmCenterDetailStore());
+    const store = useAlarmCenterDetailStore();
+    const { viewDimensionList } = storeToRefs(store);
 
     /** 【临时联调 mock】把占位维度替换成该告警真实维度，每组各取一个便于区分选中效果 */
     const dimensionGroups = computed<IDimensionGroup[]>(() => {
@@ -112,18 +114,28 @@ export default defineComponent({
       }));
     });
 
-    /** 新开页打开指标检索，查该指标在这组维度下的曲线 */
-    const handleJumpMetricRetrieval = (event: MouseEvent, tableData: ITableItem[]) => {
+    /** 在会话里回显该指标在这组维度下的曲线 */
+    const handleShowMetricTrend = (event: MouseEvent, tableData: ITableItem[], index: number) => {
       event.stopPropagation();
-      openMetricRetrievalByDimensions(tableData);
+      store.requestChatResult({
+        kind: ChatResultKind.METRIC,
+        question: window.i18n.t('看下异常维度（组合）{0} 的指标趋势', [index + 1]) as string,
+        context: { dimensions: tableData.map(item => ({ name: item.name, value: item.value })) },
+      });
     };
 
-    /** 包含 x 个告警：跳转该组关联策略详情（多策略时取首个） */
+    /** 包含 x 个告警：在会话里回显这组维度命中的告警列表 */
     const handleAlertCountClick = (event: MouseEvent, group: IDimensionGroup) => {
       event.stopPropagation();
-      const strategyId = group.strategies[0]?.strategy_id;
-      if (strategyId === undefined) return;
-      openStrategyDetail(strategyId);
+      store.requestChatResult({
+        kind: ChatResultKind.ALERT_LIST,
+        question: window.i18n.t('这组维度包含的 {0} 个告警都是哪些？', [group.alertCount]) as string,
+        context: {
+          alertCount: group.alertCount,
+          strategies: group.strategies,
+          dimensions: group.tableData.map(item => ({ name: item.name, value: item.value })),
+        },
+      });
     };
 
     const handleStrategyClick = (event: MouseEvent, strategy: IDimensionStrategy) => {
@@ -134,7 +146,7 @@ export default defineComponent({
     return {
       chatCategory: DiagnosticTypeMap[DiagnosticTypeEnum.DIMENSION] as string,
       dimensionGroups,
-      handleJumpMetricRetrieval,
+      handleShowMetricTrend,
       handleAlertCountClick,
       handleStrategyClick,
     };
@@ -158,8 +170,9 @@ export default defineComponent({
                     <span class='group-name'>
                       {`${this.$t('异常维度（组合）')} ${index + 1}`}
                       <i
-                        class='icon-monitor icon-fenxiang jump-btn'
-                        onClick={e => this.handleJumpMetricRetrieval(e, group.tableData)}
+                        class='icon-monitor icon-xiaoxi jump-btn'
+                        v-bk-tooltips={{ content: this.$t('查看详情') }}
+                        onClick={e => this.handleShowMetricTrend(e, group.tableData, index)}
                       />
                     </span>
                     <i18n-t

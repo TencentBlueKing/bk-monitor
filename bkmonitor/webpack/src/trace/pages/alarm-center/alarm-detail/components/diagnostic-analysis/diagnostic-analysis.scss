@@ -192,6 +192,13 @@
   padding-top: 6px;
   transform: translateX(-50%);
 
+  /* 下方会压住「展开更多」这类按钮时翻到触发项上方，桥接区跟着换到底部 */
+  &.is-top {
+    padding-top: 0;
+    padding-bottom: 6px;
+    transform: translate(-50%, -100%);
+  }
+
   .hover-menu-body {
     padding: 4px 0;
     background: #fff;

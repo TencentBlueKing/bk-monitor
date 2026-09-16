@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, defineComponent, shallowRef } from 'vue';
+import { type PropType, defineComponent, shallowRef, watch } from 'vue';
 
 import DimensionPanel from './components/dimension-panel';
 import EventPanel from './components/event-panel';
@@ -51,13 +51,25 @@ export default defineComponent({
       type: String as PropType<DiagnosticTypeEnumType>,
       default: '',
     },
+    /** 递增即收起本板块，由「查看诊断结论」统一触发 */
+    collapseNonce: {
+      type: Number,
+      default: 0,
+    },
   },
-  setup() {
+  setup(props) {
     const isExpand = shallowRef(false);
 
     const toggleExpand = () => {
       isExpand.value = !isExpand.value;
     };
+
+    watch(
+      () => props.collapseNonce,
+      nonce => {
+        if (nonce) isExpand.value = false;
+      }
+    );
 
     return {
       isExpand,

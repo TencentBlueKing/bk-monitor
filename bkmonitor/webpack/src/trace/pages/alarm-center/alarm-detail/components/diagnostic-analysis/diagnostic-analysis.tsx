@@ -27,18 +27,34 @@ import { defineComponent, nextTick, onBeforeUnmount, onMounted, shallowRef, Tele
 
 import { useI18n } from 'vue-i18n';
 
+import { storeToRefs } from 'pinia';
+
 import AiDiagnosticInfoCard from './ai-diagnostic-info-card';
 import AnalysisPanel from './analysis-panel';
 import AiChatInput from './chat/ai-chat-input';
+import ChatResultCard from './chat/chat-result-card';
+import { ChatResultKind } from './chat/chat-result-typing';
 import { useAiChat } from './chat/use-ai-chat';
 import { DiagnosticTypeEnum } from './constant';
 import { useAiCapability } from './use-ai-capability';
 import { useHoverToChat } from './use-hover-to-chat';
+import { buildAlarmDetailChatResult } from '@/mock/alarm-detail-chat-result';
+import { useAlarmCenterDetailStore } from '@/store/modules/alarm-center-detail';
+
+import type { ChatResultKindType } from './chat/chat-result-typing';
 
 import './diagnostic-analysis.scss';
 
 /** 滚动超过这个距离才认为离开了顶部结论区 */
 const CONCLUSION_SCROLL_THRESHOLD = 24;
+
+/** 分析板块回显到会话时，回答正文的引导语 */
+const CHAT_RESULT_REPLY: Record<ChatResultKindType, string> = {
+  [ChatResultKind.METRIC]: window.i18n.t('这是该指标在这组维度下的趋势，异常主要集中在曲线后段：') as string,
+  [ChatResultKind.ALERT_LIST]: window.i18n.t('这组维度命中的告警如下：') as string,
+  [ChatResultKind.LOG_CLUSTER]: window.i18n.t('这个聚类结果的日志明细如下：') as string,
+  [ChatResultKind.EVENT_LIST]: window.i18n.t('这组事件的明细如下：') as string,
+};
 
 export default defineComponent({
   name: 'DiagnosticAnalysis',
@@ -46,19 +62,25 @@ export default defineComponent({
   setup(_, { emit }) {
     const { t } = useI18n();
     const { bkFaraProcesses, displayIncident, hasIncident } = useAiCapability();
-    const { messages, pending, sendQuestion } = useAiChat();
+    const { answerWithResult, messages, pending, sendQuestion } = useAiChat();
+    const alarmCenterDetailStore = useAlarmCenterDetailStore();
+    const { chatResultRequest } = storeToRefs(alarmCenterDetailStore);
     /** 会话滚动容器 */
     const conversationRef = shallowRef<HTMLDivElement>();
     /** 会话滚动离开结论区后，露出回到结论区的入口 */
     const showBackToConclusion = shallowRef(false);
     /** 悬浮在分析明细上时弹出的「添加至聊天」菜单 */
     const { hoverMenu, handleAddToChat, handleMenuEnter, handleMenuLeave } = useHoverToChat(conversationRef);
+    /** 递增以收起全部分析板块 */
+    const collapseNonce = shallowRef(0);
 
     const handleConversationScroll = () => {
       showBackToConclusion.value = (conversationRef.value?.scrollTop ?? 0) > CONCLUSION_SCROLL_THRESHOLD;
     };
 
+    /** 回到结论区：顺便收起全部分析板块，展开着的板块很高，不收起会挡住结论 */
     const handleBackToConclusion = () => {
+      collapseNonce.value = Date.now();
       conversationRef.value?.scrollTo({ top: 0, behavior: 'smooth' });
     };
 
@@ -80,6 +102,24 @@ export default defineComponent({
       window.__BK_WEWEB_DATA__?.setAiWhaleHidden?.(false);
       conversationRef.value?.removeEventListener('scroll', handleConversationScroll);
     });
+
+    /** 分析板块请求把结果回显进会话：本地拼出回答后入列，请求随即出队避免重复消费 */
+    watch(
+      () => chatResultRequest.value,
+      request => {
+        if (!request) return;
+        alarmCenterDetailStore.clearChatResultRequest();
+        const detail = alarmCenterDetailStore.alarmDetail;
+        const result = buildAlarmDetailChatResult(request, {
+          baseTime: detail?.begin_time ? detail.begin_time * 1000 : undefined,
+          metricTitle: detail?.graph_panel?.title,
+        });
+        answerWithResult(request.question, {
+          content: CHAT_RESULT_REPLY[request.kind] || '',
+          result: result ?? undefined,
+        });
+      }
+    );
 
     // 追问消息入列、以及回复内容填充后都要滚到底
     watch(
@@ -103,6 +143,7 @@ export default defineComponent({
       pending,
       conversationRef,
       showBackToConclusion,
+      collapseNonce,
       hoverMenu,
       handleAddToChat,
       handleMenuEnter,
@@ -168,6 +209,7 @@ export default defineComponent({
                 {commonPanels.map(type => (
                   <AnalysisPanel
                     key={type}
+                    collapseNonce={this.collapseNonce}
                     type={type}
                   />
                 ))}
@@ -195,7 +237,10 @@ export default defineComponent({
                         <span class='dot' />
                       </div>
                     ) : (
-                      <div class='chat-message-text'>{message.content}</div>
+                      [
+                        message.content ? <div class='chat-message-text'>{message.content}</div> : undefined,
+                        message.result ? <ChatResultCard result={message.result} /> : undefined,
+                      ]
                     )}
                   </div>
                 </div>
@@ -213,7 +258,7 @@ export default defineComponent({
           <Teleport to='body'>
             <div
               style={{ left: `${this.hoverMenu.x}px`, top: `${this.hoverMenu.y}px` }}
-              class='ai-diagnostic-hover-menu'
+              class={['ai-diagnostic-hover-menu', { 'is-top': this.hoverMenu.placement === 'top' }]}
               onMouseenter={this.handleMenuEnter}
               onMouseleave={this.handleMenuLeave}
             >
