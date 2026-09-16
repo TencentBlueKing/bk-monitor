@@ -448,7 +448,7 @@ class ListTracesResourceTestCase(TestCase):
         application = mock.Mock()
         application.build_data_sources.return_value = [mock.sentinel.data_source]
         selected_entity_set = mock.Mock(service_names=["agent-service-default"])
-        selected_entity_set.get_system.return_value = {}
+        selected_entity_set.get_system.return_value = {"is_support_llm": True, "product": "aidev"}
         application_entity_set = mock.Mock(service_names=["agent-service", "agent-service-default"])
 
         with (
@@ -486,27 +486,6 @@ class ListTracesResourceTestCase(TestCase):
                 mock.call(bk_biz_id=11, app_name="bkapp_ai0us0demo"),
             ],
         )
-
-    def test_unmapped_group_field_passes_through(self):
-        serializer = ListTracesResource.RequestSerializer(
-            data={
-                "bk_biz_id": 11,
-                "app_name": "sand_local_dev",
-                "service_name": "agent-service",
-                "start_time": 1,
-                "end_time": 2,
-                "group_field": "attributes.session.id",
-            }
-        )
-        serializer.is_valid(raise_exception=True)
-
-        entity_set = mock.Mock(service_names=["agent-service"])
-        entity_set.get_system.return_value = {"is_support_llm": True, "product": "aidev"}
-        resolved = ListTracesResource._resolve_group_field(
-            entity_set, "agent-service", serializer.validated_data["group_field"]
-        )
-
-        self.assertEqual(resolved, "attributes.session.id")
 
     def test_trace_conversation_id_uses_first_nonempty_standardized_value(self):
         for product, field in [
@@ -1253,7 +1232,7 @@ class ListFlowsResourceTestCase(TestCase):
         flow = FlowBuilder(raw_spans, spans).build()
 
         self.assertEqual(
-            FlowBuilder.token_statistics(flow, "agent"),
+            FlowBuilder.token_statistics_map(flow)["agent"],
             {
                 "input_tokens": 30,
                 "output_tokens": 10,
@@ -1263,10 +1242,68 @@ class ListFlowsResourceTestCase(TestCase):
             },
         )
 
-    def test_token_statistics_delegates_to_list_flows(self):
+    def test_flow_builder_propagates_nested_agent_reported_tokens(self):
+        raw_spans = [
+            {"trace_id": "trace-1", "span_id": "outer", "parent_span_id": "", "start_time": 100},
+            {"trace_id": "trace-1", "span_id": "inner", "parent_span_id": "outer", "start_time": 110},
+            {"trace_id": "trace-1", "span_id": "llm", "parent_span_id": "inner", "start_time": 120},
+        ]
+        spans = [
+            {
+                **raw_spans[0],
+                "span_type": "AGENT",
+                "attributes": {"gen_ai.operation.name": "invoke_workflow"},
+            },
+            {
+                **raw_spans[1],
+                "span_type": "AGENT",
+                "attributes": {
+                    "gen_ai.operation.name": "invoke_agent",
+                    "gen_ai.usage.input_tokens": 100,
+                    "gen_ai.usage.output_tokens": 50,
+                },
+            },
+            {
+                **raw_spans[2],
+                "span_type": "LLM",
+                "attributes": {
+                    "gen_ai.operation.name": "chat",
+                    "gen_ai.usage.input_tokens": 60,
+                    "gen_ai.usage.output_tokens": 20,
+                },
+            },
+        ]
+
+        flow = FlowBuilder(raw_spans, spans).build()
+
+        self.assertEqual(
+            FlowBuilder.token_statistics_map(flow)["outer"],
+            {
+                "input_tokens": 100,
+                "output_tokens": 50,
+                "total_tokens": 150,
+                "cache_read_input_tokens": 0,
+                "cache_write_input_tokens": 0,
+            },
+        )
+
+    def test_flow_builder_does_not_add_zero_token_fields_without_descendants(self):
+        raw_span = {"trace_id": "trace-1", "span_id": "agent", "parent_span_id": "", "start_time": 100}
+        agent = {
+            **raw_span,
+            "span_type": "AGENT",
+            "attributes": {"gen_ai.operation.name": "invoke_agent"},
+        }
+
+        flow = FlowBuilder([raw_span], [agent]).build()
+
+        self.assertEqual(flow[0]["attributes"], {"gen_ai.operation.name": "invoke_agent"})
+
+    def test_token_statistics_returns_all_agents_from_list_flows(self):
         flow = [
             {
                 "span_id": "agent",
+                "span_type": "AGENT",
                 "attributes": {
                     "gen_ai.usage.input_tokens": 30,
                     "gen_ai.usage.output_tokens": 10,
@@ -1283,7 +1320,6 @@ class ListFlowsResourceTestCase(TestCase):
                     "bk_biz_id": 11,
                     "app_name": "sand_local_dev",
                     "trace_id": "trace-1",
-                    "span_id": "agent",
                 }
             )
 
@@ -1291,12 +1327,15 @@ class ListFlowsResourceTestCase(TestCase):
             result,
             {
                 "trace_id": "trace-1",
-                "span_id": "agent",
-                "input_tokens": 30,
-                "output_tokens": 10,
-                "total_tokens": 40,
-                "cache_read_input_tokens": 0,
-                "cache_write_input_tokens": 0,
+                "statistics": {
+                    "agent": {
+                        "input_tokens": 30,
+                        "output_tokens": 10,
+                        "total_tokens": 40,
+                        "cache_read_input_tokens": 0,
+                        "cache_write_input_tokens": 0,
+                    }
+                },
             },
         )
         list_flows.assert_called_once_with(

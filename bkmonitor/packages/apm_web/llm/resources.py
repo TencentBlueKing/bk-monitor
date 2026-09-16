@@ -43,11 +43,6 @@ class ListTracesResource(Resource):
                 raise serializers.ValidationError("start_time 不能大于 end_time")
             return attrs
 
-    @classmethod
-    def _resolve_group_field(cls, entity_set: EntitySet, service_name: str, group_field: str) -> str:
-        """分组字段命中映射表时按服务产品换算为存储中的原始字段，未命中时透传。"""
-        return resolve_query_field(resolve_product(entity_set, service_name), group_field)
-
     @staticmethod
     def _build_keyword_query(product: str, bk_biz_id: int, app_name: str, keyword: str) -> str:
         """构造关键词查询，避免 hex32 会话 ID 被误判为仅查询 Trace ID。"""
@@ -113,11 +108,10 @@ class ListTracesResource(Resource):
         trace_id: str,
         raw_spans: list[dict[str, Any]],
         entity_set: EntitySet,
-        fallback_product: str = "",
     ) -> dict[str, Any]:
         # 在 Adapter 过滤前判定，避免漏掉未被保留的失败 Span。
         has_error = any(span["status"]["code"] == StatusCode.ERROR.value for span in raw_spans)
-        converted_spans = adapt_spans(raw_spans, entity_set, fallback_product)
+        converted_spans = adapt_spans(raw_spans, entity_set)
         converted_attributes = [
             attributes for span in converted_spans if isinstance((attributes := span.get(OtlpKey.ATTRIBUTES)), dict)
         ]
@@ -172,7 +166,6 @@ class ListTracesResource(Resource):
         trace_group_map: dict[str, Any],
         raw_spans: list[dict[str, Any]],
         entity_set: EntitySet,
-        fallback_product: str = "",
     ) -> list[dict[str, Any]]:
         spans_by_group: dict[Any, dict[str, list[dict[str, Any]]]] = defaultdict(lambda: defaultdict(list))
         for span in raw_spans:
@@ -184,8 +177,7 @@ class ListTracesResource(Resource):
         items: list[dict[str, Any]] = []
         for group_id in group_ids:
             childs = [
-                cls._trace_item(trace_id, spans, entity_set, fallback_product)
-                for trace_id, spans in spans_by_group[group_id].items()
+                cls._trace_item(trace_id, spans, entity_set) for trace_id, spans in spans_by_group[group_id].items()
             ]
             if not childs:
                 continue
@@ -238,9 +230,8 @@ class ListTracesResource(Resource):
             service_names=[service_name],
         )
         product = resolve_product(entity_set, service_name)
-        is_aidev = product == LLMProduct.AIDEV.value or app_name.startswith("bkapp_ai")
+        is_aidev = product == LLMProduct.AIDEV.value
         if is_aidev:
-            product = LLMProduct.AIDEV.value
             entity_set = EntitySet(bk_biz_id=bk_biz_id, app_name=app_name)
             filters = []
         else:
@@ -302,7 +293,6 @@ class ListTracesResource(Resource):
             trace_group_map,
             spans,
             entity_set,
-            product if is_aidev else "",
         )
         return result
 
@@ -407,21 +397,9 @@ class ListFlowsResource(Resource):
             if trace_id := span.get(OtlpKey.TRACE_ID):
                 spans_by_trace[trace_id].append(span)
 
-        is_aidev = validated_request_data["app_name"].startswith("bkapp_ai") or any(
-            resolve_product(
-                entity_set,
-                span.get(OtlpKey.RESOURCE, {}).get(ResourceAttributes.SERVICE_NAME, ""),
-            )
-            == LLMProduct.AIDEV.value
-            for span in spans
-        )
         for trace_id in trace_ids:
             raw_trace_spans = spans_by_trace[trace_id]
-            converted_spans = (
-                adapt_spans(raw_trace_spans, entity_set, LLMProduct.AIDEV.value)
-                if is_aidev
-                else adapt_spans(raw_trace_spans, entity_set)
-            )
+            converted_spans = adapt_spans(raw_trace_spans, entity_set)
             result["traces"].append(
                 {
                     "trace_id": trace_id,
@@ -432,17 +410,15 @@ class ListFlowsResource(Resource):
 
 
 class TokenStatisticsResource(Resource):
-    """统计 Agent Span 子树内的模型 Token。"""
+    """统计 Trace 内所有 Agent Span 子树的模型 Token。"""
 
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
         app_name = serializers.CharField(required=True, label="应用名称")
         trace_id = serializers.CharField(required=True, label="Trace ID")
-        span_id = serializers.CharField(required=True, label="Span ID")
 
     def perform_request(self, validated_request_data):
         trace_id = validated_request_data["trace_id"]
-        span_id = validated_request_data["span_id"]
         result = ListFlowsResource().request(
             {
                 "bk_biz_id": validated_request_data["bk_biz_id"],
@@ -452,10 +428,7 @@ class TokenStatisticsResource(Resource):
             }
         )
         flow = result["traces"][0]["flow"] if result["traces"] else []
-        statistics = FlowBuilder.token_statistics(flow, span_id)
-        if statistics is None:
-            raise serializers.ValidationError("指定 Trace 中不存在该 Span")
-        return {"trace_id": trace_id, "span_id": span_id, **statistics}
+        return {"trace_id": trace_id, "statistics": FlowBuilder.token_statistics_map(flow)}
 
 
 class LLMMetricRequestSerializer(serializers.Serializer):

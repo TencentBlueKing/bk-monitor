@@ -41,11 +41,12 @@ class FlowBuilder:
                     child_totals[field] += values[field]
 
             if node.get("span_type") == "AGENT":
-                attributes = node.setdefault(OtlpKey.ATTRIBUTES, {})
                 values = cls._token_values(node)
-                if not values["gen_ai.usage.input_tokens"] and not values["gen_ai.usage.output_tokens"]:
-                    for field, value in child_totals.items():
-                        attributes[field] = value
+                if values["gen_ai.usage.input_tokens"] or values["gen_ai.usage.output_tokens"]:
+                    # Agent 自报值代表整个子树，向父层传递时不能再叠加后代 LLM。
+                    child_totals = values
+                elif any(child_totals.values()):
+                    node.setdefault(OtlpKey.ATTRIBUTES, {}).update(child_totals)
 
             for field in cls.TOKEN_FIELDS:
                 totals[field] += child_totals[field]
@@ -86,17 +87,18 @@ class FlowBuilder:
         return roots
 
     @classmethod
-    def token_statistics(cls, flow: list[dict[str, Any]], span_id: str) -> dict[str, int] | None:
+    def token_statistics_map(cls, flow: list[dict[str, Any]]) -> dict[str, dict[str, int]]:
+        statistics: dict[str, dict[str, int]] = {}
         for node in flow:
-            if node.get(OtlpKey.SPAN_ID) == span_id:
+            span_id = node.get(OtlpKey.SPAN_ID)
+            if span_id and node.get("span_type") == "AGENT":
                 values = cls._token_values(node)
-                return {
+                statistics[span_id] = {
                     "input_tokens": values["gen_ai.usage.input_tokens"],
                     "output_tokens": values["gen_ai.usage.output_tokens"],
                     "total_tokens": values["gen_ai.usage.input_tokens"] + values["gen_ai.usage.output_tokens"],
                     "cache_read_input_tokens": values["gen_ai.usage.cache_read.input_tokens"],
                     "cache_write_input_tokens": values["gen_ai.usage.cache_write.input_tokens"],
                 }
-            if statistics := cls.token_statistics(node["childs"], span_id):
-                return statistics
-        return None
+            statistics.update(cls.token_statistics_map(node["childs"]))
+        return statistics

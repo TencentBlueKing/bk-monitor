@@ -1172,7 +1172,7 @@ paths:
   /app/apm/llm_token_statistics/:
     post:
       operationId: llm_token_statistics
-      description: 查询 Agent Span 的 Token 统计
+      description: 查询 Trace 内所有 Agent Span 的 Token 统计
       x-bk-apigateway-resource:
         isPublic: false
         allowApplyPermission: true
@@ -1186,7 +1186,7 @@ paths:
           appVerifiedRequired: true
           userVerifiedRequired: false
           resourcePermissionRequired: true
-        descriptionEn: "query token statistics for an Agent span"
+        descriptionEn: "query token statistics for all Agent spans in a Trace"
   /app/apm/list_llm_traces/:
     post:
       operationId: list_llm_traces
