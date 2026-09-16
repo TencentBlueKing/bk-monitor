@@ -5,7 +5,7 @@ from opentelemetry.semconv.resource import ResourceAttributes
 from opentelemetry.trace import StatusCode
 from rest_framework import serializers
 
-from constants.apm import OtlpKey
+from constants.apm import LLMProduct, OtlpKey
 from constants.otel_query import OperatorEnum
 from core.drf_resource import Resource, api
 
@@ -14,6 +14,7 @@ from apm_web.handlers.trace_handler.query import QueryHandler, SpanQueryTransfor
 from apm_web.llm.adapter import adapt_spans
 from apm_web.llm.adapter.fields import resolve_product, resolve_query_field
 from apm_web.llm.constants import CalculationType
+from apm_web.llm.flow import FlowBuilder
 from apm_web.llm.metric_group import LLMMetricGroup
 from apm_web.llm.query import LLMQuery, get_query
 from apm_web.metric.resources import CalculateByRangeResource as MetricCalculateByRangeResource
@@ -97,10 +98,16 @@ class ListTracesResource(Resource):
         return ""
 
     @classmethod
-    def _trace_item(cls, trace_id: str, raw_spans: list[dict[str, Any]], entity_set: EntitySet) -> dict[str, Any]:
+    def _trace_item(
+        cls,
+        trace_id: str,
+        raw_spans: list[dict[str, Any]],
+        entity_set: EntitySet,
+        fallback_product: str = "",
+    ) -> dict[str, Any]:
         # 在 Adapter 过滤前判定，避免漏掉未被保留的失败 Span。
         has_error = any(span["status"]["code"] == StatusCode.ERROR.value for span in raw_spans)
-        converted_spans = adapt_spans(raw_spans, entity_set)
+        converted_spans = adapt_spans(raw_spans, entity_set, fallback_product)
         converted_attributes = [
             attributes for span in converted_spans if isinstance((attributes := span.get(OtlpKey.ATTRIBUTES)), dict)
         ]
@@ -155,6 +162,7 @@ class ListTracesResource(Resource):
         trace_group_map: dict[str, Any],
         raw_spans: list[dict[str, Any]],
         entity_set: EntitySet,
+        fallback_product: str = "",
     ) -> list[dict[str, Any]]:
         spans_by_group: dict[Any, dict[str, list[dict[str, Any]]]] = defaultdict(lambda: defaultdict(list))
         for span in raw_spans:
@@ -166,7 +174,8 @@ class ListTracesResource(Resource):
         items: list[dict[str, Any]] = []
         for group_id in group_ids:
             childs = [
-                cls._trace_item(trace_id, spans, entity_set) for trace_id, spans in spans_by_group[group_id].items()
+                cls._trace_item(trace_id, spans, entity_set, fallback_product)
+                for trace_id, spans in spans_by_group[group_id].items()
             ]
             if not childs:
                 continue
@@ -206,24 +215,33 @@ class ListTracesResource(Resource):
     def perform_request(self, validated_request_data):
         group_field = validated_request_data["group_field"]
 
+        bk_biz_id = validated_request_data["bk_biz_id"]
+        app_name = validated_request_data["app_name"]
         service_name = validated_request_data["service_name"]
-        filters = [
-            {
-                "key": OtlpKey.get_resource_key(ResourceAttributes.SERVICE_NAME),
-                "operator": OperatorEnum.EQUAL["operator"],
-                "value": [service_name],
-            }
-        ]
         application = Application.objects.get(
-            bk_biz_id=validated_request_data["bk_biz_id"],
-            app_name=validated_request_data["app_name"],
+            bk_biz_id=bk_biz_id,
+            app_name=app_name,
         )
         entity_set: EntitySet = EntitySet(
-            bk_biz_id=validated_request_data["bk_biz_id"],
-            app_name=validated_request_data["app_name"],
+            bk_biz_id=bk_biz_id,
+            app_name=app_name,
             service_names=[service_name],
         )
-        query_group_field = self._resolve_group_field(entity_set, service_name, group_field)
+        product = resolve_product(entity_set, service_name)
+        is_aidev = product == LLMProduct.AIDEV.value or app_name.startswith("bkapp_ai")
+        if is_aidev:
+            product = LLMProduct.AIDEV.value
+            entity_set = EntitySet(bk_biz_id=bk_biz_id, app_name=app_name)
+            filters = []
+        else:
+            filters = [
+                {
+                    "key": OtlpKey.get_resource_key(ResourceAttributes.SERVICE_NAME),
+                    "operator": OperatorEnum.EQUAL["operator"],
+                    "value": [service_name],
+                }
+            ]
+        query_group_field = resolve_query_field(product, group_field)
         query_string = QueryHandler.process_query_string(
             SpanQueryTransformer(validated_request_data["bk_biz_id"], validated_request_data["app_name"]),
             validated_request_data["keyword"],
@@ -272,6 +290,7 @@ class ListTracesResource(Resource):
             trace_group_map,
             spans,
             entity_set,
+            product if is_aidev else "",
         )
         return result
 
@@ -340,43 +359,6 @@ class ListFlowsResource(Resource):
         group_field = serializers.CharField(required=True, label="分组字段")
         group_id = serializers.CharField(required=True, label="分组值")
 
-    @staticmethod
-    def _build_flow(
-        raw_spans: list[dict[str, Any]],
-        spans: list[dict[str, Any]],
-    ) -> list[dict[str, Any]]:
-        nodes = [{**span, "childs": []} for span in spans]
-        nodes_by_span_id = {node[OtlpKey.SPAN_ID]: node for node in nodes if node.get(OtlpKey.SPAN_ID)}
-        raw_spans_by_span_id = {span[OtlpKey.SPAN_ID]: span for span in raw_spans if span.get(OtlpKey.SPAN_ID)}
-        raw_children_by_parent_id: dict[str, list[dict[str, Any]]] = defaultdict(list)
-        raw_roots = []
-        for span in raw_spans:
-            span_id = span.get(OtlpKey.SPAN_ID)
-            parent_span_id = span.get(OtlpKey.PARENT_SPAN_ID)
-            if parent_span_id and parent_span_id in raw_spans_by_span_id and parent_span_id != span_id:
-                raw_children_by_parent_id[parent_span_id].append(span)
-            else:
-                raw_roots.append(span)
-
-        roots = []
-
-        def project(span: dict[str, Any], parent: dict[str, Any] | None) -> None:
-            node = nodes_by_span_id.get(span.get(OtlpKey.SPAN_ID))
-            if node is not None:
-                if parent is None:
-                    roots.append(node)
-                else:
-                    parent["childs"].append(node)
-                parent = node
-
-            for child in raw_children_by_parent_id.get(span.get(OtlpKey.SPAN_ID), []):
-                project(child, parent)
-
-        for raw_root in raw_roots:
-            project(raw_root, None)
-
-        return roots
-
     def perform_request(self, validated_request_data):
         application = Application.objects.get(
             bk_biz_id=validated_request_data["bk_biz_id"],
@@ -413,15 +395,55 @@ class ListFlowsResource(Resource):
             if trace_id := span.get(OtlpKey.TRACE_ID):
                 spans_by_trace[trace_id].append(span)
 
+        is_aidev = validated_request_data["app_name"].startswith("bkapp_ai") or any(
+            resolve_product(
+                entity_set,
+                span.get(OtlpKey.RESOURCE, {}).get(ResourceAttributes.SERVICE_NAME, ""),
+            )
+            == LLMProduct.AIDEV.value
+            for span in spans
+        )
         for trace_id in trace_ids:
             raw_trace_spans = spans_by_trace[trace_id]
+            converted_spans = (
+                adapt_spans(raw_trace_spans, entity_set, LLMProduct.AIDEV.value)
+                if is_aidev
+                else adapt_spans(raw_trace_spans, entity_set)
+            )
             result["traces"].append(
                 {
                     "trace_id": trace_id,
-                    "flow": self._build_flow(raw_trace_spans, adapt_spans(raw_trace_spans, entity_set)),
+                    "flow": FlowBuilder(raw_trace_spans, converted_spans).build(),
                 }
             )
         return result
+
+
+class TokenStatisticsResource(Resource):
+    """统计 Agent Span 子树内的模型 Token。"""
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
+        app_name = serializers.CharField(required=True, label="应用名称")
+        trace_id = serializers.CharField(required=True, label="Trace ID")
+        span_id = serializers.CharField(required=True, label="Span ID")
+
+    def perform_request(self, validated_request_data):
+        trace_id = validated_request_data["trace_id"]
+        span_id = validated_request_data["span_id"]
+        result = ListFlowsResource().request(
+            {
+                "bk_biz_id": validated_request_data["bk_biz_id"],
+                "app_name": validated_request_data["app_name"],
+                "group_field": OtlpKey.TRACE_ID,
+                "group_id": trace_id,
+            }
+        )
+        flow = result["traces"][0]["flow"] if result["traces"] else []
+        statistics = FlowBuilder.token_statistics(flow, span_id)
+        if statistics is None:
+            raise serializers.ValidationError("指定 Trace 中不存在该 Span")
+        return {"trace_id": trace_id, "span_id": span_id, **statistics}
 
 
 class LLMMetricRequestSerializer(serializers.Serializer):

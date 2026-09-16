@@ -6,6 +6,7 @@ from django.db.models import Q
 from apm_web.handlers.metric_group.define import CalculationType as MetricCalculationType
 from apm_web.llm.adapter import adapt_spans
 from apm_web.llm.constants import CalculationType
+from apm_web.llm.flow import FlowBuilder
 from apm_web.llm.metric_group import LLMMetricGroup
 from apm_web.llm.query import LLMQuery
 from apm_web.llm.resources import (
@@ -13,6 +14,7 @@ from apm_web.llm.resources import (
     ListFlowsResource,
     ListSpansResource,
     ListTracesResource,
+    TokenStatisticsResource,
     TimeSeriesResource,
 )
 
@@ -78,7 +80,7 @@ class ListTracesResourceTestCase(TestCase):
         self.assertIn("limit", serializer.errors)
 
     @staticmethod
-    def convert_spans(raw_spans, _entity_set):
+    def convert_spans(raw_spans, _entity_set, _product_override=""):
         return [
             {
                 "trace_id": span["trace_id"],
@@ -328,7 +330,7 @@ class ListTracesResourceTestCase(TestCase):
             mock.patch("apm_web.llm.resources.Application.objects.get", return_value=application) as get_application,
             mock.patch("apm_web.llm.resources.get_query", return_value=span_query) as get_query,
             mock.patch("apm_web.llm.resources.EntitySet", return_value=entity_set),
-            mock.patch("apm_web.llm.resources.adapt_spans", side_effect=self.convert_spans),
+            mock.patch("apm_web.llm.resources.adapt_spans", side_effect=self.convert_spans) as adapt_spans_mock,
         ):
             result = ListTracesResource().request(
                 {
@@ -404,7 +406,7 @@ class ListTracesResourceTestCase(TestCase):
             group_field=query_field,
             offset=0,
             limit=20,
-            filters=[{"key": "resource.service.name", "operator": "equal", "value": ["agent-service"]}],
+            filters=[],
             query_string="demo-user",
         )
         span_query.query_by_group_ids.assert_called_once_with(
@@ -419,6 +421,54 @@ class ListTracesResourceTestCase(TestCase):
         application.build_data_sources.assert_called_once_with()
         get_query.assert_called_once_with(data_sources)
         entity_set.get_system.assert_called_once_with("agent-service")
+
+        for call in adapt_spans_mock.call_args_list:
+            self.assertEqual(call.args[2], "aidev")
+
+    def test_aidev_default_service_queries_the_whole_application(self):
+        span_query = mock.Mock()
+        span_query.query_group_list.return_value = []
+        application = mock.Mock()
+        application.build_data_sources.return_value = [mock.sentinel.data_source]
+        selected_entity_set = mock.Mock(service_names=["agent-service-default"])
+        selected_entity_set.get_system.return_value = {}
+        application_entity_set = mock.Mock(service_names=["agent-service", "agent-service-default"])
+
+        with (
+            mock.patch("apm_web.llm.resources.Application.objects.get", return_value=application),
+            mock.patch("apm_web.llm.resources.get_query", return_value=span_query),
+            mock.patch(
+                "apm_web.llm.resources.EntitySet", side_effect=[selected_entity_set, application_entity_set]
+            ) as entity_set,
+        ):
+            result = ListTracesResource().request(
+                {
+                    "bk_biz_id": 11,
+                    "app_name": "bkapp_ai0us0demo",
+                    "start_time": 1,
+                    "end_time": 2,
+                    "service_name": "agent-service-default",
+                    "group_field": "attributes.gen_ai.conversation.id",
+                }
+            )
+
+        self.assertEqual(result["items"], [])
+        span_query.query_group_list.assert_called_once_with(
+            start_time=1,
+            end_time=2,
+            group_field="attributes.agent.session.session_code",
+            offset=0,
+            limit=20,
+            filters=[],
+            query_string="",
+        )
+        self.assertEqual(
+            entity_set.call_args_list,
+            [
+                mock.call(bk_biz_id=11, app_name="bkapp_ai0us0demo", service_names=["agent-service-default"]),
+                mock.call(bk_biz_id=11, app_name="bkapp_ai0us0demo"),
+            ],
+        )
 
     def test_unmapped_group_field_passes_through(self):
         serializer = ListTracesResource.RequestSerializer(
@@ -904,7 +954,7 @@ class ListSpansResourceTestCase(TestCase):
 
 
 class ListFlowsResourceTestCase(TestCase):
-    def test_list_spans_and_flows_share_complete_agent_trace_contract(self):
+    def test_list_spans_and_flows_share_contract_with_agent_token_fallback(self):
         trace_id = "trace-agent-tool-call"
         tool_call_id = "tool-call-1"
         resource = {"service.name": "agent-service"}
@@ -1069,8 +1119,19 @@ class ListFlowsResourceTestCase(TestCase):
 
         spans = spans_result["spans"]
         flow = flows_result["traces"][0]["flow"]
+        flattened_flow = flatten(flow)
         self.assertEqual(spans_result["total"], 4)
-        self.assertEqual(flatten(flow), spans)
+        self.assertEqual(flattened_flow[1:], spans[1:])
+        self.assertEqual(
+            {
+                key: value
+                for key, value in flattened_flow[0]["attributes"].items()
+                if not key.startswith("gen_ai.usage.")
+            },
+            spans[0]["attributes"],
+        )
+        self.assertEqual(flattened_flow[0]["attributes"]["gen_ai.usage.input_tokens"], 300)
+        self.assertEqual(flattened_flow[0]["attributes"]["gen_ai.usage.output_tokens"], 116)
         self.assertEqual(
             [span["attributes"]["gen_ai.operation.name"] for span in spans],
             ["invoke_agent", "chat", "execute_tool", "chat"],
@@ -1131,11 +1192,104 @@ class ListFlowsResourceTestCase(TestCase):
             },
         ]
 
-        flow = ListFlowsResource._build_flow(raw_spans, [raw_spans[0], raw_spans[2]])
+        flow = FlowBuilder(raw_spans, [raw_spans[0], raw_spans[2]]).build()
 
         self.assertEqual([span["span_id"] for span in flow], ["agent"])
         self.assertEqual([span["span_id"] for span in flow[0]["childs"]], ["tool"])
         self.assertEqual(flow[0]["childs"][0]["parent_span_id"], "framework")
+
+    def test_flow_builder_fills_agent_tokens_from_llm_descendants(self):
+        raw_spans = [
+            {"trace_id": "trace-1", "span_id": "agent", "parent_span_id": "", "start_time": 100},
+            {"trace_id": "trace-1", "span_id": "framework", "parent_span_id": "agent", "start_time": 110},
+            {"trace_id": "trace-1", "span_id": "llm-1", "parent_span_id": "framework", "start_time": 120},
+            {"trace_id": "trace-1", "span_id": "llm-2", "parent_span_id": "agent", "start_time": 130},
+        ]
+        spans = [
+            {
+                **raw_spans[0],
+                "span_type": "AGENT",
+                "attributes": {"gen_ai.operation.name": "invoke_agent"},
+            },
+            {
+                **raw_spans[2],
+                "span_type": "LLM",
+                "attributes": {
+                    "gen_ai.operation.name": "chat",
+                    "gen_ai.usage.input_tokens": 10,
+                    "gen_ai.usage.output_tokens": 3,
+                    "gen_ai.usage.cache_read.input_tokens": 2,
+                },
+            },
+            {
+                **raw_spans[3],
+                "span_type": "LLM",
+                "attributes": {
+                    "gen_ai.operation.name": "chat",
+                    "gen_ai.usage.input_tokens": 20,
+                    "gen_ai.usage.output_tokens": 7,
+                    "gen_ai.usage.cache_write.input_tokens": 4,
+                },
+            },
+        ]
+
+        flow = FlowBuilder(raw_spans, spans).build()
+
+        self.assertEqual(
+            FlowBuilder.token_statistics(flow, "agent"),
+            {
+                "input_tokens": 30,
+                "output_tokens": 10,
+                "total_tokens": 40,
+                "cache_read_input_tokens": 2,
+                "cache_write_input_tokens": 4,
+            },
+        )
+
+    def test_token_statistics_delegates_to_list_flows(self):
+        flow = [
+            {
+                "span_id": "agent",
+                "attributes": {
+                    "gen_ai.usage.input_tokens": 30,
+                    "gen_ai.usage.output_tokens": 10,
+                },
+                "childs": [],
+            }
+        ]
+        with mock.patch(
+            "apm_web.llm.resources.ListFlowsResource.request",
+            return_value={"traces": [{"trace_id": "trace-1", "flow": flow}]},
+        ) as list_flows:
+            result = TokenStatisticsResource().request(
+                {
+                    "bk_biz_id": 11,
+                    "app_name": "sand_local_dev",
+                    "trace_id": "trace-1",
+                    "span_id": "agent",
+                }
+            )
+
+        self.assertEqual(
+            result,
+            {
+                "trace_id": "trace-1",
+                "span_id": "agent",
+                "input_tokens": 30,
+                "output_tokens": 10,
+                "total_tokens": 40,
+                "cache_read_input_tokens": 0,
+                "cache_write_input_tokens": 0,
+            },
+        )
+        list_flows.assert_called_once_with(
+            {
+                "bk_biz_id": 11,
+                "app_name": "sand_local_dev",
+                "group_field": "trace_id",
+                "group_id": "trace-1",
+            }
+        )
 
     def test_builds_span_tree_for_each_trace(self):
         group_field = "attributes.gen_ai.conversation.id"
@@ -1171,7 +1325,7 @@ class ListFlowsResourceTestCase(TestCase):
             },
         ]
         span_query.query_by_group_ids.return_value = spans
-        entity_set = mock.sentinel.entity_set
+        entity_set = mock.Mock(service_names=[])
 
         with (
             mock.patch("apm_web.llm.resources.Application.objects.get", return_value=application) as get_application,

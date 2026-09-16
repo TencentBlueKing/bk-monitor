@@ -49,10 +49,27 @@ ALIASES = {
 }
 
 
-def operation(attrs: dict[str, Any]) -> str | None:
+def operation(span: dict[str, Any]) -> str | None:
+    attrs = span["attributes"]
     request_type = str(attrs.get("llm.request.type", "")).lower()
     if request_type:
         return REQUEST_OPERATIONS.get(request_type, request_type)
+
+    span_name = str(span.get("span_name", ""))
+    traceloop_kind = str(attrs.get("traceloop.span.kind", "")).lower()
+    if span_name == "chain.workflow" or attrs.get("chain.type") == "workflow" or traceloop_kind == "workflow":
+        return "invoke_workflow"
+    if span_name == "agent.execution":
+        return "invoke_agent"
+    if span_name in {"chat_model.generate", "ChatModel.chat"} or traceloop_kind == "llm":
+        return "chat"
+    if (
+        attrs.get("tool.name")
+        or traceloop_kind == "tool"
+        or span_name == "tool.execution"
+        or span_name.endswith(".tool")
+    ):
+        return "execute_tool"
     return None
 
 
@@ -128,14 +145,14 @@ def convert_content(span: dict[str, Any]) -> dict[str, Any]:
     content = standard_content(attrs)
 
     inputs = parse_indexed_messages(attrs, "gen_ai.prompt", "user")
-    if (input_value := first(attrs, "llm.input", "traceloop.entity.input")) is not None:
+    if (input_value := first(attrs, "llm.input", "traceloop.entity.input", "agent.session.input")) is not None:
         inputs = parse_langchain_messages(input_value, "user")
     instructions, inputs = split_system(inputs)
     put(content, "gen_ai.system_instructions", instructions)
     put(content, "gen_ai.input.messages", inputs)
 
     outputs = parse_indexed_messages(attrs, "gen_ai.completion", "assistant")
-    if (output_value := first(attrs, "llm.output", "traceloop.entity.output")) is not None:
+    if (output_value := first(attrs, "llm.output", "traceloop.entity.output", "agent.session.output")) is not None:
         outputs = parse_langchain_messages(output_value, "assistant")
     put(content, "gen_ai.output.messages", outputs)
     put(content, "gen_ai.tool.definitions", parse_definitions(attrs.get("gen_ai.request.tools")))
@@ -151,7 +168,7 @@ def convert(raw: list[dict[str, Any]]) -> list[dict[str, Any]]:
         attributes = {
             key: value for key, value in attrs.items() if key in STANDARD_FIELDS and value not in (None, "", [])
         }
-        put(attributes, "gen_ai.operation.name", operation(attrs))
+        put(attributes, "gen_ai.operation.name", operation(span))
         for target, source_keys in ALIASES.items():
             value = first(attrs, *source_keys)
             if target.startswith("gen_ai.usage."):

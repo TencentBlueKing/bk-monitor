@@ -29,12 +29,14 @@ ADAPTERS = {
 def adapt_spans(
     raw_spans: Iterable[dict[str, Any]],
     entity_set: EntitySet,
+    fallback_product: str = "",
 ) -> list[dict[str, Any]]:
-    """按 Span 所属服务分别路由转换器：同一条 Trace 可能跨多个产品的服务。"""
+    """按 Span 所属服务路由转换器，无法识别产品时使用兜底产品。"""
     spans_by_product: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for raw_span in raw_spans:
         service_name: str = raw_span.get(OtlpKey.RESOURCE, {}).get(ResourceAttributes.SERVICE_NAME, "")
-        spans_by_product[resolve_product(entity_set, service_name)].append(raw_span)
+        product = resolve_product(entity_set, service_name) or fallback_product
+        spans_by_product[product].append(raw_span)
 
     # 先尽力转换，再按标准操作类型判断是否为 LLM Span，避免依赖各产品的原始标记字段。
     spans: list[dict[str, Any]] = [

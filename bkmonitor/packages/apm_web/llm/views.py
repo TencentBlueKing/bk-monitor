@@ -3,6 +3,7 @@ from apm_web.llm.resources import (
     ListFlowsResource,
     ListSpansResource,
     ListTracesResource,
+    TokenStatisticsResource,
     TimeSeriesResource,
 )
 from apm_web.models import Application
@@ -28,6 +29,7 @@ class LLMViewSet(ResourceViewSet):
         ResourceRoute("POST", ListTracesResource, endpoint="list_traces"),
         ResourceRoute("POST", ListSpansResource, endpoint="list_spans"),
         ResourceRoute("POST", ListFlowsResource, endpoint="list_flows"),
+        ResourceRoute("POST", TokenStatisticsResource, endpoint="token_statistics"),
         ResourceRoute("POST", TimeSeriesResource, endpoint="time_series"),
         ResourceRoute("POST", CalculateByRangeResource, endpoint="calculate_by_range"),
     ]
