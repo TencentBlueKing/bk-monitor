@@ -236,7 +236,9 @@ class SourceAnalysisInputsSerializer(serializers.Serializer):
     bk_biz_id = serializers.IntegerField(label="业务 ID")
     bk_tenant_id = serializers.CharField(label="租户 ID", max_length=64)
     repository_alias = serializers.CharField(label="蓝盾代码库别名", max_length=255)
-    agent_id = serializers.CharField(label="智能体 ID", max_length=64)
+    # 为兼容已定稿的 BKFara/蓝盾变量名，key 继续使用 *_id(s)；值语义是
+    # AIDEV 稳定英文编码，不是上游数据库数字主键。
+    agent_id = serializers.CharField(label="智能体编码", max_length=64)
     # 多值字段以英文逗号分隔而非 JSON 数组：inputs 会原样透传成蓝盾流水线变量，
     # 而流水线变量只能是字符串。直接给出分隔好的字符串，模板可原样转手给下游插件，
     # 既不依赖 BKFara 的数组序列化方式，也免去模板解析后再拼接。
@@ -247,13 +249,13 @@ class SourceAnalysisInputsSerializer(serializers.Serializer):
     # _handle_upstream_error 当成可重试的上游故障，导致执行记录无限重试。要限制资源
     # 数量应放在规则配置入口，那里是用户输入且能直接返回错误。
     skill_ids = serializers.CharField(
-        label="Skill ID（英文逗号分隔）",
+        label="Skill 编码（英文逗号分隔）",
         required=False,
         default="",
         allow_blank=True,
     )
     knowledge_base_ids = serializers.CharField(
-        label="知识库 ID（英文逗号分隔）",
+        label="知识库编码（英文逗号分隔）",
         required=False,
         default="",
         allow_blank=True,

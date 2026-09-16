@@ -274,12 +274,12 @@ class SourceAnalysisBaseResource(Resource):
     ) -> list[dict]:
         """遍历 AIDEV 全部分页，返回当前用户可见资源的上游原始条目。
 
-        选项接口和启用校验共用这一次遍历：前者取名称与空间做展示，后者只取 ID 做校验。
-        AIDEV 分页只是上游实现细节，不透给前端，因此这里按 ID 去重后返回全量条目。
+        选项接口和启用校验共用这一次遍历：前者取名称与空间做展示，后者只取稳定英文编码做校验。
+        AIDEV 分页只是上游实现细节，不透给前端，因此这里按指定编码字段去重后返回全量条目。
         """
 
         request_params = {"space_id": "all", **request_params}
-        items_by_id: dict[str, dict] = {}
+        items_by_identifier: dict[str, dict] = {}
         page = 1
         while page <= cls.AIDEV_MAX_PAGES:
             items, total = cls.parse_aidev_page(
@@ -287,11 +287,11 @@ class SourceAnalysisBaseResource(Resource):
             )
             try:
                 for item in items:
-                    items_by_id[str(item[id_field])] = item
+                    items_by_identifier[str(item[id_field])] = item
             except (KeyError, TypeError) as error:
                 raise ValueError("invalid AIDEV resource item") from error
-            if len(items_by_id) >= total or not items:
-                return list(items_by_id.values())
+            if len(items_by_identifier) >= total or not items:
+                return list(items_by_identifier.values())
             page += 1
         raise ValueError("AIDEV resource pagination exceeds safety limit")
 
@@ -315,7 +315,7 @@ class SourceAnalysisBaseResource(Resource):
 
     @classmethod
     def list_visible_aidev_ids(cls, list_resources: Callable, id_field: str) -> set[str]:
-        """启用校验只需要 ID 集合，复用全量遍历结果，避免只校验列表第一页。"""
+        """启用校验只需要资源编码集合，复用全量遍历结果，避免只校验列表第一页。"""
 
         return {str(item[id_field]) for item in cls.list_visible_aidev_items(list_resources, id_field)}
 
@@ -341,15 +341,15 @@ class SourceAnalysisBaseResource(Resource):
         """按当前用户可见空间逐一拉取知识库。
 
         AIDEV 知识库列表要求具体 space_id，省略或传 all 都会返回 400。因此这里先查询
-        可见空间，再逐空间遍历全部知识库分页，并按知识库 ID 汇总去重。
+        可见空间，再逐空间遍历全部知识库分页，并按知识库稳定英文编码汇总去重。
         """
 
         space_name_map = cls.list_visible_aidev_space_name_map()
-        items_by_id: dict[str, dict] = {}
+        items_by_code: dict[str, dict] = {}
         for space_id in space_name_map:
             items = cls.list_visible_aidev_items(
                 api.aidev.list_knowledge_bases,
-                "id",
+                "code",
                 space_id=space_id,
                 order_by="name",
                 with_private=True,
@@ -358,8 +358,8 @@ class SourceAnalysisBaseResource(Resource):
                 normalized_item = dict(item)
                 # 实际接口会返回 space_id；缺失时用本次查询空间补全，避免展示信息丢失。
                 normalized_item.setdefault("space_id", space_id)
-                items_by_id.setdefault(str(normalized_item["id"]), normalized_item)
-        return list(items_by_id.values()), space_name_map
+                items_by_code.setdefault(str(normalized_item["code"]), normalized_item)
+        return list(items_by_code.values()), space_name_map
 
     @staticmethod
     @using_cache(CacheType.AIDEV)
@@ -376,11 +376,13 @@ class SourceAnalysisBaseResource(Resource):
         """
 
         try:
-            visible_agents = cls.list_visible_aidev_ids(api.aidev.list_agents, "id") if rule.agent_id else set()
-            visible_skills = cls.list_visible_aidev_ids(api.aidev.list_skills, "id") if rule.skill_ids else set()
+            visible_agents = cls.list_visible_aidev_ids(api.aidev.list_agents, "agent_code") if rule.agent_id else set()
+            visible_skills = (
+                cls.list_visible_aidev_ids(api.aidev.list_skills, "skill_code") if rule.skill_ids else set()
+            )
             if rule.knowledge_base_ids:
                 knowledge_bases, _space_name_map = cls.load_visible_aidev_knowledge_bases()
-                visible_knowledge_bases = {str(item["id"]) for item in knowledge_bases}
+                visible_knowledge_bases = {str(item["code"]) for item in knowledge_bases}
             else:
                 visible_knowledge_bases = set()
         except (BKAPIError, TypeError, ValueError) as error:
@@ -1236,6 +1238,8 @@ class SourceAnalysisExecutionBaseResource(Resource):
                 "bk_biz_id": execution.bk_biz_id,
                 "bk_tenant_id": bk_tenant_id,
                 "repository_alias": execution.repository_alias,
+                # 历史字段名保持不变以兼容 BKFara 与蓝盾变量协议，实际承载
+                # AIDEV 稳定英文编码，不是上游数据库数字主键。
                 "agent_id": execution.agent_id,
                 # 多值以英文逗号分隔而非 JSON 数组：inputs 原样透传成蓝盾流水线变量，
                 # 变量只能是字符串，分隔好的字符串可由模板直接转手给下游插件。
@@ -1748,15 +1752,15 @@ class SourceAnalysisRuleWriteSerializer(serializers.Serializer):
     priority = serializers.IntegerField(label="优先级", min_value=0)
     is_enabled = serializers.BooleanField(label="是否启用", required=False, default=False)
     conditions = SourceAnalysisConditionSerializer(label="匹配条件", many=True, required=False, default=list)
-    agent_id = serializers.CharField(label="智能体 ID", max_length=64, required=False, allow_blank=True, default="")
+    agent_id = serializers.CharField(label="智能体编码", max_length=64, required=False, allow_blank=True, default="")
     skill_ids = serializers.ListField(
-        label="Skill ID",
+        label="Skill 编码",
         child=serializers.CharField(allow_blank=False),
         required=False,
         default=list,
     )
     knowledge_base_ids = serializers.ListField(
-        label="知识库 ID",
+        label="知识库编码",
         child=serializers.CharField(allow_blank=False),
         required=False,
         default=list,
@@ -1779,10 +1783,12 @@ class SourceAnalysisRulePatchSerializer(SourceAnalysisRuleWriteSerializer):
     priority = serializers.IntegerField(label="优先级", min_value=0, required=False)
     is_enabled = serializers.BooleanField(label="是否启用", required=False)
     conditions = SourceAnalysisConditionSerializer(label="匹配条件", many=True, required=False)
-    agent_id = serializers.CharField(label="智能体 ID", max_length=64, required=False, allow_blank=True)
-    skill_ids = serializers.ListField(label="Skill ID", child=serializers.CharField(allow_blank=False), required=False)
+    agent_id = serializers.CharField(label="智能体编码", max_length=64, required=False, allow_blank=True)
+    skill_ids = serializers.ListField(
+        label="Skill 编码", child=serializers.CharField(allow_blank=False), required=False
+    )
     knowledge_base_ids = serializers.ListField(
-        label="知识库 ID", child=serializers.CharField(allow_blank=False), required=False
+        label="知识库编码", child=serializers.CharField(allow_blank=False), required=False
     )
 
     def validate(self, attrs: dict) -> dict:
@@ -1901,10 +1907,10 @@ class BaseListSourceAnalysisAidevOptionsResource(SourceAnalysisBaseResource):
     def build_aidev_options(cls, items: list[dict], space_name_map: dict[str, str]) -> dict:
         options = []
         for item in items:
-            resource_id = item.get(cls.id_field)
+            resource_identifier = item.get(cls.id_field)
             resource_name = item.get(cls.name_field)
-            if resource_id is None or not resource_name:
-                raise ValueError("AIDEV resource misses id or name")
+            if resource_identifier is None or not resource_name:
+                raise ValueError("AIDEV resource misses identifier or name")
 
             # 空间字段只用于选择器展示，不进入规则保存协议，因此空间信息不完整时一律降级：
             # 上游缺失 space_id，或资源属于当前用户无权限的空间（跨空间公开资源）导致名称补全失败，
@@ -1913,7 +1919,9 @@ class BaseListSourceAnalysisAidevOptionsResource(SourceAnalysisBaseResource):
             space_name = space_name_map.get(normalized_space_id) or normalized_space_id
             options.append(
                 {
-                    "id": str(resource_id),
+                    # 前端选项协议统一使用 id 作为 value key，这里的值是 AIDEV
+                    # 稳定英文编码，而非数据库数字主键。
+                    "id": str(resource_identifier),
                     "name": str(resource_name),
                     "space_id": normalized_space_id,
                     "space_name": space_name,
@@ -1934,7 +1942,7 @@ class BaseListSourceAnalysisAidevOptionsResource(SourceAnalysisBaseResource):
 class ListSourceAnalysisAgentsResource(BaseListSourceAnalysisAidevOptionsResource):
     """查询当前用户有权限的 AIDEV Agent 选项。"""
 
-    id_field = "id"
+    id_field = "agent_code"
     name_field = "agent_name"
     aidev_resource_type = "agents"
 
@@ -1942,7 +1950,7 @@ class ListSourceAnalysisAgentsResource(BaseListSourceAnalysisAidevOptionsResourc
 class ListSourceAnalysisSkillsResource(BaseListSourceAnalysisAidevOptionsResource):
     """查询当前用户有权限的 AIDEV Skill 选项。"""
 
-    id_field = "id"
+    id_field = "skill_code"
     name_field = "skill_name"
     aidev_resource_type = "skills"
 
@@ -1950,7 +1958,7 @@ class ListSourceAnalysisSkillsResource(BaseListSourceAnalysisAidevOptionsResourc
 class ListSourceAnalysisKnowledgeBasesResource(BaseListSourceAnalysisAidevOptionsResource):
     """查询当前用户有权限的 AIDEV 知识库选项。"""
 
-    id_field = "id"
+    id_field = "code"
     name_field = "name"
 
     def perform_request(self, validated_request_data: dict) -> dict:

@@ -280,13 +280,20 @@ class TestSourceAnalysisOptionsResources(SimpleTestCase):
                 "list_agents",
                 {
                     "count": 1,
-                    "results": [{"id": 11, "agent_name": "源码分析 Agent", "space_id": "space-a"}],
+                    "results": [
+                        {
+                            "id": 11,
+                            "agent_code": "source-analysis-agent",
+                            "agent_name": "源码分析 Agent",
+                            "space_id": "space-a",
+                        }
+                    ],
                 },
                 {
                     "total": 1,
                     "list": [
                         {
-                            "id": "11",
+                            "id": "source-analysis-agent",
                             "name": "源码分析 Agent",
                             "space_id": "space-a",
                             "space_name": "AIDEV Helper",
@@ -299,13 +306,20 @@ class TestSourceAnalysisOptionsResources(SimpleTestCase):
                 "list_skills",
                 {
                     "count": 1,
-                    "results": [{"id": 22, "skill_name": "代码检索 Skill", "space_id": "space-b"}],
+                    "results": [
+                        {
+                            "id": 22,
+                            "skill_code": "code-search",
+                            "skill_name": "代码检索 Skill",
+                            "space_id": "space-b",
+                        }
+                    ],
                 },
                 {
                     "total": 1,
                     "list": [
                         {
-                            "id": "22",
+                            "id": "code-search",
                             "name": "代码检索 Skill",
                             "space_id": "space-b",
                             "space_name": "Source Analysis",
@@ -327,15 +341,24 @@ class TestSourceAnalysisOptionsResources(SimpleTestCase):
                 list_spaces.assert_called_once_with()
 
     def test_aidev_options_traverse_all_upstream_pages(self):
-        """规则只存 ID，前端要用 ID 回填名称，因此选项接口必须一次返回全量而不是首页。"""
+        """规则只存英文编码，前端要用编码回填名称，因此选项接口必须一次返回全量而不是首页。"""
 
         with (
             patch.object(
                 api.aidev,
                 "list_agents",
                 side_effect=[
-                    {"count": 201, "results": [{"id": index, "agent_name": f"agent-{index}"} for index in range(200)]},
-                    {"count": 201, "results": [{"id": 200, "agent_name": "agent-200"}]},
+                    {
+                        "count": 201,
+                        "results": [
+                            {"id": index, "agent_code": f"agent-{index}", "agent_name": f"agent-{index}"}
+                            for index in range(200)
+                        ],
+                    },
+                    {
+                        "count": 201,
+                        "results": [{"id": 200, "agent_code": "agent-200", "agent_name": "agent-200"}],
+                    },
                 ],
             ) as list_agents,
             patch.object(api.aidev, "list_spaces", return_value=[]),
@@ -344,7 +367,7 @@ class TestSourceAnalysisOptionsResources(SimpleTestCase):
 
         self.assertEqual(result["total"], 201)
         self.assertEqual(len(result["list"]), 201)
-        self.assertEqual(result["list"][-1]["id"], "200")
+        self.assertEqual(result["list"][-1]["id"], "agent-200")
         self.assertEqual(list_agents.call_count, 2)
         list_agents.assert_any_call(space_id="all", page=2, page_size=200)
 
@@ -356,8 +379,20 @@ class TestSourceAnalysisOptionsResources(SimpleTestCase):
                 api.aidev,
                 "list_agents",
                 side_effect=[
-                    {"count": 3, "results": [{"id": 1, "agent_name": "agent-1"}, {"id": 2, "agent_name": "agent-2"}]},
-                    {"count": 3, "results": [{"id": 2, "agent_name": "agent-2"}, {"id": 3, "agent_name": "agent-3"}]},
+                    {
+                        "count": 3,
+                        "results": [
+                            {"id": 1, "agent_code": "agent-1", "agent_name": "agent-1"},
+                            {"id": 2, "agent_code": "agent-2", "agent_name": "agent-2"},
+                        ],
+                    },
+                    {
+                        "count": 3,
+                        "results": [
+                            {"id": 2, "agent_code": "agent-2", "agent_name": "agent-2"},
+                            {"id": 3, "agent_code": "agent-3", "agent_name": "agent-3"},
+                        ],
+                    },
                 ],
             ),
             patch.object(api.aidev, "list_spaces", return_value=[]),
@@ -365,7 +400,7 @@ class TestSourceAnalysisOptionsResources(SimpleTestCase):
             result = ListSourceAnalysisAgentsResource().perform_request({"bk_biz_id": 2})
 
         self.assertEqual(result["total"], 3)
-        self.assertEqual([item["id"] for item in result["list"]], ["1", "2", "3"])
+        self.assertEqual([item["id"] for item in result["list"]], ["agent-1", "agent-2", "agent-3"])
 
     def test_aidev_options_reject_pagination_beyond_safety_limit(self):
         """上游 count 与实际条目长期不一致时必须终止遍历，不能无限翻页。"""
@@ -374,7 +409,10 @@ class TestSourceAnalysisOptionsResources(SimpleTestCase):
             patch.object(
                 api.aidev,
                 "list_agents",
-                return_value={"count": 10000, "results": [{"id": 1, "agent_name": "agent-1"}]},
+                return_value={
+                    "count": 10000,
+                    "results": [{"id": 1, "agent_code": "agent-1", "agent_name": "agent-1"}],
+                },
             ) as list_agents,
             patch.object(api.aidev, "list_spaces", return_value=[]),
             self.assertRaises(SourceAnalysisUpstreamUnavailableError),
@@ -408,30 +446,46 @@ class TestSourceAnalysisOptionsResources(SimpleTestCase):
                     SourceAnalysisBaseResource, "query_visible_aidev_items", return_value=[]
                 ) as query_items:
                     resource_class().perform_request({"bk_biz_id": 2})
-                query_items.assert_called_once_with(resource_type, "id")
+                expected_id_field = "agent_code" if resource_type == "agents" else "skill_code"
+                query_items.assert_called_once_with(resource_type, expected_id_field)
 
     def test_aidev_cached_entry_reaches_matching_upstream_api(self):
         """资源类型到上游接口的映射不能串：Agent 缓存条目不能由 Skill 列表填充。"""
 
-        upstream = {"count": 1, "results": [{"id": 1, "agent_name": "agent-1", "skill_name": "skill-1"}]}
+        upstream = {
+            "count": 1,
+            "results": [
+                {
+                    "id": 1,
+                    "agent_code": "agent-1",
+                    "agent_name": "agent-1",
+                    "skill_code": "skill-1",
+                    "skill_name": "skill-1",
+                }
+            ],
+        }
         with (
             patch.object(api.aidev, "list_agents", return_value=upstream) as list_agents,
             patch.object(api.aidev, "list_skills", return_value=upstream) as list_skills,
         ):
-            SourceAnalysisBaseResource.query_visible_aidev_items.cacheless("agents", "id")
+            SourceAnalysisBaseResource.query_visible_aidev_items.cacheless("agents", "agent_code")
             list_agents.assert_called_once_with(space_id="all", page=1, page_size=200)
             list_skills.assert_not_called()
 
-            SourceAnalysisBaseResource.query_visible_aidev_items.cacheless("skills", "id")
+            SourceAnalysisBaseResource.query_visible_aidev_items.cacheless("skills", "skill_code")
             list_skills.assert_called_once_with(space_id="all", page=1, page_size=200)
 
     def test_enable_validation_does_not_reuse_option_cache(self):
         """启用校验决定规则能否保存，必须实时遍历：用选项缓存会把刚建好的资源判为无效。"""
 
-        rule = IssueSourceAnalysisRule(bk_biz_id=2, priority=1, agent_id="1")
+        rule = IssueSourceAnalysisRule(bk_biz_id=2, priority=1, agent_id="agent-1")
         with (
             patch.object(SourceAnalysisBaseResource, "query_visible_aidev_items") as query_items,
-            patch.object(api.aidev, "list_agents", return_value={"count": 1, "results": [{"id": 1}]}) as list_agents,
+            patch.object(
+                api.aidev,
+                "list_agents",
+                return_value={"count": 1, "results": [{"id": 1, "agent_code": "agent-1"}]},
+            ) as list_agents,
         ):
             SourceAnalysisBaseResource.validate_resources(rule)
 
@@ -459,13 +513,25 @@ class TestSourceAnalysisOptionsResources(SimpleTestCase):
             if kwargs["space_id"] == "space-a":
                 return {
                     "count": 1,
-                    "results": [{"id": 556, "name": "APM 领域知识库", "space_id": "space-a"}],
+                    "results": [
+                        {
+                            "id": 556,
+                            "code": "bkmonitor-apm",
+                            "name": "APM 领域知识库",
+                            "space_id": "space-a",
+                        }
+                    ],
                 }
             return {
                 "count": 2,
                 "results": [
-                    {"id": 556, "name": "重复知识库", "space_id": "space-a"},
-                    {"id": 1228, "name": "BKFara 使用手册", "space_id": "space-b"},
+                    {"id": 556, "code": "bkmonitor-apm", "name": "重复知识库", "space_id": "space-a"},
+                    {
+                        "id": 1228,
+                        "code": "bkfara-user-guide",
+                        "name": "BKFara 使用手册",
+                        "space_id": "space-b",
+                    },
                 ],
             }
 
@@ -482,13 +548,13 @@ class TestSourceAnalysisOptionsResources(SimpleTestCase):
                 "total": 2,
                 "list": [
                     {
-                        "id": "556",
+                        "id": "bkmonitor-apm",
                         "name": "APM 领域知识库",
                         "space_id": "space-a",
                         "space_name": "AIDEV Helper",
                     },
                     {
-                        "id": "1228",
+                        "id": "bkfara-user-guide",
                         "name": "BKFara 使用手册",
                         "space_id": "space-b",
                         "space_name": "Source Analysis",
@@ -551,7 +617,14 @@ class TestSourceAnalysisOptionsResources(SimpleTestCase):
 
         upstream_data = {
             "count": 1,
-            "results": [{"id": 11, "agent_name": "源码分析 Agent", "space_id": "space-a"}],
+            "results": [
+                {
+                    "id": 11,
+                    "agent_code": "source-analysis-agent",
+                    "agent_name": "源码分析 Agent",
+                    "space_id": "space-a",
+                }
+            ],
         }
         broken_space_results = (
             {"return_value": None},
@@ -572,7 +645,7 @@ class TestSourceAnalysisOptionsResources(SimpleTestCase):
                         "total": 1,
                         "list": [
                             {
-                                "id": "11",
+                                "id": "source-analysis-agent",
                                 "name": "源码分析 Agent",
                                 "space_id": "space-a",
                                 "space_name": "space-a",
@@ -585,9 +658,19 @@ class TestSourceAnalysisOptionsResources(SimpleTestCase):
         """空间字段不进入规则保存协议，上游缺失 space_id 时不能拖垮整个选择器。"""
 
         for broken_item in (
-            {"id": 11, "agent_name": "源码分析 Agent"},
-            {"id": 11, "agent_name": "源码分析 Agent", "space_id": None},
-            {"id": 11, "agent_name": "源码分析 Agent", "space_id": ""},
+            {"id": 11, "agent_code": "source-analysis-agent", "agent_name": "源码分析 Agent"},
+            {
+                "id": 11,
+                "agent_code": "source-analysis-agent",
+                "agent_name": "源码分析 Agent",
+                "space_id": None,
+            },
+            {
+                "id": 11,
+                "agent_code": "source-analysis-agent",
+                "agent_name": "源码分析 Agent",
+                "space_id": "",
+            },
         ):
             with self.subTest(broken_item=broken_item):
                 with (
@@ -604,17 +687,25 @@ class TestSourceAnalysisOptionsResources(SimpleTestCase):
                     result,
                     {
                         "total": 1,
-                        "list": [{"id": "11", "name": "源码分析 Agent", "space_id": "", "space_name": ""}],
+                        "list": [
+                            {
+                                "id": "source-analysis-agent",
+                                "name": "源码分析 Agent",
+                                "space_id": "",
+                                "space_name": "",
+                            }
+                        ],
                     },
                 )
 
-    def test_aidev_option_rejects_resource_missing_id_or_name(self):
-        """id 与 name 是选项的必要内容，缺失时仍按上游不可用处理。"""
+    def test_aidev_option_rejects_resource_missing_identifier_or_name(self):
+        """英文编码与 name 是选项的必要内容，缺失时仍按上游不可用处理。"""
 
         for broken_item in (
             {"agent_name": "源码分析 Agent", "space_id": "space-a"},
-            {"id": 11, "space_id": "space-a"},
-            {"id": 11, "agent_name": "", "space_id": "space-a"},
+            {"id": 11, "agent_name": "源码分析 Agent", "space_id": "space-a"},
+            {"id": 11, "agent_code": "source-analysis-agent", "space_id": "space-a"},
+            {"id": 11, "agent_code": "source-analysis-agent", "agent_name": "", "space_id": "space-a"},
         ):
             with self.subTest(broken_item=broken_item):
                 with (
@@ -631,7 +722,14 @@ class TestSourceAnalysisOptionsResources(SimpleTestCase):
     def test_aidev_option_falls_back_to_space_id_for_public_cross_space_resource(self):
         upstream_data = {
             "count": 1,
-            "results": [{"id": 11, "agent_name": "源码分析 Agent", "space_id": "space-a"}],
+            "results": [
+                {
+                    "id": 11,
+                    "agent_code": "source-analysis-agent",
+                    "agent_name": "源码分析 Agent",
+                    "space_id": "space-a",
+                }
+            ],
         }
         with (
             patch.object(api.aidev, "list_agents", return_value=upstream_data),
@@ -649,7 +747,7 @@ class TestSourceAnalysisOptionsResources(SimpleTestCase):
                 "total": 1,
                 "list": [
                     {
-                        "id": "11",
+                        "id": "source-analysis-agent",
                         "name": "源码分析 Agent",
                         "space_id": "space-a",
                         "space_name": "space-a",

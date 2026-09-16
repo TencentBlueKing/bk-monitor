@@ -20,6 +20,7 @@ from bkmonitor.iam import ActionEnum
 from bkmonitor.iam.drf import BusinessActionPermission
 from bkmonitor.models import IssueSourceAnalysisConfig, IssueSourceAnalysisRule
 from bkmonitor.utils.user import set_local_username
+from core.drf_resource import api
 from core.drf_resource.exceptions import custom_exception_handler
 from core.errors.api import BKAPIError
 from core.errors.issue import (
@@ -68,14 +69,14 @@ class TestSourceAnalysisRuleSerializers(SimpleTestCase):
                 "bk_biz_id": 2,
                 "priority": 1,
                 "conditions": [{"field": "alert.strategy_id", "value": ["1"], "method": "eq", "condition": "and"}],
-                "agent_id": "1",
-                "skill_ids": ["3", "3"],
+                "agent_id": "agent-a",
+                "skill_ids": ["skill-a", "skill-a"],
             },
         )
 
         # agent 是单值，不参与去重排序
-        self.assertEqual(data["agent_id"], "1")
-        self.assertEqual(data["skill_ids"], ["3"])
+        self.assertEqual(data["agent_id"], "agent-a")
+        self.assertEqual(data["skill_ids"], ["skill-a"])
 
     def test_condition_chain_requires_first_connector_to_be_and(self):
         serializer = SourceAnalysisRuleWriteSerializer(
@@ -121,47 +122,50 @@ class TestSourceAnalysisRuleSerializers(SimpleTestCase):
     @patch.object(
         SourceAnalysisBaseResource,
         "load_visible_aidev_knowledge_bases",
-        return_value=([{"id": 10}], {"space-a": "AIDEV Helper"}),
+        return_value=([{"id": 10, "code": "knowledge-a"}], {"space-a": "AIDEV Helper"}),
     )
-    @patch.object(SourceAnalysisBaseResource, "list_visible_aidev_ids", return_value={"1"})
-    def test_visible_knowledge_base_passes_validation(self, _list_visible, load_knowledge_bases):
+    @patch.object(SourceAnalysisBaseResource, "list_visible_aidev_ids", return_value={"agent-a", "skill-a"})
+    def test_visible_resource_codes_pass_validation(self, list_visible, load_knowledge_bases):
         rule = IssueSourceAnalysisRule(
             bk_biz_id=2,
             priority=1,
-            agent_id="1",
-            knowledge_base_ids=["10"],
+            agent_id="agent-a",
+            skill_ids=["skill-a"],
+            knowledge_base_ids=["knowledge-a"],
         )
 
         SourceAnalysisBaseResource.validate_resources(rule)
 
         load_knowledge_bases.assert_called_once_with()
+        list_visible.assert_any_call(api.aidev.list_agents, "agent_code")
+        list_visible.assert_any_call(api.aidev.list_skills, "skill_code")
 
     @patch.object(
         SourceAnalysisBaseResource,
         "load_visible_aidev_knowledge_bases",
-        return_value=([{"id": 10}], {"space-a": "AIDEV Helper"}),
+        return_value=([{"id": 10, "code": "knowledge-a"}], {"space-a": "AIDEV Helper"}),
     )
-    @patch.object(SourceAnalysisBaseResource, "list_visible_aidev_ids", return_value={"1"})
+    @patch.object(SourceAnalysisBaseResource, "list_visible_aidev_ids", return_value={"agent-a"})
     def test_invisible_knowledge_base_is_rejected(self, _list_visible, _load_knowledge_bases):
         rule = IssueSourceAnalysisRule(
             bk_biz_id=2,
             priority=1,
-            agent_id="1",
-            knowledge_base_ids=["99"],
+            agent_id="agent-a",
+            knowledge_base_ids=["knowledge-missing"],
         )
 
         with self.assertRaises(SourceAnalysisResourceNotFoundError):
             SourceAnalysisBaseResource.validate_resources(rule)
 
-    @patch.object(SourceAnalysisBaseResource, "list_visible_aidev_ids", return_value={"1", "2"})
+    @patch.object(SourceAnalysisBaseResource, "list_visible_aidev_ids", return_value={"agent-a", "agent-b"})
     def test_visible_agent_passes_validation(self, _list_visible):
-        rule = IssueSourceAnalysisRule(bk_biz_id=2, priority=1, agent_id="2")
+        rule = IssueSourceAnalysisRule(bk_biz_id=2, priority=1, agent_id="agent-b")
 
         SourceAnalysisBaseResource.validate_resources(rule)
 
-    @patch.object(SourceAnalysisBaseResource, "list_visible_aidev_ids", return_value={"1", "2"})
+    @patch.object(SourceAnalysisBaseResource, "list_visible_aidev_ids", return_value={"agent-a", "agent-b"})
     def test_invisible_agent_is_rejected(self, _list_visible):
-        rule = IssueSourceAnalysisRule(bk_biz_id=2, priority=1, agent_id="99")
+        rule = IssueSourceAnalysisRule(bk_biz_id=2, priority=1, agent_id="agent-missing")
 
         with self.assertRaises(SourceAnalysisResourceNotFoundError):
             SourceAnalysisBaseResource.validate_resources(rule)
