@@ -23,22 +23,22 @@ class IamDecisionHandlerTest(SimpleTestCase):
         self.assertIn(FUNC_NAME, metadata["functions"])
         self.assertEqual(FUNCTIONS[FUNC_NAME]["safety_level"], "inspect")
 
-    def test_schema_rejects_manage_actions_and_tenant_override(self):
+    def test_schema_accepts_manage_actions_and_rejects_tenant_override(self):
         schema = FUNCTIONS[FUNC_NAME]["params_schema"]
-        with self.assertRaises(ValidationError):
-            validate_params(
-                {
-                    "username": "alice",
-                    "decisions": [
-                        {
-                            "action_id": ActionEnum.MANAGE_COLLECTION.id,
-                            "resource_type": "collection",
-                            "resource_id": "1",
-                        }
-                    ],
-                },
-                schema,
-            )
+        validate_params(
+            {
+                "username": "alice",
+                "decisions": [
+                    {
+                        "action_id": ActionEnum.MANAGE_COLLECTION.id,
+                        "resource_type": "collection",
+                        "resource_id": "1",
+                    },
+                    {"action_id": ActionEnum.MANAGE_GLOBAL_DESENSITIZE_RULE.id},
+                ],
+            },
+            schema,
+        )
         with self.assertRaises(ValidationError):
             validate_params(
                 {
@@ -142,6 +142,53 @@ class IamDecisionHandlerTest(SimpleTestCase):
         self.assertIsNone(decision["allowed"])
         self.assertEqual(decision["status"], "unknown")
         self.assertIn("iam_provider_degraded", decision["warnings"])
+
+    @patch("apps.log_admin_resource.handlers.iam_decision.require_request_tenant_id", return_value="tenant-a")
+    @patch("apps.log_admin_resource.handlers.iam_decision.Permission")
+    def test_evaluate_manage_and_global_actions(self, permission_cls, _tenant):
+        permission = permission_cls.return_value
+        permission.bk_tenant_id = "tenant-a"
+        permission.is_demo_biz_resource.return_value = False
+        permission.mode_router.is_allowed.side_effect = [
+            _decision(allowed=False, mode="v3"),
+            _decision(allowed=True, mode="v3"),
+        ]
+        permission.make_engine_request.side_effect = lambda action, resources: SimpleNamespace(
+            resources=resources, action=action
+        )
+        permission._resource_type_label.return_value = "collection"
+
+        with (
+            patch(
+                "apps.log_admin_resource.handlers.iam_decision.scope_biz_queryset",
+                side_effect=lambda qs: qs,
+            ),
+            patch("apps.log_admin_resource.handlers.iam_decision.CollectorConfig.objects") as collector_objects,
+        ):
+            collector_objects.filter.return_value.first.return_value = SimpleNamespace(collector_config_id=123)
+            result = evaluate_iam_decisions(
+                {
+                    "username": "bob",
+                    "decisions": [
+                        {
+                            "action_id": ActionEnum.MANAGE_COLLECTION.id,
+                            "resource_type": "collection",
+                            "resource_id": "123",
+                        },
+                        {"action_id": ActionEnum.MANAGE_GLOBAL_DESENSITIZE_RULE.id},
+                    ],
+                }
+            )
+
+        validate_params(result, FUNCTIONS[FUNC_NAME]["response_schema"], "response")
+        self.assertEqual(result["username"], "bob")
+        self.assertEqual(
+            [(item["action_id"], item["allowed"], item["resource_id"]) for item in result["decisions"]],
+            [
+                (ActionEnum.MANAGE_COLLECTION.id, False, "123"),
+                (ActionEnum.MANAGE_GLOBAL_DESENSITIZE_RULE.id, True, ""),
+            ],
+        )
 
     @patch("apps.log_admin_resource.handlers.iam_decision.require_request_tenant_id", return_value="tenant-a")
     @patch("apps.log_admin_resource.handlers.iam_decision.Permission")

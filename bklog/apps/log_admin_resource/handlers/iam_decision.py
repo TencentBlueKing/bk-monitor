@@ -6,6 +6,7 @@ from typing import Any
 
 from django.conf import settings
 
+from apps.api import TransferApi
 from apps.exceptions import PermissionError as BklogPermissionError
 from apps.exceptions import ValidationError
 from apps.iam.exceptions import ActionNotExistError, ResourceNotExistError
@@ -35,13 +36,10 @@ RESOURCE_TYPE_ALIASES = {
     "indices": ResourceEnum.INDICES.id,
     "index_set": ResourceEnum.INDICES.id,
     "collection": ResourceEnum.COLLECTION.id,
+    "es_source": ResourceEnum.ES_SOURCE.id,
 }
 
-VIEW_ACTIONS = {
-    action.id: action
-    for action in ActionEnum.__dict__.values()
-    if isinstance(action, ActionMeta) and action.is_read_action()
-}
+SUPPORTED_ACTIONS = {action.id: action for action in ActionEnum.__dict__.values() if isinstance(action, ActionMeta)}
 
 
 DECISION_ITEM_SCHEMA = object_schema(
@@ -54,8 +52,8 @@ DECISION_ITEM_SCHEMA = object_schema(
     "warnings",
     properties={
         "action_id": {"type": "string", "minLength": 1},
-        "resource_type": {"type": "string", "minLength": 1},
-        "resource_id": {"type": "string", "minLength": 1},
+        "resource_type": {"type": "string"},
+        "resource_id": {"type": "string"},
         "allowed": {"type": ["boolean", "null"]},
         "status": {"type": "string", "enum": ["ok", "unknown", "error"]},
         "mode": {"type": "string"},
@@ -121,21 +119,33 @@ def _evaluate_one(permission: Permission, item: dict[str, Any], *, index: int) -
     action_id = str(item.get("action_id") or "").strip()
     resource_type = str(item.get("resource_type") or "").strip()
     resource_id = str(item.get("resource_id") or "").strip()
-    if not action_id or not resource_type or not resource_id:
-        raise ValidationError(f"decisions[{index}] requires action_id, resource_type and resource_id")
+    if not action_id:
+        raise ValidationError(f"decisions[{index}] requires action_id")
 
-    action = _resolve_view_action(action_id)
-    resource_meta = _resolve_resource_meta(resource_type)
-    _assert_action_accepts_resource(action, resource_meta, index=index)
-    resources = [_build_resource(resource_meta, resource_id)]
+    action = _resolve_action(action_id)
+    related_types = {item.id for item in (action.related_resource_types or [])}
+    if not related_types:
+        if resource_type or resource_id:
+            raise ValidationError(f"decisions[{index}] action {action.id} does not accept a resource")
+        resources = []
+        resource_meta_id = ""
+        resource_instance_id = ""
+    else:
+        if not resource_type or not resource_id:
+            raise ValidationError(f"decisions[{index}] requires resource_type and resource_id")
+        resource_meta = _resolve_resource_meta(resource_type)
+        _assert_action_accepts_resource(action, resource_meta, index=index)
+        resources = [_build_resource(resource_meta, resource_id)]
+        resource_meta_id = resource_meta.id
+        resource_instance_id = str(resources[0].id)
 
     warnings: list[str] = []
     if permission.is_demo_biz_resource(resources) and (settings.DEMO_BIZ_EDIT_ENABLED or action.is_read_action()):
         warnings.append("demo_biz_exemption")
         return {
             "action_id": action.id,
-            "resource_type": resource_meta.id,
-            "resource_id": str(resources[0].id),
+            "resource_type": resource_meta_id,
+            "resource_id": resource_instance_id,
             "allowed": True,
             "status": "ok",
             "mode": "",
@@ -148,8 +158,8 @@ def _evaluate_one(permission: Permission, item: dict[str, Any], *, index: int) -
     except Exception as error:  # pylint: disable=broad-except
         return {
             "action_id": action.id,
-            "resource_type": resource_meta.id,
-            "resource_id": str(resources[0].id),
+            "resource_type": resource_meta_id,
+            "resource_id": resource_instance_id,
             "allowed": None,
             "status": "unknown",
             "mode": "",
@@ -163,8 +173,8 @@ def _evaluate_one(permission: Permission, item: dict[str, Any], *, index: int) -
         warnings.append("iam_provider_degraded")
         return {
             "action_id": action.id,
-            "resource_type": resource_meta.id,
-            "resource_id": str(resources[0].id),
+            "resource_type": resource_meta_id,
+            "resource_id": resource_instance_id,
             "allowed": None,
             "status": "unknown",
             "mode": str(decision.mode or ""),
@@ -176,8 +186,8 @@ def _evaluate_one(permission: Permission, item: dict[str, Any], *, index: int) -
 
     return {
         "action_id": action.id,
-        "resource_type": resource_meta.id,
-        "resource_id": str(resources[0].id),
+        "resource_type": resource_meta_id,
+        "resource_id": resource_instance_id,
         "allowed": bool(decision.allowed),
         "status": "ok",
         "mode": str(decision.mode or ""),
@@ -185,9 +195,9 @@ def _evaluate_one(permission: Permission, item: dict[str, Any], *, index: int) -
     }
 
 
-def _resolve_view_action(action_id: str) -> ActionMeta:
-    if action_id not in VIEW_ACTIONS:
-        raise ValidationError(f"action_id is not a supported read-only IAM action: {action_id}")
+def _resolve_action(action_id: str) -> ActionMeta:
+    if action_id not in SUPPORTED_ACTIONS:
+        raise ValidationError(f"unknown action_id: {action_id}")
     try:
         return get_action_by_id(action_id)
     except ActionNotExistError as error:
@@ -236,17 +246,37 @@ def _build_resource(resource_meta: type[ResourceMeta], resource_id: str):
             raise ValidationError("resource_not_found")
         return resource_meta.create_simple_instance(str(collector.collector_config_id))
 
+    if resource_meta is ResourceEnum.ES_SOURCE:
+        if not str(resource_id).isdigit():
+            raise ValidationError("resource_not_found")
+        cluster_id = int(resource_id)
+        try:
+            clusters = TransferApi.get_cluster_info({"cluster_id": cluster_id})
+        except Exception as error:  # pylint: disable=broad-except
+            raise ValidationError("resource_not_found") from error
+        cluster = clusters[0] if isinstance(clusters, list) and clusters else None
+        if not isinstance(cluster, dict):
+            raise ValidationError("resource_not_found")
+        cluster_config = cluster.get("cluster_config") or {}
+        custom_option = cluster_config.get("custom_option") or {}
+        require_biz_in_request_tenant(custom_option.get("bk_biz_id", 0), allow_global=True)
+        return resource_meta.create_simple_instance(str(cluster_id))
+
     raise ValidationError(f"unsupported resource_type: {resource_meta.id}")
 
 
 FUNCTIONS = {
     FUNC_NAME: {
         "func_name": FUNC_NAME,
-        "description": ("Evaluate bounded read-only IAM allow/deny decisions for one username in the current tenant."),
+        "description": (
+            "Evaluate bounded IAM allow/deny decisions for any username and any published IAM action "
+            "in the current tenant."
+        ),
         "notes": (
-            "Only view actions are accepted. Resource Call request tenant is authoritative; "
-            "caller-supplied bk_tenant_id is rejected. Dependency failures return status=unknown "
-            "instead of a false denial."
+            "This OP only inspects Permission.is_allowed; it does not grant or mutate IAM policy. "
+            "All ActionEnum ids are accepted. Actions without related resources omit resource_type "
+            "and resource_id. Resource Call request tenant is authoritative; caller-supplied "
+            "bk_tenant_id is rejected. Dependency failures return status=unknown instead of a false denial."
         ),
         "safety_level": "inspect",
         "validate_params": True,
@@ -263,7 +293,7 @@ FUNCTIONS = {
                         "properties": {
                             "action_id": {
                                 "type": "string",
-                                "enum": sorted(VIEW_ACTIONS),
+                                "enum": sorted(SUPPORTED_ACTIONS),
                             },
                             "resource_type": {
                                 "type": "string",
@@ -271,7 +301,7 @@ FUNCTIONS = {
                             },
                             "resource_id": {"type": "string", "minLength": 1, "maxLength": 128},
                         },
-                        "required": ["action_id", "resource_type", "resource_id"],
+                        "required": ["action_id"],
                         "additionalProperties": False,
                     },
                 },
@@ -295,6 +325,14 @@ FUNCTIONS = {
                             "resource_type": "indices",
                             "resource_id": "1001",
                         },
+                        {
+                            "action_id": "manage_collection_v2",
+                            "resource_type": "collection",
+                            "resource_id": "123",
+                        },
+                        {
+                            "action_id": "manage_global_desensitize_rule",
+                        },
                     ],
                 }
             }
@@ -302,7 +340,7 @@ FUNCTIONS = {
         "error_codes": [
             "username is required",
             "resource_not_found",
-            "action_id is not a supported read-only IAM action",
+            "unknown action_id",
             "unsupported resource_type",
         ],
     }
