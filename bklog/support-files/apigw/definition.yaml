@@ -73,6 +73,10 @@ grant_permissions:
     grant_dimension: "gateway"
   - bk_app_code: bk_bkmonitorv3
     grant_dimension: "gateway"
+  - bk_app_code: bk-incident
+    grant_dimension: "gateway"
+  - bk_app_code: bkincident
+    grant_dimension: "gateway"
 
   - bk_app_code: "bk_apigateway"
     grant_dimension: "resource"
