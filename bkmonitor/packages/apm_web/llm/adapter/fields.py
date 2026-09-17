@@ -4,10 +4,22 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+from django.db.models import Q
+
 from constants.apm import LLMProduct
 
 if TYPE_CHECKING:
     from apm_web.strategy.dispatch.entity import EntitySet
+
+# 能判定为 Agent 观测数据的 Span：各产品的埋点标记字段取并集，用于不区分产品的筛选。
+AGENT_CANDIDATE_FIELDS: tuple[str, ...] = (
+    "attributes.gen_ai.span.kind",
+    "attributes.gen_ai.operation.name",
+    "attributes.agent.info.id",
+    "attributes.agent.info.name",
+    "attributes.langfuse.observation.type",
+)
+AGENT_CANDIDATE_Q: Q = Q(*(Q(**{f"{field}__exists": [""]}) for field in AGENT_CANDIDATE_FIELDS), _connector=Q.OR)
 
 # gen_ai.operation.name -> Span 语义层级，未登记的取值（检索、任务等）不归类。
 SPAN_TYPES: dict[str, str] = {
@@ -63,3 +75,37 @@ QUERY_FIELD_MAPPING: dict[str, dict[str, str]] = {
 def resolve_query_field(product: str, field: str) -> str:
     """命中映射表时按产品换算为存储中的原始字段，未命中（含非 LLM 服务）时原样透传。"""
     return QUERY_FIELD_MAPPING.get(field, {}).get(product, field)
+
+
+# 产品存储里的操作名 -> 标准 gen_ai.operation.name，未登记的取值只做小写化。
+# 与 adapter 的归一口径对齐：聚合侧拿不到 span_name / 消息结构，只能映射字段取值本身。
+OPERATION_NAME_ALIASES: dict[str, dict[str, str]] = {
+    LLMProduct.AIDEV.value: {
+        "chat": "chat",
+        "completion": "text_completion",
+        "embedding": "embeddings",
+        "rerank": "retrieval",
+    },
+    LLMProduct.LANGFUSE.value: {
+        "agent": "invoke_agent",
+        "chain": "invoke_workflow",
+        "embedding": "embeddings",
+        "generation": "chat",
+        "retriever": "retrieval",
+        "tool": "execute_tool",
+    },
+    LLMProduct.AGENTLENS.value: {
+        "agent": "invoke_agent",
+        "llm": "chat",
+        "tool": "execute_tool",
+    },
+}
+
+
+def resolve_operation_name(product: str, value: Any) -> str:
+    """把各产品存储中的操作名换算成标准名，空值保持为空串。"""
+    raw = str(value).strip() if value not in (None, "") else ""
+    if not raw:
+        return ""
+    lowered = raw.lower()
+    return OPERATION_NAME_ALIASES.get(product, {}).get(lowered, lowered)
