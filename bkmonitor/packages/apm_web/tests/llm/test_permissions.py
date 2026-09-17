@@ -35,6 +35,7 @@ def test_list_traces_and_calculate_by_range_record_user_visits():
     assert routes["list_flows"].decorators == [user_visit_record]
     assert routes["calculate_by_range"].decorators == [user_visit_record]
     assert routes["list_spans"].decorators is None
+    assert routes["token_statistics"].decorators is None
     assert routes["time_series"].decorators is None
 
 

@@ -15,6 +15,7 @@ from apm_web.handlers.trace_handler.query import QueryHandler, QueryStringBuilde
 from apm_web.llm.adapter import adapt_spans
 from apm_web.llm.adapter.fields import AGENT_CANDIDATE_Q, resolve_product, resolve_query_field
 from apm_web.llm.constants import CalculationType
+from apm_web.llm.flow import FlowBuilder
 from apm_web.llm.metric_group import LLMMetricGroup
 from apm_web.llm.query import LLMQuery, get_query
 from apm_web.metric.resources import CalculateByRangeResource as MetricCalculateByRangeResource
@@ -453,43 +454,6 @@ class ListFlowsResource(Resource):
         group_field = serializers.CharField(required=True, label="分组字段")
         group_id = serializers.CharField(required=True, label="分组值")
 
-    @staticmethod
-    def _build_flow(
-        raw_spans: list[dict[str, Any]],
-        spans: list[dict[str, Any]],
-    ) -> list[dict[str, Any]]:
-        nodes = [{**span, "childs": []} for span in spans]
-        nodes_by_span_id = {node[OtlpKey.SPAN_ID]: node for node in nodes if node.get(OtlpKey.SPAN_ID)}
-        raw_spans_by_span_id = {span[OtlpKey.SPAN_ID]: span for span in raw_spans if span.get(OtlpKey.SPAN_ID)}
-        raw_children_by_parent_id: dict[str, list[dict[str, Any]]] = defaultdict(list)
-        raw_roots = []
-        for span in raw_spans:
-            span_id = span.get(OtlpKey.SPAN_ID)
-            parent_span_id = span.get(OtlpKey.PARENT_SPAN_ID)
-            if parent_span_id and parent_span_id in raw_spans_by_span_id and parent_span_id != span_id:
-                raw_children_by_parent_id[parent_span_id].append(span)
-            else:
-                raw_roots.append(span)
-
-        roots = []
-
-        def project(span: dict[str, Any], parent: dict[str, Any] | None) -> None:
-            node = nodes_by_span_id.get(span.get(OtlpKey.SPAN_ID))
-            if node is not None:
-                if parent is None:
-                    roots.append(node)
-                else:
-                    parent["childs"].append(node)
-                parent = node
-
-            for child in raw_children_by_parent_id.get(span.get(OtlpKey.SPAN_ID), []):
-                project(child, parent)
-
-        for raw_root in raw_roots:
-            project(raw_root, None)
-
-        return roots
-
     def perform_request(self, validated_request_data):
         application = Application.objects.get(
             bk_biz_id=validated_request_data["bk_biz_id"],
@@ -531,10 +495,32 @@ class ListFlowsResource(Resource):
             result["traces"].append(
                 {
                     "trace_id": trace_id,
-                    "flow": self._build_flow(raw_trace_spans, adapt_spans(raw_trace_spans, entity_set)),
+                    "flow": FlowBuilder(raw_trace_spans, adapt_spans(raw_trace_spans, entity_set)).build(),
                 }
             )
         return result
+
+
+class TokenStatisticsResource(Resource):
+    """统计 Trace 内所有 Agent Span 子树的模型 Token。"""
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
+        app_name = serializers.CharField(required=True, label="应用名称")
+        trace_id = serializers.CharField(required=True, label="Trace ID")
+
+    def perform_request(self, validated_request_data):
+        trace_id = validated_request_data["trace_id"]
+        result = ListFlowsResource().request(
+            {
+                "bk_biz_id": validated_request_data["bk_biz_id"],
+                "app_name": validated_request_data["app_name"],
+                "group_field": OtlpKey.TRACE_ID,
+                "group_id": trace_id,
+            }
+        )
+        flow = result["traces"][0]["flow"] if result["traces"] else []
+        return {"trace_id": trace_id, "statistics": FlowBuilder.token_statistics_map(flow)}
 
 
 class LLMMetricRequestSerializer(serializers.Serializer):
