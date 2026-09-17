@@ -142,7 +142,7 @@ def _sanitize_name(raw: str) -> str:
     return re.sub(r"_+", "_", refine)
 
 
-def compose_profile_data_id_name(bk_biz_id: int, app_name: str) -> str:
+def compose_profile_data_id_name(bk_biz_id: int | str, app_name: str) -> str:
     """
     组装 DataId 资源名称：profile_{bk_biz_id}_{app_name}
     超过 MAX_LENGTH(50) 时截断 app_name 并在末尾补充 5 位随机字符。
@@ -150,7 +150,7 @@ def compose_profile_data_id_name(bk_biz_id: int, app_name: str) -> str:
     正常格式：profile_{bk_biz_id}_{sanitized_app_name}
     截断格式：profile_{bk_biz_id}_{truncated_app_name}_{random}
 
-    @param bk_biz_id: 业务 ID
+    @param bk_biz_id: DataId 命名业务标识，负数空间使用 space_{space_id}
     @param app_name: 应用名称
     @return: DataId 资源名称，长度 ≤ 50
     """
@@ -594,7 +594,7 @@ class BkDataDorisV4Provider:
     bk_tenant_id: str
     maintainer: str
     operator: str
-    data_biz_id: int = 0  # 仅用于 DataId 命名（通过 get_tenant_datalink_biz_id 获取）
+    data_biz_id: int | str = 0  # 仅用于 DataId 命名，负数空间使用 space_{space_id}
     # DataId.spec.preferCluster.name，来自默认 Kafka 集群的 cluster_name（ClusterInfo）。
     prefer_kafka_cluster_name: str | None = None
 
@@ -614,6 +614,7 @@ class BkDataDorisV4Provider:
         from bkmonitor.utils.tenant import get_tenant_datalink_biz_id
 
         datalink_biz_ids = get_tenant_datalink_biz_id(bk_tenant_id, obj.profile_bk_biz_id)
+        data_biz_id = f"space_{abs(obj.bk_biz_id)}" if obj.bk_biz_id < 0 else datalink_biz_ids.data_biz_id
 
         return cls(
             bk_biz_id=obj.profile_bk_biz_id,
@@ -621,7 +622,7 @@ class BkDataDorisV4Provider:
             bk_tenant_id=bk_tenant_id,
             maintainer=maintainer,
             operator=operator,
-            data_biz_id=datalink_biz_ids.data_biz_id,
+            data_biz_id=data_biz_id,
             prefer_kafka_cluster_name=prefer_kafka_cluster_name,
             _obj=obj,
         )
