@@ -158,8 +158,8 @@ export default defineComponent({
         handleRuleSliderChange(false);
         handleFetchRules();
       } catch {
+        // 失败文案由 monitor-api 全局拦截器弹出（含错误码和原因），这里不再重复弹「新增/编辑失败」。
         payload.reject();
-        Message({ theme: 'error', message: isEditMode ? t('编辑失败') : t('新增失败') });
       }
     };
 
@@ -267,7 +267,6 @@ export default defineComponent({
       InfoBox({
         title: t('确定删除此规则'),
         beforeClose: action => {
-          console.log(action);
           if (action === 'confirm') {
             return new Promise(resolve => {
               deleteSourceAnalysisRule(rule.id)
