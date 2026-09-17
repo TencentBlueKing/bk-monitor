@@ -13,6 +13,7 @@ from constants.apm import OtlpKey
 from apm_web.llm.adapter import adapt_spans
 from apm_web.llm.adapter.fields import resolve_product
 from apm_web.strategy.dispatch.entity import EntitySet
+from bkmonitor.utils.request import get_request_username
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +31,12 @@ def attach_llm_detail(
     if not raw_spans or not (0 in settings.LLM_BIZ_LIST or bk_biz_id in settings.LLM_BIZ_LIST):
         return
 
+    logger.info(
+        "[LLM] attach_detail bk_biz_id=%s app_name=%s username=%s",
+        bk_biz_id,
+        app_name,
+        get_request_username() or "",
+    )
     try:
         entity_set: EntitySet = EntitySet(bk_biz_id=bk_biz_id, app_name=app_name)
     except Exception:
