@@ -1,0 +1,136 @@
+.rum-summary-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+
+  .summary-card-row {
+    display: flex;
+    gap: 12px;
+    align-items: stretch;
+  }
+
+  .rum-summary-card {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+    padding: 8px 12px 8px 16px;
+    background: #fff;
+    border: 1px solid #c1cde5;
+    border-radius: 4px;
+
+    .card-head {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .card-label {
+      font-size: 12px;
+      line-height: 20px;
+      color: #4d4f56;
+    }
+
+    .card-operation {
+      display: inline-flex;
+      gap: 2px;
+      align-items: center;
+      margin-left: auto;
+      font-size: 12px;
+      line-height: 20px;
+      color: #3a84ff;
+      cursor: pointer;
+    }
+
+    .card-tag {
+      padding: 0 6px;
+      margin-left: auto;
+      font-size: 12px;
+      font-weight: 500;
+      line-height: 20px;
+      border-radius: 10px;
+    }
+
+    .card-value-row {
+      display: flex;
+      gap: 4px;
+      align-items: center;
+      min-width: 0;
+
+      &.unit-value-row {
+        align-items: baseline;
+      }
+    }
+
+    .card-prefix-tag {
+      padding: 0 4px;
+      font-size: 16px;
+      font-weight: 700;
+      line-height: 28px;
+      color: #fff;
+      border-radius: 4px;
+    }
+
+    .card-value {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      font-size: 24px;
+      font-weight: 700;
+      line-height: 32px;
+      color: #313238;
+      white-space: nowrap;
+    }
+
+    .card-unit {
+      flex-shrink: 0;
+      font-size: 14px;
+      font-weight: 500;
+      line-height: 22px;
+    }
+
+    .card-sparkline {
+      display: flex;
+      gap: 1px;
+      align-items: flex-end;
+      height: 32px;
+    }
+
+    .sparkline-bar {
+      flex: 1;
+      min-width: 2px;
+    }
+
+    .card-footer {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      font-size: 12px;
+      line-height: 20px;
+      color: #979ba5;
+      white-space: nowrap;
+    }
+
+    &.request-method {
+      .card-value {
+        font-size: 16px;
+      }
+    }
+
+    &.vital-card {
+      &.success {
+        background-color: #edfaf6;
+        border-color: #c1e5dc;
+      }
+
+      &.warning {
+        background-color: #fdf4e8;
+        border-color: #fce5c0;
+      }
+
+      &.danger {
+        background-color: #fff0f0;
+        border-color: #fdd;
+      }
+    }
+  }
+}

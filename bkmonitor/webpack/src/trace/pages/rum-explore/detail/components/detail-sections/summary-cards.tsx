@@ -31,6 +31,8 @@ import { RumCardToneEnum } from '../../typings';
 
 import type { IRumSummaryCardVM } from '../../typings';
 
+import './summary-cards.scss';
+
 /** 迷你柱状图的固定高度，柱高按最大值归一化 */
 const SPARKLINE_HEIGHT = 32;
 

@@ -28,6 +28,8 @@ import type { PropType } from 'vue';
 
 import type { IRumWaterfallVM } from '../../typings';
 
+import './waterfall-chart.scss';
+
 /**
  * 请求时序瀑布图：左侧阶段名与耗时定宽，右侧轨道按百分比定位色块。
  * DNS / TCP / TLS 被合并成连接复用说明时，在首行之后插入一条分隔说明。

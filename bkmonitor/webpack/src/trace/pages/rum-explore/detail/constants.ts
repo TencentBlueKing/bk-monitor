@@ -124,7 +124,7 @@ export const VITAL_METRIC_META: Record<string, { label: string; unit: string }> 
   fcp: { label: window.i18n.t('首次内容绘制（First Contentful Paint，FCP）') as string, unit: 'ms' },
   inp: { label: window.i18n.t('下次绘制交互（Interaction to Next Paint，INP）') as string, unit: 'ms' },
   ttfb: { label: window.i18n.t('首字节时间（Time to First Byte，TTFB）') as string, unit: 'ms' },
-  cls: { label: window.i18n.t('累积布局偏移（Cumulative Layout Shift，CLS）') as string, unit: '' },
+  cls: { label: window.i18n.t('累积布局偏移（Cumulative Layout Shift，CLS）') as string, unit: 'ms' },
 };
 
 /** 统计卡片主值的语义配色 */
