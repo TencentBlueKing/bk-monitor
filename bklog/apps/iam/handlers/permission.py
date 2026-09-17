@@ -166,7 +166,7 @@ class Permission:
             AuthMode.V3: ProviderBundle(
                 auth=v3_provider,
                 application=v3_provider,
-                writer=V3AuthorizationWriter(self.iam_client),
+                writer=V3AuthorizationWriter(self.iam_client, bk_tenant_id=self.bk_tenant_id),
                 scope=v3_provider,
             ),
             AuthMode.V4: ProviderBundle(
@@ -905,3 +905,54 @@ class Permission:
             creator: self.grant_creator_action(resource=resource, creator=creator, raise_exception=raise_exception)
             for creator in unique_creators
         }
+
+    def grant_space_access_batch(self, bk_biz_id, subjects: list = None) -> list[str]:
+        """为多个用户授予业务访问权限，返回至少有一侧授权失败的用户列表。
+
+        业务访问不是创建者授权：空间是既存资源，legacy 与 current 的授权入口不同，
+        所以这里不复用 grant_creator_action 的双写编排，按 Writer 逐个同步直写。
+        与创建者授权一致的是双写口径——只要 Writer 注入了就两侧都授，避免切栈后 owner 失权。
+
+        授权失败只上报不抛出：owners 授权是采集项创建 / 更新的附属动作，
+        不应因 IAM 抖动导致采集项本身失败。
+        """
+        unique_subjects = list(dict.fromkeys(subject for subject in (subjects or []) if subject))
+        if not unique_subjects:
+            return []
+
+        # 统一把 bk_biz_id / space_uid 归一成空间 ID 与展示名，与鉴权侧用的是同一份口径
+        space_resource = BusinessResource.create_simple_instance(str(bk_biz_id))
+        space_id = space_resource.id
+        space_name = (space_resource.attribute or {}).get("name") or space_id
+
+        writers = MigrationPolicy.resolve_authorization_writers(self.provider_bundles, stack=self.mode_router.stack)
+        failed_subjects: list[str] = []
+        for subject in unique_subjects:
+            for target_version, writer in writers:
+                try:
+                    writer.grant_space_access(space_id=space_id, subject_id=subject, space_name=space_name)
+                except Exception as error:  # pylint: disable=broad-except
+                    logger.warning(
+                        "[IAM SpaceAccess] grant failed target_version=%s tenant_id=%s subject_id=%s "
+                        "space_id=%s error_type=%s error=%s",
+                        target_version,
+                        self.bk_tenant_id,
+                        subject,
+                        space_id,
+                        type(error).__name__,
+                        error,
+                    )
+                    self._observe_grant(target_version, BusinessResource.id, "failed")
+                    if subject not in failed_subjects:
+                        failed_subjects.append(subject)
+                else:
+                    logger.info(
+                        "[IAM SpaceAccess] grant succeeded target_version=%s tenant_id=%s subject_id=%s space_id=%s",
+                        target_version,
+                        self.bk_tenant_id,
+                        subject,
+                        space_id,
+                    )
+                    self._observe_grant(target_version, BusinessResource.id, "succeeded")
+
+        return failed_subjects
