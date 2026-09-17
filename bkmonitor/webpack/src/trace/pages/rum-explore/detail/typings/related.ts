@@ -75,4 +75,14 @@ export interface IRumLongTaskRelated {
 }
 
 /** 关联数据的联合结构，按 span 类型取用其中一支 */
-export type IRumRelatedData = Partial<IRumActionRelated & IRumErrorRelated & IRumLongTaskRelated>;
+export type IRumRelatedData = Partial<IRumActionRelated & IRumErrorRelated & IRumLongTaskRelated & IRumViewRelated>;
+
+/** View 详情的关联数据，来自 statistics 接口对当前视图下各类型 Span 的计数 */
+export interface IRumViewRelated {
+  /** 错误数 */
+  errorCount: number;
+  /** 触发的请求数，仅统计 xhr / fetch */
+  resourceCount: number;
+  /** Span 总数，不含 view / vital / session */
+  spanCount: number;
+}

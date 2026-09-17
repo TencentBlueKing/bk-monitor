@@ -39,6 +39,7 @@ import {
 import { getCardDescriptor, itemToCard } from '../registry/card-registry';
 import { getSpanTypeDetailConfig } from '../registry/span-type-registry';
 import { RumSectionTypeEnum } from '../typings';
+import { formatDuration } from '@/components/trace-view/utils/date';
 
 import type { IRumExtraCardBuilder } from '../registry/span-type-registry';
 import type {
@@ -80,7 +81,6 @@ export function useDetailSections(
     const ctx: IRumCardResolveCtx = { ...unref(baseCtx), originData: data.origin_data || {}, related: unref(related) };
     const { extraCards = {}, extraSections = [] } = getSpanTypeDetailConfig(type);
     const isRelatedLoading = unref(relatedLoading);
-
     const buildExtraCards = (builders: IRumExtraCardBuilder[], keyPrefix: string) =>
       builders
         .map((build, index) => {
@@ -112,7 +112,9 @@ export function useDetailSections(
           return {
             ...base,
             waterfall,
-            subTitle: waterfallData.total_duration ? `${t('总耗时')}：${waterfallData.total_duration}ms` : '',
+            subTitle: waterfallData.total_duration
+              ? `${t('总耗时')}：${formatDuration(Number(waterfallData.total_duration) || 0, '', 3, waterfallData.unit || 'us').replace(/ /g, '')}`
+              : '',
             tip: hasFirstByte ? t(TTFB_TIP) : '',
           };
         }
@@ -237,7 +239,7 @@ function buildWaterfall(data: IRumWaterfallData): IRumWaterfallVM {
     .map((phase, index) => ({
       key: phase.key,
       label: phase.alias || phase.key,
-      durationText: `${phase.duration} ${data.unit || 'ms'}`,
+      durationText: formatDuration(Number(phase.duration) || 0, '', 3, data.unit || 'us').replace(/ /g, ''),
       startPercent: Math.min((phase.start / total) * 100, 100),
       durationPercent: Math.max(Math.min((phase.duration / total) * 100, 100), phase.duration > 0 ? 1 : 0),
       color: WATERFALL_PHASE_COLOR[phase.key] || WATERFALL_FALLBACK_COLORS[index % WATERFALL_FALLBACK_COLORS.length],

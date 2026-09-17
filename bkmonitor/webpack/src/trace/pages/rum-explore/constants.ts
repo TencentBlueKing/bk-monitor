@@ -151,6 +151,17 @@ export const RUM_LINK_FIELDS = new Set(['span_name']);
 /** 支持排序的字段类型 */
 export const RUM_SORTABLE_FIELD_TYPES = new Set(['date', 'double', 'integer', 'long']);
 
+export const RUM_DETAIL_SPAN_TYPES = new Set([
+  'view',
+  'resource',
+  'error',
+  'vital',
+  'long_task',
+  'action',
+  'websocket',
+  'custom',
+]);
+
 /** Span 视角列宽（视角私有），未列出的字段使用 DEFAULT_COLUMN_WIDTH */
 export const SPAN_COLUMN_WIDTH_MAP: Record<string, number> = {
   span_name: 180,

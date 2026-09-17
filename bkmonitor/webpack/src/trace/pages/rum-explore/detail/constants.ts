@@ -27,9 +27,6 @@ import { RumCardToneEnum, RumRatingEnum } from './typings';
 
 import type { RumCardToneType } from './typings';
 
-/** record_detail 接口暂未联调，置为 true 时 services 层返回按协议文档构造的 mock 数据 */
-export const USE_DETAIL_MOCK = false;
-
 /** 后端计算字段的前缀，此类字段的别名与格式化值由后端直接给出 */
 export const DISPLAY_FIELD_PREFIX = 'display.';
 

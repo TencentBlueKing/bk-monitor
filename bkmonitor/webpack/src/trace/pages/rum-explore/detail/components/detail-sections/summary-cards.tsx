@@ -68,7 +68,7 @@ export default defineComponent({
       return (
         <div
           key={card.key}
-          class='rum-summary-card'
+          class={['rum-summary-card', card.cardCls]}
         >
           <div class='card-head'>
             <span class='card-label'>{card.label}</span>
@@ -93,7 +93,7 @@ export default defineComponent({
           {card.sparkline ? (
             renderSparkline(card.sparkline)
           ) : (
-            <div class='card-value-row'>
+            <div class={['card-value-row', { 'unit-value-row': !!card.unit }]}>
               {card.prefixTag ? (
                 <span
                   style={{ backgroundColor: card.prefixTag.bgColor }}
@@ -105,7 +105,7 @@ export default defineComponent({
               <span
                 style={{ color: toneColor }}
                 class='card-value'
-                title={card.value}
+                v-overflow-tips
               >
                 {card.value}
               </span>

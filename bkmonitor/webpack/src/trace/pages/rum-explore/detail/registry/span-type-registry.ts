@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { SectionKeyEnum } from '../constants';
-import { getActionRelated, getErrorRelated, getLongTaskRelated } from '../services';
+import { getActionRelated, getErrorRelated, getLongTaskRelated, getViewRelated } from '../services';
 import { RumCardToneEnum, RumSectionTypeEnum } from '../typings';
 import { EMPTY_TEXT, formatCount } from './card-registry';
 
@@ -181,6 +181,22 @@ export const SPAN_TYPE_DETAIL_CONFIG: Record<string, IRumSpanTypeDetailConfig> =
     ],
     loadRelated: (context, mode, detail, timeRange) =>
       getErrorRelated(context, mode, buildErrorFilters(detail), timeRange),
+  },
+
+  view: {
+    extraCards: {
+      [SectionKeyEnum.KEY_INFO]: [
+        countCard(t('请求'), 'resourceCount'),
+        countCard(t('错误'), 'errorCount'),
+        countCard('Span', 'spanCount'),
+      ],
+    },
+    loadRelated: (context, mode, detail) => {
+      const sessionId = String(
+        detail.overview?.items?.find(item => item.field_name === 'attributes.session.id')?.value ?? ''
+      );
+      return getViewRelated(context, mode, sessionId);
+    },
   },
 };
 

@@ -25,9 +25,16 @@
  */
 import { RUM_OUTCOME_TYPE_MAP } from '../../constants';
 import { formatUnitValueParts } from '../../utils';
+import { RATING_META, VITAL_METRIC_META } from '../constants';
 import { RumCardToneEnum } from '../typings';
 
-import type { IRumCardDescriptor, IRumCardFooterPart, IRumCardResolveCtx, IRumSummaryCardVM } from '../typings';
+import type {
+  IRumCardDescriptor,
+  IRumCardFooterPart,
+  IRumCardResolveCtx,
+  IRumRatingConfig,
+  IRumSummaryCardVM,
+} from '../typings';
 
 const t = (text: string) => window.i18n.t(text) as string;
 
@@ -67,6 +74,40 @@ const isXhrLike = (ctx: IRumCardResolveCtx) => {
 };
 
 /**
+ * Web Vitals 指标卡描述符工厂：主值为指标值，右上角按 rating_config 阈值挂评级标签，
+ * 副文案为指标全称；extraFooter 用于 TTFB 追加分段耗时说明。
+ */
+const vitalCard = (): IRumCardDescriptor => data => {
+  const metric = String(data['attributes.vital.metric'] ?? '').toLowerCase();
+  const meta = VITAL_METRIC_META[metric];
+  const value = data['attributes.vital.value'];
+  const hasValue = value !== null && value !== undefined && value !== '' && Number.isFinite(Number(value));
+  const configs = (data['display.rating_config'] ?? []) as IRumRatingConfig[];
+  /** 按阈值命中评级，最后一段无上界，与评级条（buildRatingBar）同一口径；值缺失时不挂标签 */
+  let hitRating = '';
+  if (hasValue && configs.length) {
+    hitRating = configs[configs.length - 1].rating;
+    for (const config of configs) {
+      if (config.value === undefined || Number(value) <= config.value) {
+        hitRating = config.rating;
+        break;
+      }
+    }
+  }
+  const ratingMeta = RATING_META[hitRating];
+  return [
+    {
+      label: metric.toUpperCase(),
+      value: text(value),
+      unit: meta?.unit ? { text: meta.unit } : undefined,
+      tag: ratingMeta
+        ? { text: ratingMeta.alias, color: ratingMeta.color, bgColor: ratingMeta.badgeBgColor }
+        : undefined,
+    },
+  ];
+};
+
+/**
  * 字段分组 -> 统计卡片的映射表。
  *
  * 查找按 `${spanType}.${sectionKey}.${groupKey}` -> `${sectionKey}.${groupKey}` -> `${groupKey}` 三级回退，
@@ -88,6 +129,7 @@ const CARD_DESCRIPTORS: Record<string, IRumCardDescriptor> = {
         prefixTag: method ? { text: method, bgColor: HTTP_METHOD_COLOR[method] || '#8F9FBD' } : undefined,
         footer: host ? [{ text: `Host: ${host}` }] : undefined,
         operation: fullUrl ? { label: t('复制完整地址'), onClick: () => ctx.copyText(fullUrl) } : undefined,
+        cardCls: 'request-method',
       },
     ];
   },
@@ -98,7 +140,7 @@ const CARD_DESCRIPTORS: Record<string, IRumCardDescriptor> = {
     return [
       {
         label: isXhrLike(ctx) ? t('总耗时') : t('加载耗时'),
-        value: value || EMPTY_TEXT,
+        value: text(value),
         unit: suffix ? { text: suffix.trim() } : undefined,
         footer: [{ text: t('Resource Span 总耗时') }],
       },
@@ -159,7 +201,7 @@ const CARD_DESCRIPTORS: Record<string, IRumCardDescriptor> = {
     return [
       {
         label: t('传输大小'),
-        value: value || EMPTY_TEXT,
+        value: text(value),
         unit: suffix ? { text: suffix.trim() } : undefined,
         footer,
       },
@@ -235,7 +277,7 @@ const CARD_DESCRIPTORS: Record<string, IRumCardDescriptor> = {
     return [
       {
         label: t('任务耗时'),
-        value: value || EMPTY_TEXT,
+        value: text(value),
         unit: suffix ? { text: suffix.trim() } : undefined,
         footer: [{ text: `${t('阻塞贡献')} ${blocking}ms · ${t('超出 50ms 阈值')}` }],
       },
@@ -285,6 +327,32 @@ const CARD_DESCRIPTORS: Record<string, IRumCardDescriptor> = {
       },
     ];
   },
+
+  /* ---------------- View ---------------- */
+
+  /** 停留时长：视图停留时间，原始值以 ms 存储并自适应换算展示 */
+  'view.key_info.duration': data => {
+    const { text: value, suffix } = formatUnitValueParts(data['display.view.duration'], 'ms');
+    return [
+      {
+        label: t('停留时长'),
+        value: text(value),
+        unit: suffix ? { text: suffix.trim() } : undefined,
+      },
+    ];
+  },
+
+  /** TTFB：副文案额外给出等待 / DNS / 连接 / 请求的分段耗时 */
+  'view.web_vitals.ttfb': vitalCard(),
+
+  'view.web_vitals.fcp': vitalCard(),
+
+  'view.web_vitals.lcp': vitalCard(),
+
+  'view.web_vitals.inp': vitalCard(),
+
+  /** CLS 为无量纲分数，不拼单位 */
+  'view.web_vitals.cls': vitalCard(),
 };
 
 /**

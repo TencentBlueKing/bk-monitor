@@ -164,6 +164,8 @@ export interface IRumRatingSegmentVM {
 
 /** 统计卡片视图模型 */
 export interface IRumSummaryCardVM {
+  /** 卡片的类名 */
+  cardCls?: string;
   /** 卡片底部辅助说明，支持分段着色 */
   footer?: IRumCardFooterPart[];
   key: string;

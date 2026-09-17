@@ -60,6 +60,7 @@ import {
   ALL_SPAN_TYPE,
   RUM_COLUMN_CONFIG_KEY,
   RUM_COLUMN_LAYOUT_PRESET,
+  RUM_DETAIL_SPAN_TYPES,
   RUM_RESIDENT_SETTING_KEY,
   RumModeEnum,
   SPAN_TYPE_FIELD,
@@ -359,27 +360,31 @@ export default defineComponent({
       detailShow.value = true;
     }
 
-    const handlePreviousDetail = () => {
-      const currentIndex = tableCtx.tableData.value.findIndex(item => item.span_id === detailContext.value.record_id);
-      let previousIndex = currentIndex === -1 ? 0 : currentIndex;
-      if (previousIndex === 0) {
-        previousIndex = tableCtx.tableData.value.length - 1;
-      } else {
-        previousIndex = previousIndex - 1;
+    /**
+     * 详情抽屉「上一条 / 下一条」共用逻辑：从当前记录出发按 step 方向查找相邻的可展示详情记录，
+     * 跳过非详情展示的 span 类型，循环到头后从另一头继续；转完一圈仍没找到则停留在当前记录。
+     */
+    function handleStepDetail(step: -1 | 1) {
+      const tableData = tableCtx.tableData.value;
+      if (!tableData.length) return;
+      const currentIndex = Math.max(
+        0,
+        tableData.findIndex(item => item.span_id === detailContext.value?.record_id)
+      );
+      // 最多回绕一整圈，offset 走到与起点重合即说明没有其他可展示详情的记录
+      for (let offset = 1; offset <= tableData.length; offset++) {
+        const index = (currentIndex + step * offset + tableData.length) % tableData.length;
+        if (index === currentIndex) return;
+        if (RUM_DETAIL_SPAN_TYPES.has(tableData[index][SPAN_TYPE_FIELD] ?? '')) {
+          handleOpenDetail(tableData[index]);
+          return;
+        }
       }
-      handleOpenDetail(tableCtx.tableData.value[previousIndex]);
-    };
+    }
 
-    const handleNextDetail = () => {
-      const currentIndex = tableCtx.tableData.value.findIndex(item => item.span_id === detailContext.value.record_id);
-      let nextIndex = currentIndex === -1 ? 0 : currentIndex;
-      if (nextIndex === tableCtx.tableData.value.length - 1) {
-        nextIndex = 0;
-      } else {
-        nextIndex = nextIndex + 1;
-      }
-      handleOpenDetail(tableCtx.tableData.value[nextIndex]);
-    };
+    const handlePreviousDetail = () => handleStepDetail(-1);
+
+    const handleNextDetail = () => handleStepDetail(1);
 
     function handleSortChange(sort: string | string[]) {
       tableCtx.handleSortChange(sort);
