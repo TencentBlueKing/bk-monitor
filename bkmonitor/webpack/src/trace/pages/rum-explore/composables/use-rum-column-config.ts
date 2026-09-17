@@ -136,6 +136,10 @@ export function useRumColumnConfig(opts: {
     // 非受控态：用户缓存列 > 接口默认列
     return cachedDisplayFields.value;
   });
+  /** 接口下发的默认展示列（按有效字段裁剪），列设置「恢复默认」的回填来源 */
+  const defaultDisplayFields = computed<string[]>(() =>
+    (get(viewConfig).display_fields ?? []).filter(name => fieldMap.value.has(name))
+  );
 
   /**
    * 基础列配置：展示列 -> 列宽（用户覆盖 > 视角预设 > 字段元信息推导 > 全局默认）-> 排序 / 固定等元数据。
@@ -216,6 +220,8 @@ export function useRumColumnConfig(opts: {
   return {
     /** 生效的展示列 */
     displayFields,
+    /** 接口下发的默认展示列 */
+    defaultDisplayFields,
     /** 列宽覆盖映射 */
     columnResizeWidth: fieldsWidthConfig,
     /** 表格基础列配置 */
