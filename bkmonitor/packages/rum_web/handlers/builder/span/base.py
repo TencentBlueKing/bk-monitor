@@ -8,14 +8,15 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any
 
+from bkmonitor.data_source.format import flatten_dict_data
 from django.utils.translation import gettext_lazy as _
 
+from rum_web.handlers.builder.base import BaseOverview, BaseSection, NamedKeyValueItem
 from semconv.rum.constants import RumSpanType
-
-from rum_web.handlers.builder.base import BaseOverview, NamedKeyValueItem
 
 
 # ── Badge 字段 ────────────────────────────────────────────────────────────
@@ -56,12 +57,12 @@ class SpanTypeItem(NamedKeyValueItem):
         RumSpanType.CUSTOM.value: "Custom",
     }
 
-    def render(self, origin_data: dict[str, Any]) -> Any:
+    def render(self, flatten_data: dict[str, Any]) -> Any:
         result: dict[str, Any] = {"field_name": self.field_name, "field_alias": self.field_alias}
-        span_type = origin_data.get("attributes.span_type", "")
-        span_type_display = self.SPAN_TYPE_MAP.get(span_type, "")
+        span_type: str = flatten_data.get("attributes.span_type", "")
+        span_type_display: str = self.SPAN_TYPE_MAP.get(span_type, "")
         if span_type == RumSpanType.RESOURCE.value:
-            resource_type = origin_data.get("attributes.resource.type", "")
+            resource_type: str = flatten_data.get("attributes.resource.type", "")
             result["alias"] = result["value"] = (
                 f"{span_type_display}({resource_type})" if resource_type else span_type_display
             )
@@ -83,3 +84,59 @@ class SpanOverview(BaseOverview):
         OVERVIEW_ATTRIBUTES_USER_ID,
         OVERVIEW_RESOURCE_DEPLOYMENT_ENVIRONMENT_NAME,
     ]
+
+
+class SpanBuilder:
+    """Span 详情 Builder 基类。
+
+    子类通过声明 ``OVERVIEW`` 与 ``SECTIONS`` 组装区块，特殊类型可覆盖
+    :meth:`_prepare_flatten_data` 或 :meth:`process` 自定义装配逻辑。
+    公共头部 ``origin_data``、``span_id`` 与空 ``sections`` 在此统一处理。
+    """
+
+    OVERVIEW: type[BaseOverview] | None = None
+    SECTIONS: list[type[BaseSection]] | None = None
+
+    @classmethod
+    def process(
+        cls,
+        span: dict[str, Any],
+        related_spans: Sequence[dict[str, Any]] = (),
+    ) -> dict[str, Any]:
+        """组装 Span 详情响应。
+
+        - ``span``：主 Span 的原始记录（未打平），用于回填 ``origin_data``、``span_id``。
+        - ``related_spans``：关联 Span 列表（仅 View 会传入生命周期与 Vital 快照）。
+
+        默认按 ``OVERVIEW``、``SECTIONS`` 顺序渲染，未声明则返回空区块。
+        """
+        flatten_data = cls._prepare_flatten_data(span, related_spans)
+        result: dict[str, Any] = {
+            "origin_data": span,
+            "span_id": span.get("span_id", ""),
+            "sections": [],
+        }
+        if cls.OVERVIEW is not None:
+            result["overview"] = cls.OVERVIEW(flatten_data).render()
+        if cls.SECTIONS is not None:
+            for section_cls in cls.SECTIONS:
+                section_render = section_cls(flatten_data).render()
+                if section_render is not None:
+                    result["sections"].append(section_render)
+        return result
+
+    @classmethod
+    def _prepare_flatten_data(
+        cls,
+        span: dict[str, Any],
+        related_spans: Sequence[dict[str, Any]] = (),
+    ) -> dict[str, Any]:
+        """默认返回主 Span 打平后的字典；子类可注入关联 Span 附加信息。"""
+        return flatten_dict_data(span)
+
+
+__all__ = [
+    "SpanBuilder",
+    "SpanOverview",
+    "SpanTypeItem",
+]

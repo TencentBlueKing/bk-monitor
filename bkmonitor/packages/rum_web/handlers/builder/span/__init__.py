@@ -11,11 +11,9 @@ specific language governing permissions and limitations under the License.
 from collections.abc import Sequence
 from typing import Any
 
-from bkmonitor.data_source.format import flatten_dict_data
 from semconv.rum.constants import RumSpanType
 
-from rum_web.handlers.builder.base import SpanBuilder
-from rum_web.handlers.builder.span.base import SpanOverview
+from rum_web.handlers.builder.span.base import SpanBuilder, SpanOverview
 
 from .action import ActionSpanBuilder
 from .error import ErrorSpanBuilder
@@ -57,20 +55,9 @@ def build(
 
     未命中类型时回落到 :class:`DefaultSpanBuilder`，保证响应仍包含公共 ``overview``。
     """
-    span_type = flatten_dict_data(span).get("attributes.span_type", "")
+    span_type = span.get("attributes", {}).get("span_type", "")
     builder = BUILDERS.get(span_type, DefaultSpanBuilder)
     return builder.process(span, related_spans)
 
 
-__all__ = [
-    "BUILDERS",
-    "SpanBuilder",
-    "DefaultSpanBuilder",
-    "ActionSpanBuilder",
-    "ErrorSpanBuilder",
-    "LongTaskSpanBuilder",
-    "ResourceSpanBuilder",
-    "ViewSpanBuilder",
-    "VitalSpanBuilder",
-    "build",
-]
+__all__ = ["build"]

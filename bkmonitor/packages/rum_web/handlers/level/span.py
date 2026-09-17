@@ -522,10 +522,6 @@ class SpanLevelHandler(BaseRumLevelHandler):
         if not view_id:
             return []
 
-        one_day_s = 24 * 60 * 60
-        start_time = int(flat.get("start_time") or 0) // 1_000_000
-        end_time = int(flat.get("end_time") or 0) // 1_000_000 + one_day_s
-
         filters: list[types.Filter] = [
             {"key": "attributes.view.id", "value": [view_id], "operator": FilterOperator.EQUAL},
             {
@@ -534,4 +530,4 @@ class SpanLevelHandler(BaseRumLevelHandler):
                 "operator": FilterOperator.EQUAL,
             },
         ]
-        return self.query.query_list(start_time, end_time, offset=0, limit=1000, filters=filters)
+        return self.query.query_list(None, None, offset=0, limit=1000, filters=filters)

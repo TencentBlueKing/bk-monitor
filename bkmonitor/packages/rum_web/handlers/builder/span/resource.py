@@ -14,23 +14,22 @@ from typing import Any
 
 from django.utils.translation import gettext_lazy as _
 
-from bkmonitor.data_source.format import flatten_dict_data
 from semconv.constants import FieldUnit
 from semconv.rum.constants import ResourceType
 
 from rum_web.handlers.builder.base import (
-    BaseComponent,
     BaseSection,
     DictItem,
+    EMPTY_VALUE,
     KeyValueItem,
     NamedKeyValueItem,
-    SpanBuilder,
 )
 from rum_web.handlers.builder.constants import SectionType
 from rum_web.handlers.builder.span.base import (
     OVERVIEW_ATTRIBUTES_HTTP_RESPONSE_STATUS_CODE,
     OVERVIEW_ATTRIBUTES_RESOURCE_TYPE,
     OVERVIEW_ELAPSED_TIME,
+    SpanBuilder,
     SpanOverview,
 )
 from rum_web.handlers.builder.utils import get_safe_number
@@ -48,11 +47,11 @@ class CompressionRatioItem(KeyValueItem):
 
     key: str = "display.compression_ratio"
 
-    def render(self, origin_data: dict[str, Any]) -> dict[str, Any]:
-        encoded = get_safe_number(origin_data.get("attributes.resource.encoded_body_size"), default=None)
-        decoded = get_safe_number(origin_data.get("attributes.resource.decoded_body_size"), default=None)
+    def render(self, flatten_data: dict[str, Any]) -> dict[str, Any]:
+        encoded = get_safe_number(flatten_data.get("attributes.resource.encoded_body_size"), None)
+        decoded = get_safe_number(flatten_data.get("attributes.resource.decoded_body_size"), None)
         if encoded is None or not decoded:
-            return {self.key: BaseComponent.EMPTY_VALUE}
+            return {self.key: EMPTY_VALUE}
         return {self.key: 1 - encoded / decoded}
 
 
@@ -124,7 +123,7 @@ class LoadingTimingSection(BaseSection):
 
     def _numeric_or_none(self, key: str) -> int | float | None:
         """字段缺失或非数值返回 ``None``，用于「缺失 → 不出段」判定。"""
-        return get_safe_number(self.origin_data.get(key), default=None) if key in self.origin_data else None
+        return get_safe_number(self.flatten_data.get(key), None)
 
     def _phase(
         self,
@@ -242,24 +241,38 @@ class ResourceOthersResourceInfoSection(BaseSection):
     ]
 
 
-class ResourceSpanBuilder(SpanBuilder):
-    """Resource 类型 Span 详情 Builder：按 ``attributes.resource.type`` 分派子协议。
-
-    - XHR / Fetch：请求 → 耗时 → HTTP 结果 → 传输 + 加载瀑布。
-    - 其他资源（img / css / js / ...）：结果 → 耗时 → 传输 → 投递 → 阻塞 + 资源信息 + 加载瀑布。
-    """
+class ResourceXhrAndFetchSpanBuilder(SpanBuilder):
+    """Resource(xhr / fetch) 子协议：请求 → 耗时 → HTTP 结果 → 传输 + 加载瀑布。"""
 
     OVERVIEW = ResourceSpanOverview
-
-    XHR_FETCH_SECTIONS: list[type[BaseSection]] = [
+    SECTIONS: list[type[BaseSection]] = [
         ResourceXhrAndFetchKeyInfoSection,
         LoadingTimingSection,
     ]
-    OTHERS_SECTIONS: list[type[BaseSection]] = [
+
+
+class ResourceOthersSpanBuilder(SpanBuilder):
+    """Resource(其它类型，img / css / js / ...) 子协议：
+    结果 → 耗时 → 传输 → 投递 → 阻塞 + 资源信息 + 加载瀑布。
+    """
+
+    OVERVIEW = ResourceSpanOverview
+    SECTIONS: list[type[BaseSection]] = [
         ResourceOthersKeyInfoSection,
         ResourceOthersResourceInfoSection,
         LoadingTimingSection,
     ]
+
+
+class ResourceSpanBuilder(SpanBuilder):
+    """Resource 类型 Span 详情 Builder 入口：仅负责按 ``attributes.resource.type`` 分派子 Builder。
+
+    - XHR / Fetch → :class:`ResourceXhrAndFetchSpanBuilder`
+    - 其它资源  → :class:`ResourceOthersSpanBuilder`
+
+    子 Builder 各自声明 ``OVERVIEW`` / ``SECTIONS``，复用 :class:`SpanBuilder.process` 的
+    公共装配流程（``origin_data`` / ``span_id`` / ``overview`` / ``sections``）。
+    """
 
     XHR_FETCH_TYPES: frozenset[str] = frozenset({ResourceType.XHR.value, ResourceType.FETCH.value})
 
@@ -269,15 +282,8 @@ class ResourceSpanBuilder(SpanBuilder):
         span: dict[str, Any],
         related_spans: Sequence[dict[str, Any]] = (),
     ) -> dict[str, Any]:
-        origin_data = flatten_dict_data(span)
-        sections = (
-            cls.XHR_FETCH_SECTIONS
-            if origin_data.get("attributes.resource.type") in cls.XHR_FETCH_TYPES
-            else cls.OTHERS_SECTIONS
+        resource_type: str = span.get("attributes", {}).get("resource.type", "")
+        sub_builder: type[SpanBuilder] = (
+            ResourceXhrAndFetchSpanBuilder if resource_type in cls.XHR_FETCH_TYPES else ResourceOthersSpanBuilder
         )
-        return {
-            "origin_data": span,
-            "span_id": span.get("span_id", ""),
-            "overview": cls.OVERVIEW(origin_data).render(),
-            "sections": [section(origin_data).render() for section in sections],
-        }
+        return sub_builder.process(span, related_spans)

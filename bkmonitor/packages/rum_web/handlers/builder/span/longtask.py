@@ -8,7 +8,8 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from rum_web.handlers.builder.base import BaseSection, DictItem, KeyValueItem, SpanBuilder
+from rum_web.handlers.builder.base import BaseSection, DictItem, KeyValueItem
+from rum_web.handlers.builder.span.base import SpanBuilder
 from rum_web.handlers.builder.constants import SectionType
 from rum_web.handlers.builder.span.base import (
     OVERVIEW_ATTRIBUTES_OUTCOME_TYPE,

@@ -17,13 +17,12 @@ from django.utils.translation import gettext_lazy as _
 from bkmonitor.data_source.format import flatten_dict_data
 from constants.otel_query import RatingLevel
 from semconv.constants import FieldUnit
-from semconv.rum.constants import RumSpanType
+from semconv.rum.constants import RumSpanType, ViewLoadingTimeSource, ViewLoadingType
 
 from rum_web.handlers.builder.base import (
     BaseSection,
     DictItem,
     KeyValueItem,
-    SpanBuilder,
 )
 from rum_web.handlers.builder.constants import SectionType
 from rum_web.handlers.builder.span.base import (
@@ -37,21 +36,41 @@ from rum_web.handlers.builder.span.base import (
     OVERVIEW_END_TIME,
     OVERVIEW_RESOURCE_DEPLOYMENT_ENVIRONMENT_NAME,
     OVERVIEW_START_TIME,
+    SpanBuilder,
     SpanOverview,
     SpanTypeItem,
 )
 from rum_web.handlers.builder.utils import get_safe_number
 
 
-# 每个 Web Vitals 指标在 origin_data 中挂载的嵌套字典键，
-# 由 :meth:`ViewSpanBuilder._prepare_origin_data` 用同 View ID 且 span_type=vital 的最新快照填充。
-VITAL_METRIC_KEYS: dict[str, str] = {
-    "ttfb": "display.vitals.ttfb",
-    "fcp": "display.vitals.fcp",
-    "lcp": "display.vitals.lcp",
-    "inp": "display.vitals.inp",
-    "cls": "display.vitals.cls",
-}
+#: Web Vitals 五项指标，作为 :class:`ViewWebVitalsSection` 与 Marker 构造的单一事实源。
+VITAL_METRICS: tuple[str, ...] = ("ttfb", "fcp", "lcp", "inp", "cls")
+
+#: 每个 Web Vitals 指标在 flatten_data 中挂载的嵌套字典键，
+#: 由 :meth:`ViewSpanBuilder._prepare_flatten_data` 用同 View ID 且 span_type=vital 的最新快照填充。
+VITAL_METRIC_KEYS: dict[str, str] = {metric: f"display.vitals.{metric}" for metric in VITAL_METRICS}
+
+#: View 快照从关联记录补齐的展示字段：头部时间（end_time / elapsed_time）与加载字段（attributes.view.*）。
+#: ``start_time`` 取导航开始时间，不随快照更新，故不在此列。
+VIEW_SNAPSHOT_FIELDS: tuple[str, ...] = (
+    "end_time",
+    "elapsed_time",
+    "attributes.view.loading_time",
+    "attributes.view.loading_time_source",
+    "attributes.view.loading_type",
+    "attributes.view.first_byte",
+    "attributes.view.dom_content_loaded",
+    "attributes.view.load_event",
+)
+
+
+def build_vital_source_key(metric: str, sub: str) -> str:
+    """拼接 Vital 快照在展平 ``flatten_data`` 中的完整键。
+
+    :meth:`ViewSpanBuilder._prepare_flatten_data` 将快照挂到 ``display.vitals.{metric}``，
+    最终展平后子字段变为 ``display.vitals.{metric}.attributes.vital.*``，故此处需带前缀读取。
+    """
+    return f"{VITAL_METRIC_KEYS[metric.lower()]}.{sub}"
 
 
 class ViewSpanOverview(SpanOverview):
@@ -73,13 +92,30 @@ class ViewSpanOverview(SpanOverview):
 
 
 @dataclass(frozen=True, slots=True)
-class DisplayViewDurationKeyValueItem(KeyValueItem):
+class DisplayViewDurationItem(KeyValueItem):
+    """View 停留时长：由最新 View 快照的 end_time - start_time 换算为毫秒。"""
+
     key: str = "display.view.duration"
 
-    def render(self, origin_data: dict[str, Any]) -> dict[str, Any]:
-        return {
-            "display.view.duration": 0,
-        }
+    def render(self, flatten_data: dict[str, Any]) -> dict[str, Any]:
+        # start_time / end_time 为微秒级，相减后除以 1000 换算为毫秒。
+        start_time = get_safe_number(flatten_data.get("start_time"), None)
+        end_time = get_safe_number(flatten_data.get("end_time"), None)
+        if start_time is None or end_time is None:
+            return {self.key: 0}
+        return {self.key: (end_time - start_time) / 1000}
+
+
+@dataclass(frozen=True, slots=True)
+class DisplayRatingConfigItem(KeyValueItem):
+    """Web Vitals 指标评分阈值配置：``source`` 指明指标名（ttfb / fcp / ...）。"""
+
+    key: str = "display.rating_config"
+
+    def render(self, flatten_data: dict[str, Any]) -> dict[str, Any]:
+        if self.source is None:
+            raise ValueError("source is required")
+        return {self.key: RatingLevel.get_rating_config(self.source)}
 
 
 class ViewKeyInfoSection(BaseSection):
@@ -90,7 +126,7 @@ class ViewKeyInfoSection(BaseSection):
     DATA = [
         DictItem(
             key="duration",
-            items=[DisplayViewDurationKeyValueItem()],
+            items=[DisplayViewDurationItem()],
         ),
         DictItem(
             key="loading",
@@ -106,22 +142,12 @@ class ViewKeyInfoSection(BaseSection):
     ]
 
 
-@dataclass(frozen=True, slots=True)
-class DisplayRatingConfigItem(KeyValueItem):
-    """显示 Web Vitals 指标评分配置。"""
-
-    key: str = "display.rating_config"
-
-    def render(self, origin_data: dict[str, Any]) -> dict[str, Any]:
-        if self.source is None:
-            raise ValueError("source is required")
-        return {
-            "display.rating_config": RatingLevel.get_rating_config(self.source),
-        }
-
-
 class ViewWebVitalsSection(BaseSection):
-    """Web Vitals 指标区：TTFB / FCP / LCP / INP / CLS 五项。"""
+    """Web Vitals 指标区：TTFB / FCP / LCP / INP / CLS 五项。
+
+    TTFB 额外包含 ``waiting`` / ``dns`` / ``connection`` / ``request`` 四段耗时；
+    其他四项仅暴露主 ``value`` 与评分阈值配置。
+    """
 
     KEY = "web_vitals"
     TYPE = SectionType.SUMMARY_CARDS.value
@@ -129,44 +155,76 @@ class ViewWebVitalsSection(BaseSection):
         DictItem(
             key="ttfb",
             items=[
-                KeyValueItem(key="attributes.vital.metric"),
-                KeyValueItem(key="attributes.vital.value"),
-                KeyValueItem(key="attributes.vital.ttfb.waiting_duration"),
-                KeyValueItem(key="attributes.vital.ttfb.dns_duration"),
-                KeyValueItem(key="attributes.vital.ttfb.connection_duration"),
-                KeyValueItem(key="attributes.vital.ttfb.request_duration"),
+                KeyValueItem(
+                    key="attributes.vital.metric", source=build_vital_source_key("ttfb", "attributes.vital.metric")
+                ),
+                KeyValueItem(
+                    key="attributes.vital.value", source=build_vital_source_key("ttfb", "attributes.vital.value")
+                ),
+                KeyValueItem(
+                    key="attributes.vital.ttfb.waiting_duration",
+                    source=build_vital_source_key("ttfb", "attributes.vital.ttfb.waiting_duration"),
+                ),
+                KeyValueItem(
+                    key="attributes.vital.ttfb.dns_duration",
+                    source=build_vital_source_key("ttfb", "attributes.vital.ttfb.dns_duration"),
+                ),
+                KeyValueItem(
+                    key="attributes.vital.ttfb.connection_duration",
+                    source=build_vital_source_key("ttfb", "attributes.vital.ttfb.connection_duration"),
+                ),
+                KeyValueItem(
+                    key="attributes.vital.ttfb.request_duration",
+                    source=build_vital_source_key("ttfb", "attributes.vital.ttfb.request_duration"),
+                ),
                 DisplayRatingConfigItem(source="ttfb"),
             ],
         ),
         DictItem(
             key="fcp",
             items=[
-                KeyValueItem(key="attributes.vital.metric"),
-                KeyValueItem(key="attributes.vital.value"),
+                KeyValueItem(
+                    key="attributes.vital.metric", source=build_vital_source_key("fcp", "attributes.vital.metric")
+                ),
+                KeyValueItem(
+                    key="attributes.vital.value", source=build_vital_source_key("fcp", "attributes.vital.value")
+                ),
                 DisplayRatingConfigItem(source="fcp"),
             ],
         ),
         DictItem(
             key="lcp",
             items=[
-                KeyValueItem(key="attributes.vital.metric"),
-                KeyValueItem(key="attributes.vital.value"),
+                KeyValueItem(
+                    key="attributes.vital.metric", source=build_vital_source_key("lcp", "attributes.vital.metric")
+                ),
+                KeyValueItem(
+                    key="attributes.vital.value", source=build_vital_source_key("lcp", "attributes.vital.value")
+                ),
                 DisplayRatingConfigItem(source="lcp"),
             ],
         ),
         DictItem(
             key="inp",
             items=[
-                KeyValueItem(key="attributes.vital.metric"),
-                KeyValueItem(key="attributes.vital.value"),
+                KeyValueItem(
+                    key="attributes.vital.metric", source=build_vital_source_key("inp", "attributes.vital.metric")
+                ),
+                KeyValueItem(
+                    key="attributes.vital.value", source=build_vital_source_key("inp", "attributes.vital.value")
+                ),
                 DisplayRatingConfigItem(source="inp"),
             ],
         ),
         DictItem(
             key="cls",
             items=[
-                KeyValueItem(key="attributes.vital.metric"),
-                KeyValueItem(key="attributes.vital.value"),
+                KeyValueItem(
+                    key="attributes.vital.metric", source=build_vital_source_key("cls", "attributes.vital.metric")
+                ),
+                KeyValueItem(
+                    key="attributes.vital.value", source=build_vital_source_key("cls", "attributes.vital.value")
+                ),
                 DisplayRatingConfigItem(source="cls"),
             ],
         ),
@@ -174,7 +232,14 @@ class ViewWebVitalsSection(BaseSection):
 
 
 class ViewLoadingTimingSection(BaseSection):
-    """View 加载时序瀑布区，含 TTFB 四段、View 三段以及 Vital 标记点。"""
+    """View 加载时序瀑布：按「字段缺失 → 不出段」组装，避免伪造全零瀑布。
+
+    - TTFB 四段（prepare / dns / connect / first_byte）依赖同 View 的 Vital 快照，
+      快照缺失时对应段整段不输出。
+    - View 三段（dom_processing / resource_load / page_stable）依赖 ``attributes.view.*`` 字段，
+      任意起终点缺失或时长为负则整段省略。
+    - ``markers`` 从注入到 flatten_data 的 vital 快照中派生，缺失自动跳过。
+    """
 
     KEY = "loading_timing"
     TYPE = SectionType.WATERFALL.value
@@ -189,87 +254,115 @@ class ViewLoadingTimingSection(BaseSection):
         "page_stable": _("页面趋于稳定"),
     }
 
-    MARKER_FIELDS = ("TTFB", "FCP", "LCP")
+    MARKER_FIELDS: tuple[str, ...] = ("TTFB", "FCP", "LCP")
+
+    def _phase(
+        self,
+        key: str,
+        start: int | float | None,
+        duration: int | float | None,
+    ) -> dict[str, Any] | None:
+        """构造单个 phase；起点或时长缺失、时长为负则整段不输出。"""
+        if start is None or duration is None or duration < 0:
+            return None
+        return {
+            "key": key,
+            "alias": self.PHASE_ALIASES[key],
+            "start": start,
+            "duration": duration,
+        }
+
+    @classmethod
+    def _diff(cls, minuend: int | float | None, subtrahend: int | float | None) -> int | float | None:
+        """空安全减法：任一操作数缺失直接返回 ``None``，避免 ``None - int`` 抛错。"""
+        if minuend is None or subtrahend is None:
+            return None
+        return minuend - subtrahend
 
     def _build_phases(self) -> list[dict[str, Any]]:
-        prepare_duration = self.get_numeric_value("attributes.vital.ttfb.waiting_duration")
-        vital_value = self.get_numeric_value("attributes.vital.value")
-        first_byte_duration = self.get_numeric_value("attributes.vital.ttfb.request_duration")
-        first_byte_start = vital_value - first_byte_duration
-        connect_duration = self.get_numeric_value("attributes.vital.ttfb.connection_duration")
-        connect_start = first_byte_start - connect_duration
-        dns_duration = self.get_numeric_value("attributes.vital.ttfb.dns_duration")
-        dns_start = connect_start - dns_duration
-        dom_processing_start = self.get_numeric_value("attributes.view.first_byte")
-        dom_processing_duration = self.get_numeric_value("attributes.view.dom_content_loaded") - dom_processing_start
-        resource_load_start = self.get_numeric_value("attributes.view.dom_content_loaded")
-        resource_load_duration = self.get_numeric_value("attributes.view.load_event") - resource_load_start
-        page_stable_start = self.get_numeric_value("attributes.view.load_event")
-        page_stable_duration = self.get_numeric_value("attributes.view.loading_time") - page_stable_start
+        # ── TTFB 四段：全部来自 vital 快照，快照缺失时四段均不出段 ──
+        prepare_duration = self.numeric_or_none(
+            build_vital_source_key("ttfb", "attributes.vital.ttfb.waiting_duration")
+        )
+        vital_value = self.numeric_or_none(build_vital_source_key("ttfb", "attributes.vital.value"))
 
-        return [
-            {"key": "prepare", "alias": self.PHASE_ALIASES["prepare"], "start": 0, "duration": prepare_duration},
-            {"key": "dns", "alias": self.PHASE_ALIASES["dns"], "start": dns_start, "duration": dns_duration},
-            {
-                "key": "connect",
-                "alias": self.PHASE_ALIASES["connect"],
-                "start": connect_start,
-                "duration": connect_duration,
-            },
-            {
-                "key": "first_byte",
-                "alias": self.PHASE_ALIASES["first_byte"],
-                "start": first_byte_start,
-                "duration": first_byte_duration,
-            },
-            {
-                "key": "dom_processing",
-                "alias": self.PHASE_ALIASES["dom_processing"],
-                "start": dom_processing_start,
-                "duration": dom_processing_duration,
-            },
-            {
-                "key": "resource_load",
-                "alias": self.PHASE_ALIASES["resource_load"],
-                "start": resource_load_start,
-                "duration": resource_load_duration,
-            },
-            {
-                "key": "page_stable",
-                "alias": self.PHASE_ALIASES["page_stable"],
-                "start": page_stable_start,
-                "duration": page_stable_duration,
-            },
+        first_byte_duration = self.numeric_or_none(
+            build_vital_source_key("ttfb", "attributes.vital.ttfb.request_duration")
+        )
+        first_byte_start = self._diff(vital_value, first_byte_duration)
+
+        connect_duration = self.numeric_or_none(
+            build_vital_source_key("ttfb", "attributes.vital.ttfb.connection_duration")
+        )
+        connect_start = self._diff(first_byte_start, connect_duration)
+
+        dns_duration = self.numeric_or_none(build_vital_source_key("ttfb", "attributes.vital.ttfb.dns_duration"))
+        dns_start = self._diff(connect_start, dns_duration)
+
+        # ── View 三段：起终点均需存在，duration 收敛非负 ──
+        dom_processing_start = self.numeric_or_none("attributes.view.first_byte")
+        resource_load_start = self.numeric_or_none("attributes.view.dom_content_loaded")
+        dom_processing_duration = self._diff(resource_load_start, dom_processing_start)
+        page_stable_start = self.numeric_or_none("attributes.view.load_event")
+        resource_load_duration = self._diff(page_stable_start, resource_load_start)
+        loading_time = self.numeric_or_none("attributes.view.loading_time")
+        page_stable_duration = self._diff(loading_time, page_stable_start)
+
+        phases_candidates = [
+            self._phase("prepare", 0, prepare_duration),
+            self._phase("dns", dns_start, dns_duration),
+            self._phase("connect", connect_start, connect_duration),
+            self._phase("first_byte", first_byte_start, first_byte_duration),
+            self._phase("dom_processing", dom_processing_start, dom_processing_duration),
+            self._phase("resource_load", resource_load_start, resource_load_duration),
         ]
+        if self.flatten_data.get("attributes.view.loading_time_source") == ViewLoadingTimeSource.AUTO.value:
+            phases_candidates.append(self._phase("page_stable", page_stable_start, page_stable_duration))
+        return [p for p in phases_candidates if p is not None]
 
     def _build_markers(self) -> list[dict[str, Any]]:
         markers: list[dict[str, Any]] = []
         for name in self.MARKER_FIELDS:
-            snapshot = self.origin_data.get(VITAL_METRIC_KEYS[name.lower()]) or {}
-            if "attributes.vital.value" not in snapshot:
+            metric = name.lower()
+            value = get_safe_number(
+                self.flatten_data.get(build_vital_source_key(metric, "attributes.vital.value")), None
+            )
+            if value is None:
                 continue
             markers.append(
                 {
                     "key": name,
                     "field_name": name,
-                    "value": get_safe_number(snapshot.get("attributes.vital.value")),
+                    "value": value,
                 }
             )
         return markers
 
     def _fill_data(self):
+        # 非首次加载没有导航时间原点，不产生 TTFB / FCP / LCP，整段加载时序省略。
+        if self.flatten_data.get("attributes.view.loading_type") != ViewLoadingType.INITIAL_LOAD.value:
+            return
+
+        phases = self._build_phases()
+        markers = self._build_markers()
+
+        # 整段时序都拿不到（既无 phase 又无 marker）时省略 ``data``，
+        # 前端可据此区分「没有时序数据」与「耗时为 0」。
+        if not phases and not markers:
+            return
+
         self.component_dict["data"] = {
             "unit": FieldUnit.MS.value,
-            "total_duration": self.get_numeric_value("attributes.view.loading_time"),
-            "phases": self._build_phases(),
-            "markers": self._build_markers(),
+            "total_duration": self.numeric_or_none("attributes.view.loading_time"),
+            "phases": phases,
+            "markers": markers,
         }
 
 
 class ViewSpanBuilder(SpanBuilder):
     """View 类型 Span 详情 Builder。
 
-    通过 :meth:`_prepare_origin_data` 将 ``related_spans`` 中的最新 View 快照与
+    通过 :meth:`_prepare_flatten_data` 将 ``related_spans`` 中的最新 View 快照与
     每个 Web Vitals 指标的最新记录注入到打平后的原始数据中，供各 Section 渲染。
     ``origin_data`` 和 ``span_id`` 始终保留主记录。
     """
@@ -282,21 +375,23 @@ class ViewSpanBuilder(SpanBuilder):
     ]
 
     @classmethod
-    def _prepare_origin_data(
+    def _prepare_flatten_data(
         cls,
         span: dict[str, Any],
         related_spans: Sequence[dict[str, Any]] = (),
     ) -> dict[str, Any]:
-        origin_data = flatten_dict_data(span)
+        flatten_data = flatten_dict_data(span)
         latest_view = cls._latest_view_snapshot(related_spans)
         if latest_view:
             # 用最新 View 快照覆盖头部时间及加载字段，主记录仍保留在响应的 origin_data。
-            origin_data.update(latest_view)
+            # start_time 取导航开始时间，不随快照更新，故只补齐 VIEW_SNAPSHOT_FIELDS 内的字段。
+            flatten_data.update({field: latest_view[field] for field in VIEW_SNAPSHOT_FIELDS if field in latest_view})
+        vital_map = cls._build_vital_map(related_spans)
         for metric, key in VITAL_METRIC_KEYS.items():
-            snapshot = cls._latest_vital_snapshot(related_spans, metric)
+            snapshot = vital_map.get(metric)
             if snapshot:
-                origin_data[key] = snapshot
-        return origin_data
+                flatten_data[key] = {k: v for k, v in snapshot.items() if k.startswith("attributes.vital")}
+        return flatten_dict_data(flatten_data)
 
     @staticmethod
     def _latest_view_snapshot(related_spans: Sequence[dict[str, Any]]) -> dict[str, Any] | None:
@@ -312,20 +407,21 @@ class ViewSpanBuilder(SpanBuilder):
         return candidates[0]
 
     @staticmethod
-    def _latest_vital_snapshot(
-        related_spans: Sequence[dict[str, Any]],
-        metric: str,
-    ) -> dict[str, Any] | None:
-        """从关联记录中挑选指定 Vital 指标的最新快照：按 ``end_time`` 降序取首条。"""
-        candidates = []
+    def _build_vital_map(related_spans: Sequence[dict[str, Any]]) -> dict[str, dict[str, Any]]:
+        """一次性构建各 Web Vitals 指标的最新快照表：``{metric: latest_snapshot}``。
+
+        仅遍历并打平 ``related_spans`` 一次，按小写 ``attributes.vital.metric`` 分组，
+        对同组记录以比较替换方式保留 ``end_time`` 最大者，避免逐个指标重复排序。
+        """
+        vital_map: dict[str, dict[str, Any]] = {}
         for item in related_spans:
             flat = flatten_dict_data(item)
             if flat.get("attributes.span_type") != RumSpanType.VITAL.value:
                 continue
-            if str(flat.get("attributes.vital.metric", "")).lower() != metric:
+            metric = str(flat.get("attributes.vital.metric", "")).lower()
+            if not metric:
                 continue
-            candidates.append(flat)
-        if not candidates:
-            return None
-        candidates.sort(key=lambda item: get_safe_number(item.get("end_time")), reverse=True)
-        return candidates[0]
+            prev = vital_map.get(metric)
+            if prev is None or get_safe_number(flat.get("end_time")) > get_safe_number(prev.get("end_time")):
+                vital_map[metric] = flat
+        return vital_map

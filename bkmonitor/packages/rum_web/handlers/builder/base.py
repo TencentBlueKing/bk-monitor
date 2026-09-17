@@ -9,17 +9,17 @@ specific language governing permissions and limitations under the License.
 """
 
 from abc import ABC, abstractmethod
-from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any, Protocol
-
-from bkmonitor.data_source.format import flatten_dict_data
 
 from rum_web.handlers.builder.utils import get_safe_number
 
 
+EMPTY_VALUE: str = "--"
+
+
 class ItemProtocol(Protocol):
-    def render(self, origin_data: dict[str, Any]) -> dict[str, Any]: ...
+    def render(self, flatten_data: dict[str, Any]) -> dict[str, Any]: ...
 
 
 @dataclass(frozen=True, slots=True)
@@ -29,15 +29,13 @@ class NamedKeyValueItem:
     alias: str | None = None
     value: str | float | int | bool | None = None
 
-    def render(self, origin_data: dict[str, Any]) -> dict[str, Any]:
+    def render(self, flatten_data: dict[str, Any]) -> dict[str, Any]:
         result: dict[str, Any] = {"field_name": self.field_name}
         if self.field_alias is not None:
             result["field_alias"] = self.field_alias
         if self.alias is not None:
             result["alias"] = self.alias
-        result["value"] = (
-            self.value if self.value is not None else origin_data.get(self.field_name, BaseComponent.EMPTY_VALUE)
-        )
+        result["value"] = self.value if self.value is not None else flatten_data.get(self.field_name, EMPTY_VALUE)
         return result
 
 
@@ -46,10 +44,10 @@ class DictItem:
     key: str
     items: list[ItemProtocol]
 
-    def render(self, origin_data: dict[str, Any]) -> dict[str, Any]:
+    def render(self, flatten_data: dict[str, Any]) -> dict[str, Any]:
         merge_dict: dict[str, Any] = {}
         for child in self.items:
-            merge_dict.update(child.render(origin_data))
+            merge_dict.update(child.render(flatten_data))
         return {self.key: merge_dict}
 
 
@@ -59,30 +57,28 @@ class KeyValueItem:
     value: str | float | int | bool | list[dict | ItemProtocol] | None = None
     source: str | None = None
 
-    def render(self, origin_data: dict[str, Any]) -> dict[str, Any]:
-        # source 优先：从 origin_data 中按 source 取值
+    def render(self, flatten_data: dict[str, Any]) -> dict[str, Any]:
+        # source 优先：从 flatten_data 中按 source 取值
         if self.source is not None:
-            return {self.key: origin_data.get(self.source, BaseComponent.EMPTY_VALUE)}
+            return {self.key: flatten_data.get(self.source, EMPTY_VALUE)}
         if isinstance(self.value, list):
             value_list = []
             for child in self.value:
                 if hasattr(child, "render"):
-                    value_list.append(child.render(origin_data))
+                    value_list.append(child.render(flatten_data))
                 else:
                     value_list.append(child)
             return {self.key: value_list}
         if self.value is not None:
             # 静态值 → 直接使用
             return {self.key: self.value}
-        # 无值 → 从 origin_data 按 key 动态取
-        return {self.key: origin_data.get(self.key, BaseComponent.EMPTY_VALUE)}
+        # 无值 → 从 flatten_data 按 key 动态取
+        return {self.key: flatten_data.get(self.key, EMPTY_VALUE)}
 
 
 class BaseComponent(ABC):
-    EMPTY_VALUE = "--"
-
-    def __init__(self, origin_data: dict[str, Any]):
-        self.origin_data: dict[str, Any] = origin_data
+    def __init__(self, flatten_data: dict[str, Any]):
+        self.flatten_data: dict[str, Any] = flatten_data
         self.component_dict: dict[str, Any] = {}
 
     @abstractmethod
@@ -95,17 +91,17 @@ class BaseOverview(BaseComponent):
     ITEMS: list[NamedKeyValueItem] = []
 
     def _fill_title(self):
-        self.component_dict["title"] = self.origin_data.get("span_name", self.EMPTY_VALUE)
+        self.component_dict["title"] = self.flatten_data.get("span_name", EMPTY_VALUE)
 
     def _fill_badges(self):
         self.component_dict["badges"] = []
         for item in self.BADGES:
-            self.component_dict["badges"].append(item.render(self.origin_data))
+            self.component_dict["badges"].append(item.render(self.flatten_data))
 
     def _fill_items(self):
         self.component_dict["items"] = []
         for item in self.ITEMS:
-            self.component_dict["items"].append(item.render(self.origin_data))
+            self.component_dict["items"].append(item.render(self.flatten_data))
 
     def render(self) -> dict[str, Any]:
         self._fill_title()
@@ -120,24 +116,24 @@ class BaseSection(BaseComponent):
     DATA: list[ItemProtocol] | None = None
     ITEMS: list[ItemProtocol] | None = None
 
-    def get_numeric_value(self, key: str):
-        return get_safe_number(self.origin_data.get(key))
+    def numeric_or_none(self, key: str) -> int | float | None:
+        return get_safe_number(self.flatten_data.get(key), None)
 
     def _fill_data(self):
         if self.DATA is None:
             return
         self.component_dict["data"] = {}
         for item in self.DATA:
-            self.component_dict["data"].update(item.render(self.origin_data))
+            self.component_dict["data"].update(item.render(self.flatten_data))
 
     def _fill_items(self):
         if self.ITEMS is None:
             return
         self.component_dict["items"] = []
         for item in self.ITEMS:
-            self.component_dict["items"].append(item.render(self.origin_data))
+            self.component_dict["items"].append(item.render(self.flatten_data))
 
-    def render(self) -> dict[str, Any]:
+    def render(self) -> dict[str, Any] | None:
         self.component_dict.update(
             {
                 "key": self.KEY,
@@ -146,61 +142,17 @@ class BaseSection(BaseComponent):
         )
         self._fill_data()
         self._fill_items()
+        if not self.component_dict.get("data") and not self.component_dict.get("items"):
+            return None
         return self.component_dict
 
 
-class SpanBuilder:
-    """Span 详情 Builder 基类。
-
-    子类通过声明 ``OVERVIEW`` 与 ``SECTIONS`` 组装区块，特殊类型可覆盖
-    :meth:`_prepare_origin_data` 或 :meth:`process` 自定义装配逻辑。
-    公共头部 ``origin_data``、``span_id`` 与空 ``sections`` 在此统一处理。
-    """
-
-    OVERVIEW: type[BaseOverview] | None = None
-    SECTIONS: list[type[BaseSection]] | None = None
-
-    @classmethod
-    def process(
-        cls,
-        span: dict[str, Any],
-        related_spans: Sequence[dict[str, Any]] = (),
-    ) -> dict[str, Any]:
-        """组装 Span 详情响应。
-
-        - ``span``：主 Span 的原始记录（未打平），用于回填 ``origin_data``、``span_id``。
-        - ``related_spans``：关联 Span 列表（仅 View 会传入生命周期与 Vital 快照）。
-
-        默认按 ``OVERVIEW``、``SECTIONS`` 顺序渲染，未声明则返回空区块。
-        """
-        origin_data = cls._prepare_origin_data(span, related_spans)
-        result: dict[str, Any] = {
-            "origin_data": span,
-            "span_id": span.get("span_id", ""),
-            "sections": [],
-        }
-        if cls.OVERVIEW is not None:
-            result["overview"] = cls.OVERVIEW(origin_data).render()
-        if cls.SECTIONS is not None:
-            result["sections"] = [section(origin_data).render() for section in cls.SECTIONS]
-        return result
-
-    @classmethod
-    def _prepare_origin_data(
-        cls,
-        span: dict[str, Any],
-        related_spans: Sequence[dict[str, Any]] = (),
-    ) -> dict[str, Any]:
-        """默认返回主 Span 打平后的字典；子类可注入关联 Span 附加信息。"""
-        return flatten_dict_data(span)
-
-
 __all__ = [
-    "SpanBuilder",
     "BaseSection",
     "BaseComponent",
     "BaseOverview",
     "NamedKeyValueItem",
     "KeyValueItem",
     "DictItem",
+    "EMPTY_VALUE",
 ]
