@@ -141,7 +141,7 @@ def operation(span: dict[str, Any]) -> str | None:
     traceloop_kind = str(attrs.get("traceloop.span.kind", "")).lower()
     if span_name == "chain.workflow" or attrs.get("chain.type") == "workflow" or traceloop_kind == "workflow":
         return "invoke_workflow"
-    if span_name == "agent.execution":
+    if span_name == "agent.execution" or traceloop_kind == "agent":
         return "invoke_agent"
     if span_name in {"chat_model.generate", "ChatModel.chat"} or traceloop_kind == "llm":
         return "chat"
@@ -324,6 +324,8 @@ def convert(raw: list[dict[str, Any]]) -> list[dict[str, Any]]:
             put(attributes, target, value)
         if span_operation == "execute_tool":
             put(attributes, "gen_ai.tool.name", attrs.get("traceloop.entity.name"))
+        elif span_operation in {"invoke_agent", "invoke_workflow"}:
+            put(attributes, "gen_ai.agent.name", attrs.get("traceloop.entity.name"))
         if span_operation:
             context = traceloop_context(attrs)
             put(attributes, "gen_ai.conversation.id", context.get("conversation_id"))

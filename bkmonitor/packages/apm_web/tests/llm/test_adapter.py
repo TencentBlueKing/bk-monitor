@@ -1161,6 +1161,24 @@ class AdapterTests(TestCase):
             [{"role": "assistant", "parts": [{"type": "text", "content": "最终回答"}]}],
         )
 
+    def test_bkaidev_classifies_traceloop_agent(self) -> None:
+        span = agentlens_span()
+        span["span_name"] = "researcher.agent"
+        span["attributes"] = {
+            "traceloop.span.kind": "agent",
+            "traceloop.entity.name": "researcher",
+            "traceloop.entity.input": json.dumps({"inputs": "find the answer"}),
+            "traceloop.entity.output": json.dumps({"outputs": "the answer"}),
+        }
+
+        agent = adapt_spans([span], "aidev")[0]
+
+        self.assertEqual(agent["attributes"]["gen_ai.operation.name"], "invoke_agent")
+        self.assertEqual(agent["attributes"]["gen_ai.agent.name"], "researcher")
+        self.assertEqual(agent["span_type"], "AGENT")
+        self.assertEqual(agent["attributes"]["gen_ai.input.messages"][0]["parts"][0]["content"], "find the answer")
+        self.assertEqual(agent["attributes"]["gen_ai.output.messages"][0]["parts"][0]["content"], "the answer")
+
     def test_bkaidev_langchain_message_envelope_is_flattened(self) -> None:
         span = agentlens_span()
         span["span_name"] = "chat_model.generate"
