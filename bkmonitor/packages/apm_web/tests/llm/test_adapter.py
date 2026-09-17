@@ -6,9 +6,17 @@ import json
 import time
 from unittest import TestCase
 
+from django.db.models import Q
+
 from apm_web.handlers.service_handler import ServiceHandler
 from apm_web.llm.adapter import adapt_spans as adapt_spans_with_entity_set
-from apm_web.llm.adapter.fields import resolve_product, resolve_query_field
+from apm_web.llm.adapter.fields import (
+    AGENT_CANDIDATE_FIELDS,
+    AGENT_CANDIDATE_Q,
+    resolve_operation_name,
+    resolve_product,
+    resolve_query_field,
+)
 
 TRACE_ID = "a" * 32
 SPAN_ID = "b" * 16
@@ -119,6 +127,21 @@ class AdapterTests(TestCase):
         # 非 LLM 服务或未命中映射表的字段原样透传
         self.assertEqual(resolve_query_field("", conversation_field), conversation_field)
         self.assertEqual(resolve_query_field("aidev", "trace_id"), "trace_id")
+
+    def test_candidate_q_is_a_unified_exists_or(self) -> None:
+        self.assertEqual(
+            AGENT_CANDIDATE_Q,
+            Q(*(Q(**{f"{field}__exists": [""]}) for field in AGENT_CANDIDATE_FIELDS), _connector=Q.OR),
+        )
+
+    def test_resolve_operation_name(self) -> None:
+        self.assertEqual(resolve_operation_name("aidev", "completion"), "text_completion")
+        self.assertEqual(resolve_operation_name("agentlens", "LLM"), "chat")
+        self.assertEqual(resolve_operation_name("langfuse", "generation"), "chat")
+        self.assertEqual(resolve_operation_name("default", "CHAT"), "chat")
+        self.assertEqual(resolve_operation_name("default", ""), "")
+        self.assertEqual(resolve_operation_name("aidev", None), "")
+        self.assertEqual(resolve_operation_name("default", "vendor.magic"), "vendor.magic")
 
     def test_default_adapter_keeps_only_standard_fields(self) -> None:
         span = agentlens_span()

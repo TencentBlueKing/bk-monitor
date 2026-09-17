@@ -1,3 +1,4 @@
+import json
 from collections import defaultdict
 from typing import Any
 
@@ -12,7 +13,7 @@ from core.drf_resource import Resource, api
 from apm_web.handlers.metric_group import GroupEnum, MetricGroupRegistry
 from apm_web.handlers.trace_handler.query import QueryHandler, QueryStringBuilder, SpanQueryTransformer
 from apm_web.llm.adapter import adapt_spans
-from apm_web.llm.adapter.fields import resolve_product, resolve_query_field
+from apm_web.llm.adapter.fields import AGENT_CANDIDATE_Q, resolve_product, resolve_query_field
 from apm_web.llm.constants import CalculationType
 from apm_web.llm.metric_group import LLMMetricGroup
 from apm_web.llm.query import LLMQuery, get_query
@@ -42,6 +43,9 @@ class ListTracesResource(Resource):
                 raise serializers.ValidationError("start_time 不能大于 end_time")
             return attrs
 
+    _TEXT_PART_TYPES = {"", "text", "input_text", "output_text"}
+    _OUTPUT_PREVIEW_KEYS = ("text", "reasoning", "tool_call", "tool_result")
+
     @staticmethod
     def _build_keyword_query(product: str, bk_biz_id: int, app_name: str, keyword: str) -> str:
         """构造关键词查询，避免 hex32 会话 ID 被误判为仅查询 Trace ID。"""
@@ -60,46 +64,80 @@ class ListTracesResource(Resource):
         return value
 
     @staticmethod
-    def _preview_root(spans: list[dict[str, Any]]) -> dict[str, Any]:
-        for span in spans:
-            attributes = span.get(OtlpKey.ATTRIBUTES)
-            operation = attributes.get("gen_ai.operation.name") if isinstance(attributes, dict) else None
-            if isinstance(operation, str) and operation.lower() in {"invoke_agent", "invoke_workflow"}:
-                return span
-
-        span_ids = {span_id for span in spans if (span_id := span.get(OtlpKey.SPAN_ID))}
-        return next(
-            (
-                span
-                for span in spans
-                if not (parent_span_id := span.get(OtlpKey.PARENT_SPAN_ID)) or parent_span_id not in span_ids
-            ),
-            {},
-        )
-
-    @staticmethod
-    def _last_message_text(span: dict[str, Any], attribute: str, expected_role: str) -> str:
-        attributes = span.get(OtlpKey.ATTRIBUTES)
-        messages = attributes.get(attribute) if isinstance(attributes, dict) else None
-        if not isinstance(messages, list):
+    def _preview_text(value: Any) -> str:
+        if isinstance(value, str):
+            return value.strip()
+        if value in (None, "", [], {}):
             return ""
+        try:
+            return json.dumps(value, ensure_ascii=False)
+        except (TypeError, ValueError):
+            return str(value).strip()
 
-        for message in reversed(messages):
-            if not isinstance(message, dict) or message.get("role") != expected_role:
+    @classmethod
+    def _part_preview(cls, part: dict[str, Any], expected: str) -> str:
+        part_type = str(part.get("type") or "")
+        if expected == "text" and part_type in cls._TEXT_PART_TYPES:
+            return cls._preview_text(part.get("content", part.get("text")))
+        if expected == "reasoning" and part_type in {"reasoning", "thinking"}:
+            return cls._preview_text(part.get("content", part.get("text", part.get("thinking"))))
+        if expected == "tool_call" and part_type == "tool_call":
+            name = cls._preview_text(part.get("name"))
+            arguments = cls._preview_text(part.get("arguments"))
+            return " ".join(item for item in (name, arguments) if item)
+        if expected == "tool_result" and part_type in {"tool_call_response", "tool_result"}:
+            return cls._preview_text(part.get("response", part.get("content", part.get("result"))))
+        return ""
+
+    @classmethod
+    def _message_previews(cls, messages: Any, expected: str, *, roles: set[str]) -> list[str]:
+        if not isinstance(messages, list):
+            return []
+        previews: list[str] = []
+        for message in messages:
+            if not isinstance(message, dict) or message.get("role") not in roles:
                 continue
             parts = message.get("parts")
             if not isinstance(parts, list):
-                return ""
-            texts = [
-                content
-                for part in parts
-                if isinstance(part, dict)
-                and part.get("type") == "text"
-                and isinstance((content := part.get("content", part.get("text"))), str)
-                and content.strip()
-            ]
-            return " ".join(texts)
-        return ""
+                continue
+            for part in parts:
+                if isinstance(part, dict) and (preview := cls._part_preview(part, expected)):
+                    previews.append(preview)
+        return previews
+
+    @classmethod
+    def _trace_previews(cls, spans: list[dict[str, Any]]) -> tuple[str, str]:
+        """输入取最早的用户文本；输出按 模型文本 → 推理 → 规划工具调用 → 工具返回 取最新一条。"""
+        user_inputs: list[tuple[int, int, str]] = []
+        tool_inputs: list[tuple[int, int, str]] = []
+        output_buckets: dict[str, list[tuple[int, int, str]]] = {key: [] for key in cls._OUTPUT_PREVIEW_KEYS}
+
+        for index, span in enumerate(spans):
+            attributes = span.get(OtlpKey.ATTRIBUTES)
+            if not isinstance(attributes, dict):
+                continue
+            start_time = span.get(OtlpKey.START_TIME) or 0
+            end_time = span.get(OtlpKey.END_TIME) or start_time
+            user_texts = cls._message_previews(attributes.get("gen_ai.input.messages"), "text", roles={"user"})
+            if user_texts:
+                user_inputs.append((start_time, index, user_texts[-1]))
+            elif arguments := cls._preview_text(attributes.get("gen_ai.tool.call.arguments")):
+                tool_inputs.append((start_time, index, arguments))
+
+            for key in cls._OUTPUT_PREVIEW_KEYS:
+                roles = {"assistant", "tool"} if key == "tool_result" else {"assistant"}
+                previews = cls._message_previews(attributes.get("gen_ai.output.messages"), key, roles=roles)
+                if key == "tool_result":
+                    if result := cls._preview_text(attributes.get("gen_ai.tool.call.result")):
+                        previews.append(result)
+                if previews:
+                    output_buckets[key].append((end_time, index, previews[-1]))
+
+        input_text = min(user_inputs)[2] if user_inputs else (min(tool_inputs)[2] if tool_inputs else "")
+        for key in cls._OUTPUT_PREVIEW_KEYS:
+            if candidates := output_buckets[key]:
+                return input_text, max(candidates)[2]
+        return input_text, ""
 
     @classmethod
     def _trace_item(
@@ -110,11 +148,12 @@ class ListTracesResource(Resource):
     ) -> dict[str, Any]:
         # 在 Adapter 过滤前判定，避免漏掉未被保留的失败 Span。
         has_error = any(span["status"]["code"] == StatusCode.ERROR.value for span in raw_spans)
+        # converted 只服务于本函数的 token / preview；调用方在拿到 compact item 后应丢掉 raw_spans。
         converted_spans = adapt_spans(raw_spans, entity_set)
         converted_attributes = [
             attributes for span in converted_spans if isinstance((attributes := span.get(OtlpKey.ATTRIBUTES)), dict)
         ]
-        preview_root = cls._preview_root(converted_spans)
+        input_text, output_text = cls._trace_previews(converted_spans)
         root_span = next((span for span in raw_spans if not span.get(OtlpKey.PARENT_SPAN_ID)), {})
         start_time = (
             root_span.get(OtlpKey.START_TIME, 0)
@@ -145,8 +184,8 @@ class ListTracesResource(Resource):
             "trace_id": trace_id,
             "conversation_id": conversation_id,
             "status": "error" if has_error else "success",
-            "input": cls._last_message_text(preview_root, "gen_ai.input.messages", "user"),
-            "output": cls._last_message_text(preview_root, "gen_ai.output.messages", "assistant"),
+            "input": input_text,
+            "output": output_text,
             "input_tokens": token_total("gen_ai.usage.input_tokens"),
             "output_tokens": token_total("gen_ai.usage.output_tokens"),
             "cache_read_input_tokens": token_total("gen_ai.usage.cache_read.input_tokens"),
@@ -158,27 +197,51 @@ class ListTracesResource(Resource):
         }
 
     @classmethod
-    def _group_spans(
+    def _consume_span_batch(
         cls,
-        group_field: str,
-        group_ids: list[Any],
-        trace_group_map: dict[str, Any],
         raw_spans: list[dict[str, Any]],
+        trace_group_map: dict[str, Any],
         entity_set: EntitySet,
-    ) -> list[dict[str, Any]]:
+        childs_by_group: dict[Any, list[dict[str, Any]]],
+    ) -> None:
+        """把一批 raw Span 转成 compact child，并立刻丢掉这批原始文档。
+
+        按 trace_id 分片查询时，同一 Trace 的 Span 落在同一批，这里就可以
+        `_trace_item`。会话折叠只累加 child，等全部批次结束后再拼 group item。
+        `raw_spans` 会被清空，调用方不要再持有这批 `_source`。
+        """
         spans_by_group: dict[Any, dict[str, list[dict[str, Any]]]] = defaultdict(lambda: defaultdict(list))
         for span in raw_spans:
             trace_id = cls._span_field_value(span, OtlpKey.TRACE_ID)
             group_id = trace_group_map.get(trace_id, "")
             if group_id is not None and group_id != "" and trace_id:
                 spans_by_group[group_id][trace_id].append(span)
+        # 分组表已握住同一批 dict，断开 batch list 的引用，避免和 spans_by_group 叠一份指针数组。
+        raw_spans.clear()
 
+        for group_id, traces in spans_by_group.items():
+            for trace_id in list(traces):
+                child = cls._trace_item(trace_id, traces[trace_id], entity_set)
+                childs_by_group.setdefault(group_id, []).append(child)
+                # compact item 已拷走 input/output/token，raw 可以释放。
+                del traces[trace_id]
+
+    @classmethod
+    def _assemble_group_items(
+        cls,
+        group_field: str,
+        group_ids: list[Any],
+        childs_by_group: dict[Any, list[dict[str, Any]]],
+    ) -> list[dict[str, Any]]:
+        """用已经算好的 compact child 拼分页顺序的 group item，不再碰 raw Span。"""
         items: list[dict[str, Any]] = []
         for group_id in group_ids:
-            childs = [
-                cls._trace_item(trace_id, spans, entity_set) for trace_id, spans in spans_by_group[group_id].items()
-            ]
+            childs = childs_by_group.get(group_id)
             if not childs:
+                # Trace 视角没有 child 就组不出行；会话视角保留缺省行，避免短页掐掉下拉加载。
+                if group_field == OtlpKey.TRACE_ID:
+                    continue
+                items.append(cls._empty_group_item(group_field, group_id))
                 continue
             childs.sort(key=lambda child: child["end_time"], reverse=True)
             start_time = min(child["start_time"] for child in childs)
@@ -212,6 +275,38 @@ class ListTracesResource(Resource):
             for item in items:
                 item.update(item.pop("childs")[0])
         return items
+
+    @classmethod
+    def _empty_group_item(cls, group_field: str, group_id: Any) -> dict[str, Any]:
+        return {
+            "group_id": group_id,
+            "group_field": group_field,
+            "status": "",
+            "input": "",
+            "output": "",
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "cache_read_input_tokens": 0,
+            "cache_write_input_tokens": 0,
+            "start_time": 0,
+            "end_time": 0,
+            "elapsed_time": 0,
+            "user_id": "",
+            "childs": [],
+        }
+
+    @classmethod
+    def _group_spans(
+        cls,
+        group_field: str,
+        group_ids: list[Any],
+        trace_group_map: dict[str, Any],
+        raw_spans: list[dict[str, Any]],
+        entity_set: EntitySet,
+    ) -> list[dict[str, Any]]:
+        childs_by_group: dict[Any, list[dict[str, Any]]] = defaultdict(list)
+        cls._consume_span_batch(raw_spans, trace_group_map, entity_set, childs_by_group)
+        return cls._assemble_group_items(group_field, group_ids, childs_by_group)
 
     def perform_request(self, validated_request_data):
         group_field = validated_request_data["group_field"]
@@ -257,6 +352,7 @@ class ListTracesResource(Resource):
             limit=validated_request_data["limit"],
             filters=filters,
             query_string=query_string,
+            extra_filter=AGENT_CANDIDATE_Q if group_field == OtlpKey.TRACE_ID else None,
         )
         result = {
             "offset": validated_request_data["offset"],
@@ -279,20 +375,17 @@ class ListTracesResource(Resource):
             group_id = LLMQuery._get_field_value(record, query_group_field)
             if group_id is not None and group_id != "" and trace_id not in trace_group_map:
                 trace_group_map[trace_id] = group_id
-        if not trace_group_map:
-            return result
 
-        spans = span_query.query_by_group_ids(
-            group_field=OtlpKey.TRACE_ID,
-            group_ids=list(trace_group_map),
-        )
-        result["items"] = self._group_spans(
-            group_field,
-            group_ids,
-            trace_group_map,
-            spans,
-            entity_set,
-        )
+        # 按批拉取 → 立刻转 compact child → 丢掉该批 raw，避免先拼出全量 `_source`。
+        # 没有 Trace 的会话仍走 assemble，补缺省行，避免短页。
+        childs_by_group: dict[Any, list[dict[str, Any]]] = defaultdict(list)
+        if trace_group_map:
+            for batch in span_query.iter_by_group_ids(
+                group_field=OtlpKey.TRACE_ID,
+                group_ids=list(trace_group_map),
+            ):
+                self._consume_span_batch(batch, trace_group_map, entity_set, childs_by_group)
+        result["items"] = self._assemble_group_items(group_field, group_ids, childs_by_group)
         return result
 
 
