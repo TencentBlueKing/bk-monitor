@@ -262,8 +262,8 @@ class ViewLoadingTimingSection(BaseSection):
         start: int | float | None,
         duration: int | float | None,
     ) -> dict[str, Any] | None:
-        """构造单个 phase；起点或时长缺失、时长为负则整段不输出。"""
-        if start is None or duration is None or duration < 0:
+        """构造单个 phase；起点或时长缺失、起点为负或时长为负则整段不输出。"""
+        if start is None or duration is None or start < 0 or duration < 0:
             return None
         return {
             "key": key,
@@ -351,12 +351,21 @@ class ViewLoadingTimingSection(BaseSection):
         if not phases and not markers:
             return
 
-        self.component_dict["data"] = {
+        # 横轴基准：有效 loading_time；缺失或非法（负）时省略（None），有效零值保留 0。
+        loading_time = self.numeric_or_none("attributes.view.loading_time")
+        data = {
             "unit": FieldUnit.MS.value,
-            "total_duration": self.numeric_or_none("attributes.view.loading_time"),
             "phases": phases,
             "markers": markers,
         }
+        # total_duration 等于有效的 view.loading_time；缺失或非法（负）时省略该键，不伪造 0。
+        # 标记超出总耗时仅扩展横轴，不修改各 phase。
+        if loading_time is not None and loading_time >= 0:
+            total_duration = loading_time
+            if markers:
+                total_duration = max(total_duration, max(m["value"] for m in markers))
+            data["total_duration"] = total_duration
+        self.component_dict["data"] = data
 
 
 class ViewSpanBuilder(SpanBuilder):
