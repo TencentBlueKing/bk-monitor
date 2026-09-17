@@ -167,14 +167,7 @@ RUM_SEARCH_PAGE_GROUPS: dict[str, list[dict]] = {
             "name": "COMMON",
             "alias": _("公共字段"),
             "supported_span_types": RumSpanType.values(),
-            "field_names": [
-                "kind",
-                "span_name",
-                "attributes.span_type",
-                "elapsed_time",
-                "status.code",
-                "status.message",
-            ],
+            "field_names": ["kind", "span_name", "attributes.span_type", "elapsed_time", "status.code"],
         },
         {
             "name": "APP_VERSION",
@@ -224,6 +217,7 @@ RUM_SEARCH_PAGE_GROUPS: dict[str, list[dict]] = {
             "field_names": [
                 "attributes.resource.type",
                 "attributes.url.template",
+                "attributes.url.full",
                 "attributes.http.request.method",
                 "attributes.http.response.status_code",
                 "attributes.resource.size",

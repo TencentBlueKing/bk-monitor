@@ -152,7 +152,7 @@ class RumSpanType(CachedEnum):
                 "span_name",
                 "attributes.span_type",
                 "end_time",
-                "attributes.url.template",
+                "attributes.url.full",
                 "elapsed_time",
                 "attributes.resource.size",
                 "attributes.resource.cache.hit",
