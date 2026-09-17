@@ -586,7 +586,6 @@ class TraceDataSource(ApmDataSourceConfigBase):
 
     STORAGE_TYPE = "elasticsearch"
 
-    # 默认的动态维度发现配置；ignore_above 在应用时读取，便于全局配置热更新。
     ES_DYNAMIC_CONFIG = {
         "dynamic_templates": [
             {
