@@ -10,6 +10,7 @@ from django.db.models import Q
 
 from apm_web.handlers.service_handler import ServiceHandler
 from apm_web.llm.adapter import adapt_spans as adapt_spans_with_entity_set
+from apm_web.llm.adapter.adapter_bkaidev import parse_nested
 from apm_web.llm.adapter.fields import (
     AGENT_CANDIDATE_FIELDS,
     AGENT_CANDIDATE_Q,
@@ -1463,6 +1464,83 @@ class AdapterTests(TestCase):
         self.assertEqual(attributes["gen_ai.tool.call.arguments"], {"query": "official Traceloop arguments"})
         self.assertEqual(attributes["gen_ai.tool.call.result"], {"items": [1, 2]})
 
+    def test_bkaidev_preserves_traceloop_decorator_arguments(self) -> None:
+        for arguments, expected in (
+            ({"args": [], "kwargs": {"query": "search"}}, {"query": "search"}),
+            ({"args": ["search"], "kwargs": {"limit": 2}}, {"args": ["search"], "kwargs": {"limit": 2}}),
+            ({"args": ["search"], "kwargs": {}}, {"args": ["search"], "kwargs": {}}),
+            ({"query": "search"}, {"query": "search"}),
+        ):
+            with self.subTest(arguments=arguments):
+                span = agentlens_span()
+                span["attributes"] = {
+                    "traceloop.span.kind": "tool",
+                    "traceloop.entity.input": json.dumps(arguments),
+                }
+
+                attributes = adapt_spans([span], "aidev")[0]["attributes"]
+
+                self.assertEqual(attributes["gen_ai.tool.call.arguments"], expected)
+
+    def test_bkaidev_preserves_traceloop_decorator_results(self) -> None:
+        for result in ({"items": [1, 2]}, {"output": "business value"}, {"outputs": [1, 2]}, [1, 2], {}):
+            for depth in (1, 2, 3):
+                with self.subTest(result=result, depth=depth):
+                    encoded = result
+                    for _ in range(depth):
+                        encoded = json.dumps(encoded)
+                    span = agentlens_span()
+                    span["attributes"] = {
+                        "traceloop.span.kind": "tool",
+                        "traceloop.entity.output": encoded,
+                    }
+
+                    attributes = adapt_spans([span], "aidev")[0]["attributes"]
+
+                    self.assertEqual(attributes["gen_ai.tool.call.result"], result)
+
+    def test_bkaidev_decodes_nested_messages_without_losing_roles_or_tool_calls(self) -> None:
+        inputs = [{"type": "human", "data": {"content": "question"}}]
+        outputs = [{"type": "ai", "data": {"tool_calls": [{"id": "call-1", "name": "search", "args": {"query": "q"}}]}}]
+        for input_key, output_key in (
+            ("gen_ai.input.messages", "gen_ai.output.messages"),
+            ("traceloop.entity.input", "traceloop.entity.output"),
+        ):
+            with self.subTest(input_key=input_key):
+                span = agentlens_span()
+                span["span_name"] = "ChatModel.chat"
+                span["attributes"] = {
+                    input_key: json.dumps(json.dumps(inputs)),
+                    output_key: json.dumps(json.dumps(outputs)),
+                }
+
+                attributes = adapt_spans([span], "aidev")[0]["attributes"]
+
+                self.assertEqual(
+                    attributes["gen_ai.input.messages"],
+                    [{"role": "user", "parts": [{"type": "text", "content": "question"}]}],
+                )
+                self.assertEqual(
+                    attributes["gen_ai.output.messages"],
+                    [
+                        {
+                            "role": "assistant",
+                            "parts": [
+                                {"type": "tool_call", "id": "call-1", "name": "search", "arguments": {"query": "q"}}
+                            ],
+                        }
+                    ],
+                )
+
+    def test_bkaidev_nested_parser_preserves_text_and_limits_decoding(self) -> None:
+        for value in ("plain text", "123", "false", "null", '"quoted text"', '{"broken":', None, 0):
+            with self.subTest(value=value):
+                self.assertEqual(parse_nested(value), value)
+        self.assertEqual(parse_nested("{'items': [1, 2]}"), {"items": [1, 2]})
+        self.assertEqual(parse_nested(json.dumps("{'items': [1, 2]}")), {"items": [1, 2]})
+        encoded = json.dumps(json.dumps(json.dumps(json.dumps({"items": [1, 2]}))))
+        self.assertEqual(parse_nested(encoded), encoded)
+
     def test_bkaidev_unwraps_langchain_tool_message_result(self) -> None:
         span = agentlens_span()
         span["span_name"] = "tool.execution"
@@ -1480,6 +1558,53 @@ class AdapterTests(TestCase):
             attributes["gen_ai.tool.call.result"],
             {"status_code": 200, "response_body": {"items": [1, 2]}},
         )
+
+    def test_bkaidev_standard_operation_skips_legacy_langchain_parse(self) -> None:
+        span = agentlens_span()
+        span["span_name"] = "chat_model.generate"
+        span["attributes"] = {
+            "gen_ai.operation.name": "chat",
+            "gen_ai.input.messages": [{"role": "user", "parts": [{"type": "text", "content": "hello"}]}],
+            "gen_ai.output.messages": [{"role": "assistant", "parts": [{"type": "text", "content": "hi"}]}],
+            "llm.input": '[{"type":"system","data":{"content":"should not become instructions"}}]',
+            "llm.output": '[{"role":"ChatGeneration","content":"legacy"}]',
+        }
+
+        attributes = adapt_spans([span], "aidev")[0]["attributes"]
+
+        self.assertEqual(attributes["gen_ai.operation.name"], "chat")
+        self.assertEqual(attributes["gen_ai.input.messages"][0]["parts"][0]["content"], "hello")
+        self.assertEqual(attributes["gen_ai.output.messages"][0]["parts"][0]["content"], "hi")
+        self.assertNotIn("gen_ai.system_instructions", attributes)
+
+    def test_bkaidev_routes_standard_and_legacy_spans_in_one_trace(self) -> None:
+        standard = agentlens_span("1" * 16)
+        standard["span_name"] = "invoke_agent demo"
+        standard["attributes"] = {
+            "gen_ai.operation.name": "invoke_agent",
+            "gen_ai.conversation.id": "session-1",
+            "gen_ai.input.messages": [{"role": "user", "parts": [{"type": "text", "content": "hello"}]}],
+        }
+        legacy = agentlens_span("2" * 16, start_time=NOW - 30)
+        legacy["span_name"] = "agent.execution"
+        legacy["attributes"] = {
+            "agent.info.id": 520,
+            "agent.info.name": "demo-agent",
+            "agent.session.session_code": "session-1",
+            "agent.session.input": "hello",
+        }
+
+        spans = adapt_spans([legacy, standard], "aidev")
+        by_id = {span["span_id"]: span for span in spans}
+
+        self.assertEqual(by_id["1" * 16]["attributes"]["gen_ai.operation.name"], "invoke_agent")
+        self.assertEqual(
+            by_id["1" * 16]["attributes"]["gen_ai.input.messages"][0]["parts"][0]["content"],
+            "hello",
+        )
+        self.assertEqual(by_id["2" * 16]["attributes"]["gen_ai.operation.name"], "invoke_agent")
+        self.assertEqual(by_id["2" * 16]["attributes"]["gen_ai.conversation.id"], "session-1")
+        self.assertEqual(by_id["2" * 16]["attributes"]["gen_ai.agent.name"], "demo-agent")
 
     def test_bkaidev_normalizes_unknown_indexed_message_roles_by_direction(self) -> None:
         span = agentlens_span()
