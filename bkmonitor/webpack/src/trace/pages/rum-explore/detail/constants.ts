@@ -164,6 +164,9 @@ export const WATERFALL_MERGED_PHASES: Record<string, string> = {
   tls: 'TLS',
 };
 
+/** 瀑布图中代表 TTFB 时间点的标记 key，缺失时不推导 TTFB 分解说明 */
+export const WATERFALL_TTFB_MARKER_KEY = 'ttfb';
+
 /** 区块标识，与接口 sections[].key 对齐 */
 export const SectionKeyEnum = {
   /** 关键信息 */
