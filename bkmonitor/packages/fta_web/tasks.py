@@ -21,7 +21,11 @@ from bkmonitor.models.issue import IssueTapdRelation
 from constants.action import ActionPluginType
 from constants.issue import IssueStatus
 from core.drf_resource import api, resource
-from fta_web.constants import QuickSolutionsConfig
+from fta_web.constants import (
+    QuickSolutionsConfig,
+    TAPD_COMPLETED_STATUS_EN_KEYWORDS,
+    TAPD_COMPLETED_STATUS_CN_KEYWORDS,
+)
 from monitor_web.strategies.user_groups import create_default_notice_group
 
 logger = logging.getLogger("celery")
@@ -165,13 +169,6 @@ def run_init_builtin_assign_group(bk_biz_id):
     AlertAssignRule.objects.create(**empty_user_assign_rule)
 
 
-# TAPD 已完成状态的关键词匹配
-# 英文关键词（匹配 status_value，即 TAPD 状态的英文 key）
-_TAPD_COMPLETED_STATUS_EN_KEYWORDS = {"closed", "done", "resolved", "verified"}
-# 中文关键词（匹配 display_name，即 TAPD 状态的显示名）
-_TAPD_COMPLETED_STATUS_CN_KEYWORDS = {"已关闭", "已实现", "已解决", "已完成", "已验证", "done"}
-
-
 def _is_tapd_status_completed(status_value: str, status_display_name: str) -> bool:
     """判断 TAPD 单据状态是否为已完成状态
 
@@ -191,11 +188,11 @@ def _is_tapd_status_completed(status_value: str, status_display_name: str) -> bo
         return False
 
     # 1. 先判断英文 key
-    if status_value.lower() in _TAPD_COMPLETED_STATUS_EN_KEYWORDS:
+    if status_value.lower() in TAPD_COMPLETED_STATUS_EN_KEYWORDS:
         return True
 
     # 2. 再判断显示名称 display_name
-    if status_display_name and any(keyword in status_display_name for keyword in _TAPD_COMPLETED_STATUS_CN_KEYWORDS):
+    if status_display_name and any(keyword in status_display_name for keyword in TAPD_COMPLETED_STATUS_CN_KEYWORDS):
         return True
 
     return False
