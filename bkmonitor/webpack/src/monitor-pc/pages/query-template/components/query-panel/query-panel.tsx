@@ -29,6 +29,7 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import QueryConfigCreator from '../query-config/query-config-creator';
 
+import type { IGetValueFnParams, IWhereValueOptionsItem } from '../../../../components/retrieval-filter/utils';
 import type { AggCondition, AggFunction } from '../../typings';
 import type { IVariableModel, MetricDetailV2, QueryConfig } from '../../typings';
 import type { VariableModelType } from '../../variables';
@@ -38,6 +39,7 @@ import type { IFunctionOptionsItem } from '../type/query-config';
 import './query-panel.scss';
 
 interface IProps {
+  createVariableFn?: (onCreated: (name: string) => void) => void;
   hasAdd?: boolean;
   hasDelete?: boolean;
   hasVariableOperate?: boolean;
@@ -45,6 +47,7 @@ interface IProps {
   queryConfig?: QueryConfig;
   variables?: VariableModelType[];
   getMetricList: (params: IGetMetricListParams) => Promise<IGetMetricListData>;
+  getValueFn?: (params: IGetValueFnParams) => Promise<IWhereValueOptionsItem>;
   onAdd?: () => void;
   onChangeCondition?: (val: AggCondition[]) => void;
   onChangeDimension?: (val: string[]) => void;
@@ -78,6 +81,13 @@ export default class QueryPanel extends tsc<IProps> {
     params: IGetMetricListParams
   ) => Promise<IGetMetricListData>;
   @Prop({ default: false }) hasVariableOperate: boolean;
+  /* 过滤条件维度值获取方法，未传时由条件组件走监控默认接口 */
+  @Prop({ default: null, type: Function }) getValueFn: (
+    params: IGetValueFnParams
+  ) => Promise<IWhereValueOptionsItem>;
+  /* 由外部接管变量创建（如宿主自带变量面板），未传时走监控内置的命名输入面板 */
+  @Prop({ default: null, type: Function }) createVariableFn: (onCreated: (name: string) => void) => void;
+
   handleCreateVariable(val: IVariableModel) {
     this.$emit('createVariable', val);
   }
@@ -114,7 +124,9 @@ export default class QueryPanel extends tsc<IProps> {
     return (
       <div class='template-query-panel-component'>
         <QueryConfigCreator
+          createVariableFn={this.createVariableFn}
           getMetricList={this.getMetricList}
+          getValueFn={this.getValueFn}
           metricFunctions={this.metricFunctions}
           queryConfig={this.queryConfig}
           variables={this.variables}
